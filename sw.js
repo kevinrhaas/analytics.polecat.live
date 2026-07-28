@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v296"; /* v296: LF48 slice 1 — a shared .mode-exit "exit pill"
+var CACHE_NAME = "studio-shell-v297"; /* v297: LF52 — the dashboard item "widget" is renamed to
+   "View" across all user-facing text (builder chrome, inspector, canvas hints, keyboard shortcuts,
+   toasts, Help docs); "Save to widget library" → "Save to View library". Text-only — spec keys,
+   CSS classes, ids and stored data are untouched. app/studio.js, app/index.html, app/tutorial.js,
+   app/versions.js, docs/index.html changed, so precached copies roll.
+   v296: LF48 slice 1 — a shared .mode-exit "exit pill"
    component so Focus mode, Panel-zoom and the Slideshow all leave via the same affordance (icon +
    "Exit …" + Esc, consistent shape). app/studio.js + app/studio.css changed, so precached copies roll.
    v295: LF62 slice 5 — the same ✨ sparkle

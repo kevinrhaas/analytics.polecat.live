@@ -1251,7 +1251,7 @@
     S.spec.panels.push(p);
     select({ kind: "panel", id: p.id });
     refreshPreview();
-    toast("Text widget added — type content in the inspector");
+    toast("Text View added — type content in the inspector");
   }
 
   /* ---------- data-source builder (author CDA queries) ---------- */
@@ -2068,7 +2068,7 @@
 
     $("#inspBack").hidden = !S.selection;
     if (!S.selection) { $("#inspTitle").textContent = "Dashboard"; renderDashboardInspector(body); }
-    else if (S.selection.kind === "panel") { $("#inspTitle").textContent = "Widget"; renderPanelInspector(body); }
+    else if (S.selection.kind === "panel") { $("#inspTitle").textContent = "View"; renderPanelInspector(body); }
     else if (S.selection.kind === "filter") { $("#inspTitle").textContent = "Filter"; renderFilterInspector(body); }
     else if (S.selection.kind === "da") { $("#inspTitle").textContent = "Data Source"; renderDAInspector(body); }
     else if (S.selection.kind === "header") { $("#inspTitle").textContent = "Header"; renderHeaderInspector(body); }
@@ -2135,7 +2135,7 @@
       cl.appendChild(clStep(true, "Library ready", "Your catalog queries are in the left panel — browse or search for your data."));
       // Step 2 is the primary CTA; the action button focuses the library on desktop
       // or opens the library drawer on phone so the user knows exactly where to go.
-      cl.appendChild(clStep(false, "Add a widget to the canvas", "Drag any query from the library onto the canvas to create your first chart.", "Open library", function () {
+      cl.appendChild(clStep(false, "Add a View to the canvas", "Drag any query from the library onto the canvas to create your first chart.", "Open library", function () {
         if (window.innerWidth <= 640) {
           var t = document.getElementById("tabLib"); if (t) t.click();
         } else {
@@ -2182,7 +2182,7 @@
       }
 
       k8.appendChild(k8Tip("gear", "Configure your chart",
-        "Click a widget on the canvas to select it, then choose a chart type and bind your data columns in the inspector."));
+        "Click a View on the canvas to select it, then choose a chart type and bind your data columns in the inspector."));
       k8.appendChild(k8Tip("plus", "Add more panels or KPIs",
         "Drag more queries from the library onto the canvas to expand your dashboard."));
       k8.appendChild(k8Tip("download", "Export when ready",
@@ -2375,7 +2375,7 @@
       renderTvSets();
       tvSec.appendChild(setsWrap);
 
-      tvSec.appendChild(noteEl("info", "Use {{key}} in the dashboard Title/Subtitle above, or in any widget's Title/Note — it's replaced with the matching value here, in both the live preview and every export. A key with no matching variable is left as literal text. Save the rows above as a named set to reuse them on other dashboards."));
+      tvSec.appendChild(noteEl("info", "Use {{key}} in the dashboard Title/Subtitle above, or in any View's Title/Note — it's replaced with the matching value here, in both the live preview and every export. A key with no matching variable is left as literal text. Save the rows above as a named set to reuse them on other dashboards."));
     })();
 
     // Z6: per-dashboard header logo — replaces the default "P" mark in the banner (preview +
@@ -2416,7 +2416,7 @@
     hdrLbl.appendChild(hdrCb); hdrLbl.appendChild(document.createTextNode("Show dashboard header"));
     hdrCb.onchange = function () { if (hdrCb.checked) delete sp.hideHeader; else sp.hideHeader = true; refreshPreview(); };
     sec.appendChild(field("Header", hdrLbl,
-      "Turn off to hide the whole title banner and description — the live preview and the exported HTML then show only the KPIs and widgets, ready to embed in your own page."));
+      "Turn off to hide the whole title banner and description — the live preview and the exported HTML then show only the KPIs and Views, ready to embed in your own page."));
 
     // LF20 (decision locked 2026-07-22): the dashboard's own light/dark used to be a live toggle
     // button INSIDE the exported/preview header — confusing next to the app-level light/dark
@@ -2490,7 +2490,7 @@
     if (sp.dashboardTheme === "custom") {
       if (!sp.customTheme) sp.customTheme = Studio.clone(Studio.DEFAULT_CUSTOM_THEME_SEED);
       var ctWrap = el("div"); ctWrap.className = "ct-editor";
-      var CT_FIELDS = [["bg", "Background"], ["panel", "Widget"], ["text", "Text"], ["brand", "Brand"]];
+      var CT_FIELDS = [["bg", "Background"], ["panel", "View"], ["text", "Text"], ["brand", "Brand"]];
       ["light", "dark"].forEach(function (mode) {
         var modeWrap = el("div"); modeWrap.className = "ct-mode";
         var modeLabel = el("div"); modeLabel.className = "ct-mode-label";
@@ -2737,7 +2737,7 @@
       var ic = (Studio.CHARTS[p.chart.type] || {}).icon || "▭";
       var pTags = p.tags || [];
       var matchesFilter = !_tagFilter || pTags.indexOf(_tagFilter) >= 0;
-      var row = rowItem(ic, p.title || "(widget)", p.chart.type + " · " + p.chart.da + " · span " + p.span,
+      var row = rowItem(ic, p.title || "(View)", p.chart.type + " · " + p.chart.da + " · span " + p.span,
         function () { select({ kind: "panel", id: p.id }); },
         [moveBtn("↑", function () { swap(sp.panels, i, i - 1); }), moveBtn("↓", function () { swap(sp.panels, i, i + 1); }),
          delBtn(function () { sp.panels.splice(i, 1); selectDashboard(); refreshPreview(); })],
@@ -2762,7 +2762,7 @@
   function renderPanelInspector(body) {
     var p = panelById(S.selection.id); if (!p) { selectDashboard(); return; }
     quickHelp(body, "panel");
-    var sec = section(body, "Widget", null, null, null, "cube");
+    var sec = section(body, "View", null, null, null, "cube");
     sec.appendChild(field("Title", input(p.title, function (v) { p.title = v; refreshPreview(); renderListsOnly(); })));
     var spanSel = select2pairs([["1", "1 column"], ["2", "2 columns"], ["3", "3 columns"], ["full", "Full width"]], String(p.span), function (v) { p.span = v === "full" ? "full" : +v; refreshPreview(); });
     sec.appendChild(field("Width (span)", spanSel, "Keys: ↑/↓ reorder · Shift+←/→ resize"));
@@ -2770,13 +2770,13 @@
     sec.appendChild(field("Sub-label", input(p.sub, function (v) { p.sub = v; refreshPreview(); })));
     sec.appendChild(field("Info tooltip", textarea(p.info, function (v) { p.info = v; refreshPreview(); })));
     sec.appendChild(field("Note (visible)", input(p.note || "", function (v) { p.note = v.trim(); refreshPreview(); }),
-      "Short annotation shown below the widget title in the preview and exported dashboard — stakeholder context at a glance"));
+      "Short annotation shown below the View title in the preview and exported dashboard — stakeholder context at a glance"));
     // N-FUN: a first cut of "story / scrollytelling mode" — an optional narrative line
     // shown ONLY in Slideshow (never in the normal preview/export), distinct from the
     // always-visible panel Note above. Turns Slideshow from "cycle through charts" into
     // "present findings" — one sentence of context per beat, read aloud or on-screen.
     sec.appendChild(field("Slide caption", textarea(p.slideCaption || "", function (v) { p.slideCaption = v.trim(); }),
-      "Narration shown only in Slideshow mode (⋯ More → Slideshow) — tell the story of this widget, one beat at a time"));
+      "Narration shown only in Slideshow mode (⋯ More → Slideshow) — tell the story of this View, one beat at a time"));
     // N-FUN: per-step "zoom/highlight" choreography (v272) — a per-panel toggle that plays
     // a brief zoom+glow entrance when this slide appears in Slideshow, so the story can draw
     // the eye to the beat that matters. Slideshow-only, like Slide caption above; the normal
@@ -2790,7 +2790,7 @@
       zoomLbl.appendChild(zoomCb); zoomLbl.appendChild(document.createTextNode("Emphasize this slide"));
       zoomRow.appendChild(zoomLbl);
       sec.appendChild(field("Slide emphasis", zoomRow,
-        "Plays a brief zoom + glow entrance when this widget's slide appears in Slideshow — draws the eye to the moment that matters"));
+        "Plays a brief zoom + glow entrance when this View's slide appears in Slideshow — draws the eye to the moment that matters"));
       // N-FUN: per-step "pan" (closes the "pan remains open" note from v272) — the zoom's
       // transform-origin defaults to dead center; these two sliders let it anchor toward a
       // specific spot in the chart instead, so the entrance reads as pushing IN on that region
@@ -2853,7 +2853,7 @@
     var embedRow = el("div"); embedRow.style.cssText = "display:flex;gap:8px;margin-top:6px";
     var embedBtn = el("button", "btn-wide"); setIconBtn(embedBtn, "code", "Export this panel…"); embedBtn.onclick = function () { exportPanelEmbed(p); };
     embedRow.appendChild(embedBtn); sec.appendChild(embedRow);
-    sec.appendChild(noteEl("info", "Downloads a tiny, self-contained HTML file with just this one widget — you can drop it anywhere, no server or the rest of the dashboard needed."));
+    sec.appendChild(noteEl("info", "Downloads a tiny, self-contained HTML file with just this one View — you can drop it anywhere, no server or the rest of the dashboard needed."));
     var pngRow = el("div"); pngRow.style.cssText = "display:flex;gap:8px;margin-top:6px";
     var pngBtn = el("button", "btn-wide"); setIconBtn(pngBtn, "image", "Save chart as PNG"); pngBtn.onclick = function () { exportPanelPng(p); };
     pngRow.appendChild(pngBtn); sec.appendChild(pngRow);
@@ -2865,9 +2865,9 @@
     // guard the smart-recommender strip above already uses.
     if (p.chart.da && p.chart.type !== "richtext") {
       var libRow = el("div"); libRow.style.cssText = "display:flex;gap:8px;margin-top:6px";
-      var libBtn = el("button", "btn-wide"); setIconBtn(libBtn, "save", "Save to widget library"); libBtn.onclick = function () { saveWidgetToLibrary(p); };
+      var libBtn = el("button", "btn-wide"); setIconBtn(libBtn, "save", "Save to View library"); libBtn.onclick = function () { saveWidgetToLibrary(p); };
       libRow.appendChild(libBtn); sec.appendChild(libRow);
-      sec.appendChild(noteEl("info", "Saves a self-contained snapshot of this widget as a reusable analysis in the library — drag it into any dashboard from the rail's Analyses group, or open it from Explore."));
+      sec.appendChild(noteEl("info", "Saves a self-contained snapshot of this View as a reusable analysis in the library — drag it into any dashboard from the rail's Analyses group, or open it from Explore."));
     }
 
     // chart type picker — grouped by c.group for scannability (Content group = richtext/annotation)
@@ -3708,7 +3708,7 @@
     var span = el("span"); span.textContent = text;
     box.appendChild(span);
     sec.appendChild(box);
-    sec.appendChild(noteEl("info", "Auto-generated from this widget's own sample data (offline, no API) — a quick read on trend, the biggest single move, and any outlier."));
+    sec.appendChild(noteEl("info", "Auto-generated from this View's own sample data (offline, no API) — a quick read on trend, the biggest single move, and any outlier."));
     // N-AI: "auto-placed callout markers on the notable points" — one click drops the
     // existing Callout arrow overlay (see below) right on the outlier/biggest-move point
     // this narration just called out, instead of the user having to eyeball x%/y% sliders.
@@ -4965,7 +4965,7 @@
       highlightPreview();
       var n = (S.spec.panels || []).length, k = (S.spec.kpis || []).length;
       var dataLabel = S.demoMode ? " · demo LIVE" : " · sample data";
-      $("#previewStatus").textContent = n + " widget" + (n === 1 ? "" : "s") + (k ? " · " + k + " KPI" + (k === 1 ? "" : "s") : "") + dataLabel;
+      $("#previewStatus").textContent = n + " View" + (n === 1 ? "" : "s") + (k ? " · " + k + " KPI" + (k === 1 ? "" : "s") : "") + dataLabel;
     };
     ifr.srcdoc = html;
     snapshot();
@@ -5943,7 +5943,7 @@
           d = Studio.Workspace.put("datasets", d);
           var built = quickBuildDashboard(d, profile);
           toast("Imported " + name + " — built a dashboard with " + built.kpiCount + " KPI" + (built.kpiCount !== 1 ? "s" : "") +
-            " + " + built.panelCount + " widget" + (built.panelCount !== 1 ? "s" : "") + " (" + built.kinds.join(", ") + "). Opening in Studio…");
+            " + " + built.panelCount + " View" + (built.panelCount !== 1 ? "s" : "") + " (" + built.kinds.join(", ") + "). Opening in Studio…");
         });
       }
       // LF61: exposed the same way as quickBuildDashboard above, so the Studio
@@ -8556,11 +8556,11 @@
   // dashboard being edited or deleted later.
   function saveWidgetToLibrary(p) {
     var da = Studio.daById(S.spec, p.chart.da);
-    if (!da) { toast("This widget has no data to save", true); return; }
-    var name = window.prompt("Save to widget library as:", p.title || "Untitled widget");
+    if (!da) { toast("This View has no data to save", true); return; }
+    var name = window.prompt("Save to View library as:", p.title || "Untitled View");
     if (name === null) return;
     name = name.trim();
-    if (!name) { toast("Give the widget a name first", true); return; }
+    if (!name) { toast("Give the View a name first", true); return; }
     var row = {
       name: name,
       datasetId: da.datasetId || null,
@@ -8571,7 +8571,7 @@
       pinned: false
     };
     Studio.Workspace.put("analyses", row);
-    toast("Saved “" + name + "” to the widget library");
+    toast("Saved “" + name + "” to the View library");
     buildLibrary();
   }
   // N-DIST: embeddable single-chart widget — reuses the full CDF exporter on a spec pared
@@ -8582,11 +8582,11 @@
     single.panels = [Studio.clone(p)];
     single.kpis = []; single.filters = [];
     single.title = p.title || S.spec.title; single.description = "";
-    var stem = (p.title || "widget").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "widget";
+    var stem = (p.title || "view").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "view";
     single.name = stem;
     celebrateFirstExport();
     bumpExportMilestone();
-    bundleModal("Embed widget", [{ name: stem + "-embed.html", body: Studio.exportCDF(single, S.assets, S.settings.deployPath), mime: "text/html" }]);
+    bundleModal("Embed View", [{ name: stem + "-embed.html", body: Studio.exportCDF(single, S.assets, S.settings.deployPath), mime: "text/html" }]);
   }
   // N-DIST: client-side PNG export of a chart — first cut of "Client-side PNG/PDF export of a whole
   // dashboard" (the SVG-chart half; legend/title/table chart types are a separate follow-up).
@@ -8679,7 +8679,7 @@
 
     // Overlay
     var ov = document.createElement("div"); ov.className = "pz-overlay"; ov.id = "pzOverlay";
-    var ifr = document.createElement("iframe"); ifr.className = "pz-frame"; ifr.title = "Widget zoom: " + (p.title || "Widget");
+    var ifr = document.createElement("iframe"); ifr.className = "pz-frame"; ifr.title = "View zoom: " + (p.title || "View");
     var closeBtn = document.createElement("button"); closeBtn.className = "mode-exit pz-close"; closeBtn.setAttribute("aria-label", "Exit zoom (Esc)");
     closeBtn.appendChild(Studio.icon("close", 14)); closeBtn.appendChild(document.createTextNode(" Exit zoom"));
     ov.appendChild(ifr); ov.appendChild(closeBtn); document.body.appendChild(ov);
@@ -8795,7 +8795,7 @@
     function showSlide(idx) {
       var p = _ssPanels[idx]; if (!p) return;
       _ssIdx = idx;
-      titleEl.textContent = p.title || ("Widget " + (idx + 1));
+      titleEl.textContent = p.title || ("View " + (idx + 1));
       counter.textContent = (idx + 1) + " / " + _ssPanels.length;
       prevBtn.disabled = (idx === 0);
       nextBtn.disabled = (idx === _ssPanels.length - 1);
@@ -8933,20 +8933,20 @@
         ["Ctrl / ⌘  +  K", "Open the command palette"],
         ["Ctrl / ⌘  +  Z", "Undo"],
         ["Ctrl / ⌘  +  Shift+Z", "Redo"],
-        ["Ctrl / ⌘  +  D", "Duplicate selected widget or KPI"],
+        ["Ctrl / ⌘  +  D", "Duplicate selected View or KPI"],
         ["Ctrl / ⌘  +  S", "Save to your Dashboards catalog"],
         ["Ctrl / ⌘  +  F", "Focus library search (filter queries)"],
-        ["/", "Focus chart-type gallery search (widget selected)"],
-        ["↑ / ↓   (widget selected)", "Reorder widget up / down"],
-        ["Shift + ← / →   (widget selected)", "Decrease / increase widget span"],
-        ["Delete / Backspace   (widget selected)", "Delete selected widget or KPI"],
-        ["Escape   (widget selected)", "Deselect — return to dashboard inspector"],
+        ["/", "Focus chart-type gallery search (View selected)"],
+        ["↑ / ↓   (View selected)", "Reorder View up / down"],
+        ["Shift + ← / →   (View selected)", "Decrease / increase View span"],
+        ["Delete / Backspace   (View selected)", "Delete selected View or KPI"],
+        ["Escape   (View selected)", "Deselect — return to dashboard inspector"],
         ["Escape   (Focus mode)", "Exit Focus mode — return to builder"],
-        ["↗ button on widget", "Zoom widget to full screen (Escape to close)"],
+        ["↗ button on View", "Zoom View to full screen (Escape to close)"],
         ["?", "Show this keyboard shortcuts panel"],
         ["Escape", "Close modal or dropdown menu"],
         ["Tab", "Navigate interactive controls"],
-        ["Double-click widget title", "Rename widget inline"]
+        ["Double-click View title", "Rename View inline"]
       ];
       var tbl = el("table"); tbl.style.cssText = "border-collapse:collapse;width:100%;font-size:13px";
       rows.forEach(function (r) {
@@ -10168,13 +10168,13 @@
      across selection changes within the same session. */
   var QUICK_HELP = {
     dashboard: [
-      "Drag a query from the library onto the canvas to add a chart widget.",
+      "Drag a query from the library onto the canvas to add a chart View.",
       "Use New ▾ → Auto-build to scaffold a full starter dashboard instantly.",
       "Export ▾ → Dashboard (.html) gives a standalone file you can open in any browser."
     ],
     panel: [
       "Pick a chart type from the gallery, then bind the data columns below.",
-      "Press Shift+←/→ to resize the widget span; ↑/↓ to reorder it on the canvas.",
+      "Press Shift+←/→ to resize the View span; ↑/↓ to reorder it on the canvas.",
       "Advanced inspector sections (annotations, drill-through, etc.) are just below the options."
     ],
     kpi: [
@@ -10194,7 +10194,7 @@
     ],
     header: [
       "Click the title/subtitle text directly on the canvas to edit it in place.",
-      "The ✕ on the header hides the whole banner — handy for embedding just the widgets.",
+      "The ✕ on the header hides the whole banner — handy for embedding just the Views.",
       "Logo, link, and light/dark are set from the Dashboard panel (click '‹ Dashboard' above)."
     ]
   };

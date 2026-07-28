@@ -116,6 +116,25 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF52 — the dashboard item "widget" is now called a "View" app-wide (#91, v660, sw v297, 2026-07-28,
+  steward — final step-4 item of the LOCKED BUILD ORDER; Kevin's explicit terminology decision):**
+  the thing you drop on a dashboard (chart / KPI / map / text block) is now consistently a **"View"**
+  in every user-facing surface — the inspector section title ("Widget" → "View"), the canvas drop
+  hint and "Add a text …" button, the preview status line ("N Views"), Slideshow/annotation copy, the
+  keyboard-shortcuts help, the Embed/library actions ("Save to widget library" → "Save to View
+  library"), and the whole Studio section of the in-app Help. Text-only rename applied via an
+  auditable whitelist script (each replacement count-guarded): **spec keys (`spec.panels`), the
+  documented JSON key literal `<code>widgets</code>`, CSS classes (`.widget-*`), DOM ids, internal
+  identifiers (`saveWidgetToLibrary`, `panelKind`), and all stored localStorage data are deliberately
+  UNTOUCHED** — so existing saved dashboards, exports, and the byte-identical preview⇄export contract
+  are unaffected. "View" is capitalized as a defined product term (like "KPI"), matching the direction
+  the steward's LF62 slices already set ("Name this analysis (View)"). Deferred: the internal
+  identifier rename and the planned top-level **Views** rail section (#57/LF57) are separate later
+  work — this slice is the user-facing vocabulary only. Tests: the M2b terminology probe now asserts
+  "View" (inspector title, drop hint, text button, status line, no widget/panel wording); inspector
+  section-order arrays, the Embed/Save-to-library assertions, and the Quick-import toast count updated
+  to match. Files: app/studio.js, app/index.html, app/tutorial.js, app/versions.js, docs/index.html,
+  tests/run.js, sw.js, js/changelog.js.
 - **LF48 (slice 1) — uniform exit affordance across immersive modes (#127, v659, sw v296, 2026-07-28,
   steward — step 4 of the LOCKED BUILD ORDER):** LF48's clearest, least-design-latitude half — the
   "uniform exit." Focus mode (`.focus-exit`), Panel-zoom (`.pz-close`) and the Slideshow (`.ss-close`)

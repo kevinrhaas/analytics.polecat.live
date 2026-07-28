@@ -158,7 +158,7 @@
       ta.style.cssText = "width:100%;min-height:70px;resize:vertical;box-sizing:border-box";
       body.appendChild(D.field("Note", ta));
       var spec = D.getSpec();
-      var targetOpts = [["", "General note (not tied to a widget)"]].concat(
+      var targetOpts = [["", "General note (not tied to a View)"]].concat(
         ((spec && spec.panels) || []).map(function (p) { return [p.id, "Panel: " + (p.title || p.id)]; }));
       body.appendChild(D.field("Pin to", D.select2pairs(targetOpts, draft.panelId, function (v) { draft.panelId = v; })));
       var saveBtn = D.el("button", "btn btn-primary"); saveBtn.style.cssText = "width:100%;justify-content:center;margin-top:8px";
@@ -321,7 +321,7 @@
     var noteList = (loadCanvasNotes()[sp.id] || []);
     var noteSec = D.section(body, "Builder notes" + (noteList.length ? " (" + noteList.length + ")" : ""), function () { openNoteEditor(null); }, null, "builder", "edit");
     if (!noteList.length) {
-      noteSec.appendChild(D.hint("Pin a small colored note to a widget, or add a general one — for your own reference or team review while building. Never exported, never leaves this browser."));
+      noteSec.appendChild(D.hint("Pin a small colored note to a View, or add a general one — for your own reference or team review while building. Never exported, never leaves this browser."));
     } else {
       noteList.forEach(function (n) {
         var panel = n.panelId ? D.panelById(n.panelId) : null;

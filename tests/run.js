@@ -1754,7 +1754,7 @@ function serve() {
       qiAfter.onStudio && qiAfter.kpis.length === 1 && qiAfter.kpis[0].valueCol === "revenue" &&
       qiAfter.panelTypes.join(",") === "bars,table,treemap" && qiAfter.daCount === 4 &&
       qiAfter.barsPanel && qiAfter.barsPanel.labelCol === "category" && qiAfter.barsPanel.valueCol === "revenue" &&
-      /built a dashboard/.test(qiAfter.toastText) && /1 KPI/.test(qiAfter.toastText) && /3 widgets/.test(qiAfter.toastText),
+      /built a dashboard/.test(qiAfter.toastText) && /1 KPI/.test(qiAfter.toastText) && /3 Views/.test(qiAfter.toastText),
       JSON.stringify(qiAfter));
     fs.unlinkSync(qiFixture);
     await page.evaluate(function () {
@@ -3491,7 +3491,7 @@ function serve() {
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(200);
 
-    // ---- M2b: the thing inside a dashboard is a "Widget" (was "Panel") ------
+    // ---- M2b: the thing inside a dashboard is a "View" (was "Panel", then "Widget") ------
     console.log("\n• M2b: panel → widget terminology (UI text only)");
     const m2bUi = await page.evaluate(function () {
       // load the flagship so there's a widget to select
@@ -3512,9 +3512,9 @@ function serve() {
       out.status = (document.getElementById("previewStatus") || {}).textContent || "";
       return out;
     });
-    ok("M2b: the dashboard item reads 'Widget' in the interface — inspector title, canvas drop hint, text button, and status line (no 'panel' wording)",
-      m2bUi.inspTitle === "Widget" && /add a widget/i.test(m2bUi.dropHint) && /text widget/i.test(m2bUi.textBtn) &&
-      !/\bpanel/i.test(m2bUi.status), JSON.stringify(m2bUi));
+    ok("M2b: the dashboard item reads 'View' in the interface — inspector title, canvas drop hint, text button, and status line (no 'panel'/'widget' wording)",
+      m2bUi.inspTitle === "View" && /add a view/i.test(m2bUi.dropHint) && /text view/i.test(m2bUi.textBtn) &&
+      !/\bpanel/i.test(m2bUi.status) && !/\bwidget/i.test(m2bUi.status), JSON.stringify(m2bUi));
     ok("#119 (live QA): the widget inspector's data-source field is labeled 'Dataset', not the old 'Query (data access)'",
       m2bUi.hasDatasetLabel === true && m2bUi.hasOldQueryLabel === false, JSON.stringify(m2bUi));
     (function () {
@@ -8717,7 +8717,7 @@ function serve() {
     const pv = page.frames().find((f) => f !== page.mainFrame());
     await pv.locator("#content .card").first().click();
     await page.waitForTimeout(200);
-    ok("clicking a widget opens the Widget inspector", (await page.$eval("#inspTitle", (e) => e.textContent)) === "Widget");
+    ok("clicking a View opens the View inspector", (await page.$eval("#inspTitle", (e) => e.textContent)) === "View");
     const gallery = await page.evaluate(() => {
       var tiles = [].slice.call(document.querySelectorAll("#inspBody .chart-opt"));
       return { tiles: tiles.length, withSvg: tiles.filter(function (t) { return t.querySelector(".ic svg"); }).length };
@@ -9778,7 +9778,7 @@ function serve() {
     });
     await page.evaluate(() => { document.querySelectorAll(".modal-ov").forEach((m) => m.remove()); });
     ok("N-DIST: panel inspector has an 'Export this panel…' action", embedTest.found, JSON.stringify(embedTest));
-    ok("N-DIST: it opens a single-file 'Embed widget' modal for a self-contained .html", embedTest.rowCount === 1 && embedTest.isHtml && /Embed widget/.test(embedTest.modalTitle), JSON.stringify(embedTest));
+    ok("N-DIST: it opens a single-file 'Embed View' modal for a self-contained .html", embedTest.rowCount === 1 && embedTest.isHtml && /Embed View/.test(embedTest.modalTitle), JSON.stringify(embedTest));
     ok("N-DIST: the exported single-panel HTML contains only that panel's chart type, no KPIs, and no other panel", embedTest.hasThisPanelType && embedTest.excludesOtherPanel && embedTest.noKpis, JSON.stringify(embedTest));
 
     // ---- N-DIST: client-side PNG export of a chart (first cut of "PNG/PDF export of a whole
@@ -9910,7 +9910,7 @@ function serve() {
       dlMenuToggle.reopened && dlMenuToggle.closedAfterEscape, JSON.stringify(dlMenuToggle));
 
     // LF25a: the on-panel "Export as HTML" button is preview/builder-only chrome — clicking it
-    // posts panel-export-embed to the parent, which opens the SAME "Embed widget" modal as the
+    // posts panel-export-embed to the parent, which opens the SAME "Embed View" modal as the
     // Inspector's own "Export this panel…" action (one mechanism, two entry points).
     const dlEmbedClick = await pvDl.evaluate(function (panelId) {
       var card = document.querySelector('[data-panel-id="' + panelId + '"]');
@@ -9924,8 +9924,8 @@ function serve() {
       return { title: document.querySelector(".modal-h") ? document.querySelector(".modal-h").textContent : "" };
     });
     await page.evaluate(() => { document.querySelectorAll(".modal-ov").forEach((m) => m.remove()); });
-    ok("LF25a: clicking the on-panel 'Export as HTML' button opens the 'Embed widget' modal",
-      dlEmbedClick.found && /Embed widget/.test(dlEmbedModal.title), JSON.stringify({ dlEmbedClick, dlEmbedModal }));
+    ok("LF25a: clicking the on-panel 'Export as HTML' button opens the 'Embed View' modal",
+      dlEmbedClick.found && /Embed View/.test(dlEmbedModal.title), JSON.stringify({ dlEmbedClick, dlEmbedModal }));
     const dlPng = await pvDl.evaluate(function (panelId) {
       return new Promise(function (resolve) { window.__downloadPanelPngDataUrl(panelId, resolve); });
     }, dlBars.id);
@@ -10135,18 +10135,18 @@ function serve() {
     });
     await page.waitForTimeout(150);
 
-    // ---- LF25(c): "Save to widget library" from a selected Studio panel ----
-    console.log("\n• LF25(c): Save to widget library");
+    // ---- LF25(c): "Save to View library" from a selected Studio panel ----
+    console.log("\n• LF25(c): Save to View library");
     // Richtext has no bound query — the button must not appear at all.
     const libRichtext = await page.evaluate(function () {
       var sp = window.__STUDIO_STATE.spec;
       var p = sp.panels[0]; p.chart = { type: "richtext", opts: { text: "hi" } };
       window.__studioLoad(sp);
       window.__studioSelect({ kind: "panel", id: p.id });
-      var btn = [].slice.call(document.querySelectorAll("#inspBody .btn-wide")).filter(function (b) { return /Save to widget library/.test(b.textContent); })[0];
+      var btn = [].slice.call(document.querySelectorAll("#inspBody .btn-wide")).filter(function (b) { return /Save to View library/.test(b.textContent); })[0];
       return { found: !!btn };
     });
-    ok("LF25(c): a richtext (no bound query) panel has no 'Save to widget library' action", !libRichtext.found, JSON.stringify(libRichtext));
+    ok("LF25(c): a richtext (no bound query) panel has no 'Save to View library' action", !libRichtext.found, JSON.stringify(libRichtext));
 
     // A real bars widget: the button is present, and clicking it (with window.prompt stubbed)
     // writes a new self-contained "analyses" row via the same Studio.Workspace table Explore's
@@ -10160,7 +10160,7 @@ function serve() {
       window.__studioSelect({ kind: "panel", id: p.id });
       var before = Studio.Workspace.all("analyses").length;
       window.prompt = function () { return "  LF25c widget  "; };
-      var btn = [].slice.call(document.querySelectorAll("#inspBody .btn-wide")).filter(function (b) { return /Save to widget library/.test(b.textContent); })[0];
+      var btn = [].slice.call(document.querySelectorAll("#inspBody .btn-wide")).filter(function (b) { return /Save to View library/.test(b.textContent); })[0];
       if (!btn) return { found: false };
       btn.click();
       var rows = Studio.Workspace.all("analyses").filter(function (a) { return a.name === "LF25c widget"; });
@@ -10171,7 +10171,7 @@ function serve() {
         toastText: toastText
       };
     });
-    ok("LF25(c): panel inspector has a 'Save to widget library' action for a data-bound widget", libSave.found, JSON.stringify(libSave));
+    ok("LF25(c): panel inspector has a 'Save to View library' action for a data-bound widget", libSave.found, JSON.stringify(libSave));
     ok("LF25(c): clicking it writes exactly one new 'analyses' row, name trimmed, chart type carried, and da is an independent clone (not the same reference)",
       libSave.afterCount === libSave.before + 1 && !!libSave.row && libSave.row.name === "LF25c widget" &&
       libSave.row.chartType === "bars" && libSave.row.sameDaRef === false, JSON.stringify(libSave));
@@ -10201,7 +10201,7 @@ function serve() {
       window.__studioSelect({ kind: "panel", id: p.id });
       var before = Studio.Workspace.all("analyses").length;
       window.prompt = function () { return "   "; };
-      var btn = [].slice.call(document.querySelectorAll("#inspBody .btn-wide")).filter(function (b) { return /Save to widget library/.test(b.textContent); })[0];
+      var btn = [].slice.call(document.querySelectorAll("#inspBody .btn-wide")).filter(function (b) { return /Save to View library/.test(b.textContent); })[0];
       btn.click();
       return { unchanged: Studio.Workspace.all("analyses").length === before, toastText: (document.getElementById("toast") || {}).textContent || "" };
     });
@@ -10215,7 +10215,7 @@ function serve() {
       window.__studioSelect({ kind: "panel", id: p.id });
       var before = Studio.Workspace.all("analyses").length;
       window.prompt = function () { return null; };
-      var btn = [].slice.call(document.querySelectorAll("#inspBody .btn-wide")).filter(function (b) { return /Save to widget library/.test(b.textContent); })[0];
+      var btn = [].slice.call(document.querySelectorAll("#inspBody .btn-wide")).filter(function (b) { return /Save to View library/.test(b.textContent); })[0];
       btn.click();
       return { unchanged: Studio.Workspace.all("analyses").length === before };
     });
@@ -12417,7 +12417,7 @@ function serve() {
       p.chart.type = "bars"; // a type that exercises every non-richtext, non-scatter-only section
       window.__studioLoad(sp);
       window.__studioSelect({ kind: "panel", id: p.id });
-      var barTitles = ["Widget", "Chart type", "Data", "Options", "Drill-through", "Detail drawer",
+      var barTitles = ["View", "Chart type", "Data", "Options", "Drill-through", "Detail drawer",
         "Cross-filter", "Animation", "Downloads", "Target line", "Reference band", "Callout arrow",
         "Period highlight", "Event markers", "Conditional formatting", "Color scale", "Insight", "Query preview"];
       var bar = iconsFor(barTitles);
@@ -12598,7 +12598,7 @@ function serve() {
           return h4 && h4.textContent.replace(/\s*\(\d+\)\s*$/, "").trim() === title;
         })[0];
       }
-      var coreTitles = ["Widget", "Chart type", "Data", "Options"];
+      var coreTitles = ["View", "Chart type", "Data", "Options"];
       var coreOpen = coreTitles.every(function (t) { var s = secFor(t); return s && !s.classList.contains("sec-collapsed"); });
       // Only actual advSection() call sites belong here — Animation/Downloads/Insight/Query
       // preview render via plain section() (not gated behind Advanced/Simple mode at all),
@@ -16998,7 +16998,7 @@ function serve() {
         var secs = [].slice.call(document.querySelectorAll("#inspBody .insp-sec"));
         var panelSec = secs.find(function (s) {
           var h = s.querySelector("h4");
-          return h && h.textContent.indexOf("Widget") === 0;
+          return h && h.textContent.indexOf("View") === 0;
         });
         if (!panelSec) return { found: false, secTitles: secs.map(function(s){var h=s.querySelector("h4");return h?h.textContent:"";}) };
         var fields = [].slice.call(panelSec.querySelectorAll(".field label"));

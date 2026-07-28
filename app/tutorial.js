@@ -98,8 +98,8 @@
         },
         {
           t: "Dashboards — the finished thing",
-          h: "A dashboard is built from <b>widgets</b> — each widget shows one chart, KPI, map, or block of text. Arrange several into a page, feature it on Home, and export it as a self-contained file.",
-          sub: "A saved Explore analysis drops straight onto a dashboard as a widget.",
+          h: "A dashboard is built from <b>Views</b> — each View shows one chart, KPI, map, or block of text. Arrange several into a page, feature it on Home, and export it as a self-contained file.",
+          sub: "A saved Explore analysis drops straight onto a dashboard as a View.",
           target: '.rail-item[data-sec="dashboards"]',
           pos: "right"
         },
@@ -129,7 +129,7 @@
         },
         {
           t: "Studio — the builder",
-          h: "Where you assemble a dashboard: drag data in, tune each widget in the inspector, and watch the real dashboard render live. Export a file that runs anywhere when you're done.",
+          h: "Where you assemble a dashboard: drag data in, tune each View in the inspector, and watch the real dashboard render live. Export a file that runs anywhere when you're done.",
           target: '.rail-item[data-sec="studio"]',
           pos: "right"
         },
@@ -183,7 +183,7 @@
         },
         {
           t: "5 · Name it, save it",
-          h: "Give it a name and <b>Save analysis</b>. Saved analyses are reusable everywhere: ★ pins one to <b>Home</b> as a live widget; ▦ drops it into the current dashboard as a panel.",
+          h: "Give it a name and <b>Save analysis</b>. Saved analyses are reusable everywhere: ★ pins one to <b>Home</b> as a live View; ▦ drops it into the current dashboard as a panel.",
           target: ".xp-savebar",
           pos: "top"
         },
