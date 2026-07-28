@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v280"; /* v280: the Studio widget + KPI editor's data-source field
+var CACHE_NAME = "studio-shell-v281"; /* v281: the DA inspector's Cache section (Enabled + Duration)
+   now renders only for a data access with a live query path (connection or direct file/warehouse
+   engine) — hidden for sample/authored SQL DAs where the cache never did anything (#121, Kevin live
+   QA). app/studio.js changed, so precached copies roll.
+   v280: the Studio widget + KPI editor's data-source field
    now reads "Dataset" instead of "Query (data access)" (#119, Kevin live QA). app/studio.js
    changed, so precached copies roll.
    v279: UX sweep 2026-07-28 #1 — added a phone-reachable

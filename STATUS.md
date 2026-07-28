@@ -116,6 +116,21 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **DA inspector: the Cache section only shows where it does something (#121, v644, sw v281,
+  2026-07-28, steward):** Kevin, live QA — "does this cache thing work or is it a leftover cda
+  thing?" History: `da.cache`/`da.cacheDuration` began as a stored-but-unread leftover from the
+  retired Pentaho CDA server, later wired to an in-memory, page-lifetime cache
+  (`daCacheGet`/`daCacheSet`) that saves an AUTOMATIC re-query when a DA inspector is reopened
+  within the window — but only for a DA with a real live query path. A sample/authored DA (demo
+  packs; a bare `kind:"sql"` DA with no connection) only ever renders sample data, so the Cache
+  controls did nothing there. Fix: extracted `daHasLivePath(da)` (bound to a workspace
+  `connectionId`, or one of duckdb/httpvfs/snowflake/databricks/bigquery/http) as the single source
+  of truth for BOTH the preview's existing "Run live" button and the Cache section's visibility, and
+  gated the Cache `section()` on it. UI-only — the cache logic, the stored fields, and every live
+  path are untouched; a real connector-backed DA still shows and honors Cache exactly as before.
+  Test: the Cache section (its "Duration (seconds)" field) + "Run live" button both show for the
+  duckdb `s3Sales` DA and are both absent for a bare authored `kind:"sql"` DA with no connection.
+  Files: app/studio.js, tests/run.js, sw.js, js/changelog.js.
 - **Panel editor: the data-source field reads "Dataset", not "Query (data access)" (#119, v643,
   sw v280, 2026-07-28, steward):** Kevin, live QA — in the widget (panel) editor, "the thing on
   data you should call this dataset not query." Renamed the `field("Query (data access)", …)` label
