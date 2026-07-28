@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 664,
+    title: 'Sparkle name-suggest button now on the Folder field too',
+    kind: 'polish',
+    ts: '2026-07-28T14:31:49.000Z',
+    items: [
+      'The ✨ suggest-a-name button now also sits next to the "Folder" field on the dataset, connection and job editors — a dataset or job suggests the folder its connection/source dataset is already filed under, and a connection (with nothing upstream to reuse) suggests its first Tag instead.',
+    ],
+  },
+  {
     v: 663,
     title: 'Sparkle name-suggest button now on preset name fields too',
     kind: 'polish',
