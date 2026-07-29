@@ -27,7 +27,7 @@
   // glyph (P / ◈ / ▥ / ⤓ / ⚙) into the header text — full-color-font glyphs,
   // the same fleet "single-color currentColor icons" miss the rest of UX6 has
   // been closing elsewhere. `ic` now names a Studio.icon() registry icon instead.
-  var STEPS = [
+  var BASE_STEPS = [
     { t: "Welcome to Analytics", ic: "home",
       h: "A modern, visual way to turn your data into <b>quick analyses</b> and <b>interactive dashboards</b> — entirely in your browser, local-first, nothing to install.",
       s: "Your work saves to this device and can mirror to your own backend. Everything also works offline on sample data." },
@@ -52,6 +52,40 @@
     { qa: "studio", ic: "grid", t: "Build a dashboard" },
     { qa: "connections", ic: "gear", t: "Bring your data" }
   ];
+
+  // LF40 (pack-aware tour engine): the carousel is no longer a fixed array. At open() time it's
+  // computed from BASE_STEPS PLUS one "curated content" step per INSTALLED sample pack — so a user
+  // whose workspace was provisioned with (say) the Conservation Insight pack is told, right in the
+  // welcome flow, what curated dashboards & datasets they already have and where to find them. The
+  // pack step reuses the pack's own name/tagline/blurb from demopacks.js (no hardcoded copy), so any
+  // future pack contributes its own step automatically. `steps` is the live array render() walks.
+  function installedPacks() {
+    var packs = Studio.DEMO_PACKS || {};
+    if (!Studio.demoPackInstalled) return [];
+    return Object.keys(packs)
+      .filter(function (id) { return Studio.demoPackInstalled(id); })
+      .map(function (id) { return { id: id, pack: packs[id] }; });
+  }
+  function packStep(entry) {
+    var p = entry.pack || {}, esc = Studio.escapeHtml;
+    return {
+      t: p.name || "Sample pack", ic: "globe", packId: entry.id,
+      h: "Your workspace comes with the <b>" + esc(p.name || "sample pack") + "</b> sample pack — " +
+        esc(p.tagline || p.blurb || "curated dashboards and datasets, ready to explore") + ".",
+      s: "Its dashboards are on <b>Home</b> and in <b>Dashboards</b>; any datasets, connections and jobs " +
+        "it adds are in the workspace. Install or remove packs anytime from <b>Settings → Sample packs</b>."
+    };
+  }
+  // BASE_STEPS with a pack step spliced in right after the "Welcome" intro (index 0), so a
+  // provisioned user meets their curated content before the generic feature walk.
+  function computeSteps() {
+    var packs = installedPacks();
+    if (!packs.length) return BASE_STEPS.slice();
+    return BASE_STEPS.slice(0, 1).concat(packs.map(packStep)).concat(BASE_STEPS.slice(1));
+  }
+  var steps = BASE_STEPS;
+  // test hook: the computed step titles for the current install state (LF40 pack-aware engine).
+  W.computeStepTitles = function () { return computeSteps().map(function (s) { return s.t; }); };
 
   function injectStyle() {
     if (document.getElementById("sw-style")) return;
@@ -175,18 +209,18 @@
   function render(i) {
     if (i === -1) { renderHero(); return; }
     var ov = document.getElementById("studio-welcome"); if (!ov) return;
-    var step = STEPS[i];
+    var step = steps[i];
     ov.querySelector(".sw").innerHTML =
       '<div class="sw-hd"><div class="sw-ic" data-ic="' + step.ic + '"></div><h1>' + step.t + "</h1></div>" +
       '<div class="sw-bd">' + step.h + '<div class="sw-sub">' + step.s + "</div>" +
-      '<div class="sw-dots">' + STEPS.map(function (_, j) { return '<i class="' + (j === i ? "on" : "") + '"></i>'; }).join("") + "</div></div>" +
+      '<div class="sw-dots">' + steps.map(function (_, j) { return '<i class="' + (j === i ? "on" : "") + '"></i>'; }).join("") + "</div></div>" +
       '<div class="sw-ft"><button class="sw-skip">Skip</button><span class="sp"></span>' +
       '<button class="b" data-act="back">Back</button>' +
-      (i === STEPS.length - 1 ? '<button class="b" data-act="tour">Take the guided tour</button>' : "") +
-      '<button class="b pri" data-act="next">' + (i === STEPS.length - 1 ? "Get started" : "Next") + "</button></div>";
+      (i === steps.length - 1 ? '<button class="b" data-act="tour">Take the guided tour</button>' : "") +
+      '<button class="b pri" data-act="next">' + (i === steps.length - 1 ? "Get started" : "Next") + "</button></div>";
     ov.querySelector(".sw-ic").appendChild(Studio.icon(step.ic, 26));
     ov.querySelector(".sw-skip").onclick = close;
-    var nx = ov.querySelector('[data-act="next"]'); if (nx) nx.onclick = function () { i === STEPS.length - 1 ? close() : render(i + 1); };
+    var nx = ov.querySelector('[data-act="next"]'); if (nx) nx.onclick = function () { i === steps.length - 1 ? close() : render(i + 1); };
     var tr = ov.querySelector('[data-act="tour"]'); if (tr) tr.onclick = function () { close(); if (window.StudioTutorial) StudioTutorial.open(); };
     // Back from step 0 now returns to the hero screen (index -1) instead of being
     // hidden, so "start over" is reachable from anywhere in the carousel.
@@ -229,6 +263,7 @@
     ov.setAttribute("role", "dialog"); ov.setAttribute("aria-modal", "true"); ov.setAttribute("aria-label", "Welcome to Analytics");
     ov.innerHTML = '<div class="sw"></div>';
     ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    steps = computeSteps(); // LF40: recompute pack-aware steps each open (install state can change)
     document.body.appendChild(ov); render(-1);
     document.addEventListener("keydown", onKey);
   };

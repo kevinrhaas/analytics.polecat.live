@@ -11555,6 +11555,20 @@ function serve() {
     await gp.click('#studio-welcome [data-act="quicktour"]'); await gp.waitForTimeout(120);
     const steps = await gp.evaluate(() => document.querySelectorAll("#studio-welcome .sw-dots i").length);
     ok("quick tour enters the step carousel with multiple steps", steps >= 4, "steps=" + steps);
+    // LF40 (pack-aware tour engine): the carousel is computed at open() from a 5-step base PLUS one
+    // "curated content" step per INSTALLED sample pack — so a provisioned user meets their curated
+    // dashboards/datasets in the welcome flow. Deterministic against whatever packs are installed.
+    const packAware = await gp.evaluate(function () {
+      var titles = window.StudioWelcome.computeStepTitles();
+      var packs = Studio.DEMO_PACKS || {};
+      var installed = Object.keys(packs).filter(function (id) { return Studio.demoPackInstalled(id); });
+      return {
+        titleCount: titles.length, installedCount: installed.length,
+        allNamesPresent: installed.every(function (id) { return titles.indexOf(packs[id].name) >= 0; })
+      };
+    });
+    ok("LF40: the welcome carousel adds one curated-content step per installed sample pack (5-step base + N packs)",
+      packAware.allNamesPresent && packAware.titleCount === 5 + packAware.installedCount, JSON.stringify(packAware));
     // UX6 (icon migration): each step tile used to bake a raw Unicode letter glyph
     // (P/◈/▥/⤓/⚙, a full-color-font miss) into the header -- now a themed Studio.icon SVG,
     // and it swaps per step (not the same icon stuck on every tile).
