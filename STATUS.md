@@ -116,7 +116,7 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
-- **LF69(c) — the Interactive GL choropleth renderer can export as PNG (v685, sw v322, 2026-07-29,
+- **LF69(c) — the Interactive GL choropleth renderer can export as PNG (v687, sw v324, 2026-07-29,
   steward — closes LF69's last remaining sub-item, LF69 is now fully done):** the GL/MapLibre
   choropleth renders into a `<canvas>`, not an `<svg>`, so both PNG rasterizers — the on-panel
   Export ▾ menu's "Download PNG image" (`downloadPanelPng`/`addDownloadChrome`,
@@ -140,6 +140,23 @@
   js/changelog.js, tests/run.js. **LF69 ("View/panel header toolbar — reorder + fold exports into
   a MENU") is now fully done** — sub-items (a) order, (d) collapse-to-menu, (b) audit, and now (c)
   GL PNG export have all shipped.
+- **LF45 (Save-as half) — a visible "Save as" button next to Save (v686, sw v323, 2026-07-29):**
+  LF26 shipped the save-as *behavior* and LF20/LF47 later made the toolbar's Save-as op icon-only
+  (sharing a glyph nearly identical to Duplicate's). Kevin's LF45 asks to surface it prominently —
+  the `#btnSaveAsSpec` op now renders icon + "Save as" label (matching Save's treatment) so the two
+  related actions read as a pair and Save-as is easy to find. Desktop only: on phones the whole ops
+  cluster still folds behind ⋯ More (`#moreSaveAsSpec`), so the release-gated 390px bar is unchanged.
+  The LF20 "Save as is icon-only" test is updated to assert the new labeled treatment (LF45 supersedes
+  it for this button — not weakened, re-pointed to the new intent). The Open-dialog half of LF45
+  (richer picker) already shipped earlier; **LF45 is now fully done.**
+- **LF32 follow-up (a) — offline preview is unmistakably labeled as sample (v685, sw v322,
+  2026-07-29):** the dataset builder's Query Preview generates made-up rows to illustrate the column
+  shape; a subtle "(offline sample)" label once let a preview be mistaken for a live query result
+  (the original LF32 report). It now carries an unmissable warning-tinted "SAMPLE — made-up rows to
+  show the shape, not your data" badge pinned above the table (the table scrolls under it), and the
+  field label reads "Preview (offline sample — not a live query)". CSS-only badge + a one-line render
+  change; a regression test asserts the badge text is present. Closes LF32 follow-up (a); (b) — run
+  the REAL query when the dataset is loadable — remains a larger, separate slice.
 - **LF64 (slice 3) — "Date token" insert affordance (v684, sw v321, 2026-07-29):** the dataset
   builder's query fields (SQL, Generic SQL/HTTP, BigQuery) gained a "Date token ▾" button that opens
   a labeled pick-list (`Studio.DATE_TOKENS`) and inserts the chosen `{{token}}` at the textarea's

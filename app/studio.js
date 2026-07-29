@@ -1401,14 +1401,18 @@
 
       // 7 — live preview
       var prev = el("div", "dsb-prev");
-      var prevField = el("div", "field"); prevField.appendChild(labelEl("Live preview (offline sample)")); prevField.appendChild(prev);
+      var prevField = el("div", "field"); prevField.appendChild(labelEl("Preview (offline sample — not a live query)")); prevField.appendChild(prev);
       wrap.appendChild(prevField);
       function renderPreview() {
         if (!draft.columns.length) { prev.innerHTML = '<div class="dsb-empty">Add columns to see a sample.</div>'; return; }
         var rows = Studio.sampleRows({ id: draft.id || "q", columns: draft.columns }).rows;
         var th = draft.columns.map(function (c) { return "<th>" + esc(c) + "</th>"; }).join("");
         var tb = rows.slice(0, 5).map(function (r) { return "<tr>" + r.map(function (v) { return "<td>" + esc(v) + "</td>"; }).join("") + "</tr>"; }).join("");
-        prev.innerHTML = '<table><thead><tr>' + th + "</tr></thead><tbody>" + tb + "</tbody></table>";
+        // LF32(a) — make the fabrication UNMISSABLE: these rows are made up to show the column
+        // shape, they are NOT the query's real results. A subtle "(offline sample)" label alone
+        // let a preview be mistaken for live data (the original report); this badge cannot be.
+        prev.innerHTML = '<div class="dsb-prev-badge"><span class="dsb-prev-dot"></span>SAMPLE — made-up rows to show the shape, not your data</div>' +
+          '<div class="dsb-prev-scroll"><table><thead><tr>' + th + "</tr></thead><tbody>" + tb + "</tbody></table></div>";
       }
 
       // footer
@@ -9508,9 +9512,13 @@
     btnSaveSpecEl.onclick = saveToCatalog;
     // LF47 slice C: Save-as and Duplicate join Undo/Redo/Open/Save/Export in the
     // #tbSectionActions ops cluster (previously Save-as lived in #dashbar and Duplicate
-    // was a #menuNew entry) — icon-only, same LF20 declutter convention as Open/Close.
+    // was a #menuNew entry). LF45: Save-as keeps a VISIBLE "Save as" label next to the
+    // labeled Save (the two most-related actions read as a pair, and it no longer collides
+    // with Duplicate's near-identical icon-only glyph). Desktop only — on phones the whole
+    // ops cluster hides behind ⋯ More (#moreSaveAsSpec), so there's no bar-width cost.
     var btnSaveAsSpecEl = sa("#btnSaveAsSpec");
-    btnSaveAsSpecEl.textContent = ""; btnSaveAsSpecEl.appendChild(Studio.icon("duplicate", 16));
+    setIconBtn(btnSaveAsSpecEl, "duplicate", "Save as", 14);
+    btnSaveAsSpecEl.classList.remove("icon");
     btnSaveAsSpecEl.onclick = function () { openSaveAsModal("manual"); };
     var btnDupDashEl = sa("#btnDupDash");
     btnDupDashEl.textContent = ""; btnDupDashEl.appendChild(Studio.icon("copy", 16));

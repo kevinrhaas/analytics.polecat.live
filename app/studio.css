@@ -1306,7 +1306,15 @@ body.lib-dragging #preview{pointer-events:none}
 .dsb-prow{display:flex;gap:6px;align-items:center}
 .dsb-prow input,.dsb-prow select{flex:1;padding:var(--sp-6) var(--sp-8);border:1px solid var(--line);border-radius:7px;background:var(--field);color:var(--ink);font-size:var(--fs-12)}
 .dsb-prow .rm{flex:0 0 auto;background:none;border:0;color:var(--bad);cursor:pointer;font-size:var(--fs-16);line-height:1}
-.dsb-prev{border:1px solid var(--line);border-radius:9px;overflow:auto;max-height:180px;background:var(--field)}
+.dsb-prev{border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--field)}
+/* LF32(a) — an unmissable "these rows are fabricated" banner pinned above the sample table
+   (the table scrolls under it) so an offline preview can never be read as a live query result. */
+.dsb-prev-badge{display:flex;align-items:center;gap:6px;padding:var(--sp-6) var(--sp-10);
+  font-size:var(--fs-11);font-weight:700;letter-spacing:.3px;text-transform:uppercase;
+  color:var(--ink);background:color-mix(in srgb,var(--warn,#f5a623) 16%,transparent);
+  border-bottom:1px solid color-mix(in srgb,var(--warn,#f5a623) 34%,transparent)}
+.dsb-prev-dot{flex:0 0 auto;width:7px;height:7px;border-radius:50%;background:var(--warn,#f5a623)}
+.dsb-prev-scroll{overflow:auto;max-height:180px}
 .dsb-prev table{width:100%;border-collapse:collapse;font-size:var(--fs-12)}
 .dsb-prev th{position:sticky;top:0;background:var(--pane);text-align:left;padding:var(--sp-6) var(--sp-10);font-family:var(--mono);font-size:var(--fs-11);color:var(--brand);border-bottom:1px solid var(--line)}
 .dsb-prev td{padding:var(--sp-6) var(--sp-10);border-bottom:1px solid var(--line-2);color:var(--ink)}

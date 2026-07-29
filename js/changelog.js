@@ -6,12 +6,30 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
-    v: 685,
+    v: 687,
     title: 'GL choropleth maps can now export as PNG',
     kind: 'fix',
-    ts: '2026-07-29T01:02:09.000Z',
+    ts: '2026-07-29T01:37:36.000Z',
     items: [
       'The Interactive GL map renderer (US choropleth) renders into a canvas instead of an SVG, so "Save chart as PNG" and the on-panel Export ▾ menu silently had no image option for it. Both now rasterize the map\'s own canvas directly, so a GL choropleth View exports a PNG just like every other chart type.',
+    ],
+  },
+  {
+    v: 686,
+    title: 'A visible "Save as" button in the builder toolbar',
+    kind: 'polish',
+    ts: '2026-07-29T01:12:57.000Z',
+    items: [
+      'The dashboard builder\'s "Save as" action now shows a visible label next to Save instead of a bare icon that looked almost identical to Duplicate — the two related save actions read as a pair and "Save as" is easy to find. (On phones the whole ops cluster still folds into the ⋯ More menu, so nothing gets more crowded there.)',
+    ],
+  },
+  {
+    v: 685,
+    title: 'Query preview is clearly labeled as sample data',
+    kind: 'fix',
+    ts: '2026-07-29T00:53:57.000Z',
+    items: [
+      'The dataset builder\'s offline preview now carries an unmissable "SAMPLE — made-up rows to show the shape, not your data" badge pinned above the table (the field label says so too). Those rows are generated to illustrate the column shape, never a real run of your query — the clearer signal means a preview can\'t be mistaken for live results.',
     ],
   },
   {
