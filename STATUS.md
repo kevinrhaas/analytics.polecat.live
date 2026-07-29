@@ -116,7 +116,7 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
-- **LF55 (2) — job editor: Filter step's value field suggests known sample values (v709, sw v346,
+- **LF55 (2) — job editor: Filter step's value field suggests known sample values (v710, sw v347,
   2026-07-29, steward):** LF55 part (1)'s own NEXT note flagged this as "a separate LF55 slice."
   The Filter step's value field stays free text (comparators like gt/lt need arbitrary typed
   values a fixed list can't cover), but now also gets a `<datalist>` of the target column's
@@ -132,6 +132,22 @@
   sorted values). Files: app/jobs.js, docs/index.html, sw.js, js/changelog.js, tests/run.js.
   **NEXT in LF55:** (4) unify approximate-vs-real into one badged result area, (5) icon-panel step
   picker.
+- **LF60 slice 2 (split) — Help separates User guides from Admin & backend setup (v709, sw v346,
+  2026-07-29):** LF60's part (4) — the USER-vs-ADMIN docs split — layered on the steward's search
+  box (v708) that landed the same day. The admin-only backend/provisioning topics (real Supabase
+  Auth sign-in, in-app account provisioning, per-user provisioning defaults, managing multiple
+  backends, going live with per-user Row-Level Security) were buried at the bottom of the **Data
+  sources** section; they now live in their own **`#admin-docs` "Admin & backend setup"** section
+  (with a one-line "this is for whoever administers a shared workspace" preamble), placed between
+  Data sources and Exporting. The docs **`<nav>`** gained **User / Admin group labels** and an
+  **Admin & backend setup** link; the section is a real `main > section[id]`, so the steward's
+  search (which indexes those) finds it automatically, and the scroll-spy highlights it. All inside
+  `docs/index.html` (no app code), so both the embedded Help section and the standalone page get it.
+  3 new tests (raw-HTML: `#admin-docs` between data-sources and exporting with the admin topics
+  inside; nav has 2 group labels + Admin link; live: `#admin-docs` renders its heading + moved
+  topics and stays search-indexed). Files: docs/index.html, sw.js, js/changelog.js, tests/run.js.
+  **NEXT in LF60:** (3) deep-links from in-app help badges to specific docs anchors + screenshots,
+  (5) a backend-options comparison table (Local / Turso / Supabase / Firebase).
 - **LF60 slice 2 — docs search (v708, sw v345, 2026-07-29, steward):** LF60's own NEXT pointer
   named "best-practice docs NAV (sidebar/TOC/search)" as the piece still open after slice 1's
   embed+pop-out. Of the three, a **search box** was the missing, genuinely load-bearing piece —

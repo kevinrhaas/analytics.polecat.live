@@ -20120,6 +20120,60 @@ function serve() {
     });
     ok("J-docs: docs/index.html contains all expected section anchors", jDocsContent.ok, JSON.stringify(jDocsContent));
 
+    // J-docs-3b (LF60 slice 2 split): the docs page separates everyday User guides from Admin &
+    // backend setup — the admin-only backend/provisioning topics moved out of the Data sources
+    // section into their own #admin-docs section (sitting between data-sources and exporting), and
+    // the docs nav carries User/Admin group labels + an Admin link. Verify from the raw HTML.
+    const jDocsSplit = await page.evaluate(async function () {
+      try {
+        var resp = await fetch("/docs/index.html");
+        var html = await resp.text();
+        var adminIdx = html.indexOf('id="admin-docs"');
+        var supaAuthIdx = html.indexOf("Signing in with real Supabase Auth");
+        var goLiveIdx = html.indexOf("Going live with real per-user security");
+        var dataSrcIdx = html.indexOf('id="data-sources"');
+        var exportIdx = html.indexOf('id="exporting"');
+        return {
+          hasAdminSection: adminIdx !== -1,
+          adminBetween: adminIdx > dataSrcIdx && adminIdx < exportIdx,
+          // the admin topics now live inside #admin-docs (after it opens, before Exporting) rather
+          // than buried in Data sources (before #admin-docs)
+          adminTopicsInAdminSection: supaAuthIdx > adminIdx && goLiveIdx > adminIdx && supaAuthIdx < exportIdx,
+          hasGroups: (html.match(/class="nav-group"/g) || []).length >= 2,
+          hasAdminNavLink: html.indexOf('href="#admin-docs"') !== -1
+        };
+      } catch (e) { return { err: e.message }; }
+    });
+    ok("J-docs (LF60 slice 2): admin topics live in a dedicated #admin-docs section between data-sources and exporting",
+      jDocsSplit.hasAdminSection && jDocsSplit.adminBetween && jDocsSplit.adminTopicsInAdminSection,
+      JSON.stringify(jDocsSplit));
+    ok("J-docs (LF60 slice 2): docs nav carries User/Admin group labels and an Admin link",
+      jDocsSplit.hasGroups && jDocsSplit.hasAdminNavLink,
+      JSON.stringify(jDocsSplit));
+
+    // J-docs-3c: the admin-docs section is a real, addressable section — navigating to #admin-docs
+    // scrolls it into view and it renders its heading + the moved admin topics (not empty).
+    const jAdminPage = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await jAdminPage.goto(`http://localhost:${PORT}/docs/index.html#admin-docs`, { waitUntil: "load" });
+    const jAdminSec = await jAdminPage.evaluate(function () {
+      var sec = document.getElementById("admin-docs");
+      if (!sec) return { ok: false };
+      var h2 = sec.querySelector("h2");
+      var txt = sec.textContent;
+      return {
+        ok: true,
+        heading: h2 ? h2.textContent.trim() : "",
+        hasSupaAuth: txt.indexOf("Supabase Auth") >= 0,
+        hasGoLive: txt.indexOf("Row-Level Security") >= 0,
+        // the search box from the earlier slice indexes main > section[id], so the new section is findable too
+        indexedBySearch: !!document.getElementById("docSearch")
+      };
+    });
+    await jAdminPage.close();
+    ok("J-docs (LF60 slice 2): #admin-docs renders its heading + the moved admin topics and is a real addressable section",
+      jAdminSec.ok && jAdminSec.heading === "Admin & backend setup" && jAdminSec.hasSupaAuth && jAdminSec.hasGoLive && jAdminSec.indexedBySearch,
+      JSON.stringify(jAdminSec));
+
     // J-docs-4: UX sweep 2026-07-28 (#367 finding #2) — docs page's Exporting section
     // table overflowed the viewport by ~7px at 390px width (table-layout:auto min-content,
     // widened by a dead "Badge" column no row ever populates). Fix: drop the unused column.
