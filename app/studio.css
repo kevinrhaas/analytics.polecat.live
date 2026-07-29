@@ -651,6 +651,10 @@ html[data-app-theme='neon'] #mobileNavBtn{background:#000000;border-color:rgba(2
 .repo-search::placeholder{color:var(--faint)}
 .repo-search:focus{border-color:var(--brand)}
 .repo-io{display:flex;gap:8px;margin-bottom:var(--sp-20)}
+/* LF51 command center: the ＋ New ▾ menu sits at the LEFT of the toolbar row, so its
+   dropdown grows rightward (the shared .menu default right-aligns to its trigger,
+   which here could push it past the content's left edge on narrow screens). */
+.repo-io .menu{left:0;right:auto}
 .repo-count{font-weight:400;text-transform:none;letter-spacing:0;color:var(--faint);font-size:var(--fs-11)}
 .repo-sub2{margin-top:var(--sp-20)}
 .repo-ds-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}

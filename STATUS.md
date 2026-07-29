@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF51 (command center) — Repository creates EVERYTHING with ＋ New (v715, sw v352, 2026-07-29):**
+  the "New EVERYTHING / robust cross-object command center" half of LF51's still-open pointer.
+  Repository's toolbar (next to the Tile-view toggle) gains a **＋ New ▾ menu** with all five object
+  kinds, each routing into that kind's own real builder/editor — **New dashboard** → `enterStudio()`
+  + `newBlankSpec()` (identical to Home's card, incl. `bumpDashMilestone`), **New View** → a new
+  `Studio.Explore.startNew()` export (wraps the internal `xpCloseToList(true)` reset, so a
+  half-loaded analysis is genuinely cleared without touching history) then the Explore section,
+  **New dataset/connection/job** → their existing editor modals. Wiring is one-time (idempotent
+  flag) inside `renderRepository()`, reusing the topbar's `menuToggle`/`closeMenus`/`setIconBtnCaret`
+  machinery + `.menu-wrap`/`.menu` CSS (one `.repo-io .menu{left:0}` override so the dropdown grows
+  rightward from its left-edge trigger). **"New dashboard" is role-gated per render** (hidden for
+  viewer-role accounts — LF44's no-dead-clicks rule — with a belt-and-braces guard in the click
+  handler too). Docs' Repository section + changelog cover it. 5 new tests (menu lists all five
+  kinds + dataset editor opens; job + connection editors open; New View → Explore with a fresh
+  analysis state; New dashboard → Studio with a blank spec; viewer hides / developer restores the
+  dashboard entry). Files: app/index.html, app/studio.js, app/explore.js, app/studio.css,
+  docs/index.html, sw.js, js/changelog.js, tests/run.js. **NEXT in LF51:** the Explore dataset
+  navigator's multi-level folder upgrade + the "one truly shared nav component" convergence.
 - **LF60 (3) — Filter/Header inspector help badges deep-link to specific docs anchors (v713, sw v350,
   2026-07-29, steward):** landed alongside (just after, same day) the slice-3 "open docs in-app"
   change below — the two are complementary, not overlapping: slice 3 made EVERY badge navigate

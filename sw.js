@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v351"; /* v351: bugfix (Kevin) — the builder canvas drop hint +
+var CACHE_NAME = "studio-shell-v352"; /* v352: LF51 (command center) — Repository gains a ＋ New ▾
+   menu that creates EVERY object kind (dashboard / View / dataset / connection / job), each
+   routing into that kind's own builder; "New dashboard" is role-gated like Home's card.
+   app/index.html, app/studio.js, app/explore.js (startNew), app/studio.css, docs/index.html.
+   v351: bugfix (Kevin) — the builder canvas drop hint +
    preview toolbar hint now say "drop a dataset" (what you actually drop from the Data panel),
    not the stale "query" wording. app/index.html only (precached).
    v350: LF60 (3) — Filter/Header inspector help badges
