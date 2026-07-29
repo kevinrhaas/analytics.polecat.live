@@ -6,6 +6,14 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 716,
+    title: 'Explore: the dataset picker is now a real navigator',
+    ts: '2026-07-29T18:01:00.000Z',
+    items: [
+      'Explore\'s dataset list is no longer flat: your datasets group into their folders (nested via "/", the same folders you file them into everywhere else), sample data groups by set, and every branch collapses or expands with a click — sample sets start collapsed once you have datasets of your own, so your data leads. Searching flattens the tree to plain matching rows, so finding by name never depends on knowing where something is filed.',
+    ],
+  },
+  {
     v: 715,
     title: 'Repository: create anything with ＋ New',
     kind: 'feature',

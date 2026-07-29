@@ -2462,6 +2462,21 @@ body.simple-mode .da-acts{display:none!important}
 .xp-ds b{font-size:var(--fs-13)}
 .xp-ds small{color:var(--muted);font-size:var(--fs-11)}
 .xp-none{color:var(--faint);font-size:var(--fs-12);padding:var(--sp-10)}
+/* LF51 (Explore navigator): the dataset picker's folder/sample tree. Group headers are
+   small uppercase labels; branch headers are full-width toggles with a caret + count;
+   children indent behind a hairline so nesting reads at a glance. */
+.xp-grp-h{display:flex;align-items:center;gap:6px;font-size:var(--fs-10,10px);font-weight:800;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin:var(--sp-6) var(--sp-2) 0}
+.xp-grp-n{font-weight:600;color:var(--muted)}
+.xp-tree-h{display:flex;align-items:center;gap:6px;width:100%;text-align:left;background:none;
+  border:1px solid transparent;border-radius:8px;padding:var(--sp-4) var(--sp-8);cursor:pointer;
+  color:var(--ink);font-family:var(--font);font-size:var(--fs-12);font-weight:700}
+.xp-tree-h:hover{background:var(--field)}
+.xp-tree-car{width:10px;color:var(--faint);flex-shrink:0}
+.xp-tree-lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.xp-tree-n{margin-left:auto;color:var(--faint);font-weight:600;font-size:var(--fs-11)}
+.xp-tree-kids{display:flex;flex-direction:column;gap:4px;margin-left:var(--sp-10);
+  border-left:1px solid var(--line);padding-left:var(--sp-6)}
 .xp-saved{border:1px solid var(--line);border-radius:12px;padding:var(--sp-8);background:var(--pane)}
 .xp-saved-h{font-size:var(--fs-12);font-weight:700;color:var(--muted);text-transform:uppercase;
   letter-spacing:.04em;padding:var(--sp-2) var(--sp-4) var(--sp-8);display:flex;align-items:center;gap:6px}

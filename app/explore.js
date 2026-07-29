@@ -84,6 +84,13 @@
   // M5 folder pilot (analyses): which folder GROUP the saved-analyses sidebar
   // list is narrowed to — "" = All, "__unfiled" = no folder, else a folder name.
   var _xpFolderFilter = "";
+  // LF51 (Explore navigator): per-branch collapse state for the dataset tree, keyed by
+  // folder path ("Finance/2024") or sample stem ("sample:conservation"). Session-only by
+  // design (no new localStorage key to track in CLEAR_DATA_KEYS): an explicit toggle wins;
+  // otherwise ws folders default OPEN and sample stems default CLOSED once you have
+  // datasets of your own (see xpTreeCollapsed below).
+  var _xpTreeCollapsed = {};
+  function xpTreeCollapsed(path, dflt) { return (path in _xpTreeCollapsed) ? _xpTreeCollapsed[path] : dflt; }
   // LF9 slice 3: opening a dataset or a saved analysis swaps the "pick a dataset" empty
   // state for the full editor IN PLACE — there's no new DOM node for Back to just re-show
   // (unlike modal()/openPanelZoom()/openSlideshow()'s pushOverlay call sites), so this swap
@@ -155,12 +162,14 @@
       return (b.updatedAt || 0) - (a.updatedAt || 0);
     }).forEach(function (d) {
       var conn = Studio.Workspace.get("connections", d.connectionId);
-      out.push({ kind: "ws", id: d.id, name: d.name || d.id, sub: conn ? conn.name : "no connection", cols: d.columns || [] });
+      // LF51 (Explore navigator): carry the dataset's folder so the picker can group
+      // by it (nested via "/", same convention as Datasets/Repository).
+      out.push({ kind: "ws", id: d.id, name: d.name || d.id, sub: conn ? conn.name : "no connection", cols: d.columns || [], folder: d.folder || "" });
     });
     if (showSamples()) {
       Object.keys(S.catalog).forEach(function (stem) {
         (S.catalog[stem].dataAccesses || []).forEach(function (d) {
-          out.push({ kind: "sample", id: stem + XP_SEP + d.id, name: d.id, sub: stem + " · sample", cols: d.columns || [] });
+          out.push({ kind: "sample", id: stem + XP_SEP + d.id, name: d.id, sub: stem + " · sample", cols: d.columns || [], stem: stem });
         });
       });
     }
@@ -544,11 +553,67 @@
       return !q || (d.name + " " + d.sub + " " + d.cols.join(" ")).toLowerCase().indexOf(q) >= 0;
     });
     var analyses = Studio.Workspace.all("analyses").filter(isVisibleToMe).sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
-    var dsRows = shown.slice(0, 60).map(function (d) {
+    function xpDsRowHtml(d) {
       var on = XP.kind === d.kind && XP.dsId === d.id;
       return '<button type="button" class="xp-ds' + (on ? " active" : "") + '" data-xp-ds="' + esc(d.kind) + XP_SEP + esc(d.id) + '">' +
         '<b>' + esc(d.name) + '</b><small>' + esc(d.sub) + '</small></button>';
-    }).join("");
+    }
+    // LF51 (Explore navigator): the picker is a real multi-level NAVIGATOR, not a flat list.
+    // Your datasets group by their folder (nested via "/", folders A→Z, unfiled rows last —
+    // the Repository conventions), sample data groups by its set (stem), and every branch is
+    // collapsible. A search query bypasses the tree entirely (flat matching rows), so finding
+    // by name is never gated on knowing where something is filed. Every row stays in the DOM
+    // (collapsed branches just hide) — selection contracts and hooks are unchanged.
+    function xpTreeHeadHtml(path, label, n, collapsed) {
+      return '<button type="button" class="xp-tree-h" data-xp-tree="' + esc(path) + '" aria-expanded="' + (!collapsed) + '">' +
+        '<span class="xp-tree-car">' + (collapsed ? "▸" : "▾") + '</span><span class="xp-tree-lbl">' + esc(label) + '</span>' +
+        '<span class="xp-tree-n">' + n + '</span></button>';
+    }
+    var capped = shown.slice(0, 60);
+    var dsRows;
+    if (q) {
+      dsRows = capped.map(xpDsRowHtml).join("");
+    } else {
+      var wsShown = capped.filter(function (d) { return d.kind === "ws"; });
+      var sampleShown = capped.filter(function (d) { return d.kind === "sample"; });
+      // build the ws folder tree: {kids:{name:node}, rows:[]}
+      var xpRoot = { kids: {}, rows: [] };
+      wsShown.forEach(function (d) {
+        var node = xpRoot;
+        (d.folder ? d.folder.split("/") : []).forEach(function (seg) {
+          seg = seg.trim(); if (!seg) return;
+          node = node.kids[seg] || (node.kids[seg] = { kids: {}, rows: [] });
+        });
+        node.rows.push(d);
+      });
+      function xpCount(n) { return n.rows.length + Object.keys(n.kids).reduce(function (s, k) { return s + xpCount(n.kids[k]); }, 0); }
+      function xpRenderNode(n, path) {
+        var html = "";
+        Object.keys(n.kids).sort().forEach(function (name) {
+          var p = path ? path + "/" + name : name;
+          var collapsed = xpTreeCollapsed(p, false); // ws folders default OPEN
+          html += xpTreeHeadHtml(p, name, xpCount(n.kids[name]), collapsed) +
+            '<div class="xp-tree-kids"' + (collapsed ? " hidden" : "") + '>' + xpRenderNode(n.kids[name], p) + "</div>";
+        });
+        return html + n.rows.map(xpDsRowHtml).join(""); // unfiled rows AFTER folders (Repository convention)
+      }
+      dsRows = "";
+      if (wsShown.length) dsRows += '<div class="xp-grp-h">Your datasets <span class="xp-grp-n">' + wsShown.length + "</span></div>" + xpRenderNode(xpRoot, "");
+      if (sampleShown.length) {
+        var stems = {};
+        sampleShown.forEach(function (d) { (stems[d.stem] = stems[d.stem] || []).push(d); });
+        // sample sets default CLOSED once you have datasets of your own (they're long lists);
+        // a brand-new workspace keeps them OPEN so the picker never looks empty.
+        var sampleDflt = wsShown.length > 0;
+        dsRows += '<div class="xp-grp-h">Sample data <span class="xp-grp-n">' + sampleShown.length + "</span></div>" +
+          Object.keys(stems).sort().map(function (st) {
+            var p = "sample:" + st;
+            var collapsed = xpTreeCollapsed(p, sampleDflt);
+            return xpTreeHeadHtml(p, st, stems[st].length, collapsed) +
+              '<div class="xp-tree-kids"' + (collapsed ? " hidden" : "") + '>' + stems[st].map(xpDsRowHtml).join("") + "</div>";
+          }).join("");
+      }
+    }
     // M5 folder pilot (analyses): same single-select facet shape as Datasets'/
     // Connections'/Jobs' `_dsxFolderFilter`/`_connFolderFilter`/`_jobsFolderFilter`
     // — only shown once at least one analysis has been filed.
@@ -654,6 +719,16 @@
       btn.onclick = function () {
         var parts = btn.getAttribute("data-xp-ds").split(XP_SEP);
         xpSelectDataset(parts.shift(), parts.join(XP_SEP)); // sample ids contain the SEP themselves
+      };
+    });
+    // LF51 (Explore navigator): collapse/expand a tree branch. The stored value is the
+    // OPPOSITE of the branch's current effective state, so sample stems (whose default
+    // flips with wsShown) toggle correctly from either default.
+    $$("[data-xp-tree]", body).forEach(function (btn) {
+      btn.onclick = function () {
+        var p = btn.getAttribute("data-xp-tree");
+        _xpTreeCollapsed[p] = btn.getAttribute("aria-expanded") === "true";
+        renderExplore();
       };
     });
     var xpNewDsBtn = $("#xpNewDsBtn", body);
