@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 697,
+    title: 'Browse a connection\'s schema right from the dataset editor',
+    kind: 'feature',
+    ts: '2026-07-29T06:35:29.000Z',
+    items: [
+      'The dataset editor gains a "Browse schema" button whenever the picked connection can list its tables/columns (PostgreSQL, Snowflake, Databricks, BigQuery, Redshift, DuckDB, SQLite) -- click a table or column in the panel to drop it straight into the Table field or the SQL query at the cursor, instead of typing it blind.',
+    ],
+  },
+  {
     v: 696,
     title: 'Repository gains a tile view too',
     kind: 'polish',

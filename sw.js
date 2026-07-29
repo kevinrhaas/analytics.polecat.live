@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v333"; /* v333: LF51 (d), last of the four workspace catalogs —
+var CACHE_NAME = "studio-shell-v334"; /* v334: LF63 slice 1 — the Dataset editor gains a "Browse
+   schema" button (reusing the Connections wizard's already-shipped adapter.listSchema() tree)
+   whenever the picked connection's adapter can introspect its own tables/columns; clicking a
+   table/column drops it into the Table field or the SQL query at the cursor instead of typing it
+   blind. app/connections.js (optional onPick on renderSchemaPanel, exported on Studio.Connections),
+   app/studio.js (Studio.insertAtCursor exported), app/datasets.js, app/studio.css.
+   v333: LF51 (d), last of the four workspace catalogs —
    the Repository section gains the same list ⇆ tile view toggle already shipped on Dashboards/
    Datasets/Connections/Jobs (#repoViewToggle, persisted at studio-repo-view). A tile renders
    inside whichever folder group it already belongs to; only the per-row markup (cx-row ⇆

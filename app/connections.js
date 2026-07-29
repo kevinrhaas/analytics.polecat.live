@@ -369,7 +369,12 @@
   // as a filterable, per-table-expandable tree inside the connection
   // wizard's schema panel. A pure render function so it's easy to call from
   // both the fetch-success path and (via renderSchemaPanel(panel, r)) tests.
-  function renderSchemaPanel(panel, r) {
+  // LF63 slice 1: an optional onPick(kind, name, schema) callback turns the
+  // tree click-to-insert (the Dataset editor's "Browse schema" panel wires
+  // this to drop a table/column name straight into the query) — omitted
+  // (the Connections wizard's own call) it stays exactly the read-only tree
+  // it always was, byte-for-byte.
+  function renderSchemaPanel(panel, r, onPick) {
     panel.innerHTML = "";
     if (r && r.error) {
       var err = el("div", "cx-schema-status bad"); err.textContent = "✕ " + r.error; panel.appendChild(err); return;
@@ -389,11 +394,21 @@
       var n = (t.columns || []).length;
       summary.innerHTML = "<b>" + esc(t.name) + "</b>" + (t.schema ? " <small>" + esc(t.schema) + "</small>" : "") +
         ' <span class="cx-schema-n">' + n + " col" + (n === 1 ? "" : "s") + "</span>";
+      if (onPick) {
+        summary.classList.add("cx-schema-pick");
+        summary.title = "Insert this table name";
+        summary.addEventListener("click", function () { onPick("table", t.name, t.schema); });
+      }
       det.appendChild(summary);
       var colList = el("ul", "cx-schema-cols");
       (t.columns || []).forEach(function (c) {
         var li = document.createElement("li");
         li.innerHTML = '<span class="cx-schema-col">' + esc(c.name) + '</span><span class="cx-schema-type">' + esc(c.type || "") + "</span>";
+        if (onPick) {
+          li.classList.add("cx-schema-pick");
+          li.title = "Insert this column name";
+          li.addEventListener("click", function (ev) { ev.stopPropagation(); onPick("column", c.name, t.name); });
+        }
         colList.appendChild(li);
       });
       det.appendChild(colList);
@@ -557,6 +572,7 @@
     configure: configure,
     render: renderConnections,
     openWizard: openConnectionWizard,
-    togglePrivate: toggleConnPrivate
+    togglePrivate: toggleConnPrivate,
+    renderSchemaPanel: renderSchemaPanel
   };
 })();

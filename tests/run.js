@@ -6937,6 +6937,85 @@ function serve() {
       dsxTipDot.noNativeTitle && dsxTipDot.noDataTip && dsxTipDot.isPsTip && dsxTipDot.focusable && dsxTipDot.ariaMatchesBub,
       JSON.stringify(dsxTipDot));
 
+    // ---- LF63 slice 1: the Dataset editor's "Browse schema" panel — reuses the already-
+    // shipped/tested adapter.listSchema() + Connections wizard tree (renderSchemaPanel) so a
+    // dataset's Table/SQL field isn't written blind. "conn-mock" (turso, no listSchema) is
+    // still seeded from the earlier DSX test above — reused here for the negative case. ----
+    console.log("\n• LF63 slice 1: Dataset editor Browse-schema panel");
+    await page.evaluate(function (port) {
+      Studio.Workspace.put("connections", { id: "conn-pg-schema", name: "Mock Postgres", adapter: "postgrest", cfg: { url: location.origin + "/__postgrest" } });
+      Studio.Workspace.put("connections", {
+        id: "conn-rs-schema", name: "Mock Redshift", adapter: "redshift",
+        cfg: { region: "us-east-1", accessKeyId: "AKIDEXAMPLE", secretAccessKey: "secret", database: "dev", workgroupName: "default", endpoint: "http://localhost:" + port + "/__redshift-data" }
+      });
+    }, PORT);
+    // table-kind connection (PostgREST): the button appears, and picking a table sets the Table field.
+    await page.click("#dsxNewBtn");
+    await page.waitForTimeout(120);
+    await page.evaluate(function () {
+      document.querySelector(".modal select.cx-sel").value = "conn-pg-schema";
+      document.querySelector(".modal select.cx-sel").dispatchEvent(new Event("change"));
+    });
+    await page.waitForTimeout(80);
+    const dsxSchemaBtnTable = await page.evaluate(function () { return !!document.querySelector(".dsx-schema-btn"); });
+    ok("DSX: Browse schema button shows for a listSchema-capable connection (table kind)", dsxSchemaBtnTable);
+    await page.click(".dsx-schema-btn");
+    await page.waitForFunction(() => document.querySelectorAll(".cx-schema-table").length > 0, { timeout: 5000 });
+    await page.evaluate(function () {
+      [].slice.call(document.querySelectorAll(".cx-schema-table")).filter(function (t) { return t.querySelector("summary b").textContent === "orders"; })[0]
+        .querySelector("summary").click();
+    });
+    const dsxTablePicked = await page.evaluate(function () {
+      var inp = document.querySelector('.modal input[placeholder="orders"]');
+      return inp ? inp.value : null;
+    });
+    ok("DSX: clicking a table in the schema panel inserts its name into the Table field", dsxTablePicked === "orders", JSON.stringify(dsxTablePicked));
+    await page.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
+    await page.waitForTimeout(100);
+    // sql-kind connection (Redshift): the button appears, and picking a column inserts it at the SQL cursor.
+    await page.click("#dsxNewBtn");
+    await page.waitForTimeout(120);
+    await page.evaluate(function () {
+      document.querySelector(".modal select.cx-sel").value = "conn-rs-schema";
+      document.querySelector(".modal select.cx-sel").dispatchEvent(new Event("change"));
+    });
+    await page.waitForTimeout(80);
+    const dsxSchemaBtnSql = await page.evaluate(function () { return !!document.querySelector(".dsx-schema-btn"); });
+    ok("DSX: Browse schema button shows for a listSchema-capable connection (sql kind)", dsxSchemaBtnSql);
+    await page.click(".dsx-schema-btn");
+    await page.waitForFunction(() => document.querySelectorAll(".cx-schema-table").length > 0, { timeout: 5000 });
+    await page.evaluate(function () {
+      var ta = document.querySelector(".modal textarea.dsx-sql");
+      ta.value = "SELECT "; ta.selectionStart = ta.selectionEnd = ta.value.length;
+      var det = [].slice.call(document.querySelectorAll(".cx-schema-table")).filter(function (t) { return t.querySelector("summary b").textContent === "orders"; })[0];
+      det.open = true; // expand without the table's own click-to-insert, keeping this check focused on columns
+    });
+    await page.evaluate(function () {
+      var det = [].slice.call(document.querySelectorAll(".cx-schema-table")).filter(function (t) { return t.querySelector("summary b").textContent === "orders"; })[0];
+      [].slice.call(det.querySelectorAll(".cx-schema-cols li")).filter(function (li) { return li.querySelector(".cx-schema-col").textContent === "region"; })[0].click();
+    });
+    const dsxColPicked = await page.evaluate(function () { return document.querySelector(".modal textarea.dsx-sql").value; });
+    ok("DSX: clicking a column in the schema panel inserts its name into the SQL textarea at the cursor",
+      dsxColPicked === "SELECT region", dsxColPicked);
+    await page.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
+    await page.waitForTimeout(100);
+    // negative case: an adapter with no listSchema (turso, "conn-mock" from the earlier DSX test) never shows the button.
+    await page.click("#dsxNewBtn");
+    await page.waitForTimeout(120);
+    await page.evaluate(function () {
+      document.querySelector(".modal select.cx-sel").value = "conn-mock";
+      document.querySelector(".modal select.cx-sel").dispatchEvent(new Event("change"));
+    });
+    await page.waitForTimeout(80);
+    const dsxSchemaBtnAbsent = await page.evaluate(function () { return !document.querySelector(".dsx-schema-btn"); });
+    ok("DSX: no Browse schema button for a connection whose adapter has no listSchema (turso)", dsxSchemaBtnAbsent);
+    await page.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
+    await page.waitForTimeout(100);
+    await page.evaluate(function () {
+      Studio.Workspace.remove("connections", "conn-pg-schema", { silent: true });
+      Studio.Workspace.remove("connections", "conn-rs-schema", { silent: true });
+    });
+
     const dsxParams = await page.evaluate(async function () {
       var d = Studio.Workspace.all("datasets")[0];
       var okRun = await window.__studioRunDataset(d);                      // default schema=prod

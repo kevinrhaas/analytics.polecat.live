@@ -496,6 +496,42 @@
         var conn = Studio.Workspace.get("connections", connSel.value);
         var kind = dsxKindFor(conn ? conn.adapter : "");
         d.kind = kind;
+        // LF63 slice 1 — "table/column browser feeding an assisted query builder": reuse the
+        // Connections wizard's already-shipped, already-tested adapter.listSchema()/
+        // renderSchemaPanel tree (post-overhaul backlog item 5) right here, so a dataset's SQL/
+        // Table field isn't written blind. Only offered for the two kinds a query is actually
+        // typed for (table = PostgREST-shaped, sql = everything else); adapters without
+        // listSchema (local/turso/Supabase's new-key-format gap, same reasoning as testData())
+        // simply don't get the button, same "capability absent -> UI hides it" rule the wizard
+        // already follows.
+        var adapter = conn ? Studio.sourceById(conn.adapter) : null;
+        if (adapter && typeof adapter.listSchema === "function" && (kind === "table" || kind === "sql")) {
+          var schemaWrap = el("div", "cx-field dsx-schema-wrap");
+          var schemaBtn = el("button", "btn dsx-schema-btn"); schemaBtn.type = "button"; schemaBtn.textContent = "Browse schema";
+          var schemaPanel = el("div", "cx-schema"); schemaPanel.hidden = true;
+          schemaBtn.onclick = function () {
+            if (!schemaPanel.hidden) { schemaPanel.hidden = true; return; }
+            schemaBtn.disabled = true; schemaBtn.textContent = "Loading schema…";
+            schemaPanel.hidden = false;
+            schemaPanel.innerHTML = '<div class="cx-schema-status">Loading…</div>';
+            adapter.listSchema(conn.cfg || {}).then(function (r) {
+              schemaBtn.disabled = false; schemaBtn.textContent = "Browse schema";
+              Studio.Connections.renderSchemaPanel(schemaPanel, r, function (pickedKind, name, schemaName) {
+                if (kind === "table") {
+                  if (!defInputs.table) return;
+                  defInputs.table.value = name;
+                  defInputs.table.dispatchEvent(new Event("input", { bubbles: true }));
+                  defInputs.table.focus();
+                } else if (defInputs.sql) {
+                  var text = pickedKind === "table" && schemaName && schemaName !== "public" ? schemaName + "." + name : name;
+                  Studio.insertAtCursor(defInputs.sql, text);
+                }
+              });
+            });
+          };
+          schemaWrap.appendChild(schemaBtn); schemaWrap.appendChild(schemaPanel);
+          defWrap.appendChild(schemaWrap);
+        }
         function defField(lbl, key, multiline, ph, hint) {
           var row = el("label", "cx-field");
           row.innerHTML = "<span>" + esc(lbl) + "</span>";
