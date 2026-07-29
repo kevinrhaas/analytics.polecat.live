@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v361"; /* v361: LF50 (b) — the Settings "Quick import
+var CACHE_NAME = "studio-shell-v362"; /* v362: LF57 follow-up — Views rows/tiles show a
+   themed per-chart-type icon (reusing Studio.CHART_SVG + studio.js's themedChartSvg, the same
+   gallery-thumbnail art the chart-type picker draws from) instead of one generic glyph shared
+   by every row; falls back to the generic icon for a type with no gallery thumbnail. The last
+   of the three items LF57 slice 1's own DONE note left "genuinely still open" (Duplicate
+   shipped v360; only a standalone export remains). app/views.js, app/studio.js,
+   docs/index.html, STATUS.md, js/changelog.js.
+   v361: LF50 (b) — the Settings "Quick import
    creativity" row is hidden for now (Kevin: "it's confusing things for now until we improve
    that"); the stored High default + all low/high build machinery stay, only the chrome is
    gone. app/studio.js, docs/index.html, tests/run.js, STATUS.md, js/changelog.js.

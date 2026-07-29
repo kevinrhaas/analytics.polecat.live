@@ -42,6 +42,17 @@
   try { _vwViewMode = localStorage.getItem("studio-vwc-view") || "list"; } catch (e) {}
 
   function vwChartLabel(t) { return (Studio.CHARTS[t] || {}).label || t; }
+  // LF57 follow-up: a per-chart-type row icon, reusing the same themed gallery-thumbnail
+  // SVGs (Studio.CHART_SVG + studio.js's live-theme-aware themedChartSvg, injected via
+  // configure()) the chart-type picker and dashboard-mockup preview already draw from —
+  // one visual language for "what kind of chart is this" everywhere in the app, instead of
+  // authoring a second single-color icon set. Falls back to the generic trend-up glyph for
+  // any type with no gallery thumbnail (there's currently exactly one: colorScale).
+  function vwTypeIcon(t) {
+    var svg = D.themedChartSvg(Studio.CHART_SVG[t], t);
+    if (!svg) return null;
+    return svg.replace('<svg ', '<svg width="20" height="14" preserveAspectRatio="xMidYMid meet" ');
+  }
 
   function renderViews() {
     var results = $("#viewsResults"); if (!results) return;
@@ -99,6 +110,8 @@
       return hay.indexOf(q) >= 0;
     });
     var isTiles = _vwViewMode === "tiles";
+    var typeById = {};
+    shown.forEach(function (a) { typeById[a.id] = a.chartType || "bars"; });
     var rows = shown.map(function (a) {
       var t = a.chartType || "bars";
       var icon = '<span class="cx-ic"></span>';
@@ -153,7 +166,10 @@
     $$(".cx-row, .dsx-tile", results).forEach(function (row) {
       var id = row.getAttribute("data-vw-id");
       var icEl = row.querySelector(".cx-ic");
-      if (icEl) icEl.appendChild(Studio.icon("trend-up", 18));
+      if (icEl) {
+        var mini = vwTypeIcon(typeById[id]);
+        if (mini) icEl.innerHTML = mini; else icEl.appendChild(Studio.icon("trend-up", 18));
+      }
       row.addEventListener("click", function (e) {
         if (e.target.closest("[data-vw-pin],[data-vw-private],[data-vw-open],[data-vw-dash],[data-vw-dup],[data-vw-del]")) return;
         vwOpen(id);

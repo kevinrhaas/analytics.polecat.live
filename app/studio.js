@@ -6647,7 +6647,9 @@
      other catalog module. */
   function renderViews() { Studio.ViewsCatalog.render(); }
   window.__studioRenderViews = renderViews; // test hook
-  Studio.ViewsCatalog.configure(coreModuleDeps());
+  Studio.ViewsCatalog.configure(Object.assign(coreModuleDeps(), {
+    themedChartSvg: function (svg, type) { return themedChartSvg(svg, type); }
+  }));
 
 
   /* ---------- Repository (M5 slice 1, STATUS.md's Conservation Insight track) ----------
