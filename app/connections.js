@@ -472,6 +472,8 @@
         Object.keys(connFolderNames).sort().forEach(function (f) { var o = el("option"); o.value = f; connFolderList.appendChild(o); });
         folderInp.setAttribute("list", "connFolderOptions");
         folderRow.appendChild(connFolderList);
+        // LF56 slice 2: Browse button → shared folder-tree picker over the connections' folders.
+        folderInp.parentNode.appendChild(Studio.folderPickerButton(folderInp, function () { return Object.keys(connFolderNames); }));
         form.appendChild(folderRow);
         b.appendChild(form);
         if (adapter.docsUrl) {

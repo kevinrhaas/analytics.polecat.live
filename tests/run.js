@@ -31202,6 +31202,25 @@ function serve() {
       /Ops/.test(lf56.crumb || "") && lf56.hits.indexOf("Ops/EU/West") >= 0 && lf56.picked === "Ops/EU/West" && lf56.gone,
       JSON.stringify(lf56));
 
+    // LF56 slice 2: folderPickerButton wires the picker to any Folder <input> — clicking Browse
+    // opens it, and picking a folder writes the "/"-path back into the input + fires input.
+    const lf56btn = await repoPage.evaluate(function () {
+      var inp = document.createElement("input"); inp.type = "text"; document.body.appendChild(inp);
+      var fired = 0; inp.addEventListener("input", function () { fired++; });
+      var btn = Studio.folderPickerButton(inp, function () { return ["Reports/Q1", "Reports/Q2"]; });
+      var isBtn = btn && btn.classList.contains("fp-browse-btn");
+      btn.click();
+      var m = document.querySelector(".modal .fp");
+      // pick the first hit via search
+      var s = m.querySelector(".fp-search"); s.value = "q1"; s.dispatchEvent(new Event("input", { bubbles: true }));
+      m.querySelector(".fp-hit").click();
+      var out = { isBtn: isBtn, val: inp.value, fired: fired, closed: !document.querySelector(".modal .fp") };
+      inp.remove();
+      return out;
+    });
+    ok("LF56 slice 2: folderPickerButton opens the picker and writes the chosen path back into the Folder input",
+      lf56btn.isBtn && lf56btn.val === "Reports/Q1" && lf56btn.fired >= 1 && lf56btn.closed, JSON.stringify(lf56btn));
+
     await repoPage.evaluate(function () {
       var panel = document.querySelector(".ps-rpanel");
       var inp = panel.querySelector(".cx-field input");

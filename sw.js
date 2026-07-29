@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v327"; /* v327: LF56 (folder picker, slice 1) — a shared
+var CACHE_NAME = "studio-shell-v328"; /* v328: LF56 (folder picker, slice 2) — the shared
+   Studio.folderPickerButton (a "Browse" affordance opening openFolderPicker) is now wired next to
+   the Folder field in the dataset (datasets.js), connection (connections.js) and job (jobs.js)
+   editors, not just the Repository quick-edit — folder filing is the same picker across the editors.
+   Explore's compact inline save bar is a deferred follow-up (needs a layout pass to fit a 3rd
+   control next to its absolute-positioned sparkle). app/studio.js + those three files changed, so
+   precached copies roll.
+   v327: LF56 (folder picker, slice 1) — a shared
    openFolderPicker() modal (Studio.openFolderPicker) navigates the flat "/"-separated folder tree
    by breadcrumb, searches all filed paths, creates nested folders inline, or clears — over the same
    `folder` strings (no data change). folderPickerButton() adds a "Browse" affordance next to a

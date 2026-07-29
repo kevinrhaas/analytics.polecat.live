@@ -598,6 +598,8 @@
       Object.keys(folderNames).sort().forEach(function (f) { var o = el("option"); o.value = f; folderList.appendChild(o); });
       folderInp.setAttribute("list", "dsxFolderOptions");
       folderInp.parentNode.appendChild(folderList);
+      // LF56 slice 2: a Browse button opens the shared folder-tree picker over this type's folders.
+      folderInp.parentNode.appendChild(Studio.folderPickerButton(folderInp, function () { return Object.keys(folderNames); }));
       var ownerInp = field("Owner", el("input"), "Optional — who to ask about this dataset.");
       ownerInp.type = "text"; ownerInp.value = d.owner || ""; ownerInp.placeholder = "e.g. kevin";
       b.appendChild(form);

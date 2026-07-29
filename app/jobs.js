@@ -411,6 +411,8 @@
       Object.keys(jobFolderNames).sort().forEach(function (f) { var o = el("option"); o.value = f; jobFolderList.appendChild(o); });
       folderInp.setAttribute("list", "jobFolderOptions");
       folderInp.parentNode.appendChild(jobFolderList);
+      // LF56 slice 2: Browse button → shared folder-tree picker over the jobs' folders.
+      folderInp.parentNode.appendChild(Studio.folderPickerButton(folderInp, function () { return Object.keys(jobFolderNames); }));
 
       // LF13(d) slice 1: a source FIELD LIST (type icons) so the pipeline below reads
       // against a visible legend of what's actually available, instead of just column

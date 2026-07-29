@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 691,
+    title: 'The folder Browse button now sits on every editor',
+    kind: 'polish',
+    ts: '2026-07-29T02:51:13.000Z',
+    items: [
+      'The folder-tree "Browse" button — navigate, search, and create folders instead of typing the path — is now next to the Folder field in the dataset, connection and job editors, not just the Repository quick-edit. Filing an object is the same one-click picker across the editors.',
+    ],
+  },
+  {
     v: 690,
     title: 'Browse a folder tree instead of typing the path',
     kind: 'feature',

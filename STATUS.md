@@ -116,6 +116,16 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF56 (folder picker, slice 2) — the Browse picker is now on every Folder field (v691, sw v328,
+  2026-07-29):** slice 1 built `Studio.openFolderPicker` + `folderPickerButton` and wired the
+  Repository quick-edit. Slice 2 exposes `Studio.folderPickerButton` and wires it next to the Folder
+  field in the **dataset** (datasets.js), **connection** (connections.js) and **job** (jobs.js)
+  editors — each passing its own type's folder set. Filing an object is now the same one-click tree
+  picker across the editor forms; the free-text input + sparkle-suggest stay as-is alongside it. New
+  regression test drives `folderPickerButton` → open → pick → writes the path back to the input.
+  **Explore's compact inline save bar is a deferred follow-up:** its Folder field sits in a crowded
+  flex row with an absolute-positioned sparkle, so a third control there needs a small layout pass
+  first (a first attempt pushed `#xpSaveBtn` out of the actionable area — reverted).
 - **LF56 (folder picker, slice 1) — a reusable folder-tree picker replaces free-text folder entry
   (v690, sw v327, 2026-07-29):** objects are filed via a flat `"/"`-separated `folder` string that you
   used to type by hand. New shared `Studio.openFolderPicker(current, allPaths, onPick)` modal
