@@ -116,6 +116,18 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF56 (folder picker, slice 3) — the Browse picker now reaches Explore's save bar too, LF56 is
+  now fully done (v693, sw v330, 2026-07-29):** slice 2's own deferred follow-up. The Browse button
+  is wired next to Explore's "Folder" field as a **sibling flex item** beside the sparkle wrap, NOT
+  nested inside it — the sparkle wrap is a tight overlay (the input gets `padding-right` for one
+  absolute-positioned icon) sized to the savebar's compact `.6fr` slot, so cramming a second control
+  into that same box overflowed it and pushed the Save button out of place (the earlier attempt this
+  slot's old note described). As a plain sibling in the already `flex-wrap:wrap` savebar row, it just
+  wraps to its own line at narrow widths like the other savebar buttons already do — no CSS changes
+  needed beyond that. New regression test opens the picker from Explore's real rendered form,
+  creates + picks a folder, and asserts the button sits beside (not inside) the sparkle wrap. Docs
+  (`docs/index.html` § Filing a dataset/connection/job/analysis into a Folder) now mention the Browse
+  button. Files: app/explore.js, docs/index.html, sw.js, js/changelog.js, tests/run.js.
 - **LF54 (slice 2) — per-component density tightening in the workspace catalogs (v692, sw v329,
   2026-07-29):** slice 1 killed the dead left gutter (left-aligned the three centered wraps) and
   explicitly deferred "deeper per-component density tightening (list/card gaps)" as a natural
@@ -6570,6 +6582,11 @@
 >       better UI. Elegant, in the LF51 vibe (tasteful animation). (New shared folder-picker component in
 >       app/*.js + studio.css; wire into openJobEditor, dataset/connection editors, explore.js save bar,
 >       Repository.) Ties LF51, #21 (org at scale/M5), #29.
+>       ✓ **LF56 is now fully done (2026-07-29, steward, 3 slices — see DONE):** the shared
+>       `Studio.openFolderPicker`/`folderPickerButton` Browse affordance is wired into the dataset,
+>       connection and job editors, the Repository quick-edit panel (all 5 object kinds, dashboards
+>       included), and Explore's save bar — every Folder field in the app now offers the same
+>       navigate/search/create-inline tree picker alongside the free-text input + sparkle-suggest.
 > LF55. **Job editor step UX overhaul (Kevin, live 2026-07-27, screenshots).** Polish the Add/Edit-job
 >       transform steps: (1) COLUMN DROPDOWNS EVERYWHERE — the editor already knows the columns (it renders
 >       the preview), so every column-naming field (Filter rows→column, Rename column→from/to, and any

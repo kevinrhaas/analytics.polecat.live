@@ -5,10 +5,22 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v329"; /* v329: LF54 (slice 2) — density tightening: the two
+var CACHE_NAME = "studio-shell-v330"; /* v330: LF56 (folder picker, slice 3) — the Browse button
+   now also sits on Explore's compact "Folder" field, the last un-wired Folder surface, making LF56
+   fully done. It's a sibling flex item next to the sparkle wrap rather than nested inside it — the
+   sparkle wrap is a tight overlay (input padded for one absolute icon) sized to the savebar's
+   compact slot, so cramming a second control into that same box overflowed it and pushed the Save
+   button out of place in an earlier attempt; a sibling item just wraps to its own line at narrow
+   widths like the savebar's other buttons already do. app/explore.js + docs/index.html changed, so
+   precached copies roll.
+   v329: LF54 (slice 2) — density tightening: the two
    off-scale 30px vertical gaps in the workspace catalogs (the toolbar→list `.repo-io` gap and the
    inter-subsection `.repo-sub2` gap) are now the 20px spacing-scale token, continuing slice 1's
    left-align density pass and putting both back on the --sp scale (app/studio.css).
+   v328: LF56 (folder picker, slice 2) — the shared
+   Studio.folderPickerButton (a "Browse" affordance opening openFolderPicker) is now wired next to
+   the Folder field in the dataset (datasets.js), connection (connections.js) and job (jobs.js)
+   editors, not just the Repository quick-edit — folder filing is the same picker across the editors.
    Explore's compact inline save bar is a deferred follow-up (needs a layout pass to fit a 3rd
    control next to its absolute-positioned sparkle). app/studio.js + those three files changed, so
    precached copies roll.

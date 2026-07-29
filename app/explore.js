@@ -718,10 +718,14 @@
       var xpFolderNextSibling = folderInp2.nextSibling, xpFolderParent = folderInp2.parentNode;
       var folderWrap = withSparkleButton(folderInp2, "folder", xpFolderSuggestCtx);
       folderWrap.classList.add("xp-folder-sparkle");
-      // LF56: the folder-tree Browse button lives on the roomy editor forms (dataset/connection/job)
-      // + Repository quick-edit. Explore's compact inline save bar (with its absolute-positioned
-      // sparkle) needs a dedicated layout pass before a third control fits — deferred follow-up.
       xpFolderParent.insertBefore(folderWrap, xpFolderNextSibling);
+      // LF56 slice 3: the Browse button sits as its OWN flex item next to folderWrap, not
+      // nested inside it — the sparkle wrap is already a tight overlay (input padded for one
+      // absolute icon) sized to the savebar's compact .6fr slot, so a second control crammed
+      // into that same box overflowed it and shoved the Save button off (the earlier attempt
+      // this note used to describe). A sibling flex item just wraps to its own line at narrow
+      // widths like the other savebar buttons already do.
+      xpFolderParent.insertBefore(Studio.folderPickerButton(folderInp2, function () { return Object.keys(xpFolderCounts); }), xpFolderNextSibling);
       folderInp2.addEventListener("input", function () { XP.folder = folderInp2.value; });
     }
     $$("[data-xp-folder]", body).forEach(function (btn) {
