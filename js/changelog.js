@@ -6,6 +6,14 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 719,
+    title: 'The Studio Examples menu retires — samples live in Dashboards & Home',
+    ts: '2026-07-29T19:46:49.000Z',
+    items: [
+      'The builder\'s Examples ▾ toolbar menu is gone: an installed pack\'s curated dashboards are real rows in the Dashboards section (Sample packs chip), Home\'s gallery tiles still open any sample directly in the builder, and Home\'s sample card — now "Sample dashboards", dropping the old "Examples" name — plus its "+N more" tile both jump straight to that filtered Dashboards view. Import from URL keeps its home in the Open-dashboard picker\'s footer.',
+    ],
+  },
+  {
     v: 718,
     title: 'Job editor: a cooler icon-panel step-type picker',
     kind: 'polish',

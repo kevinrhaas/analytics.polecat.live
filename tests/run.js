@@ -553,7 +553,11 @@ function serve() {
 
     const libCount = await page.$eval("#libCount", (e) => e.textContent);
     ok("query library populated", /\d+ queries/.test(libCount) && parseInt(libCount) > 100, libCount);
-    ok("examples menu has entries", (await page.$$("#menuExamples button")).length >= 6);
+    // LF43 slice 2: the Studio Examples ▾ menu is GONE — an installed pack's curated
+    // dashboards are real rows in the Dashboards section, and Home's gallery tiles remain.
+    ok("LF43 slice 2: the Examples ▾ menu is gone from the dashbar", !(await page.$("#btnExamples")) && !(await page.$("#menuExamples")));
+    ok("LF43 slice 2: Home's sample card drops the 'Examples' naming (reads 'Sample dashboards')",
+      await page.evaluate(() => { var c = document.querySelector('.home-card[data-home="examples"] b'); return !!c && c.textContent === "Sample dashboards"; }));
     ok("app identity reads “Analytics” in the rail brand (the old Dashboard Studio name is gone)",
       await page.$eval("#railBrand .rail-brand-txt", (e) => e.textContent.trim() === "Analytics"));
     // LF27(a): a fresh boot (no saved section) lands on Home, not the Studio builder —
@@ -690,8 +694,8 @@ function serve() {
     ok("Slice B/C: those actions are moved OUT of #dashbar .top-actions, not duplicated",
       !sliceBOnStudio.dashbarStillHasUndo && !sliceBOnStudio.dashbarStillHasExport && !sliceBOnStudio.dashbarStillHasSaveAs,
       JSON.stringify(sliceBOnStudio));
-    ok("Slice C: #dashbar keeps Examples ▾ (dashboard-scoped, but not part of this slice)",
-      sliceBOnStudio.dashbarHasExamples, JSON.stringify(sliceBOnStudio));
+    ok("LF43 slice 2: #dashbar no longer carries Examples ▾ (menu removed outright)",
+      !sliceBOnStudio.dashbarHasExamples, JSON.stringify(sliceBOnStudio));
     // Undo/Redo/Save/Export still work from their new home (Open is exercised via LF9/LF27b
     // below, and via the dedicated "Open a dashboard" picker tests elsewhere in this suite).
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
@@ -759,9 +763,7 @@ function serve() {
     // (boot's own default) — this block swapped in blank dashboards, so restore both.
     await page.evaluate(() => window.__studioShellSetSection("studio"));
     await page.waitForTimeout(150);
-    await page.click("#btnExamples");
-    await page.waitForTimeout(150);
-    await page.click('.ex-card[data-f="studio-cost.studio.json"]');
+    await page.evaluate(() => window.__studioLoadExample("studio-cost.studio.json")); // LF43 slice 2: menu gone — load via hook
     await page.waitForTimeout(300);
 
     // ---- UX1: a11y quick wins (2026-07-22) ----
@@ -2065,6 +2067,9 @@ function serve() {
       starterConfirm.specIdAfter !== lf67bBuilt.specId && !starterConfirm.unsaved, JSON.stringify(starterConfirm));
 
     // (d) New ▾'s auto-build starter, from a built-in sample query set (stem)
+    // Guard: scaffoldFromStem() early-returns when S.catalog hasn't finished its async load
+    // yet (no confirm, no replace) — wait for the stem to exist so this leg is deterministic.
+    await page.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.catalog && window.__STUDIO_STATE.catalog["cost-finops"], { timeout: 8000 });
     lf67bBuilt = await lf67bBuildUnsaved();
     const stemCancel = await page.evaluate(function () {
       var msg = null;
@@ -4500,17 +4505,14 @@ function serve() {
       dpInstall.panelTypes.filter(function (t) { return t === "ensembleSeries"; }).length === 4 &&
       dpInstall.panelTypes.filter(function (t) { return t === "choropleth"; }).length === 3,
       JSON.stringify(dpInstall));
-    // LF2: pack-gated examples — the 3 Conservation showcase dashboards (data/examples/index.json
-    // demoPackId) only surface in the gallery once their pack is installed. The install above went
-    // through the raw test hook (not the Settings UI), so force the same menu rebuild toggleDemoPack
-    // would have triggered.
-    await page.evaluate(function () { window.__studioBuildExamplesMenu(); window.__studioShellSetSection("studio"); });
-    await page.waitForTimeout(150);
-    await page.click("#btnExamples");
+    // LF2: pack-gated examples — the Conservation showcase dashboards (data/examples/index.json
+    // demoPackId) only surface in the sample gallery once their pack is installed. LF43 slice 2:
+    // the gallery is Home's tile strip now (the Studio Examples ▾ menu is gone) — the install
+    // above went through the raw test hook, so force the same Home re-render the UI would get.
+    await page.evaluate(function () { window.__studioRenderHome(); window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(150);
     const lf2On = await page.evaluate(function () {
-      var em = document.getElementById("menuExamples");
-      var files = Array.prototype.map.call(em.querySelectorAll("button.ex-card"), function (b) { return b.getAttribute("data-f"); });
+      var files = window.__studioVisibleExampleFiles();
       return { hasScorecard: files.indexOf("conservation-scorecard.studio.json") >= 0, hasFlow: files.indexOf("conservation-flow.studio.json") >= 0,
         hasWatershed: files.indexOf("conservation-watershed.studio.json") >= 0, hasCostshare: files.indexOf("conservation-costshare.studio.json") >= 0,
         hasAgreement: files.indexOf("conservation-agreement.studio.json") >= 0, hasOutliers: files.indexOf("conservation-outliers.studio.json") >= 0,
@@ -4519,9 +4521,9 @@ function serve() {
     ok("LF2: Conservation example cards appear in the gallery once the pack is installed",
       lf2On.hasScorecard && lf2On.hasFlow && lf2On.hasWatershed && lf2On.hasCostshare && lf2On.hasAgreement && lf2On.hasOutliers && lf2On.hasSwitching && lf2On.hasOverview, JSON.stringify(lf2On));
     // both new example specs actually load (title + full panel count) — catches a bad file
-    // reference or malformed JSON that a card would otherwise fail silently on. The menu from the
-    // check above is still open (loadExample's own closeMenus() closes it after the click below).
-    await page.click('#menuExamples button.ex-card[data-f="conservation-scorecard.studio.json"]');
+    // reference or malformed JSON that a tile would otherwise fail silently on. LF43 slice 2:
+    // loaded via the __studioLoadExample hook (the menu clicks are gone).
+    await page.evaluate(function () { return window.__studioLoadExample("conservation-scorecard.studio.json"); });
     await page.waitForTimeout(300);
     const lf2Scorecard = await page.evaluate(function () {
       var S = window.__STUDIO_STATE;
@@ -4533,8 +4535,7 @@ function serve() {
     // LF7: this example now carries a real Practice filter (was filters:[]).
     ok("LF7: the Scorecard example carries a real 'Practice' filter (was filters:[])",
       JSON.stringify(lf2Scorecard.filterIds) === JSON.stringify(["practice"]), JSON.stringify(lf2Scorecard));
-    await page.click("#btnExamples"); await page.waitForTimeout(150);
-    await page.click('#menuExamples button.ex-card[data-f="conservation-flow.studio.json"]');
+    await page.evaluate(function () { return window.__studioLoadExample("conservation-flow.studio.json"); }); // LF43 slice 2: menu gone — hook load
     await page.waitForTimeout(300);
     const lf2Flow = await page.evaluate(function () {
       var S = window.__STUDIO_STATE;
@@ -4549,8 +4550,7 @@ function serve() {
     // LF2: the 3rd conservation example — watershed-scale adoption, one of the ~6 candidate topics
     // named in the LF2 handoff note — loads with its HUC8 choropleth + ensemble trend + gauge + bars
     // panels and a real Since-year filter (not decorative filters:[]).
-    await page.click("#btnExamples"); await page.waitForTimeout(150);
-    await page.click('#menuExamples button.ex-card[data-f="conservation-watershed.studio.json"]');
+    await page.evaluate(function () { return window.__studioLoadExample("conservation-watershed.studio.json"); }); // LF43 slice 2: menu gone — hook load
     await page.waitForTimeout(300);
     const lf2Watershed = await page.evaluate(function () {
       var S = window.__STUDIO_STATE;
@@ -4567,8 +4567,7 @@ function serve() {
     // LF2: the 4th conservation example — program cost-share ROI, another of the candidate topics
     // named in the LF2 handoff note — loads with its cost-efficiency scatter + cost-mix donut +
     // cost-per-acre trend + return-score bars panels and a real Since-year filter.
-    await page.click("#btnExamples"); await page.waitForTimeout(150);
-    await page.click('#menuExamples button.ex-card[data-f="conservation-costshare.studio.json"]');
+    await page.evaluate(function () { return window.__studioLoadExample("conservation-costshare.studio.json"); }); // LF43 slice 2: menu gone — hook load
     await page.waitForTimeout(300);
     const lf2Costshare = await page.evaluate(function () {
       var S = window.__STUDIO_STATE;
@@ -4585,8 +4584,7 @@ function serve() {
     // LF2: the 5th conservation example — provider agreement over time, another of the candidate
     // topics named in the LF2 handoff note — loads with its ensemble trend + year×provider agreement
     // heatmap + yearly-spread line + per-provider deviation bars panels and a real Since-year filter.
-    await page.click("#btnExamples"); await page.waitForTimeout(150);
-    await page.click('#menuExamples button.ex-card[data-f="conservation-agreement.studio.json"]');
+    await page.evaluate(function () { return window.__studioLoadExample("conservation-agreement.studio.json"); }); // LF43 slice 2: menu gone — hook load
     await page.waitForTimeout(300);
     const lf2Agreement = await page.evaluate(function () {
       var S = window.__STUDIO_STATE;
@@ -4604,8 +4602,7 @@ function serve() {
     // topics named in the LF2 handoff note — loads with its county choropleth + district-level
     // diverging-bar deviation ranking + county-deviation histogram + outlier-share gauge panels and
     // a real Practice filter.
-    await page.click("#btnExamples"); await page.waitForTimeout(150);
-    await page.click('#menuExamples button.ex-card[data-f="conservation-outliers.studio.json"]');
+    await page.evaluate(function () { return window.__studioLoadExample("conservation-outliers.studio.json"); }); // LF43 slice 2: menu gone — hook load
     await page.waitForTimeout(300);
     const lf2Outliers = await page.evaluate(function () {
       var S = window.__STUDIO_STATE;
@@ -4623,8 +4620,7 @@ function serve() {
     // candidate topics named in the LF2 handoff note — loads with its practice-mix stacked area +
     // adoption-share bump ranking + before/after slope + switched-acres gauge panels and a real
     // Crop filter. LF2 is now feature-complete (all ~8 candidate topics covered).
-    await page.click("#btnExamples"); await page.waitForTimeout(150);
-    await page.click('#menuExamples button.ex-card[data-f="conservation-switching.studio.json"]');
+    await page.evaluate(function () { return window.__studioLoadExample("conservation-switching.studio.json"); }); // LF43 slice 2: menu gone — hook load
     await page.waitForTimeout(300);
     const lf2Switching = await page.evaluate(function () {
       var S = window.__STUDIO_STATE;
@@ -4641,8 +4637,7 @@ function serve() {
     // LF2: the 8th conservation example — a richtext-led narrative overview rolling up the other
     // six showcases (adoption, mix, cost-share ROI, provider agreement) into one read. This was
     // the last of the ~8 candidate topics named in the LF2 handoff note, so LF2 is now fully done.
-    await page.click("#btnExamples"); await page.waitForTimeout(150);
-    await page.click('#menuExamples button.ex-card[data-f="conservation-overview.studio.json"]');
+    await page.evaluate(function () { return window.__studioLoadExample("conservation-overview.studio.json"); }); // LF43 slice 2: menu gone — hook load
     await page.waitForTimeout(300);
     const lf2Overview = await page.evaluate(function () {
       var S = window.__STUDIO_STATE;
@@ -4963,15 +4958,14 @@ function serve() {
       "reliability-distributions.studio.json", "compliance-radar.studio.json"];
     const DM_UNGATED = ["quality-scorecard.studio.json", "pipeline-observability.studio.json", "storage-growth.studio.json", "studio-cost.studio.json"];
 
-    await page.evaluate(function () { window.__studioShellSetSection("studio"); window.__studioBuildExamplesMenu(); });
-    await page.waitForTimeout(150);
-    await page.click("#btnExamples");
+    // LF43 slice 2: the sample gallery is Home's [data-home-example] tile strip now (the
+    // Studio Examples ▾ menu is gone) — same visibleExamples() gate, read there instead.
+    await page.evaluate(function () { window.__studioRenderHome(); });
     await page.waitForTimeout(150);
     const dmGalleryOn = await page.evaluate(function (files) {
-      var have = Array.prototype.map.call(document.querySelectorAll("#menuExamples button.ex-card"), function (b) { return b.getAttribute("data-f"); });
+      var have = window.__studioVisibleExampleFiles();
       return files.map(function (f) { return have.indexOf(f) >= 0; });
     }, DM_GATED.concat(DM_UNGATED));
-    await page.keyboard.press("Escape");
     ok("LF16: all 8 gated showcase examples + the 4 ungated ones are visible in the gallery while the pack is installed (default)",
       dmGalleryOn.every(Boolean), JSON.stringify(dmGalleryOn));
 
@@ -4984,27 +4978,22 @@ function serve() {
       var before = tagged("datamanagement");
       window.__studioDemoPacks.remove("datamanagement");
       var after = tagged("datamanagement");
-      window.__studioBuildExamplesMenu();
+      window.__studioRenderHome();
       return { before: before, after: after, installed: Studio.demoPackInstalled("datamanagement") };
     });
     ok("LF16: removing the datamanagement pack writes/deletes NO workspace rows (a pure gallery-visibility toggle) and clears the installed flag",
       dmRemove.before === 0 && dmRemove.after === 0 && !dmRemove.installed, JSON.stringify(dmRemove));
 
-    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
-    await page.waitForTimeout(150);
-    await page.click("#btnExamples");
-    await page.waitForTimeout(150);
     const dmGalleryOff = await page.evaluate(function (files) {
-      var have = Array.prototype.map.call(document.querySelectorAll("#menuExamples button.ex-card"), function (b) { return b.getAttribute("data-f"); });
+      var have = window.__studioVisibleExampleFiles();
       return { gated: files.gated.map(function (f) { return have.indexOf(f) >= 0; }), ungated: files.ungated.map(function (f) { return have.indexOf(f) >= 0; }) };
     }, { gated: DM_GATED, ungated: DM_UNGATED });
-    await page.keyboard.press("Escape");
     ok("LF16: removing the pack hides exactly its 8 gated showcase examples from the gallery, leaving the 4 ungated ones untouched",
       dmGalleryOff.gated.every(function (v) { return v === false; }) && dmGalleryOff.ungated.every(Boolean), JSON.stringify(dmGalleryOff));
 
     const dmLibCard = await page.evaluate(function () {
       window.__studioDemoPacks.install("datamanagement");
-      window.__studioBuildExamplesMenu();
+      window.__studioRenderHome();
       window.__studioBuildLibrary();
       var installedAgain = Studio.demoPackInstalled("datamanagement");
       var c = document.querySelector('[data-lib-demopack="datamanagement"]');
@@ -5014,20 +5003,16 @@ function serve() {
     ok("LF16: reinstalling the datamanagement pack restores the installed flag, and its library card has no 'Open dashboard' chip (examples-kind packs own no dashboard row)",
       dmLibCard.installedAgain && dmLibCard.hasInstallChip && !dmLibCard.hasOpenChip, JSON.stringify(dmLibCard));
 
-    await page.evaluate(function () { window.__studioBuildExamplesMenu(); window.__studioShellSetSection("studio"); });
+    // LF2: the same Conservation cards disappear from Home's gallery once the pack is removed again.
+    await page.evaluate(function () { window.__studioRenderHome(); });
     await page.waitForTimeout(200);
-    // LF2: the same 4 Conservation cards disappear once the pack is removed again.
-    await page.click("#btnExamples");
-    await page.waitForTimeout(150);
     const lf2Off = await page.evaluate(function () {
-      var em = document.getElementById("menuExamples");
-      var files = Array.prototype.map.call(em.querySelectorAll("button.ex-card"), function (b) { return b.getAttribute("data-f"); });
+      var files = window.__studioVisibleExampleFiles();
       return { hasScorecard: files.indexOf("conservation-scorecard.studio.json") >= 0, hasFlow: files.indexOf("conservation-flow.studio.json") >= 0,
         hasWatershed: files.indexOf("conservation-watershed.studio.json") >= 0, hasCostshare: files.indexOf("conservation-costshare.studio.json") >= 0,
         hasAgreement: files.indexOf("conservation-agreement.studio.json") >= 0, hasOutliers: files.indexOf("conservation-outliers.studio.json") >= 0,
         hasSwitching: files.indexOf("conservation-switching.studio.json") >= 0 };
     });
-    await page.click("body", { position: { x: 5, y: 5 } }); // close the menu (clicking a card auto-closes; this check-only path doesn't)
     ok("LF2: Conservation example cards disappear from the gallery once the pack is removed",
       !lf2Off.hasScorecard && !lf2Off.hasFlow && !lf2Off.hasWatershed && !lf2Off.hasCostshare && !lf2Off.hasAgreement && !lf2Off.hasOutliers && !lf2Off.hasSwitching, JSON.stringify(lf2Off));
 
@@ -8669,8 +8654,8 @@ function serve() {
       caretIcons.newBtn.svgCount === 2 && caretIcons.exportBtn.svgCount === 2 && caretIcons.newDS.svgCount === 2 &&
       !caretGlyphs.some((g) => caretIcons.newBtn.text.indexOf(g) >= 0 || caretIcons.exportBtn.text.indexOf(g) >= 0 || caretIcons.newDS.text.indexOf(g) >= 0),
       JSON.stringify(caretIcons));
-    ok("Examples ▾ (icon-less label) shows 1 trailing caret SVG, no raw glyph",
-      caretIcons.examplesBtn.svgCount === 1 && !caretGlyphs.some((g) => caretIcons.examplesBtn.text.indexOf(g) >= 0), JSON.stringify(caretIcons.examplesBtn));
+    // LF43 slice 2: the Examples ▾ trigger is gone entirely — assert the removal instead.
+    ok("Examples ▾ trigger is removed from the dashbar (LF43 slice 2)", caretIcons.examplesBtn === null, JSON.stringify(caretIcons.examplesBtn));
     ok("Changelog footer button's expand indicator is a themed SVG, not a raw ▴ glyph",
       caretIcons.changelog.svgCount === 2 && !caretGlyphs.some((g) => caretIcons.changelog.text.indexOf(g) >= 0), JSON.stringify(caretIcons.changelog));
     await page.click("#btnChangelog");
@@ -14902,19 +14887,20 @@ function serve() {
       var ta = document.querySelector("#dashbar .top-actions");
       var kids = [].slice.call(ta.children);
       var seps = kids.filter((k) => k.classList.contains("top-sep"));
-      var idxExamplesWrap = kids.findIndex((k) => k.querySelector && k.querySelector("#btnExamples"));
+      // LF43 slice 2: Examples ▾ is gone — Close is now the divider's left neighbour
+      var idxClose = kids.findIndex((k) => k.id === "btnCloseStudio");
       var idxSep = kids.findIndex((k) => k.classList.contains("sep-connect"));
       var idxTheme = kids.findIndex((k) => k.id === "btnTheme");
       return {
         count: seps.length,
         allAriaHidden: seps.every((s) => s.getAttribute("aria-hidden") === "true"),
         noneFocusable: seps.every((s) => s.tabIndex === -1 || !s.hasAttribute("tabindex")),
-        fileBeforePresent: idxExamplesWrap < idxSep && idxSep < idxTheme
+        fileBeforePresent: idxClose >= 0 && idxClose < idxSep && idxSep < idxTheme
       };
     });
     ok("Track H: dashbar has exactly 1 grouping divider (File | Present)", topSeps.count === 1, JSON.stringify(topSeps));
     ok("Track H: dashbar dividers are decorative only (aria-hidden, not tab-focusable)", topSeps.allAriaHidden && topSeps.noneFocusable, JSON.stringify(topSeps));
-    ok("Track H: the divider sits between Examples (File) and Theme (Present)", topSeps.fileBeforePresent, JSON.stringify(topSeps));
+    ok("Track H: the divider sits between Close (File) and Theme (Present)", topSeps.fileBeforePresent, JSON.stringify(topSeps));
 
     // ---- Focus trap in modals (v48) ----
     console.log("\n• Focus trap in modals (v48)");
@@ -15883,15 +15869,15 @@ function serve() {
     const m7MoreMenu = await narrowPage.evaluate(() => {
       var menu = document.getElementById("menuMore");
       var isOpen = menu && menu.classList.contains("open");
-      var moreExamples = document.getElementById("moreExamples");
       var moreImport = document.getElementById("moreImport");
       var moreSaveSpec = document.getElementById("moreSaveSpec");
-      var examplesVisible = moreExamples ? window.getComputedStyle(moreExamples).display !== "none" : false;
       var importVisible = moreImport ? window.getComputedStyle(moreImport).display !== "none" : false;
       var saveVisible = moreSaveSpec ? window.getComputedStyle(moreSaveSpec).display !== "none" : false;
-      return { isOpen, examplesVisible, importVisible, saveVisible };
+      // LF43 slice 2: the Examples… phone item is gone with the menu it opened
+      var examplesGone = !document.getElementById("moreExamples");
+      return { isOpen, examplesGone, importVisible, saveVisible };
     });
-    ok("M7: More menu shows phone-only Examples/Open/Save items at 360px", m7MoreMenu.isOpen && m7MoreMenu.examplesVisible && m7MoreMenu.importVisible && m7MoreMenu.saveVisible, JSON.stringify(m7MoreMenu));
+    ok("M7: More menu shows phone-only Open/Save items at 360px (Examples… removed — LF43 slice 2)", m7MoreMenu.isOpen && m7MoreMenu.examplesGone && m7MoreMenu.importVisible && m7MoreMenu.saveVisible, JSON.stringify(m7MoreMenu));
 
     // ---- M8: restore banner above mobile tab bar ----
     console.log("\n• M8: restore banner above mobile tab bar");
@@ -15952,18 +15938,17 @@ function serve() {
     // ---- M10: secondary topbar buttons hidden at phone widths ≤640px ----
     console.log("\n• M10: topbar buttons hidden/accessible at phone (390px)");
     const m10Btns = await phonePage.evaluate(() => {
-      var btnEx = document.getElementById("btnExamples");
       var btnImp = document.getElementById("btnImport");
       var btnSave = document.getElementById("btnSaveSpec");
-      var moreEx = document.getElementById("moreExamples");
-      var dispEx  = btnEx   ? window.getComputedStyle(btnEx).display   : "none";
+      var moreImp = document.getElementById("moreImport");
       var dispImp = btnImp  ? window.getComputedStyle(btnImp).display  : "none";
       var dispSave = btnSave ? window.getComputedStyle(btnSave).display : "none";
-      var moreExDisp = moreEx ? window.getComputedStyle(moreEx).display : "none";
-      return { dispEx, dispImp, dispSave, moreExDisp };
+      var moreImpDisp = moreImp ? window.getComputedStyle(moreImp).display : "none";
+      // LF43 slice 2: the Examples button/phone item are gone outright
+      return { dispImp, dispSave, moreImpDisp, examplesGone: !document.getElementById("btnExamples") && !document.getElementById("moreExamples") };
     });
-    ok("M10: Examples hidden from topbar at 390px (≤640px threshold)", m10Btns.dispEx === "none", JSON.stringify(m10Btns));
-    ok("M10: Open/Save hidden from topbar; More menu shows them at 390px", m10Btns.dispImp === "none" && m10Btns.moreExDisp !== "none", JSON.stringify(m10Btns));
+    ok("M10: Examples removed outright (LF43 slice 2 — no topbar button, no phone twin)", m10Btns.examplesGone, JSON.stringify(m10Btns));
+    ok("M10: Open/Save hidden from topbar; More menu shows them at 390px", m10Btns.dispImp === "none" && m10Btns.moreImpDisp !== "none", JSON.stringify(m10Btns));
 
     // Slice B: Undo/Redo/Export joined the same phone hide-behind-More convention once they
     // moved into the shared #tbSectionActions slot (crowds the waffle/＋New every other
@@ -16247,44 +16232,41 @@ function serve() {
     ok("E4: filter hash code element shows encoded filter id=def", e4UI.hasFhash && e4UI.fhashText.indexOf("=") >= 0, JSON.stringify(e4UI));
 
     // ---- E5: Examples gallery card grid ----
-    console.log("\n• Examples gallery card grid (E5)");
-    // Open the examples menu
-    await page.click("#btnExamples");
+    console.log("\n• Examples gallery card grid (E5 — Home tiles since LF43 slice 2)");
+    // LF43 slice 2: the Studio Examples ▾ menu is gone — Home's tile strip is THE sample
+    // gallery, same visibleExamples() source, same chip/thumb anatomy. Re-render + read there.
+    await page.evaluate(() => { window.__studioRenderHome(); });
     await page.waitForTimeout(150);
     const e5 = await page.evaluate(() => {
-      var em = document.getElementById("menuExamples");
-      if (!em) return { ok: false };
-      var cards = em.querySelectorAll("button.ex-card");
-      var grids = em.querySelectorAll(".ex-cards");
-      var cdfBadge = em.querySelector(".ex-badge-cdf");
-      var cdeBadge = em.querySelector(".ex-badge-cde");
-      var chips = em.querySelectorAll(".ex-chip");
-      var thumbCharts = em.querySelector(".ex-thumb svg svg");   // real per-chart mini SVG nested in a card thumb
+      var sec = document.getElementById("secHome");
+      var cards = sec.querySelectorAll("[data-home-example]");
+      var grids = sec.querySelectorAll(".home-examples");
+      var chips = sec.querySelectorAll(".home-ex-types .ex-chip");
+      var thumbCharts = sec.querySelector(".home-ex-thumb svg svg"); // real per-chart mini SVG nested in a tile thumb
       return {
         cardCount: cards.length,
         gridCount: grids.length,
-        hasCdfBadge: !!cdfBadge,
-        cdeBadgeText: cdeBadge ? cdeBadge.textContent.trim() : "",
-        hasCdeBadge: !!cdeBadge,
+        hasCdfBadge: !!sec.querySelector(".ex-badge-cdf"),
+        hasCdeBadge: !!sec.querySelector(".ex-badge-cde"),
         chipCount: chips.length,
-        firstCardFile: cards[0] ? cards[0].getAttribute("data-f") : "",
+        firstCardFile: cards[0] ? cards[0].getAttribute("data-home-example") : "",
         hasRealThumb: !!thumbCharts
       };
     });
-    ok("E5: examples menu shows card elements (button.ex-card)", e5.cardCount >= 6, JSON.stringify(e5));
-    ok("E5: examples menu has .ex-cards grid containers", e5.gridCount >= 1, JSON.stringify(e5));
-    ok("E5: card thumbnails render real per-chart mini SVGs", e5.hasRealThumb, JSON.stringify(e5));
+    ok("E5: Home's sample gallery shows tile elements ([data-home-example])", e5.cardCount >= 6, JSON.stringify(e5));
+    ok("E5: the gallery has its .home-examples grid container", e5.gridCount >= 1, JSON.stringify(e5));
+    ok("E5: tile thumbnails render real per-chart mini SVGs", e5.hasRealThumb, JSON.stringify(e5));
     ok("E5: no CDF/CDE track badges (retired terminology)", !e5.hasCdfBadge && !e5.hasCdeBadge, JSON.stringify(e5));
     ok("E5: chart-type chips rendered", e5.chipCount >= 2, JSON.stringify(e5));
     ok("E5: most-spectacular example leads the gallery (no single hero)", e5.firstCardFile === "feature-showcase.studio.json", JSON.stringify(e5));
-    // Click a card and verify the example loads
-    await page.click("#menuExamples button.ex-card");
+    // Click a tile and verify the example loads (the tile's own click enters Studio + loads)
+    await page.evaluate(() => { document.querySelector("#secHome [data-home-example]").click(); });
     await page.waitForTimeout(400);
     const e5Load = await page.evaluate(() => {
       var S = window.__STUDIO_STATE;
       return { hasSpec: !!(S && S.spec && S.spec.title), title: S && S.spec ? S.spec.title : "" };
     });
-    ok("E5: clicking a card loads the example into the builder", e5Load.hasSpec && e5Load.title.length > 0, JSON.stringify(e5Load));
+    ok("E5: clicking a tile loads the example into the builder", e5Load.hasSpec && e5Load.title.length > 0, JSON.stringify(e5Load));
 
     // ---- E7: Changelog time stamps ----
     console.log("\n• Changelog time stamps (E7)");
@@ -16799,21 +16781,20 @@ function serve() {
     });
     ok("E3: dashboard inspector shows .insp-thumb with an SVG at dashboard level", e3Insp.present && e3Insp.hasSvg, JSON.stringify(e3Insp));
 
-    // Examples gallery cards have .ex-thumb elements
-    await page.click("#btnExamples"); await page.waitForTimeout(200);
+    // LF43 slice 2: the sample gallery is Home's tile strip now — every tile has a
+    // .home-ex-thumb layout preview (same exLayoutSvg source the menu cards used).
     const e3Gallery = await page.evaluate(() => {
-      var em = document.getElementById("menuExamples");
-      if (!em) return { ok: false };
-      var cards = em.querySelectorAll("button.ex-card");
-      var thumbs = em.querySelectorAll(".ex-thumb");
-      var thumbSvgs = em.querySelectorAll(".ex-thumb svg");
+      window.__studioRenderHome();
+      var sec = document.getElementById("secHome");
+      var cards = sec.querySelectorAll("[data-home-example]");
+      var thumbs = sec.querySelectorAll(".home-ex-thumb");
+      var thumbSvgs = sec.querySelectorAll(".home-ex-thumb svg");
       return {
         cards: cards.length, thumbs: thumbs.length, thumbSvgs: thumbSvgs.length,
         allHaveThumb: cards.length > 0 && thumbs.length === cards.length
       };
     });
-    ok("E3: every example card has an .ex-thumb layout preview", e3Gallery.allHaveThumb && e3Gallery.thumbSvgs > 0, JSON.stringify(e3Gallery));
-    await page.keyboard.press("Escape"); await page.waitForTimeout(100);
+    ok("E3: every sample tile has a .home-ex-thumb layout preview", e3Gallery.allHaveThumb && e3Gallery.thumbSvgs > 0, JSON.stringify(e3Gallery));
 
     // ---- H: collapsible inspector sections + DA usage badges ----
     console.log("\n• Collapsible inspector sections + DA usage badges (H)");
@@ -27570,14 +27551,21 @@ function serve() {
       ), JSON.stringify(homeReorder));
 
     // ── LF37: Home Examples "+N more" footer is a real control ──
-    // Was a plain non-interactive <div> with dead text ("+ N more — New ▸ Examples"); the
-    // default example catalog ships 12 generic examples (8 gated behind the datamanagement
-    // pack, which is installed by default — see LF16), so the Home strip's 8-card cap always
-    // overflows out of the box — no demo-pack install needed to exercise this. Clicking it
-    // should now enter Studio and open the SAME Examples ▾ menu
-    // the "New ▾ → Examples" card already opens, showing the full uncapped example list.
+    // Was a plain non-interactive <div> with dead text; the default example catalog ships 12
+    // generic examples (8 gated behind the datamanagement pack, installed by default — see
+    // LF16), so the Home strip's 8-card cap always overflows out of the box. LF43 slice 2:
+    // the Examples ▾ menu is gone, so clicking it now routes to the Dashboards section with
+    // the Sample-packs chip active — the same destination as the sample card itself.
     console.log("\n• LF37: Home Examples \"+N more\" is clickable");
-    await page.evaluate(function () { if (window.__studioShellSetSection) window.__studioShellSetSection("home"); window.__studioRenderHome(); });
+    // The Sample-packs chip only renders while pack-tagged dashboard ROWS exist; at this point
+    // in the suite the conservation pack (whose install materializes rows) has been removed, so
+    // seed one pack-tagged row for the destination check and clean it up after.
+    await page.evaluate(function () {
+      Studio.Workspace.put("dashboards", { id: "lf37-pack-dash", title: "LF37 Pack Dash", name: "lf37-pack-dash", demoPackId: "datamanagement",
+        spec: { schema: 1, id: "lf37-pack-dash", name: "lf37-pack-dash", title: "LF37 Pack Dash", cda: { connections: [], dataAccesses: [] }, filters: [], kpis: [], panels: [], gridCols: 1 } });
+      if (window.__studioShellSetSection) window.__studioShellSetSection("home");
+      window.__studioRenderHome();
+    });
     await page.waitForTimeout(120);
     const lf37Before = await page.evaluate(function () {
       var btn = document.querySelector("#secHome [data-home-examples-more]");
@@ -27589,15 +27577,16 @@ function serve() {
     await page.waitForTimeout(200);
     const lf37After = await page.evaluate(function () {
       return {
-        inStudio: document.getElementById("appMain").hidden === false,
-        menuOpen: (document.getElementById("menuExamples") || {}).classList && document.getElementById("menuExamples").classList.contains("open"),
-        cardCount: document.querySelectorAll("#menuExamples .ex-card").length,
-        homeCardCount: document.querySelectorAll("#secHome .home-ex-card").length
+        inDashboards: document.getElementById("secDashboards").hidden === false,
+        noStudioEntry: document.getElementById("appMain").hidden === true,
+        // scope to the Dashboards section — Home's own workbook chip strip also has an
+        // active "All" chip sitting earlier in the DOM
+        activeChip: (document.querySelector("#secDashboards .wb-chip.active .wb-chip-label") || {}).textContent
       };
     });
-    ok("LF37: clicking it enters Studio and opens the Examples menu showing the full (uncapped) example list",
-      lf37After.inStudio && lf37After.menuOpen && lf37After.cardCount > lf37After.homeCardCount, JSON.stringify(lf37After));
-    await page.keyboard.press("Escape");
+    ok("LF37: clicking it lands in Dashboards with the Sample-packs chip active (LF43 slice 2 — no Studio entry, no menu)",
+      lf37After.inDashboards && lf37After.noStudioEntry && lf37After.activeChip === "Sample packs", JSON.stringify(lf37After));
+    await page.evaluate(function () { Studio.Workspace.remove("dashboards", "lf37-pack-dash", { silent: true }); Studio.Workspace.notify("*"); });
     await page.click('#railNav .rail-item[data-sec="home"]');
     await page.waitForTimeout(100);
 
@@ -27663,7 +27652,6 @@ function serve() {
 
     await page.evaluate(function () {
       window.__studioDemoPacks.install("conservation");
-      window.__studioBuildExamplesMenu();
       window.__studioRenderHome();
     });
     await page.waitForTimeout(100);
@@ -27678,7 +27666,6 @@ function serve() {
     // clean up: back to the default pack state so later tests see what they expect
     await page.evaluate(function () {
       window.__studioDemoPacks.remove("conservation");
-      window.__studioBuildExamplesMenu();
       window.__studioRenderHome();
     });
     await page.waitForTimeout(100);
@@ -30805,7 +30792,8 @@ function serve() {
 
       var rows = function () { return Array.prototype.slice.call(document.querySelectorAll("#cmdkList .cmdk-row")); };
       var labels = rows().map(function (li) { return li.querySelector(".cmdk-lbl").textContent; });
-      r.hasExampleCmd = labels.some(function (l) { return l.indexOf("Open example:") === 0; });
+      // LF43 slice 2: the dynamic sample commands read "Open sample:" now (Examples naming dropped)
+      r.hasExampleCmd = labels.some(function (l) { return l.indexOf("Open sample:") === 0; });
       r.hasRecentCmd = labels.some(function (l) { return l.indexOf("Open dashboard:") === 0; });
 
       // running a dynamic "Open dashboard: <title>" command loads that exact spec + returns to Studio
@@ -30818,14 +30806,14 @@ function serve() {
       r.recentRan = !!wantTitle && (window.__STUDIO_STATE.spec.title === wantTitle || window.__STUDIO_STATE.spec.name === wantTitle);
       r.recentClosedAndNavigated = !ov.classList.contains("open") && document.getElementById("appMain").hidden === false;
 
-      // running a dynamic "Open example: <title>" command loads an example (panels present) + closes
+      // running a dynamic "Open sample: <title>" command loads a sample (panels present) + closes
       window.__studioShellSetSection("studio");
       railBtn.click();
       input = document.getElementById("cmdkInput");
-      input.value = "open example:";
+      input.value = "open sample:";
       input.dispatchEvent(new Event("input", { bubbles: true }));
-      var exRow = rows().filter(function (li) { return li.querySelector(".cmdk-lbl").textContent.indexOf("Open example:") === 0; })[0];
-      var wantExTitle = exRow ? exRow.querySelector(".cmdk-lbl").textContent.slice("Open example: ".length) : null;
+      var exRow = rows().filter(function (li) { return li.querySelector(".cmdk-lbl").textContent.indexOf("Open sample:") === 0; })[0];
+      var wantExTitle = exRow ? exRow.querySelector(".cmdk-lbl").textContent.slice("Open sample: ".length) : null;
       if (exRow) exRow.click();
       await new Promise(function (res) { setTimeout(res, 300); }); // loadExample() fetches the spec asynchronously
       r.exampleRan = !ov.classList.contains("open") && window.__STUDIO_STATE.spec.panels.length > 0 &&
@@ -30837,11 +30825,11 @@ function serve() {
     ok("Track N follow-up: the topbar shows a Search pill with an SVG icon + visible ⌘K hint",
       cmdkFollow.hasRailBtn && cmdkFollow.railHasIcon && cmdkFollow.railHasHint, JSON.stringify(cmdkFollow));
     ok("Track N follow-up: clicking the topbar Search pill opens the palette", cmdkFollow.railOpens, JSON.stringify(cmdkFollow));
-    ok("Track N follow-up: palette lists dynamic 'Open example:' and 'Open dashboard:' commands",
+    ok("Track N follow-up: palette lists dynamic 'Open sample:' and 'Open dashboard:' commands",
       cmdkFollow.hasExampleCmd && cmdkFollow.hasRecentCmd, JSON.stringify(cmdkFollow));
     ok("Track N follow-up: running a recent-dashboard command loads that exact spec and returns to Studio",
       cmdkFollow.recentRan && cmdkFollow.recentClosedAndNavigated, JSON.stringify(cmdkFollow));
-    ok("Track N follow-up: running an example command loads a real dashboard", cmdkFollow.exampleRan, JSON.stringify(cmdkFollow));
+    ok("Track N follow-up: running a sample command loads a real dashboard", cmdkFollow.exampleRan, JSON.stringify(cmdkFollow));
 
     // ---- Track N follow-up: every static command now carries an icon ----
     var cmdkIcons = await page.evaluate(function () {

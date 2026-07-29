@@ -28,7 +28,9 @@
     { label: "Open Help & docs", hint: "Reference", kw: "help docs documentation reference guide", ic: "info", run: function () { goSec("docs"); } },
     // dashboard lifecycle
     { label: "New dashboard", hint: "Create", kw: "new create blank start build", ic: "plus", run: function () { studio(); click("btnNew"); } },
-    { label: "Browse examples", hint: "Create", kw: "examples gallery showcase templates samples", ic: "star", run: function () { studio(); click("btnExamples"); } },
+    // LF43 slice 2: the Studio Examples ▾ menu is gone — sample dashboards are real rows
+    // in the Dashboards section (Sample-packs chip), so this routes there instead.
+    { label: "Sample dashboards", hint: "Create", kw: "examples gallery showcase templates samples packs", ic: "star", run: function () { if (window.__studioShowPackDashboards) window.__studioShowPackDashboards(); } },
     { label: "Open a dashboard…", hint: "File", kw: "open import load catalog file json", ic: "upload", run: function () { studio(); click("btnImport"); } },
     { label: "Save to Dashboards catalog", hint: "File", kw: "save catalog store keep spec", ic: "download", run: function () { studio(); click("btnSaveSpec"); } },
     { label: "Export dashboard (.html)", hint: "Export", kw: "export dashboard framework html cdf publish", ic: "code", run: function () { studio(); var b = document.querySelector('#menuExport button[data-exp="cdf"]'); if (b) b.click(); } },
@@ -61,16 +63,18 @@
   ];
 
   // ---- dynamic commands ---------------------------------------------------
-  // Examples and recent dashboards change as the user works, so unlike the
+  // Samples and recent dashboards change as the user works, so unlike the
   // static COMMANDS above these are rebuilt fresh every time the palette
-  // opens by reading the DOM the app already maintains (the Examples ▾ menu
-  // and Home's recent-dashboard cards are both rendered at boot regardless of
+  // opens by reading the DOM the app already maintains (Home's sample-gallery
+  // tiles and recent-dashboard cards are both rendered at boot regardless of
   // which section is currently visible) — no new state, no drift possible.
+  // LF43 slice 2: sourced from Home's [data-home-example] tiles now that the
+  // Studio Examples ▾ menu is gone (the tiles' own click enters Studio + loads).
   function exampleCommands() {
-    return Array.prototype.map.call(document.querySelectorAll("#menuExamples .ex-card"), function (b) {
-      var t = b.querySelector(".ex-card-title");
-      var label = (t && t.textContent) || b.getAttribute("data-f") || "Example";
-      return { label: "Open example: " + label, hint: "Example", kw: "example gallery template showcase " + label, ic: "grid", run: function () { studio(); b.click(); } };
+    return Array.prototype.map.call(document.querySelectorAll("#secHome [data-home-example]"), function (b) {
+      var t = b.querySelector(".home-ex-title");
+      var label = (t && t.textContent) || b.getAttribute("data-home-example") || "Sample";
+      return { label: "Open sample: " + label, hint: "Sample", kw: "example sample gallery template showcase " + label, ic: "grid", run: function () { b.click(); } };
     });
   }
   function recentCommands() {
