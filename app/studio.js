@@ -9496,9 +9496,13 @@
     btnSaveSpecEl.onclick = saveToCatalog;
     // LF47 slice C: Save-as and Duplicate join Undo/Redo/Open/Save/Export in the
     // #tbSectionActions ops cluster (previously Save-as lived in #dashbar and Duplicate
-    // was a #menuNew entry) — icon-only, same LF20 declutter convention as Open/Close.
+    // was a #menuNew entry). LF45: Save-as keeps a VISIBLE "Save as" label next to the
+    // labeled Save (the two most-related actions read as a pair, and it no longer collides
+    // with Duplicate's near-identical icon-only glyph). Desktop only — on phones the whole
+    // ops cluster hides behind ⋯ More (#moreSaveAsSpec), so there's no bar-width cost.
     var btnSaveAsSpecEl = sa("#btnSaveAsSpec");
-    btnSaveAsSpecEl.textContent = ""; btnSaveAsSpecEl.appendChild(Studio.icon("duplicate", 16));
+    setIconBtn(btnSaveAsSpecEl, "duplicate", "Save as", 14);
+    btnSaveAsSpecEl.classList.remove("icon");
     btnSaveAsSpecEl.onclick = function () { openSaveAsModal("manual"); };
     var btnDupDashEl = sa("#btnDupDash");
     btnDupDashEl.textContent = ""; btnDupDashEl.appendChild(Studio.icon("copy", 16));

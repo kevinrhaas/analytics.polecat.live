@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 686,
+    title: 'A visible "Save as" button in the builder toolbar',
+    kind: 'polish',
+    ts: '2026-07-29T01:12:57.000Z',
+    items: [
+      'The dashboard builder\'s "Save as" action now shows a visible label next to Save instead of a bare icon that looked almost identical to Duplicate — the two related save actions read as a pair and "Save as" is easy to find. (On phones the whole ops cluster still folds into the ⋯ More menu, so nothing gets more crowded there.)',
+    ],
+  },
+  {
     v: 685,
     title: 'Query preview is clearly labeled as sample data',
     kind: 'fix',

@@ -9808,7 +9808,10 @@ function serve() {
       return { open: info("btnImport"), saveAs: info("btnSaveAsSpec"), close: info("btnCloseStudio"), save: info("btnSaveSpec"), exportBtn: info("btnExport") };
     });
     ok("LF20: Open is icon-only (no visible label text) with an accessible name", lf20Btns.open.hasSvg && lf20Btns.open.visibleText === "" && lf20Btns.open.hasAccessibleName, JSON.stringify(lf20Btns.open));
-    ok("LF20: Save as… is icon-only (no visible label text) with an accessible name", lf20Btns.saveAs.hasSvg && lf20Btns.saveAs.visibleText === "" && lf20Btns.saveAs.hasAccessibleName, JSON.stringify(lf20Btns.saveAs));
+    // LF45 supersedes the LF20 icon-only treatment for Save-as: it now keeps a visible "Save as"
+    // label next to Save (the two related actions read as a pair, and it no longer collides with
+    // Duplicate's near-identical glyph). Still icon + accessible name — just no longer label-less.
+    ok("LF45: Save as keeps its icon + visible label next to Save (accessible name intact)", lf20Btns.saveAs.hasSvg && lf20Btns.saveAs.visibleText === "Save as" && lf20Btns.saveAs.hasAccessibleName, JSON.stringify(lf20Btns.saveAs));
     ok("LF20: Close is icon-only (no visible label text) with an accessible name", lf20Btns.close.hasSvg && lf20Btns.close.visibleText === "" && lf20Btns.close.hasAccessibleName, JSON.stringify(lf20Btns.close));
     ok("LF20: Save keeps its icon + visible label (the most-used dashbar action)", lf20Btns.save.hasSvg && lf20Btns.save.visibleText === "Save", JSON.stringify(lf20Btns.save));
     // UX6 (icon migration, carets slice): the "▾" affordance is now a themed trailing
