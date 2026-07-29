@@ -116,6 +116,22 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF39 (polish) — a fresh-device sign-in spotlights "Connect to your workspace" (v706, sw v343,
+  2026-07-29):** the "Dave" onboarding chunk, part 3 of 3 (LF40 ✓ → LF60 ✓ → **LF39**). LF39 item (1)
+  (the misleading-error fix + auto-adopt-backend-accounts) already shipped; item (2) (real one-step
+  GoTrue direct-auth) stays parked under M7 (needs the Supabase Auth wiring that track owns — not a
+  gate.js change). This contained polish closes the remaining UX gap: when a teammate signs in on a
+  **fresh browser** and the username isn't known locally **with no backend connected**, the small
+  underlined "Connect to your workspace" link was easy to miss. `app/gate.js` now **cues** it —
+  `cueConnect()` promotes `.g-connect` to an obvious pulsing primary-outline button (`.g-connect-cue`,
+  respects `prefers-reduced-motion`) and scrolls it into view, so the one-step path to reach the
+  team's accounts is unmissable; the cue clears the moment they edit the username (`clearCue()` on
+  input) or connect. 2 new regression tests (the cue lights up after a fresh-device failed sign-in;
+  editing the username clears the cue + error). Files: app/gate.js, sw.js, js/changelog.js,
+  tests/run.js. (No docs change — the pre-app sign-in gate isn't a documented surface; the changelog
+  carries the user-facing note.) **The Dave onboarding chunk is now delivered** (pack-aware tour,
+  in-app docs slice 1, fresh-device sign-in cue). **NEXT if wanted:** LF39 item (2) GoTrue direct-auth
+  under M7; LF60 slices 2-5 (docs nav/search, user-vs-admin split, backend comparison table).
 - **LF60 (in-app Docs, slice 1) — Help opens an embedded Docs section with a pop-out (v705, sw v342,
   2026-07-29):** the "Dave" onboarding chunk, part 2 of 3 (LF40 ✓ → **LF60** → LF39). LF60 asked to
   bring the docs INSIDE the app (they opened external-feeling in a new tab). Slice 1 delivers parts

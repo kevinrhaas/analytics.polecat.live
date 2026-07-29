@@ -11901,6 +11901,18 @@ function serve() {
     const freshMsg = await gpFresh.evaluate(() => document.getElementById("g-err").textContent);
     ok("LF39: an unknown username with no workspace backend connected at all gets guided to “Connect to your workspace” instead of a flat “Incorrect username or password”",
       /Connect to your workspace/.test(freshMsg) && !/^Incorrect username or password/.test(freshMsg), freshMsg);
+    // LF39 (polish): the small "Connect to your workspace" link is promoted to an obvious cued
+    // button so the fresh-device teammate can't miss the one-step path; editing the username clears it.
+    const freshCue = await gpFresh.evaluate(() => document.getElementById("g-connect").classList.contains("g-connect-cue"));
+    ok("LF39: on a fresh device, the Connect-to-workspace button is visually cued after a failed sign-in", freshCue, String(freshCue));
+    await gpFresh.fill("#g-user", "teammat");
+    await gpFresh.waitForTimeout(60);
+    const freshCueCleared = await gpFresh.evaluate(() => ({
+      cue: document.getElementById("g-connect").classList.contains("g-connect-cue"),
+      err: document.getElementById("g-err").textContent
+    }));
+    ok("LF39: editing the username clears the Connect cue + the error (a fresh attempt)",
+      !freshCueCleared.cue && freshCueCleared.err === "", JSON.stringify(freshCueCleared));
     await gpFresh.close();
 
     // ---- M4: Admin — manage users (first slice of "Admin + permissions") ----

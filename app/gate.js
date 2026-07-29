@@ -86,6 +86,12 @@
       "#studio-gate .g-note{color:var(--faint,#8a97ab);font-size:11px;margin-top:14px}" +
       "#studio-gate .g-connect{margin-top:10px;background:transparent;border:0;color:var(--faint,#8a97ab);font-size:12px;text-decoration:underline;cursor:pointer;padding:4px}" +
       "#studio-gate .g-connect:hover{color:var(--brand,#005bb5)}" +
+      // LF39: when a NEVER-connected browser fails sign-in (a teammate on a new device), the small
+      // underlined "Connect to your workspace" link is easy to miss — promote it to an obvious,
+      // pulsing primary-outline button so the one-step path to join the team workspace is unmissable.
+      "#studio-gate .g-connect.g-connect-cue{color:var(--brand,#005bb5);text-decoration:none;font-weight:700;font-size:13px;border:1px solid var(--brand,#005bb5);border-radius:8px;padding:9px 14px;margin-top:12px;animation:gpulse 1.5s ease-out 2}" +
+      "@keyframes gpulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--brand,#005bb5) 45%,transparent)}70%{box-shadow:0 0 0 9px transparent}100%{box-shadow:0 0 0 0 transparent}}" +
+      "@media(prefers-reduced-motion:reduce){#studio-gate .g-connect.g-connect-cue{animation:none}}" +
       "#studio-gate .shake{animation:gshake .4s}@keyframes gshake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}" +
       // the backend-connect wizard is a shared studio.js modal (.modal-ov, z-index 80) —
       // bump it above the gate's own overlay only while the gate is still up, so opening
@@ -114,6 +120,8 @@
     document.body.appendChild(ov);
 
     var userInp = document.getElementById("g-user"); if (userInp) userInp.focus();
+    // LF39: editing the username clears both the error and the Connect cue (fresh attempt).
+    if (userInp) userInp.addEventListener("input", function () { setErr(""); clearCue(); });
 
     // #102: password reveal (eye) toggle — mirrors studio.js withRevealToggle (flip the
     // input's type, keep aria-pressed/aria-label + the icon in sync).
@@ -129,6 +137,14 @@
     });
 
     function setErr(msg) { document.getElementById("g-err").textContent = msg || ""; }
+    // LF39: draw the eye to the "Connect to your workspace" path when this browser has no way to
+    // verify the account locally (a teammate signing in on a fresh device). Cleared once they act.
+    function cueConnect() {
+      var b = document.getElementById("g-connect"); if (!b) return;
+      b.classList.add("g-connect-cue");
+      try { b.scrollIntoView({ block: "nearest" }); } catch (e) {}
+    }
+    function clearCue() { var b = document.getElementById("g-connect"); if (b) b.classList.remove("g-connect-cue"); }
     function fail(msg) {
       setErr(msg || "Incorrect username or password.");
       var c = ov.querySelector(".g-card"); c.classList.add("shake"); setTimeout(function () { c.classList.remove("shake"); }, 400);
@@ -144,6 +160,7 @@
       var Sync = window.Studio && window.Studio.Sync;
       if (!Sync || !Sync.syncState().isRemote) {
         fail("No local account “" + u + "”. Joining an existing team workspace? Use “Connect to your workspace” below.");
+        cueConnect();
         return;
       }
       setErr("Checking your connected workspace…");
@@ -185,6 +202,7 @@
         var hint = document.getElementById("g-hint");
         if (hint) hint.innerHTML = "Connected. Sign in with an account from that workspace below.";
         document.getElementById("g-err").textContent = "";
+        clearCue(); // LF39: the cue's job is done once they've connected
       });
     });
   }

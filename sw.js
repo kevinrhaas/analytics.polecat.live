@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v342"; /* v342: LF60 (in-app Docs, slice 1) — the Help rail item now
+var CACHE_NAME = "studio-shell-v343"; /* v343: LF39 (polish) — on a fresh device, a failed sign-in
+   for an unknown username with no backend connected now visually CUES the "Connect to your
+   workspace" button (.g-connect-cue: promoted to a pulsing primary-outline button + scrolled into
+   view), cleared on username edit or connect. app/gate.js.
+   v342: LF60 (in-app Docs, slice 1) — the Help rail item now
    opens an embedded Docs SECTION (#secDocs) that iframes docs/index.html, with an "Open in new tab"
    pop-out to the standalone page; the ⌘K "Open Help & docs" command routes to the same in-app
    section. shell.js SECTIONS/labels gain "docs". app/index.html, app/shell.js, app/palette.js,
