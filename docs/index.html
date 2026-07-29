@@ -61,6 +61,15 @@
       white-space:nowrap;border-bottom:2px solid transparent;display:block}
     nav a:hover{color:var(--accent);text-decoration:none;border-bottom-color:rgba(125,60,152,.3)}
     nav a.active{color:var(--accent);border-bottom-color:var(--accent)}
+    .docs-nav-search{font:inherit;font-size:12.5px;color:var(--fg);background:var(--bg);
+      border:1px solid var(--line);border-radius:7px;padding:6px 10px;margin:7px 12px 7px 0;
+      min-width:150px;flex-shrink:0}
+    .docs-nav-search:focus{outline:none;border-color:var(--accent)}
+    .docs-nav-group{align-self:center;font-size:9.5px;font-weight:800;letter-spacing:.08em;
+      text-transform:uppercase;color:var(--faint);opacity:.7;padding:0 10px 0 4px;
+      white-space:nowrap;flex-shrink:0}
+    .docs-no-results{max-width:1000px;margin:24px auto 0;padding:0 24px;font-size:14px;
+      color:var(--faint)}
 
     /* ── main layout ── */
     main{max-width:1000px;margin:0 auto;padding:40px 24px 80px}
@@ -150,6 +159,8 @@
 
 <nav>
   <div class="nav-inner">
+    <input id="docsSearch" class="docs-nav-search" type="search" placeholder="Search help…" aria-label="Search help">
+    <span class="docs-nav-group">User</span>
     <a href="#getting-started" class="active">Getting started</a>
     <a href="#builder">The builder</a>
     <a href="#ensembles">Ensembles &amp; honesty</a>
@@ -158,8 +169,11 @@
     <a href="#exporting">Exporting</a>
     <a href="#shortcuts">Shortcuts</a>
     <a href="#simple-mode">Simple mode</a>
+    <span class="docs-nav-group">Admin</span>
+    <a href="#admin-docs">Admin &amp; backend setup</a>
   </div>
 </nav>
+<p id="docsNoResults" class="docs-no-results" hidden>No help topics match your search.</p>
 
 <main>
 
@@ -842,25 +856,6 @@
   <p>The <strong>Connections</strong> section (left rail) manages saved, credentialed connections that workspace <strong>Datasets</strong> query through. Every password-style field you type a credential into — on the sign-in screen, here, in the workspace-backend wizard, on Admin's Add-user form, and on the per-user-security provision-secret prompt — has a small eye toggle next to it to reveal or re-hide what you typed, so you can double-check it before saving. Alongside the workspace backends (Turso, Supabase, Firebase) and the warehouse connectors above, the <strong>PostgreSQL (PostgREST)</strong> adapter connects to <em>any</em> Postgres exposed through a <a href="https://postgrest.org" target="_blank" rel="noopener noreferrer">PostgREST</a> deployment — self-hosted or managed — straight from the browser. Set the <strong>PostgREST URL</strong> (its root answers with the OpenAPI document, which is exactly what <strong>Test</strong> checks), an optional <strong>Bearer token</strong> (a PostgREST JWT; leave blank for anonymous access), and an optional <strong>Schema</strong> (sent as <code>Accept-Profile</code> for multi-schema deployments). Datasets on this connection are <strong>table-based</strong>, like Supabase: a table or view name plus an optional raw PostgREST query string (<code>select=region,total&amp;order=total.desc&amp;limit=200</code>) — with <code>{{parameters}}</code> allowed in both, so dashboard template variables flow into filters like <code>region=eq.{{region}}</code> at run time.</p>
   <p><strong>Connection-bound datasets — Turso, PostgreSQL (PostgREST), Supabase, Google Sheets, local files and Amazon Redshift:</strong> a dataset built on a saved <strong>Connection</strong> (rather than one of the direct connectors above) is now live-after-export too, for all six connection-bound backends. Exporting resolves the dataset's connection at export time, carries its non-secret fields (e.g. the database URL, PostgREST's URL/schema, the sheet's URL, or Redshift's region/database/cluster/workgroup) into the file, and — same "prompted once, never embedded" contract as the direct connectors — strips the credential, prompting for it the first time the exported dashboard actually needs to query live (a PostgREST connection with no token set, i.e. anonymous access, and a link-shared Google Sheets connection with no OAuth token set, need no prompt at all — and neither does a dropped file, which has no credential in the first place). A dropped file needs no live query at all: its content already rides inside the export, exactly as it does in the builder. Redshift is the one exception to "one prompt": since AWS SigV4 signing needs an access key ID and secret access key (plus an optional session token for temporary credentials), the exported dashboard prompts once per credential field instead of once overall.</p>
 
-  <h3>Signing in with real Supabase Auth (optional)</h3>
-  <p>The <strong>Supabase</strong> backend's connect wizard has two extra, optional fields below the Project URL and anon key: <strong>Supabase Auth email</strong> and <strong>password</strong>. Leave them blank and Supabase behaves exactly as before — every request uses the shared anon key. Fill them in and Studio signs in with real Supabase Auth (GoTrue) first, then sends that session's JWT on every request instead — so Postgres' <code>auth.uid()</code> resolves to your real account rather than staying <code>NULL</code>. This is groundwork for enforced, database-level per-user privacy on top of the private/public flags every object already carries (Dashboards, Datasets, Connections, Jobs, Analyses) — those flags are UX-level today (hidden from other accounts in the UI); a real Supabase Auth sign-in is the prerequisite for the database itself to enforce it via Row-Level Security. A wrong password fails clearly at the "Check database →" step, the same gate that already validates the URL and anon key, so it can't silently connect with the wrong identity.</p>
-  <p><strong>Signing in on a new device is one step.</strong> Once a workspace is connected to a Supabase backend, a teammate can sign in on a brand-new browser by entering their <strong>email</strong> and password on the sign-in screen — the app verifies those straight against the backend's own Supabase Auth (GoTrue), then adopts their account locally. No admin needs to re-add them here first, this browser doesn't need to have seen the account before, and no password is ever mirrored between devices — the backend itself is the source of truth. (Signing in with a plain <em>username</em>, or on a local/non-Supabase workspace, works exactly as before.)</p>
-
-  <h3>Adding users when connected to Supabase (in-app account provisioning)</h3>
-  <p>Once the workspace backend is Supabase, the Admin page's <strong>+ Add user</strong> form gains an <strong>Email</strong> field and does one extra step: it creates a real Supabase Auth (GoTrue) account for the new user via Supabase's public sign-up endpoint, then stamps the resulting account id onto their row — no Supabase dashboard visit, and no admin/service-key credential ever handled in the browser. This means an admin can create and manage every account entirely from Polecat's own Admin console; only the very first admin account needs a one-time bootstrap in Supabase itself. Editing an existing user never repeats this step. Two things can leave the new account temporarily unusable, and the form explains each clearly rather than failing silently: the Supabase project has <strong>sign-ups turned off</strong> (Authentication → Providers → Email), or it still requires <strong>email confirmation</strong> before an account can sign in — turn off "Confirm email" in the same settings page, then add the user again.</p>
-
-  <h3>Per-user provisioning defaults (first sign-in)</h3>
-  <p>The Admin page's <strong>Add user</strong> (and <strong>Edit user</strong>) form has a <strong>Default theme</strong> picker and an <strong>"Install the Conservation Insight sample pack on first sign-in"</strong> checkbox. Set either and that new account logs in ready: the app color theme switches to the one you picked and, if checked, the Conservation Insight sample pack installs itself — no manual setup, no digging through Settings. This only ever runs <strong>once</strong>, the very first time the account signs in anywhere; after that it's stamped as provisioned and later logins never fight whatever the user has since changed for themselves. Leaving the theme at "Don't set" or the pack box unchecked simply skips that part.</p>
-  <p>The same form also has a <strong>"Copy my current Dashboard defaults"</strong> button — click it and Studio snapshots every field from your own <strong>Settings → Dashboard defaults</strong> card (default subtitle, accent color, header logo, header background, title size, subtitle style, dashboard theme, card style, and Quick-import creativity) and stashes it on the new account. At their first sign-in, that whole "house style" applies automatically alongside the theme/pack above, same once-only rule. <strong>Clear</strong> removes a previously captured snapshot before saving.</p>
-
-  <h3>Managing multiple backends (admin)</h3>
-  <p>The Admin page's <strong>Backends</strong> card lets an admin pre-register more than one backend — Turso, Supabase, or Firebase — under a name, with its own credentials, ahead of actually connecting to any of them. Click <strong>+ Add backend</strong>, pick the adapter, and fill in its fields (the same ones the connect wizard uses); <strong>Test</strong> checks the credentials without connecting. Each registered backend gets its own <strong>Edit</strong>/<strong>Test</strong>/delete controls, and a <strong>Connect</strong> button that runs the exact same connect flow as Settings → Workspace backend, so nothing about probing or adopting an existing workspace changes — only the currently-connected one is ever active, shown with an <strong>active</strong> badge. Registering a backend here is just remembering its name and credentials for later; it does not sync, mirror, or connect anything by itself. A registered backend with users assigned to it (below) shows a count badge, e.g. "2 users". Once at least one is registered, Settings → Workspace backend's <strong>Switch backend</strong> button offers this same list first — pick one to connect in a click, or "Enter connection details manually" to start a brand-new connection from scratch.</p>
-  <p>Once at least one backend is registered, the Add/Edit user form (same "Per-user provisioning defaults" area above) also gains an <strong>Assigned backend</strong> picker naming which registered backend that account belongs to — shown back on their row in the Users list too (<code>→ Backend name</code>). This is reference metadata for now, not an automatic connection: assigning a backend doesn't make a device connect to it, since adopting a backend can replace that device's entire local workspace, which shouldn't happen silently. A consolidated config UI (or a future "select a server" step) is the next slice to act on the assignment.</p>
-
-  <h3>Going live with real per-user security (Supabase)</h3>
-  <p>The private/public flag on every object (Dashboards, Datasets, Connections, Jobs, Analyses) is UX-level by default — a private object is hidden from other accounts in the app, but the connected Supabase backend still stores everything under one shared key. An admin can flip that to real database-enforced <strong>Row-Level Security</strong> from the <strong>Admin</strong> page's <strong>"Enable per-user security / Go live"</strong> card, once a small one-time relay — the <code>polecat-admin</code> Supabase Edge Function — has been deployed (see <code>tools/M7-RLS-GOLIVE-RUNBOOK.md</code> for the exact deploy commands; it's a repo maintainer's one-time step, not something the app can do for you). Once deployed, paste its URL into the Supabase connection's <strong>Admin function URL</strong> field, sign in as the account that should become the first admin (the Auth email/password fields above), then click Go live and enter the one-time <strong>provision secret</strong> set when the function was deployed — it's used once and never stored. Go live wipes the current workspace tables (your browser's own data is untouched), seeds you as the admin, and applies the real per-user policies; from then on, private truly means only you (and admins) can see it, enforced by the database itself. With the relay deployed, <strong>+ Add user</strong> also switches to it automatically for the more secure admin-create path (no email-confirmation step) — the plain self-signup described above remains the fallback wherever the relay isn't deployed.</p>
-  <p><strong>First-admin bootstrap is automatic.</strong> Go live records your own admin account for you (in the database) <em>before</em> it runs, so on a brand-new project it no longer stops with "This account is not an admin of this workspace" — you don't have to hand-run any SQL in the Supabase editor to make yourself the first admin. It also refreshes your Supabase Auth sign-in each time, so a session that quietly expired won't surface as "That sign-in session is no longer valid" — just click Go live (or + Add user) again. The one prerequisite the app still can't do for you is the maintainer's one-time <code>polecat-admin</code> function deploy above.</p>
-
   <h3>Workspace connections: Amazon Redshift</h3>
   <p>The <strong>Amazon Redshift</strong> adapter queries a provisioned cluster or a Serverless workgroup directly from the browser via the <a href="https://docs.aws.amazon.com/redshift-data/latest/APIReference/Welcome.html" target="_blank" rel="noopener noreferrer">Redshift Data API</a> — no backend or proxy. Unlike the warehouse connectors above (Snowflake/Databricks/BigQuery), Redshift's API has no bearer-token mode: every request is individually signed with an <strong>AWS Signature Version 4</strong> — set an <strong>Access key ID</strong>, <strong>Secret access key</strong> and, for temporary/STS credentials, a <strong>Session token</strong>. Set the <strong>AWS region</strong> and <strong>Database</strong>, then target either a provisioned cluster (<strong>Cluster identifier</strong> + <strong>Database user</strong>, using temporary credentials — no stored DB password) or a Serverless workgroup (<strong>Workgroup name</strong> alone); an optional <strong>Custom endpoint</strong> supports a VPC PrivateLink deployment. Statement execution is asynchronous (fire, then poll) the same way Databricks' Statement Execution API works — Studio handles the polling and result pagination automatically.</p>
 
@@ -924,6 +919,31 @@
 
   <h3>Marking a dashboard, connection, dataset, analysis, or job private</h3>
   <p>A lock toggle on every <strong>Dashboards</strong>, <strong>Connections</strong>, <strong>Datasets</strong>, and <strong>Jobs</strong> row, and every saved analysis in <strong>Explore</strong>'s list marks that item private — it stays visible to you and to admin accounts, but disappears from every other signed-in account's catalogs (and, for connections, from the connection picker other people see when authoring a dataset, and for datasets, from the source/join/union dataset pickers when authoring a job). This is UX-level gating, the same honesty as the rest of sign-in — an admin account (or local/no-auth mode with no sign-in configured) always sees everything. All five saved-object types now have the toggle.</p>
+</section>
+
+<!-- ── Admin & backend setup ───────────────── -->
+<section id="admin-docs">
+  <h2>Admin &amp; backend setup</h2>
+  <p>These topics are for the person who <strong>administers</strong> a shared workspace — wiring up a real backend, provisioning teammates, and turning on database-enforced per-user security. Everyday building never needs any of it; a local workspace works with no setup at all.</p>
+
+  <h3>Signing in with real Supabase Auth (optional)</h3>
+  <p>The <strong>Supabase</strong> backend's connect wizard has two extra, optional fields below the Project URL and anon key: <strong>Supabase Auth email</strong> and <strong>password</strong>. Leave them blank and Supabase behaves exactly as before — every request uses the shared anon key. Fill them in and Studio signs in with real Supabase Auth (GoTrue) first, then sends that session's JWT on every request instead — so Postgres' <code>auth.uid()</code> resolves to your real account rather than staying <code>NULL</code>. This is groundwork for enforced, database-level per-user privacy on top of the private/public flags every object already carries (Dashboards, Datasets, Connections, Jobs, Analyses) — those flags are UX-level today (hidden from other accounts in the UI); a real Supabase Auth sign-in is the prerequisite for the database itself to enforce it via Row-Level Security. A wrong password fails clearly at the "Check database →" step, the same gate that already validates the URL and anon key, so it can't silently connect with the wrong identity.</p>
+  <p><strong>Signing in on a new device is one step.</strong> Once a workspace is connected to a Supabase backend, a teammate can sign in on a brand-new browser by entering their <strong>email</strong> and password on the sign-in screen — the app verifies those straight against the backend's own Supabase Auth (GoTrue), then adopts their account locally. No admin needs to re-add them here first, this browser doesn't need to have seen the account before, and no password is ever mirrored between devices — the backend itself is the source of truth. (Signing in with a plain <em>username</em>, or on a local/non-Supabase workspace, works exactly as before.)</p>
+
+  <h3>Adding users when connected to Supabase (in-app account provisioning)</h3>
+  <p>Once the workspace backend is Supabase, the Admin page's <strong>+ Add user</strong> form gains an <strong>Email</strong> field and does one extra step: it creates a real Supabase Auth (GoTrue) account for the new user via Supabase's public sign-up endpoint, then stamps the resulting account id onto their row — no Supabase dashboard visit, and no admin/service-key credential ever handled in the browser. This means an admin can create and manage every account entirely from Polecat's own Admin console; only the very first admin account needs a one-time bootstrap in Supabase itself. Editing an existing user never repeats this step. Two things can leave the new account temporarily unusable, and the form explains each clearly rather than failing silently: the Supabase project has <strong>sign-ups turned off</strong> (Authentication → Providers → Email), or it still requires <strong>email confirmation</strong> before an account can sign in — turn off "Confirm email" in the same settings page, then add the user again.</p>
+
+  <h3>Per-user provisioning defaults (first sign-in)</h3>
+  <p>The Admin page's <strong>Add user</strong> (and <strong>Edit user</strong>) form has a <strong>Default theme</strong> picker and an <strong>"Install the Conservation Insight sample pack on first sign-in"</strong> checkbox. Set either and that new account logs in ready: the app color theme switches to the one you picked and, if checked, the Conservation Insight sample pack installs itself — no manual setup, no digging through Settings. This only ever runs <strong>once</strong>, the very first time the account signs in anywhere; after that it's stamped as provisioned and later logins never fight whatever the user has since changed for themselves. Leaving the theme at "Don't set" or the pack box unchecked simply skips that part.</p>
+  <p>The same form also has a <strong>"Copy my current Dashboard defaults"</strong> button — click it and Studio snapshots every field from your own <strong>Settings → Dashboard defaults</strong> card (default subtitle, accent color, header logo, header background, title size, subtitle style, dashboard theme, card style, and Quick-import creativity) and stashes it on the new account. At their first sign-in, that whole "house style" applies automatically alongside the theme/pack above, same once-only rule. <strong>Clear</strong> removes a previously captured snapshot before saving.</p>
+
+  <h3>Managing multiple backends (admin)</h3>
+  <p>The Admin page's <strong>Backends</strong> card lets an admin pre-register more than one backend — Turso, Supabase, or Firebase — under a name, with its own credentials, ahead of actually connecting to any of them. Click <strong>+ Add backend</strong>, pick the adapter, and fill in its fields (the same ones the connect wizard uses); <strong>Test</strong> checks the credentials without connecting. Each registered backend gets its own <strong>Edit</strong>/<strong>Test</strong>/delete controls, and a <strong>Connect</strong> button that runs the exact same connect flow as Settings → Workspace backend, so nothing about probing or adopting an existing workspace changes — only the currently-connected one is ever active, shown with an <strong>active</strong> badge. Registering a backend here is just remembering its name and credentials for later; it does not sync, mirror, or connect anything by itself. A registered backend with users assigned to it (below) shows a count badge, e.g. "2 users". Once at least one is registered, Settings → Workspace backend's <strong>Switch backend</strong> button offers this same list first — pick one to connect in a click, or "Enter connection details manually" to start a brand-new connection from scratch.</p>
+  <p>Once at least one backend is registered, the Add/Edit user form (same "Per-user provisioning defaults" area above) also gains an <strong>Assigned backend</strong> picker naming which registered backend that account belongs to — shown back on their row in the Users list too (<code>→ Backend name</code>). This is reference metadata for now, not an automatic connection: assigning a backend doesn't make a device connect to it, since adopting a backend can replace that device's entire local workspace, which shouldn't happen silently. A consolidated config UI (or a future "select a server" step) is the next slice to act on the assignment.</p>
+
+  <h3>Going live with real per-user security (Supabase)</h3>
+  <p>The private/public flag on every object (Dashboards, Datasets, Connections, Jobs, Analyses) is UX-level by default — a private object is hidden from other accounts in the app, but the connected Supabase backend still stores everything under one shared key. An admin can flip that to real database-enforced <strong>Row-Level Security</strong> from the <strong>Admin</strong> page's <strong>"Enable per-user security / Go live"</strong> card, once a small one-time relay — the <code>polecat-admin</code> Supabase Edge Function — has been deployed (see <code>tools/M7-RLS-GOLIVE-RUNBOOK.md</code> for the exact deploy commands; it's a repo maintainer's one-time step, not something the app can do for you). Once deployed, paste its URL into the Supabase connection's <strong>Admin function URL</strong> field, sign in as the account that should become the first admin (the Auth email/password fields above), then click Go live and enter the one-time <strong>provision secret</strong> set when the function was deployed — it's used once and never stored. Go live wipes the current workspace tables (your browser's own data is untouched), seeds you as the admin, and applies the real per-user policies; from then on, private truly means only you (and admins) can see it, enforced by the database itself. With the relay deployed, <strong>+ Add user</strong> also switches to it automatically for the more secure admin-create path (no email-confirmation step) — the plain self-signup described above remains the fallback wherever the relay isn't deployed.</p>
+  <p><strong>First-admin bootstrap is automatic.</strong> Go live records your own admin account for you (in the database) <em>before</em> it runs, so on a brand-new project it no longer stops with "This account is not an admin of this workspace" — you don't have to hand-run any SQL in the Supabase editor to make yourself the first admin. It also refreshes your Supabase Auth sign-in each time, so a session that quietly expired won't surface as "That sign-in session is no longer valid" — just click Go live (or + Add user) again. The one prerequisite the app still can't do for you is the maintainer's one-time <code>polecat-admin</code> function deploy above.</p>
 </section>
 
 <!-- ── Exporting ──────────────────────────────────────────────── -->
@@ -1059,19 +1079,52 @@
 </main>
 
 <script>
-// Highlight the active nav link based on scroll position.
+// Highlight the active nav link based on scroll position + filter topics by search.
 (function () {
   var secs = Array.from(document.querySelectorAll("section[id]"));
   var links = Array.from(document.querySelectorAll("nav a"));
+  var groups = Array.from(document.querySelectorAll(".docs-nav-group"));
+  var searchEl = document.getElementById("docsSearch");
+  var noResults = document.getElementById("docsNoResults");
+
   function update() {
+    var vis = secs.filter(function (s) { return s.style.display !== "none"; });
+    if (!vis.length) return;
     var y = window.scrollY + 80;
-    var active = secs[0];
-    secs.forEach(function (s) { if (s.offsetTop <= y) active = s; });
+    var active = vis[0];
+    vis.forEach(function (s) { if (s.offsetTop <= y) active = s; });
     links.forEach(function (l) {
       l.classList.toggle("active", l.getAttribute("href") === "#" + active.id);
     });
   }
   window.addEventListener("scroll", update, { passive: true });
+
+  function filter() {
+    var q = (searchEl && searchEl.value || "").trim().toLowerCase();
+    var anyShown = false;
+    secs.forEach(function (s) {
+      var match = !q || s.textContent.toLowerCase().indexOf(q) >= 0;
+      s.style.display = match ? "" : "none";
+      if (match) anyShown = true;
+    });
+    // Hide a nav link whose target section is filtered out.
+    links.forEach(function (l) {
+      var t = document.getElementById(l.getAttribute("href").slice(1));
+      l.style.display = (t && t.style.display === "none") ? "none" : "";
+    });
+    // Hide a group label when every link under it (up to the next label) is hidden.
+    groups.forEach(function (g) {
+      var n = g.nextElementSibling, any = false;
+      while (n && !n.classList.contains("docs-nav-group")) {
+        if (n.tagName === "A" && n.style.display !== "none") any = true;
+        n = n.nextElementSibling;
+      }
+      g.style.display = any ? "" : "none";
+    });
+    if (noResults) noResults.hidden = anyShown;
+    update();
+  }
+  if (searchEl) searchEl.addEventListener("input", filter);
   update();
 })();
 </script>

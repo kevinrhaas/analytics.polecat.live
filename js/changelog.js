@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 708,
+    title: 'Help now splits User guides from Admin setup, with a search box',
+    ts: '2026-07-29T15:28:39.000Z',
+    items: [
+      'The in-app Help & docs page now separates everyday User guides from Admin & backend setup: the admin-only topics (real Supabase Auth sign-in, adding users, per-user provisioning, managing backends, going live with per-user security) moved into their own "Admin & backend setup" section, so building a dashboard never mixes with wiring up a shared backend.',
+      'A search box at the top of the docs nav filters the topics live as you type — matching sections stay, the rest hide (with a friendly empty-state when nothing matches), and clearing it restores everything.',
+    ],
+  },
+  {
     v: 707,
     title: 'One-step sign-in against your team’s Supabase workspace',
     kind: 'feature',

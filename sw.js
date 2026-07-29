@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v344"; /* v344: LF39 item 2 / M7 — one-step GoTrue direct-auth at
+var CACHE_NAME = "studio-shell-v345"; /* v345: LF60 slice 2 — Help docs split User vs Admin: the
+   admin backend/provisioning topics moved into a dedicated #admin-docs section, the docs nav gained
+   User/Admin group labels + an Admin link, and a live search box filters topics as you type
+   (empty-state + clear-to-restore). docs/index.html only.
+   v344: LF39 item 2 / M7 — one-step GoTrue direct-auth at
    sign-in: new supabaseSource.authenticate(cfg,{email,password}) verifies FORM-supplied creds
    against GoTrue's password grant (reusing gotrueSignIn, no session-cache side effects); gate.js
    tryGotrueDirectAuth wires it in when the active backend is supabase + the username is an email,

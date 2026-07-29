@@ -20087,6 +20087,78 @@ function serve() {
     });
     ok("J-docs: docs/index.html contains all expected section anchors", jDocsContent.ok, JSON.stringify(jDocsContent));
 
+    // J-docs-3b (LF60 slice 2): the docs page splits User vs Admin topics — the admin
+    // backend/provisioning h3s live under their own #admin-docs section (not buried in
+    // data-sources), the nav carries User/Admin group labels + an Admin link, and there's
+    // a search box. Verify from the raw HTML so it's independent of the embedded runtime.
+    const jDocsSplit = await page.evaluate(async function () {
+      try {
+        var resp = await fetch("/docs/index.html");
+        var html = await resp.text();
+        var adminIdx = html.indexOf('id="admin-docs"');
+        var supaAuthIdx = html.indexOf("Signing in with real Supabase Auth");
+        var goLiveIdx = html.indexOf("Going live with real per-user security");
+        var dataSrcIdx = html.indexOf('id="data-sources"');
+        var exportIdx = html.indexOf('id="exporting"');
+        return {
+          hasAdminSection: adminIdx !== -1,
+          // the Supabase-Auth + Go-live admin topics now sit inside #admin-docs, which itself
+          // sits between data-sources and exporting
+          adminAfterDataSources: adminIdx > dataSrcIdx && adminIdx < exportIdx,
+          adminTopicsInAdminSection: supaAuthIdx > adminIdx && goLiveIdx > adminIdx && supaAuthIdx < exportIdx,
+          hasSearch: html.indexOf('id="docsSearch"') !== -1,
+          hasGroups: (html.match(/class="docs-nav-group"/g) || []).length >= 2,
+          hasAdminNavLink: html.indexOf('href="#admin-docs"') !== -1
+        };
+      } catch (e) { return { err: e.message }; }
+    });
+    ok("J-docs (LF60 slice 2): admin topics live in a dedicated #admin-docs section between data-sources and exporting",
+      jDocsSplit.hasAdminSection && jDocsSplit.adminAfterDataSources && jDocsSplit.adminTopicsInAdminSection,
+      JSON.stringify(jDocsSplit));
+    ok("J-docs (LF60 slice 2): docs nav has a search box, User/Admin group labels and an Admin link",
+      jDocsSplit.hasSearch && jDocsSplit.hasGroups && jDocsSplit.hasAdminNavLink,
+      JSON.stringify(jDocsSplit));
+
+    // J-docs-3c: the search box actually filters topics live. Load the standalone docs page,
+    // type a query that only the Admin section matches, and assert the user sections hide,
+    // the admin section stays, and its nav link stays while a non-matching link hides.
+    const jDocsSearchPage = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await jDocsSearchPage.goto(`http://localhost:${PORT}/docs/index.html`, { waitUntil: "load" });
+    const jDocsFilter = await jDocsSearchPage.evaluate(async function () {
+      function vis(el) { return !!el && el.style.display !== "none" && !el.hidden; }
+      var search = document.getElementById("docsSearch");
+      if (!search) return { err: "no search box" };
+      // a phrase that appears only in the admin section
+      search.value = "Row-Level Security";
+      search.dispatchEvent(new Event("input", { bubbles: true }));
+      await new Promise(function (r) { setTimeout(r, 30); });
+      var admin = document.getElementById("admin-docs");
+      var chart = document.getElementById("chart-types");
+      var adminLink = document.querySelector('nav a[href="#admin-docs"]');
+      var chartLink = document.querySelector('nav a[href="#chart-types"]');
+      var no1 = document.getElementById("docsNoResults");
+      var filtered = { adminShown: vis(admin), chartHidden: !vis(chart), adminLinkShown: vis(adminLink), chartLinkHidden: !vis(chartLink), noResultsHidden: !!no1 && no1.hidden };
+      // a nonsense query hides everything and shows the empty-state
+      search.value = "zzzznotanytopic";
+      search.dispatchEvent(new Event("input", { bubbles: true }));
+      await new Promise(function (r) { setTimeout(r, 30); });
+      var noneShown = Array.from(document.querySelectorAll("section[id]")).every(function (s) { return !vis(s); });
+      var empty = { noneShown: noneShown, noResultsVisible: !!no1 && !no1.hidden };
+      // clearing restores everything
+      search.value = "";
+      search.dispatchEvent(new Event("input", { bubbles: true }));
+      await new Promise(function (r) { setTimeout(r, 30); });
+      var restored = vis(chart) && vis(admin) && vis(chartLink) && (!!no1 && no1.hidden);
+      return { filtered: filtered, empty: empty, restored: restored };
+    });
+    await jDocsSearchPage.close();
+    ok("J-docs (LF60 slice 2): docs search filters to matching topics, shows an empty-state, and clears back",
+      jDocsFilter.filtered && jDocsFilter.filtered.adminShown && jDocsFilter.filtered.chartHidden &&
+      jDocsFilter.filtered.adminLinkShown && jDocsFilter.filtered.chartLinkHidden && jDocsFilter.filtered.noResultsHidden &&
+      jDocsFilter.empty && jDocsFilter.empty.noneShown && jDocsFilter.empty.noResultsVisible &&
+      jDocsFilter.restored,
+      JSON.stringify(jDocsFilter));
+
     // J-docs-4: UX sweep 2026-07-28 (#367 finding #2) — docs page's Exporting section
     // table overflowed the viewport by ~7px at 390px width (table-layout:auto min-content,
     // widened by a dead "Badge" column no row ever populates). Fix: drop the unused column.

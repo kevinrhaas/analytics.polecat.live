@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF60 (in-app Docs, slice 2) — Help splits User guides from Admin setup + a live search (v708, sw
+  v345, 2026-07-29):** LF60's part (4) (USER-vs-ADMIN docs split) plus the docs NAV best-practice
+  (search/TOC) flagged in slice 1's NEXT. The admin-only topics — real Supabase Auth sign-in, in-app
+  account provisioning, per-user provisioning defaults, managing multiple backends, going live with
+  per-user Row-Level Security — were buried at the bottom of the **Data sources** section; they now
+  live in their own **`#admin-docs` "Admin & backend setup"** section (with a one-line "this is for the
+  person who administers a shared workspace" preamble), placed between Data sources and Exporting.
+  The docs **`<nav>`** gained **User / Admin group labels**, an **Admin & backend setup** link, and a
+  **search box** (`#docsSearch`) that filters topics live as you type — matching `section[id]`s stay,
+  the rest hide, non-matching nav links + empty group labels hide too, a friendly `#docsNoResults`
+  empty-state shows when nothing matches, and clearing restores everything (the scroll-spy skips
+  hidden sections). Everything is inside `docs/index.html` (no app code touched), so both the embedded
+  Help section (slice 1) and the standalone page get it. 3 new tests (raw-HTML: `#admin-docs` sits
+  between data-sources and exporting with the admin topics inside it, nav has search + 2 group labels
+  + Admin link; live: search filters to matching topics, shows the empty-state, and clears back).
+  Files: docs/index.html, sw.js, js/changelog.js, tests/run.js. **NEXT in LF60:** (3) deep-links from
+  in-app help badges to specific docs anchors + screenshots, (5) a backend-options comparison table
+  (Local / Turso / Supabase / Firebase).
 - **LF39 item 2 / M7 — one-step GoTrue direct-auth at sign-in (v707, sw v344, 2026-07-29):** closes
   out LF39's last piece (Kevin: "close out the M7 GoTrue track"). Item (1) fixed the misleading error
   + local-mirror adoption; item (2) is real password auth against the backend. Two parts: (a) a new
