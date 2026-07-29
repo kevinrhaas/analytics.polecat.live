@@ -5517,6 +5517,18 @@
     var selectHtml = selectMode
       ? '<label class="recent-select" onclick="event.stopPropagation()"><input type="checkbox" class="dash-select-cb" data-select="' +
         esc(r.id) + '"' + (selected ? " checked" : "") + ' aria-label="Select ' + esc(title) + '"/></label>' : '';
+    // LF66/LF59: persistent folder chip in the tile footer (Dashboards context only — Home cards
+    // pass no `folders`). Class `recent-folder` reuses the shared move-to-folder handler (which
+    // appends the folder icon and opens the LF56 picker) and is already in the card-open skip
+    // list, so the whole-tile open button ignores clicks here. Unlike the hover-only corner
+    // buttons this stays visible, so a foldered dashboard shows its folder at a glance.
+    var folderChip = (wbOpts && wbOpts.folders)
+      ? '<button type="button" class="recent-folder recent-folder-chip' + (r.folder ? " filed" : "") +
+          '" data-folder="' + esc(r.id) + '" title="' +
+          (r.folder ? "In folder “" + esc(r.folder) + "” — move" : "Move " + esc(title) + " to a folder") +
+          '" aria-label="' + (r.folder ? "Move " + esc(title) + " — currently in folder " + esc(r.folder) : "Move " + esc(title) + " to a folder") +
+          '"><span class="rf-name">' + (r.folder ? esc(r.folder) : "Add to folder") + '</span></button>'
+      : '';
     return '<div class="recent-card' + (selectMode && selected ? " is-selected" : "") + '">' +
       selectHtml +
       '<button class="recent-open" data-recent="' + esc(r.id) + '" title="' + esc(title) + ' — open" aria-label="Open ' + esc(title) + '"></button>' +
@@ -5529,7 +5541,7 @@
       '<a class="recent-viewer" data-viewer="' + esc(r.id) + '" href="' + esc(viewerUrl(r.id)) + '" target="_blank" rel="noopener" ' +
         'title="Open in viewer (read-only, new tab)" aria-label="Open ' + esc(title) + ' in viewer, read-only, opens in a new tab" onclick="event.stopPropagation()"></a>' +
       '<div class="recent-thumb">' + thumb + '</div>' +
-      '<div class="recent-meta"><b>' + esc(title) + '</b><small>' + timeAgo(r.ts) + ' · ' + meta + '</small>' + changeHint + colHint + wbSelect + '</div></div>';
+      '<div class="recent-meta"><b>' + esc(title) + '</b><small>' + timeAgo(r.ts) + ' · ' + meta + '</small>' + changeHint + colHint + wbSelect + folderChip + '</div></div>';
   }
   // Z2 follow-up: "instructions/how-tos/tips beyond the existing tour link" — a small,
   // dismissable-by-clicking-through tip card on Home surfacing one bite-sized power-user
@@ -6287,7 +6299,7 @@
     // tiles (thumbnail cards) or a compact list — the user picks via #dashViewToggle
     var dashCards = _dashViewMode === "list"
       ? dashMatches.map(function (x) { return dashListRowHtml(x.r, pins.indexOf(x.r.id) >= 0, x.col, _dashSelectMode, !!_dashSelected[x.r.id]); })
-      : dashMatches.map(function (x) { return recentCardHtml(x.r, pins.indexOf(x.r.id) >= 0, { workbooks: workbooks, matchedCol: x.col, selectMode: _dashSelectMode, selected: !!_dashSelected[x.r.id] }); });
+      : dashMatches.map(function (x) { return recentCardHtml(x.r, pins.indexOf(x.r.id) >= 0, { workbooks: workbooks, matchedCol: x.col, selectMode: _dashSelectMode, selected: !!_dashSelected[x.r.id], folders: true }); });
     var chipDefs = [{ id: "", name: "All", n: wbCounts.all }]
       .concat(packCount ? [{ id: "__packs", name: "Sample packs", n: packCount }] : [])
       .concat(workbooks.map(function (w) { return { id: w.id, name: w.name, n: wbCounts.byId[w.id] || 0, del: true, folder: w.folder || "" }; }))

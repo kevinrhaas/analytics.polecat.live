@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF66/LF59 — dashboard folder chip on the TILE, not just the list row (v700, sw v337, 2026-07-29):**
+  the merged dashboard-folders slice put the folder badge + move-to-folder button on the list row only
+  (its own NEXT pointer named "tile-view folder display/assign" as the remaining library-model step).
+  This adds a persistent **folder chip** (`.recent-folder-chip`) to every Dashboards **tile**
+  (`recentCardHtml`, gated to the Dashboards context via a new `folders:true` in its `wbOpts`): it reads
+  the dashboard's folder name, or **"Add to folder"** when unfiled, and reuses the exact shared
+  `.recent-folder` move handler (already in the tile's card-open skip list, already opening the LF56
+  `openFolderPicker`) — no new wiring, no new infra. The chip sits in the tile footer beside the workbook
+  select (`position:relative;z-index:2` to clear the full-card `.recent-open` overlay, `row-reverse` so
+  the handler-appended folder icon renders before the name) and stays visible (unlike the hover-only
+  corner toggles) so a foldered dashboard shows its folder at a glance; a `.filed` state tints it to the
+  brand color. Home cards pass no `folders`, so the chip is Dashboards-only. Pure additive to the existing
+  Dashboards section — no new section, no schema change. 2 new regression tests (unfiled tile shows an
+  "Add to folder" chip wired to the shared handler; filing updates the chip to the folder name + `filed`
+  state). Files: app/studio.js, app/studio.css, docs/index.html, sw.js, js/changelog.js, tests/run.js.
+  **NEXT in the library-model cluster:** the folder facet/badge/move parity is now on both list and tile
+  for Dashboards; the remaining shared-nav convergence (one folder-nav component set across all sections)
+  and the parked LF57/LF43 structural pieces stay Kevin's call.
 - **LF66 — workbooks can also go into a folder (v699, sw v336, 2026-07-29):** Kevin's direction —
   *"workbooks can also go into a folder."* Extends the merged dashboard-folders work: a **workbook
   record gains an optional `folder`** (`addWorkbook(name, folder)` + a new `setWorkbookFolder(id,

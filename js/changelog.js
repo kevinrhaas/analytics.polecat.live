@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 700,
+    title: 'See a dashboard\'s folder right on its tile',
+    kind: 'feature',
+    ts: '2026-07-29T12:17:22.000Z',
+    items: [
+      'The Dashboards tile view now shows a folder chip on every dashboard card — reading its folder name, or "Add to folder" when it isn\'t filed yet. Click it to move the dashboard with the same folder picker (browse, search, or create a nested folder). Until now the folder badge and move button only appeared in the list view; both live on the tiles too, so you can organize dashboards whichever view you prefer.',
+    ],
+  },
+  {
     v: 699,
     title: 'File a whole workbook into a folder',
     kind: 'feature',

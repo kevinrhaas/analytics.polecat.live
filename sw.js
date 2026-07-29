@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v336"; /* v336: LF66 — workbooks can also go into a folder: workbook
+var CACHE_NAME = "studio-shell-v337"; /* v337: LF66/LF59 — dashboard folder chip on the TILE: the
+   Dashboards tile view now carries a persistent folder chip (.recent-folder-chip) reading the
+   folder name (or "Add to folder" when unfiled) and wired to the same shared .recent-folder move
+   handler / LF56 picker — previously the folder badge + move button were list-view only.
+   app/studio.js, app/studio.css, docs/index.html.
+   v336: LF66 — workbooks can also go into a folder: workbook
    records gain an optional `folder`; each workbook chip in the Dashboards section gets a
    move-to-folder button (LF56 picker) + an in-folder marker (setWorkbookFolder, renderDashboards
    wb-chip). app/studio.js, app/studio.css, docs/index.html.
