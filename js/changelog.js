@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 713,
+    title: 'Help badges deep-link to specific docs sections',
+    kind: 'polish',
+    ts: '2026-07-29T17:17:23.000Z',
+    items: [
+      'The little "?" help badges on the Filter and Header inspector panels used to open the whole huge "The builder" docs section. They now jump straight to a dedicated Dashboard filters / The header as an object subsection instead, so you land on the exact answer instead of scrolling to find it.',
+      'The Dashboard filters docs section is also new content: it spells out Label, Parameter id, Options query, Value/Text column, and how cascading filters refresh their choices from an upstream pick.',
+    ],
+  },
+  {
     v: 712,
     title: 'Help "?" badges open docs inside the app',
     ts: '2026-07-29T17:04:17.000Z',

@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v349"; /* v349: LF60 slice 3 — contextual help badges deep-link into
+var CACHE_NAME = "studio-shell-v350"; /* v350: LF60 (3) — Filter/Header inspector help badges
+   deep-link to dedicated "dashboard-filters"/"dashboard-header" docs anchors instead of falling
+   back to the whole generic "builder" section. docs/index.html gains the two anchors' content;
+   app/studio.js changed, so precached copies roll.
+   v349: LF60 slice 3 — contextual help badges deep-link into
    the IN-APP Docs view at their anchor (inspector "?" #inspHelpLink, per-section .sec-help,
    per-chart .ct-help, empty-canvas .k8-help-link): shell.js gains __studioOpenDocs(anchor) +
    a capture-phase delegated click handler; a plain click routes in-app, a modifier/middle click

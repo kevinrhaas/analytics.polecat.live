@@ -2094,7 +2094,7 @@
     else { $("#inspTitle").textContent = "KPI tile"; renderKpiInspector(body); }
 
     // J2: update the top-level contextual help link to point at the most relevant docs section
-    var _hlAnchors = { "panel": "chart-types", "filter": "builder", "da": "data-sources", "kpi": "chart-types", "header": "builder" };
+    var _hlAnchors = { "panel": "chart-types", "filter": "dashboard-filters", "da": "data-sources", "kpi": "chart-types", "header": "dashboard-header" };
     var _hlEl = document.getElementById("inspHelpLink");
     if (_hlEl) _hlEl.href = "docs/index.html#" + (_hlAnchors[(S.selection || {}).kind] || "builder");
 
@@ -2664,7 +2664,7 @@
     });
 
     // Filters
-    var fs = section(body, "Filters", function () { addFilter(); }, null, "builder", "sliders");
+    var fs = section(body, "Filters", function () { addFilter(); }, null, "dashboard-filters", "sliders");
     if (!sp.filters.length) fs.appendChild(hint("Optional cascading header selects (e.g. Data Source)."));
     sp.filters.forEach(function (f, i) {
       fs.appendChild(rowItem("⛃", f.label, f.da + " · " + f.valueCol, function () { select({ kind: "filter", index: i }); },
@@ -4103,7 +4103,7 @@
   function renderHeaderInspector(body) {
     var sp = S.spec;
     quickHelp(body, "header");
-    var sec = section(body, "Header", null, null, "builder", "freeze-header");
+    var sec = section(body, "Header", null, null, "dashboard-header", "freeze-header");
     sec.appendChild(field("Title", input(sp.title, function (v) { sp.title = v; syncHeader(); refreshPreview(); })));
     sec.appendChild(field("Subtitle", input(sp.subtitle || "", function (v) { sp.subtitle = v; refreshPreview(); }, "Optional")));
     var delBtn = el("button", "btn-wide"); delBtn.style.color = "var(--bad)";
@@ -4901,7 +4901,7 @@
   function renderFilterInspector(body) {
     var f = S.spec.filters[S.selection.index]; if (!f) { selectDashboard(); return; }
     quickHelp(body, "filter");
-    var sec = section(body, "Filter", null, null, "builder", "sliders");
+    var sec = section(body, "Filter", null, null, "dashboard-filters", "sliders");
     sec.appendChild(field("Label", input(f.label, function (v) { f.label = v; refreshPreview(); renderListsOnly(); })));
     sec.appendChild(field("Parameter id", input(f.id, function (v) { f.id = v.trim(); refreshPreview(); }), "must match the ${param} in the queries it filters"));
     sec.appendChild(field("Options query", daPicker(f.da, function (v) { f.da = v; var cs = filterCols(v); f.valueCol = cs[0] || ""; f.textCol = f.valueCol; renderInspector(); refreshPreview(); })));
