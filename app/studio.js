@@ -576,7 +576,7 @@
     try { localStorage.setItem("studio-show-samples", on ? "1" : "0"); } catch (e) {}
     // Viridis V7: the Demo packs Settings card is also gated on showSamples(),
     // so it needs the same re-render the other three sample-gated surfaces get.
-    buildLibrary(); renderHome(); buildExamplesMenu(); buildNewMenu(); renderSettings(); renderExplore();
+    buildLibrary(); renderHome(); buildNewMenu(); renderSettings(); renderExplore();
   }
   window.__studioShowSamples = { get: showSamples, set: setShowSamples }; // test hook
   // #114: the "Restore unsaved work" banner is opt-in — off by default (Kevin found it
@@ -767,7 +767,7 @@
       ensurePackExamplesMaterialized(id);
       toast("Sample pack installed — see its dashboards in Dashboards");
     }
-    buildLibrary(); renderSettings(); renderHome(); buildExamplesMenu();
+    buildLibrary(); renderSettings(); renderHome();
   }
   window.__studioToggleDemoPack = toggleDemoPack; // test hook
 
@@ -5657,7 +5657,7 @@
       { act: "connection", ic: "link", t: "New connection", d: "Create a connection to your own data" },
       { act: "dataset", ic: "db", t: "New dataset", d: "Build datasets from an existing connection" },
       { act: "quickimport", ic: "upload", t: "Quick import", d: "Drop a CSV or JSON file to build a dashboard instantly" }
-    ].concat(showSamples() ? [{ act: "examples", ic: "grid", t: "Browse examples", d: "Curated dashboards from your installed sample packs" }] : [])
+    ].concat(showSamples() ? [{ act: "examples", ic: "grid", t: "Sample dashboards", d: "Curated dashboards from your installed sample packs" }] : [])
       .concat([{ act: "tour", ic: "play", t: "Take the tour", d: "Guided walkthrough of the builder" }])
       // LF44: "blank"/"quickimport"/"examples"/"tour" all route through enterStudio()
       // (Quick import via quickBuildDashboard) — a viewer-role account can't ever enter
@@ -5768,7 +5768,7 @@
             (types ? '<div class="home-ex-types">' + types + '</div>' : '') +
             '</button>';
         }).join("") + '</div>' +
-          (vis.length > 8 ? '<button type="button" class="home-feat-more home-feat-more-btn" data-home-examples-more aria-label="Show ' + (vis.length - 8) + ' more examples">+ ' + (vis.length - 8) + ' more \u2014 New \u25b8 Examples</button>' : '');
+          (vis.length > 8 ? '<button type="button" class="home-feat-more home-feat-more-btn" data-home-examples-more aria-label="Show ' + (vis.length - 8) + ' more sample dashboards">+ ' + (vis.length - 8) + ' more \u2014 see Dashboards</button>' : '');
       },
       dashboards: function () {
         // Always renders SOMETHING (grids or the friendly empty hint) — never hidden — so it
@@ -5812,12 +5812,7 @@
         // LF70: "Browse examples" = go to the installed sample pack(s)' curated dashboards in
         // the Dashboards section (thumbnail tiles), not the old Examples ▾ dropdown of static
         // demo-db specs — Studio isn't entered at all for this action.
-        if (act === "examples") {
-          _repoWbFilter = "__packs";
-          renderDashboards();
-          if (window.__studioShellSetSection) __studioShellSetSection("dashboards");
-          return;
-        }
+        if (act === "examples") { showPackDashboards(); return; }
         if (act === "blank" && !confirmReplaceUnsavedQuickBuild("starting a new blank dashboard")) return;
         enterStudio();
         if (act === "blank") { S.spec = newBlankSpec(); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); bumpDashMilestone(); }
@@ -6028,10 +6023,9 @@
     });
     var examplesMoreBtn = $("[data-home-examples-more]", sec);
     if (examplesMoreBtn) {
-      examplesMoreBtn.onclick = function () {
-        enterStudio();
-        setTimeout(function () { var b = $("#btnExamples"); if (b) b.click(); }, 60);
-      };
+      // LF43 slice 2: "+N more" no longer opens the removed Examples ▾ menu — the full
+      // set lives in Dashboards under the Sample-packs chip, same as the sample card.
+      examplesMoreBtn.onclick = showPackDashboards;
     }
     $$("[data-home-analysis]", sec).forEach(function (btn) {
       btn.onclick = function () {
@@ -8107,7 +8101,7 @@
           Studio.installDemoPack("conservation");
           ensurePackExamplesMaterialized("conservation");
         }
-        buildLibrary(); renderHome(); buildExamplesMenu();
+        buildLibrary(); renderHome();
         Auth.upsert(me.u, { provisioned: true }).then(function (saved) { mirrorUserRow(saved); });
       }
     } catch (e) {}
@@ -9394,8 +9388,16 @@
   }
   window.__studioScaffoldFromStem = scaffoldFromStem; // test hook
 
+  // LF43 slice 2 test hooks: with the Examples ▾ menu gone, the suite's showcase deep-audits
+  // load sample specs through this instead of menu clicks (loadExample returns its fetch
+  // promise so callers can await the spec swap), and pack-gating tests read the FULL visible
+  // sample list here — Home's tile strip caps at 8, so its DOM can't answer "is file X gated
+  // in/out" for a catalog bigger than the cap.
+  window.__studioLoadExample = function (file) { return loadExample(file); };
+  window.__studioVisibleExampleFiles = function () { return visibleExamples().map(function (e) { return e.file; }); };
+
   function loadExample(file, keepAutosave) {
-    fetchJSON("data/examples/" + file).then(function (spec) {
+    return fetchJSON("data/examples/" + file).then(function (spec) {
       S.spec = normalize(spec); S.selection = null;
       // Shipped examples that don't pin a whole-look theme adopt the house default
       // (Polecat unless Settings says otherwise) so the out-of-box gallery wears it.
@@ -9770,37 +9772,17 @@
     p.push('</svg>');
     return p.join("");
   }
-  function buildExamplesMenu() {
-    var em = $("#menuExamples");
-    em.classList.add("ex-grid");
-    // one grid, ordered by index.json — most spectacular first (no single "hero" card)
-    // E3: mini layout thumbnail for each example card — synthesised from index.json metadata
-    // (types[], panels count, kpis count) without needing to load the full spec file.
-    function exCard(e) {
-      var types = (e.types || []).slice(0, 4).map(function (t) {
-        return '<span class="ex-chip">' + esc(t) + '</span>';
-      }).join("");
-      var meta = [];
-      if (e.panels) meta.push(e.panels + "P");
-      if (e.kpis) meta.push(e.kpis + "K");
-      return '<button class="ex-card" data-f="' + esc(e.file) + '">' +
-        '<div class="ex-thumb" aria-hidden="true">' + exLayoutSvg(e) + '</div>' +
-        '<div class="ex-card-top">' +
-          '<span class="ex-card-types">' + types + '</span>' +
-        '</div>' +
-        '<div class="ex-card-title">' + esc(e.title || e.file) + '</div>' +
-        (meta.length ? '<div class="ex-card-meta">' + meta.join(" · ") + '</div>' : "") +
-        '</button>';
-    }
-    em.innerHTML = (showSamples()
-        ? '<div class="grp">Examples <span class="ex-demo-note" title="Sample dashboards running on the built-in demo database — they show the app\'s full feature breadth.">demo db</span></div><div class="ex-cards">' + visibleExamples().map(exCard).join("") + '</div>'
-        : '<div class="grp">Examples</div><div class="ex-hidden-note">Sample dashboards are hidden — turn “Sample content” back on in Settings to browse them.</div>') +
-      '<button type="button" class="btn ex-url-btn" id="btnImportUrl">＋ Import from URL…</button>';
-    $$("button.ex-card", em).forEach(function (b) { b.onclick = function () { loadExample(b.getAttribute("data-f")); closeMenus(); }; });
-    var importUrlBtn = $("#btnImportUrl", em);
-    if (importUrlBtn) importUrlBtn.onclick = function () { closeMenus(); openImportUrlModal(); };
+  // LF43 slice 2: the Studio "Examples ▾" menu is GONE — an installed pack's curated
+  // dashboards are real rows in the Dashboards section (Sample-packs chip), and Home's
+  // gallery tiles still deep-load individual samples. showPackDashboards() is the one
+  // shared route there (Home's sample card, its "+N more" tile, and the ⌘K palette);
+  // Import from URL kept its other home in the Open-dashboard picker's footer.
+  function showPackDashboards() {
+    _repoWbFilter = "__packs";
+    renderDashboards();
+    if (window.__studioShellSetSection) __studioShellSetSection("dashboards");
   }
-  window.__studioBuildExamplesMenu = buildExamplesMenu; // test hook — rebuild after a raw (non-UI) demo-pack install/remove
+  window.__studioShowPackDashboards = showPackDashboards;
 
   function wireTopbar() {
     // Slice B: Undo/Redo/Open/Save/Export are dashboard-scoped actions that now live in
@@ -9960,12 +9942,6 @@
     setIconBtnCaret($("#btnNew"), "plus", "New", 14);
     menuToggle($("#btnNew"), $("#menuNew"));
 
-    buildExamplesMenu();
-    // UX6 (icon migration, carets slice): "Examples ▾" was static HTML text with no icon
-    // wiring at all — hydrate it the same way the other dropdown triggers are.
-    setIconBtnCaret($("#btnExamples"), null, "Examples", 14);
-    menuToggle($("#btnExamples"), $("#menuExamples"));
-
     // export menu
     // UX6 (icon migration, carets slice): was setIconBtn with "▾" as literal text.
     var btnExportEl = sa("#btnExport"); setIconBtnCaret(btnExportEl, "download", "Export", 14);
@@ -10096,17 +10072,10 @@
     var moreExport = $("#moreExport");
     if (moreExport) moreExport.onclick = function () {
       closeMenus();
-      // Unlike #menuExamples (dashbar-native, needs the bespoke .phone-pos rule to get a
-      // pinned phone layout), #menuExport already lives inside .top-app — the existing
-      // ".top-app .menu{position:fixed…}" phone rule covers it for free.
+      // #menuExport lives inside .top-app — the existing ".top-app .menu{position:fixed…}"
+      // phone rule covers it for free (the old dashbar-native Examples menu needed a
+      // bespoke .phone-pos rule; that menu is gone — LF43 slice 2).
       menuExportEl.classList.add("open");
-    };
-    var moreExamples = $("#moreExamples");
-    if (moreExamples) moreExamples.onclick = function () {
-      closeMenus();
-      // On narrow phones, open the examples menu pinned below the topbar (fixed layout)
-      var em = $("#menuExamples");
-      em.classList.add("phone-pos", "open");
     };
     // phone variants mirror the dashbar Open/Save: catalog picker + save-to-catalog
     // (the picker's footer still offers "Open file…" for .studio.json imports)

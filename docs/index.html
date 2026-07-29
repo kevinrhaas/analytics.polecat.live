@@ -317,8 +317,8 @@
   least one workbook, the same filter chip strip (without the add/rename/delete controls) also appears
   on the Home page above Pinned/Recent dashboards, for a quick glance without visiting Repository. If
   any installed sample pack has contributed dashboards, a <strong>"Sample packs"</strong> chip joins the
-  strip too, filtering to just those — Home's <strong>"Browse examples"</strong> card jumps straight here
-  with that chip pre-selected, instead of opening a separate examples picker.</p>
+  strip too, filtering to just those — Home's <strong>"Sample dashboards"</strong> card (and its "+N more" tile) jumps straight here
+  with that chip pre-selected.</p>
 
   <p><strong>Folders (alongside workbooks):</strong> dashboards also file into <strong>folders</strong> —
   the same nested "/"-path folders your datasets, connections and jobs use (e.g. "Finance/2026"). Once at
@@ -500,7 +500,7 @@
     program cost-share ROI view, a provider-agreement-over-time view, a county-level
     outlier-detection view, a year-over-year practice-switching view, and a richtext-led narrative
     overview rolling all of it up, each with their own filter bar too, save the overview) to both
-    your Dashboards screen and the Examples ▾ gallery — removing the pack takes all nine dashboards
+    your Dashboards screen and Home's sample gallery — removing the pack takes all nine dashboards
     back out again, so the workspace doesn't get cluttered for everyone else.</li>
     <li><strong>Data Management &amp; Governance</strong> is the built-in generic showcase gallery
     (Data Governance, Data Platform Operations, Product Delivery, Finance, Marketing, Incident
@@ -638,9 +638,9 @@
   <h3>Undo / Redo</h3>
   <p>Every structural edit (add, remove, reorder, resize, rename) is snapshotted. Use <kbd>Ctrl Z</kbd> / <kbd>⌘ Z</kbd> to undo and <kbd>Shift Z</kbd> to redo. The ↶/↷ buttons in the topbar work too (they only show while Studio is open). Text-field edits are not tracked individually (to avoid flooding the history).</p>
 
-  <h3>Examples</h3>
-  <p>Use <strong>Examples ▾</strong> in the dashboard toolbar (above the live preview) to open one of the 11 bundled example dashboards — a curated, most-spectacular-first gallery spanning operations, engineering delivery, finance, marketing & growth, reliability, governance, compliance, quality, pipelines, storage, and cost. Together they cover all 51 chart types at least once. A great way to explore what's possible before building your own.</p>
-  <p><strong>＋ Import from URL…</strong> at the bottom of the Examples ▾ menu loads a dashboard from any public link to a <code>.studio.json</code> file — a GitHub raw link, a gist, a static host. It's a plain client-side fetch (no backend, no account), so it's a simple way to share dashboards as a community template exchange: publish a <code>.studio.json</code> anywhere public, share the link, anyone can import it. The URL can also point to an <strong>index of several templates</strong> — a JSON array (or <code>{"templates":[...]}</code>) of <code>{title, url, description}</code> entries, the same shape as the built-in Examples gallery's own index — in which case the modal shows a browsable list to pick one from instead of importing directly; a good fit for publishing a whole template pack from one link.</p>
+  <h3>Sample dashboards</h3>
+  <p>The bundled sample dashboards — a curated, most-spectacular-first gallery spanning operations, engineering delivery, finance, marketing & growth, reliability, governance, compliance, quality, pipelines, storage, and cost, together covering all 51 chart types at least once — live in two places: <strong>Home's sample gallery</strong> (click a tile to open it in the builder) and the <strong>Dashboards</strong> section under the <strong>Sample packs</strong> chip. A great way to explore what's possible before building your own. (The old Studio "Examples ▾" toolbar menu is gone — same dashboards, better homes.)</p>
+  <p><strong>＋ Import from URL…</strong> in the Open-dashboard picker's footer loads a dashboard from any public link to a <code>.studio.json</code> file — a GitHub raw link, a gist, a static host. It's a plain client-side fetch (no backend, no account), so it's a simple way to share dashboards as a community template exchange: publish a <code>.studio.json</code> anywhere public, share the link, anyone can import it. The URL can also point to an <strong>index of several templates</strong> — a JSON array (or <code>{"templates":[...]}</code>) of <code>{title, url, description}</code> entries, the same shape as the built-in sample gallery's own index — in which case the modal shows a browsable list to pick one from instead of importing directly; a good fit for publishing a whole template pack from one link.</p>
 
   <h3>Slideshow &amp; story mode</h3>
   <p><strong>⋯ More → Present → Slideshow</strong> cycles through every View one at a time in a full-screen presentation view — great for a stakeholder walkthrough. Navigate with the ◀/▶ buttons or the arrow keys; <kbd>Escape</kbd> or × exits. Each slide re-renders through the exact same export pipeline as a real Dashboard Framework file, so quality is identical to what you'd ship. Its neighbor in that same switcher, <strong>Focus mode</strong>, instead collapses the builder panes so the live preview fills the screen — no slide-by-slide cycling, just a distraction-free canvas; <kbd>Escape</kbd> or the exit pill leaves either mode the same way.</p>

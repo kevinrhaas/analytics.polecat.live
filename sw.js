@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v355"; /* v355: LF55 (5) — the job editor's step-type <select>
+var CACHE_NAME = "studio-shell-v356"; /* v356: LF43 slice 2 — the Studio Examples ▾ menu is
+   REMOVED (samples are real Dashboards rows + Home gallery tiles; Home's card reads "Sample
+   dashboards"; "+N more" routes to the Dashboards Sample-packs view via the shared
+   showPackDashboards(); ⌘K re-sourced; __studioLoadExample test hook replaces menu-click
+   loading). app/index.html, app/studio.js, app/palette.js, docs/index.html.
+   v355: LF55 (5) — the job editor's step-type <select>
    becomes a themed icon-panel picker: a trigger (current kind's glyph + label) expands a grid of
    all 9 kinds as icon tiles, select-and-see; picking one resets the step like the old onchange
    did. 3 new icons (funnel/wand/key). app/jobs.js, app/icons.js, app/sources/jobs-engine.js,

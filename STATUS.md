@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF43 slice 2 — the Studio Examples ▾ menu is REMOVED; "Examples" naming dropped (v719, sw v356,
+  2026-07-29 — LF43 is now fully done):** the dedicated big-surface slice LF43/LF47 budgeted. The
+  dashbar `#btnExamples`/`#menuExamples` menu-wrap, its `#moreExamples` phone twin, and
+  `buildExamplesMenu()` (+ every call site and the `__studioBuildExamplesMenu` hook) are gone — an
+  installed pack's curated dashboards are REAL rows in the Dashboards section (Sample-packs chip,
+  LF43 slice 1/LF70), and Home's gallery tiles still deep-load individual samples. One shared
+  `showPackDashboards()` route (also exposed as `__studioShowPackDashboards`) now serves Home's
+  sample card — relabeled **"Sample dashboards"**, dropping the "Examples" naming — its **"+N more"**
+  tile (was `enterStudio()` + a timed menu click; label's stale "New ▸ Examples" copy fixed too),
+  and the ⌘K palette's renamed "Sample dashboards" command. The palette's dynamic per-sample
+  commands re-source from Home's `[data-home-example]` tiles; **Import from URL keeps its other
+  home** in the Open-dashboard picker's footer (N-DIST suite untouched, drives `__studioImportFromUrl`
+  directly). A new **`__studioLoadExample`** hook replaces menu-click loading for the suite's 8
+  conservation-showcase deep-audits. ~14 test blocks converted to the new surfaces (E5/E3 read
+  Home's tile gallery; LF16/LF2 pack-gating reads Home via `__studioRenderHome`; LF37 lands in
+  Dashboards; M7/M10 phone menus drop the Examples legs; Track H divider re-anchors on Close;
+  caret-icon audit asserts removal) — intent changes by design, not weakened assertions — plus 2
+  new removal/naming checks. Docs' Examples section rewritten as "Sample dashboards" (both homes,
+  new Import-from-URL location). Files: app/index.html, app/studio.js, app/palette.js,
+  docs/index.html, sw.js, js/changelog.js, tests/run.js.
 - **LF55 (5) — job editor: a themed icon-panel step-type picker replaces the plain <select>
   (v718, sw v355, 2026-07-29, steward — LF55 is now fully done):** the last open LF55 part.
   Each step card's kind picker is now a compact trigger button (`.jobs-step-type-trigger`,
