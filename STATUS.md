@@ -116,6 +116,20 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Kevin live feedback ×3 — Explore saves a "View" + the backend row fits a phone (v721, sw v358,
+  2026-07-29):** three screenshot-driven fixes from a live session. (1) **Explore savebar**: the
+  save button read "Update analysis"/"Save analysis" — the LF52 widget→View rename's last
+  stragglers — now **"Update View"/"Save View"** (`app/explore.js`). (2) **Explore hero copy**:
+  "...save the result as an *analysis*" → "as a **View**" (`app/index.html`), with the matching
+  tour step (`app/tutorial.js`) and Help sentence (`docs/index.html`) updated in the same slice.
+  (3) **Settings → Workspace backend on a phone**: the connected-backend row's four fixed-width
+  action buttons crushed the backend NAME to a letter-per-line sliver (`.cx-name` was the row's
+  only shrinkable flex item) and pushed "Switch backend" off the right edge — at ≤640px the row
+  now wraps, the action cluster drops to its own full-width line (`.ws-current`/`.ws-secrets`,
+  `app/studio.css`). 3 new tests (hero says View / not analysis; savebar reads Save View →
+  Update View; a REAL connected backend via the `/__supabase` mock at 390px wraps with the name
+  readable and all four actions on-screen). Files: app/explore.js, app/index.html,
+  app/tutorial.js, app/studio.css, docs/index.html, sw.js, js/changelog.js, tests/run.js.
 - **LF55 (4) — job editor: ONE unified preview result area, Preview button pulses when stale
   (v720, sw v357, 2026-07-29, steward — LF55's genuinely last open part, so LF55 really is now
   fully done):** the previous "LF55 (5)" DONE entry below called LF55 fully done, but item (4)

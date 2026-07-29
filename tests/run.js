@@ -7881,6 +7881,67 @@ function serve() {
     ok("LF51 (Explore navigator): clicking a row inside a folder branch still selects that dataset (selection contract unchanged)",
       lf51XpPick.picked, JSON.stringify(lf51XpPick));
 
+    // ── Kevin live feedback (2026-07-29): Explore saves a "View", not an "analysis" ─────
+    // The LF52 widget→View rename missed the savebar's own button labels and the section
+    // hero's framing sentence — the exact strings Kevin screenshotted.
+    const lfViewTermHero = await page.evaluate(function () {
+      window.__studioShellSetSection("explore");
+      var hero = (document.querySelector("#secExplore p") || {}).textContent || "";
+      var ds = document.querySelector("#xpBody [data-xp-ds]");
+      if (ds) ds.click(); // open any dataset so the savebar renders
+      return { heroSaysView: /save the result as a View/.test(hero), heroSaysAnalysis: /as an analysis/.test(hero) };
+    });
+    await page.waitForTimeout(500);
+    const lfViewTermBtn = await page.evaluate(function () {
+      var btn = document.getElementById("xpSaveBtn");
+      var saveLbl = btn ? btn.textContent : null;
+      window.__studioExplore.state.analysisId = "lfvt-x"; // a loaded View flips the label to Update
+      window.__studioExplore.render();
+      var btn2 = document.getElementById("xpSaveBtn");
+      var updLbl = btn2 ? btn2.textContent : null;
+      Studio.Explore.startNew();
+      window.__studioShellSetSection("studio");
+      return { saveLbl: saveLbl, updLbl: updLbl };
+    });
+    ok("Kevin live: Explore's hero copy frames the saved result as a 'View' (not 'an analysis')",
+      lfViewTermHero.heroSaysView && !lfViewTermHero.heroSaysAnalysis, JSON.stringify(lfViewTermHero));
+    ok("Kevin live: the savebar button reads 'Save View' / 'Update View'",
+      lfViewTermBtn.saveLbl === "Save View" && lfViewTermBtn.updLbl === "Update View", JSON.stringify(lfViewTermBtn));
+
+    // ── Kevin live feedback (2026-07-29, phone screenshot): Settings' connected-backend row ──
+    // At 390px the row's four action buttons crushed the backend name to a letter-per-line
+    // sliver and pushed "Switch backend" off-screen. The row now wraps: actions get their own
+    // full-width line, the name stays readable, and every button stays inside the viewport.
+    const wsPhone = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    await wsPhone.addInitScript(() => { try {
+      sessionStorage.setItem("studio-gate-ok", "1");
+      localStorage.setItem("studio-welcome-seen", "1");
+      localStorage.setItem("studio-shell-section", "settings");
+      // the /__supabase mock harness makes this a REAL connected remote backend, so the row
+      // renders the full Refresh/Edit/Disconnect/Switch-backend cluster the screenshot shows
+      localStorage.setItem("analytics.datasource.v1", JSON.stringify({ sourceId: "supabase", cfg: { url: location.origin + "/__supabase", key: "sb_publishable_valid" }, at: 1 }));
+    } catch (e) {} });
+    await wsPhone.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await wsPhone.waitForTimeout(700);
+    const wsRow = await wsPhone.evaluate(() => {
+      var row = document.querySelector("#secSettings .ws-current");
+      if (!row) return { err: "no .ws-current row" };
+      var name = row.querySelector(".cx-name");
+      var switchBtn = document.getElementById("wsSwitchBtn");
+      var vw = window.innerWidth;
+      return {
+        wraps: getComputedStyle(row).flexWrap === "wrap",
+        fourButtons: row.querySelectorAll(".ws-actions .btn").length === 4,
+        nameReadable: name.getBoundingClientRect().width > 80,
+        rowInViewport: row.getBoundingClientRect().right <= vw + 1,
+        switchBtnOnScreen: !!switchBtn && switchBtn.getBoundingClientRect().right <= vw + 1
+      };
+    });
+    await wsPhone.close();
+    ok("Kevin live (phone): the connected-backend row wraps at 390px — name readable, all four actions incl. 'Switch backend' on-screen",
+      wsRow.wraps && wsRow.fourButtons && wsRow.nameReadable && wsRow.rowInViewport && wsRow.switchBtnOnScreen,
+      JSON.stringify(wsRow));
+
     // LF51 (nav IA spec (b), "right-aligned filter pills"): the Datasets/Connections/Jobs
     // filter pill strips (folder + facet filters) carry .cx-filter-strip and right-align their
     // pills at desktop widths (falling back to left-align on ≤640px phones).

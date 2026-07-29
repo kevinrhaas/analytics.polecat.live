@@ -693,7 +693,7 @@
             '<input id="xpName" type="text" placeholder="Name this View…" value="' + esc(XP.name) + '" aria-label="View name"/>' +
             '<input id="xpFolder" type="text" placeholder="Folder (optional)" title="Optional — use / to nest, e.g. Finance/2024" value="' + esc(XP.folder || "") + '" aria-label="Folder" list="xpFolderOptions"/>' +
             '<datalist id="xpFolderOptions">' + Object.keys(xpFolderCounts).sort().map(function (f) { return '<option value="' + esc(f) + '">'; }).join("") + '</datalist>' +
-            '<button type="button" class="btn primary" id="xpSaveBtn">' + (XP.analysisId ? "Update analysis" : "Save analysis") + "</button>" +
+            '<button type="button" class="btn primary" id="xpSaveBtn">' + (XP.analysisId ? "Update View" : "Save View") + "</button>" +
             (XP.analysisId ? '<button type="button" class="btn" id="xpSaveAsBtn">Save as new</button>' : "") +
             '<button type="button" class="btn" id="xpToNewDashBtn" title="Add this chart to a brand-new dashboard">+ New dashboard</button>' +
             '<button type="button" class="btn" id="xpToExistDashBtn" title="Pick an existing dashboard to add this chart to">Existing dashboard…</button>' +
