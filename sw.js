@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v360"; /* v360: LF57 follow-up — the Views catalog gains a
+var CACHE_NAME = "studio-shell-v361"; /* v361: LF50 (b) — the Settings "Quick import
+   creativity" row is hidden for now (Kevin: "it's confusing things for now until we improve
+   that"); the stored High default + all low/high build machinery stay, only the chrome is
+   gone. app/studio.js, docs/index.html, tests/run.js, STATUS.md, js/changelog.js.
+   v360: LF57 follow-up — the Views catalog gains a
    per-row Duplicate action (clones the persisted analysis row: chart/folder/private carried
    over, pinned reset, uniquified "(copy)" name via a new uniqueAnalysisName helper) — one of
    the three items LF57 slice 1's own DONE note left "genuinely still open." app/views.js,

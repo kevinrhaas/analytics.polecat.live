@@ -1828,19 +1828,18 @@ function serve() {
     ok("QM3: pickSlopePair refuses to pair two unrelated measures, but pairs a real year signal",
       qmAutoSpec.pairNone === null && qmAutoSpec.pairYear.a === "revenue_2023" && qmAutoSpec.pairYear.b === "revenue_2024", JSON.stringify(qmAutoSpec));
 
-    // Settings: the creativity default row renders and persists.
+    // LF50 (b): the Settings "Quick import creativity" row is hidden for now (Kevin:
+    // "it's confusing things for now until we improve that") — the row is GONE from the
+    // Settings chrome, but the stored default stays High and the low/high machinery is intact.
     await page.click('#railNav .rail-item[data-sec="settings"]');
     await page.waitForTimeout(150);
-    const qmSettingsBefore = await page.evaluate(function () {
-      var sel = document.querySelector("#setDefaultQmCreativitySel");
-      return { present: !!sel, value: sel && sel.value, defaultFn: window.__studioDefaultQmCreativity() };
+    const qmSettingsHidden = await page.evaluate(function () {
+      return { rowGone: !document.querySelector("#setDefaultQmCreativitySel"), defaultFn: window.__studioDefaultQmCreativity() };
     });
-    ok("QM3: Settings gains a 'Quick import creativity' row, defaulting to High (Kevin 2026-07-27)",
-      qmSettingsBefore.present && qmSettingsBefore.value === "high" && qmSettingsBefore.defaultFn === "high", JSON.stringify(qmSettingsBefore));
-    await page.selectOption("#setDefaultQmCreativitySel", "high");
-    const qmSettingsAfter = await page.evaluate(function () { return window.__studioDefaultQmCreativity(); });
-    ok("QM3: switching the Settings select to High persists it as the new default",
-      qmSettingsAfter === "high", qmSettingsAfter);
+    ok("QM3/LF50 (b): the Settings 'Quick import creativity' row is hidden (Kevin 2026-07-29)",
+      qmSettingsHidden.rowGone, JSON.stringify(qmSettingsHidden));
+    ok("QM3/LF50 (b): the stored Quick-import creativity default stays High with the row hidden",
+      qmSettingsHidden.defaultFn === "high", JSON.stringify(qmSettingsHidden));
 
     // The real flow at High: drop a file rich enough for the whole fun tier, confirm
     // the auto-built dashboard actually includes it (driven purely by the Settings default),

@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 724,
+    title: 'Quick import is simpler: the creativity setting is tucked away',
+    kind: 'polish',
+    ts: '2026-07-29T22:18:25.000Z',
+    items: [
+      'The Settings → Dashboard defaults "Quick import creativity" row is hidden for now — dropping a file always auto-builds the most adventurous dashboard your data supports (map, treemap, slope and ensemble Views included when the columns are really there).',
+      'Help updated to match: no more references to the creativity setting or the old in-builder Low/High tuner.',
+    ],
+  },
+  {
     v: 723,
     title: 'Duplicate any saved View from the Views section',
     kind: 'polish',
