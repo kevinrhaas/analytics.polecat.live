@@ -20374,6 +20374,51 @@ function serve() {
       } catch (e) {}
     });
 
+    // ── J2b (LF60 slice 3): help badges deep-link INTO the in-app Docs view ─────
+    // Prime the docs iframe (open the section once so the lazy iframe loads), then assert the
+    // shell's __studioOpenDocs helper both switches to the Docs section AND lands the iframe on
+    // the requested anchor.
+    await page.evaluate(function () { if (window.__studioShellSetSection) window.__studioShellSetSection("docs"); });
+    await page.waitForTimeout(200);
+    const j2OpenDocs = await page.evaluate(async function () {
+      try {
+        var prev = window.__studioShellGetSection ? window.__studioShellGetSection() : null;
+        var hasHelper = typeof window.__studioOpenDocs === "function";
+        if (hasHelper) window.__studioOpenDocs("data-sources");
+        await new Promise(function (r) { setTimeout(r, 250); });
+        var sec = window.__studioShellGetSection ? window.__studioShellGetSection() : null;
+        var frame = document.getElementById("docsFrame");
+        var hash = "";
+        try { hash = frame && frame.contentWindow ? frame.contentWindow.location.hash : ""; } catch (e) { hash = "ERR"; }
+        if (window.__studioShellSetSection && prev) window.__studioShellSetSection(prev);
+        return { hasHelper: hasHelper, sec: sec, hash: hash };
+      } catch (e) { return { err: e.message }; }
+    });
+    ok("J2b (LF60 slice 3): __studioOpenDocs switches to the in-app Docs section and lands the iframe on the anchor",
+      j2OpenDocs.hasHelper && j2OpenDocs.sec === "docs" && j2OpenDocs.hash === "#data-sources",
+      JSON.stringify(j2OpenDocs));
+
+    // A PLAIN left-click on #inspHelpLink is intercepted → routes to the in-app Docs view (section
+    // becomes "docs", default navigation prevented) instead of opening its target="_blank" new tab.
+    await page.evaluate(function () { try { if (window.__studioSelectDashboard) window.__studioSelectDashboard(); } catch (e) {} });
+    await page.waitForTimeout(80);
+    const j2Intercept = await page.evaluate(function () {
+      try {
+        var prev = window.__studioShellGetSection ? window.__studioShellGetSection() : null;
+        var link = document.getElementById("inspHelpLink");
+        if (!link) return { ok: false, reason: "no link" };
+        var href = link.getAttribute("href") || "";
+        var evt = new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 });
+        var notPrevented = link.dispatchEvent(evt); // false when a handler calls preventDefault()
+        var sec = window.__studioShellGetSection ? window.__studioShellGetSection() : null;
+        if (window.__studioShellSetSection && prev) window.__studioShellSetSection(prev);
+        return { prevented: !notPrevented, sec: sec, href: href };
+      } catch (e) { return { err: e.message }; }
+    });
+    ok("J2b (LF60 slice 3): a plain click on #inspHelpLink routes to the in-app Docs view, not a new tab",
+      j2Intercept.prevented === true && j2Intercept.sec === "docs",
+      JSON.stringify(j2Intercept));
+
     // ── J4: Contextual docs links on chart type gallery cards ─────────────────
     // Each chart type card in the panel inspector gallery should have a .ct-help
     // link pointing to docs/index.html#ct-{type}, so builders can open contextual
