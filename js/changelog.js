@@ -6,6 +6,14 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 712,
+    title: 'Help "?" badges open docs inside the app',
+    ts: '2026-07-29T17:04:17.000Z',
+    items: [
+      'The contextual help badges throughout the builder — the inspector "?", the per-section info dots, and the per-chart-type dots — now open the relevant help topic in the app\'s own Docs view, scrolled straight to it, instead of launching a new browser tab. A Ctrl/Cmd-click (or middle-click) still opens the standalone docs page in a new tab when you want it.',
+    ],
+  },
+  {
     v: 711,
     title: 'Help: a workspace-backend comparison table',
     ts: '2026-07-29T16:46:22.000Z',

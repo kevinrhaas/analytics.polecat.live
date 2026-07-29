@@ -274,6 +274,50 @@
 
   window.__studioShellSetSection = setActive; // test hook
   window.__studioShellGetSection = function () { return desiredSection; }; // LF27(b): lets studio.js capture the section Studio was entered from
+
+  // LF60 slice 3: deep-link the in-app Docs view to a specific anchor. Switches to the #secDocs
+  // section AND points the embedded docs iframe at #anchor. If the docs page is already loaded
+  // (same-origin), it scrolls in place with no reload flash; on first open (the iframe is
+  // loading="lazy" + hidden until now) it loads straight at the anchor. Anchor "" opens the top.
+  function openDocs(anchor) {
+    var frame = document.getElementById("docsFrame");
+    if (frame) {
+      var loaded = false, doc = null;
+      try {
+        doc = frame.contentDocument;
+        loaded = !!(frame.contentWindow && /\/docs\/index\.html$/.test(frame.contentWindow.location.pathname));
+      } catch (e) { loaded = false; }
+      var el = (loaded && doc && anchor) ? doc.getElementById(anchor) : null;
+      if (el) {
+        el.scrollIntoView();
+        try { frame.contentWindow.history.replaceState(null, "", "#" + anchor); } catch (e2) {}
+      } else {
+        frame.src = "docs/index.html" + (anchor ? "#" + anchor : "");
+      }
+    }
+    setActive("docs");
+  }
+  window.__studioOpenDocs = openDocs;
+
+  // The contextual help badges (the inspector "?" #inspHelpLink, the per-section .sec-help
+  // info dots, the per-chart-type .ct-help dots, the empty-canvas .k8-help-link) are anchors
+  // into docs/index.html. On a PLAIN left-click, route them through the in-app Docs view at
+  // their anchor instead of spawning a new tab; a modifier/middle click keeps the href's
+  // target="_blank" so the standalone page in a fresh tab is still one gesture away. Delegated
+  // in capture phase so it catches dynamically-rendered badges and runs before their own
+  // stopPropagation() (which only guards against toggling the section header).
+  document.addEventListener("click", function (e) {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    var t = e.target;
+    var a = t && t.closest ? t.closest("a.sec-help, a.ct-help, a.k8-help-link, #inspHelpLink") : null;
+    if (!a) return;
+    var href = a.getAttribute("href") || "";
+    var hi = href.indexOf("#");
+    var base = hi < 0 ? href : href.slice(0, hi);
+    if (base !== "docs/index.html") return; // only our own docs links, never external anchors
+    e.preventDefault();
+    openDocs(hi < 0 ? "" : href.slice(hi + 1));
+  }, true);
   // LF9 slice 2: overlay-history hooks — studio.js's modal()/panel-zoom/slideshow call
   // these so Back closes them instead of navigating away (see the stack above).
   window.__studioPushOverlay = pushOverlay;

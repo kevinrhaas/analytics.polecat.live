@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v348"; /* v348: LF60 slice 5 — a workspace-backend comparison table
+var CACHE_NAME = "studio-shell-v349"; /* v349: LF60 slice 3 — contextual help badges deep-link into
+   the IN-APP Docs view at their anchor (inspector "?" #inspHelpLink, per-section .sec-help,
+   per-chart .ct-help, empty-canvas .k8-help-link): shell.js gains __studioOpenDocs(anchor) +
+   a capture-phase delegated click handler; a plain click routes in-app, a modifier/middle click
+   keeps the standalone new-tab href. app/shell.js only.
+   v348: LF60 slice 5 — a workspace-backend comparison table
    (Local / Turso / Supabase / Firebase — data location, cross-device sync, per-user privacy,
    setup) opens the Admin & backend setup docs. docs/index.html only (precached content).
    v347: LF55 (2) — job editor Filter step's value field

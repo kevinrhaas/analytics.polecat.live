@@ -116,6 +116,23 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF60 slice 3 — contextual help badges deep-link INTO the in-app Docs view (v712, sw v349,
+  2026-07-29):** the last open LF60 slice, and it **closes LF60 out**. Slice 1 brought the docs
+  inside the app (`#secDocs` iframe) but the builder's contextual help badges still all launched the
+  *standalone* page in a new tab. Now a plain click on any of them — the inspector "?"
+  (`#inspHelpLink`), the per-section `.sec-help` info dots, the per-chart-type `.ct-help` dots, the
+  empty-canvas `.k8-help-link` — opens the **in-app Docs view scrolled straight to that anchor**
+  (`#builder`, `#data-sources`, `#ct-<type>`, …). One new `shell.js` helper `__studioOpenDocs(anchor)`
+  switches to `#secDocs` and points `#docsFrame` at the anchor (scroll-in-place when already loaded,
+  load-at-anchor on the first lazy open), plus a single **capture-phase delegated click handler** so
+  it catches every current AND future badge without touching studio.js's render sites. Progressive
+  enhancement: the badges keep their `href` + `target="_blank"`, so a Ctrl/Cmd/middle-click still
+  opens the standalone page in a fresh tab. app/shell.js only. 2 new tests (`__studioOpenDocs` exists
+  + switches to docs at the anchor; a plain click on `#inspHelpLink` is intercepted → routes in-app,
+  not a new tab). Files: app/shell.js, sw.js, js/changelog.js, tests/run.js. **LF60 is now fully
+  delivered** (slice 1 embed+pop-out, slice 2 search + User/Admin split, slice 5 backend table,
+  slice 3 deep-links) — screenshots were consciously scoped out (Kevin: precache bloat + staleness;
+  the pop-out to the live app already covers it).
 - **LF60 slice 5 — a workspace-backend comparison table (v711, sw v348, 2026-07-29):** LF60's
   part (5), the "backend-options comparison" the task line called for. The **Admin & backend setup**
   section (from the slice-2 split) now opens with a **"Choosing a workspace backend"** table putting
