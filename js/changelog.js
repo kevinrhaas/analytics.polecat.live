@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 689,
+    title: 'Saved analyses are now called Views, in the app UI',
+    kind: 'polish',
+    ts: '2026-07-29T02:23:05.000Z',
+    items: [
+      'A saved Explore analysis IS a reusable View, so the app now says so: Explore\'s save bar ("Name this View…", "View saved/updated", "Delete View"), the Home "Pinned Views" section and card labels, and the Repository\'s object type all read "View" instead of "analysis"/"Analyses". Your saved items and where they\'re stored are unchanged — this is wording only. (The tour, welcome and Help copy still say "analysis" in places; that copy pass is a follow-up.)',
+    ],
+  },
+  {
     v: 688,
     title: 'The date-token menu is fully keyboard-operable',
     ts: '2026-07-29T02:02:44.000Z',

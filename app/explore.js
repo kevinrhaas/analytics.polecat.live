@@ -271,7 +271,7 @@
   function xpSpec(mockOnly) {
     var da = xpDA();
     if (!da) return null;
-    var title = XP.name || (XP.run ? "Exploring " + (Studio.CHARTS[XP.type] || {}).label : "Analysis");
+    var title = XP.name || (XP.run ? "Exploring " + (Studio.CHARTS[XP.type] || {}).label : "View");
     return {
       id: "explore-preview", name: "explore-preview", title: title,
       // Explore builds a single WIDGET — no dashboard header/banner around the preview
@@ -309,7 +309,7 @@
         if (!ifr) {
           box.innerHTML = "";
           ifr = document.createElement("iframe");
-          ifr.className = "xp-ifr"; ifr.title = "Analysis preview"; ifr.setAttribute("aria-label", "Analysis preview");
+          ifr.className = "xp-ifr"; ifr.title = "View preview"; ifr.setAttribute("aria-label", "View preview");
           box.appendChild(ifr);
         }
         // LF10: this preview never told its iframe the app's light/dark MODE (distinct from
@@ -325,7 +325,7 @@
   function xpSave() {
     var nameInp = $("#xpName");
     XP.name = ((nameInp && nameInp.value) || XP.name || "").trim();
-    if (!XP.name) { toast("Give the analysis a name first", true); if (nameInp) nameInp.focus(); return; }
+    if (!XP.name) { toast("Give the View a name first", true); if (nameInp) nameInp.focus(); return; }
     var da = xpDA();
     if (!da || !XP.run) { toast("Pick a dataset first", true); return; }
     // Persist the rollup onto the da's outputOptions so it applies at render time
@@ -353,7 +353,7 @@
     if (XP.folder) row.folder = XP.folder; else delete row.folder;
     var saved = Studio.Workspace.put("analyses", row);
     XP.analysisId = saved.id;
-    toast(prev ? "Analysis updated" : "Analysis saved — pin it to Home or add it to a dashboard");
+    toast(prev ? "View updated" : "View saved — pin it to Home or add it to a dashboard");
     renderExplore();
   }
   function xpLoadAnalysis(id) {
@@ -386,8 +386,8 @@
   function analysisSpec(a) {
     var da = Studio.clone(a.da || {});
     return {
-      id: "analysis-" + a.id, name: "analysis-" + a.id, title: a.name || "Analysis",
-      panels: [{ id: "a1", title: a.name || "Analysis", span: "full",
+      id: "analysis-" + a.id, name: "analysis-" + a.id, title: a.name || "View",
+      panels: [{ id: "a1", title: a.name || "View", span: "full",
         chart: { type: a.chart.type, da: da.id, map: Studio.clone(a.chart.map || {}), opts: Studio.clone(a.chart.opts || {}) } }],
       kpis: [], filters: [],
       cda: { connections: [], dataAccesses: [da] }
@@ -406,12 +406,12 @@
       while (Studio.daById(S.spec, da.id)) da.id = base + "_" + (n++);
       S.spec.cda.dataAccesses.push(da);
     }
-    var p = { id: Studio.uid("p"), title: a.name || "Analysis", span: Studio.WIDE_CHART_TYPES.indexOf(a.chart.type) >= 0 ? "full" : 1,
+    var p = { id: Studio.uid("p"), title: a.name || "View", span: Studio.WIDE_CHART_TYPES.indexOf(a.chart.type) >= 0 ? "full" : 1,
       chart: { type: a.chart.type, da: da.id, map: Studio.clone(a.chart.map || {}), opts: Studio.clone(a.chart.opts || {}) } };
     S.spec.panels.push(p);
     select({ kind: "panel", id: p.id });
     enterStudio();
-    toast("Added analysis “" + (a.name || "Analysis") + "” to “" + S.spec.title + "”");
+    toast("Added View “" + (a.name || "View") + "” to “" + S.spec.title + "”");
     refreshPreview(); buildLibrary();
   }
   // LF11: "Add to NEW dashboard" — same blank-spec defaults as the Studio
@@ -591,7 +591,7 @@
         '<button type="button" class="xp-act' + (a.private ? " private" : "") + '" data-xp-private="' + esc(a.id) + '" title="' + (a.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (a.private ? "Make " + esc(a.name) + " public" : "Make " + esc(a.name) + " private") + '" aria-pressed="' + (a.private ? "true" : "false") + '"></button>' +
         '<button type="button" class="xp-act' + (a.pinned ? " on" : "") + '" data-xp-pin="' + esc(a.id) + '" title="' + (a.pinned ? "Unpin from Home" : "Pin to Home") + '" aria-label="' + (a.pinned ? "Unpin " + esc(a.name) + " from Home" : "Pin " + esc(a.name) + " to Home") + '" aria-pressed="' + (a.pinned ? "true" : "false") + '">★</button>' +
         '<button type="button" class="xp-act" data-xp-dash="' + esc(a.id) + '" title="Add to the current dashboard" aria-label="Add ' + esc(a.name) + ' to the current dashboard">▦</button>' +
-        '<button type="button" class="xp-act" data-xp-del="' + esc(a.id) + '" title="Delete analysis" aria-label="Delete ' + esc(a.name) + '">✕</button>' +
+        '<button type="button" class="xp-act" data-xp-del="' + esc(a.id) + '" title="Delete View" aria-label="Delete ' + esc(a.name) + '">✕</button>' +
         '</span></div>';
     }).join("");
     var main;
@@ -625,7 +625,7 @@
         '<div class="xp-step"><div class="xp-step-h">3 · The mapping</div><div class="xp-map-grid">' + xpMapEditorHtml() + "</div></div>" +
         '<div class="xp-step"><div class="xp-step-h">4 · The result</div><div id="xpPreview" class="xp-preview"></div>' +
           '<div class="xp-savebar">' +
-            '<input id="xpName" type="text" placeholder="Name this analysis…" value="' + esc(XP.name) + '" aria-label="Analysis name"/>' +
+            '<input id="xpName" type="text" placeholder="Name this View…" value="' + esc(XP.name) + '" aria-label="View name"/>' +
             '<input id="xpFolder" type="text" placeholder="Folder (optional)" title="Optional — use / to nest, e.g. Finance/2024" value="' + esc(XP.folder || "") + '" aria-label="Folder" list="xpFolderOptions"/>' +
             '<datalist id="xpFolderOptions">' + Object.keys(xpFolderCounts).sort().map(function (f) { return '<option value="' + esc(f) + '">'; }).join("") + '</datalist>' +
             '<button type="button" class="btn primary" id="xpSaveBtn">' + (XP.analysisId ? "Update analysis" : "Save analysis") + "</button>" +
@@ -734,7 +734,7 @@
     $$("[data-xp-del]", body).forEach(function (btn) {
       btn.onclick = function () {
         var a = Studio.Workspace.get("analyses", btn.getAttribute("data-xp-del")); if (!a) return;
-        if (!window.confirm('Delete analysis "' + a.name + '"?')) return;
+        if (!window.confirm('Delete View "' + a.name + '"?')) return;
         if (XP.analysisId === a.id) XP.analysisId = null;
         Studio.Workspace.remove("analyses", a.id);
         toast("Deleted " + a.name);
@@ -760,7 +760,7 @@
     shown.forEach(function (a) {
       var c = el("div", "da");
       c.draggable = true;
-      c.innerHTML = '<div class="da-top"><div class="da-id">' + hlq(a.name || "Analysis", q) + '</div></div>' +
+      c.innerHTML = '<div class="da-top"><div class="da-id">' + hlq(a.name || "View", q) + '</div></div>' +
         '<div class="da-name">' + esc((Studio.CHARTS[a.chartType] || {}).label || a.chartType) + " · " + esc((a.da && a.da.name) || "dataset") + "</div>" +
         '<div class="da-add"><span class="chip" data-xp-lib-add="' + esc(a.id) + '">+ Add to dashboard</span></div>';
       var chip = c.querySelector("[data-xp-lib-add]");

@@ -3182,6 +3182,18 @@ function serve() {
       lf62ViewSample.btnPresent && lf62ViewSample.suggestion.length > 0 && lf62ViewSample.suggestion === lf62ViewSample.expected,
       JSON.stringify(lf62ViewSample));
 
+    // LF52 (analysis→View): Explore's save bar + saved-list header now say "View", not
+    // "analysis"/"Analyses" — the Explore surface Kevin screenshotted.
+    const lf52View = await page.evaluate(function () {
+      var inp = document.getElementById("xpName");
+      var savedHdr = document.querySelector(".xp-saved-h");
+      return { placeholder: inp ? inp.placeholder : null, aria: inp ? inp.getAttribute("aria-label") : null,
+        savedHdr: savedHdr ? savedHdr.textContent.replace(/\d+/g, "").trim() : null };
+    });
+    ok("LF52 (analysis→View): Explore's save bar says View, not analysis (Name this View… placeholder, View name aria, Saved Views header)",
+      lf52View.placeholder === "Name this View…" && lf52View.aria === "View name" &&
+      /^Saved Views\b/.test(lf52View.savedHdr || ""), JSON.stringify(lf52View));
+
     // LF62 slice 8 (live-QA queue, slice 7's own NEXT pointer — the last un-wired LF62
     // surface): the same sparkle button, wired into Explore's "Folder" field. A View
     // built over a SAMPLE dataset (no `datasetId`, same XP.kind === "sample" pick as

@@ -758,7 +758,7 @@
     if (Studio.demoPackInstalled(id)) {
       var removeMsg = isExamplesKind
         ? "Remove the “" + (p && p.name || id) + "” sample pack? This removes its showcase dashboards from Dashboards and the Examples gallery — nothing else is deleted."
-        : "Remove the “" + (p && p.name || id) + "” sample pack? This deletes its datasets, analyses, and dashboards.";
+        : "Remove the “" + (p && p.name || id) + "” sample pack? This deletes its datasets, Views, and dashboards.";
       if (!window.confirm(removeMsg)) return;
       Studio.removeDemoPack(id);
       toast("Sample pack removed");
@@ -2887,7 +2887,7 @@
       var libRow = el("div"); libRow.style.cssText = "display:flex;gap:8px;margin-top:6px";
       var libBtn = el("button", "btn-wide"); setIconBtn(libBtn, "save", "Save to View library"); libBtn.onclick = function () { saveWidgetToLibrary(p); };
       libRow.appendChild(libBtn); sec.appendChild(libRow);
-      sec.appendChild(noteEl("info", "Saves a self-contained snapshot of this View as a reusable analysis in the library — drag it into any dashboard from the rail's Views group, or open it from Explore."));
+      sec.appendChild(noteEl("info", "Saves a self-contained snapshot of this View as a reusable View in the library — drag it into any dashboard from the rail's Views group, or open it from Explore."));
     }
 
     // chart type picker — grouped by c.group for scannability (Content group = richtext/annotation)
@@ -5554,7 +5554,7 @@
   // that EXISTING flag (no new data-model concept) and gives pinned datasets/connections the
   // same card-with-thumbnail treatment `pinnedAnalyses` already gives pinned analyses.
   var HOME_SECTION_KEYS = ["featured", "pinnedAnalyses", "favorites", "examples", "dashboards"];
-  var HOME_SECTION_LABELS = { featured: "Featured", pinnedAnalyses: "Pinned analyses", favorites: "Favorite datasets & connections", examples: "Examples", dashboards: "Dashboards" };
+  var HOME_SECTION_LABELS = { featured: "Featured", pinnedAnalyses: "Pinned Views", favorites: "Favorite datasets & connections", examples: "Examples", dashboards: "Dashboards" };
   var HOME_SECTION_HINTS = { featured: "live previews · click to open", favorites: "pinned in Datasets/Connections · click to open" };
   function getHomeSectionOrder() {
     var order = (lsGet("studio-home-section-order", []) || []).filter(function (k) { return HOME_SECTION_KEYS.indexOf(k) >= 0; });
@@ -5681,10 +5681,10 @@
         if (!pinnedA.length) return "";
         return '<div class="home-analyses">' + pinnedA.slice(0, 8).map(function (a) {
           return '<div class="home-analysis" data-home-analysis-card="' + esc(a.id) + '">' +
-            '<div class="home-feat-h"><b>' + esc(a.name || "Analysis") + '</b>' +
+            '<div class="home-feat-h"><b>' + esc(a.name || "View") + '</b>' +
             '<span>' + esc((Studio.CHARTS[a.chartType] || {}).label || a.chartType) + "</span></div>" +
             '<div class="home-analysis-frame" data-analysis-frame="' + esc(a.id) + '"></div>' +
-            '<button type="button" class="home-feat-open" data-home-analysis="' + esc(a.id) + '" aria-label="Open analysis ' + esc(a.name || "") + '"></button></div>';
+            '<button type="button" class="home-feat-open" data-home-analysis="' + esc(a.id) + '" aria-label="Open View ' + esc(a.name || "") + '"></button></div>';
         }).join("") + "</div>";
       },
       // M6 "favorites-with-thumbnails": pinned Datasets/Connections (the same star toggle
@@ -6503,7 +6503,7 @@
     { key: "dashboard", label: "Dashboards", singular: "Dashboard", ic: "layers" },
     { key: "dataset", label: "Datasets", singular: "Dataset", ic: "db" },
     { key: "connection", label: "Connections", singular: "Connection", ic: "link" },
-    { key: "analysis", label: "Analyses", singular: "Analysis", ic: "trend-up" },
+    { key: "analysis", label: "Views", singular: "View", ic: "trend-up" },
     { key: "job", label: "Jobs", singular: "Job", ic: "sliders" }
   ];
   function repoTypeDef(k) { for (var i = 0; i < REPO_TYPES.length; i++) if (REPO_TYPES[i].key === k) return REPO_TYPES[i]; return null; }
