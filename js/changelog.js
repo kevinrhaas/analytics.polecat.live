@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 702,
+    title: 'Job editor: no more leftover preview table',
+    kind: 'fix',
+    ts: '2026-07-29T12:46:40.000Z',
+    items: [
+      'In the job editor, clicking Preview then editing the steps (adding, removing, reordering, or changing a step) used to leave the old Preview result table sitting on screen alongside the fresh live approximation — two results at once. Editing steps now clears the now-stale real Preview result, so there\'s exactly one preview on screen; click Preview again for the real run.',
+    ],
+  },
+  {
     v: 701,
     title: 'Style presets show which one is active',
     ts: '2026-07-29T12:32:34.000Z',

@@ -5733,6 +5733,55 @@ function serve() {
     });
     await page.waitForTimeout(200);
 
+    // LF55 (3): the real "Preview" result must not linger after a step edit. Clicking Preview shows
+    // the live result table; then editing steps (+ Step / op change / reorder / delete) re-renders
+    // the approximate preview and must CLEAR the now-stale real result — no leftover duplicate table
+    // ("two befores + one after"). The approximate live preview stays.
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-stalepreview-test", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "jobs-stalepreview-ds", connectionId: conn.id, kind: "file", format: "csv",
+        content: "region,acres\nStory,100\nPolk,20\n", columns: ["region", "acres"] });
+      var job = Studio.Workspace.put("jobs", { name: "stalepreview-job", sourceDatasetId: ds.id,
+        steps: [{ op: "rename", from: "acres", to: "acres_renamed" }] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(200);
+    await page.evaluate(function () {
+      var btn = Array.prototype.slice.call(document.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return b.textContent === "Preview"; })[0];
+      if (btn) btn.click();
+    });
+    await page.waitForFunction(function () { return !!document.querySelector(".cx-test-result.ok"); }, { timeout: 5000 });
+    const jobPrevBefore = await page.evaluate(function () {
+      var realPrev = Array.prototype.slice.call(document.querySelectorAll(".modal-ov .dsx-preview")).filter(function (p) { return !p.closest(".jobs-row-preview"); })[0];
+      var res = document.querySelector(".modal-ov .cx-test-result");
+      return { resultText: res ? res.textContent.trim() : "", realTable: !!(realPrev && realPrev.querySelector("table")) };
+    });
+    ok("LF55 (3): clicking Preview shows the real result (status line + result table)",
+      /rows/.test(jobPrevBefore.resultText) && jobPrevBefore.realTable, JSON.stringify(jobPrevBefore));
+    await page.evaluate(function () {
+      var add = Array.prototype.slice.call(document.querySelectorAll(".jobs-steps .btn")).filter(function (b) { return b.textContent === "+ Step"; })[0];
+      if (add) add.click();
+    });
+    await page.waitForTimeout(150);
+    const jobPrevAfter = await page.evaluate(function () {
+      var realPrev = Array.prototype.slice.call(document.querySelectorAll(".modal-ov .dsx-preview")).filter(function (p) { return !p.closest(".jobs-row-preview"); })[0];
+      var res = document.querySelector(".modal-ov .cx-test-result");
+      var approx = document.querySelectorAll(".jobs-row-preview .dsx-preview table").length;
+      return { resultText: res ? res.textContent.trim() : "", realTable: !!(realPrev && realPrev.querySelector("table")), approxTables: approx };
+    });
+    ok("LF55 (3): editing steps clears the stale real Preview result but keeps the live approximate preview",
+      jobPrevAfter.resultText === "" && !jobPrevAfter.realTable && jobPrevAfter.approxTables >= 1, JSON.stringify(jobPrevAfter));
+    await page.evaluate(function () {
+      document.querySelector(".modal-ov .x").click();
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "stalepreview-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-stalepreview-ds"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-stalepreview-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
     // LF13(d) slice 2: an aggregate step's approximate output preview actually groups +
     // sums the cached sample rows (Story's two rows collapse into one, summed) — proves
     // the preview runs the real engine, not just a schema-only column-name guess.

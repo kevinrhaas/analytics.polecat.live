@@ -116,6 +116,19 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF55 (3) — job editor: the stale real-Preview table no longer lingers (v702, sw v339,
+  2026-07-29):** LF55's flagged "quick early win" (part 3). The job editor shows a live *approximate*
+  preview (source sample + engine-simulated output) that rebuilds on every step edit, PLUS a separate
+  *real* result table + status line under the form when you click **Preview**. Clicking Preview then
+  editing the steps (+ Step / op change / reorder / delete) rebuilt only the approximate preview and
+  left the now-stale real Preview table sitting on screen — the confusing "two befores + one after"
+  Kevin reported. Fixed in `renderSteps` (`app/jobs.js`): it now also clears the real `result` +
+  `preview` on any step/source edit (guarded — they're created just after the first render), so
+  there's exactly one preview state on screen; click Preview again for a fresh authoritative run. 2
+  new regression tests (Preview populates the real result table; a subsequent + Step clears it while
+  the approximate preview stays). Files: app/jobs.js, docs/index.html, sw.js, js/changelog.js,
+  tests/run.js. **NEXT in LF55:** parts (1) column dropdowns on ALL step types, (2) filter value
+  picker, (4) unify approximate-vs-real into one badged result area, (5) icon-panel step picker.
 - **LF34 — Style presets now show which one is Active (v701, sw v338, 2026-07-29):** LF34's earlier
   slice fixed the "+ Save as preset" row overflow; the remaining "state" half was that
   `applyStylePreset` writes the preset's fields into the default-* settings but stored no "which

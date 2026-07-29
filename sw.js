@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v338"; /* v338: LF34 — Style presets show which one is Active: a
+var CACHE_NAME = "studio-shell-v339"; /* v339: LF55 (3) — job editor stale-preview fix: editing
+   steps (+ Step / op change / reorder / delete) now clears the last REAL Preview result
+   (result + preview) in renderSteps, so the leftover duplicate table can't linger next to the
+   live approximate preview. app/jobs.js.
+   v338: LF34 — Style presets show which one is Active: a
    preset whose saved fields match the live defaults is derived as active (no new stored state,
    activeStylePresetId in defaults.js) and marked with an "Active" pill + highlighted row in
    Settings. app/defaults.js, app/studio.js, app/studio.css, docs/index.html.

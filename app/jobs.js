@@ -708,6 +708,13 @@
       function renderSteps() {
         renderSrcFields();
         renderRowPreviews();
+        // LF55 (3): any step/source edit invalidates the last REAL Preview result. Clear the stale
+        // status line + result table so there's exactly one preview state on screen — the live
+        // approximate one above — not a leftover real-preview table left sitting under it (the
+        // "two befores + one after" duplicate). `result`/`preview` are created just after this
+        // function's first call, so guard against the initial render where they don't exist yet.
+        if (typeof result !== "undefined" && result) { result.className = "cx-test-result"; result.textContent = ""; }
+        if (typeof preview !== "undefined" && preview) preview.innerHTML = "";
         stepsWrap.innerHTML = "";
         (j.steps || []).forEach(function (step, i) {
           var card = el("div", "jobs-step-card");
