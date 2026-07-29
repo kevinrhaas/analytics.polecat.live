@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v343"; /* v343: LF39 (polish) — on a fresh device, a failed sign-in
+var CACHE_NAME = "studio-shell-v344"; /* v344: LF39 item 2 / M7 — one-step GoTrue direct-auth at
+   sign-in: new supabaseSource.authenticate(cfg,{email,password}) verifies FORM-supplied creds
+   against GoTrue's password grant (reusing gotrueSignIn, no session-cache side effects); gate.js
+   tryGotrueDirectAuth wires it in when the active backend is supabase + the username is an email,
+   adopting the local account by gotrueId. app/sources/supabase.js, app/gate.js.
+   v343: LF39 (polish) — on a fresh device, a failed sign-in
    for an unknown username with no backend connected now visually CUES the "Connect to your
    workspace" button (.g-connect-cue: promoted to a pulsing primary-outline button + scrolled into
    view), cleared on username edit or connect. app/gate.js.

@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 707,
+    title: 'One-step sign-in against your team’s Supabase workspace',
+    kind: 'feature',
+    ts: '2026-07-29T14:52:23.000Z',
+    items: [
+      'When your workspace is connected to a Supabase backend, signing in with your email + password now authenticates straight against the backend’s own auth — so a teammate on a brand-new device signs in in one step, without this browser needing to have seen the account before, and without any password ever being mirrored between devices. Local accounts and non-Supabase workspaces sign in exactly as before.',
+    ],
+  },
+  {
     v: 706,
     title: 'Signing in on a new device points you to Connect',
     ts: '2026-07-29T14:10:06.000Z',

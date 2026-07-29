@@ -173,6 +173,40 @@
         document.getElementById("g-pass").select();
       });
     }
+    // LF39 item 2 / M7: one-step GoTrue direct-auth. When the local hash didn't match (or there's
+    // no local row) AND the connected workspace backend is Supabase AND the typed username is an
+    // email, verify the password straight against the backend's GoTrue instead of a mirrored local
+    // hash — the real cross-device sign-in a teammate expects (esp. on a fresh device). On success
+    // we refresh the mirrored `users` table and adopt the account carrying that auth uid, so we sign
+    // in with the real role/name. Anything that doesn't apply (non-Supabase backend, non-email
+    // username, network/creds failure) calls next(false) to fall through to today's behavior.
+    function findUserByGotrue(uid) {
+      try {
+        var rows = (window.Studio && window.Studio.Workspace && window.Studio.Workspace.all("users")) || [];
+        for (var i = 0; i < rows.length; i++) { if (rows[i].gotrueId === uid) return rows[i]; }
+      } catch (e) {}
+      return null;
+    }
+    function tryGotrueDirectAuth(u, p, next) {
+      var Sync = window.Studio && window.Studio.Sync;
+      var src = window.Studio && window.Studio.supabaseSource;
+      if (!Sync || !src || typeof src.authenticate !== "function" || !Sync.syncState ||
+          Sync.syncState().sourceId !== "supabase" || u.indexOf("@") < 0) { next(false); return; }
+      var cfg = Sync.currentConfig && Sync.currentConfig();
+      if (!cfg || !cfg.url || !cfg.key) { next(false); return; }
+      setErr("Signing you in…");
+      src.authenticate(cfg, { email: u, password: p }).then(function (r) {
+        if (!r || !r.ok || !r.userId) { next(false); return; }
+        // GoTrue verified the password — now adopt the local identity for this uid.
+        var adopt = function () {
+          try { Auth.importFromStore(window.Studio.Workspace.all("users")); } catch (e) {}
+          var acct = findUserByGotrue(r.userId);
+          if (!acct) { next(false); return; }
+          Auth.upsert(acct.u, { gotrueId: r.userId }).then(function () { Auth.login(acct.u); afterLogin(); });
+        };
+        if (Sync.pullNow) Sync.pullNow().then(adopt, adopt); else adopt();
+      }, function () { next(false); });
+    }
     document.getElementById("g-form").addEventListener("submit", function (e) {
       e.preventDefault();
       var u = (document.getElementById("g-user").value || "").trim();
@@ -180,8 +214,12 @@
       if (!u) { fail("Enter a username."); return; }
       Auth.verify(u, p).then(function (okAuth) {
         if (okAuth) { Auth.login(u); afterLogin(); return; }
-        if (Auth.find(u)) { fail(); document.getElementById("g-pass").select(); return; }
-        handleUnknownUser(u, p);
+        var known = !!Auth.find(u);
+        tryGotrueDirectAuth(u, p, function (done) {
+          if (done) return;
+          if (known) { fail(); document.getElementById("g-pass").select(); return; }
+          handleUnknownUser(u, p);
+        });
       });
     });
     document.getElementById("g-demo").addEventListener("click", function () {

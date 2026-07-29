@@ -6476,6 +6476,25 @@ function serve() {
     ok("SUPABASE AUTH: a JWT-gated table rejects the plain anon key before sign-in, and succeeds once signed in — proving rest() actually swaps the Bearer token",
       /401/.test(wsSupabaseAuth.beforeErr) && wsSupabaseAuth.afterCols.length === 1 && wsSupabaseAuth.afterRows[0][0] === true, JSON.stringify(wsSupabaseAuth));
 
+    // ---- LF39 item 2 / M7: one-step direct sign-in primitive ----
+    // authenticate(cfg, {email,password}) verifies FORM-supplied creds against GoTrue's password
+    // grant (distinct from signIn(), which uses the connection's own cfg.authEmail/authPassword) and
+    // returns the auth.uid — the primitive that lets a teammate sign in against the real backend on a
+    // fresh device instead of a mirrored local hash. Resolves (never rejects) with {ok, userId?, error?}.
+    const wsSupabaseDirect = await page.evaluate(async function () {
+      var sb = Studio.supabaseSource, base = location.origin + "/__supabase";
+      var cfg = { url: base, key: "sb_publishable_valid" }; // NO connection-level auth creds
+      var good = await sb.authenticate(cfg, { email: "owner@example.com", password: "secret123" });
+      var bad = await sb.authenticate(cfg, { email: "owner@example.com", password: "nope" });
+      var missing = await sb.authenticate(cfg, { email: "", password: "" });
+      var noBackend = await sb.authenticate(null, { email: "owner@example.com", password: "secret123" });
+      return { goodOk: good.ok, goodUserId: good.userId, badOk: bad.ok, badErr: bad.error || "", missingOk: missing.ok, noBackendOk: noBackend.ok };
+    });
+    ok("LF39/M7: supabaseSource.authenticate verifies FORM-supplied creds against GoTrue and returns the auth.uid()",
+      wsSupabaseDirect.goodOk === true && wsSupabaseDirect.goodUserId === "11111111-1111-1111-1111-111111111111", JSON.stringify(wsSupabaseDirect));
+    ok("LF39/M7: authenticate rejects a wrong password (no anon-key fallback) and refuses missing creds / no backend",
+      wsSupabaseDirect.badOk === false && wsSupabaseDirect.missingOk === false && wsSupabaseDirect.noBackendOk === false, JSON.stringify(wsSupabaseDirect));
+
     // ---- SUPABASE: browser self-signup (M7 slice 6) ----
     // signUp(cfg, {email,password}) hits GoTrue's public /auth/v1/signup
     // endpoint (anon key only, no service key) — proves the three shapes the
@@ -11914,6 +11933,37 @@ function serve() {
     ok("LF39: editing the username clears the Connect cue + the error (a fresh attempt)",
       !freshCueCleared.cue && freshCueCleared.err === "", JSON.stringify(freshCueCleared));
     await gpFresh.close();
+
+    // D (LF39 item 2 / M7): one-step GoTrue direct-auth at the gate. A fresh-device teammate types
+    // their EMAIL + password; with a Supabase workspace connected, the gate verifies straight against
+    // the backend's GoTrue (real /__supabase mock) — no mirrored local password hash needed — and
+    // adopts the local account carrying that auth uid. (pullNow, a sync detail unrelated to auth, is
+    // stubbed to a no-op so the seeded mirror row survives; the real GoTrue auth + gate branch +
+    // adopt/login are all exercised end-to-end.)
+    const gpDirect = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpDirect.on("pageerror", (e) => errors.push("LF39 direct-auth page: " + e.message));
+    await gpDirect.addInitScript((port) => {
+      try { localStorage.setItem("analytics.datasource.v1", JSON.stringify({ sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid", authEmail: "owner@example.com", authPassword: "secret123" }, at: 1 })); } catch (e) {}
+    }, PORT);
+    await gpDirect.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpDirect.waitForFunction(() => window.Studio && Studio.Sync && Studio.Sync.syncState().sourceId === "supabase", { timeout: 6000 }).catch(() => {});
+    await gpDirect.waitForSelector("#g-form", { timeout: 4000 });
+    await gpDirect.evaluate(function () {
+      Studio.Workspace.put("users", { id: "user_gt", u: "gtmate", name: "GoTrue Mate", role: "viewer", demo: false, gotrueId: "11111111-1111-1111-1111-111111111111" }, { silent: true });
+      Studio.Sync.pullNow = function () { return Promise.resolve(); };
+    });
+    await gpDirect.fill("#g-user", "owner@example.com");
+    await gpDirect.fill("#g-pass", "secret123");
+    await gpDirect.click("#g-form button[type=submit]");
+    await gpDirect.waitForTimeout(700);
+    const directAuthed = await gpDirect.evaluate(() => ({
+      gateGone: !document.querySelector("#studio-gate"),
+      who: (window.PolecatAuth.current() || {}).u,
+      gotrueId: (window.PolecatAuth.find("gtmate") || {}).gotrueId
+    }));
+    await gpDirect.close();
+    ok("LF39/M7: a fresh-device teammate signs in with their email straight against the backend's GoTrue and is adopted as the matching local account",
+      directAuthed.gateGone && directAuthed.who === "gtmate" && directAuthed.gotrueId === "11111111-1111-1111-1111-111111111111", JSON.stringify(directAuthed));
 
     // ---- M4: Admin — manage users (first slice of "Admin + permissions") ----
     console.log("\n• M4: admin — manage users");
