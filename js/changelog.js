@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 717,
+    title: 'Starting a new dashboard now warns before losing an unsaved Quick-import build',
+    kind: 'fix',
+    ts: '2026-07-29T18:12:25.000Z',
+    items: [
+      'Opening another dashboard already warned you if it would throw away a just-built, not-yet-saved Quick-import dashboard. That same warning now covers Home\'s Blank-dashboard card (and its drag-a-dataset-onto-it shortcut), the New ▾ menu\'s Blank dashboard, and its auto-build starters — so none of them can silently replace unsaved work anymore.',
+    ],
+  },
+  {
     v: 716,
     title: 'Explore: the dataset picker is now a real navigator',
     ts: '2026-07-29T18:01:00.000Z',

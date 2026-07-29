@@ -116,6 +116,22 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF67 follow-up — every "New dashboard" entry point now warns before losing an unsaved
+  Quick-import build, not just openRecent (v717, sw v354, 2026-07-29, steward — LF67 is now
+  fully done):** LF67's own NEXT note (shipped 2026-07-28) named the "at minimum" fix (a state
+  badge + `window.confirm()` in `openRecent`) and flagged the "New dashboard" family of replace
+  paths as a separable follow-up: Home's Blank-dashboard card, its drag-a-dataset-onto-it
+  shortcut, the New ▾ menu's Blank dashboard, and its two auto-build starters (from a workspace
+  dataset via `scaffoldFromDataset`, and from a built-in sample query set via `scaffoldFromStem`)
+  all replaced `S.spec` directly with no guard — any of them could silently throw away a just-
+  built, not-yet-saved Quick-import dashboard the same way `openRecent` used to. A new shared
+  `confirmReplaceUnsavedQuickBuild(actionLabel)` (`app/studio.js`, next to `hasUnsavedQuickBuild`)
+  wraps the SAME `window.confirm()` warning `openRecent` already used, worded per call site
+  ("starting a new blank dashboard", "building a starter from '<name>'", …), and is now called
+  at all five replace sites before `S.spec` is overwritten. 8 new regression tests (each of the
+  four entry points — Home's card, New ▾'s Blank dashboard, and both auto-build starters —
+  cancelling keeps the quick build, confirming proceeds). Files: app/studio.js, sw.js,
+  js/changelog.js, tests/run.js.
 - **LF51 (Explore navigator) — the dataset picker is a multi-level tree (v716, sw v353,
   2026-07-29):** the "beef up the Explore DATASET NAVIGATOR the same way (robust multi-level
   folders, not a flat list)" piece of LF51's CORE PRINCIPLE. `renderExplore()`'s flat ≤60-row list
@@ -6715,8 +6731,10 @@
 > LF67. ✓ **BUG — quick-built dashboard is lost when you open another (shipped v638, sw v275,
 >       2026-07-28, steward) — see DONE.** Took the "at minimum" fix (a state badge + a
 >       `window.confirm()` warn in `openRecent`), not the full auto-save — see DONE for why.
->       Still genuinely open: the "New dashboard" family of replace paths (Home's Blank-dashboard
->       card, New ▾ menu, auto-build-starter pickers) aren't guarded yet, a separable follow-up.
+>       ✓ **Follow-up shipped (2026-07-29, v715, sw v352, steward — LF67 is now fully done):** the
+>       "New dashboard" family of replace paths (Home's Blank-dashboard card + its drag-a-dataset
+>       variant, New ▾ menu's Blank dashboard, and its auto-build starters) now warn the same way
+>       — see DONE.
 >       Ties LF50 (replace warning), LF26 (overwrite protection), LF27.
 > LF68. ✓ **BUG — "Sensitivity & Compliance Radar" showcase KPI shows `NaN%` (shipped v636, sw v273,
 >       2026-07-28, steward) — see DONE.** Root cause wasn't the SQL/denominator — it was

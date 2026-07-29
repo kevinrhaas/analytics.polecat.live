@@ -1986,6 +1986,117 @@ function serve() {
     }, { target: lf67Target, secondBuild: lf67SecondBuildId, prior: lf67PriorSpec });
     await page.waitForTimeout(100);
 
+    // ---- LF67 follow-up: the OTHER "New dashboard" replace paths warn too ----
+    // The original LF67 fix only guarded openRecent; STATUS.md flagged Home's Blank-
+    // dashboard card, the New ▾ menu's Blank dashboard, and its auto-build starters as
+    // still-unguarded. All four now route through the same confirmReplaceUnsavedQuickBuild
+    // guard openRecent already used. Sets up the "unsaved quick build" precondition
+    // synthetically (same test hasUnsavedQuickBuild() itself checks) rather than
+    // re-running a real Quick-import for every surface.
+    console.log("\n• LF67 follow-up: Home Blank card / New ▾ blank / auto-build starters warn on an unsaved Quick-import build");
+    const lf67bPriorSpec = await page.evaluate(function () { return JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec)); });
+    async function lf67bBuildUnsaved() {
+      return page.evaluate(function () {
+        window.__studioLoad(Studio.emptySpec());
+        var spec = window.__STUDIO_STATE.spec;
+        Object.defineProperty(spec, "_qmSource", { value: { dsId: "lf67b-synthetic", creativity: "low" }, enumerable: false, configurable: true });
+        return { specId: spec.id, unsaved: window.__studioHasUnsavedQuickBuild() };
+      });
+    }
+
+    // (a) Home's Blank-dashboard card
+    let lf67bBuilt = await lf67bBuildUnsaved();
+    ok("LF67 follow-up: the synthetic quick build is flagged unsaved", lf67bBuilt.unsaved, JSON.stringify(lf67bBuilt));
+    const homeBlankCancel = await page.evaluate(function () {
+      var msg = null;
+      window.confirm = function (m) { msg = m; return false; };
+      document.querySelector('#secHome .home-card[data-home="blank"]').click();
+      return { specIdAfter: window.__STUDIO_STATE.spec.id, msg: msg };
+    });
+    ok("LF67 follow-up: Home's Blank-dashboard card warns and cancelling keeps the quick build",
+      homeBlankCancel.specIdAfter === lf67bBuilt.specId && /unsaved|hasn.t been saved/i.test(homeBlankCancel.msg || ""), JSON.stringify(homeBlankCancel));
+    const homeBlankConfirm = await page.evaluate(function () {
+      window.confirm = function () { return true; };
+      document.querySelector('#secHome .home-card[data-home="blank"]').click();
+      return { specIdAfter: window.__STUDIO_STATE.spec.id, unsaved: window.__studioHasUnsavedQuickBuild() };
+    });
+    ok("LF67 follow-up: confirming on the Home Blank card proceeds to a fresh blank dashboard",
+      homeBlankConfirm.specIdAfter !== lf67bBuilt.specId && !homeBlankConfirm.unsaved, JSON.stringify(homeBlankConfirm));
+
+    // (b) New ▾ menu's "Blank dashboard"
+    lf67bBuilt = await lf67bBuildUnsaved();
+    const newMenuBlankCancel = await page.evaluate(function () {
+      var msg = null;
+      window.confirm = function (m) { msg = m; return false; };
+      document.querySelector('#menuNew [data-new="blank"]').click();
+      return { specIdAfter: window.__STUDIO_STATE.spec.id, msg: msg };
+    });
+    ok("LF67 follow-up: New ▾ → Blank dashboard warns and cancelling keeps the quick build",
+      newMenuBlankCancel.specIdAfter === lf67bBuilt.specId && /unsaved|hasn.t been saved/i.test(newMenuBlankCancel.msg || ""), JSON.stringify(newMenuBlankCancel));
+    const newMenuBlankConfirm = await page.evaluate(function () {
+      window.confirm = function () { return true; };
+      document.querySelector('#menuNew [data-new="blank"]').click();
+      return { specIdAfter: window.__STUDIO_STATE.spec.id, unsaved: window.__studioHasUnsavedQuickBuild() };
+    });
+    ok("LF67 follow-up: confirming on New ▾ → Blank dashboard proceeds",
+      newMenuBlankConfirm.specIdAfter !== lf67bBuilt.specId && !newMenuBlankConfirm.unsaved, JSON.stringify(newMenuBlankConfirm));
+
+    // (c) New ▾'s auto-build starter, from a workspace dataset
+    lf67bBuilt = await lf67bBuildUnsaved();
+    const starterDsId = await page.evaluate(function () {
+      var conn = Studio.Workspace.put("connections", { name: "lf67b-starter-conn", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "LF67b starter ds", connectionId: conn.id, kind: "file", format: "csv", columns: ["category", "revenue"], content: "category,revenue\nAlpha,120\nBeta,200\n" });
+      return ds.id;
+    });
+    const starterCancel = await page.evaluate(function (dsId) {
+      var msg = null;
+      window.confirm = function (m) { msg = m; return false; };
+      window.__studioScaffoldFromDataset(dsId);
+      return { specIdAfter: window.__STUDIO_STATE.spec.id, msg: msg };
+    }, starterDsId);
+    ok("LF67 follow-up: the auto-build starter (from a dataset) warns and cancelling keeps the quick build",
+      starterCancel.specIdAfter === lf67bBuilt.specId && /unsaved|hasn.t been saved/i.test(starterCancel.msg || ""), JSON.stringify(starterCancel));
+    const starterConfirm = await page.evaluate(function (dsId) {
+      window.confirm = function () { return true; };
+      window.__studioScaffoldFromDataset(dsId);
+      return { specIdAfter: window.__STUDIO_STATE.spec.id, unsaved: window.__studioHasUnsavedQuickBuild() };
+    }, starterDsId);
+    ok("LF67 follow-up: confirming on the dataset auto-build starter proceeds and replaces the quick build",
+      starterConfirm.specIdAfter !== lf67bBuilt.specId && !starterConfirm.unsaved, JSON.stringify(starterConfirm));
+
+    // (d) New ▾'s auto-build starter, from a built-in sample query set (stem)
+    lf67bBuilt = await lf67bBuildUnsaved();
+    const stemCancel = await page.evaluate(function () {
+      var msg = null;
+      window.confirm = function (m) { msg = m; return false; };
+      window.__studioScaffoldFromStem("cost-finops");
+      return { specIdAfter: window.__STUDIO_STATE.spec.id, msg: msg };
+    });
+    ok("LF67 follow-up: the auto-build starter (from a sample query set) warns and cancelling keeps the quick build",
+      stemCancel.specIdAfter === lf67bBuilt.specId && /unsaved|hasn.t been saved/i.test(stemCancel.msg || ""), JSON.stringify(stemCancel));
+    const stemConfirm = await page.evaluate(function () {
+      window.confirm = function () { return true; };
+      window.__studioScaffoldFromStem("cost-finops");
+      return { specIdAfter: window.__STUDIO_STATE.spec.id, unsaved: window.__studioHasUnsavedQuickBuild() };
+    });
+    ok("LF67 follow-up: confirming on the sample-set auto-build starter proceeds and replaces the quick build",
+      stemConfirm.specIdAfter !== lf67bBuilt.specId && !stemConfirm.unsaved, JSON.stringify(stemConfirm));
+
+    await page.evaluate(function (args) {
+      var connId = null;
+      Studio.Workspace.all("datasets").filter(function (d) { return d.id === args.starterDsId; }).forEach(function (d) {
+        connId = d.connectionId;
+        Studio.Workspace.remove("datasets", d.id, { silent: true });
+      });
+      if (connId) {
+        var stillUsed = Studio.Workspace.all("datasets").some(function (dd) { return dd.connectionId === connId; });
+        if (!stillUsed) Studio.Workspace.remove("connections", connId, { silent: true });
+      }
+      window.__studioLoad(args.prior);
+      window.__studioShellSetSection("studio");
+    }, { starterDsId: starterDsId, prior: lf67bPriorSpec });
+    await page.waitForTimeout(100);
+
     // ---- Google Sheets adapter (★★★-2): gviz endpoint against a mock --------
     console.log("\n• Google Sheets adapter (★★★-2)");
     const gsShape = await page.evaluate(async function () {

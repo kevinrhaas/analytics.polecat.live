@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v353"; /* v353: LF51 (Explore navigator) — the dataset picker is a
+var CACHE_NAME = "studio-shell-v354"; /* v354: LF67 follow-up — the "New dashboard" family
+   (Home's Blank-dashboard card + its drag-a-dataset variant, the New ▾ menu's Blank dashboard,
+   and its auto-build starters from a workspace dataset or a sample query set) now warns before
+   silently replacing an unsaved Quick-import build, same guard openRecent already had.
+   app/studio.js changed, so precached copies roll.
+   v353: LF51 (Explore navigator) — the dataset picker is a
    multi-level tree: ws datasets group by folder (nested via "/", unfiled last), sample data
    groups by set (default-collapsed once you have your own datasets), branches collapse/expand,
    search flattens. app/explore.js, app/studio.css, docs/index.html.
