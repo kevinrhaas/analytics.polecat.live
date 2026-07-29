@@ -7247,6 +7247,43 @@ function serve() {
       lf51ViewCJ.job.titleBtn && lf51ViewCJ.job.persisted === "tiles" && lf51ViewCJ.job.backToList,
       JSON.stringify(lf51ViewCJ.job));
 
+    // LF51 (d), last of the four: Repository — a row lives inside a folder-group tree rather
+    // than a flat list, so the toggle switches every group's contents wrapper (cx-list ⇆
+    // dsx-grid) as well as each row's own markup (cx-row ⇆ dsx-tile), keeping the quick-edit hook.
+    const lf51ViewRepo = await page.evaluate(function () {
+      window.__studioShellSetSection("repository");
+      try { localStorage.removeItem("studio-repo-view"); } catch (e) {}
+      var conn = Studio.Workspace.put("connections", { name: "lf51repo-conn", adapter: "turso", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "lf51repo-ds", connectionId: conn.id, kind: "sql", sql: "select 1" });
+      var results = document.getElementById("repoAllResults");
+      var toggle = document.getElementById("repoViewToggle");
+      window.__studioRenderRepository();
+      var listDefault = !!results.querySelector('.cx-row[data-repo-id="' + ds.id + '"]') && !results.querySelector(".dsx-tile");
+      var out = { toggleExists: !!toggle, listDefault: listDefault, listLabel: toggle ? toggle.textContent : null };
+      if (toggle) toggle.click();
+      var tile = results.querySelector('.dsx-tile[data-repo-id="' + ds.id + '"]');
+      out.tiles = !!tile && !results.querySelector(".cx-row");
+      out.titleBtn = !!(tile && tile.querySelector(".cx-title-btn"));
+      out.editBtn = !!(tile && tile.querySelector('[data-repo-edit-id="' + ds.id + '"]'));
+      out.tileLabel = toggle ? toggle.textContent : null;
+      out.persisted = localStorage.getItem("studio-repo-view");
+      if (toggle) toggle.click();
+      out.backToList = !!results.querySelector('.cx-row[data-repo-id="' + ds.id + '"]') && !results.querySelector(".dsx-tile");
+      Studio.Workspace.remove("datasets", ds.id, { silent: true });
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      Studio.Workspace.notify("*");
+      try { localStorage.removeItem("studio-repo-view"); } catch (e) {}
+      window.__studioShellSetSection("studio");
+      return out;
+    });
+    ok("LF51: Repository defaults to the compact list with a 'Tile view' toggle",
+      lf51ViewRepo.toggleExists && lf51ViewRepo.listDefault && lf51ViewRepo.listLabel === "Tile view", JSON.stringify(lf51ViewRepo));
+    ok("LF51: the toggle switches Repository's folder groups to a tile grid (persisted), keeping title + quick-edit hooks",
+      lf51ViewRepo.tiles && lf51ViewRepo.titleBtn && lf51ViewRepo.editBtn &&
+      lf51ViewRepo.tileLabel === "List view" && lf51ViewRepo.persisted === "tiles", JSON.stringify(lf51ViewRepo));
+    ok("LF51: toggling back returns Repository to the list layout",
+      lf51ViewRepo.backToList, JSON.stringify(lf51ViewRepo));
+
     // LF51 (nav IA spec (b), "right-aligned filter pills"): the Datasets/Connections/Jobs
     // filter pill strips (folder + facet filters) carry .cx-filter-strip and right-align their
     // pills at desktop widths (falling back to left-align on ≤640px phones).

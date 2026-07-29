@@ -116,6 +116,27 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF51 (d), last of the four workspace catalogs — Repository gains the list ⇆ tile view toggle
+  (v696, sw v333, 2026-07-29, steward — step 5 of the LOCKED BUILD ORDER):** Dashboards, Datasets,
+  Connections and Jobs already had a `#<section>ViewToggle` button switching between the compact
+  list and a richer `.dsx-tile` grid; Repository was the one workspace catalog still missing it.
+  Repository's rows live inside a real nested folder-group tree (not a flat list), so the toggle
+  switches two things together: each row's own markup (`repoRowHtml`, `.cx-row` ⇆ `.dsx-tile`,
+  reusing the exact tile-head/badges/foot structure the other three sections established) and
+  every folder group's contents wrapper (`repoGroupHtml`, `.cx-list` ⇆ `.dsx-grid`) — the folder
+  tree/grouping/collapse state itself is untouched. A new `#repoViewToggle` button sits next to
+  the workspace search box; state persists at `studio-repo-view` (added to the hard-reset
+  keep-list next to the other three view-mode keys) the same way the others do. The tile keeps
+  its title-open button and the quick-edit pencil action, same delegated-handler pattern as the
+  three prior slices (icon-hydration/dragstart selector widened to `.cx-row, .dsx-tile`).
+  docs/index.html's Repository paragraph now mentions the toggle. 3 new regression tests (list
+  default, toggle-to-tiles keeping title/quick-edit hooks + persistence, toggle-back). **LF51's
+  SPECIFICS (a) full row names, (b) right-aligned pills, (c) date-time, and (d) list/tile views are
+  now ALL shipped across every section named in the CORE PRINCIPLE except the Explore dataset
+  navigator** — that piece, plus the bigger "one shared nav component set" convergence and
+  Repository's "robust cross-object command center" richness, remain open per LF51's own CORE
+  PRINCIPLE note; not a named slice yet. Files: app/studio.js, app/index.html, docs/index.html,
+  sw.js, js/changelog.js, tests/run.js.
 - **LF59 (slice 2) — MULTI-SELECT + BULK DELETE on the Dashboards rows/tiles (v695, sw v332,
   2026-07-29):** LF59 part (2) — a new "Select" toolbar button turns on select mode: a checkbox
   overlays every tile (`recentCardHtml`) and list row (`dashListRowHtml`), and while select mode is
@@ -6263,11 +6284,16 @@
 >    now fully done** except LF43 slice 2 (Examples removal), which stays its own explicitly
 >    deferred, separately-budgeted slice (see Step 1).
 > 5. **Exports + navigation/layout:** LF49 (XLSX ✓ · DOCX ✓ · PPTX ✓, 2026-07-28 — **LF49 is now
->    fully done**) · LF54 (slice 1 ✓ left-align + kill left-gutter whitespace, 2026-07-28 — deeper
->    per-component density tightening left as an optional follow-up) · LF51 (sophisticated nav IA:
->    right-aligned pills, full names, date-time ✓ slice 1 (2026-07-28, row badges — Connections/
->    Datasets/Jobs/Dashboards/Repository — now show a full date-time, see DONE), list+rich-tile
->    views — still open, "slice it," design-standards-driven; the remaining step-5 item).
+>    fully done**) · LF54 (both slices ✓ — 2026-07-28/29, left-align + kill left-gutter whitespace,
+>    then the per-catalog vertical-gap density pass — **LF54 is now fully done**; any further
+>    per-widget density is opportunistic polish, not a named slice) · LF51 (sophisticated nav IA —
+>    ✓ (a) full row names, ✓ (b) right-aligned pills, ✓ (c) date-time, ✓ (d) list/tile toggle now
+>    shipped on Dashboards/Datasets/Connections/Jobs/Repository (2026-07-28/29, see DONE) — **all
+>    four SPECIFICS are done.** Still open (not step-5-blocking, opportunistic): the Explore dataset
+>    navigator's own folder-tree upgrade, and the bigger CORE PRINCIPLE convergence (one truly
+>    shared nav component + Repository's "robust cross-object command center" richness)). **Step 5
+>    is now fully done** for its named SPECIFICS; the LOCKED BUILD ORDER queue has no more open
+>    items — remaining work interleaves as ordinary backlog (LIVE-QA QUEUE, quality tracks).
 > The recurring quality tracks (UX polish, Track H/L/N sweeps) continue to interleave as usual.
 
 ### ★★ LIVE-QA QUEUE (Kevin, 2026-07-27 second session) — captured during live QA
@@ -6601,6 +6627,12 @@
 >       manager — the #29 split). (studio.js render{Datasets,Connections,Repository,Jobs}, per-section
 >       modules, studio.css — .cx-row + a new tile layout + a shared component set.) Ties LF19, #29, #21,
 >       LF54. Slice it; design-standards-driven (dataviz/design skills).
+>       ✓ **SPECIFICS (a)–(d) are now ALL shipped, across Dashboards/Datasets/Connections/Jobs/Repository
+>       (2026-07-28/29, see DONE — slices #404/#406/#407/#408/#410 and the Repository slice above):** full
+>       row names, right-aligned filter pills, full date-time badges, and the list ⇆ tile view toggle. Still
+>       open (bigger, not yet sliced): the Explore dataset navigator's own multi-level folder upgrade, and
+>       the CORE PRINCIPLE's "one truly shared component" convergence + Repository's New-EVERYTHING /
+>       robust-cross-object-command-center richness — pick these up as their own slices when queued.
 > LF54. **Kill the unused left-gutter whitespace; tighten density + left-align content (Kevin, screenshot
 >       2026-07-27).** The content area starts far right of the rail, leaving a big empty left gutter (partly
 >       from the spacious/small-screen handling + reserving room for future rail submenus) — it also

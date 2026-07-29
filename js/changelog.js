@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 696,
+    title: 'Repository gains a tile view too',
+    kind: 'polish',
+    ts: '2026-07-29T06:03:45.000Z',
+    items: [
+      'The Repository section can now switch between its compact list and a richer tile grid, via the same "Tile view" button already on Dashboards, Datasets, Connections and Jobs. Folders still group the same way; only the row layout changes.',
+    ],
+  },
+  {
     v: 695,
     title: 'Select multiple dashboards for bulk delete',
     kind: 'feature',
