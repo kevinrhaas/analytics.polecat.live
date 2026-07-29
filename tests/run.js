@@ -7597,6 +7597,80 @@ function serve() {
     ok("LF51 (command center): the 'New dashboard' entry hides for a viewer-role account and returns for a developing one",
       lf51NewGate.hiddenForViewer && lf51NewGate.backVisible, JSON.stringify(lf51NewGate));
 
+    // ── LF51 (Explore navigator): the dataset picker is a multi-level tree, not a flat list ──
+    // Your datasets group by folder (nested via "/", unfiled rows after folders), sample data
+    // groups by set (collapsed by default once you have your own datasets), every branch
+    // collapses/expands, and a search query flattens the tree so name-finding never depends
+    // on knowing where something is filed. Every row stays in the DOM (hooks unchanged).
+    const lf51XpTree = await page.evaluate(function () {
+      window.__studioShellSetSection("explore");
+      var conn = Studio.Workspace.put("connections", { name: "lf51xp-conn", adapter: "turso", cfg: {} });
+      var d1 = Studio.Workspace.put("datasets", { name: "lf51xp-filed", connectionId: conn.id, kind: "sql", sql: "select 1", folder: "TreeT/Nested" });
+      var d2 = Studio.Workspace.put("datasets", { name: "lf51xp-unfiled", connectionId: conn.id, kind: "sql", sql: "select 1" });
+      window.__lf51xp = { conn: conn.id, d1: d1.id, d2: d2.id };
+      window.__studioExplore.render();
+      var body = document.getElementById("xpBody");
+      var heads = Array.from(body.querySelectorAll(".xp-tree-h")).map(function (h) { return h.getAttribute("data-xp-tree"); });
+      var sampleHead = body.querySelector('.xp-tree-h[data-xp-tree^="sample:"]');
+      return {
+        hasTop: heads.indexOf("TreeT") >= 0,
+        hasNested: heads.indexOf("TreeT/Nested") >= 0,
+        grpLabels: Array.from(body.querySelectorAll(".xp-grp-h")).map(function (g) { return g.textContent.trim().split(/\s/)[0]; }).join("|"),
+        filedRowInTree: !!body.querySelector('.xp-tree-kids [data-xp-ds$="' + d1.id + '"]'),
+        sampleCollapsedByDefault: sampleHead ? sampleHead.getAttribute("aria-expanded") === "false" : null,
+        sampleRowsStillInDom: body.querySelectorAll('[data-xp-ds^="sample"]').length > 0
+      };
+    });
+    ok("LF51 (Explore navigator): folders render as a nested tree (parent + child headers), filed rows inside, sample sets grouped + default-collapsed with rows still in the DOM",
+      lf51XpTree.hasTop && lf51XpTree.hasNested && lf51XpTree.grpLabels === "Your|Sample" &&
+      lf51XpTree.filedRowInTree && lf51XpTree.sampleCollapsedByDefault === true && lf51XpTree.sampleRowsStillInDom,
+      JSON.stringify(lf51XpTree));
+
+    const lf51XpToggle = await page.evaluate(function () {
+      document.querySelector('#xpBody .xp-tree-h[data-xp-tree="TreeT"]').click(); // collapse (re-renders)
+      var head = document.querySelector('#xpBody .xp-tree-h[data-xp-tree="TreeT"]');
+      var collapsed = head.getAttribute("aria-expanded") === "false" && head.nextElementSibling.hasAttribute("hidden");
+      head.click(); // expand again
+      var head2 = document.querySelector('#xpBody .xp-tree-h[data-xp-tree="TreeT"]');
+      var reopened = head2.getAttribute("aria-expanded") === "true" && !head2.nextElementSibling.hasAttribute("hidden");
+      return { collapsed: collapsed, reopened: reopened };
+    });
+    ok("LF51 (Explore navigator): a branch header collapses and re-expands its children",
+      lf51XpToggle.collapsed && lf51XpToggle.reopened, JSON.stringify(lf51XpToggle));
+
+    const lf51XpSearch = await page.evaluate(function () {
+      window.__studioExplore.state.q = "lf51xp-filed";
+      window.__studioExplore.render();
+      var body = document.getElementById("xpBody");
+      var out = { noTreeWhileSearching: !body.querySelector(".xp-tree-h"),
+        matchShownFlat: !!body.querySelector('[data-xp-ds$="' + window.__lf51xp.d1 + '"]') };
+      window.__studioExplore.state.q = "";
+      window.__studioExplore.render();
+      return out;
+    });
+    ok("LF51 (Explore navigator): a search query flattens the tree to plain matching rows",
+      lf51XpSearch.noTreeWhileSearching && lf51XpSearch.matchShownFlat, JSON.stringify(lf51XpSearch));
+
+    await page.evaluate(function () {
+      var row = document.querySelector('#xpBody .xp-tree-kids [data-xp-ds$="' + window.__lf51xp.d1 + '"]');
+      if (row) row.click();
+    });
+    await page.waitForTimeout(400);
+    const lf51XpPick = await page.evaluate(function () {
+      var picked = window.__studioExplore.state.dsId === window.__lf51xp.d1;
+      // cleanup: remove seeded rows, reset Explore to the fresh list, back to Studio
+      Studio.Workspace.remove("datasets", window.__lf51xp.d1, { silent: true });
+      Studio.Workspace.remove("datasets", window.__lf51xp.d2, { silent: true });
+      Studio.Workspace.remove("connections", window.__lf51xp.conn, { silent: true });
+      Studio.Workspace.notify("*");
+      delete window.__lf51xp;
+      if (Studio.Explore.startNew) Studio.Explore.startNew();
+      window.__studioShellSetSection("studio");
+      return { picked: picked };
+    });
+    ok("LF51 (Explore navigator): clicking a row inside a folder branch still selects that dataset (selection contract unchanged)",
+      lf51XpPick.picked, JSON.stringify(lf51XpPick));
+
     // LF51 (nav IA spec (b), "right-aligned filter pills"): the Datasets/Connections/Jobs
     // filter pill strips (folder + facet filters) carry .cx-filter-strip and right-align their
     // pills at desktop widths (falling back to left-align on ≤640px phones).

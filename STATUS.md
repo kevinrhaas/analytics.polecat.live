@@ -116,6 +116,23 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF51 (Explore navigator) — the dataset picker is a multi-level tree (v716, sw v353,
+  2026-07-29):** the "beef up the Explore DATASET NAVIGATOR the same way (robust multi-level
+  folders, not a flat list)" piece of LF51's CORE PRINCIPLE. `renderExplore()`'s flat ≤60-row list
+  becomes a NAVIGATOR: **"Your datasets"** group by their `folder` (nested via "/", folders A→Z,
+  unfiled rows after folders — the Repository conventions), **"Sample data"** groups by set (stem),
+  and every branch is a collapsible `.xp-tree-h` header (caret + count badge, `aria-expanded`).
+  Sample sets **default collapsed once you have datasets of your own** (your data leads; a
+  brand-new workspace keeps them open so the picker never looks empty); collapse state is
+  deliberately session-only (no new localStorage key for the Track L orphaned-key sweep to chase).
+  **A search query flattens the tree** to plain matching rows, so name-finding never depends on
+  knowing where something is filed. Every row stays in the DOM (collapsed branches just `hidden`),
+  so the `data-xp-ds` selection contract and every existing test hook are unchanged; `xpDatasets()`
+  now carries `folder` (ws) / `stem` (sample). 4 new tests (nested parent+child headers with filed
+  rows inside + grouped default-collapsed samples still in the DOM; branch collapse/re-expand;
+  search flattens; row-click inside a branch still selects). Files: app/explore.js, app/studio.css,
+  docs/index.html, sw.js, js/changelog.js, tests/run.js. **NEXT in LF51 (last piece):** the "one
+  truly shared nav component" convergence across sections.
 - **LF51 (command center) — Repository creates EVERYTHING with ＋ New (v715, sw v352, 2026-07-29):**
   the "New EVERYTHING / robust cross-object command center" half of LF51's still-open pointer.
   Repository's toolbar (next to the Tile-view toggle) gains a **＋ New ▾ menu** with all five object

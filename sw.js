@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v352"; /* v352: LF51 (command center) — Repository gains a ＋ New ▾
+var CACHE_NAME = "studio-shell-v353"; /* v353: LF51 (Explore navigator) — the dataset picker is a
+   multi-level tree: ws datasets group by folder (nested via "/", unfiled last), sample data
+   groups by set (default-collapsed once you have your own datasets), branches collapse/expand,
+   search flattens. app/explore.js, app/studio.css, docs/index.html.
+   v352: LF51 (command center) — Repository gains a ＋ New ▾
    menu that creates EVERY object kind (dashboard / View / dataset / connection / job), each
    routing into that kind's own builder; "New dashboard" is role-gated like Home's card.
    app/index.html, app/studio.js, app/explore.js (startNew), app/studio.css, docs/index.html.
