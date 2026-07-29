@@ -7483,15 +7483,93 @@
      plus the local dashboard inventory (recents + pins). Import is additive/merge —
      it never deletes anything already here, so it's safe to import onto a machine
      that already has its own repository. */
-  function exportRepositoryFile() {
+  // LF59 (1) — SELECTIVE EXPORT. Build the repository-export object, optionally scoped to a
+  // chosen SUBSET of dashboards (by id). With no ids it's the historical "export everything"
+  // shape (all authored data sources + every dashboard/pin/workbook). With a subset, only the
+  // picked dashboards go out, and the data sources / pins / workbooks are narrowed to what those
+  // dashboards actually reference/use — so a subset file is self-contained AND minimal, yet still
+  // imports through the exact same applyRepositoryData merge path.
+  function collectRepositoryExport(dashIds) {
+    var idSet = (dashIds && dashIds.length)
+      ? dashIds.reduce(function (m, id) { m[id] = true; return m; }, {})
+      : null;
+    var dashboards = idSet ? loadRecents().filter(function (r) { return idSet[r.id]; }) : loadRecents();
+    // referenced authored data-access ids (only when scoping to a subset)
+    var refDa = null;
+    if (idSet) {
+      refDa = {};
+      dashboards.forEach(function (r) {
+        (((r.spec || {}).cda || {}).dataAccesses || []).forEach(function (da) { if (da && da.id) refDa[da.id] = true; });
+      });
+    }
     var dataSources = [];
     Object.keys(S.catalog || {}).forEach(function (stem) {
       (S.catalog[stem].dataAccesses || []).forEach(function (d) {
-        if (d.authored) dataSources.push({ stem: stem, da: d });
+        if (d.authored && (!refDa || refDa[d.id])) dataSources.push({ stem: stem, da: d });
       });
     });
-    var out = { _type: "studio-repository", _v: 1, dataSources: dataSources, dashboards: loadRecents(), pins: loadPins(), workbooks: loadWorkbooks() };
+    var pins = loadPins().filter(function (id) { return !idSet || idSet[id]; });
+    var wbUsed = {};
+    dashboards.forEach(function (r) { if (r.workbookId) wbUsed[r.workbookId] = true; });
+    var workbooks = loadWorkbooks().filter(function (w) { return !idSet || wbUsed[w.id]; });
+    return { _type: "studio-repository", _v: 1, dataSources: dataSources, dashboards: dashboards, pins: pins, workbooks: workbooks };
+  }
+  function exportRepositoryFile(dashIds) {
+    var out = collectRepositoryExport(Array.isArray(dashIds) ? dashIds : null);
     download("dashboard-studio-repository.json", JSON.stringify(out, null, 2), "application/json");
+  }
+  // LF59 (1) — the picker in front of "Export dashboards…": choose which dashboards to export
+  // instead of always dumping the whole repository. Defaults to all selected (so the button still
+  // one-clicks a full export via Select-all), with Select-all / Clear and a live count.
+  function openExportDashboardsModal() {
+    var all = loadRecents().filter(isVisibleToMe);
+    if (!all.length) { toast("No dashboards to export yet — build one in Studio first.", true); return; }
+    modal("Export dashboards", function (b) {
+      var sel = {}; all.forEach(function (r) { sel[r.id] = true; });
+      var checks = {};
+      var info = el("p", "exp-dash-info");
+      var expBtn = el("button", "btn primary"); expBtn.type = "button";
+      function refresh() {
+        var n = all.filter(function (r) { return sel[r.id]; }).length;
+        info.textContent = n + " of " + all.length + " dashboard" + (all.length === 1 ? "" : "s") +
+          " selected — the export includes just these, plus the data they use.";
+        expBtn.disabled = !n;
+        expBtn.textContent = n ? "Export " + n + " dashboard" + (n === 1 ? "" : "s") : "Export";
+      }
+      function syncChecks() { all.forEach(function (r) { if (checks[r.id]) checks[r.id].checked = !!sel[r.id]; }); }
+      var bar = el("div", "exp-dash-bar");
+      var allBtn = el("button", "btn"); allBtn.type = "button"; allBtn.textContent = "Select all";
+      var noneBtn = el("button", "btn"); noneBtn.type = "button"; noneBtn.textContent = "Clear";
+      allBtn.onclick = function () { all.forEach(function (r) { sel[r.id] = true; }); syncChecks(); refresh(); };
+      noneBtn.onclick = function () { all.forEach(function (r) { sel[r.id] = false; }); syncChecks(); refresh(); };
+      bar.appendChild(allBtn); bar.appendChild(noneBtn);
+      var listWrap = el("div", "exp-dash-list");
+      all.forEach(function (r) {
+        var sp = r.spec || {}, title = sp.title || sp.name || r.title || "Untitled";
+        var row = el("label", "exp-dash-row");
+        var cb = el("input"); cb.type = "checkbox"; cb.checked = true;
+        cb.setAttribute("aria-label", "Include " + title + " in the export");
+        cb.onchange = function () { sel[r.id] = cb.checked; refresh(); };
+        checks[r.id] = cb;
+        var nm = el("span", "exp-dash-name"); nm.textContent = title;
+        row.appendChild(cb); row.appendChild(nm);
+        if (r.demoPackId) { var badge = el("span", "exp-dash-badge"); badge.textContent = "sample"; row.appendChild(badge); }
+        listWrap.appendChild(row);
+      });
+      expBtn.onclick = function () {
+        var ids = all.filter(function (r) { return sel[r.id]; }).map(function (r) { return r.id; });
+        if (!ids.length) return;
+        // Selecting the whole list keeps the historical "export everything" file (all authored
+        // data sources, including any not referenced by a dashboard); a true subset narrows to
+        // just the chosen dashboards + the data they use.
+        exportRepositoryFile(ids.length === all.length ? undefined : ids);
+        toast("Exported " + ids.length + " dashboard" + (ids.length === 1 ? "" : "s"));
+        var x = b.closest(".modal") && b.closest(".modal").querySelector(".modal-h .x"); if (x) x.click();
+      };
+      var foot = el("div", "exp-dash-foot"); foot.appendChild(expBtn);
+      b.appendChild(info); b.appendChild(bar); b.appendChild(listWrap); b.appendChild(foot);
+      refresh();
+    });
   }
   // Merges a parsed repository-export object into the current catalog + recents/pins/workbooks.
   // Returns {ok, dsCount, dashCount} on success, {ok:false} if the file isn't recognized.
@@ -7550,6 +7628,7 @@
     inp.click();
   }
   window.__studioExportRepository = exportRepositoryFile; // test hook
+  window.__studioCollectRepositoryExport = collectRepositoryExport; // LF59 (1): subset export, no file-picker
   window.__studioApplyRepositoryData = applyRepositoryData; // test hook (bypasses file-picker + confirm)
 
   /* ---------- Z5 slice 1: Settings — first-class mode toggles ----------
@@ -9577,7 +9656,7 @@
         syncDashToggle(); renderDashboards();
       };
     }
-    var repoExpBtn = $("#repoExportBtn"); if (repoExpBtn) repoExpBtn.onclick = exportRepositoryFile;
+    var repoExpBtn = $("#repoExportBtn"); if (repoExpBtn) repoExpBtn.onclick = openExportDashboardsModal;
     var repoImpBtn = $("#repoImportBtn"); if (repoImpBtn) repoImpBtn.onclick = importRepositoryFile;
     // UX6 (icon migration, slice 2): was a raw "⇄ Compare dashboards…" glyph.
     var repoCompareBtn = $("#repoCompareBtn");

@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v330"; /* v330: LF56 (folder picker, slice 3) — the Browse button
+var CACHE_NAME = "studio-shell-v331"; /* v331: LF59 (1) — selective export: "Export dashboards…"
+   now opens a subset picker (collectRepositoryExport(dashIds) scopes the file to the chosen
+   dashboards + the data sources they reference + relevant pins/workbooks; select-all keeps the
+   historical full export). app/studio.js, app/studio.css, app/index.html wiring, docs/index.html.
+   v330: LF56 (folder picker, slice 3) — the Browse button
    now also sits on Explore's compact "Folder" field, the last un-wired Folder surface, making LF56
    fully done. It's a sibling flex item next to the sparkle wrap rather than nested inside it — the
    sparkle wrap is a tight overlay (input padded for one absolute icon) sized to the savebar's

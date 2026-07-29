@@ -116,6 +116,25 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF59 (slice 1) — SELECTIVE EXPORT: choose which dashboards to export (v694, sw v331,
+  2026-07-29):** LF59 part (1) — the Dashboards "Export dashboards…" button used to always dump the
+  WHOLE repository. It now opens a subset picker: a checkbox list of your dashboards (defaults to all
+  selected) with Select all / Clear and a live count, then "Export N dashboards". Refactored
+  `exportRepositoryFile` around a new `collectRepositoryExport(dashIds)` — with no ids it's the
+  historical everything-export (all authored data sources + every dashboard/pin/workbook); with a
+  subset it narrows to just the chosen dashboards PLUS the authored data sources they actually
+  reference (walked from each spec's `cda.dataAccesses`) and only the pins/workbooks those dashboards
+  use, so a subset file is minimal yet still imports through the exact same `applyRepositoryData`
+  merge path. Selecting the whole list routes back through the full-export path (keeps orphan authored
+  data sources), so "export all" is byte-for-byte the old behavior. Non-destructive, additive; no
+  changes to import. The two existing repository-export tests were updated to drive the new
+  modal (click Export → pick → download) — behavior reflected, not weakened — plus 1 new test that
+  `collectRepositoryExport([id])` scopes to one dashboard and never emits MORE data sources/workbooks
+  than the full export. docs/index.html Help updated. Files: app/studio.js, app/studio.css,
+  app/index.html (button wiring), docs/index.html, sw.js, js/changelog.js, tests/run.js. **NEXT in
+  LF59:** part (2) multi-select + bulk delete on the rows/tiles (respecting sample read-only), part
+  (3) toolbar cleanup; part (5) dashboard FOLDERS stays parked behind the LF66 library-model
+  reconciliation (LF43/LF57/LF59 → one model).
 - **LF56 (folder picker, slice 3) — the Browse picker now reaches Explore's save bar too, LF56 is
   now fully done (v693, sw v330, 2026-07-29):** slice 2's own deferred follow-up. The Browse button
   is wired next to Explore's "Folder" field as a **sibling flex item** beside the sparkle wrap, NOT

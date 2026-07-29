@@ -27020,7 +27020,11 @@ function serve() {
       window.__STUDIO_STATE.catalog.repoExportTest = { file: "repoExportTest.cda", connection: { id: "pdc", jndi: "PDC-BIDB-EXT" },
         dataAccesses: [{ id: "repoTestDs", name: "repoTestDs", kind: "sql", jndi: "PDC-BIDB-EXT", columns: ["a", "b"], authored: true, sql: "SELECT 1", query: "SELECT 1", params: [], calcColumns: [], cache: true, cacheDuration: 300 }] };
     });
-    const [repoDl] = await Promise.all([page.waitForEvent("download", { timeout: 45000 }), page.click("#repoExportBtn")]);
+    // LF59 (1): "Export dashboards…" now opens a subset picker (defaults to all selected);
+    // clicking "Export N dashboards" with everything checked reproduces the historical full export.
+    await page.click("#repoExportBtn");
+    await page.waitForSelector(".exp-dash-list", { timeout: 5000 });
+    const [repoDl] = await Promise.all([page.waitForEvent("download", { timeout: 45000 }), page.click(".exp-dash-foot .btn.primary")]);
     const repoDlName = repoDl.suggestedFilename();
     const repoDlStream = await repoDl.createReadStream();
     let repoDlText = ""; for await (const chunk of repoDlStream) repoDlText += chunk.toString();
@@ -27030,6 +27034,29 @@ function serve() {
       repoDlName === "dashboard-studio-repository.json" && repoDlJson._type === "studio-repository" &&
       !!repoExportedDs && repoExportedDs.stem === "repoExportTest" && Array.isArray(repoDlJson.dashboards),
       repoDlName + " :: " + repoDlText.slice(0, 160));
+
+    // LF59 (1) — SELECTIVE EXPORT: the export can be scoped to a chosen subset of dashboards
+    // rather than always dumping the whole repository. collectRepositoryExport([id]) returns only
+    // the picked dashboard(s) and never MORE data sources / pins / workbooks than the full export.
+    const lf59sub = await page.evaluate(function () {
+      var recents = window.__studioRecents();
+      if (!recents.length) return { skip: true };
+      var pickId = recents[0].id;
+      var full = window.__studioCollectRepositoryExport();
+      var subset = window.__studioCollectRepositoryExport([pickId]);
+      return {
+        type: subset._type,
+        subsetDash: subset.dashboards.length,
+        onlyPicked: subset.dashboards.every(function (r) { return r.id === pickId; }),
+        fullDash: full.dashboards.length,
+        dsMonotonic: subset.dataSources.length <= full.dataSources.length,
+        wbMonotonic: subset.workbooks.length <= full.workbooks.length
+      };
+    });
+    ok("LF59 (1): selective export — collectRepositoryExport([id]) scopes the file to just the chosen dashboard(s)",
+      lf59sub.skip || (lf59sub.type === "studio-repository" && lf59sub.subsetDash === 1 && lf59sub.onlyPicked &&
+        lf59sub.subsetDash <= lf59sub.fullDash && lf59sub.dsMonotonic && lf59sub.wbMonotonic),
+      JSON.stringify(lf59sub));
 
     const repoImport = await page.evaluate(function () {
       delete window.__STUDIO_STATE.catalog.repoExportTest;
@@ -27168,7 +27195,9 @@ function serve() {
       var wb = window.__studioAddWorkbook("Export Test WB");
       return { wbId: wb.id, hasHook: typeof window.__studioExportRepository === "function" };
     });
-    const [wbDl] = await Promise.all([page.waitForEvent("download", { timeout: 45000 }), page.click("#repoExportBtn")]);
+    await page.click("#repoExportBtn");
+    await page.waitForSelector(".exp-dash-list", { timeout: 5000 });
+    const [wbDl] = await Promise.all([page.waitForEvent("download", { timeout: 45000 }), page.click(".exp-dash-foot .btn.primary")]);
     const wbDlStream = await wbDl.createReadStream();
     let wbDlText = ""; for await (const chunk of wbDlStream) wbDlText += chunk.toString();
     let wbDlJson = {}; try { wbDlJson = JSON.parse(wbDlText); } catch (e) {}

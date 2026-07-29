@@ -236,10 +236,12 @@
   is empty" offers an <strong>Import a file</strong> button alongside Open data panel / Add a text
   View, and you can drop a <code>.csv</code>/<code>.json</code> straight onto the empty canvas too.</p>
 
-  <p><strong>Export/Import repository:</strong> the Repository page's "Export repository…" button
-  downloads a single JSON file with every data source <em>you authored</em> (via ＋ New source — the
-  bundled catalog ships with the app, so it's not duplicated into the export) plus your local dashboard
-  inventory (recents + pins + workbooks). "Import repository…" merges a previously exported file back
+  <p><strong>Export/Import repository:</strong> the Dashboards page's "Export dashboards…" button opens
+  a picker so you can choose <em>which</em> dashboards to export (it defaults to all selected — use
+  Select all / Clear to narrow it). The download is a single JSON file with the chosen dashboards plus
+  the data sources <em>you authored</em> that they use (via ＋ New source — the bundled catalog ships
+  with the app, so it's not duplicated into the export) and the relevant pins + workbooks; export
+  everything and you get your whole local inventory, exactly as before. "Import repository…" merges a previously exported file back
   in — it's additive, so importing never deletes anything already here; a data source with the same id
   is overwritten by the imported version, and dashboards merge by id (keeping the newer of any
   duplicate). Handy for moving your work to another browser/device, or as a manual backup.</p>
