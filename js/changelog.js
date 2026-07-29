@@ -6,6 +6,14 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 706,
+    title: 'Signing in on a new device points you to Connect',
+    ts: '2026-07-29T14:10:06.000Z',
+    items: [
+      'Joining a team workspace from a fresh browser? When a username isn\'t known to this device and there\'s no backend connected yet, the sign-in screen now spotlights the "Connect to your workspace" button — promoting it from a small link to an obvious, pulsing button — so the one-step path to reach your team\'s accounts is unmissable. The cue clears as soon as you edit the username or connect.',
+    ],
+  },
+  {
     v: 705,
     title: 'Help & docs now open inside the app',
     kind: 'feature',
