@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 714,
+    title: 'Builder canvas: "drop a dataset", not "query"',
+    kind: 'fix',
+    ts: '2026-07-29T17:26:17.000Z',
+    items: [
+      'The builder canvas\'s drop hint and the preview toolbar hint now say "drop a dataset to add a View" — matching what you actually drop onto the canvas from the Data panel — instead of the stale "query" wording.',
+    ],
+  },
+  {
     v: 713,
     title: 'Help badges deep-link to specific docs sections',
     kind: 'polish',

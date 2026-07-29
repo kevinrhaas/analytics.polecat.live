@@ -3613,6 +3613,10 @@ function serve() {
     ok("M2b: the dashboard item reads 'View' in the interface — inspector title, canvas drop hint, text button, and status line (no 'panel'/'widget' wording)",
       m2bUi.inspTitle === "View" && /add a view/i.test(m2bUi.dropHint) && /text view/i.test(m2bUi.textBtn) &&
       !/\bpanel/i.test(m2bUi.status) && !/\bwidget/i.test(m2bUi.status), JSON.stringify(m2bUi));
+    // Bugfix (Kevin, live): the canvas drop hint names the thing you actually drop — a DATASET —
+    // not the stale "query" wording (the drop target accepts a workspace dataset / analysis / DA).
+    ok("Drop hint names a 'dataset' (not the stale 'query') as the thing dropped onto the canvas",
+      /drop a dataset/i.test(m2bUi.dropHint) && !/query/i.test(m2bUi.dropHint), JSON.stringify(m2bUi));
     ok("#119 (live QA): the widget inspector's data-source field is labeled 'Dataset', not the old 'Query (data access)'",
       m2bUi.hasDatasetLabel === true && m2bUi.hasOldQueryLabel === false, JSON.stringify(m2bUi));
     (function () {
