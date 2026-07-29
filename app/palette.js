@@ -25,7 +25,7 @@
     { label: "Go to Connections", hint: "Section", kw: "connections adapters databases warehouses servers", ic: "join", run: function () { goSec("connections"); } },
     { label: "Go to Studio", hint: "Section", kw: "studio builder canvas editor", ic: "grid", run: function () { studio(); } },
     { label: "Go to Settings", hint: "Section", kw: "settings preferences theme mode config", ic: "gear", run: function () { goSec("settings"); } },
-    { label: "Open Help & docs", hint: "Reference", kw: "help docs documentation reference guide", ic: "info", run: function () { window.open("docs/index.html", "_blank", "noopener"); } },
+    { label: "Open Help & docs", hint: "Reference", kw: "help docs documentation reference guide", ic: "info", run: function () { goSec("docs"); } },
     // dashboard lifecycle
     { label: "New dashboard", hint: "Create", kw: "new create blank start build", ic: "plus", run: function () { studio(); click("btnNew"); } },
     { label: "Browse examples", hint: "Create", kw: "examples gallery showcase templates samples", ic: "star", run: function () { studio(); click("btnExamples"); } },

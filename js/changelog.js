@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 705,
+    title: 'Help & docs now open inside the app',
+    kind: 'feature',
+    ts: '2026-07-29T13:27:17.000Z',
+    items: [
+      'The Help rail item now opens the documentation right inside Analytics — an embedded Docs view — instead of only bouncing you to a separate browser tab. Prefer the standalone page? The Docs view has an "Open in new tab" pop-out, and the ⌘K / Ctrl+K "Open Help & docs" command lands in the same in-app view.',
+    ],
+  },
+  {
     v: 704,
     title: 'Welcome tour highlights your installed sample packs',
     kind: 'feature',

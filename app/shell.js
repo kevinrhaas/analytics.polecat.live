@@ -8,12 +8,12 @@
   "use strict";
   var LS_SECTION = "studio-shell-section";
   var LS_EXPANDED = "studio-shell-expanded";
-  var SECTIONS = ["home", "explore", "dashboards", "datasets", "jobs", "connections", "repository", "studio", "admin", "settings"];
+  var SECTIONS = ["home", "explore", "dashboards", "datasets", "jobs", "connections", "repository", "studio", "admin", "settings", "docs"];
   // Fleet-standard topbar shows the current section name (top-left). "studio" is the
-  // dashboard builder — its human label.
+  // dashboard builder — its human label. "docs" is the in-app Help/documentation view (LF60).
   var SECTION_LABELS = {
     home: "Home", explore: "Explore", dashboards: "Dashboards", datasets: "Datasets",
-    jobs: "Jobs", connections: "Connections", repository: "Repository", studio: "Studio", admin: "Admin", settings: "Settings"
+    jobs: "Jobs", connections: "Connections", repository: "Repository", studio: "Studio", admin: "Admin", settings: "Settings", docs: "Help"
   };
 
   var nav = document.getElementById("railNav");

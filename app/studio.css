@@ -455,6 +455,14 @@ html[data-app-theme='neon'] #mobileNavBtn{background:#000000;border-color:rgba(2
 
 /* ── Z2: Home landing section — recents + quick-create, warm-dark "game-like" look ── */
 .app-sec.has-content:not([hidden]){align-items:flex-start;justify-content:flex-start;overflow-y:auto;display:block}
+/* LF60 (in-app Docs, slice 1): the Help section embeds docs/index.html in a full-height iframe
+   with a pop-out to the standalone page. Overrides .app-sec's centered empty-state layout to fill. */
+#secDocs:not([hidden]){display:flex;align-items:stretch;justify-content:flex-start}
+.docs-wrap{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}
+.docs-bar{flex:0 0 auto;display:flex;align-items:center;gap:12px;padding:var(--sp-12) var(--sp-16);border-bottom:1px solid var(--line)}
+.docs-title{margin:0;font-size:var(--fs-16);font-weight:700;color:var(--ink)}
+.docs-popout{margin-left:auto;flex:0 0 auto;text-decoration:none;white-space:nowrap}
+.docs-frame{flex:1;min-height:0;width:100%;border:0;background:var(--bg)}
 /* LF54: left-align workspace content instead of centering it — a left rail plus a
    centered column left a wide "dead" gutter between them. Content now hugs the rail
    (margin:0), uses more of the reclaimed width, and drops the oversized top padding.
