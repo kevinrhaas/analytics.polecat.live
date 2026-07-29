@@ -2348,9 +2348,25 @@ body.simple-mode .da-acts{display:none!important}
    pipeline over one dataset; shares the cx-*/dsx-* list and wizard anatomy ── */
 .jobs-steps{display:flex;flex-direction:column;gap:10px}
 .jobs-step-card{border:1px solid var(--line);border-radius:10px;padding:var(--sp-10);display:flex;flex-direction:column;gap:8px;background:var(--field)}
-.jobs-step-head{display:flex;gap:6px;align-items:center}
-.jobs-step-head select{flex:1}
+.jobs-step-head{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .jobs-step-head .btn{padding:var(--sp-6) var(--sp-10);font-size:var(--fs-12)}
+/* LF55 (5): the step-type icon-panel picker — a trigger showing the current kind's
+   glyph + label (replaces the old plain <select>), and the expanded grid of every
+   kind it toggles open, both reusing the wb-chip pill vocabulary already used for
+   filter/tag pickers elsewhere in the app. */
+.jobs-step-type-trigger{flex:1;display:inline-flex;align-items:center;gap:6px;padding:var(--sp-6) var(--sp-10);
+  border:1px solid var(--line);border-radius:8px;background:var(--surface,var(--field));color:var(--ink);
+  font-size:var(--fs-13);font-family:var(--font);cursor:pointer;min-width:0}
+.jobs-step-type-trigger:hover,.jobs-step-type-trigger[aria-expanded="true"]{border-color:var(--brand)}
+.jobs-step-type-trigger span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jobs-step-type-trigger svg:last-child{margin-left:auto;opacity:.6;flex:none}
+.jobs-step-type-grid{display:flex;flex-wrap:wrap;gap:6px}
+.jobs-step-type-tile{display:inline-flex;align-items:center;gap:6px;padding:var(--sp-6) var(--sp-10);
+  border:1px solid var(--line);border-radius:999px;background:var(--field);color:var(--ink);
+  font-size:var(--fs-12);font-family:var(--font);cursor:pointer}
+.jobs-step-type-tile:hover{border-color:var(--brand)}
+.jobs-step-type-tile.active{border-color:var(--brand);color:var(--brand);background:color-mix(in srgb, var(--brand) 12%, var(--field))}
+.jobs-step-type-tile svg{flex:none}
 .jobs-step-fields{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .jobs-step-fields input,.jobs-step-fields select{padding:var(--sp-8) var(--sp-10);font-size:var(--fs-13);border:1px solid var(--line);border-radius:8px;
   background:var(--surface,var(--field));color:var(--ink);font-family:var(--font)}

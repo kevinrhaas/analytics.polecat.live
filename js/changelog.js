@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 718,
+    title: 'Job editor: a cooler icon-panel step-type picker',
+    kind: 'polish',
+    ts: '2026-07-29T18:50:22.000Z',
+    items: [
+      'Adding or editing a job\'s prep steps no longer means squinting at a plain dropdown — click the step\'s current type and a tasteful grid of icons pops open (Rename, Cast, Derive, Filter, Aggregate, Join, Union, Add unique row ID, Custom SQL), so you can see every option and pick by glyph, not just by name.',
+    ],
+  },
+  {
     v: 717,
     title: 'Starting a new dashboard now warns before losing an unsaved Quick-import build',
     kind: 'fix',

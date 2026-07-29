@@ -148,7 +148,13 @@
     // for Numeric and a letterform for String, alongside the pre-existing "clock" for
     // Date, so a field's guessed kind reads at a glance without a text label.
     hash: '<line x1="9" y1="3" x2="7" y2="21" stroke-linecap="round"/><line x1="17" y1="3" x2="15" y2="21" stroke-linecap="round"/><line x1="4" y1="9" x2="21" y2="9" stroke-linecap="round"/><line x1="3" y1="15" x2="20" y2="15" stroke-linecap="round"/>',
-    text: '<path d="M5 20L10 4h4l5 16" stroke-linecap="round" stroke-linejoin="round"/><line x1="7.5" y1="14" x2="16.5" y2="14" stroke-linecap="round"/>'
+    text: '<path d="M5 20L10 4h4l5 16" stroke-linecap="round" stroke-linejoin="round"/><line x1="7.5" y1="14" x2="16.5" y2="14" stroke-linecap="round"/>',
+    // LF55 (5) — job-editor step-type icon panel: three glyphs the picker needed that
+    // weren't in the registry yet (rename/aggregate/join/union/sql already had a fit —
+    // edit/sigma/join/layers/code — these three round out the nine step kinds).
+    funnel: '<path stroke-linecap="round" stroke-linejoin="round" d="M3 4h18l-7 8v7l-4 2v-9z"/>',
+    wand: '<path stroke-linecap="round" stroke-linejoin="round" d="M4 20L15 9"/><path stroke-linecap="round" stroke-linejoin="round" d="M17 3v3M17 8.5V9M22 6h-3M14.5 6H14M20.5 3.5l-2 2M20.5 8.5l-2-2"/>',
+    key: '<circle cx="8" cy="15" r="4"/><path stroke-linecap="round" stroke-linejoin="round" d="M11 12l9-9M17 3l3 3M14 6l2 2"/>'
   };
 
   Studio.icon = function (name, size) {

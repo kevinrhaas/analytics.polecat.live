@@ -5793,11 +5793,15 @@ function serve() {
     await page.waitForTimeout(150);
     const ukEditorUI = await page.evaluate(function () {
       var input = document.querySelector(".jobs-step-fields input");
-      var opSel = document.querySelector(".jobs-step-card select");
+      var trigger = document.querySelector(".jobs-step-card .jobs-step-type-trigger");
+      var triggerValueBefore = trigger ? trigger.getAttribute("data-op") : null;
+      if (trigger) trigger.click(); // LF55 (5): expand the icon-panel to read its offered kinds
+      var tiles = Array.prototype.slice.call(document.querySelectorAll(".jobs-step-type-tile"));
+      if (trigger) trigger.click(); // collapse again, leaving the editor as it was
       return {
         value: input && input.value,
-        stepKindOptions: opSel ? Array.prototype.slice.call(opSel.options).map(function (o) { return o.value; }) : [],
-        stepKindValue: opSel ? opSel.value : null
+        stepKindOptions: tiles.map(function (t) { return t.getAttribute("data-op"); }),
+        stepKindValue: triggerValueBefore
       };
     });
     ok("JOBS: opening the editor on a uniqueKey step renders its saved output-column name, and the step-kind picker offers uniqueKey",
@@ -5820,6 +5824,94 @@ function serve() {
       window.__studioShellSetSection("studio");
     });
     await page.waitForTimeout(200);
+
+    // LF55 (5): the step-type <select> became an icon-panel picker — a trigger button
+    // (current kind's glyph + label) that expands a grid of all 9 kinds (icon + label
+    // tiles); picking one resets the step the same way the old onchange did.
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-typepicker-test", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "jobs-typepicker-ds", connectionId: conn.id, kind: "file", format: "csv",
+        content: "a,b\n1,2\n", columns: ["a", "b"] });
+      var job = Studio.Workspace.put("jobs", { name: "ui-typepicker-job", sourceDatasetId: ds.id,
+        steps: [{ op: "rename", from: "a", to: "a2" }] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(150);
+    const typePickerClosed = await page.evaluate(function () {
+      var trigger = document.querySelector(".jobs-step-card .jobs-step-type-trigger");
+      return {
+        // scoped to the head — the step's OWN fields (e.g. rename's "from" column) legitimately
+        // still use <select> (colSelect); only the step-KIND picker itself must not be one anymore.
+        hasSelect: !!document.querySelector(".jobs-step-head select"),
+        triggerText: trigger ? trigger.textContent.trim() : "",
+        triggerOp: trigger ? trigger.getAttribute("data-op") : null,
+        gridVisible: !!document.querySelector(".jobs-step-type-grid"),
+        triggerHasIcon: !!(trigger && trigger.querySelector("svg"))
+      };
+    });
+    ok("LF55 (5): the job editor's step-type picker is an icon trigger, not a <select>, closed by default",
+      !typePickerClosed.hasSelect && /Rename column/.test(typePickerClosed.triggerText) &&
+      typePickerClosed.triggerOp === "rename" && !typePickerClosed.gridVisible && typePickerClosed.triggerHasIcon,
+      JSON.stringify(typePickerClosed));
+    const typePickerOpen = await page.evaluate(function () {
+      document.querySelector(".jobs-step-card .jobs-step-type-trigger").click();
+      var tiles = Array.prototype.slice.call(document.querySelectorAll(".jobs-step-type-tile"));
+      var active = tiles.filter(function (t) { return t.classList.contains("active"); });
+      return {
+        expanded: document.querySelector(".jobs-step-card .jobs-step-type-trigger").getAttribute("aria-expanded"),
+        tileOps: tiles.map(function (t) { return t.getAttribute("data-op"); }),
+        tileCount: tiles.length,
+        everyTileHasIcon: tiles.every(function (t) { return !!t.querySelector("svg"); }),
+        activeCount: active.length,
+        activeOp: active[0] && active[0].getAttribute("data-op")
+      };
+    });
+    ok("LF55 (5): expanding the picker shows all 9 step kinds as icon tiles, the current kind marked active",
+      typePickerOpen.expanded === "true" && typePickerOpen.tileCount === 9 && typePickerOpen.everyTileHasIcon &&
+      typePickerOpen.activeCount === 1 && typePickerOpen.activeOp === "rename" &&
+      ["rename", "cast", "derive", "filter", "aggregate", "join", "union", "uniqueKey", "sql"].every(function (op) { return typePickerOpen.tileOps.indexOf(op) >= 0; }),
+      JSON.stringify(typePickerOpen));
+    const typePickerPick = await page.evaluate(function () {
+      var filterTile = Array.prototype.slice.call(document.querySelectorAll(".jobs-step-type-tile")).filter(function (t) { return t.getAttribute("data-op") === "filter"; })[0];
+      filterTile.click();
+      var trigger = document.querySelector(".jobs-step-card .jobs-step-type-trigger");
+      var fieldInputs = Array.prototype.slice.call(document.querySelectorAll(".jobs-step-fields input")).map(function (i) { return i.placeholder; });
+      return {
+        gridVisible: !!document.querySelector(".jobs-step-type-grid"),
+        triggerOp: trigger ? trigger.getAttribute("data-op") : null,
+        triggerText: trigger ? trigger.textContent.trim() : "",
+        // rename's fields (a "to column" free-text input) should be GONE — the step was reset,
+        // not just relabeled — and filter's own "value" field should now be present.
+        hasRenameField: fieldInputs.indexOf("to column") >= 0,
+        hasFilterField: fieldInputs.indexOf("value") >= 0
+      };
+    });
+    ok("LF55 (5): picking a tile switches the step's kind, resets its fields, and collapses the panel",
+      !typePickerPick.gridVisible && typePickerPick.triggerOp === "filter" && /Filter rows/.test(typePickerPick.triggerText) &&
+      typePickerPick.hasFilterField && !typePickerPick.hasRenameField,
+      JSON.stringify(typePickerPick));
+    await page.evaluate(function () {
+      document.querySelector(".modal-ov .x").click();
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "ui-typepicker-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-typepicker-ds"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-typepicker-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+    const jobsStepIconsDistinct = await page.evaluate(function () {
+      return {
+        funnel: Studio._iconPaths.funnel, wand: Studio._iconPaths.wand, key: Studio._iconPaths.key,
+        funnelDistinctFromFilter: Studio._iconPaths.funnel !== Studio._iconPaths.info,
+        wandDistinctFromSparkle: Studio._iconPaths.wand !== Studio._iconPaths.sparkle,
+        keyDistinctFromLock: Studio._iconPaths.key !== Studio._iconPaths.lock
+      };
+    });
+    ok("LF55 (5): the new funnel/wand/key icons are registered and visually distinct from lookalikes",
+      !!jobsStepIconsDistinct.funnel && !!jobsStepIconsDistinct.wand && !!jobsStepIconsDistinct.key &&
+      jobsStepIconsDistinct.funnelDistinctFromFilter && jobsStepIconsDistinct.wandDistinctFromSparkle && jobsStepIconsDistinct.keyDistinctFromLock,
+      JSON.stringify(jobsStepIconsDistinct));
 
     // LF13(d) slice 1: a source FIELD LIST (type icons) above the step pipeline — a
     // read-only legend of the source dataset's columns with a best-effort type icon/color
