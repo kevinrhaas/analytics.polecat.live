@@ -2574,6 +2574,15 @@ body.simple-mode .da-acts{display:none!important}
    list icons) + the Folders facet strip label. */
 .cx-list-folder{position:static;width:22px;height:22px;color:var(--muted);opacity:.7;display:grid;place-items:center;background:none;border:0;cursor:pointer}
 .cx-list-folder:hover,.cx-list-folder:focus-visible{opacity:1;color:var(--ink)}
+/* LF66/LF59: persistent folder chip in the Dashboards TILE footer (list rows use the icon-only
+   .cx-list-folder above). row-reverse renders the handler-appended folder icon before the name. */
+.recent-folder-chip{position:relative;z-index:2;margin-top:6px;display:inline-flex;flex-direction:row-reverse;align-items:center;gap:5px;max-width:100%;
+  padding:2px 8px 2px 6px;border-radius:999px;border:1px solid var(--line);background:none;cursor:pointer;
+  color:var(--muted);font-size:var(--fs-11);font-weight:500;line-height:1.5}
+.recent-folder-chip .rf-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.recent-folder-chip svg{flex:0 0 auto}
+.recent-folder-chip:hover,.recent-folder-chip:focus-visible{color:var(--ink);border-color:var(--brand)}
+.recent-folder-chip.filed{color:var(--brand);border-color:color-mix(in srgb, var(--brand) 45%, var(--line))}
 .cx-folder-chips{margin-top:6px}
 .cx-facet-label{align-self:center;margin-right:2px;font-size:var(--fs-11);color:var(--faint);text-transform:uppercase;letter-spacing:.04em}
 

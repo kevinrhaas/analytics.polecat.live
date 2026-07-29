@@ -27489,6 +27489,48 @@ function serve() {
     }, wbDashId);
     if (dfSwitched) { await page.evaluate(function () { var t = document.getElementById('dashViewToggle'); if (t) t.click(); }); }
 
+    // ── LF66/LF59: the folder badge + move-to-folder ALSO live on the Dashboards TILE ──
+    // The list row already carried a folder badge + move button; the tile now shows a persistent
+    // folder chip (.recent-folder-chip) reading the folder name — or "Add to folder" when unfiled —
+    // wired to the same shared .recent-folder move handler (the LF56 picker). Reuse, not new infra.
+    console.log("\n• LF66/LF59: dashboard folder chip on the tile");
+    const dfTileFlipped = await page.evaluate(function () {
+      // ensure TILE view (the chip lives on the tile, not the list row); the toggle persists
+      if (document.querySelector('#repoResults .dash-list')) { var t = document.getElementById('dashViewToggle'); if (t) { t.click(); return true; } }
+      return false;
+    });
+    await page.waitForTimeout(60);
+    const dfTileUnfiled = await page.evaluate(function (dashId) {
+      var card = document.querySelector('#repoResults .recent-card [data-recent="' + dashId + '"]');
+      var chip = document.querySelector('#repoResults .recent-folder-chip[data-folder="' + dashId + '"]');
+      var nameEl = chip && chip.querySelector('.rf-name');
+      return {
+        hasCard: !!card, hasChip: !!chip, name: nameEl ? nameEl.textContent : null,
+        filed: !!(chip && chip.classList.contains('filed')),
+        moveHook: !!(chip && chip.classList.contains('recent-folder'))
+      };
+    }, wbDashId);
+    ok("LF66/LF59: an unfiled dashboard tile shows an 'Add to folder' chip wired to the shared move handler",
+      dfTileUnfiled.hasCard && dfTileUnfiled.hasChip && dfTileUnfiled.name === "Add to folder" && !dfTileUnfiled.filed && dfTileUnfiled.moveHook, JSON.stringify(dfTileUnfiled));
+    await page.evaluate(function (dashId) {
+      var r = Studio.Workspace.get("dashboards", dashId); r.folder = "Studio/2026"; Studio.Workspace.put("dashboards", r);
+      window.__studioRenderDashboards();
+    }, wbDashId);
+    await page.waitForTimeout(60);
+    const dfTileFiled = await page.evaluate(function (dashId) {
+      var chip = document.querySelector('#repoResults .recent-folder-chip[data-folder="' + dashId + '"]');
+      var nameEl = chip && chip.querySelector('.rf-name');
+      return { name: nameEl ? nameEl.textContent : null, filed: !!(chip && chip.classList.contains('filed')) };
+    }, wbDashId);
+    ok("LF66/LF59: filing the dashboard updates its tile chip to the folder name with a filed state",
+      dfTileFiled.name === "Studio/2026" && dfTileFiled.filed, JSON.stringify(dfTileFiled));
+    // cleanup: unfile + restore prior view state so later tests see the pre-existing state
+    await page.evaluate(function (dashId) {
+      var r = Studio.Workspace.get("dashboards", dashId); delete r.folder; Studio.Workspace.put("dashboards", r);
+      window.__studioRenderDashboards();
+    }, wbDashId);
+    if (dfTileFlipped) { await page.evaluate(function () { var t = document.getElementById('dashViewToggle'); if (t) t.click(); }); }
+
     // ── LF66: workbooks can ALSO be filed into a folder (Kevin's direction) ──
     // A workbook record gains an optional `folder`; each workbook chip gets a move-to-folder
     // button (LF56 picker) and shows an in-folder state. Folders and workbooks stay independent.
