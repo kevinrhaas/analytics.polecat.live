@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF65 — the legacy "Samples (115) · demo db" group is gone from the Data panel (v727, sw v364,
+  2026-07-29, steward):** sample content in Studio's Data panel now comes ONLY via Sample packs —
+  one source of truth (this also closes LF66 item (3), which superseded LF65). The `S.catalog`
+  sample entries themselves stay (sample dashboards' data accesses and the panel editor still
+  resolve through them); only the browsing UI was removed. AUTHORED catalog queries (the
+  data-source builder's saveDraft, stem "custom" by default) are the user's own work, so they
+  kept a home: a "My queries" group with the same collapsible chrome and historical class/storage
+  names (`.lib-samples`/`.lib-cda`/`studio-lib-samples-open` — saveDraft's reveal-in-library and
+  the E8 clear-data key list stay valid), now ALWAYS visible (no longer gated on `showSamples()`,
+  since authored work isn't sample content). The "Sample content is hidden / Show samples" notice
+  stays (it's the way back to the hidden Sample packs group). `#libCount` now reports the cards
+  actually rendered ("N items") instead of the retired 115-query tally; the "This dashboard's
+  datasets" empty-state copy drops its "or sample query" mention. Docs' Data-panel paragraph
+  rewritten. Tests: the boot block's "query library populated (>100 queries)" check became two
+  LF65 assertions (legacy group absent at boot + libCount matches rendered cards); the
+  add-panel-from-library and LF19 group-icon tests now ride the authored mySales query the
+  builder test creates (same page session, verified no reload between). Files: app/studio.js,
+  docs/index.html, tests/run.js, sw.js, js/changelog.js, STATUS.md.
 - **LF57 follow-up — the Views catalog gains an Export ("make standalone") action (v726, sw v363,
   2026-07-29, steward — LF57 is now fully done):** the last of the three items LF57 slice 1's own
   DONE note flagged as "genuinely still open" (Duplicate shipped v723; per-chart-type row icons
@@ -6860,10 +6878,10 @@
 >       where it makes sense (don't force it everywhere). Makes {{params}} genuinely useful for
 >       time-filtered pulls. (jobs-engine.js / params model, job editor params UI, dataset params.)
 >       Ties LF55, #47.
-> LF65. **Remove the legacy "Samples (115) · DEMO DB" group from the Studio Data panel.** Samples should
->       come ONLY via Sample packs (the "Sample packs" group above it) — if a sample matters it lives in a
->       pack. Drop the old bottom "Samples" catalog group so there's one source of truth for sample content.
->       (studio.js buildLibrary() Samples group.) Ties LF43, LF48/LF16 (sample-content consolidation).
+> LF65. ✓ **Remove the legacy "Samples (115) · DEMO DB" group from the Studio Data panel (shipped v727,
+>       sw v364, 2026-07-29, steward) — see DONE.** Samples come ONLY via Sample packs now. Authored
+>       (user-created) catalog queries kept a home — an always-visible "My queries" group with the same
+>       collapsible chrome. This also closes LF66's item (3), which superseded this entry.
 > **LF52 note (extend): ✓ done (shipped v677, sw v314, 2026-07-28, steward) — see DONE.** the "Export
 > this panel…" button label → "Export this View…"; and the Explore "Analyses" list/label (SAVED
 > ANALYSES, "Add to dashboard" cards) → "Views" — both were part of the widget/analysis→View rename,
@@ -6878,8 +6896,9 @@
 >           datasets/views/dashboards you can use. (Both can coexist for now if it helps the transition.)
 >       (2) **Library groups to offer:** "This dashboard's datasets", **Datasets**, **Views**, and
 >           **Dashboards** — the things you can pull from to build. Also reachable from **Open**.
->       (3) **DROP the legacy bottom "Samples (115) · DEMO DB" group** (this supersedes LF65) — samples
->           come only via installed packs' datasets.
+>       (3) ✓ **DROP the legacy bottom "Samples (115) · DEMO DB" group** (this supersedes LF65) — samples
+>           come only via installed packs' datasets. **Shipped v727, sw v364, 2026-07-29 (as LF65) — see
+>           DONE.** Authored queries moved to an always-visible "My queries" group.
 >       (4) **Rename "Workspace datasets" → just "Datasets".**
 >       (5) **Compact the oversized cards.** The big library card (huge subtitle like "Conservation
 >           Insight — demo files · CSV/JSON file" + a wall of column chips + a row of +Bar/+Donut/+Line/
