@@ -33,6 +33,7 @@
   <nav class="nav-links">
     <a href="#features">Features</a>
     <a href="#charts">Chart types</a>
+    <a href="#geo">Maps</a>
     <a href="#sources">Data sources</a>
     <a href="docs/">Docs</a>
     <a href="https://polecat.live" class="fleet-link">polecat.live</a>
@@ -101,6 +102,32 @@
     <div class="gallery-chips" id="galChips" role="tablist" aria-label="Chart categories"></div>
     <div class="gallery-grid" id="galGrid"></div>
     <button class="gallery-more" id="galMore" type="button" hidden>Show all chart types</button>
+  </section>
+
+  <section id="geo" class="geo-sec">
+    <h2>Maps that speak your geography</h2>
+    <p class="geo-sub">Choropleth maps aren't just fifty states on a US outline. Analytics ships seven
+    region scales — pick one in the inspector and the same dataset lights up a different map.</p>
+    <div class="geo-wrap">
+      <figure class="geo-shot">
+        <img src="site/shots/watershed.png" alt="A watershed choropleth map rendered in Analytics — conservation data shaded by HUC8 hydrologic unit" loading="lazy"/>
+        <figcaption>Real screenshot: conservation data by HUC8 watershed — hydrology, not administrative borders.</figcaption>
+      </figure>
+      <ul class="geo-scales">
+        <li><b>States</b> — the classic US choropleth, always a safe default.</li>
+        <li><b>Counties (FIPS)</b> — 3,000+ counties for real local granularity.</li>
+        <li><b>Watersheds (HUC8)</b> — hydrologic units for conservation, water-quality and
+        agriculture work, where drainage basins matter more than county lines.</li>
+        <li><b>USDA crop districts (CRD)</b> — the multi-county reporting districts agricultural
+        statistics are published in.</li>
+        <li><b>Congressional districts</b> — for policy, outreach and civic data.</li>
+        <li><b>ZIP codes (ZCTA)</b> — market and service-area analysis at postal granularity.</li>
+        <li class="geo-custom"><b>Custom regions — your own map.</b> Import a two-column CSV
+        (county → region name) and the map aggregates counties into whatever your organization
+        calls its slices of the country: sales territories, service areas, ecoregions, franchise
+        zones. No GIS tooling required.</li>
+      </ul>
+    </div>
   </section>
 
   <section id="sources" class="strip">

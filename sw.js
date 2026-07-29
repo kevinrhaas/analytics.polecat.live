@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v364"; /* v364: LF65 — the legacy "Samples (115) · demo db"
+var CACHE_NAME = "studio-shell-v365"; /* v365: #28 (Kevin) — the marketing page gains a
+   "Maps that speak your geography" section (#geo, between the chart gallery and Data
+   sources; nav link "Maps"): the real watershed screenshot + all seven region scales,
+   custom regions featured. index.html + css/landing.css are precached, hence the bump.
+   index.html, css/landing.css, tests/run.js, STATUS.md, js/changelog.js.
+   v364: LF65 — the legacy "Samples (115) · demo db"
    group is gone from Studio's Data panel; sample content comes only via Sample packs
    (one source of truth). Authored queries move to an always-visible "My queries" group
    (same collapsible chrome + historical class/storage names); #libCount now reports the

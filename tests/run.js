@@ -32321,6 +32321,44 @@ function serve() {
     await mkt.click(".gal-chip:first-child"); // back to All for anything appended after this block
     await mkt.waitForTimeout(150);
 
+    // ---- #28 (Kevin): custom-geographies showcase section ----
+    console.log("\n• #28: marketing custom-geographies section");
+    const mktGeo = await mkt.evaluate(async function () {
+      var sec = document.getElementById("geo");
+      var img = sec && sec.querySelector(".geo-shot img");
+      var custom = sec && sec.querySelector(".geo-scales li.geo-custom");
+      var navLink = document.querySelector('.nav-links a[href="#geo"]');
+      var imgOk = false;
+      if (img) { var r = await fetch(img.getAttribute("src")); imgOk = r.ok; }
+      var secText = sec ? sec.textContent : "";
+      return {
+        sec: !!sec, imgOk: imgOk,
+        items: sec ? sec.querySelectorAll(".geo-scales li").length : 0,
+        navLink: !!navLink,
+        custom: !!custom && /sales territories/.test(custom.textContent),
+        mentions: /HUC8/.test(secText) && /ZIP codes/.test(secText) && /Congressional/.test(secText),
+        beforeSources: !!sec && !!sec.nextElementSibling && sec.nextElementSibling.id === "sources"
+      };
+    });
+    ok("#28: the marketing page gains a #geo custom-geographies section (nav link, before Data sources)",
+      mktGeo.sec && mktGeo.navLink && mktGeo.beforeSources, JSON.stringify(mktGeo));
+    ok("#28: the section features the real watershed screenshot (image resolves) + all seven region scales incl. custom regions",
+      mktGeo.imgOk && mktGeo.items === 7 && mktGeo.custom && mktGeo.mentions, JSON.stringify(mktGeo));
+    // Mobile: the two-column geo layout stacks, no horizontal overflow.
+    await mkt.setViewportSize({ width: 390, height: 780 });
+    await mkt.waitForTimeout(150);
+    const mktGeoMobile = await mkt.evaluate(function () {
+      var wrap = document.querySelector(".geo-wrap");
+      return {
+        cols: wrap ? getComputedStyle(wrap).gridTemplateColumns.split(" ").length : 0,
+        noOverflow: document.documentElement.scrollWidth <= window.innerWidth + 1
+      };
+    });
+    ok("#28: at 390px the geo section stacks to one column with no horizontal overflow",
+      mktGeoMobile.cols === 1 && mktGeoMobile.noOverflow, JSON.stringify(mktGeoMobile));
+    await mkt.setViewportSize({ width: 1280, height: 900 });
+    await mkt.waitForTimeout(150);
+
     // Old pre-move deep links carried app hashes on the ROOT — they must forward into /app/.
     // (about:blank first: navigating "/" → "/#share=…" would be a SAME-DOCUMENT hash change
     // that never re-runs the head script; real legacy links arrive as fresh navigations.)
