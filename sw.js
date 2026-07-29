@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v363"; /* v363: LF57 follow-up — the Views catalog gains an
+var CACHE_NAME = "studio-shell-v364"; /* v364: LF65 — the legacy "Samples (115) · demo db"
+   group is gone from Studio's Data panel; sample content comes only via Sample packs
+   (one source of truth). Authored queries move to an always-visible "My queries" group
+   (same collapsible chrome + historical class/storage names); #libCount now reports the
+   cards actually rendered ("N items"). app/studio.js, docs/index.html, tests/run.js,
+   STATUS.md, js/changelog.js.
+   v363: LF57 follow-up — the Views catalog gains an
    Export action (app/views.js), downloading a tiny self-contained single-View .html straight
    from a saved View — no open dashboard needed — via a new studio.js exportAnalysisEmbed(a),
    exportPanelEmbed's twin fed from Studio.Explore.analysisSpec(a) instead of an in-canvas

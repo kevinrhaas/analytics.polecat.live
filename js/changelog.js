@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 727,
+    title: 'One source of truth for sample content in the Data panel',
+    kind: 'polish',
+    ts: '2026-07-29T23:31:36.000Z',
+    items: [
+      'The legacy "Samples · demo db" group (115 built-in demo queries) is gone from Studio\'s Data panel — sample content now comes only via Sample packs, so the panel leads with your own datasets and Views.',
+      'Queries you author yourself in the data-source builder still have a home: they now appear in a "My queries" group, always visible (no longer hidden by the "hide sample content" setting, since they\'re your work, not samples).',
+      'The Data panel\'s header count now reports the cards actually shown ("N items") instead of the retired sample-query tally.',
+    ],
+  },
+  {
     v: 726,
     title: 'Export any saved View straight from the Views section',
     kind: 'polish',

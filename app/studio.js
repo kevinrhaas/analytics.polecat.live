@@ -569,10 +569,11 @@
   /* ---------- query library ---------- */
   // Sample-content visibility (user ask: "I might want to start with an empty
   // repository"): one pref hides the built-in demo content everywhere it
-  // surfaces — the Samples library group, New ▾ auto-build sets, the Examples
-  // menu and Home's example gallery. Nothing is deleted; flip it back and the
-  // full demo suite (which shows the app's feature breadth against the internal
-  // sample database) reinstates itself.
+  // surfaces — the Sample packs library group, New ▾ auto-build sets, and
+  // Home's example gallery. Nothing is deleted; flip it back and the full demo
+  // suite (which shows the app's feature breadth against the internal sample
+  // database) reinstates itself. (LF65: the legacy "Samples" library group is
+  // gone — packs are the one source of sample content in the Data panel.)
   function showSamples() {
     var v; try { v = localStorage.getItem("studio-show-samples"); } catch (e) {}
     return v !== "0";
@@ -650,52 +651,56 @@
   function buildLibrary() {
     var list = $("#libList"), q = ($("#libSearch").value || "").toLowerCase();
     list.innerHTML = "";
+    // LF65: the legacy "Samples (115) · demo db" catalog group is GONE from the Data
+    // panel — sample content comes ONLY via Sample packs now (one source of truth).
+    // The S.catalog sample entries themselves stay (sample dashboards' data accesses
+    // and the panel editor still resolve through them); only the browsing UI was
+    // removed. AUTHORED catalog queries (the data-source builder's saveDraft, stem
+    // "custom" by default) are the user's own work, so they still render here under
+    // a "My queries" group — same collapsible chrome and historical class names
+    // (.lib-samples / .lib-cda / studio-lib-samples-open) as the old group, and no
+    // longer gated on showSamples() since they aren't sample content.
     var shownDA = 0;
-    if (showSamples()) {
-      // The whole demo catalog nests under ONE collapsible "Samples" group so
-      // the pane leads with YOUR datasets instead of ~20 sample folders. A
-      // search auto-opens it; the open state persists.
-      var stems = Object.keys(S.catalog);
-      var stemWraps = [];
-      stems.forEach(function (stem) {
-        var entry = S.catalog[stem];
-        var das = (entry.dataAccesses || []).filter(function (d) {
-          if (!q) return true;
-          return (stem + " " + d.id + " " + (d.columns || []).join(" ") + " " + (d.sql || "")).toLowerCase().indexOf(q) >= 0;
-        });
-        if (!das.length) return;
-        shownDA += das.length;
-        var wrap = el("div", "lib-cda" + (q ? " open" : "")); wrap.setAttribute("data-stem", stem);
-        var h = el("div", "h");
-        h.innerHTML = '<span class="car">▶</span><span class="nm">' + esc(stem) + '</span><span class="badge">' + das.length + "</span>";
-        h.onclick = function () { wrap.classList.toggle("open"); };
-        wrap.appendChild(h);
-        var box = el("div", "lib-das");
-        das.forEach(function (d) { box.appendChild(daCard(stem, d, q)); });
-        wrap.appendChild(box);
-        stemWraps.push(wrap);
+    var stems = Object.keys(S.catalog);
+    var stemWraps = [];
+    stems.forEach(function (stem) {
+      var entry = S.catalog[stem];
+      var das = (entry.dataAccesses || []).filter(function (d) {
+        if (!d.authored) return false;
+        if (!q) return true;
+        return (stem + " " + d.id + " " + (d.columns || []).join(" ") + " " + (d.sql || "")).toLowerCase().indexOf(q) >= 0;
       });
-      if (stemWraps.length) {
-        var sWrap = el("div", "lib-samples" + ((q || _samplesOpen) ? " open" : ""));
-        var sh = el("div", "h lib-samples-h");
-        sh.innerHTML = '<span class="car">▶</span><span class="nm">Samples</span><span class="badge">' + shownDA + '</span>' +
-          '<span class="lib-samples-hint" title="Demo queries against the built-in sample database — every dashboard stays demoable offline. Hide them in Settings if you want a clean workspace.">demo db</span>';
-        libGroupHeaderIcon(sh, "code");
-        sh.onclick = function () {
-          sWrap.classList.toggle("open");
-          _samplesOpen = sWrap.classList.contains("open");
-          try { localStorage.setItem("studio-lib-samples-open", _samplesOpen ? "1" : "0"); } catch (e) {}
-        };
-        sWrap.appendChild(sh);
-        var sBox = el("div", "lib-samples-box");
-        stemWraps.forEach(function (w) { sBox.appendChild(w); });
-        sWrap.appendChild(sBox);
-        list.appendChild(sWrap);
-      }
-      if (q && !shownDA) {
-        var empty = el("div", "lib-empty"); empty.textContent = 'No sample queries match "' + esc(q) + '".'; list.appendChild(empty);
-      }
-    } else {
+      if (!das.length) return;
+      shownDA += das.length;
+      var wrap = el("div", "lib-cda" + (q ? " open" : "")); wrap.setAttribute("data-stem", stem);
+      var h = el("div", "h");
+      h.innerHTML = '<span class="car">▶</span><span class="nm">' + esc(stem) + '</span><span class="badge">' + das.length + "</span>";
+      h.onclick = function () { wrap.classList.toggle("open"); };
+      wrap.appendChild(h);
+      var box = el("div", "lib-das");
+      das.forEach(function (d) { box.appendChild(daCard(stem, d, q)); });
+      wrap.appendChild(box);
+      stemWraps.push(wrap);
+    });
+    if (stemWraps.length) {
+      var sWrap = el("div", "lib-samples" + ((q || _samplesOpen) ? " open" : ""));
+      var sh = el("div", "h lib-samples-h");
+      sh.innerHTML = '<span class="car">▶</span><span class="nm">My queries</span><span class="badge">' + shownDA + '</span>';
+      libGroupHeaderIcon(sh, "code");
+      sh.onclick = function () {
+        sWrap.classList.toggle("open");
+        _samplesOpen = sWrap.classList.contains("open");
+        try { localStorage.setItem("studio-lib-samples-open", _samplesOpen ? "1" : "0"); } catch (e) {}
+      };
+      sWrap.appendChild(sh);
+      var sBox = el("div", "lib-samples-box");
+      stemWraps.forEach(function (w) { sBox.appendChild(w); });
+      sWrap.appendChild(sBox);
+      list.appendChild(sWrap);
+    }
+    if (!showSamples()) {
+      // Sample packs are hidden along with the rest of the sample content (see
+      // buildDemoPacksLib's early return) — leave a way back.
       var off = el("div", "lib-samples-off");
       off.innerHTML = 'Sample content is hidden. <button type="button" class="lib-samples-show" id="libSamplesShow">Show samples</button>';
       list.appendChild(off);
@@ -704,12 +709,12 @@
     }
     // "Analyses" (saved Explore results), then "Workspace datasets" (the shared
     // connections → datasets catalog), then "This dashboard's datasets" — all
-    // pinned over the samples (each insertBefore stacks above the previous).
+    // pinned over the authored queries (each insertBefore stacks above the previous).
     buildDemoPacksLib(list);
     buildAnalysesLib(list, q);
     buildWorkspaceDatasets(list, q);
     buildMyDataSources(list);
-    $("#libCount").textContent = shownDA + " queries";
+    $("#libCount").textContent = list.querySelectorAll(".da").length + " items";
   }
 
   // ---------- Demo packs (Viridis V7) — a SECOND sample library, separate
@@ -1004,7 +1009,7 @@
     var box = el("div", "lib-das");
     if (!das.length) {
       var em = el("div"); em.style.cssText = "font-size:11.5px;color:var(--faint);padding:6px 4px;line-height:1.5";
-      em.textContent = "Nothing bound yet. Drag a dataset or sample query onto the canvas, or click + New above.";
+      em.textContent = "Nothing bound yet. Drag a dataset onto the canvas, or click + New above.";
       box.appendChild(em);
     }
     das.forEach(function (da) { box.appendChild(myDACard(da)); });

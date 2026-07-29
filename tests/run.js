@@ -551,8 +551,21 @@ function serve() {
     await page.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
     await page.waitForTimeout(400);
 
-    const libCount = await page.$eval("#libCount", (e) => e.textContent);
-    ok("query library populated", /\d+ queries/.test(libCount) && parseInt(libCount) > 100, libCount);
+    // LF65: the legacy "Samples (115) · demo db" catalog group is gone from the Data
+    // panel — sample content comes only via Sample packs. At boot (no authored queries
+    // yet) no .lib-samples / .lib-cda group renders at all, and #libCount now counts
+    // the cards actually shown ("N items"), not the retired sample-query catalog.
+    const lf65Boot = await page.evaluate(() => ({
+      samplesGroup: !!document.querySelector(".lib-samples"),
+      cdaGroups: document.querySelectorAll(".lib-cda").length,
+      packsGroup: !!document.querySelector(".lib-demopacks"),
+      libCount: document.getElementById("libCount").textContent,
+      cards: document.querySelectorAll("#libList .da").length,
+    }));
+    ok("LF65: the legacy Samples/demo-db library group is gone at boot (packs are the one source of sample content)",
+      !lf65Boot.samplesGroup && lf65Boot.cdaGroups === 0 && lf65Boot.packsGroup, JSON.stringify(lf65Boot));
+    ok("LF65: #libCount reports the cards actually rendered, not the retired sample-query count",
+      /^\d+ items$/.test(lf65Boot.libCount) && parseInt(lf65Boot.libCount) === lf65Boot.cards, JSON.stringify(lf65Boot));
     // LF43 slice 2: the Studio Examples ▾ menu is GONE — an installed pack's curated
     // dashboards are real rows in the Dashboards section, and Home's gallery tiles remain.
     ok("LF43 slice 2: the Examples ▾ menu is gone from the dashbar", !(await page.$("#btnExamples")) && !(await page.$("#menuExamples")));
@@ -10251,7 +10264,9 @@ function serve() {
     console.log("\n• add panel from library");
     const before = await page.evaluate(() => window.__STUDIO_STATE.spec.panels.length);
     await page.evaluate(() => {
-      // open first cda group, click its first "+ Bar chart" chip
+      // open the first authored-query group (LF65: the only .lib-cda groups left are the
+      // user's own "My queries" — here the mySales query the builder test created above)
+      // and click its first "+ Bar chart" chip
       const grp = document.querySelector(".lib-cda"); grp.classList.add("open");
       grp.querySelector('.chip[data-t="bars"]').click();
     });
@@ -13997,7 +14012,7 @@ function serve() {
       return result;
     });
     ok("LF19 group icons: every top-level Data-panel group (This dashboard's datasets, Workspace datasets, " +
-      "Analyses, Sample packs, Samples) shows its own header glyph", grpIcons.allPresent, JSON.stringify(grpIcons));
+      "Analyses, Sample packs, My queries) shows its own header glyph", grpIcons.allPresent, JSON.stringify(grpIcons));
     ok("LF19 group icons: each glyph sits right before the group's name span", grpIcons.allBeforeName, JSON.stringify(grpIcons));
     ok("LF19 group icons: the 5 groups use 5 visually distinct glyphs, not one repeated icon", grpIcons.distinctPaths, JSON.stringify(grpIcons));
 
@@ -15995,6 +16010,12 @@ function serve() {
     await libTabM3.click();
     await phonePage.waitForTimeout(350);
     const touchTargets = await phonePage.evaluate(() => {
+      // LF65: catalog daCards only render for AUTHORED queries now (the legacy Samples
+      // group is gone) — seed one so the .da-act / .da-acts touch-target rules below
+      // still measure a real card, exactly the chrome a user's own query gets.
+      var cat = window.__STUDIO_STATE.catalog;
+      cat.m3seed = { file: "m3seed.cda", dataAccesses: [{ id: "m3_touch_probe", authored: true, kind: "sql", sql: "select 1 a", columns: ["a"], params: [] }] };
+      window.__studioLoad(window.__STUDIO_STATE.spec);
       // .resizer should have touch-action:none
       var rez = document.querySelector(".resizer");
       var rezTA = rez ? window.getComputedStyle(rez).touchAction : "n/a";
@@ -16025,6 +16046,8 @@ function serve() {
     ok("M3: .da-acts is always visible on phone (opacity:1)", touchTargets.daActsOpacity >= 1, JSON.stringify(touchTargets));
     ok("UX7: topbar .btn (+ New) renders ≥44px tall on phone", touchTargets.btnNewH >= 44, JSON.stringify(touchTargets));
     ok("UX7: topbar .btn.icon (More) renders ≥44x44px on phone", touchTargets.btnMoreH >= 44 && touchTargets.btnMoreW >= 44, JSON.stringify(touchTargets));
+    // LF65: drop the seeded authored-query probe again so later phone checks see a clean library
+    await phonePage.evaluate(() => { delete window.__STUDIO_STATE.catalog.m3seed; window.__studioLoad(window.__STUDIO_STATE.spec); });
     // Close Library drawer before continuing
     await phonePage.evaluate(() => { var s = document.getElementById("mobile-scrim"); if (s) s.click(); });
     await phonePage.waitForTimeout(200);
