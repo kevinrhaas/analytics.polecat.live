@@ -116,6 +116,20 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF50 (b) — the Settings "Quick import creativity" row is hidden for now (v724, sw v361,
+  2026-07-29, steward):** Kevin: "it's confusing things for now until we improve that." The
+  in-builder `#qmTuner` Low/High dial was already removed in the original LF50 slice (the
+  `#qmTuner` strip only carries the LF67 "Unsaved — Save to keep" badge now), so this slice
+  removes the remaining chrome: the Settings → Dashboard defaults "Quick import creativity"
+  select row (app/studio.js). ALL machinery kept — `Studio.Defaults.quickModeCreativity()`
+  still returns the stored default (High), `buildAutoSpec` low/high tiers untouched, the
+  `window.__studioDefaultQmCreativity` test hook stays — only the visible row is gone. Tests:
+  the QM3 Settings block now asserts the row is ABSENT while the stored default stays High
+  (the downstream High-tier drop test still proves the full fun-tier auto-build). Docs: the
+  stale Quick-import paragraph rewritten (no more Settings-row or "Low/High tuner under the
+  title" copy — both gone from the product) and "Quick-import creativity" dropped from the
+  Copy-my-Dashboard-defaults field list. LF50 (c) — the per-import simple/medium/complex
+  chooser at drop time — stays FUTURE.
 - **LF57 follow-up — the Views catalog gains a per-row Duplicate action (v723, sw v360,
   2026-07-29, steward):** one of the three items LF57 slice 1's own DONE note flagged as
   "genuinely still open" (Duplicate, Export/"make standalone", per-chart-type row icons).
@@ -7068,10 +7082,10 @@
 > LF50. **Quick-import complexity: default High (SHIPPED), HIDE the Low/High dial for now, then a real
 >       per-import chooser (Kevin, 2026-07-27).** (a) DONE — quick-import now defaults to High creativity
 >       (app/defaults.js), so a dropped file auto-builds the full map/treemap/slope/ensemble dashboard out
->       of the box. (b) HIDE the in-builder `#qmTuner` Low/High toggle AND the Settings "Quick import
->       creativity" row for now — Kevin: "it's confusing things for now until we improve that." (Keep the
->       machinery + buildAutoSpec low/high; just hide the chrome — index.html #qmTuner, studio.js
->       syncHeader show-logic + the Settings row ~7317, and re-baseline the tuner tests run.js ~1671-1748.)
+>       of the box. (b) DONE 2026-07-29 (v724, sw v361) — the in-builder `#qmTuner` Low/High dial was
+>       already gone (LF50 original slice; #qmTuner only carries the LF67 unsaved badge now) and the
+>       Settings "Quick import creativity" row is now hidden too — Kevin: "it's confusing things for now
+>       until we improve that." (Machinery + buildAutoSpec low/high all kept; only the chrome is gone.)
 >       (c) FUTURE — pick complexity ON THE WAY IN, per import: a **simple / medium / complex** choice at
 >       drop time (e.g. distinct drop areas that each default to a level). **CRUCIAL: complex must be
 >       QUALITATIVELY DIFFERENT, not just "more widgets"** — a different build strategy/composition/layout

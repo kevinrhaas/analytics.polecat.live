@@ -8231,12 +8231,11 @@
           '<select id="setDefaultCardSkinSel" class="set-sel">' +
             Studio.CARD_SKINS.map(function (p) { return '<option value="' + esc(p[0]) + '"' + (defaultCardSkin() === p[0] ? " selected" : "") + '>' + esc(p[1]) + '</option>'; }).join("") +
           '</select></div>' +
-        '<div class="set-row"><span class="set-row-ic" data-ic="palette"></span>' +
-          '<div class="set-row-txt"><b>Quick import creativity</b><small>How adventurous Quick import\'s auto-built dashboard is (Home\'s drop-a-file card). Low sticks to bars/donut/line/table; High also mixes in maps, treemaps, slope charts, and ensemble views when the dropped data supports them. This default applies to every Quick import; change a built dashboard by editing it in the builder.</small></div>' +
-          '<select id="setDefaultQmCreativitySel" class="set-sel">' +
-            '<option value="low"' + (defaultQmCreativity() !== "high" ? " selected" : "") + '>Low — conservative basics</option>' +
-            '<option value="high"' + (defaultQmCreativity() === "high" ? " selected" : "") + '>High — diverse &amp; ambitious</option>' +
-          '</select></div>' +
+        /* LF50 (b): the "Quick import creativity" row is HIDDEN for now (Kevin: "it's
+           confusing things for now until we improve that") — the stored default stays High
+           via Studio.Defaults.quickModeCreativity() and the whole low/high build machinery
+           is untouched; only the chrome is gone. LF50 (c) will bring a per-import
+           simple/medium/complex chooser at drop time instead. */
         '<div class="set-row set-row-col"><span class="set-row-ic" data-ic="star"></span>' +
           '<div class="set-row-txt"><b>Style presets</b><small>Save the fields above as a named preset, then switch your team\'s active default with one click — handy for more than one house style (e.g. per client).</small></div>' +
           '<div class="sp-list" id="spList">' +
@@ -8326,8 +8325,6 @@
     if (defTitleSizeSel) defTitleSizeSel.onchange = function () { setDefaultTitleSize(defTitleSizeSel.value); toast("Default title size saved"); };
     var defSubtitleStyleSel = $("#setDefaultSubtitleStyleSel", sec);
     if (defSubtitleStyleSel) defSubtitleStyleSel.onchange = function () { setDefaultSubtitleStyle(defSubtitleStyleSel.value); toast("Default subtitle style saved"); };
-    var defQmCreativitySel = $("#setDefaultQmCreativitySel", sec);
-    if (defQmCreativitySel) defQmCreativitySel.onchange = function () { setDefaultQmCreativity(defQmCreativitySel.value); toast("Quick import creativity saved"); };
     var defDashboardThemeSel = $("#setDefaultDashboardThemeSel", sec);
     if (defDashboardThemeSel) defDashboardThemeSel.onchange = function () { setDefaultDashboardTheme(defDashboardThemeSel.value); toast("Default dashboard theme saved"); };
     var defCardSkinSel = $("#setDefaultCardSkinSel", sec);
