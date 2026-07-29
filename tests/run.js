@@ -5279,6 +5279,43 @@ function serve() {
     });
     await page.waitForTimeout(200);
 
+    // LF55 (1): column-naming step fields are DROPDOWNS of the known incoming columns, not free text
+    // — extends LF13a (group-by/metric/join keys) to filter/rename/cast, killing the typo/case trap.
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-coldrop-test", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "jobs-coldrop-ds", connectionId: conn.id, kind: "file", format: "csv",
+        content: "region,acres\nStory,100\n", columns: ["region", "acres"] });
+      var job = Studio.Workspace.put("jobs", { name: "coldrop-job", sourceDatasetId: ds.id,
+        steps: [{ op: "filter", col: "region", cmp: "eq", value: "Story" }, { op: "rename", from: "acres", to: "acres2" }] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(200);
+    const jobColDrop = await page.evaluate(function () {
+      var cards = Array.prototype.slice.call(document.querySelectorAll(".jobs-step-card"));
+      function colDropdown(card) {
+        return Array.prototype.slice.call(card.querySelectorAll(".jobs-step-fields select")).filter(function (s) {
+          return s.innerHTML.indexOf(">region<") >= 0 && s.innerHTML.indexOf(">acres<") >= 0;
+        })[0];
+      }
+      var filterDrop = colDropdown(cards[0]), renameDrop = colDropdown(cards[1]);
+      return {
+        filterIsSelect: !!filterDrop, filterSelected: filterDrop && filterDrop.value === "region",
+        renameIsSelect: !!renameDrop, renameSelected: renameDrop && renameDrop.value === "acres"
+      };
+    });
+    ok("LF55 (1): filter + rename column fields are dropdowns of the incoming columns (current value selected)",
+      jobColDrop.filterIsSelect && jobColDrop.filterSelected && jobColDrop.renameIsSelect && jobColDrop.renameSelected, JSON.stringify(jobColDrop));
+    await page.evaluate(function () {
+      document.querySelector(".modal-ov .x").click();
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "coldrop-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-coldrop-ds"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-coldrop-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
     // LF62 slice 2 (live-QA queue, LF62 slice 1's own NEXT pointer): the sparkle
     // name-suggest button, wired into the Jobs editor's "Job name" field —
     // suggests the (titleized) source dataset's name once one is picked.

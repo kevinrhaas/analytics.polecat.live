@@ -623,10 +623,13 @@
           wrap.appendChild(i); return i;
         }
         if (step.op === "rename") {
-          mini("from column", step.from, function (v) { step.from = v; });
+          // LF55 (1): the "from" column names a known INCOMING column — pick it from a dropdown, not
+          // free text (kills the typo/case-sensitivity trap). "to" stays free text (it's a NEW name).
+          wrap.appendChild(colSelect(colsBeforeStep(stepIdx), step.from, function (v) { step.from = v; renderSteps(); }));
           mini("to column", step.to, function (v) { step.to = v; });
         } else if (step.op === "cast") {
-          mini("column", step.col, function (v) { step.col = v; });
+          // LF55 (1): cast targets a known incoming column — dropdown, not free text.
+          wrap.appendChild(colSelect(colsBeforeStep(stepIdx), step.col, function (v) { step.col = v; renderSteps(); }));
           var sel = el("select"); sel.innerHTML = '<option value="number">number</option><option value="string">string</option>';
           sel.value = step.to || "number"; sel.onchange = function () { step.to = sel.value; }; wrap.appendChild(sel);
         } else if (step.op === "derive") {
@@ -636,7 +639,9 @@
           step.operator = step.operator || "*"; opSel.value = step.operator; opSel.onchange = function () { step.operator = opSel.value; }; wrap.appendChild(opSel);
           step.b = step.b || {}; wrap.appendChild(operandRow(step.b));
         } else if (step.op === "filter") {
-          mini("column", step.col, function (v) { step.col = v; });
+          // LF55 (1): filter targets a known incoming column — dropdown, not free text. (The value
+          // field stays free text here; a distinct-value picker is a separate LF55 slice.)
+          wrap.appendChild(colSelect(colsBeforeStep(stepIdx), step.col, function (v) { step.col = v; renderSteps(); }));
           var cmpSel = el("select");
           cmpSel.innerHTML = ["eq", "ne", "gt", "gte", "lt", "lte", "contains"].map(function (c) { return '<option value="' + c + '"' + (step.cmp === c ? " selected" : "") + '>' + c + '</option>'; }).join("");
           step.cmp = step.cmp || "eq"; cmpSel.value = step.cmp; cmpSel.onchange = function () { step.cmp = cmpSel.value; }; wrap.appendChild(cmpSel);

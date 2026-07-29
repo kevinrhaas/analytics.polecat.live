@@ -6,6 +6,14 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 703,
+    title: 'Job editor: pick columns from a dropdown, not free text',
+    ts: '2026-07-29T12:59:21.000Z',
+    items: [
+      'In the job editor, the column fields on Filter, Rename and Cast steps are now dropdowns of the step\'s known incoming columns — matching the group-by, rollup-metric and join-key fields already were. No more typos or case-sensitivity surprises from typing a column name by hand; an existing value stays selectable even if the column list has since changed.',
+    ],
+  },
+  {
     v: 702,
     title: 'Job editor: no more leftover preview table',
     kind: 'fix',

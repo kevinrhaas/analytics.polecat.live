@@ -464,10 +464,12 @@
     rows are honestly approximate; click <strong>Preview</strong> for the authoritative result.
     Editing any step afterwards clears that real Preview result (it's now out of date), so you
     only ever see one preview at a time — hit Preview again for a fresh authoritative run.</li>
-    <li><strong>Column fields are dropdowns</strong> — group-by, rollup-metric, and join/union key
-    columns are picked from each dataset's real, known columns rather than typed by hand. A
-    dataset that hasn't been queried yet is probed live in the background the moment you open the
-    job editor, and the dropdowns fill in as soon as its columns are known.</li>
+    <li><strong>Column fields are dropdowns</strong> — group-by, rollup-metric, join/union key,
+    and the Filter / Rename / Cast column fields are all picked from each step's real, known
+    incoming columns rather than typed by hand, so a mistyped or wrong-case column name can't slip
+    through. A dataset that hasn't been queried yet is probed live in the background the moment you
+    open the job editor, and the dropdowns fill in as soon as its columns are known; a column you'd
+    already set stays selectable even if the list has since changed.</li>
     <li><strong>A small diagram</strong> under each rollup, join, or stack (union) step shows the
     operation visually — columns going in, the operation in the middle (group-by columns for a
     rollup, the join key/type for a join, the other dataset for a stack), and the columns that come
