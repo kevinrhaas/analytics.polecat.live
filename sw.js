@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v345"; /* v345: LF60 slice 2 — docs search. docs/index.html gains
+var CACHE_NAME = "studio-shell-v346"; /* v346: LF60 slice 2 (split) — Help splits User guides from
+   Admin setup: the admin backend/provisioning topics (real Supabase Auth sign-in, in-app account
+   provisioning, per-user provisioning defaults, managing backends, going live with per-user RLS)
+   move out of Data sources into their own #admin-docs "Admin & backend setup" section; the docs
+   nav gains User/Admin group labels + an Admin link. docs/index.html only (precached content).
+   v345: LF60 slice 2 — docs search. docs/index.html gains
    a search box in the nav bar (embedded + standalone): indexes every section heading and chart-
    type card, matches title-first then body text, jumps + flashes the hit on click/Enter, "/" to
    focus. docs/index.html only (precached content, no app/*.js change).
