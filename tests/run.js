@@ -3016,6 +3016,44 @@ function serve() {
       mapControlsPosResult.bottomRightCompact.topRight.nav === 0,
       JSON.stringify(mapControlsPosResult.bottomRightCompact));
 
+    // LF69(c): GL/MapLibre choropleth panels have no <svg>, so PNG export used to bail entirely
+    // (no menu item, __downloadPanelPngDataUrl always null). studio-charts.js now sets
+    // preserveDrawingBuffer:true on the map and downloadPanelPng/addDownloadChrome fall back to
+    // rasterizing the map's own <canvas> when no <svg> is present.
+    const glPngExport = await page.evaluate(async function (spec) {
+      var mock = { g: { cols: ["fips", "v"], rows: [["17031", 4], ["17113", 7], ["19153", 9], ["18097", 6]] } };
+      var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true, mock: mock });
+      return await new Promise(function (resolve) {
+        var ifr = document.createElement("iframe");
+        ifr.style.cssText = "position:fixed;left:-7000px;top:0;width:900px;height:600px";
+        document.body.appendChild(ifr);
+        ifr.srcdoc = html;
+        var t0 = Date.now();
+        (function poll() {
+          var doc = null, win = null;
+          try { doc = ifr.contentDocument; win = ifr.contentWindow; } catch (e) {}
+          var canvas = doc ? doc.querySelector("[data-geo-gl] canvas.maplibregl-canvas") : null;
+          if (canvas && win && typeof win.__downloadPanelPngDataUrl === "function") {
+            var card = doc.querySelector('[data-panel-id="m1"]');
+            // scoped to .body, same as downloadPanelPng's own svg lookup — the panel's action
+            // row (zoom/duplicate/delete, the Export ▾ trigger + its menu icons) lives outside
+            // .body and legitimately carries its own <svg> icons that don't count here.
+            var noSvg = !card.querySelector(".body svg");
+            var pngItem = card.querySelector('.pdc-dl-item[title="Download chart as PNG image"]');
+            win.__downloadPanelPngDataUrl("m1", function (dataUrl) {
+              ifr.remove();
+              resolve({ noSvg: noSvg, hasPngItem: !!pngItem, dataUrl: dataUrl });
+            });
+          } else if (Date.now() - t0 > 20000) { ifr.remove(); resolve({ timeout: true }); }
+          else setTimeout(poll, 200);
+        })();
+      });
+    }, glSpecSrc("gl"));
+    ok("LF69(c): a GL choropleth panel (no <svg>) now shows the 'Download PNG image' export item and rasterizes a real image straight off its <canvas>",
+      glPngExport.noSvg && glPngExport.hasPngItem &&
+      !!glPngExport.dataUrl && glPngExport.dataUrl.indexOf("data:image/png;base64,") === 0 && glPngExport.dataUrl.length > 1000,
+      JSON.stringify({ noSvg: glPngExport.noSvg, hasPngItem: glPngExport.hasPngItem, prefix: (glPngExport.dataUrl || "").slice(0, 30), len: (glPngExport.dataUrl || "").length }));
+
     // ---- EXPLORE (Viridis V5): dataset-first designer → saved analyses ------
     console.log("\n• EXPLORE: dataset-first analysis designer (Viridis V5)");
     const xpSchema = await page.evaluate(function () {
@@ -10292,6 +10330,38 @@ function serve() {
     });
     ok("N-DIST: exporting a Table panel (no <svg>) resolves null instead of throwing/hanging",
       pngTable.dataUrl === null, JSON.stringify(pngTable));
+
+    // LF69(c): a GL/MapLibre choropleth panel also has no <svg> — it used to fail the same way
+    // the Table panel does above. It now falls back to rasterizing the map's own <canvas>
+    // (studio-charts.js sets preserveDrawingBuffer:true so the buffer is still readable).
+    const pngChoroplethGL = await page.evaluate(function () {
+      return new Promise(function (resolve) {
+        var sp = window.__STUDIO_STATE.spec;
+        var p = sp.panels[0];
+        var cols = sp.cda.dataAccesses[0].columns;
+        p.chart.type = "choropleth";
+        p.chart.map = { idCol: cols[0], valueCol: cols[1] };
+        p.chart.opts = Object.assign({}, p.chart.opts, { scale: "county", renderer: "gl" });
+        window.__studioLoad(sp);
+        var t0 = Date.now();
+        (function poll() {
+          var doc = null; try { doc = document.querySelector("#preview").contentDocument; } catch (e) {}
+          var canvas = doc && doc.querySelector('[data-panel-id="' + p.id + '"] [data-geo-gl] canvas.maplibregl-canvas');
+          if (canvas) {
+            var card = doc.querySelector('[data-panel-id="' + p.id + '"]');
+            // scoped to .body, same as exportPanelPng's own svg lookup (".body svg") — the
+            // panel's action row lives outside .body and legitimately carries its own icons.
+            var noSvg = !card.querySelector(".body svg");
+            window.__exportPanelPngDataUrl(p.id, function (dataUrl) { resolve({ dataUrl: dataUrl, noSvg: noSvg }); });
+          } else if (Date.now() - t0 > 20000) { resolve({ timeout: true }); }
+          else setTimeout(poll, 200);
+        })();
+      });
+    });
+    ok("LF69(c): exporting a GL/MapLibre choropleth panel (no <svg>) now produces a real PNG data URL off its <canvas>, not null",
+      pngChoroplethGL.noSvg && !!pngChoroplethGL.dataUrl && pngChoroplethGL.dataUrl.indexOf("data:image/png;base64,") === 0 && pngChoroplethGL.dataUrl.length > 1000,
+      JSON.stringify({ noSvg: pngChoroplethGL.noSvg, prefix: (pngChoroplethGL.dataUrl || "").slice(0, 30), len: (pngChoroplethGL.dataUrl || "").length, timeout: pngChoroplethGL.timeout }));
+
     // Restore the panel + reload so later tests aren't affected by this block's mutations.
     await page.evaluate(() => { window.__studioLoad(window.__STUDIO_STATE.spec); });
     await page.waitForTimeout(150);

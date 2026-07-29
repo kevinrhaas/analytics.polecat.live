@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v321"; /* v321: LF64 slice 3 — a "Date token" button on the dataset
+var CACHE_NAME = "studio-shell-v322"; /* v322: LF69(c) — the Interactive GL choropleth renderer
+   (a <canvas>, not an <svg>) can now export as PNG: studio-charts.js sets
+   preserveDrawingBuffer:true on the MapLibre map, and both PNG rasterizers (studio-render.js's
+   downloadPanelPng/addDownloadChrome — the on-panel Export ▾ menu — and studio.js's
+   exportPanelPng — the Inspector's "Save chart as PNG") fall back to capturing the map's own
+   canvas when no <svg> is found. app/studio-charts.js, app/studio-render.js, app/studio.js,
+   docs/index.html changed, so precached copies roll.
+   v321: LF64 slice 3 — a "Date token" button on the dataset
    builder's query fields (SQL / Generic SQL-HTTP / BigQuery) drops the built-in dynamic tokens in at
    the cursor from a labeled pick-list (Studio.DATE_TOKENS), so relative-date filters are discoverable
    + typo-free. app/studio.js + app/studio.css + docs/index.html changed, so precached copies roll.

@@ -116,6 +116,30 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF69(c) — the Interactive GL choropleth renderer can export as PNG (v685, sw v322, 2026-07-29,
+  steward — closes LF69's last remaining sub-item, LF69 is now fully done):** the GL/MapLibre
+  choropleth renders into a `<canvas>`, not an `<svg>`, so both PNG rasterizers — the on-panel
+  Export ▾ menu's "Download PNG image" (`downloadPanelPng`/`addDownloadChrome`,
+  app/studio-render.js) and the Inspector's "Save chart as PNG" (`exportPanelPng`, app/studio.js,
+  a separate parallel implementation) — bailed silently whenever a panel had no `<svg>`, same as
+  Table/Richtext. Fix: `app/studio-charts.js`'s MapLibre `mapOpts` now sets
+  `preserveDrawingBuffer: true` (a documented, supported constructor option — nothing else about
+  rendering changes) so the WebGL drawing buffer stays readable after the frame is presented; both
+  rasterizers now fall back to `card.body.querySelector("[data-geo-gl] canvas").toDataURL(...)`
+  when no `<svg>` is found, no manual 2x upscale needed since MapLibre already renders its canvas
+  backing store at devicePixelRatio. MapLibre's own zoom/pan controls render via CSS
+  background-image, not inline `<svg>`, so the `<svg>`-first check still correctly picks the SVG
+  path for every non-GL chart type — verified no `<svg>` exists anywhere under a GL panel's body.
+  Docs updated (docs/index.html's "Saving a chart as an image" + "Downloading a View's image or
+  data" sections no longer imply GL maps are excluded). 2 new regression tests: the standalone/
+  exported-bundle path (a GL panel now shows the "Download PNG image" menu item and
+  `__downloadPanelPngDataUrl` returns a real `data:image/png;base64,...` string) and the live
+  builder's Inspector path (`__exportPanelPngDataUrl` on a GL choropleth panel, previously null
+  like the existing Table-panel negative test, now also returns a real PNG). Full suite green.
+  Files: app/studio-charts.js, app/studio-render.js, app/studio.js, docs/index.html, sw.js,
+  js/changelog.js, tests/run.js. **LF69 ("View/panel header toolbar — reorder + fold exports into
+  a MENU") is now fully done** — sub-items (a) order, (d) collapse-to-menu, (b) audit, and now (c)
+  GL PNG export have all shipped.
 - **LF64 (slice 3) — "Date token" insert affordance (v684, sw v321, 2026-07-29):** the dataset
   builder's query fields (SQL, Generic SQL/HTTP, BigQuery) gained a "Date token ▾" button that opens
   a labeled pick-list (`Studio.DATE_TOKENS`) and inserts the chosen `{{token}}` at the textarea's

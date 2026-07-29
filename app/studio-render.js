@@ -661,7 +661,22 @@
   // click/download isn't observable headlessly); the real UI click path never passes it.
   function downloadPanelPng(card, p, onDataUrl) {
     var svg = card.body.querySelector("svg");
-    if (!svg) { if (onDataUrl) onDataUrl(null); return; }
+    if (!svg) {
+      // LF69(c): the GL/MapLibre choropleth renders into a <canvas>, not an <svg> — capture it
+      // directly instead of bailing. studio-charts.js sets preserveDrawingBuffer:true on the map
+      // so the buffer is still readable here; no manual 2x upscale needed, MapLibre already
+      // renders its canvas backing store at devicePixelRatio.
+      var glCanvas = card.body.querySelector("[data-geo-gl] canvas");
+      var glDataUrl = null;
+      if (glCanvas) { try { glDataUrl = glCanvas.toDataURL("image/png"); } catch (e) { glDataUrl = null; } }
+      if (onDataUrl) { onDataUrl(glDataUrl); return; }
+      if (glDataUrl) {
+        var glA = document.createElement("a");
+        glA.download = slug(p.title) + ".png"; glA.href = glDataUrl;
+        document.body.appendChild(glA); glA.click(); glA.remove();
+      }
+      return;
+    }
     var win = (card.el.ownerDocument && card.el.ownerDocument.defaultView) || window;
     var rect = svg.getBoundingClientRect();
     var w = Math.max(1, Math.round(rect.width)), h = Math.max(1, Math.round(rect.height));
@@ -763,7 +778,15 @@
   // visible row gains ONE trigger button.
   function addDownloadChrome(container, card, p, res) {
     var svg = card.body.querySelector("svg");
-    var canImg = !!svg && dlTypeShown(p, "dlPng");
+    // LF69(c): a choropleth (either renderer) draws its geometry asynchronously
+    // (geoFeatures()/geoFeaturesGL() are promise-based) — addDownloadChrome runs synchronously
+    // right after renderPanel, before that geometry has actually painted an <svg> or a
+    // `[data-geo-gl]` <canvas>. Trust the chart TYPE instead of the DOM snapshot at this instant:
+    // a choropleth always eventually renders as one or the other, and downloadPanelPng itself
+    // re-checks the live DOM lazily at click/export time (the same "immune to the async geometry
+    // race" convention downloadPanelData's PDC._panelCsvRows lookup already uses).
+    var isChoropleth = !!(p.chart && p.chart.type === "choropleth");
+    var canImg = (!!svg || isChoropleth) && dlTypeShown(p, "dlPng");
     var canData = !!(res && res.rows && res.rows.length) && dlTypeShown(p, "dlCsv");
     // Export-as-HTML needs the builder's full spec + asset bundle (Studio.exportCDF),
     // which only exists in the parent window — so it's builder/preview-only, like the
