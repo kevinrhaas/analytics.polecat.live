@@ -7505,6 +7505,98 @@ function serve() {
     ok("LF51: toggling back returns Repository to the list layout",
       lf51ViewRepo.backToList, JSON.stringify(lf51ViewRepo));
 
+    // ── LF51 (command center): Repository's ＋ New ▾ creates EVERY object kind ─────────
+    // Each entry routes into that kind's own builder/editor (dashboard → Studio blank spec,
+    // View → Explore fresh analysis, dataset/connection/job → their real editor modals), and
+    // the "New dashboard" entry is role-gated the same way Home's card is.
+    const lf51NewA = await page.evaluate(function () {
+      window.__studioShellSetSection("repository");
+      window.__studioRenderRepository();
+      var btn = document.getElementById("repoNewBtn"), menu = document.getElementById("repoNewMenu");
+      if (!btn || !menu) return { err: "missing btn/menu" };
+      var kinds = Array.from(menu.querySelectorAll("[data-repo-new]")).map(function (b) { return b.getAttribute("data-repo-new"); });
+      var dashVisible = !menu.querySelector('[data-repo-new="dashboard"]').hidden;
+      btn.click();
+      var opened = menu.classList.contains("open");
+      menu.querySelector('[data-repo-new="dataset"]').click();
+      var m = document.querySelector(".modal-h");
+      return { kinds: kinds.join(","), dashVisible: dashVisible, opened: opened,
+        menuClosedAfterPick: !menu.classList.contains("open"), dsTitle: m ? m.textContent : null };
+    });
+    ok("LF51 (command center): Repository's ＋ New ▾ lists all five object kinds and 'New dataset' opens the real dataset editor",
+      lf51NewA.kinds === "dashboard,view,dataset,connection,job" && lf51NewA.dashVisible &&
+      lf51NewA.opened && lf51NewA.menuClosedAfterPick && lf51NewA.dsTitle === "New dataset",
+      JSON.stringify(lf51NewA));
+    await page.evaluate(function () { var x = document.querySelector(".modal .x"); if (x) x.click(); });
+    await page.waitForTimeout(120);
+
+    const lf51NewJob = await page.evaluate(function () {
+      var btn = document.getElementById("repoNewBtn"), menu = document.getElementById("repoNewMenu");
+      btn.click(); menu.querySelector('[data-repo-new="job"]').click();
+      var m = document.querySelector(".modal-h");
+      return { jobTitle: m ? m.textContent : null };
+    });
+    await page.evaluate(function () { var x = document.querySelector(".modal .x"); if (x) x.click(); });
+    await page.waitForTimeout(120);
+    const lf51NewConn = await page.evaluate(function () {
+      var btn = document.getElementById("repoNewBtn"), menu = document.getElementById("repoNewMenu");
+      btn.click(); menu.querySelector('[data-repo-new="connection"]').click();
+      var m = document.querySelector(".modal-h");
+      return { connTitle: m ? m.textContent : null };
+    });
+    await page.evaluate(function () { var x = document.querySelector(".modal .x"); if (x) x.click(); });
+    await page.waitForTimeout(120);
+    ok("LF51 (command center): 'New job' and 'New connection' open their own real editors from Repository",
+      lf51NewJob.jobTitle === "New job" && lf51NewConn.connTitle === "New connection",
+      JSON.stringify({ job: lf51NewJob, conn: lf51NewConn }));
+
+    const lf51NewView = await page.evaluate(function () {
+      // Seed a stale loaded-analysis state so the test proves startNew actually resets it.
+      window.__studioExplore.state.analysisId = "lf51-stale"; window.__studioExplore.state.name = "Stale";
+      window.__studioShellSetSection("repository");
+      var btn = document.getElementById("repoNewBtn"), menu = document.getElementById("repoNewMenu");
+      btn.click(); menu.querySelector('[data-repo-new="view"]').click();
+      return { sec: window.__studioShellGetSection(), analysisId: window.__studioExplore.state.analysisId,
+        name: window.__studioExplore.state.name };
+    });
+    ok("LF51 (command center): 'New View' routes to Explore (the View builder) with a genuinely fresh analysis state",
+      lf51NewView.sec === "explore" && lf51NewView.analysisId === null && lf51NewView.name === "",
+      JSON.stringify(lf51NewView));
+
+    const lf51NewDash = await page.evaluate(function () {
+      window.__lf51SpecBackup = JSON.stringify(window.__STUDIO_STATE.spec); // restored below
+      window.__studioShellSetSection("repository");
+      var btn = document.getElementById("repoNewBtn"), menu = document.getElementById("repoNewMenu");
+      btn.click(); menu.querySelector('[data-repo-new="dashboard"]').click();
+      var sp = window.__STUDIO_STATE.spec;
+      return { sec: window.__studioShellGetSection(), panels: (sp.panels || []).length,
+        kpis: (sp.kpis || []).length, title: sp.title || "" };
+    });
+    ok("LF51 (command center): 'New dashboard' enters Studio with a fresh blank spec",
+      lf51NewDash.sec === "studio" && lf51NewDash.panels === 0 && lf51NewDash.kpis === 0 && /untitled/i.test(lf51NewDash.title),
+      JSON.stringify(lf51NewDash));
+    await page.evaluate(function () {
+      try { window.__STUDIO_STATE.spec = JSON.parse(window.__lf51SpecBackup); delete window.__lf51SpecBackup; } catch (e) {}
+      if (window.__studioSelectDashboard) window.__studioSelectDashboard();
+    });
+    await page.waitForTimeout(80);
+
+    // Role gate: a viewer-role account must not see the "New dashboard" entry (it routes
+    // through enterStudio(), which a viewer can never pass — LF44's no-dead-clicks rule).
+    const lf51NewGate = await page.evaluate(function () {
+      var prev = window.PolecatAuth.current();
+      window.PolecatAuth.login("demo"); // seeded viewer account
+      window.__studioRenderRepository();
+      var hiddenForViewer = document.querySelector('#repoNewMenu [data-repo-new="dashboard"]').hidden;
+      if (prev && prev.u && prev.u !== "local") window.PolecatAuth.login(prev.u); else window.PolecatAuth.logout();
+      window.__studioRenderRepository();
+      var backVisible = !document.querySelector('#repoNewMenu [data-repo-new="dashboard"]').hidden;
+      window.__studioShellSetSection("studio");
+      return { hiddenForViewer: hiddenForViewer, backVisible: backVisible };
+    });
+    ok("LF51 (command center): the 'New dashboard' entry hides for a viewer-role account and returns for a developing one",
+      lf51NewGate.hiddenForViewer && lf51NewGate.backVisible, JSON.stringify(lf51NewGate));
+
     // LF51 (nav IA spec (b), "right-aligned filter pills"): the Datasets/Connections/Jobs
     // filter pill strips (folder + facet filters) carry .cx-filter-strip and right-align their
     // pills at desktop widths (falling back to left-align on ≤640px phones).

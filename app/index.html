@@ -248,9 +248,21 @@
   <section id="secRepository" class="app-sec has-content" hidden>
     <div class="repo-wrap">
       <div class="repo-hero">
-        <p>Every object in your workspace — dashboards, datasets, connections, analyses and jobs — in one searchable, filterable place. Pick a kind below, or search across all of them; opening a row takes you straight to that object's own editor.</p>
+        <p>Every object in your workspace — dashboards, datasets, connections, analyses and jobs — in one searchable, filterable place. Pick a kind below, or search across all of them; opening a row takes you straight to that object's own editor, and <strong>+ New</strong> creates any kind of object right from here.</p>
         <input id="repoAllSearch" class="repo-search" type="search" placeholder="Search the whole workspace…" aria-label="Search the whole workspace"/>
         <div class="repo-io">
+          <!-- LF51: Repository is the cross-object command center — New EVERYTHING, each
+               entry routing into that object kind's own builder/editor. -->
+          <div class="menu-wrap">
+            <button type="button" class="btn btn-primary" id="repoNewBtn" title="Create a new object">＋ New ▾</button>
+            <div class="menu" id="repoNewMenu">
+              <button type="button" data-repo-new="dashboard">New dashboard</button>
+              <button type="button" data-repo-new="view">New View</button>
+              <button type="button" data-repo-new="dataset">New dataset</button>
+              <button type="button" data-repo-new="connection">New connection</button>
+              <button type="button" data-repo-new="job">New job</button>
+            </div>
+          </div>
           <button type="button" class="btn" id="repoViewToggle" title="Switch between tile and list layout" aria-pressed="false">Tile view</button>
         </div>
       </div>

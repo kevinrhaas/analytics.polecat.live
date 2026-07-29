@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 715,
+    title: 'Repository: create anything with ＋ New',
+    kind: 'feature',
+    ts: '2026-07-29T17:45:07.000Z',
+    items: [
+      'The Repository section is now a true cross-object command center: a ＋ New menu next to the view toggle creates any kind of object — dashboard, View, dataset, connection, or job — each routing you straight into that kind\'s own builder or editor (a new View opens Explore fresh, a new dashboard opens a blank Studio canvas). Viewer-role accounts don\'t see "New dashboard", since building needs Studio access.',
+    ],
+  },
+  {
     v: 714,
     title: 'Builder canvas: "drop a dataset", not "query"',
     kind: 'fix',

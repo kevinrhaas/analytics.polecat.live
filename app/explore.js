@@ -786,6 +786,11 @@
     configure: configure,
     XP: XP,
     render: renderExplore,
+    // LF51: Repository's "＋ New → New View" entry needs a genuinely fresh Explore state
+    // (no half-loaded analysis) WITHOUT touching history — xpCloseToList(true) is exactly
+    // that reset (viaHistory=true skips the popOverlay history sync, and with no explore
+    // overlay open there is nothing to pop anyway).
+    startNew: function () { xpCloseToList(true); },
     selectDataset: xpSelectDataset,
     loadAnalysis: xpLoadAnalysis,
     save: xpSave,

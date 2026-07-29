@@ -6720,6 +6720,40 @@
   }
   function renderRepository() {
     var results = $("#repoAllResults"); if (!results) return;
+    // LF51 (command center): the ＋ New ▾ menu creates EVERY object kind from Repository,
+    // each routing into that kind's own builder/editor — same targets the per-section New
+    // buttons and Home's quick-action cards already use, just gathered in one place.
+    // One-time wiring behind a flag; only the role gate re-evaluates per render.
+    var repoNewBtn = $("#repoNewBtn"), repoNewMenu = $("#repoNewMenu");
+    if (repoNewBtn && repoNewMenu) {
+      if (!repoNewBtn.__wired) {
+        repoNewBtn.__wired = true;
+        setIconBtnCaret(repoNewBtn, "plus", "New", 14);
+        menuToggle(repoNewBtn, repoNewMenu);
+        $$("[data-repo-new]", repoNewMenu).forEach(function (b) {
+          b.onclick = function () {
+            var kind = b.getAttribute("data-repo-new");
+            closeMenus();
+            if (kind === "dashboard") {
+              // Same guard as Home's "New dashboard" card — a viewer can never enterStudio()
+              // (the entry is also hidden below; this is belt-and-braces).
+              if (!currentUserCanDevelop()) return;
+              enterStudio();
+              S.spec = newBlankSpec(); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); bumpDashMilestone();
+            } else if (kind === "view") {
+              // Explore IS the View builder (the #29 split) — reset to a fresh analysis first.
+              if (Studio.Explore && Studio.Explore.startNew) Studio.Explore.startNew();
+              if (window.__studioShellSetSection) __studioShellSetSection("explore");
+            } else if (kind === "dataset") { openDatasetEditor(); }
+            else if (kind === "connection") { openConnectionWizard(); }
+            else if (kind === "job") { openJobEditor(); }
+          };
+        });
+      }
+      // LF44 convention: don't show a dead click — a viewer-role account can't enter Studio.
+      var repoNewDash = repoNewMenu.querySelector('[data-repo-new="dashboard"]');
+      if (repoNewDash) repoNewDash.hidden = !currentUserCanDevelop();
+    }
     // LF51 (d): wire the persistent list/tile toggle (lives in the section header,
     // outside #repoAllResults, so this idempotent binding survives every re-render).
     var repoVt = $("#repoViewToggle");
