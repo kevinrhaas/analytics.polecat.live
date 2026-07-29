@@ -6,6 +6,14 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 688,
+    title: 'The date-token menu is fully keyboard-operable',
+    ts: '2026-07-29T02:02:44.000Z',
+    items: [
+      'The dataset builder\'s "Date token" insert menu now works entirely from the keyboard — press it (or Arrow-Down) to open and land on the first token, Arrow-Up/Down and Home/End to move, Enter to insert, and Escape to close and return focus to the button. It also announces itself correctly to screen readers (a proper menu with expanded state). Fixes a bug where pressing Escape with the token menu open closed the whole dataset editor instead of just the menu.',
+    ],
+  },
+  {
     v: 687,
     title: 'GL choropleth maps can now export as PNG',
     kind: 'fix',

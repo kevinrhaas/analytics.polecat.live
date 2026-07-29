@@ -10855,22 +10855,53 @@
     var btn = el("button", "dsb-mini dsb-tok-btn"); btn.type = "button";
     setIconBtnCaret(btn, "clock", "Date token", 12);
     btn.setAttribute("aria-label", "Insert a dynamic date token");
-    var menu = el("div", "dsb-tok-menu"); menu.hidden = true;
-    DATE_TOKENS.forEach(function (tk) {
-      var it = el("button", "dsb-tok-item"); it.type = "button";
+    btn.setAttribute("aria-haspopup", "menu");
+    btn.setAttribute("aria-expanded", "false");
+    var menu = el("div", "dsb-tok-menu"); menu.hidden = true; menu.setAttribute("role", "menu");
+    var items = DATE_TOKENS.map(function (tk) {
+      var it = el("button", "dsb-tok-item"); it.type = "button"; it.setAttribute("role", "menuitem"); it.tabIndex = -1;
       var code = el("code", "dsb-tok-code"); code.textContent = "{{" + tk.t + "}}";
       var dsc = el("span", "dsb-tok-dsc"); dsc.textContent = tk.d;
       it.appendChild(code); it.appendChild(dsc);
-      it.onclick = function (ev) { ev.preventDefault(); insertAtCursor(getTa(), "{{" + tk.t + "}}"); close(); };
+      it.onclick = function (ev) { ev.preventDefault(); insertAtCursor(getTa(), "{{" + tk.t + "}}"); close(true); };
       menu.appendChild(it);
+      return it;
     });
-    function close() { menu.hidden = true; document.removeEventListener("mousedown", onDoc, true); }
-    function onDoc(ev) { if (!wrap.contains(ev.target)) close(); }
-    btn.onclick = function (ev) {
-      ev.preventDefault();
-      if (menu.hidden) { menu.hidden = false; setTimeout(function () { document.addEventListener("mousedown", onDoc, true); }, 0); }
-      else close();
-    };
+    function focusItem(i) { if (!items.length) return; var n = (i + items.length) % items.length; items[n].focus(); }
+    // close(returnFocus): hide the menu; on a keyboard/selection close, put focus back on the
+    // trigger so the user isn't stranded (a11y — arrow/Escape/Enter all route through here).
+    function close(returnFocus) {
+      // Return focus to the trigger BEFORE hiding the menu: if we hid first, the browser's
+      // "focused element became hidden" fixup can fire after our .focus() and dump focus on
+      // <body>. The trigger lives outside the menu, so focusing it first is fixup-proof.
+      if (returnFocus) btn.focus();
+      menu.hidden = true; btn.setAttribute("aria-expanded", "false");
+      document.removeEventListener("mousedown", onDoc, true);
+    }
+    function onDoc(ev) { if (!wrap.contains(ev.target)) close(false); }
+    function open(focusFirst) {
+      menu.hidden = false; btn.setAttribute("aria-expanded", "true");
+      setTimeout(function () { document.addEventListener("mousedown", onDoc, true); }, 0);
+      if (focusFirst) focusItem(0);
+    }
+    btn.onclick = function (ev) { ev.preventDefault(); if (menu.hidden) open(false); else close(false); };
+    // Arrow-Down / Enter / Space on the trigger opens the menu AND lands on the first item.
+    btn.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") { e.preventDefault(); if (menu.hidden) open(true); else focusItem(0); }
+      else if (e.key === "Escape" && !menu.hidden) { e.preventDefault(); e.stopPropagation(); close(true); }
+    });
+    // Within the menu: Up/Down cycle, Home/End jump to ends, Escape returns to the trigger.
+    // Escape here stops propagation so it closes ONLY the token menu, not the enclosing dataset
+    // modal (which has its own Escape-to-close) — and so focus lands back on the trigger.
+    menu.addEventListener("keydown", function (e) {
+      var idx = items.indexOf(document.activeElement);
+      if (e.key === "ArrowDown") { e.preventDefault(); focusItem(idx + 1); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); focusItem(idx - 1); }
+      else if (e.key === "Home") { e.preventDefault(); focusItem(0); }
+      else if (e.key === "End") { e.preventDefault(); focusItem(items.length - 1); }
+      else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(true); }
+      else if (e.key === "Tab") { close(false); }
+    });
     wrap.appendChild(btn); wrap.appendChild(menu);
     return wrap;
   }

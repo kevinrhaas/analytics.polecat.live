@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v324"; /* v324: LF69(c) — the Interactive GL choropleth renderer
+var CACHE_NAME = "studio-shell-v325"; /* v325: LF64(3) a11y — the dataset builder's "Date token"
+   insert menu is now fully keyboard-operable: trigger toggles aria-expanded (aria-haspopup=menu),
+   ArrowDown/Enter/Space opens + focuses the first token, Up/Down/Home/End move, Escape closes and
+   restores focus to the trigger (and stopPropagation so Escape no longer bubbles to the modal's own
+   close), role=menu/menuitem semantics. app/studio.js changed, so precached copies roll.
+   v324: LF69(c) — the Interactive GL choropleth renderer
    (a <canvas>, not an <svg>) can now export as PNG: studio-charts.js sets
    preserveDrawingBuffer:true on the MapLibre map, and both PNG rasterizers (studio-render.js's
    downloadPanelPng/addDownloadChrome — the on-panel Export ▾ menu — and studio.js's

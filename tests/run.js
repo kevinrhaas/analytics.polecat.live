@@ -8167,6 +8167,38 @@ function serve() {
       /SAMPLE/i.test(built.badgeText) && /not your data/i.test(built.badgeText), JSON.stringify({ badgeText: built.badgeText }));
     ok("Create saves the data source into the library", built.saved && built.cols === "region,total" && built.inLib && built.modalGone, JSON.stringify(built));
 
+    // LF64(3) a11y: the "Date token" insert menu is keyboard-operable — the trigger toggles
+    // aria-expanded, ArrowDown opens + focuses the first token, and Escape closes it and returns
+    // focus to the trigger (menu semantics: role=menu / menuitem).
+    const tokKbd = await page.evaluate(async () => {
+      document.getElementById("ndDashQuery").click();
+      await new Promise((r) => setTimeout(r, 80));
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const btn = m.querySelector(".dsb-tok-btn"); if (!btn) return { err: "no date-token button" };
+      const menu = m.querySelector(".dsb-tok-menu");
+      const out = { hasMenuRole: menu.getAttribute("role") === "menu", haspopup: btn.getAttribute("aria-haspopup") === "menu", expandedInit: btn.getAttribute("aria-expanded") };
+      // ArrowDown on the trigger opens the menu and focuses the first menuitem.
+      btn.focus();
+      btn.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+      await new Promise((r) => setTimeout(r, 20));
+      out.openedExpanded = btn.getAttribute("aria-expanded");
+      out.menuVisible = !menu.hidden;
+      const first = menu.querySelector(".dsb-tok-item");
+      out.firstIsMenuitem = first && first.getAttribute("role") === "menuitem";
+      out.focusOnFirst = document.activeElement === first;
+      // Escape closes and returns focus to the trigger.
+      menu.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      await new Promise((r) => setTimeout(r, 20));
+      out.closedAfterEsc = menu.hidden && btn.getAttribute("aria-expanded") === "false";
+      out.focusBackOnBtn = document.activeElement === btn;
+      m.closest(".modal-ov").remove();
+      return out;
+    });
+    ok("LF64(3) a11y: Date-token menu is keyboard-operable (ArrowDown opens+focuses, Escape closes+restores focus, menu roles)",
+      tokKbd.hasMenuRole && tokKbd.haspopup && tokKbd.expandedInit === "false" && tokKbd.openedExpanded === "true" &&
+      tokKbd.menuVisible && tokKbd.firstIsMenuitem && tokKbd.focusOnFirst && tokKbd.closedAfterEsc && tokKbd.focusBackOnBtn,
+      JSON.stringify(tokKbd));
+
     // ---- G1: visual SQL builder ----
     console.log("\n• G1: SQL builder");
     const sqbBasic = await page.evaluate(async () => {

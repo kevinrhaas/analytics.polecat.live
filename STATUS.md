@@ -116,6 +116,16 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF64(3) a11y — the Date-token insert menu is keyboard-operable (v688, sw v325, 2026-07-29):**
+  the `dateTokenBtn` popover shipped in LF64 slice 3 was mouse-only. It now has full menu semantics
+  and keyboard support: the trigger carries `aria-haspopup="menu"` + a live `aria-expanded`, the
+  popover is `role="menu"` with `role="menuitem"` entries, ArrowDown/Enter/Space opens it and focuses
+  the first token, Up/Down cycle, Home/End jump, Enter inserts, and Escape (from the trigger or an
+  item) closes and returns focus to the button — Tab also closes cleanly. Its Escape now
+  `stopPropagation()`s, which ALSO fixes a real bug found while testing: an open token menu's Escape
+  used to bubble to the modal's own document-level Escape-to-close and destroy the whole dataset
+  editor (losing in-progress edits) instead of just closing the menu. A new regression test drives
+  the open→focus→Escape→restore-focus path.
 - **LF69(c) — the Interactive GL choropleth renderer can export as PNG (v687, sw v324, 2026-07-29,
   steward — closes LF69's last remaining sub-item, LF69 is now fully done):** the GL/MapLibre
   choropleth renders into a `<canvas>`, not an `<svg>`, so both PNG rasterizers — the on-panel
