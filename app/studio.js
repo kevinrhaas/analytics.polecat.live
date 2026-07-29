@@ -8637,7 +8637,23 @@
     var ifr = $("#preview"), doc = ifr && ifr.contentDocument;
     var card = doc && doc.querySelector('[data-panel-id="' + p.id + '"]');
     var svg = card && card.querySelector(".body svg");
-    if (!svg) { toast("This chart type doesn't support PNG export yet"); if (onDataUrl) onDataUrl(null); return; }
+    if (!svg) {
+      // LF69(c): a GL/MapLibre choropleth has no <svg> — capture its <canvas> directly instead
+      // of bailing (mirrors studio-render.js's downloadPanelPng canvas branch, the same
+      // rasterizer the on-panel Export ▾ menu's "Download PNG image" now uses).
+      var glCanvas = card && card.querySelector(".body [data-geo-gl] canvas");
+      var glDataUrl = null;
+      if (glCanvas) { try { glDataUrl = glCanvas.toDataURL("image/png"); } catch (e) { glDataUrl = null; } }
+      if (glDataUrl) {
+        if (onDataUrl) { onDataUrl(glDataUrl); return; }
+        var glStem = (p.title || "chart").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "chart";
+        var glA = document.createElement("a");
+        glA.download = glStem + ".png"; glA.href = glDataUrl;
+        document.body.appendChild(glA); glA.click(); glA.remove();
+        return;
+      }
+      toast("This chart type doesn't support PNG export yet"); if (onDataUrl) onDataUrl(null); return;
+    }
     var win = ifr.contentWindow;
     var rect = svg.getBoundingClientRect();
     var w = Math.max(1, Math.round(rect.width)), h = Math.max(1, Math.round(rect.height));

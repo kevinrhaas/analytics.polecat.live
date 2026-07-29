@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 687,
+    title: 'GL choropleth maps can now export as PNG',
+    kind: 'fix',
+    ts: '2026-07-29T01:37:36.000Z',
+    items: [
+      'The Interactive GL map renderer (US choropleth) renders into a canvas instead of an SVG, so "Save chart as PNG" and the on-panel Export ▾ menu silently had no image option for it. Both now rasterize the map\'s own canvas directly, so a GL choropleth View exports a PNG just like every other chart type.',
+    ],
+  },
+  {
     v: 686,
     title: 'A visible "Save as" button in the builder toolbar',
     kind: 'polish',

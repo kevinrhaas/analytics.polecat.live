@@ -6086,6 +6086,10 @@
       var mapOpts = {
         container: wrap, attributionControl: false, dragRotate: false, pitchWithRotate: false,
         renderWorldCopies: false, fadeDuration: 0,
+        // LF69(c): keeps the WebGL drawing buffer readable after the frame is presented, so
+        // studio-render.js's downloadPanelPng can rasterize this canvas straight to a PNG the
+        // same way it already does for SVG-rendered charts.
+        preserveDrawingBuffer: true,
         style: { version: 8,
           sources: {
             regions: { type: "geojson", data: { type: "FeatureCollection", features: feats } },
