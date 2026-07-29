@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 699,
+    title: 'File a whole workbook into a folder',
+    kind: 'feature',
+    ts: '2026-07-29T11:59:33.000Z',
+    items: [
+      'Workbooks can now go into folders too — not just the dashboards inside them. Hover a workbook chip on the Dashboards page and use the new folder button (next to rename and delete) to file the whole workbook under a folder, with the same picker the rest of the app uses. A foldered workbook shows a small folder marker on its chip. Folders and workbooks stay independent, so you can organize whichever way fits.',
+    ],
+  },
+  {
     v: 698,
     title: 'Organize dashboards into folders',
     kind: 'feature',

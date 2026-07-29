@@ -116,6 +116,18 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF66 — workbooks can also go into a folder (v699, sw v336, 2026-07-29):** Kevin's direction —
+  *"workbooks can also go into a folder."* Extends the merged dashboard-folders work: a **workbook
+  record gains an optional `folder`** (`addWorkbook(name, folder)` + a new `setWorkbookFolder(id,
+  folder)`, exposed as `__studioSetWorkbookFolder`), and each **workbook chip** in the Dashboards
+  section gets a **move-to-folder button** (next to rename/delete) that opens the LF56 picker over a
+  folder namespace spanning dashboard folders + other workbooks' folders + Repository folder-seeds;
+  a foldered workbook shows a persistent in-folder marker (`.wb-chip-wrap.in-folder`). Folders and
+  workbooks stay independent. The workbook `folder` travels through the whole-repository export
+  (workbooks are exported verbatim). Pure additive to the existing Dashboards section — no new
+  section, no schema change. 1 new regression test (file a workbook → persisted + folder button +
+  in-folder state → unfile). Files: app/studio.js, app/studio.css, docs/index.html, sw.js,
+  js/changelog.js, tests/run.js.
 - **LF66/LF59 — dashboard FOLDERS alongside workbooks (v698, sw v335, 2026-07-29):** Kevin's locked
   library-model direction — *"folders should exist in addition to workbooks; workbooks can also go
   into a folder."* First slice: dashboards now organize by **folders** in the Dashboards section, not

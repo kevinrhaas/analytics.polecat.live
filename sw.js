@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v335"; /* v335: LF66/LF59 — dashboard FOLDERS alongside workbooks:
+var CACHE_NAME = "studio-shell-v336"; /* v336: LF66 — workbooks can also go into a folder: workbook
+   records gain an optional `folder`; each workbook chip in the Dashboards section gets a
+   move-to-folder button (LF56 picker) + an in-folder marker (setWorkbookFolder, renderDashboards
+   wb-chip). app/studio.js, app/studio.css, docs/index.html.
+   v335: LF66/LF59 — dashboard FOLDERS alongside workbooks:
    dashboards (which already carry the flat "/"-path `folder` field in the Repository tree) get a
    Folders chip facet on the Dashboards page (composes with the workbook chips), a per-row folder
    badge, and a move-to-folder button reusing the LF56 picker (renderDashboards + dashListRowHtml,

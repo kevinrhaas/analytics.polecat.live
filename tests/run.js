@@ -27489,6 +27489,29 @@ function serve() {
     }, wbDashId);
     if (dfSwitched) { await page.evaluate(function () { var t = document.getElementById('dashViewToggle'); if (t) t.click(); }); }
 
+    // ── LF66: workbooks can ALSO be filed into a folder (Kevin's direction) ──
+    // A workbook record gains an optional `folder`; each workbook chip gets a move-to-folder
+    // button (LF56 picker) and shows an in-folder state. Folders and workbooks stay independent.
+    console.log("\n• LF66: workbooks into folders");
+    await page.evaluate(function () { window.__studioShellSetSection("dashboards"); window.__studioRenderDashboards(); });
+    await page.waitForTimeout(60);
+    const wbFolder = await page.evaluate(function () {
+      var wb = window.__studioAddWorkbook("Filed WB");
+      var okSet = window.__studioSetWorkbookFolder(wb.id, "Client/2026");
+      window.__studioRenderDashboards();
+      var stored = window.__studioWorkbooks().filter(function (w) { return w.id === wb.id; })[0];
+      var btn = document.querySelector('#repoResults .wb-chip-folder[data-wb-folder="' + wb.id + '"]');
+      var wrap = btn ? btn.closest(".wb-chip-wrap") : null;
+      var res = { okSet: okSet, storedFolder: stored && stored.folder, hasBtn: !!btn, inFolder: !!(wrap && wrap.classList.contains("in-folder")) };
+      window.__studioSetWorkbookFolder(wb.id, "");
+      var stored2 = window.__studioWorkbooks().filter(function (w) { return w.id === wb.id; })[0];
+      res.clearedFolder = !!(stored2 && stored2.folder);
+      window.__studioDeleteWorkbook(wb.id);
+      return res;
+    });
+    ok("LF66: a workbook files into a folder (persisted, folder button + in-folder state on its chip) and unfiles again",
+      wbFolder.okSet && wbFolder.storedFolder === "Client/2026" && wbFolder.hasBtn && wbFolder.inFolder && !wbFolder.clearedFolder, JSON.stringify(wbFolder));
+
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(80);
 
