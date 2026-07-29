@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v321"; /* v321: LF64 slice 3 — a "Date token" button on the dataset
+var CACHE_NAME = "studio-shell-v322"; /* v322: LF32(a) — the dataset builder's offline Query Preview
+   now carries an unmissable "SAMPLE — not your data" badge pinned above the sample table (the field
+   label reinforces it), so fabricated shape-illustrating rows can never be mistaken for a live query
+   result (the original LF32 report). app/studio.js + app/studio.css changed, so precached copies roll.
+   v321: LF64 slice 3 — a "Date token" button on the dataset
    builder's query fields (SQL / Generic SQL-HTTP / BigQuery) drops the built-in dynamic tokens in at
    the cursor from a labeled pick-list (Studio.DATE_TOKENS), so relative-date filters are discoverable
    + typo-free. app/studio.js + app/studio.css + docs/index.html changed, so precached copies roll.

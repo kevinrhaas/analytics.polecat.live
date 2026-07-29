@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 685,
+    title: 'Query preview is clearly labeled as sample data',
+    kind: 'fix',
+    ts: '2026-07-29T00:53:57.000Z',
+    items: [
+      'The dataset builder\'s offline preview now carries an unmissable "SAMPLE — made-up rows to show the shape, not your data" badge pinned above the table (the field label says so too). Those rows are generated to illustrate the column shape, never a real run of your query — the clearer signal means a preview can\'t be mistaken for live results.',
+    ],
+  },
+  {
     v: 684,
     title: 'Insert a date token from the query editor',
     kind: 'feature',
