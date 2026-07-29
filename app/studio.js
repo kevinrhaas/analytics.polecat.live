@@ -5372,6 +5372,18 @@
     return !!(S.spec && S.spec._qmSource && S.spec.id && !Studio.Workspace.get("dashboards", S.spec.id));
   }
   window.__studioHasUnsavedQuickBuild = hasUnsavedQuickBuild; // test hook
+  // LF67 follow-up: openRecent isn't the only path that can silently throw away an
+  // unsaved Quick-import build — every "New dashboard" entry point (Home's Blank-
+  // dashboard card + its drag-a-dataset variant, the New ▾ menu's Blank dashboard,
+  // and its auto-build starters) replaces S.spec too. One shared guard so all of
+  // them warn the same way openRecent already does.
+  function confirmReplaceUnsavedQuickBuild(actionLabel) {
+    if (!hasUnsavedQuickBuild()) return true;
+    return window.confirm(
+      "This Quick-import dashboard hasn’t been saved yet — " + actionLabel + " will lose it. Continue anyway?"
+    );
+  }
+  window.__studioConfirmReplaceUnsavedQuickBuild = confirmReplaceUnsavedQuickBuild; // test hook
   function openRecent(id) {
     var r = loadRecents().filter(function (x) { return x.id === id; })[0];
     if (!r) return;
@@ -5806,6 +5818,7 @@
           if (window.__studioShellSetSection) __studioShellSetSection("dashboards");
           return;
         }
+        if (act === "blank" && !confirmReplaceUnsavedQuickBuild("starting a new blank dashboard")) return;
         enterStudio();
         if (act === "blank") { S.spec = newBlankSpec(); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); bumpDashMilestone(); }
         else if (act === "tour") { setTimeout(function () { if (window.StudioTutorial) StudioTutorial.open(); }, 60); }
@@ -5827,6 +5840,7 @@
         try {
           var d = JSON.parse(e.dataTransfer.getData("text/plain"));
           if (d && d.wsDataset && Studio.Workspace.get("datasets", d.wsDataset)) {
+            if (!confirmReplaceUnsavedQuickBuild("starting a new dashboard from this dataset")) return;
             enterStudio();
             S.spec = newBlankSpec(); S.selection = null; syncHeader();
             bumpDashMilestone();
@@ -9374,9 +9388,11 @@
       sp.panels.push(p);
     });
     if (!sp.panels.length && !sp.kpis.length) { toast("No chartable queries in " + stem, true); return; }
+    if (!confirmReplaceUnsavedQuickBuild("building a starter from “" + Studio.titleize(stem) + "”")) return;
     S.spec = sp; S.selection = null; syncHeader(); renderInspector(); refreshPreview();
     toast("Scaffolded " + sp.panels.length + " panels from " + stem);
   }
+  window.__studioScaffoldFromStem = scaffoldFromStem; // test hook
 
   function loadExample(file, keepAutosave) {
     fetchJSON("data/examples/" + file).then(function (spec) {
@@ -9637,6 +9653,7 @@
       b.onclick = function () {
         var action = b.getAttribute("data-new");
         if (action === "blank") {
+          if (!confirmReplaceUnsavedQuickBuild("starting a new blank dashboard")) return;
           S.spec = newBlankSpec(); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); bumpDashMilestone();
         } else if (b.getAttribute("data-set-kind") === "dataset") {
           scaffoldFromDataset(b.getAttribute("data-set-key"));
@@ -9674,6 +9691,7 @@
   // numeric-looking column pair + a bars panel, same spirit as scaffoldFromStem.
   function scaffoldFromDataset(dsId) {
     var ds = Studio.Workspace.get("datasets", dsId); if (!ds) return;
+    if (!confirmReplaceUnsavedQuickBuild("building a starter from “" + ds.name + "”")) return;
     S.spec = applyDashboardDefaults(Studio.emptySpec());
     S.spec.title = ds.name; S.spec.name = String(ds.name || "dashboard").toLowerCase().replace(/[^a-z0-9-]+/g, "-");
     S.spec.cda.dataAccesses = [];
@@ -9686,6 +9704,7 @@
     bumpDashMilestone();
     toast("Starter built from dataset " + ds.name);
   }
+  window.__studioScaffoldFromDataset = scaffoldFromDataset; // test hook
 
   // examples menu — E5: visual card gallery. Rebuilt whenever sample visibility
   // flips: the gallery IS the sample-dashboard showcase (internal demo database),
