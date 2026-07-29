@@ -28717,6 +28717,22 @@ function serve() {
       spSaved.count === 1 && spSaved.name === "Acme" && spSaved.subtitle === "Acme house style" && spSaved.accent === "#1a7a4a" && spSaved.rendered,
       JSON.stringify(spSaved));
 
+    // LF34: a preset whose saved fields match the current defaults is the ACTIVE one — the row is
+    // marked .is-active with an "Active" pill. Straight after saving from the live defaults, the new
+    // preset is active by construction.
+    const spActiveAfterSave = await page.evaluate(function () {
+      var list = window.__studioStylePresets(), id = list[0] && list[0].id;
+      var item = document.querySelector('.sp-item[data-id="' + id + '"]');
+      return {
+        activeId: window.__studioActiveStylePresetId(), presetId: id,
+        rowActive: !!(item && item.classList.contains("is-active")),
+        badge: !!(item && item.querySelector(".sp-active-badge"))
+      };
+    });
+    ok("LF34: the preset matching the current defaults shows as Active (row marked + 'Active' pill)",
+      spActiveAfterSave.activeId === spActiveAfterSave.presetId && spActiveAfterSave.rowActive && spActiveAfterSave.badge,
+      JSON.stringify(spActiveAfterSave));
+
     // LF15: the "Preset name" input + "+ Save as preset" button (.sp-add-row) sat side by
     // side even at phone width -- the intended `.set-txt{width:100%}` mobile rule was always
     // shadowed by the more-specific `.sp-add-row .set-txt{width:auto}`, so the name field stayed
@@ -28752,6 +28768,12 @@ function serve() {
     // change the active default, then re-apply the saved preset to prove it restores the snapshot
     await page.fill("#setDefaultSubtitleInp", "Something else");
     await page.evaluate(function () { document.getElementById("setDefaultSubtitleInp").dispatchEvent(new Event("change")); });
+    await page.waitForTimeout(80);
+    // LF34: with the defaults now diverging from the saved preset, no preset is active. (The subtitle
+    // field's change handler doesn't itself re-render Settings, so assert via the live derivation.)
+    const spActiveWhenDiverged = await page.evaluate(function () { return window.__studioActiveStylePresetId(); });
+    ok("LF34: changing a default clears the Active marker (no preset matches the live defaults)",
+      spActiveWhenDiverged === "", JSON.stringify(spActiveWhenDiverged));
     await page.click(".sp-apply");
     await page.waitForTimeout(80);
     const spApplied = await page.evaluate(function () {

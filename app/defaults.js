@@ -137,6 +137,24 @@
     setDefaultCardSkin(p.cardSkin || "");
     return true;
   }
+  // LF34: applyStylePreset writes the preset's fields into the default-* settings but stores no
+  // "which preset is active" marker — so nothing showed which saved preset is the current default.
+  // Derive it instead (no new stored state): a preset is active when re-applying it would be a
+  // no-op, i.e. every field it saved already equals the live default. Returns the first such id.
+  function activeStylePresetId() {
+    var cur = {
+      subtitle: defaultSubtitle() || "", accentColor: defaultAccentColor() || "", logo: defaultLogo() || "",
+      headerBg: defaultHeaderBg() || "", titleSize: defaultTitleSize() || "", subtitleStyle: defaultSubtitleStyle() || "",
+      dashboardTheme: defaultDashboardTheme() || "", cardSkin: defaultCardSkin() || ""
+    };
+    var match = stylePresets().filter(function (p) {
+      return (p.subtitle || "") === cur.subtitle && (p.accentColor || "") === cur.accentColor &&
+        (p.logo || "") === cur.logo && (p.headerBg || "") === cur.headerBg &&
+        (p.titleSize || "") === cur.titleSize && (p.subtitleStyle || "") === cur.subtitleStyle &&
+        (p.dashboardTheme || "") === cur.dashboardTheme && (p.cardSkin || "") === cur.cardSkin;
+    })[0];
+    return match ? match.id : "";
+  }
 
   // N-DEV follow-up: named, reusable template-variable sets. A style preset (above) seeds new
   // dashboards with default look fields; this instead lets ANY dashboard grab a previously-saved
@@ -242,6 +260,7 @@
     configureDashboardThemeFallback: configureDashboardThemeFallback,
     stylePresets: stylePresets, saveStylePresetList: saveStylePresetList,
     addStylePreset: addStylePreset, deleteStylePreset: deleteStylePreset, applyStylePreset: applyStylePreset,
+    activeStylePresetId: activeStylePresetId,
     templateVarSets: templateVarSets, saveTemplateVarSetList: saveTemplateVarSetList,
     addTemplateVarSet: addTemplateVarSet, deleteTemplateVarSet: deleteTemplateVarSet, applyTemplateVarSet: applyTemplateVarSet,
     customThemePresets: customThemePresets, saveCustomThemePresetList: saveCustomThemePresetList,
