@@ -1284,6 +1284,17 @@ body.lib-dragging #preview{pointer-events:none}
 .dsb-chips-hdr label{margin:0}
 .dsb-mini{margin-left:auto;background:var(--field);border:1px solid var(--line);color:var(--muted);font-size:var(--fs-11);font-weight:700;border-radius:7px;padding:var(--sp-4) var(--sp-10);cursor:pointer}
 .dsb-mini:hover{border-color:var(--brand);color:var(--brand)}
+/* LF64 slice 3 — "Date token ▾" insert menu on the query-field header. */
+.dsb-tok-wrap{margin-left:auto;position:relative}
+.dsb-tok-btn{margin-left:0;display:inline-flex;align-items:center;gap:4px}
+.dsb-tok-menu{position:absolute;right:0;top:calc(100% + 4px);z-index:60;background:var(--surface);border:1px solid var(--line);
+  border-radius:9px;box-shadow:var(--shadow-lg);padding:5px;min-width:236px;max-height:288px;overflow:auto;display:flex;flex-direction:column;gap:1px}
+.dsb-tok-menu[hidden]{display:none}
+.dsb-tok-item{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;
+  background:none;border:0;cursor:pointer;padding:var(--sp-6) var(--sp-8);border-radius:6px}
+.dsb-tok-item:hover{background:color-mix(in srgb,var(--brand) 12%,transparent)}
+.dsb-tok-code{font-family:var(--mono);font-size:var(--fs-12);color:var(--brand);font-weight:700;white-space:nowrap}
+.dsb-tok-dsc{font-size:var(--fs-11);color:var(--muted);text-align:right}
 .dsb-chips{display:flex;flex-wrap:wrap;gap:5px;min-height:24px;margin-bottom:6px}
 .dsb-chip{display:inline-flex;align-items:center;gap:5px;background:color-mix(in srgb,var(--brand) 12%,transparent);border:1px solid color-mix(in srgb,var(--brand) 26%,transparent);
   color:var(--brand);font-size:var(--fs-12);font-weight:700;font-family:var(--mono);border-radius:6px;padding:var(--sp-2) var(--sp-4) var(--sp-2) var(--sp-8)}

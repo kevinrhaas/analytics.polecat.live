@@ -116,6 +116,14 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF64 (slice 3) — "Date token" insert affordance (v684, sw v321, 2026-07-29):** the dataset
+  builder's query fields (SQL, Generic SQL/HTTP, BigQuery) gained a "Date token ▾" button that opens
+  a labeled pick-list (`Studio.DATE_TOKENS`) and inserts the chosen `{{token}}` at the textarea's
+  caret — discoverable + typo-free access to the slice 1/2 tokens, each shown with a plain-English
+  hint. A regression test asserts every picker entry resolves through `WS.applyParams`, so the list
+  can't drift from `WS.dynamicParam`. Closes the LF64 discoverability gap; token engine itself
+  unchanged. **LF64 is now feature-complete** (slices 1–3); reopen only if new token families are
+  requested.
 - **LF64 (slice 2) — week + quarter dynamic tokens (v683, sw v320, 2026-07-28):** extends slice 1's
   built-in token set with `{{week_start}}`/`{{week_end}}` (Monday-start, matching Postgres
   `date_trunc('week')`) and `{{quarter_start}}`/`{{quarter_end}}` (calendar Q1–Q4), same central
