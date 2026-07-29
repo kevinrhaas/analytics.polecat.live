@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v334"; /* v334: LF63 slice 1 — the Dataset editor gains a "Browse
+var CACHE_NAME = "studio-shell-v335"; /* v335: LF66/LF59 — dashboard FOLDERS alongside workbooks:
+   dashboards (which already carry the flat "/"-path `folder` field in the Repository tree) get a
+   Folders chip facet on the Dashboards page (composes with the workbook chips), a per-row folder
+   badge, and a move-to-folder button reusing the LF56 picker (renderDashboards + dashListRowHtml,
+   _dashFolderFilter). app/studio.js, app/studio.css, docs/index.html.
+   v334: LF63 slice 1 — the Dataset editor gains a "Browse
    schema" button (reusing the Connections wizard's already-shipped adapter.listSchema() tree)
    whenever the picked connection's adapter can introspect its own tables/columns; clicking a
    table/column drops it into the Table field or the SQL query at the cursor instead of typing it
