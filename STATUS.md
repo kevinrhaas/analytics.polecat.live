@@ -116,6 +116,14 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF32 follow-up (a) — offline preview is unmistakably labeled as sample (v685, sw v322,
+  2026-07-29):** the dataset builder's Query Preview generates made-up rows to illustrate the column
+  shape; a subtle "(offline sample)" label once let a preview be mistaken for a live query result
+  (the original LF32 report). It now carries an unmissable warning-tinted "SAMPLE — made-up rows to
+  show the shape, not your data" badge pinned above the table (the table scrolls under it), and the
+  field label reads "Preview (offline sample — not a live query)". CSS-only badge + a one-line render
+  change; a regression test asserts the badge text is present. Closes LF32 follow-up (a); (b) — run
+  the REAL query when the dataset is loadable — remains a larger, separate slice.
 - **LF64 (slice 3) — "Date token" insert affordance (v684, sw v321, 2026-07-29):** the dataset
   builder's query fields (SQL, Generic SQL/HTTP, BigQuery) gained a "Date token ▾" button that opens
   a labeled pick-list (`Studio.DATE_TOKENS`) and inserts the chosen `{{token}}` at the textarea's

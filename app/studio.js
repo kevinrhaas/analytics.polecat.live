@@ -1401,14 +1401,18 @@
 
       // 7 — live preview
       var prev = el("div", "dsb-prev");
-      var prevField = el("div", "field"); prevField.appendChild(labelEl("Live preview (offline sample)")); prevField.appendChild(prev);
+      var prevField = el("div", "field"); prevField.appendChild(labelEl("Preview (offline sample — not a live query)")); prevField.appendChild(prev);
       wrap.appendChild(prevField);
       function renderPreview() {
         if (!draft.columns.length) { prev.innerHTML = '<div class="dsb-empty">Add columns to see a sample.</div>'; return; }
         var rows = Studio.sampleRows({ id: draft.id || "q", columns: draft.columns }).rows;
         var th = draft.columns.map(function (c) { return "<th>" + esc(c) + "</th>"; }).join("");
         var tb = rows.slice(0, 5).map(function (r) { return "<tr>" + r.map(function (v) { return "<td>" + esc(v) + "</td>"; }).join("") + "</tr>"; }).join("");
-        prev.innerHTML = '<table><thead><tr>' + th + "</tr></thead><tbody>" + tb + "</tbody></table>";
+        // LF32(a) — make the fabrication UNMISSABLE: these rows are made up to show the column
+        // shape, they are NOT the query's real results. A subtle "(offline sample)" label alone
+        // let a preview be mistaken for live data (the original report); this badge cannot be.
+        prev.innerHTML = '<div class="dsb-prev-badge"><span class="dsb-prev-dot"></span>SAMPLE — made-up rows to show the shape, not your data</div>' +
+          '<div class="dsb-prev-scroll"><table><thead><tr>' + th + "</tr></thead><tbody>" + tb + "</tbody></table></div>";
       }
 
       // footer

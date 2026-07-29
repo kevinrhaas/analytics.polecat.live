@@ -8112,16 +8112,21 @@ function serve() {
       const chips = [].slice.call(m.querySelectorAll(".dsb-chip")).map((c) => c.textContent.replace("×", "").trim());
       const prevRows = m.querySelectorAll(".dsb-prev tbody tr").length;
       const prevCols = m.querySelectorAll(".dsb-prev thead th").length;
+      // LF32(a) — the offline preview must carry an unmissable "this is fabricated" badge.
+      const badge = m.querySelector(".dsb-prev .dsb-prev-badge");
+      const badgeText = badge ? badge.textContent.trim() : "";
       [].slice.call(m.querySelectorAll(".dsb-foot .btn-primary"))[0].click();
       await new Promise((r) => setTimeout(r, 80));
       const cat = window.__STUDIO_STATE.catalog.custom;
       const da = cat && cat.dataAccesses.filter((d) => d.id === "mySales")[0];
       const inLib = !!document.querySelector('.lib-cda[data-stem="custom"]');
       const modalGone = !document.querySelector(".modal .dsb");
-      return { types, chips, prevRows, prevCols, saved: !!da, cols: da ? da.columns.join(",") : "", inLib, modalGone };
+      return { types, chips, prevRows, prevCols, badgeText, saved: !!da, cols: da ? da.columns.join(",") : "", inLib, modalGone };
     });
     ok("builder opens with all source-type cards", built.types === 7, JSON.stringify({ types: built.types, err: built.err }));
     ok("Detect reads columns from the SQL + previews rows", built.chips.join(",") === "region,total" && built.prevRows === 5 && built.prevCols === 2, JSON.stringify(built));
+    ok("LF32(a): the offline preview carries a SAMPLE badge so fabricated rows can't read as live data",
+      /SAMPLE/i.test(built.badgeText) && /not your data/i.test(built.badgeText), JSON.stringify({ badgeText: built.badgeText }));
     ok("Create saves the data source into the library", built.saved && built.cols === "region,total" && built.inLib && built.modalGone, JSON.stringify(built));
 
     // ---- G1: visual SQL builder ----
