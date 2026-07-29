@@ -6648,7 +6648,8 @@
   function renderViews() { Studio.ViewsCatalog.render(); }
   window.__studioRenderViews = renderViews; // test hook
   Studio.ViewsCatalog.configure(Object.assign(coreModuleDeps(), {
-    themedChartSvg: function (svg, type) { return themedChartSvg(svg, type); }
+    themedChartSvg: function (svg, type) { return themedChartSvg(svg, type); },
+    exportAnalysisEmbed: function (a) { return exportAnalysisEmbed(a); }
   }));
 
 
@@ -9070,6 +9071,20 @@
     celebrateFirstExport();
     bumpExportMilestone();
     bundleModal("Embed View", [{ name: stem + "-embed.html", body: Studio.exportCDF(single, S.assets, S.settings.deployPath), mime: "text/html" }]);
+  }
+  // LF57 follow-up: the Views catalog's own "Export" action — the last of the three items
+  // LF57 slice 1's own DONE note flagged as "genuinely still open" (Duplicate and the
+  // per-chart-type row icons both shipped separately). A saved View has no open dashboard to
+  // pare down (exportPanelEmbed above needs S.spec) — Studio.Explore.analysisSpec(a) already
+  // builds the identical single-panel/no-kpis/no-filters shape from the analysis alone (it's
+  // the same helper Home's live-widget preview uses), so this is exportPanelEmbed's twin, fed
+  // from a saved View instead of an in-canvas panel.
+  function exportAnalysisEmbed(a) {
+    var spec = analysisSpec(a);
+    var stem = (a.name || "view").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "view";
+    celebrateFirstExport();
+    bumpExportMilestone();
+    bundleModal("Embed View", [{ name: stem + "-embed.html", body: Studio.exportCDF(spec, S.assets, S.settings.deployPath), mime: "text/html" }]);
   }
   // N-DIST: client-side PNG export of a chart — first cut of "Client-side PNG/PDF export of a whole
   // dashboard" (the SVG-chart half; legend/title/table chart types are a separate follow-up).

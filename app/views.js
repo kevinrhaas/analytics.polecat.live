@@ -125,6 +125,7 @@
           '<button type="button" class="btn" data-vw-open="' + esc(a.id) + '">Open</button>' +
           '<button type="button" class="btn" data-vw-dash="' + esc(a.id) + '">Add to dashboard</button>' +
           '<button type="button" class="btn" data-vw-dup="' + esc(a.id) + '" aria-label="Duplicate ' + esc(a.name || "View") + '">Duplicate</button>' +
+          '<button type="button" class="btn" data-vw-export="' + esc(a.id) + '" aria-label="Export ' + esc(a.name || "View") + '">Export</button>' +
           '<button type="button" class="btn" data-vw-del="' + esc(a.id) + '" aria-label="Delete ' + esc(a.name || "View") + '">✕</button>' +
         '</span>';
       if (isTiles) {
@@ -171,7 +172,7 @@
         if (mini) icEl.innerHTML = mini; else icEl.appendChild(Studio.icon("trend-up", 18));
       }
       row.addEventListener("click", function (e) {
-        if (e.target.closest("[data-vw-pin],[data-vw-private],[data-vw-open],[data-vw-dash],[data-vw-dup],[data-vw-del]")) return;
+        if (e.target.closest("[data-vw-pin],[data-vw-private],[data-vw-open],[data-vw-dash],[data-vw-dup],[data-vw-export],[data-vw-del]")) return;
         vwOpen(id);
       });
     });
@@ -191,6 +192,9 @@
     });
     $$("[data-vw-dup]", results).forEach(function (btn) {
       btn.onclick = function (e) { e.stopPropagation(); vwDuplicate(btn.getAttribute("data-vw-dup")); };
+    });
+    $$("[data-vw-export]", results).forEach(function (btn) {
+      btn.onclick = function (e) { e.stopPropagation(); vwExport(btn.getAttribute("data-vw-export")); };
     });
     $$("[data-vw-del]", results).forEach(function (btn) {
       btn.onclick = function () {
@@ -240,6 +244,13 @@
     var saved = Studio.Workspace.put("analyses", dup);
     toast("Duplicated “" + saved.name + "”");
     renderViews();
+  }
+  // LF57 follow-up ("make standalone" — the last of the three items LF57 slice 1's own DONE
+  // note flagged as genuinely still open): downloads a tiny, self-contained single-View HTML
+  // file — no open dashboard needed, unlike the in-canvas panel's own "Export this View…".
+  function vwExport(id) {
+    var a = Studio.Workspace.get("analyses", id); if (!a) return;
+    D.exportAnalysisEmbed(a);
   }
 
   Studio.ViewsCatalog = {

@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v362"; /* v362: LF57 follow-up — Views rows/tiles show a
+var CACHE_NAME = "studio-shell-v363"; /* v363: LF57 follow-up — the Views catalog gains an
+   Export action (app/views.js), downloading a tiny self-contained single-View .html straight
+   from a saved View — no open dashboard needed — via a new studio.js exportAnalysisEmbed(a),
+   exportPanelEmbed's twin fed from Studio.Explore.analysisSpec(a) instead of an in-canvas
+   panel. The last of the three items LF57 slice 1's own DONE note left "genuinely still open"
+   (Duplicate shipped v360, per-chart-type icons shipped v362) — LF57 is now fully done.
+   app/views.js, app/studio.js, docs/index.html, STATUS.md, js/changelog.js, tests/run.js.
+   v362: LF57 follow-up — Views rows/tiles show a
    themed per-chart-type icon (reusing Studio.CHART_SVG + studio.js's themedChartSvg, the same
    gallery-thumbnail art the chart-type picker draws from) instead of one generic glyph shared
    by every row; falls back to the generic icon for a type with no gallery thumbnail. The last
