@@ -27444,6 +27444,51 @@ function serve() {
     ok("Z3-WB: whole-repository export includes workbooks", !!wbExported && wbExported.name === "Export Test WB", JSON.stringify(wbDlJson.workbooks || []));
     await page.evaluate(function (id) { window.__studioDeleteWorkbook(id); }, wbExportCheck.wbId); // cleanup
 
+    // ── LF66/LF59: dashboards get FOLDERS alongside workbooks ──
+    // The Dashboards section used to organize by workbooks only; dashboards now also carry the
+    // same flat "/"-path `folder` field datasets/connections/jobs use — a Folders facet strip
+    // (composing with the workbook chips), a per-row folder badge, and a move-to-folder button.
+    console.log("\n• LF66/LF59: dashboard folders");
+    await page.evaluate(function () { window.__studioShellSetSection("dashboards"); });
+    await page.waitForTimeout(60);
+    await page.evaluate(function (dashId) {
+      var r = Studio.Workspace.get("dashboards", dashId);
+      r.folder = "Finance/2026"; Studio.Workspace.put("dashboards", r);
+      window.__studioRenderDashboards();
+    }, wbDashId);
+    await page.waitForTimeout(60);
+    const dfChips = await page.evaluate(function () {
+      return Array.prototype.map.call(document.querySelectorAll('#repoResults .cx-folder-chips [data-dash-folder]'), function (b) { return b.getAttribute("data-dash-folder"); });
+    });
+    ok("LF66/LF59: filing a dashboard surfaces a Folders facet with that folder chip (alongside the workbook chips)",
+      dfChips.indexOf("Finance/2026") >= 0 && dfChips.indexOf("__unfiled") >= 0, JSON.stringify(dfChips));
+    await page.click('#repoResults .cx-folder-chips [data-dash-folder="Finance/2026"]');
+    await page.waitForTimeout(60);
+    const dfFiltered = await page.evaluate(function (dashId) { return { shown: !!document.querySelector('#repoResults [data-recent="' + dashId + '"]') }; }, wbDashId);
+    ok("LF66/LF59: the folder chip filters the Dashboards list to that folder", dfFiltered.shown, JSON.stringify(dfFiltered));
+    await page.click('#repoResults .cx-folder-chips [data-dash-folder="__unfiled"]');
+    await page.waitForTimeout(60);
+    const dfUnfiled = await page.evaluate(function (dashId) { return { shown: !!document.querySelector('#repoResults [data-recent="' + dashId + '"]') }; }, wbDashId);
+    ok("LF66/LF59: the Unfiled folder chip excludes a filed dashboard", !dfUnfiled.shown, JSON.stringify(dfUnfiled));
+    await page.click('#repoResults .cx-folder-chips [data-dash-folder=""]');
+    await page.waitForTimeout(40);
+    // force LIST view (folder badge + move button live on the list row); the toggle persists, so restore after
+    const dfSwitched = await page.evaluate(function () { if (!document.querySelector('#repoResults .dash-list')) { var t = document.getElementById('dashViewToggle'); if (t) { t.click(); return true; } } return false; });
+    await page.waitForTimeout(60);
+    const dfRow = await page.evaluate(function (dashId) {
+      var row = document.querySelector('#repoResults .dash-list [data-recent="' + dashId + '"]');
+      var badge = row && row.querySelector('.cx-folder');
+      return { badge: badge ? badge.textContent : null, hasMove: !!(row && row.querySelector('.recent-folder')) };
+    }, wbDashId);
+    ok("LF66/LF59: a filed dashboard's list row shows a folder badge + a move-to-folder button",
+      dfRow.badge === "Finance/2026" && dfRow.hasMove, JSON.stringify(dfRow));
+    // cleanup: unfile the dashboard + restore tile view so later tests see the pre-existing state
+    await page.evaluate(function (dashId) {
+      var r = Studio.Workspace.get("dashboards", dashId); delete r.folder; Studio.Workspace.put("dashboards", r);
+      window.__studioRenderDashboards();
+    }, wbDashId);
+    if (dfSwitched) { await page.evaluate(function () { var t = document.getElementById('dashViewToggle'); if (t) t.click(); }); }
+
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(80);
 

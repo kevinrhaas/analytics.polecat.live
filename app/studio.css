@@ -2564,6 +2564,12 @@ body.simple-mode .da-acts{display:none!important}
 .recent-viewer:hover{background:var(--field);color:var(--ink)}
 .cx-list-viewer{position:static;width:22px;height:22px;color:var(--muted);opacity:.7;display:grid;place-items:center;text-decoration:none}
 .cx-list-viewer:hover{opacity:1;color:var(--ink)}
+/* LF66/LF59: dashboard-row "move to folder" button (same tiling as the private/viewer
+   list icons) + the Folders facet strip label. */
+.cx-list-folder{position:static;width:22px;height:22px;color:var(--muted);opacity:.7;display:grid;place-items:center;background:none;border:0;cursor:pointer}
+.cx-list-folder:hover,.cx-list-folder:focus-visible{opacity:1;color:var(--ink)}
+.cx-folder-chips{margin-top:6px}
+.cx-facet-label{align-self:center;margin-right:2px;font-size:var(--fs-11);color:var(--faint);text-transform:uppercase;letter-spacing:.04em}
 
 /* ── Examples on Home (Conservation Insight M1) ─────────────────────────── */
 .home-examples{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-bottom:8px}

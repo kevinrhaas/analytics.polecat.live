@@ -116,6 +116,22 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF66/LF59 — dashboard FOLDERS alongside workbooks (v698, sw v335, 2026-07-29):** Kevin's locked
+  library-model direction — *"folders should exist in addition to workbooks; workbooks can also go
+  into a folder."* First slice: dashboards now organize by **folders** in the Dashboards section, not
+  just workbooks. Dashboards already carried the flat `/`-path `folder` field (used in the Repository
+  tree); this surfaces it in `renderDashboards` — a **Folders chip facet** (`_dashFolderFilter`,
+  `data-dash-folder`, single-select All/per-folder/Unfiled) that **composes** with the existing
+  workbook chips (a dashboard can be in a workbook AND a folder), a per-row **folder badge**
+  (`.cx-folder`), and a per-row **move-to-folder button** (`.recent-folder`) that reuses the LF56
+  `openFolderPicker` + `repoSetObjectFolder("dashboard", …)`. Mirrors the exact folder-facet pattern
+  Datasets/Connections/Jobs already use — no new folder infra. Folder badge/move live on the **list**
+  row; the facet filter works in both list and tile views. 4 new regression tests (facet chip appears
+  on filing, filters to the folder, Unfiled excludes it, list row shows badge + move button). Files:
+  app/studio.js, app/studio.css, docs/index.html, sw.js, js/changelog.js, tests/run.js. **NEXT in the
+  library-model cluster:** LF57 (Views rail section as a thin application of this shared folder nav),
+  LF43 completion (packs materialize into the library tagged as a sample folder), workbooks-into-
+  folders, then tile-view folder display/assign.
 - **LF63 slice 1 — the Dataset editor gains a "Browse schema" panel, click-to-insert (v697, sw
   v334, 2026-07-29, steward):** LF63 asked for "a table/column browser ... feeding an assisted
   SQL/query builder that KNOWS the fields + tables (pick-list columns/tables ...)" — the browser

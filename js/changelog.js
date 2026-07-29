@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 698,
+    title: 'Organize dashboards into folders',
+    kind: 'feature',
+    ts: '2026-07-29T11:11:50.000Z',
+    items: [
+      'Dashboards now file into folders — the same nested "/"-path folders (e.g. "Finance/2026") your datasets, connections and jobs already use. Once at least one dashboard is filed, a "Folders" chip strip appears on the Dashboards page next to the workbook chips, and the two compose so you can narrow by workbook and folder together. In list view each dashboard shows its folder as a badge and a folder button opens the picker to move it (browse, search, or create a new nested folder). Folders and workbooks are independent — a dashboard can live in both.',
+    ],
+  },
+  {
     v: 697,
     title: 'Browse a connection\'s schema right from the dataset editor',
     kind: 'feature',

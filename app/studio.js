@@ -6170,6 +6170,11 @@
     W.put("dashboards", r);
   }
   var _repoWbFilter = ""; // "" = All, "__unfiled" = no workbook, "__packs" = sample-pack dashboards, else a workbook id
+  // LF66/LF59: dashboards get FOLDERS alongside workbooks (the same flat "/"-path `folder` field
+  // datasets/connections/jobs already use, and that dashboards already carry in the Repository
+  // tree). "" = All folders, "__unfiled" = no folder, else a folder path. Composes with the
+  // workbook filter above (a dashboard can be in a workbook AND a folder).
+  var _dashFolderFilter = "";
   window.__studioWorkbooks = loadWorkbooks; // test hook
   window.__studioAddWorkbook = addWorkbook; // test hook
   window.__studioDeleteWorkbook = deleteWorkbook; // test hook
@@ -6236,10 +6241,16 @@
     var packCount = list.filter(function (r) { return !!r.demoPackId; }).length;
     if (_repoWbFilter === "__packs" && !packCount) _repoWbFilter = "";
     if (_repoWbFilter && _repoWbFilter !== "__unfiled" && _repoWbFilter !== "__packs" && !validWbIds[_repoWbFilter]) _repoWbFilter = "";
+    // LF66/LF59: folder facet counts (single-select, same convention as datasets)
+    var folderCounts = {}, folderUnfiled = 0;
+    list.forEach(function (r) { if (r.folder) folderCounts[r.folder] = (folderCounts[r.folder] || 0) + 1; else folderUnfiled++; });
+    if (_dashFolderFilter && _dashFolderFilter !== "__unfiled" && !folderCounts[_dashFolderFilter]) _dashFolderFilter = "";
     var filtered = list.filter(function (r) {
-      if (_repoWbFilter === "__unfiled") return !r.workbookId || !validWbIds[r.workbookId];
-      if (_repoWbFilter === "__packs") return !!r.demoPackId;
-      if (_repoWbFilter) return r.workbookId === _repoWbFilter;
+      if (_repoWbFilter === "__unfiled") { if (r.workbookId && validWbIds[r.workbookId]) return false; }
+      else if (_repoWbFilter === "__packs") { if (!r.demoPackId) return false; }
+      else if (_repoWbFilter) { if (r.workbookId !== _repoWbFilter) return false; }
+      if (_dashFolderFilter === "__unfiled") { if (r.folder) return false; }
+      else if (_dashFolderFilter) { if (r.folder !== _dashFolderFilter) return false; }
       return true;
     });
     // Innovation-sweep idea (added 2026-07-04): "which of my saved dashboards use column X" —
@@ -6283,6 +6294,18 @@
     }).join("") +
       '<span class="wb-add"><input type="text" id="wbNameInp" class="wb-name-inp" placeholder="New workbook…" aria-label="New workbook name"/>' +
       '<button type="button" class="btn" id="wbAddBtn">+ Workbook</button></span></div>';
+    // LF66/LF59: the FOLDER facet — a single-select strip that appears only once at least one
+    // dashboard has been filed into a folder (same "don't show an empty facet" rule as datasets).
+    // Composes with the workbook chips above; labelled so the two facets read distinctly.
+    var foldersHtml = Object.keys(folderCounts).length
+      ? '<div class="wb-chips cx-folder-chips"><span class="cx-facet-label">Folders</span>' +
+        ['<button type="button" class="wb-chip cx-pill' + (!_dashFolderFilter ? " active" : "") + '" data-dash-folder="" aria-pressed="' + (!_dashFolderFilter ? "true" : "false") + '"><span class="wb-chip-label">All folders</span> <span class="wb-chip-n">' + list.length + '</span></button>']
+          .concat(Object.keys(folderCounts).sort().map(function (f) {
+            return '<button type="button" class="wb-chip cx-pill' + (_dashFolderFilter === f ? " active" : "") + '" data-dash-folder="' + esc(f) + '" aria-pressed="' + (_dashFolderFilter === f ? "true" : "false") + '"><span class="wb-chip-label">' + esc(f) + '</span> <span class="wb-chip-n">' + folderCounts[f] + '</span></button>';
+          }))
+          .concat(['<button type="button" class="wb-chip cx-pill' + (_dashFolderFilter === "__unfiled" ? " active" : "") + '" data-dash-folder="__unfiled" aria-pressed="' + (_dashFolderFilter === "__unfiled" ? "true" : "false") + '"><span class="wb-chip-label">Unfiled</span> <span class="wb-chip-n">' + folderUnfiled + '</span></button>'])
+          .join("") + '</div>'
+      : '';
     var selCount = Object.keys(_dashSelected).length;
     var bulkBarHtml = _dashSelectMode
       ? '<div class="dash-bulk-bar"><span class="dash-bulk-count">' + selCount + ' selected</span>' +
@@ -6293,15 +6316,34 @@
       : '';
     results.innerHTML =
       '<h2 class="home-sub">Dashboards <span class="repo-count">' + dashCards.length + ' of ' + filtered.length + '</span></h2>' +
-      chipsHtml + bulkBarHtml +
+      chipsHtml + foldersHtml + bulkBarHtml +
       (dashCards.length
         ? (_dashViewMode === "list" ? '<div class="cx-list dash-list">' + dashCards.join("") + '</div>'
                                     : '<div class="home-recents">' + dashCards.join("") + '</div>')
         : '<div class="home-empty-hint">' + (q ? "No dashboards match “" + esc(q) + "”."
             : (_repoWbFilter === "__packs" ? "No sample-pack dashboards installed — add a pack in Settings → Sample packs."
-              : (_repoWbFilter ? "No dashboards in this workbook yet." : "No dashboards yet — build one in Studio and it will show up here."))) + '</div>');
+              : (_dashFolderFilter && _dashFolderFilter !== "__unfiled" ? "No dashboards in this folder yet."
+                : (_repoWbFilter ? "No dashboards in this workbook yet." : "No dashboards yet — build one in Studio and it will show up here.")))) + '</div>');
     $$("[data-wb-filter]", results).forEach(function (btn) {
       btn.onclick = function () { _repoWbFilter = btn.getAttribute("data-wb-filter"); renderDashboards(); };
+    });
+    // LF66/LF59: folder facet clicks (single-select, composes with the workbook filter)
+    $$("[data-dash-folder]", results).forEach(function (btn) {
+      btn.onclick = function () { _dashFolderFilter = btn.getAttribute("data-dash-folder"); renderDashboards(); };
+    });
+    // LF66/LF59: per-row "move to folder" — reuse the LF56 folder picker; the folder set is the
+    // dashboards' own folders plus any empty folder-seeds created in the Repository tree.
+    $$(".recent-folder", results).forEach(function (btn) {
+      btn.appendChild(Studio.icon("folder", 13));
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        var id = btn.getAttribute("data-folder");
+        var row = Studio.Workspace.get("dashboards", id); if (!row) return;
+        var allFolders = Object.keys(folderCounts).concat(repoLoadFolderSeeds());
+        Studio.openFolderPicker(row.folder || "", allFolders, function (path) {
+          if (repoSetObjectFolder("dashboard", id, path)) { renderHome(); renderDashboards(); }
+        });
+      };
     });
     // Z3 follow-up: rename a workbook via a hover-revealed ✎ button beside the ✕ delete —
     // swaps the chip's label span for an inline <input> (same convention as panel/KPI rename),
@@ -6404,7 +6446,7 @@
       // purely a mouse convenience so clicking anywhere else on the row still
       // opens it too.
       row.addEventListener("click", function (e) {
-        if (e.target.closest(".recent-pin,.recent-private,.recent-wb-sel,.recent-viewer,.dash-select-cb")) return;
+        if (e.target.closest(".recent-pin,.recent-private,.recent-wb-sel,.recent-viewer,.recent-folder,.dash-select-cb")) return;
         if (_dashSelectMode) { toggleDashSelect(row.getAttribute("data-recent")); return; }
         openRecent(row.getAttribute("data-recent"));
       });
@@ -6427,9 +6469,11 @@
       selectHtml +
       '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(title) + ' — open" aria-label="Open ' + esc(title) + '"><b>' + esc(title) + '</b></button><small>' + esc(meta) +
         (matchedCol ? ' · matches column “' + esc(matchedCol) + '”' : "") + '</small></span>' +
+      (r.folder ? '<span class="cx-badge cx-folder" data-tip="Folder: ' + esc(r.folder) + '">' + esc(r.folder) + '</span>' : "") +
       (sp.dashboardTheme ? '<span class="cx-badge">' + esc(sp.dashboardTheme) + '</span>' : "") +
       '<span class="cx-when">' + esc(when) + '</span>' +
-      '<span class="cx-actions"><button type="button" class="recent-pin' + (pinned ? " pinned" : "") + '" data-pin="' + esc(r.id) + '" title="' + (pinned ? "Unpin " + esc(title) : "Pin " + esc(title) + " to Home") + '" aria-label="' + (pinned ? "Unpin " + esc(title) : "Pin " + esc(title) + " to Home") + '" aria-pressed="' + (pinned ? "true" : "false") + '"></button>' +
+      '<span class="cx-actions"><button type="button" class="recent-folder cx-list-folder" data-folder="' + esc(r.id) + '" title="' + (r.folder ? "In folder “" + esc(r.folder) + "” — move" : "Move " + esc(title) + " to a folder") + '" aria-label="Move ' + esc(title) + ' to a folder"></button>' +
+      '<button type="button" class="recent-pin' + (pinned ? " pinned" : "") + '" data-pin="' + esc(r.id) + '" title="' + (pinned ? "Unpin " + esc(title) : "Pin " + esc(title) + " to Home") + '" aria-label="' + (pinned ? "Unpin " + esc(title) : "Pin " + esc(title) + " to Home") + '" aria-pressed="' + (pinned ? "true" : "false") + '"></button>' +
       '<button type="button" class="recent-private cx-list-private' + (r.private ? " private" : "") + '" data-private="' + esc(r.id) + '" title="' + (r.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (r.private ? "Make " + esc(title) + " public" : "Make " + esc(title) + " private") + '" aria-pressed="' + (r.private ? "true" : "false") + '"></button>' +
       '<a class="recent-viewer cx-list-viewer" data-viewer="' + esc(r.id) + '" href="' + esc(viewerUrl(r.id)) + '" target="_blank" rel="noopener" ' +
         'title="Open in viewer (read-only, new tab)" aria-label="Open ' + esc(title) + ' in viewer, read-only, opens in a new tab" onclick="event.stopPropagation()"></a></span>' +
