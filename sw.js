@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v358"; /* v358: Kevin live feedback — Explore's savebar reads
+var CACHE_NAME = "studio-shell-v359"; /* v359: LF57 slice 1 — a new "Views" rail section
+   (app/views.js, Studio.ViewsCatalog) is a dedicated browse/manage catalog for saved Views
+   (the analyses table Explore builds): list/tile toggle, folder + chart-type facets, search,
+   and per-row Open/pin/private/Add-to-dashboard/Delete actions — reusing Studio.Explore's own
+   pin/private/load/add-to-dashboard methods so state never drifts from Explore's own sidebar.
+   New precached file (app/views.js). app/index.html, app/shell.js, app/studio.js,
+   docs/index.html, STATUS.md, js/changelog.js.
+   v358: Kevin live feedback — Explore's savebar reads
    "Save View"/"Update View" and the hero/tour/Help frame the saved result as a View (last
    "analysis" stragglers from LF52); Settings' connected-backend row wraps at phone width so
    the name stays readable and "Switch backend" stays on-screen. app/explore.js,
@@ -1964,6 +1971,7 @@ var SHELL_FILES = [
   "app/jobs.js",
   "app/connections.js",
   "app/datasets.js",
+  "app/views.js",
   "app/quickmode.js",
   "app/studio.js",
   "app/palette.js",

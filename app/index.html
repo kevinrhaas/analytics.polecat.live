@@ -39,6 +39,9 @@
     <button class="rail-item" data-sec="dashboards" title="Dashboards" aria-label="Dashboards"><span class="rail-ic" data-ic="layers"></span><span class="rail-lbl">Dashboards</span></button>
     <button class="rail-item" data-sec="datasets" title="Datasets" aria-label="Datasets"><span class="rail-ic" data-ic="db"></span><span class="rail-lbl">Datasets</span></button>
     <button class="rail-item" data-sec="connections" title="Connections" aria-label="Connections"><span class="rail-ic" data-ic="link"></span><span class="rail-lbl">Connections</span></button>
+    <!-- LF57 slice 1: a dedicated browse/manage section for saved Views (the analyses
+         table Explore builds) — Explore stays the simple builder, this is the catalog. -->
+    <button class="rail-item" data-sec="views" title="Views" aria-label="Views"><span class="rail-ic" data-ic="image"></span><span class="rail-lbl">Views</span></button>
     <button class="rail-item" data-sec="repository" title="Repository" aria-label="Repository"><span class="rail-ic" data-ic="folder"></span><span class="rail-lbl">Repository</span></button>
     <div class="rail-group-lbl rail-lbl" aria-hidden="true">Build</div>
     <!-- LF23 slice 2: developer-only — hidden for the viewer role by shell.js's role gating
@@ -244,6 +247,19 @@
       <div id="connResults"></div>
     </div>
   </section>
+  <section id="secViews" class="app-sec has-content" hidden>
+    <div class="repo-wrap">
+      <div class="repo-hero">
+        <p>Every reusable chart, KPI, or map you've saved from Explore — pin one to Home, drop it into any dashboard, or reopen it in Explore to refine.</p>
+        <input id="viewsSearch" class="repo-search" type="search" placeholder="Search Views…" aria-label="Search Views"/>
+        <div class="repo-io">
+          <button type="button" class="btn" id="viewsViewToggle" title="Switch between tile and list layout" aria-pressed="false">Tile view</button>
+          <button type="button" class="btn primary" id="viewsNewBtn">+ New View</button>
+        </div>
+      </div>
+      <div id="viewsResults"></div>
+    </div>
+  </section>
   <section id="secRepository" class="app-sec has-content" hidden>
     <div class="repo-wrap">
       <div class="repo-hero">
@@ -444,6 +460,7 @@
 <script src="app/jobs.js"></script>
 <script src="app/connections.js"></script>
 <script src="app/datasets.js"></script>
+<script src="app/views.js"></script>
 <script src="app/quickmode.js"></script>
 <script src="app/studio.js"></script>
 <script src="app/palette.js"></script>

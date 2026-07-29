@@ -7715,6 +7715,127 @@ function serve() {
     ok("LF51: toggling back returns Repository to the list layout",
       lf51ViewRepo.backToList, JSON.stringify(lf51ViewRepo));
 
+    // ── LF57 slice 1: the "Views" rail section — a browse/manage catalog over the
+    // existing `analyses` table (Explore stays the one place a View is authored). ──
+    console.log("\n• LF57: Views section (browse/manage catalog for saved Views)");
+    const lf57Basic = await page.evaluate(function () {
+      window.__studioShellSetSection("views");
+      try { localStorage.removeItem("studio-vwc-view"); } catch (e) {}
+      var a = Studio.Workspace.put("analyses", { name: "lf57-a", chartType: "bars", da: { id: "da1", columns: [] } });
+      window.__studioRenderViews();
+      var results = document.getElementById("viewsResults");
+      var toggle = document.getElementById("viewsViewToggle");
+      var row = results.querySelector('.cx-row[data-vw-id="' + a.id + '"]');
+      var out = {
+        railItemExists: !!document.querySelector('.rail-item[data-sec="views"]'),
+        sectionVisible: !document.getElementById("secViews").hidden,
+        toggleExists: !!toggle,
+        toggleLabel: toggle ? toggle.textContent : null,
+        listDefault: !!row && !results.querySelector(".dsx-tile"),
+        rowHasTitle: !!(row && row.querySelector(".cx-title-btn") && row.querySelector(".cx-title-btn b").textContent === "lf57-a"),
+        rowHasChartType: !!(row && row.textContent.indexOf("Bar chart") >= 0),
+        rowHasOpen: !!row.querySelector('[data-vw-open="' + a.id + '"]'),
+        rowHasDash: !!row.querySelector('[data-vw-dash="' + a.id + '"]'),
+        rowHasDel: !!row.querySelector('[data-vw-del="' + a.id + '"]')
+      };
+      // list ⇆ tile toggle (same LF51 convention as every other catalog section)
+      if (toggle) toggle.click();
+      var tile = results.querySelector('.dsx-tile[data-vw-id="' + a.id + '"]');
+      out.tilesAfterClick = !!tile && !results.querySelector(".cx-row");
+      out.tilePersisted = localStorage.getItem("studio-vwc-view");
+      if (toggle) toggle.click();
+      out.backToList = !!results.querySelector('.cx-row[data-vw-id="' + a.id + '"]') && !results.querySelector(".dsx-tile");
+      Studio.Workspace.remove("analyses", a.id, { silent: true });
+      Studio.Workspace.notify("*");
+      try { localStorage.removeItem("studio-vwc-view"); } catch (e) {}
+      window.__studioShellSetSection("studio");
+      return out;
+    });
+    ok("LF57: a 'Views' rail item exists and its section shows a saved View with name + chart type",
+      lf57Basic.railItemExists && lf57Basic.sectionVisible && lf57Basic.listDefault &&
+      lf57Basic.rowHasTitle && lf57Basic.rowHasChartType, JSON.stringify(lf57Basic));
+    ok("LF57: each row carries Open/Add-to-dashboard/Delete action hooks",
+      lf57Basic.rowHasOpen && lf57Basic.rowHasDash && lf57Basic.rowHasDel, JSON.stringify(lf57Basic));
+    ok("LF57: the toggle switches Views to a tile grid (persisted) and back",
+      lf57Basic.toggleExists && lf57Basic.toggleLabel === "Tile view" && lf57Basic.tilesAfterClick &&
+      lf57Basic.tilePersisted === "tiles" && lf57Basic.backToList, JSON.stringify(lf57Basic));
+
+    const lf57Facets = await page.evaluate(function () {
+      window.__studioShellSetSection("views");
+      var a1 = Studio.Workspace.put("analyses", { name: "lf57f-bars", chartType: "bars", folder: "Finance", da: { id: "da1", columns: [] } });
+      var a2 = Studio.Workspace.put("analyses", { name: "lf57f-donut", chartType: "donut", da: { id: "da2", columns: [] } });
+      window.__studioRenderViews();
+      var results = document.getElementById("viewsResults");
+      var out = { bothShown: results.querySelectorAll(".cx-row").length >= 2 };
+      // folder facet: single-select, narrows to just the filed one
+      var folderChip = results.querySelector('[data-vw-folder="Finance"]');
+      out.folderChipExists = !!folderChip;
+      if (folderChip) folderChip.click();
+      var afterFolder = document.getElementById("viewsResults");
+      out.folderNarrows = !!afterFolder.querySelector('.cx-row[data-vw-id="' + a1.id + '"]') && !afterFolder.querySelector('.cx-row[data-vw-id="' + a2.id + '"]');
+      var clearBtn = document.getElementById("vwPillClear");
+      if (clearBtn) clearBtn.click();
+      // chart-type facet: multi-select, narrows to just donut
+      var typeChip = document.getElementById("viewsResults").querySelector('[data-vw-type="donut"]');
+      out.typeChipExists = !!typeChip;
+      if (typeChip) typeChip.click();
+      var afterType = document.getElementById("viewsResults");
+      out.typeNarrows = !!afterType.querySelector('.cx-row[data-vw-id="' + a2.id + '"]') && !afterType.querySelector('.cx-row[data-vw-id="' + a1.id + '"]');
+      var clearBtn2 = document.getElementById("vwPillClear");
+      if (clearBtn2) clearBtn2.click();
+      Studio.Workspace.remove("analyses", a1.id, { silent: true });
+      Studio.Workspace.remove("analyses", a2.id, { silent: true });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+      return out;
+    });
+    ok("LF57: the folder facet (single-select, LF56 convention) narrows the list to just the filed View",
+      lf57Facets.bothShown && lf57Facets.folderChipExists && lf57Facets.folderNarrows, JSON.stringify(lf57Facets));
+    ok("LF57: the chart-type facet (multi-select) narrows the list to just that type",
+      lf57Facets.typeChipExists && lf57Facets.typeNarrows, JSON.stringify(lf57Facets));
+
+    const lf57Actions = await page.evaluate(function () {
+      window.__studioShellSetSection("views");
+      var a = Studio.Workspace.put("analyses", { name: "lf57act", chartType: "bars", da: { id: "da1", columns: [] } });
+      window.__studioRenderViews();
+      var out = {};
+      // Pin/private route straight into Studio.Explore's own methods, so state can
+      // never drift from Explore's own sidebar — verify the underlying row flips.
+      document.querySelector('[data-vw-pin="' + a.id + '"]').click();
+      out.pinnedAfterClick = !!Studio.Workspace.get("analyses", a.id).pinned;
+      document.querySelector('[data-vw-private="' + a.id + '"]').click();
+      out.privateAfterClick = !!Studio.Workspace.get("analyses", a.id).private;
+      // Open: loads it into Explore and switches section (row click and the explicit button do the same)
+      document.querySelector('[data-vw-open="' + a.id + '"]').click();
+      out.openedIntoExplore = window.__studioShellGetSection() === "explore" && Studio.Explore.XP.analysisId === a.id;
+      window.__studioShellSetSection("views");
+      window.__studioRenderViews();
+      // Add to dashboard: opens the same "Add to which dashboard?" picker Explore's sidebar uses
+      document.querySelector('[data-vw-dash="' + a.id + '"]').click();
+      out.dashPickerOpened = !!document.querySelector(".modal-ov");
+      var ov = document.querySelector(".modal-ov"); if (ov) ov.remove();
+      window.__studioShellSetSection("views");
+      window.__studioRenderViews();
+      // Delete: confirm() gate, then the row is gone and Explore's own pointer is cleared
+      Studio.Explore.XP.analysisId = a.id;
+      window.confirm = function () { return true; };
+      document.querySelector('[data-vw-del="' + a.id + '"]').click();
+      out.deleted = !Studio.Workspace.get("analyses", a.id);
+      out.explorePointerCleared = Studio.Explore.XP.analysisId !== a.id;
+      window.__studioShellSetSection("studio");
+      return out;
+    });
+    ok("LF57: the pin toggle flips straight through Studio.Explore.togglePin",
+      lf57Actions.pinnedAfterClick, JSON.stringify(lf57Actions));
+    ok("LF57: the private toggle flips straight through Studio.Explore.togglePrivate",
+      lf57Actions.privateAfterClick, JSON.stringify(lf57Actions));
+    ok("LF57: Open loads the View into Explore and switches section",
+      lf57Actions.openedIntoExplore, JSON.stringify(lf57Actions));
+    ok("LF57: Add to dashboard opens the same existing-dashboard picker Explore's sidebar uses",
+      lf57Actions.dashPickerOpened, JSON.stringify(lf57Actions));
+    ok("LF57: Delete removes the View (after confirm) and clears Explore's own pointer if it was open",
+      lf57Actions.deleted && lf57Actions.explorePointerCleared, JSON.stringify(lf57Actions));
+
     // ── LF51 (command center): Repository's ＋ New ▾ creates EVERY object kind ─────────
     // Each entry routes into that kind's own builder/editor (dashboard → Studio blank spec,
     // View → Explore fresh analysis, dataset/connection/job → their real editor modals), and
@@ -27158,20 +27279,21 @@ function serve() {
       return {
         // LF60: the Help rail item now switches to an in-app Docs SECTION (data-sec="docs"),
         // so it counts among the section buttons — 10 workspace sections + Help/Docs = 11.
-        ok: !!nav && items.length === 11 && !!studioBtn && studioBtn.classList.contains("active")
+        // LF57: a new "Views" section joins the rail (browse/manage catalog for saved Views) — 12.
+        ok: !!nav && items.length === 12 && !!studioBtn && studioBtn.classList.contains("active")
           && studioBtn.getAttribute("aria-current") === "page",
         secs: items.map(function (b) { return b.getAttribute("data-sec"); }),
         appMainHidden: document.getElementById("appMain").hidden,
         collapseBtn: !!document.getElementById("railCollapse")
       };
     });
-    ok("Z1: rail has Home/Explore/Dashboards/Datasets/Jobs/Connections/Repository/Studio/Admin/Settings/Docs + Studio active by default", z1Boot.ok, JSON.stringify(z1Boot));
+    ok("Z1: rail has Home/Explore/Dashboards/Datasets/Jobs/Connections/Views/Repository/Studio/Admin/Settings/Docs + Studio active by default", z1Boot.ok, JSON.stringify(z1Boot));
     ok("Z1: #appMain (the builder) is visible by default", z1Boot.appMainHidden === false, JSON.stringify(z1Boot));
 
     // Z1-2: rail icons are real inline SVGs (Studio.icon(), theme-aware — no emoji/unicode glyphs)
     const z1Icons = await page.evaluate(function () {
       var svgs = document.querySelectorAll("#railNav .rail-ic svg");
-      return { ok: svgs.length === 12, count: svgs.length }; // 10 sections (incl. Admin M4, Repository M5) + Help (Z11) + collapse toggle (Slice A removed the #railCmdk Search/⌘K item — search moved to the topbar)
+      return { ok: svgs.length === 13, count: svgs.length }; // 11 sections (incl. Admin M4, Repository M5, Views LF57) + Help (Z11) + collapse toggle (Slice A removed the #railCmdk Search/⌘K item — search moved to the topbar)
     });
     ok("Z1: rail buttons render inline SVG icons (Studio.icon helper)", z1Icons.ok, JSON.stringify(z1Icons));
 
