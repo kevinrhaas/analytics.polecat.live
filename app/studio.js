@@ -1363,7 +1363,7 @@
       var addP = el("button", "dsb-mini"); setIconBtn(addP, "plus", "Parameter", 12);
       addP.onclick = function () { draft.params.push({ name: "param" + (draft.params.length + 1), type: "String", default: "" }); renderParams(); };
       pHdr.appendChild(addP); paramsField.appendChild(pHdr); paramsField.appendChild(paramsBox);
-      paramsField.appendChild(noteEl("info", "Built-in dynamic tokens need no parameter — write {{today}}, {{yesterday}}, {{today-30}}, {{today+7}}, {{week_start}}, {{week_end}}, {{month_start}}, {{month_end}}, {{quarter_start}}, {{quarter_end}}, {{year_start}}, {{year_end}} (ISO dates) or {{now}} (timestamp) straight in the SQL and they resolve fresh every run, so \"last 30 days\"-style filters stay current. Weeks are Monday-start; quarters are calendar Q1–Q4. A parameter of the same name overrides the built-in."));
+      paramsField.appendChild(noteEl("info", "Built-in dynamic tokens need no parameter — write {{today}}, {{yesterday}}, {{today-30}}, {{today+7}}, {{week_start}}, {{week_end}}, {{month_start}}, {{month_end}}, {{quarter_start}}, {{quarter_end}}, {{year_start}}, {{year_end}} (ISO dates) or {{now}} (timestamp) straight in the SQL — the “Date token” button on the query field inserts them at the cursor — and they resolve fresh every run, so \"last 30 days\"-style filters stay current. Weeks are Monday-start; quarters are calendar Q1–Q4. A parameter of the same name overrides the built-in."));
       wrap.appendChild(paramsField);
       function renderParams() {
         paramsBox.innerHTML = "";
@@ -1903,7 +1903,10 @@
           var bqTa = textarea(draft.query, function (v) { draft.query = v; });
           bqTa.className = "dsb-query"; bqTa.spellcheck = false; bqTa.placeholder = bqT.ph;
           var bqQF = el("div", "field");
-          bqQF.appendChild(labelEl("Query"));
+          var bqHdr = el("div", "dsb-chips-hdr");
+          bqHdr.appendChild(labelEl("Query"));
+          bqHdr.appendChild(dateTokenBtn(function () { return bqTa; }));
+          bqQF.appendChild(bqHdr);
           bqQF.appendChild(bqTa);
           qSection.appendChild(bqQF);
           detectBtn.style.display = "none";
@@ -1948,7 +1951,10 @@
           var httpTa = textarea(draft.query, function (v) { draft.query = v; });
           httpTa.className = "dsb-query"; httpTa.spellcheck = false; httpTa.placeholder = httpT.ph;
           var httpQF = el("div", "field");
-          httpQF.appendChild(labelEl("Query"));
+          var httpHdr = el("div", "dsb-chips-hdr");
+          httpHdr.appendChild(labelEl("Query"));
+          httpHdr.appendChild(dateTokenBtn(function () { return httpTa; }));
+          httpQF.appendChild(httpHdr);
           httpQF.appendChild(httpTa);
           qSection.appendChild(httpQF);
           detectBtn.style.display = "none";
@@ -1958,7 +1964,10 @@
           qH.textContent = "Alias each output with “as name” so columns can be detected.";
           var qTa = textarea(draft.query, function (v) { draft.query = v; });
           qTa.className = "dsb-query"; qTa.spellcheck = false; qTa.placeholder = t.ph;
-          var qF = el("div", "field"); qF.appendChild(labelEl("SQL Query")); qF.appendChild(qTa); qF.appendChild(qH);
+          var qHdr = el("div", "dsb-chips-hdr");
+          qHdr.appendChild(labelEl("SQL Query"));
+          qHdr.appendChild(dateTokenBtn(function () { return qTa; }));
+          var qF = el("div", "field"); qF.appendChild(qHdr); qF.appendChild(qTa); qF.appendChild(qH);
           qSection.appendChild(qF);
           // SQL Builder accordion: available for SQL kind to assist with SELECT generation (G1)
           qSection.appendChild(renderSQLBuilder(qTa));
@@ -10780,6 +10789,66 @@
     if (iconName) btn.appendChild(Studio.icon(iconName, sz || 14));
     btn.appendChild(document.createTextNode((iconName ? " " : "") + text + " "));
     btn.appendChild(Studio.icon("chevron-down", 11));
+  }
+  // LF64 slice 3 — the built-in DYNAMIC date tokens (see WS.dynamicParam in
+  // app/sources/schema.js), surfaced as a pick-list so they're discoverable and
+  // typo-free. Order matches the query's natural granularity (day → week → month
+  // → quarter → year → timestamp). A regression test asserts every token here is
+  // one WS.dynamicParam actually resolves, so the picker can't drift from the engine.
+  var DATE_TOKENS = [
+    { t: "today", d: "current date" },
+    { t: "yesterday", d: "1 day ago" },
+    { t: "tomorrow", d: "1 day ahead" },
+    { t: "today-30", d: "N days ago (edit N)" },
+    { t: "today+7", d: "N days ahead (edit N)" },
+    { t: "week_start", d: "Monday of this week" },
+    { t: "week_end", d: "Sunday of this week" },
+    { t: "month_start", d: "1st of this month" },
+    { t: "month_end", d: "last day of this month" },
+    { t: "quarter_start", d: "start of this quarter" },
+    { t: "quarter_end", d: "end of this quarter" },
+    { t: "year_start", d: "Jan 1 this year" },
+    { t: "year_end", d: "Dec 31 this year" },
+    { t: "now", d: "full timestamp (ISO)" }
+  ];
+  Studio.DATE_TOKENS = DATE_TOKENS;
+  // Splice `text` in at the textarea's caret (replacing any selection) and fire
+  // input so the draft binding + preview update, then leave the caret after it.
+  function insertAtCursor(ta, text) {
+    if (!ta) return;
+    ta.focus();
+    var s = ta.selectionStart != null ? ta.selectionStart : ta.value.length;
+    var e = ta.selectionEnd != null ? ta.selectionEnd : ta.value.length;
+    ta.value = ta.value.slice(0, s) + text + ta.value.slice(e);
+    ta.selectionStart = ta.selectionEnd = s + text.length;
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  // A "Date token ▾" button (for a query field header) that drops a menu of the
+  // built-in tokens; picking one inserts {{token}} at the target textarea's caret.
+  // getTa() is called lazily so the same button follows a re-rendered textarea.
+  function dateTokenBtn(getTa) {
+    var wrap = el("div", "dsb-tok-wrap");
+    var btn = el("button", "dsb-mini dsb-tok-btn"); btn.type = "button";
+    setIconBtnCaret(btn, "clock", "Date token", 12);
+    btn.setAttribute("aria-label", "Insert a dynamic date token");
+    var menu = el("div", "dsb-tok-menu"); menu.hidden = true;
+    DATE_TOKENS.forEach(function (tk) {
+      var it = el("button", "dsb-tok-item"); it.type = "button";
+      var code = el("code", "dsb-tok-code"); code.textContent = "{{" + tk.t + "}}";
+      var dsc = el("span", "dsb-tok-dsc"); dsc.textContent = tk.d;
+      it.appendChild(code); it.appendChild(dsc);
+      it.onclick = function (ev) { ev.preventDefault(); insertAtCursor(getTa(), "{{" + tk.t + "}}"); close(); };
+      menu.appendChild(it);
+    });
+    function close() { menu.hidden = true; document.removeEventListener("mousedown", onDoc, true); }
+    function onDoc(ev) { if (!wrap.contains(ev.target)) close(); }
+    btn.onclick = function (ev) {
+      ev.preventDefault();
+      if (menu.hidden) { menu.hidden = false; setTimeout(function () { document.addEventListener("mousedown", onDoc, true); }, 0); }
+      else close();
+    };
+    wrap.appendChild(btn); wrap.appendChild(menu);
+    return wrap;
   }
   function hint(t) { var h = el("div"); h.style.cssText = "font-size:12px;color:var(--faint);line-height:1.5"; h.textContent = t; return h; }
   function noteEl(cls, t) { var n = el("div", "note " + cls); n.textContent = t; return n; }

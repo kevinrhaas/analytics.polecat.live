@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v320"; /* v320: LF64 slice 2 — the dynamic date-token set grows to
+var CACHE_NAME = "studio-shell-v321"; /* v321: LF64 slice 3 — a "Date token" button on the dataset
+   builder's query fields (SQL / Generic SQL-HTTP / BigQuery) drops the built-in dynamic tokens in at
+   the cursor from a labeled pick-list (Studio.DATE_TOKENS), so relative-date filters are discoverable
+   + typo-free. app/studio.js + app/studio.css + docs/index.html changed, so precached copies roll.
+   v320: LF64 slice 2 — the dynamic date-token set grows to
    cover weeks + quarters: {{week_start}}/{{week_end}} (Monday-start, matching date_trunc('week'))
    and {{quarter_start}}/{{quarter_end}} (calendar Q1–Q4), resolved at run time by WS.dynamicParam.
    app/sources/schema.js + app/studio.js (Parameters hint) + docs/index.html changed, so precached

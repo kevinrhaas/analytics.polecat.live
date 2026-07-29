@@ -6168,6 +6168,20 @@ function serve() {
       wsDyn.qStart === wsDyn.expQStart && wsDyn.qEnd === wsDyn.expQEnd && wsDyn.nowIsIso &&
       wsDyn.keepReal === "r='{{region}}'" && wsDyn.override === "PINNED", JSON.stringify(wsDyn));
 
+    // LF64 slice 3 — the "Date token" insert menu (Studio.DATE_TOKENS) must never offer a token the
+    // engine can't resolve: every entry's base name resolves via applyParams to something other than
+    // the literal placeholder. Guards the picker list against drifting from WS.dynamicParam.
+    const wsTokList = await page.evaluate(function () {
+      var list = Studio.DATE_TOKENS || [];
+      var unresolved = list.filter(function (tk) {
+        var ph = "{{" + tk.t + "}}";
+        return Studio.WS.applyParams(ph, {}) === ph; // still literal → engine didn't understand it
+      }).map(function (tk) { return tk.t; });
+      return { count: list.length, unresolved: unresolved };
+    });
+    ok("WS: every Studio.DATE_TOKENS picker entry resolves through WS.applyParams (no drift from the engine)",
+      wsTokList.count >= 12 && wsTokList.unresolved.length === 0, JSON.stringify(wsTokList));
+
     const wsCrypto = await page.evaluate(async function () {
       var C = Studio.SecretsCrypto;
       if (!C.cryptoAvailable()) return { skip: true };

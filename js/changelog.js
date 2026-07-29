@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 684,
+    title: 'Insert a date token from the query editor',
+    kind: 'feature',
+    ts: '2026-07-29T00:01:38.000Z',
+    items: [
+      'The dataset builder\'s query field now has a "Date token" button that drops any of the built-in dynamic tokens ({{today}}, {{today-30}}, {{week_start}}, {{quarter_start}}, {{now}}, …) in at your cursor — so you can reach for a relative-date filter without remembering the exact names. It shows each token with a plain-English hint (e.g. "start of this quarter") and is available on the SQL, Generic SQL/HTTP, and BigQuery query editors.',
+    ],
+  },
+  {
     v: 683,
     title: 'Week and quarter date tokens join the dynamic set',
     kind: 'feature',
