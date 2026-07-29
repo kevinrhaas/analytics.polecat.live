@@ -157,6 +157,20 @@
     .export-table tr:last-child td{border-bottom:none}
     :root[data-theme="dark"] .tip{background:linear-gradient(135deg,#1c2333,#241c30);border-color:#3a2f4a}
 
+    /* ── backend comparison table ── */
+    .table-scroll{overflow-x:auto;margin-bottom:16px;-webkit-overflow-scrolling:touch}
+    .backend-table{width:100%;border-collapse:collapse;font-size:13px;min-width:640px}
+    .backend-table th{text-align:left;font-size:11px;font-weight:700;color:var(--faint);
+      letter-spacing:.06em;text-transform:uppercase;padding:8px 12px;
+      border-bottom:1px solid var(--line);background:var(--bg)}
+    .backend-table td{padding:10px 12px;border-bottom:1px solid var(--line);color:var(--faint);
+      vertical-align:top;line-height:1.5}
+    .backend-table tr:last-child td{border-bottom:none}
+    .backend-table td:first-child{white-space:nowrap;color:var(--fg)}
+    .bt-tag{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.05em;
+      text-transform:uppercase;color:var(--accent);background:rgba(125,60,152,.12);
+      border-radius:5px;padding:1px 6px;margin-left:4px;vertical-align:middle}
+
     @media(max-width:640px){
       header{padding:0 16px}main{padding:24px 14px 60px}
       .steps{grid-template-columns:1fr}.chart-grid{grid-template-columns:repeat(2,1fr)}
@@ -960,6 +974,45 @@
 <section id="admin-docs">
   <h2>Admin &amp; backend setup</h2>
   <p>These topics are for the person who <strong>administers</strong> a shared workspace — wiring up a real backend, provisioning teammates, and turning on database-enforced per-user security. Everyday building never needs any of it; a local workspace works with no setup at all.</p>
+
+  <h3>Choosing a workspace backend</h3>
+  <p>A <strong>workspace backend</strong> is where your whole workspace — dashboards, datasets, connections, jobs, saved analyses and settings — lives, and whether it travels to other devices and teammates. All four options query the same way and carry the same objects; they differ in <strong>where the data lives</strong>, <strong>whether it syncs</strong>, and <strong>how strongly per-user privacy is enforced</strong>. Set or switch it under <strong>Settings → Workspace backend</strong>.</p>
+  <div class="table-scroll">
+  <table class="backend-table">
+    <thead><tr><th>Backend</th><th>Where data lives</th><th>Syncs across devices</th><th>Per-user accounts &amp; privacy</th><th>Setup</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Local</strong> <span class="bt-tag">default</span></td>
+        <td>This browser only.</td>
+        <td><strong>No</strong> — stays on this device.</td>
+        <td>Local sign-in only (usernames on this device); private/public flags are UX-level.</td>
+        <td><strong>None</strong> — works instantly, nothing to configure.</td>
+      </tr>
+      <tr>
+        <td><strong>Turso</strong></td>
+        <td>Turso (libSQL / SQLite) in the cloud.</td>
+        <td><strong>Yes</strong> — every device pointed at it shares one workspace.</td>
+        <td>Shared credential (one URL + token); accounts and private flags are UX-level, not database-enforced.</td>
+        <td>Paste the database URL + auth token; it creates its own schema from the browser (no SQL to run).</td>
+      </tr>
+      <tr>
+        <td><strong>Supabase</strong></td>
+        <td>Postgres (via its REST API).</td>
+        <td><strong>Yes</strong>.</td>
+        <td><strong>Strongest.</strong> Real per-user accounts (Supabase Auth / GoTrue) and optional database-enforced <strong>Row-Level Security</strong> — the only backend where private truly means private at the database, not just hidden in the UI. Add users from the Admin console.</td>
+        <td>A one-time SQL script pasted into Supabase; an optional <code>polecat-admin</code> Edge Function unlocks in-app go-live + admin-create (see below).</td>
+      </tr>
+      <tr>
+        <td><strong>Firebase</strong></td>
+        <td>Cloud Firestore (document store).</td>
+        <td><strong>Yes</strong>.</td>
+        <td>Enforced by <strong>your own Firestore security rules</strong>, configured in the Firebase console (not from inside Studio).</td>
+        <td>Configure Firestore + security rules; collections appear on first write.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Short version: stay on <strong>Local</strong> for a private, single-device workspace; pick <strong>Turso</strong> for the simplest shared workspace across your own devices or a trusted team; pick <strong>Supabase</strong> when you need real accounts and database-enforced per-user privacy; pick <strong>Firebase</strong> if you already run Firestore and manage access through its security rules. The rest of this section covers the Supabase-specific admin flow in detail.</p>
 
   <h3>Signing in with real Supabase Auth (optional)</h3>
   <p>The <strong>Supabase</strong> backend's connect wizard has two extra, optional fields below the Project URL and anon key: <strong>Supabase Auth email</strong> and <strong>password</strong>. Leave them blank and Supabase behaves exactly as before — every request uses the shared anon key. Fill them in and Studio signs in with real Supabase Auth (GoTrue) first, then sends that session's JWT on every request instead — so Postgres' <code>auth.uid()</code> resolves to your real account rather than staying <code>NULL</code>. This is groundwork for enforced, database-level per-user privacy on top of the private/public flags every object already carries (Dashboards, Datasets, Connections, Jobs, Analyses) — those flags are UX-level today (hidden from other accounts in the UI); a real Supabase Auth sign-in is the prerequisite for the database itself to enforce it via Row-Level Security. A wrong password fails clearly at the "Check database →" step, the same gate that already validates the URL and anon key, so it can't silently connect with the wrong identity.</p>

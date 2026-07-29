@@ -116,6 +116,20 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF60 slice 5 — a workspace-backend comparison table (v711, sw v348, 2026-07-29):** LF60's
+  part (5), the "backend-options comparison" the task line called for. The **Admin & backend setup**
+  section (from the slice-2 split) now opens with a **"Choosing a workspace backend"** table putting
+  **Local / Turso / Supabase / Firebase** side by side across the four decision dimensions — where
+  data lives, whether it syncs across devices, how strongly per-user privacy is enforced, and what
+  setup each needs — plus a one-line "which to pick" summary, so an admin can orient before the
+  Supabase-specific detail below. Copy is drawn from each adapter's own `blurb`/capabilities for
+  accuracy (Local = this browser only; Turso = shared libSQL/SQLite, self-creating schema; Supabase
+  = real GoTrue accounts + optional DB-enforced RLS, the only one where private is enforced at the
+  database; Firebase = Firestore under your own security rules). The table scrolls inside its own
+  `.table-scroll` wrapper so it never overflows the page at 390px. 2 new tests (raw-HTML: table
+  covers all four backends + the dimension headers; mobile: no horizontal page overflow at 390px).
+  Files: docs/index.html, sw.js, js/changelog.js, tests/run.js. **NEXT in LF60:** (3) deep-links
+  from in-app help badges to specific docs anchors + screenshots — the last open slice.
 - **LF55 (2) — job editor: Filter step's value field suggests known sample values (v710, sw v347,
   2026-07-29, steward):** LF55 part (1)'s own NEXT note flagged this as "a separate LF55 slice."
   The Filter step's value field stays free text (comparators like gt/lt need arbitrary typed

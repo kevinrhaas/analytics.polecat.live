@@ -20174,6 +20174,47 @@ function serve() {
       jAdminSec.ok && jAdminSec.heading === "Admin & backend setup" && jAdminSec.hasSupaAuth && jAdminSec.hasGoLive && jAdminSec.indexedBySearch,
       JSON.stringify(jAdminSec));
 
+    // J-docs-3d (LF60 slice 5): the Admin section opens with a workspace-backend comparison table
+    // covering all four backends across the key decision dimensions. Verify from the raw HTML +
+    // that it doesn't cause horizontal page overflow at 390px (it scrolls inside its own wrapper).
+    const jBackendTbl = await page.evaluate(async function () {
+      try {
+        var resp = await fetch("/docs/index.html");
+        var html = await resp.text();
+        var rows = ["Local", "Turso", "Supabase", "Firebase"];
+        return {
+          hasTable: html.indexOf('class="backend-table"') !== -1,
+          hasScrollWrap: html.indexOf('class="table-scroll"') !== -1,
+          coversAllFour: rows.every(function (b) { return html.indexOf("<strong>" + b + "</strong>") !== -1; }),
+          // decision dimensions present as column headers
+          hasDims: ["Where data lives", "Syncs across devices", "Per-user accounts", "Setup"].every(function (h) { return html.indexOf(h) !== -1; })
+        };
+      } catch (e) { return { err: e.message }; }
+    });
+    ok("J-docs (LF60 slice 5): the Admin section has a backend comparison table covering Local/Turso/Supabase/Firebase across the decision dimensions",
+      jBackendTbl.hasTable && jBackendTbl.hasScrollWrap && jBackendTbl.coversAllFour && jBackendTbl.hasDims,
+      JSON.stringify(jBackendTbl));
+
+    const jBackendPhone = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    await jBackendPhone.goto(`http://localhost:${PORT}/docs/index.html#admin-docs`, { waitUntil: "load" });
+    const jBackendOverflow = await jBackendPhone.evaluate(function () {
+      var wrap = document.querySelector(".table-scroll");
+      var tbl = document.querySelector(".backend-table");
+      var cs = wrap ? getComputedStyle(wrap) : null;
+      return {
+        noPageHScroll: document.documentElement.scrollWidth <= window.innerWidth + 1,
+        // the wrapper is a real horizontal-scroll container that clips a table wider than itself
+        // (so the table's own width can't push the page wide): overflowX auto AND table > wrapper
+        wrapScrolls: !!wrap && !!tbl && cs.overflowX === "auto" && tbl.scrollWidth > wrap.clientWidth,
+        // the wrapper itself never exceeds the viewport
+        wrapWithinViewport: !!wrap && wrap.getBoundingClientRect().width <= window.innerWidth + 1
+      };
+    });
+    await jBackendPhone.close();
+    ok("J-docs (LF60 slice 5): the backend table scrolls inside its own wrapper and causes no horizontal page overflow at 390px",
+      jBackendOverflow.noPageHScroll && jBackendOverflow.wrapScrolls && jBackendOverflow.wrapWithinViewport,
+      JSON.stringify(jBackendOverflow));
+
     // J-docs-4: UX sweep 2026-07-28 (#367 finding #2) — docs page's Exporting section
     // table overflowed the viewport by ~7px at 390px width (table-layout:auto min-content,
     // widened by a dead "Badge" column no row ever populates). Fix: drop the unused column.

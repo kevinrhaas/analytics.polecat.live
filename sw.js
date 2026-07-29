@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v347"; /* v347: LF55 (2) — job editor Filter step's value field
+var CACHE_NAME = "studio-shell-v348"; /* v348: LF60 slice 5 — a workspace-backend comparison table
+   (Local / Turso / Supabase / Firebase — data location, cross-device sync, per-user privacy,
+   setup) opens the Admin & backend setup docs. docs/index.html only (precached content).
+   v347: LF55 (2) — job editor Filter step's value field
    suggests the target column's known sample values via a <datalist> (the same "type or pick"
    pattern the Folder fields use), reusing the same live source-row query the previews already
    fetch. app/jobs.js, docs/index.html changed, so precached copies roll.
