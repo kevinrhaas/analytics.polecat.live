@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 728,
+    title: 'The public site now shows off maps beyond state lines',
+    kind: 'feature',
+    ts: '2026-07-29T23:47:38.000Z',
+    items: [
+      'A new "Maps that speak your geography" section on the marketing page features the real watershed (HUC8) screenshot and walks through all seven region scales — states, counties, watersheds, USDA crop districts, congressional districts, ZIP codes, and custom regions built from your own county→region CSV.',
+      'A "Maps" link joins the site navigation.',
+    ],
+  },
+  {
     v: 727,
     title: 'One source of truth for sample content in the Data panel',
     kind: 'polish',

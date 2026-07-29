@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **#28 (Kevin) — the marketing page showcases custom geographies (v728, sw v365, 2026-07-29,
+  steward):** the long-standing Kevin-tagged tracker item "showcase custom geographies — feature
+  the watershed (HUC8) map as an example of custom geos, and mention other custom geos." A new
+  `#geo` section ("Maps that speak your geography") sits between the chart gallery and the Data
+  sources strip, with a "Maps" nav link: the REAL `site/shots/watershed.png` screenshot (its own
+  in-app caption already reads "a custom geography — Corn Belt HUC8 subbasins from the USGS
+  Watershed Boundary Dataset") beside a card list of all SEVEN shipped region scales (states,
+  counties/FIPS, HUC8 watersheds, USDA CRD crop districts, congressional districts, ZCTA ZIP
+  codes, custom regions) — the custom-regions card gets a gradient-border highlight and pitches
+  the LF22 slice-4 county→region CSV importer ("sales territories, service areas, ecoregions…
+  no GIS tooling required"). Copy states only what's actually shipped. Two-column desktop grid
+  stacking at ≤860px; verified visually at 1280 + 390 (screenshots). The suite gains its FIRST
+  marketing-page coverage: a self-contained block loads `/` in a fresh page and asserts the
+  section + nav link + image-resolves + all seven scales + one-column/no-overflow at 390px +
+  zero pageerrors. index.html + css/landing.css are precached by the SW, hence the CACHE bump.
+  Also: stamped the LF64 backlog entry ✓ (feature-complete since v684 per its own DONE trail;
+  the backlog line was never annotated). Files: index.html, css/landing.css, tests/run.js,
+  sw.js, js/changelog.js, STATUS.md.
 - **LF65 — the legacy "Samples (115) · demo db" group is gone from the Data panel (v727, sw v364,
   2026-07-29, steward):** sample content in Studio's Data panel now comes ONLY via Sample packs —
   one source of truth (this also closes LF66 item (3), which superseded LF65). The `S.catalog`
@@ -6872,7 +6890,9 @@
 >       "data source" panel editor) still takes free-text table/column names — wiring THAT to
 >       real schema data is a bigger, separately-scoped follow-up — and a live syntax check /
 >       used-columns validation for the SQL text itself.
-> LF64. **Job/dataset PARAMETERS — dynamic + date-based filters.** Parameters are powerful when they're
+> LF64. ✓ **Feature-complete (slices 1–3: dynamic date tokens, week/quarter tokens, the Date-token
+>       insert affordance + its a11y pass — see DONE, v682/v683/v684/v688). Reopen only if new token
+>       families are requested.** Job/dataset PARAMETERS — dynamic + date-based filters. Parameters are powerful when they're
 >       dynamic: expose relative/dynamic DATE parameters (e.g. "> current date", "last N days", "this
 >       month", between-dates) and value pickers with comparators, surfaced in the job/dataset params UI
 >       where it makes sense (don't force it everywhere). Makes {{params}} genuinely useful for
