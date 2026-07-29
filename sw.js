@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v341"; /* v341: LF40 (pack-aware tour engine) — the welcome carousel
+var CACHE_NAME = "studio-shell-v342"; /* v342: LF60 (in-app Docs, slice 1) — the Help rail item now
+   opens an embedded Docs SECTION (#secDocs) that iframes docs/index.html, with an "Open in new tab"
+   pop-out to the standalone page; the ⌘K "Open Help & docs" command routes to the same in-app
+   section. shell.js SECTIONS/labels gain "docs". app/index.html, app/shell.js, app/palette.js,
+   app/studio.css.
+   v341: LF40 (pack-aware tour engine) — the welcome carousel
    is computed at open() from a 5-step base PLUS one "curated content" step per installed sample
    pack (name/tagline pulled from demopacks.js, no hardcoded copy), so a provisioned user meets
    their curated dashboards/datasets in the welcome flow. app/welcome.js.

@@ -51,7 +51,7 @@
     <div class="rail-spacer"></div>
     <button id="railSource" class="rail-item rail-source" title="Workspace backend — Local" aria-label="Workspace backend status"><span class="rail-ic"><span class="cx-dot" id="railSourceDot"></span></span><span class="rail-lbl" id="railSourceLbl">Local</span></button>
     <button class="rail-item" data-sec="settings" title="Settings" aria-label="Settings"><span class="rail-ic" data-ic="gear"></span><span class="rail-lbl">Settings</span></button>
-    <a id="railHelp" class="rail-item" href="docs/index.html" target="_blank" rel="noopener noreferrer" title="Help &amp; docs (opens in new tab)" aria-label="Help and documentation, opens in a new tab"><span class="rail-ic" data-ic="info"></span><span class="rail-lbl">Help</span></a>
+    <button id="railHelp" class="rail-item" data-sec="docs" title="Help &amp; docs" aria-label="Help and documentation"><span class="rail-ic" data-ic="info"></span><span class="rail-lbl">Help</span></button>
     <div id="railQuick" class="rail-quick">
       <label class="rail-quick-row"><span class="rail-quick-lbl">Dark mode</span><span class="set-sw"><input type="checkbox" id="railQuickDark" data-set="dark"/><span class="set-sw-track"></span></span></label>
       <label class="rail-quick-row"><span class="rail-quick-lbl">Simple mode</span><span class="set-sw"><input type="checkbox" id="railQuickSimple" data-set="simple"/><span class="set-sw-track"></span></span></label>
@@ -275,6 +275,18 @@
       </div>
     </div>
   </section>
+  <!-- LF60 (in-app Docs, slice 1): the Help rail item now opens documentation INSIDE the app
+       (embedded via an iframe over the same docs/index.html the standalone page serves) with a
+       pop-out "Open in new tab" for the standalone view. -->
+  <section id="secDocs" class="app-sec" hidden>
+    <div class="docs-wrap">
+      <div class="docs-bar">
+        <h1 class="docs-title">Help &amp; documentation</h1>
+        <a class="btn docs-popout" id="docsPopout" href="docs/index.html" target="_blank" rel="noopener noreferrer" title="Open the documentation in a new tab" aria-label="Open the documentation in a new tab">Open in new tab ↗</a>
+      </div>
+      <iframe id="docsFrame" class="docs-frame" title="Analytics documentation" src="docs/index.html" loading="lazy"></iframe>
+    </div>
+  </section>
 
   <div id="appMain" hidden>
   <main id="workspace">
@@ -329,7 +341,7 @@
         <span class="cb-status" id="previewStatus"></span>
       </div>
       <div id="canvas-stage">
-        <iframe id="preview" title="Dashboard preview"></iframe>
+        <iframe id="preview" name="Dashboard preview" title="Dashboard preview"></iframe>
         <div id="dropHint" class="drop-hint">Drop a query here to add a View</div>
         <!-- H-track: canvas empty state overlay; shown when the spec has 0 panels and 0 KPIs -->
         <div id="canvasEmpty" aria-hidden="true">

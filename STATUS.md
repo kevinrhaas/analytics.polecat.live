@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF60 (in-app Docs, slice 1) — Help opens an embedded Docs section with a pop-out (v705, sw v342,
+  2026-07-29):** the "Dave" onboarding chunk, part 2 of 3 (LF40 ✓ → **LF60** → LF39). LF60 asked to
+  bring the docs INSIDE the app (they opened external-feeling in a new tab). Slice 1 delivers parts
+  (1 embed) + (2 pop-out): the **`#railHelp` rail item** changed from an `<a target="_blank">` into a
+  section button (`data-sec="docs"`) that switches to a new **`#secDocs` section**, which **embeds
+  `docs/index.html` in an iframe** (`loading="lazy"`, so the docs page isn't fetched until you open
+  Help) alongside an **"Open in new tab ↗" pop-out** (`#docsPopout`) to the standalone page — both
+  the embedded and standalone views Kevin asked for. The ⌘K **"Open Help & docs"** command routes to
+  the same in-app section (was `window.open`). Wired the section end-to-end: shell.js `SECTIONS` +
+  `SECTION_LABELS` gain `docs`/"Help"; `sectionEl("docs")` → `#secDocs`; CSS fills the section with a
+  toolbar + full-height frame. Docs stays universally visible (not admin/develop-only, not in
+  `CONFIGURABLE_SECTIONS`), so viewers get Help too. Updated the J-docs + Z1 rail tests to the new
+  behavior (railHelp is a section button, 11 rail sections, embedded iframe + pop-out) — an intent
+  change LF60 makes by design, not a weakened assertion. Files: app/index.html, app/shell.js,
+  app/palette.js, app/studio.css, sw.js, js/changelog.js, tests/run.js. **NEXT in LF60:** (3)
+  deep-links + screenshots, (4) split into USER vs ADMIN docs, (5) a backend-options comparison table
+  — and best-practice docs NAV (sidebar/TOC/search) inside the embedded view. **NEXT in the Dave
+  chunk:** LF39 (cross-device sign-in).
 - **LF40 (pack-aware tour engine) — the welcome carousel adapts to installed sample packs (v704, sw
   v341, 2026-07-29):** the "Dave" onboarding chunk (Kevin), part 1 of 3 (LF40 → LF60 → LF39). LF40
   slice 2 shipped a *standalone* gated Conservation tour and flagged its own NEXT as the harder

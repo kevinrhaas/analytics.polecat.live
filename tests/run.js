@@ -9503,7 +9503,7 @@ function serve() {
 
     // ---- click a panel selects it in the inspector ----
     console.log("\n• selection");
-    const pv = page.frames().find((f) => f !== page.mainFrame());
+    const pv = (page.frame({ name: "Dashboard preview" }) || page.frames().find((f) => f !== page.mainFrame()));
     await pv.locator("#content .card").first().click();
     await page.waitForTimeout(200);
     ok("clicking a View opens the View inspector", (await page.$eval("#inspTitle", (e) => e.textContent)) === "View");
@@ -9578,7 +9578,7 @@ function serve() {
     // real pointer drag on the resize handle (integration) — fresh flagship so panel[0] is span 1
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
     await page.waitForTimeout(450);
-    const pvf = page.frames().find((f) => f !== page.mainFrame());
+    const pvf = (page.frame({ name: "Dashboard preview" }) || page.frames().find((f) => f !== page.mainFrame()));
     const beforeSpan = await page.evaluate(() => window.__STUDIO_STATE.spec.panels[0].span);
     const gridBox = await pvf.locator(".pdc-grid").boundingBox();
     const rb = await pvf.locator("[data-panel-id] .sr-resize").first().boundingBox();
@@ -9598,7 +9598,7 @@ function serve() {
       window.__studioLoad(spec);
     });
     await page.waitForTimeout(500);
-    const pvf2 = page.frames().find((f) => f !== page.mainFrame());
+    const pvf2 = (page.frame({ name: "Dashboard preview" }) || page.frames().find((f) => f !== page.mainFrame()));
     const ids0 = await page.evaluate(() => window.__STUDIO_STATE.spec.panels.map((p) => p.id));
     const srcH = await pvf2.locator("[data-panel-id]").nth(2).locator("h3").boundingBox();   // row 2, left
     const firstH = await pvf2.locator("[data-panel-id]").first().locator("h3").boundingBox(); // row 1, left
@@ -9684,7 +9684,7 @@ function serve() {
     console.log("\n• inline rename");
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
     await page.waitForTimeout(450);
-    const pvf3 = page.frames().find((f) => f !== page.mainFrame());
+    const pvf3 = (page.frame({ name: "Dashboard preview" }) || page.frames().find((f) => f !== page.mainFrame()));
     const tId = await page.evaluate(() => window.__STUDIO_STATE.spec.panels[0].id);
     await pvf3.locator("[data-panel-id] .pdc-h-t").first().dblclick();
     await page.waitForTimeout(120);
@@ -10487,7 +10487,7 @@ function serve() {
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
     // window.__STUDIO_STATE.spec is set synchronously by __studioLoad — no wait needed here.
     const pcount0 = await page.evaluate(() => window.__STUDIO_STATE.spec.panels.length);
-    const pvp = page.frames().find((f) => f !== page.mainFrame());
+    const pvp = (page.frame({ name: "Dashboard preview" }) || page.frames().find((f) => f !== page.mainFrame()));
     // The dup/del click's effect on window.__STUDIO_STATE (parent page) round-trips through
     // the preview iframe's postMessage, so poll for the expected panel count instead of a
     // fixed wait — was observed to flake on slower machines (Track L sweep, 2026-07-02).
@@ -10684,7 +10684,7 @@ function serve() {
         setTimeout(function () { resolve({ id: p.id }); }, 500);
       });
     });
-    const pvDl = page.frames().find((f) => f !== page.mainFrame());
+    const pvDl = (page.frame({ name: "Dashboard preview" }) || page.frames().find((f) => f !== page.mainFrame()));
     const dlBtns = await pvDl.evaluate(function (panelId) {
       var card = document.querySelector('[data-panel-id="' + panelId + '"]');
       var btns = card ? [].slice.call(card.querySelectorAll(".pdc-dl-act")) : [];
@@ -10793,7 +10793,7 @@ function serve() {
         setTimeout(function () { resolve({ id: p.id }); }, 500);
       });
     });
-    const pvDl2 = page.frames().find((f) => f !== page.mainFrame());
+    const pvDl2 = (page.frame({ name: "Dashboard preview" }) || page.frames().find((f) => f !== page.mainFrame()));
     const dlTableBtns = await pvDl2.evaluate(function (panelId) {
       var card = document.querySelector('[data-panel-id="' + panelId + '"]');
       var btns = card ? [].slice.call(card.querySelectorAll(".pdc-dl-act")) : [];
@@ -10830,7 +10830,7 @@ function serve() {
       window.__studioLoad(sp);
     });
     await page.waitForTimeout(300);
-    const pvDl3 = page.frames().find((f) => f !== page.mainFrame());
+    const pvDl3 = (page.frame({ name: "Dashboard preview" }) || page.frames().find((f) => f !== page.mainFrame()));
     const dlOffCount = await pvDl3.evaluate(function (panelId) {
       var card = document.querySelector('[data-panel-id="' + panelId + '"]');
       return card ? card.querySelectorAll(".pdc-dl-act").length : -1;
@@ -10846,7 +10846,7 @@ function serve() {
       window.__studioLoad(sp);
     });
     await page.waitForTimeout(300);
-    const pvDl4 = page.frames().find((f) => f !== page.mainFrame());
+    const pvDl4 = (page.frame({ name: "Dashboard preview" }) || page.frames().find((f) => f !== page.mainFrame()));
     const dlOverride = await pvDl4.evaluate(function (panelId) {
       var card = document.querySelector('[data-panel-id="' + panelId + '"]');
       var btns = card ? [].slice.call(card.querySelectorAll(".pdc-dl-act")) : [];
@@ -11094,7 +11094,7 @@ function serve() {
     ok("KPI shows a sparkline", kx.spark);
     ok("KPI tiles have a delete button in preview", kx.dels === kx.kpis && kx.kpis === 4, JSON.stringify(kx));
     const beforeK = await page.evaluate(() => window.__STUDIO_STATE.spec.kpis.length);
-    const pvk = page.frames().find((f) => f !== page.mainFrame());
+    const pvk = (page.frame({ name: "Dashboard preview" }) || page.frames().find((f) => f !== page.mainFrame()));
     await pvk.locator("#kpis .kpi .sr-kpi-del").first().click({ force: true });
     await page.waitForTimeout(250);
     const afterK = await page.evaluate(() => window.__STUDIO_STATE.spec.kpis.length);
@@ -14189,7 +14189,7 @@ function serve() {
     await page.evaluate(() => { var x = document.querySelector(".modal-h .x"); if (x) x.click(); }); await page.waitForTimeout(80);
 
     // 3. Canvas panel sr-act buttons (dup + del) contain SVG (inside preview iframe)
-    const pvI3 = page.frames().find((f) => f !== page.mainFrame());
+    const pvI3 = (page.frame({ name: "Dashboard preview" }) || page.frames().find((f) => f !== page.mainFrame()));
     const i3Canvas = await pvI3.evaluate(() => {
       var acts = [].slice.call(document.querySelectorAll("[data-panel-id] .sr-act"));
       var dupBtn = acts.find(function (b) { return b.getAttribute("data-act") === "dup"; });
@@ -17359,7 +17359,7 @@ function serve() {
     await page.evaluate(() => { window.__studioLoad(window.__STUDIO_STATE.spec); });
     await page.waitForTimeout(200);
     // Click first panel card in the preview iframe to select it
-    const pvSec = page.frames().find(function (f) { return f !== page.mainFrame(); });
+    const pvSec = (page.frame({ name: "Dashboard preview" }) || page.frames().find(function (f) { return f !== page.mainFrame(); }));
     if (pvSec) { await pvSec.locator("#content .card").first().click(); await page.waitForTimeout(200); }
     const sectionInput = await page.evaluate(() => {
       var labels = [].slice.call(document.querySelectorAll("#inspBody .field-label, #inspBody label, #inspBody .hint"));
@@ -17439,8 +17439,10 @@ function serve() {
     // 2. PDC.slope extension is present in the preview iframe
     await page.waitForTimeout(250);
     const slopeExt = await page.evaluate(function () {
-      var iframes = document.querySelectorAll("iframe");
-      var iw = iframes[0] && iframes[0].contentWindow;
+      // select the preview iframe by id (LF60 added a second iframe, the embedded Docs view, so
+      // "first iframe in the document" is no longer guaranteed to be the preview).
+      var pv = document.querySelector("#preview");
+      var iw = pv && pv.contentWindow;
       return { hasFn: iw && typeof iw.PDC === "object" && typeof iw.PDC.slope === "function" };
     });
     ok("v74: PDC.slope extension function defined in preview iframe", slopeExt.hasFn, JSON.stringify(slopeExt));
@@ -17564,7 +17566,7 @@ function serve() {
     await page.evaluate(() => { window.__studioLoad(window.__STUDIO_STATE.spec); });
     await page.waitForTimeout(200);
     // Click first panel card in the preview iframe to select it (same approach as v73 section header test)
-    const pvNote = page.frames().find(function (f) { return f !== page.mainFrame(); });
+    const pvNote = (page.frame({ name: "Dashboard preview" }) || page.frames().find(function (f) { return f !== page.mainFrame(); }));
     if (pvNote) { await pvNote.locator("#content .card").first().click(); await page.waitForTimeout(200); }
     const noteField = await page.evaluate(function () {
       try {
@@ -17668,7 +17670,7 @@ function serve() {
     // 5. Panel inspector shows "Accent color" field when a panel is selected
     await page.evaluate(function () { window.__studioLoad(window.__STUDIO_STATE.spec); });
     await page.waitForTimeout(200);
-    const pvAcc = page.frames().find(function (f) { return f !== page.mainFrame(); });
+    const pvAcc = (page.frame({ name: "Dashboard preview" }) || page.frames().find(function (f) { return f !== page.mainFrame(); }));
     if (pvAcc) { await pvAcc.locator("#content .card").first().click(); await page.waitForTimeout(200); }
     const accentField = await page.evaluate(function () {
       try {
@@ -17889,7 +17891,7 @@ function serve() {
     ok("v78: PDC._anim flag is writable in preview iframe", canAnimDefined.ok, JSON.stringify(canAnimDefined));
 
     // Navigate to the panel inspector by clicking a panel card in the preview iframe
-    const pvFrameV78 = page.frames().find(function (f) { return f !== page.mainFrame(); });
+    const pvFrameV78 = (page.frame({ name: "Dashboard preview" }) || page.frames().find(function (f) { return f !== page.mainFrame(); }));
     if (pvFrameV78) { await pvFrameV78.locator("#content .card").first().click().catch(function(){}); }
     await page.waitForTimeout(200);
 
@@ -17988,7 +17990,7 @@ function serve() {
     ok("v79: Studio.allTags() returns sorted unique tag array", allTagsFn.ok && JSON.stringify(allTagsFn.tags) === JSON.stringify(["cost","q1","revenue"]), JSON.stringify(allTagsFn));
 
     // 2. Panel inspector shows a "Tags" input field
-    const pvFrameV79 = page.frames().find(function (f) { return f !== page.mainFrame(); });
+    const pvFrameV79 = (page.frame({ name: "Dashboard preview" }) || page.frames().find(function (f) { return f !== page.mainFrame(); }));
     if (pvFrameV79) { await pvFrameV79.locator("#content .card").first().click().catch(function(){}); }
     await page.waitForTimeout(200);
 
@@ -18063,7 +18065,7 @@ function serve() {
     console.log("\n• v80: chart annotation target lines (H-track)");
 
     // 1. Panel inspector shows "Target line" section with a label input
-    const pvFrameV80 = page.frames().find(function (f) { return f !== page.mainFrame(); });
+    const pvFrameV80 = (page.frame({ name: "Dashboard preview" }) || page.frames().find(function (f) { return f !== page.mainFrame(); }));
     if (pvFrameV80) { await pvFrameV80.locator("#content .card").first().click().catch(function(){}); }
     await page.waitForTimeout(200);
 
@@ -18131,7 +18133,7 @@ function serve() {
     console.log("\n• v81: H-track reference band annotation");
 
     // 1. Panel inspector shows "Reference band" section with label input + two sliders
-    const pvFrameV81 = page.frames().find(function (f) { return f !== page.mainFrame(); });
+    const pvFrameV81 = (page.frame({ name: "Dashboard preview" }) || page.frames().find(function (f) { return f !== page.mainFrame(); }));
     if (pvFrameV81) { await pvFrameV81.locator("#content .card").first().click().catch(function(){}); }
     await page.waitForTimeout(200);
 
@@ -19975,17 +19977,31 @@ function serve() {
     await page.waitForTimeout(100);
 
     // ── J-track: Help docs page + in-app link ────────────────────────────
-    // A self-contained reference guide at docs/index.html — LF46 (⋯ teardown, slice 2)
-    // dropped the duplicate ⋯ More → #moreHelp button ("help is in the Help rail"); the
-    // rail's #railHelp link and the ⌘K "Open Help & docs" command are the surviving paths.
+    // A self-contained reference guide at docs/index.html. LF60 (in-app Docs, slice 1) brought it
+    // INSIDE the app: the #railHelp item now opens an embedded Docs SECTION (iframe over the same
+    // docs/index.html) with a pop-out "Open in new tab" for the standalone page. The ⌘K "Open Help
+    // & docs" command routes to the same in-app section.
 
-    // J-docs-1: #moreHelp is gone, #railHelp points at docs/index.html
+    // J-docs-1 (LF60): #moreHelp is gone; #railHelp switches to the in-app Docs section, which
+    // embeds docs/index.html via an iframe and offers a pop-out link to the standalone page.
     const jHelpBtnCheck = await page.evaluate(function () {
       var rail = document.getElementById("railHelp");
-      return { moreHelpGone: !document.getElementById("moreHelp"), railHelpOk: !!rail && rail.getAttribute("href") === "docs/index.html" };
+      rail.click();
+      var sec = document.getElementById("secDocs");
+      var frame = document.getElementById("docsFrame");
+      var popout = document.getElementById("docsPopout");
+      return {
+        moreHelpGone: !document.getElementById("moreHelp"),
+        railIsSection: !!rail && rail.getAttribute("data-sec") === "docs",
+        sectionShown: !!sec && sec.hidden === false,
+        frameEmbedsDocs: !!frame && /docs\/index\.html/.test(frame.getAttribute("src") || ""),
+        popoutStandalone: !!popout && popout.getAttribute("href") === "docs/index.html" && popout.getAttribute("target") === "_blank"
+      };
     });
-    ok("J-docs: #moreHelp is retired, #railHelp is the surviving in-rail link to docs/index.html",
-      jHelpBtnCheck.moreHelpGone && jHelpBtnCheck.railHelpOk, JSON.stringify(jHelpBtnCheck));
+    ok("J-docs (LF60): #railHelp opens the in-app Docs section (embedded iframe + pop-out to the standalone page)",
+      jHelpBtnCheck.moreHelpGone && jHelpBtnCheck.railIsSection && jHelpBtnCheck.sectionShown && jHelpBtnCheck.frameEmbedsDocs && jHelpBtnCheck.popoutStandalone,
+      JSON.stringify(jHelpBtnCheck));
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
 
     // J-docs-2: docs/index.html is served (HTTP 200) by the test server
     const jDocsHttp = await page.evaluate(async function () {
@@ -21255,7 +21271,7 @@ function serve() {
 
     // Double-click-to-rename must edit the RAW template string, not the resolved display text —
     // otherwise committing the rename would silently bake the resolved value back into the spec.
-    const tvPanelFrame = page.frames().find((f) => f !== page.mainFrame());
+    const tvPanelFrame = (page.frame({ name: "Dashboard preview" }) || page.frames().find((f) => f !== page.mainFrame()));
     await tvPanelFrame.locator("[data-panel-id] .pdc-h-t").first().dblclick();
     await page.waitForTimeout(120);
     const tvRenameValue = await tvPanelFrame.evaluate(function () {
@@ -26350,14 +26366,16 @@ function serve() {
       var items = nav ? Array.prototype.slice.call(nav.querySelectorAll(".rail-item[data-sec]")) : [];
       var studioBtn = nav && nav.querySelector('.rail-item[data-sec="studio"]');
       return {
-        ok: !!nav && items.length === 10 && !!studioBtn && studioBtn.classList.contains("active")
+        // LF60: the Help rail item now switches to an in-app Docs SECTION (data-sec="docs"),
+        // so it counts among the section buttons — 10 workspace sections + Help/Docs = 11.
+        ok: !!nav && items.length === 11 && !!studioBtn && studioBtn.classList.contains("active")
           && studioBtn.getAttribute("aria-current") === "page",
         secs: items.map(function (b) { return b.getAttribute("data-sec"); }),
         appMainHidden: document.getElementById("appMain").hidden,
         collapseBtn: !!document.getElementById("railCollapse")
       };
     });
-    ok("Z1: rail has Home/Explore/Dashboards/Datasets/Jobs/Connections/Repository/Studio/Admin/Settings + Studio active by default", z1Boot.ok, JSON.stringify(z1Boot));
+    ok("Z1: rail has Home/Explore/Dashboards/Datasets/Jobs/Connections/Repository/Studio/Admin/Settings/Docs + Studio active by default", z1Boot.ok, JSON.stringify(z1Boot));
     ok("Z1: #appMain (the builder) is visible by default", z1Boot.appMainHidden === false, JSON.stringify(z1Boot));
 
     // Z1-2: rail icons are real inline SVGs (Studio.icon(), theme-aware — no emoji/unicode glyphs)
@@ -28643,19 +28661,20 @@ function serve() {
     await page.waitForTimeout(80);
 
     // ── Z11: Help/docs — a persistent, discoverable rail entry (not buried in ⋯ More) ──
+    // LF60 turned this from a new-tab link into the in-app Docs SECTION button (data-sec="docs");
+    // the standalone-page path lives on the section's pop-out. Still a persistent, icon'd rail entry.
     console.log("\n• Z11: rail Help entry");
     const z11Help = await page.evaluate(function () {
       var a = document.getElementById("railHelp");
       return {
         exists: !!a, tag: a && a.tagName,
-        href: a && a.getAttribute("href"),
-        target: a && a.getAttribute("target"),
+        dataSec: a && a.getAttribute("data-sec"),
         hasIcon: !!(a && a.querySelector(".rail-ic svg")),
-        hasDataSec: !!(a && a.hasAttribute("data-sec"))
+        popoutStandalone: (function () { var p = document.getElementById("docsPopout"); return !!p && p.getAttribute("href") === "docs/index.html" && p.getAttribute("target") === "_blank"; })()
       };
     });
-    ok("Z11: rail carries a persistent Help entry linking to the docs (new tab, not a shell section)",
-      z11Help.exists && z11Help.tag === "A" && /docs\/index\.html$/.test(z11Help.href || "") && z11Help.target === "_blank" && z11Help.hasIcon && !z11Help.hasDataSec,
+    ok("Z11 (LF60): rail carries a persistent Help entry that opens the in-app Docs section (standalone page via its pop-out)",
+      z11Help.exists && z11Help.tag === "BUTTON" && z11Help.dataSec === "docs" && z11Help.hasIcon && z11Help.popoutStandalone,
       JSON.stringify(z11Help));
 
     // ── Z11 follow-up: docs/index.html follows the active app theme (Classic Blue/Polecat × light/dark) ──
