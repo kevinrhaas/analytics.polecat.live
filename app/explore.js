@@ -718,6 +718,9 @@
       var xpFolderNextSibling = folderInp2.nextSibling, xpFolderParent = folderInp2.parentNode;
       var folderWrap = withSparkleButton(folderInp2, "folder", xpFolderSuggestCtx);
       folderWrap.classList.add("xp-folder-sparkle");
+      // LF56: the folder-tree Browse button lives on the roomy editor forms (dataset/connection/job)
+      // + Repository quick-edit. Explore's compact inline save bar (with its absolute-positioned
+      // sparkle) needs a dedicated layout pass before a third control fits — deferred follow-up.
       xpFolderParent.insertBefore(folderWrap, xpFolderNextSibling);
       folderInp2.addEventListener("input", function () { XP.folder = folderInp2.value; });
     }

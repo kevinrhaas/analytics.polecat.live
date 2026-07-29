@@ -6900,6 +6900,7 @@
     };
     return btn;
   }
+  Studio.folderPickerButton = folderPickerButton; // shared: wire into any Folder field (LF56 slice 2)
 
   function openRepoQuickEdit(type, id) {
     var PS = window.PolecatShell; if (!PS) return; // fleet.js module not loaded yet (sub-second boot window)
