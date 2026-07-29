@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v354"; /* v354: LF67 follow-up — the "New dashboard" family
+var CACHE_NAME = "studio-shell-v355"; /* v355: LF55 (5) — the job editor's step-type <select>
+   becomes a themed icon-panel picker: a trigger (current kind's glyph + label) expands a grid of
+   all 9 kinds as icon tiles, select-and-see; picking one resets the step like the old onchange
+   did. 3 new icons (funnel/wand/key). app/jobs.js, app/icons.js, app/sources/jobs-engine.js,
+   app/studio.css.
+   v354: LF67 follow-up — the "New dashboard" family
    (Home's Blank-dashboard card + its drag-a-dataset variant, the New ▾ menu's Blank dashboard,
    and its auto-build starters from a workspace dataset or a sample query set) now warns before
    silently replacing an unsaved Quick-import build, same guard openRecent already had.

@@ -315,16 +315,18 @@
     return ids;
   };
 
+  // LF55 (5): `icon` names a Studio.icon() glyph so the job editor's step-type
+  // picker can render a themed icon panel instead of a plain <select>.
   Studio.JOB_STEP_KINDS = [
-    { op: "rename", label: "Rename column" },
-    { op: "cast", label: "Cast type" },
-    { op: "derive", label: "Derive column" },
-    { op: "filter", label: "Filter rows" },
-    { op: "aggregate", label: "Aggregate / rollup" },
-    { op: "join", label: "Join with another dataset" },
-    { op: "union", label: "Union / stack another dataset" },
-    { op: "uniqueKey", label: "Add unique row ID" },
-    { op: "sql", label: "Custom SQL" }
+    { op: "rename", label: "Rename column", icon: "edit" },
+    { op: "cast", label: "Cast type", icon: "swap" },
+    { op: "derive", label: "Derive column", icon: "wand" },
+    { op: "filter", label: "Filter rows", icon: "funnel" },
+    { op: "aggregate", label: "Aggregate / rollup", icon: "sigma" },
+    { op: "join", label: "Join with another dataset", icon: "join" },
+    { op: "union", label: "Union / stack another dataset", icon: "layers" },
+    { op: "uniqueKey", label: "Add unique row ID", icon: "key" },
+    { op: "sql", label: "Custom SQL", icon: "code" }
   ];
   Studio.JOB_AGG_FNS = [
     { fn: "sum", label: "Sum" }, { fn: "avg", label: "Average" }, { fn: "count", label: "Count" },

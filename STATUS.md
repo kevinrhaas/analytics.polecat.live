@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF55 (5) — job editor: a themed icon-panel step-type picker replaces the plain <select>
+  (v718, sw v355, 2026-07-29, steward — LF55 is now fully done):** the last open LF55 part.
+  Each step card's kind picker is now a compact trigger button (`.jobs-step-type-trigger`,
+  current kind's `Studio.icon()` glyph + label + chevron) that expands a `.jobs-step-type-grid`
+  of all 9 kinds as icon tiles right below the head — click one and it resets the step
+  (`j.steps[i] = {op}`, same behavior the old `onchange` had) and collapses the panel; click the
+  trigger again to collapse without picking. Three glyphs the registry didn't have yet
+  (`funnel` for Filter, `wand` for Derive, `key` for Add unique row ID) join the five that
+  already fit (edit/swap/sigma/join/layers/code), added to `Studio.JOB_STEP_KINDS` in
+  `app/sources/jobs-engine.js` as an `icon` field per kind. Reorder/remove/+Step all close any
+  open picker (`openTypePicker = null`) so a stale index never renders against the wrong step.
+  5 new regression tests (no `<select>` in the head — the step's own column dropdowns
+  elsewhere in the card are unaffected; the trigger shows the current kind's icon+label closed
+  by default; expanding shows all 9 kinds as icon tiles with exactly one active; picking a tile
+  swaps the kind and resets its fields — verified by the OLD kind's own field disappearing and
+  the NEW kind's appearing, not by re-reading the unsaved Workspace copy; the three new icons
+  are registered and distinct from their nearest lookalikes). Files: app/jobs.js, app/icons.js,
+  app/sources/jobs-engine.js, app/studio.css, sw.js, js/changelog.js, tests/run.js.
 - **LF67 follow-up — every "New dashboard" entry point now warns before losing an unsaved
   Quick-import build, not just openRecent (v717, sw v354, 2026-07-29, steward — LF67 is now
   fully done):** LF67's own NEXT note (shipped 2026-07-28) named the "at minimum" fix (a state
@@ -7024,9 +7042,10 @@
 >       or the REAL preview after Preview is hit; when what's shown is approximate or STALE (inputs changed),
 >       the PREVIEW BUTTON lights up / pulses inviting a click for the actual result. Keep clear INTERIM-step
 >       indicators for per-step previews + an unmistakable FINAL preview so it's obvious you can just run the
->       final. (5) COOLER STEP PICKER — replace the plain
->       step-type <select> with an icon-panel picker (a themed glyph per step type, select-and-see); tasteful,
->       don't overcomplicate. (app/jobs.js/studio.js openJobEditor + step renderer + preview, jobs-engine.js
+>       final. (5) ✓ COOLER STEP PICKER (shipped 2026-07-29, steward) — the plain step-type <select> is
+>       now an icon-panel picker (a themed glyph per step type, select-and-see) — see DONE. **Only (4)
+>       remains open** (unify approximate vs real preview into one badged result area).
+>       (app/jobs.js/studio.js openJobEditor + step renderer + preview, jobs-engine.js
 >       column/value introspection, icons.js, studio.css.) Ties #47, LF13(a-d), LF51.
 > LF52. **TERMINOLOGY — "widget" AND "analysis" → "View" app-wide (Kevin decided 2026-07-27).** "Widget" is
 >       too technical; the standard term is a **View** (a chart, text box, header, KPI, map, etc.); the

@@ -277,6 +277,14 @@
       // when a dataset has never been run, then re-renders once it resolves.
       var ROW_PREVIEW_N = 5;
       var colsCache = { bySrc: [], byDs: {}, bySrcRows: null, bySrcRowsFor: null, bySrcRowsErr: null, bySrcAllRows: null };
+      // LF55 (5): which step's type picker is expanded (index into j.steps), or null —
+      // one at a time, session-only, reset whenever a step is added/removed/reordered
+      // (renderSteps rebuilds it from scratch so a stale index just renders nothing).
+      var openTypePicker = null;
+      function stepKindFor(op) {
+        for (var i = 0; i < Studio.JOB_STEP_KINDS.length; i++) if (Studio.JOB_STEP_KINDS[i].op === op) return Studio.JOB_STEP_KINDS[i];
+        return Studio.JOB_STEP_KINDS[0];
+      }
       function ensureSrcCols() {
         var id = j.sourceDatasetId;
         if (!id) { colsCache.bySrc = []; return; }
@@ -760,26 +768,54 @@
         (j.steps || []).forEach(function (step, i) {
           var card = el("div", "jobs-step-card");
           var head = el("div", "jobs-step-head");
-          var opSel = el("select");
-          opSel.innerHTML = Studio.JOB_STEP_KINDS.map(function (k) { return '<option value="' + k.op + '"' + (step.op === k.op ? " selected" : "") + '>' + esc(k.label) + '</option>'; }).join("");
-          opSel.onchange = function () { j.steps[i] = { op: opSel.value }; renderSteps(); };
-          head.appendChild(opSel);
+          // LF55 (5): a themed icon-panel picker replaces the plain step-type <select> —
+          // the trigger shows the current kind's glyph + label, click expands a grid of
+          // every kind (icon + label, select-and-see) right below the head; picking one
+          // resets the step (same behavior the old onchange had) and collapses the grid.
+          var kind = stepKindFor(step.op);
+          var trigger = el("button", "jobs-step-type-trigger"); trigger.type = "button";
+          trigger.setAttribute("data-op", kind.op);
+          trigger.appendChild(Studio.icon(kind.icon, 18));
+          var triggerLabel = el("span"); triggerLabel.textContent = kind.label; trigger.appendChild(triggerLabel);
+          trigger.appendChild(Studio.icon(openTypePicker === i ? "chevron-up" : "chevron-down", 14));
+          trigger.setAttribute("aria-haspopup", "listbox");
+          trigger.setAttribute("aria-expanded", openTypePicker === i ? "true" : "false");
+          trigger.setAttribute("aria-label", "Step type: " + kind.label + " — change");
+          trigger.onclick = function () { openTypePicker = openTypePicker === i ? null : i; renderSteps(); };
+          head.appendChild(trigger);
           var up = el("button", "btn"); up.type = "button"; up.textContent = "↑"; up.setAttribute("aria-label", "Move step up");
-          up.disabled = i === 0; up.onclick = function () { var t = j.steps[i - 1]; j.steps[i - 1] = j.steps[i]; j.steps[i] = t; renderSteps(); };
+          up.disabled = i === 0; up.onclick = function () { var t = j.steps[i - 1]; j.steps[i - 1] = j.steps[i]; j.steps[i] = t; openTypePicker = null; renderSteps(); };
           var down = el("button", "btn"); down.type = "button"; down.textContent = "↓"; down.setAttribute("aria-label", "Move step down");
-          down.disabled = i === j.steps.length - 1; down.onclick = function () { var t = j.steps[i + 1]; j.steps[i + 1] = j.steps[i]; j.steps[i] = t; renderSteps(); };
+          down.disabled = i === j.steps.length - 1; down.onclick = function () { var t = j.steps[i + 1]; j.steps[i + 1] = j.steps[i]; j.steps[i] = t; openTypePicker = null; renderSteps(); };
           var del = el("button", "btn danger"); del.type = "button"; del.textContent = "✕ Remove step";
           del.setAttribute("aria-label", "Remove step");
-          del.onclick = function () { j.steps.splice(i, 1); renderSteps(); };
+          del.onclick = function () { j.steps.splice(i, 1); openTypePicker = null; renderSteps(); };
           head.appendChild(up); head.appendChild(down); head.appendChild(del);
           card.appendChild(head);
+          if (openTypePicker === i) {
+            var typeGrid = el("div", "jobs-step-type-grid");
+            typeGrid.setAttribute("role", "listbox");
+            typeGrid.setAttribute("aria-label", "Choose step type");
+            Studio.JOB_STEP_KINDS.forEach(function (k) {
+              var tile = el("button", "jobs-step-type-tile" + (step.op === k.op ? " active" : ""));
+              tile.type = "button";
+              tile.setAttribute("data-op", k.op);
+              tile.setAttribute("role", "option");
+              tile.setAttribute("aria-selected", step.op === k.op ? "true" : "false");
+              tile.appendChild(Studio.icon(k.icon, 20));
+              var tileLabel = el("span"); tileLabel.textContent = k.label; tile.appendChild(tileLabel);
+              tile.onclick = function () { j.steps[i] = { op: k.op }; openTypePicker = null; renderSteps(); };
+              typeGrid.appendChild(tile);
+            });
+            card.appendChild(typeGrid);
+          }
           card.appendChild(stepFields(step, i));
           var diag = stepDiagram(step, i);
           if (diag) card.appendChild(diag);
           stepsWrap.appendChild(card);
         });
         var addStep = el("button", "btn"); addStep.type = "button"; addStep.textContent = "+ Step";
-        addStep.onclick = function () { (j.steps = j.steps || []).push({ op: "rename" }); renderSteps(); };
+        addStep.onclick = function () { (j.steps = j.steps || []).push({ op: "rename" }); openTypePicker = null; renderSteps(); };
         stepsWrap.appendChild(addStep);
       }
       renderSteps();
