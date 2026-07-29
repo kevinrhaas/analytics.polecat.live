@@ -6784,6 +6784,123 @@
   // Dashboards carry no top-level `.name` (their title lives at `spec.title`, edited in
   // Studio's own dashboard settings) — quick edit is folder-only for this one kind, so it
   // doesn't duplicate title-editing UI outside Studio.
+  // LF56 — reusable multi-level FOLDER PICKER. Objects are filed via a flat "/"-separated
+  // `folder` string; typing that path free-hand is lame. openFolderPicker() is a shared modal
+  // that lets you NAVIGATE the existing folder tree (breadcrumbs + click-to-descend), SEARCH it,
+  // create a nested folder inline, or clear the folder — then calls onPick(path). It reads/writes
+  // the same "/"-string, so there's no data change, just a far better UI. folderPickerButton()
+  // wires it next to any existing Folder <input> as an augmenting "Browse" affordance (the input
+  // stays a valid free-text fallback). Given a list of every filed path, ancestors are implied
+  // (so "Finance/2024" makes "Finance" a navigable node even if nothing is filed directly in it).
+  function folderChildrenAt(prefix, paths) {
+    // prefix is "" (root) or "Finance/" — return the sorted unique next-segment names beneath it.
+    var set = {};
+    paths.forEach(function (p) {
+      if (prefix && p.indexOf(prefix) !== 0) return;
+      var rest = prefix ? p.slice(prefix.length) : p;
+      var seg = rest.split("/")[0];
+      if (seg) set[seg] = true;
+    });
+    return Object.keys(set).sort(function (a, b) { return a.toLowerCase().localeCompare(b.toLowerCase()); });
+  }
+  function openFolderPicker(current, allPaths, onPick) {
+    // Dedup + drop blanks; the picker only needs the set of distinct filed paths.
+    var seen = {}, paths = [];
+    (allPaths || []).forEach(function (p) { p = String(p || "").replace(/^\/+|\/+$/g, ""); if (p && !seen[p]) { seen[p] = 1; paths.push(p); } });
+    var nav = String(current || "").replace(/^\/+|\/+$/g, "").split("/").filter(Boolean); // start inside the current folder
+    modal("Choose a folder", function (b) {
+      var box = el("div", "fp"); b.appendChild(box);
+      var search = el("input"); search.type = "text"; search.className = "fp-search"; search.placeholder = "Search all folders…"; search.setAttribute("aria-label", "Search folders");
+      box.appendChild(search);
+      var crumbs = el("div", "fp-crumbs"); box.appendChild(crumbs);
+      var list = el("div", "fp-list"); box.appendChild(list);
+      var addWrap = el("div", "fp-add");
+      var addInp = el("input"); addInp.type = "text"; addInp.className = "fp-add-inp"; addInp.placeholder = "New subfolder here…"; addInp.setAttribute("aria-label", "New subfolder name");
+      var addBtn = el("button", "dsb-mini fp-add-btn"); addBtn.type = "button"; setIconBtn(addBtn, "plus", "Create", 12);
+      addWrap.appendChild(addInp); addWrap.appendChild(addBtn); box.appendChild(addWrap);
+      var foot = el("div", "fp-foot");
+      var clearBtn = el("button", "btn fp-clear"); clearBtn.type = "button"; clearBtn.textContent = "No folder";
+      var useBtn = el("button", "btn primary fp-use"); useBtn.type = "button";
+      foot.appendChild(clearBtn); foot.appendChild(useBtn); box.appendChild(foot);
+      function prefix() { return nav.length ? nav.join("/") + "/" : ""; }
+      function pick(p) { onPick(p); b.closest(".modal-ov").remove(); }
+      function render() {
+        var q = search.value.trim().toLowerCase();
+        crumbs.hidden = addWrap.hidden = !!q;
+        list.innerHTML = "";
+        if (q) {
+          // Flat search across every filed path; click picks it directly.
+          var hits = paths.filter(function (p) { return p.toLowerCase().indexOf(q) >= 0; }).slice(0, 60);
+          if (!hits.length) { var e = el("div", "fp-empty"); e.textContent = "No folders match."; list.appendChild(e); }
+          hits.forEach(function (p) {
+            var r = el("button", "fp-row fp-hit"); r.type = "button";
+            var ic = el("span", "fp-ic"); ic.appendChild(Studio.icon("folder", 14)); r.appendChild(ic);
+            var nm = el("span", "fp-nm"); nm.textContent = p; r.appendChild(nm);
+            r.onclick = function () { pick(p); };
+            list.appendChild(r);
+          });
+          useBtn.textContent = "Use current folder";
+          return;
+        }
+        // Breadcrumb trail: Home / seg / seg — click a crumb to jump up.
+        crumbs.innerHTML = "";
+        var home = el("button", "fp-crumb"); home.type = "button"; home.textContent = "Home";
+        home.onclick = function () { nav = []; render(); };
+        crumbs.appendChild(home);
+        nav.forEach(function (seg, i) {
+          var sep = el("span", "fp-sep"); sep.textContent = "/"; crumbs.appendChild(sep);
+          var c = el("button", "fp-crumb"); c.type = "button"; c.textContent = seg;
+          c.onclick = function () { nav = nav.slice(0, i + 1); render(); };
+          crumbs.appendChild(c);
+        });
+        var kids = folderChildrenAt(prefix(), paths);
+        if (!kids.length) { var e2 = el("div", "fp-empty"); e2.textContent = nav.length ? "No subfolders here — create one below, or use this folder." : "No folders yet — create one below."; list.appendChild(e2); }
+        kids.forEach(function (seg) {
+          var full = prefix() + seg;
+          var hasKids = folderChildrenAt(full + "/", paths).length > 0;
+          var r = el("div", "fp-row");
+          var into = el("button", "fp-into"); into.type = "button";
+          var ic = el("span", "fp-ic"); ic.appendChild(Studio.icon("folder", 14)); into.appendChild(ic);
+          var nm = el("span", "fp-nm"); nm.textContent = seg; into.appendChild(nm);
+          if (hasKids) { var chev = el("span", "fp-chev"); chev.appendChild(Studio.icon("chevron-down", 12)); into.appendChild(chev); }
+          into.setAttribute("aria-label", (hasKids ? "Open folder " : "Select folder ") + seg);
+          into.onclick = function () { if (hasKids) { nav.push(seg); render(); } else { pick(full); } };
+          var use = el("button", "fp-pick"); use.type = "button"; use.title = "File here"; use.setAttribute("aria-label", "File in " + full); use.appendChild(Studio.icon("check", 12));
+          use.onclick = function () { pick(full); };
+          r.appendChild(into); r.appendChild(use); list.appendChild(r);
+        });
+        useBtn.textContent = nav.length ? "Use “" + nav.join("/") + "”" : "Use Home (no folder)";
+      }
+      addBtn.onclick = function () {
+        var name = addInp.value.trim().replace(/^\/+|\/+$/g, "");
+        if (!name) { addInp.focus(); return; }
+        // Support "a/b" to create a nested chain at once; descend into it.
+        name.split("/").filter(Boolean).forEach(function (seg) { nav.push(seg); });
+        var made = nav.join("/");
+        if (paths.indexOf(made) < 0) paths.push(made);
+        addInp.value = ""; render();
+      };
+      addInp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); addBtn.click(); } });
+      search.addEventListener("input", render);
+      clearBtn.onclick = function () { pick(""); };
+      useBtn.onclick = function () { pick(nav.join("/")); };
+      render();
+    });
+  }
+  Studio.openFolderPicker = openFolderPicker; // test hook + shared entry point
+  // Attach a "Browse" button after a Folder <input>; picking writes the path back and fires input.
+  function folderPickerButton(input, getAllFolders) {
+    var btn = el("button", "dsb-mini fp-browse-btn"); btn.type = "button";
+    setIconBtn(btn, "folder", "Browse", 12);
+    btn.setAttribute("aria-label", "Browse folders");
+    btn.onclick = function () {
+      openFolderPicker(input.value, getAllFolders(), function (path) {
+        input.value = path; input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    };
+    return btn;
+  }
+
   function openRepoQuickEdit(type, id) {
     var PS = window.PolecatShell; if (!PS) return; // fleet.js module not loaded yet (sub-second boot window)
     var table = REPO_EDIT_TABLE[type]; if (!table) return;
@@ -6814,6 +6931,9 @@
     Object.keys(folderNames).sort().forEach(function (f) { var o = el("option"); o.value = f; folderList.appendChild(o); });
     folderInp.setAttribute("list", "repoQeFolderOptions");
     folderInp.parentNode.appendChild(folderList);
+    // LF56: a Browse button opens the shared folder-tree picker over the same set of folders.
+    folderInp.parentNode.classList.add("cx-field-folder");
+    folderInp.parentNode.appendChild(folderPickerButton(folderInp, function () { return Object.keys(folderNames); }));
     var msg = el("div", "cx-test-result"); body.appendChild(msg);
     var foot = el("div", "cx-wiz-foot");
     var openBtn = el("button", "btn"); openBtn.type = "button"; openBtn.textContent = "Open full editor →";
