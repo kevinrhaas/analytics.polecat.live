@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 721,
+    title: 'Explore saves a "View" everywhere, and the backend row fits your phone',
+    kind: 'fix',
+    ts: '2026-07-29T21:00:21.000Z',
+    items: [
+      'Explore\'s save button now reads "Save View" / "Update View", and the section\'s intro (plus the tour step and Help) frames the saved result as a View — the last "analysis" stragglers from the widget→View rename.',
+      'On a phone, Settings\' connected-backend row no longer squeezes the backend name into a letter-per-line sliver or pushes "Switch backend" off the right edge — the action buttons wrap onto their own line instead.',
+    ],
+  },
+  {
     v: 720,
     title: 'Job editor: one unified preview result, and Preview invites a click when it goes stale',
     kind: 'polish',

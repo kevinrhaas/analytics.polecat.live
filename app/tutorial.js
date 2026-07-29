@@ -183,7 +183,7 @@
         },
         {
           t: "5 · Name it, save it",
-          h: "Give it a name and <b>Save analysis</b>. Saved analyses are reusable everywhere: ★ pins one to <b>Home</b> as a live View; ▦ drops it into the current dashboard as a panel.",
+          h: "Give it a name and <b>Save View</b>. Saved Views are reusable everywhere: ★ pins one to <b>Home</b> live; ▦ drops it into the current dashboard as a panel.",
           target: ".xp-savebar",
           pos: "top"
         },

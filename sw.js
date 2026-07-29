@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v357"; /* v357: LF55(4) — the job editor's approximate output
+var CACHE_NAME = "studio-shell-v358"; /* v358: Kevin live feedback — Explore's savebar reads
+   "Save View"/"Update View" and the hero/tour/Help frame the saved result as a View (last
+   "analysis" stragglers from LF52); Settings' connected-backend row wraps at phone width so
+   the name stays readable and "Switch backend" stays on-screen. app/explore.js,
+   app/index.html, app/tutorial.js, app/studio.css, docs/index.html.
+   v357: LF55(4) — the job editor's approximate output
    preview and the real Preview-button result now share ONE result area (badged "Sample —
    approximate" vs the real ✓ result), with the Preview button pulsing (.btn-invite) whenever
    what's shown is approximate/stale. app/jobs.js, app/studio.css.
