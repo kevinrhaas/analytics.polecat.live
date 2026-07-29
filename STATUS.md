@@ -116,6 +116,23 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF57 follow-up — the Views catalog gains a per-row Duplicate action (v723, sw v360,
+  2026-07-29, steward):** one of the three items LF57 slice 1's own DONE note flagged as
+  "genuinely still open" (Duplicate, Export/"make standalone", per-chart-type row icons).
+  Each row's action cluster gains a **Duplicate** button (`app/views.js`) that clones the
+  persisted `analyses` row — chart/`da`/folder/private carried over — into a new row via
+  `Studio.Workspace.put`, always starting **unpinned** (a copy shouldn't silently clutter the
+  pinned list) with a **uniquified name** (a new `uniqueAnalysisName()` helper, same "suffix at
+  creation time" convention as `studio.js`'s `uniqueDashboardTitle`): `"<name> (copy)"`, then
+  `"<name> (copy) 2"` if that's taken too. Wired alongside Open/Add to dashboard/Delete, with
+  the row's own click-to-open guard extended to skip `[data-vw-dup]` the same way it already
+  skips the other action buttons. 4 new regression tests (button present; clicking it creates a
+  row and stays on the Views section rather than navigating into Explore, leaving the original
+  untouched; the duplicate carries chart type/folder/private but starts unpinned with the
+  uniquified name; duplicating a duplicate uniquifies again instead of colliding). docs/index.html's
+  Views section updated to describe Duplicate and drop it from the "still open" list — **Export/
+  "make standalone" and per-chart-type row icons remain the two open follow-ups.** Files:
+  app/views.js, docs/index.html, sw.js, js/changelog.js, tests/run.js.
 - **LF57 slice 1 — a new "Views" rail section, the dedicated browse/manage catalog for saved
   Views (v722, sw v359, 2026-07-29, steward):** LF57 asked for a top-level Views section
   alongside Datasets/Connections/Repository, with the COMPLETE catalog treatment (list + tile
@@ -7164,6 +7181,9 @@
 >       search, and Open/Add-to-dashboard/pin/private/delete per row — see DONE for the full
 >       writeup. Genuinely still open: Duplicate, Export/"make standalone", and per-chart-type
 >       row icons, each its own follow-up slice.
+>       ✓ **Duplicate shipped (2026-07-29, v723, sw v360, steward):** per-row clone (chart/
+>       folder/private carried over, unpinned, uniquified name) — see DONE. **Still open:**
+>       Export/"make standalone" and per-chart-type row icons.
 > LF59. **Dashboards section management overhaul (Kevin, live 2026-07-27, screenshot).** The Dashboards
 >       toolbar (New / Compare / Export / Import) + the per-tile "No workbook" dropdown need real management:
 >       (1) SELECTIVE EXPORT — "Export dashboards" exports EVERYTHING today; export a chosen subset instead.

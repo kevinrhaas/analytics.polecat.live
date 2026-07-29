@@ -111,6 +111,7 @@
       var actions = '<span class="cx-actions">' +
           '<button type="button" class="btn" data-vw-open="' + esc(a.id) + '">Open</button>' +
           '<button type="button" class="btn" data-vw-dash="' + esc(a.id) + '">Add to dashboard</button>' +
+          '<button type="button" class="btn" data-vw-dup="' + esc(a.id) + '" aria-label="Duplicate ' + esc(a.name || "View") + '">Duplicate</button>' +
           '<button type="button" class="btn" data-vw-del="' + esc(a.id) + '" aria-label="Delete ' + esc(a.name || "View") + '">✕</button>' +
         '</span>';
       if (isTiles) {
@@ -154,7 +155,7 @@
       var icEl = row.querySelector(".cx-ic");
       if (icEl) icEl.appendChild(Studio.icon("trend-up", 18));
       row.addEventListener("click", function (e) {
-        if (e.target.closest("[data-vw-pin],[data-vw-private],[data-vw-open],[data-vw-dash],[data-vw-del]")) return;
+        if (e.target.closest("[data-vw-pin],[data-vw-private],[data-vw-open],[data-vw-dash],[data-vw-dup],[data-vw-del]")) return;
         vwOpen(id);
       });
     });
@@ -171,6 +172,9 @@
     });
     $$("[data-vw-dash]", results).forEach(function (btn) {
       btn.onclick = function () { Studio.Explore.openAddToExistingDashboardPicker(btn.getAttribute("data-vw-dash")); };
+    });
+    $$("[data-vw-dup]", results).forEach(function (btn) {
+      btn.onclick = function (e) { e.stopPropagation(); vwDuplicate(btn.getAttribute("data-vw-dup")); };
     });
     $$("[data-vw-del]", results).forEach(function (btn) {
       btn.onclick = function () {
@@ -196,6 +200,30 @@
   function vwNewView() {
     if (Studio.Explore && Studio.Explore.startNew) Studio.Explore.startNew();
     if (window.__studioShellSetSection) window.__studioShellSetSection("explore");
+  }
+  // LF57 follow-up: a name never collides with one already in the catalog, same
+  // "suffix at creation time" convention as studio.js's uniqueDashboardTitle.
+  function uniqueAnalysisName(base) {
+    var used = {};
+    Studio.Workspace.all("analyses").forEach(function (a) { if (a.name) used[a.name] = true; });
+    if (!used[base]) return base;
+    var n = 2;
+    while (used[base + " " + n]) n++;
+    return base + " " + n;
+  }
+  // Duplicate: a straight clone of the persisted row (chart/da/folder/private carried
+  // over — a copy of a private View stays private, same as any other saved-object
+  // duplicate in the app), a fresh id + uniquified "<name> (copy)" title, and NOT
+  // pinned — a copy starts unfavorited rather than silently cluttering the pinned list.
+  function vwDuplicate(id) {
+    var a = Studio.Workspace.get("analyses", id); if (!a) return;
+    var dup = Studio.clone(a);
+    delete dup.id; delete dup.createdAt; delete dup.updatedAt; delete dup.pinnedAt;
+    dup.name = uniqueAnalysisName((a.name || "Untitled View") + " (copy)");
+    dup.pinned = false;
+    var saved = Studio.Workspace.put("analyses", dup);
+    toast("Duplicated “" + saved.name + "”");
+    renderViews();
   }
 
   Studio.ViewsCatalog = {

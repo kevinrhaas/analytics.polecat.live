@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v359"; /* v359: LF57 slice 1 — a new "Views" rail section
+var CACHE_NAME = "studio-shell-v360"; /* v360: LF57 follow-up — the Views catalog gains a
+   per-row Duplicate action (clones the persisted analysis row: chart/folder/private carried
+   over, pinned reset, uniquified "(copy)" name via a new uniqueAnalysisName helper) — one of
+   the three items LF57 slice 1's own DONE note left "genuinely still open." app/views.js,
+   docs/index.html, STATUS.md, js/changelog.js.
+   v359: LF57 slice 1 — a new "Views" rail section
    (app/views.js, Studio.ViewsCatalog) is a dedicated browse/manage catalog for saved Views
    (the analyses table Explore builds): list/tile toggle, folder + chart-type facets, search,
    and per-row Open/pin/private/Add-to-dashboard/Delete actions — reusing Studio.Explore's own
