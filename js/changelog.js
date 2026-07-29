@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 694,
+    title: 'Export just the dashboards you choose',
+    kind: 'feature',
+    ts: '2026-07-29T03:59:30.000Z',
+    items: [
+      '"Export dashboards…" used to always dump your entire repository. Now it opens a picker so you can choose exactly which dashboards go into the file — with Select all / Clear and a live count. A subset export is self-contained: it carries just the chosen dashboards plus the data sources they use (and their pins/workbooks). Exporting everything still gives you the full inventory, exactly as before.',
+    ],
+  },
+  {
     v: 693,
     title: 'The folder Browse button reaches Explore too',
     kind: 'polish',

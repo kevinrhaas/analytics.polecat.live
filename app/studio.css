@@ -1233,6 +1233,18 @@ body.lib-dragging #preview{pointer-events:none}
 .modal-b{padding:var(--sp-16) var(--sp-18);overflow:auto}
 .modal-b pre{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:var(--sp-12);font-size:var(--fs-11);
   font-family:var(--mono);overflow:auto;max-height:300px;white-space:pre-wrap;word-break:break-word}
+/* LF59 (1): the "Export dashboards…" subset picker. */
+.exp-dash-info{margin:0 0 var(--sp-12);color:var(--muted);font-size:var(--fs-13);line-height:1.5}
+.exp-dash-bar{display:flex;gap:8px;margin-bottom:var(--sp-10)}
+.exp-dash-list{display:flex;flex-direction:column;gap:2px;max-height:46vh;overflow:auto;
+  border:1px solid var(--line);border-radius:10px;padding:var(--sp-6)}
+.exp-dash-row{display:flex;align-items:center;gap:10px;padding:var(--sp-8) var(--sp-10);border-radius:8px;cursor:pointer}
+.exp-dash-row:hover{background:var(--field)}
+.exp-dash-row input{width:16px;height:16px;flex:0 0 auto;accent-color:var(--brand);cursor:pointer}
+.exp-dash-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);font-size:var(--fs-13)}
+.exp-dash-badge{flex:0 0 auto;font-size:var(--fs-11);color:var(--muted);border:1px solid var(--line);
+  border-radius:999px;padding:1px 8px;background:var(--field)}
+.exp-dash-foot{display:flex;justify-content:flex-end;margin-top:var(--sp-14)}
 /* Slice A: What's-next roadmap modal (topbar #tbWhatsNext). Compact grouped list —
    Up next / Planned / Exploring — each item a titled note card. */
 .whatsnext .wn-intro{margin:0 0 var(--sp-16);color:var(--muted);font-size:var(--fs-13);line-height:1.5}
