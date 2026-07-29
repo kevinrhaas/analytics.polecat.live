@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v325"; /* v325: LF64(3) a11y — the dataset builder's "Date token"
+var CACHE_NAME = "studio-shell-v326"; /* v326: LF52 (analysis→View, app-UI slice) — user-facing
+   "analysis"/"Analyses" become "View"/"Views" across the app surfaces: Explore's save bar
+   (placeholder/aria/toasts/confirm/preview), the Home "Pinned Views" section + card fallbacks, and
+   the Repository object type label. Internal ids/keys (the `analyses` store, "analysis-"+id, data-*
+   attrs) are unchanged. app/explore.js + app/studio.js changed, so precached copies roll. The tour/
+   welcome/docs copy pass is a deliberate follow-up (needs per-string judgment; "Quick analysis" tour
+   name stays).
+   v325: LF64(3) a11y — the dataset builder's "Date token"
    insert menu is now fully keyboard-operable: trigger toggles aria-expanded (aria-haspopup=menu),
    ArrowDown/Enter/Space opens + focuses the first token, Up/Down/Home/End move, Escape closes and
    restores focus to the trigger (and stopPropagation so Escape no longer bubbles to the modal's own

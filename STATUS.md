@@ -116,6 +116,19 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF52 (analysis→View, app-UI slice) — saved analyses read as "View" in the app (v689, sw v326,
+  2026-07-29):** the widget→View half shipped earlier; this does the "analysis"/"analyses"→"View"/
+  "Views" half for the **app UI** surfaces (the Explore builder Kevin screenshotted): Explore's save
+  bar (`Name this View…` placeholder + `View name` aria, "View saved/updated", "Added View …",
+  "Delete View" confirm/title, "View preview" iframe), the Home "Pinned Views" section label + card
+  title/aria fallbacks, the sample-pack remove confirm, the "reusable View" help note, and the
+  Repository object type (`REPO_TYPES` label/singular → View/Views). INTERNAL identifiers are
+  deliberately untouched — the `analyses` store, `"analysis-"+id`, `pinnedAnalyses`/`analysis` keys,
+  `data-home-analysis`/`.lib-analyses`/`.home-analysis` classes — so no storage/export/byte-identity
+  change. New regression test pins Explore's save-bar wording. **Follow-up (NOT done here):** the
+  tour (`app/tutorial.js`), welcome (`app/welcome.js`), Help (`docs/index.html`) and marketing copy
+  still say "analysis" in places — that pass needs per-string judgment (generic "analysis"/"quick
+  analyses" and the proper-noun **"Quick analysis" tour name** should stay), so it's a separate slice.
 - **LF64(3) a11y — the Date-token insert menu is keyboard-operable (v688, sw v325, 2026-07-29):**
   the `dateTokenBtn` popover shipped in LF64 slice 3 was mouse-only. It now has full menu semantics
   and keyboard support: the trigger carries `aria-haspopup="menu"` + a live `aria-expanded`, the
