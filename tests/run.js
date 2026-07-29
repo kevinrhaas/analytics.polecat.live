@@ -20104,6 +20104,57 @@ function serve() {
       jDocsOverflow.noHScroll && jDocsOverflow.headerCols.join(",") === "Format,What you get,Use when",
       JSON.stringify(jDocsOverflow));
 
+    // J-docs-5..8 (LF60 slice 2): docs search — indexes every section heading + individual
+    // chart-type card, matches title-first then body text, jumps + flashes the hit on click/Enter,
+    // "/" focuses search from anywhere on the page.
+    const jSearchPage = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await jSearchPage.goto(`http://localhost:${PORT}/docs/index.html`, { waitUntil: "load" });
+    await jSearchPage.fill("#docSearch", "choropleth");
+    await jSearchPage.waitForTimeout(80);
+    const jSearchHits = await jSearchPage.evaluate(function () {
+      var results = document.getElementById("docSearchResults");
+      var hits = Array.from(results.querySelectorAll(".doc-search-hit"));
+      return {
+        visible: !results.hidden,
+        count: hits.length,
+        firstTitle: hits.length ? hits[0].querySelector(".dsh-title").textContent : "",
+        hasMark: hits.length ? !!hits[0].querySelector(".dsh-snip mark") : false
+      };
+    });
+    ok("J-docs: search for 'choropleth' shows a matching result with a highlighted snippet",
+      jSearchHits.visible && jSearchHits.count > 0 && /choropleth/i.test(jSearchHits.firstTitle) && jSearchHits.hasMark,
+      JSON.stringify(jSearchHits));
+
+    await jSearchPage.click(".doc-search-hit");
+    await jSearchPage.waitForTimeout(50);
+    const jSearchJump = await jSearchPage.evaluate(function () {
+      return { hash: location.hash, resultsHidden: document.getElementById("docSearchResults").hidden };
+    });
+    ok("J-docs: clicking a search result jumps to it (URL hash set to the chart anchor) and closes the results dropdown",
+      jSearchJump.hash === "#ct-choropleth" && jSearchJump.resultsHidden,
+      JSON.stringify(jSearchJump));
+
+    await jSearchPage.evaluate(function () { document.getElementById("docSearch").blur(); document.body.focus(); });
+    await jSearchPage.keyboard.press("/");
+    await jSearchPage.waitForTimeout(50);
+    const jSearchSlash = await jSearchPage.evaluate(function () {
+      return document.activeElement === document.getElementById("docSearch");
+    });
+    ok("J-docs: pressing \"/\" focuses the docs search box", jSearchSlash, JSON.stringify({ focused: jSearchSlash }));
+
+    await jSearchPage.fill("#docSearch", "");
+    await jSearchPage.waitForTimeout(50);
+    await jSearchPage.fill("#docSearch", "zzzznomatchzzzz");
+    await jSearchPage.waitForTimeout(80);
+    const jSearchEmpty = await jSearchPage.evaluate(function () {
+      var results = document.getElementById("docSearchResults");
+      return { visible: !results.hidden, hasEmptyState: !!results.querySelector(".doc-search-empty"), hitCount: results.querySelectorAll(".doc-search-hit").length };
+    });
+    await jSearchPage.close();
+    ok("J-docs: a query with no matches shows an empty state and no stale hit rows",
+      jSearchEmpty.visible && jSearchEmpty.hasEmptyState && jSearchEmpty.hitCount === 0,
+      JSON.stringify(jSearchEmpty));
+
     // ── J2: Contextual help links ─────────────────────────────────────────
     // Inspector-level help link (#inspHelpLink) + section-level .sec-help badges.
 

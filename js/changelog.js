@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 708,
+    title: 'Search the Help docs',
+    kind: 'feature',
+    ts: '2026-07-29T15:10:05.000Z',
+    items: [
+      'The in-app Docs view (and the standalone Help page) now has a search box: type a few words and it finds the matching section or chart type, showing a highlighted snippet — click a result (or press Enter) to jump straight there. Press "/" anywhere on the docs page to focus search.',
+    ],
+  },
+  {
     v: 707,
     title: 'One-step sign-in against your team’s Supabase workspace',
     kind: 'feature',

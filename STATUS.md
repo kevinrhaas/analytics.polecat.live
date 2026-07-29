@@ -116,6 +116,29 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF60 slice 2 — docs search (v708, sw v345, 2026-07-29, steward):** LF60's own NEXT pointer
+  named "best-practice docs NAV (sidebar/TOC/search)" as the piece still open after slice 1's
+  embed+pop-out. Of the three, a **search box** was the missing, genuinely load-bearing piece —
+  the existing sticky top nav (with scroll-spy active-link highlighting) already functions as the
+  TOC, so this slice adds search rather than restructuring the nav into a sidebar (a bigger,
+  separately-scoped visual change, not required to make the docs findable). `docs/index.html`
+  gains a `#docSearch` box in the nav bar (both the standalone page and the embedded `#secDocs`
+  iframe get it for free — same file): a client-side index built at load from every section's
+  `<h2>` plus every individual `.chart-card` (the 50+-entry chart-types section alone is too
+  coarse to scan by eye), matched title-first then body-text, rendering up to 8 results with a
+  `<mark>`-highlighted snippet in a dropdown. Clicking a result (or pressing Enter) smooth-scrolls
+  to it, flashes it (a brief box-shadow pulse, skipped under `prefers-reduced-motion`), and sets
+  the URL hash so the jump is bookmarkable/shareable — reusing the SAME anchor ids (`#ct-*`,
+  section ids) the rest of the docs' internal linking already depends on (J4's `.ct-help` href
+  tests), so nothing new to keep in sync. Pressing **"/"** anywhere on the page focuses search
+  (skipped while focus is already in an editable element, so it never steals a keystroke while
+  typing). Responsive: the search box drops to full width below the nav-link row at ≤640px. 4 new
+  regression tests (search surfaces a highlighted match; clicking a result jumps + sets the hash +
+  closes the dropdown; "/" focuses search; a no-match query shows an empty state with no stale
+  rows). Files: docs/index.html, sw.js, js/changelog.js, tests/run.js. **NEXT in LF60:** (3)
+  deep-links + screenshots, (4) split into USER vs ADMIN docs, (5) a backend-options comparison
+  table. The sidebar/TOC layout question stays open too, but is no longer blocking — the existing
+  top nav + new search cover "can a user find what they need."
 - **LF39 item 2 / M7 — one-step GoTrue direct-auth at sign-in (v707, sw v344, 2026-07-29):** closes
   out LF39's last piece (Kevin: "close out the M7 GoTrue track"). Item (1) fixed the misleading error
   + local-mirror adoption; item (2) is real password auth against the backend. Two parts: (a) a new
@@ -6668,7 +6691,11 @@
 >       2026-07-27).** Docs currently open external-feeling; bring them INSIDE the app. (1) EMBED docs in a
 >       proper in-app Docs view off the Help/Docs rail item, with best-practice docs NAVIGATION (sidebar/TOC,
 >       sections, search — reuse LF51 nav practices). (2) ALSO POP OUT — a "open in new tab" standalone link;
->       support BOTH embedded + standalone. (3) Improve: deep-LINKS INTO THE APP + SCREENSHOTS where helpful.
+>       support BOTH embedded + standalone. ✓ **Slice 2 shipped (2026-07-29, v708, sw v345, steward): docs
+>       search** — see DONE. `#docSearch` in the nav bar indexes every section + chart-type card, jumps +
+>       highlights the hit, "/" to focus. Kept the existing sticky top nav as the TOC (already does scroll-spy)
+>       rather than restructuring to a sidebar — genuinely open if wanted, but no longer blocking findability.
+>       (3) Improve: deep-LINKS INTO THE APP + SCREENSHOTS where helpful.
 >       (4) ORGANIZE into USER DOCS vs ADMIN DOCS — technical config/setup/backends/provisioning/RLS live in
 >       ADMIN docs; everyday how-to in USER docs. (5) BACKEND OPTIONS doc — each backend's pros/cons/trade-
 >       offs + the RECOMMENDED Supabase (with RLS), ideally a COMPARISON TABLE (local-only vs Supabase anon vs

@@ -56,11 +56,42 @@
     /* ── nav ── */
     nav{background:var(--card);border-bottom:1px solid var(--line);position:sticky;
       top:0;z-index:10}
-    .nav-inner{max-width:1000px;margin:0 auto;display:flex;gap:0;overflow-x:auto}
+    .nav-bar{max-width:1000px;margin:0 auto;display:flex;align-items:center;gap:6px}
+    .nav-inner{display:flex;gap:0;overflow-x:auto;flex:1;min-width:0}
     nav a{font-size:12.5px;font-weight:600;color:var(--faint);padding:12px 16px;
       white-space:nowrap;border-bottom:2px solid transparent;display:block}
     nav a:hover{color:var(--accent);text-decoration:none;border-bottom-color:rgba(125,60,152,.3)}
     nav a.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+    /* ── docs search ── */
+    .nav-search{position:relative;flex-shrink:0;padding:0 12px 0 4px}
+    .nav-search input{font:inherit;font-size:12.5px;padding:6px 10px;border:1px solid var(--line);
+      border-radius:8px;background:var(--bg);color:var(--fg);width:130px;transition:width .15s ease}
+    .nav-search input:focus{width:210px;outline:none;border-color:var(--accent)}
+    .nav-search input::placeholder{color:var(--faint)}
+    .doc-search-results{position:absolute;top:calc(100% + 6px);right:12px;width:320px;
+      max-height:min(420px,70vh);overflow-y:auto;background:var(--card);border:1px solid var(--line);
+      border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.18);z-index:20}
+    .doc-search-hit{display:block;width:100%;text-align:left;padding:10px 12px;border:none;
+      border-bottom:1px solid var(--line);background:none;cursor:pointer;font:inherit}
+    .doc-search-hit:last-child{border-bottom:none}
+    .doc-search-hit:hover,.doc-search-hit:focus{background:var(--bg);outline:none}
+    .dsh-title{display:block;font-size:13px;font-weight:700;color:var(--fg)}
+    .dsh-section{display:block;font-size:10px;font-weight:700;text-transform:uppercase;
+      letter-spacing:.06em;color:var(--accent);margin:2px 0 4px}
+    .dsh-snip{display:block;font-size:12px;color:var(--faint);line-height:1.45}
+    .dsh-snip mark{background:rgba(125,60,152,.28);color:var(--fg);border-radius:3px;padding:0 1px}
+    .doc-search-empty{padding:14px 12px;font-size:12.5px;color:var(--faint)}
+    @keyframes docHitFlash{0%{box-shadow:0 0 0 3px rgba(125,60,152,.55)}100%{box-shadow:0 0 0 3px rgba(125,60,152,0)}}
+    .doc-hit-flash{border-radius:8px;animation:docHitFlash 1.6s ease}
+    @media(prefers-reduced-motion:reduce){.doc-hit-flash{animation:none}}
+    @media(max-width:640px){
+      .nav-bar{flex-wrap:wrap}
+      .nav-search{padding:8px 14px;flex-basis:100%}
+      .nav-search input{width:100%}
+      .nav-search input:focus{width:100%}
+      .doc-search-results{left:14px;right:14px;width:auto}
+    }
 
     /* ── main layout ── */
     main{max-width:1000px;margin:0 auto;padding:40px 24px 80px}
@@ -149,15 +180,21 @@
 </header>
 
 <nav>
-  <div class="nav-inner">
-    <a href="#getting-started" class="active">Getting started</a>
-    <a href="#builder">The builder</a>
-    <a href="#ensembles">Ensembles &amp; honesty</a>
-    <a href="#chart-types">Chart types</a>
-    <a href="#data-sources">Data sources</a>
-    <a href="#exporting">Exporting</a>
-    <a href="#shortcuts">Shortcuts</a>
-    <a href="#simple-mode">Simple mode</a>
+  <div class="nav-bar">
+    <div class="nav-inner">
+      <a href="#getting-started" class="active">Getting started</a>
+      <a href="#builder">The builder</a>
+      <a href="#ensembles">Ensembles &amp; honesty</a>
+      <a href="#chart-types">Chart types</a>
+      <a href="#data-sources">Data sources</a>
+      <a href="#exporting">Exporting</a>
+      <a href="#shortcuts">Shortcuts</a>
+      <a href="#simple-mode">Simple mode</a>
+    </div>
+    <div class="nav-search">
+      <input type="search" id="docSearch" placeholder="Search docs… (/)" aria-label="Search docs" aria-keyshortcuts="/" autocomplete="off">
+      <div id="docSearchResults" class="doc-search-results" role="listbox" hidden></div>
+    </div>
   </div>
 </nav>
 
@@ -1073,6 +1110,100 @@
   }
   window.addEventListener("scroll", update, { passive: true });
   update();
+})();
+
+// LF60 slice 2: in-page docs search. Indexes every top-level section (by its <h2>) plus every
+// chart-type card individually (the chart-types section alone is 50+ entries too coarse to find
+// by scanning), matches on title first then body text, and jumps + flashes the hit on click/Enter.
+(function () {
+  var input = document.getElementById("docSearch");
+  var results = document.getElementById("docSearchResults");
+  if (!input || !results) return;
+
+  var index = [];
+  Array.from(document.querySelectorAll("main > section[id]")).forEach(function (sec) {
+    var h2 = sec.querySelector("h2");
+    var title = h2 ? h2.textContent.trim() : sec.id;
+    index.push({ title: title, section: title, id: sec.id, el: sec, flashEl: h2 || sec, text: sec.textContent.replace(/\s+/g, " ").trim() });
+    Array.from(sec.querySelectorAll(".chart-card")).forEach(function (card) {
+      var name = card.querySelector(".chart-name");
+      var desc = card.querySelector(".chart-desc");
+      var cardTitle = name ? name.textContent.trim() : (card.id || title);
+      index.push({
+        title: cardTitle, section: title, id: card.id || sec.id, el: card, flashEl: card,
+        text: cardTitle + " " + (desc ? desc.textContent.trim() : "")
+      });
+    });
+  });
+
+  function esc(s) { return s.replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; }); }
+
+  function snippet(text, q) {
+    var i = text.toLowerCase().indexOf(q.toLowerCase());
+    if (i < 0) return esc(text.slice(0, 90));
+    var start = Math.max(0, i - 30);
+    var end = Math.min(text.length, i + q.length + 60);
+    return (start > 0 ? "…" : "") + esc(text.slice(start, i)) + "<mark>" + esc(text.slice(i, i + q.length)) +
+      "</mark>" + esc(text.slice(i + q.length, end)) + (end < text.length ? "…" : "");
+  }
+
+  function render(hits, query) {
+    if (!hits.length) {
+      results.innerHTML = '<div class="doc-search-empty">No matches for “' + esc(query) + '”</div>';
+      results.hidden = false;
+      return;
+    }
+    results.innerHTML = hits.map(function (h, i) {
+      return '<button type="button" class="doc-search-hit" role="option" data-idx="' + i + '">' +
+        '<span class="dsh-title">' + esc(h.title) + '</span>' +
+        (h.section !== h.title ? '<span class="dsh-section">' + esc(h.section) + '</span>' : '') +
+        '<span class="dsh-snip">' + snippet(h.text, query) + '</span></button>';
+    }).join("");
+    results.hidden = false;
+  }
+
+  function search() {
+    var q = input.value.trim();
+    if (!q) { results.hidden = true; results.innerHTML = ""; results.__hits = null; return; }
+    var ql = q.toLowerCase();
+    var titleHits = index.filter(function (e) { return e.title.toLowerCase().indexOf(ql) >= 0; });
+    var bodyHits = index.filter(function (e) { return titleHits.indexOf(e) < 0 && e.text.toLowerCase().indexOf(ql) >= 0; });
+    var hits = titleHits.concat(bodyHits).slice(0, 8);
+    results.__hits = hits;
+    render(hits, q);
+  }
+
+  function jumpTo(entry) {
+    if (!entry) return;
+    entry.el.scrollIntoView({ behavior: "smooth", block: "start" });
+    entry.flashEl.classList.add("doc-hit-flash");
+    setTimeout(function () { entry.flashEl.classList.remove("doc-hit-flash"); }, 1600);
+    if (entry.id) history.replaceState(null, "", "#" + entry.id);
+    results.hidden = true;
+    input.blur();
+  }
+
+  input.addEventListener("input", search);
+  input.addEventListener("focus", function () { if (results.__hits) results.hidden = false; });
+  input.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { results.hidden = true; input.blur(); }
+    else if (e.key === "Enter" && results.__hits && results.__hits.length) { e.preventDefault(); jumpTo(results.__hits[0]); }
+  });
+  results.addEventListener("click", function (e) {
+    var btn = e.target.closest(".doc-search-hit");
+    if (!btn || !results.__hits) return;
+    jumpTo(results.__hits[Number(btn.getAttribute("data-idx"))]);
+  });
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest(".nav-search")) results.hidden = true;
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+    var t = document.activeElement;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    e.preventDefault();
+    input.focus();
+  });
 })();
 </script>
 </body>
