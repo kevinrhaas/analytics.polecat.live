@@ -116,6 +116,15 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF45 (Save-as half) — a visible "Save as" button next to Save (v686, sw v323, 2026-07-29):**
+  LF26 shipped the save-as *behavior* and LF20/LF47 later made the toolbar's Save-as op icon-only
+  (sharing a glyph nearly identical to Duplicate's). Kevin's LF45 asks to surface it prominently —
+  the `#btnSaveAsSpec` op now renders icon + "Save as" label (matching Save's treatment) so the two
+  related actions read as a pair and Save-as is easy to find. Desktop only: on phones the whole ops
+  cluster still folds behind ⋯ More (`#moreSaveAsSpec`), so the release-gated 390px bar is unchanged.
+  The LF20 "Save as is icon-only" test is updated to assert the new labeled treatment (LF45 supersedes
+  it for this button — not weakened, re-pointed to the new intent). The Open-dialog half of LF45
+  (richer picker) already shipped earlier; **LF45 is now fully done.**
 - **LF32 follow-up (a) — offline preview is unmistakably labeled as sample (v685, sw v322,
   2026-07-29):** the dataset builder's Query Preview generates made-up rows to illustrate the column
   shape; a subtle "(offline sample)" label once let a preview be mistaken for a live query result
