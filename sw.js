@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v339"; /* v339: LF55 (3) — job editor stale-preview fix: editing
+var CACHE_NAME = "studio-shell-v340"; /* v340: LF55 (1) — job editor column dropdowns: the Filter,
+   Rename and Cast steps' column fields are now colSelect() dropdowns of the step's incoming
+   columns (colsBeforeStep) instead of free-text inputs, extending LF13a's group-by/metric/join-key
+   dropdowns to every column-naming field. Existing values stay selectable. app/jobs.js.
+   v339: LF55 (3) — job editor stale-preview fix: editing
    steps (+ Step / op change / reorder / delete) now clears the last REAL Preview result
    (result + preview) in renderSteps, so the leftover duplicate table can't linger next to the
    live approximate preview. app/jobs.js.

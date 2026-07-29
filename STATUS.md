@@ -116,6 +116,20 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF55 (1) — job editor: Filter/Rename/Cast column fields are dropdowns, not free text (v703, sw
+  v340, 2026-07-29):** LF55 part (1). LF13a had already made group-by / rollup-metric / join-union
+  key columns dropdowns of known columns; this extends that to the last free-text column-naming
+  fields — the **Filter** column, the **Rename** "from" column, and the **Cast** column all now use
+  the existing `colSelect(colsBeforeStep(stepIdx), …)` (the incoming columns at that step) instead of
+  a typed `mini()` input, killing the typo/case-sensitivity trap Kevin flagged. `colSelect` keeps any
+  current value selectable even if it's fallen out of the introspected list, so existing jobs are
+  safe; picking a column re-renders so the approximate preview reflects it immediately. The Rename
+  "to" (a NEW name), derive/uniqueKey output names, and the Filter value stay free text (the Filter
+  distinct-value picker is a separate LF55 slice). 1 new regression test (a filter + rename step's
+  column fields render as `<select>`s of the incoming columns with the current value selected). File:
+  app/jobs.js (+ docs/index.html, sw.js, js/changelog.js, tests/run.js). **NEXT in LF55:** (2) filter
+  distinct-value picker, (4) unify approximate-vs-real into one badged result area, (5) icon-panel
+  step picker.
 - **LF55 (3) — job editor: the stale real-Preview table no longer lingers (v702, sw v339,
   2026-07-29):** LF55's flagged "quick early win" (part 3). The job editor shows a live *approximate*
   preview (source sample + engine-simulated output) that rebuilds on every step edit, PLUS a separate
