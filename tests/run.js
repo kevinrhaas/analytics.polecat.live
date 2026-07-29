@@ -4682,6 +4682,24 @@ function serve() {
     ok("LF54: workspace content is left-aligned (no centered left gutter) — .settings-wrap has margin-left 0",
       lf54.found && lf54.marginLeft === "0px", JSON.stringify(lf54));
 
+    // LF54 (slice 2): per-component density tightening — the two off-scale 30px vertical
+    // gaps in the workspace catalogs (the toolbar→list gap `.repo-io` and the inter-
+    // subsection gap `.repo-sub2`) are now the 20px spacing-scale token, tightening the
+    // section rhythm slice 1 deferred and putting both back on the --sp scale.
+    await page.evaluate(function () { window.__studioShellSetSection("datasets"); });
+    await page.waitForTimeout(150);
+    const lf54b = await page.evaluate(function () {
+      var io = document.querySelector(".repo-io");
+      var probe = document.createElement("div"); probe.className = "repo-sub2";
+      (document.querySelector(".repo-wrap") || document.body).appendChild(probe);
+      var subMb = getComputedStyle(probe).marginTop; probe.remove();
+      return { ioMb: io ? getComputedStyle(io).marginBottom : null, subMt: subMb };
+    });
+    ok("LF54 (slice 2): the workspace-catalog vertical gaps are tightened to the 20px scale token (.repo-io / .repo-sub2)",
+      lf54b.ioMb === "20px" && lf54b.subMt === "20px", JSON.stringify(lf54b));
+
+    await page.evaluate(function () { window.__studioShellSetSection("settings"); });
+    await page.waitForTimeout(150);
     await page.click('[data-demopack="conservation"]');
     await page.waitForFunction(function () {
       return Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "conservation" && r.sourceFile; }).length >= 8;

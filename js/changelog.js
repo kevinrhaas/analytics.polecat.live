@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 692,
+    title: 'Tighter spacing in the workspace catalogs',
+    kind: 'polish',
+    ts: '2026-07-29T03:26:49.000Z',
+    items: [
+      'The Datasets, Connections, Jobs and Repository sections had two oversized, off-grid vertical gaps — between the toolbar and the list, and between sub-sections. Both are now tightened to the standard spacing scale, so those catalogs read a little denser and the rhythm lines up with the rest of the app. Continues the density pass that began with left-aligning the workspace content.',
+    ],
+  },
+  {
     v: 691,
     title: 'The folder Browse button now sits on every editor',
     kind: 'polish',

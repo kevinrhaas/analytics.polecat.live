@@ -116,6 +116,19 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF54 (slice 2) — per-component density tightening in the workspace catalogs (v692, sw v329,
+  2026-07-29):** slice 1 killed the dead left gutter (left-aligned the three centered wraps) and
+  explicitly deferred "deeper per-component density tightening (list/card gaps)" as a natural
+  follow-up. This slice takes the two clearly-loose, off-grid vertical gaps shared by the four
+  workspace catalogs (Datasets / Connections / Jobs / Repository — the `.repo-*` family): the
+  toolbar→list gap `.repo-io{margin-bottom:30px}` and the inter-subsection gap
+  `.repo-sub2{margin-top:30px}`, both **hardcoded 30px values that were off the --sp spacing scale**.
+  Both now use `var(--sp-20)` (20px), so those catalogs read a touch denser AND the two gaps snap
+  back onto the shared spacing scale. Pure CSS; no markup/behavior touched; scoped to the workspace
+  catalogs (Home's hero spacing is left for LF18's Home overhaul, not tightened here). 1 new
+  regression test asserts both gaps compute to 20px. Files: app/studio.css, tests/run.js, sw.js,
+  js/changelog.js. **LF54's named density work (left-align + the deferred gap-tightening) is now
+  complete; any further per-widget density is opportunistic polish, not a named slice.**
 - **LF56 (folder picker, slice 2) — the Browse picker is now on every Folder field (v691, sw v328,
   2026-07-29):** slice 1 built `Studio.openFolderPicker` + `folderPickerButton` and wired the
   Repository quick-edit. Slice 2 exposes `Studio.folderPickerButton` and wires it next to the Folder
