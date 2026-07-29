@@ -116,6 +116,21 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF57 follow-up — Views rows/tiles show a themed per-chart-type icon (v725, sw v362,
+  2026-07-29, steward):** the last of the three items LF57 slice 1's own DONE note flagged as
+  "genuinely still open" (Duplicate shipped v723; Export/"make standalone" is the only one
+  left). Every row's `.cx-ic` slot used to share one generic `trend-up` glyph regardless of
+  chart type — now it renders the SAME themed gallery-thumbnail SVG the chart-type picker and
+  the dashboard-mockup preview already draw from (`Studio.CHART_SVG` + studio.js's live-theme-
+  aware `themedChartSvg`, one visual language for "what kind of chart is this" everywhere in
+  the app, rather than authoring a second single-color icon set for 54 chart types).
+  `themedChartSvg` is now injected into `app/views.js` via `Studio.ViewsCatalog.configure()`
+  (same one-bundled-call shape every other module uses), and a new `vwTypeIcon(t)` helper
+  sizes the returned markup (`width="20" height="14"`) to sit in the existing icon slot.
+  Falls back to the generic icon for the one chart type with no gallery thumbnail
+  (`colorScale`). 2 new regression tests (two different chart types render visually distinct
+  icon markup; a type with no thumbnail falls back cleanly). Files: app/views.js,
+  app/studio.js, docs/index.html, sw.js, js/changelog.js, tests/run.js.
 - **LF50 (b) — the Settings "Quick import creativity" row is hidden for now (v724, sw v361,
   2026-07-29, steward):** Kevin: "it's confusing things for now until we improve that." The
   in-builder `#qmTuner` Low/High dial was already removed in the original LF50 slice (the
@@ -178,7 +193,9 @@
   this slice to "browse what Explore already builds"): Duplicate, Export/"make standalone", and
   per-chart-type row icons (every row currently shares the generic `trend-up` glyph rather than
   a per-type mark) — none of these three exist as reusable single-object helpers anywhere yet,
-  so each is its own follow-up slice. Files: app/views.js (new), app/index.html, app/shell.js,
+  so each is its own follow-up slice. **(Update: Duplicate shipped v723, per-chart-type row
+  icons shipped v724 — see their own DONE entries above. Only Export/"make standalone"
+  remains.)** Files: app/views.js (new), app/index.html, app/shell.js,
   app/studio.js, docs/index.html, sw.js, js/changelog.js, tests/run.js.
 - **Kevin live feedback ×3 — Explore saves a "View" + the backend row fits a phone (v721, sw v358,
   2026-07-29):** three screenshot-driven fixes from a live session. (1) **Explore savebar**: the

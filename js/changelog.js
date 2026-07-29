@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 725,
+    title: 'Views rows now show their real chart icon',
+    kind: 'polish',
+    ts: '2026-07-29T22:42:06.000Z',
+    items: [
+      'Every row and tile in the Views section now shows a small preview of its actual chart type (bars, donut, map, etc.) instead of one generic icon shared by every row.',
+    ],
+  },
+  {
     v: 724,
     title: 'Quick import is simpler: the creativity setting is tucked away',
     kind: 'polish',

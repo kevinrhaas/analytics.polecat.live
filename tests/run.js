@@ -7881,6 +7881,37 @@ function serve() {
     ok("LF57: duplicating a duplicate uniquifies again instead of colliding",
       lf57Dup.dup2Created && lf57Dup.dup2NameDiffers, JSON.stringify(lf57Dup));
 
+    // LF57 follow-up: per-chart-type row icons — reuses the same themed gallery-thumbnail
+    // SVGs (Studio.CHART_SVG) the chart-type picker already draws from, instead of every
+    // row sharing one generic glyph. One of the three items LF57 slice 1's own DONE note
+    // left "genuinely still open" (alongside Duplicate, shipped separately, and a
+    // standalone export, still open).
+    const lf57Icons = await page.evaluate(function () {
+      window.__studioShellSetSection("views");
+      var a1 = Studio.Workspace.put("analyses", { name: "lf57ic-bars", chartType: "bars", da: { id: "da1", columns: [] } });
+      var a2 = Studio.Workspace.put("analyses", { name: "lf57ic-donut", chartType: "donut", da: { id: "da2", columns: [] } });
+      // colorScale has no Studio.CHART_SVG gallery thumbnail — exercises the fallback path.
+      var a3 = Studio.Workspace.put("analyses", { name: "lf57ic-fallback", chartType: "colorScale", da: { id: "da3", columns: [] } });
+      window.__studioRenderViews();
+      var out = {};
+      var ic1 = document.querySelector('.cx-row[data-vw-id="' + a1.id + '"] .cx-ic');
+      var ic2 = document.querySelector('.cx-row[data-vw-id="' + a2.id + '"] .cx-ic');
+      var ic3 = document.querySelector('.cx-row[data-vw-id="' + a3.id + '"] .cx-ic');
+      out.bothHaveSvg = !!(ic1 && ic1.querySelector("svg") && ic2 && ic2.querySelector("svg"));
+      out.differByType = !!(ic1 && ic2) && ic1.innerHTML !== ic2.innerHTML;
+      out.fallbackUsesGenericIcon = !!(ic3 && ic3.querySelector("svg") && ic3.innerHTML !== (ic1 ? ic1.innerHTML : null));
+      Studio.Workspace.remove("analyses", a1.id, { silent: true });
+      Studio.Workspace.remove("analyses", a2.id, { silent: true });
+      Studio.Workspace.remove("analyses", a3.id, { silent: true });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+      return out;
+    });
+    ok("LF57: each row's icon is a themed per-chart-type SVG (not one shared generic glyph)",
+      lf57Icons.bothHaveSvg && lf57Icons.differByType, JSON.stringify(lf57Icons));
+    ok("LF57: a chart type with no gallery thumbnail falls back to a generic icon",
+      lf57Icons.fallbackUsesGenericIcon, JSON.stringify(lf57Icons));
+
     // ── LF51 (command center): Repository's ＋ New ▾ creates EVERY object kind ─────────
     // Each entry routes into that kind's own builder/editor (dashboard → Studio blank spec,
     // View → Explore fresh analysis, dataset/connection/job → their real editor modals), and
