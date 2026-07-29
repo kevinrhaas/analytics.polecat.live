@@ -2281,6 +2281,14 @@ body.simple-mode .da-acts{display:none!important}
 .cx-test-result{min-height:18px;margin-top:10px;font-size:var(--fs-13);font-weight:600}
 .cx-test-result.ok{color:var(--good)}
 .cx-test-result.bad{color:var(--bad)}
+/* LF55(4) — the job editor's ONE shared preview-result area: badged amber when what's shown
+   is the live approximate (schema-sample) output rather than a real Preview-button run. */
+.cx-test-result.approx{color:var(--warn)}
+/* LF55(4) — invites a click on Preview whenever the result on screen is approximate/stale;
+   reuses the fleet's existing pulse-live keyframe (see the demo-badge above). */
+.btn-invite{animation:pulse-live 1.8s ease-in-out infinite;
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--warn) 45%,transparent)}
+@media(prefers-reduced-motion:reduce){.btn-invite{animation:none}}
 .cx-cred-warn{color:var(--warn);font-weight:600}
 .cx-wiz-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
 .cx-wiz-foot .btn{color:var(--ink);background:var(--field);border:1px solid var(--line)}
