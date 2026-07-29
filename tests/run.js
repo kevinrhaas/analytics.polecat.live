@@ -5316,6 +5316,39 @@ function serve() {
     });
     await page.waitForTimeout(200);
 
+    // LF55 (2): the filter step's value field suggests the target column's known sample values
+    // (a <datalist>, "type or pick" — same convention as the Folder fields) once a column with a
+    // small, known set of real values is picked.
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-filterval-test", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "jobs-filterval-ds", connectionId: conn.id, kind: "file", format: "csv",
+        content: "region,acres\nStory,100\nBoone,200\nStory,150\n", columns: ["region", "acres"] });
+      var job = Studio.Workspace.put("jobs", { name: "filterval-job", sourceDatasetId: ds.id,
+        steps: [{ op: "filter", col: "region", cmp: "eq", value: "" }] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(250);
+    const filterVals = await page.evaluate(function () {
+      var card = document.querySelector(".jobs-step-card");
+      var valInp = Array.prototype.slice.call(card.querySelectorAll(".jobs-step-fields input")).filter(function (i) { return i.placeholder === "value"; })[0];
+      var listId = valInp && valInp.getAttribute("list");
+      var dl = listId && document.getElementById(listId);
+      var opts = dl ? Array.prototype.map.call(dl.querySelectorAll("option"), function (o) { return o.value; }) : [];
+      return { hasList: !!listId, opts: opts };
+    });
+    ok("LF55 (2): filter step's value field offers a datalist of the target column's known distinct sample values",
+      filterVals.hasList && filterVals.opts.join(",") === "Boone,Story", JSON.stringify(filterVals));
+    await page.evaluate(function () {
+      document.querySelector(".modal-ov .x").click();
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "filterval-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-filterval-ds"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-filterval-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
     // LF62 slice 2 (live-QA queue, LF62 slice 1's own NEXT pointer): the sparkle
     // name-suggest button, wired into the Jobs editor's "Job name" field —
     // suggests the (titleized) source dataset's name once one is picked.

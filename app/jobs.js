@@ -276,7 +276,7 @@
       // last live run — see runDataset()). Falls back to a background runDataset() probe
       // when a dataset has never been run, then re-renders once it resolves.
       var ROW_PREVIEW_N = 5;
-      var colsCache = { bySrc: [], byDs: {}, bySrcRows: null, bySrcRowsFor: null, bySrcRowsErr: null };
+      var colsCache = { bySrc: [], byDs: {}, bySrcRows: null, bySrcRowsFor: null, bySrcRowsErr: null, bySrcAllRows: null };
       function ensureSrcCols() {
         var id = j.sourceDatasetId;
         if (!id) { colsCache.bySrc = []; return; }
@@ -294,14 +294,39 @@
       // "loaded, no rows" — kept distinct so the UI can tell them apart.
       function ensureSrcRows(id, d) {
         if (colsCache.bySrcRowsFor === id) return;
-        colsCache.bySrcRowsFor = id; colsCache.bySrcRows = null; colsCache.bySrcRowsErr = null;
+        colsCache.bySrcRowsFor = id; colsCache.bySrcRows = null; colsCache.bySrcRowsErr = null; colsCache.bySrcAllRows = null;
         runDataset(d).then(function (r) {
           if (colsCache.bySrcRowsFor !== id) return; // source changed again while this was in flight
           colsCache.bySrcRowsErr = r && r.error ? r.error : null;
-          colsCache.bySrcRows = (r && !r.error) ? (r.rows || []).slice(0, ROW_PREVIEW_N) : [];
+          var allRows = (r && !r.error) ? (r.rows || []) : [];
+          colsCache.bySrcRows = allRows.slice(0, ROW_PREVIEW_N);
+          // LF55 (2): the SAME live query already fetched every row — keep the full set (capped,
+          // it's just for a distinct-value picker, not a table) alongside the 5-row preview slice
+          // instead of firing a second query.
+          colsCache.bySrcAllRows = allRows.slice(0, 2000);
           if (!colsCache.bySrc.length && r && (r.columns || []).length) colsCache.bySrc = r.columns.slice();
           renderSteps();
         });
+      }
+      // LF55 (2): distinct sample values of a FILTER step's target column, for the value field's
+      // picker. Best-effort like colsBeforeStep's siblings — reads off the raw SOURCE rows (`col`
+      // must still be a literal source column; a value renamed/derived by an earlier step in the
+      // pipeline has no live sample to draw from, so those just fall back to free typing). Capped
+      // so a high-cardinality column (an id, a timestamp) degrades to "no picker" instead of a
+      // useless 2000-entry dropdown.
+      function distinctColValues(col) {
+        var idx = colsCache.bySrc.indexOf(col);
+        if (idx < 0 || !colsCache.bySrcAllRows || !colsCache.bySrcAllRows.length) return [];
+        var seen = {}, out = [];
+        for (var i = 0; i < colsCache.bySrcAllRows.length; i++) {
+          var v = colsCache.bySrcAllRows[i][idx];
+          if (v == null || v === "") continue;
+          var s = String(v);
+          if (seen[s]) continue;
+          seen[s] = true; out.push(s);
+          if (out.length > 50) return []; // too many distinct values to be a useful picker
+        }
+        return out.sort();
       }
       function ensureDsCols(dsId) {
         if (!dsId || (colsCache.byDs[dsId] || []).length) return;
@@ -639,13 +664,24 @@
           step.operator = step.operator || "*"; opSel.value = step.operator; opSel.onchange = function () { step.operator = opSel.value; }; wrap.appendChild(opSel);
           step.b = step.b || {}; wrap.appendChild(operandRow(step.b));
         } else if (step.op === "filter") {
-          // LF55 (1): filter targets a known incoming column — dropdown, not free text. (The value
-          // field stays free text here; a distinct-value picker is a separate LF55 slice.)
+          // LF55 (1): filter targets a known incoming column — dropdown, not free text.
           wrap.appendChild(colSelect(colsBeforeStep(stepIdx), step.col, function (v) { step.col = v; renderSteps(); }));
           var cmpSel = el("select");
           cmpSel.innerHTML = ["eq", "ne", "gt", "gte", "lt", "lte", "contains"].map(function (c) { return '<option value="' + c + '"' + (step.cmp === c ? " selected" : "") + '>' + c + '</option>'; }).join("");
           step.cmp = step.cmp || "eq"; cmpSel.value = step.cmp; cmpSel.onchange = function () { step.cmp = cmpSel.value; }; wrap.appendChild(cmpSel);
-          mini("value", step.value, function (v) { step.value = v; });
+          // LF55 (2): the value field stays free text (comparators like gt/lt need arbitrary
+          // typed values a fixed list can't cover), but when the target column's actual sample
+          // values are known, offer them via a <datalist> — the same "type or pick" affordance
+          // the Folder fields already use elsewhere in this editor.
+          var valInp = mini("value", step.value, function (v) { step.value = v; });
+          var distinct = distinctColValues(step.col);
+          if (distinct.length) {
+            var dlId = "jobsFilterVals" + stepIdx;
+            var dl = el("datalist"); dl.id = dlId;
+            distinct.forEach(function (v) { var o = el("option"); o.value = v; dl.appendChild(o); });
+            valInp.setAttribute("list", dlId);
+            wrap.appendChild(dl);
+          }
         } else if (step.op === "aggregate") {
           var stepCols = colsBeforeStep(stepIdx);
           var gbWrap = el("div", "jobs-groupby");

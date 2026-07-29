@@ -510,6 +510,11 @@
     through. A dataset that hasn't been queried yet is probed live in the background the moment you
     open the job editor, and the dropdowns fill in as soon as its columns are known; a column you'd
     already set stays selectable even if the list has since changed.</li>
+    <li><strong>Filter values suggest themselves</strong> — once a Filter step's column is picked,
+    its field's known sample values (drawn from the same live source-row sample as the previews
+    above) appear as a dropdown of suggestions in the value box; you can still type any value by
+    hand (needed for gt/lt-style comparisons), the suggestions are just a shortcut when the column
+    has a small, known set of real values.</li>
     <li><strong>A small diagram</strong> under each rollup, join, or stack (union) step shows the
     operation visually — columns going in, the operation in the middle (group-by columns for a
     rollup, the join key/type for a join, the other dataset for a stack), and the columns that come

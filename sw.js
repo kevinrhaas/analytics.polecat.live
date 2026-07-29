@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v345"; /* v345: LF60 slice 2 — docs search. docs/index.html gains
+var CACHE_NAME = "studio-shell-v346"; /* v346: LF55 (2) — job editor Filter step's value field
+   suggests the target column's known sample values via a <datalist> (the same "type or pick"
+   pattern the Folder fields use), reusing the same live source-row query the previews already
+   fetch. app/jobs.js, docs/index.html changed, so precached copies roll.
+   v345: LF60 slice 2 — docs search. docs/index.html gains
    a search box in the nav bar (embedded + standalone): indexes every section heading and chart-
    type card, matches title-first then body text, jumps + flashes the hit on click/Enter, "/" to
    focus. docs/index.html only (precached content, no app/*.js change).
