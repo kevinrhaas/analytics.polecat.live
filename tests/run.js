@@ -3216,6 +3216,38 @@ function serve() {
       /err/.test(lf62FolderSample.toastCls) && /source/i.test(lf62FolderSample.toastText),
       JSON.stringify(lf62FolderSample));
 
+    // LF56 slice 3 (its own NEXT pointer — the deferred Explore save-bar follow-up): the same
+    // folder-tree Browse button the dataset/connection/job editors + Repository quick-edit already
+    // carry now also sits on Explore's compact "Folder" field. It's a SIBLING flex item next to the
+    // sparkle wrap, not nested inside it — cramming a third control into that tight overlay (input +
+    // absolute sparkle icon) is what overflowed the box and shoved the Save button out of place in
+    // the earlier attempt this slot's old comment described.
+    console.log("\n• LF56 slice 3: Explore's Folder field gains the Browse button (folder-tree picker) beside the sparkle");
+    const lf56Xp = await page.evaluate(function () {
+      var inp = document.getElementById("xpFolder");
+      var wrap = inp.parentElement; // .name-sparkle.xp-folder-sparkle
+      var btn = wrap.nextElementSibling; // sibling in .xp-savebar, NOT nested in the sparkle wrap
+      var isBrowseBtn = !!btn && btn.classList.contains("fp-browse-btn");
+      var insideWrap = !!wrap.querySelector(".fp-browse-btn");
+      inp.value = "";
+      btn.click();
+      var m = document.querySelector(".modal .fp");
+      var opened = !!m;
+      var addInp = m.querySelector(".fp-add-inp");
+      addInp.value = "Growth";
+      m.querySelector(".fp-add-btn").click();
+      var useLabel = m.querySelector(".fp-use").textContent;
+      m.querySelector(".fp-use").click();
+      var picked = inp.value;
+      // reset back to empty so this probe doesn't leak a folder onto the next real Save below
+      inp.value = ""; inp.dispatchEvent(new Event("input", { bubbles: true }));
+      return { isBrowseBtn: isBrowseBtn, insideWrap: insideWrap, opened: opened, useLabel: useLabel,
+        picked: picked, closed: !document.querySelector(".modal .fp") };
+    });
+    ok("LF56 slice 3: the Browse button sits beside Explore's Folder+sparkle field (a savebar sibling, not crammed into the sparkle overlay) and opens the same folder-tree picker, writing the chosen path back",
+      lf56Xp.isBrowseBtn && !lf56Xp.insideWrap && lf56Xp.opened && /Growth/.test(lf56Xp.useLabel) &&
+      lf56Xp.picked === "Growth" && lf56Xp.closed, JSON.stringify(lf56Xp));
+
     await page.fill("#xpName", "Suite analysis");
     await page.click("#xpSaveBtn");
     await page.waitForTimeout(350);

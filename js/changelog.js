@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 693,
+    title: 'The folder Browse button reaches Explore too',
+    kind: 'polish',
+    ts: '2026-07-29T03:43:00.000Z',
+    items: [
+      'The folder-tree "Browse" button next to every Folder field now also sits on Explore\'s Save View bar, the last field that only had free-text folder entry. Every place you file an object into a folder now offers the same one-click tree picker.',
+    ],
+  },
+  {
     v: 692,
     title: 'Tighter spacing in the workspace catalogs',
     kind: 'polish',
