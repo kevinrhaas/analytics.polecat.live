@@ -116,6 +116,19 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF34 — Style presets now show which one is Active (v701, sw v338, 2026-07-29):** LF34's earlier
+  slice fixed the "+ Save as preset" row overflow; the remaining "state" half was that
+  `applyStylePreset` writes the preset's fields into the default-* settings but stored no "which
+  preset is active" marker — so after Apply nothing showed which saved house style was live. Fixed by
+  **deriving** it (no new stored state, keeps Export/Import clean): a new `activeStylePresetId()` in
+  `app/defaults.js` returns the id of the preset whose 8 saved fields (subtitle/accent/logo/headerBg/
+  titleSize/subtitleStyle/dashboardTheme/cardSkin) all equal the live defaults — i.e. re-applying it
+  would be a no-op. Settings marks that row `.is-active` with an **"Active"** pill (its Apply reads
+  "Applied"); saving from the current look or applying a preset lights it up, changing any default
+  clears it until a preset matches again. Scoped to the Settings style presets. 2 new regression tests
+  (a just-saved preset is Active — row + pill + derivation; diverging a default clears it). Files:
+  app/defaults.js, app/studio.js, app/studio.css, docs/index.html, sw.js, js/changelog.js,
+  tests/run.js.
 - **LF66/LF59 — dashboard folder chip on the TILE, not just the list row (v700, sw v337, 2026-07-29):**
   the merged dashboard-folders slice put the folder badge + move-to-folder button on the list row only
   (its own NEXT pointer named "tile-view folder display/assign" as the remaining library-model step).

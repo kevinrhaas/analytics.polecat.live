@@ -615,6 +615,12 @@ html[data-app-theme='neon'] #mobileNavBtn{background:#000000;border-color:rgba(2
 .sp-swatch{flex:0 0 auto;width:14px;height:14px;border-radius:50%;border:1px solid color-mix(in srgb, var(--ink) 25%, transparent)}
 .sp-logo{flex:0 0 auto;width:16px;height:16px;border-radius:4px;object-fit:cover;border:1px solid color-mix(in srgb, var(--ink) 25%, transparent)}
 .sp-name{flex:1;min-width:0;font-size:var(--fs-13);color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* LF34: the preset whose saved fields match the current defaults is the active one — mark the
+   row + show an "Active" pill so you can tell which house style is live (was: no state at all). */
+.sp-item.is-active{background:color-mix(in srgb, var(--brand) 12%, var(--pane));box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--brand) 40%, transparent)}
+.sp-active-badge{flex:0 0 auto;font-size:var(--fs-11);font-weight:600;color:var(--brand);text-transform:uppercase;letter-spacing:.04em;
+  padding:1px 7px;border-radius:999px;background:color-mix(in srgb, var(--brand) 16%, transparent)}
+.sp-item.is-active .sp-apply{color:var(--brand);border-color:color-mix(in srgb, var(--brand) 40%, var(--line))}
 .sp-apply{flex:0 0 auto;font-size:var(--fs-11);padding:var(--sp-4) var(--sp-10);min-width:0;height:auto;line-height:1.5}
 .sp-add-row{display:flex;gap:8px;margin-top:10px}
 .sp-add-row .set-txt{flex:1;width:auto}

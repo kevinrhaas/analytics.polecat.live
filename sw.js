@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v337"; /* v337: LF66/LF59 — dashboard folder chip on the TILE: the
+var CACHE_NAME = "studio-shell-v338"; /* v338: LF34 — Style presets show which one is Active: a
+   preset whose saved fields match the live defaults is derived as active (no new stored state,
+   activeStylePresetId in defaults.js) and marked with an "Active" pill + highlighted row in
+   Settings. app/defaults.js, app/studio.js, app/studio.css, docs/index.html.
+   v337: LF66/LF59 — dashboard folder chip on the TILE: the
    Dashboards tile view now carries a persistent folder chip (.recent-folder-chip) reading the
    folder name (or "Add to folder" when unfiled) and wired to the same shared .recent-folder move
    handler / LF56 picker — previously the folder badge + move button were list-view only.

@@ -6,6 +6,14 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 701,
+    title: 'Style presets show which one is active',
+    ts: '2026-07-29T12:32:34.000Z',
+    items: [
+      'Settings → Style presets now marks the preset that matches your current defaults as "Active", so you can tell at a glance which house style is live. Applying a preset (or saving the current look as one) highlights it; changing any default clears the marker until a preset matches again.',
+    ],
+  },
+  {
     v: 700,
     title: 'See a dashboard\'s folder right on its tile',
     kind: 'feature',

@@ -7937,6 +7937,7 @@
   var addStylePreset = Studio.Defaults.addStylePreset, deleteStylePreset = Studio.Defaults.deleteStylePreset;
   var applyStylePreset = Studio.Defaults.applyStylePreset;
   window.__studioStylePresets = stylePresets; // test hook
+  window.__studioActiveStylePresetId = Studio.Defaults.activeStylePresetId; // test hook (LF34)
   var templateVarSets = Studio.Defaults.templateVarSets, saveTemplateVarSetList = Studio.Defaults.saveTemplateVarSetList;
   var addTemplateVarSet = Studio.Defaults.addTemplateVarSet, deleteTemplateVarSet = Studio.Defaults.deleteTemplateVarSet;
   var applyTemplateVarSet = Studio.Defaults.applyTemplateVarSet;
@@ -8181,14 +8182,19 @@
         '<div class="set-row set-row-col"><span class="set-row-ic" data-ic="star"></span>' +
           '<div class="set-row-txt"><b>Style presets</b><small>Save the fields above as a named preset, then switch your team\'s active default with one click — handy for more than one house style (e.g. per client).</small></div>' +
           '<div class="sp-list" id="spList">' +
-            stylePresets().map(function (p) {
-              return '<div class="sp-item" data-id="' + esc(p.id) + '">' +
-                (p.logo ? '<img class="sp-logo" src="' + esc(p.logo) + '" alt=""/>' : '<span class="sp-swatch" style="background:' + esc(p.accentColor || "#005bb5") + '"></span>') +
-                '<span class="sp-name">' + esc(p.name) + '</span>' +
-                '<button type="button" class="btn sp-apply" data-id="' + esc(p.id) + '">Apply</button>' +
-                '<button type="button" class="icobtn danger sp-del" data-id="' + esc(p.id) + '" aria-label="Delete preset ' + esc(p.name) + '"></button>' +
-              '</div>';
-            }).join("") +
+            (function () {
+              var activeSpId = Studio.Defaults.activeStylePresetId();
+              return stylePresets().map(function (p) {
+                var isActive = p.id === activeSpId;
+                return '<div class="sp-item' + (isActive ? " is-active" : "") + '" data-id="' + esc(p.id) + '">' +
+                  (p.logo ? '<img class="sp-logo" src="' + esc(p.logo) + '" alt=""/>' : '<span class="sp-swatch" style="background:' + esc(p.accentColor || "#005bb5") + '"></span>') +
+                  '<span class="sp-name">' + esc(p.name) + '</span>' +
+                  (isActive ? '<span class="sp-active-badge" title="This preset matches your current defaults">Active</span>' : "") +
+                  '<button type="button" class="btn sp-apply" data-id="' + esc(p.id) + '"' + (isActive ? ' aria-pressed="true"' : '') + '>' + (isActive ? "Applied" : "Apply") + '</button>' +
+                  '<button type="button" class="icobtn danger sp-del" data-id="' + esc(p.id) + '" aria-label="Delete preset ' + esc(p.name) + '"></button>' +
+                '</div>';
+              }).join("");
+            })() +
             (stylePresets().length ? "" : '<div class="sp-empty">No saved presets yet.</div>') +
           '</div>' +
           '<div class="sp-add-row"><input type="text" id="spNameInp" class="set-txt" placeholder="Preset name, e.g. Acme Corp"/>' +
