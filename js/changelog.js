@@ -6,6 +6,14 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 711,
+    title: 'Help: a workspace-backend comparison table',
+    ts: '2026-07-29T16:46:22.000Z',
+    items: [
+      'The Admin & backend setup docs now open with a "Choosing a workspace backend" comparison table — Local vs Turso vs Supabase vs Firebase, side by side on where your data lives, whether it syncs across devices, how strongly per-user privacy is enforced, and what setup each needs — so it\'s clear at a glance which backend fits before diving into the Supabase-specific admin steps.',
+    ],
+  },
+  {
     v: 710,
     title: 'Job editor: filter values suggest themselves',
     kind: 'polish',
