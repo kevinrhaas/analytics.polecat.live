@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v350"; /* v350: LF60 (3) — Filter/Header inspector help badges
+var CACHE_NAME = "studio-shell-v351"; /* v351: bugfix (Kevin) — the builder canvas drop hint +
+   preview toolbar hint now say "drop a dataset" (what you actually drop from the Data panel),
+   not the stale "query" wording. app/index.html only (precached).
+   v350: LF60 (3) — Filter/Header inspector help badges
    deep-link to dedicated "dashboard-filters"/"dashboard-header" docs anchors instead of falling
    back to the whole generic "builder" section. docs/index.html gains the two anchors' content;
    app/studio.js changed, so precached copies roll.
