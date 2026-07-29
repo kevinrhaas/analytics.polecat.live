@@ -116,6 +116,39 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF43 (slice 2) — dropped the legacy Studio "Examples ▾" gallery (v683, sw v320, 2026-07-28,
+  steward — the last remaining Step 1 item of the LOCKED BUILD ORDER, LF43 is now fully done):**
+  slice 1 (v617) made a pack's showcase dashboards materialize into the real Dashboards screen;
+  this slice removed the fallback UI that predated that — the dashbar's "Examples ▾" button/menu
+  (`#btnExamples`/`#menuExamples`, `buildExamplesMenu`/`exCard`/`exLayoutSvg` in app/studio.js),
+  its mobile "Examples…" twin (`#moreExamples`), and Home's matching static-example strip (the
+  `examples` entry in `HOME_SECTION_KEYS`/`HOME_SECTION_LABELS`, `examplesSourceHint`,
+  `visibleExamples`, the `data-home-example`/`data-home-examples-more` tiles) are all gone.
+  "Import from URL…" (the one genuinely distinct capability the menu carried) survives — it
+  already had a second, redundant home in the Open dialog's footer (LF45), so nothing was lost.
+  Home's "Browse examples" quick-action CARD is unchanged: LF70 already retargeted it at the
+  Dashboards screen's Sample-packs filter, never at this menu. The command palette's "Browse
+  examples" entry and its per-example dynamic commands are removed for the same reason (⌘K didn't
+  gain a replacement — Home's card and Dashboards' own Sample-packs chip already cover the jump).
+  **Known consequence, flagged rather than silently absorbed:** the "Data Management & Governance"
+  pack's 8 gated showcase dashboards and 4 further ungated legacy examples (quality-scorecard,
+  pipeline-observability, storage-growth, studio-cost — see `data/examples/index.json`) were ONLY
+  ever reachable through this menu; `datamanagement` is `kind:"examples"` (gallery-visibility only,
+  no materialized workspace rows per LF16's own design) and the 4 ungated ones belong to no pack at
+  all, so neither gets a Dashboards-screen equivalent from this slice. Their data/spec files are
+  untouched (nothing deleted), so a follow-up slice can still decide to materialize them (extending
+  `ensurePackExamplesMaterialized` to the `datamanagement` pack's default-installed case, and/or
+  giving the 4 ungated ones a permanent, un-owned Dashboards row) or retire them outright — flagging
+  for Kevin rather than deciding unilaterally, since it changes what "installed by default" means for
+  that pack. sw cache → v320. ~20 regression tests across tests/run.js updated: the LF2 Conservation-
+  example content checks (title/panel-count/filter-id/chart-type per file) now drive `loadExample()`
+  directly via a new `window.__studioLoadExample` test hook instead of clicking through the retired
+  menu (no coverage lost); the LF70/M1/LF16/E3/E5/M7/M10/Track-H/LF37/LF18(d) tests that specifically
+  exercised the menu/Home-strip UI are removed or trimmed to their still-meaningful assertions. Full
+  suite green. (app/index.html, app/studio.js, app/studio.css, app/palette.js, docs/index.html, sw.js,
+  js/changelog.js, tests/run.js) NEXT: LF43 slice 2 was Step 1's last remaining item — the LOCKED
+  BUILD ORDER's steps 1-4 are now ALL fully done; step 5's only open item is LF51's "list + rich-tile
+  views" (see NEXT).
 - **LF64 (slice 1) — built-in DYNAMIC date tokens (v682, sw v319, 2026-07-28):** dataset queries
   (and titles) now understand a fixed set of relative-date placeholders that need NO parameter
   defined — `{{today}}`, `{{yesterday}}`, `{{tomorrow}}`, `{{today-30}}`/`{{today+7}}` (any N-day
@@ -6077,11 +6110,11 @@
 ### ★★ LOCKED BUILD ORDER (Kevin approved, 2026-07-27) — work the queue in THIS sequence
 > Kevin locked the sequence. Do these in order (each still sliced; quick bug-class items first so the
 > "Dave" demo's ingredients become real before the flashy tour and the chrome work):
-> 1. **Fast bug/cleanup wins:** LF44 ✓ (role gating — hide Admin+Studio from viewers) · LF43 (sample-pack
->    dashboards show in Dashboards ✓ slice 1 / drop Examples — slice 2 still open, budgeted as its own
->    dedicated slice) · LF50 (remove stray builder Creativity control, shipped) ·
->    LF38 ✓ (password eyeball toggle) · LF39 ✓ (cross-device sign-in fix, 2026-07-27). Step 1 is
->    otherwise fully done — only LF43 slice 2 remains, deliberately deferred.
+> 1. **Fast bug/cleanup wins:** LF44 ✓ (role gating — hide Admin+Studio from viewers) · LF43 ✓
+>    (sample-pack dashboards show in Dashboards — slice 1; drop Examples ▾ — slice 2, 2026-07-28,
+>    **LF43 is now fully done**) · LF50 (remove stray builder Creativity control, shipped) ·
+>    LF38 ✓ (password eyeball toggle) · LF39 ✓ (cross-device sign-in fix, 2026-07-27). **Step 1 is
+>    now fully done.**
 > 2. **"Dave"-demo ingredients:** LF41 (per-user provisioning defaults — theme + sample pack ✓ slice 1,
 >    "copy my current Dashboard defaults" ✓ slice 2, both 2026-07-27 — **LF41 is now fully done**,
 >    the optional impersonate-to-set alternative left open per LF41's own DONE note) → LF42
@@ -6315,16 +6348,16 @@
 >       (future) servers stays open, not scoped to a slice yet.
 >       (New Admin "Backends" surface, per-user backend on the user record, app/sources/*,
 >       workspace-backend card, gate.js connect.) Ties M7, LF39, LF41.
-> LF43. **slice 1 ✓ / slice 2 open — BUG/cleanup — sample-pack dashboards must show in Dashboards;
->       drop "Examples"; remove Studio's Examples button.** Logged in as demo, installed sample
->       packs show but their dashboards don't appear in the Dashboards screen. A pack's "examples"
->       are just its curated dashboards — surface them as real dashboards when the pack is
->       installed (slice 1, shipped v617, sw v254, 2026-07-27, steward — see DONE), DROP the
->       "Examples" naming, and REMOVE the messy Studio Examples menu/button (slice 2, still open —
->       a bigger UI-surface change touching ~20 existing tests + Home's "Browse examples" quick
->       action, budget a dedicated slice). (demopacks.js, studio.js renderDashboards()/
->       renderHome(), the Studio Examples menu, data/examples.) Ties #38/#48/LF16, LF18. Verify
->       with the demo account.
+> LF43. ✓ **slice 1 + slice 2 — BUG/cleanup — sample-pack dashboards must show in Dashboards;
+>       drop "Examples"; remove Studio's Examples button — LF43 is now fully done, see DONE.**
+>       Logged in as demo, installed sample packs show but their dashboards don't appear in the
+>       Dashboards screen. A pack's "examples" are just its curated dashboards — surface them as
+>       real dashboards when the pack is installed (slice 1, shipped v617, sw v254, 2026-07-27,
+>       steward), DROP the "Examples" naming, and REMOVE the messy Studio Examples menu/button
+>       (slice 2, shipped v683, sw v320, 2026-07-28, steward — ~20 existing tests updated; Home's
+>       "Browse examples" quick action was untouched, LF70 already retargeted it at Dashboards).
+>       (demopacks.js, studio.js renderDashboards()/renderHome(), the Studio Examples menu,
+>       data/examples.) Ties #38/#48/LF16, LF18.
 > LF44. ✓ **BUG — role gating: hide Admin + Studio from non-admins/viewers (shipped v615, sw v252,
 >       2026-07-27, steward) — see DONE.** The rail/section gating (shell.js applyRoleGating,
 >       studio.js CONFIGURABLE_SECTIONS) and the Studio boot-time gate (enterStudio) were already

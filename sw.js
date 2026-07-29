@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v319"; /* v319: LF64 slice 1 — built-in DYNAMIC date tokens usable
+var CACHE_NAME = "studio-shell-v320"; /* v320: LF43 slice 2 — dropped the legacy Studio "Examples ▾"
+   menu/gallery and Home's static example-dashboard strip now that installed sample packs'
+   dashboards materialize directly into Dashboards (LF43 slice 1). app/index.html, app/studio.js,
+   app/studio.css, app/palette.js, docs/index.html changed, so precached copies roll.
+   v319: LF64 slice 1 — built-in DYNAMIC date tokens usable
    in any dataset query with no parameter defined: {{today}}, {{yesterday}}, {{tomorrow}},
    {{today±N}}, {{month_start/end}}, {{year_start/end}} → ISO date, {{now}} → ISO timestamp,
    resolved fresh at run time via WS.applyParams → WS.dynamicParam; a real param of the same name

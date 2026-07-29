@@ -564,10 +564,9 @@
   /* ---------- query library ---------- */
   // Sample-content visibility (user ask: "I might want to start with an empty
   // repository"): one pref hides the built-in demo content everywhere it
-  // surfaces — the Samples library group, New ▾ auto-build sets, the Examples
-  // menu and Home's example gallery. Nothing is deleted; flip it back and the
-  // full demo suite (which shows the app's feature breadth against the internal
-  // sample database) reinstates itself.
+  // surfaces — the Samples library group and New ▾ auto-build sets. Nothing is
+  // deleted; flip it back and the full demo suite (which shows the app's feature
+  // breadth against the internal sample database) reinstates itself.
   function showSamples() {
     var v; try { v = localStorage.getItem("studio-show-samples"); } catch (e) {}
     return v !== "0";
@@ -575,8 +574,8 @@
   function setShowSamples(on) {
     try { localStorage.setItem("studio-show-samples", on ? "1" : "0"); } catch (e) {}
     // Viridis V7: the Demo packs Settings card is also gated on showSamples(),
-    // so it needs the same re-render the other three sample-gated surfaces get.
-    buildLibrary(); renderHome(); buildExamplesMenu(); buildNewMenu(); renderSettings(); renderExplore();
+    // so it needs the same re-render the other sample-gated surfaces get.
+    buildLibrary(); renderHome(); buildNewMenu(); renderSettings(); renderExplore();
   }
   window.__studioShowSamples = { get: showSamples, set: setShowSamples }; // test hook
   // #114: the "Restore unsaved work" banner is opt-in — off by default (Kevin found it
@@ -590,28 +589,6 @@
     try { localStorage.setItem("studio-restore-unsaved", on ? "1" : "0"); } catch (e) {}
   }
   window.__studioRestoreUnsaved = { get: restoreUnsavedEnabled, set: setRestoreUnsavedEnabled }; // test hook
-  // LF2: an example may declare demoPackId (data/examples/index.json) to stay hidden until
-  // that demo pack is installed — so pack-specific showcases (Conservation Insight) don't
-  // clutter the gallery/Home for everyone, only for workspaces that installed the pack.
-  function visibleExamples() {
-    return (S.examples || []).filter(function (e) {
-      return !e.demoPackId || (Studio.demoPackInstalled && Studio.demoPackInstalled(e.demoPackId));
-    });
-  }
-  // LF18(d): Home's Examples hint should make clear which sample pack(s) the visible
-  // cards come from, not just "sample dashboards" — every gallery entry carries a
-  // demoPackId (LF2/LF16), so this reads off the SAME visibleExamples() gate and names
-  // whichever pack(s) actually contributed a card, updating live as packs toggle on/off.
-  function examplesSourceHint() {
-    var packs = Studio.DEMO_PACKS || {}, seen = {}, names = [];
-    visibleExamples().forEach(function (e) {
-      var id = e.demoPackId;
-      if (!id || seen[id]) return;
-      seen[id] = true;
-      names.push((packs[id] && packs[id].name.split(" — ")[0]) || id);
-    });
-    return names.length ? "from " + names.join(" + ") + " · click to open in the builder" : "sample dashboards · click to open in the builder";
-  }
   var _samplesOpen = false;
   try { _samplesOpen = localStorage.getItem("studio-lib-samples-open") === "1"; } catch (e) {}
   // LF19 slice 1: progressive disclosure for the Data panel's "This dashboard's
@@ -757,7 +734,7 @@
     var isExamplesKind = p && p.kind === "examples";
     if (Studio.demoPackInstalled(id)) {
       var removeMsg = isExamplesKind
-        ? "Remove the “" + (p && p.name || id) + "” sample pack? This removes its showcase dashboards from Dashboards and the Examples gallery — nothing else is deleted."
+        ? "Remove the “" + (p && p.name || id) + "” sample pack? This removes its showcase dashboards from Dashboards — nothing else is deleted."
         : "Remove the “" + (p && p.name || id) + "” sample pack? This deletes its datasets, analyses, and dashboards.";
       if (!window.confirm(removeMsg)) return;
       Studio.removeDemoPack(id);
@@ -767,14 +744,14 @@
       ensurePackExamplesMaterialized(id);
       toast("Sample pack installed — see its dashboards in Dashboards");
     }
-    buildLibrary(); renderSettings(); renderHome(); buildExamplesMenu();
+    buildLibrary(); renderSettings(); renderHome();
   }
   window.__studioToggleDemoPack = toggleDemoPack; // test hook
 
   // LF43: a pack's example-gallery dashboards (data/examples/index.json entries tagged
   // demoPackId) are its curated dashboards — once THIS pack is installed, materialize its own
   // set as real workspace "dashboards" rows (tagged demoPackId + sourceFile) so they show up in
-  // Home/Dashboards like any saved dashboard, not just the Examples ▾ gallery. Scoped to a
+  // Home/Dashboards like any saved dashboard. Scoped to a
   // single `id` — NOT "every currently-installed pack" — because datamanagement is installed
   // BY DEFAULT for every fresh workspace (see DEFAULT_INSTALLED in demopacks.js); a scan-all
   // version would incidentally materialize its 8 dashboards the moment ANY other pack's install
@@ -5327,8 +5304,8 @@
   Studio.Workspace.on("replaced", function () { renderHome(); renderDashboards(); });
   // LF27(b): every "open the builder" call site routes through here so Close (below)
   // always knows where to return to. Only overwrite studioOrigin when arriving FROM some
-  // other section — re-entering Studio while already there (e.g. Examples ▾ swapping the
-  // spec, or the Home-card drop handlers firing mid-session) must not clobber the section
+  // other section — re-entering Studio while already there (e.g. loading a different spec,
+  // or the Home-card drop handlers firing mid-session) must not clobber the section
   // you originally opened it from.
   function enterStudio() {
     // LF23 slice 2: the central choke point for "enter the builder" — every call
@@ -5540,8 +5517,8 @@
   // comment above) — it just never surfaced past their own catalog lists. This section reuses
   // that EXISTING flag (no new data-model concept) and gives pinned datasets/connections the
   // same card-with-thumbnail treatment `pinnedAnalyses` already gives pinned analyses.
-  var HOME_SECTION_KEYS = ["featured", "pinnedAnalyses", "favorites", "examples", "dashboards"];
-  var HOME_SECTION_LABELS = { featured: "Featured", pinnedAnalyses: "Pinned analyses", favorites: "Favorite datasets & connections", examples: "Examples", dashboards: "Dashboards" };
+  var HOME_SECTION_KEYS = ["featured", "pinnedAnalyses", "favorites", "dashboards"];
+  var HOME_SECTION_LABELS = { featured: "Featured", pinnedAnalyses: "Pinned analyses", favorites: "Favorite datasets & connections", dashboards: "Dashboards" };
   var HOME_SECTION_HINTS = { featured: "live previews · click to open", favorites: "pinned in Datasets/Connections · click to open" };
   function getHomeSectionOrder() {
     var order = (lsGet("studio-home-section-order", []) || []).filter(function (k) { return HOME_SECTION_KEYS.indexOf(k) >= 0; });
@@ -5564,7 +5541,7 @@
     renderHome();
   }
   function homeSectionHeader(key) {
-    var label = HOME_SECTION_LABELS[key], hint = key === "examples" ? examplesSourceHint() : HOME_SECTION_HINTS[key];
+    var label = HOME_SECTION_LABELS[key], hint = HOME_SECTION_HINTS[key];
     return '<div class="home-sub-row"><h2 class="home-sub">' + esc(label) +
       (hint ? ' <small class="home-sub-hint">' + hint + '</small>' : '') + '</h2>' +
       '<div class="home-sub-move">' +
@@ -5701,28 +5678,6 @@
         }
         return '<div class="home-favorites">' + favs.slice(0, 8).map(favCard).join("") + "</div>" +
           (favs.length > 8 ? '<div class="home-feat-more">+ ' + (favs.length - 8) + " more favorites — see Datasets/Connections</div>" : "");
-      },
-      // Conservation Insight (M1): the bundled example dashboards get a first-class
-      // Home section (they used to hide inside the Studio Examples menu). Each card
-      // is the real layout thumbnail; click loads it into the builder.
-      examples: function () {
-        // LF44: every example card's click routes through enterStudio() (see the
-        // data-home-example handler below) — a viewer-role account is blocked from
-        // Studio, so the whole section would just be a wall of dead clicks. Fold it
-        // into the same canDevelop() gate as the "Browse examples"/"New dashboard"
-        // quick-action cards above.
-        if (!currentUserCanDevelop()) return "";
-        var vis = visibleExamples();
-        if (!showSamples() || !vis.length) return "";
-        return '<div class="home-examples">' + vis.slice(0, 8).map(function (e) {
-          var types = (e.types || []).slice(0, 3).map(function (t) { return '<span class="ex-chip">' + esc(t) + '</span>'; }).join("");
-          return '<button type="button" class="home-ex-card" data-home-example="' + esc(e.file) + '">' +
-            '<div class="home-ex-thumb" aria-hidden="true">' + exLayoutSvg(e) + '</div>' +
-            '<div class="home-ex-title">' + esc(e.title || e.file) + '</div>' +
-            (types ? '<div class="home-ex-types">' + types + '</div>' : '') +
-            '</button>';
-        }).join("") + '</div>' +
-          (vis.length > 8 ? '<button type="button" class="home-feat-more home-feat-more-btn" data-home-examples-more aria-label="Show ' + (vis.length - 8) + ' more examples">+ ' + (vis.length - 8) + ' more \u2014 New \u25b8 Examples</button>' : '');
       },
       dashboards: function () {
         // Always renders SOMETHING (grids or the friendly empty hint) — never hidden — so it
@@ -5972,19 +5927,6 @@
     }
     var tipNext = $(".home-tip-next", sec);
     if (tipNext) tipNext.onclick = function () { _homeTipIdx = (_homeTipIdx + 1) % HOME_TIPS.length; renderHome(); };
-    $$("[data-home-example]", sec).forEach(function (btn) {
-      btn.onclick = function () {
-        enterStudio();
-        loadExample(btn.getAttribute("data-home-example"));
-      };
-    });
-    var examplesMoreBtn = $("[data-home-examples-more]", sec);
-    if (examplesMoreBtn) {
-      examplesMoreBtn.onclick = function () {
-        enterStudio();
-        setTimeout(function () { var b = $("#btnExamples"); if (b) b.click(); }, 60);
-      };
-    }
     $$("[data-home-analysis]", sec).forEach(function (btn) {
       btn.onclick = function () {
         if (window.__studioShellSetSection) __studioShellSetSection("explore");
@@ -7650,7 +7592,7 @@
           Studio.installDemoPack("conservation");
           ensurePackExamplesMaterialized("conservation");
         }
-        buildLibrary(); renderHome(); buildExamplesMenu();
+        buildLibrary(); renderHome();
         Auth.upsert(me.u, { provisioned: true }).then(function (saved) { mirrorUserRow(saved); });
       }
     } catch (e) {}
@@ -8925,6 +8867,7 @@
       if (!keepAutosave) toast("Loaded " + (S.spec.title || S.spec.name));
     }).catch(function (e) { toast("Could not load example: " + e.message, true); });
   }
+  window.__studioLoadExample = loadExample; // test hook — loads a bundled example spec directly, no menu UI required
   function normalize(spec) {
     var base = Studio.emptySpec();
     // NOTE: this whitelist previously omitted themeColor/paletteKey (shipped in v103/v123) — every
@@ -9219,102 +9162,6 @@
     toast("Starter built from dataset " + ds.name);
   }
 
-  // examples menu — E5: visual card gallery. Rebuilt whenever sample visibility
-  // flips: the gallery IS the sample-dashboard showcase (internal demo database),
-  // so hiding samples leaves just the Import-from-URL entry.
-  // hoisted (Conservation Insight M1): the example-thumbnail SVG is reused by
-  // both the Examples menu and the Home Examples strip.
-  function exLayoutSvg(e) {
-    var cols = e.gridCols || 3, kpis = e.kpis || 0;
-    // per-panel [type, span] — prefer the exact dashboard layout so each thumbnail is a
-    // faithful mini-map of the real panels & grid; fall back to the deduped types[].
-    var layout = (e.layout && e.layout.length) ? e.layout
-      : (e.types || []).slice(0, 6).map(function (t) { return [t, 1]; });
-    layout = layout.slice(0, 8);
-    var W = 80, H = 46;
-    // Example cards preview the HOUSE look (the default dashboard theme every example
-    // adopts at load) — series accents and the header strip come from its ramp.
-    var extk = Studio.resolveThemeTokens(defaultDashboardTheme() || "classic", S.theme === "dark" ? "dark" : "light");
-    var pal = extk ? [extk["--c1"], extk["--c3"], extk["--c5"], extk["--c2"], extk["--c4"]]
-                   : ["#005bb5","#7d3c98","#2e8bd0","#00a39a","#e67e22"];
-    var exAccent = extk ? extk["--pentaho"] : "#005bb5";
-    var p = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '">'];
-    p.push('<rect width="' + W + '" height="' + H + '" fill="var(--field,#f4f6fb)"/>');
-    p.push('<rect width="' + W + '" height="7" fill="var(--bg,#fff)"/>');
-    p.push('<rect width="2" height="7" fill="' + exAccent + '"/>');
-    var y = 9;
-    if (kpis) {
-      var kCount = Math.min(kpis, 4), kw = (W - 4 - (kCount - 1) * 3) / kCount;
-      for (var ki = 0; ki < kCount; ki++) {
-        var kx = 2 + ki * (kw + 3);
-        p.push('<rect x="' + kx + '" y="' + y + '" width="' + kw + '" height="6" rx="1" fill="var(--bg,#fff)"/>');
-        p.push('<rect x="' + kx + '" y="' + y + '" width="2" height="6" fill="' + pal[ki % 5] + '"/>');
-      }
-      y += 8;
-    }
-    // pack panels into grid rows honouring each panel's column span ("full" → full width)
-    var cells = [], colUsed = 0, row = 0;
-    layout.forEach(function (it) {
-      var raw = (it[1] === "full") ? cols : (it[1] || 1);
-      var s = Math.max(1, Math.min(cols, raw));
-      if (colUsed + s > cols) { row++; colUsed = 0; }
-      cells.push({ type: it[0], span: s, row: row, col: colUsed });
-      colUsed += s;
-      if (colUsed >= cols) { row++; colUsed = 0; }
-    });
-    var rows = Math.max(1, row + (colUsed > 0 ? 1 : 0));
-    var unit = (W - 4 - (cols - 1) * 2) / cols;
-    var ph = Math.min((H - y - 2 - (rows - 1) * 2) / rows, 15);
-    cells.forEach(function (cel, pi) {
-      var px = 2 + cel.col * (unit + 2);
-      var pw = cel.span * unit + (cel.span - 1) * 2;
-      var py = y + cel.row * (ph + 2);
-      // white panel card, then the REAL chart-type mini SVG scaled into it — so each card
-      // previews the actual charts (and their spans) in the dashboard, not a generic mockup.
-      p.push('<rect x="' + px + '" y="' + py + '" width="' + pw + '" height="' + ph + '" rx="1.5" fill="var(--bg,#fff)"/>');
-      var mini = themedChartSvg(CHART_SVG[cel.type], cel.type);
-      if (mini) {
-        var pad = 1.3;
-        p.push(mini.replace('<svg ', '<svg x="' + (px + pad).toFixed(2) + '" y="' + (py + pad).toFixed(2) + '" width="' + (pw - 2 * pad).toFixed(2) + '" height="' + (ph - 2 * pad).toFixed(2) + '" preserveAspectRatio="xMidYMid meet" '));
-      } else {
-        p.push('<rect x="' + px + '" y="' + py + '" width="' + pw + '" height="2" fill="' + pal[pi % 5] + '"/>');
-      }
-    });
-    p.push('</svg>');
-    return p.join("");
-  }
-  function buildExamplesMenu() {
-    var em = $("#menuExamples");
-    em.classList.add("ex-grid");
-    // one grid, ordered by index.json — most spectacular first (no single "hero" card)
-    // E3: mini layout thumbnail for each example card — synthesised from index.json metadata
-    // (types[], panels count, kpis count) without needing to load the full spec file.
-    function exCard(e) {
-      var types = (e.types || []).slice(0, 4).map(function (t) {
-        return '<span class="ex-chip">' + esc(t) + '</span>';
-      }).join("");
-      var meta = [];
-      if (e.panels) meta.push(e.panels + "P");
-      if (e.kpis) meta.push(e.kpis + "K");
-      return '<button class="ex-card" data-f="' + esc(e.file) + '">' +
-        '<div class="ex-thumb" aria-hidden="true">' + exLayoutSvg(e) + '</div>' +
-        '<div class="ex-card-top">' +
-          '<span class="ex-card-types">' + types + '</span>' +
-        '</div>' +
-        '<div class="ex-card-title">' + esc(e.title || e.file) + '</div>' +
-        (meta.length ? '<div class="ex-card-meta">' + meta.join(" · ") + '</div>' : "") +
-        '</button>';
-    }
-    em.innerHTML = (showSamples()
-        ? '<div class="grp">Examples <span class="ex-demo-note" title="Sample dashboards running on the built-in demo database — they show the app\'s full feature breadth.">demo db</span></div><div class="ex-cards">' + visibleExamples().map(exCard).join("") + '</div>'
-        : '<div class="grp">Examples</div><div class="ex-hidden-note">Sample dashboards are hidden — turn “Sample content” back on in Settings to browse them.</div>') +
-      '<button type="button" class="btn ex-url-btn" id="btnImportUrl">＋ Import from URL…</button>';
-    $$("button.ex-card", em).forEach(function (b) { b.onclick = function () { loadExample(b.getAttribute("data-f")); closeMenus(); }; });
-    var importUrlBtn = $("#btnImportUrl", em);
-    if (importUrlBtn) importUrlBtn.onclick = function () { closeMenus(); openImportUrlModal(); };
-  }
-  window.__studioBuildExamplesMenu = buildExamplesMenu; // test hook — rebuild after a raw (non-UI) demo-pack install/remove
-
   function wireTopbar() {
     // Slice B: Undo/Redo/Open/Save/Export are dashboard-scoped actions that now live in
     // the shared topbar's #tbSectionActions slot instead of #dashbar, so they're only in
@@ -9457,12 +9304,6 @@
     setIconBtnCaret($("#btnNew"), "plus", "New", 14);
     menuToggle($("#btnNew"), $("#menuNew"));
 
-    buildExamplesMenu();
-    // UX6 (icon migration, carets slice): "Examples ▾" was static HTML text with no icon
-    // wiring at all — hydrate it the same way the other dropdown triggers are.
-    setIconBtnCaret($("#btnExamples"), null, "Examples", 14);
-    menuToggle($("#btnExamples"), $("#menuExamples"));
-
     // export menu
     // UX6 (icon migration, carets slice): was setIconBtn with "▾" as literal text.
     var btnExportEl = sa("#btnExport"); setIconBtnCaret(btnExportEl, "download", "Export", 14);
@@ -9581,7 +9422,7 @@
     // M7: phone-only More menu items — exposed at ≤400px when topbar hides these buttons
     // Slice B: Undo/Redo/Export joined this convention once they moved into the shared
     // topbar's #tbSectionActions (see the phone hide rule in studio.css) — same reasoning
-    // as Open/Save/Close/Examples: direct on THIS one-off dashbar-scoped row before, but
+    // as Open/Save/Close: direct on THIS one-off dashbar-scoped row before, but
     // the global topbar row is shared with every other section's waffle/＋New/⋯More, no
     // room to spare on a 390px screen.
     var moreUndo = $("#moreUndo"); if (moreUndo) moreUndo.onclick = function () { closeMenus(); undoAct(); };
@@ -9589,17 +9430,9 @@
     var moreExport = $("#moreExport");
     if (moreExport) moreExport.onclick = function () {
       closeMenus();
-      // Unlike #menuExamples (dashbar-native, needs the bespoke .phone-pos rule to get a
-      // pinned phone layout), #menuExport already lives inside .top-app — the existing
+      // #menuExport already lives inside .top-app — the existing
       // ".top-app .menu{position:fixed…}" phone rule covers it for free.
       menuExportEl.classList.add("open");
-    };
-    var moreExamples = $("#moreExamples");
-    if (moreExamples) moreExamples.onclick = function () {
-      closeMenus();
-      // On narrow phones, open the examples menu pinned below the topbar (fixed layout)
-      var em = $("#menuExamples");
-      em.classList.add("phone-pos", "open");
     };
     // phone variants mirror the dashbar Open/Save: catalog picker + save-to-catalog
     // (the picker's footer still offers "Open file…" for .studio.json imports)

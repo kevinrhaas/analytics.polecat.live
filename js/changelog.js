@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 683,
+    title: 'Retired the legacy Studio "Examples ▾" gallery',
+    kind: 'polish',
+    ts: '2026-07-28T23:46:37.000Z',
+    items: [
+      'The "Examples ▾" dropdown above the live preview, its "Import from URL…" entry (still available from the Open dialog\'s footer), and Home\'s matching "Examples" strip of static demo tiles are gone now that a sample pack\'s dashboards materialize directly into Dashboards — a straight cleanup of a menu the Dashboards screen made redundant, no new build required.',
+    ],
+  },
+  {
     v: 682,
     title: 'Built-in dynamic date tokens for always-current queries',
     kind: 'feature',

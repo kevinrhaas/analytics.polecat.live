@@ -28,7 +28,6 @@
     { label: "Open Help & docs", hint: "Reference", kw: "help docs documentation reference guide", ic: "info", run: function () { window.open("docs/index.html", "_blank", "noopener"); } },
     // dashboard lifecycle
     { label: "New dashboard", hint: "Create", kw: "new create blank start build", ic: "plus", run: function () { studio(); click("btnNew"); } },
-    { label: "Browse examples", hint: "Create", kw: "examples gallery showcase templates samples", ic: "star", run: function () { studio(); click("btnExamples"); } },
     { label: "Open a dashboard…", hint: "File", kw: "open import load catalog file json", ic: "upload", run: function () { studio(); click("btnImport"); } },
     { label: "Save to Dashboards catalog", hint: "File", kw: "save catalog store keep spec", ic: "download", run: function () { studio(); click("btnSaveSpec"); } },
     { label: "Export dashboard (.html)", hint: "Export", kw: "export dashboard framework html cdf publish", ic: "code", run: function () { studio(); var b = document.querySelector('#menuExport button[data-exp="cdf"]'); if (b) b.click(); } },
@@ -61,18 +60,11 @@
   ];
 
   // ---- dynamic commands ---------------------------------------------------
-  // Examples and recent dashboards change as the user works, so unlike the
-  // static COMMANDS above these are rebuilt fresh every time the palette
-  // opens by reading the DOM the app already maintains (the Examples ▾ menu
-  // and Home's recent-dashboard cards are both rendered at boot regardless of
-  // which section is currently visible) — no new state, no drift possible.
-  function exampleCommands() {
-    return Array.prototype.map.call(document.querySelectorAll("#menuExamples .ex-card"), function (b) {
-      var t = b.querySelector(".ex-card-title");
-      var label = (t && t.textContent) || b.getAttribute("data-f") || "Example";
-      return { label: "Open example: " + label, hint: "Example", kw: "example gallery template showcase " + label, ic: "grid", run: function () { studio(); b.click(); } };
-    });
-  }
+  // Recent dashboards change as the user works, so unlike the static COMMANDS
+  // above these are rebuilt fresh every time the palette opens by reading the
+  // DOM the app already maintains (Home's recent-dashboard cards are rendered
+  // at boot regardless of which section is currently visible) — no new state,
+  // no drift possible.
   function recentCommands() {
     return Array.prototype.slice.call(document.querySelectorAll("#secHome .recent-card")).map(function (card) {
       var openBtn = card.querySelector(".recent-open");
@@ -319,7 +311,7 @@
   function open() {
     build();
     stopVoice();
-    allCommands = COMMANDS.concat(exampleCommands(), recentCommands(), chartTypeCommands());
+    allCommands = COMMANDS.concat(recentCommands(), chartTypeCommands());
     input.value = "";
     refresh();
     overlay.classList.add("open");
