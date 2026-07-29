@@ -116,6 +116,25 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF60 (3) — Filter/Header inspector help badges deep-link to specific docs anchors (v713, sw v350,
+  2026-07-29, steward):** landed alongside (just after, same day) the slice-3 "open docs in-app"
+  change below — the two are complementary, not overlapping: slice 3 made EVERY badge navigate
+  in-app instead of a new tab, but left them pointing at whatever anchor they already carried; this
+  slice makes the Filter and Header inspector badges (both the top `#inspHelpLink` and the
+  section-level `.sec-help` badges — the J2 mechanism) point at a MORE SPECIFIC anchor in the first
+  place, instead of falling back to the generic `#builder` anchor and dumping the reader at the top
+  of the whole "The builder" section. `docs/index.html` gains two new dedicated anchors inside that
+  section: `#dashboard-header` (an id on the existing "The header as an object" paragraph — content
+  already existed, it just had no addressable anchor) and `#dashboard-filters` (genuinely new
+  content — a "Dashboard filters" h3 explaining Label, Parameter id, Options query, Value/Text
+  column, 'All' label, Default value, and cascading filter behavior, none of which had a dedicated
+  writeup before). `app/studio.js`'s `_hlAnchors` map and the three `section(...)` calls for the
+  Filters list, single Filter, and Header inspectors now point at these instead of `"builder"`.
+  3 new regression tests (filter/header help badges resolve to the new anchors, not builder; the
+  anchors exist in the doc with real content, nested inside the builder section). Files:
+  app/studio.js, docs/index.html, sw.js, js/changelog.js, tests/run.js. Screenshots (the other half
+  of the original item (3)) were already scoped out by the slice-3 DONE note below (Kevin: precache
+  bloat + staleness) — **LF60 stays fully delivered.**
 - **LF60 slice 3 — contextual help badges deep-link INTO the in-app Docs view (v712, sw v349,
   2026-07-29):** the last open LF60 slice, and it **closes LF60 out**. Slice 1 brought the docs
   inside the app (`#secDocs` iframe) but the builder's contextual help badges still all launched the
@@ -6758,11 +6777,15 @@
 >       search** — see DONE. `#docSearch` in the nav bar indexes every section + chart-type card, jumps +
 >       highlights the hit, "/" to focus. Kept the existing sticky top nav as the TOC (already does scroll-spy)
 >       rather than restructuring to a sidebar — genuinely open if wanted, but no longer blocking findability.
->       (3) Improve: deep-LINKS INTO THE APP + SCREENSHOTS where helpful.
->       (4) ORGANIZE into USER DOCS vs ADMIN DOCS — technical config/setup/backends/provisioning/RLS live in
->       ADMIN docs; everyday how-to in USER docs. (5) BACKEND OPTIONS doc — each backend's pros/cons/trade-
->       offs + the RECOMMENDED Supabase (with RLS), ideally a COMPARISON TABLE (local-only vs Supabase anon vs
->       Supabase+GoTrue+RLS vs Turso vs Firebase: security, multi-user, setup effort, cost, offline).
+>       ✓ **(4) shipped (2026-07-29, v709, sw v346, steward): USER vs ADMIN docs split** — see DONE.
+>       ✓ **(5) shipped (2026-07-29, v711, sw v348): a "Choosing a workspace backend" comparison
+>       table** (Local / Turso / Supabase / Firebase) opens the Admin & backend setup docs — see DONE.
+>       ✓ **(3) shipped in two parts, both 2026-07-29, steward — see DONE:** slice 3 (v712, sw v349)
+>       made every help badge navigate IN-APP (the docs view scrolled to its anchor) instead of a new
+>       tab; this run's slice (v713, sw v350) made the Filter/Header badges resolve to more SPECIFIC
+>       `#dashboard-filters`/`#dashboard-header` anchors instead of the generic `#builder` fallback —
+>       complementary, not overlapping. Screenshots (the other half of the original item (3)) were
+>       consciously scoped out (Kevin: precache bloat + staleness). **LF60 is now fully done.**
 >       (docs/index.html restructure + an embedded docs view with new-tab pop-out, rail Docs/Help item,
 >       studio.js.) Ties LF58 (docs currency), #23, LF51, QA-02, M7.
 > LF42. ✓ **slice 1-3 all done — Multi-backend management for admin.** Admin can define/manage

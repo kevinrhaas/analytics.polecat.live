@@ -20120,6 +20120,28 @@ function serve() {
     });
     ok("J-docs: docs/index.html contains all expected section anchors", jDocsContent.ok, JSON.stringify(jDocsContent));
 
+    // J-docs-3a (LF60 (3)): the Filter and Header inspector help badges used to fall back to the
+    // whole generic "builder" anchor — they now deep-link to dedicated subsections that exist and
+    // sit inside the builder section (between it and the next top-level section).
+    const jDocsDeepAnchors = await page.evaluate(async function () {
+      try {
+        var resp = await fetch("/docs/index.html");
+        var html = await resp.text();
+        var builderIdx = html.indexOf('id="builder"');
+        var ensemblesIdx = html.indexOf('id="ensembles"');
+        var filtersIdx = html.indexOf('id="dashboard-filters"');
+        var headerIdx = html.indexOf('id="dashboard-header"');
+        return {
+          filtersInBuilder: filtersIdx > builderIdx && filtersIdx < ensemblesIdx,
+          headerInBuilder: headerIdx > builderIdx && headerIdx < ensemblesIdx,
+          hasFilterContent: html.indexOf("Parameter id") !== -1 && html.indexOf("Cascading filters") !== -1
+        };
+      } catch (e) { return { err: e.message }; }
+    });
+    ok("J-docs (LF60 (3)): dashboard-filters and dashboard-header anchors exist inside the builder section with real content",
+      jDocsDeepAnchors.filtersInBuilder && jDocsDeepAnchors.headerInBuilder && jDocsDeepAnchors.hasFilterContent,
+      JSON.stringify(jDocsDeepAnchors));
+
     // J-docs-3b (LF60 slice 2 split): the docs page separates everyday User guides from Admin &
     // backend setup — the admin-only backend/provisioning topics moved out of the Data sources
     // section into their own #admin-docs section (sitting between data-sources and exporting), and
@@ -20362,6 +20384,50 @@ function serve() {
     });
     ok("J2: .sec-help link with data-sources anchor in DA inspector", j2DASectionHelp.ok, JSON.stringify(j2DASectionHelp));
 
+    // J2-5: LF60 (3) — Filter inspector's help badges deep-link to the specific
+    // "dashboard-filters" doc anchor instead of the generic "builder" fallback.
+    await page.evaluate(function () {
+      try {
+        if (window.__studioSelectDashboard) window.__studioSelectDashboard();
+        var spec = window.__STUDIO_STATE.spec;
+        if (!spec.filters) spec.filters = [];
+        var fid = "j2testfilter";
+        if (!spec.filters.find(function (f) { return f.id === fid; })) {
+          spec.filters.push({ id: fid, label: "J2 Test Filter", da: "", valueCol: "", textCol: "", allLabel: "All", def: "%" });
+        }
+        if (window.__studioSelect) window.__studioSelect({ kind: "filter", index: spec.filters.length - 1 });
+      } catch (e) {}
+    });
+    await page.waitForTimeout(120);
+    const j2FilterLink = await page.evaluate(function () {
+      try {
+        var el = document.getElementById("inspHelpLink");
+        if (!el) return { ok: false, reason: "not found" };
+        var href = el.getAttribute("href") || "";
+        var links = Array.from(document.querySelectorAll("#inspBody .insp-sec .sec-help"));
+        var secLink = links.find(function (a) { return (a.getAttribute("href") || "").indexOf("dashboard-filters") !== -1; });
+        return { ok: href.indexOf("dashboard-filters") !== -1 && !!secLink, href: href };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("J2: filter inspector help links point to dashboard-filters, not generic builder", j2FilterLink.ok, JSON.stringify(j2FilterLink));
+
+    // J2-6: LF60 (3) — Header inspector's help badges deep-link to "dashboard-header".
+    await page.evaluate(function () {
+      try { if (window.__studioSelect) window.__studioSelect({ kind: "header" }); } catch (e) {}
+    });
+    await page.waitForTimeout(120);
+    const j2HeaderKindLink = await page.evaluate(function () {
+      try {
+        var el = document.getElementById("inspHelpLink");
+        if (!el) return { ok: false, reason: "not found" };
+        var href = el.getAttribute("href") || "";
+        var links = Array.from(document.querySelectorAll("#inspBody .insp-sec .sec-help"));
+        var secLink = links.find(function (a) { return (a.getAttribute("href") || "").indexOf("dashboard-header") !== -1; });
+        return { ok: href.indexOf("dashboard-header") !== -1 && !!secLink, href: href };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("J2: header inspector help links point to dashboard-header, not generic builder", j2HeaderKindLink.ok, JSON.stringify(j2HeaderKindLink));
+
     // Cleanup: restore dashboard selection
     await page.evaluate(function () {
       try {
@@ -20371,6 +20437,7 @@ function serve() {
         if (spec.cda && spec.cda.dataAccesses) {
           spec.cda.dataAccesses = spec.cda.dataAccesses.filter(function (d) { return d.id !== "j2testda"; });
         }
+        spec.filters = (spec.filters || []).filter(function (f) { return f.id !== "j2testfilter"; });
       } catch (e) {}
     });
 
