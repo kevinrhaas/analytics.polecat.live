@@ -116,6 +116,27 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF39 item 2 / M7 — one-step GoTrue direct-auth at sign-in (v707, sw v344, 2026-07-29):** closes
+  out LF39's last piece (Kevin: "close out the M7 GoTrue track"). Item (1) fixed the misleading error
+  + local-mirror adoption; item (2) is real password auth against the backend. Two parts: (a) a new
+  **`supabaseSource.authenticate(cfg, {email, password})`** (`app/sources/supabase.js`) that verifies
+  FORM-supplied creds against GoTrue's password grant — reusing the existing `gotrueSignIn` primitive
+  with a synthetic cfg so the connection's own `_sessions` cache is untouched — and resolves (never
+  rejects) `{ok, userId?, error?}`, distinct from `signIn()` which uses the connection's own
+  `cfg.authEmail/authPassword`; (b) **`app/gate.js` `tryGotrueDirectAuth`** wired into the submit
+  handler: when the local hash doesn't match (or there's no local row), the active backend is
+  `supabase` (`Sync.syncState().sourceId`), and the typed username is an **email**, it authenticates
+  straight against the backend's GoTrue via `Sync.currentConfig()`, then refreshes the mirrored
+  `users` table and adopts the account carrying that `gotrueId` (stamping it), then `login` +
+  `afterLogin`. GoTrue is now authoritative — a teammate on a fresh device signs in in one step with
+  no local hash needed (also resolves the QA-02 "credentials mirrored between devices" trust concern
+  for teammates). Non-Supabase backends and non-email usernames fall through to today's behavior
+  unchanged. 3 new regression tests (adapter: authenticate verifies good creds → auth.uid, rejects
+  wrong password / missing creds / no backend; gate end-to-end: a fresh-device teammate signs in with
+  their email against the real `/__supabase` GoTrue mock and is adopted by `gotrueId`). Files:
+  app/sources/supabase.js, app/gate.js, docs/index.html (Supabase Auth section), sw.js,
+  js/changelog.js, tests/run.js. **LF39 is now fully done** (item 1 + polish + item 2). **The M7
+  GoTrue track for sign-in is closed.**
 - **LF39 (polish) — a fresh-device sign-in spotlights "Connect to your workspace" (v706, sw v343,
   2026-07-29):** the "Dave" onboarding chunk, part 3 of 3 (LF40 ✓ → LF60 ✓ → **LF39**). LF39 item (1)
   (the misleading-error fix + auto-adopt-backend-accounts) already shipped; item (2) (real one-step

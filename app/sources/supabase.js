@@ -201,6 +201,30 @@
         .catch(function (e) { return { ok: false, error: e.message }; });
     },
 
+    // ---- one-step direct sign-in (LF39 item 2 / M7) ------------------------
+    // Verify FORM-supplied email + password straight against GoTrue's password
+    // grant and hand back the resulting auth.uid — WITHOUT touching the
+    // connection's own cached session (cfg.authEmail/authPassword). This is what
+    // lets a teammate on a fresh device authenticate against the REAL backend
+    // instead of a mirrored local password hash (GoTrue becomes authoritative;
+    // no hash ever has to leave a browser). `creds` is {email, password},
+    // deliberately separate from cfg.authEmail/authPassword (which sign the
+    // connection owner in). Resolves (never rejects) with the uniform
+    // {ok, userId?, error?} shape the other auth methods use.
+    authenticate: function (cfg, creds) {
+      if (!cfg || !cfg.url || !cfg.key) return Promise.resolve({ ok: false, error: "No Supabase workspace is connected." });
+      if (!creds || !creds.email || !creds.password) return Promise.resolve({ ok: false, error: "Enter your email and password." });
+      // Reuse gotrueSignIn with a synthetic cfg so the connection's _sessions
+      // cache (keyed on cfg.authEmail) is left untouched by a sign-in attempt.
+      return gotrueSignIn({ url: cfg.url, key: cfg.key, authEmail: creds.email, authPassword: creds.password }).then(function (data) {
+        var uid = (data && data.user && data.user.id) || null;
+        if (!uid) return { ok: false, error: "Sign-in failed." };
+        return { ok: true, userId: uid };
+      }, function (e) {
+        return { ok: false, error: (e && e.message) || "Sign-in failed." };
+      });
+    },
+
     // ---- browser self-signup (M7 slice 6) ----------------------------------
     // Creates a real Supabase Auth (GoTrue) account via its PUBLIC signup
     // endpoint (no service key needed) so the Admin console can provision
