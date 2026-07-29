@@ -627,9 +627,9 @@ html[data-app-theme='neon'] #mobileNavBtn{background:#000000;border-color:rgba(2
   border:1px solid color-mix(in srgb, var(--ink) 16%, transparent);border-radius:9px;background:var(--field);color:var(--ink);font-family:var(--font)}
 .repo-search::placeholder{color:var(--faint)}
 .repo-search:focus{border-color:var(--brand)}
-.repo-io{display:flex;gap:8px;margin-bottom:30px}
+.repo-io{display:flex;gap:8px;margin-bottom:var(--sp-20)}
 .repo-count{font-weight:400;text-transform:none;letter-spacing:0;color:var(--faint);font-size:var(--fs-11)}
-.repo-sub2{margin-top:30px}
+.repo-sub2{margin-top:var(--sp-20)}
 .repo-ds-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
 .repo-ds-card{position:relative;background:var(--field);border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);border-radius:12px;
   box-sizing:border-box;overflow:hidden;transition:transform .12s ease,border-color .12s ease}

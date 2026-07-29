@@ -5,10 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v328"; /* v328: LF56 (folder picker, slice 2) — the shared
-   Studio.folderPickerButton (a "Browse" affordance opening openFolderPicker) is now wired next to
-   the Folder field in the dataset (datasets.js), connection (connections.js) and job (jobs.js)
-   editors, not just the Repository quick-edit — folder filing is the same picker across the editors.
+var CACHE_NAME = "studio-shell-v329"; /* v329: LF54 (slice 2) — density tightening: the two
+   off-scale 30px vertical gaps in the workspace catalogs (the toolbar→list `.repo-io` gap and the
+   inter-subsection `.repo-sub2` gap) are now the 20px spacing-scale token, continuing slice 1's
+   left-align density pass and putting both back on the --sp scale (app/studio.css).
    Explore's compact inline save bar is a deferred follow-up (needs a layout pass to fit a 3rd
    control next to its absolute-positioned sparkle). app/studio.js + those three files changed, so
    precached copies roll.
