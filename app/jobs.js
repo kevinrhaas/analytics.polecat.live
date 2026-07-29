@@ -474,13 +474,17 @@
         });
         srcFieldsWrap.appendChild(chips);
       }
-      // LF13(d) slice 2: a small live sample of SOURCE rows (real values, unlike the
-      // name-only field list above), plus an APPROXIMATE preview of the OUTPUT rows —
+      // LF13(d) slice 2 / LF55(4): a small live sample of SOURCE rows (real values, unlike
+      // the name-only field list above), plus an APPROXIMATE preview of the OUTPUT rows —
       // the pipeline's steps run (via the pure Studio.runJobSteps engine, no live query)
       // over that same cached sample, so it updates instantly as steps are edited instead
       // of requiring a "Preview" click. join/union steps only know the linked dataset's
       // COLUMN NAMES here (not a live sample of ITS rows too), so their preview rows are
-      // honestly approximate — the real "Preview" button below still does a full live run.
+      // honestly approximate. LF55(4): the approximate output shares ONE result area with
+      // the real "Preview" button's live run (below, near the footer) instead of living in
+      // its own separate table — whichever is current is badged, and the Preview button
+      // pulses to invite a click whenever an approximate/stale result is what's on screen.
+      var PREVIEW_INVITE_CLASS = "btn-invite";
       function previewTable(columns, rows) {
         var head = "<tr>" + columns.map(function (c) { return "<th>" + esc(c) + "</th>"; }).join("") + "</tr>";
         var body = rows.slice(0, ROW_PREVIEW_N).map(function (row) {
@@ -488,30 +492,49 @@
         }).join("");
         return "<table>" + head + body + "</table>";
       }
+      function clearOutputPreview() {
+        if (!result || !preview) return;
+        result.className = "cx-test-result"; result.textContent = "";
+        preview.innerHTML = "";
+        if (runBtn) runBtn.classList.remove(PREVIEW_INVITE_CLASS);
+      }
+      function showApproxPreview(columns, rows) {
+        if (!result || !preview) return;
+        result.className = "cx-test-result approx";
+        result.textContent = "Sample — approximate (from the cached rows above; click Preview for the real result)";
+        preview.innerHTML = previewTable(columns, rows);
+        if (runBtn) runBtn.classList.add(PREVIEW_INVITE_CLASS);
+      }
+      function showApproxError(msg) {
+        if (!result || !preview) return;
+        result.className = "cx-test-result bad";
+        result.textContent = "Can't preview: " + msg;
+        preview.innerHTML = "";
+        if (runBtn) runBtn.classList.remove(PREVIEW_INVITE_CLASS);
+      }
       var srcRowsWrap = el("div", "jobs-row-preview"); form.appendChild(srcRowsWrap);
-      var outRowsWrap = el("div", "jobs-row-preview"); form.appendChild(outRowsWrap);
       function renderRowPreviews() {
-        srcRowsWrap.innerHTML = ""; outRowsWrap.innerHTML = "";
-        if (!j.sourceDatasetId) return;
+        srcRowsWrap.innerHTML = "";
+        if (!j.sourceDatasetId) { clearOutputPreview(); return; }
         var srcLabel = el("small", "cx-hint"); srcLabel.textContent = "Sample source rows:"; srcRowsWrap.appendChild(srcLabel);
         if (colsCache.bySrcRowsFor !== j.sourceDatasetId || colsCache.bySrcRows == null) {
           var loading = el("small", "cx-hint"); loading.textContent = "Loading sample rows…"; srcRowsWrap.appendChild(loading);
+          clearOutputPreview();
           return;
         }
         if (colsCache.bySrcRowsErr) {
           var err = el("small", "cx-hint"); err.textContent = "Can't sample rows: " + colsCache.bySrcRowsErr; srcRowsWrap.appendChild(err);
+          clearOutputPreview();
           return;
         }
         if (!colsCache.bySrcRows.length || !colsCache.bySrc.length) {
           var none = el("small", "cx-hint"); none.textContent = "No sample rows available."; srcRowsWrap.appendChild(none);
+          clearOutputPreview();
           return;
         }
         var srcTable = el("div", "dsx-preview"); srcTable.innerHTML = previewTable(colsCache.bySrc, colsCache.bySrcRows);
         srcRowsWrap.appendChild(srcTable);
-        if (!(j.steps || []).length) return; // nothing downstream of an empty pipeline yet
-        var outLabel = el("small", "cx-hint");
-        outLabel.textContent = "Approximate preview after these steps (from the sample above — click Preview below for the real result):";
-        outRowsWrap.appendChild(outLabel);
+        if (!(j.steps || []).length) { clearOutputPreview(); return; } // nothing downstream of an empty pipeline yet
         var ctx = { datasets: {} };
         (j.steps || []).forEach(function (step) {
           if ((step.op === "join" || step.op === "union") && step.datasetId) {
@@ -519,13 +542,9 @@
           }
         });
         var out = Studio.runJobSteps({ columns: colsCache.bySrc, rows: colsCache.bySrcRows }, j.steps, ctx);
-        if (out.error) {
-          var errOut = el("small", "cx-hint"); errOut.textContent = "Can't preview: " + out.error; outRowsWrap.appendChild(errOut);
-          return;
-        }
-        if (!out.columns.length) return;
-        var outTable = el("div", "dsx-preview"); outTable.innerHTML = previewTable(out.columns, out.rows);
-        outRowsWrap.appendChild(outTable);
+        if (out.error) { showApproxError(out.error); return; }
+        if (!out.columns.length) { clearOutputPreview(); return; }
+        showApproxPreview(out.columns, out.rows);
       }
       var stepsWrap = el("div", "jobs-steps"); form.appendChild(stepsWrap);
       function operandRow(op) {
@@ -756,14 +775,11 @@
       }
       function renderSteps() {
         renderSrcFields();
+        // LF55 (3)/(4): any step/source edit invalidates the last REAL Preview result.
+        // renderRowPreviews() (just above) already redraws the single shared result area
+        // with the fresh approximate output (or clears it) — no separate clear needed here,
+        // and clearing again after would just stomp the approximate preview it drew.
         renderRowPreviews();
-        // LF55 (3): any step/source edit invalidates the last REAL Preview result. Clear the stale
-        // status line + result table so there's exactly one preview state on screen — the live
-        // approximate one above — not a leftover real-preview table left sitting under it (the
-        // "two befores + one after" duplicate). `result`/`preview` are created just after this
-        // function's first call, so guard against the initial render where they don't exist yet.
-        if (typeof result !== "undefined" && result) { result.className = "cx-test-result"; result.textContent = ""; }
-        if (typeof preview !== "undefined" && preview) preview.innerHTML = "";
         stepsWrap.innerHTML = "";
         (j.steps || []).forEach(function (step, i) {
           var card = el("div", "jobs-step-card");
@@ -818,13 +834,18 @@
         addStep.onclick = function () { (j.steps = j.steps || []).push({ op: "rename" }); openTypePicker = null; renderSteps(); };
         stepsWrap.appendChild(addStep);
       }
-      renderSteps();
-      b.appendChild(form);
-      var result = el("div", "cx-test-result"); b.appendChild(result);
-      var preview = el("div", "dsx-preview"); b.appendChild(preview);
-      var foot = el("div", "cx-wiz-foot");
+      // LF55(4): result/preview/runBtn are created BEFORE the first renderSteps() call (just
+      // below) so an existing job's approximate output preview appears immediately on open,
+      // not only after the first subsequent edit.
+      var result = el("div", "cx-test-result");
+      var preview = el("div", "dsx-preview");
       var runBtn = el("button", "btn"); runBtn.type = "button"; runBtn.textContent = "Preview";
       var saveBtn = el("button", "btn primary"); saveBtn.type = "button"; saveBtn.textContent = existing ? "Save changes" : "Add job";
+      renderSteps();
+      b.appendChild(form);
+      b.appendChild(result);
+      b.appendChild(preview);
+      var foot = el("div", "cx-wiz-foot");
       foot.appendChild(runBtn); foot.appendChild(saveBtn); b.appendChild(foot);
       function collect() {
         j.name = nameInp.value.trim();
@@ -839,6 +860,9 @@
         collect();
         var src = Studio.Workspace.get("datasets", j.sourceDatasetId);
         if (!src) { result.className = "cx-test-result bad"; result.textContent = "Pick a source dataset first."; return; }
+        // LF55(4): a click always aims at the REAL result, so the invite stops pulsing the
+        // instant the user takes the hint — even before the run resolves.
+        runBtn.classList.remove(PREVIEW_INVITE_CLASS);
         runBtn.disabled = true; runBtn.textContent = "Running…";
         result.className = "cx-test-result"; result.textContent = ""; preview.innerHTML = "";
         runDataset(src).then(function (r) {

@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 720,
+    title: 'Job editor: one unified preview result, and Preview invites a click when it goes stale',
+    kind: 'polish',
+    ts: '2026-07-29T20:29:16.000Z',
+    items: [
+      'The job editor used to show two different preview tables — a live approximate sample above the steps, and a separate real result below the Preview button — which was confusing about which one you were looking at. They\'re now ONE shared result area: it shows a badged "Sample — approximate" preview by default, and the Preview button gently pulses to invite a click whenever what\'s on screen is approximate or gone stale from an edit. Clicking Preview swaps in the real, live result and the button settles down until you change something again.',
+    ],
+  },
+  {
     v: 719,
     title: 'The Studio Examples menu retires — samples live in Dashboards & Home',
     ts: '2026-07-29T19:46:49.000Z',

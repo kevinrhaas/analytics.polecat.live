@@ -5955,10 +5955,12 @@ function serve() {
     });
     await page.waitForTimeout(200);
 
-    // LF13(d) slice 2: a small live sample of SOURCE rows (real values, not just column
-    // names) plus an APPROXIMATE preview of the OUTPUT rows, computed by running the
+    // LF13(d) slice 2 / LF55(4): a small live sample of SOURCE rows (real values, not just
+    // column names) plus an APPROXIMATE preview of the OUTPUT rows, computed by running the
     // pure Studio.runJobSteps engine over that cached sample — updates live as steps are
-    // edited, without a "Preview" click or a fresh query each time.
+    // edited, without a "Preview" click or a fresh query each time. The output preview lands
+    // in the SAME shared result area the real Preview button uses (badged "Sample —
+    // approximate"), not its own separate table.
     await page.evaluate(function () {
       window.__studioShellSetSection("jobs");
       var conn = Studio.Workspace.put("connections", { name: "jobs-rowprev-editor-test", adapter: "file", cfg: {} });
@@ -5976,8 +5978,13 @@ function serve() {
           return Array.prototype.slice.call(tr.children).map(function (c) { return c.textContent; });
         });
       }
-      var tables = Array.prototype.slice.call(document.querySelectorAll(".jobs-row-preview .dsx-preview table"));
-      return { srcRows: tableRows(tables[0]), outRows: tableRows(tables[1]) };
+      var srcTable = document.querySelector(".jobs-row-preview .dsx-preview table");
+      var outWrap = Array.prototype.slice.call(document.querySelectorAll(".modal-ov .dsx-preview")).filter(function (p) { return !p.closest(".jobs-row-preview"); })[0];
+      var resEl = document.querySelector(".modal-ov .cx-test-result");
+      var runBtn = Array.prototype.slice.call(document.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return b.textContent === "Preview"; })[0];
+      return { srcRows: tableRows(srcTable), outRows: tableRows(outWrap && outWrap.querySelector("table")),
+        resultText: resEl ? resEl.textContent.trim() : "", resultClass: resEl ? resEl.className : "",
+        invited: runBtn ? runBtn.classList.contains("btn-invite") : false };
     });
     ok("LF13(d) slice 2: the job editor renders a sample-source-rows table with the real column values",
       jobsRowPreviewUI.srcRows && jobsRowPreviewUI.srcRows[0].join(",") === "region,acres" &&
@@ -5985,6 +5992,9 @@ function serve() {
     ok("LF13(d) slice 2: the approximate output preview reflects the pipeline's rename step (acres -> acres_renamed) on the same sample values",
       jobsRowPreviewUI.outRows && jobsRowPreviewUI.outRows[0].join(",") === "region,acres_renamed" &&
       jobsRowPreviewUI.outRows[1].join(",") === "Story,100", JSON.stringify(jobsRowPreviewUI));
+    ok("LF55(4): a fresh job editor with steps opens with the shared result area already badged 'Sample — approximate' and the Preview button pulsing to invite a click",
+      /approximate/i.test(jobsRowPreviewUI.resultText) && /\bapprox\b/.test(jobsRowPreviewUI.resultClass) && jobsRowPreviewUI.invited,
+      JSON.stringify(jobsRowPreviewUI));
     await page.evaluate(function () {
       document.querySelector(".modal-ov .x").click();
       Studio.Workspace.all("jobs").filter(function (j) { return j.name === "rowprev-editor-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
@@ -5995,10 +6005,11 @@ function serve() {
     });
     await page.waitForTimeout(200);
 
-    // LF55 (3): the real "Preview" result must not linger after a step edit. Clicking Preview shows
-    // the live result table; then editing steps (+ Step / op change / reorder / delete) re-renders
-    // the approximate preview and must CLEAR the now-stale real result — no leftover duplicate table
-    // ("two befores + one after"). The approximate live preview stays.
+    // LF55 (3)/(4): clicking Preview shows the real, live result — badged ✓, no invite-pulse
+    // on the button. Editing steps afterward (+ Step / op change / reorder / delete) must not
+    // leave the now-stale real result on screen: the SHARED result area swaps back to the
+    // badged "Sample — approximate" output, and the Preview button starts pulsing again to
+    // invite another real run.
     await page.evaluate(function () {
       window.__studioShellSetSection("jobs");
       var conn = Studio.Workspace.put("connections", { name: "jobs-stalepreview-test", adapter: "file", cfg: {} });
@@ -6017,23 +6028,28 @@ function serve() {
     const jobPrevBefore = await page.evaluate(function () {
       var realPrev = Array.prototype.slice.call(document.querySelectorAll(".modal-ov .dsx-preview")).filter(function (p) { return !p.closest(".jobs-row-preview"); })[0];
       var res = document.querySelector(".modal-ov .cx-test-result");
-      return { resultText: res ? res.textContent.trim() : "", realTable: !!(realPrev && realPrev.querySelector("table")) };
+      var runBtn = Array.prototype.slice.call(document.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /Preview/.test(b.textContent); })[0];
+      return { resultText: res ? res.textContent.trim() : "", resultClass: res ? res.className : "",
+        realTable: !!(realPrev && realPrev.querySelector("table")), invited: runBtn ? runBtn.classList.contains("btn-invite") : null };
     });
-    ok("LF55 (3): clicking Preview shows the real result (status line + result table)",
-      /rows/.test(jobPrevBefore.resultText) && jobPrevBefore.realTable, JSON.stringify(jobPrevBefore));
+    ok("LF55 (3): clicking Preview shows the real result (status line + result table), badged ok, no invite-pulse",
+      /rows/.test(jobPrevBefore.resultText) && jobPrevBefore.realTable && /\bok\b/.test(jobPrevBefore.resultClass) && jobPrevBefore.invited === false,
+      JSON.stringify(jobPrevBefore));
     await page.evaluate(function () {
       var add = Array.prototype.slice.call(document.querySelectorAll(".jobs-steps .btn")).filter(function (b) { return b.textContent === "+ Step"; })[0];
       if (add) add.click();
     });
     await page.waitForTimeout(150);
     const jobPrevAfter = await page.evaluate(function () {
-      var realPrev = Array.prototype.slice.call(document.querySelectorAll(".modal-ov .dsx-preview")).filter(function (p) { return !p.closest(".jobs-row-preview"); })[0];
+      var wrap = Array.prototype.slice.call(document.querySelectorAll(".modal-ov .dsx-preview")).filter(function (p) { return !p.closest(".jobs-row-preview"); })[0];
       var res = document.querySelector(".modal-ov .cx-test-result");
-      var approx = document.querySelectorAll(".jobs-row-preview .dsx-preview table").length;
-      return { resultText: res ? res.textContent.trim() : "", realTable: !!(realPrev && realPrev.querySelector("table")), approxTables: approx };
+      var runBtn = Array.prototype.slice.call(document.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /Preview/.test(b.textContent); })[0];
+      return { resultText: res ? res.textContent.trim() : "", resultClass: res ? res.className : "",
+        hasTable: !!(wrap && wrap.querySelector("table")), invited: runBtn ? runBtn.classList.contains("btn-invite") : null };
     });
-    ok("LF55 (3): editing steps clears the stale real Preview result but keeps the live approximate preview",
-      jobPrevAfter.resultText === "" && !jobPrevAfter.realTable && jobPrevAfter.approxTables >= 1, JSON.stringify(jobPrevAfter));
+    ok("LF55 (4): editing steps swaps the now-stale real Preview result for a fresh badged approximate preview and re-pulses the Preview button",
+      /approximate/i.test(jobPrevAfter.resultText) && /\bapprox\b/.test(jobPrevAfter.resultClass) && jobPrevAfter.hasTable && jobPrevAfter.invited === true,
+      JSON.stringify(jobPrevAfter));
     await page.evaluate(function () {
       document.querySelector(".modal-ov .x").click();
       Studio.Workspace.all("jobs").filter(function (j) { return j.name === "stalepreview-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
@@ -6058,8 +6074,8 @@ function serve() {
     });
     await page.waitForTimeout(200);
     const jobsRowPreviewAggUI = await page.evaluate(function () {
-      var tables = Array.prototype.slice.call(document.querySelectorAll(".jobs-row-preview .dsx-preview table"));
-      var out = tables[1];
+      var wrap = Array.prototype.slice.call(document.querySelectorAll(".modal-ov .dsx-preview")).filter(function (p) { return !p.closest(".jobs-row-preview"); })[0];
+      var out = wrap && wrap.querySelector("table");
       if (!out) return null;
       return Array.prototype.slice.call(out.querySelectorAll("tr")).map(function (tr) {
         return Array.prototype.slice.call(tr.children).map(function (c) { return c.textContent; });
@@ -6079,8 +6095,9 @@ function serve() {
     });
     await page.waitForTimeout(200);
 
-    // LF13(d) slice 2: an empty pipeline (no steps yet) still shows the source-rows
-    // sample, but skips the output-preview section entirely (nothing to show yet).
+    // LF13(d) slice 2 / LF55(4): an empty pipeline (no steps yet) still shows the source-rows
+    // sample, but the shared result area stays empty (no output to approximate yet) and the
+    // Preview button doesn't pulse — nothing to invite a click toward.
     await page.evaluate(function () {
       window.__studioShellSetSection("jobs");
       var conn = Studio.Workspace.put("connections", { name: "jobs-rowprev-empty-test", adapter: "file", cfg: {} });
@@ -6091,10 +6108,15 @@ function serve() {
     });
     await page.waitForTimeout(200);
     const jobsRowPreviewEmptyUI = await page.evaluate(function () {
-      return { tableCount: document.querySelectorAll(".jobs-row-preview .dsx-preview table").length };
+      var res = document.querySelector(".modal-ov .cx-test-result");
+      var runBtn = Array.prototype.slice.call(document.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /Preview/.test(b.textContent); })[0];
+      return { tableCount: document.querySelectorAll(".jobs-row-preview .dsx-preview table").length,
+        resultText: res ? res.textContent.trim() : "", invited: runBtn ? runBtn.classList.contains("btn-invite") : null };
     });
     ok("LF13(d) slice 2: an empty (no-step) pipeline shows just the source-sample table, no output-preview table",
       jobsRowPreviewEmptyUI.tableCount === 1, JSON.stringify(jobsRowPreviewEmptyUI));
+    ok("LF55(4): an empty pipeline leaves the shared result area blank and the Preview button un-pulsed",
+      jobsRowPreviewEmptyUI.resultText === "" && jobsRowPreviewEmptyUI.invited === false, JSON.stringify(jobsRowPreviewEmptyUI));
     await page.evaluate(function () {
       document.querySelector(".modal-ov .x").click();
       Studio.Workspace.all("jobs").filter(function (j) { return j.name === "rowprev-empty-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });

@@ -116,6 +116,29 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF55 (4) — job editor: ONE unified preview result area, Preview button pulses when stale
+  (v720, sw v357, 2026-07-29, steward — LF55's genuinely last open part, so LF55 really is now
+  fully done):** the previous "LF55 (5)" DONE entry below called LF55 fully done, but item (4)
+  — "unify approximate vs real preview" — was never actually shipped; this slice closes it. The
+  job editor used to show the live approximate output preview (schema-sample, updates as steps
+  are edited) in its own table above the step cards, and the REAL Preview-button result in a
+  separate table below the footer — two different tables, easy to confuse. They're now the SAME
+  shared `result`/`preview` pair: `renderRowPreviews()` writes the approximate output there
+  (badged `.cx-test-result.approx`, "Sample — approximate…") every time steps/source change,
+  and clicking Preview overwrites it with the real `.ok` result — so there's exactly one preview
+  state on screen, never a stale leftover. The Preview button gets a new `.btn-invite` class
+  (reuses the existing `pulse-live` keyframe, `prefers-reduced-motion`-aware) whenever what's
+  shown is approximate/stale, and loses it the instant Preview is clicked — inviting the actual
+  run without nagging once you've seen it. Created before the first `renderSteps()` call (not
+  after, like the old real-preview elements were) so an existing job with steps shows its
+  approximate preview immediately on open, not only after the first edit. 4 tests rewritten to
+  read the new unified location instead of the old two-tables-in-`.jobs-row-preview` layout
+  (intent changes by design — the old "real preview lives outside `.jobs-row-preview`" selector
+  now finds the SAME element in both the approximate and real cases, so assertions check the
+  badge class + invite-pulse state instead of which table exists) + 3 new regression checks
+  (fresh editor opens pre-badged + pre-pulsing; editing after a real run swaps back to approx +
+  re-pulses; an empty pipeline leaves the area blank and unpulsed). Files: app/jobs.js,
+  app/studio.css, sw.js, js/changelog.js, tests/run.js.
 - **LF43 slice 2 — the Studio Examples ▾ menu is REMOVED; "Examples" naming dropped (v719, sw v356,
   2026-07-29 — LF43 is now fully done):** the dedicated big-surface slice LF43/LF47 budgeted. The
   dashbar `#btnExamples`/`#menuExamples` menu-wrap, its `#moreExamples` phone twin, and
@@ -7063,8 +7086,9 @@
 >       the PREVIEW BUTTON lights up / pulses inviting a click for the actual result. Keep clear INTERIM-step
 >       indicators for per-step previews + an unmistakable FINAL preview so it's obvious you can just run the
 >       final. (5) ✓ COOLER STEP PICKER (shipped 2026-07-29, steward) — the plain step-type <select> is
->       now an icon-panel picker (a themed glyph per step type, select-and-see) — see DONE. **Only (4)
->       remains open** (unify approximate vs real preview into one badged result area).
+>       now an icon-panel picker (a themed glyph per step type, select-and-see) — see DONE. (4) ✓
+>       UNIFY APPROXIMATE vs REAL PREVIEW (shipped 2026-07-29, steward) — see DONE. **LF55 is now
+>       genuinely fully done** (parts 1-5 all shipped).
 >       (app/jobs.js/studio.js openJobEditor + step renderer + preview, jobs-engine.js
 >       column/value introspection, icons.js, studio.css.) Ties #47, LF13(a-d), LF51.
 > LF52. **TERMINOLOGY — "widget" AND "analysis" → "View" app-wide (Kevin decided 2026-07-27).** "Widget" is

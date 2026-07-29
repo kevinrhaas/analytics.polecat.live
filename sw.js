@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v356"; /* v356: LF43 slice 2 — the Studio Examples ▾ menu is
+var CACHE_NAME = "studio-shell-v357"; /* v357: LF55(4) — the job editor's approximate output
+   preview and the real Preview-button result now share ONE result area (badged "Sample —
+   approximate" vs the real ✓ result), with the Preview button pulsing (.btn-invite) whenever
+   what's shown is approximate/stale. app/jobs.js, app/studio.css.
+   v356: LF43 slice 2 — the Studio Examples ▾ menu is
    REMOVED (samples are real Dashboards rows + Home gallery tiles; Home's card reads "Sample
    dashboards"; "+N more" routes to the Dashboards Sample-packs view via the shared
    showPackDashboards(); ⌘K re-sourced; __studioLoadExample test hook replaces menu-click
