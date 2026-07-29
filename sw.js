@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v326"; /* v326: LF52 (analysis→View, app-UI slice) — user-facing
+var CACHE_NAME = "studio-shell-v327"; /* v327: LF56 (folder picker, slice 1) — a shared
+   openFolderPicker() modal (Studio.openFolderPicker) navigates the flat "/"-separated folder tree
+   by breadcrumb, searches all filed paths, creates nested folders inline, or clears — over the same
+   `folder` strings (no data change). folderPickerButton() adds a "Browse" affordance next to a
+   Folder <input>; first wired into the Repository quick-edit. app/studio.js + app/studio.css changed,
+   so precached copies roll. NEXT: the dataset/connection/job editors + Explore save bar.
+   v326: LF52 (analysis→View, app-UI slice) — user-facing
    "analysis"/"Analyses" become "View"/"Views" across the app surfaces: Explore's save bar
    (placeholder/aria/toasts/confirm/preview), the Home "Pinned Views" section + card fallbacks, and
    the Repository object type label. Internal ids/keys (the `analyses` store, "analysis-"+id, data-*

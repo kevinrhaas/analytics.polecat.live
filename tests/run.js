@@ -31177,6 +31177,31 @@ function serve() {
       repoQuickEditDashOpen.title === "Edit dashboard" && repoQuickEditDashOpen.fieldCount === 1 && repoQuickEditDashOpen.folder === "" &&
       repoQuickEditDashOpen.repoStillVisible, JSON.stringify(repoQuickEditDashOpen));
 
+    // LF56: the shared folder-tree picker (Studio.openFolderPicker) navigates the "/"-separated
+    // folder tree by breadcrumb, filters by search, and returns the picked path via onPick.
+    const lf56 = await repoPage.evaluate(function () {
+      var out = { picked: null };
+      Studio.openFolderPicker("Finance/2024", ["Finance/2024", "Finance/2023", "Ops", "Ops/EU/West"], function (p) { out.picked = p; });
+      var m = document.querySelector(".modal .fp"); out.opened = !!m;
+      if (!m) return out;
+      var names = function () { return [].map.call(m.querySelectorAll(".fp-list .fp-into .fp-nm"), function (n) { return n.textContent; }); };
+      var rowByName = function (nm) { return [].slice.call(m.querySelectorAll(".fp-row")).filter(function (r) { var x = r.querySelector(".fp-nm"); return x && x.textContent === nm; })[0]; };
+      m.querySelector(".fp-crumb").click();               // jump to Home
+      out.rootKids = names();                              // → Finance, Ops
+      rowByName("Ops").querySelector(".fp-into").click();  // descend into Ops (has kids)
+      out.opsKids = names();                               // → EU
+      out.crumb = m.querySelector(".fp-crumbs").textContent;
+      var s = m.querySelector(".fp-search"); s.value = "west"; s.dispatchEvent(new Event("input", { bubbles: true }));
+      out.hits = [].map.call(m.querySelectorAll(".fp-hit .fp-nm"), function (n) { return n.textContent; });
+      m.querySelector(".fp-hit").click();                  // pick the search hit (closes the modal)
+      out.gone = !document.querySelector(".modal .fp");
+      return out;
+    });
+    ok("LF56: openFolderPicker navigates the folder tree (breadcrumb + descend), searches, and returns the picked path",
+      lf56.opened && lf56.rootKids.join(",") === "Finance,Ops" && lf56.opsKids.join(",") === "EU" &&
+      /Ops/.test(lf56.crumb || "") && lf56.hits.indexOf("Ops/EU/West") >= 0 && lf56.picked === "Ops/EU/West" && lf56.gone,
+      JSON.stringify(lf56));
+
     await repoPage.evaluate(function () {
       var panel = document.querySelector(".ps-rpanel");
       var inp = panel.querySelector(".cx-field input");

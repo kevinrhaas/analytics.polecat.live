@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 690,
+    title: 'Browse a folder tree instead of typing the path',
+    kind: 'feature',
+    ts: '2026-07-29T02:37:37.000Z',
+    items: [
+      'Filing an object in a folder used to mean typing the path by hand (e.g. "Finance/2024"). Now a "Browse" button next to the Folder field opens a proper picker: navigate your existing folders by breadcrumb, search across all of them, create a new (even nested) subfolder inline, or clear the folder — one click files the object there. The text field still works if you prefer to type. First wired into the Repository quick-edit; the dataset/connection/job editors and Explore save bar are next.',
+    ],
+  },
+  {
     v: 689,
     title: 'Saved analyses are now called Views, in the app UI',
     kind: 'polish',

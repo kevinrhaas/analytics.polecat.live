@@ -116,6 +116,17 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF56 (folder picker, slice 1) — a reusable folder-tree picker replaces free-text folder entry
+  (v690, sw v327, 2026-07-29):** objects are filed via a flat `"/"`-separated `folder` string that you
+  used to type by hand. New shared `Studio.openFolderPicker(current, allPaths, onPick)` modal
+  navigates that tree by breadcrumb (Home ▸ Finance ▸ 2024, click a crumb to jump), searches across
+  every filed path (flat hits, click to pick), creates a new — even nested (`a/b`) — subfolder inline,
+  and offers "No folder"/"Use current". `folderPickerButton(input, getAllFolders)` adds a "Browse"
+  affordance next to any Folder `<input>`; picking writes the `"/"`-path back + fires input, so the
+  text field stays a valid free-text fallback and there's NO data change (same `folder` strings,
+  ancestors implied). **Slice 1 wires it into the Repository quick-edit Folder field.** New regression
+  test drives navigate→descend→search→pick. **NEXT (slice 2):** the dataset/connection/job editors'
+  Folder fields + Explore's save-bar Folder (ties LF57's Views section, LF51). CSS: `.fp-*`.
 - **LF52 (analysis→View, app-UI slice) — saved analyses read as "View" in the app (v689, sw v326,
   2026-07-29):** the widget→View half shipped earlier; this does the "analysis"/"analyses"→"View"/
   "Views" half for the **app UI** surfaces (the Explore builder Kevin screenshotted): Explore's save
