@@ -308,12 +308,15 @@
       renderDatasets();
       renderJobs();
       renderExplore();
+      renderViews();
       renderRepository();
       Studio.Workspace.on("change", function (p) {
         if (p.table === "connections" || p.table === "*") renderConnections();
         if (p.table === "datasets" || p.table === "connections" || p.table === "*") { renderDatasets(); buildLibrary(); }
         if (p.table === "jobs" || p.table === "datasets" || p.table === "*") renderJobs();
         if (p.table === "analyses" || p.table === "datasets" || p.table === "*") renderExplore();
+        // LF57: the Views catalog is a browse layer over the same `analyses` table.
+        if (p.table === "analyses" || p.table === "*") renderViews();
         // Viridis V7: "dashboards" was missing here — a direct put/remove on that
         // table (e.g. Studio.installDemoPack/removeDemoPack) left Home's featured
         // card stale until some OTHER path (toggleFeature, a "*" resync) happened
@@ -334,6 +337,8 @@
       var dsxNewBtn = $("#dsxNewBtn"); if (dsxNewBtn) dsxNewBtn.onclick = function () { openDatasetEditor(); };
       var jobsNewBtn = $("#jobsNewBtn"); if (jobsNewBtn) jobsNewBtn.onclick = function () { openJobEditor(); };
       var jobsSearchInp = $("#jobsSearch"); if (jobsSearchInp) jobsSearchInp.addEventListener("input", renderJobs);
+      var viewsSearchInp = $("#viewsSearch"); if (viewsSearchInp) viewsSearchInp.addEventListener("input", renderViews);
+      var viewsNewBtn = $("#viewsNewBtn"); if (viewsNewBtn) viewsNewBtn.onclick = function () { Studio.ViewsCatalog.newView(); };
       var repoAllSearchInp = $("#repoAllSearch"); if (repoAllSearchInp) repoAllSearchInp.addEventListener("input", renderRepository);
       // workspace-backend sync: restore a saved remote, keep the rail dot +
       // Settings card live, and flush any pending mirror write on page close
@@ -6632,6 +6637,17 @@
     runDataset: function (ds) { return runDataset(ds); },
     guessFieldKind: function (colName, vals) { return guessFieldKind(colName, vals); }
   }));
+
+  /* ---------- Views (LF57 slice 1) — moved to app/views.js. A pure browse/manage
+     catalog over the existing `analyses` table Explore already owns (list/tile
+     toggle, folder + chart-type facets, search) — Explore stays the one View
+     builder/editor; this module never writes analysis content, only pin/
+     private/folder-adjacent metadata and delete, via Studio.Explore's own
+     exported methods. Same ONE-bundled-configure(deps)-call shape as every
+     other catalog module. */
+  function renderViews() { Studio.ViewsCatalog.render(); }
+  window.__studioRenderViews = renderViews; // test hook
+  Studio.ViewsCatalog.configure(coreModuleDeps());
 
 
   /* ---------- Repository (M5 slice 1, STATUS.md's Conservation Insight track) ----------

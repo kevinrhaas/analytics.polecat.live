@@ -116,6 +116,39 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF57 slice 1 — a new "Views" rail section, the dedicated browse/manage catalog for saved
+  Views (v722, sw v359, 2026-07-29, steward):** LF57 asked for a top-level Views section
+  alongside Datasets/Connections/Repository, with the COMPLETE catalog treatment (list + tile
+  views, folder picker/facet, full names, right-aligned pills, date-time, per-object actions).
+  New module `app/views.js` (`Studio.ViewsCatalog`) follows the exact Datasets/Connections/Jobs
+  shape (one bundled `configure(deps)` call from studio.js) as a pure browse/filter/render layer
+  over the SAME `analyses` table Explore already owns — Explore stays the one place a View is
+  actually authored/edited; Views is where you find one again. Ships: a single-select folder
+  facet (LF56's convention: All folders/each folder/Unfiled, hidden until something's filed) +
+  a multi-select chart-type facet, search across name/chart-type/folder, the LF51 list⇆tile
+  toggle (`#viewsViewToggle`, persisted at `studio-vwc-view`), and per-row **Open** (loads the
+  View into Explore and switches section — clicking anywhere on the row does the same), **Add to
+  dashboard** (reuses `Studio.Explore.openAddToExistingDashboardPicker` verbatim), a pin toggle
+  and a private toggle (both call straight into `Studio.Explore.togglePin`/`.togglePrivate`, so
+  state can never drift from Explore's own sidebar), and delete (mirrors explore.js's own
+  `data-xp-del` handler, including clearing `Studio.Explore.XP.analysisId` if the deleted View
+  was the one currently open in Explore's editor). **+ New View** reuses the exact reset-to-
+  fresh-Explore path Repository's "＋New ▾ → New View" already established. Named
+  `Studio.ViewsCatalog` rather than `Studio.Views` deliberately, to avoid colliding with the
+  pre-existing "saved view" (search/filter preset) concept `makeViewsStore` already uses on
+  every other catalog section — a saved-search-preset facility for the Views catalog itself is
+  NOT offered in this slice, to keep that naming honest. New rail item (`data-sec="views"`, the
+  `image` icon — "views" needed a rail-icon distinct from Explore's own `trend-up`) sits between
+  Connections and Repository; `app/shell.js`'s `SECTIONS`/`SECTION_LABELS` gained the `views`
+  entry (its section id `secViews` resolves automatically through shell.js's existing
+  capitalize-convention lookup, no special-casing needed). Reuses every shared catalog CSS class
+  verbatim (`.cx-row`/`.dsx-tile`/`.cx-badge`/`.cx-pin`/`.cx-private`/`.wb-chip` etc.) — no new
+  CSS. **Genuinely still open** (LF57's own richer action list, deliberately deferred to keep
+  this slice to "browse what Explore already builds"): Duplicate, Export/"make standalone", and
+  per-chart-type row icons (every row currently shares the generic `trend-up` glyph rather than
+  a per-type mark) — none of these three exist as reusable single-object helpers anywhere yet,
+  so each is its own follow-up slice. Files: app/views.js (new), app/index.html, app/shell.js,
+  app/studio.js, docs/index.html, sw.js, js/changelog.js, tests/run.js.
 - **Kevin live feedback ×3 — Explore saves a "View" + the backend row fits a phone (v721, sw v358,
   2026-07-29):** three screenshot-driven fixes from a live session. (1) **Explore savebar**: the
   save button read "Update analysis"/"Save analysis" — the LF52 widget→View rename's last
@@ -7126,6 +7159,11 @@
 >       standalone, delete). Concrete realization of #29 (Explore = simple View builder; Repository = advanced
 >       cross-object manager; Views = the dedicated browse/manage section). Reuses the LF51/LF56 component set.
 >       (index.html rail + a renderViews() section over the existing analyses store.) Ties #29, LF51, LF56, LF52.
+>       ✓ **Slice 1 shipped (2026-07-29, v722, sw v359, steward):** the rail section itself
+>       (`app/views.js`, `Studio.ViewsCatalog`) — list/tile toggle, folder + chart-type facets,
+>       search, and Open/Add-to-dashboard/pin/private/delete per row — see DONE for the full
+>       writeup. Genuinely still open: Duplicate, Export/"make standalone", and per-chart-type
+>       row icons, each its own follow-up slice.
 > LF59. **Dashboards section management overhaul (Kevin, live 2026-07-27, screenshot).** The Dashboards
 >       toolbar (New / Compare / Export / Import) + the per-tile "No workbook" dropdown need real management:
 >       (1) SELECTIVE EXPORT — "Export dashboards" exports EVERYTHING today; export a chosen subset instead.
