@@ -116,6 +116,20 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF57 follow-up — the Views catalog gains an Export ("make standalone") action (v726, sw v363,
+  2026-07-29, steward — LF57 is now fully done):** the last of the three items LF57 slice 1's own
+  DONE note flagged as "genuinely still open" (Duplicate shipped v723; per-chart-type row icons
+  shipped v725). A saved View has no open dashboard to pare down the way the in-canvas panel's
+  own "Export this View…" (`exportPanelEmbed`) does, so a new `exportAnalysisEmbed(a)`
+  (app/studio.js) is its twin fed from `Studio.Explore.analysisSpec(a)` instead — the same
+  single-panel/no-kpis/no-filters shape Home's live-widget preview already builds from a saved
+  analysis — so the download is the exact same self-contained toolkit as every other export, no
+  new HTML-generation code path to drift out of sync. Wired into `Studio.ViewsCatalog.configure()`
+  (same one-bundled-call shape every other module dep uses) and a new "Export" button sits
+  between Duplicate and the destructive ✕ Delete (keeping LF69(a)'s "destructive stays far right"
+  rule). 3 new regression tests (button exists; clicking opens the same "Embed View" modal without
+  navigating off Views; the exported HTML carries this View's chart type with no KPIs). Files:
+  app/views.js, app/studio.js, docs/index.html, sw.js, js/changelog.js, tests/run.js.
 - **LF57 follow-up — Views rows/tiles show a themed per-chart-type icon (v725, sw v362,
   2026-07-29, steward):** the last of the three items LF57 slice 1's own DONE note flagged as
   "genuinely still open" (Duplicate shipped v723; Export/"make standalone" is the only one
@@ -7213,8 +7227,10 @@
 >       writeup. Genuinely still open: Duplicate, Export/"make standalone", and per-chart-type
 >       row icons, each its own follow-up slice.
 >       ✓ **Duplicate shipped (2026-07-29, v723, sw v360, steward):** per-row clone (chart/
->       folder/private carried over, unpinned, uniquified name) — see DONE. **Still open:**
->       Export/"make standalone" and per-chart-type row icons.
+>       folder/private carried over, unpinned, uniquified name) — see DONE.
+>       ✓ **Per-chart-type row icons shipped (2026-07-29, v725, sw v362, steward):** see DONE.
+>       ✓ **Export/"make standalone" shipped (2026-07-29, v726, sw v363, steward — LF57 is now
+>       fully done):** see DONE.
 > LF59. **Dashboards section management overhaul (Kevin, live 2026-07-27, screenshot).** The Dashboards
 >       toolbar (New / Compare / Export / Import) + the per-tile "No workbook" dropdown need real management:
 >       (1) SELECTIVE EXPORT — "Export dashboards" exports EVERYTHING today; export a chosen subset instead.

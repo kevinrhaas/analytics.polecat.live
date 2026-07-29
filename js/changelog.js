@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 726,
+    title: 'Export any saved View straight from the Views section',
+    kind: 'polish',
+    ts: '2026-07-29T23:12:52.000Z',
+    items: [
+      'Every row in the Views section now has an Export action that downloads a tiny, self-contained HTML file with just that View — no need to open a dashboard first.',
+    ],
+  },
+  {
     v: 725,
     title: 'Views rows now show their real chart icon',
     kind: 'polish',

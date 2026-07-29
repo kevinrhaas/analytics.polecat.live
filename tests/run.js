@@ -7884,8 +7884,8 @@ function serve() {
     // LF57 follow-up: per-chart-type row icons — reuses the same themed gallery-thumbnail
     // SVGs (Studio.CHART_SVG) the chart-type picker already draws from, instead of every
     // row sharing one generic glyph. One of the three items LF57 slice 1's own DONE note
-    // left "genuinely still open" (alongside Duplicate, shipped separately, and a
-    // standalone export, still open).
+    // left "genuinely still open" (alongside Duplicate and the standalone export, both
+    // shipped separately).
     const lf57Icons = await page.evaluate(function () {
       window.__studioShellSetSection("views");
       var a1 = Studio.Workspace.put("analyses", { name: "lf57ic-bars", chartType: "bars", da: { id: "da1", columns: [] } });
@@ -7911,6 +7911,50 @@ function serve() {
       lf57Icons.bothHaveSvg && lf57Icons.differByType, JSON.stringify(lf57Icons));
     ok("LF57: a chart type with no gallery thumbnail falls back to a generic icon",
       lf57Icons.fallbackUsesGenericIcon, JSON.stringify(lf57Icons));
+
+    // LF57 follow-up ("make standalone") — the last of the three items LF57 slice 1's own
+    // DONE note flagged as genuinely still open (Duplicate + per-chart-type icons both
+    // shipped separately, above). A saved View has no open dashboard to pare down like the
+    // in-canvas panel's own "Export this View…" (exportPanelEmbed) does — this reuses
+    // Studio.Explore.analysisSpec(a), the same single-panel/no-kpis/no-filters shape Home's
+    // live-widget preview already builds from a saved analysis, so the exported HTML is the
+    // SAME self-contained toolkit as every other export, just fed from the catalog instead
+    // of a canvas selection.
+    const lf57Export = await page.evaluate(function () {
+      window.__studioShellSetSection("views");
+      var a = Studio.Workspace.put("analyses", {
+        name: "lf57export", chartType: "donut",
+        chart: { type: "donut", map: {}, opts: {} },
+        da: { id: "da1", columns: [] }
+      });
+      window.__studioRenderViews();
+      var out = {};
+      var row = document.querySelector('.cx-row[data-vw-id="' + a.id + '"]');
+      out.exportBtnExists = !!row.querySelector('[data-vw-export="' + a.id + '"]');
+      document.querySelector('[data-vw-export="' + a.id + '"]').click();
+      out.stillOnViews = window.__studioShellGetSection() === "views";
+      var rows = [].slice.call(document.querySelectorAll(".modal .dl-row"));
+      var title = document.querySelector(".modal-h") ? document.querySelector(".modal-h").textContent : "";
+      var fileName = rows[0] ? rows[0].querySelector(".nm").textContent : "";
+      out.modalTitle = title;
+      out.rowCount = rows.length;
+      out.isHtmlFile = /\.html$/.test(fileName);
+      var expectedHtml = Studio.exportCDF(Studio.Explore.analysisSpec(a), window.__STUDIO_STATE.assets, window.__STUDIO_STATE.settings.deployPath);
+      out.hasThisChartType = expectedHtml.indexOf('"type":"donut"') >= 0;
+      out.noKpis = expectedHtml.indexOf('"kpis":[]') >= 0;
+      var ov = document.querySelector(".modal-ov"); if (ov) ov.remove();
+      Studio.Workspace.remove("analyses", a.id, { silent: true });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+      return out;
+    });
+    ok("LF57: each row carries an Export action (make a saved View standalone, no open dashboard needed)",
+      lf57Export.exportBtnExists, JSON.stringify(lf57Export));
+    ok("LF57: Export opens the same single-file 'Embed View' modal as the in-canvas panel export, without navigating away from Views",
+      lf57Export.stillOnViews && lf57Export.rowCount === 1 && lf57Export.isHtmlFile && /Embed View/.test(lf57Export.modalTitle),
+      JSON.stringify(lf57Export));
+    ok("LF57: the exported HTML is the self-contained single-View spec (this chart type, no KPIs) — LF57 is now fully done",
+      lf57Export.hasThisChartType && lf57Export.noKpis, JSON.stringify(lf57Export));
 
     // ── LF51 (command center): Repository's ＋ New ▾ creates EVERY object kind ─────────
     // Each entry routes into that kind's own builder/editor (dashboard → Studio blank spec,
