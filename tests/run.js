@@ -7836,6 +7836,52 @@ function serve() {
     ok("LF57: Delete removes the View (after confirm) and clears Explore's own pointer if it was open",
       lf57Actions.deleted && lf57Actions.explorePointerCleared, JSON.stringify(lf57Actions));
 
+    // LF57 follow-up: Duplicate — a straight clone (chart/folder/private carried over,
+    // pinned reset, uniquified "(copy)" name), one of the three items LF57 slice 1's own
+    // DONE note left "genuinely still open."
+    const lf57Dup = await page.evaluate(function () {
+      window.__studioShellSetSection("views");
+      var a = Studio.Workspace.put("analyses", {
+        name: "lf57dup", chartType: "donut", folder: "Finance", private: true, pinned: true,
+        da: { id: "da1", columns: [] }
+      });
+      window.__studioRenderViews();
+      var out = {};
+      var row = document.querySelector('.cx-row[data-vw-id="' + a.id + '"]');
+      out.dupBtnExists = !!row.querySelector('[data-vw-dup="' + a.id + '"]');
+      document.querySelector('[data-vw-dup="' + a.id + '"]').click();
+      out.stillOnViews = window.__studioShellGetSection() === "views";
+      var all = Studio.Workspace.all("analyses");
+      var dup = all.filter(function (r) { return r.id !== a.id && r.name.indexOf("lf57dup") === 0; })[0];
+      out.dupCreated = !!dup;
+      out.dupName = dup && dup.name;
+      out.dupCarriesChartType = !!dup && dup.chartType === "donut";
+      out.dupCarriesFolder = !!dup && dup.folder === "Finance";
+      out.dupCarriesPrivate = !!dup && dup.private === true;
+      out.dupNotPinned = !!dup && dup.pinned === false;
+      out.originalUntouched = Studio.Workspace.get("analyses", a.id).name === "lf57dup";
+      // duplicating the duplicate uniquifies again instead of colliding
+      document.querySelector('[data-vw-dup="' + dup.id + '"]').click();
+      var dup2 = Studio.Workspace.all("analyses").filter(function (r) { return r.id !== a.id && r.id !== dup.id && r.name.indexOf("lf57dup") === 0; })[0];
+      out.dup2Created = !!dup2;
+      out.dup2NameDiffers = !!dup2 && dup2.name !== dup.name;
+      Studio.Workspace.remove("analyses", a.id, { silent: true });
+      Studio.Workspace.remove("analyses", dup.id, { silent: true });
+      if (dup2) Studio.Workspace.remove("analyses", dup2.id, { silent: true });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+      return out;
+    });
+    ok("LF57: each row carries a Duplicate action",
+      lf57Dup.dupBtnExists, JSON.stringify(lf57Dup));
+    ok("LF57: Duplicate creates a new row (not a navigation to Explore) and leaves the original untouched",
+      lf57Dup.dupCreated && lf57Dup.stillOnViews && lf57Dup.originalUntouched, JSON.stringify(lf57Dup));
+    ok("LF57: the duplicate carries over chart type/folder/private but starts unpinned, with a uniquified '(copy)' name",
+      lf57Dup.dupCarriesChartType && lf57Dup.dupCarriesFolder && lf57Dup.dupCarriesPrivate &&
+      lf57Dup.dupNotPinned && lf57Dup.dupName === "lf57dup (copy)", JSON.stringify(lf57Dup));
+    ok("LF57: duplicating a duplicate uniquifies again instead of colliding",
+      lf57Dup.dup2Created && lf57Dup.dup2NameDiffers, JSON.stringify(lf57Dup));
+
     // ── LF51 (command center): Repository's ＋ New ▾ creates EVERY object kind ─────────
     // Each entry routes into that kind's own builder/editor (dashboard → Studio blank spec,
     // View → Explore fresh analysis, dataset/connection/job → their real editor modals), and

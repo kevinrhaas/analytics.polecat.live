@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 723,
+    title: 'Duplicate any saved View from the Views section',
+    kind: 'polish',
+    ts: '2026-07-29T21:52:34.000Z',
+    items: [
+      'Every row in Views gets a Duplicate action — it clones the View (chart, folder and private setting carried over) into a new, unpinned copy with a unique name.',
+    ],
+  },
+  {
     v: 722,
     title: 'A new Views section for browsing every saved chart, KPI and map',
     kind: 'feature',
