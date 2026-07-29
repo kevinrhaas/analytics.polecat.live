@@ -9,7 +9,7 @@ export const CHANGELOG = [
     v: 722,
     title: 'A new Views section for browsing every saved chart, KPI and map',
     kind: 'feature',
-    ts: '',
+    ts: '2026-07-29T21:18:02.000Z',
     items: [
       'Views (left rail, after Connections) is a dedicated home for everything you\'ve saved from Explore — search by name, filter by chart type or Folder, and switch between a compact list and a richer tile grid.',
       'Open a View to jump straight back into Explore with it loaded, add it to any dashboard, pin it to Home, mark it private, or delete it, all from one row.',
