@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF59 (slice 2) — MULTI-SELECT + BULK DELETE on the Dashboards rows/tiles (v695, sw v332,
+  2026-07-29):** LF59 part (2) — a new "Select" toolbar button turns on select mode: a checkbox
+  overlays every tile (`recentCardHtml`) and list row (`dashListRowHtml`), and while select mode is
+  on, tapping anywhere on a card/row toggles its selection instead of opening it (same target, one
+  fewer precise tap — mobile-friendly). A bulk bar appears above the grid/list with a live count,
+  Select all / Clear, and a Delete button that removes every selected dashboard after one confirm
+  (batched via silent `Workspace.remove` + a single `notify("dashboards")`, so Home/Repository/the
+  library repaint once, not per-row). Selection state (`_dashSelectMode`/`_dashSelected`) is
+  session-only, pruned against the live list each render so a stale id (deleted elsewhere) can't
+  linger. Sample-pack dashboards are selectable/deletable exactly like any other row per LF59's own
+  SAMPLE-DELETE SEMANTICS note (dropping one is fine; reinstalling the pack restores the set) — the
+  confirm copy just names how many of the selection are samples. 8 new regression tests (enter/exit
+  select mode, tap-to-select, checkbox toggle, Select all/Clear, the actual bulk delete, and the
+  list-view row variant) — the delete test asserts the two targeted rows are gone rather than an
+  exact remaining count, since the pre-existing `noteRecent()` "cap unpinned recents at 8" pruning
+  can independently evict older fixture dashboards on its own debounced timer during a long suite
+  run. docs/index.html Help updated. Files: app/studio.js, app/studio.css, app/index.html (toolbar
+  button), docs/index.html, sw.js, js/changelog.js, tests/run.js. **NEXT in LF59:** part (3) toolbar
+  cleanup; part (5) dashboard FOLDERS stays parked behind the LF66 library-model reconciliation
+  (LF43/LF57/LF59 → one model).
 - **LF59 (slice 1) — SELECTIVE EXPORT: choose which dashboards to export (v694, sw v331,
   2026-07-29):** LF59 part (1) — the Dashboards "Export dashboards…" button used to always dump the
   WHOLE repository. It now opens a subset picker: a checkbox list of your dashboards (defaults to all
@@ -131,10 +151,7 @@
   modal (click Export → pick → download) — behavior reflected, not weakened — plus 1 new test that
   `collectRepositoryExport([id])` scopes to one dashboard and never emits MORE data sources/workbooks
   than the full export. docs/index.html Help updated. Files: app/studio.js, app/studio.css,
-  app/index.html (button wiring), docs/index.html, sw.js, js/changelog.js, tests/run.js. **NEXT in
-  LF59:** part (2) multi-select + bulk delete on the rows/tiles (respecting sample read-only), part
-  (3) toolbar cleanup; part (5) dashboard FOLDERS stays parked behind the LF66 library-model
-  reconciliation (LF43/LF57/LF59 → one model).
+  app/index.html (button wiring), docs/index.html, sw.js, js/changelog.js, tests/run.js.
 - **LF56 (folder picker, slice 3) — the Browse picker now reaches Explore's save bar too, LF56 is
   now fully done (v693, sw v330, 2026-07-29):** slice 2's own deferred follow-up. The Browse button
   is wired next to Explore's "Folder" field as a **sibling flex item** beside the sparkle wrap, NOT

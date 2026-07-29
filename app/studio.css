@@ -507,6 +507,15 @@ html[data-app-theme='neon'] #mobileNavBtn{background:#000000;border-color:rgba(2
 .recent-pin.pinned{color:var(--brand);border-color:color-mix(in srgb, var(--brand) 50%, transparent)}
 .recent-pin.pinned svg polygon{fill:currentColor}
 .recent-pin:hover{border-color:var(--brand);color:var(--brand)}
+/* LF59 (2): the select-mode checkbox — same top-corner overlay convention as .recent-pin
+   (opposite corner), always visible (not hover-revealed) once select mode is on since it's
+   the primary interaction, not a secondary action. .is-selected gives the whole tile a
+   brand-colored ring so a selection reads at a glance in a dense grid. */
+.recent-select{position:absolute;top:7px;left:7px;z-index:2;width:26px;height:26px;border-radius:7px;
+  display:flex;align-items:center;justify-content:center;background:color-mix(in srgb, var(--bg) 70%, transparent);
+  border:1px solid color-mix(in srgb, var(--ink) 18%, transparent);cursor:pointer}
+.recent-select input{width:16px;height:16px;margin:0;cursor:pointer}
+.recent-card.is-selected{border-color:var(--brand);box-shadow:0 0 0 2px color-mix(in srgb, var(--brand) 40%, transparent)}
 .recent-thumb{background:var(--bg);line-height:0;overflow:hidden}
 .recent-thumb svg{width:100%;display:block;transition:transform .18s ease}
 .recent-card:hover .recent-thumb svg{transform:scale(1.035)}
@@ -678,6 +687,16 @@ body.simple-mode .repo-ds-acts{display:none!important}
 .wb-chip-wrap:hover .wb-chip-rename,.wb-chip-rename:focus-visible{opacity:1}
 .wb-chip-del:hover{border-color:#f55036;color:#f55036}
 .wb-chip-rename:hover{border-color:var(--brand);color:var(--ink)}
+/* LF59 (2): the bulk-action bar that appears above the grid/list once "Select" is on. */
+.dash-bulk-bar{display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp-10);margin-bottom:16px;
+  padding:var(--sp-10) var(--sp-12);background:color-mix(in srgb, var(--brand) 10%, var(--field));
+  border:1px solid color-mix(in srgb, var(--brand) 35%, transparent);border-radius:9px}
+.dash-bulk-count{font-size:var(--fs-12);font-weight:600;color:var(--ink);margin-right:auto}
+.dash-bulk-bar .btn.danger:not(:disabled):hover{border-color:var(--bad);color:var(--bad)}
+/* the list-view analog of .recent-select — a plain leading checkbox in the row's flex flow. */
+.cx-select{display:flex;align-items:center}
+.cx-select input{width:16px;height:16px;margin:0;cursor:pointer}
+.cx-row.dash-li.is-selected{border-color:var(--brand);box-shadow:0 0 0 2px color-mix(in srgb, var(--brand) 40%, transparent)}
 .wb-chip-del svg,.wb-chip-rename svg{width:9px;height:9px}
 @media(pointer:coarse){.wb-chip-del,.wb-chip-rename{opacity:1}}
 .wb-chip-rename-inp{width:90px;padding:0;margin:-2px 0;font:inherit;font-size:var(--fs-12);color:inherit;
