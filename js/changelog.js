@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 704,
+    title: 'Welcome tour highlights your installed sample packs',
+    kind: 'feature',
+    ts: '2026-07-29T13:12:04.000Z',
+    items: [
+      'The first-run welcome carousel is now pack-aware: if your workspace was set up with a sample pack (say the Conservation Insight pack), the tour adds a step introducing that pack by name — the curated dashboards and datasets it brings and where to find them (Home, Dashboards, and the workspace). The step appears for every installed pack and disappears when a pack is removed, so a provisioned user meets their curated content right in the welcome flow.',
+    ],
+  },
+  {
     v: 703,
     title: 'Job editor: pick columns from a dropdown, not free text',
     ts: '2026-07-29T12:59:21.000Z',

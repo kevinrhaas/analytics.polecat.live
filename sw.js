@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v340"; /* v340: LF55 (1) — job editor column dropdowns: the Filter,
+var CACHE_NAME = "studio-shell-v341"; /* v341: LF40 (pack-aware tour engine) — the welcome carousel
+   is computed at open() from a 5-step base PLUS one "curated content" step per installed sample
+   pack (name/tagline pulled from demopacks.js, no hardcoded copy), so a provisioned user meets
+   their curated dashboards/datasets in the welcome flow. app/welcome.js.
+   v340: LF55 (1) — job editor column dropdowns: the Filter,
    Rename and Cast steps' column fields are now colSelect() dropdowns of the step's incoming
    columns (colsBeforeStep) instead of free-text inputs, extending LF13a's group-by/metric/join-key
    dropdowns to every column-naming field. Existing values stay selectable. app/jobs.js.

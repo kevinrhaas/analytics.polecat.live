@@ -116,6 +116,22 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF40 (pack-aware tour engine) — the welcome carousel adapts to installed sample packs (v704, sw
+  v341, 2026-07-29):** the "Dave" onboarding chunk (Kevin), part 1 of 3 (LF40 → LF60 → LF39). LF40
+  slice 2 shipped a *standalone* gated Conservation tour and flagged its own NEXT as the harder
+  "engine" half: the welcome/overview carousel's `STEPS` were a **static array**, so it couldn't
+  branch on whatever pack a user was provisioned with. This makes `app/welcome.js`'s carousel
+  **computed at open() time**: `STEPS` → `BASE_STEPS` (the 5 generic steps) + a new `computeSteps()`
+  that splices in one "curated content" step per **installed** sample pack (right after the Welcome
+  intro), pulling the pack's own `name`/`tagline`/`blurb` from `demopacks.js` (no hardcoded copy, so
+  any future pack contributes its own step automatically) and pointing the user at Home / Dashboards /
+  the workspace / Settings → Sample packs. `render()` now walks the live `steps` array; `open()`
+  recomputes it each time (install state can change between opens). New `StudioWelcome.computeStepTitles()`
+  test hook. 1 new regression test (5-step base + one step per installed pack, each pack's name present
+  — deterministic against ambient install state). Files: app/welcome.js, docs/index.html, sw.js,
+  js/changelog.js, tests/run.js. **NEXT in the Dave chunk:** LF60 (in-app Docs section), then LF39
+  (cross-device sign-in). **NEXT in LF40 itself:** the same pack-aware treatment for tutorial.js's
+  spotlight `overview` tour (its steps are still a static array), if wanted.
 - **LF55 (1) — job editor: Filter/Rename/Cast column fields are dropdowns, not free text (v703, sw
   v340, 2026-07-29):** LF55 part (1). LF13a had already made group-by / rollup-metric / join-union
   key columns dropdowns of known columns; this extends that to the last free-text column-naming
