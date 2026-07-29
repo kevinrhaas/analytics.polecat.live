@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 710,
+    title: 'Job editor: filter values suggest themselves',
+    kind: 'polish',
+    ts: '2026-07-29T16:11:08.000Z',
+    items: [
+      'A Filter step\'s value field now offers the target column\'s known sample values as suggestions once you\'ve picked a column, so you can pick a real value instead of retyping it by hand. You can still type any value (needed for greater-than/less-than style comparisons) — the suggestions are just a shortcut.',
+    ],
+  },
+  {
     v: 709,
     title: 'Help splits User guides from Admin & backend setup',
     ts: '2026-07-29T15:40:05.000Z',

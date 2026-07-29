@@ -116,6 +116,22 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF55 (2) — job editor: Filter step's value field suggests known sample values (v710, sw v347,
+  2026-07-29, steward):** LF55 part (1)'s own NEXT note flagged this as "a separate LF55 slice."
+  The Filter step's value field stays free text (comparators like gt/lt need arbitrary typed
+  values a fixed list can't cover), but now also gets a `<datalist>` of the target column's
+  distinct known sample values — the same "type or pick" pattern the Folder fields already use.
+  `ensureSrcRows` (`app/jobs.js`) already fetches the source dataset's live rows for the 5-row
+  preview; it now ALSO keeps the full result (capped at 2000 rows — no second query) in a new
+  `colsCache.bySrcAllRows`. A new `distinctColValues(col)` reads off that cache by the column's
+  index in the raw source column list (best-effort like `colsBeforeStep`'s siblings — a value
+  renamed/derived earlier in the pipeline has no live sample to draw from, so those just fall back
+  to plain typing) and returns up to 50 deduped, sorted values; a higher-cardinality column (an id,
+  a timestamp) degrades to no picker at all rather than a useless huge dropdown. 1 new regression
+  test (a 3-row CSV with a repeated value renders a value-field `<datalist>` with the 2 distinct,
+  sorted values). Files: app/jobs.js, docs/index.html, sw.js, js/changelog.js, tests/run.js.
+  **NEXT in LF55:** (4) unify approximate-vs-real into one badged result area, (5) icon-panel step
+  picker.
 - **LF60 slice 2 (split) — Help separates User guides from Admin & backend setup (v709, sw v346,
   2026-07-29):** LF60's part (4) — the USER-vs-ADMIN docs split — layered on the steward's search
   box (v708) that landed the same day. The admin-only backend/provisioning topics (real Supabase
@@ -6886,14 +6902,15 @@
 >       included), and Explore's save bar — every Folder field in the app now offers the same
 >       navigate/search/create-inline tree picker alongside the free-text input + sparkle-suggest.
 > LF55. **Job editor step UX overhaul (Kevin, live 2026-07-27, screenshots).** Polish the Add/Edit-job
->       transform steps: (1) COLUMN DROPDOWNS EVERYWHERE — the editor already knows the columns (it renders
+>       transform steps: (1) ✓ COLUMN DROPDOWNS EVERYWHERE — the editor already knows the columns (it renders
 >       the preview), so every column-naming field (Filter rows→column, Rename column→from/to, and any
 >       others) becomes a dropdown of known columns, not free text (LF13a did this for group-by/metric/join
 >       keys — extend to ALL step types). Kills the typo/case-sensitivity problem the filter has today; any
->       field that must stay free-text should match case-insensitively. (2) VALUE PICKER — the Filter "value"
->       offers the column's distinct sample values as a dropdown/autocomplete where feasible. (3) BUG —
->       DUPLICATE PREVIEW: "+ Step" leaves the old "Approximate preview" table up AND renders another (two
->       befores + one after); clear the stale interim preview so there's one per state (quick early win).
+>       field that must stay free-text should match case-insensitively. (2) ✓ VALUE PICKER (shipped
+>       2026-07-29, steward) — the Filter "value" offers the column's distinct sample values as a
+>       dropdown/autocomplete where feasible — see DONE. (3) ✓ BUG — DUPLICATE PREVIEW: "+ Step"
+>       leaves the old "Approximate preview" table up AND renders another (two befores + one after);
+>       clear the stale interim preview so there's one per state (quick early win, shipped — see DONE).
 >       (4) UNIFY APPROXIMATE vs REAL PREVIEW (Kevin refined 2026-07-27) — the separate "Approximate
 >       preview" (schema-only sim) vs. the real Preview-button result is confusing. Make it ONE result area
 >       in a consistent position showing either the APPROXIMATE/SAMPLE result BADGED as "Sample — approximate"
