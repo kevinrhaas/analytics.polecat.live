@@ -2292,6 +2292,13 @@ body.simple-mode .da-acts{display:none!important}
   border-left:2px solid var(--line)}
 .cx-schema-col{color:var(--ink)}
 .cx-schema-type{color:var(--faint);font-family:var(--mono, monospace)}
+/* LF63 slice 1: click-to-insert mode (Dataset editor's "Browse schema" panel) */
+.cx-schema-table summary.cx-schema-pick:hover,.cx-schema-cols li.cx-schema-pick{cursor:pointer}
+.cx-schema-cols li.cx-schema-pick:hover{background:color-mix(in srgb,var(--brand) 10%,transparent);border-radius:6px;border-left-color:var(--brand)}
+.cx-schema-table summary.cx-schema-pick:hover b{color:var(--brand)}
+
+/* LF63 slice 1: the Dataset editor's "Browse schema" affordance sits above the query field */
+.dsx-schema-wrap{margin-bottom:var(--sp-12)}
 
 /* ── Datasets section (dsx-*) — shares the cx-* list/row/wizard anatomy ── */
 .dsx-pill-sep{width:1px;align-self:stretch;background:color-mix(in srgb, var(--ink) 14%, transparent);margin:0 4px}

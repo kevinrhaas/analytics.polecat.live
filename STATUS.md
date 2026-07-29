@@ -116,6 +116,29 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF63 slice 1 — the Dataset editor gains a "Browse schema" panel, click-to-insert (v697, sw
+  v334, 2026-07-29, steward):** LF63 asked for "a table/column browser ... feeding an assisted
+  SQL/query builder that KNOWS the fields + tables (pick-list columns/tables ...)" — the browser
+  half already existed (post-overhaul backlog item 5's `adapter.listSchema()` + the Connections
+  wizard's "Browse schema" tree, covering Snowflake/Databricks/BigQuery/Redshift/PostgREST/DuckDB/
+  SQLite), it just wasn't reachable from where a dataset's Table/SQL field is actually typed. This
+  slice reuses that exact tree in the Dataset editor (`app/datasets.js`'s `openDatasetEditor`):
+  whenever the picked connection's adapter has `listSchema`, a "Browse schema" button opens the
+  same panel — now with every table/column CLICKABLE. `renderSchemaPanel` (`app/connections.js`)
+  gained an optional third `onPick(kind, name, schema)` argument (the Connections wizard's own
+  call site omits it, so its tree stays byte-for-byte the read-only one it always was) and is
+  exported on `Studio.Connections` for datasets.js to call; a new `Studio.insertAtCursor` export
+  off `app/studio.js` (was already the private helper backing LF64's date-token button) does the
+  splice-at-caret for SQL-kind datasets, while table-kind (PostgREST-shaped) datasets get the name
+  written straight into the Table field. Genuinely still open (not attempted here): the SQL
+  Builder (G1/G1b/G1c, a SEPARATE older query-composer that lives on Studio's inline "data source"
+  panel editor, not this Connections/Datasets model) still takes free-text table/column names, and
+  LF63's own "live syntax check" / "validation of columns actually used" asks — the Preview button
+  already IS the test/verify path this connection/dataset model needed (runs the real query), so
+  that part of LF63 was already satisfied without new work. 5 new regression tests (button
+  presence/absence for capable vs. incapable adapters, table-kind and sql-kind click-to-insert).
+  Files: app/connections.js, app/studio.js, app/datasets.js, app/studio.css, docs/index.html,
+  sw.js, js/changelog.js, tests/run.js.
 - **LF51 (d), last of the four workspace catalogs — Repository gains the list ⇆ tile view toggle
   (v696, sw v333, 2026-07-29, steward — step 5 of the LOCKED BUILD ORDER):** Dashboards, Datasets,
   Connections and Jobs already had a `#<section>ViewToggle` button switching between the compact
@@ -6341,6 +6364,13 @@
 >       button for every connection so you can verify before saving. Elegant + fun to use. (studio.js
 >       dataset editor + connection schema, app/sources/* schema surfaces, a query-builder UI, a
 >       validate/test path.) Ties #21, LF51, LF55, LF64.
+>       ✓ **Slice 1 shipped (2026-07-29, v697, sw v334, steward): the Dataset editor's "Browse
+>       schema" panel, click-to-insert** — see DONE for the full writeup. The Preview button
+>       already covers the "test query before saving" ask, so that part needed no new work.
+>       Genuinely still open: the older, separate SQL Builder (G1/G1b/G1c, Studio's inline
+>       "data source" panel editor) still takes free-text table/column names — wiring THAT to
+>       real schema data is a bigger, separately-scoped follow-up — and a live syntax check /
+>       used-columns validation for the SQL text itself.
 > LF64. **Job/dataset PARAMETERS — dynamic + date-based filters.** Parameters are powerful when they're
 >       dynamic: expose relative/dynamic DATE parameters (e.g. "> current date", "last N days", "this
 >       month", between-dates) and value pickers with comparators, surfaced in the job/dataset params UI

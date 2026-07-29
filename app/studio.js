@@ -11177,6 +11177,7 @@
     ta.selectionStart = ta.selectionEnd = s + text.length;
     ta.dispatchEvent(new Event("input", { bubbles: true }));
   }
+  Studio.insertAtCursor = insertAtCursor; // LF63 slice 1: shared with datasets.js's schema-browser click-to-insert
   // A "Date token ▾" button (for a query field header) that drops a menu of the
   // built-in tokens; picking one inserts {{token}} at the target textarea's caret.
   // getTa() is called lazily so the same button follows a re-rendered textarea.
