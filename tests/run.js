@@ -27058,6 +27058,129 @@ function serve() {
         lf59sub.subsetDash <= lf59sub.fullDash && lf59sub.dsMonotonic && lf59sub.wbMonotonic),
       JSON.stringify(lf59sub));
 
+    // LF59 (2): multi-select + bulk delete — "Select" turns on a checkbox on every tile/row;
+    // tapping a card toggles its selection instead of opening it; the bulk bar's Delete removes
+    // every selected dashboard after a confirm. Two throwaway dashboards (one demoPackId-tagged,
+    // so the "sample dashboards are selectable/deletable too" semantics get real coverage) keep
+    // this from touching real fixture data other tests depend on.
+    await page.evaluate(function () {
+      Studio.Workspace.put("dashboards", { id: "lf59-bulk-a", ts: new Date().toISOString(),
+        spec: { id: "lf59-bulk-a", title: "LF59 bulk A", panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] } } }, { silent: true });
+      Studio.Workspace.put("dashboards", { id: "lf59-bulk-b", ts: new Date().toISOString(), demoPackId: "lf59-test-pack",
+        spec: { id: "lf59-bulk-b", title: "LF59 bulk B (sample)", panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] } } }, { silent: true });
+      window.__studioRenderDashboards();
+    });
+    await page.waitForTimeout(100);
+
+    const lf59SelectOn = await page.evaluate(function () {
+      document.getElementById("repoSelectBtn").click();
+      return {
+        mode: window.__studioDashSelectMode(),
+        checkboxes: document.querySelectorAll("#repoResults .dash-select-cb").length,
+        bulkBar: !!document.querySelector(".dash-bulk-bar"),
+        btnText: document.getElementById("repoSelectBtn").textContent,
+        delDisabled: document.getElementById("dashSelDelBtn").disabled
+      };
+    });
+    ok("LF59 (2): clicking Select enters select mode — checkboxes + a bulk bar appear, Delete starts disabled",
+      lf59SelectOn.mode && lf59SelectOn.checkboxes > 0 && lf59SelectOn.bulkBar && /Cancel/.test(lf59SelectOn.btnText) && lf59SelectOn.delDisabled,
+      JSON.stringify(lf59SelectOn));
+
+    // tapping a tile in select mode selects it instead of opening it (re-query after the click —
+    // its handler re-renders #repoResults, so the pre-click node references go stale)
+    const lf59TapSelects = await page.evaluate(function () {
+      var card = document.querySelector('.dash-select-cb[data-select="lf59-bulk-a"]').closest(".recent-card");
+      card.querySelector(".recent-open").click();
+      var cbAfter = document.querySelector('.dash-select-cb[data-select="lf59-bulk-a"]');
+      return {
+        checked: cbAfter.checked,
+        cardSelected: cbAfter.closest(".recent-card").classList.contains("is-selected"),
+        selected: window.__studioDashSelected(),
+        stillOnDashboards: document.getElementById("secDashboards").hidden === false
+      };
+    });
+    ok("LF59 (2): tapping a tile in select mode selects it (doesn't open it) and highlights the card",
+      lf59TapSelects.checked && lf59TapSelects.cardSelected && lf59TapSelects.selected.indexOf("lf59-bulk-a") >= 0 && lf59TapSelects.stillOnDashboards,
+      JSON.stringify(lf59TapSelects));
+
+    // the checkbox itself is an equivalent way to toggle selection
+    const lf59CbToggle = await page.evaluate(function () {
+      document.querySelector('.dash-select-cb[data-select="lf59-bulk-b"]').click();
+      return { count: window.__studioDashSelected().length, barText: document.querySelector(".dash-bulk-count").textContent };
+    });
+    ok("LF59 (2): checking a row's checkbox selects it too, and the bulk bar's count reflects the total",
+      lf59CbToggle.count === 2 && /2 selected/.test(lf59CbToggle.barText), JSON.stringify(lf59CbToggle));
+
+    // Select all / Clear apply to everything currently in view
+    const lf59SelectAll = await page.evaluate(function () {
+      document.getElementById("dashSelAllBtn").click();
+      var totalCards = document.querySelectorAll("#repoResults .recent-card, #repoResults .dash-li").length;
+      return { selectedCount: window.__studioDashSelected().length, totalCards: totalCards };
+    });
+    ok("LF59 (2): Select all selects every dashboard currently in view",
+      lf59SelectAll.selectedCount === lf59SelectAll.totalCards && lf59SelectAll.totalCards > 0, JSON.stringify(lf59SelectAll));
+    const lf59Clear = await page.evaluate(function () {
+      document.getElementById("dashSelNoneBtn").click();
+      return { selectedCount: window.__studioDashSelected().length, delDisabled: document.getElementById("dashSelDelBtn").disabled };
+    });
+    ok("LF59 (2): Clear deselects everything and disables Delete again",
+      lf59Clear.selectedCount === 0 && lf59Clear.delDisabled, JSON.stringify(lf59Clear));
+
+    // re-select just the two throwaway dashboards and bulk-delete them
+    await page.evaluate(function () { document.querySelector('.dash-select-cb[data-select="lf59-bulk-a"]').click(); });
+    await page.evaluate(function () { document.querySelector('.dash-select-cb[data-select="lf59-bulk-b"]').click(); });
+    const lf59BeforeDelete = await page.evaluate(function () { return Studio.Workspace.all("dashboards").length; });
+    page.once("dialog", (d) => d.accept());
+    await page.click("#dashSelDelBtn");
+    await page.waitForTimeout(150);
+    const lf59Deleted = await page.evaluate(function (before) {
+      return {
+        remaining: Studio.Workspace.all("dashboards").length,
+        stillA: !!Studio.Workspace.get("dashboards", "lf59-bulk-a"),
+        stillB: !!Studio.Workspace.get("dashboards", "lf59-bulk-b"),
+        selectedAfter: window.__studioDashSelected().length,
+        before: before
+      };
+    }, lf59BeforeDelete);
+    // Not asserting remaining === before - 2 exactly: noteRecent()'s pre-existing "cap unpinned
+    // recents at 8" pruning (unrelated to LF59) can independently evict older fixture dashboards
+    // on its own debounced timer while this huge suite runs, so remaining can legitimately drop
+    // by MORE than 2 — the real assertion is that both our targets are actually gone.
+    ok("LF59 (2): Delete removes every selected dashboard (sample-pack ones included) after confirming",
+      !lf59Deleted.stillA && !lf59Deleted.stillB && lf59Deleted.selectedAfter === 0 && lf59Deleted.remaining <= lf59Deleted.before - 2,
+      JSON.stringify(lf59Deleted));
+
+    // clicking Select again (now "Cancel") leaves select mode and restores normal open-on-click
+    const lf59Cancel = await page.evaluate(function () {
+      document.getElementById("repoSelectBtn").click();
+      return {
+        mode: window.__studioDashSelectMode(),
+        checkboxes: document.querySelectorAll("#repoResults .dash-select-cb").length,
+        btnText: document.getElementById("repoSelectBtn").textContent
+      };
+    });
+    ok("LF59 (2): clicking Select again exits select mode and hides the checkboxes",
+      !lf59Cancel.mode && lf59Cancel.checkboxes === 0 && /Select/.test(lf59Cancel.btnText) && !/Cancel/.test(lf59Cancel.btnText),
+      JSON.stringify(lf59Cancel));
+
+    // the list-view rows (dashListRowHtml) carry the same select-mode checkbox — dashViewToggle
+    // back to tiles afterward so the rest of the suite sees the layout it expects.
+    await page.click("#dashViewToggle");
+    await page.waitForTimeout(80);
+    const lf59ListSelect = await page.evaluate(function () {
+      document.getElementById("repoSelectBtn").click();
+      var cb = document.querySelector("#repoResults .dash-li .dash-select-cb");
+      if (!cb) return { hasCb: false };
+      cb.click();
+      var row = document.querySelector("#repoResults .dash-li.is-selected");
+      return { hasCb: true, rowSelected: !!row, selectedCount: window.__studioDashSelected().length };
+    });
+    ok("LF59 (2): list-view rows get the same select-mode checkbox and selection highlight",
+      lf59ListSelect.hasCb && lf59ListSelect.rowSelected && lf59ListSelect.selectedCount === 1, JSON.stringify(lf59ListSelect));
+    await page.evaluate(function () { document.getElementById("repoSelectBtn").click(); }); // back out of select mode
+    await page.click("#dashViewToggle");
+    await page.waitForTimeout(80);
+
     const repoImport = await page.evaluate(function () {
       delete window.__STUDIO_STATE.catalog.repoExportTest;
       var before = !!window.__STUDIO_STATE.catalog.repoImportTest;

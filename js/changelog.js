@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 695,
+    title: 'Select multiple dashboards for bulk delete',
+    kind: 'feature',
+    ts: '2026-07-29T05:23:53.000Z',
+    items: [
+      'A new "Select" button on the Dashboards page turns on multi-select: a checkbox appears on every tile/row, and tapping a card selects it instead of opening it. A bar above the grid shows how many are selected with Select all / Clear and a Delete button that removes them all at once (with a confirmation — this can\'t be undone). Sample-pack dashboards can be selected and deleted too, same as any other dashboard.',
+    ],
+  },
+  {
     v: 694,
     title: 'Export just the dashboards you choose',
     kind: 'feature',

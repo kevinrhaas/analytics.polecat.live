@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v331"; /* v331: LF59 (1) — selective export: "Export dashboards…"
+var CACHE_NAME = "studio-shell-v332"; /* v332: LF59 (2) — multi-select + bulk delete on the
+   Dashboards page: a new "Select" toolbar button enters select mode (checkboxes on every
+   tile/row, tap-to-select instead of open), with a bulk bar (Select all / Clear / Delete) above
+   the grid/list. Sample-pack dashboards are selectable/deletable like any other row, per LF59's
+   own SAMPLE-DELETE SEMANTICS note. app/studio.js, app/studio.css, app/index.html, docs/index.html.
+   v331: LF59 (1) — selective export: "Export dashboards…"
    now opens a subset picker (collectRepositoryExport(dashIds) scopes the file to the chosen
    dashboards + the data sources they reference + relevant pins/workbooks; select-all keeps the
    historical full export). app/studio.js, app/studio.css, app/index.html wiring, docs/index.html.

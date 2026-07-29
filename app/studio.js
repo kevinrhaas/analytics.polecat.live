@@ -5509,7 +5509,16 @@
     var changeHint = changed ?
       '<small class="recent-changed" title="' + esc(changed.lines.join("\n")) + '">' +
         changed.count + " change" + (changed.count === 1 ? "" : "s") + " since you were last here</small>" : '';
-    return '<div class="recent-card">' +
+    // LF59 (2): multi-select — a select-mode-only checkbox that overlays the tile; the
+    // whole-card .recent-open button already toggles selection itself while select mode is
+    // on (see renderDashboards' wiring), this checkbox is just the visible state + a second
+    // way to hit the same target.
+    var selectMode = wbOpts && wbOpts.selectMode, selected = wbOpts && wbOpts.selected;
+    var selectHtml = selectMode
+      ? '<label class="recent-select" onclick="event.stopPropagation()"><input type="checkbox" class="dash-select-cb" data-select="' +
+        esc(r.id) + '"' + (selected ? " checked" : "") + ' aria-label="Select ' + esc(title) + '"/></label>' : '';
+    return '<div class="recent-card' + (selectMode && selected ? " is-selected" : "") + '">' +
+      selectHtml +
       '<button class="recent-open" data-recent="' + esc(r.id) + '" title="' + esc(title) + ' — open" aria-label="Open ' + esc(title) + '"></button>' +
       '<button class="recent-pin' + (pinned ? " pinned" : "") + '" data-pin="' + esc(r.id) + '" ' +
         'title="' + (pinned ? "Unpin" : "Pin") + '" aria-label="' + (pinned ? "Unpin " : "Pin ") + esc(title) + '" aria-pressed="' + (pinned ? "true" : "false") + '"></button>' +
@@ -6176,10 +6185,45 @@
   // sample catalog stays reachable from the Studio library pane.
   var _dashViewMode = "tiles";
   try { _dashViewMode = localStorage.getItem("studio-dash-view") || "tiles"; } catch (e) {}
+  // LF59 (2): multi-select + bulk delete on the Dashboards rows/tiles. Select mode is
+  // session-only (not persisted) — a fresh visit always starts in normal browse/open mode.
+  // Sample-pack dashboards are selectable and deletable like any other row (LF59's own
+  // SAMPLE-DELETE SEMANTICS note: dropping an individual sample dashboard is fine — the
+  // reset path is removing + re-adding the pack), so no special-case filtering here.
+  var _dashSelectMode = false;
+  var _dashSelected = {}; // id -> true, only meaningful while _dashSelectMode
+  function toggleDashSelect(id) {
+    if (_dashSelected[id]) delete _dashSelected[id]; else _dashSelected[id] = true;
+    renderDashboards();
+  }
+  function bulkDeleteSelectedDashboards() {
+    var ids = Object.keys(_dashSelected);
+    if (!ids.length) return;
+    var W = Studio.Workspace;
+    var rows = ids.map(function (id) { return W.get("dashboards", id); }).filter(Boolean);
+    var sampleCount = rows.filter(function (r) { return r.demoPackId; }).length;
+    var msg = "Delete " + rows.length + " dashboard" + (rows.length === 1 ? "" : "s") + "?" +
+      (sampleCount ? " " + sampleCount + " of these are sample-pack dashboards — reinstall the pack to get them back." : "") +
+      " This can't be undone.";
+    if (!window.confirm(msg)) return;
+    rows.forEach(function (r) { W.remove("dashboards", r.id, { silent: true }); });
+    _dashSelected = {};
+    toast("Deleted " + rows.length + " dashboard" + (rows.length === 1 ? "" : "s"));
+    // a single notify (rather than a remove per row) drives the existing "dashboards"-table
+    // change listener, which already repaints Home/Repository/library — same convention as
+    // migrateOwnerToGotrueId's batch-then-notify.
+    W.notify("dashboards");
+  }
+  window.__studioDashSelectMode = function () { return _dashSelectMode; }; // test hook
+  window.__studioDashSelected = function () { return Object.keys(_dashSelected); }; // test hook
   function renderDashboards() {
     var results = $("#repoResults"); if (!results) return;
     var q = (($("#repoSearch") || {}).value || "").toLowerCase();
     var list = loadRecents().filter(isVisibleToMe), pins = loadPins(), workbooks = loadWorkbooks();
+    // drop any selected id that no longer exists/is visible (deleted elsewhere, e.g. a pack
+    // uninstall) so a stale entry never inflates the bulk-bar count or survives a bulk delete
+    var listIds = {}; list.forEach(function (r) { listIds[r.id] = true; });
+    Object.keys(_dashSelected).forEach(function (id) { if (!listIds[id]) delete _dashSelected[id]; });
     var validWbIds = {}; workbooks.forEach(function (w) { validWbIds[w.id] = true; });
     var wbCounts = { all: list.length, unfiled: 0, byId: {} };
     list.forEach(function (r) {
@@ -6222,8 +6266,8 @@
     }).filter(function (x) { return x.show; });
     // tiles (thumbnail cards) or a compact list — the user picks via #dashViewToggle
     var dashCards = _dashViewMode === "list"
-      ? dashMatches.map(function (x) { return dashListRowHtml(x.r, pins.indexOf(x.r.id) >= 0, x.col); })
-      : dashMatches.map(function (x) { return recentCardHtml(x.r, pins.indexOf(x.r.id) >= 0, { workbooks: workbooks, matchedCol: x.col }); });
+      ? dashMatches.map(function (x) { return dashListRowHtml(x.r, pins.indexOf(x.r.id) >= 0, x.col, _dashSelectMode, !!_dashSelected[x.r.id]); })
+      : dashMatches.map(function (x) { return recentCardHtml(x.r, pins.indexOf(x.r.id) >= 0, { workbooks: workbooks, matchedCol: x.col, selectMode: _dashSelectMode, selected: !!_dashSelected[x.r.id] }); });
     var chipDefs = [{ id: "", name: "All", n: wbCounts.all }]
       .concat(packCount ? [{ id: "__packs", name: "Sample packs", n: packCount }] : [])
       .concat(workbooks.map(function (w) { return { id: w.id, name: w.name, n: wbCounts.byId[w.id] || 0, del: true }; }))
@@ -6239,9 +6283,17 @@
     }).join("") +
       '<span class="wb-add"><input type="text" id="wbNameInp" class="wb-name-inp" placeholder="New workbook…" aria-label="New workbook name"/>' +
       '<button type="button" class="btn" id="wbAddBtn">+ Workbook</button></span></div>';
+    var selCount = Object.keys(_dashSelected).length;
+    var bulkBarHtml = _dashSelectMode
+      ? '<div class="dash-bulk-bar"><span class="dash-bulk-count">' + selCount + ' selected</span>' +
+        '<button type="button" class="btn" id="dashSelAllBtn">Select all</button>' +
+        '<button type="button" class="btn" id="dashSelNoneBtn">Clear</button>' +
+        '<button type="button" class="btn danger" id="dashSelDelBtn"' + (selCount ? '' : ' disabled') + '>' +
+        'Delete' + (selCount ? ' ' + selCount : '') + '</button></div>'
+      : '';
     results.innerHTML =
       '<h2 class="home-sub">Dashboards <span class="repo-count">' + dashCards.length + ' of ' + filtered.length + '</span></h2>' +
-      chipsHtml +
+      chipsHtml + bulkBarHtml +
       (dashCards.length
         ? (_dashViewMode === "list" ? '<div class="cx-list dash-list">' + dashCards.join("") + '</div>'
                                     : '<div class="home-recents">' + dashCards.join("") + '</div>')
@@ -6313,7 +6365,26 @@
         renderDashboards();
       });
     });
-    $$(".recent-open", results).forEach(function (btn) { btn.onclick = function () { openRecent(btn.getAttribute("data-recent")); }; });
+    // LF59 (2): while select mode is on, the tile/row's normal open-on-click action
+    // toggles that item's selection instead — the bulk bar's own buttons below drive
+    // Select all / Clear / Delete.
+    if (_dashSelectMode) {
+      var selAllBtn = $("#dashSelAllBtn", results);
+      if (selAllBtn) selAllBtn.onclick = function () { dashMatches.forEach(function (x) { _dashSelected[x.r.id] = true; }); renderDashboards(); };
+      var selNoneBtn = $("#dashSelNoneBtn", results);
+      if (selNoneBtn) selNoneBtn.onclick = function () { _dashSelected = {}; renderDashboards(); };
+      var selDelBtn = $("#dashSelDelBtn", results);
+      if (selDelBtn) selDelBtn.onclick = bulkDeleteSelectedDashboards;
+      $$(".dash-select-cb", results).forEach(function (cb) {
+        cb.onclick = function (e) { e.stopPropagation(); };
+        cb.onchange = function () { toggleDashSelect(cb.getAttribute("data-select")); };
+      });
+    }
+    $$(".recent-open", results).forEach(function (btn) {
+      btn.onclick = _dashSelectMode
+        ? function () { toggleDashSelect(btn.getAttribute("data-recent")); }
+        : function () { openRecent(btn.getAttribute("data-recent")); };
+    });
     $$(".recent-pin", results).forEach(function (btn) {
       btn.appendChild(Studio.icon("star", 14));
       btn.onclick = function (e) { e.stopPropagation(); togglePin(btn.getAttribute("data-pin")); };
@@ -6333,20 +6404,27 @@
       // purely a mouse convenience so clicking anywhere else on the row still
       // opens it too.
       row.addEventListener("click", function (e) {
-        if (e.target.closest(".recent-pin,.recent-private,.recent-wb-sel,.recent-viewer")) return;
+        if (e.target.closest(".recent-pin,.recent-private,.recent-wb-sel,.recent-viewer,.dash-select-cb")) return;
+        if (_dashSelectMode) { toggleDashSelect(row.getAttribute("data-recent")); return; }
         openRecent(row.getAttribute("data-recent"));
       });
     });
   }
   // Compact list-mode row for the Dashboards section (same anatomy as the
   // Connections/Datasets rows, so the whole workspace browses one way).
-  function dashListRowHtml(r, pinned, matchedCol) {
+  function dashListRowHtml(r, pinned, matchedCol, selectMode, selected) {
     var sp = r.spec || {}, panels = (sp.panels || []).length, kpis = (sp.kpis || []).length;
     var title = sp.title || sp.name || "Untitled";
     var meta = [sp.name || "", panels + " panel" + (panels === 1 ? "" : "s") + (kpis ? " · " + kpis + " KPI" + (kpis === 1 ? "" : "s") : "")]
       .filter(Boolean).join(" · ");
     var when = r.ts ? Studio.fmtWhen(r.ts) : "";
-    return '<div class="cx-row dash-li" data-recent="' + esc(r.id) + '">' +
+    // LF59 (2): same select-mode checkbox as the tile view (recentCardHtml) — a leading
+    // checkbox in the row, wired the same way in renderDashboards.
+    var selectHtml = selectMode
+      ? '<span class="cx-select"><input type="checkbox" class="dash-select-cb" data-select="' +
+        esc(r.id) + '"' + (selected ? " checked" : "") + ' aria-label="Select ' + esc(title) + '"/></span>' : '';
+    return '<div class="cx-row dash-li' + (selectMode && selected ? " is-selected" : "") + '" data-recent="' + esc(r.id) + '">' +
+      selectHtml +
       '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(title) + ' — open" aria-label="Open ' + esc(title) + '"><b>' + esc(title) + '</b></button><small>' + esc(meta) +
         (matchedCol ? ' · matches column “' + esc(matchedCol) + '”' : "") + '</small></span>' +
       (sp.dashboardTheme ? '<span class="cx-badge">' + esc(sp.dashboardTheme) + '</span>' : "") +
@@ -9654,6 +9732,22 @@
         _dashViewMode = _dashViewMode === "list" ? "tiles" : "list";
         try { localStorage.setItem("studio-dash-view", _dashViewMode); } catch (e) {}
         syncDashToggle(); renderDashboards();
+      };
+    }
+    // LF59 (2): "Select" enters multi-select mode (checkboxes appear, tapping a tile/row
+    // selects it instead of opening it) so the bulk bar's Select all / Clear / Delete apply
+    // to more than one dashboard at once.
+    var repoSelectBtn = $("#repoSelectBtn");
+    if (repoSelectBtn) {
+      var syncSelectBtn = function () {
+        setIconBtn(repoSelectBtn, _dashSelectMode ? "close" : "check", _dashSelectMode ? "Cancel" : "Select", 14);
+        repoSelectBtn.setAttribute("aria-pressed", _dashSelectMode ? "true" : "false");
+      };
+      syncSelectBtn();
+      repoSelectBtn.onclick = function () {
+        _dashSelectMode = !_dashSelectMode;
+        if (!_dashSelectMode) _dashSelected = {};
+        syncSelectBtn(); renderDashboards();
       };
     }
     var repoExpBtn = $("#repoExportBtn"); if (repoExpBtn) repoExpBtn.onclick = openExportDashboardsModal;
