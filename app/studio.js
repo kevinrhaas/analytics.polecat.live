@@ -6140,12 +6140,21 @@
      boot (migrateDashboardCatalog) and left as a frozen local backup. */
   function loadWorkbooks() { return (Studio.Workspace.settings().workbooks || []).slice(); }
   function saveWorkbooks(list) { Studio.Workspace.setSetting("workbooks", list); }
-  function addWorkbook(name) {
+  function addWorkbook(name, folder) {
     name = (name || "").trim(); if (!name) return null;
     var wb = { id: "wb" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, ts: new Date().toISOString() };
+    if (folder) wb.folder = folder; // LF66: workbooks can live in a folder too (Kevin's direction)
     var list = loadWorkbooks(); list.unshift(wb); saveWorkbooks(list);
     return wb;
   }
+  // LF66: file a workbook into a folder (the same flat "/"-path folders dashboards use). "" clears it.
+  function setWorkbookFolder(id, folder) {
+    var list = loadWorkbooks(), found = false;
+    list.forEach(function (w) { if (w.id === id) { if (folder) w.folder = folder; else delete w.folder; found = true; } });
+    if (found) saveWorkbooks(list);
+    return found;
+  }
+  window.__studioSetWorkbookFolder = setWorkbookFolder; // test hook
   function deleteWorkbook(id) {
     saveWorkbooks(loadWorkbooks().filter(function (w) { return w.id !== id; }));
     var W = Studio.Workspace, changed = false;
@@ -6281,15 +6290,16 @@
       : dashMatches.map(function (x) { return recentCardHtml(x.r, pins.indexOf(x.r.id) >= 0, { workbooks: workbooks, matchedCol: x.col, selectMode: _dashSelectMode, selected: !!_dashSelected[x.r.id] }); });
     var chipDefs = [{ id: "", name: "All", n: wbCounts.all }]
       .concat(packCount ? [{ id: "__packs", name: "Sample packs", n: packCount }] : [])
-      .concat(workbooks.map(function (w) { return { id: w.id, name: w.name, n: wbCounts.byId[w.id] || 0, del: true }; }))
+      .concat(workbooks.map(function (w) { return { id: w.id, name: w.name, n: wbCounts.byId[w.id] || 0, del: true, folder: w.folder || "" }; }))
       .concat([{ id: "__unfiled", name: "Unfiled", n: wbCounts.unfiled }]);
     var chipsHtml = '<div class="wb-chips">' + chipDefs.map(function (c) {
-      return '<div class="wb-chip-wrap">' +
+      return '<div class="wb-chip-wrap' + (c.folder ? " in-folder" : "") + '"' + (c.folder ? ' data-tip="Folder: ' + esc(c.folder) + '"' : '') + '>' +
         '<button type="button" class="wb-chip' + (_repoWbFilter === c.id ? " active" : "") + '" data-wb-filter="' + esc(c.id) + '"' +
         (c.del ? ' data-wb-name="' + esc(c.id) + '"' : '') + '>' +
         '<span class="wb-chip-label">' + esc(c.name) + '</span> <span class="wb-chip-n">' + c.n + '</span></button>' +
         (c.del ? '<button type="button" class="wb-chip-rename" data-wb-rename="' + esc(c.id) + '" title="Rename workbook ' + esc(c.name) + '" aria-label="Rename workbook ' + esc(c.name) + '"></button>' +
-          '<button type="button" class="wb-chip-del" data-wb-del="' + esc(c.id) + '" title="Delete workbook ' + esc(c.name) + '" aria-label="Delete workbook ' + esc(c.name) + '"></button>' : '') +
+          '<button type="button" class="wb-chip-del" data-wb-del="' + esc(c.id) + '" title="Delete workbook ' + esc(c.name) + '" aria-label="Delete workbook ' + esc(c.name) + '"></button>' +
+          '<button type="button" class="wb-chip-folder" data-wb-folder="' + esc(c.id) + '" title="' + (c.folder ? "In folder “" + esc(c.folder) + "” — move workbook " + esc(c.name) : "Move workbook " + esc(c.name) + " to a folder") + '" aria-label="Move workbook ' + esc(c.name) + ' to a folder"></button>' : '') +
         '</div>';
     }).join("") +
       '<span class="wb-add"><input type="text" id="wbNameInp" class="wb-name-inp" placeholder="New workbook…" aria-label="New workbook name"/>' +
@@ -6387,6 +6397,25 @@
           if (_repoWbFilter === id) _repoWbFilter = "";
           renderDashboards();
         }
+      };
+    });
+    // LF66: file a WORKBOOK into a folder (Kevin: "workbooks can also go into a folder") — the
+    // same LF56 picker + "/"-path folders dashboards use; the folder set spans dashboard folders,
+    // other workbooks' folders and the Repository folder-seeds so the namespace is shared.
+    $$(".wb-chip-folder", results).forEach(function (btn) {
+      btn.appendChild(Studio.icon("folder", 9));
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        var id = btn.getAttribute("data-wb-folder");
+        var wb = workbooks.filter(function (w) { return w.id === id; })[0]; if (!wb) return;
+        var allFolders = Object.keys(folderCounts)
+          .concat(workbooks.map(function (w) { return w.folder; }).filter(Boolean))
+          .concat(repoLoadFolderSeeds());
+        Studio.openFolderPicker(wb.folder || "", allFolders, function (path) {
+          if ((wb.folder || "") === (path || "")) return;
+          setWorkbookFolder(id, path);
+          renderDashboards();
+        });
       };
     });
     var wbAddBtn = $("#wbAddBtn", results);
