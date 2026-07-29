@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v332"; /* v332: LF59 (2) — multi-select + bulk delete on the
+var CACHE_NAME = "studio-shell-v333"; /* v333: LF51 (d), last of the four workspace catalogs —
+   the Repository section gains the same list ⇆ tile view toggle already shipped on Dashboards/
+   Datasets/Connections/Jobs (#repoViewToggle, persisted at studio-repo-view). A tile renders
+   inside whichever folder group it already belongs to; only the per-row markup (cx-row ⇆
+   dsx-tile) and each group's contents wrapper (cx-list ⇆ dsx-grid) switch — the folder tree
+   grouping itself is unchanged. app/studio.js, app/index.html, docs/index.html.
+   v332: LF59 (2) — multi-select + bulk delete on the
    Dashboards page: a new "Select" toolbar button enters select mode (checkboxes on every
    tile/row, tap-to-select instead of open), with a bulk bar (Select all / Clear / Delete) above
    the grid/list. Sample-pack dashboards are selectable/deletable like any other row, per LF59's

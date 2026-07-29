@@ -6550,6 +6550,12 @@
      existing editor. Grouping by folder into a real nested tree is the documented
      NEXT step once this foundation is in place. */
   var _repoAllType = ""; // "" = All, else a REPO_TYPES key
+  // LF51 (d): the same list ⇆ tile view toggle already shipped on Dashboards/Datasets/
+  // Connections/Jobs, extended here — the last of the four workspace catalogs. A tile
+  // renders inside whichever folder group it belongs to (the grouping itself is unchanged),
+  // so only the per-row markup and each group's contents-wrapper class switch.
+  var _repoViewMode = "list";
+  try { _repoViewMode = localStorage.getItem("studio-repo-view") || "list"; } catch (e) {}
   // M5 slice 2 (STATUS.md's Conservation Insight track — "NEXT in M5" after slice 1's
   // flat list): which folder GROUPS are collapsed, session-only (in-memory, not
   // persisted) — default expanded, keyed by folder name or "__unfiled".
@@ -6629,6 +6635,19 @@
   }
   function renderRepository() {
     var results = $("#repoAllResults"); if (!results) return;
+    // LF51 (d): wire the persistent list/tile toggle (lives in the section header,
+    // outside #repoAllResults, so this idempotent binding survives every re-render).
+    var repoVt = $("#repoViewToggle");
+    if (repoVt) {
+      var repoTilesNow = _repoViewMode === "tiles";
+      repoVt.textContent = repoTilesNow ? "List view" : "Tile view";
+      repoVt.setAttribute("aria-pressed", repoTilesNow ? "true" : "false");
+      repoVt.onclick = function () {
+        _repoViewMode = _repoViewMode === "tiles" ? "list" : "tiles";
+        try { localStorage.setItem("studio-repo-view", _repoViewMode); } catch (e) {}
+        renderRepository();
+      };
+    }
     var q = (($("#repoAllSearch") || {}).value || "").toLowerCase();
     var all = repoAllRows();
     var counts = { all: all.length };
@@ -6696,6 +6715,10 @@
         if (node) repoSeededNodes[node.path] = true;
       });
     }
+    // LF51 (d): each row renders as either a compact list row (default) or a richer tile
+    // card — same toggle/CSS/data-hook convention as Datasets/Connections/Jobs (dsx-tile/
+    // dsx-grid), just applied inside whichever folder group the row already belongs to.
+    var isTiles = _repoViewMode === "tiles";
     function repoRowHtml(r) {
       var td = repoTypeDef(r.type);
       // Quick edit (M5 NEXT: "a right-panel editor for simple objects instead of
@@ -6712,12 +6735,21 @@
       // its autocomplete), which stays the primary, fully mobile-capable way to file
       // something — no touch/keyboard equivalent is offered here on purpose.
       var label = repoLabels[r.id];
+      var icon = '<span class="cx-ic" style="color:var(--faint)"></span>';
+      var name = '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(label) + ' — open" aria-label="Open ' + esc(label) + '"><b>' + esc(label) + '</b></button><small>' + esc((td ? td.singular : r.type) + " · " + r.meta) + '</small></span>';
+      var folderBadge = r.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(r.folder) + '">' + esc(r.folder) + '</span>' : "";
+      var when = '<span class="cx-when">' + (r.ts ? esc(Studio.fmtWhen(r.ts)) : "") + '</span>';
+      var editBtn = canQuickEdit ? '<button type="button" class="repo-edit" data-repo-edit-type="' + esc(r.type) + '" data-repo-edit-id="' + esc(r.id) + '" title="Quick edit" aria-label="Quick edit ' + esc(label) + '"></button>' : "";
+      if (isTiles) {
+        return '<div class="dsx-tile" data-repo-id="' + esc(r.id) + '" data-repo-type="' + esc(r.type) + '"' + (canQuickEdit ? ' draggable="true"' : '') + '>' +
+          '<div class="dsx-tile-head">' + icon + name + editBtn + '</div>' +
+          (folderBadge ? '<div class="dsx-tile-badges">' + folderBadge + '</div>' : "") +
+          '<div class="dsx-tile-foot">' + when + '</div>' +
+          '</div>';
+      }
       return '<div class="cx-row" data-repo-id="' + esc(r.id) + '" data-repo-type="' + esc(r.type) + '"' + (canQuickEdit ? ' draggable="true"' : '') + '>' +
-        '<span class="cx-ic" style="color:var(--faint)"></span>' +
-        '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(label) + ' — open" aria-label="Open ' + esc(label) + '"><b>' + esc(label) + '</b></button><small>' + esc((td ? td.singular : r.type) + " · " + r.meta) + '</small></span>' +
-        (r.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(r.folder) + '">' + esc(r.folder) + '</span>' : "") +
-        '<span class="cx-when">' + (r.ts ? esc(Studio.fmtWhen(r.ts)) : "") + '</span>' +
-        (canQuickEdit ? '<span class="cx-actions"><button type="button" class="repo-edit" data-repo-edit-type="' + esc(r.type) + '" data-repo-edit-id="' + esc(r.id) + '" title="Quick edit" aria-label="Quick edit ' + esc(label) + '"></button></span>' : "") +
+        icon + name + folderBadge + when +
+        (editBtn ? '<span class="cx-actions">' + editBtn + '</span>' : "") +
         '</div>';
     }
     function repoGroupHtml(key, label, depth, count, contentsHtml, canDelete) {
@@ -6729,7 +6761,7 @@
           '<span class="cx-group-n">' + count + '</span>' +
         '</button>' +
         (canDelete ? '<button type="button" class="cx-group-del" data-repo-group-del="' + esc(key) + '" title="Remove empty folder ' + esc(label) + '" aria-label="Remove empty folder ' + esc(label) + '"></button>' : "") +
-        '<div class="cx-list">' + contentsHtml + '</div>' +
+        '<div class="' + (isTiles ? "dsx-grid" : "cx-list") + '">' + contentsHtml + '</div>' +
       '</div>';
     }
     // Non-root nodes render their own subgroups (sorted A→Z) followed by any
@@ -6795,7 +6827,7 @@
         }
       });
     });
-    $$(".cx-row[data-repo-id]", results).forEach(function (row) {
+    $$(".cx-row[data-repo-id], .dsx-tile[data-repo-id]", results).forEach(function (row) {
       var td = repoTypeDef(row.getAttribute("data-repo-type"));
       var icEl = row.querySelector(".cx-ic"); if (icEl && Studio.icon && td) icEl.appendChild(Studio.icon(td.ic, 18));
       var open = function () { repoOpenRow(row.getAttribute("data-repo-type"), row.getAttribute("data-repo-id")); };
@@ -9416,6 +9448,10 @@
     // belongs to is stale-secret hygiene, not just a missed toggle).
     "studio-show-samples", "studio-lib-samples-open", "studio-dash-view", "studio-dsx-view",
     "studio-conn-view", "studio-jobs-view",
+    // LF51 (d) extended to Repository, the last of the four workspace catalogs to gain the
+    // list/tile toggle — folded in from the start this time, same key-naming convention as
+    // studio-dsx-view/studio-conn-view/studio-jobs-view above.
+    "studio-repo-view",
     "analytics.datasource.v1", "analytics.datasource.secret.v1",
     // Track L sweep (orphaned-key lens, round 4): the auth (M3), per-section-rights (M4.2) and
     // Home-reorder (M6) slices each added a new key but none of them updated this list — the same
