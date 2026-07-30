@@ -14532,7 +14532,12 @@ function serve() {
     await gpDirect.fill("#g-user", "owner@example.com");
     await gpDirect.fill("#g-pass", "secret123");
     await gpDirect.click("#g-form button[type=submit]");
-    await gpDirect.waitForTimeout(700);
+    // The GoTrue verify is an async fetch → adopt → gate teardown chain; a fixed
+    // 700ms sleep flaked under load (2026-07-30, three sightings in one day) —
+    // wait for the gate to actually go, then assert. Same condition, no longer
+    // racing the event loop; the 6s cap still fails honestly if auth breaks.
+    await gpDirect.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 6000 }).catch(() => {});
+    await gpDirect.waitForTimeout(100);
     const directAuthed = await gpDirect.evaluate(() => ({
       gateGone: !document.querySelector("#studio-gate"),
       who: (window.PolecatAuth.current() || {}).u,
@@ -22694,10 +22699,18 @@ function serve() {
       var slots = [].slice.call(doc.querySelectorAll(".fig-slot"));
       var out = { total: slots.length, filled: slots.filter(function (s) { return s.classList.contains("has-img") && s.querySelector("img"); }).length };
       var imgs = [].slice.call(doc.querySelectorAll(".fig-slot.has-img img"));
+      // the figures are loading="lazy" (offscreen ones never fetch), so probe each
+      // src with an eager Image — proves every capture exists and decodes
       await Promise.all(imgs.map(function (im) {
-        return im.complete ? Promise.resolve() : new Promise(function (r) { im.onload = r; im.onerror = r; setTimeout(r, 4000); });
+        return new Promise(function (r) {
+          var probe = new f.contentWindow.Image();
+          probe.onload = function () { im.__probeOk = probe.naturalWidth > 0; r(); };
+          probe.onerror = function () { im.__probeOk = false; r(); };
+          probe.src = im.src;
+          setTimeout(function () { if (im.__probeOk === undefined) { im.__probeOk = false; r(); } }, 4000);
+        });
       }));
-      out.allLoaded = imgs.length > 0 && imgs.every(function (im) { return im.naturalWidth > 0; });
+      out.allLoaded = imgs.length > 0 && imgs.every(function (im) { return im.__probeOk; });
       // lightbox round trip
       imgs[0].scrollIntoView();
       imgs[0].click();
