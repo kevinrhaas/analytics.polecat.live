@@ -60,13 +60,14 @@
     run: null,               // { cols, rows, live, error } — the loaded source rows
     shelfCols: [],           // [ { col, agg } ] — agg null = dimension, else sum/avg/min/max/median/count
     shelfRows: [],           // [ { col } ] — row dimensions (crosstab when non-empty)
+    filters: [],             // slice 3: [ { col, kind:"in"|"range", values:null|[..], min:"", max:"" } ]
     chartType: "table",      // slice 2: table | bars | line | donut | heatmap
     analysisId: null, name: "", folder: "",
     outlineOpen: {}          // which outline datasets are expanded
   };
   function bdReset() {
     BD.dsKind = null; BD.dsId = null; BD.dsName = ""; BD.dsSub = "";
-    BD.run = null; BD.shelfCols = []; BD.shelfRows = [];
+    BD.run = null; BD.shelfCols = []; BD.shelfRows = []; BD.filters = [];
     BD.chartType = "table";
     BD.analysisId = null; BD.name = ""; BD.folder = "";
   }
@@ -97,7 +98,7 @@
 
   function bdSelectDataset(kind, id) {
     BD.dsKind = kind; BD.dsId = id;
-    BD.shelfCols = []; BD.shelfRows = [];
+    BD.shelfCols = []; BD.shelfRows = []; BD.filters = [];
     BD.run = null;
     var entry = bdDatasets().filter(function (d) { return d.kind === kind && d.id === id; })[0];
     BD.dsName = entry ? entry.name : id;
@@ -149,6 +150,7 @@
            BD.shelfRows.some(function (f) { return f.col === col; });
   }
   function bdAddField(col, shelf) {
+    if (shelf === "filters") { bdAddFilter(col); return; }
     if (!BD.run || BD.run.cols.indexOf(col) < 0 || bdOnShelf(col)) return;
     if (shelf === "rows") BD.shelfRows.push({ col: col });
     else BD.shelfCols.push({ col: col, agg: bdFieldKind(col) === "Numeric" ? "sum" : null });
@@ -159,6 +161,128 @@
     BD.shelfRows = BD.shelfRows.filter(function (f) { return f.col !== col; });
     render();
   }
+  // ---------- filters (slice 3) ----------
+  // A filter narrows the SOURCE rows before anything computes — the pivot, every
+  // chart basis, and the status row count all see the same filtered set. Two
+  // kinds, picked by the field's guessed type: "in" (a value multi-select;
+  // values:null means "everything" — a freshly added filter is a no-op until
+  // edited) and "range" (numeric min/max; an empty bound is unbounded).
+  function bdAddFilter(col) {
+    if (!BD.run || BD.run.cols.indexOf(col) < 0) return;
+    if (BD.filters.some(function (f) { return f.col === col; })) return;
+    var numeric = bdFieldKind(col) === "Numeric";
+    BD.filters.push(numeric ? { col: col, kind: "range", min: "", max: "" } : { col: col, kind: "in", values: null });
+    render();
+  }
+  function bdRemoveFilter(col) {
+    BD.filters = BD.filters.filter(function (f) { return f.col !== col; });
+    render();
+  }
+  function bdFilterActive(f) {
+    if (f.kind === "range") return f.min !== "" || f.max !== "";
+    return Array.isArray(f.values);
+  }
+  function bdFilterSummary(f) {
+    if (!bdFilterActive(f)) return "all";
+    if (f.kind === "range") {
+      if (f.min !== "" && f.max !== "") return f.min + " – " + f.max;
+      return f.min !== "" ? "≥ " + f.min : "≤ " + f.max;
+    }
+    return f.values.length + " value" + (f.values.length === 1 ? "" : "s");
+  }
+  function bdFilteredRows() {
+    if (!BD.run) return [];
+    var active = BD.filters.filter(bdFilterActive);
+    if (!active.length) return BD.run.rows;
+    var idx = {};
+    BD.run.cols.forEach(function (c, i) { idx[c] = i; });
+    return BD.run.rows.filter(function (r) {
+      return active.every(function (f) {
+        var v = r[idx[f.col]];
+        if (f.kind === "range") {
+          var num = parseFloat(String(v));
+          if (isNaN(num)) return false;
+          if (f.min !== "" && num < parseFloat(f.min)) return false;
+          if (f.max !== "" && num > parseFloat(f.max)) return false;
+          return true;
+        }
+        return f.values.indexOf(String(v)) >= 0;
+      });
+    });
+  }
+  // Distinct values of a column across the UNFILTERED rows (so the editor always
+  // offers the full universe), capped for sanity.
+  function bdDistinct(col) {
+    if (!BD.run) return [];
+    var i = BD.run.cols.indexOf(col), seen = {}, out = [];
+    if (i < 0) return out;
+    BD.run.rows.forEach(function (r) {
+      var v = String(r[i]);
+      if (!seen[v]) { seen[v] = true; out.push(v); }
+    });
+    out.sort();
+    return out.slice(0, 200);
+  }
+  function openFilterEditor(f) {
+    D.modal("Filter · " + f.col, function (b) {
+      var wrap = D.el("div", "bd-flt");
+      if (f.kind === "range") {
+        var row = D.el("div"); row.style.cssText = "display:flex;gap:10px;align-items:center";
+        var minI = D.el("input"); minI.type = "number"; minI.value = f.min; minI.placeholder = "min (blank = any)"; minI.setAttribute("aria-label", "Minimum");
+        var dash = D.el("span"); dash.textContent = "–"; dash.style.color = "var(--faint)";
+        var maxI = D.el("input"); maxI.type = "number"; maxI.value = f.max; maxI.placeholder = "max (blank = any)"; maxI.setAttribute("aria-label", "Maximum");
+        row.appendChild(minI); row.appendChild(dash); row.appendChild(maxI);
+        wrap.appendChild(row);
+        var foot = D.el("div"); foot.style.cssText = "display:flex;justify-content:flex-end;gap:8px;margin-top:14px";
+        var clear = D.el("button", "btn"); clear.type = "button"; clear.textContent = "Clear";
+        var apply = D.el("button", "btn primary"); apply.type = "button"; apply.textContent = "Apply";
+        clear.onclick = function () { f.min = ""; f.max = ""; wrap.closest(".modal-ov").remove(); render(); };
+        apply.onclick = function () { f.min = minI.value.trim(); f.max = maxI.value.trim(); wrap.closest(".modal-ov").remove(); render(); };
+        foot.appendChild(clear); foot.appendChild(apply);
+        wrap.appendChild(foot);
+      } else {
+        var vals = bdDistinct(f.col);
+        var picked = Array.isArray(f.values) ? f.values.slice() : vals.slice(); // "all" edits as everything checked
+        var search = D.el("input", "search"); search.type = "search"; search.placeholder = "Filter values…"; search.setAttribute("aria-label", "Filter the value list");
+        wrap.appendChild(search);
+        var listBox = D.el("div", "bd-flt-list");
+        wrap.appendChild(listBox);
+        function paint() {
+          var q = (search.value || "").toLowerCase();
+          listBox.innerHTML = "";
+          vals.filter(function (v) { return !q || v.toLowerCase().indexOf(q) >= 0; }).forEach(function (v) {
+            var lab = D.el("label", "bd-flt-row");
+            var cb = D.el("input"); cb.type = "checkbox"; cb.checked = picked.indexOf(v) >= 0; cb.value = v;
+            cb.onchange = function () {
+              if (cb.checked) { if (picked.indexOf(v) < 0) picked.push(v); }
+              else picked = picked.filter(function (x) { return x !== v; });
+            };
+            var tx = D.el("span"); tx.textContent = v;
+            lab.appendChild(cb); lab.appendChild(tx); listBox.appendChild(lab);
+          });
+        }
+        search.oninput = paint;
+        paint();
+        var foot2 = D.el("div"); foot2.style.cssText = "display:flex;justify-content:space-between;gap:8px;margin-top:14px";
+        var bulk = D.el("div"); bulk.style.cssText = "display:flex;gap:8px";
+        var allB = D.el("button", "btn"); allB.type = "button"; allB.textContent = "All";
+        var noneB = D.el("button", "btn"); noneB.type = "button"; noneB.textContent = "None";
+        allB.onclick = function () { picked = vals.slice(); paint(); };
+        noneB.onclick = function () { picked = []; paint(); };
+        bulk.appendChild(allB); bulk.appendChild(noneB);
+        var apply2 = D.el("button", "btn primary"); apply2.type = "button"; apply2.textContent = "Apply";
+        apply2.onclick = function () {
+          // everything checked = back to the "all" no-op state, not a frozen value list
+          f.values = picked.length === vals.length ? null : picked.slice();
+          wrap.closest(".modal-ov").remove(); render();
+        };
+        foot2.appendChild(bulk); foot2.appendChild(apply2);
+        wrap.appendChild(foot2);
+      }
+      b.appendChild(wrap);
+    });
+  }
+
   // ⇄ — move a field to the other shelf. Rows-shelf fields are always
   // dimensions; a numeric moved back to Columns regains its SUM default.
   function bdMoveField(col) {
@@ -343,12 +467,12 @@
   }
   function chartBasis(type) {
     if (!BD.run || chartUnavailable(type)) return null;
-    var m = bdFirstMeasure();
+    var m = bdFirstMeasure(), rows = bdFilteredRows();
     if (type === "heatmap") {
-      return compute(BD.run.cols, BD.run.rows,
+      return compute(BD.run.cols, rows,
         [{ col: BD.shelfRows[0].col, agg: null }, { col: bdColsDim().col, agg: null }, m], []);
     }
-    return compute(BD.run.cols, BD.run.rows, [{ col: bdFirstDim().col, agg: null }, m], []);
+    return compute(BD.run.cols, rows, [{ col: bdFirstDim().col, agg: null }, m], []);
   }
   // The live chart preview is the REAL dashboard renderer — the same
   // buildHtml(spec, assets, { preview, mock }) srcdoc-iframe path Explore's
@@ -448,6 +572,26 @@
       ? BD.shelfRows.map(function (f) { return fieldChipHtml(f, "rows"); }).join("")
       : '<span class="bd-shelf-hint">Drop a field here to pivot — its values become the result’s rows</span>';
 
+    // Filters shelf (slice 3): chips summarize each filter; the ＋ select is the
+    // explicit, mobile-friendly add path next to drag-and-drop.
+    var shelfF = $("#bdShelfFilters", sec);
+    if (shelfF) {
+      var fltChips = BD.filters.map(function (f) {
+        return '<span class="bd-chip bd-filter' + (bdFilterActive(f) ? " active" : "") + '" data-bd-flt="' + esc(f.col) + '">' +
+          '<button type="button" class="bd-flt-edit" data-bd-flt-edit="' + esc(f.col) + '" title="Edit filter" aria-label="Edit filter on ' + esc(f.col) + '">' +
+          '<span class="bd-chip-nm">' + esc(f.col) + '</span><span class="bd-flt-sum">' + esc(bdFilterSummary(f)) + "</span></button>" +
+          '<button type="button" class="bd-chip-rm" data-bd-flt-rm="' + esc(f.col) + '" title="Remove filter" aria-label="Remove filter on ' + esc(f.col) + '">✕</button></span>';
+      }).join("");
+      var addable = BD.run ? BD.run.cols.filter(function (c) { return !BD.filters.some(function (f) { return f.col === c; }); }) : [];
+      var addSel = BD.run
+        ? '<select class="bd-flt-add" id="bdFilterAdd" aria-label="Add a filter">' +
+            '<option value="">＋ Add filter…</option>' +
+            addable.map(function (c) { return '<option value="' + esc(c) + '">' + esc(c) + "</option>"; }).join("") +
+          "</select>"
+        : "";
+      shelfF.innerHTML = (fltChips || (BD.run ? "" : '<span class="bd-shelf-hint">Filters narrow the source rows before anything computes</span>')) + addSel;
+    }
+
     // chart-type strip (slice 2)
     var strip = $("#bdCharts", sec);
     if (strip) {
@@ -463,16 +607,20 @@
       }).join("");
     }
 
-    // CENTER — status + result
+    // CENTER — status + result (both computed over the FILTERED source rows)
     var status = $("#buildStatus", sec), result = $("#buildResult", sec);
-    var res = BD.run ? compute(BD.run.cols, BD.run.rows, BD.shelfCols, BD.shelfRows) : null;
+    var srcRows = BD.run ? bdFilteredRows() : [];
+    var res = BD.run ? compute(BD.run.cols, srcRows, BD.shelfCols, BD.shelfRows) : null;
     if (status) {
       if (!BD.run) status.innerHTML = "";
       else {
         var badge = BD.run.live
           ? '<span class="bd-badge live">live</span>'
           : '<span class="bd-badge sample" title="Typed sample rows that show the shape — not your data">sample rows</span>';
-        status.innerHTML = '<b>' + esc(BD.dsName) + '</b> <small>' + esc(BD.dsSub) + " · " + BD.run.rows.length + " source rows</small> " + badge +
+        var rowCount = srcRows.length === BD.run.rows.length
+          ? BD.run.rows.length + " source rows"
+          : srcRows.length + " of " + BD.run.rows.length + " source rows (filtered)";
+        status.innerHTML = '<b>' + esc(BD.dsName) + '</b> <small>' + esc(BD.dsSub) + " · " + rowCount + "</small> " + badge +
           (BD.run.error ? ' <span class="bd-badge warn">' + esc(BD.run.error) + "</span>" : "");
       }
     }
@@ -573,6 +721,23 @@
         render();
       };
     });
+    $$("[data-bd-flt-edit]", sec).forEach(function (btn) {
+      btn.onclick = function () {
+        var f = BD.filters.filter(function (x) { return x.col === btn.getAttribute("data-bd-flt-edit"); })[0];
+        if (f) openFilterEditor(f);
+      };
+    });
+    $$("[data-bd-flt-rm]", sec).forEach(function (btn) {
+      btn.onclick = function () { bdRemoveFilter(btn.getAttribute("data-bd-flt-rm")); };
+    });
+    var fltAdd = $("#bdFilterAdd", sec);
+    if (fltAdd) fltAdd.onchange = function () {
+      var col = fltAdd.value;
+      if (!col) return;
+      bdAddFilter(col);
+      var f = BD.filters.filter(function (x) { return x.col === col; })[0];
+      if (f) openFilterEditor(f); // adding from the select jumps straight into editing
+    };
   }
 
   // ---------- New / Save / Load ----------
@@ -581,9 +746,9 @@
   function bdSave() {
     // The saved View's da/chart follow the SELECTED chart type: charts save their
     // basis table (so newPanel's defaults keep mapping it everywhere), the table
-    // type saves the full pivot's columns.
+    // type saves the full pivot's columns. Both compute over the filtered rows.
     var res = BD.chartType === "table"
-      ? (BD.run ? compute(BD.run.cols, BD.run.rows, BD.shelfCols, BD.shelfRows) : null)
+      ? (BD.run ? compute(BD.run.cols, bdFilteredRows(), BD.shelfCols, BD.shelfRows) : null)
       : chartBasis(BD.chartType);
     if (!res || !res.head.length) { toast("Nothing to save yet — put a field on a shelf first.", true); return; }
     D.modal(BD.analysisId ? "Update View" : "Save View", function (b) {
@@ -611,7 +776,8 @@
           name: name, folder: BD.folder || "", chartType: BD.chartType, da: da, chart: chart,
           builder: {
             dsKind: BD.dsKind, dsId: BD.dsId, chartType: BD.chartType,
-            shelfCols: Studio.clone(BD.shelfCols), shelfRows: Studio.clone(BD.shelfRows)
+            shelfCols: Studio.clone(BD.shelfCols), shelfRows: Studio.clone(BD.shelfRows),
+            filters: Studio.clone(BD.filters)
           }
         };
         if (BD.analysisId) row.id = BD.analysisId;
@@ -640,6 +806,7 @@
       if (!BD.run) { toast("This View’s source dataset is gone — pick another to rebuild it.", true); render(); return; }
       BD.shelfCols = Studio.clone(b.shelfCols || []);
       BD.shelfRows = Studio.clone(b.shelfRows || []);
+      BD.filters = Studio.clone(b.filters || []);
       BD.chartType = b.chartType || "table";
       render();
     });
@@ -653,5 +820,6 @@
     newView: bdNew,
     state: BD             // test hook (also window.__studioBuild below)
   };
-  window.__studioBuild = { state: BD, addField: bdAddField, selectDataset: bdSelectDataset, save: bdSave, load: bdLoad };
+  window.__studioBuild = { state: BD, addField: bdAddField, selectDataset: bdSelectDataset, save: bdSave, load: bdLoad,
+    addFilter: bdAddFilter, filteredRows: bdFilteredRows, rerender: render };
 })();

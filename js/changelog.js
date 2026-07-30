@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 734,
+    title: 'The View Builder gains a Filters shelf',
+    kind: 'feature',
+    ts: '2026-07-30T02:34:07.000Z',
+    items: [
+      'A third shelf in Build narrows your source rows before anything computes — the pivot, every chart, and the status row count all see the same filtered set.',
+      'Text fields filter by a searchable value checklist (All / None / pick), numeric fields by a min–max range. A fresh filter is an honest "all" no-op until you edit it; active filters highlight their chip and the status line reads "N of M source rows (filtered)".',
+      'Filters save with the View and come back still applied when you reopen it.',
+    ],
+  },
+  {
     v: 733,
     title: 'Dashboards toolbar gets a "+ New dashboard" button and a tidier layout',
     kind: 'polish',

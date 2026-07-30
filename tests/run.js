@@ -9526,6 +9526,75 @@ function serve() {
     ok("#117 (2): reopening a chart View restores the chart type and renders it straight away",
       bdChartReopen.chartType === "bars" && bdChartReopen.iframe && bdChartReopen.activeBtn === "bars",
       JSON.stringify(bdChartReopen));
+    // 7. slice 3 — the Filters shelf narrows the source rows before anything computes
+    const bdFilter = await page.evaluate(async () => {
+      const B = window.__studioBuild;
+      const out = { total: B.state.run.rows.length };
+      out.addSelect = !!document.getElementById("bdFilterAdd");
+      // a fresh "in" filter is an honest no-op ("all") until edited
+      B.addFilter("region");
+      await new Promise((r) => setTimeout(r, 60));
+      out.chipAll = (document.querySelector(".bd-flt-sum") || {}).textContent;
+      out.noopCount = B.filteredRows().length;
+      // narrow to ONE value through the editor UI itself (None → check first → Apply)
+      document.querySelector('[data-bd-flt-edit="region"]').click();
+      await new Promise((r) => setTimeout(r, 120));
+      const m = document.querySelector(".modal-ov .bd-flt");
+      out.editorRows = m ? m.querySelectorAll(".bd-flt-row").length : 0;
+      [].slice.call(m.querySelectorAll("button")).find((b) => b.textContent === "None").click();
+      const firstCb = m.querySelector(".bd-flt-row input");
+      firstCb.click();
+      out.pickedVal = firstCb.value;
+      [].slice.call(m.querySelectorAll("button")).find((b) => b.textContent === "Apply").click();
+      await new Promise((r) => setTimeout(r, 100));
+      const idx = B.state.run.cols.indexOf("region");
+      out.expected = B.state.run.rows.filter((r) => String(r[idx]) === out.pickedVal).length;
+      out.filtered = B.filteredRows().length;
+      out.chipActive = !!document.querySelector(".bd-chip.bd-filter.active");
+      out.statusFiltered = /\(filtered\)/.test(document.getElementById("buildStatus").textContent);
+      // a numeric range filter stacks on top; an impossible min filters everything out
+      B.addFilter("amount");
+      await new Promise((r) => setTimeout(r, 60));
+      const rf = B.state.filters.filter((f) => f.col === "amount")[0];
+      out.rangeKind = rf && rf.kind;
+      rf.min = "999999999"; B.rerender();
+      await new Promise((r) => setTimeout(r, 80));
+      out.rangeZero = B.filteredRows().length;
+      rf.min = ""; B.rerender();
+      await new Promise((r) => setTimeout(r, 60));
+      return out;
+    });
+    ok("#117 (3): a fresh filter is an 'all' no-op; the ＋ Add select is the mobile-friendly add path",
+      bdFilter.addSelect && bdFilter.chipAll === "all" && bdFilter.noopCount === bdFilter.total, JSON.stringify(bdFilter));
+    ok("#117 (3): the value editor (None → pick one → Apply) narrows the source rows to exactly that value's count, chip goes active",
+      bdFilter.editorRows > 0 && bdFilter.filtered === bdFilter.expected && bdFilter.chipActive &&
+      (bdFilter.filtered === bdFilter.total || bdFilter.statusFiltered),
+      JSON.stringify(bdFilter));
+    ok("#117 (3): a numeric field filters as a range — an impossible min leaves zero rows",
+      bdFilter.rangeKind === "range" && bdFilter.rangeZero === 0, JSON.stringify(bdFilter));
+    const bdFilterSave = await page.evaluate(async (savedId) => {
+      window.__studioBuild.save();
+      await new Promise((r) => setTimeout(r, 120));
+      const m = document.querySelector(".modal-ov .bd-save");
+      [].slice.call(m.querySelectorAll("button")).filter((b) => /^(Save|Update)$/.test(b.textContent))[0].click();
+      await new Promise((r) => setTimeout(r, 120));
+      const row = window.Studio.Workspace.get("analyses", savedId);
+      const savedFilters = (row.builder.filters || []).map((f) => f.col + ":" + f.kind).join(",");
+      window.Studio.Build.newView();
+      window.Studio.Build.load(savedId);
+      await new Promise((r) => setTimeout(r, 500));
+      const st = window.__studioBuild.state;
+      return {
+        savedFilters,
+        restored: st.filters.map((f) => f.col + ":" + f.kind).join(","),
+        restoredNarrow: Array.isArray(st.filters[0] && st.filters[0].values),
+        statusFiltered: /\(filtered\)/.test(document.getElementById("buildStatus").textContent),
+      };
+    }, bdSave.id);
+    ok("#117 (3): filters persist on the View's builder blob and reopen still-applied",
+      bdFilterSave.savedFilters === "region:in,amount:range" && bdFilterSave.restored === "region:in,amount:range" &&
+      bdFilterSave.restoredNarrow && bdFilterSave.statusFiltered,
+      JSON.stringify(bdFilterSave));
     // cleanup + restore the section the next block expects
     await page.evaluate((savedId) => {
       const st = window.__studioBuild.state;
