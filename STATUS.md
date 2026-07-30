@@ -7576,6 +7576,21 @@
 >       title (double-click to rename, like dashboard panel titles), stored separately
 >       (e.g. view.panelTitle), defaulting to — and tracking — the View name until the
 >       user overrides it; used wherever the View lands on a dashboard.
+> CONS-0. **Conservation sample data: positive, realistic trends + fix the %-scale bug
+>       (Kevin live, 2026-07-30, screenshot of "Practice Mix by Year").** (1) "Provide
+>       upward trends on data that is good — positive adoption — instead of negative
+>       adoption. Be realistic where you can, but avoid big downward charts like this
+>       one." Regenerate the synthetic conservation series so the STORY is right:
+>       cover-crop / no-till / reduced-tillage adoption RISES over the years (gentle,
+>       realistic slopes with noise); Conventional declining is the one legitimate
+>       downward series (it IS the positive story) — but the chart shouldn't read as
+>       everything collapsing. (2) SCALE BUG: the stacked area's y-axis reaches 500% —
+>       percent values are being SUMmed across counties/rows. "I don't think you can
+>       have 375% — maybe the metric should be a mean or a median." Fix the aggregation
+>       for pct-typed metrics to MEAN (or model practice shares that sum to ~100% per
+>       year) everywhere the pack's %-metrics aggregate — audit every conservation
+>       dashboard/View for the same sum-of-percent mistake. Folds naturally into CONS-1
+>       (below) but ship the data+aggregation fix first — it's live-visible today.
 > CONS-1. **Conservation pack ↔ real CTIC reference dashboards (Kevin live, 2026-07-30,
 >       three reference screenshots — CLAIMED by the dedicated session).** Make the
 >       Conservation sample-pack dashboards look "immediately as close as possible" to the
