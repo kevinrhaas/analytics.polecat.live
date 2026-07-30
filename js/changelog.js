@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 757,
+    title: 'Help gets real screenshots',
+    kind: 'polish',
+    ts: '2026-07-30T14:15:41.000Z',
+    items: [
+      'Eight real-app captures now illustrate the guide — the left rail’s three groups, the top bar, Quick import, the View Builder, the Dashboard theme picker, the Views catalog, Repository’s folder tree, and the Color theme picker.',
+      'Click any screenshot to zoom it in a dismissible overlay (click anywhere or press Esc to close).',
+    ],
+  },
+  {
     v: 756,
     title: 'Select multiple connections for bulk delete',
     kind: 'feature',

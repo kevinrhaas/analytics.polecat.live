@@ -285,6 +285,9 @@ function handleMockSupabase(req, rep, p) {
   // — simulating a token that went stale server-side. A read with Auth creds
   // should refresh + retry and end up 200; an anon-only read should just fail.
   if (rel === "rest/v1/__armtokenflap") { mockTokenFlaps = 2; return send(200, []); }
+  // Drain any un-consumed flaps — a later test that signs in for real must never
+  // inherit a leftover invalid_grant from #111's arm (the LF39 direct-auth flake).
+  if (rel === "rest/v1/__cleartokenflap") { mockTokenFlaps = 0; return send(200, []); }
   if (rel === "rest/v1/__flaky_reset") { mockFlakyServed = 0; return send(200, []); }
   if (rel === "rest/v1/__flaky") {
     mockFlakyServed++;
@@ -14517,6 +14520,12 @@ function serve() {
     // adopts the local account carrying that auth uid. (pullNow, a sync detail unrelated to auth, is
     // stubbed to a no-op so the seeded mirror row survives; the real GoTrue auth + gate branch +
     // adopt/login are all exercised end-to-end.)
+    // Drain any leftover armed token flaps FIRST — #111's __armtokenflap sets the
+    // mock GoTrue to reject the next 2 sign-ins; under load this page's boot
+    // sign-in (or the submit below) inherited one, the gate showed
+    // invalid_grant, and the check flaked with gateGone:false (the 2026-07-30
+    // repeat offender). The mock's failure budget must be zero here.
+    await fetch(`http://localhost:${PORT}/__supabase/rest/v1/__cleartokenflap`, { headers: { apikey: "sb_publishable_valid" } });
     const gpDirect = await browser.newPage({ viewport: { width: 1200, height: 900 } });
     gpDirect.on("pageerror", (e) => errors.push("LF39 direct-auth page: " + e.message));
     await gpDirect.addInitScript((port) => {
@@ -14532,11 +14541,18 @@ function serve() {
     await gpDirect.fill("#g-user", "owner@example.com");
     await gpDirect.fill("#g-pass", "secret123");
     await gpDirect.click("#g-form button[type=submit]");
-    await gpDirect.waitForTimeout(700);
+    // The GoTrue verify is an async fetch → adopt → gate teardown chain; a fixed
+    // 700ms sleep flaked under load (2026-07-30, three sightings in one day) —
+    // wait for the gate to actually go, then assert. Same condition, no longer
+    // racing the event loop; the 6s cap still fails honestly if auth breaks.
+    await gpDirect.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 6000 }).catch(() => {});
+    await gpDirect.waitForTimeout(100);
     const directAuthed = await gpDirect.evaluate(() => ({
       gateGone: !document.querySelector("#studio-gate"),
       who: (window.PolecatAuth.current() || {}).u,
-      gotrueId: (window.PolecatAuth.find("gtmate") || {}).gotrueId
+      gotrueId: (window.PolecatAuth.find("gtmate") || {}).gotrueId,
+      // diagnosis payload — on a failure, the gate's own error text says WHY
+      gateErr: (document.getElementById("g-err") || {}).textContent || ""
     }));
     await gpDirect.close();
     ok("LF39/M7: a fresh-device teammate signs in with their email straight against the backend's GoTrue and is adopted as the matching local account",
@@ -22684,6 +22700,43 @@ function serve() {
     ok("LIVE-e: toggling dark/light while Help is open re-themes it immediately (no stale palette)",
       docsThemeFlow.modeMirrored && docsThemeFlow.bgModeChanged && docsThemeFlow.restored,
       JSON.stringify(docsThemeFlow));
+    // LIVE-e part 3: the 8 screenshot slots are FILLED — every .fig-slot carries
+    // has-img with a real docs/img/*.png that actually loads (naturalWidth > 0),
+    // no empty placeholder slots remain, and clicking one opens the dismissible
+    // zoom lightbox (click closes it again).
+    const docsFigs = await page.evaluate(async function () {
+      var f = document.getElementById("docsFrame");
+      var doc = f.contentDocument;
+      var slots = [].slice.call(doc.querySelectorAll(".fig-slot"));
+      var out = { total: slots.length, filled: slots.filter(function (s) { return s.classList.contains("has-img") && s.querySelector("img"); }).length };
+      var imgs = [].slice.call(doc.querySelectorAll(".fig-slot.has-img img"));
+      // the figures are loading="lazy" (offscreen ones never fetch), so probe each
+      // src with an eager Image — proves every capture exists and decodes
+      await Promise.all(imgs.map(function (im) {
+        return new Promise(function (r) {
+          var probe = new f.contentWindow.Image();
+          probe.onload = function () { im.__probeOk = probe.naturalWidth > 0; r(); };
+          probe.onerror = function () { im.__probeOk = false; r(); };
+          probe.src = im.src;
+          setTimeout(function () { if (im.__probeOk === undefined) { im.__probeOk = false; r(); } }, 4000);
+        });
+      }));
+      out.allLoaded = imgs.length > 0 && imgs.every(function (im) { return im.__probeOk; });
+      // lightbox round trip
+      imgs[0].scrollIntoView();
+      imgs[0].click();
+      await new Promise(function (r) { setTimeout(r, 100); });
+      var zoom = doc.querySelector(".fig-zoom");
+      out.zoomOpened = !!(zoom && zoom.querySelector("img"));
+      if (zoom) zoom.click();
+      await new Promise(function (r) { setTimeout(r, 100); });
+      out.zoomClosed = !doc.querySelector(".fig-zoom");
+      return out;
+    });
+    ok("LIVE-e (3): all 8 Help screenshot slots are filled with real captures that load, and none remain hidden placeholders",
+      docsFigs.total === 8 && docsFigs.filled === 8 && docsFigs.allLoaded, JSON.stringify(docsFigs));
+    ok("LIVE-e (3): clicking a Help screenshot opens the zoom lightbox and clicking again dismisses it",
+      docsFigs.zoomOpened && docsFigs.zoomClosed, JSON.stringify(docsFigs));
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
 
     // J-docs-2: docs/index.html is served (HTTP 200) by the test server

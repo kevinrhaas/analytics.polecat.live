@@ -146,6 +146,13 @@
     .fig-slot.has-img{display:block;margin:14px 0 18px}
     .fig-slot.has-img img{max-width:100%;border:1px solid var(--line);border-radius:10px;cursor:zoom-in}
     .fig-slot.has-img figcaption{font-size:12px;color:var(--faint);margin-top:6px}
+    /* LIVE-e part 3: click-to-zoom lightbox for the filled screenshot slots */
+    .fig-zoom{position:fixed;inset:0;z-index:80;background:rgba(10,10,14,.82);display:flex;
+      align-items:center;justify-content:center;padding:32px;cursor:zoom-out}
+    .fig-zoom img{max-width:min(1400px,94vw);max-height:92vh;border-radius:12px;
+      box-shadow:0 24px 80px rgba(0,0,0,.5);background:#fff}
+    .fig-zoom-x{position:fixed;top:14px;right:18px;border:0;background:none;color:#fff;
+      font-size:26px;cursor:pointer;line-height:1;padding:8px}
     ul{margin:6px 0 12px 18px}
     li{font-size:14px;color:var(--faint);margin-bottom:5px;line-height:1.6}
     li strong{color:var(--fg)}
@@ -288,7 +295,7 @@
   <h3>The left rail — three groups</h3>
   <!-- IMAGE-SLOT: annotated screenshot of the left rail with the three group labels
        (Workspace / Build / Manage) highlighted and the backend indicator circled. -->
-  <figure class="fig-slot"><figcaption>The left rail's three groups</figcaption></figure>
+  <figure class="fig-slot has-img"><img src="img/rail.png" alt="The left rail: Workspace, Build, and Manage groups, with the workspace backend indicator" loading="lazy"/><figcaption>The left rail's three groups</figcaption></figure>
   <ul>
     <li><strong>Workspace</strong> — the things you have: <strong>Home</strong>, <strong>Views</strong>,
       <strong>Dashboards</strong>, <strong>Datasets</strong>, <strong>Connections</strong>,
@@ -329,7 +336,7 @@
   <h3>The top bar</h3>
   <!-- IMAGE-SLOT: the global top bar at desktop width, with callouts on the section
        name (left), the ⌘K search (center), and the right-hand quick-action cluster. -->
-  <figure class="fig-slot"><figcaption>The global top bar</figcaption></figure>
+  <figure class="fig-slot has-img"><img src="img/topbar.png" alt="The global top bar: section name left, search center, quick actions right" loading="lazy"/><figcaption>The global top bar</figcaption></figure>
   <p>The top bar stays put across every section:</p>
   <ul>
     <li><strong>Left</strong> — the name of the section you're in.</li>
@@ -345,7 +352,7 @@
   <h3>Quick import — file to dashboard in one drop</h3>
   <!-- IMAGE-SLOT: a CSV file being dragged onto Home's Quick import card, plus the
        resulting auto-built dashboard open in the builder. -->
-  <figure class="fig-slot"><figcaption>Quick import: drop a file, get a dashboard</figcaption></figure>
+  <figure class="fig-slot has-img"><img src="img/quickimport.png" alt="Home&#8217;s quick-action cards, with Quick import highlighted as a file drop target" loading="lazy"/><figcaption>Quick import: drop a file, get a dashboard</figcaption></figure>
   <p>Home's <strong>Quick import</strong> card is the fastest way in with your own data. Drop a
   <code>.csv</code> or <code>.json</code> onto it (or click to browse) and the app:</p>
   <ul>
@@ -564,7 +571,7 @@
   <h2 id="build">View Builder — pivot and crosstab, no code</h2>
   <!-- IMAGE-SLOT: the View Builder with a dataset selected — folder tree on the left,
        a field pill on Columns and Rows, and a crosstab rendering in the middle. -->
-  <figure class="fig-slot"><figcaption>The View Builder</figcaption></figure>
+  <figure class="fig-slot has-img"><img src="img/viewbuilder.png" alt="The View Builder: dataset outline on the left, fields on the Columns and Rows shelves, the live result in the middle" loading="lazy"/><figcaption>The View Builder</figcaption></figure>
   <p><strong>Views</strong> (left rail, Build group) is Quick Views' power-user sibling: a visual
   pivot/crosstab query builder.</p>
   <h4>The dataset navigator (left panel)</h4>
@@ -828,9 +835,10 @@
   </ul>
 
   <h3>Dashboard theme</h3>
-  <!-- IMAGE-SLOT: the Dashboard theme picker open, with the same dashboard shown in
-       two or three themes side by side (e.g. Polecat, Neon, High Contrast). -->
-  <figure class="fig-slot"><figcaption>One dashboard, three themes</figcaption></figure>
+  <!-- IMAGE-SLOT (filled by tools/snap-docs.mjs): the Dashboard settings inspector
+       with the Dashboard theme / Accent color / Series palette controls beside a
+       real dashboard preview. -->
+  <figure class="fig-slot has-img"><img src="img/dashtheme.png" alt="The Dashboard settings inspector: Dashboard theme, Accent color, and Series palette swap the whole look in one pick" loading="lazy"/><figcaption>The Dashboard theme picker — one pick swaps the whole look</figcaption></figure>
   <p>At the top of the style section, the <strong>Dashboard theme</strong> picker swaps the
   <em>whole</em> look — background, View, text, brand, and all ten chart series colors — in one
   click, for the preview and the exported dashboard alike. Every curated theme's series palette is
@@ -1454,7 +1462,7 @@
   <h3>Views — browse your saved charts</h3>
   <!-- IMAGE-SLOT: the Views section in list mode showing chart-type icons, folder
        badges, and one row's hover action cluster (pin / private / add / delete). -->
-  <figure class="fig-slot"><figcaption>The Views catalog</figcaption></figure>
+  <figure class="fig-slot has-img"><img src="img/views.png" alt="The Views catalog: chart-type icons, folder badges, and per-row actions" loading="lazy"/><figcaption>The Views catalog</figcaption></figure>
   <p>The <strong>Views</strong> section is the browse/manage catalog for every View you've saved —
   a reusable chart, KPI, pivot, or map. The builders (Quick Views and the View Builder) are where
   you make and edit one; Views is where you find it again. Search by name, narrow by chart type or
@@ -1485,7 +1493,7 @@
   <h3>Repository — search the whole workspace</h3>
   <!-- IMAGE-SLOT: the Repository page showing the kind chip strip, an expanded nested
        folder (e.g. Finance/2024), and a row's hover pencil quick-edit button. -->
-  <figure class="fig-slot"><figcaption>Repository: every object, one tree</figcaption></figure>
+  <figure class="fig-slot has-img"><img src="img/repository.png" alt="Repository: the kind chip strip and the nested folder tree over every workspace object" loading="lazy"/><figcaption>Repository: every object, one tree</figcaption></figure>
   <p>The <strong>Repository</strong> section is one searchable view of <em>every</em> object in your
   workspace — dashboards, datasets, connections, analyses, and jobs — with a chip strip to narrow to
   one kind (each with a running count). It's the fastest way to find one specific thing once a
@@ -1816,7 +1824,7 @@
   <h3>Color theme</h3>
   <!-- IMAGE-SLOT: the Settings Appearance card with the seven Color-theme palette
        cards visible and one active (checkmark showing). -->
-  <figure class="fig-slot"><figcaption>The Color theme picker</figcaption></figure>
+  <figure class="fig-slot has-img"><img src="img/colortheme.png" alt="The Settings Color theme picker — seven palette cards, each previewing its real colors" loading="lazy"/><figcaption>The Color theme picker</figcaption></figure>
   <p>The <strong>Appearance</strong> card on the Settings page has a <strong>Color theme</strong>
   picker (separate from the Dark mode switch) — clickable palette cards, each previewing its own
   actual chrome colors so you pick by looking. It offers the same seven looks as the Dashboard
@@ -1952,6 +1960,38 @@
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
     e.preventDefault();
     input.focus();
+  });
+})();
+</script>
+<script>
+/* LIVE-e part 3: click a screenshot to zoom it in a dismissible overlay
+   (click anywhere, the ✕, or Esc closes). */
+(function () {
+  "use strict";
+  document.addEventListener("click", function (e) {
+    var img = e.target.closest(".fig-slot.has-img img");
+    if (img) {
+      var ov = document.createElement("div");
+      ov.className = "fig-zoom";
+      ov.setAttribute("role", "dialog");
+      ov.setAttribute("aria-label", img.alt || "Screenshot");
+      var big = document.createElement("img");
+      big.src = img.src; big.alt = img.alt || "";
+      var x = document.createElement("button");
+      x.className = "fig-zoom-x"; x.type = "button";
+      x.setAttribute("aria-label", "Close"); x.textContent = "\u2715";
+      ov.appendChild(big); ov.appendChild(x);
+      document.body.appendChild(ov);
+      return;
+    }
+    var open = e.target.closest(".fig-zoom");
+    if (open) open.remove();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+      var ov = document.querySelector(".fig-zoom");
+      if (ov) ov.remove();
+    }
   });
 })();
 </script>
