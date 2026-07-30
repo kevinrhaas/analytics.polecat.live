@@ -1501,6 +1501,14 @@ body.lib-dragging #preview{pointer-events:none}
 .bd-ct-ic{display:inline-flex;align-items:center}
 .bd-ct-tbl{font-size:var(--fs-13);color:var(--faint)}
 .bd-ifr{width:100%;height:min(62vh,540px);border:1px solid var(--line);border-radius:12px;background:var(--pane)}
+/* VB-10: the Map chart type's Region scale — no control existed before, so a map
+   silently rode newPanel's "county" default regardless of what the data's id
+   column actually held. Sits with the chart-type strip, only shown for Map. */
+.bd-map-opts[hidden]{display:none}
+.bd-map-opts{margin:0 0 var(--sp-8)}
+.bd-map-scale{display:flex;align-items:center;gap:8px;font-size:var(--fs-12);color:var(--muted)}
+.bd-map-scale select{border:1px solid var(--line);border-radius:8px;background:var(--field);
+  color:var(--ink);padding:5px var(--sp-8);font-size:var(--fs-13)}
 /* VB-5: the cross-editor notice — shared look between the View Builder's
    #buildNotice and Quick Views' .xp-cross-note (a soft brand-tinted banner
    with a dismiss ✕; theme-token driven so all 7 app themes × light/dark work). */

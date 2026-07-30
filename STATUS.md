@@ -7726,21 +7726,36 @@
 >       (side-by-side wheels or two overlaid polygons) in the Conservation Insight pack,
 >       foldered + clearly named; (3) keep the CTIC stakeholder story (the wheel is the
 >       at-a-glance "how is the whole system doing" view for policymakers/NGOs).
-> VB-10. ★ **View Builder Map: can't get a map to render (Kevin live, 2026-07-30,
->       screenshot — all-no-data US map).** His setup: SUM Adoption_Pct on Columns,
->       State_FIPS on Rows/Color, Map type — renders the base map with every region
->       "No data". THREE gaps: (1) the builder's Map has NO Region-scale control (it
->       silently defaults to Counties — 2-digit state FIPS match nothing); (2) the map
->       basis should accept the region id from EITHER shelf (his was on Rows) and treat
->       it as the geo role — reuse QV-1's xpGuessRegionScale-style name+value inference
->       to pick the scale automatically, surfaced as a visible "Region scale" select
->       next to the type buttons when Map is active; (3) STATE FIPS NUMERICS: the state
->       scale's geometry is keyed by postal codes ("IA") — accept 2-digit state FIPS
->       ids too (translate FIPS→postal via a small built-in lookup, both directions), so
->       State_FIPS = 17/19/etc. colors IL/IA without the user knowing postal codes.
->       Also: when the map would render all-no-data, say WHY in the panel ("0 of N ids
->       matched the Counties scale — try States") instead of a silent empty map — the
->       honesty affordance that would have made this self-explanatory.
+> VB-10. ✓ **View Builder Map: can't get a map to render (Kevin live, 2026-07-30,
+>       screenshot — all-no-data US map — SHIPPED v773, sw v409, steward).** His
+>       setup: SUM Adoption_Pct on Columns, State_FIPS on Rows/Color, Map type —
+>       rendered the base map with every region "No data", with no way to fix it.
+>       Investigation found gap (3) already solved: `geoNormalizeId` (studio-
+>       charts.js) already translates 2-digit state FIPS to postal both ways via
+>       the vendored `FIPS_POSTAL` table, and gap (2) already solved: `bdFirstDim`
+>       already prefers Rows over Columns for the chart's dimension. The actual
+>       root cause was gap (1) — the builder's Map had NO Region-scale control at
+>       all, so it silently rode `Studio.newPanel`'s Counties default with no way
+>       to change it. Fixed: a "Region scale" select now sits next to the
+>       chart-type strip whenever Map is active (`#bdMapOpts`, wired in
+>       app/build.js), reusing the canonical opts.scale choices from
+>       `Studio.CHARTS.choropleth` (minus Custom regions, which needs an
+>       Inspector-only CSV import the builder has no UI for). It defaults to a
+>       live guess off the picked id column's name/value shape — `xpGuessRegionScale`
+>       moved out of app/explore.js into the shared `Studio.guessRegionScale`
+>       (app/model.js) so Explore's own QV-1 guess and the builder's guess can
+>       never drift; a manual pick always wins after (persisted on the saved
+>       View's `builder.mapScale`/`mapScaleAuto`, restored on reload, carried over
+>       from a foreign Quick-Views choropleth on cross-editor open). Also fixed
+>       the honesty affordance: when a Region scale doesn't match the data's ids
+>       at all, the panel now says "0 of N counties matched this data's region
+>       ids — try a different Region scale" instead of silently drawing an
+>       all-hatch map — and `coverage.covered` (the same number the Sources
+>       popover's "N of N have data" line reads) was ALSO wrong for this exact
+>       case: it counted distinct DATA ids rather than ids that actually matched
+>       a real feature, so the honesty numbers themselves were never trustworthy
+>       for a wrong-scale dataset. app/model.js, app/build.js, app/explore.js,
+>       app/index.html, app/studio.css, app/studio-charts.js, tests/run.js.
 > CONS-4. **Conservation pack Views should be View Builder-native (Kevin live,
 >       2026-07-30).** "I would like all of the default views to be ones from View
 >       Builder in the view list. If the dashboards have views in them that are not

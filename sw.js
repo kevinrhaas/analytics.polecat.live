@@ -5,7 +5,20 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v408"; /* v408: CONS-2 — the Conservation pack seeds a
+var CACHE_NAME = "studio-shell-v409"; /* v409: VB-10 — the View Builder's Map chart
+   type gets a Region scale control (it silently rode newPanel's Counties default
+   before, with no way to change it — a 2-digit state FIPS column against that
+   default rendered an honest but silent all-"No data" map). Auto-guessed from the
+   picked id column's name/value shape (Studio.guessRegionScale in model.js, shared
+   with Explore's own QV-1 guess so both editors infer the same way); a manual pick
+   always wins after. The choropleth renderer also now says WHY when nothing
+   matched ("0 of N counties matched...") instead of drawing a silent all-hatch map
+   — coverage's "covered" count was wrong too, counting distinct data ids rather
+   than features that actually matched a real region, so the honesty numbers were
+   never trustworthy for a wrong-scale dataset either. app/model.js, app/build.js,
+   app/explore.js, app/index.html, app/studio.css, app/studio-charts.js,
+   tests/run.js, STATUS.md, js/changelog.js changed, so precached copies roll.
+   Original v408: CONS-2 — the Conservation pack seeds a
    dedicated Watershed Map dashboard (full-width HUC8 choropleth hero + provider bars,
    foldered, backfilled into existing installs by reconcilePackDashboards), the boot
    reconcile dedupes pack dashboards sharing demoPackId+source (keeps the foldered copy),

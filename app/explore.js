@@ -276,31 +276,10 @@
     return "bars";
   }
   // QV-1 (Kevin live, 2026-07-30): default the map's Region scale from the Region-id
-  // column — its NAME first, then the SHAPE of its first non-empty value when the name
-  // is ambiguous. Only runs when the mapping is (re)guessed (dataset/type pick), so a
-  // manual scale choice afterwards always wins.
-  function xpGuessRegionScale(col, run) {
-    var n = String(col || "").toLowerCase();
-    if (/huc|watershed/.test(n)) return "huc8";
-    if (/congress|(^|_)cd$/.test(n)) return "cd";
-    if (/zip|zcta/.test(n)) return "zcta";
-    if (/crd|district/.test(n)) return "crd";
-    if (/fips|geoid|county/.test(n)) return "county";
-    if (/state|postal/.test(n)) return "state";
-    var cols = (run && run.cols) || [], rows = (run && run.rows) || [];
-    var ci = cols.indexOf(col);
-    if (ci >= 0) {
-      var v = null;
-      for (var i = 0; i < rows.length && v == null; i++) { var x = rows[i][ci]; if (x != null && x !== "") v = String(x); }
-      if (v != null) {
-        if (/^[A-Za-z]{2}$/.test(v)) return "state";   // 2-letter postal
-        if (/^\d{8}$/.test(v)) return "huc8";          // 8-digit HUC
-        if (/^\d{5}$/.test(v)) return "county";        // 5-digit FIPS (zips catch on name above)
-        if (/^\d{4}$/.test(v)) return "crd";           // 4-digit NASS district
-      }
-    }
-    return null;
-  }
+  // column — Studio.guessRegionScale (model.js), shared with the View Builder's Map
+  // opts (VB-10) so both editors infer the same way. Only runs when the mapping is
+  // (re)guessed (dataset/type pick), so a manual scale choice afterwards always wins.
+  function xpGuessRegionScale(col, run) { return Studio.guessRegionScale(col, run); }
   function xpGuessMapping() {
     var cols = (XP.run && XP.run.cols) || [];
     var p = Studio.newPanel(XP.type, { columns: cols });

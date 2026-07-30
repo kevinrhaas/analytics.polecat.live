@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 773,
+    title: 'Map View Builder charts finally get a Region scale — and an honest reason when nothing matches',
+    kind: 'fix',
+    ts: '2026-07-30T19:38:00.000Z',
+    items: [
+      'The View Builder’s Map chart type now shows a Region scale picker (Counties, States, Watersheds, and more) next to the chart-type buttons — it used to silently default to Counties with no way to change it, so a state-level dataset rendered a blank, all-“No data” map.',
+      'The scale is guessed automatically from your id column and updates live as you build; picking one yourself always wins after that, and your choice is saved with the View.',
+      'If a Region scale still doesn’t match your data’s ids, the map now tells you so directly (“0 of N counties matched”) instead of quietly drawing an empty map.',
+    ],
+  },
+  {
     v: 772,
     title: 'A dedicated Watershed Map dashboard — and duplicated pack dashboards heal themselves',
     kind: 'feature',

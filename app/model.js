@@ -2518,6 +2518,35 @@
     return { idCol: idCol, valueCol: valueCol, seriesCol: seriesCol };
   };
 
+  // VB-10 / QV-1: default a choropleth's Region scale from its id column — the
+  // column's NAME first (state/fips/huc/… naming conventions), then the SHAPE of
+  // its first non-empty value when the name is ambiguous. Shared by Explore's
+  // xpGuessMapping and the View Builder's Map opts so both editors infer the
+  // scale the same way; a manual pick always wins afterward (callers only invoke
+  // this while still in "auto" mode).
+  Studio.guessRegionScale = function (col, run) {
+    var n = String(col || "").toLowerCase();
+    if (/huc|watershed/.test(n)) return "huc8";
+    if (/congress|(^|_)cd$/.test(n)) return "cd";
+    if (/zip|zcta/.test(n)) return "zcta";
+    if (/crd|district/.test(n)) return "crd";
+    if (/fips|geoid|county/.test(n)) return "county";
+    if (/state|postal/.test(n)) return "state";
+    var cols = (run && run.cols) || [], rows = (run && run.rows) || [];
+    var ci = cols.indexOf(col);
+    if (ci >= 0) {
+      var v = null;
+      for (var i = 0; i < rows.length && v == null; i++) { var x = rows[i][ci]; if (x != null && x !== "") v = String(x); }
+      if (v != null) {
+        if (/^[A-Za-z]{2}$/.test(v)) return "state";   // 2-letter postal
+        if (/^\d{8}$/.test(v)) return "huc8";          // 8-digit HUC
+        if (/^\d{5}$/.test(v)) return "county";        // 5-digit FIPS (zips catch on name above)
+        if (/^\d{4}$/.test(v)) return "crd";           // 4-digit NASS district
+      }
+    }
+    return null;
+  };
+
   // default panel for a chart type bound to a dataAccess (auto column mapping)
   Studio.newPanel = function (type, daDef) {
     var cols = (daDef && daDef.columns) || [];

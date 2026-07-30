@@ -637,11 +637,15 @@
   it's disabled until a second measure lands on the shelf.</p>
   <p><strong>Map</strong> draws a US choropleth from the first dimension (region ids — FIPS county
   code, state, USDA district, watershed, congressional district, or ZIP) against the first measure,
-  the same one-dimension basis Bars and Donut use — it defaults to county scale; change the region
-  scale, renderer, or styling from the saved View's panel like any other map. Put a field on the
-  <strong>Color</strong> shelf and the map switches to per-region <strong>series</strong> instead: a
-  long table of region × series × value that plugs straight into the Studio ensemble channel, so an
-  Ensemble chart's provider toggles elsewhere on the same dashboard re-color it live.</p>
+  the same one-dimension basis Bars and Donut use. A <strong>Region scale</strong> picker appears
+  next to the chart strip once Map is selected, guessed automatically from your id column's name or
+  values (a manual pick always wins after that); change the renderer or styling from the saved
+  View's panel like any other map. If a region scale doesn't match your data's ids at all, the map
+  says so directly ("0 of N counties matched…") instead of drawing a silent empty map. Put a field
+  on the <strong>Color</strong> shelf and the map switches to per-region <strong>series</strong>
+  instead: a long table of region × series × value that plugs straight into the Studio ensemble
+  channel, so an Ensemble chart's provider toggles elsewhere on the same dashboard re-color it
+  live.</p>
   <p><strong>Line, Stacked bars, and Stacked area all draw multiple series</strong> when the
   shelves support it: pivot a field on Rows against a plain field on Columns (a crosstab) with
   one of the three picked, and every Columns value draws its own line / bar segment / band

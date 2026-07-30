@@ -68,6 +68,8 @@
                                // splits bars/donut/line into per-category palette colors
     paletteKey: "",           // VB-3: Studio.PALETTE_PRESETS key ("" = default) for the live preview
     chartType: "table",      // slice 2: table | bars | line | donut | heatmap
+    mapScale: "",            // VB-10: choropleth Region scale ("" = not yet guessed)
+    mapScaleAuto: true,      // VB-10: true while mapScale is a live guess, not a manual pick
     analysisId: null, name: "", folder: "",
     panelTitle: "",          // VB-7: the panel header's own title — "" tracks the View name
     notice: "",              // VB-5: dismissible cross-editor banner text ("" = hidden)
@@ -79,6 +81,7 @@
     BD.shelfColor = []; BD.paletteKey = "";
     BD._eff = null;
     BD.chartType = "table";
+    BD.mapScale = ""; BD.mapScaleAuto = true;
     BD.analysisId = null; BD.name = ""; BD.folder = "";
     BD.panelTitle = "";
     BD.notice = "";
@@ -240,6 +243,7 @@
     BD.dsKind = kind; BD.dsId = id;
     BD.shelfCols = []; BD.shelfRows = []; BD.filters = []; BD.calcs = []; BD.shelfColor = []; BD._eff = null;
     BD.run = null;
+    BD.mapScale = ""; BD.mapScaleAuto = true; // VB-10: a new dataset's id column gets a fresh guess
     var entry = bdDatasets().filter(function (d) { return d.kind === kind && d.id === id; })[0];
     BD.dsName = entry ? entry.name : id;
     BD.dsSub = entry ? entry.sub : "";
@@ -774,6 +778,16 @@
     st = st || BD;
     return st.shelfRows[0] || st.shelfCols.filter(function (f) { return !f.agg; })[0] || null;
   }
+  // VB-10: keep BD.mapScale a live guess (Studio.guessRegionScale, off the current
+  // geo-dimension column) while the user hasn't picked one manually — mirrors QV-1's
+  // "guess on (re)pick, manual choice always wins after" rule from render() so every
+  // shelf edit refreshes the guess without ever clobbering an explicit pick.
+  function bdRefreshMapScaleGuess() {
+    if (BD.chartType !== "choropleth" || !BD.mapScaleAuto) return;
+    var dim = bdFirstDim(BD);
+    BD.mapScale = (dim && Studio.guessRegionScale(dim.col, BD.run)) || "";
+  }
+  function bdMapScale(st) { return (st || BD).mapScale || "county"; }
   function bdColsDim(st) { return (st || BD).shelfCols.filter(function (f) { return !f.agg; })[0] || null; }
   function bdMeasures(st) { return (st || BD).shelfCols.filter(function (f) { return f.agg; }); }
   function bdFirstMeasure(st) {
@@ -941,6 +955,9 @@
       p.chart.map.idCol = basis.head[0];
       if (basis.head.length > 2) { p.chart.map.seriesCol = basis.head[1]; p.chart.map.valueCol = basis.head[2]; }
       else { delete p.chart.map.seriesCol; p.chart.map.valueCol = basis.head[1]; }
+      // VB-10: newPanel's opts.scale always defaults to "county" — apply the
+      // builder's own Region scale (guessed or manually picked) instead.
+      p.chart.opts.scale = bdMapScale();
     }
     return p;
   }
@@ -1035,6 +1052,8 @@
   function render() {
     var sec = document.getElementById("secBuild");
     if (!sec) return;
+
+    bdRefreshMapScaleGuess(); // VB-10: keep the Region scale guess current before painting
 
     // VB-5: the cross-editor notice — a View made in the other editor was opened
     // here best-effort; dismissible, cleared on New/next load.
@@ -1231,6 +1250,27 @@
       }).join("");
     }
 
+    // VB-10: Map's Region scale — no control existed at all, so it silently rode
+    // newPanel's "county" default; a 2-digit state FIPS (or any non-county id)
+    // rendered an honest but silent all-"No data" map. Reuse the canonical opt
+    // definition (model.js Studio.CHARTS.choropleth) instead of a third hardcoded
+    // choices list (LF12 already made this call for Explore's own scale select).
+    var mapOpts = $("#bdMapOpts", sec);
+    if (mapOpts) {
+      if (BD.chartType === "choropleth") {
+        var scaleOpt = (Studio.CHARTS.choropleth.opts || []).filter(function (o) { return o.key === "scale"; })[0];
+        var curScale = bdMapScale();
+        mapOpts.hidden = false;
+        mapOpts.innerHTML = '<label class="bd-map-scale"><span>Region scale</span><select id="bdMapScale" aria-label="Region scale">' +
+          (scaleOpt.choices || []).filter(function (o) { return o[0] !== "custom"; }).map(function (o) {
+            return '<option value="' + o[0] + '"' + (o[0] === curScale ? " selected" : "") + ">" + esc(o[1]) + "</option>";
+          }).join("") + "</select></label>";
+      } else {
+        mapOpts.hidden = true;
+        mapOpts.innerHTML = "";
+      }
+    }
+
     // CENTER — status + result (both computed over the FILTERED source rows)
     var status = $("#buildStatus", sec), result = $("#buildResult", sec);
     var srcRows = BD.run ? bdFilteredRows() : [];
@@ -1415,6 +1455,13 @@
         render();
       };
     });
+    var mapScaleSel = $("#bdMapScale", sec);
+    if (mapScaleSel) mapScaleSel.onchange = function () {
+      // A manual pick wins from here on — bdRefreshMapScaleGuess no longer
+      // touches BD.mapScale until the next dataset switch (VB-10, QV-1's rule).
+      BD.mapScale = mapScaleSel.value; BD.mapScaleAuto = false;
+      render();
+    };
     $$("[data-bd-flt-edit]", sec).forEach(function (btn) {
       btn.onclick = function () {
         var f = BD.filters.filter(function (x) { return x.col === btn.getAttribute("data-bd-flt-edit"); })[0];
@@ -1518,7 +1565,8 @@
             dsKind: BD.dsKind, dsId: BD.dsId, chartType: BD.chartType,
             shelfCols: Studio.clone(BD.shelfCols), shelfRows: Studio.clone(BD.shelfRows),
             filters: Studio.clone(BD.filters), calcs: Studio.clone(BD.calcs),
-            shelfColor: Studio.clone(BD.shelfColor), paletteKey: BD.paletteKey || ""
+            shelfColor: Studio.clone(BD.shelfColor), paletteKey: BD.paletteKey || "",
+            mapScale: BD.mapScale || "", mapScaleAuto: BD.mapScaleAuto !== false // VB-10
           }
         };
         // #118 (live re-run): the da carries the builder blob too — the da is what
@@ -1624,6 +1672,12 @@
       var supported = CHART_TYPES.some(function (c) { return c.t === t; });
       BD.chartType = supported ? t : (FOREIGN_TYPE_FALLBACK[t] || "table");
       if (BD.chartType !== "table" && chartUnavailable(BD.chartType)) BD.chartType = "table";
+      // VB-10: a foreign choropleth already carries its own resolved scale
+      // (Explore's own QV-1 guess-or-pick) — keep it as a manual pick rather
+      // than re-guessing from scratch.
+      if (BD.chartType === "choropleth" && a.chart && a.chart.opts && a.chart.opts.scale) {
+        BD.mapScale = a.chart.opts.scale; BD.mapScaleAuto = false;
+      }
       var typeNote = supported ? "" :
         " Its chart type (" + ((Studio.CHARTS[t] || {}).label || t) + ") isn’t in the View Builder yet, so it opens as " +
         (FOREIGN_TYPE_FALLBACK[t] ? "the nearest type" : "a table") + ".";
@@ -1650,6 +1704,7 @@
       BD.shelfColor = Studio.clone(b.shelfColor || []);
       BD.paletteKey = b.paletteKey || "";
       BD.chartType = b.chartType || "table";
+      BD.mapScale = b.mapScale || ""; BD.mapScaleAuto = b.mapScaleAuto !== false; // VB-10
       render();
     });
   }

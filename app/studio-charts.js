@@ -6254,7 +6254,16 @@
       // ensemble bus, a per-provider region count so the honesty story behind
       // the map (who's in, who's out, how much of the map they each cover) is
       // never more than one click away.
-      var coverage = { covered: ids.length, total: geo.features.length, providers: null };
+      // VB-10: covered used to count DISTINCT DATA IDS (ids.length) rather than
+      // how many of those ids actually matched a real feature — so a wrong-scale
+      // dataset (e.g. 2-digit state FIPS values read against the Counties scale)
+      // reported "10 of 3143 covered" even though every one of those ids was
+      // silently unmatched and the map drew all hatch. Count matched FEATURES
+      // instead, so the honesty numbers (and the all-unmatched bailout below)
+      // reflect what actually painted.
+      var matchedCount = 0;
+      geo.features.forEach(function (f) { if (values[f.id] != null) matchedCount++; });
+      var coverage = { covered: matchedCount, total: geo.features.length, providers: null };
       if (cfg.rowsSV) {
         var provSeen = {}, provOrder = [], provIds = {};
         cfg.rowsSV.forEach(function (r) {
@@ -6267,6 +6276,17 @@
           return { name: s, count: Object.keys(provIds[s]).length,
             on: !cfg.providersChannel || DashKit.ensembleBus.isOn(cfg.providersChannel, s) };
         });
+      }
+      // VB-10: say WHY instead of silently drawing an all-hatch map — the exact
+      // "all-no-data" report (a Region scale that doesn't match the data's ids,
+      // e.g. state FIPS against the Counties scale) should read as an honest
+      // explanation, not a blank-looking result. GL keeps its prior behavior
+      // (a real interactive map, just all-hatch) — it's an opt-in power-user
+      // renderer, not the path Kevin's report (or the builder's default) hit.
+      if (!coverage.covered && cfg.renderer !== "gl") {
+        el.innerHTML = '<div class="empty">0 of ' + coverage.total + " " + scaleNoun(scale) +
+          " matched this data's region ids — try a different Region scale.</div>";
+        return;
       }
       var classes = Math.max(3, Math.min(9, cfg.classes || 5));
       var ramp = geoRamp(cfg.colorToken || "--good", classes);

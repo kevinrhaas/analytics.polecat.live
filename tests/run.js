@@ -2408,6 +2408,37 @@ function serve() {
         });
       }, { scale: scale, idCol: idCol, rows: rows, extra: extraOpts || null });
     }
+    // VB-10: a variant of geoProbe for the all-mismatched-scale case — geoProbe's
+    // own poll loop waits for region <path>s to appear, which never happens once
+    // _choropleth bails out to the "0 of N matched" text explanation instead of
+    // drawing hatch, so it needs its own poll condition.
+    async function geoProbeText(scale, idCol, rows) {
+      return await page.evaluate(async function (args) {
+        var spec = { id: "nm-" + args.scale, name: "nm", title: "t",
+          panels: [{ id: "m1", title: "m", span: "full",
+            chart: { type: "choropleth", da: "g", map: { idCol: args.idCol, valueCol: "v" }, opts: { scale: args.scale } } }],
+          kpis: [], filters: [], cda: { connections: [], dataAccesses: [{ id: "g", kind: "sql", columns: [args.idCol, "v"] }] } };
+        await window.__studioEnsureGeoAssets(spec);
+        var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true, mock: { g: { cols: [args.idCol, "v"], rows: args.rows } } });
+        return await new Promise(function (resolve) {
+          var ifr = document.createElement("iframe");
+          ifr.style.cssText = "position:fixed;left:-2000px;top:0;width:900px;height:600px";
+          document.body.appendChild(ifr);
+          ifr.srcdoc = html;
+          var t0 = Date.now();
+          (function poll() {
+            var doc = null; try { doc = ifr.contentDocument; } catch (e) {}
+            var paths = doc ? doc.querySelectorAll("path[data-geo-id]").length : 0;
+            var txt = doc && doc.body ? doc.body.textContent : "";
+            if (paths || /matched this data.s region ids/.test(txt)) {
+              var out = { paths: paths, text: txt.trim() };
+              ifr.remove(); resolve(out);
+            } else if (Date.now() - t0 > 12000) { ifr.remove(); resolve({ timeout: true }); }
+            else setTimeout(poll, 150);
+          })();
+        });
+      }, { scale: scale, idCol: idCol, rows: rows });
+    }
     const geoCounty = await geoProbe("county", "fips", [["17031", 2], ["17031", 4], ["17031", 100], ["19153", 4], ["18097", 9]]);
     ok("GEO county: 3k+ county paths render; data counties colored, the rest hatched no-data; legend + inlined geometry",
       geoCounty.regions > 3000 && geoCounty.colored === 3 && geoCounty.hatched > 3000 && geoCounty.legend && geoCounty.inlined,
@@ -11486,7 +11517,104 @@ function serve() {
     }, bdSave.id);
     await page.waitForTimeout(150);
 
-    // 13e. VB-5 (Kevin live): ANY View opens in EITHER editor. A Quick-Views-made
+    // 13e. VB-10 (Kevin live, 2026-07-30): "can't get a map to render" — the View
+    // Builder's Map had NO Region-scale control at all, so it silently rode
+    // newPanel's Counties default; his State_FIPS-on-Rows setup rendered an
+    // honest but silent all-"No data" map with no way to fix it. A visible
+    // Region-scale select now sits next to the chart-type strip whenever Map is
+    // picked, defaulting to Studio.guessRegionScale's guess off the id column
+    // (shared with Explore's own QV-1 guess) until the user picks one manually.
+    const vb10 = await page.evaluate(async () => {
+      const W = window.Studio.Workspace;
+      const B = window.__studioBuild;
+      const out = {};
+      window.__studioShellSetSection("build");
+      const conn = W.put("connections", { name: "vb10-conn", adapter: "file", cfg: {} });
+      const ds = W.put("datasets", { name: "vb10-ds", connectionId: conn.id, kind: "file", format: "csv",
+        columns: ["region_code", "adoption_pct"],
+        content: "region_code,adoption_pct\nIA,62\nIL,58\nMO,71\n" });
+      await B.selectDataset("ws", ds.id);
+      await new Promise((r) => setTimeout(r, 120));
+      B.addField("region_code", "cols");
+      B.addField("adoption_pct", "cols");
+      B.state.chartType = "table";
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 40));
+      out.hiddenBeforeMap = document.getElementById("bdMapOpts").hidden;
+
+      B.state.chartType = "choropleth";
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 400));
+      const sel = document.getElementById("bdMapScale");
+      out.shownForMap = !document.getElementById("bdMapOpts").hidden;
+      out.guessedScale = sel ? sel.value : null;
+      out.stateScale = B.state.mapScale;
+      out.stateAuto = B.state.mapScaleAuto;
+      let ifr = document.querySelector("#buildResult iframe.bd-ifr");
+      out.iframeGuessedScale = ifr ? ifr.srcdoc.indexOf('"scale":"state"') >= 0 : false;
+
+      // a manual pick wins from here on — a later shelf/render pass must not re-guess over it
+      sel.value = "county";
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 60));
+      out.manualScale = B.state.mapScale;
+      out.manualAuto = B.state.mapScaleAuto;
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 60));
+      out.stillManualAfterRerender = B.state.mapScale === "county" && B.state.mapScaleAuto === false;
+
+      // Save stamps the manual pick on both the panel's chart.opts.scale (what
+      // every renderer actually reads) and the builder blob (what a reload restores)
+      window.__studioBuild.save();
+      await new Promise((r) => setTimeout(r, 120));
+      const m = document.querySelector(".modal-ov .bd-save");
+      m.querySelectorAll("input")[0].value = "VB10 Map View";
+      [].slice.call(m.querySelectorAll("button")).filter((b) => /^(Save|Update)$/.test(b.textContent))[0].click();
+      await new Promise((r) => setTimeout(r, 120));
+      out.savedId = B.state.analysisId;
+      const saved = W.get("analyses", out.savedId);
+      out.savedChartScale = saved && saved.chart && saved.chart.opts && saved.chart.opts.scale;
+      out.savedBuilderScale = saved && saved.builder && saved.builder.mapScale;
+      out.savedBuilderAuto = saved && saved.builder && saved.builder.mapScaleAuto;
+
+      // reopening restores the manual pick instead of re-guessing from scratch
+      window.Studio.Build.newView();
+      await new Promise((r) => setTimeout(r, 40));
+      B.load(out.savedId);
+      await new Promise((r) => setTimeout(r, 300));
+      out.reloadedScale = B.state.mapScale;
+      out.reloadedAuto = B.state.mapScaleAuto;
+
+      // cleanup
+      W.remove("analyses", out.savedId);
+      W.remove("datasets", ds.id);
+      W.remove("connections", conn.id);
+      window.Studio.Build.newView();
+      window.__studioShellSetSection("studio");
+      return out;
+    });
+    ok("VB-10: the Region scale control is hidden for non-Map chart types",
+      vb10.hiddenBeforeMap === true, JSON.stringify(vb10));
+    ok("VB-10: choosing Map shows a Region scale control, auto-guessed from the id column's values (2-letter codes → States) and applied to the live preview",
+      vb10.shownForMap && vb10.guessedScale === "state" && vb10.stateScale === "state" && vb10.stateAuto === true && vb10.iframeGuessedScale,
+      JSON.stringify(vb10));
+    ok("VB-10: picking a Region scale manually overrides the guess, and a later re-render doesn't clobber it",
+      vb10.manualScale === "county" && vb10.manualAuto === false && vb10.stillManualAfterRerender, JSON.stringify(vb10));
+    ok("VB-10: Save stamps the manual scale on both the panel's chart.opts.scale and the builder blob",
+      vb10.savedChartScale === "county" && vb10.savedBuilderScale === "county" && vb10.savedBuilderAuto === false, JSON.stringify(vb10));
+    ok("VB-10: reopening the saved View restores the manual pick instead of re-guessing",
+      vb10.reloadedScale === "county" && vb10.reloadedAuto === false, JSON.stringify(vb10));
+
+    // VB-10: the choropleth renderer itself says WHY when a Region scale doesn't
+    // match the data's ids at all, instead of silently drawing an all-hatch map —
+    // Kevin's exact repro shape (state-level ids read against the wrong scale).
+    // coverage.covered used to count DISTINCT DATA IDS rather than ids that
+    // actually matched a real feature, so this case used to report false coverage.
+    const geoNoMatch = await geoProbeText("county", "st", [["IA", 5], ["IL", 3], ["MO", 7]]);
+    ok("VB-10: an all-mismatched Region scale (state postal codes read against Counties) explains why instead of drawing a silent all-hatch map",
+      geoNoMatch.paths === 0 && /0 of \d+ counties matched/.test(geoNoMatch.text || ""), JSON.stringify(geoNoMatch));
+
+    // 13f. VB-5 (Kevin live): ANY View opens in EITHER editor. A Quick-Views-made
     // View (chart blob, no `builder`) opens in the View Builder via a best-effort
     // shelf reconstruction (Studio.Build.loadForeign) with a dismissible notice;
     // a builder-made View opens in Quick Views best-effort with its own notice +
