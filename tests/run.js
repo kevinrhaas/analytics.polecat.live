@@ -285,6 +285,9 @@ function handleMockSupabase(req, rep, p) {
   // — simulating a token that went stale server-side. A read with Auth creds
   // should refresh + retry and end up 200; an anon-only read should just fail.
   if (rel === "rest/v1/__armtokenflap") { mockTokenFlaps = 2; return send(200, []); }
+  // Drain any un-consumed flaps — a later test that signs in for real must never
+  // inherit a leftover invalid_grant from #111's arm (the LF39 direct-auth flake).
+  if (rel === "rest/v1/__cleartokenflap") { mockTokenFlaps = 0; return send(200, []); }
   if (rel === "rest/v1/__flaky_reset") { mockFlakyServed = 0; return send(200, []); }
   if (rel === "rest/v1/__flaky") {
     mockFlakyServed++;
@@ -14517,6 +14520,12 @@ function serve() {
     // adopts the local account carrying that auth uid. (pullNow, a sync detail unrelated to auth, is
     // stubbed to a no-op so the seeded mirror row survives; the real GoTrue auth + gate branch +
     // adopt/login are all exercised end-to-end.)
+    // Drain any leftover armed token flaps FIRST — #111's __armtokenflap sets the
+    // mock GoTrue to reject the next 2 sign-ins; under load this page's boot
+    // sign-in (or the submit below) inherited one, the gate showed
+    // invalid_grant, and the check flaked with gateGone:false (the 2026-07-30
+    // repeat offender). The mock's failure budget must be zero here.
+    await fetch(`http://localhost:${PORT}/__supabase/rest/v1/__cleartokenflap`, { headers: { apikey: "sb_publishable_valid" } });
     const gpDirect = await browser.newPage({ viewport: { width: 1200, height: 900 } });
     gpDirect.on("pageerror", (e) => errors.push("LF39 direct-auth page: " + e.message));
     await gpDirect.addInitScript((port) => {
@@ -14541,7 +14550,9 @@ function serve() {
     const directAuthed = await gpDirect.evaluate(() => ({
       gateGone: !document.querySelector("#studio-gate"),
       who: (window.PolecatAuth.current() || {}).u,
-      gotrueId: (window.PolecatAuth.find("gtmate") || {}).gotrueId
+      gotrueId: (window.PolecatAuth.find("gtmate") || {}).gotrueId,
+      // diagnosis payload — on a failure, the gate's own error text says WHY
+      gateErr: (document.getElementById("g-err") || {}).textContent || ""
     }));
     await gpDirect.close();
     ok("LF39/M7: a fresh-device teammate signs in with their email straight against the backend's GoTrue and is adopted as the matching local account",

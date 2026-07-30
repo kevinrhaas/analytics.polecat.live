@@ -7395,6 +7395,24 @@
 >       the UI changes materially) plus the click-to-zoom lightbox. See DONE for writeups.
 > LIVE-b. ✓ **Sample-pack dashboard naming + folder (SHIPPED v741, 2026-07-30, steward)** —
 >       see DONE: titles lead, pack folder on install, boot reconcile heals old workspaces.
+> CONS-1. **Conservation pack ↔ real CTIC reference dashboards (Kevin live, 2026-07-30,
+>       three reference screenshots — CLAIMED by the dedicated session).** Make the
+>       Conservation sample-pack dashboards look "immediately as close as possible" to the
+>       real CTIC/OpTIS visuals — Views, colors, legends: (1) the OpTIS pair — two Midwest
+>       county choropleths side by side (Avg % Winter Cover Crops, sequential light→dark
+>       GREEN with a gradient legend bar; % Change Between Selected Years, DIVERGING
+>       orange→white→green), a stacked area of Avg % Row Crop Acres by Cover Crop Type
+>       (2005–2021, light green Winter Commodity under dark green Cover Crop, legend below),
+>       and a %-change distribution bar (sorted, diverging orange/green); (2) the blue-banner
+>       "CRD Cover Crop Data" dashboard — state + year-range filters in the header, a green
+>       area chart (Percent of Row Crop Acres with Cover Crops, 2015–2021) beside a
+>       CRD-scale green choropleth of IL/IN/IA with a Map Legend card; (3) the ensemble
+>       chart — Pct of all Row Crop Acres, five provider lines (DTN purple, Indigo orange,
+>       Iowa State yellow, Regrow blue, Terra Diagnostics green), a black Med(ian) line, red
+>       AgCensus square markers, provider toggles, with a CRD map inset. Add new dashboards
+>       or adjust existing ones — but KEEP the pack's overall story of how CTIC functions
+>       and adds value to ALL stakeholders (academia, conservation NGOs, farmers, government
+>       agencies, industry, policymakers).
 > LIVE-d. **Cross-app multi-select + bulk actions (Kevin live, 2026-07-30).** Every catalog
 >       section (Views, Dashboards, Datasets, Connections, Jobs, Repository) needs
 >       multi-select (checkboxes / shift-click) with bulk operations — move to folder (his
