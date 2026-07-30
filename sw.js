@@ -5,7 +5,15 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v369"; /* v369: #117 slice 2 — the View Builder charts its
+var CACHE_NAME = "studio-shell-v370"; /* v370: LF59 (3) — the Dashboards page toolbar
+   cleanup: Export dashboards…/Import dashboards… tuck behind a new icon-only "More" (⋯)
+   menu (dashMoreBtn/dashMoreMenu, same menu-wrap/menuToggle convention as every other
+   dropdown), and a primary "+ New dashboard" button joins the toolbar, matching the
+   [view toggle]…[+ New] pattern Datasets/Jobs/Connections/Views already use (role-gated
+   via currentUserCanDevelop, same as Repository's New-menu entry) — LF59 is now fully
+   done. app/index.html, app/studio.js, docs/index.html, tests/run.js, STATUS.md,
+   js/changelog.js.
+   v369: #117 slice 2 — the View Builder charts its
    pivots: a chart strip (Table/Bars/Line/Donut/Heatmap) renders the COMPUTED basis through
    the real dashboard renderer (buildHtml + PDC_MOCK srcdoc iframe, Explore's own preview
    plumbing); availability-gated buttons with reasons; Save stamps the chart type on the
