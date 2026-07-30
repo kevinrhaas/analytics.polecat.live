@@ -1382,6 +1382,12 @@ body.lib-dragging #preview{pointer-events:none}
 .dsb-chip .rm{background:none;border:0;color:inherit;cursor:pointer;font-size:var(--fs-14);line-height:1;opacity:.6}
 .dsb-chip .rm:hover{opacity:1}
 .dsb-empty{font-size:var(--fs-12);color:var(--faint)}
+/* LF63 slice 3: the builder's live SQL sanity hints (Studio.sqlLint) */
+.dsb-lint{display:flex;flex-direction:column;gap:4px;margin:6px 0 2px}
+.dsb-lint-row{font-size:var(--fs-12);line-height:1.45;color:var(--ink);
+  padding:var(--sp-6) var(--sp-10);border-radius:8px;
+  background:color-mix(in srgb,var(--warn,#f5a623) 13%,transparent);
+  border:1px solid color-mix(in srgb,var(--warn,#f5a623) 32%,transparent)}
 .dsb-addcol{font-family:var(--mono)}
 .dsb-params{display:flex;flex-direction:column;gap:6px;margin-bottom:4px}
 .dsb-prow{display:flex;gap:6px;align-items:center}
