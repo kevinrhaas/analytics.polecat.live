@@ -7465,7 +7465,7 @@
 >       headerEditable) are idempotent now. Regression test flips the Practice filter
 >       twice: data changes each time, ✕ counts stay at one. See DONE.
 > STUDIO-PANELS. ✓ **Dashboard Builder opens with side panels CLOSED by default (SHIPPED
->       v762, sw v398 — studio-panels-default localStorage pref, applied on boot AND on
+>       v763, sw v399 — studio-panels-default localStorage pref, applied on boot AND on
 >       every enterStudio(); Settings ’Open the builder with side panels’ toggle; suite
 >       seeds the open pref as its own precondition and tests the closed default
 >       explicitly). Original request — (Kevin

@@ -5,10 +5,15 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v398"; /* v398: STUDIO-PANELS — the Dashboard Builder opens
+var CACHE_NAME = "studio-shell-v399"; /* v399: STUDIO-PANELS — the Dashboard Builder opens
    clean (Data + Inspector panels closed) by default, applied on boot + every enterStudio;
    new Settings preference "Open the builder with side panels" (studio-panels-default).
-   Original v397: DESIGN-1 — Polecat design system light pass:
+   Original v398: LIVE-d slice 3 — Jobs gains the
+   same Select / bulk-delete multi-select pattern Datasets/Connections proved in slices 1-2
+   (checkbox overlay on every row/tile, a bulk bar with Select all/Clear/Delete; the delete
+   confirmation notes that a job's output dataset is kept, same as deleting one individually).
+   app/jobs.js, app/index.html, docs/index.html, STATUS.md, js/changelog.js, tests/run.js.
+   v397: DESIGN-1 — Polecat design system light pass:
    Hanken Grotesk self-hosted (assets/fonts/*.woff2, weights 400/600/700/800, joins the
    precache) as the brand face across landing + app + docs, and the new Polecat mark
    (assets/brand/polecat-mark-*.png) on the landing nav/footer + the sign-in gate.
