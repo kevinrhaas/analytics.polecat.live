@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v377"; /* v377: LIVE-a slice 1 (Kevin: "fix the buttons… line up
+var CACHE_NAME = "studio-shell-v378"; /* v378: VB-2 (Kevin's overnight View Builder queue) —
+   shelf pills drag between Columns/Rows/Filters (converting shape per destination) and
+   reorder within a shelf, not just via the ⇄ button. app/build.js, app/studio.css,
+   docs/index.html, tests/run.js, STATUS.md, js/changelog.js.
+   v377: LIVE-a slice 1 (Kevin: "fix the buttons… line up
    to terminology") — Home quick-action cards track the rail IA: a "New View" card (fresh
    View Builder) leads the grid, "Explore data" reads "New Quick View". app/studio.js,
    tests/run.js, STATUS.md, js/changelog.js.

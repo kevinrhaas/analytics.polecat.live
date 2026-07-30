@@ -9933,6 +9933,101 @@ function serve() {
     });
     ok("VB-1b: the outline sorts alphabetically, selection never reorders the list (no jumping UI), and the pane fills the viewport column",
       vb1b.alpha && vb1b.stable && vb1b.paneFills, JSON.stringify(vb1b));
+    // 11. VB-2 (Kevin overnight queue, "i like the new view builder"): shelf
+    // pills drag BETWEEN Columns/Rows/Filters (converting shape per destination,
+    // same as the ⇄ button/bdAddFilter would) and reorder within a shelf — not
+    // just the ⇄ swap button.
+    const vb2 = await page.evaluate(async () => {
+      const B = window.__studioBuild;
+      function fire(dt, type, el, x) {
+        el.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt, clientX: x == null ? 0 : x }));
+      }
+      const out = {};
+      // VB-1b (just above) selects a throwaway dataset and deletes it without
+      // restoring the selection — re-select bd117-ds explicitly so this test
+      // doesn't depend on whatever the prior block left active.
+      const ds = window.Studio.Workspace.all("datasets").filter((d) => d.name === "bd117-ds")[0];
+      await B.selectDataset("ws", ds.id);
+      await new Promise((r) => setTimeout(r, 120));
+      // clean slate: region + quarter (dims) + amount (measure) on Columns
+      B.state.shelfCols = []; B.state.shelfRows = []; B.state.filters = [];
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 40));
+      B.addField("region", "cols");
+      B.addField("quarter", "cols");
+      B.addField("amount", "cols");
+      await new Promise((r) => setTimeout(r, 60));
+      out.initial = B.state.shelfCols.map((f) => f.col).join(",");
+
+      // A. reorder within Columns — drag "amount" and drop on the LEFT half of "region"
+      let dt = new DataTransfer();
+      const amountChip = document.querySelector('#bdShelfCols [data-bd-chip="amount"]');
+      const regionChip = document.querySelector('#bdShelfCols [data-bd-chip="region"]');
+      out.draggableAttr = amountChip.getAttribute("draggable");
+      fire(dt, "dragstart", amountChip);
+      out.draggingClass = amountChip.classList.contains("bd-chip-dragging");
+      const rRect = regionChip.getBoundingClientRect();
+      fire(dt, "dragover", regionChip, rRect.left + 1);
+      out.dropBeforeClass = regionChip.classList.contains("bd-drop-before");
+      fire(dt, "drop", document.getElementById("bdShelfCols"));
+      fire(dt, "dragend", amountChip);
+      await new Promise((r) => setTimeout(r, 60));
+      out.reordered = B.state.shelfCols.map((f) => f.col).join(",");
+
+      // B. cross-shelf move — drag "quarter" from Columns onto the empty Rows shelf
+      dt = new DataTransfer();
+      const quarterChip = document.querySelector('#bdShelfCols [data-bd-chip="quarter"]');
+      fire(dt, "dragstart", quarterChip);
+      fire(dt, "dragover", document.getElementById("bdShelfRows"));
+      fire(dt, "drop", document.getElementById("bdShelfRows"));
+      fire(dt, "dragend", quarterChip);
+      await new Promise((r) => setTimeout(r, 60));
+      out.afterMoveCols = B.state.shelfCols.map((f) => f.col).join(",");
+      out.afterMoveRows = B.state.shelfRows.map((f) => f.col).join(",");
+      out.rowsHaveNoAgg = !("agg" in B.state.shelfRows[0]);
+
+      // C. cross-shelf move — drag "quarter" from Rows onto Filters
+      dt = new DataTransfer();
+      const quarterRowChip = document.querySelector('#bdShelfRows [data-bd-chip="quarter"]');
+      fire(dt, "dragstart", quarterRowChip);
+      fire(dt, "dragover", document.getElementById("bdShelfFilters"));
+      fire(dt, "drop", document.getElementById("bdShelfFilters"));
+      fire(dt, "dragend", quarterRowChip);
+      await new Promise((r) => setTimeout(r, 60));
+      out.rowsAfterToFilter = B.state.shelfRows.length;
+      out.filterAdded = B.state.filters.some((f) => f.col === "quarter");
+      out.filterKind = (B.state.filters.filter((f) => f.col === "quarter")[0] || {}).kind;
+
+      // D. dedupe guard — "region" lives on Columns AND gets an independent
+      // filter; dragging the FILTER pill onto Columns (already there) just
+      // clears the filter, never writes a duplicate shelf entry
+      B.addFilter("region");
+      await new Promise((r) => setTimeout(r, 60));
+      out.regionFilterAdded = B.state.filters.some((f) => f.col === "region");
+      dt = new DataTransfer();
+      const regionFltChip = document.querySelector('#bdShelfFilters [data-bd-chip="region"]');
+      fire(dt, "dragstart", regionFltChip);
+      fire(dt, "dragover", document.getElementById("bdShelfCols"));
+      fire(dt, "drop", document.getElementById("bdShelfCols"));
+      fire(dt, "dragend", regionFltChip);
+      await new Promise((r) => setTimeout(r, 60));
+      out.regionFilterGone = !B.state.filters.some((f) => f.col === "region");
+      out.regionColsCount = B.state.shelfCols.filter((f) => f.col === "region").length;
+      return out;
+    });
+    ok("VB-2: shelf pills carry draggable=true and get a dragging class mid-drag; dropping on a sibling's left half reorders the Columns shelf",
+      vb2.draggableAttr === "true" && vb2.draggingClass && vb2.dropBeforeClass &&
+      vb2.initial === "region,quarter,amount" && vb2.reordered === "amount,region,quarter",
+      JSON.stringify(vb2));
+    ok("VB-2: dragging a pill from Columns onto the Rows shelf moves it there (dropping its aggregation), not just via the ⇄ button",
+      vb2.afterMoveCols === "amount,region" && vb2.afterMoveRows === "quarter" && vb2.rowsHaveNoAgg,
+      JSON.stringify(vb2));
+    ok("VB-2: dragging a Rows pill onto the Filters shelf moves it there as a filter",
+      vb2.rowsAfterToFilter === 0 && vb2.filterAdded && vb2.filterKind === "in",
+      JSON.stringify(vb2));
+    ok("VB-2: dragging a Filters pill onto a shelf that already carries that column just clears the filter — no duplicate chip",
+      vb2.regionFilterAdded && vb2.regionFilterGone && vb2.regionColsCount === 1,
+      JSON.stringify(vb2));
     // cleanup + restore the section the next block expects
     await page.evaluate((savedId) => {
       const st = window.__studioBuild.state;

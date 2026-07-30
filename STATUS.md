@@ -116,6 +116,29 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **VB-2 — shelf pills drag BETWEEN Columns/Rows/Filters (v741, sw v378, 2026-07-30,
+  steward):** second slice of Kevin's overnight View Builder queue. Every shelf pill
+  (`fieldChipHtml`'s chip, and the Filters shelf's own chip) is now `draggable`; dragging one
+  onto a different shelf calls a new `bdMoveFieldTo(col, fromShelf, toShelf, hint)` that removes
+  it from the source array and re-adds it in the destination's shape — Rows fields carry no
+  `agg`, Columns fields regain SUM if numeric, Filters get an `in`/`range` filter picked by
+  `bdFieldKind` — mirroring what the ⇄ button and drag-from-outline already did, just from any
+  shelf instead of only Columns↔Rows. Filters and shelves track independently (a column can be
+  both plotted and filtered), so dragging a filter pill onto a shelf that already carries that
+  column just drops the filter rather than writing a duplicate chip. Dragging within the SAME
+  shelf reorders it: each chip's own `dragover` records which half of it the cursor is over
+  (`_bdDropHint`), read on drop to splice the moved field to that exact index — shelf order is
+  load-bearing (it's the crosstab's dimension order), so this is a real authoring affordance,
+  not just cosmetics. Visual feedback: the dragged pill dims (`.bd-chip-dragging`), the hovered
+  sibling gets a left/right accent edge (`.bd-drop-before`/`.bd-drop-after`) previewing where it
+  lands; the drag guards off the aggregation `<select>` and the ⇄/✕ buttons so clicking them
+  never starts a shelf-move. 4 new regression tests (drag-drop simulated the same way
+  Repository's drag-to-file tests do — real `DragEvent`s with a shared `DataTransfer`):
+  reorder-within-Columns via a before-hint, Columns→Rows drops the aggregation, Rows→Filters
+  picks up a categorical `in` filter, and the Filters→already-on-a-shelf dedupe guard. Verified
+  live headless, zero pageerrors. **Remaining overnight queue (NEXT):** VB-3 Color encoding +
+  palettes, VB-4 chart parity (choropleth first). Files: app/build.js, app/studio.css,
+  docs/index.html, sw.js, js/changelog.js, tests/run.js.
 - **LIVE-a slice 1 — Home quick actions speak the rail IA (v740, sw v377, 2026-07-30,
   steward):** Kevin live ("fix the buttons… line up to terminology", Home screenshot). The
   quick-action grid now leads with the builders: a NEW "New View" card (data-home="view")
@@ -6927,9 +6950,9 @@
 > "you should have most of the engineering for this already in the dashboard builder").
 > VB-1. ✓ **Datasets pane parity + readability (SHIPPED v737, 2026-07-30, steward)** — see
 >       DONE: folder tree + search + icons + stacked labels + New/edit/copy/delete on the pane.
-> VB-2. **Shelf pills are draggable BETWEEN areas.** After a field lands on Columns/Rows/
->       Filters, dragging its pill should move it to any other shelf (and reorder within a
->       shelf) — not just the ⇄ swap button.
+> VB-2. ✓ **Shelf pills are draggable BETWEEN areas (SHIPPED v741, 2026-07-30, steward)** — see
+>       DONE: pills drag between Columns/Rows/Filters (converting shape per destination) and
+>       reorder within a shelf via a before/after drop hint — not just the ⇄ swap button.
 > VB-3. **Color as a first-class encoding.** A Color drop zone: drop a categorical field on it
 >       and the series split by color (each bar its own color), for ALL chart types; plus a
 >       palette picker (select which palette the chart uses — reuse Studio's palette system).

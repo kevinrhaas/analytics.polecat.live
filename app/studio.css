@@ -1447,8 +1447,12 @@ body.lib-dragging #preview{pointer-events:none}
   box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 22%,transparent)}
 .bd-shelf-hint{font-size:var(--fs-12);color:var(--faint)}
 .bd-chip{display:inline-flex;align-items:center;gap:6px;background:var(--field);border:1px solid var(--line);
-  border-radius:8px;padding:4px 6px 4px 10px;font-size:var(--fs-12);color:var(--ink)}
+  border-radius:8px;padding:4px 6px 4px 10px;font-size:var(--fs-12);color:var(--ink);cursor:grab}
 .bd-chip.bd-measure{border-color:color-mix(in srgb,var(--brand) 45%,var(--line))}
+/* VB-2: shelf pills drag between Columns/Rows/Filters and reorder within a shelf */
+.bd-chip.bd-chip-dragging{opacity:.4}
+.bd-chip.bd-drop-before{box-shadow:inset 2px 0 0 var(--brand)}
+.bd-chip.bd-drop-after{box-shadow:inset -2px 0 0 var(--brand)}
 .bd-chip-nm{font-weight:600}
 .bd-agg{font-size:var(--fs-10);font-weight:800;border:none;background:color-mix(in srgb,var(--brand) 14%,transparent);
   color:var(--brand);border-radius:6px;padding:2px 3px;cursor:pointer}
