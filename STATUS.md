@@ -116,6 +116,31 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF63 slice 2 — the New-data-source builder gains "Browse schema", click-to-insert (v729,
+  sw v366, 2026-07-30, steward):** LF63 slice 1 gave the Dataset editor the shared
+  `adapter.listSchema` + `Studio.Connections.renderSchemaPanel` tree; its own DONE note left
+  "the SQL Builder (G1…, Studio's inline data-source panel editor) still takes free-text
+  table/column names" open. This slice closes the schema-wiring half: the builder's five
+  CREDENTIALED kinds — Snowflake, Databricks, BigQuery, DuckDB (remote file), SQLite
+  (remote .sqlite) — get a "Browse schema" button under the Query field (a new shared
+  `schemaBrowser(adapterId, getReady, getCfg, getTa)` helper inside `dataSourceBuilder`),
+  opening the identical clickable tree; picking a table/column inserts it into the query at
+  the caret via the existing `Studio.insertAtCursor` (tables schema-qualified when the schema
+  isn't `public`, same rule as the Dataset editor). The draft's per-kind credential fields map
+  onto the adapters' listSchema cfg shapes through the SAME `sfCfg/dbxCfg/bqCfg` helpers the
+  test/query paths already use (+ the file-kind URL fields), so the three query-writing
+  surfaces (Connections wizard, Dataset editor, builder) now share one schema assist. Empty
+  credentials toast instead of firing a doomed request. The schema-less kinds (the built-in
+  sample engine — it HAS no table catalog, which is also why the G1 visual SQL Builder, which
+  only renders for that kind, can't be schema-wired at all — and Generic SQL/HTTP, no
+  listSchema) don't get the button, the capability-absent rule everywhere else follows.
+  4 new regression tests (no button on the two schema-less kinds; credential gating; a
+  stubbed-at-the-adapter-boundary listSchema round trip asserting the mapped cfg + rendered
+  tree; column + schema-qualified table click-to-insert at the caret). docs/index.html's
+  Browse-schema section gains the builder paragraph. **LF63's genuinely-still-open remainder
+  is now just the "live syntax check / used-columns validation" ask** — the Preview button
+  remains the run-the-real-query verify path. Files: app/studio.js, docs/index.html,
+  tests/run.js, sw.js, js/changelog.js, STATUS.md.
 - **#28 (Kevin) — the marketing page showcases custom geographies (v728, sw v365, 2026-07-29,
   steward):** the long-standing Kevin-tagged tracker item "showcase custom geographies — feature
   the watershed (HUC8) map as an example of custom geos, and mention other custom geos." A new
@@ -6886,10 +6911,13 @@
 >       ✓ **Slice 1 shipped (2026-07-29, v697, sw v334, steward): the Dataset editor's "Browse
 >       schema" panel, click-to-insert** — see DONE for the full writeup. The Preview button
 >       already covers the "test query before saving" ask, so that part needed no new work.
->       Genuinely still open: the older, separate SQL Builder (G1/G1b/G1c, Studio's inline
->       "data source" panel editor) still takes free-text table/column names — wiring THAT to
->       real schema data is a bigger, separately-scoped follow-up — and a live syntax check /
->       used-columns validation for the SQL text itself.
+>       ✓ **Slice 2 shipped (2026-07-30, v729, sw v366, steward): the New-data-source builder's
+>       five credentialed kinds (Snowflake/Databricks/BigQuery/DuckDB/SQLite) get the same
+>       "Browse schema" click-to-insert tree** — see DONE. (The G1 visual SQL Builder itself
+>       only renders for the built-in sample-engine kind, which has no table catalog to browse —
+>       there is nothing to schema-wire there.) Genuinely still open: a live syntax check /
+>       used-columns validation for the SQL text itself (the Preview button remains the
+>       run-the-real-query verify path).
 > LF64. ✓ **Feature-complete (slices 1–3: dynamic date tokens, week/quarter tokens, the Date-token
 >       insert affordance + its a11y pass — see DONE, v682/v683/v684/v688). Reopen only if new token
 >       families are requested.** Job/dataset PARAMETERS — dynamic + date-based filters. Parameters are powerful when they're

@@ -1425,6 +1425,46 @@
           '<div class="dsb-prev-scroll"><table><thead><tr>' + th + "</tr></thead><tbody>" + tb + "</tbody></table></div>";
       }
 
+      // LF63 slice 2 — the builder's credentialed kinds get the same "Browse schema" tree
+      // the Dataset editor and the Connections wizard already share (adapter.listSchema +
+      // Studio.Connections.renderSchemaPanel): click a table/column to insert it into the
+      // query at the caret, so the free-text SQL here isn't written blind either. The
+      // draft's per-kind credential fields map onto the exact cfg shapes the shared
+      // listSchema implementations already take (sfCfg/dbxCfg/bqCfg + the file-kind URL
+      // fields). Kinds with nothing to browse (the built-in sample engine, the generic
+      // HTTP endpoint) simply don't get the button — same capability-absent rule the
+      // wizard and the Dataset editor already follow.
+      function schemaBrowser(adapterId, getReady, getCfg, getTa) {
+        var adapter = Studio.sourceById(adapterId);
+        if (!adapter || typeof adapter.listSchema !== "function" || !(Studio.Connections && Studio.Connections.renderSchemaPanel)) return null;
+        var box = el("div", "dsb-schema");
+        var btn = el("button", "dsb-mini dsb-schema-btn"); btn.type = "button"; btn.style.marginTop = "8px";
+        setIconBtn(btn, "db", "Browse schema", 12);
+        var panel = el("div", "cx-schema"); panel.hidden = true;
+        btn.onclick = function () {
+          if (!panel.hidden) { panel.hidden = true; return; }
+          var missing = getReady();
+          if (missing) { toast(missing, true); return; }
+          btn.disabled = true;
+          panel.hidden = false;
+          panel.innerHTML = '<div class="cx-schema-status">Loading schema…</div>';
+          adapter.listSchema(getCfg()).then(function (r) {
+            btn.disabled = false;
+            Studio.Connections.renderSchemaPanel(panel, r, function (pickedKind, name, schemaName) {
+              var ta = getTa(); if (!ta) return;
+              var text = pickedKind === "table" && schemaName && schemaName !== "public" ? schemaName + "." + name : name;
+              Studio.insertAtCursor(ta, text);
+            });
+          }).catch(function (e) {
+            btn.disabled = false;
+            panel.innerHTML = "";
+            var err = el("div", "cx-schema-status bad"); err.textContent = "✕ " + ((e && e.message) || String(e)); panel.appendChild(err);
+          });
+        };
+        box.appendChild(btn); box.appendChild(panel);
+        return box;
+      }
+
       // footer
       var foot = el("div", "dsb-foot");
       var save = el("button", "btn btn-primary"); save.textContent = editing ? "Save changes" : "Create data source";
@@ -1737,6 +1777,11 @@
           var slQF = el("div", "field");
           slQF.appendChild(labelEl("Query (optional — runs against the opened database)"));
           slQF.appendChild(slTa);
+          var slSchema = schemaBrowser("sqlite",
+            function () { return draft.fileUrl ? "" : "Enter a file URL first."; },
+            function () { return { fileUrl: draft.fileUrl, tableName: draft.tableName }; },
+            function () { return slTa; });
+          if (slSchema) slQF.appendChild(slSchema);
           qSection.appendChild(slQF);
           detectBtn.style.display = "none";
         } else if (k === "duckdb") {
@@ -1777,6 +1822,11 @@
           var dkQF = el("div", "field");
           dkQF.appendChild(labelEl("Query (optional — runs against the file, aliased as “t”)"));
           dkQF.appendChild(dkTa);
+          var dkSchema = schemaBrowser("duckdb",
+            function () { return draft.fileUrl ? "" : "Enter a file URL first."; },
+            function () { return { fileUrl: draft.fileUrl, fileFormat: draft.fileFormat }; },
+            function () { return dkTa; });
+          if (dkSchema) dkQF.appendChild(dkSchema);
           qSection.appendChild(dkQF);
           detectBtn.style.display = "none";
         } else if (k === "snowflake") {
@@ -1827,6 +1877,11 @@
           var sfQF = el("div", "field");
           sfQF.appendChild(labelEl("Query"));
           sfQF.appendChild(sfTa);
+          var sfSchema = schemaBrowser("snowflake",
+            function () { return (draft.sfAccount && draft.sfToken) ? "" : "Enter an account identifier and access token first."; },
+            function () { return sfCfg(draft); },
+            function () { return sfTa; });
+          if (sfSchema) sfQF.appendChild(sfSchema);
           qSection.appendChild(sfQF);
           detectBtn.style.display = "none";
         } else if (k === "databricks") {
@@ -1873,6 +1928,11 @@
           var dbxQF = el("div", "field");
           dbxQF.appendChild(labelEl("Query"));
           dbxQF.appendChild(dbxTa);
+          var dbxSchema = schemaBrowser("databricks",
+            function () { return (draft.dbxHost && draft.dbxToken && draft.dbxWarehouseId) ? "" : "Enter a workspace host, access token, and SQL warehouse id first."; },
+            function () { return dbxCfg(draft); },
+            function () { return dbxTa; });
+          if (dbxSchema) dbxQF.appendChild(dbxSchema);
           qSection.appendChild(dbxQF);
           detectBtn.style.display = "none";
         } else if (k === "bigquery") {
@@ -1922,6 +1982,11 @@
           bqHdr.appendChild(dateTokenBtn(function () { return bqTa; }));
           bqQF.appendChild(bqHdr);
           bqQF.appendChild(bqTa);
+          var bqSchema = schemaBrowser("bigquery",
+            function () { return (draft.bqProject && draft.bqToken) ? "" : "Enter a project id and access token first."; },
+            function () { return bqCfg(draft); },
+            function () { return bqTa; });
+          if (bqSchema) bqQF.appendChild(bqSchema);
           qSection.appendChild(bqQF);
           detectBtn.style.display = "none";
         } else if (k === "http") {
