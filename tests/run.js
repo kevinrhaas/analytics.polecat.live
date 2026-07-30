@@ -3795,7 +3795,7 @@ function serve() {
       };
     });
     ok("M2c: installing the demo pack seeds ≥2 connections (a file store + a repo backend), 4 datasets and a rollup job — a complete illustrative workspace",
-      m2c.adapters.indexOf("file") >= 0 && m2c.adapters.indexOf("supabase") >= 0 && m2c.dsetCount === 4 && m2c.jobStep === "aggregate", JSON.stringify(m2c));
+      m2c.adapters.indexOf("file") >= 0 && m2c.adapters.indexOf("supabase") >= 0 && m2c.dsetCount === 5 && m2c.jobStep === "aggregate", JSON.stringify(m2c)); // 5 since CONS-3's metrics dataset
     ok("M2c: the county dataset is real, in-geometry data (720 rows, every geoid a 5-digit FIPS) so its choropleth colors live — not a token sample",
       m2c.countyRows === 720 && m2c.allFips && !m2c.countyErr, JSON.stringify(m2c));
     ok("M2c: the seeded job is a county→state acreage-weighted-mean rollup wired source→output (the jobs-engine wmean pattern, its output a state-level dataset)",

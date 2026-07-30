@@ -7801,6 +7801,28 @@
 >       builder blob with the new rows, preserving pinned state); update the LF43/DP
 >       censuses + docs. Depends on nothing, but ship AFTER VB-10 so a map-type seeded
 >       View actually renders in the builder.
+> DURABLE-1. ★★ **Dashboards silently vanish / duplicate — the boot pull clobbers the
+>       healed workspace (Kevin live, 2026-07-30, screenshot: 8 dashboards where 11
+>       should be; Watershed Map + featured GONE; Provider-Agreement and
+>       Practice-Switching each TWICE, 3h + 5h copies).** Mechanism (same race as
+>       today's LF39 test fix, in the real app): boot runs reconcilePackDashboards +
+>       the ensure* heals, then initSync's ASYNC connectOnce() replaceAll()s the
+>       workspace with the remote mirror seconds later — a stale two-device UNION
+>       (dupes) that predates the newer seeds (losses). With pushes intermittently
+>       401/403 (KEVIN-LIVE #136), the healed state never persists remotely, so every
+>       reload re-corrupts. pullNow got a DATA-LOSS GUARD; boot connectOnce never did.
+>       FIX: (1) re-run reconcilePackDashboards + heals AFTER any pull-adoption
+>       (Sync.onSync listener on the connected-after-pull transition), then
+>       schedulePush so the healed state reaches the remote; (2) make repeated push
+>       failures LOUD (persistent 'your changes are not reaching the backend' banner,
+>       not just a rail dot); (3) Kevin's durable-objects ask: no destructive
+>       delete/overwrite without confirmation — audit delete paths (dashboards already
+>       confirm?) and queue soft-delete/undo as DURABLE-2. Remedy meanwhile: reload on
+>       the LATEST build (hard refresh — a stale service worker predates the dedupe +
+>       heals) and the pack heals re-seed everything; DURABLE-1 makes it stick.
+> DURABLE-2. **Soft-delete / undo for workspace objects.** Deleted dashboards/Views/
+>       datasets go to a Trash (tombstoned, restorable, purged after N days) instead of
+>       vanishing; every destructive bulk action gets an undo toast. Follows DURABLE-1.
 > EXPORT-1. ★ **Exported HTML dashboards have NO DATA (Kevin live, 2026-07-30).** "i
 >       downloaded as an html page this but it does not have any data in it." Root cause:
 >       buildHtml's preview:false path (exportCDF + PDF) deliberately leaves DASHKIT_MOCK
