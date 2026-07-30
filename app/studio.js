@@ -450,7 +450,12 @@
       }
       // offer to restore unsaved work (must run after the default example loads so the banner is visible)
       setTimeout(maybeShowRestoreBanner, 600);
+      // BOOT-FLASH (Kevin live, 2026-07-30): theme, section, and the first renders are all
+      // in — release the pre-paint veil (app/index.html stamps html.ps-booting before first
+      // paint and carries a 4s failsafe; the fade itself lives in that inline style).
+      requestAnimationFrame(function () { document.documentElement.classList.remove("ps-booting"); });
     }).catch(function (e) {
+      document.documentElement.classList.remove("ps-booting"); // BOOT-FLASH: never leave the veil over an error screen
       document.body.innerHTML = '<div style="padding:40px;font-family:sans-serif;max-width:640px;margin:auto">' +
         '<h2>Could not load Studio data.</h2><p>The Studio reads JSON + toolkit files over HTTP, so it must be served ' +
         '(not opened via <code>file://</code>). From <code>dashboard-studio/</code> run:</p>' +
@@ -10481,9 +10486,13 @@
     var moreCloseStudio = $("#moreCloseStudio");
     if (moreCloseStudio) moreCloseStudio.onclick = function () { closeMenus(); closeStudio(); };
 
-    // E8 — Sign out: clear gate session flag and reload so the passcode is required again
+    // E8 — Sign out: end the session and reload so the sign-in gate is required again.
+    // SIGNOUT-1 (Kevin live, 2026-07-30): this handler predated real auth — it only
+    // cleared the legacy passcode flag, so the PolecatAuth session survived the reload
+    // and the gate never appeared. End the auth session too (same as Settings' button).
     var moreSignOut = $("#moreSignOut"); if (moreSignOut) moreSignOut.onclick = function () {
       closeMenus();
+      if (window.PolecatAuth) window.PolecatAuth.logout();
       try { sessionStorage.removeItem("studio-gate-ok"); } catch (e) {}
       location.reload();
     };

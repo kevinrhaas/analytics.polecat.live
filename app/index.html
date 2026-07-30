@@ -17,6 +17,29 @@
 <!-- Polecat Shell design tokens (vendor/polecat-shell/ is READ-ONLY — synced from
      kevinrhaas/polecat-platform). Loads BEFORE studio.css so the Studio's own variable
      blocks win every name collision; the shell-token bridge lives in studio.css. -->
+<script>
+/* BOOT-FLASH (Kevin live, 2026-07-30): a refresh used to flash default-theme chrome before
+   studio.js re-stamped the saved theme (on an already-authed load, gate.js reveals before
+   its own theme stamping runs). Stamp the saved attributes here — before the first paint —
+   and veil #app until the boot tail releases it with a short fade (studio.js). The 4s
+   failsafe below means a boot error can never leave a blank app. */
+(function () {
+  try {
+    var m = localStorage.getItem("studio-theme"), t = localStorage.getItem("studio-app-theme");
+    if (m) document.documentElement.setAttribute("data-theme", m);
+    if (t) { document.documentElement.setAttribute("data-app-theme", t); document.documentElement.setAttribute("data-palette", t); }
+  } catch (e) {}
+  document.documentElement.classList.add("ps-booting");
+  setTimeout(function () { document.documentElement.classList.remove("ps-booting"); }, 4000);
+}());
+</script>
+<style>
+/* BOOT-FLASH veil: the app fades in once boot has themed + rendered everything. */
+#app{opacity:1;transition:opacity .22s ease}
+html.ps-booting #app{opacity:0;transition:none}
+@media (prefers-reduced-motion: reduce){#app{transition:none}}
+html[data-reduce-motion="1"] #app{transition:none}
+</style>
 <link rel="stylesheet" href="vendor/polecat-shell/tokens.css"/>
 <link rel="stylesheet" href="app/studio.css"/>
 <script src="app/gate-config.js"></script>

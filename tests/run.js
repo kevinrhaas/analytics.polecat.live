@@ -4731,6 +4731,51 @@ function serve() {
       vb7.panelTitle === "Custom panel heading" && vb7.specTitle === "VB7 View", JSON.stringify(vb7));
     ok("VB-7: with no panelTitle set, the panel header defaults to the View name",
       vb7.plainPanelTitle === "VB7 Plain", JSON.stringify(vb7));
+
+    // ---- BOOT-FLASH + SIGNOUT-1 (Kevin live, 2026-07-30) ----
+    console.log("\n\u2022 BOOT-FLASH: pre-paint theme stamp + boot veil; SIGNOUT-1: menu sign-out reaches the gate");
+    const bfPage = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    await bfPage.addInitScript(() => { try {
+      sessionStorage.setItem("studio-gate-ok", "1");
+      localStorage.setItem("studio-welcome-seen", "1");
+      localStorage.setItem("studio-theme", "dark");
+      localStorage.setItem("studio-app-theme", "aurora");
+    } catch (e) {} });
+    await bfPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    const bfEarly = await bfPage.evaluate(() => ({
+      theme: document.documentElement.getAttribute("data-theme"),
+      appTheme: document.documentElement.getAttribute("data-app-theme"),
+      palette: document.documentElement.getAttribute("data-palette")
+    }));
+    const bfReleased = await bfPage.waitForFunction(() => !document.documentElement.classList.contains("ps-booting"), { timeout: 10000 }).then(() => true).catch(() => false);
+    const bfAfter = await bfPage.evaluate(() => ({
+      opacity: getComputedStyle(document.getElementById("app")).opacity
+    }));
+    await bfPage.close();
+    ok("BOOT-FLASH: the saved theme attributes are stamped before first paint (no default-theme flash on refresh)",
+      bfEarly.theme === "dark" && bfEarly.appTheme === "aurora" && bfEarly.palette === "aurora", JSON.stringify(bfEarly));
+    ok("BOOT-FLASH: the boot veil releases once boot completes and the app fades to full opacity",
+      bfReleased && bfAfter.opacity === "1", JSON.stringify({ bfReleased, bfAfter }));
+
+    const soPage = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    await soPage.addInitScript(() => { try { localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    await soPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await soPage.waitForSelector("#g-form", { timeout: 8000 });
+    await soPage.fill("#g-user", "demo");
+    await soPage.fill("#g-pass", "demo");
+    await soPage.click("#g-form button[type=submit]");
+    await soPage.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 8000 });
+    const soAuthedBefore = await soPage.evaluate(() => window.PolecatAuth.authed());
+    // the handler reloads the page — the evaluate's context is destroyed mid-call, so swallow that
+    await soPage.evaluate(() => { document.getElementById("moreSignOut").click(); }).catch(() => {});
+    await soPage.waitForSelector("#studio-gate", { timeout: 8000 }).catch(() => {});
+    const soAfter = await soPage.evaluate(() => ({
+      gate: !!document.querySelector("#studio-gate"),
+      authed: window.PolecatAuth ? window.PolecatAuth.authed() : null
+    }));
+    await soPage.close();
+    ok("SIGNOUT-1: signing out from the \u22ef menu ends the real auth session and lands back on the sign-in gate",
+      soAuthedBefore === true && soAfter.gate === true && soAfter.authed === false, JSON.stringify({ soAuthedBefore, soAfter }));
     await page.evaluate(function () { return window.__studioLoadExample("conservation-flow.studio.json"); }); // LF43 slice 2: menu gone — hook load
     await page.waitForTimeout(300);
     const lf2Flow = await page.evaluate(function () {

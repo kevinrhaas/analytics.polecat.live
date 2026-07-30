@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v403"; /* v403: VB-7 — saved Views carry an independent
+var CACHE_NAME = "studio-shell-v404"; /* v404: BOOT-FLASH + SIGNOUT-1 — app/index.html
+   stamps the saved theme attributes pre-paint and veils #app (html.ps-booting) until the
+   studio.js boot tail releases it with a short fade (4s failsafe; reduced-motion honored);
+   the \u22ef menu's Sign out now calls PolecatAuth.logout() so the gate actually returns.
+   Original v403: VB-7 — saved Views carry an independent
    panelTitle (Save-dialog field; defaults to and tracks the View name; wins in the builder
    preview, KPI labels, and both Explore dashboard-placement paths). Original v402: VB-6 — a numeric field on the View
    Builder's Columns shelf gets an aggregation dropdown even before it's summed, with a

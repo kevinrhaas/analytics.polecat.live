@@ -7623,16 +7623,24 @@
 >       year) everywhere the pack's %-metrics aggregate — audit every conservation
 >       dashboard/View for the same sum-of-percent mistake. Folds naturally into CONS-1
 >       (below) but ship the data+aggregation fix first — it's live-visible today.
-> BOOT-FLASH. **Refresh shows a jarring unthemed flash before the app settles (Kevin
->       live, 2026-07-30).** "When I refresh the app I get a little flash and a view of
+> BOOT-FLASH. ✓ **Refresh shows a jarring unthemed flash before the app settles (Kevin
+>       live, 2026-07-30 — SHIPPED v768, sw v404). ROOT CAUSE: on an already-authed load,
+>       gate.js reveals BEFORE its own theme stamping (which sits after the authed early
+>       return), so default-theme chrome painted first. app/index.html now stamps
+>       data-theme/data-app-theme/data-palette pre-paint and veils #app (html.ps-booting,
+>       opacity fade ~220ms, reduced-motion honored, 4s failsafe + catch-path release);
+>       studio.js's boot tail releases it after the first renders. Original —** "When I refresh the app I get a little flash and a view of
 >       the app without the selected chrome — a messy refresh look. Clean that up ... with
 >       a fade if needed." Fix: a pre-paint boot veil — an inline head style holds the app
 >       invisible while theme/palette/rail/section stamp during boot, released with a
 >       ~200ms fade (honoring prefers-reduced-motion + the stored reduce-motion override);
 >       a failsafe timer releases it even if boot throws. Veil only the gap that remains
 >       after whatever already stamps pre-paint.
-> SIGNOUT-1. **Sign out (account menu dropdown) does not return to the login screen
->       (Kevin live, 2026-07-30).** Signing out from the menu should land on the gate.
+> SIGNOUT-1. ✓ **Sign out (account menu dropdown) does not return to the login screen
+>       (Kevin live, 2026-07-30 — SHIPPED v768 same PR). ROOT CAUSE: the ⋯ menu handler
+>       predated real auth — it cleared only the legacy studio-gate-ok flag, so the
+>       PolecatAuth session survived the reload and the gate never showed. It now calls
+>       PolecatAuth.logout() first (same as Settings' Sign out). Original —** Signing out from the menu should land on the gate.
 >       Fix the handler to clear the session AND re-present the gate (likely a clean
 >       reload after clearing studio-gate-ok/session state).
 > CONS-2. **Conservation Insight needs a WATERSHED choropleth dashboard, clearly named
