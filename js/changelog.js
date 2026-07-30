@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 771,
+    title: 'The dashboard viewer no longer flashes the wrong theme either',
+    kind: 'fix',
+    ts: '2026-07-30T18:47:47.000Z',
+    items: [
+      'The shared dashboard viewer (opened from a dashboard\'s eye icon) picked up the same pre-paint theme fix the main app got — no more flash of the wrong color theme before it settles on refresh.',
+    ],
+  },
+  {
     v: 770,
     title: 'Quick View maps pick their Region scale for you',
     kind: 'feature',

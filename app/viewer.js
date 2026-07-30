@@ -83,6 +83,10 @@
     var stage = $("#viewerStage");
     if (stage) stage.classList.add("viewer-empty-active");
     document.title = "Dashboard not found · Analytics";
+    // BOOT-FLASH follow-up: every boot() exit (missing/private dashboard, or the fetch
+    // chain's own .catch()) routes through here, so releasing the pre-paint veil once is
+    // enough to cover them all — never leave the not-found state hidden behind it.
+    document.documentElement.classList.remove("ps-booting");
   }
 
   // Same lazy geo/GL-asset fetch as app/studio.js's ensureGeoAssets, duplicated
@@ -223,6 +227,9 @@
       window.__viewerBuildHtml = function () { return buildViewerHtml(spec, assets); };
       window.__viewerSampleMock = function () { return sampleMock(spec); };
       window.__viewerRunExport = function (kind) { return runExport(kind, spec, assets); };
+      // BOOT-FLASH follow-up: theme + the dashboard frame are both in — release the
+      // pre-paint veil (app/viewer.html stamps html.ps-booting before first paint).
+      requestAnimationFrame(function () { document.documentElement.classList.remove("ps-booting"); });
     }).catch(function () { showNotFound(); });
   }
 

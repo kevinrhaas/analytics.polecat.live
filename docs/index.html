@@ -8,7 +8,8 @@
   <script>
     // Z11: this reference page is opened standalone (new tab, no app chrome around it), but
     // should still follow whichever theme/mode the user last set in the Studio — same
-    // localStorage keys, same before-first-paint pattern app/gate.js uses to avoid a flash.
+    // localStorage keys, same before-first-paint pattern app/index.html/app/viewer.html use
+    // (BOOT-FLASH) to avoid a flash.
     (function () {
       try {
         if (localStorage.getItem("studio-theme") === "dark") document.documentElement.setAttribute("data-theme", "dark");

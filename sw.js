@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v406"; /* v406: QV-1 — Quick View choropleths default the
+var CACHE_NAME = "studio-shell-v407"; /* v407: BOOT-FLASH follow-up — the standalone dashboard
+   viewer (app/viewer.html/app/viewer.js) gets the same pre-paint theme stamp + boot veil
+   #508 shipped for the main app, which had missed this second entry point; app/gate.js's
+   now-fully-redundant async theme stamp (superseded by both entry points' own pre-paint
+   scripts) is deleted. app/viewer.html, app/viewer.js, app/gate.js, docs/index.html, STATUS.md,
+   js/changelog.js, tests/run.js.
+   Original v406: QV-1 — Quick View choropleths default the
    Region scale from the Region-id column (name heuristics first, value shape fallback;
    explore.js xpGuessRegionScale inside xpGuessMapping — manual picks still win).
    Original v405: VB-8 — the add-to-dashboard picker pins a
