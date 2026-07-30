@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v385"; /* v385: VB-4 remaining major, KPI (Kevin's overnight View
+var CACHE_NAME = "studio-shell-v386"; /* v386: VB-6 (Kevin's overnight View Builder queue) — the
+   Save View dialog gains a real Folder field (the same LF56 browse-a-folder-tree picker every
+   other Folder field uses, seeded from the picked dataset's own folder) plus a name-suggest
+   sparkle on the Name field, matching every other Save/editor dialog in the app. app/build.js,
+   tests/run.js, STATUS.md, js/changelog.js.
+   v385: VB-4 remaining major, KPI (Kevin's overnight View
    Builder queue, "hit major ones first") — KPI joins the chart-type strip. Structurally
    different from every other chart type here (spec.kpis, not spec.panels), so it gets its own
    bdKpiFor constructor (mirroring Studio's own newKpi + guessFmt convention) plus its own
