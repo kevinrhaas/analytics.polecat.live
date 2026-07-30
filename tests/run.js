@@ -9398,7 +9398,9 @@ function serve() {
       out.inOutline = !!document.querySelector('#buildOutline .bd-ol[data-bd-ds-id="' + ds.id + '"]');
       await window.__studioBuild.selectDataset("ws", ds.id);
       await new Promise((r) => setTimeout(r, 120));
-      out.colChips = document.querySelectorAll("#buildOutline .bd-col").length;
+      // [data-bd-col] = real column chips only (slice 4 appends a "＋ calc…" add
+      // affordance that shares the .bd-col chip styling but isn't a column)
+      out.colChips = document.querySelectorAll("#buildOutline .bd-col[data-bd-col]").length;
       window.__studioBuild.addField("amount", "cols");
       window.__studioBuild.addField("region", "cols");
       await new Promise((r) => setTimeout(r, 60));
@@ -9595,6 +9597,57 @@ function serve() {
       bdFilterSave.savedFilters === "region:in,amount:range" && bdFilterSave.restored === "region:in,amount:range" &&
       bdFilterSave.restoredNarrow && bdFilterSave.statusFiltered,
       JSON.stringify(bdFilterSave));
+    // 8. slice 4 — calculated columns (the shared =[a]+[b] formula engine, Studio.applyCalcCols)
+    const bdCalc = await page.evaluate(async () => {
+      const B = window.__studioBuild;
+      const out = { calcBtn: !!document.getElementById("bdCalcBtn") };
+      // sanitize + drop incomplete rows + refuse shadowing a real column
+      B.setCalcs([
+        { name: "amount_x2", formula: "=[amount] * 2" },
+        { name: "half done", formula: "" },
+        { name: "region", formula: "=[amount]" },
+      ]);
+      await new Promise((r) => setTimeout(r, 80));
+      out.calcs = B.state.calcs.map((c) => c.name).join(",");
+      out.chip = !!document.querySelector('.bd-col.calc[data-bd-col="amount_x2"]');
+      const eff = B.eff();
+      const ei = eff.cols.indexOf("amount_x2"), si = B.state.run.cols.indexOf("amount");
+      out.mathOk = ei >= 0 && eff.rows.slice(0, 10).every((r, i) => r[ei] === 2 * parseFloat(B.state.run.rows[i][si]));
+      B.addField("amount_x2", "cols");
+      await new Promise((r) => setTimeout(r, 80));
+      out.agg = (B.state.shelfCols.filter((f) => f.col === "amount_x2")[0] || {}).agg;
+      // removing every calc prunes the shelf chip that used it
+      B.setCalcs([]);
+      await new Promise((r) => setTimeout(r, 80));
+      out.pruned = !B.state.shelfCols.some((f) => f.col === "amount_x2");
+      // put one back for the save round trip
+      B.setCalcs([{ name: "amount_x2", formula: "=[amount] * 2" }]);
+      await new Promise((r) => setTimeout(r, 80));
+      return out;
+    });
+    ok("#117 (4): calc columns run through the shared formula engine — sanitized names, no shadowing, math checks out",
+      bdCalc.calcBtn && bdCalc.calcs === "amount_x2" && bdCalc.chip && bdCalc.mathOk, JSON.stringify(bdCalc));
+    ok("#117 (4): a calc column behaves like any field (SUM default on the shelf); removing it prunes its chips",
+      bdCalc.agg === "sum" && bdCalc.pruned, JSON.stringify(bdCalc));
+    const bdCalcSave = await page.evaluate(async (savedId) => {
+      window.__studioBuild.save();
+      await new Promise((r) => setTimeout(r, 120));
+      const m = document.querySelector(".modal-ov .bd-save");
+      [].slice.call(m.querySelectorAll("button")).filter((b) => /^(Save|Update)$/.test(b.textContent))[0].click();
+      await new Promise((r) => setTimeout(r, 120));
+      const row = window.Studio.Workspace.get("analyses", savedId);
+      window.Studio.Build.newView();
+      window.Studio.Build.load(savedId);
+      await new Promise((r) => setTimeout(r, 500));
+      return {
+        savedCalcs: (row.builder.calcs || []).map((c) => c.name).join(","),
+        restoredCalcs: window.__studioBuild.state.calcs.map((c) => c.name).join(","),
+        effHasCalc: window.__studioBuild.eff().cols.indexOf("amount_x2") >= 0,
+      };
+    }, bdSave.id);
+    ok("#117 (4): calcs persist on the builder blob and reopen still-applied",
+      bdCalcSave.savedCalcs === "amount_x2" && bdCalcSave.restoredCalcs === "amount_x2" && bdCalcSave.effHasCalc,
+      JSON.stringify(bdCalcSave));
     // cleanup + restore the section the next block expects
     await page.evaluate((savedId) => {
       const st = window.__studioBuild.state;

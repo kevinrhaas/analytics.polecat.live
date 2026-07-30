@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v371"; /* v371: #117 slice 3 — the View Builder's Filters
+var CACHE_NAME = "studio-shell-v372"; /* v372: #117 slice 4 — calculated columns in the View
+   Builder: the shared Studio.applyCalcCols/evalFormula engine ("=[a]/[b]", pctChange,
+   movingAvg) extends the loaded rows once (memoized bdEff()), and from there calc columns
+   behave like any field on the shelves/filters/charts; "＋ calc…" editor in the outline;
+   name sanitizing + no shadowing real columns + deleting prunes dependent chips; persisted
+   on the builder blob. app/build.js, app/studio.css, docs/index.html, tests/run.js,
+   STATUS.md, js/changelog.js.
+   v371: #117 slice 3 — the View Builder's Filters
    shelf: filters narrow the SOURCE rows before the pivot/charts/status compute ("in"
    value-checklist for text fields, min–max range for numerics; fresh filter = honest "all"
    no-op; active chips highlight; "N of M source rows (filtered)"); persisted on the

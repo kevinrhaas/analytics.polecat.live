@@ -61,15 +61,98 @@
     shelfCols: [],           // [ { col, agg } ] — agg null = dimension, else sum/avg/min/max/median/count
     shelfRows: [],           // [ { col } ] — row dimensions (crosstab when non-empty)
     filters: [],             // slice 3: [ { col, kind:"in"|"range", values:null|[..], min:"", max:"" } ]
+    calcs: [],               // slice 4: [ { name, formula } ] — Studio.applyCalcCols "=[a]+[b]" syntax
     chartType: "table",      // slice 2: table | bars | line | donut | heatmap
     analysisId: null, name: "", folder: "",
     outlineOpen: {}          // which outline datasets are expanded
   };
   function bdReset() {
     BD.dsKind = null; BD.dsId = null; BD.dsName = ""; BD.dsSub = "";
-    BD.run = null; BD.shelfCols = []; BD.shelfRows = []; BD.filters = [];
+    BD.run = null; BD.shelfCols = []; BD.shelfRows = []; BD.filters = []; BD.calcs = [];
+    BD._eff = null;
     BD.chartType = "table";
     BD.analysisId = null; BD.name = ""; BD.folder = "";
+  }
+
+  // ---------- calculated columns (slice 4) ----------
+  // The SAME formula engine the rest of the app uses (Studio.applyCalcCols /
+  // Studio.evalFormula — "=[colA] / [colB]" plus pctChange()/movingAvg(); a safe
+  // recursive-descent parser, never eval()). Calc columns extend the loaded rows
+  // ONCE (memoized) and from there behave like any other column — shelves,
+  // filters, charts, and the pivot never special-case them.
+  function bdEff() {
+    if (!BD.run) return null;
+    if (!BD.calcs.length) return BD.run;
+    var key = JSON.stringify(BD.calcs);
+    if (!BD._eff || BD._effKey !== key) {
+      var e = Studio.applyCalcCols(BD.run.cols, BD.run.rows, BD.calcs.map(function (c) {
+        return { name: c.name, formula: c.formula, type: "Numeric" };
+      }));
+      BD._eff = { cols: e.cols, rows: e.rows, live: BD.run.live, error: BD.run.error };
+      BD._effKey = key;
+    }
+    return BD._eff;
+  }
+  function bdIsCalc(col) { return BD.calcs.some(function (c) { return c.name === col; }); }
+  // Replace the calc list wholesale (the editor modal's Save + the test hook):
+  // sanitizes names, drops incomplete rows, refuses collisions with real columns,
+  // and prunes any shelf/filter chip whose calc column just went away or renamed.
+  function bdSetCalcs(list) {
+    var baseCols = BD.run ? BD.run.cols : [];
+    var seen = {};
+    BD.calcs = (list || []).map(function (c) {
+      return { name: String(c.name || "").trim().replace(/[^A-Za-z0-9_]+/g, "_").replace(/^_+|_+$/g, ""), formula: String(c.formula || "").trim() };
+    }).filter(function (c) {
+      if (!c.name || !c.formula) return false;
+      if (baseCols.indexOf(c.name) >= 0) return false; // never shadow a real column
+      if (seen[c.name]) return false;
+      seen[c.name] = true;
+      return true;
+    });
+    BD._eff = null;
+    var known = bdEff() ? bdEff().cols : [];
+    BD.shelfCols = BD.shelfCols.filter(function (f) { return known.indexOf(f.col) >= 0; });
+    BD.shelfRows = BD.shelfRows.filter(function (f) { return known.indexOf(f.col) >= 0; });
+    BD.filters = BD.filters.filter(function (f) { return known.indexOf(f.col) >= 0; });
+    render();
+  }
+  function openCalcEditor() {
+    D.modal("Calculated columns", function (b) {
+      var wrap = D.el("div", "bd-calc");
+      var hint = D.el("div", "bd-calc-hint");
+      hint.textContent = "Formulas reference other columns as =[column] — e.g. =[revenue] / [acres], =([a]+[b])*100, =pctChange([sales]), =movingAvg([sales], 3). A calculated column then works like any other field on the shelves and filters.";
+      wrap.appendChild(hint);
+      var listBox = D.el("div", "bd-calc-list");
+      wrap.appendChild(listBox);
+      var draft = Studio.clone(BD.calcs);
+      function paint() {
+        listBox.innerHTML = "";
+        if (!draft.length) {
+          var em = D.el("div", "bd-calc-empty"); em.textContent = "No calculated columns yet.";
+          listBox.appendChild(em);
+        }
+        draft.forEach(function (c, i) {
+          var row = D.el("div", "bd-calc-row");
+          var nm = D.el("input"); nm.type = "text"; nm.value = c.name; nm.placeholder = "col_name"; nm.setAttribute("aria-label", "Column name");
+          nm.oninput = function () { c.name = nm.value; };
+          var fm = D.el("input"); fm.type = "text"; fm.value = c.formula; fm.placeholder = "=[colA] / [colB]"; fm.setAttribute("aria-label", "Formula");
+          fm.className = "bd-calc-formula"; fm.oninput = function () { c.formula = fm.value; };
+          var rm = D.el("button", "bd-chip-rm"); rm.type = "button"; rm.textContent = "✕"; rm.title = "Remove"; rm.setAttribute("aria-label", "Remove " + (c.name || "this calculated column"));
+          rm.onclick = function () { draft.splice(i, 1); paint(); };
+          row.appendChild(nm); row.appendChild(fm); row.appendChild(rm);
+          listBox.appendChild(row);
+        });
+      }
+      paint();
+      var foot = D.el("div"); foot.style.cssText = "display:flex;justify-content:space-between;gap:8px;margin-top:14px";
+      var add = D.el("button", "btn"); add.type = "button"; add.textContent = "+ Add column";
+      add.onclick = function () { draft.push({ name: "", formula: "" }); paint(); };
+      var save = D.el("button", "btn primary"); save.type = "button"; save.textContent = "Apply";
+      save.onclick = function () { bdSetCalcs(draft); wrap.closest(".modal-ov").remove(); };
+      foot.appendChild(add); foot.appendChild(save);
+      wrap.appendChild(foot);
+      b.appendChild(wrap);
+    });
   }
 
   // ---------- dataset outline (LEFT) ----------
@@ -98,7 +181,7 @@
 
   function bdSelectDataset(kind, id) {
     BD.dsKind = kind; BD.dsId = id;
-    BD.shelfCols = []; BD.shelfRows = []; BD.filters = [];
+    BD.shelfCols = []; BD.shelfRows = []; BD.filters = []; BD.calcs = []; BD._eff = null;
     BD.run = null;
     var entry = bdDatasets().filter(function (d) { return d.kind === kind && d.id === id; })[0];
     BD.dsName = entry ? entry.name : id;
@@ -138,8 +221,9 @@
   // the job editor already uses (injected) — one heuristic, not two.
   function bdFieldKind(col) {
     if (!BD.run) return "String";
-    var idx = BD.run.cols.indexOf(col);
-    var vals = idx < 0 ? [] : BD.run.rows.slice(0, 30).map(function (r) { return r[idx]; });
+    var eff = bdEff();
+    var idx = eff.cols.indexOf(col);
+    var vals = idx < 0 ? [] : eff.rows.slice(0, 30).map(function (r) { return r[idx]; });
     return D.guessFieldKind(col, vals);
   }
 
@@ -151,7 +235,7 @@
   }
   function bdAddField(col, shelf) {
     if (shelf === "filters") { bdAddFilter(col); return; }
-    if (!BD.run || BD.run.cols.indexOf(col) < 0 || bdOnShelf(col)) return;
+    if (!BD.run || bdEff().cols.indexOf(col) < 0 || bdOnShelf(col)) return;
     if (shelf === "rows") BD.shelfRows.push({ col: col });
     else BD.shelfCols.push({ col: col, agg: bdFieldKind(col) === "Numeric" ? "sum" : null });
     render();
@@ -168,7 +252,7 @@
   // values:null means "everything" — a freshly added filter is a no-op until
   // edited) and "range" (numeric min/max; an empty bound is unbounded).
   function bdAddFilter(col) {
-    if (!BD.run || BD.run.cols.indexOf(col) < 0) return;
+    if (!BD.run || bdEff().cols.indexOf(col) < 0) return;
     if (BD.filters.some(function (f) { return f.col === col; })) return;
     var numeric = bdFieldKind(col) === "Numeric";
     BD.filters.push(numeric ? { col: col, kind: "range", min: "", max: "" } : { col: col, kind: "in", values: null });
@@ -193,10 +277,11 @@
   function bdFilteredRows() {
     if (!BD.run) return [];
     var active = BD.filters.filter(bdFilterActive);
-    if (!active.length) return BD.run.rows;
+    var eff = bdEff();
+    if (!active.length) return eff.rows;
     var idx = {};
-    BD.run.cols.forEach(function (c, i) { idx[c] = i; });
-    return BD.run.rows.filter(function (r) {
+    eff.cols.forEach(function (c, i) { idx[c] = i; });
+    return eff.rows.filter(function (r) {
       return active.every(function (f) {
         var v = r[idx[f.col]];
         if (f.kind === "range") {
@@ -214,9 +299,10 @@
   // offers the full universe), capped for sanity.
   function bdDistinct(col) {
     if (!BD.run) return [];
-    var i = BD.run.cols.indexOf(col), seen = {}, out = [];
+    var eff = bdEff();
+    var i = eff.cols.indexOf(col), seen = {}, out = [];
     if (i < 0) return out;
-    BD.run.rows.forEach(function (r) {
+    eff.rows.forEach(function (r) {
       var v = String(r[i]);
       if (!seen[v]) { seen[v] = true; out.push(v); }
     });
@@ -469,10 +555,10 @@
     if (!BD.run || chartUnavailable(type)) return null;
     var m = bdFirstMeasure(), rows = bdFilteredRows();
     if (type === "heatmap") {
-      return compute(BD.run.cols, rows,
+      return compute(bdEff().cols, rows,
         [{ col: BD.shelfRows[0].col, agg: null }, { col: bdColsDim().col, agg: null }, m], []);
     }
-    return compute(BD.run.cols, rows, [{ col: bdFirstDim().col, agg: null }, m], []);
+    return compute(bdEff().cols, rows, [{ col: bdFirstDim().col, agg: null }, m], []);
   }
   // The live chart preview is the REAL dashboard renderer — the same
   // buildHtml(spec, assets, { preview, mock }) srcdoc-iframe path Explore's
@@ -546,13 +632,16 @@
           var sel = BD.dsKind === d.kind && BD.dsId === d.id;
           var open = sel || !!BD.outlineOpen[key];
           var colsHtml = open && sel && BD.run
-            ? '<div class="bd-ol-cols">' + BD.run.cols.map(function (c) {
+            ? '<div class="bd-ol-cols">' + bdEff().cols.map(function (c) {
                 var used = bdOnShelf(c);
                 var numeric = bdFieldKind(c) === "Numeric";
-                return '<button type="button" class="bd-col' + (used ? " used" : "") + (numeric ? " num" : "") +
-                  '" draggable="true" data-bd-col="' + esc(c) + '" title="' + (used ? "Already on a shelf" : "Add to the Columns shelf (drag for Rows)") + '">' +
-                  '<span class="bd-col-k">' + (numeric ? "#" : "a") + '</span>' + esc(c) + "</button>";
-              }).join("") + "</div>"
+                var calc = bdIsCalc(c);
+                return '<button type="button" class="bd-col' + (used ? " used" : "") + (numeric ? " num" : "") + (calc ? " calc" : "") +
+                  '" draggable="true" data-bd-col="' + esc(c) + '" title="' + (calc ? "Calculated column — " : "") + (used ? "Already on a shelf" : "Add to the Columns shelf (drag for Rows)") + '">' +
+                  '<span class="bd-col-k">' + (calc ? "=" : numeric ? "#" : "a") + '</span>' + esc(c) + "</button>";
+              }).join("") +
+              '<button type="button" class="bd-col bd-col-calc" id="bdCalcBtn" title="Define calculated columns (=[colA] / [colB])">＋ calc…</button>' +
+              "</div>"
             : "";
           return '<div class="bd-ol' + (sel ? " sel" : "") + '" data-bd-ds-kind="' + esc(d.kind) + '" data-bd-ds-id="' + esc(d.id) + '">' +
             '<button type="button" class="bd-ol-head" data-bd-ds="' + esc(key) + '">' +
@@ -582,7 +671,7 @@
           '<span class="bd-chip-nm">' + esc(f.col) + '</span><span class="bd-flt-sum">' + esc(bdFilterSummary(f)) + "</span></button>" +
           '<button type="button" class="bd-chip-rm" data-bd-flt-rm="' + esc(f.col) + '" title="Remove filter" aria-label="Remove filter on ' + esc(f.col) + '">✕</button></span>';
       }).join("");
-      var addable = BD.run ? BD.run.cols.filter(function (c) { return !BD.filters.some(function (f) { return f.col === c; }); }) : [];
+      var addable = BD.run ? bdEff().cols.filter(function (c) { return !BD.filters.some(function (f) { return f.col === c; }); }) : [];
       var addSel = BD.run
         ? '<select class="bd-flt-add" id="bdFilterAdd" aria-label="Add a filter">' +
             '<option value="">＋ Add filter…</option>' +
@@ -610,16 +699,16 @@
     // CENTER — status + result (both computed over the FILTERED source rows)
     var status = $("#buildStatus", sec), result = $("#buildResult", sec);
     var srcRows = BD.run ? bdFilteredRows() : [];
-    var res = BD.run ? compute(BD.run.cols, srcRows, BD.shelfCols, BD.shelfRows) : null;
+    var res = BD.run ? compute(bdEff().cols, srcRows, BD.shelfCols, BD.shelfRows) : null;
     if (status) {
       if (!BD.run) status.innerHTML = "";
       else {
         var badge = BD.run.live
           ? '<span class="bd-badge live">live</span>'
           : '<span class="bd-badge sample" title="Typed sample rows that show the shape — not your data">sample rows</span>';
-        var rowCount = srcRows.length === BD.run.rows.length
-          ? BD.run.rows.length + " source rows"
-          : srcRows.length + " of " + BD.run.rows.length + " source rows (filtered)";
+        var rowCount = srcRows.length === bdEff().rows.length
+          ? bdEff().rows.length + " source rows"
+          : srcRows.length + " of " + bdEff().rows.length + " source rows (filtered)";
         status.innerHTML = '<b>' + esc(BD.dsName) + '</b> <small>' + esc(BD.dsSub) + " · " + rowCount + "</small> " + badge +
           (BD.run.error ? ' <span class="bd-badge warn">' + esc(BD.run.error) + "</span>" : "");
       }
@@ -730,6 +819,8 @@
     $$("[data-bd-flt-rm]", sec).forEach(function (btn) {
       btn.onclick = function () { bdRemoveFilter(btn.getAttribute("data-bd-flt-rm")); };
     });
+    var calcBtn = $("#bdCalcBtn", sec);
+    if (calcBtn) calcBtn.onclick = function () { openCalcEditor(); };
     var fltAdd = $("#bdFilterAdd", sec);
     if (fltAdd) fltAdd.onchange = function () {
       var col = fltAdd.value;
@@ -748,7 +839,7 @@
     // basis table (so newPanel's defaults keep mapping it everywhere), the table
     // type saves the full pivot's columns. Both compute over the filtered rows.
     var res = BD.chartType === "table"
-      ? (BD.run ? compute(BD.run.cols, bdFilteredRows(), BD.shelfCols, BD.shelfRows) : null)
+      ? (BD.run ? compute(bdEff().cols, bdFilteredRows(), BD.shelfCols, BD.shelfRows) : null)
       : chartBasis(BD.chartType);
     if (!res || !res.head.length) { toast("Nothing to save yet — put a field on a shelf first.", true); return; }
     D.modal(BD.analysisId ? "Update View" : "Save View", function (b) {
@@ -777,7 +868,7 @@
           builder: {
             dsKind: BD.dsKind, dsId: BD.dsId, chartType: BD.chartType,
             shelfCols: Studio.clone(BD.shelfCols), shelfRows: Studio.clone(BD.shelfRows),
-            filters: Studio.clone(BD.filters)
+            filters: Studio.clone(BD.filters), calcs: Studio.clone(BD.calcs)
           }
         };
         if (BD.analysisId) row.id = BD.analysisId;
@@ -804,6 +895,8 @@
     var b = a.builder;
     bdSelectDataset(b.dsKind, b.dsId).then(function () {
       if (!BD.run) { toast("This View’s source dataset is gone — pick another to rebuild it.", true); render(); return; }
+      BD.calcs = Studio.clone(b.calcs || []);
+      BD._eff = null;
       BD.shelfCols = Studio.clone(b.shelfCols || []);
       BD.shelfRows = Studio.clone(b.shelfRows || []);
       BD.filters = Studio.clone(b.filters || []);
@@ -821,5 +914,5 @@
     state: BD             // test hook (also window.__studioBuild below)
   };
   window.__studioBuild = { state: BD, addField: bdAddField, selectDataset: bdSelectDataset, save: bdSave, load: bdLoad,
-    addFilter: bdAddFilter, filteredRows: bdFilteredRows, rerender: render };
+    addFilter: bdAddFilter, filteredRows: bdFilteredRows, setCalcs: bdSetCalcs, eff: bdEff, rerender: render };
 })();

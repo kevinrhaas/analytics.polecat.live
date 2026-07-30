@@ -513,10 +513,18 @@
   min–max range (leave a bound blank for open-ended). A freshly added filter shows
   <strong>all</strong> and changes nothing until you edit it; active filters highlight their chip
   and the status line reads "N of M source rows (filtered)".</p>
+  <p><strong>Calculated columns</strong>: the <strong>＋ calc…</strong> chip at the end of the
+  selected dataset's column list opens an editor where you define new columns from formulas —
+  <code>=[revenue] / [acres]</code>, <code>=([a]+[b])*100</code>, or the running helpers
+  <code>=pctChange([sales])</code> and <code>=movingAvg([sales], 3)</code>. It's the same safe
+  formula language the Studio data-source editor uses. A calculated column appears in the outline
+  with an <code>=</code> marker and from there behaves like any other field — put it on a shelf
+  (numerics default to SUM), filter by it, chart it. A calculated column can't shadow a real
+  column's name, and deleting one cleanly removes it from any shelf or filter that used it.</p>
   <p><strong>Save View</strong> (top right) saves the result as a View with whichever chart type is
-  selected — filters included — and it appears in the <strong>Views</strong> section like any other.
-  Opening it from there returns it to Build with its dataset, shelves, filters, and chart restored
-  (Views made in Explore keep opening in Explore). Per-field calculated columns are on the roadmap.</p>
+  selected — filters and calculated columns included — and it appears in the <strong>Views</strong>
+  section like any other. Opening it from there returns it to Build with its dataset, shelves,
+  filters, calcs, and chart restored (Views made in Explore keep opening in Explore).</p>
 
   <h2>Sample packs</h2>
   <p><strong>Sample packs</strong> (Settings, and the Studio library's left View) are ready-made

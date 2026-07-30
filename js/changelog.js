@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 735,
+    title: 'Calculated columns land in the View Builder',
+    kind: 'feature',
+    ts: '2026-07-30T02:53:40.000Z',
+    items: [
+      'The ＋ calc… chip in Build\'s column list opens a formula editor — define new columns like =[revenue] / [acres] or =pctChange([sales]), using the same safe formula language as the Studio data-source editor.',
+      'A calculated column shows up with an = marker and works like any other field: put it on a shelf (numerics default to SUM), filter by it, chart it. Deleting one cleanly removes it from any shelf or filter that used it.',
+      'Calculated columns save with the View and come back when you reopen it.',
+    ],
+  },
+  {
     v: 734,
     title: 'The View Builder gains a Filters shelf',
     kind: 'feature',
