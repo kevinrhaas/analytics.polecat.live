@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 768,
+    title: 'Refreshes look clean, and Sign out actually signs you out',
+    kind: 'fix',
+    ts: '2026-07-30T17:39:44.000Z',
+    items: [
+      'Refreshing the app no longer flashes unthemed chrome — your theme is applied before the first paint and the console fades in once everything has settled (respecting reduced-motion preferences).',
+      'Sign out from the ⋯ menu now ends your session and returns you to the sign-in screen — it used to leave you signed in.',
+    ],
+  },
+  {
     v: 767,
     title: 'View panels get their own title',
     kind: 'feature',
