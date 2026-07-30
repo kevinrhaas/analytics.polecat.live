@@ -286,7 +286,7 @@
 
     return {
       id: "conservation-insight-demo", name: "conservation-insight-demo",
-      title: "Conservation Insight — cover crop & tillage adoption",
+      title: "Cover Crop & Tillage Adoption",
       subtitle: "Illustrative Corn Belt sample — a common estimate across DTN, Indigo Ag, Iowa State, Regrow & Terra Diagnostics",
       dashboardTheme: "conservation",
       panels: panels, kpis: kpis, filters: filters,
@@ -362,10 +362,14 @@
 
     // --- analyses (pinned to Home) + the featured dashboard ---
     PRACTICES.forEach(function (p) { W.put("analyses", analysisRow(p)); });
+    // Kevin (2026-07-30): the dashboard's OWN name leads and the pack files into a
+    // "Conservation Insight" folder — a grid of cards all prefixed "Conservation
+    // Insight — …" read as identical rows.
     W.put("dashboards", {
       name: "conservation-insight-demo",
-      title: "Conservation Insight — cover crop & tillage adoption (illustrative demo)",
+      title: "Cover Crop & Tillage Adoption (illustrative demo)",
       ts: now, spec: dashboardSpec(),
+      folder: "Conservation Insight",
       featured: true, featuredAt: now, demoPackId: id
     });
   }

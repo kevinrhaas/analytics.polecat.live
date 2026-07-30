@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 742,
+    title: 'Sample-pack dashboards get real names and a folder',
+    kind: 'polish',
+    ts: '2026-07-30T05:28:36.000Z',
+    items: [
+      'Conservation Insight dashboards now lead with their own name — "Watershed-Scale Adoption", "The Story So Far" — instead of a shared prefix that made every card in the grid read identical.',
+      'Installing a sample pack files its dashboards into a folder named for the pack ("Conservation Insight" / "Data Management"), so the Dashboards grid starts organized.',
+      'Workspaces installed before this change heal automatically on next load — titles are cleaned up and the folder is backfilled, without reinstalling anything.',
+    ],
+  },
+  {
     v: 741,
     title: 'View Builder shelf pills now drag between Columns, Rows and Filters',
     kind: 'feature',

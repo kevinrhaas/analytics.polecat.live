@@ -384,6 +384,8 @@
       if (railSourceBtn) railSourceBtn.onclick = function () { if (window.__studioShellSetSection) window.__studioShellSetSection("settings"); };
       Studio.Sync.initSync();
       window.addEventListener("pagehide", function () { try { Studio.Sync.pushNow(); } catch (e) {} });
+      // heal pack dashboards materialized before the 2026-07-30 rename/folder change
+      reconcilePackDashboards();
       renderSettings();
       renderAdmin();
       if (window.StudioWelcome) { var ab = $("#btnAbout"); if (ab) ab.onclick = function () { StudioWelcome.open(); }; setTimeout(function () { StudioWelcome.maybeShow(); }, 300); }
@@ -820,6 +822,10 @@
   // version would incidentally materialize its 8 dashboards the moment ANY other pack's install
   // button was clicked. Idempotent on sourceFile so re-running it never duplicates rows;
   // removeDemoPack's existing demoPackId sweep already deletes them again on uninstall.
+  // Kevin (2026-07-30): pack dashboards install INTO a folder named for their
+  // pack, and their own titles lead (the shared "Conservation Insight — " prefix
+  // made every card in the grid read identical).
+  var PACK_FOLDERS = { conservation: "Conservation Insight", datamanagement: "Data Management" };
   function ensurePackExamplesMaterialized(id) {
     if (!Studio.demoPackInstalled(id)) return Promise.resolve();
     var entries = (S.examples || []).filter(function (e) { return e.demoPackId === id; });
@@ -834,12 +840,32 @@
         if (!norm.dashboardTheme) norm.dashboardTheme = defaultDashboardTheme();
         Studio.Workspace.put("dashboards", {
           name: norm.name || e.title, title: norm.title || e.title,
-          ts: new Date().toISOString(), spec: norm, demoPackId: e.demoPackId, sourceFile: e.file
+          ts: new Date().toISOString(), spec: norm, demoPackId: e.demoPackId, sourceFile: e.file,
+          folder: PACK_FOLDERS[e.demoPackId] || ""
         });
       }).catch(function () { /* a missing/broken example shouldn't block materializing the rest */ });
     }));
   }
   window.__studioEnsurePackExamplesMaterialized = ensurePackExamplesMaterialized; // test hook
+
+  // One-pass boot reconcile for workspaces materialized BEFORE the rename:
+  // strip the legacy shared prefix off pack rows and backfill the pack folder,
+  // so an existing install (Kevin's) heals without a reinstall.
+  function reconcilePackDashboards() {
+    var changed = false;
+    var LEGACY = /^Conservation Insight — /;
+    Studio.Workspace.all("dashboards").forEach(function (r) {
+      if (!r.demoPackId) return;
+      var upd = false;
+      if (typeof r.title === "string" && LEGACY.test(r.title)) { r.title = r.title.replace(LEGACY, ""); upd = true; }
+      if (r.spec && typeof r.spec.title === "string" && LEGACY.test(r.spec.title)) { r.spec.title = r.spec.title.replace(LEGACY, ""); upd = true; }
+      var fld = PACK_FOLDERS[r.demoPackId];
+      if (fld && !r.folder) { r.folder = fld; upd = true; }
+      if (upd) { Studio.Workspace.put("dashboards", r, { silent: true }); changed = true; }
+    });
+    if (changed) Studio.Workspace.notify("dashboards");
+  }
+  window.__studioReconcilePackDashboards = reconcilePackDashboards; // test hook
 
   /* ---------- Workspace datasets in the library (drag/add like any query) ---------- */
   function buildWorkspaceDatasets(list, q) {
