@@ -1500,6 +1500,13 @@ body.lib-dragging #preview{pointer-events:none}
 .bd-ct:disabled{opacity:.45;cursor:not-allowed}
 .bd-ct-ic{display:inline-flex;align-items:center}
 .bd-ct-tbl{font-size:var(--fs-13);color:var(--faint)}
+/* VB-10: the Map's Region-scale control lives right in the type strip — same pill
+   height/tokens as the .bd-ct buttons so it reads as part of the strip, not a stray. */
+.bd-map-scale{display:inline-flex;align-items:center;gap:7px;font-size:var(--fs-12);color:var(--faint);margin-left:6px}
+.bd-map-scale select{background:var(--pane);border:1px solid var(--line);border-radius:9px;padding:5px 8px;
+  font-size:var(--fs-12);font-weight:600;color:var(--ink);cursor:pointer}
+.bd-map-scale select:hover{border-color:var(--brand)}
+.bd-map-hint{color:var(--faint);font-style:italic;white-space:nowrap}
 .bd-ifr{width:100%;height:min(62vh,540px);border:1px solid var(--line);border-radius:12px;background:var(--pane)}
 /* VB-5: the cross-editor notice — shared look between the View Builder's
    #buildNotice and Quick Views' .xp-cross-note (a soft brand-tinted banner

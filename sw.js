@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v408"; /* v408: CONS-2 — the Conservation pack seeds a
+var CACHE_NAME = "studio-shell-v409"; /* v409: VB-10 — View Builder Map gets a Region-scale
+   control in the type strip (Auto = inferred via the shared Studio.guessRegionScale;
+   state before fips so state_fips means States; temporal names never value-shape-match),
+   the map id role prefers the geo-looking field from either shelf (bdGeoDim, name
+   evidence first), and bdPanelFor stamps the effective scale into saved panels.
+   Original v408: CONS-2 — the Conservation pack seeds a
    dedicated Watershed Map dashboard (full-width HUC8 choropleth hero + provider bars,
    foldered, backfilled into existing installs by reconcilePackDashboards), the boot
    reconcile dedupes pack dashboards sharing demoPackId+source (keeps the foldered copy),

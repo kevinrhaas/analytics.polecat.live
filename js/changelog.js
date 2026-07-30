@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 773,
+    title: 'View Builder maps just work — the Region scale picks itself (state FIPS included)',
+    kind: 'feature',
+    ts: '2026-07-30T19:20:16.000Z',
+    items: [
+      'Building a Map in the View Builder now infers the Region scale from your geographic field — a state_fips column opens as States, huc8 as Watersheds, county FIPS as Counties — instead of silently defaulting to Counties and drawing an all-no-data map.',
+      'A Region scale control sits right next to the chart types when Map is active: Auto shows what was inferred, and picking a scale overrides it. If your explicit pick disagrees with what the ids look like, a small hint says so.',
+      'The map’s id role now goes to the geo-looking field on EITHER shelf — a year sitting first no longer steals it from your region column.',
+    ],
+  },
+  {
     v: 772,
     title: 'A dedicated Watershed Map dashboard — and duplicated pack dashboards heal themselves',
     kind: 'feature',

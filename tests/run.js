@@ -11027,6 +11027,96 @@ function serve() {
     ok("VB-6: a non-numeric Columns field (provider) never gets the aggregation dropdown",
       !vb6.providerHasDropdown,
       JSON.stringify(vb6));
+
+    // 11c. VB-10 (Kevin live, 2026-07-30, screenshot): "in view builder i cant seem
+    // to get a map to render, i am using state fips here". The builder had NO
+    // Region-scale control and Studio.newPanel silently defaulted opts.scale to
+    // "county" — so 2-digit state-FIPS ids joined 5-digit county geometry and drew
+    // an all-no-data map. Now: the Map's id dimension is the GEO-looking field from
+    // EITHER shelf (bdGeoDim), the scale is inferred from it via the shared
+    // Studio.guessRegionScale (QV-1's inference, with state_fips → States), a
+    // visible Region-scale select sits in the type strip with Auto naming the
+    // inference, and the effective scale is stamped into saved panels' opts.scale.
+    const vb10 = await page.evaluate(async () => {
+      const W = window.Studio.Workspace;
+      const ds = W.put("datasets", {
+        name: "bd117-vb10-ds", kind: "sql",
+        sql: "select report_year, state_fips, adoption_pct from t",
+        columns: ["report_year", "state_fips", "adoption_pct"],
+      });
+      window.__studioRenderBuild();
+      await new Promise((r) => setTimeout(r, 60));
+      const B = window.__studioBuild;
+      await B.selectDataset("ws", ds.id);
+      await new Promise((r) => setTimeout(r, 120));
+      const out = {};
+      // Kevin's shape, made adversarial: the NON-geo dimension (year) sits first in
+      // shelf order (Rows) with state_fips on Columns — the geo scan must still win
+      // the map's id role for state_fips.
+      B.addField("report_year", "rows");
+      B.addField("state_fips", "cols");
+      B.addField("adoption_pct", "cols");
+      await new Promise((r) => setTimeout(r, 60));
+      out.geoDimCol = (B.geoDim() || {}).col;
+      out.autoScale = B.mapScale();
+      const mapBtn = document.querySelector('[data-bd-ct="choropleth"]');
+      out.mapBtnEnabled = !!mapBtn && !mapBtn.disabled;
+      mapBtn.click();
+      await new Promise((r) => setTimeout(r, 150));
+      const sel = document.getElementById("bdMapScale");
+      out.hasScaleSel = !!sel;
+      out.selValue = sel ? sel.value : null;
+      out.autoLabel = sel ? sel.options[0].textContent : "";
+      out.hasCustomOption = sel ? [].slice.call(sel.options).some((o) => o.value === "custom") : null;
+      const basis = B.chartBasis("choropleth");
+      out.basisHead0 = basis && basis.head[0];
+      // explicit override to Counties: state must record it, the mismatch hint must
+      // appear (ids look like States), and the save must stamp it
+      sel.value = "county";
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 150));
+      out.overrideState = B.state.mapScale;
+      out.effOverride = B.mapScale();
+      out.hintShown = !!document.querySelector(".bd-map-hint");
+      B.state.analysisId = null; // force a NEW row (earlier flow tests may leave one loaded)
+      B.save();
+      await new Promise((r) => setTimeout(r, 150));
+      const m = document.querySelector(".modal-ov .bd-save");
+      if (m) {
+        m.querySelectorAll("input")[0].value = "VB10 Map";
+        [].slice.call(m.querySelectorAll("button")).filter((b) => /^(Save|Update)$/.test(b.textContent))[0].click();
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      const row = W.all("analyses").filter((a) => a.name === "VB10 Map")[0];
+      out.savedScale = row && row.chart && row.chart.opts && row.chart.opts.scale;
+      out.savedBlobScale = row && row.builder && row.builder.mapScale;
+      out.savedIdCol = row && row.chart && row.chart.map && row.chart.map.idCol;
+      // back to Auto — the effective scale re-infers from the geo field
+      B.state.mapScale = "";
+      out.effAuto = B.mapScale();
+      // the shared inference (QV-1's rules on Studio): name first, value shape fallback
+      out.probeHuc = window.Studio.guessRegionScale("huc8_watershed", null);
+      out.probeShape = window.Studio.guessRegionScale("region_id", { cols: ["region_id"], rows: [["17031"]] });
+      out.probePostal = window.Studio.guessRegionScale("mystery", { cols: ["mystery"], rows: [["IA"]] });
+      if (row) W.remove("analyses", row.id);
+      W.remove("datasets", ds.id);
+      B.state.analysisId = null;
+      return out;
+    });
+    ok("VB-10: the geo-looking field (state_fips, on Columns) wins the map's id role over shelf order (report_year on Rows), and Auto infers the States scale from its name",
+      vb10.geoDimCol === "state_fips" && vb10.autoScale === "state" && vb10.basisHead0 === "state_fips",
+      JSON.stringify(vb10));
+    ok("VB-10: with the Map active, a Region-scale select appears in the type strip — Auto selected, naming the inferred scale (no Custom-regions option here)",
+      vb10.mapBtnEnabled && vb10.hasScaleSel && vb10.selValue === "" &&
+      /Auto/.test(vb10.autoLabel) && /States/.test(vb10.autoLabel) && vb10.hasCustomOption === false,
+      JSON.stringify(vb10));
+    ok("VB-10: an explicit Counties pick overrides the inference, shows the ids-look-like-States hint, and is stamped into the saved View's chart opts + builder blob",
+      vb10.overrideState === "county" && vb10.effOverride === "county" && vb10.hintShown &&
+      vb10.savedScale === "county" && vb10.savedBlobScale === "county" && vb10.savedIdCol === "state_fips",
+      JSON.stringify(vb10));
+    ok("VB-10: clearing back to Auto re-infers (state), and Studio.guessRegionScale keeps QV-1's contract — huc name → huc8, 5-digit value → county, 2-letter value → state",
+      vb10.effAuto === "state" && vb10.probeHuc === "huc8" && vb10.probeShape === "county" && vb10.probePostal === "state",
+      JSON.stringify(vb10));
     // 12. VB-3 (Kevin overnight queue, "i like the new view builder"): Color as a
     // first-class encoding — a Color shelf splits Bars/Donut into per-category
     // colors and (with no Columns split field) Line into one series per category,
@@ -15248,8 +15338,18 @@ function serve() {
     // otherwise). Under load initSync can lag well past 6s, and the old swallowed wait
     // let the submit race it — the 2026-07-30 flake's second signature. Wait long, and
     // RECORD the outcome so any recurrence names the real cause in the payload.
+    // THIRD signature (2026-07-30, 3× consecutive once the VB-10 block shifted suite
+    // timing): sourceId flips to "supabase" BEFORE the boot pull finishes — initSync
+    // sets it, then connectOnce() replaceAll()s the workspace asynchronously (with
+    // #111's +500ms/+1500ms auth-race retries). Seeding user_gt in that window got
+    // WIPED by the late-landing replaceAll, so adopt's findUserByGotrue dead-ended.
+    // Wait for the boot pull to SETTLE (status out of "connecting"), then seed.
     const directSyncReady = await gpDirect.waitForFunction(
-      () => window.Studio && Studio.Sync && Studio.Sync.syncState().sourceId === "supabase",
+      () => {
+        if (!window.Studio || !Studio.Sync) return false;
+        var s = Studio.Sync.syncState();
+        return s.sourceId === "supabase" && s.status !== "connecting";
+      },
       { timeout: 20000 }
     ).then(() => true).catch(() => false);
     await gpDirect.waitForSelector("#g-form", { timeout: 4000 });
@@ -15270,8 +15370,13 @@ function serve() {
       gateGone: !document.querySelector("#studio-gate"),
       who: (window.PolecatAuth.current() || {}).u,
       gotrueId: (window.PolecatAuth.find("gtmate") || {}).gotrueId,
-      // diagnosis payload — on a failure, the gate's own error text says WHY
-      gateErr: (document.getElementById("g-err") || {}).textContent || ""
+      // diagnosis payload — on a failure, the gate's own error text says WHY,
+      // hasGtRow distinguishes "GoTrue rejected" from "seed wiped by a late
+      // boot-pull replaceAll" (the third 2026-07-30 signature), and syncStatus
+      // says whether the boot pull ever settled.
+      gateErr: (document.getElementById("g-err") || {}).textContent || "",
+      hasGtRow: Studio.Workspace.all("users").some((u) => u.id === "user_gt"),
+      syncStatus: Studio.Sync.syncState().status
     }));
     await gpDirect.close();
     directAuthed.syncReadyBeforeSubmit = directSyncReady;
@@ -21712,13 +21817,21 @@ function serve() {
     // ── v84: H-track callout arrow annotation ───────────────────────────────
     console.log("\n• v84: H-track callout arrow annotation");
 
-    // 1. Callout arrow section appears in panel inspector
+    // 1. Callout arrow section appears in panel inspector. The fresh-spec load
+    // above repaints the preview iframe asynchronously — a fixed sleep raced it,
+    // and the silent `if (card)` no-op'd the click on a not-yet-rendered card
+    // (flaked 2026-07-30: found:false while the two callout checks below, which
+    // don't depend on the click, both passed). Wait for the card to exist.
+    await page.waitForFunction(function () {
+      var ifr = document.getElementById("preview");
+      return !!(ifr && ifr.contentWindow && ifr.contentWindow.document.querySelector(".card"));
+    }, { timeout: 10000 }).catch(function () {});
     const caSecCheck = await page.evaluate(function () {
       try {
         var iw = document.getElementById("preview").contentWindow;
         var card = iw.document.querySelector(".card");
         if (card) card.click();
-        return { ok: true };
+        return { ok: true, clicked: !!card };
       } catch (e) { return { ok: false, err: e.message }; }
     });
     await page.waitForTimeout(150);
