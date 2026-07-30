@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v401"; /* v401: CONS-0 — the sample engine pct metrics
+var CACHE_NAME = "studio-shell-v402"; /* v402: VB-6 — a numeric field on the View
+   Builder's Columns shelf gets an aggregation dropdown even before it's summed, with a
+   CATEGORY choice that flips it to a plain (grouped) dimension; id-like numeric columns
+   (*_fips/*_id/id) default to CATEGORY instead of SUM on first drop. app/build.js,
+   tests/run.js, STATUS.md, js/changelog.js.
+   Original v401: CONS-0 — the sample engine pct metrics
    trend UP across the label axis (declining only for regressive columns like conventional_*),
    and 3+ pct columns in one data access renormalize row-wise to ~94% (shares of a whole) so
    practice-mix stacks stop reading 375%. Original v400: SAMPLE-DATA-1 — raw demo-DB sample tables are

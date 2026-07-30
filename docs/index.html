@@ -595,7 +595,11 @@
   shelf and the result table renders live in the middle. Numeric fields aggregate automatically as
   <strong>SUM</strong> — the little aggregation badge on the shelf chip switches to AVG, MIN, MAX,
   MEDIAN, or COUNT. With only dimension fields on the Columns shelf you get a plain selection of
-  those columns; add a measure and the dimensions group it.</p>
+  those columns; add a measure and the dimensions group it. Some numbers aren't quantities — a
+  FIPS code, a year, an ID — so the aggregation dropdown also offers <strong>CATEGORY</strong>,
+  which groups by that field instead of summing it; id-like numeric columns (ending in
+  <code>_fips</code>, <code>_id</code>, or plain <code>id</code>) default to Category the first
+  time you drop them, rather than SUM.</p>
   <p>Drop a field on the <strong>Rows</strong> shelf (or use a chip's ⇄ button) and the table
   pivots into a <strong>crosstab</strong>:</p>
   <ul>

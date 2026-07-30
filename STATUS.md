@@ -116,6 +116,25 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **VB-6 — a numeric View Builder field can act as a CATEGORY, not just a total (v766,
+  sw v402, 2026-07-30, steward):** "State_FIPS dragged to Columns becomes SUM State_FIPS
+  with no way to say group by this." The Columns shelf pill's aggregation dropdown
+  (`app/build.js` `fieldChipHtml`) now renders for ANY numeric field, even while it's
+  currently a dimension — not just once it's already a measure — and gains a
+  **CATEGORY** option alongside SUM/AVG/MIN/MAX/MEDIAN/COUNT that sets `agg: null`,
+  flipping the field to plain dimension semantics (discrete axis, grouping, no
+  aggregation) everywhere the compute engine, chart-basis picker, and save/reopen
+  round-trip already treat `!f.agg` as a dimension — no changes needed there. A new
+  `bdDefaultAgg()` helper also makes id-like numeric columns (`*_fips`, `*_id`, bare
+  `id`) default to CATEGORY rather than SUM the first time they land on Columns (via
+  click-to-add, the ⇄ button, or a drag-drop move) — FIPS codes and other ID-shaped
+  numbers are the driving case Kevin called out; year-named columns already classify
+  as non-Numeric upstream (`guessFieldKind`'s Date branch), so no separate handling
+  was needed for those. 5 new regression checks (id-like default, dropdown presence +
+  options, switching either direction, non-numeric fields never get the dropdown).
+  docs/index.html's Fields-and-shelves section covers the new CATEGORY choice and the
+  id-like default. Files: app/build.js, docs/index.html, sw.js, js/changelog.js,
+  tests/run.js.
 - **LIVE-d slice 3 — Jobs gains Select / bulk-delete (v762, sw v398, 2026-07-30,
   steward):** the third section to adopt the cross-app multi-select pattern slices 1-2
   proved on Datasets/Connections (same **Select** toolbar button, checkbox overlay on
@@ -7568,15 +7587,11 @@
 >       type the packs seed (dashboards, datasets, Views, jobs, connections): one folder
 >       per pack across all types; (3) uninstalled pack = zero presence in any pane.
 >       Respect existing installed workspaces (boot reconcile, no duplicates).
-> VB-6. **View Builder: let a numeric field act as a CATEGORY (Kevin live, 2026-07-30,
->       screenshot).** "There are times I want to put what is a numeric field on the
->       columns and it's actually a categorical field — you need to be able to support
->       that." Seen: State_FIPS dragged to COLUMNS becomes SUM State_FIPS (a measure)
->       with no way to say "group by this". Fix: the shelf pill's aggregation dropdown
->       gains a Category/Group-by choice (numeric fields only — it flips the field to
->       dimension semantics for that shelf: discrete axis, grouping, no aggregation),
->       persisted in the saved View. FIPS codes, years, and IDs are the driving cases —
->       consider defaulting *_FIPS/*_Year/id-like columns to Category on first drop.
+> VB-6. ✓ **View Builder: let a numeric field act as a CATEGORY (SHIPPED v766, sw v402,
+>       2026-07-30, steward)** — see DONE for the full writeup. The shelf pill's
+>       aggregation dropdown gains a CATEGORY choice (numeric fields only, flips the
+>       field to dimension semantics), and id-like numeric columns (*_fips/*_id/id)
+>       default to Category rather than SUM on first drop.
 > VB-7. **View panel title ≠ View name (Kevin live, 2026-07-30).** "You should be able
 >       to change the name of the panel that holds the view — the name of the panel is
 >       not necessarily the name of the view; it could be different but obviously would

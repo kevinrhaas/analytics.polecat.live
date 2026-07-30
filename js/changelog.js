@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 766,
+    title: 'View Builder: numeric columns can act as a category, not just a total',
+    kind: 'feature',
+    ts: '2026-07-30T17:05:26.000Z',
+    items: [
+      'A numeric field on the Columns shelf now gets an aggregation dropdown even before it\'s summed — pick CATEGORY to group by it instead (a FIPS code, a year, an ID — anything that\'s a number but not a quantity).',
+      'ID-like numeric columns (ending in _fips, _id, or plain id) now default to CATEGORY on first drop instead of SUM, so dragging a geography or ID column onto Columns doesn\'t silently total it into nonsense.',
+    ],
+  },
+  {
     v: 765,
     title: 'Conservation sample data tells the right story — rising adoption, honest scales',
     kind: 'fix',

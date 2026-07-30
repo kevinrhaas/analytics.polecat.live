@@ -346,6 +346,17 @@
 
   // ---------- shelves ----------
   var AGGS = ["sum", "avg", "min", "max", "median", "count"];
+  // VB-6: id-like numeric columns (FIPS codes, year, other *_id columns) are
+  // numbers but not quantities — summing State_FIPS is nonsense. These default
+  // to Category (grouped, agg null) instead of SUM on first drop onto Columns;
+  // the aggregation dropdown still lets any numeric field switch either way.
+  function bdLooksCategorical(col) {
+    return /(^|_)(fips|id)$/i.test(col) || /(^|_)year$/i.test(col);
+  }
+  function bdDefaultAgg(col) {
+    if (bdFieldKind(col) !== "Numeric") return null;
+    return bdLooksCategorical(col) ? null : "sum";
+  }
   function bdOnShelf(col) {
     return BD.shelfCols.some(function (f) { return f.col === col; }) ||
            BD.shelfRows.some(function (f) { return f.col === col; });
@@ -355,7 +366,7 @@
     if (shelf === "color") { bdSetColorField(col); return; }
     if (!BD.run || bdEff().cols.indexOf(col) < 0 || bdOnShelf(col)) return;
     if (shelf === "rows") BD.shelfRows.push({ col: col });
-    else BD.shelfCols.push({ col: col, agg: bdFieldKind(col) === "Numeric" ? "sum" : null });
+    else BD.shelfCols.push({ col: col, agg: bdDefaultAgg(col) });
     render();
   }
   function bdRemoveField(col) {
@@ -514,7 +525,7 @@
     }
     for (i = 0; i < BD.shelfRows.length; i++) if (BD.shelfRows[i].col === col) {
       BD.shelfRows.splice(i, 1);
-      BD.shelfCols.push({ col: col, agg: bdFieldKind(col) === "Numeric" ? "sum" : null });
+      BD.shelfCols.push({ col: col, agg: bdDefaultAgg(col) });
       render(); return;
     }
   }
@@ -579,7 +590,7 @@
 
     fromArr.splice(idx, 1);
     var toArr = bdShelfArray(toShelf);
-    var newRec = toShelf === "rows" ? { col: col } : { col: col, agg: bdFieldKind(col) === "Numeric" ? "sum" : null };
+    var newRec = toShelf === "rows" ? { col: col } : { col: col, agg: bdDefaultAgg(col) };
     toArr.splice(bdInsertIndex(toArr, hint, toShelf, col), 0, newRec);
     render();
   }
@@ -1002,9 +1013,15 @@
   // ---------- render ----------
   function fieldChipHtml(f, shelf) {
     var kindCls = f.agg ? " bd-measure" : "";
-    var agg = f.agg
+    // VB-6: a numeric field on Columns always gets the aggregation dropdown —
+    // even while it's currently a dimension — so it can flip to CATEGORY
+    // (group-by, no aggregation) and back. Non-numeric fields can never be
+    // measures, so they keep the old plain-chip look (no dropdown).
+    var numericOnCols = shelf === "cols" && bdFieldKind(f.col) === "Numeric";
+    var agg = f.agg || numericOnCols
       ? '<select class="bd-agg" data-bd-agg="' + esc(f.col) + '" aria-label="Aggregation for ' + esc(f.col) + '">' +
           AGGS.map(function (a) { return '<option value="' + a + '"' + (a === f.agg ? " selected" : "") + '>' + a.toUpperCase() + "</option>"; }).join("") +
+          (numericOnCols ? '<option value="category"' + (!f.agg ? " selected" : "") + '>CATEGORY</option>' : "") +
         "</select>"
       : "";
     return '<span class="bd-chip' + kindCls + '" data-bd-chip="' + esc(f.col) + '" draggable="true">' + agg +
@@ -1378,7 +1395,8 @@
     $$("[data-bd-agg]", sec).forEach(function (sel) {
       sel.onchange = function () {
         var col = sel.getAttribute("data-bd-agg");
-        BD.shelfCols.forEach(function (f) { if (f.col === col) f.agg = sel.value; });
+        var v = sel.value === "category" ? null : sel.value;
+        BD.shelfCols.forEach(function (f) { if (f.col === col) f.agg = v; });
         render();
       };
     });
