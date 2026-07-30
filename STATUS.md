@@ -116,6 +116,31 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **VB-4 slice 1 — choropleth joins the View Builder as "Map" (v745, sw v382, 2026-07-30,
+  steward):** fourth slice of Kevin's overnight View Builder queue ("all of the chart types
+  available for the view builder over time — be reasonable, hit major ones first"), choropleth
+  first per his note. Reuses Studio's existing choropleth engineering end-to-end — no new pivot
+  logic, chart code, or geometry handling, only the wiring: `CHART_TYPES` gains `{t:"choropleth",
+  label:"Map"}` (icon free from `Studio.CHART_SVG.choropleth`); `chartBasis` computes the SAME
+  [dim, measure] pair bars/donut already use with no Color field (`idCol`/`valueCol`), widening
+  to the heatmap's exact long-form [dim, Color field, measure] grouped rollup when a Color field
+  is set (`idCol`/`seriesCol`/`valueCol`) — a map's "color by" means a SERIES to join the Studio
+  ensemble channel with (provider toggles re-color it live), not a per-bar tint, so it does NOT
+  reuse bars/donut's first-seen-tag widening. `bdPanelFor` maps the basis onto `chart.map`
+  POSITIONALLY rather than trusting `Studio.newPanel`'s `guessChoroplethCols` name-regex against
+  a synthesized "SUM x" measure label, which it could plausibly misjudge. The one genuinely new
+  piece: `renderChartPreview` now fetches/inlines the map's geometry before painting the iframe
+  when the spec has a choropleth panel (`Studio.geoAssetKeys(spec).length`), via a new
+  `ensureGeoAssets` dependency threaded onto `Studio.Build.configure` — the exact lazy fetch-once/
+  cache-forever path Studio's own dashboard preview (`doRefresh`) and Home's live featured-
+  dashboard renderer already use, so a Map View previews with real US geometry, not a blank
+  frame. Defaults to county scale (Studio.CHARTS.choropleth's own opt default); no scale/renderer
+  picker in Build yet (there's no per-chart-type options UI at all today) — later slice. Docs
+  (docs/index.html) + changelog updated. 5 new regression tests (no-Color basis shape, Map button
+  enabled/selected, the real render carrying idCol/valueCol with no seriesCol, geometry inlined
+  via STUDIO_GEO, and the Color-widened long-form basis carrying seriesCol through to the
+  renderer). Files: app/build.js, app/studio.js, docs/index.html, sw.js, js/changelog.js,
+  tests/run.js.
 - **VB-3 — Color as a first-class encoding (v744, sw v381, 2026-07-30, steward):** third slice
   of Kevin's overnight View Builder queue. A new **Color shelf** sits alongside Columns/Rows/
   Filters (`bdShelfColor`, 0-1 fields) with the same drag-and-drop plus a non-drag **＋ Color
@@ -7022,6 +7047,8 @@
 >       the other majors: KPI, area, scatter, stacked bars…), reusing studio-charts/pdc-ui
 >       engineering. "All of the chart types available for the view builder over time — be
 >       reasonable, hit major ones first."
+>       ✓ **Slice 1 shipped (2026-07-30, v745, steward): choropleth ("Map").** See DONE for the
+>       full writeup. **Remaining VB-4 majors (NEXT): KPI, area, scatter, stacked bars.**
 > VB-5. **Cross-editor View opening (Kevin live, 2026-07-30).** Any View should open in EITHER
 >       builder — Quick Views or the View Builder — including Views saved from the dashboard
 >       editor. Incompatible content (a chart type the target editor lacks, etc.) still OPENS:
