@@ -9,7 +9,7 @@ export const CHANGELOG = [
     v: 744,
     title: 'Color as a first-class encoding in the View Builder',
     kind: 'feature',
-    ts: '',
+    ts: '2026-07-30T06:22:00.000Z',
     items: [
       'A new Color shelf sits alongside Columns/Rows/Filters — drop a category on it (or drag/pick with the ＋ Color by… picker) and Bars gets a distinct color per bar, the same per-category coloring Donut already draws by default.',
       'With no field on Columns, Color also drives Line into one line per category — the same crosstab engineering Rows × Columns already uses for multi-series lines.',

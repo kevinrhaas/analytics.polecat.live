@@ -116,6 +116,32 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **VB-3 — Color as a first-class encoding (v744, sw v381, 2026-07-30, steward):** third slice
+  of Kevin's overnight View Builder queue. A new **Color shelf** sits alongside Columns/Rows/
+  Filters (`bdShelfColor`, 0-1 fields) with the same drag-and-drop plus a non-drag **＋ Color
+  by…** picker (mobile parity — drag can never be the only way onto a shelf). Bars now colors
+  each bar per-category (matching what Donut already drew by default) via a new `colorCol`
+  chart-map field, wired through `lvColor()` in studio-render.js — the SAME `PDC.color(i)`
+  per-category-palette-index helper Timeline's `colorCol` already used (Kevin's hunch — "you
+  should have most of the engineering for this already" — held up). When the Color field
+  differs from the chart's own dimension (e.g. dim=region, color=quarter), the basis widens
+  with that field's FIRST-SEEN value per category instead of re-grouping (which would fan a
+  single-dimension bar chart into duplicate bars); when it's the SAME field (the common
+  "recolor the bars I already have" case) it's a same-shape tag, no widening. With nothing on
+  the Columns shelf, Color also drives **Line** into one series per category, reusing the exact
+  crosstab-widening engine #117 slice 5 built for Rows × Columns multi-series lines — genuinely
+  new wiring, ~6 lines, zero new pivot logic. A **palette picker** sits next to the shelf,
+  reusing `Studio.PALETTE_PRESETS` (the same "Series palette" control the Dashboards builder's
+  inspector uses) via `spec.paletteKey` on the live preview spec — `Studio.buildHtml` already
+  reads it, so no exporters.js changes were needed. Saved onto the View's `builder` blob
+  (`shelfColor`, `paletteKey`) and restored on reopen. Scope: Bars/Donut/Line — Heatmap
+  color-encodes by VALUE already (a different, orthogonal control) and Table has no marks to
+  color, so neither needed this. Grouping bars by a genuinely different, uncorrelated field
+  (not just recoloring/first-seen-tagging one) is chart-TYPE parity, not encoding — deferred to
+  VB-4 alongside choropleth/KPI/area/scatter. Docs (docs/index.html) + changelog updated; 8 new
+  regression tests (untagged basis, the non-drag add picker, cross-field widening, the real
+  iframe render carrying colorCol, chip removal, same-field no-widening, cross-shelf drag to
+  Filters, the palette picker, and Color-alone driving multi-series Line); suite 2673/2673.
 - **LIVE-e part 1 — Help follows the theme (all seven), live, and drops "Back to Studio"
   (v743, sw v380, 2026-07-30, steward):** Kevin live (Help screenshot: "help should respond
   to the theme settings and take out that back to studio button"). Root cause of the
@@ -6975,32 +7001,6 @@
   Connections adapter chips) — confirmed still present, no changes needed there. Still open:
   folders/tags grouping and a "by type" (kind: sql/table/file/collection/sheet) facet, if wanted
   later — parked, not attempted here to keep this one coherent slice.
-- **VB-3 — Color as a first-class encoding (v743, sw v380, 2026-07-30, steward):** third slice
-  of Kevin's overnight View Builder queue. A new **Color shelf** sits alongside Columns/Rows/
-  Filters (`bdShelfColor`, 0-1 fields) with the same drag-and-drop plus a non-drag **＋ Color
-  by…** picker (mobile parity — drag can never be the only way onto a shelf). Bars now colors
-  each bar per-category (matching what Donut already drew by default) via a new `colorCol`
-  chart-map field, wired through `lvColor()` in studio-render.js — the SAME `PDC.color(i)`
-  per-category-palette-index helper Timeline's `colorCol` already used (Kevin's hunch — "you
-  should have most of the engineering for this already" — held up). When the Color field
-  differs from the chart's own dimension (e.g. dim=region, color=quarter), the basis widens
-  with that field's FIRST-SEEN value per category instead of re-grouping (which would fan a
-  single-dimension bar chart into duplicate bars); when it's the SAME field (the common
-  "recolor the bars I already have" case) it's a same-shape tag, no widening. With nothing on
-  the Columns shelf, Color also drives **Line** into one series per category, reusing the exact
-  crosstab-widening engine #117 slice 5 built for Rows × Columns multi-series lines — genuinely
-  new wiring, ~6 lines, zero new pivot logic. A **palette picker** sits next to the shelf,
-  reusing `Studio.PALETTE_PRESETS` (the same "Series palette" control the Dashboards builder's
-  inspector uses) via `spec.paletteKey` on the live preview spec — `Studio.buildHtml` already
-  reads it, so no exporters.js changes were needed. Saved onto the View's `builder` blob
-  (`shelfColor`, `paletteKey`) and restored on reopen. Scope: Bars/Donut/Line — Heatmap
-  color-encodes by VALUE already (a different, orthogonal control) and Table has no marks to
-  color, so neither needed this. Grouping bars by a genuinely different, uncorrelated field
-  (not just recoloring/first-seen-tagging one) is chart-TYPE parity, not encoding — deferred to
-  VB-4 alongside choropleth/KPI/area/scatter. Docs (docs/index.html) + changelog updated; 8 new
-  regression tests (untagged basis, the non-drag add picker, cross-field widening, the real
-  iframe render carrying colorCol, chip removal, same-field no-widening, cross-shelf drag to
-  Filters, the palette picker, and Color-alone driving multi-series Line); suite 2673/2673.
 
 ## NEXT (top = do first)
 
