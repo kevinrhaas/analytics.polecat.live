@@ -4734,7 +4734,11 @@ function serve() {
 
     // ---- BOOT-FLASH + SIGNOUT-1 (Kevin live, 2026-07-30) ----
     console.log("\n\u2022 BOOT-FLASH: pre-paint theme stamp + boot veil; SIGNOUT-1: menu sign-out reaches the gate");
-    const bfPage = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    // Own contexts: these pages mutate auth/theme localStorage, which newPage() on the
+    // shared context would leak into the main suite page (the sign-out below signed the
+    // main page out and broke the LF21 header checks downstream).
+    const bfCtx = await browser.newContext({ viewport: { width: 1200, height: 900 } });
+    const bfPage = await bfCtx.newPage();
     await bfPage.addInitScript(() => { try {
       sessionStorage.setItem("studio-gate-ok", "1");
       localStorage.setItem("studio-welcome-seen", "1");
@@ -4748,16 +4752,19 @@ function serve() {
       palette: document.documentElement.getAttribute("data-palette")
     }));
     const bfReleased = await bfPage.waitForFunction(() => !document.documentElement.classList.contains("ps-booting"), { timeout: 10000 }).then(() => true).catch(() => false);
+    // the veil releases with a ~220ms fade — wait for it to finish, not a mid-transition read
+    const bfFaded = await bfPage.waitForFunction(() => getComputedStyle(document.getElementById("app")).opacity === "1", { timeout: 5000 }).then(() => true).catch(() => false);
     const bfAfter = await bfPage.evaluate(() => ({
       opacity: getComputedStyle(document.getElementById("app")).opacity
     }));
-    await bfPage.close();
+    await bfCtx.close();
     ok("BOOT-FLASH: the saved theme attributes are stamped before first paint (no default-theme flash on refresh)",
       bfEarly.theme === "dark" && bfEarly.appTheme === "aurora" && bfEarly.palette === "aurora", JSON.stringify(bfEarly));
     ok("BOOT-FLASH: the boot veil releases once boot completes and the app fades to full opacity",
-      bfReleased && bfAfter.opacity === "1", JSON.stringify({ bfReleased, bfAfter }));
+      bfReleased && bfFaded && bfAfter.opacity === "1", JSON.stringify({ bfReleased, bfFaded, bfAfter }));
 
-    const soPage = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    const soCtx = await browser.newContext({ viewport: { width: 1200, height: 900 } });
+    const soPage = await soCtx.newPage();
     await soPage.addInitScript(() => { try { localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
     await soPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
     await soPage.waitForSelector("#g-form", { timeout: 8000 });
@@ -4773,7 +4780,7 @@ function serve() {
       gate: !!document.querySelector("#studio-gate"),
       authed: window.PolecatAuth ? window.PolecatAuth.authed() : null
     }));
-    await soPage.close();
+    await soCtx.close();
     ok("SIGNOUT-1: signing out from the \u22ef menu ends the real auth session and lands back on the sign-in gate",
       soAuthedBefore === true && soAfter.gate === true && soAfter.authed === false, JSON.stringify({ soAuthedBefore, soAfter }));
     await page.evaluate(function () { return window.__studioLoadExample("conservation-flow.studio.json"); }); // LF43 slice 2: menu gone — hook load
