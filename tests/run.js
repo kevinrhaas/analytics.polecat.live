@@ -10875,7 +10875,7 @@ function serve() {
       const row = W.get("analyses", rowId);
       delete row.da.builder; // simulate a pre-#118 saved View
       W.put("analyses", row, { silent: true });
-      const spec = window.__studioExplore.analysisSpec(W.get("analyses", rowId));
+      const spec = window.Studio.Explore.analysisSpec(W.get("analyses", rowId));
       out.specDaHealed = !!(spec.cda.dataAccesses[0] && spec.cda.dataAccesses[0].builder);
       const pend = window.Studio.Build.ensureSpecMocks(spec);
       if (pend) await pend;
