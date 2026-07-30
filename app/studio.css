@@ -6,6 +6,13 @@
    export-context variable — never coupled to this file's --brand); this
    styles only the builder shell.
    ============================================================================ */
+/* DESIGN-1: Hanken Grotesk — the Polecat brand face (self-hosted woff2, subset of
+   weights; system stack stays behind it so first paint never blocks). Paths are
+   relative to THIS stylesheet (app/), not the document base. */
+@font-face{font-family:'Hanken Grotesk';src:url('../assets/fonts/hanken-grotesk-400.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Hanken Grotesk';src:url('../assets/fonts/hanken-grotesk-600.woff2') format('woff2');font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:'Hanken Grotesk';src:url('../assets/fonts/hanken-grotesk-700.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:'Hanken Grotesk';src:url('../assets/fonts/hanken-grotesk-800.woff2') format('woff2');font-weight:800;font-style:normal;font-display:swap}
 :root{
   --brand:#005bb5; --dk:#7d3c98; --ink:#16233b; --muted:#5d6b82; --faint:#8a97ab;
   --topbar-bg:linear-gradient(100deg,#0a1c3d,#163a6e 60%,#1c4a86); --topbar-ink:#ffffff; /* classic (default) */
@@ -13,7 +20,7 @@
   --good:#1f9d57; --warn:#d6820a; --bad:#d63a5e; --accent:#005bb5;
   --shadow:0 1px 3px rgba(18,38,76,.07); --shadow-lg:0 12px 40px rgba(16,38,76,.16);
   --radius:11px; --radius-sm:8px;
-  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  --font:'Hanken Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
   --mono:ui-monospace,Menlo,Consolas,monospace;
   --mob-tabs-h:0px; /* M8: updated to 52px at ≤640px so the restore banner stays above the tab bar */
   --restore-banner-h:0px; /* QA-06: JS-measured height of the restore banner while shown, 0 otherwise */

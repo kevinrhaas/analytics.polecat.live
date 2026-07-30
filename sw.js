@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v396"; /* v396: PDC-RENAME — the dashboard toolkit is now DashKit:
+var CACHE_NAME = "studio-shell-v397"; /* v397: DESIGN-1 — Polecat design system light pass:
+   Hanken Grotesk self-hosted (assets/fonts/*.woff2, weights 400/600/700/800, joins the
+   precache) as the brand face across landing + app + docs, and the new Polecat mark
+   (assets/brand/polecat-mark-*.png) on the landing nav/footer + the sign-in gate.
+   Original v396: PDC-RENAME — the dashboard toolkit is now DashKit:
    vendor/pdc-ui.js|.css -> vendor/dashkit.js|.css (precache list updated), window.PDC ->
    window.DashKit, .pdc-* -> .dk-*, --pdc -> --dk (cssvar keeps a legacy --pdc alias so saved
    dashboards keep their colors). Historical comments below reference the old names — they
@@ -2152,6 +2156,12 @@ var SHELL_FILES = [
   "./",
   "index.html",
   "css/landing.css",
+  "assets/fonts/hanken-grotesk-400.woff2",
+  "assets/fonts/hanken-grotesk-600.woff2",
+  "assets/fonts/hanken-grotesk-700.woff2",
+  "assets/fonts/hanken-grotesk-800.woff2",
+  "assets/brand/polecat-mark-white.png",
+  "assets/brand/polecat-mark-black.png",
   "app/",
   "app/index.html",
   "site.webmanifest",

@@ -34493,6 +34493,28 @@ function serve() {
     await mkt.setViewportSize({ width: 1280, height: 900 });
     await mkt.waitForTimeout(150);
 
+    // ---- DESIGN-1 (Kevin): Polecat design system light pass — brand face + mark ----
+    console.log("\n• DESIGN-1: Hanken Grotesk brand face + Polecat mark");
+    const mktDesign = await mkt.evaluate(async function () {
+      var body = getComputedStyle(document.body).fontFamily;
+      var navMark = document.querySelector(".fleet-link .pc-mark");
+      var footMark = document.querySelector(".foot .pc-mark-foot");
+      var fontOk = false, navOk = false, footOk = false;
+      try { var rf = await fetch("assets/fonts/hanken-grotesk-800.woff2"); fontOk = rf.ok; } catch (e) {}
+      if (navMark) { var r1 = await fetch(navMark.getAttribute("src")); navOk = r1.ok; }
+      if (footMark) { var r2 = await fetch(footMark.getAttribute("src")); footOk = r2.ok; }
+      return { hanken: /Hanken Grotesk/.test(body), fontOk: fontOk, navOk: navOk, footOk: footOk };
+    });
+    ok("DESIGN-1: the marketing page leads with Hanken Grotesk and the woff2 actually resolves",
+      mktDesign.hanken && mktDesign.fontOk, JSON.stringify(mktDesign));
+    ok("DESIGN-1: the Polecat mark renders in the nav fleet link and the footer suite line (both images resolve)",
+      mktDesign.navOk && mktDesign.footOk, JSON.stringify(mktDesign));
+    const appDesign = await page.evaluate(function () {
+      return { font: getComputedStyle(document.body).fontFamily };
+    });
+    ok("DESIGN-1: the app's --font stack leads with Hanken Grotesk (shell + Studio inherit it)",
+      /Hanken Grotesk/.test(appDesign.font), JSON.stringify(appDesign));
+
     // Old pre-move deep links carried app hashes on the ROOT — they must forward into /app/.
     // (about:blank first: navigating "/" → "/#share=…" would be a SAME-DOCUMENT hash change
     // that never re-runs the head script; real legacy links arrive as fresh navigations.)
