@@ -1382,6 +1382,72 @@ body.lib-dragging #preview{pointer-events:none}
 .dsb-chip .rm{background:none;border:0;color:inherit;cursor:pointer;font-size:var(--fs-14);line-height:1;opacity:.6}
 .dsb-chip .rm:hover{opacity:1}
 .dsb-empty{font-size:var(--fs-12);color:var(--faint)}
+/* ---------- #117: the View Builder (Build section) ---------- */
+.bd-wrap{display:grid;grid-template-columns:250px minmax(0,1fr);gap:var(--sp-16);align-items:start}
+.bd-left{background:var(--pane);border:1px solid var(--line);border-radius:12px;padding:var(--sp-10);
+  position:sticky;top:var(--sp-10);max-height:calc(100vh - 120px);overflow:auto}
+.bd-left-head{font-size:var(--fs-11);font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--faint);padding:var(--sp-2) var(--sp-4) var(--sp-8)}
+.bd-ol{margin-bottom:2px}
+.bd-ol-head{display:flex;align-items:center;gap:6px;width:100%;text-align:left;background:none;border:none;
+  cursor:pointer;padding:var(--sp-6) var(--sp-6);border-radius:8px;color:var(--ink);font-size:var(--fs-13)}
+.bd-ol-head:hover{background:var(--field)}
+.bd-ol.sel>.bd-ol-head{background:color-mix(in srgb,var(--brand) 12%,transparent);font-weight:700}
+.bd-ol-car{flex:0 0 auto;font-size:var(--fs-10);color:var(--faint)}
+.bd-ol-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bd-ol-head small{margin-left:auto;flex:0 0 auto;font-size:var(--fs-10);color:var(--faint)}
+.bd-ol-cols{display:flex;flex-wrap:wrap;gap:4px;padding:var(--sp-4) var(--sp-6) var(--sp-8) var(--sp-20)}
+.bd-col{display:inline-flex;align-items:center;gap:5px;background:var(--field);border:1px solid var(--line);
+  border-radius:999px;padding:3px 9px;font-size:var(--fs-11);color:var(--ink);cursor:grab}
+.bd-col:hover{border-color:var(--brand)}
+.bd-col.used{opacity:.45;cursor:default}
+.bd-col-k{font-size:var(--fs-9);font-weight:800;color:var(--faint);font-family:var(--mono)}
+.bd-col.num .bd-col-k{color:var(--brand)}
+.bd-shelves{display:flex;flex-direction:column;gap:var(--sp-8);margin-bottom:var(--sp-10)}
+.bd-shelf-row{display:flex;align-items:center;gap:var(--sp-8)}
+.bd-shelf-lbl{flex:0 0 64px;font-size:var(--fs-11);font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--faint)}
+.bd-shelf{flex:1;display:flex;flex-wrap:wrap;gap:6px;min-height:38px;align-items:center;
+  background:var(--pane);border:1.5px dashed var(--line);border-radius:10px;padding:var(--sp-4) var(--sp-8);
+  transition:border-color .15s,box-shadow .15s}
+/* a first taste of #118's affordance layer: while a column drags, both shelves light up */
+.bd-dragging .bd-shelf{border-color:var(--brand)}
+.bd-shelf.bd-over{border-color:var(--brand);border-style:solid;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 22%,transparent)}
+.bd-shelf-hint{font-size:var(--fs-12);color:var(--faint)}
+.bd-chip{display:inline-flex;align-items:center;gap:6px;background:var(--field);border:1px solid var(--line);
+  border-radius:8px;padding:4px 6px 4px 10px;font-size:var(--fs-12);color:var(--ink)}
+.bd-chip.bd-measure{border-color:color-mix(in srgb,var(--brand) 45%,var(--line))}
+.bd-chip-nm{font-weight:600}
+.bd-agg{font-size:var(--fs-10);font-weight:800;border:none;background:color-mix(in srgb,var(--brand) 14%,transparent);
+  color:var(--brand);border-radius:6px;padding:2px 3px;cursor:pointer}
+.bd-chip-move,.bd-chip-rm{background:none;border:none;cursor:pointer;color:var(--faint);font-size:var(--fs-11);padding:2px 3px;border-radius:5px}
+.bd-chip-move:hover{color:var(--brand)}
+.bd-chip-rm:hover{color:var(--bad)}
+.bd-status{display:flex;align-items:center;gap:8px;font-size:var(--fs-12);color:var(--muted);margin-bottom:var(--sp-8)}
+.bd-badge{font-size:var(--fs-10);font-weight:800;letter-spacing:.05em;text-transform:uppercase;border-radius:999px;padding:2px 9px}
+.bd-badge.live{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good)}
+.bd-badge.sample{background:color-mix(in srgb,var(--warn,#f5a623) 16%,transparent);color:color-mix(in srgb,var(--warn,#f5a623) 75%,var(--ink))}
+.bd-badge.warn{background:color-mix(in srgb,var(--bad) 12%,transparent);color:var(--bad);text-transform:none;letter-spacing:0}
+.bd-cta{background:var(--pane);border:1px solid var(--line);border-radius:12px;padding:var(--sp-20);
+  font-size:var(--fs-13);color:var(--muted);line-height:1.6}
+.bd-cta b{color:var(--ink)}
+.bd-empty{font-size:var(--fs-12);color:var(--faint);padding:var(--sp-6)}
+.bd-table-wrap{overflow:auto;max-height:calc(100vh - 260px);border:1px solid var(--line);border-radius:12px;background:var(--pane)}
+.bd-table{width:100%;border-collapse:collapse;font-size:var(--fs-12)}
+.bd-table th{position:sticky;top:0;background:var(--field);text-align:left;font-weight:700;
+  padding:var(--sp-6) var(--sp-10);border-bottom:1px solid var(--line);white-space:nowrap}
+.bd-table thead tr:nth-child(2) th{top:29px}
+.bd-table th.bd-th-grp{text-align:center;border-left:1px solid var(--line)}
+.bd-table td{padding:var(--sp-4) var(--sp-10);border-bottom:1px solid var(--line-2,var(--line));white-space:nowrap}
+.bd-table td.num{text-align:right;font-variant-numeric:tabular-nums}
+.bd-trunc{font-size:var(--fs-11);color:var(--faint);margin-top:var(--sp-6)}
+@media (max-width:900px){
+  .bd-wrap{grid-template-columns:1fr}
+  .bd-left{position:static;max-height:240px}
+  .bd-shelf-row{flex-direction:column;align-items:stretch;gap:4px}
+  .bd-shelf-lbl{flex:none}
+}
+
 /* LF63 slice 3: the builder's live SQL sanity hints (Studio.sqlLint) */
 .dsb-lint{display:flex;flex-direction:column;gap:4px;margin:6px 0 2px}
 .dsb-lint-row{font-size:var(--fs-12);line-height:1.45;color:var(--ink);

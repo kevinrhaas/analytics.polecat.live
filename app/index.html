@@ -36,6 +36,7 @@
     <div class="rail-group-lbl rail-lbl" aria-hidden="true">Workspace</div>
     <button class="rail-item active" data-sec="home" title="Home" aria-label="Home" aria-current="page"><span class="rail-ic" data-ic="home"></span><span class="rail-lbl">Home</span></button>
     <button class="rail-item" data-sec="explore" title="Explore" aria-label="Explore"><span class="rail-ic" data-ic="trend-up"></span><span class="rail-lbl">Explore</span></button>
+    <button class="rail-item" data-sec="build" title="View Builder" aria-label="View Builder"><span class="rail-ic" data-ic="board"></span><span class="rail-lbl">Build</span></button>
     <button class="rail-item" data-sec="dashboards" title="Dashboards" aria-label="Dashboards"><span class="rail-ic" data-ic="layers"></span><span class="rail-lbl">Dashboards</span></button>
     <button class="rail-item" data-sec="datasets" title="Datasets" aria-label="Datasets"><span class="rail-ic" data-ic="db"></span><span class="rail-lbl">Datasets</span></button>
     <button class="rail-item" data-sec="connections" title="Connections" aria-label="Connections"><span class="rail-ic" data-ic="link"></span><span class="rail-lbl">Connections</span></button>
@@ -245,6 +246,22 @@
         </div>
       </div>
       <div id="connResults"></div>
+    </div>
+  </section>
+  <section id="secBuild" class="app-sec has-content" hidden>
+    <div class="bd-wrap">
+      <aside class="bd-left">
+        <div class="bd-left-head">Datasets</div>
+        <div id="buildOutline"></div>
+      </aside>
+      <div class="bd-main">
+        <div class="bd-shelves">
+          <div class="bd-shelf-row"><span class="bd-shelf-lbl">Columns</span><div class="bd-shelf" id="bdShelfCols" data-bd-shelf="cols"></div></div>
+          <div class="bd-shelf-row"><span class="bd-shelf-lbl">Rows</span><div class="bd-shelf" id="bdShelfRows" data-bd-shelf="rows"></div></div>
+        </div>
+        <div id="buildStatus" class="bd-status"></div>
+        <div id="buildResult" class="bd-result"></div>
+      </div>
     </div>
   </section>
   <section id="secViews" class="app-sec has-content" hidden>
@@ -461,6 +478,7 @@
 <script src="app/connections.js"></script>
 <script src="app/datasets.js"></script>
 <script src="app/views.js"></script>
+<script src="app/build.js"></script>
 <script src="app/quickmode.js"></script>
 <script src="app/studio.js"></script>
 <script src="app/palette.js"></script>

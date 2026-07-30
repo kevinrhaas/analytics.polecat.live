@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 731,
+    title: 'Meet the View Builder — pivot and crosstab your data, no code',
+    kind: 'feature',
+    ts: '2026-07-30T00:41:57.000Z',
+    items: [
+      'A new Build section (left rail, next to Explore): pick a dataset, click or drag its columns onto the Columns and Rows shelves, and watch the result render live. Numeric fields aggregate automatically as SUM — switch any field to AVG, MIN, MAX, MEDIAN, or COUNT right on its shelf chip.',
+      'Put a field on the Rows shelf and the table pivots into a crosstab: row groups down the side, the first Columns field across the top, aggregated cells, and a Total column.',
+      'Save the result as a View — it shows up in the Views section like any other, and reopens in the builder with its dataset and shelves restored. This first version renders tables and crosstabs; charts, filters, and calculated fields are on the way.',
+    ],
+  },
+  {
     v: 730,
     title: 'The query builder now sanity-checks your SQL as you type',
     kind: 'feature',

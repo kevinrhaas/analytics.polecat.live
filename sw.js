@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v367"; /* v367: LF63 slice 3 — live SQL sanity hints in the
+var CACHE_NAME = "studio-shell-v368"; /* v368: #117 slice 1 — the View Builder: a new "Build"
+   rail section (app/build.js, precached) — dataset outline → Columns/Rows shelves (drag +
+   click-to-add, SUM default on numerics, per-chip agg switch) → live table/crosstab via a
+   pure pivot engine (Studio.Build.compute) → saved as a real View (analyses row with a
+   `builder` blob; the Views catalog routes those back to Build). app/build.js,
+   app/index.html, app/shell.js, app/studio.js, app/views.js, app/studio.css,
+   docs/index.html, tests/run.js, STATUS.md, js/changelog.js.
+   v367: LF63 slice 3 — live SQL sanity hints in the
    New-data-source builder (new pure Studio.sqlLint in model.js + a .dsb-lint warning strip):
    unclosed literals, unbalanced parens, non-SELECT/WITH statements, and declared-column
    drift surface as they're typed; Preview/Test stay the real verification. LF63 is now
@@ -2017,6 +2024,7 @@ var SHELL_FILES = [
   "app/connections.js",
   "app/datasets.js",
   "app/views.js",
+  "app/build.js",
   "app/quickmode.js",
   "app/studio.js",
   "app/palette.js",

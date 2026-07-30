@@ -116,6 +116,40 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **#117 slice 1 — the VIEW BUILDER ships: a new "Build" rail section (v731, sw v368,
+  2026-07-30, steward — Kevin greenlit the epic; the foundation slice):** the pivot/crosstab
+  visual query builder, sibling to Explore, per Kevin's spec. NEW `app/build.js`
+  (Studio.Build, the standard one-bundled-configure(deps) module shape; precached). What
+  shipped: LEFT — a dataset outline (visible workspace datasets + showSamples-gated catalog
+  samples, same sourcing rules as Explore's picker), expand a dataset to its columns
+  (`#`=numeric, `a`=text, via the shared guessFieldKind heuristic); TOP — Columns + Rows
+  shelves accepting BOTH drag-and-drop and click-to-add (mobile is a release gate, so no
+  drag-only affordance; dragging lights up the shelves — a first taste of #118's affordance
+  layer); numeric fields land as SUM with a per-chip agg switch (sum/avg/min/max/median/
+  count) and a ⇄ move-between-shelves control; CENTER — the live result from a PURE pivot
+  engine (`Studio.Build.compute`, unit-tested directly): columns-only = plain SELECT;
+  measures present = grouped rollup; Rows fields = crosstab (row dims down the side, the
+  FIRST non-aggregated Columns field across the top, per-cell aggregation + a Total column,
+  COUNT-of-rows when no measure is picked), capped at 200 result rows / 30 pivot columns
+  with honest truncation notes (incl. "only the first Columns field pivots" when extras are
+  ignored). Workspace datasets run LIVE with the standard sample-rows fallback + the same
+  live/"sample rows" badges as everywhere else. Topbar #tbSectionActions carries + New /
+  Save View (→ "Update View" once saved). Save writes a REAL `analyses` row (chartType
+  "table", a self-contained da over the computed columns via Studio.newPanel, and a
+  `builder` state blob) — views.js's vwOpen routes builder-blob Views back to Build with
+  dataset + shelves restored, while Explore-made Views keep opening in Explore. NAMING
+  (Kevin asked for help): rail label "Build", topbar title "View Builder" — a one-line
+  rename in index.html + shell.js SECTION_LABELS if another name wins. Verified visually
+  (screenshots: outline → shelves → live crosstab) + 12 new regression tests (chrome/
+  topbar actions; 4 pure-engine passes incl. MEDIAN interpolation + COUNT default; the
+  click-to-add/SUM-default/badge/pivot flow; save-with-builder-blob + Update label; the
+  Views→Build reopen round trip; 390px one-column/no-overflow/zero-pageerror boot).
+  **NEXT in #117/#118:** the RIGHT panel (chart-type picker over the computed result,
+  Filters shelf, per-field calcs), multi-dim column pivots, live re-run of builder Views
+  on dashboards (today they fabricate sample rows like any authored da, SAMPLE-badged),
+  and #118's full drag-drop encoding/marks card with the delight layer. Files:
+  app/build.js (new), app/index.html, app/shell.js, app/studio.js, app/views.js,
+  app/studio.css, docs/index.html, sw.js, js/changelog.js, tests/run.js, STATUS.md.
 - **LF63 slice 3 — live SQL sanity hints in the builder (v730, sw v367, 2026-07-30, steward —
   LF63 is now fully done):** the last open LF63 ask ("a live syntax check / used-columns
   validation for the SQL text itself"). A new PURE `Studio.sqlLint(sql, declaredCols)`

@@ -9337,6 +9337,169 @@ function serve() {
     ok("LF63 (3): adding a column chip the query never mentions re-surfaces the strip (used-columns validation)",
       lintLive.driftShown, JSON.stringify(lintLive));
 
+    // ---- #117 slice 1: the View Builder (Build section) ----
+    console.log("\n• #117 slice 1: View Builder");
+    // 1. chrome: rail item, section, topbar title + per-section actions
+    await page.click('#railNav .rail-item[data-sec="build"]');
+    await page.waitForTimeout(200);
+    const bdChrome = await page.evaluate(() => ({
+      secVisible: !document.getElementById("secBuild").hidden,
+      title: (document.getElementById("topbarSection") || {}).textContent,
+      saveBtn: (document.getElementById("bdSaveBtn") || {}).textContent,
+      newBtn: !!document.getElementById("bdNewBtn"),
+      inSlot: !!document.querySelector("#tbSectionActions #bdSaveBtn"),
+      outline: document.querySelectorAll("#buildOutline .bd-ol").length,
+    }));
+    ok("#117: the Build rail item opens #secBuild with the 'View Builder' topbar title",
+      bdChrome.secVisible && bdChrome.title === "View Builder", JSON.stringify(bdChrome));
+    ok("#117: Build registers its own topbar actions (+ New, Save View) in #tbSectionActions, and the outline lists datasets",
+      bdChrome.saveBtn === "Save View" && bdChrome.newBtn && bdChrome.inSlot && bdChrome.outline > 0, JSON.stringify(bdChrome));
+    // 2. the pure pivot engine
+    const bdEngine = await page.evaluate(() => {
+      const C = window.Studio.Build.compute;
+      const cols = ["region", "q", "amount"];
+      const rows = [
+        ["East", "Q1", 10], ["East", "Q1", 20], ["East", "Q2", 5],
+        ["West", "Q1", 7], ["West", "Q2", 3], ["West", "Q2", 1],
+      ];
+      const proj = C(cols, rows, [{ col: "region", agg: null }, { col: "q", agg: null }], []);
+      const roll = C(cols, rows, [{ col: "region", agg: null }, { col: "amount", agg: "sum" }], []);
+      const med = C(cols, rows, [{ col: "amount", agg: "median" }], []);
+      const xtab = C(cols, rows, [{ col: "q", agg: null }, { col: "amount", agg: "sum" }], [{ col: "region" }]);
+      const xcount = C(cols, rows, [{ col: "q", agg: null }], [{ col: "region" }]);
+      return {
+        projHead: proj.head.join(","), projRows: proj.rows.length, projFirst: proj.rows[0].join(","),
+        rollHead: roll.head.join(","), roll: roll.rows.map((r) => r.join(",")).join("|"),
+        med: med.rows[0][0],
+        xtabHead: xtab.head.join(","), xtab: xtab.rows.map((r) => r.join(",")).join("|"),
+        xcountHead: xcount.head.join(","), xcount: xcount.rows.map((r) => r.join(",")).join("|"),
+        empty: C(cols, rows, [], []),
+      };
+    });
+    ok("#117 engine: columns-only with no aggregation is a plain SELECT of those fields",
+      bdEngine.projHead === "region,q" && bdEngine.projRows === 6 && bdEngine.projFirst === "East,Q1" && bdEngine.empty === null,
+      JSON.stringify(bdEngine));
+    ok("#117 engine: a measure on the shelf rolls the dims up (SUM per region), and MEDIAN interpolates an even count",
+      bdEngine.rollHead === "region,SUM amount" && bdEngine.roll === "East,35|West,11" && bdEngine.med === 6,
+      JSON.stringify(bdEngine));
+    ok("#117 engine: Rows fields pivot into a crosstab — the first Columns dim across the top, per-cell aggregation + a Total column",
+      bdEngine.xtabHead === "region,Q1,Q2,Total" && bdEngine.xtab === "East,30,5,35|West,7,4,11",
+      JSON.stringify(bdEngine));
+    ok("#117 engine: a crosstab with no measure picked defaults to COUNT of rows",
+      bdEngine.xcountHead === "region,Q1,Q2,Total" && bdEngine.xcount === "East,2,1,3|West,1,2,3",
+      JSON.stringify(bdEngine));
+    // 3. the live flow: pick a dataset, click columns onto shelves, see the table
+    const bdFlow = await page.evaluate(async () => {
+      const W = window.Studio.Workspace;
+      const ds = W.put("datasets", { name: "bd117-ds", kind: "sql", sql: "select region, quarter, amount from t", columns: ["region", "quarter", "amount"] });
+      window.__studioRenderBuild();
+      await new Promise((r) => setTimeout(r, 60));
+      const out = { dsId: ds.id };
+      out.inOutline = !!document.querySelector('#buildOutline .bd-ol[data-bd-ds-id="' + ds.id + '"]');
+      await window.__studioBuild.selectDataset("ws", ds.id);
+      await new Promise((r) => setTimeout(r, 120));
+      out.colChips = document.querySelectorAll("#buildOutline .bd-col").length;
+      window.__studioBuild.addField("amount", "cols");
+      window.__studioBuild.addField("region", "cols");
+      await new Promise((r) => setTimeout(r, 60));
+      const st = window.__studioBuild.state;
+      out.amountAgg = (st.shelfCols.filter((f) => f.col === "amount")[0] || {}).agg;
+      out.regionAgg = (st.shelfCols.filter((f) => f.col === "region")[0] || {}).agg;
+      out.sampleBadge = !!document.querySelector("#buildStatus .bd-badge.sample");
+      out.resultRows = document.querySelectorAll("#buildResult .bd-table tbody tr").length;
+      out.resultHead = [].slice.call(document.querySelectorAll("#buildResult .bd-table thead th")).map((t) => t.textContent).join(",");
+      // move region to Rows → crosstab shape (no other dim on Columns → dims × measures rollup)
+      window.__studioBuild.addField("quarter", "cols");
+      const move = document.querySelector('#bdShelfCols [data-bd-move="region"]');
+      if (move) move.click();
+      await new Promise((r) => setTimeout(r, 60));
+      out.rowsShelf = window.__studioBuild.state.shelfRows.map((f) => f.col).join(",");
+      out.xtabHead = [].slice.call(document.querySelectorAll("#buildResult .bd-table thead th")).map((t) => t.textContent).slice(0, 3).join(",");
+      return out;
+    });
+    ok("#117 flow: a workspace dataset shows in the outline, selecting it exposes its columns as chips",
+      bdFlow.inOutline && bdFlow.colChips === 3, JSON.stringify(bdFlow));
+    ok("#117 flow: clicking a numeric column adds it to the Columns shelf as SUM; a categorical adds as a plain dimension",
+      bdFlow.amountAgg === "sum" && bdFlow.regionAgg === null, JSON.stringify(bdFlow));
+    ok("#117 flow: the result renders live, honestly badged 'sample rows' when the dataset can't run live",
+      bdFlow.sampleBadge && bdFlow.resultRows > 0 && /SUM amount/.test(bdFlow.resultHead), JSON.stringify(bdFlow));
+    ok("#117 flow: the ⇄ control moves a field to the Rows shelf and the table pivots",
+      bdFlow.rowsShelf === "region" && bdFlow.xtabHead.indexOf("region") === 0, JSON.stringify(bdFlow));
+    // 4. Save → a real View (analyses row with a builder blob) → reopens in Build from Views
+    const bdSave = await page.evaluate(async () => {
+      window.__studioBuild.save();
+      await new Promise((r) => setTimeout(r, 120));
+      const m = document.querySelector(".modal-ov .bd-save"); if (!m) return { err: "save modal missing" };
+      const inp = m.querySelector("input");
+      inp.value = "BD117 Pivot";
+      [].slice.call(m.querySelectorAll("button")).filter((b) => /^(Save|Update)$/.test(b.textContent))[0].click();
+      await new Promise((r) => setTimeout(r, 120));
+      const row = window.Studio.Workspace.all("analyses").filter((a) => a.name === "BD117 Pivot")[0];
+      return {
+        saved: !!row, id: row && row.id,
+        hasBuilder: !!(row && row.builder), chartType: row && row.chartType,
+        shelves: row && row.builder ? row.builder.shelfRows.map((f) => f.col).join(",") : "",
+        analysisId: window.__studioBuild.state.analysisId,
+        saveLabel: (document.getElementById("bdSaveBtn") || {}).textContent,
+      };
+    });
+    ok("#117 save: Save View writes a real analyses row carrying the builder state (chartType table)",
+      bdSave.saved && bdSave.hasBuilder && bdSave.chartType === "table" && bdSave.shelves === "region" && bdSave.analysisId === bdSave.id,
+      JSON.stringify(bdSave));
+    ok("#117 save: after saving, the topbar action flips to 'Update View'",
+      bdSave.saveLabel === "Update View", JSON.stringify(bdSave));
+    const bdReopen = await page.evaluate(async (savedId) => {
+      // leave Build, then reopen the View from the Views catalog — it must route BACK to Build
+      window.Studio.Build.newView();
+      window.__studioShellSetSection("views");
+      window.__studioRenderViews();
+      await new Promise((r) => setTimeout(r, 100));
+      const openBtn = document.querySelector('#viewsResults [data-vw-open="' + savedId + '"]');
+      if (!openBtn) return { err: "views row missing" };
+      openBtn.click();
+      await new Promise((r) => setTimeout(r, 400));
+      return {
+        section: window.__studioShellGetSection(),
+        analysisId: window.__studioBuild.state.analysisId,
+        rowsShelf: window.__studioBuild.state.shelfRows.map((f) => f.col).join(","),
+        resultRows: document.querySelectorAll("#buildResult .bd-table tbody tr").length,
+      };
+    }, bdSave.id);
+    ok("#117 reopen: opening a builder-made View from the Views catalog routes back to Build with its dataset + shelves restored",
+      bdReopen.section === "build" && bdReopen.analysisId === bdSave.id && bdReopen.rowsShelf === "region" && bdReopen.resultRows > 0,
+      JSON.stringify(bdReopen));
+    // cleanup + restore the section the next block expects
+    await page.evaluate((savedId) => {
+      const st = window.__studioBuild.state;
+      window.Studio.Workspace.remove("analyses", savedId);
+      const ds = window.Studio.Workspace.all("datasets").filter((d) => d.name === "bd117-ds")[0];
+      if (ds) window.Studio.Workspace.remove("datasets", ds.id);
+      window.Studio.Build.newView();
+      window.__studioShellSetSection("studio");
+      return st && true;
+    }, bdSave.id);
+    await page.waitForTimeout(150);
+    // 5. mobile — a brand-new section is a release-gate surface at 390px
+    const bdPhone = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    const bdPhoneErrs = [];
+    bdPhone.on("pageerror", (e) => bdPhoneErrs.push(String(e)));
+    await bdPhone.addInitScript(() => {
+      sessionStorage.setItem("studio-gate-ok", "1");
+      localStorage.setItem("studio-welcome-seen", "1");
+      localStorage.setItem("studio-shell-section", "build");
+    });
+    await bdPhone.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await bdPhone.waitForTimeout(600);
+    const bdMobile = await bdPhone.evaluate(() => ({
+      secVisible: !document.getElementById("secBuild").hidden,
+      oneCol: getComputedStyle(document.querySelector(".bd-wrap")).gridTemplateColumns.split(" ").length === 1,
+      noOverflow: document.documentElement.scrollWidth <= window.innerWidth + 1,
+    }));
+    ok("#117 mobile: at 390px the Build section boots one-column with no horizontal overflow, zero pageerrors",
+      bdMobile.secVisible && bdMobile.oneCol && bdMobile.noOverflow && bdPhoneErrs.length === 0,
+      JSON.stringify({ bdMobile, errs: bdPhoneErrs.join(" | ") }));
+    await bdPhone.close();
+
     // ---- G1: visual SQL builder ----
     console.log("\n• G1: SQL builder");
     const sqbBasic = await page.evaluate(async () => {
@@ -27550,7 +27713,8 @@ function serve() {
         // LF60: the Help rail item now switches to an in-app Docs SECTION (data-sec="docs"),
         // so it counts among the section buttons — 10 workspace sections + Help/Docs = 11.
         // LF57: a new "Views" section joins the rail (browse/manage catalog for saved Views) — 12.
-        ok: !!nav && items.length === 12 && !!studioBtn && studioBtn.classList.contains("active")
+        // #117: the "Build" section (View Builder) joins the rail — 13.
+        ok: !!nav && items.length === 13 && !!studioBtn && studioBtn.classList.contains("active")
           && studioBtn.getAttribute("aria-current") === "page",
         secs: items.map(function (b) { return b.getAttribute("data-sec"); }),
         appMainHidden: document.getElementById("appMain").hidden,
@@ -27563,7 +27727,7 @@ function serve() {
     // Z1-2: rail icons are real inline SVGs (Studio.icon(), theme-aware — no emoji/unicode glyphs)
     const z1Icons = await page.evaluate(function () {
       var svgs = document.querySelectorAll("#railNav .rail-ic svg");
-      return { ok: svgs.length === 13, count: svgs.length }; // 11 sections (incl. Admin M4, Repository M5, Views LF57) + Help (Z11) + collapse toggle (Slice A removed the #railCmdk Search/⌘K item — search moved to the topbar)
+      return { ok: svgs.length === 14, count: svgs.length }; // 12 sections (incl. Admin M4, Repository M5, Views LF57, Build #117) + Help (Z11) + collapse toggle (Slice A removed the #railCmdk Search/⌘K item — search moved to the topbar)
     });
     ok("Z1: rail buttons render inline SVG icons (Studio.icon helper)", z1Icons.ok, JSON.stringify(z1Icons));
 
