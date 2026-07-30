@@ -9673,8 +9673,8 @@ function serve() {
         savedLabelCol: row && row.chart && row.chart.map && row.chart.map.labelCol,
       });
     });
-    ok("#117 (2): the chart strip offers Table/Bars/Stacked bars/Line/Stacked area/Donut/Heatmap/Map, heatmap enabled with a Rows dim + a Columns dim",
-      bdChart.strip.join(",") === "table,bars,stacked,line,areaStacked,donut,heatmap,choropleth", JSON.stringify(bdChart));
+    ok("#117 (2): the chart strip offers Table/Bars/Stacked bars/Line/Stacked area/Donut/Heatmap/Map/Scatter, heatmap enabled with a Rows dim + a Columns dim, scatter disabled (only one measure on the shelf)",
+      bdChart.strip.join(",") === "table,bars,stacked,line,areaStacked,donut,heatmap,choropleth,scatter:off", JSON.stringify(bdChart));
     ok("#117 (2): picking Bars renders the COMPUTED basis through the real dashboard renderer (buildHtml + PDC_MOCK iframe)",
       bdChart.barsIframe && bdChart.mock && bdChart.basisDA && bdChart.basisMeasure, JSON.stringify(bdChart));
     ok("#117 (2): Heatmap renders too, and saving with a chart selected stamps the type on the View + builder blob",
@@ -10344,6 +10344,72 @@ function serve() {
     ok("VB-4 (2): saving with Stacked bars picked stamps chartType + one series per Columns value on the analyses row",
       vb4b.savedType === "stacked" && vb4b.savedSeries && vb4b.savedSeries.split(",").length >= 2 && vb4b.savedLabelCol === "region",
       JSON.stringify(vb4b));
+
+    // 13c. VB-4 remaining major (Kevin overnight queue, "hit major ones first"): Scatter
+    // joins the chart strip. Unlike bars/donut/choropleth's one-measure basis, a scatter
+    // point needs TWO numeric measures ([dim, m1, m2]) — but that shape lands directly on
+    // Studio.newPanel's existing scatter column mapping (cols[0]=labelCol, cols[1]=xCol,
+    // cols[2]=yCol), so bdPanelFor needs no scatter-specific branch at all.
+    const vb4c = await page.evaluate(async () => {
+      const W = window.Studio.Workspace;
+      const B = window.__studioBuild;
+      const out = {};
+      const ds = W.put("datasets", { name: "bd-vb4-scatter-ds", kind: "sql", sql: "select region, cost, acres from t3", columns: ["region", "cost", "acres"] });
+      await B.selectDataset("ws", ds.id);
+      await new Promise((r) => setTimeout(r, 120));
+
+      // A. one measure only — Scatter stays disabled (it needs two)
+      B.addField("region", "cols");
+      B.addField("cost", "cols");
+      B.state.chartType = "scatter";
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 60));
+      out.oneMeasureDisabled = document.querySelector('[data-bd-ct="scatter"]').disabled;
+
+      // B. a second measure enables it — basis is [dim, m1, m2], one point per dimension value
+      B.addField("acres", "cols");
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 60));
+      const basis = B.chartBasis("scatter");
+      out.basisHead = basis.head.join(",");
+      out.basisRowCount = basis.rows.length;
+      out.scatterBtnEnabled = !document.querySelector('[data-bd-ct="scatter"]').disabled;
+      out.scatterBtnOn = document.querySelector('[data-bd-ct="scatter"]').classList.contains("on");
+
+      // C. real render — chart.map carries labelCol/xCol/yCol positionally through to the
+      // real dashboard renderer (Studio.newPanel's existing scatter mapping, unmodified)
+      await new Promise((r) => setTimeout(r, 450));
+      const ifr = document.querySelector("#buildResult iframe.bd-ifr");
+      out.iframeType = ifr ? ifr.srcdoc.indexOf('"type":"scatter"') >= 0 : false;
+      out.iframeMap = ifr ? (ifr.srcdoc.indexOf('"labelCol":"region"') >= 0 &&
+        ifr.srcdoc.indexOf('"xCol":"SUM cost"') >= 0 && ifr.srcdoc.indexOf('"yCol":"SUM acres"') >= 0) : false;
+
+      // D. saving with Scatter picked stamps the same labelCol/xCol/yCol mapping
+      B.save();
+      await new Promise((r) => setTimeout(r, 120));
+      const m = document.querySelector(".modal-ov .bd-save");
+      m.querySelector("input").value = "BD117 Scatter";
+      [].slice.call(m.querySelectorAll("button")).filter((b) => /^(Save|Update)$/.test(b.textContent))[0].click();
+      await new Promise((r) => setTimeout(r, 120));
+      const row = W.all("analyses").filter((a) => a.name === "BD117 Scatter")[0];
+      out.savedType = row && row.chartType;
+      out.savedMap = row && row.chart && row.chart.map ? JSON.stringify({ labelCol: row.chart.map.labelCol, xCol: row.chart.map.xCol, yCol: row.chart.map.yCol }) : null;
+
+      // cleanup this block's own dataset + saved row
+      if (row) W.remove("analyses", row.id);
+      W.remove("datasets", ds.id);
+      return out;
+    });
+    ok("VB-4 (3): Scatter stays disabled with only one measure on the shelf",
+      vb4c.oneMeasureDisabled === true, JSON.stringify(vb4c));
+    ok("VB-4 (3): a second measure gives the [dim, m1, m2] basis — one point per dimension value, 8 distinct sample categories",
+      vb4c.basisHead === "region,SUM cost,SUM acres" && vb4c.basisRowCount === 8, JSON.stringify(vb4c));
+    ok("VB-4 (3): the Scatter chart-type button is selected and enabled once two measures are on a shelf",
+      vb4c.scatterBtnEnabled && vb4c.scatterBtnOn, JSON.stringify(vb4c));
+    ok("VB-4 (3): the live preview renders a real scatter panel — chart.map.labelCol/xCol/yCol reach the renderer positionally, no bdPanelFor wiring needed",
+      vb4c.iframeType && vb4c.iframeMap, JSON.stringify(vb4c));
+    ok("VB-4 (3): saving with Scatter picked stamps the same labelCol/xCol/yCol mapping on the analyses row",
+      vb4c.savedType === "scatter" && vb4c.savedMap === JSON.stringify({ labelCol: "region", xCol: "SUM cost", yCol: "SUM acres" }), JSON.stringify(vb4c));
 
     // cleanup the extra saved row from this block
     if (vb4b.savedRowId) await page.evaluate((id) => window.Studio.Workspace.remove("analyses", id), vb4b.savedRowId);
