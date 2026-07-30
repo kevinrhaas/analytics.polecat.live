@@ -116,6 +116,39 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **VB-4 slice 4 — KPI joins the View Builder; VB-4 is now feature-complete (v748, sw v385,
+  2026-07-30, steward):** continuing Kevin's overnight queue ("all of the chart types available
+  for the view builder over time — be reasonable, hit major ones first") after choropleth,
+  Stacked bars/area, and Scatter. KPI is the structurally different remaining major the prior
+  slice flagged: it has NO dimension basis at all (a bare grand-total rollup, not a
+  [dim, measure] rollup) and lives in `spec.kpis`, not `spec.panels`, so it needed its own
+  wiring at every layer instead of reusing `bdPanelFor`/`Studio.newPanel`:
+  - `CHART_TYPES` gains `{t:"kpi", label:"KPI"}` (icon free from the already-registered
+    `Studio.CHART_SVG.kpi`); `chartUnavailable` only requires `bdFirstMeasure()` — no dimension
+    needed, unlike every chart type before it; `chartBasis` calls `compute(cols, rows, [m], [])`
+    with zero dims, which the pivot engine's existing "no shelfRows + one measure" branch
+    already collapses to a single grand-total row — the exact shape `Studio.newKpi`'s
+    `valueCol` expects, no new pivot logic.
+  - A new `bdKpiFor(da)` constructor (`Studio.newKpi(da)` + `label`/`guessFmt`, mirroring
+    Studio's own `addFromCurrentOrPrompt`/`renderKpiInspector` convention) stands in for
+    `bdPanelFor` in both the live preview (`spec.kpis:[k]`, `spec.panels:[]`, same buildHtml
+    renderer) and Save (`row.kpi = bdKpiFor(da)` instead of `row.chart`).
+  - Add-to-dashboard and Export needed their own wiring too: Explore's `xpAddAnalysisToSpec`
+    (the ONE function every "Add to dashboard" entry point — the library, the picker, "Add to
+    new dashboard" — funnels through) and `analysisSpec` (Home's live mini-preview + the Views
+    "Export" action) both branch on `chartType === "kpi"` to push into `spec.kpis` instead of
+    building a panel; the Home mini-frame's `a.chart` guard widened to `a.chart || a.chartType
+    === "kpi"` so KPI Views get a live preview card too. `views.js`'s chart-type label falls
+    back to "KPI" instead of the raw lowercase type string.
+  Docs (docs/index.html) + changelog updated, sw cache → v385, 7 new regression tests (disabled
+  with nothing on a shelf; the single-row grand-total basis; the chart-strip button
+  enabled/selected; a real KPI tile rendered through buildHtml with zero panels; saving stamps
+  chartType:"kpi" + a `kpi` blob instead of `chart`; add-to-dashboard drops it into spec.kpis;
+  Explore's analysisSpec builds the same spec.kpis shape, plus one pre-existing #117 chart-strip
+  assertion widened to include the new "kpi" entry). Full suite green (2697 passed, 0 failed). **VB-4 —
+  chart-type parity with Studio, majors first — is now feature-complete.** Files: app/build.js,
+  app/explore.js, app/studio.js, app/views.js, docs/index.html, sw.js, js/changelog.js,
+  tests/run.js, STATUS.md.
 - **VB-4 slice 3 — Scatter joins the View Builder (v747, sw v384, 2026-07-30, steward):**
   continuing Kevin's overnight queue ("all of the chart types available for the view builder
   over time — be reasonable, hit major ones first") after choropleth and Stacked bars/area.
@@ -7105,9 +7138,13 @@
 >       ✓ **Slice 3 shipped (2026-07-30, v747, steward): Scatter,** a two-measure [dimension,
 >       measure1, measure2] basis (one point per dimension value) that lands directly on
 >       Studio.newPanel's existing scatter column mapping — no bdPanelFor wiring needed. See
->       DONE for the full writeup. **Remaining VB-4 major (NEXT): KPI** — structurally bigger
->       (KPI lives in `spec.kpis`, not `spec.panels`, so it needs its own save/add-to-dashboard
->       wiring beyond chartBasis/bdPanelFor).
+>       DONE for the full writeup.
+>       ✓ **Slice 4 shipped (2026-07-30, v748, steward): KPI — VB-4 is now feature-complete.**
+>       The structurally-bigger remaining major: a KPI has no dimension basis at all (a bare
+>       grand-total rollup) and lives in `spec.kpis`, not `spec.panels`, so it got its own
+>       `bdKpiFor` constructor plus its own save shape (`kpi`, not `chart`) and its own
+>       add-to-dashboard/export wiring (Explore's `analysisSpec`/`xpAddAnalysisToSpec` both
+>       branch on `chartType === "kpi"`). See DONE for the full writeup.
 > VB-5. **Cross-editor View opening (Kevin live, 2026-07-30).** Any View should open in EITHER
 >       builder — Quick Views or the View Builder — including Views saved from the dashboard
 >       editor. Incompatible content (a chart type the target editor lacks, etc.) still OPENS:

@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 748,
+    title: 'KPI joins the View Builder',
+    kind: 'feature',
+    ts: '2026-07-30T09:37:12.000Z',
+    items: [
+      'The chart-type strip gains "KPI" — the odd one out with no dimension at all, just one rolled-up headline number from any field on a shelf (a measure aggregates, a plain field falls back to COUNT).',
+      'Unlike every other chart type here, a KPI lives in a dashboard\'s KPI row, not its panel grid, so saving and "Add to dashboard" both learned the separate wiring a KPI needs.',
+    ],
+  },
+  {
     v: 747,
     title: 'Scatter joins the View Builder',
     kind: 'feature',

@@ -553,11 +553,16 @@
   <p>The <strong>chart strip</strong> above the result switches how it draws: <strong>Table</strong>
   (the full pivot), <strong>Bars</strong>, <strong>Stacked bars</strong>, <strong>Line</strong>,
   <strong>Stacked area</strong>, <strong>Donut</strong>, <strong>Heatmap</strong>, <strong>Map</strong>,
-  or <strong>Scatter</strong>. Charts draw your <em>computed</em> numbers through the real dashboard
-  renderer — Bars and Donut chart the first dimension against the first measure (COUNT of rows
-  when no measure is picked), and Heatmap lights up when you have a field on Rows plus a plain
-  field on Columns, drawing exactly the crosstab as a color matrix. A chart that needs something
+  <strong>Scatter</strong>, or <strong>KPI</strong>. Charts draw your <em>computed</em> numbers through
+  the real dashboard renderer — Bars and Donut chart the first dimension against the first measure
+  (COUNT of rows when no measure is picked), and Heatmap lights up when you have a field on Rows plus a
+  plain field on Columns, drawing exactly the crosstab as a color matrix. A chart that needs something
   you haven't added yet is simply disabled, with the reason in its tooltip.</p>
+  <p><strong>KPI</strong> is the odd one out: no dimension at all, just one rolled-up headline number
+  (Save adds it to a dashboard's KPI row, not its panel grid). Put any field on a shelf — a measure
+  aggregates across every row, or a plain field falls back to COUNT — and it collapses the whole
+  filtered result down to a single value, the same grand-total rollup the Table chart type would show
+  with nothing on Rows and one measure on Columns.</p>
   <p><strong>Scatter</strong> needs two measures instead of one: put a dimension on Rows or
   Columns plus two or more numeric measures on Columns, and it plots one point per dimension
   value — the first measure on the x-axis, the second on the y-axis. It's the same
