@@ -23,7 +23,7 @@
     { label: "Go to Dashboards", hint: "Section", kw: "dashboards catalog repository saved workbooks", ic: "layers", run: function () { goSec("dashboards"); } },
     { label: "Go to Datasets", hint: "Section", kw: "datasets queries data catalog", ic: "db", run: function () { goSec("datasets"); } },
     { label: "Go to Connections", hint: "Section", kw: "connections adapters databases warehouses servers", ic: "join", run: function () { goSec("connections"); } },
-    { label: "Go to Studio", hint: "Section", kw: "studio builder canvas editor", ic: "grid", run: function () { studio(); } },
+    { label: "Go to Dashboard Builder", hint: "Section", kw: "studio builder canvas editor", ic: "grid", run: function () { studio(); } },
     { label: "Go to Settings", hint: "Section", kw: "settings preferences theme mode config", ic: "gear", run: function () { goSec("settings"); } },
     { label: "Open Help & docs", hint: "Reference", kw: "help docs documentation reference guide", ic: "info", run: function () { goSec("docs"); } },
     // dashboard lifecycle

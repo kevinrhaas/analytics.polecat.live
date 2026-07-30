@@ -116,7 +116,11 @@
       var t = a.chartType || "bars";
       var icon = '<span class="cx-ic"></span>';
       var folderBadge = a.folder ? '<span class="cx-badge cx-folder" data-tip="Folder: ' + esc(a.folder) + '">' + esc(a.folder) + '</span>' : "";
-      var name = '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(a.name || "View") + ' — open in Explore" aria-label="Open View ' + esc(a.name || "View") + ' in Explore"><b>' + esc(a.name || "Untitled View") + '</b></button><small>' + esc(vwChartLabel(t)) + '</small></span>';
+      // A row opens into whichever editor actually owns it (a.builder → the View
+      // Builder, else Quick Views — same routing vwOpen() uses below), so the
+      // hint always names the real destination instead of a hardcoded guess.
+      var dest = a.builder ? "the View Builder" : "Quick Views";
+      var name = '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(a.name || "View") + ' — open in ' + dest + '" aria-label="Open View ' + esc(a.name || "View") + ' in ' + dest + '"><b>' + esc(a.name || "Untitled View") + '</b></button><small>' + esc(vwChartLabel(t)) + '</small></span>';
       var badges = folderBadge;
       var when = '<span class="cx-when">' + esc(Studio.fmtWhen(a.updatedAt || Date.now())) + '</span>';
       var privateBtn = '<button type="button" class="cx-private' + (a.private ? " private" : "") + '" data-vw-private="' + esc(a.id) + '" title="' + (a.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (a.private ? "Make " + esc(a.name || "this View") + " public" : "Make " + esc(a.name || "this View") + " private") + '" aria-pressed="' + (a.private ? "true" : "false") + '"></button>';
@@ -226,7 +230,7 @@
     Studio.Explore.loadAnalysis(id);
     if (window.__studioShellSetSection) window.__studioShellSetSection("explore");
   }
-  // "+ New Quick View" — same reset-to-fresh-Explore path Repository's "＋ New ▾ → New View" uses.
+  // "+ New Quick View" — same reset-to-fresh-Quick-Views path Repository's "＋ New ▾ → New View" uses.
   function vwNewView() {
     if (Studio.Explore && Studio.Explore.startNew) Studio.Explore.startNew();
     if (window.__studioShellSetSection) window.__studioShellSetSection("explore");

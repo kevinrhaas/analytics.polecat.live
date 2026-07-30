@@ -672,7 +672,7 @@
       // truncated label needs, same fix family as the disambiguateLabels() rows
       // elsewhere in Repository/Dashboards.
       return '<div class="xp-saved-row' + (on ? " active" : "") + '" data-xp-a="' + esc(a.id) + '">' +
-        '<button type="button" class="xp-saved-open" data-xp-open="' + esc(a.id) + '" title="' + esc(a.name) + ' — open in Explore" aria-label="Open ' + esc(a.name) + ' in Explore"><b>' + esc(a.name) + '</b>' +
+        '<button type="button" class="xp-saved-open" data-xp-open="' + esc(a.id) + '" title="' + esc(a.name) + ' — open in Quick Views" aria-label="Open ' + esc(a.name) + ' in Quick Views"><b>' + esc(a.name) + '</b>' +
         '<small>' + esc((Studio.CHARTS[a.chartType] || {}).label || a.chartType) + '</small></button>' +
         folderBadge +
         '<span class="xp-saved-acts">' +
@@ -726,7 +726,7 @@
       '<aside class="xp-side">' +
         '<div class="xp-side-search-row">' +
           '<input id="xpSearch" class="repo-search" type="search" placeholder="Search datasets…" aria-label="Search datasets" value="' + esc(XP.q) + '"/>' +
-          '<button type="button" class="btn primary" id="xpNewDsBtn" title="Create a new dataset without leaving Explore">+ New</button>' +
+          '<button type="button" class="btn primary" id="xpNewDsBtn" title="Create a new dataset without leaving Quick Views">+ New</button>' +
         "</div>" +
         '<div class="xp-list">' + (dsRows || '<div class="xp-none">No datasets' + (showSamples() ? "" : " (samples are hidden in Settings)") + ".</div>") + "</div>" +
         '<div class="xp-saved"><div class="xp-saved-h">Saved Views <span class="badge">' + analyses.length + "</span></div>" +
@@ -789,8 +789,8 @@
     var saveBtn = $("#xpSaveBtn", body); if (saveBtn) saveBtn.onclick = xpSave;
     var saveAs = $("#xpSaveAsBtn", body); if (saveAs) saveAs.onclick = function () { XP.analysisId = null; xpSave(); };
     // LF11: the old single "Add to dashboard" button was ambiguous about WHICH
-    // dashboard it meant (always "whatever's currently open in Studio," which
-    // isn't obvious from the button text) — split into an explicit new-vs-
+    // dashboard it meant (always "whatever's currently open in the Dashboard
+    // Builder," which isn't obvious from the button text) — split into an explicit new-vs-
     // existing choice, both funneling into xpAddAnalysisToSpec once a target
     // spec is in place.
     function xpEnsureSavedAnalysis(cb) {
