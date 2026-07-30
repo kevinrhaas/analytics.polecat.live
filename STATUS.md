@@ -7655,6 +7655,11 @@
 >       the existing rows (have-map keys demoPackId|sourceFile?) or an older cached build
 >       on Kevin's device re-materialized pre-folder rows. Reproduce, fix, and add a
 >       reconcile that dedupes (keep the foldered copy).
+> VB-8. ✓ **Add-to-dashboard picker offers "+ New dashboard" (Kevin live, 2026-07-30,
+>       screenshot — SHIPPED v769, sw v405).** "On the views add to dashboard, you should
+>       also be able to pick new dashboard there." The "Add to which dashboard?" modal
+>       pins a dashed + New dashboard row above the (searchable) list — picking it runs
+>       the existing xpAddAnalysisToNewDashboard path (blank spec + append the View).
 > CONS-1. **Conservation pack ↔ real CTIC reference dashboards (Kevin live, 2026-07-30,
 >       three reference screenshots — CLAIMED by the dedicated session).** Make the
 >       Conservation sample-pack dashboards look "immediately as close as possible" to the

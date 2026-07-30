@@ -514,6 +514,13 @@
       var search = el("input", "search"); search.type = "search"; search.placeholder = "Search your dashboards…";
       search.setAttribute("aria-label", "Search dashboards");
       b.appendChild(search);
+      // VB-8 (Kevin live, 2026-07-30): the picker also offers a brand-new dashboard —
+      // pinned above the list (never filtered away), same path the "New dashboard"
+      // add-to target uses (blank spec + append this View).
+      var newRow = el("button", "odp-row odp-new"); newRow.type = "button";
+      newRow.innerHTML = '<b>＋ New dashboard</b><small>Start a blank dashboard with this View on it</small>';
+      newRow.onclick = function () { closeAllModals(); xpAddAnalysisToNewDashboard(analysisId); };
+      b.appendChild(newRow);
       var listWrap = el("div", "odp-list"); b.appendChild(listWrap);
       function paint() {
         var q = (search.value || "").toLowerCase();

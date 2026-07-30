@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 769,
+    title: 'Add to dashboard can start a new dashboard too',
+    kind: 'feature',
+    ts: '2026-07-30T18:01:36.000Z',
+    items: [
+      'The “Add to which dashboard?” picker now pins a + New dashboard choice above the list — pick it and a blank dashboard opens with the View already on it.',
+    ],
+  },
+  {
     v: 768,
     title: 'Refreshes look clean, and Sign out actually signs you out',
     kind: 'fix',
