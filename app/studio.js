@@ -5774,9 +5774,12 @@
           '<span class="wb-chip-label">' + esc(c.name) + '</span> <span class="wb-chip-n">' + c.n + '</span></button>';
       }).join("") + '</div>';
     }
+    // Card wording tracks the rail IA (Kevin live, 2026-07: "line up to
+    // terminology") — Quick Views / View Builder / Dashboards are the builders.
     var cards = [
+      { act: "view", ic: "board", t: "New View", d: "Pivot and chart with shelves in the View Builder" },
+      { act: "explore", ic: "trend-up", t: "New Quick View", d: "The fast one-chart builder (Quick Views)" },
       { act: "blank", ic: "plus", t: "New dashboard", d: "Build a dashboard from scratch" },
-      { act: "explore", ic: "trend-up", t: "Explore data", d: "Explore curated sample datasets" },
       { act: "connection", ic: "link", t: "New connection", d: "Create a connection to your own data" },
       { act: "dataset", ic: "db", t: "New dataset", d: "Build datasets from an existing connection" },
       { act: "quickimport", ic: "upload", t: "Quick import", d: "Drop a CSV or JSON file to build a dashboard instantly" }
@@ -5931,6 +5934,11 @@
         if (act === "connection") { openConnectionWizard(); return; }
         if (act === "dataset") { openDatasetEditor(); return; }
         if (act === "explore") { if (window.__studioShellSetSection) __studioShellSetSection("explore"); return; }
+        if (act === "view") {
+          if (Studio.Build && Studio.Build.newView) Studio.Build.newView();
+          if (window.__studioShellSetSection) __studioShellSetSection("build");
+          return;
+        }
         if (act === "quickimport") { var qi = $(".home-quickimport-input", sec); if (qi) qi.click(); return; }
         // LF70: "Browse examples" = go to the installed sample pack(s)' curated dashboards in
         // the Dashboards section (thumbnail tiles), not the old Examples ▾ dropdown of static

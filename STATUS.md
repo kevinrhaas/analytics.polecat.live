@@ -116,6 +116,17 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LIVE-a slice 1 — Home quick actions speak the rail IA (v740, sw v377, 2026-07-30,
+  steward):** Kevin live ("fix the buttons… line up to terminology", Home screenshot). The
+  quick-action grid now leads with the builders: a NEW "New View" card (data-home="view")
+  resets + opens the View Builder (Studio.Build.newView + section "build"); "Explore data"
+  is reworded "New Quick View" (same act/routing, data-home="explore" — every
+  act-key-based test and the LF44 role filter untouched). Cards available to viewers too
+  (Build/Quick Views aren't develop-only). Z2 ratchet re-baselined 7→8 cards with the new
+  order; +1 regression test (labels + New View routes to a fresh View Builder). REMAINING
+  for LIVE-a slice 2: sweep the rest of the app's "Explore"/"Studio" strings (welcome-hero
+  quick actions, tours, empty states, menus) to the new names. Files: app/studio.js,
+  tests/run.js, sw.js, js/changelog.js.
 - **SYNC ANTI-FLAKE (v739, sw v376, 2026-07-30, steward):** Kevin live: "still getting a lot
   of reconnecting… supabase seems very flaky." Three-part hardening. (1) **In-request
   transient retry** (app/sources/supabase.js rest()): a single 429/5xx response or network
@@ -6938,11 +6949,19 @@
 >       too bare: add the LF56 folder NAVIGATOR (browse existing folders, create a new one,
 >       save into a location — same picker every other Folder field uses) and a sparkle
 >       name-suggest on the name input (withSparkleButton, like Explore's save path).
-> LIVE-a. **Home quick-action buttons ↔ new rail terminology (Kevin live, screenshot).** The
->       Home cards still say "Explore data" / "New dashboard" etc. — align wording with the
->       new rail IA (Quick Views / View Builder / Dashboards) and ADD the missing builder
->       entry points (e.g. a "New View (builder)" card). Sweep other button labels app-wide
->       that still say "Explore"/"Studio" (tours, empty states, menus) — same terminology pass.
+> LIVE-a. **Home quick-action buttons ↔ new rail terminology (Kevin live, screenshot).**
+>       Slice 1 ✓ SHIPPED v740 (Home cards: "New View" card added, "Explore data" → "New
+>       Quick View"). Slice 2 remaining: sweep the rest of the app's "Explore"/"Studio"
+>       strings (welcome-hero quick actions, tours, empty states, menus) to the new names.
+> LIVE-e. **Help/docs overhaul (Kevin live, 2026-07-30, two screenshots).** (1) The Help
+>       section must respond to the app THEME (it renders light-on-dark wrong today) and the
+>       "Back to Studio" button in the doc header goes away. (2) A full readability pass:
+>       the docs are "massive paragraphs… so daunting" — rewrite into short paragraphs,
+>       headings/sub-headings, bullets and sub-bullets, tables/diagrams where they help; make
+>       it delightful to consume. (3) Leave IMAGE PLACEHOLDERS for later: at each spot where
+>       a screenshot would help, add a hidden HTML comment describing exactly what image
+>       should go there (users never see it); hide the whole image/zoom-box preview block
+>       until real images are dropped in later.
 > LIVE-b. **Sample-pack dashboard naming + folder (Kevin live, screenshot).** Every
 >       Conservation Insight dashboard card reads "Conservation Insight — …" so the grid looks
 >       identical row after row. Rename so the dashboard's OWN name leads (e.g. "Watershed

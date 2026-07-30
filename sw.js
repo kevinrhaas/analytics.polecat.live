@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v376"; /* v376: sync anti-flake (Kevin: "supabase seems very
+var CACHE_NAME = "studio-shell-v377"; /* v377: LIVE-a slice 1 (Kevin: "fix the buttons… line up
+   to terminology") — Home quick-action cards track the rail IA: a "New View" card (fresh
+   View Builder) leads the grid, "Explore data" reads "New Quick View". app/studio.js,
+   tests/run.js, STATUS.md, js/changelog.js.
+   v376: sync anti-flake (Kevin: "supabase seems very
    flaky") — supabase rest() retries a single 429/5xx/network blip once in place (writes are
    idempotent); debounced pushes keep a 4s minimum spacing (pushNow/pagehide force-bypass);
    a rolling sync-activity log (last 12 attempts w/ error text) renders on the Settings
