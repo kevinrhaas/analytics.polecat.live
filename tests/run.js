@@ -4625,6 +4625,67 @@ function serve() {
       panelsCard.found && panelsCard.checked === true && /Open the builder with side panels/.test(panelsCard.label), JSON.stringify(panelsCard));
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(150);
+
+    // ---- SAMPLE-DATA-1 (Kevin live, 2026-07-30): raw demo-DB tables are pack-gated ----
+    // The catalog "sample tables" are the Data Management pack's data: uninstalled pack
+    // = zero presence in the View Builder + Explore dataset pickers; installed = grouped
+    // under the pack's name. Conservation pack objects are FILED in the pack folder
+    // across every type (datasets/jobs/analyses/connections, like dashboards already).
+    console.log("\n• SAMPLE-DATA-1: sample tables pack-gated; pack objects foldered across all types");
+    const sd1 = await page.evaluate(async function () {
+      var out = {}, dm = window.__studioDemoPacks;
+      // make sure Explore is showing its dataset PICKER (not a loaded editor)
+      var st = window.__studioExplore.state; st.dsId = null; st.kind = null; st.analysisId = null;
+      out.dmWasInstalled = dm.installed("datamanagement");
+      dm.remove("datamanagement");
+      window.__studioRenderBuild();
+      window.__studioRenderExplore();
+      await new Promise(function (r) { setTimeout(r, 150); });
+      var ol = document.getElementById("buildOutline"), xb = document.getElementById("xpBody");
+      out.bdOffRows = ol ? ol.querySelectorAll('[data-bd-ds-kind="sample"]').length : -1;
+      out.xpOffRows = xb ? xb.querySelectorAll('[data-xp-ds^="sample"]').length : -1;
+      out.bdOffGrp = ol ? /Sample tables/.test(ol.textContent) : null;
+      dm.install("datamanagement");
+      window.__studioRenderBuild();
+      window.__studioRenderExplore();
+      await new Promise(function (r) { setTimeout(r, 150); });
+      ol = document.getElementById("buildOutline"); xb = document.getElementById("xpBody");
+      out.bdOnRows = ol ? ol.querySelectorAll('[data-bd-ds-kind="sample"]').length : -1;
+      out.xpOnRows = xb ? xb.querySelectorAll('[data-xp-ds^="sample"]').length : -1;
+      out.bdOnGrp = ol ? /Sample tables — Data Management pack/.test(ol.textContent) : null;
+      out.xpOnGrp = xb ? /Sample tables — Data Management pack/.test(xb.textContent) : null;
+      if (!out.dmWasInstalled) dm.remove("datamanagement"); // leave the pack state as found
+      return out;
+    });
+    ok("SAMPLE-DATA-1: with the Data Management pack removed, the raw sample tables vanish from BOTH dataset pickers",
+      sd1.bdOffRows === 0 && sd1.xpOffRows === 0 && sd1.bdOffGrp === false, JSON.stringify(sd1));
+    ok("SAMPLE-DATA-1: reinstalling the pack brings the tables back, grouped under the pack's own name (no anonymous SAMPLE DATA dump)",
+      sd1.bdOnRows > 0 && sd1.xpOnRows > 0 && sd1.bdOnGrp === true && sd1.xpOnGrp === true, JSON.stringify(sd1));
+    const sd1Folders = await page.evaluate(function () {
+      var dm = window.__studioDemoPacks, W = Studio.Workspace;
+      var consWasInstalled = dm.installed("conservation");
+      if (!consWasInstalled) dm.install("conservation");
+      var bad = [];
+      ["datasets", "jobs", "analyses", "connections", "dashboards"].forEach(function (t) {
+        W.all(t).forEach(function (r) {
+          if (r.demoPackId === "conservation" && r.folder !== "Conservation Insight") bad.push(t + ":" + (r.name || r.id));
+        });
+      });
+      // reconcile heals PRE-EXISTING rows too: strip one folder, re-run boot reconcile
+      var ds = W.all("datasets").filter(function (r) { return r.demoPackId === "conservation"; })[0];
+      var healed = null;
+      if (ds) {
+        ds.folder = ""; W.put("datasets", ds, { silent: true });
+        window.__studioReconcilePackDashboards();
+        healed = W.get("datasets", ds.id).folder === "Conservation Insight";
+      }
+      if (!consWasInstalled) dm.remove("conservation"); // leave the pack state as found
+      return { bad: bad.join("|"), healed: healed };
+    });
+    ok("SAMPLE-DATA-1: every Conservation-pack object — datasets, job, Views, connections, dashboards — is filed in the Conservation Insight folder",
+      sd1Folders.bad === "", JSON.stringify(sd1Folders));
+    ok("SAMPLE-DATA-1: the boot reconcile backfills the pack folder on pre-existing installs (no reinstall needed)",
+      sd1Folders.healed === true, JSON.stringify(sd1Folders));
     await page.evaluate(function () { return window.__studioLoadExample("conservation-flow.studio.json"); }); // LF43 slice 2: menu gone — hook load
     await page.waitForTimeout(300);
     const lf2Flow = await page.evaluate(function () {

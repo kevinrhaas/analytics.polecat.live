@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 764,
+    title: 'Sample tables stop leaking; pack content is filed in the pack’s folder everywhere',
+    kind: 'fix',
+    ts: '2026-07-30T16:21:36.000Z',
+    items: [
+      'The raw sample tables (app-usage, command-center, …) only appear in the View Builder and Quick View dataset pickers while the Data Management pack is actually installed — grouped under the pack’s name, and gone without a trace when it isn’t.',
+      'Everything the Conservation Insight pack adds — datasets, the rollup job, Views, connections, dashboards — now lives in the Conservation Insight folder in every section, and existing workspaces are healed on load without a reinstall.',
+    ],
+  },
+  {
     v: 763,
     title: 'The Dashboard Builder opens clean — side panels closed by default',
     kind: 'feature',

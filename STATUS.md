@@ -7540,8 +7540,16 @@
 >       real reference Pentaho environment, so maybe not. Must reconcile with already-
 >       installed packs in existing workspaces (no duplicate connections on reinstall/
 >       boot-reconcile) and keep SPEC.md's data examples in sync.
-> SAMPLE-DATA-1. ★ **Raw "SAMPLE DATA" tables leak into the dataset panes; pack content
->       should be real, foldered datasets (Kevin live, 2026-07-30, two screenshots).**
+> SAMPLE-DATA-1. ✓ **Raw "SAMPLE DATA" tables leak into the dataset panes; pack content
+>       should be real, foldered datasets (Kevin live, 2026-07-30, two screenshots —
+>       SHIPPED v764, sw v400).** Done: pickers gate the catalog tables on the Data
+>       Management pack being installed (grouped as "Sample tables — Data Management
+>       pack"; uninstalled = zero presence; helpful empty-state hints); conservation
+>       seeds all carry folder "Conservation Insight" (connections/datasets/job/Views,
+>       dashboards already did) and reconcilePackDashboards backfills the folder across
+>       ALL types on boot for existing installs. NOT done (follow-up if Kevin wants the
+>       stronger model): materializing the Data-management tables as real dataset ROWS —
+>       today they stay virtual picker entries while installed. Original report:**
 >       "On quick view datasets, these sample data should not show (I think these are the
 >       data management pack datasets?) ... they don't show as installed and I think they
 >       should not be there. Sample data now should exist as 'real' data ... use the

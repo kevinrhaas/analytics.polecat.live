@@ -63,6 +63,10 @@
   };
 
   var INSTALLED_KEY = "studio-demopacks-installed";
+  // SAMPLE-DATA-1 (Kevin live, 2026-07-30): every object a pack seeds is FILED in the
+  // pack's folder — one folder per pack across all types (dashboards already do this
+  // via studio.js PACK_FOLDERS; keep the two names in sync).
+  var PACK_FOLDER = "Conservation Insight";
   // Packs installed before a user ever opens Settings. "datamanagement" gates content that
   // used to be unconditional (the generic showcase gallery) — defaulting it to installed
   // keeps that gallery looking the same as it always has for every existing workspace, while
@@ -225,7 +229,7 @@
       name: "Conservation Insight — " + practice.label + " (illustrative demo)",
       datasetId: null, sample: null,
       da: da, chart: ensembleChart(da.id), chartType: "ensembleSeries",
-      pinned: true, demoPackId: "conservation"
+      pinned: true, folder: PACK_FOLDER, demoPackId: "conservation"
     };
   }
 
@@ -308,33 +312,33 @@
     var W = Studio.Workspace, now = new Date().toISOString();
 
     // --- connections: the demo file store + an illustrative repo backend ---
-    var fileConn = W.put("connections", { name: "Conservation Insight — demo files", adapter: "file", cfg: {}, demoPackId: id });
+    var fileConn = W.put("connections", { name: "Conservation Insight — demo files", adapter: "file", cfg: {}, folder: PACK_FOLDER, demoPackId: id });
     // A meta/repo-plane connection shown in Connections as the "point at your
     // real backend" concept (no datasets hang off it, so nothing is queried).
     W.put("connections", {
       name: "Conservation repo — Supabase (demo)", adapter: "supabase",
       cfg: { url: "https://demo.supabase.co", anonKey: "demo-anon-key" },
       desc: "Illustrative repo backend — connect your own Supabase project to sync this workspace.",
-      demoPackId: id
+      folder: PACK_FOLDER, demoPackId: id
     });
 
     // --- datasets: raw export + real county / watershed / state-rollup geo ---
     W.put("datasets", {
       name: "Conservation Insight — raw provider export (demo)", connectionId: fileConn.id,
       kind: "file", format: "csv", fileName: "conservation-insight-provider-export-demo.csv",
-      content: conservationRawCsv(), demoPackId: id, tags: ["demo", "conservation"]
+      content: conservationRawCsv(), folder: PACK_FOLDER, demoPackId: id, tags: ["demo", "conservation"]
     });
     var countyDs = W.put("datasets", {
       name: "County cover-crop adoption (demo)", connectionId: fileConn.id,
       kind: "file", format: "csv", fileName: "county-cover-crop-adoption-demo.csv",
       content: countyCsv(), columns: ["geoid", "statecode", "provider", "pct", "acres"],
-      demoPackId: id, tags: ["demo", "conservation", "geo"]
+      folder: PACK_FOLDER, demoPackId: id, tags: ["demo", "conservation", "geo"]
     });
     W.put("datasets", {
       name: "Watershed adoption — HUC8 (demo)", connectionId: fileConn.id,
       kind: "file", format: "csv", fileName: "watershed-adoption-huc8-demo.csv",
       content: huc8Csv(), columns: ["huc8", "provider", "pct"],
-      demoPackId: id, tags: ["demo", "conservation", "geo"]
+      folder: PACK_FOLDER, demoPackId: id, tags: ["demo", "conservation", "geo"]
     });
     // The rollup job's OUTPUT dataset, pre-materialized so the state choropleth
     // works before anyone clicks Run; re-running the job rewrites it in place.
@@ -342,7 +346,7 @@
       name: "State cover-crop adoption — rollup (job output)", connectionId: fileConn.id,
       kind: "file", format: "csv", fileName: "state_cover_crop_adoption_rollup.csv",
       content: stateRollupCsv(), columns: ["statecode", "pct", "acres"],
-      demoPackId: id, tags: ["demo", "conservation", "geo", "job-output"]
+      folder: PACK_FOLDER, demoPackId: id, tags: ["demo", "conservation", "geo", "job-output"]
     });
 
     // --- job: county → state, acreage-weighted mean (the jobs-engine pattern) ---
@@ -357,7 +361,7 @@
           { fn: "sum", col: "acres", as: "acres" }
         ]
       }],
-      demoPackId: id
+      folder: PACK_FOLDER, demoPackId: id
     });
 
     // --- analyses (pinned to Home) + the featured dashboard ---

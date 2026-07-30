@@ -188,7 +188,10 @@
       var conn = Studio.Workspace.get("connections", d.connectionId);
       out.push({ kind: "ws", id: d.id, name: d.name || d.id, sub: conn ? conn.name : "no connection", cols: d.columns || [], folder: d.folder || "" });
     });
-    if (D.showSamples()) {
+    // SAMPLE-DATA-1 (Kevin live, 2026-07-30): the raw demo-DB catalog tables are the Data
+    // Management pack's data — they only appear when that pack is actually installed
+    // (uninstalled pack = zero presence), not as an always-there SAMPLE DATA dump.
+    if (D.showSamples() && Studio.demoPackInstalled && Studio.demoPackInstalled("datamanagement")) {
       var cat = D.getCatalog();
       Object.keys(cat).forEach(function (stem) {
         (cat[stem].dataAccesses || []).forEach(function (d) {
@@ -1115,7 +1118,7 @@
           var stems = {};
           sampleShown.forEach(function (d) { (stems[d.stem] = stems[d.stem] || []).push(d); });
           var sampleDflt = wsShown.length > 0; // default CLOSED once you have your own
-          olHtml += '<div class="bd-grp-h">Sample data <span class="bd-tree-n">' + sampleShown.length + "</span></div>" +
+          olHtml += '<div class="bd-grp-h">Sample tables — Data Management pack <span class="bd-tree-n">' + sampleShown.length + "</span></div>" +
             Object.keys(stems).sort().map(function (st) {
               var p = "sample:" + st;
               var collapsed = bdTreeCollapsed(p, sampleDflt);
@@ -1123,6 +1126,7 @@
                 '<div class="bd-tree-kids"' + (collapsed ? " hidden" : "") + '>' + stems[st].map(bdDsRowHtml).join("") + "</div>";
             }).join("");
         }
+        if (!olHtml) olHtml = '<div class="bd-none">No datasets yet — connect a data source, or install a sample pack in Settings (pack datasets arrive filed in the pack\'s folder).</div>';
         outline.innerHTML = olHtml;
       }
       // paint the per-row icons (inline SVG so both themes work for free)
