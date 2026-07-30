@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 778,
+    title: 'Pick your workspace right on the sign-in screen',
+    kind: 'feature',
+    ts: '2026-07-30T21:44:47.000Z',
+    items: [
+      'The sign-in screen has a Workspace picker: Local only (as before), any workspace packaged with the app, plus “Custom workspace…” (the full wizard) and “Import access file…”. A teammate picks the workspace and signs in with their own email + password — no connection setup at all.',
+      'Admins can hand out a workspace as a small access file: Settings → Workspace backend → Export access file. It carries the connection details only — the service sign-in is stripped, so each person always authenticates as themselves. Importing it at the gate adds (or overrides) that workspace on the device.',
+      'Picking a workspace only points the app at it — nothing is read or written until you actually sign in, so choosing one can never disturb the workspace’s data or your own local copy.',
+    ],
+  },
+  {
     v: 777,
     title: 'Dashboards are durable now — nothing deletes or overwrites them behind your back',
     kind: 'fix',

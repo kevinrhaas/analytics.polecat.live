@@ -15553,6 +15553,110 @@ function serve() {
     ok("LF39/M7: a fresh-device teammate signs in with their email straight against the backend's GoTrue and is adopted as the matching local account",
       directAuthed.gateGone && directAuthed.who === "gtmate" && directAuthed.gotrueId === "11111111-1111-1111-1111-111111111111", JSON.stringify(directAuthed));
 
+    // ---- WORKSPACE-LOGIN: the packaged-workspace picker at the gate ----
+    // Kevin's flow: ship a workspace catalog with the app (app/workspaces.js) or
+    // hand a teammate an ACCESS FILE; they pick the workspace on the sign-in
+    // screen and just log in as themselves — no connection wizard. Picking a
+    // workspace must BIND the connection without pulling (an unauthenticated
+    // pull under authenticated-only RLS reads the remote as empty — adopting
+    // that would wipe the device's local data); the post-sign-in pull adopts
+    // with the user's own session.
+    console.log("\n• WORKSPACE-LOGIN: gate workspace picker");
+    await fetch(`http://localhost:${PORT}/__supabase/rest/v1/__cleartokenflap`, { headers: { apikey: "sb_publishable_valid" } });
+    const gpWs = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpWs.on("pageerror", (e) => errors.push("WORKSPACE-LOGIN page: " + e.message));
+    await gpWs.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpWs.waitForSelector("#g-form", { timeout: 8000 });
+    // 1) fresh device: the picker renders with Local selected + both escape hatches
+    const wsFresh = await gpWs.evaluate(() => {
+      var sel = document.getElementById("g-workspace");
+      var opts = sel ? Array.from(sel.options).map(function (o) { return o.value; }) : [];
+      return { has: !!sel, val: sel && sel.value, hasCustom: opts.indexOf("__custom") >= 0,
+        hasImport: opts.indexOf("__import") >= 0, hasHooks: !!window.__studioGateWorkspaces,
+        catalogLoaded: Array.isArray(window.STUDIO_WORKSPACES) };
+    });
+    ok("WORKSPACE-LOGIN: a fresh device's sign-in screen shows the Workspace picker — Local selected, Custom… and Import-access-file… escape hatches, packaged catalog (app/workspaces.js) loaded",
+      wsFresh.has && wsFresh.val === "local" && wsFresh.hasCustom && wsFresh.hasImport && wsFresh.hasHooks && wsFresh.catalogLoaded, JSON.stringify(wsFresh));
+    // 2) import an access-file entry (addCustom = exactly what the file reader
+    //    stores) → it lists in the picker → choosing it binds WITHOUT pulling
+    const wsBind = await gpWs.evaluate(async (port) => {
+      // a marker row an adopting empty-remote pull would have wiped
+      Studio.Workspace.put("users", { id: "user_wsmark", u: "wsmark", name: "WS Marker", role: "viewer", demo: false }, { silent: true });
+      var W = window.__studioGateWorkspaces;
+      W.addCustom({ id: "polecat-test", label: "Polecat test", sourceId: "supabase",
+        cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid" } });
+      W.render();
+      var sel = document.getElementById("g-workspace");
+      var listed = Array.from(sel.options).some(function (o) { return o.value === "polecat-test"; });
+      sel.value = "polecat-test"; sel.dispatchEvent(new Event("change"));
+      await new Promise(function (r) { setTimeout(r, 250); });
+      var conn = null;
+      try { conn = JSON.parse(localStorage.getItem("analytics.datasource.v1") || "null"); } catch (e) {}
+      var st = Studio.Sync.syncState();
+      return {
+        listed: listed,
+        connSaved: !!(conn && conn.sourceId === "supabase" && /__supabase/.test(conn.cfg && conn.cfg.url)),
+        bound: st.sourceId === "supabase",
+        markerSurvives: Studio.Workspace.all("users").some(function (u) { return u.id === "user_wsmark"; }),
+        note: (document.getElementById("g-ws-note") || {}).textContent || "",
+        lastWs: localStorage.getItem("studio-workspace-last")
+      };
+    }, PORT);
+    ok("WORKSPACE-LOGIN: an imported access-file entry lists in the picker; choosing it BINDS the connection (stored + live) without pulling — local data survives until a signed-in pull",
+      wsBind.listed && wsBind.connSaved && wsBind.bound && wsBind.markerSurvives && /Sign in with your Polecat test account/.test(wsBind.note) && wsBind.lastWs === "polecat-test", JSON.stringify(wsBind));
+    // 3) the picker's Local option disconnects; re-picking the workspace re-binds
+    const wsToggle = await gpWs.evaluate(async () => {
+      var sel = document.getElementById("g-workspace");
+      sel.value = "local"; sel.dispatchEvent(new Event("change"));
+      await new Promise(function (r) { setTimeout(r, 200); });
+      var afterLocal = Studio.Sync.syncState().sourceId;
+      sel.value = "polecat-test"; sel.dispatchEvent(new Event("change"));
+      await new Promise(function (r) { setTimeout(r, 200); });
+      return { afterLocal: afterLocal, rebound: Studio.Sync.syncState().sourceId === "supabase" };
+    });
+    ok("WORKSPACE-LOGIN: switching the picker back to Local disconnects (local copy stays), and re-picking the workspace re-binds it",
+      wsToggle.afterLocal === "local" && wsToggle.rebound, JSON.stringify(wsToggle));
+    // 4) sign in end-to-end THROUGH the picked workspace: direct-auth against its
+    //    GoTrue adopts the matching local account (same primitive as LF39 D, but
+    //    the connection came from the PICKER, not a pre-stored config)
+    await gpWs.evaluate(() => {
+      Studio.Workspace.put("users", { id: "user_wspick", u: "wspicker", name: "WS Picker", role: "admin", demo: false, gotrueId: "11111111-1111-1111-1111-111111111111" }, { silent: true });
+      Studio.Sync.pullNow = function () { return Promise.resolve(); }; // sync detail, not auth — keep the seed
+    });
+    await gpWs.fill("#g-user", "owner@example.com");
+    await gpWs.fill("#g-pass", "secret123");
+    await gpWs.click("#g-form button[type=submit]");
+    await gpWs.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 6000 }).catch(() => {});
+    await gpWs.waitForTimeout(100);
+    const wsSignedIn = await gpWs.evaluate(() => ({
+      gateGone: !document.querySelector("#studio-gate"),
+      who: (window.PolecatAuth.current() || {}).u,
+      gateErr: (document.getElementById("g-err") || {}).textContent || ""
+    }));
+    ok("WORKSPACE-LOGIN: a teammate picks the packaged workspace and signs in with their own email/password — direct-auth against that workspace's GoTrue, no connection setup",
+      wsSignedIn.gateGone && wsSignedIn.who === "wspicker", JSON.stringify(wsSignedIn));
+    // 5) the access file itself: Settings → backend card exports the current
+    //    connection as an importable entry — WITHOUT the connection's own
+    //    service login (the teammate signs in as themselves, never as the owner)
+    const wsAccess = await gpWs.evaluate(async (port) => {
+      window.__studioShellSetSection("settings");
+      await Studio.Sync.bindConnection("supabase", { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid", authEmail: "owner@example.com", authPassword: "secret123" });
+      await new Promise(function (r) { setTimeout(r, 200); });
+      var entry = Studio.exportAccessFileEntry();
+      var live = Studio.Sync.currentConfig();
+      return {
+        hasBtn: !!document.getElementById("wsAccessFileBtn"),
+        entryOk: !!(entry && entry.id && entry.label && entry.sourceId === "supabase" && entry.cfg && /__supabase/.test(entry.cfg.url) && entry.cfg.key),
+        stripped: !!entry && !("authEmail" in entry.cfg) && !("authPassword" in entry.cfg),
+        liveKeepsCreds: !!live && live.authEmail === "owner@example.com",
+        // the entry round-trips through the gate importer's validation shape
+        importable: !!(entry && entry.sourceId && entry.cfg && entry.cfg.url && entry.cfg.key)
+      };
+    }, PORT);
+    ok("WORKSPACE-LOGIN: 'Export access file' on the backend card produces an importable entry with the connection's authEmail/authPassword STRIPPED (live config untouched)",
+      wsAccess.hasBtn && wsAccess.entryOk && wsAccess.stripped && wsAccess.liveKeepsCreds && wsAccess.importable, JSON.stringify(wsAccess));
+    await gpWs.close();
+
     // ---- M4: Admin — manage users (first slice of "Admin + permissions") ----
     console.log("\n• M4: admin — manage users");
     // The main `page` carries the historical studio-gate-ok bypass with no stored

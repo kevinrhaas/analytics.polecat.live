@@ -227,9 +227,10 @@
     // configure access to that workspace." Entries come from the PACKAGED catalog
     // (app/workspaces.js → window.STUDIO_WORKSPACES) plus locally imported/custom
     // ones (an imported entry with the same id OVERRIDES the shipped one — the
-    // escape hatch if a database moves). Picking one connects it (the same
-    // Sync.connectAdopt path Settings uses), after which the existing direct-auth
-    // sign-in verifies the typed email/password straight against that workspace.
+    // escape hatch if a database moves). Picking one BINDS the connection
+    // (Sync.bindConnection — no pull yet), after which the existing direct-auth
+    // sign-in verifies the typed email/password straight against that workspace
+    // and the post-sign-in pull adopts remote data with the user's session.
     var CUSTOM_WS_KEY = "studio-workspaces-custom", LAST_WS_KEY = "studio-workspace-last";
     function customWorkspaces() {
       try { return JSON.parse(localStorage.getItem(CUSTOM_WS_KEY) || "[]"); } catch (e) { return []; }
@@ -274,16 +275,17 @@
     function connectWorkspace(entry) {
       var Sync = window.Studio && window.Studio.Sync;
       if (!Sync) { fail("Still loading — try again in a moment."); return; }
-      setErr(""); wsNote("Connecting to " + entry.label + "…");
-      Sync.connectAdopt(entry.sourceId, JSON.parse(JSON.stringify(entry.cfg))).then(function () {
+      setErr("");
+      // BIND, don't pull: under authenticated-only RLS an unauthenticated pull
+      // reads the workspace as empty — adopting that here would wipe this
+      // device's local copy. The pull runs right after sign-in (direct-auth's
+      // pullNow) with the user's own session, and DURABLE-1's heals ride it.
+      Sync.bindConnection(entry.sourceId, entry.cfg).then(function () {
         try { localStorage.setItem(LAST_WS_KEY, entry.id); } catch (e) {}
-        // DURABLE-1's onAdopt heals + user-mirror import ran with the adoption;
-        // re-import users so the sign-in below verifies THIS workspace's accounts.
-        try { Auth.importFromStore(window.Studio.Workspace.all("users")); } catch (e) {}
-        wsNote("Connected. Sign in with your " + entry.label + " account.");
+        wsNote("Using " + entry.label + ". Sign in with your " + entry.label + " account (email + password).");
       }, function (e2) {
         wsNote("");
-        fail("Couldn’t reach " + entry.label + " — " + ((e2 && e2.message) || "connection failed"));
+        fail("Couldn’t use " + entry.label + " — " + ((e2 && e2.message) || "bad workspace entry"));
         renderWorkspaceSelect();
       });
     }

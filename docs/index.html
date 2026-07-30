@@ -1632,6 +1632,31 @@
   </ul>
   <p><strong>Signing in on a new device is one step.</strong> Once a workspace is connected to a Supabase backend, a teammate can sign in on a brand-new browser by entering their <strong>email</strong> and password on the sign-in screen — the app verifies those straight against the backend's own Supabase Auth (GoTrue), then adopts their account locally. No admin needs to re-add them here first, this browser doesn't need to have seen the account before, and no password is ever mirrored between devices — the backend itself is the source of truth. (Signing in with a plain <em>username</em>, or on a local/non-Supabase workspace, works exactly as before.)</p>
 
+  <h3>Picking a workspace on the sign-in screen</h3>
+  <p>The sign-in screen has a <strong>Workspace</strong> picker above the username field, so a
+  teammate never has to touch connection setup at all:</p>
+  <ul>
+    <li><strong>Local only (this browser)</strong> — the default: everything stays on this device,
+      and the local <code>admin</code>/<code>demo</code> accounts work as always.</li>
+    <li><strong>A packaged workspace</strong> — workspaces shipped with the app appear here by
+      name. Picking one points the app at that workspace's database; then just sign in with the
+      email and password of <em>your own</em> account there (the one-step direct sign-in above).
+      Who can sign in is controlled by the workspace's admin, not by anything on this device.</li>
+    <li><strong>Import access file…</strong> — an admin can hand you a small
+      <code>…-access.json</code> file instead (see below). Importing it adds that workspace to the
+      picker on this device and selects it; the file carries the connection details, never any
+      account password. An imported entry with the same id as a packaged one overrides it — the
+      escape hatch if a database moves before a re-release.</li>
+    <li><strong>Custom workspace…</strong> — opens the full connection wizard for anything
+      else.</li>
+  </ul>
+  <p>Picking a workspace only <em>points</em> the app at it — nothing is read or written until you
+  actually sign in, so an unauthenticated device can't disturb (or be disturbed by) the workspace's
+  data. Admins create the access file from <strong>Settings → Workspace backend → Export access
+  file</strong> on any connected device: it contains the workspace's connection key (share it only
+  with people who should be able to sign in), and it deliberately strips the connection's own
+  service sign-in — each teammate authenticates as themselves.</p>
+
   <h3>Adding users when connected to Supabase (in-app account provisioning)</h3>
   <p>Once the workspace backend is Supabase, the Admin page's <strong>+ Add user</strong> form
   gains an <strong>Email</strong> field and creates a real Supabase Auth (GoTrue) account via the

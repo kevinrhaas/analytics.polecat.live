@@ -410,6 +410,20 @@
       // remote can't resurrect duplicates or drop the seeded dashboards the boot
       // heal had just fixed; the heal's own edits then push the corrected state up.
       if (Studio.Sync.onAdopt) Studio.Sync.onAdopt(reconcilePackDashboards);
+      // WORKSPACE-LOGIN: the current connection as an access-file entry — what the
+      // gate's "Import access file…" reads back. authEmail/authPassword are STRIPPED:
+      // the file grants the ability to sign in as yourself, not the service login.
+      Studio.exportAccessFileEntry = function () {
+        var st = Studio.Sync.syncState();
+        if (!st.isRemote) return null;
+        var cfg = Studio.Sync.currentConfig();
+        if (!cfg || !cfg.url) return null;
+        delete cfg.authEmail; delete cfg.authPassword;
+        return {
+          id: st.sourceId + "-" + String(cfg.url).replace(/^https?:\/\//, "").replace(/[^a-z0-9]+/gi, "-").slice(0, 40),
+          label: st.label + " workspace", sourceId: st.sourceId, cfg: cfg
+        };
+      };
       var railSourceBtn = $("#railSource");
       if (railSourceBtn) railSourceBtn.onclick = function () { if (window.__studioShellSetSection) window.__studioShellSetSection("settings"); };
       // LIVE-e: push the current theme into the Help iframe the moment it (lazily) loads
@@ -7686,6 +7700,8 @@
         '<span class="cx-actions ws-actions">' +
           (st.isRemote ? '<button type="button" class="btn" id="wsRefreshBtn" title="Pull the backend\'s current contents (edits from other browsers)">Refresh</button>' +
             '<button type="button" class="btn" id="wsEditBtn">Edit</button>' +
+            // WORKSPACE-LOGIN: the file Kevin hands out — "import this, then log in".
+            '<button type="button" class="btn" id="wsAccessFileBtn" title="Download this connection as an access file a teammate can import on the sign-in screen">Export access file</button>' +
             '<button type="button" class="btn" id="wsDisconnectBtn">Disconnect</button>' : "") +
           '<button type="button" class="btn primary" id="wsSwitchBtn">' + (st.isRemote ? "Switch backend" : "+ Connect backend") + '</button>' +
         '</span></div>' +
@@ -7722,6 +7738,19 @@
       (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(sql) : Promise.reject())
         .then(function () { toast("SQL copied — paste it into Supabase → SQL editor, then hit Retry now"); },
               function () { window.prompt("Copy this SQL:", sql); });
+    };
+    // WORKSPACE-LOGIN: export the current connection as an access file — the
+    // small JSON Kevin distributes so a teammate imports it at the sign-in
+    // screen and just logs in. It CONTAINS the workspace key, so confirm.
+    // (Studio.exportAccessFileEntry — defined near the Sync wiring — strips the
+    // connection's own authEmail/authPassword: the teammate authenticates as
+    // THEMSELVES via direct-auth, they never get the shared service login.)
+    var accessFileBtn = $("#wsAccessFileBtn", card);
+    if (accessFileBtn) accessFileBtn.onclick = function () {
+      var entry = Studio.exportAccessFileEntry();
+      if (!entry) { toast("No remote workspace connected.", true); return; }
+      if (!window.confirm("The access file contains this workspace's connection key. Share it only with people who should be able to sign in. Download?")) return;
+      download((entry.id || "workspace") + "-access.json", JSON.stringify(entry, null, 2), "application/json");
     };
     var disconnectBtn = $("#wsDisconnectBtn", card);
     if (disconnectBtn) disconnectBtn.onclick = function () {

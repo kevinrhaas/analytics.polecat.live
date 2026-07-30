@@ -298,6 +298,20 @@
       });
     },
 
+    // WORKSPACE-LOGIN: bind a connection WITHOUT pulling. The sign-in screen
+    // uses this — under authenticated-only RLS an unauthenticated pull reads
+    // the remote as EMPTY, and adopting that would replaceAll a device's real
+    // local work away. The post-sign-in pull (direct-auth's pullNow) adopts
+    // with the user's own session instead.
+    bindConnection: function (sourceId, cfg) {
+      var src = Studio.sourceById(sourceId);
+      if (!src) return Promise.reject(new Error("unknown source"));
+      state.sourceId = sourceId; state.cfg = cfg ? JSON.parse(JSON.stringify(cfg)) : null;
+      saveConn();
+      setStatus("connected"); // optimistic — the first real pull/push corrects it
+      return Promise.resolve(publicState());
+    },
+
     // Detach and go back to local-only; the working copy stays as-is.
     disconnect: function () {
       clearTimeout(_timer);
