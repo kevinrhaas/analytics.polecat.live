@@ -9225,6 +9225,124 @@ function serve() {
     ok("SB-FLAKE: a single 503 or network throw retries once and the request succeeds — one blip can't flap the mirror red",
       sbRetry.ok1 && sbRetry.calls1 === 2 && sbRetry.ok2 && sbRetry.calls2 === 2, JSON.stringify(sbRetry));
 
+    // ---- SB-RLS (Kevin live, 2026-07-30: every push "rejected the API key
+    // (401/403)" while pulls read ok): an RLS-enabled table with no write policy
+    // answers reads with EMPTY rows and 403s every write — the old bare
+    // "rejected the API key" error hid the PostgREST body that names the real
+    // cause. rest() now surfaces the body, and save() recognizes the RLS
+    // signature and hands over the one-time paste-me policy SQL.
+    const sbRls = await page.evaluate(async () => {
+      const fetch0 = window.fetch;
+      window.fetch = (url, opts) => {
+        const method = (opts && opts.method) || "GET";
+        if (method === "GET") return Promise.resolve(new Response("[]", { status: 200 }));
+        return Promise.resolve(new Response(
+          JSON.stringify({ code: "42501", message: 'new row violates row-level security policy for table "analyses"' }),
+          { status: 403, headers: { "Content-Type": "application/json" } }));
+      };
+      const snap = Studio.WS.emptySnapshot();
+      const res = await Studio.supabaseSource.save({ url: "https://x.supabase.co", key: "k" }, snap);
+      window.fetch = fetch0;
+      const sql = Studio.WS.rlsPolicySQL();
+      return {
+        failed: res && res.ok === false,
+        namesCause: /row-level security policy for table/.test(res.error || ""),
+        explains: /Row-Level Security enabled without a write policy/.test(res.error || ""),
+        carriesSql: /CREATE POLICY "polecat_open_rw"/.test(res.error || ""),
+        sqlCoversAll: ["polecat_meta", "connections", "datasets", "dashboards", "analyses", "jobs", "users"]
+          .every((t) => sql.indexOf('ON "' + t + '"') >= 0)
+      };
+    });
+    ok("SB-RLS: a 403 write surfaces PostgREST's own reason (row-level security) instead of a bare 'rejected the API key'",
+      sbRls.failed && sbRls.namesCause, JSON.stringify(sbRls));
+    ok("SB-RLS: the save error explains the RLS-without-write-policy trap and hands over paste-me policy SQL covering every workspace table",
+      sbRls.explains && sbRls.carriesSql && sbRls.sqlCoversAll, JSON.stringify(sbRls));
+
+    // ---- SB-PULL-GUARD (the data-loss half of "wildly flaky"): Refresh does
+    // push-then-pull — when the push FAILS, the pull used to adopt the remote
+    // anyway, replaceAll-ing OVER the very rows the backend just refused
+    // (save a View → push 403s → hit Refresh → the View silently vanishes,
+    // card reads "Connected"). pullNow now keeps local + the honest error
+    // while dirty; a later successful retry pushes the pending edits up.
+    const sbPullGuard = await page.evaluate(async () => {
+      const out = {};
+      window.__fakePullRemote = { snap: null, fail: false };
+      Studio.registerSource({
+        id: "fakepull", label: "FakePull", icon: "db", caps: { meta: true }, fields: [],
+        load: function () { return Promise.resolve(window.__fakePullRemote.snap ? JSON.parse(JSON.stringify(window.__fakePullRemote.snap)) : Studio.WS.emptySnapshot()); },
+        save: function (cfg, snap) {
+          if (window.__fakePullRemote.fail) return Promise.resolve({ ok: false, error: "HTTP 403: new row violates row-level security policy" });
+          window.__fakePullRemote.snap = JSON.parse(JSON.stringify(snap));
+          return Promise.resolve({ ok: true });
+        }
+      });
+      await Studio.Sync.connectPush("fakepull", {});
+      // backend starts refusing writes; a new View is saved locally
+      window.__fakePullRemote.fail = true;
+      Studio.Workspace.put("analyses", { id: "a-guard", name: "Guard Me", chartType: "bars" });
+      await Studio.Sync.pushNow();
+      out.errAfterPush = Studio.Sync.syncState().status;
+      // the user hits Refresh — the pull must NOT clobber the refused edit
+      await Studio.Sync.pullNow();
+      out.localSurvived = !!Studio.Workspace.get("analyses", "a-guard");
+      out.statusHonest = Studio.Sync.syncState().status;
+      // backend fixed → the retry pushes the pending edit up
+      window.__fakePullRemote.fail = false;
+      await Studio.Sync.retryNow();
+      out.healed = Studio.Sync.syncState().status;
+      out.remoteGotIt = !!(window.__fakePullRemote.snap && (window.__fakePullRemote.snap.tables.analyses || []).some((r) => r.id === "a-guard"));
+      Studio.Workspace.remove("analyses", "a-guard");
+      await Studio.Sync.pushNow();
+      Studio.Sync.disconnect();
+      return out;
+    });
+    ok("SB-PULL-GUARD: Refresh while a push is refused keeps the local edit and the honest error state — it never adopts the remote over unpushed rows",
+      sbPullGuard.errAfterPush === "error" && sbPullGuard.localSurvived && sbPullGuard.statusHonest === "error",
+      JSON.stringify(sbPullGuard));
+    ok("SB-PULL-GUARD: once the backend accepts writes again, the retry pushes the guarded edit up and the mirror goes green",
+      sbPullGuard.healed === "connected" && sbPullGuard.remoteGotIt, JSON.stringify(sbPullGuard));
+
+    // ---- PACKS-VIS (Kevin live, 2026-07-30: "i cant see the sample packs"):
+    // the Settings Sample-packs card was gated on showSamples(), so hiding
+    // sample content removed the packs' only install/remove surface with it.
+    // The card now always shows; hidden mode gets a note, and Install turns
+    // sample content back on.
+    const packsVis = await page.evaluate(async () => {
+      const out = {};
+      const prev = localStorage.getItem("studio-show-samples");
+      localStorage.setItem("studio-show-samples", "0");
+      window.__studioShellSetSection("settings");
+      window.__studioRenderSettings();
+      await new Promise((r) => setTimeout(r, 100));
+      const btns = [].slice.call(document.querySelectorAll("#secSettings [data-demopack]"));
+      out.cardShownWhileHidden = btns.length >= 2;
+      out.hiddenNote = !!document.querySelector("#secSettings .set-packs-hidden-note");
+      // make datamanagement uninstalled first (it's installed by default), then
+      // Install it while sample content is hidden — the toggle must flip back on
+      const dm = document.querySelector('#secSettings [data-demopack="datamanagement"]');
+      if (dm && dm.textContent === "Remove") {
+        dm.click();
+        await new Promise((r) => setTimeout(r, 600));
+        window.__studioRenderSettings();
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      localStorage.setItem("studio-show-samples", "0");
+      const dm2 = document.querySelector('#secSettings [data-demopack="datamanagement"]');
+      out.installOffered = dm2 && dm2.textContent === "Install";
+      if (dm2) dm2.click();
+      await new Promise((r) => setTimeout(r, 800));
+      out.samplesBackOn = localStorage.getItem("studio-show-samples") !== "0";
+      out.installed = Studio.demoPackInstalled("datamanagement");
+      // restore: samples visible is the suite's default state; the pack ends installed (its default)
+      if (prev === null) localStorage.removeItem("studio-show-samples"); else localStorage.setItem("studio-show-samples", prev === "0" ? "1" : prev);
+      window.__studioShellSetSection("studio");
+      return out;
+    });
+    ok("PACKS-VIS: the Sample-packs card shows even with sample content hidden — with a note explaining the hidden state",
+      packsVis.cardShownWhileHidden && packsVis.hiddenNote, JSON.stringify(packsVis));
+    ok("PACKS-VIS: installing a pack while sample content is hidden turns sample content back on and installs the pack",
+      packsVis.installOffered && packsVis.samplesBackOn && packsVis.installed, JSON.stringify(packsVis));
+
     // ---- Rail IA (Kevin 2026-07): Workspace = catalogs, Build = builders, Manage = ops ----
     console.log("\n• Rail IA: Workspace/Build/Manage grouping + builder labels + Views New menu");
     const railIA = await page.evaluate(function () {

@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 758,
+    title: 'Sample packs always reachable; Refresh can no longer lose refused edits',
+    kind: 'fix',
+    ts: '2026-07-30T14:38:14.000Z',
+    items: [
+      'The Sample packs card in Settings now shows even when sample content is hidden — installing a pack turns sample content back on, so the two packs are always one click away.',
+      'Refresh no longer overwrites local edits the backend just refused: if a push fails, the pull is skipped and the honest error stays, instead of silently replacing your workspace with the older remote copy.',
+      'A rejected Supabase write now reports the backend’s actual reason (e.g. a Row-Level Security policy blocking writes) instead of a generic “rejected the API key” — and when RLS is the cause, Settings hands you the one-time SQL that fixes it.',
+    ],
+  },
+  {
     v: 757,
     title: 'Help gets real screenshots',
     kind: 'polish',

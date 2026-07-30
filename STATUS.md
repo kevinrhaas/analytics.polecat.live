@@ -116,6 +116,39 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **KEVIN-LIVE emergency pair — packs visibility + Refresh data-loss + honest RLS errors
+  (v758, sw v395, 2026-07-30, steward):** two live reports with screenshots ("i cant see the
+  sample packs… being able to be activated/turned on"; "supabase is still wildly flaky",
+  sync log full of push "Supabase rejected the API key (401/403)" while pulls read ok).
+  - **Sample packs card (app/studio.js):** was gated on `showSamples()` — toggling Sample
+    content off removed the packs' ONLY install/remove surface with it. The card now always
+    renders when packs exist; hidden mode shows an explanatory note
+    (`.set-packs-hidden-note`) and Install flips sample content back on first.
+  - **Refresh data-loss guard (app/sources/sync.js `pullNow`):** Refresh does push-then-pull
+    — when the push FAILED it still pulled and `replaceAll`'d the remote over the very rows
+    the backend refused (save a View → push 403s → Refresh → the View silently vanishes and
+    the card reads "Connected" — the real "wildly flaky" experience). Now: if the push left
+    us dirty, the pull is SKIPPED — local kept, honest error kept; the backoff retry pushes
+    once the backend accepts writes.
+  - **Honest 401/403 diagnosis (app/sources/supabase.js `rest()`):** the final-401/403 throw
+    now surfaces PostgREST's body ("new row violates row-level security policy for table…",
+    "permission denied…") instead of a bare "rejected the API key" — the RLS-without-a-write-
+    policy failure mode reads EMPTY-but-ok on pull and 403s every push, and the body is the
+    only way to tell it from a bad key. `save()` recognizes the RLS signature and appends the
+    one-time paste-me SQL: new `WS.rlsPolicySQL()` (app/sources/schema.js) — idempotent
+    enable-RLS + `polecat_open_rw` FOR ALL TO anon, authenticated USING(true)/WITH CHECK(true)
+    on polecat_meta + all 6 workspace tables (matches the app's CURRENT UX-gating posture;
+    per-user tightening is the M7 track).
+  - **Tests (6 new):** SB-RLS (stubbed 403 with RLS body → error names the cause, explains
+    the trap, carries policy SQL covering every table), SB-PULL-GUARD (fakepull source:
+    refused push + Refresh → local edit survives, status stays error; healed backend →
+    retry pushes it up, green), PACKS-VIS (card shows with samples hidden + note; Install
+    while hidden re-enables samples + installs).
+  - **For Kevin's live workspace:** when the Settings error card next shows the RLS message,
+    paste the SQL it hands you into Supabase → SQL editor once — pushes go green; the app
+    can't change database policies from the browser.
+  Files: app/studio.js, app/sources/sync.js, app/sources/supabase.js, app/sources/schema.js,
+  tests/run.js, sw.js, js/changelog.js.
 - **LIVE-e part 3 — the docs screenshot pass (v757, sw v394, 2026-07-30, steward):** Kevin's
   original LIVE-e ask reserved image placeholders "for us to add images... later we can go
   back and fill them in at the end"; this closes that loop, and with it ALL of LIVE-e. The
