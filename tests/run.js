@@ -36074,6 +36074,109 @@ function serve() {
 
     await repoPage.evaluate(function () { Studio.Workspace.remove("analyses", "repo-an2", { silent: true }); window.__studioRenderRepository(); });
 
+    // LIVE-d (slice 4): multi-select + bulk delete on Repository — same shape slices
+    // 1-3 proved on Datasets/Connections/Jobs, but Repository's rows span FIVE tables
+    // at once, so the selection key is "type:id" and delete must group by table. Two
+    // throwaway rows of DIFFERENT kinds (a job + a dataset) prove the cross-type case
+    // without touching the repo-* fixture rows other tests above depend on.
+    await repoPage.evaluate(function () {
+      Studio.Workspace.put("jobs", { id: "livd-repobulk-job", name: "livd_repobulk_job", steps: [] }, { silent: true });
+      Studio.Workspace.put("datasets", { id: "livd-repobulk-ds", name: "livd_repobulk_ds", connectionId: "repo-conn", kind: "sql", sql: "SELECT 1", updatedAt: 8 }, { silent: true });
+      window.__studioRenderRepository();
+    });
+    await repoPage.waitForTimeout(100);
+
+    const livdRepoSelectOn = await repoPage.evaluate(function () {
+      document.getElementById("repoAllSelectBtn").click();
+      return {
+        mode: window.__studioRepoSelectMode(),
+        checkboxes: document.querySelectorAll("#repoAllResults .repo-select-cb").length,
+        bulkBar: !!document.querySelector(".dash-bulk-bar"),
+        btnText: document.getElementById("repoAllSelectBtn").textContent,
+        delDisabled: document.getElementById("repoSelDelBtn").disabled
+      };
+    });
+    ok("LIVE-d: clicking Select enters select mode on Repository — checkboxes + a bulk bar appear, Delete starts disabled",
+      livdRepoSelectOn.mode && livdRepoSelectOn.checkboxes > 0 && livdRepoSelectOn.bulkBar && /Cancel/.test(livdRepoSelectOn.btnText) && livdRepoSelectOn.delDisabled,
+      JSON.stringify(livdRepoSelectOn));
+
+    // tapping a row in select mode selects it instead of opening its editor (re-query
+    // after the click — its handler re-renders #repoAllResults, so pre-click nodes go stale)
+    const livdRepoTapSelects = await repoPage.evaluate(function () {
+      var row = document.querySelector('.repo-select-cb[data-repo-select-type="job"][data-repo-select-id="livd-repobulk-job"]').closest(".cx-row");
+      row.click();
+      var cbAfter = document.querySelector('.repo-select-cb[data-repo-select-type="job"][data-repo-select-id="livd-repobulk-job"]');
+      return {
+        checked: cbAfter.checked,
+        rowSelected: cbAfter.closest(".cx-row").classList.contains("is-selected"),
+        selected: window.__studioRepoSelected(),
+        noModalOpened: !document.querySelector(".modal-ov")
+      };
+    });
+    ok("LIVE-d: tapping a Repository row in select mode selects it (doesn't open its editor) and highlights the row",
+      livdRepoTapSelects.checked && livdRepoTapSelects.rowSelected && livdRepoTapSelects.selected.indexOf("job:livd-repobulk-job") >= 0 && livdRepoTapSelects.noModalOpened,
+      JSON.stringify(livdRepoTapSelects));
+
+    // the checkbox itself is an equivalent way to toggle selection — and works across
+    // a DIFFERENT type (a dataset row), proving the cross-table selection set.
+    const livdRepoCbToggle = await repoPage.evaluate(function () {
+      document.querySelector('.repo-select-cb[data-repo-select-type="dataset"][data-repo-select-id="livd-repobulk-ds"]').click();
+      return { count: window.__studioRepoSelected().length, barText: document.querySelector(".dash-bulk-count").textContent };
+    });
+    ok("LIVE-d: checking a Repository row's checkbox selects it too (a different object kind), and the bulk bar's count reflects the total",
+      livdRepoCbToggle.count === 2 && /2 selected/.test(livdRepoCbToggle.barText), JSON.stringify(livdRepoCbToggle));
+
+    // Select all / Clear apply to everything currently in view (all types, unfiltered)
+    const livdRepoSelectAll = await repoPage.evaluate(function () {
+      document.getElementById("repoSelAllBtn").click();
+      var totalRows = document.querySelectorAll("#repoAllResults .cx-row").length;
+      return { selectedCount: window.__studioRepoSelected().length, totalRows: totalRows };
+    });
+    ok("LIVE-d: Select all selects every object currently in view across all kinds",
+      livdRepoSelectAll.selectedCount === livdRepoSelectAll.totalRows && livdRepoSelectAll.totalRows > 2, JSON.stringify(livdRepoSelectAll));
+    const livdRepoClear = await repoPage.evaluate(function () {
+      document.getElementById("repoSelNoneBtn").click();
+      return { selectedCount: window.__studioRepoSelected().length, delDisabled: document.getElementById("repoSelDelBtn").disabled };
+    });
+    ok("LIVE-d: Clear deselects everything and disables Delete again",
+      livdRepoClear.selectedCount === 0 && livdRepoClear.delDisabled, JSON.stringify(livdRepoClear));
+
+    // re-select just the two throwaway rows (a job + a dataset) and bulk-delete them —
+    // the confirmation should name both kinds, and only those two rows should go.
+    await repoPage.evaluate(function () { document.querySelector('.repo-select-cb[data-repo-select-type="job"][data-repo-select-id="livd-repobulk-job"]').click(); });
+    await repoPage.evaluate(function () { document.querySelector('.repo-select-cb[data-repo-select-type="dataset"][data-repo-select-id="livd-repobulk-ds"]').click(); });
+    await repoPage.evaluate(function () { window.confirm = function (m) { window.__lastConfirmMsg = m; return true; }; });
+    await repoPage.click("#repoSelDelBtn");
+    await repoPage.waitForTimeout(150);
+    const livdRepoDeleted = await repoPage.evaluate(function () {
+      return {
+        confirmMsg: window.__lastConfirmMsg,
+        stillJob: !!Studio.Workspace.get("jobs", "livd-repobulk-job"),
+        stillDs: !!Studio.Workspace.get("datasets", "livd-repobulk-ds"),
+        selectedAfter: window.__studioRepoSelected().length,
+        // the five original repo-* fixtures (and the "Ops" folder they carry) must survive untouched
+        coreIntact: !!Studio.Workspace.get("dashboards", "repo-dash") && !!Studio.Workspace.get("datasets", "repo-ds") &&
+          !!Studio.Workspace.get("connections", "repo-conn") && !!Studio.Workspace.get("analyses", "repo-an") && !!Studio.Workspace.get("jobs", "repo-job")
+      };
+    });
+    ok("LIVE-d: Delete removes every selected Repository object regardless of kind, names both kinds in the confirmation, and leaves everything else untouched",
+      !livdRepoDeleted.stillJob && !livdRepoDeleted.stillDs && livdRepoDeleted.selectedAfter === 0 && livdRepoDeleted.coreIntact &&
+      /1 job/.test(livdRepoDeleted.confirmMsg) && /1 dataset/.test(livdRepoDeleted.confirmMsg),
+      JSON.stringify(livdRepoDeleted));
+
+    // clicking Select again (now "Cancel") leaves select mode and restores normal open-on-click
+    const livdRepoCancel = await repoPage.evaluate(function () {
+      document.getElementById("repoAllSelectBtn").click();
+      return {
+        mode: window.__studioRepoSelectMode(),
+        checkboxes: document.querySelectorAll("#repoAllResults .repo-select-cb").length,
+        btnText: document.getElementById("repoAllSelectBtn").textContent
+      };
+    });
+    ok("LIVE-d: clicking Select again exits select mode on Repository and hides the checkboxes",
+      !livdRepoCancel.mode && livdRepoCancel.checkboxes === 0 && /Select/.test(livdRepoCancel.btnText) && !/Cancel/.test(livdRepoCancel.btnText),
+      JSON.stringify(livdRepoCancel));
+
     await repoPage.close();
 
     // ---- LF11: Explore's "Add to dashboard" is unambiguous (new vs existing) ----

@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 776,
+    title: 'Repository gains Select / bulk-delete',
+    kind: 'feature',
+    ts: '2026-07-30T20:55:08.000Z',
+    items: [
+      'The Repository catalog — the searchable view across every dashboard, dataset, connection, View and job — now has the same Select toolbar button and bulk delete bar as Datasets, Connections and Jobs. Tick any mix of objects across types and delete them together; the confirmation names how many of each kind you\'re about to remove.',
+    ],
+  },
+  {
     v: 775,
     title: 'The Conservation System Metrics wheel — a new Metrics wheel chart type',
     kind: 'feature',

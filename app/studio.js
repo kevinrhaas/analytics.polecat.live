@@ -6938,6 +6938,46 @@
      existing editor. Grouping by folder into a real nested tree is the documented
      NEXT step once this foundation is in place. */
   var _repoAllType = ""; // "" = All, else a REPO_TYPES key
+  // LIVE-d slice 4 (Kevin, 2026-07-30): Repository (the all-object catalog) adopts the
+  // same select-mode + bulk-bar shape Datasets/Connections/Jobs proved in slices 1-3 —
+  // session-only, pruned against the live list every render. A row here can be ANY of
+  // the five kinds, so the selection key is "type:id" (id alone isn't guaranteed unique
+  // across tables); bulk delete groups by REPO_EDIT_TABLE to remove from the right table.
+  var _repoSelectMode = false;
+  var _repoSelected = {}; // "type:id" -> true, only meaningful while _repoSelectMode
+  function repoSelKey(type, id) { return type + ":" + id; }
+  function toggleRepoSelect(type, id) {
+    var key = repoSelKey(type, id);
+    if (_repoSelected[key]) delete _repoSelected[key]; else _repoSelected[key] = true;
+    renderRepository();
+  }
+  function bulkDeleteSelectedRepo() {
+    var keys = Object.keys(_repoSelected);
+    if (!keys.length) return;
+    var W = Studio.Workspace;
+    var rows = keys.map(function (key) {
+      var i = key.indexOf(":"), type = key.slice(0, i), id = key.slice(i + 1);
+      var table = REPO_EDIT_TABLE[type], row = table && W.get(table, id);
+      return row ? { type: type, table: table, row: row } : null;
+    }).filter(Boolean);
+    if (!rows.length) return;
+    var byType = {};
+    rows.forEach(function (r) { byType[r.type] = (byType[r.type] || 0) + 1; });
+    var parts = REPO_TYPES.filter(function (t) { return byType[t.key]; }).map(function (t) {
+      return byType[t.key] + " " + (byType[t.key] === 1 ? t.singular.toLowerCase() : t.label.toLowerCase());
+    });
+    var msg = "Delete " + rows.length + " object" + (rows.length === 1 ? "" : "s") + " (" + parts.join(", ") + ")? This can't be undone.";
+    if (!window.confirm(msg)) return;
+    var touchedTables = {};
+    rows.forEach(function (r) { W.remove(r.table, r.row.id, { silent: true }); touchedTables[r.table] = true; });
+    _repoSelected = {};
+    toast("Deleted " + rows.length + " object" + (rows.length === 1 ? "" : "s"));
+    // one batched notify per touched table (not a remove per row), same convention
+    // bulkDeleteSelectedJobs/Connections/Datasets established.
+    Object.keys(touchedTables).forEach(function (t) { W.notify(t); });
+  }
+  window.__studioRepoSelectMode = function () { return _repoSelectMode; }; // test hook
+  window.__studioRepoSelected = function () { return Object.keys(_repoSelected); }; // test hook
   // LF51 (d): the same list ⇆ tile view toggle already shipped on Dashboards/Datasets/
   // Connections/Jobs, extended here — the last of the four workspace catalogs. A tile
   // renders inside whichever folder group it belongs to (the grouping itself is unchanged),
@@ -7070,8 +7110,28 @@
         renderRepository();
       };
     }
+    // LIVE-d slice 4: the "Select" toolbar toggle, same idempotent-binding
+    // convention as the view toggle above — lives outside #repoAllResults so it
+    // survives every re-render.
+    var repoAllSelBtn = $("#repoAllSelectBtn");
+    if (repoAllSelBtn) {
+      repoAllSelBtn.textContent = _repoSelectMode ? "Cancel" : "Select";
+      repoAllSelBtn.setAttribute("aria-pressed", _repoSelectMode ? "true" : "false");
+      repoAllSelBtn.onclick = function () {
+        _repoSelectMode = !_repoSelectMode;
+        if (!_repoSelectMode) _repoSelected = {};
+        renderRepository();
+      };
+    }
     var q = (($("#repoAllSearch") || {}).value || "").toLowerCase();
     var all = repoAllRows();
+    // drop any selected key whose row no longer exists/is visible (deleted elsewhere)
+    // so a stale entry can't inflate the bulk-bar count or survive a bulk delete —
+    // same pruning renderJobs/renderConnections/renderDatasets do for their own sets.
+    if (_repoSelectMode) {
+      var repoLiveKeys = {}; all.forEach(function (r) { repoLiveKeys[repoSelKey(r.type, r.id)] = true; });
+      Object.keys(_repoSelected).forEach(function (k) { if (!repoLiveKeys[k]) delete _repoSelected[k]; });
+    }
     var counts = { all: all.length };
     all.forEach(function (r) { counts[r.type] = (counts[r.type] || 0) + 1; });
     if (_repoAllType && !counts[_repoAllType]) _repoAllType = "";
@@ -7162,15 +7222,22 @@
       var folderBadge = r.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(r.folder) + '">' + esc(r.folder) + '</span>' : "";
       var when = '<span class="cx-when">' + (r.ts ? esc(Studio.fmtWhen(r.ts)) : "") + '</span>';
       var editBtn = canQuickEdit ? '<button type="button" class="repo-edit" data-repo-edit-type="' + esc(r.type) + '" data-repo-edit-id="' + esc(r.id) + '" title="Quick edit" aria-label="Quick edit ' + esc(label) + '"></button>' : "";
+      // LIVE-d slice 4: select-mode-only checkbox overlay, same markup shape as
+      // Datasets'/Connections'/Jobs' own — a distinct .repo-select-cb class (keyed by
+      // type+id, not id alone) so this section's handlers can't cross-fire with theirs.
+      var selected = _repoSelectMode && !!_repoSelected[repoSelKey(r.type, r.id)];
+      var selectHtml = _repoSelectMode
+        ? '<label class="cx-select" onclick="event.stopPropagation()"><input type="checkbox" class="repo-select-cb" data-repo-select-type="' +
+          esc(r.type) + '" data-repo-select-id="' + esc(r.id) + '"' + (selected ? " checked" : "") + ' aria-label="Select ' + esc(label) + '"/></label>' : '';
       if (isTiles) {
-        return '<div class="dsx-tile" data-repo-id="' + esc(r.id) + '" data-repo-type="' + esc(r.type) + '"' + (canQuickEdit ? ' draggable="true"' : '') + '>' +
-          '<div class="dsx-tile-head">' + icon + name + editBtn + '</div>' +
+        return '<div class="dsx-tile' + (selected ? " is-selected" : "") + '" data-repo-id="' + esc(r.id) + '" data-repo-type="' + esc(r.type) + '"' + (canQuickEdit && !_repoSelectMode ? ' draggable="true"' : '') + '>' +
+          '<div class="dsx-tile-head">' + selectHtml + icon + name + editBtn + '</div>' +
           (folderBadge ? '<div class="dsx-tile-badges">' + folderBadge + '</div>' : "") +
           '<div class="dsx-tile-foot">' + when + '</div>' +
           '</div>';
       }
-      return '<div class="cx-row" data-repo-id="' + esc(r.id) + '" data-repo-type="' + esc(r.type) + '"' + (canQuickEdit ? ' draggable="true"' : '') + '>' +
-        icon + name + folderBadge + when +
+      return '<div class="cx-row' + (selected ? " is-selected" : "") + '" data-repo-id="' + esc(r.id) + '" data-repo-type="' + esc(r.type) + '"' + (canQuickEdit && !_repoSelectMode ? ' draggable="true"' : '') + '>' +
+        selectHtml + icon + name + folderBadge + when +
         (editBtn ? '<span class="cx-actions">' + editBtn + '</span>' : "") +
         '</div>';
     }
@@ -7216,7 +7283,19 @@
       ? '<div class="wb-add repo-folder-add"><input type="text" id="repoNewFolderInp" class="wb-name-inp" placeholder="New folder… (e.g. Finance or Finance/2024)" aria-label="New folder name"/>' +
         '<button type="button" class="btn" id="repoNewFolderBtn">+ New folder</button></div>'
       : "";
-    results.innerHTML = chipsHtml + newFolderHtml +
+    // LIVE-d slice 4: the bulk bar — same anatomy as Datasets'/Connections'/Jobs'
+    // bulkBarHtml, reusing the section-agnostic .dash-bulk-bar CSS. "Select all"
+    // selects everything currently filtered/visible, not just what's on-screen —
+    // same convention Jobs' `shown` uses.
+    var repoSelCount = Object.keys(_repoSelected).length;
+    var repoBulkBarHtml = _repoSelectMode
+      ? '<div class="dash-bulk-bar"><span class="dash-bulk-count">' + repoSelCount + ' selected</span>' +
+        '<button type="button" class="btn" id="repoSelAllBtn">Select all</button>' +
+        '<button type="button" class="btn" id="repoSelNoneBtn">Clear</button>' +
+        '<button type="button" class="btn danger" id="repoSelDelBtn"' + (repoSelCount ? '' : ' disabled') + '>' +
+        'Delete' + (repoSelCount ? ' ' + repoSelCount : '') + '</button></div>'
+      : '';
+    results.innerHTML = chipsHtml + repoBulkBarHtml + newFolderHtml +
       ((topKeys.length || repoTreeRoot.rows.length) ? '<div class="cx-groups">' + groupsHtml + '</div>'
         : '<div class="home-empty-hint">' + (q || _repoAllType ? "Nothing matches." :
             "Your workspace is empty — dashboards, datasets, connections, analyses and jobs will all show up here once you create them.") + '</div>');
@@ -7252,7 +7331,10 @@
     $$(".cx-row[data-repo-id], .dsx-tile[data-repo-id]", results).forEach(function (row) {
       var td = repoTypeDef(row.getAttribute("data-repo-type"));
       var icEl = row.querySelector(".cx-ic"); if (icEl && Studio.icon && td) icEl.appendChild(Studio.icon(td.ic, 18));
-      var open = function () { repoOpenRow(row.getAttribute("data-repo-type"), row.getAttribute("data-repo-id")); };
+      var open = function () {
+        if (_repoSelectMode) { toggleRepoSelect(row.getAttribute("data-repo-type"), row.getAttribute("data-repo-id")); return; }
+        repoOpenRow(row.getAttribute("data-repo-type"), row.getAttribute("data-repo-id"));
+      };
       row.addEventListener("click", open);
       if (row.getAttribute("draggable") === "true") {
         row.addEventListener("dragstart", function (e) {
@@ -7270,6 +7352,21 @@
         openRepoQuickEdit(btn.getAttribute("data-repo-edit-type"), btn.getAttribute("data-repo-edit-id"));
       };
     });
+    // LIVE-d slice 4: while select mode is on, the bulk bar's own buttons drive
+    // Select all / Clear / Delete, and every checkbox toggles its row's
+    // selection — same wiring shape renderJobs/renderConnections/renderDatasets use.
+    if (_repoSelectMode) {
+      var repoSelAllBtn = $("#repoSelAllBtn", results);
+      if (repoSelAllBtn) repoSelAllBtn.onclick = function () { filtered.forEach(function (r) { _repoSelected[repoSelKey(r.type, r.id)] = true; }); renderRepository(); };
+      var repoSelNoneBtn = $("#repoSelNoneBtn", results);
+      if (repoSelNoneBtn) repoSelNoneBtn.onclick = function () { _repoSelected = {}; renderRepository(); };
+      var repoSelDelBtn = $("#repoSelDelBtn", results);
+      if (repoSelDelBtn) repoSelDelBtn.onclick = bulkDeleteSelectedRepo;
+      $$(".repo-select-cb", results).forEach(function (cb) {
+        cb.onclick = function (e) { e.stopPropagation(); };
+        cb.onchange = function () { toggleRepoSelect(cb.getAttribute("data-repo-select-type"), cb.getAttribute("data-repo-select-id")); };
+      });
+    }
     var newFolderBtn = $("#repoNewFolderBtn", results);
     if (newFolderBtn) newFolderBtn.onclick = function () {
       var inp = $("#repoNewFolderInp", results);
