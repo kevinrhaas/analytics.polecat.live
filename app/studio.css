@@ -2355,7 +2355,10 @@ body.simple-mode .da-acts{display:none!important}
    inside the card below it. */
 .dsx-tile-foot{display:flex;align-items:center;gap:6px 10px;margin-top:auto;flex-wrap:wrap}
 .dsx-tile-foot .cx-when{flex:1 1 100%;white-space:nowrap}
-.dsx-tile-foot .cx-actions{flex-wrap:wrap;min-width:0}
+/* full-width basis, NOT the base .cx-actions flex:0 0 auto — with shrink 0 and an
+   auto basis the group still sizes to its single-line content width and overflows
+   the card no matter what its internal flex-wrap says. */
+.dsx-tile-foot .cx-actions{flex:1 1 100%;flex-wrap:wrap;min-width:0}
 /* tiles show their actions always (no row-hover reveal — a card isn't a dense list line) */
 .dsx-tile .cx-actions{opacity:1}
 @media(max-width:640px){.dsx-grid{grid-template-columns:1fr}}
