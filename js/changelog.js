@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 747,
+    title: 'Scatter joins the View Builder',
+    kind: 'feature',
+    ts: '2026-07-30T09:06:21.000Z',
+    items: [
+      'The chart-type strip gains "Scatter" — plot one point per dimension value from two measures, the first on the x-axis and the second on the y-axis.',
+      'Unlike Bars/Donut/Map, Scatter needs two measures on the shelf instead of one; it stays disabled until a second measure lands there.',
+    ],
+  },
+  {
     v: 746,
     title: 'Stacked bars and Stacked area join the View Builder',
     kind: 'feature',

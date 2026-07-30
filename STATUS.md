@@ -116,6 +116,29 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **VB-4 slice 3 — Scatter joins the View Builder (v747, sw v384, 2026-07-30, steward):**
+  continuing Kevin's overnight queue ("all of the chart types available for the view builder
+  over time — be reasonable, hit major ones first") after choropleth and Stacked bars/area.
+  Unlike those two, Scatter needs TWO measures instead of Bars/Donut's one — one point per
+  dimension value, x from the first measure and y from the second — so it gets its own
+  `chartBasis`/`chartUnavailable` branch rather than joining `LINE_SHAPED_TYPES`: `CHART_TYPES`
+  gains `{t:"scatter", label:"Scatter"}` (icon free from `Studio.CHART_SVG.scatter`, already
+  registered); `chartUnavailable` disables the button until a non-aggregated field is on a
+  shelf AND at least two measures are on Columns; `chartBasis` computes
+  `[{col: dim.col, agg: null}].concat(bdMeasures().slice(0, 2))` — a grouped rollup keyed by the
+  one dimension, exactly like Bars/Donut's `[dim, measure]` basis but with a second measure
+  column. The basis's column order ([dim, m1, m2]) lands EXACTLY on `Studio.newPanel`'s existing
+  scatter mapping (`cols[0]`→labelCol, `cols[1]`→xCol, `cols[2]`→yCol), so `bdPanelFor` needs NO
+  scatter-specific branch at all — the default `Studio.newPanel(type, da)` call already wires it
+  correctly. Docs (docs/index.html) + changelog updated, sw cache → v384, 5 new regression tests
+  (disabled with only one measure; the [dim, m1, m2] basis shape and its deterministic 8-row
+  sample-category count; the chart-strip button enabled/selected; a real scatter panel rendered
+  through buildHtml with labelCol/xCol/yCol reaching the renderer; saving stamps the same mapping
+  on the analyses row). Full suite green (2690 passed, 0 failed). **Remaining VB-4 major (NEXT):
+  KPI** — structurally different (lives in `spec.kpis`, not `spec.panels`, so it needs its own
+  save/add-to-dashboard wiring rather than reuse of `chartBasis`/`bdPanelFor`/
+  `renderChartPreview`), a separate, larger slice. Files: app/build.js, docs/index.html, sw.js,
+  js/changelog.js, tests/run.js, STATUS.md.
 - **VB-4 slice 2 — Stacked bars + Stacked area join the View Builder (v746, sw v383,
   2026-07-30, steward):** continuing Kevin's overnight queue ("all of the chart types
   available for the view builder over time — be reasonable, hit major ones first") after
@@ -7078,9 +7101,13 @@
 >       full writeup.
 >       ✓ **Slice 2 shipped (2026-07-30, v746, steward): Stacked bars + Stacked area,** riding
 >       the exact multi-series engine Line already uses (Studio's own chart registry already
->       treats them identically to line). See DONE for the full writeup. **Remaining VB-4
->       majors (NEXT): KPI, scatter** — both structurally bigger (KPI lives in `spec.kpis`, not
->       `spec.panels`; scatter needs an x/y-pair basis, not a dim+measure rollup).
+>       treats them identically to line). See DONE for the full writeup.
+>       ✓ **Slice 3 shipped (2026-07-30, v747, steward): Scatter,** a two-measure [dimension,
+>       measure1, measure2] basis (one point per dimension value) that lands directly on
+>       Studio.newPanel's existing scatter column mapping — no bdPanelFor wiring needed. See
+>       DONE for the full writeup. **Remaining VB-4 major (NEXT): KPI** — structurally bigger
+>       (KPI lives in `spec.kpis`, not `spec.panels`, so it needs its own save/add-to-dashboard
+>       wiring beyond chartBasis/bdPanelFor).
 > VB-5. **Cross-editor View opening (Kevin live, 2026-07-30).** Any View should open in EITHER
 >       builder — Quick Views or the View Builder — including Views saved from the dashboard
 >       editor. Incompatible content (a chart type the target editor lacks, etc.) still OPENS:

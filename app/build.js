@@ -659,6 +659,10 @@
   //                      the SAME long form heatmap already computes) when a
   //                      Color field is set, so the map can join the Studio
   //                      ensemble-channel machinery bars/donut have no use for.
+  //   scatter         → [dimension, measure1, measure2]  (labelCol/xCol/yCol —
+  //                      Studio.newPanel's scatter mapping reads cols[0..2] in
+  //                      that exact order) — one point per dimension value,
+  //                      needs TWO measures instead of bars/donut's one.
   // The first dimension prefers the Rows shelf; with no measure picked, COUNT
   // of rows keeps every chart honest instead of refusing to draw. Table stays
   // the full pivot. Charting more of bars/donut (they have no native
@@ -672,6 +676,7 @@
     { t: "donut", label: "Donut" },
     { t: "heatmap", label: "Heatmap" },
     { t: "choropleth", label: "Map" },
+    { t: "scatter", label: "Scatter" },
   ];
   // The chart types that share Line's [labelCol, series] basis shape and its
   // multi-series widening (bdLineSeriesBasis) — kept as one list so chartBasis
@@ -696,6 +701,11 @@
       if (!BD.shelfRows[0] || !bdColsDim()) return "Needs a field on Rows and a plain field on Columns";
       return "";
     }
+    if (type === "scatter") {
+      if (!bdFirstDim()) return "Needs at least one non-aggregated field on a shelf";
+      if (bdMeasures().length < 2) return "Needs two measures (aggregated fields)";
+      return "";
+    }
     if (!bdFirstDim()) return "Needs at least one non-aggregated field on a shelf";
     return "";
   }
@@ -711,6 +721,14 @@
       if (series) return series;
     }
     var dim = bdFirstDim();
+    if (type === "scatter") {
+      // Two measures, one point per dimension value — the same [dim, m1, m2]
+      // shape Studio.newPanel's scatter mapping expects positionally (cols[0]
+      // = labelCol, cols[1] = xCol, cols[2] = yCol), so no bdPanelFor wiring
+      // is needed beyond the default Studio.newPanel(type, da) call below.
+      var ms2 = bdMeasures().slice(0, 2);
+      return compute(bdEff().cols, rows, [{ col: dim.col, agg: null }].concat(ms2), []);
+    }
     if (type === "choropleth") {
       // VB-4: a map is a single-dimension chart too (idCol/valueCol, same shape
       // as bars/donut) — but "color by" here means a SERIES to join the Studio

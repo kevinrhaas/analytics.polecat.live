@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v383"; /* v383: VB-4 slice 2 (Kevin's overnight View Builder
+var CACHE_NAME = "studio-shell-v384"; /* v384: VB-4 remaining major, Scatter (Kevin's overnight
+   View Builder queue, "hit major ones first") — Scatter joins the chart-type strip, a
+   two-measure [dimension, measure1, measure2] basis (one point per dimension value) that lands
+   directly on Studio.newPanel's existing scatter column mapping, no bdPanelFor wiring needed.
+   app/build.js, docs/index.html, tests/run.js, STATUS.md, js/changelog.js.
+   v383: VB-4 slice 2 (Kevin's overnight View Builder
    queue, "hit major ones first") — Stacked bars and Stacked area join the chart-type strip,
    riding the exact same multi-series basis engine Line already uses (Studio's own chart
    registry already treats them identically to line for column-order defaults). No new pivot
