@@ -116,6 +116,18 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LIVE-e part 2 slice 2 — the FULL docs sweep (v752, sw v389, 2026-07-30, steward):** Kevin:
+  "ALL of the docs should be reviewed for the walls of text and improved not just that chunk."
+  Every remaining paragraph >800 chars (31 of them) restructured into headings, bullets, and
+  numbered steps — welcome flow, export/import repository, workbooks + folders, Home, the
+  viewer eye, Quick Views intro, the crosstab, sharing, version history, build progress/
+  Checks, import-from-URL, slideshow, dashboard filters, template variables + date tokens,
+  the ensemble ⓘ Sources popover, live-after-export credentials, connection-bound datasets,
+  Redshift, schema browse, Google Sheets (+ private sheets), CSV/JSON files, freshness
+  badges, dataset filter pills, and the whole Supabase admin section (auth sign-in, add
+  user, backends card, go-live). ZERO paragraphs >800 chars remain in docs/index.html; all
+  test-pinned anchors + strings re-verified present. Files: docs/index.html, sw.js,
+  js/changelog.js.
 - **LIVE-a slice 2 — the rest of the app speaks the new rail terminology (v750, sw v387,
   2026-07-30, steward):** slice 1 (v740) renamed Home's quick-action grid; this slice sweeps
   everywhere else the retired "Explore"/"Studio" product names still showed up in user-facing

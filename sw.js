@@ -5,7 +5,16 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v388"; /* v388: LIVE-e part 2 slice 1 (Kevin: "massive
+var CACHE_NAME = "studio-shell-v389"; /* v389: LIVE-e part 2 slice 2 (Kevin: "ALL of the docs
+   should be reviewed for the walls of text") — the remaining 31 paragraphs >800 chars
+   restructured into headings/bullets/numbered steps: welcome flow, export/import repo,
+   workbooks+folders, Home, viewer eye, Quick Views intro, crosstab, share, version history,
+   build progress/Checks, import-from-URL, slideshow, dashboard filters, template variables +
+   date tokens, ⓘ Sources, live-after-export, connection-bound datasets, Redshift, schema
+   browse, Google Sheets (+private), CSV/JSON, freshness, dataset pills, Supabase auth/add
+   user/backends/go-live, hover Export, Dashboard defaults. Zero paragraphs >800 chars remain;
+   all test-pinned anchors/strings verified. docs/index.html, STATUS.md, js/changelog.js.
+   v388: LIVE-e part 2 slice 1 (Kevin: "massive
    paragraphs… so daunting!") — docs readability: the ~11 biggest walls of text rewritten
    into h3/h4 + bullets/sub-bullets (rail+topbar guide, Quick import, Dashboard theme,
    Repository, Views catalog, View Builder navigator, calculated columns, Color theme
