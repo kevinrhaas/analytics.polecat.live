@@ -94,7 +94,45 @@
       status: state.status, isRemote: !src.local, lastError: state.lastError, lastPushAt: state.lastPushAt };
   }
   function emit() { listeners.forEach(function (fn) { try { fn(publicState()); } catch (e) {} }); }
-  function setStatus(status, err) { state.status = status; state.lastError = err || ""; emit(); }
+  function setStatus(status, err) {
+    state.status = status; state.lastError = err || "";
+    // Self-heal (Kevin's "connect → save a View → red forever" repro): a failed
+    // push used to park the mirror in 'error' with retries explicitly disabled,
+    // so ONE hiccup silently stopped all write-through until a manual Refresh.
+    // Now every error state arms a backoff retry, and any recovery resets it.
+    if (status === "error") scheduleRetry();
+    else if (status === "connected" || status === "local") { clearTimeout(_retryTimer); _retryMs = RETRY_START_MS; }
+    emit();
+  }
+
+  // ---- error-state retry (backoff) ----------------------------------------
+  var RETRY_START_MS = 15000, RETRY_MAX_MS = 120000;
+  var _retryTimer = null, _retryMs = RETRY_START_MS;
+  function scheduleRetry() {
+    if (state.sourceId === "local") return;
+    clearTimeout(_retryTimer);
+    _retryTimer = setTimeout(retryNow, _retryMs);
+    _retryMs = Math.min(_retryMs * 2, RETRY_MAX_MS);
+  }
+  // Re-attempt whatever failed: pending local edits push up (write-through
+  // semantics — local wins while dirty); with nothing pending, re-pull the
+  // remote (same adoption a boot/Refresh does — safe, since no local edits
+  // exist to clobber; a wrong guess can't lose work because any edit made
+  // while red sets _dirty and routes this through flushPush instead).
+  function retryNow() {
+    if (state.sourceId === "local") return Promise.resolve();
+    if (_inflight) { scheduleRetry(); return Promise.resolve(); }
+    if (_dirty) return flushPush();
+    var src = Studio.sourceById(state.sourceId);
+    if (!src) return Promise.resolve();
+    _suspend = true;
+    return src.load(state.cfg).then(decTransform).then(function (snap) {
+      W().replaceAll(snap);
+      setStatus("connected");
+    }).catch(function (e) {
+      setStatus("error", e.message || "sync failed");
+    }).then(function () { _suspend = false; });
+  }
 
   function saveConn() {
     try {
@@ -123,10 +161,12 @@
       state.lastPushAt = Date.now();
       setStatus("connected");
     }).catch(function (e) {
-      _dirty = true; // keep pending for a retry
+      _dirty = true; // keep pending — setStatus('error') arms the backoff retry
       setStatus("error", e.message || "sync failed");
     }).then(function () {
       _inflight = false;
+      // more edits arrived while this push was in flight — mirror them too
+      // (the error case is already queued on the retry timer, don't double up)
       if (_dirty && state.status !== "error") schedulePush();
     });
   }
@@ -139,6 +179,8 @@
     secretsState: function () { return { available: C().cryptoAvailable(), enabled: _sec.enabled, locked: _sec.enabled && !_sec.key }; },
 
     pushNow: function () { clearTimeout(_timer); return flushPush(); },
+    // immediate self-heal attempt (also what the backoff timer fires)
+    retryNow: retryNow,
 
     // Pull the remote's contents and adopt them (the one thing automation can't
     // do — there's no live subscription). Flushes pending local writes first.

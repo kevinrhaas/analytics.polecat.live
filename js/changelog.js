@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 736,
+    title: 'A clearer left rail, and workspace sync that heals itself',
+    kind: 'feature',
+    ts: '2026-07-30T03:40:48.000Z',
+    items: [
+      'The left rail is regrouped by what you do: Workspace holds what you have (Home, Views, Dashboards, Datasets, Connections, Repository), Build holds where you make it (Quick Views — formerly Explore, Views — the full View Builder, and Dashboards — the dashboard builder), and Manage holds Jobs, Admin and the workspace-backend indicator.',
+      'The backend indicator now tells the truth in plain words: Local when your workspace lives only in this browser, Connected (green) while every change mirrors up automatically, Reconnecting… (red) while the app retries a failed sync on its own.',
+      'A failed write-through no longer freezes syncing until a manual Refresh — the app retries with backoff and pushes your pending changes the moment the backend accepts them. Failures also raise a one-time notification and put the full error on the Settings backend card, with a Retry now button.',
+      'If a Supabase workspace predates the analyses/jobs tables (why saving a View could flip the dot red), the Settings card now shows the one-time upgrade SQL in a copyable block — paste, run, Retry now, done.',
+      'The Views page\'s ＋ New is now a menu offering both builders: New View (the View Builder) and New Quick View (the fast one-chart path).',
+    ],
+  },
+  {
     v: 735,
     title: 'Calculated columns land in the View Builder',
     kind: 'feature',

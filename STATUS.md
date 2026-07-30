@@ -116,6 +116,37 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Kevin's rail IA + workspace-sync SELF-HEAL (v736, sw v373, 2026-07-30, steward):** two
+  live asks in one slice. (1) **Rail regrouped by intent** — Workspace = the catalogs (Home,
+  Views, Dashboards, Datasets, Connections, Repository), Build = the builders (**Quick Views**
+  [ex-Explore], **Views** [the View Builder], **Dashboards** [ex-Studio, still develop-only]),
+  Manage = Jobs, Admin, and the workspace-backend indicator (moved INTO the group, above the
+  spacer). Topbar titles disambiguate the shared names (Quick Views / View Builder / Dashboard
+  Builder via SECTION_LABELS). The Views page ＋ New is now a ▾ menu offering BOTH builders
+  (New View → build, New Quick View → explore); empty state offers both too. (2) **The
+  red-dot bug diagnosed + fixed**: Kevin's repro ("connect → green → save a View →
+  disconnected") was flushPush parking the mirror in `error` with retries EXPLICITLY disabled
+  (`if (_dirty && status !== "error") schedulePush()`), so one failed push silently stopped
+  ALL write-through until a manual Refresh — and his failure is almost certainly the
+  missing-`analyses`-table 404 (a Supabase workspace provisioned pre-v2; `load()` swallows
+  per-table errors so Refresh reads green, `save()` fails loudly — exactly saving a View).
+  Fix: `setStatus("error")` now arms a **backoff retry** (15s→120s cap; `retryNow()` pushes
+  pending edits when dirty, else re-pulls to verify; reset on connected/local), the rail
+  label reads **state** per Kevin's ask (Local / Connected / Connecting… / Reconnecting…, dot
+  ok/busy/bad), a NEW push failure raises a one-time toast, and the Settings backend card
+  grows an error block with the full message, the **copyable delta SQL** when the message
+  carries the paste-me upgrade (missing analyses/jobs/users tables), and a **Retry now**
+  button. Sync semantics unchanged: every workspace change still write-throughs on the 1.2s
+  debounce — no manual "sync" ever. 7 new regression tests (error→honest label→retryNow→
+  pending edit pushed→green round trip on a stubbed source; Settings error block + SQL +
+  Retry; rail group order incl. railSource inside Manage; Build-group labels; Views ＋ New ▾
+  routing to both builders); re-baselined the 3 topbar-label asserts (Explore→Quick Views).
+  Docs: rail-groups paragraph, section headings, and a "How syncing works" subsection with
+  the indicator states + the one-time Supabase upgrade walkthrough. **Follow-up queued:** a
+  full user-facing copy sweep Explore→Quick Views / Studio→Dashboard Builder beyond the
+  rail/topbar (tours, Home cards, in-module copy). Files: app/index.html, app/shell.js,
+  app/sources/sync.js, app/studio.js, app/views.js, app/studio.css, docs/index.html, sw.js,
+  js/changelog.js, tests/run.js.
 - **#117 slice 4 — CALCULATED COLUMNS in the View Builder (v735, sw v372, 2026-07-30,
   steward):** the last named piece of #117's RIGHT-panel spec (chart picker ✓ slice 2, Filters
   ✓ slice 3, per-field calcs ✓ here). Reuses the app's ONE formula engine —
@@ -6806,6 +6837,29 @@
   later — parked, not attempted here to keep this one coherent slice.
 
 ## NEXT (top = do first)
+
+### ★★★ VIEW BUILDER OVERNIGHT QUEUE (Kevin live, 2026-07-30 — "i like the new view builder")
+> Kevin's overnight worklist for #117's View Builder. Work top-down as separate steward
+> slices; reuse Studio's existing engineering rather than reinventing (his explicit note:
+> "you should have most of the engineering for this already in the dashboard builder").
+> VB-1. **Datasets pane parity + readability.** The left outline should behave like Studio's
+>       datasets pane and Quick Views' navigator: collapsible groups, real folder display +
+>       filing (reuse the LF56 folder navigator conventions), search box, per-dataset icons,
+>       and dataset-management operations (new / delete / copy) right from the pane. Today the
+>       names are unreadably truncated ("collapsed so much") — fix the readability first-class.
+>       One consistent look & feel across Studio / Quick Views / View Builder ("so they look
+>       like consistent apps").
+> VB-2. **Shelf pills are draggable BETWEEN areas.** After a field lands on Columns/Rows/
+>       Filters, dragging its pill should move it to any other shelf (and reorder within a
+>       shelf) — not just the ⇄ swap button.
+> VB-3. **Color as a first-class encoding.** A Color drop zone: drop a categorical field on it
+>       and the series split by color (each bar its own color), for ALL chart types; plus a
+>       palette picker (select which palette the chart uses — reuse Studio's palette system).
+> VB-4. **Chart-type parity with Studio, majors first.** Choropleths are absent from the View
+>       Builder — bring Studio's chart catalog over incrementally (choropleth map next, then
+>       the other majors: KPI, area, scatter, stacked bars…), reusing studio-charts/pdc-ui
+>       engineering. "All of the chart types available for the view builder over time — be
+>       reasonable, hit major ones first."
 
 ### ★★ FRONTEND QA REPORT — 2026-07-24 (Kevin-directed, fold into the interleave)
 > Full report committed at repo root: `FRONTEND_QA_REPORT_2026-07-24.md` (read it for the

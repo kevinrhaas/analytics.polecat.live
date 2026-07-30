@@ -657,7 +657,7 @@ function serve() {
     await page.evaluate(() => window.__studioShellSetSection("studio"));
     await page.waitForTimeout(150);
     ok("TOPBAR: the top-left shows the current section name (fleet standard) and updates as you navigate",
-      tbSecDash === "Dashboards" && tbSecExplore === "Explore", JSON.stringify({ tbSecDash, tbSecExplore }));
+      tbSecDash === "Dashboards" && tbSecExplore === "Quick Views", JSON.stringify({ tbSecDash, tbSecExplore }));
 
     // ---- LF9 slice 1: Back/Forward walks section history instead of leaving the app ----
     console.log("\n• LF9 slice 1: SPA history for section navigation");
@@ -680,7 +680,7 @@ function serve() {
       exploreHidden: document.getElementById("secExplore").hidden
     }));
     ok("LF9: a Back navigation actually re-renders the section (topbar text + active rail item + visibility), not just internal state",
-      lf9BackDom.topbarText === "Explore" && lf9BackDom.exploreActive && !lf9BackDom.exploreHidden,
+      lf9BackDom.topbarText === "Quick Views" && lf9BackDom.exploreActive && !lf9BackDom.exploreHidden,
       JSON.stringify(lf9BackDom));
     // a direct setActive() call (not from history) still pushes its own fresh entry, same as
     // any other in-app nav click would — restore Studio for the rest of the suite.
@@ -8842,6 +8842,112 @@ function serve() {
     ok("SYNC: the Settings card + rail indicator read Local with a Connect backend action",
       syncCard.title === "Workspace backend" && /Local/.test(syncCard.label) && /Connect backend/.test(syncCard.connectBtn) &&
       syncCard.noSecretsRowWhenLocal && syncCard.railLbl === "Local", JSON.stringify(syncCard));
+
+    // ---- SYNC self-heal (Kevin: "connect → save a View → red forever") ----
+    // A failed write-through used to park the mirror in 'error' with retries
+    // explicitly disabled (flushPush's `if (_dirty && status !== "error")`), so ONE
+    // hiccup silently stopped all syncing until a manual Refresh — while the rail
+    // kept showing the backend name, telling the user nothing. Now: honest state
+    // labels (Local / Connected / Reconnecting…), a backoff retry that re-pushes
+    // the pending edits, and a Settings card that shows the real error (with the
+    // paste-me upgrade SQL split out for the missing-analyses/jobs-table case).
+    console.log("\n• SYNC self-heal: push failure → honest label → retry → connected");
+    const healFlow = await page.evaluate(async function () {
+      var out = {};
+      window.__fakeRemote = { snap: null, fail: false };
+      Studio.registerSource({
+        id: "faketest", label: "FakeTest", icon: "db", caps: { meta: true }, fields: [],
+        load: function () { return Promise.resolve(window.__fakeRemote.snap ? JSON.parse(JSON.stringify(window.__fakeRemote.snap)) : Studio.WS.emptySnapshot()); },
+        save: function (cfg, snap) {
+          if (window.__fakeRemote.fail) return Promise.resolve({ ok: false, error: 'HTTP 404 writing "analyses": relation does not exist — your workspace predates the analyses/jobs tables. Run this once in Supabase → SQL editor: ' + Studio.WS.provisionDeltaSQL() });
+          window.__fakeRemote.snap = JSON.parse(JSON.stringify(snap));
+          return Promise.resolve({ ok: true });
+        }
+      });
+      function rail() { return { lbl: document.getElementById("railSourceLbl").textContent, dot: document.getElementById("railSourceDot").className }; }
+      await Studio.Sync.connectPush("faketest", {});
+      out.connected = Studio.Sync.syncState().status;
+      out.railConnected = rail();
+      // the backend starts rejecting writes (Kevin's case: the Supabase workspace
+      // predates the analyses table) — the next mirrored edit (saving a View)
+      // must surface as an honest error state, keeping the edit pending
+      window.__fakeRemote.fail = true;
+      Studio.Workspace.put("analyses", { id: "a-heal", name: "Heal Me", chartType: "bars" });
+      await Studio.Sync.pushNow();
+      out.errStatus = Studio.Sync.syncState().status;
+      out.errMsg = Studio.Sync.syncState().lastError;
+      out.railError = rail();
+      window.__studioShellSetSection("settings"); window.__studioRenderWorkspaceBackendCard();
+      var card = document.getElementById("wsBackendCard");
+      out.cardErrBlock = !!card.querySelector(".ws-sync-err");
+      out.cardSql = (card.querySelector(".ws-sync-err-sql code") || {}).textContent || "";
+      out.cardRetry = !!card.querySelector("#wsRetryBtn");
+      out.cardCopy = !!card.querySelector("#wsCopySqlBtn");
+      // backend fixed (table created) → retryNow pushes the PENDING edit and goes green
+      window.__fakeRemote.fail = false;
+      await Studio.Sync.retryNow();
+      out.healedStatus = Studio.Sync.syncState().status;
+      out.railHealed = rail();
+      out.remoteGotView = !!(window.__fakeRemote.snap && (window.__fakeRemote.snap.tables.analyses || []).some(function (r) { return r.id === "a-heal"; }));
+      Studio.Sync.disconnect();
+      out.railLocal = rail();
+      Studio.Workspace.reset();
+      return out;
+    });
+    ok("HEAL: the rail indicator reads STATE, not backend name — Connected (green) while the mirror works",
+      healFlow.connected === "connected" && healFlow.railConnected.lbl === "Connected" && /\bok\b/.test(healFlow.railConnected.dot),
+      JSON.stringify(healFlow.railConnected));
+    ok("HEAL: a failed write-through flips to an honest error state (rail: Reconnecting… + red dot) and keeps the edit pending",
+      healFlow.errStatus === "error" && /analyses/.test(healFlow.errMsg) &&
+      healFlow.railError.lbl === "Reconnecting…" && /\bbad\b/.test(healFlow.railError.dot),
+      JSON.stringify({ err: healFlow.errMsg, rail: healFlow.railError }));
+    ok("HEAL: the Settings card shows what went wrong, splits the one-time upgrade SQL into a copyable block, and offers Retry now",
+      healFlow.cardErrBlock && /CREATE TABLE/.test(healFlow.cardSql) && healFlow.cardRetry && healFlow.cardCopy,
+      JSON.stringify({ sql: healFlow.cardSql.slice(0, 70), retry: healFlow.cardRetry, copy: healFlow.cardCopy }));
+    ok("HEAL: once the backend accepts writes again, retryNow pushes the pending edit and goes green — no manual Refresh needed (Local after disconnect)",
+      healFlow.healedStatus === "connected" && healFlow.railHealed.lbl === "Connected" && healFlow.remoteGotView && healFlow.railLocal.lbl === "Local",
+      JSON.stringify(healFlow));
+
+    // ---- Rail IA (Kevin 2026-07): Workspace = catalogs, Build = builders, Manage = ops ----
+    console.log("\n• Rail IA: Workspace/Build/Manage grouping + builder labels + Views New menu");
+    const railIA = await page.evaluate(function () {
+      var kids = [].slice.call(document.querySelectorAll("#railNav > *"));
+      var order = [];
+      kids.forEach(function (k) {
+        if (k.classList.contains("rail-group-lbl")) order.push("[" + k.textContent.trim() + "]");
+        else if (k.classList.contains("rail-item") && k.getAttribute("data-sec")) order.push(k.getAttribute("data-sec"));
+        else if (k.id === "railSource") order.push("railSource");
+        else if (k.classList.contains("rail-spacer")) order.push("|");
+      });
+      function lbl(sec) { return (document.querySelector('.rail-item[data-sec="' + sec + '"] .rail-lbl') || {}).textContent; }
+      return { order: order.join(","), explore: lbl("explore"), build: lbl("build"), studio: lbl("studio") };
+    });
+    ok("RAIL IA: Workspace(Home,Views,Dashboards,Datasets,Connections,Repository) → Build(explore,build,studio) → Manage(Jobs,Admin,backend indicator) — indicator ABOVE the spacer, inside Manage",
+      railIA.order.indexOf("[Workspace],home,views,dashboards,datasets,connections,repository,[Build],explore,build,studio,[Manage],jobs,admin,railSource,|") >= 0,
+      JSON.stringify(railIA));
+    ok("RAIL IA: the Build group's rail labels read Quick Views / Views / Dashboards (topbar spells the builders out in full)",
+      railIA.explore === "Quick Views" && railIA.build === "Views" && railIA.studio === "Dashboards", JSON.stringify(railIA));
+
+    // Views "＋ New ▾" splits into the two builders (Kevin: "new view and new quick view")
+    const vwNewMenu = await page.evaluate(function () {
+      window.__studioShellSetSection("views");
+      var out = {};
+      var btn = document.getElementById("viewsNewBtn"), menu = document.getElementById("viewsNewMenu");
+      out.hasMenu = !!btn && !!menu;
+      out.items = [].slice.call(menu.querySelectorAll("[data-views-new]")).map(function (b) {
+        return b.getAttribute("data-views-new") + ":" + b.textContent.trim();
+      }).join("|");
+      menu.querySelector('[data-views-new="build"]').click();
+      out.buildSec = window.__studioShellGetSection();
+      window.__studioShellSetSection("views");
+      menu.querySelector('[data-views-new="quick"]').click();
+      out.quickSec = window.__studioShellGetSection();
+      window.__studioShellSetSection("studio");
+      return out;
+    });
+    ok("VIEWS: ＋ New ▾ offers both builders — New View opens the View Builder, New Quick View opens Quick Views (Explore)",
+      vwNewMenu.hasMenu && vwNewMenu.items === "build:New View|quick:New Quick View" &&
+      vwNewMenu.buildSec === "build" && vwNewMenu.quickSec === "explore", JSON.stringify(vwNewMenu));
 
     // ---- QA-02: state-aware credential-storage copy (Connections header + Settings card) ----
     // "Credentials stay in this browser" used to be shown unconditionally even

@@ -239,7 +239,15 @@
   provisioned user sees their curated content in the welcome flow. It only shows itself once; revisit
   it anytime from <strong>Settings → Tour</strong> or the ⋯ menu's <strong>Tour</strong> item.</p>
 
-  <p>The left rail switches between the app's sections: <strong>Home</strong> (quick-create + your
+  <p>The left rail groups the app's sections into <strong>Workspace</strong> (the things you have:
+  Home, Views, Dashboards, Datasets, Connections, Repository), <strong>Build</strong> (the places you
+  make them: <strong>Quick Views</strong> — the fast one-chart builder, <strong>Views</strong> — the
+  full View Builder with shelves/pivots/calculations, and <strong>Dashboards</strong> — the dashboard
+  builder), and <strong>Manage</strong> (Jobs, Admin, and the workspace-backend indicator — it reads
+  <em>Local</em> when your workspace lives only in this browser, <em>Connected</em> while it's
+  mirroring to a backend, and <em>Reconnecting…</em> while the app is automatically retrying after a
+  sync error; click it to jump to the backend card in Settings). Highlights:
+  <strong>Home</strong> (quick-create + your
   recent/pinned dashboards, plus a small rotating tip card — click its → arrow to see another),
   <strong>Repository</strong> (every data source and dashboard you have,
   browsable and searchable from one page — type in its search box to filter both lists at once;
@@ -437,8 +445,9 @@
   so the download is complete on its own; a dashboard backed by a real data source keeps querying
   that source live, in the viewer and in the exported file alike.</p>
 
-  <h2>Explore — dataset-first analyses</h2>
-  <p><strong>Explore</strong> (left rail) is the fastest path from data to chart, built for
+  <h2>Quick Views (Explore) — dataset-first analyses</h2>
+  <p><strong>Quick Views</strong> (left rail, Build group — the section previously named
+  Explore) is the fastest path from data to chart, built for
   non-experts: pick a dataset on the left (your workspace datasets first, sample data below
   them), see its rows as a table, choose a chart, and adjust the column mapping — the live
   preview underneath is the <em>real</em> dashboard renderer, so what you see is exactly what a
@@ -484,7 +493,7 @@
   </ul>
 
   <h2 id="build">View Builder — pivot and crosstab, no code</h2>
-  <p><strong>Build</strong> (left rail) is Explore's power-user sibling: a visual pivot/crosstab
+  <p><strong>Views</strong> (left rail, Build group) is Quick Views' power-user sibling: a visual pivot/crosstab
   query builder. The left panel lists every dataset you can chart (your workspace datasets first,
   sample data below); click one and its columns appear as chips — <code>#</code> marks a numeric
   field, <code>a</code> a text one. Click a chip (or drag it) onto the <strong>Columns</strong>
@@ -1074,6 +1083,9 @@
   </table>
   </div>
   <p>Short version: stay on <strong>Local</strong> for a private, single-device workspace; pick <strong>Turso</strong> for the simplest shared workspace across your own devices or a trusted team; pick <strong>Supabase</strong> when you need real accounts and database-enforced per-user privacy; pick <strong>Firebase</strong> if you already run Firestore and manage access through its security rules. The rest of this section covers the Supabase-specific admin flow in detail.</p>
+
+  <h3>How syncing works (and what the rail indicator means)</h3>
+  <p>With a backend connected there is <strong>nothing to "sync" by hand</strong> — every change you make (saving a View, editing a dashboard, adding a dataset…) mirrors up automatically a moment later. The indicator at the bottom of the left rail (Manage group) tells you the live state: <strong>Local</strong> — no backend, everything stays in this browser; <strong>Connected</strong> (green) — the mirror is working and every change is written through; <strong>Reconnecting…</strong> (red) — the last write failed and the app is retrying automatically with backoff, while your work stays safe in this browser and pushes as soon as the backend accepts it again. A failed write also raises a one-time notification and puts the full error on the <strong>Settings → Workspace backend</strong> card, with a <strong>Retry now</strong> button. One error deserves special mention: a Supabase workspace provisioned before newer app versions can be missing the <code>analyses</code>/<code>jobs</code>/<code>users</code> tables — saving a View then fails with an "HTTP 404 writing analyses" error. The Settings card shows the one-time upgrade SQL in a copyable block: paste it into <strong>Supabase → SQL editor</strong>, run it once, then hit <strong>Retry now</strong> and the pending changes push up.</p>
 
   <h3>Signing in with real Supabase Auth (optional)</h3>
   <p>The <strong>Supabase</strong> backend's connect wizard has two extra, optional fields below the Project URL and anon key: <strong>Supabase Auth email</strong> and <strong>password</strong>. Leave them blank and Supabase behaves exactly as before — every request uses the shared anon key. Fill them in and Studio signs in with real Supabase Auth (GoTrue) first, then sends that session's JWT on every request instead — so Postgres' <code>auth.uid()</code> resolves to your real account rather than staying <code>NULL</code>. This is groundwork for enforced, database-level per-user privacy on top of the private/public flags every object already carries (Dashboards, Datasets, Connections, Jobs, Analyses) — those flags are UX-level today (hidden from other accounts in the UI); a real Supabase Auth sign-in is the prerequisite for the database itself to enforce it via Row-Level Security. A wrong password fails clearly at the "Check database →" step, the same gate that already validates the URL and anon key, so it can't silently connect with the wrong identity.</p>

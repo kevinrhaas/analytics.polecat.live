@@ -2539,6 +2539,16 @@ body.simple-mode .da-acts{display:none!important}
   .ws-current .ws-actions,.ws-secrets .ws-actions{flex:1 1 100%;flex-wrap:wrap;justify-content:flex-start}
 }
 .cx-dot.busy{background:#f0a750;box-shadow:0 0 6px rgba(240,167,80,.5)}
+/* Sync-error detail block: the full failure message + (when the backend needs a
+   one-time schema upgrade) the copyable paste-into-SQL-editor script + Retry. */
+.ws-sync-err{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;margin-bottom:10px;
+  padding:var(--sp-12) var(--sp-14);border-radius:10px;
+  background:color-mix(in srgb, #e5484d 9%, var(--pane));border:1px solid color-mix(in srgb, #e5484d 35%, transparent)}
+.ws-sync-err .cx-name{flex:1 1 220px}
+.ws-sync-err-msg{white-space:normal;overflow-wrap:anywhere}
+.ws-sync-err-sql{flex:1 1 100%;margin:0;max-height:140px;overflow:auto;padding:8px 10px;border-radius:8px;
+  background:color-mix(in srgb, var(--ink) 14%, var(--pane));border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+  font-size:var(--fs-11);line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
 .ws-provision-sql{min-height:150px;margin:10px 0;width:100%;box-sizing:border-box}
 #railSource .cx-dot{margin:0 auto}
 #railSource .rail-lbl{font-size:var(--fs-12);opacity:.8}

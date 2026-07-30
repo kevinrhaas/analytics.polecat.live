@@ -340,15 +340,43 @@
       var jobsNewBtn = $("#jobsNewBtn"); if (jobsNewBtn) jobsNewBtn.onclick = function () { openJobEditor(); };
       var jobsSearchInp = $("#jobsSearch"); if (jobsSearchInp) jobsSearchInp.addEventListener("input", renderJobs);
       var viewsSearchInp = $("#viewsSearch"); if (viewsSearchInp) viewsSearchInp.addEventListener("input", renderViews);
-      var viewsNewBtn = $("#viewsNewBtn"); if (viewsNewBtn) viewsNewBtn.onclick = function () { Studio.ViewsCatalog.newView(); };
+      // Views "＋ New ▾" (Kevin): two builders — "New View" opens the full View
+      // Builder (shelves/pivots/calcs), "New Quick View" the one-chart Explore path.
+      var viewsNewBtn = $("#viewsNewBtn"), viewsNewMenu = $("#viewsNewMenu");
+      if (viewsNewBtn && viewsNewMenu) {
+        menuToggle(viewsNewBtn, viewsNewMenu);
+        $$("[data-views-new]", viewsNewMenu).forEach(function (b) {
+          b.onclick = function () {
+            closeMenus();
+            if (b.getAttribute("data-views-new") === "build") {
+              if (Studio.Build && Studio.Build.newView) Studio.Build.newView();
+              if (window.__studioShellSetSection) window.__studioShellSetSection("build");
+            } else {
+              Studio.ViewsCatalog.newView();
+            }
+          };
+        });
+      }
       var repoAllSearchInp = $("#repoAllSearch"); if (repoAllSearchInp) repoAllSearchInp.addEventListener("input", renderRepository);
       // workspace-backend sync: restore a saved remote, keep the rail dot +
       // Settings card live, and flush any pending mirror write on page close
+      var _lastSyncErrToasted = "";
       Studio.Sync.onSync(function (st) {
         var dot = $("#railSourceDot"), lbl = $("#railSourceLbl"), rs = $("#railSource");
-        if (dot) dot.className = "cx-dot " + (st.status === "connected" ? "ok" : st.status === "error" ? "bad" : st.status === "local" ? "" : "busy");
-        if (lbl) lbl.textContent = st.sourceId === "local" ? "Local" : st.label;
+        if (dot) dot.className = "cx-dot " + (st.status === "connected" || st.status === "syncing" ? "ok" : st.status === "error" ? "bad" : st.status === "local" ? "" : "busy");
+        // Kevin's ask: say what the STATE is, not which backend — "Local" with no
+        // workspace, "Connected" while the mirror is working (syncing IS working),
+        // and an honest "Reconnecting…" while the backoff self-heal is retrying.
+        if (lbl) lbl.textContent = st.sourceId === "local" ? "Local"
+          : st.status === "connected" || st.status === "syncing" ? "Connected"
+          : st.status === "error" ? "Reconnecting…" : "Connecting…";
         if (rs) rs.title = "Workspace backend — " + st.label + (st.lastError ? " · " + st.lastError : "");
+        // A push failure used to be invisible (just this rail dot): say it once,
+        // loudly, so a broken mirror can't masquerade as "everything saved".
+        if (st.status === "error" && st.lastError && st.lastError !== _lastSyncErrToasted) {
+          _lastSyncErrToasted = st.lastError;
+          toast("Workspace sync failed — working from this browser's copy. " + st.lastError, true);
+        } else if (st.status === "connected") { _lastSyncErrToasted = ""; }
         renderWorkspaceBackendCard();
         renderConnections(); // QA-02: credential-storage note tracks live sync state
       });
@@ -7342,7 +7370,23 @@
       : st.status === "connected" ? "Connected — changes mirror automatically" + (st.lastPushAt ? " · last sync " + new Date(st.lastPushAt).toLocaleTimeString() : "")
       : st.status === "syncing" ? "Syncing…"
       : st.status === "connecting" ? "Connecting…"
-      : "Error: " + (st.lastError || "sync failed");
+      : "Sync error — retrying automatically; your work is safe in this browser and pushes when the backend accepts it";
+    // Error detail, kept out of the one-line status so it can carry the whole
+    // message. The Supabase missing-analyses/jobs-table case embeds a one-time
+    // "paste into the SQL editor" upgrade script — split it into a copyable
+    // block, since that's the actual fix (Kevin's save-a-View-goes-red repro).
+    var errHtml = "";
+    if (st.status === "error" && st.lastError) {
+      var errMsg = st.lastError, errSql = "";
+      var sqlAt = errMsg.indexOf("SQL editor: ");
+      if (sqlAt >= 0) { errSql = errMsg.slice(sqlAt + "SQL editor: ".length); errMsg = errMsg.slice(0, sqlAt + "SQL editor:".length); }
+      errHtml = '<div class="ws-sync-err">' +
+        '<span class="cx-name"><b>What went wrong</b><small class="ws-sync-err-msg">' + esc(errMsg) + '</small></span>' +
+        (errSql ? '<pre class="ws-sync-err-sql"><code>' + esc(errSql) + '</code></pre>' +
+          '<span class="cx-actions ws-actions"><button type="button" class="btn" id="wsCopySqlBtn">Copy SQL</button></span>' : "") +
+        '<span class="cx-actions ws-actions"><button type="button" class="btn" id="wsRetryBtn">Retry now</button></span>' +
+        '</div>';
+    }
     // QA-02: this line used to always say "stored in this browser only" even
     // once a remote backend was connected — state-aware now (see connCredentialCopy).
     var credLine = !st.isRemote ? "Credentials are stored in this browser only."
@@ -7359,6 +7403,7 @@
             '<button type="button" class="btn" id="wsDisconnectBtn">Disconnect</button>' : "") +
           '<button type="button" class="btn primary" id="wsSwitchBtn">' + (st.isRemote ? "Switch backend" : "+ Connect backend") + '</button>' +
         '</span></div>' +
+      errHtml +
       (st.isRemote ?
         '<div class="ws-secrets">' +
           '<span class="cx-name"><b>' + (sec.enabled ? (sec.locked ? "Secrets encrypted — locked" : "Secrets encrypted") : "Secrets stored as plaintext") + '</b>' +
@@ -7374,6 +7419,22 @@
     if (refreshBtn) refreshBtn.onclick = function () {
       refreshBtn.disabled = true;
       Studio.Sync.pullNow().then(function (s) { toast(s.status === "connected" ? "Workspace refreshed" : "Refresh failed: " + s.lastError, s.status !== "connected"); });
+    };
+    var retryBtn = $("#wsRetryBtn", card);
+    if (retryBtn) retryBtn.onclick = function () {
+      retryBtn.disabled = true;
+      Studio.Sync.retryNow().then(function () {
+        var s = Studio.Sync.syncState();
+        toast(s.status === "connected" ? "Back in sync" : "Still failing: " + s.lastError, s.status !== "connected");
+      });
+    };
+    var copySqlBtn = $("#wsCopySqlBtn", card);
+    if (copySqlBtn) copySqlBtn.onclick = function () {
+      var code = card.querySelector(".ws-sync-err-sql code");
+      var sql = code ? code.textContent : "";
+      (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(sql) : Promise.reject())
+        .then(function () { toast("SQL copied — paste it into Supabase → SQL editor, then hit Retry now"); },
+              function () { window.prompt("Copy this SQL:", sql); });
     };
     var disconnectBtn = $("#wsDisconnectBtn", card);
     if (disconnectBtn) disconnectBtn.onclick = function () {
