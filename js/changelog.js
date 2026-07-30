@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 765,
+    title: 'Conservation sample data tells the right story — rising adoption, honest scales',
+    kind: 'fix',
+    ts: '2026-07-30T16:35:12.000Z',
+    items: [
+      'Sample percent metrics now trend gently UP over time (adoption, coverage, quality) — only genuinely regressive series like Conventional tillage decline, which is the good-news story.',
+      'Practice-mix stacks read as shares of a whole and stay under 100% — no more 375% axes from independently generated percent bands.',
+    ],
+  },
+  {
     v: 764,
     title: 'Sample tables stop leaking; pack content is filed in the pack’s folder everywhere',
     kind: 'fix',

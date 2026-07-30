@@ -7584,7 +7584,11 @@
 >       title (double-click to rename, like dashboard panel titles), stored separately
 >       (e.g. view.panelTitle), defaulting to — and tracking — the View name until the
 >       user overrides it; used wherever the View lands on a dashboard.
-> CONS-0. **Conservation sample data: positive, realistic trends + fix the %-scale bug
+> CONS-0. ✓ **Conservation sample data: positive, realistic trends + fix the %-scale bug
+>       (SHIPPED v765, sw v401 — sampledata.js valueFor pct: +1.8/row rising, regressive
+>       name patterns -2.5/row; sampleRows renormalizes 3+ pct columns row-wise to ~94%
+>       so stacks read as shares; crossedRows ensemble pct already rose +0.7/label).
+>       Original report —**
 >       (Kevin live, 2026-07-30, screenshot of "Practice Mix by Year").** (1) "Provide
 >       upward trends on data that is good — positive adoption — instead of negative
 >       adoption. Be realistic where you can, but avoid big downward charts like this

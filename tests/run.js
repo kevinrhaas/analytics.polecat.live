@@ -4686,6 +4686,26 @@ function serve() {
       sd1Folders.bad === "", JSON.stringify(sd1Folders));
     ok("SAMPLE-DATA-1: the boot reconcile backfills the pack folder on pre-existing installs (no reinstall needed)",
       sd1Folders.healed === true, JSON.stringify(sd1Folders));
+
+    // ---- CONS-0 (Kevin live, 2026-07-30): positive trends + honest percent stacks ----
+    console.log("\n• CONS-0: sample percent metrics trend up; share stacks stay under 100%");
+    const cons0 = await page.evaluate(function () {
+      var mix = Studio.sampleRows({ id: "mix", columns: ["year", "covercrop_pct", "notill_pct", "reducedtill_pct", "conventional_pct"] });
+      var maxStack = 0, first = mix.rows[0], last = mix.rows[mix.rows.length - 1];
+      mix.rows.forEach(function (r) { var s = 0; for (var j = 1; j < r.length; j++) s += +r[j] || 0; if (s > maxStack) maxStack = s; });
+      var single = Studio.sampleRows({ id: "t", columns: ["year", "adoption_pct"] });
+      var sFirst = +single.rows[0][1], sLast = +single.rows[single.rows.length - 1][1];
+      return {
+        maxStack: Math.round(maxStack * 10) / 10,
+        coverRises: +last[1] > +first[1],
+        conventionalFalls: +last[4] < +first[4],
+        adoptionRises: sLast > sFirst
+      };
+    });
+    ok("CONS-0: a multi-practice percent stack never exceeds 100% (shares of a whole, not summed percents)",
+      cons0.maxStack <= 100, JSON.stringify(cons0));
+    ok("CONS-0: adoption-style percent metrics trend UP over the label axis; only the regressive practice (Conventional) declines",
+      cons0.coverRises && cons0.conventionalFalls && cons0.adoptionRises, JSON.stringify(cons0));
     await page.evaluate(function () { return window.__studioLoadExample("conservation-flow.studio.json"); }); // LF43 slice 2: menu gone — hook load
     await page.waitForTimeout(300);
     const lf2Flow = await page.evaluate(function () {

@@ -134,9 +134,18 @@
       case "tb": return Math.round((40 / (i + 1)) * 10) / 10;
       case "gb": return Math.round(900 / (i + 1));
       case "bytes": return Math.round((i + 1 === 0 ? 1 : (9 - (i % 9))) * 1.3e11);
-      // percentages / scores: a realistic per-column base (58–95), gently descending across rows,
-      // so a single-row KPI/gauge reads e.g. 78% / 91% / 84% rather than always 100%.
-      case "pct": { var b = 58 + (hv % 38); return Math.max(3, Math.round((b - i * 7) * 10) / 10); }
+      // percentages / scores: a realistic per-column base (55–90 at row 0, so single-row
+      // KPIs/gauges read healthy), then a GENTLE UPWARD trend across the label axis —
+      // CONS-0 (Kevin live, 2026-07-30): the good-news metrics (adoption, coverage,
+      // quality) must rise over time; only explicitly regressive columns decline
+      // (conventional tillage giving way IS the positive story). The old -7/row slope
+      // made every sample chart read as collapse.
+      case "pct": {
+        var declining = /conventional|legacy|manual|untracked|unmanaged|stale|orphan|unused|churn|attrition|fail/.test(String(col || "").toLowerCase());
+        var b = 55 + (hv % 35);
+        var v = declining ? b - i * 2.5 : b + i * 1.8;
+        return Math.min(97, Math.max(4, Math.round(v * 10) / 10));
+      }
       case "count": { var c1 = 600 + (hv % 8200); return Math.max(1, Math.round(c1 / (i + 1))); }
       case "cum": return (i + 1) * 1200;            // monotonic
       // alternating sign, gently shrinking magnitude — a believable variance/delta series
@@ -201,6 +210,19 @@
     for (var i = 0; i < n; i++) {
       rows.push(cols.map(function (c, j) { return valueFor(kinds[j], i, n, j === 0, c); }));
     }
+    // CONS-0 (Kevin live, 2026-07-30): THREE OR MORE pct columns side by side are shares
+    // of one whole (the practice mix: covercrop/notill/reducedtill/conventional). Stacked
+    // they must read ≤100% — the old independent 55–90% bases stacked to a 375%+ axis.
+    // Row-wise renormalize to a ~94% total (the remainder reads as "other"); each column's
+    // trend direction survives normalization, so the mix visibly SHIFTS toward the
+    // improving practices while the stack height stays honest. Two unrelated pct columns
+    // (coverage + quality in one table) are NOT shares — hence the ≥3 threshold.
+    var pctIdx = [];
+    kinds.forEach(function (k, j) { if (k === "pct" && j > 0) pctIdx.push(j); });
+    if (pctIdx.length >= 3) rows.forEach(function (r) {
+      var sum = 0; pctIdx.forEach(function (j) { sum += +r[j] || 0; });
+      if (sum > 0) pctIdx.forEach(function (j) { r[j] = Math.round(((+r[j] || 0) / sum) * 94 * 10) / 10; });
+    });
     // N-DATA: evaluate any declared Calculated columns against this sample too — the ONLY
     // place they get a real value in the builder (see the Studio.evalFormula header note).
     return Studio.applyCalcCols(cols, rows, da && da.calcColumns);
