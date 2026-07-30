@@ -416,14 +416,31 @@
     var wsDs = XP.kind === "ws" ? Studio.Workspace.get("datasets", XP.dsId) : null;
     var haveDs = XP.kind === "ws" ? (!!wsDs && isDatasetVisibleToMe(wsDs))
       : !!xpCatalogDA(String(XP.dsId).split(XP_SEP)[0], String(XP.dsId).split(XP_SEP)[1]);
-    var load = haveDs ? xpLoadRows() : Promise.resolve(
-      XP.run = (function () { var sd = Studio.sampleRows(a.da || { columns: [] }); return { cols: sd.cols, rows: sd.rows, live: false, orphan: !haveDs }; })());
+    var load;
+    if (haveDs) {
+      load = xpLoadRows();
+    } else if (a.builder && Studio.Build && Studio.Build.runBlob) {
+      // #118 (live re-run): a builder-made View has no datasetId of its own, but its
+      // blob can recompute the REAL result — preview that instead of fabricating
+      // sample rows over the basis columns; sample fallback only if the run fails.
+      load = Studio.Build.runBlob(a.builder).then(function (v) {
+        if (v) return (XP.run = { cols: v.cols, rows: v.rows, live: !!v.live });
+        var sd = Studio.sampleRows(a.da || { columns: [] });
+        return (XP.run = { cols: sd.cols, rows: sd.rows, live: false, orphan: true });
+      });
+    } else {
+      load = Promise.resolve(
+        XP.run = (function () { var sd = Studio.sampleRows(a.da || { columns: [] }); return { cols: sd.cols, rows: sd.rows, live: false, orphan: !haveDs }; })());
+    }
     load.then(function () { xpEnterEditor(); renderExplore(); xpPreview(); });
   }
   // A standalone one-panel spec for a saved analysis — used by Home's live
   // widgets (and anything else that needs to render an analysis outside Explore).
   function analysisSpec(a) {
     var da = Studio.clone(a.da || {});
+    // #118 (live re-run): pre-existing builder Views saved their blob only on the
+    // row, not the da — attach it so renderers can recompute the real result.
+    if (a.builder && !da.builder) da.builder = Studio.clone(a.builder);
     // VB-4 remaining major (KPI): a KPI-type View has no `.chart` at all — it
     // lives in spec.kpis, not spec.panels — so it gets its own tiny spec shape
     // instead of the single-panel one every chart-type View shares.
@@ -452,6 +469,7 @@
     if (!da) da = (S.spec.cda.dataAccesses || []).filter(function (x) { return JSON.stringify(x) === JSON.stringify(a.da); })[0];
     if (!da) {
       da = Studio.clone(a.da);
+      if (a.builder && !da.builder) da.builder = Studio.clone(a.builder); // #118 — see analysisSpec
       var base = da.id, n = 2;
       while (Studio.daById(S.spec, da.id)) da.id = base + "_" + (n++);
       S.spec.cda.dataAccesses.push(da);

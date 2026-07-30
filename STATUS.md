@@ -116,6 +116,43 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **#118 slice — live re-run of builder Views (v755, sw v392, 2026-07-30, steward):** the
+  long-standing "#117/#118 NEXT" item every View Builder slice carried forward. A builder-made
+  View's da is authored (no query), so dashboards/Home/zoom/Quick-Views-cross-open used to
+  FABRICATE its rows through the sample engine — the numbers on a dashboard weren't the
+  numbers the builder showed. Now they are:
+  - **Parameterized basis pipeline** (`app/build.js`): bdEff / bdFilteredRows / bdFieldKind /
+    bdFirstDim / bdColsDim / bdMeasures / bdFirstMeasure / bdColorField / chartUnavailable /
+    chartBasis / bdLineSeriesBasis / bdFirstSeenMap all take an optional state `st`
+    (defaulting to the live BD) — the editor's own render path is byte-identical, and the
+    same code now computes a DETACHED state.
+  - **`Studio.Build.runBlob(blob)`**: loads the blob's source (bdLoadRowsFor — the pure half
+    of bdLoadRows; ws datasets run LIVE through their adapter with the same sample fallback,
+    catalog samples via the sample engine), applies calcs + filters, and shapes the basis for
+    the blob's chartType (table = the full pivot). Cached per blob JSON for the session
+    (`_blobRuns`) so re-renders never re-run the source. `ensureSpecMocks(spec)` returns a
+    Promise while any builder-backed da's run pends (null when cached) and `specMocks(spec)`
+    is the sync read — the exact kick-off-then-re-enter contract ensureGeoAssets set.
+  - **The blob travels with the da**: bdSave stamps `da.builder` (the da is what's cloned
+    into spec.cda on add-to-dashboard); `analysisSpec` + `xpAddAnalysisToSpec` attach the
+    row's blob to das saved BEFORE this slice, so legacy builder Views heal on next render.
+  - **Overlay at every preview mock path** (`app/studio.js`): doRefresh (ensure → re-enter →
+    Object.assign over genMock; Demo mode excluded), singlePanelHtml (panel zoom — cache is
+    warm from doRefresh, so it stays sync), homeLiveFrame (Home pinned cards — ensure joins
+    the geo pre-load Promise.all). Quick Views' cross-open fallback (`xpLoadAnalysis`) now
+    previews the recomputed result (live-badged) instead of sample rows over basis columns.
+  - **Tests** (4 new, exact-value): a fake `caps.data` adapter serves known rows, so the
+    asserts pin the REAL aggregation ([[East,15],[West,7]] from SUM over
+    [[East,10],[East,5],[West,7]]) — blob-on-da at save; runBlob exact result; dashboard
+    preview mock contains the real rows; legacy-row heal via analysisSpec + ensure/read; the
+    Quick Views cross-open previews live recomputed rows.
+  - **Not in this slice** (documented follow-ups): the standalone viewer route
+    (app/viewer.js — needs the Build module loaded there) and baking real rows into
+    preview:false exported HTML; both still fabricate for builder das. Cache is
+    session-lifetime — a dataset edited AFTER a builder View rendered keeps the older rows
+    until reload (acceptable; revisit if it surprises).
+  Files: app/build.js, app/explore.js, app/studio.js, docs/index.html, tests/run.js, sw.js,
+  js/changelog.js.
 - **VB-5 — cross-editor View opening (v754, sw v391, 2026-07-30, steward):** Kevin: "you can
   open any view in either quick view editor or the view builder… allow it to open and give a
   notification that this was built in the higher level editor, and do your best to handle and
