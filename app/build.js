@@ -60,12 +60,14 @@
     run: null,               // { cols, rows, live, error } — the loaded source rows
     shelfCols: [],           // [ { col, agg } ] — agg null = dimension, else sum/avg/min/max/median/count
     shelfRows: [],           // [ { col } ] — row dimensions (crosstab when non-empty)
+    chartType: "table",      // slice 2: table | bars | line | donut | heatmap
     analysisId: null, name: "", folder: "",
     outlineOpen: {}          // which outline datasets are expanded
   };
   function bdReset() {
     BD.dsKind = null; BD.dsId = null; BD.dsName = ""; BD.dsSub = "";
     BD.run = null; BD.shelfCols = []; BD.shelfRows = [];
+    BD.chartType = "table";
     BD.analysisId = null; BD.name = ""; BD.folder = "";
   }
 
@@ -301,6 +303,86 @@
     };
   }
 
+  // ---------- charting the result (#117 slice 2) ----------
+  // Each chart draws from a deliberately SIMPLE, ordered "chart basis" table so
+  // Studio.newPanel's column-order defaults map it with no bespoke wiring:
+  //   bars/line/donut → [first dimension, first measure]  (rollup by that dim)
+  //   heatmap         → [first Rows dim, first Columns dim, measure]  (the
+  //                      crosstab's own long form — rowCol/colCol/valueCol)
+  // The first dimension prefers the Rows shelf; with no measure picked, COUNT
+  // of rows keeps every chart honest instead of refusing to draw. Table stays
+  // the full pivot. Charting more of the shelves (multi-dim, series) is a
+  // later slice, and the render notes say so.
+  var CHART_TYPES = [
+    { t: "table", label: "Table" },
+    { t: "bars", label: "Bars" },
+    { t: "line", label: "Line" },
+    { t: "donut", label: "Donut" },
+    { t: "heatmap", label: "Heatmap" },
+  ];
+  function bdFirstDim() {
+    return BD.shelfRows[0] || BD.shelfCols.filter(function (f) { return !f.agg; })[0] || null;
+  }
+  function bdColsDim() { return BD.shelfCols.filter(function (f) { return !f.agg; })[0] || null; }
+  function bdFirstMeasure() {
+    var m = BD.shelfCols.filter(function (f) { return f.agg; })[0];
+    if (m) return m;
+    var d = bdFirstDim();
+    return d ? { col: d.col, agg: "count" } : null;
+  }
+  // Why a chart type can't draw yet — "" when it can. Doubles as the disabled tooltip.
+  function chartUnavailable(type) {
+    if (type === "table") return "";
+    if (!BD.run) return "Pick a dataset first";
+    if (type === "heatmap") {
+      if (!BD.shelfRows[0] || !bdColsDim()) return "Needs a field on Rows and a plain field on Columns";
+      return "";
+    }
+    if (!bdFirstDim()) return "Needs at least one non-aggregated field on a shelf";
+    return "";
+  }
+  function chartBasis(type) {
+    if (!BD.run || chartUnavailable(type)) return null;
+    var m = bdFirstMeasure();
+    if (type === "heatmap") {
+      return compute(BD.run.cols, BD.run.rows,
+        [{ col: BD.shelfRows[0].col, agg: null }, { col: bdColsDim().col, agg: null }, m], []);
+    }
+    return compute(BD.run.cols, BD.run.rows, [{ col: bdFirstDim().col, agg: null }, m], []);
+  }
+  // The live chart preview is the REAL dashboard renderer — the same
+  // buildHtml(spec, assets, { preview, mock }) srcdoc-iframe path Explore's
+  // preview uses, with the COMPUTED basis rows injected as the mock so what
+  // you see is the actual pivot, not fabricated sample data.
+  var _bdPvTimer = null;
+  function renderChartPreview(result) {
+    var basis = chartBasis(BD.chartType);
+    if (!basis) { result.innerHTML = '<div class="bd-cta">' + esc(chartUnavailable(BD.chartType) || "Nothing to chart yet.") + "</div>"; return; }
+    clearTimeout(_bdPvTimer);
+    _bdPvTimer = setTimeout(function () {
+      var da = { id: "build_result", name: BD.name || "Build result", kind: "sql", sql: "", query: "", columns: basis.head.slice(), params: [], authored: true };
+      var p = Studio.newPanel(BD.chartType, da);
+      p.title = BD.name || BD.dsName || "View"; p.span = "full";
+      var spec = {
+        id: "build-preview", name: "build-preview", title: p.title, hideHeader: true,
+        dashboardTheme: D.defaultDashboardTheme(),
+        panels: [p], kpis: [], filters: [],
+        cda: { connections: [], dataAccesses: [da] }
+      };
+      var mock = { build_result: { cols: basis.head, rows: basis.rows } };
+      var html = Studio.buildHtml(spec, D.getAssets(), { preview: true, mock: mock, launcher: false });
+      var ifr = result.querySelector("iframe.bd-ifr");
+      if (!ifr) {
+        result.innerHTML = "";
+        ifr = document.createElement("iframe");
+        ifr.className = "bd-ifr"; ifr.title = "Chart preview"; ifr.setAttribute("aria-label", "Chart preview");
+        result.appendChild(ifr);
+      }
+      D.postThemeOnLoad(ifr);
+      ifr.srcdoc = html;
+    }, 150);
+  }
+
   function fmtCell(v) {
     if (v == null) return "·";
     if (typeof v === "number") {
@@ -366,6 +448,21 @@
       ? BD.shelfRows.map(function (f) { return fieldChipHtml(f, "rows"); }).join("")
       : '<span class="bd-shelf-hint">Drop a field here to pivot — its values become the result’s rows</span>';
 
+    // chart-type strip (slice 2)
+    var strip = $("#bdCharts", sec);
+    if (strip) {
+      strip.innerHTML = CHART_TYPES.map(function (c) {
+        var why = chartUnavailable(c.t);
+        var svg = c.t === "table" ? null : D.themedChartSvg(Studio.CHART_SVG[c.t], c.t);
+        var mini = svg ? svg.replace("<svg ", '<svg width="22" height="15" preserveAspectRatio="xMidYMid meet" ') : "";
+        return '<button type="button" class="bd-ct' + (BD.chartType === c.t ? " on" : "") + '" data-bd-ct="' + c.t + '"' +
+          (why ? ' disabled title="' + esc(why) + '"' : ' title="' + esc(c.label) + '"') +
+          ' aria-pressed="' + (BD.chartType === c.t ? "true" : "false") + '">' +
+          (mini ? '<span class="bd-ct-ic">' + mini + "</span>" : '<span class="bd-ct-ic bd-ct-tbl">▦</span>') +
+          '<span>' + esc(c.label) + "</span></button>";
+      }).join("");
+    }
+
     // CENTER — status + result
     var status = $("#buildStatus", sec), result = $("#buildResult", sec);
     var res = BD.run ? compute(BD.run.cols, BD.run.rows, BD.shelfCols, BD.shelfRows) : null;
@@ -386,6 +483,9 @@
           "add a field to the Rows shelf and the table pivots into a crosstab.</div>";
       } else if (!res) {
         result.innerHTML = '<div class="bd-cta">Now click a column on the left (or drag one onto a shelf) to see the result here, live.</div>';
+      } else if (BD.chartType !== "table") {
+        // slice 2: a chart type is selected — the REAL renderer draws the basis
+        renderChartPreview(result);
       } else if (!res.head.length) {
         result.innerHTML = "";
       } else {
@@ -466,13 +566,25 @@
     $$("[data-bd-rm]", sec).forEach(function (btn) {
       btn.onclick = function () { bdRemoveField(btn.getAttribute("data-bd-rm")); };
     });
+    $$("[data-bd-ct]", sec).forEach(function (btn) {
+      btn.onclick = function () {
+        if (btn.disabled) return;
+        BD.chartType = btn.getAttribute("data-bd-ct");
+        render();
+      };
+    });
   }
 
   // ---------- New / Save / Load ----------
   function bdNew() { bdReset(); render(); }
 
   function bdSave() {
-    var res = BD.run ? compute(BD.run.cols, BD.run.rows, BD.shelfCols, BD.shelfRows) : null;
+    // The saved View's da/chart follow the SELECTED chart type: charts save their
+    // basis table (so newPanel's defaults keep mapping it everywhere), the table
+    // type saves the full pivot's columns.
+    var res = BD.chartType === "table"
+      ? (BD.run ? compute(BD.run.cols, BD.run.rows, BD.shelfCols, BD.shelfRows) : null)
+      : chartBasis(BD.chartType);
     if (!res || !res.head.length) { toast("Nothing to save yet — put a field on a shelf first.", true); return; }
     D.modal(BD.analysisId ? "Update View" : "Save View", function (b) {
       var wrap = D.el("div", "bd-save");
@@ -494,11 +606,11 @@
         // authored-content behavior, SAMPLE-badged everywhere) until a live-refresh
         // slice teaches those surfaces to re-run the builder state.
         var da = { id: base, name: name, kind: "sql", sql: "", query: "", columns: res.head.slice(), params: [], authored: true };
-        var chart = Studio.newPanel("table", da).chart;
+        var chart = Studio.newPanel(BD.chartType, da).chart;
         var row = {
-          name: name, folder: BD.folder || "", chartType: "table", da: da, chart: chart,
+          name: name, folder: BD.folder || "", chartType: BD.chartType, da: da, chart: chart,
           builder: {
-            dsKind: BD.dsKind, dsId: BD.dsId,
+            dsKind: BD.dsKind, dsId: BD.dsId, chartType: BD.chartType,
             shelfCols: Studio.clone(BD.shelfCols), shelfRows: Studio.clone(BD.shelfRows)
           }
         };
@@ -528,6 +640,7 @@
       if (!BD.run) { toast("This View’s source dataset is gone — pick another to rebuild it.", true); render(); return; }
       BD.shelfCols = Studio.clone(b.shelfCols || []);
       BD.shelfRows = Studio.clone(b.shelfRows || []);
+      BD.chartType = b.chartType || "table";
       render();
     });
   }

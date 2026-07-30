@@ -6754,7 +6754,12 @@
     runDataset: function (ds) { return runDataset(ds); },
     getCatalog: function () { return S.catalog; },
     showSamples: function () { return showSamples(); },
-    guessFieldKind: function (colName, vals) { return guessFieldKind(colName, vals); }
+    guessFieldKind: function (colName, vals) { return guessFieldKind(colName, vals); },
+    // slice 2 (chart the result): the same real-renderer preview plumbing Explore uses
+    getAssets: function () { return S.assets; },
+    postThemeOnLoad: function (ifr) { postThemeOnLoad(ifr); },
+    defaultDashboardTheme: function () { return defaultDashboardTheme(); },
+    themedChartSvg: function (svg, type) { return themedChartSvg(svg, type); }
   }));
 
 

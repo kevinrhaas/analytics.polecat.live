@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v368"; /* v368: #117 slice 1 — the View Builder: a new "Build"
+var CACHE_NAME = "studio-shell-v369"; /* v369: #117 slice 2 — the View Builder charts its
+   pivots: a chart strip (Table/Bars/Line/Donut/Heatmap) renders the COMPUTED basis through
+   the real dashboard renderer (buildHtml + PDC_MOCK srcdoc iframe, Explore's own preview
+   plumbing); availability-gated buttons with reasons; Save stamps the chart type on the
+   View + builder blob and reopen restores it. app/build.js, app/index.html, app/studio.js,
+   app/studio.css, docs/index.html, tests/run.js, STATUS.md, js/changelog.js.
+   v368: #117 slice 1 — the View Builder: a new "Build"
    rail section (app/build.js, precached) — dataset outline → Columns/Rows shelves (drag +
    click-to-add, SUM default on numerics, per-chip agg switch) → live table/crosstab via a
    pure pivot engine (Studio.Build.compute) → saved as a real View (analyses row with a
