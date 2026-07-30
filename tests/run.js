@@ -9673,8 +9673,8 @@ function serve() {
         savedLabelCol: row && row.chart && row.chart.map && row.chart.map.labelCol,
       });
     });
-    ok("#117 (2): the chart strip offers Table/Bars/Line/Donut/Heatmap/Map, heatmap enabled with a Rows dim + a Columns dim",
-      bdChart.strip.join(",") === "table,bars,line,donut,heatmap,choropleth", JSON.stringify(bdChart));
+    ok("#117 (2): the chart strip offers Table/Bars/Stacked bars/Line/Stacked area/Donut/Heatmap/Map, heatmap enabled with a Rows dim + a Columns dim",
+      bdChart.strip.join(",") === "table,bars,stacked,line,areaStacked,donut,heatmap,choropleth", JSON.stringify(bdChart));
     ok("#117 (2): picking Bars renders the COMPUTED basis through the real dashboard renderer (buildHtml + PDC_MOCK iframe)",
       bdChart.barsIframe && bdChart.mock && bdChart.basisDA && bdChart.basisMeasure, JSON.stringify(bdChart));
     ok("#117 (2): Heatmap renders too, and saving with a chart selected stamps the type on the View + builder blob",
@@ -10252,6 +10252,101 @@ function serve() {
       vb4.iframeGeo, JSON.stringify(vb4));
     ok("VB-4: a Color field widens the basis into the long [id, series, value] form and reaches the renderer as chart.map.seriesCol",
       vb4.basisColorHead === "region,quarter,SUM amount" && vb4.iframeSeries, JSON.stringify(vb4));
+
+    // 13b. VB-4 slice 2 (Kevin overnight queue continued, "hit major ones first"):
+    // Stacked bars + Stacked area join the chart strip. Studio's own chart registry
+    // (model.js Studio.CHARTS + Studio.newPanel) already treats "stacked" and
+    // "areaStacked" identically to "line" — same fields: [labelCol, series] shape —
+    // so this slice is purely widening the View Builder's existing Line multi-series
+    // engine (bdLineSeriesBasis, #117 slice 5) onto two more chart-type buttons, no
+    // new pivot logic.
+    const vb4b = await page.evaluate(async () => {
+      const B = window.__studioBuild;
+      const out = {};
+      B.state.shelfCols = []; B.state.shelfRows = []; B.state.filters = []; B.state.shelfColor = [];
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 40));
+
+      // A. single-series fallback — same [dim, measure] basis Bars/Donut/Line use
+      B.addField("region", "cols");
+      B.addField("amount", "cols");
+      B.state.chartType = "stacked";
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 60));
+      out.basisSingleHead = B.chartBasis("stacked").head.join(",");
+      out.basisSingleAreaHead = B.chartBasis("areaStacked").head.join(",");
+
+      // B. multi-series widening — Rows=[region] x Columns=[quarter(dim), amount(sum)],
+      // the exact crosstab shape #117 slice 5 already widens Line with
+      B.state.shelfCols = []; B.state.shelfRows = [];
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 40));
+      B.addField("region", "rows");
+      B.addField("quarter", "cols");
+      B.addField("amount", "cols");
+      await new Promise((r) => setTimeout(r, 60));
+      const xtabFull = window.Studio.Build.compute(B.eff().cols, B.filteredRows(), B.state.shelfCols, B.state.shelfRows);
+      const stackedBasis = B.chartBasis("stacked");
+      const areaBasis = B.chartBasis("areaStacked");
+      out.stackedMatchesFullMinusTotal =
+        stackedBasis.head.join(",") === xtabFull.head.slice(0, -1).join(",") &&
+        stackedBasis.rows.map((r) => r.join(",")).join("|") === xtabFull.rows.map((r) => r.slice(0, -1).join(",")).join("|");
+      out.areaMatchesFullMinusTotal =
+        areaBasis.head.join(",") === xtabFull.head.slice(0, -1).join(",");
+
+      // C. both buttons are enabled + selectable, and each renders a REAL panel
+      // through the buildHtml renderer with chart.map.series carrying every extra
+      // basis column (the same mapping Line already does — bdPanelFor's
+      // LINE_SHAPED_TYPES branch)
+      out.stackedBtnEnabled = !document.querySelector('[data-bd-ct="stacked"]').disabled;
+      out.areaBtnEnabled = !document.querySelector('[data-bd-ct="areaStacked"]').disabled;
+      B.state.chartType = "stacked";
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 450));
+      let ifr = document.querySelector("#buildResult iframe.bd-ifr");
+      out.stackedBtnOn = document.querySelector('[data-bd-ct="stacked"]').classList.contains("on");
+      out.stackedIframeType = ifr ? ifr.srcdoc.indexOf('"type":"stacked"') >= 0 : false;
+      out.stackedIframeSeriesCount = ifr ? (ifr.srcdoc.match(/"series":\[([^\]]*)\]/) || [, ""])[1].split("{").length - 1 : 0;
+
+      B.state.chartType = "areaStacked";
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 450));
+      ifr = document.querySelector("#buildResult iframe.bd-ifr");
+      out.areaBtnOn = document.querySelector('[data-bd-ct="areaStacked"]').classList.contains("on");
+      out.areaIframeType = ifr ? ifr.srcdoc.indexOf('"type":"areaStacked"') >= 0 : false;
+
+      // D. saving with Stacked bars picked stamps chart.map.series on the analyses row
+      B.state.chartType = "stacked";
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 300));
+      B.save();
+      await new Promise((r) => setTimeout(r, 120));
+      const m = document.querySelector(".modal-ov .bd-save");
+      m.querySelector("input").value = "BD117 Stacked";
+      [].slice.call(m.querySelectorAll("button")).filter((b) => /^(Save|Update)$/.test(b.textContent))[0].click();
+      await new Promise((r) => setTimeout(r, 120));
+      const row = window.Studio.Workspace.all("analyses").filter((a) => a.name === "BD117 Stacked")[0];
+      out.savedType = row && row.chartType;
+      out.savedSeries = row && row.chart && row.chart.map && row.chart.map.series ? row.chart.map.series.map((s) => s.col).join(",") : null;
+      out.savedLabelCol = row && row.chart && row.chart.map && row.chart.map.labelCol;
+      out.savedRowId = row && row.id;
+      return out;
+    });
+    ok("VB-4 (2): with no Rows dim, Stacked bars/Stacked area fall back to the plain [dim, measure] basis Bars/Donut/Line already use",
+      vb4b.basisSingleHead === "region,SUM amount" && vb4b.basisSingleAreaHead === "region,SUM amount", JSON.stringify(vb4b));
+    ok("VB-4 (2): a Rows×Columns crosstab widens Stacked bars AND Stacked area into one series per Columns value, matching the full pivot minus its Total column — the exact #117 slice 5 engine Line already uses",
+      vb4b.stackedMatchesFullMinusTotal && vb4b.areaMatchesFullMinusTotal, JSON.stringify(vb4b));
+    ok("VB-4 (2): both chart-type buttons are enabled once a plain field is on a shelf, and selecting either renders a real panel of that exact type through the buildHtml renderer",
+      vb4b.stackedBtnEnabled && vb4b.areaBtnEnabled && vb4b.stackedBtnOn && vb4b.stackedIframeType && vb4b.areaBtnOn && vb4b.areaIframeType,
+      JSON.stringify(vb4b));
+    ok("VB-4 (2): the rendered Stacked-bars panel carries one series per Columns value (chart.map.series), same multi-series mapping Line uses",
+      vb4b.stackedIframeSeriesCount >= 2, JSON.stringify(vb4b));
+    ok("VB-4 (2): saving with Stacked bars picked stamps chartType + one series per Columns value on the analyses row",
+      vb4b.savedType === "stacked" && vb4b.savedSeries && vb4b.savedSeries.split(",").length >= 2 && vb4b.savedLabelCol === "region",
+      JSON.stringify(vb4b));
+
+    // cleanup the extra saved row from this block
+    if (vb4b.savedRowId) await page.evaluate((id) => window.Studio.Workspace.remove("analyses", id), vb4b.savedRowId);
 
     // cleanup + restore the section the next block expects
     await page.evaluate((savedId) => {

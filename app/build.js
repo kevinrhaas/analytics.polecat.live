@@ -640,13 +640,17 @@
     };
   }
 
-  // ---------- charting the result (#117 slice 2, multi-series slice 5) ----------
+  // ---------- charting the result (#117 slice 2, multi-series slice 5, VB-4 slice 2) ----------
   // Each chart draws from a deliberately SIMPLE, ordered "chart basis" table so
   // Studio.newPanel's column-order defaults map it with no bespoke wiring:
   //   bars/donut      → [first dimension, first measure]  (rollup by that dim)
-  //   line            → the same single-series basis by default, WIDENED to
-  //                      [dimension, series1, series2, …] when the shelves land
-  //                      in one of two multi-series shapes (bdLineSeriesBasis).
+  //   line/stacked/    the same single-series basis by default, WIDENED to
+  //   areaStacked   →  [dimension, series1, series2, …] when the shelves land
+  //                     in one of two multi-series shapes (bdLineSeriesBasis).
+  //                     Stacked bars and Stacked area share Line's exact basis
+  //                     shape in Studio's own chart registry (fields: [labelCol,
+  //                     series]) — VB-4 slice 2 just adds them to the same
+  //                     widening path rather than reinventing it.
   //   heatmap         → [first Rows dim, first Columns dim, measure]  (the
   //                      crosstab's own long form — rowCol/colCol/valueCol)
   //   choropleth      → [first dimension, measure]  (idCol/valueCol; the SAME
@@ -662,11 +666,17 @@
   var CHART_TYPES = [
     { t: "table", label: "Table" },
     { t: "bars", label: "Bars" },
+    { t: "stacked", label: "Stacked bars" },
     { t: "line", label: "Line" },
+    { t: "areaStacked", label: "Stacked area" },
     { t: "donut", label: "Donut" },
     { t: "heatmap", label: "Heatmap" },
     { t: "choropleth", label: "Map" },
   ];
+  // The chart types that share Line's [labelCol, series] basis shape and its
+  // multi-series widening (bdLineSeriesBasis) — kept as one list so chartBasis
+  // and bdPanelFor can't drift on which types get the treatment.
+  var LINE_SHAPED_TYPES = ["line", "stacked", "areaStacked"];
   function bdFirstDim() {
     return BD.shelfRows[0] || BD.shelfCols.filter(function (f) { return !f.agg; })[0] || null;
   }
@@ -696,7 +706,7 @@
       return compute(bdEff().cols, rows,
         [{ col: BD.shelfRows[0].col, agg: null }, { col: bdColsDim().col, agg: null }, m], []);
     }
-    if (type === "line") {
+    if (LINE_SHAPED_TYPES.indexOf(type) >= 0) {
       var series = bdLineSeriesBasis(rows);
       if (series) return series;
     }
@@ -786,13 +796,14 @@
     return null;
   }
   // Both the live preview and Save build the panel the same way — when the
-  // basis is wider than [label, value] for a line chart (bdLineSeriesBasis
+  // basis is wider than [label, value] for a line-shaped chart (bdLineSeriesBasis
   // above), map every extra column as its own series instead of newPanel's
   // single-series default, so the two never drift on how a multi-series
-  // basis becomes a chart spec.
+  // basis becomes a chart spec. Stacked bars/area ride the same code path as
+  // Line — Studio.newPanel already treats them identically (see model.js).
   function bdPanelFor(type, da, basis) {
     var p = Studio.newPanel(type, da);
-    if (type === "line" && basis.head.length > 2) {
+    if (LINE_SHAPED_TYPES.indexOf(type) >= 0 && basis.head.length > 2) {
       p.chart.map.series = basis.head.slice(1).map(function (col) { return { col: col }; });
     }
     if ((type === "bars" || type === "donut") && basis.colorCol) {

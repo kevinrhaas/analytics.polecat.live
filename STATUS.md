@@ -116,6 +116,33 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **VB-4 slice 2 — Stacked bars + Stacked area join the View Builder (v746, sw v383,
+  2026-07-30, steward):** continuing Kevin's overnight queue ("all of the chart types
+  available for the view builder over time — be reasonable, hit major ones first") after
+  choropleth. Studio's own chart registry (`model.js` `Studio.CHARTS`/`Studio.newPanel`)
+  already treats `stacked` and `areaStacked` identically to `line` — same `fields:
+  ["labelCol", "series"]` binding and the same column-order defaults — so this slice widens
+  the View Builder's EXISTING Line multi-series engine (`bdLineSeriesBasis`, #117 slice 5)
+  onto two more chart-type buttons instead of writing new pivot logic: `CHART_TYPES` gains
+  `{t:"stacked", label:"Stacked bars"}` and `{t:"areaStacked", label:"Stacked area"}`
+  (icons free from `Studio.CHART_SVG.stacked`/`.areaStacked`, already registered); a new
+  `LINE_SHAPED_TYPES` list (`["line","stacked","areaStacked"]`) replaces the old
+  `type === "line"` checks in both `chartBasis` (try the multi-series widening first, same
+  [dim, measure] fallback bars/donut/line already use) and `bdPanelFor` (map every extra
+  basis column onto `chart.map.series`), so the three types can never drift on how a basis
+  becomes a chart spec. No changes needed to `chartUnavailable` (its generic "needs a plain
+  field on a shelf" fallback already covers them) or to Studio's renderer (stacked bars/area
+  already draw from `chart.map.series` — same as Line). Docs (docs/index.html) + changelog
+  updated; 5 new regression tests (single-series fallback for both types; Rows×Columns
+  crosstab widens both to match the full pivot minus Total, mirroring the #117 slice 5 Line
+  test; both chart-strip buttons enabled/selectable and each renders its real, correctly-typed
+  panel through buildHtml; the rendered Stacked-bars panel carries ≥2 series; saving stamps
+  chartType + `chart.map.series` on the analyses row). **Remaining VB-4 majors (NEXT): KPI,
+  scatter** — KPI is structurally different (lives in `spec.kpis`, not `spec.panels`, so it
+  needs its own render path rather than reuse of `chartBasis`/`bdPanelFor`/
+  `renderChartPreview`) and scatter needs a genuinely different x/y-pair basis (not a
+  dim+measure rollup) — both larger, separate slices. Files: app/build.js, docs/index.html,
+  sw.js, js/changelog.js, tests/run.js.
 - **VB-4 slice 1 — choropleth joins the View Builder as "Map" (v745, sw v382, 2026-07-30,
   steward):** fourth slice of Kevin's overnight View Builder queue ("all of the chart types
   available for the view builder over time — be reasonable, hit major ones first"), choropleth
@@ -7048,7 +7075,12 @@
 >       engineering. "All of the chart types available for the view builder over time — be
 >       reasonable, hit major ones first."
 >       ✓ **Slice 1 shipped (2026-07-30, v745, steward): choropleth ("Map").** See DONE for the
->       full writeup. **Remaining VB-4 majors (NEXT): KPI, area, scatter, stacked bars.**
+>       full writeup.
+>       ✓ **Slice 2 shipped (2026-07-30, v746, steward): Stacked bars + Stacked area,** riding
+>       the exact multi-series engine Line already uses (Studio's own chart registry already
+>       treats them identically to line). See DONE for the full writeup. **Remaining VB-4
+>       majors (NEXT): KPI, scatter** — both structurally bigger (KPI lives in `spec.kpis`, not
+>       `spec.panels`; scatter needs an x/y-pair basis, not a dim+measure rollup).
 > VB-5. **Cross-editor View opening (Kevin live, 2026-07-30).** Any View should open in EITHER
 >       builder — Quick Views or the View Builder — including Views saved from the dashboard
 >       editor. Incompatible content (a chart type the target editor lacks, etc.) still OPENS:
