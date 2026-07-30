@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 752,
+    title: 'Help readability, part two: every remaining wall of text',
+    kind: 'polish',
+    ts: '2026-07-30T12:07:54.000Z',
+    items: [
+      'The full guide is now scannable — all remaining long paragraphs (welcome flow, workbooks & folders, Home, the viewer, Quick Views, sharing, version history, filters, template variables & date tokens, freshness badges, every connector page, and the whole Admin section) restructured into headings, bullets, and numbered steps.',
+      'No paragraph in Help runs longer than a few sentences anymore.',
+    ],
+  },
+  {
     v: 751,
     title: 'Help gets a readability overhaul',
     kind: 'polish',

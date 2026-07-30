@@ -271,16 +271,19 @@
   no hand-coding required. Open a browser, choose a data source,
   drop it onto the canvas, and export a production-ready file in minutes.</p>
 
-  <p>The first time you sign in, a welcome screen greets you (by name, if you're signed in as a
-  real user) and offers a choice: <strong>Take a quick tour</strong> (a short step-by-step
-  carousel) or <strong>Take the guided tour</strong> (a spotlighted walkthrough of the real app),
-  plus three quick-action shortcuts — <strong>Explore data</strong>, <strong>Build a dashboard</strong>,
-  <strong>Bring your data</strong> — that jump straight to that section if you'd rather skip the
-  tour entirely. The quick tour is <strong>pack-aware</strong>: if your workspace was set up with a
-  sample pack (for example the Conservation Insight pack), the carousel adds a step introducing that
-  pack by name — the curated dashboards and datasets it brings and where to find them — so a
-  provisioned user sees their curated content in the welcome flow. It only shows itself once; revisit
-  it anytime from <strong>Settings → Tour</strong> or the ⋯ menu's <strong>Tour</strong> item.</p>
+  <h3>Your first sign-in</h3>
+  <p>A welcome screen greets you (by name, when you're signed in as a real user) and offers:</p>
+  <ul>
+    <li><strong>Take a quick tour</strong> — a short step-by-step carousel. It's
+      <strong>pack-aware</strong>: a workspace set up with a sample pack (say, Conservation
+      Insight) gets an extra step introducing that pack by name — what it brings and where to
+      find it.</li>
+    <li><strong>Take the guided tour</strong> — a spotlighted walkthrough of the real app.</li>
+    <li>Three quick-action shortcuts — <strong>Explore data</strong>, <strong>Build a
+      dashboard</strong>, <strong>Bring your data</strong> — to skip the tour entirely.</li>
+  </ul>
+  <p>It shows only once; revisit it anytime from <strong>Settings → Tour</strong> or the ⋯ menu's
+  <strong>Tour</strong> item.</p>
 
   <h3>The left rail — three groups</h3>
   <!-- IMAGE-SLOT: annotated screenshot of the left rail with the three group labels
@@ -368,41 +371,44 @@
   without leaving the page.</p>
 
   <p><strong>Export/Import repository:</strong> tucked behind the Dashboards page's <strong>More</strong>
-  (⋯) menu, "Export dashboards…" opens
-  a picker so you can choose <em>which</em> dashboards to export (it defaults to all selected — use
-  Select all / Clear to narrow it). The download is a single JSON file with the chosen dashboards plus
-  the data sources <em>you authored</em> that they use (via ＋ New source — the bundled catalog ships
-  with the app, so it's not duplicated into the export) and the relevant pins + workbooks; export
-  everything and you get your whole local inventory, exactly as before. "Import repository…" merges a previously exported file back
-  in — it's additive, so importing never deletes anything already here; a data source with the same id
-  is overwritten by the imported version, and dashboards merge by id (keeping the newer of any
-  duplicate). Handy for moving your work to another browser/device, or as a manual backup.</p>
+  (⋯) menu — handy for moving work to another browser/device, or as a manual backup:</p>
+  <ul>
+    <li><strong>"Export dashboards…"</strong> opens a picker to choose <em>which</em> dashboards to
+      export (defaults to all — Select all / Clear to narrow). The download is one JSON file with
+      the chosen dashboards, the data sources <em>you authored</em> that they use (the bundled
+      catalog ships with the app, so it isn't duplicated), and the relevant pins + workbooks.</li>
+    <li><strong>"Import repository…"</strong> merges an exported file back in —
+      <em>additive</em>, never deleting anything already here. A data source with the same id is
+      overwritten by the imported version; dashboards merge by id, keeping the newer duplicate.</li>
+  </ul>
 
-  <p><strong>Workbooks:</strong> file your dashboards into named collections on the Repository page —
-  type a name next to "+ Workbook" to create one, then click the chip strip above the Dashboards grid
-  to filter to just that workbook (or "Unfiled" for anything not yet organized). Each dashboard card
-  gets its own "Workbook" dropdown to assign or move it. Hover a workbook's chip for a ✎ rename button
-  (swaps the name into an editable field — Enter saves, Escape cancels) alongside the ✕ delete. Deleting
-  a workbook never deletes the dashboards inside it — they just become unfiled again. Once you have at
-  least one workbook, the same filter chip strip (without the add/rename/delete controls) also appears
-  on the Home page above Pinned/Recent dashboards, for a quick glance without visiting Repository. If
-  any installed sample pack has contributed dashboards, a <strong>"Sample packs"</strong> chip joins the
-  strip too, filtering to just those — Home's <strong>"Sample dashboards"</strong> card (and its "+N more" tile) jumps straight here
-  with that chip pre-selected.</p>
+  <h4>Workbooks</h4>
+  <p>File dashboards into named collections on the Repository page:</p>
+  <ul>
+    <li>Type a name next to <strong>"+ Workbook"</strong> to create one; the chip strip above the
+      Dashboards grid then filters to that workbook (or "Unfiled").</li>
+    <li>Each dashboard card gets a <strong>Workbook</strong> dropdown to assign or move it.</li>
+    <li>Hover a workbook chip for ✎ rename (Enter saves, Escape cancels) and ✕ delete — deleting a
+      workbook never deletes the dashboards inside; they just become unfiled.</li>
+    <li>Once one workbook exists, the same chip strip appears on Home above Pinned/Recent. If an
+      installed sample pack contributed dashboards, a <strong>"Sample packs"</strong> chip joins the
+      strip — Home's <strong>"Sample dashboards"</strong> card jumps here with it pre-selected.</li>
+  </ul>
 
-  <p><strong>Folders (alongside workbooks):</strong> dashboards also file into <strong>folders</strong> —
-  the same nested "/"-path folders your datasets, connections and jobs use (e.g. "Finance/2026"). Once at
-  least one dashboard is filed, a second <strong>"Folders"</strong> chip strip appears on the Dashboards
-  page; it composes with the workbook chips, so you can narrow by workbook and folder together. In list
-  view each row shows its folder as a badge and a small folder button opens the folder picker to move it
-  (browse existing folders, search, or create a new nested one). In <strong>tile view</strong> each
-  dashboard card carries the same folder chip — it reads the folder name, or "Add to folder" when the
-  dashboard isn't filed yet, and clicking it opens the same picker — so you can organize whichever view
-  you prefer. Folders and workbooks are independent —
-  a dashboard can live in both — so folders give you the same organize-at-scale navigation as the rest of
-  the workspace while workbooks stay as a lighter cross-cutting grouping. <strong>Workbooks themselves can
-  also go into a folder</strong>: hover a workbook's chip and use the folder button (next to rename/delete)
-  to file the whole workbook under a folder — handy once you have a lot of them.</p>
+  <h4>Folders (alongside workbooks)</h4>
+  <p>Dashboards also file into <strong>folders</strong> — the same nested "/"-path folders your
+  datasets, connections, and jobs use (e.g. "Finance/2026"):</p>
+  <ul>
+    <li>Once one dashboard is filed, a <strong>"Folders"</strong> chip strip appears on the
+      Dashboards page — it composes with the workbook chips, so you can narrow by both.</li>
+    <li>List rows show a folder badge and a folder button opening the picker (browse, search, or
+      create a nested folder); tile cards carry the same chip — it reads the folder name, or "Add
+      to folder" when unfiled.</li>
+    <li>Folders and workbooks are independent — a dashboard can live in both. Folders are the
+      organize-at-scale navigation; workbooks stay a lighter cross-cutting grouping.</li>
+    <li><strong>Workbooks can go into folders too</strong> — hover a workbook chip and use its
+      folder button to file the whole workbook.</li>
+  </ul>
 
   <p><strong>Select multiple / bulk delete:</strong> click <strong>Select</strong> on the Dashboards page
   to enter multi-select mode — a checkbox appears on every tile/row, and tapping anywhere on a card or
@@ -468,35 +474,38 @@
 <!-- ── The builder ────────────────────────────────────────────── -->
 <section id="builder">
   <h2>Home — instant analytics</h2>
-  <p><strong>Home</strong> greets you with your content, live. Click the small house button on any
-  dashboard card (Home or the Dashboards section) to <strong>feature</strong> it: featured
-  dashboards render on Home as real, scaled-down live previews — the actual dashboard engine in a
-  view-only frame, not a static thumbnail — and one click opens them in the Studio. The
-  most-recently-featured dashboard gets top billing as a full-width <strong>hero</strong> card;
-  the rest sit in a grid below it. Analyses
-  pinned in Explore (★) render the same way as live chart Views that open back in Explore.
-  Datasets and connections you've pinned to the top of their own catalogs (the same ★ toggle on
-  each row) show up too, as compact cards under <strong>Favorite datasets &amp; connections</strong>
-  — click one to jump straight into its editor. The frames follow your light/dark theme and
-  hydrate lazily, so offscreen cards cost nothing.
-  In <strong>Simple mode</strong> the app boots to Home whenever you have featured content, and to
-  Explore when you don't; your own last-used section always wins. The Featured, Pinned analyses,
-  Favorites, Examples and Dashboards sections each carry a small ▲▼ control in their heading —
-  reorder them to put what matters most to you at the top; the order is saved and sticks between
-  visits.</p>
-  <p>Every dashboard card or row (on Home or in the Dashboards section) also carries a small eye
-  icon, <strong>Open in viewer</strong> — it opens the dashboard read-only, full-page, in a new tab:
-  the same live, interactive renderer (filters, cross-filter, provider toggles all work), with none
-  of the builder chrome and no way to change the original. Handy for sharing a link to someone who
-  should read a dashboard, not edit it. A private dashboard's viewer link only works for its owner
-  (or an admin) — same rule as everywhere else it's private. A <strong>viewer</strong> account
-  clicking a dashboard card or row lands here directly (Studio isn't open to them at all — see
-  above); the viewer page's top bar offers <strong>Save a copy</strong> to everyone, viewers
-  included — it forks the dashboard's saved configuration into a brand-new dashboard you own,
-  without touching the original, so you can make it your own starting point. A
-  <strong>developer</strong> or <strong>admin</strong> viewing the same page additionally gets an
-  <strong>Edit in Studio</strong> button that jumps straight into the builder, editing that exact
-  dashboard.</p>
+  <p><strong>Home</strong> greets you with your content, live:</p>
+  <ul>
+    <li><strong>Featured dashboards</strong> — click the small house button on any dashboard card
+      to feature it. Featured dashboards render on Home as real, scaled-down live previews (the
+      actual dashboard engine in a view-only frame, not a static thumbnail); one click opens them
+      in the builder. The most-recently-featured one gets top billing as a full-width
+      <strong>hero</strong> card.</li>
+    <li><strong>Pinned Views</strong> (★ in Quick Views) render the same way — live charts that
+      open back into their builder.</li>
+    <li><strong>Favorite datasets &amp; connections</strong> (the ★ toggle on their catalog rows)
+      show as compact cards — click one to jump into its editor.</li>
+    <li>Frames follow your light/dark theme and hydrate lazily, so offscreen cards cost
+      nothing.</li>
+    <li>Each Home section (Featured, Pinned, Favorites, Examples, Dashboards) has a ▲▼ control in
+      its heading — reorder them to taste; the order sticks between visits.</li>
+  </ul>
+  <p>In <strong>Simple mode</strong> the app boots to Home whenever you have featured content, and
+  to Quick Views when you don't; your own last-used section always wins.</p>
+  <h4>Open in viewer (the eye icon)</h4>
+  <p>Every dashboard card or row carries a small eye icon — it opens the dashboard read-only,
+  full-page, in a new tab: the same live, interactive renderer (filters, cross-filter, provider
+  toggles all work) with none of the builder chrome. Handy for sharing with someone who should
+  read a dashboard, not edit it.</p>
+  <ul>
+    <li>A private dashboard's viewer link only works for its owner (or an admin).</li>
+    <li>A <strong>viewer</strong>-role account clicking any dashboard lands here directly — the
+      builder isn't open to them at all.</li>
+    <li><strong>Save a copy</strong> (offered to everyone, viewers included) forks the dashboard
+      into a brand-new one you own, without touching the original.</li>
+    <li>A <strong>developer</strong> or <strong>admin</strong> also gets an <strong>Edit in
+      Studio</strong> button that jumps straight into the builder on that exact dashboard.</li>
+  </ul>
   <p>The viewer's top bar also has an <strong>Export</strong> button (available to everyone) with
   the same formats Studio offers: <strong>Dashboard (.html)</strong> — a self-contained file you can
   drop on any static host or open offline — <strong>PDF (print)</strong>, and the
@@ -505,17 +514,18 @@
   that source live, in the viewer and in the exported file alike.</p>
 
   <h2>Quick Views (Explore) — dataset-first analyses</h2>
-  <p><strong>Quick Views</strong> (left rail, Build group — the section previously named
-  Explore) is the fastest path from data to chart, built for
-  non-experts: pick a dataset on the left (your workspace datasets first, sample data below
-  them), see its rows as a table, choose a chart, and adjust the column mapping — the live
-  preview underneath is the <em>real</em> dashboard renderer, so what you see is exactly what a
-  dashboard will show. Give it a name and <strong>Save View</strong>. The dataset picker is a
-  real <strong>navigator</strong>, not a flat list: your datasets group into their folders (nested
-  via "/", the same folders you file them into everywhere else), sample data groups by set, and
-  every branch collapses or expands with a click — sample sets start collapsed once you have
-  datasets of your own. Typing in the search box flattens the tree to plain matching rows, so
-  finding something by name never depends on knowing where it's filed.</p>
+  <p><strong>Quick Views</strong> (left rail, Build group — the section previously named Explore)
+  is the fastest path from data to chart, built for non-experts:</p>
+  <ol>
+    <li>Pick a dataset on the left — your workspace datasets first, sample data below.</li>
+    <li>See its rows as a table, choose a chart, adjust the column mapping — the live preview is
+      the <em>real</em> dashboard renderer, so what you see is exactly what a dashboard shows.</li>
+    <li>Give it a name and <strong>Save View</strong>.</li>
+  </ol>
+  <p>The dataset picker is a real <strong>navigator</strong>, not a flat list: datasets group into
+  their folders (nested via "/"), sample data groups by set (collapsed once you have data of your
+  own), and every branch collapses with a click. Searching flattens the tree to plain matching
+  rows — finding something by name never depends on knowing where it's filed.</p>
   <ul>
     <li><strong>Analyses are reusable.</strong> Saved analyses appear in the left list here, in
     the Studio library under <strong>Views</strong> (click <em>+ Add to dashboard</em> or drag
@@ -576,15 +586,19 @@
   MEDIAN, or COUNT. With only dimension fields on the Columns shelf you get a plain selection of
   those columns; add a measure and the dimensions group it.</p>
   <p>Drop a field on the <strong>Rows</strong> shelf (or use a chip's ⇄ button) and the table
-  pivots into a <strong>crosstab</strong>: Rows fields run down the side, the first non-aggregated
-  Columns field spreads across the top, measures fill the cells, and a <strong>Total</strong>
-  column aggregates each row (COUNT of rows when no measure is picked). Workspace datasets run
-  live through their connection where possible; otherwise the result carries the same
-  <strong>sample rows</strong> badge used everywhere else so fabricated shape-preview data can
-  never be mistaken for yours. Once a field is on a shelf, its pill is <strong>draggable
-  too</strong> — drag it onto another shelf to move it there (Columns/Rows/Filters, converting
-  automatically: a measure dropped on Rows loses its aggregation, a field dropped on Filters
-  becomes a filter), or drop it on a sibling pill within the same shelf to reorder it there.</p>
+  pivots into a <strong>crosstab</strong>:</p>
+  <ul>
+    <li>Rows fields run down the side; the first non-aggregated Columns field spreads across the
+      top; measures fill the cells.</li>
+    <li>A <strong>Total</strong> column aggregates each row (COUNT of rows when no measure is
+      picked).</li>
+    <li>Workspace datasets run live through their connection where possible; otherwise the result
+      carries the same <strong>sample rows</strong> badge used everywhere else, so shape-preview
+      data can never be mistaken for yours.</li>
+    <li>Shelf pills are <strong>draggable</strong>: drag one onto another shelf to move it
+      (converting automatically — a measure dropped on Rows loses its aggregation, a field
+      dropped on Filters becomes a filter), or onto a sibling pill to reorder within a shelf.</li>
+  </ul>
   <p>The <strong>chart strip</strong> above the result switches how it draws: <strong>Table</strong>
   (the full pivot), <strong>Bars</strong>, <strong>Stacked bars</strong>, <strong>Line</strong>,
   <strong>Stacked area</strong>, <strong>Donut</strong>, <strong>Heatmap</strong>, <strong>Map</strong>,
@@ -782,9 +796,32 @@
 
   <p><strong>Card style:</strong> below Subtitle style, the <strong>Card style</strong> picker chooses the render mood for every chart card and KPI tile on the dashboard. <strong>Raised (default)</strong> keeps the standard shadow, glass-edge highlight, and hover lift. <strong>Flat / minimal</strong> strips all three for a quieter, editorial look — same data and layout, just a calmer surface treatment for a boardroom setting. <strong>Sketch / hand-drawn</strong> swaps the shadow for a dashed border and a wobbled, asymmetric radius for a whimsical, hand-drawn mood.</p>
 
-  <p><strong>Share this dashboard:</strong> further down the Dashboard inspector, <strong>Copy shareable link</strong> encodes the whole working dashboard (Views, KPIs, filters, style — everything) into a <code>#share=…</code> link with no file attachment and no server involved. Opening that link (in any browser, on any device) reopens the exact same dashboard directly in the Studio builder — handy for handing a work-in-progress to a teammate. This is different from the <strong>Shareable link</strong> section above it (only shown when the dashboard has filters), which copies a short <code>#filterId=value</code> hash meant for an <em>exported</em> Dashboard Framework file, not the builder itself. Once you've sent a full link once and keep editing, a second button — <strong>Share just my changes</strong> — appears: it copies a much shorter link carrying only what changed since your last full or update link. It only works for a recipient who already has this dashboard (from opening a previous link for it) — opening it without that base first shows a clear error instead of silently failing.</p>
+  <h3>Share this dashboard</h3>
+  <p><strong>Copy shareable link</strong> (in the Dashboard inspector) encodes the whole working
+  dashboard — Views, KPIs, filters, style — into a <code>#share=…</code> link, no file, no server.
+  Opening it in any browser reopens the exact dashboard in the builder — handy for handing a
+  work-in-progress to a teammate.</p>
+  <ul>
+    <li><strong>Share just my changes</strong> appears once you've sent a full link and keep
+      editing — a much shorter link carrying only what changed since. The recipient must already
+      have the dashboard from a previous link; without that base it shows a clear error.</li>
+    <li>Different from the <strong>Shareable link</strong> section above it (shown when the
+      dashboard has filters): that copies a short <code>#filterId=value</code> hash meant for an
+      <em>exported</em> file, not the builder.</li>
+  </ul>
 
-  <p><strong>Version history:</strong> right below Share this dashboard, every time you hit <strong>Save</strong> (the topbar's Save button or Ctrl/⌘+S — it saves to your Dashboards catalog) a timestamped checkpoint of the whole dashboard is kept here — up to the last 10 per dashboard. Click any entry to restore it: your current unsaved changes are replaced with that checkpoint (after a confirm), and the restore itself becomes a new checkpoint, so a restore can always be undone too. This is separate from in-session Undo/Redo (lost on reload) and from the single unsaved-draft autosave — it's a real "time travel" timeline, kept locally on this device only. Each entry also has a <strong>⇄ Compare to current</strong> button that opens a plain-English change list (title/style fields, and which Views/KPIs/filters were added, removed, or changed) between that checkpoint and the dashboard as it stands now — so you can see what a restore would actually undo before committing to it.</p>
+  <h3>Version history</h3>
+  <p>Every <strong>Save</strong> (topbar button or Ctrl/⌘+S) keeps a timestamped checkpoint of the
+  whole dashboard — up to the last 10 per dashboard, stored locally on this device:</p>
+  <ul>
+    <li><strong>Restore</strong> any entry (after a confirm) — the restore itself becomes a new
+      checkpoint, so restores can always be undone too.</li>
+    <li><strong>⇄ Compare to current</strong> opens a plain-English change list (title/style
+      fields, and which Views/KPIs/filters were added, removed, or changed) so you can see what a
+      restore would actually undo first.</li>
+    <li>Separate from in-session Undo/Redo (lost on reload) and the single unsaved-draft
+      autosave — this is a real time-travel timeline.</li>
+  </ul>
 
   <h3>Dashboard theme</h3>
   <!-- IMAGE-SLOT: the Dashboard theme picker open, with the same dashboard shown in
@@ -836,12 +873,23 @@
       any hand-edit is one restore from undone.</li>
   </ul>
 
-  <h3>Build progress</h3>
+  <h3>Build progress &amp; Checks</h3>
   <p>The top of the dashboard inspector shows a small ring + checklist tracking five
   well-rounded-dashboard milestones — a real title, a View, a KPI, a filter, and a touch of your
-  own style (accent color, series palette, or header logo). It's purely encouraging, not a
-  warning — an empty dashboard is perfectly valid — and collapses to a one-line "nice work" note
-  once every milestone is met. Distinct from the <strong>Checks</strong> section right below it, which only flags real problems (missing data bindings, an invalid file-name stem, etc) — including a note when a data access is declared but not actually used by any View or KPI, so leftover config from an earlier draft doesn't go unnoticed. All six direct-query connectors (DuckDB, SQLite, Snowflake, Databricks, BigQuery, Generic SQL/HTTP) now have a real live-query runtime once a dashboard is actually exported/deployed, so none of them trigger a Checks warning anymore. The first time a given dashboard reaches genuinely zero Checks issues, it gets a small one-time celebration (toast + spark burst) — the same delight moment a first export or an export milestone gets. Collapse the Checks section and its header shows a glanceable summary too — "all clear," or a count like "1 error, 2 warnings" — so you don't have to reopen it just to see whether anything needs attention.</p>
+  own style. It's purely encouraging (an empty dashboard is perfectly valid) and collapses to a
+  one-line "nice work" note once every milestone is met.</p>
+  <p>The <strong>Checks</strong> section right below it is different — it only flags real
+  problems:</p>
+  <ul>
+    <li>Missing data bindings, an invalid file-name stem, and similar genuine issues.</li>
+    <li>A data access declared but not used by any View or KPI — leftover config from an earlier
+      draft doesn't go unnoticed.</li>
+    <li>Collapsed, its header still shows a glanceable summary — "all clear," or "1 error, 2
+      warnings".</li>
+    <li>The first time a dashboard reaches zero Checks issues, a small one-time celebration plays
+      — the same delight moment a first export gets. (All six direct-query connectors have a real
+      live-query runtime after export, so none of them trigger a Checks warning.)</li>
+  </ul>
 
   <h3>Drag and drop</h3>
   <ul>
@@ -857,20 +905,81 @@
 
   <h3>Sample dashboards</h3>
   <p>The bundled sample dashboards — a curated, most-spectacular-first gallery spanning operations, engineering delivery, finance, marketing & growth, reliability, governance, compliance, quality, pipelines, storage, and cost, together covering all 51 chart types at least once — live in two places: <strong>Home's sample gallery</strong> (click a tile to open it in the builder) and the <strong>Dashboards</strong> section under the <strong>Sample packs</strong> chip. A great way to explore what's possible before building your own. (The old Studio "Examples ▾" toolbar menu is gone — same dashboards, better homes.)</p>
-  <p><strong>＋ Import from URL…</strong> in the Open-dashboard picker's footer loads a dashboard from any public link to a <code>.studio.json</code> file — a GitHub raw link, a gist, a static host. It's a plain client-side fetch (no backend, no account), so it's a simple way to share dashboards as a community template exchange: publish a <code>.studio.json</code> anywhere public, share the link, anyone can import it. The URL can also point to an <strong>index of several templates</strong> — a JSON array (or <code>{"templates":[...]}</code>) of <code>{title, url, description}</code> entries, the same shape as the built-in sample gallery's own index — in which case the modal shows a browsable list to pick one from instead of importing directly; a good fit for publishing a whole template pack from one link.</p>
+  <p><strong>＋ Import from URL…</strong> (in the Open-dashboard picker's footer) loads a dashboard
+  from any public link to a <code>.studio.json</code> file — a GitHub raw link, a gist, a static
+  host. A plain client-side fetch, no backend, no account:</p>
+  <ul>
+    <li>Publish a <code>.studio.json</code> anywhere public, share the link, anyone can import it —
+      a simple community template exchange.</li>
+    <li>The URL can also point to an <strong>index of templates</strong> — a JSON array (or
+      <code>{"templates":[...]}</code>) of <code>{title, url, description}</code> entries — and the
+      modal shows a browsable list to pick from. Good for publishing a whole template pack from
+      one link.</li>
+  </ul>
 
   <h3>Slideshow &amp; story mode</h3>
-  <p><strong>⋯ More → Present → Slideshow</strong> cycles through every View one at a time in a full-screen presentation view — great for a stakeholder walkthrough. Navigate with the ◀/▶ buttons or the arrow keys; <kbd>Escape</kbd> or × exits. Each slide re-renders through the exact same export pipeline as a real Dashboard Framework file, so quality is identical to what you'd ship. Its neighbor in that same switcher, <strong>Focus mode</strong>, instead collapses the builder panes so the live preview fills the screen — no slide-by-slide cycling, just a distraction-free canvas; <kbd>Escape</kbd> or the exit pill leaves either mode the same way.</p>
-  <p>Give any View a <strong>Slide caption</strong> (in the View inspector, below Note) to add narration that appears <em>only</em> in Slideshow — a caption bar beneath the chart carries one beat of the story per slide (e.g. "Revenue held steady, but churn ticked up in March"). This is separate from the always-visible <strong>Note</strong> field: Note is stakeholder context shown everywhere (preview, export, slideshow); Slide caption is presentation-only narration for walking someone through the dashboard live. Views without a caption simply show no caption bar.</p>
+  <p><strong>⋯ More → Present → Slideshow</strong> cycles through every View one at a time,
+  full-screen — great for a stakeholder walkthrough:</p>
+  <ul>
+    <li>Navigate with ◀/▶ or the arrow keys; <kbd>Escape</kbd> or × exits.</li>
+    <li>Each slide renders through the exact export pipeline — quality identical to what you'd
+      ship.</li>
+    <li>Its neighbor <strong>Focus mode</strong> collapses the builder panes so the live preview
+      fills the screen — no cycling, just a distraction-free canvas; exit the same way.</li>
+  </ul>
+  <p><strong>Slide caption</strong> (View inspector, below Note) adds narration that appears
+  <em>only</em> in Slideshow — one beat of the story per slide (e.g. "Revenue held steady, but
+  churn ticked up in March"). Distinct from <strong>Note</strong>, which is stakeholder context
+  shown everywhere; Views without a caption simply show no caption bar.</p>
   <p>Turn on <strong>Slide emphasis</strong> (right below Slide caption) to have that View's slide play a brief zoom + glow entrance the moment it appears — a light touch of choreography that draws the eye to the beat that matters most, replaying each time you return to that slide. Once it's on, <strong>Pan X / Pan Y</strong> sliders appear too — drag them off-center to anchor the zoom toward a specific spot in the chart (a spike near the edge, say) instead of dead center.</p>
 
   <h3 id="dashboard-filters">Dashboard filters</h3>
-  <p>The <strong>Filters</strong> section of the Dashboard inspector (◈ <strong>+</strong>) adds a dropdown filter chip to the top of the dashboard, above the Views. Click <strong>+</strong> to add one, then click the chip itself in the live preview (or its row in the Filters list) to open the <strong>Filter</strong> inspector: <strong>Label</strong> is the chip's on-screen name; <strong>Parameter id</strong> is the <code>{{param}}</code> key any dataset/query can reference to react to the current pick; <strong>Options query</strong> picks which data access supplies the dropdown's choices, with <strong>Value column</strong> / <strong>Text column</strong> choosing what's stored vs. displayed per option; <strong>'All' label</strong> and <strong>Default value</strong> set the always-present "everything" choice. An <strong>Options preview</strong> shows the live choice list right in the inspector.</p>
+  <p>The <strong>Filters</strong> section of the Dashboard inspector (◈ <strong>+</strong>) adds a
+  dropdown filter chip above the Views. Click <strong>+</strong> to add one, then click the chip in
+  the live preview (or its row in the list) to open the <strong>Filter</strong> inspector:</p>
+  <ul>
+    <li><strong>Label</strong> — the chip's on-screen name.</li>
+    <li><strong>Parameter id</strong> — the <code>{{param}}</code> key any dataset/query references
+      to react to the current pick.</li>
+    <li><strong>Options query</strong> — which data access supplies the dropdown's choices, with
+      <strong>Value column</strong> / <strong>Text column</strong> picking what's stored vs.
+      displayed.</li>
+    <li><strong>'All' label</strong> and <strong>Default value</strong> — the always-present
+      "everything" choice.</li>
+    <li>An <strong>Options preview</strong> shows the live choice list right in the inspector.</li>
+  </ul>
   <p><strong>Cascading filters:</strong> if a filter's Options query is itself a parameterized data access (it takes its own <code>${param}</code>), its choices refresh automatically from whichever upstream filter supplies that parameter — e.g. a Region filter narrows a State filter's options to just that region's states. The Filter inspector notes when a filter is wired this way.</p>
 
   <h3>Template variables</h3>
-  <p>Write <code>{{key}}</code> anywhere in the dashboard's <strong>Title</strong> or <strong>Subtitle</strong>, or in any View's <strong>Title</strong> or <strong>Note</strong>, then define matching entries in the Dashboard inspector's <strong>Template variables</strong> section (below Subtitle style) — each is substituted with its saved value in the live preview and every export. A <code>{{key}}</code> with no matching variable is left as literal text, so a typo is obvious rather than silently blank. Handy for turning one spec into a reusable template — e.g. a title of <code>{{region}} — Weekly Ops Review</code> filled in differently per deployment instead of hand-editing the title text each time. Use <strong>Save current as…</strong> to name the current set of variables, then <strong>Apply</strong> that same saved set on any other dashboard built from the same template.</p>
-  <p>A handful of <strong>built-in dynamic tokens</strong> need no variable at all — write them straight into a dataset's SQL/query (or a title) and they resolve <em>fresh every time the query runs</em>, so relative-date filters stay current without editing anything: <code>{{today}}</code>, <code>{{yesterday}}</code>, <code>{{tomorrow}}</code>, <code>{{today-30}}</code> / <code>{{today+7}}</code> (any N-day offset), <code>{{week_start}}</code>, <code>{{week_end}}</code> (Monday-start week), <code>{{month_start}}</code>, <code>{{month_end}}</code>, <code>{{quarter_start}}</code>, <code>{{quarter_end}}</code> (calendar Q1–Q4), <code>{{year_start}}</code> and <code>{{year_end}}</code> all render as an ISO date (<code>YYYY-MM-DD</code>), while <code>{{now}}</code> renders a full ISO timestamp for datetime comparisons. So <code>WHERE order_date &gt;= '{{today-30}}'</code> is always "the last 30 days." In the dataset builder, the <strong>Date token</strong> button on the query field drops any of these in at your cursor so you don't have to remember the names. Define a real parameter or template variable of the same name to override a built-in.</p>
+  <p>Write <code>{{key}}</code> anywhere in the dashboard's <strong>Title</strong>/<strong>Subtitle</strong>
+  or a View's <strong>Title</strong>/<strong>Note</strong>, then define matching entries in the
+  Dashboard inspector's <strong>Template variables</strong> section — each substitutes its saved
+  value in the live preview and every export.</p>
+  <ul>
+    <li>A <code>{{key}}</code> with no matching variable stays literal text — a typo is obvious,
+      never silently blank.</li>
+    <li>Turn one spec into a reusable template: <code>{{region}} — Weekly Ops Review</code> filled
+      in per deployment instead of hand-editing.</li>
+    <li><strong>Save current as…</strong> names the current variable set; <strong>Apply</strong>
+      reuses it on any dashboard built from the same template.</li>
+  </ul>
+  <h4>Built-in dynamic tokens</h4>
+  <p>These need no variable — write them into a dataset's SQL/query (or a title) and they resolve
+  <em>fresh on every run</em>, so relative-date filters stay current on their own:</p>
+  <ul>
+    <li><strong>Days</strong> — <code>{{today}}</code>, <code>{{yesterday}}</code>,
+      <code>{{tomorrow}}</code>, and any offset like <code>{{today-30}}</code> /
+      <code>{{today+7}}</code>.</li>
+    <li><strong>Periods</strong> — <code>{{week_start}}</code>/<code>{{week_end}}</code>
+      (Monday-start), <code>{{month_start}}</code>/<code>{{month_end}}</code>,
+      <code>{{quarter_start}}</code>/<code>{{quarter_end}}</code> (calendar Q1–Q4),
+      <code>{{year_start}}</code>/<code>{{year_end}}</code>.</li>
+    <li>All render as ISO dates (<code>YYYY-MM-DD</code>); <code>{{now}}</code> renders a full ISO
+      timestamp for datetime comparisons.</li>
+  </ul>
+  <p>So <code>WHERE order_date &gt;= '{{today-30}}'</code> is always "the last 30 days." The
+  <strong>Date token</strong> button on the dataset builder's query field drops any of these at
+  your cursor; defining a real parameter or variable of the same name overrides a built-in.</p>
 </section>
 
 <!-- ── Ensembles & scientific honesty ────────────────────────────── -->
@@ -911,16 +1020,21 @@
   gaps.</p>
 
   <h3>Checking the honesty story: the ⓘ Sources popover</h3>
-  <p>Both charts have an <strong>ⓘ Sources</strong> button next to their legend that opens a popover
-  answering "how much of this can I trust?": on the map, what fraction of regions actually carry data
-  (and, when a provider column is mapped, each provider's own region count); on the Ensemble chart, how
-  many providers are currently selected, how many points have <em>every</em> selected provider reporting
-  (full coverage — a stricter, more honest signal than the agreement band alone), each provider's own point
-  count, and the reference series' point count with a reminder that it never joins the estimate. When the
-  chart's data comes from a saved workspace dataset, the popover also shows a <strong>Last updated</strong>
-  line — the dataset's own timestamp, which a re-run prep job bumps automatically, so a chart is honest about
-  its own freshness and not just its providers. The popover
-  stays open while you read it (unlike a hover tooltip) and works identically in an exported dashboard.</p>
+  <p>Both charts have an <strong>ⓘ Sources</strong> button next to their legend — a popover
+  answering "how much of this can I trust?":</p>
+  <ul>
+    <li><strong>On the map</strong> — what fraction of regions actually carry data (and, with a
+      provider column mapped, each provider's own region count).</li>
+    <li><strong>On the Ensemble chart</strong> — how many providers are selected, how many points
+      have <em>every</em> selected provider reporting (full coverage — stricter and more honest
+      than the agreement band alone), each provider's point count, and the reference series' count
+      with a reminder that it never joins the estimate.</li>
+    <li><strong>Last updated</strong> — when the data comes from a saved workspace dataset, the
+      dataset's own timestamp (bumped automatically by a re-run prep job), so a chart is honest
+      about its freshness, not just its providers.</li>
+  </ul>
+  <p>The popover stays open while you read it (unlike a hover tooltip) and works identically in an
+  exported dashboard.</p>
 
   <h3>Handing off the underlying numbers</h3>
   <p>Both charts' <strong>Download data</strong> button (the same on-canvas control every View has —
@@ -1126,7 +1240,18 @@
     <li>Write a <strong>Query</strong>, then click <strong>Test connection &amp; detect columns</strong> — it sends <code>SELECT 1</code> and detects output columns from the live response. The Data preview's <strong>Run live</strong> button queries the endpoint the same way.</li>
     <li>The response can be shaped three ways: an array of row objects (<code>[{"col":1,...}]</code>), the same nested under <code>{"data":[...]}</code>, or an already column/row-shaped <code>{"columns":[...],"rows":[[...]]}</code>.</li>
   </ul>
-  <p><strong>Live after export, credentials prompted at open:</strong> like DuckDB/SQLite, all four credential-based connectors above (Snowflake, Databricks, BigQuery, Generic SQL/HTTP) now query live once a Dashboard Framework <code>.html</code> is downloaded/deployed too — but unlike the file connectors, they need a real secret (an access token or auth header), and that secret is <strong>never baked into the exported file</strong>. Export strips it out of the DA before the file is written; the first time an exported dashboard actually needs to run one of these queries, it prompts once for just that value (a plain browser prompt naming the connector and the data access) and keeps it in memory only for the rest of that page load — never written to disk, localStorage, or the file itself. Every other field (account, host, project, warehouse, etc.) still travels with the export as before, since none of those are secrets on their own.</p>
+  <h4>Live after export, credentials prompted at open</h4>
+  <p>Like DuckDB/SQLite, the four credential-based connectors above (Snowflake, Databricks,
+  BigQuery, Generic SQL/HTTP) query live from an exported/deployed <code>.html</code> too — but
+  their secret is <strong>never baked into the exported file</strong>:</p>
+  <ul>
+    <li>Export strips the secret out of the data access before the file is written.</li>
+    <li>The first time the exported dashboard actually needs to query, it prompts once (a plain
+      browser prompt naming the connector and data access) and keeps the value in memory only for
+      that page load — never disk, localStorage, or the file.</li>
+    <li>Every non-secret field (account, host, project, warehouse…) still travels with the
+      export.</li>
+  </ul>
 
   <h3>Workspace connections: PostgreSQL (PostgREST)</h3>
   <p>The <strong>Connections</strong> section manages saved, credentialed connections that workspace
@@ -1148,46 +1273,97 @@
   (<code>select=region,total&amp;order=total.desc&amp;limit=200</code>) — with
   <code>{{parameters}}</code> allowed in both, so template variables flow into filters like
   <code>region=eq.{{region}}</code> at run time.</p>
-  <p><strong>Connection-bound datasets — Turso, PostgreSQL (PostgREST), Supabase, Google Sheets, local files and Amazon Redshift:</strong> a dataset built on a saved <strong>Connection</strong> (rather than one of the direct connectors above) is now live-after-export too, for all six connection-bound backends. Exporting resolves the dataset's connection at export time, carries its non-secret fields (e.g. the database URL, PostgREST's URL/schema, the sheet's URL, or Redshift's region/database/cluster/workgroup) into the file, and — same "prompted once, never embedded" contract as the direct connectors — strips the credential, prompting for it the first time the exported dashboard actually needs to query live (a PostgREST connection with no token set, i.e. anonymous access, and a link-shared Google Sheets connection with no OAuth token set, need no prompt at all — and neither does a dropped file, which has no credential in the first place). A dropped file needs no live query at all: its content already rides inside the export, exactly as it does in the builder. Redshift is the one exception to "one prompt": since AWS SigV4 signing needs an access key ID and secret access key (plus an optional session token for temporary credentials), the exported dashboard prompts once per credential field instead of once overall.</p>
+  <h4>Connection-bound datasets are live-after-export too</h4>
+  <p>A dataset built on a saved <strong>Connection</strong> (Turso, PostgreSQL/PostgREST, Supabase,
+  Google Sheets, local files, Amazon Redshift) follows the same contract:</p>
+  <ul>
+    <li>Export resolves the connection at export time and carries its non-secret fields (database
+      URL, PostgREST URL/schema, sheet URL, Redshift region/cluster/workgroup) into the file.</li>
+    <li>The credential is stripped — prompted once the first time the exported dashboard actually
+      queries live, never embedded.</li>
+    <li>No prompt at all for anonymous access: a PostgREST connection with no token, a link-shared
+      Sheet with no OAuth token, or a dropped file (its content already rides inside the
+      export).</li>
+    <li>Redshift is the one exception to "one prompt" — SigV4 signing needs the access key ID +
+      secret (and optional session token), so it prompts once per credential field.</li>
+  </ul>
 
   <h3>Workspace connections: Amazon Redshift</h3>
-  <p>The <strong>Amazon Redshift</strong> adapter queries a provisioned cluster or a Serverless workgroup directly from the browser via the <a href="https://docs.aws.amazon.com/redshift-data/latest/APIReference/Welcome.html" target="_blank" rel="noopener noreferrer">Redshift Data API</a> — no backend or proxy. Unlike the warehouse connectors above (Snowflake/Databricks/BigQuery), Redshift's API has no bearer-token mode: every request is individually signed with an <strong>AWS Signature Version 4</strong> — set an <strong>Access key ID</strong>, <strong>Secret access key</strong> and, for temporary/STS credentials, a <strong>Session token</strong>. Set the <strong>AWS region</strong> and <strong>Database</strong>, then target either a provisioned cluster (<strong>Cluster identifier</strong> + <strong>Database user</strong>, using temporary credentials — no stored DB password) or a Serverless workgroup (<strong>Workgroup name</strong> alone); an optional <strong>Custom endpoint</strong> supports a VPC PrivateLink deployment. Statement execution is asynchronous (fire, then poll) the same way Databricks' Statement Execution API works — Studio handles the polling and result pagination automatically.</p>
+  <p>The <strong>Amazon Redshift</strong> adapter queries a provisioned cluster or a Serverless
+  workgroup directly from the browser via the
+  <a href="https://docs.aws.amazon.com/redshift-data/latest/APIReference/Welcome.html" target="_blank" rel="noopener noreferrer">Redshift Data API</a>
+  — no backend or proxy:</p>
+  <ul>
+    <li><strong>Credentials</strong> — Redshift's API has no bearer-token mode; every request is
+      signed with AWS Signature Version 4. Set an <strong>Access key ID</strong>, <strong>Secret
+      access key</strong>, and (for temporary/STS credentials) a <strong>Session token</strong>.</li>
+    <li><strong>Target</strong> — set the <strong>AWS region</strong> and <strong>Database</strong>,
+      then either a provisioned cluster (<strong>Cluster identifier</strong> + <strong>Database
+      user</strong>, using temporary credentials — no stored DB password) or a Serverless
+      workgroup (<strong>Workgroup name</strong> alone). An optional <strong>Custom
+      endpoint</strong> supports VPC PrivateLink.</li>
+    <li><strong>Execution</strong> is asynchronous (fire, then poll), like Databricks' Statement
+      Execution API — polling and result pagination are handled for you.</li>
+  </ul>
 
   <h3>Browse a connection's schema</h3>
-  <p>For Snowflake, Databricks, BigQuery, Amazon Redshift, PostgreSQL (PostgREST), DuckDB and SQLite connections, the Connections editor gains a <strong>Browse schema</strong> button next to Test connection — click it (after filling in credentials) to list every table the connection can see, each expandable to show its columns and types. A filter box narrows a long table list by name. This reads live metadata only — an <code>information_schema.columns</code> query for the SQL warehouses (BigQuery's own <code>INFORMATION_SCHEMA.COLUMNS</code> queries unqualified when the connection has a default dataset set, or a project-and-region-qualified view across every dataset in that region otherwise), PostgREST's own OpenAPI document (the same one <strong>Test connection</strong> already checks for), a <code>DESCRIBE</code> of the registered file for DuckDB (a connection is always exactly one file, so the "tree" is a single table named after it), or <code>sqlite_master</code> + <code>PRAGMA table_info</code> per table for SQLite — it never changes anything. Generic SQL/HTTP doesn't show the button: it's an arbitrary JSON API with no reliable dialect or catalog to introspect.</p>
+  <p>For Snowflake, Databricks, BigQuery, Amazon Redshift, PostgreSQL (PostgREST), DuckDB and
+  SQLite connections, the Connections editor has a <strong>Browse schema</strong> button next to
+  Test connection: fill in credentials, click it, and every table the connection can see lists out,
+  each expandable to its columns and types (a filter box narrows long lists by name).</p>
+  <ul>
+    <li><strong>Read-only</strong> — it reads live metadata and never changes anything: an
+      <code>information_schema.columns</code> query for the SQL warehouses (BigQuery qualifies by
+      project and region when no default dataset is set), PostgREST's own OpenAPI document, a
+      <code>DESCRIBE</code> of the registered file for DuckDB, or <code>sqlite_master</code> +
+      <code>PRAGMA table_info</code> for SQLite.</li>
+    <li><strong>Generic SQL/HTTP doesn't show the button</strong> — it's an arbitrary JSON API
+      with no reliable catalog to introspect.</li>
+  </ul>
   <p>The same panel is one click away while <strong>building a dataset</strong>, not just when editing the connection: the Dataset editor's "Browse schema" button (shown for the same set of connections, once one is picked) opens the identical table/column tree — but here every table and column is clickable. Picking a table fills the <strong>Table</strong> field on a PostgreSQL/PostgREST-shaped dataset; picking a table or column drops its name straight into the <strong>SQL</strong> query at the cursor for every other kind. No more copying names back and forth from a separate tab.</p>
   <p>Studio's own <strong>New data source</strong> builder (the query editor behind ＋ New → Dashboard query) has the same button under its Query field for the credentialed kinds — Snowflake, Databricks, BigQuery, DuckDB (remote file) and SQLite (remote .sqlite). Fill in the credentials (or the file URL), click <strong>Browse schema</strong>, and click any table or column to insert its name into the SQL at the cursor. The built-in sample-engine SQL kind and the Generic SQL/HTTP kind have no catalog to introspect, so they don't show the button.</p>
   <p>The same builder also runs a <strong>live sanity check</strong> over the SQL as you type: an unclosed string literal or quoted identifier, unbalanced parentheses, a statement that doesn't start with SELECT/WITH, or a declared column chip the query never mentions each surface a small warning under the query field (and clear the moment you fix them). It's a lightweight shape check across all the supported engines, not a full SQL parser — the <strong>Preview</strong> and <strong>Test connection</strong> buttons remain the way to prove a query actually runs.</p>
 
   <h3>Workspace connections: Google Sheets</h3>
-  <p>The <strong>Google Sheets</strong> adapter charts a sheet shared as <em>"anyone with the link can view"</em> straight
-  from the browser — no OAuth, no API key. Paste the sheet's URL (or just its id) into the connection; datasets on it
-  pick an optional <strong>Tab</strong> (the first tab when blank) and an optional <strong>Query</strong> in
-  <a href="https://developers.google.com/chart/interactive/docs/querylanguage" target="_blank" rel="noopener noreferrer">Google's
-  query language</a> — columns are addressed as <code>A, B, C…</code>, e.g. <code>select A, sum(B) group by A</code> —
-  with <code>{{parameters}}</code> allowed, so dashboard template variables flow into clauses like
-  <code>where A = '{{region}}'</code> at run time. Header labels become column names, dates render in their formatted
-  form, and a private sheet gets a friendly "share the link" hint instead of a raw error.</p>
-  <p>For a <strong>private</strong> sheet, fill in the connection's optional <strong>OAuth access token</strong> field —
-  a short-lived Google OAuth 2.0 access token scoped to <code>spreadsheets.readonly</code> (e.g. from the
+  <p>The <strong>Google Sheets</strong> adapter charts a sheet shared as <em>"anyone with the link
+  can view"</em> straight from the browser — no OAuth, no API key:</p>
+  <ul>
+    <li>Paste the sheet's URL (or just its id) into the connection.</li>
+    <li>Datasets on it pick an optional <strong>Tab</strong> (first tab when blank) and an optional
+      <strong>Query</strong> in
+      <a href="https://developers.google.com/chart/interactive/docs/querylanguage" target="_blank" rel="noopener noreferrer">Google's query language</a>
+      — columns address as <code>A, B, C…</code> (e.g. <code>select A, sum(B) group by A</code>),
+      with <code>{{parameters}}</code> allowed so template variables flow into clauses like
+      <code>where A = '{{region}}'</code>.</li>
+    <li>Header labels become column names, dates render formatted, and a private sheet gets a
+      friendly "share the link" hint instead of a raw error.</li>
+  </ul>
+  <h4>Private sheets</h4>
+  <p>Fill in the optional <strong>OAuth access token</strong> field — a short-lived Google OAuth
+  2.0 token scoped to <code>spreadsheets.readonly</code> (e.g. from the
   <a href="https://developers.google.com/oauthplayground" target="_blank" rel="noopener noreferrer">OAuth Playground</a>),
-  the same "paste a token, never a key file" shape as the BigQuery connector. When a token is set, the connection
-  queries the <a href="https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/get" target="_blank"
-  rel="noopener noreferrer">Sheets API v4</a> instead of the public gviz endpoint: the chosen <strong>Tab</strong> reads
-  as a plain values range (header row → column names, the rest → data rows) — the gviz query language above doesn't
-  exist in v4, so a private-sheet dataset can't filter/sort server-side yet; leave the token blank to keep using tq
-  queries against a link-shared sheet. An expired or scope-mismatched token surfaces a clear message instead of a raw
-  401/403.</p>
+  the same "paste a token, never a key file" shape as BigQuery.</p>
+  <ul>
+    <li>With a token set, the connection uses the
+      <a href="https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/get" target="_blank" rel="noopener noreferrer">Sheets API v4</a>
+      — the Tab reads as a plain values range (header row → column names).</li>
+    <li>The gviz query language doesn't exist in v4, so a private-sheet dataset can't filter/sort
+      server-side yet — leave the token blank to keep querying a link-shared sheet.</li>
+    <li>An expired or scope-mismatched token surfaces a clear message, not a raw 401/403.</li>
+  </ul>
 
   <h3>Workspace connections: CSV / JSON files</h3>
-  <p>The <strong>CSV / JSON file</strong> adapter is the fastest way from a file on your disk to a chart: add a file
-  connection (nothing to configure), create a dataset on it, and <strong>drop a <code>.csv</code>, <code>.tsv</code> or
-  <code>.json</code> file</strong> onto the editor's drop zone (or click it to browse). The file's data is stored
-  <em>inside the dataset</em> — it works fully offline, needs no re-picking after a reload, and travels with your
-  workspace (including to a remote backend). CSVs handle quoted fields and sniff comma/semicolon/tab delimiters;
-  numeric cells become real numbers so charts can aggregate them; JSON expects an array of row objects. Files are
-  capped at ~2MB — bigger data belongs in the <strong>DuckDB (remote file)</strong> connector, which streams only the
-  bytes a query touches.</p>
+  <p>The <strong>CSV / JSON file</strong> adapter is the fastest way from a file on disk to a
+  chart: add a file connection (nothing to configure), create a dataset on it, and drop a
+  <code>.csv</code>, <code>.tsv</code>, or <code>.json</code> onto the editor's drop zone.</p>
+  <ul>
+    <li>The file's data is stored <em>inside the dataset</em> — fully offline, no re-picking after
+      a reload, and it travels with your workspace (including to a remote backend).</li>
+    <li>CSVs handle quoted fields and sniff comma/semicolon/tab delimiters; numeric cells become
+      real numbers so charts can aggregate; JSON expects an array of row objects.</li>
+    <li>Files cap at ~2&nbsp;MB — bigger data belongs in the <strong>DuckDB (remote file)</strong>
+      connector, which streams only the bytes a query touches.</li>
+  </ul>
 
   <h3>Calculated columns</h3>
   <p>Every data source has a <strong>Calculated columns</strong> section (Advanced mode): give a
@@ -1209,7 +1385,18 @@
   dashboards the same way.</p>
 
   <h3>Data source freshness</h3>
-  <p>Any data access with a <strong>Run live</strong> button (DuckDB, SQLite, Snowflake, Databricks, BigQuery, Generic SQL/HTTP, or a dataset bound to a workspace connection) shows a small <strong>"Last verified live …"</strong> / <strong>"Never verified live"</strong> badge next to it in the Data preview — stamped locally each time a live query actually succeeds, so a token that quietly expired or an endpoint that went dark doesn't get silently trusted just because it worked once. A successful <strong>Test connection &amp; detect columns</strong> counts too, for the six direct connectors above — you don't have to run a full live query just to refresh the badge. The same badge appears on that data source's card in <strong>Dashboards</strong> <em>and</em> the library pane's My Data Sources section — but only for the connector kinds above, which are always live-capable on their own; a plain sample-engine SQL data source stays badge-free instead of showing "Never verified live" everywhere.</p>
+  <p>Any live-capable data access (DuckDB, SQLite, Snowflake, Databricks, BigQuery, Generic
+  SQL/HTTP, or a dataset bound to a workspace connection) shows a <strong>"Last verified live
+  …"</strong> / <strong>"Never verified live"</strong> badge in the Data preview:</p>
+  <ul>
+    <li>Stamped locally each time a live query actually succeeds — an expired token or a dark
+      endpoint doesn't stay silently trusted just because it worked once.</li>
+    <li>A successful <strong>Test connection &amp; detect columns</strong> counts too — no full
+      query needed just to refresh the badge.</li>
+    <li>The same badge appears on the source's card in <strong>Dashboards</strong> and the
+      library's My Data Sources — only for live-capable kinds; a sample-engine SQL source stays
+      badge-free rather than showing "Never verified live" everywhere.</li>
+  </ul>
 
   <h3>Joins and compound DAs</h3>
   <p>Click <strong>⧈ Join</strong> in the library to create a <strong>Compound data access</strong> — either a join (left/right DA + key columns) or a union (stack rows from N DAs). The result is computed in the builder over the member DAs' rows.</p>
@@ -1218,7 +1405,20 @@
   <p>The <strong>Datasets</strong> catalog badges each row with <strong>"↪ N dashboards"</strong> when one or more saved dashboards reference it — hover the badge for the list of names. It's a blast-radius view: before deleting a dataset, you can see what depends on it. Deleting one that's in use warns you which dashboards reference it — they don't break, but they fall back to the self-contained copy of the query that was saved into them the last time they linked to it, rather than continuing to follow live edits to the dataset.</p>
 
   <h3>Filtering datasets and connections</h3>
-  <p>The <strong>Datasets</strong> list can be narrowed by four cross-cutting pill strips at once — by <strong>adapter</strong> (every Postgres/Snowflake/file/etc. connection grouped together), by one specific <strong>connection</strong> (e.g. just "Prod DB" out of several Postgres connections), by <strong>type</strong> (SQL query / Table / Collection / File / Sheet — what kind of definition the dataset holds), and by <strong>tag</strong> — plus the search box. Click a pill to toggle it on; multiple pills in the same strip are OR'd together, different strips are AND'd. The <strong>Connections</strong> list has the same by-adapter and by-tag pills (give a connection Tags — a comma-separated list, editable in its wizard — to slice a growing catalog by e.g. "prod" vs. "staging" without adding a new connection per environment). A "Clear" chip resets every filter at once.</p>
+  <p>The <strong>Datasets</strong> list narrows by four cross-cutting pill strips at once, plus the
+  search box:</p>
+  <ul>
+    <li><strong>Adapter</strong> — every Postgres/Snowflake/file/etc. connection grouped
+      together.</li>
+    <li><strong>Connection</strong> — one specific connection (just "Prod DB" out of several
+      Postgres ones).</li>
+    <li><strong>Type</strong> — SQL query / Table / Collection / File / Sheet.</li>
+    <li><strong>Tag</strong> — free-form labels on the dataset.</li>
+  </ul>
+  <p>Pills in the same strip are OR'd; different strips are AND'd; a "Clear" chip resets
+  everything. The <strong>Connections</strong> list has the same adapter and tag pills — give
+  connections Tags (comma-separated, in the wizard) to slice a growing catalog by "prod" vs.
+  "staging" without a new connection per environment.</p>
 
   <h3>Filing a dataset, connection, job or analysis into a Folder</h3>
   <p>Datasets, connections, jobs, saved Views, and (via Repository quick-edit) dashboards all have a
@@ -1366,22 +1566,75 @@
   <p>Sync is also hardened against a flaky network or backend: a single failed request (a rate-limit 429, a 5xx, a dropped connection) retries once on the spot before anything is reported, automatic pushes keep a minimum spacing so rapid editing can't hammer the backend into rate limits, and the Settings backend card shows a <strong>Recent sync activity</strong> log — the last several push/pull attempts with the exact error text for any that failed, so "it keeps reconnecting" always has a readable reason attached.</p>
 
   <h3>Signing in with real Supabase Auth (optional)</h3>
-  <p>The <strong>Supabase</strong> backend's connect wizard has two extra, optional fields below the Project URL and anon key: <strong>Supabase Auth email</strong> and <strong>password</strong>. Leave them blank and Supabase behaves exactly as before — every request uses the shared anon key. Fill them in and Studio signs in with real Supabase Auth (GoTrue) first, then sends that session's JWT on every request instead — so Postgres' <code>auth.uid()</code> resolves to your real account rather than staying <code>NULL</code>. This is groundwork for enforced, database-level per-user privacy on top of the private/public flags every object already carries (Dashboards, Datasets, Connections, Jobs, Analyses) — those flags are UX-level today (hidden from other accounts in the UI); a real Supabase Auth sign-in is the prerequisite for the database itself to enforce it via Row-Level Security. A wrong password fails clearly at the "Check database →" step, the same gate that already validates the URL and anon key, so it can't silently connect with the wrong identity.</p>
+  <p>The <strong>Supabase</strong> connect wizard has two optional fields below the Project URL and
+  anon key: <strong>Supabase Auth email</strong> and <strong>password</strong>.</p>
+  <ul>
+    <li><strong>Blank</strong> — Supabase behaves exactly as before; every request uses the shared
+      anon key.</li>
+    <li><strong>Filled in</strong> — the app signs in with real Supabase Auth (GoTrue) and sends
+      that session's JWT on every request, so Postgres' <code>auth.uid()</code> resolves to your
+      real account instead of <code>NULL</code>. That's the prerequisite for database-enforced
+      per-user privacy (Row-Level Security) on top of the UX-level private/public flags.</li>
+    <li>A wrong password fails clearly at the "Check database →" step — the same gate that
+      validates the URL and anon key — so it can't silently connect with the wrong identity.</li>
+  </ul>
   <p><strong>Signing in on a new device is one step.</strong> Once a workspace is connected to a Supabase backend, a teammate can sign in on a brand-new browser by entering their <strong>email</strong> and password on the sign-in screen — the app verifies those straight against the backend's own Supabase Auth (GoTrue), then adopts their account locally. No admin needs to re-add them here first, this browser doesn't need to have seen the account before, and no password is ever mirrored between devices — the backend itself is the source of truth. (Signing in with a plain <em>username</em>, or on a local/non-Supabase workspace, works exactly as before.)</p>
 
   <h3>Adding users when connected to Supabase (in-app account provisioning)</h3>
-  <p>Once the workspace backend is Supabase, the Admin page's <strong>+ Add user</strong> form gains an <strong>Email</strong> field and does one extra step: it creates a real Supabase Auth (GoTrue) account for the new user via Supabase's public sign-up endpoint, then stamps the resulting account id onto their row — no Supabase dashboard visit, and no admin/service-key credential ever handled in the browser. This means an admin can create and manage every account entirely from Polecat's own Admin console; only the very first admin account needs a one-time bootstrap in Supabase itself. Editing an existing user never repeats this step. Two things can leave the new account temporarily unusable, and the form explains each clearly rather than failing silently: the Supabase project has <strong>sign-ups turned off</strong> (Authentication → Providers → Email), or it still requires <strong>email confirmation</strong> before an account can sign in — turn off "Confirm email" in the same settings page, then add the user again.</p>
+  <p>Once the workspace backend is Supabase, the Admin page's <strong>+ Add user</strong> form
+  gains an <strong>Email</strong> field and creates a real Supabase Auth (GoTrue) account via the
+  public sign-up endpoint, stamping the account id onto the user's row:</p>
+  <ul>
+    <li>No Supabase dashboard visit, and no admin/service-key credential ever handled in the
+      browser — every account is managed from the Admin console. Only the very first admin needs a
+      one-time bootstrap in Supabase itself; editing an existing user never repeats the
+      sign-up.</li>
+    <li>Two Supabase project settings can leave a new account temporarily unusable, and the form
+      explains each instead of failing silently: <strong>sign-ups turned off</strong>, or
+      <strong>email confirmation</strong> still required (both under Authentication → Providers →
+      Email — adjust, then add the user again).</li>
+  </ul>
 
   <h3>Per-user provisioning defaults (first sign-in)</h3>
   <p>The Admin page's <strong>Add user</strong> (and <strong>Edit user</strong>) form has a <strong>Default theme</strong> picker and an <strong>"Install the Conservation Insight sample pack on first sign-in"</strong> checkbox. Set either and that new account logs in ready: the app color theme switches to the one you picked and, if checked, the Conservation Insight sample pack installs itself — no manual setup, no digging through Settings. This only ever runs <strong>once</strong>, the very first time the account signs in anywhere; after that it's stamped as provisioned and later logins never fight whatever the user has since changed for themselves. Leaving the theme at "Don't set" or the pack box unchecked simply skips that part.</p>
   <p>The same form also has a <strong>"Copy my current Dashboard defaults"</strong> button — click it and Studio snapshots every field from your own <strong>Settings → Dashboard defaults</strong> card (default subtitle, accent color, header logo, header background, title size, subtitle style, dashboard theme, and card style) and stashes it on the new account. At their first sign-in, that whole "house style" applies automatically alongside the theme/pack above, same once-only rule. <strong>Clear</strong> removes a previously captured snapshot before saving.</p>
 
   <h3>Managing multiple backends (admin)</h3>
-  <p>The Admin page's <strong>Backends</strong> card lets an admin pre-register more than one backend — Turso, Supabase, or Firebase — under a name, with its own credentials, ahead of actually connecting to any of them. Click <strong>+ Add backend</strong>, pick the adapter, and fill in its fields (the same ones the connect wizard uses); <strong>Test</strong> checks the credentials without connecting. Each registered backend gets its own <strong>Edit</strong>/<strong>Test</strong>/delete controls, and a <strong>Connect</strong> button that runs the exact same connect flow as Settings → Workspace backend, so nothing about probing or adopting an existing workspace changes — only the currently-connected one is ever active, shown with an <strong>active</strong> badge. Registering a backend here is just remembering its name and credentials for later; it does not sync, mirror, or connect anything by itself. A registered backend with users assigned to it (below) shows a count badge, e.g. "2 users". Once at least one is registered, Settings → Workspace backend's <strong>Switch backend</strong> button offers this same list first — pick one to connect in a click, or "Enter connection details manually" to start a brand-new connection from scratch.</p>
+  <p>The Admin page's <strong>Backends</strong> card pre-registers backends — Turso, Supabase, or
+  Firebase — under a name, with credentials, ahead of connecting to any of them. Registering is
+  just remembering for later: it does not sync, mirror, or connect anything by itself.</p>
+  <ul>
+    <li><strong>+ Add backend</strong> — pick the adapter and fill in the same fields the connect
+      wizard uses; <strong>Test</strong> checks credentials without connecting.</li>
+    <li>Each registered backend has <strong>Edit</strong>/<strong>Test</strong>/delete, plus a
+      <strong>Connect</strong> button running the exact Settings → Workspace backend flow. Only
+      the currently-connected one is active (an <strong>active</strong> badge shows which); a
+      backend with users assigned shows a count badge like "2 users".</li>
+    <li>Once one is registered, <strong>Switch backend</strong> in Settings offers this list first
+      — one-click connect, or "Enter connection details manually" for something new.</li>
+  </ul>
   <p>Once at least one backend is registered, the Add/Edit user form (same "Per-user provisioning defaults" area above) also gains an <strong>Assigned backend</strong> picker naming which registered backend that account belongs to — shown back on their row in the Users list too (<code>→ Backend name</code>). This is reference metadata for now, not an automatic connection: assigning a backend doesn't make a device connect to it, since adopting a backend can replace that device's entire local workspace, which shouldn't happen silently. A consolidated config UI (or a future "select a server" step) is the next slice to act on the assignment.</p>
 
   <h3>Going live with real per-user security (Supabase)</h3>
-  <p>The private/public flag on every object (Dashboards, Datasets, Connections, Jobs, Analyses) is UX-level by default — a private object is hidden from other accounts in the app, but the connected Supabase backend still stores everything under one shared key. An admin can flip that to real database-enforced <strong>Row-Level Security</strong> from the <strong>Admin</strong> page's <strong>"Enable per-user security / Go live"</strong> card, once a small one-time relay — the <code>polecat-admin</code> Supabase Edge Function — has been deployed (see <code>tools/M7-RLS-GOLIVE-RUNBOOK.md</code> for the exact deploy commands; it's a repo maintainer's one-time step, not something the app can do for you). Once deployed, paste its URL into the Supabase connection's <strong>Admin function URL</strong> field, sign in as the account that should become the first admin (the Auth email/password fields above), then click Go live and enter the one-time <strong>provision secret</strong> set when the function was deployed — it's used once and never stored. Go live wipes the current workspace tables (your browser's own data is untouched), seeds you as the admin, and applies the real per-user policies; from then on, private truly means only you (and admins) can see it, enforced by the database itself. With the relay deployed, <strong>+ Add user</strong> also switches to it automatically for the more secure admin-create path (no email-confirmation step) — the plain self-signup described above remains the fallback wherever the relay isn't deployed.</p>
+  <p>The private/public flag on every object is UX-level by default — hidden from other accounts in
+  the app, but the Supabase backend still stores everything under one shared key. An admin can flip
+  that to real database-enforced <strong>Row-Level Security</strong> from the Admin page's
+  <strong>"Enable per-user security / Go live"</strong> card:</p>
+  <ol>
+    <li><strong>One-time deploy</strong> (repo maintainer, not the app): the
+      <code>polecat-admin</code> Supabase Edge Function — see
+      <code>tools/M7-RLS-GOLIVE-RUNBOOK.md</code> for the exact commands.</li>
+    <li>Paste its URL into the Supabase connection's <strong>Admin function URL</strong> field, and
+      sign in as the account that should become the first admin (the Auth email/password
+      fields).</li>
+    <li>Click <strong>Go live</strong> and enter the one-time <strong>provision secret</strong> set
+      at deploy time — used once, never stored.</li>
+  </ol>
+  <p>Go live wipes the current workspace tables (your browser's own data is untouched), seeds you
+  as the admin, and applies the real per-user policies — from then on, private truly means only you
+  (and admins) can see it, enforced by the database. With the relay deployed, <strong>+ Add
+  user</strong> also switches to the more secure admin-create path automatically (no
+  email-confirmation step); plain self-signup stays the fallback without it.</p>
   <p><strong>First-admin bootstrap is automatic.</strong> Go live records your own admin account for you (in the database) <em>before</em> it runs, so on a brand-new project it no longer stops with "This account is not an admin of this workspace" — you don't have to hand-run any SQL in the Supabase editor to make yourself the first admin. It also refreshes your Supabase Auth sign-in each time, so a session that quietly expired won't surface as "That sign-in session is no longer valid" — just click Go live (or + Add user) again. The one prerequisite the app still can't do for you is the maintainer's one-time <code>polecat-admin</code> function deploy above.</p>
 </section>
 
@@ -1442,7 +1695,20 @@
   <p>Select any View and click <strong>Save chart as PNG</strong> in its inspector to download the chart itself as a PNG image — handy for dropping into a slide deck or a doc. This covers chart types that render as SVG (the vast majority) plus the <strong>Map (US choropleth)</strong> chart's Interactive GL renderer (captured straight off its canvas); Table and Richtext Views don't support it yet. The image is the chart only — for donut/gauge-style charts whose legend is drawn inside the chart it's included, but a legend rendered as a separate element next to the chart is not.</p>
 
   <h3>Downloading a View's image or data, right on the canvas</h3>
-  <p>Hover any View — in the builder <em>or</em> a published/embedded dashboard — and a small <strong>Export</strong> button appears in its top-right corner; click it to open a menu with <strong>Download PNG image</strong> (same as the inspector's Save-as-PNG above) and <strong>Download data (CSV)</strong> (the View's own query result, header row included). In the builder, a selected View's preview also adds <strong>Export as standalone HTML</strong> to that same menu — the same self-contained single-View file as the inspector's "Export this View…" action, one click away without opening the inspector (it's a builder-only entry and never appears in a published dashboard, since a standalone export has no builder to hand the file back from). Each is on by default; turn any of the three off independently per View under the inspector's <strong>Downloads</strong> section — useful for a View you don't want viewers exporting from a published dashboard. The image entry shows for SVG-rendered chart types and the GL map renderer (not Table/Richtext); the data entry shows for any View with a bound query; Export as standalone HTML shows for any View, in the builder only.</p>
+  <p>Hover any View — in the builder <em>or</em> a published/embedded dashboard — and a small
+  <strong>Export</strong> button appears in its top-right corner, offering:</p>
+  <ul>
+    <li><strong>Download PNG image</strong> — for SVG-rendered chart types and the GL map renderer
+      (not Table/Richtext).</li>
+    <li><strong>Download data (CSV)</strong> — the View's own query result, header row included;
+      shows for any View with a bound query.</li>
+    <li><strong>Export as standalone HTML</strong> (builder only) — the same self-contained
+      single-View file as the inspector's "Export this View…", one click away. It never appears in
+      a published dashboard.</li>
+  </ul>
+  <p>Each is on by default and can be turned off independently per View under the inspector's
+  <strong>Downloads</strong> section — useful for a View you don't want viewers exporting from a
+  published dashboard.</p>
 
   <h3>Saving a View to the library</h3>
   <p>Select any View with a bound query and click <strong>Save to View library</strong> in its inspector to snapshot it as a reusable analysis — the same library Explore saves into. Give it a name and it shows up in the builder's left rail under <strong>Views</strong> (drag it onto the canvas, or use its "+ Add to dashboard" chip) and in Explore's own saved-analysis list, exactly like an analysis built there. It's a self-contained copy — editing or deleting the original View's dashboard afterward doesn't affect it. Not available for Richtext/annotation Views, which have no query to snapshot.</p>
@@ -1496,7 +1762,22 @@
   </ul>
 
   <h3>Dashboard defaults</h3>
-  <p>The Settings page has a <strong>Dashboard defaults</strong> card with a <strong>Default subtitle</strong> field, a <strong>Default accent color</strong> picker (the same swatches as the per-dashboard Accent color field), a <strong>Default header logo</strong> upload, a <strong>Default header background color</strong> picker (same flat-fill banner field as the per-dashboard Header background color setting; blank keeps the standard navy gradient), matching <strong>Default title size</strong> / <strong>Default subtitle style</strong> pickers, and a <strong>Default dashboard theme</strong> picker (same whole-look Classic Blue / Polecat / Fleet Modern / High Contrast / Editorial / Neon / Conservation choice as the per-dashboard Dashboard theme field; left unset, it follows whichever app Color theme is active — Polecat app theme → Polecat, Classic Blue → Classic Blue, Fleet Modern → Fleet Modern — until you pick an explicit default here). All seven are applied automatically to every brand-new <strong>Blank dashboard</strong> (Home's quick-create card or New ▾ → Blank dashboard) — handy for teams with a house tagline, brand color, logo, banner fill, text formatting, or whole-look theme. Existing dashboards, examples, and imports are never touched. Carried along by Export/Import settings and included in Clear local data.</p>
+  <p>The Settings page's <strong>Dashboard defaults</strong> card sets the house style every
+  brand-new <strong>Blank dashboard</strong> starts from — handy for teams with a house tagline,
+  brand color, logo, or whole-look theme. Seven fields, each matching its per-dashboard
+  counterpart:</p>
+  <ul>
+    <li><strong>Default subtitle</strong>, <strong>Default accent color</strong>, and a
+      <strong>Default header logo</strong> upload.</li>
+    <li><strong>Default header background color</strong> — a flat banner fill; blank keeps the
+      standard gradient.</li>
+    <li><strong>Default title size</strong> / <strong>Default subtitle style</strong>.</li>
+    <li><strong>Default dashboard theme</strong> — the same whole-look choice as the per-dashboard
+      picker. Left unset, it follows whichever app Color theme is active until you pick an
+      explicit default.</li>
+  </ul>
+  <p>Existing dashboards, examples, and imports are never touched. Carried along by Export/Import
+  settings and included in Clear local data.</p>
   <p>Below that, <strong>Style presets</strong> lets you save the current set of defaults above as a named preset — type a name and click "+ Save as preset". Save more than one (e.g. one per client) and click <strong>Apply</strong> on any saved preset to switch which one is the active default; the trash button removes a preset. The preset whose saved fields match your current defaults is marked <strong>Active</strong> (a highlighted row + pill), so you can tell at a glance which house style is live — change any default and the marker clears until a preset matches again. A preset with a saved logo shows a small thumbnail instead of a plain color swatch. Presets travel with Export/Import settings and are included in Clear local data too.</p>
 
   <h3>Backing up your settings</h3>
