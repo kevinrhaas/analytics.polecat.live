@@ -54,6 +54,8 @@
 
   var BD_SEP = "\u0001"; // sample dataset key: stem + BD_SEP + da id (same shape Explore uses)
 
+  var _bdDropHint = null; // VB-2: { shelf, col, before } from the hovered chip's dragover, read on drop
+
   // ---------- builder state ----------
   var BD = {
     dsKind: null, dsId: null, dsName: "", dsSub: "",
@@ -420,6 +422,63 @@
     }
   }
 
+  // VB-2 (View Builder overnight queue): drag a shelf pill anywhere — between
+  // Columns/Rows/Filters (converting shape per destination, same as the ⇄
+  // button/bdAddFilter would) or to a new position within its own shelf.
+  // `hint` (from the hovered chip's dragover — see wire()) is { shelf, col,
+  // before } and decides the insertion index; missing/stale hints append.
+  function bdShelfArray(shelf) {
+    if (shelf === "cols") return BD.shelfCols;
+    if (shelf === "rows") return BD.shelfRows;
+    if (shelf === "filters") return BD.filters;
+    return null;
+  }
+  function bdInsertIndex(arr, hint, toShelf, skipCol) {
+    if (!hint || hint.shelf !== toShelf || hint.col === skipCol) return arr.length;
+    for (var i = 0; i < arr.length; i++) if (arr[i].col === hint.col) return hint.before ? i : i + 1;
+    return arr.length;
+  }
+  function bdMoveFieldTo(col, fromShelf, toShelf, hint) {
+    var fromArr = bdShelfArray(fromShelf);
+    if (!fromArr) return;
+    var idx = -1;
+    for (var k = 0; k < fromArr.length; k++) if (fromArr[k].col === col) { idx = k; break; }
+    if (idx < 0) return;
+
+    if (fromShelf === toShelf) {
+      var rec = fromArr[idx];
+      fromArr.splice(idx, 1);
+      fromArr.splice(bdInsertIndex(fromArr, hint, toShelf, col), 0, rec);
+      render();
+      return;
+    }
+
+    if (toShelf === "filters") {
+      fromArr.splice(idx, 1);
+      if (!BD.filters.some(function (f) { return f.col === col; })) {
+        var flt = bdFieldKind(col) === "Numeric" ? { col: col, kind: "range", min: "", max: "" } : { col: col, kind: "in", values: null };
+        BD.filters.splice(bdInsertIndex(BD.filters, hint, toShelf, col), 0, flt);
+      }
+      render();
+      return;
+    }
+
+    // filters and shelves track independently (a column can be both plotted AND
+    // filtered) — dragging a filter pill onto a shelf it's already on just drops
+    // the filter rather than writing a duplicate shelf entry.
+    if (fromShelf === "filters" && bdOnShelf(col)) {
+      fromArr.splice(idx, 1);
+      render();
+      return;
+    }
+
+    fromArr.splice(idx, 1);
+    var toArr = bdShelfArray(toShelf);
+    var newRec = toShelf === "rows" ? { col: col } : { col: col, agg: bdFieldKind(col) === "Numeric" ? "sum" : null };
+    toArr.splice(bdInsertIndex(toArr, hint, toShelf, col), 0, newRec);
+    render();
+  }
+
   // ---------- the pivot engine (PURE — unit-tested directly) ----------
   function aggInit() { return { n: 0, sum: 0, min: null, max: null, vals: [] }; }
   function aggAdd(a, v) {
@@ -698,7 +757,7 @@
           AGGS.map(function (a) { return '<option value="' + a + '"' + (a === f.agg ? " selected" : "") + '>' + a.toUpperCase() + "</option>"; }).join("") +
         "</select>"
       : "";
-    return '<span class="bd-chip' + kindCls + '" data-bd-chip="' + esc(f.col) + '">' + agg +
+    return '<span class="bd-chip' + kindCls + '" data-bd-chip="' + esc(f.col) + '" draggable="true">' + agg +
       '<span class="bd-chip-nm">' + esc(f.col) + '</span>' +
       '<button type="button" class="bd-chip-move" data-bd-move="' + esc(f.col) + '" title="Move to the ' + (shelf === "cols" ? "Rows" : "Columns") + ' shelf" aria-label="Move ' + esc(f.col) + ' to the ' + (shelf === "cols" ? "Rows" : "Columns") + ' shelf">⇄</button>' +
       '<button type="button" class="bd-chip-rm" data-bd-rm="' + esc(f.col) + '" title="Remove" aria-label="Remove ' + esc(f.col) + '">✕</button></span>';
@@ -823,7 +882,7 @@
     var shelfF = $("#bdShelfFilters", sec);
     if (shelfF) {
       var fltChips = BD.filters.map(function (f) {
-        return '<span class="bd-chip bd-filter' + (bdFilterActive(f) ? " active" : "") + '" data-bd-flt="' + esc(f.col) + '">' +
+        return '<span class="bd-chip bd-filter' + (bdFilterActive(f) ? " active" : "") + '" data-bd-flt="' + esc(f.col) + '" data-bd-chip="' + esc(f.col) + '" draggable="true">' +
           '<button type="button" class="bd-flt-edit" data-bd-flt-edit="' + esc(f.col) + '" title="Edit filter" aria-label="Edit filter on ' + esc(f.col) + '">' +
           '<span class="bd-chip-nm">' + esc(f.col) + '</span><span class="bd-flt-sum">' + esc(bdFilterSummary(f)) + "</span></button>" +
           '<button type="button" class="bd-chip-rm" data-bd-flt-rm="' + esc(f.col) + '" title="Remove filter" aria-label="Remove filter on ' + esc(f.col) + '">✕</button></span>';
@@ -972,14 +1031,47 @@
       });
       btn.addEventListener("dragend", function () { sec.classList.remove("bd-dragging"); });
     });
+    // VB-2: shelf pills themselves are draggable — between Columns/Rows/Filters,
+    // and reordered within a shelf. A chip-level dragover records which side of
+    // the hovered chip the cursor is over (_bdDropHint); the shelf-level drop
+    // reads it to place the moved field precisely instead of always appending.
+    $$("[data-bd-chip]", sec).forEach(function (chip) {
+      chip.addEventListener("dragstart", function (e) {
+        if (e.target.closest && e.target.closest("select,button")) return;
+        var fromShelf = chip.closest(".bd-shelf").getAttribute("data-bd-shelf");
+        e.dataTransfer.setData("text/plain", JSON.stringify({ bdMoveCol: chip.getAttribute("data-bd-chip"), bdFrom: fromShelf }));
+        e.dataTransfer.effectAllowed = "move";
+        sec.classList.add("bd-dragging");
+        chip.classList.add("bd-chip-dragging");
+      });
+      chip.addEventListener("dragend", function () {
+        sec.classList.remove("bd-dragging");
+        chip.classList.remove("bd-chip-dragging");
+        $$(".bd-chip", sec).forEach(function (c) { c.classList.remove("bd-drop-before", "bd-drop-after"); });
+        _bdDropHint = null;
+      });
+      chip.addEventListener("dragover", function (e) {
+        e.preventDefault();
+        var rect = chip.getBoundingClientRect();
+        var before = e.clientX < rect.left + rect.width / 2;
+        _bdDropHint = { shelf: chip.closest(".bd-shelf").getAttribute("data-bd-shelf"), col: chip.getAttribute("data-bd-chip"), before: before };
+        $$(".bd-chip", sec).forEach(function (c) { c.classList.remove("bd-drop-before", "bd-drop-after"); });
+        chip.classList.add(before ? "bd-drop-before" : "bd-drop-after");
+      });
+      chip.addEventListener("dragleave", function () { chip.classList.remove("bd-drop-before", "bd-drop-after"); });
+    });
     $$(".bd-shelf", sec).forEach(function (shelf) {
       shelf.ondragover = function (e) { e.preventDefault(); shelf.classList.add("bd-over"); };
       shelf.ondragleave = function () { shelf.classList.remove("bd-over"); };
       shelf.ondrop = function (e) {
         e.preventDefault(); shelf.classList.remove("bd-over"); sec.classList.remove("bd-dragging");
+        var hint = _bdDropHint; _bdDropHint = null;
+        $$(".bd-chip", sec).forEach(function (c) { c.classList.remove("bd-drop-before", "bd-drop-after"); });
         try {
           var payload = JSON.parse(e.dataTransfer.getData("text/plain") || "{}");
-          if (payload.bdCol) bdAddField(payload.bdCol, shelf.getAttribute("data-bd-shelf"));
+          var toShelf = shelf.getAttribute("data-bd-shelf");
+          if (payload.bdMoveCol) bdMoveFieldTo(payload.bdMoveCol, payload.bdFrom, toShelf, hint);
+          else if (payload.bdCol) bdAddField(payload.bdCol, toShelf);
         } catch (err) {}
       };
     });

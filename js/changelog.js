@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 741,
+    title: 'View Builder shelf pills now drag between Columns, Rows and Filters',
+    kind: 'feature',
+    ts: '2026-07-30T05:14:08.000Z',
+    items: [
+      'Once a field is on a shelf, drag its pill onto another shelf to move it there instead of using the ⇄ button: dropped on Rows it loses its aggregation, dropped on Filters it becomes a filter, dropped back on Columns it regains SUM if numeric.',
+      'Drag a pill onto another pill within the same shelf to reorder — the order determines the crosstab\'s dimension order.',
+      'Dragging a filter onto a shelf that already has that column just clears the filter, so you never end up with a duplicate chip.',
+    ],
+  },
+  {
     v: 740,
     title: 'Home’s quick actions speak the new rail language',
     kind: 'polish',
