@@ -12,9 +12,21 @@
     (function () {
       try {
         if (localStorage.getItem("studio-theme") === "dark") document.documentElement.setAttribute("data-theme", "dark");
+        // LIVE-e (Kevin): honor EVERY app theme, not just polecat/modern — with the
+        // conservation/editorial/neon/high-contrast themes unhandled, Help rendered a
+        // mismatched palette that read as "doesn't respond to the theme settings".
         var savedAppTheme = localStorage.getItem("studio-app-theme");
-        if (savedAppTheme === "polecat" || savedAppTheme === "modern") document.documentElement.setAttribute("data-app-theme", savedAppTheme);
+        if (savedAppTheme) document.documentElement.setAttribute("data-app-theme", savedAppTheme);
       } catch (e) {}
+      // The embedded iframe also follows LIVE theme changes: the app posts
+      // {studioDocsTheme:{theme, appTheme}} whenever either axis flips.
+      window.addEventListener("message", function (ev) {
+        var t = ev && ev.data && ev.data.studioDocsTheme;
+        if (!t) return;
+        if (t.theme === "dark") document.documentElement.setAttribute("data-theme", "dark");
+        else document.documentElement.removeAttribute("data-theme");
+        if (t.appTheme) document.documentElement.setAttribute("data-app-theme", t.appTheme);
+      });
     })();
   </script>
   <style>
@@ -34,6 +46,25 @@
       --card:#fff;--fg:#0c1c2e;--faint:#48596f;--line:#ccdcec;--code-bg:#e9f0f8}
     :root[data-app-theme="modern"][data-theme="dark"]{--brand:#060b14;--accent:#17b9a6;--accent2:#5bb3ea;
       --bg:#0a0f1a;--card:#111a2b;--fg:#e9eff8;--faint:#93a6c2;--line:#26344f;--code-bg:#18243a}
+    /* LIVE-e (Kevin): the four remaining app themes (#113 parity set) — tokens lifted from
+       app/studio.css's own data-app-theme blocks so Help always matches the app chrome. */
+    :root[data-app-theme="conservation"]{--brand:#10432e;--accent:#72892b;--accent2:#3a7d5c;--bg:#f3f5ec;
+      --card:#fff;--fg:#1e2a20;--faint:#55614c;--line:#dde3d1;--code-bg:#eaf0e0}
+    :root[data-app-theme="conservation"][data-theme="dark"]{--brand:#0c2419;--accent:#a3bd52;--accent2:#6fb894;
+      --bg:#0c1a12;--card:#12241a;--fg:#eaf1df;--faint:#a3b39a;--line:#274434;--code-bg:#16301f}
+    :root[data-app-theme="high-contrast"]{--brand:#000;--accent:#0b3d91;--accent2:#0b3d91;--bg:#fff;
+      --card:#fff;--fg:#000;--faint:#3d3d3d;--line:#bfbfbf;--code-bg:#e8e8e8}
+    :root[data-app-theme="high-contrast"][data-theme="dark"]{--brand:#000;--accent:#5b9bff;--accent2:#5b9bff;
+      --bg:#000;--card:#0a0a0a;--fg:#fff;--faint:#d9d9d9;--line:#7a7a7a;--code-bg:#1a1a1a}
+    :root[data-app-theme="editorial"]{--brand:#2b241c;--accent:#8a3324;--accent2:#2f4858;--bg:#f7f3ea;
+      --card:#fffdf8;--fg:#2b241c;--faint:#6b5f4d;--line:#d8cdb8;--code-bg:#efe8d8}
+    :root[data-app-theme="editorial"][data-theme="dark"]{--brand:#141009;--accent:#c97b5e;--accent2:#5a90a3;
+      --bg:#1c1712;--card:#24201a;--fg:#f2ece0;--faint:#b8ac95;--line:#3d362b;--code-bg:#2c261f}
+    :root[data-app-theme="neon"]{--brand:#0a0010;--accent:#c2185b;--accent2:#0891b2;--bg:#fafafa;
+      --card:#fff;--fg:#14101d;--faint:#4f4a63;--line:#e2dfea;--code-bg:#f1eff7}
+    :root[data-app-theme="neon"][data-theme="dark"]{--brand:#000;--accent:#ff3fd0;--accent2:#22d3ee;
+      --bg:#050507;--card:#0d0d13;--fg:#f5f3fb;--faint:#a9a3c0;--line:#26232f;--code-bg:#131018}
+    :root[data-app-theme="classic"]{}
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
       background:var(--bg);color:var(--fg);line-height:1.6}
@@ -193,7 +224,8 @@
       <div class="hd-title">Analytics</div>
       <div class="hd-sub">analytics.polecat.live · Help Reference</div>
     </div>
-    <a class="hd-back" href="../app/">← Back to Studio</a>
+    <!-- LIVE-e (Kevin): the "Back to Studio" button is gone — inside the app the rail
+         already navigates, and a standalone tab just closes. -->
   </div>
 </header>
 

@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 743,
+    title: 'Help now matches your theme — every theme, live',
+    kind: 'fix',
+    ts: '2026-07-30T05:41:34.000Z',
+    items: [
+      'The Help page follows all seven app color themes (Conservation, Editorial, Neon, High Contrast included — previously only Classic, Polecat and Fleet Modern), in both light and dark mode.',
+      'Theme changes apply to Help immediately while it\'s open — no more stale palette until a reload.',
+      'The "Back to Studio" button is gone from the Help header — the rail already gets you everywhere.',
+    ],
+  },
+  {
     v: 742,
     title: 'Sample-pack dashboards get real names and a folder',
     kind: 'polish',

@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v379"; /* v379: LIVE-b (Kevin: "start with the name of the
+var CACHE_NAME = "studio-shell-v380"; /* v380: LIVE-e part 1 (Kevin: "help should respond to the
+   theme settings and take out that back to studio button") — docs/index.html honors ALL
+   seven app themes (added conservation/high-contrast/editorial/neon token variants), a
+   postMessage listener applies LIVE theme changes (app posts studioDocsTheme from
+   setTheme/setAppTheme + on docsFrame load), and the "Back to Studio" header button is
+   removed. Part 2 (full readability rewrite + image placeholders) queued. docs/index.html,
+   app/studio.js, tests/run.js, STATUS.md, js/changelog.js.
+   v379: LIVE-b (Kevin: "start with the name of the
    dashboard… put it in a conservation insight folder") — sample-pack dashboards drop the
    shared "Conservation Insight — " title prefix (index.json + per-spec titles + the
    hand-built featured demo) and install into a pack folder (conservation → "Conservation
