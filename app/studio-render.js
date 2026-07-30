@@ -536,6 +536,25 @@
     var li = res.col(labelCol), vi = res.col(valueCol);
     return res.rows.map(function (r) { return { label: String(r[li]), value: +r[vi] || 0 }; });
   }
+  // Color-as-a-first-class-encoding (View Builder VB-3, same pattern Timeline's
+  // colorCol already used): tags each row with a palette color keyed to its
+  // colorCol value's first-seen order, so bars split into per-category colors
+  // (donut already colors per-slice by default — this makes it explicit/stable
+  // when a colorCol is actually mapped) instead of every bar sharing one flat
+  // color. Falls back to plain lv() when no colorCol is mapped.
+  function lvColor(res, labelCol, valueCol, colorCol) {
+    var base = lv(res, labelCol, valueCol);
+    if (!colorCol) return base;
+    var ci = res.col(colorCol);
+    if (ci < 0) return base;
+    var cats = [];
+    return base.map(function (d, i) {
+      var cat = String(res.rows[i][ci] != null ? res.rows[i][ci] : "");
+      var ord = cats.indexOf(cat);
+      if (ord < 0) { ord = cats.length; cats.push(cat); }
+      return { label: d.label, value: d.value, color: PDC.color(ord) };
+    });
+  }
   function colVals(res, c) { var i = res.col(c); return res.rows.map(function (r) { return r[i]; }); }
 
   // ---- Cross-filter state: paramName → active label (or absent when cleared).
@@ -841,13 +860,13 @@
             showTrend: !!o.showTrend, trendMethod: o.trendMethod,
             alpha: o.alpha, beta: o.beta, gamma: o.gamma, seasonLength: o.seasonLength,
             color: color(o.color, "--pentaho"), height: o.height || 300,
-            data: cfData(csData(lv(res, m.labelCol, m.valueCol), p.colorScale), p.condFmt),
+            data: cfData(csData(lvColor(res, m.labelCol, m.valueCol, m.colorCol), p.colorScale), p.condFmt),
             drill: drillCfg, detail: detailCfg });
           break;
         case "donut":
           PDC.donut(body, { centerCap: o.centerCap || "Total", fmt: f, height: o.height || 300,
             sortSlices: !!o.sortSlices, legend: o.showLegend !== false, innerPct: o.innerPct,
-            data: cfData(csData(lv(res, m.labelCol, m.valueCol), p.colorScale), p.condFmt), drill: drillCfg, detail: detailCfg });
+            data: cfData(csData(lvColor(res, m.labelCol, m.valueCol, m.colorCol), p.colorScale), p.condFmt), drill: drillCfg, detail: detailCfg });
           break;
         case "choropleth":
           // Viridis V2/V3: US region map, colored by the MEDIAN of the rows per

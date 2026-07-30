@@ -570,6 +570,14 @@
   min–max range (leave a bound blank for open-ended). A freshly added filter shows
   <strong>all</strong> and changes nothing until you edit it; active filters highlight their chip
   and the status line reads "N of M source rows (filtered)".</p>
+  <p>The <strong>Color</strong> shelf makes color a first-class encoding, not just a chart-type
+  default: drop a category there (or pick one from <strong>＋ Color by…</strong>) and Bars gets a
+  distinct color per bar instead of one flat color — the same per-category coloring Donut already
+  draws by default. With nothing on the Columns shelf, dropping a field on Color also splits a
+  Line chart into one line per category, standing in for a Columns split field. Alongside it, a
+  <strong>palette</strong> picker swaps the chart's color family — the same presets the main
+  Dashboards builder's "Series palette" control uses — so a View can preview in a different color
+  scheme without leaving Build.</p>
   <p><strong>Calculated columns</strong>: the <strong>＋ calc…</strong> chip at the end of the
   selected dataset's column list opens an editor where you define new columns from formulas —
   <code>=[revenue] / [acres]</code>, <code>=([a]+[b])*100</code>, or the running helpers

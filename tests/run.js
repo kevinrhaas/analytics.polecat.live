@@ -10056,6 +10056,133 @@ function serve() {
     ok("VB-2: dragging a Filters pill onto a shelf that already carries that column just clears the filter — no duplicate chip",
       vb2.regionFilterAdded && vb2.regionFilterGone && vb2.regionColsCount === 1,
       JSON.stringify(vb2));
+    // 12. VB-3 (Kevin overnight queue, "i like the new view builder"): Color as a
+    // first-class encoding — a Color shelf splits Bars/Donut into per-category
+    // colors and (with no Columns split field) Line into one series per category,
+    // plus a palette picker reusing the Dashboards builder's own presets.
+    const vb3 = await page.evaluate(async () => {
+      const B = window.__studioBuild;
+      function fire(dt, type, el, x) {
+        el.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt, clientX: x == null ? 0 : x }));
+      }
+      const out = {};
+      const ds = window.Studio.Workspace.all("datasets").filter((d) => d.name === "bd117-ds")[0];
+      await B.selectDataset("ws", ds.id);
+      await new Promise((r) => setTimeout(r, 120));
+      B.state.shelfCols = []; B.state.shelfRows = []; B.state.filters = []; B.state.shelfColor = [];
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 40));
+      B.addField("region", "cols");
+      B.addField("amount", "cols");
+      B.state.chartType = "bars";
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 60));
+
+      // A. no Color field yet — the basis is the plain [dim, measure] pair, untagged
+      const basisNoColor = B.chartBasis("bars");
+      out.basisNoColorHead = basisNoColor.head.join(",");
+      out.basisNoColorTagged = !!basisNoColor.colorCol;
+
+      // B. the ＋ Color by… select — the non-drag add path (mobile is a release
+      // gate, so drag can never be the only way onto a shelf)
+      const colorAddSel = document.getElementById("bdColorAdd");
+      out.colorAddOptions = colorAddSel ? [].slice.call(colorAddSel.options).map((o) => o.value).sort().join(",") : "";
+      colorAddSel.value = "quarter";
+      colorAddSel.dispatchEvent(new Event("change", { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 60));
+      out.colorField = B.state.shelfColor.map((f) => f.col).join(",");
+      out.chipRendered = !!document.querySelector('#bdShelfColor [data-bd-chip="quarter"]');
+
+      // C. Color field DIFFERS from the charted dimension (region) — the basis
+      // widens with a first-seen "quarter" value per region instead of re-grouping
+      // (which would fan a single-dimension bar chart out into duplicate bars)
+      const basisDiff = B.chartBasis("bars");
+      out.basisDiffHead = basisDiff.head.join(",");
+      out.basisDiffColorCol = basisDiff.colorCol;
+      out.basisDiffRowWidth = basisDiff.rows[0] ? basisDiff.rows[0].length : 0;
+
+      // D. real render — the panel's chart.map carries colorCol through to the
+      // actual dashboard renderer (studio-render.js's lvColor)
+      await new Promise((r) => setTimeout(r, 400));
+      const ifr = document.querySelector("#buildResult iframe.bd-ifr");
+      out.iframeHasColorCol = ifr ? ifr.srcdoc.indexOf('"colorCol":"quarter"') >= 0 : false;
+
+      // E. remove via the chip's ✕
+      document.querySelector('#bdShelfColor [data-bd-color-rm="quarter"]').click();
+      await new Promise((r) => setTimeout(r, 60));
+      out.colorAfterRemove = B.state.shelfColor.length;
+
+      // F. Color field EQUALS the charted dimension — tagged, no widening (this is
+      // the common case: "recolor the bars I already have, one color per bar")
+      B.addField("region", "color");
+      await new Promise((r) => setTimeout(r, 60));
+      const basisSame = B.chartBasis("bars");
+      out.basisSameHead = basisSame.head.join(",");
+      out.basisSameColorCol = basisSame.colorCol;
+
+      // G. the Color chip drags like any other shelf pill — onto Filters, same
+      // conversion VB-2 already wired for Columns/Rows/Filters
+      let dt = new DataTransfer();
+      const colorChip = document.querySelector('#bdShelfColor [data-bd-chip="region"]');
+      out.colorChipDraggable = colorChip ? colorChip.getAttribute("draggable") : null;
+      fire(dt, "dragstart", colorChip);
+      fire(dt, "dragover", document.getElementById("bdShelfFilters"));
+      fire(dt, "drop", document.getElementById("bdShelfFilters"));
+      fire(dt, "dragend", colorChip);
+      await new Promise((r) => setTimeout(r, 60));
+      out.colorGoneAfterDrag = B.state.shelfColor.length;
+      out.filterAddedFromColorDrag = B.state.filters.some((f) => f.col === "region");
+      B.state.filters = [];
+
+      // H. the palette picker — a real select next to the Color shelf, offering
+      // Studio.PALETTE_PRESETS, persisted onto builder state
+      const palSel = document.getElementById("bdPaletteSel");
+      out.paletteOptionCount = palSel ? palSel.options.length : 0;
+      const pickKey = palSel.options[1].value;
+      palSel.value = pickKey;
+      palSel.dispatchEvent(new Event("change", { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 60));
+      out.paletteKey = B.state.paletteKey;
+      out.paletteKeyMatchesPick = B.state.paletteKey === pickKey;
+
+      // I. with nothing on Columns to split by, Color alone drives Line into one
+      // series per category — reusing the exact crosstab-widening engine Rows ×
+      // Columns already uses for multi-series lines (#117 slice 5)
+      B.state.shelfCols = []; B.state.shelfRows = []; B.state.shelfColor = [];
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 40));
+      B.addField("region", "rows");
+      B.addField("amount", "cols");
+      B.addField("quarter", "color");
+      await new Promise((r) => setTimeout(r, 60));
+      const eff = B.eff();
+      const qi = eff.cols.indexOf("quarter");
+      const distinctQuarters = new Set(B.state.run.rows.map((r) => r[qi])).size;
+      const lineBasis = B.chartBasis("line");
+      out.lineHeadLabel = lineBasis ? lineBasis.head[0] : null;
+      out.lineSeriesCount = lineBasis ? lineBasis.head.length - 1 : -1;
+      out.expectedSeriesCount = distinctQuarters;
+      return out;
+    });
+    ok("VB-3: with no Color field the bars basis is the plain [dim, measure] pair, untagged",
+      vb3.basisNoColorHead === "region,SUM amount" && !vb3.basisNoColorTagged, JSON.stringify(vb3));
+    ok("VB-3: the ＋ Color by… select is the non-drag add path and sets the shelf",
+      vb3.colorAddOptions === ",amount,quarter,region" && vb3.colorField === "quarter" && vb3.chipRendered, JSON.stringify(vb3));
+    ok("VB-3: coloring by a field OTHER than the charted dimension widens the basis with a first-seen value per category, not a re-grouped fan-out",
+      vb3.basisDiffHead === "region,SUM amount,quarter" && vb3.basisDiffColorCol === "quarter" && vb3.basisDiffRowWidth === 3, JSON.stringify(vb3));
+    ok("VB-3: the panel's chart.map.colorCol reaches the real dashboard renderer",
+      vb3.iframeHasColorCol, JSON.stringify(vb3));
+    ok("VB-3: removing the Color chip clears the shelf",
+      vb3.colorAfterRemove === 0, JSON.stringify(vb3));
+    ok("VB-3: coloring by the SAME field already charted tags colorCol with no basis widening — the common 'recolor my bars' case",
+      vb3.basisSameHead === "region,SUM amount" && vb3.basisSameColorCol === "region", JSON.stringify(vb3));
+    ok("VB-3: the Color chip is draggable and converts like any other shelf pill — dropped on Filters it becomes a filter",
+      vb3.colorChipDraggable === "true" && vb3.colorGoneAfterDrag === 0 && vb3.filterAddedFromColorDrag, JSON.stringify(vb3));
+    ok("VB-3: the palette picker offers Studio.PALETTE_PRESETS and persists the pick onto builder state",
+      vb3.paletteOptionCount > 1 && vb3.paletteKeyMatchesPick, JSON.stringify(vb3));
+    ok("VB-3: with no Columns split field, Color alone drives Line into one series per category (reusing the #117 slice 5 crosstab engine)",
+      vb3.lineHeadLabel === "region" && vb3.lineSeriesCount === vb3.expectedSeriesCount && vb3.lineSeriesCount >= 1, JSON.stringify(vb3));
+
     // cleanup + restore the section the next block expects
     await page.evaluate((savedId) => {
       const st = window.__studioBuild.state;
