@@ -4363,14 +4363,19 @@ function serve() {
           try { fd = fi && fi.contentDocument; wd = wi && wi.contentDocument; } catch (e) {}
           var fOk = fd && fd.querySelectorAll(".dk-grid svg").length > 3;
           var wOk = wd && wd.querySelector(".dk-grid svg");
-          if (fOk && wOk && fi.style.transform && wi.style.transform) {
+          // the widget frame's data-theme stamp lands ASYNC after hydration —
+          // resolving on SVGs+transform alone raced it under load (2026-07-30
+          // flake: widgetTheme null with everything else fine). Poll for the
+          // theme too; the 15s timeout still fails honestly if theming breaks.
+          var wThemed = wd && wd.documentElement.getAttribute("data-theme") === window.__STUDIO_STATE.theme;
+          if (fOk && wOk && wThemed && fi.style.transform && wi.style.transform) {
             resolve({ featSvgs: fd.querySelectorAll(".dk-grid svg").length,
               featScale: +(fi.style.transform.match(/scale\(([\d.]+)\)/) || [])[1],
               widgetScale: +(wi.style.transform.match(/scale\(([\d.]+)\)/) || [])[1],
               widgetTheme: wd.documentElement.getAttribute("data-theme"),
               appTheme: window.__STUDIO_STATE.theme,
               viewOnly: getComputedStyle(fi).pointerEvents === "none" });
-          } else if (Date.now() - t0 > 15000) resolve({ timeout: true, fOk: !!fOk, wOk: !!wOk });
+          } else if (Date.now() - t0 > 15000) resolve({ timeout: true, fOk: !!fOk, wOk: !!wOk, wThemed: !!wThemed });
           else setTimeout(poll, 200);
         })();
       });
