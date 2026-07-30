@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 749,
+    title: 'View Builder Save dialog gets a real Folder field',
+    kind: 'feature',
+    ts: '2026-07-30T10:40:57.000Z',
+    items: [
+      'Saving a View now offers a Folder field — pick an existing folder from the browse-a-folder-tree picker (the same one Datasets/Connections/Jobs use) or type a new one, with a name-suggest sparkle seeded from the picked dataset.',
+      'The Name field also gained the same name-suggest sparkle every other Save dialog already has.',
+    ],
+  },
+  {
     v: 748,
     title: 'KPI joins the View Builder',
     kind: 'feature',

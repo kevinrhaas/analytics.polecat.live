@@ -1340,10 +1340,41 @@
       : chartBasis(BD.chartType);
     if (!res || !res.head.length) { toast("Nothing to save yet — put a field on a shelf first.", true); return; }
     D.modal(BD.analysisId ? "Update View" : "Save View", function (b) {
-      var wrap = D.el("div", "bd-save");
-      var lbl = D.el("label"); lbl.textContent = "Name"; lbl.style.cssText = "display:block;font-size:12px;font-weight:700;margin-bottom:4px";
+      var wrap = D.el("div", "bd-save cx-wiz-form");
+      function field(lblText, input, hint) {
+        var row = D.el("label", "cx-field");
+        row.innerHTML = "<span>" + esc(lblText) + "</span>";
+        row.appendChild(input);
+        if (hint) { var h = D.el("small", "cx-hint"); h.textContent = hint; row.appendChild(h); }
+        wrap.appendChild(row);
+        return input;
+      }
       var inp = D.el("input"); inp.type = "text"; inp.value = BD.name || ""; inp.placeholder = "e.g. Revenue by region";
-      inp.style.cssText = "width:100%;box-sizing:border-box";
+      // VB-6: the same ✨ name-suggest affordance every other Name field gets,
+      // deriving from the picked dataset (mirrors Explore's xpNameSuggestCtx).
+      field("Name", D.withSparkleButton(inp, "view", function () {
+        return { sourceDatasetName: BD.dsName || "", valueCol: (BD.shelfCols[0] && BD.shelfCols[0].col) || "" };
+      }));
+      var folderInp = D.el("input"); folderInp.type = "text"; folderInp.value = BD.folder || ""; folderInp.placeholder = "e.g. Finance";
+      // VB-6: the LF56 folder navigator (same Browse-a-folder-tree picker every other
+      // Folder field uses) plus the sparkle suggest, seeded from the picked dataset's
+      // own folder — a View sits one hop downstream of its source dataset, same
+      // convention as Explore's xpFolderSuggestCtx.
+      field("Folder", D.withSparkleButton(folderInp, "folder", function () {
+        var linkedFolder = "";
+        if (BD.dsKind === "ws") {
+          var ds = Studio.Workspace.get("datasets", BD.dsId);
+          if (ds) linkedFolder = ds.folder || "";
+        }
+        return { linkedFolder: linkedFolder };
+      }), "Optional — a home for this View (e.g. Finance, or Finance/2024 to nest). Pick an existing one or type a new name.");
+      var viewFolders = {};
+      Studio.Workspace.all("analyses").forEach(function (a) { if (a.folder) viewFolders[a.folder] = true; });
+      var folderList = D.el("datalist"); folderList.id = "bdFolderOptions";
+      Object.keys(viewFolders).sort().forEach(function (f) { var o = D.el("option"); o.value = f; folderList.appendChild(o); });
+      folderInp.setAttribute("list", "bdFolderOptions");
+      folderInp.parentNode.appendChild(folderList);
+      folderInp.parentNode.appendChild(Studio.folderPickerButton(folderInp, function () { return Object.keys(viewFolders); }));
       var foot = D.el("div"); foot.style.cssText = "display:flex;justify-content:flex-end;gap:8px;margin-top:14px";
       var cancel = D.el("button", "btn"); cancel.type = "button"; cancel.textContent = "Cancel";
       var save = D.el("button", "btn primary"); save.type = "button"; save.textContent = BD.analysisId ? "Update" : "Save";
@@ -1352,6 +1383,7 @@
         var name = inp.value.trim();
         if (!name) { toast("Give the View a name.", true); return; }
         BD.name = name;
+        BD.folder = folderInp.value.trim();
         var base = name.replace(/[^A-Za-z0-9_]+/g, "_").replace(/^_+|_+$/g, "") || "view";
         // A self-contained da over the COMPUTED result columns, so every existing
         // View surface (catalog row, add-to-dashboard, export) treats this like any
@@ -1383,7 +1415,7 @@
         render();
       };
       foot.appendChild(cancel); foot.appendChild(save);
-      wrap.appendChild(lbl); wrap.appendChild(inp); wrap.appendChild(foot);
+      wrap.appendChild(foot);
       b.appendChild(wrap);
       setTimeout(function () { inp.focus(); }, 30);
     });

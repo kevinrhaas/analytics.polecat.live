@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **VB-6 — View Builder Save dialog overhaul (v749, sw v386, 2026-07-30, steward):** the bd-save
+  modal (`app/build.js` `bdSave()`) was bare — a lone Name input, no way to file a new View into
+  a folder at all (`BD.folder` was written on save but never editable). Brought it up to the same
+  bar every other Save/editor dialog in the app already meets:
+  - **Name** gains the same ✨ name-suggest sparkle (`D.withSparkleButton(inp, "view", …)`) every
+    other Name field has, seeded from the picked dataset's name (mirrors Explore's
+    `xpNameSuggestCtx`).
+  - **Folder** is a new field: a text input with a `<datalist>` of every folder already in use
+    across `analyses`, the same ✨ sparkle (seeded from the picked dataset's own folder — a View
+    sits one hop downstream, same convention as Explore's `xpFolderSuggestCtx`), and the LF56
+    Browse button (`Studio.folderPickerButton`) opening the shared folder-tree picker — identical
+    to the Folder field on Datasets/Connections/Jobs. The typed value now actually reaches
+    `BD.folder` → `row.folder` on save (previously always empty on a fresh View).
+  Reused the established `cx-field`/`cx-wiz-form` modal layout so it looks and behaves exactly
+  like every other editor in the app; no new CSS needed. 1 new regression test (folder field
+  round-trips into the saved row; both sparkle buttons + the Browse button are present). Full
+  suite green (2698 passed, 0 failed). Files: app/build.js, sw.js, js/changelog.js, tests/run.js,
+  STATUS.md.
 - **VB-4 slice 4 — KPI joins the View Builder; VB-4 is now feature-complete (v748, sw v385,
   2026-07-30, steward):** continuing Kevin's overnight queue ("all of the chart types available
   for the view builder over time — be reasonable, hit major ones first") after choropleth,
@@ -7152,10 +7170,10 @@
 >       some settings may not be shown"). Everywhere a View can be opened (the Views rail
 >       section, Explore's saved list, Home pinned cards, Repository rows, the Studio library —
 >       sweep the app for every open point) offer BOTH targets via a menu or button.
-> VB-6. **View Builder Save dialog overhaul (Kevin live, 2026-07-30).** The bd-save modal is
->       too bare: add the LF56 folder NAVIGATOR (browse existing folders, create a new one,
->       save into a location — same picker every other Folder field uses) and a sparkle
->       name-suggest on the name input (withSparkleButton, like Explore's save path).
+> VB-6. ✓ **View Builder Save dialog overhaul (SHIPPED v749, sw v386, 2026-07-30, steward)** —
+>       see DONE for the full writeup: the LF56 folder navigator (same Browse-a-folder-tree
+>       picker + datalist every other Folder field uses) plus a sparkle name-suggest on both
+>       Name and the new Folder field.
 > LIVE-a. **Home quick-action buttons ↔ new rail terminology (Kevin live, screenshot).**
 >       Slice 1 ✓ SHIPPED v740 (Home cards: "New View" card added, "Explore data" → "New
 >       Quick View"). Slice 2 remaining: sweep the rest of the app's "Explore"/"Studio"

@@ -9603,8 +9603,12 @@ function serve() {
       window.__studioBuild.save();
       await new Promise((r) => setTimeout(r, 120));
       const m = document.querySelector(".modal-ov .bd-save"); if (!m) return { err: "save modal missing" };
-      const inp = m.querySelector("input");
+      const inputs = m.querySelectorAll("input");
+      const inp = inputs[0], folderInp = inputs[1];
       inp.value = "BD117 Pivot";
+      const sparkleCount = m.querySelectorAll(".name-sparkle-btn").length;
+      const hasBrowseBtn = !!m.querySelector(".fp-browse-btn");
+      if (folderInp) { folderInp.value = "QA/Regression"; folderInp.dispatchEvent(new Event("input", { bubbles: true })); }
       [].slice.call(m.querySelectorAll("button")).filter((b) => /^(Save|Update)$/.test(b.textContent))[0].click();
       await new Promise((r) => setTimeout(r, 120));
       const row = window.Studio.Workspace.all("analyses").filter((a) => a.name === "BD117 Pivot")[0];
@@ -9614,6 +9618,8 @@ function serve() {
         shelves: row && row.builder ? row.builder.shelfRows.map((f) => f.col).join(",") : "",
         analysisId: window.__studioBuild.state.analysisId,
         saveLabel: (document.getElementById("bdSaveBtn") || {}).textContent,
+        savedFolder: row && row.folder,
+        sparkleCount, hasBrowseBtn,
       };
     });
     ok("#117 save: Save View writes a real analyses row carrying the builder state (chartType table)",
@@ -9621,6 +9627,8 @@ function serve() {
       JSON.stringify(bdSave));
     ok("#117 save: after saving, the topbar action flips to 'Update View'",
       bdSave.saveLabel === "Update View", JSON.stringify(bdSave));
+    ok("VB-6: the Save View dialog carries a Folder field (name-suggest sparkle on both Name and Folder, plus a Browse-folder-tree button), and the typed folder is stamped on the saved row",
+      bdSave.savedFolder === "QA/Regression" && bdSave.sparkleCount === 2 && bdSave.hasBrowseBtn, JSON.stringify(bdSave));
     const bdReopen = await page.evaluate(async (savedId) => {
       // leave Build, then reopen the View from the Views catalog — it must route BACK to Build
       window.Studio.Build.newView();
