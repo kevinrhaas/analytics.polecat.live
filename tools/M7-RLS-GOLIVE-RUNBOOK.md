@@ -1,5 +1,13 @@
 # M7 — Supabase RLS go-live runbook
 
+> **2026-07-30 update — this went live.** The posture below was applied to the
+> production project and verified (anon reads zero rows on every workspace
+> table). For a **fresh environment**, skip the piecemeal history and run
+> **`tools/supabase-deploy.sql`** — the complete one-file deploy: tables, the
+> verified authenticated-only posture (with the admin arm the live incident
+> proved necessary), the ACTIVITY-1 log tables (`polecat_activity` +
+> `polecat_feedback`), the first-admin INSERT template, and the verify query.
+
 Flip the live Supabase workspace backend from the demo **"allow all"** posture to
 real per-user **Row-Level Security** (`tools/supabase-rls-real.sql`, already
 designed + proven against an isolated `steward_test` schema).
