@@ -22232,7 +22232,13 @@ function serve() {
       }
       window.__studioLoad(freshSpec);
     });
-    await page.waitForTimeout(700);
+    // Same fresh-spec repaint race the v84 callout check hit (fixed sleep vs an
+    // async fetch + preview rebuild under load) — wait for the element itself.
+    await page.waitForFunction(function () {
+      var ifr = document.getElementById("preview");
+      var doc = ifr && ifr.contentWindow && ifr.contentWindow.document;
+      return !!(doc && doc.querySelector(".dk-period"));
+    }, { timeout: 10000 }).catch(function () {});
     const phRender = await page.evaluate(function () {
       try {
         var iw = document.getElementById("preview").contentWindow;
@@ -30667,8 +30673,11 @@ function serve() {
     ok("QA-04: 'Duplicate' uniquifies the '(copy)' title against the catalog too",
       qa4Dup === "Foo (copy) 2", "title=" + qa4Dup);
 
-    // Z2-5: recents list stays capped at 8 entries (newest-first) — the catalog now
-    // lives in the Workspace `dashboards` table (★★★-1), seeded via the test hook.
+    // Z2-5 REWRITTEN for DURABLE-1 (Kevin live, 2026-07-30): the old 8-unpinned-cap
+    // eviction is GONE — it silently DELETED dashboards on every autosave tick once
+    // the table became first-class durable objects (Kevin's Watershed Map vanished
+    // while he was just viewing it). Durability is now the contract: 12 seeded +
+    // the autosaved current one ALL survive an autosave cycle.
     const z2Cap = await page.evaluate(async function () {
       var many = [];
       for (var i = 0; i < 12; i++) many.push({ id: "synthetic-" + i, ts: new Date().toISOString(), spec: { id: "synthetic-" + i, title: "Synthetic " + i, panels: [], kpis: [] } });
@@ -30677,9 +30686,11 @@ function serve() {
       spec.title = "Cap test";
       window.__studioLoad(spec);
       await new Promise(function (r) { setTimeout(r, 1300); }); // past the 130ms preview + 800ms recent debounce
-      return window.__studioRecents().length;
+      var ids = window.__studioRecents().map(function (r) { return r.id; });
+      return { len: ids.length, syntheticSurvivors: ids.filter(function (id) { return id.indexOf("synthetic-") === 0; }).length };
     });
-    ok("Z2: recents list is capped at 8 entries", z2Cap === 8, "len=" + z2Cap);
+    ok("DURABLE-1: an autosave tick never evicts dashboards — all 12 seeded entries survive (the old 8-unpinned cap is gone)",
+      z2Cap.syntheticSurvivors === 12 && z2Cap.len >= 13, JSON.stringify(z2Cap));
 
     // ── Z2 follow-up: pin / favorite a recent dashboard ──
     console.log("\n• Z2 follow-up: pin favorite dashboards");
@@ -30744,9 +30755,9 @@ function serve() {
     ok("Z2P: unpinning removes the 'Pinned' heading and clears the stored pin",
       !z2pUnpinReal.hasPinnedHeading && z2pUnpinReal.storedPins.indexOf(z2pPin.firstId) < 0, JSON.stringify(z2pUnpinReal));
 
-    // Z2P-4: a pinned dashboard survives the 8-unpinned cap — pin one synthetic entry among
-    // 12, add a fresh dashboard (which would normally push the oldest out), and confirm the
-    // pinned one is still present while the unpinned tail is still capped at 8.
+    // Z2P-4 REWRITTEN for DURABLE-1: pinned AND unpinned entries all survive an
+    // autosave cycle — pinning is catalog organization, no longer a shield
+    // against an eviction that no longer exists.
     const z2pCapProtect = await page.evaluate(async function () {
       var many = [];
       for (var i = 0; i < 12; i++) many.push({ id: "pincap-" + i, ts: new Date().toISOString(), spec: { id: "pincap-" + i, title: "PinCap " + i, panels: [], kpis: [] } });
@@ -30758,16 +30769,74 @@ function serve() {
       await new Promise(function (r) { setTimeout(r, 1300); }); // past the 130ms preview + 800ms recent debounce
       var list = window.__studioRecents();
       var ids = list.map(function (r) { return r.id; });
-      return { total: list.length, hasProtected: ids.indexOf("pincap-5") >= 0, unpinnedCount: ids.filter(function (id) { return id !== "pincap-5"; }).length };
+      return { hasProtected: ids.indexOf("pincap-5") >= 0,
+        pincapSurvivors: ids.filter(function (id) { return id.indexOf("pincap-") === 0; }).length };
     });
-    ok("Z2P: a pinned entry survives the recents cap while unpinned entries stay capped at 8",
-      z2pCapProtect.hasProtected && z2pCapProtect.unpinnedCount === 8 && z2pCapProtect.total === 9, JSON.stringify(z2pCapProtect));
+    ok("DURABLE-1: pinned and unpinned dashboards alike survive autosave — all 12 present, pin intact",
+      z2pCapProtect.hasProtected && z2pCapProtect.pincapSurvivors === 12, JSON.stringify(z2pCapProtect));
 
-    // clean up synthetic pin state so it doesn't leak into later tests
+    // clean up ALL synthetic rows — with the DURABLE-1 eviction gone, nothing
+    // garbage-collects them anymore and they'd skew every later dashboard census
     await page.evaluate(function () {
-      var r = Studio.Workspace.get("dashboards", "pincap-5");
-      if (r) { delete r.pinned; delete r.pinnedAt; Studio.Workspace.put("dashboards", r); }
+      Studio.Workspace.all("dashboards").forEach(function (r) {
+        if (/^(synthetic|pincap)-/.test(r.id)) Studio.Workspace.remove("dashboards", r.id, { silent: true });
+      });
+      Studio.Workspace.notify("dashboards");
     });
+
+    // ---- DURABLE-1 (cont.): adoptions re-run the pack heals; failing pushes get a loud banner ----
+    console.log("\n• DURABLE-1: adoption re-heal + push-failure banner");
+    // A stale-remote adoption replaceAll()s the workspace — simulate its damage
+    // (drop the watershed dashboard, duplicate a pack row) and fire the SAME
+    // registered heals a real adoption now triggers (Sync.healAfterAdopt runs
+    // studio.js's reconcilePackDashboards, wired via Sync.onAdopt).
+    const durable1Heal = await page.evaluate(function () {
+      var W = Studio.Workspace;
+      // self-contained pack state: an earlier test may have uninstalled the pack
+      // (the 2026-07-30 first-run failure: setup:false — heals no-op uninstalled).
+      // Install if needed, remember, and restore at the end.
+      var wasInstalled = window.__studioDemoPacks.installed("conservation");
+      if (!wasInstalled) window.__studioDemoPacks.install("conservation");
+      // the Z2 seed-wipe above cleared the table — one heal pass restores the
+      // ensure-covered pack rows so this test has real subjects to damage
+      Studio.Sync.healAfterAdopt();
+      var wm = W.all("dashboards").filter(function (r) { return r.name === "conservation-watershed-map"; })[0];
+      var wheel = W.all("dashboards").filter(function (r) { return r.name === "conservation-system-metrics"; })[0];
+      if (!wm || !wheel) return { setup: false, wasInstalled: wasInstalled };
+      // stale-remote damage: the watershed row dropped, an unfoldered duplicate
+      // of the wheel resurrected — exactly Kevin's screenshot shapes
+      W.remove("dashboards", wm.id, { silent: true });
+      var dup = JSON.parse(JSON.stringify(wheel)); delete dup.id; dup.folder = "";
+      dup = W.put("dashboards", dup, { silent: true });
+      Studio.Sync.healAfterAdopt();
+      var after = W.all("dashboards");
+      var out = { setup: true,
+        watershedBack: after.some(function (r) { return r.name === "conservation-watershed-map"; }),
+        dupGone: !W.get("dashboards", dup.id),
+        oneWheel: after.filter(function (r) { return r.name === "conservation-system-metrics"; }).length === 1
+      };
+      // restore the pre-test pack state so downstream tests see what they saw before
+      if (!wasInstalled) window.__studioDemoPacks.remove("conservation");
+      return out;
+    });
+    ok("DURABLE-1: after a remote adoption the registered heals re-seed dropped pack dashboards and re-dedupe resurrected copies",
+      durable1Heal.setup && durable1Heal.watershedBack && durable1Heal.dupGone && durable1Heal.oneWheel,
+      JSON.stringify(durable1Heal));
+    const durable1Banner = await page.evaluate(function () {
+      var out = {};
+      window.__studioSyncLossBanner({ isRemote: true, pendingEdits: true, pushFails: 2, lastError: "403 pushes rejected" });
+      var b = document.getElementById("syncLossBanner");
+      out.shown = !!b;
+      out.saysWhy = !!(b && b.textContent.indexOf("403 pushes rejected") >= 0);
+      window.__studioSyncLossBanner({ isRemote: true, pendingEdits: false, pushFails: 0 });
+      out.clearedOnRecovery = !document.getElementById("syncLossBanner");
+      window.__studioSyncLossBanner({ isRemote: true, pendingEdits: true, pushFails: 1 });
+      out.notOnFirstFail = !document.getElementById("syncLossBanner");
+      return out;
+    });
+    ok("DURABLE-1: repeated push failures raise a persistent banner naming the error; it clears on recovery and doesn't fire on a single blip",
+      durable1Banner.shown && durable1Banner.saysWhy && durable1Banner.clearedOnRecovery && durable1Banner.notOnFirstFail,
+      JSON.stringify(durable1Banner));
 
     // ── Z2 follow-up (folders/organization): Home gets a Workbook filter chip strip ──
     // Repository already lets you file dashboards into Workbooks (Z3); Home only ever showed a

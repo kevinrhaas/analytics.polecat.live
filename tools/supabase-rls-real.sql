@@ -64,8 +64,12 @@ BEGIN
     EXECUTE format('DROP POLICY IF EXISTS polecat_insert ON %I', t);
     EXECUTE format('DROP POLICY IF EXISTS polecat_update ON %I', t);
     EXECUTE format('DROP POLICY IF EXISTS polecat_delete ON %I', t);
+    -- WORKSPACE-LOGIN tightening (Kevin, 2026-07-30): TO authenticated — reads are
+    -- for signed-in, provisioned users ONLY. The anon key ships inside the app's
+    -- packaged workspace catalog (public repo), so the anon role must see NOTHING;
+    -- his A4 verify had shown anon reading every table under the demo posture.
     EXECUTE format(
-      'CREATE POLICY polecat_select ON %I FOR SELECT USING (coalesce((data::jsonb->>%L)::boolean, false) = false OR (data::jsonb->>%L) = auth.uid()::text)',
+      'CREATE POLICY polecat_select ON %I FOR SELECT TO authenticated USING (coalesce((data::jsonb->>%L)::boolean, false) = false OR (data::jsonb->>%L) = auth.uid()::text)',
       t, 'private', owner_field);
     EXECUTE format(
       'CREATE POLICY polecat_insert ON %I FOR INSERT WITH CHECK ((data::jsonb->>%L) = auth.uid()::text)',
@@ -140,7 +144,10 @@ DROP POLICY IF EXISTS polecat_insert ON public.users;
 DROP POLICY IF EXISTS polecat_update ON public.users;
 DROP POLICY IF EXISTS polecat_delete ON public.users;
 
-CREATE POLICY polecat_select ON public.users FOR SELECT USING (
+-- TO authenticated for the same reason as the loop above — the USING arm already
+-- blocks anon (auth.uid() is null), but with the anon key published the explicit
+-- role restriction is the posture, not an accident of the predicate.
+CREATE POLICY polecat_select ON public.users FOR SELECT TO authenticated USING (
   (data::jsonb->>'gotrueId') = auth.uid()::text OR public.polecat_is_admin()
 );
 CREATE POLICY polecat_update ON public.users FOR UPDATE USING (

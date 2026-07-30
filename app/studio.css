@@ -1507,6 +1507,13 @@ body.lib-dragging #preview{pointer-events:none}
   font-size:var(--fs-12);font-weight:600;color:var(--ink);cursor:pointer}
 .bd-map-scale select:hover{border-color:var(--brand)}
 .bd-map-hint{color:var(--faint);font-style:italic;white-space:nowrap}
+/* DURABLE-1: persistent push-failure banner — local edits are NOT reaching the
+   backend and are one stale pull away from being clobbered. Fixed to the bottom
+   so it never fights the topbar; below modals (they use higher z). */
+.sync-loss-banner{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:900;
+  max-width:min(680px,calc(100vw - 28px));padding:10px 16px;border-radius:12px;
+  background:color-mix(in srgb,var(--bad,#c0392b) 14%,var(--pane));border:1px solid color-mix(in srgb,var(--bad,#c0392b) 45%,transparent);
+  color:var(--ink);font-size:var(--fs-13);line-height:1.45;box-shadow:0 8px 28px rgba(0,0,0,.18)}
 .bd-ifr{width:100%;height:min(62vh,540px);border:1px solid var(--line);border-radius:12px;background:var(--pane)}
 /* VB-5: the cross-editor notice — shared look between the View Builder's
    #buildNotice and Quick Views' .xp-cross-note (a soft brand-tinted banner

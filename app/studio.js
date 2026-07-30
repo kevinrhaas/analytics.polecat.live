@@ -366,6 +366,21 @@
       // workspace-backend sync: restore a saved remote, keep the rail dot +
       // Settings card live, and flush any pending mirror write on page close
       var _lastSyncErrToasted = "";
+      // DURABLE-1: the persistent push-failure banner (see the onSync handler
+      // below). Named + exposed so the suite can drive it with fabricated states.
+      function renderSyncLossBanner(st) {
+        var lossBanner = document.getElementById("syncLossBanner");
+        var lossShow = st && st.isRemote && st.pendingEdits && (st.pushFails || 0) >= 2;
+        if (!lossShow) { if (lossBanner) lossBanner.remove(); return; }
+        if (!lossBanner) {
+          lossBanner = el("div"); lossBanner.id = "syncLossBanner"; lossBanner.className = "sync-loss-banner";
+          document.body.appendChild(lossBanner);
+        }
+        lossBanner.innerHTML = "<b>Your changes aren’t reaching the backend.</b> " +
+          Studio.escapeHtml(st.lastError || "The workspace keeps rejecting pushes.") +
+          " Recent edits live only in this browser until a push succeeds — retrying automatically.";
+      }
+      window.__studioSyncLossBanner = renderSyncLossBanner; // test hook
       Studio.Sync.onSync(function (st) {
         var dot = $("#railSourceDot"), lbl = $("#railSourceLbl"), rs = $("#railSource");
         if (dot) dot.className = "cx-dot " + (st.status === "connected" || st.status === "syncing" ? "ok" : st.status === "error" ? "bad" : st.status === "local" ? "" : "busy");
@@ -382,9 +397,19 @@
           _lastSyncErrToasted = st.lastError;
           toast("Workspace sync failed — working from this browser's copy. " + st.lastError, true);
         } else if (st.status === "connected") { _lastSyncErrToasted = ""; }
+        // DURABLE-1: a one-shot toast wasn't enough warning — with pushes failing
+        // REPEATEDLY, every local edit is one stale pull away from being clobbered
+        // by the remote (how Kevin's dashboards vanished). Keep a persistent banner
+        // up until a push actually lands.
+        renderSyncLossBanner(st);
         renderWorkspaceBackendCard();
         renderConnections(); // QA-02: credential-storage note tracks live sync state
       });
+      // DURABLE-1: a remote adoption (boot pull / Refresh / connect) replaces the
+      // workspace WHOLESALE — re-run the pack reconcile right after, so a stale
+      // remote can't resurrect duplicates or drop the seeded dashboards the boot
+      // heal had just fixed; the heal's own edits then push the corrected state up.
+      if (Studio.Sync.onAdopt) Studio.Sync.onAdopt(reconcilePackDashboards);
       var railSourceBtn = $("#railSource");
       if (railSourceBtn) railSourceBtn.onclick = function () { if (window.__studioShellSetSection) window.__studioShellSetSection("settings"); };
       // LIVE-e: push the current theme into the Help iframe the moment it (lazily) loads
@@ -5511,14 +5536,13 @@
     entry.title = entry.spec.title || "";
     entry.name = entry.spec.name || "";
     W.put("dashboards", entry, { silent: true });
-    // cap only the UNPINNED entries at 8 (newest-first) — pinning a dashboard
-    // protects it from ever being evicted by newer activity.
-    var unpinnedSeen = 0;
-    loadRecents().forEach(function (r) {
-      if (r.pinned) return;
-      unpinnedSeen++;
-      if (unpinnedSeen > 8) W.remove("dashboards", r.id, { silent: true });
-    });
+    // DURABLE-1 (Kevin live, 2026-07-30): the old "cap unpinned entries at 8"
+    // eviction is GONE. It dated from when this table was a recents list; once
+    // dashboards became first-class durable objects (and the Conservation pack
+    // alone seeds 11), every autosave tick of an open dashboard silently DELETED
+    // the older unpinned rows — exactly how Kevin's Watershed Map vanished while
+    // he was just looking at it in slideshow mode. Dashboards are never deleted
+    // except by an explicit user delete. (Version history still prunes below.)
     W.notify("dashboards");
     pruneVersions(loadRecents().map(function (r) { return r.id; }));
     renderHome();
