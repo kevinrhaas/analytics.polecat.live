@@ -11,7 +11,7 @@
   }
 
   /* ---------- CDF (.html) + preview ----------
-     assets = { css, js, render, icons }  (text of vendor/pdc-ui.css, vendor/pdc-ui.js,
+     assets = { css, js, render, icons }  (text of vendor/dashkit.css, vendor/dashkit.js,
      app/studio-render.js, app/icons.js — icons is bundled unconditionally, same as charts,
      since studio-charts.js's paginated tables call Studio.icon() for their Prev/Next buttons)
      opts   = { deployPath, preview, mock, launcher } */
@@ -27,7 +27,7 @@
   // plaintext inside a static file anyone with the export can view-source. `redactSecrets` (run
   // against a throwaway deep clone, never the live spec the builder keeps editing) deletes the
   // secret field whenever it was actually set and stamps `needsSecret` with the field name so
-  // studio-render.js's PDC.cda dispatch (see its CRED_ENGINES map) knows to prompt for it at
+  // studio-render.js's DashKit.cda dispatch (see its CRED_ENGINES map) knows to prompt for it at
   // open time instead — "credentials prompted at open, never embedded."
   var SECRET_FIELDS = { snowflake: "sfToken", databricks: "dbxToken", bigquery: "bqToken", http: "httpAuthHeader" };
   // Post-overhaul backlog item 3, OTHER half ("connection-bound dataset adapters"): a dataset
@@ -107,100 +107,100 @@
     var titleText = Studio.applyTemplateVars(spec.title, spec.templateVars);
     var subtitleText = Studio.applyTemplateVars(spec.subtitle, spec.templateVars);
     var deployPath = opts.deployPath || "/public/pdc-iteration/v2";
-    var cdaPath = deployPath + "/" + spec.name + ".cda"; // legacy id namespace for PDC.cdaPath; nothing fetches it
+    var cdaPath = deployPath + "/" + spec.name + ".cda"; // legacy id namespace for DashKit.cdaPath; nothing fetches it
     // The old "All dashboards" launcher linked into a Pentaho repo listing — gone with Pentaho.
     var launcher = "";
     var mobileCss =
       "\n@media(max-width:640px){" +
-      ".pdc-header{flex-wrap:wrap;padding:8px 12px;gap:5px 8px;min-height:0}" +
-      ".pdc-sub{display:none}" +
-      ".pdc-wrap{padding:10px 10px 36px}" +
-      ".pdc-kpis{gap:8px;margin-bottom:10px}" +
-      ".pdc-brand{font-size:14px;gap:8px}" +
-      ".pdc-logo{width:24px;height:24px;font-size:13px}" +
-      ".pdc-iconbtn,.pdc-toggle button{font-size:11.5px;padding:5px 9px}" +
+      ".dk-header{flex-wrap:wrap;padding:8px 12px;gap:5px 8px;min-height:0}" +
+      ".dk-sub{display:none}" +
+      ".dk-wrap{padding:10px 10px 36px}" +
+      ".dk-kpis{gap:8px;margin-bottom:10px}" +
+      ".dk-brand{font-size:14px;gap:8px}" +
+      ".dk-logo{width:24px;height:24px;font-size:13px}" +
+      ".dk-iconbtn,.dk-toggle button{font-size:11.5px;padding:5px 9px}" +
       "}";
     // Section header dividers — included in every CDF export and preview iframe.
-    // .pdc-sec-hdr appears between panel grids when panels carry a `section` label.
+    // .dk-sec-hdr appears between panel grids when panels carry a `section` label.
     var sectionCss =
-      ".pdc-sec-hdr{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;" +
+      ".dk-sec-hdr{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;" +
       "color:var(--text-muted,#6b7a99);padding:12px 0 4px;margin-top:2px;border-bottom:1px solid var(--panel-border,#e0e4ef)}";
     // Dashboard description bar — shown below KPIs when spec.description is non-empty.
     var descCss =
-      ".pdc-desc-bar{margin:0 0 14px;padding:10px 16px;background:var(--panel-subtle-bg,rgba(0,91,181,.06));" +
+      ".dk-desc-bar{margin:0 0 14px;padding:10px 16px;background:var(--panel-subtle-bg,rgba(0,91,181,.06));" +
       "border-left:3px solid var(--pentaho,#005bb5);border-radius:0 6px 6px 0;" +
       "font-size:13px;color:var(--text-secondary,#3a4560);line-height:1.6}";
     // Panel note — visible annotation line between the card header and chart body.
     var panelNoteCss =
-      ".pdc-panel-note{font-size:11.5px;color:var(--text-muted,#6b7a99);line-height:1.5;" +
+      ".dk-panel-note{font-size:11.5px;color:var(--text-muted,#6b7a99);line-height:1.5;" +
       "padding:3px 14px 5px;margin:0;border-left:2px solid var(--panel-border,#e0e4ef);" +
       "background:var(--panel-subtle-bg,rgba(0,91,181,.04));font-style:italic}";
     // Per-panel accent color — a colored left border for multi-subject dashboard differentiation.
-    // .pdc-accent-panel + --pap-color CSS variable are set by studio-render.js when p.accentColor is set.
+    // .dk-accent-panel + --pap-color CSS variable are set by studio-render.js when p.accentColor is set.
     var panelAccentCss =
-      ".pdc-accent-panel{border-left:3px solid var(--pap-color,#005bb5)!important}";
+      ".dk-accent-panel{border-left:3px solid var(--pap-color,#005bb5)!important}";
     // LF6: per-panel download chrome (image + data). Unconditional (unlike previewCss below) so
     // it renders identically in the live preview iframe AND the exported/embedded HTML — the
-    // preview-only .sr-card-acts row (zoom/dup/del) reuses .pdc-dl-act for a matching look when
+    // preview-only .sr-card-acts row (zoom/dup/del) reuses .dk-dl-act for a matching look when
     // studio-render.js appends these buttons into that same row; export gets its own top-right
-    // .pdc-dl-acts container at the same spot since .sr-card-acts isn't there to share.
+    // .dk-dl-acts container at the same spot since .sr-card-acts isn't there to share.
     var dlActsCss =
-      ".pdc-dl-act{width:20px;height:20px;border-radius:5px;border:1px solid var(--panel-border);background:var(--panel-bg);" +
+      ".dk-dl-act{width:20px;height:20px;border-radius:5px;border:1px solid var(--panel-border);background:var(--panel-bg);" +
       "color:var(--text-muted);font-size:13px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}" +
-      ".pdc-dl-act:hover{color:var(--pentaho);border-color:var(--pentaho)}" +
-      ".pdc-dl-acts{position:absolute;top:7px;right:11px;display:flex;gap:3px;opacity:0;transition:opacity .12s;z-index:8}" +
-      ".card:hover .pdc-dl-acts{opacity:1}" +
+      ".dk-dl-act:hover{color:var(--pentaho);border-color:var(--pentaho)}" +
+      ".dk-dl-acts{position:absolute;top:7px;right:11px;display:flex;gap:3px;opacity:0;transition:opacity .12s;z-index:8}" +
+      ".card:hover .dk-dl-acts{opacity:1}" +
       // LF69(d): PNG/CSV/standalone-HTML collapse into one "Export ▾" trigger + popover
-      // menu instead of up to 3 row buttons. .pdc-dl-trigger gets the same square
-      // icon-button look as .pdc-dl-act; .pdc-dl-item (an actual .pdc-dl-act, now a menu
+      // menu instead of up to 3 row buttons. .dk-dl-trigger gets the same square
+      // icon-button look as .dk-dl-act; .dk-dl-item (an actual .dk-dl-act, now a menu
       // row) overrides back to an auto-width labeled row.
-      ".pdc-dl-menu{position:relative;display:flex}" +
-      ".pdc-dl-trigger{width:20px;height:20px;border-radius:5px;border:1px solid var(--panel-border);background:var(--panel-bg);" +
+      ".dk-dl-menu{position:relative;display:flex}" +
+      ".dk-dl-trigger{width:20px;height:20px;border-radius:5px;border:1px solid var(--panel-border);background:var(--panel-bg);" +
       "color:var(--text-muted);cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;gap:1px}" +
-      ".pdc-dl-trigger:hover,.pdc-dl-menu.open .pdc-dl-trigger{color:var(--pentaho);border-color:var(--pentaho)}" +
-      ".pdc-dl-pop{position:absolute;top:24px;right:0;display:none;flex-direction:column;gap:2px;min-width:196px;" +
+      ".dk-dl-trigger:hover,.dk-dl-menu.open .dk-dl-trigger{color:var(--pentaho);border-color:var(--pentaho)}" +
+      ".dk-dl-pop{position:absolute;top:24px;right:0;display:none;flex-direction:column;gap:2px;min-width:196px;" +
       "padding:4px;background:var(--panel-bg);border:1px solid var(--panel-border);border-radius:8px;" +
       "box-shadow:0 6px 20px rgba(0,0,0,.22);z-index:20}" +
-      ".pdc-dl-menu.open .pdc-dl-pop{display:flex}" +
-      ".pdc-dl-item{width:auto!important;height:auto!important;justify-content:flex-start;gap:8px;" +
+      ".dk-dl-menu.open .dk-dl-pop{display:flex}" +
+      ".dk-dl-item{width:auto!important;height:auto!important;justify-content:flex-start;gap:8px;" +
       "padding:6px 10px!important;font-size:12px;white-space:nowrap;text-align:left}" +
-      ".pdc-dl-item:hover{background:var(--panel-header-bg,rgba(127,127,127,.14))}" +
-      "@media(pointer:coarse){.pdc-dl-acts{opacity:.85!important}.pdc-dl-act:not(.pdc-dl-item),.pdc-dl-trigger{width:32px;height:32px}}";
+      ".dk-dl-item:hover{background:var(--panel-header-bg,rgba(127,127,127,.14))}" +
+      "@media(pointer:coarse){.dk-dl-acts{opacity:.85!important}.dk-dl-act:not(.dk-dl-item),.dk-dl-trigger{width:32px;height:32px}}";
     // Richtext panel styles — included in every exported CDF and in the preview iframe.
     // Target line — horizontal dashed reference overlay (target, budget, threshold, etc.)
     // Positioned absolutely within the chart body (card.body gets position:relative via JS).
     var targetLineCss =
-      ".pdc-target-line{position:absolute;left:12px;right:8px;border-top:2px dashed;pointer-events:none;z-index:3}" +
-      ".pdc-target-label{position:absolute;right:0;top:-18px;font-size:10px;font-weight:700;" +
+      ".dk-target-line{position:absolute;left:12px;right:8px;border-top:2px dashed;pointer-events:none;z-index:3}" +
+      ".dk-target-label{position:absolute;right:0;top:-18px;font-size:10px;font-weight:700;" +
       "white-space:nowrap;background:transparent;padding:0 4px;letter-spacing:.01em;font-family:inherit}";
     // Reference band — shaded range overlay between topPct and bottomPct (visual %, 0=chart top).
     // Fill color uses rgba (set inline) so the band is translucent; label is full opacity on top.
     var refBandCss =
-      ".pdc-ref-band{position:absolute;left:12px;right:8px;pointer-events:none;z-index:2;border-radius:2px}" +
-      ".pdc-ref-label{position:absolute;right:4px;top:3px;font-size:9.5px;font-weight:700;" +
+      ".dk-ref-band{position:absolute;left:12px;right:8px;pointer-events:none;z-index:2;border-radius:2px}" +
+      ".dk-ref-label{position:absolute;right:4px;top:3px;font-size:9.5px;font-weight:700;" +
       "white-space:nowrap;letter-spacing:.01em;font-family:inherit}";
     // Callout arrow — inline SVG overlay; only the container positioning is needed in CSS.
     var calloutCss =
-      ".pdc-callout{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:4;overflow:visible}";
+      ".dk-callout{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:4;overflow:visible}";
     // Period highlight — vertical x-range band for line/bar/area charts.
     // Fill color is applied inline as rgba; dashed left/right borders mark the edges clearly.
     // Label sits at the top-left inside the band in the border color at full opacity.
     var periodHighlightCss =
-      ".pdc-period{position:absolute;top:0;height:100%;pointer-events:none;z-index:2;box-sizing:border-box}" +
-      ".pdc-period-label{position:absolute;left:4px;top:3px;font-size:9.5px;font-weight:700;" +
+      ".dk-period{position:absolute;top:0;height:100%;pointer-events:none;z-index:2;box-sizing:border-box}" +
+      ".dk-period-label{position:absolute;left:4px;top:3px;font-size:9.5px;font-weight:700;" +
       "white-space:nowrap;letter-spacing:.01em;font-family:inherit}";
     // Event markers — named vertical dashed tick lines for line/bar/area charts.
     // The marker line spans the full chart body height; label sits above (top:0) on the left of the line.
     var eventMarkerCss =
-      ".pdc-event-mark{position:absolute;top:0;height:100%;pointer-events:none;z-index:3;border-left:2px dashed;box-sizing:border-box;width:0}" +
-      ".pdc-event-mark-label{position:absolute;left:4px;top:0;font-size:9.5px;font-weight:700;" +
+      ".dk-event-mark{position:absolute;top:0;height:100%;pointer-events:none;z-index:3;border-left:2px dashed;box-sizing:border-box;width:0}" +
+      ".dk-event-mark-label{position:absolute;left:4px;top:0;font-size:9.5px;font-weight:700;" +
       "white-space:nowrap;letter-spacing:.01em;font-family:inherit}";
     // Scatter point annotations — colored text labels at visual (x%,y%) positions on a scatter plot.
     // The dot indicator pinpoints the annotated region; the text box shows the label.
     var scatterAnnotCss =
-      ".pdc-pt-annot{position:absolute;pointer-events:none;z-index:4;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center}" +
-      ".pdc-pt-annot-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-bottom:3px}" +
-      ".pdc-pt-annot-txt{font-size:9.5px;font-weight:700;white-space:nowrap;border-radius:3px;padding:1px 5px;font-family:inherit;line-height:1.4}";
+      ".dk-pt-annot{position:absolute;pointer-events:none;z-index:4;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center}" +
+      ".dk-pt-annot-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-bottom:3px}" +
+      ".dk-pt-annot-txt{font-size:9.5px;font-weight:700;white-space:nowrap;border-radius:3px;padding:1px 5px;font-family:inherit;line-height:1.4}";
     var kpiSubCss =
       ".kpi-sub{font-size:10.5px;color:var(--text-muted,#9aa7b8);margin-top:3px;line-height:1.3;font-style:italic;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}";
     var richtextCss =
@@ -213,7 +213,7 @@
       ".sr-richtext code{background:var(--field);border-radius:3px;padding:1px 5px;font-size:.88em}" +
       ".sr-richtext hr{border:0;border-top:1px solid var(--panel-border);margin:.5em 0}" +
       ".sr-rt-placeholder{color:var(--faint);font-style:italic;font-size:12px}";
-    // ★★ Visual refresh (A): full dashboard theme — overrides the WHOLE pdc-ui.css token set
+    // ★★ Visual refresh (A): full dashboard theme — overrides the WHOLE dashkit.css token set
     // (bg/panel/text hierarchy + brand + series) in one pass when spec.dashboardTheme picks a
     // non-classic preset (see Studio.DASHBOARD_THEMES). Emitted BEFORE the finer-grained
     // themeColor/headerBg/paletteKey overrides below so a per-dashboard tweak on top of a theme
@@ -232,37 +232,37 @@
       }
     }
     // Per-dashboard accent color: override --pentaho CSS variable when spec.themeColor is set.
-    // The override is appended last so it wins over the base palette in pdc-ui.css (same :root
+    // The override is appended last so it wins over the base palette in dashkit.css (same :root
     // specificity; last-declaration-wins within one stylesheet).
     var themeColorCss = spec.themeColor ? "\n:root{--pentaho:" + spec.themeColor + "}" : "";
-    // Z6: per-dashboard header logo. .pdc-logo in pdc-ui.css is styled for the default "P" <span>
+    // Z6: per-dashboard header logo. .dk-logo in dashkit.css is styled for the default "P" <span>
     // (gradient background, centered bold letter) — an <img> needs object-fit so a non-square
     // upload still fills the 30x30 badge cleanly instead of stretching/tiling.
-    var headerLogoCss = spec.headerLogo ? "\nimg.pdc-logo{object-fit:cover;background:var(--panel-bg)}" : "";
-    // Z6: header link — .pdc-brand is a <div> normally; when wrapped in an <a> it needs the link
+    var headerLogoCss = spec.headerLogo ? "\nimg.dk-logo{object-fit:cover;background:var(--panel-bg)}" : "";
+    // Z6: header link — .dk-brand is a <div> normally; when wrapped in an <a> it needs the link
     // underline/color reset so it still reads as plain brand chrome, not a text link.
-    var headerLinkCss = spec.headerLink ? "\na.pdc-brand{color:inherit;text-decoration:none;cursor:pointer}" : "";
+    var headerLinkCss = spec.headerLink ? "\na.dk-brand{color:inherit;text-decoration:none;cursor:pointer}" : "";
     // Z6: per-dashboard header background color — flat fill (not the default navy gradient) with
     // an auto-contrasting text color (Studio.contrastFg) so a light pick doesn't go invisible-on-white.
     var headerBgCss = spec.headerBg ?
-      "\n.pdc-header{background:" + spec.headerBg + ";color:" + Studio.contrastFg(spec.headerBg) + "}" : "";
-    // Z6: banner title size — overrides .pdc-title's inherited font-size (17px, from .pdc-brand)
-    // without touching the vendored pdc-ui.css default.
+      "\n.dk-header{background:" + spec.headerBg + ";color:" + Studio.contrastFg(spec.headerBg) + "}" : "";
+    // Z6: banner title size — overrides .dk-title's inherited font-size (17px, from .dk-brand)
+    // without touching the vendored dashkit.css default.
     var titleSizeCss = (spec.titleSize && Studio.TITLE_SIZE_PX[spec.titleSize]) ?
-      "\n.pdc-title{font-size:" + Studio.TITLE_SIZE_PX[spec.titleSize] + "}" : "";
+      "\n.dk-title{font-size:" + Studio.TITLE_SIZE_PX[spec.titleSize] + "}" : "";
     // Header off (embed mode): hide the whole title banner + the description bar so the
     // exported HTML shows ONLY the KPIs and widgets — ready to drop inside another page's
     // chrome. Done via CSS (not by removing the nodes) so the runtime JS that references
     // #ctrls/#themeBtn/#qInfoBtn never trips, and preview == export stays byte-identical.
     var hideHeaderCss = spec.hideHeader ?
-      "\n.pdc-header{display:none}\n.pdc-desc-bar{display:none}\n.pdc-wrap{padding-top:16px}" : "";
-    // Z6: subtitle style — .pdc-sub defaults to font-weight:500, not italic (vendor pdc-ui.css).
+      "\n.dk-header{display:none}\n.dk-desc-bar{display:none}\n.dk-wrap{padding-top:16px}" : "";
+    // Z6: subtitle style — .dk-sub defaults to font-weight:500, not italic (vendor dashkit.css).
     var subtitleStyleCss = "";
-    if (spec.subtitleStyle === "italic") subtitleStyleCss = "\n.pdc-sub{font-style:italic}";
-    else if (spec.subtitleStyle === "bold") subtitleStyleCss = "\n.pdc-sub{font-weight:800}";
-    else if (spec.subtitleStyle === "bold-italic") subtitleStyleCss = "\n.pdc-sub{font-weight:800;font-style:italic}";
+    if (spec.subtitleStyle === "italic") subtitleStyleCss = "\n.dk-sub{font-style:italic}";
+    else if (spec.subtitleStyle === "bold") subtitleStyleCss = "\n.dk-sub{font-weight:800}";
+    else if (spec.subtitleStyle === "bold-italic") subtitleStyleCss = "\n.dk-sub{font-weight:800;font-style:italic}";
     // N-DESIGN "chart skins": "flat" strips the raised shadow/glass-edge/hover-lift .card and
-    // .kpi already carry (vendor/pdc-ui.css) for a quieter, editorial-minimal mood; "sketch"
+    // .kpi already carry (vendor/dashkit.css) for a quieter, editorial-minimal mood; "sketch"
     // (follow-up) swaps the shadow for a dashed border + an asymmetric, hand-wobbled radius
     // instead — a whimsical mood distinct from both Raised and Flat. Both are pure CSS
     // overrides, no markup change, so they apply uniformly in preview + every export.
@@ -273,7 +273,7 @@
       "\n.card,.kpi{box-shadow:none;border:2px dashed var(--panel-border);border-radius:18px 7px 18px 7px/7px 18px 7px 18px}" +
       "\n.card:hover,.kpi:hover{box-shadow:none}" : "";
     // Series palette preset: override --c1..--c10 for both light and dark mode.
-    // paletteKey "default" or blank → keep pdc-ui.css colors; any other key bakes in
+    // paletteKey "default" or blank → keep dashkit.css colors; any other key bakes in
     // the preset's color arrays so the exported CDF always renders with the chosen palette.
     var paletteCss = "";
     if (spec.paletteKey && spec.paletteKey !== "default") {
@@ -285,24 +285,24 @@
       }
     }
     // LF35 slice 1: choropleth GL panels set cfg.mapControls "compact" per-panel (studio-charts.js
-    // adds the .pdc-geo-compact class to that panel's map wrap only) — a transform-scale on
+    // adds the .dk-geo-compact class to that panel's map wrap only) — a transform-scale on
     // MapLibre's own control container shrinks the zoom+pan cluster uniformly without touching
     // its internal markup/CSS. Always included (inert unless a panel opts in), same as every
     // other unconditional small CSS rule in this bundle.
     // LF35 slice 2: mapControlsPos (studio-charts.js) can dock that same cluster in any of
     // MapLibre's four corner containers, so the compact scale needs a rule (with a matching
     // transform-origin, so it shrinks toward its own corner) per corner, not just top-right.
-    var geoCtrlCss = "\n.pdc-geo-compact .maplibregl-ctrl-top-right{transform:scale(.72);transform-origin:top right}" +
-      "\n.pdc-geo-compact .maplibregl-ctrl-top-left{transform:scale(.72);transform-origin:top left}" +
-      "\n.pdc-geo-compact .maplibregl-ctrl-bottom-right{transform:scale(.72);transform-origin:bottom right}" +
-      "\n.pdc-geo-compact .maplibregl-ctrl-bottom-left{transform:scale(.72);transform-origin:bottom left}";
+    var geoCtrlCss = "\n.dk-geo-compact .maplibregl-ctrl-top-right{transform:scale(.72);transform-origin:top right}" +
+      "\n.dk-geo-compact .maplibregl-ctrl-top-left{transform:scale(.72);transform-origin:top left}" +
+      "\n.dk-geo-compact .maplibregl-ctrl-bottom-right{transform:scale(.72);transform-origin:bottom right}" +
+      "\n.dk-geo-compact .maplibregl-ctrl-bottom-left{transform:scale(.72);transform-origin:bottom left}";
     // Print / PDF layout: static header, hide interactive controls, avoid card page breaks.
     // Applied only in exported CDF (not the in-builder preview where printing makes no sense).
     // LF36 slice 1: @page sets sane print margins (browsers default to ~0 or huge depending on
     // engine) and orphans/widows keeps text-heavy panels (the dashboard description bar + any
     // richtext panel's paragraphs/list items — .sr-richtext is the same class the builder preview
     // uses, see richtextCss above) from stranding a single line at a page break. break-inside:avoid
-    // on .card/.pdc-kpis (unchanged) is what actually keeps a widget/KPI row from splitting across
+    // on .card/.dk-kpis (unchanged) is what actually keeps a widget/KPI row from splitting across
     // a page boundary.
     // LF36 slice 2: page size + orientation ride the standard CSS @page `size` keyword (opts.
     // pdfPageSize/pdfOrientation, set by the PDF export dialog in studio.js's doExport — the plain
@@ -313,27 +313,27 @@
     var printCss = !opts.preview ?
       "\n@media print{" +
         "@page{margin:12mm" + pageSizeCss + "}" +
-        ".pdc-header{position:static!important;box-shadow:none!important;border-bottom:1px solid #d0d4da}" +
+        ".dk-header{position:static!important;box-shadow:none!important;border-bottom:1px solid #d0d4da}" +
         "#qInfoBtn,#printBtn,#ctrls{display:none!important}" +
         "body{background:#fff!important;color:#000!important}" +
-        ".pdc-wrap{padding:12px 16px}" +
-        ".pdc-grid{gap:12px}" +
+        ".dk-wrap{padding:12px 16px}" +
+        ".dk-grid{gap:12px}" +
         ".card{break-inside:avoid;box-shadow:none;border:1px solid #d0d4da}" +
-        ".pdc-kpis{break-inside:avoid}" +
-        ".pdc-desc-bar,.sr-richtext p,.sr-richtext li{orphans:3;widows:3}" +
+        ".dk-kpis{break-inside:avoid}" +
+        ".dk-desc-bar,.sr-richtext p,.sr-richtext li{orphans:3;widows:3}" +
         "}" : "";
     var previewCss = opts.preview ?
       "\n.sr-sel{cursor:pointer}.sr-sel:hover{outline:2px dashed var(--pentaho);outline-offset:2px}" +
-      ".sr-active{outline:2px solid var(--pdc)!important;outline-offset:2px;box-shadow:0 0 0 4px color-mix(in srgb,var(--pdc) 22%,transparent)}" +
+      ".sr-active{outline:2px solid var(--dk)!important;outline-offset:2px;box-shadow:0 0 0 4px color-mix(in srgb,var(--dk) 22%,transparent)}" +
       ".sr-grip{cursor:grab;color:var(--text-faint);margin-right:3px;font-size:13px;letter-spacing:-2px;user-select:none;line-height:1}" +
-      ".sr-grip:hover{color:var(--pdc)}.sr-grip:active{cursor:grabbing}" +
+      ".sr-grip:hover{color:var(--dk)}.sr-grip:active{cursor:grabbing}" +
       ".card>h3{cursor:grab;touch-action:none}" +
       ".sr-resize{position:absolute;top:42px;right:0;bottom:0;width:10px;cursor:ew-resize;z-index:6;touch-action:none}" +
       ".sr-resize:hover{background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--pentaho) 32%,transparent))}" +
       ".sr-dragging{opacity:.4}" +
-      ".sr-caret{position:absolute;width:3px;background:var(--pdc);border-radius:2px;pointer-events:none;z-index:7;box-shadow:0 0 0 2px color-mix(in srgb,var(--pdc) 28%,transparent);transition:left .07s ease,top .07s ease,height .07s ease}" +
-      ".sr-ghost{position:fixed;pointer-events:none;z-index:99999;background:var(--pdc);color:#fff;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:7px;box-shadow:0 8px 24px rgba(0,0,0,.32);opacity:.96;white-space:nowrap}" +
-      ".sr-rename{font:inherit;font-weight:700;font-size:13.5px;border:1px solid var(--pdc);border-radius:5px;padding:1px 6px;outline:none;color:var(--text-primary);background:var(--panel-bg);min-width:120px;max-width:90%}" +
+      ".sr-caret{position:absolute;width:3px;background:var(--dk);border-radius:2px;pointer-events:none;z-index:7;box-shadow:0 0 0 2px color-mix(in srgb,var(--dk) 28%,transparent);transition:left .07s ease,top .07s ease,height .07s ease}" +
+      ".sr-ghost{position:fixed;pointer-events:none;z-index:99999;background:var(--dk);color:#fff;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:7px;box-shadow:0 8px 24px rgba(0,0,0,.32);opacity:.96;white-space:nowrap}" +
+      ".sr-rename{font:inherit;font-weight:700;font-size:13.5px;border:1px solid var(--dk);border-radius:5px;padding:1px 6px;outline:none;color:var(--text-primary);background:var(--panel-bg);min-width:120px;max-width:90%}" +
       ".sr-empty{max-width:520px;margin:8vh auto;text-align:center;padding:38px 28px;border:2px dashed var(--panel-border);border-radius:18px;background:var(--panel-subtle-bg)}" +
       ".sr-empty-ic{font-size:42px;color:var(--pentaho);opacity:.55;line-height:1}" +
       ".sr-empty-t{font-size:18px;font-weight:800;margin:14px 0 6px;color:var(--text-primary)}" +
@@ -349,13 +349,13 @@
       // preview-only affordances — the exported header is untouched (byte-identical parity).
       ".sr-head-edit{cursor:text;border-radius:5px;transition:box-shadow .12s}" +
       ".sr-head-edit:hover{box-shadow:0 0 0 2px color-mix(in srgb,var(--pentaho) 34%,transparent)}" +
-      ".pdc-desc-bar.sr-desc{position:relative;padding-right:34px}" +
+      ".dk-desc-bar.sr-desc{position:relative;padding-right:34px}" +
       ".sr-desc-del{position:absolute;top:50%;right:8px;transform:translateY(-50%);width:20px;height:20px;border-radius:5px;border:1px solid var(--panel-border);background:var(--panel-bg);color:var(--text-muted);font-size:13px;line-height:1;cursor:pointer;opacity:0;transition:opacity .12s;padding:0;display:flex;align-items:center;justify-content:center}" +
       ".sr-desc:hover .sr-desc-del{opacity:1}.sr-desc-del:hover{color:var(--bad,#e0395e);border-color:var(--bad,#e0395e)}" +
       // LF21: the header bar itself is now a selectable canvas object (click it → Inspector's
       // "Header" view) with its own ✕ affordance, mirroring the KPI tile / description patterns
       // above — preview-only, so the exported header markup is unaffected (byte-identical).
-      ".pdc-header.sr-header-sel{cursor:pointer}" +
+      ".dk-header.sr-header-sel{cursor:pointer}" +
       ".sr-head-del{width:22px;height:22px;border-radius:5px;border:1px solid var(--panel-border);background:var(--panel-bg);color:var(--text-muted);font-size:13px;line-height:1;cursor:pointer;padding:0;flex-shrink:0;display:flex;align-items:center;justify-content:center}" +
       ".sr-head-del:hover{color:var(--bad,#e0395e);border-color:var(--bad,#e0395e)}" +
       "@media(pointer:coarse){.card>h3{min-height:48px}.sr-card-acts{opacity:1!important}.sr-act{width:36px;height:36px}.sr-kpi-del{opacity:.85!important;width:24px;height:24px}.sr-desc-del{opacity:.85!important;width:26px;height:26px}}" : "";
@@ -369,24 +369,24 @@
       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n" +
       "<title>" + xml(titleText) + " — Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + dlActsCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + dashboardThemeCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + hideHeaderCss + subtitleStyleCss + cardSkinCss + paletteCss + geoCtrlCss + printCss + previewCss + "\n</style>\n</head>\n";
     var logoHtml = spec.headerLogo ?
-      "<img class=\"pdc-logo\" src=\"" + xml(spec.headerLogo) + "\" alt=\"\"/>" :
-      "<span class=\"pdc-logo\">P</span>";
+      "<img class=\"dk-logo\" src=\"" + xml(spec.headerLogo) + "\" alt=\"\"/>" :
+      "<span class=\"dk-logo\">P</span>";
     // Z6: an optional header link wraps the brand mark+title in an <a> (opens in a new tab) —
     // e.g. back to a company site or portal. Plain <span>s when unset (the common case).
-    var brandInner = logoHtml + "<span class=\"pdc-title\">" + xml(titleText) + "</span>";
+    var brandInner = logoHtml + "<span class=\"dk-title\">" + xml(titleText) + "</span>";
     var brandHtml = spec.headerLink ?
-      "<a class=\"pdc-brand\" href=\"" + xml(spec.headerLink) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" + brandInner + "</a>" :
-      "<div class=\"pdc-brand\">" + brandInner + "</div>";
+      "<a class=\"dk-brand\" href=\"" + xml(spec.headerLink) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" + brandInner + "</a>" :
+      "<div class=\"dk-brand\">" + brandInner + "</div>";
     var body =
-      "<body>\n<header class=\"pdc-header\">\n" +
+      "<body>\n<header class=\"dk-header\">\n" +
       "  " + brandHtml + "\n" +
-      "  <div class=\"pdc-sub\">" + xml(subtitleText || "") + "</div>\n  <div class=\"spacer\"></div>\n" +
-      "  <div class=\"pdc-ctrls\" id=\"ctrls\"></div>\n" +
-      "  <button class=\"pdc-iconbtn\" id=\"qInfoBtn\" title=\"View the datasets behind this dashboard\" aria-label=\"View the datasets behind this dashboard\" onclick=\"PDC.queryModal()\">&#9432;</button>\n" +
-      (!opts.preview ? "  <button class=\"pdc-iconbtn\" id=\"printBtn\" title=\"Print / save as PDF\" aria-label=\"Print or save as PDF\" onclick=\"window.print()\"><svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><rect x='6' y='9' width='12' height='9' rx='1'/><path d='M7 9V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v4'/><path d='M7 17v2a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-2'/><circle cx='9' cy='13.5' r='1' fill='currentColor' stroke='none'/></svg></button>\n" : "") +
+      "  <div class=\"dk-sub\">" + xml(subtitleText || "") + "</div>\n  <div class=\"spacer\"></div>\n" +
+      "  <div class=\"dk-ctrls\" id=\"ctrls\"></div>\n" +
+      "  <button class=\"dk-iconbtn\" id=\"qInfoBtn\" title=\"View the datasets behind this dashboard\" aria-label=\"View the datasets behind this dashboard\" onclick=\"DashKit.queryModal()\">&#9432;</button>\n" +
+      (!opts.preview ? "  <button class=\"dk-iconbtn\" id=\"printBtn\" title=\"Print / save as PDF\" aria-label=\"Print or save as PDF\" onclick=\"window.print()\"><svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><rect x='6' y='9' width='12' height='9' rx='1'/><path d='M7 9V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v4'/><path d='M7 17v2a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-2'/><circle cx='9' cy='13.5' r='1' fill='currentColor' stroke='none'/></svg></button>\n" : "") +
       "  " + launcher + "\n</header>\n" +
-      "<div class=\"pdc-wrap\">\n  <div class=\"pdc-kpis\" id=\"kpis\"></div>\n" +
-      (spec.description ? "  <div class=\"pdc-desc-bar\">" + xml(spec.description) + "</div>\n" : "") +
+      "<div class=\"dk-wrap\">\n  <div class=\"dk-kpis\" id=\"kpis\"></div>\n" +
+      (spec.description ? "  <div class=\"dk-desc-bar\">" + xml(spec.description) + "</div>\n" : "") +
       "  <div id=\"content\"><div class=\"loading\">Loading…</div></div>\n" +
       "</div>\n";
     // UX6: icons.js must load before charts.js so the pagination Prev/Next buttons' Studio.icon()
@@ -397,7 +397,7 @@
     // the export ONLY when the dashboard actually has a data access of that kind — their wasm
     // engines are lazy-loaded from a CDN at query time regardless (see app/duckdb.js/sqlitehttp.js),
     // but there's no reason to add even these small façade files to a dashboard that doesn't use
-    // one. This is what lets studio-render.js's PDC.cda dispatch actually answer a duckdb/httpvfs
+    // one. This is what lets studio-render.js's DashKit.cda dispatch actually answer a duckdb/httpvfs
     // DA once exported/deployed, instead of falling through to a data call that 404s.
     // Computed once, early: the SAME redacted clone both decides which live-query façades to
     // bundle below AND is what actually gets embedded as window.STUDIO_SPEC at the bottom of this
@@ -413,7 +413,7 @@
     var httpvfsScript = (daKinds.httpvfs && assets.httpvfs) ? ("<script>\n" + assets.httpvfs + "\n</script>\n") : "";
     // Post-overhaul backlog item 3 follow-up: same lean-bundling pattern as duckdb/httpvfs above,
     // now covering the four credential-based direct connectors (see redactSecrets above + the
-    // studio-render.js PDC.cda dispatch that answers these DA kinds once deployed).
+    // studio-render.js DashKit.cda dispatch that answers these DA kinds once deployed).
     var snowflakeScript = (daKinds.snowflake && assets.snowflake) ? ("<script>\n" + assets.snowflake + "\n</script>\n") : "";
     var databricksScript = (daKinds.databricks && assets.databricks) ? ("<script>\n" + assets.databricks + "\n</script>\n") : "";
     var bigqueryScript = (daKinds.bigquery && assets.bigquery) ? ("<script>\n" + assets.bigquery + "\n</script>\n") : "";
@@ -456,19 +456,19 @@
     var boot = "<script>\n" + assets.js + "\n</script>\n" + iconsScript + charts + geoScript + duckdbScript + httpvfsScript +
       snowflakeScript + databricksScript + bigqueryScript + genericsqlScript + tursoScript + postgrestScript + supabaseScript + gsheetsScript + fileScript + sigv4Script + redshiftScript + "<script>\n" + assets.render + "\n</script>\n<script>\n" +
       "window.STUDIO_AUTOBOOT=false;\n" +
-      "PDC.cdaPath=" + JSON.stringify(cdaPath) + ";\nvar CDAPATH=PDC.cdaPath;\n";
+      "DashKit.cdaPath=" + JSON.stringify(cdaPath) + ";\nvar CDAPATH=DashKit.cdaPath;\n";
     if (opts.preview) {
-      boot += "window.STUDIO_PREVIEW=true;\n" + jsonScript("window.PDC_MOCK", opts.mock || {}) + "\n";
+      boot += "window.STUDIO_PREVIEW=true;\n" + jsonScript("window.DASHKIT_MOCK", opts.mock || {}) + "\n";
     } else if (opts.mock) {
-      // LF23 (viewer #106): embed a PDC_MOCK WITHOUT setting window.STUDIO_PREVIEW. The viewer
+      // LF23 (viewer #106): embed a DASHKIT_MOCK WITHOUT setting window.STUDIO_PREVIEW. The viewer
       // renders/exports real dashboards (preview:false) so credentialed + connection engines stay
       // live (studio-render.js gates those on !STUDIO_PREVIEW), but a SAMPLE-only data access has
       // no real engine and would otherwise fall through to the retired CDA server endpoint → 404.
       // viewer.js passes a mock covering ONLY those sample DAs, so real data accesses are never
-      // shadowed (PDC.cda prefers PDC_MOCK[id] when present) — this branch just makes that mock
+      // shadowed (DashKit.cda prefers DASHKIT_MOCK[id] when present) — this branch just makes that mock
       // available on a non-preview build. Empty/absent mock (every other preview:false caller —
-      // exportCDF, the PDF path) leaves PDC_MOCK undefined exactly as before.
-      boot += jsonScript("window.PDC_MOCK", opts.mock) + "\n";
+      // exportCDF, the PDF path) leaves DASHKIT_MOCK undefined exactly as before.
+      boot += jsonScript("window.DASHKIT_MOCK", opts.mock) + "\n";
     }
     // V9 (scientific-honesty polish): "Last updated" per data access, resolved HERE
     // (the one place both the live builder context and the static export funnel
@@ -490,7 +490,7 @@
     // than guess a static scale at build time (layout depends on the live browser + actual
     // content), measure the real overflow at print time: on `beforeprint` (fired once the print
     // media query — and this file's own @media print rules above — have already taken effect,
-    // per spec/major-engine behavior) compare .pdc-wrap's rendered scrollWidth against the page's
+    // per spec/major-engine behavior) compare .dk-wrap's rendered scrollWidth against the page's
     // printable width in CSS px (96px/in is the standard CSS-to-physical mapping browsers use for
     // print layout) and, only if it overflows, scale the whole wrap down uniformly so nothing
     // gets clipped at the page edge. `afterprint` restores it in case the tab is used again.
@@ -501,10 +501,10 @@
       var printableWidthPx = Math.round(printableIn * 96);
       printAutoFitScript = "(function(){var W=" + printableWidthPx + ";" +
         "function reset(w){w.style.transform='';w.style.width='';}" +
-        "function fit(){var w=document.querySelector('.pdc-wrap');if(!w)return;reset(w);var sw=w.scrollWidth;" +
+        "function fit(){var w=document.querySelector('.dk-wrap');if(!w)return;reset(w);var sw=w.scrollWidth;" +
           "if(sw>W){var s=W/sw;w.style.transform='scale('+s+')';w.style.transformOrigin='top left';w.style.width=(100/s)+'%';}}" +
         "window.addEventListener('beforeprint',fit);" +
-        "window.addEventListener('afterprint',function(){var w=document.querySelector('.pdc-wrap');if(w)reset(w);});" +
+        "window.addEventListener('afterprint',function(){var w=document.querySelector('.dk-wrap');if(w)reset(w);});" +
         "})();\n";
     }
     boot += printAutoFitScript;

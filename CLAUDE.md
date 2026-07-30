@@ -38,7 +38,7 @@ runs skip this app).
 
 ## Studio invariants (do not break)
 
-- **`vendor/pdc-ui.js` stays pristine** — chart types/extensions live in
+- **`vendor/dashkit.js` stays pristine** — chart types/extensions live in
   `app/studio-charts.js` only.
 - **The exported `.html` dashboard stays byte-identical to the live preview**
   (the preview iframe and the export inline the same toolkit; builder ↔ iframe
@@ -69,7 +69,7 @@ app/                Studio modules: model.js → studio-render.js ↔ studio.js
                     → exporters.js; sources/ = DataSource adapters (schema.js
                     is the contract); studio-charts.js = chart extensions
 js/changelog.js     Fleet-format changelog (see contract above)
-vendor/             pdc-ui.js toolkit mirror (pristine) + polecat-shell/ (read-only)
+vendor/             dashkit.js toolkit mirror (pristine) + polecat-shell/ (read-only)
 tests/run.js        The Playwright suite (~1,400 checks) — the merge gate
 tools/              changelog-normalize/check, export.js CLI, lib.js
 docs/index.html     User-facing Help (update in the same slice as features)

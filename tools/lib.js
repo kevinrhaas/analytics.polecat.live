@@ -25,8 +25,8 @@ function assets() {
    ["zcta", "geo/us-zcta-albers.json"], ["crdMap", "geo/us-crd-counties.json"]]
     .forEach(function (kv) { geo[kv[0]] = fs.readFileSync(path.join(VENDOR, kv[1]), "utf8"); });
   return {
-    css: fs.readFileSync(path.join(VENDOR, "pdc-ui.css"), "utf8"),
-    js: fs.readFileSync(path.join(VENDOR, "pdc-ui.js"), "utf8"),
+    css: fs.readFileSync(path.join(VENDOR, "dashkit.css"), "utf8"),
+    js: fs.readFileSync(path.join(VENDOR, "dashkit.js"), "utf8"),
     render: fs.readFileSync(path.join(APP, "studio-render.js"), "utf8"),
     charts: fs.readFileSync(path.join(APP, "studio-charts.js"), "utf8"),
     topojson: fs.readFileSync(path.join(VENDOR, "geo/topojson-client.min.js"), "utf8"),

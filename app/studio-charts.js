@@ -1,23 +1,23 @@
 /* ============================================================================
-   studio-charts.js — Studio chart extensions layered on the PDC toolkit.
-   Adds chart types the base pdc-ui.js doesn't ship (kept separate so the
+   studio-charts.js — Studio chart extensions layered on the DashKit toolkit.
+   Adds chart types the base dashkit.js doesn't ship (kept separate so the
    vendored toolkit stays a 1:1 mirror of the v2 suite). Loaded inside the
-   preview iframe / exported CDF html, right after pdc-ui.js.
+   preview iframe / exported CDF html, right after dashkit.js.
    ============================================================================ */
 (function () {
   "use strict";
-  var PDC = window.PDC; if (!PDC || PDC.areaStacked) return;
-  var S = PDC.S;
+  var DashKit = window.DashKit; if (!DashKit || DashKit.areaStacked) return;
+  var S = DashKit.S;
   function W(el) { return el.clientWidth || (el.parentNode && el.parentNode.clientWidth) || 640; }
 
   /* ── KPI sparkline type variants ────────────────────────────────────────────
-     PDC.sparkSVG (in pdc-ui.js) renders the default line sparkline.
+     DashKit.sparkSVG (in dashkit.js) renders the default line sparkline.
      These extensions add 'bar' and 'area' flavours for richer KPI tiles.
      studio-render.js calls them when k.sparkType !== 'line'. */
 
-  PDC.sparkSvgBar = function (vals, w, h, color) {
+  DashKit.sparkSvgBar = function (vals, w, h, color) {
     if (!vals || !vals.length) return "";
-    var c = color || PDC.cssvar("--pentaho");
+    var c = color || DashKit.cssvar("--pentaho");
     var n = vals.length, mx = Math.max.apply(null, vals);
     var mn = Math.min(0, Math.min.apply(null, vals));
     var rng = (mx - mn) || 1;
@@ -31,9 +31,9 @@
     return out + "</svg>";
   };
 
-  PDC.sparkSvgArea = function (vals, w, h, color) {
+  DashKit.sparkSvgArea = function (vals, w, h, color) {
     if (!vals || !vals.length) return "";
-    var c = color || PDC.cssvar("--pentaho");
+    var c = color || DashKit.cssvar("--pentaho");
     var n = vals.length, mx = Math.max.apply(null, vals), mn = Math.min.apply(null, vals);
     var rng = (mx - mn) || 1;
     var pts = vals.map(function (v, i) {
@@ -46,12 +46,12 @@
       "</svg>";
   };
   function mkSVG(el, h) { el.innerHTML = ""; var w = W(el); var s = S("svg", { viewBox: "0 0 " + w + " " + h, width: "100%", height: h }); el.appendChild(s); return { s: s, w: w, h: h }; }
-  function reg(el, fn) { PDC._reg.push(fn); fn(); }
+  function reg(el, fn) { DashKit._reg.push(fn); fn(); }
   // Track L sweep: the "show a fixed tooltip HTML string on hover, hide it on mouseout"
   // pair was hand-wired verbatim at ~36 call sites across the chart renderers below.
   function _tip(node, html) {
-    node.addEventListener("mousemove", function (e) { PDC.showTip(e, html); });
-    node.addEventListener("mouseout", PDC.hideTip);
+    node.addEventListener("mousemove", function (e) { DashKit.showTip(e, html); });
+    node.addEventListener("mouseout", DashKit.hideTip);
   }
   // V9 (Viridis scientific-honesty polish) originally gave the geo/ensemble charts their own
   // legend-embedded "Download CSV" button. LF6 slice 2 folds that into the generic per-panel
@@ -62,7 +62,7 @@
   // selection state (provider toggles etc.) since the registered fn is re-registered on every
   // redraw. Read lazily at click time, so it's immune to the choropleth's async geometry load
   // racing the chrome's synchronous creation.
-  PDC._panelCsvRows = PDC._panelCsvRows || {};
+  DashKit._panelCsvRows = DashKit._panelCsvRows || {};
   // V9 (Viridis scientific-honesty polish): a click-to-open "Sources" popover —
   // which providers contributed and how much coverage they have. Unlike _tip's
   // hover-only tooltip, this PERSISTS while read (closes on outside click, its
@@ -70,7 +70,7 @@
   function provenanceBtn(bodyFn) {
     var btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "pdc-provenance-btn";
+    btn.className = "dk-provenance-btn";
     btn.setAttribute("data-provenance-btn", "1");
     btn.setAttribute("aria-expanded", "false");
     btn.style.cssText = "display:inline-flex;align-items:center;gap:4px;border:1px solid var(--panel-border,#dfe4ee);" +
@@ -93,7 +93,7 @@
       var host = btn.parentNode;
       host.style.position = "relative";
       pop = document.createElement("div");
-      pop.className = "pdc-provenance-pop";
+      pop.className = "dk-provenance-pop";
       pop.setAttribute("data-provenance-pop", "1");
       pop.setAttribute("role", "dialog");
       pop.style.cssText = "position:absolute;z-index:40;top:100%;right:0;margin-top:6px;width:230px;" +
@@ -110,10 +110,10 @@
   }
   var RM = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // canAnim() combines prefers-reduced-motion with the per-panel animate flag set by studio-render.js
-  // (PDC._anim = p.animate !== false) so users can disable entrance animations panel-by-panel.
-  // animD() scales a base timeout ms value by the user's chosen duration factor (PDC._animD / 600).
-  function canAnim() { return !RM && PDC._anim !== false; }
-  function animD(base) { return base * ((PDC._animD || 600) / 600); }
+  // (DashKit._anim = p.animate !== false) so users can disable entrance animations panel-by-panel.
+  // animD() scales a base timeout ms value by the user's chosen duration factor (DashKit._animD / 600).
+  function canAnim() { return !RM && DashKit._anim !== false; }
+  function animD(base) { return base * ((DashKit._animD || 600) / 600); }
   function niceMax(m) { if (m <= 0) return 1; var p = Math.pow(10, Math.floor(Math.log10(m))); var n = m / p; var step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10; return step * p; }
 
   // Shared Gaussian KDE (violin + ridgeline both plot a smoothed density curve over
@@ -178,18 +178,18 @@
     }
     return " L" + pt[0] + "," + pt[1];
   }
-  PDC.areaStacked = function (el, cfg) { reg(el, function () { _area(el, cfg); }); };
+  DashKit.areaStacked = function (el, cfg) { reg(el, function () { _area(el, cfg); }); };
   function _area(el, cfg) {
     var labels = cfg.labels || [], series = cfg.series || [], h = cfg.height || 270;
     if (!labels.length || !series.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
-    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || PDC.fmt.abbr, P = PDC.palette(), n = labels.length;
+    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || DashKit.fmt.abbr, P = DashKit.palette(), n = labels.length;
     var totals = labels.map(function (_, i) { return series.reduce(function (a, se) { return a + (+se.values[i] || 0); }, 0); });
     var max = niceMax(Math.max.apply(null, totals.concat([0])));
     var mL = 46, mR = 12, mT = 12, mB = 30, iw = w - mL - mR, ih = h - mT - mB;
     var xs = function (i) { return mL + (n <= 1 ? iw / 2 : iw * i / (n - 1)); }, ys = function (v) { return mT + ih * (1 - v / (max || 1)); };
     for (var g = 0; g <= 4; g++) { var gy = mT + ih * (1 - g / 4); s.appendChild(S("line", { class: "gridline", x1: mL, y1: gy, x2: w - mR, y2: gy })); s.appendChild(S("text", { class: "tick", x: mL - 7, y: gy + 3, "text-anchor": "end" }, fmt(max * g / 4))); }
     var step = Math.ceil(n / Math.max(2, Math.floor(iw / 64)));
-    labels.forEach(function (lb, i) { if (i % step === 0 || i === n - 1) s.appendChild(S("text", { class: "tick", x: xs(i), y: mT + ih + 14, "text-anchor": "middle" }, PDC.fmt.trunc(lb, 9))); });
+    labels.forEach(function (lb, i) { if (i % step === 0 || i === n - 1) s.appendChild(S("text", { class: "tick", x: xs(i), y: mT + ih + 14, "text-anchor": "middle" }, DashKit.fmt.trunc(lb, 9))); });
     // build cumulative bands
     var lower = labels.map(function () { return 0; }), bands = series.map(function (se, si) {
       var upper = lower.map(function (lo, i) { return lo + (+se.values[i] || 0); });
@@ -216,9 +216,9 @@
       var html = "<b>" + labels[i] + "</b>";
       series.forEach(function (se, si) { html += "<br>" + (se.name || ("Series " + (si + 1))) + ": " + fmt(+se.values[i] || 0); });
       html += "<br><span class='muted'>Total: " + fmt(totals[i]) + "</span>";
-      PDC.showTip(e, html);
+      DashKit.showTip(e, html);
     });
-    ov.addEventListener("mouseout", PDC.hideTip); s.appendChild(ov);
+    ov.addEventListener("mouseout", DashKit.hideTip); s.appendChild(ov);
     if (cfg.legend !== false) _toggleLegend(el, series.map(function (se, i) {
       return { name: se.name || ("Series " + (i + 1)), color: se.color || P[i % 10], els: [bandEls[i]], base: "0.82" };
     }));
@@ -285,12 +285,12 @@
   }
 
   /* ---------- combo: bars (left axis) + line (right axis) ---------- */
-  PDC.combo = function (el, cfg) { reg(el, function () { _combo(el, cfg); }); };
+  DashKit.combo = function (el, cfg) { reg(el, function () { _combo(el, cfg); }); };
   function _combo(el, cfg) {
     var labels = cfg.labels || [], h = cfg.height || 270, bars = cfg.bars || { values: [] }, line = cfg.line || { values: [] };
     if (!labels.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
-    var o = mkSVG(el, h), s = o.s, w = o.w, P = PDC.palette(), n = labels.length;
-    var fmt = cfg.fmt || PDC.fmt.abbr, fmt2 = cfg.fmt2 || fmt;
+    var o = mkSVG(el, h), s = o.s, w = o.w, P = DashKit.palette(), n = labels.length;
+    var fmt = cfg.fmt || DashKit.fmt.abbr, fmt2 = cfg.fmt2 || fmt;
     var bv = bars.values.map(function (v) { return +v || 0; }), lv = line.values.map(function (v) { return +v || 0; });
     var bmax = niceMax(Math.max.apply(null, bv.concat([0])));
     var bcol = bars.color || P[0], lcol = line.color || P[1];
@@ -332,20 +332,20 @@
       var r = S("rect", { class: "bar", x: x + bw * 0.18, y: mT + ih - bh, width: bw * 0.64, height: Math.max(1, bh), rx: 3, fill: bcol });
       _tip(r, "<b>" + lb + "</b><br>" + (bars.name || "Bars") + ": " + fmt(bv[i]) + "<br>" + (line.name || "Line") + ": " + fmt2(lv[i]));
       s.appendChild(r); barEls.push(r);
-      s.appendChild(S("text", { class: "tick", x: x + bw / 2, y: mT + ih + 14, "text-anchor": "middle" }, PDC.fmt.trunc(lb, 9)));
+      s.appendChild(S("text", { class: "tick", x: x + bw / 2, y: mT + ih + 14, "text-anchor": "middle" }, DashKit.fmt.trunc(lb, 9)));
     });
     if (fcN > 0) {
       for (var fi = 1; fi <= fcN; fi++) {
         s.appendChild(S("text", { class: "tick forecast-tick", x: xc(n - 1 + fi), y: mT + ih + 14, "text-anchor": "middle", opacity: .55, "font-style": "italic" }, "+" + fi));
       }
       var sepX = mL + n * bw;
-      s.appendChild(S("line", { class: "forecast-sep", x1: sepX, y1: mT, x2: sepX, y2: mT + ih, stroke: PDC.cssvar("--panel-border"), "stroke-width": 1, "stroke-dasharray": "3,3", opacity: .7 }));
+      s.appendChild(S("line", { class: "forecast-sep", x1: sepX, y1: mT, x2: sepX, y2: mT + ih, stroke: DashKit.cssvar("--panel-border"), "stroke-width": 1, "stroke-dasharray": "3,3", opacity: .7 }));
       s.appendChild(S("text", { class: "tick forecast-label", x: sepX + 4, y: mT + 11, opacity: .6, "font-style": "italic" }, "Forecast →"));
     }
     var ys2 = function (v) { return mT + ih * (1 - v / (lmax || 1)); };
     var d = lv.map(function (v, i) { return (i ? "L" : "M") + xc(i) + "," + ys2(v); }).join(" ");
     var lp = S("path", { d: d, fill: "none", stroke: lcol, "stroke-width": 2.4, "stroke-linejoin": "round" }); s.appendChild(lp); lineEls.push(lp);
-    lv.forEach(function (v, i) { var c = S("circle", { cx: xc(i), cy: ys2(v), r: 3.2, fill: lcol, stroke: PDC.cssvar("--panel-bg"), "stroke-width": 1.4 }); s.appendChild(c); lineEls.push(c); });
+    lv.forEach(function (v, i) { var c = S("circle", { cx: xc(i), cy: ys2(v), r: 3.2, fill: lcol, stroke: DashKit.cssvar("--panel-bg"), "stroke-width": 1.4 }); s.appendChild(c); lineEls.push(c); });
     // Z7 follow-up: extend the Line chart's trend-line overlay (linear / Holt /
     // Holt-Winters, shared math above) to Combo's own line series — reads on the
     // SAME right-axis scale (ys2) as the real line, immediately above/below it. When
@@ -372,7 +372,7 @@
   }
 
   /* ---------- waterfall (running total with floating delta bars) ---------- */
-  PDC.waterfall = function (el, cfg) { reg(el, function () { _wf(el, cfg); }); };
+  DashKit.waterfall = function (el, cfg) { reg(el, function () { _wf(el, cfg); }); };
   function _wf(el, cfg) {
     var labels = cfg.labels || [], values = cfg.values || [], h = cfg.height || 280;
     if (!labels.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
@@ -389,7 +389,7 @@
     var displayMax = rtMax > 0 ? niceMax(rtMax) : niceMax(Math.abs(displayMin) || 1);
     if (displayMin === 0 && displayMax === 0) displayMax = 1;
     var displayRange = displayMax - displayMin;
-    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || PDC.fmt.abbr;
+    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || DashKit.fmt.abbr;
     var mL = 50, mR = 12, mT = 14, mB = 30, iw = w - mL - mR, ih = h - mT - mB;
     var bw = iw / nBars, bPad = Math.max(2, bw * 0.18);
     var yScale = function (v) { return mT + ih * (1 - (v - displayMin) / (displayRange || 1)); };
@@ -405,7 +405,7 @@
       s.appendChild(S("line", { x1: mL, y1: zy, x2: w - mR, y2: zy, stroke: "#9aa7b8", "stroke-width": 1.2 }));
     }
     var posCol = "#27ae60", negCol = "#c0392b";
-    var brandCol = PDC.cssvar("--pentaho") || "#005bb5";
+    var brandCol = DashKit.cssvar("--pentaho") || "#005bb5";
     var xStep = Math.ceil(nBars / Math.max(2, Math.floor(iw / 64)));
     for (var i = 0; i < nBars; i++) {
       var isTotal = showTotal && i === n;
@@ -424,10 +424,10 @@
           var html = "<b>" + lb_ + "</b>";
           if (!isTot_) html += "<br>" + (delta_ >= 0 ? "+" : "") + fmt(delta_);
           html += "<br>Total: " + fmt(barTo_);
-          PDC.showTip(e, html);
+          DashKit.showTip(e, html);
         });
       })(allLabels[i], delta, barTo, isTotal);
-      rect.addEventListener("mouseout", PDC.hideTip);
+      rect.addEventListener("mouseout", DashKit.hideTip);
       s.appendChild(rect);
       if (canAnim()) {
         rect.style.opacity = 0;
@@ -445,20 +445,20 @@
       }
       if (i % xStep === 0 || i === nBars - 1) {
         s.appendChild(S("text", { class: "tick", x: bx + bw / 2, y: mT + ih + 15, "text-anchor": "middle" },
-          PDC.fmt.trunc(allLabels[i], 9)));
+          DashKit.fmt.trunc(allLabels[i], 9)));
       }
     }
   }
 
   /* ---------- funnel (staged bars narrowing by value, conversion %) ---------- */
-  PDC.funnel = function (el, cfg) { reg(el, function () { _funnel(el, cfg); }); };
+  DashKit.funnel = function (el, cfg) { reg(el, function () { _funnel(el, cfg); }); };
   function _funnel(el, cfg) {
     var labels = cfg.labels || [], values = cfg.values || [], h = cfg.height || 300;
     if (!labels.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
     var n = labels.length;
     var maxV = Math.max.apply(null, values.map(function (v) { return +v || 0; }));
     if (!maxV) maxV = 1;
-    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || PDC.fmt.abbr, P = PDC.palette();
+    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || DashKit.fmt.abbr, P = DashKit.palette();
     var labelW = Math.min(88, w * 0.22), valW = cfg.showPct !== false ? 72 : 46;
     var mT = 10, mB = 10;
     var chartL = labelW, chartR = w - valW;
@@ -479,10 +479,10 @@
         rect.addEventListener("mousemove", function (e) {
           var html = "<b>" + lb_ + "</b><br>" + fmt(v_);
           if (prevV_ > 0) html += "<br><span class='muted'>" + Math.round(v_ / prevV_ * 100) + "% of previous</span>";
-          PDC.showTip(e, html);
+          DashKit.showTip(e, html);
         });
       })(labels[i], v, i > 0 ? (+values[i - 1] || 0) : 0);
-      rect.addEventListener("mouseout", PDC.hideTip);
+      rect.addEventListener("mouseout", DashKit.hideTip);
       s.appendChild(rect);
       if (canAnim()) {
         rect.style.opacity = 0;
@@ -493,7 +493,7 @@
       // label on the left
       var midY = barY + barH / 2;
       s.appendChild(S("text", { class: "tick", x: labelW - 5, y: midY, "text-anchor": "end", "dominant-baseline": "middle" },
-        PDC.fmt.trunc(labels[i], 12)));
+        DashKit.fmt.trunc(labels[i], 12)));
       // value on the right
       s.appendChild(S("text", { class: "tick", x: chartR + 4, y: midY, "text-anchor": "start", "dominant-baseline": "middle" }, fmt(v)));
       // conversion % (dim) between stages
@@ -512,17 +512,17 @@
   /* ---------- sunburst (hierarchical part-of-whole, CDF-only) ----------
      Single-ring when cfg.groups is absent; two-ring (inner=groups, outer=items)
      when cfg.groups[] is provided (same length as labels/values). */
-  PDC.sunburst = function (el, cfg) { reg(el, function () { _sb(el, cfg); }); };
+  DashKit.sunburst = function (el, cfg) { reg(el, function () { _sb(el, cfg); }); };
   function _sb(el, cfg) {
     var labels = cfg.labels || [], values = cfg.values || [], groups = cfg.groups;
-    var h = cfg.height || 280, fmt = cfg.fmt || PDC.fmt.abbr, showLbls = cfg.showLabels !== false;
+    var h = cfg.height || 280, fmt = cfg.fmt || DashKit.fmt.abbr, showLbls = cfg.showLabels !== false;
     if (!labels.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
     var total = values.reduce(function (a, v) { return a + (+v || 0); }, 0);
     if (!total) { el.innerHTML = '<div class="empty">No data</div>'; return; }
 
-    var o = mkSVG(el, h), s = o.s, w = o.w, P = PDC.palette();
+    var o = mkSVG(el, h), s = o.s, w = o.w, P = DashKit.palette();
     var cx = w / 2, cy = h / 2, maxR = Math.max(20, Math.min(cx, cy) - 12);
-    var holeR = Math.round(maxR * 0.38), bg = PDC.cssvar("--panel-bg");
+    var holeR = Math.round(maxR * 0.38), bg = DashKit.cssvar("--panel-bg");
 
     // Annular sector path from angle a1 to a2 between radii r1 (inner) and r2 (outer)
     function arcPath(r1, r2, a1, a2) {
@@ -545,7 +545,7 @@
         x: (cx + lR * Math.cos(mid)).toFixed(1), y: (cy + lR * Math.sin(mid)).toFixed(1),
         "text-anchor": "middle", "dominant-baseline": "middle",
         "font-size": sz, fill: "#fff", "pointer-events": "none"
-      }, PDC.fmt.trunc(txt, 7)));
+      }, DashKit.fmt.trunc(txt, 7)));
     }
 
     function addArc(r1, r2, a1, a2, col, opac, tip, delay) {
@@ -622,9 +622,9 @@
   }
 
   /* ---------- bullet chart (actual value vs target, with quality-zone bands) ---------- */
-  PDC.bullet = function (el, cfg) { reg(el, function () { _bullet(el, cfg); }); };
+  DashKit.bullet = function (el, cfg) { reg(el, function () { _bullet(el, cfg); }); };
   function _bullet(el, cfg) {
-    var rows = cfg.rows || [], fmtFn = cfg.fmt || PDC.fmt.abbr;
+    var rows = cfg.rows || [], fmtFn = cfg.fmt || DashKit.fmt.abbr;
     if (!rows.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
     // auto-detect scale max from actual values + targets
     var dataMax = 0;
@@ -647,14 +647,14 @@
     rows.forEach(function (row, ri) {
       var cy = mT + ri * rowH + rowH / 2;
       // row label on the left
-      s.appendChild(S("text", { class: "tick", x: mL - 8, y: cy + 4, "text-anchor": "end" }, PDC.fmt.trunc(String(row.label || ""), 14)));
+      s.appendChild(S("text", { class: "tick", x: mL - 8, y: cy + 4, "text-anchor": "end" }, DashKit.fmt.trunc(String(row.label || ""), 14)));
       // quality-zone bands: bad (0–40%) / ok (40–70%) / good (70–100%)
       s.appendChild(S("rect", { x: mL,               y: cy - trackH / 2, width: iw * 0.4, height: trackH, fill: "#c0392b", opacity: 0.1 }));
       s.appendChild(S("rect", { x: mL + iw * 0.4,    y: cy - trackH / 2, width: iw * 0.3, height: trackH, fill: "#e67e22", opacity: 0.1 }));
       s.appendChild(S("rect", { x: mL + iw * 0.7,    y: cy - trackH / 2, width: iw * 0.3, height: trackH, fill: "#27ae60", opacity: 0.1 }));
       // actual value bar (animated)
       var vx = xs(+row.value || 0), barW = Math.max(0, vx - mL);
-      var bar = S("rect", { x: mL, y: cy - barH / 2, width: barW, height: barH, fill: PDC.cssvar("--pentaho") || "#005bb5", rx: 2 });
+      var bar = S("rect", { x: mL, y: cy - barH / 2, width: barW, height: barH, fill: DashKit.cssvar("--pentaho") || "#005bb5", rx: 2 });
       if (canAnim()) { bar.setAttribute("width", 0); setTimeout((function (b, fw) { return function () { b.style.transition = "width .6s ease"; b.setAttribute("width", fw); }; })(bar, barW), animD(40 + ri * 65)); }
       var tipTxt = "<b>" + (row.label || "") + "</b><br>Actual: " + fmtFn(+row.value || 0) + (row.target != null ? "<br>Target: " + fmtFn(+row.target) : "");
       _tip(bar, tipTxt);
@@ -668,9 +668,9 @@
   }
 
   /* ---------- calendar heatmap (GitHub-style day-grid density) ---------- */
-  PDC.calHeatmap = function (el, cfg) { reg(el, function () { _calHeatmap(el, cfg); }); };
+  DashKit.calHeatmap = function (el, cfg) { reg(el, function () { _calHeatmap(el, cfg); }); };
   function _calHeatmap(el, cfg) {
-    var items = cfg.items || [], fmtFn = cfg.fmt || PDC.fmt.n;
+    var items = cfg.items || [], fmtFn = cfg.fmt || DashKit.fmt.n;
     if (!items.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
     // build date → value map; only accept YYYY-MM-DD strings
     var dayMap = {}, maxVal = 0;
@@ -705,7 +705,7 @@
     DOW_LABELS.forEach(function (lb, i) {
       if (lb) s.appendChild(S("text", { class: "tick", x: mL - 3, y: mT + i * (cellSz + gap) + cellSz * 0.77, "text-anchor": "end", "font-size": 9 }, lb));
     });
-    var curColor = cfg.color || PDC.cssvar("--pentaho") || "#005bb5", prevMonth = -1;
+    var curColor = cfg.color || DashKit.cssvar("--pentaho") || "#005bb5", prevMonth = -1;
     function toDateStr(d) { var mm = d.getMonth() + 1, dd = d.getDate(); return d.getFullYear() + "-" + (mm < 10 ? "0" : "") + mm + "-" + (dd < 10 ? "0" : "") + dd; }
     for (var wi = 0; wi < weeksTotal; wi++) {
       for (var di = 0; di < 7; di++) {
@@ -731,11 +731,11 @@
   }
 
   /* ---------- radar / spider (multi-metric polygons across axes) ---------- */
-  PDC.radar = function (el, cfg) { reg(el, function () { _radar(el, cfg); }); };
+  DashKit.radar = function (el, cfg) { reg(el, function () { _radar(el, cfg); }); };
   function _radar(el, cfg) {
     var labels = cfg.labels || [], series = cfg.series || [], h = cfg.height || 280;
     if (!labels.length || !series.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
-    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || PDC.fmt.abbr, P = PDC.palette(), n = labels.length;
+    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || DashKit.fmt.abbr, P = DashKit.palette(), n = labels.length;
     var cx = w / 2, cy = h / 2 + 4, R = Math.max(20, Math.min(cx, cy) - 38);
     var max = niceMax(Math.max.apply(null, series.reduce(function (a, se) { return a.concat(se.values.map(function (v) { return +v || 0; })); }, [0])));
     var ang = function (i) { return -Math.PI / 2 + i * 2 * Math.PI / n; };
@@ -748,7 +748,7 @@
       var edge = pt(i, R);
       s.appendChild(S("line", { class: "gridline", x1: cx, y1: cy, x2: edge[0], y2: edge[1] }));
       var lp = pt(i, R + 14), a = ang(i), anchor = Math.abs(Math.cos(a)) < 0.3 ? "middle" : (Math.cos(a) > 0 ? "start" : "end");
-      s.appendChild(S("text", { class: "tick", x: lp[0], y: lp[1] + 3, "text-anchor": anchor }, PDC.fmt.trunc(labels[i], 10)));
+      s.appendChild(S("text", { class: "tick", x: lp[0], y: lp[1] + 3, "text-anchor": anchor }, DashKit.fmt.trunc(labels[i], 10)));
     }
     s.appendChild(S("text", { class: "tick", x: cx + 3, y: cy - R - 2, "text-anchor": "start" }, fmt(max)));
     // series polygons + vertex dots; collect per-series elements for legend toggles
@@ -769,7 +769,7 @@
           s.appendChild(hit); seEls.push(hit);
           return;
         }
-        var dot = S("circle", { cx: p[0], cy: p[1], r: 3, fill: col, stroke: PDC.cssvar("--panel-bg"), "stroke-width": 1.2 });
+        var dot = S("circle", { cx: p[0], cy: p[1], r: 3, fill: col, stroke: DashKit.cssvar("--panel-bg"), "stroke-width": 1.2 });
         _tip(dot, "<b>" + labels[i] + "</b><br>" + (se.name || ("Series " + (si + 1))) + ": " + fmt(+se.values[i] || 0));
         s.appendChild(dot); seEls.push(dot);
       });
@@ -782,10 +782,10 @@
 
   /* ---------- box plot (distribution: quartiles + whiskers per category) ----------
      Data: cfg.data = [{label, values:[v,...]}] — raw values per category.
-     Renders horizontal (default) or vertical boxes.  CDF-only; pdc-ui.js unchanged. */
-  PDC.boxplot = function (el, cfg) { reg(el, function () { _boxplot(el, cfg); }); };
+     Renders horizontal (default) or vertical boxes.  CDF-only; dashkit.js unchanged. */
+  DashKit.boxplot = function (el, cfg) { reg(el, function () { _boxplot(el, cfg); }); };
   function _boxplot(el, cfg) {
-    var data = cfg.data || [], h = cfg.height || 300, fmt = cfg.fmt || PDC.fmt.abbr;
+    var data = cfg.data || [], h = cfg.height || 300, fmt = cfg.fmt || DashKit.fmt.abbr;
     var horiz = cfg.horizontal !== false;
     if (!data.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
 
@@ -804,7 +804,7 @@
 
     var o = mkSVG(el, h), sv = o.s, w = o.w;
     var ml = horiz ? 90 : 36, mr = 20, mt = 16, mb = horiz ? 36 : 52;
-    var pW = w - ml - mr, pH = h - mt - mb, n = stats.length, col = PDC.palette()[0];
+    var pW = w - ml - mr, pH = h - mt - mb, n = stats.length, col = DashKit.palette()[0];
 
     function vp(v) { return (v - vMin) / (vMax - vMin); } // 0..1 value-to-position ratio
 
@@ -830,7 +830,7 @@
         sv.appendChild(S("rect", { x: xQ1, y: cy - bh / 2, width: Math.max(1, xQ3 - xQ1), height: bh, fill: col, "fill-opacity": 0.18, stroke: col, "stroke-width": 1.5, rx: 2 }));
         sv.appendChild(S("line", { x1: xMed, y1: cy - bh / 2, x2: xMed, y2: cy + bh / 2, stroke: col, "stroke-width": 2.5 }));
         // Category label on left
-        sv.appendChild(S("text", { class: "tick", x: ml - 6, y: cy + 4, "text-anchor": "end" }, PDC.fmt.trunc(st.label, 16)));
+        sv.appendChild(S("text", { class: "tick", x: ml - 6, y: cy + 4, "text-anchor": "end" }, DashKit.fmt.trunc(st.label, 16)));
         // Invisible hover target
         var tipHtml = "<b>" + st.label + "</b><br>Min: " + fmt(qs.min) + " &nbsp;Q1: " + fmt(qs.q1) + "<br>Median: " + fmt(qs.med) + "<br>Q3: " + fmt(qs.q3) + " &nbsp;Max: " + fmt(qs.max);
         var hit = S("rect", { x: xMin - 2, y: cy - bh * 2, width: Math.max(4, xMax - xMin + 4), height: bh * 4, fill: "transparent", style: "cursor:pointer" });
@@ -859,7 +859,7 @@
         sv.appendChild(S("rect", { x: cx - bw / 2, y: yQ3, width: bw, height: Math.max(1, yQ1 - yQ3), fill: col, "fill-opacity": 0.18, stroke: col, "stroke-width": 1.5, rx: 2 }));
         sv.appendChild(S("line", { x1: cx - bw / 2, y1: yMed, x2: cx + bw / 2, y2: yMed, stroke: col, "stroke-width": 2.5 }));
         // X label
-        sv.appendChild(S("text", { class: "tick", x: cx, y: mt + pH + 16, "text-anchor": "middle" }, PDC.fmt.trunc(st.label, 10)));
+        sv.appendChild(S("text", { class: "tick", x: cx, y: mt + pH + 16, "text-anchor": "middle" }, DashKit.fmt.trunc(st.label, 10)));
         // Invisible hover target
         var tipHtml2 = "<b>" + st.label + "</b><br>Min: " + fmt(qs.min) + " &nbsp;Q1: " + fmt(qs.q1) + "<br>Median: " + fmt(qs.med) + "<br>Q3: " + fmt(qs.q3) + " &nbsp;Max: " + fmt(qs.max);
         var hit2 = S("rect", { x: cx - bw * 2, y: Math.min(yMax, yMin), width: bw * 4, height: Math.max(4, Math.abs(yMin - yMax)), fill: "transparent", style: "cursor:pointer" });
@@ -872,14 +872,14 @@
   /* ---------- lollipop / dot-plot (horizontal ranked comparison) ----------
      Clean, modern alternative to bar charts: a thin stem line runs from the
      left axis to a bold dot at the value. Lower visual weight, excellent for
-     league tables and rankings. Same labelCol/valueCol binding as PDC.bars.
-     API: PDC.lollipop(el, { data:[{label,value,color?}], fmt, color, height, labelW }) */
-  PDC.lollipop = function (el, cfg) { reg(el, function () { _lollipop(el, cfg); }); };
+     league tables and rankings. Same labelCol/valueCol binding as DashKit.bars.
+     API: DashKit.lollipop(el, { data:[{label,value,color?}], fmt, color, height, labelW }) */
+  DashKit.lollipop = function (el, cfg) { reg(el, function () { _lollipop(el, cfg); }); };
   function _lollipop(el, cfg) {
     var data = cfg.data || [], h = cfg.height || 260;
     if (!data.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
-    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || PDC.fmt.abbr;
-    var base = cfg.color || PDC.cssvar("--pentaho");
+    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || DashKit.fmt.abbr;
+    var base = cfg.color || DashKit.cssvar("--pentaho");
     var max = niceMax(Math.max.apply(null, data.map(function (d) { return +d.value || 0; })));
     var mL = cfg.labelW || 130, mR = 54, mT = 8, mB = 8;
     var ih = h - mT - mB, n = data.length, bh = ih / n;
@@ -900,12 +900,12 @@
       s.appendChild(trackLine);
       // dot at the value — bold & prominent
       var dot = S("circle", { class: "dot", cx: mL + barW, cy: midY, r: dotR,
-        fill: col, stroke: PDC.cssvar("--panel-bg"), "stroke-width": 2 });
+        fill: col, stroke: DashKit.cssvar("--panel-bg"), "stroke-width": 2 });
       _tip(dot, tipHtml);
       s.appendChild(dot);
       // label (left-aligned, right-anchored)
       s.appendChild(S("text", { class: "tick", x: mL - 8, y: midY + 4, "text-anchor": "end" },
-        PDC.fmt.trunc(d.label, cfg.labelChars || 18)));
+        DashKit.fmt.trunc(d.label, cfg.labelChars || 18)));
       // value next to the dot
       s.appendChild(S("text", { class: "val-label", x: mL + barW + dotR + 6, y: midY + 4 },
         fmt(d.value)));
@@ -928,16 +928,16 @@
      to its value at T2 (right). Ideal for "what changed?" storytelling —
      risers and fallers immediately visible. Labels at both endpoints with
      the formatted value; category labels span both sides.
-     API: PDC.slope(el, {
+     API: DashKit.slope(el, {
        items: [{label, v1, v2}], t1, t2, fmt, height, palette
      }) */
-  PDC.slope = function (el, cfg) { reg(el, function () { _slope(el, cfg); }); };
+  DashKit.slope = function (el, cfg) { reg(el, function () { _slope(el, cfg); }); };
   function _slope(el, cfg) {
     var items = cfg.items || [], h = cfg.height || 300;
     if (!items.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
     var t1 = cfg.t1 || "T1", t2 = cfg.t2 || "T2";
-    var fmtFn = cfg.fmt || PDC.fmt.abbr;
-    var palette = cfg.palette || PDC.palette();
+    var fmtFn = cfg.fmt || DashKit.fmt.abbr;
+    var palette = cfg.palette || DashKit.palette();
     var allVals = items.reduce(function (a, it) { return a.concat([+it.v1 || 0, +it.v2 || 0]); }, []);
     var minV = Math.min.apply(null, allVals.concat([0]));
     var maxV = niceMax(Math.max.apply(null, allVals.concat([1])));
@@ -965,7 +965,7 @@
       var col = palette[idx % palette.length];
       var y1 = ys(it.v1), y2 = ys(it.v2);
       var dir = (+it.v2 || 0) - (+it.v1 || 0);
-      var strokeCol = dir > 0 ? (PDC.cssvar("--good") || "#27ae60") : dir < 0 ? (PDC.cssvar("--bad") || "#e0395e") : col;
+      var strokeCol = dir > 0 ? (DashKit.cssvar("--good") || "#27ae60") : dir < 0 ? (DashKit.cssvar("--bad") || "#e0395e") : col;
       var line = S("line", { x1: xL, y1: y1, x2: xR, y2: y2,
         stroke: strokeCol, "stroke-width": 2, opacity: 0.8, "stroke-linecap": "round" });
       var tipHtml = "<b>" + it.label + "</b><br>" + t1 + ": " + fmtFn(it.v1) + "<br>" + t2 + ": " + fmtFn(it.v2) +
@@ -974,7 +974,7 @@
       s.appendChild(line);
       // endpoint dots
       [{ x: xL, y: y1 }, { x: xR, y: y2 }].forEach(function (pt) {
-        var dot = S("circle", { cx: pt.x, cy: pt.y, r: 4, fill: strokeCol, stroke: PDC.cssvar("--panel-bg") || "#fff", "stroke-width": 2 });
+        var dot = S("circle", { cx: pt.x, cy: pt.y, r: 4, fill: strokeCol, stroke: DashKit.cssvar("--panel-bg") || "#fff", "stroke-width": 2 });
         _tip(dot, tipHtml);
         s.appendChild(dot);
       });
@@ -985,7 +985,7 @@
       // category label centred on the line midpoint (subtle, offset slightly up)
       var midX = (xL + xR) / 2, midY = (y1 + y2) / 2;
       var labelEl = S("text", { class: "tick", x: midX, y: midY - 6, "text-anchor": "middle", "font-size": 9.5 },
-        PDC.fmt.trunc(it.label, 16));
+        DashKit.fmt.trunc(it.label, 16));
       s.appendChild(labelEl);
       // entrance animation: line fades in with slight delay per row
       if (canAnim()) {
@@ -1003,11 +1003,11 @@
      visual weight of a bar chart. Optionally a second column (groupCol) adds a
      second dot per row in a contrasting color, enabling simple two-group comparison.
      Rows are sorted by the primary value (descending) by default.
-     API: PDC.dotplot(el, {
+     API: DashKit.dotplot(el, {
        items: [{label, v1, v2?}], fmt, color1, color2,
        group1, group2, height, labelW, sorted
      }) */
-  PDC.dotplot = function (el, cfg) { reg(el, function () { _dotplot(el, cfg); }); };
+  DashKit.dotplot = function (el, cfg) { reg(el, function () { _dotplot(el, cfg); }); };
   function _dotplot(el, cfg) {
     var items = cfg.items || [], h = cfg.height || 280;
     if (!items.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
@@ -1016,12 +1016,12 @@
       items = items.slice().sort(function (a, b) { return (+b.v1 || 0) - (+a.v1 || 0); });
     }
     var hasGroup = items.some(function (it) { return it.v2 != null; });
-    var palette = PDC.palette();
-    var c1 = cfg.color1 || PDC.cssvar("--pentaho") || palette[0];
+    var palette = DashKit.palette();
+    var c1 = cfg.color1 || DashKit.cssvar("--pentaho") || palette[0];
     var c2 = cfg.color2 || palette[1] || "#7d3c98";
     var g1 = cfg.group1 || "Primary";
     var g2 = cfg.group2 || "Secondary";
-    var fmtFn = cfg.fmt || PDC.fmt.abbr;
+    var fmtFn = cfg.fmt || DashKit.fmt.abbr;
     var o = mkSVG(el, h), s = o.s, w = o.w;
     var n = items.length;
     var mL = cfg.labelW || 130, mR = hasGroup ? 80 : 60, mT = hasGroup ? 28 : 14, mB = 10;
@@ -1056,12 +1056,12 @@
         stroke: "var(--panel-border,#d8dde6)", "stroke-width": 1, opacity: 0.55 }));
       // category label
       s.appendChild(S("text", { class: "tick", x: mL - 8, y: midY + 4, "text-anchor": "end" },
-        PDC.fmt.trunc(it.label, cfg.labelChars || 18)));
+        DashKit.fmt.trunc(it.label, cfg.labelChars || 18)));
       // primary dot (v1)
       var x1 = mL + (w - mL - mR) * Math.max(0, (+it.v1 || 0) / (max || 1));
       var tipHtml1 = "<b>" + it.label + "</b>" + (hasGroup ? " — " + g1 : "") + "<br>" + fmtFn(it.v1);
       var dot1 = S("circle", { class: "dot", cx: x1, cy: midY, r: dotR,
-        fill: c1, stroke: PDC.cssvar("--panel-bg"), "stroke-width": 1.5 });
+        fill: c1, stroke: DashKit.cssvar("--panel-bg"), "stroke-width": 1.5 });
       _tip(dot1, tipHtml1);
       s.appendChild(dot1);
       // optional second dot (v2) for group comparison
@@ -1074,7 +1074,7 @@
         }
         var tipHtml2 = "<b>" + it.label + "</b> — " + g2 + "<br>" + fmtFn(it.v2);
         var dot2 = S("circle", { class: "dot", cx: x2, cy: midY, r: dotR,
-          fill: c2, stroke: PDC.cssvar("--panel-bg"), "stroke-width": 1.5 });
+          fill: c2, stroke: DashKit.cssvar("--panel-bg"), "stroke-width": 1.5 });
         _tip(dot2, tipHtml2);
         s.appendChild(dot2);
       }
@@ -1101,10 +1101,10 @@
      The jitter algorithm: for each dot, try y = center, center±step, center±2step…
      stopping at the first non-overlapping position. Fully deterministic — same data
      produces the same layout every render.
-     API: PDC.beeswarm(el, {
+     API: DashKit.beeswarm(el, {
        items: [{label, value, category?}], fmt, dotR, height
      }) */
-  PDC.beeswarm = function (el, cfg) { reg(el, function () { _beeswarm(el, cfg); }); };
+  DashKit.beeswarm = function (el, cfg) { reg(el, function () { _beeswarm(el, cfg); }); };
   function _beeswarm(el, cfg) {
     var items = cfg.items || [], h = cfg.height || 300;
     if (!items.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
@@ -1119,8 +1119,8 @@
     var numGroups = groupOrder.length;
     var hasCategories = numGroups > 1 || groupOrder[0] !== "";
 
-    var palette = PDC.palette();
-    var fmtFn = cfg.fmt || PDC.fmt.abbr;
+    var palette = DashKit.palette();
+    var fmtFn = cfg.fmt || DashKit.fmt.abbr;
     var dotR = cfg.dotR || 5;
 
     var o = mkSVG(el, h), s = o.s, w = o.w;
@@ -1155,7 +1155,7 @@
       // Category label on the left axis
       if (hasCategories) {
         s.appendChild(S("text", { class: "tick", x: mL - 8, y: midY + 4, "text-anchor": "end" },
-          PDC.fmt.trunc(cat, 14)));
+          DashKit.fmt.trunc(cat, 14)));
       }
       // Subtle horizontal separator between strips
       if (gi > 0) {
@@ -1193,7 +1193,7 @@
         var tipHtml = "<b>" + (it.label || "") + "</b><br>" + fmtFn(it.value);
         if (it.category) tipHtml += "<br><span class='muted'>" + it.category + "</span>";
         var dot = S("circle", { cx: x, cy: y, r: dotR, fill: col,
-          stroke: PDC.cssvar("--panel-bg") || "#fff", "stroke-width": 1.2, opacity: 0.8 });
+          stroke: DashKit.cssvar("--panel-bg") || "#fff", "stroke-width": 1.2, opacity: 0.8 });
         _tip(dot, tipHtml);
         s.appendChild(dot);
         if (canAnim()) {
@@ -1213,12 +1213,12 @@
      normal, skewed, multimodal — at a glance.
      Bound via: valueCol (required), no labelCol needed.
      Options: bins (default 10), color, fmt (for axis ticks), height. */
-  PDC.histogram = function (el, rows, map, opts) {
+  DashKit.histogram = function (el, rows, map, opts) {
     var w = W(el), h = +(opts && opts.height) || 300;
     var bins = Math.max(2, Math.min(50, +(opts && opts.bins) || 10));
     var col = (map && map.valueCol) || "";
-    var color = PDC.cssvar((opts && opts.color) || "--pentaho") || "#005bb5";
-    var fmtFn = PDC.fmt[((opts && opts.fmt) || "n")] || PDC.fmt.n;
+    var color = DashKit.cssvar((opts && opts.color) || "--pentaho") || "#005bb5";
+    var fmtFn = DashKit.fmt[((opts && opts.fmt) || "n")] || DashKit.fmt.n;
 
     // Extract numeric values from the bound column
     var vals = (rows || []).map(function (r) { return parseFloat(r[col]); }).filter(function (v) { return !isNaN(v); });
@@ -1306,16 +1306,16 @@
      area) is proportional to √(value/max) — area encoding is more perceptually accurate than
      radius encoding because human vision judges area, not radius length. Great for cyclic or
      periodic data: monthly patterns, compass directions, performance across dimensions.
-     API: PDC.polarArea(el, {
+     API: DashKit.polarArea(el, {
        labels: string[], values: number[], fmt, height, showLabels
      }) */
-  PDC.polarArea = function (el, cfg) { reg(el, function () { _polarArea(el, cfg); }); };
+  DashKit.polarArea = function (el, cfg) { reg(el, function () { _polarArea(el, cfg); }); };
   function _polarArea(el, cfg) {
     var labels = cfg.labels || [], values = cfg.values || [], h = cfg.height || 280;
     if (!labels.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
     var n = labels.length;
-    var fmtFn = cfg.fmt || PDC.fmt.abbr;
-    var P = PDC.palette();
+    var fmtFn = cfg.fmt || DashKit.fmt.abbr;
+    var P = DashKit.palette();
     var showLabels = cfg.showLabels !== false;
 
     var o = mkSVG(el, h), s = o.s, w = o.w;
@@ -1336,7 +1336,7 @@
     [0.25, 0.5, 0.75, 1].forEach(function (t) {
       var gr = maxR * Math.sqrt(t);
       s.appendChild(S("circle", { cx: cx, cy: cy, r: gr, fill: "none",
-        stroke: PDC.cssvar("--panel-border") || "#e0e4ef", "stroke-width": 0.7 }));
+        stroke: DashKit.cssvar("--panel-border") || "#e0e4ef", "stroke-width": 0.7 }));
     });
 
     // Draw each wedge
@@ -1361,7 +1361,7 @@
       var tipHtml = "<b>" + labels[i] + "</b><br>" + fmtFn(val) + " (" + pct + ")";
 
       var path = S("path", { d: d, fill: col, opacity: 0.85,
-        stroke: PDC.cssvar("--panel-bg") || "#fff", "stroke-width": 1.5 });
+        stroke: DashKit.cssvar("--panel-bg") || "#fff", "stroke-width": 1.5 });
       _tip(path, tipHtml);
       s.appendChild(path);
 
@@ -1372,7 +1372,7 @@
         var lx = cx + Math.cos(aMid) * labelR, ly = cy + Math.sin(aMid) * labelR;
         var anchor = lx < cx - 8 ? "end" : lx > cx + 8 ? "start" : "middle";
         s.appendChild(S("text", { "class": "tick", x: lx.toFixed(1), y: (ly + 3).toFixed(1),
-          "text-anchor": anchor, "font-size": 9 }, PDC.fmt.trunc(labels[i], 10)));
+          "text-anchor": anchor, "font-size": 9 }, DashKit.fmt.trunc(labels[i], 10)));
       }
 
       // Entrance animation: wedges fade in sequentially from top
@@ -1388,10 +1388,10 @@
     // Center label: formatted total + subtle "total" caption
     s.appendChild(S("text", { x: cx.toFixed(1), y: (cy + 4).toFixed(1),
       "text-anchor": "middle", "font-size": 11, "font-weight": "600",
-      fill: PDC.cssvar("--text") || "#1a2236" }, fmtFn(total)));
+      fill: DashKit.cssvar("--text") || "#1a2236" }, fmtFn(total)));
     s.appendChild(S("text", { x: cx.toFixed(1), y: (cy + 16).toFixed(1),
       "text-anchor": "middle", "font-size": 9,
-      fill: PDC.cssvar("--text-muted") || "#6b7a99" }, "total"));
+      fill: DashKit.cssvar("--text-muted") || "#6b7a99" }, "total"));
   }
 
   /* ---------- step / staircase chart — right-angle transitions ----------
@@ -1400,13 +1400,13 @@
      Unlike a line chart's diagonal, the right-angle path communicates that
      the value does NOT interpolate between states; it jumps at a precise point.
      Great for pricing tiers, API quota levels, regulatory limits, SLA bands.
-     API: PDC.step(el, {
+     API: DashKit.step(el, {
        labels: string[], series: [{name, color, values}], area, fmt, height
      }) */
-  PDC.step = function (el, cfg) { reg(el, function () { _step(el, cfg); }); };
+  DashKit.step = function (el, cfg) { reg(el, function () { _step(el, cfg); }); };
   function _step(el, cfg) {
     var series = cfg.series || [], labels = cfg.labels || [];
-    var h = cfg.height || 300, fmtFn = cfg.fmt || PDC.fmt.abbr;
+    var h = cfg.height || 300, fmtFn = cfg.fmt || DashKit.fmt.abbr;
     if (!labels.length || !series.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
 
     var o = mkSVG(el, h), s = o.s, w = o.w;
@@ -1427,17 +1427,17 @@
       var tv = minV + (maxV - minV) * (ti / 4);
       var ty = ys(tv);
       s.appendChild(S("line", { x1: mL, y1: ty, x2: mL + iw, y2: ty,
-        stroke: PDC.cssvar("--panel-border"), "stroke-width": 0.8,
+        stroke: DashKit.cssvar("--panel-border"), "stroke-width": 0.8,
         "stroke-dasharray": ti === 0 ? "none" : "3 3" }));
       s.appendChild(S("text", { class: "tick", x: mL - 3, y: ty + 3, "text-anchor": "end" }, fmtFn(tv)));
     }
     var xStep = Math.ceil(n / 8);
     labels.forEach(function (lb, i) {
       if (i % xStep === 0 || i === n - 1)
-        s.appendChild(S("text", { class: "tick", x: xs(i), y: mT + ih + 14, "text-anchor": "middle" }, PDC.fmt.trunc(lb, 9)));
+        s.appendChild(S("text", { class: "tick", x: xs(i), y: mT + ih + 14, "text-anchor": "middle" }, DashKit.fmt.trunc(lb, 9)));
     });
 
-    var P = PDC.palette();
+    var P = DashKit.palette();
     series.forEach(function (se, si) {
       var col = se.color || P[si % P.length];
       var vals = (se.values || []).map(function (v) { return +v || 0; });
@@ -1477,13 +1477,13 @@
 
       vals.forEach(function (v, i) {
         var dot = S("circle", { cx: xs(i).toFixed(1), cy: ys(v).toFixed(1), r: 3,
-          fill: col, stroke: PDC.cssvar("--panel-bg") || "#fff", "stroke-width": 1.5 });
+          fill: col, stroke: DashKit.cssvar("--panel-bg") || "#fff", "stroke-width": 1.5 });
         (function (v_, i_) {
           dot.addEventListener("mousemove", function (e) {
-            PDC.showTip(e, "<b>" + (labels[i_] || i_) + "</b><br>" + (se.name || "Value") + ": " + fmtFn(v_));
+            DashKit.showTip(e, "<b>" + (labels[i_] || i_) + "</b><br>" + (se.name || "Value") + ": " + fmtFn(v_));
           });
         })(v, i);
-        dot.addEventListener("mouseout", PDC.hideTip);
+        dot.addEventListener("mouseout", DashKit.hideTip);
         s.appendChild(dot);
       });
     });
@@ -1513,15 +1513,15 @@
      Complement to Box plot (shows outliers + exact quartiles), Beeswarm (raw points),
      and Histogram (single-variable binned counts) — violin adds density information.
 
-     API: PDC.violin(el, {
+     API: DashKit.violin(el, {
        categories: [{name, values}],  // pre-grouped by studio-render.js
        showBox: bool,                  // IQR box + median line inside violin
        fmt, height
      }) */
-  PDC.violin = function (el, cfg) { reg(el, function () { _violin(el, cfg); }); };
+  DashKit.violin = function (el, cfg) { reg(el, function () { _violin(el, cfg); }); };
   function _violin(el, cfg) {
     var cats = cfg.categories || [], showBox = cfg.showBox !== false;
-    var h = cfg.height || 300, fmtFn = cfg.fmt || PDC.fmt.abbr;
+    var h = cfg.height || 300, fmtFn = cfg.fmt || DashKit.fmt.abbr;
     if (!cats.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
 
     var o = mkSVG(el, h), s = o.s, w = o.w;
@@ -1542,7 +1542,7 @@
       var tv = minV + (maxV - minV) * (ti / 4);
       var ty = ys(tv);
       s.appendChild(S("line", { x1: mL, y1: ty, x2: mL + iw, y2: ty,
-        stroke: PDC.cssvar("--panel-border"), "stroke-width": 0.7,
+        stroke: DashKit.cssvar("--panel-border"), "stroke-width": 0.7,
         "stroke-dasharray": ti === 0 ? "none" : "3 3" }));
       s.appendChild(S("text", { class: "tick", x: mL - 3, y: ty + 3, "text-anchor": "end" }, fmtFn(tv)));
     }
@@ -1553,7 +1553,7 @@
     var halfW = Math.min(iw / n / 2 - 6, 35);
     if (halfW < 4) halfW = 4;
 
-    var P = PDC.palette();
+    var P = DashKit.palette();
     cats.forEach(function (cat, ci) {
       var x0 = cx(ci);
       var col = cat.color || P[ci % P.length];
@@ -1606,7 +1606,7 @@
         s.appendChild(S("line", {
           x1: (x0 - boxHalfW * 1.8).toFixed(1), y1: ys(med).toFixed(1),
           x2: (x0 + boxHalfW * 1.8).toFixed(1), y2: ys(med).toFixed(1),
-          stroke: PDC.cssvar("--panel-bg") || "#fff", "stroke-width": 2.2, "stroke-linecap": "round"
+          stroke: DashKit.cssvar("--panel-bg") || "#fff", "stroke-width": 2.2, "stroke-linecap": "round"
         }));
       }
 
@@ -1619,16 +1619,16 @@
       var q3_2 = sorted2[Math.floor(sorted2.length * 0.75)];
       var mn2 = sorted2[0], mx2 = sorted2[sorted2.length - 1];
       hitBox.addEventListener("mousemove", function (e) {
-        PDC.showTip(e, "<b>" + cat.name + "</b><br>n=" + vals.length +
+        DashKit.showTip(e, "<b>" + cat.name + "</b><br>n=" + vals.length +
           " · median=" + fmtFn(med2) + "<br>Q1=" + fmtFn(q1_2) + " · Q3=" + fmtFn(q3_2) +
           "<br>min=" + fmtFn(mn2) + " · max=" + fmtFn(mx2));
       });
-      hitBox.addEventListener("mouseout", PDC.hideTip);
+      hitBox.addEventListener("mouseout", DashKit.hideTip);
       s.appendChild(hitBox);
 
       // Category label below the violin
       s.appendChild(S("text", { class: "tick", x: x0.toFixed(1), y: mT + ih + 15,
-        "text-anchor": "middle" }, PDC.fmt.trunc(cat.name, 10)));
+        "text-anchor": "middle" }, DashKit.fmt.trunc(cat.name, 10)));
     });
   }
 
@@ -1638,13 +1638,13 @@
      the chart draws lines connecting each series' rank across periods. Lines crossing
      each other indicate competitive overtaking — immediately visible at a glance.
      cfg: { labels, series [{name, values[]}], fmt, height }
-     pdc-ui.js stays pristine; registered in studio-charts.js. */
-  PDC.bump = function (el, cfg) { reg(el, function () { _bump(el, cfg); }); };
+     dashkit.js stays pristine; registered in studio-charts.js. */
+  DashKit.bump = function (el, cfg) { reg(el, function () { _bump(el, cfg); }); };
   function _bump(el, cfg) {
     var labels  = cfg.labels  || [];
     var series  = cfg.series  || [];
     var h       = cfg.height  || 300;
-    var fmtFn   = cfg.fmt     || PDC.fmt.abbr;
+    var fmtFn   = cfg.fmt     || DashKit.fmt.abbr;
     if (!labels.length || !series.length) {
       el.innerHTML = '<div class="empty">Bind a period column and at least two value series to preview the ranking chart.</div>';
       return;
@@ -1676,7 +1676,7 @@
     function xOf(xi) { return mL + (n <= 1 ? (w - mL - mR) / 2 : xi / (n - 1) * (w - mL - mR)); }
     function yOf(rank) { return mT + ((rank - 1) / (ns - 1 || 1)) * ih; }
 
-    var palette = (PDC.palette || ['#005bb5','#7d3c98','#2e8bd0','#9b59b6','#00a39a','#e67e22','#c0392b','#16a085']);
+    var palette = (DashKit.palette || ['#005bb5','#7d3c98','#2e8bd0','#9b59b6','#00a39a','#e67e22','#c0392b','#16a085']);
 
     // Horizontal rank guide lines and left-side rank labels (#1 … #N)
     for (var ri = 1; ri <= ns; ri++) {
@@ -1696,7 +1696,7 @@
       svg.appendChild(S("text", {
         class: "tick", x: xOf(xi).toFixed(1), y: (h - 8).toFixed(1),
         "text-anchor": "middle"
-      }, PDC.fmt.trunc(String(lbl), 9)));
+      }, DashKit.fmt.trunc(String(lbl), 9)));
     });
 
     // Per-series: line path + dots + right-side label + rank indicator
@@ -1727,18 +1727,18 @@
       pts.forEach(function (pt, xi) {
         var dot = S("circle", {
           cx: pt[0].toFixed(1), cy: pt[1].toFixed(1), r: 5.5,
-          fill: col, stroke: PDC.cssvar("--panel-bg") || "#fff", "stroke-width": 2
+          fill: col, stroke: DashKit.cssvar("--panel-bg") || "#fff", "stroke-width": 2
         });
         (function (xIdx) {
           dot.addEventListener("mousemove", function (e) {
-            PDC.showTip(e,
+            DashKit.showTip(e,
               "<b>" + ser.name + "</b>" +
               "<br>Period: " + labels[xIdx] +
               "<br>Rank: <b>#" + ranks[xIdx] + "</b>" +
               "<br>Value: " + fmtFn(ser.values[xIdx]));
           });
         }(xi));
-        dot.addEventListener("mouseout", PDC.hideTip);
+        dot.addEventListener("mouseout", DashKit.hideTip);
         svg.appendChild(dot);
 
         // Rank number inside the dot for clarity (small, white) — Z8 slice 17:
@@ -1760,7 +1760,7 @@
           x: ((w - mR) + 10).toFixed(1), y: (lastPt[1] - 2).toFixed(1),
           fill: col, "font-size": "10.5", "font-weight": "600",
           "dominant-baseline": "auto"
-        }, PDC.fmt.trunc(ser.name, 16)));
+        }, DashKit.fmt.trunc(ser.name, 16)));
         svg.appendChild(S("text", {
           x: ((w - mR) + 10).toFixed(1), y: (lastPt[1] + 10).toFixed(1),
           fill: col, "font-size": "9", opacity: "0.7"
@@ -1790,29 +1790,29 @@
      Great for market share analysis, segment breakdowns, budget allocation — any case
      where you need both "how big is this bucket?" and "what's inside it?" at once.
 
-     API: PDC.marimekko(el, {
+     API: DashKit.marimekko(el, {
        rows:    array of row arrays (from CDA / sampledata),
        cols:    array of column-name strings,
        catCol:  string — column name for x-axis categories (drives column width)
        grpCol:  string — column name for stack segments (drives segment heights)
        valCol:  string — column name for the numeric value
        showPct: bool   — overlay "XX%" labels on segments wide/tall enough to fit
-       fmt:     PDC.fmt variant
+       fmt:     DashKit.fmt variant
        height:  px
      })
   */
-  PDC.marimekko = function (el, cfg) { reg(el, function () { _marimekko(el, cfg); }); };
+  DashKit.marimekko = function (el, cfg) { reg(el, function () { _marimekko(el, cfg); }); };
   function _marimekko(el, cfg) {
     var rows    = cfg.rows || [], cols = cfg.cols || [];
     var catIdx  = cols.indexOf(cfg.catCol),  grpIdx  = cols.indexOf(cfg.grpCol);
     var valIdx  = cols.indexOf(cfg.valCol);
-    var fmtFn   = PDC.fmt[cfg.fmt || "abbr"] || PDC.fmt.abbr;
+    var fmtFn   = DashKit.fmt[cfg.fmt || "abbr"] || DashKit.fmt.abbr;
     var height  = cfg.height || 320;
-    var palette = PDC.palette || ["#005bb5","#7d3c98","#2e8bd0","#00a39a","#e67e22","#27ae60","#c0392b","#d4ac0d"];
+    var palette = DashKit.palette || ["#005bb5","#7d3c98","#2e8bd0","#00a39a","#e67e22","#27ae60","#c0392b","#d4ac0d"];
     var showPct = cfg.showPct !== false;
     var isDark  = document.documentElement.classList.contains("dark") ||
                   document.body.classList.contains("dark") ||
-                  (PDC.cssvar("--panel-bg") || "#fff").trim().toLowerCase() < "#888";
+                  (DashKit.cssvar("--panel-bg") || "#fff").trim().toLowerCase() < "#888";
     var textCol = isDark ? "rgba(255,255,255,0.82)" : "#2a3650";
     var mutedCol = isDark ? "rgba(255,255,255,0.45)" : "#7a8aaa";
     var borderCol = isDark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.6)";
@@ -1860,7 +1860,7 @@
       xCursor += colW + gap;
     });
 
-    // ---- 5. Build SVG (uses the module-level S = PDC.S alias; its 3rd "kids" arg
+    // ---- 5. Build SVG (uses the module-level S = DashKit.S alias; its 3rd "kids" arg
     // accepts a plain string, which behaves identically to setting textContent on a
     // freshly created element with no other children — no local reimplementation needed)
     var svg = S("svg", { width: w, height: h, viewBox: "0 0 " + w + " " + h });
@@ -1898,7 +1898,7 @@
         var pctOfTotal = grandTotal ? Math.round(val / grandTotal * 100) : 0;
         rect.addEventListener("mousemove", (function (cat, grp, val, pctC, pctT) {
           return function (e) {
-            PDC.showTip(e,
+            DashKit.showTip(e,
               "<b>" + grp + "</b>" +
               "<br>Category: " + cat +
               "<br>Value: "   + fmtFn(val) +
@@ -1906,7 +1906,7 @@
               "<br>Share of total: " + pctT + "%");
           };
         }(col.cat, grp, val, pctOfCol, pctOfTotal)));
-        rect.addEventListener("mouseout", PDC.hideTip);
+        rect.addEventListener("mouseout", DashKit.hideTip);
         svg.appendChild(rect);
 
         // % label inside the cell when there is room (≥ 18px tall, ≥ 22px wide)
@@ -1928,7 +1928,7 @@
 
       // Category label below the column (truncated to fit column width)
       var maxChars = Math.max(2, Math.floor(col.w / 5.5));
-      var catLbl   = PDC.fmt.trunc(col.cat, maxChars);
+      var catLbl   = DashKit.fmt.trunc(col.cat, maxChars);
       svg.appendChild(S("text", {
         x: (col.x0 + col.w / 2).toFixed(1),
         y: (h - 14).toFixed(1),
@@ -1959,9 +1959,9 @@
       var lbl = S("text", {
         x: legX + 10, y: legY + 7.5,
         "font-size": "8.5", fill: mutedCol
-      }, PDC.fmt.trunc(grp, 14));
+      }, DashKit.fmt.trunc(grp, 14));
       svg.appendChild(lbl);
-      legX += 12 + (PDC.fmt.trunc(grp, 14).length * 5.2) + 6;
+      legX += 12 + (DashKit.fmt.trunc(grp, 14).length * 5.2) + 6;
     });
 
     // ---- 8. Animated entrance: columns fade in left-to-right
@@ -1987,14 +1987,14 @@
      Gray dot = start value (baseline / before)
      Filled brand-color dot = end value (current / after)
 
-     API: PDC.dumbbell(el, {
+     API: DashKit.dumbbell(el, {
        items:      [{label, start, end}],
        startLabel: string (axis header, default "Before"),
        endLabel:   string (axis header, default "After"),
-       fmt:        PDC.fmt variant,
+       fmt:        DashKit.fmt variant,
        height:     px
      }) */
-  PDC.dumbbell = function (el, cfg) { reg(el, function () { _dumbbell(el, cfg); }); };
+  DashKit.dumbbell = function (el, cfg) { reg(el, function () { _dumbbell(el, cfg); }); };
   function _dumbbell(el, cfg) {
     var items = cfg.items || [], h = cfg.height || 280;
     if (!items.length) {
@@ -2003,7 +2003,7 @@
     }
     var startLabel = cfg.startLabel || "Before";
     var endLabel   = cfg.endLabel   || "After";
-    var fmtFn = cfg.fmt || PDC.fmt.abbr;
+    var fmtFn = cfg.fmt || DashKit.fmt.abbr;
 
     // ---- 1. Value range (union of start and end values)
     var allVals = items.reduce(function (a, d) { return a.concat([+d.start || 0, +d.end || 0]); }, []);
@@ -2041,8 +2041,8 @@
       var midY = mT + i * rowH + rowH / 2;
       var xs = xOf(d.start), xe = xOf(d.end);
       var delta = (+d.end || 0) - (+d.start || 0);
-      var lineCol = delta > 0.001  ? (PDC.cssvar("--good") || "#27ae60") :
-                    delta < -0.001 ? (PDC.cssvar("--bad")  || "#e0395e") :
+      var lineCol = delta > 0.001  ? (DashKit.cssvar("--good") || "#27ae60") :
+                    delta < -0.001 ? (DashKit.cssvar("--bad")  || "#e0395e") :
                                      "var(--muted,#8899aa)";
 
       var tipHtml = "<b>" + d.label + "</b>" +
@@ -2065,7 +2065,7 @@
       s.appendChild(sd);
 
       // end dot: brand color — the current / "after" value (the story)
-      var endCol = PDC.cssvar("--pentaho") || "#005bb5";
+      var endCol = DashKit.cssvar("--pentaho") || "#005bb5";
       var ed = S("circle", { cx: xe, cy: midY, r: dotR + 0.5,
         fill: endCol,
         stroke: "var(--panel-bg,#fff)", "stroke-width": 1.5 });
@@ -2074,7 +2074,7 @@
 
       // row label (left side, right-aligned into the margin)
       s.appendChild(S("text", { class: "tick", x: mL - 8, y: midY + 4, "text-anchor": "end" },
-        PDC.fmt.trunc(d.label, 18)));
+        DashKit.fmt.trunc(d.label, 18)));
 
       // compact value labels adjacent to each dot (avoids overlap with the row label)
       if (rowH >= 12) {
@@ -2109,7 +2109,7 @@
     });
   }
 
-  // ── PDC.packedBubble ──────────────────────────────────────────────────────
+  // ── DashKit.packedBubble ──────────────────────────────────────────────────────
   // Packed bubble cluster chart — circle AREA proportional to value.
   // Each data item becomes one bubble. Bubbles are packed using a lightweight
   // iterative force-directed simulation: every bubble is attracted toward the
@@ -2119,7 +2119,7 @@
   // the browser paints.
   //
   // opts: { items:[{label,value}], fmt?, height?, showLabels? }
-  PDC.packedBubble = function (body, opts) {
+  DashKit.packedBubble = function (body, opts) {
     opts = opts || {};
     var items      = (opts.items || []).slice(0, 60); // cap at 60 bubbles for perf
     var h          = opts.height || 320;
@@ -2143,7 +2143,7 @@
     items = items.map(function (d, i) {
       var r = minR + (maxR - minR) * Math.sqrt(d.value / maxVal);
       return { label: d.label, value: d.value, r: r,
-               x: w / 2, y: h / 2, color: PDC.color(i) };
+               x: w / 2, y: h / 2, color: DashKit.color(i) };
     });
 
     // ---- 3. force-directed packing simulation
@@ -2214,7 +2214,7 @@
       if (showLbls && d.r >= 16) {
         // label (category name, truncated to fit)
         var maxChars = Math.max(2, Math.floor(d.r * 0.38));
-        var txt = PDC.fmt.trunc(d.label, maxChars);
+        var txt = DashKit.fmt.trunc(d.label, maxChars);
         var lbl = S("text", { x: d.x, y: d.y - (d.r >= 24 ? 4 : 2),
           "text-anchor": "middle", "dominant-baseline": "middle",
           fill: "#fff", "font-size": Math.max(9, Math.min(13, d.r * 0.42)),
@@ -2255,13 +2255,13 @@
 
     // register for redraws on theme-change and window resize
     var _body = body;
-    PDC._reg.push(function () {
+    DashKit._reg.push(function () {
       if (!_body.isConnected) return;
-      PDC.packedBubble(_body, opts);
+      DashKit.packedBubble(_body, opts);
     });
   };
 
-  // ── PDC.wordCloud ─────────────────────────────────────────────────────────
+  // ── DashKit.wordCloud ─────────────────────────────────────────────────────────
   // Word cloud chart: each data item is a text label whose font size is
   // proportional to its numeric value (log scale, so very large values don't
   // crowd out everything else). Words are placed from the centre outward along
@@ -2271,7 +2271,7 @@
   // avoids the need for a DOM layout pass before placement is committed.
   //
   // opts: { items:[{label,value}], fmt?, height?, maxWords? }
-  PDC.wordCloud = function (body, opts) {
+  DashKit.wordCloud = function (body, opts) {
     opts = opts || {};
     var cap      = Math.max(1, opts.maxWords || 60);
     var allItems = (opts.items || []).slice(0, cap);
@@ -2318,7 +2318,7 @@
       var fs   = fontSize(d.value);
       var estW = d.label.length * fs * 0.58 + 6; // rough text width
       var estH = fs * 1.25;                       // rough line height
-      var color = PDC.color(i);
+      var color = DashKit.color(i);
 
       // Archimedean spiral: r = b × θ, so radius grows as angle increases.
       // step_r controls how quickly we spiral outward per full turn.
@@ -2393,13 +2393,13 @@
 
     // redraw on theme change / window resize
     var _body = body;
-    PDC._reg.push(function () {
+    DashKit._reg.push(function () {
       if (!_body.isConnected) return;
-      PDC.wordCloud(_body, opts);
+      DashKit.wordCloud(_body, opts);
     });
   };
 
-  // ── PDC.gantt ─────────────────────────────────────────────────────────────
+  // ── DashKit.gantt ─────────────────────────────────────────────────────────────
   // Gantt / Timeline chart — horizontal floating bars where each row has an
   // explicit start and end value. Perfect for project timelines, sprint plans,
   // process-stage durations, or any "start to end" data.
@@ -2411,7 +2411,7 @@
   //   fmt:        function — value formatter for tooltips + axis labels
   //   height:     number   — SVG height in px
   // }
-  PDC.gantt = function (body, opts) {
+  DashKit.gantt = function (body, opts) {
     body.innerHTML = "";
     var rows    = (opts.rows || []).filter(function (r) { return r.end > r.start || r.end >= r.start; });
     var fmtFn   = opts.fmt   || function (v) { return String(v); };
@@ -2445,7 +2445,7 @@
       return LABEL_W + ((v - minV) / range) * (svgW - LABEL_W - PAD_R);
     }
 
-    // ── 3. Build SVG (S is the module-level S = PDC.S alias — no local reimplementation) ──
+    // ── 3. Build SVG (S is the module-level S = DashKit.S alias — no local reimplementation) ──
     function txt(str, attrs) { var t = S("text", attrs); t.textContent = str; return t; }
 
     var svg = S("svg", {
@@ -2469,11 +2469,11 @@
     // Axis header labels
     svg.appendChild(txt(sLabel, {
       x: gridX1, y: HEADER_H - 8,
-      "text-anchor": "middle", fill: "var(--pdc-muted,#7a8299)", "font-size": "9"
+      "text-anchor": "middle", fill: "var(--dk-muted,#7a8299)", "font-size": "9"
     }));
     svg.appendChild(txt(eLabel, {
       x: gridX2, y: HEADER_H - 8,
-      "text-anchor": "middle", fill: "var(--pdc-muted,#7a8299)", "font-size": "9"
+      "text-anchor": "middle", fill: "var(--dk-muted,#7a8299)", "font-size": "9"
     }));
 
     rows.forEach(function (row, i) {
@@ -2482,13 +2482,13 @@
       var x1   = xPos(row.start);
       var x2   = xPos(row.end);
       var barW = Math.max(x2 - x1, 2);
-      var clr  = PDC.color(i);
+      var clr  = DashKit.color(i);
 
       // Row label
       var labelEl = txt(row.label, {
         x: LABEL_W - 6, y: cy + 4,
         "text-anchor": "end", fill: "var(--fg,#222)",
-        "font-size": "10", "class": "pdc-gantt-label"
+        "font-size": "10", "class": "dk-gantt-label"
       });
       svg.appendChild(labelEl);
 
@@ -2535,9 +2535,9 @@
 
     // Redraw on theme change / window resize
     var _body = body;
-    PDC._reg.push(function () {
+    DashKit._reg.push(function () {
       if (!_body.isConnected) return;
-      PDC.gantt(_body, opts);
+      DashKit.gantt(_body, opts);
     });
   };
 
@@ -2555,14 +2555,14 @@
        height:   SVG height px
      }
   */
-  PDC.divergingBar = function (body, opts) {
+  DashKit.divergingBar = function (body, opts) {
     opts = opts || {};
     var rows = opts.rows || [];
     if (!rows.length) { body.innerHTML = '<div class="empty">No data</div>'; return; }
 
-    var fmtFn   = typeof opts.fmt === "function" ? opts.fmt : PDC.fmt(opts.fmt || "abbr");
-    var posClr  = PDC.cssvar(opts.posColor || "--pentaho") || "#005bb5";
-    var negClr  = PDC.cssvar(opts.negColor || "--bad") || "#c0392b";
+    var fmtFn   = typeof opts.fmt === "function" ? opts.fmt : DashKit.fmt(opts.fmt || "abbr");
+    var posClr  = DashKit.cssvar(opts.posColor || "--pentaho") || "#005bb5";
+    var negClr  = DashKit.cssvar(opts.negColor || "--bad") || "#c0392b";
     var height  = opts.height || 300;
 
     var svgW  = W(body);
@@ -2581,7 +2581,7 @@
     var maxAbs = Math.max.apply(null, rows.map(function (r) { return Math.abs(r.value); })) || 1;
     function xLen(v) { return (Math.abs(v) / maxAbs) * HALF_W; }
 
-    // S is the module-level S = PDC.S alias — no local reimplementation needed
+    // S is the module-level S = DashKit.S alias — no local reimplementation needed
     function T(str, a) { var t = S("text", a); t.textContent = str; return t; }
 
     var svg = S("svg", {
@@ -2594,11 +2594,11 @@
     // Subtle axis tick labels (positive side right, negative side left)
     svg.appendChild(T("+", {
       x: ZERO_X + HALF_W / 2, y: PAD_T - 3,
-      "text-anchor": "middle", fill: "var(--pdc-muted,#7a8299)", "font-size": "8"
+      "text-anchor": "middle", fill: "var(--dk-muted,#7a8299)", "font-size": "8"
     }));
     svg.appendChild(T("−", {
       x: ZERO_X - HALF_W / 2, y: PAD_T - 3,
-      "text-anchor": "middle", fill: "var(--pdc-muted,#7a8299)", "font-size": "8"
+      "text-anchor": "middle", fill: "var(--dk-muted,#7a8299)", "font-size": "8"
     }));
 
     // Zero baseline — thin dashed vertical line
@@ -2620,7 +2620,7 @@
       var lbl = T(row.label, {
         x: LABEL_W - 6, y: cy + 4,
         "text-anchor": "end", fill: "var(--fg,#222)",
-        "font-size": "10", "class": "pdc-divbar-label"
+        "font-size": "10", "class": "dk-divbar-label"
       });
       // Clip very long labels to avoid overflow into the chart area
       lbl.style.cssText = "overflow:hidden;text-overflow:ellipsis;max-width:" + maxLabelW + "px";
@@ -2631,7 +2631,7 @@
         x: barX, y: barY,
         width: bLen, height: BAR_H,
         rx: "3", fill: clr, opacity: ".85",
-        "cursor": "default", "class": "pdc-divbar-bar"
+        "cursor": "default", "class": "dk-divbar-bar"
       });
 
       // Hover tooltip
@@ -2672,11 +2672,11 @@
 
     body.appendChild(svg);
 
-    // Re-render on theme change or resize (PDC._reg ensures it stays current)
+    // Re-render on theme change or resize (DashKit._reg ensures it stays current)
     var _body = body, _opts = opts;
-    PDC._reg.push(function () {
+    DashKit._reg.push(function () {
       if (!_body.isConnected) return;
-      PDC.divergingBar(_body, _opts);
+      DashKit.divergingBar(_body, _opts);
     });
   };
 
@@ -2690,7 +2690,7 @@
      this series) and upper edge = +half the total above. A 3-point Catmull–Rom
      spline smooths the path edges for that characteristically fluid look.
 
-     API: PDC.streamgraph(el, {
+     API: DashKit.streamgraph(el, {
        labels   : string[],           // x-axis period labels
        series   : [{name, values, color}],
        fmt      : function,           // value formatter
@@ -2699,12 +2699,12 @@
        opacity  : number              // band fill-opacity, 0-100, default 78
      });
   */
-  PDC.streamgraph = function (el, cfg) { reg(el, function () { _stream(el, cfg); }); };
+  DashKit.streamgraph = function (el, cfg) { reg(el, function () { _stream(el, cfg); }); };
   function _stream(el, cfg) {
     var labels = cfg.labels || [], series = cfg.series || [], h = cfg.height || 280;
     if (!labels.length || !series.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
-    var o = mkSVG(el, h), s = o.s, w = o.w, P = PDC.palette(), n = labels.length;
-    var fmt = cfg.fmt || PDC.fmt.abbr;
+    var o = mkSVG(el, h), s = o.s, w = o.w, P = DashKit.palette(), n = labels.length;
+    var fmt = cfg.fmt || DashKit.fmt.abbr;
     var bandOp = ((cfg.opacity == null ? 78 : cfg.opacity) / 100).toFixed(2);
     var mL = 44, mR = 16, mT = 16, mB = 28, iw = w - mL - mR, ih = h - mT - mB;
     var xs = function (i) { return mL + (n <= 1 ? iw / 2 : iw * i / (n - 1)); };
@@ -2770,13 +2770,13 @@
 
     // Draw the midline guide
     s.appendChild(S("line", { x1: mL, y1: yScale(0), x2: mL + iw, y2: yScale(0),
-      stroke: PDC.cssvar("--border"), "stroke-width": 0.8, "stroke-dasharray": "4 3" }));
+      stroke: DashKit.cssvar("--border"), "stroke-width": 0.8, "stroke-dasharray": "4 3" }));
 
     // x-axis tick labels
     var step = Math.ceil(n / Math.max(2, Math.floor(iw / 64)));
     labels.forEach(function (lb, i) {
       if (i % step === 0 || i === n - 1)
-        s.appendChild(S("text", { class: "tick", x: xs(i), y: mT + ih + 14, "text-anchor": "middle" }, PDC.fmt.trunc(lb, 9)));
+        s.appendChild(S("text", { class: "tick", x: xs(i), y: mT + ih + 14, "text-anchor": "middle" }, DashKit.fmt.trunc(lb, 9)));
     });
 
     // Draw bands from bottom to top (lowest series first so upper layers overlay cleanly)
@@ -2784,7 +2784,7 @@
     bands.forEach(function (b, bi) {
       var col = b.se.color || P[b.si % 10];
       var d = bandPath(b.lo, b.hi);
-      var pathEl = S("path", { d: d, fill: col, "fill-opacity": bandOp, stroke: PDC.cssvar("--panel-bg"), "stroke-width": "0.5" });
+      var pathEl = S("path", { d: d, fill: col, "fill-opacity": bandOp, stroke: DashKit.cssvar("--panel-bg"), "stroke-width": "0.5" });
       s.appendChild(pathEl);
       bandEls.push(pathEl);
 
@@ -2805,9 +2805,9 @@
       var html = "<b>" + labels[i] + "</b>";
       series.forEach(function (se, si) { html += "<br>" + (se.name || ("Series " + (si + 1))) + ": " + fmt(vals[si][i]); });
       html += "<br><span class='muted'>Total: " + fmt(totals[i]) + "</span>";
-      PDC.showTip(e, html);
+      DashKit.showTip(e, html);
     });
-    ov.addEventListener("mouseout", PDC.hideTip);
+    ov.addEventListener("mouseout", DashKit.hideTip);
     s.appendChild(ov);
 
     // Clickable legend (same pattern as areaStacked / radar)
@@ -2818,17 +2818,17 @@
     }
   }
 
-  /* ── Enhanced interactive table chart (override PDC.table) ─────────────────
+  /* ── Enhanced interactive table chart (override DashKit.table) ─────────────────
      Layers a live row-search bar and click-to-sort column headers on top of the
-     existing PDC.table. All original cfg options continue to work: detail,
+     existing DashKit.table. All original cfg options continue to work: detail,
      recordDetail, bar cells, badge cells, fmt, and custom col.num/col.title.
      Row-click detail handlers use the visible (filtered+sorted) row index so
      clicking always opens the right record even after sorting or filtering.
-     The base PDC.table in pdc-ui.js is preserved via PDC._tableBase.            */
+     The base DashKit.table in dashkit.js is preserved via DashKit._tableBase.            */
 
   // Inject table-enhancement CSS once per document (iframe / exported CDF).
-  if (!window.__pdcTblCssInjected) {
-    window.__pdcTblCssInjected = true;
+  if (!window.__dkTblCssInjected) {
+    window.__dkTblCssInjected = true;
     var _tblStyle = document.createElement("style");
     _tblStyle.textContent =
       ".tbl-bar{display:flex;align-items:center;gap:6px;padding:5px 10px 4px;border-bottom:1px solid var(--panel-border,#e0e4ef)}" +
@@ -2853,9 +2853,9 @@
     (document.head || document.body || document.documentElement).appendChild(_tblStyle);
   }
 
-  PDC._tableBase = PDC.table; // keep the original accessible for inspection / testing
+  DashKit._tableBase = DashKit.table; // keep the original accessible for inspection / testing
 
-  PDC.table = function (el, cfg) {
+  DashKit.table = function (el, cfg) {
     var cols = cfg.cols || [];
     var rows = cfg.rows || [];
     var sortCol = -1, sortDir = 1; // sortDir: 1=asc, -1=desc; sortCol=-1 means unsorted
@@ -3005,7 +3005,7 @@
       }
       wrap.appendChild(tbl);
 
-      // Row-click detail (mirrors base PDC.table; uses pageRows index so sort+filter+paging are respected)
+      // Row-click detail (mirrors base DashKit.table; uses pageRows index so sort+filter+paging are respected)
       if (cfg.detail || cfg.recordDetail) {
         var trs = el.querySelectorAll("tbody tr");
         [].forEach.call(trs, function (tr, ri) {
@@ -3017,11 +3017,11 @@
                 return { label: c.label, value: c.fmt ? c.fmt(row[ci]) : (row[ci] == null ? "" : row[ci]) };
               });
               var ttl = cfg.recordDetail.title ? cfg.recordDetail.title(row) : String(row[cfg.recordDetail.keyIdx || 0]);
-              PDC.detail({ title: ttl, subtitle: cfg.recordDetail.subtitle, record: pairs,
+              DashKit.detail({ title: ttl, subtitle: cfg.recordDetail.subtitle, record: pairs,
                 drill: cfg.recordDetail.drill ? { to: cfg.recordDetail.drill.to, param: cfg.recordDetail.drill.param,
                   value: row[cfg.recordDetail.drill.keyIdx || 0], label: cfg.recordDetail.drill.label } : null });
             } else {
-              PDC.openDetail(cfg.detail, row[cfg.detail.keyIdx || 0]);
+              DashKit.openDetail(cfg.detail, row[cfg.detail.keyIdx || 0]);
             }
           });
         });
@@ -3056,16 +3056,16 @@
     render();
   };
 
-  /* ── Enhanced gauge chart (override PDC.gauge, Z8 slice 4) ──────────────────
-     Base PDC.gauge (pdc-ui.js) already picks the value-arc color from goodAt/warnAt
+  /* ── Enhanced gauge chart (override DashKit.gauge, Z8 slice 4) ──────────────────
+     Base DashKit.gauge (dashkit.js) already picks the value-arc color from goodAt/warnAt
      thresholds, but they were hardcoded (0.9/0.7) and invisible until the needle
      crossed them. This override draws the thresholds as a permanent red/amber/green
      zone track behind the value arc — so the "why is it red" is visible at a glance —
      and applies the chart's chosen value format (cfg.fmt) to the center readout instead
-     of always showing a raw rounded number. Base kept as PDC._gaugeBase for reference. */
-  PDC._gaugeBase = PDC.gauge;
+     of always showing a raw rounded number. Base kept as DashKit._gaugeBase for reference. */
+  DashKit._gaugeBase = DashKit.gauge;
 
-  PDC.gauge = function (el, cfg) { reg(el, function () { _gaugeZoned(el, cfg); }); };
+  DashKit.gauge = function (el, cfg) { reg(el, function () { _gaugeZoned(el, cfg); }); };
 
   function _gaugeZoned(el, cfg) {
     var h = cfg.height || 190, o = mkSVG(el, h), s = o.s, w = o.w;
@@ -3082,10 +3082,10 @@
     }
     // Zone track: bad (0→warnAt), warn (warnAt→goodAt), good (goodAt→1) — always visible,
     // regardless of the current value, so thresholds are self-explanatory.
-    s.appendChild(arc(0, warnAt, R, PDC.cssvar("--bad"), 16));
-    s.appendChild(arc(warnAt, goodAt, R, PDC.cssvar("--warn"), 16));
-    s.appendChild(arc(goodAt, 1, R, PDC.cssvar("--good"), 16));
-    var needleCol = cfg.color || (pct >= goodAt ? PDC.cssvar("--good") : pct >= warnAt ? PDC.cssvar("--warn") : PDC.cssvar("--bad"));
+    s.appendChild(arc(0, warnAt, R, DashKit.cssvar("--bad"), 16));
+    s.appendChild(arc(warnAt, goodAt, R, DashKit.cssvar("--warn"), 16));
+    s.appendChild(arc(goodAt, 1, R, DashKit.cssvar("--good"), 16));
+    var needleCol = cfg.color || (pct >= goodAt ? DashKit.cssvar("--good") : pct >= warnAt ? DashKit.cssvar("--warn") : DashKit.cssvar("--bad"));
     var tickW = 0.02, tickStart = Math.max(0, Math.min(1 - tickW, pct - tickW / 2));
     s.appendChild(arc(tickStart, tickStart + tickW, R, needleCol, 22)); // bright needle tick marks the value on the zone track
     var text = cfg.text || ((cfg.fmt ? cfg.fmt(val) : (Math.round(val * 10) / 10).toLocaleString()) + (cfg.unit || ""));
@@ -3093,21 +3093,21 @@
     s.appendChild(S("text", { x: cx, y: cy + 14, "text-anchor": "middle", class: "gauge-cap" }, cfg.label || ""));
   }
 
-  /* ── Enhanced treemap chart (override PDC.treemap, Z8 slice 5) ──────────────
-     Base PDC.treemap (pdc-ui.js) always draws a bold title + raw value label on
+  /* ── Enhanced treemap chart (override DashKit.treemap, Z8 slice 5) ──────────────
+     Base DashKit.treemap (dashkit.js) always draws a bold title + raw value label on
      any tile big enough to fit one, with no way to hide it or swap in "% of
      total" — the question a treemap is usually built to answer. This override
      keeps the identical squarified layout algorithm (same sort/worst/row logic)
-     and adds cfg.showLabels / cfg.showPct. Base kept as PDC._treemapBase. */
-  PDC._treemapBase = PDC.treemap;
+     and adds cfg.showLabels / cfg.showPct. Base kept as DashKit._treemapBase. */
+  DashKit._treemapBase = DashKit.treemap;
 
-  PDC.treemap = function (el, cfg) { reg(el, function () { _treemapOpts(el, cfg); }); };
+  DashKit.treemap = function (el, cfg) { reg(el, function () { _treemapOpts(el, cfg); }); };
 
   function _treemapOpts(el, cfg) {
     var data = (cfg.data || []).filter(function (d) { return (+d.value || 0) > 0; }).sort(function (a, b) { return b.value - a.value; });
     var h = cfg.height || 280;
     if (!data.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
-    var o = mkSVG(el, h), s = o.s, w = o.w, pal = PDC.palette(), fmt = cfg.fmt || PDC.fmt.abbr;
+    var o = mkSVG(el, h), s = o.s, w = o.w, pal = DashKit.palette(), fmt = cfg.fmt || DashKit.fmt.abbr;
     var showLabels = cfg.showLabels !== false, showPct = !!cfg.showPct;
     var total = data.reduce(function (a, d) { return a + +d.value; }, 0);
     var x = 0, y = 0, cw = w, ch = h, i = 0;
@@ -3129,10 +3129,10 @@
         var pctTxt = (100 * r.d.value / total).toFixed(1) + "%";
         var rc = S("rect", { x: rx + 1, y: ry + 1, width: Math.max(0, rw - 2), height: Math.max(0, rh2 - 2), rx: 3, fill: col, opacity: .92, class: "bar" });
         _tip(rc, "<b>" + r.d.label + "</b><br>" + fmt(r.d.value) + " (" + pctTxt + ")");
-        if (cfg.detail) PDC.bindDetail(rc, cfg.detail, r.d.label);
+        if (cfg.detail) DashKit.bindDetail(rc, cfg.detail, r.d.label);
         s.appendChild(rc);
         if (showLabels && rw > 54 && rh2 > 22) {
-          s.appendChild(S("text", { x: rx + 6, y: ry + 15, fill: "#fff", "font-size": "11", "font-weight": "700" }, PDC.fmt.trunc(r.d.label, Math.floor(rw / 7))));
+          s.appendChild(S("text", { x: rx + 6, y: ry + 15, fill: "#fff", "font-size": "11", "font-weight": "700" }, DashKit.fmt.trunc(r.d.label, Math.floor(rw / 7))));
           s.appendChild(S("text", { x: rx + 6, y: ry + 29, fill: "rgba(255,255,255,.85)", "font-size": "10" }, showPct ? pctTxt : fmt(r.d.value)));
         }
       });
@@ -3141,23 +3141,23 @@
     }
   }
 
-  /* ── Enhanced scatter / bubble chart (override PDC.scatter, Z8 slice 6) ─────
-     Base PDC.scatter (pdc-ui.js) always formats axis ticks + tooltips with
-     PDC.fmt.abbr and has no way to reveal the linear relationship between the
+  /* ── Enhanced scatter / bubble chart (override DashKit.scatter, Z8 slice 6) ─────
+     Base DashKit.scatter (dashkit.js) always formats axis ticks + tooltips with
+     DashKit.fmt.abbr and has no way to reveal the linear relationship between the
      two plotted variables. This override keeps the identical dot-plot layout
      (same axis scaling + bubble-radius encoding) and adds cfg.fmtX/cfg.fmtY
      (now wired to the panel's Value format option) plus an optional
      cfg.trend — a least-squares regression line through the points, so a
      builder can show correlation direction/strength without leaving the tool.
-     Base kept as PDC._scatterBase for reference. */
-  PDC._scatterBase = PDC.scatter;
+     Base kept as DashKit._scatterBase for reference. */
+  DashKit._scatterBase = DashKit.scatter;
 
-  PDC.scatter = function (el, cfg) { reg(el, function () { _scatterTrend(el, cfg); }); };
+  DashKit.scatter = function (el, cfg) { reg(el, function () { _scatterTrend(el, cfg); }); };
 
   function _scatterTrend(el, cfg) {
     var pts = cfg.points || [], h = cfg.height || 280;
     if (!pts.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
-    var o = mkSVG(el, h), s = o.s, w = o.w, fx = cfg.fmtX || PDC.fmt.abbr, fy = cfg.fmtY || PDC.fmt.abbr;
+    var o = mkSVG(el, h), s = o.s, w = o.w, fx = cfg.fmtX || DashKit.fmt.abbr, fy = cfg.fmtY || DashKit.fmt.abbr;
     var mL = 48, mR = 14, mT = 12, mB = 34, iw = w - mL - mR, ih = h - mT - mB;
     var xmax = niceMax(Math.max.apply(null, pts.map(function (p) { return +p.x || 0; })));
     var ymax = niceMax(Math.max.apply(null, pts.map(function (p) { return +p.y || 0; })));
@@ -3185,31 +3185,31 @@
         var slope = (n * sxy - sx * sy) / denom, intercept = (sy - slope * sx) / n;
         var ty0 = Math.max(0, Math.min(ymax, intercept)), ty1 = Math.max(0, Math.min(ymax, intercept + slope * xmax));
         s.appendChild(S("line", { x1: xs(0), y1: ys(ty0), x2: xs(xmax), y2: ys(ty1), class: "trend-line",
-          stroke: PDC.cssvar("--bad"), "stroke-width": 2, "stroke-dasharray": "6,4", opacity: .8 }));
+          stroke: DashKit.cssvar("--bad"), "stroke-width": 2, "stroke-dasharray": "6,4", opacity: .8 }));
       }
     }
     pts.forEach(function (p, i) {
       var rr = 6 + 18 * Math.sqrt((+p.r || 1) / rmax);
-      var c = S("circle", { cx: xs(+p.x || 0), cy: ys(+p.y || 0), r: rr, fill: p.color || PDC.color(i), opacity: .62, stroke: p.color || PDC.color(i), "stroke-width": 1.2, class: "dot" });
+      var c = S("circle", { cx: xs(+p.x || 0), cy: ys(+p.y || 0), r: rr, fill: p.color || DashKit.color(i), opacity: .62, stroke: p.color || DashKit.color(i), "stroke-width": 1.2, class: "dot" });
       c.addEventListener("mousemove", function (e) {
-        PDC.showTip(e, "<b>" + (p.label || "") + "</b><br>" + (cfg.xLabel || "x") + ": " + fx(p.x) + "<br>" + (cfg.yLabel || "y") + ": " + fy(p.y) +
-          (p.r != null ? "<br>" + (cfg.rLabel || "size") + ": " + PDC.fmt.abbr(p.r) : ""));
+        DashKit.showTip(e, "<b>" + (p.label || "") + "</b><br>" + (cfg.xLabel || "x") + ": " + fx(p.x) + "<br>" + (cfg.yLabel || "y") + ": " + fy(p.y) +
+          (p.r != null ? "<br>" + (cfg.rLabel || "size") + ": " + DashKit.fmt.abbr(p.r) : ""));
       });
-      c.addEventListener("mouseout", PDC.hideTip);
+      c.addEventListener("mouseout", DashKit.hideTip);
       s.appendChild(c);
     });
   }
 
-  /* ── Enhanced line / area chart (override PDC.line, Z8 slice 7) ─────────────
-     Base PDC.line (pdc-ui.js) always draws straight segment-to-segment lines
+  /* ── Enhanced line / area chart (override DashKit.line, Z8 slice 7) ─────────────
+     Base DashKit.line (dashkit.js) always draws straight segment-to-segment lines
      with a dot on every point, no way to turn either off. This override keeps
      the identical axis/grid/gradient-fill logic and adds cfg.smooth (curved
      segments via the same midpoint cubic-bezier technique used by the Bump
      chart) and cfg.showDots (hide the per-point markers for a cleaner look on
-     dense series). Base kept as PDC._lineBase for reference. */
-  PDC._lineBase = PDC.line;
+     dense series). Base kept as DashKit._lineBase for reference. */
+  DashKit._lineBase = DashKit.line;
 
-  PDC.line = function (el, cfg) { reg(el, function () { _lineOpts(el, cfg); }); };
+  DashKit.line = function (el, cfg) { reg(el, function () { _lineOpts(el, cfg); }); };
 
   function _lineOpts(el, cfg) {
     var labels = cfg.labels || [], series = cfg.series || [], h = cfg.height || 270;
@@ -3234,7 +3234,7 @@
     function fcValueOf(t, m) {
       return t.season ? t.level + t.trend * m + t.season[(n - 1 + m) % t.seasonLen] : t.level + t.trend * m;
     }
-    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || PDC.fmt.abbr, pal = PDC.palette();
+    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || DashKit.fmt.abbr, pal = DashKit.palette();
     var showDots = cfg.showDots !== false;
     var allv = []; series.forEach(function (se) { se.values.forEach(function (v) { allv.push(+v || 0); }); });
     if (trends) trends.forEach(function (t) {
@@ -3251,13 +3251,13 @@
       s.appendChild(S("text", { class: "tick", x: mL - 7, y: gy + 3, "text-anchor": "end" }, fmt(min + (max - min) * g / 4)));
     }
     var step = Math.ceil(n / Math.max(2, Math.floor(iw / 64)));
-    labels.forEach(function (lb, i) { if (i % step === 0 || i === n - 1) s.appendChild(S("text", { class: "tick", x: xs(i), y: mT + ih + 14, "text-anchor": "middle" }, PDC.fmt.trunc(lb, 9))); });
+    labels.forEach(function (lb, i) { if (i % step === 0 || i === n - 1) s.appendChild(S("text", { class: "tick", x: xs(i), y: mT + ih + 14, "text-anchor": "middle" }, DashKit.fmt.trunc(lb, 9))); });
     if (fcN > 0) {
       for (var fi = 1; fi <= fcN; fi++) {
         s.appendChild(S("text", { class: "tick forecast-tick", x: xs(n - 1 + fi), y: mT + ih + 14, "text-anchor": "middle", opacity: .55, "font-style": "italic" }, "+" + fi));
       }
       var sepX = xs(n - 1);
-      s.appendChild(S("line", { class: "forecast-sep", x1: sepX, y1: mT, x2: sepX, y2: mT + ih, stroke: PDC.cssvar("--panel-border"), "stroke-width": 1, "stroke-dasharray": "3,3", opacity: .7 }));
+      s.appendChild(S("line", { class: "forecast-sep", x1: sepX, y1: mT, x2: sepX, y2: mT + ih, stroke: DashKit.cssvar("--panel-border"), "stroke-width": 1, "stroke-dasharray": "3,3", opacity: .7 }));
       s.appendChild(S("text", { class: "tick forecast-label", x: sepX + 4, y: mT + 11, opacity: .6, "font-style": "italic" }, "Forecast →"));
     }
     // Straight or smoothed path through a series' points. Smoothing reuses the same
@@ -3300,7 +3300,7 @@
       }
       se.values.forEach(function (v, i) {
         var c = S("circle", { class: showDots ? "dot" : "dot-ghost", cx: xs(i), cy: ys(+v || 0), r: showDots ? 3.2 : 6, fill: showDots ? col : "transparent",
-          stroke: showDots ? PDC.cssvar("--panel-bg") : "none", "stroke-width": showDots ? 1.5 : 0 });
+          stroke: showDots ? DashKit.cssvar("--panel-bg") : "none", "stroke-width": showDots ? 1.5 : 0 });
         _tip(c, "<b>" + labels[i] + "</b><br>" + se.name + ": " + fmt(v));
         s.appendChild(c); els.push(c);
         if (showDots && canAnim()) { c.style.opacity = "0"; setTimeout(function () { c.style.transition = "opacity .3s ease"; c.style.opacity = "1"; }, animD(520 + i * 16)); }
@@ -3347,24 +3347,24 @@
     }));
   }
 
-  /* ── Enhanced donut / pie chart (override PDC.donut, Z8 slice 8) ────────────
-     Base PDC.donut (pdc-ui.js) always draws slices in row order, a fixed
+  /* ── Enhanced donut / pie chart (override DashKit.donut, Z8 slice 8) ────────────
+     Base DashKit.donut (dashkit.js) always draws slices in row order, a fixed
      60%-inner-radius ring, and an always-on legend, with no way to adjust any
      of that. This override keeps the identical arc-drawing/tooltip/center-label
      logic and adds cfg.sortSlices (largest slice first), cfg.legend (hide the
      side legend, letting the ring use the full width), and cfg.innerPct (ring
      thickness as an inner-radius percentage, 0 = full pie). Base kept as
-     PDC._donutBase for reference. */
-  PDC._donutBase = PDC.donut;
+     DashKit._donutBase for reference. */
+  DashKit._donutBase = DashKit.donut;
 
-  PDC.donut = function (el, cfg) { reg(el, function () { _donutOpts(el, cfg); }); };
+  DashKit.donut = function (el, cfg) { reg(el, function () { _donutOpts(el, cfg); }); };
 
   function _donutOpts(el, cfg) {
     var data = (cfg.data || []).filter(function (d) { return (+d.value || 0) > 0; }), h = cfg.height || 260;
     if (!data.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
     if (cfg.sortSlices) data = data.slice().sort(function (a, b) { return (+b.value || 0) - (+a.value || 0); });
     var showLegend = cfg.legend !== false;
-    var o = mkSVG(el, h), s = o.s, w = o.w, pal = PDC.palette(), fmt = cfg.fmt || PDC.fmt.abbr;
+    var o = mkSVG(el, h), s = o.s, w = o.w, pal = DashKit.palette(), fmt = cfg.fmt || DashKit.fmt.abbr;
     var total = data.reduce(function (a, d) { return a + (+d.value || 0); }, 0);
     if (isFinite(total) && total !== 0) total = parseFloat(total.toPrecision(12));
     var innerRatio = Math.max(0, Math.min(90, cfg.innerPct != null ? +cfg.innerPct : 60)) / 100;
@@ -3377,10 +3377,10 @@
       var d1 = r > 0
         ? "M" + x0 + "," + y0 + " A" + R + "," + R + " 0 " + big + " 1 " + x1 + "," + y1 + " L" + xi0 + "," + yi0 + " A" + r + "," + r + " 0 " + big + " 0 " + xi1 + "," + yi1 + " Z"
         : "M" + cx + "," + cy + " L" + x0 + "," + y0 + " A" + R + "," + R + " 0 " + big + " 1 " + x1 + "," + y1 + " Z";
-      var p = S("path", { d: d1, fill: col, stroke: PDC.cssvar("--panel-bg"), "stroke-width": 2 });
+      var p = S("path", { d: d1, fill: col, stroke: DashKit.cssvar("--panel-bg"), "stroke-width": 2 });
       _tip(p, "<b>" + d.label + "</b><br>" + fmt(d.value) + " (" + (100 * d.value / total).toFixed(1) + "%)");
-      if (cfg.drill) PDC.bindDrill(p, cfg.drill, d.label);
-      if (cfg.detail) PDC.bindDetail(p, cfg.detail, d.label);
+      if (cfg.drill) DashKit.bindDrill(p, cfg.drill, d.label);
+      if (cfg.detail) DashKit.bindDetail(p, cfg.detail, d.label);
       s.appendChild(p);
       if (canAnim()) { p.style.opacity = "0"; setTimeout(function () { p.style.transition = "opacity .42s ease"; p.style.opacity = "1"; }, animD(i * 45)); }
       a0 = a1;
@@ -3394,21 +3394,21 @@
       data.forEach(function (d, i) {
         var yy = ly + i * 19; if (yy > h - 6) return;
         s.appendChild(S("rect", { x: lx, y: yy - 9, width: 11, height: 11, rx: 3, fill: d.color || pal[i % 10] }));
-        s.appendChild(S("text", { class: "series-label", x: lx + 17, y: yy }, PDC.fmt.trunc(d.label, 22) + "  " + (100 * d.value / total).toFixed(0) + "%"));
+        s.appendChild(S("text", { class: "series-label", x: lx + 17, y: yy }, DashKit.fmt.trunc(d.label, 22) + "  " + (100 * d.value / total).toFixed(0) + "%"));
       });
     }
   }
 
-  /* ── Enhanced bar chart (override PDC.bars, Z8 slice 9) ──────────────────────
-     Base PDC.bars (pdc-ui.js) always draws bars in row order with the value
+  /* ── Enhanced bar chart (override DashKit.bars, Z8 slice 9) ──────────────────────
+     Base DashKit.bars (dashkit.js) always draws bars in row order with the value
      label permanently on, no way to change either. This override keeps the
      identical horizontal/vertical layout, gridline, and tooltip logic and adds
      cfg.sortBars (largest value first, like Donut's "Sort slices") and
      cfg.showValues (hide the value labels for a cleaner look on dense/crowded
-     charts). Base kept as PDC._barsBase for reference. */
-  PDC._barsBase = PDC.bars;
+     charts). Base kept as DashKit._barsBase for reference. */
+  DashKit._barsBase = DashKit.bars;
 
-  PDC.bars = function (el, cfg) { reg(el, function () { _barsOpts(el, cfg); }); };
+  DashKit.bars = function (el, cfg) { reg(el, function () { _barsOpts(el, cfg); }); };
 
   function _barsOpts(el, cfg) {
     var data = cfg.data || [], hor = cfg.horizontal, h = cfg.height || 270;
@@ -3416,7 +3416,7 @@
     if (cfg.sortBars) data = data.slice().sort(function (a, b) { return (+b.value || 0) - (+a.value || 0); });
     var showValues = cfg.showValues !== false;
     var o = mkSVG(el, h), s = o.s, w = o.w;
-    var fmt = cfg.fmt || PDC.fmt.abbr, base = cfg.color || PDC.cssvar("--pentaho");
+    var fmt = cfg.fmt || DashKit.fmt.abbr, base = cfg.color || DashKit.cssvar("--pentaho");
     var max = niceMax(Math.max.apply(null, data.map(function (d) { return +d.value || 0; })));
     var anims = [];
     if (hor) {
@@ -3426,11 +3426,11 @@
         var y = mT + i * bh, bw = (w - mL - mR) * ((+d.value || 0) / max), col = d.color || base;
         var r = S("rect", { class: "bar", x: mL, y: y + bh * 0.16, width: 0, height: bh * 0.68, rx: 4, fill: col });
         _tip(r, cfg.tip ? cfg.tip(d) : ("<b>" + d.label + "</b><br>" + fmt(d.value)));
-        if (cfg.drill) PDC.bindDrill(r, cfg.drill, d.label);
-        if (cfg.detail) PDC.bindDetail(r, cfg.detail, d.label);
+        if (cfg.drill) DashKit.bindDrill(r, cfg.drill, d.label);
+        if (cfg.detail) DashKit.bindDetail(r, cfg.detail, d.label);
         s.appendChild(r);
         anims.push({ el: r, kind: "width", to: Math.max(1, bw), delay: animD(i * 28) });
-        s.appendChild(S("text", { class: "tick", x: mL - 8, y: y + bh / 2 + 3, "text-anchor": "end" }, PDC.fmt.trunc(d.label, cfg.labelChars || 20)));
+        s.appendChild(S("text", { class: "tick", x: mL - 8, y: y + bh / 2 + 3, "text-anchor": "end" }, DashKit.fmt.trunc(d.label, cfg.labelChars || 20)));
         if (showValues) s.appendChild(S("text", { class: "val-label", x: mL + bw + 6, y: y + bh / 2 + 3 }, fmt(d.value)));
       });
     } else {
@@ -3441,12 +3441,12 @@
         var x = mL2 + i * bw2, bhh = ih2 * ((+d.value || 0) / max), col = d.color || base;
         var r = S("rect", { class: "bar", x: x + bw2 * 0.14, y: mT2 + ih2, width: bw2 * 0.72, height: 0, rx: 4, fill: col });
         _tip(r, cfg.tip ? cfg.tip(d) : ("<b>" + d.label + "</b><br>" + fmt(d.value)));
-        if (cfg.drill) PDC.bindDrill(r, cfg.drill, d.label);
-        if (cfg.detail) PDC.bindDetail(r, cfg.detail, d.label);
+        if (cfg.drill) DashKit.bindDrill(r, cfg.drill, d.label);
+        if (cfg.detail) DashKit.bindDetail(r, cfg.detail, d.label);
         s.appendChild(r);
         anims.push({ el: r, kind: "height", y0: mT2 + ih2, yTo: mT2 + ih2 - bhh, to: Math.max(1, bhh), delay: animD(i * 28) });
         var lx = x + bw2 / 2, ty = mT2 + ih2 + 13;
-        var tx = S("text", { class: "tick", x: lx, y: ty, "text-anchor": cfg.rotate ? "end" : "middle" }, PDC.fmt.trunc(d.label, cfg.rotate ? 16 : 10));
+        var tx = S("text", { class: "tick", x: lx, y: ty, "text-anchor": cfg.rotate ? "end" : "middle" }, DashKit.fmt.trunc(d.label, cfg.rotate ? 16 : 10));
         if (cfg.rotate) tx.setAttribute("transform", "rotate(-38 " + lx + " " + ty + ")");
         s.appendChild(tx);
       });
@@ -3465,7 +3465,7 @@
         var bTrendD = (bTrendMethod === "holt" || bTrendMethod === "hw")
           ? btr.fitted.map(function (v, i) { return (i ? "L" : "M") + bxc(i) + "," + bys(v); }).join(" ")
           : "M" + bxc(0) + "," + bys(btr.intercept) + " L" + bxc(n2 - 1) + "," + bys(btr.intercept + btr.slope * (n2 - 1));
-        var bTrendPath = S("path", { d: bTrendD, fill: "none", stroke: PDC.cssvar("--pdc"),
+        var bTrendPath = S("path", { d: bTrendD, fill: "none", stroke: DashKit.cssvar("--dk"),
           "stroke-width": 1.6, "stroke-dasharray": "8,3", opacity: .6, class: "trend-line" });
         var bMethodLabel = bTrendMethod === "hw" && btr.season ? "Holt-Winters (seasonal)" : bTrendMethod === "hw" ? "Holt smoothing (not enough data for a season)" : bTrendMethod === "holt" ? "Holt smoothing" : "trend";
         _tip(bTrendPath, bMethodLabel);
@@ -3489,17 +3489,17 @@
     }
   }
 
-  /* ── Enhanced stacked bar chart (override PDC.stacked, Z8 slice 10) ──────────
-     Base PDC.stacked (pdc-ui.js) always draws categories in row order with no
+  /* ── Enhanced stacked bar chart (override DashKit.stacked, Z8 slice 10) ──────────
+     Base DashKit.stacked (dashkit.js) always draws categories in row order with no
      per-segment value text and a fixed static legend. This override keeps the
      identical band-stacking/gridline/tooltip logic and adds cfg.sortStack
      (order categories by their total, largest first — mirrors Bars' "Sort by
      value") and cfg.showValues (per-segment value label centered in its band,
      shown only when the band is tall enough to hold it legibly). Base kept as
-     PDC._stackedBase for reference. */
-  PDC._stackedBase = PDC.stacked;
+     DashKit._stackedBase for reference. */
+  DashKit._stackedBase = DashKit.stacked;
 
-  PDC.stacked = function (el, cfg) { reg(el, function () { _stackedOpts(el, cfg); }); };
+  DashKit.stacked = function (el, cfg) { reg(el, function () { _stackedOpts(el, cfg); }); };
 
   function _stackedOpts(el, cfg) {
     var cats = cfg.categories || [], series = cfg.series || [], h = cfg.height || 270;
@@ -3510,8 +3510,8 @@
     var cats2 = order.map(function (i) { return cats[i]; });
     var series2 = series.map(function (se) { return { name: se.name, color: se.color, values: order.map(function (i) { return se.values[i]; }) }; });
     var totals = order.map(function (i) { return totals0[i]; });
-    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || PDC.fmt.abbr;
-    var max = niceMax(Math.max.apply(null, totals.concat([0]))), pal = PDC.palette();
+    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || DashKit.fmt.abbr;
+    var max = niceMax(Math.max.apply(null, totals.concat([0]))), pal = DashKit.palette();
     var mL = 46, mR = 10, mT = 10, mB = cfg.rotate ? 64 : 26, iw = w - mL - mR, ih = h - mT - mB, bw = iw / cats2.length;
     for (var g = 0; g <= 4; g++) {
       var gy = mT + ih * (1 - g / 4);
@@ -3535,7 +3535,7 @@
         if (cfg.showValues && hh >= 14) s.appendChild(S("text", { class: "val-label", x: x + bw / 2, y: y0 + hh / 2 + 4, "text-anchor": "middle" }, fmt(v)));
       });
       var lx = x + bw / 2, ty = mT + ih + 13;
-      var tx = S("text", { class: "tick", x: lx, y: ty, "text-anchor": cfg.rotate ? "end" : "middle" }, PDC.fmt.trunc(c, cfg.rotate ? 16 : 10));
+      var tx = S("text", { class: "tick", x: lx, y: ty, "text-anchor": cfg.rotate ? "end" : "middle" }, DashKit.fmt.trunc(c, cfg.rotate ? 16 : 10));
       if (cfg.rotate) tx.setAttribute("transform", "rotate(-38 " + lx + " " + ty + ")");
       s.appendChild(tx);
     });
@@ -3552,7 +3552,7 @@
       var sTrendD = (sTrendMethod === "holt" || sTrendMethod === "hw")
         ? str.fitted.map(function (v, i) { return (i ? "L" : "M") + sxc(i) + "," + sys(v); }).join(" ")
         : "M" + sxc(0) + "," + sys(str.intercept) + " L" + sxc(cats2.length - 1) + "," + sys(str.intercept + str.slope * (cats2.length - 1));
-      var sTrendPath = S("path", { d: sTrendD, fill: "none", stroke: PDC.cssvar("--pdc"),
+      var sTrendPath = S("path", { d: sTrendD, fill: "none", stroke: DashKit.cssvar("--dk"),
         "stroke-width": 1.6, "stroke-dasharray": "8,3", opacity: .6, class: "trend-line" });
       var sMethodLabel = sTrendMethod === "hw" && str.season ? "Holt-Winters (seasonal)" : sTrendMethod === "hw" ? "Holt smoothing (not enough data for a season)" : sTrendMethod === "holt" ? "Holt smoothing" : "trend";
       _tip(sTrendPath, "Total " + sMethodLabel);
@@ -3587,12 +3587,12 @@
      cfg.height  — SVG height in px (default 320)
      cfg.fmt     — value formatter function
   ------------------------------------------------------------------------------ */
-  PDC.parallelCoords = function (el, cfg) { reg(el, function () { _pc(el, cfg); }); };
+  DashKit.parallelCoords = function (el, cfg) { reg(el, function () { _pc(el, cfg); }); };
   function _pc(el, cfg) {
     var labels = cfg.labels || [], axes = cfg.axes || [], h = cfg.height || 320;
     if (!labels.length || !axes.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
     var n = labels.length, nAxes = axes.length;
-    var P = PDC.palette(), fmt = cfg.fmt || PDC.fmt.abbr;
+    var P = DashKit.palette(), fmt = cfg.fmt || DashKit.fmt.abbr;
     var baseOp = Math.min(100, Math.max(5, cfg.opacity != null ? +cfg.opacity : 70)) / 100;
 
     var o = mkSVG(el, h), s = o.s, w = o.w;
@@ -3623,7 +3623,7 @@
       s.appendChild(S("text", { class: "tick", x: x, y: mT - 5, "text-anchor": "middle" }, fmt(axMaxs[ai])));
       var nm = S("text", { class: "tick", x: x, y: mT - 18, "text-anchor": "middle" });
       nm.style.cssText = "font-weight:600;font-size:9px;fill:var(--text-primary,#2c3e50)";
-      nm.textContent = PDC.fmt.trunc(ax.name || ("Axis " + (ai + 1)), 13);
+      nm.textContent = DashKit.fmt.trunc(ax.name || ("Axis " + (ai + 1)), 13);
       s.appendChild(nm);
     });
 
@@ -3650,14 +3650,14 @@
         });
         var tip = "<b>" + label + "</b>";
         axes.forEach(function (ax) { tip += "<br>" + ax.name + ": " + fmt(ax.values[li] != null ? ax.values[li] : 0); });
-        PDC.showTip(e, tip);
+        DashKit.showTip(e, tip);
       });
       line.addEventListener("mouseleave", function () {
         lineEls.forEach(function (el2) {
           el2.style.opacity = baseOp.toFixed(2);
           el2.setAttribute("stroke-width", "1.8");
         });
-        PDC.hideTip();
+        DashKit.hideTip();
       });
     });
 
@@ -3667,7 +3667,7 @@
         var col = P[li % P.length] || "#005bb5";
         axes.forEach(function (ax, ai) {
           var dot = S("circle", { cx: axX[ai].toFixed(1), cy: yAt(ai, ax.values[li] != null ? ax.values[li] : 0).toFixed(1),
-            r: 3.5, fill: col, stroke: PDC.cssvar("--panel-bg"), "stroke-width": 1.2, opacity: baseOp.toFixed(2) });
+            r: 3.5, fill: col, stroke: DashKit.cssvar("--panel-bg"), "stroke-width": 1.2, opacity: baseOp.toFixed(2) });
           s.appendChild(dot);
           if (canAnim()) {
             dot.style.opacity = "0";
@@ -3702,14 +3702,14 @@
      cfg.fmt       — value formatter function
      cfg.height    — SVG height in px (default 320)
   ------------------------------------------------------------------------------ */
-  PDC.candlestick = function (el, cfg) { reg(el, function () { _cstick(el, cfg); }); };
+  DashKit.candlestick = function (el, cfg) { reg(el, function () { _cstick(el, cfg); }); };
   function _cstick(el, cfg) {
     var rows = cfg.rows || [], h = cfg.height || 320;
     if (!rows.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
 
-    var upColor   = cfg.upColor   ? (PDC.cssvar ? (/^--/.test(cfg.upColor)   ? PDC.cssvar(cfg.upColor)   : cfg.upColor)   : cfg.upColor)   : "#27ae60";
-    var downColor = cfg.downColor ? (PDC.cssvar ? (/^--/.test(cfg.downColor) ? PDC.cssvar(cfg.downColor) : cfg.downColor) : cfg.downColor) : "#e74c3c";
-    var fmt = cfg.fmt || PDC.fmt.abbr;
+    var upColor   = cfg.upColor   ? (DashKit.cssvar ? (/^--/.test(cfg.upColor)   ? DashKit.cssvar(cfg.upColor)   : cfg.upColor)   : cfg.upColor)   : "#27ae60";
+    var downColor = cfg.downColor ? (DashKit.cssvar ? (/^--/.test(cfg.downColor) ? DashKit.cssvar(cfg.downColor) : cfg.downColor) : cfg.downColor) : "#e74c3c";
+    var fmt = cfg.fmt || DashKit.fmt.abbr;
 
     // Y-scale from the full O/H/L/C data range
     var allVals = [];
@@ -3775,19 +3775,19 @@
 
       // X-axis label (period name, truncated)
       var lbl = S("text", { class: "tick", x: cx.toFixed(1), y: (h - mB + 13).toFixed(1), "text-anchor": "middle" });
-      lbl.textContent = PDC.fmt.trunc(String(r.label || ""), 6);
+      lbl.textContent = DashKit.fmt.trunc(String(r.label || ""), 6);
       s.appendChild(lbl);
 
       // Transparent hit area + tooltip
       var hit = S("rect", { x: (mL + i * slotW).toFixed(1), y: mT, width: slotW.toFixed(1), height: ih,
         fill: "transparent", style: "cursor:crosshair" });
       hit.addEventListener("mousemove", function (e) {
-        PDC.showTip(e, "<b>" + (r.label || "") + "</b><br>" +
+        DashKit.showTip(e, "<b>" + (r.label || "") + "</b><br>" +
           "O: " + fmt(open) + " &nbsp;H: " + fmt(high) + "<br>" +
           "L: " + fmt(low)  + " &nbsp;C: " + fmt(close) +
           " &nbsp;<span style='color:" + col + "'>" + (bullish ? "▲" : "▼") + "</span>");
       });
-      hit.addEventListener("mouseleave", PDC.hideTip);
+      hit.addEventListener("mouseleave", DashKit.hideTip);
       s.appendChild(hit); // must be last for event capture
     });
 
@@ -3808,9 +3808,9 @@
      CDF-only (no CCC equivalent). labelCol + valueCol binding.
      Inspired by Washington Post / NYT waffle chart style.
      Rows fill left-to-right, top-to-bottom; 10 columns (configurable via cfg.cols).
-     Each category gets a color from the PDC palette; the final cell counts are
+     Each category gets a color from the DashKit palette; the final cell counts are
      rounded so the grid always totals exactly cols×cols cells. */
-  PDC.waffle = function (el, cfg) {
+  DashKit.waffle = function (el, cfg) {
     var data = cfg.data || [];
     if (!data.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
     var cols = cfg.cols || 10;
@@ -3845,7 +3845,7 @@
 
     // SVG grid
     el.innerHTML = "";
-    var palette = PDC.S && PDC.S.palArr ? PDC.S.palArr() : ["#005bb5","#7d3c98","#2e8bd0","#00a39a","#e67e22","#e74c3c","#27ae60","#f1c40f","#8e44ad","#2c3e50"];
+    var palette = DashKit.S && DashKit.S.palArr ? DashKit.S.palArr() : ["#005bb5","#7d3c98","#2e8bd0","#00a39a","#e67e22","#e74c3c","#27ae60","#f1c40f","#8e44ad","#2c3e50"];
     var wrapper = document.createElement("div");
     wrapper.style.cssText = "display:flex;align-items:flex-start;gap:" + gap + "px;flex-wrap:wrap;width:100%";
 
@@ -3878,13 +3878,13 @@
       var mx = e.clientX - svgRect.left, my = e.clientY - svgRect.top;
       var col2 = Math.floor(mx / side), row = Math.floor(my / side);
       var idx = row * cols + col2;
-      if (idx < 0 || idx >= flatLabels.length) { PDC.hideTip(); return; }
+      if (idx < 0 || idx >= flatLabels.length) { DashKit.hideTip(); return; }
       var info = flatLabels[idx];
       var cnt = floored[info.ci];
       var pct = ((cnt / (cols * cols)) * 100).toFixed(1);
-      PDC.showTip(e, "<strong>" + info.label + "</strong><br>" + cnt + " cells · " + pct + "%");
+      DashKit.showTip(e, "<strong>" + info.label + "</strong><br>" + cnt + " cells · " + pct + "%");
     });
-    svg.addEventListener("mouseleave", PDC.hideTip);
+    svg.addEventListener("mouseleave", DashKit.hideTip);
 
     // Legend
     var legend = document.createElement("div");
@@ -3926,8 +3926,8 @@
      cfg.height  = chart height in px (default 220)
 
      CDF-only (no CCC equivalent). labelCol binding required; dateCol optional.
-     PDC.timeline is a studio-charts.js extension; pdc-ui.js stays pristine. */
-  PDC.timeline = function (el, cfg) {
+     DashKit.timeline is a studio-charts.js extension; dashkit.js stays pristine. */
+  DashKit.timeline = function (el, cfg) {
     var events = cfg.events || [];
     if (!events.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
 
@@ -3939,7 +3939,7 @@
     // Stalk height: distance from baseline to label. Scales down if many events.
     var stalkH = Math.min(72, Math.max(32, (h / 2) - 28));
 
-    var palette = PDC.S && PDC.S.palArr ? PDC.S.palArr()
+    var palette = DashKit.S && DashKit.S.palArr ? DashKit.S.palArr()
       : ["#005bb5","#7d3c98","#2e8bd0","#00a39a","#e67e22","#e74c3c","#27ae60","#f1c40f"];
 
     var svgNS = "http://www.w3.org/2000/svg";
@@ -3994,10 +3994,10 @@
       dia.setAttribute("stroke-width", "1.5");
       dia.style.cursor = "crosshair";
       dia.addEventListener("mousemove", function (e) {
-        PDC.showTip(e, "<b>" + ev.label + "</b>" +
+        DashKit.showTip(e, "<b>" + ev.label + "</b>" +
           (ev.date ? "<br><span style='opacity:.75'>" + ev.date + "</span>" : ""));
       });
-      dia.addEventListener("mouseleave", PDC.hideTip);
+      dia.addEventListener("mouseleave", DashKit.hideTip);
       svg.appendChild(dia);
       toAnimate.push(dia);
 
@@ -4010,7 +4010,7 @@
       lbl.setAttribute("font-weight", "600");
       lbl.setAttribute("font-family", "var(--sans,sans-serif)");
       lbl.setAttribute("fill", color);
-      lbl.textContent = PDC.fmt.trunc(String(ev.label || ""), 15);
+      lbl.textContent = DashKit.fmt.trunc(String(ev.label || ""), 15);
       svg.appendChild(lbl);
       toAnimate.push(lbl);
 
@@ -4023,7 +4023,7 @@
         dtEl.setAttribute("font-size", "8.5");
         dtEl.setAttribute("font-family", "var(--sans,sans-serif)");
         dtEl.setAttribute("fill", "var(--muted,#8899aa)");
-        dtEl.textContent = PDC.fmt.trunc(String(ev.date), 12);
+        dtEl.textContent = DashKit.fmt.trunc(String(ev.date), 12);
         svg.appendChild(dtEl);
       }
     });
@@ -4050,15 +4050,15 @@
      track — giving an immediate visual hierarchy at a glance.
 
      cfg: { data:[{label,value}], fmt, maxVal, height }
-     CDF-only (no CCC/CDE equivalent). PDC.radialBar lives in studio-charts.js. */
-  PDC.radialBar = function (el, cfg) {
+     CDF-only (no CCC/CDE equivalent). DashKit.radialBar lives in studio-charts.js. */
+  DashKit.radialBar = function (el, cfg) {
     if (!el) return;
     var data = (cfg.data || []).filter(function (d) { return d.label; });
     if (!data.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
     var n    = Math.min(data.length, 12);
     data = data.slice(0, n);
 
-    var fmtFn  = (PDC.fmt && PDC.fmt[cfg.fmt || "abbr"]) || function (v) { return String(v); };
+    var fmtFn  = (DashKit.fmt && DashKit.fmt[cfg.fmt || "abbr"]) || function (v) { return String(v); };
     var maxVal = (cfg.maxVal && +cfg.maxVal > 0) ? +cfg.maxVal
                  : Math.max.apply(null, data.map(function (d) { return +d.value || 0; })) || 1;
 
@@ -4110,7 +4110,7 @@
     sorted.forEach(function (d, rank) {
       // Track centerline radius: rank 0 = outermost = maxR, rank n-1 = innermost ≈ innerR
       var rMid  = maxR - rank * trackStep - trackH / 2;
-      var color = PDC.color(d.origIdx);
+      var color = DashKit.color(d.origIdx);
       var sweep = SWEEP270 * (d.value / maxVal);
 
       // Ghost background arc (full 270°, very faint)
@@ -4181,7 +4181,7 @@
       var row = Math.floor(rank / LEG_COLS);
       var lx  = col * colW + 6;
       var ly  = circH + 8 + row * LEGEND_LINE + 10;
-      var color = PDC.color(d.origIdx);
+      var color = DashKit.color(d.origIdx);
       var dot   = S('circle', { cx: lx + 4, cy: ly - 1, r: 4, fill: color });
       svg.appendChild(dot);
       var label = d.label.length > 17 ? d.label.slice(0, 15) + '…' : d.label;
@@ -4205,24 +4205,24 @@
 
      cfg: { rows:[{label,left,right}], leftLabel, rightLabel,
             leftColor, rightColor, fmt, height }
-     CDF-only (no CCC/CDE equivalent). PDC.pyramidBar lives in studio-charts.js. */
-  PDC.pyramidBar = function (el, cfg) {
+     CDF-only (no CCC/CDE equivalent). DashKit.pyramidBar lives in studio-charts.js. */
+  DashKit.pyramidBar = function (el, cfg) {
     if (!el) return;
     var rows = (cfg.rows || []).filter(function (r) { return r.label; });
     if (!rows.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
 
-    var fmtFn      = (PDC.fmt && PDC.fmt[cfg.fmt || "abbr"]) || function (v) { return String(v); };
+    var fmtFn      = (DashKit.fmt && DashKit.fmt[cfg.fmt || "abbr"]) || function (v) { return String(v); };
     var leftLabel  = cfg.leftLabel  || "Left";
     var rightLabel = cfg.rightLabel || "Right";
     // Colors arrive as pre-resolved strings (hex/rgb) from studio-render.js color() helper,
     // or as CSS-variable tokens; fall through to palette defaults.
     function resolveColor(c, def) {
       if (!c) return def;
-      if (/^--/.test(c)) return PDC.cssvar ? PDC.cssvar(c) : def;
+      if (/^--/.test(c)) return DashKit.cssvar ? DashKit.cssvar(c) : def;
       return c;
     }
-    var leftColor  = resolveColor(cfg.leftColor,  PDC.color(1));
-    var rightColor = resolveColor(cfg.rightColor, PDC.color(0));
+    var leftColor  = resolveColor(cfg.leftColor,  DashKit.color(1));
+    var rightColor = resolveColor(cfg.rightColor, DashKit.color(0));
 
     var totalH = cfg.height || 300;
     var w      = W(el);
@@ -4388,7 +4388,7 @@
      Colours are per-group in two-level mode, per-item in single-level mode (palette).
      Hover tooltips show name, parent group (if two-level), and formatted value.
      Animated entrance: all rectangles fade in sequentially left-to-right. */
-  PDC.icicle = function (el, cfg) { reg(el, function () { _icicle(el, cfg); }); };
+  DashKit.icicle = function (el, cfg) { reg(el, function () { _icicle(el, cfg); }); };
 
   function _icicle(el, cfg) {
     var rows = cfg.rows || [];
@@ -4398,10 +4398,10 @@
     var groupCol = cfg.groupCol || "";
     var valueCol = cfg.valueCol || "";
     var h        = cfg.height  || 280;
-    var fmtFn    = cfg.fmt     || PDC.fmt.abbr;
+    var fmtFn    = cfg.fmt     || DashKit.fmt.abbr;
     var showLabels = cfg.showLabels !== false;
     var showPct    = !!cfg.showPct;
-    var pal      = PDC.palette();
+    var pal      = DashKit.palette();
     var cW       = el.clientWidth || (el.parentNode && el.parentNode.clientWidth) || 640;
     var PAD      = 1.5; // gap between adjacent cells (px)
 
@@ -4442,9 +4442,9 @@
         });
         headerRect.style.cursor = "pointer";
         headerRect.addEventListener("mousemove", function (e) {
-          PDC.showTip(e, "<b>" + g + "</b><br>" + fmtFn(groupMap[g].total));
+          DashKit.showTip(e, "<b>" + g + "</b><br>" + fmtFn(groupMap[g].total));
         });
-        headerRect.addEventListener("mouseleave", PDC.hideTip);
+        headerRect.addEventListener("mouseleave", DashKit.hideTip);
         svg.appendChild(headerRect);
         allRects.push({ el: headerRect, baseOp: 1 });
 
@@ -4456,7 +4456,7 @@
             "text-anchor": "middle", "dominant-baseline": "middle",
             fill: "#fff", "font-size": 10, "font-weight": 600, "pointer-events": "none"
           });
-          gLbl.textContent = PDC.fmt.trunc(g, maxCh);
+          gLbl.textContent = DashKit.fmt.trunc(g, maxCh);
           svg.appendChild(gLbl);
         }
 
@@ -4476,9 +4476,9 @@
           });
           iRect.style.cursor = "pointer";
           iRect.addEventListener("mousemove", function (e) {
-            PDC.showTip(e, "<b>" + item.label + "</b><br>" + g + "<br>" + fmtFn(item.value));
+            DashKit.showTip(e, "<b>" + item.label + "</b><br>" + g + "<br>" + fmtFn(item.value));
           });
-          iRect.addEventListener("mouseleave", PDC.hideTip);
+          iRect.addEventListener("mouseleave", DashKit.hideTip);
           svg.appendChild(iRect);
           allRects.push({ el: iRect, baseOp: parseFloat(op) });
 
@@ -4492,7 +4492,7 @@
               "text-anchor": "middle", "dominant-baseline": "middle",
               fill: "#fff", "font-size": 9, "pointer-events": "none"
             });
-            iLbl.textContent = PDC.fmt.trunc(item.label, maxCi);
+            iLbl.textContent = DashKit.fmt.trunc(item.label, maxCi);
             svg.appendChild(iLbl);
             if (twoLine) {
               var iVal = S("text", {
@@ -4527,10 +4527,10 @@
         });
         rect.style.cursor = "pointer";
         rect.addEventListener("mousemove", function (e) {
-          PDC.showTip(e, "<b>" + (r[labelCol] || "") + "</b><br>" + fmtFn(v) +
+          DashKit.showTip(e, "<b>" + (r[labelCol] || "") + "</b><br>" + fmtFn(v) +
             " (" + (v / total * 100).toFixed(1) + "%)");
         });
-        rect.addEventListener("mouseleave", PDC.hideTip);
+        rect.addEventListener("mouseleave", DashKit.hideTip);
         svg.appendChild(rect);
         allRects.push({ el: rect, baseOp: 1 });
 
@@ -4544,7 +4544,7 @@
             "text-anchor": "middle", "dominant-baseline": "middle",
             fill: "#fff", "font-size": 10, "font-weight": 600, "pointer-events": "none"
           });
-          lbl.textContent = PDC.fmt.trunc(r[labelCol] || "", maxCh2);
+          lbl.textContent = DashKit.fmt.trunc(r[labelCol] || "", maxCh2);
           svg.appendChild(lbl);
           if (twoLine2) {
             var val2 = S("text", {
@@ -4584,8 +4584,8 @@
 
      Data binding: cfg.data = [{label, value}] (pre-built by studio-render.js).
      Options: showRef (bool, default true), fmt (format fn), height (px).
-     CDF-only (no CCC/CDE equivalent). PDC.pareto lives in studio-charts.js. */
-  PDC.pareto = function (el, cfg) { reg(el, function () { _pareto(el, cfg); }); };
+     CDF-only (no CCC/CDE equivalent). DashKit.pareto lives in studio-charts.js. */
+  DashKit.pareto = function (el, cfg) { reg(el, function () { _pareto(el, cfg); }); };
 
   function _pareto(el, cfg) {
     var data = (cfg.data || []).filter(function (d) { return d.label; });
@@ -4602,7 +4602,7 @@
       return { label: d.label, value: d.value, cumPct: cumSum / total * 100 };
     });
 
-    var fmtFn  = cfg.fmt    || PDC.fmt.abbr;
+    var fmtFn  = cfg.fmt    || DashKit.fmt.abbr;
     var showRef = cfg.showRef !== false; // 80% dashed reference line on by default
     var h = cfg.height || 300;
     var o = mkSVG(el, h), s = o.s, w = o.w;
@@ -4623,7 +4623,7 @@
     function xSlot(i)  { return mL + i * slotW; }
     function xCenter(i){ return xSlot(i) + slotW / 2; }
 
-    var brandColor = PDC.cssvar ? PDC.cssvar("--pentaho") : "#005bb5";
+    var brandColor = DashKit.cssvar ? DashKit.cssvar("--pentaho") : "#005bb5";
     var lineColor  = "#e67e22"; // orange cumulative line — visually distinct from bars
 
     // ── Grid lines & left y-axis ────────────────────────────────────────────
@@ -4695,17 +4695,17 @@
         x: xCenter(i).toFixed(1), y: (h - mB + 14).toFixed(1),
         "text-anchor": "end", "dominant-baseline": "auto",
         transform: "rotate(-35," + xCenter(i).toFixed(1) + "," + (h - mB + 10).toFixed(1) + ")" });
-      lblEl.textContent = PDC.fmt.trunc(String(d.label), Math.max(4, Math.floor(slotW / 5)));
+      lblEl.textContent = DashKit.fmt.trunc(String(d.label), Math.max(4, Math.floor(slotW / 5)));
       s.appendChild(lblEl);
 
       // Transparent hit zone — covers full column including above the bar.
       var hit = S("rect", { x: xSlot(i).toFixed(1), y: mT, width: slotW.toFixed(1), height: ih,
         fill: "transparent", style: "cursor:crosshair" });
       hit.addEventListener("mousemove", function (ev) {
-        PDC.showTip(ev, "<b>" + d.label + "</b><br>" + fmtFn(d.value) +
+        DashKit.showTip(ev, "<b>" + d.label + "</b><br>" + fmtFn(d.value) +
           " &nbsp;<span style='color:" + lineColor + "'>" + d.cumPct.toFixed(1) + "% cumulative</span>");
       });
-      hit.addEventListener("mouseleave", PDC.hideTip);
+      hit.addEventListener("mouseleave", DashKit.hideTip);
       s.appendChild(hit); // after bar so event goes to hit, not bar
     });
 
@@ -4765,13 +4765,13 @@
      where Stacked bars would hide individual values (e.g. Q1/Q2/Q3 revenue by region).
      Data binding: labelCol (x-axis categories) + series (one numeric column each).
      CDF-only (no CCC multi-bar equivalent in the Studio CDE export).
-     PDC.groupedBars lives here in studio-charts.js; pdc-ui.js stays pristine. */
-  PDC.groupedBars = function (el, cfg) { reg(el, function () { _groupedBars(el, cfg); }); };
+     DashKit.groupedBars lives here in studio-charts.js; dashkit.js stays pristine. */
+  DashKit.groupedBars = function (el, cfg) { reg(el, function () { _groupedBars(el, cfg); }); };
   function _groupedBars(el, cfg) {
     var labels  = cfg.labels  || [];
     var series  = cfg.series  || [];
     var h       = cfg.height  || 300;
-    var fmtFn   = cfg.fmt     || PDC.fmt.abbr;
+    var fmtFn   = cfg.fmt     || DashKit.fmt.abbr;
     var rotate  = !!cfg.rotate;
     var showValues = !!cfg.showValues;
 
@@ -4779,7 +4779,7 @@
 
     var nCats = labels.length;
     var nSer  = series.length;
-    var P = PDC.palette();
+    var P = DashKit.palette();
 
     // Global max across every series value — shared y-axis so bars are comparable.
     var allVals = series.reduce(function (acc, se) {
@@ -4839,10 +4839,10 @@
         });
         // Hover tooltip shows category + series name + formatted value
         rect.addEventListener("mousemove", function (e) {
-          PDC.showTip(e, "<b>" + lb + "</b><br>" +
+          DashKit.showTip(e, "<b>" + lb + "</b><br>" +
             (se.name || ("Series " + (si + 1))) + ": " + fmtFn(val));
         });
-        rect.addEventListener("mouseout", PDC.hideTip);
+        rect.addEventListener("mouseout", DashKit.hideTip);
         s.appendChild(rect);
         seEls.push(rect);
 
@@ -4871,7 +4871,7 @@
               "rotate(-38," + lx.toFixed(1) + "," + (mT + ih + 12) + ")");
             lbl.setAttribute("y", mT + ih + 12);
           }
-          lbl.textContent = PDC.fmt.trunc(lb, rotate ? 14 : 9);
+          lbl.textContent = DashKit.fmt.trunc(lb, rotate ? 14 : 9);
           s.appendChild(lbl);
         }
       });
@@ -4919,16 +4919,16 @@
      Uses the same Silverman-bandwidth Gaussian KDE as the violin chart. Curves use a
      shared x-axis scale so shapes are directly comparable.
 
-     API: PDC.ridgeline(el, {
+     API: DashKit.ridgeline(el, {
        categories: [{name, values}],   // pre-grouped by studio-render.js (violin pattern)
        overlap: 0.4,                   // ridge vertical overlap ratio (0 = no overlap)
        fmt, height
      }) */
-  PDC.ridgeline = function (el, cfg) { reg(el, function () { _ridgeline(el, cfg); }); };
+  DashKit.ridgeline = function (el, cfg) { reg(el, function () { _ridgeline(el, cfg); }); };
   function _ridgeline(el, cfg) {
     var cats = cfg.categories || [];
     var overlap = cfg.overlap != null ? +cfg.overlap : 0.4;
-    var h = cfg.height || 320, fmtFn = cfg.fmt || PDC.fmt.abbr;
+    var h = cfg.height || 320, fmtFn = cfg.fmt || DashKit.fmt.abbr;
     if (!cats.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
 
     var o = mkSVG(el, h), sv = o.s, w = o.w;
@@ -4952,7 +4952,7 @@
     if (ridgeH < 10) ridgeH = 10;
     if (ridgeH > ih * 0.95) ridgeH = ih * 0.95; // clamp to chart height
 
-    var P = PDC.palette();
+    var P = DashKit.palette();
     var ridgePaths = []; // collected for animation
 
     // X-axis tick labels at bottom
@@ -4962,7 +4962,7 @@
       var tx = xs(tv);
       // Faint vertical grid line
       sv.appendChild(S("line", { x1: tx.toFixed(1), y1: mT, x2: tx.toFixed(1), y2: mT + ih,
-        stroke: PDC.cssvar("--panel-border"), "stroke-width": 0.6, "stroke-dasharray": "2 3" }));
+        stroke: DashKit.cssvar("--panel-border"), "stroke-width": 0.6, "stroke-dasharray": "2 3" }));
       // Tick label below chart
       var tl = S("text", { class: "tick", x: tx.toFixed(1), y: (mT + ih + 14).toFixed(1),
         "text-anchor": "middle" });
@@ -4981,7 +4981,7 @@
       // Category label on the left Y-axis
       var lbl = S("text", { class: "tick", x: (mL - 6).toFixed(1), y: (baseY - ridgeH * 0.12).toFixed(1),
         "text-anchor": "end", fill: col, "font-weight": "500" });
-      lbl.textContent = PDC.fmt.trunc(cat.name, 12);
+      lbl.textContent = DashKit.fmt.trunc(cat.name, 12);
       sv.appendChild(lbl);
 
       // Faint baseline rule
@@ -5050,7 +5050,7 @@
      Ideal for: market share by region, budget allocation by department, survey response
      breakdown by team, sentiment distribution by period.
 
-     API: PDC.barNorm(el, {
+     API: DashKit.barNorm(el, {
        labels:  string[],               // x-axis categories
        series:  [{name, color, values}],// one per segment; values[i] = raw numeric for label[i]
        rotate:  bool,                   // rotate x-axis labels (for long category names)
@@ -5058,20 +5058,20 @@
        fmt:     function,               // value formatter (raw value in tooltips)
        height:  number
      })
-     PDC.barNorm lives here in studio-charts.js; pdc-ui.js stays pristine. */
-  PDC.barNorm = function (el, cfg) { reg(el, function () { _barNorm(el, cfg); }); };
+     DashKit.barNorm lives here in studio-charts.js; dashkit.js stays pristine. */
+  DashKit.barNorm = function (el, cfg) { reg(el, function () { _barNorm(el, cfg); }); };
   function _barNorm(el, cfg) {
     var labels  = cfg.labels  || [];
     var series  = cfg.series  || [];
     var h       = cfg.height  || 300;
-    var fmtFn   = cfg.fmt     || PDC.fmt.abbr;
+    var fmtFn   = cfg.fmt     || DashKit.fmt.abbr;
     var rotate  = !!cfg.rotate;
     var showPct = !!cfg.showPct;
 
     if (!labels.length || !series.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
 
     var nCats = labels.length;
-    var P = PDC.palette();
+    var P = DashKit.palette();
 
     // Compute per-category totals (sum all series) for normalization to 100%.
     var totals = labels.map(function (_, li) {
@@ -5103,7 +5103,7 @@
         lbl.setAttribute("transform", "rotate(-38," + lx.toFixed(1) + "," + (mT + ih + 12) + ")");
         lbl.setAttribute("y", mT + ih + 12);
       }
-      lbl.textContent = PDC.fmt.trunc(lb, rotate ? 14 : 9);
+      lbl.textContent = DashKit.fmt.trunc(lb, rotate ? 14 : 9);
       s.appendChild(lbl);
     });
 
@@ -5148,12 +5148,12 @@
         // Closure captures local vars via IIFE to avoid loop-variable pitfall
         (function (seName, rawV, pctV, lbName) {
           rect.addEventListener("mousemove", function (e) {
-            PDC.showTip(e, "<b>" + lbName + "</b><br>" +
+            DashKit.showTip(e, "<b>" + lbName + "</b><br>" +
               seName + ": " + fmtFn(rawV) +
               " <span class='muted'>(" + (pctV * 100).toFixed(1) + "%)</span>");
           });
         })(se.name || ("Series " + (si + 1)), rawVal, pct, lb);
-        rect.addEventListener("mouseout", PDC.hideTip);
+        rect.addEventListener("mouseout", DashKit.hideTip);
 
         s.appendChild(rect);
         seEls.push(rect);
@@ -5222,7 +5222,7 @@
   //   showCenter   — boolean (default true); when false, center[] is ignored
   //   bandOpacity  — fill opacity 0–1 (default 0.22)
   //   bandColor    — CSS color or --token for band + boundary lines
-  //   fmt          — number format function (default PDC.fmt.abbr)
+  //   fmt          — number format function (default DashKit.fmt.abbr)
   //   height       — canvas height in px (default 300)
   function _areaRange(el, cfg) {
     var labels  = cfg.labels  || [];
@@ -5231,9 +5231,9 @@
     var hasCenter = cfg.showCenter !== false && cfg.center && cfg.center.length;
     var center  = hasCenter ? cfg.center : null;
     var h       = cfg.height  || 300;
-    var fmtFn   = cfg.fmt     || PDC.fmt.abbr;
+    var fmtFn   = cfg.fmt     || DashKit.fmt.abbr;
     var bandOp  = cfg.bandOpacity != null ? +cfg.bandOpacity : 0.22;
-    var bColor  = cfg.bandColor || PDC.cssvar("--pentaho");
+    var bColor  = cfg.bandColor || DashKit.cssvar("--pentaho");
     var n       = labels.length;
 
     if (n === 0) { el.innerHTML = '<div class="empty">No data</div>'; return; }
@@ -5273,7 +5273,7 @@
       if (i % showEvery !== 0 && i !== n - 1) return;
       var lx = xx(i);
       var lbl = S("text", { class: "tick", x: lx.toFixed(1), y: mT + ih + 14, "text-anchor": "middle" });
-      lbl.textContent = PDC.fmt.trunc(String(lb), 8);
+      lbl.textContent = DashKit.fmt.trunc(String(lb), 8);
       s.appendChild(lbl);
     });
 
@@ -5336,10 +5336,10 @@
         over.addEventListener("mousemove", function (e) {
           var tip = "<b>" + lb + "</b><br>Upper: " + fmtFn(uv) + "<br>Lower: " + fmtFn(lv2);
           if (cv != null) tip += "<br>Centre: " + fmtFn(cv);
-          PDC.showTip(e, tip);
+          DashKit.showTip(e, tip);
         });
       })(+upper[i] || 0, +lower[i] || 0, center ? (+center[i] || 0) : null);
-      over.addEventListener("mouseout", PDC.hideTip);
+      over.addEventListener("mouseout", DashKit.hideTip);
       s.appendChild(over);
     });
 
@@ -5364,7 +5364,7 @@
       if (centerEl) centerEl.setAttribute("stroke-opacity", "0.96");
     }
   }
-  PDC.areaRange = function (el, cfg) { reg(el, function () { _areaRange(el, cfg); }); };
+  DashKit.areaRange = function (el, cfg) { reg(el, function () { _areaRange(el, cfg); }); };
 
   // ── Quadrant / 2×2 matrix chart ─────────────────────────────────────────────
   // Positions items on a scatter-style x/y plane divided into four labelled
@@ -5389,7 +5389,7 @@
   function _quadrant(el, cfg) {
     var pts   = cfg.points || [];
     var h     = cfg.height || 300;
-    var fmtFn = cfg.fmt    || PDC.fmt.abbr;
+    var fmtFn = cfg.fmt    || DashKit.fmt.abbr;
 
     if (pts.length === 0) { el.innerHTML = '<div class="empty">No data</div>'; return; }
 
@@ -5518,22 +5518,22 @@
       }
     });
   }
-  PDC.quadrant = function (el, cfg) { reg(el, function () { _quadrant(el, cfg); }); };
+  DashKit.quadrant = function (el, cfg) { reg(el, function () { _quadrant(el, cfg); }); };
 
-  /* ── Enhanced chord chart (override PDC.chord, Z8 slice 16) ──────────────────
-     Base PDC.chord (pdc-ui.js) always draws an arc label next to every
+  /* ── Enhanced chord chart (override DashKit.chord, Z8 slice 16) ──────────────────
+     Base DashKit.chord (dashkit.js) always draws an arc label next to every
      wide-enough node, with no way to turn them off on a dense diagram. This
      override keeps the identical ring-allocation + ribbon geometry and adds
-     cfg.showLabels. Base kept as PDC._chordBase for reference. */
-  PDC._chordBase = PDC.chord;
+     cfg.showLabels. Base kept as DashKit._chordBase for reference. */
+  DashKit._chordBase = DashKit.chord;
 
-  PDC.chord = function (el, cfg) { reg(el, function () { _chordOpts(el, cfg); }); };
+  DashKit.chord = function (el, cfg) { reg(el, function () { _chordOpts(el, cfg); }); };
 
   function _chordOpts(el, cfg) {
     var links = (cfg.links || []).filter(function (l) { return (+l.value || 0) > 0 && l.source !== l.target; });
     var h = cfg.height || 360;
     if (!links.length) { el.innerHTML = '<div class="empty">No connections</div>'; return; }
-    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || PDC.fmt.abbr, pal = PDC.palette();
+    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || DashKit.fmt.abbr, pal = DashKit.palette();
     var showLabels = cfg.showLabels !== false;
     var N = {}, order = [];
     links.forEach(function (l) {
@@ -5590,7 +5590,7 @@
       grp.appendChild(arcEl);
       var am = (nd.a0 + nd.a1) / 2, anc = Math.cos(am) < -0.3 ? "end" : Math.cos(am) > 0.3 ? "start" : "middle", lr = R + band + 7;
       if (showLabels && nd.span >= 0.06) grp.appendChild(S("text", { x: (cx + lr * Math.cos(am)).toFixed(1), y: (cy + lr * Math.sin(am) + (Math.sin(am) > 0.3 ? 7 : Math.sin(am) < -0.3 ? -1 : 3)).toFixed(1),
-        "text-anchor": anc, fill: "var(--text)", "font-size": "11", "font-weight": "700" }, PDC.fmt.trunc(k, 14)));
+        "text-anchor": anc, fill: "var(--text)", "font-size": "11", "font-weight": "700" }, DashKit.fmt.trunc(k, 14)));
       grp.addEventListener("mouseover", function () { focus(i); });
       grp.addEventListener("mouseout", function () { focus(null); });
       arcEls[i] = grp; s.appendChild(grp);
@@ -5598,19 +5598,19 @@
     if (cfg.caption) s.appendChild(S("text", { x: cx, y: cy, "text-anchor": "middle", fill: "var(--muted)", "font-size": "10", "font-weight": "700" }, cfg.caption));
   }
 
-  /* ── Enhanced network / topology chart (override PDC.network, Z8 slice 16) ───
-     Base PDC.network (pdc-ui.js) always labels every node, with no way to hide
+  /* ── Enhanced network / topology chart (override DashKit.network, Z8 slice 16) ───
+     Base DashKit.network (dashkit.js) always labels every node, with no way to hide
      labels on a busy graph. This override keeps the identical radial layout +
-     blast-radius hover and adds cfg.showLabels. Base kept as PDC._networkBase. */
-  PDC._networkBase = PDC.network;
+     blast-radius hover and adds cfg.showLabels. Base kept as DashKit._networkBase. */
+  DashKit._networkBase = DashKit.network;
 
-  PDC.network = function (el, cfg) { reg(el, function () { _networkOpts(el, cfg); }); };
+  DashKit.network = function (el, cfg) { reg(el, function () { _networkOpts(el, cfg); }); };
 
   function _networkOpts(el, cfg) {
     var links = (cfg.links || []).filter(function (l) { return (+l.value || 0) > 0; });
     var h = cfg.height || 360;
     if (!links.length) { el.innerHTML = '<div class="empty">No connections</div>'; return; }
-    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || PDC.fmt.abbr;
+    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || DashKit.fmt.abbr;
     var showLabels = cfg.showLabels !== false;
     var N = {}, order = [];
     links.forEach(function (l) {
@@ -5625,11 +5625,11 @@
     order.forEach(function (k, i) { var a = -Math.PI / 2 + i / n * 2 * Math.PI; var nd = N[k]; nd.a = a; nd.x = cx + r * Math.cos(a); nd.y = cy + r * Math.sin(a); nd.rad = 5 + Math.sqrt(nd.val / maxV) * 16; nd.i = i; });
     var edgeEls = [];
     links.slice().sort(function (a, b) { return b.value - a.value; }).forEach(function (l, i) {
-      var u = N[l.source], vv = N[l.target], col = cfg.color ? cfg.color(l.source) : PDC.color(u.i);
+      var u = N[l.source], vv = N[l.target], col = cfg.color ? cfg.color(l.source) : DashKit.color(u.i);
       var cpx = cx + (((u.x + vv.x) / 2) - cx) * 0.35, cpy = cy + (((u.y + vv.y) / 2) - cy) * 0.35;
       var p = S("path", { d: "M" + u.x.toFixed(1) + "," + u.y.toFixed(1) + " Q" + cpx.toFixed(1) + "," + cpy.toFixed(1) + " " + vv.x.toFixed(1) + "," + vv.y.toFixed(1),
         fill: "none", stroke: col, "stroke-width": Math.max(1, Math.sqrt(l.value / maxL) * 7), opacity: 0, "stroke-linecap": "round" });
-      _tip(p, "<b>" + l.source + " &harr; " + l.target + "</b><br>" + fmt(l.value) + (l.conns != null ? " &middot; " + PDC.fmt.n(l.conns) + " connections" : ""));
+      _tip(p, "<b>" + l.source + " &harr; " + l.target + "</b><br>" + fmt(l.value) + (l.conns != null ? " &middot; " + DashKit.fmt.n(l.conns) + " connections" : ""));
       p._u = l.source; p._v = l.target; p._base = Math.min(.5, .18 + l.value / maxL * .4); edgeEls.push(p); s.appendChild(p);
       if (canAnim()) {
         (function (pp, delay) { setTimeout(function () { pp.style.transition = "opacity .5s ease"; pp.setAttribute("opacity", pp._base); }, delay); })(p, animD(60 + i * 26));
@@ -5643,12 +5643,12 @@
     order.forEach(function (k) {
       var nd = N[k];
       var grp = S("g", { opacity: 1, style: "cursor:pointer" });
-      var c = S("circle", { cx: nd.x, cy: nd.y, r: nd.rad, fill: cfg.color ? cfg.color(k) : PDC.color(nd.i), stroke: "#fff", "stroke-width": 1.5 });
+      var c = S("circle", { cx: nd.x, cy: nd.y, r: nd.rad, fill: cfg.color ? cfg.color(k) : DashKit.color(nd.i), stroke: "#fff", "stroke-width": 1.5 });
       _tip(c, "<b>" + k + "</b><br>" + fmt(nd.val) + " total &middot; " + Object.keys(nd.adj).length + " links");
       grp.appendChild(c);
       var anc = Math.cos(nd.a) < -0.3 ? "end" : Math.cos(nd.a) > 0.3 ? "start" : "middle";
       var lx = nd.x + Math.cos(nd.a) * (nd.rad + 6), ly = nd.y + Math.sin(nd.a) * (nd.rad + 6) + (Math.sin(nd.a) > 0.3 ? 9 : Math.sin(nd.a) < -0.3 ? -2 : 3);
-      if (showLabels) grp.appendChild(S("text", { x: lx, y: ly, "text-anchor": anc, fill: "var(--text)", "font-size": "11", "font-weight": "700" }, PDC.fmt.trunc(k, 14)));
+      if (showLabels) grp.appendChild(S("text", { x: lx, y: ly, "text-anchor": anc, fill: "var(--text)", "font-size": "11", "font-weight": "700" }, DashKit.fmt.trunc(k, 14)));
       grp.addEventListener("mouseover", function () { focus(k); });
       grp.addEventListener("mouseout", function () { focus(null); });
       nodeEls[k] = grp; s.appendChild(grp);
@@ -5868,8 +5868,8 @@
   // Sequential ramp: pale wash → base token → deepened base. Theme-aware (reads
   // the live CSS variables) and license-free (computed, not a copied palette).
   function geoRamp(baseToken, n) {
-    var base = hexParse(PDC.cssvar(baseToken)) || hexParse("#2f8f52");
-    var pane = hexParse(PDC.cssvar("--panel-bg")) || hexParse(PDC.cssvar("--pane")) || [255, 255, 255];
+    var base = hexParse(DashKit.cssvar(baseToken)) || hexParse("#2f8f52");
+    var pane = hexParse(DashKit.cssvar("--panel-bg")) || hexParse(DashKit.cssvar("--pane")) || [255, 255, 255];
     var light = mix(pane, base, 0.14);
     var dark = mix(base, [20, 24, 20], 0.35);
     var stops = [];
@@ -5996,7 +5996,7 @@
   }
   // GL needs concrete colors (it can't resolve CSS variables at paint time)
   function concreteColor(token, fallback) {
-    var c = hexParse(PDC.cssvar(token));
+    var c = hexParse(DashKit.cssvar(token));
     return c ? rgbStr(c) : fallback;
   }
   // Pan nudge-pad: a custom MapLibre IControl sitting under the built-in
@@ -6020,7 +6020,7 @@
       onAdd: function (m) {
         map = m;
         el = document.createElement("div");
-        el.className = "maplibregl-ctrl maplibregl-ctrl-group pdc-geo-pan";
+        el.className = "maplibregl-ctrl maplibregl-ctrl-group dk-geo-pan";
         el.style.cssText = "display:grid;grid-template-columns:29px 29px 29px;grid-template-rows:29px 29px 29px";
         Object.keys(GL_PAN_ARROWS).forEach(function (dir) {
           var a = GL_PAN_ARROWS[dir];
@@ -6068,11 +6068,11 @@
       el.innerHTML = "";
       // LF35 slice 1: cfg.mapControls ("show"/"compact"/"hidden", undefined == "show" for
       // pre-existing panels) — "compact" shrinks the zoom+pan cluster via a CSS transform
-      // (pdc-geo-compact, exporters.js) rather than fighting MapLibre's own control markup.
+      // (dk-geo-compact, exporters.js) rather than fighting MapLibre's own control markup.
       // The class goes on `el` (the panel's own container), NOT `wrap`: MapLibre's Map
       // constructor unconditionally overwrites its container's className to "maplibregl-map",
       // which would silently wipe out a class set on wrap itself before/after construction.
-      el.classList.toggle("pdc-geo-compact", cfg.mapControls === "compact");
+      el.classList.toggle("dk-geo-compact", cfg.mapControls === "compact");
       var wrap = document.createElement("div");
       wrap.setAttribute("data-geo-gl", "1");
       wrap.style.cssText = "position:relative;width:100%;height:" + C.h + "px;border-radius:6px;overflow:hidden";
@@ -6142,7 +6142,7 @@
       // floating hover tooltip — GL surfaces features via events, not DOM nodes,
       // so the shared _tip (element-bound) doesn't apply here
       var tip = document.createElement("div");
-      tip.className = "pdc-geo-gltip";
+      tip.className = "dk-geo-gltip";
       tip.style.cssText = "position:absolute;pointer-events:none;display:none;z-index:5;background:var(--panel-bg,#fff);border:1px solid var(--panel-border,#ccc);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--ink,#333);box-shadow:0 4px 14px rgba(0,0,0,.18);max-width:240px";
       wrap.appendChild(tip);
       map.on("mousemove", "fill", function (e) {
@@ -6174,7 +6174,7 @@
      ensemble chart and the choropleth both call, so map and chart can never
      disagree on what "the median of the selected providers" is.
 
-     PDC.ensembleBus is a per-document pub-sub: ensembleSeries renders the
+     DashKit.ensembleBus is a per-document pub-sub: ensembleSeries renders the
      provider on/off toggles and publishes the selected set on a named channel;
      every panel subscribed to that channel (the chart itself, any choropleth
      with opts.providersChannel) re-renders from the same state. It lives inside
@@ -6190,8 +6190,8 @@
     if (agg === "last") return list[list.length - 1];
     return (v.length % 2) ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2; // median
   }
-  PDC.aggValues = aggValues;
-  PDC.ensembleBus = {
+  DashKit.aggValues = aggValues;
+  DashKit.ensembleBus = {
     _state: {}, _subs: {},
     // selected: null = "no selection made yet" (everything on); Set otherwise
     get: function (channel) { return this._state[channel] || null; },
@@ -6207,15 +6207,15 @@
     sub: function (channel, fn) { (this._subs[channel] = this._subs[channel] || []).push(fn); }
   };
 
-  // PDC.choropleth(el, cfg): cfg = { scale, data:[{label:regionId, value}], agg,
+  // DashKit.choropleth(el, cfg): cfg = { scale, data:[{label:regionId, value}], agg,
   // classes, colorToken, fmt, height, fit:'data'|'all', stateLines, legend, noDataLabel,
   // rowsSV (optional long-format [{label,series,value}] + providersChannel: filter rows
   // to the channel's selected providers BEFORE aggregation — the linked-map path) }
-  PDC.choropleth = function (el, cfg) {
+  DashKit.choropleth = function (el, cfg) {
     var draw = function () { if (el.isConnected !== false) _choropleth(el, cfg); };
     reg(el, draw);
     // Linked-map path: re-color when the ensemble channel's provider set changes.
-    if (cfg.providersChannel) PDC.ensembleBus.sub(cfg.providersChannel, draw);
+    if (cfg.providersChannel) DashKit.ensembleBus.sub(cfg.providersChannel, draw);
   };
   function _choropleth(el, cfg) {
     var scale = cfg.scale || "county";
@@ -6231,7 +6231,7 @@
       // filtered to the ensemble channel's selected providers before aggregating —
       // the map then colors by the median of exactly the providers the user kept on.
       var rows = cfg.rowsSV
-        ? cfg.rowsSV.filter(function (r) { return !cfg.providersChannel || PDC.ensembleBus.isOn(cfg.providersChannel, r.series); })
+        ? cfg.rowsSV.filter(function (r) { return !cfg.providersChannel || DashKit.ensembleBus.isOn(cfg.providersChannel, r.series); })
         : (cfg.data || []);
       // aggregate duplicate rows per region — median by default (the Viridis
       // "single best common estimate" convention), via the SHARED aggValues
@@ -6265,7 +6265,7 @@
         });
         coverage.providers = provOrder.map(function (s) {
           return { name: s, count: Object.keys(provIds[s]).length,
-            on: !cfg.providersChannel || PDC.ensembleBus.isOn(cfg.providersChannel, s) };
+            on: !cfg.providersChannel || DashKit.ensembleBus.isOn(cfg.providersChannel, s) };
         });
       }
       var classes = Math.max(3, Math.min(9, cfg.classes || 5));
@@ -6387,7 +6387,7 @@
   function geoLegend(el, ramp, vmin, vmax, f, cfg, csvRows, coverage) {
     if (cfg.legend === false) return;
     var lg = document.createElement("div");
-    lg.className = "pdc-geo-legend";
+    lg.className = "dk-geo-legend";
     lg.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:10.5px;color:var(--text-muted,#6b7a99);padding:6px 4px 0";
     var swatches = '<span style="display:inline-flex;border-radius:3px;overflow:hidden">' + ramp.map(function (c) {
       return '<i style="width:22px;height:10px;background:' + c + '"></i>';
@@ -6401,7 +6401,7 @@
     // LF6 slice 2: register the current-selection rows for the panel chrome's generic download
     // button instead of rendering a second, redundant CSV control here (see the registry note above).
     if (cfg.csvDownload !== false && csvRows && cfg.panelId) {
-      PDC._panelCsvRows[cfg.panelId] = function () {
+      DashKit._panelCsvRows[cfg.panelId] = function () {
         return [["Region ID", "Region", "Value"]].concat(csvRows);
       };
     }
@@ -6416,10 +6416,10 @@
 
      cfg = { rows:[{label(x), series, value}], refSeries, channel, agg,
              showBand, showProviders, showToggles, medianLabel, fmt, height } */
-  PDC.ensembleSeries = function (el, cfg) {
+  DashKit.ensembleSeries = function (el, cfg) {
     var draw = function () { if (el.isConnected !== false) _ensembleSeries(el, cfg); };
     reg(el, draw);
-    if (cfg.channel) PDC.ensembleBus.sub(cfg.channel, draw);
+    if (cfg.channel) DashKit.ensembleBus.sub(cfg.channel, draw);
   };
   function _ensembleSeries(el, cfg) {
     var rows = cfg.rows || [];
@@ -6438,7 +6438,7 @@
       var x = String(r.label);
       if (!xSeen[x]) { xSeen[x] = 1; xOrder.push(x); }
     });
-    var on = provOrder.filter(function (s) { return !channel || PDC.ensembleBus.isOn(channel, s); });
+    var on = provOrder.filter(function (s) { return !channel || DashKit.ensembleBus.isOn(channel, s); });
     var byProv = {};
     provOrder.forEach(function (s) { byProv[s] = {}; });
     rows.forEach(function (r) {
@@ -6497,7 +6497,7 @@
       if (loPts.length > 1 && hiPts.length > 1) {
         var d = "M" + hiPts.map(function (p) { return p[0].toFixed(1) + "," + p[1].toFixed(1); }).join("L") +
           "L" + loPts.slice().reverse().map(function (p) { return p[0].toFixed(1) + "," + p[1].toFixed(1); }).join("L") + "Z";
-        var band = S("path", { d: d, fill: PDC.cssvar("--pentaho") || "#005bb5", "fill-opacity": "0.09", stroke: "none", "data-ens": "band" });
+        var band = S("path", { d: d, fill: DashKit.cssvar("--pentaho") || "#005bb5", "fill-opacity": "0.09", stroke: "none", "data-ens": "band" });
         _tip(band, "<b>Agreement band</b><br>The range across the selected providers — a tight band means high confidence in the common estimate.");
         s.appendChild(band);
       }
@@ -6506,7 +6506,7 @@
     if (cfg.showProviders !== false) {
       provOrder.forEach(function (name, pi) {
         if (on.indexOf(name) < 0) return;
-        var c = PDC.cssvar("--c" + ((pi % 10) + 1)) || "#888";
+        var c = DashKit.cssvar("--c" + ((pi % 10) + 1)) || "#888";
         var pts = linePts(function (x) { return byProv[name][x]; });
         var pl = polyline(pts, { stroke: c, "stroke-width": 1.3, "stroke-opacity": "0.5", "data-ens": "provider", "data-ens-name": name });
         if (pl) s.appendChild(pl);
@@ -6538,7 +6538,7 @@
     });
     // 5. legend + provider toggles (the mock-ups' on/off checkboxes, owned by the chart)
     var foot = document.createElement("div");
-    foot.className = "pdc-ens-legend";
+    foot.className = "dk-ens-legend";
     foot.style.cssText = "display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:10.5px;color:var(--text-muted,#6b7a99);padding:6px 4px 0";
     var med = document.createElement("span");
     med.style.cssText = "display:inline-flex;align-items:center;gap:5px;font-weight:700;color:var(--text-primary,var(--ink,#16233b))";
@@ -6552,11 +6552,11 @@
     }
     if (cfg.showToggles !== false && provOrder.length) {
       provOrder.forEach(function (name, pi) {
-        var c = PDC.cssvar("--c" + ((pi % 10) + 1)) || "#888";
+        var c = DashKit.cssvar("--c" + ((pi % 10) + 1)) || "#888";
         var isOn = on.indexOf(name) >= 0;
         var chip = document.createElement("button");
         chip.type = "button";
-        chip.className = "pdc-ens-toggle";
+        chip.className = "dk-ens-toggle";
         chip.setAttribute("data-ens-toggle", name);
         chip.setAttribute("aria-pressed", isOn ? "true" : "false");
         chip.style.cssText = "display:inline-flex;align-items:center;gap:5px;border:1px solid var(--panel-border,#dfe4ee);" +
@@ -6567,7 +6567,7 @@
         chip.onclick = function () {
           var next = provOrder.filter(function (n) { return (n === name) ? !(on.indexOf(n) >= 0) : on.indexOf(n) >= 0; });
           if (!next.length) return; // never allow an empty ensemble
-          if (channel) PDC.ensembleBus.set(channel, next);
+          if (channel) DashKit.ensembleBus.set(channel, next);
           else { on = next; _ensembleSeries(el, cfg); }
         };
         foot.appendChild(chip);
@@ -6599,7 +6599,7 @@
     // median vs. per-provider vs. reference. LF6 slice 2: registered for the panel chrome's
     // generic download button (see the registry note above) instead of a second CSV control here.
     if (cfg.csvDownload !== false && cfg.panelId) {
-      PDC._panelCsvRows[cfg.panelId] = function () {
+      DashKit._panelCsvRows[cfg.panelId] = function () {
         var rows = [["Label", "Series", "Value"]];
         xOrder.forEach(function (x) {
           on.forEach(function (name) { var v = byProv[name][x]; if (v != null) rows.push([x, name, v]); });

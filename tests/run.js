@@ -1,4 +1,4 @@
-/* End-to-end test for Analytics (PDC Studio).
+/* End-to-end test for Analytics (DashKit Studio).
    Starts a static server, boots the app in Chromium, exercises the builder,
    validates the live preview renders, and checks all four exporters.
    Run:  node tests/run.js            (from dashboard-studio/)              */
@@ -2289,7 +2289,7 @@ function serve() {
       var seenCfg = null, seenDataset = null;
       iw.window.prompt = function () { return "fresh-prompted-oauth-token"; };
       iw.Studio.gsheetsSource.queryData = function (cfg, dataset) { seenCfg = cfg; seenDataset = dataset; return Promise.resolve({ columns: ["region"], rows: [["IA"]] }); };
-      var result = await iw.PDC.cda("d1", {});
+      var result = await iw.DashKit.cda("d1", {});
       document.body.removeChild(ifr);
       Studio.Workspace.remove("connections", conn.id, { silent: true });
       return {
@@ -2298,7 +2298,7 @@ function serve() {
         gotSheet: seenDataset && seenDataset.sheet === "Sales"
       };
     });
-    ok("GS-OAUTH: PDC.cda dispatches a private gsheets DA to Studio.gsheetsSource.queryData with the freshly-prompted token merged into cfg",
+    ok("GS-OAUTH: DashKit.cda dispatches a private gsheets DA to Studio.gsheetsSource.queryData with the freshly-prompted token merged into cfg",
       gsOauthDispatch.gotRows && gsOauthDispatch.secretIsFresh && gsOauthDispatch.gotSheet, JSON.stringify(gsOauthDispatch));
 
     // ---- GEO (Viridis V2): vendored assets + choropleth chart type ----------
@@ -2396,7 +2396,7 @@ function serve() {
               colored.forEach(function (x) { fillOf[x.getAttribute("data-geo-id")] = x.getAttribute("fill"); });
               var out = { regions: paths.length, colored: colored.length,
                 hatched: paths.length - colored.length,
-                legend: !!doc.querySelector(".pdc-geo-legend"), fills: fillOf,
+                legend: !!doc.querySelector(".dk-geo-legend"), fills: fillOf,
                 inlined: ifr.srcdoc.indexOf("STUDIO_GEO") >= 0 && ifr.srcdoc.indexOf("topojson-client v3") >= 0 };
               ifr.remove(); resolve(out);
             } else if (Date.now() - t0 > 12000) { ifr.remove(); resolve({ timeout: true }); }
@@ -2536,17 +2536,17 @@ function serve() {
               provThin: +provLine.getAttribute("stroke-width") <= 1.6 && +provLine.getAttribute("stroke-opacity") <= 0.6,
               refAboveMedian: +ref.getAttribute("y") < +med2017.getAttribute("cy"), // value 100 → smaller pixel y than the median dot
               medY0: med2017.getAttribute("cy"),
-              legendMin0: doc.querySelectorAll(".pdc-geo-legend span")[0].textContent,
-              medianLegend: /Common estimate/.test((doc.querySelector(".pdc-ens-legend") || {}).textContent || "")
+              legendMin0: doc.querySelectorAll(".dk-geo-legend span")[0].textContent,
+              medianLegend: /Common estimate/.test((doc.querySelector(".dk-ens-legend") || {}).textContent || "")
             };
             doc.querySelector('[data-ens-toggle="DTN"]').click();
             setTimeout(function () {
               var after = {
                 provLines: doc.querySelectorAll('[data-ens="provider"]').length,
                 medY1: doc.querySelectorAll('[data-ens="mdot"]')[1].getAttribute("cy"),
-                legendMin1: doc.querySelectorAll(".pdc-geo-legend span")[0].textContent,
+                legendMin1: doc.querySelectorAll(".dk-geo-legend span")[0].textContent,
                 dtnPressed: doc.querySelector('[data-ens-toggle="DTN"]').getAttribute("aria-pressed"),
-                bus: JSON.stringify(ifr.contentWindow.PDC.ensembleBus.get("providers"))
+                bus: JSON.stringify(ifr.contentWindow.DashKit.ensembleBus.get("providers"))
               };
               ifr.remove(); resolve({ before: before, after: after });
             }, 900);
@@ -2571,7 +2571,7 @@ function serve() {
 
     // ---- CSV DOWNLOAD (Viridis V9 + LF6 slice 2): "the current selection" as a real file, via
     // the generic per-panel download chrome (the chart-specific legend buttons were folded into
-    // it — see PDC._panelCsvRows in app/studio-charts.js / app/studio-render.js) ----
+    // it — see DashKit._panelCsvRows in app/studio-charts.js / app/studio-render.js) ----
     console.log("\n• V9/LF6: CSV download of the current selection — ensemble + choropleth");
     const csvTest = await page.evaluate(async function () {
       var spec = { id: "csv-t", name: "csv-t", title: "t",
@@ -2668,26 +2668,26 @@ function serve() {
           var med = doc ? doc.querySelectorAll('[data-ens="median"]') : [];
           var mapPaths = doc ? doc.querySelectorAll("path[data-geo-id]") : [];
           if (med.length && mapPaths.length > 3000) {
-            var ensBtn = doc.querySelector(".pdc-ens-legend [data-provenance-btn]");
-            var mapBtn = doc.querySelector(".pdc-geo-legend [data-provenance-btn]");
+            var ensBtn = doc.querySelector(".dk-ens-legend [data-provenance-btn]");
+            var mapBtn = doc.querySelector(".dk-geo-legend [data-provenance-btn]");
             var out = {};
             ensBtn.click();
             out.ensExpanded = ensBtn.getAttribute("aria-expanded");
-            out.ensHtml = doc.querySelector(".pdc-ens-legend [data-provenance-pop]").innerHTML;
+            out.ensHtml = doc.querySelector(".dk-ens-legend [data-provenance-pop]").innerHTML;
             // opening the map's popover is an "outside click" for the ensemble's —
             // only one provenance popover stays open across the dashboard at a time
             mapBtn.click();
-            out.ensAutoClosedByOtherPopover = !doc.querySelector(".pdc-ens-legend [data-provenance-pop]");
-            out.mapHtml = doc.querySelector(".pdc-geo-legend [data-provenance-pop]").innerHTML;
+            out.ensAutoClosedByOtherPopover = !doc.querySelector(".dk-ens-legend [data-provenance-pop]");
+            out.mapHtml = doc.querySelector(".dk-geo-legend [data-provenance-pop]").innerHTML;
             doc.body.click(); // outside click closes the (map) popover left open
-            out.mapClosedAfterOutside = !doc.querySelector(".pdc-geo-legend [data-provenance-pop]");
+            out.mapClosedAfterOutside = !doc.querySelector(".dk-geo-legend [data-provenance-pop]");
             out.mapExpandedAfterClose = mapBtn.getAttribute("aria-expanded");
             ensBtn.click(); // reopen the ensemble one
             doc.dispatchEvent(new doc.defaultView.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-            out.ensClosedAfterEscape = !doc.querySelector(".pdc-ens-legend [data-provenance-pop]");
+            out.ensClosedAfterEscape = !doc.querySelector(".dk-ens-legend [data-provenance-pop]");
             doc.querySelector('[data-ens-toggle="DTN"]').click(); // re-renders the ensemble legend
-            doc.querySelector(".pdc-ens-legend [data-provenance-btn]").click();
-            out.ensHtmlAfterToggle = doc.querySelector(".pdc-ens-legend [data-provenance-pop]").innerHTML;
+            doc.querySelector(".dk-ens-legend [data-provenance-btn]").click();
+            out.ensHtmlAfterToggle = doc.querySelector(".dk-ens-legend [data-provenance-pop]").innerHTML;
             ifr.remove(); resolve(out);
           } else if (Date.now() - t0 > 15000) { ifr.remove(); resolve({ timeout: true }); }
           else setTimeout(poll, 200);
@@ -2751,12 +2751,12 @@ function serve() {
           var mapPaths = doc ? doc.querySelectorAll("path[data-geo-id]") : [];
           if (med.length && mapPaths.length > 3000) {
             var daMeta = ifr.contentWindow.STUDIO_DA_META;
-            var ensBtn = doc.querySelector(".pdc-ens-legend [data-provenance-btn]");
-            var mapBtn = doc.querySelector(".pdc-geo-legend [data-provenance-btn]");
+            var ensBtn = doc.querySelector(".dk-ens-legend [data-provenance-btn]");
+            var mapBtn = doc.querySelector(".dk-geo-legend [data-provenance-btn]");
             ensBtn.click();
-            var ensHtml = doc.querySelector(".pdc-ens-legend [data-provenance-pop]").innerHTML;
+            var ensHtml = doc.querySelector(".dk-ens-legend [data-provenance-pop]").innerHTML;
             mapBtn.click();
-            var mapHtml = doc.querySelector(".pdc-geo-legend [data-provenance-pop]").innerHTML;
+            var mapHtml = doc.querySelector(".dk-geo-legend [data-provenance-pop]").innerHTML;
             ifr.remove();
             resolve({ daMeta: daMeta, dsUpdatedAt: dsUpdatedAt, ensHtml: ensHtml, mapHtml: mapHtml });
           } else if (Date.now() - t0 > 15000) { ifr.remove(); resolve({ timeout: true }); }
@@ -2853,18 +2853,18 @@ function serve() {
         (function poll() {
           var doc = null; try { doc = ifr.contentDocument; } catch (e) {}
           var canvas = doc ? doc.querySelector("[data-geo-gl] canvas.maplibregl-canvas") : null;
-          var legend = doc ? doc.querySelector(".pdc-geo-legend") : null;
+          var legend = doc ? doc.querySelector(".dk-geo-legend") : null;
           if (canvas && legend) {
             var wrap = doc.querySelector("[data-geo-gl]");
             var map = wrap && wrap.parentNode && wrap.parentNode._glMap;
             var before = map ? map.getCenter() : null;
-            var upBtn = doc.querySelector('.pdc-geo-pan button[data-pan="up"]');
+            var upBtn = doc.querySelector('.dk-geo-pan button[data-pan="up"]');
             if (upBtn) upBtn.click();
             var out = { canvas: true, legend: legend.textContent,
               nav: doc.querySelectorAll(".maplibregl-ctrl-zoom-in").length,
               svgPaths: doc.querySelectorAll("path[data-geo-id]").length,
-              panButtons: doc.querySelectorAll(".pdc-geo-pan button[data-pan]").length,
-              panDirs: Array.prototype.map.call(doc.querySelectorAll(".pdc-geo-pan button[data-pan]"), function (b) { return b.getAttribute("data-pan"); }).sort().join(","),
+              panButtons: doc.querySelectorAll(".dk-geo-pan button[data-pan]").length,
+              panDirs: Array.prototype.map.call(doc.querySelectorAll(".dk-geo-pan button[data-pan]"), function (b) { return b.getAttribute("data-pan"); }).sort().join(","),
               before: before, upClicked: !!upBtn };
             // panBy() animates — give it a beat, then read the camera again
             setTimeout(function () {
@@ -3023,7 +3023,7 @@ function serve() {
     // zoom+pan cluster (Kevin: wants the controls smaller, and hideable). "hidden" drops both
     // the built-in NavigationControl and the LF4 pan nudge-pad entirely; "compact" keeps both
     // but shrinks them via a CSS transform on MapLibre's own top-right control container
-    // (pdc-geo-compact, exporters.js) instead of reaching into MapLibre's internal markup;
+    // (dk-geo-compact, exporters.js) instead of reaching into MapLibre's internal markup;
     // undefined (pre-existing panels/specs saved before this slice) behaves exactly like "show".
     const glMapControlsSpec = function (mapControls) {
       var s = glSpecSrc("gl");
@@ -3048,7 +3048,7 @@ function serve() {
               var topRight = doc.querySelector(".maplibregl-ctrl-top-right");
               var out = {
                 nav: doc.querySelectorAll(".maplibregl-ctrl-zoom-in").length,
-                panButtons: doc.querySelectorAll(".pdc-geo-pan button[data-pan]").length,
+                panButtons: doc.querySelectorAll(".dk-geo-pan button[data-pan]").length,
                 // the compact class lands on the map's PARENT (wrap.parentNode), not wrap
                 // itself — MapLibre's own Map constructor overwrites wrap.className unconditionally
                 wrapClass: wrap.parentNode.className,
@@ -3069,16 +3069,16 @@ function serve() {
     }, { hidden: glMapControlsSpec("hidden"), compact: glMapControlsSpec("compact"), show: glMapControlsSpec("show"), unset: glMapControlsSpec(undefined) });
     ok("LF35: mapControls='hidden' drops both the zoom buttons and the pan nudge-pad entirely",
       mapControlsResult.hidden.nav === 0 && mapControlsResult.hidden.panButtons === 0, JSON.stringify(mapControlsResult.hidden));
-    ok("LF35: mapControls='compact' keeps both controls but shrinks them (the panel body gains pdc-geo-compact, top-right container is CSS-scaled)",
+    ok("LF35: mapControls='compact' keeps both controls but shrinks them (the panel body gains dk-geo-compact, top-right container is CSS-scaled)",
       mapControlsResult.compact.nav === 1 && mapControlsResult.compact.panButtons === 4 &&
-      (" " + mapControlsResult.compact.wrapClass + " ").indexOf(" pdc-geo-compact ") >= 0 &&
+      (" " + mapControlsResult.compact.wrapClass + " ").indexOf(" dk-geo-compact ") >= 0 &&
       !!mapControlsResult.compact.transform && mapControlsResult.compact.transform !== "none",
       JSON.stringify(mapControlsResult.compact));
     ok("LF35: mapControls='show' and a panel with no mapControls set at all (pre-existing specs) render IDENTICALLY — full-size controls, no compact class",
       mapControlsResult.show.nav === 1 && mapControlsResult.show.panButtons === 4 &&
-      mapControlsResult.show.wrapClass.indexOf("pdc-geo-compact") < 0 &&
+      mapControlsResult.show.wrapClass.indexOf("dk-geo-compact") < 0 &&
       mapControlsResult.unset.nav === 1 && mapControlsResult.unset.panButtons === 4 &&
-      mapControlsResult.unset.wrapClass.indexOf("pdc-geo-compact") < 0,
+      mapControlsResult.unset.wrapClass.indexOf("dk-geo-compact") < 0,
       JSON.stringify({ show: mapControlsResult.show, unset: mapControlsResult.unset }));
 
     // LF35 slice 2: cfg.mapControlsPos docks the same cluster in any of MapLibre's four
@@ -3108,7 +3108,7 @@ function serve() {
               function corner(cls) {
                 var c = doc.querySelector("." + cls);
                 return { nav: c ? c.querySelectorAll(".maplibregl-ctrl-zoom-in").length : 0,
-                  panButtons: c ? c.querySelectorAll(".pdc-geo-pan button[data-pan]").length : 0,
+                  panButtons: c ? c.querySelectorAll(".dk-geo-pan button[data-pan]").length : 0,
                   transform: c ? doc.defaultView.getComputedStyle(c).transform : null };
               }
               var out = {
@@ -3170,7 +3170,7 @@ function serve() {
             // row (zoom/duplicate/delete, the Export ▾ trigger + its menu icons) lives outside
             // .body and legitimately carries its own <svg> icons that don't count here.
             var noSvg = !card.querySelector(".body svg");
-            var pngItem = card.querySelector('.pdc-dl-item[title="Download chart as PNG image"]');
+            var pngItem = card.querySelector('.dk-dl-item[title="Download chart as PNG image"]');
             win.__downloadPanelPngDataUrl("m1", function (dataUrl) {
               ifr.remove();
               resolve({ noSvg: noSvg, hasPngItem: !!pngItem, dataUrl: dataUrl });
@@ -3261,7 +3261,7 @@ function serve() {
         (function poll() {
           var f = document.querySelector(".xp-ifr"), doc = null;
           try { doc = f && f.contentDocument; } catch (e) {}
-          var hit = doc && doc.querySelector(".pdc-grid svg, .pdc-grid table");
+          var hit = doc && doc.querySelector(".dk-grid svg, .dk-grid table");
           if (hit) resolve({ rendered: true });
           else if (Date.now() - t0 > 10000) resolve({ rendered: false });
           else setTimeout(poll, 120);
@@ -3552,9 +3552,9 @@ function serve() {
       const cat = JSON.parse(fs.readFileSync(path.join(ROOT, "data/cda-catalog.json"), "utf8"));
       const stems = Object.keys(cat);
       const das = stems.reduce((n, k) => n + (cat[k].dataAccesses || []).length, 0);
-      ok("SAMPLES: catalog curated — ≤20 friendly stems (was 67), 90–200 DAs (was 428), NO cde/cdf/pdc prefixes anywhere",
-        stems.length <= 20 && das >= 90 && das <= 200 && stems.every((k) => !/cde|cdf|pdc/.test(k)),
-        JSON.stringify({ stems: stems.length, das: das, bad: stems.filter((k) => /cde|cdf|pdc/.test(k)) }));
+      ok("SAMPLES: catalog curated — ≤20 friendly stems (was 67), 90–200 DAs (was 428), NO cde/cdf/dk prefixes anywhere",
+        stems.length <= 20 && das >= 90 && das <= 200 && stems.every((k) => !/cde|cdf|dk/.test(k)),
+        JSON.stringify({ stems: stems.length, das: das, bad: stems.filter((k) => /cde|cdf|dk/.test(k)) }));
       ok("SAMPLES: the field-and-geo family leads the catalog with ≥8 choropleth/ensemble-ready datasets (county/state/CRD/HUC8 + provider trends)",
         stems[0] === "field-and-geo" && (cat["field-and-geo"].dataAccesses || []).length >= 8,
         JSON.stringify({ first: stems[0], geoDAs: (cat["field-and-geo"] || { dataAccesses: [] }).dataAccesses.length }));
@@ -3999,7 +3999,7 @@ function serve() {
             setTimeout(function () {
               function lum(c) { var m = c.match(/rgba?\(([^)]+)\)/); if (!m) return -1; var p = m[1].split(",").map(parseFloat); return 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2]; }
               var view = ifr.contentWindow;
-              var legendMed = doc.querySelector(".pdc-ens-legend span"); // first span = the "Common estimate" label
+              var legendMed = doc.querySelector(".dk-ens-legend span"); // first span = the "Common estimate" label
               var out = {
                 strokeAttr: medLine.getAttribute("stroke"),
                 lineLum: lum(view.getComputedStyle(medLine).stroke),
@@ -4054,14 +4054,14 @@ function serve() {
           var ifr = document.createElement("iframe"); ifr.style.cssText = "position:fixed;left:-3000px;width:1000px;height:700px";
           document.body.appendChild(ifr); ifr.srcdoc = html; var t0 = Date.now();
           (function poll() { var d = null; try { d = ifr.contentDocument; } catch (e) {}
-            if (d && d.querySelector(".pdc-kpis") && (!preview || d.querySelector(".sr-kpi-del")) && d.querySelector(".sr-card-acts .sr-act[data-act=del]")) {
-              var out = { hasHideCss: /\.pdc-header\{display:none\}/.test(html) };
+            if (d && d.querySelector(".dk-kpis") && (!preview || d.querySelector(".sr-kpi-del")) && d.querySelector(".sr-card-acts .sr-act[data-act=del]")) {
+              var out = { hasHideCss: /\.dk-header\{display:none\}/.test(html) };
               if (preview) {
                 var kdel = d.querySelector(".sr-kpi-del"), pdel = d.querySelector(".sr-card-acts .sr-act[data-act=del]");
                 var kc = d.defaultView.getComputedStyle(kdel), pc = d.defaultView.getComputedStyle(pdel);
                 out.kpiRadius = kc.borderRadius; out.panelRadius = pc.borderRadius;
                 out.kpiBorder = kc.borderStyle; out.panelBorder = pc.borderStyle;
-                var hdr = d.querySelector(".pdc-header"), desc = d.querySelector(".pdc-desc-bar");
+                var hdr = d.querySelector(".dk-header"), desc = d.querySelector(".dk-desc-bar");
                 out.hdrDisplay = hdr ? d.defaultView.getComputedStyle(hdr).display : "gone";
                 out.descDisplay = desc ? d.defaultView.getComputedStyle(desc).display : "gone";
               }
@@ -4074,13 +4074,13 @@ function serve() {
       var exportHtml = Studio.buildHtml(Object.assign({}, spec, { hideHeader: true }), window.__STUDIO_STATE.assets, { preview: false });
       return { on: await renderTo(spec, true),
         off: await renderTo(Object.assign({}, spec, { hideHeader: true }), true),
-        exportHasHideCss: /\.pdc-header\{display:none\}/.test(exportHtml) };
+        exportHasHideCss: /\.dk-header\{display:none\}/.test(exportHtml) };
     });
     ok("CANVAS: the KPI delete ✕ matches the widget delete ✕ — same rounded-square, bordered control (not a red circle), so canvas delete affordances are consistent",
       canvas.on.kpiRadius === canvas.on.panelRadius && canvas.on.kpiBorder === "solid" && canvas.on.panelBorder === "solid" && canvas.on.kpiRadius !== "50%", JSON.stringify(canvas.on));
     ok("CANVAS: 'Show dashboard header' off hides the title banner AND the description bar in the live preview (embed mode = just KPIs + widgets)",
       canvas.on.hdrDisplay === "flex" && canvas.on.descDisplay === "block" && canvas.off.hdrDisplay === "none" && canvas.off.descDisplay === "none", JSON.stringify({ on: canvas.on, off: canvas.off }));
-    ok("CANVAS: header-off carries into the EXPORTED HTML too — the export inlines the same '.pdc-header{display:none}' rule the preview uses (preview == export)",
+    ok("CANVAS: header-off carries into the EXPORTED HTML too — the export inlines the same '.dk-header{display:none}' rule the preview uses (preview == export)",
       canvas.exportHasHideCss === true, JSON.stringify({ exportHasHideCss: canvas.exportHasHideCss }));
 
     // ---- CANVAS-HDR: the header text objects are editable/removable on the canvas -----
@@ -4099,9 +4099,9 @@ function serve() {
         var ifr = document.createElement("iframe"); ifr.style.cssText = "position:fixed;left:-3000px;width:1000px;height:700px";
         document.body.appendChild(ifr); ifr.srcdoc = html; var t0 = Date.now();
         (function poll() { var d = null; try { d = ifr.contentDocument; } catch (e) {}
-          var title = d && d.querySelector(".pdc-title");
-          if (title && d.querySelector(".pdc-desc-bar")) {
-            var sub = d.querySelector(".pdc-sub"), desc = d.querySelector(".pdc-desc-bar"), delBtn = desc.querySelector(".sr-desc-del");
+          var title = d && d.querySelector(".dk-title");
+          if (title && d.querySelector(".dk-desc-bar")) {
+            var sub = d.querySelector(".dk-sub"), desc = d.querySelector(".dk-desc-bar"), delBtn = desc.querySelector(".sr-desc-del");
             var affords = { title: title.classList.contains("sr-head-edit"), sub: sub.classList.contains("sr-head-edit"),
               desc: desc.classList.contains("sr-desc"), delBtn: !!delBtn };
             // edit the title inline: dblclick -> input -> new value -> Enter
@@ -4139,11 +4139,11 @@ function serve() {
         var ifr = document.createElement("iframe"); ifr.style.cssText = "position:fixed;left:-3000px;width:1000px;height:700px";
         document.body.appendChild(ifr); ifr.srcdoc = html; var t0 = Date.now();
         (function poll() { var d = null; try { d = ifr.contentDocument; } catch (e) {}
-          var hdr = d && d.querySelector(".pdc-header");
+          var hdr = d && d.querySelector(".dk-header");
           if (hdr) {
             var hasSelClass = hdr.classList.contains("sr-header-sel");
             var delBtn = hdr.querySelector(".sr-head-del");
-            var brand = hdr.querySelector(".pdc-brand");
+            var brand = hdr.querySelector(".dk-brand");
             brand.dispatchEvent(new MouseEvent("click", { bubbles: true }));
             setTimeout(function () {
               if (delBtn) delBtn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -4294,7 +4294,7 @@ function serve() {
           var st = window.__studioExplore.state, ifr = document.querySelector(".xp-ifr");
           var ready = st.analysisId === "xpo1" && st.run && st.run.rows && st.run.rows.length && ifr && ifr.srcdoc;
           if (ready) res({ loadedId: true, hasRun: true, emptyShown: !!document.querySelector(".xp-empty"),
-            hideCss: /\.pdc-header\{display:none\}/.test(ifr.srcdoc) });
+            hideCss: /\.dk-header\{display:none\}/.test(ifr.srcdoc) });
           else if (Date.now() - t0 > 8000) res({ timeout: true, hasIfr: !!ifr, analysisId: st.analysisId, hasRun: !!(st.run && st.run.rows) });
           else setTimeout(poll, 150);
         })();
@@ -4357,10 +4357,10 @@ function serve() {
           var wi = document.querySelector('[data-analysis-frame="v6-an"] iframe');
           var fd = null, wd = null;
           try { fd = fi && fi.contentDocument; wd = wi && wi.contentDocument; } catch (e) {}
-          var fOk = fd && fd.querySelectorAll(".pdc-grid svg").length > 3;
-          var wOk = wd && wd.querySelector(".pdc-grid svg");
+          var fOk = fd && fd.querySelectorAll(".dk-grid svg").length > 3;
+          var wOk = wd && wd.querySelector(".dk-grid svg");
           if (fOk && wOk && fi.style.transform && wi.style.transform) {
-            resolve({ featSvgs: fd.querySelectorAll(".pdc-grid svg").length,
+            resolve({ featSvgs: fd.querySelectorAll(".dk-grid svg").length,
               featScale: +(fi.style.transform.match(/scale\(([\d.]+)\)/) || [])[1],
               widgetScale: +(wi.style.transform.match(/scale\(([\d.]+)\)/) || [])[1],
               widgetTheme: wd.documentElement.getAttribute("data-theme"),
@@ -9664,7 +9664,7 @@ function serve() {
     // N-DESIGN: depth polish — chart cards now lift on hover the same way KPI tiles already did,
     // so the two sibling panel primitives read as one coherent material system.
     const cardHoverCssPresent = await page.evaluate(() => window.__STUDIO_STATE.assets.css.indexOf(".card:hover{transform:translateY(-2px)") >= 0);
-    ok("N-DESIGN: pdc-ui.css declares .card:hover elevation, matching the existing .kpi:hover pattern", cardHoverCssPresent);
+    ok("N-DESIGN: dashkit.css declares .card:hover elevation, matching the existing .kpi:hover pattern", cardHoverCssPresent);
     await frame.hover(".card");
     const cardHoverStyle = await frame.evaluate(() => getComputedStyle(document.querySelector(".card")).transform);
     ok("N-DESIGN: hovering a chart card in the live preview actually lifts it (non-identity transform)", cardHoverStyle !== "none" && cardHoverStyle !== "", "transform=" + cardHoverStyle);
@@ -9672,7 +9672,7 @@ function serve() {
     // N-DESIGN: glassmorphism depth polish — panels layer a subtle inset top-highlight / bottom-shade
     // "glass edge" (--panel-glass, themed light/dark) under the existing drop shadow.
     const glassCssPresent = await page.evaluate(() => window.__STUDIO_STATE.assets.css.indexOf("--panel-glass:") >= 0);
-    ok("N-DESIGN: pdc-ui.css declares a --panel-glass token", glassCssPresent);
+    ok("N-DESIGN: dashkit.css declares a --panel-glass token", glassCssPresent);
     const glassShadow = await frame.evaluate(() => {
       const kpi = document.querySelector(".kpi");
       const card = document.querySelector(".card");
@@ -9684,15 +9684,15 @@ function serve() {
     // N-DESIGN follow-up: extend the glass-edge treatment to the two modal/sheet surfaces (the CDA
     // query inspector modal and the drill-to-detail drawer) that only had the plain drop shadow before.
     const sheetGlassCss = await page.evaluate(() => window.__STUDIO_STATE.assets.css);
-    ok("N-DESIGN: the CDA query inspector modal (.pdc-qm) carries the glass inset shadow too",
+    ok("N-DESIGN: the CDA query inspector modal (.dk-qm) carries the glass inset shadow too",
       sheetGlassCss.indexOf("box-shadow:var(--panel-shadow-xl),var(--panel-glass);width:min(880px") >= 0);
-    ok("N-DESIGN: the drill-to-detail drawer (.pdc-dt) carries the glass inset shadow too",
+    ok("N-DESIGN: the drill-to-detail drawer (.dk-dt) carries the glass inset shadow too",
       sheetGlassCss.indexOf("box-shadow:var(--panel-shadow-xl),var(--panel-glass);\n  width:min(680px") >= 0);
 
     // N-DESIGN follow-up: a broader elevation scale — a third, deeper shadow tier (--panel-shadow-xl)
     // for floating surfaces (modal/drawer) so they read as sitting visibly above a merely-hovered
     // card/KPI tile, instead of sharing the exact same --panel-shadow-lg depth as hover-lift.
-    ok("N-DESIGN: pdc-ui.css declares a third --panel-shadow-xl elevation tier", sheetGlassCss.indexOf("--panel-shadow-xl:") >= 0);
+    ok("N-DESIGN: dashkit.css declares a third --panel-shadow-xl elevation tier", sheetGlassCss.indexOf("--panel-shadow-xl:") >= 0);
     const elevationTiers = await frame.evaluate(() => {
       const cs = getComputedStyle(document.documentElement);
       return { lg: cs.getPropertyValue("--panel-shadow-lg").trim(), xl: cs.getPropertyValue("--panel-shadow-xl").trim() };
@@ -9701,16 +9701,16 @@ function serve() {
       !!elevationTiers.xl && elevationTiers.xl !== elevationTiers.lg, JSON.stringify(elevationTiers));
 
     // a11y: focus-visible ring + prefers-reduced-motion coverage on the exported/preview dashboard
-    // chrome (vendor/pdc-ui.css) -- distinct from the app chrome's own audit (Z10 covers studio.css).
+    // chrome (vendor/dashkit.css) -- distinct from the app chrome's own audit (Z10 covers studio.css).
     const dashA11yCss = await page.evaluate(() => window.__STUDIO_STATE.assets.css);
-    ok("a11y: pdc-ui.css declares a global :focus-visible ring", dashA11yCss.indexOf(":focus-visible{outline:2px solid var(--pentaho)") >= 0);
-    ok("a11y: pdc-ui.css gives header controls a white focus ring (contrast on the dark header bg)", dashA11yCss.indexOf(".pdc-header :focus-visible{outline-color:#fff}") >= 0);
-    ok("a11y: pdc-ui.css no longer strips the focus outline on the info-dot (.pdc-i)", !/\.pdc-i:hover,\.pdc-i:focus\{[^}]*outline:none/.test(dashA11yCss));
-    ok("a11y: pdc-ui.css no longer strips the focus outline on the drill-detail search input", !/\.pdc-dt-q\{[^}]*outline:none/.test(dashA11yCss));
-    ok("a11y: pdc-ui.css no longer strips the focus outline on the header select", !/select\.pdc-sel\{[^}]*outline:none/.test(dashA11yCss));
-    const reducedMotionCoverage = ["body{transition:none}", ".kpi{transition:none}", ".card{transition:none}", ".pdc-qm-ov{animation:none}", ".pdc-dt-ov,.pdc-dt{transition:none}", ".pdc-i{transition:none}", ".bar{transition:none}", ".tip{transition:none}"]
+    ok("a11y: dashkit.css declares a global :focus-visible ring", dashA11yCss.indexOf(":focus-visible{outline:2px solid var(--pentaho)") >= 0);
+    ok("a11y: dashkit.css gives header controls a white focus ring (contrast on the dark header bg)", dashA11yCss.indexOf(".dk-header :focus-visible{outline-color:#fff}") >= 0);
+    ok("a11y: dashkit.css no longer strips the focus outline on the info-dot (.dk-i)", !/\.dk-i:hover,\.dk-i:focus\{[^}]*outline:none/.test(dashA11yCss));
+    ok("a11y: dashkit.css no longer strips the focus outline on the drill-detail search input", !/\.dk-dt-q\{[^}]*outline:none/.test(dashA11yCss));
+    ok("a11y: dashkit.css no longer strips the focus outline on the header select", !/select\.dk-sel\{[^}]*outline:none/.test(dashA11yCss));
+    const reducedMotionCoverage = ["body{transition:none}", ".kpi{transition:none}", ".card{transition:none}", ".dk-qm-ov{animation:none}", ".dk-dt-ov,.dk-dt{transition:none}", ".dk-i{transition:none}", ".bar{transition:none}", ".tip{transition:none}"]
       .every((s) => dashA11yCss.indexOf("@media(prefers-reduced-motion:reduce){" + s + "}") >= 0);
-    ok("a11y: pdc-ui.css disables every dashboard-chrome transition/animation under prefers-reduced-motion", reducedMotionCoverage);
+    ok("a11y: dashkit.css disables every dashboard-chrome transition/animation under prefers-reduced-motion", reducedMotionCoverage);
 
     // Real keyboard-focus behavior: tabbing to a header icon button shows a visible (white) outline.
     // (LF20 removed the old in-header themeBtn — qInfoBtn is the remaining header icon button.)
@@ -10064,7 +10064,7 @@ function serve() {
     ok("#117 reopen: opening a builder-made View from the Views catalog routes back to Build with its dataset + shelves restored",
       bdReopen.section === "build" && bdReopen.analysisId === bdSave.id && bdReopen.rowsShelf === "region" && bdReopen.resultRows > 0,
       JSON.stringify(bdReopen));
-    // 6. slice 2 — the chart strip: REAL-renderer preview via buildHtml + PDC_MOCK
+    // 6. slice 2 — the chart strip: REAL-renderer preview via buildHtml + DASHKIT_MOCK
     // (state right now: region on Rows, quarter dim + SUM amount on Columns — heatmap-eligible)
     const bdChart = await page.evaluate(async () => {
       const out = {};
@@ -10074,7 +10074,7 @@ function serve() {
       const ifr = document.querySelector("#buildResult iframe.bd-ifr");
       out.barsIframe = !!ifr;
       // the srcdoc is the REAL renderer build with the COMPUTED basis injected as the mock
-      out.mock = ifr ? ifr.srcdoc.indexOf("PDC_MOCK") >= 0 : false;
+      out.mock = ifr ? ifr.srcdoc.indexOf("DASHKIT_MOCK") >= 0 : false;
       out.basisDA = ifr ? ifr.srcdoc.indexOf("build_result") >= 0 : false;
       out.basisMeasure = ifr ? ifr.srcdoc.indexOf("SUM amount") >= 0 : false;
       document.querySelector('[data-bd-ct="heatmap"]').click();
@@ -10098,7 +10098,7 @@ function serve() {
     });
     ok("#117 (2): the chart strip offers Table/Bars/Stacked bars/Line/Stacked area/Donut/Heatmap/Map/Scatter/KPI, heatmap enabled with a Rows dim + a Columns dim, scatter disabled (only one measure on the shelf), KPI enabled (needs no dimension, just the one measure already there)",
       bdChart.strip.join(",") === "table,bars,stacked,line,areaStacked,donut,heatmap,choropleth,scatter:off,kpi", JSON.stringify(bdChart));
-    ok("#117 (2): picking Bars renders the COMPUTED basis through the real dashboard renderer (buildHtml + PDC_MOCK iframe)",
+    ok("#117 (2): picking Bars renders the COMPUTED basis through the real dashboard renderer (buildHtml + DASHKIT_MOCK iframe)",
       bdChart.barsIframe && bdChart.mock && bdChart.basisDA && bdChart.basisMeasure, JSON.stringify(bdChart));
     ok("#117 (2): Heatmap renders too, and saving with a chart selected stamps the type on the View + builder blob",
       bdChart.hmIframe && bdChart.savedId === bdSave.id && bdChart.savedType === "bars" &&
@@ -12342,7 +12342,7 @@ function serve() {
     await page.waitForTimeout(450);
     const pvf = (page.frame({ name: "Dashboard preview" }) || page.frames().find((f) => f !== page.mainFrame()));
     const beforeSpan = await page.evaluate(() => window.__STUDIO_STATE.spec.panels[0].span);
-    const gridBox = await pvf.locator(".pdc-grid").boundingBox();
+    const gridBox = await pvf.locator(".dk-grid").boundingBox();
     const rb = await pvf.locator("[data-panel-id] .sr-resize").first().boundingBox();
     if (rb && gridBox) {
       await page.mouse.move(rb.x + 4, rb.y + 15); await page.mouse.down();
@@ -12448,7 +12448,7 @@ function serve() {
     await page.waitForTimeout(450);
     const pvf3 = (page.frame({ name: "Dashboard preview" }) || page.frames().find((f) => f !== page.mainFrame()));
     const tId = await page.evaluate(() => window.__STUDIO_STATE.spec.panels[0].id);
-    await pvf3.locator("[data-panel-id] .pdc-h-t").first().dblclick();
+    await pvf3.locator("[data-panel-id] .dk-h-t").first().dblclick();
     await page.waitForTimeout(120);
     const editing = await pvf3.evaluate(() => !!document.querySelector(".sr-rename"));
     ok("double-click opens an inline rename field", editing);
@@ -12497,8 +12497,8 @@ function serve() {
       const S = window.__STUDIO_STATE, sp = S.spec, A = S.assets, dp = S.settings.deployPath;
       const cdf = Studio.exportCDF(sp, A, dp);
       return {
-        cdfHasSpec: cdf.includes("window.STUDIO_SPEC") && cdf.includes("pdc-header") && cdf.includes("StudioRender"),
-        cdfInlinesToolkit: cdf.includes("PDC.bars") && cdf.includes(".pdc-header{"),
+        cdfHasSpec: cdf.includes("window.STUDIO_SPEC") && cdf.includes("dk-header") && cdf.includes("StudioRender"),
+        cdfInlinesToolkit: cdf.includes("DashKit.bars") && cdf.includes(".dk-header{"),
         cdfLen: cdf.length
       };
     });
@@ -12510,7 +12510,7 @@ function serve() {
       const S = window.__STUDIO_STATE, sp = S.spec;
       let html = Studio.buildHtml(sp, S.assets, { deployPath: S.settings.deployPath, preview: false });
       // simulate the server by injecting a mock just before boot
-      const mock = "<script>window.PDC_MOCK=" + JSON.stringify(Studio.genMock(sp)) + ";</scr" + "ipt>";
+      const mock = "<script>window.DASHKIT_MOCK=" + JSON.stringify(Studio.genMock(sp)) + ";</scr" + "ipt>";
       html = html.replace("window.STUDIO_AUTOBOOT=false;", "window.STUDIO_AUTOBOOT=false;");
       html = html.replace("</body>", mock + "</body>"); // mock present before DOMContentLoaded boot fires? ensure before script that boots
       const ifr = document.createElement("iframe");
@@ -12531,7 +12531,7 @@ function serve() {
       const S = window.__STUDIO_STATE, sp = S.spec;
       const mock = Studio.genMock(sp);
       const html = Studio.buildHtml(sp, S.assets, { deployPath: "/x", preview: false });
-      const mockScript = "<script>window.PDC_MOCK=" + JSON.stringify(mock) + ";<\/script>";
+      const mockScript = "<script>window.DASHKIT_MOCK=" + JSON.stringify(mock) + ";<\/script>";
       const injected = html.replace("</body>", mockScript + "</body>");
       const ifr = document.createElement("iframe");
       ifr.style.cssText = "position:fixed;left:-9999px;width:1200px;height:900px";
@@ -12565,7 +12565,7 @@ function serve() {
         ] };
       const mock = { alpha_ds: { cols: ["a", "b"], rows: [["x", 1], ["y", 2]] }, beta_ds: { cols: ["a", "b"], rows: [["x", 3], ["y", 4]] } };
       const html = Studio.buildHtml(spec, S.assets, { preview: false });
-      const injected = html.replace("</body>", "<script>window.PDC_MOCK=" + JSON.stringify(mock) + ";<\/script></body>");
+      const injected = html.replace("</body>", "<script>window.DASHKIT_MOCK=" + JSON.stringify(mock) + ";<\/script></body>");
       const ifr = document.createElement("iframe");
       ifr.style.cssText = "position:fixed;left:-9999px;width:1200px;height:900px";
       document.body.appendChild(ifr);
@@ -12578,9 +12578,9 @@ function serve() {
       if (betaSrc) {
         betaSrc.click();
         await new Promise((r) => setTimeout(r, 250));
-        const modal = d.getElementById("pdc-qm");
+        const modal = d.getElementById("dk-qm");
         modalOpen = !!modal;
-        const hot = modal ? modal.querySelector(".pdc-q.hot") : null;
+        const hot = modal ? modal.querySelector(".dk-q.hot") : null;
         hotId = hot ? hot.getAttribute("data-id") : null;
       }
       ifr.remove();
@@ -12634,13 +12634,13 @@ function serve() {
       const kpiTiles = d.querySelectorAll("#kpis .kpi");
       const drillBar = [].slice.call(d.querySelectorAll("#content .card")).some((c) => [].slice.call(c.querySelectorAll("rect.bar")).some((r) => r.style.cursor === "pointer"));
       const result = {
-        filterSelects: d.querySelectorAll("#ctrls select.pdc-sel").length,
-        targetLine: d.querySelectorAll(".pdc-target-line").length,
-        refBand: d.querySelectorAll(".pdc-ref-band").length,
-        periodHighlight: d.querySelectorAll(".pdc-period").length,
-        eventMarkers: d.querySelectorAll(".pdc-event-mark").length,
-        scatterAnnotations: d.querySelectorAll(".pdc-pt-annot").length,
-        callout: d.querySelectorAll(".pdc-callout").length,
+        filterSelects: d.querySelectorAll("#ctrls select.dk-sel").length,
+        targetLine: d.querySelectorAll(".dk-target-line").length,
+        refBand: d.querySelectorAll(".dk-ref-band").length,
+        periodHighlight: d.querySelectorAll(".dk-period").length,
+        eventMarkers: d.querySelectorAll(".dk-event-mark").length,
+        scatterAnnotations: d.querySelectorAll(".dk-pt-annot").length,
+        callout: d.querySelectorAll(".dk-callout").length,
         kpiCount: kpiTiles.length,
         kpiHasDelta: [].slice.call(kpiTiles).some((k) => k.querySelector(".d.up, .d.down, .d.flat")),
         kpiHasSpark: [].slice.call(kpiTiles).some((k) => k.querySelector(".spark")),
@@ -13046,11 +13046,11 @@ function serve() {
     const setColor = await page.evaluate(() => {
       var fields = [].slice.call(document.querySelectorAll("#inspBody .field"));
       var f = fields.filter(function (x) { var l = x.querySelector("label"); return l && /color/i.test(l.textContent); })[0];
-      if (!f) return false; var sel = f.querySelector("select"); sel.value = "--pdc"; sel.dispatchEvent(new Event("change")); return true;
+      if (!f) return false; var sel = f.querySelector("select"); sel.value = "--dk"; sel.dispatchEvent(new Event("change")); return true;
     });
     await page.waitForTimeout(200);
     const seriesColor = await page.evaluate(() => { var s = window.__STUDIO_STATE.selection; var p = window.__STUDIO_STATE.spec.panels.find((x) => x.id === s.id); return p.chart.map.series && p.chart.map.series[0] && p.chart.map.series[0].color; });
-    ok("per-series color picker sets the series color", setColor && seriesColor === "--pdc", "color=" + seriesColor);
+    ok("per-series color picker sets the series color", setColor && seriesColor === "--dk", "color=" + seriesColor);
 
     // ---- stacked-area chart type (renders) ----
     console.log("\n• stacked-area chart");
@@ -13229,17 +13229,17 @@ function serve() {
         { id: "sens", label: "Sensitivity", da: "cost_by_sens", valueCol: "sens", textCol: "sens", allLabel: "All", def: "%" }
       ];
       window.__studioLoad(spec);
-      const d = await window.__waitForPreview((doc) => doc.querySelectorAll("#ctrls select.pdc-sel").length === 2);
-      var sels = d.querySelectorAll("#ctrls select.pdc-sel");
+      const d = await window.__waitForPreview((doc) => doc.querySelectorAll("#ctrls select.dk-sel").length === 2);
+      var sels = d.querySelectorAll("#ctrls select.dk-sel");
       var before = sels.length;
       // change the first filter → triggers load + cascade without error
       if (sels[0]) { sels[0].value = sels[0].options[1] ? sels[0].options[1].value : sels[0].value; sels[0].dispatchEvent(new Event("change")); }
       const d2 = await window.__waitForPreview((doc) => {
-        var s = doc.querySelectorAll("#ctrls select.pdc-sel");
+        var s = doc.querySelectorAll("#ctrls select.dk-sel");
         return s.length === 2 && s[1].options.length >= 2;
       });
-      var after = d2.querySelectorAll("#ctrls select.pdc-sel").length;
-      var opts = d2.querySelector("#ctrls select.pdc-sel") ? d2.querySelectorAll("#ctrls select.pdc-sel")[1].options.length : 0;
+      var after = d2.querySelectorAll("#ctrls select.dk-sel").length;
+      var opts = d2.querySelector("#ctrls select.dk-sel") ? d2.querySelectorAll("#ctrls select.dk-sel")[1].options.length : 0;
       return { before: before, after: after, downstreamOpts: opts, err: /Render error|Could not load/.test(d2.querySelector("#content").textContent) };
     });
     ok("cascading filters: both selects present, downstream repopulated, no errors", casc.before === 2 && casc.after === 2 && casc.downstreamOpts >= 2 && !casc.err, JSON.stringify(casc));
@@ -13449,7 +13449,7 @@ function serve() {
     const pvDl = (page.frame({ name: "Dashboard preview" }) || page.frames().find((f) => f !== page.mainFrame()));
     const dlBtns = await pvDl.evaluate(function (panelId) {
       var card = document.querySelector('[data-panel-id="' + panelId + '"]');
-      var btns = card ? [].slice.call(card.querySelectorAll(".pdc-dl-act")) : [];
+      var btns = card ? [].slice.call(card.querySelectorAll(".dk-dl-act")) : [];
       return { count: btns.length, titles: btns.map(function (b) { return b.title; }) };
     }, dlBars.id);
     ok("LF6/LF25a: a bars panel in the preview gets 'Download image', 'Download data', AND 'Export as HTML' chrome buttons, all on by default",
@@ -13474,10 +13474,10 @@ function serve() {
     const dlMenuShape = await pvDl.evaluate(function (panelId) {
       var card = document.querySelector('[data-panel-id="' + panelId + '"]');
       var acts = card ? card.querySelector(".sr-card-acts") : null;
-      var menu = acts ? acts.querySelector(".pdc-dl-menu") : null;
-      var triggers = acts ? acts.querySelectorAll(".pdc-dl-trigger") : [];
-      var pop = menu ? menu.querySelector(".pdc-dl-pop") : null;
-      var items = pop ? [].slice.call(pop.querySelectorAll(".pdc-dl-act")) : [];
+      var menu = acts ? acts.querySelector(".dk-dl-menu") : null;
+      var triggers = acts ? acts.querySelectorAll(".dk-dl-trigger") : [];
+      var pop = menu ? menu.querySelector(".dk-dl-pop") : null;
+      var items = pop ? [].slice.call(pop.querySelectorAll(".dk-dl-act")) : [];
       return {
         oneTrigger: triggers.length === 1,
         closedByDefault: !!menu && !menu.classList.contains("open"),
@@ -13494,8 +13494,8 @@ function serve() {
     // Clicking the trigger opens the popover; clicking outside (or Escape) closes it again.
     const dlMenuToggle = await pvDl.evaluate(function (panelId) {
       var card = document.querySelector('[data-panel-id="' + panelId + '"]');
-      var menu = card.querySelector(".pdc-dl-menu");
-      var trigger = menu.querySelector(".pdc-dl-trigger");
+      var menu = card.querySelector(".dk-dl-menu");
+      var trigger = menu.querySelector(".dk-dl-trigger");
       trigger.click();
       var openAfterClick = menu.classList.contains("open");
       var expandedAfterClick = trigger.getAttribute("aria-expanded") === "true";
@@ -13520,7 +13520,7 @@ function serve() {
     // Inspector's own "Export this View…" action (one mechanism, two entry points).
     const dlEmbedClick = await pvDl.evaluate(function (panelId) {
       var card = document.querySelector('[data-panel-id="' + panelId + '"]');
-      var btn = card ? [].slice.call(card.querySelectorAll(".pdc-dl-act")).filter(function (b) { return /standalone HTML/.test(b.title); })[0] : null;
+      var btn = card ? [].slice.call(card.querySelectorAll(".dk-dl-act")).filter(function (b) { return /standalone HTML/.test(b.title); })[0] : null;
       if (!btn) return { found: false };
       btn.click();
       return { found: true };
@@ -13558,7 +13558,7 @@ function serve() {
     const pvDl2 = (page.frame({ name: "Dashboard preview" }) || page.frames().find((f) => f !== page.mainFrame()));
     const dlTableBtns = await pvDl2.evaluate(function (panelId) {
       var card = document.querySelector('[data-panel-id="' + panelId + '"]');
-      var btns = card ? [].slice.call(card.querySelectorAll(".pdc-dl-act")) : [];
+      var btns = card ? [].slice.call(card.querySelectorAll(".dk-dl-act")) : [];
       return { count: btns.length, hasImg: btns.some(function (b) { return /image/.test(b.title); }), hasData: btns.some(function (b) { return /CSV/.test(b.title); }), hasEmbed: btns.some(function (b) { return /standalone HTML/.test(b.title); }) };
     }, dlTableChrome.id);
     ok("LF6/LF25a: a Table panel (no <svg>) shows the data-download + export-as-HTML chrome buttons, not image",
@@ -13595,7 +13595,7 @@ function serve() {
     const pvDl3 = (page.frame({ name: "Dashboard preview" }) || page.frames().find((f) => f !== page.mainFrame()));
     const dlOffCount = await pvDl3.evaluate(function (panelId) {
       var card = document.querySelector('[data-panel-id="' + panelId + '"]');
-      return card ? card.querySelectorAll(".pdc-dl-act").length : -1;
+      return card ? card.querySelectorAll(".dk-dl-act").length : -1;
     }, dlInspector.id);
     ok("LF6: legacy p.allowDownloads:false (no per-type keys) removes the chrome entirely",
       dlOffCount === 0, JSON.stringify({ dlOffCount }));
@@ -13611,7 +13611,7 @@ function serve() {
     const pvDl4 = (page.frame({ name: "Dashboard preview" }) || page.frames().find((f) => f !== page.mainFrame()));
     const dlOverride = await pvDl4.evaluate(function (panelId) {
       var card = document.querySelector('[data-panel-id="' + panelId + '"]');
-      var btns = card ? [].slice.call(card.querySelectorAll(".pdc-dl-act")) : [];
+      var btns = card ? [].slice.call(card.querySelectorAll(".dk-dl-act")) : [];
       return { count: btns.length, hasData: btns.some(function (b) { return /CSV/.test(b.title); }) };
     }, dlInspector.id);
     ok("LF25a: p.dlCsv:true overrides a legacy allowDownloads:false, showing ONLY the CSV button",
@@ -13642,8 +13642,8 @@ function serve() {
     const dlBundleChrome = await dlBundlePage.evaluate(function (panelId) {
       return new Promise(function (resolve) {
         var card = document.querySelector('[data-panel-id="' + panelId + '"]');
-        var btns = card ? [].slice.call(card.querySelectorAll(".pdc-dl-act")) : [];
-        var triggers = card ? card.querySelectorAll(".pdc-dl-trigger") : [];
+        var btns = card ? [].slice.call(card.querySelectorAll(".dk-dl-act")) : [];
+        var triggers = card ? card.querySelectorAll(".dk-dl-trigger") : [];
         window.__downloadPanelPngDataUrl(panelId, function (dataUrl) {
           resolve({ count: btns.length, oneTrigger: triggers.length === 1, hasEmbed: btns.some(function (b) { return /standalone HTML/.test(b.title); }), dataUrl: dataUrl });
         });
@@ -13654,7 +13654,7 @@ function serve() {
       dlBundleErrors.length === 0 && dlBundleChrome.count === 3 && dlBundleChrome.hasEmbed &&
       !!dlBundleChrome.dataUrl && dlBundleChrome.dataUrl.indexOf("data:image/png;base64,") === 0,
       JSON.stringify({ errors: dlBundleErrors, chrome: dlBundleChrome && { count: dlBundleChrome.count } }));
-    ok("LF69d: the same standalone bundle also collapses those 3 chrome buttons into one Export trigger in .pdc-dl-acts",
+    ok("LF69d: the same standalone bundle also collapses those 3 chrome buttons into one Export trigger in .dk-dl-acts",
       dlBundleChrome.oneTrigger, JSON.stringify(dlBundleChrome));
 
     // LF25a: a GENUINELY published dashboard (preview:false, the real "download .html"/deploy
@@ -13882,7 +13882,7 @@ function serve() {
     ok("filter editor shows a live options preview", fb.chips >= 2, "chips=" + fb.chips);
     // the filter renders as a header select in the preview
     await page.waitForTimeout(250);
-    const ctrl = await page.evaluate(() => { const d = document.querySelector("#preview").contentDocument; return d.querySelectorAll("#ctrls select.pdc-sel").length; });
+    const ctrl = await page.evaluate(() => { const d = document.querySelector("#preview").contentDocument; return d.querySelectorAll("#ctrls select.dk-sel").length; });
     ok("filter renders as a header control in the preview", ctrl >= 1, "selects=" + ctrl);
 
     ok("no uncaught JS errors during session", errors.length === 0, errors.slice(0, 4).join(" | "));
@@ -14221,7 +14221,7 @@ function serve() {
     const cliFiles = fs.readdirSync(outDir).sort();
     ok("CLI exporter writes the dashboard .html", cliFiles.includes("studio-cost.html"), cliFiles.join(","));
     const cliHtml = fs.readFileSync(path.join(outDir, "studio-cost.html"), "utf8");
-    ok("CLI artifacts are well-formed (html self-contained)", cliHtml.includes("window.STUDIO_SPEC") && cliHtml.includes("PDC.bars"));
+    ok("CLI artifacts are well-formed (html self-contained)", cliHtml.includes("window.STUDIO_SPEC") && cliHtml.includes("DashKit.bars"));
 
     const genHash = cp.execFileSync("node", [path.join(ROOT, "tools", "gen-code.js"), "pentaho-studio"]).toString().trim().split("\n")[0];
     ok("gen-code.js hashes an access code (matches the default gate hash)", genHash === "a0b4ac228aecdf5dfdffd338c5b9d0b10b945860712a14259fa95bb7be3bf279", genHash.slice(0, 16));
@@ -14367,7 +14367,7 @@ function serve() {
     ok("welcome hero greets a real signed-in user by their name", adminGreeting.indexOf("Administrator") !== -1, adminGreeting);
 
     // Z10 follow-up: the welcome tour was fixed hex (Classic-Blue-only regardless of the
-    // app theme picker) — now themed via the shared --brand/--pdc/--pane/etc vars.
+    // app theme picker) — now themed via the shared --brand/--dk/--pane/etc vars.
     const wThemeBefore = await gp.evaluate(() => ({
       hd: getComputedStyle(document.querySelector("#studio-welcome .sw-hd")).backgroundImage,
       card: getComputedStyle(document.querySelector("#studio-welcome .sw")).backgroundColor
@@ -18142,7 +18142,7 @@ function serve() {
       const mock = Studio.genMock(sp);
       const html = Studio.buildHtml(sp, S.assets, { deployPath: "/x", preview: false });
       // inject offline mock before </body> so charts render without a server
-      const mockScript = "<script>window.PDC_MOCK=" + JSON.stringify(mock) + ";<\/script>";
+      const mockScript = "<script>window.DASHKIT_MOCK=" + JSON.stringify(mock) + ";<\/script>";
       const injected = html.replace("</body>", mockScript + "</body>");
       const ifr = document.createElement("iframe");
       // 390px width so the 640px breakpoint fires inside the iframe
@@ -18151,7 +18151,7 @@ function serve() {
       await new Promise((res) => { ifr.onload = res; ifr.srcdoc = injected; });
       await new Promise((r) => setTimeout(r, 800));
       const d = ifr.contentDocument;
-      const grid = d.querySelector(".pdc-grid");
+      const grid = d.querySelector(".dk-grid");
       const kpis = d.querySelectorAll("#kpis .kpi").length;
       const svgs = d.querySelectorAll("#content svg").length;
       const bodyScrollW = d.body ? d.body.scrollWidth : 9999;
@@ -18159,10 +18159,10 @@ function serve() {
       const gridCols = grid ? d.defaultView.getComputedStyle(grid).gridTemplateColumns : "";
       // 1-col: gridTemplateColumns should be a single value (no spaces between tokens)
       const colCount = grid ? gridCols.trim().split(/\s+/).length : 0;
-      const headerWrap = d.querySelector(".pdc-header") ?
-        d.defaultView.getComputedStyle(d.querySelector(".pdc-header")).flexWrap : "";
-      const subHidden = d.querySelector(".pdc-sub") ?
-        d.defaultView.getComputedStyle(d.querySelector(".pdc-sub")).display : "block";
+      const headerWrap = d.querySelector(".dk-header") ?
+        d.defaultView.getComputedStyle(d.querySelector(".dk-header")).flexWrap : "";
+      const subHidden = d.querySelector(".dk-sub") ?
+        d.defaultView.getComputedStyle(d.querySelector(".dk-sub")).display : "block";
       ifr.remove();
       return { kpis, svgs, vpW, colCount, gridCols, bodyScrollW, headerWrap, subHidden, panelCount: (sp.panels || []).length };
     });
@@ -18552,7 +18552,7 @@ function serve() {
 
     // Functional test: verify the hash param parsing logic in studio-render.js
     const e4Logic = await page.evaluate(() => {
-      // Simulate the PDC.urlParams patching that studio-render.js applies at boot
+      // Simulate the DashKit.urlParams patching that studio-render.js applies at boot
       var origUp = function () { return { existing: "yes" }; };
       var patched = (function (_up) {
         return function () {
@@ -18805,7 +18805,7 @@ function serve() {
     // Z7 follow-up: extend the Line chart's trend-line overlay to Combo's own line series
     // (closes part of the "extending trend/forecast to bars/stacked/combo" backlog note).
     // Drives the REAL studio-render.js dispatch (window.__studioLoad + __waitForPreview, same
-    // as the F8 combo test above) rather than calling PDC.combo directly — the Z7HW dispatch
+    // as the F8 combo test above) rather than calling DashKit.combo directly — the Z7HW dispatch
     // bug found and fixed this same run (studio-render.js's "line" case silently dropped
     // trendMethod/alpha/beta/gamma/seasonLength) makes this end-to-end check worth its own
     // dedicated coverage rather than trusting a scratch-element unit call alone.
@@ -18832,7 +18832,7 @@ function serve() {
       var linearTrend = doc.querySelector(".trend-line");
       var linearSegs = linearTrend ? (linearTrend.getAttribute("d").match(/L/g) || []).length : 0;
       // Holt-Winters: multi-segment fitted line, not a single straight "M..L.." — proves
-      // trendMethod actually reached PDC.combo through the real dispatch, not just showTrend.
+      // trendMethod actually reached DashKit.combo through the real dispatch, not just showTrend.
       spec.panels[0].chart.opts.trendMethod = "hw";
       spec.panels[0].chart.opts.seasonLength = 2;
       window.__studioLoad(spec);
@@ -18846,7 +18846,7 @@ function serve() {
     });
     ok("Z7 follow-up: Combo has no .trend-line when 'Show trend line' is off (default)", comboTrend.offHasNoTrend, JSON.stringify(comboTrend));
     ok("Z7 follow-up: Combo's default (linear) trend is a single straight segment", comboTrend.linearHasOneSeg, JSON.stringify(comboTrend));
-    ok("Z7 follow-up: Combo's trendMethod:'hw' actually reaches PDC.combo through the real dispatch — a genuine multi-segment seasonal fit, not a straight line", comboTrend.hwHasMoreSegs, JSON.stringify(comboTrend));
+    ok("Z7 follow-up: Combo's trendMethod:'hw' actually reaches DashKit.combo through the real dispatch — a genuine multi-segment seasonal fit, not a straight line", comboTrend.hwHasMoreSegs, JSON.stringify(comboTrend));
 
     const comboTrendOpts = await page.evaluate(function () {
       var o = (window.Studio.CHARTS.combo || {}).opts || [];
@@ -18921,7 +18921,7 @@ function serve() {
       doc = await window.__waitForPreview((dd) => !!dd.querySelector(".trend-line"));
       var linearTrend = doc.querySelector(".trend-line");
       var linearSegs = linearTrend ? (linearTrend.getAttribute("d").match(/L/g) || []).length : 0;
-      // Holt-Winters: multi-segment fitted line proves trendMethod reached PDC.bars for real.
+      // Holt-Winters: multi-segment fitted line proves trendMethod reached DashKit.bars for real.
       spec.panels[0].chart.opts.trendMethod = "hw";
       spec.panels[0].chart.opts.seasonLength = 2;
       window.__studioLoad(spec);
@@ -18936,7 +18936,7 @@ function serve() {
     ok("Z7 follow-up: vertical Bars has no .trend-line when 'Show trend line' is off (default)", barsTrend.offHasNoTrend, JSON.stringify(barsTrend));
     ok("Z7 follow-up: horizontal Bars never draws .trend-line, even with showTrend:true (no left-to-right sequence)", barsTrend.horizHasNoTrend, JSON.stringify(barsTrend));
     ok("Z7 follow-up: vertical Bars' default (linear) trend is a single straight segment", barsTrend.linearHasOneSeg, JSON.stringify(barsTrend));
-    ok("Z7 follow-up: Bars' trendMethod:'hw' actually reaches PDC.bars through the real dispatch — a genuine multi-segment seasonal fit", barsTrend.hwHasMoreSegs, JSON.stringify(barsTrend));
+    ok("Z7 follow-up: Bars' trendMethod:'hw' actually reaches DashKit.bars through the real dispatch — a genuine multi-segment seasonal fit", barsTrend.hwHasMoreSegs, JSON.stringify(barsTrend));
 
     // Z7 follow-up: extend the same trend/forecast overlay to Stacked bars, fitted over each
     // category's STACK TOTAL (the only single number per category a stack has to trend against).
@@ -18970,7 +18970,7 @@ function serve() {
     });
     ok("Z7 follow-up: Stacked bars has no .trend-line when 'Show trend line' is off (default)", stackedTrend.offHasNoTrend, JSON.stringify(stackedTrend));
     ok("Z7 follow-up: Stacked bars' default (linear) trend (over category totals) is a single straight segment", stackedTrend.linearHasOneSeg, JSON.stringify(stackedTrend));
-    ok("Z7 follow-up: Stacked bars' trendMethod:'hw' actually reaches PDC.stacked through the real dispatch — a genuine multi-segment seasonal fit", stackedTrend.hwHasMoreSegs, JSON.stringify(stackedTrend));
+    ok("Z7 follow-up: Stacked bars' trendMethod:'hw' actually reaches DashKit.stacked through the real dispatch — a genuine multi-segment seasonal fit", stackedTrend.hwHasMoreSegs, JSON.stringify(stackedTrend));
 
     const barsStackedTrendOpts = await page.evaluate(function () {
       var b = (window.Studio.CHARTS.bars || {}).opts || [];
@@ -19606,7 +19606,7 @@ function serve() {
         return { ok: false, err: e.message };
       }
     });
-    ok("Detail drawer: bars with detail DA get cursor:pointer (PDC.bindDetail called)", detailBarCursor.ok, JSON.stringify(detailBarCursor));
+    ok("Detail drawer: bars with detail DA get cursor:pointer (DashKit.bindDetail called)", detailBarCursor.ok, JSON.stringify(detailBarCursor));
 
     // ---- H-track: grouped chart gallery ----
     console.log("\n• H-track: grouped chart type gallery");
@@ -20037,14 +20037,14 @@ function serve() {
     const rt2 = await page.evaluate(() => ({ hasBoxplot: !!(window.Studio && window.Studio.CHARTS && window.Studio.CHARTS.boxplot) }));
     ok("v72: Studio.CHARTS.boxplot exists in chart registry", rt2.hasBoxplot, JSON.stringify(rt2));
 
-    // 3. PDC.boxplot extension is present in the preview iframe's context
+    // 3. DashKit.boxplot extension is present in the preview iframe's context
     const rt3 = await page.evaluate(() => {
       try {
         var iw = document.querySelector("#preview").contentWindow;
-        return { hasFn: iw && typeof iw.PDC === "object" && typeof iw.PDC.boxplot === "function" };
+        return { hasFn: iw && typeof iw.DashKit === "object" && typeof iw.DashKit.boxplot === "function" };
       } catch (e) { return { hasFn: false, err: e.message }; }
     });
-    ok("v72: PDC.boxplot extension function is defined", rt3.hasFn, JSON.stringify(rt3));
+    ok("v72: DashKit.boxplot extension function is defined", rt3.hasFn, JSON.stringify(rt3));
 
     // 4. Add text panel via the canvas empty-state #cesText button (moved out of the Data-panel header) — panel appears with type richtext
     const rtBefore = await page.evaluate(() => ({ count: window.__STUDIO_STATE.spec.panels.length }));
@@ -20102,12 +20102,12 @@ function serve() {
     const boxplotLayout = await page.evaluate(function () {
       try {
         var iw = document.getElementById("preview").contentWindow;
-        if (!iw || !iw.PDC || !iw.PDC.boxplot) return { ok: false, reason: "no PDC.boxplot" };
+        if (!iw || !iw.DashKit || !iw.DashKit.boxplot) return { ok: false, reason: "no DashKit.boxplot" };
         var el = iw.document.createElement("div");
         el.style.width = "400px";
         iw.document.body.appendChild(el);
         var labels = ["Cat A", "Cat B", "Cat C", "Cat D", "Cat E"];
-        iw.PDC.boxplot(el, {
+        iw.DashKit.boxplot(el, {
           data: labels.map(function (lbl, i) {
             return { label: lbl, values: [10 + i * 5, 12 + i * 5, 14 + i * 5, 11 + i * 5, 13 + i * 5] };
           }),
@@ -20152,14 +20152,14 @@ function serve() {
     ok("v73: Studio.CHARTS.lollipop registered under Comparison", lolReg.hasType && lolReg.group === "Comparison", JSON.stringify(lolReg));
     ok("v73: lollipop is CDF-only (cde: null)", lolReg.cde === null, JSON.stringify(lolReg));
 
-    // 2. PDC.lollipop extension present in the preview iframe
+    // 2. DashKit.lollipop extension present in the preview iframe
     const lolExt = await page.evaluate(() => {
       try {
         var iw = document.querySelector("#preview").contentWindow;
-        return { hasFn: iw && typeof iw.PDC === "object" && typeof iw.PDC.lollipop === "function" };
+        return { hasFn: iw && typeof iw.DashKit === "object" && typeof iw.DashKit.lollipop === "function" };
       } catch (e) { return { hasFn: false, err: e.message }; }
     });
-    ok("v73: PDC.lollipop extension function defined in preview iframe", lolExt.hasFn, JSON.stringify(lolExt));
+    ok("v73: DashKit.lollipop extension function defined in preview iframe", lolExt.hasFn, JSON.stringify(lolExt));
 
     // 3. newPanel('lollipop', da) creates a panel with correct map keys
     const lolPanel = await page.evaluate(() => {
@@ -20193,7 +20193,7 @@ function serve() {
     });
     ok("v73: panel inspector shows 'Section header' field", sectionInput.hasLabel, JSON.stringify(sectionInput));
 
-    // 5. Setting panel.section causes a .pdc-sec-hdr to appear in the preview iframe
+    // 5. Setting panel.section causes a .dk-sec-hdr to appear in the preview iframe
     // Load a fresh spec to ensure we start from a known state with enough panels.
     await page.evaluate(async function () {
       var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
@@ -20207,20 +20207,20 @@ function serve() {
       await page.waitForFunction(function () {
         try {
           var iw = document.querySelector("#preview") && document.querySelector("#preview").contentWindow;
-          return !!(iw && iw.document && iw.document.querySelector(".pdc-sec-hdr"));
+          return !!(iw && iw.document && iw.document.querySelector(".dk-sec-hdr"));
         } catch (e) { return false; }
       }, { timeout: 2000 });
       secHdr = await page.evaluate(function () {
         try {
           var iw = document.querySelector("#preview").contentWindow;
-          var hdrs = iw.document.querySelectorAll(".pdc-sec-hdr");
+          var hdrs = iw.document.querySelectorAll(".dk-sec-hdr");
           return { count: hdrs.length, text: hdrs[0] ? hdrs[0].textContent : "" };
         } catch (e) { return { count: 0, err: e.message }; }
       });
-    } catch (e) { /* waitForFunction timed out — no pdc-sec-hdr appeared */ }
-    ok("v73: setting panel.section renders .pdc-sec-hdr divider in the preview", secHdr.count >= 1 && secHdr.text === "Test Section", JSON.stringify(secHdr));
+    } catch (e) { /* waitForFunction timed out — no dk-sec-hdr appeared */ }
+    ok("v73: setting panel.section renders .dk-sec-hdr divider in the preview", secHdr.count >= 1 && secHdr.text === "Test Section", JSON.stringify(secHdr));
 
-    // 6. Exported CDF HTML includes section header CSS + rendered .pdc-sec-hdr element.
+    // 6. Exported CDF HTML includes section header CSS + rendered .dk-sec-hdr element.
     // Load a fresh spec so the test is independent of earlier spec mutations.
     const secExport = await page.evaluate(async function () {
       try {
@@ -20230,12 +20230,12 @@ function serve() {
         var assets = window.__STUDIO_STATE.assets;
         var html = Studio.exportCDF(freshSpec, assets, "/public/pdc-iteration/v2");
         return {
-          hasCss: html.includes(".pdc-sec-hdr"),
-          hasEl: html.includes("pdc-sec-hdr")
+          hasCss: html.includes(".dk-sec-hdr"),
+          hasEl: html.includes("dk-sec-hdr")
         };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("v73: exported CDF HTML includes .pdc-sec-hdr CSS and element", secExport.hasCss && secExport.hasEl, JSON.stringify(secExport));
+    ok("v73: exported CDF HTML includes .dk-sec-hdr CSS and element", secExport.hasCss && secExport.hasEl, JSON.stringify(secExport));
 
     // Restore spec to clean state
     await page.evaluate(async function () {
@@ -20258,16 +20258,16 @@ function serve() {
     ok("v74: Studio.CHARTS.slope registered under Trend group", slopeReg.hasType && slopeReg.group === "Trend", JSON.stringify(slopeReg));
     ok("v74: slope is CDF-only (cde: null)", slopeReg.cde === null, JSON.stringify(slopeReg));
 
-    // 2. PDC.slope extension is present in the preview iframe
+    // 2. DashKit.slope extension is present in the preview iframe
     await page.waitForTimeout(250);
     const slopeExt = await page.evaluate(function () {
       // select the preview iframe by id (LF60 added a second iframe, the embedded Docs view, so
       // "first iframe in the document" is no longer guaranteed to be the preview).
       var pv = document.querySelector("#preview");
       var iw = pv && pv.contentWindow;
-      return { hasFn: iw && typeof iw.PDC === "object" && typeof iw.PDC.slope === "function" };
+      return { hasFn: iw && typeof iw.DashKit === "object" && typeof iw.DashKit.slope === "function" };
     });
-    ok("v74: PDC.slope extension function defined in preview iframe", slopeExt.hasFn, JSON.stringify(slopeExt));
+    ok("v74: DashKit.slope extension function defined in preview iframe", slopeExt.hasFn, JSON.stringify(slopeExt));
 
     // 3. newPanel('slope', da) produces a panel with labelCol, valueCol1, valueCol2 in map
     const slopePanel = await page.evaluate(function () {
@@ -20306,12 +20306,12 @@ function serve() {
         var assets = window.__STUDIO_STATE.assets;
         var html = Studio.exportCDF(freshSpec, assets, "/public/pdc-iteration/v2");
         return {
-          hasCss: html.includes("pdc-desc-bar"),
+          hasCss: html.includes("dk-desc-bar"),
           hasEl: html.includes("monthly cloud spending")
         };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("v74: exported CDF HTML includes .pdc-desc-bar CSS and description text", descBar.hasCss && descBar.hasEl, JSON.stringify(descBar));
+    ok("v74: exported CDF HTML includes .dk-desc-bar CSS and description text", descBar.hasCss && descBar.hasEl, JSON.stringify(descBar));
 
     // 6. Dashboard description bar element is absent when spec.description is empty
     //    (the CSS class may still appear in <style>; check for the <div> element specifically)
@@ -20321,10 +20321,10 @@ function serve() {
         freshSpec.description = "";
         var assets = window.__STUDIO_STATE.assets;
         var html = Studio.exportCDF(freshSpec, assets, "/public/pdc-iteration/v2");
-        return { hasEl: html.includes('<div class="pdc-desc-bar">') };
+        return { hasEl: html.includes('<div class="dk-desc-bar">') };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("v74: no pdc-desc-bar element in exported CDF when description is empty", !descBarEmpty.hasEl, JSON.stringify(descBarEmpty));
+    ok("v74: no dk-desc-bar element in exported CDF when description is empty", !descBarEmpty.hasEl, JSON.stringify(descBarEmpty));
 
     // Restore spec to clean state
     await page.evaluate(async function () {
@@ -20347,16 +20347,16 @@ function serve() {
     ok("v75: Studio.CHARTS.dotplot registered under Distribution group", dotReg.hasType && dotReg.group === "Distribution", JSON.stringify(dotReg));
     ok("v75: dotplot is CDF-only (cde: null)", dotReg.cde === null, JSON.stringify(dotReg));
 
-    // 2. PDC.dotplot extension is present in the preview iframe
+    // 2. DashKit.dotplot extension is present in the preview iframe
     await page.waitForTimeout(300);
     const dotExt = await page.evaluate(function () {
       try {
         var ifr = document.getElementById("preview");
         var iw = ifr && ifr.contentWindow;
-        return { hasFn: iw && typeof iw.PDC === "object" && typeof iw.PDC.dotplot === "function" };
+        return { hasFn: iw && typeof iw.DashKit === "object" && typeof iw.DashKit.dotplot === "function" };
       } catch (e) { return { hasFn: false, err: e.message }; }
     });
-    ok("v75: PDC.dotplot extension function defined in preview iframe", dotExt.hasFn, JSON.stringify(dotExt));
+    ok("v75: DashKit.dotplot extension function defined in preview iframe", dotExt.hasFn, JSON.stringify(dotExt));
 
     // 3. newPanel('dotplot', da) produces a panel with labelCol + valueCol in map
     const dotPanel = await page.evaluate(function () {
@@ -20398,7 +20398,7 @@ function serve() {
     });
     ok("v75: panel inspector shows 'Note (visible)' field", noteField.hasNote, JSON.stringify(noteField));
 
-    // 6. Setting a panel note renders .pdc-panel-note in the preview iframe
+    // 6. Setting a panel note renders .dk-panel-note in the preview iframe
     const noteRender = await page.evaluate(async function () {
       try {
         var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
@@ -20412,14 +20412,14 @@ function serve() {
       try {
         var ifr = document.getElementById("preview");
         var iw = ifr && ifr.contentWindow;
-        var noteEls = iw && iw.document.querySelectorAll(".pdc-panel-note");
+        var noteEls = iw && iw.document.querySelectorAll(".dk-panel-note");
         return { count: noteEls ? noteEls.length : 0,
                  text: noteEls && noteEls[0] ? noteEls[0].textContent : "" };
       } catch (e) { return { count: 0, err: e.message }; }
     });
-    ok("v75: panel with p.note renders .pdc-panel-note element in preview iframe", noteInIframe.count >= 1 && noteInIframe.text === "Test panel annotation", JSON.stringify(noteInIframe));
+    ok("v75: panel with p.note renders .dk-panel-note element in preview iframe", noteInIframe.count >= 1 && noteInIframe.text === "Test panel annotation", JSON.stringify(noteInIframe));
 
-    // 7. Exported CDF HTML includes .pdc-panel-note CSS and the note text
+    // 7. Exported CDF HTML includes .dk-panel-note CSS and the note text
     const noteExport = await page.evaluate(async function () {
       try {
         var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
@@ -20427,12 +20427,12 @@ function serve() {
         var assets = window.__STUDIO_STATE.assets;
         var html = Studio.exportCDF(freshSpec, assets, "/public/pdc-iteration/v2");
         return {
-          hasCss: html.includes("pdc-panel-note"),
+          hasCss: html.includes("dk-panel-note"),
           hasEl: html.includes("Exported note check")
         };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("v75: exported CDF HTML includes pdc-panel-note CSS and note text", noteExport.hasCss && noteExport.hasEl, JSON.stringify(noteExport));
+    ok("v75: exported CDF HTML includes dk-panel-note CSS and note text", noteExport.hasCss && noteExport.hasEl, JSON.stringify(noteExport));
 
     // Restore spec to clean state
     await page.evaluate(async function () {
@@ -20455,16 +20455,16 @@ function serve() {
     ok("v76: Studio.CHARTS.beeswarm registered under Distribution group", bsReg.hasType && bsReg.group === "Distribution", JSON.stringify(bsReg));
     ok("v76: beeswarm is CDF-only (cde: null)", bsReg.cde === null, JSON.stringify(bsReg));
 
-    // 2. PDC.beeswarm extension is present in the preview iframe
+    // 2. DashKit.beeswarm extension is present in the preview iframe
     await page.waitForTimeout(300);
     const bsExt = await page.evaluate(function () {
       try {
         var ifr = document.getElementById("preview");
         var iw = ifr && ifr.contentWindow;
-        return { hasFn: iw && typeof iw.PDC === "object" && typeof iw.PDC.beeswarm === "function" };
+        return { hasFn: iw && typeof iw.DashKit === "object" && typeof iw.DashKit.beeswarm === "function" };
       } catch (e) { return { hasFn: false, err: e.message }; }
     });
-    ok("v76: PDC.beeswarm extension function defined in preview iframe", bsExt.hasFn, JSON.stringify(bsExt));
+    ok("v76: DashKit.beeswarm extension function defined in preview iframe", bsExt.hasFn, JSON.stringify(bsExt));
 
     // 3. newPanel('beeswarm', da) creates a panel with labelCol + valueCol in the map
     const bsPanel = await page.evaluate(function () {
@@ -20503,7 +20503,7 @@ function serve() {
     });
     ok("v76: panel inspector shows Panel accent field with color input", accentField.hasAccentText && accentField.hasInput, JSON.stringify(accentField));
 
-    // 6. Setting p.accentColor renders .pdc-accent-panel in the preview iframe
+    // 6. Setting p.accentColor renders .dk-accent-panel in the preview iframe
     const accentRender = await page.evaluate(async function () {
       try {
         var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
@@ -20517,13 +20517,13 @@ function serve() {
       try {
         var ifr = document.getElementById("preview");
         var iw = ifr && ifr.contentWindow;
-        var accEls = iw && iw.document.querySelectorAll(".pdc-accent-panel");
+        var accEls = iw && iw.document.querySelectorAll(".dk-accent-panel");
         return { count: accEls ? accEls.length : 0 };
       } catch (e) { return { count: 0, err: e.message }; }
     });
-    ok("v76: panel with p.accentColor renders .pdc-accent-panel in preview iframe", accentInIframe.count >= 1, JSON.stringify(accentInIframe));
+    ok("v76: panel with p.accentColor renders .dk-accent-panel in preview iframe", accentInIframe.count >= 1, JSON.stringify(accentInIframe));
 
-    // 7. Exported CDF HTML includes pdc-accent-panel CSS and the accent class
+    // 7. Exported CDF HTML includes dk-accent-panel CSS and the accent class
     const accentExport = await page.evaluate(async function () {
       try {
         var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
@@ -20531,12 +20531,12 @@ function serve() {
         var assets = window.__STUDIO_STATE.assets;
         var html = Studio.exportCDF(freshSpec, assets, "/public/pdc-iteration/v2");
         return {
-          hasCss: html.includes("pdc-accent-panel"),
+          hasCss: html.includes("dk-accent-panel"),
           hasPapVar: html.includes("--pap-color")
         };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("v76: exported CDF HTML includes pdc-accent-panel CSS class definition", accentExport.hasCss, JSON.stringify(accentExport));
+    ok("v76: exported CDF HTML includes dk-accent-panel CSS class definition", accentExport.hasCss, JSON.stringify(accentExport));
 
     // 8. Exported CDF HTML inlines --pap-color on the panel element
     ok("v76: exported CDF HTML contains --pap-color variable reference", accentExport.hasPapVar, JSON.stringify(accentExport));
@@ -20549,25 +20549,25 @@ function serve() {
     await page.waitForTimeout(200);
 
     // ── v77: KPI sparkline types + inspector search ──────────────────────────────
-    // 1. PDC.sparkSvgBar is defined in the preview iframe (studio-charts.js extension)
+    // 1. DashKit.sparkSvgBar is defined in the preview iframe (studio-charts.js extension)
     const sparkBarDef = await page.evaluate(function () {
       try {
         var ifr = document.getElementById("preview");
         var iw = ifr && ifr.contentWindow;
-        return { hasFn: iw && typeof iw.PDC === "object" && typeof iw.PDC.sparkSvgBar === "function" };
+        return { hasFn: iw && typeof iw.DashKit === "object" && typeof iw.DashKit.sparkSvgBar === "function" };
       } catch (e) { return { hasFn: false, err: e.message }; }
     });
-    ok("v77: PDC.sparkSvgBar defined in preview iframe", sparkBarDef.hasFn, JSON.stringify(sparkBarDef));
+    ok("v77: DashKit.sparkSvgBar defined in preview iframe", sparkBarDef.hasFn, JSON.stringify(sparkBarDef));
 
-    // 2. PDC.sparkSvgArea is defined in the preview iframe
+    // 2. DashKit.sparkSvgArea is defined in the preview iframe
     const sparkAreaDef = await page.evaluate(function () {
       try {
         var ifr = document.getElementById("preview");
         var iw = ifr && ifr.contentWindow;
-        return { hasFn: iw && typeof iw.PDC === "object" && typeof iw.PDC.sparkSvgArea === "function" };
+        return { hasFn: iw && typeof iw.DashKit === "object" && typeof iw.DashKit.sparkSvgArea === "function" };
       } catch (e) { return { hasFn: false, err: e.message }; }
     });
-    ok("v77: PDC.sparkSvgArea defined in preview iframe", sparkAreaDef.hasFn, JSON.stringify(sparkAreaDef));
+    ok("v77: DashKit.sparkSvgArea defined in preview iframe", sparkAreaDef.hasFn, JSON.stringify(sparkAreaDef));
 
     // 3. KPI inspector shows "Sparkline type" selector
     await page.evaluate(function () {
@@ -20699,18 +20699,18 @@ function serve() {
     // ── v78: animated chart entrance controls ─────────────────────────────
     console.log("\n• v78: per-panel animated chart entrance controls (H-track)");
 
-    // 1. PDC._anim flag is writable in the preview iframe — proves the studio-render contract exists
+    // 1. DashKit._anim flag is writable in the preview iframe — proves the studio-render contract exists
     const canAnimDefined = await page.evaluate(function () {
       try {
         var iw = document.getElementById("preview").contentWindow;
-        var prev = iw.PDC._anim;
-        iw.PDC._anim = false;
-        var blocked = iw.PDC._anim === false;
-        iw.PDC._anim = prev;
+        var prev = iw.DashKit._anim;
+        iw.DashKit._anim = false;
+        var blocked = iw.DashKit._anim === false;
+        iw.DashKit._anim = prev;
         return { ok: blocked };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("v78: PDC._anim flag is writable in preview iframe", canAnimDefined.ok, JSON.stringify(canAnimDefined));
+    ok("v78: DashKit._anim flag is writable in preview iframe", canAnimDefined.ok, JSON.stringify(canAnimDefined));
 
     // Navigate to the panel inspector by clicking a panel card in the preview iframe
     const pvFrameV78 = (page.frame({ name: "Dashboard preview" }) || page.frames().find(function (f) { return f !== page.mainFrame(); }));
@@ -20763,7 +20763,7 @@ function serve() {
     });
     ok("v78: p.animate=false and p.animDuration stored in spec correctly", animFalseResult.animFalse && animFalseResult.durOk, JSON.stringify(animFalseResult));
 
-    // 5. studio-render.js sets PDC._animD=1200 when the only panel has animDuration=1200
+    // 5. studio-render.js sets DashKit._animD=1200 when the only panel has animDuration=1200
     //    Use a single-panel spec to avoid overwrite by subsequent panels.
     const animDurResult = await page.evaluate(async function () {
       try {
@@ -20782,10 +20782,10 @@ function serve() {
     const animDurInIframe = await page.evaluate(function () {
       try {
         var iw = document.getElementById("preview").contentWindow;
-        return { animD: iw.PDC._animD, anim: iw.PDC._anim };
+        return { animD: iw.DashKit._animD, anim: iw.DashKit._anim };
       } catch (e) { return { animD: null, err: e.message }; }
     });
-    ok("v78: p.animDuration=1200 sets PDC._animD=1200 in preview iframe", animDurInIframe.animD === 1200, JSON.stringify(animDurInIframe));
+    ok("v78: p.animDuration=1200 sets DashKit._animD=1200 in preview iframe", animDurInIframe.animD === 1200, JSON.stringify(animDurInIframe));
 
     // Restore clean spec
     await page.evaluate(async function () {
@@ -20906,7 +20906,7 @@ function serve() {
     });
     ok("v80: panel inspector shows Target line section with label + position slider", targetLineSec.found && targetLineSec.hasInput && targetLineSec.hasSlider, JSON.stringify(targetLineSec));
 
-    // 2. Setting p.targetLine in spec causes .pdc-target-line element in preview iframe
+    // 2. Setting p.targetLine in spec causes .dk-target-line element in preview iframe
     const tlRenders = await page.evaluate(async function () {
       try {
         var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
@@ -20923,14 +20923,14 @@ function serve() {
     const tlEl = await page.evaluate(function () {
       try {
         var iw = document.getElementById("preview").contentWindow;
-        var tlEls = iw.document.querySelectorAll(".pdc-target-line");
-        var lblEls = iw.document.querySelectorAll(".pdc-target-label");
+        var tlEls = iw.document.querySelectorAll(".dk-target-line");
+        var lblEls = iw.document.querySelectorAll(".dk-target-label");
         return { count: tlEls.length, labelText: lblEls.length ? lblEls[0].textContent : null };
       } catch (e) { return { count: 0, err: e.message }; }
     });
-    ok("v80: p.targetLine renders .pdc-target-line in preview iframe with correct label", tlEl.count > 0 && tlEl.labelText === "Target", JSON.stringify(tlEl));
+    ok("v80: p.targetLine renders .dk-target-line in preview iframe with correct label", tlEl.count > 0 && tlEl.labelText === "Target", JSON.stringify(tlEl));
 
-    // 3. Exported CDF HTML includes pdc-target-line CSS
+    // 3. Exported CDF HTML includes dk-target-line CSS
     const tlExportCss = await page.evaluate(async function () {
       try {
         var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
@@ -20939,10 +20939,10 @@ function serve() {
         }
         window.__studioLoad(freshSpec);
         var html = Studio.buildHtml(window.__STUDIO_STATE.spec, window.__STUDIO_STATE.assets, { preview: false });
-        return { hasCss: html.indexOf("pdc-target-line") >= 0, hasLabel: html.indexOf("Budget") >= 0 };
+        return { hasCss: html.indexOf("dk-target-line") >= 0, hasLabel: html.indexOf("Budget") >= 0 };
       } catch (e) { return { hasCss: false, err: e.message }; }
     });
-    ok("v80: exported CDF HTML includes pdc-target-line CSS and label", tlExportCss.hasCss && tlExportCss.hasLabel, JSON.stringify(tlExportCss));
+    ok("v80: exported CDF HTML includes dk-target-line CSS and label", tlExportCss.hasCss && tlExportCss.hasLabel, JSON.stringify(tlExportCss));
 
     // Restore clean spec
     await page.evaluate(async function () {
@@ -20974,7 +20974,7 @@ function serve() {
     });
     ok("v81: panel inspector shows Reference band section with label + two sliders", refBandSec.found && refBandSec.hasInput && refBandSec.sliderCount >= 2, JSON.stringify(refBandSec));
 
-    // 2. Setting p.refBand in spec renders .pdc-ref-band in preview iframe
+    // 2. Setting p.refBand in spec renders .dk-ref-band in preview iframe
     const rbRenders = await page.evaluate(async function () {
       try {
         var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
@@ -20990,14 +20990,14 @@ function serve() {
     const rbEl = await page.evaluate(function () {
       try {
         var iw = document.getElementById("preview").contentWindow;
-        var rbEls = iw.document.querySelectorAll(".pdc-ref-band");
-        var lblEls = iw.document.querySelectorAll(".pdc-ref-label");
+        var rbEls = iw.document.querySelectorAll(".dk-ref-band");
+        var lblEls = iw.document.querySelectorAll(".dk-ref-label");
         return { count: rbEls.length, labelText: lblEls.length ? lblEls[0].textContent : null };
       } catch (e) { return { count: 0, err: e.message }; }
     });
-    ok("v81: p.refBand renders .pdc-ref-band with correct label in preview iframe", rbEl.count > 0 && rbEl.labelText === "Normal Range", JSON.stringify(rbEl));
+    ok("v81: p.refBand renders .dk-ref-band with correct label in preview iframe", rbEl.count > 0 && rbEl.labelText === "Normal Range", JSON.stringify(rbEl));
 
-    // 3. Exported CDF HTML includes pdc-ref-band CSS and label
+    // 3. Exported CDF HTML includes dk-ref-band CSS and label
     const rbExportCss = await page.evaluate(async function () {
       try {
         var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
@@ -21006,10 +21006,10 @@ function serve() {
         }
         window.__studioLoad(freshSpec);
         var html = Studio.buildHtml(window.__STUDIO_STATE.spec, window.__STUDIO_STATE.assets, { preview: false });
-        return { hasCss: html.indexOf("pdc-ref-band") >= 0, hasLabel: html.indexOf("Target Zone") >= 0 };
+        return { hasCss: html.indexOf("dk-ref-band") >= 0, hasLabel: html.indexOf("Target Zone") >= 0 };
       } catch (e) { return { hasCss: false, err: e.message }; }
     });
-    ok("v81: exported CDF HTML includes pdc-ref-band CSS and label", rbExportCss.hasCss && rbExportCss.hasLabel, JSON.stringify(rbExportCss));
+    ok("v81: exported CDF HTML includes dk-ref-band CSS and label", rbExportCss.hasCss && rbExportCss.hasLabel, JSON.stringify(rbExportCss));
 
     // Restore
     await page.evaluate(async function () {
@@ -21030,14 +21030,14 @@ function serve() {
     });
     ok("v82: histogram registered in Distribution group and CDF-only", histReg.found && histReg.group === "Distribution" && histReg.cdfOnly === true, JSON.stringify(histReg));
 
-    // 2. PDC.histogram extension defined in preview iframe
+    // 2. DashKit.histogram extension defined in preview iframe
     const histFn = await page.evaluate(function () {
       try {
         var iw = document.getElementById("preview").contentWindow;
-        return { defined: typeof iw.PDC !== "undefined" && typeof iw.PDC.histogram === "function" };
+        return { defined: typeof iw.DashKit !== "undefined" && typeof iw.DashKit.histogram === "function" };
       } catch (e) { return { defined: false, err: e.message }; }
     });
-    ok("v82: PDC.histogram extension defined in preview iframe", histFn.defined, JSON.stringify(histFn));
+    ok("v82: DashKit.histogram extension defined in preview iframe", histFn.defined, JSON.stringify(histFn));
 
     // 3. Histogram renders bars in preview iframe
     const histRender = await page.evaluate(async function () {
@@ -21191,16 +21191,16 @@ function serve() {
     });
     ok("v84: p.callout persists in spec", caSpecCheck.ok && caSpecCheck.text === "Peak" && caSpecCheck.x === 60, JSON.stringify(caSpecCheck));
 
-    // 3. Callout renders .pdc-callout SVG overlay in preview iframe
+    // 3. Callout renders .dk-callout SVG overlay in preview iframe
     await page.waitForTimeout(600);
     const caRenderCheck = await page.evaluate(function () {
       try {
         var iw = document.getElementById("preview").contentWindow;
-        var svgEls = iw.document.querySelectorAll(".pdc-callout");
+        var svgEls = iw.document.querySelectorAll(".dk-callout");
         return { count: svgEls.length, tagName: svgEls.length ? svgEls[0].tagName.toLowerCase() : null };
       } catch (e) { return { count: 0, err: e.message }; }
     });
-    ok("v84: p.callout renders .pdc-callout SVG overlay in preview iframe", caRenderCheck.count > 0 && caRenderCheck.tagName === "svg", JSON.stringify(caRenderCheck));
+    ok("v84: p.callout renders .dk-callout SVG overlay in preview iframe", caRenderCheck.count > 0 && caRenderCheck.tagName === "svg", JSON.stringify(caRenderCheck));
 
     // Restore clean spec
     await page.evaluate(async function () {
@@ -21314,14 +21314,14 @@ function serve() {
     ok("v86: polarArea registered in Composition group, CDF-only",
       paReg.label === "Polar area" && paReg.group === "Composition" && paReg.cdeNull, JSON.stringify(paReg));
 
-    // 2. PDC.polarArea defined in preview iframe after boot
+    // 2. DashKit.polarArea defined in preview iframe after boot
     const paDef = await page.evaluate(function () {
       try {
         var iw = document.getElementById("preview").contentWindow;
-        return { defined: typeof iw.PDC.polarArea === "function" };
+        return { defined: typeof iw.DashKit.polarArea === "function" };
       } catch (e) { return { defined: false, err: e.message }; }
     });
-    ok("v86: PDC.polarArea defined in preview iframe", paDef.defined, JSON.stringify(paDef));
+    ok("v86: DashKit.polarArea defined in preview iframe", paDef.defined, JSON.stringify(paDef));
 
     // 3. polarArea renders SVG wedge paths in the preview iframe
     await page.evaluate(async function () {
@@ -21345,7 +21345,7 @@ function serve() {
     ok("v86: polarArea renders arc wedge paths in preview iframe", paRender.pathCount >= 2, JSON.stringify(paRender));
 
     // ── v86: Period highlight (H-track) ─────────────────────────────────────────────
-    // 4. Period highlight is type-aware: .pdc-period is NOT rendered for polarArea
+    // 4. Period highlight is type-aware: .dk-period is NOT rendered for polarArea
     //    (polarArea is not in _phTypes), even when periodHighlight config is set.
     const phTypeAware = await page.evaluate(async function () {
       try {
@@ -21361,7 +21361,7 @@ function serve() {
     await page.waitForTimeout(700);
     const phSec = await page.evaluate(function () {
       var iw = document.getElementById("preview").contentWindow;
-      var divs = iw ? [].slice.call(iw.document.querySelectorAll(".pdc-period")) : [];
+      var divs = iw ? [].slice.call(iw.document.querySelectorAll(".dk-period")) : [];
       return { count: divs.length };
     });
     ok("v86: Period highlight is type-aware — not rendered for polarArea (excluded chart type)",
@@ -21383,7 +21383,7 @@ function serve() {
     });
     ok("v86: p.periodHighlight persists in spec", phSpec.ok && phSpec.label === "Q3 surge" && phSpec.xStart === 30, JSON.stringify(phSpec));
 
-    // 6. Period highlight renders .pdc-period div in preview iframe
+    // 6. Period highlight renders .dk-period div in preview iframe
     await page.evaluate(async function () {
       var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
       if (freshSpec.panels && freshSpec.panels.length) {
@@ -21396,12 +21396,12 @@ function serve() {
     const phRender = await page.evaluate(function () {
       try {
         var iw = document.getElementById("preview").contentWindow;
-        var divs = [].slice.call(iw.document.querySelectorAll(".pdc-period"));
-        var lbl = iw.document.querySelector(".pdc-period-label");
+        var divs = [].slice.call(iw.document.querySelectorAll(".dk-period"));
+        var lbl = iw.document.querySelector(".dk-period-label");
         return { count: divs.length, label: lbl ? lbl.textContent : null };
       } catch (e) { return { count: 0, err: e.message }; }
     });
-    ok("v86: Period highlight renders .pdc-period in preview iframe",
+    ok("v86: Period highlight renders .dk-period in preview iframe",
       phRender.count >= 1 && phRender.label === "Q3 surge", JSON.stringify(phRender));
 
     // 7. Exported CDF HTML includes periodHighlightCss and embeds p.periodHighlight
@@ -21413,10 +21413,10 @@ function serve() {
         }
         window.__studioLoad(freshSpec);
         var html = Studio.buildHtml(window.__STUDIO_STATE.spec, window.__STUDIO_STATE.assets, { preview: false });
-        return { hasCss: html.indexOf("pdc-period") >= 0, hasSpec: html.indexOf("periodHighlight") >= 0 };
+        return { hasCss: html.indexOf("dk-period") >= 0, hasSpec: html.indexOf("periodHighlight") >= 0 };
       } catch (e) { return { hasCss: false, err: e.message }; }
     });
-    ok("v86: exported CDF HTML includes pdc-period CSS and embeds periodHighlight config",
+    ok("v86: exported CDF HTML includes dk-period CSS and embeds periodHighlight config",
       phExport.hasCss && phExport.hasSpec, JSON.stringify(phExport));
 
     // Restore clean spec
@@ -21489,7 +21489,7 @@ function serve() {
     });
     ok("v87: p.eventMarkers persists in spec", emSpec.ok && emSpec.label === "Launch" && emSpec.xPct === 40, JSON.stringify(emSpec));
 
-    // 4. .pdc-event-mark renders in preview iframe for a line chart
+    // 4. .dk-event-mark renders in preview iframe for a line chart
     await page.evaluate(async function () {
       var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
       if (freshSpec.panels && freshSpec.panels.length) {
@@ -21502,12 +21502,12 @@ function serve() {
     const emRender = await page.evaluate(function () {
       try {
         var iw = document.getElementById("preview").contentWindow;
-        var marks = [].slice.call(iw.document.querySelectorAll(".pdc-event-mark"));
-        var lbl = iw.document.querySelector(".pdc-event-mark-label");
+        var marks = [].slice.call(iw.document.querySelectorAll(".dk-event-mark"));
+        var lbl = iw.document.querySelector(".dk-event-mark-label");
         return { count: marks.length, label: lbl ? lbl.textContent : null };
       } catch (e) { return { count: 0, err: e.message }; }
     });
-    ok("v87: .pdc-event-mark renders in preview iframe with correct label", emRender.count >= 1 && emRender.label === "Launch", JSON.stringify(emRender));
+    ok("v87: .dk-event-mark renders in preview iframe with correct label", emRender.count >= 1 && emRender.label === "Launch", JSON.stringify(emRender));
 
     // 5. Point annotations section visible in scatter chart inspector
     await page.evaluate(async function () {
@@ -21548,7 +21548,7 @@ function serve() {
     });
     ok("v87: p.scatterAnnotations persists in spec", saSpec.ok && saSpec.text === "Outlier" && saSpec.xPct === 60, JSON.stringify(saSpec));
 
-    // 7. .pdc-pt-annot renders in preview iframe for a scatter chart
+    // 7. .dk-pt-annot renders in preview iframe for a scatter chart
     await page.evaluate(async function () {
       var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
       if (freshSpec.panels && freshSpec.panels.length) {
@@ -21562,12 +21562,12 @@ function serve() {
     const saRender = await page.evaluate(function () {
       try {
         var iw = document.getElementById("preview").contentWindow;
-        var divs = [].slice.call(iw.document.querySelectorAll(".pdc-pt-annot"));
-        var lbl = iw.document.querySelector(".pdc-pt-annot-txt");
+        var divs = [].slice.call(iw.document.querySelectorAll(".dk-pt-annot"));
+        var lbl = iw.document.querySelector(".dk-pt-annot-txt");
         return { count: divs.length, text: lbl ? lbl.textContent : null };
       } catch (e) { return { count: 0, err: e.message }; }
     });
-    ok("v87: .pdc-pt-annot renders in preview iframe with correct text", saRender.count >= 1 && saRender.text === "Outlier", JSON.stringify(saRender));
+    ok("v87: .dk-pt-annot renders in preview iframe with correct text", saRender.count >= 1 && saRender.text === "Outlier", JSON.stringify(saRender));
 
     // 8. Exported CDF HTML embeds both CSS constants and spec configs
     const v87Export = await page.evaluate(async function () {
@@ -21583,8 +21583,8 @@ function serve() {
         window.__studioLoad(freshSpec);
         var html = Studio.buildHtml(window.__STUDIO_STATE.spec, window.__STUDIO_STATE.assets, { preview: false });
         return {
-          hasEmCss: html.indexOf("pdc-event-mark") >= 0,
-          hasSaCss: html.indexOf("pdc-pt-annot") >= 0,
+          hasEmCss: html.indexOf("dk-event-mark") >= 0,
+          hasSaCss: html.indexOf("dk-pt-annot") >= 0,
           hasEmSpec: html.indexOf("eventMarkers") >= 0
         };
       } catch (e) { return { hasEmCss: false, err: e.message }; }
@@ -21696,7 +21696,7 @@ function serve() {
       } catch (e) { return { ok: false, err: e.message }; }
     });
     ok("v600: synthetic period-over-period KPI spec loads", v600Setup.ok, JSON.stringify(v600Setup));
-    await page.waitForTimeout(900); // let PDC.kpis' animateCount (750ms) settle before reading tile text
+    await page.waitForTimeout(900); // let DashKit.kpis' animateCount (750ms) settle before reading tile text
 
     // 2. k.periodCol persists in spec after (re)loading
     const v600SpecResult = await page.evaluate(function () {
@@ -23844,14 +23844,14 @@ function serve() {
     ok("F16: step chart registered in Studio.CHARTS (Trend group, CDF-only)",
       f16Reg.ok && f16Reg.group === "Trend" && !f16Reg.hasCde, JSON.stringify(f16Reg));
 
-    // F16-2: PDC.step defined in preview iframe
-    const f16Pdc = await page.evaluate(function () {
+    // F16-2: DashKit.step defined in preview iframe
+    const f16Dk = await page.evaluate(function () {
       try {
         var iw = document.getElementById("preview").contentWindow;
-        return { ok: typeof iw.PDC !== "undefined" && typeof iw.PDC.step === "function" };
+        return { ok: typeof iw.DashKit !== "undefined" && typeof iw.DashKit.step === "function" };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F16: PDC.step defined in preview iframe", f16Pdc.ok, JSON.stringify(f16Pdc));
+    ok("F16: DashKit.step defined in preview iframe", f16Dk.ok, JSON.stringify(f16Dk));
 
     // F16-3: step renders SVG dots in the preview iframe
     const f16Render = await page.evaluate(async function () {
@@ -23917,14 +23917,14 @@ function serve() {
     });
     ok("F17: violin registered in Studio.CHARTS (Distribution group)", f17Reg.ok, JSON.stringify(f17Reg));
 
-    // F17-2: PDC.violin is a function in the preview iframe after loading studio-charts.js
-    const f17Pdc = await page.evaluate(function () {
+    // F17-2: DashKit.violin is a function in the preview iframe after loading studio-charts.js
+    const f17Dk = await page.evaluate(function () {
       try {
         var iw = document.getElementById("preview").contentWindow;
-        return { ok: typeof iw.PDC !== "undefined" && typeof iw.PDC.violin === "function" };
+        return { ok: typeof iw.DashKit !== "undefined" && typeof iw.DashKit.violin === "function" };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F17: PDC.violin defined in preview iframe", f17Pdc.ok, JSON.stringify(f17Pdc));
+    ok("F17: DashKit.violin defined in preview iframe", f17Dk.ok, JSON.stringify(f17Dk));
 
     // F17-3: violin chart can be loaded into a panel spec
     const f17Load = await page.evaluate(async function () {
@@ -24015,7 +24015,7 @@ function serve() {
     const z6Before = await page.evaluate(function () {
       var sp = window.__STUDIO_STATE.spec;
       var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
-      return { hasImg: html.indexOf('<img class="pdc-logo"') >= 0, hasDefault: html.indexOf('<span class="pdc-logo">P</span>') >= 0 };
+      return { hasImg: html.indexOf('<img class="dk-logo"') >= 0, hasDefault: html.indexOf('<span class="dk-logo">P</span>') >= 0 };
     });
     ok("Z6: with no header logo set, the exported banner uses the default 'P' mark", !z6Before.hasImg && z6Before.hasDefault, JSON.stringify(z6Before));
 
@@ -24039,11 +24039,11 @@ function serve() {
       var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Header logo") >= 0; })[0];
       return {
         specSet: typeof sp.headerLogo === "string" && sp.headerLogo.indexOf("data:image/png") === 0,
-        exportedImg: html.indexOf('<img class="pdc-logo" src="' + sp.headerLogo + '"') >= 0,
+        exportedImg: html.indexOf('<img class="dk-logo" src="' + sp.headerLogo + '"') >= 0,
         hasRemoveBtn: !!(row && [].slice.call(row.querySelectorAll("button")).filter(function (b) { return /Remove/.test(b.textContent); })[0])
       };
     });
-    ok("Z6: uploading a logo sets spec.headerLogo (data: URL) and it renders as <img class=pdc-logo> in the exported CDF",
+    ok("Z6: uploading a logo sets spec.headerLogo (data: URL) and it renders as <img class=dk-logo> in the exported CDF",
       z6After.specSet && z6After.exportedImg && z6After.hasRemoveBtn, JSON.stringify(z6After));
 
     const z6Removed = await page.evaluate(function () {
@@ -24077,7 +24077,7 @@ function serve() {
       var rows = [].slice.call(document.querySelectorAll(".field"));
       var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Header link URL") >= 0; })[0];
       var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
-      return { fieldPresent: !!row, hasInput: !!(row && row.querySelector("input[type=text]")), hasPlainDiv: html.indexOf('<div class="pdc-brand">') >= 0, hasAnchor: html.indexOf('<a class="pdc-brand"') >= 0 };
+      return { fieldPresent: !!row, hasInput: !!(row && row.querySelector("input[type=text]")), hasPlainDiv: html.indexOf('<div class="dk-brand">') >= 0, hasAnchor: html.indexOf('<a class="dk-brand"') >= 0 };
     });
     ok("Z6: Dashboard inspector has a Header link URL field (text input)", z6LinkBefore.fieldPresent && z6LinkBefore.hasInput, JSON.stringify(z6LinkBefore));
     ok("Z6: with no header link set, the exported banner brand is a plain <div> (no unwanted <a>)",
@@ -24093,9 +24093,9 @@ function serve() {
       var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
       return {
         specSet: sp.headerLink === "https://example.com/portal",
-        exportedAnchor: html.indexOf('<a class="pdc-brand" href="https://example.com/portal" target="_blank" rel="noopener noreferrer">') >= 0,
+        exportedAnchor: html.indexOf('<a class="dk-brand" href="https://example.com/portal" target="_blank" rel="noopener noreferrer">') >= 0,
         newTab: html.indexOf('target="_blank" rel="noopener noreferrer"') >= 0,
-        titleInside: /<a class="pdc-brand"[^>]*>[\s\S]*?<span class="pdc-title">/.test(html)
+        titleInside: /<a class="dk-brand"[^>]*>[\s\S]*?<span class="dk-title">/.test(html)
       };
     });
     ok("Z6: setting a Header link URL sets spec.headerLink and wraps the banner brand in an <a target=_blank>",
@@ -24108,7 +24108,7 @@ function serve() {
       inp.value = ""; inp.dispatchEvent(new Event("input", { bubbles: true }));
       var sp = window.__STUDIO_STATE.spec;
       var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
-      return { headerLink: sp.headerLink, backToDiv: html.indexOf('<div class="pdc-brand">') >= 0 };
+      return { headerLink: sp.headerLink, backToDiv: html.indexOf('<div class="dk-brand">') >= 0 };
     });
     ok("Z6: clearing the Header link URL reverts the banner brand to a plain <div>",
       z6LinkCleared.headerLink === "" && z6LinkCleared.backToDiv, JSON.stringify(z6LinkCleared));
@@ -24130,14 +24130,14 @@ function serve() {
       var rows = [].slice.call(document.querySelectorAll(".field"));
       var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Header background color") >= 0; })[0];
       var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
-      // vendor/pdc-ui.css's own base rule always contains ".pdc-header{background:" (the default
+      // vendor/dashkit.css's own base rule always contains ".dk-header{background:" (the default
       // gradient) — the override CSS this feature adds is a SECOND occurrence later in the stylesheet
       // (last-declaration-wins), so "no override" means exactly one occurrence, not zero.
-      var occurrences = html.split(".pdc-header{background:").length - 1;
+      var occurrences = html.split(".dk-header{background:").length - 1;
       return { fieldPresent: !!row, hasColorInput: !!(row && row.querySelector("input[type=color]")), noOverrideCss: occurrences === 1 };
     });
     ok("Z6: Dashboard inspector has a Header background color field (color input)", z6BgBefore.fieldPresent && z6BgBefore.hasColorInput, JSON.stringify(z6BgBefore));
-    ok("Z6: with no header background set, the exported CSS carries only the base .pdc-header rule (no override)", z6BgBefore.noOverrideCss, JSON.stringify(z6BgBefore));
+    ok("Z6: with no header background set, the exported CSS carries only the base .dk-header rule (no override)", z6BgBefore.noOverrideCss, JSON.stringify(z6BgBefore));
 
     const z6BgAfter = await page.evaluate(function () {
       var rows = [].slice.call(document.querySelectorAll(".field"));
@@ -24147,9 +24147,9 @@ function serve() {
       inp.dispatchEvent(new Event("input", { bubbles: true }));
       var sp = window.__STUDIO_STATE.spec;
       var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
-      return { specSet: sp.headerBg === "#f5e9d6", cssHasFlatBg: html.indexOf(".pdc-header{background:#f5e9d6;color:#12213b}") >= 0 };
+      return { specSet: sp.headerBg === "#f5e9d6", cssHasFlatBg: html.indexOf(".dk-header{background:#f5e9d6;color:#12213b}") >= 0 };
     });
-    ok("Z6: picking a header background sets spec.headerBg and emits a flat .pdc-header fill with auto-contrast text",
+    ok("Z6: picking a header background sets spec.headerBg and emits a flat .dk-header fill with auto-contrast text",
       z6BgAfter.specSet && z6BgAfter.cssHasFlatBg, JSON.stringify(z6BgAfter));
 
     const z6BgReset = await page.evaluate(function () {
@@ -24170,7 +24170,7 @@ function serve() {
       var rows = [].slice.call(document.querySelectorAll(".field"));
       var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Title size") >= 0; })[0];
       var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
-      return { fieldPresent: !!row, hasSelect: !!(row && row.querySelector("select")), noOverrideCss: html.indexOf(".pdc-title{font-size:") < 0 };
+      return { fieldPresent: !!row, hasSelect: !!(row && row.querySelector("select")), noOverrideCss: html.indexOf(".dk-title{font-size:") < 0 };
     });
     ok("Z6: Dashboard inspector has a Title size field (select) with no CSS override when unset",
       z6TitleSizeBefore.fieldPresent && z6TitleSizeBefore.hasSelect && z6TitleSizeBefore.noOverrideCss, JSON.stringify(z6TitleSizeBefore));
@@ -24182,9 +24182,9 @@ function serve() {
       sel.value = "xl"; sel.dispatchEvent(new Event("change", { bubbles: true }));
       var sp = window.__STUDIO_STATE.spec;
       var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
-      return { specSet: sp.titleSize === "xl", cssOverride: html.indexOf(".pdc-title{font-size:27px}") >= 0 };
+      return { specSet: sp.titleSize === "xl", cssOverride: html.indexOf(".dk-title{font-size:27px}") >= 0 };
     });
-    ok("Z6: picking 'Extra large' sets spec.titleSize and emits a .pdc-title font-size override",
+    ok("Z6: picking 'Extra large' sets spec.titleSize and emits a .dk-title font-size override",
       z6TitleSizeAfter.specSet && z6TitleSizeAfter.cssOverride, JSON.stringify(z6TitleSizeAfter));
 
     // normalize() (internal to studio.js) rebuilds the in-memory spec from Studio.emptySpec() plus
@@ -24217,7 +24217,7 @@ function serve() {
       var rows = [].slice.call(document.querySelectorAll(".field"));
       var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Subtitle style") >= 0; })[0];
       var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
-      return { fieldPresent: !!row, hasSelect: !!(row && row.querySelector("select")), noOverrideCss: html.indexOf(".pdc-sub{font-") < 0 };
+      return { fieldPresent: !!row, hasSelect: !!(row && row.querySelector("select")), noOverrideCss: html.indexOf(".dk-sub{font-") < 0 };
     });
     ok("Z6: Dashboard inspector has a Subtitle style field (select) with no CSS override when unset",
       z6SubStyleBefore.fieldPresent && z6SubStyleBefore.hasSelect && z6SubStyleBefore.noOverrideCss, JSON.stringify(z6SubStyleBefore));
@@ -24229,9 +24229,9 @@ function serve() {
       sel.value = "bold-italic"; sel.dispatchEvent(new Event("change", { bubbles: true }));
       var sp = window.__STUDIO_STATE.spec;
       var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
-      return { specSet: sp.subtitleStyle === "bold-italic", cssOverride: html.indexOf(".pdc-sub{font-weight:800;font-style:italic}") >= 0 };
+      return { specSet: sp.subtitleStyle === "bold-italic", cssOverride: html.indexOf(".dk-sub{font-weight:800;font-style:italic}") >= 0 };
     });
-    ok("Z6: picking 'Bold italic' sets spec.subtitleStyle and emits a matching .pdc-sub CSS override",
+    ok("Z6: picking 'Bold italic' sets spec.subtitleStyle and emits a matching .dk-sub CSS override",
       z6SubStyleAfter.specSet && z6SubStyleAfter.cssOverride, JSON.stringify(z6SubStyleAfter));
 
     const z6SubStyleReopen = await page.evaluate(function () {
@@ -24350,11 +24350,11 @@ function serve() {
       var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
       return {
         titleTag: html.indexOf("<title>APAC — Weekly Ops Review —") >= 0,
-        brandTitle: html.indexOf('<span class="pdc-title">APAC — Weekly Ops Review</span>') >= 0,
+        brandTitle: html.indexOf('<span class="dk-title">APAC — Weekly Ops Review</span>') >= 0,
         rawTitleUntouched: sp.title === "{{region}} — Weekly Ops Review" // editing field itself must keep the raw token
       };
     });
-    ok("N-DEV: buildHtml substitutes {{key}} in both the <title> tag and the banner .pdc-title span",
+    ok("N-DEV: buildHtml substitutes {{key}} in both the <title> tag and the banner .dk-title span",
       tvRender.titleTag && tvRender.brandTitle, JSON.stringify(tvRender));
     ok("N-DEV: the editable spec.title itself keeps the raw {{key}} token (substitution happens only at render)",
       tvRender.rawTitleUntouched, JSON.stringify(tvRender));
@@ -24412,8 +24412,8 @@ function serve() {
     const tvPanelRendered = await page.evaluate(function () {
       var ifr = document.getElementById("preview");
       var doc = ifr && ifr.contentWindow && ifr.contentWindow.document;
-      var titleEl = doc && doc.querySelector("[data-panel-id] .pdc-h-t");
-      var noteEl = doc && doc.querySelector("[data-panel-id] .pdc-panel-note");
+      var titleEl = doc && doc.querySelector("[data-panel-id] .dk-h-t");
+      var noteEl = doc && doc.querySelector("[data-panel-id] .dk-panel-note");
       var titleNode = titleEl && titleEl.firstChild; // ignore a possible trailing info-dot icon appended after the text
       return {
         titleText: titleEl ? (titleNode && titleNode.nodeType === 3 ? titleNode.textContent : titleEl.textContent).trim() : null,
@@ -24429,7 +24429,7 @@ function serve() {
     // Double-click-to-rename must edit the RAW template string, not the resolved display text —
     // otherwise committing the rename would silently bake the resolved value back into the spec.
     const tvPanelFrame = (page.frame({ name: "Dashboard preview" }) || page.frames().find((f) => f !== page.mainFrame()));
-    await tvPanelFrame.locator("[data-panel-id] .pdc-h-t").first().dblclick();
+    await tvPanelFrame.locator("[data-panel-id] .dk-h-t").first().dblclick();
     await page.waitForTimeout(120);
     const tvRenameValue = await tvPanelFrame.evaluate(function () {
       var inp = document.querySelector(".sr-rename");
@@ -24698,8 +24698,8 @@ function serve() {
     // Z14 architecture-gap FIX (2026-07-04, same run as the test update above): the exported
     // Dashboard Framework now has a real runtime query path for DuckDB/SQLite. Verify (1) lean
     // bundling — the connector façade is only inlined when that DA kind is actually used — and
-    // (2) studio-render.js's PDC.cda dispatch genuinely reaches Studio.DuckDB/SQLiteHttp.query()
-    // once no PDC_MOCK data is present (i.e. a real deployment), not a legacy CDA fetch that
+    // (2) studio-render.js's DashKit.cda dispatch genuinely reaches Studio.DuckDB/SQLiteHttp.query()
+    // once no DASHKIT_MOCK data is present (i.e. a real deployment), not a legacy CDA fetch that
     // would 404 for a DA with no server-side definition.
     console.log("\n• Z14 fix: exported dashboards can now query DuckDB/SQLite live");
     const z14Bundling = await page.evaluate(function () {
@@ -24725,10 +24725,10 @@ function serve() {
     ok("Z14 fix: an httpvfs-only export bundles the SQLite façade but not the DuckDB one", z14Bundling.httpvfsHasFacade && z14Bundling.httpvfsOmitsDuckdb, JSON.stringify(z14Bundling));
     ok("Z14 fix: a dashboard using neither connector bundles neither façade (stays lean)", z14Bundling.plainOmitsBoth, JSON.stringify(z14Bundling));
 
-    // Functional dispatch check — load the REAL exported HTML (no PDC_MOCK, zero panels so the
-    // auto-boot never itself calls PDC.cda) into a throwaway iframe, stub Studio.DuckDB.query
+    // Functional dispatch check — load the REAL exported HTML (no DASHKIT_MOCK, zero panels so the
+    // auto-boot never itself calls DashKit.cda) into a throwaway iframe, stub Studio.DuckDB.query
     // inside it (the network boundary, same rationale as the builder's own Run-live tests above),
-    // then call PDC.cda directly and confirm it reaches the stub.
+    // then call DashKit.cda directly and confirm it reaches the stub.
     const z14DuckDispatch = await page.evaluate(async function () {
       var assets = window.__STUDIO_STATE.assets;
       var spec = {
@@ -24742,11 +24742,11 @@ function serve() {
       await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
       var iw = ifr.contentWindow;
       iw.Studio.DuckDB.query = function () { return Promise.resolve({ cols: ["x"], rows: [[42]] }); };
-      var result = await iw.PDC.cda("d1", {});
+      var result = await iw.DashKit.cda("d1", {});
       document.body.removeChild(ifr);
       return { cols: result.cols, rows: result.rows, colIdx: result.col("x") };
     });
-    ok("Z14 fix: PDC.cda dispatches a duckdb DA to Studio.DuckDB.query() in the real exported bundle",
+    ok("Z14 fix: DashKit.cda dispatches a duckdb DA to Studio.DuckDB.query() in the real exported bundle",
       z14DuckDispatch.cols.join(",") === "x" && z14DuckDispatch.rows.length === 1 && z14DuckDispatch.rows[0][0] === 42 && z14DuckDispatch.colIdx === 0,
       JSON.stringify(z14DuckDispatch));
 
@@ -24763,11 +24763,11 @@ function serve() {
       await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
       var iw = ifr.contentWindow;
       iw.Studio.SQLiteHttp.query = function () { return Promise.resolve({ cols: ["x"], rows: [[7]] }); };
-      var result = await iw.PDC.cda("d1", {});
+      var result = await iw.DashKit.cda("d1", {});
       document.body.removeChild(ifr);
       return { cols: result.cols, rows: result.rows, colIdx: result.col("x") };
     });
-    ok("Z14 fix: PDC.cda dispatches an httpvfs DA to Studio.SQLiteHttp.query() in the real exported bundle",
+    ok("Z14 fix: DashKit.cda dispatches an httpvfs DA to Studio.SQLiteHttp.query() in the real exported bundle",
       z14SqliteDispatch.cols.join(",") === "x" && z14SqliteDispatch.rows.length === 1 && z14SqliteDispatch.rows[0][0] === 7 && z14SqliteDispatch.colIdx === 0,
       JSON.stringify(z14SqliteDispatch));
 
@@ -24793,7 +24793,7 @@ function serve() {
       await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
       var iw = ifr.contentWindow;
       iw.Studio.DuckDB.query = function () { return Promise.resolve({ cols: ["revenue", "cost"], rows: [[100, 40], [200, 150]] }); };
-      var result = await iw.PDC.cda("d1", {});
+      var result = await iw.DashKit.cda("d1", {});
       document.body.removeChild(ifr);
       return { cols: result.cols, rows: result.rows, profitIdx: result.col("profit") };
     });
@@ -24815,7 +24815,7 @@ function serve() {
       await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
       var iw = ifr.contentWindow;
       iw.Studio.DuckDB.query = function () { return Promise.resolve({ cols: ["x"], rows: [[42]] }); };
-      var result = await iw.PDC.cda("d1", {});
+      var result = await iw.DashKit.cda("d1", {});
       document.body.removeChild(ifr);
       return { cols: result.cols, rows: result.rows };
     });
@@ -24827,7 +24827,7 @@ function serve() {
     // connectors (Snowflake/Databricks/BigQuery/Generic SQL) get the same exported-runtime fix
     // DuckDB/SQLite got above — but they carry a real secret (access token / auth header), so the
     // fix has two halves: (1) exporters.js must never embed that secret in the output HTML, (2)
-    // studio-render.js's PDC.cda dispatch must still be able to run the live query once someone
+    // studio-render.js's DashKit.cda dispatch must still be able to run the live query once someone
     // supplies it at open time (prompted, kept in-memory only for the page's lifetime).
     console.log("\n• Post-overhaul item 3 fix: exported dashboards can query the 4 credential connectors live");
 
@@ -24888,7 +24888,7 @@ function serve() {
 
     // Functional dispatch — load the REAL (redacted) exported HTML into a throwaway iframe, stub
     // window.prompt (the credential-collection boundary) and each engine's own .query() (the
-    // network boundary, same rationale as the DuckDB/SQLite tests above), then call PDC.cda
+    // network boundary, same rationale as the DuckDB/SQLite tests above), then call DashKit.cda
     // directly and confirm it prompts for the missing secret and runs with the freshly-supplied
     // value — never the original, now-redacted one.
     const credDispatch = await page.evaluate(async function () {
@@ -24913,8 +24913,8 @@ function serve() {
         var seenCfg = null, promptCalls = 0;
         iw.window.prompt = function () { promptCalls++; return "fresh-prompted-secret"; };
         iw.Studio[c.engineName].query = function (cfg) { seenCfg = cfg; return Promise.resolve({ cols: ["x"], rows: [[1]] }); };
-        var result = await iw.PDC.cda("d1", {});
-        await iw.PDC.cda("d1", {}); // second call — should reuse the cached secret, not re-prompt
+        var result = await iw.DashKit.cda("d1", {});
+        await iw.DashKit.cda("d1", {}); // second call — should reuse the cached secret, not re-prompt
         document.body.removeChild(ifr);
         var cfgOk = Object.keys(c.expectCfg).every(function (k) { return seenCfg[k] === c.expectCfg[k]; });
         results.push({
@@ -24928,9 +24928,9 @@ function serve() {
       return results;
     });
     credDispatch.forEach(function (r) {
-      ok("Post-overhaul item 3: PDC.cda dispatches a " + r.kind + " DA to its live connector with the freshly-prompted (never the original) secret",
+      ok("Post-overhaul item 3: DashKit.cda dispatches a " + r.kind + " DA to its live connector with the freshly-prompted (never the original) secret",
         r.gotRows && r.secretIsFresh && r.cfgOk, JSON.stringify(r));
-      ok("Post-overhaul item 3: PDC.cda caches the prompted secret for " + r.kind + " so a second call doesn't re-prompt",
+      ok("Post-overhaul item 3: DashKit.cda caches the prompted secret for " + r.kind + " so a second call doesn't re-prompt",
         r.promptCalledOnce, JSON.stringify(r));
     });
 
@@ -24946,7 +24946,7 @@ function serve() {
       var iw = ifr.contentWindow;
       var promptCalled = false;
       iw.window.prompt = function () { promptCalled = true; return "x"; };
-      try { await iw.PDC.cda("d1", {}); } catch (e) { /* expected — no CDA endpoint in this test harness */ }
+      try { await iw.DashKit.cda("d1", {}); } catch (e) { /* expected — no CDA endpoint in this test harness */ }
       document.body.removeChild(ifr);
       return { promptCalled: promptCalled };
     });
@@ -24958,7 +24958,7 @@ function serve() {
     // four direct connectors above, there's nothing on da.kind to redact/dispatch on, since the
     // adapter identity and credentials live on a SEPARATE Workspace connection row. Starting with
     // Turso (the reference remote adapter): exporters.js resolves da.connectionId against the live
-    // Workspace and stamps da.connAdapter/da.connCfg + needsSecret; studio-render.js's PDC.cda
+    // Workspace and stamps da.connAdapter/da.connCfg + needsSecret; studio-render.js's DashKit.cda
     // gains a parallel CONN_ENGINES dispatch mirroring CRED_ENGINES exactly.
     console.log("\n• Post-overhaul item 3 (connection-bound half): exported dashboards can query a Turso-backed dataset live");
 
@@ -25031,8 +25031,8 @@ function serve() {
       var seenCfg = null, promptCalls = 0;
       iw.window.prompt = function () { promptCalls++; return "fresh-prompted-secret"; };
       iw.Studio.tursoSource.queryData = function (cfg) { seenCfg = cfg; return Promise.resolve({ columns: ["x"], rows: [[1]] }); };
-      var result = await iw.PDC.cda("d1", {});
-      await iw.PDC.cda("d1", {}); // second call — should reuse the cached secret, not re-prompt
+      var result = await iw.DashKit.cda("d1", {});
+      await iw.DashKit.cda("d1", {}); // second call — should reuse the cached secret, not re-prompt
       document.body.removeChild(ifr);
       return {
         gotRows: result.rows.length === 1 && result.rows[0][0] === 1,
@@ -25041,9 +25041,9 @@ function serve() {
         promptCalledOnce: promptCalls === 1
       };
     });
-    ok("Post-overhaul item 3 (connection-bound): PDC.cda dispatches a Turso-backed DA to Studio.tursoSource.queryData with the freshly-prompted (never the original) token",
+    ok("Post-overhaul item 3 (connection-bound): DashKit.cda dispatches a Turso-backed DA to Studio.tursoSource.queryData with the freshly-prompted (never the original) token",
       connDispatch.gotRows && connDispatch.secretIsFresh && connDispatch.urlCarried, JSON.stringify(connDispatch));
-    ok("Post-overhaul item 3 (connection-bound): PDC.cda caches the prompted secret so a second call doesn't re-prompt",
+    ok("Post-overhaul item 3 (connection-bound): DashKit.cda caches the prompted secret so a second call doesn't re-prompt",
       connDispatch.promptCalledOnce, JSON.stringify(connDispatch));
 
     const connErrorPropagates = await page.evaluate(async function () {
@@ -25058,12 +25058,12 @@ function serve() {
       await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
       var iw = ifr.contentWindow;
       iw.window.prompt = function () { return "t"; };
-      // queryData resolves an in-band {error}, never rejects — PDC.cda must turn that into a
+      // queryData resolves an in-band {error}, never rejects — DashKit.cda must turn that into a
       // rejection so it flows through the SAME .catch(fail) every other engine's failure does
-      // (vendor/pdc-ui.js's PDC.cda(...).then(paint).catch(fail) — a pristine file, never touched).
+      // (vendor/dashkit.js's DashKit.cda(...).then(paint).catch(fail) — a pristine file, never touched).
       iw.Studio.tursoSource.queryData = function () { return Promise.resolve({ columns: [], rows: [], error: "Turso rejected the auth token (401/403)" }); };
       var threw = false, message = "";
-      try { await iw.PDC.cda("d1", {}); } catch (e) { threw = true; message = e.message; }
+      try { await iw.DashKit.cda("d1", {}); } catch (e) { threw = true; message = e.message; }
       document.body.removeChild(ifr);
       return { threw: threw, message: message };
     });
@@ -25083,7 +25083,7 @@ function serve() {
       var iw = ifr.contentWindow;
       var promptCalled = false;
       iw.window.prompt = function () { promptCalled = true; return "x"; };
-      try { await iw.PDC.cda("d1", {}); } catch (e) { /* expected — no CDA endpoint in this test harness */ }
+      try { await iw.DashKit.cda("d1", {}); } catch (e) { /* expected — no CDA endpoint in this test harness */ }
       document.body.removeChild(ifr);
       return { promptCalled: promptCalled };
     });
@@ -25175,7 +25175,7 @@ function serve() {
       var seenCfg = null, seenDataset = null;
       iw.window.prompt = function () { return "fresh-prompted-jwt"; };
       iw.Studio.postgrestSource.queryData = function (cfg, dataset) { seenCfg = cfg; seenDataset = dataset; return Promise.resolve({ columns: ["region", "total"], rows: [["IA", 1]] }); };
-      var result = await iw.PDC.cda("d1", {});
+      var result = await iw.DashKit.cda("d1", {});
       document.body.removeChild(ifr);
       return {
         gotRows: result.rows.length === 1 && result.rows[0][0] === "IA",
@@ -25184,13 +25184,13 @@ function serve() {
         gotTableQuery: seenDataset && seenDataset.table === "orders" && seenDataset.query === "select=region,total"
       };
     });
-    ok("Post-overhaul item 3 (PostgREST): PDC.cda dispatches a PostgREST-backed DA to Studio.postgrestSource.queryData with the freshly-prompted token + non-secret cfg fields",
+    ok("Post-overhaul item 3 (PostgREST): DashKit.cda dispatches a PostgREST-backed DA to Studio.postgrestSource.queryData with the freshly-prompted token + non-secret cfg fields",
       pgDispatch.gotRows && pgDispatch.secretIsFresh && pgDispatch.schemaCarried, JSON.stringify(pgDispatch));
     ok("Post-overhaul item 3 (PostgREST): the dispatched dataset def carries da.dataset's {table,query} — NOT da.sql/da.query, which dsToDA always blanks for a table-kind DA",
       pgDispatch.gotTableQuery, JSON.stringify(pgDispatch));
 
     // Real end-to-end, UNSTUBBED: pgDispatch above (and its Turso sibling) replace
-    // Studio.postgrestSource.queryData with a spy before calling it, which proves PDC.cda
+    // Studio.postgrestSource.queryData with a spy before calling it, which proves DashKit.cda
     // dispatches correctly but never actually executes the bundled postgrest.js's own queryData —
     // exactly the gap that hid this bug. queryData used to read Studio.WS.postgrestQueryData
     // (app/sources/schema.js), which the exported bundle never loads, so a real deployed dashboard
@@ -25209,7 +25209,7 @@ function serve() {
       await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
       var iw = ifr.contentWindow;
       var thrown = null, result = null;
-      try { result = await iw.PDC.cda("d1", {}); } catch (e) { thrown = e.message; }
+      try { result = await iw.DashKit.cda("d1", {}); } catch (e) { thrown = e.message; }
       document.body.removeChild(ifr);
       return { thrown: thrown, cols: result && result.cols, rows: result && JSON.stringify(result.rows) };
     });
@@ -25282,7 +25282,7 @@ function serve() {
       var seenCfg = null, seenDataset = null;
       iw.window.prompt = function () { return "fresh-prompted-key"; };
       iw.Studio.supabaseSource.queryData = function (cfg, dataset) { seenCfg = cfg; seenDataset = dataset; return Promise.resolve({ columns: ["region", "total"], rows: [["IA", 1]] }); };
-      var result = await iw.PDC.cda("d1", {});
+      var result = await iw.DashKit.cda("d1", {});
       document.body.removeChild(ifr);
       return {
         gotRows: result.rows.length === 1 && result.rows[0][0] === "IA",
@@ -25290,7 +25290,7 @@ function serve() {
         gotTableQuery: seenDataset && seenDataset.table === "orders" && seenDataset.query === "select=region,total"
       };
     });
-    ok("Post-overhaul item 3 (Supabase): PDC.cda dispatches a Supabase-backed DA to Studio.supabaseSource.queryData with the freshly-prompted key + non-secret cfg fields",
+    ok("Post-overhaul item 3 (Supabase): DashKit.cda dispatches a Supabase-backed DA to Studio.supabaseSource.queryData with the freshly-prompted key + non-secret cfg fields",
       sbDispatch.gotRows && sbDispatch.secretIsFresh, JSON.stringify(sbDispatch));
     ok("Post-overhaul item 3 (Supabase): the dispatched dataset def carries da.dataset's {table,query} — NOT da.sql/da.query, which dsToDA always blanks for a table-kind DA",
       sbDispatch.gotTableQuery, JSON.stringify(sbDispatch));
@@ -25314,12 +25314,12 @@ function serve() {
       await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
       var iw = ifr.contentWindow;
       // The connection's key IS set (Supabase's anon key is effectively always required —
-      // see the redaction test above), so needsSecret is stamped and PDC.cda prompts for it
+      // see the redaction test above), so needsSecret is stamped and DashKit.cda prompts for it
       // once at open, same as every other CRED_ENGINES/CONN_ENGINES adapter — stub just the
       // prompt, never queryData itself, so the real (unstubbed) adapter code still runs.
       iw.window.prompt = function () { return "sb_publishable_valid"; };
       var thrown = null, result = null;
-      try { result = await iw.PDC.cda("d1", {}); } catch (e) { thrown = e.message; }
+      try { result = await iw.DashKit.cda("d1", {}); } catch (e) { thrown = e.message; }
       document.body.removeChild(ifr);
       return { thrown: thrown, cols: result && result.cols, rows: result && JSON.stringify(result.rows) };
     });
@@ -25391,7 +25391,7 @@ function serve() {
       var seenCfg = null, seenDataset = null, promptCalled = false;
       iw.window.prompt = function () { promptCalled = true; return ""; };
       iw.Studio.gsheetsSource.queryData = function (cfg, dataset) { seenCfg = cfg; seenDataset = dataset; return Promise.resolve({ columns: ["item", "cost"], rows: [["Compute", 900]] }); };
-      var result = await iw.PDC.cda("d1", {});
+      var result = await iw.DashKit.cda("d1", {});
       document.body.removeChild(ifr);
       return {
         gotRows: result.rows.length === 1 && result.rows[0][0] === "Compute",
@@ -25400,7 +25400,7 @@ function serve() {
         gotSheetQuery: seenDataset && seenDataset.sheet === "Costs" && seenDataset.query === "select A, B"
       };
     });
-    ok("Post-overhaul item 3 (Google Sheets): PDC.cda dispatches a Sheets-backed DA to Studio.gsheetsSource.queryData with the connection's url cfg",
+    ok("Post-overhaul item 3 (Google Sheets): DashKit.cda dispatches a Sheets-backed DA to Studio.gsheetsSource.queryData with the connection's url cfg",
       gsDispatch.gotRows && gsDispatch.gotUrlCfg, JSON.stringify(gsDispatch));
     ok("Post-overhaul item 3 (Google Sheets): no credential prompt fires — a link-shared sheet has nothing to prompt for",
       gsDispatch.noPromptNeeded, JSON.stringify(gsDispatch));
@@ -25423,7 +25423,7 @@ function serve() {
       await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
       var iw = ifr.contentWindow;
       var thrown = null, result = null;
-      try { result = await iw.PDC.cda("d1", {}); } catch (e) { thrown = e.message; }
+      try { result = await iw.DashKit.cda("d1", {}); } catch (e) { thrown = e.message; }
       document.body.removeChild(ifr);
       return { thrown: thrown, cols: result && result.cols, rows: result && JSON.stringify(result.rows) };
     });
@@ -25493,7 +25493,7 @@ function serve() {
       var promptCalled = false;
       iw.window.prompt = function () { promptCalled = true; return ""; };
       var thrown = null, result = null;
-      try { result = await iw.PDC.cda("d1", {}); } catch (e) { thrown = e.message; }
+      try { result = await iw.DashKit.cda("d1", {}); } catch (e) { thrown = e.message; }
       document.body.removeChild(ifr);
       return {
         thrown: thrown,
@@ -25598,7 +25598,7 @@ function serve() {
         return "";
       };
       var thrown = null, result = null;
-      try { result = await iw.PDC.cda("d1", {}); } catch (e) { thrown = e.message; }
+      try { result = await iw.DashKit.cda("d1", {}); } catch (e) { thrown = e.message; }
       document.body.removeChild(ifr);
       return { thrown: thrown, cols: result && result.cols, rows: result && JSON.stringify(result.rows), promptCount: prompts.length };
     }, PORT);
@@ -25626,14 +25626,14 @@ function serve() {
     });
     ok("F18: bump registered in Studio.CHARTS (Trend group, labelCol+series fields)", f18Reg.ok, JSON.stringify(f18Reg));
 
-    // F18-2: PDC.bump is a function in the preview iframe (extension loaded)
-    const f18Pdc = await page.evaluate(function () {
+    // F18-2: DashKit.bump is a function in the preview iframe (extension loaded)
+    const f18Dk = await page.evaluate(function () {
       try {
         var iw = document.getElementById("preview").contentWindow;
-        return { ok: typeof iw.PDC !== "undefined" && typeof iw.PDC.bump === "function" };
+        return { ok: typeof iw.DashKit !== "undefined" && typeof iw.DashKit.bump === "function" };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F18: PDC.bump defined as function in preview iframe", f18Pdc.ok, JSON.stringify(f18Pdc));
+    ok("F18: DashKit.bump defined as function in preview iframe", f18Dk.ok, JSON.stringify(f18Dk));
 
     // F18-3: bump chart renders SVG with colored rank-position lines and dots
     const f18Render = await page.evaluate(async function () {
@@ -25745,14 +25745,14 @@ function serve() {
     });
     ok("F19: marimekko registered in Studio.CHARTS (Comparison group, labelCol/groupCol/valueCol fields)", f19Reg.ok, JSON.stringify(f19Reg));
 
-    // F19-2: PDC.marimekko is defined as a function in the preview iframe
-    const f19Pdc = await page.evaluate(function () {
+    // F19-2: DashKit.marimekko is defined as a function in the preview iframe
+    const f19Dk = await page.evaluate(function () {
       try {
         var iframeWin = document.getElementById("preview").contentWindow;
-        return { ok: typeof iframeWin.PDC.marimekko === "function" };
+        return { ok: typeof iframeWin.DashKit.marimekko === "function" };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F19: PDC.marimekko defined as function in preview iframe", f19Pdc.ok, JSON.stringify(f19Pdc));
+    ok("F19: DashKit.marimekko defined as function in preview iframe", f19Dk.ok, JSON.stringify(f19Dk));
 
     // F19-3: marimekko chart renders SVG rectangles (column segments)
     const f19Render = await page.evaluate(async function () {
@@ -25764,7 +25764,7 @@ function serve() {
         testEl.style.cssText = "width:480px;height:320px;position:absolute;left:-9999px";
         iframeDoc.body.appendChild(testEl);
         var iframeWin = document.getElementById("preview").contentWindow;
-        iframeWin.PDC.marimekko(testEl, {
+        iframeWin.DashKit.marimekko(testEl, {
           rows: [
             ["North", "Electronics", 120],
             ["North", "Apparel",      80],
@@ -25812,15 +25812,15 @@ function serve() {
     ok("F19: marimekko chart type card present in gallery (.chart-opt)", f19Thumb.ok, JSON.stringify(f19Thumb));
 
     // ── F20: Dumbbell chart ──────────────────────────────────────────────────
-    // F20-1: PDC.dumbbell extension exists in the iframe scope
+    // F20-1: DashKit.dumbbell extension exists in the iframe scope
     const f20Exists = await page.evaluate(function () {
       try {
         var fr = document.querySelector("#preview");
         var w = fr && (fr.contentWindow || fr.contentDocument && fr.contentDocument.defaultView);
-        return { ok: typeof (w && w.PDC && w.PDC.dumbbell) === "function" };
+        return { ok: typeof (w && w.DashKit && w.DashKit.dumbbell) === "function" };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F20: PDC.dumbbell extension exists in preview iframe", f20Exists.ok, JSON.stringify(f20Exists));
+    ok("F20: DashKit.dumbbell extension exists in preview iframe", f20Exists.ok, JSON.stringify(f20Exists));
 
     // F20-2: dumbbell chart type card appears in gallery
     const f20PanelId = "f20testpanel_" + Date.now();
@@ -25845,17 +25845,17 @@ function serve() {
     });
     ok("F20: dumbbell chart type card present in gallery", f20Gallery.ok, JSON.stringify(f20Gallery));
 
-    // F20-3: PDC.dumbbell renders SVG with connector lines and dots
+    // F20-3: DashKit.dumbbell renders SVG with connector lines and dots
     const f20Render = await page.evaluate(function () {
       try {
         var fr = document.querySelector("#preview");
         var iframeDoc = fr && (fr.contentDocument || fr.contentWindow.document);
         var w = fr && fr.contentWindow;
-        if (!w || !w.PDC || !w.PDC.dumbbell) return { ok: false, err: "no PDC.dumbbell" };
+        if (!w || !w.DashKit || !w.DashKit.dumbbell) return { ok: false, err: "no DashKit.dumbbell" };
         var testEl = iframeDoc.createElement("div");
         testEl.style.cssText = "width:380px;height:260px;position:absolute;left:-9999px";
         iframeDoc.body.appendChild(testEl);
-        w.PDC.dumbbell(testEl, {
+        w.DashKit.dumbbell(testEl, {
           items: [
             { label: "Product A", start: 42, end: 78 },
             { label: "Product B", start: 91, end: 55 },
@@ -25891,7 +25891,7 @@ function serve() {
         var spec = window.__STUDIO_STATE && window.__STUDIO_STATE.spec;
         var html = window.Studio.exportCDF(spec, {
           css:    "",
-          js:     "var PDC={}; PDC.cda=function(){return Promise.resolve({cols:[],rows:[]});};PDC.boot=function(){};",
+          js:     "var DashKit={}; DashKit.cda=function(){return Promise.resolve({cols:[],rows:[]});};DashKit.boot=function(){};",
           render: "",
           charts: ""
         }, "data.cda");
@@ -25907,7 +25907,7 @@ function serve() {
       try {
         var spec = window.__STUDIO_STATE && window.__STUDIO_STATE.spec;
         var html = window.Studio.previewHtml(spec, {
-          css: "", js: "var PDC={}; PDC.cda=function(){return Promise.resolve({cols:[],rows:[]});};PDC.boot=function(){};",
+          css: "", js: "var DashKit={}; DashKit.cda=function(){return Promise.resolve({cols:[],rows:[]});};DashKit.boot=function(){};",
           render: "", charts: ""
         }, {}, "data.cda");
         var noPrintBtn = html.indexOf("id='printBtn'") < 0 && html.indexOf('id="printBtn"') < 0;
@@ -25918,13 +25918,13 @@ function serve() {
 
     // H-print-3: exported CDF's print CSS carries the LF36 slice-1 polish — @page margin +
     // orphans/widows on text-heavy content — while keeping the pre-existing break-inside:avoid
-    // rules on .card/.pdc-kpis intact (never weaken this assertion).
+    // rules on .card/.dk-kpis intact (never weaken this assertion).
     const hPrintPolish = await page.evaluate(function () {
       try {
         var spec = window.__STUDIO_STATE && window.__STUDIO_STATE.spec;
         var html = window.Studio.exportCDF(spec, {
           css:    "",
-          js:     "var PDC={}; PDC.cda=function(){return Promise.resolve({cols:[],rows:[]});};PDC.boot=function(){};",
+          js:     "var DashKit={}; DashKit.cda=function(){return Promise.resolve({cols:[],rows:[]});};DashKit.boot=function(){};",
           render: "",
           charts: ""
         }, "data.cda");
@@ -25932,14 +25932,14 @@ function serve() {
           hasPageMargin: html.indexOf("@page{margin:12mm}") >= 0,
           hasOrphansWidows: /orphans:3;widows:3/.test(html),
           hasCardBreakInside: html.indexOf(".card{break-inside:avoid") >= 0,
-          hasKpiBreakInside: html.indexOf(".pdc-kpis{break-inside:avoid}") >= 0
+          hasKpiBreakInside: html.indexOf(".dk-kpis{break-inside:avoid}") >= 0
         };
       } catch (e) { return { err: e.message }; }
     });
     ok("H-print: exported CDF print CSS sets @page margin", hPrintPolish.hasPageMargin, JSON.stringify(hPrintPolish));
     ok("H-print: exported CDF print CSS sets orphans/widows:3 for text-heavy content", hPrintPolish.hasOrphansWidows, JSON.stringify(hPrintPolish));
     ok("H-print: exported CDF print CSS still avoids breaking .card across pages", hPrintPolish.hasCardBreakInside, JSON.stringify(hPrintPolish));
-    ok("H-print: exported CDF print CSS still avoids breaking .pdc-kpis across pages", hPrintPolish.hasKpiBreakInside, JSON.stringify(hPrintPolish));
+    ok("H-print: exported CDF print CSS still avoids breaking .dk-kpis across pages", hPrintPolish.hasKpiBreakInside, JSON.stringify(hPrintPolish));
 
     // ── LF36 slice 1: "PDF (print)" export menu entry ──────────────────────────
     console.log("\n• LF36: PDF (print) export menu entry");
@@ -26068,27 +26068,27 @@ function serve() {
     });
     ok("F21: packedBubble registered in Studio.CHARTS (Composition group, labelCol/valueCol)", f21Registry.ok, JSON.stringify(f21Registry));
 
-    // F21-2: PDC.packedBubble defined as a function in the preview iframe
-    const f21PdcDefined = await page.evaluate(function () {
+    // F21-2: DashKit.packedBubble defined as a function in the preview iframe
+    const f21DkDefined = await page.evaluate(function () {
       try {
         var fr = document.querySelector("#preview");
         var w  = fr && fr.contentWindow;
-        return { ok: !!(w && w.PDC && typeof w.PDC.packedBubble === "function") };
+        return { ok: !!(w && w.DashKit && typeof w.DashKit.packedBubble === "function") };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F21: PDC.packedBubble defined as function in preview iframe", f21PdcDefined.ok, JSON.stringify(f21PdcDefined));
+    ok("F21: DashKit.packedBubble defined as function in preview iframe", f21DkDefined.ok, JSON.stringify(f21DkDefined));
 
-    // F21-3: PDC.packedBubble renders SVG circles (one per data item)
+    // F21-3: DashKit.packedBubble renders SVG circles (one per data item)
     const f21Render = await page.evaluate(function () {
       try {
         var fr = document.querySelector("#preview");
         var iframeDoc = fr && (fr.contentDocument || fr.contentWindow.document);
         var w = fr && fr.contentWindow;
-        if (!w || !w.PDC || !w.PDC.packedBubble) return { ok: false, err: "no PDC.packedBubble" };
+        if (!w || !w.DashKit || !w.DashKit.packedBubble) return { ok: false, err: "no DashKit.packedBubble" };
         var testEl = iframeDoc.createElement("div");
         testEl.style.cssText = "width:400px;height:300px;position:absolute;left:-9999px";
         iframeDoc.body.appendChild(testEl);
-        w.PDC.packedBubble(testEl, {
+        w.DashKit.packedBubble(testEl, {
           items: [
             { label: "Alpha",   value: 120 },
             { label: "Beta",    value:  80 },
@@ -26106,7 +26106,7 @@ function serve() {
         return { ok: hasData, circles: circles.length };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F21: PDC.packedBubble renders SVG circles (one per data item)", f21Render.ok, JSON.stringify(f21Render));
+    ok("F21: DashKit.packedBubble renders SVG circles (one per data item)", f21Render.ok, JSON.stringify(f21Render));
 
     // F21-4: packedBubble chart type card present in the gallery
     const f21Card = await page.evaluate(function () {
@@ -26166,17 +26166,17 @@ function serve() {
     });
     ok("F22: wordCloud registered in Studio.CHARTS (Composition group, labelCol/valueCol)", f22Registry.ok, JSON.stringify(f22Registry));
 
-    // F22-2: PDC.wordCloud defined as a function in the preview iframe
-    var f22PdcDefined = await page.evaluate(function () {
+    // F22-2: DashKit.wordCloud defined as a function in the preview iframe
+    var f22DkDefined = await page.evaluate(function () {
       var w = document.getElementById("preview") && document.getElementById("preview").contentWindow;
-      return { ok: !!(w && w.PDC && typeof w.PDC.wordCloud === "function") };
+      return { ok: !!(w && w.DashKit && typeof w.DashKit.wordCloud === "function") };
     });
-    ok("F22: PDC.wordCloud defined as function in preview iframe", f22PdcDefined.ok, JSON.stringify(f22PdcDefined));
+    ok("F22: DashKit.wordCloud defined as function in preview iframe", f22DkDefined.ok, JSON.stringify(f22DkDefined));
 
-    // F22-3: PDC.wordCloud renders SVG text elements (one per data item placed)
+    // F22-3: DashKit.wordCloud renders SVG text elements (one per data item placed)
     var f22Render = await page.evaluate(function () {
       var w = document.getElementById("preview") && document.getElementById("preview").contentWindow;
-      if (!w || !w.PDC || !w.PDC.wordCloud) return { ok: false, err: "no PDC.wordCloud" };
+      if (!w || !w.DashKit || !w.DashKit.wordCloud) return { ok: false, err: "no DashKit.wordCloud" };
       var testEl = w.document.createElement("div");
       testEl.style.cssText = "width:400px;height:320px;position:fixed;top:-9999px;left:-9999px;";
       w.document.body.appendChild(testEl);
@@ -26187,14 +26187,14 @@ function serve() {
         { label: "Sales",   value: 250 },
         { label: "Region",  value: 100 }
       ];
-      w.PDC.wordCloud(testEl, { items: items, height: 320 });
+      w.DashKit.wordCloud(testEl, { items: items, height: 320 });
       var textEls = testEl.querySelectorAll("svg text");
       w.document.body.removeChild(testEl);
       if (textEls.length === 0) return { ok: false, err: "no <text> elements in SVG" };
       if (textEls.length < 2)   return { ok: false, err: "too few words placed: " + textEls.length };
       return { ok: true, count: textEls.length };
     });
-    ok("F22: PDC.wordCloud renders SVG text elements", f22Render.ok, JSON.stringify(f22Render));
+    ok("F22: DashKit.wordCloud renders SVG text elements", f22Render.ok, JSON.stringify(f22Render));
 
     // F22-4: wordCloud chart type card present in the gallery
     // Select the first panel of the current spec to ensure the panel inspector
@@ -26259,27 +26259,27 @@ function serve() {
     });
     ok("F23: gantt registered in Studio.CHARTS (Comparison group, labelCol/startCol/endCol)", f23Registry.ok, JSON.stringify(f23Registry));
 
-    // F23-2: PDC.gantt defined as a function in the preview iframe
-    var f23PdcDefined = await page.evaluate(function () {
+    // F23-2: DashKit.gantt defined as a function in the preview iframe
+    var f23DkDefined = await page.evaluate(function () {
       try {
         var fr = document.querySelector("#preview");
         var w  = fr && fr.contentWindow;
-        return { ok: !!(w && w.PDC && typeof w.PDC.gantt === "function") };
+        return { ok: !!(w && w.DashKit && typeof w.DashKit.gantt === "function") };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F23: PDC.gantt defined as function in preview iframe", f23PdcDefined.ok, JSON.stringify(f23PdcDefined));
+    ok("F23: DashKit.gantt defined as function in preview iframe", f23DkDefined.ok, JSON.stringify(f23DkDefined));
 
-    // F23-3: PDC.gantt renders SVG rect elements (floating bars) when given sample rows
+    // F23-3: DashKit.gantt renders SVG rect elements (floating bars) when given sample rows
     var f23Render = await page.evaluate(function () {
       try {
         var fr = document.querySelector("#preview");
         var iframeDoc = fr && (fr.contentDocument || fr.contentWindow.document);
         var w = fr && fr.contentWindow;
-        if (!w || !w.PDC || !w.PDC.gantt) return { ok: false, err: "no PDC.gantt" };
+        if (!w || !w.DashKit || !w.DashKit.gantt) return { ok: false, err: "no DashKit.gantt" };
         var testEl = iframeDoc.createElement("div");
         testEl.style.cssText = "width:480px;height:300px;position:absolute;left:-9999px";
         iframeDoc.body.appendChild(testEl);
-        w.PDC.gantt(testEl, {
+        w.DashKit.gantt(testEl, {
           rows: [
             { label: "Task A", start: 0,  end: 30 },
             { label: "Task B", start: 15, end: 60 },
@@ -26295,7 +26295,7 @@ function serve() {
         return { ok: rects.length >= 3, rectCount: rects.length, hasSvg: !!svgEl };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F23: PDC.gantt renders SVG rect bars (one per row)", f23Render.ok, JSON.stringify(f23Render));
+    ok("F23: DashKit.gantt renders SVG rect bars (one per row)", f23Render.ok, JSON.stringify(f23Render));
 
     // F23-4: gantt chart type card present in gallery
     var f23Card = await page.evaluate(function () {
@@ -26366,32 +26366,32 @@ function serve() {
     });
     ok("F24: divergingBar registered in Studio.CHARTS (Comparison group, labelCol/valueCol)", f24Reg.ok, JSON.stringify(f24Reg));
 
-    // F24-2: PDC.divergingBar defined as a function inside the preview iframe
+    // F24-2: DashKit.divergingBar defined as a function inside the preview iframe
     var f24Fn = await page.evaluate(function () {
       var iframes = Array.from(document.querySelectorAll("iframe"));
       for (var i = 0; i < iframes.length; i++) {
         try {
           var w = iframes[i].contentWindow;
-          if (w && w.PDC && typeof w.PDC.divergingBar === "function") return { ok: true };
+          if (w && w.DashKit && typeof w.DashKit.divergingBar === "function") return { ok: true };
         } catch (e) {}
       }
-      return { ok: false, err: "PDC.divergingBar not found in any iframe" };
+      return { ok: false, err: "DashKit.divergingBar not found in any iframe" };
     });
-    ok("F24: PDC.divergingBar defined as function in preview iframe", f24Fn.ok, JSON.stringify(f24Fn));
+    ok("F24: DashKit.divergingBar defined as function in preview iframe", f24Fn.ok, JSON.stringify(f24Fn));
 
-    // F24-3: PDC.divergingBar renders SVG bars for positive and negative rows
+    // F24-3: DashKit.divergingBar renders SVG bars for positive and negative rows
     var f24Render = await page.evaluate(function () {
       try {
         var iframes = Array.from(document.querySelectorAll("iframe"));
         var iframeDoc, w;
         for (var i = 0; i < iframes.length; i++) {
-          try { w = iframes[i].contentWindow; if (w && w.PDC && w.PDC.divergingBar) { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+          try { w = iframes[i].contentWindow; if (w && w.DashKit && w.DashKit.divergingBar) { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
         }
-        if (!w || !w.PDC || !w.PDC.divergingBar) return { ok: false, err: "PDC.divergingBar not available" };
+        if (!w || !w.DashKit || !w.DashKit.divergingBar) return { ok: false, err: "DashKit.divergingBar not available" };
         var testEl = iframeDoc.createElement("div");
         testEl.style.cssText = "width:480px;height:300px;position:absolute;left:-9999px";
         iframeDoc.body.appendChild(testEl);
-        w.PDC.divergingBar(testEl, {
+        w.DashKit.divergingBar(testEl, {
           rows: [
             { label: "Growth",  value:  25 },
             { label: "Revenue", value:  42 },
@@ -26401,13 +26401,13 @@ function serve() {
           fmt: function (v) { return String(v); },
           height: 200
         });
-        var bars  = testEl.querySelectorAll(".pdc-divbar-bar");
+        var bars  = testEl.querySelectorAll(".dk-divbar-bar");
         var svgEl = testEl.querySelector("svg");
         iframeDoc.body.removeChild(testEl);
         return { ok: bars.length >= 4 && !!svgEl, barCount: bars.length, hasSvg: !!svgEl };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F24: PDC.divergingBar renders SVG bars (one per row)", f24Render.ok, JSON.stringify(f24Render));
+    ok("F24: DashKit.divergingBar renders SVG bars (one per row)", f24Render.ok, JSON.stringify(f24Render));
 
     // F24-4: divergingBar chart type card present in the Studio.CHARTS registry
     var f24Card = await page.evaluate(function () {
@@ -26431,28 +26431,28 @@ function serve() {
     });
     ok("F25: streamgraph registered in Studio.CHARTS (Trend group, labelCol+series)", f25Reg.ok, JSON.stringify(f25Reg));
 
-    // F25-2: PDC.streamgraph defined as a function inside the preview iframe
+    // F25-2: DashKit.streamgraph defined as a function inside the preview iframe
     var f25Fn = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe");
       for (var i = 0; i < iframes.length; i++) {
-        try { var w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.streamgraph === "function") return { ok: true }; } catch (e) {}
+        try { var w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.streamgraph === "function") return { ok: true }; } catch (e) {}
       }
-      return { ok: false, err: "PDC.streamgraph not found in any iframe" };
+      return { ok: false, err: "DashKit.streamgraph not found in any iframe" };
     });
-    ok("F25: PDC.streamgraph defined as function in preview iframe", f25Fn.ok, JSON.stringify(f25Fn));
+    ok("F25: DashKit.streamgraph defined as function in preview iframe", f25Fn.ok, JSON.stringify(f25Fn));
 
-    // F25-3: PDC.streamgraph renders SVG paths for each series
+    // F25-3: DashKit.streamgraph renders SVG paths for each series
     var f25Render = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && w.PDC.streamgraph) { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && w.DashKit.streamgraph) { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !w.PDC || !w.PDC.streamgraph) return { ok: false, err: "PDC.streamgraph not available" };
+      if (!w || !w.DashKit || !w.DashKit.streamgraph) return { ok: false, err: "DashKit.streamgraph not available" };
       try {
         var testEl = iframeDoc.createElement("div");
         testEl.style.cssText = "width:400px;height:260px;position:absolute;top:-9999px";
         iframeDoc.body.appendChild(testEl);
-        w.PDC.streamgraph(testEl, {
+        w.DashKit.streamgraph(testEl, {
           labels: ["Q1", "Q2", "Q3", "Q4"],
           series: [
             { name: "Product A", values: [12, 20, 15, 25] },
@@ -26470,7 +26470,7 @@ function serve() {
                  pathCount: paths.length, hasSvg: !!svgEl, hasLegend: !!legend };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F25: PDC.streamgraph renders SVG paths + legend (one path per series)", f25Render.ok, JSON.stringify(f25Render));
+    ok("F25: DashKit.streamgraph renders SVG paths + legend (one path per series)", f25Render.ok, JSON.stringify(f25Render));
 
     // F25-4: streamgraph gallery card visible in the chart picker (panel inspector).
     // Select the first panel via __studioSelect({kind:"panel",id}) then look for the card.
@@ -26530,28 +26530,28 @@ function serve() {
     // ── H113: Enhanced interactive table chart ────────────────────────────────
     console.log("\n• H113: enhanced table chart (sort + filter)");
 
-    // H113-1: PDC._tableBase is saved and the override is installed
+    // H113-1: DashKit._tableBase is saved and the override is installed
     var h113Base = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe");
       for (var i = 0; i < iframes.length; i++) {
-        try { var w = iframes[i].contentWindow; if (w && w.PDC) return { ok: typeof w.PDC._tableBase === "function" && typeof w.PDC.table === "function" }; } catch (e) {}
+        try { var w = iframes[i].contentWindow; if (w && w.DashKit) return { ok: typeof w.DashKit._tableBase === "function" && typeof w.DashKit.table === "function" }; } catch (e) {}
       }
-      return { ok: false, err: "PDC not found in iframes" };
+      return { ok: false, err: "DashKit not found in iframes" };
     });
-    ok("H113: PDC._tableBase preserved; PDC.table override installed", h113Base.ok, JSON.stringify(h113Base));
+    ok("H113: DashKit._tableBase preserved; DashKit.table override installed", h113Base.ok, JSON.stringify(h113Base));
 
-    // H113-2: PDC.table renders a .tbl-filter search input above the table
+    // H113-2: DashKit.table renders a .tbl-filter search input above the table
     var h113Filter = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var el = iframeDoc.createElement("div");
         el.style.cssText = "position:absolute;top:-9999px;width:400px";
         iframeDoc.body.appendChild(el);
-        w.PDC.table(el, {
+        w.DashKit.table(el, {
           cols: [{ label: "Name" }, { label: "Value", num: true }],
           rows: [["Alpha", 10], ["Beta", 20], ["Gamma", 30]]
         });
@@ -26562,20 +26562,20 @@ function serve() {
         return { ok: !!filterInp && !!tbl, hasFilter: !!filterInp, hasCnt: !!cnt, hasTable: !!tbl };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("H113: PDC.table renders .tbl-filter search bar + .tbl and .tbl-cnt", h113Filter.ok, JSON.stringify(h113Filter));
+    ok("H113: DashKit.table renders .tbl-filter search bar + .tbl and .tbl-cnt", h113Filter.ok, JSON.stringify(h113Filter));
 
     // H113-3: Typing in the filter input hides non-matching rows
     var h113FilterRows = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var el = iframeDoc.createElement("div");
         el.style.cssText = "position:absolute;top:-9999px;width:400px";
         iframeDoc.body.appendChild(el);
-        w.PDC.table(el, {
+        w.DashKit.table(el, {
           cols: [{ label: "Region" }, { label: "Sales", num: true }],
           rows: [["North", 100], ["South", 200], ["East", 150], ["West", 80]]
         });
@@ -26597,14 +26597,14 @@ function serve() {
     var h113Sort = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var el = iframeDoc.createElement("div");
         el.style.cssText = "position:absolute;top:-9999px;width:400px";
         iframeDoc.body.appendChild(el);
-        w.PDC.table(el, {
+        w.DashKit.table(el, {
           cols: [{ label: "Country" }, { label: "Revenue", num: true }],
           rows: [["USA", 500], ["UK", 300], ["DE", 400]]
         });
@@ -26625,14 +26625,14 @@ function serve() {
     var h113Stripe = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var el = iframeDoc.createElement("div");
         el.style.cssText = "position:absolute;top:-9999px;width:400px";
         iframeDoc.body.appendChild(el);
-        w.PDC.table(el, {
+        w.DashKit.table(el, {
           cols: [{ label: "Item" }, { label: "Qty", num: true }],
           rows: [["A", 1], ["B", 2], ["C", 3], ["D", 4]]
         });
@@ -26661,14 +26661,14 @@ function serve() {
     var z8tTotal = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var el = iframeDoc.createElement("div");
         el.style.cssText = "position:absolute;top:-9999px;width:400px";
         iframeDoc.body.appendChild(el);
-        w.PDC.table(el, {
+        w.DashKit.table(el, {
           cols: [{ label: "Region" }, { label: "Sales", num: true }],
           rows: [["North", 100], ["South", 200], ["East", 150]],
           grandTotal: true
@@ -26678,7 +26678,7 @@ function serve() {
         var label = cells[0] ? cells[0].textContent : "";
         var sum = cells[1] ? cells[1].textContent : "";
         // no grandTotal → no tfoot
-        w.PDC.table(el, {
+        w.DashKit.table(el, {
           cols: [{ label: "Region" }, { label: "Sales", num: true }],
           rows: [["North", 100]]
         });
@@ -26693,14 +26693,14 @@ function serve() {
     var z8tTotalFiltered = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var el = iframeDoc.createElement("div");
         el.style.cssText = "position:absolute;top:-9999px;width:400px";
         iframeDoc.body.appendChild(el);
-        w.PDC.table(el, {
+        w.DashKit.table(el, {
           cols: [{ label: "Region" }, { label: "Sales", num: true }],
           rows: [["North", 100], ["South", 200], ["East", 150]],
           grandTotal: true
@@ -26748,14 +26748,14 @@ function serve() {
     var z8tPaging = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var el = iframeDoc.createElement("div");
         el.style.cssText = "position:absolute;top:-9999px;width:400px";
         iframeDoc.body.appendChild(el);
-        w.PDC.table(el, {
+        w.DashKit.table(el, {
           cols: [{ label: "Item" }],
           rows: [["A"], ["B"], ["C"], ["D"], ["E"]],
           pageSize: 2
@@ -26787,14 +26787,14 @@ function serve() {
     var ux6Paging = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var el = iframeDoc.createElement("div");
         el.style.cssText = "position:absolute;top:-9999px;width:400px";
         iframeDoc.body.appendChild(el);
-        w.PDC.table(el, { cols: [{ label: "Item" }], rows: [["A"], ["B"], ["C"], ["D"], ["E"]], pageSize: 2 });
+        w.DashKit.table(el, { cols: [{ label: "Item" }], rows: [["A"], ["B"], ["C"], ["D"], ["E"]], pageSize: 2 });
         var prevBtn = el.querySelectorAll(".tbl-page-bar button")[0];
         var nextBtn = el.querySelectorAll(".tbl-page-bar button")[1];
         var result = {
@@ -26819,16 +26819,16 @@ function serve() {
     var z8tNoPageBar = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var el = iframeDoc.createElement("div");
         el.style.cssText = "position:absolute;top:-9999px;width:400px";
         iframeDoc.body.appendChild(el);
-        w.PDC.table(el, { cols: [{ label: "Item" }], rows: [["A"], ["B"]] }); // no pageSize
+        w.DashKit.table(el, { cols: [{ label: "Item" }], rows: [["A"], ["B"]] }); // no pageSize
         var noBar = !el.querySelector(".tbl-page-bar");
-        w.PDC.table(el, { cols: [{ label: "Item" }], rows: [["A"], ["B"]], pageSize: 10 }); // pageSize > rows
+        w.DashKit.table(el, { cols: [{ label: "Item" }], rows: [["A"], ["B"]], pageSize: 10 }); // pageSize > rows
         var noBar2 = !el.querySelector(".tbl-page-bar");
         iframeDoc.body.removeChild(el);
         return { ok: noBar && noBar2, noBar: noBar, noBar2: noBar2 };
@@ -26840,18 +26840,18 @@ function serve() {
     var z8tFreezeDensity = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var el = iframeDoc.createElement("div");
         el.style.cssText = "position:absolute;top:-9999px;width:400px";
         iframeDoc.body.appendChild(el);
-        w.PDC.table(el, { cols: [{ label: "Item" }], rows: [["A"]] }); // defaults
+        w.DashKit.table(el, { cols: [{ label: "Item" }], rows: [["A"]] }); // defaults
         var plainWrap = el.querySelector(".tbl-wrap");
         var noFrz = plainWrap && !plainWrap.classList.contains("frz");
         var noCompact = plainWrap && !plainWrap.classList.contains("compact");
-        w.PDC.table(el, { cols: [{ label: "Item" }], rows: [["A"]], freezeHeader: true, density: "compact" });
+        w.DashKit.table(el, { cols: [{ label: "Item" }], rows: [["A"]], freezeHeader: true, density: "compact" });
         var enhWrap = el.querySelector(".tbl-wrap");
         var hasFrz = enhWrap && enhWrap.classList.contains("frz");
         var hasCompact = enhWrap && enhWrap.classList.contains("compact");
@@ -26874,19 +26874,19 @@ function serve() {
     });
     ok("Z8G: Studio.CHARTS.gauge.opts declares fmt + warnAt + goodAt", z8gOpts.ok, JSON.stringify(z8gOpts));
 
-    // Z8G-2: PDC.gauge renders a permanent 3-band red/amber/green zone track (behind a value tick),
+    // Z8G-2: DashKit.gauge renders a permanent 3-band red/amber/green zone track (behind a value tick),
     // not just a color-changing fill — thresholds are visible even when the value is 0.
     var z8gZones = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.gauge === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.gauge === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var el = iframeDoc.createElement("div");
         el.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el);
-        w.PDC.gauge(el, { value: 0, max: 100, warnAt: 0.7, goodAt: 0.9 });
+        w.DashKit.gauge(el, { value: 0, max: 100, warnAt: 0.7, goodAt: 0.9 });
         var paths = el.querySelectorAll("svg path");
         // 3 zone bands (bad/warn/good) + 1 value tick = 4 arcs, present even at value 0
         var ok4 = paths.length === 4;
@@ -26902,14 +26902,14 @@ function serve() {
     var z8gFmt = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.gauge === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.gauge === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var el = iframeDoc.createElement("div");
         el.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el);
-        w.PDC.gauge(el, { value: 1234, max: 5000, fmt: function (v) { return "~" + v + "~"; } });
+        w.DashKit.gauge(el, { value: 1234, max: 5000, fmt: function (v) { return "~" + v + "~"; } });
         var txt = (el.querySelector(".gauge-val") || {}).textContent || "";
         iframeDoc.body.removeChild(el);
         return { ok: txt === "~1234~", txt: txt };
@@ -26936,8 +26936,8 @@ function serve() {
 
     // Z8G-5 (defensive fix, Z13 loose end): a gauge left at the default Unit "%" while its Value
     // format is switched to "pct" must not double-print the percent sign ("42.3%%"). Drives the
-    // real "Value format" <select> in the inspector (not a standalone PDC.gauge call) so the fix
-    // in studio-render.js's gauge case — not just PDC.gauge itself — is actually exercised.
+    // real "Value format" <select> in the inspector (not a standalone DashKit.gauge call) so the fix
+    // in studio-render.js's gauge case — not just DashKit.gauge itself — is actually exercised.
     var z8gPctUnit = await page.evaluate(async function () {
       var spec = window.__STUDIO_STATE.spec;
       var p = spec.panels[0];
@@ -26983,14 +26983,14 @@ function serve() {
     var z8mLabelsOn = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.treemap === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.treemap === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var el = iframeDoc.createElement("div");
         el.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el);
-        w.PDC.treemap(el, { data: [{ label: "Alpha", value: 70 }, { label: "Beta", value: 30 }], height: 280 });
+        w.DashKit.treemap(el, { data: [{ label: "Alpha", value: 70 }, { label: "Beta", value: 30 }], height: 280 });
         var texts = el.querySelectorAll("svg text");
         iframeDoc.body.removeChild(el);
         return { ok: texts.length === 4, count: texts.length };
@@ -27002,14 +27002,14 @@ function serve() {
     var z8mLabelsOff = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.treemap === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.treemap === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var el = iframeDoc.createElement("div");
         el.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el);
-        w.PDC.treemap(el, { data: [{ label: "Alpha", value: 70 }, { label: "Beta", value: 30 }], height: 280, showLabels: false });
+        w.DashKit.treemap(el, { data: [{ label: "Alpha", value: 70 }, { label: "Beta", value: 30 }], height: 280, showLabels: false });
         var texts = el.querySelectorAll("svg text"), rects = el.querySelectorAll("svg rect.bar");
         iframeDoc.body.removeChild(el);
         return { ok: texts.length === 0 && rects.length === 2, texts: texts.length, rects: rects.length };
@@ -27021,14 +27021,14 @@ function serve() {
     var z8mPct = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.treemap === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.treemap === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var el = iframeDoc.createElement("div");
         el.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el);
-        w.PDC.treemap(el, { data: [{ label: "Alpha", value: 70 }, { label: "Beta", value: 30 }], height: 280, showPct: true });
+        w.DashKit.treemap(el, { data: [{ label: "Alpha", value: 70 }, { label: "Beta", value: 30 }], height: 280, showPct: true });
         var texts = [].map.call(el.querySelectorAll("svg text"), function (t) { return t.textContent; });
         var hasPct = texts.some(function (t) { return /%$/.test(t); });
         var hasRaw70 = texts.indexOf("70") >= 0;
@@ -27071,21 +27071,21 @@ function serve() {
     var z8scTrend = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.scatter === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.scatter === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var pts = [{ x: 1, y: 2 }, { x: 2, y: 4 }, { x: 3, y: 5.9 }, { x: 4, y: 8.1 }];
         var el1 = iframeDoc.createElement("div");
         el1.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el1);
-        w.PDC.scatter(el1, { points: pts, height: 280 });
+        w.DashKit.scatter(el1, { points: pts, height: 280 });
         var offCount = el1.querySelectorAll(".trend-line").length;
         iframeDoc.body.removeChild(el1);
         var el2 = iframeDoc.createElement("div");
         el2.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el2);
-        w.PDC.scatter(el2, { points: pts, height: 280, trend: true });
+        w.DashKit.scatter(el2, { points: pts, height: 280, trend: true });
         var onCount = el2.querySelectorAll(".trend-line").length;
         var dots = el2.querySelectorAll(".dot").length;
         iframeDoc.body.removeChild(el2);
@@ -27098,14 +27098,14 @@ function serve() {
     var z8scFmt = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.scatter === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.scatter === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var el = iframeDoc.createElement("div");
         el.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el);
-        w.PDC.scatter(el, { points: [{ x: 10, y: 20 }], height: 280, fmtX: function (v) { return "~x" + v + "~"; }, fmtY: function (v) { return "~y" + v + "~"; } });
+        w.DashKit.scatter(el, { points: [{ x: 10, y: 20 }], height: 280, fmtX: function (v) { return "~x" + v + "~"; }, fmtY: function (v) { return "~y" + v + "~"; } });
         var texts = [].map.call(el.querySelectorAll("svg text.tick"), function (t) { return t.textContent; });
         var hasX = texts.some(function (t) { return /~x/.test(t); });
         var hasY = texts.some(function (t) { return /~y/.test(t); });
@@ -27148,15 +27148,15 @@ function serve() {
     var z8lnRender = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.line === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.line === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var labels = ["A", "B", "C", "D"], series = [{ name: "S1", values: [1, 4, 2, 6] }];
         var el1 = iframeDoc.createElement("div");
         el1.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el1);
-        w.PDC.line(el1, { labels: labels, series: series, height: 200 });
+        w.DashKit.line(el1, { labels: labels, series: series, height: 200 });
         var dotsOn = el1.querySelectorAll(".dot").length;
         var pathStraight = el1.querySelector("svg path[stroke]").getAttribute("d");
         iframeDoc.body.removeChild(el1);
@@ -27164,7 +27164,7 @@ function serve() {
         var el2 = iframeDoc.createElement("div");
         el2.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el2);
-        w.PDC.line(el2, { labels: labels, series: series, height: 200, showDots: false, smooth: true });
+        w.DashKit.line(el2, { labels: labels, series: series, height: 200, showDots: false, smooth: true });
         var dotsOff = el2.querySelectorAll(".dot").length;
         var ghostDots = el2.querySelectorAll(".dot-ghost").length;
         var pathSmooth = el2.querySelector("svg path[stroke]").getAttribute("d");
@@ -27211,30 +27211,30 @@ function serve() {
     var z8dnRender = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.donut === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.donut === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var data = [{ label: "Small", value: 5 }, { label: "Big", value: 40 }, { label: "Mid", value: 15 }];
 
         var el1 = iframeDoc.createElement("div");
         el1.style.cssText = "position:absolute;top:-9999px;width:400px";
         iframeDoc.body.appendChild(el1);
-        w.PDC.donut(el1, { data: data, height: 260, sortSlices: true });
+        w.DashKit.donut(el1, { data: data, height: 260, sortSlices: true });
         var tips1 = [].slice.call(el1.querySelectorAll("svg path")).length;
         iframeDoc.body.removeChild(el1);
 
         var el2 = iframeDoc.createElement("div");
         el2.style.cssText = "position:absolute;top:-9999px;width:400px";
         iframeDoc.body.appendChild(el2);
-        w.PDC.donut(el2, { data: data, height: 260, legend: false });
+        w.DashKit.donut(el2, { data: data, height: 260, legend: false });
         var legendTexts = el2.querySelectorAll(".series-label").length;
         iframeDoc.body.removeChild(el2);
 
         var el3 = iframeDoc.createElement("div");
         el3.style.cssText = "position:absolute;top:-9999px;width:400px";
         iframeDoc.body.appendChild(el3);
-        w.PDC.donut(el3, { data: data, height: 260, innerPct: 0 });
+        w.DashKit.donut(el3, { data: data, height: 260, innerPct: 0 });
         var centerLabelGone = el3.querySelectorAll(".gauge-val").length;
         iframeDoc.body.removeChild(el3);
 
@@ -27272,23 +27272,23 @@ function serve() {
     var z8brRender = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.bars === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.bars === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var data = [{ label: "Small", value: 5 }, { label: "Big", value: 40 }, { label: "Mid", value: 15 }];
 
         var el1 = iframeDoc.createElement("div");
         el1.style.cssText = "position:absolute;top:-9999px;width:400px";
         iframeDoc.body.appendChild(el1);
-        w.PDC.bars(el1, { data: data, height: 260, horizontal: true, sortBars: true });
+        w.DashKit.bars(el1, { data: data, height: 260, horizontal: true, sortBars: true });
         var ticks = [].slice.call(el1.querySelectorAll(".tick")).map(function (t) { return t.textContent; });
         iframeDoc.body.removeChild(el1);
 
         var el2 = iframeDoc.createElement("div");
         el2.style.cssText = "position:absolute;top:-9999px;width:400px";
         iframeDoc.body.appendChild(el2);
-        w.PDC.bars(el2, { data: data, height: 260, horizontal: true, showValues: false });
+        w.DashKit.bars(el2, { data: data, height: 260, horizontal: true, showValues: false });
         var valLabels = el2.querySelectorAll(".val-label").length;
         iframeDoc.body.removeChild(el2);
 
@@ -27327,9 +27327,9 @@ function serve() {
     var z8stRender = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.stacked === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.stacked === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var cats = ["Small", "Big", "Mid"];
         var series = [{ name: "S1", values: [3, 30, 8] }, { name: "S2", values: [2, 20, 7] }];
@@ -27337,21 +27337,21 @@ function serve() {
         var el1 = iframeDoc.createElement("div");
         el1.style.cssText = "position:absolute;top:-9999px;width:400px";
         iframeDoc.body.appendChild(el1);
-        w.PDC.stacked(el1, { categories: cats, series: series, height: 260, sortStack: true });
+        w.DashKit.stacked(el1, { categories: cats, series: series, height: 260, sortStack: true });
         var ticks = [].slice.call(el1.querySelectorAll(".tick")).filter(function (t) { return isNaN(parseFloat(t.textContent)); }).map(function (t) { return t.textContent; });
         iframeDoc.body.removeChild(el1);
 
         var el2 = iframeDoc.createElement("div");
         el2.style.cssText = "position:absolute;top:-9999px;width:400px";
         iframeDoc.body.appendChild(el2);
-        w.PDC.stacked(el2, { categories: cats, series: series, height: 260, showValues: true });
+        w.DashKit.stacked(el2, { categories: cats, series: series, height: 260, showValues: true });
         var withLabels = el2.querySelectorAll(".val-label").length;
         iframeDoc.body.removeChild(el2);
 
         var el3 = iframeDoc.createElement("div");
         el3.style.cssText = "position:absolute;top:-9999px;width:400px";
         iframeDoc.body.appendChild(el3);
-        w.PDC.stacked(el3, { categories: cats, series: series, height: 260 });
+        w.DashKit.stacked(el3, { categories: cats, series: series, height: 260 });
         var withoutLabels = el3.querySelectorAll(".val-label").length;
         iframeDoc.body.removeChild(el3);
 
@@ -27396,35 +27396,35 @@ function serve() {
     });
     ok("F26: parallelCoords registered in Studio.CHARTS (Comparison group, labelCol + series fields)", f26Reg.ok, JSON.stringify(f26Reg));
 
-    // F26-2: PDC.parallelCoords defined as function in preview iframe
-    var f26PdcDef = await page.evaluate(function () {
+    // F26-2: DashKit.parallelCoords defined as function in preview iframe
+    var f26DkDef = await page.evaluate(function () {
       try {
         var iframes = document.querySelectorAll("iframe"), iw;
         for (var i = 0; i < iframes.length; i++) {
-          try { if (iframes[i].contentWindow && iframes[i].contentWindow.PDC) { iw = iframes[i].contentWindow; break; } } catch (e) {}
+          try { if (iframes[i].contentWindow && iframes[i].contentWindow.DashKit) { iw = iframes[i].contentWindow; break; } } catch (e) {}
         }
-        if (!iw) return { defined: false, err: "no PDC iframe found" };
-        return { defined: typeof iw.PDC.parallelCoords === "function" };
+        if (!iw) return { defined: false, err: "no DashKit iframe found" };
+        return { defined: typeof iw.DashKit.parallelCoords === "function" };
       } catch (e) { return { defined: false, err: e.message }; }
     });
-    ok("F26: PDC.parallelCoords defined in preview iframe", f26PdcDef.defined, JSON.stringify(f26PdcDef));
+    ok("F26: DashKit.parallelCoords defined in preview iframe", f26DkDef.defined, JSON.stringify(f26DkDef));
 
-    // F26-3: PDC.parallelCoords renders SVG polylines for sample data
+    // F26-3: DashKit.parallelCoords renders SVG polylines for sample data
     var f26Render = await page.evaluate(function () {
       try {
         var iframes = document.querySelectorAll("iframe"), iw, iframeDoc;
         for (var i = 0; i < iframes.length; i++) {
           try {
-            if (iframes[i].contentWindow && iframes[i].contentWindow.PDC && typeof iframes[i].contentWindow.PDC.parallelCoords === "function") {
+            if (iframes[i].contentWindow && iframes[i].contentWindow.DashKit && typeof iframes[i].contentWindow.DashKit.parallelCoords === "function") {
               iw = iframes[i].contentWindow; iframeDoc = iframes[i].contentDocument; break;
             }
           } catch (e) {}
         }
-        if (!iw || !iframeDoc) return { ok: false, err: "no PDC iframe with parallelCoords" };
+        if (!iw || !iframeDoc) return { ok: false, err: "no DashKit iframe with parallelCoords" };
         var el = iframeDoc.createElement("div");
         el.style.cssText = "position:absolute;top:-9999px;width:500px";
         iframeDoc.body.appendChild(el);
-        iw.PDC.parallelCoords(el, {
+        iw.DashKit.parallelCoords(el, {
           labels: ["Alpha", "Beta", "Gamma"],
           axes: [
             { name: "Revenue", values: [100, 200, 150] },
@@ -27440,7 +27440,7 @@ function serve() {
         return { ok: !!svg && lines.length >= 3, hasSvg: !!svg, lineCount: lines.length };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F26: PDC.parallelCoords renders SVG polylines in preview iframe", f26Render.ok, JSON.stringify(f26Render));
+    ok("F26: DashKit.parallelCoords renders SVG polylines in preview iframe", f26Render.ok, JSON.stringify(f26Render));
 
     // F26-4 (LF5 bugfix): the panel inspector hides the per-series color picker for
     // parallelCoords (lines are colored per ENTITY, not per series/axis — the picker did
@@ -27522,23 +27522,23 @@ function serve() {
     });
     ok("F27: candlestick registered in Studio.CHARTS (Trend group, OHLC fields)", f27Registry.ok, JSON.stringify(f27Registry));
 
-    // F27-2: PDC.candlestick defined in preview iframe
+    // F27-2: DashKit.candlestick defined in preview iframe
     var f27Def = await page.evaluate(function () {
       var iframeDoc = document.querySelector("#preview").contentDocument;
       var iframeWin = document.querySelector("#preview").contentWindow;
-      return { ok: typeof iframeWin.PDC !== "undefined" && typeof iframeWin.PDC.candlestick === "function" };
+      return { ok: typeof iframeWin.DashKit !== "undefined" && typeof iframeWin.DashKit.candlestick === "function" };
     });
-    ok("F27: PDC.candlestick defined in preview iframe", f27Def.ok, JSON.stringify(f27Def));
+    ok("F27: DashKit.candlestick defined in preview iframe", f27Def.ok, JSON.stringify(f27Def));
 
-    // F27-3: PDC.candlestick renders SVG with candle rect bodies in the iframe
+    // F27-3: DashKit.candlestick renders SVG with candle rect bodies in the iframe
     var f27Render = await page.evaluate(function () {
       try {
         var iframeDoc = document.querySelector("#preview").contentDocument;
         var iframeWin = document.querySelector("#preview").contentWindow;
-        var PDC = iframeWin.PDC;
+        var DashKit = iframeWin.DashKit;
         var el = iframeDoc.createElement("div"); el.style.width = "400px";
         iframeDoc.body.appendChild(el);
-        PDC.candlestick(el, {
+        DashKit.candlestick(el, {
           rows: [
             { label: "Q1", open: 80, high: 120, low: 60, close: 110 },
             { label: "Q2", open: 110, high: 130, low: 85, close: 90 },
@@ -27553,11 +27553,11 @@ function serve() {
         return { ok: !!svg && rects.length >= 3, hasSvg: !!svg, rectCount: rects.length };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F27: PDC.candlestick renders SVG with candle body rects in preview iframe", f27Render.ok, JSON.stringify(f27Render));
+    ok("F27: DashKit.candlestick renders SVG with candle body rects in preview iframe", f27Render.ok, JSON.stringify(f27Render));
 
     // F27-4 / F24-5 (bugfix): candlestick's upColor/downColor and divergingBar's negColor default
-    // to REAL theme tokens (--good/--bad), not the retired --green/--pdc-bad. Neither of those old
-    // tokens is defined anywhere in vendor/pdc-ui.css, and PDC.cssvar() falls back to a flat grey
+    // to REAL theme tokens (--good/--bad), not the retired --green/--dk-bad. Neither of those old
+    // tokens is defined anywhere in vendor/dashkit.css, and DashKit.cssvar() falls back to a flat grey
     // (#888) for any undefined custom property — so by default, bull and bear candles (and the
     // diverging-bar negative segment) silently rendered the SAME grey instead of green/red.
     var colorDefaultsFix = await page.evaluate(function () {
@@ -27566,9 +27566,9 @@ function serve() {
         var cs = window.Studio.CHARTS.candlestick.opts;
         var db = window.Studio.CHARTS.divergingBar.opts;
         var up = byKey(cs, "upColor"), down = byKey(cs, "downColor"), neg = byKey(db, "negColor");
-        var PDC = document.querySelector("#preview").contentWindow.PDC;
-        var undefinedTok = PDC.cssvar("--this-token-does-not-exist-anywhere-zz");
-        var upResolved = PDC.cssvar(up.def), downResolved = PDC.cssvar(down.def), negResolved = PDC.cssvar(neg.def);
+        var DashKit = document.querySelector("#preview").contentWindow.DashKit;
+        var undefinedTok = DashKit.cssvar("--this-token-does-not-exist-anywhere-zz");
+        var upResolved = DashKit.cssvar(up.def), downResolved = DashKit.cssvar(down.def), negResolved = DashKit.cssvar(neg.def);
         return {
           ok: up.def === "--good" && down.def === "--bad" && neg.def === "--bad" &&
               upResolved !== undefinedTok && downResolved !== undefinedTok && negResolved !== undefinedTok &&
@@ -27578,14 +27578,14 @@ function serve() {
         };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F27/F24: candlestick + divergingBar default color tokens (--good/--bad) resolve to real, distinct colors — not the undefined-var grey fallback both --green/--pdc-bad silently shared", colorDefaultsFix.ok, JSON.stringify(colorDefaultsFix));
+    ok("F27/F24: candlestick + divergingBar default color tokens (--good/--bad) resolve to real, distinct colors — not the undefined-var grey fallback both --green/--dk-bad silently shared", colorDefaultsFix.ok, JSON.stringify(colorDefaultsFix));
 
     // ── LF5(b): color-token pickers gain a live swatch + per-option tinting; the
     // choropleth Ramp color option additionally gets a light->dark gradient preview ──
     console.log("\n• LF5(b): color-token picker swatches + choropleth ramp gradient");
 
     // LF5b-1: choropleth "Ramp color" — swatch + options tint from the REAL resolved
-    // token color (read off the same #preview iframe PDC.cssvar() already uses), and
+    // token color (read off the same #preview iframe DashKit.cssvar() already uses), and
     // both the swatch and the gradient strip update live when the selection changes.
     var lf5bRamp = await page.evaluate(function () {
       try {
@@ -27631,7 +27631,7 @@ function serve() {
 
     // LF5b-2: a plain series color picker (line chart) — "Auto (palette)" shows the
     // dashed/no-fill swatch state, and picking an explicit token paints a real color
-    // matching that token's PDC.cssvar() resolution (not a placeholder/guess).
+    // matching that token's DashKit.cssvar() resolution (not a placeholder/guess).
     var lf5bSeries = await page.evaluate(function () {
       try {
         var spec = window.__STUDIO_STATE.spec;
@@ -27653,8 +27653,8 @@ function serve() {
         sel.value = "--good"; sel.dispatchEvent(new Event("change"));
         var swBgGood = getComputedStyle(sw).backgroundColor;
         var noLongerDashed = !sw.classList.contains("ct-swatch-auto");
-        var PDC = document.querySelector("#preview").contentWindow.PDC;
-        var goodHex = PDC.cssvar("--good");
+        var DashKit = document.querySelector("#preview").contentWindow.DashKit;
+        var goodHex = DashKit.cssvar("--good");
         // normalize both to the browser's own rgb() parsing for a like-for-like compare
         var probe = document.createElement("span"); probe.style.background = goodHex; document.body.appendChild(probe);
         var goodRgb = getComputedStyle(probe).backgroundColor; probe.remove();
@@ -27845,7 +27845,7 @@ function serve() {
 
     // 8. #109 fill — the zoomed panel fills the window (preview-mode toggle), not the
     // small dashboard-grid footprint. The zoom iframe injects fill-CSS on load that
-    // stretches .pdc-grid to 100% height; assert the grid occupies most of the frame.
+    // stretches .dk-grid to 100% height; assert the grid occupies most of the frame.
     const h118Fill = await page.evaluate(async function () {
       var state = window.__STUDIO_STATE;
       var panels = state && state.spec && state.spec.panels;
@@ -27861,7 +27861,7 @@ function serve() {
       });
       await new Promise(function (r) { setTimeout(r, 120); });
       var idoc = ifr.contentWindow.document;
-      var grid = idoc.querySelector(".pdc-grid");
+      var grid = idoc.querySelector(".dk-grid");
       var frameH = ifr.clientHeight || (ov ? ov.clientHeight : 0);
       var gridH = grid ? grid.clientHeight : 0;
       // The fill is caused by the injected #pz-fill style ONLY — assert it's present
@@ -27898,7 +27898,7 @@ function serve() {
         ifr.addEventListener("load", r, { once: true });
       });
       var idoc = ifr.contentWindow.document;
-      var menu = idoc.querySelector(".pdc-dl-menu");
+      var menu = idoc.querySelector(".dk-dl-menu");
       var btn = ov.querySelector(".pz-close"); if (btn) btn.click();
       return { ok: true, hasExportMenu: !!menu };
     });
@@ -28045,22 +28045,22 @@ function serve() {
     });
     ok("F28: waffle registered in Studio.CHARTS (Composition group, labelCol+valueCol)", f28Registry.ok, JSON.stringify(f28Registry));
 
-    // 2. PDC.waffle defined in preview iframe
+    // 2. DashKit.waffle defined in preview iframe
     const f28Def = await page.evaluate(function () {
       var iframeWin = document.querySelector("#preview").contentWindow;
-      return { ok: typeof iframeWin.PDC !== "undefined" && typeof iframeWin.PDC.waffle === "function" };
+      return { ok: typeof iframeWin.DashKit !== "undefined" && typeof iframeWin.DashKit.waffle === "function" };
     });
-    ok("F28: PDC.waffle defined in preview iframe", f28Def.ok, JSON.stringify(f28Def));
+    ok("F28: DashKit.waffle defined in preview iframe", f28Def.ok, JSON.stringify(f28Def));
 
-    // 3. PDC.waffle renders a grid of colored rects in the iframe
+    // 3. DashKit.waffle renders a grid of colored rects in the iframe
     const f28Render = await page.evaluate(function () {
       try {
         var iframeDoc = document.querySelector("#preview").contentDocument;
         var iframeWin = document.querySelector("#preview").contentWindow;
-        var PDC = iframeWin.PDC;
+        var DashKit = iframeWin.DashKit;
         var el = iframeDoc.createElement("div"); el.style.width = "360px";
         iframeDoc.body.appendChild(el);
-        PDC.waffle(el, {
+        DashKit.waffle(el, {
           data: [
             { label: "Product A", value: 55 },
             { label: "Product B", value: 30 },
@@ -28074,7 +28074,7 @@ function serve() {
         return { ok: rects.length >= 80, rectCount: rects.length };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F28: PDC.waffle renders ≥80 grid rects in preview iframe", f28Render.ok, JSON.stringify(f28Render));
+    ok("F28: DashKit.waffle renders ≥80 grid rects in preview iframe", f28Render.ok, JSON.stringify(f28Render));
 
     // ── F29: Timeline / milestone chart ───────────────────────────────────────
     console.log("\n• F29: Timeline / milestone chart");
@@ -28088,22 +28088,22 @@ function serve() {
     });
     ok("F29: timeline registered in Studio.CHARTS (Trend group, labelCol field)", f29Registry.ok, JSON.stringify(f29Registry));
 
-    // 2. PDC.timeline defined in preview iframe (loaded via studio-charts.js extension)
+    // 2. DashKit.timeline defined in preview iframe (loaded via studio-charts.js extension)
     const f29Def = await page.evaluate(function () {
       var iframeWin = document.querySelector("#preview").contentWindow;
-      return { ok: typeof iframeWin.PDC !== "undefined" && typeof iframeWin.PDC.timeline === "function" };
+      return { ok: typeof iframeWin.DashKit !== "undefined" && typeof iframeWin.DashKit.timeline === "function" };
     });
-    ok("F29: PDC.timeline defined in preview iframe", f29Def.ok, JSON.stringify(f29Def));
+    ok("F29: DashKit.timeline defined in preview iframe", f29Def.ok, JSON.stringify(f29Def));
 
-    // 3. PDC.timeline renders SVG with diamond markers (polygon elements)
+    // 3. DashKit.timeline renders SVG with diamond markers (polygon elements)
     const f29Render = await page.evaluate(function () {
       try {
         var iframeDoc = document.querySelector("#preview").contentDocument;
         var iframeWin = document.querySelector("#preview").contentWindow;
-        var PDC = iframeWin.PDC;
+        var DashKit = iframeWin.DashKit;
         var el = iframeDoc.createElement("div"); el.style.width = "500px";
         iframeDoc.body.appendChild(el);
-        PDC.timeline(el, {
+        DashKit.timeline(el, {
           events: [
             { label: "Alpha release",  date: "Q1 2024" },
             { label: "Beta launch",    date: "Q2 2024" },
@@ -28118,7 +28118,7 @@ function serve() {
         return { ok: svg !== null && polygons.length >= 4, polyCount: polygons.length };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F29: PDC.timeline renders SVG with ≥4 diamond markers (polygon elements)", f29Render.ok, JSON.stringify(f29Render));
+    ok("F29: DashKit.timeline renders SVG with ≥4 diamond markers (polygon elements)", f29Render.ok, JSON.stringify(f29Render));
 
     // ── F30: Radial bar chart ─────────────────────────────────────────────────
     console.log("\n• F30: Radial bar chart");
@@ -28134,22 +28134,22 @@ function serve() {
     });
     ok("F30: radialBar registered in Studio.CHARTS (Comparison group, labelCol+valueCol)", f30Registry.ok, JSON.stringify(f30Registry));
 
-    // 2. PDC.radialBar defined in preview iframe (loaded via studio-charts.js extension)
+    // 2. DashKit.radialBar defined in preview iframe (loaded via studio-charts.js extension)
     const f30Def = await page.evaluate(function () {
       var iframeWin = document.querySelector("#preview").contentWindow;
-      return { ok: typeof iframeWin.PDC !== "undefined" && typeof iframeWin.PDC.radialBar === "function" };
+      return { ok: typeof iframeWin.DashKit !== "undefined" && typeof iframeWin.DashKit.radialBar === "function" };
     });
-    ok("F30: PDC.radialBar defined in preview iframe", f30Def.ok, JSON.stringify(f30Def));
+    ok("F30: DashKit.radialBar defined in preview iframe", f30Def.ok, JSON.stringify(f30Def));
 
-    // 3. PDC.radialBar renders SVG with arc path elements (concentric tracks)
+    // 3. DashKit.radialBar renders SVG with arc path elements (concentric tracks)
     const f30Render = await page.evaluate(function () {
       try {
         var iframeDoc = document.querySelector("#preview").contentDocument;
         var iframeWin = document.querySelector("#preview").contentWindow;
-        var PDC = iframeWin.PDC;
+        var DashKit = iframeWin.DashKit;
         var el = iframeDoc.createElement("div"); el.style.width = "480px";
         iframeDoc.body.appendChild(el);
-        PDC.radialBar(el, {
+        DashKit.radialBar(el, {
           data: [
             { label: "Revenue",    value: 85 },
             { label: "Profit",     value: 62 },
@@ -28167,7 +28167,7 @@ function serve() {
         return { ok: svg !== null && paths.length >= 10, pathCount: paths.length };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F30: PDC.radialBar renders SVG with ≥10 arc paths (ghost + value arcs)", f30Render.ok, JSON.stringify(f30Render));
+    ok("F30: DashKit.radialBar renders SVG with ≥10 arc paths (ghost + value arcs)", f30Render.ok, JSON.stringify(f30Render));
 
     // ── F31: Population pyramid chart ─────────────────────────────────────────
     console.log("\n• F31: Population pyramid chart");
@@ -28187,14 +28187,14 @@ function serve() {
     });
     ok("F31: pyramidBar registered in Studio.CHARTS (Comparison group, labelCol+leftCol+rightCol)", f31Registry.ok, JSON.stringify(f31Registry));
 
-    // 2. PDC.pyramidBar defined in preview iframe (loaded via studio-charts.js extension)
+    // 2. DashKit.pyramidBar defined in preview iframe (loaded via studio-charts.js extension)
     var f31Def = await page.evaluate(function () {
       var iframeWin = document.querySelector("#preview").contentWindow;
-      return { ok: typeof iframeWin.PDC !== "undefined" && typeof iframeWin.PDC.pyramidBar === "function" };
+      return { ok: typeof iframeWin.DashKit !== "undefined" && typeof iframeWin.DashKit.pyramidBar === "function" };
     });
-    ok("F31: PDC.pyramidBar defined in preview iframe", f31Def.ok, JSON.stringify(f31Def));
+    ok("F31: DashKit.pyramidBar defined in preview iframe", f31Def.ok, JSON.stringify(f31Def));
 
-    // 3. PDC.pyramidBar renders a mirrored bar chart (left + right rects) in an SVG
+    // 3. DashKit.pyramidBar renders a mirrored bar chart (left + right rects) in an SVG
     var f31Render = await page.evaluate(function () {
       try {
         var iframeWin = document.querySelector("#preview").contentWindow;
@@ -28202,7 +28202,7 @@ function serve() {
         var el = iframeDoc.createElement("div");
         el.style.cssText = "width:360px;position:absolute;left:-9999px";
         iframeDoc.body.appendChild(el);
-        iframeWin.PDC.pyramidBar(el, {
+        iframeWin.DashKit.pyramidBar(el, {
           rows: [
             { label: "0-9",   left: 120, right: 115 },
             { label: "10-19", left: 180, right: 175 },
@@ -28220,7 +28220,7 @@ function serve() {
         return { ok: svg !== null && rects.length >= 10, rectCount: rects.length };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F31: PDC.pyramidBar renders SVG with ≥10 bar rects (2 bars per row)", f31Render.ok, JSON.stringify(f31Render));
+    ok("F31: DashKit.pyramidBar renders SVG with ≥10 bar rects (2 bars per row)", f31Render.ok, JSON.stringify(f31Render));
 
     // ── F32: Icicle / partition chart ─────────────────────────────────────────
     console.log("\n• F32: Icicle / partition chart");
@@ -28239,14 +28239,14 @@ function serve() {
     });
     ok("F32: icicle registered in Studio.CHARTS (Composition group, labelCol+valueCol+groupCol)", f32Registry.ok, JSON.stringify(f32Registry));
 
-    // 2. PDC.icicle defined in preview iframe (loaded via studio-charts.js extension)
+    // 2. DashKit.icicle defined in preview iframe (loaded via studio-charts.js extension)
     var f32Def = await page.evaluate(function () {
       var iframeWin = document.querySelector("#preview").contentWindow;
-      return { ok: typeof iframeWin.PDC !== "undefined" && typeof iframeWin.PDC.icicle === "function" };
+      return { ok: typeof iframeWin.DashKit !== "undefined" && typeof iframeWin.DashKit.icicle === "function" };
     });
-    ok("F32: PDC.icicle defined in preview iframe", f32Def.ok, JSON.stringify(f32Def));
+    ok("F32: DashKit.icicle defined in preview iframe", f32Def.ok, JSON.stringify(f32Def));
 
-    // 3. PDC.icicle renders an SVG with group header rects + child rects in two-level mode
+    // 3. DashKit.icicle renders an SVG with group header rects + child rects in two-level mode
     var f32Render = await page.evaluate(function () {
       try {
         var iframeWin = document.querySelector("#preview").contentWindow;
@@ -28254,7 +28254,7 @@ function serve() {
         var el = iframeDoc.createElement("div");
         el.style.cssText = "width:480px;position:absolute;left:-9999px";
         iframeDoc.body.appendChild(el);
-        iframeWin.PDC.icicle(el, {
+        iframeWin.DashKit.icicle(el, {
           rows: [
             { group: "A", label: "A1", value: 40 }, { group: "A", label: "A2", value: 25 },
             { group: "B", label: "B1", value: 60 }, { group: "B", label: "B2", value: 30 }, { group: "B", label: "B3", value: 15 },
@@ -28270,7 +28270,7 @@ function serve() {
         return { ok: svg !== null && rects.length >= 9, rectCount: rects.length };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F32: PDC.icicle renders SVG with ≥9 rects (group headers + child cells)", f32Render.ok, JSON.stringify(f32Render));
+    ok("F32: DashKit.icicle renders SVG with ≥9 rects (group headers + child cells)", f32Render.ok, JSON.stringify(f32Render));
 
     // ── H-track: Series color palette presets ────────────────────────────────
     console.log("\n• H-track: Series palette presets");
@@ -28335,7 +28335,7 @@ function serve() {
     var dtRegistryOk = await page.evaluate(function () {
       var dt = window.Studio.DASHBOARD_THEMES;
       var fm = dt && dt.filter(function (t) { return t.key === "fleet-modern"; })[0];
-      var needed = ["--pentaho", "--pdc", "--app-bg", "--panel-bg", "--text-primary", "--c1", "--c10"];
+      var needed = ["--pentaho", "--dk", "--app-bg", "--panel-bg", "--text-primary", "--c1", "--c10"];
       var hasAll = fm && needed.every(function (k) { return fm.light[k] && fm.dark[k]; });
       return {
         ok: Array.isArray(dt) && dt.some(function (t) { return t.key === "classic"; }) && !!fm && hasAll,
@@ -28458,7 +28458,7 @@ function serve() {
     var hcRegistryOk = await page.evaluate(function () {
       var dt = window.Studio.DASHBOARD_THEMES;
       var hc = dt && dt.filter(function (t) { return t.key === "high-contrast"; })[0];
-      var needed = ["--pentaho", "--pdc", "--app-bg", "--panel-bg", "--text-primary", "--c1", "--c10"];
+      var needed = ["--pentaho", "--dk", "--app-bg", "--panel-bg", "--text-primary", "--c1", "--c10"];
       var hasAll = hc && needed.every(function (k) { return hc.light[k] && hc.dark[k]; });
       return { ok: !!hc && hasAll, appBgLight: hc && hc.light["--app-bg"], appBgDark: hc && hc.dark["--app-bg"] };
     });
@@ -28494,7 +28494,7 @@ function serve() {
     var edRegistryOk = await page.evaluate(function () {
       var dt = window.Studio.DASHBOARD_THEMES;
       var ed = dt && dt.filter(function (t) { return t.key === "editorial"; })[0];
-      var needed = ["--pentaho", "--pdc", "--app-bg", "--panel-bg", "--text-primary", "--c1", "--c10"];
+      var needed = ["--pentaho", "--dk", "--app-bg", "--panel-bg", "--text-primary", "--c1", "--c10"];
       var hasAll = ed && needed.every(function (k) { return ed.light[k] && ed.dark[k]; });
       return { ok: !!ed && hasAll, appBgLight: ed && ed.light["--app-bg"], appBgDark: ed && ed.dark["--app-bg"] };
     });
@@ -28530,7 +28530,7 @@ function serve() {
     var neRegistryOk = await page.evaluate(function () {
       var dt = window.Studio.DASHBOARD_THEMES;
       var ne = dt && dt.filter(function (t) { return t.key === "neon"; })[0];
-      var needed = ["--pentaho", "--pdc", "--app-bg", "--panel-bg", "--text-primary", "--c1", "--c10"];
+      var needed = ["--pentaho", "--dk", "--app-bg", "--panel-bg", "--text-primary", "--c1", "--c10"];
       var hasAll = ne && needed.every(function (k) { return ne.light[k] && ne.dark[k]; });
       return { ok: !!ne && hasAll, appBgLight: ne && ne.light["--app-bg"], appBgDark: ne && ne.dark["--app-bg"], sidebarLight: ne && ne.light["--sidebar-bg"] };
     });
@@ -28565,7 +28565,7 @@ function serve() {
     var coRegistryOk = await page.evaluate(function () {
       var dt = window.Studio.DASHBOARD_THEMES;
       var co = dt && dt.filter(function (t) { return t.key === "conservation"; })[0];
-      var needed = ["--pentaho", "--pdc", "--app-bg", "--panel-bg", "--text-primary", "--c1", "--c10"];
+      var needed = ["--pentaho", "--dk", "--app-bg", "--panel-bg", "--text-primary", "--c1", "--c10"];
       var hasAll = co && needed.every(function (k) { return co.light[k] && co.dark[k]; });
       return { ok: !!co && hasAll, brandLight: co && co.light["--pentaho"], sidebarLight: co && co.light["--sidebar-bg"], label: co && co.label };
     });
@@ -28587,7 +28587,7 @@ function serve() {
     ok("Dashboard theme: clicking 'Conservation' sets spec.dashboardTheme and the exported HTML carries its CTIC light + dark token overrides",
       coAppliedOk.specKey === "conservation" && coAppliedOk.lightVar && coAppliedOk.darkVar, JSON.stringify(coAppliedOk));
 
-    // Track L follow-up (found while screenshotting Editorial): vendor/pdc-ui.css's .pdc-header
+    // Track L follow-up (found while screenshotting Editorial): vendor/dashkit.css's .dk-header
     // banner gradient had its SECOND stop hardcoded (#163a6e) — every non-Classic dashboardTheme
     // recolored only the gradient's start, leaving a stray navy sliver at the other end. Fixed
     // with a themeable --header-bg-2 (default #163a6e in both :root and dark, so Classic's own
@@ -28657,7 +28657,7 @@ function serve() {
         light: { bg: "#ffffff", panel: "#f5f5f5", text: "#111111", brand: "#0057b8" },
         dark:  { bg: "#0a0a0a", panel: "#141414", text: "#eeeeee", brand: "#5599ff" }
       });
-      var needed = ["--pentaho", "--pdc", "--app-bg", "--panel-bg", "--panel-border", "--text-primary", "--text-muted", "--sidebar-bg", "--header-bg", "--header-bg-2", "--grid-line", "--axis"];
+      var needed = ["--pentaho", "--dk", "--app-bg", "--panel-bg", "--panel-border", "--text-primary", "--text-muted", "--sidebar-bg", "--header-bg", "--header-bg-2", "--grid-line", "--axis"];
       var hasAllLight = needed.every(function (k) { return !!full.light[k]; });
       var hasAllDark = needed.every(function (k) { return !!full.dark[k]; });
       return {
@@ -28804,19 +28804,19 @@ function serve() {
     });
     ok("F33: pareto chart has gallery thumbnail SVG (thumb field non-empty)", f33Svg.ok, JSON.stringify(f33Svg));
 
-    // 3. PDC.pareto renders an SVG with bars and a cumulative line (polyline)
+    // 3. DashKit.pareto renders an SVG with bars and a cumulative line (polyline)
     var f33Render = await page.evaluate(function () {
       try {
         var iframeEl = document.querySelector("#preview");
         var iframeDoc = iframeEl && iframeEl.contentDocument;
-        if (!iframeDoc || !iframeDoc.defaultView || !iframeDoc.defaultView.PDC || !iframeDoc.defaultView.PDC.pareto) {
-          return { ok: false, reason: "PDC.pareto not found in iframe" };
+        if (!iframeDoc || !iframeDoc.defaultView || !iframeDoc.defaultView.DashKit || !iframeDoc.defaultView.DashKit.pareto) {
+          return { ok: false, reason: "DashKit.pareto not found in iframe" };
         }
-        var PDC = iframeDoc.defaultView.PDC;
+        var DashKit = iframeDoc.defaultView.DashKit;
         var el = iframeDoc.createElement("div");
         el.style.width = "400px";
         iframeDoc.body.appendChild(el);
-        PDC.pareto(el, {
+        DashKit.pareto(el, {
           data: [
             { label: "Defect A", value: 45 },
             { label: "Defect B", value: 28 },
@@ -28838,22 +28838,22 @@ function serve() {
                  bars: bars.length, hasLine: !!line, dots: dots.length };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F33: PDC.pareto renders SVG with ≥5 bars, cumulative polyline, and ≥5 dots", f33Render.ok, JSON.stringify(f33Render));
+    ok("F33: DashKit.pareto renders SVG with ≥5 bars, cumulative polyline, and ≥5 dots", f33Render.ok, JSON.stringify(f33Render));
 
     // 4. Sorted descending — first bar should be tallest (we check the 'height' attribute)
     var f33Sorted = await page.evaluate(function () {
       try {
         var iframeEl = document.querySelector("#preview");
         var iframeDoc = iframeEl && iframeEl.contentDocument;
-        if (!iframeDoc || !iframeDoc.defaultView || !iframeDoc.defaultView.PDC || !iframeDoc.defaultView.PDC.pareto) {
-          return { ok: false, reason: "PDC.pareto not found" };
+        if (!iframeDoc || !iframeDoc.defaultView || !iframeDoc.defaultView.DashKit || !iframeDoc.defaultView.DashKit.pareto) {
+          return { ok: false, reason: "DashKit.pareto not found" };
         }
-        var PDC = iframeDoc.defaultView.PDC;
+        var DashKit = iframeDoc.defaultView.DashKit;
         var el = iframeDoc.createElement("div");
         el.style.width = "400px";
         iframeDoc.body.appendChild(el);
         // Pass data in REVERSE order — Pareto must sort descending regardless
-        PDC.pareto(el, {
+        DashKit.pareto(el, {
           data: [
             { label: "E", value: 4 },
             { label: "D", value: 8 },
@@ -28877,7 +28877,7 @@ function serve() {
         return { ok: firstIsMax, heights: heights.slice(0, 5) };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F33: PDC.pareto sorts bars descending (first bar is tallest regardless of input order)", f33Sorted.ok, JSON.stringify(f33Sorted));
+    ok("F33: DashKit.pareto sorts bars descending (first bar is tallest regardless of input order)", f33Sorted.ok, JSON.stringify(f33Sorted));
 
     // ── F34: Grouped bar chart (47th type) ────────────────────────────────────
     console.log("\n• F34: Grouped bar chart (47th type)");
@@ -28897,19 +28897,19 @@ function serve() {
     });
     ok("F34: groupedBars chart has gallery thumbnail SVG (thumb field non-empty)", f34Svg.ok, JSON.stringify(f34Svg));
 
-    // 3. PDC.groupedBars renders an SVG with nCats × nSeries rects and a legend
+    // 3. DashKit.groupedBars renders an SVG with nCats × nSeries rects and a legend
     var f34Render = await page.evaluate(function () {
       try {
         var iframeEl = document.getElementById("preview");
         var iframeDoc = iframeEl && (iframeEl.contentDocument || (iframeEl.contentWindow && iframeEl.contentWindow.document));
-        if (!iframeDoc || !iframeDoc.defaultView || !iframeDoc.defaultView.PDC || !iframeDoc.defaultView.PDC.groupedBars) {
-          return { ok: false, reason: "PDC.groupedBars not found in iframe" };
+        if (!iframeDoc || !iframeDoc.defaultView || !iframeDoc.defaultView.DashKit || !iframeDoc.defaultView.DashKit.groupedBars) {
+          return { ok: false, reason: "DashKit.groupedBars not found in iframe" };
         }
-        var PDC = iframeDoc.defaultView.PDC;
+        var DashKit = iframeDoc.defaultView.DashKit;
         var el = iframeDoc.createElement("div");
         el.style.width = "400px";
         iframeDoc.body.appendChild(el);
-        PDC.groupedBars(el, {
+        DashKit.groupedBars(el, {
           labels:  ["Q1", "Q2", "Q3"],
           series:  [
             { name: "Actual",   color: "#005bb5", values: [120, 90, 150] },
@@ -28925,24 +28925,24 @@ function serve() {
         return { ok: rects.length >= 9 && !!legend, rectCount: rects.length, hasLegend: !!legend };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F34: PDC.groupedBars renders ≥9 rects (3 cats × 3 series) and a legend", f34Render.ok, JSON.stringify(f34Render));
+    ok("F34: DashKit.groupedBars renders ≥9 rects (3 cats × 3 series) and a legend", f34Render.ok, JSON.stringify(f34Render));
 
     // 4. Empty data renders the no-data placeholder (not an SVG crash)
     var f34Empty = await page.evaluate(function () {
       try {
         var iframeEl = document.getElementById("preview");
         var iframeDoc = iframeEl && (iframeEl.contentDocument || (iframeEl.contentWindow && iframeEl.contentWindow.document));
-        if (!iframeDoc || !iframeDoc.defaultView || !iframeDoc.defaultView.PDC) return { ok: false };
-        var PDC = iframeDoc.defaultView.PDC;
+        if (!iframeDoc || !iframeDoc.defaultView || !iframeDoc.defaultView.DashKit) return { ok: false };
+        var DashKit = iframeDoc.defaultView.DashKit;
         var el = iframeDoc.createElement("div");
         iframeDoc.body.appendChild(el);
-        PDC.groupedBars(el, { labels: [], series: [], height: 200 });
+        DashKit.groupedBars(el, { labels: [], series: [], height: 200 });
         var hasEmpty = el.innerHTML.indexOf("No data") >= 0 || el.querySelector(".empty") !== null;
         iframeDoc.body.removeChild(el);
         return { ok: hasEmpty };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F34: PDC.groupedBars with empty data renders no-data placeholder without crashing", f34Empty.ok, JSON.stringify(f34Empty));
+    ok("F34: DashKit.groupedBars with empty data renders no-data placeholder without crashing", f34Empty.ok, JSON.stringify(f34Empty));
 
     // ── H-track: Slideshow mode ───────────────────────────────────────────────
     console.log("\n• H-track: Slideshow mode");
@@ -28988,7 +28988,7 @@ function serve() {
         frame.addEventListener("load", r, { once: true });
       });
       var idoc = frame.contentWindow.document;
-      return { ok: true, hasExportMenu: !!idoc.querySelector(".pdc-dl-menu") };
+      return { ok: true, hasExportMenu: !!idoc.querySelector(".dk-dl-menu") };
     });
     ok("LF69(b): a slideshow slide keeps the same Export ▾ chrome as the builder preview",
       ssExport.ok && ssExport.hasExportMenu, JSON.stringify(ssExport));
@@ -29230,14 +29230,14 @@ function serve() {
     });
     ok("F35: ridgeline registered in Studio.CHARTS (Distribution group)", f35Reg.ok, JSON.stringify(f35Reg));
 
-    // F35-2: PDC.ridgeline is a function in the preview iframe
-    const f35Pdc = await page.evaluate(function () {
+    // F35-2: DashKit.ridgeline is a function in the preview iframe
+    const f35Dk = await page.evaluate(function () {
       try {
         var iw = document.getElementById("preview").contentWindow;
-        return { ok: typeof iw.PDC !== "undefined" && typeof iw.PDC.ridgeline === "function" };
+        return { ok: typeof iw.DashKit !== "undefined" && typeof iw.DashKit.ridgeline === "function" };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F35: PDC.ridgeline defined in preview iframe", f35Pdc.ok, JSON.stringify(f35Pdc));
+    ok("F35: DashKit.ridgeline defined in preview iframe", f35Dk.ok, JSON.stringify(f35Dk));
 
     // F35-3: ridgeline chart renders SVG paths when loaded into a panel spec
     const f35Render = await page.evaluate(async function () {
@@ -29313,14 +29313,14 @@ function serve() {
     });
     ok("F36: barNorm registered in Studio.CHARTS (Composition group, labelCol+series fields)", f36Reg.ok, JSON.stringify(f36Reg));
 
-    // F36-2: PDC.barNorm is a function in the preview iframe
-    const f36Pdc = await page.evaluate(function () {
+    // F36-2: DashKit.barNorm is a function in the preview iframe
+    const f36Dk = await page.evaluate(function () {
       var ifr = document.getElementById("preview");
       if (!ifr || !ifr.contentWindow) return { ok: false, reason: "no iframe" };
       var iw = ifr.contentWindow;
-      return { ok: typeof iw.PDC !== "undefined" && typeof iw.PDC.barNorm === "function" };
+      return { ok: typeof iw.DashKit !== "undefined" && typeof iw.DashKit.barNorm === "function" };
     });
-    ok("F36: PDC.barNorm defined in preview iframe", f36Pdc.ok, JSON.stringify(f36Pdc));
+    ok("F36: DashKit.barNorm defined in preview iframe", f36Dk.ok, JSON.stringify(f36Dk));
 
     // F36-3: barNorm renders SVG rect segments that total near 100% height per bar
     const f36Render = await page.evaluate(async function () {
@@ -29385,14 +29385,14 @@ function serve() {
     });
     ok("F37: areaRange registered in Studio.CHARTS (Trend group, lowerCol+upperCol fields)", f37Reg.ok, JSON.stringify(f37Reg));
 
-    // F37-2: PDC.areaRange is a function in the preview iframe
-    const f37Pdc = await page.evaluate(function () {
+    // F37-2: DashKit.areaRange is a function in the preview iframe
+    const f37Dk = await page.evaluate(function () {
       var ifr = document.getElementById("preview");
       if (!ifr || !ifr.contentWindow) return { ok: false, reason: "no iframe" };
       var iw = ifr.contentWindow;
-      return { ok: typeof iw.PDC !== "undefined" && typeof iw.PDC.areaRange === "function" };
+      return { ok: typeof iw.DashKit !== "undefined" && typeof iw.DashKit.areaRange === "function" };
     });
-    ok("F37: PDC.areaRange defined in preview iframe", f37Pdc.ok, JSON.stringify(f37Pdc));
+    ok("F37: DashKit.areaRange defined in preview iframe", f37Dk.ok, JSON.stringify(f37Dk));
 
     // F37-3: areaRange renders SVG polyline + polygon elements in the preview
     const f37Render = await page.evaluate(async function () {
@@ -29463,22 +29463,22 @@ function serve() {
     });
     ok("F38: quadrant registered in Studio.CHARTS (Comparison group, xCol+yCol fields)", f38Reg.ok, JSON.stringify(f38Reg));
 
-    // F38-2: PDC.quadrant is a function in the preview iframe
-    const f38Pdc = await page.evaluate(function () {
+    // F38-2: DashKit.quadrant is a function in the preview iframe
+    const f38Dk = await page.evaluate(function () {
       var iw = document.getElementById("preview").contentWindow;
-      return { ok: typeof iw.PDC !== "undefined" && typeof iw.PDC.quadrant === "function" };
+      return { ok: typeof iw.DashKit !== "undefined" && typeof iw.DashKit.quadrant === "function" };
     });
-    ok("F38: PDC.quadrant defined in preview iframe", f38Pdc.ok, JSON.stringify(f38Pdc));
+    ok("F38: DashKit.quadrant defined in preview iframe", f38Dk.ok, JSON.stringify(f38Dk));
 
     // F38-3: quadrant renders coloured SVG circles in the preview
     const f38Render = await page.evaluate(function () {
       try {
         var iw = document.getElementById("preview").contentWindow;
-        if (!iw || !iw.PDC || !iw.PDC.quadrant) return { ok: false, reason: "no PDC.quadrant" };
+        if (!iw || !iw.DashKit || !iw.DashKit.quadrant) return { ok: false, reason: "no DashKit.quadrant" };
         var el = iw.document.createElement("div");
         el.style.width = "400px";
         iw.document.body.appendChild(el);
-        iw.PDC.quadrant(el, {
+        iw.DashKit.quadrant(el, {
           points: [{ x: 20, y: 70, label: "A" }, { x: 80, y: 80, label: "B" },
                    { x: 15, y: 20, label: "C" }, { x: 75, y: 10, label: "D" }],
           xThreshold: 50, yThreshold: 50, height: 200
@@ -32491,7 +32491,7 @@ function serve() {
     });
     ok("Z8 KPI: k.drill.url and k.drill.param persist in spec", kpiDrillPersist.ok, JSON.stringify(kpiDrillPersist));
 
-    // 3. After rendering, the KPI tile with a drill URL gets cursor:pointer from PDC.bindDrill
+    // 3. After rendering, the KPI tile with a drill URL gets cursor:pointer from DashKit.bindDrill
     await page.waitForTimeout(600);
     const kpiDrillCursor = await page.evaluate(function () {
       try {
@@ -32502,7 +32502,7 @@ function serve() {
         return { ok: tiles[0].style.cursor === "pointer", cursor: tiles[0].style.cursor };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("Z8 KPI: KPI tile with a drill URL gets cursor:pointer (PDC.bindDrill wired)", kpiDrillCursor.ok, JSON.stringify(kpiDrillCursor));
+    ok("Z8 KPI: KPI tile with a drill URL gets cursor:pointer (DashKit.bindDrill wired)", kpiDrillCursor.ok, JSON.stringify(kpiDrillCursor));
 
     // 4. Exported CDF HTML embeds the drill config in STUDIO_SPEC
     const kpiDrillExport = await page.evaluate(function () {
@@ -32517,14 +32517,14 @@ function serve() {
     // Prior finding: the shipped demo dashboards' KPI tiles had no Click-through URL configured,
     // so they were plain static numbers in the exported dashboard / Viewer — "dead numbers,
     // violates the tiles/KPIs always link to detail bar." Fix: a KPI tile with no drill URL now
-    // falls back to the same shared PDC.bindDetail drawer bars/donut/treemap/table use, defaulting
+    // falls back to the same shared DashKit.bindDetail drawer bars/donut/treemap/table use, defaulting
     // to the tile's own bound DA (buildKpiDetailCfg in studio-render.js) — no per-tile setup
     // required. Gated to non-preview (exported bundle + Viewer) so the Studio builder's own
     // click-to-select-a-KPI interaction is untouched.
     console.log("\n• UX sweep: KPI tiles always link to their detail");
 
     // 1. Exported dashboard: a KPI with no drill URL gets cursor:pointer and clicking it opens
-    // the shared detail drawer (.pdc-dt), titled with the KPI's own label.
+    // the shared detail drawer (.dk-dt), titled with the KPI's own label.
     const kpiDetailDefault = await page.evaluate(async () => {
       try {
         var spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
@@ -32541,8 +32541,8 @@ function serve() {
         var cursor = tile ? tile.style.cursor : null;
         if (tile) tile.click();
         await new Promise((r) => setTimeout(r, 250));
-        var drawer = d.getElementById("pdc-dt");
-        var titleEl = drawer && drawer.querySelector(".pdc-dt-t");
+        var drawer = d.getElementById("dk-dt");
+        var titleEl = drawer && drawer.querySelector(".dk-dt-t");
         var out = { cursor: cursor, drawerOpened: !!drawer, drawerTitle: titleEl ? titleEl.textContent : null, expectedLabel: spec.kpis[0].label };
         ifr.remove();
         return out;
@@ -32588,15 +32588,15 @@ function serve() {
     var z8asRender = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.areaStacked === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.areaStacked === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var labels = ["A", "B", "C", "D"], series = [{ name: "S1", values: [1, 4, 2, 6] }, { name: "S2", values: [2, 1, 3, 2] }];
         var el1 = iframeDoc.createElement("div");
         el1.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el1);
-        w.PDC.areaStacked(el1, { labels: labels, series: series, height: 200 });
+        w.DashKit.areaStacked(el1, { labels: labels, series: series, height: 200 });
         var pathStraight = el1.querySelector("svg path[fill]").getAttribute("d");
         var legendOn = el1.querySelectorAll(".legend-item").length;
         iframeDoc.body.removeChild(el1);
@@ -32604,7 +32604,7 @@ function serve() {
         var el2 = iframeDoc.createElement("div");
         el2.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el2);
-        w.PDC.areaStacked(el2, { labels: labels, series: series, height: 200, smooth: true, legend: false });
+        w.DashKit.areaStacked(el2, { labels: labels, series: series, height: 200, smooth: true, legend: false });
         var pathSmooth = el2.querySelector("svg path[fill]").getAttribute("d");
         var legendOff = el2.querySelectorAll(".legend-item").length;
         iframeDoc.body.removeChild(el2);
@@ -32649,15 +32649,15 @@ function serve() {
     var z8sgRender = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.streamgraph === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.streamgraph === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var labels = ["A", "B", "C", "D"], series = [{ name: "S1", values: [1, 4, 2, 6] }, { name: "S2", values: [2, 1, 3, 2] }];
         var el1 = iframeDoc.createElement("div");
         el1.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el1);
-        w.PDC.streamgraph(el1, { labels: labels, series: series, height: 200 });
+        w.DashKit.streamgraph(el1, { labels: labels, series: series, height: 200 });
         var opDefault = el1.querySelector("svg path[fill]").getAttribute("fill-opacity");
         var legendOn = el1.querySelectorAll(".legend-item").length;
         iframeDoc.body.removeChild(el1);
@@ -32665,7 +32665,7 @@ function serve() {
         var el2 = iframeDoc.createElement("div");
         el2.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el2);
-        w.PDC.streamgraph(el2, { labels: labels, series: series, height: 200, legend: false, opacity: 40 });
+        w.DashKit.streamgraph(el2, { labels: labels, series: series, height: 200, legend: false, opacity: 40 });
         var opCustom = el2.querySelector("svg path[fill]").getAttribute("fill-opacity");
         var legendOff = el2.querySelectorAll(".legend-item").length;
         iframeDoc.body.removeChild(el2);
@@ -32711,15 +32711,15 @@ function serve() {
     var z8rdRender = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.radar === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.radar === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var labels = ["A", "B", "C", "D"], series = [{ name: "S1", values: [1, 4, 2, 6] }, { name: "S2", values: [2, 1, 3, 2] }];
         var el1 = iframeDoc.createElement("div");
         el1.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el1);
-        w.PDC.radar(el1, { labels: labels, series: series, height: 200 });
+        w.DashKit.radar(el1, { labels: labels, series: series, height: 200 });
         var legendOn = el1.querySelectorAll(".legend-item").length;
         var visibleDotsOn = el1.querySelectorAll('svg circle[fill]:not([fill="transparent"])').length;
         iframeDoc.body.removeChild(el1);
@@ -32727,7 +32727,7 @@ function serve() {
         var el2 = iframeDoc.createElement("div");
         el2.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el2);
-        w.PDC.radar(el2, { labels: labels, series: series, height: 200, legend: false, showDots: false });
+        w.DashKit.radar(el2, { labels: labels, series: series, height: 200, legend: false, showDots: false });
         var legendOff = el2.querySelectorAll(".legend-item").length;
         var visibleDotsOff = el2.querySelectorAll('svg circle[fill]:not([fill="transparent"])').length;
         var hitTargets = el2.querySelectorAll('svg circle[fill="transparent"]').length;
@@ -32775,29 +32775,29 @@ function serve() {
     var z8cnRender = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.chord === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.chord === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var links = [{ source: "A", target: "B", value: 10 }, { source: "B", target: "C", value: 6 }, { source: "A", target: "C", value: 4 }];
 
         var c1 = iframeDoc.createElement("div"); c1.style.cssText = "position:absolute;top:-9999px;width:300px"; iframeDoc.body.appendChild(c1);
-        w.PDC.chord(c1, { links: links, height: 200 });
+        w.DashKit.chord(c1, { links: links, height: 200 });
         var chordLabelsOn = c1.querySelectorAll("svg text").length;
         iframeDoc.body.removeChild(c1);
 
         var c2 = iframeDoc.createElement("div"); c2.style.cssText = "position:absolute;top:-9999px;width:300px"; iframeDoc.body.appendChild(c2);
-        w.PDC.chord(c2, { links: links, height: 200, showLabels: false });
+        w.DashKit.chord(c2, { links: links, height: 200, showLabels: false });
         var chordLabelsOff = c2.querySelectorAll("svg text").length;
         iframeDoc.body.removeChild(c2);
 
         var n1 = iframeDoc.createElement("div"); n1.style.cssText = "position:absolute;top:-9999px;width:300px"; iframeDoc.body.appendChild(n1);
-        w.PDC.network(n1, { links: links, height: 200 });
+        w.DashKit.network(n1, { links: links, height: 200 });
         var netLabelsOn = n1.querySelectorAll("svg text").length;
         iframeDoc.body.removeChild(n1);
 
         var n2 = iframeDoc.createElement("div"); n2.style.cssText = "position:absolute;top:-9999px;width:300px"; iframeDoc.body.appendChild(n2);
-        w.PDC.network(n2, { links: links, height: 200, showLabels: false });
+        w.DashKit.network(n2, { links: links, height: 200, showLabels: false });
         var netLabelsOff = n2.querySelectorAll("svg text").length;
         iframeDoc.body.removeChild(n2);
 
@@ -32847,9 +32847,9 @@ function serve() {
     var z8biBump = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.bump === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.bump === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var cfg = {
           labels: ["Q1", "Q2", "Q3"],
@@ -32857,13 +32857,13 @@ function serve() {
           height: 200
         };
         var d1 = iframeDoc.createElement("div"); d1.style.cssText = "position:absolute;top:-9999px;width:300px"; iframeDoc.body.appendChild(d1);
-        w.PDC.bump(d1, cfg);
+        w.DashKit.bump(d1, cfg);
         var textsOn = d1.querySelectorAll("svg circle").length; // one dot per series per period = 9
         var rankTextsOn = Array.prototype.filter.call(d1.querySelectorAll("svg text"), function (t) { return /^\d+$/.test(t.textContent) && t.textContent.length === 1; }).length;
         iframeDoc.body.removeChild(d1);
 
         var d2 = iframeDoc.createElement("div"); d2.style.cssText = "position:absolute;top:-9999px;width:300px"; iframeDoc.body.appendChild(d2);
-        w.PDC.bump(d2, Object.assign({}, cfg, { showRankNumbers: false }));
+        w.DashKit.bump(d2, Object.assign({}, cfg, { showRankNumbers: false }));
         var dotsOff = d2.querySelectorAll("svg circle").length;
         var rankTextsOff = Array.prototype.filter.call(d2.querySelectorAll("svg text"), function (t) { return /^\d+$/.test(t.textContent) && t.textContent.length === 1; }).length;
         iframeDoc.body.removeChild(d2);
@@ -32877,25 +32877,25 @@ function serve() {
     var z8biIcicle = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.icicle === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.icicle === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var rows = [{ label: "X1", value: 60 }, { label: "X2", value: 40 }];
         var base = { rows: rows, labelCol: "label", valueCol: "value", fmt: function (v) { return String(v); }, height: 100 };
 
         var d1 = iframeDoc.createElement("div"); d1.style.cssText = "position:absolute;top:-9999px;width:400px"; iframeDoc.body.appendChild(d1);
-        w.PDC.icicle(d1, base);
+        w.DashKit.icicle(d1, base);
         var textsOn = d1.querySelectorAll("svg text").length;
         iframeDoc.body.removeChild(d1);
 
         var d2 = iframeDoc.createElement("div"); d2.style.cssText = "position:absolute;top:-9999px;width:400px"; iframeDoc.body.appendChild(d2);
-        w.PDC.icicle(d2, Object.assign({}, base, { showLabels: false }));
+        w.DashKit.icicle(d2, Object.assign({}, base, { showLabels: false }));
         var textsOff = d2.querySelectorAll("svg text").length;
         iframeDoc.body.removeChild(d2);
 
         var d3 = iframeDoc.createElement("div"); d3.style.cssText = "position:absolute;top:-9999px;width:400px"; iframeDoc.body.appendChild(d3);
-        w.PDC.icicle(d3, Object.assign({}, base, { height: 60, showPct: true }));
+        w.DashKit.icicle(d3, Object.assign({}, base, { height: 60, showPct: true }));
         var pctTexts = Array.prototype.filter.call(d3.querySelectorAll("svg text"), function (t) { return t.textContent.indexOf("%") >= 0; }).length;
         iframeDoc.body.removeChild(d3);
 
@@ -32941,9 +32941,9 @@ function serve() {
     var z8gnGrouped = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.groupedBars === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.groupedBars === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var cfg = {
           labels: ["Q1", "Q2", "Q3"],
@@ -32951,13 +32951,13 @@ function serve() {
           height: 300
         };
         var d1 = iframeDoc.createElement("div"); d1.style.cssText = "position:absolute;top:-9999px;width:400px"; iframeDoc.body.appendChild(d1);
-        w.PDC.groupedBars(d1, cfg);
+        w.DashKit.groupedBars(d1, cfg);
         var barsOff = d1.querySelectorAll("svg rect").length; // 3 cats x 2 series = 6 bars
         var labelsOff = d1.querySelectorAll("svg text.val-label").length;
         iframeDoc.body.removeChild(d1);
 
         var d2 = iframeDoc.createElement("div"); d2.style.cssText = "position:absolute;top:-9999px;width:400px"; iframeDoc.body.appendChild(d2);
-        w.PDC.groupedBars(d2, Object.assign({}, cfg, { showValues: true }));
+        w.DashKit.groupedBars(d2, Object.assign({}, cfg, { showValues: true }));
         var barsOn = d2.querySelectorAll("svg rect").length;
         var labelsOn = d2.querySelectorAll("svg text.val-label").length;
         iframeDoc.body.removeChild(d2);
@@ -32971,9 +32971,9 @@ function serve() {
     var z8gnNorm = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.barNorm === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.barNorm === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var cfg = {
           labels: ["Cat1", "Cat2"],
@@ -32981,12 +32981,12 @@ function serve() {
           height: 300
         };
         var d1 = iframeDoc.createElement("div"); d1.style.cssText = "position:absolute;top:-9999px;width:400px"; iframeDoc.body.appendChild(d1);
-        w.PDC.barNorm(d1, cfg);
+        w.DashKit.barNorm(d1, cfg);
         var pctOff = Array.prototype.filter.call(d1.querySelectorAll("svg text.val-label"), function (t) { return t.textContent.indexOf("%") >= 0; }).length;
         iframeDoc.body.removeChild(d1);
 
         var d2 = iframeDoc.createElement("div"); d2.style.cssText = "position:absolute;top:-9999px;width:400px"; iframeDoc.body.appendChild(d2);
-        w.PDC.barNorm(d2, Object.assign({}, cfg, { showPct: true }));
+        w.DashKit.barNorm(d2, Object.assign({}, cfg, { showPct: true }));
         var pctOn = Array.prototype.filter.call(d2.querySelectorAll("svg text.val-label"), function (t) { return t.textContent.indexOf("%") >= 0; }).length;
         iframeDoc.body.removeChild(d2);
 
@@ -33461,7 +33461,7 @@ function serve() {
       JSON.stringify(cmdkAddPanel));
 
     // Restore a real, fully-loaded spec + let the preview iframe settle before later tests
-    // (several below assume a PDC-ready iframe is present) — same pattern used throughout this file.
+    // (several below assume a DashKit-ready iframe is present) — same pattern used throughout this file.
     await page.evaluate(async function () {
       var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
       window.__studioLoad(freshSpec);
@@ -33484,22 +33484,22 @@ function serve() {
     var z7maRender = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.line === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.line === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var labels = ["A", "B", "C", "D"], series = [{ name: "S1", values: [2, 4, 6, 8] }];
         var el1 = iframeDoc.createElement("div");
         el1.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el1);
-        w.PDC.line(el1, { labels: labels, series: series, height: 200 });
+        w.DashKit.line(el1, { labels: labels, series: series, height: 200 });
         var maOff = el1.querySelectorAll(".ma-line").length;
         iframeDoc.body.removeChild(el1);
 
         var el2 = iframeDoc.createElement("div");
         el2.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el2);
-        w.PDC.line(el2, { labels: labels, series: series, height: 200, showMA: true, maWindow: 2 });
+        w.DashKit.line(el2, { labels: labels, series: series, height: 200, showMA: true, maWindow: 2 });
         var maLines = el2.querySelectorAll(".ma-line");
         var dashed = maLines.length === 1 && maLines[0].getAttribute("stroke-dasharray") === "5,4";
         iframeDoc.body.removeChild(el2);
@@ -33543,15 +33543,15 @@ function serve() {
     var z7trRender = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.line === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.line === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var labels = ["A", "B", "C", "D"], series = [{ name: "S1", values: [2, 4, 6, 8] }];
         var el1 = iframeDoc.createElement("div");
         el1.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el1);
-        w.PDC.line(el1, { labels: labels, series: series, height: 200 });
+        w.DashKit.line(el1, { labels: labels, series: series, height: 200 });
         var trendOff = el1.querySelectorAll(".trend-line").length;
         var sepOff = el1.querySelectorAll(".forecast-sep").length;
         iframeDoc.body.removeChild(el1);
@@ -33561,7 +33561,7 @@ function serve() {
         var el2 = iframeDoc.createElement("div");
         el2.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el2);
-        w.PDC.line(el2, { labels: labels, series: series, height: 200, showTrend: true });
+        w.DashKit.line(el2, { labels: labels, series: series, height: 200, showTrend: true });
         var trendLines = el2.querySelectorAll(".trend-line");
         var dashed = trendLines.length === 1 && trendLines[0].getAttribute("stroke-dasharray") === "8,3";
         var dots = el2.querySelectorAll(".dot");
@@ -33576,7 +33576,7 @@ function serve() {
         var el3 = iframeDoc.createElement("div");
         el3.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el3);
-        w.PDC.line(el3, { labels: labels, series: series, height: 200, showTrend: true, forecastPeriods: 2 });
+        w.DashKit.line(el3, { labels: labels, series: series, height: 200, showTrend: true, forecastPeriods: 2 });
         var trendD3 = el3.querySelector(".trend-line").getAttribute("d");
         var trendEndX3 = +trendD3.split("L")[1].split(",")[0];
         var dots3 = el3.querySelectorAll(".dot");
@@ -33631,16 +33631,16 @@ function serve() {
     var z7hwRender = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.line === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.line === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         var labels = ["A", "B", "C", "D", "E"], series = [{ name: "S1", values: [2, 5, 4, 8, 7] }];
         // default method (no trendMethod set) still behaves like linear: a single "M...L..." segment
         var el1 = iframeDoc.createElement("div");
         el1.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el1);
-        w.PDC.line(el1, { labels: labels, series: series, height: 200, showTrend: true });
+        w.DashKit.line(el1, { labels: labels, series: series, height: 200, showTrend: true });
         var linearSegs = (el1.querySelector(".trend-line").getAttribute("d").match(/L/g) || []).length;
         iframeDoc.body.removeChild(el1);
 
@@ -33648,7 +33648,7 @@ function serve() {
         var el2 = iframeDoc.createElement("div");
         el2.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el2);
-        w.PDC.line(el2, { labels: labels, series: series, height: 200, showTrend: true, trendMethod: "holt" });
+        w.DashKit.line(el2, { labels: labels, series: series, height: 200, showTrend: true, trendMethod: "holt" });
         var holtLines = el2.querySelectorAll(".trend-line");
         var holtSegs = holtLines.length === 1 ? (holtLines[0].getAttribute("d").match(/L/g) || []).length : 0;
         var dots2 = el2.querySelectorAll(".dot");
@@ -33662,7 +33662,7 @@ function serve() {
         var el3 = iframeDoc.createElement("div");
         el3.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(el3);
-        w.PDC.line(el3, { labels: labels, series: series, height: 200, showTrend: true, trendMethod: "holt", forecastPeriods: 2 });
+        w.DashKit.line(el3, { labels: labels, series: series, height: 200, showTrend: true, trendMethod: "holt", forecastPeriods: 2 });
         var holtD3 = el3.querySelector(".trend-line").getAttribute("d");
         var holtEndX3 = +holtD3.split("L").pop().split(",")[0];
         var dots3 = el3.querySelectorAll(".dot");
@@ -33678,14 +33678,14 @@ function serve() {
     });
     ok("Z7HW: default method is a single-segment linear trend; trendMethod:'holt' draws a multi-segment smoothed line that extends with forecastPeriods", z7hwRender.ok, JSON.stringify(z7hwRender));
 
-    // Z7HW-3: real dispatch bug fix — every Z7HW/Z7TR check above calls w.PDC.line(...) directly
+    // Z7HW-3: real dispatch bug fix — every Z7HW/Z7TR check above calls w.DashKit.line(...) directly
     // on a scratch element, bypassing studio-render.js's actual renderPanel() dispatch entirely.
     // That dispatch (the ONLY render path for both the live preview and every real export) was
     // found to only pass showTrend/forecastPeriods through, never trendMethod/alpha/beta/gamma/
     // seasonLength — so picking "Seasonal (Holt-Winters)" in the real inspector silently rendered
     // plain linear OLS regardless, since Studio itself is never inlined into this runtime (see the
     // v214 note) to catch the mismatch. This test drives the REAL inspector controls (checkbox +
-    // select, not a direct PDC.line call) on a REAL bound panel and reads the REAL preview iframe.
+    // select, not a direct DashKit.line call) on a REAL bound panel and reads the REAL preview iframe.
     var z7hwDispatch = await page.evaluate(async function () {
       // Self-contained spec (rather than reusing spec.panels[0], whatever DA it happens to be
       // bound to this deep into the suite) so this check doesn't depend on earlier tests' state.
@@ -33825,7 +33825,7 @@ function serve() {
     ok("Z7AGG: exported CDF HTML embeds the chosen aggregation in STUDIO_SPEC", z7aggRender.exported, JSON.stringify(z7aggRender));
     ok("Z7AGG: switching back to 'First row (default)' clears k.agg (no clutter on unchanged KPIs)", z7aggRender.aggCleared, JSON.stringify(z7aggRender));
 
-    // Regression: a real exported/standalone CDF bundle only ships PDC (vendor/pdc-ui.js) +
+    // Regression: a real exported/standalone CDF bundle only ships DashKit (vendor/dashkit.js) +
     // studio-charts.js + studio-render.js — app/model.js (where Studio.aggregate lives) is a
     // builder-only module and is NEVER inlined into it (see Studio.buildHtml's asset list). An
     // earlier cut of the Z7AGG feature called Studio.aggregate() straight from studio-render.js,
@@ -33887,7 +33887,7 @@ function serve() {
       var cmpRow = Array.prototype.slice.call(insp.querySelectorAll(".field")).filter(function (r) { return /Compare column/i.test(r.textContent); })[0];
       var cmpSel = cmpRow.querySelector("select");
       cmpSel.value = "cost"; cmpSel.dispatchEvent(new Event("change", { bubbles: true }));
-      // KPI tiles count up over 750ms (animateCount in vendor/pdc-ui.js) — outwait it so the
+      // KPI tiles count up over 750ms (animateCount in vendor/dashkit.js) — outwait it so the
       // read value is the settled result, not a mid-animation frame.
       await new Promise(function (r) { setTimeout(r, 950); });
       var iw = document.getElementById("preview").contentWindow;
@@ -33898,31 +33898,31 @@ function serve() {
     ok("Z7AGG-3: a column correlated against itself renders as 1 (perfect correlation), proving the KPI tile doesn't crash",
       corrUI.agg === "corr" && corrUI.compareCol === "cost" && /^1(\.0+)?$/.test(corrUI.tileText || ""), JSON.stringify(corrUI));
 
-    // Regression: PDC.cda's live-fetch fallback (vendor/pdc-ui.js) used to build its request URL
+    // Regression: DashKit.cda's live-fetch fallback (vendor/dashkit.js) used to build its request URL
     // with `new URL(CDA_URL, location.origin)`. Inside the builder's own live-preview iframe
     // (#preview, populated via srcdoc), location.origin is the literal string "null" — srcdoc
     // documents have an opaque origin by spec even though location.href correctly reads
     // "about:srcdoc" — so `new URL(x, "null")` threw "Invalid base URL" the moment any DA was
     // missing from the mock data. Fixed to use document.baseURI (inherits the parent page's real
     // URL inside a srcdoc iframe, unaffected everywhere else). Call it directly against a DA id
-    // that's deliberately absent from PDC_MOCK so it falls through to the real-fetch branch.
+    // that's deliberately absent from DASHKIT_MOCK so it falls through to the real-fetch branch.
     const cdaUrlFix = await page.evaluate(function () {
       var iw = document.getElementById("preview").contentWindow;
       try {
-        iw.PDC.cda("__no_such_da__"); // constructing the URL must not throw synchronously
+        iw.DashKit.cda("__no_such_da__"); // constructing the URL must not throw synchronously
         return { threw: false };
       } catch (e) {
         return { threw: true, message: e.message };
       }
     });
-    ok("PDC.cda's live-fetch URL construction doesn't throw inside the srcdoc live-preview iframe",
+    ok("DashKit.cda's live-fetch URL construction doesn't throw inside the srcdoc live-preview iframe",
       cdaUrlFix.threw === false, JSON.stringify(cdaUrlFix));
 
     // Restore clean spec — wait for the srcdoc preview iframe to actually settle (same
     // pattern as the __studioLoad reload earlier in this file); the Z7HW2-3 test below
-    // queries that iframe's window.PDC directly, and without this wait the reload can
+    // queries that iframe's window.DashKit directly, and without this wait the reload can
     // still be in flight, making the iframe search below intermittently come up empty
-    // ("no PDC iframe").
+    // ("no DashKit iframe").
     await page.evaluate(async function () {
       var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
       window.__studioLoad(freshSpec);
@@ -33985,15 +33985,15 @@ function serve() {
     var z7hw2Render = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
       for (var i = 0; i < iframes.length; i++) {
-        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.line === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.line === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
       }
-      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
       try {
         // Too little data (1 season of 4) — should fall back to plain Holt cleanly, no throw.
         var shortLabels = ["Q1", "Q2", "Q3", "Q4"], shortSeries = [{ name: "S1", values: [10, 30, 15, 25] }];
         var elS = iframeDoc.createElement("div"); elS.style.cssText = "position:absolute;top:-9999px;width:300px";
         iframeDoc.body.appendChild(elS);
-        w.PDC.line(elS, { labels: shortLabels, series: shortSeries, height: 200, showTrend: true, trendMethod: "hw", seasonLength: 4, forecastPeriods: 2 });
+        w.DashKit.line(elS, { labels: shortLabels, series: shortSeries, height: 200, showTrend: true, trendMethod: "hw", seasonLength: 4, forecastPeriods: 2 });
         var shortOk = !!elS.querySelector(".trend-line");
         iframeDoc.body.removeChild(elS);
 
@@ -34004,7 +34004,7 @@ function serve() {
         var series = [{ name: "S1", values: [10, 30, 15, 32, 12, 33, 18, 36] }];
         var el1 = iframeDoc.createElement("div"); el1.style.cssText = "position:absolute;top:-9999px;width:400px";
         iframeDoc.body.appendChild(el1);
-        w.PDC.line(el1, { labels: labels, series: series, height: 200, showTrend: true, trendMethod: "hw", seasonLength: 4, forecastPeriods: 1, alpha: 40, beta: 10, gamma: 60 });
+        w.DashKit.line(el1, { labels: labels, series: series, height: 200, showTrend: true, trendMethod: "hw", seasonLength: 4, forecastPeriods: 1, alpha: 40, beta: 10, gamma: 60 });
         var hwPath = el1.querySelector(".trend-line");
         var hwD = hwPath.getAttribute("d");
         var hwSegs = (hwD.match(/L/g) || []).length; // fitted (n-1) + 1 forecast point
@@ -35965,7 +35965,7 @@ function serve() {
     await page.evaluate(function () {
       // A sample-backed dashboard the way the demo/sample packs build them: a data access with
       // NO real engine (authored kind:"sql", no connAdapter) — before #106 this fell through
-      // studio-render.js's PDC.cda to the retired CDA server → 404 and a blank chart. Plus a
+      // studio-render.js's DashKit.cda to the retired CDA server → 404 and a blank chart. Plus a
       // duckdb DA (a REAL engine) to prove the fix mocks ONLY the sample DA, never a live one.
       var spec = {
         schema: 1, id: "vx-sample", name: "vx-sample", title: "Viewer Sample Dash", subtitle: "", group: "", description: "",
@@ -35989,21 +35989,21 @@ function serve() {
 
     const vx = await vxPage.evaluate(function () {
       var f = document.querySelector("#viewerFrame");
-      var fw = f && f.contentWindow, mock = (fw && fw.PDC_MOCK) || {};
+      var fw = f && f.contentWindow, mock = (fw && fw.DASHKIT_MOCK) || {};
       var sm = window.__viewerSampleMock ? window.__viewerSampleMock() : {};
       var html = window.__viewerBuildHtml ? window.__viewerBuildHtml() : "";
       var exportBtn = document.getElementById("viewerExport");
       var items = Array.prototype.map.call(document.querySelectorAll("#viewerExportMenu button[data-exp]"), function (b) { return b.getAttribute("data-exp"); });
       return {
-        // #106: the sample DA got a mock (so PDC.cda serves it locally, never hits the 404 server);
+        // #106: the sample DA got a mock (so DashKit.cda serves it locally, never hits the 404 server);
         // the real duckdb DA did NOT (its live engine still owns it — the mock must not shadow it).
         frameHasSampleMock: !!mock["vx-da-sample"],
         frameOmitsRealDA: !mock["vx-da-duck"],
         sampleMockHasSample: !!sm["vx-da-sample"],
         sampleMockOmitsRealDA: !sm["vx-da-duck"],
-        // The built HTML carries PDC_MOCK but is a preview:false build (viewer semantics: live
+        // The built HTML carries DASHKIT_MOCK but is a preview:false build (viewer semantics: live
         // engines stay live), so it must NOT set STUDIO_PREVIEW yet must embed the mock.
-        htmlHasMock: /window\.PDC_MOCK\s*=/.test(html) && html.indexOf("vx-da-sample") >= 0,
+        htmlHasMock: /window\.DASHKIT_MOCK\s*=/.test(html) && html.indexOf("vx-da-sample") >= 0,
         htmlNoPreviewFlag: html.indexOf("window.STUDIO_PREVIEW=true") < 0,
         // #107: Export affordance is present for everyone, with all three shipping formats.
         exportVisible: !!(exportBtn && !exportBtn.hidden && getComputedStyle(exportBtn).display !== "none"),
@@ -36014,7 +36014,7 @@ function serve() {
       vx.frameHasSampleMock && vx.sampleMockHasSample, JSON.stringify(vx));
     ok("#106: the sample mock covers ONLY sample-only data accesses — a real (duckdb) data access is left to query live, never shadowed by a mock",
       vx.frameOmitsRealDA && vx.sampleMockOmitsRealDA, JSON.stringify(vx));
-    ok("#106: the viewer's built HTML embeds PDC_MOCK on a preview:false build (mock present, STUDIO_PREVIEW not set) so live engines stay live while sample DAs render",
+    ok("#106: the viewer's built HTML embeds DASHKIT_MOCK on a preview:false build (mock present, STUDIO_PREVIEW not set) so live engines stay live while sample DAs render",
       vx.htmlHasMock && vx.htmlNoPreviewFlag, JSON.stringify(vx));
     ok("#107: the viewer offers an Export control with all three shipping formats (HTML / PDF / editable spec)",
       vx.exportVisible && vx.exportItems === "html,pdf,spec", JSON.stringify(vx));

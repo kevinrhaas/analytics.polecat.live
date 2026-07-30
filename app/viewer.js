@@ -13,7 +13,7 @@
 
   // #106 (viewer 404 on sample dashboards): a data access with no real engine — the
   // demo/sample packs' authored kind:"sql" DAs — has nothing to query, so studio-render.js's
-  // PDC.cda falls all the way through to the retired Pentaho-CDA server endpoint → 404. The
+  // DashKit.cda falls all the way through to the retired Pentaho-CDA server endpoint → 404. The
   // fix is to bake a deterministic sample mock into the build for JUST those DAs (real ones
   // still query live). REAL_DA_KINDS / REAL_CONN_ADAPTERS mirror studio-render.js's own
   // duckdb/httpvfs + CRED_ENGINES (keyed on da.kind) + CONN_ENGINES (keyed on da.connAdapter)
@@ -25,8 +25,8 @@
   function daHasRealEngine(da) {
     return !!(da && (REAL_DA_KINDS[da.kind] || (da.connAdapter && REAL_CONN_ADAPTERS[da.connAdapter])));
   }
-  // A PDC_MOCK covering only the spec's sample-only data accesses (see above). buildHtml embeds
-  // it as-is; PDC.cda prefers a mocked id, so a real DA is never shadowed — its entry is absent.
+  // A DASHKIT_MOCK covering only the spec's sample-only data accesses (see above). buildHtml embeds
+  // it as-is; DashKit.cda prefers a mocked id, so a real DA is never shadowed — its entry is absent.
   function sampleMock(spec) {
     if (!Studio.genMock) return {};
     var full = Studio.genMock(spec), out = {};
@@ -200,7 +200,7 @@
     var titleEl = $("#viewerTitle"); if (titleEl) titleEl.textContent = title;
     wireActions(row, id);
     Promise.all([
-      fetchText("vendor/pdc-ui.css"), fetchText("vendor/pdc-ui.js"), fetchText("app/studio-render.js"),
+      fetchText("vendor/dashkit.css"), fetchText("vendor/dashkit.js"), fetchText("app/studio-render.js"),
       fetchText("app/studio-charts.js"), fetchText("app/duckdb.js"), fetchText("app/sqlitehttp.js"),
       fetchText("app/snowflake.js"), fetchText("app/databricks.js"), fetchText("app/bigquery.js"),
       fetchText("app/genericsql.js"), fetchText("app/sources/turso.js"), fetchText("app/sources/postgrest.js"),

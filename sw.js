@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v395"; /* v395: KEVIN-LIVE emergency triple — ALSO SCORE-1
+var CACHE_NAME = "studio-shell-v396"; /* v396: PDC-RENAME — the dashboard toolkit is now DashKit:
+   vendor/pdc-ui.js|.css -> vendor/dashkit.js|.css (precache list updated), window.PDC ->
+   window.DashKit, .pdc-* -> .dk-*, --pdc -> --dk (cssvar keeps a legacy --pdc alias so saved
+   dashboards keep their colors). Historical comments below reference the old names — they
+   describe past releases and are left as written.
+   Original v395: KEVIN-LIVE emergency triple — ALSO SCORE-1
    (app/studio-render.js): interactive filters were DEAD against mock/sample data (the
    vendored mock branch ignored params) — PDC.cda's wrapper now column-match-filters mock
    rows or applies seeded deterministic variation for server-side params; and the builder's
@@ -2216,8 +2221,8 @@ var SHELL_FILES = [
   "app/palette.js",
   "app/studio-render.js",
   "app/studio-charts.js",
-  "vendor/pdc-ui.css",
-  "vendor/pdc-ui.js",
+  "vendor/dashkit.css",
+  "vendor/dashkit.js",
   "data/cda-catalog.json",
   "data/examples/index.json"
 ];

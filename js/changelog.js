@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 760,
+    title: 'Under the hood: the dashboard toolkit is now DashKit',
+    ts: '2026-07-30T15:15:44.000Z',
+    items: [
+      'The chart toolkit that renders every dashboard has a proper name: the legacy “PDC” acronym is gone from the code (window.DashKit, vendor/dashkit.js, .dk-* styles).',
+      'Saved dashboards are unaffected — legacy color tokens from older saves still resolve, and exported dashboards keep matching the live preview exactly.',
+    ],
+  },
+  {
     v: 759,
     title: 'Dashboard filters now work on sample data — and stop spawning close boxes',
     kind: 'fix',

@@ -118,7 +118,7 @@ async function buildExport(page, spec, mock) {
   }, { spec, mock });
 }
 
-async function shootExport(browser, name, html, { theme = "light", waitSel = ".pdc-grid svg", extraWait = 900, scrollY = 0 } = {}) {
+async function shootExport(browser, name, html, { theme = "light", waitSel = ".dk-grid svg", extraWait = 900, scrollY = 0 } = {}) {
   const route = `/__shot/${name}.html`;
   dynamic.set(route, html);
   const ctx = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 1.5 });

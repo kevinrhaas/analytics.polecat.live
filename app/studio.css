@@ -1,13 +1,13 @@
 /* ============================================================================
-   studio.css — the Analytics (PDC Studio) builder chrome.
+   studio.css — the Analytics (DashKit Studio) builder chrome.
    A modern 3-pane IDE: query library · live preview · inspector.
-   Chrome brand blue #005bb5 / purple #7d3c98 (--brand/--pdc). The PREVIEW
-   iframe carries its own theme (pdc-ui.css, its OWN separate --pentaho
+   Chrome brand blue #005bb5 / purple #7d3c98 (--brand/--dk). The PREVIEW
+   iframe carries its own theme (dashkit.css, its OWN separate --pentaho
    export-context variable — never coupled to this file's --brand); this
    styles only the builder shell.
    ============================================================================ */
 :root{
-  --brand:#005bb5; --pdc:#7d3c98; --ink:#16233b; --muted:#5d6b82; --faint:#8a97ab;
+  --brand:#005bb5; --dk:#7d3c98; --ink:#16233b; --muted:#5d6b82; --faint:#8a97ab;
   --topbar-bg:linear-gradient(100deg,#0a1c3d,#163a6e 60%,#1c4a86); --topbar-ink:#ffffff; /* classic (default) */
   --bg:#eef2f8; --pane:#ffffff; --line:#e1e7f0; --line-2:#eef1f7; --field:#f5f8fc;
   --good:#1f9d57; --warn:#d6820a; --bad:#d63a5e; --accent:#005bb5;
@@ -19,7 +19,7 @@
   --restore-banner-h:0px; /* QA-06: JS-measured height of the restore banner while shown, 0 otherwise */
 }
 html[data-theme='dark']{
-  --brand:#4aa3ff; --pdc:#c08af0;            /* brighter accents for contrast on dark */
+  --brand:#4aa3ff; --dk:#c08af0;            /* brighter accents for contrast on dark */
   --ink:#e8edf5; --muted:#9aa8be; --faint:#67768d;
   --bg:#0c1422; --pane:#121d30; --line:#26374f; --line-2:#1b283c; --field:#0f1a29;
   --good:#4cde8c; --warn:#f0a750; --bad:#ff5c7a;
@@ -30,9 +30,9 @@ html[data-theme='dark']{
    independently of the light/dark [data-theme] mode toggle. "Polecat" reuses the warm
    plum/terracotta/cream palette the left rail (#railNav) already carries, so the whole
    app — not just the rail — can share one coherent identity. Exported dashboards keep
-   their own theming (pdc-ui.css) and are deliberately NOT coupled to this. */
+   their own theming (dashkit.css) and are deliberately NOT coupled to this. */
 html[data-app-theme='polecat']{
-  --brand:#c1602c; --pdc:#7c5cbf;
+  --brand:#c1602c; --dk:#7c5cbf;
   --topbar-bg:linear-gradient(100deg,#231e28,#3A2F3A 58%,#4a3a48); --topbar-ink:#F5E9D6; /* warm plum, matches the rail */
   --ink:#2E2A33; --muted:#6f6260; --faint:#9c8f8a;
   --bg:#F7EEDF; --pane:#FFFBF4; --line:#E7D9C2; --line-2:#F1E6D3; --field:#FBF3E6;
@@ -40,7 +40,7 @@ html[data-app-theme='polecat']{
   --shadow:0 1px 3px rgba(60,40,20,.09); --shadow-lg:0 12px 40px rgba(60,40,20,.18);
 }
 html[data-app-theme='polecat'][data-theme='dark']{
-  --brand:#f2965b; --pdc:#a78bfa;
+  --brand:#f2965b; --dk:#a78bfa;
   --ink:#F5E9D6; --muted:#c9b9ab; --faint:#8f7f74;
   --bg:#0a0a0f; --pane:#211b26; --line:rgba(245,233,214,.14); --line-2:rgba(245,233,214,.07); --field:#191420;
   --good:#59d68e; --warn:#f2ab5c; --bad:#ff6b82;
@@ -55,7 +55,7 @@ html[data-app-theme='polecat'][data-theme='dark']{
    Studio.DASHBOARD_THEMES' fleet-modern entry so the two surfaces read as one
    coherent system when both are set to the modern look. */
 html[data-app-theme='modern']{
-  --brand:#0071bc; --pdc:#00964a;
+  --brand:#0071bc; --dk:#00964a;
   --topbar-bg:linear-gradient(100deg,#0b1524,#14243f 58%,#1c3358); --topbar-ink:#e9eff8; /* deep navy-slate, matches the rail */
   --ink:#0c1c2e; --muted:#48596f; --faint:#586b88;
   --bg:#eef3f9; --pane:#ffffff; --line:#ccdcec; --line-2:#e9f0f8; --field:#ffffff;
@@ -63,7 +63,7 @@ html[data-app-theme='modern']{
   --shadow:0 1px 3px rgba(13,26,46,.08); --shadow-lg:0 12px 40px rgba(13,26,46,.16);
 }
 html[data-app-theme='modern'][data-theme='dark']{
-  --brand:#5bb3ea; --pdc:#17b9a6;
+  --brand:#5bb3ea; --dk:#17b9a6;
   --ink:#e9eff8; --muted:#93a6c2; --faint:#8496ac;
   --bg:#0a0f1a; --pane:#111a2b; --line:#26344f; --line-2:#18243a; --field:#18243a;
   --good:#22a35f; --warn:#b8811f; --bad:#e2685f;
@@ -79,7 +79,7 @@ html[data-app-theme='modern'][data-theme='dark']{
    analog (the ramp deliberately avoids red as a data color) so it's a plain earthy brick-
    red picked to match the rest of the palette's warmth. */
 html[data-app-theme='conservation']{
-  --brand:#72892b; --pdc:#10432e;
+  --brand:#72892b; --dk:#10432e;
   --topbar-bg:linear-gradient(100deg,#0c2419,#10432e 58%,#1a5c40); --topbar-ink:#eaf1df; /* deep pine, matches the rail */
   --ink:#1e2a20; --muted:#55614c; --faint:#7b8473;
   --bg:#f3f5ec; --pane:#ffffff; --line:#dde3d1; --line-2:#eaf0e0; --field:#ffffff;
@@ -87,7 +87,7 @@ html[data-app-theme='conservation']{
   --shadow:0 1px 3px rgba(16,67,46,.09); --shadow-lg:0 12px 40px rgba(16,67,46,.18);
 }
 html[data-app-theme='conservation'][data-theme='dark']{
-  --brand:#a3bd52; --pdc:#6fb894;
+  --brand:#a3bd52; --dk:#6fb894;
   --ink:#eaf1df; --muted:#a3b39a; --faint:#7e8c76;
   --bg:#0c1a12; --pane:#12241a; --line:#274434; --line-2:#16301f; --field:#12241a;
   --good:#58a83f; --warn:#b98d2a; --bad:#c25a5a;
@@ -102,7 +102,7 @@ html[data-app-theme='conservation'][data-theme='dark']{
    around the theme's own --header-bg; --good/--warn/--bad picked from the ramp or a
    matched tone) so chrome + dashboard read as one system when both are set alike. */
 html[data-app-theme='high-contrast']{
-  --brand:#0b3d91; --pdc:#8a1c1c;
+  --brand:#0b3d91; --dk:#8a1c1c;
   --topbar-bg:linear-gradient(100deg,#000000,#0a0a0a 58%,#1a1a1a); --topbar-ink:#ffffff; /* stark black chrome */
   --ink:#000000; --muted:#3d3d3d; --faint:#595959;
   --bg:#ffffff; --pane:#ffffff; --line:#000000; --line-2:#e8e8e8; --field:#ffffff;
@@ -110,14 +110,14 @@ html[data-app-theme='high-contrast']{
   --shadow:0 1px 3px rgba(0,0,0,.14); --shadow-lg:0 12px 40px rgba(0,0,0,.28);
 }
 html[data-app-theme='high-contrast'][data-theme='dark']{
-  --brand:#5b9bff; --pdc:#ff6b6b;
+  --brand:#5b9bff; --dk:#ff6b6b;
   --ink:#ffffff; --muted:#d9d9d9; --faint:#bfbfbf;
   --bg:#000000; --pane:#0a0a0a; --line:#ffffff; --line-2:#1a1a1a; --field:#0a0a0a;
   --good:#38d16a; --warn:#e6b400; --bad:#ff6b6b;
   --shadow:0 1px 3px rgba(0,0,0,.6); --shadow-lg:0 16px 46px rgba(0,0,0,.7);
 }
 html[data-app-theme='editorial']{
-  --brand:#8a3324; --pdc:#2f4858;
+  --brand:#8a3324; --dk:#2f4858;
   --topbar-bg:linear-gradient(100deg,#221c15,#2b241c 58%,#3a3024); --topbar-ink:#f2ece0; /* paper-and-ink chrome */
   --ink:#2b241c; --muted:#6b5f4d; --faint:#8c8069;
   --bg:#f7f3ea; --pane:#fffdf8; --line:#d8cdb8; --line-2:#efe8d8; --field:#fffdf8;
@@ -125,7 +125,7 @@ html[data-app-theme='editorial']{
   --shadow:0 1px 3px rgba(60,45,20,.09); --shadow-lg:0 12px 40px rgba(60,45,20,.18);
 }
 html[data-app-theme='editorial'][data-theme='dark']{
-  --brand:#c97b5e; --pdc:#5a90a3;
+  --brand:#c97b5e; --dk:#5a90a3;
   --topbar-bg:linear-gradient(100deg,#0f0c07,#141009 58%,#1f1710); --topbar-ink:#f2ece0;
   --ink:#f2ece0; --muted:#b8ac95; --faint:#8f8570;
   --bg:#1c1712; --pane:#24201a; --line:#3d362b; --line-2:#2c261f; --field:#24201a;
@@ -133,7 +133,7 @@ html[data-app-theme='editorial'][data-theme='dark']{
   --shadow:0 1px 3px rgba(0,0,0,.45); --shadow-lg:0 16px 46px rgba(0,0,0,.6);
 }
 html[data-app-theme='neon']{
-  --brand:#0891b2; --pdc:#c2185b;
+  --brand:#0891b2; --dk:#c2185b;
   --topbar-bg:linear-gradient(100deg,#000000,#0a0010 55%,#180022); --topbar-ink:#e6f7ff; /* neon-on-black chrome (light + dark) */
   --ink:#14101d; --muted:#4f4a63; --faint:#6f6885;
   --bg:#fafafa; --pane:#ffffff; --line:#e2dfea; --line-2:#f1eff7; --field:#ffffff;
@@ -141,7 +141,7 @@ html[data-app-theme='neon']{
   --shadow:0 1px 3px rgba(20,16,29,.09); --shadow-lg:0 12px 40px rgba(20,16,29,.18);
 }
 html[data-app-theme='neon'][data-theme='dark']{
-  --brand:#22d3ee; --pdc:#ff3fd0;
+  --brand:#22d3ee; --dk:#ff3fd0;
   --topbar-bg:linear-gradient(100deg,#000000,#0a0010 55%,#14001a); --topbar-ink:#eafcff;
   --ink:#f5f3fb; --muted:#a9a3c0; --faint:#7a7492;
   --bg:#050507; --pane:#0d0d13; --line:#26232f; --line-2:#131018; --field:#0d0d13;
@@ -169,7 +169,7 @@ html[data-app-theme='neon'][data-theme='dark']{
   --border:var(--line);
   --text:var(--ink); --text-2:var(--muted); --text-3:var(--faint);
   --ink-dim:var(--muted);
-  --brand-2:var(--pdc); --accent-2:var(--pdc);
+  --brand-2:var(--dk); --accent-2:var(--dk);
   --success:var(--good); --danger:var(--bad); --warning:var(--warn); --info:var(--accent);
   --shadow-sm:var(--shadow); --radius-lg:16px;
 }
@@ -228,7 +228,7 @@ html[data-app-theme='neon'][data-theme='dark']{
 .ps-waffle-item.current{border-color:color-mix(in srgb,var(--brand) 45%,var(--border));background:color-mix(in srgb,var(--brand) 10%,transparent)}
 .ps-waffle-item.soon{opacity:.45;cursor:default}
 .ps-waffle-ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;color:#fff;font-size:var(--fs-17);font-weight:700;
-  background:linear-gradient(135deg,var(--w-accent,var(--brand)),color-mix(in srgb,var(--w-accent,var(--brand)) 55%,var(--pdc)))}
+  background:linear-gradient(135deg,var(--w-accent,var(--brand)),color-mix(in srgb,var(--w-accent,var(--brand)) 55%,var(--dk)))}
 .ps-waffle-ic svg{width:20px;height:20px}
 .ps-waffle-name{font-size:var(--fs-12);font-weight:600;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
 @keyframes ps-pop-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
@@ -598,7 +598,7 @@ html[data-app-theme='neon'] #mobileNavBtn{background:#000000;border-color:rgba(2
 @media(max-width:640px){.set-row-col .sp-list,.set-row-col .sp-add-row,.set-row-col .apptheme-picker{flex-basis:100%;margin-left:0}}
 /* LF17: Color theme picker — palette-image cards (AutoSelector-style) replacing the old
    text-only <select>. Each card's banner is that theme's own --topbar-bg gradient and its
-   three dots are --brand/--pdc/--bg, resolved live per theme (studio.js resolveAppThemeTokens)
+   three dots are --brand/--dk/--bg, resolved live per theme (studio.js resolveAppThemeTokens)
    rather than a second hardcoded copy of studio.css's theme colors, so the cards can't drift
    from the actual [data-app-theme] blocks above. Active-state ring matches this file's other
    "active" swatch convention (border-color:var(--brand)) rather than inventing a new one. */
@@ -847,7 +847,7 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
    gets its own dark-on-light + red-hover treatment right below (LF14). */
 .modal .btn:not(.primary):not(.btn-primary):not(.danger){background:var(--field);border:1px solid var(--line);color:var(--ink)}
 .modal .btn:not(.primary):not(.btn-primary):not(.danger):hover{background:var(--field);border-color:var(--brand);color:var(--brand)}
-.btn.btn-primary{background:var(--pdc);border-color:transparent;box-shadow:0 2px 10px rgba(125,60,152,.5)}
+.btn.btn-primary{background:var(--dk);border-color:transparent;box-shadow:0 2px 10px rgba(125,60,152,.5)}
 .btn.btn-primary:hover{background:#8e49ab}
 .btn.icon{padding:var(--sp-8) var(--sp-12)}
 .btn.live-on{background:#1f9d57;border-color:transparent}
@@ -960,10 +960,10 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
 .da .da-id{font-family:var(--font);font-size:var(--fs-12);font-weight:700;color:var(--brand);word-break:break-all}
 .da .da-cols{margin-top:4px;display:flex;flex-wrap:wrap;gap:3px}
 .da .col{font-size:var(--fs-10);background:var(--field);border:1px solid var(--line-2);border-radius:5px;padding:var(--sp-2) var(--sp-6);color:var(--muted)}
-.da .col.param{background:color-mix(in srgb,var(--pdc) 14%,transparent);border-color:transparent;color:var(--pdc)}
+.da .col.param{background:color-mix(in srgb,var(--dk) 14%,transparent);border-color:transparent;color:var(--dk)}
 .da .da-add{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px}
 .da .chip{font-size:var(--fs-11);border:1px solid var(--line);background:var(--field);border-radius:6px;padding:var(--sp-4) var(--sp-8);cursor:pointer;color:var(--muted);font-weight:600}
-.da .chip:hover{border-color:var(--pdc);color:var(--pdc);background:var(--pane)}
+.da .chip:hover{border-color:var(--dk);color:var(--dk);background:var(--pane)}
 /* LF66 (5): the Workspace "Datasets" library cards were an always-on wall of column
    chips + a row of +chart quick-adds — too big for a rail list. Compact them to name +
    a short meta line by default; the columns and the +chart quick-adds reveal on
@@ -1012,7 +1012,7 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .da-mine .da-mine-acts{display:flex;gap:2px;flex-shrink:0;opacity:0;transition:opacity .12s}
 .da-mine:hover .da-mine-acts,.da-mine.da-mine-sel .da-mine-acts,.da-mine:focus-within .da-mine-acts{opacity:1}
 .da-mine .col-more{color:var(--faint);font-weight:700}
-.da-mine-sel{border-color:var(--pdc) !important;box-shadow:0 0 0 2px color-mix(in srgb,var(--pdc) 18%,transparent)}
+.da-mine-sel{border-color:var(--dk) !important;box-shadow:0 0 0 2px color-mix(in srgb,var(--dk) 18%,transparent)}
 
 /* ── canvas ── */
 #canvas{flex:1 1 0;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
@@ -1168,7 +1168,7 @@ body.lib-dragging #preview{pointer-events:none}
 .opt-range-val{font-size:var(--fs-12);color:var(--muted);min-width:2.6em;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
 .row-item{display:flex;align-items:center;gap:9px;padding:var(--sp-8) var(--sp-8) var(--sp-8) var(--sp-10);border:1px solid var(--line);border-radius:8px;margin-bottom:6px;background:var(--pane);cursor:pointer}
 .row-item:hover{border-color:var(--brand)}
-.row-item.active{border-color:var(--pdc);box-shadow:0 0 0 3px color-mix(in srgb,var(--pdc) 16%,transparent)}
+.row-item.active{border-color:var(--dk);box-shadow:0 0 0 3px color-mix(in srgb,var(--dk) 16%,transparent)}
 .row-item .ri-icon{width:24px;height:24px;border-radius:7px;background:var(--field);display:flex;align-items:center;justify-content:center;font-size:var(--fs-13);flex:0 0 auto}
 .row-item .ri-txt{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px;overflow:hidden}
 .row-item .ri-t{display:block;font-size:var(--fs-13);font-weight:700;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1201,7 +1201,7 @@ body.lib-dragging #preview{pointer-events:none}
 .ct-help{position:absolute;top:3px;right:3px;opacity:0;color:var(--faint);line-height:1;transition:opacity .15s;display:flex}
 .chart-opt:hover .ct-help{opacity:.65}
 .ct-help:hover{opacity:1!important;color:var(--accent)}
-.chart-opt.sel{border-color:var(--pdc);background:color-mix(in srgb,var(--pdc) 7%,var(--pane));box-shadow:0 0 0 2px color-mix(in srgb,var(--pdc) 16%,transparent)}
+.chart-opt.sel{border-color:var(--dk);background:color-mix(in srgb,var(--dk) 7%,var(--pane));box-shadow:0 0 0 2px color-mix(in srgb,var(--dk) 16%,transparent)}
 .chart-opt .ic{height:30px;display:flex;align-items:center;justify-content:center}
 .chart-opt .ic svg{height:30px;width:auto;max-width:100%}
 .chart-opt .lb{font-size:var(--fs-10);color:var(--muted);margin-top:4px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1214,7 +1214,7 @@ body.lib-dragging #preview{pointer-events:none}
 .chart-reco-chips{display:flex;flex-wrap:wrap;gap:6px}
 .chart-reco-chip{display:flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:20px;padding:var(--sp-4) var(--sp-10) var(--sp-4) var(--sp-6);font-size:var(--fs-11);font-weight:600;color:var(--ink);background:var(--field);cursor:pointer;transition:border-color .12s,background .12s,transform .08s}
 .chart-reco-chip:hover{border-color:var(--brand);transform:translateY(-1px)}
-.chart-reco-chip.sel{border-color:var(--pdc);background:color-mix(in srgb,var(--pdc) 14%,var(--field));color:var(--pdc)}
+.chart-reco-chip.sel{border-color:var(--dk);background:color-mix(in srgb,var(--dk) 14%,var(--field));color:var(--dk)}
 .chart-reco-chip .ic{display:flex;align-items:center;justify-content:center;height:16px;width:16px}
 .chart-reco-chip .ic svg{height:16px;width:16px}
 /* chart gallery group labels — span full grid row so chart types cluster visually */
@@ -1253,7 +1253,7 @@ body.lib-dragging #preview{pointer-events:none}
 /* UX4 (quality track, remainder): the celebratory toast variant (first export, round-number
    milestones, dashboard health) — the same brand gradient the changelog's "latest" badge and
    version chip already use, so a milestone reads as earned rather than a plain confirmation. */
-.toast.celebrate{background:linear-gradient(135deg,var(--brand),var(--pdc));color:#fff}
+.toast.celebrate{background:linear-gradient(135deg,var(--brand),var(--dk));color:#fff}
 
 /* ── N-FUN: first-export delight moment ── a small, rare, tasteful burst — never repeats
    (see celebrateFirstExport() in studio.js), skipped entirely under prefers-reduced-motion. */
@@ -1298,12 +1298,12 @@ body.lib-dragging #preview{pointer-events:none}
 .whatsnext .wn-status{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;
   border-radius:9px;font-size:var(--fs-10);font-weight:700;color:#fff;background:var(--faint)}
 .whatsnext .wn-status-next{background:var(--brand)}
-.whatsnext .wn-status-planned{background:var(--pdc)}
+.whatsnext .wn-status-planned{background:var(--dk)}
 .whatsnext .wn-status-exploring{background:color-mix(in srgb,var(--muted) 70%,transparent)}
 .whatsnext .wn-item{border:1px solid var(--line);border-left-width:3px;border-radius:8px;padding:var(--sp-10) var(--sp-12);
   margin-bottom:var(--sp-8);background:var(--field)}
 .whatsnext .wn-item-next{border-left-color:var(--brand)}
-.whatsnext .wn-item-planned{border-left-color:var(--pdc)}
+.whatsnext .wn-item-planned{border-left-color:var(--dk)}
 .whatsnext .wn-item-exploring{border-left-color:var(--muted)}
 .whatsnext .wn-item-t{font-size:var(--fs-14);font-weight:700;color:var(--ink);margin-bottom:2px}
 .whatsnext .wn-item-n{font-size:var(--fs-12);color:var(--muted);line-height:1.5}
@@ -1559,7 +1559,7 @@ body.lib-dragging #preview{pointer-events:none}
 .dsb-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;padding-top:var(--sp-12);border-top:1px solid var(--line)}
 .dsb-foot .btn{color:var(--ink);background:var(--field);border:1px solid var(--line)}
 .dsb-foot .btn:hover{border-color:var(--brand)}
-.dsb-foot .btn-primary{color:#fff;background:var(--pdc);border-color:transparent}
+.dsb-foot .btn-primary{color:#fff;background:var(--dk);border-color:transparent}
 /* G1 — SQL Builder accordion inside the DA builder */
 .dsb-sqb{margin-top:8px;border:1px solid var(--line);border-radius:9px;overflow:hidden}
 .dsb-sqb-tog{width:100%;display:flex;align-items:center;gap:6px;padding:var(--sp-8) var(--sp-12);background:var(--field);border:0;cursor:pointer;text-align:left;color:var(--muted)}
@@ -1577,7 +1577,7 @@ body.lib-dragging #preview{pointer-events:none}
 .dsb-sqb-gen-row{margin-top:2px}
 .dl-row{display:flex;align-items:center;gap:10px;padding:var(--sp-10) 0;border-bottom:1px solid var(--line-2)}
 .conn-row{display:flex;align-items:center;gap:10px;padding:var(--sp-10) var(--sp-12);border:1px solid var(--line);border-radius:9px;margin-bottom:7px;flex-wrap:wrap}
-.conn-row.active{border-color:var(--pdc);box-shadow:0 0 0 2px color-mix(in srgb,var(--pdc) 15%,transparent)}
+.conn-row.active{border-color:var(--dk);box-shadow:0 0 0 2px color-mix(in srgb,var(--dk) 15%,transparent)}
 .conn-row .cn{display:flex;flex-direction:column;min-width:160px;flex:1}
 .conn-row .cn b{font-size:var(--fs-13)}.conn-row .cn span{font-size:var(--fs-11);color:var(--faint);font-family:var(--font)}
 .conn-row .conn-acts{display:flex;gap:5px;flex-wrap:wrap}
@@ -1587,7 +1587,7 @@ body.lib-dragging #preview{pointer-events:none}
 .dl-row .sz{font-size:var(--fs-11);color:var(--faint);margin-left:auto}
 .dl-row .btn{background:var(--field);border:1px solid var(--line);color:var(--ink);padding:var(--sp-6) var(--sp-12);font-size:var(--fs-13)}
 .dl-row .btn:hover{border-color:var(--brand);color:var(--brand)}
-.dl-row .btn.btn-primary{background:var(--pdc);border-color:transparent;color:#fff}
+.dl-row .btn.btn-primary{background:var(--dk);border-color:transparent;color:#fff}
 .dl-row .btn.btn-primary:hover{background:#8e49ab}
 /* ── responsive shell (M1) ── */
 /* Tablet ≤900px: tighten topbar; collapse secondary actions into ⋯ More.
@@ -1786,7 +1786,7 @@ body.lib-dragging #preview{pointer-events:none}
 #statusbar .spacer{flex:1}
 .sb-brand{display:flex;align-items:center;gap:7px;font-weight:600;color:var(--muted)}
 .sb-dot{width:7px;height:7px;border-radius:50%;
-  background:linear-gradient(135deg,var(--brand),var(--pdc));box-shadow:0 0 0 2px rgba(0,91,181,.12)}
+  background:linear-gradient(135deg,var(--brand),var(--dk));box-shadow:0 0 0 2px rgba(0,91,181,.12)}
 .sb-stamp{font-family:var(--mono);font-size:var(--fs-11);color:var(--faint);white-space:nowrap}
 .sb-cl{position:relative}
 .sb-btn{background:transparent;border:1px solid transparent;border-radius:7px;color:var(--muted);
@@ -1820,7 +1820,7 @@ body.lib-dragging #preview{pointer-events:none}
 .cl-entry:last-child{border-bottom:0}
 .cl-entry .cl-top{display:flex;align-items:baseline;gap:8px;margin-bottom:5px}
 .cl-entry .cl-v{font-family:var(--mono);font-size:var(--fs-11);font-weight:700;color:#fff;
-  background:linear-gradient(135deg,var(--brand),var(--pdc));border-radius:6px;padding:var(--sp-2) var(--sp-8)}
+  background:linear-gradient(135deg,var(--brand),var(--dk));border-radius:6px;padding:var(--sp-2) var(--sp-8)}
 .cl-entry .cl-title{font-size:var(--fs-13);font-weight:700;color:var(--ink)}
 .cl-entry .cl-date{margin-left:auto;font-family:var(--mono);font-size:var(--fs-11);color:var(--faint)}
 .cl-entry ul{margin:0;padding-left:var(--sp-18)}
@@ -2091,8 +2091,8 @@ body.simple-mode .da-acts{display:none!important}
 
 /* H-track v80 — Target line: horizontal dashed reference overlay on chart bodies */
 /* Positioned absolutely within card.body (position:relative set by JS) */
-.pdc-target-line{position:absolute;left:12px;right:8px;border-top:2px dashed;pointer-events:none;z-index:3}
-.pdc-target-label{position:absolute;right:0;top:-18px;font-size:var(--fs-10);font-weight:700;
+.dk-target-line{position:absolute;left:12px;right:8px;border-top:2px dashed;pointer-events:none;z-index:3}
+.dk-target-label{position:absolute;right:0;top:-18px;font-size:var(--fs-10);font-weight:700;
   white-space:nowrap;background:transparent;padding:0 var(--sp-4);letter-spacing:.01em;font-family:var(--font,sans-serif)}
 
 /* H-track v79 — Panel tagging: tag filter bar in dashboard inspector panel list */
@@ -2116,8 +2116,8 @@ body.simple-mode .da-acts{display:none!important}
 
 /* H-track v81 — Reference band: shaded range overlay on chart bodies */
 /* Semi-transparent fill (via rgba background set inline) + dashed top/bottom borders. */
-.pdc-ref-band{position:absolute;left:12px;right:8px;pointer-events:none;z-index:2;border-radius:2px}
-.pdc-ref-label{position:absolute;right:4px;top:3px;font-size:var(--fs-10);font-weight:700;
+.dk-ref-band{position:absolute;left:12px;right:8px;pointer-events:none;z-index:2;border-radius:2px}
+.dk-ref-label{position:absolute;right:4px;top:3px;font-size:var(--fs-10);font-weight:700;
   white-space:nowrap;letter-spacing:.01em;font-family:var(--font,sans-serif)}
 
 /* H-track: Dashboard accent color — preset swatches + custom color input.
@@ -2203,7 +2203,7 @@ body.simple-mode .da-acts{display:none!important}
   background:var(--field);color:var(--ink);transition:background .14s,border-color .14s,transform .1s}
 .viewer-savecopy-btn:hover,.viewer-edit-link:hover{border-color:var(--brand);color:var(--brand)}
 .viewer-savecopy-btn:active,.viewer-edit-link:active{transform:translateY(1px)}
-.viewer-edit-link{background:var(--pdc);border-color:transparent;color:#fff}
+.viewer-edit-link{background:var(--dk);border-color:transparent;color:#fff}
 .viewer-edit-link:hover{background:#8e49ab;color:#fff}
 .viewer-savecopy-btn svg,.viewer-edit-link svg{width:14px;height:14px}
 /* Track H sweep: the unconditional `display:flex` two lines up silently beat the
@@ -2552,7 +2552,7 @@ body.simple-mode .da-acts{display:none!important}
   border-radius:999px;border:1px solid var(--line);background:var(--field);color:var(--ink);font-size:var(--fs-12)}
 .jobs-field-chip svg{flex:none;opacity:.85}
 .jobs-field-chip[data-kind="Numeric"]{border-color:var(--brand);color:var(--brand)}
-.jobs-field-chip[data-kind="Date"]{border-color:var(--pdc);color:var(--pdc)}
+.jobs-field-chip[data-kind="Date"]{border-color:var(--dk);color:var(--dk)}
 .jobs-field-chip[data-kind="String"]{border-color:var(--faint);color:var(--muted)}
 /* LF13(d) slice 2: sample source rows + an approximate post-steps output preview,
    reusing the same .dsx-preview table look as the Data Adapter/job "Run" previews. */

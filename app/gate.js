@@ -45,7 +45,7 @@
     if (Auth.authed()) { reveal(); return; }
     var a = document.getElementById("app"); if (a) a.style.visibility = "hidden";
 
-    // Themed via the same --brand/--pdc/--ink/etc custom properties as the app
+    // Themed via the same --brand/--dk/--ink/etc custom properties as the app
     // (studio.css [data-theme]/[data-app-theme]); gate runs before studio.js
     // applies the saved attributes, so read the same localStorage keys first
     // (best-effort — falls back to :root defaults).
@@ -59,9 +59,9 @@
     var st = document.createElement("style");
     st.textContent =
       "#studio-gate{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;" +
-      "background:linear-gradient(125deg,var(--bg,#0a1c3d),var(--brand,#163a6e) 55%,var(--pdc,#1c4a86));font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}" +
+      "background:linear-gradient(125deg,var(--bg,#0a1c3d),var(--brand,#163a6e) 55%,var(--dk,#1c4a86));font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}" +
       "#studio-gate .g-card{background:var(--pane,#fff);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.4);padding:34px 32px;width:min(390px,92vw);text-align:center}" +
-      "#studio-gate .g-logo{width:46px;height:46px;border-radius:12px;margin:0 auto 14px;background:linear-gradient(135deg,var(--brand,#005bb5),var(--pdc,#7d3c98));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:22px}" +
+      "#studio-gate .g-logo{width:46px;height:46px;border-radius:12px;margin:0 auto 14px;background:linear-gradient(135deg,var(--brand,#005bb5),var(--dk,#7d3c98));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:22px}" +
       "#studio-gate h1{font-size:19px;margin:0 0 4px;color:var(--ink,#16233b)}#studio-gate p{font-size:13px;color:var(--muted,#5d6b82);margin:0 0 18px}" +
       "#studio-gate label{display:block;text-align:left;font-size:11.5px;font-weight:700;color:var(--muted,#5d6b82);margin:0 0 4px}" +
       "#studio-gate input{width:100%;padding:11px 13px;border:1px solid var(--line,#c8d2df);border-radius:9px;font-size:14px;outline:none;margin-bottom:12px;background:var(--field,#fff);color:var(--ink,#16233b)}" +
@@ -73,8 +73,8 @@
       "#studio-gate .g-pw-btn{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:32px;height:32px;min-width:0;padding:0;margin:0;background:transparent;border:0;border-radius:7px;display:flex;align-items:center;justify-content:center;color:var(--faint,#8a97ab);cursor:pointer}" +
       "#studio-gate .g-pw-btn:hover{background:color-mix(in srgb,var(--brand,#005bb5) 10%,transparent);color:var(--brand,#005bb5)}" +
       "#studio-gate .g-pw-btn:focus-visible{outline:2px solid var(--brand,#005bb5);outline-offset:1px}" +
-      "#studio-gate button{width:100%;padding:11px;border:0;border-radius:9px;background:var(--pdc,#7d3c98);color:#fff;font-size:14px;font-weight:700;cursor:pointer}" +
-      "#studio-gate button:hover{background:color-mix(in srgb,var(--pdc,#7d3c98) 85%,white)}" +
+      "#studio-gate button{width:100%;padding:11px;border:0;border-radius:9px;background:var(--dk,#7d3c98);color:#fff;font-size:14px;font-weight:700;cursor:pointer}" +
+      "#studio-gate button:hover{background:color-mix(in srgb,var(--dk,#7d3c98) 85%,white)}" +
       "#studio-gate .g-demo{margin-top:10px;background:transparent;color:var(--brand,#005bb5);border:1px solid var(--line,#c8d2df)!important}" +
       "#studio-gate .g-demo:hover{background:color-mix(in srgb,var(--brand,#005bb5) 8%,transparent)}" +
       "#studio-gate .g-or{font-size:11px;color:var(--faint,#8a97ab);margin:12px 0 2px;text-transform:uppercase;letter-spacing:.06em}" +

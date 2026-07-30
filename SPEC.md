@@ -1,8 +1,8 @@
-# PDC Dashboard Studio — dashboard spec (`.studio.json`)
+# DashKit Dashboard Studio — dashboard spec (`.studio.json`)
 
 The **single source model** the builder edits. Every exporter (CDF html, CDE `.cdfde`/`.wcdf`,
 `.cda`) and the live preview consume this one shape. Inspired by the v2 `dash-build` toolkit:
-charts render through `PDC.*` (vendor/pdc-ui.js), data comes from CDA data accesses.
+charts render through `DashKit.*` (vendor/dashkit.js), data comes from CDA data accesses.
 
 ```jsonc
 {
@@ -60,25 +60,25 @@ charts render through `PDC.*` (vendor/pdc-ui.js), data comes from CDA data acces
 
 ## Chart-type registry (keys + required mapping)
 
-| type      | mapping fields                          | CDF (`PDC.*`)        | CDE / CCC component        |
+| type      | mapping fields                          | CDF (`DashKit.*`)        | CDE / CCC component        |
 |-----------|-----------------------------------------|----------------------|----------------------------|
-| `kpi`     | valueCol (+ label/fmt/state/info)       | `PDC.kpis`           | (HTML)                     |
-| `bars`    | labelCol, valueCol                      | `PDC.bars`           | `cccBarChart`              |
-| `donut`   | labelCol, valueCol                      | `PDC.donut`          | `cccPieChart`              |
-| `line`    | labelCol, series:[{col,name,color}]     | `PDC.line`           | `cccLineChart`             |
-| `stacked` | labelCol, series:[{col,name,color}]     | `PDC.stacked`        | `cccBarChart` (stacked)    |
-| `areaStacked` | labelCol, series:[{col,name,color}] | `PDC.areaStacked`  | `cccStackedAreaChart`      |
-| `treemap` | labelCol, valueCol                      | `PDC.treemap`        | `cccTreemapChart`          |
-| `scatter` | xCol, yCol, rCol?, labelCol?            | `PDC.scatter`        | `cccMetricDotChart`        |
-| `gauge`   | valueCol, max                           | `PDC.gauge`          | CDF-only                   |
-| `heatmap` | rowCol, colCol, valueCol (pivoted)      | `PDC.heatmap`        | `cccHeatGridChart`         |
-| `table`   | cols:[{col,label,num,fmt}]              | `PDC.table`          | `Table`                    |
+| `kpi`     | valueCol (+ label/fmt/state/info)       | `DashKit.kpis`           | (HTML)                     |
+| `bars`    | labelCol, valueCol                      | `DashKit.bars`           | `cccBarChart`              |
+| `donut`   | labelCol, valueCol                      | `DashKit.donut`          | `cccPieChart`              |
+| `line`    | labelCol, series:[{col,name,color}]     | `DashKit.line`           | `cccLineChart`             |
+| `stacked` | labelCol, series:[{col,name,color}]     | `DashKit.stacked`        | `cccBarChart` (stacked)    |
+| `areaStacked` | labelCol, series:[{col,name,color}] | `DashKit.areaStacked`  | `cccStackedAreaChart`      |
+| `treemap` | labelCol, valueCol                      | `DashKit.treemap`        | `cccTreemapChart`          |
+| `scatter` | xCol, yCol, rCol?, labelCol?            | `DashKit.scatter`        | `cccMetricDotChart`        |
+| `gauge`   | valueCol, max                           | `DashKit.gauge`          | CDF-only                   |
+| `heatmap` | rowCol, colCol, valueCol (pivoted)      | `DashKit.heatmap`        | `cccHeatGridChart`         |
+| `table`   | cols:[{col,label,num,fmt}]              | `DashKit.table`          | `Table`                    |
 
 `fmt` ∈ `n | abbr | pct | gb | bytes | money | plain`.
-`color`/series colors ∈ CSS token (`--pentaho`,`--pdc`,`--c1`…`--c10`,`--good`,`--warn`,`--bad`,`--info`) or hex.
+`color`/series colors ∈ CSS token (`--pentaho`,`--dk`,`--c1`…`--c10`,`--good`,`--warn`,`--bad`,`--info`) or hex.
 `opts` keys are chart-specific: `horizontal, rotate, area, height, centerCap, valuesVisible, max, showVals`.
 
 ## Data resolution
-Preview sets `window.PDC_MOCK = { <dataAccessId>: {cols, rows} }` (from `data/sample-data.json`);
-`PDC.cda` returns it (params ignored). Live preview clears the mock and sets `PDC.cdaPath` so
-`PDC.cda` hits the real `/pentaho/plugin/cda/api/doQuery`. Same code path either way.
+Preview sets `window.DASHKIT_MOCK = { <dataAccessId>: {cols, rows} }` (from `data/sample-data.json`);
+`DashKit.cda` returns it (params ignored). Live preview clears the mock and sets `DashKit.cdaPath` so
+`DashKit.cda` hits the real `/pentaho/plugin/cda/api/doQuery`. Same code path either way.
