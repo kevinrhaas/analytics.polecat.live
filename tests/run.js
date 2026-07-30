@@ -9210,6 +9210,77 @@ function serve() {
       tokKbd.menuVisible && tokKbd.firstIsMenuitem && tokKbd.focusOnFirst && tokKbd.closedAfterEsc && tokKbd.focusBackOnBtn,
       JSON.stringify(tokKbd));
 
+    // ---- LF63 slice 2: the builder's credentialed kinds get a "Browse schema" tree ----
+    // (adapter.listSchema + the shared renderSchemaPanel, click-to-insert at the caret);
+    // the schema-less kinds (built-in sample engine, generic HTTP) get no button. The
+    // listSchema round-trip is stubbed at the adapter boundary — the adapters' real
+    // listSchema implementations have their own coverage; this proves MY wiring:
+    // button → listSchema(mapped draft cfg) → clickable tree → insert at the caret.
+    console.log("\n• LF63 slice 2: builder Browse schema");
+    const dsbSchema = await page.evaluate(async () => {
+      document.getElementById("ndDashQuery").click();
+      await new Promise((r) => setTimeout(r, 80));
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const out = {};
+      const cardFor = (label) => [].slice.call(m.querySelectorAll(".dsb-type")).find((c) => c.textContent.indexOf(label) >= 0);
+      // default kind = the built-in sample engine — nothing to browse, no button
+      out.sqlKindBtn = !!m.querySelector(".dsb-schema-btn");
+      // generic HTTP kind: its adapter has no listSchema — still no button
+      cardFor("Generic SQL/HTTP").click();
+      await new Promise((r) => setTimeout(r, 40));
+      out.httpKindBtn = !!m.querySelector(".dsb-schema-btn");
+      // Snowflake kind: the button appears
+      cardFor("Snowflake").click();
+      await new Promise((r) => setTimeout(r, 40));
+      const btn = m.querySelector(".dsb-schema-btn");
+      out.sfKindBtn = !!btn;
+      if (!btn) { m.closest(".modal-ov").remove(); return out; }
+      // clicking with empty credentials warns instead of firing a doomed request
+      btn.click();
+      await new Promise((r) => setTimeout(r, 30));
+      out.gatePanelHidden = m.querySelector(".cx-schema").hidden;
+      out.gateToast = (document.querySelector("#toast") || {}).textContent || "";
+      // fill account + token, stub the adapter boundary, run the full wiring
+      const setVal = (elm, v) => { elm.value = v; elm.dispatchEvent(new Event("input", { bubbles: true })); };
+      setVal(m.querySelector('input[placeholder="xy12345.us-east-1"]'), "acct.us-east-1");
+      setVal(m.querySelector('input[placeholder="Programmatic Access Token or OAuth token"]'), "tok123");
+      const sf = window.Studio.sourceById("snowflake");
+      const realListSchema = sf.listSchema;
+      let gotCfg = null;
+      sf.listSchema = (cfg) => { gotCfg = cfg; return Promise.resolve({ tables: [{ schema: "SALES", name: "FACT_ORDERS", columns: [{ name: "region", type: "TEXT" }, { name: "revenue", type: "NUMBER" }] }] }); };
+      try {
+        btn.click();
+        await new Promise((r) => setTimeout(r, 60));
+        const panel = m.querySelector(".cx-schema");
+        out.panelShown = !!panel && !panel.hidden;
+        out.cfgAccount = gotCfg && gotCfg.account;
+        out.cfgToken = gotCfg && gotCfg.token;
+        out.tableRows = panel.querySelectorAll(".cx-schema-table").length;
+        // click-to-insert: a column lands in the query textarea at the caret
+        const ta = m.querySelector(".dsb-query");
+        ta.value = ""; ta.dispatchEvent(new Event("input", { bubbles: true }));
+        panel.querySelector(".cx-schema-table").open = true;
+        panel.querySelector(".cx-schema-cols li").click();
+        await new Promise((r) => setTimeout(r, 30));
+        out.inserted = ta.value;
+        // a table pick inserts schema-qualified (non-public schema), at the caret left by the last insert
+        panel.querySelector(".cx-schema-table summary").click();
+        await new Promise((r) => setTimeout(r, 30));
+        out.insertedTable = ta.value;
+      } finally { sf.listSchema = realListSchema; }
+      m.closest(".modal-ov").remove();
+      return out;
+    });
+    ok("LF63 (2): the schema-less kinds (built-in sample SQL, generic HTTP) get no Browse-schema button",
+      !dsbSchema.sqlKindBtn && !dsbSchema.httpKindBtn, JSON.stringify(dsbSchema));
+    ok("LF63 (2): the Snowflake kind gets Browse schema, gated on credentials (empty creds → toast, panel stays hidden)",
+      dsbSchema.sfKindBtn && dsbSchema.gatePanelHidden && /access token/i.test(dsbSchema.gateToast), JSON.stringify(dsbSchema));
+    ok("LF63 (2): Browse schema calls listSchema with the draft's mapped cfg and renders the shared clickable tree",
+      dsbSchema.panelShown && dsbSchema.cfgAccount === "acct.us-east-1" && dsbSchema.cfgToken === "tok123" && dsbSchema.tableRows === 1,
+      JSON.stringify(dsbSchema));
+    ok("LF63 (2): clicking a column inserts it into the query at the caret; a table pick inserts schema-qualified",
+      dsbSchema.inserted === "region" && dsbSchema.insertedTable === "regionSALES.FACT_ORDERS", JSON.stringify(dsbSchema));
+
     // ---- G1: visual SQL builder ----
     console.log("\n• G1: SQL builder");
     const sqbBasic = await page.evaluate(async () => {

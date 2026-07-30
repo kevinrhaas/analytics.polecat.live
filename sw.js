@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v365"; /* v365: #28 (Kevin) — the marketing page gains a
+var CACHE_NAME = "studio-shell-v366"; /* v366: LF63 slice 2 — the New-data-source builder's
+   credentialed kinds (Snowflake/Databricks/BigQuery/DuckDB/SQLite) gain the same "Browse
+   schema" click-to-insert tree the Connections wizard + Dataset editor share; draft creds
+   map onto the adapters' listSchema cfg shapes. app/studio.js, docs/index.html,
+   tests/run.js, STATUS.md, js/changelog.js.
+   v365: #28 (Kevin) — the marketing page gains a
    "Maps that speak your geography" section (#geo, between the chart gallery and Data
    sources; nav link "Maps"): the real watershed screenshot + all seven region scales,
    custom regions featured. index.html + css/landing.css are precached, hence the bump.

@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 729,
+    title: 'Browse your warehouse schema right inside the query builder',
+    kind: 'feature',
+    ts: '2026-07-30T00:03:48.000Z',
+    items: [
+      'The New data source builder\'s credentialed kinds — Snowflake, Databricks, BigQuery, DuckDB (remote file) and SQLite (remote .sqlite) — gain a "Browse schema" button under the Query field: fill in the credentials, open the live table/column tree, and click any name to insert it into the SQL at the cursor.',
+      'It\'s the same schema tree the Connections wizard and the Dataset editor already share, so the three query-writing surfaces now all offer the same assist.',
+    ],
+  },
+  {
     v: 728,
     title: 'The public site now shows off maps beyond state lines',
     kind: 'feature',
