@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 753,
+    title: 'Select multiple datasets for bulk delete',
+    kind: 'feature',
+    ts: '2026-07-30T12:31:04.000Z',
+    items: [
+      'A new Select button on the Datasets page turns on multi-select — a checkbox appears on every row/tile, and tapping a card or row toggles its selection instead of opening it.',
+      'A bulk bar above the list shows the live count with Select all / Clear, and a Delete button that removes every selected dataset after one confirmation (datasets used in a dashboard are called out by count, same as deleting one individually).',
+      'Generalizes the Select / bulk-delete pattern Dashboards shipped first (LF59) — Connections, Jobs, and the rest of the catalog sections pick it up in their own slices.',
+    ],
+  },
+  {
     v: 752,
     title: 'Help readability, part two: every remaining wall of text',
     kind: 'polish',

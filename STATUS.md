@@ -128,6 +128,34 @@
   user, backends card, go-live). ZERO paragraphs >800 chars remain in docs/index.html; all
   test-pinned anchors + strings re-verified present. Files: docs/index.html, sw.js,
   js/changelog.js.
+- **LIVE-d slice 1 — Datasets gains Select / bulk-delete (v753, sw v390, 2026-07-30,
+  steward):** the first section to adopt the cross-app multi-select pattern LF59 proved
+  on Dashboards (Kevin, live: "I want to select multiple dashboards and move to folder
+  but had to do each one individually" — generalize the pattern, adopt per section in
+  slices). A new **Select** toolbar button (next to the tile/list toggle) turns on
+  select mode: a checkbox overlays every row (`.cx-row`) and tile (`.dsx-tile`), and
+  while select mode is on, clicking anywhere on a row/tile toggles its selection
+  instead of opening the dataset editor (same target, one fewer precise tap). A bulk
+  bar above the list shows a live count with Select all (everything the current
+  search/filters show) / Clear, and a Delete button that removes every selected
+  dataset after one confirm — batched via silent `Workspace.remove` + a single
+  `notify("datasets")`, so Home/Repository/the library repaint once, not per-row, same
+  convention `bulkDeleteSelectedDashboards` established. The confirm copy names how
+  many of the selection are referenced by a saved dashboard (same blast-radius framing
+  individual delete already uses via `dsxLineage`) — those dashboards keep working off
+  their own saved copy. Selection state (`_dsxSelectMode`/`_dsxSelected`) is
+  session-only, pruned against the live list each render so a stale id can't linger.
+  The `.dash-bulk-bar`/`.dash-bulk-count`/`.cx-select` CSS is reused as-is (already
+  section-agnostic); the `.is-selected` ring selector widened from
+  `.cx-row.dash-li.is-selected` to also cover any `.cx-row`/`.dsx-tile`, so Connections/
+  Jobs/Repository adopting the same shape later need no new CSS. 8 new regression tests
+  (enter/exit select mode, tap-to-select, checkbox toggle, Select all/Clear, the actual
+  bulk delete, and the tile-view variant) — mirrors LF59 (2)'s dashboards suite
+  one-for-one. docs/index.html gained a "Select multiple / bulk delete datasets"
+  section. Files: app/datasets.js, app/index.html, app/studio.css, docs/index.html,
+  sw.js, js/changelog.js, tests/run.js. **NEXT in LIVE-d:** Connections, Jobs, and
+  Repository adopt the same Select/bulk-bar shape in their own slices; Views (a browse
+  layer, not its own catalog table) may not need its own copy.
 - **LIVE-a slice 2 — the rest of the app speaks the new rail terminology (v750, sw v387,
   2026-07-30, steward):** slice 1 (v740) renamed Home's quick-action grid; this slice sweeps
   everywhere else the retired "Explore"/"Studio" product names still showed up in user-facing
@@ -7260,6 +7288,13 @@
 >       do each one individually"), delete, export where applicable. Generalizes LF59's
 >       Dashboards multi-select into ONE shared selection+bulk-bar pattern used by every
 >       section — design it once, adopt per section in slices.
+>       ✓ **Slice 1 shipped (2026-07-30, v751, steward): Datasets gains Select/bulk-delete.**
+>       See DONE for the full writeup. Bulk "move to folder" (Kevin's own driving example)
+>       stays open for a follow-up slice on any section, since Datasets' folder is a
+>       single-select field with its own Folder-field editing UX, not yet wired into the
+>       bulk bar. NEXT in LIVE-d: Connections, Jobs, Repository adopt the same
+>       Select/bulk-bar shape; a bulk "move to folder" action once at least one section
+>       has it.
 > LIVE-c. **Supabase flake follow-up.** v738 shipped in-request retry + push spacing + the
 >       Settings activity log. If Reconnecting… persists, get the activity-log error text from
 >       Kevin (Settings → Workspace backend) — then fix the root cause (missing delta tables?

@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v389"; /* v389: LIVE-e part 2 slice 2 (Kevin: "ALL of the docs
+var CACHE_NAME = "studio-shell-v390"; /* v390: LIVE-d slice 1 — Datasets gains the same
+   Select / bulk-delete multi-select pattern LF59 shipped on Dashboards (checkbox overlay
+   on every row/tile, a bulk bar with Select all/Clear/Delete). app/datasets.js,
+   app/index.html, app/studio.css, docs/index.html, STATUS.md, js/changelog.js.
+   v389: LIVE-e part 2 slice 2 (Kevin: "ALL of the docs
    should be reviewed for the walls of text") — the remaining 31 paragraphs >800 chars
    restructured into headings/bullets/numbered steps: welcome flow, export/import repo,
    workbooks+folders, Home, viewer eye, Quick Views intro, crosstab, share, version history,

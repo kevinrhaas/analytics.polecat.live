@@ -1420,6 +1420,17 @@
   connections Tags (comma-separated, in the wizard) to slice a growing catalog by "prod" vs.
   "staging" without a new connection per environment.</p>
 
+  <h3>Select multiple / bulk delete datasets</h3>
+  <p>Click <strong>Select</strong> on the Datasets page to enter multi-select mode — a checkbox appears on
+  every tile/row, and tapping anywhere on a card or row toggles its selection instead of opening it. A bar
+  above the list shows how many are selected with <strong>Select all</strong> (everything the current
+  search/filters show) / <strong>Clear</strong> and a <strong>Delete</strong> button that removes every
+  selected dataset after a confirmation (this can't be undone; datasets referenced by a saved dashboard are
+  called out by count in that confirmation, same as deleting one individually — those dashboards keep
+  working off their own saved copy). Click Select again (now labeled Cancel) to leave select mode. The same
+  pattern first shipped on <strong>Dashboards</strong>; Connections, Jobs, and the rest of the catalog
+  sections adopt it in their own turn.</p>
+
   <h3>Filing a dataset, connection, job or analysis into a Folder</h3>
   <p>Datasets, connections, jobs, saved Views, and (via Repository quick-edit) dashboards all have a
   <strong>Folder</strong> field — one home for the item (e.g. "Finance"), distinct from Tags (which

@@ -8794,6 +8794,130 @@ function serve() {
     await page.evaluate(function () { document.querySelector("#dsxPillClear").click(); });
     await page.waitForTimeout(60);
 
+    // LIVE-d (slice 1): multi-select + bulk delete on Datasets — generalizes LF59's
+    // Dashboards pattern (session-only select mode, checkbox overlay, bulk bar with
+    // Select all/Clear/Delete). Two throwaway datasets keep this from touching the
+    // fixture rows other DSX tests above depend on.
+    await page.evaluate(function () {
+      Studio.Workspace.put("datasets", { id: "livd-bulk-a", name: "livd_bulk_a", connectionId: "conn-mock-2", kind: "sql", sql: "SELECT 1" }, { silent: true });
+      Studio.Workspace.put("datasets", { id: "livd-bulk-b", name: "livd_bulk_b", connectionId: "conn-mock-2", kind: "sql", sql: "SELECT 1" }, { silent: true });
+      window.__studioRenderDatasets();
+    });
+    await page.waitForTimeout(100);
+
+    const livdSelectOn = await page.evaluate(function () {
+      document.getElementById("dsxSelectBtn").click();
+      return {
+        mode: window.__studioDsxSelectMode(),
+        checkboxes: document.querySelectorAll("#dsxResults .dsx-select-cb").length,
+        bulkBar: !!document.querySelector(".dash-bulk-bar"),
+        btnText: document.getElementById("dsxSelectBtn").textContent,
+        delDisabled: document.getElementById("dsxSelDelBtn").disabled
+      };
+    });
+    ok("LIVE-d: clicking Select enters select mode on Datasets — checkboxes + a bulk bar appear, Delete starts disabled",
+      livdSelectOn.mode && livdSelectOn.checkboxes > 0 && livdSelectOn.bulkBar && /Cancel/.test(livdSelectOn.btnText) && livdSelectOn.delDisabled,
+      JSON.stringify(livdSelectOn));
+
+    // tapping a row in select mode selects it instead of opening its editor (re-query
+    // after the click — its handler re-renders #dsxResults, so pre-click nodes go stale)
+    const livdTapSelects = await page.evaluate(function () {
+      var row = document.querySelector('.dsx-select-cb[data-dsx-select="livd-bulk-a"]').closest(".cx-row");
+      row.click();
+      var cbAfter = document.querySelector('.dsx-select-cb[data-dsx-select="livd-bulk-a"]');
+      return {
+        checked: cbAfter.checked,
+        rowSelected: cbAfter.closest(".cx-row").classList.contains("is-selected"),
+        selected: window.__studioDsxSelected(),
+        noModalOpened: !document.querySelector(".modal-ov")
+      };
+    });
+    ok("LIVE-d: tapping a row in select mode selects it (doesn't open the editor) and highlights the row",
+      livdTapSelects.checked && livdTapSelects.rowSelected && livdTapSelects.selected.indexOf("livd-bulk-a") >= 0 && livdTapSelects.noModalOpened,
+      JSON.stringify(livdTapSelects));
+
+    // the checkbox itself is an equivalent way to toggle selection
+    const livdCbToggle = await page.evaluate(function () {
+      document.querySelector('.dsx-select-cb[data-dsx-select="livd-bulk-b"]').click();
+      return { count: window.__studioDsxSelected().length, barText: document.querySelector(".dash-bulk-count").textContent };
+    });
+    ok("LIVE-d: checking a row's checkbox selects it too, and the bulk bar's count reflects the total",
+      livdCbToggle.count === 2 && /2 selected/.test(livdCbToggle.barText), JSON.stringify(livdCbToggle));
+
+    // Select all / Clear apply to everything currently in view
+    const livdSelectAll = await page.evaluate(function () {
+      document.getElementById("dsxSelAllBtn").click();
+      var totalRows = document.querySelectorAll("#dsxResults .cx-row").length;
+      return { selectedCount: window.__studioDsxSelected().length, totalRows: totalRows };
+    });
+    ok("LIVE-d: Select all selects every dataset currently in view",
+      livdSelectAll.selectedCount === livdSelectAll.totalRows && livdSelectAll.totalRows > 0, JSON.stringify(livdSelectAll));
+    const livdClear = await page.evaluate(function () {
+      document.getElementById("dsxSelNoneBtn").click();
+      return { selectedCount: window.__studioDsxSelected().length, delDisabled: document.getElementById("dsxSelDelBtn").disabled };
+    });
+    ok("LIVE-d: Clear deselects everything and disables Delete again",
+      livdClear.selectedCount === 0 && livdClear.delDisabled, JSON.stringify(livdClear));
+
+    // re-select just the two throwaway datasets and bulk-delete them
+    await page.evaluate(function () { document.querySelector('.dsx-select-cb[data-dsx-select="livd-bulk-a"]').click(); });
+    await page.evaluate(function () { document.querySelector('.dsx-select-cb[data-dsx-select="livd-bulk-b"]').click(); });
+    const livdBeforeDelete = await page.evaluate(function () { return Studio.Workspace.all("datasets").length; });
+    // window.confirm is already monkeypatched (not native) by earlier DSX tests in this
+    // same page session (e.g. the individual-delete test above) — matching that local
+    // convention rather than Playwright's page.once('dialog', ...) API, which would
+    // register a listener that never fires here and leaks into a LATER unrelated native
+    // dialog elsewhere in the suite.
+    await page.evaluate(function () { window.confirm = function () { return true; }; });
+    await page.click("#dsxSelDelBtn");
+    await page.waitForTimeout(150);
+    const livdDeleted = await page.evaluate(function (before) {
+      return {
+        remaining: Studio.Workspace.all("datasets").length,
+        stillA: !!Studio.Workspace.get("datasets", "livd-bulk-a"),
+        stillB: !!Studio.Workspace.get("datasets", "livd-bulk-b"),
+        selectedAfter: window.__studioDsxSelected().length,
+        before: before
+      };
+    }, livdBeforeDelete);
+    ok("LIVE-d: Delete removes every selected dataset after confirming",
+      !livdDeleted.stillA && !livdDeleted.stillB && livdDeleted.selectedAfter === 0 && livdDeleted.remaining === livdDeleted.before - 2,
+      JSON.stringify(livdDeleted));
+
+    // clicking Select again (now "Cancel") leaves select mode and restores normal open-on-click
+    const livdCancel = await page.evaluate(function () {
+      document.getElementById("dsxSelectBtn").click();
+      return {
+        mode: window.__studioDsxSelectMode(),
+        checkboxes: document.querySelectorAll("#dsxResults .dsx-select-cb").length,
+        btnText: document.getElementById("dsxSelectBtn").textContent
+      };
+    });
+    ok("LIVE-d: clicking Select again exits select mode and hides the checkboxes",
+      !livdCancel.mode && livdCancel.checkboxes === 0 && /Select/.test(livdCancel.btnText) && !/Cancel/.test(livdCancel.btnText),
+      JSON.stringify(livdCancel));
+
+    // the tile view (dsx-tile) carries the same select-mode checkbox and selection
+    // highlight — dsxViewToggle back to list afterward so the rest of the suite sees
+    // the layout it expects.
+    await page.click("#dsxViewToggle");
+    await page.waitForTimeout(80);
+    const livdTileSelect = await page.evaluate(function () {
+      document.getElementById("dsxSelectBtn").click();
+      var cb = document.querySelector("#dsxResults .dsx-tile .dsx-select-cb");
+      if (!cb) return { hasCb: false };
+      cb.click();
+      var tile = document.querySelector("#dsxResults .dsx-tile.is-selected");
+      return { hasCb: true, tileSelected: !!tile, selectedCount: window.__studioDsxSelected().length };
+    });
+    ok("LIVE-d: tile view gets the same select-mode checkbox and selection highlight",
+      livdTileSelect.hasCb && livdTileSelect.tileSelected && livdTileSelect.selectedCount === 1, JSON.stringify(livdTileSelect));
+    await page.evaluate(function () {
+      document.getElementById("dsxSelectBtn").click(); // back out of select mode
+    });
+    await page.click("#dsxViewToggle"); // back to list view
+    await page.waitForTimeout(80);
+
     await page.evaluate(function () { Studio.Workspace.reset(); window.__studioLoad({ title: "post-dsx", panels: [], kpis: [] }); window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(120);
 
