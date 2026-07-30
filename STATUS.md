@@ -116,8 +116,8 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
-- **VB-6 — a numeric View Builder field can act as a CATEGORY, not just a total (v765,
-  sw v401, 2026-07-30, steward):** "State_FIPS dragged to Columns becomes SUM State_FIPS
+- **VB-6 — a numeric View Builder field can act as a CATEGORY, not just a total (v766,
+  sw v402, 2026-07-30, steward):** "State_FIPS dragged to Columns becomes SUM State_FIPS
   with no way to say group by this." The Columns shelf pill's aggregation dropdown
   (`app/build.js` `fieldChipHtml`) now renders for ANY numeric field, even while it's
   currently a dimension — not just once it's already a measure — and gains a
@@ -7587,7 +7587,7 @@
 >       type the packs seed (dashboards, datasets, Views, jobs, connections): one folder
 >       per pack across all types; (3) uninstalled pack = zero presence in any pane.
 >       Respect existing installed workspaces (boot reconcile, no duplicates).
-> VB-6. ✓ **View Builder: let a numeric field act as a CATEGORY (SHIPPED v765, sw v401,
+> VB-6. ✓ **View Builder: let a numeric field act as a CATEGORY (SHIPPED v766, sw v402,
 >       2026-07-30, steward)** — see DONE for the full writeup. The shelf pill's
 >       aggregation dropdown gains a CATEGORY choice (numeric fields only, flips the
 >       field to dimension semantics), and id-like numeric columns (*_fips/*_id/id)
