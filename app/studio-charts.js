@@ -780,6 +780,105 @@
     }));
   }
 
+  /* ---------- sectored radar / metrics wheel (CONS-3) ----------
+     The "Food System Metrics"-style wheel: one score per metric on a circular
+     axis, metrics grouped into CATEGORIES that tint their background wedge, a
+     NUMBERED rim (1..n), a single value polygon with dots, and a side legend
+     mapping the numbers to metric names under colored category headings.
+     Data: cfg.labels (metric names), cfg.cats (category per metric, grouped
+     runs), cfg.values (scores), cfg.max (axis max, default 100). CDF-only. */
+  DashKit.radarSectors = function (el, cfg) { reg(el, function () { _radarSectors(el, cfg); }); };
+  function _radarSectors(el, cfg) {
+    var labels = cfg.labels || [], cats = cfg.cats || [], values = cfg.values || [];
+    var n = labels.length, h = cfg.height || 340, fmt = cfg.fmt || DashKit.fmt.abbr;
+    if (!n) { el.innerHTML = '<div class="empty">No data</div>'; return; }
+    var P = DashKit.palette();
+    // category → color by order of first appearance, so grouped data reads as
+    // contiguous tinted wedges without any explicit color config
+    var catOrder = [], catColor = {};
+    cats.forEach(function (c) { c = String(c || ""); if (!(c in catColor)) { catColor[c] = P[catOrder.length % 10]; catOrder.push(c); } });
+    // side-by-side layout: wheel + HTML legend. All styling INLINE, same
+    // convention as _toggleLegend — charts must be self-contained in exports
+    // (no stylesheet travels with them).
+    el.innerHTML = '<div class="dk-rsw" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">' +
+      '<div class="dk-rsw-chart" style="flex:1 1 300px;min-width:0"></div>' +
+      (cfg.legend !== false ? '<div class="dk-rsw-legend" style="flex:0 1 230px;min-width:170px;font-size:12px;line-height:1.5"></div>' : "") + "</div>";
+    var wrap = el.firstChild, chartEl = wrap.firstChild;
+    var o = mkSVG(chartEl, h), s = o.s, w = o.w;
+    var cx = w / 2, cy = h / 2, R = Math.max(30, Math.min(cx, cy) - 26);
+    var max = cfg.max || niceMax(Math.max.apply(null, values.map(function (v) { return +v || 0; }).concat([1])));
+    var ang = function (i) { return -Math.PI / 2 + i * 2 * Math.PI / n; };
+    var pt = function (i, rad) { return [cx + rad * Math.cos(ang(i)), cy + rad * Math.sin(ang(i))]; };
+    var edgeAng = function (i) { return ang(i) - Math.PI / n; }; // each metric owns the wedge CENTERED on its spoke
+    var arcPt = function (a, rad) { return [cx + rad * Math.cos(a), cy + rad * Math.sin(a)]; };
+    // 1. tinted category background wedges (merged over each contiguous run)
+    var run = 0;
+    while (run < n) {
+      var end = run;
+      while (end + 1 < n && String(cats[end + 1] || "") === String(cats[run] || "")) end++;
+      var a0 = edgeAng(run), a1 = edgeAng(end + 1);
+      var p0 = arcPt(a0, R), p1 = arcPt(a1, R);
+      var large = (a1 - a0) > Math.PI ? 1 : 0;
+      s.appendChild(S("path", {
+        d: "M" + cx.toFixed(1) + "," + cy.toFixed(1) + " L" + p0[0].toFixed(1) + "," + p0[1].toFixed(1) +
+           " A" + R.toFixed(1) + " " + R.toFixed(1) + " 0 " + large + " 1 " + p1[0].toFixed(1) + "," + p1[1].toFixed(1) + " Z",
+        fill: catColor[String(cats[run] || "")], "fill-opacity": 0.12, stroke: "none"
+      }));
+      run = end + 1;
+    }
+    // 2. rings + spokes (circles read closer to the reference wheel than polygons)
+    for (var g = 1; g <= 4; g++) s.appendChild(S("circle", { class: "gridline", cx: cx, cy: cy, r: R * g / 4, fill: "none" }));
+    for (var i = 0; i < n; i++) {
+      var edge = arcPt(edgeAng(i), R);
+      s.appendChild(S("line", { class: "gridline", x1: cx, y1: cy, x2: edge[0], y2: edge[1] }));
+    }
+    s.appendChild(S("text", { class: "tick", x: cx + 3, y: cy - R - 4, "text-anchor": "start" }, fmt(max)));
+    // 3. numbered rim — the numbers ARE the axis labels; the legend decodes them
+    for (var k = 0; k < n; k++) {
+      var np = pt(k, R + 12);
+      var num = S("text", { class: "tick dk-rsw-num", x: np[0], y: np[1] + 3.5, "text-anchor": "middle",
+        fill: catColor[String(cats[k] || "")], "font-weight": "700" }, String(k + 1));
+      _tip(num, "<b>" + labels[k] + "</b><br>" + String(cats[k] || "") + ": " + fmt(+values[k] || 0));
+      s.appendChild(num);
+    }
+    // 4. the value polygon + dots
+    var pts = [];
+    for (var j = 0; j < n; j++) pts.push(pt(j, R * Math.max(0, Math.min(1, (+values[j] || 0) / (max || 1)))));
+    // the reference wheel's polygon is BOLD and dark — the theme accent washes out
+    // against a light panel, so stroke with the text color (theme-aware in both
+    // modes) and keep only the fill on the accent tint
+    var accent = DashKit.cssvar("--accent") || P[0];
+    var inkCol = DashKit.cssvar("--text") || "#243b2f";
+    var poly = S("polygon", { points: pts.map(function (p) { return p[0].toFixed(1) + "," + p[1].toFixed(1); }).join(" "),
+      fill: accent, "fill-opacity": 0.12, stroke: inkCol, "stroke-opacity": 0.75, "stroke-width": 2.5, "stroke-linejoin": "round" });
+    s.appendChild(poly);
+    if (canAnim()) { poly.style.opacity = "0"; setTimeout(function () { poly.style.transition = "opacity .5s ease"; poly.style.opacity = "1"; }, animD(80)); }
+    pts.forEach(function (p, i2) {
+      var dot = S("circle", { cx: p[0], cy: p[1], r: 3.5, fill: catColor[String(cats[i2] || "")],
+        stroke: DashKit.cssvar("--panel-bg"), "stroke-width": 1.4 });
+      _tip(dot, "<b>" + (i2 + 1) + ". " + labels[i2] + "</b><br>" + String(cats[i2] || "") + ": " + fmt(+values[i2] || 0));
+      s.appendChild(dot);
+    });
+    // 5. the grouped, numbered side legend
+    if (cfg.legend !== false) {
+      var lg = wrap.lastChild, html = "";
+      catOrder.forEach(function (c) {
+        html += '<div class="dk-rsw-cat" style="font-weight:700;margin-top:6px;display:flex;align-items:center;gap:6px">' +
+          '<span class="dk-rsw-chip" style="display:inline-block;width:10px;height:10px;border-radius:3px;flex-shrink:0;background:' + catColor[c] + '"></span>' + esc3(c) + "</div>" +
+          '<ul style="list-style:none;margin:2px 0 0;padding:0 0 0 16px">';
+        labels.forEach(function (lb, li) {
+          if (String(cats[li] || "") !== c) return;
+          html += '<li style="display:flex;gap:5px;align-items:baseline"><b style="flex-shrink:0">' + (li + 1) + ".</b> " +
+            '<span style="min-width:0">' + esc3(lb) + "</span>" +
+            '<span class="dk-rsw-val" style="margin-left:auto;opacity:.72;flex-shrink:0">' + esc3(String(fmt(+values[li] || 0))) + "</span></li>";
+        });
+        html += "</ul>";
+      });
+      lg.innerHTML = html;
+    }
+  }
+  function esc3(s2) { return String(s2 == null ? "" : s2).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
   /* ---------- box plot (distribution: quartiles + whiskers per category) ----------
      Data: cfg.data = [{label, values:[v,...]}] — raw values per category.
      Renders horizontal (default) or vertical boxes.  CDF-only; dashkit.js unchanged. */

@@ -928,6 +928,8 @@
     // CONS-4 heal: pre-existing installs get their per-practice pack Views
     // re-authored as View Builder-native rows (pins/identity preserved).
     try { if (Studio.ensureConservationBuilderViews) Studio.ensureConservationBuilderViews(); } catch (e) {}
+    // CONS-3 heal: pre-existing installs get the metrics-wheel dataset + dashboard.
+    try { if (Studio.ensureConservationMetricsWheel) Studio.ensureConservationMetricsWheel(); } catch (e) {}
   }
   window.__studioReconcilePackDashboards = reconcilePackDashboards; // test hook
 
@@ -4218,6 +4220,7 @@
           colCol: "Column column", barCol: "Bar value column", lineCol: "Line value column",
           sourceCol: "Source column", targetCol: "Target / destination column",
           groupCol: t === "marimekko" ? "Segment column (stacks within each category)" : "Group column (optional)",
+          catCol: "Category column (groups metrics into tinted sectors)", // radarSectors (CONS-3)
           dateCol: "Date / period column (optional)" };
         var label = _lmap[fn] || fn;
         sec.appendChild(field(label, colPicker(cols, m[fn], function (v) { m[fn] = v; refreshPreview(); }, fn === "rCol" || (fn === "groupCol" && t !== "marimekko") || fn === "dateCol")));

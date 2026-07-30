@@ -38,11 +38,12 @@
       id: "conservation",
       kind: "workspace",
       name: "Conservation Insight — cover crop & tillage adoption",
-      tagline: "2 connections · 4 datasets · a county→state rollup job · 4 analyses · 2 dashboards (featured + watershed map)",
-      blurb: "2 dashboards (the featured multi-scale map + a dedicated HUC8 watershed map), 4 datasets " +
-        "(a raw provider export plus county and watershed choropleths), 2 connections, a county→state " +
-        "rollup job, and 4 time-series analyses pinned to Home. All data is synthetic and embedded in " +
-        "the pack — nothing to connect."
+      tagline: "2 connections · 5 datasets · a county→state rollup job · 4 analyses · 3 dashboards (featured + watershed map + metrics wheel)",
+      blurb: "3 dashboards (the featured multi-scale map, a dedicated HUC8 watershed map, and the " +
+        "Conservation System Metrics wheel), 5 datasets (a raw provider export, county and watershed " +
+        "choropleths, and the scored metrics index), 2 connections, a county→state rollup job, and " +
+        "4 View Builder analyses pinned to Home. All data is synthetic and embedded in the pack — " +
+        "nothing to connect."
     },
     // LF2(c)/LF16: the pre-existing generic showcase gallery (governance, platform ops,
     // delivery, finance, marketing, reliability, compliance, feature tour) folded into a
@@ -362,6 +363,52 @@
     };
   }
 
+  // CONS-3 (Kevin live, 2026-07-30, reference image): the "Food System Metrics"-style
+  // system-health WHEEL, translated to conservation — 12 scored metrics across 4
+  // stakeholder-facing categories, grouped so each category tints a contiguous
+  // sector. Curated literal rows (this is an INDEX, not fabricated sample noise):
+  // the CSV is a real file dataset, and the dashboard's da carries a table-shaped
+  // builder blob over it so #118's live re-run feeds the wheel the REAL rows.
+  var METRICS_ROWS = [
+    ["Cover crop adoption", "Soil Health", 68],
+    ["No-till acres", "Soil Health", 74],
+    ["Soil organic matter", "Soil Health", 61],
+    ["Nitrate reduction", "Water Quality", 57],
+    ["Buffer-strip coverage", "Water Quality", 64],
+    ["Watershed monitoring", "Water Quality", 72],
+    ["Cost-share uptake", "Economics", 66],
+    ["Yield stability", "Economics", 79],
+    ["Input savings", "Economics", 58],
+    ["Provider agreement", "People & Outreach", 71],
+    ["Farmer participation", "People & Outreach", 63],
+    ["Program reach", "People & Outreach", 76]
+  ];
+  function metricsCsv() {
+    return ["metric,category,score"].concat(METRICS_ROWS.map(function (r) { return r.join(","); })).join("\n");
+  }
+  function metricsWheelDashboardSpec(metricsDsId) {
+    var da = {
+      id: "vm_wheel", name: "Conservation system metrics (demo)", kind: "sql", sql: "", query: "",
+      columns: ["metric", "category", "score"], params: [], authored: true,
+      builder: { dsKind: "ws", dsId: metricsDsId, chartType: "table",
+        shelfCols: [{ col: "metric", agg: null }, { col: "category", agg: null }, { col: "score", agg: null }],
+        shelfRows: [], filters: [], calcs: [], shelfColor: [], paletteKey: "", mapScale: "" }
+    };
+    return {
+      id: "conservation-system-metrics", name: "conservation-system-metrics",
+      title: "Conservation System Metrics",
+      subtitle: "The system-health wheel — one score per metric, grouped by what each stakeholder cares about",
+      dashboardTheme: "conservation",
+      panels: [{ id: "pm_wheel", section: "How the whole conservation system is doing, at a glance",
+        title: "Conservation system metrics — scored 0–100", span: "full",
+        chart: { type: "radarSectors", da: da.id,
+          map: { labelCol: "metric", catCol: "category", valueCol: "score" },
+          opts: { max: 100, showLegend: true, fmt: "abbr", height: 380 } } }],
+      kpis: [], filters: [],
+      cda: { connections: [], dataAccesses: [da] }
+    };
+  }
+
   Studio.installDemoPack = function (id) {
     if (!Studio.DEMO_PACKS[id] || Studio.demoPackInstalled(id)) return;
     // "examples"-kind packs (datamanagement) only gate gallery visibility — the workspace
@@ -403,6 +450,13 @@
       kind: "file", format: "csv", fileName: "watershed-adoption-huc8-demo.csv",
       content: huc8Csv(), columns: ["huc8", "provider", "pct"],
       folder: PACK_FOLDER, demoPackId: id, tags: ["demo", "conservation", "geo"]
+    });
+    // CONS-3: the system-metrics index — curated literal rows (see METRICS_ROWS)
+    var metricsDs = W.put("datasets", {
+      name: "Conservation system metrics (demo)", connectionId: fileConn.id,
+      kind: "file", format: "csv", fileName: "conservation-system-metrics-demo.csv",
+      content: metricsCsv(), columns: ["metric", "category", "score"],
+      folder: PACK_FOLDER, demoPackId: id, tags: ["demo", "conservation"]
     });
     // The rollup job's OUTPUT dataset, pre-materialized so the state choropleth
     // works before anyone clicks Run; re-running the job rewrites it in place.
@@ -449,6 +503,14 @@
       folder: "Conservation Insight",
       demoPackId: id
     });
+    // CONS-3: the system-metrics wheel dashboard (seeded last \u2014 newest tops the list).
+    W.put("dashboards", {
+      name: "conservation-system-metrics",
+      title: "Conservation System Metrics",
+      ts: now, spec: metricsWheelDashboardSpec(metricsDs.id),
+      folder: "Conservation Insight",
+      demoPackId: id
+    });
   }
 
   Studio.removeDemoPack = function (id) {
@@ -473,6 +535,39 @@
       name: "conservation-watershed-map",
       title: "Watershed Map \u2014 HUC8 Cover Crop Adoption",
       ts: new Date().toISOString(), spec: watershedDashboardSpec(),
+      folder: "Conservation Insight", demoPackId: "conservation"
+    });
+    return true;
+  };
+
+  // CONS-3 heal: workspaces installed before the metrics wheel existed get the
+  // dataset + dashboard on boot (called from studio.js's reconcilePackDashboards).
+  Studio.ensureConservationMetricsWheel = function () {
+    if (!Studio.demoPackInstalled("conservation")) return false;
+    var W = Studio.Workspace;
+    var have = W.all("dashboards").some(function (r) {
+      return r.demoPackId === "conservation" &&
+        (r.name === "conservation-system-metrics" || (r.spec && r.spec.name === "conservation-system-metrics"));
+    });
+    if (have) return false;
+    var metricsDs = W.all("datasets").filter(function (d) {
+      return d.demoPackId === "conservation" && /system metrics/i.test(d.name || "");
+    })[0];
+    if (!metricsDs) {
+      var fileConn = W.all("connections").filter(function (c) {
+        return c.demoPackId === "conservation" && c.adapter === "file";
+      })[0];
+      metricsDs = W.put("datasets", {
+        name: "Conservation system metrics (demo)", connectionId: fileConn ? fileConn.id : null,
+        kind: "file", format: "csv", fileName: "conservation-system-metrics-demo.csv",
+        content: metricsCsv(), columns: ["metric", "category", "score"],
+        folder: PACK_FOLDER, demoPackId: "conservation", tags: ["demo", "conservation"]
+      });
+    }
+    W.put("dashboards", {
+      name: "conservation-system-metrics",
+      title: "Conservation System Metrics",
+      ts: new Date().toISOString(), spec: metricsWheelDashboardSpec(metricsDs.id),
       folder: "Conservation Insight", demoPackId: "conservation"
     });
     return true;

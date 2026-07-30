@@ -7708,7 +7708,18 @@
 >       Districts; zip/zcta → ZIP codes; congress → Congressional), fall back to VALUE
 >       shape (2-letter postals vs 5-digit FIPS vs 8-digit HUC vs 4-digit CRD) when the
 >       name is ambiguous. User's manual pick always wins afterward.
-> CONS-3. **A sectored-radar "system metrics" chart for the Conservation pack (Kevin
+> CONS-3. ✓ **A sectored-radar "system metrics" chart for the Conservation pack (Kevin
+>       — SHIPPED v775, sw v411: new radarSectors "Metrics wheel" chart type (52nd),
+>       Comparison group — tinted per-category background wedges over circular rings, a
+>       numbered rim decoded by a grouped side legend, one accent value polygon with
+>       category-colored dots; all legend/wrapper styling inline so exports stay
+>       self-contained. The pack seeds "Conservation System Metrics" (12 curated
+>       metrics × 4 stakeholder categories: Soil Health / Water Quality / Economics /
+>       People & Outreach) as its own dashboard over a literal-rows CSV dataset wired
+>       through a table-shaped builder-blob da so #118's live re-run feeds REAL rows;
+>       ensureConservationMetricsWheel heals older installs. Censuses: DP 5 datasets/
+>       3 dashboards, LF43 11, PACK NAMING 11; docs count 52 types + ct-radarSectors
+>       card; 3 suite checks incl. a real-render anatomy count. Original ask (Kevin
 >       live, 2026-07-30, reference image: Food System Metrics wheel).** "Another chart
 >       to consider ... both in spirit and design — could be its own dashboard or add to
 >       an existing dataset/views/dashboard." The reference: a radar whose background is
@@ -7790,6 +7801,52 @@
 >       builder blob with the new rows, preserving pinned state); update the LF43/DP
 >       censuses + docs. Depends on nothing, but ship AFTER VB-10 so a map-type seeded
 >       View actually renders in the builder.
+> DURABLE-1. ★★ **Dashboards silently vanish / duplicate — the boot pull clobbers the
+>       healed workspace (Kevin live, 2026-07-30, screenshot: 8 dashboards where 11
+>       should be; Watershed Map + featured GONE; Provider-Agreement and
+>       Practice-Switching each TWICE, 3h + 5h copies).** Mechanism (same race as
+>       today's LF39 test fix, in the real app): boot runs reconcilePackDashboards +
+>       the ensure* heals, then initSync's ASYNC connectOnce() replaceAll()s the
+>       workspace with the remote mirror seconds later — a stale two-device UNION
+>       (dupes) that predates the newer seeds (losses). With pushes intermittently
+>       401/403 (KEVIN-LIVE #136), the healed state never persists remotely, so every
+>       reload re-corrupts. pullNow got a DATA-LOSS GUARD; boot connectOnce never did.
+>       FIX: (1) re-run reconcilePackDashboards + heals AFTER any pull-adoption
+>       (Sync.onSync listener on the connected-after-pull transition), then
+>       schedulePush so the healed state reaches the remote; (2) make repeated push
+>       failures LOUD (persistent 'your changes are not reaching the backend' banner,
+>       not just a rail dot); (3) Kevin's durable-objects ask: no destructive
+>       delete/overwrite without confirmation — audit delete paths (dashboards already
+>       confirm?) and queue soft-delete/undo as DURABLE-2. Remedy meanwhile: reload on
+>       the LATEST build (hard refresh — a stale service worker predates the dedupe +
+>       heals) and the pack heals re-seed everything; DURABLE-1 makes it stick.
+> DURABLE-2. **Soft-delete / undo for workspace objects.** Deleted dashboards/Views/
+>       datasets go to a Trash (tombstoned, restorable, purged after N days) instead of
+>       vanishing; every destructive bulk action gets an undo toast. Follows DURABLE-1.
+> EXPORT-1. ★ **Exported HTML dashboards have NO DATA (Kevin live, 2026-07-30).** "i
+>       downloaded as an html page this but it does not have any data in it." Root cause:
+>       buildHtml's preview:false path (exportCDF + PDF) deliberately leaves DASHKIT_MOCK
+>       undefined, so sample-engine and builder-blob DAs — everything without a live
+>       engine — render empty in the exported file. CONFIRMED on Kevin's uploaded
+>       export (covercropadoption...huc8embed.html, via the VIEW EMBED path): full
+>       STUDIO_GEO geometry baked (1.9MB, base map draws) but zero DASHKIT_MOCK —
+>       so BOTH paths need the bake: exportCDF (dashboards) AND exportAnalysisEmbed
+>       (Views). The viewer already solved this
+>       (#106: bake a mock covering ONLY engine-less DAs so live ones stay live);
+>       EXPORT-1 = give the export path the same bake: sample DAs via the sample
+>       engine, builder DAs via Studio.Build.runBlob (await the runs before building
+>       the file). Check filters: baked rows must be the FULL backing set so filterDef
+>       params still narrow client-side; note in the export UI that the data is a
+>       snapshot. Ship ahead of CONS-1.
+> EXPORT-2. **Export modes for LIVE data sources (Kevin live, 2026-07-30).** His three
+>       options: (1) embed the data snapshot (EXPORT-1 covers the engine-less case; add
+>       a "snapshot current data" option for live DAs too), (2) export DYNAMIC with the
+>       data-source credentials included (works standalone; warn loudly — credentials in
+>       a file), (3) export dynamic with credentials MASKED — the exported page prompts
+>       for / accepts credentials at runtime when embedded in an external site (config
+>       placeholder + small gate UI in the exported HTML). Design the picker into the
+>       Export menu (HTML entry grows a mode choice), keep the default = safest
+>       (snapshot). Slices after EXPORT-1.
 > CONS-1. **Conservation pack ↔ real CTIC reference dashboards (Kevin live, 2026-07-30,
 >       three reference screenshots — CLAIMED by the dedicated session).** Make the
 >       Conservation sample-pack dashboards look "immediately as close as possible" to the

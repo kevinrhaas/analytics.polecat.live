@@ -3795,7 +3795,7 @@ function serve() {
       };
     });
     ok("M2c: installing the demo pack seeds ≥2 connections (a file store + a repo backend), 4 datasets and a rollup job — a complete illustrative workspace",
-      m2c.adapters.indexOf("file") >= 0 && m2c.adapters.indexOf("supabase") >= 0 && m2c.dsetCount === 4 && m2c.jobStep === "aggregate", JSON.stringify(m2c));
+      m2c.adapters.indexOf("file") >= 0 && m2c.adapters.indexOf("supabase") >= 0 && m2c.dsetCount === 5 && m2c.jobStep === "aggregate", JSON.stringify(m2c)); // 5 since CONS-3's metrics dataset
     ok("M2c: the county dataset is real, in-geometry data (720 rows, every geoid a 5-digit FIPS) so its choropleth colors live — not a token sample",
       m2c.countyRows === 720 && m2c.allFips && !m2c.countyErr, JSON.stringify(m2c));
     ok("M2c: the seeded job is a county→state acreage-weighted-mean rollup wired source→output (the jobs-engine wmean pattern, its output a state-level dataset)",
@@ -4522,8 +4522,8 @@ function serve() {
         choroScales: dashes[0] && dashes[0].spec.panels.filter(function (p) { return p.chart.type === "choropleth"; }).map(function (p) { return p.chart.opts.scale; }),
         allFileCsv: dss.every(function (d) { return d.kind === "file" && d.format === "csv"; }) };
     });
-    ok("DP: installDemoPack seeds a whole workspace — 2 connections, 4 file datasets, 1 rollup job, 4 pinned builder-native analyses (CONS-4), the featured dashboard + the Watershed Map dashboard (CONS-2)",
-      dpInstall.installed && dpInstall.conns === 2 && dpInstall.dss === 4 && dpInstall.ans === 4 && dpInstall.dashes === 2 && dpInstall.jobs === 1 &&
+    ok("DP: installDemoPack seeds a whole workspace — 2 connections, 5 file datasets, 1 rollup job, 4 pinned builder-native analyses (CONS-4), the featured + Watershed Map + System Metrics dashboards (CONS-2/CONS-3)",
+      dpInstall.installed && dpInstall.conns === 2 && dpInstall.dss === 5 && dpInstall.ans === 4 && dpInstall.dashes === 3 && dpInstall.jobs === 1 &&
       dpInstall.pinned && dpInstall.ansBuilder && dpInstall.featured && dpInstall.allFileCsv &&
       dpInstall.panelTypes.filter(function (t) { return t === "ensembleSeries"; }).length === 4 &&
       dpInstall.panelTypes.filter(function (t) { return t === "choropleth"; }).length === 3,
@@ -5243,6 +5243,68 @@ function serve() {
     ok("VIEWS-LAYOUT-1: in tile view, every action button stays inside its card and the timestamp renders on a single line",
       vwTileLayout.tiles >= 4 && vwTileLayout.overflowing === 0 && vwTileLayout.whenTallest > 0 && vwTileLayout.whenTallest < 26,
       JSON.stringify(vwTileLayout));
+
+    // ---- CONS-3 (Kevin live, 2026-07-30, reference image): the metrics WHEEL ----
+    // The "Food System Metrics"-style system-health wheel: scored metrics grouped
+    // into tinted category sectors with a numbered rim and a grouped side legend,
+    // seeded as the pack's own "Conservation System Metrics" dashboard over a
+    // curated literal-rows dataset (builder-blob da → #118 live re-run rows).
+    console.log("\n• CONS-3: the Conservation System Metrics wheel");
+    const cons3 = await page.evaluate(() => {
+      const W = Studio.Workspace;
+      const dash = W.all("dashboards").filter((r) => r.demoPackId === "conservation" && r.name === "conservation-system-metrics")[0];
+      const out = { seeded: !!dash };
+      if (!dash) return out;
+      const p = dash.spec.panels[0], da = dash.spec.cda.dataAccesses[0];
+      out.panelType = p && p.chart.type;
+      out.map = p && [p.chart.map.labelCol, p.chart.map.catCol, p.chart.map.valueCol].join(",");
+      out.daBuilder = !!(da && da.builder && da.builder.chartType === "table");
+      const ds = da && da.builder && W.get("datasets", da.builder.dsId);
+      out.dsRows = ds ? ds.content.trim().split("\n").length - 1 : 0; // minus header
+      out.folder = dash.folder;
+      return out;
+    });
+    ok("CONS-3: the pack seeds the Conservation System Metrics dashboard — a radarSectors panel mapping metric/category/score over a builder-blob da onto the 12-row curated metrics dataset",
+      cons3.seeded && cons3.panelType === "radarSectors" && cons3.map === "metric,category,score" &&
+      cons3.daBuilder && cons3.dsRows === 12 && cons3.folder === "Conservation Insight",
+      JSON.stringify(cons3));
+    // Real render: load the wheel spec into the REAL builder preview (the same
+    // buildHtml srcdoc path every surface uses) and count the wheel's anatomy.
+    const cons3Prior = await page.evaluate(() => JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec)));
+    await page.evaluate(() => {
+      const dash = Studio.Workspace.all("dashboards").filter((r) => r.name === "conservation-system-metrics")[0];
+      window.__studioShellSetSection("studio");
+      window.__studioLoad(JSON.parse(JSON.stringify(dash.spec)));
+    });
+    const cons3Render = await page.waitForFunction(() => {
+      const ifr = document.getElementById("preview");
+      const doc = ifr && ifr.contentWindow && ifr.contentWindow.document;
+      if (!doc || !doc.querySelector(".dk-rsw")) return null;
+      const nums = doc.querySelectorAll(".dk-rsw-num").length;
+      if (nums < 12) return null; // still rendering (or mocks pending)
+      const wedges = [].slice.call(doc.querySelectorAll('.dk-rsw path[fill-opacity="0.12"]')).length;
+      const legendItems = doc.querySelectorAll(".dk-rsw-legend li").length;
+      const legendCats = doc.querySelectorAll(".dk-rsw-cat").length;
+      return { nums, wedges, legendItems, legendCats };
+    }, { timeout: 15000 }).then((h) => h.jsonValue()).catch(() => null);
+    await page.evaluate((prior) => { window.__studioLoad(prior); }, cons3Prior);
+    ok("CONS-3: the wheel RENDERS through the real dashboard pipeline — 12 numbered rim ticks, 4 tinted category sectors, and a grouped legend decoding all 12 metrics",
+      !!cons3Render && cons3Render.nums === 12 && cons3Render.wedges === 4 &&
+      cons3Render.legendItems === 12 && cons3Render.legendCats === 4,
+      JSON.stringify(cons3Render));
+    // Heal: a pre-CONS-3 install gets the wheel (and its dataset) on boot reconcile.
+    const cons3Heal = await page.evaluate(() => {
+      const W = Studio.Workspace;
+      const dash = W.all("dashboards").filter((r) => r.name === "conservation-system-metrics")[0];
+      W.remove("dashboards", dash.id);
+      window.__studioReconcilePackDashboards();
+      const again = W.all("dashboards").filter((r) => r.name === "conservation-system-metrics")[0];
+      return { healed: !!again, folder: again && again.folder,
+        panelType: again && again.spec.panels[0].chart.type };
+    });
+    ok("CONS-3: a pre-CONS-3 install heals on boot — the wheel dashboard is re-seeded into the pack folder",
+      cons3Heal.healed && cons3Heal.folder === "Conservation Insight" && cons3Heal.panelType === "radarSectors",
+      JSON.stringify(cons3Heal));
     // Settings + Library are hide-samples aware (nest under the same toggle as the CDA Samples group)
     await page.evaluate(function () { window.__studioShellSetSection("settings"); });
     await page.waitForTimeout(150);
@@ -5374,8 +5436,8 @@ function serve() {
     const LF43_EXPECTED_FILES = ["conservation-agreement.studio.json", "conservation-costshare.studio.json",
       "conservation-flow.studio.json", "conservation-outliers.studio.json", "conservation-overview.studio.json",
       "conservation-scorecard.studio.json", "conservation-switching.studio.json", "conservation-watershed.studio.json"].sort();
-    ok("LF43: installing the Conservation pack materializes all 8 of its gated example-gallery dashboards as real workspace rows (plus the 2 hand-built ones — featured + Watershed Map — = 10 total)",
-      lf43Materialized.total === 10 && lf43Materialized.sourcedCount === 8 &&
+    ok("LF43: installing the Conservation pack materializes all 8 of its gated example-gallery dashboards as real workspace rows (plus the 3 hand-built ones — featured + Watershed Map + System Metrics — = 11 total)",
+      lf43Materialized.total === 11 && lf43Materialized.sourcedCount === 8 &&
       JSON.stringify(lf43Materialized.sourceFiles) === JSON.stringify(LF43_EXPECTED_FILES) && lf43Materialized.titlesAllReal,
       JSON.stringify(lf43Materialized));
     // regression guard: datamanagement is installed BY DEFAULT (no explicit install click ever
@@ -5425,7 +5487,7 @@ function serve() {
       return out;
     });
     ok("PACK NAMING: conservation dashboards lead with their own name and install into the 'Conservation Insight' folder",
-      packNaming.count === 10 && packNaming.allInFolder && packNaming.noPrefix, JSON.stringify(packNaming)); // 10 since CONS-2 added the Watershed Map dashboard
+      packNaming.count === 11 && packNaming.allInFolder && packNaming.noPrefix, JSON.stringify(packNaming)); // 11 since CONS-3 added the System Metrics wheel
     ok("PACK NAMING: the boot reconcile strips the legacy prefix (row + spec titles) and backfills the folder on a pre-rename workspace",
       packNaming.healedTitle === "Legacy Shaped" && packNaming.healedSpecTitle === "Legacy Shaped" &&
       packNaming.healedFolder === "Conservation Insight", JSON.stringify(packNaming));
@@ -30279,18 +30341,19 @@ function serve() {
     });
     ok("F38: quadrant gallery thumbnail is an SVG with circle elements", f38Thumb.ok, JSON.stringify(f38Thumb));
 
-    // F38-5: docs/index.html has ct-quadrant anchor and '51 types' count
+    // F38-5: docs/index.html has ct-quadrant anchor and the current type count
+    // (51 at F38; CONS-3's Metrics wheel made it 52)
     const f38Docs = await page.evaluate(async function () {
       try {
         var html = await fetch("docs/index.html").then(function (r) { return r.text(); });
         return {
-          ok: html.indexOf('id="ct-quadrant"') >= 0 && html.indexOf("51 types") >= 0,
+          ok: html.indexOf('id="ct-quadrant"') >= 0 && html.indexOf("52 types") >= 0,
           hasAnchor: html.indexOf('id="ct-quadrant"') >= 0,
-          has51: html.indexOf("51 types") >= 0
+          has52: html.indexOf("52 types") >= 0
         };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F38/J: docs/index.html includes ct-quadrant anchor and '51 types' count", f38Docs.ok, JSON.stringify(f38Docs));
+    ok("F38/J: docs/index.html includes ct-quadrant anchor and the current '52 types' count", f38Docs.ok, JSON.stringify(f38Docs));
 
     // ── Z1: App shell — collapsible left rail (Home · Repository · Studio · Settings) ──
     console.log("\n• Z1: App shell left rail");
