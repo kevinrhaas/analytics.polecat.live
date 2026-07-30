@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v386"; /* v386: VB-6 (Kevin's overnight View Builder queue) — the
+var CACHE_NAME = "studio-shell-v387"; /* v387: LIVE-a slice 2 — the rest of the app's
+   "Explore"/"Studio" strings sweep to the new rail terminology ("Quick Views"/"Dashboard
+   Builder"): welcome tour, the six interactive tutorials, a saved View's open-button hints
+   (now destination-aware), the command palette, the viewer's handoff link, a celebration
+   toast, and the Jobs empty state. app/welcome.js, app/tutorial.js, app/explore.js,
+   app/views.js, app/studio.js, app/palette.js, app/celebrations.js, app/viewer.html,
+   app/index.html, tests/run.js, STATUS.md, js/changelog.js.
+   v386: VB-6 (Kevin's overnight View Builder queue) — the
    Save View dialog gains a real Folder field (the same LF56 browse-a-folder-tree picker every
    other Folder field uses, seeded from the picked dataset's own folder) plus a name-suggest
    sparkle on the Name field, matching every other Save/editor dialog in the app. app/build.js,

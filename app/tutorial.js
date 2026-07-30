@@ -1,12 +1,12 @@
 /* tutorial.js — Analytics interactive tutorials.
    J6 (rebuilt) / LF18(b): guided, spotlighted walkthroughs behind a chooser —
      · "Take the tour" (overview) — walks the whole app down the rail
-       (Home · Explore · Dashboards · Datasets · Connections · Jobs ·
-       Repository · Studio) and ends on Home. The first-run / recommended tour.
-     · "Quick analysis"  — the Explore flow: dataset → table → chart → saved
-       analysis → pin/add. The fastest data-to-chart path.
-     · "Build a dashboard" — the Studio loop: library → canvas → inspector →
-       export a self-contained .html.
+       (Home · Quick Views · Dashboards · Datasets · Connections · Jobs ·
+       Repository · Dashboard Builder) and ends on Home. The first-run / recommended tour.
+     · "Quick analysis"  — the Quick Views flow: dataset → table → chart →
+       saved analysis → pin/add. The fastest data-to-chart path.
+     · "Build a dashboard" — the Dashboard Builder loop: library → canvas →
+       inspector → export a self-contained .html.
      · "Prep data (Jobs)" — the Jobs section: list → new job → search/folders,
        what a job is and how its output becomes a chartable dataset.
      · "Connections & Datasets" — the Connections section (list → new
@@ -25,9 +25,9 @@
    builds asynchronously.
 
    KEEP THESE TOURS CURRENT: any slice that changes a user-facing flow this
-   tutorial walks (Explore, Studio panes, export, Jobs, Connections, Datasets)
-   updates the copy here in the SAME slice — the suite greps this file for
-   retired product terms.
+   tutorial walks (Quick Views, Dashboard Builder panes, export, Jobs,
+   Connections, Datasets) updates the copy here in the SAME slice — the suite
+   greps this file for retired product terms.
 
    window.StudioTutorial.open()        — tour chooser (or restart)
    window.StudioTutorial.openTour(key) — start a specific tour ("overview"|"quick"|"build"|"jobs"|"connect")
@@ -91,7 +91,7 @@
           pos: "right"
         },
         {
-          t: "Explore — the fast path to a chart",
+          t: "Quick Views — the fast path to a chart",
           h: "Start from a dataset, see it as a table, pick a chart, and save the result as a reusable <b>analysis</b>. The quickest way from data to insight — there's a dedicated tour for it.",
           target: '.rail-item[data-sec="explore"]',
           pos: "right"
@@ -99,7 +99,7 @@
         {
           t: "Dashboards — the finished thing",
           h: "A dashboard is built from <b>Views</b> — each View shows one chart, KPI, map, or block of text. Arrange several into a page, feature it on Home, and export it as a self-contained file.",
-          sub: "A saved Explore analysis drops straight onto a dashboard as a View.",
+          sub: "A saved analysis from Quick Views drops straight onto a dashboard as a View.",
           target: '.rail-item[data-sec="dashboards"]',
           pos: "right"
         },
@@ -128,14 +128,14 @@
           pos: "right"
         },
         {
-          t: "Studio — the builder",
+          t: "Dashboard Builder — assemble & export",
           h: "Where you assemble a dashboard: drag data in, tune each View in the inspector, and watch the real dashboard render live. Export a file that runs anywhere when you're done.",
           target: '.rail-item[data-sec="studio"]',
           pos: "right"
         },
         {
           t: "You're set — start on Home",
-          h: "That's the whole app: <b>Connections</b> → <b>Datasets</b> → (Jobs to prep) → <b>Explore</b> or <b>Studio</b> to build → <b>Home</b> to see it all. Take the <b>Quick analysis</b> tour next for a hands-on run, or open an example below.",
+          h: "That's the whole app: <b>Connections</b> → <b>Datasets</b> → (Jobs to prep) → <b>Quick Views</b> or the <b>Dashboard Builder</b> to build → <b>Home</b> to see it all. Take the <b>Quick analysis</b> tour next for a hands-on run, or open an example below.",
           sub: "You'll always land here on Home — pick up a recent dashboard, or start something new.",
           target: null,
           last: true,
@@ -189,7 +189,7 @@
         },
         {
           t: "6 · It follows you",
-          h: "Your saved analyses live in the left list here, in the Studio library under <b>Analyses</b>, and (when pinned) as live cards on <b>Home</b> — the app opens on your charts, not on machinery.",
+          h: "Your saved analyses live in the left list here, in the Dashboard Builder's library under <b>Analyses</b>, and (when pinned) as live cards on <b>Home</b> — the app opens on your charts, not on machinery.",
           sub: "Need to prep data first (rename, filter, roll up)? The <b>Jobs</b> section does that and lands the result back in Datasets.",
           target: ".xp-saved",
           pos: "right"
@@ -205,11 +205,11 @@
     },
     build: {
       label: "Build a dashboard",
-      blurb: "The full Studio loop — arrange panels, tune charts, export a file that runs anywhere.",
+      blurb: "The full Dashboard Builder loop — arrange panels, tune charts, export a file that runs anywhere.",
       steps: [
         {
           t: "Build a full dashboard",
-          h: "This walkthrough shows the Studio loop — from picking data to exporting a live, self-contained dashboard file. Press <b>Next</b> to begin.",
+          h: "This walkthrough shows the Dashboard Builder loop — from picking data to exporting a live, self-contained dashboard file. Press <b>Next</b> to begin.",
           sub: "You can reopen these tours any time from ⋯ More → Interactive tutorial.",
           target: null,
           before: function () { goSection("studio"); }
@@ -281,7 +281,7 @@
         },
         {
           t: "That's Jobs!",
-          h: "<b>Source dataset → steps → new dataset.</b> Prep data here, then chart it in <b>Explore</b> or <b>Studio</b> exactly like anything else in Datasets.",
+          h: "<b>Source dataset → steps → new dataset.</b> Prep data here, then chart it in <b>Quick Views</b> or the <b>Dashboard Builder</b> exactly like anything else in Datasets.",
           sub: "⋯ More → Interactive tutorial brings you back here any time.",
           target: null,
           last: true
@@ -319,7 +319,7 @@
         },
         {
           t: "4 · From connection to dataset",
-          h: "A <b>dataset</b> is a named, <code>{{param}}</code>-substitutable query on top of a connection — define it once, chart it everywhere in Explore or Studio.",
+          h: "A <b>dataset</b> is a named, <code>{{param}}</code>-substitutable query on top of a connection — define it once, chart it everywhere in Quick Views or the Dashboard Builder.",
           target: "#dsxResults",
           pos: "bottom",
           before: function () { goSection("datasets"); }
@@ -338,7 +338,7 @@
         },
         {
           t: "That's Connections &amp; Datasets!",
-          h: "<b>Connection → dataset → chart it.</b> Head to <b>Explore</b> for the fast path to a chart, or <b>Jobs</b> first if the data needs prep.",
+          h: "<b>Connection → dataset → chart it.</b> Head to <b>Quick Views</b> for the fast path to a chart, or <b>Jobs</b> first if the data needs prep.",
           sub: "⋯ More → Interactive tutorial brings you back here any time.",
           target: null,
           last: true
@@ -359,7 +359,7 @@
         {
           t: "1 · Already live on Home",
           h: "The pack's curated dashboard renders as a real, live preview right on Home the moment it installs — this is the actual renderer on sample data, not a screenshot.",
-          sub: "Click it to open in Studio, or Next to walk it here.",
+          sub: "Click it to open in the Dashboard Builder, or Next to walk it here.",
           target: ".home-featured",
           pos: "bottom",
           before: function () { goSection("home"); }
@@ -630,7 +630,7 @@
     quick: "Tour complete! Save an analysis and pin it to Home.",
     jobs: "Tour complete! Try a job on one of your own datasets.",
     connect: "Tour complete! Add a connection, or explore a sample dataset.",
-    conservation: "Tour complete! Try a different Region scale on any map in Studio's Inspector."
+    conservation: "Tour complete! Try a different Region scale on any map in the Dashboard Builder's Inspector."
   };
   function finish() {
     try {

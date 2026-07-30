@@ -742,7 +742,7 @@
       var showBtn = $("#libSamplesShow", list);
       if (showBtn) showBtn.onclick = function () { setShowSamples(true); toast("Sample content restored"); };
     }
-    // "Analyses" (saved Explore results), then "Workspace datasets" (the shared
+    // "Analyses" (saved Quick Views results), then "Workspace datasets" (the shared
     // connections → datasets catalog), then "This dashboard's datasets" — all
     // pinned over the authored queries (each insertBefore stacks above the previous).
     buildDemoPacksLib(list);
@@ -3039,7 +3039,7 @@
       var libRow = el("div"); libRow.style.cssText = "display:flex;gap:8px;margin-top:6px";
       var libBtn = el("button", "btn-wide"); setIconBtn(libBtn, "save", "Save to View library"); libBtn.onclick = function () { saveWidgetToLibrary(p); };
       libRow.appendChild(libBtn); sec.appendChild(libRow);
-      sec.appendChild(noteEl("info", "Saves a self-contained snapshot of this View as a reusable View in the library — drag it into any dashboard from the rail's Views group, or open it from Explore."));
+      sec.appendChild(noteEl("info", "Saves a self-contained snapshot of this View as a reusable View in the library — drag it into any dashboard from the rail's Views group, or open it from Quick Views."));
     }
 
     // chart type picker — grouped by c.group for scannability (Content group = richtext/annotation)

@@ -72,7 +72,7 @@
   // dashboards started (Home's Blank quick-create card + New ▾ → Blank dashboard; NOT Open/Import/
   // examples/Duplicate, which pick up someone else's spec rather than starting fresh). Same running-
   // counter + spark-burst convention as the export milestones above.
-  var DASH_MILESTONES = { 5: "5 dashboards built!", 10: "10 dashboards — a real portfolio.", 25: "25 dashboards. You're a Studio power user.", 50: "50 dashboards. Incredible pace." };
+  var DASH_MILESTONES = { 5: "5 dashboards built!", 10: "10 dashboards — a real portfolio.", 25: "25 dashboards. You're a Dashboard Builder power user.", 50: "50 dashboards. Incredible pace." };
   function bumpDashMilestone() {
     var n = 0;
     try { n = (parseInt(localStorage.getItem("studio-dash-count"), 10) || 0) + 1; localStorage.setItem("studio-dash-count", String(n)); } catch (e) { return; }

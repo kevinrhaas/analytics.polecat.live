@@ -3421,10 +3421,10 @@ function serve() {
       return { title: btn && btn.title, ariaLabel: btn && btn.getAttribute("aria-label") };
     });
     ok("XP: a saved analysis's Open button title includes its full name (so a truncated, ellipsis-clipped row is still disambiguated on hover)",
-      xpOpenTitle.title && xpOpenTitle.title.indexOf("Suite analysis") >= 0 && xpOpenTitle.title !== "Open in Explore",
+      xpOpenTitle.title && xpOpenTitle.title.indexOf("Suite analysis") >= 0 && xpOpenTitle.title !== "Open in Quick Views",
       JSON.stringify(xpOpenTitle));
     ok("XP: the Open button also carries an aria-label naming the analysis, for parity with the row's other actions",
-      xpOpenTitle.ariaLabel === "Open Suite analysis in Explore", JSON.stringify(xpOpenTitle));
+      xpOpenTitle.ariaLabel === "Open Suite analysis in Quick Views", JSON.stringify(xpOpenTitle));
     // saved analyses are drag-in objects in the Studio library + addable panels
     const xpLib = await page.evaluate(function () {
       window.__studioShellSetSection("studio");
@@ -13629,7 +13629,7 @@ function serve() {
       seen: localStorage.getItem("studio-welcome-seen") === "1",
       section: window.__studioShellGetSection ? window.__studioShellGetSection() : null
     }));
-    ok("welcome hero's 'Explore data' quick action dismisses the hero and jumps to Explore",
+    ok("welcome hero's 'New Quick View' quick action dismisses the hero and jumps to Quick Views",
       qaJumped.closed && qaJumped.seen && qaJumped.section === "explore", JSON.stringify(qaJumped));
     // Reopen fresh (seen is already persisted) and take the quick tour into the carousel.
     await gp.evaluate(() => window.StudioWelcome.open());
@@ -22750,8 +22750,8 @@ function serve() {
       ok("J6: tour + welcome copy carries NO retired product terms (CDF/CDA/Pentaho/Dashboard Studio) — the keep-current ratchet",
         !stale.test(tut) && !stale.test(wel),
         JSON.stringify({ tut: (tut.match(stale) || [])[0] || null, wel: (wel.match(stale) || [])[0] || null }));
-      ok("J6: the tours teach the current concepts — Explore analysis flow, Ensemble, Home pinning, Jobs prep",
-        /analysis/i.test(tut) && /Ensemble/.test(tut) && /Home/.test(tut) && /Jobs/.test(tut) && /Explore/.test(wel));
+      ok("J6: the tours teach the current concepts — Quick Views analysis flow, Ensemble, Home pinning, Jobs prep",
+        /analysis/i.test(tut) && /Ensemble/.test(tut) && /Home/.test(tut) && /Jobs/.test(tut) && /Quick Views/.test(wel));
     })();
 
     // J6-1: LF46 (⋯ teardown, slice 2) dropped the ⋯ More → "Interactive tutorial" button
@@ -29316,7 +29316,7 @@ function serve() {
 
     // LF18(a): the three NEW quick-action cards (explore/connection/dataset) route straight
     // to their target — none of them should enter Studio first (unlike blank/examples/tour).
-    console.log("\n• LF18(a): Home quick actions — Explore data / New connection / New dataset");
+    console.log("\n• LF18(a): Home quick actions — New Quick View / New connection / New dataset");
     await page.click('#secHome .home-card[data-home="connection"]');
     await page.waitForTimeout(150);
     const lf18Conn = await page.evaluate(function () {
@@ -29354,7 +29354,7 @@ function serve() {
         railActive: (document.querySelector('#railNav .rail-item.active') || {}).getAttribute && document.querySelector('#railNav .rail-item.active').getAttribute("data-sec")
       };
     });
-    ok("LF18(a): 'Explore data' navigates straight to the Explore section",
+    ok("LF18(a): 'New Quick View' navigates straight to the Quick Views section",
       lf18Explore.exploreVisible && !lf18Explore.homeVisible && lf18Explore.railActive === "explore", JSON.stringify(lf18Explore));
     await page.click('#railNav .rail-item[data-sec="home"]');
     await page.waitForTimeout(100);
@@ -35020,7 +35020,7 @@ function serve() {
     ok("LF44: a viewer's Home hides the Studio-only quick actions (New dashboard/Quick import/Browse examples/Take the tour)",
       ["blank", "quickimport", "examples", "tour"].every(function (a) { return homeCardsAsViewer.indexOf(a) < 0; }),
       JSON.stringify(homeCardsAsViewer));
-    ok("LF44: a viewer's Home still offers the non-Studio quick actions (Explore data/New connection/New dataset)",
+    ok("LF44: a viewer's Home still offers the non-Studio quick actions (New Quick View/New connection/New dataset)",
       ["explore", "connection", "dataset"].every(function (a) { return homeCardsAsViewer.indexOf(a) >= 0; }),
       JSON.stringify(homeCardsAsViewer));
     const homeCardsAsDeveloper = await page.evaluate(function () {
@@ -35129,9 +35129,9 @@ function serve() {
         copyVisuallyVisible: !!(copyEl && getComputedStyle(copyEl).display !== "none" && !!copyEl.offsetParent)
       };
     });
-    ok("LF23 slice 2: on the viewer route, a viewer sees 'Save a copy' but NOT 'Edit in Studio'",
+    ok("LF23 slice 2: on the viewer route, a viewer sees 'Save a copy' but NOT 'Edit in Dashboard Builder'",
       viewerActionsAsViewer.editHidden && viewerActionsAsViewer.copyVisible, JSON.stringify(viewerActionsAsViewer));
-    ok("Track H sweep: a viewer's 'Edit in Studio' link isn't just DOM-hidden, it's actually invisible on screen (display:none, no box) — 'Save a copy' actually renders",
+    ok("Track H sweep: a viewer's 'Edit in Dashboard Builder' link isn't just DOM-hidden, it's actually invisible on screen (display:none, no box) — 'Save a copy' actually renders",
       viewerActionsAsViewer.editVisuallyHidden && viewerActionsAsViewer.copyVisuallyVisible, JSON.stringify(viewerActionsAsViewer));
 
     // Source guard: makes sure the `.viewer-savecopy-btn,.viewer-edit-link{display:flex;…}`
@@ -35186,7 +35186,7 @@ function serve() {
     await lf23s2ViewerCtx.close();
 
     // A developer-role account (deliberately NOT admin, to prove canDevelop() — not
-    // just isAdmin() — is the gate) sees "Edit in Studio" on the viewer route, and it
+    // just isAdmin() — is the gate) sees "Edit in Dashboard Builder" on the viewer route, and it
     // hands off into Studio with that exact dashboard loaded via app/index.html's new
     // ?edit=<id> boot path.
     const lf23s2DevState = await page.context().storageState();
@@ -35206,7 +35206,7 @@ function serve() {
         href: editEl ? editEl.getAttribute("href") : null
       };
     });
-    ok("LF23 slice 2: a developer-role account (not admin) sees 'Edit in Studio' on the viewer route, linking to ?edit=<id>",
+    ok("LF23 slice 2: a developer-role account (not admin) sees 'Edit in Dashboard Builder' on the viewer route, linking to ?edit=<id>",
       editLinkAsDev.visible && editLinkAsDev.actuallyOnScreen && editLinkAsDev.href === "app/?edit=lf23s2-dash", JSON.stringify(editLinkAsDev));
 
     await lf23s2DevPage.evaluate(function () { document.getElementById("viewerEditLink").click(); });
@@ -35220,7 +35220,7 @@ function serve() {
         editParamStripped: !/[?&]edit=/.test(location.search)
       };
     });
-    ok("LF23 slice 2: 'Edit in Studio' hands off to app/index.html's ?edit=<id> boot path, landing in Studio with the exact dashboard loaded, param stripped",
+    ok("LF23 slice 2: 'Edit in Dashboard Builder' hands off to app/index.html's ?edit=<id> boot path, landing in the Dashboard Builder with the exact dashboard loaded, param stripped",
       editHandoff.specId === "lf23s2-dash" && editHandoff.inStudio && editHandoff.editParamStripped, JSON.stringify(editHandoff));
     await lf23s2DevCtx.close();
 
@@ -35301,7 +35301,7 @@ function serve() {
     // #122b (mobile release gate): the viewer bar packs Back + title + badge + Save-a-copy + Export
     // (+ Edit for developers), all flex-shrink:0 — at 390px it must NOT overflow. On mobile the
     // badge drops and the action buttons collapse to icon-only (.viewer-btn-txt hidden) while their
-    // buttons stay tappable. Sign in as admin first so the extra "Edit in Studio" button is present
+    // buttons stay tappable. Sign in as admin first so the extra "Edit in Dashboard Builder" button is present
     // too (the busiest possible bar).
     await vxPage.evaluate(function () { window.PolecatAuth.login("admin"); });
     await vxPage.reload({ waitUntil: "networkidle" });

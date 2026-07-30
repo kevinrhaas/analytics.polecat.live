@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 750,
+    title: 'The rest of the app speaks the new rail terminology',
+    kind: 'polish',
+    ts: '2026-07-30T11:17:25.000Z',
+    items: [
+      'LIVE-a slice 2: the welcome tour, the six interactive tutorials, and a handful of leftover labels (a saved View\'s open-button hints, the command palette, the viewer\'s handoff link, a dashboard-count celebration, the Jobs empty state) now say "Quick Views" and "Dashboard Builder" instead of the retired "Explore" and "Studio" names.',
+      'A saved View\'s row in the Views list now hints at whichever editor it actually opens into (Quick Views or the View Builder) instead of always claiming "Explore".',
+    ],
+  },
+  {
     v: 749,
     title: 'View Builder Save dialog gets a real Folder field',
     kind: 'feature',

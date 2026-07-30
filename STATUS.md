@@ -116,6 +116,39 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LIVE-a slice 2 — the rest of the app speaks the new rail terminology (v750, sw v387,
+  2026-07-30, steward):** slice 1 (v740) renamed Home's quick-action grid; this slice sweeps
+  everywhere else the retired "Explore"/"Studio" product names still showed up in user-facing
+  copy, per its own REMAINING note:
+  - **Welcome tour** (`app/welcome.js`): the "Explore" and "Studio" step titles/body copy →
+    "Quick Views"/"Dashboard Builder"; the hero quick-action `t: "Explore data"` → `t: "New
+    Quick View"` (parity with Home's own rename). Left "Explore on my own" (the skip-tour
+    button) alone — generic English, not a section-name claim.
+  - **The six interactive tutorials** (`app/tutorial.js`): every step title/body/toast that
+    named "Explore" or "Studio" as a section (the Overview and Jobs/Connections tours'
+    cross-links, the Build tour's own blurb/steps, the Conservation tour's map-open hint and
+    finish toast) now says "Quick Views"/"Dashboard Builder"; left tour KEYS (`explore`,
+    `build`) and the "Build a dashboard" tour label untouched (code/already-accurate).
+  - **Saved View open hints**: `app/explore.js`'s saved-list button and `app/views.js`'s
+    catalog row both said "open in Explore" unconditionally — the Views row was actually
+    WRONG for a builder-made View (it opens in the View Builder, not Explore). Both now say
+    "Quick Views"; the Views row is destination-aware (`a.builder ? "the View Builder" :
+    "Quick Views"`), so the hint always names where the click actually goes.
+  - **Menus/misc**: the command palette's "Go to Studio" → "Go to Dashboard Builder" (search
+    keywords unchanged); the standalone viewer's "Edit in Studio" handoff link (`app/viewer.html`)
+    → "Edit in Dashboard Builder"; a dashboard-count celebration toast (`app/celebrations.js`)
+    → "Dashboard Builder power user"; the Jobs section's empty-state copy (`app/index.html`)
+    → "ready for Quick Views or any dashboard"; a Studio inspector note (`app/studio.js`) →
+    "open it from Quick Views".
+  Left `docs/index.html` untouched — its own overhaul is LIVE-e, a separate, larger slice (full
+  readability pass + theme fix + image placeholders), and touching it here would collide.
+  Re-baselined the J6 freshness-ratchet test (it required literal "Explore" in welcome.js —
+  now checks for "Quick Views", the current term) plus the exact aria-label/title strings the
+  rename changed; updated a handful of stale test description strings (not assertions) left
+  over from slice 1's Home-card rename. Full suite green (2698 passed, 0 failed). Files:
+  app/welcome.js, app/tutorial.js, app/explore.js, app/views.js, app/studio.js, app/palette.js,
+  app/celebrations.js, app/viewer.html, app/index.html, sw.js, js/changelog.js, tests/run.js,
+  STATUS.md.
 - **VB-6 — View Builder Save dialog overhaul (v749, sw v386, 2026-07-30, steward):** the bd-save
   modal (`app/build.js` `bdSave()`) was bare — a lone Name input, no way to file a new View into
   a folder at all (`BD.folder` was written on save but never editable). Brought it up to the same
@@ -7174,10 +7207,12 @@
 >       see DONE for the full writeup: the LF56 folder navigator (same Browse-a-folder-tree
 >       picker + datalist every other Folder field uses) plus a sparkle name-suggest on both
 >       Name and the new Folder field.
-> LIVE-a. **Home quick-action buttons ↔ new rail terminology (Kevin live, screenshot).**
->       Slice 1 ✓ SHIPPED v740 (Home cards: "New View" card added, "Explore data" → "New
->       Quick View"). Slice 2 remaining: sweep the rest of the app's "Explore"/"Studio"
->       strings (welcome-hero quick actions, tours, empty states, menus) to the new names.
+> LIVE-a. ✓ **Home quick-action buttons ↔ new rail terminology (Kevin live, screenshot) —
+>       DONE (2026-07-30, steward).** Slice 1 SHIPPED v740 (Home cards: "New View" card
+>       added, "Explore data" → "New Quick View"). Slice 2 SHIPPED v750 (see DONE): swept the
+>       rest of the app's "Explore"/"Studio" strings (welcome-hero quick actions, tours,
+>       menus, a couple of empty states) to "Quick Views"/"Dashboard Builder" — `docs/index.html`
+>       deliberately left for LIVE-e's own overhaul instead.
 > LIVE-e. **Help/docs overhaul (Kevin live, 2026-07-30, two screenshots).** (1) The Help
 >       section must respond to the app THEME (it renders light-on-dark wrong today) and the
 >       "Back to Studio" button in the doc header goes away. (2) A full readability pass:

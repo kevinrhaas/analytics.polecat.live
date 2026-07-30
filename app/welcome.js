@@ -31,10 +31,10 @@
     { t: "Welcome to Analytics", ic: "home",
       h: "A modern, visual way to turn your data into <b>quick analyses</b> and <b>interactive dashboards</b> — entirely in your browser, local-first, nothing to install.",
       s: "Your work saves to this device and can mirror to your own backend. Everything also works offline on sample data." },
-    { t: "Explore — answers in a minute", ic: "search",
-      h: "<b>Explore</b> (left rail) is the fastest path in: pick a dataset, see it as a table, choose a chart — including the <b>US county map</b> and the <b>Ensemble common-estimate</b> chart — and save it as a reusable <b>analysis</b>.",
+    { t: "Quick Views — answers in a minute", ic: "search",
+      h: "<b>Quick Views</b> (left rail) is the fastest path in: pick a dataset, see it as a table, choose a chart — including the <b>US county map</b> and the <b>Ensemble common-estimate</b> chart — and save it as a reusable <b>analysis</b>.",
       s: "Pin an analysis ★ to Home and it greets you live when you open the app; drop it into any dashboard with one click." },
-    { t: "Studio — full dashboards", ic: "grid",
+    { t: "Dashboard Builder — full dashboards", ic: "grid",
       h: "<b>Library</b> (left) lists your analyses, datasets and samples · <b>Live preview</b> (center) is the real dashboard · <b>Inspector</b> (right) edits whatever you select. Drag to reorder, resize, rename; Ctrl/Cmd-Z undoes.",
       s: "Or hit <b>New ▸ Auto-build</b> to scaffold a whole dashboard from a query set in one click." },
     { t: "Export — it runs anywhere", ic: "download",
@@ -48,7 +48,7 @@
   // Hero quick-actions: jump straight into a section instead of walking the
   // carousel. Section keys match __studioShellSetSection (app/shell.js).
   var QUICK_ACTIONS = [
-    { qa: "explore", ic: "search", t: "Explore data" },
+    { qa: "explore", ic: "search", t: "New Quick View" },
     { qa: "studio", ic: "grid", t: "Build a dashboard" },
     { qa: "connections", ic: "gear", t: "Bring your data" }
   ];
