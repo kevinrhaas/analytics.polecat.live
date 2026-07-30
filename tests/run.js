@@ -30866,7 +30866,9 @@ function serve() {
       if (window.__studioShellSetSection) window.__studioShellSetSection("home");
       var pins = [].slice.call(document.querySelectorAll("#secHome .recent-pin"));
       var subs = [].slice.call(document.querySelectorAll("#secHome .home-sub")).map(function (h) { return h.textContent; });
-      return { hasPinnedHeading: subs.indexOf("Pinned") >= 0, hasRecentHeading: subs.indexOf("Recent dashboards") >= 0,
+      // HOME-EX2: the Recent heading carries the "Clear recents" button, so its
+      // textContent is no longer an exact match — prefix-match it instead.
+      return { hasPinnedHeading: subs.indexOf("Pinned") >= 0, hasRecentHeading: subs.some(function (t) { return t.indexOf("Recent dashboards") === 0; }),
         pinCount: pins.length, allUnpinned: pins.every(function (b) { return b.getAttribute("aria-pressed") === "false" && !b.classList.contains("pinned"); }),
         hasStarSvg: pins.length > 0 && !!pins[0].querySelector("svg") };
     });
