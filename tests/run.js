@@ -9091,6 +9091,140 @@ function serve() {
     await page.click("#connViewToggle"); // back to list view
     await page.waitForTimeout(80);
 
+    // LIVE-d (slice 3): multi-select + bulk delete on Jobs — same shape slices 1-2
+    // proved on Datasets/Connections. Two throwaway jobs with no source dataset (bulk
+    // delete never runs them, so a minimal row is enough) keep this from touching any
+    // job fixture rows other tests depend on.
+    await page.evaluate(function () { window.__studioShellSetSection("jobs"); });
+    await page.waitForTimeout(80);
+    await page.evaluate(function () {
+      Studio.Workspace.put("jobs", { id: "livd-jobbulk-a", name: "livd_jobbulk_a", steps: [] }, { silent: true });
+      Studio.Workspace.put("jobs", { id: "livd-jobbulk-b", name: "livd_jobbulk_b", steps: [] }, { silent: true });
+      window.__studioRenderJobs();
+    });
+    await page.waitForTimeout(100);
+
+    const livdJobSelectOn = await page.evaluate(function () {
+      document.getElementById("jobsSelectBtn").click();
+      return {
+        mode: window.__studioJobsSelectMode(),
+        checkboxes: document.querySelectorAll("#jobsResults .job-select-cb").length,
+        bulkBar: !!document.querySelector(".dash-bulk-bar"),
+        btnText: document.getElementById("jobsSelectBtn").textContent,
+        delDisabled: document.getElementById("jobsSelDelBtn").disabled
+      };
+    });
+    ok("LIVE-d: clicking Select enters select mode on Jobs — checkboxes + a bulk bar appear, Delete starts disabled",
+      livdJobSelectOn.mode && livdJobSelectOn.checkboxes > 0 && livdJobSelectOn.bulkBar && /Cancel/.test(livdJobSelectOn.btnText) && livdJobSelectOn.delDisabled,
+      JSON.stringify(livdJobSelectOn));
+
+    // tapping a row in select mode selects it instead of opening its editor (re-query
+    // after the click — its handler re-renders #jobsResults, so pre-click nodes go stale)
+    const livdJobTapSelects = await page.evaluate(function () {
+      var row = document.querySelector('.job-select-cb[data-job-select="livd-jobbulk-a"]').closest(".cx-row");
+      row.click();
+      var cbAfter = document.querySelector('.job-select-cb[data-job-select="livd-jobbulk-a"]');
+      return {
+        checked: cbAfter.checked,
+        rowSelected: cbAfter.closest(".cx-row").classList.contains("is-selected"),
+        selected: window.__studioJobsSelected(),
+        noModalOpened: !document.querySelector(".modal-ov")
+      };
+    });
+    ok("LIVE-d: tapping a job row in select mode selects it (doesn't open the editor) and highlights the row",
+      livdJobTapSelects.checked && livdJobTapSelects.rowSelected && livdJobTapSelects.selected.indexOf("livd-jobbulk-a") >= 0 && livdJobTapSelects.noModalOpened,
+      JSON.stringify(livdJobTapSelects));
+
+    // the checkbox itself is an equivalent way to toggle selection
+    const livdJobCbToggle = await page.evaluate(function () {
+      document.querySelector('.job-select-cb[data-job-select="livd-jobbulk-b"]').click();
+      return { count: window.__studioJobsSelected().length, barText: document.querySelector(".dash-bulk-count").textContent };
+    });
+    ok("LIVE-d: checking a job row's checkbox selects it too, and the bulk bar's count reflects the total",
+      livdJobCbToggle.count === 2 && /2 selected/.test(livdJobCbToggle.barText), JSON.stringify(livdJobCbToggle));
+
+    // Select all / Clear apply to everything currently in view
+    const livdJobSelectAll = await page.evaluate(function () {
+      document.getElementById("jobsSelAllBtn").click();
+      var totalRows = document.querySelectorAll("#jobsResults .cx-row").length;
+      return { selectedCount: window.__studioJobsSelected().length, totalRows: totalRows };
+    });
+    ok("LIVE-d: Select all selects every job currently in view",
+      livdJobSelectAll.selectedCount === livdJobSelectAll.totalRows && livdJobSelectAll.totalRows > 0, JSON.stringify(livdJobSelectAll));
+    const livdJobClear = await page.evaluate(function () {
+      document.getElementById("jobsSelNoneBtn").click();
+      return { selectedCount: window.__studioJobsSelected().length, delDisabled: document.getElementById("jobsSelDelBtn").disabled };
+    });
+    ok("LIVE-d: Clear deselects everything and disables Delete again",
+      livdJobClear.selectedCount === 0 && livdJobClear.delDisabled, JSON.stringify(livdJobClear));
+
+    // re-select just the two throwaway jobs and bulk-delete them; their output datasets
+    // are kept (same as deleting one individually) — neither fixture has one here.
+    await page.evaluate(function () { document.querySelector('.job-select-cb[data-job-select="livd-jobbulk-a"]').click(); });
+    await page.evaluate(function () { document.querySelector('.job-select-cb[data-job-select="livd-jobbulk-b"]').click(); });
+    const livdJobBeforeDelete = await page.evaluate(function () { return Studio.Workspace.all("jobs").length; });
+    // window.confirm is already monkeypatched (not native) by earlier tests in this same
+    // page session — matching that local convention rather than Playwright's
+    // page.once('dialog', ...) API, which would leak a listener into a later unrelated
+    // native dialog elsewhere in the suite.
+    await page.evaluate(function () { window.confirm = function () { return true; }; });
+    await page.click("#jobsSelDelBtn");
+    await page.waitForTimeout(150);
+    const livdJobDeleted = await page.evaluate(function (before) {
+      return {
+        remaining: Studio.Workspace.all("jobs").length,
+        stillA: !!Studio.Workspace.get("jobs", "livd-jobbulk-a"),
+        stillB: !!Studio.Workspace.get("jobs", "livd-jobbulk-b"),
+        selectedAfter: window.__studioJobsSelected().length,
+        before: before
+      };
+    }, livdJobBeforeDelete);
+    ok("LIVE-d: Delete removes every selected job after confirming",
+      !livdJobDeleted.stillA && !livdJobDeleted.stillB && livdJobDeleted.selectedAfter === 0 && livdJobDeleted.remaining === livdJobDeleted.before - 2,
+      JSON.stringify(livdJobDeleted));
+
+    // clicking Select again (now "Cancel") leaves select mode and restores normal open-on-click
+    const livdJobCancel = await page.evaluate(function () {
+      document.getElementById("jobsSelectBtn").click();
+      return {
+        mode: window.__studioJobsSelectMode(),
+        checkboxes: document.querySelectorAll("#jobsResults .job-select-cb").length,
+        btnText: document.getElementById("jobsSelectBtn").textContent
+      };
+    });
+    ok("LIVE-d: clicking Select again exits select mode and hides the checkboxes",
+      !livdJobCancel.mode && livdJobCancel.checkboxes === 0 && /Select/.test(livdJobCancel.btnText) && !/Cancel/.test(livdJobCancel.btnText),
+      JSON.stringify(livdJobCancel));
+
+    // the tile view (dsx-tile) carries the same select-mode checkbox and selection
+    // highlight — unlike Datasets/Connections, Jobs has no lingering fixture rows by
+    // this point in the suite (the two throwaway jobs above were just bulk-deleted),
+    // so seed one more single-use row to click. jobsViewToggle back to list afterward
+    // so the rest of the suite sees the layout it expects.
+    await page.evaluate(function () {
+      Studio.Workspace.put("jobs", { id: "livd-jobbulk-tile", name: "livd_jobbulk_tile", steps: [] }, { silent: true });
+      window.__studioRenderJobs();
+    });
+    await page.click("#jobsViewToggle");
+    await page.waitForTimeout(80);
+    const livdJobTileSelect = await page.evaluate(function () {
+      document.getElementById("jobsSelectBtn").click();
+      var cb = document.querySelector("#jobsResults .dsx-tile .job-select-cb");
+      if (!cb) return { hasCb: false };
+      cb.click();
+      var tile = document.querySelector("#jobsResults .dsx-tile.is-selected");
+      return { hasCb: true, tileSelected: !!tile, selectedCount: window.__studioJobsSelected().length };
+    });
+    ok("LIVE-d: tile view gets the same select-mode checkbox and selection highlight on Jobs",
+      livdJobTileSelect.hasCb && livdJobTileSelect.tileSelected && livdJobTileSelect.selectedCount === 1, JSON.stringify(livdJobTileSelect));
+    await page.evaluate(function () {
+      document.getElementById("jobsSelectBtn").click(); // back out of select mode
+      Studio.Workspace.remove("jobs", "livd-jobbulk-tile", { silent: true });
+      window.__studioRenderJobs();
+    });
+    await page.click("#jobsViewToggle"); // back to list view
+    await page.waitForTimeout(80);
+
     await page.evaluate(function () { Studio.Workspace.reset(); window.__studioLoad({ title: "post-dsx", panels: [], kpis: [] }); window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(120);
 

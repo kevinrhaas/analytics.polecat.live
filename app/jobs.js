@@ -154,6 +154,30 @@
   // LF51 (d): list ⇆ tile view, same as Datasets/Connections — device-remembered.
   var _jobsViewMode = "list";
   try { _jobsViewMode = localStorage.getItem("studio-jobs-view") || "list"; } catch (e) {}
+  // LIVE-d slice 3 (Kevin, 2026-07-30): Jobs adopts the same select-mode +
+  // bulk-bar shape Datasets/Connections proved in slices 1-2 (_dsxSelectMode/
+  // _connSelectMode) — session-only, pruned against the live list every render.
+  var _jobsSelectMode = false;
+  var _jobsSelected = {}; // id -> true, only meaningful while _jobsSelectMode
+  function toggleJobSelect(id) {
+    if (_jobsSelected[id]) delete _jobsSelected[id]; else _jobsSelected[id] = true;
+    renderJobs();
+  }
+  function bulkDeleteSelectedJobs() {
+    var ids = Object.keys(_jobsSelected);
+    if (!ids.length) return;
+    var W = Studio.Workspace;
+    var rows = ids.map(function (id) { return W.get("jobs", id); }).filter(Boolean);
+    var msg = "Delete " + rows.length + " job" + (rows.length === 1 ? "" : "s") + "? Their output datasets are kept. This can't be undone.";
+    if (!window.confirm(msg)) return;
+    rows.forEach(function (j) { W.remove("jobs", j.id, { silent: true }); });
+    _jobsSelected = {};
+    toast("Deleted " + rows.length + " job" + (rows.length === 1 ? "" : "s"));
+    // one batched notify (not a remove per row), same convention bulkDeleteSelectedConnections established.
+    W.notify("jobs");
+  }
+  window.__studioJobsSelectMode = function () { return _jobsSelectMode; }; // test hook
+  window.__studioJobsSelected = function () { return Object.keys(_jobsSelected); }; // test hook
   function renderJobs() {
     var results = $("#jobsResults"); if (!results) return;
     // LF51 (d): persistent list/tile toggle in the section header.
@@ -168,8 +192,28 @@
         renderJobs();
       };
     }
+    // LIVE-d slice 3: the "Select" toolbar toggle, same idempotent-binding
+    // convention as the view toggle above — lives outside #jobsResults so it
+    // survives every re-render.
+    var selBtn = $("#jobsSelectBtn");
+    if (selBtn) {
+      selBtn.textContent = _jobsSelectMode ? "Cancel" : "Select";
+      selBtn.setAttribute("aria-pressed", _jobsSelectMode ? "true" : "false");
+      selBtn.onclick = function () {
+        _jobsSelectMode = !_jobsSelectMode;
+        if (!_jobsSelectMode) _jobsSelected = {};
+        renderJobs();
+      };
+    }
     var q = (($("#jobsSearch") || {}).value || "").toLowerCase();
     var list = Studio.Workspace.all("jobs").filter(isVisibleToMe).sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
+    // drop any selected id that no longer exists/is visible (deleted elsewhere) so a
+    // stale entry can't inflate the bulk-bar count or survive a bulk delete — same
+    // pruning renderDatasets/renderConnections do for their own selection sets.
+    if (_jobsSelectMode) {
+      var listIds = {}; list.forEach(function (j) { listIds[j.id] = true; });
+      Object.keys(_jobsSelected).forEach(function (id) { if (!listIds[id]) delete _jobsSelected[id]; });
+    }
     var folderCounts = {}, folderUnfiled = 0;
     list.forEach(function (j) { if (j.folder) folderCounts[j.folder] = (folderCounts[j.folder] || 0) + 1; else folderUnfiled++; });
     if (_jobsFolderFilter && _jobsFolderFilter !== "__unfiled" && !folderCounts[_jobsFolderFilter]) _jobsFolderFilter = "";
@@ -213,18 +257,36 @@
           '<button type="button" class="btn" data-job-edit="' + esc(j.id) + '">Edit</button>' +
           '<button type="button" class="btn" data-job-del="' + esc(j.id) + '" aria-label="Delete ' + esc(j.name) + '">✕</button>' +
         '</span>';
+      // LIVE-d slice 3: select-mode-only checkbox overlay, same markup shape as
+      // Datasets'/Connections' own — a distinct .job-select-cb class so the
+      // three sections' handlers can't cross-fire.
+      var selected = !!_jobsSelected[j.id];
+      var selectHtml = _jobsSelectMode
+        ? '<label class="cx-select" onclick="event.stopPropagation()"><input type="checkbox" class="job-select-cb" data-job-select="' +
+          esc(j.id) + '"' + (selected ? " checked" : "") + ' aria-label="Select ' + esc(j.name) + '"/></label>' : '';
       if (isTiles) {
-        return '<div class="dsx-tile" data-job-id="' + esc(j.id) + '">' +
-          '<div class="dsx-tile-head">' + dot + icon + name + privateBtn + '</div>' +
+        return '<div class="dsx-tile' + (_jobsSelectMode && selected ? " is-selected" : "") + '" data-job-id="' + esc(j.id) + '">' +
+          '<div class="dsx-tile-head">' + selectHtml + dot + icon + name + privateBtn + '</div>' +
           (badges ? '<div class="dsx-tile-badges">' + badges + '</div>' : "") +
           '<div class="dsx-tile-foot">' + when + actions + '</div>' +
           '</div>';
       }
-      return '<div class="cx-row" data-job-id="' + esc(j.id) + '">' +
-        dot + icon + name + badges + when + privateBtn + actions + '</div>';
+      return '<div class="cx-row' + (_jobsSelectMode && selected ? " is-selected" : "") + '" data-job-id="' + esc(j.id) + '">' +
+        selectHtml + dot + icon + name + badges + when + privateBtn + actions + '</div>';
     });
+    // LIVE-d slice 3: the bulk bar — same anatomy as Datasets'/Connections'
+    // bulkBarHtml, reusing the section-agnostic .dash-bulk-bar CSS.
+    var selCount = Object.keys(_jobsSelected).length;
+    var bulkBarHtml = _jobsSelectMode
+      ? '<div class="dash-bulk-bar"><span class="dash-bulk-count">' + selCount + ' selected</span>' +
+        '<button type="button" class="btn" id="jobsSelAllBtn">Select all</button>' +
+        '<button type="button" class="btn" id="jobsSelNoneBtn">Clear</button>' +
+        '<button type="button" class="btn danger" id="jobsSelDelBtn"' + (selCount ? '' : ' disabled') + '>' +
+        'Delete' + (selCount ? ' ' + selCount : '') + '</button></div>'
+      : '';
     results.innerHTML =
       (pillsFJobs ? '<div class="wb-chips cx-filter-strip">' + pillsFJobs + '</div>' : "") +
+      bulkBarHtml +
       (rows.length ? '<div class="' + (isTiles ? "dsx-grid" : "cx-list") + '">' + rows.join("") + '</div>'
       : '<div class="cx-empty"><b>' + (q || _jobsFolderFilter ? "No jobs match." : "No jobs yet.") + '</b><br/>' +
         (q || _jobsFolderFilter ? "" : 'A job preps one dataset — rename/cast/derive columns, filter rows, roll up ' +
@@ -238,8 +300,27 @@
     $$(".cx-row, .dsx-tile", results).forEach(function (row) {
       var j = Studio.Workspace.get("jobs", row.getAttribute("data-job-id"));
       var icEl = row.querySelector(".cx-ic"); if (icEl && Studio.icon) icEl.appendChild(Studio.icon("sliders", 18));
-      row.addEventListener("click", function (e) { if (e.target.closest("[data-job-run],[data-job-private],[data-job-edit],[data-job-del]")) return; openJobEditor(j); });
+      row.addEventListener("click", function (e) {
+        if (e.target.closest("[data-job-run],[data-job-private],[data-job-edit],[data-job-del],.job-select-cb")) return;
+        if (_jobsSelectMode) { toggleJobSelect(row.getAttribute("data-job-id")); return; }
+        openJobEditor(j);
+      });
     });
+    // LIVE-d slice 3: while select mode is on, the bulk bar's own buttons drive
+    // Select all / Clear / Delete, and every checkbox toggles its row's
+    // selection — same wiring shape renderDatasets/renderConnections use.
+    if (_jobsSelectMode) {
+      var jobsSelAllBtn = $("#jobsSelAllBtn", results);
+      if (jobsSelAllBtn) jobsSelAllBtn.onclick = function () { shown.forEach(function (j) { _jobsSelected[j.id] = true; }); renderJobs(); };
+      var jobsSelNoneBtn = $("#jobsSelNoneBtn", results);
+      if (jobsSelNoneBtn) jobsSelNoneBtn.onclick = function () { _jobsSelected = {}; renderJobs(); };
+      var jobsSelDelBtn = $("#jobsSelDelBtn", results);
+      if (jobsSelDelBtn) jobsSelDelBtn.onclick = bulkDeleteSelectedJobs;
+      $$(".job-select-cb", results).forEach(function (cb) {
+        cb.onclick = function (e) { e.stopPropagation(); };
+        cb.onchange = function () { toggleJobSelect(cb.getAttribute("data-job-select")); };
+      });
+    }
     $$(".cx-private", results).forEach(function (btn) {
       btn.appendChild(Studio.icon("lock", 14));
       btn.onclick = function (e) { e.stopPropagation(); toggleJobPrivate(btn.getAttribute("data-job-private")); };
