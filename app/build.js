@@ -69,6 +69,7 @@
     paletteKey: "",           // VB-3: Studio.PALETTE_PRESETS key ("" = default) for the live preview
     chartType: "table",      // slice 2: table | bars | line | donut | heatmap
     analysisId: null, name: "", folder: "",
+    notice: "",              // VB-5: dismissible cross-editor banner text ("" = hidden)
     outlineOpen: {}          // which outline datasets are expanded
   };
   function bdReset() {
@@ -78,6 +79,7 @@
     BD._eff = null;
     BD.chartType = "table";
     BD.analysisId = null; BD.name = ""; BD.folder = "";
+    BD.notice = "";
   }
 
   // ---------- calculated columns (slice 4) ----------
@@ -939,6 +941,22 @@
     var sec = document.getElementById("secBuild");
     if (!sec) return;
 
+    // VB-5: the cross-editor notice — a View made in the other editor was opened
+    // here best-effort; dismissible, cleared on New/next load.
+    var noticeBox = $("#buildNotice", sec);
+    if (noticeBox) {
+      if (BD.notice) {
+        noticeBox.hidden = false;
+        noticeBox.innerHTML = '<span class="bd-notice-txt">' + esc(BD.notice) + "</span>" +
+          '<button type="button" class="bd-notice-x" id="bdNoticeDismiss" title="Dismiss" aria-label="Dismiss this notice">✕</button>';
+        var nx = $("#bdNoticeDismiss", noticeBox);
+        if (nx) nx.onclick = function () { BD.notice = ""; render(); };
+      } else {
+        noticeBox.hidden = true;
+        noticeBox.innerHTML = "";
+      }
+    }
+
     // LEFT — dataset outline (VB-1: Explore-navigator parity — search box, folder
     // tree with collapsible branches, sample-set grouping, per-row icons, stacked
     // readable labels with full-name tooltips, and ws manage ops on hover)
@@ -1408,6 +1426,19 @@
         if (BD.chartType === "kpi") row.kpi = bdKpiFor(da);
         else row.chart = bdPanelFor(BD.chartType, da, res).chart;
         if (BD.analysisId) row.id = BD.analysisId;
+        // Workspace.put REPLACES the stored row wholesale (same reason Explore's
+        // xpSave carries pinned/createdAt forward) — updating must not silently
+        // strip pin/privacy/ownership off an existing View (VB-5 also routes
+        // Quick-Views-made rows through here, where those fields are common).
+        if (BD.analysisId) {
+          var prev = Studio.Workspace.get("analyses", BD.analysisId);
+          if (prev) {
+            if (prev.pinned) { row.pinned = prev.pinned; row.pinnedAt = prev.pinnedAt; }
+            if (prev.private) row.private = prev.private;
+            if (prev.owner) row.owner = prev.owner;
+            if (prev.createdAt) row.createdAt = prev.createdAt;
+          }
+        }
         var saved = Studio.Workspace.put("analyses", row);
         BD.analysisId = saved.id;
         toast((row.id ? "Updated" : "Saved") + " “" + name + "” — find it in Views", false, !row.id);
@@ -1418,6 +1449,79 @@
       wrap.appendChild(foot);
       b.appendChild(wrap);
       setTimeout(function () { inp.focus(); }, 30);
+    });
+  }
+
+  // ---------- VB-5: open a View made in the OTHER editor ----------
+  // A Quick Views (or Studio-snapshot) analysis has no `builder` blob — its saved
+  // chart mapping is reconstructed onto the shelves best-effort so it OPENS here
+  // rather than being refused, with a dismissible notice saying what happened.
+  // Field-name classification mirrors model.js's CHARTS field vocabulary.
+  var FOREIGN_DIM_FIELDS = ["labelCol", "idCol", "colCol", "sourceCol", "dateCol", "groupCol"];
+  var FOREIGN_MEASURE_FIELDS = ["valueCol", "xCol", "yCol", "barCol", "lineCol", "targetCol", "rCol"];
+  // The nearest Build chart type for Quick-Views types the Builder doesn't have;
+  // anything else unsupported falls back to the honest full pivot table.
+  var FOREIGN_TYPE_FALLBACK = { ensembleSeries: "line", treemap: "bars", stream: "areaStacked" };
+  function bdMapAggFn(fn) {
+    if (!fn || fn === "none") return null;
+    if (fn === "mean" || fn === "average" || fn === "avg") return "avg";
+    return AGGS.indexOf(fn) >= 0 ? fn : null;
+  }
+  function bdLoadForeign(id) {
+    var a = Studio.Workspace.get("analyses", id);
+    if (!a) return;
+    if (a.builder) { bdLoad(id); return; }
+    bdReset();
+    BD.analysisId = a.id; BD.name = a.name || ""; BD.folder = a.folder || "";
+    BD.paletteKey = a.paletteKey || "";
+    var kind = null, dsId = null;
+    if (a.datasetId) { kind = "ws"; dsId = a.datasetId; }
+    else if (a.sample) {
+      // Explore's sample ids are "<stem>+XP_SEP+<daId>"; Build keys the same pair
+      // with its own separator.
+      var sp = String(a.sample).split("\u001f");
+      if (sp.length === 2) { kind = "sample"; dsId = sp[0] + BD_SEP + sp[1]; }
+    }
+    if (!kind) {
+      // Self-contained (e.g. a dashboard-panel snapshot whose source is gone):
+      // nothing to put on the shelves, but the View itself is untouched.
+      BD.notice = "“" + (a.name || "This View") + "” is self-contained — it carries no source dataset, so its fields can’t be reconstructed on the shelves. It still renders everywhere it’s used; pick a dataset on the left to rebuild it here.";
+      render();
+      return;
+    }
+    bdSelectDataset(kind, dsId).then(function () {
+      if (!BD.run) {
+        BD.analysisId = a.id;
+        BD.notice = "“" + (a.name || "This View") + "”’s source dataset is gone — pick another dataset to rebuild it.";
+        render();
+        return;
+      }
+      var cols = bdEff().cols;
+      var savedAgg = a.da && a.da.outputOptions && a.da.outputOptions.aggregate;
+      var aggFn = bdMapAggFn(savedAgg && savedAgg.fn);
+      var map = (a.chart && a.chart.map) || {};
+      function addDim(c, toRows) {
+        if (!c || cols.indexOf(c) < 0 || bdOnShelf(c)) return;
+        if (toRows) BD.shelfRows.push({ col: c }); else BD.shelfCols.push({ col: c, agg: null });
+      }
+      function addMeasure(c) {
+        if (!c || cols.indexOf(c) < 0 || bdOnShelf(c)) return;
+        BD.shelfCols.push({ col: c, agg: bdFieldKind(c) === "Numeric" ? (aggFn || "sum") : null });
+      }
+      addDim(map.rowCol, true); // heatmap's Row nests down the side, same as here
+      FOREIGN_DIM_FIELDS.forEach(function (f) { addDim(map[f]); });
+      FOREIGN_MEASURE_FIELDS.forEach(function (f) { addMeasure(map[f]); });
+      (map.series || []).forEach(function (s) { addMeasure(s && s.col); });
+      if (map.seriesCol && cols.indexOf(map.seriesCol) >= 0) BD.shelfColor = [{ col: map.seriesCol }];
+      var t = a.chartType || (a.chart && a.chart.type) || "table";
+      var supported = CHART_TYPES.some(function (c) { return c.t === t; });
+      BD.chartType = supported ? t : (FOREIGN_TYPE_FALLBACK[t] || "table");
+      if (BD.chartType !== "table" && chartUnavailable(BD.chartType)) BD.chartType = "table";
+      var typeNote = supported ? "" :
+        " Its chart type (" + ((Studio.CHARTS[t] || {}).label || t) + ") isn’t in the View Builder yet, so it opens as " +
+        (FOREIGN_TYPE_FALLBACK[t] ? "the nearest type" : "a table") + ".";
+      BD.notice = "“" + (a.name || "This View") + "” was built in the simpler Quick Views editor — its settings were mapped onto the shelves as a starting point." + typeNote + " Updating from here saves it as a View Builder View.";
+      render();
     });
   }
 
@@ -1448,10 +1552,11 @@
     render: render,
     compute: compute,     // pure — unit-tested directly
     load: bdLoad,
+    loadForeign: bdLoadForeign, // VB-5: open a Quick-Views/snapshot View here, best-effort
     newView: bdNew,
     state: BD             // test hook (also window.__studioBuild below)
   };
   window.__studioBuild = { state: BD, addField: bdAddField, selectDataset: bdSelectDataset, save: bdSave, load: bdLoad,
     addFilter: bdAddFilter, filteredRows: bdFilteredRows, setCalcs: bdSetCalcs, eff: bdEff, rerender: render,
-    chartBasis: chartBasis };
+    chartBasis: chartBasis, loadForeign: bdLoadForeign };
 })();

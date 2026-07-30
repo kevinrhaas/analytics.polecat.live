@@ -10646,6 +10646,157 @@ function serve() {
       return st && true;
     }, bdSave.id);
     await page.waitForTimeout(150);
+
+    // 13e. VB-5 (Kevin live): ANY View opens in EITHER editor. A Quick-Views-made
+    // View (chart blob, no `builder`) opens in the View Builder via a best-effort
+    // shelf reconstruction (Studio.Build.loadForeign) with a dismissible notice;
+    // a builder-made View opens in Quick Views best-effort with its own notice +
+    // an inline "Open in View Builder" escape hatch. Every open point (Views rows,
+    // Explore's saved list, Home pinned cards, Repository) offers BOTH targets.
+    const vb5a = await page.evaluate(async () => {
+      const W = window.Studio.Workspace;
+      const B = window.__studioBuild;
+      const out = {};
+      const ds = W.put("datasets", { name: "vb5-ds", kind: "sql", sql: "select region, quarter, amount from t", columns: ["region", "quarter", "amount"] });
+      // a Quick-Views-made View: datasetId + chart blob, NO builder blob, pinned,
+      // with a saved rollup (fn "mean" must land on the shelf as AVG)
+      const qv = W.put("analyses", {
+        name: "VB5 Quick", datasetId: ds.id, sample: null,
+        da: { id: "vb5_da", name: "VB5 Quick", kind: "sql", sql: "", query: "", columns: ["region", "amount"], params: [], authored: true,
+          outputOptions: { aggregate: { fn: "mean", groupBy: ["region"], valueCol: "amount" } } },
+        chart: { type: "bars", map: { labelCol: "region", valueCol: "amount" }, opts: {} },
+        chartType: "bars", pinned: true, pinnedAt: new Date().toISOString()
+      });
+      out.qvId = qv.id; out.dsId = ds.id;
+      // the Views catalog row offers BOTH targets: owner Open + the other editor
+      window.__studioShellSetSection("views");
+      window.__studioRenderViews();
+      await new Promise((r) => setTimeout(r, 100));
+      const row = document.querySelector('#viewsResults [data-vw-id="' + qv.id + '"]');
+      if (!row) return { err: "views row missing" };
+      out.hasOwnerOpen = !!row.querySelector("[data-vw-open]");
+      const altBtn = row.querySelector("[data-vw-open-in]");
+      out.altTarget = altBtn && altBtn.getAttribute("data-vw-open-in");
+      out.altLabel = altBtn && altBtn.textContent;
+      altBtn.click();
+      await new Promise((r) => setTimeout(r, 500));
+      out.section = window.__studioShellGetSection();
+      out.analysisId = B.state.analysisId;
+      out.chartType = B.state.chartType;
+      out.dims = B.state.shelfCols.filter((f) => !f.agg).map((f) => f.col).join(",");
+      out.measures = B.state.shelfCols.filter((f) => f.agg).map((f) => f.col + ":" + f.agg).join(",");
+      const notice = document.getElementById("buildNotice");
+      out.noticeShown = !!notice && !notice.hidden && notice.textContent.indexOf("Quick Views") >= 0;
+      const nx = document.getElementById("bdNoticeDismiss");
+      if (nx) nx.click();
+      await new Promise((r) => setTimeout(r, 60));
+      out.noticeGone = document.getElementById("buildNotice").hidden;
+      return out;
+    });
+    ok("VB-5: a Views-catalog row offers BOTH editors — owner Open plus an explicit other-editor button (a Quick View's is 'View Builder')",
+      !vb5a.err && vb5a.hasOwnerOpen && vb5a.altTarget === "build" && vb5a.altLabel === "View Builder", JSON.stringify(vb5a));
+    ok("VB-5: opening a Quick-Views-made View in the View Builder reconstructs its mapping onto the shelves best-effort (label → dimension, value → measure with the saved rollup's fn, mean → AVG) and keeps its chart type",
+      vb5a.section === "build" && vb5a.analysisId === vb5a.qvId && vb5a.chartType === "bars" &&
+      vb5a.dims === "region" && vb5a.measures === "amount:avg", JSON.stringify(vb5a));
+    ok("VB-5: the View Builder shows a dismissible cross-editor notice, and ✕ dismisses it",
+      vb5a.noticeShown && vb5a.noticeGone, JSON.stringify(vb5a));
+    // Updating from the Builder converts it to a builder View WITHOUT stripping its
+    // pin/privacy/created metadata (Workspace.put replaces rows wholesale — bdSave
+    // must carry them forward, same as Explore's xpSave always has).
+    const vb5b = await page.evaluate(async (qvId) => {
+      const out = {};
+      window.__studioBuild.save();
+      await new Promise((r) => setTimeout(r, 120));
+      const m = document.querySelector(".modal-ov .bd-save");
+      if (!m) return { err: "save modal missing" };
+      out.dialogVerb = [].slice.call(m.querySelectorAll("button")).filter((b) => /^(Save|Update)$/.test(b.textContent))[0].textContent;
+      [].slice.call(m.querySelectorAll("button")).filter((b) => /^(Save|Update)$/.test(b.textContent))[0].click();
+      await new Promise((r) => setTimeout(r, 120));
+      const row = window.Studio.Workspace.get("analyses", qvId);
+      out.hasBuilder = !!(row && row.builder);
+      out.stillPinned = !!(row && row.pinned);
+      out.sameId = !!row;
+      return out;
+    }, vb5a.qvId);
+    ok("VB-5: updating a Quick View from the Builder upgrades it in place to a builder View (same row id) and PRESERVES its pinned state",
+      !vb5b.err && vb5b.dialogVerb === "Update" && vb5b.hasBuilder && vb5b.stillPinned && vb5b.sameId, JSON.stringify(vb5b));
+    // The other direction: a builder-made View opens in Quick Views best-effort,
+    // with its own dismissible notice + an inline "Open in View Builder" action,
+    // and Explore's saved rows all carry a View Builder act button.
+    const vb5c = await page.evaluate(async (qvId) => {
+      const out = {};
+      window.Studio.ViewsCatalog.openIn(qvId, "explore");
+      await new Promise((r) => setTimeout(r, 500));
+      out.section = window.__studioShellGetSection();
+      out.loadedName = window.__studioExplore.state.name;
+      const note = document.querySelector("#secExplore .xp-cross-note");
+      out.noticeShown = !!note && note.textContent.indexOf("View Builder") >= 0;
+      out.hasOpenBuildBtn = !!document.getElementById("xpNoticeOpenBuild");
+      out.savedRowBuildBtn = !!document.querySelector('#secExplore [data-xp-build="' + qvId + '"]');
+      const x = document.getElementById("xpNoticeDismiss");
+      if (x) x.click();
+      await new Promise((r) => setTimeout(r, 100));
+      out.noticeGone = !document.querySelector("#secExplore .xp-cross-note");
+      return out;
+    }, vb5a.qvId);
+    ok("VB-5: a builder-made View still OPENS in Quick Views (best-effort) with a dismissible notice naming the View Builder and an inline 'Open in View Builder' action",
+      vb5c.section === "explore" && vb5c.loadedName === "VB5 Quick" && vb5c.noticeShown && vb5c.hasOpenBuildBtn && vb5c.noticeGone,
+      JSON.stringify(vb5c));
+    ok("VB-5: every saved row in Explore's sidebar carries an 'Open in the View Builder' action (▤)",
+      vb5c.savedRowBuildBtn, JSON.stringify(vb5c));
+    // Home pinned cards: the overlay click owner-routes (this row is now a builder
+    // View → the View Builder), and the header offers the OTHER editor explicitly.
+    const vb5d = await page.evaluate(async (qvId) => {
+      const out = {};
+      window.__studioShellSetSection("home");
+      window.__studioRenderHome();
+      await new Promise((r) => setTimeout(r, 150));
+      const alt = document.querySelector('[data-home-analysis-alt="' + qvId + '"]');
+      out.altShown = !!alt;
+      out.altTarget = alt && alt.getAttribute("data-home-analysis-target");
+      out.altLabel = alt && alt.textContent;
+      const overlay = document.querySelector('[data-home-analysis="' + qvId + '"]');
+      if (overlay) overlay.click();
+      await new Promise((r) => setTimeout(r, 500));
+      out.section = window.__studioShellGetSection();
+      out.builderLoaded = window.__studioBuild.state.analysisId;
+      return out;
+    }, vb5a.qvId);
+    ok("VB-5: a Home pinned-View card owner-routes its open (builder View → View Builder) and offers the other editor via a header button",
+      vb5d.altShown && vb5d.altTarget === "explore" && vb5d.altLabel === "Quick View" &&
+      vb5d.section === "build" && vb5d.builderLoaded === vb5a.qvId, JSON.stringify(vb5d));
+    // Repository: the analysis quick-edit panel offers the other editor too —
+    // clicking it closes the panel and lands in that editor (this row is a
+    // builder View now, so its "other" editor is Quick Views).
+    const vb5e = await page.evaluate(async (qvId) => {
+      const out = {};
+      window.__studioShellSetSection("repository");
+      window.__studioOpenRepoQuickEdit("analysis", qvId);
+      await new Promise((r) => setTimeout(r, 150));
+      const panel = document.querySelector(".ps-rpanel");
+      const btns = panel ? [].slice.call(panel.querySelectorAll("button")).map((b) => b.textContent) : [];
+      out.buttons = btns.join("|");
+      out.hasOwner = btns.some((t) => /Open full editor/.test(t));
+      const alt = panel ? [].slice.call(panel.querySelectorAll("button")).filter((b) => b.textContent === "Open in Quick Views")[0] : null;
+      out.hasAlt = !!alt;
+      if (alt) alt.click();
+      await new Promise((r) => setTimeout(r, 500));
+      out.panelClosed = !document.querySelector(".ps-rpanel");
+      out.section = window.__studioShellGetSection();
+      out.loadedName = window.__studioExplore.state.name;
+      return out;
+    }, vb5a.qvId);
+    ok("VB-5: Repository's quick-edit panel for a View offers the other editor alongside 'Open full editor →', and clicking it opens the View there",
+      vb5e.hasOwner && vb5e.hasAlt && vb5e.panelClosed && vb5e.section === "explore" && vb5e.loadedName === "VB5 Quick",
+      JSON.stringify(vb5e));
+    // cleanup: drop the VB-5 fixtures + restore the section the next block expects
+    await page.evaluate((f) => {
+      window.Studio.Workspace.remove("analyses", f.qvId);
+      window.Studio.Workspace.remove("datasets", f.dsId);
+      window.Studio.Build.newView();
+      window.__studioShellSetSection("studio");
+    }, { qvId: vb5a.qvId, dsId: vb5a.dsId });
+    await page.waitForTimeout(150);
     // 5. mobile — a brand-new section is a release-gate surface at 390px
     const bdPhone = await browser.newPage({ viewport: { width: 390, height: 780 } });
     const bdPhoneErrs = [];

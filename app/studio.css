@@ -1494,6 +1494,20 @@ body.lib-dragging #preview{pointer-events:none}
 .bd-ct-ic{display:inline-flex;align-items:center}
 .bd-ct-tbl{font-size:var(--fs-13);color:var(--faint)}
 .bd-ifr{width:100%;height:min(62vh,540px);border:1px solid var(--line);border-radius:12px;background:var(--pane)}
+/* VB-5: the cross-editor notice — shared look between the View Builder's
+   #buildNotice and Quick Views' .xp-cross-note (a soft brand-tinted banner
+   with a dismiss ✕; theme-token driven so all 7 app themes × light/dark work). */
+.bd-notice,.xp-cross-note{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  background:color-mix(in srgb,var(--brand) 8%,var(--panel));
+  border:1px solid color-mix(in srgb,var(--brand) 28%,transparent);
+  border-left:3px solid var(--brand);border-radius:var(--r-8,8px);
+  padding:8px 12px;margin-bottom:var(--sp-10);font-size:var(--fs-12);color:var(--ink)}
+.bd-notice-txt,.xp-cross-note-txt{flex:1 1 260px;min-width:0;line-height:1.45}
+.bd-notice-x{flex:0 0 auto;border:0;background:none;color:var(--muted);cursor:pointer;
+  font-size:var(--fs-12);padding:4px 6px;border-radius:6px;margin-left:auto}
+.bd-notice-x:hover{background:color-mix(in srgb,var(--ink) 8%,transparent);color:var(--ink)}
+.xp-cross-note{margin:var(--sp-8) 0 0}
+.xp-cross-note .btn{flex:0 0 auto;font-size:var(--fs-11);padding:4px 10px}
 .bd-status{display:flex;align-items:center;gap:8px;font-size:var(--fs-12);color:var(--muted);margin-bottom:var(--sp-8)}
 .bd-badge{font-size:var(--fs-10);font-weight:800;letter-spacing:.05em;text-transform:uppercase;border-radius:999px;padding:2px 9px}
 .bd-badge.live{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good)}
@@ -2746,6 +2760,12 @@ body.simple-mode .da-acts{display:none!important}
 .home-feat-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:var(--sp-10) var(--sp-12) var(--sp-8)}
 .home-feat-h b{font-size:var(--fs-13);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
 .home-feat-h span{font-size:var(--fs-11);color:var(--faint);white-space:nowrap}
+/* VB-5: the pinned-View card's alternate-editor button — sits above the card's
+   full-cover .home-feat-open overlay (z-index), so both editors are reachable. */
+.home-a-alt{position:relative;z-index:2;flex:0 0 auto;border:1px solid var(--line);
+  background:var(--panel);color:var(--muted);font-size:var(--fs-10);font-weight:700;
+  border-radius:999px;padding:2px 9px;cursor:pointer;letter-spacing:.02em}
+.home-a-alt:hover{color:var(--brand);border-color:color-mix(in srgb,var(--brand) 45%,transparent)}
 .home-feat-frame{height:230px;overflow:hidden;position:relative;background:var(--field)}
 /* M6: the most-recently-featured dashboard renders as a full-width Home hero card. */
 .home-feat-h .home-feat-title{display:flex;align-items:baseline;gap:6px;min-width:0;overflow:hidden}

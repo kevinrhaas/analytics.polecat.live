@@ -79,6 +79,10 @@
     analysisId: null, name: "",
     folder: "",                      // M5 folder pilot (analyses): same flat single-value
                                      // "home" field as Datasets/Connections/Jobs
+    kpi: null,                       // VB-5: a KPI-type View's saved `kpi` blob (no `chart`)
+    notice: "",                      // VB-5: dismissible cross-editor banner ("" = hidden)
+    noticeBuild: null,               // VB-5: analysis id the banner's "Open in View Builder"
+                                     // action targets (null = no action button)
     q: ""                            // dataset search
   };
   // M5 folder pilot (analyses): which folder GROUP the saved-analyses sidebar
@@ -128,6 +132,7 @@
     XP.analysisId = null; XP.name = ""; XP.folder = "";
     XP.type = "bars"; XP.map = {}; XP.opts = {};
     XP.agg = { fn: "none", groupBy: [] };
+    XP.kpi = null; XP.notice = ""; XP.noticeBuild = null;
     renderExplore();
     if (viaHistory !== true && overlayId && window.__studioPopOverlay) window.__studioPopOverlay(overlayId);
   }
@@ -181,6 +186,7 @@
   function xpSelectDataset(kind, dsId) {
     XP.kind = kind; XP.dsId = dsId;
     XP.analysisId = null; XP.name = ""; XP.folder = ""; XP.da = null; // a live dataset is picked — drop any loaded analysis's embedded da
+    XP.kpi = null; XP.notice = ""; XP.noticeBuild = null; // VB-5: the cross-editor banner belongs to the dropped analysis
     return xpLoadRows().then(function () {
       XP.type = xpDefaultType(XP.run && XP.run.cols); // geo data opens as a map, provider trends as the Ensemble
       xpGuessMapping(); xpEnterEditor(); renderExplore(); xpPreview();
@@ -281,6 +287,18 @@
     var da = xpDA();
     if (!da) return null;
     var title = XP.name || (XP.run ? "Exploring " + (Studio.CHARTS[XP.type] || {}).label : "View");
+    // VB-5: a KPI-type View (View Builder–made) lives in spec.kpis, not
+    // spec.panels — same branch shape as analysisSpec below.
+    if (XP.type === "kpi" && XP.kpi) {
+      var k = Studio.clone(XP.kpi); k.da = da.id;
+      return {
+        id: "explore-preview", name: "explore-preview", title: title,
+        hideHeader: true,
+        dashboardTheme: defaultDashboardTheme(),
+        panels: [], kpis: [k], filters: [],
+        cda: { connections: [], dataAccesses: [da] }
+      };
+    }
     return {
       id: "explore-preview", name: "explore-preview", title: title,
       // Explore builds a single WIDGET — no dashboard header/banner around the preview
@@ -375,6 +393,18 @@
     XP.opts = Studio.clone((a.chart && a.chart.opts) || {});
     // keep the embedded da so xpDA can render a self-contained analysis (no live dataset)
     XP.da = a.da ? Studio.clone(a.da) : null;
+    // VB-5: a KPI-type View carries a `kpi` blob instead of `chart` — keep it so
+    // xpSpec can render it (spec.kpis, not spec.panels).
+    XP.kpi = a.kpi ? Studio.clone(a.kpi) : null;
+    // VB-5 (cross-editor opening): this simpler editor still OPENS Views made in a
+    // higher-level editor — best-effort render plus a dismissible notice saying so.
+    XP.notice = ""; XP.noticeBuild = null;
+    if (a.builder) {
+      XP.notice = "“" + (a.name || "This View") + "” was built in the View Builder — Quick Views shows it best-effort and can’t edit its shelves, filters, or calculated columns. Open it in the View Builder for full editing.";
+      XP.noticeBuild = a.id;
+    } else if (XP_TYPES.indexOf(XP.type) < 0) {
+      XP.notice = "“" + (a.name || "This View") + "” uses a chart type (" + ((Studio.CHARTS[XP.type] || {}).label || XP.type) + ") from the higher-level Dashboard Builder that Quick Views doesn’t offer — it renders as saved, but picking a new chart type here will replace it.";
+    }
     // restore the saved rollup (da.outputOptions.aggregate) into the Explore control
     var savedAgg = a.da && a.da.outputOptions && a.da.outputOptions.aggregate;
     XP.agg = savedAgg ? { fn: savedAgg.fn || "none", groupBy: (savedAgg.groupBy || []).slice() } : { fn: "none", groupBy: [] };
@@ -678,6 +708,7 @@
         '<span class="xp-saved-acts">' +
         '<button type="button" class="xp-act' + (a.private ? " private" : "") + '" data-xp-private="' + esc(a.id) + '" title="' + (a.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (a.private ? "Make " + esc(a.name) + " public" : "Make " + esc(a.name) + " private") + '" aria-pressed="' + (a.private ? "true" : "false") + '"></button>' +
         '<button type="button" class="xp-act' + (a.pinned ? " on" : "") + '" data-xp-pin="' + esc(a.id) + '" title="' + (a.pinned ? "Unpin from Home" : "Pin to Home") + '" aria-label="' + (a.pinned ? "Unpin " + esc(a.name) + " from Home" : "Pin " + esc(a.name) + " to Home") + '" aria-pressed="' + (a.pinned ? "true" : "false") + '">★</button>' +
+        '<button type="button" class="xp-act" data-xp-build="' + esc(a.id) + '" title="Open in the View Builder — the full shelves/pivot editor" aria-label="Open ' + esc(a.name) + ' in the View Builder">▤</button>' +
         '<button type="button" class="xp-act" data-xp-dash="' + esc(a.id) + '" title="Add to the current dashboard" aria-label="Add ' + esc(a.name) + ' to the current dashboard">▦</button>' +
         '<button type="button" class="xp-act" data-xp-del="' + esc(a.id) + '" title="Delete View" aria-label="Delete ' + esc(a.name) + '">✕</button>' +
         '</span></div>';
@@ -702,8 +733,16 @@
       var tbody = rows.slice(0, 8).map(function (r) {
         return "<tr>" + cols.map(function (_, i) { return "<td>" + esc(String(r[i] == null ? "" : r[i])) + "</td>"; }).join("") + "</tr>";
       }).join("");
+      // VB-5: the dismissible cross-editor notice (set by xpLoadAnalysis when the
+      // loaded View was made in a higher-level editor).
+      var noticeHtml = XP.notice
+        ? '<div class="xp-cross-note" role="note"><span class="xp-cross-note-txt">' + esc(XP.notice) + "</span>" +
+          (XP.noticeBuild ? '<button type="button" class="btn" id="xpNoticeOpenBuild">Open in View Builder</button>' : "") +
+          '<button type="button" class="bd-notice-x" id="xpNoticeDismiss" title="Dismiss" aria-label="Dismiss this notice">✕</button></div>'
+        : "";
       main =
         '<div class="xp-editor-bar"><button type="button" class="btn xp-back-btn" id="xpBackBtn" title="Back to datasets"></button></div>' +
+        noticeHtml +
         '<div class="xp-step"><div class="xp-step-h">1 · The data' +
           '<span class="xp-badge' + (XP.run.live ? " live" : "") + '">' + (XP.run.live ? "live rows" : "sample rows") + "</span>" +
           (XP.run.error ? '<span class="xp-badge warn" title="' + esc(XP.run.error) + '">live run failed</span>' : "") +
@@ -830,6 +869,17 @@
       btn.onclick = function () { _xpFolderFilter = btn.getAttribute("data-xp-folder"); renderExplore(); };
     });
     $$("[data-xp-open]", body).forEach(function (btn) { btn.onclick = function () { xpLoadAnalysis(btn.getAttribute("data-xp-open")); }; });
+    // VB-5: every saved row also offers the OTHER editor.
+    $$("[data-xp-build]", body).forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        Studio.ViewsCatalog.openIn(btn.getAttribute("data-xp-build"), "build");
+      };
+    });
+    var noticeDismiss = $("#xpNoticeDismiss", body);
+    if (noticeDismiss) noticeDismiss.onclick = function () { XP.notice = ""; XP.noticeBuild = null; renderExplore(); };
+    var noticeBuild = $("#xpNoticeOpenBuild", body);
+    if (noticeBuild) noticeBuild.onclick = function () { Studio.ViewsCatalog.openIn(XP.noticeBuild, "build"); };
     $$("[data-xp-private]", body).forEach(function (btn) {
       btn.appendChild(Studio.icon("lock", 12));
       btn.onclick = function (e) { e.stopPropagation(); toggleAnalysisPrivate(btn.getAttribute("data-xp-private")); };

@@ -5,7 +5,19 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v390"; /* v390: LIVE-d slice 1 — Datasets gains the same
+var CACHE_NAME = "studio-shell-v391"; /* v391: VB-5 cross-editor View opening (Kevin: "open any
+   view in either quick view editor or the view builder… give a notification that this was
+   built in the higher level editor… do your best to handle and render it") — any View opens
+   in EITHER editor: Studio.Build.loadForeign reconstructs a Quick View's mapping onto the
+   shelves best-effort (dims/measures/rollup fn/Color, nearest chart type); Quick Views opens
+   builder-made Views best-effort (incl. a KPI spec branch in xpSpec) — both with a
+   dismissible cross-editor notice (#buildNotice / .xp-cross-note). Both targets offered at
+   every open point: Views rows (owner Open + other-editor button), Explore saved rows (▤),
+   Home pinned cards (owner-routed overlay + header alt button), Repository (owner-routed
+   repoOpenRow + quick-edit panel alt button). bdSave now preserves pinned/private/owner/
+   createdAt on update (Workspace.put replaces rows wholesale). app/build.js, app/explore.js,
+   app/views.js, app/studio.js, app/index.html, app/studio.css, docs/index.html.
+   v390: LIVE-d slice 1 — Datasets gains the same
    Select / bulk-delete multi-select pattern LF59 shipped on Dashboards (checkbox overlay
    on every row/tile, a bulk bar with Select all/Clear/Delete). app/datasets.js,
    app/index.html, app/studio.css, docs/index.html, STATUS.md, js/changelog.js.
