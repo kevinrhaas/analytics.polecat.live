@@ -6830,7 +6830,9 @@
     getAssets: function () { return S.assets; },
     postThemeOnLoad: function (ifr) { postThemeOnLoad(ifr); },
     defaultDashboardTheme: function () { return defaultDashboardTheme(); },
-    themedChartSvg: function (svg, type) { return themedChartSvg(svg, type); }
+    themedChartSvg: function (svg, type) { return themedChartSvg(svg, type); },
+    // VB-4: choropleth needs its geometry fetched/inlined before buildHtml can draw it
+    ensureGeoAssets: function (spec) { return ensureGeoAssets(spec); }
   }));
 
 

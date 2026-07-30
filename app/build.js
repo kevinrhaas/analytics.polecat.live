@@ -649,6 +649,12 @@
   //                      in one of two multi-series shapes (bdLineSeriesBasis).
   //   heatmap         → [first Rows dim, first Columns dim, measure]  (the
   //                      crosstab's own long form — rowCol/colCol/valueCol)
+  //   choropleth      → [first dimension, measure]  (idCol/valueCol; the SAME
+  //                      basis shape as bars/donut), widened to [dimension,
+  //                      Color field, measure] (idCol/seriesCol/valueCol —
+  //                      the SAME long form heatmap already computes) when a
+  //                      Color field is set, so the map can join the Studio
+  //                      ensemble-channel machinery bars/donut have no use for.
   // The first dimension prefers the Rows shelf; with no measure picked, COUNT
   // of rows keeps every chart honest instead of refusing to draw. Table stays
   // the full pivot. Charting more of bars/donut (they have no native
@@ -659,6 +665,7 @@
     { t: "line", label: "Line" },
     { t: "donut", label: "Donut" },
     { t: "heatmap", label: "Heatmap" },
+    { t: "choropleth", label: "Map" },
   ];
   function bdFirstDim() {
     return BD.shelfRows[0] || BD.shelfCols.filter(function (f) { return !f.agg; })[0] || null;
@@ -694,6 +701,16 @@
       if (series) return series;
     }
     var dim = bdFirstDim();
+    if (type === "choropleth") {
+      // VB-4: a map is a single-dimension chart too (idCol/valueCol, same shape
+      // as bars/donut) — but "color by" here means a SERIES to join the Studio
+      // ensemble channel with (toggle providers, re-color live), not a per-bar
+      // tint, so it widens the basis into the heatmap's long [id, series,
+      // value] form instead of bars/donut's "first-seen tag" widening below.
+      var mapCf = bdColorField();
+      if (mapCf) return compute(bdEff().cols, rows, [{ col: dim.col, agg: null }, { col: mapCf.col, agg: null }, m], []);
+      return compute(bdEff().cols, rows, [{ col: dim.col, agg: null }, m], []);
+    }
     var basis = compute(bdEff().cols, rows, [{ col: dim.col, agg: null }, m], []);
     // VB-3: bars/donut are single-dimension charts, so "color by" only ever needs
     // ONE value per already-charted category — when the Color field IS that
@@ -781,6 +798,16 @@
     if ((type === "bars" || type === "donut") && basis.colorCol) {
       p.chart.map.colorCol = basis.colorCol; // VB-3 — see studio-render.js's colorCol handling
     }
+    if (type === "choropleth") {
+      // Studio.newPanel's choropleth branch NAME-GUESSES idCol/valueCol/seriesCol
+      // (Studio.guessChoroplethCols) — fine for a dataset's own real column names,
+      // but the basis's measure column is a synthesized "SUM x" label that guess
+      // can misjudge. chartBasis built this basis positionally, so map it back the
+      // same way (dead certain, no guessing): [id, value] or [id, series, value].
+      p.chart.map.idCol = basis.head[0];
+      if (basis.head.length > 2) { p.chart.map.seriesCol = basis.head[1]; p.chart.map.valueCol = basis.head[2]; }
+      else { delete p.chart.map.seriesCol; p.chart.map.valueCol = basis.head[1]; }
+    }
     return p;
   }
   // The live chart preview is the REAL dashboard renderer — the same
@@ -804,16 +831,22 @@
         cda: { connections: [], dataAccesses: [da] }
       };
       var mock = { build_result: { cols: basis.head, rows: basis.rows } };
-      var html = Studio.buildHtml(spec, D.getAssets(), { preview: true, mock: mock, launcher: false });
-      var ifr = result.querySelector("iframe.bd-ifr");
-      if (!ifr) {
-        result.innerHTML = "";
-        ifr = document.createElement("iframe");
-        ifr.className = "bd-ifr"; ifr.title = "Chart preview"; ifr.setAttribute("aria-label", "Chart preview");
-        result.appendChild(ifr);
+      function paint() {
+        var html = Studio.buildHtml(spec, D.getAssets(), { preview: true, mock: mock, launcher: false });
+        var ifr = result.querySelector("iframe.bd-ifr");
+        if (!ifr) {
+          result.innerHTML = "";
+          ifr = document.createElement("iframe");
+          ifr.className = "bd-ifr"; ifr.title = "Chart preview"; ifr.setAttribute("aria-label", "Chart preview");
+          result.appendChild(ifr);
+        }
+        D.postThemeOnLoad(ifr);
+        ifr.srcdoc = html;
       }
-      D.postThemeOnLoad(ifr);
-      ifr.srcdoc = html;
+      // VB-4: a choropleth panel needs its geometry inlined before buildHtml can
+      // draw it — same lazy fetch-once/cache-forever path Studio's own dashboard
+      // preview uses (studio.js's doRefresh/ensureGeoAssets).
+      if (Studio.geoAssetKeys(spec).length) D.ensureGeoAssets(spec).then(paint); else paint();
     }, 150);
   }
 

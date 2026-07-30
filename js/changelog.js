@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 745,
+    title: 'Choropleth maps join the View Builder',
+    kind: 'feature',
+    ts: '2026-07-30T06:51:37.000Z',
+    items: [
+      'The chart-type strip gains "Map" — a US choropleth built from the first field on a shelf (region id) against the first measure, the same one-dimension basis Bars and Donut already use.',
+      'Drop a field on the Color shelf and the map switches to per-region series instead, so its provider toggles can join the same Studio ensemble channel other choropleths use.',
+      'The live preview fetches and inlines the map geometry the first time, the same lazy-load path the Dashboards builder\'s own preview uses.',
+    ],
+  },
+  {
     v: 744,
     title: 'Color as a first-class encoding in the View Builder',
     kind: 'feature',

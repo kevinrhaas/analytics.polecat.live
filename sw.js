@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v381"; /* v381: VB-3 (Kevin's overnight View Builder queue) —
+var CACHE_NAME = "studio-shell-v382"; /* v382: VB-4 (Kevin's overnight View Builder queue) —
+   choropleth joins the View Builder's chart-type strip as "Map", reusing the bars/donut basis
+   shape (idCol/valueCol) with no Color field and the heatmap long-form basis (idCol/seriesCol/
+   valueCol) with one, plus the same lazy geometry-fetch path Studio's own dashboard preview
+   uses. app/build.js, app/studio.js, docs/index.html, tests/run.js, STATUS.md, js/changelog.js.
+   v381: VB-3 (Kevin's overnight View Builder queue) —
    a Color shelf splits Bars/Donut/Line into per-category colors, plus a series-palette picker
    reusing the Dashboards builder's own presets. app/build.js, app/studio-render.js,
    app/index.html, docs/index.html, tests/run.js, STATUS.md, js/changelog.js.

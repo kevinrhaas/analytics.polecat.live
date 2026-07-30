@@ -9673,8 +9673,8 @@ function serve() {
         savedLabelCol: row && row.chart && row.chart.map && row.chart.map.labelCol,
       });
     });
-    ok("#117 (2): the chart strip offers Table/Bars/Line/Donut/Heatmap, heatmap enabled with a Rows dim + a Columns dim",
-      bdChart.strip.join(",") === "table,bars,line,donut,heatmap", JSON.stringify(bdChart));
+    ok("#117 (2): the chart strip offers Table/Bars/Line/Donut/Heatmap/Map, heatmap enabled with a Rows dim + a Columns dim",
+      bdChart.strip.join(",") === "table,bars,line,donut,heatmap,choropleth", JSON.stringify(bdChart));
     ok("#117 (2): picking Bars renders the COMPUTED basis through the real dashboard renderer (buildHtml + PDC_MOCK iframe)",
       bdChart.barsIframe && bdChart.mock && bdChart.basisDA && bdChart.basisMeasure, JSON.stringify(bdChart));
     ok("#117 (2): Heatmap renders too, and saving with a chart selected stamps the type on the View + builder blob",
@@ -10182,6 +10182,76 @@ function serve() {
       vb3.paletteOptionCount > 1 && vb3.paletteKeyMatchesPick, JSON.stringify(vb3));
     ok("VB-3: with no Columns split field, Color alone drives Line into one series per category (reusing the #117 slice 5 crosstab engine)",
       vb3.lineHeadLabel === "region" && vb3.lineSeriesCount === vb3.expectedSeriesCount && vb3.lineSeriesCount >= 1, JSON.stringify(vb3));
+
+    // 13. VB-4 (Kevin overnight queue, "i like the new view builder"): chart-type
+    // parity with Studio, majors first — choropleths brought over via the SAME
+    // basis shapes bars/donut (no Color) and heatmap (with Color, long [id,
+    // series, value]) already compute, so chartBasis/bdPanelFor need no new
+    // pivot logic, just a new case mapping the basis onto idCol/seriesCol/valueCol.
+    const vb4 = await page.evaluate(async () => {
+      const B = window.__studioBuild;
+      const out = {};
+      const ds = window.Studio.Workspace.all("datasets").filter((d) => d.name === "bd117-ds")[0];
+      await B.selectDataset("ws", ds.id);
+      await new Promise((r) => setTimeout(r, 120));
+      B.state.shelfCols = []; B.state.shelfRows = []; B.state.filters = []; B.state.shelfColor = [];
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 40));
+      B.addField("region", "cols");
+      B.addField("amount", "cols");
+      B.state.chartType = "choropleth";
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 60));
+
+      // A. no Color field — same [dim, measure] basis shape bars/donut use
+      const basisNoColor = B.chartBasis("choropleth");
+      out.basisNoColorHead = basisNoColor.head.join(",");
+
+      // B. the Map button is selected + enabled (a plain dimension is on a shelf)
+      const mapBtn = document.querySelector('[data-bd-ct="choropleth"]');
+      out.mapBtnOn = mapBtn ? mapBtn.classList.contains("on") : false;
+      out.mapBtnEnabled = mapBtn ? !mapBtn.disabled : false;
+
+      // C. real render — chart.map carries idCol/valueCol (no seriesCol) through to
+      // the real dashboard renderer, and its geometry gets fetched + inlined (the
+      // same ensureGeoAssets path Studio's own dashboard preview uses)
+      await new Promise((r) => setTimeout(r, 400));
+      let ifr = document.querySelector("#buildResult iframe.bd-ifr");
+      out.iframeType = ifr ? ifr.srcdoc.indexOf('"type":"choropleth"') >= 0 : false;
+      out.iframeMap = ifr ? (ifr.srcdoc.indexOf('"idCol":"region"') >= 0 &&
+        ifr.srcdoc.indexOf('"valueCol":"SUM amount"') >= 0 && ifr.srcdoc.indexOf('"seriesCol"') < 0) : false;
+      out.iframeGeo = ifr ? (ifr.srcdoc.indexOf("window.STUDIO_GEO") >= 0 && ifr.srcdoc.indexOf('"county"') >= 0) : false;
+
+      // D. add a Color field — the basis widens into the long [id, series, value]
+      // form (the exact shape heatmap's long form already computes), so a saved Map
+      // View's provider toggles can join the Studio ensemble channel like any other
+      // choropleth, not just a per-category tint.
+      const colorAddSel = document.getElementById("bdColorAdd");
+      colorAddSel.value = "quarter";
+      colorAddSel.dispatchEvent(new Event("change", { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 60));
+      const basisColor = B.chartBasis("choropleth");
+      out.basisColorHead = basisColor.head.join(",");
+      await new Promise((r) => setTimeout(r, 400));
+      ifr = document.querySelector("#buildResult iframe.bd-ifr");
+      out.iframeSeries = ifr ? (ifr.srcdoc.indexOf('"idCol":"region"') >= 0 &&
+        ifr.srcdoc.indexOf('"seriesCol":"quarter"') >= 0 && ifr.srcdoc.indexOf('"valueCol":"SUM amount"') >= 0) : false;
+
+      // cleanup the Color shelf for the block after this one
+      document.querySelector('#bdShelfColor [data-bd-color-rm="quarter"]').click();
+      await new Promise((r) => setTimeout(r, 60));
+      return out;
+    });
+    ok("VB-4: with no Color field the choropleth basis is the plain [dim, measure] pair — the same shape bars/donut use",
+      vb4.basisNoColorHead === "region,SUM amount", JSON.stringify(vb4));
+    ok("VB-4: the Map chart-type button is selected and enabled once a plain field is on a shelf",
+      vb4.mapBtnOn && vb4.mapBtnEnabled, JSON.stringify(vb4));
+    ok("VB-4: the live preview renders a real choropleth panel — chart.map.idCol/valueCol reach the renderer, no seriesCol without a Color field",
+      vb4.iframeType && vb4.iframeMap, JSON.stringify(vb4));
+    ok("VB-4: the preview's geometry is fetched and inlined (STUDIO_GEO), same lazy-fetch path Studio's own dashboard preview uses",
+      vb4.iframeGeo, JSON.stringify(vb4));
+    ok("VB-4: a Color field widens the basis into the long [id, series, value] form and reaches the renderer as chart.map.seriesCol",
+      vb4.basisColorHead === "region,quarter,SUM amount" && vb4.iframeSeries, JSON.stringify(vb4));
 
     // cleanup + restore the section the next block expects
     await page.evaluate((savedId) => {
