@@ -8777,17 +8777,22 @@ function serve() {
       var name = row.querySelector(".cx-name");
       var switchBtn = document.getElementById("wsSwitchBtn");
       var vw = window.innerWidth;
+      var btns = Array.from(row.querySelectorAll(".ws-actions .btn"));
       return {
         wraps: getComputedStyle(row).flexWrap === "wrap",
-        fourButtons: row.querySelectorAll(".ws-actions .btn").length === 4,
+        // WORKSPACE-LOGIN added a fifth action (Export access file) to the
+        // remote cluster: Refresh / Edit / Export access file / Disconnect /
+        // Switch backend — count them AND require every one inside the viewport.
+        fiveButtons: btns.length === 5,
+        allBtnsOnScreen: btns.every(function (b) { var r = b.getBoundingClientRect(); return r.right <= vw + 1 && r.left >= -1; }),
         nameReadable: name.getBoundingClientRect().width > 80,
         rowInViewport: row.getBoundingClientRect().right <= vw + 1,
         switchBtnOnScreen: !!switchBtn && switchBtn.getBoundingClientRect().right <= vw + 1
       };
     });
     await wsPhone.close();
-    ok("Kevin live (phone): the connected-backend row wraps at 390px — name readable, all four actions incl. 'Switch backend' on-screen",
-      wsRow.wraps && wsRow.fourButtons && wsRow.nameReadable && wsRow.rowInViewport && wsRow.switchBtnOnScreen,
+    ok("Kevin live (phone): the connected-backend row wraps at 390px — name readable, all five actions incl. 'Export access file' + 'Switch backend' on-screen",
+      wsRow.wraps && wsRow.fiveButtons && wsRow.allBtnsOnScreen && wsRow.nameReadable && wsRow.rowInViewport && wsRow.switchBtnOnScreen,
       JSON.stringify(wsRow));
 
     // LF51 (nav IA spec (b), "right-aligned filter pills"): the Datasets/Connections/Jobs
