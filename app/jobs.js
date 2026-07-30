@@ -205,7 +205,7 @@
           (out ? " → " + esc(out.name) : "") + '</small></span>';
       var badges = folderBadge +
         '<span class="cx-badge">' + (j.steps || []).length + " step" + ((j.steps || []).length === 1 ? "" : "s") + '</span>' +
-        jobRefreshBadge(j);
+        jobRefreshBadge(j) + Studio.packBadgeHtml(j);
       var when = '<span class="cx-when">' + esc(Studio.fmtWhen(j.updatedAt || Date.now())) + '</span>';
       var privateBtn = '<button type="button" class="cx-private' + (j.private ? " private" : "") + '" data-job-private="' + esc(j.id) + '" title="' + (j.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (j.private ? "Make " + esc(j.name) + " public" : "Make " + esc(j.name) + " private") + '" aria-pressed="' + (j.private ? "true" : "false") + '"></button>';
       var actions = '<span class="cx-actions">' +

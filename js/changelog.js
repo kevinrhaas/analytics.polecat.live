@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 728,
+    title: 'Sample-pack content is now identifiable everywhere it appears',
+    kind: 'polish',
+    ts: '2026-07-30T00:09:40.000Z',
+    items: [
+      'A dashboard, dataset, connection, job or View that came from an installed sample pack (like Conservation Insight) now shows a small "Sample pack" badge wherever it\'s listed — Dashboards, Datasets, Connections, Jobs, Views, Explore\'s saved-Views sidebar, and Repository.',
+      'Hovering the badge names the pack it came from. The content still lives in its normal catalog alongside your own work — this just makes its origin obvious at a glance.',
+    ],
+  },
+  {
     v: 727,
     title: 'One source of truth for sample content in the Data panel',
     kind: 'polish',

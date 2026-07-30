@@ -216,10 +216,11 @@
       var metaBadge = src.caps && src.caps.meta ? '<span class="cx-badge" data-tip="Can also host this app\'s workspace (see Settings → Workspace backend)">workspace-capable</span>' : "";
       var tagBadges = (c.tags || []).map(function (t) { return '<span class="cx-badge">#' + esc(t) + '</span>'; }).join("");
       var folderBadge = c.folder ? '<span class="cx-badge cx-folder" data-tip="Folder: ' + esc(c.folder) + '">' + esc(c.folder) + '</span>' : "";
+      var packBadge = Studio.packBadgeHtml(c);
       var dot = connStatusDot(c);
       var icon = '<span class="cx-ic" style="color:' + esc(src.accent || "var(--brand)") + '"></span>';
       var name = '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(c.name) + ' — edit connection" aria-label="Edit connection ' + esc(c.name) + '"><b>' + esc(c.name) + '</b></button><small>' + esc(src.label || c.adapter) + '</small></span>';
-      var badges = metaBadge + folderBadge + tagBadges;
+      var badges = metaBadge + folderBadge + tagBadges + packBadge;
       var when = '<span class="cx-when" data-tip="Last edited">' + esc(Studio.fmtWhen(c.updatedAt || c.createdAt || Date.now())) + '</span>';
       var privateBtn = '<button type="button" class="cx-private' + (c.private ? " private" : "") + '" data-conn-private="' + esc(c.id) + '" title="' + (c.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (c.private ? "Make " + esc(c.name) + " public" : "Make " + esc(c.name) + " private") + '" aria-pressed="' + (c.private ? "true" : "false") + '"></button>';
       var pinBtn = '<button type="button" class="cx-pin' + (c.pinned ? " on" : "") + '" data-conn-pin="' + esc(c.id) + '" title="' + (c.pinned ? "Unpin" : "Pin to top") + '" aria-label="' + (c.pinned ? "Unpin " : "Pin ") + esc(c.name) + '" aria-pressed="' + (c.pinned ? "true" : "false") + '"></button>';

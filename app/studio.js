@@ -5551,6 +5551,9 @@
           '" aria-label="' + (r.folder ? "Move " + esc(title) + " — currently in folder " + esc(r.folder) : "Move " + esc(title) + " to a folder") +
           '"><span class="rf-name">' + (r.folder ? esc(r.folder) : "Add to folder") + '</span></button>'
       : '';
+    // LF66 (1): same pack-provenance badge as the list view (dashListRowHtml) — Dashboards
+    // tile context only, matching folderChip's own Home-cards-pass-no-folders gate above.
+    var packBadge = (wbOpts && wbOpts.folders) ? Studio.packBadgeHtml(r) : '';
     return '<div class="recent-card' + (selectMode && selected ? " is-selected" : "") + '">' +
       selectHtml +
       '<button class="recent-open" data-recent="' + esc(r.id) + '" title="' + esc(title) + ' — open" aria-label="Open ' + esc(title) + '"></button>' +
@@ -5563,7 +5566,7 @@
       '<a class="recent-viewer" data-viewer="' + esc(r.id) + '" href="' + esc(viewerUrl(r.id)) + '" target="_blank" rel="noopener" ' +
         'title="Open in viewer (read-only, new tab)" aria-label="Open ' + esc(title) + ' in viewer, read-only, opens in a new tab" onclick="event.stopPropagation()"></a>' +
       '<div class="recent-thumb">' + thumb + '</div>' +
-      '<div class="recent-meta"><b>' + esc(title) + '</b><small>' + timeAgo(r.ts) + ' · ' + meta + '</small>' + changeHint + colHint + wbSelect + folderChip + '</div></div>';
+      '<div class="recent-meta"><b>' + esc(title) + '</b><small>' + timeAgo(r.ts) + ' · ' + meta + '</small>' + packBadge + changeHint + colHint + wbSelect + folderChip + '</div></div>';
   }
   // Z2 follow-up: "instructions/how-tos/tips beyond the existing tour link" — a small,
   // dismissable-by-clicking-through tip card on Home surfacing one bite-sized power-user
@@ -6530,6 +6533,7 @@
         (matchedCol ? ' · matches column “' + esc(matchedCol) + '”' : "") + '</small></span>' +
       (r.folder ? '<span class="cx-badge cx-folder" data-tip="Folder: ' + esc(r.folder) + '">' + esc(r.folder) + '</span>' : "") +
       (sp.dashboardTheme ? '<span class="cx-badge">' + esc(sp.dashboardTheme) + '</span>' : "") +
+      Studio.packBadgeHtml(r) +
       '<span class="cx-when">' + esc(when) + '</span>' +
       '<span class="cx-actions"><button type="button" class="recent-folder cx-list-folder" data-folder="' + esc(r.id) + '" title="' + (r.folder ? "In folder “" + esc(r.folder) + "” — move" : "Move " + esc(title) + " to a folder") + '" aria-label="Move ' + esc(title) + ' to a folder"></button>' +
       '<button type="button" class="recent-pin' + (pinned ? " pinned" : "") + '" data-pin="' + esc(r.id) + '" title="' + (pinned ? "Unpin " + esc(title) : "Pin " + esc(title) + " to Home") + '" aria-label="' + (pinned ? "Unpin " + esc(title) : "Pin " + esc(title) + " to Home") + '" aria-pressed="' + (pinned ? "true" : "false") + '"></button>' +
@@ -6713,26 +6717,26 @@
     Studio.Workspace.all("dashboards").filter(isVisibleToMe).forEach(function (r) {
       var sp = r.spec || {}, n = (sp.panels || []).length;
       rows.push({ type: "dashboard", id: r.id, title: sp.title || sp.name || "Untitled",
-        meta: n + " panel" + (n === 1 ? "" : "s"), folder: r.folder || "", ts: r.ts ? (Date.parse(r.ts) || 0) : 0 });
+        meta: n + " panel" + (n === 1 ? "" : "s"), folder: r.folder || "", ts: r.ts ? (Date.parse(r.ts) || 0) : 0, demoPackId: r.demoPackId || "" });
     });
     Studio.Workspace.all("datasets").filter(isDatasetVisibleToMe).forEach(function (d) {
       var src = Studio.Datasets.adapterOf(d);
       rows.push({ type: "dataset", id: d.id, title: d.name || "Untitled",
-        meta: src ? src.label : "no connection", folder: d.folder || "", ts: d.updatedAt || 0 });
+        meta: src ? src.label : "no connection", folder: d.folder || "", ts: d.updatedAt || 0, demoPackId: d.demoPackId || "" });
     });
     Studio.Workspace.all("connections").filter(isVisibleToMe).forEach(function (c) {
       var src = Studio.sourceById(c.adapter);
       rows.push({ type: "connection", id: c.id, title: c.name || "Untitled",
-        meta: src ? src.label : "connection", folder: c.folder || "", ts: c.updatedAt || 0 });
+        meta: src ? src.label : "connection", folder: c.folder || "", ts: c.updatedAt || 0, demoPackId: c.demoPackId || "" });
     });
     Studio.Workspace.all("analyses").filter(isVisibleToMe).forEach(function (a) {
       rows.push({ type: "analysis", id: a.id, title: a.name || "Untitled",
-        meta: (Studio.CHARTS[a.chartType] || {}).label || a.chartType || "chart", folder: a.folder || "", ts: a.updatedAt || 0 });
+        meta: (Studio.CHARTS[a.chartType] || {}).label || a.chartType || "chart", folder: a.folder || "", ts: a.updatedAt || 0, demoPackId: a.demoPackId || "" });
     });
     Studio.Workspace.all("jobs").filter(isVisibleToMe).forEach(function (j) {
       var n = (j.steps || []).length;
       rows.push({ type: "job", id: j.id, title: j.name || "Untitled",
-        meta: n + " step" + (n === 1 ? "" : "s"), folder: j.folder || "", ts: j.updatedAt || 0 });
+        meta: n + " step" + (n === 1 ? "" : "s"), folder: j.folder || "", ts: j.updatedAt || 0, demoPackId: j.demoPackId || "" });
     });
     return rows;
   }
@@ -6889,17 +6893,19 @@
       var icon = '<span class="cx-ic" style="color:var(--faint)"></span>';
       var name = '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(label) + ' — open" aria-label="Open ' + esc(label) + '"><b>' + esc(label) + '</b></button><small>' + esc((td ? td.singular : r.type) + " · " + r.meta) + '</small></span>';
       var folderBadge = r.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(r.folder) + '">' + esc(r.folder) + '</span>' : "";
+      var packBadge = Studio.packBadgeHtml(r);
+      var badges = folderBadge + packBadge;
       var when = '<span class="cx-when">' + (r.ts ? esc(Studio.fmtWhen(r.ts)) : "") + '</span>';
       var editBtn = canQuickEdit ? '<button type="button" class="repo-edit" data-repo-edit-type="' + esc(r.type) + '" data-repo-edit-id="' + esc(r.id) + '" title="Quick edit" aria-label="Quick edit ' + esc(label) + '"></button>' : "";
       if (isTiles) {
         return '<div class="dsx-tile" data-repo-id="' + esc(r.id) + '" data-repo-type="' + esc(r.type) + '"' + (canQuickEdit ? ' draggable="true"' : '') + '>' +
           '<div class="dsx-tile-head">' + icon + name + editBtn + '</div>' +
-          (folderBadge ? '<div class="dsx-tile-badges">' + folderBadge + '</div>' : "") +
+          (badges ? '<div class="dsx-tile-badges">' + badges + '</div>' : "") +
           '<div class="dsx-tile-foot">' + when + '</div>' +
           '</div>';
       }
       return '<div class="cx-row" data-repo-id="' + esc(r.id) + '" data-repo-type="' + esc(r.type) + '"' + (canQuickEdit ? ' draggable="true"' : '') + '>' +
-        icon + name + folderBadge + when +
+        icon + name + badges + when +
         (editBtn ? '<span class="cx-actions">' + editBtn + '</span>' : "") +
         '</div>';
     }

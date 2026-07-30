@@ -117,7 +117,7 @@
       var icon = '<span class="cx-ic"></span>';
       var folderBadge = a.folder ? '<span class="cx-badge cx-folder" data-tip="Folder: ' + esc(a.folder) + '">' + esc(a.folder) + '</span>' : "";
       var name = '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(a.name || "View") + ' — open in Explore" aria-label="Open View ' + esc(a.name || "View") + ' in Explore"><b>' + esc(a.name || "Untitled View") + '</b></button><small>' + esc(vwChartLabel(t)) + '</small></span>';
-      var badges = folderBadge;
+      var badges = folderBadge + Studio.packBadgeHtml(a);
       var when = '<span class="cx-when">' + esc(Studio.fmtWhen(a.updatedAt || Date.now())) + '</span>';
       var privateBtn = '<button type="button" class="cx-private' + (a.private ? " private" : "") + '" data-vw-private="' + esc(a.id) + '" title="' + (a.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (a.private ? "Make " + esc(a.name || "this View") + " public" : "Make " + esc(a.name || "this View") + " private") + '" aria-pressed="' + (a.private ? "true" : "false") + '"></button>';
       var pinBtn = '<button type="button" class="cx-pin' + (a.pinned ? " on" : "") + '" data-vw-pin="' + esc(a.id) + '" title="' + (a.pinned ? "Unpin" : "Pin to top") + '" aria-label="' + (a.pinned ? "Unpin " : "Pin ") + esc(a.name || "View") + '" aria-pressed="' + (a.pinned ? "true" : "false") + '"></button>';

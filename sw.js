@@ -5,7 +5,16 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v364"; /* v364: LF65 — the legacy "Samples (115) · demo db"
+var CACHE_NAME = "studio-shell-v365"; /* v365: LF66 (1) — pack-installed rows (connections/
+   datasets/jobs/Views/dashboards, tagged demoPackId) now show a small "Sample pack"
+   provenance badge everywhere they're listed (Connections, Datasets, Jobs, Explore's saved-
+   Views sidebar, the Views catalog, Dashboards list+tile, Repository) — content stays in its
+   normal catalog group, just identifiable at a glance, per LF66 item (1)'s own "can coexist
+   for now" note. New Studio.packBadgeHtml() helper (app/demopacks.js) + a .cx-badge.cx-pack
+   style (app/studio.css). app/demopacks.js, app/datasets.js, app/connections.js, app/jobs.js,
+   app/views.js, app/explore.js, app/studio.js, app/studio.css, docs/index.html, STATUS.md,
+   js/changelog.js, tests/run.js.
+   v364: LF65 — the legacy "Samples (115) · demo db"
    group is gone from Studio's Data panel; sample content comes only via Sample packs
    (one source of truth). Authored queries move to an always-visible "My queries" group
    (same collapsible chrome + historical class/storage names); #libCount now reports the

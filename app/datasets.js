@@ -299,7 +299,8 @@
       var icon = '<span class="cx-ic" style="color:' + esc((src && src.accent) || "var(--faint)") + '"></span>';
       var name = '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(d.name) + ' — edit dataset" aria-label="Edit dataset ' + esc(d.name) + '"><b>' + esc(d.name) + '</b></button><small>' + esc(conn ? conn.name : "no connection") + (src ? " · " + src.label : "") + (d.owner ? " · " + esc(d.owner) : "") + '</small></span>';
       var paramBadge = (d.params || []).length ? '<span class="cx-badge" data-tip="Accepts parameters">' + (d.params || []).length + " param" + ((d.params || []).length > 1 ? "s" : "") + '</span>' : "";
-      var badges = folderBadge + tags + paramBadge + lineageBadge;
+      var packBadge = Studio.packBadgeHtml(d);
+      var badges = folderBadge + tags + paramBadge + lineageBadge + packBadge;
       var when = '<span class="cx-when">' + esc(Studio.fmtWhen(d.updatedAt || Date.now())) + '</span>';
       var privateBtn = '<button type="button" class="cx-private' + (d.private ? " private" : "") + '" data-dsx-private="' + esc(d.id) + '" title="' + (d.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (d.private ? "Make " + esc(d.name) + " public" : "Make " + esc(d.name) + " private") + '" aria-pressed="' + (d.private ? "true" : "false") + '"></button>';
       var pinBtn = '<button type="button" class="cx-pin' + (d.pinned ? " on" : "") + '" data-dsx-pin="' + esc(d.id) + '" title="' + (d.pinned ? "Unpin" : "Pin to top") + '" aria-label="' + (d.pinned ? "Unpin " : "Pin ") + esc(d.name) + '" aria-pressed="' + (d.pinned ? "true" : "false") + '"></button>';

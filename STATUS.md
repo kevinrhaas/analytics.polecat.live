@@ -116,6 +116,35 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF66 (1), partial — pack-installed rows carry a "Sample pack" provenance badge everywhere
+  they're listed (v728, sw v365, 2026-07-30, steward):** LF66 item (1) asked that an installed
+  pack's content not be walled off in its own "Sample packs" group — it should show up as
+  ordinary datasets/Views/dashboards, "identified as belonging to the pack (a pack folder/tag)."
+  Turned out the first half was already true: `installConservationWorkspace()` (app/demopacks.js)
+  has always written ordinary Workspace rows (connections/datasets/jobs/analyses/dashboards)
+  tagged `demoPackId`, so they already appear in Datasets/Connections/Jobs/Views/Dashboards
+  alongside everything else — the "Sample packs" library group is an install/remove affordance
+  layered on top, not a walled garden (both coexist, exactly as LF66's own note allows). What was
+  missing was the "identified as belonging to the pack" half: nothing marked a pack-installed row
+  as pack content once it left that group. New `Studio.packBadgeHtml(row)` (app/demopacks.js)
+  renders a small `.cx-badge.cx-pack` "Sample pack" chip (`data-tip` names the real pack, hydrated
+  into the same `.ps-tip` tooltip every other catalog badge uses) whenever `row.demoPackId` is
+  set, wired into the exact same badge-composition spot every catalog already uses for its folder
+  badge: Datasets (`app/datasets.js`), Connections (`app/connections.js`), Jobs (`app/jobs.js`),
+  the Views catalog (`app/views.js`), Explore's saved-Views sidebar (`app/explore.js`), and
+  Dashboards' list row + tile card + Repository's row/tile (`app/studio.js`, plus threading
+  `demoPackId` through `repoAllRows()`'s five per-type row builders since Repository normalizes
+  into its own `{type,id,title,meta,folder,ts}` shape that didn't carry it before). 3 new
+  regression tests seed one demoPackId-tagged row of each kind, render every affected catalog, and
+  assert the badge (text + tooltip) appears — plus a plain (non-pack) dataset shows none. Marked
+  "(1), partial" because this closes the *identification* ask; the item's other half — a
+  reorganized library GROUP SET ("This dashboard's datasets / Datasets / Views / Dashboards") and
+  part (2) generally — is a bigger structural reorg genuinely still open, not attempted here (see
+  LF66's own NEXT notes in the DONE entries below for the full remaining scope). The Studio
+  in-canvas library panel's own "Datasets"/"Views" cards (a visually denser, different card shape)
+  were deliberately left unbadged in this slice — a separate, smaller follow-up if wanted. Files:
+  app/demopacks.js, app/datasets.js, app/connections.js, app/jobs.js, app/views.js, app/explore.js,
+  app/studio.js, app/studio.css, docs/index.html, sw.js, js/changelog.js, tests/run.js.
 - **LF65 — the legacy "Samples (115) · demo db" group is gone from the Data panel (v727, sw v364,
   2026-07-29, steward):** sample content in Studio's Data panel now comes ONLY via Sample packs —
   one source of truth (this also closes LF66 item (3), which superseded LF65). The `S.catalog`
@@ -6894,6 +6923,14 @@
 >           identified as belonging to the pack (a pack folder / tag), not parked in their own "Sample
 >           packs" group. Keep a pack grouping/folder for provenance, but the CONTENT shows up as normal
 >           datasets/views/dashboards you can use. (Both can coexist for now if it helps the transition.)
+>           ✓ **"Identified as belonging to the pack" shipped (2026-07-30, v728, sw v365, steward) —
+>           see DONE.** Turned out the content-placement half was already true (an installed pack has
+>           always written ordinary Workspace rows, showing up in Datasets/Connections/Jobs/Views/
+>           Dashboards already); what was missing was the identification — every pack-installed row
+>           now carries a visible "Sample pack" badge (real pack name in its tooltip) in every one of
+>           those catalogs plus Repository. **Genuinely still open:** the "Sample packs" library group
+>           itself stays as a separate entry point (coexisting, per this item's own allowance above) —
+>           folding it away entirely is the bigger part of (2) below.
 >       (2) **Library groups to offer:** "This dashboard's datasets", **Datasets**, **Views**, and
 >           **Dashboards** — the things you can pull from to build. Also reachable from **Open**.
 >       (3) ✓ **DROP the legacy bottom "Samples (115) · DEMO DB" group** (this supersedes LF65) — samples

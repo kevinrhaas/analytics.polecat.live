@@ -8321,6 +8321,84 @@ function serve() {
       dsxImport.das === 1 && dsxImport.panels === 1 && dsxImport.linked && dsxImport.selfContained &&
       dsxImport.cols === "region,total" && dsxImport.panelBound, JSON.stringify(dsxImport));
 
+    // LF66 (1): a pack-installed row (tagged demoPackId, same as every real Sample-pack row)
+    // shows a small "Sample pack" provenance badge in every catalog it's listed in — the
+    // "identified as belonging to the pack" half of LF66 item (1) — without pulling that
+    // content out of its normal Datasets/Connections/Jobs/Views/Dashboards/Repository group
+    // (both coexist with the Sample packs library entry, per LF66's own note).
+    const packBadges = await page.evaluate(function () {
+      window.__studioShellSetSection("studio");
+      var conn = Studio.Workspace.put("connections", { name: "pkbdg-conn", adapter: "turso", cfg: {}, demoPackId: "conservation" });
+      var ds = Studio.Workspace.put("datasets", { name: "pkbdg-ds", connectionId: conn.id, kind: "sql", sql: "select 1", demoPackId: "conservation" });
+      var plainDs = Studio.Workspace.put("datasets", { name: "pkbdg-plain-ds", connectionId: conn.id, kind: "sql", sql: "select 1" });
+      var job = Studio.Workspace.put("jobs", { name: "pkbdg-job", sourceDatasetId: ds.id, steps: [], demoPackId: "conservation" });
+      var analysis = Studio.Workspace.put("analyses", { name: "pkbdg-analysis", chartType: "bar", demoPackId: "conservation" });
+      Studio.Workspace.put("dashboards", {
+        id: "pkbdg-dash", ts: new Date().toISOString(), title: "pkbdg dashboard", name: "",
+        spec: { title: "pkbdg dashboard", cda: { dataAccesses: [] }, panels: [], kpis: [] },
+        demoPackId: "conservation"
+      }, { silent: true });
+
+      window.__studioRenderConnections();
+      window.__studioRenderDatasets();
+      window.__studioRenderJobs();
+      window.__studioRenderExplore();
+      window.__studioRenderViews();
+      window.__studioRenderDashboards();
+      window.__studioRenderRepository();
+
+      // Some catalogs (Connections/Datasets/Jobs/Explore/Views) hydrate [data-tip] into a
+      // focusable .ps-tip with a nested .ps-tip-bub bubble (see the UX8 badge-tips test above);
+      // others (Dashboards/Repository) don't. Handle both so this test doesn't care which.
+      function badgeText(root) {
+        var b = root && root.querySelector(".cx-pack"); if (!b) return null;
+        var bub = b.querySelector(".ps-tip-bub");
+        if (!bub) return b.textContent;
+        var clone = b.cloneNode(true); var bc = clone.querySelector(".ps-tip-bub"); if (bc) bc.remove();
+        return clone.textContent;
+      }
+      function badgeTip(root) {
+        var b = root && root.querySelector(".cx-pack"); if (!b) return null;
+        var bub = b.querySelector(".ps-tip-bub");
+        return bub ? bub.textContent : b.getAttribute("data-tip");
+      }
+
+      var connRow = document.querySelector('[data-conn-id="' + conn.id + '"]');
+      var dsRow = document.querySelector('[data-dsx-id="' + ds.id + '"]');
+      var plainDsRow = document.querySelector('[data-dsx-id="' + plainDs.id + '"]');
+      var jobRow = document.querySelector('[data-job-id="' + job.id + '"]');
+      var xpRow = document.querySelector('.xp-saved-row[data-xp-a="' + analysis.id + '"]');
+      var vwRow = document.querySelector('[data-vw-id="' + analysis.id + '"]');
+      var dashAnchor = document.querySelector('[data-recent="pkbdg-dash"]');
+      var dashRoot = dashAnchor ? (dashAnchor.closest(".recent-card") || dashAnchor) : null;
+      var repoDsRow = document.querySelector('[data-repo-id="' + ds.id + '"][data-repo-type="dataset"]');
+
+      var out = {
+        connBadge: badgeText(connRow), connTip: badgeTip(connRow),
+        dsBadge: badgeText(dsRow), plainDsBadge: badgeText(plainDsRow),
+        jobBadge: badgeText(jobRow), xpBadge: badgeText(xpRow), vwBadge: badgeText(vwRow),
+        dashBadge: badgeText(dashRoot), repoDsBadge: badgeText(repoDsRow)
+      };
+
+      Studio.Workspace.remove("analyses", analysis.id, { silent: true });
+      Studio.Workspace.remove("jobs", job.id, { silent: true });
+      Studio.Workspace.remove("dashboards", "pkbdg-dash", { silent: true });
+      Studio.Workspace.remove("datasets", ds.id, { silent: true });
+      Studio.Workspace.remove("datasets", plainDs.id, { silent: true });
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      Studio.Workspace.notify("*");
+      window.__studioLoad({ title: "DS test", panels: [], kpis: [] });
+      return out;
+    });
+    ok("LF66 (1): pack-tagged rows show a 'Sample pack' badge across Connections/Datasets/Jobs/Explore/Views/Dashboards/Repository",
+      packBadges.connBadge === "Sample pack" && packBadges.dsBadge === "Sample pack" && packBadges.jobBadge === "Sample pack" &&
+      packBadges.xpBadge === "Sample pack" && packBadges.vwBadge === "Sample pack" && packBadges.dashBadge === "Sample pack" &&
+      packBadges.repoDsBadge === "Sample pack", JSON.stringify(packBadges));
+    ok("LF66 (1): the badge's tooltip names the real pack",
+      /Conservation Insight/.test(packBadges.connTip || ""), JSON.stringify(packBadges));
+    ok("LF66 (1): an ordinary (non-pack) dataset shows no pack badge",
+      packBadges.plainDsBadge === null, JSON.stringify(packBadges));
+
     // drag a dataset onto Home (post-overhaul backlog item 6): the Datasets
     // catalog row is draggable and its payload matches what Home's "Blank
     // dashboard" tile accepts to start a new, seeded dashboard.

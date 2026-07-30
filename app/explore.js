@@ -651,7 +651,7 @@
       return '<div class="xp-saved-row' + (on ? " active" : "") + '" data-xp-a="' + esc(a.id) + '">' +
         '<button type="button" class="xp-saved-open" data-xp-open="' + esc(a.id) + '" title="' + esc(a.name) + ' — open in Explore" aria-label="Open ' + esc(a.name) + ' in Explore"><b>' + esc(a.name) + '</b>' +
         '<small>' + esc((Studio.CHARTS[a.chartType] || {}).label || a.chartType) + '</small></button>' +
-        folderBadge +
+        folderBadge + Studio.packBadgeHtml(a) +
         '<span class="xp-saved-acts">' +
         '<button type="button" class="xp-act' + (a.private ? " private" : "") + '" data-xp-private="' + esc(a.id) + '" title="' + (a.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (a.private ? "Make " + esc(a.name) + " public" : "Make " + esc(a.name) + " private") + '" aria-pressed="' + (a.private ? "true" : "false") + '"></button>' +
         '<button type="button" class="xp-act' + (a.pinned ? " on" : "") + '" data-xp-pin="' + esc(a.id) + '" title="' + (a.pinned ? "Unpin from Home" : "Pin to Home") + '" aria-label="' + (a.pinned ? "Unpin " + esc(a.name) + " from Home" : "Pin " + esc(a.name) + " to Home") + '" aria-pressed="' + (a.pinned ? "true" : "false") + '">★</button>' +

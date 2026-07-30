@@ -378,6 +378,21 @@
     setInstalledIds(installedIds().filter(function (x) { return x !== id; }));
   };
 
+  // LF66 (1): a pack-installed workspace row (connection/dataset/job/analysis/
+  // dashboard, all tagged `demoPackId` by installConservationWorkspace above)
+  // shows a small provenance badge wherever it's listed — the "identified as
+  // belonging to the pack" half of LF66 item (1) — without pulling that content
+  // out of its normal catalog group (both coexist, per LF66's own note). Same
+  // `.cx-badge` shape every other catalog badge (folder/lineage/param) already
+  // uses, so it inherits their tooltip hydration for free.
+  Studio.packBadgeHtml = function (row) {
+    if (!row || !row.demoPackId) return "";
+    var p = Studio.DEMO_PACKS[row.demoPackId];
+    var name = p ? p.name : row.demoPackId;
+    return '<span class="cx-badge cx-pack" data-tip="From the “' + Studio.escapeHtml(name) +
+      '” sample pack">Sample pack</span>';
+  };
+
   window.__studioDemoPacks = { // test hook
     packs: Studio.DEMO_PACKS, installed: Studio.demoPackInstalled,
     install: Studio.installDemoPack, remove: Studio.removeDemoPack
