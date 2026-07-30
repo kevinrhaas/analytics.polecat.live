@@ -1,0 +1,24 @@
+Analytics — the Polecat Analytics Dashboard Studio
+Copyright (C) 2026 Polecat.live (Kevin Haas)
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, version 3 (see the LICENSE file for the full text).
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+PROJECT STEWARDSHIP
+  The platform is open: use it, self-host it, fork it, improve it. What the
+  GPL asks in return is that changes you distribute stay under the GPL — give
+  changes back. Copyright and project management remain with Polecat.live;
+  the "Polecat" name and logo are not licensed for use as the branding of
+  derived works.
+
+THIRD-PARTY COMPONENTS
+  Portions of the toolkit vendored in this repository (e.g. the CDF/CCC-derived
+  rendering toolkit under vendor/) and the Pentaho CDA/CDE/CDF file formats
+  remain the property of their respective owners and are governed by their own
+  licenses. Nothing in this notice is intended to relicense, restrict, or claim
+  ownership of those components.

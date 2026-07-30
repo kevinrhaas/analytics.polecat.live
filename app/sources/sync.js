@@ -216,6 +216,13 @@
       var src = Studio.sourceById(state.sourceId);
       if (!src) return Promise.resolve(publicState());
       return Sync.pushNow().then(function () {
+        // DATA-LOSS GUARD (Kevin live, 2026-07-30): if that push FAILED, local
+        // edits are still pending — adopting the remote now would replaceAll
+        // OVER the very rows the backend just refused (save a View → push 403s
+        // → hit Refresh → the View silently vanishes and the card reads
+        // "Connected"). Keep local as-is and keep the honest error instead;
+        // the backoff retry (or a fixed backend) pushes the edits later.
+        if (_dirty) return publicState();
         setStatus("connecting");
         _suspend = true;
         return src.load(state.cfg).then(decTransform).then(function (snap) {

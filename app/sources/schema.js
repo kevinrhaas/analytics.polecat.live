@@ -134,6 +134,24 @@
       WS.tableDDL("analyses") + ";\n" + WS.tableDDL("jobs") + ";\n" + WS.tableDDL("users") + ";";
   };
 
+  // The paste-me SQL for the RLS-without-a-write-policy failure mode: a table
+  // with Row-Level Security enabled but no policy answers reads with EMPTY rows
+  // (so pulls look fine) and refuses every write with 401/403 (so pushes fail
+  // forever — no retry can fix a policy). Enables RLS with an open read/write
+  // policy on every workspace table — which matches the app's CURRENT posture
+  // (roles + private/public are UX-level gating; per-user enforcement is the M7
+  // track). Idempotent: drop-then-create, safe to run twice.
+  WS.rlsPolicySQL = function () {
+    var tables = [WS.META_TABLE].concat(WS.TABLE_NAMES);
+    return "-- Analytics workspace access — RLS on, with an open read/write policy for the app's key.\n" +
+      "-- Matches the app's current UX-level gating; per-user tightening lands with the RLS (M7) track. Safe to run twice.\n" +
+      tables.map(function (t) {
+        return 'ALTER TABLE "' + t + '" ENABLE ROW LEVEL SECURITY;\n' +
+          'DROP POLICY IF EXISTS "polecat_open_rw" ON "' + t + '";\n' +
+          'CREATE POLICY "polecat_open_rw" ON "' + t + '" FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);';
+      }).join("\n");
+  };
+
   // The rows written into polecat_meta at provision time — workspace identity
   // plus the app-level singletons (settings/meta) so the whole workspace is
   // captured relationally without a bespoke table each.

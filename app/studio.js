@@ -8542,9 +8542,16 @@
             '<button type="button" class="btn" id="spSaveBtn">+ Save as preset</button></div>' +
         '</div>' +
       '</div>' +
-      (showSamples() && Object.keys(Studio.DEMO_PACKS || {}).length ?
+      (Object.keys(Studio.DEMO_PACKS || {}).length ?
+        // KEVIN-LIVE (2026-07-30): this card used to be gated on showSamples() —
+        // with Sample content toggled off, the packs' ONLY install/remove surface
+        // vanished with it ("i cant see the sample packs… being able to be
+        // activated"). The card now always shows; when sample content is hidden
+        // it says so, and Install turns it back on (installing a pack means you
+        // want to see it).
         '<div class="settings-card"><h2>Sample packs</h2>' +
           '<p class="ws-card-intro">Ready-made demo content you can install or remove. A pack can add dashboards, datasets, connections and jobs — all with synthetic (made-up) sample data, never your real data. Remove takes back exactly what Install added.</p>' +
+          (!showSamples() ? '<p class="ws-card-intro set-packs-hidden-note">Sample content is currently hidden (the toggle above) — installed packs aren’t shown anywhere. Installing a pack turns sample content back on.</p>' : "") +
           Object.keys(Studio.DEMO_PACKS).map(function (id) {
             var p = Studio.DEMO_PACKS[id], on = Studio.demoPackInstalled(id);
             return '<div class="set-row"><span class="set-row-ic" data-ic="globe"></span>' +
@@ -8639,7 +8646,13 @@
       if (window.StudioWelcome) StudioWelcome.open();
     };
     $$("[data-demopack]", sec).forEach(function (btn) {
-      btn.onclick = function () { toggleDemoPack(btn.getAttribute("data-demopack"), Studio.DEMO_PACKS[btn.getAttribute("data-demopack")]); };
+      btn.onclick = function () {
+        var id = btn.getAttribute("data-demopack");
+        // Installing a pack while sample content is hidden means you want to SEE
+        // it — flip the toggle back on first, so the install lands somewhere visible.
+        if (!Studio.demoPackInstalled(id) && !showSamples()) setShowSamples(true);
+        toggleDemoPack(id, Studio.DEMO_PACKS[id]);
+      };
     });
     var expBtn = $("#setExportBtn", sec); if (expBtn) expBtn.onclick = exportSettingsFile;
     var impBtn = $("#setImportBtn", sec); if (impBtn) impBtn.onclick = importSettingsFile;

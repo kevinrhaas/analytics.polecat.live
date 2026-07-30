@@ -155,7 +155,21 @@
     return ensureSession(cfg).then(function (session) {
       return transientRetry(session);
     }).then(function (res) {
-      if (res.status === 401 || res.status === 403) throw new Error("Supabase rejected the API key (401/403)");
+      // A final 401/403 used to throw a bare "rejected the API key" — but
+      // PostgREST's body says WHY (e.g. "new row violates row-level security
+      // policy", "permission denied for table x") and that difference is the
+      // whole diagnosis: RLS-without-a-write-policy reads as empty-but-ok on
+      // pull while every push 403s. Surface the body so the sync log and the
+      // Settings error card can actually explain the failure.
+      if (res.status === 401 || res.status === 403) {
+        return res.text().then(function (b) {
+          var msg = "";
+          try { msg = (JSON.parse(b) || {}).message || ""; } catch (e) { msg = String(b || "").slice(0, 160); }
+          throw new Error("Supabase rejected the request (HTTP " + res.status + ")" + (msg ? ": " + msg : " — bad API key or missing permissions"));
+        }, function () {
+          throw new Error("Supabase rejected the request (HTTP " + res.status + ") — bad API key or missing permissions");
+        });
+      }
       return res;
     });
   }
@@ -461,7 +475,12 @@
           // v1 → v2 → v3 delta: Supabase can't DDL over REST, so a workspace that
           // predates the analyses or jobs table needs one paste-me statement —
           // say so instead of a bare 404.
-          if (/analyses|jobs/.test(msg)) {
+          if (/row-level security|permission denied/i.test(msg)) {
+            // RLS on, no write policy: reads return empty (pull looks fine),
+            // every write 401/403s forever — no retry can fix a policy. Hand
+            // over the one-time paste-me policy SQL instead.
+            msg += " — a workspace table has Row-Level Security enabled without a write policy for the app's key, so reads look fine but every save is refused. Run this once in Supabase → SQL editor: " + WS.rlsPolicySQL();
+          } else if (/analyses|jobs/.test(msg)) {
             msg += " — your workspace predates the analyses/jobs tables. Run this once in Supabase → SQL editor: " + WS.provisionDeltaSQL();
           }
           return { ok: false, error: msg };

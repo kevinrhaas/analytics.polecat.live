@@ -116,6 +116,50 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **KEVIN-LIVE SCORE-1 — dead preview filters + multiplying ✕ overlays (v759, sw v395,
+  2026-07-30, steward, same PR as the pair below):** interactive filters were dead against
+  mock/sample data (the vendored mock branch ignored params — they only ever worked against
+  live engines) and every filter change appended another ✕ overlay (the header survives
+  load()'s content rebuild; wireHeaderEditing/tagKpis re-append per pass). Fixes in
+  app/studio-render.js so preview, viewer, and exported-with-mock all behave: PDC.cda's
+  wrapper filters mock rows by param↔column match or applies seeded deterministic variation
+  (dataAccessId+params hashed → 0.6–1.4 factor per numeric cell) when no column matches;
+  overlay appends + header listeners are idempotent. SCORE-1 regression test flips the
+  Practice filter twice (data changes both times, ✕ counts stay 1). STUDIO-PANELS (side
+  panels closed by default + user setting) remains queued.
+- **KEVIN-LIVE emergency pair — packs visibility + Refresh data-loss + honest RLS errors
+  (v758, sw v395, 2026-07-30, steward):** two live reports with screenshots ("i cant see the
+  sample packs… being able to be activated/turned on"; "supabase is still wildly flaky",
+  sync log full of push "Supabase rejected the API key (401/403)" while pulls read ok).
+  - **Sample packs card (app/studio.js):** was gated on `showSamples()` — toggling Sample
+    content off removed the packs' ONLY install/remove surface with it. The card now always
+    renders when packs exist; hidden mode shows an explanatory note
+    (`.set-packs-hidden-note`) and Install flips sample content back on first.
+  - **Refresh data-loss guard (app/sources/sync.js `pullNow`):** Refresh does push-then-pull
+    — when the push FAILED it still pulled and `replaceAll`'d the remote over the very rows
+    the backend refused (save a View → push 403s → Refresh → the View silently vanishes and
+    the card reads "Connected" — the real "wildly flaky" experience). Now: if the push left
+    us dirty, the pull is SKIPPED — local kept, honest error kept; the backoff retry pushes
+    once the backend accepts writes.
+  - **Honest 401/403 diagnosis (app/sources/supabase.js `rest()`):** the final-401/403 throw
+    now surfaces PostgREST's body ("new row violates row-level security policy for table…",
+    "permission denied…") instead of a bare "rejected the API key" — the RLS-without-a-write-
+    policy failure mode reads EMPTY-but-ok on pull and 403s every push, and the body is the
+    only way to tell it from a bad key. `save()` recognizes the RLS signature and appends the
+    one-time paste-me SQL: new `WS.rlsPolicySQL()` (app/sources/schema.js) — idempotent
+    enable-RLS + `polecat_open_rw` FOR ALL TO anon, authenticated USING(true)/WITH CHECK(true)
+    on polecat_meta + all 6 workspace tables (matches the app's CURRENT UX-gating posture;
+    per-user tightening is the M7 track).
+  - **Tests (6 new):** SB-RLS (stubbed 403 with RLS body → error names the cause, explains
+    the trap, carries policy SQL covering every table), SB-PULL-GUARD (fakepull source:
+    refused push + Refresh → local edit survives, status stays error; healed backend →
+    retry pushes it up, green), PACKS-VIS (card shows with samples hidden + note; Install
+    while hidden re-enables samples + installs).
+  - **For Kevin's live workspace:** when the Settings error card next shows the RLS message,
+    paste the SQL it hands you into Supabase → SQL editor once — pushes go green; the app
+    can't change database policies from the browser.
+  Files: app/studio.js, app/sources/sync.js, app/sources/supabase.js, app/sources/schema.js,
+  tests/run.js, sw.js, js/changelog.js.
 - **LIVE-e part 3 — the docs screenshot pass (v757, sw v394, 2026-07-30, steward):** Kevin's
   original LIVE-e ask reserved image placeholders "for us to add images... later we can go
   back and fill them in at the end"; this closes that loop, and with it ALL of LIVE-e. The
@@ -7395,6 +7439,47 @@
 >       the UI changes materially) plus the click-to-zoom lightbox. See DONE for writeups.
 > LIVE-b. ✓ **Sample-pack dashboard naming + folder (SHIPPED v741, 2026-07-30, steward)** —
 >       see DONE: titles lead, pack folder on install, boot reconcile heals old workspaces.
+> SCORE-1. ✓ **Scorecard filter dead + multiplying ✕ chips (SHIPPED v759, sw v395,
+>       2026-07-30, steward — same PR as the KEVIN-LIVE pair).** Root causes: (1) the
+>       vendored PDC mock branch IGNORED params, so interactive filters never touched
+>       sample data — studio-render.js's PDC.cda wrapper now column-match-filters mock
+>       rows (param name ↔ column, "%" = all) or applies seeded deterministic numeric
+>       variation when the param has no mock column (the da's SQL would apply it
+>       server-side); (2) wireHeaderEditing/tagKpis run after EVERY load() while the
+>       header DOM survives filter reloads — each change appended another ✕. All
+>       overlay appends (sr-head-del/sr-desc-del/sr-kpi-del + header listeners +
+>       headerEditable) are idempotent now. Regression test flips the Practice filter
+>       twice: data changes each time, ✕ counts stay at one. See DONE.
+> STUDIO-PANELS. **Dashboard Builder opens with side panels CLOSED by default (Kevin
+>       live, 2026-07-30).** "I would like the default to be where the data panel and
+>       inspector panels are closed when you open it, and then you have to open the
+>       panels" — plus a user setting to choose the default (always open the Dashboard
+>       Builder with the Data + Inspector panels open, or closed). Respect the setting
+>       on every enterStudio; remember it per device.
+> PDC-RENAME. **Retire the "PDC" acronym from the code entirely (Kevin live, 2026-07-30).**
+>       "I don't like the name PDC.line for the main chart libraries — PDC as an acronym
+>       should not be there, not even in the code; it was a legacy concept and should be
+>       given a more appropriate and understandable name." Replacement name: DashKit.
+>       One mechanical, case-sensitive sweep: window.PDC -> window.DashKit (PDC.line ->
+>       DashKit.line, ...), PDC_MOCK -> DASHKIT_MOCK, the .pdc-* CSS class family ->
+>       .dk-*, vendor/pdc-ui.js|.css -> vendor/dashkit.js|.css (update the sw.js
+>       SHELL_FILES precache list + CACHE bump in the same commit, and CLAUDE.md's
+>       pristine-vendor invariant wording), plus every internal pdc* identifier across
+>       studio-render.js / studio-charts.js / exporters.js / viewer.js / app CSS /
+>       tests. No compat alias needed (all references are in-repo). Full suite must
+>       pass; the export == live-preview byte-identity invariant must hold.
+> LICENSE-1. ✓ **Open-source relicense: GPL-3.0 + NOTICE (Kevin live, 2026-07-30 —
+>       SHIPPED, same PR as the KEVIN-LIVE fixes).** The proprietary LICENSE is replaced
+>       with the verbatim GNU GPL v3; a NOTICE file carries the copyright (stays with
+>       Polecat.live/Kevin — stewardship + project management retained; forks are fine;
+>       distributed changes must remain GPL) and the third-party carve-out for the
+>       vendored CDF/CCC-derived toolkit. The agreed IP structure for pitches (do NOT
+>       promise "fully open source everything"): the PLATFORM is open (this repo,
+>       GPL-3.0); client-specific requirements — e.g. CTIC's "Viridis View" needs — go
+>       into an open repo OWNED BY that client; private modules remain possible when a
+>       client needs them. Business model: services/consulting first; paid modules or
+>       hosting later. Dual-licensing stays possible only while Kevin holds all the
+>       copyright — adopt a CLA/DCO before accepting outside contributions.
 > CONS-1. **Conservation pack ↔ real CTIC reference dashboards (Kevin live, 2026-07-30,
 >       three reference screenshots — CLAIMED by the dedicated session).** Make the
 >       Conservation sample-pack dashboards look "immediately as close as possible" to the
