@@ -1504,6 +1504,10 @@ body.lib-dragging #preview{pointer-events:none}
 /* VB-5: the cross-editor notice — shared look between the View Builder's
    #buildNotice and Quick Views' .xp-cross-note (a soft brand-tinted banner
    with a dismiss ✕; theme-token driven so all 7 app themes × light/dark work). */
+/* VB-9 (Kevin live, 2026-07-30): display:flex DEFEATS the [hidden] attribute (author
+   styles beat the UA's [hidden]{display:none}), so the EMPTY notice rendered as a stray
+   collapsed outline strip at the top of the View Builder — the "(" artifact. */
+.bd-notice[hidden],.xp-cross-note[hidden]{display:none}
 .bd-notice,.xp-cross-note{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
   background:color-mix(in srgb,var(--brand) 8%,var(--panel));
   border:1px solid color-mix(in srgb,var(--brand) 28%,transparent);

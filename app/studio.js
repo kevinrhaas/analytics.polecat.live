@@ -905,6 +905,26 @@
       });
       if (tChanged) Studio.Workspace.notify(t);
     });
+    // CONS-2 (Kevin live, 2026-07-30): DEDUPE pack dashboards. Kevin's workspace showed
+    // every pack example twice — an older foldered copy plus a fresh unfoldered one
+    // (most plausibly a remote-mirror union of two devices' materializations, which the
+    // materializer's have-map can't collapse because both rows already exist). Same
+    // pack + same source = one row: keep the foldered copy (else the older ts).
+    var dupSeen = {}, dupChanged = false;
+    Studio.Workspace.all("dashboards").forEach(function (r) {
+      if (!r.demoPackId) return;
+      var key = r.demoPackId + "|" + (r.sourceFile || (r.spec && (r.spec.name || r.spec.id)) || r.name || r.id);
+      var prev = dupSeen[key];
+      if (!prev) { dupSeen[key] = r; return; }
+      var keep = prev, drop = r;
+      if ((!prev.folder && r.folder) || (!!prev.folder === !!r.folder && String(r.ts || "") < String(prev.ts || ""))) { keep = r; drop = prev; }
+      dupSeen[key] = keep;
+      Studio.Workspace.remove("dashboards", drop.id);
+      dupChanged = true;
+    });
+    if (dupChanged) Studio.Workspace.notify("dashboards");
+    // CONS-2: backfill the watershed dashboard into installs that predate it.
+    try { if (Studio.ensureConservationWatershedDashboard) Studio.ensureConservationWatershedDashboard(); } catch (e) {}
   }
   window.__studioReconcilePackDashboards = reconcilePackDashboards; // test hook
 
