@@ -21675,6 +21675,46 @@ function serve() {
     ok("J-docs (LF60): #railHelp opens the in-app Docs section (embedded iframe + pop-out to the standalone page)",
       jHelpBtnCheck.moreHelpGone && jHelpBtnCheck.railIsSection && jHelpBtnCheck.sectionShown && jHelpBtnCheck.frameEmbedsDocs && jHelpBtnCheck.popoutStandalone,
       JSON.stringify(jHelpBtnCheck));
+
+    // LIVE-e (Kevin): Help responds to EVERY app theme, follows theme changes LIVE
+    // (postMessage from setTheme/setAppTheme), and the "Back to Studio" button is gone.
+    await page.waitForFunction(function () {
+      var f = document.getElementById("docsFrame");
+      return !!(f && f.contentDocument && f.contentDocument.readyState === "complete" && f.contentDocument.querySelector("header"));
+    }, { timeout: 8000 });
+    const docsThemeFlow = await page.evaluate(async function () {
+      var f = document.getElementById("docsFrame");
+      var doc = f.contentDocument;
+      var out = { backGone: !doc.querySelector(".hd-back") };
+      var theme0 = document.documentElement.getAttribute("data-theme") || "";
+      var app0 = window.__studioAppTheme.get();
+      var bg0 = getComputedStyle(doc.documentElement).getPropertyValue("--bg").trim();
+      window.__studioAppTheme.set("conservation");
+      await new Promise(function (r) { setTimeout(r, 150); });
+      out.appAttr = doc.documentElement.getAttribute("data-app-theme");
+      out.bgConservation = getComputedStyle(doc.documentElement).getPropertyValue("--bg").trim();
+      out.bgChanged = out.bgConservation !== bg0;
+      // the dark/light toggle propagates live too — the iframe mirrors whatever
+      // mode the app lands on (don't assume which way the toggle flips)
+      document.getElementById("tbTheme").click();
+      await new Promise(function (r) { setTimeout(r, 150); });
+      out.modeMirrored = (doc.documentElement.getAttribute("data-theme") || "") ===
+        (document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "");
+      var bgToggled = getComputedStyle(doc.documentElement).getPropertyValue("--bg").trim();
+      out.bgModeChanged = bgToggled !== out.bgConservation;
+      // restore
+      document.getElementById("tbTheme").click();
+      window.__studioAppTheme.set(app0);
+      await new Promise(function (r) { setTimeout(r, 120); });
+      out.restored = (document.documentElement.getAttribute("data-theme") || "") === theme0;
+      return out;
+    });
+    ok("LIVE-e: the Help iframe drops 'Back to Studio' and tracks app-theme changes live (conservation palette applies)",
+      docsThemeFlow.backGone && docsThemeFlow.appAttr === "conservation" && docsThemeFlow.bgChanged,
+      JSON.stringify(docsThemeFlow));
+    ok("LIVE-e: toggling dark/light while Help is open re-themes it immediately (no stale palette)",
+      docsThemeFlow.modeMirrored && docsThemeFlow.bgModeChanged && docsThemeFlow.restored,
+      JSON.stringify(docsThemeFlow));
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
 
     // J-docs-2: docs/index.html is served (HTTP 200) by the test server

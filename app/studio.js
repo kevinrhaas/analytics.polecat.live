@@ -382,6 +382,9 @@
       });
       var railSourceBtn = $("#railSource");
       if (railSourceBtn) railSourceBtn.onclick = function () { if (window.__studioShellSetSection) window.__studioShellSetSection("settings"); };
+      // LIVE-e: push the current theme into the Help iframe the moment it (lazily) loads
+      var docsFrameEl = document.getElementById("docsFrame");
+      if (docsFrameEl) docsFrameEl.addEventListener("load", function () { syncDocsTheme(); });
       Studio.Sync.initSync();
       window.addEventListener("pagehide", function () { try { Studio.Sync.pushNow(); } catch (e) {} });
       // heal pack dashboards materialized before the 2026-07-30 rename/folder change
@@ -9045,8 +9048,22 @@
     refreshTbThemeIcon();
     try { localStorage.setItem("studio-theme", t); } catch (e) {}
     postToPreview({ type: "theme", value: t });
+    syncDocsTheme();
     renderHome();
     renderSettings();
+  }
+  // LIVE-e (Kevin: "help should respond to the theme settings"): the embedded Help
+  // iframe follows LIVE theme changes — it reads localStorage once at load, so a
+  // toggle made while it's open used to leave it stuck on the old palette.
+  function syncDocsTheme() {
+    var f = document.getElementById("docsFrame");
+    if (!f || !f.contentWindow) return;
+    try {
+      f.contentWindow.postMessage({ studioDocsTheme: {
+        theme: document.documentElement.getAttribute("data-theme") || "",
+        appTheme: document.documentElement.getAttribute("data-app-theme") || ""
+      } }, "*");
+    } catch (e) {}
   }
   // Slice A: the GLOBAL topbar dark-mode toggle (#tbTheme) shows a moon in light mode and a
   // sun in dark mode. Its icon refreshes on every setTheme() so it stays in sync no matter
@@ -9142,6 +9159,7 @@
     // studio-theme / studio-app-theme pair — no user state is touched).
     document.documentElement.setAttribute("data-palette", t);
     try { localStorage.setItem("studio-app-theme", t); } catch (e) {}
+    syncDocsTheme(); // LIVE-e: the Help iframe tracks app-theme changes live
   }
   window.__studioAppTheme = { get: appTheme, set: setAppTheme }; // test hook
   // LF17: the Settings "Color theme" picker shows each option as a real preview instead of a

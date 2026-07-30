@@ -116,6 +116,23 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LIVE-e part 1 — Help follows the theme (all seven), live, and drops "Back to Studio"
+  (v743, sw v380, 2026-07-30, steward):** Kevin live (Help screenshot: "help should respond
+  to the theme settings and take out that back to studio button"). Root cause of the
+  mismatch: docs/index.html's boot script whitelisted only polecat/modern app themes —
+  running conservation (Kevin) fell through to Classic-Blue vars under a dark chrome.
+  Fixes: (1) boot script honors ANY saved studio-app-theme; (2) token variants added for
+  conservation/high-contrast/editorial/neon × light/dark (lifted from app/studio.css's own
+  blocks); (3) LIVE sync — the app posts {studioDocsTheme:{theme, appTheme}} into
+  #docsFrame from setTheme() + setAppTheme() + on iframe load, and the docs page applies it
+  via a message listener (previously the iframe read localStorage once and stayed stale);
+  (4) the .hd-back "Back to Studio" header button is removed. 2 new regression tests
+  (iframe adopts the conservation palette on a live setAppTheme + hd-back gone; dark/light
+  toggle mirrors into the iframe immediately and restores). **Part 2 REMAINS (queued
+  LIVE-e):** the full docs readability rewrite — short paragraphs, headings/bullets/tables,
+  delightful to consume — with hidden HTML-comment image placeholders describing each
+  wanted screenshot, and the image/zoom preview block hidden until real images land.
+  Files: docs/index.html, app/studio.js, tests/run.js, sw.js, js/changelog.js.
 - **VB-2 — shelf pills drag BETWEEN Columns/Rows/Filters (v741, sw v378, 2026-07-30,
   steward):** second slice of Kevin's overnight View Builder queue. Every shelf pill
   (`fieldChipHtml`'s chip, and the Filters shelf's own chip) is now `draggable`; dragging one
