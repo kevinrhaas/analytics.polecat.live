@@ -7660,8 +7660,11 @@
 >       also be able to pick new dashboard there." The "Add to which dashboard?" modal
 >       pins a dashed + New dashboard row above the (searchable) list — picking it runs
 >       the existing xpAddAnalysisToNewDashboard path (blank spec + append the View).
-> QV-1. **Quick View maps: auto-pick the Region scale from the Region id column (Kevin
->       live, 2026-07-30, screenshot).** "It would be nice if you can attempt to pick
+> QV-1. ✓ **Quick View maps: auto-pick the Region scale from the Region id column (Kevin
+>       live, 2026-07-30, screenshot — SHIPPED v770, sw v406: xpGuessRegionScale in
+>       xpGuessMapping; name rules huc/cd/zip/crd-district/fips-geoid-county/state-postal,
+>       then first-value shape (2-letter postal / 8-digit HUC / 5-digit FIPS / 4-digit
+>       CRD); runs only on mapping re-guess so manual picks win).** "It would be nice if you can attempt to pick
 >       the region scale automatically based on the region id — if it's named similarly
 >       you should be able to default the region scale." Extend xpGuessMapping (and the
 >       scale default wherever the choropleth mapping is auto-built): infer scale from
