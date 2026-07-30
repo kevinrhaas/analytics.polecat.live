@@ -7560,6 +7560,22 @@
 >       type the packs seed (dashboards, datasets, Views, jobs, connections): one folder
 >       per pack across all types; (3) uninstalled pack = zero presence in any pane.
 >       Respect existing installed workspaces (boot reconcile, no duplicates).
+> VB-6. **View Builder: let a numeric field act as a CATEGORY (Kevin live, 2026-07-30,
+>       screenshot).** "There are times I want to put what is a numeric field on the
+>       columns and it's actually a categorical field — you need to be able to support
+>       that." Seen: State_FIPS dragged to COLUMNS becomes SUM State_FIPS (a measure)
+>       with no way to say "group by this". Fix: the shelf pill's aggregation dropdown
+>       gains a Category/Group-by choice (numeric fields only — it flips the field to
+>       dimension semantics for that shelf: discrete axis, grouping, no aggregation),
+>       persisted in the saved View. FIPS codes, years, and IDs are the driving cases —
+>       consider defaulting *_FIPS/*_Year/id-like columns to Category on first drop.
+> VB-7. **View panel title ≠ View name (Kevin live, 2026-07-30).** "You should be able
+>       to change the name of the panel that holds the view — the name of the panel is
+>       not necessarily the name of the view; it could be different but obviously would
+>       default to the name of the view." Give the preview panel/card its own editable
+>       title (double-click to rename, like dashboard panel titles), stored separately
+>       (e.g. view.panelTitle), defaulting to — and tracking — the View name until the
+>       user overrides it; used wherever the View lands on a dashboard.
 > CONS-1. **Conservation pack ↔ real CTIC reference dashboards (Kevin live, 2026-07-30,
 >       three reference screenshots — CLAIMED by the dedicated session).** Make the
 >       Conservation sample-pack dashboards look "immediately as close as possible" to the
