@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 761,
+    title: 'The app wears the Polecat brand: Hanken Grotesk + the new mark',
+    kind: 'feature',
+    ts: '2026-07-30T15:31:49.000Z',
+    items: [
+      'Hanken Grotesk — the Polecat brand face — is now self-hosted and used across the marketing page, the app, and the docs, with system fallbacks so nothing blocks first paint.',
+      'The new Polecat mark appears on the marketing nav and footer and on the sign-in screen, replacing the placeholder “P” tile.',
+    ],
+  },
+  {
     v: 760,
     title: 'Under the hood: the dashboard toolkit is now DashKit',
     ts: '2026-07-30T15:15:44.000Z',

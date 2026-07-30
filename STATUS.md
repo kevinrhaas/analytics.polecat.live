@@ -7488,8 +7488,13 @@
 >       client needs them. Business model: services/consulting first; paid modules or
 >       hosting later. Dual-licensing stays possible only while Kevin holds all the
 >       copyright — adopt a CLA/DCO before accepting outside contributions.
-> DESIGN-1. ★ **Adopt the Polecat design system — light pass (Kevin live, 2026-07-30,
->       uploaded polecat-design-skill zip).** "Apply changes to the app based on it so we
+> DESIGN-1. ✓ **Adopt the Polecat design system — light pass (Kevin live, 2026-07-30,
+>       uploaded polecat-design-skill zip — SHIPPED v761, sw v397: Hanken Grotesk
+>       self-hosted woff2 400/600/700/800 as --font across landing + app + docs; the new
+>       Polecat mark on the landing nav/footer + the sign-in gate logo tile; fonts + marks
+>       precached). Remaining ideas parked for a DESIGN-2 if Kevin wants more: aurora/grain
+>       hero treatment on the landing, radii/shadow token alignment, kicker micro-labels.
+>       Original request:** "Apply changes to the app based on it so we
 >       have some consistent look and feel. You don't need to go overboard — at least the
 >       logo, you don't need to rethink colors too much, some font consistency would be
 >       nice, and if there are ways to standardize look and feel based on this please do."

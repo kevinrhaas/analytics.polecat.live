@@ -59,7 +59,7 @@
     var st = document.createElement("style");
     st.textContent =
       "#studio-gate{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;" +
-      "background:linear-gradient(125deg,var(--bg,#0a1c3d),var(--brand,#163a6e) 55%,var(--dk,#1c4a86));font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}" +
+      "background:linear-gradient(125deg,var(--bg,#0a1c3d),var(--brand,#163a6e) 55%,var(--dk,#1c4a86));font-family:'Hanken Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}" +
       "#studio-gate .g-card{background:var(--pane,#fff);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.4);padding:34px 32px;width:min(390px,92vw);text-align:center}" +
       "#studio-gate .g-logo{width:46px;height:46px;border-radius:12px;margin:0 auto 14px;background:linear-gradient(135deg,var(--brand,#005bb5),var(--dk,#7d3c98));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:22px}" +
       "#studio-gate h1{font-size:19px;margin:0 0 4px;color:var(--ink,#16233b)}#studio-gate p{font-size:13px;color:var(--muted,#5d6b82);margin:0 0 18px}" +
@@ -100,7 +100,7 @@
     document.head.appendChild(st);
 
     var ov = document.createElement("div"); ov.id = "studio-gate";
-    ov.innerHTML = '<div class="g-card"><div class="g-logo">P</div><h1>Sign in to Analytics</h1>' +
+    ov.innerHTML = '<div class="g-card"><div class="g-logo"><img src="assets/brand/polecat-mark-white.png" width="30" height="30" alt=""/></div><h1>Sign in to Analytics</h1>' +
       '<p>Your local workspace on analytics.polecat.live.</p>' +
       '<form id="g-form" autocomplete="off">' +
       '<label for="g-user">Username</label>' +
