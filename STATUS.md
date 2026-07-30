@@ -7428,6 +7428,21 @@
 >       the UI changes materially) plus the click-to-zoom lightbox. See DONE for writeups.
 > LIVE-b. ✓ **Sample-pack dashboard naming + folder (SHIPPED v741, 2026-07-30, steward)** —
 >       see DONE: titles lead, pack folder on install, boot reconcile heals old workspaces.
+> SCORE-1. **Scorecard filter dead + multiplying ✕ chips (Kevin live, 2026-07-30,
+>       screenshot — builder preview of "Conservation Practice Adoption Scorecard").**
+>       Changing the PRACTICE filter dropdown (1) doesn't change any of the data, and
+>       (2) every change spawns another row of ✕ close boxes in the dashboard header —
+>       they accumulate each time. Looks like the preview header re-render duplicates
+>       the panel/filter ✕ controls instead of replacing them, and the interactive
+>       filter isn't applied to the preview's mock rows. Reproduce in the builder with
+>       the Conservation pack scorecard, fix both, add a regression test that flips a
+>       filter twice and counts the ✕ controls + asserts the rows change.
+> STUDIO-PANELS. **Dashboard Builder opens with side panels CLOSED by default (Kevin
+>       live, 2026-07-30).** "I would like the default to be where the data panel and
+>       inspector panels are closed when you open it, and then you have to open the
+>       panels" — plus a user setting to choose the default (always open the Dashboard
+>       Builder with the Data + Inspector panels open, or closed). Respect the setting
+>       on every enterStudio; remember it per device.
 > CONS-1. **Conservation pack ↔ real CTIC reference dashboards (Kevin live, 2026-07-30,
 >       three reference screenshots — CLAIMED by the dedicated session).** Make the
 >       Conservation sample-pack dashboards look "immediately as close as possible" to the
