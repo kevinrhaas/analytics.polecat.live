@@ -194,8 +194,14 @@
           <button type="button" class="btn" id="dashViewToggle" title="Switch between tile and list layout" aria-pressed="false">List view</button>
           <button type="button" class="btn" id="repoSelectBtn" title="Select multiple dashboards for bulk actions" aria-pressed="false">Select</button>
           <button type="button" class="btn" id="repoCompareBtn" title="Pick any two saved dashboards and see what differs between them">Compare dashboards…</button>
-          <button type="button" class="btn" id="repoExportBtn">Export dashboards…</button>
-          <button type="button" class="btn" id="repoImportBtn">Import dashboards…</button>
+          <div class="menu-wrap">
+            <button type="button" class="btn icon" id="dashMoreBtn" title="More dashboard actions" aria-label="More dashboard actions"></button>
+            <div class="menu" id="dashMoreMenu">
+              <button type="button" id="repoExportBtn">Export dashboards…</button>
+              <button type="button" id="repoImportBtn">Import dashboards…</button>
+            </div>
+          </div>
+          <button type="button" class="btn primary" id="dashNewBtn" title="New dashboard">+ New dashboard</button>
         </div>
       </div>
       <div id="repoResults"></div>

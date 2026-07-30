@@ -116,6 +116,29 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF59 (3) — Dashboards page toolbar cleanup: a primary "+ New dashboard" CTA + a "More"
+  menu for Export/Import (v733, sw v370, 2026-07-30, steward — LF59 is now fully done):**
+  LF59's own NEXT pointer left part (3) open after slices 1/2 (selective export, multi-select
+  bulk delete) shipped: "Import/Export + Compare are very present; organize with the
+  better-management pattern (New dashboard, Delete, secondary actions tucked; Compare stays,
+  tidier)." The Dashboards toolbar (`#secDashboards .repo-io`) previously had five equal-weight
+  buttons and no local way to start a new dashboard (unlike Datasets/Jobs/Connections/Views,
+  which each pair a view toggle with a primary "+ New X" button) — you had to reach for the
+  global topbar "New ▾" or Repository's "＋ New ▾" menu instead. Now: a new **`#dashNewBtn`**
+  ("+ New dashboard", `.btn.primary`) sits at the end of the row, wired to the identical
+  enterStudio()/`newBlankSpec()` path Repository's own "New dashboard" menu entry uses, and
+  role-gated the same way (`hidden = !currentUserCanDevelop()`, re-evaluated every
+  `renderDashboards()` — LF44's no-dead-clicks convention). Export dashboards…/Import
+  dashboards…, used far less often than Compare, now tuck behind a new icon-only **`#dashMoreBtn`**
+  ("More", `Studio.icon("more")`) opening `#dashMoreMenu` via the same `menuToggle`/`closeMenus`
+  convention every other dropdown here already uses (document-level click-outside handler needs
+  no changes — it already matches any `.menu-wrap`); List/Tile view, Select and Compare
+  dashboards… stay directly on the toolbar. Two existing whole-repository-export tests that
+  drove `#repoExportBtn` directly now open `#dashMoreBtn` first. 4 new regression tests (the
+  button is a visible primary CTA for a developer and hidden for a viewer, clicking it opens
+  Studio on a fresh uniquely-titled blank dashboard, and the More menu holds Export/Import
+  closed-by-default with an accessible-named trigger). Files: app/index.html, app/studio.js,
+  docs/index.html, sw.js, js/changelog.js, tests/run.js, STATUS.md.
 - **#117 slice 2 — the View Builder CHARTS its pivots (v732, sw v369, 2026-07-30, steward):**
   a chart strip above the Build result switches Table / Bars / Line / Donut / Heatmap. Charts
   render the COMPUTED basis through the REAL dashboard renderer — the exact
@@ -7387,6 +7410,15 @@
 >       as a cross-cutting facet). The Dashboards-section realization of LF51. (studio.js renderDashboards()
 >       + the secDashboards repo-io toolbar, dashboards store.) Ties LF51, LF56, LF27 (sexy tile browser),
 >       #29, LF43.
+>       ✓ **Slice 1 (1) SELECTIVE EXPORT shipped (2026-07-29, v694, sw v331, steward) — see DONE.**
+>       ✓ **Slice 2 (2) MULTI-SELECT + BULK DELETE shipped (2026-07-29, v695, sw v332, steward) —
+>       see DONE.** Its own writeup also covers (4) SAMPLE-DELETE SEMANTICS (the bulk-delete confirm
+>       names how many of the selection are sample-pack dashboards and that reinstalling the pack
+>       restores them). ✓ **(5) FOLDERS FOR DASHBOARDS shipped as part of the LF66 library-model
+>       merge (2026-07-29, v698-v700) — see DONE.** ✓ **(3) TOOLBAR CLEANUP shipped (2026-07-30,
+>       v731, sw v368, steward — LF59 is now fully done):** a primary "+ New dashboard" button
+>       joins the toolbar (role-gated per LF44) and Export dashboards…/Import dashboards… tuck
+>       behind a new "More" (⋯) menu; Compare dashboards… stays directly on the toolbar — see DONE.
 > LF53. **Purge legacy "CDF"/"CDE" terminology (Kevin, live 2026-07-27) — not supported.** The Pentaho-era
 >       CDF (Community Dashboard Framework) / CDE terms are legacy and should be GONE: user-facing export
 >       labels/strings, help/marketing copy, and internal identifiers where safe (`Studio.exportCDF` → a

@@ -6449,6 +6449,10 @@
             : (_repoWbFilter === "__packs" ? "No sample-pack dashboards installed — add a pack in Settings → Sample packs."
               : (_dashFolderFilter && _dashFolderFilter !== "__unfiled" ? "No dashboards in this folder yet."
                 : (_repoWbFilter ? "No dashboards in this workbook yet." : "No dashboards yet — build one in Studio and it will show up here.")))) + '</div>');
+    // LF44 convention: a viewer-role account can't enterStudio(), so the toolbar's own
+    // "+ New dashboard" CTA (LF59 (3)) hides for them, same as Repository's New-menu entry.
+    var dashNewBtnEl = $("#dashNewBtn");
+    if (dashNewBtnEl) dashNewBtnEl.hidden = !currentUserCanDevelop();
     $$("[data-wb-filter]", results).forEach(function (btn) {
       btn.onclick = function () { _repoWbFilter = btn.getAttribute("data-wb-filter"); renderDashboards(); };
     });
@@ -10052,11 +10056,30 @@
         syncSelectBtn(); renderDashboards();
       };
     }
-    var repoExpBtn = $("#repoExportBtn"); if (repoExpBtn) repoExpBtn.onclick = openExportDashboardsModal;
-    var repoImpBtn = $("#repoImportBtn"); if (repoImpBtn) repoImpBtn.onclick = importRepositoryFile;
+    var repoExpBtn = $("#repoExportBtn"); if (repoExpBtn) repoExpBtn.onclick = function () { closeMenus(); openExportDashboardsModal(); };
+    var repoImpBtn = $("#repoImportBtn"); if (repoImpBtn) repoImpBtn.onclick = function () { closeMenus(); importRepositoryFile(); };
     // UX6 (icon migration, slice 2): was a raw "⇄ Compare dashboards…" glyph.
     var repoCompareBtn = $("#repoCompareBtn");
     if (repoCompareBtn) { setIconBtn(repoCompareBtn, "diff", "Compare dashboards…", 14); repoCompareBtn.onclick = openCompareDashboards; }
+    // LF59 (3) — toolbar cleanup: Export/Import used to sit as two equal-weight buttons
+    // next to Compare; they're used far less often than opening/creating a dashboard, so
+    // they're tucked behind a "More" menu (same menu-wrap/menuToggle/closeMenus convention
+    // as every other dropdown here) and a primary "+ New dashboard" CTA joins the toolbar —
+    // matching the [view toggle]...[+ New primary] pattern Datasets/Jobs/Connections/Views
+    // already use, rather than relying solely on the global topbar "New ▾".
+    var dashMoreBtn = $("#dashMoreBtn"), dashMoreMenu = $("#dashMoreMenu");
+    if (dashMoreBtn && dashMoreMenu) { dashMoreBtn.appendChild(Studio.icon("more", 16)); menuToggle(dashMoreBtn, dashMoreMenu); }
+    var dashNewBtn = $("#dashNewBtn");
+    if (dashNewBtn) {
+      dashNewBtn.onclick = function () {
+        // Same guard as Home's "New dashboard" card / Repository's "New ▾ → New dashboard"
+        // (LF44 convention) — the button itself is hidden for non-developers (see
+        // renderDashboards), this is belt-and-braces against a stale click.
+        if (!currentUserCanDevelop()) return;
+        enterStudio();
+        S.spec = newBlankSpec(); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); bumpDashMilestone();
+      };
+    }
     // Data pane "+ New ▾": dataset-first creation. Workspace datasets and
     // connections are the primary path; a dashboard-only query (the sample-
     // engine builder) remains for quick demo authoring.

@@ -28666,6 +28666,8 @@ function serve() {
     });
     // LF59 (1): "Export dashboards…" now opens a subset picker (defaults to all selected);
     // clicking "Export N dashboards" with everything checked reproduces the historical full export.
+    // LF59 (3): the button now lives behind the toolbar's "More" (dashMoreBtn) menu.
+    await page.click("#dashMoreBtn");
     await page.click("#repoExportBtn");
     await page.waitForSelector(".exp-dash-list", { timeout: 5000 });
     const [repoDl] = await Promise.all([page.waitForEvent("download", { timeout: 45000 }), page.click(".exp-dash-foot .btn.primary")]);
@@ -28962,6 +28964,8 @@ function serve() {
       var wb = window.__studioAddWorkbook("Export Test WB");
       return { wbId: wb.id, hasHook: typeof window.__studioExportRepository === "function" };
     });
+    // LF59 (3): the button now lives behind the toolbar's "More" (dashMoreBtn) menu.
+    await page.click("#dashMoreBtn");
     await page.click("#repoExportBtn");
     await page.waitForSelector(".exp-dash-list", { timeout: 5000 });
     const [wbDl] = await Promise.all([page.waitForEvent("download", { timeout: 45000 }), page.click(".exp-dash-foot .btn.primary")]);
@@ -33978,6 +33982,60 @@ function serve() {
     ok("LF44: a developer account (canDevelop, not just admin) still sees every Home quick action",
       ["blank", "quickimport", "examples", "tour", "explore", "connection", "dataset"].every(function (a) { return homeCardsAsDeveloper.indexOf(a) >= 0; }),
       JSON.stringify(homeCardsAsDeveloper));
+
+    // LF59 (3): the Dashboards toolbar's own "+ New dashboard" button follows the same
+    // LF44 role-gating convention as Repository's "New ▾ → New dashboard" entry — still
+    // logged in as lf23s2dev (developer) from the check just above.
+    const dashNewBtnAsDeveloper = await page.evaluate(function () {
+      window.__studioShellSetSection("dashboards");
+      window.__studioRenderDashboards();
+      var b = document.getElementById("dashNewBtn");
+      return { hidden: b.hidden, isPrimary: b.classList.contains("primary") };
+    });
+    ok("LF59 (3): a developer sees the Dashboards toolbar's '+ New dashboard' button as a primary CTA",
+      !dashNewBtnAsDeveloper.hidden && dashNewBtnAsDeveloper.isPrimary, JSON.stringify(dashNewBtnAsDeveloper));
+    const dashNewBtnAsViewer = await page.evaluate(function () {
+      window.PolecatAuth.login("demo"); // seeded viewer account
+      window.__studioShellApplyRoleGating();
+      window.__studioRenderDashboards();
+      return { hidden: document.getElementById("dashNewBtn").hidden };
+    });
+    ok("LF59 (3): a viewer never sees the Dashboards toolbar's '+ New dashboard' button (LF44 no-dead-clicks rule)",
+      dashNewBtnAsViewer.hidden, JSON.stringify(dashNewBtnAsViewer));
+    // clicking it as a developer opens Studio on a fresh blank dashboard — same path
+    // Repository's own "New dashboard" menu entry uses.
+    await page.evaluate(function () {
+      window.PolecatAuth.login("lf23s2dev");
+      window.__studioShellApplyRoleGating();
+      window.__studioShellSetSection("dashboards");
+      window.__studioRenderDashboards();
+    });
+    await page.click("#dashNewBtn");
+    await page.waitForTimeout(80);
+    const dashNewBtnOpensStudio = await page.evaluate(function () {
+      return { onStudio: !document.getElementById("appMain").hidden, title: window.__STUDIO_STATE.spec.title || "", panels: (window.__STUDIO_STATE.spec.panels || []).length };
+    });
+    ok("LF59 (3): clicking '+ New dashboard' on the Dashboards toolbar opens Studio on a fresh, uniquely-titled blank dashboard",
+      dashNewBtnOpensStudio.onStudio && /^Untitled Dashboard( \d+)?$/.test(dashNewBtnOpensStudio.title) && dashNewBtnOpensStudio.panels === 0,
+      JSON.stringify(dashNewBtnOpensStudio));
+    // LF59 (3): Export dashboards…/Import dashboards… now live behind the toolbar's
+    // icon-only "More" menu instead of sitting as two equal-weight buttons.
+    await page.evaluate(function () { window.__studioShellSetSection("dashboards"); window.__studioRenderDashboards(); });
+    const dashMoreMenu = await page.evaluate(function () {
+      var menu = document.getElementById("dashMoreMenu");
+      var before = menu.classList.contains("open");
+      document.getElementById("dashMoreBtn").click();
+      var after = menu.classList.contains("open");
+      return {
+        before: before, after: after,
+        hasExport: !!menu.querySelector("#repoExportBtn"), hasImport: !!menu.querySelector("#repoImportBtn"),
+        moreBtnHasAccessibleName: !!document.getElementById("dashMoreBtn").getAttribute("aria-label")
+      };
+    });
+    ok("LF59 (3): the Dashboards toolbar's More (⋯) menu holds Export/Import, closed by default, opens on click, and its icon-only trigger carries an accessible name",
+      !dashMoreMenu.before && dashMoreMenu.after && dashMoreMenu.hasExport && dashMoreMenu.hasImport && dashMoreMenu.moreBtnHasAccessibleName,
+      JSON.stringify(dashMoreMenu));
+    await page.evaluate(function () { document.body.click(); }); // close the menu, leave the section tidy
 
     await page.evaluate(function () {
       window.PolecatAuth.logout();

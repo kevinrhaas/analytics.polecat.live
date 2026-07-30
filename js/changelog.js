@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 733,
+    title: 'Dashboards toolbar gets a "+ New dashboard" button and a tidier layout',
+    kind: 'polish',
+    ts: '2026-07-30T01:29:00.000Z',
+    items: [
+      'A primary "+ New dashboard" button now sits right on the Dashboards page toolbar, alongside List/Tile view, Select and Compare dashboards… — the same quick-create pattern Datasets, Jobs, Connections and Views already have.',
+      'Export dashboards… and Import dashboards…, used far less often, now tuck behind a "More" (⋯) menu so the toolbar reads cleaner — Compare dashboards… stays visible on its own.',
+    ],
+  },
+  {
     v: 732,
     title: 'The View Builder now charts your pivots',
     kind: 'feature',
