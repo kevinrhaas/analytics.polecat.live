@@ -15338,8 +15338,18 @@ function serve() {
     // otherwise). Under load initSync can lag well past 6s, and the old swallowed wait
     // let the submit race it — the 2026-07-30 flake's second signature. Wait long, and
     // RECORD the outcome so any recurrence names the real cause in the payload.
+    // THIRD signature (2026-07-30, 3× consecutive once the VB-10 block shifted suite
+    // timing): sourceId flips to "supabase" BEFORE the boot pull finishes — initSync
+    // sets it, then connectOnce() replaceAll()s the workspace asynchronously (with
+    // #111's +500ms/+1500ms auth-race retries). Seeding user_gt in that window got
+    // WIPED by the late-landing replaceAll, so adopt's findUserByGotrue dead-ended.
+    // Wait for the boot pull to SETTLE (status out of "connecting"), then seed.
     const directSyncReady = await gpDirect.waitForFunction(
-      () => window.Studio && Studio.Sync && Studio.Sync.syncState().sourceId === "supabase",
+      () => {
+        if (!window.Studio || !Studio.Sync) return false;
+        var s = Studio.Sync.syncState();
+        return s.sourceId === "supabase" && s.status !== "connecting";
+      },
       { timeout: 20000 }
     ).then(() => true).catch(() => false);
     await gpDirect.waitForSelector("#g-form", { timeout: 4000 });
@@ -15360,8 +15370,13 @@ function serve() {
       gateGone: !document.querySelector("#studio-gate"),
       who: (window.PolecatAuth.current() || {}).u,
       gotrueId: (window.PolecatAuth.find("gtmate") || {}).gotrueId,
-      // diagnosis payload — on a failure, the gate's own error text says WHY
-      gateErr: (document.getElementById("g-err") || {}).textContent || ""
+      // diagnosis payload — on a failure, the gate's own error text says WHY,
+      // hasGtRow distinguishes "GoTrue rejected" from "seed wiped by a late
+      // boot-pull replaceAll" (the third 2026-07-30 signature), and syncStatus
+      // says whether the boot pull ever settled.
+      gateErr: (document.getElementById("g-err") || {}).textContent || "",
+      hasGtRow: Studio.Workspace.all("users").some((u) => u.id === "user_gt"),
+      syncStatus: Studio.Sync.syncState().status
     }));
     await gpDirect.close();
     directAuthed.syncReadyBeforeSubmit = directSyncReady;
