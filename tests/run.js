@@ -28328,7 +28328,9 @@ function serve() {
         icons: cards.filter(function (c) { return c.querySelector(".home-card-ic svg"); }).length
       };
     });
-    ok("Z2: Home shows 7 quick-create cards with SVG icons", z2Quick.count === 7 && z2Quick.icons === 7 && z2Quick.acts === "blank,explore,connection,dataset,quickimport,examples,tour", JSON.stringify(z2Quick));
+    // Rail-IA terminology pass (Kevin live): a "New View" (View Builder) card joins,
+    // "Explore data" is reworded "New Quick View" — 8 cards, builders first.
+    ok("Z2: Home shows 8 quick-create cards with SVG icons, View Builder + Quick View leading", z2Quick.count === 8 && z2Quick.icons === 8 && z2Quick.acts === "view,explore,blank,connection,dataset,quickimport,examples,tour", JSON.stringify(z2Quick));
 
     // Z2 follow-up (instructions/how-tos/tips): a small tip card cycles through real
     // power-user tips via a Next arrow, wrapping back to the start.
@@ -28736,6 +28738,30 @@ function serve() {
     });
     ok("LF18(a): 'Explore data' navigates straight to the Explore section",
       lf18Explore.exploreVisible && !lf18Explore.homeVisible && lf18Explore.railActive === "explore", JSON.stringify(lf18Explore));
+    await page.click('#railNav .rail-item[data-sec="home"]');
+    await page.waitForTimeout(100);
+
+    // Rail-IA terminology (Kevin live): the cards read "New View" / "New Quick View",
+    // and the new View card routes straight to the View Builder with fresh state.
+    const railIACards = await page.evaluate(function () {
+      return {
+        viewLabel: (document.querySelector('#secHome .home-card[data-home="view"] b') || {}).textContent,
+        quickLabel: (document.querySelector('#secHome .home-card[data-home="explore"] b') || {}).textContent
+      };
+    });
+    await page.click('#secHome .home-card[data-home="view"]');
+    await page.waitForTimeout(150);
+    const railIAView = await page.evaluate(function () {
+      return {
+        buildVisible: document.getElementById("secBuild").hidden === false,
+        railActive: (document.querySelector("#railNav .rail-item.active") || {}).getAttribute && document.querySelector("#railNav .rail-item.active").getAttribute("data-sec"),
+        freshState: !window.__studioBuild.state.dsId
+      };
+    });
+    ok("RAIL IA: Home's builder cards read 'New View' / 'New Quick View', and New View opens a fresh View Builder",
+      railIACards.viewLabel === "New View" && railIACards.quickLabel === "New Quick View" &&
+      railIAView.buildVisible && railIAView.railActive === "build" && railIAView.freshState,
+      JSON.stringify({ railIACards, railIAView }));
     await page.click('#railNav .rail-item[data-sec="home"]');
     await page.waitForTimeout(100);
 

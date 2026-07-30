@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 740,
+    title: 'Home’s quick actions speak the new rail language',
+    kind: 'polish',
+    ts: '2026-07-30T04:44:20.000Z',
+    items: [
+      'A "New View" card joins Home, opening a fresh View Builder — the builders now lead the quick-action grid.',
+      '"Explore data" is now "New Quick View", matching the Quick Views rail item it opens.',
+    ],
+  },
+  {
     v: 739,
     title: 'Workspace sync stops being flaky',
     kind: 'fix',
