@@ -518,10 +518,16 @@
   <p>The <strong>chart strip</strong> above the result switches how it draws: <strong>Table</strong>
   (the full pivot), <strong>Bars</strong>, <strong>Line</strong>, <strong>Donut</strong>, or
   <strong>Heatmap</strong>. Charts draw your <em>computed</em> numbers through the real dashboard
-  renderer — bars/line/donut chart the first dimension against the first measure (COUNT of rows
+  renderer — Bars and Donut chart the first dimension against the first measure (COUNT of rows
   when no measure is picked), and Heatmap lights up when you have a field on Rows plus a plain
   field on Columns, drawing exactly the crosstab as a color matrix. A chart that needs something
   you haven't added yet is simply disabled, with the reason in its tooltip.</p>
+  <p><strong>Line draws multiple series</strong> when the shelves support it: pivot a field on
+  Rows against a plain field on Columns (a crosstab) with Line picked, and every Columns value
+  draws its own line against the Rows field. Or skip Rows and put two or more measures on
+  Columns — each measure draws as its own line, grouped by your one dimension. Anything richer
+  (two Rows fields, or a crosstab with more than one measure) still falls back to a single line
+  on the first dimension and measure.</p>
   <p>The <strong>Filters</strong> shelf narrows the source rows before anything computes — the
   pivot, every chart, and the row count in the status line all see the same filtered set. Add a
   filter by dragging a field there or with the <strong>＋ Add filter</strong> picker: a text field

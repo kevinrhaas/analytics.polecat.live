@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v374"; /* v374: VB-1 (Kevin's overnight View Builder queue) — the
+var CACHE_NAME = "studio-shell-v375"; /* v375: #117 slice 5 — multi-dim series charting: the
+   Line chart widens beyond one dimension + one measure, reusing the SAME pivot engine the
+   table/heatmap already compute with — a Rows×Columns crosstab (one measure) charts one
+   line per Columns value (the redundant Total column dropped), and one dimension + 2+
+   measures (no Rows) charts one line per measure; bars/donut are untouched (no native
+   multi-series form in this app). Save/reopen stamp the full series list on the panel map.
+   app/build.js, docs/index.html, tests/run.js, STATUS.md, js/changelog.js.
+   v374: VB-1 (Kevin's overnight View Builder queue) — the
    Build outline becomes a real navigator with Explore parity: folder tree (collapsible
    branches, "/" nesting), sample-set grouping (collapsed once you have your own), search box
    that flattens to matches, per-row inline-SVG icons, stacked readable name/sub labels with
