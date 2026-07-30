@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 730,
+    title: 'The query builder now sanity-checks your SQL as you type',
+    kind: 'feature',
+    ts: '2026-07-30T00:16:54.000Z',
+    items: [
+      'The New data source builder runs a live check over the query: an unclosed string literal, unbalanced parentheses, a statement that doesn\'t start with SELECT/WITH, or a declared column the query never mentions each surface a small warning under the query field — and clear the moment you fix them.',
+      'It\'s a lightweight shape check that works across every supported engine, not a full SQL parser — Preview and Test connection remain the way to prove a query actually runs.',
+    ],
+  },
+  {
     v: 729,
     title: 'Browse your warehouse schema right inside the query builder',
     kind: 'feature',

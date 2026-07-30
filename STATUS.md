@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF63 slice 3 — live SQL sanity hints in the builder (v730, sw v367, 2026-07-30, steward —
+  LF63 is now fully done):** the last open LF63 ask ("a live syntax check / used-columns
+  validation for the SQL text itself"). A new PURE `Studio.sqlLint(sql, declaredCols)`
+  (app/model.js, next to `colsFromSql`) runs a deliberately LIGHTWEIGHT, dialect-agnostic
+  shape pass — the app talks to seven different engines, so anything cleverer than
+  balance/shape checks would false-positive its way into being ignored: unclosed string
+  literal / quoted identifier (string literals and `--` comments are stripped first so
+  quotes inside them don't count; `''` escapes handled), unbalanced parentheses, a statement
+  that doesn't start with SELECT/WITH, and declared-column drift (a columns chip the query
+  never mentions — only judged when the query has no `SELECT *`). Empty result means
+  "nothing obviously wrong", never "valid SQL" — Preview/Test remain the real verification,
+  stated in the UI docs too. The builder renders issues in a `.dsb-lint` warning strip
+  between the query editor and the Columns field, re-checked on every keystroke (delegated
+  input listener on the type-aware query section, so it survives kind switches) and on
+  every columns-chip change (renderCols calls runLint). 6 new regression tests (4 unit
+  passes over sqlLint incl. the ''-escape/comment-stripping/star-suppression edges; 2 live
+  in-builder: broken→shown→fixed→hidden, and chip-drift re-surfacing). Files: app/model.js,
+  app/studio.js, app/studio.css, docs/index.html, tests/run.js, sw.js, js/changelog.js.
 - **LF63 slice 2 — the New-data-source builder gains "Browse schema", click-to-insert (v729,
   sw v366, 2026-07-30, steward):** LF63 slice 1 gave the Dataset editor the shared
   `adapter.listSchema` + `Studio.Connections.renderSchemaPanel` tree; its own DONE note left
@@ -6915,9 +6933,11 @@
 >       five credentialed kinds (Snowflake/Databricks/BigQuery/DuckDB/SQLite) get the same
 >       "Browse schema" click-to-insert tree** — see DONE. (The G1 visual SQL Builder itself
 >       only renders for the built-in sample-engine kind, which has no table catalog to browse —
->       there is nothing to schema-wire there.) Genuinely still open: a live syntax check /
->       used-columns validation for the SQL text itself (the Preview button remains the
->       run-the-real-query verify path).
+>       there is nothing to schema-wire there.)
+>       ✓ **Slice 3 shipped (2026-07-30, v730, sw v367, steward — LF63 is now fully done): live
+>       SQL sanity hints** (pure Studio.sqlLint + the builder's .dsb-lint strip — unclosed
+>       literals, unbalanced parens, non-SELECT/WITH, declared-column drift) — see DONE.
+>       Preview/Test remain the real run-the-query verification.
 > LF64. ✓ **Feature-complete (slices 1–3: dynamic date tokens, week/quarter tokens, the Date-token
 >       insert affordance + its a11y pass — see DONE, v682/v683/v684/v688). Reopen only if new token
 >       families are requested.** Job/dataset PARAMETERS — dynamic + date-based filters. Parameters are powerful when they're

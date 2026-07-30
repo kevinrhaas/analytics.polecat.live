@@ -1340,6 +1340,23 @@
       var qSection = el("div", "dsb-qsec");
       wrap.appendChild(qSection);
 
+      // LF63 slice 3 — live SQL sanity hints (Studio.sqlLint): a passive warning strip
+      // under the query editor that re-checks on every keystroke and whenever the
+      // declared-columns chips change. Deliberately shape/balance checks only — the
+      // Preview/Test buttons stay the real "does it actually run" verification.
+      var lintBox = el("div", "dsb-lint"); lintBox.hidden = true;
+      wrap.appendChild(lintBox);
+      function runLint() {
+        var issues = Studio.sqlLint(draft.query, draft.columns);
+        lintBox.hidden = !issues.length;
+        lintBox.innerHTML = issues.map(function (i) {
+          return '<div class="dsb-lint-row">' + esc(i.msg) + "</div>";
+        }).join("");
+      }
+      qSection.addEventListener("input", function (e) {
+        if (e.target && e.target.classList && e.target.classList.contains("dsb-query")) runLint();
+      });
+
       // 4 — columns (detect + edit chips)
       var colsBox = el("div", "dsb-chips");
       var detectBtn = el("button", "dsb-mini"); setIconBtn(detectBtn, "refresh", "Detect from query", 12);
@@ -1358,6 +1375,7 @@
       wrap.appendChild(colsField);
       function renderCols() {
         colsBox.innerHTML = "";
+        runLint();
         if (!draft.columns.length) { var e = el("span", "dsb-empty"); e.textContent = "No columns yet — detect or add."; colsBox.appendChild(e); return; }
         draft.columns.forEach(function (c, i) {
           var chip = el("span", "dsb-chip"); chip.textContent = c; var rmC = el("button", "rm"); rmC.title = "remove"; rmC.appendChild(Studio.icon("close", 10)); chip.appendChild(rmC);

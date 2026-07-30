@@ -9281,6 +9281,62 @@ function serve() {
     ok("LF63 (2): clicking a column inserts it into the query at the caret; a table pick inserts schema-qualified",
       dsbSchema.inserted === "region" && dsbSchema.insertedTable === "regionSALES.FACT_ORDERS", JSON.stringify(dsbSchema));
 
+    // ---- LF63 slice 3: live SQL sanity hints (Studio.sqlLint + the builder's lint strip) ----
+    console.log("\n• LF63 slice 3: live SQL lint");
+    const lintUnit = await page.evaluate(() => {
+      const L = (sql, cols) => window.Studio.sqlLint(sql, cols || []).map((i) => i.msg);
+      return {
+        empty: L(""),
+        clean: L("SELECT region AS region, SUM(amt) AS total FROM s GROUP BY region", ["region", "total"]),
+        oddQuote: L("SELECT a FROM t WHERE b = 'oops"),
+        escapedQuote: L("SELECT a FROM t WHERE b = 'it''s fine'", ["a"]),
+        commentQuote: L("SELECT a FROM t -- don't trip on this", ["a"]),
+        parens: L("SELECT SUM((a) FROM t"),
+        notRead: L("DELETE FROM t"),
+        withOk: L("WITH x AS (SELECT 1 AS a) SELECT a FROM x", ["a"]),
+        missingCol: L("SELECT a AS kept FROM t", ["kept", "gone"]),
+        starSkips: L("SELECT * FROM t", ["anything"]),
+      };
+    });
+    ok("LF63 (3): sqlLint passes empty + clean queries silently, and WITH counts as a read",
+      lintUnit.empty.length === 0 && lintUnit.clean.length === 0 && lintUnit.withOk.length === 0, JSON.stringify(lintUnit));
+    ok("LF63 (3): sqlLint flags an unclosed string literal, but not '' escapes or quotes inside -- comments",
+      lintUnit.oddQuote.some((m) => /single quote/i.test(m)) && lintUnit.escapedQuote.length === 0 && lintUnit.commentQuote.length === 0,
+      JSON.stringify(lintUnit));
+    ok("LF63 (3): sqlLint flags unbalanced parentheses and a non-SELECT/WITH statement",
+      lintUnit.parens.some((m) => /parenthes/i.test(m)) && lintUnit.notRead.some((m) => /SELECT or WITH/.test(m)), JSON.stringify(lintUnit));
+    ok("LF63 (3): sqlLint flags a declared column the query never mentions, but stays quiet on SELECT *",
+      lintUnit.missingCol.length === 1 && /“gone”/.test(lintUnit.missingCol[0]) && lintUnit.starSkips.length === 0, JSON.stringify(lintUnit));
+    const lintLive = await page.evaluate(async () => {
+      document.getElementById("ndDashQuery").click();
+      await new Promise((r) => setTimeout(r, 80));
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const setVal = (elm, v) => { elm.value = v; elm.dispatchEvent(new Event("input", { bubbles: true })); };
+      const lint = m.querySelector(".dsb-lint");
+      const out = { emptyHidden: lint.hidden };
+      // typing a broken query surfaces the strip live
+      setVal(m.querySelector(".dsb-query"), "SELECT a FROM (t");
+      await new Promise((r) => setTimeout(r, 20));
+      out.brokenShown = !lint.hidden;
+      out.brokenMsg = lint.textContent;
+      // fixing it hides the strip again
+      setVal(m.querySelector(".dsb-query"), "SELECT a AS a FROM t");
+      await new Promise((r) => setTimeout(r, 20));
+      out.fixedHidden = lint.hidden;
+      // a declared-column drift (chip the query never mentions) re-surfaces it via renderCols
+      const addCol = m.querySelector(".dsb-addcol");
+      addCol.value = "ghost";
+      addCol.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      await new Promise((r) => setTimeout(r, 20));
+      out.driftShown = !lint.hidden && /ghost/.test(lint.textContent);
+      m.closest(".modal-ov").remove();
+      return out;
+    });
+    ok("LF63 (3): the builder's lint strip stays hidden when clean, surfaces live on a broken query, and clears when fixed",
+      lintLive.emptyHidden && lintLive.brokenShown && /parenthes/i.test(lintLive.brokenMsg) && lintLive.fixedHidden, JSON.stringify(lintLive));
+    ok("LF63 (3): adding a column chip the query never mentions re-surfaces the strip (used-columns validation)",
+      lintLive.driftShown, JSON.stringify(lintLive));
+
     // ---- G1: visual SQL builder ----
     console.log("\n• G1: SQL builder");
     const sqbBasic = await page.evaluate(async () => {

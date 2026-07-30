@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v366"; /* v366: LF63 slice 2 — the New-data-source builder's
+var CACHE_NAME = "studio-shell-v367"; /* v367: LF63 slice 3 — live SQL sanity hints in the
+   New-data-source builder (new pure Studio.sqlLint in model.js + a .dsb-lint warning strip):
+   unclosed literals, unbalanced parens, non-SELECT/WITH statements, and declared-column
+   drift surface as they're typed; Preview/Test stay the real verification. LF63 is now
+   fully done. app/model.js, app/studio.js, app/studio.css, docs/index.html, tests/run.js,
+   STATUS.md, js/changelog.js.
+   v366: LF63 slice 2 — the New-data-source builder's
    credentialed kinds (Snowflake/Databricks/BigQuery/DuckDB/SQLite) gain the same "Browse
    schema" click-to-insert tree the Connections wizard + Dataset editor share; draft creds
    map onto the adapters' listSchema cfg shapes. app/studio.js, docs/index.html,

@@ -3109,6 +3109,43 @@
     return cols;
   };
 
+  // LF63 slice 3 — a deliberately LIGHTWEIGHT, dialect-agnostic sanity pass over a SQL
+  // string (the data-source builder's live lint). NOT a parser: the app talks to seven
+  // different engines, so anything cleverer than balance/shape checks would false-positive
+  // its way into being ignored. Returns an array of { level:'warn', msg } — empty means
+  // "nothing obviously wrong", never "valid SQL". The Preview/Test buttons remain the real
+  // run-the-query verification path. Pure (string in, issues out) so it's unit-testable.
+  Studio.sqlLint = function (sql, declaredCols) {
+    var issues = [];
+    sql = String(sql || "");
+    if (!sql.trim()) return issues;
+    // Strip string literals + line comments FIRST so quotes/parens inside them don't
+    // count, then check balance on what's left. '' escapes inside a literal are handled
+    // by the literal regex itself ('a''b' is one literal).
+    var stripped = sql.replace(/'(?:[^']|'')*'/g, "''").replace(/--[^\n]*/g, "");
+    if ((stripped.match(/'/g) || []).length % 2 !== 0)
+      issues.push({ level: "warn", msg: "Unbalanced single quote — a string literal never closes." });
+    if ((stripped.match(/"/g) || []).length % 2 !== 0)
+      issues.push({ level: "warn", msg: "Unbalanced double quote — a quoted identifier never closes." });
+    var open = (stripped.match(/\(/g) || []).length, close = (stripped.match(/\)/g) || []).length;
+    if (open !== close)
+      issues.push({ level: "warn", msg: "Unbalanced parentheses — " + open + " opening vs " + close + " closing." });
+    if (!/^\s*(select|with)\b/i.test(sql))
+      issues.push({ level: "warn", msg: "Queries here are reads — expected the statement to start with SELECT or WITH." });
+    // Declared columns the query never mentions: only when the query is explicit enough
+    // to judge (no SELECT * anywhere) — a bare word-boundary containment check, cheap and
+    // dialect-safe. Catches the classic drift where a chip was renamed but the SQL wasn't.
+    if (declaredCols && declaredCols.length && stripped.indexOf("*") < 0) {
+      declaredCols.forEach(function (c) {
+        if (!c) return;
+        var re2 = new RegExp("\\b" + c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i");
+        if (!re2.test(sql))
+          issues.push({ level: "warn", msg: "Declared column “" + c + "” never appears in the query — rename the chip or alias it in the SELECT." });
+      });
+    }
+    return issues;
+  };
+
   /* ---------- exported .html → spec (Studio exports embed window.STUDIO_SPEC) ---------- */
   Studio.parseCDFHtml = function (html) {
     var m = /window\.STUDIO_SPEC\s*=\s*\{/.exec(html); if (!m) return null;   // the assignment, not toolkit refs
