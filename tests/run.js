@@ -31761,9 +31761,12 @@ function serve() {
       };
     });
     // LF48: Focus mode's own Settings toggle is retired (it moved to being the ⋯ More →
-    // Present-mode switcher's only entry point), so this drops from 6 switches to 5.
-    ok("Z5: Settings section renders 7 cards with 5 mode switches — modes (incl. #114 Restore unsaved work) off by default, Sample content ON by default",
-      z5Boot.visible && z5Boot.hasCards && z5Boot.switchIds === "dark,samples,simple,restore,demo"
+    // Present-mode switcher's only entry point). STUDIO-PANELS adds the "Open the builder
+    // with side panels" switch (its checked state reflects the per-device preference —
+    // this suite seeds "open", and the STUDIO-PANELS block covers both states — so only
+    // its presence is asserted here).
+    ok("Z5: Settings section renders 7 cards with 6 mode switches — modes (incl. #114 Restore unsaved work) off by default, Sample content ON by default",
+      z5Boot.visible && z5Boot.hasCards && z5Boot.switchIds === "dark,samples,simple,restore,panels,demo"
         && !z5Boot.darkChecked && !z5Boot.simpleChecked && !z5Boot.restoreChecked && !z5Boot.demoChecked && z5Boot.samplesChecked,
       JSON.stringify(z5Boot));
 
