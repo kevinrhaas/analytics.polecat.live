@@ -22273,7 +22273,17 @@ function serve() {
       var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
       window.__studioLoad(freshSpec);
     });
-    await page.waitForTimeout(200);
+    // v85 hardening (2026-07-30): the fixed 200ms sleep here raced the preview
+    // iframe's async repaint under load (same family as the v84/v86 fixes) —
+    // the .card click below then hit a not-yet-rendered doc, no panel got
+    // selected, and the Color-scale check failed with found:false. Wait for
+    // the card to actually exist before clicking.
+    await page.waitForFunction(() => {
+      try {
+        var iw = document.getElementById("preview").contentWindow;
+        return !!iw.document.querySelector(".card");
+      } catch (e) { return false; }
+    }, { timeout: 8000 }).catch(() => {});
 
     // ── v85: H-track color scale / gradient encoding ─────────────────────────
     console.log("\n• v85: H-track color scale — gradient encoding");
@@ -22287,7 +22297,12 @@ function serve() {
         return { ok: true };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    await page.waitForTimeout(150);
+    // selection → inspector render is async too; poll for the section, assert after
+    await page.waitForFunction(() => {
+      var insp = document.getElementById("inspector");
+      if (!insp) return false;
+      return [].slice.call(insp.querySelectorAll(".insp-sec")).some(function (s) { return s.textContent.indexOf("Color scale") >= 0; });
+    }, { timeout: 5000 }).catch(() => {});
     const csSecCheck = await page.evaluate(function () {
       try {
         var insp = document.getElementById("inspector");
