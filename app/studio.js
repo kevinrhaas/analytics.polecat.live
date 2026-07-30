@@ -8974,6 +8974,7 @@
     });
     var newBtn = $("#usrNewBtn", sec); if (newBtn) newBtn.onclick = function () { openUserEditor(); };
     var goLiveBtn = $("#goLiveBtn", sec); if (goLiveBtn) goLiveBtn.onclick = function () { openGoLiveModal(); };
+    if (showGoLive) refreshGoLiveCard(); // GOLIVE-CARD: swap the CTA for "is ON" when the DB is already live
     $$("[data-usr-edit]", sec).forEach(function (btn) {
       btn.onclick = function () { var u = Auth.find(btn.getAttribute("data-usr-edit")); if (u) openUserEditor(u); };
     });
@@ -9067,10 +9068,31 @@
   // Only offered once the workspace is connected to Supabase (renderAdmin's
   // showGoLive guard) — Turso/Firebase stay UX-level-only, same as before.
   function goLiveCardHtml() {
-    return '<div class="settings-card"><h2>Per-user security (Supabase)</h2>' +
+    return '<div class="settings-card" id="goLiveCard"><h2>Per-user security (Supabase)</h2>' +
       '<p class="ws-card-intro">Right now, a private object is only hidden from other accounts at the UX level — the connected Supabase backend still stores everything under one shared key. <b>Go live</b> flips that to real database-enforced Row-Level Security, so each account can only ever read/write its own private rows. One-time, admin-only, and requires <code>supabase/functions/polecat-admin</code> already deployed — see <code>tools/M7-RLS-GOLIVE-RUNBOOK.md</code> (Path C).</p>' +
       '<div class="repo-io"><button type="button" class="btn primary" id="goLiveBtn">Enable per-user security / Go live…</button></div></div>';
   }
+  // GOLIVE-CARD (Kevin live, 2026-07-30): the card kept offering "Go live" on a
+  // database whose RLS was ALREADY applied (manually, via the canonical script) —
+  // it only ever checked "connected to Supabase". Probe the real posture: an
+  // anon-key-only read of `users` sees NOTHING (or is denied) while accounts
+  // exist in the local mirror → per-user security is live → swap the CTA for a
+  // green confirmation. Probe failure (offline) leaves the card unchanged.
+  function refreshGoLiveCard() {
+    var src = Studio.supabaseSource;
+    if (!src || !src.anonProbe) return;
+    var cfg = Studio.Sync.currentConfig();
+    src.anonProbe(cfg).then(function (probe) {
+      var cardEl = document.getElementById("goLiveCard");
+      if (!cardEl || !probe) return;
+      var localUsers = (Studio.Workspace.all("users") || []).length;
+      if ((probe.denied || probe.rows === 0) && localUsers > 0) {
+        cardEl.innerHTML = '<h2>Per-user security (Supabase)</h2>' +
+          '<p class="ws-card-intro" data-golive-on><b>Per-user security is ON.</b> The database enforces Row-Level Security: anonymous readers see nothing, each signed-in account sees public rows plus its own private rows, and admins see everything. Nothing to do here — the posture is applied with <code>tools/supabase-rls-real.sql</code> (safe to re-run any time).</p>';
+      }
+    });
+  }
+  window.__studioRefreshGoLiveCard = refreshGoLiveCard; // test hook
 
   function openGoLiveModal() {
     modal("Enable per-user security", function (b) {

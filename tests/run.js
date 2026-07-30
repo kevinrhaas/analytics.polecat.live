@@ -15719,6 +15719,66 @@ function serve() {
       wsAccess.hasBtn && wsAccess.entryOk && wsAccess.stripped && wsAccess.liveKeepsCreds && wsAccess.importable, JSON.stringify(wsAccess));
     await gpWs.close();
 
+    // ---- GOLIVE-CARD (Kevin live, 2026-07-30): the Admin per-user-security card
+    // reflects the DATABASE's real posture — after the RLS script was applied
+    // manually, the "Go live" CTA kept showing forever. The probe contrast (anon
+    // sees nothing + accounts exist locally) swaps it for "is ON". ----
+    console.log("\n• GOLIVE-CARD: state-aware per-user security card");
+    const goliveSwap = await page.evaluate(async function () {
+      window.__studioShellSetSection("admin");
+      var sec = document.getElementById("secAdmin");
+      var host = document.createElement("div");
+      host.innerHTML = '<div class="settings-card" id="goLiveCard"><div class="repo-io"><button id="goLiveBtn">x</button></div></div>';
+      sec.appendChild(host);
+      var probe0 = Studio.supabaseSource.anonProbe;
+      Studio.supabaseSource.anonProbe = function () { return Promise.resolve({ denied: false, rows: 0 }); };
+      window.__studioRefreshGoLiveCard();
+      await new Promise(function (r) { setTimeout(r, 60); });
+      var onState = !!document.querySelector("#goLiveCard [data-golive-on]");
+      var ctaGone = !document.getElementById("goLiveBtn");
+      // open posture (anon still reads rows) → the CTA must STAY
+      host.innerHTML = '<div class="settings-card" id="goLiveCard"><div class="repo-io"><button id="goLiveBtn">x</button></div></div>';
+      Studio.supabaseSource.anonProbe = function () { return Promise.resolve({ denied: false, rows: 1 }); };
+      window.__studioRefreshGoLiveCard();
+      await new Promise(function (r) { setTimeout(r, 60); });
+      var ctaStays = !!document.getElementById("goLiveBtn") && !document.querySelector("#goLiveCard [data-golive-on]");
+      Studio.supabaseSource.anonProbe = probe0;
+      host.remove();
+      return { onState: onState, ctaGone: ctaGone, ctaStays: ctaStays, localUsers: (Studio.Workspace.all("users") || []).length };
+    });
+    ok("GOLIVE-CARD: anon-sees-nothing + local accounts → the card swaps its Go-live CTA for 'Per-user security is ON'; anon-still-reads-rows → the CTA stays",
+      goliveSwap.onState && goliveSwap.ctaGone && goliveSwap.ctaStays && goliveSwap.localUsers > 0, JSON.stringify(goliveSwap));
+
+    // ---- RAIL-OPEN-DEFAULT (Kevin live, 2026-07-30): first-run desktop rail is EXPANDED ----
+    const railDesk = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    railDesk.on("pageerror", (e) => errors.push("RAIL-OPEN-DEFAULT page: " + e.message));
+    await railDesk.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    await railDesk.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await railDesk.waitForSelector("#railNav", { timeout: 8000 });
+    const railFresh = await railDesk.evaluate(function () {
+      return { expanded: document.getElementById("railNav").classList.contains("expanded"),
+        nothingStored: localStorage.getItem("studio-shell-expanded") === null };
+    });
+    await railDesk.evaluate(function () { localStorage.setItem("studio-shell-expanded", "0"); });
+    await railDesk.reload({ waitUntil: "domcontentloaded" });
+    await railDesk.waitForSelector("#railNav", { timeout: 8000 });
+    const railStored = await railDesk.evaluate(function () {
+      return { expanded: document.getElementById("railNav").classList.contains("expanded") };
+    });
+    await railDesk.close();
+    ok("RAIL-OPEN-DEFAULT: a first-time desktop visitor gets the EXPANDED (labeled) rail — nothing stored, no persistence side effect — while an explicit collapse still sticks across reloads",
+      railFresh.expanded && railFresh.nothingStored && !railStored.expanded, JSON.stringify({ railFresh, railStored }));
+
+    // ---- BRAND v2 (Kevin, 2026-07-30): coin/black vector logo kit adopted ----
+    const favSrc = fs.readFileSync(path.join(ROOT, "favicon.svg"), "utf8");
+    const gateSrc = fs.readFileSync(path.join(ROOT, "app/gate.js"), "utf8");
+    const landSrc = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+    ok("BRAND v2: favicon.svg is the vector coin mark (no legacy gradient tile), the gate logo is the cream coin, and the landing page uses coin-on-dark + black-on-light — never a white knockout",
+      !/linearGradient/.test(favSrc) && favSrc.length > 2000 &&
+      /polecat-logo-coin-cream\.svg/.test(gateSrc) && !/polecat-mark-white\.png/.test(gateSrc) &&
+      /polecat-logo-coin-cream\.svg/.test(landSrc) && /polecat-logo-black\.svg/.test(landSrc) && !/polecat-mark-(white|black)\.png/.test(landSrc),
+      JSON.stringify({ favLen: favSrc.length }));
+
     // ---- M4: Admin — manage users (first slice of "Admin + permissions") ----
     console.log("\n• M4: admin — manage users");
     // The main `page` carries the historical studio-gate-ok bypass with no stored

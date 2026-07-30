@@ -57,11 +57,14 @@
     datamanagement: {
       id: "datamanagement",
       kind: "examples",
+      // HOME-EX2 folded the 4 formerly pack-less showcases (data quality, pipeline,
+      // storage, cost) into this pack — keep the counts here at 12, not 8.
       name: "Data Management & Governance — showcase gallery",
-      tagline: "8 generic showcase dashboards: governance, platform ops, delivery, finance, marketing, reliability, compliance, feature tour",
-      blurb: "8 showcase dashboards — governance, platform ops, delivery, finance, marketing, " +
-        "incident response, compliance, and an interactive feature tour. Dashboards only: no " +
-        "connections, datasets or jobs, and their sample data is embedded. Installed by default."
+      tagline: "12 generic showcase dashboards: governance, platform ops, delivery, finance, marketing, reliability, compliance, data quality, pipeline, storage, cost, feature tour",
+      blurb: "12 showcase dashboards — governance, platform ops, delivery, finance, marketing, " +
+        "incident response, compliance, data quality, pipeline observability, storage, cost, " +
+        "and an interactive feature tour. Dashboards only: no connections, datasets or jobs, " +
+        "and their sample data is embedded. Installed by default."
     }
   };
 

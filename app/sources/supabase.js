@@ -499,6 +499,22 @@
     },
 
     // ---- data plane ---------------------------------------------------------
+    // GOLIVE-CARD (Kevin live, 2026-07-30): read `users` with ONLY the anon key —
+    // deliberately NO user session. Under the authenticated-only RLS posture this
+    // returns zero rows (or an outright 401/403); under the open demo posture it
+    // returns real rows. Admin's per-user-security card contrasts this with the
+    // local mirror to tell whether the database is actually enforcing RLS,
+    // instead of forever showing the go-live CTA on an already-live project.
+    anonProbe: function (cfg) {
+      if (!cfg || !cfg.url || !cfg.key) return Promise.resolve(null);
+      return fetch(String(cfg.url).replace(/\/$/, "") + "/rest/v1/users?select=id&limit=1", {
+        headers: { apikey: cfg.key, Authorization: "Bearer " + cfg.key }
+      }).then(function (r) {
+        if (!r.ok) return { denied: true, rows: 0 };
+        return r.json().then(function (j) { return { denied: false, rows: Array.isArray(j) ? j.length : 0 }; });
+      }).catch(function () { return null; }); // network trouble → unknown, card stays as-is
+    },
+
     testData: function (cfg) {
       // A data connection is valid even without our workspace tables — but we
       // can't hit the REST root to prove it: Supabase's new-format publishable
