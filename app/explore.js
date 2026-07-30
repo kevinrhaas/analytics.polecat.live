@@ -171,7 +171,9 @@
       // by it (nested via "/", same convention as Datasets/Repository).
       out.push({ kind: "ws", id: d.id, name: d.name || d.id, sub: conn ? conn.name : "no connection", cols: d.columns || [], folder: d.folder || "" });
     });
-    if (showSamples()) {
+    // SAMPLE-DATA-1 (Kevin live, 2026-07-30): the raw demo-DB catalog tables belong to the
+    // Data Management pack — installed pack only; uninstalled = zero presence here.
+    if (showSamples() && Studio.demoPackInstalled && Studio.demoPackInstalled("datamanagement")) {
       Object.keys(S.catalog).forEach(function (stem) {
         (S.catalog[stem].dataAccesses || []).forEach(function (d) {
           out.push({ kind: "sample", id: stem + XP_SEP + d.id, name: d.id, sub: stem + " · sample", cols: d.columns || [], stem: stem });
@@ -676,7 +678,7 @@
         // sample sets default CLOSED once you have datasets of your own (they're long lists);
         // a brand-new workspace keeps them OPEN so the picker never looks empty.
         var sampleDflt = wsShown.length > 0;
-        dsRows += '<div class="xp-grp-h">Sample data <span class="xp-grp-n">' + sampleShown.length + "</span></div>" +
+        dsRows += '<div class="xp-grp-h">Sample tables — Data Management pack <span class="xp-grp-n">' + sampleShown.length + "</span></div>" +
           Object.keys(stems).sort().map(function (st) {
             var p = "sample:" + st;
             var collapsed = xpTreeCollapsed(p, sampleDflt);
@@ -785,7 +787,7 @@
           '<input id="xpSearch" class="repo-search" type="search" placeholder="Search datasets…" aria-label="Search datasets" value="' + esc(XP.q) + '"/>' +
           '<button type="button" class="btn primary" id="xpNewDsBtn" title="Create a new dataset without leaving Quick Views">+ New</button>' +
         "</div>" +
-        '<div class="xp-list">' + (dsRows || '<div class="xp-none">No datasets' + (showSamples() ? "" : " (samples are hidden in Settings)") + ".</div>") + "</div>" +
+        '<div class="xp-list">' + (dsRows || '<div class="xp-none">No datasets yet — connect a data source, or install a sample pack in Settings (pack datasets arrive filed in the pack\'s folder).</div>') + "</div>" +
         '<div class="xp-saved"><div class="xp-saved-h">Saved Views <span class="badge">' + analyses.length + "</span></div>" +
           (pillsFXp ? '<div class="wb-chips">' + pillsFXp + '</div>' : "") +
           (savedRows || '<div class="xp-none">' + (_xpFolderFilter ? "No Views in this folder." : "Nothing saved yet.") + '</div>') + "</div>" +

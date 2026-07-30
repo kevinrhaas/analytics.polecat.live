@@ -2678,6 +2678,7 @@ body.simple-mode .da-acts{display:none!important}
 .xp-ds b{font-size:var(--fs-13)}
 .xp-ds small{color:var(--muted);font-size:var(--fs-11)}
 .xp-none{color:var(--faint);font-size:var(--fs-12);padding:var(--sp-10)}
+.bd-none{color:var(--faint);font-size:var(--fs-12);padding:var(--sp-10)}
 /* LF51 (Explore navigator): the dataset picker's folder/sample tree. Group headers are
    small uppercase labels; branch headers are full-width toggles with a caret + count;
    children indent behind a hairline so nesting reads at a glance. */

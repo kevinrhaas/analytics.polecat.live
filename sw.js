@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v399"; /* v399: STUDIO-PANELS — the Dashboard Builder opens
+var CACHE_NAME = "studio-shell-v400"; /* v400: SAMPLE-DATA-1 — raw demo-DB sample tables are
+   pack-gated (View Builder + Explore pickers list them only while the Data Management pack is
+   installed, grouped under the pack name); every Conservation-pack object is filed in the
+   Conservation Insight folder across all types, with a boot-reconcile backfill for existing
+   installs. Original v399: STUDIO-PANELS — the Dashboard Builder opens
    clean (Data + Inspector panels closed) by default, applied on boot + every enterStudio;
    new Settings preference "Open the builder with side panels" (studio-panels-default).
    Original v398: LIVE-d slice 3 — Jobs gains the

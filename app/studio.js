@@ -889,6 +889,17 @@
       if (upd) { Studio.Workspace.put("dashboards", r, { silent: true }); changed = true; }
     });
     if (changed) Studio.Workspace.notify("dashboards");
+    // SAMPLE-DATA-1 (Kevin live, 2026-07-30): one folder per pack across ALL object
+    // types — heal workspaces installed before pack seeds carried a folder, without a
+    // reinstall (the same backfill installDemoPack now does up front).
+    ["datasets", "jobs", "analyses", "connections"].forEach(function (t) {
+      var tChanged = false;
+      Studio.Workspace.all(t).forEach(function (r) {
+        var fld = r.demoPackId && PACK_FOLDERS[r.demoPackId];
+        if (fld && !r.folder) { r.folder = fld; Studio.Workspace.put(t, r, { silent: true }); tChanged = true; }
+      });
+      if (tChanged) Studio.Workspace.notify(t);
+    });
   }
   window.__studioReconcilePackDashboards = reconcilePackDashboards; // test hook
 
