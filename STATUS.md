@@ -116,6 +116,50 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **VB-5 — cross-editor View opening (v754, sw v391, 2026-07-30, steward):** Kevin: "you can
+  open any view in either quick view editor or the view builder… allow it to open and give a
+  notification that this was built in the higher level editor, and do your best to handle and
+  render it… when you can open a view anywhere in the application you give the option to open
+  in the view builder or the quick view."
+  - **The router** (`app/views.js`): `Studio.ViewsCatalog.open(id)` = owner-routed (a
+    `builder`-blob row → the View Builder, else Quick Views); `openIn(id, "build"|"explore")`
+    forces a target. Home's pinned-card handler and Repository's `repoOpenRow` now funnel
+    through it (Home was hardcoded to Explore — a builder View used to open in the wrong
+    editor from Home; that's fixed as a side effect).
+  - **Quick View → View Builder** (`app/build.js` `bdLoadForeign`): reconstructs the saved
+    chart mapping onto the shelves best-effort — model.js field vocabulary classified into
+    dims (labelCol/idCol/colCol/sourceCol/dateCol/groupCol, rowCol → the Rows shelf) and
+    measures (valueCol/xCol/yCol/barCol/lineCol/targetCol/rCol, plus series[]), the saved
+    rollup's fn mapped onto the measure (mean → AVG), seriesCol → the Color shelf, and the
+    chart type kept when the strip has it (nearest-type fallbacks: ensembleSeries → Line,
+    treemap → Bars, stream → Stacked area; anything else → the honest full-pivot Table).
+    Self-contained rows (no datasetId/sample — e.g. a dashboard-panel snapshot) still OPEN
+    with an explanatory notice instead of being refused. Saving from there upgrades the row
+    to a builder View in place (same id).
+  - **View Builder → Quick Views** (`app/explore.js`): `xpLoadAnalysis` flags `XP.notice`
+    when the row carries a `builder` blob (or a chart type outside XP_TYPES — the
+    dashboard-editor-snapshot case); `xpSpec` grew the KPI branch (spec.kpis, not a bogus
+    "kpi" panel) so builder KPI Views render in the Explore preview too.
+  - **The notice** (both editors): a dismissible brand-tinted banner (`#buildNotice` /
+    `.xp-cross-note`, shared CSS) naming the origin editor; Quick Views' version carries an
+    inline "Open in View Builder" jump.
+  - **Both targets at every open point:** Views rows/tiles (owner "Open" + an explicit
+    other-editor button), Explore's saved sidebar (a ▤ act button on every row), Home pinned
+    cards (owner-routed overlay + a header alt-editor pill above the overlay), Repository
+    (owner-routed row click + an alt-editor button in the quick-edit panel foot). The Studio
+    library's View rows ADD to the open dashboard (not an "open" affordance) — unchanged.
+  - **Rode along (latent data-loss fix):** `bdSave` now carries pinned/pinnedAt/private/
+    owner/createdAt forward on update — `Workspace.put` replaces rows wholesale, so updating
+    any View from the Builder used to silently strip its pin/privacy (xpSave always carried
+    these; Build didn't).
+  - **Tests** (7 new): Views-row dual targets; foreign-load shelf reconstruction (mean→AVG,
+    chart type kept, section routing); Builder notice shown + dismissed; update-from-Builder
+    upgrades in place preserving pin; builder View opens in Quick Views with notice +
+    inline jump + dismissal; Explore rows' ▤; Home card owner-routing + alt pill;
+    Repository quick-edit alt button opens the other editor. Docs: the Views section's
+    "Every row offers" list documents cross-editor opening. Files: app/views.js,
+    app/build.js, app/explore.js, app/studio.js, app/index.html, app/studio.css,
+    docs/index.html, tests/run.js, sw.js, js/changelog.js.
 - **LIVE-e part 2 slice 2 — the FULL docs sweep (v752, sw v389, 2026-07-30, steward):** Kevin:
   "ALL of the docs should be reviewed for the walls of text and improved not just that chunk."
   Every remaining paragraph >800 chars (31 of them) restructured into headings, bullets, and
@@ -7253,13 +7297,17 @@
 >       `bdKpiFor` constructor plus its own save shape (`kpi`, not `chart`) and its own
 >       add-to-dashboard/export wiring (Explore's `analysisSpec`/`xpAddAnalysisToSpec` both
 >       branch on `chartType === "kpi"`). See DONE for the full writeup.
-> VB-5. **Cross-editor View opening (Kevin live, 2026-07-30).** Any View should open in EITHER
->       builder — Quick Views or the View Builder — including Views saved from the dashboard
->       editor. Incompatible content (a chart type the target editor lacks, etc.) still OPENS:
->       render best-effort and show a DISMISSIBLE notice ("built in the higher-level editor —
->       some settings may not be shown"). Everywhere a View can be opened (the Views rail
->       section, Explore's saved list, Home pinned cards, Repository rows, the Studio library —
->       sweep the app for every open point) offer BOTH targets via a menu or button.
+> VB-5. ✓ **Cross-editor View opening (SHIPPED v754, sw v391, 2026-07-30, steward).** Any View
+>       opens in EITHER builder. `Studio.ViewsCatalog.open/openIn` is THE router;
+>       `Studio.Build.loadForeign` reconstructs a Quick View's chart mapping onto the shelves
+>       best-effort (dims/measures + saved rollup fn + Color + nearest chart type);
+>       Quick Views opens builder-made Views best-effort (incl. a KPI xpSpec branch). Both
+>       directions show a DISMISSIBLE notice; both targets offered at every open point (Views
+>       rows, Explore saved list ▤, Home pinned cards, Repository row + quick-edit panel).
+>       Rode along: bdSave preserves pinned/private/owner/createdAt on update (Workspace.put
+>       replaces rows wholesale — same fix family as xpSave's own carry-forward). The Studio
+>       library's rows ADD to the open dashboard rather than opening an editor, so they're
+>       deliberately not an "open point" (unchanged). See DONE for the full writeup.
 > VB-6. ✓ **View Builder Save dialog overhaul (SHIPPED v749, sw v386, 2026-07-30, steward)** —
 >       see DONE for the full writeup: the LF56 folder navigator (same Browse-a-folder-tree
 >       picker + datalist every other Folder field uses) plus a sparkle name-suggest on both

@@ -5868,9 +5868,16 @@
           .sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
         if (!pinnedA.length) return "";
         return '<div class="home-analyses">' + pinnedA.slice(0, 8).map(function (a) {
+            // VB-5: the card's overlay click opens the editor that OWNS the View
+          // (builder-made → View Builder); the small header button is the OTHER
+          // editor, so both targets are one click from Home too.
+          var homeAlt = a.builder
+            ? { t: "explore", lbl: "Quick View", tip: "Open in Quick Views — the simple one-chart editor" }
+            : { t: "build", lbl: "View Builder", tip: "Open in the View Builder — the full shelves/pivot editor" };
           return '<div class="home-analysis" data-home-analysis-card="' + esc(a.id) + '">' +
             '<div class="home-feat-h"><b>' + esc(a.name || "View") + '</b>' +
-            '<span>' + esc((Studio.CHARTS[a.chartType] || {}).label || a.chartType) + "</span></div>" +
+            '<span>' + esc(a.chartType === "kpi" ? "KPI" : (Studio.CHARTS[a.chartType] || {}).label || a.chartType) + "</span>" +
+            '<button type="button" class="home-a-alt" data-home-analysis-alt="' + esc(a.id) + '" data-home-analysis-target="' + homeAlt.t + '" title="' + esc(homeAlt.tip) + '" aria-label="Open View ' + esc(a.name || "") + ' in ' + esc(homeAlt.lbl) + '">' + homeAlt.lbl + "</button></div>" +
             '<div class="home-analysis-frame" data-analysis-frame="' + esc(a.id) + '"></div>' +
             '<button type="button" class="home-feat-open" data-home-analysis="' + esc(a.id) + '" aria-label="Open View ' + esc(a.name || "") + '"></button></div>';
         }).join("") + "</div>";
@@ -6188,9 +6195,14 @@
       examplesMoreBtn.onclick = showPackDashboards;
     }
     $$("[data-home-analysis]", sec).forEach(function (btn) {
-      btn.onclick = function () {
-        if (window.__studioShellSetSection) __studioShellSetSection("explore");
-        xpLoadAnalysis(btn.getAttribute("data-home-analysis"));
+      // VB-5: owner-routed — a builder-made View reopens in the View Builder,
+      // everything else in Quick Views (was hardcoded to Explore).
+      btn.onclick = function () { Studio.ViewsCatalog.open(btn.getAttribute("data-home-analysis")); };
+    });
+    $$("[data-home-analysis-alt]", sec).forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        Studio.ViewsCatalog.openIn(btn.getAttribute("data-home-analysis-alt"), btn.getAttribute("data-home-analysis-target"));
       };
     });
     $$("[data-home-fav-dataset]", sec).forEach(function (btn) {
@@ -6924,8 +6936,8 @@
     if (type === "connection") { openConnectionWizard(Studio.Workspace.get("connections", id)); return; }
     if (type === "job") { openJobEditor(Studio.Workspace.get("jobs", id)); return; }
     if (type === "analysis") {
-      if (window.__studioShellSetSection) window.__studioShellSetSection("explore");
-      xpLoadAnalysis(id);
+      // VB-5: owner-routed — builder-made Views reopen in the View Builder.
+      Studio.ViewsCatalog.open(id);
     }
   }
   function renderRepository() {
@@ -7378,9 +7390,28 @@
     var foot = el("div", "cx-wiz-foot");
     var openBtn = el("button", "btn"); openBtn.type = "button"; openBtn.textContent = "Open full editor →";
     var saveBtn = el("button", "btn primary"); saveBtn.type = "button"; saveBtn.textContent = "Save";
-    foot.appendChild(openBtn); foot.appendChild(saveBtn);
+    foot.appendChild(openBtn);
+    // VB-5: a View opens in EITHER editor — the main button owner-routes (via
+    // repoOpenRow → ViewsCatalog.open); this one is the OTHER editor.
+    var altBtn = null;
+    if (type === "analysis") {
+      var aRow = Studio.Workspace.get("analyses", id);
+      var altT = aRow && aRow.builder ? "explore" : "build";
+      altBtn = el("button", "btn"); altBtn.type = "button";
+      altBtn.textContent = aRow && aRow.builder ? "Open in Quick Views" : "Open in View Builder";
+      altBtn.title = altT === "explore"
+        ? "The simple one-chart editor (shows this View best-effort)"
+        : "The full shelves/pivot editor";
+      foot.appendChild(altBtn);
+    }
+    foot.appendChild(saveBtn);
     var panel = PS.rightPanel({ title: "Edit " + kind, body: [body, foot] });
     openBtn.onclick = function () { panel.close(); repoOpenRow(type, id); };
+    if (altBtn) altBtn.onclick = function () {
+      panel.close();
+      var cur = Studio.Workspace.get("analyses", id); // re-read: the row may have been re-saved since the panel opened
+      Studio.ViewsCatalog.openIn(id, cur && cur.builder ? "explore" : "build");
+    };
     saveBtn.onclick = function () {
       if (nameInp) {
         var name = nameInp.value.trim();

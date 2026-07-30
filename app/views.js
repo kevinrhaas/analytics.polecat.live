@@ -125,8 +125,16 @@
       var when = '<span class="cx-when">' + esc(Studio.fmtWhen(a.updatedAt || Date.now())) + '</span>';
       var privateBtn = '<button type="button" class="cx-private' + (a.private ? " private" : "") + '" data-vw-private="' + esc(a.id) + '" title="' + (a.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (a.private ? "Make " + esc(a.name || "this View") + " public" : "Make " + esc(a.name || "this View") + " private") + '" aria-pressed="' + (a.private ? "true" : "false") + '"></button>';
       var pinBtn = '<button type="button" class="cx-pin' + (a.pinned ? " on" : "") + '" data-vw-pin="' + esc(a.id) + '" title="' + (a.pinned ? "Unpin" : "Pin to top") + '" aria-label="' + (a.pinned ? "Unpin " : "Pin ") + esc(a.name || "View") + '" aria-pressed="' + (a.pinned ? "true" : "false") + '"></button>';
+      // VB-5: Open targets the editor that owns the View; the second button is the
+      // OTHER editor (every open point in the app offers both targets).
+      var altTarget = a.builder ? "explore" : "build";
+      var altLabel = a.builder ? "Quick View" : "View Builder";
+      var altTip = a.builder
+        ? "Open in Quick Views — the simple one-chart editor (shows this View best-effort)"
+        : "Open in the View Builder — the full shelves/pivot editor";
       var actions = '<span class="cx-actions">' +
-          '<button type="button" class="btn" data-vw-open="' + esc(a.id) + '">Open</button>' +
+          '<button type="button" class="btn" data-vw-open="' + esc(a.id) + '" title="Open in ' + dest + '">Open</button>' +
+          '<button type="button" class="btn" data-vw-open-in="' + altTarget + '" data-vw-id-alt="' + esc(a.id) + '" title="' + esc(altTip) + '" aria-label="Open ' + esc(a.name || "View") + ' in ' + esc(altLabel) + '">' + altLabel + '</button>' +
           '<button type="button" class="btn" data-vw-dash="' + esc(a.id) + '">Add to dashboard</button>' +
           '<button type="button" class="btn" data-vw-dup="' + esc(a.id) + '" aria-label="Duplicate ' + esc(a.name || "View") + '">Duplicate</button>' +
           '<button type="button" class="btn" data-vw-export="' + esc(a.id) + '" aria-label="Export ' + esc(a.name || "View") + '">Export</button>' +
@@ -178,7 +186,7 @@
         if (mini) icEl.innerHTML = mini; else icEl.appendChild(Studio.icon("trend-up", 18));
       }
       row.addEventListener("click", function (e) {
-        if (e.target.closest("[data-vw-pin],[data-vw-private],[data-vw-open],[data-vw-dash],[data-vw-dup],[data-vw-export],[data-vw-del]")) return;
+        if (e.target.closest("[data-vw-pin],[data-vw-private],[data-vw-open],[data-vw-open-in],[data-vw-dash],[data-vw-dup],[data-vw-export],[data-vw-del]")) return;
         vwOpen(id);
       });
     });
@@ -192,6 +200,12 @@
     });
     $$("[data-vw-open]", results).forEach(function (btn) {
       btn.onclick = function () { vwOpen(btn.getAttribute("data-vw-open")); };
+    });
+    $$("[data-vw-open-in]", results).forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        vwOpenIn(btn.getAttribute("data-vw-id-alt"), btn.getAttribute("data-vw-open-in"));
+      };
     });
     $$("[data-vw-dash]", results).forEach(function (btn) {
       btn.onclick = function () { Studio.Explore.openAddToExistingDashboardPicker(btn.getAttribute("data-vw-dash")); };
@@ -217,18 +231,30 @@
       };
     });
   }
-  // Open a View for editing. Explore-made Views open in Explore (#29); a View
-  // carrying a `builder` blob was made in the View Builder (#117) and reopens
-  // there instead, with its dataset + shelves restored.
-  function vwOpen(id) {
-    var a = Studio.Workspace.get("analyses", id);
-    if (a && a.builder && Studio.Build && Studio.Build.load) {
-      Studio.Build.load(id);
+  // VB-5: open a View in a SPECIFIC editor, regardless of where it was made.
+  // target "build" → the View Builder (builder-made Views restore their shelves
+  // exactly; anything else reconstructs best-effort via Studio.Build.loadForeign);
+  // target "explore" → Quick Views (always opens — explore.js renders any saved
+  // row best-effort and shows its own cross-editor notice when it was made in a
+  // higher-level editor). This is THE one cross-editor router — Home, Repository
+  // and the rows below all funnel through it.
+  function vwOpenIn(id, target) {
+    if (target === "build" && Studio.Build) {
+      var a = Studio.Workspace.get("analyses", id);
+      if (a && a.builder && Studio.Build.load) Studio.Build.load(id);
+      else if (Studio.Build.loadForeign) Studio.Build.loadForeign(id);
       if (window.__studioShellSetSection) window.__studioShellSetSection("build");
       return;
     }
     Studio.Explore.loadAnalysis(id);
     if (window.__studioShellSetSection) window.__studioShellSetSection("explore");
+  }
+  // Open a View for editing in the editor that OWNS it. Explore-made Views open
+  // in Explore (#29); a View carrying a `builder` blob was made in the View
+  // Builder (#117) and reopens there instead, with its dataset + shelves restored.
+  function vwOpen(id) {
+    var a = Studio.Workspace.get("analyses", id);
+    vwOpenIn(id, a && a.builder ? "build" : "explore");
   }
   // "+ New Quick View" — same reset-to-fresh-Quick-Views path Repository's "＋ New ▾ → New View" uses.
   function vwNewView() {
@@ -275,6 +301,8 @@
   Studio.ViewsCatalog = {
     configure: configure,
     render: renderViews,
+    open: vwOpen,                  // VB-5: owner-routed open (builder blob → View Builder)
+    openIn: vwOpenIn,              // VB-5: open in a SPECIFIC editor ("build" | "explore")
     newView: vwNewView,            // Quick View (Explore)
     newBuilderView: vwNewBuilderView // full View Builder
   };

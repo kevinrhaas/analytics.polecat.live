@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 754,
+    title: 'Open any View in either editor',
+    kind: 'feature',
+    ts: '2026-07-30T12:52:03.000Z',
+    items: [
+      'Every View now opens in BOTH builders: a Quick View opens in the View Builder with its fields reconstructed onto the shelves as a starting point, and a View Builder View opens in Quick Views best-effort.',
+      'A dismissible notice explains when a View was made in the other editor — with a one-click "Open in View Builder" jump from Quick Views.',
+      'Both targets are offered everywhere a View opens: Views rows, Quick Views’ saved list, Home pinned cards, and Repository.',
+      'Updating a View from the Builder no longer drops its pinned/private state.',
+    ],
+  },
+  {
     v: 753,
     title: 'Select multiple datasets for bulk delete',
     kind: 'feature',
