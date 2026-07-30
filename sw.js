@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v382"; /* v382: VB-4 (Kevin's overnight View Builder queue) —
+var CACHE_NAME = "studio-shell-v383"; /* v383: VB-4 slice 2 (Kevin's overnight View Builder
+   queue, "hit major ones first") — Stacked bars and Stacked area join the chart-type strip,
+   riding the exact same multi-series basis engine Line already uses (Studio's own chart
+   registry already treats them identically to line for column-order defaults). No new pivot
+   logic. app/build.js, docs/index.html, tests/run.js, STATUS.md, js/changelog.js.
+   v382: VB-4 (Kevin's overnight View Builder queue) —
    choropleth joins the View Builder's chart-type strip as "Map", reusing the bars/donut basis
    shape (idCol/valueCol) with no Color field and the heatmap long-form basis (idCol/seriesCol/
    valueCol) with one, plus the same lazy geometry-fetch path Studio's own dashboard preview

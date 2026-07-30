@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 746,
+    title: 'Stacked bars and Stacked area join the View Builder',
+    kind: 'feature',
+    ts: '2026-07-30T07:41:48.000Z',
+    items: [
+      'The chart-type strip gains "Stacked bars" and "Stacked area", riding the same multi-series engine Line already uses: pivot a field on Rows against a plain field on Columns and every Columns value draws its own bar segment or band.',
+      'With no Rows field, both fall back to the same plain [dimension, measure] basis Bars and Donut already use.',
+    ],
+  },
+  {
     v: 745,
     title: 'Choropleth maps join the View Builder',
     kind: 'feature',
