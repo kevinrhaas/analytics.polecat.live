@@ -12,8 +12,9 @@
    demo-login flow) lands on something alive: a couple of connections, a raw
    provider export plus real county / watershed geo datasets that render actual
    choropleths, a county→state rollup JOB (the acreage-weighted-mean pattern the
-   jobs engine was built for), four ensemble analyses pinned to Home, and one
-   featured multi-widget dashboard.
+   jobs engine was built for), four View Builder-native per-practice analyses
+   pinned to Home (CONS-4 — they open on the shelves, not in Quick Views), and
+   one featured multi-widget dashboard.
 
    All pack content is SYNTHETIC and says so in its own titles/subtitles —
    this is a sales-demo fixture, not real provider or AgCensus data. */
@@ -110,8 +111,13 @@
   // Deliberately RAW column names (not the app's labelCol/seriesCol/valueCol
   // vocabulary), so opening it in Explore/Datasets demonstrates mapping a
   // real-world export onto chart roles, exactly like a prospect's own file.
-  function conservationRawCsv() {
-    var rows = ["State_FIPS,Provider_Name,Practice,Adoption_Pct,Report_Year"];
+  var RAW_COLS = ["State_FIPS", "Provider_Name", "Practice", "Adoption_Pct", "Report_Year"];
+  // The raw provider export's rows as arrays — the CSV below serializes these, and
+  // CONS-4's builderViewRow() computes each per-practice View's crosstab basis from
+  // the SAME rows, so the seeded da.columns can't drift from what #118's live
+  // re-run computes at render time.
+  function conservationRawRows() {
+    var rows = [];
     var states = { "19": "IA", "17": "IL", "18": "IN" };
     var years = [2019, 2022, 2024];
     var i = 0;
@@ -120,13 +126,16 @@
         PRACTICES.forEach(function (p) {
           years.forEach(function (yr) {
             var pct = 22 + ((i * 37) % 40); // deterministic 22–61 spread
-            rows.push([fips, prov, p.label, pct, yr].join(","));
+            rows.push([fips, prov, p.label, pct, yr]);
             i++;
           });
         });
       });
     });
-    return rows.join("\n");
+    return rows;
+  }
+  function conservationRawCsv() {
+    return [RAW_COLS.join(",")].concat(conservationRawRows().map(function (r) { return r.join(","); })).join("\n");
   }
 
   // ---- county-level cover-crop adoption (real FIPS → real choropleth) ------
@@ -224,13 +233,40 @@
       opts: { refSeries: "AgCensus", fmt: "pct", medianLabel: "Common estimate", height: 260, channel: "providers" } };
   }
 
-  function analysisRow(practice) {
-    var da = timeSeriesDA("vrd_" + practice.key, practice);
+  // CONS-4 (Kevin live, 2026-07-30): the pack's per-practice Views are VIEW
+  // BUILDER-native — a real `builder` blob over the raw provider dataset, so a
+  // click in the Views list opens the shelves (Report_Year on Rows, AVG
+  // Adoption_Pct, a Provider_Name color split, a Practice filter), not the
+  // Quick Views fallback. The da/chart pair is authored exactly the way bdSave
+  // does it: compute the line crosstab basis with the pure Studio.Build.compute
+  // (the same engine #118's live re-run uses at render time, over the same rows
+  // via conservationRawRows, so seed and runtime can't drift), then newPanel +
+  // the multi-series widening. Dashboards keep their own non-builder panels.
+  function builderViewRow(practice, rawDsId) {
+    var blob = {
+      dsKind: "ws", dsId: rawDsId, chartType: "line",
+      shelfRows: [{ col: "Report_Year" }],
+      shelfCols: [{ col: "Adoption_Pct", agg: "avg" }],
+      shelfColor: [{ col: "Provider_Name" }],
+      filters: [{ col: "Practice", kind: "in", values: [practice.label] }],
+      calcs: [], paletteKey: "", mapScale: ""
+    };
+    var rows = conservationRawRows().filter(function (r) { return r[2] === practice.label; });
+    // bdLineSeriesBasis's own cf-crosstab shape: pivot the measure across the Color
+    // field's values, then drop the trailing crosstab "Total" column.
+    var xtab = Studio.Build.compute(RAW_COLS, rows,
+      blob.shelfCols.concat([{ col: "Provider_Name", agg: null }]), blob.shelfRows);
+    var head = xtab.head.slice(0, -1);
+    var name = "Conservation Insight — " + practice.label + " (illustrative demo)";
+    var da = { id: "vb_" + practice.key, name: name, kind: "sql", sql: "", query: "",
+      columns: head.slice(), params: [], authored: true };
+    da.builder = Studio.clone(blob);
+    var p = Studio.newPanel("line", da);
+    p.chart.map.series = head.slice(1).map(function (c) { return { col: c }; });
     return {
-      name: "Conservation Insight — " + practice.label + " (illustrative demo)",
-      datasetId: null, sample: null,
-      da: da, chart: ensembleChart(da.id), chartType: "ensembleSeries",
-      pinned: true, folder: PACK_FOLDER, demoPackId: "conservation"
+      name: name, folder: PACK_FOLDER, demoPackId: "conservation",
+      pinned: true, panelTitle: "", chartType: "line", paletteKey: "",
+      da: da, builder: Studio.clone(blob), chart: p.chart
     };
   }
 
@@ -351,7 +387,7 @@
     });
 
     // --- datasets: raw export + real county / watershed / state-rollup geo ---
-    W.put("datasets", {
+    var rawDs = W.put("datasets", {
       name: "Conservation Insight — raw provider export (demo)", connectionId: fileConn.id,
       kind: "file", format: "csv", fileName: "conservation-insight-provider-export-demo.csv",
       content: conservationRawCsv(), folder: PACK_FOLDER, demoPackId: id, tags: ["demo", "conservation"]
@@ -392,8 +428,8 @@
       folder: PACK_FOLDER, demoPackId: id
     });
 
-    // --- analyses (pinned to Home) + the featured dashboard ---
-    PRACTICES.forEach(function (p) { W.put("analyses", analysisRow(p)); });
+    // --- analyses (pinned to Home, View Builder-native — CONS-4) + the featured dashboard ---
+    PRACTICES.forEach(function (p) { W.put("analyses", builderViewRow(p, rawDs.id)); });
     // Kevin (2026-07-30): the dashboard's OWN name leads and the pack files into a
     // "Conservation Insight" folder — a grid of cards all prefixed "Conservation
     // Insight — …" read as identical rows.
@@ -440,6 +476,37 @@
       folder: "Conservation Insight", demoPackId: "conservation"
     });
     return true;
+  };
+
+  // CONS-4 heal: workspaces installed before the builder-native Views existed get
+  // their 4 per-practice rows re-authored on boot (called from studio.js's
+  // reconcilePackDashboards) — same identity-preserving convention bdSave uses for
+  // updates: id, pin state, privacy, ownership and createdAt all survive, so a
+  // pinned Home widget stays pinned, it just opens in the View Builder now.
+  Studio.ensureConservationBuilderViews = function () {
+    if (!Studio.demoPackInstalled("conservation")) return false;
+    var W = Studio.Workspace, changed = false;
+    var rawDs = W.all("datasets").filter(function (d) {
+      return d.demoPackId === "conservation" && /raw provider export/i.test(d.name || "");
+    })[0];
+    if (!rawDs) return false;
+    PRACTICES.forEach(function (p) {
+      var name = "Conservation Insight — " + p.label + " (illustrative demo)";
+      var old = W.all("analyses").filter(function (a) {
+        return a.demoPackId === "conservation" && a.name === name;
+      })[0];
+      if (!old || old.builder) return;
+      var row = builderViewRow(p, rawDs.id);
+      row.id = old.id;
+      row.pinned = !!old.pinned;
+      if (old.pinnedAt) row.pinnedAt = old.pinnedAt;
+      if (old.private) row.private = old.private;
+      if (old.owner) row.owner = old.owner;
+      if (old.createdAt) row.createdAt = old.createdAt;
+      W.put("analyses", row);
+      changed = true;
+    });
+    return changed;
   };
 
   window.__studioDemoPacks = { // test hook

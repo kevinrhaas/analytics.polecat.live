@@ -925,6 +925,9 @@
     if (dupChanged) Studio.Workspace.notify("dashboards");
     // CONS-2: backfill the watershed dashboard into installs that predate it.
     try { if (Studio.ensureConservationWatershedDashboard) Studio.ensureConservationWatershedDashboard(); } catch (e) {}
+    // CONS-4 heal: pre-existing installs get their per-practice pack Views
+    // re-authored as View Builder-native rows (pins/identity preserved).
+    try { if (Studio.ensureConservationBuilderViews) Studio.ensureConservationBuilderViews(); } catch (e) {}
   }
   window.__studioReconcilePackDashboards = reconcilePackDashboards; // test hook
 

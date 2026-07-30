@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v409"; /* v409: VB-10 — View Builder Map gets a Region-scale
+var CACHE_NAME = "studio-shell-v410"; /* v410: CONS-4 — the Conservation pack's four
+   per-practice analyses are View Builder-native (builder blobs over the raw provider
+   dataset, authored via the pure Studio.Build.compute so seed and #118 live re-run
+   agree; ensureConservationBuilderViews heals older installs preserving pins), and
+   VIEWS-LAYOUT-1: View tile feet wrap so actions stay inside the card.
+   Original v409: VB-10 — View Builder Map gets a Region-scale
    control in the type strip (Auto = inferred via the shared Studio.guessRegionScale;
    state before fips so state_fips means States; temporal names never value-shape-match),
    the map id role prefers the geo-looking field from either shelf (bdGeoDim, name
