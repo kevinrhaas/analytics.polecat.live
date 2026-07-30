@@ -506,6 +506,9 @@ html[data-app-theme='neon'] #mobileNavBtn{background:#000000;border-color:rgba(2
 .home-sub-move{display:flex;gap:2px;flex:0 0 auto}
 .home-sub-move .icobtn{padding:var(--sp-6)}
 .home-sub-nested{margin:0 0 14px} /* "Pinned"/"Recent dashboards" inside the Dashboards block keep their own heading, unmoved */
+/* HOME-EX2: the per-user "Clear recents" affordance rides the strip heading — quiet
+   text-sized button, only visible when the strip has cards to clear. */
+.home-clear-recents{margin-left:10px;font-size:var(--fs-11);padding:2px 8px;vertical-align:2px}
 .home-recents{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
 .recent-card{position:relative;background:var(--field);border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);border-radius:12px;
   overflow:hidden;text-align:left;padding:0;color:var(--ink);font-family:var(--font);
@@ -2733,7 +2736,15 @@ body.simple-mode .da-acts{display:none!important}
   background:none;border:none;cursor:pointer;color:var(--ink);padding:var(--sp-6) var(--sp-4);min-width:0}
 .xp-saved-open b{font-size:var(--fs-13);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
 .xp-saved-open small{color:var(--muted);font-size:var(--fs-11)}
-.xp-saved-acts{display:flex;gap:2px}
+.xp-saved-acts{display:flex;gap:2px;margin-left:auto}
+/* EXPLORE-LAYOUT (Kevin live, 2026-07-30): in the narrow panel the folder badge +
+   five actions crushed the name to a single letter and stacked "Line / area"
+   word-per-line. Same fix family as the Views tiles (#516): the row WRAPS — the
+   name keeps a real minimum line, the badge + actions flow onto the next line. */
+.xp-saved-row{flex-wrap:wrap}
+.xp-saved-open{flex:1 1 150px}
+.xp-saved-open small{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.xp-saved-row .cx-folder{max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .xp-act{border:none;background:none;cursor:pointer;color:var(--faint);font-size:var(--fs-12);
   border-radius:6px;padding:var(--sp-4) var(--sp-6)}
 .xp-act:hover{background:var(--field);color:var(--ink)}

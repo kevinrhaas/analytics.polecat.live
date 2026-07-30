@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v413"; /* v413: WORKSPACE-LOGIN — the sign-in screen gains a
+var CACHE_NAME = "studio-shell-v414"; /* v414: HOME-EX2 + EXPLORE-LAYOUT — the 4 pack-less
+   examples are stamped demoPackId "datamanagement" in data/examples/index.json
+   (precached; the strip only shows installed packs now); Home gains a per-user
+   Clear-recents button (hide-only stamp, never a delete); Quick Views saved-rows
+   wrap instead of crushing the name. app/studio.js, app/studio.css, docs changed. */
+/* v413: WORKSPACE-LOGIN — the sign-in screen gains a
    Workspace picker fed by the NEW packaged catalog app/workspaces.js (precached; loads
    before gate.js) plus locally imported access files; picking a workspace BINDS the
    connection without pulling (Sync.bindConnection) so an unauthenticated device can't

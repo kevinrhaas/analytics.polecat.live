@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 779,
+    title: 'Honest Home Examples, a Clear-recents button, and readable saved-View rows',
+    kind: 'fix',
+    ts: '2026-07-30T22:38:00.000Z',
+    items: [
+      'Home’s Examples strip now shows only sample dashboards from packs you actually have installed. Four Data Management showcases (Data Quality Scorecard, Pipeline Observability, Storage Footprint & Growth, Cost & Sustainability) used to appear for everyone — even under a “from Conservation Insight” label after that pack was removed.',
+      'The “Recent dashboards” strip on Home has a Clear recents button: it empties the list for you, on this device, and deletes nothing — everything stays in Dashboards, and any dashboard you open or edit afterwards reappears.',
+      'Quick Views’ Saved Views list no longer crushes a View’s name down to a single letter when the panel is narrow — the row wraps, with the folder chip and action buttons flowing onto their own line.',
+    ],
+  },
+  {
     v: 778,
     title: 'Pick your workspace right on the sign-in screen',
     kind: 'feature',

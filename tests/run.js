@@ -5567,7 +5567,11 @@ function serve() {
     const DM_GATED = ["feature-showcase.studio.json", "governance-command.studio.json", "ops-command.studio.json",
       "engineering-delivery.studio.json", "finance-command.studio.json", "marketing-growth.studio.json",
       "reliability-distributions.studio.json", "compliance-radar.studio.json"];
-    const DM_UNGATED = ["quality-scorecard.studio.json", "pipeline-observability.studio.json", "storage-growth.studio.json", "studio-cost.studio.json"];
+    // HOME-EX2 (Kevin live, 2026-07-30): these 4 used to carry NO demoPackId, so they
+    // showed for EVERYONE — Kevin removed the pack yet still saw Data Quality/Pipeline/
+    // Storage/Cost cards under a strip labeled "from Conservation Insight". They're
+    // stamped datamanagement now: the strip only ever shows installed packs' examples.
+    const DM_FORMERLY_UNGATED = ["quality-scorecard.studio.json", "pipeline-observability.studio.json", "storage-growth.studio.json", "studio-cost.studio.json"];
 
     // LF43 slice 2: the sample gallery is Home's [data-home-example] tile strip now (the
     // Studio Examples ▾ menu is gone) — same visibleExamples() gate, read there instead.
@@ -5576,8 +5580,8 @@ function serve() {
     const dmGalleryOn = await page.evaluate(function (files) {
       var have = window.__studioVisibleExampleFiles();
       return files.map(function (f) { return have.indexOf(f) >= 0; });
-    }, DM_GATED.concat(DM_UNGATED));
-    ok("LF16: all 8 gated showcase examples + the 4 ungated ones are visible in the gallery while the pack is installed (default)",
+    }, DM_GATED.concat(DM_FORMERLY_UNGATED));
+    ok("LF16: all 12 Data Management examples are visible in the gallery while the pack is installed (default)",
       dmGalleryOn.every(Boolean), JSON.stringify(dmGalleryOn));
 
     const dmRemove = await page.evaluate(function () {
@@ -5597,10 +5601,21 @@ function serve() {
 
     const dmGalleryOff = await page.evaluate(function (files) {
       var have = window.__studioVisibleExampleFiles();
-      return { gated: files.gated.map(function (f) { return have.indexOf(f) >= 0; }), ungated: files.ungated.map(function (f) { return have.indexOf(f) >= 0; }) };
-    }, { gated: DM_GATED, ungated: DM_UNGATED });
-    ok("LF16: removing the pack hides exactly its 8 gated showcase examples from the gallery, leaving the 4 ungated ones untouched",
-      dmGalleryOff.gated.every(function (v) { return v === false; }) && dmGalleryOff.ungated.every(Boolean), JSON.stringify(dmGalleryOff));
+      return { gated: files.gated.map(function (f) { return have.indexOf(f) >= 0; }), formerlyUngated: files.formerlyUngated.map(function (f) { return have.indexOf(f) >= 0; }) };
+    }, { gated: DM_GATED, formerlyUngated: DM_FORMERLY_UNGATED });
+    ok("HOME-EX2: removing the Data Management pack hides ALL 12 of its examples — the 4 formerly pack-less cards (Data Quality/Pipeline/Storage/Cost) no longer show for everyone under a 'from Conservation Insight' label",
+      dmGalleryOff.gated.every(function (v) { return v === false; }) && dmGalleryOff.formerlyUngated.every(function (v) { return v === false; }), JSON.stringify(dmGalleryOff));
+    // HOME-EX2 guard: every entry in the examples index must carry a demoPackId —
+    // an unlabeled entry shows for EVERYONE regardless of installed packs while the
+    // strip's hint names only the labeled packs (exactly Kevin's 2026-07-30 report).
+    const exAllLabeled = await page.evaluate(function () {
+      return fetch("data/examples/index.json").then(function (r) { return r.json(); }).then(function (list) {
+        var missing = list.filter(function (e) { return !e.demoPackId; }).map(function (e) { return e.title || e.file; });
+        return { total: list.length, missing: missing };
+      });
+    });
+    ok("HOME-EX2: every entry in data/examples/index.json carries a demoPackId (no example can ever show pack-less again)",
+      exAllLabeled.total > 0 && exAllLabeled.missing.length === 0, JSON.stringify(exAllLabeled));
 
     const dmLibCard = await page.evaluate(function () {
       window.__studioDemoPacks.install("datamanagement");
@@ -30851,7 +30866,9 @@ function serve() {
       if (window.__studioShellSetSection) window.__studioShellSetSection("home");
       var pins = [].slice.call(document.querySelectorAll("#secHome .recent-pin"));
       var subs = [].slice.call(document.querySelectorAll("#secHome .home-sub")).map(function (h) { return h.textContent; });
-      return { hasPinnedHeading: subs.indexOf("Pinned") >= 0, hasRecentHeading: subs.indexOf("Recent dashboards") >= 0,
+      // HOME-EX2: the Recent heading carries the "Clear recents" button, so its
+      // textContent is no longer an exact match — prefix-match it instead.
+      return { hasPinnedHeading: subs.indexOf("Pinned") >= 0, hasRecentHeading: subs.some(function (t) { return t.indexOf("Recent dashboards") === 0; }),
         pinCount: pins.length, allUnpinned: pins.every(function (b) { return b.getAttribute("aria-pressed") === "false" && !b.classList.contains("pinned"); }),
         hasStarSvg: pins.length > 0 && !!pins[0].querySelector("svg") };
     });
@@ -31099,6 +31116,65 @@ function serve() {
     await page.evaluate(function () { Studio.Workspace.remove("dashboards", "lf37-pack-dash", { silent: true }); Studio.Workspace.notify("*"); });
     await page.click('#railNav .rail-item[data-sec="home"]');
     await page.waitForTimeout(100);
+
+    // ── HOME-EX2 (Kevin live, 2026-07-30): "Clear recents" on Home — a per-user,
+    // per-device HIDE stamp, never a delete (Home's Recent strip IS the dashboard
+    // catalog by last-touch, and DURABLE-1 made deletes explicit-only). Anything
+    // touched after the clear reappears; Dashboards/Repository always show all. ──
+    console.log("\n• HOME-EX2: Clear recents");
+    const hx2 = await page.evaluate(async function () {
+      window.__studioShellSetSection("home");
+      Studio.Workspace.put("dashboards", { id: "hx2-dash", ts: new Date().toISOString(), title: "HX2 Dash", name: "hx2-dash",
+        spec: { schema: 1, id: "hx2-dash", name: "hx2-dash", title: "HX2 Dash", cda: { connections: [], dataAccesses: [] }, filters: [], kpis: [], panels: [], gridCols: 1 } });
+      window.__studioRenderHome();
+      var out = {};
+      out.keyIsPerUser = /^studio-recents-cleared::.+/.test(window.__studioClearRecents.key());
+      out.btnBefore = !!document.querySelector("#secHome [data-home-clear-recents]");
+      out.cardBefore = !!document.querySelector('#secHome .home-recents [data-recent="hx2-dash"]');
+      var confirm0 = window.confirm; window.confirm = function () { return true; };
+      document.querySelector("#secHome [data-home-clear-recents]").click();
+      window.confirm = confirm0;
+      out.cardAfterClear = !!document.querySelector('#secHome .home-recents [data-recent="hx2-dash"]');
+      out.clearedHint = !!document.querySelector("#secHome [data-home-recents-cleared]");
+      out.btnAfterClear = !!document.querySelector("#secHome [data-home-clear-recents]");
+      out.stillInWorkspace = !!Studio.Workspace.get("dashboards", "hx2-dash");
+      await new Promise(function (r) { setTimeout(r, 25); }); // strict ts > stamp comparison needs a beat
+      Studio.Workspace.put("dashboards", Object.assign({}, Studio.Workspace.get("dashboards", "hx2-dash"), { ts: new Date().toISOString() }));
+      window.__studioRenderHome();
+      out.reappears = !!document.querySelector('#secHome .home-recents [data-recent="hx2-dash"]');
+      // cleanup: forget the stamp + the seeded row so later tests see the usual strip
+      try { localStorage.removeItem(window.__studioClearRecents.key()); } catch (e) {}
+      Studio.Workspace.remove("dashboards", "hx2-dash", { silent: true });
+      window.__studioRenderHome();
+      return out;
+    });
+    ok("HOME-EX2: 'Clear recents' hides the user's Recent strip (per-user stamp, cleared-hint shown, NOTHING deleted) and a dashboard touched afterwards reappears",
+      hx2.keyIsPerUser && hx2.btnBefore && hx2.cardBefore && !hx2.cardAfterClear && hx2.clearedHint && !hx2.btnAfterClear && hx2.stillInWorkspace && hx2.reappears,
+      JSON.stringify(hx2));
+
+    // ── EXPLORE-LAYOUT (Kevin live, 2026-07-30): the narrow Saved-Views rows must not
+    // crush the name to a letter — the row wraps, name keeps a readable line. ──
+    const xpLayout = await page.evaluate(function () {
+      window.__studioShellSetSection("explore");
+      Studio.Workspace.put("analyses", { id: "xpl-a", name: "A very long saved view name that must stay readable", chartType: "line",
+        folder: "Conservation Insight", da: { id: "xpl-da", kind: "sql", columns: ["a", "b"] },
+        chart: { type: "line", map: {}, opts: {} } });
+      window.__studioRenderExplore();
+      var row = document.querySelector('.xp-saved-row[data-xp-a="xpl-a"]');
+      var openBtn = row && row.querySelector(".xp-saved-open");
+      var out = {
+        found: !!row,
+        wraps: row && getComputedStyle(row).flexWrap === "wrap",
+        nameReadable: openBtn && openBtn.getBoundingClientRect().width > 100,
+        actsInRow: row && row.querySelectorAll(".xp-saved-acts .xp-act").length >= 5
+      };
+      Studio.Workspace.remove("analyses", "xpl-a", { silent: true });
+      window.__studioRenderExplore();
+      window.__studioShellSetSection("home");
+      return out;
+    });
+    ok("EXPLORE-LAYOUT: a Saved-Views row with a folder chip + 5 actions wraps instead of crushing the name (name keeps >100px, all actions present)",
+      xpLayout.found && xpLayout.wraps && xpLayout.nameReadable && xpLayout.actsInRow, JSON.stringify(xpLayout));
 
     // LF18(a): the three NEW quick-action cards (explore/connection/dataset) route straight
     // to their target — none of them should enter Studio first (unlike blank/examples/tour).
