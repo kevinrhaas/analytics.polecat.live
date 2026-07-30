@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 732,
+    title: 'The View Builder now charts your pivots',
+    kind: 'feature',
+    ts: '2026-07-30T01:08:43.000Z',
+    items: [
+      'A chart strip above the Build result switches between Table, Bars, Line, Donut, and Heatmap — charts draw your computed numbers through the real dashboard renderer, so what you see is exactly what a dashboard will show.',
+      'Bars, line, and donut chart the first dimension against the first measure (COUNT of rows when none is picked); Heatmap lights up with a Rows field plus a Columns field and draws the crosstab as a color matrix. Anything a chart still needs is spelled out in its disabled tooltip.',
+      'Save View keeps the selected chart — the View lands in Views with the right type badge and reopens in Build exactly as you left it.',
+    ],
+  },
+  {
     v: 731,
     title: 'Meet the View Builder — pivot and crosstab your data, no code',
     kind: 'feature',

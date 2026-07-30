@@ -9468,6 +9468,64 @@ function serve() {
     ok("#117 reopen: opening a builder-made View from the Views catalog routes back to Build with its dataset + shelves restored",
       bdReopen.section === "build" && bdReopen.analysisId === bdSave.id && bdReopen.rowsShelf === "region" && bdReopen.resultRows > 0,
       JSON.stringify(bdReopen));
+    // 6. slice 2 — the chart strip: REAL-renderer preview via buildHtml + PDC_MOCK
+    // (state right now: region on Rows, quarter dim + SUM amount on Columns — heatmap-eligible)
+    const bdChart = await page.evaluate(async () => {
+      const out = {};
+      out.strip = [].slice.call(document.querySelectorAll("#bdCharts .bd-ct")).map((b) => b.getAttribute("data-bd-ct") + (b.disabled ? ":off" : ""));
+      document.querySelector('[data-bd-ct="bars"]').click();
+      await new Promise((r) => setTimeout(r, 450));
+      const ifr = document.querySelector("#buildResult iframe.bd-ifr");
+      out.barsIframe = !!ifr;
+      // the srcdoc is the REAL renderer build with the COMPUTED basis injected as the mock
+      out.mock = ifr ? ifr.srcdoc.indexOf("PDC_MOCK") >= 0 : false;
+      out.basisDA = ifr ? ifr.srcdoc.indexOf("build_result") >= 0 : false;
+      out.basisMeasure = ifr ? ifr.srcdoc.indexOf("SUM amount") >= 0 : false;
+      document.querySelector('[data-bd-ct="heatmap"]').click();
+      await new Promise((r) => setTimeout(r, 450));
+      out.hmIframe = !!document.querySelector("#buildResult iframe.bd-ifr");
+      // saving with a chart selected stamps the type on the View (updates the loaded row)
+      document.querySelector('[data-bd-ct="bars"]').click();
+      await new Promise((r) => setTimeout(r, 300));
+      window.__studioBuild.save();
+      await new Promise((r) => setTimeout(r, 120));
+      const m = document.querySelector(".modal-ov .bd-save");
+      m.querySelector("input").value = "BD117 Chart";
+      [].slice.call(m.querySelectorAll("button")).filter((b) => /^(Save|Update)$/.test(b.textContent))[0].click();
+      await new Promise((r) => setTimeout(r, 120));
+      const row = window.Studio.Workspace.all("analyses").filter((a) => a.name === "BD117 Chart")[0];
+      return Object.assign(out, {
+        savedId: row && row.id, savedType: row && row.chartType,
+        savedBuilderType: row && row.builder && row.builder.chartType,
+        savedLabelCol: row && row.chart && row.chart.map && row.chart.map.labelCol,
+      });
+    });
+    ok("#117 (2): the chart strip offers Table/Bars/Line/Donut/Heatmap, heatmap enabled with a Rows dim + a Columns dim",
+      bdChart.strip.join(",") === "table,bars,line,donut,heatmap", JSON.stringify(bdChart));
+    ok("#117 (2): picking Bars renders the COMPUTED basis through the real dashboard renderer (buildHtml + PDC_MOCK iframe)",
+      bdChart.barsIframe && bdChart.mock && bdChart.basisDA && bdChart.basisMeasure, JSON.stringify(bdChart));
+    ok("#117 (2): Heatmap renders too, and saving with a chart selected stamps the type on the View + builder blob",
+      bdChart.hmIframe && bdChart.savedId === bdSave.id && bdChart.savedType === "bars" &&
+      bdChart.savedBuilderType === "bars" && bdChart.savedLabelCol === "region",
+      JSON.stringify(bdChart));
+    const bdChartReopen = await page.evaluate(async (savedId) => {
+      window.Studio.Build.newView();
+      window.__studioShellSetSection("views");
+      window.__studioRenderViews();
+      await new Promise((r) => setTimeout(r, 100));
+      const openBtn = document.querySelector('#viewsResults [data-vw-open="' + savedId + '"]');
+      if (!openBtn) return { err: "views row missing" };
+      openBtn.click();
+      await new Promise((r) => setTimeout(r, 600));
+      return {
+        chartType: window.__studioBuild.state.chartType,
+        iframe: !!document.querySelector("#buildResult iframe.bd-ifr"),
+        activeBtn: (document.querySelector("#bdCharts .bd-ct.on") || {}).getAttribute ? document.querySelector("#bdCharts .bd-ct.on").getAttribute("data-bd-ct") : null,
+      };
+    }, bdSave.id);
+    ok("#117 (2): reopening a chart View restores the chart type and renders it straight away",
+      bdChartReopen.chartType === "bars" && bdChartReopen.iframe && bdChartReopen.activeBtn === "bars",
+      JSON.stringify(bdChartReopen));
     // cleanup + restore the section the next block expects
     await page.evaluate((savedId) => {
       const st = window.__studioBuild.state;

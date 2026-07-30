@@ -116,6 +116,28 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **#117 slice 2 — the View Builder CHARTS its pivots (v732, sw v369, 2026-07-30, steward):**
+  a chart strip above the Build result switches Table / Bars / Line / Donut / Heatmap. Charts
+  render the COMPUTED basis through the REAL dashboard renderer — the exact
+  `Studio.buildHtml(spec, assets, { preview:true, mock })` srcdoc-iframe plumbing Explore's
+  preview already uses, with the pivot's own rows injected as the PDC_MOCK (never fabricated
+  sample data). Each chart draws from an ordered "chart basis" table so `Studio.newPanel`'s
+  column-order defaults map it with zero bespoke wiring: bars/line/donut = [first dimension
+  (Rows shelf first), first measure] as a rollup — COUNT of rows when no measure is picked, so
+  charts never refuse to draw; heatmap = [first Rows dim, first Columns dim, measure], the
+  crosstab's own long form landing exactly on rowCol/colCol/valueCol. Buttons are
+  availability-gated with the REASON as the disabled tooltip (heatmap: "Needs a field on Rows
+  and a plain field on Columns"). Save now stamps the selected chart type on the View
+  (`chartType`, `chart` via newPanel over the basis columns, `builder.chartType`) so the Views
+  catalog shows the right type badge/icon/facet, and reopening restores the chart exactly.
+  Table stays the fast HTML pivot. 4 new regression tests (strip contents + heatmap gating;
+  bars renders the computed basis through PDC_MOCK — asserts the basis da + measure label in
+  the srcdoc; heatmap renders + save stamps type/builder/map; chart View reopen restores type
+  + active button + iframe). Verified visually (bars + heatmap screenshots, zero pageerrors).
+  **NEXT in #117/#118:** Filters shelf + per-field calcs; charting MORE of the shelves
+  (multi-dim series/grouped bars); live re-run of builder Views on dashboards; #118's
+  encoding card + delight layer. Files: app/build.js, app/index.html, app/studio.js,
+  app/studio.css, docs/index.html, sw.js, js/changelog.js, tests/run.js.
 - **#117 slice 1 — the VIEW BUILDER ships: a new "Build" rail section (v731, sw v368,
   2026-07-30, steward — Kevin greenlit the epic; the foundation slice):** the pivot/crosstab
   visual query builder, sibling to Explore, per Kevin's spec. NEW `app/build.js`

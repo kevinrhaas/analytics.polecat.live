@@ -493,11 +493,17 @@
   live through their connection where possible; otherwise the result carries the same
   <strong>sample rows</strong> badge used everywhere else so fabricated shape-preview data can
   never be mistaken for yours.</p>
-  <p><strong>Save View</strong> (top right) saves the result as a View — it appears in the
-  <strong>Views</strong> section like any other, and opening it from there returns it to Build
-  with its dataset and shelves restored (Views made in Explore keep opening in Explore). This
-  first version renders tables and crosstabs; the chart-type picker, Filters shelf, and per-field
-  calculated columns are on the roadmap.</p>
+  <p>The <strong>chart strip</strong> above the result switches how it draws: <strong>Table</strong>
+  (the full pivot), <strong>Bars</strong>, <strong>Line</strong>, <strong>Donut</strong>, or
+  <strong>Heatmap</strong>. Charts draw your <em>computed</em> numbers through the real dashboard
+  renderer — bars/line/donut chart the first dimension against the first measure (COUNT of rows
+  when no measure is picked), and Heatmap lights up when you have a field on Rows plus a plain
+  field on Columns, drawing exactly the crosstab as a color matrix. A chart that needs something
+  you haven't added yet is simply disabled, with the reason in its tooltip.</p>
+  <p><strong>Save View</strong> (top right) saves the result as a View with whichever chart type is
+  selected — it appears in the <strong>Views</strong> section like any other, and opening it from
+  there returns it to Build with its dataset, shelves, and chart restored (Views made in Explore
+  keep opening in Explore). The Filters shelf and per-field calculated columns are on the roadmap.</p>
 
   <h2>Sample packs</h2>
   <p><strong>Sample packs</strong> (Settings, and the Studio library's left View) are ready-made
