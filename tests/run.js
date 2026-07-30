@@ -22684,6 +22684,35 @@ function serve() {
     ok("LIVE-e: toggling dark/light while Help is open re-themes it immediately (no stale palette)",
       docsThemeFlow.modeMirrored && docsThemeFlow.bgModeChanged && docsThemeFlow.restored,
       JSON.stringify(docsThemeFlow));
+    // LIVE-e part 3: the 8 screenshot slots are FILLED — every .fig-slot carries
+    // has-img with a real docs/img/*.png that actually loads (naturalWidth > 0),
+    // no empty placeholder slots remain, and clicking one opens the dismissible
+    // zoom lightbox (click closes it again).
+    const docsFigs = await page.evaluate(async function () {
+      var f = document.getElementById("docsFrame");
+      var doc = f.contentDocument;
+      var slots = [].slice.call(doc.querySelectorAll(".fig-slot"));
+      var out = { total: slots.length, filled: slots.filter(function (s) { return s.classList.contains("has-img") && s.querySelector("img"); }).length };
+      var imgs = [].slice.call(doc.querySelectorAll(".fig-slot.has-img img"));
+      await Promise.all(imgs.map(function (im) {
+        return im.complete ? Promise.resolve() : new Promise(function (r) { im.onload = r; im.onerror = r; setTimeout(r, 4000); });
+      }));
+      out.allLoaded = imgs.length > 0 && imgs.every(function (im) { return im.naturalWidth > 0; });
+      // lightbox round trip
+      imgs[0].scrollIntoView();
+      imgs[0].click();
+      await new Promise(function (r) { setTimeout(r, 100); });
+      var zoom = doc.querySelector(".fig-zoom");
+      out.zoomOpened = !!(zoom && zoom.querySelector("img"));
+      if (zoom) zoom.click();
+      await new Promise(function (r) { setTimeout(r, 100); });
+      out.zoomClosed = !doc.querySelector(".fig-zoom");
+      return out;
+    });
+    ok("LIVE-e (3): all 8 Help screenshot slots are filled with real captures that load, and none remain hidden placeholders",
+      docsFigs.total === 8 && docsFigs.filled === 8 && docsFigs.allLoaded, JSON.stringify(docsFigs));
+    ok("LIVE-e (3): clicking a Help screenshot opens the zoom lightbox and clicking again dismisses it",
+      docsFigs.zoomOpened && docsFigs.zoomClosed, JSON.stringify(docsFigs));
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
 
     // J-docs-2: docs/index.html is served (HTTP 200) by the test server

@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v393"; /* v393: LIVE-d slice 2 — Connections gains the
+var CACHE_NAME = "studio-shell-v394"; /* v394: LIVE-e part 3 — the 8 hidden docs .fig-slot
+   placeholders are FILLED with real-app captures (docs/img/*.png, produced by the new
+   tools/snap-docs.mjs: seeded workspace, staged surfaces via the __studio* hooks, 2x region
+   clips) plus a click-to-zoom lightbox (click/Esc dismisses). docs/index.html figures get
+   has-img + img + updated dashtheme caption/comment. LIVE-e is now fully closed.
+   v393: LIVE-d slice 2 — Connections gains the
    same Select / bulk-delete multi-select pattern slice 1 shipped on Datasets (checkbox
    overlay on every row/tile, a bulk bar with Select all/Clear/Delete; the delete
    confirmation calls out datasets that reference a selected connection). app/connections.js,

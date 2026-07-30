@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LIVE-e part 3 — the docs screenshot pass (v757, sw v394, 2026-07-30, steward):** Kevin's
+  original LIVE-e ask reserved image placeholders "for us to add images... later we can go
+  back and fill them in at the end"; this closes that loop, and with it ALL of LIVE-e. The
+  new `tools/snap-docs.mjs` (global-playwright, same static-server + __studio* hook staging
+  conventions as the suite) boots the app with a seeded workspace (foldered datasets/
+  connection/job + three Views incl. a pinned one), stages each surface, and clips 8 region
+  captures at 2x into `docs/img/`: the expanded rail (three groups + backend indicator), the
+  top bar, Home's quick-action cards with Quick import lit as a drop target, the View
+  Builder mid-crosstab on a clean sample dataset, the Dashboard settings inspector with the
+  Dashboard theme / Accent / Series-palette controls beside a real dashboard, the Views
+  catalog (hover action cluster showing), Repository's nested folder tree, and the Settings
+  Color-theme cards. docs/index.html's 8 `.fig-slot` figures gain `has-img` + the `<img>`
+  (lazy-loaded), the dashtheme caption/comment updated to describe the real capture, and a
+  small click-to-zoom lightbox (overlay + ✕ + Esc, `.fig-zoom`) delivers the "image zoom box
+  preview open close dialog" Kevin asked for. Re-run the tool whenever the UI changes
+  materially — captures are checked in. Tests: all 8 slots filled with images that actually
+  load (naturalWidth > 0) + the lightbox round-trip. Files: tools/snap-docs.mjs,
+  docs/index.html, docs/img/*.png (8 new), tests/run.js, sw.js, js/changelog.js.
 - **LIVE-d slice 2 — Connections gains Select / bulk-delete (v756, sw v393, 2026-07-30,
   steward):** the second section to adopt the cross-app multi-select pattern slice 1 proved
   on Datasets (same **Select** toolbar button, checkbox overlay on every row/tile, bulk bar
@@ -7370,15 +7388,11 @@
 >       rest of the app's "Explore"/"Studio" strings (welcome-hero quick actions, tours,
 >       menus, a couple of empty states) to "Quick Views"/"Dashboard Builder" — `docs/index.html`
 >       deliberately left for LIVE-e's own overhaul instead.
-> LIVE-e. **Help/docs overhaul (Kevin live, 2026-07-30, two screenshots).** (1) The Help
->       section must respond to the app THEME (it renders light-on-dark wrong today) and the
->       "Back to Studio" button in the doc header goes away. (2) A full readability pass:
->       the docs are "massive paragraphs… so daunting" — rewrite into short paragraphs,
->       headings/sub-headings, bullets and sub-bullets, tables/diagrams where they help; make
->       it delightful to consume. (3) Leave IMAGE PLACEHOLDERS for later: at each spot where
->       a screenshot would help, add a hidden HTML comment describing exactly what image
->       should go there (users never see it); hide the whole image/zoom-box preview block
->       until real images are dropped in later.
+> LIVE-e. ✓ **Help/docs overhaul — FULLY DONE (2026-07-30, steward).** (1) Theme-aware Help
+>       + Back-to-Studio removed: SHIPPED v743. (2) Readability: SHIPPED v751 (part 1) +
+>       v752 (full sweep — zero walls of text remain). (3) Images: SHIPPED v757 — the 8
+>       placeholder slots are FILLED with real captures (tools/snap-docs.mjs, re-run it when
+>       the UI changes materially) plus the click-to-zoom lightbox. See DONE for writeups.
 > LIVE-b. ✓ **Sample-pack dashboard naming + folder (SHIPPED v741, 2026-07-30, steward)** —
 >       see DONE: titles lead, pack folder on install, boot reconcile heals old workspaces.
 > LIVE-d. **Cross-app multi-select + bulk actions (Kevin live, 2026-07-30).** Every catalog
