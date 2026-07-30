@@ -165,7 +165,12 @@
     var zp = Studio.clone(p); zp.span = 12;
     var zSpec = Studio.clone(S.spec);
     zSpec.panels = [zp]; zSpec.kpis = []; zSpec.filters = [];
-    return Studio.buildHtml(zSpec, S.assets, { deployPath: S.settings.deployPath, preview: true, mock: Studio.genMock(zSpec), launcher: false });
+    var zMock = Studio.genMock(zSpec);
+    // #118: builder-backed das show their real computed rows here too — by zoom
+    // time doRefresh has already run+cached the blob (same spec, same keys), so
+    // this synchronous read finds them without a wait.
+    if (Studio.Build && Studio.Build.specMocks) Object.assign(zMock, Studio.Build.specMocks(zSpec));
+    return Studio.buildHtml(zSpec, S.assets, { deployPath: S.settings.deployPath, preview: true, mock: zMock, launcher: false });
   }
 
   // inspector section collapse state — keyed by normalized title.
@@ -5127,8 +5132,14 @@
         && (!Studio.usesGLMap(S.spec) || S.assets.maplibre); // V4: GL panels wait for MapLibre too
       if (!haveAll) { ensureGeoAssets(S.spec).then(function () { doRefresh(); }); return; }
     }
+    // #118 (live re-run): builder-made Views recompute their REAL result from the
+    // da's saved builder blob — same kick-off-then-re-enter pattern as geo above;
+    // results are cached per blob, so the steady state is fully synchronous.
+    var pendingBuilder = Studio.Build && Studio.Build.ensureSpecMocks ? Studio.Build.ensureSpecMocks(S.spec) : null;
+    if (pendingBuilder) { pendingBuilder.then(function () { doRefresh(); }); return; }
     // H-track v117: in Demo mode substitute varied sample data so values pulse realistically.
     var mockData = S.demoMode ? genMockLive(S.spec, _demoTick) : Studio.genMock(S.spec);
+    if (!S.demoMode && Studio.Build && Studio.Build.specMocks) Object.assign(mockData, Studio.Build.specMocks(S.spec));
     var opts = { deployPath: S.settings.deployPath, preview: true, mock: mockData, launcher: false };
 
     var html = Studio.buildHtml(S.spec, S.assets, opts);
@@ -6249,7 +6260,13 @@
   function homeLiveFrame(box, spec, designW, cropTop) {
     var build = function () {
       var html;
-      try { html = Studio.buildHtml(spec, S.assets, { preview: true, mock: Studio.genMock(spec), launcher: false }); }
+      try {
+        var mock = Studio.genMock(spec);
+        // #118: a pinned builder View's card shows its REAL computed rows
+        // (cached per blob — ensured in start() below before build runs)
+        if (Studio.Build && Studio.Build.specMocks) Object.assign(mock, Studio.Build.specMocks(spec));
+        html = Studio.buildHtml(spec, S.assets, { preview: true, mock: mock, launcher: false });
+      }
       catch (e) { box.innerHTML = '<div class="home-feat-err">Preview unavailable</div>'; return; }
       var ifr = document.createElement("iframe");
       ifr.className = "home-live-ifr";
@@ -6276,7 +6293,11 @@
     var start = function () {
       if (box._liveStarted) return;
       box._liveStarted = true;
-      if (Studio.geoAssetKeys(spec).length) { ensureGeoAssets(spec).then(build); } else { build(); }
+      var pre = [];
+      if (Studio.geoAssetKeys(spec).length) pre.push(ensureGeoAssets(spec));
+      var pendingBuilder = Studio.Build && Studio.Build.ensureSpecMocks ? Studio.Build.ensureSpecMocks(spec) : null; // #118
+      if (pendingBuilder) pre.push(pendingBuilder);
+      if (pre.length) { Promise.all(pre).then(build); } else { build(); }
     };
     if (box.clientWidth) { start(); return; }
     if ("IntersectionObserver" in window) {

@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 755,
+    title: 'Builder Views show real numbers everywhere',
+    kind: 'feature',
+    ts: '2026-07-30T13:09:46.000Z',
+    items: [
+      'A View made in the View Builder now renders its actual computed result — the real dataset run through its filters, calculations, and pivot — wherever it appears: on dashboards, pinned to Home, in panel zoom, and when opened in Quick Views.',
+      'Previously those surfaces showed placeholder sample rows for builder-made Views; results are computed once and cached per View for the session.',
+    ],
+  },
+  {
     v: 754,
     title: 'Open any View in either editor',
     kind: 'feature',

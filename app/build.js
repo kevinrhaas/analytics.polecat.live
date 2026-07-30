@@ -88,18 +88,24 @@
   // recursive-descent parser, never eval()). Calc columns extend the loaded rows
   // ONCE (memoized) and from there behave like any other column — shelves,
   // filters, charts, and the pivot never special-case them.
-  function bdEff() {
-    if (!BD.run) return null;
-    if (!BD.calcs.length) return BD.run;
-    var key = JSON.stringify(BD.calcs);
-    if (!BD._eff || BD._effKey !== key) {
-      var e = Studio.applyCalcCols(BD.run.cols, BD.run.rows, BD.calcs.map(function (c) {
+  // #118 (live re-run): every basis-pipeline helper takes an OPTIONAL state `st`
+  // (shape of BD: run/calcs/filters/shelfCols/shelfRows/shelfColor/chartType)
+  // defaulting to the live BD — so bdRunBlob (below) can compute a saved View's
+  // REAL result from its `builder` blob through the exact same code path the
+  // editor renders with, zero duplicated logic.
+  function bdEff(st) {
+    st = st || BD;
+    if (!st.run) return null;
+    if (!st.calcs.length) return st.run;
+    var key = JSON.stringify(st.calcs);
+    if (!st._eff || st._effKey !== key) {
+      var e = Studio.applyCalcCols(st.run.cols, st.run.rows, st.calcs.map(function (c) {
         return { name: c.name, formula: c.formula, type: "Numeric" };
       }));
-      BD._eff = { cols: e.cols, rows: e.rows, live: BD.run.live, error: BD.run.error };
-      BD._effKey = key;
+      st._eff = { cols: e.cols, rows: e.rows, live: st.run.live, error: st.run.error };
+      st._effKey = key;
     }
-    return BD._eff;
+    return st._eff;
   }
   function bdIsCalc(col) { return BD.calcs.some(function (c) { return c.name === col; }); }
   // Replace the calc list wholesale (the editor modal's Save + the test hook):
@@ -236,38 +242,100 @@
   }
   // Workspace datasets run LIVE through their adapter, falling back to typed
   // sample rows when the run fails (same honesty rules as Explore's xpLoadRows);
-  // catalog samples always use the sample engine.
-  function bdLoadRows() {
-    if (BD.dsKind === "ws") {
-      var ds = Studio.Workspace.get("datasets", BD.dsId);
-      if (!ds) { BD.run = null; return Promise.resolve(null); }
+  // catalog samples always use the sample engine. bdLoadRowsFor is the pure
+  // half (#118 live re-run reuses it to run a saved blob's source); bdLoadRows
+  // keeps the editor's own BD.run assignment.
+  function bdLoadRowsFor(dsKind, dsId) {
+    if (dsKind === "ws") {
+      var ds = Studio.Workspace.get("datasets", dsId);
+      if (!ds) return Promise.resolve(null);
       return D.runDataset(ds).then(function (r) {
         if (r && !r.error && (r.rows || []).length) {
-          return (BD.run = { cols: r.columns || ds.columns || [], rows: r.rows.slice(0, 2000), live: true });
+          return { cols: r.columns || ds.columns || [], rows: r.rows.slice(0, 2000), live: true };
         }
         var cols = ds.columns || [];
-        if (!cols.length) return (BD.run = { cols: [], rows: [], live: false, error: (r && r.error) || "no columns known — Preview the dataset once" });
+        if (!cols.length) return { cols: [], rows: [], live: false, error: (r && r.error) || "no columns known — Preview the dataset once" };
         var sd = Studio.sampleRows({ id: ds.id, columns: cols });
-        return (BD.run = { cols: sd.cols, rows: sd.rows, live: false, error: r && r.error });
+        return { cols: sd.cols, rows: sd.rows, live: false, error: r && r.error };
       });
     }
-    if (BD.dsKind === "sample") {
-      var parts = BD.dsId.split(BD_SEP), stem = parts[0], daId = parts[1];
+    if (dsKind === "sample") {
+      var parts = dsId.split(BD_SEP), stem = parts[0], daId = parts[1];
       var cat = D.getCatalog();
       var da = ((cat[stem] || {}).dataAccesses || []).filter(function (d) { return d.id === daId; })[0];
-      if (!da) { BD.run = null; return Promise.resolve(null); }
+      if (!da) return Promise.resolve(null);
       var sd = Studio.sampleRows({ id: da.id, columns: da.columns || [], params: da.params || [] });
-      BD.run = { cols: sd.cols, rows: sd.rows, live: false };
-      return Promise.resolve(BD.run);
+      return Promise.resolve({ cols: sd.cols, rows: sd.rows, live: false });
     }
     return Promise.resolve(null);
+  }
+  function bdLoadRows() {
+    return bdLoadRowsFor(BD.dsKind, BD.dsId).then(function (run) { return (BD.run = run); });
+  }
+
+  // ---------- #118: live re-run of a saved builder View ----------
+  // A builder-made View's da is authored (no query), so every renderer used to
+  // fabricate its rows through the sample engine. bdRunBlob computes the REAL
+  // result from the saved `builder` blob — same source loading, calcs, filters
+  // and basis shaping as the editor itself (the parameterized helpers above).
+  // Results are cached per blob for the session (keyed by the blob's JSON), so
+  // a dashboard preview that re-renders on every edit never re-runs the source.
+  var _blobRuns = {}; // blobJSON → { done, val, promise }
+  function bdRunBlob(blob) {
+    if (!blob || !blob.dsKind) return Promise.resolve(null);
+    return bdLoadRowsFor(blob.dsKind, blob.dsId).then(function (run) {
+      if (!run || !(run.cols || []).length) return null;
+      var st = {
+        run: run, _eff: null,
+        calcs: blob.calcs || [], filters: blob.filters || [],
+        shelfCols: blob.shelfCols || [], shelfRows: blob.shelfRows || [],
+        shelfColor: blob.shelfColor || [], chartType: blob.chartType || "table"
+      };
+      var basis = st.chartType === "table"
+        ? compute(bdEff(st).cols, bdFilteredRows(st), st.shelfCols, st.shelfRows)
+        : chartBasis(st.chartType, st);
+      if (!basis || !basis.head.length) return null;
+      return { cols: basis.head.slice(), rows: basis.rows, live: !!run.live };
+    });
+  }
+  // Kick off (cached) runs for every builder-backed da in a spec. Returns a
+  // Promise while any run is still pending, or null when everything needed is
+  // already cached — callers use the same "kick off, then re-enter" pattern as
+  // studio.js's ensureGeoAssets.
+  function bdEnsureSpecMocks(spec) {
+    var pending = [];
+    (((spec || {}).cda || {}).dataAccesses || []).forEach(function (d) {
+      if (!d || !d.builder) return;
+      var k = JSON.stringify(d.builder);
+      if (!_blobRuns[k]) {
+        var rec = { done: false, val: null };
+        rec.promise = bdRunBlob(d.builder).then(function (v) { rec.done = true; rec.val = v; return v; })
+          .catch(function () { rec.done = true; rec.val = null; return null; });
+        _blobRuns[k] = rec;
+      }
+      if (!_blobRuns[k].done) pending.push(_blobRuns[k].promise);
+    });
+    return pending.length ? Promise.all(pending) : null;
+  }
+  // Synchronous read of the cached real results — { daId: { cols, rows } } for
+  // every builder-backed da whose run succeeded (failures fall back to the
+  // sample engine's fabricated rows, the pre-#118 behavior).
+  function bdSpecMocks(spec) {
+    var out = {};
+    (((spec || {}).cda || {}).dataAccesses || []).forEach(function (d) {
+      if (!d || !d.builder) return;
+      var rec = _blobRuns[JSON.stringify(d.builder)];
+      if (rec && rec.done && rec.val) out[d.id] = { cols: rec.val.cols, rows: rec.val.rows };
+    });
+    return out;
   }
 
   // Numeric vs dimension: name + sampled values, via the same guessFieldKind
   // the job editor already uses (injected) — one heuristic, not two.
-  function bdFieldKind(col) {
-    if (!BD.run) return "String";
-    var eff = bdEff();
+  function bdFieldKind(col, st) {
+    st = st || BD;
+    if (!st.run) return "String";
+    var eff = bdEff(st);
     var idx = eff.cols.indexOf(col);
     var vals = idx < 0 ? [] : eff.rows.slice(0, 30).map(function (r) { return r[idx]; });
     return D.guessFieldKind(col, vals);
@@ -308,7 +376,7 @@
     BD.shelfColor = BD.shelfColor.filter(function (f) { return f.col !== col; });
     render();
   }
-  function bdColorField() { return BD.shelfColor[0] || null; }
+  function bdColorField(st) { return (st || BD).shelfColor[0] || null; }
   // ---------- filters (slice 3) ----------
   // A filter narrows the SOURCE rows before anything computes — the pivot, every
   // chart basis, and the status row count all see the same filtered set. Two
@@ -338,10 +406,11 @@
     }
     return f.values.length + " value" + (f.values.length === 1 ? "" : "s");
   }
-  function bdFilteredRows() {
-    if (!BD.run) return [];
-    var active = BD.filters.filter(bdFilterActive);
-    var eff = bdEff();
+  function bdFilteredRows(st) {
+    st = st || BD;
+    if (!st.run) return [];
+    var active = st.filters.filter(bdFilterActive);
+    var eff = bdEff(st);
     if (!active.length) return eff.rows;
     var idx = {};
     eff.cols.forEach(function (c, i) { idx[c] = i; });
@@ -685,65 +754,68 @@
   // multi-series widening (bdLineSeriesBasis) — kept as one list so chartBasis
   // and bdPanelFor can't drift on which types get the treatment.
   var LINE_SHAPED_TYPES = ["line", "stacked", "areaStacked"];
-  function bdFirstDim() {
-    return BD.shelfRows[0] || BD.shelfCols.filter(function (f) { return !f.agg; })[0] || null;
+  function bdFirstDim(st) {
+    st = st || BD;
+    return st.shelfRows[0] || st.shelfCols.filter(function (f) { return !f.agg; })[0] || null;
   }
-  function bdColsDim() { return BD.shelfCols.filter(function (f) { return !f.agg; })[0] || null; }
-  function bdMeasures() { return BD.shelfCols.filter(function (f) { return f.agg; }); }
-  function bdFirstMeasure() {
-    var m = bdMeasures()[0];
+  function bdColsDim(st) { return (st || BD).shelfCols.filter(function (f) { return !f.agg; })[0] || null; }
+  function bdMeasures(st) { return (st || BD).shelfCols.filter(function (f) { return f.agg; }); }
+  function bdFirstMeasure(st) {
+    var m = bdMeasures(st)[0];
     if (m) return m;
-    var d = bdFirstDim();
+    var d = bdFirstDim(st);
     return d ? { col: d.col, agg: "count" } : null;
   }
   // Why a chart type can't draw yet — "" when it can. Doubles as the disabled tooltip.
-  function chartUnavailable(type) {
+  function chartUnavailable(type, st) {
+    st = st || BD;
     if (type === "table") return "";
-    if (!BD.run) return "Pick a dataset first";
+    if (!st.run) return "Pick a dataset first";
     if (type === "kpi") {
       // Unlike the dimension-based chart types below, a KPI has no breakdown —
       // it's a single rolled-up number, so any measure (or even just a bare
       // field falling back to COUNT via bdFirstMeasure) is enough to draw one.
-      return bdFirstMeasure() ? "" : "Needs a field on a shelf";
+      return bdFirstMeasure(st) ? "" : "Needs a field on a shelf";
     }
     if (type === "heatmap") {
-      if (!BD.shelfRows[0] || !bdColsDim()) return "Needs a field on Rows and a plain field on Columns";
+      if (!st.shelfRows[0] || !bdColsDim(st)) return "Needs a field on Rows and a plain field on Columns";
       return "";
     }
     if (type === "scatter") {
-      if (!bdFirstDim()) return "Needs at least one non-aggregated field on a shelf";
-      if (bdMeasures().length < 2) return "Needs two measures (aggregated fields)";
+      if (!bdFirstDim(st)) return "Needs at least one non-aggregated field on a shelf";
+      if (bdMeasures(st).length < 2) return "Needs two measures (aggregated fields)";
       return "";
     }
-    if (!bdFirstDim()) return "Needs at least one non-aggregated field on a shelf";
+    if (!bdFirstDim(st)) return "Needs at least one non-aggregated field on a shelf";
     return "";
   }
-  function chartBasis(type) {
-    if (!BD.run || chartUnavailable(type)) return null;
-    var m = bdFirstMeasure(), rows = bdFilteredRows();
+  function chartBasis(type, st) {
+    st = st || BD;
+    if (!st.run || chartUnavailable(type, st)) return null;
+    var m = bdFirstMeasure(st), rows = bdFilteredRows(st);
     if (type === "kpi") {
       // No dimension at all — compute()'s own "no shelfRows + one measure, no
       // dims" path already collapses to a single grand-total row (the exact
       // shape Studio.newKpi's valueCol expects), so this rides the same pivot
       // engine as every other basis with zero new logic.
-      return compute(bdEff().cols, rows, [m], []);
+      return compute(bdEff(st).cols, rows, [m], []);
     }
     if (type === "heatmap") {
-      return compute(bdEff().cols, rows,
-        [{ col: BD.shelfRows[0].col, agg: null }, { col: bdColsDim().col, agg: null }, m], []);
+      return compute(bdEff(st).cols, rows,
+        [{ col: st.shelfRows[0].col, agg: null }, { col: bdColsDim(st).col, agg: null }, m], []);
     }
     if (LINE_SHAPED_TYPES.indexOf(type) >= 0) {
-      var series = bdLineSeriesBasis(rows);
+      var series = bdLineSeriesBasis(rows, st);
       if (series) return series;
     }
-    var dim = bdFirstDim();
+    var dim = bdFirstDim(st);
     if (type === "scatter") {
       // Two measures, one point per dimension value — the same [dim, m1, m2]
       // shape Studio.newPanel's scatter mapping expects positionally (cols[0]
       // = labelCol, cols[1] = xCol, cols[2] = yCol), so no bdPanelFor wiring
       // is needed beyond the default Studio.newPanel(type, da) call below.
-      var ms2 = bdMeasures().slice(0, 2);
-      return compute(bdEff().cols, rows, [{ col: dim.col, agg: null }].concat(ms2), []);
+      var ms2 = bdMeasures(st).slice(0, 2);
+      return compute(bdEff(st).cols, rows, [{ col: dim.col, agg: null }].concat(ms2), []);
     }
     if (type === "choropleth") {
       // VB-4: a map is a single-dimension chart too (idCol/valueCol, same shape
@@ -751,11 +823,11 @@
       // ensemble channel with (toggle providers, re-color live), not a per-bar
       // tint, so it widens the basis into the heatmap's long [id, series,
       // value] form instead of bars/donut's "first-seen tag" widening below.
-      var mapCf = bdColorField();
-      if (mapCf) return compute(bdEff().cols, rows, [{ col: dim.col, agg: null }, { col: mapCf.col, agg: null }, m], []);
-      return compute(bdEff().cols, rows, [{ col: dim.col, agg: null }, m], []);
+      var mapCf = bdColorField(st);
+      if (mapCf) return compute(bdEff(st).cols, rows, [{ col: dim.col, agg: null }, { col: mapCf.col, agg: null }, m], []);
+      return compute(bdEff(st).cols, rows, [{ col: dim.col, agg: null }, m], []);
     }
-    var basis = compute(bdEff().cols, rows, [{ col: dim.col, agg: null }, m], []);
+    var basis = compute(bdEff(st).cols, rows, [{ col: dim.col, agg: null }, m], []);
     // VB-3: bars/donut are single-dimension charts, so "color by" only ever needs
     // ONE value per already-charted category — when the Color field IS that
     // dimension it's a no-op tag (colorCol = the column already there); when it's
@@ -763,11 +835,11 @@
     // widen the basis with that field's FIRST-SEEN value per category rather than
     // re-grouping by it (which would fan a bar chart out into duplicate rows).
     if (basis && (type === "bars" || type === "donut")) {
-      var cf = bdColorField();
+      var cf = bdColorField(st);
       if (cf) {
         basis.colorCol = cf.col;
         if (cf.col !== dim.col) {
-          var cmap = bdFirstSeenMap(rows, dim.col, cf.col);
+          var cmap = bdFirstSeenMap(rows, dim.col, cf.col, st);
           basis.head = basis.head.concat([cf.col]);
           basis.rows = basis.rows.map(function (r) {
             var k = String(r[0]);
@@ -780,9 +852,9 @@
   }
   // First-seen colVal for each distinct keyVal across rows — used to attach a
   // "color by" field's value to a rollup it wasn't grouped by (VB-3 chartBasis).
-  function bdFirstSeenMap(rows, keyCol, colCol) {
+  function bdFirstSeenMap(rows, keyCol, colCol, st) {
     var idx = {};
-    bdEff().cols.forEach(function (c, i) { idx[c] = i; });
+    bdEff(st || BD).cols.forEach(function (c, i) { idx[c] = i; });
     var ki = idx[keyCol], ci = idx[colCol], map = {};
     if (ki == null || ci == null) return map;
     rows.forEach(function (r) {
@@ -804,18 +876,19 @@
   // Anything richer (2+ Rows dims, a crosstab with 2+ measures) falls back
   // to the plain single-series basis below — same honesty convention as the
   // pivot's own truncation notes; charting those shapes is later work.
-  function bdLineSeriesBasis(rows) {
-    var dims = BD.shelfCols.filter(function (f) { return !f.agg; });
-    var measures = bdMeasures();
-    var colsDim = bdColsDim();
+  function bdLineSeriesBasis(rows, st) {
+    st = st || BD;
+    var dims = st.shelfCols.filter(function (f) { return !f.agg; });
+    var measures = bdMeasures(st);
+    var colsDim = bdColsDim(st);
     // VB-3: with no plain field on Columns to pivot across, the Color shelf's
     // field stands in as the split — so "color by X" alone is enough to turn a
     // single-series line into one line per X value, with no need to also park X
     // on Columns.
-    var cf = !colsDim ? bdColorField() : null;
-    if (BD.shelfRows.length === 1 && (colsDim || cf) && measures.length <= 1) {
-      var pivotCols = cf ? BD.shelfCols.concat([{ col: cf.col, agg: null }]) : BD.shelfCols;
-      var xtab = compute(bdEff().cols, rows, pivotCols, BD.shelfRows);
+    var cf = !colsDim ? bdColorField(st) : null;
+    if (st.shelfRows.length === 1 && (colsDim || cf) && measures.length <= 1) {
+      var pivotCols = cf ? st.shelfCols.concat([{ col: cf.col, agg: null }]) : st.shelfCols;
+      var xtab = compute(bdEff(st).cols, rows, pivotCols, st.shelfRows);
       if (xtab && !xtab.headGroups) {
         return {
           head: xtab.head.slice(0, -1), // drop the trailing crosstab "Total" column
@@ -824,8 +897,8 @@
         };
       }
     }
-    if (!BD.shelfRows.length && dims.length === 1 && measures.length >= 2) {
-      return compute(bdEff().cols, rows, BD.shelfCols, []);
+    if (!st.shelfRows.length && dims.length === 1 && measures.length >= 2) {
+      return compute(bdEff(st).cols, rows, st.shelfCols, []);
     }
     return null;
   }
@@ -1419,6 +1492,11 @@
             shelfColor: Studio.clone(BD.shelfColor), paletteKey: BD.paletteKey || ""
           }
         };
+        // #118 (live re-run): the da carries the builder blob too — the da is what
+        // travels into a dashboard's spec.cda when this View is added, so every
+        // renderer can recompute the REAL result (Studio.Build.runBlob) instead of
+        // fabricating sample rows for an authored, query-less da.
+        da.builder = Studio.clone(row.builder);
         // KPI is structurally different (spec.kpis, not spec.panels) — it saves
         // a `kpi` blob instead of a `chart` blob; everything that reads a saved
         // View's chartType (Explore's addToSpec/analysisSpec, Views' row icon)
@@ -1554,6 +1632,9 @@
     load: bdLoad,
     loadForeign: bdLoadForeign, // VB-5: open a Quick-Views/snapshot View here, best-effort
     newView: bdNew,
+    runBlob: bdRunBlob,             // #118: real result of a saved builder blob (Promise)
+    ensureSpecMocks: bdEnsureSpecMocks, // #118: Promise while builder-da runs pend, null when cached
+    specMocks: bdSpecMocks,         // #118: sync { daId: {cols, rows} } of cached real results
     state: BD             // test hook (also window.__studioBuild below)
   };
   window.__studioBuild = { state: BD, addField: bdAddField, selectDataset: bdSelectDataset, save: bdSave, load: bdLoad,

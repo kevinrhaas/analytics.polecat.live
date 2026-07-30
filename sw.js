@@ -5,7 +5,16 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v391"; /* v391: VB-5 cross-editor View opening (Kevin: "open any
+var CACHE_NAME = "studio-shell-v392"; /* v392: #118 live re-run — builder-made Views render
+   their REAL computed result everywhere: the basis pipeline in app/build.js is parameterized
+   on an explicit state (st defaulting to BD), Studio.Build.runBlob recomputes a saved
+   `builder` blob (source load + calcs + filters + basis, cached per blob JSON), bdSave stamps
+   the blob on the da (analysisSpec/xpAddAnalysisToSpec heal legacy rows), and the preview
+   mock paths overlay real rows: doRefresh (ensure-then-re-enter like geo), singlePanelHtml
+   (zoom), homeLiveFrame (Home cards), and Quick Views' cross-open fallback previews the
+   recomputed result live. Viewer + exported-HTML overlay is the documented follow-up.
+   app/build.js, app/explore.js, app/studio.js, docs/index.html.
+   v391: VB-5 cross-editor View opening (Kevin: "open any
    view in either quick view editor or the view builder… give a notification that this was
    built in the higher level editor… do your best to handle and render it") — any View opens
    in EITHER editor: Studio.Build.loadForeign reconstructs a Quick View's mapping onto the

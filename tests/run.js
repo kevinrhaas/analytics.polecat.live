@@ -10797,6 +10797,120 @@ function serve() {
       window.__studioShellSetSection("studio");
     }, { qvId: vb5a.qvId, dsId: vb5a.dsId });
     await page.waitForTimeout(150);
+
+    // 13f. #118 (live re-run): a builder-made View's da used to be authored with no
+    // query, so dashboards/Home fabricated its rows through the sample engine.
+    // Now the saved da carries the builder blob, Studio.Build.runBlob recomputes
+    // the REAL result (same parameterized pipeline the editor renders with), and
+    // every preview mock path (doRefresh / panel zoom / Home cards / Quick Views
+    // cross-open) overlays those real rows. A fake data adapter with exact known
+    // rows makes the assertion precise: SUM amount by region over
+    // [[East,10],[East,5],[West,7]] MUST render [[East,15],[West,7]] — values the
+    // sample fabricator could never produce.
+    const b118a = await page.evaluate(async () => {
+      const W = window.Studio.Workspace;
+      const B = window.__studioBuild;
+      const out = {};
+      window.Studio.registerSource({
+        id: "fakedata118", label: "FakeData118", icon: "db", caps: { data: true }, fields: [],
+        queryData: function () {
+          return Promise.resolve({ columns: ["region", "amount"], rows: [["East", 10], ["East", 5], ["West", 7]] });
+        }
+      });
+      const conn = W.put("connections", { name: "fd118", adapter: "fakedata118", cfg: {} });
+      const ds = W.put("datasets", { name: "bd118-ds", kind: "sql", sql: "select 1", connectionId: conn.id, columns: ["region", "amount"] });
+      out.connId = conn.id; out.dsId = ds.id;
+      window.__studioShellSetSection("build");
+      await B.selectDataset("ws", ds.id);
+      await new Promise((r) => setTimeout(r, 150));
+      out.liveRun = !!(B.state.run && B.state.run.live);
+      B.addField("region", "cols");
+      B.addField("amount", "cols");
+      B.state.chartType = "bars";
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 60));
+      B.save();
+      await new Promise((r) => setTimeout(r, 120));
+      const m = document.querySelector(".modal-ov .bd-save");
+      if (!m) return { err: "save modal missing" };
+      m.querySelector("input").value = "BD118 Live";
+      [].slice.call(m.querySelectorAll("button")).filter((b) => /^(Save|Update)$/.test(b.textContent))[0].click();
+      await new Promise((r) => setTimeout(r, 120));
+      const row = W.all("analyses").filter((a) => a.name === "BD118 Live")[0];
+      out.rowId = row && row.id;
+      out.daHasBlob = !!(row && row.da && row.da.builder);
+      const v = await window.Studio.Build.runBlob(row.builder);
+      out.runCols = v ? v.cols.join(",") : null;
+      out.runRows = v ? JSON.stringify(v.rows) : null;
+      out.runLive = !!(v && v.live);
+      return out;
+    });
+    ok("#118: saving a builder View stamps the builder blob on its da (the object that travels into dashboard specs)",
+      !b118a.err && b118a.liveRun && b118a.daHasBlob, JSON.stringify(b118a));
+    ok("#118: Studio.Build.runBlob recomputes the REAL result from the saved blob — SUM amount by region over the adapter's live rows, exactly",
+      b118a.runCols === "region,SUM amount" && b118a.runRows === '[["East",15],["West",7]]' && b118a.runLive,
+      JSON.stringify(b118a));
+    // Added to a dashboard, the preview renders those REAL rows (doRefresh's
+    // ensure-then-re-enter overlay), not sample-fabricated ones.
+    const b118b = await page.evaluate(async (rowId) => {
+      const out = {};
+      window.__studioExplore.addToSpec(rowId);
+      await new Promise((r) => setTimeout(r, 900));
+      const ifr = document.getElementById("preview");
+      const doc = ifr ? ifr.srcdoc : "";
+      out.mockHasReal = doc.indexOf('["East",15]') >= 0 && doc.indexOf('["West",7]') >= 0;
+      out.panelAdded = window.__STUDIO_STATE.spec.panels.some((p) => p.title === "BD118 Live");
+      // the spec's own da (cloned on add) carries the blob too
+      out.specDaBlob = (window.__STUDIO_STATE.spec.cda.dataAccesses || []).some((d) => d.builder && d.builder.dsKind === "ws");
+      return out;
+    }, b118a.rowId);
+    ok("#118: a builder View added to a dashboard previews its REAL computed rows — [East 15, West 7] appear in the preview mock",
+      b118b.panelAdded && b118b.specDaBlob && b118b.mockHasReal, JSON.stringify(b118b));
+    // Legacy rows (saved before this slice, blob only on the analyses row):
+    // analysisSpec attaches the blob to the da, and the ensure/read pair the Home
+    // cards + panel zoom use resolves the same real rows for that spec.
+    const b118c = await page.evaluate(async (rowId) => {
+      const out = {};
+      const W = window.Studio.Workspace;
+      const row = W.get("analyses", rowId);
+      delete row.da.builder; // simulate a pre-#118 saved View
+      W.put("analyses", row, { silent: true });
+      const spec = window.Studio.Explore.analysisSpec(W.get("analyses", rowId));
+      out.specDaHealed = !!(spec.cda.dataAccesses[0] && spec.cda.dataAccesses[0].builder);
+      const pend = window.Studio.Build.ensureSpecMocks(spec);
+      if (pend) await pend;
+      const mocks = window.Studio.Build.specMocks(spec);
+      const daId = spec.cda.dataAccesses[0].id;
+      out.mockRows = mocks[daId] ? JSON.stringify(mocks[daId].rows) : null;
+      return out;
+    }, b118a.rowId);
+    ok("#118: a pre-existing builder View (blob only on the row) is healed by analysisSpec, and the Home-card/zoom mock path resolves its real rows",
+      b118c.specDaHealed && b118c.mockRows === '[["East",15],["West",7]]', JSON.stringify(b118c));
+    // Cross-editor (VB-5) preview honesty: the same builder View opened in Quick
+    // Views previews the REAL result now — live rows, not fabricated samples.
+    const b118d = await page.evaluate(async (rowId) => {
+      const out = {};
+      window.Studio.ViewsCatalog.openIn(rowId, "explore");
+      await new Promise((r) => setTimeout(r, 500));
+      const st = window.__studioExplore.state;
+      out.live = !!(st.run && st.run.live);
+      out.rows = st.run ? JSON.stringify(st.run.rows) : null;
+      return out;
+    }, b118a.rowId);
+    ok("#118: opening a builder View in Quick Views previews the real recomputed rows (live), not sample-fabricated ones",
+      b118d.live && b118d.rows === '[["East",15],["West",7]]', JSON.stringify(b118d));
+    // cleanup the #118 fixtures + restore the section
+    await page.evaluate((f) => {
+      const W = window.Studio.Workspace;
+      W.remove("analyses", f.rowId);
+      W.remove("datasets", f.dsId);
+      W.remove("connections", f.connId);
+      const sp = window.__STUDIO_STATE.spec;
+      sp.panels = sp.panels.filter((p) => p.title !== "BD118 Live");
+      window.Studio.Build.newView();
+      window.__studioShellSetSection("studio");
+    }, { rowId: b118a.rowId, dsId: b118a.dsId, connId: b118a.connId });
+    await page.waitForTimeout(150);
     // 5. mobile — a brand-new section is a release-gate surface at 390px
     const bdPhone = await browser.newPage({ viewport: { width: 390, height: 780 } });
     const bdPhoneErrs = [];
