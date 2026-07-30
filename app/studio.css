@@ -1386,16 +1386,46 @@ body.lib-dragging #preview{pointer-events:none}
 .bd-wrap{display:grid;grid-template-columns:250px minmax(0,1fr);gap:var(--sp-16);align-items:start}
 .bd-left{background:var(--pane);border:1px solid var(--line);border-radius:12px;padding:var(--sp-10);
   position:sticky;top:var(--sp-10);max-height:calc(100vh - 120px);overflow:auto}
-.bd-left-head{font-size:var(--fs-11);font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+.bd-left-head{display:flex;align-items:center;justify-content:space-between;font-size:var(--fs-11);font-weight:800;letter-spacing:.06em;text-transform:uppercase;
   color:var(--faint);padding:var(--sp-2) var(--sp-4) var(--sp-8)}
+/* VB-1: navigator parity — search + New in the pane header, an Explore-style
+   folder tree, stacked readable labels, per-row icons + hover manage ops */
+.bd-ds-new{background:none;border:1px solid var(--line);border-radius:7px;color:var(--brand);cursor:pointer;
+  font-size:var(--fs-11);font-weight:700;letter-spacing:0;text-transform:none;padding:2px 8px}
+.bd-ds-new:hover{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 8%,transparent)}
+.bd-ol-search{width:100%;box-sizing:border-box;margin:0 0 var(--sp-8);padding:var(--sp-6) var(--sp-8);
+  background:var(--field);border:1px solid var(--line);border-radius:8px;color:var(--ink);font-size:var(--fs-12)}
+.bd-ol-search:focus{outline:none;border-color:var(--brand)}
+.bd-grp-h{display:flex;align-items:center;gap:6px;font-size:var(--fs-10);font-weight:800;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--faint);padding:var(--sp-8) var(--sp-4) var(--sp-4)}
+.bd-tree-h{display:flex;align-items:center;gap:6px;width:100%;text-align:left;background:none;border:none;
+  cursor:pointer;padding:var(--sp-4) var(--sp-6);border-radius:8px;color:var(--muted);font-size:var(--fs-12);font-weight:700}
+.bd-tree-h:hover{background:var(--field)}
+.bd-tree-lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bd-tree-n{margin-left:auto;flex:0 0 auto;font-size:var(--fs-10);font-weight:700;color:var(--faint);
+  background:var(--field);border-radius:999px;padding:0 7px}
+.bd-tree-kids{padding-left:var(--sp-10);border-left:1px solid var(--line);margin-left:var(--sp-8)}
 .bd-ol{margin-bottom:2px}
+.bd-ol-row{display:flex;align-items:center;gap:2px}
+.bd-ol-row .bd-ol-head{flex:1 1 auto;min-width:0}
 .bd-ol-head{display:flex;align-items:center;gap:6px;width:100%;text-align:left;background:none;border:none;
   cursor:pointer;padding:var(--sp-6) var(--sp-6);border-radius:8px;color:var(--ink);font-size:var(--fs-13)}
 .bd-ol-head:hover{background:var(--field)}
-.bd-ol.sel>.bd-ol-head{background:color-mix(in srgb,var(--brand) 12%,transparent);font-weight:700}
+.bd-ol.sel .bd-ol-head{background:color-mix(in srgb,var(--brand) 12%,transparent);font-weight:700}
 .bd-ol-car{flex:0 0 auto;font-size:var(--fs-10);color:var(--faint)}
-.bd-ol-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.bd-ol-head small{margin-left:auto;flex:0 0 auto;font-size:var(--fs-10);color:var(--faint)}
+.bd-ol-ic{flex:0 0 auto;display:inline-flex;color:var(--faint)}
+.bd-ol.sel .bd-ol-ic{color:var(--brand)}
+/* stacked name + sub: the one-line name+right-aligned-sub layout crushed names
+   to a sliver (Kevin: "i cant tell the names of the datasets") */
+.bd-ol-txt{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.bd-ol-txt b{font-weight:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bd-ol-txt small{font-size:var(--fs-10);color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bd-ol-acts{display:none;flex:0 0 auto;align-items:center;gap:1px;padding-right:2px}
+.bd-ol-row:hover .bd-ol-acts,.bd-ol-acts:focus-within{display:inline-flex}
+.bd-ol-act{background:none;border:none;cursor:pointer;color:var(--faint);font-size:var(--fs-11);
+  border-radius:6px;padding:3px 4px;line-height:1}
+.bd-ol-act:hover{color:var(--brand);background:var(--field)}
+.bd-ol-act[data-bd-ds-del]:hover{color:#e5484d}
 .bd-ol-cols{display:flex;flex-wrap:wrap;gap:4px;padding:var(--sp-4) var(--sp-6) var(--sp-8) var(--sp-20)}
 .bd-col{display:inline-flex;align-items:center;gap:5px;background:var(--field);border:1px solid var(--line);
   border-radius:999px;padding:3px 9px;font-size:var(--fs-11);color:var(--ink);cursor:grab}

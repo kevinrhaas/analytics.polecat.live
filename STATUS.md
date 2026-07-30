@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **VB-1 — the View Builder's dataset pane becomes a real NAVIGATOR (v737, sw v374,
+  2026-07-30, steward):** first slice of Kevin's overnight View Builder queue ("i like the new
+  view builder… the datasets pane should have the same operations as the studio… i cant tell
+  the names of the datasets"). The Build outline now has Explore-navigator parity: ws datasets
+  group into their folders (nested via "/", every branch collapsible, unfiled rows after
+  folders — Repository conventions), sample data groups by set (default CLOSED once you have
+  datasets of your own), and a search box (STATIC markup outside #buildOutline so keystroke
+  focus survives re-renders) flattens the tree to plain matching rows. Readability fixed
+  first-class: each row is an inline-SVG icon + the name stacked over its connection
+  (ellipsized, full name in the hover title) instead of one crushed line. Dataset management
+  ON the pane: ＋ New in the header opens THE shared dataset editor (Studio.Datasets.
+  openEditor via a new openDatasetEditor dep) and selects the new dataset on save; hover a ws
+  row for ✎ edit (re-pulls rows if it's the selected dataset), ⧉ copy (fresh id, "(copy)"
+  name), ✕ delete (confirm; resets the builder if it was selected). Sample rows stay
+  read-only (no ops). 4 new regression tests (pane chrome + tree structure + nested filed
+  row; stacked label/tooltip/icon; collapse/expand + search-flatten; copy/delete round trip +
+  sample read-only). **Remaining overnight queue (NEXT):** VB-2 pill drag between shelves,
+  VB-3 Color encoding + palettes, VB-4 chart parity (choropleth first). Files: app/build.js,
+  app/index.html, app/studio.css, app/studio.js, docs/index.html, sw.js, js/changelog.js,
+  tests/run.js.
 - **Kevin's rail IA + workspace-sync SELF-HEAL (v736, sw v373, 2026-07-30, steward):** two
   live asks in one slice. (1) **Rail regrouped by intent** — Workspace = the catalogs (Home,
   Views, Dashboards, Datasets, Connections, Repository), Build = the builders (**Quick Views**
@@ -6842,13 +6862,8 @@
 > Kevin's overnight worklist for #117's View Builder. Work top-down as separate steward
 > slices; reuse Studio's existing engineering rather than reinventing (his explicit note:
 > "you should have most of the engineering for this already in the dashboard builder").
-> VB-1. **Datasets pane parity + readability.** The left outline should behave like Studio's
->       datasets pane and Quick Views' navigator: collapsible groups, real folder display +
->       filing (reuse the LF56 folder navigator conventions), search box, per-dataset icons,
->       and dataset-management operations (new / delete / copy) right from the pane. Today the
->       names are unreadably truncated ("collapsed so much") — fix the readability first-class.
->       One consistent look & feel across Studio / Quick Views / View Builder ("so they look
->       like consistent apps").
+> VB-1. ✓ **Datasets pane parity + readability (SHIPPED v737, 2026-07-30, steward)** — see
+>       DONE: folder tree + search + icons + stacked labels + New/edit/copy/delete on the pane.
 > VB-2. **Shelf pills are draggable BETWEEN areas.** After a field lands on Columns/Rows/
 >       Filters, dragging its pill should move it to any other shelf (and reorder within a
 >       shelf) — not just the ⇄ swap button.

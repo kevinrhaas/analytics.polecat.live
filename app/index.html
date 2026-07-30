@@ -262,7 +262,13 @@
   <section id="secBuild" class="app-sec has-content" hidden>
     <div class="bd-wrap">
       <aside class="bd-left">
-        <div class="bd-left-head">Datasets</div>
+        <!-- VB-1 (Kevin overnight queue): navigator parity with Quick Views/Studio —
+             search + New live OUTSIDE #buildOutline so they survive re-renders
+             (keystroke focus is never lost when the tree repaints). -->
+        <div class="bd-left-head">Datasets
+          <button type="button" class="bd-ds-new" id="bdDsNew" title="Create a new dataset" aria-label="Create a new dataset">＋ New</button>
+        </div>
+        <input id="bdOutlineSearch" class="bd-ol-search" type="search" placeholder="Search datasets…" aria-label="Search datasets"/>
         <div id="buildOutline"></div>
       </aside>
       <div class="bd-main">

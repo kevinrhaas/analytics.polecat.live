@@ -494,8 +494,15 @@
 
   <h2 id="build">View Builder — pivot and crosstab, no code</h2>
   <p><strong>Views</strong> (left rail, Build group) is Quick Views' power-user sibling: a visual pivot/crosstab
-  query builder. The left panel lists every dataset you can chart (your workspace datasets first,
-  sample data below); click one and its columns appear as chips — <code>#</code> marks a numeric
+  query builder. The left panel is a real dataset <em>navigator</em>, matching Quick Views and the
+  Studio library: your workspace datasets group into their folders (nested via "/", each branch
+  collapsible), sample data groups by set (collapsed by default once you have datasets of your
+  own), and typing in its search box flattens the tree to plain matching rows. Every row shows an
+  icon plus the dataset's name over its connection, with the full name in the hover tooltip.
+  Hovering a workspace dataset reveals manage actions right on the row — ✎ edit and ⧉ copy and
+  ✕ delete — and the <strong>＋ New</strong> button at the top of the pane opens the same dataset
+  editor the Datasets section uses, selecting the new dataset as soon as you save it.
+  Click a dataset and its columns appear as chips — <code>#</code> marks a numeric
   field, <code>a</code> a text one. Click a chip (or drag it) onto the <strong>Columns</strong>
   shelf and the result table renders live in the middle. Numeric fields aggregate automatically as
   <strong>SUM</strong> — the little aggregation badge on the shelf chip switches to AVG, MIN, MAX,

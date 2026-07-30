@@ -9754,6 +9754,73 @@ function serve() {
     ok("#117 (4): calcs persist on the builder blob and reopen still-applied",
       bdCalcSave.savedCalcs === "amount_x2" && bdCalcSave.restoredCalcs === "amount_x2" && bdCalcSave.effHasCalc,
       JSON.stringify(bdCalcSave));
+    // 9. VB-1 (Kevin overnight queue): outline navigator parity — search, folder
+    // tree, stacked readable labels + icons, and manage ops right on the pane
+    const vb1 = await page.evaluate(async () => {
+      const W = window.Studio.Workspace;
+      const out = {};
+      const ds = W.all("datasets").filter((d) => d.name === "bd117-ds")[0];
+      ds.folder = "Sales/2026";
+      W.put("datasets", ds);
+      const ds2 = W.put("datasets", { name: "vb1-unfiled", kind: "sql", sql: "select a from t", columns: ["a"] });
+      window.__studioRenderBuild();
+      await new Promise((r) => setTimeout(r, 80));
+      const ol = document.getElementById("buildOutline");
+      // pane chrome lives OUTSIDE the re-rendered tree (keystroke focus survives)
+      out.hasSearch = !!document.getElementById("bdOutlineSearch");
+      out.hasNew = !!document.getElementById("bdDsNew");
+      out.grpHeads = [].slice.call(ol.querySelectorAll(".bd-grp-h")).map((h) => h.textContent.trim().split(/\s/)[0]).join(",");
+      out.treeHeads = [].slice.call(ol.querySelectorAll(".bd-tree-h")).map((h) => h.getAttribute("data-bd-tree")).join("|");
+      out.filedInKids = !!ol.querySelector('.bd-tree-kids .bd-ol[data-bd-ds-id="' + ds.id + '"]');
+      const head = ol.querySelector('.bd-ol[data-bd-ds-id="' + ds.id + '"] .bd-ol-head');
+      out.stacked = !!(head && head.querySelector(".bd-ol-txt b") && head.querySelector(".bd-ol-txt small"));
+      out.tooltip = ((head && head.getAttribute("title")) || "").indexOf("bd117-ds") >= 0;
+      out.icon = !!(head && head.querySelector(".bd-ol-ic svg"));
+      // branch collapse hides the filed row; expanding brings it back
+      ol.querySelector('.bd-tree-h[data-bd-tree="Sales"]').click();
+      await new Promise((r) => setTimeout(r, 60));
+      out.collapsedHidden = !!document.querySelector('#buildOutline .bd-tree-kids[hidden] .bd-ol[data-bd-ds-id="' + ds.id + '"]');
+      document.querySelector('#buildOutline .bd-tree-h[data-bd-tree="Sales"]').click();
+      await new Promise((r) => setTimeout(r, 60));
+      out.expandedBack = !!document.querySelector('#buildOutline .bd-tree-kids:not([hidden]) .bd-ol[data-bd-ds-id="' + ds.id + '"]');
+      // a search query flattens the tree to plain matching rows
+      const q = document.getElementById("bdOutlineSearch");
+      q.value = "vb1-unfiled"; q.dispatchEvent(new Event("input", { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 60));
+      out.searchHit = !!document.querySelector('#buildOutline .bd-ol[data-bd-ds-id="' + ds2.id + '"]');
+      out.searchRows = document.querySelectorAll("#buildOutline .bd-ol").length;
+      out.searchNoTree = !document.querySelector("#buildOutline .bd-tree-h");
+      q.value = ""; q.dispatchEvent(new Event("input", { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 60));
+      // manage ops (ws rows only): copy → "(copy)" row; delete removes it
+      out.hasOps = !!document.querySelector('#buildOutline [data-bd-ds-edit="' + ds2.id + '"]') &&
+        !!document.querySelector('#buildOutline [data-bd-ds-copy="' + ds2.id + '"]') &&
+        !!document.querySelector('#buildOutline [data-bd-ds-del="' + ds2.id + '"]');
+      document.querySelector('#buildOutline [data-bd-ds-copy="' + ds2.id + '"]').click();
+      await new Promise((r) => setTimeout(r, 150));
+      const copy = W.all("datasets").filter((d) => d.name === "vb1-unfiled (copy)")[0];
+      out.copied = !!copy && copy.id !== ds2.id;
+      const confirm0 = window.confirm; window.confirm = () => true;
+      document.querySelector('#buildOutline [data-bd-ds-del="' + copy.id + '"]').click();
+      window.confirm = confirm0;
+      await new Promise((r) => setTimeout(r, 150));
+      out.deleted = !W.get("datasets", copy.id);
+      out.sampleNoOps = !document.querySelector('#buildOutline .bd-ol[data-bd-ds-kind="sample"] .bd-ol-acts');
+      W.remove("datasets", ds2.id);
+      await new Promise((r) => setTimeout(r, 60));
+      return out;
+    });
+    ok("VB-1: the pane has search + ＋ New, group headers, a real folder tree (Sales → Sales/2026) with the filed row nested inside",
+      vb1.hasSearch && vb1.hasNew && /Your/.test(vb1.grpHeads) && /(^|\|)Sales(\||$)/.test(vb1.treeHeads) &&
+      vb1.treeHeads.indexOf("Sales/2026") >= 0 && vb1.filedInKids,
+      JSON.stringify(vb1));
+    ok("VB-1: rows read like Explore's — stacked name over sub with a full-name tooltip and an inline-SVG icon",
+      vb1.stacked && vb1.tooltip && vb1.icon, JSON.stringify(vb1));
+    ok("VB-1: branches collapse/expand, and a search query flattens the tree to just the matching rows",
+      vb1.collapsedHidden && vb1.expandedBack && vb1.searchHit && vb1.searchRows === 1 && vb1.searchNoTree,
+      JSON.stringify(vb1));
+    ok("VB-1: ws rows carry edit/copy/delete ops — copy mints a '(copy)' dataset, delete removes it, sample rows stay read-only",
+      vb1.hasOps && vb1.copied && vb1.deleted && vb1.sampleNoOps, JSON.stringify(vb1));
     // cleanup + restore the section the next block expects
     await page.evaluate((savedId) => {
       const st = window.__studioBuild.state;

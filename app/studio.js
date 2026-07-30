@@ -6784,6 +6784,8 @@
   Studio.Build.configure(Object.assign(coreModuleDeps(), {
     isDatasetVisibleToMe: function (r) { return isDatasetVisibleToMe(r); },
     runDataset: function (ds) { return runDataset(ds); },
+    // VB-1: the outline's ＋ New / ✎ edit reuse THE shared dataset editor
+    openDatasetEditor: function (existing, onSaved) { return openDatasetEditor(existing, onSaved); },
     getCatalog: function () { return S.catalog; },
     showSamples: function () { return showSamples(); },
     guessFieldKind: function (colName, vals) { return guessFieldKind(colName, vals); },
