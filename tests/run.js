@@ -4706,6 +4706,31 @@ function serve() {
       cons0.maxStack <= 100, JSON.stringify(cons0));
     ok("CONS-0: adoption-style percent metrics trend UP over the label axis; only the regressive practice (Conventional) declines",
       cons0.coverRises && cons0.conventionalFalls && cons0.adoptionRises, JSON.stringify(cons0));
+
+    // ---- VB-7 (Kevin live, 2026-07-30): the panel that holds a View has its own title ----
+    console.log("\n\u2022 VB-7: panel title independent of the View name");
+    const vb7 = await page.evaluate(function () {
+      var W = Studio.Workspace;
+      W.put("analyses", { id: "vb7-a", name: "VB7 View", panelTitle: "Custom panel heading", chartType: "bars",
+        da: { id: "vb7", name: "VB7 View", columns: ["geoid", "adoption_pct"], params: [], authored: true },
+        chart: { type: "bars", da: "vb7", map: { labelCol: "geoid", valueCol: "adoption_pct" }, opts: {} } });
+      var withTitle = Studio.Explore.analysisSpec(W.get("analyses", "vb7-a"));
+      W.put("analyses", { id: "vb7-b", name: "VB7 Plain", chartType: "bars",
+        da: { id: "vb7b", name: "VB7 Plain", columns: ["geoid", "adoption_pct"], params: [], authored: true },
+        chart: { type: "bars", da: "vb7b", map: { labelCol: "geoid", valueCol: "adoption_pct" }, opts: {} } });
+      var plain = Studio.Explore.analysisSpec(W.get("analyses", "vb7-b"));
+      var out = {
+        panelTitle: withTitle.panels[0] && withTitle.panels[0].title,
+        specTitle: withTitle.title,
+        plainPanelTitle: plain.panels[0] && plain.panels[0].title
+      };
+      W.remove("analyses", "vb7-a"); W.remove("analyses", "vb7-b");
+      return out;
+    });
+    ok("VB-7: a View's panelTitle wins over its name for the placed panel header, while the View keeps its own name",
+      vb7.panelTitle === "Custom panel heading" && vb7.specTitle === "VB7 View", JSON.stringify(vb7));
+    ok("VB-7: with no panelTitle set, the panel header defaults to the View name",
+      vb7.plainPanelTitle === "VB7 Plain", JSON.stringify(vb7));
     await page.evaluate(function () { return window.__studioLoadExample("conservation-flow.studio.json"); }); // LF43 slice 2: menu gone — hook load
     await page.waitForTimeout(300);
     const lf2Flow = await page.evaluate(function () {
@@ -10274,7 +10299,8 @@ function serve() {
       await new Promise((r) => setTimeout(r, 120));
       const m = document.querySelector(".modal-ov .bd-save"); if (!m) return { err: "save modal missing" };
       const inputs = m.querySelectorAll("input");
-      const inp = inputs[0], folderInp = inputs[1];
+      // VB-7 added a Panel-title input between Name and Folder — target Folder by its datalist
+      const inp = inputs[0], folderInp = m.querySelector('input[list="bdFolderOptions"]');
       inp.value = "BD117 Pivot";
       const sparkleCount = m.querySelectorAll(".name-sparkle-btn").length;
       const hasBrowseBtn = !!m.querySelector(".fp-browse-btn");
@@ -15015,7 +15041,15 @@ function serve() {
       try { localStorage.setItem("analytics.datasource.v1", JSON.stringify({ sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid", authEmail: "owner@example.com", authPassword: "secret123" }, at: 1 })); } catch (e) {}
     }, PORT);
     await gpDirect.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
-    await gpDirect.waitForFunction(() => window.Studio && Studio.Sync && Studio.Sync.syncState().sourceId === "supabase", { timeout: 6000 }).catch(() => {});
+    // The direct-auth branch requires syncState().sourceId === "supabase" AT SUBMIT TIME
+    // (gate.js tryGotrueDirectAuth falls through to "isn't in your connected workspace"
+    // otherwise). Under load initSync can lag well past 6s, and the old swallowed wait
+    // let the submit race it — the 2026-07-30 flake's second signature. Wait long, and
+    // RECORD the outcome so any recurrence names the real cause in the payload.
+    const directSyncReady = await gpDirect.waitForFunction(
+      () => window.Studio && Studio.Sync && Studio.Sync.syncState().sourceId === "supabase",
+      { timeout: 20000 }
+    ).then(() => true).catch(() => false);
     await gpDirect.waitForSelector("#g-form", { timeout: 4000 });
     await gpDirect.evaluate(function () {
       Studio.Workspace.put("users", { id: "user_gt", u: "gtmate", name: "GoTrue Mate", role: "viewer", demo: false, gotrueId: "11111111-1111-1111-1111-111111111111" }, { silent: true });
@@ -15038,6 +15072,7 @@ function serve() {
       gateErr: (document.getElementById("g-err") || {}).textContent || ""
     }));
     await gpDirect.close();
+    directAuthed.syncReadyBeforeSubmit = directSyncReady;
     ok("LF39/M7: a fresh-device teammate signs in with their email straight against the backend's GoTrue and is adopted as the matching local account",
       directAuthed.gateGone && directAuthed.who === "gtmate" && directAuthed.gotrueId === "11111111-1111-1111-1111-111111111111", JSON.stringify(directAuthed));
 

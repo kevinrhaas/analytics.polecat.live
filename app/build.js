@@ -69,6 +69,7 @@
     paletteKey: "",           // VB-3: Studio.PALETTE_PRESETS key ("" = default) for the live preview
     chartType: "table",      // slice 2: table | bars | line | donut | heatmap
     analysisId: null, name: "", folder: "",
+    panelTitle: "",          // VB-7: the panel header's own title — "" tracks the View name
     notice: "",              // VB-5: dismissible cross-editor banner text ("" = hidden)
     outlineOpen: {}          // which outline datasets are expanded
   };
@@ -79,6 +80,7 @@
     BD._eff = null;
     BD.chartType = "table";
     BD.analysisId = null; BD.name = ""; BD.folder = "";
+    BD.panelTitle = "";
     BD.notice = "";
   }
 
@@ -951,7 +953,7 @@
   // renderKpiInspector: newKpi(da) then guessFmt(k.valueCol)) — no new mapping.
   function bdKpiFor(da) {
     var k = Studio.newKpi(da);
-    k.label = BD.name || BD.dsName || "Metric";
+    k.label = BD.panelTitle || BD.name || BD.dsName || "Metric"; // VB-7
     k.fmt = Studio.guessFmt(k.valueCol);
     return k;
   }
@@ -966,7 +968,7 @@
     clearTimeout(_bdPvTimer);
     _bdPvTimer = setTimeout(function () {
       var da = { id: "build_result", name: BD.name || "Build result", kind: "sql", sql: "", query: "", columns: basis.head.slice(), params: [], authored: true };
-      var title = BD.name || BD.dsName || "View";
+      var title = BD.panelTitle || BD.name || BD.dsName || "View"; // VB-7: panel title wins when set
       var spec = {
         id: "build-preview", name: "build-preview", title: title, hideHeader: true,
         dashboardTheme: D.defaultDashboardTheme(),
@@ -1468,6 +1470,10 @@
       field("Name", D.withSparkleButton(inp, "view", function () {
         return { sourceDatasetName: BD.dsName || "", valueCol: (BD.shelfCols[0] && BD.shelfCols[0].col) || "" };
       }));
+      // VB-7 (Kevin live, 2026-07-30): the panel that HOLDS the View can carry its own
+      // title — it defaults to (and keeps tracking) the View name until overridden here.
+      var ptInp = D.el("input"); ptInp.type = "text"; ptInp.value = BD.panelTitle || ""; ptInp.placeholder = BD.name || "Same as the View name";
+      field("Panel title", ptInp, "Optional — how the panel header reads in the preview and on dashboards. Leave blank to keep it matching the View name.");
       var folderInp = D.el("input"); folderInp.type = "text"; folderInp.value = BD.folder || ""; folderInp.placeholder = "e.g. Finance";
       // VB-6: the LF56 folder navigator (same Browse-a-folder-tree picker every other
       // Folder field uses) plus the sparkle suggest, seeded from the picked dataset's
@@ -1497,6 +1503,7 @@
         if (!name) { toast("Give the View a name.", true); return; }
         BD.name = name;
         BD.folder = folderInp.value.trim();
+        BD.panelTitle = ptInp.value.trim() === name ? "" : ptInp.value.trim(); // "" = track the View name (VB-7)
         var base = name.replace(/[^A-Za-z0-9_]+/g, "_").replace(/^_+|_+$/g, "") || "view";
         // A self-contained da over the COMPUTED result columns, so every existing
         // View surface (catalog row, add-to-dashboard, export) treats this like any
@@ -1505,7 +1512,7 @@
         // slice teaches those surfaces to re-run the builder state.
         var da = { id: base, name: name, kind: "sql", sql: "", query: "", columns: res.head.slice(), params: [], authored: true };
         var row = {
-          name: name, folder: BD.folder || "", chartType: BD.chartType, da: da,
+          name: name, folder: BD.folder || "", panelTitle: BD.panelTitle || "", chartType: BD.chartType, da: da,
           paletteKey: BD.paletteKey || "",
           builder: {
             dsKind: BD.dsKind, dsId: BD.dsId, chartType: BD.chartType,
@@ -1572,7 +1579,7 @@
     if (!a) return;
     if (a.builder) { bdLoad(id); return; }
     bdReset();
-    BD.analysisId = a.id; BD.name = a.name || ""; BD.folder = a.folder || "";
+    BD.analysisId = a.id; BD.name = a.name || ""; BD.folder = a.folder || ""; BD.panelTitle = a.panelTitle || ""; // VB-7
     BD.paletteKey = a.paletteKey || "";
     var kind = null, dsId = null;
     if (a.datasetId) { kind = "ws"; dsId = a.datasetId; }
@@ -1631,7 +1638,7 @@
     var a = Studio.Workspace.get("analyses", id);
     if (!a || !a.builder) return;
     bdReset();
-    BD.analysisId = a.id; BD.name = a.name || ""; BD.folder = a.folder || "";
+    BD.analysisId = a.id; BD.name = a.name || ""; BD.folder = a.folder || ""; BD.panelTitle = a.panelTitle || ""; // VB-7
     var b = a.builder;
     bdSelectDataset(b.dsKind, b.dsId).then(function () {
       if (!BD.run) { toast("This View’s source dataset is gone — pick another to rebuild it.", true); render(); return; }

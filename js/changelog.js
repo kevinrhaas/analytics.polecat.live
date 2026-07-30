@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 767,
+    title: 'View panels get their own title',
+    kind: 'feature',
+    ts: '2026-07-30T17:25:32.000Z',
+    items: [
+      'Saving a View now offers a Panel title — the panel that holds the View on dashboards can read differently from the View’s own name, and defaults to it until you override.',
+    ],
+  },
+  {
     v: 766,
     title: 'View Builder: numeric columns can act as a category, not just a total',
     kind: 'feature',

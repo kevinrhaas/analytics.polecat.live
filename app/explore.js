@@ -456,7 +456,7 @@
     }
     return {
       id: "analysis-" + a.id, name: "analysis-" + a.id, title: a.name || "View",
-      panels: [{ id: "a1", title: a.name || "View", span: "full",
+      panels: [{ id: "a1", title: a.panelTitle || a.name || "View", span: "full", // VB-7: the panel's own title wins
         chart: { type: a.chart.type, da: da.id, map: Studio.clone(a.chart.map || {}), opts: Studio.clone(a.chart.opts || {}) } }],
       kpis: [], filters: [],
       cda: { connections: [], dataAccesses: [da] }
@@ -488,7 +488,7 @@
       refreshPreview(); buildLibrary();
       return;
     }
-    var p = { id: Studio.uid("p"), title: a.name || "View", span: Studio.WIDE_CHART_TYPES.indexOf(a.chart.type) >= 0 ? "full" : 1,
+    var p = { id: Studio.uid("p"), title: a.panelTitle || a.name || "View", span: Studio.WIDE_CHART_TYPES.indexOf(a.chart.type) >= 0 ? "full" : 1, // VB-7
       chart: { type: a.chart.type, da: da.id, map: Studio.clone(a.chart.map || {}), opts: Studio.clone(a.chart.opts || {}) } };
     S.spec.panels.push(p);
     select({ kind: "panel", id: p.id });
