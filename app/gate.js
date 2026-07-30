@@ -58,6 +58,10 @@
       "#studio-gate label{display:block;text-align:left;font-size:11.5px;font-weight:700;color:var(--muted,#5d6b82);margin:0 0 4px}" +
       "#studio-gate input{width:100%;padding:11px 13px;border:1px solid var(--line,#c8d2df);border-radius:9px;font-size:14px;outline:none;margin-bottom:12px;background:var(--field,#fff);color:var(--ink,#16233b)}" +
       "#studio-gate input:focus{border-color:var(--brand,#005bb5)}" +
+      // WORKSPACE-LOGIN: the Workspace picker sits above Username — same field look
+      "#studio-gate select{width:100%;padding:11px 13px;border:1px solid var(--line,#c8d2df);border-radius:9px;font-size:14px;outline:none;margin-bottom:12px;background:var(--field,#fff);color:var(--ink,#16233b)}" +
+      "#studio-gate select:focus{border-color:var(--brand,#005bb5)}" +
+      "#studio-gate .g-ws-note{text-align:left;font-size:11px;color:var(--faint,#8a97ab);margin:-8px 0 10px;min-height:14px}" +
       // #102: the password field's reveal (eye) toggle — wrapper carries the input's
       // bottom margin so the button centers on the input itself, not the gap below it.
       "#studio-gate .g-pw{position:relative;margin-bottom:12px}" +
@@ -95,6 +99,10 @@
     ov.innerHTML = '<div class="g-card"><div class="g-logo"><img src="assets/brand/polecat-mark-white.png" width="30" height="30" alt=""/></div><h1>Sign in to Analytics</h1>' +
       '<p>Your local workspace on analytics.polecat.live.</p>' +
       '<form id="g-form" autocomplete="off">' +
+      '<label for="g-workspace">Workspace</label>' +
+      '<select id="g-workspace" aria-describedby="g-ws-note"></select>' +
+      '<div class="g-ws-note" id="g-ws-note"></div>' +
+      '<input type="file" id="g-ws-file" accept=".json,application/json" style="display:none"/>' +
       '<label for="g-user">Username</label>' +
       '<input type="text" id="g-user" placeholder="username" autocomplete="username" autocapitalize="off" spellcheck="false"/>' +
       '<label for="g-pass">Password</label>' +
@@ -214,6 +222,124 @@
         });
       });
     });
+    // ---- WORKSPACE-LOGIN (Kevin live, 2026-07-30): the Workspace picker ----
+    // "Ship with the default polecat supabase workspace... he should not have to
+    // configure access to that workspace." Entries come from the PACKAGED catalog
+    // (app/workspaces.js → window.STUDIO_WORKSPACES) plus locally imported/custom
+    // ones (an imported entry with the same id OVERRIDES the shipped one — the
+    // escape hatch if a database moves). Picking one connects it (the same
+    // Sync.connectAdopt path Settings uses), after which the existing direct-auth
+    // sign-in verifies the typed email/password straight against that workspace.
+    var CUSTOM_WS_KEY = "studio-workspaces-custom", LAST_WS_KEY = "studio-workspace-last";
+    function customWorkspaces() {
+      try { return JSON.parse(localStorage.getItem(CUSTOM_WS_KEY) || "[]"); } catch (e) { return []; }
+    }
+    function saveCustomWorkspace(entry) {
+      var list = customWorkspaces().filter(function (w) { return w.id !== entry.id; });
+      list.push(entry);
+      try { localStorage.setItem(CUSTOM_WS_KEY, JSON.stringify(list)); } catch (e) {}
+    }
+    function workspaceList() {
+      var out = [{ id: "local", label: "Local only (this browser)" }];
+      var seen = { local: true };
+      // customs FIRST so a re-imported entry shadows the shipped one with its id
+      customWorkspaces().concat(window.STUDIO_WORKSPACES || []).forEach(function (w) {
+        if (!w || !w.id || seen[w.id]) return;
+        if (w.id !== "local" && !(w.sourceId && w.cfg && w.cfg.url)) return; // malformed
+        seen[w.id] = true; out.push(w);
+      });
+      return out;
+    }
+    function wsNote(msg) { var n = document.getElementById("g-ws-note"); if (n) n.textContent = msg || ""; }
+    function currentWorkspaceId() {
+      try {
+        var conn = JSON.parse(localStorage.getItem("analytics.datasource.v1") || "null");
+        if (!conn || !conn.cfg || !conn.cfg.url) return "local";
+        var hit = workspaceList().filter(function (w) { return w.cfg && w.cfg.url === conn.cfg.url; })[0];
+        return hit ? hit.id : "__connected";
+      } catch (e) { return "local"; }
+    }
+    function renderWorkspaceSelect() {
+      var sel = document.getElementById("g-workspace"); if (!sel) return;
+      var cur = currentWorkspaceId();
+      var html = workspaceList().map(function (w) {
+        return '<option value="' + w.id + '"' + (w.id === cur ? " selected" : "") + '>' + w.label + "</option>";
+      }).join("");
+      if (cur === "__connected") html += '<option value="__connected" selected>Connected workspace (this browser)</option>';
+      html += '<option value="__custom">Custom workspace…</option>' +
+              '<option value="__import">Import access file…</option>';
+      sel.innerHTML = html;
+      sel.dataset.prev = sel.value;
+    }
+    function connectWorkspace(entry) {
+      var Sync = window.Studio && window.Studio.Sync;
+      if (!Sync) { fail("Still loading — try again in a moment."); return; }
+      setErr(""); wsNote("Connecting to " + entry.label + "…");
+      Sync.connectAdopt(entry.sourceId, JSON.parse(JSON.stringify(entry.cfg))).then(function () {
+        try { localStorage.setItem(LAST_WS_KEY, entry.id); } catch (e) {}
+        // DURABLE-1's onAdopt heals + user-mirror import ran with the adoption;
+        // re-import users so the sign-in below verifies THIS workspace's accounts.
+        try { Auth.importFromStore(window.Studio.Workspace.all("users")); } catch (e) {}
+        wsNote("Connected. Sign in with your " + entry.label + " account.");
+      }, function (e2) {
+        wsNote("");
+        fail("Couldn’t reach " + entry.label + " — " + ((e2 && e2.message) || "connection failed"));
+        renderWorkspaceSelect();
+      });
+    }
+    var wsSel = document.getElementById("g-workspace");
+    var wsFile = document.getElementById("g-ws-file");
+    if (wsSel) {
+      renderWorkspaceSelect();
+      wsSel.addEventListener("change", function () {
+        var v = wsSel.value;
+        if (v === "__custom") {
+          wsSel.value = wsSel.dataset.prev || "local";
+          var cbtn = document.getElementById("g-connect");
+          if (cbtn) cbtn.click(); // the existing backend wizard IS the custom path
+          return;
+        }
+        if (v === "__import") {
+          wsSel.value = wsSel.dataset.prev || "local";
+          if (wsFile) wsFile.click();
+          return;
+        }
+        wsSel.dataset.prev = v;
+        if (v === "local" || v === "__connected") {
+          if (v === "local" && window.Studio && window.Studio.Sync) window.Studio.Sync.disconnect();
+          try { localStorage.setItem(LAST_WS_KEY, v); } catch (e) {}
+          wsNote(v === "local" ? "" : "Using this browser’s already-connected workspace.");
+          return;
+        }
+        var entry = workspaceList().filter(function (w) { return w.id === v; })[0];
+        if (entry) connectWorkspace(entry);
+      });
+    }
+    if (wsFile) wsFile.addEventListener("change", function () {
+      var f = wsFile.files && wsFile.files[0]; wsFile.value = "";
+      if (!f) return;
+      var rd = new FileReader();
+      rd.onload = function () {
+        var entry = null;
+        try { entry = JSON.parse(String(rd.result || "")); } catch (e) {}
+        if (!entry || !entry.sourceId || !entry.cfg || !entry.cfg.url || !entry.cfg.key) {
+          fail("That doesn’t look like a workspace access file (needs label, sourceId and cfg with url + key).");
+          return;
+        }
+        entry.id = entry.id || ("ws-" + String(entry.cfg.url).replace(/[^a-z0-9]+/gi, "-").slice(0, 40));
+        entry.label = entry.label || "Imported workspace";
+        saveCustomWorkspace(entry);
+        renderWorkspaceSelect();
+        var sel2 = document.getElementById("g-workspace");
+        if (sel2) { sel2.value = entry.id; sel2.dataset.prev = entry.id; }
+        connectWorkspace(entry);
+      };
+      rd.readAsText(f);
+    });
+    // test hooks — drive the picker without a real <input type=file> dialog
+    window.__studioGateWorkspaces = { list: workspaceList, addCustom: saveCustomWorkspace,
+      render: renderWorkspaceSelect, connect: connectWorkspace };
+
     document.getElementById("g-demo").addEventListener("click", function () {
       // The public demo account always exists (seeded); logging in as it triggers
       // studio.js to auto-install the sample workspace.
