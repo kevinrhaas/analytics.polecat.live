@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v392"; /* v392: #118 live re-run — builder-made Views render
+var CACHE_NAME = "studio-shell-v393"; /* v393: LIVE-d slice 2 — Connections gains the
+   same Select / bulk-delete multi-select pattern slice 1 shipped on Datasets (checkbox
+   overlay on every row/tile, a bulk bar with Select all/Clear/Delete; the delete
+   confirmation calls out datasets that reference a selected connection). app/connections.js,
+   app/index.html, docs/index.html, STATUS.md, js/changelog.js, tests/run.js.
+   v392: #118 live re-run — builder-made Views render
    their REAL computed result everywhere: the basis pipeline in app/build.js is parameterized
    on an explicit state (st defaulting to BD), Studio.Build.runBlob recomputes a saved
    `builder` blob (source load + calcs + filters + basis, cached per blob JSON), bdSave stamps

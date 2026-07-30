@@ -8918,6 +8918,131 @@ function serve() {
     await page.click("#dsxViewToggle"); // back to list view
     await page.waitForTimeout(80);
 
+    // LIVE-d (slice 2): multi-select + bulk delete on Connections — same shape slice 1
+    // proved on Datasets (session-only select mode, checkbox overlay, bulk bar with
+    // Select all/Clear/Delete). Two throwaway connections keep this from touching the
+    // conn-mock/conn-mock-2 fixture rows other CX tests above depend on.
+    await page.evaluate(function () { window.__studioShellSetSection("connections"); });
+    await page.waitForTimeout(80);
+    await page.evaluate(function () {
+      Studio.Workspace.put("connections", { id: "livd-connbulk-a", name: "livd_connbulk_a", adapter: "turso", cfg: { url: "http://x", token: "t" } }, { silent: true });
+      Studio.Workspace.put("connections", { id: "livd-connbulk-b", name: "livd_connbulk_b", adapter: "turso", cfg: { url: "http://x", token: "t" } }, { silent: true });
+      window.__studioRenderConnections();
+    });
+    await page.waitForTimeout(100);
+
+    const livdConnSelectOn = await page.evaluate(function () {
+      document.getElementById("connSelectBtn").click();
+      return {
+        mode: window.__studioConnSelectMode(),
+        checkboxes: document.querySelectorAll("#connResults .conn-select-cb").length,
+        bulkBar: !!document.querySelector(".dash-bulk-bar"),
+        btnText: document.getElementById("connSelectBtn").textContent,
+        delDisabled: document.getElementById("connSelDelBtn").disabled
+      };
+    });
+    ok("LIVE-d: clicking Select enters select mode on Connections — checkboxes + a bulk bar appear, Delete starts disabled",
+      livdConnSelectOn.mode && livdConnSelectOn.checkboxes > 0 && livdConnSelectOn.bulkBar && /Cancel/.test(livdConnSelectOn.btnText) && livdConnSelectOn.delDisabled,
+      JSON.stringify(livdConnSelectOn));
+
+    // tapping a row in select mode selects it instead of opening its editor (re-query
+    // after the click — its handler re-renders #connResults, so pre-click nodes go stale)
+    const livdConnTapSelects = await page.evaluate(function () {
+      var row = document.querySelector('.conn-select-cb[data-conn-select="livd-connbulk-a"]').closest(".cx-row");
+      row.click();
+      var cbAfter = document.querySelector('.conn-select-cb[data-conn-select="livd-connbulk-a"]');
+      return {
+        checked: cbAfter.checked,
+        rowSelected: cbAfter.closest(".cx-row").classList.contains("is-selected"),
+        selected: window.__studioConnSelected(),
+        noModalOpened: !document.querySelector(".modal-ov")
+      };
+    });
+    ok("LIVE-d: tapping a connection row in select mode selects it (doesn't open the wizard) and highlights the row",
+      livdConnTapSelects.checked && livdConnTapSelects.rowSelected && livdConnTapSelects.selected.indexOf("livd-connbulk-a") >= 0 && livdConnTapSelects.noModalOpened,
+      JSON.stringify(livdConnTapSelects));
+
+    // the checkbox itself is an equivalent way to toggle selection
+    const livdConnCbToggle = await page.evaluate(function () {
+      document.querySelector('.conn-select-cb[data-conn-select="livd-connbulk-b"]').click();
+      return { count: window.__studioConnSelected().length, barText: document.querySelector(".dash-bulk-count").textContent };
+    });
+    ok("LIVE-d: checking a connection row's checkbox selects it too, and the bulk bar's count reflects the total",
+      livdConnCbToggle.count === 2 && /2 selected/.test(livdConnCbToggle.barText), JSON.stringify(livdConnCbToggle));
+
+    // Select all / Clear apply to everything currently in view
+    const livdConnSelectAll = await page.evaluate(function () {
+      document.getElementById("connSelAllBtn").click();
+      var totalRows = document.querySelectorAll("#connResults .cx-row").length;
+      return { selectedCount: window.__studioConnSelected().length, totalRows: totalRows };
+    });
+    ok("LIVE-d: Select all selects every connection currently in view",
+      livdConnSelectAll.selectedCount === livdConnSelectAll.totalRows && livdConnSelectAll.totalRows > 0, JSON.stringify(livdConnSelectAll));
+    const livdConnClear = await page.evaluate(function () {
+      document.getElementById("connSelNoneBtn").click();
+      return { selectedCount: window.__studioConnSelected().length, delDisabled: document.getElementById("connSelDelBtn").disabled };
+    });
+    ok("LIVE-d: Clear deselects everything and disables Delete again",
+      livdConnClear.selectedCount === 0 && livdConnClear.delDisabled, JSON.stringify(livdConnClear));
+
+    // re-select just the two throwaway connections and bulk-delete them
+    await page.evaluate(function () { document.querySelector('.conn-select-cb[data-conn-select="livd-connbulk-a"]').click(); });
+    await page.evaluate(function () { document.querySelector('.conn-select-cb[data-conn-select="livd-connbulk-b"]').click(); });
+    const livdConnBeforeDelete = await page.evaluate(function () { return Studio.Workspace.all("connections").length; });
+    // window.confirm is already monkeypatched (not native) by earlier tests in this same
+    // page session — matching that local convention rather than Playwright's
+    // page.once('dialog', ...) API, which would leak a listener into a later unrelated
+    // native dialog elsewhere in the suite.
+    await page.evaluate(function () { window.confirm = function () { return true; }; });
+    await page.click("#connSelDelBtn");
+    await page.waitForTimeout(150);
+    const livdConnDeleted = await page.evaluate(function (before) {
+      return {
+        remaining: Studio.Workspace.all("connections").length,
+        stillA: !!Studio.Workspace.get("connections", "livd-connbulk-a"),
+        stillB: !!Studio.Workspace.get("connections", "livd-connbulk-b"),
+        selectedAfter: window.__studioConnSelected().length,
+        before: before
+      };
+    }, livdConnBeforeDelete);
+    ok("LIVE-d: Delete removes every selected connection after confirming",
+      !livdConnDeleted.stillA && !livdConnDeleted.stillB && livdConnDeleted.selectedAfter === 0 && livdConnDeleted.remaining === livdConnDeleted.before - 2,
+      JSON.stringify(livdConnDeleted));
+
+    // clicking Select again (now "Cancel") leaves select mode and restores normal open-on-click
+    const livdConnCancel = await page.evaluate(function () {
+      document.getElementById("connSelectBtn").click();
+      return {
+        mode: window.__studioConnSelectMode(),
+        checkboxes: document.querySelectorAll("#connResults .conn-select-cb").length,
+        btnText: document.getElementById("connSelectBtn").textContent
+      };
+    });
+    ok("LIVE-d: clicking Select again exits select mode and hides the checkboxes",
+      !livdConnCancel.mode && livdConnCancel.checkboxes === 0 && /Select/.test(livdConnCancel.btnText) && !/Cancel/.test(livdConnCancel.btnText),
+      JSON.stringify(livdConnCancel));
+
+    // the tile view (dsx-tile) carries the same select-mode checkbox and selection
+    // highlight — connViewToggle back to list afterward so the rest of the suite sees
+    // the layout it expects.
+    await page.click("#connViewToggle");
+    await page.waitForTimeout(80);
+    const livdConnTileSelect = await page.evaluate(function () {
+      document.getElementById("connSelectBtn").click();
+      var cb = document.querySelector("#connResults .dsx-tile .conn-select-cb");
+      if (!cb) return { hasCb: false };
+      cb.click();
+      var tile = document.querySelector("#connResults .dsx-tile.is-selected");
+      return { hasCb: true, tileSelected: !!tile, selectedCount: window.__studioConnSelected().length };
+    });
+    ok("LIVE-d: tile view gets the same select-mode checkbox and selection highlight on Connections",
+      livdConnTileSelect.hasCb && livdConnTileSelect.tileSelected && livdConnTileSelect.selectedCount === 1, JSON.stringify(livdConnTileSelect));
+    await page.evaluate(function () {
+      document.getElementById("connSelectBtn").click(); // back out of select mode
+    });
+    await page.click("#connViewToggle"); // back to list view
+    await page.waitForTimeout(80);
+
     await page.evaluate(function () { Studio.Workspace.reset(); window.__studioLoad({ title: "post-dsx", panels: [], kpis: [] }); window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(120);
 
