@@ -301,6 +301,23 @@
   regression tests (untagged basis, the non-drag add picker, cross-field widening, the real
   iframe render carrying colorCol, chip removal, same-field no-widening, cross-shelf drag to
   Filters, the palette picker, and Color-alone driving multi-series Line); suite 2673/2673.
+- **LIVE-e part 2 slice 1 — docs readability overhaul (v751, sw v388, 2026-07-30, steward):**
+  Kevin live ("massive paragraphs… use sub bullets headings diagrams… so daunting!"). The ~11
+  biggest walls of text (all >1100 chars, incl. BOTH paragraphs Kevin screenshotted — the
+  rail/topbar guide and Dashboard theme — plus the Edit-JSON-spec paragraph he quoted
+  verbatim) rewritten into h3/h4 headings + bullets/sub-bullets: rail groups, top bar, Quick
+  import, Dashboard theme, Repository, Views catalog, View Builder navigator, calculated
+  columns, Color theme picker, folder filing, PostgREST connection, how-syncing-works.
+  IMAGE PLACEHOLDER system per Kevin's spec: hidden `<!-- IMAGE-SLOT: … -->` comments
+  describe exactly what to capture at 8 key spots; each sits in a `.fig-slot` figure that is
+  `display:none` until an `<img>` + `has-img` class land later (zoomable styling ready), so
+  readers never see an empty frame. All test-pinned anchors/strings verified present
+  (getting-started/build/admin-docs/ct-* ids, backend-table, "51 types", etc). REMAINING
+  (queued): ~15 medium paragraphs (800–1400 chars: private-flag/go-live, Admin backends,
+  Redshift, schema browse, dynamic tokens, share, viewer eye, folders/workbooks, Home
+  greets, Dashboard defaults) for a follow-up sweep pass; images themselves land later per
+  Kevin ("leave holding spots… we can go back and fill them in at the end").
+  Files: docs/index.html, sw.js, js/changelog.js.
 - **LIVE-e part 1 — Help follows the theme (all seven), live, and drops "Back to Studio"
   (v743, sw v380, 2026-07-30, steward):** Kevin live (Help screenshot: "help should respond
   to the theme settings and take out that back to studio button"). Root cause of the
