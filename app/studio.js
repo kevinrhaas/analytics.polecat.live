@@ -5427,6 +5427,24 @@
     return Studio.Workspace.all("dashboards")
       .sort(function (a, b) { return (b.ts || "").localeCompare(a.ts || ""); });
   }
+  // HOME-EX2 (Kevin live, 2026-07-30): "Clear recents" on Home — per-user, per-device.
+  // Home's Recent strip IS the dashboard catalog sorted by last-touch (there is no
+  // separate recents trail), so clearing must HIDE, never delete (DURABLE-1): store a
+  // cleared-at stamp; the strip only shows dashboards touched AFTER it. Anything you
+  // open or edit again reappears naturally; Dashboards/Repository always show all.
+  function recentsClearedKey() {
+    var u = null;
+    try { u = window.PolecatAuth && PolecatAuth.current && PolecatAuth.current(); } catch (e) {}
+    return "studio-recents-cleared::" + ((u && u.u) || "local");
+  }
+  function recentsClearedAt() {
+    try { return localStorage.getItem(recentsClearedKey()) || ""; } catch (e) { return ""; }
+  }
+  function clearRecents() {
+    try { localStorage.setItem(recentsClearedKey(), new Date().toISOString()); } catch (e) {}
+    renderHome();
+  }
+  window.__studioClearRecents = { key: recentsClearedKey, at: recentsClearedAt, clear: clearRecents }; // test hook
   // QA-04: a brand-new blank dashboard's title never collides with one already in the
   // catalog — "Untitled Dashboard" repeated across sessions is exactly the two-identical-
   // rows confusion the frontend QA report flagged in pickers/Repository. Suffixing at
@@ -5901,7 +5919,11 @@
       return true;
     });
     var pinnedList = wbFiltered.filter(function (r) { return pins.indexOf(r.id) >= 0; });
-    var unpinnedList = wbFiltered.filter(function (r) { return pins.indexOf(r.id) < 0; });
+    // HOME-EX2: unpinnedAll is the pre-"Clear recents" list — the delta tells the
+    // dashboards section whether an empty strip means "cleared" or "none yet".
+    var recentsCut = recentsClearedAt();
+    var unpinnedAll = wbFiltered.filter(function (r) { return pins.indexOf(r.id) < 0; });
+    var unpinnedList = recentsCut ? unpinnedAll.filter(function (r) { return (r.ts || "") > recentsCut; }) : unpinnedAll;
     var wbChipsHtml = "";
     if (workbooks.length) {
       var wbChipDefs = [{ id: "", name: "All", n: wbCounts.all }]
@@ -6044,13 +6066,18 @@
       dashboards: function () {
         // Always renders SOMETHING (grids or the friendly empty hint) — never hidden — so it
         // anchors the reorderable stack even on a brand-new workspace with nothing pinned/featured.
+        // HOME-EX2: "Clear recents" hides the CURRENT USER's strip (per-device
+        // stamp) \u2014 deletes nothing; a dashboard reappears the moment it's touched.
+        var clearBtn = '<button type="button" class="btn home-clear-recents" data-home-clear-recents ' +
+          'title="Hide this list for you \u2014 nothing is deleted, and anything you open or edit shows up here again">Clear recents</button>';
         return (pinnedList.length ? '<h2 class="home-sub home-sub-nested">Pinned</h2><div class="home-recents">' +
           pinnedList.map(function (r) { return recentCardHtml(r, true); }).join("") + '</div>' : "") +
-          (unpinnedList.length ? '<h2 class="home-sub home-sub-nested">Recent dashboards</h2><div class="home-recents">' +
+          (unpinnedList.length ? '<h2 class="home-sub home-sub-nested">Recent dashboards' + clearBtn + '</h2><div class="home-recents">' +
             unpinnedList.map(function (r) { return recentCardHtml(r, false); }).join("") + '</div>'
-            : (pinnedList.length ? "" : '<div class="home-empty-hint">' +
+            : (unpinnedAll.length ? '<div class="home-empty-hint" data-home-recents-cleared>Recents cleared \u2014 dashboards you open or edit will show up here again. Everything is still in <b>Dashboards</b>.</div>'
+              : (pinnedList.length ? "" : '<div class="home-empty-hint">' +
               (_homeWbFilter ? "No dashboards in this workbook yet." : "No recent dashboards yet \u2014 start one above and it will show up here.") +
-              '</div>'));
+              '</div>')));
       }
     };
     var homeOrder = getHomeSectionOrder();
@@ -6067,6 +6094,12 @@
     $$("[data-home-wb-filter]", sec).forEach(function (btn) {
       btn.onclick = function () { _homeWbFilter = btn.getAttribute("data-home-wb-filter"); renderHome(); };
     });
+    var clearRecentsBtn = sec.querySelector("[data-home-clear-recents]");
+    if (clearRecentsBtn) clearRecentsBtn.onclick = function () {
+      if (!window.confirm("Clear your Recent dashboards list? Nothing is deleted — everything stays in Dashboards, and anything you open or edit will show up here again.")) return;
+      clearRecents();
+      toast("Recents cleared — just for you, on this device");
+    };
     $$("[data-ic]", sec).forEach(function (span) { span.appendChild(Studio.icon(span.getAttribute("data-ic"), span.classList.contains("home-card-ic") ? 18 : 14)); });
     $$("[data-home-move]", sec).forEach(function (btn) {
       btn.onclick = function () { moveHomeSection(btn.getAttribute("data-home-move"), +btn.getAttribute("data-dir")); };

@@ -409,7 +409,8 @@
         "bullet",
         1
       ]
-    ]
+    ],
+    "demoPackId": "datamanagement"
   },
   {
     "file": "pipeline-observability.studio.json",
@@ -445,7 +446,8 @@
         "line",
         2
       ]
-    ]
+    ],
+    "demoPackId": "datamanagement"
   },
   {
     "file": "storage-growth.studio.json",
@@ -476,7 +478,8 @@
         "bullet",
         1
       ]
-    ]
+    ],
+    "demoPackId": "datamanagement"
   },
   {
     "file": "studio-cost.studio.json",
@@ -515,7 +518,8 @@
         "line",
         "full"
       ]
-    ]
+    ],
+    "demoPackId": "datamanagement"
   },
   {
     "file": "conservation-scorecard.studio.json",

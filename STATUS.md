@@ -7885,25 +7885,29 @@
 > DURABLE-2. **Soft-delete / undo for workspace objects.** Deleted dashboards/Views/
 >       datasets go to a Trash (tombstoned, restorable, purged after N days) instead of
 >       vanishing; every destructive bulk action gets an undo toast. Follows DURABLE-1.
-> HOME-EX2. **Home Examples honesty + Clear-recents (Kevin live, 2026-07-30,
->       screenshots).** (1) The EXAMPLES strip says "from Conservation Insight" but
->       shows Data Quality Scorecard / Pipeline Observability / Storage Footprint &
->       Growth / Cost & Sustainability — those 4 entries in data/examples/index.json
->       carry NO demoPackId, so visibleExamples() always shows them regardless of
->       installed packs while examplesSourceHint() only names packs that labeled
->       cards. Fix: stamp the 4 as demoPackId "datamanagement" (they're that pack's
->       showcases) so the strip only shows installed packs' examples and the hint
->       names every contributing pack. (Program Cost-Share ROI IS conservation —
->       correctly shown.) (2) Home's RECENT DASHBOARDS section gets a "Clear recents"
->       button — clears the CURRENT USER's recents/lastOpened trail only (not the
->       dashboards themselves), with a confirm or undo toast.
-> EXPLORE-LAYOUT. **Explore SAVED VIEWS list rows squeezed (Kevin live, 2026-07-30,
->       screenshot).** In the narrow saved-views panel a row's name truncates to one
->       letter ("C…"), the type line wraps word-per-line ("Line / area" vertically),
->       and the folder chip + action icons (lock/star/menu/✕) crowd the text out.
->       Same class of fix as VIEWS-LAYOUT-1 (#516): give the name min-width:0 +
->       ellipsis on its own line, let the chip + actions wrap to a footer row,
->       audit at panel-min width both themes. Fold with HOME-EX2 into one UI slice.
+> HOME-EX2. ✓ **Home Examples honesty + Clear-recents — SHIPPED v779, sw v414.**
+>       (1) The 4 pack-less entries in data/examples/index.json (Data Quality
+>       Scorecard / Pipeline Observability / Storage Footprint & Growth / Cost &
+>       Sustainability) are stamped demoPackId "datamanagement" — they showed for
+>       EVERYONE under a "from Conservation Insight" hint after Kevin removed that
+>       pack (the LF16 test even PINNED the buggy "leaving the 4 ungated untouched"
+>       behavior — flipped, plus a guard test: every index entry must carry a
+>       demoPackId forever). (2) Home's Recent-dashboards heading gains "Clear
+>       recents": a PER-USER per-device cleared-at stamp (studio-recents-cleared::
+>       <user>) — the strip only shows dashboards touched after it. Hide-only,
+>       NEVER a delete (the strip IS the catalog by last-touch; DURABLE-1); confirm
+>       dialog, cleared-state hint, touched dashboards reappear naturally.
+>       Original — (Kevin live, 2026-07-30, screenshots): examples not from his
+>       installed pack shown under the Conservation label; wanted a per-user
+>       clear-recents control.
+> EXPLORE-LAYOUT. ✓ **Explore SAVED VIEWS rows squeezed — SHIPPED v779 (same PR).**
+>       The narrow panel crushed a row's name to one letter ("C…") with "Line /
+>       area" stacking word-per-line — the folder chip + 5 action icons never
+>       shrank. Same fix family as VIEWS-LAYOUT-1 (#516): .xp-saved-row wraps,
+>       .xp-saved-open keeps flex-basis 150px (name stays a readable line), the
+>       chip ellipsizes at 46%, actions right-align and flow to the next line.
+>       Suite check renders a long-named foldered View and asserts wrap + >100px
+>       name. Original — (Kevin live, 2026-07-30, screenshot).
 > EXPORT-1. ★ **Exported HTML dashboards have NO DATA (Kevin live, 2026-07-30).** "i
 >       downloaded as an html page this but it does not have any data in it." Root cause:
 >       buildHtml's preview:false path (exportCDF + PDF) deliberately leaves DASHKIT_MOCK
