@@ -908,6 +908,23 @@
       ],
       cde: null // CDF-only (no clean single CCC equivalent)
     },
+    // ── Metrics wheel — sectored radar (CONS-3) ──────────────────────────────
+    // One score per metric on a circular axis; metrics grouped into CATEGORIES
+    // that tint their background wedge; a numbered rim decoded by a grouped side
+    // legend. The "Food System Metrics" wheel convention — a system-health
+    // snapshot across domains, not a per-series comparison like radar above.
+    radarSectors: {
+      label: "Metrics wheel", icon: "✺", group: "Comparison",
+      desc: "System-health wheel — scored metrics grouped into tinted category sectors with a numbered rim",
+      fields: ["labelCol", "catCol", "valueCol"],
+      opts: [
+        { key: "max",        type: "int",  label: "Axis max (score scale)", def: 100 },
+        { key: "showLegend", type: "bool", label: "Show legend",  def: true },
+        { key: "fmt",        type: "fmt",  label: "Value format", def: "abbr" },
+        { key: "height",     type: "int",  label: "Height (px)",  def: 340 }
+      ],
+      cde: null // CDF-only
+    },
     waterfall: {
       label: "Waterfall", icon: "↘", group: "Comparison",
       desc: "Running total with incremental steps",
@@ -2571,6 +2588,9 @@
       map.rCol = cols[3] || ""; map.labelCol = cols[0] || "";
     } else if (type === "heatmap") {
       map.rowCol = cols[0] || ""; map.colCol = cols[1] || ""; map.valueCol = cols[2] || cols[1] || "";
+    } else if (type === "radarSectors") {
+      // metrics wheel (CONS-3): [metric, category, score] positionally
+      map.labelCol = cols[0] || ""; map.catCol = cols[1] || ""; map.valueCol = cols[2] || cols[1] || "";
     } else if (type === "choropleth") {
       var choroGuess = Studio.guessChoroplethCols(cols);
       map.idCol = choroGuess.idCol;

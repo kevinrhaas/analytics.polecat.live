@@ -1084,6 +1084,15 @@
             goodAt: (o.goodAt != null ? o.goodAt : 90) / 100
           });
           break;
+        case "radarSectors":
+          // metrics wheel (CONS-3): one row per metric — [label, category, score]
+          var rsLi = res.col(m.labelCol), rsCi = res.col(m.catCol), rsVi = res.col(m.valueCol);
+          DashKit.radarSectors(body, { fmt: f, height: o.height || 340, max: o.max || 100,
+            legend: o.showLegend !== false,
+            labels: res.rows.map(function (r) { return String(r[rsLi]); }),
+            cats: res.rows.map(function (r) { return String(r[rsCi]); }),
+            values: res.rows.map(function (r) { return +r[rsVi] || 0; }) });
+          break;
         case "heatmap":
           var ri2 = res.col(m.rowCol), ci2 = res.col(m.colCol), vi2 = res.col(m.valueCol);
           var rowKeys = [], colKeys = [], idx = {};

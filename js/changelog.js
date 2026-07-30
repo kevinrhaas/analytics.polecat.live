@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 775,
+    title: 'The Conservation System Metrics wheel — a new Metrics wheel chart type',
+    kind: 'feature',
+    ts: '2026-07-30T20:30:06.000Z',
+    items: [
+      'The Conservation Insight pack gains a “Conservation System Metrics” dashboard: a system-health WHEEL with twelve scored metrics grouped into four tinted category sectors (Soil Health, Water Quality, Economics, People & Outreach), a numbered rim, and a side legend that decodes the numbers — in the spirit of the Food System Metrics wheel. Existing installs get it on next load.',
+      'Under the hood that wheel is a brand-new 52nd chart type, “Metrics wheel” (Comparison group) — usable on any dashboard: map a metric column, a category column, and a score column and you get the same sectored radar, tinted sectors, rim numbers and grouped legend, theme-aware in both modes.',
+    ],
+  },
+  {
     v: 774,
     title: 'Conservation pack Views open straight into the View Builder',
     kind: 'feature',

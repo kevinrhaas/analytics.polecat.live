@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v410"; /* v410: CONS-4 — the Conservation pack's four
+var CACHE_NAME = "studio-shell-v411"; /* v411: CONS-3 — new radarSectors "Metrics wheel"
+   chart type (studio-charts.js extension: tinted category sector wedges, numbered rim,
+   value polygon, grouped side legend; model.js CHARTS def + newPanel mapping;
+   studio-render case), and the pack seeds the "Conservation System Metrics" dashboard
+   over a curated 12-row metrics dataset via a builder-blob da (#118 real rows);
+   ensureConservationMetricsWheel backfills existing installs. Docs now say 52 types.
+   Original v410: CONS-4 — the Conservation pack's four
    per-practice analyses are View Builder-native (builder blobs over the raw provider
    dataset, authored via the pure Studio.Build.compute so seed and #118 live re-run
    agree; ensureConservationBuilderViews heals older installs preserving pins), and
