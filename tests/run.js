@@ -9821,6 +9821,55 @@ function serve() {
       JSON.stringify(vb1));
     ok("VB-1: ws rows carry edit/copy/delete ops — copy mints a '(copy)' dataset, delete removes it, sample rows stay read-only",
       vb1.hasOps && vb1.copied && vb1.deleted && vb1.sampleNoOps, JSON.stringify(vb1));
+    // 10. slice 5 — multi-dim series charting: line widens beyond one dim + one measure
+    // (state right now, continuing from slice 2/4: Rows=[region], Cols=[quarter(dim), amount(sum)],
+    // a calc "amount_x2" defined but not on any shelf — the exact crosstab shape slice 5 charts)
+    const bdSeries = await page.evaluate(async (savedId) => {
+      const B = window.__studioBuild;
+      const out = {};
+      const xtabFull = window.Studio.Build.compute(B.eff().cols, B.filteredRows(), B.state.shelfCols, B.state.shelfRows);
+      const xtabBasis = B.chartBasis("line");
+      out.xtabNoTotal = xtabBasis.head.indexOf("Total") < 0;
+      out.xtabMatchesFullMinusTotal =
+        xtabBasis.head.join(",") === xtabFull.head.slice(0, -1).join(",") &&
+        xtabBasis.rows.map((r) => r.join(",")).join("|") === xtabFull.rows.map((r) => r.slice(0, -1).join(",")).join("|");
+      // bars/donut have no native multi-series form in this app — untouched by this slice
+      out.barsUnchanged = B.chartBasis("bars").head.length === 2;
+
+      // reshape: no Rows, one dimension (region) + TWO measures (amount, amount_x2 calc)
+      document.querySelector('#bdShelfRows [data-bd-move="region"]').click();
+      await new Promise((r) => setTimeout(r, 60));
+      document.querySelector('#bdShelfCols [data-bd-rm="quarter"]').click();
+      await new Promise((r) => setTimeout(r, 60));
+      B.addField("amount_x2", "cols");
+      await new Promise((r) => setTimeout(r, 60));
+      out.shelfAfter = B.state.shelfCols.map((f) => f.col + ":" + f.agg).join(",");
+      const multiFull = window.Studio.Build.compute(B.eff().cols, B.filteredRows(), B.state.shelfCols, []);
+      const multiBasis = B.chartBasis("line");
+      out.multiMatchesFull = multiBasis.head.join(",") === multiFull.head.join(",") &&
+        multiBasis.rows.map((r) => r.join(",")).join("|") === multiFull.rows.map((r) => r.join(",")).join("|");
+
+      // pick Line + save — the saved panel's chart.map carries one series per measure
+      document.querySelector('[data-bd-ct="line"]').click();
+      await new Promise((r) => setTimeout(r, 450));
+      B.save();
+      await new Promise((r) => setTimeout(r, 120));
+      const m = document.querySelector(".modal-ov .bd-save");
+      [].slice.call(m.querySelectorAll("button")).filter((b) => /^(Save|Update)$/.test(b.textContent))[0].click();
+      await new Promise((r) => setTimeout(r, 120));
+      const row = window.Studio.Workspace.get("analyses", savedId);
+      out.savedSeries = row.chart.map.series ? row.chart.map.series.map((s) => s.col).join(",") : null;
+      out.savedLabelCol = row.chart.map.labelCol;
+      return out;
+    }, bdSave.id);
+    ok("#117 (5): a Rows×Columns crosstab (single measure) charts as a line, one series per Columns value, dropping the redundant Total column",
+      bdSeries.xtabNoTotal && bdSeries.xtabMatchesFullMinusTotal, JSON.stringify(bdSeries));
+    ok("#117 (5): bars/donut are untouched by this slice — still the plain [dimension, first measure] basis",
+      bdSeries.barsUnchanged, JSON.stringify(bdSeries));
+    ok("#117 (5): one dimension + 2+ measures (no Rows) charts as a line, one series per measure, matching the full pivot exactly",
+      bdSeries.multiMatchesFull, JSON.stringify(bdSeries));
+    ok("#117 (5): saving stamps one series per measure on the panel map (SUM amount, SUM amount_x2), keyed off the single dimension",
+      bdSeries.savedSeries === "SUM amount,SUM amount_x2" && bdSeries.savedLabelCol === "region", JSON.stringify(bdSeries));
     // cleanup + restore the section the next block expects
     await page.evaluate((savedId) => {
       const st = window.__studioBuild.state;

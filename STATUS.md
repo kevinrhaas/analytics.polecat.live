@@ -116,6 +116,31 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **#117 slice 5 — MULTI-DIM SERIES CHARTING for the Line chart (v738, sw v375, 2026-07-30,
+  steward):** the Line chart widens beyond the [first dimension, first measure] basis every
+  chart type has used since slice 2, by reusing the SAME pivot engine (`compute`) the table/
+  heatmap already compute with — just read as columns-are-series instead of columns-are-columns.
+  Two shapes now chart as a true multi-series line: (1) a crosstab — one Rows dim × one plain
+  Columns dim, 0–1 measures — draws one line per Columns value against the Rows dim (the
+  crosstab's own trailing "Total" column is dropped so it doesn't double as a redundant flat
+  series); (2) no Rows, exactly one dimension + 2+ measures on the Columns shelf — draws one
+  line per measure, grouped by that one dimension. Anything richer (2+ Rows dims, or a crosstab
+  with 2+ measures) falls back to the original single-series [dim, first measure] basis — same
+  honesty convention as the pivot's own truncation notes; charting those shapes is later work.
+  Bars and Donut are deliberately untouched: neither has a native multi-series form in this
+  app's renderer (`PDC.bars`/`PDC.donut` take one label/value pair; `groupedBars`/`barNorm` are
+  their own separate panel types, not a "Bars" variant), so widening them would mean switching
+  the underlying chart type out from under the user's "Bars" selection — left as a clearly
+  separate later slice rather than folded in here. Save/reopen stamp the full series list
+  (`chart.map.series`, one `{col}` per series column) on the panel, same as the labelCol/
+  valueCol path every other chart type already uses — no separate save-path logic needed.
+  4 new regression tests (crosstab basis matches the full pivot minus Total, with Total
+  actually absent; Bars/Donut basis unchanged at 2 columns; the multi-measure basis matches
+  the full pivot exactly; saving stamps one series per measure + the right labelCol). Verified
+  live headless, zero pageerrors. **NEXT in #117/#118:** multi-series for Bars (via groupedBars)
+  and Donut aren't planned (no natural fit); live re-run of builder Views on dashboards; #118's
+  encoding card + delight layer. Files: app/build.js, docs/index.html, sw.js, js/changelog.js,
+  tests/run.js.
 - **VB-1 — the View Builder's dataset pane becomes a real NAVIGATOR (v737, sw v374,
   2026-07-30, steward):** first slice of Kevin's overnight View Builder queue ("i like the new
   view builder… the datasets pane should have the same operations as the studio… i cant tell

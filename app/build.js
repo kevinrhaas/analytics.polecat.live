@@ -547,16 +547,19 @@
     };
   }
 
-  // ---------- charting the result (#117 slice 2) ----------
+  // ---------- charting the result (#117 slice 2, multi-series slice 5) ----------
   // Each chart draws from a deliberately SIMPLE, ordered "chart basis" table so
   // Studio.newPanel's column-order defaults map it with no bespoke wiring:
-  //   bars/line/donut → [first dimension, first measure]  (rollup by that dim)
+  //   bars/donut      → [first dimension, first measure]  (rollup by that dim)
+  //   line            → the same single-series basis by default, WIDENED to
+  //                      [dimension, series1, series2, …] when the shelves land
+  //                      in one of two multi-series shapes (bdLineSeriesBasis).
   //   heatmap         → [first Rows dim, first Columns dim, measure]  (the
   //                      crosstab's own long form — rowCol/colCol/valueCol)
   // The first dimension prefers the Rows shelf; with no measure picked, COUNT
   // of rows keeps every chart honest instead of refusing to draw. Table stays
-  // the full pivot. Charting more of the shelves (multi-dim, series) is a
-  // later slice, and the render notes say so.
+  // the full pivot. Charting more of bars/donut (they have no native
+  // multi-series form in this app) is a later slice.
   var CHART_TYPES = [
     { t: "table", label: "Table" },
     { t: "bars", label: "Bars" },
@@ -568,8 +571,9 @@
     return BD.shelfRows[0] || BD.shelfCols.filter(function (f) { return !f.agg; })[0] || null;
   }
   function bdColsDim() { return BD.shelfCols.filter(function (f) { return !f.agg; })[0] || null; }
+  function bdMeasures() { return BD.shelfCols.filter(function (f) { return f.agg; }); }
   function bdFirstMeasure() {
-    var m = BD.shelfCols.filter(function (f) { return f.agg; })[0];
+    var m = bdMeasures()[0];
     if (m) return m;
     var d = bdFirstDim();
     return d ? { col: d.col, agg: "count" } : null;
@@ -592,7 +596,54 @@
       return compute(bdEff().cols, rows,
         [{ col: BD.shelfRows[0].col, agg: null }, { col: bdColsDim().col, agg: null }, m], []);
     }
+    if (type === "line") {
+      var series = bdLineSeriesBasis(rows);
+      if (series) return series;
+    }
     return compute(bdEff().cols, rows, [{ col: bdFirstDim().col, agg: null }, m], []);
+  }
+  // Multi-dim series charting (#117 slice 5): line charts the FULL shelf
+  // breakdown instead of collapsing to one dimension + one measure, in the
+  // two shapes that land cleanly on a wide [label, series1, series2, …]
+  // table — reusing the SAME pivot engine the table/heatmap already compute
+  // with, just read as columns-are-series instead of columns-are-columns:
+  //   - a crosstab (one Rows dim × one plain Columns dim, 0-1 measures) —
+  //     each Columns value becomes its own line (the crosstab's own "Total"
+  //     column is dropped; it would double as a redundant flat series).
+  //   - no Rows, exactly one dimension + 2+ measures — each measure becomes
+  //     its own line, grouped by that one dimension.
+  // Anything richer (2+ Rows dims, a crosstab with 2+ measures) falls back
+  // to the plain single-series basis below — same honesty convention as the
+  // pivot's own truncation notes; charting those shapes is later work.
+  function bdLineSeriesBasis(rows) {
+    var dims = BD.shelfCols.filter(function (f) { return !f.agg; });
+    var measures = bdMeasures();
+    if (BD.shelfRows.length === 1 && bdColsDim() && measures.length <= 1) {
+      var xtab = compute(bdEff().cols, rows, BD.shelfCols, BD.shelfRows);
+      if (xtab && !xtab.headGroups) {
+        return {
+          head: xtab.head.slice(0, -1), // drop the trailing crosstab "Total" column
+          rows: xtab.rows.map(function (r) { return r.slice(0, -1); }),
+          truncatedRows: xtab.truncatedRows, truncatedCols: xtab.truncatedCols
+        };
+      }
+    }
+    if (!BD.shelfRows.length && dims.length === 1 && measures.length >= 2) {
+      return compute(bdEff().cols, rows, BD.shelfCols, []);
+    }
+    return null;
+  }
+  // Both the live preview and Save build the panel the same way — when the
+  // basis is wider than [label, value] for a line chart (bdLineSeriesBasis
+  // above), map every extra column as its own series instead of newPanel's
+  // single-series default, so the two never drift on how a multi-series
+  // basis becomes a chart spec.
+  function bdPanelFor(type, da, basis) {
+    var p = Studio.newPanel(type, da);
+    if (type === "line" && basis.head.length > 2) {
+      p.chart.map.series = basis.head.slice(1).map(function (col) { return { col: col }; });
+    }
+    return p;
   }
   // The live chart preview is the REAL dashboard renderer — the same
   // buildHtml(spec, assets, { preview, mock }) srcdoc-iframe path Explore's
@@ -605,7 +656,7 @@
     clearTimeout(_bdPvTimer);
     _bdPvTimer = setTimeout(function () {
       var da = { id: "build_result", name: BD.name || "Build result", kind: "sql", sql: "", query: "", columns: basis.head.slice(), params: [], authored: true };
-      var p = Studio.newPanel(BD.chartType, da);
+      var p = bdPanelFor(BD.chartType, da, basis);
       p.title = BD.name || BD.dsName || "View"; p.span = "full";
       var spec = {
         id: "build-preview", name: "build-preview", title: p.title, hideHeader: true,
@@ -1001,7 +1052,7 @@
         // authored-content behavior, SAMPLE-badged everywhere) until a live-refresh
         // slice teaches those surfaces to re-run the builder state.
         var da = { id: base, name: name, kind: "sql", sql: "", query: "", columns: res.head.slice(), params: [], authored: true };
-        var chart = Studio.newPanel(BD.chartType, da).chart;
+        var chart = bdPanelFor(BD.chartType, da, res).chart;
         var row = {
           name: name, folder: BD.folder || "", chartType: BD.chartType, da: da, chart: chart,
           builder: {
@@ -1053,5 +1104,6 @@
     state: BD             // test hook (also window.__studioBuild below)
   };
   window.__studioBuild = { state: BD, addField: bdAddField, selectDataset: bdSelectDataset, save: bdSave, load: bdLoad,
-    addFilter: bdAddFilter, filteredRows: bdFilteredRows, setCalcs: bdSetCalcs, eff: bdEff, rerender: render };
+    addFilter: bdAddFilter, filteredRows: bdFilteredRows, setCalcs: bdSetCalcs, eff: bdEff, rerender: render,
+    chartBasis: chartBasis };
 })();

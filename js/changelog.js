@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 738,
+    title: 'The View Builder\'s Line chart now draws multiple series',
+    kind: 'feature',
+    ts: '2026-07-30T04:18:48.000Z',
+    items: [
+      'Pivot two dimensions (one on Rows, one on Columns) and pick Line: instead of collapsing to a single line, every Columns value now draws its own line.',
+      'Or skip Rows and add a second (or third) measure to Columns — each measure draws as its own line, all sharing the same category axis.',
+      'Bars and Donut still chart a single dimension and measure for now — Line is the first chart to go multi-series.',
+    ],
+  },
+  {
     v: 737,
     title: 'The View Builder’s dataset pane becomes a real navigator',
     kind: 'feature',
