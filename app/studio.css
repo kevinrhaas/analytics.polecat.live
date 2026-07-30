@@ -711,7 +711,8 @@ body.simple-mode .repo-ds-acts{display:none!important}
 .wb-chip-del:hover{border-color:#f55036;color:#f55036}
 .wb-chip-rename:hover{border-color:var(--brand);color:var(--ink)}
 .wb-chip-folder:hover{border-color:var(--brand);color:var(--ink)}
-/* LF59 (2): the bulk-action bar that appears above the grid/list once "Select" is on. */
+/* LF59 (2)/LIVE-d: the bulk-action bar that appears above the grid/list once "Select" is
+   on — section-agnostic, reused as-is by every catalog section that adopts multi-select. */
 .dash-bulk-bar{display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp-10);margin-bottom:16px;
   padding:var(--sp-10) var(--sp-12);background:color-mix(in srgb, var(--brand) 10%, var(--field));
   border:1px solid color-mix(in srgb, var(--brand) 35%, transparent);border-radius:9px}
@@ -720,7 +721,7 @@ body.simple-mode .repo-ds-acts{display:none!important}
 /* the list-view analog of .recent-select — a plain leading checkbox in the row's flex flow. */
 .cx-select{display:flex;align-items:center}
 .cx-select input{width:16px;height:16px;margin:0;cursor:pointer}
-.cx-row.dash-li.is-selected{border-color:var(--brand);box-shadow:0 0 0 2px color-mix(in srgb, var(--brand) 40%, transparent)}
+.cx-row.dash-li.is-selected,.cx-row.is-selected,.dsx-tile.is-selected{border-color:var(--brand);box-shadow:0 0 0 2px color-mix(in srgb, var(--brand) 40%, transparent)}
 .wb-chip-del svg,.wb-chip-rename svg,.wb-chip-folder svg{width:9px;height:9px}
 @media(pointer:coarse){.wb-chip-del,.wb-chip-rename,.wb-chip-folder{opacity:1}}
 .wb-chip-rename-inp{width:90px;padding:0;margin:-2px 0;font:inherit;font-size:var(--fs-12);color:inherit;

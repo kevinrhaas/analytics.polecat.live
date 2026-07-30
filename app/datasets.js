@@ -86,6 +86,36 @@
   // studio-dash-view — a localStorage key, not workspace data.
   var _dsxViewMode = "list";
   try { _dsxViewMode = localStorage.getItem("studio-dsx-view") || "list"; } catch (e) {}
+  // LIVE-d (Kevin, 2026-07-30): cross-app multi-select + bulk actions. Datasets is the
+  // first section to adopt the shape LF59 (slice 2) proved on Dashboards — session-only
+  // select mode, a checkbox overlay on every row/tile, and a bulk bar with Select all /
+  // Clear / Delete. Connections/Jobs/Repository/Views adopt the same shape in their own
+  // slices rather than one big cross-cutting rewrite.
+  var _dsxSelectMode = false;
+  var _dsxSelected = {}; // id -> true, only meaningful while _dsxSelectMode
+  function toggleDsxSelect(id) {
+    if (_dsxSelected[id]) delete _dsxSelected[id]; else _dsxSelected[id] = true;
+    renderDatasets();
+  }
+  function bulkDeleteSelectedDatasets() {
+    var ids = Object.keys(_dsxSelected);
+    if (!ids.length) return;
+    var W = Studio.Workspace;
+    var rows = ids.map(function (id) { return W.get("datasets", id); }).filter(Boolean);
+    var linkedCount = rows.filter(function (d) { return dsxLineage(d.id).length; }).length;
+    var msg = "Delete " + rows.length + " dataset" + (rows.length === 1 ? "" : "s") + "?" +
+      (linkedCount ? " " + linkedCount + " of these are used in a dashboard — those keep working off their own saved copy, but won't get live updates from here anymore." : "") +
+      " This can't be undone.";
+    if (!window.confirm(msg)) return;
+    rows.forEach(function (d) { W.remove("datasets", d.id, { silent: true }); });
+    _dsxSelected = {};
+    toast("Deleted " + rows.length + " dataset" + (rows.length === 1 ? "" : "s"));
+    // one batched notify (not a remove per row) so Home/Repository/the library repaint
+    // once — same convention bulkDeleteSelectedDashboards (LF59) established.
+    W.notify("datasets");
+  }
+  window.__studioDsxSelectMode = function () { return _dsxSelectMode; }; // test hook
+  window.__studioDsxSelected = function () { return Object.keys(_dsxSelected); }; // test hook
   function dsxConnOf(d) { return Studio.Workspace.get("connections", d.connectionId); }
   function dsxAdapterOf(d) { var c = dsxConnOf(d); return c ? Studio.sourceById(c.adapter) : null; }
   // Post-overhaul backlog item 6 ("saved views for the Datasets/Connections
@@ -178,12 +208,31 @@
         renderDatasets();
       };
     }
+    // LIVE-d: the "Select" toolbar toggle, same idempotent-binding convention as the
+    // view toggle above — lives outside #dsxResults so it survives every re-render.
+    var selBtn = $("#dsxSelectBtn");
+    if (selBtn) {
+      selBtn.textContent = _dsxSelectMode ? "Cancel" : "Select";
+      selBtn.setAttribute("aria-pressed", _dsxSelectMode ? "true" : "false");
+      selBtn.onclick = function () {
+        _dsxSelectMode = !_dsxSelectMode;
+        if (!_dsxSelectMode) _dsxSelected = {};
+        renderDatasets();
+      };
+    }
     var q = (($("#dsxSearch") || {}).value || "").toLowerCase();
     var list = Studio.Workspace.all("datasets").filter(isDatasetVisibleToMe).sort(function (a, b) {
       if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
       if (a.pinned) return (b.pinnedAt || "").localeCompare(a.pinnedAt || "");
       return (b.updatedAt || 0) - (a.updatedAt || 0);
     });
+    // drop any selected id that no longer exists/is visible (deleted elsewhere) so a
+    // stale entry can't inflate the bulk-bar count or survive a bulk delete — same
+    // pruning renderDashboards does for _dashSelected.
+    if (_dsxSelectMode) {
+      var listIds = {}; list.forEach(function (d) { listIds[d.id] = true; });
+      Object.keys(_dsxSelected).forEach(function (id) { if (!listIds[id]) delete _dsxSelected[id]; });
+    }
     var adapterCounts = {}, connCounts = {}, tagCounts = {}, kindCounts = {}, folderCounts = {}, folderUnfiled = 0;
     list.forEach(function (d) {
       var src = dsxAdapterOf(d);
@@ -308,16 +357,34 @@
           '<button type="button" class="btn" data-dsx-edit="' + esc(d.id) + '">Edit</button>' +
           '<button type="button" class="btn" data-dsx-del="' + esc(d.id) + '" aria-label="Delete ' + esc(d.name) + '">✕</button>' +
         '</span>';
+      // LIVE-d: select-mode-only checkbox overlay, same markup shape as recentCardHtml/
+      // dashListRowHtml's .dash-select-cb (a distinct .dsx-select-cb class here — the
+      // wiring below binds by class, so the two sections' handlers can't cross-fire).
+      var selected = !!_dsxSelected[d.id];
+      var selectHtml = _dsxSelectMode
+        ? '<label class="cx-select" onclick="event.stopPropagation()"><input type="checkbox" class="dsx-select-cb" data-dsx-select="' +
+          esc(d.id) + '"' + (selected ? " checked" : "") + ' aria-label="Select ' + esc(d.name) + '"/></label>' : '';
       if (isTiles) {
-        return '<div class="dsx-tile" draggable="true" data-dsx-id="' + esc(d.id) + '">' +
-          '<div class="dsx-tile-head">' + dot + icon + name + pinBtn + privateBtn + '</div>' +
+        return '<div class="dsx-tile' + (_dsxSelectMode && selected ? " is-selected" : "") + '" draggable="true" data-dsx-id="' + esc(d.id) + '">' +
+          '<div class="dsx-tile-head">' + selectHtml + dot + icon + name + pinBtn + privateBtn + '</div>' +
           (badges ? '<div class="dsx-tile-badges">' + badges + '</div>' : "") +
           '<div class="dsx-tile-foot">' + when + actions + '</div>' +
           '</div>';
       }
-      return '<div class="cx-row" draggable="true" data-dsx-id="' + esc(d.id) + '">' +
-        dot + icon + name + badges + when + privateBtn + pinBtn + actions + '</div>';
+      return '<div class="cx-row' + (_dsxSelectMode && selected ? " is-selected" : "") + '" draggable="true" data-dsx-id="' + esc(d.id) + '">' +
+        selectHtml + dot + icon + name + badges + when + privateBtn + pinBtn + actions + '</div>';
     });
+    // LIVE-d: the bulk bar — same anatomy (live count, Select all / Clear, a Delete that
+    // disables at zero) as renderDashboards' bulkBarHtml, reusing the .dash-bulk-bar CSS
+    // (already section-agnostic) rather than forking a dsx-specific class.
+    var selCount = Object.keys(_dsxSelected).length;
+    var bulkBarHtml = _dsxSelectMode
+      ? '<div class="dash-bulk-bar"><span class="dash-bulk-count">' + selCount + ' selected</span>' +
+        '<button type="button" class="btn" id="dsxSelAllBtn">Select all</button>' +
+        '<button type="button" class="btn" id="dsxSelNoneBtn">Clear</button>' +
+        '<button type="button" class="btn danger" id="dsxSelDelBtn"' + (selCount ? '' : ' disabled') + '>' +
+        'Delete' + (selCount ? ' ' + selCount : '') + '</button></div>'
+      : '';
     results.innerHTML =
       (pillsF ? '<div class="wb-chips cx-filter-strip">' + pillsF + '</div>' : "") +
       (pillsA || pillsC || pillsK || pillsT || pillsV || viewAddHtml ? '<div class="wb-chips cx-pills cx-filter-strip">' +
@@ -328,6 +395,7 @@
         pillsT +
         (anyA || anyC || anyT || anyK || anyF ? '<button type="button" class="wb-chip" id="dsxPillClear" title="Show everything">Clear</button>' : "") +
         viewAddHtml + '</div>' : "") +
+      bulkBarHtml +
       (rows.length ? '<div class="' + (isTiles ? "dsx-grid" : "cx-list") + '">' + rows.join("") + '</div>'
         : '<div class="cx-empty">' +
             (q || anyA || anyC || anyT || anyK || anyF ? "No datasets match." :
@@ -410,7 +478,8 @@
       var icEl = row.querySelector(".cx-ic");
       if (icEl) icEl.appendChild(Studio.icon((src && src.icon) || "db", 18));
       row.addEventListener("click", function (e) {
-        if (e.target.closest("[data-dsx-pin],[data-dsx-private],[data-dsx-run],[data-dsx-edit],[data-dsx-del]")) return;
+        if (e.target.closest("[data-dsx-pin],[data-dsx-private],[data-dsx-run],[data-dsx-edit],[data-dsx-del],.dsx-select-cb")) return;
+        if (_dsxSelectMode) { toggleDsxSelect(row.getAttribute("data-dsx-id")); return; }
         openDatasetEditor(d);
       });
       // Drag onto Home's "Blank dashboard" tile to start a new dashboard seeded
@@ -421,6 +490,21 @@
         e.dataTransfer.effectAllowed = "copy";
       });
     });
+    // LIVE-d: while select mode is on, the bulk bar's own buttons drive Select all /
+    // Clear / Delete, and every checkbox toggles its row's selection — same wiring
+    // shape renderDashboards uses for _dashSelected.
+    if (_dsxSelectMode) {
+      var dsxSelAllBtn = $("#dsxSelAllBtn", results);
+      if (dsxSelAllBtn) dsxSelAllBtn.onclick = function () { shown.forEach(function (d) { _dsxSelected[d.id] = true; }); renderDatasets(); };
+      var dsxSelNoneBtn = $("#dsxSelNoneBtn", results);
+      if (dsxSelNoneBtn) dsxSelNoneBtn.onclick = function () { _dsxSelected = {}; renderDatasets(); };
+      var dsxSelDelBtn = $("#dsxSelDelBtn", results);
+      if (dsxSelDelBtn) dsxSelDelBtn.onclick = bulkDeleteSelectedDatasets;
+      $$(".dsx-select-cb", results).forEach(function (cb) {
+        cb.onclick = function (e) { e.stopPropagation(); };
+        cb.onchange = function () { toggleDsxSelect(cb.getAttribute("data-dsx-select")); };
+      });
+    }
     $$(".cx-pin", results).forEach(function (btn) {
       btn.appendChild(Studio.icon("star", 14));
       btn.onclick = function (e) { e.stopPropagation(); toggleDsxPin(btn.getAttribute("data-dsx-pin")); };
