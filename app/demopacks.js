@@ -37,10 +37,11 @@
       id: "conservation",
       kind: "workspace",
       name: "Conservation Insight — cover crop & tillage adoption",
-      tagline: "2 connections · 4 datasets · a county→state rollup job · 4 analyses · a featured map dashboard",
-      blurb: "1 featured map dashboard, 4 datasets (a raw provider export plus county and watershed " +
-        "choropleths), 2 connections, a county→state rollup job, and 4 time-series analyses pinned to " +
-        "Home. All data is synthetic and embedded in the pack — nothing to connect."
+      tagline: "2 connections · 4 datasets · a county→state rollup job · 4 analyses · 2 dashboards (featured + watershed map)",
+      blurb: "2 dashboards (the featured multi-scale map + a dedicated HUC8 watershed map), 4 datasets " +
+        "(a raw provider export plus county and watershed choropleths), 2 connections, a county→state " +
+        "rollup job, and 4 time-series analyses pinned to Home. All data is synthetic and embedded in " +
+        "the pack — nothing to connect."
     },
     // LF2(c)/LF16: the pre-existing generic showcase gallery (governance, platform ops,
     // delivery, finance, marketing, reliability, compliance, feature tour) folded into a
@@ -298,6 +299,33 @@
     };
   }
 
+  // CONS-2 (Kevin live, 2026-07-30): a DEDICATED watershed dashboard, named so it's
+  // unmistakably a map ("there should be a watershed choropleth dashboard ... named
+  // something so it's clear and you can see it early in the list"). Same authored-DA
+  // helpers as the featured dashboard; the hero is a full-width HUC8 choropleth.
+  function watershedDashboardSpec() {
+    var das = [], panels = [], kpis = [];
+    var kd = kpiDA("vw_k_cover", "covercrop_pct"); das.push(kd);
+    kpis.push({ da: kd.id, valueCol: "covercrop_pct", label: "Cover-crop adoption", fmt: "pct", agg: "median",
+      subtitle: "common estimate across watersheds", state: "", info: "" });
+    var hucDa = geoDA("vw_huc8", "huc8", "adoption by watershed"); das.push(hucDa);
+    panels.push({ id: "pw_map", section: "Where cover crops are taking hold, watershed by watershed",
+      title: "HUC8 watershed map \u2014 cover-crop adoption", span: "full",
+      chart: choroplethChart(hucDa.id, "huc8", "huc8") });
+    var provDa = providerDA("vw_prov"); das.push(provDa);
+    panels.push({ id: "pw_prov", title: "Provider comparison", span: "full",
+      sub: "the five providers side by side",
+      chart: { type: "bars", da: provDa.id, map: { labelCol: "provider", valueCol: "pct" }, opts: { fmt: "pct", height: 220 } } });
+    return {
+      id: "conservation-watershed-map", name: "conservation-watershed-map",
+      title: "Watershed Map \u2014 HUC8 Cover Crop Adoption",
+      subtitle: "Illustrative HUC8 subbasin view \u2014 where cover crops are taking hold across Corn Belt watersheds",
+      dashboardTheme: "conservation",
+      panels: panels, kpis: kpis, filters: [],
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+
   Studio.installDemoPack = function (id) {
     if (!Studio.DEMO_PACKS[id] || Studio.demoPackInstalled(id)) return;
     // "examples"-kind packs (datamanagement) only gate gallery visibility — the workspace
@@ -376,6 +404,15 @@
       folder: "Conservation Insight",
       featured: true, featuredAt: now, demoPackId: id
     });
+    // CONS-2: the dedicated watershed map dashboard (seeded AFTER the featured one so
+    // recency-sorted lists show it right up top, name leading with "Watershed Map").
+    W.put("dashboards", {
+      name: "conservation-watershed-map",
+      title: "Watershed Map \u2014 HUC8 Cover Crop Adoption",
+      ts: now, spec: watershedDashboardSpec(),
+      folder: "Conservation Insight",
+      demoPackId: id
+    });
   }
 
   Studio.removeDemoPack = function (id) {
@@ -384,6 +421,25 @@
       W.all(t).filter(function (r) { return r.demoPackId === id; }).forEach(function (r) { W.remove(t, r.id); });
     });
     setInstalledIds(installedIds().filter(function (x) { return x !== id; }));
+  };
+
+  // CONS-2 heal: workspaces installed before the watershed dashboard existed get it on
+  // boot (called from studio.js's reconcilePackDashboards) — no reinstall needed.
+  Studio.ensureConservationWatershedDashboard = function () {
+    if (!Studio.demoPackInstalled("conservation")) return false;
+    var W = Studio.Workspace;
+    var have = W.all("dashboards").some(function (r) {
+      return r.demoPackId === "conservation" &&
+        (r.name === "conservation-watershed-map" || (r.spec && r.spec.name === "conservation-watershed-map"));
+    });
+    if (have) return false;
+    W.put("dashboards", {
+      name: "conservation-watershed-map",
+      title: "Watershed Map \u2014 HUC8 Cover Crop Adoption",
+      ts: new Date().toISOString(), spec: watershedDashboardSpec(),
+      folder: "Conservation Insight", demoPackId: "conservation"
+    });
+    return true;
   };
 
   window.__studioDemoPacks = { // test hook

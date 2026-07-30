@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 772,
+    title: 'A dedicated Watershed Map dashboard — and duplicated pack dashboards heal themselves',
+    kind: 'feature',
+    ts: '2026-07-30T19:02:17.000Z',
+    items: [
+      'The Conservation Insight pack now includes “Watershed Map — HUC8 Cover Crop Adoption”: a full-width watershed choropleth with a provider comparison, clearly named so you spot it at the top of the list. Existing installs get it automatically on next load.',
+      'Pack dashboards that ended up duplicated (one foldered copy plus a fresh unfoldered one) now heal on load — one copy survives, the foldered one.',
+      'Fixed a stray “(” artifact that could appear at the top of a fresh View Builder — an empty notification shell was rendering when it should have been hidden.',
+    ],
+  },
+  {
     v: 771,
     title: 'The dashboard viewer no longer flashes the wrong theme either',
     kind: 'fix',

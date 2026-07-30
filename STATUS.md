@@ -7664,8 +7664,22 @@
 >       PolecatAuth.logout() first (same as Settings' Sign out). Original —** Signing out from the menu should land on the gate.
 >       Fix the handler to clear the session AND re-present the gate (likely a clean
 >       reload after clearing studio-gate-ok/session state).
-> CONS-2. **Conservation Insight needs a WATERSHED choropleth dashboard, clearly named
->       and early in the list (Kevin live, 2026-07-30, screenshot).** "Something missing
+> VB-9. ✓ **Stray "(" artifact at the top of a fresh View Builder (Kevin live,
+>       2026-07-30, screenshot — SHIPPED v772 same PR).** The empty #buildNotice rendered
+>       as a collapsed outlined strip because .bd-notice's display:flex DEFEATS the
+>       [hidden] attribute (author styles beat the UA's [hidden]{display:none}); its 3px
+>       brand left-border read as a "(". Fixed with an explicit
+>       .bd-notice[hidden]{display:none} (+ the xp-cross-note twin). One suite check.
+> CONS-2. ✓ **Conservation Insight needs a WATERSHED choropleth dashboard, clearly named
+>       and early in the list (Kevin live, 2026-07-30, screenshot — SHIPPED v772, sw
+>       v408: "Watershed Map — HUC8 Cover Crop Adoption", full-width HUC8 choropleth
+>       hero + provider comparison, Conservation Insight folder, seeded last so
+>       recency-sorted lists show it up top; ensureConservationWatershedDashboard
+>       backfills existing installs on boot). DUPLICATES: reconcilePackDashboards now
+>       dedupes pack dashboards sharing demoPackId+source (sourceFile/spec.name),
+>       keeping the foldered (else older) copy — Kevin's each-example-twice state heals
+>       on next load; most plausible origin was a remote-mirror union of two devices'
+>       materializations. Original —** "Something missing
 >       from the sample pack: a watershed choropleth dashboard — named so it's clear,
 >       early in the list, so you can tell what it is and want to click on it." The pack
 >       has the HUC8 dataset; add a dedicated dashboard (e.g. "Watershed Map — HUC8 Cover
@@ -7712,6 +7726,39 @@
 >       (side-by-side wheels or two overlaid polygons) in the Conservation Insight pack,
 >       foldered + clearly named; (3) keep the CTIC stakeholder story (the wheel is the
 >       at-a-glance "how is the whole system doing" view for policymakers/NGOs).
+> VB-10. ★ **View Builder Map: can't get a map to render (Kevin live, 2026-07-30,
+>       screenshot — all-no-data US map).** His setup: SUM Adoption_Pct on Columns,
+>       State_FIPS on Rows/Color, Map type — renders the base map with every region
+>       "No data". THREE gaps: (1) the builder's Map has NO Region-scale control (it
+>       silently defaults to Counties — 2-digit state FIPS match nothing); (2) the map
+>       basis should accept the region id from EITHER shelf (his was on Rows) and treat
+>       it as the geo role — reuse QV-1's xpGuessRegionScale-style name+value inference
+>       to pick the scale automatically, surfaced as a visible "Region scale" select
+>       next to the type buttons when Map is active; (3) STATE FIPS NUMERICS: the state
+>       scale's geometry is keyed by postal codes ("IA") — accept 2-digit state FIPS
+>       ids too (translate FIPS→postal via a small built-in lookup, both directions), so
+>       State_FIPS = 17/19/etc. colors IL/IA without the user knowing postal codes.
+>       Also: when the map would render all-no-data, say WHY in the panel ("0 of N ids
+>       matched the Counties scale — try States") instead of a silent empty map — the
+>       honesty affordance that would have made this self-explanatory.
+> CONS-4. **Conservation pack Views should be View Builder-native (Kevin live,
+>       2026-07-30).** "I would like all of the default views to be ones from View
+>       Builder in the view list. If the dashboards have views in them that are not
+>       View Builder-openable that's OK, keep those in there for now, but the view list
+>       — I would like all of them to open to the View Builder default as the first
+>       option." Implementation: re-author the pack's seeded analyses (demopacks.js
+>       analysisRow — today they're Quick-Views-shaped ensembleSeries rows with no
+>       builder blob, so VB-5's owner-routing opens them in Quick Views) as BUILDER
+>       rows: each carries builder:{dsKind:"ws", dsId:<the pack's real raw-provider
+>       dataset>, chartType (a VB-supported type: line/bars/areaStacked/map/kpi),
+>       shelfCols/shelfRows (e.g. Report_Year as CATEGORY + AVG Adoption_Pct), filters
+>       (per-practice)} plus the da/chart pair bdSave stamps, so Views-list open routes
+>       to Build, Home pins still render live (runBlob), and add-to-dashboard still
+>       works. The DASHBOARD-embedded ensembleSeries panels stay as-is (not in the Views
+>       list). Heal existing installs via a reconcile (replace pack analyses lacking a
+>       builder blob with the new rows, preserving pinned state); update the LF43/DP
+>       censuses + docs. Depends on nothing, but ship AFTER VB-10 so a map-type seeded
+>       View actually renders in the builder.
 > CONS-1. **Conservation pack ↔ real CTIC reference dashboards (Kevin live, 2026-07-30,
 >       three reference screenshots — CLAIMED by the dedicated session).** Make the
 >       Conservation sample-pack dashboards look "immediately as close as possible" to the

@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v407"; /* v407: BOOT-FLASH follow-up — the standalone dashboard
+var CACHE_NAME = "studio-shell-v408"; /* v408: CONS-2 — the Conservation pack seeds a
+   dedicated Watershed Map dashboard (full-width HUC8 choropleth hero + provider bars,
+   foldered, backfilled into existing installs by reconcilePackDashboards), the boot
+   reconcile dedupes pack dashboards sharing demoPackId+source (keeps the foldered copy),
+   and VB-9: [hidden] notice shells compute display:none (stray "(" artifact).
+   Original v407: BOOT-FLASH follow-up — the standalone dashboard
    viewer (app/viewer.html/app/viewer.js) gets the same pre-paint theme stamp + boot veil
    #508 shipped for the main app, which had missed this second entry point; app/gate.js's
    now-fully-redundant async theme stamp (superseded by both entry points' own pre-paint

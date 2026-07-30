@@ -4519,8 +4519,8 @@ function serve() {
         choroScales: dashes[0] && dashes[0].spec.panels.filter(function (p) { return p.chart.type === "choropleth"; }).map(function (p) { return p.chart.opts.scale; }),
         allFileCsv: dss.every(function (d) { return d.kind === "file" && d.format === "csv"; }) };
     });
-    ok("DP: installDemoPack seeds a whole workspace — 2 connections, 4 file datasets, 1 rollup job, 4 pinned ensemble analyses, and 1 featured dashboard",
-      dpInstall.installed && dpInstall.conns === 2 && dpInstall.dss === 4 && dpInstall.ans === 4 && dpInstall.dashes === 1 && dpInstall.jobs === 1 &&
+    ok("DP: installDemoPack seeds a whole workspace — 2 connections, 4 file datasets, 1 rollup job, 4 pinned ensemble analyses, the featured dashboard + the Watershed Map dashboard (CONS-2)",
+      dpInstall.installed && dpInstall.conns === 2 && dpInstall.dss === 4 && dpInstall.ans === 4 && dpInstall.dashes === 2 && dpInstall.jobs === 1 &&
       dpInstall.pinned && dpInstall.featured && dpInstall.allFileCsv &&
       dpInstall.panelTypes.filter(function (t) { return t === "ensembleSeries"; }).length === 4 &&
       dpInstall.panelTypes.filter(function (t) { return t === "choropleth"; }).length === 3,
@@ -4882,6 +4882,57 @@ function serve() {
       qv1.huc.type === "choropleth" && qv1.huc.scale === "huc8", JSON.stringify(qv1.huc));
     ok("QV-1: state- and district-named Region-id columns default to States and USDA districts (via the Map type re-guess)",
       qv1.state.type === "choropleth" && qv1.state.scale === "state" && qv1.crd.scale === "crd", JSON.stringify({ state: qv1.state, crd: qv1.crd }));
+
+    // ---- CONS-2 (Kevin live, 2026-07-30): watershed dashboard + pack-dashboard dedupe ----
+    console.log("\n\u2022 CONS-2: the Watershed Map dashboard; duplicated pack dashboards heal");
+    const cons2 = await page.evaluate(function () {
+      var dm = window.__studioDemoPacks, W = Studio.Workspace;
+      var wasInstalled = dm.installed("conservation");
+      if (!wasInstalled) dm.install("conservation");
+      var out = {};
+      function watershedRows() {
+        return W.all("dashboards").filter(function (r) { return r.demoPackId === "conservation" && r.name === "conservation-watershed-map"; });
+      }
+      var w = watershedRows()[0];
+      out.seeded = !!w;
+      out.title = w && w.title;
+      out.folder = w && w.folder;
+      out.heroScale = w && w.spec.panels[0] && w.spec.panels[0].chart.opts.scale;
+      out.heroSpan = w && w.spec.panels[0] && w.spec.panels[0].span;
+      // dedupe: clone the featured dashboard as an unfoldered fresh copy (the shape of
+      // Kevin's live duplicates) → reconcile keeps exactly one, the FOLDERED copy
+      var feat = W.all("dashboards").filter(function (r) { return r.demoPackId === "conservation" && r.name === "conservation-insight-demo"; })[0];
+      var clone = Studio.clone(feat); delete clone.id; clone.folder = ""; clone.ts = new Date().toISOString();
+      W.put("dashboards", clone);
+      out.beforeDedupe = W.all("dashboards").filter(function (r) { return r.demoPackId === "conservation" && r.name === "conservation-insight-demo"; }).length;
+      window.__studioReconcilePackDashboards();
+      var after = W.all("dashboards").filter(function (r) { return r.demoPackId === "conservation" && r.name === "conservation-insight-demo"; });
+      out.afterDedupe = after.length;
+      out.keptFoldered = after[0] && after[0].folder === "Conservation Insight";
+      // backfill: an install that predates the watershed dashboard gets it on reconcile
+      watershedRows().forEach(function (r) { W.remove("dashboards", r.id); });
+      window.__studioReconcilePackDashboards();
+      out.backfilled = watershedRows().length === 1;
+      if (!wasInstalled) dm.remove("conservation");
+      return out;
+    });
+    ok("CONS-2: the pack seeds a clearly-named Watershed Map dashboard — foldered, HUC8 choropleth hero at full width",
+      cons2.seeded && /^Watershed Map/.test(cons2.title) && cons2.folder === "Conservation Insight" && cons2.heroScale === "huc8" && cons2.heroSpan === "full",
+      JSON.stringify(cons2));
+    ok("CONS-2: duplicated pack dashboards heal on reconcile — one row survives and it's the foldered copy; a missing watershed dashboard backfills",
+      cons2.beforeDedupe === 2 && cons2.afterDedupe === 1 && cons2.keptFoldered && cons2.backfilled,
+      JSON.stringify(cons2));
+
+    // ---- VB-9 (Kevin live, 2026-07-30): the hidden builder notice truly disappears ----
+    const vb9 = await page.evaluate(function () {
+      var n = document.getElementById("buildNotice");
+      var was = n.hidden; n.hidden = true;
+      var d = getComputedStyle(n).display;
+      n.hidden = was;
+      return { display: d };
+    });
+    ok("VB-9: a hidden builder notice computes display:none — display:flex no longer defeats [hidden] (the stray '(' outline strip)",
+      vb9.display === "none", JSON.stringify(vb9));
     await page.evaluate(function () { return window.__studioLoadExample("conservation-flow.studio.json"); }); // LF43 slice 2: menu gone — hook load
     await page.waitForTimeout(300);
     const lf2Flow = await page.evaluate(function () {
@@ -5215,8 +5266,8 @@ function serve() {
     const LF43_EXPECTED_FILES = ["conservation-agreement.studio.json", "conservation-costshare.studio.json",
       "conservation-flow.studio.json", "conservation-outliers.studio.json", "conservation-overview.studio.json",
       "conservation-scorecard.studio.json", "conservation-switching.studio.json", "conservation-watershed.studio.json"].sort();
-    ok("LF43: installing the Conservation pack materializes all 8 of its gated example-gallery dashboards as real workspace rows (plus the 1 hand-built featured one = 9 total)",
-      lf43Materialized.total === 9 && lf43Materialized.sourcedCount === 8 &&
+    ok("LF43: installing the Conservation pack materializes all 8 of its gated example-gallery dashboards as real workspace rows (plus the 2 hand-built ones — featured + Watershed Map — = 10 total)",
+      lf43Materialized.total === 10 && lf43Materialized.sourcedCount === 8 &&
       JSON.stringify(lf43Materialized.sourceFiles) === JSON.stringify(LF43_EXPECTED_FILES) && lf43Materialized.titlesAllReal,
       JSON.stringify(lf43Materialized));
     // regression guard: datamanagement is installed BY DEFAULT (no explicit install click ever
@@ -5266,7 +5317,7 @@ function serve() {
       return out;
     });
     ok("PACK NAMING: conservation dashboards lead with their own name and install into the 'Conservation Insight' folder",
-      packNaming.count === 9 && packNaming.allInFolder && packNaming.noPrefix, JSON.stringify(packNaming));
+      packNaming.count === 10 && packNaming.allInFolder && packNaming.noPrefix, JSON.stringify(packNaming)); // 10 since CONS-2 added the Watershed Map dashboard
     ok("PACK NAMING: the boot reconcile strips the legacy prefix (row + spec titles) and backfills the folder on a pre-rename workspace",
       packNaming.healedTitle === "Legacy Shaped" && packNaming.healedSpecTitle === "Legacy Shaped" &&
       packNaming.healedFolder === "Conservation Insight", JSON.stringify(packNaming));
