@@ -116,6 +116,33 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **SYNC ANTI-FLAKE (v739, sw v376, 2026-07-30, steward):** Kevin live: "still getting a lot
+  of reconnecting… supabase seems very flaky." Three-part hardening. (1) **In-request
+  transient retry** (app/sources/supabase.js rest()): a single 429/5xx response or network
+  throw retries ONCE after 800ms before surfacing — safe because every workspace write is
+  idempotent (merge-duplicates upserts + by-filter DELETEs); a lone blip inside the 12+
+  requests of a full mirror used to fail the WHOLE push and flap the rail red until the 15s
+  backoff. On the throw path the ORIGINAL error surfaces, not the retry's. (2) **Push
+  spacing** (sync.js): debounced pushes keep a 4s minimum gap (`MIN_PUSH_GAP_MS`) — rapid
+  editing coalesces into calmer mirrors instead of hammering rate limits; `pushNow`/pagehide/
+  retryNow force-bypass so tests, flushes and manual actions stay immediate. (3) **Sync
+  activity log**: sync.js keeps the last 12 attempts ({at, kind: push/pull/boot pull, ok,
+  error}); the Settings backend card renders "Recent sync activity" (last 8, error text on
+  failures) — "it keeps reconnecting" now always has a readable, reportable reason. 2 new
+  regression tests (fetch-stubbed 503 + network-throw each recover in exactly 2 calls; the
+  heal flow asserts the failed push logged WITH error text, rendered on the card, and the
+  recovery logged ok). NOTE for the next diagnosis round: if Kevin still sees Reconnecting…,
+  the Settings card's activity log now carries the exact per-attempt error — ask him for a
+  screenshot of THAT (likely candidates: the missing analyses/jobs/users tables delta, or
+  RLS blocking a table write). Structural follow-up queued: per-table diffing so a mirror
+  isn't DELETE-all+rewrite of every table. Rode along (Kevin live on the fresh VB-1 deploy):
+  the Build outline sorts ALPHABETICALLY and stays stable under selection (live-running a
+  dataset stamps updatedAt, so recency order re-sorted the list under the cursor — "it jumps
+  around"), and .bd-left fills the viewport column (height:calc(100vh - 120px), mobile keeps
+  auto/240px) instead of sizing to content. +1 regression test (VB-1b: alpha order, stable
+  across selectDataset, pane >= viewport-200). Files: app/sources/supabase.js,
+  app/sources/sync.js, app/build.js, app/studio.js, app/studio.css, docs/index.html, sw.js,
+  js/changelog.js, tests/run.js.
 - **#117 slice 5 — MULTI-DIM SERIES CHARTING for the Line chart (v738, sw v375, 2026-07-30,
   steward):** the Line chart widens beyond the [first dimension, first measure] basis every
   chart type has used since slice 2, by reusing the SAME pivot engine (`compute`) the table/
@@ -6900,6 +6927,38 @@
 >       the other majors: KPI, area, scatter, stacked bars…), reusing studio-charts/pdc-ui
 >       engineering. "All of the chart types available for the view builder over time — be
 >       reasonable, hit major ones first."
+> VB-5. **Cross-editor View opening (Kevin live, 2026-07-30).** Any View should open in EITHER
+>       builder — Quick Views or the View Builder — including Views saved from the dashboard
+>       editor. Incompatible content (a chart type the target editor lacks, etc.) still OPENS:
+>       render best-effort and show a DISMISSIBLE notice ("built in the higher-level editor —
+>       some settings may not be shown"). Everywhere a View can be opened (the Views rail
+>       section, Explore's saved list, Home pinned cards, Repository rows, the Studio library —
+>       sweep the app for every open point) offer BOTH targets via a menu or button.
+> VB-6. **View Builder Save dialog overhaul (Kevin live, 2026-07-30).** The bd-save modal is
+>       too bare: add the LF56 folder NAVIGATOR (browse existing folders, create a new one,
+>       save into a location — same picker every other Folder field uses) and a sparkle
+>       name-suggest on the name input (withSparkleButton, like Explore's save path).
+> LIVE-a. **Home quick-action buttons ↔ new rail terminology (Kevin live, screenshot).** The
+>       Home cards still say "Explore data" / "New dashboard" etc. — align wording with the
+>       new rail IA (Quick Views / View Builder / Dashboards) and ADD the missing builder
+>       entry points (e.g. a "New View (builder)" card). Sweep other button labels app-wide
+>       that still say "Explore"/"Studio" (tours, empty states, menus) — same terminology pass.
+> LIVE-b. **Sample-pack dashboard naming + folder (Kevin live, screenshot).** Every
+>       Conservation Insight dashboard card reads "Conservation Insight — …" so the grid looks
+>       identical row after row. Rename so the dashboard's OWN name leads (e.g. "Watershed
+>       Adoption"), and file the pack's dashboards into a "Conservation Insight" folder as part
+>       of the standard pack install (folders exist on dashboards via LF56/LF59 conventions).
+> LIVE-d. **Cross-app multi-select + bulk actions (Kevin live, 2026-07-30).** Every catalog
+>       section (Views, Dashboards, Datasets, Connections, Jobs, Repository) needs
+>       multi-select (checkboxes / shift-click) with bulk operations — move to folder (his
+>       driving example: "I want to select multiple dashboards and move to folder but had to
+>       do each one individually"), delete, export where applicable. Generalizes LF59's
+>       Dashboards multi-select into ONE shared selection+bulk-bar pattern used by every
+>       section — design it once, adopt per section in slices.
+> LIVE-c. **Supabase flake follow-up.** v738 shipped in-request retry + push spacing + the
+>       Settings activity log. If Reconnecting… persists, get the activity-log error text from
+>       Kevin (Settings → Workspace backend) — then fix the root cause (missing delta tables?
+>       RLS write block?). Structural: per-table diff pushes instead of DELETE-all+rewrite.
 
 ### ★★ FRONTEND QA REPORT — 2026-07-24 (Kevin-directed, fold into the interleave)
 > Full report committed at repo root: `FRONTEND_QA_REPORT_2026-07-24.md` (read it for the

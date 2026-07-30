@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 739,
+    title: 'Workspace sync stops being flaky',
+    kind: 'fix',
+    ts: '2026-07-30T04:32:33.000Z',
+    items: [
+      'A single network blip or rate-limit response inside a sync no longer fails the whole push (and flashes Reconnecting…) — each request quietly retries once on the spot first.',
+      'Automatic pushes keep a minimum spacing, so rapid editing coalesces into fewer, calmer mirrors instead of hammering the backend into rate limits.',
+      'The Settings backend card now shows Recent sync activity — the last several push/pull attempts with the exact error text for any failure, so a red indicator always has a readable reason.',
+    ],
+  },
+  {
     v: 738,
     title: 'The View Builder\'s Line chart now draws multiple series',
     kind: 'feature',

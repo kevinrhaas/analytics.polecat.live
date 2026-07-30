@@ -122,14 +122,16 @@
   function retryNow() {
     if (state.sourceId === "local") return Promise.resolve();
     if (_inflight) { scheduleRetry(); return Promise.resolve(); }
-    if (_dirty) return flushPush();
+    if (_dirty) return flushPush(true);
     var src = Studio.sourceById(state.sourceId);
     if (!src) return Promise.resolve();
     _suspend = true;
     return src.load(state.cfg).then(decTransform).then(function (snap) {
       W().replaceAll(snap);
+      logSync("pull", true);
       setStatus("connected");
     }).catch(function (e) {
+      logSync("pull", false, e.message || "sync failed");
       setStatus("error", e.message || "sync failed");
     }).then(function () { _suspend = false; });
   }
@@ -142,14 +144,34 @@
   }
   function loadConn() { try { return JSON.parse(localStorage.getItem(CONN_KEY) || "null"); } catch (e) { return null; } }
 
+  // Rolling sync-activity log (newest first, capped): the rail dot alone can't
+  // explain a flaky backend — the Settings card renders this so the actual
+  // failure text is readable and reportable.
+  var _log = [];
+  function logSync(kind, isOk, err) {
+    _log.unshift({ at: Date.now(), kind: kind, ok: !!isOk, error: err || "" });
+    if (_log.length > 12) _log.length = 12;
+  }
+
+  // A full mirror is a burst of requests per table — pushing on every 1.2s
+  // debounce during rapid editing can trip backend rate limits (a big source of
+  // "flaky" red flaps). Debounced pushes keep a minimum spacing; bursts
+  // coalesce into the next slot. pushNow/pagehide bypass via force.
+  var MIN_PUSH_GAP_MS = 4000;
+  var _lastPushEnd = 0;
+
   function schedulePush() {
     if (state.sourceId === "local") return; // local needs no mirror
     _dirty = true;
     clearTimeout(_timer);
     _timer = setTimeout(flushPush, DEBOUNCE_MS);
   }
-  function flushPush() {
+  function flushPush(force) {
     if (state.sourceId === "local" || _inflight || !_dirty) return Promise.resolve();
+    if (force !== true) {
+      var wait = MIN_PUSH_GAP_MS - (Date.now() - _lastPushEnd);
+      if (wait > 0) { clearTimeout(_timer); _timer = setTimeout(flushPush, wait); return Promise.resolve(); }
+    }
     var src = Studio.sourceById(state.sourceId);
     if (!src) return Promise.resolve();
     _inflight = true; _dirty = false;
@@ -159,12 +181,15 @@
     }).then(function (res) {
       if (res && res.ok === false) throw new Error(res.error || "write failed");
       state.lastPushAt = Date.now();
+      logSync("push", true);
       setStatus("connected");
     }).catch(function (e) {
       _dirty = true; // keep pending — setStatus('error') arms the backoff retry
+      logSync("push", false, e.message || "sync failed");
       setStatus("error", e.message || "sync failed");
     }).then(function () {
       _inflight = false;
+      _lastPushEnd = Date.now();
       // more edits arrived while this push was in flight — mirror them too
       // (the error case is already queued on the retry timer, don't double up)
       if (_dirty && state.status !== "error") schedulePush();
@@ -178,9 +203,11 @@
     currentConfig: function () { return state.cfg ? JSON.parse(JSON.stringify(state.cfg)) : null; },
     secretsState: function () { return { available: C().cryptoAvailable(), enabled: _sec.enabled, locked: _sec.enabled && !_sec.key }; },
 
-    pushNow: function () { clearTimeout(_timer); return flushPush(); },
+    pushNow: function () { clearTimeout(_timer); return flushPush(true); },
     // immediate self-heal attempt (also what the backoff timer fires)
     retryNow: retryNow,
+    // recent sync attempts (newest first) — the Settings card renders these
+    syncLog: function () { return _log.slice(); },
 
     // Pull the remote's contents and adopt them (the one thing automation can't
     // do — there's no live subscription). Flushes pending local writes first.
@@ -193,8 +220,9 @@
         _suspend = true;
         return src.load(state.cfg).then(decTransform).then(function (snap) {
           W().replaceAll(snap);
+          logSync("pull", true);
           setStatus("connected");
-        }).catch(function (e) { setStatus("error", e.message || "refresh failed"); })
+        }).catch(function (e) { logSync("pull", false, e.message || "refresh failed"); setStatus("error", e.message || "refresh failed"); })
           .then(function () { _suspend = false; return publicState(); });
       });
     },
@@ -325,6 +353,7 @@
       function connectOnce(attempt) {
         return src.load(state.cfg).then(decTransform).then(function (snap) {
           W().replaceAll(snap);
+          logSync("boot pull", true);
           setStatus("connected");
         }).catch(function (e) {
           var msg = e.message || "could not reach source";
@@ -333,6 +362,7 @@
             setStatus("connecting");
             return new Promise(function (res) { setTimeout(res, RETRY_MS[attempt]); }).then(function () { return connectOnce(attempt + 1); });
           }
+          logSync("boot pull", false, msg);
           setStatus("error", msg + " — working from the local mirror");
         });
       }
