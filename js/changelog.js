@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 777,
+    title: 'Dashboards are durable now — nothing deletes or overwrites them behind your back',
+    kind: 'fix',
+    ts: '2026-07-30T21:20:52.000Z',
+    items: [
+      'Fixed the bug that made dashboards VANISH while you were just looking at them: a leftover “recents cap” silently deleted all but the 8 newest unpinned dashboards on every autosave. The cap is gone — dashboards are only ever removed by an explicit delete.',
+      'Connecting or refreshing from a workspace backend no longer resurrects duplicates or drops newer dashboards: after every remote adoption the app re-runs its pack heals (re-seed what the stale copy was missing, dedupe what it doubled) and pushes the corrected state back up so it sticks.',
+      'When the backend keeps rejecting saves, a persistent banner now says so plainly — “Your changes aren’t reaching the backend” — instead of a quiet status dot, so work can’t silently live only in one browser.',
+    ],
+  },
+  {
     v: 776,
     title: 'Repository gains Select / bulk-delete',
     kind: 'feature',

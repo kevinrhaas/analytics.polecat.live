@@ -91,8 +91,23 @@
   function publicState() {
     var src = Studio.sourceById(state.sourceId) || Studio.localSource;
     return { sourceId: state.sourceId, label: src.label, source: src,
-      status: state.status, isRemote: !src.local, lastError: state.lastError, lastPushAt: state.lastPushAt };
+      status: state.status, isRemote: !src.local, lastError: state.lastError, lastPushAt: state.lastPushAt,
+      // DURABLE-1: consumers (the push-failure banner) need to know that local
+      // edits exist which the backend keeps refusing — a quiet rail dot wasn't
+      // enough warning that work was one stale pull away from being clobbered.
+      pendingEdits: _dirty, pushFails: state.pushFails || 0 };
   }
+  // DURABLE-1 (Kevin live, 2026-07-30 — vanished + duplicated dashboards): a pull
+  // ADOPTION replaces the whole workspace with the remote snapshot. When that
+  // remote is stale (failed pushes, another device's older union), adoption
+  // silently resurrects duplicates and drops rows the boot heals had seeded —
+  // and because the heals ran BEFORE the async adoption landed, their work was
+  // clobbered on every load. So: after EVERY adoption, re-run the registered
+  // heals (studio.js registers its pack reconcile/dedupe/backfills). The heals'
+  // own edits run with _suspend already cleared, so they schedule a push and the
+  // healed state finally persists remotely instead of being re-clobbered.
+  var _adoptHeals = [];
+  function healAfterAdopt() { _adoptHeals.forEach(function (fn) { try { fn(); } catch (e) {} }); }
   function emit() { listeners.forEach(function (fn) { try { fn(publicState()); } catch (e) {} }); }
   function setStatus(status, err) {
     state.status = status; state.lastError = err || "";
@@ -133,7 +148,7 @@
     }).catch(function (e) {
       logSync("pull", false, e.message || "sync failed");
       setStatus("error", e.message || "sync failed");
-    }).then(function () { _suspend = false; });
+    }).then(function () { _suspend = false; healAfterAdopt(); });
   }
 
   function saveConn() {
@@ -181,10 +196,12 @@
     }).then(function (res) {
       if (res && res.ok === false) throw new Error(res.error || "write failed");
       state.lastPushAt = Date.now();
+      state.pushFails = 0; // DURABLE-1: recovery clears the failure streak
       logSync("push", true);
       setStatus("connected");
     }).catch(function (e) {
       _dirty = true; // keep pending — setStatus('error') arms the backoff retry
+      state.pushFails = (state.pushFails || 0) + 1; // DURABLE-1: feeds the loud banner
       logSync("push", false, e.message || "sync failed");
       setStatus("error", e.message || "sync failed");
     }).then(function () {
@@ -198,6 +215,12 @@
 
   var Sync = {
     onSync: function (fn) { listeners.push(fn); return function () { var i = listeners.indexOf(fn); if (i >= 0) listeners.splice(i, 1); }; },
+    // DURABLE-1: register a heal to re-run after every remote adoption (see
+    // healAfterAdopt above). studio.js registers its pack reconcile here.
+    // healAfterAdopt is exported so the suite can exercise the registered
+    // heals without a live remote round-trip.
+    onAdopt: function (fn) { _adoptHeals.push(fn); },
+    healAfterAdopt: healAfterAdopt,
     syncState: publicState,
     // credentials for the Edit form — kept out of syncState so secrets don't feed the rail
     currentConfig: function () { return state.cfg ? JSON.parse(JSON.stringify(state.cfg)) : null; },
@@ -230,7 +253,7 @@
           logSync("pull", true);
           setStatus("connected");
         }).catch(function (e) { logSync("pull", false, e.message || "refresh failed"); setStatus("error", e.message || "refresh failed"); })
-          .then(function () { _suspend = false; return publicState(); });
+          .then(function () { _suspend = false; healAfterAdopt(); return publicState(); });
       });
     },
 
@@ -251,6 +274,7 @@
         _suspend = false;
         state.sourceId = sourceId; state.cfg = cfg; saveConn();
         setStatus("connected");
+        healAfterAdopt();
         return publicState();
       }, function (e) { _suspend = false; setStatus("error", e.message); throw e; });
     },
@@ -373,7 +397,7 @@
           setStatus("error", msg + " — working from the local mirror");
         });
       }
-      return connectOnce(0).then(function () { _suspend = false; return publicState(); });
+      return connectOnce(0).then(function () { _suspend = false; healAfterAdopt(); return publicState(); });
     }
   };
 

@@ -7801,8 +7801,33 @@
 >       builder blob with the new rows, preserving pinned state); update the LF43/DP
 >       censuses + docs. Depends on nothing, but ship AFTER VB-10 so a map-type seeded
 >       View actually renders in the builder.
-> DURABLE-1. ★★ **Dashboards silently vanish / duplicate — the boot pull clobbers the
->       healed workspace (Kevin live, 2026-07-30, screenshot: 8 dashboards where 11
+> WORKSPACE-LOGIN. ★ **Ship the default Polecat Supabase workspace ON the login screen
+>       (Kevin live, 2026-07-30 — MOVED UP by Kevin).** "ship with the default polecat
+>       supabase workspace... so i can login with a user who has access inside that
+>       database." The gate's workspace select: (1) LOCAL ONLY — admin/admin, demo/demo
+>       exactly as today; (2) POLECAT WORKSPACE (default, PACKAGED with the app — a
+>       shipped connection config, no user setup): picking it wires the Supabase
+>       connection and signs in real provisioned users (e.g. dgustafson) — Kevin
+>       controls access via Admin; (3) CUSTOM WORKSPACE escape hatch — define the
+>       connection at the gate OR import an ACCESS FILE (a small config Kevin can hand
+>       out: "import this, then log in") that sets up the connection; the packaged
+>       default must also be locally overridable if the database ever moves. Builds on
+>       gate.js's LF39 direct-auth + #103/#104 (repo-picker + shipped catalog — this
+>       supersedes/absorbs those queue items). Ship AFTER DURABLE-1, before EXPORT-1.
+> DURABLE-1. ✓ **Dashboards silently vanish / duplicate — SHIPPED v777, sw v412. TWO
+>       killers found: (A) THE PRIMARY — an 8-unpinned-cap autosave eviction left over
+>       from the recents era silently DELETED all but the 8 newest unpinned dashboards
+>       on every autosave tick (Kevin's screenshot showed exactly 8; the Watershed Map
+>       vanished while he VIEWED it in slideshow — autosave ticked, cap evicted).
+>       REMOVED — dashboards only die by explicit delete; Z2-5/Z2P-4 rewritten as
+>       durability tests. (B) the boot pull clobber — the async adoption replaceAll()'d
+>       over the boot heals with a stale two-device remote union (dupes with 3h/5h
+>       stamps); now every adoption (boot connectOnce, pullNow, retryNow, connectAdopt)
+>       re-runs the registered heals (Sync.onAdopt → reconcilePackDashboards) whose
+>       edits then schedulePush so the healed state persists. Plus a persistent
+>       sync-loss banner (pushFails>=2 && pendingEdits) naming the error, cleared on
+>       recovery. DURABLE-2 (Trash/undo + delete-confirmation audit) still queued.
+>       Original — the boot pull clobbers the healed workspace (Kevin live, 2026-07-30, screenshot: 8 dashboards where 11
 >       should be; Watershed Map + featured GONE; Provider-Agreement and
 >       Practice-Switching each TWICE, 3h + 5h copies).** Mechanism (same race as
 >       today's LF39 test fix, in the real app): boot runs reconcilePackDashboards +

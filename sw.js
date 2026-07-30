@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v411"; /* v411: CONS-3 — new radarSectors "Metrics wheel"
+var CACHE_NAME = "studio-shell-v412"; /* v412: DURABLE-1 — the 8-unpinned-cap autosave
+   eviction is REMOVED (it silently deleted dashboards once the table became durable
+   objects); sync adoptions (boot pull / Refresh / connect) re-run the registered pack
+   heals via Sync.onAdopt/healAfterAdopt and push the healed state; repeated push
+   failures raise a persistent sync-loss banner (publicState pendingEdits/pushFails).
+   Original v411: CONS-3 — new radarSectors "Metrics wheel"
    chart type (studio-charts.js extension: tinted category sector wedges, numbered rim,
    value polygon, grouped side legend; model.js CHARTS def + newPanel mapping;
    studio-render case), and the pack seeds the "Conservation System Metrics" dashboard
