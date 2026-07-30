@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 762,
+    title: 'Jobs gains Select / bulk delete',
+    kind: 'feature',
+    ts: '2026-07-30T15:51:47.000Z',
+    items: [
+      'The Jobs page now has the same Select toolbar button as Datasets and Connections — check off multiple jobs and delete them in one confirm. Their output datasets are kept, same as deleting a job one at a time.',
+    ],
+  },
+  {
     v: 761,
     title: 'The app wears the Polecat brand: Hanken Grotesk + the new mark',
     kind: 'feature',

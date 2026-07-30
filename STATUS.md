@@ -116,6 +116,20 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LIVE-d slice 3 — Jobs gains Select / bulk-delete (v762, sw v398, 2026-07-30,
+  steward):** the third section to adopt the cross-app multi-select pattern slices 1-2
+  proved on Datasets/Connections (same **Select** toolbar button, checkbox overlay on
+  every row/tile, bulk bar with Select all/Clear/Delete). Selection state
+  (`_jobsSelectMode`/`_jobsSelected`) is session-only, pruned against the live list
+  every render so a stale id can't linger. Deleting a job (individually or in bulk)
+  already kept its output dataset — the bulk confirm copy says so, matching the
+  single-delete confirm's own framing. Reuses the exact `.cx-select`/`.dash-bulk-bar`/
+  `.is-selected` CSS as-is (already section-agnostic from slice 1 — no new styles
+  needed). docs/index.html's "Select multiple / bulk delete" section now covers all
+  three sections. Files: app/jobs.js, app/index.html, docs/index.html, sw.js,
+  js/changelog.js, tests/run.js. **NEXT in LIVE-d:** Repository adopts the same
+  Select/bulk-bar shape; a bulk "move to folder" action once at least one section
+  has it.
 - **KEVIN-LIVE SCORE-1 — dead preview filters + multiplying ✕ overlays (v759, sw v395,
   2026-07-30, steward, same PR as the pair below):** interactive filters were dead against
   mock/sample data (the vendored mock branch ignored params — they only ever worked against
@@ -7553,9 +7567,11 @@
 >       single-select field with its own Folder-field editing UX, not yet wired into the
 >       bulk bar.
 >       ✓ **Slice 2 shipped (2026-07-30, v756, steward): Connections gains Select/bulk-delete.**
->       See DONE for the full writeup — same shape, no new CSS needed. NEXT in LIVE-d: Jobs
->       and Repository adopt the same Select/bulk-bar shape; a bulk "move to folder" action
->       once at least one section has it.
+>       See DONE for the full writeup — same shape, no new CSS needed.
+>       ✓ **Slice 3 shipped (2026-07-30, v762, steward): Jobs gains Select/bulk-delete.**
+>       See DONE for the full writeup — same shape, bulk confirm notes output datasets are
+>       kept. NEXT in LIVE-d: Repository adopts the same Select/bulk-bar shape; a bulk
+>       "move to folder" action once at least one section has it.
 > LIVE-c. **Supabase flake follow-up.** v738 shipped in-request retry + push spacing + the
 >       Settings activity log. If Reconnecting… persists, get the activity-log error text from
 >       Kevin (Settings → Workspace backend) — then fix the root cause (missing delta tables?
