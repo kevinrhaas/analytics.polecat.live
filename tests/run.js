@@ -21802,13 +21802,21 @@ function serve() {
     // ── v84: H-track callout arrow annotation ───────────────────────────────
     console.log("\n• v84: H-track callout arrow annotation");
 
-    // 1. Callout arrow section appears in panel inspector
+    // 1. Callout arrow section appears in panel inspector. The fresh-spec load
+    // above repaints the preview iframe asynchronously — a fixed sleep raced it,
+    // and the silent `if (card)` no-op'd the click on a not-yet-rendered card
+    // (flaked 2026-07-30: found:false while the two callout checks below, which
+    // don't depend on the click, both passed). Wait for the card to exist.
+    await page.waitForFunction(function () {
+      var ifr = document.getElementById("preview");
+      return !!(ifr && ifr.contentWindow && ifr.contentWindow.document.querySelector(".card"));
+    }, { timeout: 10000 }).catch(function () {});
     const caSecCheck = await page.evaluate(function () {
       try {
         var iw = document.getElementById("preview").contentWindow;
         var card = iw.document.querySelector(".card");
         if (card) card.click();
-        return { ok: true };
+        return { ok: true, clicked: !!card };
       } catch (e) { return { ok: false, err: e.message }; }
     });
     await page.waitForTimeout(150);
