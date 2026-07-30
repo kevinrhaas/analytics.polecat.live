@@ -10734,6 +10734,71 @@ function serve() {
     ok("VB-2: dragging a Filters pill onto a shelf that already carries that column just clears the filter — no duplicate chip",
       vb2.regionFilterAdded && vb2.regionFilterGone && vb2.regionColsCount === 1,
       JSON.stringify(vb2));
+    // 11b. VB-6 (Kevin overnight queue, "i like the new view builder"): a
+    // numeric field on Columns can act as a CATEGORY (grouped, no aggregation)
+    // instead of always being summed — "State_FIPS dragged to Columns becomes
+    // SUM State_FIPS with no way to say group by this." The shelf pill's
+    // aggregation dropdown gains a CATEGORY choice, and id-like numeric columns
+    // (FIPS/year/id) default to Category rather than SUM on first drop.
+    const vb6 = await page.evaluate(async () => {
+      const W = window.Studio.Workspace;
+      const ds = W.put("datasets", {
+        name: "bd117-vb6-ds", kind: "sql",
+        sql: "select county_fips, provider, adoption_pct from t",
+        columns: ["county_fips", "provider", "adoption_pct"],
+      });
+      window.__studioRenderBuild();
+      await new Promise((r) => setTimeout(r, 60));
+      const B = window.__studioBuild;
+      await B.selectDataset("ws", ds.id);
+      await new Promise((r) => setTimeout(r, 120));
+      const out = {};
+      B.addField("county_fips", "cols");
+      B.addField("adoption_pct", "cols");
+      await new Promise((r) => setTimeout(r, 60));
+      out.fipsAggOnDrop = (B.state.shelfCols.filter((f) => f.col === "county_fips")[0] || {}).agg;
+      out.pctAggOnDrop = (B.state.shelfCols.filter((f) => f.col === "adoption_pct")[0] || {}).agg;
+
+      const fipsSel = document.querySelector('#bdShelfCols [data-bd-agg="county_fips"]');
+      out.fipsHasDropdown = !!fipsSel;
+      out.fipsOptions = fipsSel ? [].slice.call(fipsSel.options).map((o) => o.value).join(",") : "";
+      out.fipsSelectedValue = fipsSel ? fipsSel.value : "";
+
+      // flip county_fips to a real measure (avg) via the dropdown
+      fipsSel.value = "avg";
+      fipsSel.dispatchEvent(new Event("change", { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 60));
+      out.fipsAggAfterSwitch = (B.state.shelfCols.filter((f) => f.col === "county_fips")[0] || {}).agg;
+
+      // flip adoption_pct (a plain numeric measure, not id-like) to CATEGORY
+      const pctSel = document.querySelector('#bdShelfCols [data-bd-agg="adoption_pct"]');
+      out.pctHasDropdown = !!pctSel;
+      pctSel.value = "category";
+      pctSel.dispatchEvent(new Event("change", { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 60));
+      out.pctAggAfterSwitch = (B.state.shelfCols.filter((f) => f.col === "adoption_pct")[0] || {}).agg;
+
+      // a non-numeric field (provider) never gets the aggregation dropdown
+      B.addField("provider", "cols");
+      await new Promise((r) => setTimeout(r, 60));
+      out.providerHasDropdown = !!document.querySelector('#bdShelfCols [data-bd-agg="provider"]');
+      return out;
+    });
+    ok("VB-6: an id-like numeric column (county_fips) defaults to CATEGORY (no aggregation) on first drop onto Columns, not SUM",
+      vb6.fipsAggOnDrop == null && vb6.pctAggOnDrop === "sum",
+      JSON.stringify(vb6));
+    ok("VB-6: the aggregation dropdown appears for any numeric Columns field (even while it's a Category) and lists CATEGORY alongside SUM/AVG/etc",
+      vb6.fipsHasDropdown && vb6.fipsOptions === "sum,avg,min,max,median,count,category" && vb6.fipsSelectedValue === "category",
+      JSON.stringify(vb6));
+    ok("VB-6: picking a real aggregation for county_fips flips it into a measure",
+      vb6.fipsAggAfterSwitch === "avg",
+      JSON.stringify(vb6));
+    ok("VB-6: picking CATEGORY for a plain numeric measure (adoption_pct) flips it back to a dimension",
+      vb6.pctHasDropdown && vb6.pctAggAfterSwitch == null,
+      JSON.stringify(vb6));
+    ok("VB-6: a non-numeric Columns field (provider) never gets the aggregation dropdown",
+      !vb6.providerHasDropdown,
+      JSON.stringify(vb6));
     // 12. VB-3 (Kevin overnight queue, "i like the new view builder"): Color as a
     // first-class encoding — a Color shelf splits Bars/Donut into per-category
     // colors and (with no Columns split field) Line into one series per category,
