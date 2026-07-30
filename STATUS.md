@@ -7881,8 +7881,24 @@
 >       See DONE for the full writeup — same shape, no new CSS needed.
 >       ✓ **Slice 3 shipped (2026-07-30, v762, steward): Jobs gains Select/bulk-delete.**
 >       See DONE for the full writeup — same shape, bulk confirm notes output datasets are
->       kept. NEXT in LIVE-d: Repository adopts the same Select/bulk-bar shape; a bulk
->       "move to folder" action once at least one section has it.
+>       kept.
+>       ✓ **Slice 4 shipped (2026-07-30, v775, steward): Repository gains Select/bulk-delete.**
+>       The all-object catalog (dashboards + datasets + connections + Views + jobs in one
+>       searchable tree) is the one section where a single selection can span FIVE different
+>       kinds at once, so the selection key is `type:id` (not id alone — REPO_TYPES ids aren't
+>       guaranteed globally unique) and `bulkDeleteSelectedRepo` groups the selection by
+>       `REPO_EDIT_TABLE` before removing, batching one `Workspace.notify` per table touched
+>       instead of per row. The delete confirmation names how many of EACH kind are in the
+>       selection ("Delete 4 objects (2 dashboards, 1 dataset, 1 job)?"), extending the
+>       per-kind-count framing slices 1-3 already used for their own referenced-by call-outs.
+>       Reuses the exact `.cx-select`/`.dash-bulk-bar`/`.is-selected` CSS as-is — no new
+>       styles needed. A row stops being draggable-to-file while select mode is on (avoids
+>       drag/select gesture collision); the folder-tree grouping, drag-to-file, and quick-edit
+>       affordances are all otherwise untouched. docs/index.html's "Select multiple / bulk
+>       delete" section now covers Repository too. Files: app/studio.js, app/index.html,
+>       docs/index.html, js/changelog.js, tests/run.js. LIVE-d is now feature-complete across
+>       every catalog section; a bulk "move to folder" action remains open as a future slice
+>       if Kevin wants it (his original driving example), on any section.
 > LIVE-c. **Supabase flake follow-up.** v738 shipped in-request retry + push spacing + the
 >       Settings activity log. If Reconnecting… persists, get the activity-log error text from
 >       Kevin (Settings → Workspace backend) — then fix the root cause (missing delta tables?
