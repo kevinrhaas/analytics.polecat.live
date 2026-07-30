@@ -5,7 +5,9 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v402"; /* v402: VB-6 — a numeric field on the View
+var CACHE_NAME = "studio-shell-v403"; /* v403: VB-7 — saved Views carry an independent
+   panelTitle (Save-dialog field; defaults to and tracks the View name; wins in the builder
+   preview, KPI labels, and both Explore dashboard-placement paths). Original v402: VB-6 — a numeric field on the View
    Builder's Columns shelf gets an aggregation dropdown even before it's summed, with a
    CATEGORY choice that flips it to a plain (grouped) dimension; id-like numeric columns
    (*_fips/*_id/id) default to CATEGORY instead of SUM on first drop. app/build.js,

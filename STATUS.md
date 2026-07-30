@@ -7592,7 +7592,12 @@
 >       aggregation dropdown gains a CATEGORY choice (numeric fields only, flips the
 >       field to dimension semantics), and id-like numeric columns (*_fips/*_id/id)
 >       default to Category rather than SUM on first drop.
-> VB-7. **View panel title ≠ View name (Kevin live, 2026-07-30).** "You should be able
+> VB-7. ✓ **View panel title ≠ View name (SHIPPED v767, sw v403 — BD.panelTitle + a Panel
+>       title field in the Save dialog; persisted on the analysis row; preview + KPI label
+>       + Explore placement (analysisSpec / xpAddAnalysisToSpec) prefer panelTitle over
+>       name; blank tracks the View name. Rebuilt on top of the steward loop's #506 VB-6,
+>       which independently shipped the same CATEGORY design). Original — (Kevin live,
+>       2026-07-30).** "You should be able
 >       to change the name of the panel that holds the view — the name of the panel is
 >       not necessarily the name of the view; it could be different but obviously would
 >       default to the name of the view." Give the preview panel/card its own editable
@@ -7618,6 +7623,30 @@
 >       year) everywhere the pack's %-metrics aggregate — audit every conservation
 >       dashboard/View for the same sum-of-percent mistake. Folds naturally into CONS-1
 >       (below) but ship the data+aggregation fix first — it's live-visible today.
+> BOOT-FLASH. **Refresh shows a jarring unthemed flash before the app settles (Kevin
+>       live, 2026-07-30).** "When I refresh the app I get a little flash and a view of
+>       the app without the selected chrome — a messy refresh look. Clean that up ... with
+>       a fade if needed." Fix: a pre-paint boot veil — an inline head style holds the app
+>       invisible while theme/palette/rail/section stamp during boot, released with a
+>       ~200ms fade (honoring prefers-reduced-motion + the stored reduce-motion override);
+>       a failsafe timer releases it even if boot throws. Veil only the gap that remains
+>       after whatever already stamps pre-paint.
+> SIGNOUT-1. **Sign out (account menu dropdown) does not return to the login screen
+>       (Kevin live, 2026-07-30).** Signing out from the menu should land on the gate.
+>       Fix the handler to clear the session AND re-present the gate (likely a clean
+>       reload after clearing studio-gate-ok/session state).
+> CONS-2. **Conservation Insight needs a WATERSHED choropleth dashboard, clearly named
+>       and early in the list (Kevin live, 2026-07-30, screenshot).** "Something missing
+>       from the sample pack: a watershed choropleth dashboard — named so it's clear,
+>       early in the list, so you can tell what it is and want to click on it." The pack
+>       has the HUC8 dataset; add a dedicated dashboard (e.g. "Watershed Map — HUC8 Cover
+>       Crop Adoption") built on it, filed in the Conservation Insight folder, featured
+>       ordering near the top. ALSO INVESTIGATE (same screenshot): pack dashboards appear
+>       DUPLICATED — each example twice, one copy foldered (2h ago) + one fresh copy
+>       unfoldered (just now) — suspect the example materializer re-ran without matching
+>       the existing rows (have-map keys demoPackId|sourceFile?) or an older cached build
+>       on Kevin's device re-materialized pre-folder rows. Reproduce, fix, and add a
+>       reconcile that dedupes (keep the foldered copy).
 > CONS-1. **Conservation pack ↔ real CTIC reference dashboards (Kevin live, 2026-07-30,
 >       three reference screenshots — CLAIMED by the dedicated session).** Make the
 >       Conservation sample-pack dashboards look "immediately as close as possible" to the
