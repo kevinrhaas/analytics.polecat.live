@@ -26,7 +26,10 @@
       (off ? '<line x1="2" y1="2" x2="22" y2="22"/>' : '') + '</svg>';
   }
   var EYE = eyeSvg(false);
-  function reveal() { var a = document.getElementById("app"); if (a) a.style.visibility = ""; var g = document.getElementById("studio-gate"); if (g) g.remove(); }
+  function reveal() {
+    var a = document.getElementById("app"); if (a) a.style.visibility = ""; var g = document.getElementById("studio-gate"); if (g) g.remove();
+    if (window.__releaseBootVeil) window.__releaseBootVeil();
+  }
   // The app boots behind this overlay, so its identity-dependent boot steps (user
   // mirror + demo-content auto-install) ran while nobody was signed in. Re-run
   // them now that we know who logged in. Harmless if the hook isn't ready yet
@@ -46,16 +49,9 @@
     var a = document.getElementById("app"); if (a) a.style.visibility = "hidden";
 
     // Themed via the same --brand/--dk/--ink/etc custom properties as the app
-    // (studio.css [data-theme]/[data-app-theme]); gate runs before studio.js
-    // applies the saved attributes, so read the same localStorage keys first
-    // (best-effort — falls back to :root defaults).
-    try {
-      var savedMode = localStorage.getItem("studio-theme");
-      var savedAppTheme = localStorage.getItem("studio-app-theme");
-      if (savedMode) document.documentElement.setAttribute("data-theme", savedMode);
-      if (savedAppTheme) { document.documentElement.setAttribute("data-app-theme", savedAppTheme); document.documentElement.setAttribute("data-palette", savedAppTheme); }
-    } catch (e) {}
-
+    // (studio.css [data-theme]/[data-app-theme]) — the BOOT-FLASH fix now stamps
+    // those attributes pre-paint (index.html's inline head script), so the gate
+    // card below is already themed correctly by the time it's built.
     var st = document.createElement("style");
     st.textContent =
       "#studio-gate{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;" +
@@ -118,6 +114,7 @@
       '<button type="button" class="g-connect" id="g-connect">Connect to your workspace…</button>' +
       '<div class="g-note">analytics.polecat.live</div></div>';
     document.body.appendChild(ov);
+    if (window.__releaseBootVeil) window.__releaseBootVeil();
 
     var userInp = document.getElementById("g-user"); if (userInp) userInp.focus();
     // LF39: editing the username clears both the error and the Connect cue (fresh attempt).

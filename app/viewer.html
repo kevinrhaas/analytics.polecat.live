@@ -13,6 +13,25 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
 <link rel="apple-touch-icon" href="apple-touch-icon.png"/>
 <meta name="theme-color" content="#d4773b"/>
+<!-- BOOT-FLASH fix — same pre-paint veil as app/index.html; see its comment for the
+     full rationale (theme attrs stamped synchronously here instead of deep in gate.js/
+     studio.js's async boot, veil released by gate.js, fail-safe timeout backstop). -->
+<script>(function () {
+  var d = document.documentElement;
+  d.classList.add("boot-veil");
+  try {
+    var m = localStorage.getItem("studio-theme"); if (m) d.setAttribute("data-theme", m);
+    var p = localStorage.getItem("studio-app-theme");
+    if (p) { d.setAttribute("data-app-theme", p); d.setAttribute("data-palette", p); }
+  } catch (e) {}
+  window.__releaseBootVeil = function () { d.classList.remove("boot-veil"); };
+  setTimeout(window.__releaseBootVeil, 4000);
+})();</script>
+<style>
+html.boot-veil body{opacity:0}
+body{transition:opacity .18s ease}
+@media (prefers-reduced-motion:reduce){body{transition:none}}
+</style>
 <link rel="stylesheet" href="vendor/polecat-shell/tokens.css"/>
 <link rel="stylesheet" href="app/studio.css"/>
 <script src="app/gate-config.js"></script>

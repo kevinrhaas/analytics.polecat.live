@@ -14,6 +14,29 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png"/>
 <link rel="manifest" href="site.webmanifest"/>
 <meta name="theme-color" content="#d4773b"/>
+<!-- BOOT-FLASH fix (Kevin live, 2026-07-30): a refresh used to flash the app in the WRONG
+     palette/section for a moment, because data-theme/data-app-theme were only ever stamped
+     deep inside gate.js's async start() or studio.js's post-fetch boot chain — long after
+     first paint. Stamp them HERE instead, synchronously, before <body> exists, and veil the
+     app (a plain opacity fade on <body>) until gate.js releases it — either once the themed
+     sign-in gate is in the DOM, or once an already-signed-in session is revealed. A fail-safe
+     timeout releases the veil regardless, so a boot error can never leave the app hidden. -->
+<script>(function () {
+  var d = document.documentElement;
+  d.classList.add("boot-veil");
+  try {
+    var m = localStorage.getItem("studio-theme"); if (m) d.setAttribute("data-theme", m);
+    var p = localStorage.getItem("studio-app-theme");
+    if (p) { d.setAttribute("data-app-theme", p); d.setAttribute("data-palette", p); }
+  } catch (e) {}
+  window.__releaseBootVeil = function () { d.classList.remove("boot-veil"); };
+  setTimeout(window.__releaseBootVeil, 4000);
+})();</script>
+<style>
+html.boot-veil body{opacity:0}
+body{transition:opacity .18s ease}
+@media (prefers-reduced-motion:reduce){body{transition:none}}
+</style>
 <!-- Polecat Shell design tokens (vendor/polecat-shell/ is READ-ONLY — synced from
      kevinrhaas/polecat-platform). Loads BEFORE studio.css so the Studio's own variable
      blocks win every name collision; the shell-token bridge lives in studio.css. -->

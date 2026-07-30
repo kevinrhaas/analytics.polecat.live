@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 768,
+    title: 'No more theme flash on refresh',
+    kind: 'fix',
+    ts: '2026-07-30T18:01:40.000Z',
+    items: [
+      'Refreshing the app used to briefly flash the wrong color theme (and, on a fast connection, the wrong section) before settling into your saved look — a pre-paint boot step now stamps your theme before the very first frame, veiled by a quick fade so there\'s nothing to see until it\'s right.',
+    ],
+  },
+  {
     v: 767,
     title: 'View panels get their own title',
     kind: 'feature',

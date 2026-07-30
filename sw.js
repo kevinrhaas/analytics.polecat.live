@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v403"; /* v403: VB-7 — saved Views carry an independent
+var CACHE_NAME = "studio-shell-v404"; /* v404: BOOT-FLASH — app/index.html + app/viewer.html
+   stamp data-theme/data-app-theme/data-palette synchronously in a pre-paint <head> script
+   (instead of gate.js's async start() or studio.js's post-fetch boot chain) and veil <body>
+   behind an opacity fade until gate.js releases it, so a refresh never flashes the wrong
+   theme/section before settling. app/gate.js, app/index.html, app/viewer.html, STATUS.md,
+   js/changelog.js, tests/run.js.
+   Original v403: VB-7 — saved Views carry an independent
    panelTitle (Save-dialog field; defaults to and tracks the View name; wins in the builder
    preview, KPI labels, and both Explore dashboard-placement paths). Original v402: VB-6 — a numeric field on the View
    Builder's Columns shelf gets an aggregation dropdown even before it's summed, with a

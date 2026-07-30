@@ -116,6 +116,31 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **BOOT-FLASH — refresh no longer flashes the wrong theme before settling (v768, sw v404,
+  2026-07-30, steward):** "When I refresh the app I get a little flash and a view of the
+  app without the selected chrome — a messy refresh look." Root cause: `data-theme`/
+  `data-app-theme`/`data-palette` were only ever stamped deep inside `gate.js`'s async
+  `start()` (and only on its NOT-authed branch) or, worse, inside `studio.js`'s post-fetch
+  boot chain (`setTheme`/`setAppTheme`, called after a dozen `fetchText` calls resolve) — so
+  a refresh while already signed in painted the raw, unthemed `#app` for a real (if brief)
+  window before either ever ran. Fix: `app/index.html` and `app/viewer.html` each gained a
+  synchronous inline `<head>` script (before any stylesheet/gate script) that reads
+  `studio-theme`/`studio-app-theme` from localStorage and stamps the three attributes on
+  `<html>` immediately, pre-paint — the same technique `docs/index.html` already used for
+  its own standalone theme-matching (Z11), now actually true of the main app too. The same
+  script also adds a `boot-veil` class to `<html>` (CSS: `html.boot-veil body{opacity:0}`,
+  released with an 18ms-eased fade, `prefers-reduced-motion` honored) so ANY remaining boot
+  gap — including intermediate browser paints mid-parse, which the pre-paint stamp alone
+  can't rule out — stays invisible rather than flashing. `app/gate.js`'s own (now-redundant)
+  async theme-stamp block was deleted; its `reveal()` releases the veil (the already-authed
+  refresh path) and `start()` releases it right after building the themed sign-in gate card
+  (the never-signed-in path) — so the veil never waits on the slow, unrelated post-fetch
+  boot chain in either case. A `setTimeout` fail-safe (4s) releases the veil regardless if
+  boot ever throws before either release point runs. `sw.js` cache bumped (precached HTML
+  content changed). 3 new regression checks: pre-paint attrs land correctly (authed path),
+  the veil actually releases (class gone, body opacity back to 1), and the same holds for
+  the not-yet-signed-in gate path. Files: app/index.html, app/viewer.html, app/gate.js,
+  docs/index.html (comment only), sw.js, js/changelog.js, tests/run.js.
 - **VB-6 — a numeric View Builder field can act as a CATEGORY, not just a total (v766,
   sw v402, 2026-07-30, steward):** "State_FIPS dragged to Columns becomes SUM State_FIPS
   with no way to say group by this." The Columns shelf pill's aggregation dropdown
@@ -7623,14 +7648,13 @@
 >       year) everywhere the pack's %-metrics aggregate — audit every conservation
 >       dashboard/View for the same sum-of-percent mistake. Folds naturally into CONS-1
 >       (below) but ship the data+aggregation fix first — it's live-visible today.
-> BOOT-FLASH. **Refresh shows a jarring unthemed flash before the app settles (Kevin
->       live, 2026-07-30).** "When I refresh the app I get a little flash and a view of
->       the app without the selected chrome — a messy refresh look. Clean that up ... with
->       a fade if needed." Fix: a pre-paint boot veil — an inline head style holds the app
->       invisible while theme/palette/rail/section stamp during boot, released with a
->       ~200ms fade (honoring prefers-reduced-motion + the stored reduce-motion override);
->       a failsafe timer releases it even if boot throws. Veil only the gap that remains
->       after whatever already stamps pre-paint.
+> BOOT-FLASH. ✓ **Refresh shows a jarring unthemed flash before the app settles (SHIPPED
+>       v768, sw v404, 2026-07-30, steward)** — see DONE for the full writeup. Root cause
+>       was theme attrs never being stamped before first paint (only deep in gate.js's
+>       async start() or studio.js's post-fetch boot chain); fixed with a synchronous
+>       pre-paint stamp + a fail-safe-backed boot veil. No stored reduce-motion override
+>       exists in this app (only OS-level prefers-reduced-motion, honored as usual) — the
+>       original note's "+ stored override" phrasing doesn't apply here.
 > SIGNOUT-1. **Sign out (account menu dropdown) does not return to the login screen
 >       (Kevin live, 2026-07-30).** Signing out from the menu should land on the gate.
 >       Fix the handler to clear the session AND re-present the gate (likely a clean

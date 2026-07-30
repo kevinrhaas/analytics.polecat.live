@@ -32275,6 +32275,56 @@ function serve() {
       docsModern.dataAppTheme === "modern" && docsModern.bg !== docsThemed.bg && docsModern.bg !== docsUnthemed.bg,
       JSON.stringify(docsModern));
 
+    // ── BOOT-FLASH: app/index.html stamps theme pre-paint + veils the boot gap ──
+    console.log("\n• BOOT-FLASH: pre-paint theme stamp + boot veil");
+    const bootFlashPage = await browser.newPage();
+    await bootFlashPage.addInitScript(function () {
+      try { sessionStorage.setItem("studio-gate-ok", "1"); } catch (e) {}
+      localStorage.setItem("studio-theme", "dark");
+      localStorage.setItem("studio-app-theme", "neon");
+    });
+    await bootFlashPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "load" });
+    await bootFlashPage.waitForTimeout(300); // let the veil's opacity transition finish
+    const bootFlashAfter = await bootFlashPage.evaluate(function () {
+      var html = document.documentElement;
+      return {
+        dataTheme: html.getAttribute("data-theme"),
+        dataAppTheme: html.getAttribute("data-app-theme"),
+        dataPalette: html.getAttribute("data-palette"),
+        veiled: html.classList.contains("boot-veil"),
+        bodyOpacity: getComputedStyle(document.body).opacity
+      };
+    });
+    await bootFlashPage.close();
+    ok("BOOT-FLASH: data-theme/data-app-theme/data-palette are stamped from localStorage (matches the saved dark/neon pair)",
+      bootFlashAfter.dataTheme === "dark" && bootFlashAfter.dataAppTheme === "neon" && bootFlashAfter.dataPalette === "neon",
+      JSON.stringify(bootFlashAfter));
+    ok("BOOT-FLASH: the boot veil is released (class removed, body opacity back to 1) once the app is revealed",
+      bootFlashAfter.veiled === false && bootFlashAfter.bodyOpacity === "1", JSON.stringify(bootFlashAfter));
+
+    // Same pair, unauthenticated this time — the gate card renders instead of #app, but the
+    // pre-paint stamp + veil release must behave identically (gate.js releases the veil right
+    // after building the themed gate card, not just from the authed reveal() path).
+    const bootFlashGatePage = await browser.newPage();
+    await bootFlashGatePage.addInitScript(function () {
+      localStorage.setItem("studio-theme", "dark");
+      localStorage.setItem("studio-app-theme", "neon");
+    });
+    await bootFlashGatePage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "load" });
+    await bootFlashGatePage.waitForSelector("#studio-gate", { timeout: 5000 });
+    const bootFlashGateAfter = await bootFlashGatePage.evaluate(function () {
+      var html = document.documentElement;
+      return {
+        dataTheme: html.getAttribute("data-theme"),
+        veiled: html.classList.contains("boot-veil"),
+        gatePresent: !!document.getElementById("studio-gate")
+      };
+    });
+    await bootFlashGatePage.close();
+    ok("BOOT-FLASH: the veil also releases once the (correctly pre-themed) sign-in gate renders, for a never-signed-in visitor",
+      bootFlashGateAfter.dataTheme === "dark" && bootFlashGateAfter.veiled === false && bootFlashGateAfter.gatePresent,
+      JSON.stringify(bootFlashGateAfter));
+
     // ── Z5 follow-up: Settings — export/import preferences as JSON ──
     console.log("\n• Z5 follow-up: Settings export/import JSON");
     await page.click('#railNav .rail-item[data-sec="settings"]');
