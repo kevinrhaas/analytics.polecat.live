@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v370"; /* v370: LF59 (3) — the Dashboards page toolbar
+var CACHE_NAME = "studio-shell-v371"; /* v371: #117 slice 3 — the View Builder's Filters
+   shelf: filters narrow the SOURCE rows before the pivot/charts/status compute ("in"
+   value-checklist for text fields, min–max range for numerics; fresh filter = honest "all"
+   no-op; active chips highlight; "N of M source rows (filtered)"); persisted on the
+   builder blob and re-applied on reopen. app/build.js, app/index.html, app/studio.css,
+   docs/index.html, tests/run.js, STATUS.md, js/changelog.js.
+   v370: LF59 (3) — the Dashboards page toolbar
    cleanup: Export dashboards…/Import dashboards… tuck behind a new icon-only "More" (⋯)
    menu (dashMoreBtn/dashMoreMenu, same menu-wrap/menuToggle convention as every other
    dropdown), and a primary "+ New dashboard" button joins the toolbar, matching the

@@ -506,10 +506,17 @@
   when no measure is picked), and Heatmap lights up when you have a field on Rows plus a plain
   field on Columns, drawing exactly the crosstab as a color matrix. A chart that needs something
   you haven't added yet is simply disabled, with the reason in its tooltip.</p>
+  <p>The <strong>Filters</strong> shelf narrows the source rows before anything computes — the
+  pivot, every chart, and the row count in the status line all see the same filtered set. Add a
+  filter by dragging a field there or with the <strong>＋ Add filter</strong> picker: a text field
+  filters by a searchable value checklist (All/None + pick what you want), a numeric field by a
+  min–max range (leave a bound blank for open-ended). A freshly added filter shows
+  <strong>all</strong> and changes nothing until you edit it; active filters highlight their chip
+  and the status line reads "N of M source rows (filtered)".</p>
   <p><strong>Save View</strong> (top right) saves the result as a View with whichever chart type is
-  selected — it appears in the <strong>Views</strong> section like any other, and opening it from
-  there returns it to Build with its dataset, shelves, and chart restored (Views made in Explore
-  keep opening in Explore). The Filters shelf and per-field calculated columns are on the roadmap.</p>
+  selected — filters included — and it appears in the <strong>Views</strong> section like any other.
+  Opening it from there returns it to Build with its dataset, shelves, filters, and chart restored
+  (Views made in Explore keep opening in Explore). Per-field calculated columns are on the roadmap.</p>
 
   <h2>Sample packs</h2>
   <p><strong>Sample packs</strong> (Settings, and the Studio library's left View) are ready-made

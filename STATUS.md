@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **#117 slice 3 — the View Builder's FILTERS shelf (v734, sw v371, 2026-07-30, steward):** a
+  third shelf narrows the SOURCE rows before anything computes — one `bdFilteredRows()` feeds
+  the pivot, every chart basis, the saved View, AND the status row count, so nothing can drift.
+  Two filter kinds picked by the field's guessed type: **"in"** (a searchable value checklist
+  modal — All/None/pick; distinct values gathered from the UNfiltered rows so the editor always
+  offers the full universe, capped at 200; everything-checked collapses back to the honest
+  `values:null` "all" no-op state rather than freezing a value list) and **"range"** (numeric
+  min–max, blank bound = unbounded; non-numeric rows drop once either bound is set). Add paths:
+  drag a column onto the shelf OR the "＋ Add filter…" select (the explicit mobile-friendly
+  path — picking a column jumps straight into the editor). A fresh filter shows "all" and
+  filters nothing until edited; active filters highlight their chip (accent ring + summary
+  badge: "3 values" / "≥ 10" / "5 – 20") and the status line flips to "N of M source rows
+  (filtered)". Filters persist on the View's `builder` blob and reopen still-applied. 4 new
+  regression tests (fresh-filter no-op + the add-select; the editor UI path None→pick→Apply
+  narrowing to exactly that value's row count; numeric range with an impossible min → zero
+  rows; save/reopen round trip with both filter kinds re-applied). Verified in a live headless
+  pass ("58 of 144 source rows (filtered)", zero pageerrors). **NEXT in #117/#118:** per-field
+  calculated columns; multi-dim series charting; live re-run of builder Views on dashboards;
+  #118's encoding card + delight layer. Files: app/build.js, app/index.html, app/studio.css,
+  docs/index.html, sw.js, js/changelog.js, tests/run.js.
 - **LF59 (3) — Dashboards page toolbar cleanup: a primary "+ New dashboard" CTA + a "More"
   menu for Export/Import (v733, sw v370, 2026-07-30, steward — LF59 is now fully done):**
   LF59's own NEXT pointer left part (3) open after slices 1/2 (selective export, multi-select
