@@ -144,7 +144,10 @@
   WS.rlsPolicySQL = function () {
     var tables = [WS.META_TABLE].concat(WS.TABLE_NAMES);
     return "-- Analytics workspace access — RLS on, with an open read/write policy for the app's key.\n" +
-      "-- Matches the app's current UX-level gating; per-user tightening lands with the RLS (M7) track. Safe to run twice.\n" +
+      "-- ⚠ This grants the app's shared (anon) key FULL access — right for a personal/keyless workspace,\n" +
+      "-- WRONG for a shared workspace using Supabase Auth sign-in: there, one permissive policy like this\n" +
+      "-- silently defeats every per-user policy beside it (permissive policies OR together). Shared\n" +
+      "-- workspaces use the canonical tools/supabase-rls-real.sql instead. Safe to run twice.\n" +
       tables.map(function (t) {
         return 'ALTER TABLE "' + t + '" ENABLE ROW LEVEL SECURITY;\n' +
           'DROP POLICY IF EXISTS "polecat_open_rw" ON "' + t + '";\n' +

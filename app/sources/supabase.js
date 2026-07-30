@@ -476,10 +476,21 @@
           // predates the analyses or jobs table needs one paste-me statement —
           // say so instead of a bare 404.
           if (/row-level security|permission denied/i.test(msg)) {
-            // RLS on, no write policy: reads return empty (pull looks fine),
-            // every write 401/403s forever — no retry can fix a policy. Hand
-            // over the one-time paste-me policy SQL instead.
-            msg += " — a workspace table has Row-Level Security enabled without a write policy for the app's key, so reads look fine but every save is refused. Run this once in Supabase → SQL editor: " + WS.rlsPolicySQL();
+            if (cfg && cfg.authEmail) {
+              // AUTH-AWARE (2026-07-30 live incident): this connection signs into
+              // Supabase Auth, so its database is expected to enforce per-user RLS —
+              // handing out the open-policy SQL here is how the anon allow-all
+              // (polecat_open_rw) landed on the live project and silently defeated
+              // the whole tightened posture (permissive policies OR together).
+              // Never emit weakening SQL for an authenticated workspace; explain
+              // the real causes instead.
+              msg += " — this workspace's database enforces per-user Row-Level Security, so this usually means the sign-in session expired (sign out and back in with your email), or this account doesn't own some of the rows being pushed (shared/sample rows sync from an ADMIN account). If this is a brand-new project, apply the canonical policy script (tools/supabase-rls-real.sql) once in Supabase → SQL editor.";
+            } else {
+              // RLS on, no write policy, anon-key-only workspace: reads return
+              // empty (pull looks fine), every write 401/403s forever — no retry
+              // can fix a policy. Hand over the one-time paste-me policy SQL.
+              msg += " — a workspace table has Row-Level Security enabled without a write policy for the app's key, so reads look fine but every save is refused. Run this once in Supabase → SQL editor: " + WS.rlsPolicySQL();
+            }
           } else if (/analyses|jobs/.test(msg)) {
             msg += " — your workspace predates the analyses/jobs tables. Run this once in Supabase → SQL editor: " + WS.provisionDeltaSQL();
           }

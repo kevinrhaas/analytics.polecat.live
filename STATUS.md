@@ -7801,8 +7801,45 @@
 >       builder blob with the new rows, preserving pinned state); update the LF43/DP
 >       censuses + docs. Depends on nothing, but ship AFTER VB-10 so a map-type seeded
 >       View actually renders in the builder.
-> WORKSPACE-LOGIN. ★ **Ship the default Polecat Supabase workspace ON the login screen
->       (Kevin live, 2026-07-30 — MOVED UP by Kevin).** "ship with the default polecat
+> WORKSPACE-LOGIN. ✓ **Workspace picker on the sign-in screen — SHIPPED v778, sw v413.**
+>       The gate gains a Workspace select above Username: LOCAL ONLY (default —
+>       admin/admin, demo/demo exactly as before), every entry in the NEW packaged
+>       catalog app/workspaces.js (window.STUDIO_WORKSPACES; ships EMPTY of keys until
+>       the Polecat DB's RLS verify shows anon-reads-nothing — repo is public), any
+>       locally imported entry (same id OVERRIDES shipped — the db-moved escape hatch),
+>       plus "Custom workspace…" (routes to the existing backend wizard) and "Import
+>       access file…" (a small JSON {id,label,sourceId,cfg}). Picking a workspace BINDS
+>       via the new Sync.bindConnection (stores the connection, NO pull — an
+>       unauthenticated pull under authenticated-only RLS reads the remote as EMPTY and
+>       adopting it would wipe local data); sign-in then uses LF39's direct-auth
+>       against that workspace's GoTrue and the post-sign-in pull adopts with the
+>       user's session. Admins mint access files from Settings → Workspace backend →
+>       "Export access file" (Studio.exportAccessFileEntry STRIPS the connection's own
+>       authEmail/authPassword; confirm dialog notes the file carries the workspace
+>       key). 5 suite checks (picker renders / bind-no-pull marker survives /
+>       local↔workspace toggle / end-to-end picked-workspace sign-in / access-file
+>       shape+strip); docs "Picking a workspace on the sign-in screen". Absorbs queue
+>       items #103/#104. LIVE RLS COMPANION (same evening, same PR): Kevin's
+>       pg_policies dump exposed polecat_open_rw ({anon,authenticated} ALL, on EVERY
+>       table) — created by the app's OWN RLS-remedy SQL during #136; permissive
+>       policies OR together so it silently defeated every tighter policy. Fix
+>       applied live → anon verify ALL SIX ZEROS → Kevin's url+publishable key now
+>       PACKAGED in app/workspaces.js ("Polecat workspace" in the picker).
+>       Durability: tools/supabase-rls-real.sql is now THE canonical idempotent
+>       script (ENABLE RLS + drop both legacy open policies by name + authenticated-
+>       only policies + polecat_meta policy + verify block; fresh-deploy = provision
+>       then run it once); the five tables' policies gained an OR polecat_is_admin()
+>       arm on select AND writes (live 403 proof: sync pushes the WHOLE snapshot,
+>       incl. rows other accounts own — pure owner-only WITH CHECK refuses every
+>       admin device push); supabase.js save() is now AUTH-AWARE on 403 (a
+>       Supabase-Auth connection gets expired-session/ownership guidance + a pointer
+>       to the canonical script — NEVER the open-policy paste-me SQL, which is how
+>       the live DB got reopened; keyless personal workspaces still get the open SQL
+>       with a loud WRONG-for-shared warning). SB-RLS auth-aware suite check added.
+>       Kevin still to run: the admin-arm patch (or re-run the canonical script) so
+>       his device's pushes clear; compass_favorites left alone (another app's table).
+>       Original — ★ Ship the default Polecat Supabase workspace ON the login screen
+>       (Kevin live, 2026-07-30 — MOVED UP by Kevin). "ship with the default polecat
 >       supabase workspace... so i can login with a user who has access inside that
 >       database." The gate's workspace select: (1) LOCAL ONLY — admin/admin, demo/demo
 >       exactly as today; (2) POLECAT WORKSPACE (default, PACKAGED with the app — a
@@ -7848,6 +7885,25 @@
 > DURABLE-2. **Soft-delete / undo for workspace objects.** Deleted dashboards/Views/
 >       datasets go to a Trash (tombstoned, restorable, purged after N days) instead of
 >       vanishing; every destructive bulk action gets an undo toast. Follows DURABLE-1.
+> HOME-EX2. **Home Examples honesty + Clear-recents (Kevin live, 2026-07-30,
+>       screenshots).** (1) The EXAMPLES strip says "from Conservation Insight" but
+>       shows Data Quality Scorecard / Pipeline Observability / Storage Footprint &
+>       Growth / Cost & Sustainability — those 4 entries in data/examples/index.json
+>       carry NO demoPackId, so visibleExamples() always shows them regardless of
+>       installed packs while examplesSourceHint() only names packs that labeled
+>       cards. Fix: stamp the 4 as demoPackId "datamanagement" (they're that pack's
+>       showcases) so the strip only shows installed packs' examples and the hint
+>       names every contributing pack. (Program Cost-Share ROI IS conservation —
+>       correctly shown.) (2) Home's RECENT DASHBOARDS section gets a "Clear recents"
+>       button — clears the CURRENT USER's recents/lastOpened trail only (not the
+>       dashboards themselves), with a confirm or undo toast.
+> EXPLORE-LAYOUT. **Explore SAVED VIEWS list rows squeezed (Kevin live, 2026-07-30,
+>       screenshot).** In the narrow saved-views panel a row's name truncates to one
+>       letter ("C…"), the type line wraps word-per-line ("Line / area" vertically),
+>       and the folder chip + action icons (lock/star/menu/✕) crowd the text out.
+>       Same class of fix as VIEWS-LAYOUT-1 (#516): give the name min-width:0 +
+>       ellipsis on its own line, let the chip + actions wrap to a footer row,
+>       audit at panel-min width both themes. Fold with HOME-EX2 into one UI slice.
 > EXPORT-1. ★ **Exported HTML dashboards have NO DATA (Kevin live, 2026-07-30).** "i
 >       downloaded as an html page this but it does not have any data in it." Root cause:
 >       buildHtml's preview:false path (exportCDF + PDF) deliberately leaves DASHKIT_MOCK

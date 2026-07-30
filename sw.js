@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v412"; /* v412: DURABLE-1 — the 8-unpinned-cap autosave
+var CACHE_NAME = "studio-shell-v413"; /* v413: WORKSPACE-LOGIN — the sign-in screen gains a
+   Workspace picker fed by the NEW packaged catalog app/workspaces.js (precached; loads
+   before gate.js) plus locally imported access files; picking a workspace BINDS the
+   connection without pulling (Sync.bindConnection) so an unauthenticated device can't
+   adopt an empty remote over local data; Settings backend card gains Export access file.
+   app/gate.js, app/sources/sync.js, app/studio.js, docs/index.html changed (precached). */
+/* v412: DURABLE-1 — the 8-unpinned-cap autosave
    eviction is REMOVED (it silently deleted dashboards once the table became durable
    objects); sync adoptions (boot pull / Refresh / connect) re-run the registered pack
    heals via Sync.onAdopt/healAfterAdopt and push the healed state; repeated push
@@ -2244,6 +2250,7 @@ var SHELL_FILES = [
   "app/fleet.js",
   "app/studio.css",
   "app/gate-config.js",
+  "app/workspaces.js",
   "app/auth.js",
   "app/gate.js",
   "app/model.js",
