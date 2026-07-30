@@ -64,6 +64,9 @@
     shelfRows: [],           // [ { col } ] — row dimensions (crosstab when non-empty)
     filters: [],             // slice 3: [ { col, kind:"in"|"range", values:null|[..], min:"", max:"" } ]
     calcs: [],               // slice 4: [ { name, formula } ] — Studio.applyCalcCols "=[a]+[b]" syntax
+    shelfColor: [],           // VB-3: [ { col } ], 0 or 1 entries — the categorical field that
+                               // splits bars/donut/line into per-category palette colors
+    paletteKey: "",           // VB-3: Studio.PALETTE_PRESETS key ("" = default) for the live preview
     chartType: "table",      // slice 2: table | bars | line | donut | heatmap
     analysisId: null, name: "", folder: "",
     outlineOpen: {}          // which outline datasets are expanded
@@ -71,6 +74,7 @@
   function bdReset() {
     BD.dsKind = null; BD.dsId = null; BD.dsName = ""; BD.dsSub = "";
     BD.run = null; BD.shelfCols = []; BD.shelfRows = []; BD.filters = []; BD.calcs = [];
+    BD.shelfColor = []; BD.paletteKey = "";
     BD._eff = null;
     BD.chartType = "table";
     BD.analysisId = null; BD.name = ""; BD.folder = "";
@@ -116,6 +120,7 @@
     BD.shelfCols = BD.shelfCols.filter(function (f) { return known.indexOf(f.col) >= 0; });
     BD.shelfRows = BD.shelfRows.filter(function (f) { return known.indexOf(f.col) >= 0; });
     BD.filters = BD.filters.filter(function (f) { return known.indexOf(f.col) >= 0; });
+    BD.shelfColor = BD.shelfColor.filter(function (f) { return known.indexOf(f.col) >= 0; });
     render();
   }
   function openCalcEditor() {
@@ -220,7 +225,7 @@
 
   function bdSelectDataset(kind, id) {
     BD.dsKind = kind; BD.dsId = id;
-    BD.shelfCols = []; BD.shelfRows = []; BD.filters = []; BD.calcs = []; BD._eff = null;
+    BD.shelfCols = []; BD.shelfRows = []; BD.filters = []; BD.calcs = []; BD.shelfColor = []; BD._eff = null;
     BD.run = null;
     var entry = bdDatasets().filter(function (d) { return d.kind === kind && d.id === id; })[0];
     BD.dsName = entry ? entry.name : id;
@@ -274,6 +279,7 @@
   }
   function bdAddField(col, shelf) {
     if (shelf === "filters") { bdAddFilter(col); return; }
+    if (shelf === "color") { bdSetColorField(col); return; }
     if (!BD.run || bdEff().cols.indexOf(col) < 0 || bdOnShelf(col)) return;
     if (shelf === "rows") BD.shelfRows.push({ col: col });
     else BD.shelfCols.push({ col: col, agg: bdFieldKind(col) === "Numeric" ? "sum" : null });
@@ -284,6 +290,23 @@
     BD.shelfRows = BD.shelfRows.filter(function (f) { return f.col !== col; });
     render();
   }
+  // ---------- color encoding (VB-3) ----------
+  // A single categorical field that splits bars/donut into per-category palette
+  // colors and (via bdLineSeriesBasis) multi-series lines — independent of the
+  // Columns/Rows shelves, so a field can plot AND color at once, or color can
+  // stand in for a Columns split field when none is picked. Only one field at a
+  // time (dropping a second replaces it, mirroring how a single Color channel
+  // works in every BI tool this pattern is borrowed from).
+  function bdSetColorField(col) {
+    if (!BD.run || bdEff().cols.indexOf(col) < 0) return;
+    BD.shelfColor = [{ col: col }];
+    render();
+  }
+  function bdRemoveColorField(col) {
+    BD.shelfColor = BD.shelfColor.filter(function (f) { return f.col !== col; });
+    render();
+  }
+  function bdColorField() { return BD.shelfColor[0] || null; }
   // ---------- filters (slice 3) ----------
   // A filter narrows the SOURCE rows before anything computes — the pivot, every
   // chart basis, and the status row count all see the same filtered set. Two
@@ -431,6 +454,7 @@
     if (shelf === "cols") return BD.shelfCols;
     if (shelf === "rows") return BD.shelfRows;
     if (shelf === "filters") return BD.filters;
+    if (shelf === "color") return BD.shelfColor;
     return null;
   }
   function bdInsertIndex(arr, hint, toShelf, skipCol) {
@@ -459,6 +483,13 @@
         var flt = bdFieldKind(col) === "Numeric" ? { col: col, kind: "range", min: "", max: "" } : { col: col, kind: "in", values: null };
         BD.filters.splice(bdInsertIndex(BD.filters, hint, toShelf, col), 0, flt);
       }
+      render();
+      return;
+    }
+
+    if (toShelf === "color") {
+      fromArr.splice(idx, 1);
+      BD.shelfColor = [{ col: col }]; // only one Color field at a time — replaces any prior pick
       render();
       return;
     }
@@ -662,7 +693,42 @@
       var series = bdLineSeriesBasis(rows);
       if (series) return series;
     }
-    return compute(bdEff().cols, rows, [{ col: bdFirstDim().col, agg: null }, m], []);
+    var dim = bdFirstDim();
+    var basis = compute(bdEff().cols, rows, [{ col: dim.col, agg: null }, m], []);
+    // VB-3: bars/donut are single-dimension charts, so "color by" only ever needs
+    // ONE value per already-charted category — when the Color field IS that
+    // dimension it's a no-op tag (colorCol = the column already there); when it's
+    // a different, presumably-correlated field (e.g. dim=State, color=Region) we
+    // widen the basis with that field's FIRST-SEEN value per category rather than
+    // re-grouping by it (which would fan a bar chart out into duplicate rows).
+    if (basis && (type === "bars" || type === "donut")) {
+      var cf = bdColorField();
+      if (cf) {
+        basis.colorCol = cf.col;
+        if (cf.col !== dim.col) {
+          var cmap = bdFirstSeenMap(rows, dim.col, cf.col);
+          basis.head = basis.head.concat([cf.col]);
+          basis.rows = basis.rows.map(function (r) {
+            var k = String(r[0]);
+            return r.concat([k in cmap ? cmap[k] : null]);
+          });
+        }
+      }
+    }
+    return basis;
+  }
+  // First-seen colVal for each distinct keyVal across rows — used to attach a
+  // "color by" field's value to a rollup it wasn't grouped by (VB-3 chartBasis).
+  function bdFirstSeenMap(rows, keyCol, colCol) {
+    var idx = {};
+    bdEff().cols.forEach(function (c, i) { idx[c] = i; });
+    var ki = idx[keyCol], ci = idx[colCol], map = {};
+    if (ki == null || ci == null) return map;
+    rows.forEach(function (r) {
+      var k = String(r[ki]);
+      if (!(k in map)) map[k] = r[ci];
+    });
+    return map;
   }
   // Multi-dim series charting (#117 slice 5): line charts the FULL shelf
   // breakdown instead of collapsing to one dimension + one measure, in the
@@ -680,8 +746,15 @@
   function bdLineSeriesBasis(rows) {
     var dims = BD.shelfCols.filter(function (f) { return !f.agg; });
     var measures = bdMeasures();
-    if (BD.shelfRows.length === 1 && bdColsDim() && measures.length <= 1) {
-      var xtab = compute(bdEff().cols, rows, BD.shelfCols, BD.shelfRows);
+    var colsDim = bdColsDim();
+    // VB-3: with no plain field on Columns to pivot across, the Color shelf's
+    // field stands in as the split — so "color by X" alone is enough to turn a
+    // single-series line into one line per X value, with no need to also park X
+    // on Columns.
+    var cf = !colsDim ? bdColorField() : null;
+    if (BD.shelfRows.length === 1 && (colsDim || cf) && measures.length <= 1) {
+      var pivotCols = cf ? BD.shelfCols.concat([{ col: cf.col, agg: null }]) : BD.shelfCols;
+      var xtab = compute(bdEff().cols, rows, pivotCols, BD.shelfRows);
       if (xtab && !xtab.headGroups) {
         return {
           head: xtab.head.slice(0, -1), // drop the trailing crosstab "Total" column
@@ -705,6 +778,9 @@
     if (type === "line" && basis.head.length > 2) {
       p.chart.map.series = basis.head.slice(1).map(function (col) { return { col: col }; });
     }
+    if ((type === "bars" || type === "donut") && basis.colorCol) {
+      p.chart.map.colorCol = basis.colorCol; // VB-3 — see studio-render.js's colorCol handling
+    }
     return p;
   }
   // The live chart preview is the REAL dashboard renderer — the same
@@ -723,6 +799,7 @@
       var spec = {
         id: "build-preview", name: "build-preview", title: p.title, hideHeader: true,
         dashboardTheme: D.defaultDashboardTheme(),
+        paletteKey: BD.paletteKey || "", // VB-3 — Studio's own series-palette-preset system
         panels: [p], kpis: [], filters: [],
         cda: { connections: [], dataAccesses: [da] }
       };
@@ -895,6 +972,39 @@
           "</select>"
         : "";
       shelfF.innerHTML = (fltChips || (BD.run ? "" : '<span class="bd-shelf-hint">Filters narrow the source rows before anything computes</span>')) + addSel;
+    }
+
+    // Color shelf (VB-3): a single categorical field that splits bars/donut into
+    // per-category colors and (via bdLineSeriesBasis) multi-series lines; the
+    // palette picker sits alongside it — same Studio.PALETTE_PRESETS the main
+    // dashboard builder's "Series palette" control uses, so a View can preview in
+    // a different color family without leaving the Build section.
+    var shelfCo = $("#bdShelfColor", sec);
+    if (shelfCo) {
+      var colorField = bdColorField();
+      var colorChip = colorField
+        ? '<span class="bd-chip" data-bd-chip="' + esc(colorField.col) + '" draggable="true">' +
+            '<span class="bd-chip-nm">' + esc(colorField.col) + '</span>' +
+            '<button type="button" class="bd-chip-rm" data-bd-color-rm="' + esc(colorField.col) + '" title="Remove" aria-label="Remove color encoding on ' + esc(colorField.col) + '">✕</button></span>'
+        : '<span class="bd-shelf-hint">Drop a category here to color the chart by it</span>';
+      // non-drag add path (mobile is a release gate — drag can't be the only way in)
+      var colorAddable = BD.run ? bdEff().cols.filter(function (c) { return c !== (colorField && colorField.col); }) : [];
+      var colorAddSel = BD.run && !colorField
+        ? '<select class="bd-flt-add" id="bdColorAdd" aria-label="Color by">' +
+            '<option value="">＋ Color by…</option>' +
+            colorAddable.map(function (c) { return '<option value="' + esc(c) + '">' + esc(c) + "</option>"; }).join("") +
+          "</select>"
+        : "";
+      colorChip += colorAddSel;
+      var paletteSel = BD.run
+        ? '<select class="bd-flt-add" id="bdPaletteSel" aria-label="Series color palette">' +
+            (Studio.PALETTE_PRESETS || []).map(function (pr) {
+              var key = pr.key === "default" ? "" : pr.key;
+              return '<option value="' + esc(key) + '"' + ((BD.paletteKey || "") === key ? " selected" : "") + '>' + esc(pr.label) + "</option>";
+            }).join("") +
+          "</select>"
+        : "";
+      shelfCo.innerHTML = colorChip + paletteSel;
     }
 
     // chart-type strip (slice 2)
@@ -1114,6 +1224,13 @@
       var f = BD.filters.filter(function (x) { return x.col === col; })[0];
       if (f) openFilterEditor(f); // adding from the select jumps straight into editing
     };
+    $$("[data-bd-color-rm]", sec).forEach(function (btn) {
+      btn.onclick = function () { bdRemoveColorField(btn.getAttribute("data-bd-color-rm")); };
+    });
+    var colorAdd = $("#bdColorAdd", sec);
+    if (colorAdd) colorAdd.onchange = function () { if (colorAdd.value) bdSetColorField(colorAdd.value); };
+    var paletteSel = $("#bdPaletteSel", sec);
+    if (paletteSel) paletteSel.onchange = function () { BD.paletteKey = paletteSel.value; render(); };
   }
 
   // ---------- New / Save / Load ----------
@@ -1150,10 +1267,12 @@
         var chart = bdPanelFor(BD.chartType, da, res).chart;
         var row = {
           name: name, folder: BD.folder || "", chartType: BD.chartType, da: da, chart: chart,
+          paletteKey: BD.paletteKey || "",
           builder: {
             dsKind: BD.dsKind, dsId: BD.dsId, chartType: BD.chartType,
             shelfCols: Studio.clone(BD.shelfCols), shelfRows: Studio.clone(BD.shelfRows),
-            filters: Studio.clone(BD.filters), calcs: Studio.clone(BD.calcs)
+            filters: Studio.clone(BD.filters), calcs: Studio.clone(BD.calcs),
+            shelfColor: Studio.clone(BD.shelfColor), paletteKey: BD.paletteKey || ""
           }
         };
         if (BD.analysisId) row.id = BD.analysisId;
@@ -1185,6 +1304,8 @@
       BD.shelfCols = Studio.clone(b.shelfCols || []);
       BD.shelfRows = Studio.clone(b.shelfRows || []);
       BD.filters = Studio.clone(b.filters || []);
+      BD.shelfColor = Studio.clone(b.shelfColor || []);
+      BD.paletteKey = b.paletteKey || "";
       BD.chartType = b.chartType || "table";
       render();
     });

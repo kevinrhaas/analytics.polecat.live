@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v380"; /* v380: LIVE-e part 1 (Kevin: "help should respond to the
+var CACHE_NAME = "studio-shell-v381"; /* v381: VB-3 (Kevin's overnight View Builder queue) —
+   a Color shelf splits Bars/Donut/Line into per-category colors, plus a series-palette picker
+   reusing the Dashboards builder's own presets. app/build.js, app/studio-render.js,
+   app/index.html, docs/index.html, tests/run.js, STATUS.md, js/changelog.js.
+   v380: LIVE-e part 1 (Kevin: "help should respond to the
    theme settings and take out that back to studio button") — docs/index.html honors ALL
    seven app themes (added conservation/high-contrast/editorial/neon token variants), a
    postMessage listener applies LIVE theme changes (app posts studioDocsTheme from
