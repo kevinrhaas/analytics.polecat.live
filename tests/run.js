@@ -8883,12 +8883,19 @@ function serve() {
       out.cardSql = (card.querySelector(".ws-sync-err-sql code") || {}).textContent || "";
       out.cardRetry = !!card.querySelector("#wsRetryBtn");
       out.cardCopy = !!card.querySelector("#wsCopySqlBtn");
+      // the activity log records the failed attempt with its error text, and the
+      // Settings card renders it (Kevin: "supabase seems very flaky" — the dot
+      // alone can't explain WHY)
+      var lg = Studio.Sync.syncLog();
+      out.logHasFail = lg.some(function (r) { return r.kind === "push" && !r.ok && /analyses/.test(r.error); });
+      out.cardLog = !!card.querySelector(".ws-sync-log .ws-log-row.bad");
       // backend fixed (table created) → retryNow pushes the PENDING edit and goes green
       window.__fakeRemote.fail = false;
       await Studio.Sync.retryNow();
       out.healedStatus = Studio.Sync.syncState().status;
       out.railHealed = rail();
       out.remoteGotView = !!(window.__fakeRemote.snap && (window.__fakeRemote.snap.tables.analyses || []).some(function (r) { return r.id === "a-heal"; }));
+      out.logHealed = (Studio.Sync.syncLog()[0] || {}).ok === true;
       Studio.Sync.disconnect();
       out.railLocal = rail();
       Studio.Workspace.reset();
@@ -8907,6 +8914,36 @@ function serve() {
     ok("HEAL: once the backend accepts writes again, retryNow pushes the pending edit and goes green — no manual Refresh needed (Local after disconnect)",
       healFlow.healedStatus === "connected" && healFlow.railHealed.lbl === "Connected" && healFlow.remoteGotView && healFlow.railLocal.lbl === "Local",
       JSON.stringify(healFlow));
+    ok("HEAL: the sync-activity log records the failed push WITH its error text, renders on the Settings card, and logs the recovery",
+      healFlow.logHasFail && healFlow.cardLog && healFlow.logHealed,
+      JSON.stringify({ fail: healFlow.logHasFail, card: healFlow.cardLog, healed: healFlow.logHealed }));
+
+    // ---- SB-FLAKE: one transient blip inside a Supabase request must not fail
+    // the whole push (Kevin: "supabase seems very flaky") — rest() retries a
+    // single 5xx/429 or network throw once before surfacing anything.
+    const sbRetry = await page.evaluate(async () => {
+      const fetch0 = window.fetch;
+      let calls = 0;
+      window.fetch = () => {
+        calls++;
+        if (calls === 1) return Promise.resolve(new Response("busy", { status: 503 }));
+        return Promise.resolve(new Response("[]", { status: 200 }));
+      };
+      const r1 = await Studio.supabaseSource.test({ url: "https://x.supabase.co", key: "k" });
+      const out = { ok1: r1.ok, calls1: calls };
+      calls = 0;
+      let first = true;
+      window.fetch = () => {
+        calls++;
+        if (first) { first = false; return Promise.reject(new TypeError("network flake")); }
+        return Promise.resolve(new Response("[]", { status: 200 }));
+      };
+      const r2 = await Studio.supabaseSource.test({ url: "https://x.supabase.co", key: "k" });
+      window.fetch = fetch0;
+      return Object.assign(out, { ok2: r2.ok, calls2: calls });
+    });
+    ok("SB-FLAKE: a single 503 or network throw retries once and the request succeeds — one blip can't flap the mirror red",
+      sbRetry.ok1 && sbRetry.calls1 === 2 && sbRetry.ok2 && sbRetry.calls2 === 2, JSON.stringify(sbRetry));
 
     // ---- Rail IA (Kevin 2026-07): Workspace = catalogs, Build = builders, Manage = ops ----
     console.log("\n• Rail IA: Workspace/Build/Manage grouping + builder labels + Views New menu");
@@ -9870,6 +9907,32 @@ function serve() {
       bdSeries.multiMatchesFull, JSON.stringify(bdSeries));
     ok("#117 (5): saving stamps one series per measure on the panel map (SUM amount, SUM amount_x2), keyed off the single dimension",
       bdSeries.savedSeries === "SUM amount,SUM amount_x2" && bdSeries.savedLabelCol === "region", JSON.stringify(bdSeries));
+    // VB-1b (Kevin live): alphabetical order, STABLE under selection — selecting a
+    // dataset live-runs it (stamping updatedAt), and recency order made the list
+    // re-sort under the cursor. Also: the pane fills the viewport column.
+    const vb1b = await page.evaluate(async () => {
+      const W = window.Studio.Workspace;
+      const za = W.put("datasets", { name: "zzz-order", kind: "sql", sql: "select 1", columns: ["a"] });
+      const aa = W.put("datasets", { name: "aaa-order", kind: "sql", sql: "select 1", columns: ["a"] });
+      window.__studioRenderBuild();
+      await new Promise((r) => setTimeout(r, 80));
+      const names = () => [].slice.call(document.querySelectorAll('#buildOutline .bd-ol[data-bd-ds-kind="ws"] .bd-ol-txt b')).map((b) => b.textContent);
+      const before = names();
+      await window.__studioBuild.selectDataset("ws", za.id); // would have bumped zzz to the top
+      await new Promise((r) => setTimeout(r, 150));
+      const after = names();
+      const pane = document.querySelector(".bd-left").getBoundingClientRect().height;
+      W.remove("datasets", za.id); W.remove("datasets", aa.id);
+      await new Promise((r) => setTimeout(r, 60));
+      return {
+        before: before.join("|"), after: after.join("|"),
+        alpha: before.indexOf("aaa-order") >= 0 && before.indexOf("aaa-order") < before.indexOf("zzz-order"),
+        stable: before.join("|") === after.join("|"),
+        paneFills: pane >= window.innerHeight - 200,
+      };
+    });
+    ok("VB-1b: the outline sorts alphabetically, selection never reorders the list (no jumping UI), and the pane fills the viewport column",
+      vb1b.alpha && vb1b.stable && vb1b.paneFills, JSON.stringify(vb1b));
     // cleanup + restore the section the next block expects
     await page.evaluate((savedId) => {
       const st = window.__studioBuild.state;

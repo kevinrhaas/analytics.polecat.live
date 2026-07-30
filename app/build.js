@@ -164,8 +164,11 @@
   // the same collapsible folder tree as Explore's navigator.
   function bdDatasets() {
     var out = [];
+    // Alphabetical, NOT updatedAt (Kevin live): selecting a dataset live-runs it,
+    // which stamps lastRun/updatedAt — recency order made the list re-sort under
+    // the cursor on every click ("it jumps around in the ui").
     (Studio.Workspace ? Studio.Workspace.all("datasets").filter(D.isDatasetVisibleToMe) : []).sort(function (a, b) {
-      return (b.updatedAt || 0) - (a.updatedAt || 0);
+      return String(a.name || a.id).localeCompare(String(b.name || b.id), undefined, { sensitivity: "base" });
     }).forEach(function (d) {
       var conn = Studio.Workspace.get("connections", d.connectionId);
       out.push({ kind: "ws", id: d.id, name: d.name || d.id, sub: conn ? conn.name : "no connection", cols: d.columns || [], folder: d.folder || "" });

@@ -5,7 +5,15 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v375"; /* v375: #117 slice 5 — multi-dim series charting: the
+var CACHE_NAME = "studio-shell-v376"; /* v376: sync anti-flake (Kevin: "supabase seems very
+   flaky") — supabase rest() retries a single 429/5xx/network blip once in place (writes are
+   idempotent); debounced pushes keep a 4s minimum spacing (pushNow/pagehide force-bypass);
+   a rolling sync-activity log (last 12 attempts w/ error text) renders on the Settings
+   backend card. Plus VB-1b live tweaks: alphabetical stable outline order + the datasets
+   pane fills the viewport column. app/sources/supabase.js, app/sources/sync.js,
+   app/build.js, app/studio.js, app/studio.css, docs/index.html, tests/run.js, STATUS.md,
+   js/changelog.js.
+   v375: #117 slice 5 — multi-dim series charting: the
    Line chart widens beyond one dimension + one measure, reusing the SAME pivot engine the
    table/heatmap already compute with — a Rows×Columns crosstab (one measure) charts one
    line per Columns value (the redundant Total column dropped), and one dimension + 2+

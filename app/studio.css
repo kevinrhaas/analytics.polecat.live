@@ -1385,7 +1385,9 @@ body.lib-dragging #preview{pointer-events:none}
 /* ---------- #117: the View Builder (Build section) ---------- */
 .bd-wrap{display:grid;grid-template-columns:250px minmax(0,1fr);gap:var(--sp-16);align-items:start}
 .bd-left{background:var(--pane);border:1px solid var(--line);border-radius:12px;padding:var(--sp-10);
-  position:sticky;top:var(--sp-10);max-height:calc(100vh - 120px);overflow:auto}
+  box-sizing:border-box;position:sticky;top:var(--sp-10);overflow:auto;
+  /* fill the viewport column (Kevin live) rather than sizing to content */
+  height:calc(100vh - 120px);max-height:calc(100vh - 120px)}
 .bd-left-head{display:flex;align-items:center;justify-content:space-between;font-size:var(--fs-11);font-weight:800;letter-spacing:.06em;text-transform:uppercase;
   color:var(--faint);padding:var(--sp-2) var(--sp-4) var(--sp-8)}
 /* VB-1: navigator parity — search + New in the pane header, an Explore-style
@@ -1507,7 +1509,7 @@ body.lib-dragging #preview{pointer-events:none}
 .bd-trunc{font-size:var(--fs-11);color:var(--faint);margin-top:var(--sp-6)}
 @media (max-width:900px){
   .bd-wrap{grid-template-columns:1fr}
-  .bd-left{position:static;max-height:240px}
+  .bd-left{position:static;height:auto;max-height:240px}
   .bd-shelf-row{flex-direction:column;align-items:stretch;gap:4px}
   .bd-shelf-lbl{flex:none}
 }
@@ -2579,6 +2581,15 @@ body.simple-mode .da-acts{display:none!important}
 .ws-sync-err-sql{flex:1 1 100%;margin:0;max-height:140px;overflow:auto;padding:8px 10px;border-radius:8px;
   background:color-mix(in srgb, var(--ink) 14%, var(--pane));border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);
   font-size:var(--fs-11);line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+/* Recent sync-activity log on the Settings backend card */
+.ws-sync-log{margin-bottom:10px;padding:var(--sp-8) var(--sp-12);border-radius:10px;
+  background:color-mix(in srgb, var(--ink) 8%, var(--pane));border:1px solid color-mix(in srgb, var(--ink) 10%, transparent)}
+.ws-log-head{font-size:var(--fs-10);font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin-bottom:4px}
+.ws-log-row{display:flex;gap:10px;align-items:baseline;font-size:var(--fs-11);padding:2px 0;color:var(--muted)}
+.ws-log-row.bad{color:#e5484d}
+.ws-log-t{flex:0 0 auto;font-family:var(--mono);font-size:var(--fs-10);color:var(--faint)}
+.ws-log-k{flex:0 0 auto;font-weight:700}
+.ws-log-m{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
 .ws-provision-sql{min-height:150px;margin:10px 0;width:100%;box-sizing:border-box}
 #railSource .cx-dot{margin:0 auto}
 #railSource .rail-lbl{font-size:var(--fs-12);opacity:.8}

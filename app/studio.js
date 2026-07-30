@@ -7394,6 +7394,18 @@
     var credLine = !st.isRemote ? "Credentials are stored in this browser only."
       : sec.enabled ? "Credentials sync to the backend as encrypted ciphertext."
       : "Credentials sync to the backend as PLAINTEXT unless you turn on encryption below.";
+    // Recent sync attempts (Kevin: "supabase seems very flaky") — the dot alone
+    // can't explain a flaky backend; the actual per-attempt outcomes can.
+    var syncLg = Studio.Sync.syncLog ? Studio.Sync.syncLog() : [];
+    var syncLogHtml = st.isRemote && syncLg.length
+      ? '<div class="ws-sync-log"><div class="ws-log-head">Recent sync activity</div>' +
+        syncLg.slice(0, 8).map(function (row) {
+          return '<div class="ws-log-row' + (row.ok ? "" : " bad") + '">' +
+            '<span class="ws-log-t">' + new Date(row.at).toLocaleTimeString() + '</span>' +
+            '<span class="ws-log-k">' + esc(row.kind) + '</span>' +
+            '<span class="ws-log-m">' + (row.ok ? "ok" : esc(row.error)) + '</span></div>';
+        }).join("") + "</div>"
+      : "";
     card.innerHTML = '<h2>Workspace backend</h2>' +
       '<p class="ws-card-intro">Where this workspace\'s catalog lives — dashboards, datasets and connections. Local by default; connect a database to reach the same workspace from any browser. <b>' + esc(credLine) + '</b></p>' +
       '<div class="ws-current">' +
@@ -7416,7 +7428,8 @@
             (sec.enabled
               ? (sec.locked ? '<button type="button" class="btn primary" id="wsUnlockBtn">Unlock…</button>' : '<button type="button" class="btn" id="wsSecretsOffBtn">Turn off</button>')
               : '<button type="button" class="btn" id="wsSecretsOnBtn"' + (sec.available ? "" : " disabled title=\"WebCrypto unavailable\"") + '>Encrypt secrets…</button>') +
-          '</span></div>' : "");
+          '</span></div>' : "") +
+      syncLogHtml;
     var refreshBtn = $("#wsRefreshBtn", card);
     if (refreshBtn) refreshBtn.onclick = function () {
       refreshBtn.disabled = true;

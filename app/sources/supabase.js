@@ -136,8 +136,24 @@
         return res;
       });
     }
+    // Transient-fault absorption (Kevin: "supabase seems very flaky"): a single
+    // 429/5xx or network hiccup used to fail the WHOLE write-through push (12+
+    // requests per mirror), flapping the rail to Reconnecting… until the 15s
+    // backoff retry. Retry the one blipped request once after a beat instead —
+    // safe here because every workspace write is idempotent (merge-duplicates
+    // upserts + by-filter DELETEs).
+    function transientRetry(session) {
+      return attempt(session, false).then(function (res) {
+        if (res.status !== 429 && res.status < 500) return res;
+        return new Promise(function (r) { setTimeout(r, 800); }).then(function () { return attempt(session, false); });
+      }, function (e) {
+        return new Promise(function (r) { setTimeout(r, 800); })
+          .then(function () { return attempt(session, false); })
+          .catch(function () { throw e; }); // surface the ORIGINAL error, not the retry's
+      });
+    }
     return ensureSession(cfg).then(function (session) {
-      return attempt(session, false);
+      return transientRetry(session);
     }).then(function (res) {
       if (res.status === 401 || res.status === 403) throw new Error("Supabase rejected the API key (401/403)");
       return res;
