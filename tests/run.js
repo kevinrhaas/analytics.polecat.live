@@ -505,7 +505,10 @@ function serve() {
   const browser = await chromium.launch(launchOpts);
   const page = await browser.newPage({ viewport: { width: 1500, height: 1040 } });
   // bypass the passcode gate + first-run welcome for the main run
-  await page.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+  // STUDIO-PANELS: the suite runs with the panels-open preference chosen (a real user
+  // setting) because hundreds of checks click Data-panel/Inspector controls; the closed
+  // DEFAULT + the Settings toggle are exercised explicitly in the STUDIO-PANELS block.
+  await page.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-panels-default", "open"); } catch (e) {} });
   // Track L (architecture sweep): a reusable in-page poll helper for reading the
   // builder's #preview iframe after an edit. Several checks used to await a FIXED
   // setTimeout before reading `#preview`'s contentDocument, racing the async
@@ -3531,6 +3534,7 @@ function serve() {
     await xpSimple.addInitScript(() => { try {
       sessionStorage.setItem("studio-gate-ok", "1");
       localStorage.setItem("studio-welcome-seen", "1");
+      localStorage.setItem("studio-panels-default", "open");
       localStorage.setItem("studio-simple-mode", "1");
       localStorage.removeItem("studio-shell-section");
     } catch (e) {} });
@@ -4387,6 +4391,7 @@ function serve() {
     await v6Simple.addInitScript(() => { try {
       sessionStorage.setItem("studio-gate-ok", "1");
       localStorage.setItem("studio-welcome-seen", "1");
+      localStorage.setItem("studio-panels-default", "open");
       localStorage.setItem("studio-simple-mode", "1");
       localStorage.removeItem("studio-shell-section");
       localStorage.setItem("analytics.workspace.v1", JSON.stringify({ tables: { connections: {}, datasets: {}, dashboards: {},
@@ -4585,6 +4590,41 @@ function serve() {
       score1.hasFilter && score1.optionCount >= 2 && score1.dataChanged, JSON.stringify(score1));
     ok("SCORE-1: filter changes never multiply the ✕ overlays — exactly one header delete, at most one per KPI tile and description",
       score1.headDels === 1 && score1.kpiDelsPerTile <= 1 && score1.descDels <= 1, JSON.stringify(score1));
+
+    // ---- STUDIO-PANELS (Kevin live, 2026-07-30): the builder opens clean by default ----
+    // The suite itself runs with the "open" preference seeded (see addInitScript at the
+    // top) so the hundreds of Inspector/Data-panel interactions still work; here the
+    // CLOSED default and the Settings preference are exercised explicitly, then the
+    // suite's "open" choice is restored.
+    console.log("\n• STUDIO-PANELS: builder side panels closed by default + Settings preference");
+    const panelsDefault = await page.evaluate(function () {
+      var hook = window.__studioPanelsDefault;
+      try { localStorage.removeItem("studio-panels-default"); } catch (e) {} // fresh device: no choice stored
+      var defOpen = hook.get();
+      hook.apply();
+      var closedLib = document.getElementById("library").classList.contains("collapsed");
+      var closedInsp = document.getElementById("inspector").classList.contains("collapsed");
+      hook.set(true); hook.apply(); // the user chooses "open with side panels"
+      var openLib = !document.getElementById("library").classList.contains("collapsed");
+      var openInsp = !document.getElementById("inspector").classList.contains("collapsed");
+      var stored = null; try { stored = localStorage.getItem("studio-panels-default"); } catch (e) {}
+      return { defOpen: defOpen, closedLib: closedLib, closedInsp: closedInsp, openLib: openLib, openInsp: openInsp, stored: stored };
+    });
+    ok("STUDIO-PANELS: with no stored choice the builder opens clean — Data + Inspector panels both collapsed",
+      panelsDefault.defOpen === false && panelsDefault.closedLib && panelsDefault.closedInsp, JSON.stringify(panelsDefault));
+    ok("STUDIO-PANELS: choosing 'open with side panels' re-opens both panels and persists per device",
+      panelsDefault.openLib && panelsDefault.openInsp && panelsDefault.stored === "open", JSON.stringify(panelsDefault));
+    await page.evaluate(function () { window.__studioShellSetSection("settings"); });
+    await page.waitForTimeout(150);
+    const panelsCard = await page.evaluate(function () {
+      var cb = document.querySelector('#secSettings input[data-set="panels"]');
+      var row = cb ? cb.closest(".set-row") : null;
+      return { found: !!cb, checked: cb ? cb.checked : null, label: row ? (row.querySelector("b") || {}).textContent : "" };
+    });
+    ok("STUDIO-PANELS: Settings exposes an 'Open the builder with side panels' preference, reflecting the stored choice",
+      panelsCard.found && panelsCard.checked === true && /Open the builder with side panels/.test(panelsCard.label), JSON.stringify(panelsCard));
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(150);
     await page.evaluate(function () { return window.__studioLoadExample("conservation-flow.studio.json"); }); // LF43 slice 2: menu gone — hook load
     await page.waitForTimeout(300);
     const lf2Flow = await page.evaluate(function () {
@@ -13132,7 +13172,7 @@ function serve() {
     console.log("\n• UX4: modal + welcome overlay scale-in");
     {
       const ux4Page = await browser.newPage();
-      await ux4Page.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+      await ux4Page.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-panels-default", "open"); } catch (e) {} });
       await ux4Page.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
       await ux4Page.evaluate(function () { window.__studioShellSetSection("datasets"); });
       await ux4Page.waitForTimeout(100);

@@ -636,6 +636,23 @@
     try { localStorage.setItem("studio-restore-unsaved", on ? "1" : "0"); } catch (e) {}
   }
   window.__studioRestoreUnsaved = { get: restoreUnsavedEnabled, set: setRestoreUnsavedEnabled }; // test hook
+  // STUDIO-PANELS (Kevin live, 2026-07-30): the Dashboard Builder opens CLEAN — the Data
+  // (library) and Inspector panels start closed — unless the user prefers them open
+  // (Settings toggle). Per-device, applied on EVERY entry into the builder; the in-Studio
+  // collapse chevrons still work normally for the current visit.
+  function studioPanelsOpenDefault() {
+    var v; try { v = localStorage.getItem("studio-panels-default"); } catch (e) {}
+    return v === "open";
+  }
+  function setStudioPanelsOpenDefault(open) {
+    try { localStorage.setItem("studio-panels-default", open ? "open" : "closed"); } catch (e) {}
+  }
+  function applyStudioPanelsDefault() {
+    var closed = !studioPanelsOpenDefault();
+    collapsePane("library", closed, true);
+    collapsePane("inspector", closed, true);
+  }
+  window.__studioPanelsDefault = { get: studioPanelsOpenDefault, set: setStudioPanelsOpenDefault, apply: applyStudioPanelsDefault }; // test hook
   // LF2: an example may declare demoPackId (data/examples/index.json) to stay hidden until
   // that demo pack is installed — so pack-specific showcases (Conservation Insight) don't
   // clutter the gallery/Home for everyone, only for workspaces that installed the pack.
@@ -5522,6 +5539,7 @@
       if (cur && cur !== "studio") S.studioOrigin = cur;
     }
     if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+    applyStudioPanelsDefault(); // STUDIO-PANELS: honor the panels-open preference on every entry
   }
   function closeStudio() {
     if (window.__studioShellSetSection) window.__studioShellSetSection(S.studioOrigin || "dashboards");
@@ -8192,6 +8210,10 @@
       ic: function () { return "undo"; },
       on: function () { return restoreUnsavedEnabled(); },
       set: function () { setRestoreUnsavedEnabled(!restoreUnsavedEnabled()); toast(restoreUnsavedEnabled() ? "Restore unsaved work is on" : "Restore unsaved work is off"); } },
+    { grp: "Mode", id: "panels", t: "Open the builder with side panels", d: "Open the Dashboard Builder with the Data and Inspector panels already open. Off by default — the builder opens clean, and you pop the panels open when you need them.",
+      ic: function () { return "layers"; },
+      on: function () { return studioPanelsOpenDefault(); },
+      set: function () { setStudioPanelsOpenDefault(!studioPanelsOpenDefault()); applyStudioPanelsDefault(); toast(studioPanelsOpenDefault() ? "The builder will open with both panels open" : "The builder will open clean — panels closed"); } },
     { grp: "Presentation", id: "demo", t: "Demo mode", d: "Simulate a live-refreshing data feed — great for stakeholder demos.",
       ic: function () { return "refresh"; },
       on: function () { return !!S.demoMode; },
@@ -10507,10 +10529,9 @@
       var railBtn = r.querySelector(".rail-btn");
       if (railBtn) { railBtn.textContent = ""; railBtn.appendChild(Studio.icon(r.getAttribute("data-pane") === "inspector" ? "chevron-left" : "chevron-right", 14)); }
     });
-    try {
-      if (localStorage.getItem("studio-collapse-library") === "1") collapsePane("library", true, true);
-      if (localStorage.getItem("studio-collapse-inspector") === "1") collapsePane("inspector", true, true);
-    } catch (e) {}
+    // STUDIO-PANELS: boot state comes from the panels-open preference (default: closed),
+    // not from the last visit's chevron state — the builder opens clean every time.
+    applyStudioPanelsDefault();
   }
   function wireResizer(el, varName, dir) {
     if (!el) return;
