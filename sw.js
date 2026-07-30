@@ -5,7 +5,9 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v404"; /* v404: BOOT-FLASH + SIGNOUT-1 — app/index.html
+var CACHE_NAME = "studio-shell-v405"; /* v405: VB-8 — the add-to-dashboard picker pins a
+   “+ New dashboard” choice above the list (blank spec + this View, the same
+   xpAddAnalysisToNewDashboard path). Original v404: BOOT-FLASH + SIGNOUT-1 — app/index.html
    stamps the saved theme attributes pre-paint and veils #app (html.ps-booting) until the
    studio.js boot tail releases it with a short fade (4s failsafe; reduced-motion honored);
    the \u22ef menu's Sign out now calls PolecatAuth.logout() so the gate actually returns.

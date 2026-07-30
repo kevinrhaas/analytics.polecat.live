@@ -4783,6 +4783,30 @@ function serve() {
     await soCtx.close();
     ok("SIGNOUT-1: signing out from the \u22ef menu ends the real auth session and lands back on the sign-in gate",
       soAuthedBefore === true && soAfter.gate === true && soAfter.authed === false, JSON.stringify({ soAuthedBefore, soAfter }));
+
+    // ---- VB-8 (Kevin live, 2026-07-30): the add-to-dashboard picker offers New dashboard ----
+    console.log("\n\u2022 VB-8: '+ New dashboard' inside the add-to-dashboard picker");
+    const vb8 = await page.evaluate(async function () {
+      var W = Studio.Workspace;
+      W.put("analyses", { id: "vb8-a", name: "VB8 View", chartType: "bars",
+        da: { id: "vb8", name: "VB8 View", columns: ["geoid", "adoption_pct"], params: [], authored: true },
+        chart: { type: "bars", da: "vb8", map: { labelCol: "geoid", valueCol: "adoption_pct" }, opts: {} } });
+      window.__studioOpenAddToExistingDashboardPicker("vb8-a");
+      await new Promise(function (r) { setTimeout(r, 150); });
+      var newRow = document.querySelector(".modal-ov .odp-new");
+      var out = { hasNewRow: !!newRow, label: newRow ? newRow.textContent : "" };
+      if (newRow) newRow.click();
+      await new Promise(function (r) { setTimeout(r, 250); });
+      var sp = window.__STUDIO_STATE.spec;
+      out.panels = (sp.panels || []).length;
+      out.panelTitle = sp.panels && sp.panels[0] ? sp.panels[0].title : "";
+      out.modalGone = !document.querySelector(".modal-ov .odp-new");
+      W.remove("analyses", "vb8-a");
+      return out;
+    });
+    ok("VB-8: the picker pins a '+ New dashboard' choice above the list, and picking it opens a blank dashboard carrying the View",
+      vb8.hasNewRow && /New dashboard/.test(vb8.label) && vb8.modalGone && vb8.panels === 1 && vb8.panelTitle === "VB8 View",
+      JSON.stringify(vb8));
     await page.evaluate(function () { return window.__studioLoadExample("conservation-flow.studio.json"); }); // LF43 slice 2: menu gone — hook load
     await page.waitForTimeout(300);
     const lf2Flow = await page.evaluate(function () {
