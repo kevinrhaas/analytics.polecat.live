@@ -7660,8 +7660,11 @@
 >       also be able to pick new dashboard there." The "Add to which dashboard?" modal
 >       pins a dashed + New dashboard row above the (searchable) list — picking it runs
 >       the existing xpAddAnalysisToNewDashboard path (blank spec + append the View).
-> QV-1. **Quick View maps: auto-pick the Region scale from the Region id column (Kevin
->       live, 2026-07-30, screenshot).** "It would be nice if you can attempt to pick
+> QV-1. ✓ **Quick View maps: auto-pick the Region scale from the Region id column (Kevin
+>       live, 2026-07-30, screenshot — SHIPPED v770, sw v406: xpGuessRegionScale in
+>       xpGuessMapping; name rules huc/cd/zip/crd-district/fips-geoid-county/state-postal,
+>       then first-value shape (2-letter postal / 8-digit HUC / 5-digit FIPS / 4-digit
+>       CRD); runs only on mapping re-guess so manual picks win).** "It would be nice if you can attempt to pick
 >       the region scale automatically based on the region id — if it's named similarly
 >       you should be able to default the region scale." Extend xpGuessMapping (and the
 >       scale default wherever the choropleth mapping is auto-built): infer scale from
@@ -7670,6 +7673,24 @@
 >       Districts; zip/zcta → ZIP codes; congress → Congressional), fall back to VALUE
 >       shape (2-letter postals vs 5-digit FIPS vs 8-digit HUC vs 4-digit CRD) when the
 >       name is ambiguous. User's manual pick always wins afterward.
+> CONS-3. **A sectored-radar "system metrics" chart for the Conservation pack (Kevin
+>       live, 2026-07-30, reference image: Food System Metrics wheel).** "Another chart
+>       to consider ... both in spirit and design — could be its own dashboard or add to
+>       an existing dataset/views/dashboard." The reference: a radar whose background is
+>       divided into COLORED CATEGORY SECTORS (7 numbered dimensions, each sector tinted,
+>       sub-metric labels arranged inside each wedge on the legend variant), with one
+>       polygon per entity (India vs USA) — great for side-by-side entity comparison.
+>       Conservation translation: a "Conservation System Metrics" wheel comparing e.g.
+>       two states (or Corn Belt vs national) across ~7 dimensions: Cover-crop adoption,
+>       Tillage transition, Water quality, Program reach / cost-share utilization, Data
+>       coverage (provider agreement), Practice diversity, Economic resilience. Work:
+>       (1) extend the existing radar in app/studio-charts.js (or add a variant
+>       radarSectors) with per-category tinted background sectors + numbered rim labels
+>       + an optional side legend mapping numbers → colored dimension names; (2) seed a
+>       dataset (dimension, metric, state, score 0-100) + a View + its own dashboard
+>       (side-by-side wheels or two overlaid polygons) in the Conservation Insight pack,
+>       foldered + clearly named; (3) keep the CTIC stakeholder story (the wheel is the
+>       at-a-glance "how is the whole system doing" view for policymakers/NGOs).
 > CONS-1. **Conservation pack ↔ real CTIC reference dashboards (Kevin live, 2026-07-30,
 >       three reference screenshots — CLAIMED by the dedicated session).** Make the
 >       Conservation sample-pack dashboards look "immediately as close as possible" to the

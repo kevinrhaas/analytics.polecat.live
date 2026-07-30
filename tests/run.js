@@ -4807,6 +4807,42 @@ function serve() {
     ok("VB-8: the picker pins a '+ New dashboard' choice above the list, and picking it opens a blank dashboard carrying the View",
       vb8.hasNewRow && /New dashboard/.test(vb8.label) && vb8.modalGone && vb8.panels === 1 && vb8.panelTitle === "VB8 View",
       JSON.stringify(vb8));
+
+    // ---- QV-1 (Kevin live, 2026-07-30): Quick View maps auto-pick the Region scale ----
+    console.log("\n\u2022 QV-1: the Region scale defaults from the Region-id column");
+    const qv1 = await page.evaluate(async function () {
+      var W = Studio.Workspace, st = window.__studioExplore.state;
+      var out = {};
+      async function pick(name, columns) {
+        var ds = W.put("datasets", { name: name, kind: "sql", sql: "select 1", columns: columns });
+        st.dsId = null; st.kind = null; st.analysisId = null;
+        window.__studioRenderExplore();
+        await new Promise(function (r) { setTimeout(r, 120); });
+        var row = document.querySelector('#xpBody [data-xp-ds$="' + ds.id + '"]');
+        if (!row) { W.remove("datasets", ds.id); return { err: "row missing" }; }
+        row.click();
+        await new Promise(function (r) { setTimeout(r, 350); });
+        // not every geo-ish name auto-opens as a map (state_code opens as bars) — the
+        // user then clicks the Map type, which re-runs the guess; do the same here.
+        if (st.type !== "choropleth") {
+          var mapBtn = document.querySelector('#xpBody [data-xp-type="choropleth"]');
+          if (mapBtn) { mapBtn.click(); await new Promise(function (r) { setTimeout(r, 250); }); }
+        }
+        var res = { type: st.type, scale: st.opts && st.opts.scale };
+        W.remove("datasets", ds.id);
+        return res;
+      }
+      out.huc = await pick("qv1-huc", ["huc8", "adoption_pct"]);
+      out.state = await pick("qv1-state", ["state_code", "adoption_pct"]);
+      out.crd = await pick("qv1-crd", ["nass_district", "adoption_pct"]);
+      st.dsId = null; st.kind = null; st.analysisId = null;
+      window.__studioRenderExplore();
+      return out;
+    });
+    ok("QV-1: a huc8-named Region-id column defaults the map to Watersheds (HUC8)",
+      qv1.huc.type === "choropleth" && qv1.huc.scale === "huc8", JSON.stringify(qv1.huc));
+    ok("QV-1: state- and district-named Region-id columns default to States and USDA districts (via the Map type re-guess)",
+      qv1.state.type === "choropleth" && qv1.state.scale === "state" && qv1.crd.scale === "crd", JSON.stringify({ state: qv1.state, crd: qv1.crd }));
     await page.evaluate(function () { return window.__studioLoadExample("conservation-flow.studio.json"); }); // LF43 slice 2: menu gone — hook load
     await page.waitForTimeout(300);
     const lf2Flow = await page.evaluate(function () {

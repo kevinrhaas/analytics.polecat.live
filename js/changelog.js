@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 770,
+    title: 'Quick View maps pick their Region scale for you',
+    kind: 'feature',
+    ts: '2026-07-30T18:13:38.000Z',
+    items: [
+      'Building a map in Quick Views now defaults the Region scale from the Region-id column — a huc8 column opens as Watersheds, state codes as States, FIPS as Counties, districts as USDA districts — with the value shape as a fallback when the name is ambiguous. Your manual pick still always wins.',
+    ],
+  },
+  {
     v: 769,
     title: 'Add to dashboard can start a new dashboard too',
     kind: 'feature',

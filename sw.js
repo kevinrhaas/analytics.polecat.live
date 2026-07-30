@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v405"; /* v405: VB-8 — the add-to-dashboard picker pins a
+var CACHE_NAME = "studio-shell-v406"; /* v406: QV-1 — Quick View choropleths default the
+   Region scale from the Region-id column (name heuristics first, value shape fallback;
+   explore.js xpGuessRegionScale inside xpGuessMapping — manual picks still win).
+   Original v405: VB-8 — the add-to-dashboard picker pins a
    “+ New dashboard” choice above the list (blank spec + this View, the same
    xpAddAnalysisToNewDashboard path). Original v404: BOOT-FLASH + SIGNOUT-1 — app/index.html
    stamps the saved theme attributes pre-paint and veils #app (html.ps-booting) until the
