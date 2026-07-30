@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 756,
+    title: 'Select multiple connections for bulk delete',
+    kind: 'feature',
+    ts: '2026-07-30T13:39:11.000Z',
+    items: [
+      'Connections gains the same Select / bulk-delete pattern Datasets shipped first (LIVE-d slice 1): a Select button turns on multi-select, checkboxes appear on every row/tile, and a bulk bar offers Select all / Clear / Delete.',
+      'The delete confirmation calls out how many of the selected connections are referenced by a dataset — those datasets will stop running, same warning the single-delete flow already gives.',
+    ],
+  },
+  {
     v: 755,
     title: 'Builder Views show real numbers everywhere',
     kind: 'feature',

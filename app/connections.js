@@ -84,6 +84,33 @@
   // of the catalog so a fast-growing list stays navigable without committing
   // to the still-undecided folders/tags grouping model.
   var toggleConnPin = null; // set in configure()
+  // LIVE-d slice 2 (Kevin, 2026-07-30): Connections adopts the same select-mode
+  // + bulk-bar shape Datasets proved in slice 1 (_dsxSelectMode/_dsxSelected in
+  // datasets.js) — session-only, pruned against the live list every render.
+  var _connSelectMode = false;
+  var _connSelected = {}; // id -> true, only meaningful while _connSelectMode
+  function toggleConnSelect(id) {
+    if (_connSelected[id]) delete _connSelected[id]; else _connSelected[id] = true;
+    renderConnections();
+  }
+  function bulkDeleteSelectedConnections() {
+    var ids = Object.keys(_connSelected);
+    if (!ids.length) return;
+    var W = Studio.Workspace;
+    var rows = ids.map(function (id) { return W.get("connections", id); }).filter(Boolean);
+    var usedCount = rows.filter(function (c) { return W.all("datasets").some(function (d) { return d.connectionId === c.id; }); }).length;
+    var msg = "Delete " + rows.length + " connection" + (rows.length === 1 ? "" : "s") + "?" +
+      (usedCount ? " " + usedCount + " of these are referenced by a dataset — those datasets will stop running." : "") +
+      " This can't be undone.";
+    if (!window.confirm(msg)) return;
+    rows.forEach(function (c) { W.remove("connections", c.id, { silent: true }); });
+    _connSelected = {};
+    toast("Deleted " + rows.length + " connection" + (rows.length === 1 ? "" : "s"));
+    // one batched notify (not a remove per row), same convention bulkDeleteSelectedDatasets established.
+    W.notify("connections");
+  }
+  window.__studioConnSelectMode = function () { return _connSelectMode; }; // test hook
+  window.__studioConnSelected = function () { return Object.keys(_connSelected); }; // test hook
   // M4.2 slice 2 (per-section rights + object privacy — connections): same
   // `private`/`owner` shape + `isVisibleToMe` helper as dashboards (slice 1).
   // A connection often carries credentials, so hiding it from other accounts'
@@ -139,12 +166,32 @@
       credNote.textContent = cc.text;
       credNote.classList.toggle("cx-cred-warn", cc.warn);
     }
+    // LIVE-d slice 2: the "Select" toolbar toggle, same idempotent-binding
+    // convention as the view toggle above — lives outside #connResults so it
+    // survives every re-render.
+    var selBtn = $("#connSelectBtn");
+    if (selBtn) {
+      selBtn.textContent = _connSelectMode ? "Cancel" : "Select";
+      selBtn.setAttribute("aria-pressed", _connSelectMode ? "true" : "false");
+      selBtn.onclick = function () {
+        _connSelectMode = !_connSelectMode;
+        if (!_connSelectMode) _connSelected = {};
+        renderConnections();
+      };
+    }
     var q = (($("#connSearch") || {}).value || "").toLowerCase();
     var list = Studio.Workspace.all("connections").filter(isVisibleToMe).sort(function (a, b) {
       if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
       if (a.pinned) return (b.pinnedAt || "").localeCompare(a.pinnedAt || "");
       return (b.updatedAt || 0) - (a.updatedAt || 0);
     });
+    // drop any selected id that no longer exists/is visible (deleted elsewhere) so a
+    // stale entry can't inflate the bulk-bar count or survive a bulk delete — same
+    // pruning renderDatasets does for _dsxSelected.
+    if (_connSelectMode) {
+      var listIds = {}; list.forEach(function (c) { listIds[c.id] = true; });
+      Object.keys(_connSelected).forEach(function (id) { if (!listIds[id]) delete _connSelected[id]; });
+    }
     // adapter pills: one per adapter present, multi-select (empty selection = all)
     var counts = {}, tagCounts = {}, folderCounts = {}, folderUnfiled = 0;
     list.forEach(function (c) {
@@ -228,16 +275,33 @@
           '<button type="button" class="btn" data-conn-edit="' + esc(c.id) + '">Edit</button>' +
           '<button type="button" class="btn" data-conn-del="' + esc(c.id) + '" aria-label="Delete ' + esc(c.name) + '">✕</button>' +
         '</span>';
+      // LIVE-d slice 2: select-mode-only checkbox overlay, same markup shape as
+      // Datasets' .dsx-select-cb — a distinct .conn-select-cb class so the two
+      // sections' handlers can't cross-fire.
+      var selected = !!_connSelected[c.id];
+      var selectHtml = _connSelectMode
+        ? '<label class="cx-select" onclick="event.stopPropagation()"><input type="checkbox" class="conn-select-cb" data-conn-select="' +
+          esc(c.id) + '"' + (selected ? " checked" : "") + ' aria-label="Select ' + esc(c.name) + '"/></label>' : '';
       if (isTiles) {
-        return '<div class="dsx-tile" data-conn-id="' + esc(c.id) + '">' +
-          '<div class="dsx-tile-head">' + dot + icon + name + pinBtn + privateBtn + '</div>' +
+        return '<div class="dsx-tile' + (_connSelectMode && selected ? " is-selected" : "") + '" data-conn-id="' + esc(c.id) + '">' +
+          '<div class="dsx-tile-head">' + selectHtml + dot + icon + name + pinBtn + privateBtn + '</div>' +
           (badges ? '<div class="dsx-tile-badges">' + badges + '</div>' : "") +
           '<div class="dsx-tile-foot">' + when + actions + '</div>' +
           '</div>';
       }
-      return '<div class="cx-row" data-conn-id="' + esc(c.id) + '">' +
-        dot + icon + name + badges + when + privateBtn + pinBtn + actions + '</div>';
+      return '<div class="cx-row' + (_connSelectMode && selected ? " is-selected" : "") + '" data-conn-id="' + esc(c.id) + '">' +
+        selectHtml + dot + icon + name + badges + when + privateBtn + pinBtn + actions + '</div>';
     });
+    // LIVE-d slice 2: the bulk bar — same anatomy as Datasets' bulkBarHtml,
+    // reusing the section-agnostic .dash-bulk-bar CSS.
+    var selCount = Object.keys(_connSelected).length;
+    var bulkBarHtml = _connSelectMode
+      ? '<div class="dash-bulk-bar"><span class="dash-bulk-count">' + selCount + ' selected</span>' +
+        '<button type="button" class="btn" id="connSelAllBtn">Select all</button>' +
+        '<button type="button" class="btn" id="connSelNoneBtn">Clear</button>' +
+        '<button type="button" class="btn danger" id="connSelDelBtn"' + (selCount ? '' : ' disabled') + '>' +
+        'Delete' + (selCount ? ' ' + selCount : '') + '</button></div>'
+      : '';
     results.innerHTML =
       (pillsFConn ? '<div class="wb-chips cx-filter-strip">' + pillsFConn + '</div>' : "") +
       (pills || pillsT || pillsV || connViewAddHtml ? '<div class="wb-chips cx-pills cx-filter-strip">' +
@@ -246,6 +310,7 @@
         pillsT +
         ((anyFilter || anyTag || anyConnFolder) ? '<button type="button" class="wb-chip" id="connPillClear" title="Show all connections">Clear</button>' : "") +
         connViewAddHtml + '</div>' : "") +
+      bulkBarHtml +
       (rows.length ? '<div class="' + (isTiles ? "dsx-grid" : "cx-list") + '">' + rows.join("") + '</div>'
         : '<div class="cx-empty">' +
             (q || anyFilter || anyTag || anyConnFolder ? "No connections match." :
@@ -314,10 +379,26 @@
       var icEl = row.querySelector(".cx-ic");
       if (icEl && src) icEl.appendChild(Studio.icon(src.icon || "db", 18));
       row.addEventListener("click", function (e) {
-        if (e.target.closest("[data-conn-pin],[data-conn-private],[data-conn-test],[data-conn-edit],[data-conn-del]")) return;
+        if (e.target.closest("[data-conn-pin],[data-conn-private],[data-conn-test],[data-conn-edit],[data-conn-del],.conn-select-cb")) return;
+        if (_connSelectMode) { toggleConnSelect(row.getAttribute("data-conn-id")); return; }
         openConnectionWizard(c);
       });
     });
+    // LIVE-d slice 2: while select mode is on, the bulk bar's own buttons drive
+    // Select all / Clear / Delete, and every checkbox toggles its row's
+    // selection — same wiring shape renderDatasets uses for _dsxSelected.
+    if (_connSelectMode) {
+      var connSelAllBtn = $("#connSelAllBtn", results);
+      if (connSelAllBtn) connSelAllBtn.onclick = function () { shown.forEach(function (c) { _connSelected[c.id] = true; }); renderConnections(); };
+      var connSelNoneBtn = $("#connSelNoneBtn", results);
+      if (connSelNoneBtn) connSelNoneBtn.onclick = function () { _connSelected = {}; renderConnections(); };
+      var connSelDelBtn = $("#connSelDelBtn", results);
+      if (connSelDelBtn) connSelDelBtn.onclick = bulkDeleteSelectedConnections;
+      $$(".conn-select-cb", results).forEach(function (cb) {
+        cb.onclick = function (e) { e.stopPropagation(); };
+        cb.onchange = function () { toggleConnSelect(cb.getAttribute("data-conn-select")); };
+      });
+    }
     $$(".cx-pin", results).forEach(function (btn) {
       btn.appendChild(Studio.icon("star", 14));
       btn.onclick = function (e) { e.stopPropagation(); toggleConnPin(btn.getAttribute("data-conn-pin")); };

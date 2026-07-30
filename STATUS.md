@@ -116,6 +116,21 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LIVE-d slice 2 — Connections gains Select / bulk-delete (v756, sw v393, 2026-07-30,
+  steward):** the second section to adopt the cross-app multi-select pattern slice 1 proved
+  on Datasets (same **Select** toolbar button, checkbox overlay on every row/tile, bulk bar
+  with Select all/Clear/Delete). Selection state (`_connSelectMode`/`_connSelected`) is
+  session-only, pruned against the live list every render so a stale id can't linger; the
+  delete confirmation names how many of the selection are referenced by a dataset (same
+  blast-radius framing the individual-delete confirm already uses) — those datasets stop
+  running but aren't deleted themselves. Reuses the exact `.cx-select`/`.dash-bulk-bar`/
+  `.is-selected` CSS as-is (already section-agnostic from slice 1 — no new styles needed).
+  8 new regression tests mirroring the Datasets suite one-for-one (enter/exit select mode,
+  tap-to-select, checkbox toggle, Select all/Clear, the actual bulk delete, and the tile-view
+  variant). docs/index.html's "Select multiple / bulk delete" section now covers both
+  sections. Files: app/connections.js, app/index.html, docs/index.html, sw.js,
+  js/changelog.js, tests/run.js. **NEXT in LIVE-d:** Jobs and Repository adopt the same
+  Select/bulk-bar shape; a bulk "move to folder" action once at least one section has it.
 - **#118 slice — live re-run of builder Views (v755, sw v392, 2026-07-30, steward):** the
   long-standing "#117/#118 NEXT" item every View Builder slice carried forward. A builder-made
   View's da is authored (no query), so dashboards/Home/zoom/Quick-Views-cross-open used to
@@ -7377,9 +7392,11 @@
 >       See DONE for the full writeup. Bulk "move to folder" (Kevin's own driving example)
 >       stays open for a follow-up slice on any section, since Datasets' folder is a
 >       single-select field with its own Folder-field editing UX, not yet wired into the
->       bulk bar. NEXT in LIVE-d: Connections, Jobs, Repository adopt the same
->       Select/bulk-bar shape; a bulk "move to folder" action once at least one section
->       has it.
+>       bulk bar.
+>       ✓ **Slice 2 shipped (2026-07-30, v756, steward): Connections gains Select/bulk-delete.**
+>       See DONE for the full writeup — same shape, no new CSS needed. NEXT in LIVE-d: Jobs
+>       and Repository adopt the same Select/bulk-bar shape; a bulk "move to folder" action
+>       once at least one section has it.
 > LIVE-c. **Supabase flake follow-up.** v738 shipped in-request retry + push spacing + the
 >       Settings activity log. If Reconnecting… persists, get the activity-log error text from
 >       Kevin (Settings → Workspace backend) — then fix the root cause (missing delta tables?
