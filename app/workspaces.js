@@ -17,9 +17,20 @@
    A locally-imported entry with the SAME id overrides the shipped one — the
    escape hatch if a database ever moves before a re-publish.
 
-   Example (fill in and uncomment to package the default Polecat workspace):
-   { id: "polecat", label: "Polecat workspace", sourceId: "supabase",
-     cfg: { url: "https://YOURPROJECT.supabase.co", key: "sb_publishable_XXXX" } }
+   The Polecat workspace below ships per that rule: its RLS was tightened to
+   authenticated-only and verified live 2026-07-30 (anon reads NOTHING on all
+   six workspace tables — Kevin's six-zero verify). The publishable key is the
+   role the database's policies are built to distrust; who can sign in is
+   controlled in Admin (user provisioning), not by possession of this file.
 */
 window.STUDIO_WORKSPACES = [
+  {
+    id: "polecat",
+    label: "Polecat workspace",
+    sourceId: "supabase",
+    cfg: {
+      url: "https://lnngiprrrcxtsawamqei.supabase.co",
+      key: "sb_publishable_jQ3rgqN2swVo4WmLZp143A_2OrI8xc3"
+    }
+  }
 ];

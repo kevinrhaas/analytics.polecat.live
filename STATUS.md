@@ -7819,8 +7819,25 @@
 >       key). 5 suite checks (picker renders / bind-no-pull marker survives /
 >       local↔workspace toggle / end-to-end picked-workspace sign-in / access-file
 >       shape+strip); docs "Picking a workspace on the sign-in screen". Absorbs queue
->       items #103/#104. Kevin still owed: paste the real Polecat url+key into
->       app/workspaces.js AFTER the RLS six-zero anon verify passes.
+>       items #103/#104. LIVE RLS COMPANION (same evening, same PR): Kevin's
+>       pg_policies dump exposed polecat_open_rw ({anon,authenticated} ALL, on EVERY
+>       table) — created by the app's OWN RLS-remedy SQL during #136; permissive
+>       policies OR together so it silently defeated every tighter policy. Fix
+>       applied live → anon verify ALL SIX ZEROS → Kevin's url+publishable key now
+>       PACKAGED in app/workspaces.js ("Polecat workspace" in the picker).
+>       Durability: tools/supabase-rls-real.sql is now THE canonical idempotent
+>       script (ENABLE RLS + drop both legacy open policies by name + authenticated-
+>       only policies + polecat_meta policy + verify block; fresh-deploy = provision
+>       then run it once); the five tables' policies gained an OR polecat_is_admin()
+>       arm on select AND writes (live 403 proof: sync pushes the WHOLE snapshot,
+>       incl. rows other accounts own — pure owner-only WITH CHECK refuses every
+>       admin device push); supabase.js save() is now AUTH-AWARE on 403 (a
+>       Supabase-Auth connection gets expired-session/ownership guidance + a pointer
+>       to the canonical script — NEVER the open-policy paste-me SQL, which is how
+>       the live DB got reopened; keyless personal workspaces still get the open SQL
+>       with a loud WRONG-for-shared warning). SB-RLS auth-aware suite check added.
+>       Kevin still to run: the admin-arm patch (or re-run the canonical script) so
+>       his device's pushes clear; compass_favorites left alone (another app's table).
 >       Original — ★ Ship the default Polecat Supabase workspace ON the login screen
 >       (Kevin live, 2026-07-30 — MOVED UP by Kevin). "ship with the default polecat
 >       supabase workspace... so i can login with a user who has access inside that

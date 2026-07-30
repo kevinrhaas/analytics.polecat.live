@@ -44,9 +44,17 @@
 --
 -- Policy shape (the five owner/private tables): a row is visible to a
 -- signed-in user if it is NOT marked private, OR its stamped owner (datasets:
--- acctOwner — see the M4.2 note in STATUS.md) equals the caller's auth.uid().
--- Write access is owner-only. `users` and `polecat_meta` have their own
--- blocks below.
+-- acctOwner — see the M4.2 note in STATUS.md) equals the caller's auth.uid(),
+-- OR the caller is an admin. Write access is owner-or-admin. The admin arm is
+-- NOT optional (2026-07-30, live): the app's sync pushes the WHOLE workspace
+-- snapshot — including rows seeded by packs or owned by other accounts — so a
+-- pure owner-only WITH CHECK 403s every admin device's push ("new row
+-- violates row-level security policy for table connections"). Admin matches
+-- the app's own contract too: private items are "visible to you and to admin
+-- accounts". (A NON-admin device that holds rows it doesn't own still can't
+-- push those rows — tracked as an M7 follow-up; provisioned non-admin users
+-- currently work read-mostly or own what they create.) `users` and
+-- `polecat_meta` have their own blocks below.
 
 -- ---------------------------------------------------------------------------
 -- 0) RLS ON + retire every legacy open policy, on ALL seven tables.
@@ -77,16 +85,16 @@ BEGIN
     EXECUTE format('DROP POLICY IF EXISTS polecat_update ON %I', t);
     EXECUTE format('DROP POLICY IF EXISTS polecat_delete ON %I', t);
     EXECUTE format(
-      'CREATE POLICY polecat_select ON %I FOR SELECT TO authenticated USING (coalesce((data::jsonb->>%L)::boolean, false) = false OR (data::jsonb->>%L) = auth.uid()::text)',
+      'CREATE POLICY polecat_select ON %I FOR SELECT TO authenticated USING (coalesce((data::jsonb->>%L)::boolean, false) = false OR (data::jsonb->>%L) = auth.uid()::text OR public.polecat_is_admin())',
       t, 'private', owner_field);
     EXECUTE format(
-      'CREATE POLICY polecat_insert ON %I FOR INSERT TO authenticated WITH CHECK ((data::jsonb->>%L) = auth.uid()::text)',
+      'CREATE POLICY polecat_insert ON %I FOR INSERT TO authenticated WITH CHECK ((data::jsonb->>%L) = auth.uid()::text OR public.polecat_is_admin())',
       t, owner_field);
     EXECUTE format(
-      'CREATE POLICY polecat_update ON %I FOR UPDATE TO authenticated USING ((data::jsonb->>%L) = auth.uid()::text) WITH CHECK ((data::jsonb->>%L) = auth.uid()::text)',
+      'CREATE POLICY polecat_update ON %I FOR UPDATE TO authenticated USING ((data::jsonb->>%L) = auth.uid()::text OR public.polecat_is_admin()) WITH CHECK ((data::jsonb->>%L) = auth.uid()::text OR public.polecat_is_admin())',
       t, owner_field, owner_field);
     EXECUTE format(
-      'CREATE POLICY polecat_delete ON %I FOR DELETE TO authenticated USING ((data::jsonb->>%L) = auth.uid()::text)',
+      'CREATE POLICY polecat_delete ON %I FOR DELETE TO authenticated USING ((data::jsonb->>%L) = auth.uid()::text OR public.polecat_is_admin())',
       t, owner_field);
   END LOOP;
 END $$;

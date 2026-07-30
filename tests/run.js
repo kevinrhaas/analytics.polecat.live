@@ -9954,6 +9954,38 @@ function serve() {
       sbRls.failed && sbRls.namesCause, JSON.stringify(sbRls));
     ok("SB-RLS: the save error explains the RLS-without-write-policy trap and hands over paste-me policy SQL covering every workspace table",
       sbRls.explains && sbRls.carriesSql && sbRls.sqlCoversAll, JSON.stringify(sbRls));
+    // AUTH-AWARE remedy (2026-07-30 live incident): for a connection that signs
+    // into Supabase Auth, that same open-policy SQL is a FOOTGUN — pasting it
+    // recreates the anon allow-all (polecat_open_rw) that silently defeats the
+    // tightened per-user posture (permissive policies OR together; exactly how
+    // the live project got reopened). An authenticated workspace's 403 must
+    // explain the real causes and point at the canonical script instead.
+    const sbRlsAuth = await page.evaluate(async () => {
+      const fetch0 = window.fetch;
+      window.fetch = (url, opts) => {
+        const method = (opts && opts.method) || "GET";
+        if (method === "GET") return Promise.resolve(new Response("[]", { status: 200 }));
+        if (/auth\/v1\/token/.test(String(url))) {
+          return Promise.resolve(new Response(JSON.stringify({ access_token: "jwt", expires_in: 3600 }), { status: 200, headers: { "Content-Type": "application/json" } }));
+        }
+        return Promise.resolve(new Response(
+          JSON.stringify({ code: "42501", message: 'new row violates row-level security policy for table "connections"' }),
+          { status: 403, headers: { "Content-Type": "application/json" } }));
+      };
+      const snap = Studio.WS.emptySnapshot();
+      const res = await Studio.supabaseSource.save({ url: "https://x.supabase.co", key: "k", authEmail: "owner@example.com", authPassword: "pw" }, snap);
+      window.fetch = fetch0;
+      const openSql = Studio.WS.rlsPolicySQL();
+      return {
+        failed: res && res.ok === false,
+        noWeakeningSql: !/CREATE POLICY "polecat_open_rw"/.test(res.error || ""),
+        explainsAuth: /per-user Row-Level Security/.test(res.error || "") && /sign out and back in|admin/i.test(res.error || ""),
+        pointsAtCanonical: /supabase-rls-real\.sql/.test(res.error || ""),
+        openSqlWarns: /WRONG for a shared workspace/.test(openSql)
+      };
+    });
+    ok("SB-RLS auth-aware: a 403 on a Supabase-Auth connection explains expired-session/ownership + points at the canonical script — and NEVER hands out the anon open-policy SQL that reopened the live project",
+      sbRlsAuth.failed && sbRlsAuth.noWeakeningSql && sbRlsAuth.explainsAuth && sbRlsAuth.pointsAtCanonical && sbRlsAuth.openSqlWarns, JSON.stringify(sbRlsAuth));
 
     // ---- SB-PULL-GUARD (the data-loss half of "wildly flaky"): Refresh does
     // push-then-pull — when the push FAILS, the pull used to adopt the remote

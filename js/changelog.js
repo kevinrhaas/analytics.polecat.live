@@ -14,6 +14,8 @@ export const CHANGELOG = [
       'The sign-in screen has a Workspace picker: Local only (as before), any workspace packaged with the app, plus “Custom workspace…” (the full wizard) and “Import access file…”. A teammate picks the workspace and signs in with their own email + password — no connection setup at all.',
       'Admins can hand out a workspace as a small access file: Settings → Workspace backend → Export access file. It carries the connection details only — the service sign-in is stripped, so each person always authenticates as themselves. Importing it at the gate adds (or overrides) that workspace on the device.',
       'Picking a workspace only points the app at it — nothing is read or written until you actually sign in, so choosing one can never disturb the workspace’s data or your own local copy.',
+      'The default Polecat workspace now ships in that picker — its database was first locked down so the shared key reads nothing without a real sign-in, verified live.',
+      'Smarter save-failure advice: on a workspace that uses real sign-in, a rejected save now explains the actual causes (expired session, or rows another account owns) instead of offering a paste-me SQL fix that would have quietly reopened anonymous access.',
     ],
   },
   {
