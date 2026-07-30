@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 780,
+    title: 'Fix: signing in to a picked workspace now works on a brand-new browser',
+    kind: 'fix',
+    ts: '2026-07-30T23:19:06.000Z',
+    items: [
+      'Picking a workspace on the sign-in screen and entering a valid email + password could still end in “isn’t in your connected workspace” on a fresh browser: the password verified, but the follow-up read of the workspace ran without your session — and a locked-down workspace correctly shows an anonymous reader nothing. The verified sign-in is now attached to the connection first, so that read (and all syncing after it) runs as you.',
+    ],
+  },
+  {
     v: 779,
     title: 'Honest Home Examples, a Clear-recents button, and readable saved-View rows',
     kind: 'fix',

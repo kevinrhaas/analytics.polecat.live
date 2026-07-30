@@ -298,6 +298,20 @@
       });
     },
 
+    // WORKSPACE-LOGIN fix (Kevin live, 2026-07-30): stamp the signed-in user's
+    // Supabase Auth credentials onto the live connection. Picker-bound configs
+    // carry only url+key, so every request — including the adopting pull right
+    // after a successful direct-auth — ran as ANON, which authenticated-only
+    // RLS correctly answers with an EMPTY workspace ("isn't in your connected
+    // workspace" for a fully-provisioned admin). With these set, the adapter
+    // signs requests in as this user.
+    setAuthCredentials: function (email, password) {
+      if (!state.cfg) return publicState();
+      state.cfg.authEmail = email; state.cfg.authPassword = password;
+      saveConn();
+      return publicState();
+    },
+
     // WORKSPACE-LOGIN: bind a connection WITHOUT pulling. The sign-in screen
     // uses this — under authenticated-only RLS an unauthenticated pull reads
     // the remote as EMPTY, and adopting that would replaceAll a device's real

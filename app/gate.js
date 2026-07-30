@@ -197,6 +197,13 @@
       setErr("Signing you in…");
       src.authenticate(cfg, { email: u, password: p }).then(function (r) {
         if (!r || !r.ok || !r.userId) { next(false); return; }
+        // WORKSPACE-LOGIN fix (Kevin live, 2026-07-30): a picker-bound
+        // connection has only url+key, so the adopting pull below used to run
+        // as ANON — under authenticated-only RLS that reads users as EMPTY and
+        // a fully-provisioned admin got "isn't in your connected workspace".
+        // Stamp the just-verified credentials on the connection FIRST so the
+        // pull (and every later sync) runs as this user.
+        if (Sync.setAuthCredentials) Sync.setAuthCredentials(u, p);
         // GoTrue verified the password — now adopt the local identity for this uid.
         var adopt = function () {
           try { Auth.importFromStore(window.Studio.Workspace.all("users")); } catch (e) {}

@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v414"; /* v414: HOME-EX2 + EXPLORE-LAYOUT — the 4 pack-less
+var CACHE_NAME = "studio-shell-v415"; /* v415: WORKSPACE-LOGIN fix — direct-auth stamps the
+   verified credentials on the picker-bound connection (Sync.setAuthCredentials)
+   BEFORE the adopting pull; without them the pull ran as anon and authenticated-only
+   RLS read the workspace as empty ("isn't in your connected workspace" for a
+   provisioned admin on a fresh browser). app/gate.js + app/sources/sync.js changed. */
+/* v414: HOME-EX2 + EXPLORE-LAYOUT — the 4 pack-less
    examples are stamped demoPackId "datamanagement" in data/examples/index.json
    (precached; the strip only shows installed packs now); Home gains a per-user
    Clear-recents button (hide-only stamp, never a delete); Quick Views saved-rows
