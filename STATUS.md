@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **BOOT-FLASH follow-up — the standalone dashboard viewer also stamps theme pre-paint
+  (v771, sw v407, 2026-07-30, steward):** #508 fixed the refresh-flash for the main app
+  (`app/index.html`) but missed the second boot entry point, `app/viewer.html`
+  (`?dash=<id>`, opened from a dashboard's eye icon) — it still painted default-theme
+  chrome before `app/viewer.js`'s own boot() ran. Same fix, verbatim: a synchronous
+  pre-paint `<head>` script stamps `data-theme`/`data-app-theme`/`data-palette` from
+  localStorage and adds `html.ps-booting` (veils `#app` via the same CSS #508 already
+  shipped); `viewer.js`'s `boot()` releases it once the dashboard frame is built, and
+  `showNotFound()` releases it on every other exit (missing/private dashboard, or the
+  fetch chain's own `.catch()`) so the not-found state is never left hidden behind it;
+  a 4s failsafe covers anything else. Also deleted `app/gate.js`'s now-fully-redundant
+  async theme-stamp block (dead code once both `index.html` and `viewer.html` stamp
+  pre-paint themselves) and fixed `docs/index.html`'s stale comment (it credited
+  `app/gate.js` for a pre-paint pattern gate.js never actually implemented correctly —
+  it only ran on DOMContentLoaded, well after first paint, and only on the not-authed
+  branch). 3 new regression checks (viewer stamps pre-paint, veil releases on a real
+  dashboard, veil releases on not-found). Files: app/viewer.html, app/viewer.js,
+  app/gate.js, docs/index.html, sw.js, js/changelog.js, tests/run.js.
 - **VB-6 — a numeric View Builder field can act as a CATEGORY, not just a total (v766,
   sw v402, 2026-07-30, steward):** "State_FIPS dragged to Columns becomes SUM State_FIPS
   with no way to say group by this." The Columns shelf pill's aggregation dropdown
@@ -7636,6 +7654,9 @@
 >       ~200ms fade (honoring prefers-reduced-motion + the stored reduce-motion override);
 >       a failsafe timer releases it even if boot throws. Veil only the gap that remains
 >       after whatever already stamps pre-paint.
+>       ✓ **Follow-up shipped (2026-07-30, v771, sw v407, steward): the standalone dashboard
+>       viewer (app/viewer.html) gets the identical fix** — #508 only covered app/index.html.
+>       See DONE for the full writeup.
 > SIGNOUT-1. ✓ **Sign out (account menu dropdown) does not return to the login screen
 >       (Kevin live, 2026-07-30 — SHIPPED v768 same PR). ROOT CAUSE: the ⋯ menu handler
 >       predated real auth — it cleared only the legacy studio-gate-ok flag, so the

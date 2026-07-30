@@ -46,16 +46,8 @@
     var a = document.getElementById("app"); if (a) a.style.visibility = "hidden";
 
     // Themed via the same --brand/--dk/--ink/etc custom properties as the app
-    // (studio.css [data-theme]/[data-app-theme]); gate runs before studio.js
-    // applies the saved attributes, so read the same localStorage keys first
-    // (best-effort — falls back to :root defaults).
-    try {
-      var savedMode = localStorage.getItem("studio-theme");
-      var savedAppTheme = localStorage.getItem("studio-app-theme");
-      if (savedMode) document.documentElement.setAttribute("data-theme", savedMode);
-      if (savedAppTheme) { document.documentElement.setAttribute("data-app-theme", savedAppTheme); document.documentElement.setAttribute("data-palette", savedAppTheme); }
-    } catch (e) {}
-
+    // (studio.css [data-theme]/[data-app-theme]) — BOOT-FLASH's pre-paint <head> script
+    // (index.html/viewer.html) already stamped those attributes before gate.js even ran.
     var st = document.createElement("style");
     st.textContent =
       "#studio-gate{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;" +

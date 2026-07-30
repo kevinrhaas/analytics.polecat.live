@@ -4784,6 +4784,45 @@ function serve() {
     ok("SIGNOUT-1: signing out from the \u22ef menu ends the real auth session and lands back on the sign-in gate",
       soAuthedBefore === true && soAfter.gate === true && soAfter.authed === false, JSON.stringify({ soAuthedBefore, soAfter }));
 
+    // ---- BOOT-FLASH follow-up (2026-07-30, steward): the viewer route (app/viewer.html) ----
+    // shares #app's veil CSS, but boots + releases independently via app/viewer.js \u2014 verify
+    // both outcomes (a real dashboard, and the not-found state) actually release the veil.
+    console.log("\n\u2022 BOOT-FLASH follow-up: the standalone viewer route also stamps + veils pre-paint");
+    const bfvId = await page.evaluate(function () {
+      var id = "bfv-dash-1";
+      Studio.Workspace.put("dashboards", { id: id, title: "BFV Dashboard", spec: { title: "BFV Dashboard", panels: [], kpis: [] } });
+      return id;
+    });
+    const bfvCtx = await browser.newContext({ viewport: { width: 1200, height: 900 } });
+    const bfvPage = await bfvCtx.newPage();
+    await bfvPage.addInitScript(() => { try {
+      sessionStorage.setItem("studio-gate-ok", "1");
+      localStorage.setItem("studio-theme", "dark");
+      localStorage.setItem("studio-app-theme", "aurora");
+    } catch (e) {} });
+    await bfvPage.goto(`http://localhost:${PORT}/app/viewer.html?dash=${bfvId}`, { waitUntil: "domcontentloaded" });
+    const bfvEarly = await bfvPage.evaluate(() => ({
+      theme: document.documentElement.getAttribute("data-theme"),
+      appTheme: document.documentElement.getAttribute("data-app-theme"),
+      palette: document.documentElement.getAttribute("data-palette")
+    }));
+    const bfvReleased = await bfvPage.waitForFunction(() => !document.documentElement.classList.contains("ps-booting"), { timeout: 10000 }).then(() => true).catch(() => false);
+    const bfvFaded = await bfvPage.waitForFunction(() => getComputedStyle(document.getElementById("app")).opacity === "1", { timeout: 5000 }).then(() => true).catch(() => false);
+    await bfvCtx.close();
+    ok("BOOT-FLASH follow-up: the viewer route stamps the saved theme attributes before first paint",
+      bfvEarly.theme === "dark" && bfvEarly.appTheme === "aurora" && bfvEarly.palette === "aurora", JSON.stringify(bfvEarly));
+    ok("BOOT-FLASH follow-up: the viewer route's veil releases once its own boot() resolves the real dashboard",
+      bfvReleased && bfvFaded, JSON.stringify({ bfvReleased, bfvFaded }));
+
+    const bfvNfCtx = await browser.newContext({ viewport: { width: 1200, height: 900 } });
+    const bfvNfPage = await bfvNfCtx.newPage();
+    await bfvNfPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); } catch (e) {} });
+    await bfvNfPage.goto(`http://localhost:${PORT}/app/viewer.html?dash=bfv-does-not-exist`, { waitUntil: "domcontentloaded" });
+    const bfvNfReleased = await bfvNfPage.waitForFunction(() => !document.documentElement.classList.contains("ps-booting"), { timeout: 10000 }).then(() => true).catch(() => false);
+    await bfvNfCtx.close();
+    ok("BOOT-FLASH follow-up: an unknown dashboard id still releases the veil (the not-found state is never left hidden)",
+      bfvNfReleased, JSON.stringify({ bfvNfReleased }));
+
     // ---- VB-8 (Kevin live, 2026-07-30): the add-to-dashboard picker offers New dashboard ----
     console.log("\n\u2022 VB-8: '+ New dashboard' inside the add-to-dashboard picker");
     const vb8 = await page.evaluate(async function () {
