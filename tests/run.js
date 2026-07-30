@@ -4555,7 +4555,7 @@ function serve() {
         filterIds: S && S.spec ? (S.spec.filters || []).map(function (f) { return f.id; }) : [] };
     });
     ok("LF2: Conservation Insight — Crop & Practice Flow example loads with its 4 panels",
-      lf2Flow.title === "Conservation Insight — Crop & Practice Flow" && lf2Flow.panels === 4, JSON.stringify(lf2Flow));
+      lf2Flow.title === "Crop & Practice Flow" && lf2Flow.panels === 4, JSON.stringify(lf2Flow));
     // LF7: this example now carries a real Crop filter (was filters:[]).
     ok("LF7: the Crop & Practice Flow example carries a real 'Crop' filter (was filters:[])",
       JSON.stringify(lf2Flow.filterIds) === JSON.stringify(["crop"]), JSON.stringify(lf2Flow));
@@ -4571,7 +4571,7 @@ function serve() {
         types: S && S.spec ? S.spec.panels.map(function (p) { return p.chart.type; }) : [] };
     });
     ok("LF2: Conservation Insight — Watershed-Scale Adoption example loads with its 4 panels",
-      lf2Watershed.title === "Conservation Insight — Watershed-Scale Adoption" && lf2Watershed.panels === 4, JSON.stringify(lf2Watershed));
+      lf2Watershed.title === "Watershed-Scale Adoption" && lf2Watershed.panels === 4, JSON.stringify(lf2Watershed));
     ok("LF2: the Watershed example carries a real 'Since year' filter (was filters:[])",
       JSON.stringify(lf2Watershed.filterIds) === JSON.stringify(["sinceYear"]), JSON.stringify(lf2Watershed));
     ok("LF2: the Watershed example leads with a HUC8 choropleth alongside an ensemble trend, gauge, and bars",
@@ -4588,7 +4588,7 @@ function serve() {
         types: S && S.spec ? S.spec.panels.map(function (p) { return p.chart.type; }) : [] };
     });
     ok("LF2: Conservation Insight — Program Cost-Share ROI example loads with its 4 panels",
-      lf2Costshare.title === "Conservation Insight — Program Cost-Share ROI" && lf2Costshare.panels === 4, JSON.stringify(lf2Costshare));
+      lf2Costshare.title === "Program Cost-Share ROI" && lf2Costshare.panels === 4, JSON.stringify(lf2Costshare));
     ok("LF2: the Cost-Share ROI example carries a real 'Since year' filter (was filters:[])",
       JSON.stringify(lf2Costshare.filterIds) === JSON.stringify(["sinceYear"]), JSON.stringify(lf2Costshare));
     ok("LF2: the Cost-Share ROI example leads with a scatter alongside a donut, line, and bars",
@@ -4605,7 +4605,7 @@ function serve() {
         types: S && S.spec ? S.spec.panels.map(function (p) { return p.chart.type; }) : [] };
     });
     ok("LF2: Conservation Insight — Provider Agreement Over Time example loads with its 4 panels",
-      lf2Agreement.title === "Conservation Insight — Provider Agreement Over Time" && lf2Agreement.panels === 4, JSON.stringify(lf2Agreement));
+      lf2Agreement.title === "Provider Agreement Over Time" && lf2Agreement.panels === 4, JSON.stringify(lf2Agreement));
     ok("LF2: the Provider Agreement example carries a real 'Since year' filter (was filters:[])",
       JSON.stringify(lf2Agreement.filterIds) === JSON.stringify(["sinceYear"]), JSON.stringify(lf2Agreement));
     ok("LF2: the Provider Agreement example leads with an ensemble trend alongside a heatmap, line, and bars",
@@ -4623,7 +4623,7 @@ function serve() {
         types: S && S.spec ? S.spec.panels.map(function (p) { return p.chart.type; }) : [] };
     });
     ok("LF2: Conservation Insight — County-Level Outlier Detection example loads with its 4 panels",
-      lf2Outliers.title === "Conservation Insight — County-Level Outlier Detection" && lf2Outliers.panels === 4, JSON.stringify(lf2Outliers));
+      lf2Outliers.title === "County-Level Outlier Detection" && lf2Outliers.panels === 4, JSON.stringify(lf2Outliers));
     ok("LF2: the County-Level Outlier Detection example carries a real 'Practice' filter (was filters:[])",
       JSON.stringify(lf2Outliers.filterIds) === JSON.stringify(["practice"]), JSON.stringify(lf2Outliers));
     ok("LF2: the County-Level Outlier Detection example leads with a choropleth alongside a diverging bar, histogram, and gauge",
@@ -4641,7 +4641,7 @@ function serve() {
         types: S && S.spec ? S.spec.panels.map(function (p) { return p.chart.type; }) : [] };
     });
     ok("LF2: Conservation Insight — Year-over-Year Practice Switching example loads with its 4 panels",
-      lf2Switching.title === "Conservation Insight — Year-over-Year Practice Switching" && lf2Switching.panels === 4, JSON.stringify(lf2Switching));
+      lf2Switching.title === "Year-over-Year Practice Switching" && lf2Switching.panels === 4, JSON.stringify(lf2Switching));
     ok("LF2: the Practice Switching example carries a real 'Crop' filter (was filters:[])",
       JSON.stringify(lf2Switching.filterIds) === JSON.stringify(["crop"]), JSON.stringify(lf2Switching));
     ok("LF2: the Practice Switching example leads with a stacked area alongside a bump ranking, a slope, and a gauge",
@@ -4659,7 +4659,7 @@ function serve() {
         introContent: S && S.spec ? S.spec.panels[0].chart.opts.content : "" };
     });
     ok("LF2: Conservation Insight — The Story So Far example loads with its 6 panels",
-      lf2Overview.title === "Conservation Insight — The Story So Far" && lf2Overview.panels === 6, JSON.stringify(lf2Overview));
+      lf2Overview.title === "The Story So Far" && lf2Overview.panels === 6, JSON.stringify(lf2Overview));
     ok("LF2: the Story So Far example leads with a richtext narrative alongside a trend line, and 2x gauge/donut/bars",
       JSON.stringify(lf2Overview.types) === JSON.stringify(["richtext", "line", "gauge", "donut", "bars", "gauge"]), JSON.stringify(lf2Overview));
     ok("LF2: the Story So Far example's richtext panel narrates the whole Conservation set",
@@ -4897,6 +4897,34 @@ function serve() {
     });
     ok("LF43: re-running materialization while already installed is idempotent (no duplicate rows)",
       lf43ReInstallNoDupe === 8, String(lf43ReInstallNoDupe));
+
+    // Kevin (2026-07-30): pack dashboards lead with their OWN name and install into
+    // a pack folder — a grid of "Conservation Insight — …" cards read as identical rows.
+    const packNaming = await page.evaluate(function () {
+      var rows = Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "conservation"; });
+      var out = {
+        count: rows.length,
+        allInFolder: rows.every(function (r) { return r.folder === "Conservation Insight"; }),
+        noPrefix: rows.every(function (r) { return !/^Conservation Insight — /.test(r.title || ""); }),
+        sampleTitles: rows.map(function (r) { return r.title; }).sort().slice(0, 3)
+      };
+      // a legacy row (materialized before the rename) heals on the boot reconcile
+      var legacy = Studio.Workspace.put("dashboards", {
+        title: "Conservation Insight — Legacy Shaped", demoPackId: "conservation",
+        sourceFile: "legacy-test.studio.json",
+        spec: { title: "Conservation Insight — Legacy Shaped", panels: [], kpis: [] }
+      });
+      window.__studioReconcilePackDashboards();
+      var healed = Studio.Workspace.get("dashboards", legacy.id);
+      out.healedTitle = healed.title; out.healedFolder = healed.folder; out.healedSpecTitle = healed.spec.title;
+      Studio.Workspace.remove("dashboards", legacy.id);
+      return out;
+    });
+    ok("PACK NAMING: conservation dashboards lead with their own name and install into the 'Conservation Insight' folder",
+      packNaming.count === 9 && packNaming.allInFolder && packNaming.noPrefix, JSON.stringify(packNaming));
+    ok("PACK NAMING: the boot reconcile strips the legacy prefix (row + spec titles) and backfills the folder on a pre-rename workspace",
+      packNaming.healedTitle === "Legacy Shaped" && packNaming.healedSpecTitle === "Legacy Shaped" &&
+      packNaming.healedFolder === "Conservation Insight", JSON.stringify(packNaming));
 
     // ---- LF70: Home's "Browse examples" card must land in Dashboards filtered to the
     // installed sample pack(s)' curated dashboards (thumbnail tiles) — not the old

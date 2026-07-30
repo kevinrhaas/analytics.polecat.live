@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v378"; /* v378: VB-2 (Kevin's overnight View Builder queue) —
+var CACHE_NAME = "studio-shell-v379"; /* v379: LIVE-b (Kevin: "start with the name of the
+   dashboard… put it in a conservation insight folder") — sample-pack dashboards drop the
+   shared "Conservation Insight — " title prefix (index.json + per-spec titles + the
+   hand-built featured demo) and install into a pack folder (conservation → "Conservation
+   Insight", datamanagement → "Data Management"); a boot reconcile heals pre-rename
+   workspaces. data/examples/*, app/demopacks.js, app/studio.js, tests/run.js, STATUS.md,
+   js/changelog.js.
+   v378: VB-2 (Kevin's overnight View Builder queue) —
    shelf pills drag between Columns/Rows/Filters (converting shape per destination) and
    reorder within a shelf, not just via the ⇄ button. app/build.js, app/studio.css,
    docs/index.html, tests/run.js, STATUS.md, js/changelog.js.

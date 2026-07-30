@@ -139,6 +139,23 @@
   live headless, zero pageerrors. **Remaining overnight queue (NEXT):** VB-3 Color encoding +
   palettes, VB-4 chart parity (choropleth first). Files: app/build.js, app/studio.css,
   docs/index.html, sw.js, js/changelog.js, tests/run.js.
+- **LIVE-b — sample-pack dashboards get real names + a pack folder (v742, sw v379,
+  2026-07-30, steward):** Kevin live (Dashboards screenshot: "the names all start with the
+  same thing they dont seem any different… start with the name of the dashboard and put it
+  in a conservation insight folder"). (1) Stripped the shared "Conservation Insight — "
+  prefix from the 7 prefixed titles in data/examples/index.json AND each spec's internal
+  `title` (Crop & Practice Flow, Watershed-Scale Adoption, Program Cost-Share ROI, Provider
+  Agreement Over Time, County-Level Outlier Detection, Year-over-Year Practice Switching,
+  The Story So Far); the hand-built featured demo renames to "Cover Crop & Tillage
+  Adoption". (2) ensurePackExamplesMaterialized stamps `folder` from a PACK_FOLDERS map
+  (conservation → "Conservation Insight", datamanagement → "Data Management"), and
+  demopacks.js's own featured dashboard files itself the same way — pack installs start
+  organized. (3) A boot `reconcilePackDashboards()` heals PRE-rename workspaces (Kevin's):
+  strips the legacy prefix off row + spec titles and backfills the folder, silent puts + one
+  notify. Re-baselined the 6 LF2 example-title asserts (legit rename); +2 regression tests
+  (all 9 conservation rows in-folder + prefix-free after install; a legacy-shaped row heals
+  title/spec-title/folder via the reconcile). Files: data/examples/*.json,
+  app/demopacks.js, app/studio.js, tests/run.js, sw.js, js/changelog.js.
 - **LIVE-a slice 1 — Home quick actions speak the rail IA (v740, sw v377, 2026-07-30,
   steward):** Kevin live ("fix the buttons… line up to terminology", Home screenshot). The
   quick-action grid now leads with the builders: a NEW "New View" card (data-home="view")
@@ -6985,11 +7002,8 @@
 >       a screenshot would help, add a hidden HTML comment describing exactly what image
 >       should go there (users never see it); hide the whole image/zoom-box preview block
 >       until real images are dropped in later.
-> LIVE-b. **Sample-pack dashboard naming + folder (Kevin live, screenshot).** Every
->       Conservation Insight dashboard card reads "Conservation Insight — …" so the grid looks
->       identical row after row. Rename so the dashboard's OWN name leads (e.g. "Watershed
->       Adoption"), and file the pack's dashboards into a "Conservation Insight" folder as part
->       of the standard pack install (folders exist on dashboards via LF56/LF59 conventions).
+> LIVE-b. ✓ **Sample-pack dashboard naming + folder (SHIPPED v741, 2026-07-30, steward)** —
+>       see DONE: titles lead, pack folder on install, boot reconcile heals old workspaces.
 > LIVE-d. **Cross-app multi-select + bulk actions (Kevin live, 2026-07-30).** Every catalog
 >       section (Views, Dashboards, Datasets, Connections, Jobs, Repository) needs
 >       multi-select (checkboxes / shift-click) with bulk operations — move to folder (his
