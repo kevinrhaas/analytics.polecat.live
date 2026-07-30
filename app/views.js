@@ -41,7 +41,7 @@
   var _vwViewMode = "list";
   try { _vwViewMode = localStorage.getItem("studio-vwc-view") || "list"; } catch (e) {}
 
-  function vwChartLabel(t) { return (Studio.CHARTS[t] || {}).label || t; }
+  function vwChartLabel(t) { return t === "kpi" ? "KPI" : (Studio.CHARTS[t] || {}).label || t; }
   // LF57 follow-up: a per-chart-type row icon, reusing the same themed gallery-thumbnail
   // SVGs (Studio.CHART_SVG + studio.js's live-theme-aware themedChartSvg, injected via
   // configure()) the chart-type picker and dashboard-mockup preview already draw from —

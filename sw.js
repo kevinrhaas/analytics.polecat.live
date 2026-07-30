@@ -5,7 +5,15 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v384"; /* v384: VB-4 remaining major, Scatter (Kevin's overnight
+var CACHE_NAME = "studio-shell-v385"; /* v385: VB-4 remaining major, KPI (Kevin's overnight View
+   Builder queue, "hit major ones first") — KPI joins the chart-type strip. Structurally
+   different from every other chart type here (spec.kpis, not spec.panels), so it gets its own
+   bdKpiFor constructor (mirroring Studio's own newKpi + guessFmt convention) plus its own
+   save shape (`kpi`, not `chart`) and its own add-to-dashboard/export wiring — Explore's
+   analysisSpec and xpAddAnalysisToSpec both branch on chartType === "kpi".
+   app/build.js, app/explore.js, app/studio.js, app/views.js, docs/index.html, tests/run.js,
+   STATUS.md, js/changelog.js.
+   v384: VB-4 remaining major, Scatter (Kevin's overnight
    View Builder queue, "hit major ones first") — Scatter joins the chart-type strip, a
    two-measure [dimension, measure1, measure2] basis (one point per dimension value) that lands
    directly on Studio.newPanel's existing scatter column mapping, no bdPanelFor wiring needed.

@@ -394,6 +394,17 @@
   // widgets (and anything else that needs to render an analysis outside Explore).
   function analysisSpec(a) {
     var da = Studio.clone(a.da || {});
+    // VB-4 remaining major (KPI): a KPI-type View has no `.chart` at all — it
+    // lives in spec.kpis, not spec.panels — so it gets its own tiny spec shape
+    // instead of the single-panel one every chart-type View shares.
+    if (a.chartType === "kpi") {
+      var k = Studio.clone(a.kpi || {}); k.da = da.id;
+      return {
+        id: "analysis-" + a.id, name: "analysis-" + a.id, title: a.name || "View",
+        panels: [], kpis: [k], filters: [],
+        cda: { connections: [], dataAccesses: [da] }
+      };
+    }
     return {
       id: "analysis-" + a.id, name: "analysis-" + a.id, title: a.name || "View",
       panels: [{ id: "a1", title: a.name || "View", span: "full",
@@ -414,6 +425,18 @@
       var base = da.id, n = 2;
       while (Studio.daById(S.spec, da.id)) da.id = base + "_" + (n++);
       S.spec.cda.dataAccesses.push(da);
+    }
+    // VB-4 remaining major (KPI): drop it into spec.kpis instead of building a
+    // panel — a KPI-type View carries a `.kpi` blob (bdSave's counterpart to
+    // `.chart`), not a chart type Studio.newPanel/WIDE_CHART_TYPES understands.
+    if (a.chartType === "kpi") {
+      var k = Studio.clone(a.kpi || {}); k.da = da.id; k.label = a.name || k.label || "Metric";
+      S.spec.kpis.push(k);
+      select({ kind: "kpi", index: S.spec.kpis.length - 1 });
+      enterStudio();
+      toast("Added View “" + (a.name || "View") + "” to “" + S.spec.title + "”");
+      refreshPreview(); buildLibrary();
+      return;
     }
     var p = { id: Studio.uid("p"), title: a.name || "View", span: Studio.WIDE_CHART_TYPES.indexOf(a.chart.type) >= 0 ? "full" : 1,
       chart: { type: a.chart.type, da: da.id, map: Studio.clone(a.chart.map || {}), opts: Studio.clone(a.chart.opts || {}) } };

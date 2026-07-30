@@ -677,6 +677,7 @@
     { t: "heatmap", label: "Heatmap" },
     { t: "choropleth", label: "Map" },
     { t: "scatter", label: "Scatter" },
+    { t: "kpi", label: "KPI" },
   ];
   // The chart types that share Line's [labelCol, series] basis shape and its
   // multi-series widening (bdLineSeriesBasis) — kept as one list so chartBasis
@@ -697,6 +698,12 @@
   function chartUnavailable(type) {
     if (type === "table") return "";
     if (!BD.run) return "Pick a dataset first";
+    if (type === "kpi") {
+      // Unlike the dimension-based chart types below, a KPI has no breakdown —
+      // it's a single rolled-up number, so any measure (or even just a bare
+      // field falling back to COUNT via bdFirstMeasure) is enough to draw one.
+      return bdFirstMeasure() ? "" : "Needs a field on a shelf";
+    }
     if (type === "heatmap") {
       if (!BD.shelfRows[0] || !bdColsDim()) return "Needs a field on Rows and a plain field on Columns";
       return "";
@@ -712,6 +719,13 @@
   function chartBasis(type) {
     if (!BD.run || chartUnavailable(type)) return null;
     var m = bdFirstMeasure(), rows = bdFilteredRows();
+    if (type === "kpi") {
+      // No dimension at all — compute()'s own "no shelfRows + one measure, no
+      // dims" path already collapses to a single grand-total row (the exact
+      // shape Studio.newKpi's valueCol expects), so this rides the same pivot
+      // engine as every other basis with zero new logic.
+      return compute(bdEff().cols, rows, [m], []);
+    }
     if (type === "heatmap") {
       return compute(bdEff().cols, rows,
         [{ col: BD.shelfRows[0].col, agg: null }, { col: bdColsDim().col, agg: null }, m], []);
@@ -839,6 +853,19 @@
     }
     return p;
   }
+  // VB-4 remaining major: KPI. Structurally different from every other chart
+  // type here — a KPI tile lives in spec.kpis, not spec.panels, so it gets its
+  // own tiny constructor instead of bdPanelFor/Studio.newPanel. Studio.newKpi
+  // already reads valueCol off daDef.columns[0], and the kpi basis (above) is
+  // always a single [label] column, so this is exactly Studio's own "add a KPI
+  // from a data access" convention (studio.js's addFromCurrentOrPrompt/
+  // renderKpiInspector: newKpi(da) then guessFmt(k.valueCol)) — no new mapping.
+  function bdKpiFor(da) {
+    var k = Studio.newKpi(da);
+    k.label = BD.name || BD.dsName || "Metric";
+    k.fmt = Studio.guessFmt(k.valueCol);
+    return k;
+  }
   // The live chart preview is the REAL dashboard renderer — the same
   // buildHtml(spec, assets, { preview, mock }) srcdoc-iframe path Explore's
   // preview uses, with the COMPUTED basis rows injected as the mock so what
@@ -850,15 +877,21 @@
     clearTimeout(_bdPvTimer);
     _bdPvTimer = setTimeout(function () {
       var da = { id: "build_result", name: BD.name || "Build result", kind: "sql", sql: "", query: "", columns: basis.head.slice(), params: [], authored: true };
-      var p = bdPanelFor(BD.chartType, da, basis);
-      p.title = BD.name || BD.dsName || "View"; p.span = "full";
+      var title = BD.name || BD.dsName || "View";
       var spec = {
-        id: "build-preview", name: "build-preview", title: p.title, hideHeader: true,
+        id: "build-preview", name: "build-preview", title: title, hideHeader: true,
         dashboardTheme: D.defaultDashboardTheme(),
         paletteKey: BD.paletteKey || "", // VB-3 — Studio's own series-palette-preset system
-        panels: [p], kpis: [], filters: [],
+        panels: [], kpis: [], filters: [],
         cda: { connections: [], dataAccesses: [da] }
       };
+      if (BD.chartType === "kpi") {
+        spec.kpis = [bdKpiFor(da)];
+      } else {
+        var p = bdPanelFor(BD.chartType, da, basis);
+        p.title = title; p.span = "full";
+        spec.panels = [p];
+      }
       var mock = { build_result: { cols: basis.head, rows: basis.rows } };
       function paint() {
         var html = Studio.buildHtml(spec, D.getAssets(), { preview: true, mock: mock, launcher: false });
@@ -1326,9 +1359,8 @@
         // authored-content behavior, SAMPLE-badged everywhere) until a live-refresh
         // slice teaches those surfaces to re-run the builder state.
         var da = { id: base, name: name, kind: "sql", sql: "", query: "", columns: res.head.slice(), params: [], authored: true };
-        var chart = bdPanelFor(BD.chartType, da, res).chart;
         var row = {
-          name: name, folder: BD.folder || "", chartType: BD.chartType, da: da, chart: chart,
+          name: name, folder: BD.folder || "", chartType: BD.chartType, da: da,
           paletteKey: BD.paletteKey || "",
           builder: {
             dsKind: BD.dsKind, dsId: BD.dsId, chartType: BD.chartType,
@@ -1337,6 +1369,12 @@
             shelfColor: Studio.clone(BD.shelfColor), paletteKey: BD.paletteKey || ""
           }
         };
+        // KPI is structurally different (spec.kpis, not spec.panels) — it saves
+        // a `kpi` blob instead of a `chart` blob; everything that reads a saved
+        // View's chartType (Explore's addToSpec/analysisSpec, Views' row icon)
+        // branches on chartType === "kpi" the same way.
+        if (BD.chartType === "kpi") row.kpi = bdKpiFor(da);
+        else row.chart = bdPanelFor(BD.chartType, da, res).chart;
         if (BD.analysisId) row.id = BD.analysisId;
         var saved = Studio.Workspace.put("analyses", row);
         BD.analysisId = saved.id;

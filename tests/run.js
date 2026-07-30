@@ -9673,8 +9673,8 @@ function serve() {
         savedLabelCol: row && row.chart && row.chart.map && row.chart.map.labelCol,
       });
     });
-    ok("#117 (2): the chart strip offers Table/Bars/Stacked bars/Line/Stacked area/Donut/Heatmap/Map/Scatter, heatmap enabled with a Rows dim + a Columns dim, scatter disabled (only one measure on the shelf)",
-      bdChart.strip.join(",") === "table,bars,stacked,line,areaStacked,donut,heatmap,choropleth,scatter:off", JSON.stringify(bdChart));
+    ok("#117 (2): the chart strip offers Table/Bars/Stacked bars/Line/Stacked area/Donut/Heatmap/Map/Scatter/KPI, heatmap enabled with a Rows dim + a Columns dim, scatter disabled (only one measure on the shelf), KPI enabled (needs no dimension, just the one measure already there)",
+      bdChart.strip.join(",") === "table,bars,stacked,line,areaStacked,donut,heatmap,choropleth,scatter:off,kpi", JSON.stringify(bdChart));
     ok("#117 (2): picking Bars renders the COMPUTED basis through the real dashboard renderer (buildHtml + PDC_MOCK iframe)",
       bdChart.barsIframe && bdChart.mock && bdChart.basisDA && bdChart.basisMeasure, JSON.stringify(bdChart));
     ok("#117 (2): Heatmap renders too, and saving with a chart selected stamps the type on the View + builder blob",
@@ -10410,6 +10410,95 @@ function serve() {
       vb4c.iframeType && vb4c.iframeMap, JSON.stringify(vb4c));
     ok("VB-4 (3): saving with Scatter picked stamps the same labelCol/xCol/yCol mapping on the analyses row",
       vb4c.savedType === "scatter" && vb4c.savedMap === JSON.stringify({ labelCol: "region", xCol: "SUM cost", yCol: "SUM acres" }), JSON.stringify(vb4c));
+
+    // 13d. VB-4 remaining major (Kevin overnight queue, "hit major ones first"): KPI.
+    // Structurally different from every other chart type here — a KPI tile lives in
+    // spec.kpis, not spec.panels, so STATUS.md called it out as its own slice: it needs
+    // its own save shape (`kpi`, not `chart`) AND its own add-to-dashboard wiring
+    // (Explore's analysisSpec/xpAddAnalysisToSpec) instead of reusing bdPanelFor/
+    // Studio.newPanel like every other VB-4 chart type did.
+    const vb4d = await page.evaluate(async () => {
+      const W = window.Studio.Workspace;
+      const B = window.__studioBuild;
+      const out = {};
+      const ds = W.put("datasets", { name: "bd-vb4-kpi-ds", kind: "sql", sql: "select region, cost from t3", columns: ["region", "cost"] });
+      await B.selectDataset("ws", ds.id);
+      await new Promise((r) => setTimeout(r, 120));
+
+      // A. nothing on a shelf yet — KPI stays disabled
+      B.state.chartType = "kpi";
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 60));
+      out.emptyDisabled = document.querySelector('[data-bd-ct="kpi"]').disabled;
+
+      // B. ONE measure is enough — unlike bars/line/etc. a KPI has no dimension
+      // breakdown, so the basis collapses to a single grand-total row via the SAME
+      // compute() no-shelfRows/one-measure path every rollup already uses.
+      B.addField("cost", "cols");
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 60));
+      const basis = B.chartBasis("kpi");
+      out.basisHead = basis.head.join(",");
+      out.basisRows = basis.rows.length;
+      out.kpiBtnEnabled = !document.querySelector('[data-bd-ct="kpi"]').disabled;
+      out.kpiBtnOn = document.querySelector('[data-bd-ct="kpi"]').classList.contains("on");
+
+      // C. real render — a spec.kpis[0] (zero panels) reaches the actual buildHtml renderer
+      await new Promise((r) => setTimeout(r, 450));
+      const ifr = document.querySelector("#buildResult iframe.bd-ifr");
+      out.iframeKpi = ifr ? ifr.srcdoc.indexOf('"valueCol":"SUM cost"') >= 0 : false;
+      out.iframeNoPanels = ifr ? ifr.srcdoc.indexOf('"panels":[]') >= 0 : false;
+
+      // D. saving with KPI picked stamps chartType:"kpi" and a `kpi` blob, not `chart`
+      B.save();
+      await new Promise((r) => setTimeout(r, 120));
+      const m = document.querySelector(".modal-ov .bd-save");
+      m.querySelector("input").value = "BD117 KPI";
+      [].slice.call(m.querySelectorAll("button")).filter((b) => /^(Save|Update)$/.test(b.textContent))[0].click();
+      await new Promise((r) => setTimeout(r, 120));
+      const row = W.all("analyses").filter((a) => a.name === "BD117 KPI")[0];
+      out.savedType = row && row.chartType;
+      out.savedKpi = row && row.kpi ? { valueCol: row.kpi.valueCol, label: row.kpi.label, hasChart: "chart" in row } : null;
+
+      // E. "Add to dashboard" wiring: the same xpAddAnalysisToSpec every add-to-dashboard
+      // entry point funnels through must drop a KPI View into spec.kpis, not spec.panels.
+      window.__studioShellSetSection("studio");
+      const before = (window.__STUDIO_STATE.spec.kpis || []).length;
+      window.__studioExplore.addToSpec(row.id);
+      const sp = window.__STUDIO_STATE.spec;
+      const k = sp.kpis[sp.kpis.length - 1];
+      out.addedToKpis = sp.kpis.length === before + 1;
+      out.addedValueCol = k && k.valueCol;
+      out.addedLabel = k && k.label;
+
+      // F. Explore's analysisSpec (Home's live-mini-preview + the Views "Export" action)
+      // must build the same spec.kpis shape, not the single-panel one every chart type uses.
+      const s = window.Studio.Explore.analysisSpec(row);
+      out.specPanels = s.panels.length;
+      out.specKpis = s.kpis.length;
+      out.specKValueCol = s.kpis[0] && s.kpis[0].valueCol;
+      out.specDaMatches = s.kpis[0] && s.kpis[0].da === s.cda.dataAccesses[0].id;
+
+      // cleanup this block's own dataset + saved row
+      W.remove("analyses", row.id);
+      W.remove("datasets", ds.id);
+      return out;
+    });
+    ok("VB-4 (KPI): stays disabled with nothing on a shelf",
+      vb4d.emptyDisabled === true, JSON.stringify(vb4d));
+    ok("VB-4 (KPI): one measure is enough — the basis collapses to a single grand-total row via compute()'s existing no-dimension path",
+      vb4d.basisHead === "SUM cost" && vb4d.basisRows === 1, JSON.stringify(vb4d));
+    ok("VB-4 (KPI): the KPI chart-type button is selected and enabled once a measure is on a shelf",
+      vb4d.kpiBtnEnabled && vb4d.kpiBtnOn, JSON.stringify(vb4d));
+    ok("VB-4 (KPI): the live preview renders a real KPI tile (spec.kpis, zero panels) through the same buildHtml renderer",
+      vb4d.iframeKpi && vb4d.iframeNoPanels, JSON.stringify(vb4d));
+    ok("VB-4 (KPI): saving with KPI picked stamps chartType:\"kpi\" and a `kpi` blob instead of a `chart` blob",
+      vb4d.savedType === "kpi" && vb4d.savedKpi && vb4d.savedKpi.valueCol === "SUM cost" && vb4d.savedKpi.label === "BD117 KPI" && !vb4d.savedKpi.hasChart,
+      JSON.stringify(vb4d));
+    ok("VB-4 (KPI): \"Add to dashboard\" drops it into spec.kpis, not spec.panels — the same xpAddAnalysisToSpec every add-to-dashboard entry point funnels through",
+      vb4d.addedToKpis && vb4d.addedValueCol === "SUM cost" && vb4d.addedLabel === "BD117 KPI", JSON.stringify(vb4d));
+    ok("VB-4 (KPI): Explore's analysisSpec (Home mini-preview + Export path) also builds the spec.kpis shape instead of a single panel",
+      vb4d.specPanels === 0 && vb4d.specKpis === 1 && vb4d.specKValueCol === "SUM cost" && vb4d.specDaMatches, JSON.stringify(vb4d));
 
     // cleanup the extra saved row from this block
     if (vb4b.savedRowId) await page.evaluate((id) => window.Studio.Workspace.remove("analyses", id), vb4b.savedRowId);

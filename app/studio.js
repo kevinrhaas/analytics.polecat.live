@@ -6222,7 +6222,7 @@
     });
     $$("[data-analysis-frame]", sec).forEach(function (box) {
       var a = Studio.Workspace.get("analyses", box.getAttribute("data-analysis-frame"));
-      if (a && a.chart) homeLiveFrame(box, analysisSpec(a), 720, 96); // crop the mini banner — widgets are chart-first
+      if (a && (a.chart || a.chartType === "kpi")) homeLiveFrame(box, analysisSpec(a), 720, 96); // crop the mini banner — widgets are chart-first
     });
     $$("[data-feat-open]", sec).forEach(function (btn) {
       btn.onclick = function () { openRecent(btn.getAttribute("data-feat-open")); };
