@@ -7456,6 +7456,30 @@
 >       panels" — plus a user setting to choose the default (always open the Dashboard
 >       Builder with the Data + Inspector panels open, or closed). Respect the setting
 >       on every enterStudio; remember it per device.
+> PDC-RENAME. **Retire the "PDC" acronym from the code entirely (Kevin live, 2026-07-30).**
+>       "I don't like the name PDC.line for the main chart libraries — PDC as an acronym
+>       should not be there, not even in the code; it was a legacy concept and should be
+>       given a more appropriate and understandable name." Replacement name: DashKit.
+>       One mechanical, case-sensitive sweep: window.PDC -> window.DashKit (PDC.line ->
+>       DashKit.line, ...), PDC_MOCK -> DASHKIT_MOCK, the .pdc-* CSS class family ->
+>       .dk-*, vendor/pdc-ui.js|.css -> vendor/dashkit.js|.css (update the sw.js
+>       SHELL_FILES precache list + CACHE bump in the same commit, and CLAUDE.md's
+>       pristine-vendor invariant wording), plus every internal pdc* identifier across
+>       studio-render.js / studio-charts.js / exporters.js / viewer.js / app CSS /
+>       tests. No compat alias needed (all references are in-repo). Full suite must
+>       pass; the export == live-preview byte-identity invariant must hold.
+> LICENSE-1. ✓ **Open-source relicense: GPL-3.0 + NOTICE (Kevin live, 2026-07-30 —
+>       SHIPPED, same PR as the KEVIN-LIVE fixes).** The proprietary LICENSE is replaced
+>       with the verbatim GNU GPL v3; a NOTICE file carries the copyright (stays with
+>       Polecat.live/Kevin — stewardship + project management retained; forks are fine;
+>       distributed changes must remain GPL) and the third-party carve-out for the
+>       vendored CDF/CCC-derived toolkit. The agreed IP structure for pitches (do NOT
+>       promise "fully open source everything"): the PLATFORM is open (this repo,
+>       GPL-3.0); client-specific requirements — e.g. CTIC's "Viridis View" needs — go
+>       into an open repo OWNED BY that client; private modules remain possible when a
+>       client needs them. Business model: services/consulting first; paid modules or
+>       hosting later. Dual-licensing stays possible only while Kevin holds all the
+>       copyright — adopt a CLA/DCO before accepting outside contributions.
 > CONS-1. **Conservation pack ↔ real CTIC reference dashboards (Kevin live, 2026-07-30,
 >       three reference screenshots — CLAIMED by the dedicated session).** Make the
 >       Conservation sample-pack dashboards look "immediately as close as possible" to the

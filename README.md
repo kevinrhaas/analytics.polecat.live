@@ -133,3 +133,10 @@ See `STATUS.md` — headline items: dashboards catalog into the workspace store 
 backend mirrors dashboards too), more adapters (Postgres, Redshift, Azure, MotherDuck, file drop,
 Sheets), exported-runtime support for connection-bound datasets, and a schema browser per
 connection.
+
+## License
+
+Open source under the [GNU GPL v3](LICENSE) — use it, self-host it, fork it;
+changes you distribute must stay GPL. Copyright and project stewardship remain
+with Polecat.live (see [NOTICE](NOTICE), including the third-party carve-outs
+for the vendored rendering toolkit).
