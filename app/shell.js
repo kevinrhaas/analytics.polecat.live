@@ -13,9 +13,12 @@
   // dashboard builder — its human label. "docs" is the in-app Help/documentation view (LF60).
   // "views" (LF57) is the browse/manage catalog for saved Views (Explore stays the builder).
   // "build" (#117) is the View Builder — the pivot/crosstab visual query builder.
+  // Rail IA (Kevin, 2026-07): the rail shows short group-scoped names (Build →
+  // "Quick Views" / "Views" / "Dashboards"); the topbar spells the builders out
+  // in full so two rail items sharing a name never leave an ambiguous title.
   var SECTION_LABELS = {
-    home: "Home", explore: "Explore", build: "View Builder", dashboards: "Dashboards", datasets: "Datasets",
-    jobs: "Jobs", connections: "Connections", views: "Views", repository: "Repository", studio: "Studio", admin: "Admin", settings: "Settings", docs: "Help"
+    home: "Home", explore: "Quick Views", build: "View Builder", dashboards: "Dashboards", datasets: "Datasets",
+    jobs: "Jobs", connections: "Connections", views: "Views", repository: "Repository", studio: "Dashboard Builder", admin: "Admin", settings: "Settings", docs: "Help"
   };
 
   var nav = document.getElementById("railNav");

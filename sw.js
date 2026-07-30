@@ -5,7 +5,16 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v372"; /* v372: #117 slice 4 — calculated columns in the View
+var CACHE_NAME = "studio-shell-v373"; /* v373: Kevin's rail IA + sync self-heal — rail regrouped
+   (Workspace: Home/Views/Dashboards/Datasets/Connections/Repository; Build: Quick Views
+   [ex-Explore]/Views [View Builder]/Dashboards [ex-Studio]; Manage: Jobs/Admin/backend
+   indicator); the indicator reads state honestly (Local/Connected/Reconnecting…); a failed
+   write-through now schedules a backoff retry (was frozen in error until manual Refresh) +
+   one-time toast + Settings-card error block with copyable delta SQL + Retry now; the Views
+   page ＋ New ▾ offers New View (builder) and New Quick View (Explore). app/index.html,
+   app/shell.js, app/sources/sync.js, app/studio.js, app/views.js, app/studio.css,
+   docs/index.html, tests/run.js, STATUS.md, js/changelog.js.
+   v372: #117 slice 4 — calculated columns in the View
    Builder: the shared Studio.applyCalcCols/evalFormula engine ("=[a]/[b]", pctChange,
    movingAvg) extends the loaded rows once (memoized bdEff()), and from there calc columns
    behave like any field on the shelves/filters/charts; "＋ calc…" editor in the outline;

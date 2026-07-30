@@ -33,27 +33,32 @@
       </button>
       <a class="rail-suite rail-lbl" href="https://polecat.live" target="_blank" rel="noopener" title="Back to polecat.live">polecat.live</a>
     </div>
+    <!-- Rail IA (Kevin, 2026-07): Workspace = the things you HAVE (browse/manage
+         catalogs), Build = the places you MAKE them (builders), Manage = ops.
+         Two pairs deliberately share a name across groups (Views the catalog vs
+         Views the builder; Dashboards the catalog vs Dashboards the builder) —
+         the group label disambiguates on the rail, the title/topbar spell it out. -->
     <div class="rail-group-lbl rail-lbl" aria-hidden="true">Workspace</div>
     <button class="rail-item active" data-sec="home" title="Home" aria-label="Home" aria-current="page"><span class="rail-ic" data-ic="home"></span><span class="rail-lbl">Home</span></button>
-    <button class="rail-item" data-sec="explore" title="Explore" aria-label="Explore"><span class="rail-ic" data-ic="trend-up"></span><span class="rail-lbl">Explore</span></button>
-    <button class="rail-item" data-sec="build" title="View Builder" aria-label="View Builder"><span class="rail-ic" data-ic="board"></span><span class="rail-lbl">Build</span></button>
+    <!-- LF57 slice 1: a dedicated browse/manage section for saved Views (the analyses
+         table the View builders write) — the builders live in the Build group below. -->
+    <button class="rail-item" data-sec="views" title="Views" aria-label="Views"><span class="rail-ic" data-ic="image"></span><span class="rail-lbl">Views</span></button>
     <button class="rail-item" data-sec="dashboards" title="Dashboards" aria-label="Dashboards"><span class="rail-ic" data-ic="layers"></span><span class="rail-lbl">Dashboards</span></button>
     <button class="rail-item" data-sec="datasets" title="Datasets" aria-label="Datasets"><span class="rail-ic" data-ic="db"></span><span class="rail-lbl">Datasets</span></button>
     <button class="rail-item" data-sec="connections" title="Connections" aria-label="Connections"><span class="rail-ic" data-ic="link"></span><span class="rail-lbl">Connections</span></button>
-    <!-- LF57 slice 1: a dedicated browse/manage section for saved Views (the analyses
-         table Explore builds) — Explore stays the simple builder, this is the catalog. -->
-    <button class="rail-item" data-sec="views" title="Views" aria-label="Views"><span class="rail-ic" data-ic="image"></span><span class="rail-lbl">Views</span></button>
     <button class="rail-item" data-sec="repository" title="Repository" aria-label="Repository"><span class="rail-ic" data-ic="folder"></span><span class="rail-lbl">Repository</span></button>
     <div class="rail-group-lbl rail-lbl" aria-hidden="true">Build</div>
+    <button class="rail-item" data-sec="explore" title="Quick Views — the fast one-chart builder" aria-label="Quick Views"><span class="rail-ic" data-ic="trend-up"></span><span class="rail-lbl">Quick Views</span></button>
+    <button class="rail-item" data-sec="build" title="View Builder — shelves, pivots and calculations" aria-label="View Builder"><span class="rail-ic" data-ic="board"></span><span class="rail-lbl">Views</span></button>
     <!-- LF23 slice 2: developer-only — hidden for the viewer role by shell.js's role gating
          (a viewer's own read-only path is app/viewer.html, opened from a dashboard's eye icon) -->
-    <button class="rail-item" data-sec="studio" data-develop-only title="Studio" aria-label="Studio"><span class="rail-ic" data-ic="grid"></span><span class="rail-lbl">Studio</span></button>
+    <button class="rail-item" data-sec="studio" data-develop-only title="Dashboard Builder" aria-label="Dashboard Builder"><span class="rail-ic" data-ic="grid"></span><span class="rail-lbl">Dashboards</span></button>
     <div class="rail-group-lbl rail-lbl" aria-hidden="true">Manage</div>
     <button class="rail-item" data-sec="jobs" title="Jobs" aria-label="Jobs"><span class="rail-ic" data-ic="sliders"></span><span class="rail-lbl">Jobs</span></button>
     <!-- M4: admin-only — hidden for non-admin accounts by shell.js's role gating -->
     <button class="rail-item" data-sec="admin" data-admin-only title="Admin" aria-label="Admin"><span class="rail-ic" data-ic="shield"></span><span class="rail-lbl">Admin</span></button>
-    <div class="rail-spacer"></div>
     <button id="railSource" class="rail-item rail-source" title="Workspace backend — Local" aria-label="Workspace backend status"><span class="rail-ic"><span class="cx-dot" id="railSourceDot"></span></span><span class="rail-lbl" id="railSourceLbl">Local</span></button>
+    <div class="rail-spacer"></div>
     <button class="rail-item" data-sec="settings" title="Settings" aria-label="Settings"><span class="rail-ic" data-ic="gear"></span><span class="rail-lbl">Settings</span></button>
     <button id="railHelp" class="rail-item" data-sec="docs" title="Help &amp; docs" aria-label="Help and documentation"><span class="rail-ic" data-ic="info"></span><span class="rail-lbl">Help</span></button>
     <div id="railQuick" class="rail-quick">
@@ -275,11 +280,19 @@
   <section id="secViews" class="app-sec has-content" hidden>
     <div class="repo-wrap">
       <div class="repo-hero">
-        <p>Every reusable chart, KPI, or map you've saved from Explore — pin one to Home, drop it into any dashboard, or reopen it in Explore to refine.</p>
+        <p>Every reusable chart, KPI, pivot, or map you've saved — pin one to Home, drop it into any dashboard, or reopen it in its builder to refine.</p>
         <input id="viewsSearch" class="repo-search" type="search" placeholder="Search Views…" aria-label="Search Views"/>
         <div class="repo-io">
           <button type="button" class="btn" id="viewsViewToggle" title="Switch between tile and list layout" aria-pressed="false">Tile view</button>
-          <button type="button" class="btn primary" id="viewsNewBtn">+ New View</button>
+          <!-- Kevin (2026-07): New splits into the two builders — the full View
+               Builder (shelves/pivots/calcs) and the fast one-chart Quick View. -->
+          <div class="menu-wrap">
+            <button type="button" class="btn primary" id="viewsNewBtn" title="Create a new View">＋ New ▾</button>
+            <div class="menu" id="viewsNewMenu">
+              <button type="button" data-views-new="build">New View</button>
+              <button type="button" data-views-new="quick">New Quick View</button>
+            </div>
+          </div>
         </div>
       </div>
       <div id="viewsResults"></div>

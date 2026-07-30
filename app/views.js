@@ -146,8 +146,8 @@
       (rows.length ? '<div class="' + (isTiles ? "dsx-grid" : "cx-list") + '">' + rows.join("") + '</div>'
         : '<div class="cx-empty">' +
             (q || anyT || anyF ? "No Views match." :
-              "<b>No Views yet.</b><br/>A View is a reusable chart, KPI, or map you build in Explore — pin it to Home or drop it into any dashboard.") +
-            (q || anyT || anyF ? "" : '<br/><button type="button" class="btn primary" id="vwEmptyNew">+ New View</button>') +
+              "<b>No Views yet.</b><br/>A View is a reusable chart, KPI, pivot, or map — build one in the View Builder or Quick Views, pin it to Home, or drop it into any dashboard.") +
+            (q || anyT || anyF ? "" : '<br/><button type="button" class="btn primary" id="vwEmptyNew">+ New View</button> <button type="button" class="btn" id="vwEmptyQuick">+ New Quick View</button>') +
           '</div>');
     Studio.Tooltip.hydrate(results);
     $$("[data-vw-type]", results).forEach(function (btn) {
@@ -163,7 +163,9 @@
     var clearBtn = $("#vwPillClear", results);
     if (clearBtn) clearBtn.onclick = function () { _vwTypeFilter = {}; _vwFolderFilter = ""; renderViews(); };
     var emptyNew = $("#vwEmptyNew", results);
-    if (emptyNew) emptyNew.onclick = function () { vwNewView(); };
+    if (emptyNew) emptyNew.onclick = function () { vwNewBuilderView(); };
+    var emptyQuick = $("#vwEmptyQuick", results);
+    if (emptyQuick) emptyQuick.onclick = function () { vwNewView(); };
     $$(".cx-row, .dsx-tile", results).forEach(function (row) {
       var id = row.getAttribute("data-vw-id");
       var icEl = row.querySelector(".cx-ic");
@@ -224,10 +226,15 @@
     Studio.Explore.loadAnalysis(id);
     if (window.__studioShellSetSection) window.__studioShellSetSection("explore");
   }
-  // "+ New View" — same reset-to-fresh-Explore path Repository's "＋ New ▾ → New View" uses.
+  // "+ New Quick View" — same reset-to-fresh-Explore path Repository's "＋ New ▾ → New View" uses.
   function vwNewView() {
     if (Studio.Explore && Studio.Explore.startNew) Studio.Explore.startNew();
     if (window.__studioShellSetSection) window.__studioShellSetSection("explore");
+  }
+  // "+ New View" (Kevin's rail IA): the full View Builder is the primary path now.
+  function vwNewBuilderView() {
+    if (Studio.Build && Studio.Build.newView) Studio.Build.newView();
+    if (window.__studioShellSetSection) window.__studioShellSetSection("build");
   }
   // LF57 follow-up: a name never collides with one already in the catalog, same
   // "suffix at creation time" convention as studio.js's uniqueDashboardTitle.
@@ -264,6 +271,7 @@
   Studio.ViewsCatalog = {
     configure: configure,
     render: renderViews,
-    newView: vwNewView
+    newView: vwNewView,            // Quick View (Explore)
+    newBuilderView: vwNewBuilderView // full View Builder
   };
 })();
