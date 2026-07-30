@@ -4822,6 +4822,12 @@ function serve() {
         if (!row) { W.remove("datasets", ds.id); return { err: "row missing" }; }
         row.click();
         await new Promise(function (r) { setTimeout(r, 350); });
+        // not every geo-ish name auto-opens as a map (state_code opens as bars) — the
+        // user then clicks the Map type, which re-runs the guess; do the same here.
+        if (st.type !== "choropleth") {
+          var mapBtn = document.querySelector('#xpBody [data-xp-type="choropleth"]');
+          if (mapBtn) { mapBtn.click(); await new Promise(function (r) { setTimeout(r, 250); }); }
+        }
         var res = { type: st.type, scale: st.opts && st.opts.scale };
         W.remove("datasets", ds.id);
         return res;
@@ -4835,8 +4841,8 @@ function serve() {
     });
     ok("QV-1: a huc8-named Region-id column defaults the map to Watersheds (HUC8)",
       qv1.huc.type === "choropleth" && qv1.huc.scale === "huc8", JSON.stringify(qv1.huc));
-    ok("QV-1: state- and district-named Region-id columns default to States and USDA districts",
-      qv1.state.scale === "state" && qv1.crd.scale === "crd", JSON.stringify({ state: qv1.state, crd: qv1.crd }));
+    ok("QV-1: state- and district-named Region-id columns default to States and USDA districts (via the Map type re-guess)",
+      qv1.state.type === "choropleth" && qv1.state.scale === "state" && qv1.crd.scale === "crd", JSON.stringify({ state: qv1.state, crd: qv1.crd }));
     await page.evaluate(function () { return window.__studioLoadExample("conservation-flow.studio.json"); }); // LF43 slice 2: menu gone — hook load
     await page.waitForTimeout(300);
     const lf2Flow = await page.evaluate(function () {
