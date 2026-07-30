@@ -7838,6 +7838,13 @@
 >       with a loud WRONG-for-shared warning). SB-RLS auth-aware suite check added.
 >       Kevin still to run: the admin-arm patch (or re-run the canonical script) so
 >       his device's pushes clear; compass_favorites left alone (another app's table).
+>       FOLLOW-UP FIX (same evening, v780/sw v415): Kevin's incognito sign-in still
+>       failed AFTER the users rows were restored — the picker-bound connection has
+>       only url+key, so tryGotrueDirectAuth's adopting pull ran as ANON and
+>       authenticated-only RLS read users as EMPTY → handleUnknownUser. Fix:
+>       Sync.setAuthCredentials(email, pass) stamps the just-verified creds on the
+>       connection (saveConn) BEFORE pullNow, so the pull + all later sync run as
+>       the user; gate test asserts authEmail is stamped post-sign-in.
 >       Original — ★ Ship the default Polecat Supabase workspace ON the login screen
 >       (Kevin live, 2026-07-30 — MOVED UP by Kevin). "ship with the default polecat
 >       supabase workspace... so i can login with a user who has access inside that

@@ -15688,10 +15688,15 @@ function serve() {
     const wsSignedIn = await gpWs.evaluate(() => ({
       gateGone: !document.querySelector("#studio-gate"),
       who: (window.PolecatAuth.current() || {}).u,
-      gateErr: (document.getElementById("g-err") || {}).textContent || ""
+      gateErr: (document.getElementById("g-err") || {}).textContent || "",
+      // WORKSPACE-LOGIN fix (Kevin live, 2026-07-30): the verified credentials
+      // must be STAMPED on the picker-bound connection — without them the
+      // adopting pull runs as anon, which authenticated-only RLS reads as an
+      // empty workspace (his live "isn't in your connected workspace" failure).
+      authStamped: ((Studio.Sync.currentConfig && Studio.Sync.currentConfig()) || {}).authEmail === "owner@example.com"
     }));
-    ok("WORKSPACE-LOGIN: a teammate picks the packaged workspace and signs in with their own email/password — direct-auth against that workspace's GoTrue, no connection setup",
-      wsSignedIn.gateGone && wsSignedIn.who === "wspicker", JSON.stringify(wsSignedIn));
+    ok("WORKSPACE-LOGIN: a teammate picks the packaged workspace and signs in with their own email/password — direct-auth against that workspace's GoTrue, credentials stamped on the connection so the adopting pull runs as THEM",
+      wsSignedIn.gateGone && wsSignedIn.who === "wspicker" && wsSignedIn.authStamped, JSON.stringify(wsSignedIn));
     // 5) the access file itself: Settings → backend card exports the current
     //    connection as an importable entry — WITHOUT the connection's own
     //    service login (the teammate signs in as themselves, never as the owner)
