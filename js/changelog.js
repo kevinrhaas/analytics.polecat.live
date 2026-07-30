@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 751,
+    title: 'Help gets a readability overhaul',
+    kind: 'polish',
+    ts: '2026-07-30T11:46:19.000Z',
+    items: [
+      'The biggest walls of text in Help — the rail and top-bar guide, Quick import, Dashboard theme, Repository, Views, the View Builder, calculated columns, the theme picker, and how syncing works — are rewritten into short sections with headings, bullets, and sub-bullets.',
+      'Screenshot placeholders now mark where images will land throughout the guide (invisible until real captures are added).',
+    ],
+  },
+  {
     v: 750,
     title: 'The rest of the app speaks the new rail terminology',
     kind: 'polish',

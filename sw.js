@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v387"; /* v387: LIVE-a slice 2 — the rest of the app's
+var CACHE_NAME = "studio-shell-v388"; /* v388: LIVE-e part 2 slice 1 (Kevin: "massive
+   paragraphs… so daunting!") — docs readability: the ~11 biggest walls of text rewritten
+   into h3/h4 + bullets/sub-bullets (rail+topbar guide, Quick import, Dashboard theme,
+   Repository, Views catalog, View Builder navigator, calculated columns, Color theme
+   picker, folder filing, Edit JSON spec, how-syncing-works); hidden .fig-slot screenshot
+   placeholders (HTML comments describe each wanted capture; display:none until an img +
+   has-img lands). docs/index.html, STATUS.md, js/changelog.js.
+   v387: LIVE-a slice 2 — the rest of the app's
    "Explore"/"Studio" strings sweep to the new rail terminology ("Quick Views"/"Dashboard
    Builder"): welcome tour, the six interactive tutorials, a saved View's open-button hints
    (now destination-aware), the command palette, the viewer's handoff link, a celebration
