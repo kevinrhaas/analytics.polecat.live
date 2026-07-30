@@ -58,7 +58,7 @@ One **dashboard spec** (`.studio.json`, see `SPEC.md`) drives every output:
 
 | Export | Files | Notes |
 |--------|-------|-------|
-| **Dashboard** | `<name>.html` | Fully self-contained — inlines the PDC (Polecat Data Charts) toolkit (`vendor/pdc-ui.*`), your spec, and sample data. This is exactly what the live preview shows. |
+| **Dashboard** | `<name>.html` | Fully self-contained — inlines the DashKit (Polecat Data Charts) toolkit (`vendor/dashkit.*`), your spec, and sample data. This is exactly what the live preview shows. |
 | **Bundle** | `.html` + `.studio.json` | The shippable page plus the editable spec, one click. |
 
 ## Layout
@@ -71,13 +71,13 @@ analytics.polecat.live/          ← served by GitHub Pages at the root
 │   ├── studio.js                 ← controller (sections · library · canvas · inspector · export)
 │   ├── studio.css                ← builder chrome (Polecat house theme + Classic/Fleet Modern)
 │   ├── model.js                  ← chart registry + spec helpers (shared by exporters)
-│   ├── studio-render.js          ← runs INSIDE preview/export: spec → PDC.* DOM
+│   ├── studio-render.js          ← runs INSIDE preview/export: spec → DashKit.* DOM
 │   ├── exporters.js              ← spec → self-contained .html
 │   ├── sampledata.js             ← offline sample-row generator (the demo "fake database")
 │   └── sources/                  ← adapter layer: schema/contract · registry · workspace store ·
 │                                    sync engine · crypto · local/turso/supabase/firebase +
 │                                    data-adapters bridge (snowflake/databricks/bigquery/duckdb/…)
-├── vendor/                       ← pdc-ui.css / pdc-ui.js (the toolkit, inlined into exports)
+├── vendor/                       ← dashkit.css / dashkit.js (the toolkit, inlined into exports)
 ├── data/
 │   ├── cda-catalog.json          ← the bundled sample-query library
 │   └── examples/                 ← ★ flagship + example dashboards as openable specs

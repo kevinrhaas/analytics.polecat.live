@@ -1,4 +1,4 @@
-# Publishing PDC Dashboard Studio → analytics.polecat.live
+# Publishing DashKit Dashboard Studio → analytics.polecat.live
 
 The Studio is a static site, so it hosts on GitHub Pages with no build step. **This repository *is*
 the published site** — GitHub Pages serves the repo root directly, so there's no mirror/publish step:

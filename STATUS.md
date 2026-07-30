@@ -7456,7 +7456,15 @@
 >       panels" — plus a user setting to choose the default (always open the Dashboard
 >       Builder with the Data + Inspector panels open, or closed). Respect the setting
 >       on every enterStudio; remember it per device.
-> PDC-RENAME. **Retire the "PDC" acronym from the code entirely (Kevin live, 2026-07-30).**
+> PDC-RENAME. ✓ **Retire the "PDC" acronym from the code entirely (Kevin live, 2026-07-30 —
+>       SHIPPED v760, sw v396).** Done as specced below; one mechanical case-sensitive sweep
+>       across app/*, vendor, tests, tools, docs (frozen provisioning/ + reference/ and
+>       historical changelog/STATUS/sw-comment text intentionally untouched — they are
+>       records). DashKit.cssvar keeps a one-line legacy alias (--pdc -> --dk) so colors in
+>       previously saved dashboards still resolve (local-first: never break saved data).
+>       Data-level values kept as-is for PDC-RENAME-2 (below): sample connection id "pdc",
+>       jndi "PDC-BIDB-EXT", CDF deploy path "/public/pdc-iteration/v2", CDE import
+>       fixture class names. Original spec:
 >       "I don't like the name PDC.line for the main chart libraries — PDC as an acronym
 >       should not be there, not even in the code; it was a legacy concept and should be
 >       given a more appropriate and understandable name." Replacement name: DashKit.
@@ -7480,6 +7488,35 @@
 >       client needs them. Business model: services/consulting first; paid modules or
 >       hosting later. Dual-licensing stays possible only while Kevin holds all the
 >       copyright — adopt a CLA/DCO before accepting outside contributions.
+> DESIGN-1. ★ **Adopt the Polecat design system — light pass (Kevin live, 2026-07-30,
+>       uploaded polecat-design-skill zip).** "Apply changes to the app based on it so we
+>       have some consistent look and feel. You don't need to go overboard — at least the
+>       logo, you don't need to rethink colors too much, some font consistency would be
+>       nice, and if there are ways to standardize look and feel based on this please do."
+>       The design skill (session scratchpad design/polecat-design-skill/; also shipped in
+>       kevinrhaas repos per its github.md) provides: Hanken Grotesk as THE brand face
+>       (self-hosted TTFs, 800 = brand weight for headings/wordmark/stat numbers, 600 for
+>       controls/rail items), a new logo mark (logo-mark.png + -alpha/-white knockouts —
+>       replaces/augments the legacy polecat.svg mascot), tokens (colors-site for dark warm
+>       marketing surfaces, colors-app for cooler quiet app surfaces, palette/typography/
+>       spacing/radii-shadows/motion), single-color stroke icons (24×​24, stroke 1.7,
+>       currentColor — never emoji/filled), and ui_kits/analytics_app as the reference
+>       recreation of THIS app. Light-pass scope: (1) self-host Hanken Grotesk (subset of
+>       weights 400/600/800 to keep the precache sane) and apply it as the app + marketing
+>       display face with font consistency across headings/controls; (2) swap the logo mark
+>       in the rail brand lockup, marketing header, favicon-adjacent spots; (3) align token
+>       names/values where cheap (radii, shadows, spacing rhythm) without repainting the
+>       existing palettes; (4) marketing page may take the aurora/grain house gradient hero
+>       treatment if cheap. Keep both themes + mobile green; bump sw CACHE (fonts + logo
+>       join the precache).
+> PDC-RENAME-2. **Data-level PDC leftovers (follow-up, needs a data-migration story).**
+>       Rename the sample-pack connection id "pdc" / jndi "PDC-BIDB-EXT" (data/
+>       cda-catalog.json, data/examples/*.studio.json, seeded demo connections) and decide
+>       whether the legacy CDF-export deploy-path default "/public/pdc-iteration/v2"
+>       (app/exporters.js, app/studio.js, tools/export.js) should change — it mirrors the
+>       real reference Pentaho environment, so maybe not. Must reconcile with already-
+>       installed packs in existing workspaces (no duplicate connections on reinstall/
+>       boot-reconcile) and keep SPEC.md's data examples in sync.
 > CONS-1. **Conservation pack ↔ real CTIC reference dashboards (Kevin live, 2026-07-30,
 >       three reference screenshots — CLAIMED by the dedicated session).** Make the
 >       Conservation sample-pack dashboards look "immediately as close as possible" to the

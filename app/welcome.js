@@ -90,7 +90,7 @@
   function injectStyle() {
     if (document.getElementById("sw-style")) return;
     var st = document.createElement("style"); st.id = "sw-style";
-    // Z10 follow-up: themed via the same --brand/--pdc/--ink/etc custom properties as
+    // Z10 follow-up: themed via the same --brand/--dk/--ink/etc custom properties as
     // studio.css (this <style> lands in the same document, so it sees them) instead of
     // fixed hex — so the tour now follows both light/dark mode AND the Classic Blue /
     // Polecat color theme instead of always rendering Classic-Blue-only.
@@ -99,29 +99,29 @@
       "#studio-welcome .sw{background:var(--pane,#fff);border-radius:16px;box-shadow:0 28px 80px rgba(8,20,45,.5);width:min(560px,94vw);overflow:hidden;animation:sw-scale-in .16s ease-out}" +
       "@keyframes sw-scale-in{from{opacity:0;transform:scale(.96) translateY(6px)}to{opacity:1;transform:none}}" +
       "@media(prefers-reduced-motion:reduce){#studio-welcome .sw{animation:none}}" +
-      "#studio-welcome .sw-hd{background:linear-gradient(120deg,var(--brand,#005bb5),var(--pdc,#7d3c98));color:#fff;padding:26px 28px;display:flex;gap:16px;align-items:center}" +
+      "#studio-welcome .sw-hd{background:linear-gradient(120deg,var(--brand,#005bb5),var(--dk,#7d3c98));color:#fff;padding:26px 28px;display:flex;gap:16px;align-items:center}" +
       "#studio-welcome .sw-ic{width:52px;height:52px;border-radius:13px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex:0 0 auto}" +
       "#studio-welcome .sw-hd h1{margin:0;font-size:19px;font-weight:800}" +
       "#studio-welcome .sw-bd{padding:20px 28px 8px;color:var(--ink,#243149);font-size:14px;line-height:1.6}#studio-welcome .sw-bd b{color:var(--brand,#005bb5)}" +
       "#studio-welcome .sw-sub{color:var(--muted,#5d6b82);font-size:13px;margin-top:10px;line-height:1.55}" +
       "#studio-welcome .sw-dots{display:flex;gap:6px;justify-content:center;padding:6px 0 0}" +
-      "#studio-welcome .sw-dots i{width:7px;height:7px;border-radius:50%;background:var(--line,#cfd8e6);display:block}#studio-welcome .sw-dots i.on{background:var(--pdc,#7d3c98)}" +
+      "#studio-welcome .sw-dots i{width:7px;height:7px;border-radius:50%;background:var(--line,#cfd8e6);display:block}#studio-welcome .sw-dots i.on{background:var(--dk,#7d3c98)}" +
       "#studio-welcome .sw-ft{display:flex;align-items:center;gap:10px;padding:16px 28px 22px;flex-wrap:wrap}" +
       "#studio-welcome .sw-skip{background:none;border:0;color:var(--muted,#5d6b82);font-size:13px;cursor:pointer}#studio-welcome .sw-skip:hover{color:var(--ink,#16233b)}" +
       "#studio-welcome .sp{flex:1}" +
       "#studio-welcome button.b{border:1px solid var(--line,#d9e0ec);background:var(--field,#f5f8fc);color:var(--ink,#16233b);border-radius:9px;padding:9px 16px;font-size:13.5px;font-weight:700;cursor:pointer}" +
       "#studio-welcome button.b:hover{border-color:var(--brand,#005bb5);color:var(--brand,#005bb5)}" +
-      "#studio-welcome button.b.pri{background:var(--pdc,#7d3c98);border-color:transparent;color:#fff}#studio-welcome button.b.pri:hover{background:color-mix(in srgb,var(--pdc,#7d3c98) 85%,black)}" +
+      "#studio-welcome button.b.pri{background:var(--dk,#7d3c98);border-color:transparent;color:#fff}#studio-welcome button.b.pri:hover{background:color-mix(in srgb,var(--dk,#7d3c98) 85%,black)}" +
       // Hero screen additions.
       "#studio-welcome .sw-hero-sub{margin:0 0 16px}" +
       "#studio-welcome .sw-qa-row{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 16px}" +
       "#studio-welcome .sw-qa{display:flex;align-items:center;gap:8px;flex:1 1 150px;border:1px solid var(--line,#d9e0ec);background:var(--field,#f5f8fc);color:var(--ink,#16233b);border-radius:10px;padding:10px 12px;font-size:12.5px;font-weight:700;cursor:pointer;text-align:left}" +
       "#studio-welcome .sw-qa:hover{border-color:var(--brand,#005bb5);color:var(--brand,#005bb5)}" +
-      "#studio-welcome .sw-qa-ic{display:flex;flex:0 0 auto;color:var(--pdc,#7d3c98)}" +
+      "#studio-welcome .sw-qa-ic{display:flex;flex:0 0 auto;color:var(--dk,#7d3c98)}" +
       "#studio-welcome .sw-hero-note{color:var(--muted,#5d6b82);font-size:12.5px;line-height:1.5;margin:0}" +
       "#studio-welcome .sw-hero-note b{color:var(--ink,#16233b)}" +
       // Theme-colored confetti entrance — colors follow the active app theme/palette
-      // (--brand/--pdc/--good/--warn/--bad exist in every palette × light/dark combo)
+      // (--brand/--dk/--good/--warn/--bad exist in every palette × light/dark combo)
       // instead of a fixed color set, so it never clashes with whatever's active.
       "#studio-welcome .sw-confetti-host{position:fixed;inset:0;pointer-events:none;z-index:96;overflow:hidden}" +
       "#studio-welcome .sw-confetti-p{position:absolute;top:-6vh;width:8px;height:12px;border-radius:2px;opacity:0;animation-name:sw-confetti-fall;animation-timing-function:ease-in;animation-fill-mode:forwards}" +
@@ -154,7 +154,7 @@
   function heroConfetti() {
     if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     var ov = document.getElementById("studio-welcome"); if (!ov) return;
-    var colors = ["var(--brand)", "var(--pdc)", "var(--good)", "var(--warn)", "var(--bad)"];
+    var colors = ["var(--brand)", "var(--dk)", "var(--good)", "var(--warn)", "var(--bad)"];
     var host = document.createElement("div"); host.className = "sw-confetti-host"; host.setAttribute("aria-hidden", "true");
     for (var i = 0; i < 32; i++) {
       var p = document.createElement("span"); p.className = "sw-confetti-p";

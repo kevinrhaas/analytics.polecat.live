@@ -417,7 +417,7 @@
     var s = document.createElement("style"); s.id = "st-style";
     s.textContent =
       ".st-dim{position:fixed;background:rgba(6,10,20,.62);z-index:9900;pointer-events:all}" +
-      "#st-ring{position:fixed;border:2.5px solid var(--pdc,#7d3c98);border-radius:7px;z-index:9905;pointer-events:none;box-shadow:0 0 0 4px color-mix(in srgb,var(--pdc,#7d3c98) 20%,transparent)}" +
+      "#st-ring{position:fixed;border:2.5px solid var(--dk,#7d3c98);border-radius:7px;z-index:9905;pointer-events:none;box-shadow:0 0 0 4px color-mix(in srgb,var(--dk,#7d3c98) 20%,transparent)}" +
       "#st-scrim{position:fixed;inset:0;z-index:9899;background:rgba(6,10,20,.62);pointer-events:all}" +
       "#st-tip{position:fixed;z-index:9920;background:var(--pane,#fff);border-radius:14px;" +
         "box-shadow:0 16px 56px rgba(6,16,38,.42);width:min(400px,92vw);" +
@@ -430,18 +430,18 @@
       "#st-tip .st-ft{display:flex;align-items:center;gap:8px}" +
       "#st-tip .st-dots{display:flex;gap:5px;margin-right:4px}" +
       "#st-tip .st-dots i{width:6px;height:6px;border-radius:50%;background:var(--line,#c8d0dc);display:block}" +
-      "#st-tip .st-dots i.on{background:var(--pdc,#7d3c98)}" +
+      "#st-tip .st-dots i.on{background:var(--dk,#7d3c98)}" +
       "#st-tip .st-skip{background:none;border:0;color:var(--faint,#8a9cb0);font-size:12px;cursor:pointer;padding:0}" +
       "#st-tip .st-skip:hover{color:var(--ink,#243149)}" +
       "#st-tip .st-sp{flex:1}" +
       "#st-tip button.st-btn{border:1px solid var(--line,#d5dce8);background:var(--field,#f5f8fc);color:var(--ink,#16233b);border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;margin-left:4px}" +
       "#st-tip button.st-btn:hover{border-color:var(--brand,#005bb5);color:var(--brand,#005bb5)}" +
-      "#st-tip button.st-btn.pri{background:var(--pdc,#7d3c98);border-color:transparent;color:#fff}" +
-      "#st-tip button.st-btn.pri:hover{background:color-mix(in srgb,var(--pdc,#7d3c98) 85%,black)}" +
+      "#st-tip button.st-btn.pri{background:var(--dk,#7d3c98);border-color:transparent;color:#fff}" +
+      "#st-tip button.st-btn.pri:hover{background:color-mix(in srgb,var(--dk,#7d3c98) 85%,black)}" +
       /* tour chooser cards */
       "#st-tip .st-choice{display:flex;width:100%;text-align:left;flex-direction:column;gap:3px;border:1.5px solid var(--line,#d5dce8);" +
         "background:var(--field,#f5f8fc);border-radius:11px;padding:12px 14px;margin:0 0 9px;cursor:pointer}" +
-      "#st-tip .st-choice:hover{border-color:var(--pdc,#7d3c98)}" +
+      "#st-tip .st-choice:hover{border-color:var(--dk,#7d3c98)}" +
       "#st-tip .st-choice b{font-size:13.5px;color:var(--ink,#16233b)}" +
       "#st-tip .st-choice small{font-size:11.5px;color:var(--muted,#6e809a);line-height:1.45}";
     document.head.appendChild(s);

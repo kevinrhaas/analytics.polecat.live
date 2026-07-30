@@ -1,5 +1,5 @@
 /* ============================================================================
-   studio.js — the Analytics (PDC Studio) controller.
+   studio.js — the Analytics (DashKit Studio) controller.
    Wires the 3-pane builder: query library · live-preview iframe · inspector.
    Holds the single spec, mutates it, debounces a preview rebuild, and drives
    the exporters. Plain DOM, no framework.
@@ -245,14 +245,14 @@
   function boot() {
     Promise.all([
       fetchJSON("data/cda-catalog.json"),
-      fetchText("vendor/pdc-ui.css"), fetchText("vendor/pdc-ui.js"), fetchText("app/studio-render.js"),
+      fetchText("vendor/dashkit.css"), fetchText("vendor/dashkit.js"), fetchText("app/studio-render.js"),
       fetchText("app/studio-charts.js"),
       // Z14 architecture-gap fix: bundled into an export only when that dashboard actually has a
       // duckdb/httpvfs data access (see exporters.js's buildHtml) — fetched once here either way.
       fetchText("app/duckdb.js"), fetchText("app/sqlitehttp.js"),
       // Post-overhaul backlog item 3 follow-up: same lean-bundling pattern, now covering the four
       // credential-based direct connectors (their secrets are redacted at export time — see
-      // exporters.js's redactSecrets — and re-collected at open via studio-render.js's PDC.cda).
+      // exporters.js's redactSecrets — and re-collected at open via studio-render.js's DashKit.cda).
       fetchText("app/snowflake.js"), fetchText("app/databricks.js"), fetchText("app/bigquery.js"), fetchText("app/genericsql.js"),
       // Post-overhaul backlog item 3, other half: the connection-bound Turso façade (only
       // Studio.tursoSource's data-plane query() is used at runtime — its meta-plane
@@ -2433,7 +2433,7 @@
     sec.appendChild(field("Subtitle", input(sp.subtitle, function (v) { sp.subtitle = v; refreshPreview(); })));
 
     // Z6: banner title size — a first cut of "full text formatting for the banner." The title is
-    // already bold (font-weight:800 in vendor/pdc-ui.css, kept pristine); size is the one lever
+    // already bold (font-weight:800 in vendor/dashkit.css, kept pristine); size is the one lever
     // that's genuinely useful across the widest range of dashboards (a dense ops board wants a
     // quieter title, a single-hero exec dashboard wants it to dominate the banner).
     sec.appendChild(field("Title size", select2pairs(Studio.TITLE_SIZES, sp.titleSize || "", function (v) {
@@ -2790,7 +2790,7 @@
 
     // H-track: Series color palette preset — swaps the --c1..--c10 chart series palette.
     // Lets SE teams quickly show the dashboard in a different color family for demos.
-    // paletteKey "" / "default" keeps the built-in Pentaho palette from pdc-ui.css.
+    // paletteKey "" / "default" keeps the built-in Pentaho palette from dashkit.css.
     var palRow = el("div"); palRow.className = "accent-presets";
     palRow.setAttribute("id", "dashPaletteRow");
     Studio.PALETTE_PRESETS.forEach(function (preset) {
@@ -3246,11 +3246,11 @@
           p.drill.param = v.trim();
         })
       ));
-      drillSec.appendChild(noteEl("info", "Click a bar or donut slice to navigate to the target URL with ?{param}={label}. Uses PDC.drill — carries all active filter values. Leave URL empty to disable."));
+      drillSec.appendChild(noteEl("info", "Click a bar or donut slice to navigate to the target URL with ?{param}={label}. Uses DashKit.drill — carries all active filter values. Leave URL empty to disable."));
     }
 
     // Detail drawer: click a chart element → open a record-level side-drawer showing underlying rows.
-    // Powered by PDC.openDetail (vendored toolkit). Works offline (genMock data) and live (real CDA).
+    // Powered by DashKit.openDetail (vendored toolkit). Works offline (genMock data) and live (real CDA).
     if (Studio.chartSupports("detail", p.chart.type)) {
       var detailSec = advSection(body, "Detail drawer", null, function () {
         return p.detail && p.detail.da ? p.detail.da : "";
@@ -3302,9 +3302,9 @@
     }
 
     // Animation: per-panel entrance animation toggle + speed control.
-    // PDC._anim / PDC._animD are set by studio-render.js before each chart call and read by
+    // DashKit._anim / DashKit._animD are set by studio-render.js before each chart call and read by
     // canAnim() / animD() in studio-charts.js — so these settings travel through without changing
-    // every individual PDC.* call signature.
+    // every individual DashKit.* call signature.
     var animSec = section(body, "Animation", null, null, null, "play");
     var animRow = el("div"); animRow.style.cssText = "display:flex;align-items:center;gap:6px";
     var animCb = el("input"); animCb.type = "checkbox"; animCb.id = "animCb_" + p.id;
@@ -3732,8 +3732,8 @@
 
     // Conditional formatting: threshold rules that color chart elements (bars, donut slices,
     // treemap tiles, lollipop dots) by their value. Rules apply top-to-bottom; first match wins.
-    // Works by injecting a per-item .color property into the data array that PDC.bars/donut/treemap
-    // already supports — so pdc-ui.js stays pristine and all chart rendering is unchanged.
+    // Works by injecting a per-item .color property into the data array that DashKit.bars/donut/treemap
+    // already supports — so dashkit.js stays pristine and all chart rendering is unchanged.
     (function () {
       if (!Studio.chartSupports("condFmt", p.chart.type)) return; // Z8: bars/donut/treemap/lollipop only
       var cfSec = advSection(body, "Conditional formatting", null, function () {
@@ -4234,7 +4234,7 @@
     }
 
     // Click-through: click the tile to navigate to another dashboard, mirroring panel
-    // Drill-through (Z8 KPI slice) — same shared PDC.bindDrill helper bars/donut use.
+    // Drill-through (Z8 KPI slice) — same shared DashKit.bindDrill helper bars/donut use.
     var kd = advSection(body, "Click-through", null, function () {
       return k.drill && k.drill.url ? k.drill.url.slice(0, 24) : "";
     }, null, "link");
@@ -4248,7 +4248,7 @@
       if (!k.drill) k.drill = {};
       k.drill.param = v.trim();
     })));
-    kd.appendChild(noteEl("info", "Click the tile to navigate to the target URL with ?{param}={value}. Uses PDC.drill — carries all active filter values. Leave URL empty to disable."));
+    kd.appendChild(noteEl("info", "Click the tile to navigate to the target URL with ?{param}={value}. Uses DashKit.drill — carries all active filter values. Leave URL empty to disable."));
   }
 
   // LF21: the dashboard title/logo/subtitle banner, made a first-class selectable canvas
@@ -9198,7 +9198,7 @@
      tokens already used for the Fleet Modern DASHBOARD theme (Studio.DASHBOARD_THEMES),
      so picking Fleet Modern on both sides reads as one system. Exported dashboards are
      deliberately untouched by this app-chrome setting — this only sets a data attribute the
-     studio.css variables key off of; pdc-ui.css (the export/preview toolkit) never reads it. */
+     studio.css variables key off of; dashkit.css (the export/preview toolkit) never reads it. */
   function appTheme() { return S.appTheme || "polecat"; }
   // LF10: map the app Color theme (chrome-only) onto its matching Studio.DASHBOARD_THEMES
   // key, so "which dashboard theme is the house default" tracks "which app theme is active"
@@ -9247,7 +9247,7 @@
     var cs = getComputedStyle(de);
     var tokens = {
       brand: cs.getPropertyValue("--brand").trim(),
-      pdc: cs.getPropertyValue("--pdc").trim(),
+      dk: cs.getPropertyValue("--dk").trim(),
       bg: cs.getPropertyValue("--bg").trim(),
       topbarBg: cs.getPropertyValue("--topbar-bg").trim()
     };
@@ -9256,7 +9256,7 @@
   }
   // Renders the Color theme picker as a small, cleanly-grouped row of clickable cards (an
   // AutoSelector-style radiogroup) instead of a plain <select> — each card's banner is the
-  // theme's own --topbar-bg gradient, the three dots below it its --brand/--pdc/--bg, so the
+  // theme's own --topbar-bg gradient, the three dots below it its --brand/--dk/--bg, so the
   // card IS the theme, not a caption describing it. Native <button> elements already give Tab
   // focus + Enter/Space activation for free, so no extra keyboard wiring is needed.
   function appThemeCardsHtml() {
@@ -9268,7 +9268,7 @@
           '<span class="apptheme-banner" style="background:' + esc(t.topbarBg) + '" aria-hidden="true"></span>' +
           '<span class="apptheme-chips" aria-hidden="true">' +
             '<span class="apptheme-chip" style="background:' + esc(t.brand) + '" title="Brand"></span>' +
-            '<span class="apptheme-chip" style="background:' + esc(t.pdc) + '" title="Accent"></span>' +
+            '<span class="apptheme-chip" style="background:' + esc(t.dk) + '" title="Accent"></span>' +
             '<span class="apptheme-chip" style="background:' + esc(t.bg) + '" title="Background"></span>' +
           '</span>' +
           '<span class="apptheme-name">' + esc(APP_THEME_LABELS[k]) + '</span>' +
@@ -9544,9 +9544,9 @@
         // dashboard grid size (small, top-left). This is injected into the zoom
         // iframe ONLY — buildHtml and the exported .html are untouched, so the
         // export stays byte-identical to the live preview.
-        // Flex the whole ancestor chain (body → .pdc-wrap → #content → .pdc-grid)
+        // Flex the whole ancestor chain (body → .dk-wrap → #content → .dk-grid)
         // so the single widget grows to fill the frame. A plain height:100% chain
-        // breaks here because .pdc-wrap / #content carry no height, so the grid
+        // breaks here because .dk-wrap / #content carry no height, so the grid
         // would collapse back to its small content height. The dashboard header
         // banner stays pinned at the top (like preview mode); the widget takes
         // the rest of the viewport.
@@ -9555,10 +9555,10 @@
         zst.textContent =
           "html,body{height:100%!important;margin:0!important;overflow:hidden!important}" +
           "body{display:flex!important;flex-direction:column!important}" +
-          ".pdc-wrap{flex:1 1 auto!important;min-height:0!important;display:flex!important;flex-direction:column!important;padding:10px!important;box-sizing:border-box!important}" +
+          ".dk-wrap{flex:1 1 auto!important;min-height:0!important;display:flex!important;flex-direction:column!important;padding:10px!important;box-sizing:border-box!important}" +
           "#content{flex:1 1 auto!important;min-height:0!important;display:flex!important;flex-direction:column!important}" +
-          ".pdc-grid{flex:1 1 auto!important;min-height:0!important;width:100%!important;max-width:none!important;grid-auto-rows:minmax(0,1fr)!important;box-sizing:border-box!important}" +
-          ".pdc-grid>*{height:100%!important;min-height:0!important;max-height:none!important}";
+          ".dk-grid{flex:1 1 auto!important;min-height:0!important;width:100%!important;max-width:none!important;grid-auto-rows:minmax(0,1fr)!important;box-sizing:border-box!important}" +
+          ".dk-grid>*{height:100%!important;min-height:0!important;max-height:none!important}";
         (zdoc.head || zdoc.documentElement).appendChild(zst);
       } catch (e) {}
     });
@@ -11378,7 +11378,7 @@
   }
   // LF5(b): "for the choropleth RAMP color a small gradient/swatch preview" — a light->base->dark
   // strip approximating the actual per-region ramp studio-charts.js's geoRamp() computes at
-  // render time (that function lives inside the preview-iframe-only PDC closure and needs a
+  // render time (that function lives inside the preview-iframe-only DashKit closure and needs a
   // panel-bg to mix against, so this is a lighter-weight visual approximation, not a byte-for-
   // byte reuse — good enough for "which ramp am I picking," not a copy of the render pipeline).
   function rampGradientCss(token) {

@@ -192,7 +192,7 @@
   // LF7: `channel` names the ensemble bus this choropleth listens on — shared
   // with ensembleChart() below so a provider toggle on any ensemble trend
   // panel live-recolors every map on the same channel (see
-  // PDC.ensembleBus/providersChannel in app/studio-charts.js). Was previously
+  // DashKit.ensembleBus/providersChannel in app/studio-charts.js). Was previously
   // relying on studio-render.js's own `o.channel || "providers"` fallback —
   // now explicit on the spec so the linkage is documented, not accidental.
   function choroplethChart(daId, idCol, scale) {

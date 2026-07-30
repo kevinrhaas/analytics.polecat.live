@@ -1,5 +1,5 @@
 /* ============================================================================
-   model.js — the Analytics (PDC Studio) canonical model
+   model.js — the Analytics (DashKit Studio) canonical model
    The chart registry + spec helpers shared by the builder, the live preview
    render runtime, and every exporter (CDF html / CDE .cdfde+.wcdf / .cda).
    Pure data + helpers; no DOM. Loaded as a plain <script> -> window.Studio.
@@ -8,7 +8,7 @@
   "use strict";
   var Studio = window.Studio = window.Studio || {};
 
-  /* ---- value formatters (names map to PDC.fmt; 'plain' = identity) ---- */
+  /* ---- value formatters (names map to DashKit.fmt; 'plain' = identity) ---- */
   Studio.FORMATS = [
     { id: "abbr",  label: "Abbreviated (1.2K)" },
     { id: "n",     label: "Number (1,200)" },
@@ -25,11 +25,11 @@
      labels below (suite-ratcheted; per Kevin 2026-07-20, no retired product
      names in the UI). */
   Studio.COLOR_TOKENS = [
-    "--pentaho", "--pdc", "--c1", "--c2", "--c3", "--c4", "--c5",
+    "--pentaho", "--dk", "--c1", "--c2", "--c3", "--c4", "--c5",
     "--c6", "--c7", "--c8", "--c9", "--c10", "--good", "--warn", "--bad", "--info"
   ];
   Studio.COLOR_TOKEN_LABELS = {
-    "--pentaho": "Accent (theme)", "--pdc": "Accent 2 (purple)",
+    "--pentaho": "Accent (theme)", "--dk": "Accent 2 (purple)",
     "--c1": "Series 1", "--c2": "Series 2", "--c3": "Series 3", "--c4": "Series 4", "--c5": "Series 5",
     "--c6": "Series 6", "--c7": "Series 7", "--c8": "Series 8", "--c9": "Series 9", "--c10": "Series 10",
     "--good": "Good (green)", "--warn": "Warning (amber)", "--bad": "Bad (red)", "--info": "Info (blue)"
@@ -181,7 +181,7 @@
     var chrome = Studio.mixHex(text, "#000000", 0.86); // header/sidebar: near-black regardless of mode
     var faint = Studio.mixHex(text, bg, 0.62);
     return {
-      "--pentaho": brand, "--pdc": accent2,
+      "--pentaho": brand, "--dk": accent2,
       "--app-bg": bg, "--panel-bg": panel, "--panel-border": Studio.mixHex(panel, text, 0.16),
       "--panel-subtle-bg": Studio.mixHex(panel, text, 0.06), "--panel-header-bg": Studio.mixHex(panel, text, 0.06),
       "--panel-header-border": Studio.mixHex(panel, text, 0.16),
@@ -834,7 +834,7 @@
     // Data binding: labelCol = entity label (one line per row); series = one column per
     // dimension (axis). Use 3–6 series for best readability.
     //
-    // CDF-only via the PDC.parallelCoords extension in studio-charts.js (pdc-ui.js pristine).
+    // CDF-only via the DashKit.parallelCoords extension in studio-charts.js (dashkit.js pristine).
     parallelCoords: {
       label: "Parallel coords",
       icon: "⫼",
@@ -877,7 +877,7 @@
       opts: [
         { key: "fmt",       type: "fmt",   label: "Bar (left) format", def: "abbr" },
         { key: "fmt2",      type: "fmt",   label: "Line (right) format", def: "abbr" },
-        { key: "lineColor", type: "color", label: "Line color", def: "--pdc" },
+        { key: "lineColor", type: "color", label: "Line color", def: "--dk" },
         { key: "color",     type: "color", label: "Bar color", def: "--pentaho" },
         // Z7 follow-up: extend the Line chart's trend-line overlay to Combo's own line
         // series (closes part of the "extending trend/forecast to bars/stacked/combo"
@@ -963,7 +963,7 @@
         { key: "fmt",    type: "fmt", label: "Value format", def: "abbr" },
         { key: "height", type: "int", label: "Height (px)",  def: 380 }
       ],
-      cde: null // CDF-only; PDC.network uses radial node-link layout with blast-radius hover
+      cde: null // CDF-only; DashKit.network uses radial node-link layout with blast-radius hover
     },
     sunburst: {
       label: "Sunburst", icon: "◉", group: "Composition",
@@ -1023,7 +1023,7 @@
       desc: "Correlation between two numeric variables",
       fields: ["xCol", "yCol", "rCol", "labelCol"],
       // Z8 slice 6: scatter gets its own type-specific options — a Value format
-      // (axis ticks + tooltip were always PDC.fmt.abbr with no way to change it)
+      // (axis ticks + tooltip were always DashKit.fmt.abbr with no way to change it)
       // and a Show trend line toggle (least-squares regression line, computed in
       // studio-charts.js so the vendored toolkit stays untouched).
       opts: [
@@ -1166,7 +1166,7 @@
       cde: null // CDF-only; no CCC/CDE equivalent for pure text panels
     },
     // Box plot — distribution chart (quartiles, median, whiskers) per category.
-    // CDF-only via the PDC.boxplot extension in studio-charts.js.
+    // CDF-only via the DashKit.boxplot extension in studio-charts.js.
     boxplot: {
       label: "Box plot",
       icon: "⧠",
@@ -1178,11 +1178,11 @@
         { key: "fmt",        label: "Value format",    type: "fmt",  def: "abbr" },
         { key: "height",     type: "int", label: "Height (px)", def: 300 }
       ],
-      cde: null // CDF-only via the PDC.boxplot extension in studio-charts.js
+      cde: null // CDF-only via the DashKit.boxplot extension in studio-charts.js
     },
     // Lollipop / dot-plot — clean ranked comparison: thin stem line + dot per row.
     // Elegant alternative to bar charts; great for league tables and rankings.
-    // CDF-only via the PDC.lollipop extension in studio-charts.js.
+    // CDF-only via the DashKit.lollipop extension in studio-charts.js.
     lollipop: {
       label: "Lollipop chart",
       icon: "◉",
@@ -1200,7 +1200,7 @@
     // Each row: a label on the left, two dots (start=muted, end=brand color) connected by a
     // horizontal line. Line colored green when end > start (improvement) or red when declining.
     // Great for before/after, budget vs. actual, planned vs. achieved comparisons.
-    // CDF-only via the PDC.dumbbell extension in studio-charts.js.
+    // CDF-only via the DashKit.dumbbell extension in studio-charts.js.
     dumbbell: {
       label: "Dumbbell chart",
       icon: "⦾",
@@ -1218,7 +1218,7 @@
     // Slope chart — before/after period comparison: one line per category
     // connecting T1 (left axis) to T2 (right axis) with labels at both ends.
     // Rising lines in green, falling in red — "what changed?" at a glance.
-    // CDF-only via the PDC.slope extension in studio-charts.js.
+    // CDF-only via the DashKit.slope extension in studio-charts.js.
     slope: {
       label: "Slope chart",
       icon: "⟋",
@@ -1236,7 +1236,7 @@
     // Dot plot / Cleveland dot plot — pure dots positioned along a horizontal axis.
     // Lower visual weight than bar charts; excellent for showing distributions and
     // rankings. Optional groupCol enables two-dot-per-row comparison (e.g. budget vs actual).
-    // CDF-only via the PDC.dotplot extension in studio-charts.js.
+    // CDF-only via the DashKit.dotplot extension in studio-charts.js.
     dotplot: {
       label: "Dot plot",
       icon: "⦿",
@@ -1258,7 +1258,7 @@
     // Dots are deterministically packed to avoid overlap (no randomness — same data
     // always produces the same layout). Optional categoryCol groups rows into labeled
     // horizontal strips so multiple distributions can be compared side-by-side.
-    // CDF-only via the PDC.beeswarm extension in studio-charts.js.
+    // CDF-only via the DashKit.beeswarm extension in studio-charts.js.
     beeswarm: {
       label: "Beeswarm plot",
       icon: "⁘",
@@ -1277,7 +1277,7 @@
     // Auto-bins a single numeric valueCol into N equal-width buckets and renders bar-per-bin.
     // Useful for understanding the shape of a data distribution (normal, skewed, multimodal).
     // Bars touch (no gap) to emphasise continuity of the numeric range.
-    // CDF-only via the PDC.histogram extension in studio-charts.js.
+    // CDF-only via the DashKit.histogram extension in studio-charts.js.
     histogram: {
       label: "Histogram",
       icon: "⊟",
@@ -1296,7 +1296,7 @@
     // Polar area chart (rose chart): equal-angle wedges with radius proportional to √value.
     // Area encoding is more perceptually accurate than linear radius. Excellent for cyclic
     // data, periodic patterns, and comparing values across a set of named dimensions.
-    // CDF-only via the PDC.polarArea extension in studio-charts.js.
+    // CDF-only via the DashKit.polarArea extension in studio-charts.js.
     polarArea: {
       label: "Polar area",
       icon: "◑",
@@ -1315,7 +1315,7 @@
     // Where a line chart interpolates diagonally, a step chart goes horizontal
     // first then vertical — making the discrete nature of each state change explicit.
     // Ideal for pricing tiers, API quotas, regulatory limits, step-function data.
-    // CDF-only via PDC.step extension in studio-charts.js (pdc-ui.js stays pristine).
+    // CDF-only via DashKit.step extension in studio-charts.js (dashkit.js stays pristine).
     step: {
       label: "Step chart",
       icon: "⌐",
@@ -1336,7 +1336,7 @@
     // narrower at tails. An optional IQR box + median line sits inside each violin for
     // quick quartile reference. Pairs naturally with box plot, beeswarm, and histogram
     // for richer distribution analysis.
-    // CDF-only via the PDC.violin extension in studio-charts.js (pdc-ui.js stays pristine).
+    // CDF-only via the DashKit.violin extension in studio-charts.js (dashkit.js stays pristine).
     violin: {
       label: "Violin plot",
       icon: "⬠",
@@ -1357,7 +1357,7 @@
     // draws smooth lines connecting each series' rank across periods — lines crossing is
     // immediately visible as competitive overtaking. Ideal for market share shifts,
     // product performance tiers, regional rankings, and vendor comparisons.
-    // CDF-only via the PDC.bump extension in studio-charts.js (pdc-ui.js stays pristine).
+    // CDF-only via the DashKit.bump extension in studio-charts.js (dashkit.js stays pristine).
     bump: {
       label: "Bump chart",
       icon: "⇅",
@@ -1387,7 +1387,7 @@
     //   groupCol  = stacking dimension  (segment labels, e.g. Product)
     //   valueCol  = numeric cell value  (e.g. Revenue)
     //
-    // CDF-only via the PDC.marimekko extension in studio-charts.js (pdc-ui.js pristine).
+    // CDF-only via the DashKit.marimekko extension in studio-charts.js (dashkit.js pristine).
     marimekko: {
       label: "Marimekko",
       icon: "▤",
@@ -1431,7 +1431,7 @@
     //   labelCol  = category label (one bubble per row)
     //   valueCol  = numeric value (drives circle area)
     //
-    // CDF-only via the PDC.packedBubble extension in studio-charts.js (pdc-ui.js pristine).
+    // CDF-only via the DashKit.packedBubble extension in studio-charts.js (dashkit.js pristine).
     packedBubble: {
       label: "Packed bubbles",
       icon: "◌",
@@ -1472,7 +1472,7 @@
     //   labelCol  = text label (one word/phrase per row)
     //   valueCol  = numeric value (drives font size via log scale)
     //
-    // CDF-only via the PDC.wordCloud extension in studio-charts.js (pdc-ui.js pristine).
+    // CDF-only via the DashKit.wordCloud extension in studio-charts.js (dashkit.js pristine).
     wordCloud: {
       label: "Word cloud",
       icon: "⊞",
@@ -1519,7 +1519,7 @@
     //   startCol  = bar start value (left edge)
     //   endCol    = bar end value   (right edge)
     //
-    // CDF-only via the PDC.gantt extension in studio-charts.js (pdc-ui.js pristine).
+    // CDF-only via the DashKit.gantt extension in studio-charts.js (dashkit.js pristine).
     gantt: {
       label: "Gantt / Timeline",
       icon: "⇿",
@@ -1561,7 +1561,7 @@
     //   labelCol  = row label (y-axis, left of zero line)
     //   valueCol  = numeric value (positive → right; negative → left)
     //
-    // CDF-only via the PDC.divergingBar extension in studio-charts.js (pdc-ui.js pristine).
+    // CDF-only via the DashKit.divergingBar extension in studio-charts.js (dashkit.js pristine).
     divergingBar: {
       label: "Diverging bars",
       icon: "⇔",
@@ -1603,7 +1603,7 @@
     // Wicks extend from the body to the high/low extremes.
     // Ideal for revenue ranges, price data, performance spread, or any time-period
     // scenario where showing full range + open/close marks is valuable.
-    // CDF-only via PDC.candlestick extension in studio-charts.js (pdc-ui.js pristine).
+    // CDF-only via DashKit.candlestick extension in studio-charts.js (dashkit.js pristine).
     candlestick: {
       label: "Candlestick / OHLC",
       icon: "⋄",
@@ -1647,7 +1647,7 @@
     // total and cells are filled by category. Ideal for "1 in N" storytelling
     // (e.g. "73 out of every 100 customers chose X"). More concrete than a donut
     // for audiences unfamiliar with reading pie-slice areas.
-    // CDF-only via PDC.waffle extension in studio-charts.js (pdc-ui.js pristine).
+    // CDF-only via DashKit.waffle extension in studio-charts.js (dashkit.js pristine).
     waffle: {
       label: "Waffle chart",
       icon: "⬛",
@@ -1689,7 +1689,7 @@
     //               opposite side of the baseline from the event name)
     //
     // Inspector opts: colorCol (category-based palette coloring), height.
-    // CDF-only via PDC.timeline extension in studio-charts.js (pdc-ui.js pristine).
+    // CDF-only via DashKit.timeline extension in studio-charts.js (dashkit.js pristine).
     timeline: {
       label: "Timeline / milestones",
       icon:  "◆",
@@ -1737,11 +1737,11 @@
     // Radial bar chart: concentric arc tracks, each arc length proportional to value.
     // Sorted largest-outermost so visual hierarchy is immediate. All arcs share the same
     // start point (12 o'clock) and sweep clockwise up to 270°. CDF-only;
-    // PDC.radialBar extension in studio-charts.js (pdc-ui.js pristine).
+    // DashKit.radialBar extension in studio-charts.js (dashkit.js pristine).
     // Population pyramid: mirrored horizontal bars from a shared centre column.
     // Classic for demographic data (age × gender) and any side-by-side comparison
     // where two groups are measured across the same set of categories.
-    // CDF-only; PDC.pyramidBar extension in studio-charts.js (pdc-ui.js pristine).
+    // CDF-only; DashKit.pyramidBar extension in studio-charts.js (dashkit.js pristine).
     pyramidBar: {
       label: "Population pyramid",
       icon:  "◫",
@@ -1771,7 +1771,7 @@
       opts: [
         { key: "leftLabel",  label: "Left-side label",  type: "text",  def: "Left"       },
         { key: "rightLabel", label: "Right-side label", type: "text",  def: "Right"      },
-        { key: "leftColor",  label: "Left bar color",   type: "color", def: "--pdc"      },
+        { key: "leftColor",  label: "Left bar color",   type: "color", def: "--dk"      },
         { key: "rightColor", label: "Right bar color",  type: "color", def: "--pentaho"  },
         { key: "fmt",        label: "Value format",     type: "fmt",   def: "abbr"       },
         { key: "height",     label: "Height (px)",      type: "int",   def: 300          }
@@ -1881,7 +1881,7 @@
     // shows exactly which vital few categories account for the majority of the total.
     // Standard in ISO 9000, defect analysis, customer complaint prioritisation, and
     // any context where "which categories matter most?" is the key question.
-    // CDF-only via the PDC.pareto extension in studio-charts.js (pdc-ui.js pristine).
+    // CDF-only via the DashKit.pareto extension in studio-charts.js (dashkit.js pristine).
     pareto: {
       label: "Pareto chart",
       icon: "⫠",
@@ -1997,7 +1997,7 @@
     // Ideal for comparing distributions across many groups (e.g. sales by region, latency
     // by service) in a single compact view — complementary to violin (symmetric, vertical)
     // and beeswarm (raw points).
-    // CDF-only via the PDC.ridgeline extension in studio-charts.js (pdc-ui.js pristine).
+    // CDF-only via the DashKit.ridgeline extension in studio-charts.js (dashkit.js pristine).
     ridgeline: {
       label: "Ridgeline plot",
       icon: "≋",
@@ -2183,7 +2183,7 @@
 
   // Built-in series palette presets. Each entry overrides --c1..--c10 CSS variables
   // in both light and dark mode so chart series always look intentional together.
-  // key: "default" leaves pdc-ui.css values intact. Stored as spec.paletteKey.
+  // key: "default" leaves dashkit.css values intact. Stored as spec.paletteKey.
   Studio.PALETTE_PRESETS = [
     { key: "default", label: "Classic (default)", swatch: "#005bb5", light: null, dark: null },
     { key: "ocean",  label: "Ocean",  swatch: "#0277bd",
@@ -2206,9 +2206,9 @@
 
   // ★★ Visual refresh (A): full dashboard "look" presets — unlike PALETTE_PRESETS (series
   // colors only) or themeColor/headerBg (one-off accent tweaks), each entry here overrides the
-  // WHOLE pdc-ui.css token system (bg/panel/text hierarchy + brand + series) in one pick, so a
+  // WHOLE dashkit.css token system (bg/panel/text hierarchy + brand + series) in one pick, so a
   // dashboard reads as one coherent system rather than a blue base with mismatched accents.
-  // "classic" (light/dark: null) leaves vendor/pdc-ui.css untouched. "fleet-modern" mirrors the
+  // "classic" (light/dark: null) leaves vendor/dashkit.css untouched. "fleet-modern" mirrors the
   // jobtracker.polecat.live token hierarchy (bg -> surface -> surface-2, text/2/3, brand/accent)
   // with a WCAG-AA, colorblind-safe (CVD >=12) 10-color series palette validated via the dataviz
   // skill's validate_palette.js for both light and dark. Stored as spec.dashboardTheme.
@@ -2221,7 +2221,7 @@
     // outright (worst adjacent-pair CVD ΔE 24.8 light / 23.2 dark, target 12; all slots ≥3:1).
     { key: "polecat", label: "Polecat", swatch: "#b8632e",
       light: {
-        "--pentaho": "#b8632e", "--pdc": "#8a3fa8",
+        "--pentaho": "#b8632e", "--dk": "#8a3fa8",
         "--app-bg": "#faf6ef", "--panel-bg": "#fffcf5", "--panel-border": "#e2d5c2",
         "--panel-subtle-bg": "#f2ead9", "--panel-header-bg": "#f2ead9", "--panel-header-border": "#e2d5c2",
         "--field-bg": "#fffcf5", "--field-border": "#e2d5c2",
@@ -2231,7 +2231,7 @@
         "--c6": "#00964a", "--c7": "#c9457f", "--c8": "#787a00", "--c9": "#5b3fa8", "--c10": "#a8461f"
       },
       dark: {
-        "--pentaho": "#e79a5f", "--pdc": "#b573dc",
+        "--pentaho": "#e79a5f", "--dk": "#b573dc",
         "--app-bg": "#141017", "--panel-bg": "#1c1721", "--panel-border": "#352b3a",
         "--panel-subtle-bg": "#241d2a", "--panel-header-bg": "#241d2a", "--panel-header-border": "#352b3a",
         "--field-bg": "#1c1721", "--field-border": "#352b3a",
@@ -2243,7 +2243,7 @@
     },
     { key: "fleet-modern", label: "Fleet Modern", swatch: "#0071bc",
       light: {
-        "--pentaho": "#0071bc", "--pdc": "#00964a",
+        "--pentaho": "#0071bc", "--dk": "#00964a",
         "--app-bg": "#eef3f9", "--panel-bg": "#ffffff", "--panel-border": "#ccdcec",
         "--panel-subtle-bg": "#e9f0f8", "--panel-header-bg": "#e9f0f8", "--panel-header-border": "#ccdcec",
         "--field-bg": "#ffffff", "--field-border": "#ccdcec",
@@ -2253,7 +2253,7 @@
         "--c6": "#d1403f", "--c7": "#c94f82", "--c8": "#d95926", "--c9": "#2a63a8", "--c10": "#a8461f"
       },
       dark: {
-        "--pentaho": "#5bb3ea", "--pdc": "#17b9a6",
+        "--pentaho": "#5bb3ea", "--dk": "#17b9a6",
         "--app-bg": "#0a0f1a", "--panel-bg": "#111a2b", "--panel-border": "#26344f",
         "--panel-subtle-bg": "#18243a", "--panel-header-bg": "#18243a", "--panel-header-border": "#26344f",
         "--field-bg": "#18243a", "--field-border": "#26344f",
@@ -2275,7 +2275,7 @@
     // CVD WARN, again mitigated by the app's existing direct-value labels.
     { key: "high-contrast", label: "High Contrast", swatch: "#0b3d91",
       light: {
-        "--pentaho": "#0b3d91", "--pdc": "#8a1c1c",
+        "--pentaho": "#0b3d91", "--dk": "#8a1c1c",
         "--app-bg": "#ffffff", "--panel-bg": "#ffffff", "--panel-border": "#000000",
         "--panel-subtle-bg": "#e8e8e8", "--panel-header-bg": "#e8e8e8", "--panel-header-border": "#000000",
         "--field-bg": "#ffffff", "--field-border": "#000000",
@@ -2285,7 +2285,7 @@
         "--c6": "#e34948", "--c7": "#e87ba4", "--c8": "#eb6834", "--c9": "#0093ab", "--c10": "#a8531f"
       },
       dark: {
-        "--pentaho": "#5b9bff", "--pdc": "#ff6b6b",
+        "--pentaho": "#5b9bff", "--dk": "#ff6b6b",
         "--app-bg": "#000000", "--panel-bg": "#0a0a0a", "--panel-border": "#ffffff",
         "--panel-subtle-bg": "#1a1a1a", "--panel-header-bg": "#1a1a1a", "--panel-header-border": "#ffffff",
         "--field-bg": "#0a0a0a", "--field-border": "#ffffff",
@@ -2305,7 +2305,7 @@
     // the app already ships direct-value labels); dark: all six checks PASS outright.
     { key: "editorial", label: "Editorial", swatch: "#8a3324",
       light: {
-        "--pentaho": "#8a3324", "--pdc": "#2f4858",
+        "--pentaho": "#8a3324", "--dk": "#2f4858",
         "--app-bg": "#f7f3ea", "--panel-bg": "#fffdf8", "--panel-border": "#d8cdb8",
         "--panel-subtle-bg": "#efe8d8", "--panel-header-bg": "#efe8d8", "--panel-header-border": "#d8cdb8",
         "--field-bg": "#fffdf8", "--field-border": "#d8cdb8",
@@ -2315,7 +2315,7 @@
         "--c6": "#2166a3", "--c7": "#c1591b", "--c8": "#a13e5c", "--c9": "#3f8a54", "--c10": "#9c6b1f"
       },
       dark: {
-        "--pentaho": "#c97b5e", "--pdc": "#5a90a3",
+        "--pentaho": "#c97b5e", "--dk": "#5a90a3",
         "--app-bg": "#1c1712", "--panel-bg": "#24201a", "--panel-border": "#3d362b",
         "--panel-subtle-bg": "#2c261f", "--panel-header-bg": "#2c261f", "--panel-header-border": "#3d362b",
         "--field-bg": "#24201a", "--field-border": "#3d362b",
@@ -2337,7 +2337,7 @@
     // same way every other theme's WARN slot is — the app already ships direct-value labels.
     { key: "neon", label: "Neon", swatch: "#0891b2",
       light: {
-        "--pentaho": "#0891b2", "--pdc": "#c2185b",
+        "--pentaho": "#0891b2", "--dk": "#c2185b",
         "--app-bg": "#fafafa", "--panel-bg": "#ffffff", "--panel-border": "#e2dfea",
         "--panel-subtle-bg": "#f1eff7", "--panel-header-bg": "#f1eff7", "--panel-header-border": "#e2dfea",
         "--field-bg": "#ffffff", "--field-border": "#e2dfea",
@@ -2347,7 +2347,7 @@
         "--c6": "#e0342a", "--c7": "#c2298a", "--c8": "#d1650c", "--c9": "#2f5fb0", "--c10": "#a8461f"
       },
       dark: {
-        "--pentaho": "#22d3ee", "--pdc": "#ff3fd0",
+        "--pentaho": "#22d3ee", "--dk": "#ff3fd0",
         "--app-bg": "#050507", "--panel-bg": "#0d0d13", "--panel-border": "#26232f",
         "--panel-subtle-bg": "#131018", "--panel-header-bg": "#131018", "--panel-header-border": "#26232f",
         "--field-bg": "#0d0d13", "--field-border": "#26232f",
@@ -2369,7 +2369,7 @@
     // as a thin-mark/text token on white, so the ramp carries its readable harvest-gold form.)
     { key: "conservation", label: "Conservation", swatch: "#72892b",
       light: {
-        "--pentaho": "#72892b", "--pdc": "#10432e",
+        "--pentaho": "#72892b", "--dk": "#10432e",
         "--app-bg": "#f3f5ec", "--panel-bg": "#ffffff", "--panel-border": "#dde3d1",
         "--panel-subtle-bg": "#eaf0e0", "--panel-header-bg": "#eaf0e0", "--panel-header-border": "#dde3d1",
         "--field-bg": "#ffffff", "--field-border": "#dde3d1",
@@ -2379,7 +2379,7 @@
         "--c6": "#1f9e8a", "--c7": "#9c5a24", "--c8": "#4a5fa8", "--c9": "#4f8f3a", "--c10": "#7a4b8f"
       },
       dark: {
-        "--pentaho": "#a3bd52", "--pdc": "#6fb894",
+        "--pentaho": "#a3bd52", "--dk": "#6fb894",
         "--app-bg": "#0c1a12", "--panel-bg": "#12241a", "--panel-border": "#274434",
         "--panel-subtle-bg": "#16301f", "--panel-header-bg": "#16301f", "--panel-header-border": "#274434",
         "--field-bg": "#12241a", "--field-border": "#274434",
@@ -2405,7 +2405,7 @@
   ];
 
   // Z6: banner title size presets — the one lever of "full text formatting" that's genuinely
-  // useful across the widest range of dashboards (default keeps pdc-ui.css's 17px/800-weight).
+  // useful across the widest range of dashboards (default keeps dashkit.css's 17px/800-weight).
   Studio.TITLE_SIZES = [
     ["", "Default"],
     ["sm", "Small"],
@@ -2413,8 +2413,8 @@
     ["xl", "Extra large"]
   ];
   Studio.TITLE_SIZE_PX = { sm: "14px", lg: "21px", xl: "27px" };
-  // Z6: subtitle text style — .pdc-sub is font-weight:500 (not bold) and upright by default
-  // (vendor/pdc-ui.css); these two are independent toggles (a subtitle can be both bold and italic).
+  // Z6: subtitle text style — .dk-sub is font-weight:500 (not bold) and upright by default
+  // (vendor/dashkit.css); these two are independent toggles (a subtitle can be both bold and italic).
   Studio.SUBTITLE_STYLES = [
     ["", "Normal"],
     ["italic", "Italic"],
@@ -2423,11 +2423,11 @@
   ];
   // N-DESIGN "chart skins" (first cut): an alternate render mood for every chart card + KPI tile,
   // toggled dashboard-wide. "Raised" is today's default material (shadow + glass edge + hover lift,
-  // vendor/pdc-ui.css); "Flat" strips all three for a quieter, editorial-minimal boardroom look —
+  // vendor/dashkit.css); "Flat" strips all three for a quieter, editorial-minimal boardroom look —
   // same data, same layout, just a different surface treatment. "Sketch" (added later) swaps the
   // shadow for a dashed, asymmetric-radius "hand-drawn" border instead — the whimsical mood the
   // original chart-skins idea named alongside Flat. Additive CSS override (see exporters.js
-  // cardSkinCss), vendor/pdc-ui.css itself stays untouched.
+  // cardSkinCss), vendor/dashkit.css itself stays untouched.
   Studio.CARD_SKINS = [
     ["", "Raised (default)"],
     ["flat", "Flat / minimal"],
@@ -2828,8 +2828,8 @@
   // for that type actually consumes it. Keep in sync with studio-render.js if a chart type gains
   // (or drops) support for one of these.
   Studio.ANNOT_CAPS = {
-    drill:      { bars: 1, donut: 1 },                            // PDC.bars/donut accept cfg.drill
-    detail:     { bars: 1, donut: 1, treemap: 1, table: 1 },      // PDC.*/table accept cfg.detail
+    drill:      { bars: 1, donut: 1 },                            // DashKit.bars/donut accept cfg.drill
+    detail:     { bars: 1, donut: 1, treemap: 1, table: 1 },      // DashKit.*/table accept cfg.detail
     crossFilter:{ bars: 1, donut: 1, treemap: 1, lollipop: 1, funnel: 1, waterfall: 1,
                   stacked: 1, groupedBars: 1, barNorm: 1 }, // only these emit on click
     condFmt:    { bars: 1, donut: 1, treemap: 1, lollipop: 1 },   // cfData() consumers
@@ -3226,7 +3226,7 @@
     // panel/KPI drill-through (`p.drill`/`k.drill`) only ever targets an external URL, which can't
     // be meaningfully validated offline — but the Detail drawer (`p.detail.da`) targets a DA id
     // INSIDE this same spec, and that DA can be deleted or renamed after the drawer was wired up.
-    // When that happens, clicking the chart silently does nothing (PDC.openDetail finds no
+    // When that happens, clicking the chart silently does nothing (DashKit.openDetail finds no
     // matching DA) — no error, no console warning, just a dead click. Flag it here instead.
     var daIds = {}; das.forEach(function (da) { daIds[da.id] = true; });
     spec.panels.forEach(function (p) {
@@ -3251,7 +3251,7 @@
     // connection/Run live flow, but (at the time of this finding) the exported/deployed Dashboard
     // Framework had no runtime query path for any of them — a real deployment would silently show
     // only the offline sample data these DAs were authored against. DuckDB/SQLite got a real
-    // runtime path first (studio-render.js's PDC.cda dispatch + exporters.js bundling their façade
+    // runtime path first (studio-render.js's DashKit.cda dispatch + exporters.js bundling their façade
     // only when used). **The four token-based kinds now have one too** (post-overhaul backlog item
     // 3 follow-up): exporters.js redacts each DA's secret field at export time and studio-render.js
     // prompts for it at open, in-memory only, never re-embedded — so this finding is fully closed;
@@ -3293,7 +3293,7 @@
 
   // N-DIST follow-up: side-by-side diff between two dashboard specs (e.g. a past version
   // history checkpoint vs. the current working spec) — "what changed" for time travel.
-  // Pure/testable: no DOM, no PDC. Panels/filters match by their stable `id`; KPIs have no
+  // Pure/testable: no DOM, no DashKit. Panels/filters match by their stable `id`; KPIs have no
   // id (positional array), so they're compared by index. Field/value changes inside a
   // matched panel/KPI/filter are reported as one JSON-equality check (not a nested diff) —
   // enough to say "this changed," which is what a checkpoint-restore decision needs.
