@@ -7757,8 +7757,23 @@
 >       Also: when the map would render all-no-data, say WHY in the panel ("0 of N ids
 >       matched the Counties scale — try States") instead of a silent empty map — the
 >       honesty affordance that would have made this self-explanatory.
-> CONS-4. **Conservation pack Views should be View Builder-native (Kevin live,
->       2026-07-30).** "I would like all of the default views to be ones from View
+> CONS-4. ✓ **Conservation pack Views should be View Builder-native (Kevin live,
+>       2026-07-30 — SHIPPED v774, sw v410).** demopacks builderViewRow(): each
+>       per-practice analysis carries a builder blob over the RAW PROVIDER dataset
+>       (Report_Year on Rows, AVG Adoption_Pct, Provider_Name color split, Practice
+>       in-filter); the da/chart pair is authored the way bdSave does it — the pure
+>       Studio.Build.compute over conservationRawRows() (the same rows the CSV
+>       serializes), so the seeded columns can't drift from #118's live re-run; chart
+>       = newPanel line + multi-series widening (one series per provider).
+>       ensureConservationBuilderViews (boot, reconcilePackDashboards) heals older
+>       installs — id/pins/privacy/ownership preserved; dashboards keep their own
+>       non-builder panels (per Kevin: "keep those in there for now"). DP census
+>       asserts every pack View is builder-native; 3 new CONS-4 checks + docs.
+>       ALSO VIEWS-LAYOUT-1 (Kevin live, same day, screenshot): the Views TILE cards
+>       overflowed — six .cx-actions buttons couldn't shrink so they spilled past the
+>       card edge and crushed .cx-when into a word-per-line sliver; the tile foot now
+>       wraps (timestamp one full-width line, buttons wrap inside the card); layout
+>       measured by a real-boxes suite check. Original —** "I would like all of the default views to be ones from View
 >       Builder in the view list. If the dashboards have views in them that are not
 >       View Builder-openable that's OK, keep those in there for now, but the view list
 >       — I would like all of them to open to the View Builder default as the first

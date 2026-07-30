@@ -2348,8 +2348,14 @@ body.simple-mode .da-acts{display:none!important}
 /* in a tile the name has the full card width — let it read on up to two lines */
 .dsx-tile-head .cx-name b{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:anywhere}
 .dsx-tile-badges{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
-.dsx-tile-foot{display:flex;align-items:center;gap:10px;margin-top:auto}
-.dsx-tile-foot .cx-when{flex:1 1 auto}
+/* VIEWS-LAYOUT-1 (Kevin live, 2026-07-30): six actions can never fit a ~260px tile
+   on one line — the un-shrinkable .cx-actions row overflowed the card edge and
+   crushed the timestamp into a word-per-line sliver. The foot wraps: timestamp on
+   its own full-width line (kept to ONE line), the action buttons wrapping cleanly
+   inside the card below it. */
+.dsx-tile-foot{display:flex;align-items:center;gap:6px 10px;margin-top:auto;flex-wrap:wrap}
+.dsx-tile-foot .cx-when{flex:1 1 100%;white-space:nowrap}
+.dsx-tile-foot .cx-actions{flex-wrap:wrap;min-width:0}
 /* tiles show their actions always (no row-hover reveal — a card isn't a dense list line) */
 .dsx-tile .cx-actions{opacity:1}
 @media(max-width:640px){.dsx-grid{grid-template-columns:1fr}}

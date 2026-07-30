@@ -4512,16 +4512,19 @@ function serve() {
       var jobs = Studio.Workspace.all("jobs").filter(function (r) { return r.demoPackId === "conservation"; });
       return { installed: window.__studioDemoPacks.installed("conservation"),
         conns: conns.length, dss: dss.length, ans: ans.length, dashes: dashes.length, jobs: jobs.length,
-        pinned: ans.every(function (a) { return a.pinned; }), featured: dashes[0] && dashes[0].featured,
+        pinned: ans.every(function (a) { return a.pinned; }),
+        // CONS-4: every pack View is View Builder-native — builder blob on the row AND its da
+        ansBuilder: ans.every(function (a) { return !!a.builder && !!(a.da && a.da.builder) && a.chartType === "line"; }),
+        featured: dashes[0] && dashes[0].featured,
         panelTypes: dashes[0] && dashes[0].spec.panels.map(function (p) { return p.chart.type; }),
         kpiCount: dashes[0] && (dashes[0].spec.kpis || []).length,
         dashTheme: dashes[0] && dashes[0].spec.dashboardTheme,
         choroScales: dashes[0] && dashes[0].spec.panels.filter(function (p) { return p.chart.type === "choropleth"; }).map(function (p) { return p.chart.opts.scale; }),
         allFileCsv: dss.every(function (d) { return d.kind === "file" && d.format === "csv"; }) };
     });
-    ok("DP: installDemoPack seeds a whole workspace — 2 connections, 4 file datasets, 1 rollup job, 4 pinned ensemble analyses, the featured dashboard + the Watershed Map dashboard (CONS-2)",
+    ok("DP: installDemoPack seeds a whole workspace — 2 connections, 4 file datasets, 1 rollup job, 4 pinned builder-native analyses (CONS-4), the featured dashboard + the Watershed Map dashboard (CONS-2)",
       dpInstall.installed && dpInstall.conns === 2 && dpInstall.dss === 4 && dpInstall.ans === 4 && dpInstall.dashes === 2 && dpInstall.jobs === 1 &&
-      dpInstall.pinned && dpInstall.featured && dpInstall.allFileCsv &&
+      dpInstall.pinned && dpInstall.ansBuilder && dpInstall.featured && dpInstall.allFileCsv &&
       dpInstall.panelTypes.filter(function (t) { return t === "ensembleSeries"; }).length === 4 &&
       dpInstall.panelTypes.filter(function (t) { return t === "choropleth"; }).length === 3,
       JSON.stringify(dpInstall));
@@ -5135,6 +5138,111 @@ function serve() {
     });
     ok("DP: the installed pack's dashboard appears as a featured live card on Home, and all 4 pinned analyses appear as widgets",
       dpHome.featCard && dpHome.widgetCards === 4, JSON.stringify(dpHome));
+
+    // ---- CONS-4 (Kevin live, 2026-07-30): pack Views are View Builder-native ----
+    // "i would like all of the default views to be ones from view builder in the
+    // view list" — the 4 per-practice rows carry real builder blobs over the raw
+    // provider dataset (dashboards keep their own non-builder panels untouched).
+    console.log("\n• CONS-4: conservation pack Views open in the View Builder");
+    const cons4 = await page.evaluate(async () => {
+      const W = Studio.Workspace;
+      const ans = W.all("analyses").filter((r) => r.demoPackId === "conservation");
+      const cc = ans.filter((a) => /Cover crops/.test(a.name))[0];
+      const out = {};
+      out.blob = cc && cc.builder && {
+        dsKind: cc.builder.dsKind,
+        rows: cc.builder.shelfRows.map((f) => f.col).join(","),
+        cols: cc.builder.shelfCols.map((f) => f.col + ":" + f.agg).join(","),
+        color: cc.builder.shelfColor.map((f) => f.col).join(","),
+        filter: cc.builder.filters.map((f) => f.col + "=" + (f.values || []).join("|")).join(",")
+      };
+      out.chartType = cc && cc.chart && cc.chart.type;
+      out.labelCol = cc && cc.chart && cc.chart.map.labelCol;
+      out.seriesCount = cc && cc.chart ? (cc.chart.map.series || []).length : 0;
+      const ds = cc && W.get("datasets", cc.builder.dsId);
+      out.dsIsRawExport = !!(ds && /raw provider export/i.test(ds.name));
+      // and it actually OPENS in the View Builder with the shelves reconstructed
+      window.__studioRenderBuild();
+      await new Promise((r) => setTimeout(r, 60));
+      window.__studioBuild.load(cc.id);
+      await new Promise((r) => setTimeout(r, 500));
+      const B = window.__studioBuild.state;
+      out.loaded = {
+        analysisId: B.analysisId, chartType: B.chartType, hasRun: !!B.run,
+        rows: B.shelfRows.map((f) => f.col).join(","),
+        color: B.shelfColor.map((f) => f.col).join(","),
+        filters: B.filters.map((f) => f.col).join(",")
+      };
+      out.ccId = cc && cc.id;
+      Studio.Build.newView(); // leave the builder clean for the later #117 flow tests
+      return out;
+    });
+    ok("CONS-4: each pack View's builder blob is AVG Adoption_Pct by Report_Year, split by Provider_Name, filtered to its practice, over the pack's raw provider export dataset",
+      cons4.blob && cons4.blob.dsKind === "ws" && cons4.blob.rows === "Report_Year" &&
+      cons4.blob.cols === "Adoption_Pct:avg" && cons4.blob.color === "Provider_Name" &&
+      cons4.blob.filter === "Practice=Cover crops" && cons4.dsIsRawExport,
+      JSON.stringify(cons4));
+    ok("CONS-4: the saved chart is a multi-series line over the provider crosstab (one series per provider), and the View loads into the View Builder with shelves, color split and filter intact",
+      cons4.chartType === "line" && cons4.labelCol === "Report_Year" && cons4.seriesCount === 5 &&
+      cons4.loaded.analysisId === cons4.ccId && cons4.loaded.chartType === "line" && cons4.loaded.hasRun &&
+      cons4.loaded.rows === "Report_Year" && cons4.loaded.color === "Provider_Name" && cons4.loaded.filters === "Practice",
+      JSON.stringify(cons4));
+    // Heal: a pre-CONS-4 install (old ensembleSeries row, no builder blob) is
+    // re-authored on boot with its identity preserved — id and pin survive.
+    const cons4Heal = await page.evaluate(() => {
+      const W = Studio.Workspace;
+      const cur = W.all("analyses").filter((r) => r.demoPackId === "conservation" && /No-till/.test(r.name))[0];
+      const oldId = cur.id;
+      W.put("analyses", {
+        id: oldId, name: cur.name, demoPackId: "conservation", folder: cur.folder,
+        datasetId: null, sample: null, chartType: "ensembleSeries",
+        da: { id: "vrd_noTill", name: cur.name, kind: "sql", columns: ["year", "provider", "pct"], authored: true },
+        chart: { type: "ensembleSeries", da: "vrd_noTill", map: { labelCol: "year", seriesCol: "provider", valueCol: "pct" }, opts: {} },
+        pinned: true, pinnedAt: "2026-07-01T00:00:00.000Z"
+      });
+      const healed = Studio.ensureConservationBuilderViews();
+      const after = W.get("analyses", oldId);
+      return { healed: healed, sameId: !!after, hasBuilder: !!(after && after.builder),
+        chartType: after && after.chartType, pinned: after && after.pinned, pinnedAt: after && after.pinnedAt };
+    });
+    ok("CONS-4: pre-CONS-4 installs heal on boot — the old ensemble row is re-authored builder-native with its id and pin preserved",
+      cons4Heal.healed && cons4Heal.sameId && cons4Heal.hasBuilder && cons4Heal.chartType === "line" &&
+      cons4Heal.pinned && cons4Heal.pinnedAt === "2026-07-01T00:00:00.000Z",
+      JSON.stringify(cons4Heal));
+
+    // ---- VIEWS-LAYOUT-1 (Kevin live, 2026-07-30, screenshot): tile actions spilled ----
+    // Six action buttons overflowed the ~260px View card's right edge and crushed the
+    // timestamp into a word-per-line sliver. The foot now wraps (timestamp on its own
+    // single line, buttons wrapping inside the card) — measure the real boxes.
+    const vwTileLayout = await page.evaluate(async () => {
+      window.__studioShellSetSection("views");
+      try { localStorage.setItem("studio-vwc-view", "tiles"); } catch (e) {}
+      window.__studioRenderViews();
+      // module-local _vwViewMode was read at load — flip via the toggle if the render came out as list
+      if (!document.querySelector("#viewsResults .dsx-tile")) {
+        var vt = document.getElementById("viewsViewToggle");
+        if (vt) vt.click();
+      }
+      await new Promise((r) => setTimeout(r, 120));
+      const tiles = [].slice.call(document.querySelectorAll("#viewsResults .dsx-tile"));
+      const out = { tiles: tiles.length, overflowing: 0, whenTallest: 0 };
+      tiles.forEach((tile) => {
+        const tr = tile.getBoundingClientRect();
+        [].slice.call(tile.querySelectorAll(".cx-actions .btn")).forEach((b) => {
+          if (b.getBoundingClientRect().right > tr.right + 1) out.overflowing++;
+        });
+        const when = tile.querySelector(".cx-when");
+        if (when) out.whenTallest = Math.max(out.whenTallest, when.getBoundingClientRect().height);
+      });
+      try { localStorage.removeItem("studio-vwc-view"); } catch (e) {}
+      const vt2 = document.getElementById("viewsViewToggle");
+      if (vt2 && document.querySelector("#viewsResults .dsx-tile")) vt2.click(); // back to list default
+      window.__studioShellSetSection("studio");
+      return out;
+    });
+    ok("VIEWS-LAYOUT-1: in tile view, every action button stays inside its card and the timestamp renders on a single line",
+      vwTileLayout.tiles >= 4 && vwTileLayout.overflowing === 0 && vwTileLayout.whenTallest > 0 && vwTileLayout.whenTallest < 26,
+      JSON.stringify(vwTileLayout));
     // Settings + Library are hide-samples aware (nest under the same toggle as the CDA Samples group)
     await page.evaluate(function () { window.__studioShellSetSection("settings"); });
     await page.waitForTimeout(150);

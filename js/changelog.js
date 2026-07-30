@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 774,
+    title: 'Conservation pack Views open straight into the View Builder',
+    kind: 'feature',
+    ts: '2026-07-30T20:01:45.000Z',
+    items: [
+      'The Conservation Insight pack’s four per-practice Views are now built IN the View Builder — open one from the Views list and it lands on the shelves (adoption by year, split by provider, filtered to its practice) over the pack’s raw provider dataset, ready to tweak. Dashboards keep their own views unchanged.',
+      'Existing installs upgrade themselves on next load — same Views, same pins, they just open in the builder now.',
+      'Fixed the View cards’ layout: the action buttons no longer spill past the card’s edge, and the timestamp reads on one line instead of wrapping word by word.',
+    ],
+  },
+  {
     v: 773,
     title: 'View Builder maps just work — the Region scale picks itself (state FIPS included)',
     kind: 'feature',
