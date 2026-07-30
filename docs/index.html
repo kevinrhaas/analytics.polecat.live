@@ -477,6 +477,28 @@
     uses — save it and Explore selects it immediately, ready to chart.</li>
   </ul>
 
+  <h2 id="build">View Builder — pivot and crosstab, no code</h2>
+  <p><strong>Build</strong> (left rail) is Explore's power-user sibling: a visual pivot/crosstab
+  query builder. The left panel lists every dataset you can chart (your workspace datasets first,
+  sample data below); click one and its columns appear as chips — <code>#</code> marks a numeric
+  field, <code>a</code> a text one. Click a chip (or drag it) onto the <strong>Columns</strong>
+  shelf and the result table renders live in the middle. Numeric fields aggregate automatically as
+  <strong>SUM</strong> — the little aggregation badge on the shelf chip switches to AVG, MIN, MAX,
+  MEDIAN, or COUNT. With only dimension fields on the Columns shelf you get a plain selection of
+  those columns; add a measure and the dimensions group it.</p>
+  <p>Drop a field on the <strong>Rows</strong> shelf (or use a chip's ⇄ button) and the table
+  pivots into a <strong>crosstab</strong>: Rows fields run down the side, the first non-aggregated
+  Columns field spreads across the top, measures fill the cells, and a <strong>Total</strong>
+  column aggregates each row (COUNT of rows when no measure is picked). Workspace datasets run
+  live through their connection where possible; otherwise the result carries the same
+  <strong>sample rows</strong> badge used everywhere else so fabricated shape-preview data can
+  never be mistaken for yours.</p>
+  <p><strong>Save View</strong> (top right) saves the result as a View — it appears in the
+  <strong>Views</strong> section like any other, and opening it from there returns it to Build
+  with its dataset and shelves restored (Views made in Explore keep opening in Explore). This
+  first version renders tables and crosstabs; the chart-type picker, Filters shelf, and per-field
+  calculated columns are on the roadmap.</p>
+
   <h2>Sample packs</h2>
   <p><strong>Sample packs</strong> (Settings, and the Studio library's left View) are ready-made
   demo content you can install or remove. A pack can add dashboards, datasets, connections and jobs —

@@ -8,12 +8,13 @@
   "use strict";
   var LS_SECTION = "studio-shell-section";
   var LS_EXPANDED = "studio-shell-expanded";
-  var SECTIONS = ["home", "explore", "dashboards", "datasets", "jobs", "connections", "views", "repository", "studio", "admin", "settings", "docs"];
+  var SECTIONS = ["home", "explore", "build", "dashboards", "datasets", "jobs", "connections", "views", "repository", "studio", "admin", "settings", "docs"];
   // Fleet-standard topbar shows the current section name (top-left). "studio" is the
   // dashboard builder — its human label. "docs" is the in-app Help/documentation view (LF60).
   // "views" (LF57) is the browse/manage catalog for saved Views (Explore stays the builder).
+  // "build" (#117) is the View Builder — the pivot/crosstab visual query builder.
   var SECTION_LABELS = {
-    home: "Home", explore: "Explore", dashboards: "Dashboards", datasets: "Datasets",
+    home: "Home", explore: "Explore", build: "View Builder", dashboards: "Dashboards", datasets: "Datasets",
     jobs: "Jobs", connections: "Connections", views: "Views", repository: "Repository", studio: "Studio", admin: "Admin", settings: "Settings", docs: "Help"
   };
 

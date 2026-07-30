@@ -211,8 +211,16 @@
       };
     });
   }
-  // Open a View for editing — always in Explore, the one View builder (#29).
+  // Open a View for editing. Explore-made Views open in Explore (#29); a View
+  // carrying a `builder` blob was made in the View Builder (#117) and reopens
+  // there instead, with its dataset + shelves restored.
   function vwOpen(id) {
+    var a = Studio.Workspace.get("analyses", id);
+    if (a && a.builder && Studio.Build && Studio.Build.load) {
+      Studio.Build.load(id);
+      if (window.__studioShellSetSection) window.__studioShellSetSection("build");
+      return;
+    }
     Studio.Explore.loadAnalysis(id);
     if (window.__studioShellSetSection) window.__studioShellSetSection("explore");
   }

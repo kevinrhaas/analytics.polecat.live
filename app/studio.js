@@ -309,10 +309,12 @@
       renderJobs();
       renderExplore();
       renderViews();
+      renderBuild();
       renderRepository();
       Studio.Workspace.on("change", function (p) {
         if (p.table === "connections" || p.table === "*") renderConnections();
-        if (p.table === "datasets" || p.table === "connections" || p.table === "*") { renderDatasets(); buildLibrary(); }
+        // #117: renderBuild keeps the Build section's dataset outline live too.
+        if (p.table === "datasets" || p.table === "connections" || p.table === "*") { renderDatasets(); buildLibrary(); renderBuild(); }
         if (p.table === "jobs" || p.table === "datasets" || p.table === "*") renderJobs();
         if (p.table === "analyses" || p.table === "datasets" || p.table === "*") renderExplore();
         // LF57: the Views catalog is a browse layer over the same `analyses` table.
@@ -6738,6 +6740,21 @@
   Studio.ViewsCatalog.configure(Object.assign(coreModuleDeps(), {
     themedChartSvg: function (svg, type) { return themedChartSvg(svg, type); },
     exportAnalysisEmbed: function (a) { return exportAnalysisEmbed(a); }
+  }));
+
+  /* ---------- Build (View Builder, #117 slice 1) — app/build.js. The pivot/
+     crosstab visual query builder, sibling to Explore: dataset outline →
+     Columns/Rows shelves → live table/crosstab → saved as a real View (an
+     `analyses` row carrying a `builder` blob; views.js routes those back to
+     Build on open). Same ONE-bundled-configure(deps)-call shape. */
+  function renderBuild() { Studio.Build.render(); }
+  window.__studioRenderBuild = renderBuild; // test hook
+  Studio.Build.configure(Object.assign(coreModuleDeps(), {
+    isDatasetVisibleToMe: function (r) { return isDatasetVisibleToMe(r); },
+    runDataset: function (ds) { return runDataset(ds); },
+    getCatalog: function () { return S.catalog; },
+    showSamples: function () { return showSamples(); },
+    guessFieldKind: function (colName, vals) { return guessFieldKind(colName, vals); }
   }));
 
 
