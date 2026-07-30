@@ -7464,7 +7464,11 @@
 >       overlay appends (sr-head-del/sr-desc-del/sr-kpi-del + header listeners +
 >       headerEditable) are idempotent now. Regression test flips the Practice filter
 >       twice: data changes each time, ✕ counts stay at one. See DONE.
-> STUDIO-PANELS. **Dashboard Builder opens with side panels CLOSED by default (Kevin
+> STUDIO-PANELS. ✓ **Dashboard Builder opens with side panels CLOSED by default (SHIPPED
+>       v763, sw v399 — studio-panels-default localStorage pref, applied on boot AND on
+>       every enterStudio(); Settings ’Open the builder with side panels’ toggle; suite
+>       seeds the open pref as its own precondition and tests the closed default
+>       explicitly). Original request — (Kevin
 >       live, 2026-07-30).** "I would like the default to be where the data panel and
 >       inspector panels are closed when you open it, and then you have to open the
 >       panels" — plus a user setting to choose the default (always open the Dashboard
@@ -7536,6 +7540,57 @@
 >       real reference Pentaho environment, so maybe not. Must reconcile with already-
 >       installed packs in existing workspaces (no duplicate connections on reinstall/
 >       boot-reconcile) and keep SPEC.md's data examples in sync.
+> SAMPLE-DATA-1. ★ **Raw "SAMPLE DATA" tables leak into the dataset panes; pack content
+>       should be real, foldered datasets (Kevin live, 2026-07-30, two screenshots).**
+>       "On quick view datasets, these sample data should not show (I think these are the
+>       data management pack datasets?) ... they don't show as installed and I think they
+>       should not be there. Sample data now should exist as 'real' data ... use the
+>       folder organization that you have for dashboards and also datasets and everything
+>       else — be able to put those into folders — and the sample pack should all be in
+>       the Conservation Insights folder across all the types." Seen: the View Builder's
+>       datasets pane and Explore both show a SAMPLE DATA group (app-usage,
+>       command-center, cost-finops, data-quality, field-and-geo, freshness, governance,
+>       growth, lineage, pipeline-health, privacy, schema-explorer, storage-capacity —
+>       the internal demo-DB tables) even when no pack is installed. Fix: (1) stop
+>       surfacing the raw demo-DB table groups as an always-there SAMPLE DATA section —
+>       dataset panes list only real workspace datasets (+ file/connection sources);
+>       (2) pack installs materialize their datasets as REAL dataset rows filed in the
+>       pack's folder (Conservation Insight already models this — "Conservation Insight
+>       — demo files"); extend the same to the Data-management pack and to EVERY object
+>       type the packs seed (dashboards, datasets, Views, jobs, connections): one folder
+>       per pack across all types; (3) uninstalled pack = zero presence in any pane.
+>       Respect existing installed workspaces (boot reconcile, no duplicates).
+> VB-6. **View Builder: let a numeric field act as a CATEGORY (Kevin live, 2026-07-30,
+>       screenshot).** "There are times I want to put what is a numeric field on the
+>       columns and it's actually a categorical field — you need to be able to support
+>       that." Seen: State_FIPS dragged to COLUMNS becomes SUM State_FIPS (a measure)
+>       with no way to say "group by this". Fix: the shelf pill's aggregation dropdown
+>       gains a Category/Group-by choice (numeric fields only — it flips the field to
+>       dimension semantics for that shelf: discrete axis, grouping, no aggregation),
+>       persisted in the saved View. FIPS codes, years, and IDs are the driving cases —
+>       consider defaulting *_FIPS/*_Year/id-like columns to Category on first drop.
+> VB-7. **View panel title ≠ View name (Kevin live, 2026-07-30).** "You should be able
+>       to change the name of the panel that holds the view — the name of the panel is
+>       not necessarily the name of the view; it could be different but obviously would
+>       default to the name of the view." Give the preview panel/card its own editable
+>       title (double-click to rename, like dashboard panel titles), stored separately
+>       (e.g. view.panelTitle), defaulting to — and tracking — the View name until the
+>       user overrides it; used wherever the View lands on a dashboard.
+> CONS-0. **Conservation sample data: positive, realistic trends + fix the %-scale bug
+>       (Kevin live, 2026-07-30, screenshot of "Practice Mix by Year").** (1) "Provide
+>       upward trends on data that is good — positive adoption — instead of negative
+>       adoption. Be realistic where you can, but avoid big downward charts like this
+>       one." Regenerate the synthetic conservation series so the STORY is right:
+>       cover-crop / no-till / reduced-tillage adoption RISES over the years (gentle,
+>       realistic slopes with noise); Conventional declining is the one legitimate
+>       downward series (it IS the positive story) — but the chart shouldn't read as
+>       everything collapsing. (2) SCALE BUG: the stacked area's y-axis reaches 500% —
+>       percent values are being SUMmed across counties/rows. "I don't think you can
+>       have 375% — maybe the metric should be a mean or a median." Fix the aggregation
+>       for pct-typed metrics to MEAN (or model practice shares that sum to ~100% per
+>       year) everywhere the pack's %-metrics aggregate — audit every conservation
+>       dashboard/View for the same sum-of-percent mistake. Folds naturally into CONS-1
+>       (below) but ship the data+aggregation fix first — it's live-visible today.
 > CONS-1. **Conservation pack ↔ real CTIC reference dashboards (Kevin live, 2026-07-30,
 >       three reference screenshots — CLAIMED by the dedicated session).** Make the
 >       Conservation sample-pack dashboards look "immediately as close as possible" to the
