@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v395"; /* v395: KEVIN-LIVE emergency pair — (1) the Settings
+var CACHE_NAME = "studio-shell-v395"; /* v395: KEVIN-LIVE emergency triple — ALSO SCORE-1
+   (app/studio-render.js): interactive filters were DEAD against mock/sample data (the
+   vendored mock branch ignored params) — PDC.cda's wrapper now column-match-filters mock
+   rows or applies seeded deterministic variation for server-side params; and the builder's
+   close overlays (sr-head-del/sr-desc-del/sr-kpi-del + header wiring) are idempotent across
+   filter reloads (they used to append one more per filter change). Original pair — (1) the Settings
    Sample-packs card was gated on showSamples(), so hiding sample content removed the packs'
    only install surface; card now always shows, hidden mode gets a note, Install flips sample
    content back on. (2) "wildly flaky" root causes: pullNow (Refresh) did push-then-pull and

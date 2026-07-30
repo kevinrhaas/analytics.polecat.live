@@ -116,6 +116,17 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **KEVIN-LIVE SCORE-1 — dead preview filters + multiplying ✕ overlays (v759, sw v395,
+  2026-07-30, steward, same PR as the pair below):** interactive filters were dead against
+  mock/sample data (the vendored mock branch ignored params — they only ever worked against
+  live engines) and every filter change appended another ✕ overlay (the header survives
+  load()'s content rebuild; wireHeaderEditing/tagKpis re-append per pass). Fixes in
+  app/studio-render.js so preview, viewer, and exported-with-mock all behave: PDC.cda's
+  wrapper filters mock rows by param↔column match or applies seeded deterministic variation
+  (dataAccessId+params hashed → 0.6–1.4 factor per numeric cell) when no column matches;
+  overlay appends + header listeners are idempotent. SCORE-1 regression test flips the
+  Practice filter twice (data changes both times, ✕ counts stay 1). STUDIO-PANELS (side
+  panels closed by default + user setting) remains queued.
 - **KEVIN-LIVE emergency pair — packs visibility + Refresh data-loss + honest RLS errors
   (v758, sw v395, 2026-07-30, steward):** two live reports with screenshots ("i cant see the
   sample packs… being able to be activated/turned on"; "supabase is still wildly flaky",
@@ -7428,15 +7439,17 @@
 >       the UI changes materially) plus the click-to-zoom lightbox. See DONE for writeups.
 > LIVE-b. ✓ **Sample-pack dashboard naming + folder (SHIPPED v741, 2026-07-30, steward)** —
 >       see DONE: titles lead, pack folder on install, boot reconcile heals old workspaces.
-> SCORE-1. **Scorecard filter dead + multiplying ✕ chips (Kevin live, 2026-07-30,
->       screenshot — builder preview of "Conservation Practice Adoption Scorecard").**
->       Changing the PRACTICE filter dropdown (1) doesn't change any of the data, and
->       (2) every change spawns another row of ✕ close boxes in the dashboard header —
->       they accumulate each time. Looks like the preview header re-render duplicates
->       the panel/filter ✕ controls instead of replacing them, and the interactive
->       filter isn't applied to the preview's mock rows. Reproduce in the builder with
->       the Conservation pack scorecard, fix both, add a regression test that flips a
->       filter twice and counts the ✕ controls + asserts the rows change.
+> SCORE-1. ✓ **Scorecard filter dead + multiplying ✕ chips (SHIPPED v759, sw v395,
+>       2026-07-30, steward — same PR as the KEVIN-LIVE pair).** Root causes: (1) the
+>       vendored PDC mock branch IGNORED params, so interactive filters never touched
+>       sample data — studio-render.js's PDC.cda wrapper now column-match-filters mock
+>       rows (param name ↔ column, "%" = all) or applies seeded deterministic numeric
+>       variation when the param has no mock column (the da's SQL would apply it
+>       server-side); (2) wireHeaderEditing/tagKpis run after EVERY load() while the
+>       header DOM survives filter reloads — each change appended another ✕. All
+>       overlay appends (sr-head-del/sr-desc-del/sr-kpi-del + header listeners +
+>       headerEditable) are idempotent now. Regression test flips the Practice filter
+>       twice: data changes each time, ✕ counts stay at one. See DONE.
 > STUDIO-PANELS. **Dashboard Builder opens with side panels CLOSED by default (Kevin
 >       live, 2026-07-30).** "I would like the default to be where the data panel and
 >       inspector panels are closed when you open it, and then you have to open the

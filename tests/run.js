@@ -4550,6 +4550,41 @@ function serve() {
     // LF7: this example now carries a real Practice filter (was filters:[]).
     ok("LF7: the Scorecard example carries a real 'Practice' filter (was filters:[])",
       JSON.stringify(lf2Scorecard.filterIds) === JSON.stringify(["practice"]), JSON.stringify(lf2Scorecard));
+    // SCORE-1 (Kevin live, 2026-07-30): flipping the Practice filter must
+    // (a) visibly change the sample data — params now reach the mock rows
+    // (column-matched filtering, or seeded deterministic variation when the
+    // da's SQL would apply the param server-side) — and (b) never multiply
+    // the builder's ✕ overlays (the header survives filter reloads; every
+    // overlay append is idempotent now).
+    await page.waitForTimeout(1200);
+    const score1 = await page.evaluate(async () => {
+      const ifr = document.getElementById("preview");
+      const doc = ifr.contentDocument, win = ifr.contentWindow;
+      const out = {};
+      const sel = doc.getElementById("f_practice");
+      out.hasFilter = !!sel;
+      if (!sel) return out;
+      const rowsOf = () => JSON.stringify(((win.__lastRenderData || {}).by_provider || {}).rows || []);
+      const before = rowsOf();
+      const vals = [].slice.call(sel.options).map((o) => o.value).filter((v) => v !== "%");
+      out.optionCount = vals.length;
+      sel.value = vals[0]; sel.dispatchEvent(new win.Event("change", { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 800));
+      const afterFirst = rowsOf();
+      sel.value = vals[1]; sel.dispatchEvent(new win.Event("change", { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 800));
+      const afterSecond = rowsOf();
+      out.dataChanged = before !== afterFirst && afterFirst !== afterSecond;
+      out.headDels = doc.querySelectorAll(".sr-head-del").length;
+      const tile = doc.querySelector(".kpi");
+      out.kpiDelsPerTile = tile ? tile.querySelectorAll(".sr-kpi-del").length : 1;
+      out.descDels = doc.querySelectorAll(".sr-desc-del").length;
+      return out;
+    });
+    ok("SCORE-1: flipping the Practice filter twice changes the parameterized panel's sample data each time (filters are no longer dead against mock rows)",
+      score1.hasFilter && score1.optionCount >= 2 && score1.dataChanged, JSON.stringify(score1));
+    ok("SCORE-1: filter changes never multiply the ✕ overlays — exactly one header delete, at most one per KPI tile and description",
+      score1.headDels === 1 && score1.kpiDelsPerTile <= 1 && score1.descDels <= 1, JSON.stringify(score1));
     await page.evaluate(function () { return window.__studioLoadExample("conservation-flow.studio.json"); }); // LF43 slice 2: menu gone — hook load
     await page.waitForTimeout(300);
     const lf2Flow = await page.evaluate(function () {
@@ -4799,12 +4834,22 @@ function serve() {
     await page.evaluate(function () { window.__studioShowSamples.set(false); });
     await page.waitForTimeout(150);
     const dpHidden = await page.evaluate(function () {
-      return { settingsCard: !!document.querySelector('[data-demopack="conservation"]'), libGroup: !!document.querySelector(".lib-demopacks") };
+      return {
+        settingsCard: !!document.querySelector('[data-demopack="conservation"]'),
+        settingsNote: !!document.querySelector("#secSettings .set-packs-hidden-note"),
+        libGroup: !!document.querySelector(".lib-demopacks")
+      };
     });
     await page.evaluate(function () { window.__studioShowSamples.set(true); });
     await page.waitForTimeout(150);
-    ok("DP: the Sample packs Settings card and Library group are hide-samples aware — visible with samples on, gone with samples off",
-      dpSettingsOn.hasCard && !dpHidden.settingsCard && !dpHidden.libGroup, JSON.stringify({ on: dpSettingsOn, off: dpHidden }));
+    // KEVIN-LIVE (2026-07-30) changed the Settings half of this contract: the
+    // packs card STAYS visible with samples off (it's the packs' only install/
+    // remove surface — hiding it was the "i cant see the sample packs" report),
+    // showing an explanatory note instead. The Library group still hides with
+    // the rest of the sample content.
+    ok("DP: with samples hidden the Settings packs card STAYS (with a hidden-content note) while the Library group hides with the sample content",
+      dpSettingsOn.hasCard && dpHidden.settingsCard && dpHidden.settingsNote && !dpHidden.libGroup,
+      JSON.stringify({ on: dpSettingsOn, off: dpHidden }));
     // remove cleans up every tagged row + the install flag
     const dpRemove = await page.evaluate(function () {
       window.__studioDemoPacks.remove("conservation");

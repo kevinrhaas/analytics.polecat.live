@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 759,
+    title: 'Dashboard filters now work on sample data — and stop spawning close boxes',
+    kind: 'fix',
+    ts: '2026-07-30T14:54:44.000Z',
+    items: [
+      'Changing an interactive filter (like the Scorecard’s Practice picker) now visibly changes sample data: the filter value reaches the sample rows, either filtering by a matching column or applying a deterministic variation the way live data would respond.',
+      'Filter changes no longer multiply the builder’s ✕ delete overlays in the dashboard header and KPI tiles — every overlay is added exactly once.',
+    ],
+  },
+  {
     v: 758,
     title: 'Sample packs always reachable; Refresh can no longer lose refused edits',
     kind: 'fix',

@@ -344,8 +344,48 @@
       var cols = applied.cols;
       return { cols: cols, rows: applied.rows, col: function (n) { return cols.indexOf(n); } };
     }
+    // SCORE-1 (Kevin live, 2026-07-30: "i change practice, it does not have any
+    // change in the data"): the vendored mock branch returns PDC_MOCK rows and
+    // IGNORES params entirely, so interactive filters were dead against sample
+    // data (they only ever worked against live engines). Make mock data respond:
+    // a param that matches a mock column name filters rows by value (the honest
+    // case); a param with no matching column (the da's SQL would apply it
+    // server-side — e.g. the scorecard's per-practice rollups) applies a
+    // DETERMINISTIC seeded variation to numeric cells instead, so sample-badged
+    // panels visibly react the way live data would. "%" (the every-filter
+    // default) means "all" — untouched.
+    function mockRespond(res, dataAccessId, params) {
+      var keys = Object.keys(params || {}).filter(function (k) {
+        var v = params[k];
+        return v != null && v !== "" && v !== "%";
+      });
+      if (!keys.length) return res;
+      var cols = res.cols || [], rows = res.rows || [];
+      var lower = cols.map(function (c) { return String(c).toLowerCase(); });
+      var matchedAny = false;
+      keys.forEach(function (k) {
+        var ci = lower.indexOf(String(k).toLowerCase());
+        if (ci < 0) return;
+        matchedAny = true;
+        rows = rows.filter(function (r) { return String(r[ci]) === String(params[k]); });
+      });
+      if (!matchedAny) {
+        var seedStr = dataAccessId + "|" + keys.map(function (k) { return k + "=" + params[k]; }).join(",");
+        var h = 0;
+        for (var i = 0; i < seedStr.length; i++) h = (h * 31 + seedStr.charCodeAt(i)) >>> 0;
+        rows = rows.map(function (r, ri) {
+          return r.map(function (v, ci2) {
+            if (typeof v !== "number") return v;
+            var f = 0.6 + (((h + ri * 37 + ci2 * 101) % 1000) / 1000) * 0.8; // deterministic 0.6–1.4
+            return Math.round(v * f * 100) / 100;
+          });
+        });
+      }
+      return { cols: cols, rows: rows, col: function (n) { return cols.indexOf(n); } };
+    }
     PDC.cda = function (dataAccessId, params) {
-      if (window.PDC_MOCK && window.PDC_MOCK[dataAccessId]) return realCda(dataAccessId, params);
+      if (window.PDC_MOCK && window.PDC_MOCK[dataAccessId])
+        return realCda(dataAccessId, params).then(function (r) { return mockRespond(r, dataAccessId, params); });
       var spec = window.STUDIO_SPEC;
       var da = spec && ((spec.cda && spec.cda.dataAccesses) || []).filter(function (d) { return d.id === dataAccessId; })[0];
       if (da && da.kind === "duckdb" && window.Studio && Studio.DuckDB)
@@ -2070,6 +2110,10 @@
   // give the description (the free "text object") a ✕ to remove it. All preview-only:
   // the exported header stays byte-identical (these affordances never render in export).
   function wireHeaderEditing(spec) {
+    // SCORE-1 (Kevin live, 2026-07-30): this runs after EVERY load() — and a
+    // filter change reloads all panels while the header DOM survives, so each
+    // change appended ANOTHER ✕ ("a bunch of close x boxes forming every
+    // time"). Every append below is now idempotent.
     var titleEl = document.querySelector(".pdc-header .pdc-title");
     if (titleEl) headerEditable(titleEl, "title", { placeholder: "Dashboard title" });
     var subEl = document.querySelector(".pdc-header .pdc-sub");
@@ -2078,17 +2122,20 @@
     if (descEl) {
       descEl.classList.add("sr-desc");
       headerEditable(descEl, "description", { placeholder: "Description text…", allowEmpty: true, multiline: true });
-      var del = document.createElement("button");
-      del.className = "sr-desc-del"; del.type = "button"; del.innerHTML = I_CLOSE; del.title = "Remove this text object";
-      del.addEventListener("click", function (e) { e.stopPropagation(); post({ type: "header-edit", field: "description", value: "" }); });
-      del.addEventListener("dblclick", function (e) { e.stopPropagation(); });
-      descEl.appendChild(del);
+      if (!descEl.querySelector(".sr-desc-del")) {
+        var del = document.createElement("button");
+        del.className = "sr-desc-del"; del.type = "button"; del.innerHTML = I_CLOSE; del.title = "Remove this text object";
+        del.addEventListener("click", function (e) { e.stopPropagation(); post({ type: "header-edit", field: "description", value: "" }); });
+        del.addEventListener("dblclick", function (e) { e.stopPropagation(); });
+        descEl.appendChild(del);
+      }
     }
     // LF21: make the header bar itself a selectable/deletable canvas object, same as a
     // panel or KPI tile — click anywhere on it (that isn't already its own control) tells
     // the builder to select it, so the Inspector can show a dedicated "Header" view.
     var headerEl = document.querySelector(".pdc-header");
-    if (headerEl) {
+    if (headerEl && !headerEl.__srHeadWired) {
+      headerEl.__srHeadWired = true; // once per header DOM — survives filter reloads
       headerEl.classList.add("sr-header-sel");
       headerEl.addEventListener("click", function (e) {
         if (e.target.closest("button") || e.target.closest("a") || e.target.closest(".sr-rename")) return;
@@ -2108,6 +2155,7 @@
   // clears to empty (a dashboard needs a name in the store).
   function headerEditable(el, field, opts) {
     opts = opts || {};
+    if (el.classList.contains("sr-head-edit")) return; // SCORE-1: once per element — no stacked dblclick listeners across reloads
     el.classList.add("sr-head-edit");
     el.title = "Double-click to edit";
     el.addEventListener("dblclick", function (e) {
@@ -2212,6 +2260,7 @@
     var tiles = kEl.querySelectorAll(".kpi");
     [].forEach.call(tiles, function (t, i) {
       t.setAttribute("data-kpi-index", i); t.classList.add("sr-sel");
+      if (t.querySelector(".sr-kpi-del")) return; // SCORE-1: idempotent across reloads on a surviving tile
       var x = document.createElement("button"); x.className = "sr-kpi-del"; x.innerHTML = I_CLOSE; x.title = "Delete KPI";
       x.addEventListener("click", function (e) { e.stopPropagation(); post({ type: "kpi-delete", index: i }); });
       t.appendChild(x);
