@@ -7726,8 +7726,24 @@
 >       (side-by-side wheels or two overlaid polygons) in the Conservation Insight pack,
 >       foldered + clearly named; (3) keep the CTIC stakeholder story (the wheel is the
 >       at-a-glance "how is the whole system doing" view for policymakers/NGOs).
-> VB-10. ★ **View Builder Map: can't get a map to render (Kevin live, 2026-07-30,
->       screenshot — all-no-data US map).** His setup: SUM Adoption_Pct on Columns,
+> VB-10. ✓ **View Builder Map: can't get a map to render (Kevin live, 2026-07-30,
+>       screenshot — all-no-data US map — SHIPPED v773, sw v409).** Root cause: the
+>       builder had NO Region-scale control and Studio.newPanel silently defaulted
+>       opts.scale to "county", so 2-digit State_FIPS ids joined 5-digit county
+>       geometry. (Gap 3 was already covered: studio-charts' geoNormalizeId pads
+>       numeric state FIPS and FIPS_POSTAL maps postal/name→FIPS at the state scale —
+>       no renderer change needed.) Shipped: shared Studio.guessRegionScale in model.js
+>       (QV-1's rules; state now ordered BEFORE fips so state_fips means States;
+>       temporal names never value-shape-match — report_year's "2015" is CRD-shaped),
+>       explore.js delegates; bdGeoDim picks the map id role from EITHER shelf (name
+>       evidence first, then value shape); bdMapScale = explicit pick → inference →
+>       county; a Region-scale select in the type strip when Map is active (Auto names
+>       the inference; no Custom option — its CSV import lives in the dashboard
+>       inspector) + an ids-look-like-X hint on mismatch; scale stamped into saved
+>       chart.opts + builder blob (mapScale, "" = auto), loads/foreign-loads restore
+>       it. 4 suite checks; docs updated. The all-no-data explainer became prevention
+>       (auto-default + hint); an in-panel match-count note is a possible follow-up.
+>       Original —** His setup: SUM Adoption_Pct on Columns,
 >       State_FIPS on Rows/Color, Map type — renders the base map with every region
 >       "No data". THREE gaps: (1) the builder's Map has NO Region-scale control (it
 >       silently defaults to Counties — 2-digit state FIPS match nothing); (2) the map

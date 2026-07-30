@@ -68,6 +68,7 @@
                                // splits bars/donut/line into per-category palette colors
     paletteKey: "",           // VB-3: Studio.PALETTE_PRESETS key ("" = default) for the live preview
     chartType: "table",      // slice 2: table | bars | line | donut | heatmap
+    mapScale: "",            // VB-10: the Map's Region scale — "" = auto (inferred from the geo field)
     analysisId: null, name: "", folder: "",
     panelTitle: "",          // VB-7: the panel header's own title — "" tracks the View name
     notice: "",              // VB-5: dismissible cross-editor banner text ("" = hidden)
@@ -79,6 +80,7 @@
     BD.shelfColor = []; BD.paletteKey = "";
     BD._eff = null;
     BD.chartType = "table";
+    BD.mapScale = "";
     BD.analysisId = null; BD.name = ""; BD.folder = "";
     BD.panelTitle = "";
     BD.notice = "";
@@ -294,7 +296,8 @@
         run: run, _eff: null,
         calcs: blob.calcs || [], filters: blob.filters || [],
         shelfCols: blob.shelfCols || [], shelfRows: blob.shelfRows || [],
-        shelfColor: blob.shelfColor || [], chartType: blob.chartType || "table"
+        shelfColor: blob.shelfColor || [], chartType: blob.chartType || "table",
+        mapScale: blob.mapScale || "" // VB-10 — bdGeoDim/bdMapScale read st, not BD
       };
       var basis = st.chartType === "table"
         ? compute(bdEff(st).cols, bdFilteredRows(st), st.shelfCols, st.shelfRows)
@@ -775,6 +778,35 @@
     return st.shelfRows[0] || st.shelfCols.filter(function (f) { return !f.agg; })[0] || null;
   }
   function bdColsDim(st) { return (st || BD).shelfCols.filter(function (f) { return !f.agg; })[0] || null; }
+  // VB-10 (Kevin live, 2026-07-30 — "i cant seem to get a map to render, i am using
+  // state fips"): the Map's id dimension is whichever non-aggregated shelf field LOOKS
+  // geographic (name/value-shape via Studio.guessRegionScale), scanning Rows then
+  // Columns — a State_FIPS field must win the map's id role over a year that merely
+  // sits first in shelf order. Falls back to plain shelf order when nothing looks geo.
+  function bdGeoDim(st) {
+    st = st || BD;
+    var dims = st.shelfRows.concat(st.shelfCols).filter(function (f) { return !f.agg; });
+    // Two passes: NAME evidence first (guessRegionScale with no run = name rules
+    // only), then value shape — so a geo-NAMED field always beats a field whose
+    // values merely happen to look id-shaped.
+    for (var i = 0; i < dims.length; i++) {
+      if (Studio.guessRegionScale(dims[i].col, null)) return dims[i];
+    }
+    for (var j = 0; j < dims.length; j++) {
+      if (Studio.guessRegionScale(dims[j].col, st.run)) return dims[j];
+    }
+    return bdFirstDim(st);
+  }
+  // VB-10: the Map's EFFECTIVE Region scale — an explicit pick always wins, else the
+  // scale inferred from the geo dimension (same inference Quick Views uses), else the
+  // choropleth's own historical "county" default. This is what bdPanelFor stamps into
+  // the panel's opts.scale, so previews, saved Views and dashboards all agree.
+  function bdMapScale(st) {
+    st = st || BD;
+    if (st.mapScale) return st.mapScale;
+    var d = bdGeoDim(st);
+    return (d && Studio.guessRegionScale(d.col, st.run)) || "county";
+  }
   function bdMeasures(st) { return (st || BD).shelfCols.filter(function (f) { return f.agg; }); }
   function bdFirstMeasure(st) {
     var m = bdMeasures(st)[0];
@@ -839,9 +871,12 @@
       // ensemble channel with (toggle providers, re-color live), not a per-bar
       // tint, so it widens the basis into the heatmap's long [id, series,
       // value] form instead of bars/donut's "first-seen tag" widening below.
+      // VB-10: the id dimension is the GEO-looking shelf field, not blind shelf order
+      // (State_FIPS on Columns must beat a year on Rows for the map's id role).
+      var mapDim = bdGeoDim(st) || dim;
       var mapCf = bdColorField(st);
-      if (mapCf) return compute(bdEff(st).cols, rows, [{ col: dim.col, agg: null }, { col: mapCf.col, agg: null }, m], []);
-      return compute(bdEff(st).cols, rows, [{ col: dim.col, agg: null }, m], []);
+      if (mapCf) return compute(bdEff(st).cols, rows, [{ col: mapDim.col, agg: null }, { col: mapCf.col, agg: null }, m], []);
+      return compute(bdEff(st).cols, rows, [{ col: mapDim.col, agg: null }, m], []);
     }
     var basis = compute(bdEff(st).cols, rows, [{ col: dim.col, agg: null }, m], []);
     // VB-3: bars/donut are single-dimension charts, so "color by" only ever needs
@@ -941,6 +976,9 @@
       p.chart.map.idCol = basis.head[0];
       if (basis.head.length > 2) { p.chart.map.seriesCol = basis.head[1]; p.chart.map.valueCol = basis.head[2]; }
       else { delete p.chart.map.seriesCol; p.chart.map.valueCol = basis.head[1]; }
+      // VB-10: stamp the effective Region scale — newPanel's opts default is a blind
+      // "county", which silently no-data'd any state-FIPS/HUC8/district id column.
+      if (p.chart.opts && "scale" in p.chart.opts) p.chart.opts.scale = bdMapScale();
     }
     return p;
   }
@@ -1229,6 +1267,34 @@
           (mini ? '<span class="bd-ct-ic">' + mini + "</span>" : '<span class="bd-ct-ic bd-ct-tbl">▦</span>') +
           '<span>' + esc(c.label) + "</span></button>";
       }).join("");
+      // VB-10: with the Map active, the Region scale gets a VISIBLE control right in
+      // the strip — before this, newPanel's silent "county" default meant any
+      // state-FIPS/HUC8/district id column drew an all-no-data map with no way to fix
+      // it here. "Auto" shows what the inference picked so the default is never a
+      // mystery; the choice list is the choropleth's own (minus Custom regions, whose
+      // county→region CSV import only exists in the dashboard inspector).
+      if (BD.chartType === "choropleth" && BD.run) {
+        var scOpt = ((Studio.CHARTS.choropleth || {}).opts || []).filter(function (o) { return o.key === "scale"; })[0];
+        var scChoices = ((scOpt && scOpt.choices) || []).filter(function (c2) { return c2[0] !== "custom"; });
+        var scLabel = function (key) {
+          var hit = scChoices.filter(function (c2) { return c2[0] === key; })[0];
+          return hit ? hit[1] : key;
+        };
+        var gDim = bdGeoDim();
+        var rawGuess = gDim ? Studio.guessRegionScale(gDim.col, BD.run) : null;
+        var autoLabel = "Auto — " + scLabel(rawGuess || "county");
+        strip.innerHTML += '<label class="bd-map-scale"><span>Region scale</span>' +
+          '<select id="bdMapScale">' +
+            '<option value=""' + (BD.mapScale ? "" : " selected") + '>' + esc(autoLabel) + "</option>" +
+            scChoices.map(function (c2) {
+              return '<option value="' + esc(c2[0]) + '"' + (BD.mapScale === c2[0] ? " selected" : "") + '>' + esc(c2[1]) + "</option>";
+            }).join("") +
+          "</select>" +
+          (BD.mapScale && rawGuess && BD.mapScale !== rawGuess && gDim
+            ? '<small class="bd-map-hint">ids in “' + esc(gDim.col) + '” look like ' + esc(scLabel(rawGuess)) + "</small>"
+            : "") +
+          "</label>";
+      }
     }
 
     // CENTER — status + result (both computed over the FILTERED source rows)
@@ -1415,6 +1481,10 @@
         render();
       };
     });
+    var mapScaleSel = $("#bdMapScale", sec);
+    if (mapScaleSel) {
+      mapScaleSel.onchange = function () { BD.mapScale = mapScaleSel.value; render(); }; // VB-10
+    }
     $$("[data-bd-flt-edit]", sec).forEach(function (btn) {
       btn.onclick = function () {
         var f = BD.filters.filter(function (x) { return x.col === btn.getAttribute("data-bd-flt-edit"); })[0];
@@ -1518,7 +1588,8 @@
             dsKind: BD.dsKind, dsId: BD.dsId, chartType: BD.chartType,
             shelfCols: Studio.clone(BD.shelfCols), shelfRows: Studio.clone(BD.shelfRows),
             filters: Studio.clone(BD.filters), calcs: Studio.clone(BD.calcs),
-            shelfColor: Studio.clone(BD.shelfColor), paletteKey: BD.paletteKey || ""
+            shelfColor: Studio.clone(BD.shelfColor), paletteKey: BD.paletteKey || "",
+            mapScale: BD.mapScale || "" // VB-10: "" = auto (re-inferred from the geo field)
           }
         };
         // #118 (live re-run): the da carries the builder blob too — the da is what
@@ -1624,6 +1695,9 @@
       var supported = CHART_TYPES.some(function (c) { return c.t === t; });
       BD.chartType = supported ? t : (FOREIGN_TYPE_FALLBACK[t] || "table");
       if (BD.chartType !== "table" && chartUnavailable(BD.chartType)) BD.chartType = "table";
+      // VB-10: a Quick Views map's Region scale survives the trip — carry it in as the
+      // explicit pick (auto-inference might disagree with what the user chose there).
+      if (BD.chartType === "choropleth" && a.chart && a.chart.opts && a.chart.opts.scale) BD.mapScale = a.chart.opts.scale;
       var typeNote = supported ? "" :
         " Its chart type (" + ((Studio.CHARTS[t] || {}).label || t) + ") isn’t in the View Builder yet, so it opens as " +
         (FOREIGN_TYPE_FALLBACK[t] ? "the nearest type" : "a table") + ".";
@@ -1650,6 +1724,7 @@
       BD.shelfColor = Studio.clone(b.shelfColor || []);
       BD.paletteKey = b.paletteKey || "";
       BD.chartType = b.chartType || "table";
+      BD.mapScale = b.mapScale || ""; // VB-10
       render();
     });
   }
@@ -1668,5 +1743,5 @@
   };
   window.__studioBuild = { state: BD, addField: bdAddField, selectDataset: bdSelectDataset, save: bdSave, load: bdLoad,
     addFilter: bdAddFilter, filteredRows: bdFilteredRows, setCalcs: bdSetCalcs, eff: bdEff, rerender: render,
-    chartBasis: chartBasis, loadForeign: bdLoadForeign };
+    chartBasis: chartBasis, loadForeign: bdLoadForeign, geoDim: bdGeoDim, mapScale: bdMapScale };
 })();

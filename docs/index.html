@@ -635,10 +635,14 @@
   value — the first measure on the x-axis, the second on the y-axis. It's the same
   one-dimension basis Bars and Donut use, just widened to carry two measures instead of one, so
   it's disabled until a second measure lands on the shelf.</p>
-  <p><strong>Map</strong> draws a US choropleth from the first dimension (region ids — FIPS county
-  code, state, USDA district, watershed, congressional district, or ZIP) against the first measure,
-  the same one-dimension basis Bars and Donut use — it defaults to county scale; change the region
-  scale, renderer, or styling from the saved View's panel like any other map. Put a field on the
+  <p><strong>Map</strong> draws a US choropleth from your <em>geographic</em> field (region ids —
+  FIPS county code, state FIPS or postal code, USDA district, watershed/HUC8, congressional
+  district, or ZIP) against the first measure — the geo-looking field wins the map's id role from
+  either shelf, so a year sitting first doesn't steal it. The <strong>Region scale</strong> picks
+  itself from that field's name and values (a <code>state_fips</code> column opens as States, a
+  <code>huc8</code> column as Watersheds) — the <strong>Auto</strong> entry in the Region-scale
+  control next to the chart types shows what it inferred, and picking a scale there overrides it.
+  Renderer and styling still live on the saved View's panel like any other map. Put a field on the
   <strong>Color</strong> shelf and the map switches to per-region <strong>series</strong> instead: a
   long table of region × series × value that plugs straight into the Studio ensemble channel, so an
   Ensemble chart's provider toggles elsewhere on the same dashboard re-color it live.</p>
