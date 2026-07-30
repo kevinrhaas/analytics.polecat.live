@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v373"; /* v373: Kevin's rail IA + sync self-heal — rail regrouped
+var CACHE_NAME = "studio-shell-v374"; /* v374: VB-1 (Kevin's overnight View Builder queue) — the
+   Build outline becomes a real navigator with Explore parity: folder tree (collapsible
+   branches, "/" nesting), sample-set grouping (collapsed once you have your own), search box
+   that flattens to matches, per-row inline-SVG icons, stacked readable name/sub labels with
+   full-name tooltips, and ws manage ops on the pane (＋ New via the shared dataset editor,
+   ✎ edit, ⧉ copy, ✕ delete). app/build.js, app/index.html, app/studio.css, app/studio.js,
+   docs/index.html, tests/run.js, STATUS.md, js/changelog.js.
+   v373: Kevin's rail IA + sync self-heal — rail regrouped
    (Workspace: Home/Views/Dashboards/Datasets/Connections/Repository; Build: Quick Views
    [ex-Explore]/Views [View Builder]/Dashboards [ex-Studio]; Manage: Jobs/Admin/backend
    indicator); the indicator reads state honestly (Local/Connected/Reconnecting…); a failed

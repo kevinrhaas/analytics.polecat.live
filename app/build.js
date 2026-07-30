@@ -160,23 +160,57 @@
   // then the sample catalog's authored/sample queries (showSamples-gated).
   // Kept local rather than reaching into explore.js's private xpDatasets —
   // LF51's shared-nav convergence epic is where these unify.
+  // VB-1: rows carry `folder` (ws) / `stem` (sample) so the outline can render
+  // the same collapsible folder tree as Explore's navigator.
   function bdDatasets() {
     var out = [];
     (Studio.Workspace ? Studio.Workspace.all("datasets").filter(D.isDatasetVisibleToMe) : []).sort(function (a, b) {
       return (b.updatedAt || 0) - (a.updatedAt || 0);
     }).forEach(function (d) {
       var conn = Studio.Workspace.get("connections", d.connectionId);
-      out.push({ kind: "ws", id: d.id, name: d.name || d.id, sub: conn ? conn.name : "no connection", cols: d.columns || [] });
+      out.push({ kind: "ws", id: d.id, name: d.name || d.id, sub: conn ? conn.name : "no connection", cols: d.columns || [], folder: d.folder || "" });
     });
     if (D.showSamples()) {
       var cat = D.getCatalog();
       Object.keys(cat).forEach(function (stem) {
         (cat[stem].dataAccesses || []).forEach(function (d) {
-          out.push({ kind: "sample", id: stem + BD_SEP + d.id, name: d.id, sub: stem + " · sample", cols: d.columns || [] });
+          out.push({ kind: "sample", id: stem + BD_SEP + d.id, name: d.id, sub: stem + " · sample", cols: d.columns || [], stem: stem });
         });
       });
     }
     return out;
+  }
+
+  // VB-1: outline navigator state — search query + per-branch collapse, same
+  // conventions as Explore (_xpTreeCollapsed): ws folders default OPEN, sample
+  // stems default CLOSED once you have datasets of your own. Session-only.
+  var _bdQ = "";
+  var _bdTreeCollapsed = {};
+  function bdTreeCollapsed(path, dflt) { return (path in _bdTreeCollapsed) ? _bdTreeCollapsed[path] : dflt; }
+
+  // VB-1: dataset-management ops right on the pane (ws rows only — samples are
+  // read-only). New/edit reuse THE shared dataset editor (studio.js →
+  // Studio.Datasets.openEditor, injected); copy/delete write the store and the
+  // Workspace change hook re-renders every catalog view including this one.
+  function bdCopyDataset(id) {
+    var ds = Studio.Workspace.get("datasets", id);
+    if (!ds) return;
+    var copy = JSON.parse(JSON.stringify(ds));
+    copy.id = "d_" + Math.random().toString(36).slice(2, 10);
+    copy.name = (ds.name || ds.id) + " (copy)";
+    copy.updatedAt = Date.now();
+    delete copy.pinned; delete copy.pinnedAt;
+    Studio.Workspace.put("datasets", copy);
+    D.toast("Dataset copied — “" + copy.name + "”");
+  }
+  function bdDeleteDataset(id) {
+    var ds = Studio.Workspace.get("datasets", id);
+    if (!ds) return;
+    if (!window.confirm("Delete dataset “" + (ds.name || ds.id) + "”? Views built on it fall back to sample rows.")) return;
+    Studio.Workspace.remove("datasets", id);
+    if (BD.dsKind === "ws" && BD.dsId === id) { bdReset(); }
+    D.toast("Dataset deleted");
+    render();
   }
 
   function bdSelectDataset(kind, id) {
@@ -620,36 +654,105 @@
     var sec = document.getElementById("secBuild");
     if (!sec) return;
 
-    // LEFT — dataset outline
+    // LEFT — dataset outline (VB-1: Explore-navigator parity — search box, folder
+    // tree with collapsible branches, sample-set grouping, per-row icons, stacked
+    // readable labels with full-name tooltips, and ws manage ops on hover)
     var outline = $("#buildOutline", sec);
     if (outline) {
       var dss = bdDatasets();
-      if (!dss.length) {
-        outline.innerHTML = '<div class="bd-empty">No datasets yet — create one in Datasets, or install a Sample pack.</div>';
-      } else {
-        outline.innerHTML = dss.map(function (d) {
-          var key = d.kind + BD_SEP + d.id;
-          var sel = BD.dsKind === d.kind && BD.dsId === d.id;
-          var open = sel || !!BD.outlineOpen[key];
-          var colsHtml = open && sel && BD.run
-            ? '<div class="bd-ol-cols">' + bdEff().cols.map(function (c) {
-                var used = bdOnShelf(c);
-                var numeric = bdFieldKind(c) === "Numeric";
-                var calc = bdIsCalc(c);
-                return '<button type="button" class="bd-col' + (used ? " used" : "") + (numeric ? " num" : "") + (calc ? " calc" : "") +
-                  '" draggable="true" data-bd-col="' + esc(c) + '" title="' + (calc ? "Calculated column — " : "") + (used ? "Already on a shelf" : "Add to the Columns shelf (drag for Rows)") + '">' +
-                  '<span class="bd-col-k">' + (calc ? "=" : numeric ? "#" : "a") + '</span>' + esc(c) + "</button>";
-              }).join("") +
-              '<button type="button" class="bd-col bd-col-calc" id="bdCalcBtn" title="Define calculated columns (=[colA] / [colB])">＋ calc…</button>' +
-              "</div>"
-            : "";
-          return '<div class="bd-ol' + (sel ? " sel" : "") + '" data-bd-ds-kind="' + esc(d.kind) + '" data-bd-ds-id="' + esc(d.id) + '">' +
-            '<button type="button" class="bd-ol-head" data-bd-ds="' + esc(key) + '">' +
-              '<span class="bd-ol-car">' + (open ? "▾" : "▸") + '</span>' +
-              '<span class="bd-ol-nm">' + esc(d.name) + '</span><small>' + esc(d.sub) + "</small></button>" + colsHtml +
-            "</div>";
-        }).join("");
+      var bq = _bdQ.trim().toLowerCase();
+      function bdDsRowHtml(d) {
+        var key = d.kind + BD_SEP + d.id;
+        var sel = BD.dsKind === d.kind && BD.dsId === d.id;
+        var open = sel || !!BD.outlineOpen[key];
+        var colsHtml = open && sel && BD.run
+          ? '<div class="bd-ol-cols">' + bdEff().cols.map(function (c) {
+              var used = bdOnShelf(c);
+              var numeric = bdFieldKind(c) === "Numeric";
+              var calc = bdIsCalc(c);
+              return '<button type="button" class="bd-col' + (used ? " used" : "") + (numeric ? " num" : "") + (calc ? " calc" : "") +
+                '" draggable="true" data-bd-col="' + esc(c) + '" title="' + (calc ? "Calculated column — " : "") + (used ? "Already on a shelf" : "Add to the Columns shelf (drag for Rows)") + '">' +
+                '<span class="bd-col-k">' + (calc ? "=" : numeric ? "#" : "a") + '</span>' + esc(c) + "</button>";
+            }).join("") +
+            '<button type="button" class="bd-col bd-col-calc" id="bdCalcBtn" title="Define calculated columns (=[colA] / [colB])">＋ calc…</button>' +
+            "</div>"
+          : "";
+        // full name in the title: the pane is narrow, ellipsized labels need the
+        // native-tooltip escape hatch (same fix family as Explore's saved rows)
+        var acts = d.kind === "ws"
+          ? '<span class="bd-ol-acts">' +
+              '<button type="button" class="bd-ol-act" data-bd-ds-edit="' + esc(d.id) + '" title="Edit dataset" aria-label="Edit dataset ' + esc(d.name) + '">✎</button>' +
+              '<button type="button" class="bd-ol-act" data-bd-ds-copy="' + esc(d.id) + '" title="Copy dataset" aria-label="Copy dataset ' + esc(d.name) + '">⧉</button>' +
+              '<button type="button" class="bd-ol-act" data-bd-ds-del="' + esc(d.id) + '" title="Delete dataset" aria-label="Delete dataset ' + esc(d.name) + '">✕</button>' +
+            '</span>'
+          : "";
+        return '<div class="bd-ol' + (sel ? " sel" : "") + '" data-bd-ds-kind="' + esc(d.kind) + '" data-bd-ds-id="' + esc(d.id) + '">' +
+          '<div class="bd-ol-row">' +
+          '<button type="button" class="bd-ol-head" data-bd-ds="' + esc(key) + '" title="' + esc(d.name) + ' — ' + esc(d.sub) + '">' +
+            '<span class="bd-ol-car">' + (open ? "▾" : "▸") + '</span>' +
+            '<span class="bd-ol-ic" data-bd-ic="' + (d.kind === "ws" ? "db" : "cube") + '"></span>' +
+            '<span class="bd-ol-txt"><b>' + esc(d.name) + '</b><small>' + esc(d.sub) + "</small></span></button>" +
+          acts + "</div>" + colsHtml +
+          "</div>";
       }
+      function bdTreeHeadHtml(path, label, n, collapsed) {
+        return '<button type="button" class="bd-tree-h" data-bd-tree="' + esc(path) + '" aria-expanded="' + (!collapsed) + '">' +
+          '<span class="bd-ol-car">' + (collapsed ? "▸" : "▾") + '</span><span class="bd-tree-lbl">' + esc(label) + '</span>' +
+          '<span class="bd-tree-n">' + n + "</span></button>";
+      }
+      if (!dss.length) {
+        outline.innerHTML = '<div class="bd-empty">No datasets yet — hit ＋ New above, or install a Sample pack.</div>';
+      } else if (bq) {
+        // a search query flattens the tree (Explore convention): finding by name
+        // never depends on knowing where something is filed
+        var hits = dss.filter(function (d) {
+          return (d.name + " " + d.sub + " " + (d.cols || []).join(" ")).toLowerCase().indexOf(bq) >= 0;
+        });
+        outline.innerHTML = hits.length ? hits.slice(0, 60).map(bdDsRowHtml).join("")
+          : '<div class="bd-empty">No datasets match.</div>';
+      } else {
+        var wsShown = dss.filter(function (d) { return d.kind === "ws"; });
+        var sampleShown = dss.filter(function (d) { return d.kind === "sample"; });
+        var bdRoot = { kids: {}, rows: [] };
+        wsShown.forEach(function (d) {
+          var node = bdRoot;
+          (d.folder ? d.folder.split("/") : []).forEach(function (seg) {
+            seg = seg.trim(); if (!seg) return;
+            node = node.kids[seg] || (node.kids[seg] = { kids: {}, rows: [] });
+          });
+          node.rows.push(d);
+        });
+        function bdCount(n) { return n.rows.length + Object.keys(n.kids).reduce(function (s, k) { return s + bdCount(n.kids[k]); }, 0); }
+        function bdRenderNode(n, path) {
+          var html = "";
+          Object.keys(n.kids).sort().forEach(function (name) {
+            var p = path ? path + "/" + name : name;
+            var collapsed = bdTreeCollapsed(p, false); // ws folders default OPEN
+            html += bdTreeHeadHtml(p, name, bdCount(n.kids[name]), collapsed) +
+              '<div class="bd-tree-kids"' + (collapsed ? " hidden" : "") + '>' + bdRenderNode(n.kids[name], p) + "</div>";
+          });
+          return html + n.rows.map(bdDsRowHtml).join(""); // unfiled rows AFTER folders
+        }
+        var olHtml = "";
+        if (wsShown.length) olHtml += '<div class="bd-grp-h">Your datasets <span class="bd-tree-n">' + wsShown.length + "</span></div>" + bdRenderNode(bdRoot, "");
+        if (sampleShown.length) {
+          var stems = {};
+          sampleShown.forEach(function (d) { (stems[d.stem] = stems[d.stem] || []).push(d); });
+          var sampleDflt = wsShown.length > 0; // default CLOSED once you have your own
+          olHtml += '<div class="bd-grp-h">Sample data <span class="bd-tree-n">' + sampleShown.length + "</span></div>" +
+            Object.keys(stems).sort().map(function (st) {
+              var p = "sample:" + st;
+              var collapsed = bdTreeCollapsed(p, sampleDflt);
+              return bdTreeHeadHtml(p, st, stems[st].length, collapsed) +
+                '<div class="bd-tree-kids"' + (collapsed ? " hidden" : "") + '>' + stems[st].map(bdDsRowHtml).join("") + "</div>";
+            }).join("");
+        }
+        outline.innerHTML = olHtml;
+      }
+      // paint the per-row icons (inline SVG so both themes work for free)
+      if (Studio.icon) $$("[data-bd-ic]", outline).forEach(function (sp) {
+        if (!sp.firstChild) sp.appendChild(Studio.icon(sp.getAttribute("data-bd-ic"), 13));
+      });
     }
 
     // TOP — shelves
@@ -769,6 +872,42 @@
         }
         bdSelectDataset(kind, id);
       };
+    });
+    // VB-1: navigator wiring — tree branch collapse, search (static input wired
+    // once so keystroke focus survives re-renders), and the ws manage ops
+    $$("[data-bd-tree]", sec).forEach(function (btn) {
+      btn.onclick = function () {
+        _bdTreeCollapsed[btn.getAttribute("data-bd-tree")] = btn.getAttribute("aria-expanded") === "true";
+        render();
+      };
+    });
+    var bdQInp = $("#bdOutlineSearch", sec);
+    if (bdQInp && !bdQInp.__bdWired) {
+      bdQInp.__bdWired = true;
+      bdQInp.addEventListener("input", function () { _bdQ = bdQInp.value; render(); });
+    }
+    var bdNewDs = $("#bdDsNew", sec);
+    if (bdNewDs && !bdNewDs.__bdWired) {
+      bdNewDs.__bdWired = true;
+      bdNewDs.onclick = function () {
+        D.openDatasetEditor(null, function (d) { if (d && d.id) bdSelectDataset("ws", d.id); });
+      };
+    }
+    $$("[data-bd-ds-edit]", sec).forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        var id = btn.getAttribute("data-bd-ds-edit");
+        D.openDatasetEditor(Studio.Workspace.get("datasets", id), function () {
+          // re-pull rows if the edited dataset is the selected one (columns may change)
+          if (BD.dsKind === "ws" && BD.dsId === id) bdSelectDataset("ws", id); else render();
+        });
+      };
+    });
+    $$("[data-bd-ds-copy]", sec).forEach(function (btn) {
+      btn.onclick = function (e) { e.stopPropagation(); bdCopyDataset(btn.getAttribute("data-bd-ds-copy")); };
+    });
+    $$("[data-bd-ds-del]", sec).forEach(function (btn) {
+      btn.onclick = function (e) { e.stopPropagation(); bdDeleteDataset(btn.getAttribute("data-bd-ds-del")); };
     });
     $$("[data-bd-col]", sec).forEach(function (btn) {
       btn.onclick = function () { bdAddField(btn.getAttribute("data-bd-col"), "cols"); };

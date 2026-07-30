@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 737,
+    title: 'The View Builder’s dataset pane becomes a real navigator',
+    kind: 'feature',
+    ts: '2026-07-30T03:58:35.000Z',
+    items: [
+      'The left pane now matches Quick Views and the Studio library: your datasets group into their folders (nested via "/", every branch collapsible), sample data groups by set, and a search box flattens the tree to matching rows the moment you type.',
+      'Rows are readable at last — an icon, the dataset’s name over its connection on two lines, and the full name in the hover tooltip instead of names crushed to a sliver.',
+      'Manage datasets right from the pane: hover a row for edit / copy / delete, and the ＋ New button opens the same dataset editor the Datasets section uses, selecting your new dataset as soon as you save it.',
+    ],
+  },
+  {
     v: 736,
     title: 'A clearer left rail, and workspace sync that heals itself',
     kind: 'feature',
