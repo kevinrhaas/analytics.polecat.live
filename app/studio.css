@@ -1423,6 +1423,16 @@ body.lib-dragging #preview{pointer-events:none}
 .bd-chip-move,.bd-chip-rm{background:none;border:none;cursor:pointer;color:var(--faint);font-size:var(--fs-11);padding:2px 3px;border-radius:5px}
 .bd-chip-move:hover{color:var(--brand)}
 .bd-chip-rm:hover{color:var(--bad)}
+.bd-col.calc .bd-col-k{color:var(--accent);font-weight:900}
+.bd-col-calc{border-style:dashed;color:var(--muted)}
+.bd-col-calc:hover{color:var(--ink)}
+.bd-calc-hint{font-size:var(--fs-12);color:var(--muted);line-height:1.55;margin-bottom:10px}
+.bd-calc-list{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow:auto}
+.bd-calc-row{display:flex;gap:8px;align-items:center}
+.bd-calc-row input{box-sizing:border-box}
+.bd-calc-row input:first-child{flex:0 0 150px}
+.bd-calc-formula{flex:1;font-family:var(--mono);font-size:var(--fs-12)}
+.bd-calc-empty{font-size:var(--fs-12);color:var(--faint);padding:var(--sp-6)}
 .bd-chip.bd-filter{padding-left:6px}
 .bd-chip.bd-filter.active{border-color:color-mix(in srgb,var(--accent) 55%,var(--line))}
 .bd-flt-edit{display:inline-flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;

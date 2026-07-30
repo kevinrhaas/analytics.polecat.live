@@ -116,6 +116,25 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **#117 slice 4 — CALCULATED COLUMNS in the View Builder (v735, sw v372, 2026-07-30,
+  steward):** the last named piece of #117's RIGHT-panel spec (chart picker ✓ slice 2, Filters
+  ✓ slice 3, per-field calcs ✓ here). Reuses the app's ONE formula engine —
+  `Studio.applyCalcCols`/`Studio.evalFormula` ("=[colA] / [colB]", parens/arithmetic,
+  `pctChange()`, `movingAvg()`; a safe recursive-descent parser, never eval()) — so Build and
+  the Studio data-source editor can't drift on syntax. Calc columns extend the loaded rows
+  ONCE (a memoized `bdEff()` wrapper; every consumer — outline, field-kind guesses, shelves,
+  filters, distinct-values, chart bases, the pivot, the status count — reads through it) and
+  from there behave like any other column with zero special-casing. UI: a "＋ calc…" chip at
+  the end of the selected dataset's column list opens the editor modal (name + formula rows,
+  add/remove, Apply); calc columns render in the outline with an "=" kind marker.
+  `bdSetCalcs()` sanitizes names, drops incomplete rows, REFUSES shadowing a real column, and
+  prunes any shelf/filter chip whose calc just disappeared. Persisted on the View's `builder`
+  blob, restored on reopen. 3 new regression tests (sanitize/no-shadow/math-verified 2×
+  values; SUM-default on the shelf + prune-on-delete; builder-blob save/reopen round trip).
+  Verified live headless (5 vs 4 cols, math OK, editor modal, zero pageerrors). **NEXT in
+  #117/#118:** multi-dim series charting; live re-run of builder Views on dashboards; #118's
+  encoding card + delight layer. Files: app/build.js, app/studio.css, docs/index.html, sw.js,
+  js/changelog.js, tests/run.js.
 - **#117 slice 3 — the View Builder's FILTERS shelf (v734, sw v371, 2026-07-30, steward):** a
   third shelf narrows the SOURCE rows before anything computes — one `bdFilteredRows()` feeds
   the pivot, every chart basis, the saved View, AND the status row count, so nothing can drift.
