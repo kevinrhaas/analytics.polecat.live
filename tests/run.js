@@ -9897,7 +9897,9 @@ function serve() {
         out[c.table] = r;
       }
       window.confirm = confirm0;
-      window.__studioShellSetSection("studio");
+      // hand the page back to the surrounding LIVE-d tests exactly where they were
+      window.__studioShellSetSection("datasets");
+      if (window.__studioRenderDatasets) window.__studioRenderDatasets();
       return out;
     });
     ok("DURABLE-2b: deleting a single dataset / connection / job / View offers Undo on the toast, and Undo restores the exact row under its original id",
