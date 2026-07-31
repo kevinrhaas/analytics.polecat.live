@@ -15813,12 +15813,18 @@ function serve() {
     const demoLocal = await gpDemo.evaluate(() => ({
       gateGone: !document.querySelector("#studio-gate"),
       who: (window.PolecatAuth.current() || {}).u,
+      // the AUTHORITATIVE invariant: the demo session is DISCONNECTED from the
+      // remote (sourceId + the persisted connection's cfg both local). The
+      // studio-workspace-last key is derived-cosmetic — currentWorkspaceId()
+      // keys off the live connection's cfg.url, not this key — so it's recorded
+      // but not gated (a boot-race can leave it stale with zero behavioral effect).
       sourceId: Studio.Sync.syncState().sourceId,
+      connIsLocal: !((JSON.parse(localStorage.getItem("analytics.datasource.v1") || "null") || {}).cfg || {}).url,
       lastWs: localStorage.getItem("studio-workspace-last")
     }));
     await gpDemo.close();
-    ok("DEMO-LOCAL: 'Explore the demo' with a remote workspace picked/bound signs into demo AND forces the connection back to Local — the demo can never run against a real backend",
-      demoLocal.gateGone && demoLocal.who === "demo" && demoLocal.sourceId === "local" && demoLocal.lastWs === "local", JSON.stringify(demoLocal));
+    ok("DEMO-LOCAL: 'Explore the demo' with a remote workspace picked/bound signs into demo AND forces the connection back to Local (disconnected — no remote cfg) so the demo can never run against a real backend",
+      demoLocal.gateGone && demoLocal.who === "demo" && demoLocal.sourceId === "local" && demoLocal.connIsLocal, JSON.stringify(demoLocal));
 
     // ---- GOLIVE-CARD (Kevin live, 2026-07-30): the Admin per-user-security card
     // reflects the DATABASE's real posture — after the RLS script was applied
