@@ -15,6 +15,29 @@
 (function () {
   "use strict";
   var Auth = window.PolecatAuth;
+  // HOTLINK-1 (Kevin, 2026-07-31): a handout sign-in link —
+  //   https://analytics.polecat.live/app/#ws=polecat&user=EMAIL&pass=PASSWORD
+  // picks the workspace and prefills the credentials so the recipient only has
+  // to click Sign in. The credentials ride the URL FRAGMENT, which browsers
+  // never send to any server; we still scrub it from the address bar (and this
+  // history entry) IMMEDIATELY — before the gate even renders — so it can't be
+  // shoulder-read, bookmarked, or re-shared by accident. Only a hash that
+  // STARTS with #ws= is treated as a hot link, so #share=/#dash= deep links
+  // are untouched. Share hot links like passwords.
+  var hotlink = (function () {
+    var h = location.hash || "";
+    if (h.indexOf("#ws=") !== 0) return null;
+    var out = {};
+    h.slice(1).split("&").forEach(function (kv) {
+      var i = kv.indexOf("="); if (i < 1) return;
+      var k = kv.slice(0, i), v = kv.slice(i + 1);
+      if (k === "ws" || k === "user" || k === "pass") {
+        try { out[k] = decodeURIComponent(v); } catch (e) { out[k] = v; }
+      }
+    });
+    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+    return out.ws ? out : null;
+  })();
   // LF38/#102: the sign-in password gets the same eye/eye-off reveal toggle as every
   // masked field inside the app (studio.js withRevealToggle). gate.js runs before
   // studio.js and is self-contained, so it can't reuse Studio.icon — inline the same
@@ -397,6 +420,28 @@
     // test hooks — drive the picker without a real <input type=file> dialog
     window.__studioGateWorkspaces = { list: workspaceList, addCustom: saveCustomWorkspace,
       render: renderWorkspaceSelect, connect: connectWorkspace };
+
+    // HOTLINK-1: apply a captured hot link now that the picker + fields exist.
+    // The fragment was already scrubbed at load (top of this file).
+    if (hotlink) {
+      var hl = hotlink; hotlink = null;
+      var hlEntry = workspaceList().filter(function (w) { return w.id === hl.ws; })[0];
+      if (hlEntry && hlEntry.id !== "local") {
+        if (wsSel) { wsSel.value = hlEntry.id; wsSel.dataset.prev = hlEntry.id; }
+        connectWorkspace(hlEntry);
+      } else if (hl.ws === "local") {
+        if (wsSel) { wsSel.value = "local"; wsSel.dataset.prev = "local"; }
+      } else {
+        wsNote("This link points at a workspace this browser doesn’t have (“" + hl.ws + "”). Pick one, or import an access file.");
+      }
+      var hlUser = document.getElementById("g-user"), hlPass = document.getElementById("g-pass");
+      if (hlUser && hl.user) hlUser.value = hl.user;
+      if (hlPass && hl.pass) hlPass.value = hl.pass;
+      if (hlEntry && hl.user && hl.pass) {
+        var hlHint = document.getElementById("g-hint");
+        if (hlHint) hlHint.innerHTML = "Workspace and account are filled in from your invite link — just click <b>Sign in</b>.";
+      }
+    }
 
     // DEMO-LOCAL (Kevin, 2026-07-31): the demo account is a LOCAL sample-workspace
     // concept — "Explore the demo" (and any demo/demo sign-in) must NEVER run
