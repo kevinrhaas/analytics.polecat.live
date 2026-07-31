@@ -56,6 +56,12 @@
   // (already-authed loads reveal without a login and never call this).
   function afterLogin() {
     try { if (window.__studioAuthBoot) window.__studioAuthBoot(); } catch (e) {}
+    // HOME-LAND (Kevin, 2026-07-31): "when you sign in you should always land on
+    // the home page" — a fresh SIGN-IN starts at Home (where the first-run
+    // welcome/tour already lives), whatever section this browser last had open.
+    // Already-authed reloads never pass through here, so their last-section
+    // restore is untouched.
+    try { if (window.__studioShellSetSection) window.__studioShellSetSection("home"); } catch (e) {}
     // ACTIVITY-1: record the sign-in (AFTER auth boot, so current() is fresh).
     try { if (window.Studio && Studio.Activity) Studio.Activity.log("sign-in"); } catch (e) {}
     // shell.js already ran (and gated the Admin rail item) before anyone signed in —

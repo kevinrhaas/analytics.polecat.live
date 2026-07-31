@@ -116,6 +116,30 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **PANEL-H batch (v790, sw v425, 2026-07-31, steward — five Kevin live asks in one
+  slice):**
+  - **PANEL-H:** dashboard panels drag-resize VERTICALLY — a bottom-edge handle per
+    preview card (`.sr-resize-h`, studio-render.js wireEditing) live-stretches the
+    body while dragging and posts `{type:"resizeH", id, h}` on release; studio.js
+    writes `chart.opts.height` — the exact knob every chart already draws to
+    (`cfg.height`), and `DashKit.card opts.h` stretches table/richtext bodies the
+    same way, so the height holds identically in preview, viewer, and every export.
+    120px floor, NO ceiling ("so the panel can fill the screen").
+  - **PACK-FEATURED:** `Studio.featureConservationGeo()` — installing the
+    Conservation Insight pack auto-features the watershed (HUC8) choropleth on
+    Home's live tile (fallback: the county geo), ONLY when nothing is already
+    featured (an explicit user choice always wins). Called from installDemoPack.
+  - **HOME-LAND:** a fresh gate sign-in always lands on Home (gate.js afterLogin →
+    __studioShellSetSection("home")); already-authed reloads keep last-section.
+  - **VB gutter:** the Build section gets the app-standard outer padding
+    (.bd-wrap 20/32/20/28; bd-left allowance → 140px) instead of sitting flush
+    against the rail/topbar.
+  - **.da-name:** the Data-panel Datasets card description line had NO rule
+    (inherited body size) — now the small grey meta style (--fs-11, muted).
+  Hint-bar + docs copy updated ("drag the right edge wider, the bottom edge
+  taller"). 6 new checks. Files: app/studio-render.js, app/studio.js,
+  app/exporters.js, app/demopacks.js, app/gate.js, app/studio.css,
+  app/index.html, docs/index.html, sw.js, js/changelog.js, tests/run.js.
 - **XP-UPDATE (v789, sw v424, 2026-07-31, steward — Kevin live):** "Update View" in
   Quick Views rebuilt the analyses row from ONLY the fields that editor owns —
   dropping `builder` (the VB blob that computes a cross-editor View's real rows;

@@ -2043,7 +2043,11 @@
         var titleText = applyTemplateVars(p.title || "", spec.templateVars);
         var noteText = applyTemplateVars(p.note || "", spec.templateVars);
         var card = DashKit.card(titleText, { pill: p.pill || "", sub: p.sub || "", info: p.info || "",
-          src: p.src || "", query: (p.chart && p.chart.da) || "", span: spanClass });
+          src: p.src || "", query: (p.chart && p.chart.da) || "", span: spanClass,
+          // PANEL-H (Kevin): a drag-set panel height rides chart.opts.height —
+          // charts already draw to it (cfg.height); opts.h makes the CARD BODY
+          // honor it too, so table/richtext panels stretch the same way.
+          h: (p.chart && p.chart.opts && p.chart.opts.height) || 0 });
         // Panel note: visible annotation line shown below the card header, above the chart.
         // Gives stakeholders quick context without needing to hover over the info dot.
         if (noteText) {
@@ -2077,6 +2081,7 @@
             (function (h, t, id) { t.addEventListener("dblclick", function (e) { e.preventDefault(); e.stopPropagation(); startRename(h, t, id); }); })(h3, titleEl, p.id);
           }
           var rz = document.createElement("div"); rz.className = "sr-resize"; rz.title = "Drag to resize"; card.el.appendChild(rz);
+          var rzh = document.createElement("div"); rzh.className = "sr-resize-h"; rzh.title = "Drag to make this panel taller or shorter"; card.el.appendChild(rzh);
           var acts = document.createElement("div"); acts.className = "sr-card-acts";
           acts.innerHTML = '<button class="sr-act" data-act="zoom" title="Zoom panel full-screen">' + I_MAXIMIZE + '</button><button class="sr-act" data-act="dup" title="Duplicate panel">' + I_DUP + '</button><button class="sr-act" data-act="del" title="Delete panel">' + I_CLOSE + '</button>';
           (function (pid) {
@@ -2373,6 +2378,35 @@
         window.addEventListener("pointermove", onMove);
         window.addEventListener("pointerup", onUp, { once: true });
         window.addEventListener("pointercancel", onUp, { once: true });
+      });
+    });
+
+    // ── PANEL-H (Kevin): resize (drag the BOTTOM edge → explicit panel height) ──
+    // Live feedback stretches the card body (min-height) while dragging; the
+    // real chart redraw happens on release, when the height posts back to the
+    // builder and lands on chart.opts.height (charts already draw to it — the
+    // same knob the inspector's Height field uses). No upper cap: a panel can
+    // grow to fill the whole screen. Floor keeps the header + a sliver of body.
+    cards.forEach(function (card) {
+      var hh = card.querySelector(".sr-resize-h"); if (!hh) return;
+      hh.addEventListener("pointerdown", function (e) {
+        e.preventDefault(); e.stopPropagation();
+        try { e.target.setPointerCapture(e.pointerId); } catch (x) {}
+        var body = card.querySelector(".body"); if (!body) return;
+        var startY = e.clientY, h0 = body.getBoundingClientRect().height, cur = null;
+        document.body.style.userSelect = "none";
+        function rzh(ev) {
+          cur = Math.max(120, Math.round(h0 + (ev.clientY - startY)));
+          body.style.minHeight = cur + "px";
+        }
+        function uph() {
+          window.removeEventListener("pointermove", rzh); window.removeEventListener("pointerup", uph);
+          window.removeEventListener("pointercancel", uph);
+          document.body.style.userSelect = "";
+          if (cur != null) post({ type: "resizeH", id: card.getAttribute("data-panel-id"), h: cur });
+        }
+        window.addEventListener("pointermove", rzh); window.addEventListener("pointerup", uph);
+        window.addEventListener("pointercancel", uph);
       });
     });
 

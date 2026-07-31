@@ -330,6 +330,9 @@
       ".card>h3{cursor:grab;touch-action:none}" +
       ".sr-resize{position:absolute;top:42px;right:0;bottom:0;width:10px;cursor:ew-resize;z-index:6;touch-action:none}" +
       ".sr-resize:hover{background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--pentaho) 32%,transparent))}" +
+      /* PANEL-H (Kevin): drag the BOTTOM edge to make a panel taller/shorter — up to full screen */
+      ".sr-resize-h{position:absolute;left:0;right:12px;bottom:0;height:10px;cursor:ns-resize;z-index:6;touch-action:none}" +
+      ".sr-resize-h:hover{background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--pentaho) 32%,transparent))}" +
       ".sr-dragging{opacity:.4}" +
       ".sr-caret{position:absolute;width:3px;background:var(--dk);border-radius:2px;pointer-events:none;z-index:7;box-shadow:0 0 0 2px color-mix(in srgb,var(--dk) 28%,transparent);transition:left .07s ease,top .07s ease,height .07s ease}" +
       ".sr-ghost{position:fixed;pointer-events:none;z-index:99999;background:var(--dk);color:#fff;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:7px;box-shadow:0 8px 24px rgba(0,0,0,.32);opacity:.96;white-space:nowrap}" +
