@@ -116,6 +116,30 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF53-CODE — the dead CDE apparatus is deleted; internal CDF identifiers
+  renamed (v811, sw v445, 2026-07-31, steward — closes LF53's deliberately-
+  deferred remainder):** consumer analysis first: the CDE exporter was
+  removed at Z0 and `Studio.cdeUnsupported` had ZERO app callers — the ~60
+  lines of `cde:` chart-registry mappings (model.js + studio-charts.js) were
+  pure dead weight, so they're DELETED (not renamed), along with
+  cdeUnsupported itself. `Studio.exportCDF` → `Studio.exportDashboardHtml`
+  and `Studio.parseCDFHtml` → `Studio.parseDashboardHtml` renamed across
+  app/tools/tests (in-repo-only callers, no alias needed). Comments across
+  the registry/exporter/renderer modernized ("CDF-only" → extension-chart
+  phrasing). DELIBERATELY KEPT: the persisted export-history `h.kind:"cdf"`
+  string + its LF53 display-label comment (localStorage data compat, E2
+  pins it), the DashKit.cda runtime API names (vendored API shape), and
+  PDC-RENAME-2's data-level ids ("pdc"/PDC-BIDB-EXT jndi — saved user specs
+  reference them; renaming needs a migration story and the jndi mirrors the
+  real reference environment, so it stays deferred as its own item). Tests:
+  ~90 refs updated with the renames; the four retired "is CDF-only (cde:
+  null)" assertions and the Track L cde-contract pair are REPLACED by one
+  honest inverted guard (no CHARTS entry carries `cde`, cdeUnsupported gone
+  — the dead apparatus can't creep back). Verified live headless (54 chart
+  types, export works, zero pageerrors). Lane: skip LF53. Files:
+  app/model.js, app/studio-charts.js, app/exporters.js, app/studio.js,
+  app/studio-render.js, tools/lib.js, sw.js, js/changelog.js v811,
+  tests/run.js, STATUS.md.
 - **#103 AUTO-BACKEND — the assigned backend ships with the account and
   connects at sign-in (v810, sw v444, 2026-07-31, steward — Kevin picked the
   semantics live):** LF42 slice 2 left provisioning.backendId as reference
@@ -9351,7 +9375,10 @@
 >       v731, sw v368, steward — LF59 is now fully done):** a primary "+ New dashboard" button
 >       joins the toolbar (role-gated per LF44) and Export dashboards…/Import dashboards… tuck
 >       behind a new "More" (⋯) menu; Compare dashboards… stays directly on the toolbar — see DONE.
-> LF53. **Purge legacy "CDF"/"CDE" terminology (Kevin, live 2026-07-27) — not supported.** The Pentaho-era
+> LF53. ✓ **FULLY DONE — code-level remainder SHIPPED v811 (2026-07-31, interactive
+>       session — see DONE; dead CDE registry metadata deleted, exportCDF/parseCDFHtml
+>       renamed; persisted "cdf" kind + DashKit.cda API + PDC-RENAME-2 data ids
+>       deliberately kept). Lane: skip LF53.** Original spec: **Purge legacy "CDF"/"CDE" terminology (Kevin, live 2026-07-27) — not supported.** The Pentaho-era
 >       CDF (Community Dashboard Framework) / CDE terms are legacy and should be GONE: user-facing export
 >       labels/strings, help/marketing copy, and internal identifiers where safe (`Studio.exportCDF` → a
 >       neutral `exportDashboard`/`exportHtml`, the "cde export contract" naming, cdf/cde comments). Flag +

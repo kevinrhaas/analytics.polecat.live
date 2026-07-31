@@ -463,7 +463,7 @@
       // N-DIST: a #share=<encoded> link (see the Dashboard inspector's "Share this dashboard"
       // section) takes priority over the normal boot flow — it names an exact dashboard to
       // open, the same way a direct file Open would. Cleared via replaceState so a reload or
-      // the E4 CDF filter-hash convention never collide with it.
+      // the E4 exported-dashboard filter-hash convention never collide with it.
       var sharedSpec = null, sharedIsDiff = false, sharedDiffFailed = false;
       if (location.hash.indexOf("#share=") === 0) {
         var rawShared = Studio.decodeSpecFromShareString(location.hash.slice(7));
@@ -2672,7 +2672,7 @@
     })();
 
     // Z6: per-dashboard header logo — replaces the default "P" mark in the banner (preview +
-    // exported CDF) with an uploaded image. Lives in the spec itself (not localStorage, unlike
+    // exported dashboard html) with an uploaded image. Lives in the spec itself (not localStorage, unlike
     // the app-wide Z12 rail branding) so it travels with Save/Open/Export like any other content.
     var logoRow = el("div"); logoRow.className = "accent-presets"; logoRow.style.flexWrap = "wrap";
     if (sp.headerLogo) {
@@ -2966,7 +2966,7 @@
     // N-DIST: shareable state link — encodes the WHOLE working spec into a #share= link
     // that reopens the exact same dashboard in the Studio builder itself (no file, no
     // server). Distinct from the E4 block above, which only ever carries filter *defaults*
-    // for an exported CDF's own runtime — this one is a builder-to-builder handoff.
+    // for an exported dashboard's own runtime — this one is a builder-to-builder handoff.
     var shSec = section(body, "Share this dashboard", null, null, "exporting", "link");
     var shHint = el("div", "hint");
     shHint.textContent = "Copies a link that reopens this exact dashboard (panels, KPIs, filters, style) in the Studio builder — handy for handing off a work-in-progress with no file attachment.";
@@ -10038,7 +10038,7 @@
     toast("Saved “" + name + "” to the View library");
     buildLibrary();
   }
-  // N-DIST: embeddable single-chart widget — reuses the full CDF exporter on a spec pared
+  // N-DIST: embeddable single-chart widget — reuses the full dashboard-html exporter on a spec pared
   // down to just this one panel, so it stays byte-for-byte the same self-contained toolkit as
   // any other export (no separate embed-only code path to drift out of sync).
   // EXPORT-1: a builder-blob DA exports its REAL computed rows (Studio.exportMock
@@ -10058,7 +10058,7 @@
     celebrateFirstExport();
     bumpExportMilestone();
     withSpecMocks(single, function () {
-      bundleModal("Embed View", [{ name: stem + "-embed.html", body: Studio.exportCDF(single, S.assets, S.settings.deployPath), mime: "text/html" }]);
+      bundleModal("Embed View", [{ name: stem + "-embed.html", body: Studio.exportDashboardHtml(single, S.assets, S.settings.deployPath), mime: "text/html" }]);
     });
   }
   // LF57 follow-up: the Views catalog's own "Export" action — the last of the three items
@@ -10074,7 +10074,7 @@
     celebrateFirstExport();
     bumpExportMilestone();
     withSpecMocks(spec, function () {
-      bundleModal("Embed View", [{ name: stem + "-embed.html", body: Studio.exportCDF(spec, S.assets, S.settings.deployPath), mime: "text/html" }]);
+      bundleModal("Embed View", [{ name: stem + "-embed.html", body: Studio.exportDashboardHtml(spec, S.assets, S.settings.deployPath), mime: "text/html" }]);
     });
   }
   // N-DIST: client-side PNG export of a chart — first cut of "Client-side PNG/PDF export of a whole
@@ -10319,7 +10319,7 @@
         ifr.style.transformOrigin = "";
       }
       // Build a single-panel spec (full-width, no KPIs/filters) via the same
-      // pipeline as Panel zoom and the CDF exporter — charts render identically.
+      // pipeline as Panel zoom and the dashboard-html exporter — charts render identically.
       var html = singlePanelHtml(p);
       postThemeOnLoad(ifr);
       ifr.srcdoc = html;
@@ -11620,11 +11620,11 @@
       return snapshotLiveRows(sp).then(function (snap) {
         if (snap.missed > 0) toast(snap.missed + " live source" + (snap.missed > 1 ? "s" : "") + " couldn't be snapshotted — left live (will prompt for credentials) in the file.", true);
         var mock = Object.assign(Studio.exportMock(sp), snap.rows);
-        return Studio.exportCDF(sp, S.assets, dp, { mock: mock });
+        return Studio.exportDashboardHtml(sp, S.assets, dp, { mock: mock });
       });
     }
-    if (mode === "creds") return Promise.resolve(Studio.exportCDF(sp, S.assets, dp, { embedCreds: true }));
-    return Promise.resolve(Studio.exportCDF(sp, S.assets, dp));
+    if (mode === "creds") return Promise.resolve(Studio.exportDashboardHtml(sp, S.assets, dp, { embedCreds: true }));
+    return Promise.resolve(Studio.exportDashboardHtml(sp, S.assets, dp));
   }
 
   function doExport(kind) {
@@ -11646,7 +11646,7 @@
         });
         return;
       }
-      return bundleModal("Dashboard", [{ name: sp.name + ".html", body: Studio.exportCDF(sp, S.assets, dp), mime: "text/html" }]);
+      return bundleModal("Dashboard", [{ name: sp.name + ".html", body: Studio.exportDashboardHtml(sp, S.assets, dp), mime: "text/html" }]);
     }
     // LF49 slice 1: XLSX — a genuine multi-sheet .xlsx workbook (dependency-free OOXML,
     // Studio.xlsxBook in exporters.js). Tab 1 is a "Dashboard" summary (title, KPIs + their
@@ -11663,13 +11663,13 @@
     if (kind === "pptx") { buildDashboardPptx(sp, function (bytes) { download((sp.name || "dashboard") + ".pptx", bytes, "application/vnd.openxmlformats-officedocument.presentationml.presentation"); }); return; }
     // LF36 slice 1: "PDF (print)" opens the exported dashboard in its own tab and starts the
     // browser's print dialog there — no new print/PDF logic to maintain, it just reuses the
-    // @media print CSS + #printBtn wiring that Studio.exportCDF already bakes into every export
+    // @media print CSS + #printBtn wiring that Studio.exportDashboardHtml already bakes into every export
     // (see exporters.js printCss). A blob URL keeps this a pure client-side flow (no upload/
     // server round trip); the short delay after "load" gives the dashboard's own async render
     // (postMessage/data fetch) a beat to paint before the print snapshot is taken.
     // LF36 slice 2: page size / orientation / fit-to-width are picked in a small options dialog
     // first (openPdfExportModal) instead of always taking the browser's print default — those
-    // choices thread into Studio.buildHtml (not the plain byte-identical Studio.exportCDF helper)
+    // choices thread into Studio.buildHtml (not the plain byte-identical Studio.exportDashboardHtml helper)
     // as opts.pdfPageSize/pdfOrientation/pdfAutoFit, so only the PDF path's HTML changes; the
     // "cdf"/"spec"/"all" exports above are untouched.
     if (kind === "pdf") {
@@ -11704,7 +11704,7 @@
         openExportDataModeModal(sp, function (mode) { buildCdfHtmlForMode(sp, dp, mode).then(allBundle); });
         return;
       }
-      allBundle(Studio.exportCDF(sp, S.assets, dp));
+      allBundle(Studio.exportDashboardHtml(sp, S.assets, dp));
     }
   }
 
@@ -11923,7 +11923,7 @@
         try {
           var txt = rd.result, spec;
           if (/\.html?$/i.test(f.name) || /window\.STUDIO_SPEC/.test(txt)) {
-            spec = Studio.parseCDFHtml(txt);
+            spec = Studio.parseDashboardHtml(txt);
             if (!spec) throw new Error("no embedded dashboard found (was it exported from this Studio?)");
           } else spec = JSON.parse(txt);
           S.spec = normalize(spec); S.selection = null; clearAutosave(); syncHeader(); renderInspector(); refreshPreview(); toast("Opened " + f.name);

@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 811,
+    title: 'Under the hood: the last of the legacy Pentaho-era code is gone',
+    kind: 'polish',
+    ts: '2026-07-31T12:27:34.000Z',
+    items: [
+      'The retired CDE chart-mapping metadata (dead since the legacy exporter was removed) is deleted from the chart registry outright, along with its helper -- about sixty lines of dead weight, plus a regression guard so it can never creep back in.',
+      'Internal identifiers shed the last legacy acronyms (the dashboard html exporter and parser are now named for what they do), and code comments across the chart registry and exporter read in plain modern terms.',
+      'Nothing user-facing changes: saved dashboards, export history, and every export format behave exactly as before.',
+    ],
+  },
+  {
     v: 810,
     title: 'Your assigned workspace backend now connects itself at sign-in',
     kind: 'feature',
