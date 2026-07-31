@@ -17655,12 +17655,13 @@ function serve() {
     const tfRow = await gp41.evaluate(function () {
       return {
         row: window.PolecatAuth.find("tfuser"),
-        exported: (window.PolecatAuth.exportForStore().filter(function (x) { return x.u === "tfuser"; })[0] || {}).forceTour
+        exported: (window.PolecatAuth.exportForStore().filter(function (x) { return x.u === "tfuser"; })[0] || {}).forceTour,
+        mirrored: (Studio.Workspace.all("users").filter(function (r) { return r.u === "tfuser"; })[0] || {}).forceTour
       };
     });
-    ok("TOUR-FORCE: Add user offers a 'Show the welcome tour at their next sign-in' checkbox (unchecked by default); checking it stores forceTour on the account, and exportForStore carries it so the flag syncs to other devices",
-      tfStored.hasChk && tfStored.uncheckedByDefault && tfRow.row && tfRow.row.forceTour === true && tfRow.exported === true,
-      JSON.stringify({ stored: tfStored, row: tfRow.row && tfRow.row.forceTour, exported: tfRow.exported }));
+    ok("TOUR-FORCE: Add user offers a 'Show the welcome tour at their next sign-in' checkbox (unchecked by default); checking it stores forceTour on the account, exportForStore carries it, AND the mirrored workspace users row carries it — the flag genuinely syncs to other devices",
+      tfStored.hasChk && tfStored.uncheckedByDefault && tfRow.row && tfRow.row.forceTour === true && tfRow.exported === true && tfRow.mirrored === true,
+      JSON.stringify({ stored: tfStored, row: tfRow.row && tfRow.row.forceTour, exported: tfRow.exported, mirrored: tfRow.mirrored }));
 
     // Re-opening the editor for that user reflects the live flag.
     const tfReopen = await gp41.evaluate(function () {

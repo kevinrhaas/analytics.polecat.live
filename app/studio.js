@@ -8830,6 +8830,9 @@
     var before = existing ? JSON.stringify(existing) : "";
     row.u = u.u; row.name = u.name; row.role = u.role; row.demo = u.demo; row.hash = u.hash;
     row.provisioning = u.provisioning || null; row.provisioned = !!u.provisioned;
+    // TOUR-FORCE: the one-shot flag must ride the mirrored row — importFromStore
+    // reads it back on other devices, which is the whole point of the feature.
+    row.forceTour = !!u.forceTour;
     // M7: carry the GoTrue id onto the backend `users` row. Dropping it here (as
     // this once did) meant the mirrored row never had the gotrueId the
     // polecat-admin relay's requireAdmin() / RLS polecat_is_admin() match on, so
