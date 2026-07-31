@@ -1511,6 +1511,11 @@
   jobs together; one Move-to-folder choice refiles them all, and the delete confirmation names how many of
   each kind you're about to remove. The <strong>Views</strong> page has the same Select button and bulk
   bar — select any number of saved Views, then move them to a folder or delete them together.</p>
+  <p><strong>Sorting.</strong> Every catalog page — Dashboards, Views, Datasets, Connections, Jobs
+  and the Repository — has a sort control beside the layout toggle: Newest first (the default),
+  Oldest first, Name A–Z / Z–A, plus per-section extras (Dashboards by workbook or folder, Datasets
+  by adapter or connection, Views by chart type, Jobs by last run). Your choice sticks per section
+  on this device, and pinned items always stay at the top whatever the sort.</p>
   <p><strong>Changed your mind? Undo.</strong> Every bulk Delete shows its toast with an
   <strong>Undo</strong> button for a few seconds — one click restores everything just removed, under the
   same ids, exactly as it was. The restore is workspace-backend safe: an undone delete propagates as a
@@ -1765,6 +1770,9 @@
   <h3>Per-user provisioning defaults (first sign-in)</h3>
   <p>The Admin page's <strong>Add user</strong> (and <strong>Edit user</strong>) form has a <strong>Default theme</strong> picker and an <strong>"Install the Conservation Insight sample pack on first sign-in"</strong> checkbox. Set either and that new account logs in ready: the app color theme switches to the one you picked and, if checked, the Conservation Insight sample pack installs itself — no manual setup, no digging through Settings. This only ever runs <strong>once</strong>, the very first time the account signs in anywhere; after that it's stamped as provisioned and later logins never fight whatever the user has since changed for themselves. Leaving the theme at "Don't set" or the pack box unchecked simply skips that part.</p>
   <p>The same form also has a <strong>"Copy my current Dashboard defaults"</strong> button — click it and Studio snapshots every field from your own <strong>Settings → Dashboard defaults</strong> card (default subtitle, accent color, header logo, header background, title size, subtitle style, dashboard theme, and card style) and stashes it on the new account. At their first sign-in, that whole "house style" applies automatically alongside the theme/pack above, same once-only rule. <strong>Clear</strong> removes a previously captured snapshot before saving.</p>
+
+  <h3>Force the welcome tour at next sign-in</h3>
+  <p>The same Add/Edit user form has a <strong>"Show the welcome tour at their next sign-in"</strong> checkbox. Normally the welcome tour appears only the very first time a <em>browser</em> visits the app — so if someone's device has already seen it (or you're re-testing an account), a fresh sign-in shows no tour at all. Check this box and the account's very next sign-in opens the welcome tour anyway, on any device. It's <strong>one-shot</strong>: the flag resets itself the moment the tour is shown, so later sign-ins go straight in as usual. Re-check it any time you want to force it again. (Anyone can also replay the tour themselves whenever they like from the Home page's "Take the tour" card.)</p>
 
   <h3>Managing multiple backends (admin)</h3>
   <p>The Admin page's <strong>Backends</strong> card pre-registers backends — Turso, Supabase, or

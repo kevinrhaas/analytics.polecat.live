@@ -116,7 +116,7 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
-- **PACK-SHOTS — a dated reference gallery of the whole app (v811, 2026-07-31,
+- **PACK-SHOTS — a dated reference gallery of the whole app (v814, 2026-07-31,
   session — Kevin's ask):** two headless-capture tools, both staged with the
   sample packs installed so nothing reads empty.
   - `tools/shoot-pack-dashboards.mjs` full-page-captures all 23 pack dashboards
@@ -134,6 +134,70 @@
     time and commit; every PNG carries the session timestamp in its tEXt
     metadata. No app code touched; nothing precached changed, so no sw CACHE
     bump.
+- **TOUR-FORCE — per-user one-shot "show the welcome tour at next sign-in"
+  flag (v813, sw v447, 2026-07-31, steward — Kevin live: signed in as a
+  brand-new test account on a device that had already seen the welcome and
+  got no tour; wanted an admin option to force it):** `forceTour` is a new
+  boolean on the auth user row, carried through all four auth.js field
+  enumerations (upsert opts / pub / exportForStore / importFromStore) so it
+  syncs with the account via the users-table mirror. Admin Add/Edit user
+  gains a "Show the welcome tour at their next sign-in" checkbox
+  (#usrEditForceTour, round-trips the live flag). initAuthBoot consumes it:
+  if the signed-in user's row has forceTour, reset the flag first
+  (Auth.upsert {forceTour:false} + mirrorUserRow — one-shot even if the
+  welcome errors), clear this device's `studio-welcome-seen`, and
+  StudioWelcome.open() (which re-stamps SEEN — correct end state). The
+  Home "Take the tour" card remains the user-side replay path. Docs: new
+  "Force the welcome tour at next sign-in" subsection under per-user
+  provisioning. 4 new checks in the gp41 admin context (editor checkbox +
+  store carry, edit round-trip, consume-despite-seen + one-shot reset, no
+  re-show on second sign-in). Lane: skip TOUR-FORCE — done here.
+- **SORT-1 ★ — standard sorting on every catalog panel (v812, sw v446,
+  2026-07-31, steward — Kevin live: "sort by name, last used date, workbook,
+  things like that"):** NEW shared `Studio.catalogSort` kit (studio.js:
+  load/save per-device persistence at `studio-sort-<section>`, a comparator
+  factory with name/updated accessor overrides + per-section `extras`, and
+  wire() — an idempotent header-<select> binder, same convention as the
+  list/tile toggles). Six selects added to app/index.html (.cx-sort styling
+  in studio.css): Dashboards (Last updated default = the exact old ts-desc
+  order; Name A–Z/Z–A; By workbook; By folder), Datasets (Newest/Oldest/
+  Name; By adapter; By connection), Connections (+By adapter), Views (+By
+  chart type), Jobs (+Last run), Repository (Newest/Oldest/Name — applied to
+  `filtered` BEFORE tree insertion, so it sorts within every folder group).
+  Every section keeps its pinned-first rule by composing the comparator
+  AFTER the pinned check; defaults reproduce the previous order exactly (no
+  behavior change until a sort is picked). Docs: Sorting paragraph in the
+  browsing section. 2 new checks (select shape + Name A–Z sortedness of the
+  unpinned rest + persistence across re-render; pinned-first under any sort
+  + all six selects present). Verified live headless first (zero
+  pageerrors). Lane: skip SORT-1. Files: app/studio.js, app/datasets.js,
+  app/connections.js, app/jobs.js, app/views.js, app/index.html,
+  app/studio.css, docs/index.html, sw.js, js/changelog.js v812,
+  tests/run.js, STATUS.md.
+- **LF53-CODE — the dead CDE apparatus is deleted; internal CDF identifiers
+  renamed (v811, sw v445, 2026-07-31, steward — closes LF53's deliberately-
+  deferred remainder):** consumer analysis first: the CDE exporter was
+  removed at Z0 and `Studio.cdeUnsupported` had ZERO app callers — the ~60
+  lines of `cde:` chart-registry mappings (model.js + studio-charts.js) were
+  pure dead weight, so they're DELETED (not renamed), along with
+  cdeUnsupported itself. `Studio.exportCDF` → `Studio.exportDashboardHtml`
+  and `Studio.parseCDFHtml` → `Studio.parseDashboardHtml` renamed across
+  app/tools/tests (in-repo-only callers, no alias needed). Comments across
+  the registry/exporter/renderer modernized ("CDF-only" → extension-chart
+  phrasing). DELIBERATELY KEPT: the persisted export-history `h.kind:"cdf"`
+  string + its LF53 display-label comment (localStorage data compat, E2
+  pins it), the DashKit.cda runtime API names (vendored API shape), and
+  PDC-RENAME-2's data-level ids ("pdc"/PDC-BIDB-EXT jndi — saved user specs
+  reference them; renaming needs a migration story and the jndi mirrors the
+  real reference environment, so it stays deferred as its own item). Tests:
+  ~90 refs updated with the renames; the four retired "is CDF-only (cde:
+  null)" assertions and the Track L cde-contract pair are REPLACED by one
+  honest inverted guard (no CHARTS entry carries `cde`, cdeUnsupported gone
+  — the dead apparatus can't creep back). Verified live headless (54 chart
+  types, export works, zero pageerrors). Lane: skip LF53. Files:
+  app/model.js, app/studio-charts.js, app/exporters.js, app/studio.js,
+  app/studio-render.js, tools/lib.js, sw.js, js/changelog.js v811,
+  tests/run.js, STATUS.md.
 - **#103 AUTO-BACKEND — the assigned backend ships with the account and
   connects at sign-in (v810, sw v444, 2026-07-31, steward — Kevin picked the
   semantics live):** LF42 slice 2 left provisioning.backendId as reference
@@ -8027,6 +8091,20 @@
 
 ## NEXT (top = do first)
 
+> SORT-1. ✓ **SHIPPED v812 (2026-07-31, interactive session — see DONE). Lane: skip.**
+>       Original: **Standard sorting on every catalog panel (Kevin live, 2026-07-31).** "On all of the panels
+>       like dashboards, datasets, connections, etc you should be able to sort by
+>       name, last used date, workbook, things like that. Standard sorting things
+>       so you can find things easier." Add a compact sort control (dropdown or
+>       toggle-chips beside the list/tile toggle) to Dashboards, Views, Datasets,
+>       Connections, Jobs and Repository: Name A–Z/Z–A, Last updated (newest/
+>       oldest — the current default order stays the default), plus per-section
+>       extras where they exist (Dashboards: workbook, folder; Datasets:
+>       adapter/connection; Jobs: last run). Persist the choice per section per
+>       device (localStorage, same convention as the list/tile toggles). Pinned
+>       items should stay pinned-first within any sort. One shared sort helper +
+>       per-section wiring, same adopt-per-section pattern LIVE-d proved.
+
 ### ⚠ SESSION HANDOFF — live steward session active (written 2026-07-31 ~04:20Z)
 > Kevin is enabling the continuous manager lane while an interactive steward
 > session is still working. Coordination rules for ANY automated run:
@@ -9369,7 +9447,10 @@
 >       v731, sw v368, steward — LF59 is now fully done):** a primary "+ New dashboard" button
 >       joins the toolbar (role-gated per LF44) and Export dashboards…/Import dashboards… tuck
 >       behind a new "More" (⋯) menu; Compare dashboards… stays directly on the toolbar — see DONE.
-> LF53. **Purge legacy "CDF"/"CDE" terminology (Kevin, live 2026-07-27) — not supported.** The Pentaho-era
+> LF53. ✓ **FULLY DONE — code-level remainder SHIPPED v811 (2026-07-31, interactive
+>       session — see DONE; dead CDE registry metadata deleted, exportCDF/parseCDFHtml
+>       renamed; persisted "cdf" kind + DashKit.cda API + PDC-RENAME-2 data ids
+>       deliberately kept). Lane: skip LF53.** Original spec: **Purge legacy "CDF"/"CDE" terminology (Kevin, live 2026-07-27) — not supported.** The Pentaho-era
 >       CDF (Community Dashboard Framework) / CDE terms are legacy and should be GONE: user-facing export
 >       labels/strings, help/marketing copy, and internal identifiers where safe (`Studio.exportCDF` → a
 >       neutral `exportDashboard`/`exportHtml`, the "cde export contract" naming, cdf/cde comments). Flag +

@@ -5,7 +5,15 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v444"; /* v444: #103 AUTO-BACKEND — assigned
+var CACHE_NAME = "studio-shell-v447"; /* v447: TOUR-FORCE — per-user one-shot
+   force-the-welcome-tour flag (auth.js + studio.js + docs). v446: SORT-1 — sort control on every
+   catalog panel (studio.js, datasets.js, connections.js, jobs.js, views.js,
+   index.html, studio.css + docs changed). */
+/* v445: LF53-CODE — dead CDE registry
+   metadata + cdeUnsupported deleted; exportCDF/parseCDFHtml renamed to
+   exportDashboardHtml/parseDashboardHtml (model.js, studio-charts.js,
+   exporters.js, studio.js, studio-render.js changed). */
+/* v444: #103 AUTO-BACKEND — assigned
    backend ships with the account (provisioning.backend snapshot) + connects at
    sign-in; connectAdopt skipIfEmpty guard (studio.js, sources/sync.js + docs). */
 /* v443: DURABLE-2 follow-up — Undo button

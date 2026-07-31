@@ -191,11 +191,25 @@
         renderConnections();
       };
     }
+    // SORT-1: header sort <select> — same idempotent-binding convention as the toggles.
+    var _connSortKey = Studio.catalogSort.wire($("#connSortSel"), "connections", "updated-desc", [
+      ["updated-desc", "Newest first"], ["updated-asc", "Oldest first"],
+      ["name-asc", "Name A–Z"], ["name-desc", "Name Z–A"],
+      ["adapter", "By adapter"]
+    ], renderConnections);
+    var _connNameCmp = Studio.catalogSort.cmp("name-asc");
+    var connSortCmp = Studio.catalogSort.cmp(_connSortKey, { extras: {
+      adapter: function (a, b) {
+        var la = (Studio.sourceById(a.adapter) || {}).label || a.adapter || "";
+        var lb = (Studio.sourceById(b.adapter) || {}).label || b.adapter || "";
+        return la.localeCompare(lb) || _connNameCmp(a, b);
+      }
+    } });
     var q = (($("#connSearch") || {}).value || "").toLowerCase();
     var list = Studio.Workspace.all("connections").filter(isVisibleToMe).sort(function (a, b) {
       if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
       if (a.pinned) return (b.pinnedAt || "").localeCompare(a.pinnedAt || "");
-      return (b.updatedAt || 0) - (a.updatedAt || 0);
+      return connSortCmp(a, b);
     });
     // drop any selected id that no longer exists/is visible (deleted elsewhere) so a
     // stale entry can't inflate the bulk-bar count or survive a bulk delete — same

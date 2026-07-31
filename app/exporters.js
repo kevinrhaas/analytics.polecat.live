@@ -10,7 +10,7 @@
     return Studio.escapeHtml(s);
   }
 
-  /* ---------- CDF (.html) + preview ----------
+  /* ---------- dashboard html export + preview ----------
      assets = { css, js, render, icons }  (text of vendor/dashkit.css, vendor/dashkit.js,
      app/studio-render.js, app/icons.js — icons is bundled unconditionally, same as charts,
      since studio-charts.js's paginated tables call Studio.icon() for their Prev/Next buttons)
@@ -125,7 +125,7 @@
       ".dk-logo{width:24px;height:24px;font-size:13px}" +
       ".dk-iconbtn,.dk-toggle button{font-size:11.5px;padding:5px 9px}" +
       "}";
-    // Section header dividers — included in every CDF export and preview iframe.
+    // Section header dividers — included in every html export and preview iframe.
     // .dk-sec-hdr appears between panel grids when panels carry a `section` label.
     var sectionCss =
       ".dk-sec-hdr{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;" +
@@ -171,7 +171,7 @@
       "padding:6px 10px!important;font-size:12px;white-space:nowrap;text-align:left}" +
       ".dk-dl-item:hover{background:var(--panel-header-bg,rgba(127,127,127,.14))}" +
       "@media(pointer:coarse){.dk-dl-acts{opacity:.85!important}.dk-dl-act:not(.dk-dl-item),.dk-dl-trigger{width:32px;height:32px}}";
-    // Richtext panel styles — included in every exported CDF and in the preview iframe.
+    // Richtext panel styles — included in every exported html and in the preview iframe.
     // Target line — horizontal dashed reference overlay (target, budget, threshold, etc.)
     // Positioned absolutely within the chart body (card.body gets position:relative via JS).
     var targetLineCss =
@@ -288,7 +288,7 @@
       "\n.card:hover,.kpi:hover{box-shadow:none}" : "";
     // Series palette preset: override --c1..--c10 for both light and dark mode.
     // paletteKey "default" or blank → keep dashkit.css colors; any other key bakes in
-    // the preset's color arrays so the exported CDF always renders with the chosen palette.
+    // the preset's color arrays so the exported html always renders with the chosen palette.
     var paletteCss = "";
     if (spec.paletteKey && spec.paletteKey !== "default") {
       var _pp = (Studio.PALETTE_PRESETS || []).filter(function (p) { return p.key === spec.paletteKey; })[0];
@@ -311,7 +311,7 @@
       "\n.dk-geo-compact .maplibregl-ctrl-bottom-right{transform:scale(.72);transform-origin:bottom right}" +
       "\n.dk-geo-compact .maplibregl-ctrl-bottom-left{transform:scale(.72);transform-origin:bottom left}";
     // Print / PDF layout: static header, hide interactive controls, avoid card page breaks.
-    // Applied only in exported CDF (not the in-builder preview where printing makes no sense).
+    // Applied only in exported html (not the in-builder preview where printing makes no sense).
     // LF36 slice 1: @page sets sane print margins (browsers default to ~0 or huge depending on
     // engine) and orphans/widows keeps text-heavy panels (the dashboard description bar + any
     // richtext panel's paragraphs/list items — .sr-richtext is the same class the builder preview
@@ -485,7 +485,7 @@
       // viewer.js passes a mock covering ONLY those sample DAs, so real data accesses are never
       // shadowed (DashKit.cda prefers DASHKIT_MOCK[id] when present) — this branch just makes that mock
       // available on a non-preview build. Empty/absent mock (every other preview:false caller —
-      // exportCDF, the PDF path) leaves DASHKIT_MOCK undefined exactly as before.
+      // exportDashboardHtml, the PDF path) leaves DASHKIT_MOCK undefined exactly as before.
       boot += jsonScript("window.DASHKIT_MOCK", opts.mock) + "\n";
     }
     // V9 (scientific-honesty polish): "Last updated" per data access, resolved HERE
@@ -919,7 +919,7 @@
   };
   // EXPORT-2: opts = { mock, embedCreds } — both optional; the historical 3-arg call is the
   // "live, prompt for credentials" mode and stays byte-identical.
-  Studio.exportCDF = function (spec, assets, deployPath, opts) {
+  Studio.exportDashboardHtml = function (spec, assets, deployPath, opts) {
     opts = opts || {};
     return Studio.buildHtml(spec, assets, {
       deployPath: deployPath, preview: false,

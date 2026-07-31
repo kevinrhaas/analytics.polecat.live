@@ -6,15 +6,46 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
-    v: 811,
+    v: 814,
     title: 'A dated reference gallery of the whole app -- every sample-pack dashboard, plus a tour of the app itself',
     kind: 'polish',
-    ts: '2026-07-31T12:52:08.000Z',
+    ts: '2026-07-31T13:37:02.000Z',
     items: [
       'New tools/shoot-pack-dashboards.mjs drives the real app headless, installs both sample packs (Conservation Insight and Data Management & Governance), and captures every one of their dashboards as a full-page PNG -- rendered through the same recipe as Home\'s live tiles, so builder-backed panels show their real computed rows.',
       'New tools/shoot-app-tour.mjs captures the app itself with both packs installed so nothing reads empty: every rail section (Home, Views, Dashboards, Datasets, Connections, Jobs, Repository, the View + Dashboard Builders, Settings) plus the good menus and dialogs staged with sample input -- command palette, export, Save as, JSON editor, version history + diff, compare, quick import, the connection wizard, bulk move-to-folder, the guided tours, welcome, dark theme, and a handful of phone-width shots.',
       'Captures land in docs/shots/<sample-packs|app-tour>/<date>/, each with a README and a session.json manifest recording exactly when the image session ran and at which commit; every PNG also carries the session timestamp in its own tEXt metadata, so a file stays traceable even after being copied elsewhere.',
       'First committed session: 2026-07-31 -- 23 pack dashboards + 40 app-tour surfaces (34 desktop, 6 mobile), zero failures.',
+    ],
+  },
+  {
+    v: 813,
+    title: 'Admins can force the welcome tour at an account\'s next sign-in',
+    kind: 'feature',
+    ts: '2026-07-31T13:09:03.000Z',
+    items: [
+      'The Admin Add/Edit user form gains a "Show the welcome tour at their next sign-in" checkbox. Normally the tour only appears the first time a browser visits the app -- so a returning device shows no tour even for a brand-new account. Check the box and that account\'s very next sign-in opens the welcome tour anyway, on any device.',
+      'The flag is one-shot: it resets itself the moment the tour is shown, so later sign-ins go straight in. It syncs with the account, so it works across devices -- and anyone can still replay the tour any time from the Home page\'s "Take the tour" card.',
+    ],
+  },
+  {
+    v: 812,
+    title: 'Sort every catalog page — by name, date, workbook, adapter, and more',
+    kind: 'feature',
+    ts: '2026-07-31T12:51:53.000Z',
+    items: [
+      'Dashboards, Views, Datasets, Connections, Jobs and the Repository each gain a compact sort control beside the layout toggle: Newest first (the default, exactly the old order), Oldest first, and Name A-Z / Z-A everywhere -- plus the sorts each page deserves: Dashboards by workbook or folder, Datasets by adapter or connection, Views by chart type, Jobs by last run.',
+      'Your choice is remembered per page on this device, and pinned items always stay at the top whatever the sort. In the Repository, sorting applies inside each folder group.',
+    ],
+  },
+  {
+    v: 811,
+    title: 'Under the hood: the last of the legacy Pentaho-era code is gone',
+    kind: 'polish',
+    ts: '2026-07-31T12:27:34.000Z',
+    items: [
+      'The retired CDE chart-mapping metadata (dead since the legacy exporter was removed) is deleted from the chart registry outright, along with its helper -- about sixty lines of dead weight, plus a regression guard so it can never creep back in.',
+      'Internal identifiers shed the last legacy acronyms (the dashboard html exporter and parser are now named for what they do), and code comments across the chart registry and exporter read in plain modern terms.',
+      'Nothing user-facing changes: saved dashboards, export history, and every export format behave exactly as before.',
     ],
   },
   {

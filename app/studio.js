@@ -463,7 +463,7 @@
       // N-DIST: a #share=<encoded> link (see the Dashboard inspector's "Share this dashboard"
       // section) takes priority over the normal boot flow — it names an exact dashboard to
       // open, the same way a direct file Open would. Cleared via replaceState so a reload or
-      // the E4 CDF filter-hash convention never collide with it.
+      // the E4 exported-dashboard filter-hash convention never collide with it.
       var sharedSpec = null, sharedIsDiff = false, sharedDiffFailed = false;
       if (location.hash.indexOf("#share=") === 0) {
         var rawShared = Studio.decodeSpecFromShareString(location.hash.slice(7));
@@ -2672,7 +2672,7 @@
     })();
 
     // Z6: per-dashboard header logo — replaces the default "P" mark in the banner (preview +
-    // exported CDF) with an uploaded image. Lives in the spec itself (not localStorage, unlike
+    // exported dashboard html) with an uploaded image. Lives in the spec itself (not localStorage, unlike
     // the app-wide Z12 rail branding) so it travels with Save/Open/Export like any other content.
     var logoRow = el("div"); logoRow.className = "accent-presets"; logoRow.style.flexWrap = "wrap";
     if (sp.headerLogo) {
@@ -2966,7 +2966,7 @@
     // N-DIST: shareable state link — encodes the WHOLE working spec into a #share= link
     // that reopens the exact same dashboard in the Studio builder itself (no file, no
     // server). Distinct from the E4 block above, which only ever carries filter *defaults*
-    // for an exported CDF's own runtime — this one is a builder-to-builder handoff.
+    // for an exported dashboard's own runtime — this one is a builder-to-builder handoff.
     var shSec = section(body, "Share this dashboard", null, null, "exporting", "link");
     var shHint = el("div", "hint");
     shHint.textContent = "Copies a link that reopens this exact dashboard (panels, KPIs, filters, style) in the Studio builder — handy for handing off a work-in-progress with no file attachment.";
@@ -6632,6 +6632,32 @@
     var results = $("#repoResults"); if (!results) return;
     var q = (($("#repoSearch") || {}).value || "").toLowerCase();
     var list = loadRecents().filter(isVisibleToMe), pins = loadPins(), workbooks = loadWorkbooks();
+    // SORT-1: header sort <select>. loadRecents() already returns ts-desc (last touched),
+    // which stays the default; the workbook/folder keys group alphabetically with title
+    // as tie-break.
+    var _dashSortKey = Studio.catalogSort.wire($("#dashSortSel"), "dashboards", "updated-desc", [
+      ["updated-desc", "Last updated"], ["updated-asc", "Oldest first"],
+      ["name-asc", "Name A–Z"], ["name-desc", "Name Z–A"],
+      ["workbook", "By workbook"], ["folder", "By folder"]
+    ], renderDashboards);
+    var dashTitleOf = function (r) { return (r.spec && (r.spec.title || r.spec.name)) || ""; };
+    var _dashNameCmp = Studio.catalogSort.cmp("name-asc", { name: dashTitleOf });
+    var _dashWbNames = {}; workbooks.forEach(function (w) { _dashWbNames[w.id] = w.name || ""; });
+    var dashSortCmp = Studio.catalogSort.cmp(_dashSortKey, {
+      name: dashTitleOf,
+      updated: function (r) { return r.ts || ""; },
+      extras: {
+        workbook: function (a, b) {
+          var wa = _dashWbNames[a.workbookId] || "￿", wb2 = _dashWbNames[b.workbookId] || "￿";
+          return wa.localeCompare(wb2) || _dashNameCmp(a, b);
+        },
+        folder: function (a, b) {
+          var fa = a.folder || "￿", fb = b.folder || "￿";
+          return fa.localeCompare(fb) || _dashNameCmp(a, b);
+        }
+      }
+    });
+    list.sort(dashSortCmp);
     // drop any selected id that no longer exists/is visible (deleted elsewhere, e.g. a pack
     // uninstall) so a stale entry never inflates the bulk-bar count or survives a bulk delete
     var listIds = {}; list.forEach(function (r) { listIds[r.id] = true; });
@@ -7279,11 +7305,22 @@
     var counts = { all: all.length };
     all.forEach(function (r) { counts[r.type] = (counts[r.type] || 0) + 1; });
     if (_repoAllType && !counts[_repoAllType]) _repoAllType = "";
+    // SORT-1: the Repository sorts WITHIN each folder group (tree insertion order follows
+    // this list's order — see the repoFolderSegs comment below), so one comparator here
+    // covers the whole grouped view.
+    var _repoSortKey = Studio.catalogSort.wire($("#repoSortSel"), "repository", "updated-desc", [
+      ["updated-desc", "Newest first"], ["updated-asc", "Oldest first"],
+      ["name-asc", "Name A–Z"], ["name-desc", "Name Z–A"]
+    ], renderRepository);
+    var repoSortCmp = Studio.catalogSort.cmp(_repoSortKey, {
+      name: function (r) { return r.title || ""; },
+      updated: function (r) { return r.ts || 0; }
+    });
     var filtered = all.filter(function (r) {
       if (_repoAllType && r.type !== _repoAllType) return false;
       if (!q) return true;
       return (r.title + " " + r.meta + " " + r.folder).toLowerCase().indexOf(q) >= 0;
-    }).sort(function (a, b) { return b.ts - a.ts; });
+    }).sort(repoSortCmp);
     // QA-04 slice 2: two rows of the SAME type sharing a title (the report's concrete
     // case was two "State Map" analyses) are indistinguishable at a glance — collide
     // on type+title (a same-named dataset and analysis aren't the reported ambiguity,
@@ -7605,6 +7642,47 @@
     });
   }
   Studio.bulkMoveToFolder = bulkMoveToFolder;
+  // SORT-1 (Kevin live, 2026-07-31 — "standard sorting things so you can find things
+  // easier"): one shared sort kit for every catalog panel. Each section wires its own
+  // header <select> (same idempotent-binding convention as the list/tile toggles),
+  // persists the choice per section per device, and composes the comparator AFTER its
+  // own pinned-first rule so pinned items stay on top within any sort.
+  Studio.catalogSort = {
+    load: function (sec, def) { try { return localStorage.getItem("studio-sort-" + sec) || def; } catch (e) { return def; } },
+    save: function (sec, v) { try { localStorage.setItem("studio-sort-" + sec, v); } catch (e) {} },
+    // cmp(key, opts): opts.name(r)/opts.updated(r) override the default accessors;
+    // opts.extras maps a section-specific key straight to its own comparator.
+    // `updated` values may be numbers (updatedAt ms) or ISO strings (dashboards' ts) —
+    // both compare correctly within a section since it never mixes the two.
+    cmp: function (key, opts) {
+      opts = opts || {};
+      function nameOf(r) { return String((opts.name ? opts.name(r) : r.name) || "").toLowerCase(); }
+      function updOf(r) { var v = opts.updated ? opts.updated(r) : r.updatedAt; return v == null ? 0 : v; }
+      function cmpUpd(a, b) {
+        var ua = updOf(a), ub = updOf(b);
+        if (typeof ua === "string" || typeof ub === "string") return String(ua).localeCompare(String(ub));
+        return ua - ub;
+      }
+      var extras = opts.extras || {};
+      if (extras[key]) return extras[key];
+      if (key === "name-asc") return function (a, b) { return nameOf(a).localeCompare(nameOf(b)); };
+      if (key === "name-desc") return function (a, b) { return nameOf(b).localeCompare(nameOf(a)); };
+      if (key === "updated-asc") return function (a, b) { return cmpUpd(a, b); };
+      return function (a, b) { return cmpUpd(b, a); }; // "updated-desc", the every-section default
+    },
+    // wire(selEl, sec, def, [[value,label],…], rerender) → the current key. Options are
+    // filled once; value restore + persist-on-change are idempotent across re-renders.
+    wire: function (selEl, sec, def, options, rerender) {
+      if (!selEl) return def;
+      if (!selEl.options.length) selEl.innerHTML = options.map(function (o) {
+        return '<option value="' + o[0] + '">' + o[1] + "</option>";
+      }).join("");
+      var cur = Studio.catalogSort.load(sec, def);
+      if (selEl.value !== cur) selEl.value = cur;
+      selEl.onchange = function () { Studio.catalogSort.save(sec, selEl.value); rerender(); };
+      return cur;
+    }
+  };
   // Dashboards carry no top-level `.name` (their title lives at `spec.title`, edited in
   // Studio's own dashboard settings) — quick edit is folder-only for this one kind, so it
   // doesn't duplicate title-editing UI outside Studio.
@@ -8752,6 +8830,9 @@
     var before = existing ? JSON.stringify(existing) : "";
     row.u = u.u; row.name = u.name; row.role = u.role; row.demo = u.demo; row.hash = u.hash;
     row.provisioning = u.provisioning || null; row.provisioned = !!u.provisioned;
+    // TOUR-FORCE: the one-shot flag must ride the mirrored row — importFromStore
+    // reads it back on other devices, which is the whole point of the feature.
+    row.forceTour = !!u.forceTour;
     // M7: carry the GoTrue id onto the backend `users` row. Dropping it here (as
     // this once did) meant the mirrored row never had the gotrueId the
     // polecat-admin relay's requireAdmin() / RLS polecat_is_admin() match on, so
@@ -8857,6 +8938,20 @@
     // carrying local data gets a confirm (adopting replaces the local workspace),
     // and a decline is remembered per backend id so sign-in never nags.
     try { applyAssignedBackend(mine); } catch (e) {}
+    // TOUR-FORCE (Kevin live, 2026-07-31): the admin-set ONE-SHOT "show the welcome
+    // tour at their next sign-in" flag. Consumed IMMEDIATELY (reset before the welcome
+    // even paints) so taking the tour and dismissing it count the same — the next
+    // sign-in is back to normal either way. The device's welcome-seen flag is cleared
+    // too: it's device-local, which is exactly why a NEW account on an already-seen
+    // browser never got the welcome (Kevin's test3 login). Voluntary replays stay on
+    // Home ("Take the tour") and Settings → Tour, unchanged.
+    try {
+      if (mine && mine.forceTour) {
+        Auth.upsert(me.u, { forceTour: false }).then(function (saved) { mirrorUserRow(saved); });
+        try { localStorage.removeItem("studio-welcome-seen"); } catch (e2) {}
+        if (window.StudioWelcome && window.StudioWelcome.open) window.StudioWelcome.open();
+      }
+    } catch (e) {}
     // SETTINGS-ROAM: apply the account's roamed prefs (theme etc.) AFTER the
     // once-only provisioning defaults above — on a first sign-in there are no
     // prefs yet so provisioning seeds the look; every later sign-in the user's
@@ -9480,6 +9575,16 @@
       packLab.appendChild(packChk);
       packLab.appendChild(document.createTextNode(" Install the Conservation Insight sample pack on first sign-in"));
       form.appendChild(packLab);
+      // TOUR-FORCE (Kevin live, 2026-07-31): a ONE-SHOT "show the welcome tour at their
+      // next sign-in" flag — unlike the once-only provisioning above it's re-settable any
+      // time (e.g. after invalidating the tour for a test login) and auto-resets once the
+      // welcome is shown, whether they take it or dismiss it.
+      var tourLab = el("label", "check"); tourLab.style.cssText = "gap:6px;font-size:12px;margin-top:2px";
+      var tourChk = el("input"); tourChk.type = "checkbox"; tourChk.id = "usrEditForceTour";
+      tourChk.checked = !!(existing && existing.forceTour);
+      tourLab.appendChild(tourChk);
+      tourLab.appendChild(document.createTextNode(" Show the welcome tour at their next sign-in (one-shot — resets itself after showing)"));
+      form.appendChild(tourLab);
       // LF41 slice 2: "copy my/current settings to this user" — Kevin's (a) convenience
       // option. Snapshots the ADMIN'S OWN current Settings → Dashboard defaults (subtitle,
       // accent, logo, header bg, title size, subtitle style, dashboard theme, card skin,
@@ -9541,6 +9646,7 @@
         if (!existing && !pInp.value) { pInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Set a password."; return; }
         if (supabaseSignup && !eInp.value.trim()) { eInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Give the account an email address for Supabase Auth."; return; }
         var opts = { name: nInp.value.trim() || u, role: rSel.value };
+        opts.forceTour = tourChk.checked; // TOUR-FORCE: one-shot welcome-at-next-sign-in
         if (pInp.value) opts.pass = pInp.value;
         var provTheme = tSel.value, provPack = packChk.checked ? "conservation" : "";
         // bSel is only rendered when at least one backend is registered (see
@@ -10038,7 +10144,7 @@
     toast("Saved “" + name + "” to the View library");
     buildLibrary();
   }
-  // N-DIST: embeddable single-chart widget — reuses the full CDF exporter on a spec pared
+  // N-DIST: embeddable single-chart widget — reuses the full dashboard-html exporter on a spec pared
   // down to just this one panel, so it stays byte-for-byte the same self-contained toolkit as
   // any other export (no separate embed-only code path to drift out of sync).
   // EXPORT-1: a builder-blob DA exports its REAL computed rows (Studio.exportMock
@@ -10058,7 +10164,7 @@
     celebrateFirstExport();
     bumpExportMilestone();
     withSpecMocks(single, function () {
-      bundleModal("Embed View", [{ name: stem + "-embed.html", body: Studio.exportCDF(single, S.assets, S.settings.deployPath), mime: "text/html" }]);
+      bundleModal("Embed View", [{ name: stem + "-embed.html", body: Studio.exportDashboardHtml(single, S.assets, S.settings.deployPath), mime: "text/html" }]);
     });
   }
   // LF57 follow-up: the Views catalog's own "Export" action — the last of the three items
@@ -10074,7 +10180,7 @@
     celebrateFirstExport();
     bumpExportMilestone();
     withSpecMocks(spec, function () {
-      bundleModal("Embed View", [{ name: stem + "-embed.html", body: Studio.exportCDF(spec, S.assets, S.settings.deployPath), mime: "text/html" }]);
+      bundleModal("Embed View", [{ name: stem + "-embed.html", body: Studio.exportDashboardHtml(spec, S.assets, S.settings.deployPath), mime: "text/html" }]);
     });
   }
   // N-DIST: client-side PNG export of a chart — first cut of "Client-side PNG/PDF export of a whole
@@ -10319,7 +10425,7 @@
         ifr.style.transformOrigin = "";
       }
       // Build a single-panel spec (full-width, no KPIs/filters) via the same
-      // pipeline as Panel zoom and the CDF exporter — charts render identically.
+      // pipeline as Panel zoom and the dashboard-html exporter — charts render identically.
       var html = singlePanelHtml(p);
       postThemeOnLoad(ifr);
       ifr.srcdoc = html;
@@ -11620,11 +11726,11 @@
       return snapshotLiveRows(sp).then(function (snap) {
         if (snap.missed > 0) toast(snap.missed + " live source" + (snap.missed > 1 ? "s" : "") + " couldn't be snapshotted — left live (will prompt for credentials) in the file.", true);
         var mock = Object.assign(Studio.exportMock(sp), snap.rows);
-        return Studio.exportCDF(sp, S.assets, dp, { mock: mock });
+        return Studio.exportDashboardHtml(sp, S.assets, dp, { mock: mock });
       });
     }
-    if (mode === "creds") return Promise.resolve(Studio.exportCDF(sp, S.assets, dp, { embedCreds: true }));
-    return Promise.resolve(Studio.exportCDF(sp, S.assets, dp));
+    if (mode === "creds") return Promise.resolve(Studio.exportDashboardHtml(sp, S.assets, dp, { embedCreds: true }));
+    return Promise.resolve(Studio.exportDashboardHtml(sp, S.assets, dp));
   }
 
   function doExport(kind) {
@@ -11646,7 +11752,7 @@
         });
         return;
       }
-      return bundleModal("Dashboard", [{ name: sp.name + ".html", body: Studio.exportCDF(sp, S.assets, dp), mime: "text/html" }]);
+      return bundleModal("Dashboard", [{ name: sp.name + ".html", body: Studio.exportDashboardHtml(sp, S.assets, dp), mime: "text/html" }]);
     }
     // LF49 slice 1: XLSX — a genuine multi-sheet .xlsx workbook (dependency-free OOXML,
     // Studio.xlsxBook in exporters.js). Tab 1 is a "Dashboard" summary (title, KPIs + their
@@ -11663,13 +11769,13 @@
     if (kind === "pptx") { buildDashboardPptx(sp, function (bytes) { download((sp.name || "dashboard") + ".pptx", bytes, "application/vnd.openxmlformats-officedocument.presentationml.presentation"); }); return; }
     // LF36 slice 1: "PDF (print)" opens the exported dashboard in its own tab and starts the
     // browser's print dialog there — no new print/PDF logic to maintain, it just reuses the
-    // @media print CSS + #printBtn wiring that Studio.exportCDF already bakes into every export
+    // @media print CSS + #printBtn wiring that Studio.exportDashboardHtml already bakes into every export
     // (see exporters.js printCss). A blob URL keeps this a pure client-side flow (no upload/
     // server round trip); the short delay after "load" gives the dashboard's own async render
     // (postMessage/data fetch) a beat to paint before the print snapshot is taken.
     // LF36 slice 2: page size / orientation / fit-to-width are picked in a small options dialog
     // first (openPdfExportModal) instead of always taking the browser's print default — those
-    // choices thread into Studio.buildHtml (not the plain byte-identical Studio.exportCDF helper)
+    // choices thread into Studio.buildHtml (not the plain byte-identical Studio.exportDashboardHtml helper)
     // as opts.pdfPageSize/pdfOrientation/pdfAutoFit, so only the PDF path's HTML changes; the
     // "cdf"/"spec"/"all" exports above are untouched.
     if (kind === "pdf") {
@@ -11704,7 +11810,7 @@
         openExportDataModeModal(sp, function (mode) { buildCdfHtmlForMode(sp, dp, mode).then(allBundle); });
         return;
       }
-      allBundle(Studio.exportCDF(sp, S.assets, dp));
+      allBundle(Studio.exportDashboardHtml(sp, S.assets, dp));
     }
   }
 
@@ -11923,7 +12029,7 @@
         try {
           var txt = rd.result, spec;
           if (/\.html?$/i.test(f.name) || /window\.STUDIO_SPEC/.test(txt)) {
-            spec = Studio.parseCDFHtml(txt);
+            spec = Studio.parseDashboardHtml(txt);
             if (!spec) throw new Error("no embedded dashboard found (was it exported from this Studio?)");
           } else spec = JSON.parse(txt);
           S.spec = normalize(spec); S.selection = null; clearAutosave(); syncHeader(); renderInspector(); refreshPreview(); toast("Opened " + f.name);

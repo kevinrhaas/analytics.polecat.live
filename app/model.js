@@ -1,7 +1,7 @@
 /* ============================================================================
    model.js — the Analytics (DashKit Studio) canonical model
    The chart registry + spec helpers shared by the builder, the live preview
-   render runtime, and every exporter (CDF html / CDE .cdfde+.wcdf / .cda).
+   render runtime, and the dashboard html exporter.
    Pure data + helpers; no DOM. Loaded as a plain <script> -> window.Studio.
    ============================================================================ */
 (function () {
@@ -647,7 +647,7 @@
 
   /* ---- chart registry: the heart of the model ----
      Each entry declares how a chart type binds columns + which knobs it exposes,
-     plus how it maps to a CDE/CCC component. `fields` drives the inspector. */
+     `fields` drives the inspector. */
   Studio.CHARTS = {
     bars: {
       label: "Bar chart", icon: "▭", group: "Comparison",
@@ -673,9 +673,6 @@
         { key: "color",      type: "color",  label: "Bar color", def: "--pentaho" },
         { key: "height",     type: "int",    label: "Height (px)", def: 300 }
       ],
-      cde: { type: "cccBarChart", extra: function (c) {
-        return [["orientation", "Orientation", c.opts && c.opts.horizontal === false ? "vertical" : "horizontal"],
-                ["valuesVisible", "Boolean", c.opts && c.opts.showValues === false ? "false" : "true"]]; } }
     },
     donut: {
       label: "Donut / pie", icon: "◍", group: "Composition",
@@ -692,7 +689,6 @@
         { key: "innerPct",   type: "range", label: "Inner radius %", def: 60, min: 0, max: 100, step: 5, suffix: "%" },
         { key: "height",     type: "int",   label: "Height (px)", def: 300 }
       ],
-      cde: { type: "cccPieChart", extra: function () { return [["valuesVisible", "Boolean", "true"]]; } }
     },
     line: {
       label: "Line / area", icon: "📈", group: "Trend",
@@ -728,7 +724,6 @@
         { key: "fmt",      type: "fmt",   label: "Value format", def: "abbr" },
         { key: "height",   type: "int",   label: "Height (px)", def: 300 }
       ],
-      cde: { type: "cccLineChart", extra: function () { return [["valuesVisible", "Boolean", "false"]]; } }
     },
     stacked: {
       label: "Stacked bars", icon: "▤", group: "Composition",
@@ -752,9 +747,6 @@
         { key: "fmt",        type: "fmt",  label: "Value format", def: "abbr" },
         { key: "height",     type: "int",  label: "Height (px)", def: 300 }
       ],
-      cde: { type: "cccBarChart", extra: function (c) {
-        return [["orientation", "Orientation", "vertical"], ["stacked", "Boolean", "true"],
-                ["valuesVisible", "Boolean", c.opts && c.opts.showValues ? "true" : "false"]]; } }
     },
     areaStacked: {
       label: "Stacked area", icon: "◣", group: "Trend",
@@ -769,14 +761,13 @@
         { key: "fmt",        type: "fmt",  label: "Value format", def: "abbr" },
         { key: "height",     type: "int",  label: "Height (px)", def: 300 }
       ],
-      cde: { type: "cccStackedAreaChart", extra: function () { return [["stacked", "Boolean", "true"], ["valuesVisible", "Boolean", "false"]]; } }
     },
 
     // ── Stream graph (ThemeRiver layout) ─────────────────────────────────────
     // Like stacked area but the baseline shifts at every data point so the
     // entire stack is visually centered around a midline. Result: organic,
     // flowing ribbon shapes ideal for evolving volume/share of multiple streams.
-    // Same data binding as Stacked area (labelCol + multi-series). CDF-only.
+    // Same data binding as Stacked area (labelCol + multi-series).
     streamgraph: {
       label: "Stream graph", icon: "〰", group: "Trend",
       desc: "Flowing centered ribbons for evolving multi-stream volumes",
@@ -822,7 +813,6 @@
           '<line x1="5" y1="25" x2="115" y2="25" stroke="#e0e4ef" stroke-width="0.7" stroke-dasharray="3 2"/>' +
           paths.join("") + '</svg>';
       }()),
-      cde: null // CDF-only; no CCC stream graph equivalent
     },
 
     // Parallel coordinates chart — each entity (row) is drawn as a polyline crossing N
@@ -834,7 +824,7 @@
     // Data binding: labelCol = entity label (one line per row); series = one column per
     // dimension (axis). Use 3–6 series for best readability.
     //
-    // CDF-only via the DashKit.parallelCoords extension in studio-charts.js (dashkit.js pristine).
+    // A DashKit.parallelCoords extension chart (studio-charts.js; dashkit.js pristine).
     parallelCoords: {
       label: "Parallel coords",
       icon: "⫼",
@@ -868,7 +858,6 @@
         { key: "opacity", type: "range", label: "Line opacity (%)", def: 70, min: 10, max: 100, step: 5, suffix: "%" },
         { key: "height",  type: "int", label: "Height (px)",      def: 320 }
       ],
-      cde: null // CDF-only; no equivalent CCC multi-axis chart
     },
     combo: {
       label: "Bar + line", icon: "◭", group: "Trend",
@@ -893,7 +882,6 @@
         { key: "seasonLength", type: "range", label: "Season length (points, Holt-Winters only)", def: 4, min: 2, max: 12, step: 1 },
         { key: "height",    type: "int",   label: "Height (px)", def: 300 }
       ],
-      cde: null // CDF-only (no clean single CCC equivalent)
     },
     radar: {
       label: "Radar / spider", icon: "✷", group: "Comparison",
@@ -906,7 +894,6 @@
         { key: "fmt",        type: "fmt",  label: "Value format",      def: "abbr" },
         { key: "height",     type: "int",  label: "Height (px)",       def: 300 }
       ],
-      cde: null // CDF-only (no clean single CCC equivalent)
     },
     // ── Metrics wheel — sectored radar (CONS-3) ──────────────────────────────
     // One score per metric on a circular axis; metrics grouped into CATEGORIES
@@ -923,7 +910,6 @@
         { key: "fmt",        type: "fmt",  label: "Value format", def: "abbr" },
         { key: "height",     type: "int",  label: "Height (px)",  def: 340 }
       ],
-      cde: null // CDF-only
     },
     waterfall: {
       label: "Waterfall", icon: "↘", group: "Comparison",
@@ -935,7 +921,6 @@
         { key: "fmt",        type: "fmt",  label: "Value format",   def: "abbr" },
         { key: "height",     type: "int",  label: "Height (px)",    def: 300 }
       ],
-      cde: null // CDF-only
     },
     sankey: {
       label: "Sankey (flow)", icon: "⇢", group: "Flow",
@@ -947,7 +932,6 @@
         { key: "fmt",     type: "fmt",  label: "Value format",          def: "abbr" },
         { key: "height",  type: "int",  label: "Height (px)",           def: 360 }
       ],
-      cde: null // CDF-only
     },
     funnel: {
       label: "Funnel", icon: "⋁", group: "Comparison",
@@ -958,7 +942,6 @@
         { key: "fmt",     type: "fmt",  label: "Value format",      def: "abbr" },
         { key: "height",  type: "int",  label: "Height (px)",       def: 300 }
       ],
-      cde: null // CDF-only
     },
     chord: {
       label: "Chord / wheel", icon: "◎", group: "Flow",
@@ -969,7 +952,6 @@
         { key: "fmt",    type: "fmt", label: "Value format", def: "abbr" },
         { key: "height", type: "int", label: "Height (px)",  def: 360 }
       ],
-      cde: null // CDF-only
     },
     network: {
       label: "Network / topology", icon: "⬡", group: "Flow",
@@ -980,7 +962,6 @@
         { key: "fmt",    type: "fmt", label: "Value format", def: "abbr" },
         { key: "height", type: "int", label: "Height (px)",  def: 380 }
       ],
-      cde: null // CDF-only; DashKit.network uses radial node-link layout with blast-radius hover
     },
     sunburst: {
       label: "Sunburst", icon: "◉", group: "Composition",
@@ -991,7 +972,6 @@
         { key: "fmt",        type: "fmt",  label: "Value format",    def: "abbr" },
         { key: "height",     type: "int",  label: "Height (px)",     def: 300 }
       ],
-      cde: null // CDF-only; no equivalent CCC chart
     },
     bullet: {
       label: "Bullet chart", icon: "▶", group: "Single value",
@@ -1002,7 +982,6 @@
         { key: "fmt",    type: "fmt", label: "Value format",         def: "abbr" },
         { key: "height", type: "int", label: "Height (px)",          def: 220 }
       ],
-      cde: null // CDF-only; no clean CCC bullet equivalent
     },
     calHeatmap: {
       label: "Calendar heatmap", icon: "⬦", group: "Distribution",
@@ -1018,7 +997,6 @@
         { key: "fmt",       type: "fmt",    label: "Value format", def: "n" },
         { key: "height",    type: "int",    label: "Height (px)",  def: 190 }
       ],
-      cde: null // CDF-only; requires daily YYYY-MM-DD date column
     },
     treemap: {
       label: "Treemap", icon: "▦", group: "Composition",
@@ -1033,7 +1011,6 @@
         { key: "showPct",    type: "bool", label: "Show % of total, not value", def: false },
         { key: "height",     type: "int",  label: "Height (px)",               def: 300 }
       ],
-      cde: { type: "cccTreemapChart", extra: function () { return [["valuesVisible", "Boolean", "true"]]; } }
     },
     scatter: {
       label: "Scatter / bubble", icon: "✦", group: "Distribution",
@@ -1050,7 +1027,6 @@
         { key: "yLabel", type: "text", label: "Y axis label", def: "" },
         { key: "height", type: "int",  label: "Height (px)", def: 300 }
       ],
-      cde: { type: "cccMetricDotChart", extra: function () { return [["valuesVisible", "Boolean", "false"]]; } }
     },
     gauge: {
       label: "Gauge", icon: "◑", group: "Single value",
@@ -1067,7 +1043,6 @@
         { key: "warnAt", type: "range", label: "Warning zone starts at %", def: 70, min: 0, max: 100, step: 5, suffix: "%" },
         { key: "goodAt", type: "range", label: "Good zone starts at %", def: 90, min: 0, max: 100, step: 5, suffix: "%" }
       ],
-      cde: null // CDF-only
     },
     heatmap: {
       label: "Heatmap (pivot)", icon: "▓", group: "Distribution",
@@ -1078,9 +1053,8 @@
         { key: "showVals", type: "bool", label: "Show values", def: true },
         { key: "height",  type: "int",  label: "Height (px)", def: 320 }
       ],
-      cde: { type: "cccHeatGridChart", extra: function () { return [["valuesVisible", "Boolean", "true"]]; } }
     },
-    // ── US choropleth map (Viridis track V2) — CDF-only ──────────────────────
+    // ── US choropleth map (Viridis track V2) ──────────────────────
     // County / State / NASS-district / Corn-Belt-HUC8 regions colored by a value
     // column; duplicate rows per region aggregate via the MEDIAN by default (the
     // Viridis "single best common estimate" convention). Geometry is vendored,
@@ -1129,9 +1103,8 @@
         { key: "fmt",     type: "fmt",  label: "Value format", def: "raw" },
         { key: "height",  type: "int",  label: "Height (px)", def: 380 }
       ],
-      cde: null // CDF-only; no CCC/CDE choropleth equivalent
     },
-    // ── Ensemble series (Viridis V3) — CDF-only ──────────────────────────────
+    // ── Ensemble series (Viridis V3) ──────────────────────────────
     // THE MEDIAN IS THE PRODUCT: a bold consensus line (median of the providers
     // toggled on) over thin, muted provider series; an agreement band expressing
     // confidence; reference-series rows (AgCensus) as hollow squares that never
@@ -1155,7 +1128,6 @@
         { key: "fmt",         type: "fmt",  label: "Value format", def: "raw" },
         { key: "height",      type: "int",  label: "Height (px)", def: 320 }
       ],
-      cde: null // CDF-only; no CCC ensemble equivalent
     },
     table: {
       label: "Table", icon: "▥", group: "Detail",
@@ -1169,10 +1141,8 @@
         { key: "density",      type: "select", label: "Row density", def: "comfortable",
           choices: [["comfortable", "Comfortable"], ["compact", "Compact"]] }
       ],
-      cde: { type: "Table", extra: function () { return []; } }
     },
     // Text/annotation panel — no DA needed; content stored in chart.opts.content (light markdown).
-    // CDF-only (no CCC/CDE equivalent for pure text panels).
     richtext: {
       label: "Text / annotation",
       icon: "¶",
@@ -1180,10 +1150,9 @@
       desc: "Headings, callouts, and explanatory text",
       fields: [],
       opts: [],
-      cde: null // CDF-only; no CCC/CDE equivalent for pure text panels
     },
     // Box plot — distribution chart (quartiles, median, whiskers) per category.
-    // CDF-only via the DashKit.boxplot extension in studio-charts.js.
+    // A DashKit.boxplot extension chart (studio-charts.js; dashkit.js pristine).
     boxplot: {
       label: "Box plot",
       icon: "⧠",
@@ -1195,11 +1164,10 @@
         { key: "fmt",        label: "Value format",    type: "fmt",  def: "abbr" },
         { key: "height",     type: "int", label: "Height (px)", def: 300 }
       ],
-      cde: null // CDF-only via the DashKit.boxplot extension in studio-charts.js
     },
     // Lollipop / dot-plot — clean ranked comparison: thin stem line + dot per row.
     // Elegant alternative to bar charts; great for league tables and rankings.
-    // CDF-only via the DashKit.lollipop extension in studio-charts.js.
+    // A DashKit.lollipop extension chart (studio-charts.js; dashkit.js pristine).
     lollipop: {
       label: "Lollipop chart",
       icon: "◉",
@@ -1211,13 +1179,12 @@
         { key: "color",  label: "Dot color",    type: "color", def: "--pentaho" },
         { key: "height", label: "Height (px)",  type: "int",   def: 280 }
       ],
-      cde: null // CDF-only; no CCC lollipop equivalent
     },
     // Dumbbell chart (connected dot chart) — shows the gap between two values per row.
     // Each row: a label on the left, two dots (start=muted, end=brand color) connected by a
     // horizontal line. Line colored green when end > start (improvement) or red when declining.
     // Great for before/after, budget vs. actual, planned vs. achieved comparisons.
-    // CDF-only via the DashKit.dumbbell extension in studio-charts.js.
+    // A DashKit.dumbbell extension chart (studio-charts.js; dashkit.js pristine).
     dumbbell: {
       label: "Dumbbell chart",
       icon: "⦾",
@@ -1230,12 +1197,11 @@
         { key: "fmt",        label: "Value format",  type: "fmt",  def: "abbr" },
         { key: "height",     label: "Height (px)",   type: "int",  def: 280 }
       ],
-      cde: null // CDF-only; no CCC dumbbell equivalent
     },
     // Slope chart — before/after period comparison: one line per category
     // connecting T1 (left axis) to T2 (right axis) with labels at both ends.
     // Rising lines in green, falling in red — "what changed?" at a glance.
-    // CDF-only via the DashKit.slope extension in studio-charts.js.
+    // A DashKit.slope extension chart (studio-charts.js; dashkit.js pristine).
     slope: {
       label: "Slope chart",
       icon: "⟋",
@@ -1248,12 +1214,11 @@
         { key: "fmt",    label: "Value format",   type: "fmt",  def: "abbr" },
         { key: "height", label: "Height (px)",    type: "int",  def: 300 }
       ],
-      cde: null // CDF-only; no CCC slope chart equivalent
     },
     // Dot plot / Cleveland dot plot — pure dots positioned along a horizontal axis.
     // Lower visual weight than bar charts; excellent for showing distributions and
     // rankings. Optional groupCol enables two-dot-per-row comparison (e.g. budget vs actual).
-    // CDF-only via the DashKit.dotplot extension in studio-charts.js.
+    // A DashKit.dotplot extension chart (studio-charts.js; dashkit.js pristine).
     dotplot: {
       label: "Dot plot",
       icon: "⦿",
@@ -1268,14 +1233,13 @@
         { key: "sorted",    label: "Sort by value",             type: "bool", def: true },
         { key: "height",    label: "Height (px)",               type: "int",  def: 280 }
       ],
-      cde: null // CDF-only; no CCC dot-plot equivalent
     },
     // Beeswarm / strip plot — individual data points jittered along one axis.
     // Ideal for showing raw distributions, clusters, and outliers at the point level.
     // Dots are deterministically packed to avoid overlap (no randomness — same data
     // always produces the same layout). Optional categoryCol groups rows into labeled
     // horizontal strips so multiple distributions can be compared side-by-side.
-    // CDF-only via the DashKit.beeswarm extension in studio-charts.js.
+    // A DashKit.beeswarm extension chart (studio-charts.js; dashkit.js pristine).
     beeswarm: {
       label: "Beeswarm plot",
       icon: "⁘",
@@ -1288,13 +1252,12 @@
         { key: "fmt",         label: "Value format",               type: "fmt", def: "abbr" },
         { key: "height",      label: "Height (px)",                type: "int", def: 300 }
       ],
-      cde: null // CDF-only; no CCC beeswarm equivalent
     },
     // Histogram — frequency distribution chart.
     // Auto-bins a single numeric valueCol into N equal-width buckets and renders bar-per-bin.
     // Useful for understanding the shape of a data distribution (normal, skewed, multimodal).
     // Bars touch (no gap) to emphasise continuity of the numeric range.
-    // CDF-only via the DashKit.histogram extension in studio-charts.js.
+    // A DashKit.histogram extension chart (studio-charts.js; dashkit.js pristine).
     histogram: {
       label: "Histogram",
       icon: "⊟",
@@ -1307,13 +1270,12 @@
         { key: "fmt",    label: "Value format",   type: "fmt",   def: "n" },
         { key: "height", label: "Height (px)",    type: "int",   def: 300 }
       ],
-      cde: null // CDF-only; no direct CCC histogram equivalent
     },
 
     // Polar area chart (rose chart): equal-angle wedges with radius proportional to √value.
     // Area encoding is more perceptually accurate than linear radius. Excellent for cyclic
     // data, periodic patterns, and comparing values across a set of named dimensions.
-    // CDF-only via the DashKit.polarArea extension in studio-charts.js.
+    // A DashKit.polarArea extension chart (studio-charts.js; dashkit.js pristine).
     polarArea: {
       label: "Polar area",
       icon: "◑",
@@ -1325,14 +1287,13 @@
         { key: "showLabels", label: "Show labels",   type: "bool", def: true },
         { key: "height",     label: "Height (px)",   type: "int",  def: 280 }
       ],
-      cde: null // CDF-only; no CCC polar-area equivalent
     },
 
     // Step / staircase chart — right-angle transitions between discrete values.
     // Where a line chart interpolates diagonally, a step chart goes horizontal
     // first then vertical — making the discrete nature of each state change explicit.
     // Ideal for pricing tiers, API quotas, regulatory limits, step-function data.
-    // CDF-only via DashKit.step extension in studio-charts.js (dashkit.js stays pristine).
+    // A DashKit.step extension chart (studio-charts.js; dashkit.js pristine).
     step: {
       label: "Step chart",
       icon: "⌐",
@@ -1344,7 +1305,6 @@
         { key: "fmt",    label: "Value format", type: "fmt",  def: "abbr" },
         { key: "height", label: "Height (px)",  type: "int",  def: 300 }
       ],
-      cde: null // CDF-only; no CCC step-line equivalent
     },
 
     // Violin plot — kernel density distribution per category.
@@ -1353,7 +1313,7 @@
     // narrower at tails. An optional IQR box + median line sits inside each violin for
     // quick quartile reference. Pairs naturally with box plot, beeswarm, and histogram
     // for richer distribution analysis.
-    // CDF-only via the DashKit.violin extension in studio-charts.js (dashkit.js stays pristine).
+    // A DashKit.violin extension chart (studio-charts.js; dashkit.js pristine).
     violin: {
       label: "Violin plot",
       icon: "⬠",
@@ -1365,7 +1325,6 @@
         { key: "fmt",     label: "Value format", type: "fmt",  def: "abbr" },
         { key: "height",  label: "Height (px)",  type: "int",  def: 300 }
       ],
-      cde: null // CDF-only; no CCC violin equivalent
     },
 
     // Bump / ranking chart — shows how ranked positions change across periods.
@@ -1374,7 +1333,7 @@
     // draws smooth lines connecting each series' rank across periods — lines crossing is
     // immediately visible as competitive overtaking. Ideal for market share shifts,
     // product performance tiers, regional rankings, and vendor comparisons.
-    // CDF-only via the DashKit.bump extension in studio-charts.js (dashkit.js stays pristine).
+    // A DashKit.bump extension chart (studio-charts.js; dashkit.js pristine).
     bump: {
       label: "Bump chart",
       icon: "⇅",
@@ -1389,7 +1348,6 @@
         { key: "fmt",             label: "Value format",              type: "fmt",  def: "abbr" },
         { key: "height",          label: "Height (px)",                type: "int",  def: 300 }
       ],
-      cde: null // CDF-only; no CCC ranking-line equivalent
     },
 
     // Marimekko / Mekko chart — a two-dimensional proportional stacked bar chart.
@@ -1404,7 +1362,7 @@
     //   groupCol  = stacking dimension  (segment labels, e.g. Product)
     //   valueCol  = numeric cell value  (e.g. Revenue)
     //
-    // CDF-only via the DashKit.marimekko extension in studio-charts.js (dashkit.js pristine).
+    // A DashKit.marimekko extension chart (studio-charts.js; dashkit.js pristine).
     marimekko: {
       label: "Marimekko",
       icon: "▤",
@@ -1436,7 +1394,6 @@
         { key: "height", label: "Height (px)",  type: "int", def: 320 },
         { key: "showPct", label: "Show % labels", type: "bool", def: true }
       ],
-      cde: null // CDF-only; no CCC marimekko equivalent
     },
 
     // Packed bubble chart — a force-directed bubble cluster where each circle's area is
@@ -1448,7 +1405,7 @@
     //   labelCol  = category label (one bubble per row)
     //   valueCol  = numeric value (drives circle area)
     //
-    // CDF-only via the DashKit.packedBubble extension in studio-charts.js (dashkit.js pristine).
+    // A DashKit.packedBubble extension chart (studio-charts.js; dashkit.js pristine).
     packedBubble: {
       label: "Packed bubbles",
       icon: "◌",
@@ -1477,7 +1434,6 @@
         { key: "height",     label: "Height (px)",  type: "int",  def: 320 },
         { key: "showLabels", label: "Show labels",  type: "bool", def: true }
       ],
-      cde: null // CDF-only; no equivalent CCC chart type
     },
 
     // ── Word Cloud ────────────────────────────────────────────────────────────
@@ -1489,7 +1445,7 @@
     //   labelCol  = text label (one word/phrase per row)
     //   valueCol  = numeric value (drives font size via log scale)
     //
-    // CDF-only via the DashKit.wordCloud extension in studio-charts.js (dashkit.js pristine).
+    // A DashKit.wordCloud extension chart (studio-charts.js; dashkit.js pristine).
     wordCloud: {
       label: "Word cloud",
       icon: "⊞",
@@ -1521,7 +1477,6 @@
         { key: "height",   label: "Height (px)",  type: "int", def: 320    },
         { key: "maxWords", label: "Max words",    type: "int", def: 60     }
       ],
-      cde: null // CDF-only; no equivalent CCC chart type
     },
 
     // ── Gantt / Timeline chart ────────────────────────────────────────────────
@@ -1536,7 +1491,7 @@
     //   startCol  = bar start value (left edge)
     //   endCol    = bar end value   (right edge)
     //
-    // CDF-only via the DashKit.gantt extension in studio-charts.js (dashkit.js pristine).
+    // A DashKit.gantt extension chart (studio-charts.js; dashkit.js pristine).
     gantt: {
       label: "Gantt / Timeline",
       icon: "⇿",
@@ -1565,7 +1520,6 @@
         { key: "fmt",        label: "Value format",        type: "fmt",  def: "n"    },
         { key: "height",     label: "Height (px)",          type: "int",  def: 300   }
       ],
-      cde: null // CDF-only; no CCC Gantt equivalent
     },
 
     // ── Diverging bar chart ───────────────────────────────────────────────────
@@ -1578,7 +1532,7 @@
     //   labelCol  = row label (y-axis, left of zero line)
     //   valueCol  = numeric value (positive → right; negative → left)
     //
-    // CDF-only via the DashKit.divergingBar extension in studio-charts.js (dashkit.js pristine).
+    // A DashKit.divergingBar extension chart (studio-charts.js; dashkit.js pristine).
     divergingBar: {
       label: "Diverging bars",
       icon: "⇔",
@@ -1607,7 +1561,6 @@
         { key: "fmt",      label: "Value format",    type: "fmt",   def: "abbr" },
         { key: "height",   label: "Height (px)",     type: "int",   def: 300 }
       ],
-      cde: null // CDF-only; no direct CCC diverging-bar equivalent
     },
 
     // ── Candlestick / OHLC ────────────────────────────────────────────────────
@@ -1620,7 +1573,7 @@
     // Wicks extend from the body to the high/low extremes.
     // Ideal for revenue ranges, price data, performance spread, or any time-period
     // scenario where showing full range + open/close marks is valuable.
-    // CDF-only via DashKit.candlestick extension in studio-charts.js (dashkit.js pristine).
+    // A DashKit.candlestick extension chart (studio-charts.js; dashkit.js pristine).
     candlestick: {
       label: "Candlestick / OHLC",
       icon: "⋄",
@@ -1656,7 +1609,6 @@
         { key: "fmt",       label: "Value format",            type: "fmt",   def: "abbr" },
         { key: "height",    label: "Height (px)",             type: "int",   def: 320 }
       ],
-      cde: null // CDF-only; no CCC equivalent for OHLC
     },
 
     // ── Waffle chart ──────────────────────────────────────────────────────────
@@ -1664,7 +1616,7 @@
     // total and cells are filled by category. Ideal for "1 in N" storytelling
     // (e.g. "73 out of every 100 customers chose X"). More concrete than a donut
     // for audiences unfamiliar with reading pie-slice areas.
-    // CDF-only via DashKit.waffle extension in studio-charts.js (dashkit.js pristine).
+    // A DashKit.waffle extension chart (studio-charts.js; dashkit.js pristine).
     waffle: {
       label: "Waffle chart",
       icon: "⬛",
@@ -1690,7 +1642,6 @@
         { key: "fmt",    label: "Value format",  type: "fmt", def: "abbr" },
         { key: "height", label: "Height (px)",   type: "int", def: 300 }
       ],
-      cde: null // CDF-only; no CCC equivalent
     },
 
     // ── Timeline / milestone chart ────────────────────────────────────────────
@@ -1706,7 +1657,7 @@
     //               opposite side of the baseline from the event name)
     //
     // Inspector opts: colorCol (category-based palette coloring), height.
-    // CDF-only via DashKit.timeline extension in studio-charts.js (dashkit.js pristine).
+    // A DashKit.timeline extension chart (studio-charts.js; dashkit.js pristine).
     timeline: {
       label: "Timeline / milestones",
       icon:  "◆",
@@ -1748,17 +1699,16 @@
         { key: "colorCol", label: "Color / category column (optional)", type: "col", def: "" },
         { key: "height",   label: "Height (px)",                        type: "int", def: 220 }
       ],
-      cde: null // CDF-only; no CCC timeline equivalent
     },
 
     // Radial bar chart: concentric arc tracks, each arc length proportional to value.
     // Sorted largest-outermost so visual hierarchy is immediate. All arcs share the same
-    // start point (12 o'clock) and sweep clockwise up to 270°. CDF-only;
+    // start point (12 o'clock) and sweep clockwise up to 270°. 
     // DashKit.radialBar extension in studio-charts.js (dashkit.js pristine).
     // Population pyramid: mirrored horizontal bars from a shared centre column.
     // Classic for demographic data (age × gender) and any side-by-side comparison
     // where two groups are measured across the same set of categories.
-    // CDF-only; DashKit.pyramidBar extension in studio-charts.js (dashkit.js pristine).
+    // DashKit.pyramidBar extension in studio-charts.js (dashkit.js pristine).
     pyramidBar: {
       label: "Population pyramid",
       icon:  "◫",
@@ -1793,7 +1743,6 @@
         { key: "fmt",        label: "Value format",     type: "fmt",   def: "abbr"       },
         { key: "height",     label: "Height (px)",      type: "int",   def: 300          }
       ],
-      cde: null  // CDF-only; no CCC/CDE equivalent
     },
 
     radialBar: {
@@ -1837,7 +1786,6 @@
         { key: "fmt",    type: "fmt", label: "Value format",                 def: "abbr" },
         { key: "height", type: "int", label: "Height (px)",                  def: 320 }
       ],
-      cde: null // CDF-only; no equivalent CCC/CDE component
     },
 
     // ── Icicle / rectangular partition chart ────────────────────────────────
@@ -1847,7 +1795,7 @@
     // showing two-level proportions — parents and children are always on separate
     // horizontal tracks so the hierarchy is spatially explicit.
     // Single-level mode (no groupCol): one horizontal band of items by value.
-    // Same groupCol/labelCol/valueCol binding as sunburst; CDF-only.
+    // Same groupCol/labelCol/valueCol binding as sunburst;
     icicle: {
       label: "Icicle / partition",
       icon: "⊟",
@@ -1889,7 +1837,6 @@
         { key: "showPct",    type: "bool", label: "Show % of total, not value", def: false },
         { key: "height",     type: "int",  label: "Height (px)",               def: 280 }
       ],
-      cde: null // CDF-only; no CCC equivalent
     },
 
     // Pareto chart — the classic 80/20 rule visualisation for quality management and
@@ -1898,7 +1845,7 @@
     // shows exactly which vital few categories account for the majority of the total.
     // Standard in ISO 9000, defect analysis, customer complaint prioritisation, and
     // any context where "which categories matter most?" is the key question.
-    // CDF-only via the DashKit.pareto extension in studio-charts.js (dashkit.js pristine).
+    // A DashKit.pareto extension chart (studio-charts.js; dashkit.js pristine).
     pareto: {
       label: "Pareto chart",
       icon: "⫠",
@@ -1949,7 +1896,6 @@
         { key: "fmt",     label: "Value format",        type: "fmt",  def: "abbr" },
         { key: "height",  label: "Height (px)",          type: "int",  def: 300 }
       ],
-      cde: null // CDF-only; no CCC Pareto equivalent
     },
 
     // ── Grouped bar chart (multi-series, side-by-side per category) ─────────
@@ -1957,7 +1903,7 @@
     // category — unlike Stacked bars (which hides individual values in the total)
     // or plain Bar chart (single series only). Ideal for "Q1 vs Q2 vs Q3 by Region"
     // or "Budget vs Actual vs Forecast by Department". Same labelCol+series binding
-    // as Stacked / Stacked area / Stream graph. CDF-only (no CDE equivalent).
+    // as Stacked / Stacked area / Stream graph.
     groupedBars: {
       label: "Grouped bars",
       icon: "▥",
@@ -2004,7 +1950,6 @@
         { key: "fmt",        type: "fmt",  label: "Value format",      def: "abbr" },
         { key: "height",     type: "int",  label: "Height (px)",       def: 300 }
       ],
-      cde: null // CDF-only; no CCC grouped-bar equivalent in Studio CDE export
     },
 
     // Ridgeline / joy plot — horizontally stacked density curves per category.
@@ -2014,7 +1959,7 @@
     // Ideal for comparing distributions across many groups (e.g. sales by region, latency
     // by service) in a single compact view — complementary to violin (symmetric, vertical)
     // and beeswarm (raw points).
-    // CDF-only via the DashKit.ridgeline extension in studio-charts.js (dashkit.js pristine).
+    // A DashKit.ridgeline extension chart (studio-charts.js; dashkit.js pristine).
     ridgeline: {
       label: "Ridgeline plot",
       icon: "≋",
@@ -2047,14 +1992,13 @@
         { key: "fmt",     label: "Value format",       type: "fmt",   def: "abbr" },
         { key: "height",  label: "Height (px)",         type: "int",   def: 320 }
       ],
-      cde: null // CDF-only; no CCC ridgeline equivalent
     },
 
     // 100% Normalized Stacked Bar chart — every bar reaches 100%; segments show proportional
     // share rather than absolute value. The natural complement to Stacked bars (absolute totals)
     // and Grouped bars (direct absolute comparison). Ideal for: market share by region, budget
     // allocation by department, survey response breakdown by period, NPS distribution by team.
-    // Same labelCol+series binding as Stacked and Grouped bars. CDF-only.
+    // Same labelCol+series binding as Stacked and Grouped bars.
     barNorm: {
       label: "100% stacked bars",
       icon: "▤",
@@ -2101,14 +2045,13 @@
         { key: "fmt",     type: "fmt",  label: "Value format",        def: "abbr" },
         { key: "height",  type: "int",  label: "Height (px)",         def: 300 }
       ],
-      cde: null // CDF-only; no CCC equivalent with automatic % normalization
     },
 
     // Area range / confidence band — a shaded band between a lower and an upper bound,
     // with an optional centre/actual/forecast line drawn through the middle of the band.
     // Use for: confidence intervals (model uncertainty), min/max sensor ranges, forecast
     // floor/ceiling tracks, budget corridors, or any metric whose meaningful story is
-    // "the value should stay between X and Y." CDF-only.
+    // "the value should stay between X and Y."
     areaRange: {
       label: "Area range / band",
       icon: "◉",
@@ -2143,7 +2086,6 @@
         { key: "showCenter",  type: "bool",  label: "Show centre line",   def: true },
         { key: "height",      type: "int",   label: "Height (px)",        def: 300 }
       ],
-      cde: null // CDF-only; no CCC band-range equivalent
     },
 
     // Quadrant / 2×2 matrix chart — scatter-style x/y plot divided into four
@@ -2183,17 +2125,8 @@
         { key: "yLabel",     type: "text",  label: "Y axis label",          def: "" },
         { key: "height",     type: "int",   label: "Height (px)",           def: 300 }
       ],
-      cde: null // CDF-only; no CCC quadrant equivalent
     }
   };
-  // chart types that the CDE/CCC export cannot represent natively (CDF-only) — the `cde` field
-  // on each Studio.CHARTS entry is metadata for docs/tests, not read by the (removed, Z0)
-  // exporter itself, but Studio.cdeUnsupported is still the canonical CDF-only check.
-  Studio.cdeUnsupported = function (type) {
-    var c = Studio.CHARTS[type];
-    return !c || !c.cde;
-  };
-
   /* ---- spec helpers ---- */
   var _uid = 0;
   Studio.uid = function (p) { _uid += 1; return (p || "p") + _uid + "_" + (Date.now() % 100000); };
@@ -2474,7 +2407,7 @@
       filters: [],
       kpis: [],
       gridCols: 3,
-      themeColor: "", // optional hex color that overrides --pentaho in preview + exported CDF
+      themeColor: "", // optional hex color that overrides the theme accent in preview + exported html
       dashboardTheme: "", // optional full look preset key (see Studio.DASHBOARD_THEMES); "" = classic; "custom" reads customTheme below. New blanks/examples are seeded with the Settings default (Polecat out of the box) at create/load time.
       customTheme: null, // N-DESIGN theme studio: {light:{bg,panel,text,brand},dark:{...}} seed colors when dashboardTheme==="custom" (see Studio.deriveCustomTheme); null until the author picks Custom
       paletteKey: "", // optional series palette key (see Studio.PALETTE_PRESETS); "" = default
@@ -2847,7 +2780,7 @@
 
   // N-DIST: shareable state links — encode a whole dashboard spec into a URL-safe string so it
   // can travel as a `#share=...` link with no server/file needed (extends the existing E4
-  // per-filter `#hash` deep-link, which only ever carried filter *defaults* for exported CDF,
+  // per-filter `#hash` deep-link, which only ever carried filter *defaults* for exported html,
   // never the builder's own working spec). btoa/atob only handle Latin1, so JSON text is UTF-8
   // escaped first (the standard unescape/escape round-trip) — this is why a plain
   // `btoa(JSON.stringify(spec))` breaks the moment a title/label has a non-ASCII character.
@@ -3212,7 +3145,7 @@
   };
 
   /* ---------- exported .html → spec (Studio exports embed window.STUDIO_SPEC) ---------- */
-  Studio.parseCDFHtml = function (html) {
+  Studio.parseDashboardHtml = function (html) {
     var m = /window\.STUDIO_SPEC\s*=\s*\{/.exec(html); if (!m) return null;   // the assignment, not toolkit refs
     var b = m.index + m[0].length - 1;
     var depth = 0, inStr = false, esc2 = false, end = -1;

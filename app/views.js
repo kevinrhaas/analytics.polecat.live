@@ -121,11 +121,23 @@
         renderViews();
       };
     }
+    // SORT-1: header sort <select> — same idempotent-binding convention as the toggles.
+    var _vwSortKey = Studio.catalogSort.wire($("#viewsSortSel"), "views", "updated-desc", [
+      ["updated-desc", "Newest first"], ["updated-asc", "Oldest first"],
+      ["name-asc", "Name A–Z"], ["name-desc", "Name Z–A"],
+      ["type", "By chart type"]
+    ], renderViews);
+    var _vwNameCmp = Studio.catalogSort.cmp("name-asc");
+    var vwSortCmp = Studio.catalogSort.cmp(_vwSortKey, { extras: {
+      type: function (a, b) {
+        return vwChartLabel(a.chartType || "bars").localeCompare(vwChartLabel(b.chartType || "bars")) || _vwNameCmp(a, b);
+      }
+    } });
     var q = (($("#viewsSearch") || {}).value || "").toLowerCase();
     var list = Studio.Workspace.all("analyses").filter(isVisibleToMe).sort(function (a, b) {
       if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
       if (a.pinned) return (b.pinnedAt || "").localeCompare(a.pinnedAt || "");
-      return (b.updatedAt || 0) - (a.updatedAt || 0);
+      return vwSortCmp(a, b);
     });
     // LIVE-d slice 6: drop any selected id that no longer exists/is visible so a stale
     // entry can't inflate the bulk-bar count — same pruning every other section does.

@@ -2,7 +2,7 @@
    studio-charts.js — Studio chart extensions layered on the DashKit toolkit.
    Adds chart types the base dashkit.js doesn't ship (kept separate so the
    vendored toolkit stays a 1:1 mirror of the v2 suite). Loaded inside the
-   preview iframe / exported CDF html, right after dashkit.js.
+   preview iframe / exported dashboard html, right after dashkit.js.
    ============================================================================ */
 (function () {
   "use strict";
@@ -509,7 +509,7 @@
     }
   }
 
-  /* ---------- sunburst (hierarchical part-of-whole, CDF-only) ----------
+  /* ---------- sunburst (hierarchical part-of-whole) ----------
      Single-ring when cfg.groups is absent; two-ring (inner=groups, outer=items)
      when cfg.groups[] is provided (same length as labels/values). */
   DashKit.sunburst = function (el, cfg) { reg(el, function () { _sb(el, cfg); }); };
@@ -786,7 +786,7 @@
      NUMBERED rim (1..n), a single value polygon with dots, and a side legend
      mapping the numbers to metric names under colored category headings.
      Data: cfg.labels (metric names), cfg.cats (category per metric, grouped
-     runs), cfg.values (scores), cfg.max (axis max, default 100). CDF-only. */
+     runs), cfg.values (scores), cfg.max (axis max, default 100). */
   DashKit.radarSectors = function (el, cfg) { reg(el, function () { _radarSectors(el, cfg); }); };
   function _radarSectors(el, cfg) {
     var labels = cfg.labels || [], cats = cfg.cats || [], values = cfg.values || [];
@@ -881,7 +881,7 @@
 
   /* ---------- box plot (distribution: quartiles + whiskers per category) ----------
      Data: cfg.data = [{label, values:[v,...]}] — raw values per category.
-     Renders horizontal (default) or vertical boxes.  CDF-only; dashkit.js unchanged. */
+     Renders horizontal (default) or vertical boxes.  dashkit.js unchanged. */
   DashKit.boxplot = function (el, cfg) { reg(el, function () { _boxplot(el, cfg); }); };
   function _boxplot(el, cfg) {
     var data = cfg.data || [], h = cfg.height || 300, fmt = cfg.fmt || DashKit.fmt.abbr;
@@ -2925,7 +2925,7 @@
      clicking always opens the right record even after sorting or filtering.
      The base DashKit.table in dashkit.js is preserved via DashKit._tableBase.            */
 
-  // Inject table-enhancement CSS once per document (iframe / exported CDF).
+  // Inject table-enhancement CSS once per document (iframe / exported dashboard html).
   if (!window.__dkTblCssInjected) {
     window.__dkTblCssInjected = true;
     var _tblStyle = document.createElement("style");
@@ -3132,7 +3132,7 @@
         pbar.className = "tbl-page-bar";
         // UX6 (icon migration): the raw ‹ › glyphs are now themed chevron SVGs — app/icons.js is
         // bundled into every export (see exporters.js's buildHtml) precisely so Studio.icon() is
-        // available here, inside the preview iframe / exported CDF html, not just builder chrome.
+        // available here, inside the preview iframe / exported dashboard html, not just builder chrome.
         var prev = document.createElement("button");
         prev.type = "button"; prev.disabled = page === 0;
         prev.setAttribute("aria-label", "Previous page");
@@ -3792,8 +3792,7 @@
      close < open). Thin WICKS extend from the body to the high (above) and low
      (below) extremes of the period. Ideal for revenue ranges, daily/weekly price
      data, performance spread, or any measure where a four-point summary per
-     period communicates more than a single value. CDF-only; no direct CCC
-     equivalent in CDE.
+     period communicates more than a single value.
 
      cfg.rows    — [{label, open, high, low, close}] one per x-axis period
      cfg.upColor   — fill color for bullish candles (close ≥ open); default green
@@ -3904,7 +3903,7 @@
      category in proportion to each category's share of the total. Perfect for
      "1 in N" storytelling: each square = 1% of the whole. Hover tooltips show
      category, count, and percentage.
-     CDF-only (no CCC equivalent). labelCol + valueCol binding.
+     labelCol + valueCol binding.
      Inspired by Washington Post / NYT waffle chart style.
      Rows fill left-to-right, top-to-bottom; 10 columns (configurable via cfg.cols).
      Each category gets a color from the DashKit palette; the final cell counts are
@@ -4024,7 +4023,7 @@
      cfg.events  = [{label, date?, color?}] — one entry per milestone
      cfg.height  = chart height in px (default 220)
 
-     CDF-only (no CCC equivalent). labelCol binding required; dateCol optional.
+     labelCol binding required; dateCol optional.
      DashKit.timeline is a studio-charts.js extension; dashkit.js stays pristine. */
   DashKit.timeline = function (el, cfg) {
     var events = cfg.events || [];
@@ -4149,7 +4148,7 @@
      track — giving an immediate visual hierarchy at a glance.
 
      cfg: { data:[{label,value}], fmt, maxVal, height }
-     CDF-only (no CCC/CDE equivalent). DashKit.radialBar lives in studio-charts.js. */
+     DashKit.radialBar lives in studio-charts.js. */
   DashKit.radialBar = function (el, cfg) {
     if (!el) return;
     var data = (cfg.data || []).filter(function (d) { return d.label; });
@@ -4304,7 +4303,7 @@
 
      cfg: { rows:[{label,left,right}], leftLabel, rightLabel,
             leftColor, rightColor, fmt, height }
-     CDF-only (no CCC/CDE equivalent). DashKit.pyramidBar lives in studio-charts.js. */
+     DashKit.pyramidBar lives in studio-charts.js. */
   DashKit.pyramidBar = function (el, cfg) {
     if (!el) return;
     var rows = (cfg.rows || []).filter(function (r) { return r.label; });
@@ -4683,7 +4682,7 @@
 
      Data binding: cfg.data = [{label, value}] (pre-built by studio-render.js).
      Options: showRef (bool, default true), fmt (format fn), height (px).
-     CDF-only (no CCC/CDE equivalent). DashKit.pareto lives in studio-charts.js. */
+     DashKit.pareto lives in studio-charts.js. */
   DashKit.pareto = function (el, cfg) { reg(el, function () { _pareto(el, cfg); }); };
 
   function _pareto(el, cfg) {
@@ -4863,7 +4862,7 @@
      and one bar per series. Perfect for comparing multiple measures across categories
      where Stacked bars would hide individual values (e.g. Q1/Q2/Q3 revenue by region).
      Data binding: labelCol (x-axis categories) + series (one numeric column each).
-     CDF-only (no CCC multi-bar equivalent in the Studio CDE export).
+     DashKit-native (studio-charts.js extension).
      DashKit.groupedBars lives here in studio-charts.js; dashkit.js stays pristine. */
   DashKit.groupedBars = function (el, cfg) { reg(el, function () { _groupedBars(el, cfg); }); };
   function _groupedBars(el, cfg) {
