@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v422"; /* v422: USERS-DURABLE 2 — the users table is
+var CACHE_NAME = "studio-shell-v423"; /* v423: SETTINGS-ROAM slice 1 — branding lives
+   in the SYNCED workspace settings (branding.js: workspace-first get/set, one-time
+   local lift, re-apply on adopt); a signed-in account's theme prefs ride its own
+   users row (studio.js saveUserPref/applyUserPrefs, applied in initAuthBoot; local
+   accounts stay browser-local). Workspace-backend card action buttons wrap instead
+   of crushing the name (studio.css). */
+/* v422: USERS-DURABLE 2 — the users table is
    UPSERT-ONLY in sync (a stale admin mirror target-deleted the freshly-
    provisioned fntest row as "stale" minutes after v421); account removal is the
    Admin flow's explicit supabaseSource.deleteRows() at click time

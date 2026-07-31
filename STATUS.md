@@ -116,6 +116,29 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **SETTINGS-ROAM slice 1 (v788, sw v423, 2026-07-31, steward — Kevin: "all the admin
+  settings and all of the user settings should be persisted to the database so i can
+  login later from another browser and get my entire environment"):**
+  - **Branding is workspace-wide + synced (app/branding.js):** get/set go through
+    `Workspace.settings().branding` (rides snapshot.settings → polecat_meta) with
+    localStorage as the local cache; `liftLocalIntoWorkspace()` hands a device's
+    old local-only branding to a workspace that has none, once; a "replaced"
+    listener re-applies after every pull/adopt.
+  - **Per-user theme prefs (app/studio.js):** `saveUserPref/applyUserPrefs` — a
+    signed-in REMOTE account's theme + appTheme ride its own users row
+    (`row.prefs`, syncs via the upsert-only users push; mirrorUserRow reuses the
+    row object so prefs survive sign-in mirrors); applied in initAuthBoot AFTER
+    LF41's once-only provisioning (first sign-in seeds, thereafter the user's own
+    prefs win). Local accounts (no gotrueId) never write prefs. `_applyingUserPrefs`
+    fences echo-saves. Slice 2 (recents-cleared, rail state, panels pref,
+    restore-banner opt-in, VB canvas size, dashboard defaults, hidden sections,
+    sample toggle) remains queued on #164.
+  - Rode along (Kevin screenshots): the Workspace-backend card's five action
+    buttons wrap at any width instead of crushing the backend name ("Supaba/se");
+    docs gain "What follows you between browsers".
+  2 new checks (branding set-synced/adopt-wins/local-lift; prefs save→roam-apply +
+  local-account never writes). Files: app/branding.js, app/studio.js,
+  app/studio.css, docs/index.html, sw.js, js/changelog.js, tests/run.js, STATUS.md.
 - **USERS-DURABLE 2 (v787, sw v422, 2026-07-31, steward — Kevin live, minutes after
   v786 shipped):** the freshly-provisioned fntest account vanished AGAIN — this time
   to v786's own TARGETED delete: Kevin's signed-in admin session's mirror predated

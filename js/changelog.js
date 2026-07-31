@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 788,
+    title: 'Your environment follows you: branding and theme now roam with sign-in',
+    kind: 'feature',
+    ts: '2026-07-31T03:23:54.000Z',
+    items: [
+      'Branding — the app name, its link, and the custom icon an admin sets — now lives in the workspace itself and syncs to the backend: everyone who connects sees it, on any browser. A device still holding older browser-local branding hands it to the workspace automatically the first time it connects.',
+      'Your color theme and light/dark choice are saved on your own account and re-apply wherever you sign in — sign out on one browser, sign in on another, same look. (Dashboards, Views, datasets, pins, and folders have always roamed — they live in the workspace.) The local demo accounts stay browser-local. More personal preferences join the roaming set next.',
+      'Layout fixes: the Workspace-backend card’s action buttons wrap instead of crushing the backend name to a sliver.',
+    ],
+  },
+  {
     v: 787,
     title: 'Fix: adding a user can no longer be undone by another device’s sync',
     kind: 'fix',

@@ -2640,17 +2640,17 @@ body.simple-mode .da-acts{display:none!important}
 
 /* ── Workspace backend (Settings card + rail source indicator) ── */
 .ws-card-intro{margin:0 0 14px;font-size:var(--fs-13);line-height:1.6;color:var(--muted)}
-.ws-current,.ws-secrets{display:flex;align-items:center;gap:12px;background:color-mix(in srgb, var(--ink) 10%, var(--pane));
+.ws-current,.ws-secrets{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:color-mix(in srgb, var(--ink) 10%, var(--pane));
   border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);border-radius:10px;padding:var(--sp-12) var(--sp-14);margin-bottom:10px}
-.ws-actions{opacity:1}
-/* Kevin (live, phone screenshot 2026-07-29): at phone width the connected-backend row's four
-   fixed-width action buttons crushed the backend NAME to a letter-per-line sliver (.cx-name is
-   the row's only shrinkable flex item) and pushed "Switch backend" off the right edge. Let the
-   row wrap instead: the name keeps the first line, the action cluster drops to its own
-   full-width line and wraps its buttons as needed. */
+.ws-actions{opacity:1;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-left:auto}
+/* Kevin (live 2026-07-29 phone + 2026-07-31 desktop): the connected-backend row's
+   fixed-width action buttons crushed the backend NAME to a letter-per-line sliver
+   (.cx-name is the row's only shrinkable flex item — "Supaba/se"). The row wraps at
+   ANY width now: the name never shrinks below a readable floor; when the five
+   buttons don't fit beside it they wrap below instead of squeezing it. */
+.ws-current .cx-name,.ws-secrets .cx-name{min-width:130px}
 @media(max-width:640px){
-  .ws-current,.ws-secrets{flex-wrap:wrap}
-  .ws-current .ws-actions,.ws-secrets .ws-actions{flex:1 1 100%;flex-wrap:wrap;justify-content:flex-start}
+  .ws-current .ws-actions,.ws-secrets .ws-actions{flex:1 1 100%;justify-content:flex-start}
 }
 .cx-dot.busy{background:#f0a750;box-shadow:0 0 6px rgba(240,167,80,.5)}
 /* Sync-error detail block: the full failure message + (when the backend needs a
