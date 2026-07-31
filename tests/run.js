@@ -36238,7 +36238,7 @@ function serve() {
       return { footerBtnGone: gone };
     });
     ok("m-e: the retired footer Changelog button is genuinely gone at 390px too", meChangelog.footerBtnGone, JSON.stringify(meChangelog));
-    await mp2.waitForTimeout(300);
+    await mp2.waitForTimeout(600); // rpanel slide-in is 240ms + a rAF; 300ms flaked under load (MNAV uses 550)
     const meCloseBtn = await mp2.evaluate(() => {
       var b = document.querySelector('.ps-rpanel-head button[aria-label="Close panel"]');
       if (!b) return { present: false };
