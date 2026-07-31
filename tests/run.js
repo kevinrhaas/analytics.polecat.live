@@ -13448,6 +13448,31 @@ function serve() {
     const afterSpan = await page.evaluate(() => window.__STUDIO_STATE.spec.panels[0].span);
     ok("pointer-drag on right edge widens the panel", String(afterSpan) !== String(beforeSpan) && afterSpan === "full", beforeSpan + " → " + afterSpan);
 
+    // ---- PANEL-H (Kevin, 2026-07-31): "drag and make this one taller … so the
+    // panel can fill the screen" — a bottom-edge handle per card sets an
+    // explicit height on chart.opts.height (the knob charts already draw to). ----
+    console.log("\n• PANEL-H: drag panels taller");
+    const affH = await page.evaluate(() => {
+      const d = document.querySelector("#preview").contentDocument;
+      return { hs: d.querySelectorAll(".sr-resize-h").length };
+    });
+    ok("PANEL-H: every preview card carries a bottom-edge height handle", affH.hs === 6, JSON.stringify(affH));
+    const hBefore = await page.evaluate(() => (window.__STUDIO_STATE.spec.panels[0].chart.opts || {}).height || null);
+    const hb = await pvf.locator("[data-panel-id] .sr-resize-h").first().boundingBox();
+    if (hb) {
+      await page.mouse.move(hb.x + 40, hb.y + 4); await page.mouse.down();
+      await page.mouse.move(hb.x + 40, hb.y + 154, { steps: 8 }); await page.mouse.up();
+      await page.waitForTimeout(300);
+    }
+    const hAfter = await page.evaluate(() => (window.__STUDIO_STATE.spec.panels[0].chart.opts || {}).height || null);
+    ok("PANEL-H: pointer-dragging the bottom edge sets an explicit panel height on chart.opts.height — no upper cap, 120px floor",
+      typeof hAfter === "number" && hAfter >= 120 && hAfter !== hBefore, JSON.stringify({ hBefore: hBefore, hAfter: hAfter }));
+    const hExport = await page.evaluate((hv) => {
+      const html = Studio.exportCDF(window.__STUDIO_STATE.spec, window.__STUDIO_STATE.assets, "/x");
+      return html.indexOf('"height":' + hv) >= 0;
+    }, hAfter);
+    ok("PANEL-H: the drag-set height rides the spec into the export byte-stream (preview/viewer/export parity)", hExport === true, String(hAfter));
+
     // cross-row: short 2x2 layout so both rows are fully visible, then drag a row-2 panel to the front
     await page.evaluate(async () => {
       const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
@@ -16083,11 +16108,14 @@ function serve() {
       gateGone: !document.querySelector("#studio-gate"),
       who: (window.PolecatAuth.current() || {}).u,
       role: (window.PolecatAuth.current() || {}).role,
-      sourceId: Studio.Sync.syncState().sourceId
+      sourceId: Studio.Sync.syncState().sourceId,
+      section: window.__studioShellGetSection ? window.__studioShellGetSection() : null
     }));
     await gpAdm.close();
     ok("ADMIN-LOCAL: signing in as admin/admin with a remote workspace bound signs in as a LOCAL admin and forces the workspace back to Local — same strictly-local rule as demo/demo",
       admLocal.gateGone && admLocal.who === "admin" && admLocal.role === "admin" && admLocal.sourceId === "local", JSON.stringify(admLocal));
+    ok("HOME-LAND (Kevin): a fresh sign-in always lands on the Home section, whatever this browser last had open",
+      admLocal.section === "home", JSON.stringify({ section: admLocal.section }));
 
     // ---- DEMO-LOCAL (Kevin, 2026-07-31): the demo is a LOCAL concept — entering
     // it must force the workspace back to Local even when a remote backend is
@@ -16209,6 +16237,56 @@ function serve() {
     ok("BACKEND-FUTURE: the backend picker lists PostgreSQL / Cloudflare D1 / MongoDB Atlas as greyed, inert 'Future' cards (badged, aria-disabled, pointer-events none) while the real backends stay clickable buttons",
       futureCards.count === 3 && /PostgreSQL/.test(futureCards.labels[0]) && /Cloudflare D1/.test(futureCards.labels[1]) && /MongoDB Atlas/.test(futureCards.labels[2]) &&
       futureCards.allInert && futureCards.allBadged && futureCards.realStillButtons, JSON.stringify(futureCards));
+
+    // ---- PACK-FEATURED (Kevin): installing Conservation Insight auto-features
+    // the watershed (HUC8) geo dashboard on Home — never overriding a user's
+    // own explicit featured choice. ----
+    const packFeat = await page.evaluate(() => {
+      const W = Studio.Workspace;
+      const prevFeatured = W.all("dashboards").filter((r) => r.featured).map((r) => r.id);
+      prevFeatured.forEach((id) => {
+        const r = W.get("dashboards", id);
+        delete r.featured; delete r.featuredAt; W.put("dashboards", r, { silent: true });
+      });
+      const did = Studio.featureConservationGeo();
+      const target = W.all("dashboards").filter((r) => r.featured)[0];
+      const out = {
+        did: did,
+        watershed: !!target && (target.name === "conservation-watershed-map" || (target.spec && target.spec.name === "conservation-watershed-map")),
+        respectsChoice: Studio.featureConservationGeo() === false // something's featured now → no-op
+      };
+      // restore the pre-test featured set
+      W.all("dashboards").filter((r) => r.featured).forEach((r) => {
+        if (prevFeatured.indexOf(r.id) < 0) { delete r.featured; delete r.featuredAt; W.put("dashboards", r, { silent: true }); }
+      });
+      prevFeatured.forEach((id) => {
+        const r = W.get("dashboards", id);
+        if (r) { r.featured = true; W.put("dashboards", r, { silent: true }); }
+      });
+      return out;
+    });
+    ok("PACK-FEATURED: with nothing featured, the pack's watershed (HUC8) geo dashboard becomes Home's featured tile — and a workspace with an existing featured choice is left alone",
+      packFeat.did === true && packFeat.watershed && packFeat.respectsChoice, JSON.stringify(packFeat));
+
+    // ---- Kevin's polish pair: the Data-panel library card description uses the
+    // small grey meta style, and the Build section gets the app-standard gutter ----
+    const polishPair = await page.evaluate(() => {
+      const probe = document.createElement("div");
+      probe.className = "da"; probe.style.position = "absolute"; probe.style.left = "-9999px";
+      probe.innerHTML = '<div class="da-name">probe</div>';
+      document.body.appendChild(probe);
+      const nameCs = getComputedStyle(probe.querySelector(".da-name"));
+      const bodyFs = parseFloat(getComputedStyle(document.body).fontSize);
+      const out = { daNameFs: parseFloat(nameCs.fontSize), bodyFs: bodyFs };
+      probe.remove();
+      const wrap = document.querySelector("#secBuild .bd-wrap");
+      const wcs = wrap ? getComputedStyle(wrap) : null;
+      out.padTop = wcs ? parseFloat(wcs.paddingTop) : 0;
+      out.padLeft = wcs ? parseFloat(wcs.paddingLeft) : 0;
+      return out;
+    });
+    ok("Kevin polish: the Datasets library card description line renders in the small grey meta size (below body size), and the View Builder section carries the app-standard outer gutter",
+      polishPair.daNameFs < polishPair.bodyFs && polishPair.padTop >= 16 && polishPair.padLeft >= 20, JSON.stringify(polishPair));
 
     // ---- GOLIVE-CARD (Kevin live, 2026-07-30): the Admin per-user-security card
     // reflects the DATABASE's real posture — after the RLS script was applied

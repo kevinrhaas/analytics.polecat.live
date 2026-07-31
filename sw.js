@@ -5,7 +5,15 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v424"; /* v424: XP-UPDATE — Quick Views' Update View
+var CACHE_NAME = "studio-shell-v425"; /* v425: PANEL-H batch — dashboard panels drag
+   taller via a bottom-edge handle (studio-render.js .sr-resize-h posts resizeH →
+   studio.js writes chart.opts.height, the knob charts already draw to; card
+   opts.h stretches table/richtext too; exporters.js handle CSS); PACK-FEATURED
+   (demopacks.js featureConservationGeo — watershed auto-featured on install,
+   never overriding a user choice); HOME-LAND (gate.js afterLogin → home);
+   VB section gets the app-standard outer gutter + .da-name small grey meta
+   (studio.css); hint-bar + docs copy. */
+/* v424: XP-UPDATE — Quick Views' Update View
    preserves every analyses-row field the editor doesn't own (builder blob, kpi
    when still a KPI, private, owner) via a prev-spread instead of a bare rebuild
    — a builder-born map no longer blanks after Update; Quick View sections read

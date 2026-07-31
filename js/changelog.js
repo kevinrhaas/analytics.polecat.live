@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 790,
+    title: 'Drag dashboard panels taller — plus the watershed map takes the featured spot',
+    kind: 'feature',
+    ts: '2026-07-31T03:51:25.000Z',
+    items: [
+      'Dashboard Builder panels now resize vertically: drag a panel’s bottom edge to make it taller or shorter — up to the full height of the screen. The height saves with the dashboard and carries identically into the viewer and every export. (The right edge still drags width, as before.)',
+      'Installing the Conservation Insight sample pack now automatically features its watershed (HUC8) choropleth on Home’s live tile — the pack’s best geo, front and center. If you’ve already featured a dashboard of your own, your choice stays.',
+      'Consistency pass on the View Builder: the section gets the same outer breathing room as every other screen instead of sitting flush against the rail and top bar.',
+      'The Dashboard Builder’s Datasets panel cards now show their description in the same small grey style as the “This dashboard’s datasets” card — the name leads again.',
+      'Signing in now always lands you on Home (the first-ever visit still gets the welcome tour there) — no more dropping into whatever screen the browser last had open.',
+    ],
+  },
+  {
     v: 789,
     title: 'Fix: updating a View Builder View from Quick Views no longer blanks it',
     kind: 'fix',

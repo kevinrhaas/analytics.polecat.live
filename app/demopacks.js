@@ -419,6 +419,32 @@
     // installed flag at the bottom.
     if (id === "conservation") installConservationWorkspace();
     setInstalledIds(installedIds().concat([id]));
+    if (id === "conservation") {
+      Studio.ensureConservationWatershedDashboard(); // no-op when install already seeded it
+      Studio.featureConservationGeo();
+    }
+  };
+
+  // PACK-FEATURED (Kevin, 2026-07-31): "this should be automatically made
+  // featured when you install the conservation insight sample pack … i think
+  // watershed" — the pack's sexiest geo, the watershed (HUC8) choropleth,
+  // becomes Home's FEATURED live tile the moment the pack lands. Only when the
+  // user hasn't featured anything themselves — an explicit choice always wins.
+  Studio.featureConservationGeo = function () {
+    var W = Studio.Workspace;
+    if (W.all("dashboards").some(function (r) { return r.featured; })) return false;
+    var target = W.all("dashboards").filter(function (r) {
+      return r.demoPackId === "conservation" &&
+        (r.name === "conservation-watershed-map" || (r.spec && r.spec.name === "conservation-watershed-map"));
+    })[0] || W.all("dashboards").filter(function (r) {
+      // fallback: the county/hero cover-crop geo dashboard
+      return r.demoPackId === "conservation" && /cover ?crop|county/i.test(r.title || r.name || "");
+    })[0];
+    if (!target) return false;
+    target.featured = true;
+    target.featuredAt = new Date().toISOString();
+    W.put("dashboards", target);
+    return true;
   };
 
   function installConservationWorkspace() {

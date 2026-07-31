@@ -968,6 +968,10 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
 .da{border:1px solid var(--line);border-radius:8px;padding:var(--sp-8) var(--sp-10);margin:5px 4px 5px 0;background:var(--pane);cursor:grab}
 .da:hover{border-color:var(--brand);box-shadow:var(--shadow)}
 .da .da-id{font-family:var(--font);font-size:var(--fs-12);font-weight:700;color:var(--brand);word-break:break-all}
+/* Kevin (2026-07-31): the description line had NO rule — it inherited full body
+   size and out-shouted the name. Match the small grey meta the "This dashboard's
+   datasets" cards use (.da-mine-meta). */
+.da .da-name{font-size:var(--fs-11);color:var(--muted);margin-top:2px;line-height:1.4;overflow:hidden;text-overflow:ellipsis}
 .da .da-cols{margin-top:4px;display:flex;flex-wrap:wrap;gap:3px}
 .da .col{font-size:var(--fs-10);background:var(--field);border:1px solid var(--line-2);border-radius:5px;padding:var(--sp-2) var(--sp-6);color:var(--muted)}
 .da .col.param{background:color-mix(in srgb,var(--dk) 14%,transparent);border-color:transparent;color:var(--dk)}
@@ -1394,15 +1398,20 @@ body.lib-dragging #preview{pointer-events:none}
 .dsb-chip .rm:hover{opacity:1}
 .dsb-empty{font-size:var(--fs-12);color:var(--faint)}
 /* ---------- #117: the View Builder (Build section) ---------- */
-.bd-wrap{display:grid;grid-template-columns:250px minmax(0,1fr);gap:var(--sp-16);align-items:start}
+/* Kevin (2026-07-31): the Build section sat flush against the rail + topbar
+   while every other section breathes (.repo-wrap's 28/32px gutter) — give it
+   the same outer padding so the app feels like ONE product. */
+.bd-wrap{display:grid;grid-template-columns:250px minmax(0,1fr);gap:var(--sp-16);align-items:start;
+  padding:var(--sp-20) var(--sp-32) var(--sp-20) var(--sp-28)}
 /* Kevin (2026-07-31): breathe at the top — the shelves column starts flush at 0
    while the sticky datasets pane sits ~20px down (sticky offset + pane padding);
    pad the main column so the COLUMNS row aligns with the DATASETS header. */
 .bd-main{padding-top:var(--sp-16)}
 .bd-left{background:var(--pane);border:1px solid var(--line);border-radius:12px;padding:var(--sp-10);
   box-sizing:border-box;position:sticky;top:var(--sp-10);overflow:auto;
-  /* fill the viewport column (Kevin live) rather than sizing to content */
-  height:calc(100vh - 120px);max-height:calc(100vh - 120px)}
+  /* fill the viewport column (Kevin live) rather than sizing to content;
+     140px allowance = topbar + the section's new outer gutter */
+  height:calc(100vh - 140px);max-height:calc(100vh - 140px)}
 .bd-left-head{display:flex;align-items:center;justify-content:space-between;font-size:var(--fs-11);font-weight:800;letter-spacing:.06em;text-transform:uppercase;
   color:var(--faint);padding:var(--sp-2) var(--sp-4) var(--sp-8)}
 /* VB-1: navigator parity — search + New in the pane header, an Explore-style
@@ -1572,7 +1581,7 @@ body.lib-dragging #preview{pointer-events:none}
 .bd-table td.num{text-align:right;font-variant-numeric:tabular-nums}
 .bd-trunc{font-size:var(--fs-11);color:var(--faint);margin-top:var(--sp-6)}
 @media (max-width:900px){
-  .bd-wrap{grid-template-columns:1fr}
+  .bd-wrap{grid-template-columns:1fr;padding:var(--sp-12) var(--sp-16)}
   .bd-left{position:static;height:auto;max-height:240px}
   .bd-shelf-row{flex-direction:column;align-items:stretch;gap:4px}
   .bd-shelf-lbl{flex:none}

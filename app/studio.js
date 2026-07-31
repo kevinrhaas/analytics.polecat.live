@@ -9700,6 +9700,17 @@
       reorderPanels(d.order);
     } else if (d.type === "resize") {
       var p = panelById(d.id); if (p) { p.span = d.span; if (S.selection && S.selection.kind === "panel" && S.selection.id === d.id) renderInspector(); else renderListsOnly(); refreshPreview(); toast("Resized → span " + d.span); }
+    } else if (d.type === "resizeH") {
+      // PANEL-H (Kevin): the preview's bottom-edge drag → an explicit panel
+      // height on chart.opts.height (the exact knob charts already draw to),
+      // so it holds identically in the preview, the viewer, and every export.
+      var ph = panelById(d.id);
+      if (ph) {
+        ph.chart.opts = ph.chart.opts || {};
+        ph.chart.opts.height = d.h;
+        if (S.selection && S.selection.kind === "panel" && S.selection.id === d.id) renderInspector();
+        refreshPreview(); toast("Resized → " + d.h + "px tall");
+      }
     } else if (d.type === "rename") {
       var rp = panelById(d.id); if (rp) { rp.title = d.title; if (S.selection && S.selection.kind === "panel" && S.selection.id === d.id) renderInspector(); refreshPreview(); toast("Renamed → " + d.title); }
     } else if (d.type === "kpi-delete") {
