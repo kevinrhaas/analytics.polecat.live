@@ -7616,6 +7616,57 @@
 
 ## NEXT (top = do first)
 
+### ⚠ SESSION HANDOFF — live steward session active (written 2026-07-31 ~04:20Z)
+> Kevin is enabling the continuous manager lane while an interactive steward
+> session is still working. Coordination rules for ANY automated run:
+>
+> **CLAIMED by the live session — do NOT start these** unless the claim expires
+> (no commit referencing the item lands on main within ~6 hours of the
+> timestamp above; then take over using the context given):
+> 1. **FILTERS-1 ★ (bug, next up):** Conservation pack dashboard filters are
+>    DEAD — root cause CONFIRMED: pack DAs are file-kind (real engine), and
+>    `app/sources/localfile.js queryData` ignores params entirely; SCORE-1's
+>    filter fix only covered the mock branch. Fix at the DISPATCH level in
+>    app/studio-render.js: extract the SCORE-1 mock wrapper's param↔column
+>    matching into one shared applyParamFilter(result, params) and apply it to
+>    REAL engine results too (before outputOptions/aggregation). Then add
+>    recurring per-pack-dashboard filter-flip tests (flip each filter, assert
+>    rendered data changes and restores).
+> 2. **VB-13:** View Builder datasets pane collapsible/resizable — mirror the
+>    Studio Data panel pattern exactly (`.pane-rail` collapsed strip +
+>    `.pane-collapse` header button, app/index.html:401-402); drag handle for
+>    width (min 200/max 480, CSS var), persist both.
+> 3. **SETTINGS-ROAM slice 2 (#164):** remaining per-user prefs onto the users
+>    row prefs blob (recents-cleared marker, rail open/width, STUDIO-PANELS
+>    pref, restore-banner opt-in, VB canvas + pane sizes, dashboard defaults)
+>    + workspace-wide hidden-sections/sample-toggle into synced settings.
+>    Slice 1 (branding + theme) shipped v788 — follow its saveUserPref/
+>    applyUserPrefs + Workspace.setSetting patterns.
+> 4. **DURABLE-2 ★:** deletion tombstones for the non-users tables (a stale
+>    admin mirror can still target-delete rows it never saw — users is already
+>    upsert-only, v787; the general cure is tombstoned deletes like relay's).
+>
+> **OPEN FOR THE AUTOMATED LANE (independent, minimal overlap with the above):**
+> LF24 (Quick mode CSV-drop auto-dashboard) · LF59 (Dashboards section
+> multi-select/bulk mgmt) · LF40 (animated welcome/tour overhaul) · #23 (tour
+> defines every domain term) · LF53 code-level CDF/CDE purge · LF21 (title
+> header as first-class widget) · marketing-site refresh. One coherent item per
+> run, `steward/<topic>` branch off latest main, rebase if the live session
+> shipped meanwhile. The live session works on `claude/lucid-keller-nff4pb`.
+>
+> **DO NOT touch:** tools/supabase-*.sql posture files, app/workspaces.js
+> packaged keys, and the users-table sync semantics (upsert-only, v787) — these
+> encode tonight's live-incident fixes.
+>
+> **Kevin-side pending (not agent work):** re-add fntest via Admin → +Add user
+> (safe since v787) → incognito sign-in → M7 steps 3-4 close out; two CTIC
+> admins after that.
+>
+> Shipped tonight (context): v778–v791 — WORKSPACE-LOGIN, RLS posture + canonical
+> deploy script, ACTIVITY-1, GATE-FIX/2, DEMO/ADMIN-LOCAL, USERS-DURABLE 1+2
+> (users wipe class eliminated), SETTINGS-ROAM slice 1, EXPORT-1, XP-UPDATE,
+> VB-12, PANEL-H, PACK-FEATURED, HOME-LAND, HOTLINK-1, DECLUTTER-1.
+
 ### ★★★ VIEW BUILDER OVERNIGHT QUEUE (Kevin live, 2026-07-30 — "i like the new view builder")
 > Kevin's overnight worklist for #117's View Builder. Work top-down as separate steward
 > slices; reuse Studio's existing engineering rather than reinventing (his explicit note:
