@@ -125,7 +125,9 @@
       return fetch(base + path, {
         method: opts.method || "GET",
         headers: headers(cfg, opts.headers, session && session.accessToken),
-        body: opts.body
+        body: opts.body,
+        // ACTIVITY-1: lets the one session-end log event survive pagehide
+        keepalive: !!opts.keepalive
       }).catch(function (e) {
         throw new Error("Could not reach Supabase (network or CORS): " + e.message);
       }).then(function (res) {
@@ -513,6 +515,22 @@
         if (!r.ok) return { denied: true, rows: 0 };
         return r.json().then(function (j) { return { denied: false, rows: Array.isArray(j) ? j.length : 0 }; });
       }).catch(function () { return null; }); // network trouble → unknown, card stays as-is
+    },
+
+    // ACTIVITY-1 (Kevin, 2026-07-30): append ONE row to a log table
+    // (polecat_activity / polecat_feedback), riding the connection's signed-in
+    // session — the tables are INSERT-only for authenticated users, admin-read.
+    // Fire-and-forget callers (app/activity.js) swallow rejections and queue.
+    insertRow: function (cfg, table, row, opts) {
+      return rest(cfg, "/" + table, {
+        method: "POST",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify([row]),
+        keepalive: !!(opts && opts.keepalive)
+      }).then(function (r) {
+        if (!r.ok) return r.text().then(function (t) { throw new Error("HTTP " + r.status + " " + String(t).slice(0, 120)); });
+        return { ok: true };
+      });
     },
 
     testData: function (cfg) {

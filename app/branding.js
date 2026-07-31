@@ -41,6 +41,25 @@
     }
     return DEFAULT_SUITE;
   }
+  // BRAND-LINK (Kevin live, 2026-07-31): where clicking the rail suite label goes.
+  // Default label → polecat.live (as always). A custom white-label name can carry
+  // its own destination (b.suiteUrl, e.g. the org's site); with none set, the
+  // custom name renders as PLAIN TEXT (an href-less <a>) — a custom brand should
+  // never silently link somewhere unrelated. http(s) only; bare domains get
+  // https:// prepended; anything else (javascript: etc.) is treated as unset.
+  function suiteHref(b) {
+    b = b || get();
+    if (b.suite === "custom") {
+      var u = String(b.suiteUrl || "").trim();
+      if (!u) return "";
+      if (!/^https?:\/\//i.test(u)) {
+        if (/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}([\/?#].*)?$/i.test(u)) u = "https://" + u;
+        else return "";
+      }
+      return u;
+    }
+    return "https://" + DEFAULT_SUITE;
+  }
   function apply() {
     var b = get();
     // 1) the rail mark
@@ -57,15 +76,27 @@
       if (b.mode === "custom" && b.dataUrl) { icon.setAttribute("href", b.dataUrl); icon.removeAttribute("type"); }
       else { icon.setAttribute("href", "favicon.svg"); icon.setAttribute("type", "image/svg+xml"); }
     }
-    // 3) the rail suite label — hidden, custom white-label text, or the default.
+    // 3) the rail suite label — hidden, custom white-label text, or the default —
+    //    plus WHERE it links (BRAND-LINK): custom names carry their own URL or
+    //    render as plain text; the default keeps pointing at polecat.live.
     var suite = document.querySelector(".rail-suite");
     if (suite) {
       var lbl = suiteLabel(b);
       if (!lbl) { suite.style.display = "none"; }
-      else { suite.textContent = lbl; suite.style.display = ""; }
+      else {
+        suite.textContent = lbl; suite.style.display = "";
+        var href = suiteHref(b);
+        if (href) {
+          suite.setAttribute("href", href);
+          suite.setAttribute("title", "Open " + href.replace(/^https?:\/\//, ""));
+        } else {
+          suite.removeAttribute("href");
+          suite.removeAttribute("title");
+        }
+      }
     }
   }
 
-  Studio.Branding = { get: get, set: set, apply: apply, suiteLabel: suiteLabel, MAX_BYTES: MAX_BYTES, SUITE_MAX: SUITE_MAX, DEFAULT_SUITE: DEFAULT_SUITE };
-  window.__studioBranding = { get: get, set: set, apply: apply, suiteLabel: suiteLabel }; // test hook
+  Studio.Branding = { get: get, set: set, apply: apply, suiteLabel: suiteLabel, suiteHref: suiteHref, MAX_BYTES: MAX_BYTES, SUITE_MAX: SUITE_MAX, DEFAULT_SUITE: DEFAULT_SUITE };
+  window.__studioBranding = { get: get, set: set, apply: apply, suiteLabel: suiteLabel, suiteHref: suiteHref }; // test hook
 })();

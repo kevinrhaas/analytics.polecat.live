@@ -15779,6 +15779,108 @@ function serve() {
       /polecat-logo-coin-cream\.svg/.test(landSrc) && /polecat-logo-black\.svg/.test(landSrc) && !/polecat-mark-(white|black)\.png/.test(landSrc),
       JSON.stringify({ favLen: favSrc.length }));
 
+    // ---- ACTIVITY-1 (Kevin, 2026-07-30): backend activity + feedback logging ----
+    console.log("\n• ACTIVITY-1: activity log + feedback button");
+    // A) local-only → events QUEUE (never lost, never an error); consecutive dupes throttle
+    const actQueue = await page.evaluate(function () {
+      Studio.Sync.disconnect();
+      localStorage.removeItem(Studio.Activity._queueKey);
+      Studio.Activity.log("hx-test", { x: 1 });
+      Studio.Activity.log("hx-test", { x: 1 }); // dup within 5s → throttled
+      var q = JSON.parse(localStorage.getItem(Studio.Activity._queueKey) || "[]");
+      return { n: q.length, table: q[0] && q[0].t, action: q[0] && q[0].r.action,
+        hasUser: !!(q[0] && q[0].r.username), hasAt: !!(q[0] && q[0].r.at) };
+    });
+    ok("ACTIVITY-1: on a local-only workspace an event QUEUES locally (username + real event time stamped) and a back-to-back duplicate is throttled",
+      actQueue.n === 1 && actQueue.table === "polecat_activity" && actQueue.action === "hx-test" && actQueue.hasUser && actQueue.hasAt, JSON.stringify(actQueue));
+    // B) connected → the queue FLUSHES via the adapter's signed-in insert; live
+    //    events go straight through; feedback carries auto-captured context
+    const actFlush = await page.evaluate(async function () {
+      var calls = [];
+      var insert0 = Studio.supabaseSource.insertRow, save0 = Studio.supabaseSource.save;
+      Studio.supabaseSource.insertRow = function (cfg, table, row) { calls.push({ table: table, row: row }); return Promise.resolve({ ok: true }); };
+      Studio.supabaseSource.save = function () { return Promise.resolve({ ok: true }); }; // keep any stray push off the network
+      await Studio.Sync.bindConnection("supabase", { url: "https://x.supabase.co", key: "k" });
+      var flushed = await Studio.Activity.flush();
+      Studio.Activity.log("hx-live", { y: 2 });
+      Studio.Activity.feedback("bug", "it broke on the map");
+      await new Promise(function (r) { setTimeout(r, 50); });
+      var qAfter = JSON.parse(localStorage.getItem(Studio.Activity._queueKey) || "[]");
+      var fb = calls.filter(function (c) { return c.table === "polecat_feedback"; })[0];
+      var out = {
+        flushed: flushed, qAfter: qAfter.length,
+        tables: calls.map(function (c) { return c.table; }),
+        liveAction: (calls.filter(function (c) { return c.row.action === "hx-live"; })[0] || {}).table,
+        fbKind: fb && fb.row.kind, fbMsg: fb && fb.row.message,
+        fbCtx: fb && fb.row.context ? { hasVersion: !!fb.row.context.version, hasViewport: !!fb.row.context.viewport, hasUa: !!fb.row.context.ua } : null
+      };
+      Studio.supabaseSource.insertRow = insert0; Studio.supabaseSource.save = save0;
+      Studio.Sync.disconnect();
+      localStorage.removeItem(Studio.Activity._queueKey);
+      return out;
+    });
+    ok("ACTIVITY-1: once a Supabase connection is live the queue flushes, live events insert directly, and a feedback report lands in polecat_feedback with kind + message + auto-captured context (version/viewport/UA)",
+      actFlush.flushed === 1 && actFlush.qAfter === 0 && actFlush.liveAction === "polecat_activity" &&
+      actFlush.fbKind === "bug" && actFlush.fbMsg === "it broke on the map" &&
+      actFlush.fbCtx && actFlush.fbCtx.hasVersion && actFlush.fbCtx.hasViewport && actFlush.fbCtx.hasUa, JSON.stringify(actFlush));
+    // C) the topbar button (right of What's-next) opens the tiny dialog; Send routes
+    //    through Studio.Activity.feedback and closes
+    const fbUi = await page.evaluate(async function () {
+      var out = {};
+      var next = document.getElementById("tbWhatsNext");
+      out.btnAfterNext = !!(next && next.nextElementSibling && next.nextElementSibling.id === "tbFeedback");
+      var captured = null;
+      var fb0 = Studio.Activity.feedback;
+      Studio.Activity.feedback = function (kind, msg) { captured = { kind: kind, msg: msg }; };
+      window.__studioOpenFeedback();
+      out.kindOptions = document.querySelectorAll("#fbKind option").length;
+      out.hasMsg = !!document.getElementById("fbMsg");
+      document.getElementById("fbKind").value = "feature";
+      document.getElementById("fbMsg").value = "add sparkle";
+      document.getElementById("fbSendBtn").click();
+      await new Promise(function (r) { setTimeout(r, 100); });
+      out.captured = captured;
+      out.modalClosed = !document.querySelector(".modal-ov");
+      Studio.Activity.feedback = fb0;
+      return out;
+    });
+    ok("ACTIVITY-1: the topbar feedback button sits right of What's-next; the dialog offers bug/feature/comment/question + optional text, and Send records + closes",
+      fbUi.btnAfterNext && fbUi.kindOptions === 4 && fbUi.hasMsg && fbUi.captured && fbUi.captured.kind === "feature" && fbUi.captured.msg === "add sparkle" && fbUi.modalClosed, JSON.stringify(fbUi));
+
+    // ---- BRAND-LINK (Kevin live, 2026-07-31): custom rail-name destination ----
+    const brandLink = await page.evaluate(function () {
+      var B = window.__studioBranding, out = {};
+      var orig = B.get();
+      B.set({ mode: "default", suite: "custom", suiteText: "Viridis View", suiteUrl: "ctic.org" });
+      var suite = document.querySelector(".rail-suite");
+      out.customHref = suite.getAttribute("href");
+      out.customLabel = suite.textContent;
+      B.set({ mode: "default", suite: "custom", suiteText: "Viridis View", suiteUrl: "javascript:alert(1)" });
+      out.badSchemeHref = suite.getAttribute("href"); // must be gone — plain text
+      B.set({ mode: "default" });
+      out.defaultHref = suite.getAttribute("href");
+      B.set(orig && orig.mode ? orig : { mode: "default" });
+      return out;
+    });
+    ok("BRAND-LINK: a custom rail name can carry its own destination (bare domains get https://), an unsafe scheme renders as plain text, and the default label still points at polecat.live",
+      brandLink.customHref === "https://ctic.org" && brandLink.customLabel === "Viridis View" &&
+      brandLink.badSchemeHref === null && brandLink.defaultHref === "https://polecat.live", JSON.stringify(brandLink));
+    const brandLinkAdmin = await page.evaluate(function () {
+      var B = window.__studioBranding;
+      var orig = B.get();
+      B.set({ mode: "default", suite: "custom", suiteText: "Viridis View", suiteUrl: "https://ctic.org" });
+      window.__studioShellSetSection("admin");
+      window.__studioRenderAdmin();
+      var inp = document.getElementById("brandSuiteUrlInp");
+      var row = document.getElementById("brandSuiteUrlRow");
+      var out = { hasInput: !!inp, value: inp && inp.value, rowVisible: !!(row && row.style.display !== "none") };
+      B.set(orig && orig.mode ? orig : { mode: "default" });
+      window.__studioRenderAdmin();
+      return out;
+    });
+    ok("BRAND-LINK: the Admin branding card gains a Custom link field (shown with a custom name, prefilled from the stored URL)",
+      brandLinkAdmin.hasInput && brandLinkAdmin.value === "https://ctic.org" && brandLinkAdmin.rowVisible, JSON.stringify(brandLinkAdmin));
+
     // ---- M4: Admin — manage users (first slice of "Admin + permissions") ----
     console.log("\n• M4: admin — manage users");
     // The main `page` carries the historical studio-gate-ok bypass with no stored

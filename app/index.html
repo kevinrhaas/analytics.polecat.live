@@ -147,6 +147,9 @@ html[data-reduce-motion="1"] #app{transition:none}
            The fleet waffle (.ps-waffle-btn) is inserted just left of +New by app/fleet.js. -->
       <button class="btn icon tb-ic" id="tbWhatsNew" type="button" title="What's new" aria-label="What's new" aria-expanded="false"></button>
       <button class="btn icon tb-ic" id="tbWhatsNext" type="button" title="What's next" aria-label="What's next — roadmap"></button>
+      <!-- ACTIVITY-1 (Kevin, 2026-07-30): report a bug / ask / comment — one tap,
+           auto-captures the situation, recorded to the backend feedback log. -->
+      <button class="btn icon tb-ic" id="tbFeedback" type="button" title="Send feedback — report a bug, ask a question, or suggest something" aria-label="Send feedback"></button>
       <button class="btn icon tb-ic" id="tbTheme" type="button" title="Toggle dark mode" aria-label="Toggle dark mode"></button>
       <div class="menu-wrap"><button class="btn btn-primary" id="btnNew" title="New dashboard">New ▾</button>
         <div class="menu" id="menuNew"></div></div>
@@ -509,6 +512,7 @@ html[data-reduce-motion="1"] #app{transition:none}
 <script src="app/sources/workspace.js"></script>
 <script src="app/sources/jobs-engine.js"></script>
 <script src="app/sources/sync.js"></script>
+<script src="app/activity.js"></script>
 <script src="app/sampledata.js"></script>
 <script src="app/demopacks.js"></script>
 <script src="app/duckdb.js"></script>

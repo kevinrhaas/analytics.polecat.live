@@ -1873,9 +1873,20 @@
   <ul>
     <li><strong>App mark</strong> — the icon at the top of the left rail: <strong>Default</strong> (the Analytics mark), <strong>Custom logo</strong>, or <strong>None</strong>. A custom logo should be a <strong>square</strong> PNG/JPG/SVG (ideally a simple, transparent-background icon around 64–256&nbsp;px, up to 200&nbsp;KB) — it renders small in the rail and tiny in the browser tab, so avoid fine detail or lots of text.</li>
     <li><strong>Favicon</strong> — when you set a custom logo it also becomes the <strong>browser-tab favicon</strong>, so a white-labeled app matches in the tab.</li>
-    <li><strong>Suite name</strong> — the small label under the app name in the rail (<strong>polecat.live</strong> by default). Set your own short white-label name (up to 24 characters — keep it to a word or two so the rail lockup stays tidy) or <strong>hide</strong> it entirely.</li>
+    <li><strong>Suite name</strong> — the small label under the app name in the rail (<strong>polecat.live</strong> by default). Set your own short white-label name (up to 24 characters — keep it to a word or two so the rail lockup stays tidy) or <strong>hide</strong> it entirely. A custom name can also carry its own <strong>Custom link</strong> — where clicking the name goes (e.g. your organization's site, opened in a new tab); leave the link empty and the name is plain text. The default label keeps pointing at polecat.live.</li>
   </ul>
   <p>Branding is stored locally on this device as part of your Settings, so <strong>Export settings</strong> carries it along. This only affects the app's own chrome — it's independent of any exported dashboard's branding.</p>
+
+  <h3>Sending feedback (and what gets recorded)</h3>
+  <p>The speech-bubble button in the top bar (next to What's-next) opens a tiny dialog: pick
+  <strong>Bug</strong>, <strong>Feature</strong>, <strong>Comment</strong>, or
+  <strong>Question</strong>, optionally say more, and hit Send. Your account name, the section
+  you were on, the open dashboard (if any), and the app version are captured automatically, so
+  a one-word report still tells the team exactly where you were. Reports go to an admin-only
+  log in the workspace backend; on a local-only workspace they wait on your device and send
+  once a backend is connected. Separately, the backend keeps a concise activity trail —
+  sign-ins/outs, dashboard opens, exports, and one time-on-page event per visit — also
+  admin-only, with nothing visible to anonymous readers.</p>
 
   <h3>Color theme</h3>
   <!-- IMAGE-SLOT: the Settings Appearance card with the seven Color-theme palette

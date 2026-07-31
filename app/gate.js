@@ -33,6 +33,8 @@
   // (already-authed loads reveal without a login and never call this).
   function afterLogin() {
     try { if (window.__studioAuthBoot) window.__studioAuthBoot(); } catch (e) {}
+    // ACTIVITY-1: record the sign-in (AFTER auth boot, so current() is fresh).
+    try { if (window.Studio && Studio.Activity) Studio.Activity.log("sign-in"); } catch (e) {}
     // shell.js already ran (and gated the Admin rail item) before anyone signed in —
     // refresh it now that PolecatAuth.current() actually reflects who logged in.
     try { if (window.__studioShellApplyRoleGating) window.__studioShellApplyRoleGating(); } catch (e) {}

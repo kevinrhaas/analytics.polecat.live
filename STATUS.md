@@ -7907,6 +7907,26 @@
 >       Original — (Kevin live, 2026-07-30, screenshots): examples not from his
 >       installed pack shown under the Conservation label; wanted a per-user
 >       clear-recents control.
+> ACTIVITY-1 + BRAND-LINK. ✓ **SHIPPED v782, sw v417 (Kevin, 2026-07-30/31).**
+>       TWO separate backend logs (Kevin's SQL-editor runs + tools/supabase-deploy.sql
+>       § 6): polecat_activity (action trail) + polecat_feedback (reports) — both
+>       append-only TO authenticated (own rows), admin-only SELECT, invisible to
+>       anon. NEW app/activity.js: Studio.Activity.log/feedback/flush — fire-and-
+>       forget via supabase.js insertRow (rides the user's session; rest() gains
+>       keepalive), local-only visits queue in localStorage (cap 50) + flush on the
+>       next connected onSync; 5s consecutive-dupe throttle; ONE session-end event
+>       per visit on pagehide with time-on-page ms (the "don't go crazy" duration).
+>       Logged: sign-in (gate afterLogin), sign-out (both handlers), dashboard-open
+>       (openRecent funnel), export (menu formats), feedback. Topbar gains the
+>       speech-bubble feedback button (right of What's-next): tiny modal —
+>       bug/feature/comment/question + optional text; context auto-captured
+>       (section, dashboard id+title, route, changelog version, viewport, UA).
+>       Backend-only — deliberately NO Admin console view yet. BRAND-LINK (same
+>       slice, Kevin 2026-07-31): branding.js suiteHref — a custom rail name can
+>       carry its own destination (Admin → Branding "Custom link"; bare domains get
+>       https://, unsafe schemes render plain text, default label keeps polecat.live).
+>       Suite: queue/flush/feedback-context checks, topbar dialog end-to-end,
+>       brand-link href/sanitize/admin-field checks.
 > POLISH-4 (GOLIVE-CARD + RAIL-OPEN-DEFAULT + PACK-COPY + BRAND-V2). ✓ **SHIPPED
 >       v781, sw v416 (one slice, all four Kevin live 2026-07-30).** (1) Admin's
 >       per-user-security card is POSTURE-AWARE: supabase.js anonProbe (anon-key-only

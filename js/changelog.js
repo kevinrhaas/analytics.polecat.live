@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 782,
+    title: 'A feedback button in the top bar, a backend activity trail, and custom brand links',
+    kind: 'feature',
+    ts: '2026-07-31T00:17:29.000Z',
+    items: [
+      'New speech-bubble button in the top bar (right of What’s-next): report a bug, ask a question, or leave a comment in one tiny dialog. Who you are, where you were, and the app version are captured automatically — nothing to fill in beyond the thought itself.',
+      'The workspace backend now keeps a concise activity trail — sign-ins, sign-outs, dashboard opens, exports, and one time-on-page event per visit — recorded with the acting account and timestamp. Reports and the trail live in two separate admin-only tables; on a local-only workspace events queue on the device and send once a backend is connected.',
+      'Branding: a custom rail name can now carry its own link — Admin → Branding gains a “Custom link” field (e.g. your organization’s site), opened in a new tab when someone clicks the name. Without one, a custom name is plain text; the default label still points at polecat.live.',
+    ],
+  },
+  {
     v: 781,
     title: 'New Polecat logo, an open navigation rail for first-timers, and an honest security card',
     ts: '2026-07-30T23:35:03.000Z',
