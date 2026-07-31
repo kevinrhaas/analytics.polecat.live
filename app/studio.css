@@ -1530,6 +1530,11 @@ body.lib-dragging #preview{pointer-events:none}
 .bd-flt-row:hover{background:var(--field)}
 .bd-flt input[type="number"]{flex:1;box-sizing:border-box}
 .bd-charts{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:var(--sp-8)}
+/* VB-14: per-dataset draft affordances — the outline dot + the Clear-canvas button */
+.bd-draft-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--brand);margin-left:6px;vertical-align:middle;flex:none}
+.bd-clear{margin-left:auto;background:none;border:1px solid var(--line);border-radius:9px;color:var(--muted);
+  cursor:pointer;font-size:var(--fs-12);font-weight:600;padding:5px 12px}
+.bd-clear:hover{border-color:var(--danger,#d33);color:var(--danger,#d33)}
 .bd-ct{display:inline-flex;align-items:center;gap:7px;background:var(--pane);border:1px solid var(--line);
   border-radius:9px;padding:5px 12px 5px 8px;font-size:var(--fs-12);font-weight:600;color:var(--ink);cursor:pointer}
 .bd-ct:hover:not(:disabled){border-color:var(--brand)}

@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 796,
+    title: 'View Builder: switching datasets no longer loses your work',
+    kind: 'feature',
+    ts: '2026-07-31T05:52:32.000Z',
+    items: [
+      'Every dataset in the View Builder now keeps its own work-in-progress draft: click another dataset and your shelves, filters, calculations, and chart pick are stashed — click back and they return exactly as you left them. Drafts survive a reload.',
+      'Datasets carrying a draft show a small dot in the Datasets panel, so you can build on several datasets and walk through them one by one.',
+      'A new “Clear canvas” button (right end of the chart strip) resets just the current dataset back to a clean slate — other datasets’ drafts are untouched.',
+    ],
+  },
+  {
     v: 795,
     title: 'View Builder: resize or collapse the Datasets panel',
     kind: 'feature',

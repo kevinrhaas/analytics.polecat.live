@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v430"; /* v430: VB-13 — the View Builder
+var CACHE_NAME = "studio-shell-v431"; /* v431: VB-14 — per-dataset drafts in
+   the View Builder: bdSelectDataset stashes the outgoing dataset's shelves/
+   filters/calcs/chart and restores the incoming one's draft (localStorage
+   studio-bd-drafts, LRU 20, debounced persist from render()); draft dot in the
+   outline; Clear canvas button in the chart strip resets only the current
+   dataset (build.js + studio.css). */
+/* v430: VB-13 — the View Builder
    datasets pane drag-resizes (200-480px via #bdLeftResize, persisted at
    studio-bd-lw) and collapses to a 40px vertical rail (#bdLeftRail, persisted
    at studio-bd-collapse) — setupBuildPane in studio.js, bd-rail/bd-left-resize
