@@ -4019,8 +4019,8 @@ function serve() {
         stateGeo: stateDs && (stateDs.columns || []).indexOf("statecode") >= 0
       };
     });
-    ok("M2c: installing the demo pack seeds ≥2 connections (a file store + a repo backend), 4 datasets and a rollup job — a complete illustrative workspace",
-      m2c.adapters.indexOf("file") >= 0 && m2c.adapters.indexOf("supabase") >= 0 && m2c.dsetCount === 5 && m2c.jobStep === "aggregate", JSON.stringify(m2c)); // 5 since CONS-3's metrics dataset
+    ok("M2c: installing the demo pack seeds ≥2 connections (a file store + a repo backend), 8 datasets and a rollup job — a complete illustrative workspace",
+      m2c.adapters.indexOf("file") >= 0 && m2c.adapters.indexOf("supabase") >= 0 && m2c.dsetCount === 8 && m2c.jobStep === "aggregate", JSON.stringify(m2c)); // 8 since CONS-1's three curated datasets
     ok("M2c: the county dataset is real, in-geometry data (720 rows, every geoid a 5-digit FIPS) so its choropleth colors live — not a token sample",
       m2c.countyRows === 720 && m2c.allFips && !m2c.countyErr, JSON.stringify(m2c));
     ok("M2c: the seeded job is a county→state acreage-weighted-mean rollup wired source→output (the jobs-engine wmean pattern, its output a state-level dataset)",
@@ -5791,8 +5791,8 @@ function serve() {
     const LF43_EXPECTED_FILES = ["conservation-agreement.studio.json", "conservation-costshare.studio.json",
       "conservation-flow.studio.json", "conservation-outliers.studio.json", "conservation-overview.studio.json",
       "conservation-scorecard.studio.json", "conservation-switching.studio.json", "conservation-watershed.studio.json"].sort();
-    ok("LF43: installing the Conservation pack materializes all 8 of its gated example-gallery dashboards as real workspace rows (plus the 3 hand-built ones — featured + Watershed Map + System Metrics — = 11 total)",
-      lf43Materialized.total === 11 && lf43Materialized.sourcedCount === 8 &&
+    ok("LF43: installing the Conservation pack materializes all 8 of its gated example-gallery dashboards as real workspace rows (plus the 6 hand-built ones — featured, Watershed Map, System Metrics + CONS-1's three references — = 14 total)",
+      lf43Materialized.total === 14 && lf43Materialized.sourcedCount === 8 &&
       JSON.stringify(lf43Materialized.sourceFiles) === JSON.stringify(LF43_EXPECTED_FILES) && lf43Materialized.titlesAllReal,
       JSON.stringify(lf43Materialized));
     // regression guard: datamanagement is installed BY DEFAULT (no explicit install click ever
@@ -5842,7 +5842,7 @@ function serve() {
       return out;
     });
     ok("PACK NAMING: conservation dashboards lead with their own name and install into the 'Conservation Insight' folder",
-      packNaming.count === 11 && packNaming.allInFolder && packNaming.noPrefix, JSON.stringify(packNaming)); // 11 since CONS-3 added the System Metrics wheel
+      packNaming.count === 14 && packNaming.allInFolder && packNaming.noPrefix, JSON.stringify(packNaming)); // 14 since CONS-1 added the three reference dashboards
     ok("PACK NAMING: the boot reconcile strips the legacy prefix (row + spec titles) and backfills the folder on a pre-rename workspace",
       packNaming.healedTitle === "Legacy Shaped" && packNaming.healedSpecTitle === "Legacy Shaped" &&
       packNaming.healedFolder === "Conservation Insight", JSON.stringify(packNaming));
