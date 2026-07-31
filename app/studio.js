@@ -5613,11 +5613,13 @@
       if (prior.createdAt) entry.createdAt = prior.createdAt;
       if (prior.owner) entry.owner = prior.owner;
       if (prior.private) entry.private = true;
-      // KEVIN-LIVE-2: filing and pack provenance are catalog organization too —
-      // a Save must not silently un-file a dashboard or orphan a pack row.
+      // KEVIN-LIVE-2: filing, pack provenance and the Home featured flag are
+      // catalog organization too — a Save must not silently un-file a
+      // dashboard, orphan a pack row, or un-feature it from Home.
       if (prior.folder) entry.folder = prior.folder;
       if (prior.demoPackId) entry.demoPackId = prior.demoPackId;
       if (prior.sourceFile) entry.sourceFile = prior.sourceFile;
+      if (prior.featured) entry.featured = true;
     } else {
       var newUid = currentUserId();
       if (newUid) entry.owner = newUid;
