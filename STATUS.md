@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **PACK-SHOTS — a dated reference gallery of the whole app (v815, 2026-07-31,
+  session — Kevin's ask):** two headless-capture tools, both staged with the
+  sample packs installed so nothing reads empty.
+  - `tools/shoot-pack-dashboards.mjs` full-page-captures all 23 pack dashboards
+    (Conservation Insight 11 = 3 seeded + 8 examples; Data Management &
+    Governance 12) through the Home live-tile render recipe (ensureGeoAssets +
+    Build.ensureSpecMocks real rows + genMock → Studio.buildHtml). Output:
+    `docs/shots/sample-packs/2026-07-31/`.
+  - `tools/shoot-app-tour.mjs` captures the app itself: every rail section plus
+    the good menus/dialogs staged with sample input (command palette, export,
+    Save as, JSON editor, version history + diff, compare, quick import, the
+    connection wizard, bulk move-to-folder, guided tours, welcome, dark theme)
+    — 40 surfaces (34 desktop @1440, 6 mobile @390). Output:
+    `docs/shots/app-tour/2026-07-31/`.
+  - Each folder has README.md + session.json manifests recording the session
+    time and commit; every PNG carries the session timestamp in its tEXt
+    metadata. No app code touched; nothing precached changed, so no sw CACHE
+    bump.
 - **KEVIN-COPY — welcome/chooser/adopt-prompt wording (v814, sw v448,
   2026-07-31, steward — three Kevin-live notes):** (1) welcome hero shortcut
   "New Quick View" → "New View" (destination unchanged: Quick Views, the
