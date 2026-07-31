@@ -10762,9 +10762,27 @@
     // local data" gap. Device-remembered UI state like this (same bucket as studio-dash-view/
     // studio-mob-tab above) isn't a Settings default, so it's CLEAR_DATA_KEYS-only, not added to
     // SETTINGS_DATA_KEYS.
-    "studio-pdf-export-opts"
+    "studio-pdf-export-opts",
+    // Track L sweep (orphaned-key lens, round 7): the largest haul yet — re-ran the cross-check
+    // (every localStorage call in app/*.js + app/sources/*.js diffed against this list) after
+    // several feature slices in the same 2026-07-31 burst (VB-13/14/DROP, EXPORT-2, #103, SORT-1)
+    // each added a key without updating this list. "studio-restore-unsaved" and "studio-panels-
+    // default" are sharper than the usual gap: both are ALSO in ROAM_LS_KEYS (synced per-user via
+    // SETTINGS-ROAM), so leaving them out of Clear-local-data meant a "fresh start" reload could
+    // silently re-adopt the old prefs off this device's own localStorage the next roam tick.
+    "studio-activity-queue", "studio-bd-drafts", "studio-bd-preview-size", "studio-bd-lw",
+    "studio-bd-collapse", "studio-workspaces-custom", "studio-workspace-last",
+    "studio-export-datamode", "studio-vwc-view", "studio-panels-default", "studio-restore-unsaved",
+    "studio-sort-dashboards", "studio-sort-datasets", "studio-sort-connections", "studio-sort-jobs",
+    "studio-sort-views", "studio-sort-repository"
   ];
   window.__studioClearDataKeys = CLEAR_DATA_KEYS; // test hook
+  // Track L sweep round 7 (continued): two keys are per-user/per-backend-id
+  // (recentsClearedKey() → "studio-recents-cleared::<user>", declineKey → "studio-backend-
+  // decline:<id>" from #103) — no fixed literal list can ever cover every value that's been
+  // written, so Clear-local-data sweeps these by PREFIX over the real key list instead.
+  var CLEAR_DATA_PREFIXES = ["studio-recents-cleared::", "studio-backend-decline:"];
+  window.__studioClearDataPrefixes = CLEAR_DATA_PREFIXES; // test hook
 
   // New ▾ menu: blank, duplicate, then auto-build starters. Auto-build now
   // draws from BOTH planes — your workspace datasets first, then the sample
@@ -11277,6 +11295,13 @@
         "The page will reload as if you were visiting for the first time.";
       if (!confirm(msg)) return;
       try { keys.forEach(function (k) { localStorage.removeItem(k); }); } catch (e) {}
+      // Track L sweep round 7: per-user/per-id keys (see CLEAR_DATA_PREFIXES above) can't be
+      // enumerated as fixed literals — sweep the real key list by prefix instead.
+      try {
+        Object.keys(localStorage).forEach(function (k) {
+          if (CLEAR_DATA_PREFIXES.some(function (p) { return k.indexOf(p) === 0; })) localStorage.removeItem(k);
+        });
+      } catch (e) {}
       // REVIEW-FIXES: a "start fresh" reset must also drop the auth bypass flag (sessionStorage,
       // untouched by the localStorage sweep above) — same flag Sign-out clears — so a reload
       // truly lands on the sign-in screen instead of silently re-authing via the historical

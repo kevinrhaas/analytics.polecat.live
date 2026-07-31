@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 816,
+    title: 'Clear local data now wipes everything it promises to',
+    kind: 'fix',
+    ts: '2026-07-31T13:58:55.000Z',
+    items: [
+      'Several recent features (per-dataset drafts in the View Builder, the assigned-backend auto-connect, page sort choices, and a handful of other on-device preferences) had quietly slipped past "Clear local data," so a device reset left traces behind instead of a truly clean slate.',
+      'Everything those features write is now covered, including the per-account and per-backend preferences that cannot be listed by name up front.',
+    ],
+  },
+  {
     v: 815,
     title: 'A dated reference gallery of the whole app -- every sample-pack dashboard, plus a tour of the app itself',
     kind: 'polish',
