@@ -8935,6 +8935,20 @@
     // carrying local data gets a confirm (adopting replaces the local workspace),
     // and a decline is remembered per backend id so sign-in never nags.
     try { applyAssignedBackend(mine); } catch (e) {}
+    // TOUR-FORCE (Kevin live, 2026-07-31): the admin-set ONE-SHOT "show the welcome
+    // tour at their next sign-in" flag. Consumed IMMEDIATELY (reset before the welcome
+    // even paints) so taking the tour and dismissing it count the same — the next
+    // sign-in is back to normal either way. The device's welcome-seen flag is cleared
+    // too: it's device-local, which is exactly why a NEW account on an already-seen
+    // browser never got the welcome (Kevin's test3 login). Voluntary replays stay on
+    // Home ("Take the tour") and Settings → Tour, unchanged.
+    try {
+      if (mine && mine.forceTour) {
+        Auth.upsert(me.u, { forceTour: false }).then(function (saved) { mirrorUserRow(saved); });
+        try { localStorage.removeItem("studio-welcome-seen"); } catch (e2) {}
+        if (window.StudioWelcome && window.StudioWelcome.open) window.StudioWelcome.open();
+      }
+    } catch (e) {}
     // SETTINGS-ROAM: apply the account's roamed prefs (theme etc.) AFTER the
     // once-only provisioning defaults above — on a first sign-in there are no
     // prefs yet so provisioning seeds the look; every later sign-in the user's
@@ -9558,6 +9572,16 @@
       packLab.appendChild(packChk);
       packLab.appendChild(document.createTextNode(" Install the Conservation Insight sample pack on first sign-in"));
       form.appendChild(packLab);
+      // TOUR-FORCE (Kevin live, 2026-07-31): a ONE-SHOT "show the welcome tour at their
+      // next sign-in" flag — unlike the once-only provisioning above it's re-settable any
+      // time (e.g. after invalidating the tour for a test login) and auto-resets once the
+      // welcome is shown, whether they take it or dismiss it.
+      var tourLab = el("label", "check"); tourLab.style.cssText = "gap:6px;font-size:12px;margin-top:2px";
+      var tourChk = el("input"); tourChk.type = "checkbox"; tourChk.id = "usrEditForceTour";
+      tourChk.checked = !!(existing && existing.forceTour);
+      tourLab.appendChild(tourChk);
+      tourLab.appendChild(document.createTextNode(" Show the welcome tour at their next sign-in (one-shot — resets itself after showing)"));
+      form.appendChild(tourLab);
       // LF41 slice 2: "copy my/current settings to this user" — Kevin's (a) convenience
       // option. Snapshots the ADMIN'S OWN current Settings → Dashboard defaults (subtitle,
       // accent, logo, header bg, title size, subtitle style, dashboard theme, card skin,
@@ -9619,6 +9643,7 @@
         if (!existing && !pInp.value) { pInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Set a password."; return; }
         if (supabaseSignup && !eInp.value.trim()) { eInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Give the account an email address for Supabase Auth."; return; }
         var opts = { name: nInp.value.trim() || u, role: rSel.value };
+        opts.forceTour = tourChk.checked; // TOUR-FORCE: one-shot welcome-at-next-sign-in
         if (pInp.value) opts.pass = pInp.value;
         var provTheme = tSel.value, provPack = packChk.checked ? "conservation" : "";
         // bSel is only rendered when at least one backend is registered (see

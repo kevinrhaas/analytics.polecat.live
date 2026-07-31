@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **TOUR-FORCE — per-user one-shot "show the welcome tour at next sign-in"
+  flag (v813, sw v447, 2026-07-31, steward — Kevin live: signed in as a
+  brand-new test account on a device that had already seen the welcome and
+  got no tour; wanted an admin option to force it):** `forceTour` is a new
+  boolean on the auth user row, carried through all four auth.js field
+  enumerations (upsert opts / pub / exportForStore / importFromStore) so it
+  syncs with the account via the users-table mirror. Admin Add/Edit user
+  gains a "Show the welcome tour at their next sign-in" checkbox
+  (#usrEditForceTour, round-trips the live flag). initAuthBoot consumes it:
+  if the signed-in user's row has forceTour, reset the flag first
+  (Auth.upsert {forceTour:false} + mirrorUserRow — one-shot even if the
+  welcome errors), clear this device's `studio-welcome-seen`, and
+  StudioWelcome.open() (which re-stamps SEEN — correct end state). The
+  Home "Take the tour" card remains the user-side replay path. Docs: new
+  "Force the welcome tour at next sign-in" subsection under per-user
+  provisioning. 4 new checks in the gp41 admin context (editor checkbox +
+  store carry, edit round-trip, consume-despite-seen + one-shot reset, no
+  re-show on second sign-in). Lane: skip TOUR-FORCE — done here.
 - **SORT-1 ★ — standard sorting on every catalog panel (v812, sw v446,
   2026-07-31, steward — Kevin live: "sort by name, last used date, workbook,
   things like that"):** NEW shared `Studio.catalogSort` kit (studio.js:
