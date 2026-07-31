@@ -378,7 +378,13 @@
     var folderInp = $("#xpFolder");
     XP.folder = ((folderInp && folderInp.value) || XP.folder || "").trim();
     var prev = XP.analysisId ? Studio.Workspace.get("analyses", XP.analysisId) : null;
-    var row = {
+    // XP-UPDATE (Kevin live, 2026-07-31): Update used to REBUILD the row from
+    // only the fields this editor owns — silently dropping everything else. The
+    // worst casualty was `builder` (the View Builder blob that computes a
+    // cross-editor View's REAL rows): one Update from Quick Views and the map
+    // went permanently blank. Also lost: private/owner (M4.2) and kpi. Start
+    // from the previous row and override ONLY what Quick Views actually edits.
+    var row = Object.assign({}, prev || {}, {
       id: XP.analysisId || undefined,
       name: XP.name,
       datasetId: XP.kind === "ws" ? XP.dsId : null,
@@ -388,7 +394,10 @@
       chartType: XP.type,
       pinned: prev ? !!prev.pinned : false,
       createdAt: prev ? prev.createdAt : undefined
-    };
+    });
+    // a KPI blob only makes sense while the View IS a KPI — switching chart
+    // type in this editor genuinely replaces it (the VB-5 best-effort contract)
+    if (XP.type !== "kpi") delete row.kpi;
     if (XP.folder) row.folder = XP.folder; else delete row.folder;
     var saved = Studio.Workspace.put("analyses", row);
     XP.analysisId = saved.id;
@@ -780,14 +789,14 @@
       main =
         '<div class="xp-editor-bar"><button type="button" class="btn xp-back-btn" id="xpBackBtn" title="Back to datasets"></button></div>' +
         noticeHtml +
-        '<div class="xp-step"><div class="xp-step-h">1 · The data' +
+        '<div class="xp-step"><div class="xp-step-h">1 · Data' +
           '<span class="xp-badge' + (XP.run.live ? " live" : "") + '">' + (XP.run.live ? "live rows" : "sample rows") + "</span>" +
           (XP.run.error ? '<span class="xp-badge warn" title="' + esc(XP.run.error) + '">live run failed</span>' : "") +
           '<span class="xp-note">' + rows.length + " rows · " + cols.length + " columns</span></div>" +
           '<div class="xp-table-wrap"><table class="xp-table"><thead>' + thead + "</thead><tbody>" + tbody + "</tbody></table></div></div>" +
-        '<div class="xp-step"><div class="xp-step-h">2 · The chart</div><div class="xp-chips">' + chips + "</div></div>" +
-        '<div class="xp-step"><div class="xp-step-h">3 · The mapping</div><div class="xp-map-grid">' + xpMapEditorHtml() + "</div></div>" +
-        '<div class="xp-step"><div class="xp-step-h">4 · The result</div><div id="xpPreview" class="xp-preview"></div>' +
+        '<div class="xp-step"><div class="xp-step-h">2 · Chart</div><div class="xp-chips">' + chips + "</div></div>" +
+        '<div class="xp-step"><div class="xp-step-h">3 · Mapping</div><div class="xp-map-grid">' + xpMapEditorHtml() + "</div></div>" +
+        '<div class="xp-step"><div class="xp-step-h">4 · Result</div><div id="xpPreview" class="xp-preview"></div>' +
           '<div class="xp-savebar">' +
             '<input id="xpName" type="text" placeholder="Name this View…" value="' + esc(XP.name) + '" aria-label="View name"/>' +
             '<input id="xpFolder" type="text" placeholder="Folder (optional)" title="Optional — use / to nest, e.g. Finance/2024" value="' + esc(XP.folder || "") + '" aria-label="Folder" list="xpFolderOptions"/>' +

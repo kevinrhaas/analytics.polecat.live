@@ -12097,6 +12097,40 @@ function serve() {
       JSON.stringify(vb5c));
     ok("VB-5: every saved row in Explore's sidebar carries an 'Open in the View Builder' action (▤)",
       vb5c.savedRowBuildBtn, JSON.stringify(vb5c));
+
+    // ---- XP-UPDATE (Kevin live, 2026-07-31): "Update View" from Quick Views used
+    // to REBUILD the analyses row from only the fields this editor owns — one
+    // Update on a builder-born map dropped its `builder` blob (the thing that
+    // computes its real rows) and the map went permanently blank. ----
+    const xpUpd = await page.evaluate(async (qvId) => {
+      const W = Studio.Workspace;
+      const before = W.get("analyses", qvId);
+      // stamp fields the Quick editor doesn't own, to prove they survive Update
+      W.put("analyses", Object.assign({}, before, { private: true, owner: "own-xpupd" }), { silent: true });
+      window.Studio.ViewsCatalog.openIn(qvId, "explore");
+      await new Promise((r) => setTimeout(r, 600));
+      const heads = [].slice.call(document.querySelectorAll("#secExplore .xp-step-h")).map((h) => (h.textContent || "").trim());
+      const nameInp = document.getElementById("xpName");
+      if (nameInp) nameInp.value = before.name + " upd";
+      Studio.Explore.save();
+      await new Promise((r) => setTimeout(r, 250));
+      const after = W.get("analyses", qvId);
+      const out = {
+        saveRan: !!after && after.name === before.name + " upd",
+        builderKept: !!(before.builder && after && after.builder),
+        privateKept: !!(after && after.private),
+        ownerKept: !!after && after.owner === "own-xpupd",
+        heads: heads.map((h) => h.split("·")[1] ? h.split("·")[1].trim().split("\n")[0] : h)
+      };
+      // restore the row so later tests see the original state
+      W.put("analyses", Object.assign({}, after, { name: before.name, private: false, owner: before.owner }), { silent: true });
+      return out;
+    }, vb5a.qvId);
+    ok("XP-UPDATE: 'Update View' from Quick Views preserves every field this editor doesn't own — the builder blob (the map's real rows), private, owner — instead of rebuilding the row bare",
+      xpUpd.saveRan && xpUpd.builderKept && xpUpd.privateKept && xpUpd.ownerKept, JSON.stringify(xpUpd));
+    ok("XP copy (Kevin): the Quick View sections read Data / Chart / Mapping / Result — no 'The'",
+      xpUpd.heads.length >= 4 && xpUpd.heads[0].indexOf("Data") === 0 && xpUpd.heads[1] === "Chart" &&
+      xpUpd.heads[2] === "Mapping" && xpUpd.heads[3] === "Result", JSON.stringify(xpUpd.heads));
     // Home pinned cards: the overlay click owner-routes (this row is now a builder
     // View → the View Builder), and the header offers the OTHER editor explicitly.
     const vb5d = await page.evaluate(async (qvId) => {

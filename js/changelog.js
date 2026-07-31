@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 789,
+    title: 'Fix: updating a View Builder View from Quick Views no longer blanks it',
+    kind: 'fix',
+    ts: '2026-07-31T03:35:45.000Z',
+    items: [
+      'A View made in the View Builder opens fine in Quick Views, but clicking Update View there rebuilt the saved row from only the fields Quick Views edits — silently discarding the View Builder definition that computes the View’s real rows (a map went permanently blank this way), along with its private/owner flags. Update now keeps everything it doesn’t own.',
+      'Quick Views copy: the four sections are now Data, Chart, Mapping, Result.',
+    ],
+  },
+  {
     v: 788,
     title: 'Your environment follows you: branding and theme now roam with sign-in',
     kind: 'feature',
