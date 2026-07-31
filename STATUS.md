@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **VB-14 (v796, sw v431, 2026-07-31, steward — Kevin live: "when you change
+  from one dataset to the other you lose what you selected ... maybe you need a
+  clear canvas button"):** per-dataset drafts in the View Builder. bdSelectDataset
+  now STASHES the outgoing dataset's editor state (shelfCols/shelfRows/filters/
+  calcs/shelfColor/paletteKey/chartType/mapScale + analysisId/name/folder/
+  panelTitle) and RESTORES the incoming dataset's draft — a fresh dataset still
+  starts clean. Drafts live in localStorage `studio-bd-drafts` (key
+  kind+\\u0001+id, LRU-capped 20, in-memory cache + debounced persist), kept
+  live by a bdStashDraft() call at the top of render() (every mutation
+  re-renders). An empty canvas is NO draft (deleted on stash). Outline rows
+  with a draft show a `.bd-draft-dot`; "Clear canvas" (chart strip, far right)
+  resets ONLY the current dataset and deletes its draft; deleting a dataset
+  deletes its draft. Saved Views untouched — drafts are a pure editor layer.
+  Headless-verified full round-trip (build on A → B clean → back to A restored,
+  chart type included; clear A keeps B). 2 suite checks. Test hooks
+  window.__studioBdDrafts. SETTINGS-ROAM slice 2 could roam the draft map too
+  (small blob). Files: app/build.js, app/studio.css, tests/run.js,
+  docs/index.html, js/changelog.js v796, sw v431.
 - **VB-13 (v795, sw v430, 2026-07-31, steward — Kevin live: "i cant read the
   names of the datasets because its cut off ... take a cue from dashboard
   builder"):** the View Builder datasets pane drag-resizes via a right-edge
@@ -7731,17 +7749,7 @@
 > 4. **DURABLE-2 ★:** deletion tombstones for the non-users tables (a stale
 >    admin mirror can still target-delete rows it never saw — users is already
 >    upsert-only, v787; the general cure is tombstoned deletes like relay's).
-> 5. **VB-14 (Kevin, 2026-07-31 late):** View Builder loses the shelves
->    (rows/columns/marks) when you click a different dataset — switching must
->    NOT destroy work. Give each dataset its own draft encoding state: click
->    dataset A → drag fields; click B → clean shelves (or B's own earlier
->    draft); click back to A → A's picks and rendered view return. Show a
->    small draft badge/dot on datasets in the pane that carry a draft so you
->    can walk through them, plus an explicit "Clear canvas" button that
->    resets the current dataset's draft (fresh-arrival clean slate).
->    Sketch: session draft map keyed by dataset id (persist to localStorage —
->    a draft layer, NOT saved Views); stash-on-switch / restore-on-click;
->    per-dataset dirty semantics unchanged.
+> 5. ~~VB-14~~ **SHIPPED v796 (this session, 2026-07-31 ~05:55Z — see DONE).**
 > 6. **VB-DROP (Kevin, 2026-07-31 late):** drag a CSV/JSON (Excel stretch)
 >    file onto the View Builder → auto-create a real dataset (it appears in
 >    Datasets + the VB tree) → inspect columns and auto-pick the most

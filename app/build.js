@@ -86,6 +86,62 @@
     BD.notice = "";
   }
 
+  // ---------- VB-14: per-dataset drafts ----------
+  // Switching datasets used to WIPE the shelves (Kevin: "when you change from
+  // one dataset to the other you lose what you selected"). Now every dataset
+  // keeps its own work-in-progress draft: clicking away stashes the current
+  // shelves/filters/calcs/chart, clicking back restores them — and datasets
+  // carrying a draft show a dot in the outline so you can walk through them.
+  // Drafts persist across reloads (localStorage, LRU-capped) but are a pure
+  // editor layer — saved Views are untouched. "Clear canvas" (the button in
+  // the chart strip) resets ONLY the current dataset's draft.
+  var BD_DRAFT_KEY = "studio-bd-drafts", BD_DRAFT_MAX = 20;
+  var BD_DRAFT_FIELDS = ["shelfCols", "shelfRows", "filters", "calcs", "shelfColor",
+    "paletteKey", "chartType", "mapScale", "analysisId", "name", "folder", "panelTitle"];
+  var _drafts = null, _draftTimer = null;
+  function bdDrafts() {
+    if (_drafts) return _drafts;
+    try { _drafts = JSON.parse(localStorage.getItem(BD_DRAFT_KEY) || "{}"); } catch (e) { _drafts = {}; }
+    return _drafts;
+  }
+  function bdPersistDrafts() {
+    clearTimeout(_draftTimer);
+    _draftTimer = setTimeout(function () {
+      try { localStorage.setItem(BD_DRAFT_KEY, JSON.stringify(bdDrafts())); } catch (e) {}
+    }, 250);
+  }
+  function bdDraftHasContent(d) {
+    return !!(d && ((d.shelfCols || []).length || (d.shelfRows || []).length ||
+      (d.filters || []).length || (d.calcs || []).length || (d.shelfColor || []).length));
+  }
+  function bdStashDraft() {
+    if (!BD.dsId) return;
+    var drafts = bdDrafts(), key = BD.dsKind + BD_SEP + BD.dsId;
+    var d = { at: Date.now() };
+    BD_DRAFT_FIELDS.forEach(function (f) { d[f] = BD[f]; });
+    if (!bdDraftHasContent(d) && !d.analysisId) delete drafts[key]; // an empty canvas is no draft
+    else {
+      drafts[key] = d;
+      var keys = Object.keys(drafts);
+      if (keys.length > BD_DRAFT_MAX) {
+        keys.sort(function (a, b) { return (drafts[a].at || 0) - (drafts[b].at || 0); })
+          .slice(0, keys.length - BD_DRAFT_MAX).forEach(function (k) { delete drafts[k]; });
+      }
+    }
+    bdPersistDrafts();
+  }
+  function bdClearCanvas() {
+    if (!BD.dsId) return;
+    BD.shelfCols = []; BD.shelfRows = []; BD.filters = []; BD.calcs = []; BD.shelfColor = [];
+    BD.paletteKey = ""; BD.chartType = "table"; BD.mapScale = ""; BD._eff = null;
+    BD.analysisId = null; BD.name = ""; BD.folder = ""; BD.panelTitle = "";
+    delete bdDrafts()[BD.dsKind + BD_SEP + BD.dsId];
+    bdPersistDrafts();
+    D.toast("Canvas cleared — clean slate for this dataset");
+    render();
+  }
+  window.__studioBdDrafts = { get: bdDrafts, stash: bdStashDraft, clear: bdClearCanvas, hasContent: bdDraftHasContent }; // test hook
+
   // ---------- calculated columns (slice 4) ----------
   // The SAME formula engine the rest of the app uses (Studio.applyCalcCols /
   // Studio.evalFormula — "=[colA] / [colB]" plus pctChange()/movingAvg(); a safe
@@ -233,14 +289,24 @@
     if (!ds) return;
     if (!window.confirm("Delete dataset “" + (ds.name || ds.id) + "”? Views built on it fall back to sample rows.")) return;
     Studio.Workspace.remove("datasets", id);
+    delete bdDrafts()["ws" + BD_SEP + id]; bdPersistDrafts(); // VB-14: a deleted dataset takes its draft with it
     if (BD.dsKind === "ws" && BD.dsId === id) { bdReset(); }
     D.toast("Dataset deleted");
     render();
   }
 
   function bdSelectDataset(kind, id) {
+    bdStashDraft(); // VB-14: keep the outgoing dataset's work-in-progress
     BD.dsKind = kind; BD.dsId = id;
-    BD.shelfCols = []; BD.shelfRows = []; BD.filters = []; BD.calcs = []; BD.shelfColor = []; BD._eff = null;
+    // VB-14: an incoming dataset restores its own draft; a fresh one starts clean
+    var draft = bdDrafts()[kind + BD_SEP + id] || {};
+    BD.shelfCols = draft.shelfCols || []; BD.shelfRows = draft.shelfRows || [];
+    BD.filters = draft.filters || []; BD.calcs = draft.calcs || [];
+    BD.shelfColor = draft.shelfColor || []; BD.paletteKey = draft.paletteKey || "";
+    BD.chartType = draft.chartType || "table"; BD.mapScale = draft.mapScale || "";
+    BD.analysisId = draft.analysisId || null; BD.name = draft.name || "";
+    BD.folder = draft.folder || ""; BD.panelTitle = draft.panelTitle || "";
+    BD._eff = null;
     BD.run = null;
     var entry = bdDatasets().filter(function (d) { return d.kind === kind && d.id === id; })[0];
     BD.dsName = entry ? entry.name : id;
@@ -1147,6 +1213,7 @@
   function render() {
     var sec = document.getElementById("secBuild");
     if (!sec) return;
+    bdStashDraft(); // VB-14: every state change re-renders, so this keeps the current dataset's draft live
 
     // VB-5: the cross-editor notice — a View made in the other editor was opened
     // here best-effort; dismissible, cleared on New/next load.
@@ -1201,7 +1268,11 @@
           '<button type="button" class="bd-ol-head" data-bd-ds="' + esc(key) + '" title="' + esc(d.name) + ' — ' + esc(d.sub) + '">' +
             '<span class="bd-ol-car">' + (open ? "▾" : "▸") + '</span>' +
             '<span class="bd-ol-ic" data-bd-ic="' + (d.kind === "ws" ? "db" : "cube") + '"></span>' +
-            '<span class="bd-ol-txt"><b>' + esc(d.name) + '</b><small>' + esc(d.sub) + "</small></span></button>" +
+            // VB-14: the dot marks datasets carrying a work-in-progress draft —
+            // walk the list and click one to see what's on its canvas
+            '<span class="bd-ol-txt"><b>' + esc(d.name) +
+              (bdDraftHasContent(bdDrafts()[key]) ? '<span class="bd-draft-dot" title="Has a work-in-progress draft — click to resume"></span>' : "") +
+            '</b><small>' + esc(d.sub) + "</small></span></button>" +
           acts + "</div>" + colsHtml +
           "</div>";
       }
@@ -1341,6 +1412,9 @@
           (mini ? '<span class="bd-ct-ic">' + mini + "</span>" : '<span class="bd-ct-ic bd-ct-tbl">▦</span>') +
           '<span>' + esc(c.label) + "</span></button>";
       }).join("");
+      // VB-14: Clear canvas — far right of the strip; resets ONLY the current
+      // dataset's draft back to a clean slate ("like you came in clean")
+      if (BD.dsId) strip.innerHTML += '<button type="button" class="bd-clear" id="bdClearCanvas" title="Clear this dataset\'s canvas — empties the shelves and forgets its draft">Clear canvas</button>';
       // VB-10: with the Map active, the Region scale gets a VISIBLE control right in
       // the strip — before this, newPanel's silent "county" default meant any
       // state-FIPS/HUC8/district id column drew an all-no-data map with no way to fix
@@ -1559,6 +1633,8 @@
     if (mapScaleSel) {
       mapScaleSel.onchange = function () { BD.mapScale = mapScaleSel.value; render(); }; // VB-10
     }
+    var clearBtn = $("#bdClearCanvas", sec);
+    if (clearBtn) clearBtn.onclick = function () { bdClearCanvas(); }; // VB-14
     $$("[data-bd-flt-edit]", sec).forEach(function (btn) {
       btn.onclick = function () {
         var f = BD.filters.filter(function (x) { return x.col === btn.getAttribute("data-bd-flt-edit"); })[0];
