@@ -986,6 +986,8 @@
     try { if (Studio.ensureConservationBuilderViews) Studio.ensureConservationBuilderViews(); } catch (e) {}
     // CONS-3 heal: pre-existing installs get the metrics-wheel dataset + dashboard.
     try { if (Studio.ensureConservationMetricsWheel) Studio.ensureConservationMetricsWheel(); } catch (e) {}
+    // CONS-1: pre-existing installs get the three CTIC/OpTIS reference dashboards.
+    try { if (Studio.ensureConservationReferenceDashboards) Studio.ensureConservationReferenceDashboards(); } catch (e) {}
     // FILTERS-1 heal: pre-existing installs get the practice/sinceYear param
     // declarations on the featured dashboard's geo/KPI/provider DAs.
     try { if (Studio.ensureConservationFilterParams) Studio.ensureConservationFilterParams(); } catch (e) {}

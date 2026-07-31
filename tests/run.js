@@ -4019,8 +4019,8 @@ function serve() {
         stateGeo: stateDs && (stateDs.columns || []).indexOf("statecode") >= 0
       };
     });
-    ok("M2c: installing the demo pack seeds ≥2 connections (a file store + a repo backend), 4 datasets and a rollup job — a complete illustrative workspace",
-      m2c.adapters.indexOf("file") >= 0 && m2c.adapters.indexOf("supabase") >= 0 && m2c.dsetCount === 5 && m2c.jobStep === "aggregate", JSON.stringify(m2c)); // 5 since CONS-3's metrics dataset
+    ok("M2c: installing the demo pack seeds ≥2 connections (a file store + a repo backend), 8 datasets and a rollup job — a complete illustrative workspace",
+      m2c.adapters.indexOf("file") >= 0 && m2c.adapters.indexOf("supabase") >= 0 && m2c.dsetCount === 8 && m2c.jobStep === "aggregate", JSON.stringify(m2c)); // 8 since CONS-1's three curated datasets
     ok("M2c: the county dataset is real, in-geometry data (720 rows, every geoid a 5-digit FIPS) so its choropleth colors live — not a token sample",
       m2c.countyRows === 720 && m2c.allFips && !m2c.countyErr, JSON.stringify(m2c));
     ok("M2c: the seeded job is a county→state acreage-weighted-mean rollup wired source→output (the jobs-engine wmean pattern, its output a state-level dataset)",
@@ -4830,12 +4830,62 @@ function serve() {
         choroScales: dashes[0] && dashes[0].spec.panels.filter(function (p) { return p.chart.type === "choropleth"; }).map(function (p) { return p.chart.opts.scale; }),
         allFileCsv: dss.every(function (d) { return d.kind === "file" && d.format === "csv"; }) };
     });
-    ok("DP: installDemoPack seeds a whole workspace — 2 connections, 5 file datasets, 1 rollup job, 4 pinned builder-native analyses (CONS-4), the featured + Watershed Map + System Metrics dashboards (CONS-2/CONS-3)",
-      dpInstall.installed && dpInstall.conns === 2 && dpInstall.dss === 5 && dpInstall.ans === 4 && dpInstall.dashes === 3 && dpInstall.jobs === 1 &&
+    ok("DP: installDemoPack seeds a whole workspace — 2 connections, 8 file datasets, 1 rollup job, 4 pinned builder-native analyses (CONS-4), and SIX dashboards: featured + Watershed Map + System Metrics + the three CTIC/OpTIS references (CONS-1/2/3)",
+      dpInstall.installed && dpInstall.conns === 2 && dpInstall.dss === 8 && dpInstall.ans === 4 && dpInstall.dashes === 6 && dpInstall.jobs === 1 &&
       dpInstall.pinned && dpInstall.ansBuilder && dpInstall.featured && dpInstall.allFileCsv &&
       dpInstall.panelTypes.filter(function (t) { return t === "ensembleSeries"; }).length === 4 &&
       dpInstall.panelTypes.filter(function (t) { return t === "choropleth"; }).length === 3,
       JSON.stringify(dpInstall));
+
+    // CONS-1: the three CTIC/OpTIS reference dashboards — spec shapes match the
+    // reference visuals (diverging change map, real provider colors, real CRD
+    // scale, blue banner, curated builder-blob DAs feeding real rows).
+    const cons1Shape = await page.evaluate(function () {
+      var W = Studio.Workspace;
+      function dash(name) { return W.all("dashboards").filter(function (r) { return r.demoPackId === "conservation" && (r.spec && r.spec.name) === name; })[0]; }
+      var optis = dash("conservation-optis-trends"), crd = dash("conservation-crd-cover-crop"), ens = dash("conservation-provider-ensemble");
+      var chg = optis && optis.spec.panels.filter(function (p) { return p.id === "po_change"; })[0];
+      var area = optis && optis.spec.panels.filter(function (p) { return p.id === "po_types"; })[0];
+      var dist = optis && optis.spec.panels.filter(function (p) { return p.id === "po_dist"; })[0];
+      var ensP = ens && ens.spec.panels.filter(function (p) { return p.id === "pe_ens"; })[0];
+      var crdMap = crd && crd.spec.panels.filter(function (p) { return p.id === "pc_map"; })[0];
+      var typeDa = area && optis.spec.cda.dataAccesses.filter(function (d) { return d.id === area.chart.da; })[0];
+      return {
+        all3: !!(optis && crd && ens),
+        diverge: chg && chg.chart.opts.divergeToken === "--warn" && chg.chart.opts.center === 50,
+        areaStacked: area && area.chart.type === "areaStacked" && area.chart.map.series.length === 2 &&
+          area.chart.map.series[1].name === "Cover Crop",
+        areaCurated: !!(typeDa && typeDa.builder && typeDa.builder.dsId),
+        dist: dist && dist.chart.type === "divergingBar",
+        ensColors: ensP && ensP.chart.opts.seriesColors && ensP.chart.opts.seriesColors["DTN"] === "#7d3c98" &&
+          ensP.chart.opts.seriesColors["Terra Diagnostics"] === "#2f8f52" && ensP.chart.opts.refSeries === "AgCensus",
+        crdScale: crdMap && crdMap.chart.opts.scale === "crd",
+        blueBanner: crd && crd.spec.headerBg === "#1c5d99",
+        crdFilters: crd && crd.spec.filters.map(function (f) { return f.id; }).join(",") === "state,sinceYear"
+      };
+    });
+    ok("CONS-1: the OpTIS dashboard carries the diverging change map (--warn ramp, center 50), the two-type stacked area over a curated builder-blob dataset, and the sorted divergingBar distribution",
+      cons1Shape.all3 && cons1Shape.diverge && cons1Shape.areaStacked && cons1Shape.areaCurated && cons1Shape.dist, JSON.stringify(cons1Shape));
+    ok("CONS-1: the CRD dashboard is blue-bannered with state + since-year filters and a REAL crd-scale choropleth; the ensemble reference pins the five real provider colors with AgCensus reference points",
+      cons1Shape.blueBanner && cons1Shape.crdFilters && cons1Shape.crdScale && cons1Shape.ensColors, JSON.stringify(cons1Shape));
+    // The heal: a pre-CONS-1 install (reference dashboards deleted) gets them
+    // back on boot reconcile; a second run is a no-op.
+    const cons1Heal = await page.evaluate(function () {
+      var W = Studio.Workspace;
+      ["conservation-optis-trends", "conservation-crd-cover-crop", "conservation-provider-ensemble"].forEach(function (n) {
+        W.all("dashboards").filter(function (r) { return (r.spec && r.spec.name) === n; })
+          .forEach(function (r) { W.remove("dashboards", r.id, { silent: true }); });
+      });
+      W.notify("dashboards");
+      var healed = Studio.ensureConservationReferenceDashboards();
+      var back = ["conservation-optis-trends", "conservation-crd-cover-crop", "conservation-provider-ensemble"].every(function (n) {
+        return W.all("dashboards").some(function (r) { return (r.spec && r.spec.name) === n; });
+      });
+      var again = Studio.ensureConservationReferenceDashboards();
+      return { healed: healed, back: back, idempotent: again === false };
+    });
+    ok("CONS-1: the boot heal re-adds the three reference dashboards to a pre-CONS-1 install and is idempotent on a healthy one",
+      cons1Heal.healed && cons1Heal.back && cons1Heal.idempotent, JSON.stringify(cons1Heal));
     // LF2: pack-gated examples — the Conservation showcase dashboards (data/examples/index.json
     // demoPackId) only surface in the sample gallery once their pack is installed. LF43 slice 2:
     // the gallery is Home's tile strip now (the Studio Examples ▾ menu is gone) — the install
@@ -5741,8 +5791,8 @@ function serve() {
     const LF43_EXPECTED_FILES = ["conservation-agreement.studio.json", "conservation-costshare.studio.json",
       "conservation-flow.studio.json", "conservation-outliers.studio.json", "conservation-overview.studio.json",
       "conservation-scorecard.studio.json", "conservation-switching.studio.json", "conservation-watershed.studio.json"].sort();
-    ok("LF43: installing the Conservation pack materializes all 8 of its gated example-gallery dashboards as real workspace rows (plus the 3 hand-built ones — featured + Watershed Map + System Metrics — = 11 total)",
-      lf43Materialized.total === 11 && lf43Materialized.sourcedCount === 8 &&
+    ok("LF43: installing the Conservation pack materializes all 8 of its gated example-gallery dashboards as real workspace rows (plus the 6 hand-built ones — featured, Watershed Map, System Metrics + CONS-1's three references — = 14 total)",
+      lf43Materialized.total === 14 && lf43Materialized.sourcedCount === 8 &&
       JSON.stringify(lf43Materialized.sourceFiles) === JSON.stringify(LF43_EXPECTED_FILES) && lf43Materialized.titlesAllReal,
       JSON.stringify(lf43Materialized));
     // regression guard: datamanagement is installed BY DEFAULT (no explicit install click ever
@@ -5792,7 +5842,7 @@ function serve() {
       return out;
     });
     ok("PACK NAMING: conservation dashboards lead with their own name and install into the 'Conservation Insight' folder",
-      packNaming.count === 11 && packNaming.allInFolder && packNaming.noPrefix, JSON.stringify(packNaming)); // 11 since CONS-3 added the System Metrics wheel
+      packNaming.count === 14 && packNaming.allInFolder && packNaming.noPrefix, JSON.stringify(packNaming)); // 14 since CONS-1 added the three reference dashboards
     ok("PACK NAMING: the boot reconcile strips the legacy prefix (row + spec titles) and backfills the folder on a pre-rename workspace",
       packNaming.healedTitle === "Legacy Shaped" && packNaming.healedSpecTitle === "Legacy Shaped" &&
       packNaming.healedFolder === "Conservation Insight", JSON.stringify(packNaming));

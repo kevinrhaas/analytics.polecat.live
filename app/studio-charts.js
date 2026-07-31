@@ -5977,6 +5977,20 @@
     }
     return stops;
   }
+  // CONS-1 (OpTIS reference): a DIVERGING ramp — negToken (e.g. --warn orange)
+  // through the pane/white midpoint to posToken (e.g. --good green). Used by the
+  // "% change between selected years" style maps via cfg.divergeToken.
+  function geoDivergeRamp(negToken, posToken, n) {
+    var neg = hexParse(DashKit.cssvar(negToken)) || hexParse("#d6820a");
+    var pos = hexParse(DashKit.cssvar(posToken)) || hexParse("#2f8f52");
+    var pane = hexParse(DashKit.cssvar("--panel-bg")) || hexParse(DashKit.cssvar("--pane")) || [255, 255, 255];
+    var stops = [];
+    for (var i = 0; i < n; i++) {
+      var t = n === 1 ? 0.5 : i / (n - 1); // 0 = most negative, 1 = most positive
+      stops.push(rgbStr(t < 0.5 ? mix(neg, pane, t * 2) : mix(pane, pos, (t - 0.5) * 2)));
+    }
+    return stops;
+  }
 
   /* ── GL renderer (Viridis V4) — MapLibre GL behind the same choropleth API ──
      The vendored geometry is PRE-PROJECTED (AlbersUsa, 975×610 plane), which a
@@ -6367,9 +6381,19 @@
         });
       }
       var classes = Math.max(3, Math.min(9, cfg.classes || 5));
-      var ramp = geoRamp(cfg.colorToken || "--good", classes);
+      var ramp = cfg.divergeToken
+        ? geoDivergeRamp(cfg.divergeToken, cfg.colorToken || "--good", classes)
+        : geoRamp(cfg.colorToken || "--good", classes);
       function colorOf(v) {
-        var t = (v - vmin) / (vmax - vmin);
+        var t;
+        if (cfg.divergeToken) {
+          // symmetric around the center value (cfg.center, else the data midpoint)
+          var c = cfg.center != null ? +cfg.center : (vmin + vmax) / 2;
+          var span = Math.max(vmax - c, c - vmin) || 0.5;
+          t = ((v - c) / span + 1) / 2;
+        } else {
+          t = (v - vmin) / (vmax - vmin);
+        }
         return ramp[Math.max(0, Math.min(classes - 1, Math.floor(t * classes)))];
       }
       // viewBox: fit to the regions that HAVE data (Corn Belt data on a national
@@ -6604,7 +6628,8 @@
     if (cfg.showProviders !== false) {
       provOrder.forEach(function (name, pi) {
         if (on.indexOf(name) < 0) return;
-        var c = DashKit.cssvar("--c" + ((pi % 10) + 1)) || "#888";
+        // CONS-1: a spec may pin real-world provider colors (cfg.seriesColors)
+        var c = (cfg.seriesColors || {})[name] || DashKit.cssvar("--c" + ((pi % 10) + 1)) || "#888";
         var pts = linePts(function (x) { return byProv[name][x]; });
         var pl = polyline(pts, { stroke: c, "stroke-width": 1.3, "stroke-opacity": "0.5", "data-ens": "provider", "data-ens-name": name });
         if (pl) s.appendChild(pl);
@@ -6650,7 +6675,7 @@
     }
     if (cfg.showToggles !== false && provOrder.length) {
       provOrder.forEach(function (name, pi) {
-        var c = DashKit.cssvar("--c" + ((pi % 10) + 1)) || "#888";
+        var c = (cfg.seriesColors || {})[name] || DashKit.cssvar("--c" + ((pi % 10) + 1)) || "#888";
         var isOn = on.indexOf(name) >= 0;
         var chip = document.createElement("button");
         chip.type = "button";

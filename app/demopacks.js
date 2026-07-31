@@ -40,10 +40,11 @@
       name: "Conservation Insight — cover crop & tillage adoption",
       // PACK-BLURB (Kevin, 2026-07-31): "keep it concise" — half the words, same
       // counts (the #116 suite check keeps it count-led + embedded-data honest).
-      tagline: "3 dashboards · 4 Views · 5 datasets · rollup job — synthetic data, nothing to connect",
-      blurb: "3 dashboards — county, watershed (HUC8), and state maps plus the Conservation " +
-        "System Metrics wheel — 4 practice Views pinned to Home, 5 datasets, and a county→state " +
-        "rollup job. All data is synthetic and embedded — nothing to connect."
+      tagline: "6 dashboards · 4 Views · 8 datasets · rollup job — synthetic data, nothing to connect",
+      blurb: "6 dashboards — county, watershed (HUC8), and CRD maps, the OpTIS trends and provider " +
+        "ensemble references, and the Conservation System Metrics wheel — 4 practice Views pinned " +
+        "to Home, 8 datasets, and a county→state rollup job. All data is synthetic and embedded — " +
+        "nothing to connect."
     },
     // LF2(c)/LF16: the pre-existing generic showcase gallery (governance, platform ops,
     // delivery, finance, marketing, reliability, compliance, feature tour) folded into a
@@ -422,6 +423,179 @@
     };
   }
 
+  // ── CONS-1 (Kevin live, 2026-07-31 — three CTIC/OpTIS reference screenshots):
+  // three ADDITIVE dashboards that mirror the real CTIC visuals. Existing pack
+  // dashboards are untouched; these reuse the pack's authored-DA + sample-engine
+  // pattern for full-coverage maps, and the metrics-wheel pattern (curated CSV +
+  // builder-blob DA -> REAL rows via #118's live re-run) for the trend/
+  // distribution panels whose exact series and years the reference dictates.
+  // The real-world provider line colors, for the ensemble reference dashboard.
+  var PROVIDER_COLORS = {
+    "DTN": "#7d3c98", "Indigo Ag": "#e67e22", "Iowa State": "#f1c40f",
+    "Regrow": "#2e8bd0", "Terra Diagnostics": "#2f8f52"
+  };
+  // Cover-crop acres by TYPE, 2005-2021 (already pivoted: one column per type) —
+  // the OpTIS stacked area. Deterministic gentle growth, cover crops outpacing
+  // winter commodity, same honest-synthetic convention as every other seed.
+  function coverTypeCsv() {
+    var rows = ["year,wintercommodity_pct,covercrop_pct"];
+    for (var y = 2005; y <= 2021; y++) {
+      var i = y - 2005;
+      var wc = Math.round((6 + i * 0.35 + ((i * 7) % 3) * 0.4) * 10) / 10;
+      var cc = Math.round((2.5 + i * 0.62 + ((i * 5) % 4) * 0.3) * 10) / 10;
+      rows.push([y, wc, cc].join(","));
+    }
+    return rows.join("\n");
+  }
+  // County %-change between the reference years — PRE-SORTED descending (the
+  // OpTIS distribution bar reads sorted; divergingBar renders rows in order).
+  // A deterministic mix of gains and losses across the pack's real county ids.
+  function countyChangeRows() {
+    var fips = geo().fips.slice(0, 24);
+    var out = fips.map(function (id, i) {
+      var change = Math.round((((i * 17) % 23) - 9) * 10) / 10; // -9..+13 spread
+      return { geoid: id, change: change };
+    });
+    out.sort(function (a, b) { return b.change - a.change; });
+    return out;
+  }
+  function countyChangeCsv() {
+    return ["geoid,change"].concat(countyChangeRows().map(function (r) { return r.geoid + "," + r.change; })).join("\n");
+  }
+  // A table-shaped builder-blob DA over a curated pack dataset — the metrics-
+  // wheel convention: #118's live re-run feeds the panel the dataset's REAL rows.
+  function curatedDA(id, name, dsId, cols) {
+    return { id: id, name: name, kind: "sql", sql: "", query: "",
+      columns: cols.slice(), params: [], authored: true,
+      builder: { dsKind: "ws", dsId: dsId, chartType: "table",
+        shelfCols: cols.map(function (c) { return { col: c, agg: null }; }),
+        shelfRows: [], filters: [], calcs: [], shelfColor: [], paletteKey: "", mapScale: "" } };
+  }
+  // (1) "OpTIS Cover Crop Trends" — the two side-by-side county maps (sequential
+  // green + diverging orange->green change), the by-type stacked area, and the
+  // sorted diverging %-change distribution.
+  function optisDashboardSpec(coverTypeDsId, changeDsId) {
+    var das = [], panels = [];
+    var avgDa = geoDA("vo_county", "fips", "avg % winter cover crops by county"); das.push(avgDa);
+    panels.push({ id: "po_avg", section: "Where winter cover crops stand — and how they've moved",
+      title: "Avg % Winter Cover Crops", span: 2,
+      chart: choroplethChart(avgDa.id, "fips", "county") });
+    var chgDa = geoDA("vo_change", "fips", "% change between selected years"); das.push(chgDa);
+    panels.push({ id: "po_change", title: "% Change Between Selected Years", span: 2,
+      sub: "diverging — orange declined, green grew",
+      chart: { type: "choropleth", da: chgDa.id,
+        map: { idCol: "fips", valueCol: "pct", seriesCol: "provider" },
+        opts: { scale: "county", fmt: "pct", agg: "median", channel: "providers",
+          divergeToken: "--warn", center: 50 } } });
+    var typeDa = curatedDA("vo_types", "Conservation Insight — cover crop type by year (demo)",
+      coverTypeDsId, ["year", "wintercommodity_pct", "covercrop_pct"]); das.push(typeDa);
+    panels.push({ id: "po_types", section: "Cover crop types over time",
+      title: "Avg % Row Crop Acres by Cover Crop Type (2005\u20132021)", span: "full",
+      chart: { type: "areaStacked", da: typeDa.id,
+        map: { labelCol: "year", series: [
+          { col: "wintercommodity_pct", name: "Winter Commodity", color: "#9ccb8f" },
+          { col: "covercrop_pct", name: "Cover Crop", color: "#2f8f52" }
+        ] },
+        opts: { fmt: "pct", height: 280 } } });
+    var distDa = curatedDA("vo_dist", "Conservation Insight — county % change distribution (demo)",
+      changeDsId, ["geoid", "change"]); das.push(distDa);
+    panels.push({ id: "po_dist", section: "Which counties moved most",
+      title: "% Change by County \u2014 sorted", span: "full",
+      sub: "each bar is one county \u2014 right of the line grew, left declined",
+      chart: { type: "divergingBar", da: distDa.id,
+        map: { labelCol: "geoid", valueCol: "change" },
+        opts: { fmt: "pct", height: 320 } } });
+    return {
+      id: "conservation-optis-trends", name: "conservation-optis-trends",
+      title: "OpTIS Cover Crop Trends",
+      subtitle: "Styled after the real OpTIS visuals \u2014 illustrative synthetic data",
+      dashboardTheme: "conservation",
+      panels: panels, kpis: [], filters: [],
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+  // (2) "CRD Cover Crop Data" — the blue-banner dashboard: state + since-year
+  // filters, the green area trend beside a REAL CRD-scale choropleth, and a
+  // Map Legend card. The vendored us-crd-counties geometry makes the CRD scale
+  // first-class, not an approximation.
+  function crdDashboardSpec(crdTrendDsId) {
+    var das = [], panels = [];
+    var stateFilterDa = { id: "vc_fstate", name: "Conservation Insight — state filter options (demo)", kind: "sql", columns: ["statecode"], authored: true };
+    das.push(stateFilterDa);
+    var yearDa = yearFilterDA("vc_fyear"); das.push(yearDa);
+    var filters = [
+      { id: "state", da: stateFilterDa.id, label: "State", valueCol: "statecode", textCol: "statecode", allLabel: "All states", def: "%" },
+      { id: "sinceYear", da: yearDa.id, label: "Since year", valueCol: "year", textCol: "year", allLabel: "All years", def: "%" }
+    ];
+    var trendDa = curatedDA("vc_trend", "Conservation Insight — CRD cover crop trend (demo)",
+      crdTrendDsId, ["year", "pct"]); das.push(trendDa);
+    panels.push({ id: "pc_trend", section: "Cover crops across the Crop Reporting Districts",
+      title: "Percent of Row Crop Acres with Cover Crops (2015\u20132021)", span: 2,
+      chart: { type: "areaStacked", da: trendDa.id,
+        map: { labelCol: "year", series: [{ col: "pct", name: "Cover Crops", color: "#2f8f52" }] },
+        opts: { fmt: "pct", height: 280 } } });
+    var crdDa = { id: "vc_crd", name: "Conservation Insight — adoption by CRD (demo)", kind: "sql",
+      columns: ["crd", "provider", "pct"], authored: true,
+      params: [{ name: "state", type: "String", default: "%" }, { name: "sinceYear", type: "String", default: "%" }] };
+    das.push(crdDa);
+    panels.push({ id: "pc_map", title: "Adoption by Crop Reporting District", span: 2,
+      chart: choroplethChart(crdDa.id, "crd", "crd") });
+    panels.push({ id: "pc_legend", title: "Map Legend", span: "full",
+      chart: { type: "richtext", da: null,
+        opts: { html: "<p><b>Darker green = more row-crop acres with cover crops.</b> The map colors " +
+          "each Crop Reporting District by the median of the selected providers\u2019 estimates \u2014 " +
+          "toggle providers on any ensemble chart and every linked map re-colors. Illustrative synthetic data.</p>" } } });
+    return {
+      id: "conservation-crd-cover-crop", name: "conservation-crd-cover-crop",
+      title: "CRD Cover Crop Data",
+      subtitle: "Crop Reporting District view \u2014 illustrative synthetic data",
+      dashboardTheme: "conservation",
+      headerBg: "#1c5d99",
+      panels: panels, kpis: [], filters: filters,
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+  // (3) "Provider Ensemble — Cover Crop Adoption" — the five provider lines in
+  // their real-world colors, the bold Median, red AgCensus reference squares,
+  // provider toggles, and a linked CRD map inset on the same channel.
+  function ensembleReferenceDashboardSpec() {
+    var das = [], panels = [];
+    var ensDa = { id: "ve_ens", name: "Conservation Insight — provider ensemble (demo)", kind: "sql",
+      columns: ["year", "provider", "pct"], authored: true,
+      params: [{ name: "sinceYear", type: "String", default: "%" }] };
+    das.push(ensDa);
+    panels.push({ id: "pe_ens", section: "Five providers, one median \u2014 and how AgCensus compares",
+      title: "Pct of All Row Crop Acres \u2014 provider ensemble", span: "full",
+      sub: "toggle providers below \u2014 the maps re-color live",
+      chart: { type: "ensembleSeries", da: ensDa.id,
+        map: { labelCol: "year", seriesCol: "provider", valueCol: "pct" },
+        opts: { refSeries: "AgCensus", fmt: "pct", medianLabel: "Median", height: 320,
+          channel: "providers", seriesColors: PROVIDER_COLORS } } });
+    var crdDa = { id: "ve_crd", name: "Conservation Insight — adoption by CRD (demo)", kind: "sql",
+      columns: ["crd", "provider", "pct"], authored: true,
+      params: [{ name: "sinceYear", type: "String", default: "%" }] };
+    das.push(crdDa);
+    panels.push({ id: "pe_map", title: "CRD map \u2014 median of the selected providers", span: 2,
+      chart: choroplethChart(crdDa.id, "crd", "crd") });
+    var provDa = providerDA("ve_prov"); das.push(provDa);
+    panels.push({ id: "pe_prov", title: "Adoption by provider", span: 2,
+      chart: { type: "bars", da: provDa.id, map: { labelCol: "provider", valueCol: "pct" }, opts: { fmt: "pct", height: 240 } } });
+    return {
+      id: "conservation-provider-ensemble", name: "conservation-provider-ensemble",
+      title: "Provider Ensemble \u2014 Cover Crop Adoption",
+      subtitle: "Five providers in their real colors, the median, and AgCensus reference points \u2014 illustrative synthetic data",
+      dashboardTheme: "conservation",
+      panels: panels, kpis: [], filters: [],
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+  // The CRD area-trend's curated rows (2015-2021, single green series).
+  function crdTrendCsv() {
+    var rows = ["year,pct"];
+    for (var y = 2015; y <= 2021; y++) rows.push([y, Math.round((4.5 + (y - 2015) * 1.1) * 10) / 10].join(","));
+    return rows.join("\n");
+  }
+
   Studio.installDemoPack = function (id) {
     if (!Studio.DEMO_PACKS[id] || Studio.demoPackInstalled(id)) return;
     // "examples"-kind packs (datamanagement) only gate gallery visibility — the workspace
@@ -551,7 +725,68 @@
       folder: "Conservation Insight",
       demoPackId: id
     });
+    // CONS-1: the three CTIC/OpTIS reference dashboards + their curated datasets.
+    seedConservationReferenceContent(W, fileConn, id, now);
   }
+
+  // CONS-1 seeding, shared by install and the boot heal below. Idempotent by
+  // name — only writes what's missing, so a partial earlier install self-repairs.
+  function seedConservationReferenceContent(W, fileConn, id, now) {
+    function haveDs(name) { return W.all("datasets").filter(function (d) { return d.demoPackId === id && d.name === name; })[0]; }
+    function haveDash(name) {
+      return W.all("dashboards").some(function (r) {
+        return r.demoPackId === id && (r.name === name || (r.spec && r.spec.name === name));
+      });
+    }
+    var typeDs = haveDs("Cover crop type by year (demo)") || W.put("datasets", {
+      name: "Cover crop type by year (demo)", connectionId: fileConn ? fileConn.id : null,
+      kind: "file", format: "csv", fileName: "cover-crop-type-by-year-demo.csv",
+      content: coverTypeCsv(), columns: ["year", "wintercommodity_pct", "covercrop_pct"],
+      folder: PACK_FOLDER, demoPackId: id, tags: ["demo", "conservation"]
+    });
+    var changeDs = haveDs("County cover-crop change (demo)") || W.put("datasets", {
+      name: "County cover-crop change (demo)", connectionId: fileConn ? fileConn.id : null,
+      kind: "file", format: "csv", fileName: "county-cover-crop-change-demo.csv",
+      content: countyChangeCsv(), columns: ["geoid", "change"],
+      folder: PACK_FOLDER, demoPackId: id, tags: ["demo", "conservation", "geo"]
+    });
+    var crdTrendDs = haveDs("CRD cover crop trend (demo)") || W.put("datasets", {
+      name: "CRD cover crop trend (demo)", connectionId: fileConn ? fileConn.id : null,
+      kind: "file", format: "csv", fileName: "crd-cover-crop-trend-demo.csv",
+      content: crdTrendCsv(), columns: ["year", "pct"],
+      folder: PACK_FOLDER, demoPackId: id, tags: ["demo", "conservation"]
+    });
+    if (!haveDash("conservation-optis-trends")) W.put("dashboards", {
+      name: "conservation-optis-trends", title: "OpTIS Cover Crop Trends",
+      ts: now, spec: optisDashboardSpec(typeDs.id, changeDs.id),
+      folder: PACK_FOLDER, demoPackId: id
+    });
+    if (!haveDash("conservation-crd-cover-crop")) W.put("dashboards", {
+      name: "conservation-crd-cover-crop", title: "CRD Cover Crop Data",
+      ts: now, spec: crdDashboardSpec(crdTrendDs.id),
+      folder: PACK_FOLDER, demoPackId: id
+    });
+    if (!haveDash("conservation-provider-ensemble")) W.put("dashboards", {
+      name: "conservation-provider-ensemble", title: "Provider Ensemble \u2014 Cover Crop Adoption",
+      ts: now, spec: ensembleReferenceDashboardSpec(),
+      folder: PACK_FOLDER, demoPackId: id
+    });
+  }
+
+  // CONS-1 heal: workspaces installed before the reference dashboards existed
+  // get them (plus their curated datasets) on boot — same convention as the
+  // watershed/metrics-wheel heals, called from studio.js reconcilePackDashboards.
+  Studio.ensureConservationReferenceDashboards = function () {
+    if (!Studio.demoPackInstalled("conservation")) return false;
+    var W = Studio.Workspace;
+    var before = W.all("dashboards").filter(function (r) { return r.demoPackId === "conservation"; }).length;
+    var fileConn = W.all("connections").filter(function (c) {
+      return c.demoPackId === "conservation" && c.adapter === "file";
+    })[0];
+    seedConservationReferenceContent(W, fileConn, "conservation", new Date().toISOString());
+    var after = W.all("dashboards").filter(function (r) { return r.demoPackId === "conservation"; }).length;
+    return after > before;
+  };
 
   Studio.removeDemoPack = function (id) {
     var W = Studio.Workspace;
