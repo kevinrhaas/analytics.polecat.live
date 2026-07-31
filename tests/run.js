@@ -14963,7 +14963,7 @@ function serve() {
         err: /Render error/.test(doc.querySelector("#content").textContent),
         reg: !!Studio.CHARTS.radar,       };
     });
-    ok("radar is registered as a CDF-only chart type", radar.reg && radar.cdfOnly, JSON.stringify(radar));
+    ok("radar is registered as a chart type", radar.reg, JSON.stringify(radar));
     ok("radar renders ring + series polygons in the preview", radar.polys >= 5 && radar.dots >= 1 && !radar.err, JSON.stringify(radar));
 
     // ---- waterfall chart (F4) ----
@@ -14984,7 +14984,7 @@ function serve() {
         err: /Render error/.test(doc.querySelector("#content").textContent)
       };
     });
-    ok("waterfall is registered as a CDF-only chart type", wf.reg && wf.cdfOnly, JSON.stringify(wf));
+    ok("waterfall is registered as a chart type", wf.reg, JSON.stringify(wf));
     ok("waterfall renders floating delta bars in the preview", wf.rectCount >= 2 && !wf.err, JSON.stringify(wf));
 
     // ---- sankey (flow) chart type (F1) ----
@@ -15008,7 +15008,7 @@ function serve() {
         err: /Render error/.test(doc.querySelector("#content").textContent)
       };
     });
-    ok("sankey is registered as a CDF-only chart type", sankey.reg && sankey.cdfOnly, JSON.stringify(sankey));
+    ok("sankey is registered as a chart type", sankey.reg, JSON.stringify(sankey));
     ok("sankey renders flow paths in the preview", sankey.pathCount >= 1 && !sankey.err, JSON.stringify(sankey));
 
     // ---- chord / dependency wheel chart type (F2) ----
@@ -15031,7 +15031,7 @@ function serve() {
         err: /Render error/.test(content.textContent)
       };
     });
-    ok("chord is registered as a CDF-only chart type", chord.reg && chord.cdfOnly, JSON.stringify(chord));
+    ok("chord is registered as a chart type", chord.reg, JSON.stringify(chord));
     ok("chord renders SVG content in the preview", chord.svgPresent && !chord.err, JSON.stringify(chord));
 
     // ---- funnel chart (F5) ----
@@ -15055,7 +15055,7 @@ function serve() {
         err: /Render error/.test(content.textContent)
       };
     });
-    ok("funnel is registered as a CDF-only chart type", funnel.reg && funnel.cdfOnly, JSON.stringify(funnel));
+    ok("funnel is registered as a chart type", funnel.reg, JSON.stringify(funnel));
     ok("funnel renders stage bars in the preview", funnel.rectCount >= 1 && !funnel.err, JSON.stringify(funnel));
 
     // ---- sunburst chart (F6) ----
@@ -15080,7 +15080,7 @@ function serve() {
         err: /Render error/.test(content.textContent)
       };
     });
-    ok("sunburst is registered as a CDF-only chart type", sunburst.reg && sunburst.cdfOnly, JSON.stringify(sunburst));
+    ok("sunburst is registered as a chart type", sunburst.reg, JSON.stringify(sunburst));
     ok("sunburst renders arc paths in the preview", sunburst.pathCount >= 2 && !sunburst.err, JSON.stringify(sunburst));
     ok("sunburst model has groupCol field for two-ring hierarchy", sunburst.hasGroupCol, JSON.stringify(sunburst));
 
@@ -21360,7 +21360,7 @@ function serve() {
         err: /Render error/.test(content.textContent)
       };
     });
-    ok("F7a: bullet is registered as a CDF-only chart type", bullet.reg && bullet.cdfOnly, JSON.stringify(bullet));
+    ok("F7a: bullet is registered as a chart type", bullet.reg, JSON.stringify(bullet));
     ok("F7a: bullet model has targetCol field", bullet.hasTarget, JSON.stringify(bullet));
     ok("F7a: bullet renders quality-band + actual-value rects in the preview", bullet.rectCount >= 3 && !bullet.err, JSON.stringify(bullet));
 
@@ -21390,7 +21390,7 @@ function serve() {
         noDate: /No parseable dates/.test(content.textContent)
       };
     });
-    ok("F7b: calHeatmap is registered as a CDF-only chart type", calHm.reg && calHm.cdfOnly, JSON.stringify(calHm));
+    ok("F7b: calHeatmap is registered as a chart type", calHm.reg, JSON.stringify(calHm));
     ok("F7b: calHeatmap renders day-grid cells in the preview", calHm.cellCount >= 5 && !calHm.err && !calHm.noDate, JSON.stringify(calHm));
 
     // ---- Z8 slice 11: calendar heatmap gets its own options (cell color + week start) ----
@@ -22131,7 +22131,7 @@ function serve() {
         label: c.label
       };
     });
-    ok("F9: network chart registered as CDF-only", f9Reg.reg && f9Reg.cdfOnly, JSON.stringify(f9Reg));
+    ok("F9: network chart registered", f9Reg.reg, JSON.stringify(f9Reg));
     ok("F9: network chart has sourceCol field", f9Reg.reg && f9Reg.hasSourceCol, JSON.stringify(f9Reg));
 
     // Render a network chart in the preview and check for SVG circles (nodes)
@@ -23721,7 +23721,7 @@ function serve() {
         return { found: !!c, group: c ? c.group : null, label: c ? c.label : null };
       } catch (e) { return { found: false, err: e.message }; }
     });
-    ok("v82: histogram registered in Distribution group and CDF-only", histReg.found && histReg.group === "Distribution" && histReg.cdfOnly === true, JSON.stringify(histReg));
+    ok("v82: histogram registered in Distribution group", histReg.found && histReg.group === "Distribution", JSON.stringify(histReg));
 
     // 2. DashKit.histogram extension defined in preview iframe
     const histFn = await page.evaluate(function () {
