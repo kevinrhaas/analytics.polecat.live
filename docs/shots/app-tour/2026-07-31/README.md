@@ -1,11 +1,11 @@
-# App tour screenshots — image session 2026-07-31T13:38:46Z
+# App tour screenshots — image session 2026-07-31T13:55:01Z
 
 The app itself — every rail section plus the menus and dialogs, staged
 with both sample packs installed so nothing reads as an empty state.
 Captured by `node tools/shoot-app-tour.mjs`.
 
-- **Image session ran:** 2026-07-31T13:38:46Z (also stamped into each PNG's tEXt metadata)
-- **App commit at capture:** 45d229d6044e2979215f7f08655619827ff78e6b
+- **Image session ran:** 2026-07-31T13:55:01Z (also stamped into each PNG's tEXt metadata)
+- **App commit at capture:** 15836ff0aaa30f8755436585d431a2ccc376af3f
 - **Desktop:** 1440×900 @1.5x · **Mobile:** 390×780 @2x
 
 ## Desktop
