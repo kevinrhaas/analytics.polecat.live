@@ -7623,6 +7623,13 @@
 > **CLAIMED by the live session — do NOT start these** unless the claim expires
 > (no commit referencing the item lands on main within ~6 hours of the
 > timestamp above; then take over using the context given):
+> 0. **USER-ADD-DURABLE ★ (hotfix, FIRST):** Admin +Add user creates the Auth
+>    account but the users row never syncs — mirrorUserRow's silent Workspace.put
+>    schedules no push, so the row is local-only and the next pull erases it
+>    (Kevin's test2 vanished on sign-out/in; public.users never got the row).
+>    Fix: explicit non-silent put + Sync.pushNow() + verify + loud toast in the
+>    add/edit-user save path (mirror v787's explicit-delete pattern); handle the
+>    existing-auth-account re-add case. Last M7 blocker.
 > 1. **FILTERS-1 ★ (bug, next up):** Conservation pack dashboard filters are
 >    DEAD — root cause CONFIRMED: pack DAs are file-kind (real engine), and
 >    `app/sources/localfile.js queryData` ignores params entirely; SCORE-1's
