@@ -17522,6 +17522,40 @@ function serve() {
     ok("BRAND-LINK: the Admin branding card gains a Custom link field (shown with a custom name, prefilled from the stored URL)",
       brandLinkAdmin.hasInput && brandLinkAdmin.value === "https://ctic.org" && brandLinkAdmin.rowVisible, JSON.stringify(brandLinkAdmin));
 
+    // ---- BRAND-BOOT (Kevin live, 2026-07-31): "the branding the admin defined
+    // didn't show when I logged in / never applied workspace-wide." A pull
+    // ADOPTION fires "replaced" inside the sync layer's suspended window, so the
+    // old-local-branding lift that ran there wrote workspace settings without
+    // ever scheduling a push — the lifted branding never reached the backend,
+    // the next boot pull wiped it again, and the cycle repeated silently. Now
+    // "replaced" repaints only, and the lift runs as a registered adopt HEAL
+    // (Studio.Sync.onAdopt), where pushes flow. ----
+    const brandBoot = await page.evaluate(function () {
+      var B = window.__studioBranding, W = Studio.Workspace, out = {};
+      var origWs = (W.settings() || {}).branding || null;
+      var origLocal = localStorage.getItem("studio-branding");
+      var custom = { mode: "default", suite: "custom", suiteText: "Boot Roam Co", suiteUrl: "https://ctic.org" };
+      // this device still holds old local-only branding; the remote has none
+      localStorage.setItem("studio-branding", JSON.stringify(custom));
+      var snap = W.snapshot();
+      snap.settings = Object.assign({}, snap.settings);
+      delete snap.settings.branding;
+      W.replaceAll(snap); // = a boot/quiet pull adoption (in real sync this fires "replaced" mid-suspend)
+      var suite = document.querySelector(".rail-suite");
+      out.paintOnlyNoLift = !(W.settings() || {}).branding; // "replaced" must NOT lift — its push would be swallowed
+      out.railStillCustom = suite.textContent === "Boot Roam Co";
+      // ...then the sync layer re-runs the registered adopt heals with pushes flowing:
+      Studio.Sync.healAfterAdopt();
+      out.healLifted = ((W.settings() || {}).branding || {}).suiteText === "Boot Roam Co";
+      // restore
+      if (origWs) W.setSetting("branding", origWs); else W.setSetting("branding", null);
+      if (origLocal == null) localStorage.removeItem("studio-branding"); else localStorage.setItem("studio-branding", origLocal);
+      B.apply();
+      return out;
+    });
+    ok("BRAND-BOOT: a pull adoption repaints branding without lifting (a mid-suspend lift's push is silently swallowed), the rail keeps the device's branding through the wipe, and the post-adopt heal performs the lift with pushes flowing — old device-local branding finally lands workspace-wide",
+      brandBoot.paintOnlyNoLift && brandBoot.railStillCustom && brandBoot.healLifted, JSON.stringify(brandBoot));
+
     // ---- M4: Admin — manage users (first slice of "Admin + permissions") ----
     console.log("\n• M4: admin — manage users");
     // The main `page` carries the historical studio-gate-ok bypass with no stored
@@ -39835,6 +39869,43 @@ function serve() {
     ok("USER-DISABLE: an already-signed-in session whose account was disabled is ended at the next boot — back to the gate, with the account row (and all its data) fully intact",
       udB.signedOut && udB.gateShown && udB.rowIntact, JSON.stringify(udB));
     await udBoot.close();
+
+    // ---- BRAND-BOOT: the sign-in experience wears the workspace's branding ----
+    // (Kevin live, 2026-07-31): the gate card shows the admin's custom logo
+    // instead of the default coin, and afterLogin re-applies branding so the
+    // reveal moment can never show the default mark/name.
+    console.log("\n• BRAND-BOOT: branded sign-in (gate logo + branded reveal)");
+    const bbGate = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    bbGate.on("pageerror", (e) => errors.push("BRAND-BOOT gate page: " + e.message));
+    const BB_LOGO = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Crect width='64' height='64' fill='%232f8f52'/%3E%3C/svg%3E";
+    await bbGate.addInitScript((logo) => {
+      try {
+        localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-tutorial-done", "1");
+        localStorage.setItem("studio-branding", JSON.stringify({ mode: "custom", dataUrl: logo, suite: "custom", suiteText: "Viridis View" }));
+      } catch (e) {}
+    }, BB_LOGO);
+    await bbGate.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await bbGate.waitForSelector("#g-form", { timeout: 8000 });
+    const bbG = await bbGate.evaluate(async function () {
+      var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+      var res = {};
+      var img = document.querySelector("#studio-gate .g-logo img");
+      res.gateLogoCustom = !!(img && (img.getAttribute("src") || "").indexOf("data:") === 0);
+      await window.PolecatAuth.seedIfEmpty();
+      document.getElementById("g-user").value = "admin";
+      document.getElementById("g-pass").value = "admin";
+      document.getElementById("g-form").dispatchEvent(new Event("submit", { cancelable: true }));
+      await sleep(700);
+      res.revealed = !document.getElementById("g-form");
+      var mark = document.querySelector(".rail-brand-mark");
+      var suite = document.querySelector(".rail-suite");
+      res.railMarkCustom = !!(mark && (mark.getAttribute("src") || "").indexOf("data:") === 0);
+      res.railSuiteCustom = !!(suite && suite.textContent === "Viridis View");
+      return res;
+    });
+    ok("BRAND-BOOT: the sign-in card wears the workspace's custom logo (not the default coin), and the post-sign-in reveal already has the custom rail mark + name applied",
+      bbG.gateLogoCustom && bbG.revealed && bbG.railMarkCustom && bbG.railSuiteCustom, JSON.stringify(bbG));
+    await bbGate.close();
 
     // ---- ACTIVITY-ANON: an anonymous (not signed-in) visit leaves a footprint ----
     // On localhost the packaged fallback is off, so the rows QUEUE — which is

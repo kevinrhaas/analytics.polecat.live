@@ -67,6 +67,10 @@
     // shell.js already ran (and gated the Admin rail item) before anyone signed in —
     // refresh it now that PolecatAuth.current() actually reflects who logged in.
     try { if (window.__studioShellApplyRoleGating) window.__studioShellApplyRoleGating(); } catch (e) {}
+    // BRAND-BOOT (Kevin live, 2026-07-31): the admin-defined branding must be on
+    // the rail the moment the app reveals — re-apply it here so the sign-in
+    // moment can never show the default mark/name, whatever the boot ordering.
+    try { if (window.Studio && Studio.Branding) Studio.Branding.apply(); } catch (e) {}
     reveal();
   }
 
@@ -161,6 +165,23 @@
       '<button type="button" class="g-connect" id="g-connect">Connect to your workspace…</button>' +
       '<div class="g-note">analytics.polecat.live</div></div>';
     document.body.appendChild(ov);
+
+    // BRAND-BOOT (Kevin live, 2026-07-31): the sign-in card is part of "when I
+    // logged in" — when this workspace carries an admin-defined custom logo,
+    // show IT on the gate instead of the default coin. Read from storage
+    // directly (the branding cache, else the workspace db's synced settings):
+    // gate.js runs before branding.js/workspace.js are guaranteed evaluated.
+    try {
+      var gb = JSON.parse(localStorage.getItem("studio-branding") || "null");
+      if (!gb || !gb.mode) {
+        var gdb = JSON.parse(localStorage.getItem("analytics.workspace.v1") || "null");
+        gb = (gdb && gdb.settings && gdb.settings.branding) || gb;
+      }
+      if (gb && gb.mode === "custom" && gb.dataUrl) {
+        var gimg = ov.querySelector(".g-logo img");
+        if (gimg) { gimg.src = gb.dataUrl; gimg.style.borderRadius = "10px"; gimg.style.boxShadow = "none"; }
+      }
+    } catch (e) { /* malformed storage — keep the default coin */ }
 
     var userInp = document.getElementById("g-user"); if (userInp) userInp.focus();
     // LF39: editing the username clears both the error and the Connect cue (fresh attempt).

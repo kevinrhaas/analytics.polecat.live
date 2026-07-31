@@ -116,6 +116,32 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **BRAND-BOOT — admin branding finally applies workspace-wide + branded
+  sign-in (v828, sw v460, 2026-07-31, steward — Kevin live: "branding the
+  admin defined didn't show when I logged in… should be workspace-wide"):**
+  root cause found by tracing the SETTINGS-ROAM lift through the sync layer:
+  a pull ADOPTION fires the store's "replaced" event inside sync's suspended
+  window (`_suspend`), and branding.js's replaced-listener ran `apply()` —
+  lift included — right there, so the lift's `setSetting("branding", …)`
+  never scheduled a push. The lifted branding never reached the backend, the
+  next boot pull adopted a remote without it (wiping it locally again), and
+  the cycle repeated silently forever: branding looked right on the admin's
+  device (local cache fallback) but never roamed to anyone else. Fix, the
+  DURABLE-1 pattern: the replaced-listener is now PAINT-ONLY, and the lift
+  runs as a registered adopt heal (`Studio.Sync.onAdopt(apply)`) — invoked
+  after every adoption with pushes flowing, so the migration finally lands
+  remotely. Belt-and-braces: gate.js afterLogin() re-applies branding at the
+  reveal moment. Plus the sign-in experience joins the branding: the gate
+  card shows the admin's custom logo instead of the default coin (read
+  straight from the branding cache/workspace db — gate.js runs before
+  branding.js is guaranteed evaluated), and the stale "Stored locally on
+  this device" copy in the Admin card + Help now says branding is saved with
+  the workspace. 2 new checks: adoption repaints without lifting + the heal
+  lifts with pushes flowing; a gate page wears the custom logo and reveals
+  a branded rail after admin sign-in. Full suite green (2924 passed, 0
+  failed). Files: app/branding.js, app/gate.js, app/studio.js,
+  docs/index.html, tests/run.js, sw.js, js/changelog.js. Lane: skip
+  BRAND-BOOT — done here.
 - **Track H sweep round 2 — library "My queries" cards now name themselves to
   screen readers (v827, sw v459, 2026-07-31, steward — Track H/L/N rotation,
   H's turn):** the QA-05/v596/v603 disambiguation sweeps already fixed

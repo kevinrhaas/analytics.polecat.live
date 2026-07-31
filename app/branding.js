@@ -88,6 +88,19 @@
   }
   function apply() {
     liftLocalIntoWorkspace(); // idempotent one-time migration (no-op once owned)
+    paint();
+  }
+  // Paint-only (no lift): the DOM writes alone. The "replaced" listener below
+  // uses this rather than apply() — a pull ADOPTION fires "replaced" while the
+  // sync layer's push subscription is suspended, so a lift running inside that
+  // window writes workspace settings WITHOUT ever scheduling a push. The lifted
+  // branding then never reached the backend, the next boot pull wiped it again,
+  // and the cycle repeated silently: branding looked fine on the admin's device
+  // but never roamed workspace-wide (BRAND-BOOT, Kevin live 2026-07-31). The
+  // lift instead runs as a registered adopt HEAL (Studio.Sync.onAdopt below),
+  // which the sync layer invokes after every adoption with pushes flowing —
+  // the DURABLE-1 pattern — so the one-time migration finally persists remotely.
+  function paint() {
     var b = get();
     // 1) the rail mark
     var mark = document.querySelector(".rail-brand-mark");
@@ -128,10 +141,17 @@
   window.__studioBranding = { get: get, set: set, apply: apply, suiteLabel: suiteLabel, suiteHref: suiteHref }; // test hook
 
   // A pull/adopt can carry roamed branding in — repaint when the workspace is
-  // replaced wholesale. Subscribed after DOMContentLoaded so Workspace (loaded
-  // earlier in index.html but not on every page this file rides on) exists.
+  // replaced wholesale. PAINT-ONLY here (see paint() above): "replaced" fires
+  // inside the sync layer's suspended window, where a lift's setSetting would
+  // never schedule a push. Subscribed after DOMContentLoaded so Workspace
+  // (loaded earlier in index.html but not on every page this file rides on)
+  // exists.
   document.addEventListener("DOMContentLoaded", function () {
     var w = ws();
-    if (w && w.on) { try { w.on("replaced", function () { apply(); }); } catch (e) {} }
+    if (w && w.on) { try { w.on("replaced", function () { paint(); }); } catch (e) {} }
   });
+  // BRAND-BOOT: the lift runs as an adopt heal — after every pull adoption the
+  // sync layer re-runs this with _suspend cleared, so a device still carrying
+  // pre-roam local-only branding finally pushes it into the shared workspace.
+  try { if (window.Studio && Studio.Sync && Studio.Sync.onAdopt) Studio.Sync.onAdopt(apply); } catch (e) {}
 })();
