@@ -176,25 +176,25 @@ async function attempt(name, fn) {
     });
     await attempt("build", async () => {
       await section(page, "build", 400);
+      // Hero shot: a dense county Map (choropleth) — the "no-code pivot & chart"
+      // story reads far better as a live map than the plain crosstab table.
       await page.evaluate(async () => {
         window.__studioRenderBuild && window.__studioRenderBuild();
         await new Promise((r) => setTimeout(r, 120));
-        const cat = window.__STUDIO_STATE.catalog || {};
-        for (const stem of Object.keys(cat).sort()) {
-          const da = (cat[stem].dataAccesses || []).filter((d) => (d.columns || []).length >= 3 && !/^kpi/i.test(d.id))[0];
-          if (da) { await window.__studioBuild.selectDataset("sample", stem + "\u0001" + da.id); return; }
-        }
-      });
-      await page.waitForTimeout(900);
-      await page.evaluate(() => {
+        await window.__studioBuild.selectDataset("sample", "field-and-geo" + "\u0001" + "county_cover_crop_pct");
         const B = window.__studioBuild;
-        const cols = B.eff() ? B.eff().cols : [];
-        if (cols.length >= 2) { B.addField(cols[0], "rows"); B.addField(cols[1], "cols"); }
-        for (const c of cols.slice(2)) { B.addField(c, "cols"); if (B.state.shelfCols.some((f) => f.agg)) break; }
+        B.state.shelfRows = [];
+        B.state.shelfCols = [{ col: "county_fips", agg: null }, { col: "pct", agg: "avg" }];
+        B.state.shelfColor = []; B.state.mapScale = ""; B.state.chartType = "choropleth";
         B.rerender();
       });
-      await page.waitForTimeout(800);
-      await shoot(page, "desktop", "View Builder", "dataset on the shelves, live crosstab + chart");
+      // the chart renders inside iframe.bd-ifr; a choropleth fetches geo topology async
+      await page.waitForSelector("#secBuild iframe.bd-ifr", { timeout: 15000 }).catch(() => {});
+      await page.frameLocator("#secBuild iframe.bd-ifr").locator("path[data-geo-id]").first()
+        .waitFor({ state: "visible", timeout: 15000 }).catch(() => {});
+      await page.evaluate(() => document.querySelectorAll(".bd-drop-ov").forEach((e) => { e.hidden = true; e.style.display = "none"; }));
+      await page.waitForTimeout(1400);
+      await shoot(page, "desktop", "View Builder", "a dataset on the shelves rendering a live county Map (choropleth)");
     });
     await attempt("explore", async () => {
       await section(page, "explore", 600);

@@ -116,6 +116,18 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **VB-SHOTS — View Builder hero shots (Map, Donut, Treemap) (v819,
+  2026-07-31, session — Kevin's ask, deck slide):** new
+  `tools/shoot-viewbuilder-charts.mjs` drives the real View Builder to render a
+  dense 144-county Map (choropleth over field-and-geo/county_cover_crop_pct,
+  avg pct) and an 8-slice Donut (command-center/storage_by_source), captured as
+  the full builder UI (waits for the chart inside `iframe.bd-ifr`; hides the
+  `.bd-drop-ov` file-drop overlay first). Treemap isn't a View Builder chart
+  type, so it's rendered via `Studio.buildHtml` as a standalone export. Output
+  `docs/shots/view-builder/2026-07-31/` (README + session.json + tEXt stamps);
+  also overwrites the app-tour's `04-view-builder.png` with the Map and updates
+  `shoot-app-tour.mjs`'s build step to match. Tools/docs only — no app code,
+  no sw bump.
 - **USER-DISABLE — disable/enable a user's sign-in without deleting the
   account (v818, sw v451, 2026-07-31, steward — Kevin live: "disable a user
   from login but i could re-enable them, instead of deleting them
