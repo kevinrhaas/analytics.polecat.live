@@ -102,6 +102,15 @@
           target: '.rail-item[data-sec="explore"]',
           pos: "right"
         },
+        // TOUR-WOW (Kevin live, 2026-07-31): the flagship View Builder was
+        // missing from the app walk entirely.
+        {
+          t: "View Builder — drag-and-drop charts",
+          h: "The flagship chart canvas: drag a dataset's columns onto <b>Columns / Rows / Filters / Color</b> shelves and the result renders live as you go — tables, bars, lines, donuts, heatmaps, and full US maps. Every save is a <b>View</b>.",
+          sub: "You can even drop a CSV file straight onto the canvas — it becomes a dataset and an instant View.",
+          target: '.rail-item[data-sec="build"]',
+          pos: "right"
+        },
         {
           t: "Dashboards — the finished thing",
           h: "A dashboard is built from <b>Views</b> — each View shows one chart, KPI, map, or block of text. Arrange several into a page, feature it on Home, and export it as a self-contained file.",

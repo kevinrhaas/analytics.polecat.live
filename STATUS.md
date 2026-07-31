@@ -116,6 +116,20 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **TOUR-WOW slice 1 — View Builder joins the welcome + overview tour;
+  hero motion polish (v823, sw v455, 2026-07-31, steward — Kevin live: "i
+  hope you will make this more impressive... the whole tour thing is on
+  your list"):** content currency first: the FLAGSHIP View Builder was
+  absent from BOTH the welcome carousel (BASE_STEPS, now 6-step base) and
+  the overview tour's rail walk (now 12-step base incl. the
+  `.rail-item[data-sec="build"]` stop between Quick Views and Dashboards) —
+  new users never learned it existed. Hero polish: slow gradient pan on
+  .sw-hd, sparkle float, chip hover lift — all CSS in welcome.js's injected
+  style, all disabled under prefers-reduced-motion. Suite: 8 assertion
+  updates (5→6 welcome base, 11→12 overview base ×3, railSecs walk gains
+  "build", 8→9 rail hits). Remaining tour-impressiveness ideas (per-step
+  illustrations, richer chooser cards) stay on LF58's recurring track.
+  Lane: skip TOUR-WOW — done here.
 - **DURABLE-2b — undo on single-row deletes (v822, sw v454, 2026-07-31,
   steward):** the four per-row deletes (datasets.js data-dsx-del,
   connections.js data-conn-del, jobs.js data-job-del, views.js data-vw-del)

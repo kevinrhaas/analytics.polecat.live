@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 823,
+    title: 'The welcome tour finally introduces the View Builder',
+    kind: 'polish',
+    ts: '2026-07-31T15:30:11.000Z',
+    items: [
+      'The drag-and-drop View Builder -- the flagship chart canvas -- was missing from both the welcome walkthrough and the app overview tour, so new users never learned it existed. Both now give it a proper stop: shelves, live rendering, the chart types, and the drop-a-CSV shortcut.',
+      'The welcome screen itself got a little more alive: the header gradient drifts slowly, the sparkle floats, and the shortcut chips lift on hover -- all of it stands down when your system asks for reduced motion.',
+    ],
+  },
+  {
     v: 822,
     title: 'Undo now covers single deletes too',
     kind: 'feature',
