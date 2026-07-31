@@ -116,6 +116,39 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **#103 AUTO-BACKEND — the assigned backend ships with the account and
+  connects at sign-in (v810, sw v444, 2026-07-31, steward — Kevin picked the
+  semantics live):** LF42 slice 2 left provisioning.backendId as reference
+  metadata; this makes it REAL. (1) openUserEditor now embeds the assigned
+  backend's {id,name,adapter,cfg} snapshot on `provisioning.backend` — the
+  admin backends list is device-local, so a bare id could never resolve on a
+  fresh device; the snapshot travels on the users table like theme/pack/
+  dashboardDefaults (same exposure class as the synced connections table); an
+  existing snapshot is preserved when the editor can't re-resolve the row.
+  (2) NEW `applyAssignedBackend(mine)` runs from initAuthBoot EVERY sign-in
+  (not once-only — the binding matters again on each fresh device and on
+  re-assignment): no-op when already connected to the target cfg; a FRESH
+  device (no user-authored rows — workspaceHasUserContent(), pack rows don't
+  count) adopts silently; a device with local work gets a window.confirm and
+  a decline is remembered per backend id (`studio-backend-decline:<id>`).
+  (3) `Sync.connectAdopt(sourceId, cfg, opts)` gains opts.skipIfEmpty: an
+  EMPTY remote read with local rows present (the unauthenticated-pull-against-
+  real-RLS signature) aborts WITHOUT touching local data or the active
+  connection (err.emptyRemote; status restored, never "error") — the apply
+  path then preselects the gate's Workspace picker (studio-workspace-last)
+  and toasts guidance, since picker + direct-auth is the working path for a
+  cross-project switch needing its own session. Kevin's #104 note confirmed
+  the gate picker already covers the sign-in side (WORKSPACE-LOGIN); the
+  ctic.org catalog entry is SKIPPED for now (Kevin, 2026-07-31 — revisit
+  when wanted: one workspaces.js line + keys + the verified anon-reads-
+  nothing posture per that file's shipping rule). Same-DB multitenancy
+  deferred to M7 phase 2 (Kevin). #103 and #104 both close with this slice. Docs: Admin backends
+  section rewritten. 4 new checks in the gp42 context (snapshot embed;
+  fresh-silent + prompt semantics with skipIfEmpty threaded; decline
+  remembered/never-nags; sentinel-row proof the empty-remote guard never
+  wipes). Test hook __studioApplyAssignedBackend. Lane: skip #103/#104.
+  Files: app/studio.js, app/sources/sync.js, docs/index.html, sw.js,
+  js/changelog.js v810, tests/run.js, STATUS.md.
 - **DURABLE-2 follow-up — Undo on every bulk delete (v809, sw v443, 2026-07-31,
   steward):** Kevin's queued durability ask ("every destructive bulk action
   gets an undo toast"). NEW `Studio.undoToast(msg, onUndo)` (studio.js, beside
@@ -8010,6 +8043,17 @@
 > 6. ~~VB-DROP~~ **SHIPPED v797 (this session, 2026-07-31 ~06:25Z — see DONE).**
 >    Excel (.xlsx) deferred — needs a vendored parser; a future slice if
 >    Kevin still wants it.
+>
+> **LANE STEER (Kevin, 2026-07-31 ~12:15Z — while the interactive session is
+> ACTIVE on the feature backlog):** to keep both lanes fast, scheduled runs
+> should prefer the SELF-DIRECTED tracks over feature-backlog items while
+> this steer stands: Track H/L/N quality sweeps and LF58 docs/tour/marketing
+> currency. Those touch few contested files; the feature backlog is being
+> worked live and every same-day collision on js/changelog.js + sw.js costs
+> a rebase + a full re-gate (three today: v793, v804, v808). The interactive
+> session claims its items in DONE ("lane: skip …") as always. When the
+> interactive session goes quiet (no main commit from it for ~6 hours), this
+> steer expires and the whole NEXT backlog is open again.
 >
 > **OPEN FOR THE AUTOMATED LANE (independent, minimal overlap with the above):**
 > ~~LF21 (title header as first-class widget)~~ **SHIPPED v793 (automated lane,

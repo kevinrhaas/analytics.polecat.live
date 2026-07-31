@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 810,
+    title: 'Your assigned workspace backend now connects itself at sign-in',
+    kind: 'feature',
+    ts: '2026-07-31T12:12:07.000Z',
+    items: [
+      'When an admin assigns a backend to an account (Admin -> Users -> Assigned backend), the backend’s connection config now ships WITH the account -- so signing in on a brand-new device connects you to your workspace automatically, no setup, no credentials to type.',
+      'A device that already carries local work is asked first (switching adopts the workspace and replaces what’s local); declining is remembered, so sign-in never nags.',
+      'Safety built in: if the backend reads back empty -- the signature of a locked-down database that needs its own sign-in -- the app refuses to adopt it over your local data, keeps everything intact, and points you at the sign-in screen’s Workspace picker instead.',
+    ],
+  },
+  {
     v: 809,
     title: 'Deleted several things by mistake? Undo it — bulk deletes get an Undo button',
     kind: 'feature',
