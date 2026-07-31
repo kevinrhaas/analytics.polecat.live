@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 798,
+    title: 'Your whole environment follows your sign-in now',
+    kind: 'feature',
+    ts: '2026-07-31T06:35:36.000Z',
+    items: [
+      'Signing in from another browser now brings the rest of your personal setup along — Simple mode, the restore-unsaved-work opt-in, the builder panels-open preference, sample visibility, panel and pane sizes (Studio side panels, the View Builder datasets pane and chart canvas), and your tile/list layout picks for Dashboards and the Repository. Theme and branding already roamed; this completes the set.',
+      'Prefs save quietly onto your own account row (local demo accounts stay browser-local by design) and only a fixed, curated list of settings can ever be applied from the synced data.',
+    ],
+  },
+  {
     v: 797,
     title: 'Drop a file on the View Builder — get a dataset and an instant chart',
     kind: 'feature',

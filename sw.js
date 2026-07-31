@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v432"; /* v432: VB-DROP — drag a CSV/TSV/JSON
+var CACHE_NAME = "studio-shell-v433"; /* v433: SETTINGS-ROAM slice 2 — the
+   per-user chrome roams as one prefs.ls blob on the account's users row
+   (curated ROAM_LS_KEYS: simple mode, restore opt-in, panels default, sample
+   visibility, pane/canvas sizes, view toggles); captured on a 60s interval +
+   visibilitychange, applied at sign-in with curated-key filtering + live
+   re-apply of already-painted chrome (studio.js saveUserPref/applyUserPrefs/
+   applyRoamedChrome). */
+/* v432: VB-DROP — drag a CSV/TSV/JSON
    anywhere onto the Build section: bdDropFile creates the same file-kind
    dataset LF24's Quick import writes, profiles columns via QuickMode, and the
    bdPickView ladder (geo→choropleth avg, temporal→line + small-category color
