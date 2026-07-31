@@ -116,6 +116,40 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Track L sweep (orphaned-key lens, round 7) — Clear local data now wipes
+  every key the 2026-07-31 feature burst quietly left behind (v816, sw v449,
+  2026-07-31, steward — Track H/L/N rotation, L's turn, was overdue since
+  v613):** re-ran the same cross-check the last six rounds established (every
+  `localStorage.setItem`/`getItem` call across ALL of `app/*.js` +
+  `app/sources/*.js`, trace variable-held keys to their string constants,
+  diff against `CLEAR_DATA_KEYS`) for the first time since v613 — six
+  feature slices in the meantime (VB-13/14/DROP, EXPORT-2, #103, SORT-1) had
+  each added a key without updating this list, the largest haul any round
+  has found. Added 17 literal keys: `studio-activity-queue` (ACTIVITY-1's
+  offline log queue), `studio-bd-drafts`/`studio-bd-preview-size`
+  (VB-14/build.js), `studio-bd-lw`/`studio-bd-collapse` (VB-13's View
+  Builder pane), `studio-workspaces-custom`/`studio-workspace-last`
+  (gate.js's workspace picker), `studio-export-datamode` (EXPORT-2),
+  `studio-vwc-view` (Views' list/tile toggle — the one catalog view-mode key
+  missing from the five siblings already listed), `studio-panels-default` +
+  `studio-restore-unsaved` (sharper than the usual gap: both are ALSO in
+  `ROAM_LS_KEYS`, so leaving them out meant a "fresh start" reload could
+  silently re-adopt the old prefs off this device's own localStorage on the
+  next roam tick), and the six `studio-sort-<section>` keys SORT-1 just
+  introduced last slice. Two more are genuinely per-user/per-id
+  (`recentsClearedKey()` → `studio-recents-cleared::<user>`, #103's
+  `declineKey` → `studio-backend-decline:<id>`) — no fixed literal list can
+  ever cover every value written, so Clear-local-data now ALSO sweeps by
+  PREFIX (new `CLEAR_DATA_PREFIXES`) over the real key list, a small but
+  permanent fix for that whole key class rather than another literal to
+  chase forever. 3 new checks (round-7 device/draft keys present; round-7
+  preference keys present; the prefix sweep actually removes planted
+  per-user/per-id keys). Verified live headless first (zero pageerrors).
+  Lane: skip the Track L orphaned-key lens. Files: app/studio.js, sw.js,
+  js/changelog.js v816, tests/run.js, STATUS.md. NEXT: continuing the Track
+  H/L/N self-directed rotation (Track N last at v611, now the most overdue
+  of the three) is a good next slice while the findings queue and ★ backlog
+  stay thin.
 - **PACK-SHOTS — a dated reference gallery of the whole app (v815, 2026-07-31,
   session — Kevin's ask):** two headless-capture tools, both staged with the
   sample packs installed so nothing reads empty.

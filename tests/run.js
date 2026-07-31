@@ -21885,6 +21885,60 @@ function serve() {
     ok("E8: the real clear-data key list includes studio-pdf-export-opts (Track L sweep round 6)",
       e8Clear.hasPdfOptsKey, JSON.stringify(e8Clear));
 
+    // Track L sweep round 7: the largest haul yet, after several feature slices in the same
+    // 2026-07-31 burst (VB-13/14/DROP, EXPORT-2, #103, SORT-1) each added a key without updating
+    // this list. Same probe convention as rounds 1-6: plant every literal key, remove via the
+    // real list, assert none survive and that the new keys are actually present in that list.
+    const e8Clear7 = await page.evaluate(() => {
+      var keys = window.__studioClearDataKeys;
+      return {
+        hasActivityQueue: keys.indexOf("studio-activity-queue") >= 0,
+        hasBdDrafts: keys.indexOf("studio-bd-drafts") >= 0,
+        hasBdPreviewSize: keys.indexOf("studio-bd-preview-size") >= 0,
+        hasBdLw: keys.indexOf("studio-bd-lw") >= 0,
+        hasBdCollapse: keys.indexOf("studio-bd-collapse") >= 0,
+        hasWorkspacesCustom: keys.indexOf("studio-workspaces-custom") >= 0,
+        hasWorkspaceLast: keys.indexOf("studio-workspace-last") >= 0,
+        hasExportDatamode: keys.indexOf("studio-export-datamode") >= 0,
+        hasVwcView: keys.indexOf("studio-vwc-view") >= 0,
+        hasPanelsDefault: keys.indexOf("studio-panels-default") >= 0,
+        hasRestoreUnsaved: keys.indexOf("studio-restore-unsaved") >= 0,
+        hasSortKeys: ["studio-sort-dashboards", "studio-sort-datasets", "studio-sort-connections",
+          "studio-sort-jobs", "studio-sort-views", "studio-sort-repository"]
+          .every(function (k) { return keys.indexOf(k) >= 0; })
+      };
+    });
+    ok("E8: the real clear-data key list includes the round-7 device/draft keys (VB-13/14/DROP, #103)",
+      e8Clear7.hasActivityQueue && e8Clear7.hasBdDrafts && e8Clear7.hasBdPreviewSize &&
+      e8Clear7.hasBdLw && e8Clear7.hasBdCollapse && e8Clear7.hasWorkspacesCustom &&
+      e8Clear7.hasWorkspaceLast, JSON.stringify(e8Clear7));
+    ok("E8: the real clear-data key list includes the round-7 preference keys (EXPORT-2, STUDIO-PANELS, #114, SORT-1)",
+      e8Clear7.hasExportDatamode && e8Clear7.hasVwcView && e8Clear7.hasPanelsDefault &&
+      e8Clear7.hasRestoreUnsaved && e8Clear7.hasSortKeys, JSON.stringify(e8Clear7));
+
+    // Track L sweep round 7 (continued): recentsClearedKey() and the #103 backend-decline flag
+    // are keyed per-user / per-backend-id — no fixed literal can cover every value that's ever
+    // been written, so Clear-local-data sweeps these by PREFIX (CLEAR_DATA_PREFIXES) over the
+    // real localStorage key list instead. Plant a couple of concrete dynamic keys and replicate
+    // the handler's exact two-step sweep (literal list, then prefix scan) to prove it catches them.
+    const e8ClearPrefixes = await page.evaluate(() => {
+      var prefixes = window.__studioClearDataPrefixes;
+      var planted = ["studio-recents-cleared::probe-user", "studio-backend-decline:probe-cfg"];
+      planted.forEach(function (k) { try { localStorage.setItem(k, "1"); } catch (e) {} });
+      try {
+        Object.keys(localStorage).forEach(function (k) {
+          if (prefixes.some(function (p) { return k.indexOf(p) === 0; })) localStorage.removeItem(k);
+        });
+      } catch (e) {}
+      return {
+        hasPrefixes: Array.isArray(prefixes) && prefixes.indexOf("studio-recents-cleared::") >= 0 &&
+          prefixes.indexOf("studio-backend-decline:") >= 0,
+        remaining: planted.filter(function (k) { try { return localStorage.getItem(k) !== null; } catch (x) { return false; } })
+      };
+    });
+    ok("E8: dynamic per-user/per-id keys (recents-cleared, backend-decline) are swept by prefix (Track L sweep round 7)",
+      e8ClearPrefixes.hasPrefixes && e8ClearPrefixes.remaining.length === 0, JSON.stringify(e8ClearPrefixes));
+
     // Clear-data's session wipe must ALSO drop the studio-gate-ok sessionStorage bypass (not part
     // of CLEAR_DATA_KEYS, which only ever touches localStorage) — otherwise PolecatAuth.current()'s
     // "authed via the historical bypass with no stored identity" fallback would silently re-admin
