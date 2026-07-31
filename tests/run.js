@@ -17916,6 +17916,98 @@ function serve() {
       lf42s3Manual.modalTitle === "Connect a workspace backend" && lf42s3Manual.hasSrcGrid,
       JSON.stringify(lf42s3Manual));
 
+    // ---- #103 AUTO-BACKEND: the assigned backend ships with the account and ----
+    // ---- connects at sign-in (fresh device silent; data-bearing device asks) ----
+    console.log("\n• #103: assigned backend ships with the account + connects at sign-in");
+    // (a) Assigning a backend embeds its {id,name,adapter,cfg} snapshot on
+    // provisioning.backend — the admin backends list is device-local, so a bare
+    // backendId could never resolve on a fresh device.
+    await gp42.evaluate(function () {
+      localStorage.setItem("studio-admin-backends", JSON.stringify([
+        { id: "bk5", name: "CTIC Supabase", adapter: "supabase", cfg: { url: "https://bk5.example.co", key: "pub-k5" } }
+      ]));
+      window.__studioRenderAdmin();
+      window.__studioOpenUserEditor(window.PolecatAuth.find("lf42user"));
+      document.getElementById("usrEditBackend").value = "bk5";
+      document.querySelector(".cx-wiz-foot .btn.primary").click();
+    });
+    await gp42.waitForFunction(() => !document.querySelector(".modal-ov"), { timeout: 8000 });
+    const a103Embed = await gp42.evaluate(function () { return window.PolecatAuth.find("lf42user").provisioning; });
+    ok("#103: assigning a backend embeds its full snapshot on provisioning.backend — the config ships with the account",
+      a103Embed && a103Embed.backendId === "bk5" && a103Embed.backend && a103Embed.backend.adapter === "supabase" &&
+      a103Embed.backend.cfg && a103Embed.backend.cfg.url === "https://bk5.example.co" && a103Embed.backend.name === "CTIC Supabase",
+      JSON.stringify(a103Embed));
+
+    // (b) applyAssignedBackend semantics: fresh device → silent adopt; device with
+    // user data → confirm; decline remembered per backend id (never nags again).
+    const a103Apply = await gp42.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      var out = {};
+      var realAdopt = Studio.Sync.connectAdopt, calls = [];
+      Studio.Sync.connectAdopt = function (a, c, o) { calls.push({ a: a, c: c, o: o }); return Promise.resolve({}); };
+      var confirms = 0, realConfirm = window.confirm;
+      window.confirm = function () { confirms++; return true; };
+      var mine = { provisioning: { backend: { id: "bk5", name: "CTIC Supabase", adapter: "supabase", cfg: { url: "https://bk5.example.co", key: "pub-k5" } } } };
+      try { localStorage.removeItem("studio-backend-decline:bk5"); } catch (e) {}
+      // fresh device: no user-authored rows → silent (confirm never consulted)
+      var realAll = Studio.Workspace.all;
+      Studio.Workspace.all = function () { return []; };
+      window.__studioApplyAssignedBackend(mine);
+      await sleep(80);
+      Studio.Workspace.all = realAll;
+      out.freshSilent = confirms === 0 && calls.length === 1 &&
+        calls[0].a === "supabase" && calls[0].c.url === "https://bk5.example.co" &&
+        calls[0].o && calls[0].o.skipIfEmpty === true;
+      // device WITH user data: ensure one user-authored row, then expect the confirm
+      Studio.Workspace.put("datasets", { id: "a103-ds", name: "a103", kind: "sql", sql: "SELECT 1" }, { silent: true });
+      calls.length = 0; confirms = 0;
+      window.__studioApplyAssignedBackend(mine);
+      await sleep(80);
+      out.promptedAndAdopted = confirms === 1 && calls.length === 1;
+      // decline path: remembered, and a later sign-in never re-asks
+      calls.length = 0; confirms = 0;
+      window.confirm = function () { confirms++; return false; };
+      window.__studioApplyAssignedBackend(mine);
+      out.declinedNoAdopt = calls.length === 0 && confirms === 1;
+      out.declineStored = localStorage.getItem("studio-backend-decline:bk5") === "1";
+      confirms = 0;
+      window.__studioApplyAssignedBackend(mine);
+      out.noReprompt = confirms === 0 && calls.length === 0;
+      Studio.Sync.connectAdopt = realAdopt; window.confirm = realConfirm;
+      try { localStorage.removeItem("studio-backend-decline:bk5"); } catch (e) {}
+      Studio.Workspace.remove("datasets", "a103-ds", { silent: true });
+      return out;
+    });
+    ok("#103: a fresh device adopts the assigned backend silently (skipIfEmpty threaded); a device with user data is asked first",
+      a103Apply.freshSilent && a103Apply.promptedAndAdopted, JSON.stringify(a103Apply));
+    ok("#103: declining the switch is remembered per backend id — later sign-ins never nag",
+      a103Apply.declinedNoAdopt && a103Apply.declineStored && a103Apply.noReprompt, JSON.stringify(a103Apply));
+
+    // (c) The connectAdopt skipIfEmpty guard: an EMPTY remote read (the signature of
+    // an unauthenticated pull against authenticated-only RLS) must never wipe local.
+    const a103Guard = await gp42.evaluate(async function () {
+      var src = Studio.sourceById("supabase");
+      var realLoad = src.load;
+      src.load = function () { return Promise.resolve({ tables: {} }); };
+      // a SENTINEL row (not a raw count — the live app's background silent puts
+      // shift totals) proves replaceAll never ran: an adopted empty snapshot
+      // would have removed it.
+      Studio.Workspace.put("datasets", { id: "a103-sentinel", name: "a103_sentinel", kind: "sql", sql: "SELECT 1" }, { silent: true });
+      var out = {};
+      try {
+        await Studio.Sync.connectAdopt("supabase", { url: "https://empty.example.co", key: "k" }, { skipIfEmpty: true });
+        out.rejected = false;
+      } catch (e) { out.rejected = true; out.emptyFlag = !!e.emptyRemote; }
+      out.sentinelSurvived = !!Studio.Workspace.get("datasets", "a103-sentinel");
+      out.statusNotError = Studio.Sync.syncState().status !== "error";
+      src.load = realLoad;
+      Studio.Workspace.remove("datasets", "a103-sentinel", { silent: true });
+      return out;
+    });
+    ok("#103: connectAdopt's skipIfEmpty guard refuses to adopt an empty remote read over local data — no wipe, no error state",
+      a103Guard.rejected && a103Guard.emptyFlag && a103Guard.sentinelSurvived && a103Guard.statusNotError,
+      JSON.stringify(a103Guard));
+
     await gp42.close();
 
     // ---- M7 slice 6: in-app account provisioning (browser self-signup) ----

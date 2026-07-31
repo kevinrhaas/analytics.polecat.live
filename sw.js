@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v443"; /* v443: DURABLE-2 follow-up — Undo button
+var CACHE_NAME = "studio-shell-v444"; /* v444: #103 AUTO-BACKEND — assigned
+   backend ships with the account (provisioning.backend snapshot) + connects at
+   sign-in; connectAdopt skipIfEmpty guard (studio.js, sources/sync.js + docs). */
+/* v443: DURABLE-2 follow-up — Undo button
    on every bulk-delete toast (studio.js, datasets.js, connections.js, jobs.js,
    views.js, studio.css + docs changed). */
 /* v442: Track H sweep — the canvas

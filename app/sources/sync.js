@@ -325,12 +325,25 @@
     },
 
     // Adopt an EXISTING workspace on a remote: pull it down as the working copy.
-    connectAdopt: function (sourceId, cfg) {
+    // #103 AUTO-BACKEND: opts.skipIfEmpty aborts (without touching local data or the
+    // active connection) when the remote reads back EMPTY while this device has rows —
+    // the signature of an unauthenticated pull against an authenticated-only-RLS
+    // backend, where adopting would wipe the local workspace with nothing. Off by
+    // default so every existing caller (the Settings switch flow, the gate) keeps its
+    // deliberate adopt-whatever semantics.
+    connectAdopt: function (sourceId, cfg, opts) {
       var src = Studio.sourceById(sourceId);
       if (!src) return Promise.reject(new Error("unknown source"));
       setStatus("connecting");
       _suspend = true;
       return src.load(cfg).then(decTransform).then(function (snap) {
+        if (opts && opts.skipIfEmpty && snapRowCount(snap) === 0 && snapRowCount(W().snapshot()) > 0) {
+          _suspend = false;
+          setStatus(state.sourceId === "local" ? "local" : "connected");
+          var err = new Error("workspace read back empty — not adopting over local data");
+          err.emptyRemote = true;
+          throw err;
+        }
         W().replaceAll(snap);
       }).then(function () {
         _suspend = false;
@@ -338,7 +351,13 @@
         setStatus("connected");
         healAfterAdopt();
         return publicState();
-      }, function (e) { _suspend = false; setStatus("error", e.message); throw e; });
+      }, function (e) {
+        _suspend = false;
+        // the skipIfEmpty guard already restored the right status — an aborted adopt
+        // is a no-op, not an error state on the CURRENT (untouched) connection.
+        if (!e || !e.emptyRemote) setStatus("error", e.message);
+        throw e;
+      });
     },
 
     // Connect to an EMPTY (freshly provisioned) remote by pushing local up.

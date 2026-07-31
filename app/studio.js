@@ -8207,14 +8207,16 @@
      worth it.
 
      Slice 2 (openUserEditor's "Assigned backend" field): records which
-     registered backend a user belongs to, on their provisioning blob. Also
-     deliberately narrow — it's reference metadata (surfaced both here, as a
-     count badge per row, and on the Users list) for a consolidated config UI
-     or "select a SERVER" feature to act on later. It does NOT auto-connect at
-     first sign-in: unlike the theme/pack provisioning LF41 applies silently,
-     adopting a backend can replace this device's entire local workspace, which
-     isn't safe to do without the user driving it (same reasoning as slice 1's
-     "still exactly one active connection"). */
+     registered backend a user belongs to, on their provisioning blob —
+     surfaced both here (count badge per row) and on the Users list.
+     #103 AUTO-BACKEND (2026-07-31) made the assignment REAL: the editor now
+     also embeds the backend's {id,name,adapter,cfg} snapshot on
+     provisioning.backend (the list itself stays device-local, so a bare id
+     could never resolve on a fresh device), and applyAssignedBackend()
+     connects it at sign-in — silently on a fresh device, behind a confirm
+     (decline remembered) when this device already carries user-made data,
+     and NEVER over-adopting an empty unauthenticated read (connectAdopt's
+     skipIfEmpty guard). */
   function getAdminBackends() { return lsGet("studio-admin-backends", []); }
   function setAdminBackends(list) { lsSet("studio-admin-backends", list); }
   function backendRowActive(r, st, curCfg) {
@@ -8767,6 +8769,51 @@
   // reports 0 rows patched rather than an error). The admin add/edit flow
   // (openUserEditor below) mirrors another account's row explicitly instead —
   // that write is an admin action, which the proven policy separately grants.
+  // #103 AUTO-BACKEND: does this device carry anything a user made? Pack-seeded
+  // rows (demoPackId) don't count — a brand-new install ships with the default
+  // sample pack installed, and that must still read as "fresh".
+  function workspaceHasUserContent() {
+    var tables = ["dashboards", "datasets", "connections", "jobs", "analyses"];
+    for (var i = 0; i < tables.length; i++) {
+      var rows = Studio.Workspace.all(tables[i]);
+      for (var j = 0; j < rows.length; j++) if (!rows[j].demoPackId) return true;
+    }
+    return false;
+  }
+  // #103 AUTO-BACKEND: connect the signed-in account's assigned backend. Resolves the
+  // embedded provisioning.backend snapshot first (travels with the account), falling
+  // back to the device-local admin backends list for same-device assignments made
+  // before the snapshot existed. connectAdopt runs with skipIfEmpty so an
+  // unauthenticated pull against an authenticated-only-RLS backend can NEVER wipe
+  // this device — that case degrades to preselecting the sign-in screen's Workspace
+  // picker plus a guidance toast (the picker + direct-auth flow IS the working path
+  // for a cross-project switch that needs its own session).
+  function applyAssignedBackend(mine) {
+    var prov = mine && mine.provisioning; if (!prov) return;
+    var target = prov.backend && prov.backend.adapter && prov.backend.cfg ? prov.backend
+      : (prov.backendId && getAdminBackends().filter(function (r) { return r.id === prov.backendId; })[0]);
+    if (!target || !target.adapter || !target.cfg || !Studio.Sync) return;
+    var st = Studio.Sync.syncState();
+    if (st.isRemote && st.sourceId === target.adapter &&
+        JSON.stringify(Studio.Sync.currentConfig()) === JSON.stringify(target.cfg)) return; // already there
+    var label = target.name || "your assigned workspace";
+    var declineKey = "studio-backend-decline:" + (target.id || "cfg");
+    function go() {
+      Studio.Sync.connectAdopt(target.adapter, target.cfg, { skipIfEmpty: true }).then(function () {
+        toast("Connected to " + label + " — your account's assigned workspace backend.");
+        try { renderSettings(); renderAdmin(); renderHome(); } catch (e) {}
+      }, function (e) {
+        try { localStorage.setItem("studio-workspace-last", target.id || ""); } catch (e2) {}
+        toast("Couldn't connect to " + label + " automatically — pick it in the Workspace picker on the sign-in screen to finish. (" + ((e && e.message) || "connection failed") + ")", true);
+      });
+    }
+    if (!workspaceHasUserContent()) { go(); return; }
+    try { if (localStorage.getItem(declineKey) === "1") return; } catch (e) {}
+    if (window.confirm("Your account is assigned to the “" + label + "” workspace backend. Switch this device to it now? What's stored locally will be replaced by that workspace's data.")) go();
+    else { try { localStorage.setItem(declineKey, "1"); } catch (e) {} }
+  }
+  window.__studioApplyAssignedBackend = applyAssignedBackend; // #103 test hook
+
   // (2) If you signed in with the DEMO account, seed the sample workspace once
   // so a demo login lands on something alive.
   function initAuthBoot() {
@@ -8803,6 +8850,13 @@
         Auth.upsert(me.u, { provisioned: true }).then(function (saved) { mirrorUserRow(saved); });
       }
     } catch (e) {}
+    // #103 AUTO-BACKEND: the admin-assigned backend connects at sign-in — EVERY
+    // sign-in (not once-only like LF41's theme/pack: the binding matters again on
+    // every fresh device, and again when the admin re-assigns). Kevin's chosen
+    // semantics: a fresh device (no user-authored rows) connects silently; a device
+    // carrying local data gets a confirm (adopting replaces the local workspace),
+    // and a decline is remembered per backend id so sign-in never nags.
+    try { applyAssignedBackend(mine); } catch (e) {}
     // SETTINGS-ROAM: apply the account's roamed prefs (theme etc.) AFTER the
     // once-only provisioning defaults above — on a first sign-in there are no
     // prefs yet so provisioning seeds the look; every later sign-in the user's
@@ -9494,8 +9548,22 @@
         // than silently clearing it just because this editor session had
         // nothing to offer.
         var provBackend = bSel ? bSel.value : ((existing && existing.provisioning && existing.provisioning.backendId) || "");
+        // #103 AUTO-BACKEND: ship the assigned backend's CONFIG with the account, not just
+        // its id — the admin backends list is device-local (LF42 slice 1), so a fresh
+        // device could never resolve a bare backendId. The snapshot travels on the users
+        // table like theme/pack/dashboardDefaults already do (same exposure class as the
+        // synced connections table); applyAssignedBackend() consumes it at sign-in. An
+        // existing embedded snapshot is kept when this editor session can't re-resolve
+        // the row (backend deleted locally, or bSel absent).
+        var provBackendSnap = null;
+        if (provBackend) {
+          var bkRow = getAdminBackends().filter(function (r) { return r.id === provBackend; })[0];
+          if (bkRow) provBackendSnap = { id: bkRow.id, name: bkRow.name, adapter: bkRow.adapter, cfg: bkRow.cfg || {} };
+          else if (existing && existing.provisioning && existing.provisioning.backend && existing.provisioning.backend.id === provBackend)
+            provBackendSnap = existing.provisioning.backend;
+        }
         opts.provisioning = (provTheme || provPack || provBackend || capturedDashboardDefaults) ?
-          { theme: provTheme, pack: provPack, backendId: provBackend, dashboardDefaults: capturedDashboardDefaults || null } : null;
+          { theme: provTheme, pack: provPack, backendId: provBackend, backend: provBackendSnap, dashboardDefaults: capturedDashboardDefaults || null } : null;
         function finishSave() {
           window.PolecatAuth.upsert(u, opts).then(function (saved) {
             try {
