@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 781,
+    title: 'New Polecat logo, an open navigation rail for first-timers, and an honest security card',
+    ts: '2026-07-30T23:35:03.000Z',
+    items: [
+      'The new vector Polecat mark is everywhere: the browser tab and installed-app icons are the cream “coin” badge, the sign-in screen leads with it, and the marketing page follows the new brand rule — dark surfaces get the light coin, light surfaces get the black mark, never a white knockout.',
+      'A first-time visitor now starts with the navigation rail OPEN (labels visible) on desktop instead of the icon-only sliver; collapsing it still sticks like before.',
+      'Admin’s “Per-user security” card now checks what the database actually enforces: on a workspace whose Row-Level Security is already live it says so plainly instead of forever offering the one-time “Go live” setup.',
+      'The Data Management & Governance sample pack’s description now counts all 12 of its showcase dashboards (the four gallery boards that joined it — data quality, pipeline observability, storage, cost — included).',
+    ],
+  },
+  {
     v: 780,
     title: 'Fix: signing in to a picked workspace now works on a brand-new browser',
     kind: 'fix',

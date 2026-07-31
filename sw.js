@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v415"; /* v415: WORKSPACE-LOGIN fix — direct-auth stamps the
+var CACHE_NAME = "studio-shell-v416"; /* v416: BRAND v2 + polish — favicon/icon-192/512/
+   apple-touch are the new vector coin mark; precache swaps polecat-mark-*.png for
+   polecat-logo-coin-cream.svg + polecat-logo-black.svg; gate logo = coin; rail
+   defaults EXPANDED on first desktop visit (shell.js); Admin go-live card is
+   posture-aware (supabase.js anonProbe + studio.js refreshGoLiveCard); Data
+   Management pack copy counts 12 (demopacks.js). All precached files rolled. */
+/* v415: WORKSPACE-LOGIN fix — direct-auth stamps the
    verified credentials on the picker-bound connection (Sync.setAuthCredentials)
    BEFORE the adopting pull; without them the pull ran as anon and authenticated-only
    RLS read the workspace as empty ("isn't in your connected workspace" for a
@@ -2239,8 +2245,8 @@ var SHELL_FILES = [
   "assets/fonts/hanken-grotesk-600.woff2",
   "assets/fonts/hanken-grotesk-700.woff2",
   "assets/fonts/hanken-grotesk-800.woff2",
-  "assets/brand/polecat-mark-white.png",
-  "assets/brand/polecat-mark-black.png",
+  "assets/brand/polecat-logo-coin-cream.svg",
+  "assets/brand/polecat-logo-black.svg",
   "app/",
   "app/index.html",
   "site.webmanifest",

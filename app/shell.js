@@ -193,8 +193,16 @@
     focusable[next].focus();
   });
 
+  // RAIL-OPEN-DEFAULT (Kevin live, 2026-07-30): a first-time visitor should see the
+  // labeled navigation, not the icon sliver — default EXPANDED on desktop when no
+  // choice is stored yet. An explicit collapse still persists; phones keep the
+  // drawer behavior (the expanded class is moot under the mobile breakpoint).
   var savedSection = "home", savedExpanded = false;
-  try { savedSection = localStorage.getItem(LS_SECTION) || "home"; savedExpanded = localStorage.getItem(LS_EXPANDED) === "1"; } catch (e) {}
+  try {
+    savedSection = localStorage.getItem(LS_SECTION) || "home";
+    var storedExpanded = localStorage.getItem(LS_EXPANDED);
+    savedExpanded = storedExpanded === null ? window.innerWidth > 900 : storedExpanded === "1";
+  } catch (e) {}
   setActive(savedSection, false);
   setExpanded(savedExpanded, false);
   // Stamp the boot entry with a state object (same shape pushState uses below) so a

@@ -1,5 +1,10 @@
 -- Polecat "analytics" workspace — REAL per-user Row-Level Security (M7).
 --
+-- ⚠ FRESH ENVIRONMENT? Use tools/supabase-deploy.sql instead — the complete
+-- one-file deploy (tables + this posture + the ACTIVITY-1 log tables + first-
+-- admin + verify). This file is the POSTURE-ONLY subset for re-tightening an
+-- environment whose tables already exist; keep the two in sync.
+--
 -- ✅ APPLIED LIVE 2026-07-30 (Kevin): after running this script the anon-role
 -- verify (§ VERIFY below) returned ZERO rows on all six workspace tables while
 -- a signed-in admin still saw everything. This file is now the CANONICAL

@@ -7907,6 +7907,24 @@
 >       Original — (Kevin live, 2026-07-30, screenshots): examples not from his
 >       installed pack shown under the Conservation label; wanted a per-user
 >       clear-recents control.
+> POLISH-4 (GOLIVE-CARD + RAIL-OPEN-DEFAULT + PACK-COPY + BRAND-V2). ✓ **SHIPPED
+>       v781, sw v416 (one slice, all four Kevin live 2026-07-30).** (1) Admin's
+>       per-user-security card is POSTURE-AWARE: supabase.js anonProbe (anon-key-only
+>       read of users, deliberately no session) + studio.js refreshGoLiveCard — anon
+>       sees nothing while local accounts exist → the Go-live CTA swaps for
+>       "Per-user security is ON"; probe rows>0 or failure → CTA stays. (2) shell.js
+>       first-run rail default is EXPANDED on desktop (>900px) when no
+>       studio-shell-expanded value is stored; explicit collapse still persists.
+>       (3) demopacks.js datamanagement tagline/blurb count 12 (welcome.js composes
+>       name+tagline so the tour line self-healed); docs list updated. (4) BRAND v2
+>       (Kevin's logo kit, 2 zips): vector black mark is the master; dark surfaces
+>       take the light COIN (cream default), white knockouts retired. favicon.svg /
+>       icon-192 / icon-512 / apple-touch = coin-cream; assets/brand gains the three
+>       kit svgs (legacy polecat-mark-*.png files kept on disk but dereferenced +
+>       swapped out of the sw precache); landing nav = coin-on-dark, footer =
+>       black-on-light; gate .g-logo = the coin itself (gradient tile retired).
+>       Suite: golive swap/stay cases, first-run rail default + collapse persistence,
+>       brand-file assertions (no gradient favicon, no white-knockout refs).
 > EXPLORE-LAYOUT. ✓ **Explore SAVED VIEWS rows squeezed — SHIPPED v779 (same PR).**
 >       The narrow panel crushed a row's name to one letter ("C…") with "Line /
 >       area" stacking word-per-line — the folder chip + 5 action icons never
