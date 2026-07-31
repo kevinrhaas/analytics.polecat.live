@@ -17637,6 +17637,73 @@ function serve() {
     ok("LF41 slice 2: Clear removes a previously captured Dashboard-defaults blob (no other provisioning set on this account, so it goes back to null entirely, same convention as LF41 slice 1's own clear test)",
       lf42dCleared.status.indexOf("Not set") >= 0 && lf42dStored === null, JSON.stringify(lf42dStored));
 
+    // ---- TOUR-FORCE: per-user one-shot "show the welcome tour at next sign-in" ----
+    // The editor offers the checkbox (unchecked by default) and checking it stores
+    // forceTour:true on the account row; the flag rides exportForStore so it syncs.
+    const tfStored = await gp41.evaluate(function () {
+      window.__studioOpenUserEditor();
+      var chk = document.getElementById("usrEditForceTour");
+      var r = { hasChk: !!chk, uncheckedByDefault: chk && !chk.checked };
+      document.getElementById("usrEditUser").value = "tfuser";
+      document.getElementById("usrEditName").value = "TF Test";
+      document.getElementById("usrEditPass").value = "pw123456";
+      chk.checked = true;
+      document.querySelector(".cx-wiz-foot .btn.primary").click();
+      return r;
+    });
+    await gp41.waitForFunction(() => !document.querySelector(".modal-ov"), { timeout: 8000 });
+    const tfRow = await gp41.evaluate(function () {
+      return {
+        row: window.PolecatAuth.find("tfuser"),
+        exported: (window.PolecatAuth.exportForStore().filter(function (x) { return x.u === "tfuser"; })[0] || {}).forceTour,
+        mirrored: (Studio.Workspace.all("users").filter(function (r) { return r.u === "tfuser"; })[0] || {}).forceTour
+      };
+    });
+    ok("TOUR-FORCE: Add user offers a 'Show the welcome tour at their next sign-in' checkbox (unchecked by default); checking it stores forceTour on the account, exportForStore carries it, AND the mirrored workspace users row carries it — the flag genuinely syncs to other devices",
+      tfStored.hasChk && tfStored.uncheckedByDefault && tfRow.row && tfRow.row.forceTour === true && tfRow.exported === true && tfRow.mirrored === true,
+      JSON.stringify({ stored: tfStored, row: tfRow.row && tfRow.row.forceTour, exported: tfRow.exported, mirrored: tfRow.mirrored }));
+
+    // Re-opening the editor for that user reflects the live flag.
+    const tfReopen = await gp41.evaluate(function () {
+      window.__studioOpenUserEditor(window.PolecatAuth.find("tfuser"));
+      var chk = document.getElementById("usrEditForceTour");
+      var r = { checkedNow: chk && chk.checked };
+      document.querySelector(".modal-ov .x").click();
+      return r;
+    });
+    ok("TOUR-FORCE: re-opening the editor for a flagged user shows the checkbox checked (round-trips the live flag)",
+      tfReopen.checkedNow === true, JSON.stringify(tfReopen));
+
+    // The consume flow: sign in as the flagged user on a device that has ALREADY seen
+    // the welcome — the forced flag must still open it, then reset itself (one-shot).
+    const tfConsume = await gp41.evaluate(async function () {
+      var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+      localStorage.setItem("studio-welcome-seen", "1");
+      window.PolecatAuth.logout();
+      window.PolecatAuth.login("tfuser");
+      window.__studioAuthBoot();
+      await sleep(500);
+      return {
+        welcomeOpen: !!document.querySelector("#studio-welcome"),
+        flagReset: window.PolecatAuth.find("tfuser").forceTour === false
+      };
+    });
+    ok("TOUR-FORCE: signing in with the flag set opens the welcome tour even though this device already saw it, and the flag resets to false in the same boot (one-shot semantics)",
+      tfConsume.welcomeOpen && tfConsume.flagReset, JSON.stringify(tfConsume));
+
+    // Second sign-in: the flag is spent, no re-show.
+    const tfSecond = await gp41.evaluate(async function () {
+      var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+      document.querySelectorAll("#studio-welcome").forEach(function (n) { n.remove(); });
+      window.PolecatAuth.logout();
+      window.PolecatAuth.login("tfuser");
+      window.__studioAuthBoot();
+      await sleep(400);
+      return { reshow: !!document.querySelector("#studio-welcome") };
+    });
+    ok("TOUR-FORCE: a second sign-in after the forced showing does NOT re-open the welcome (the flag was consumed, not sticky)",
+      tfSecond.reshow === false, JSON.stringify(tfSecond));
+
     await gp41.close();
 
     // ---- LF42 slice 1: Admin "Backends" — a registered backend list ----

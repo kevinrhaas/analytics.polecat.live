@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 813,
+    title: 'Admins can force the welcome tour at an account\'s next sign-in',
+    kind: 'feature',
+    ts: '2026-07-31T13:09:03.000Z',
+    items: [
+      'The Admin Add/Edit user form gains a "Show the welcome tour at their next sign-in" checkbox. Normally the tour only appears the first time a browser visits the app -- so a returning device shows no tour even for a brand-new account. Check the box and that account\'s very next sign-in opens the welcome tour anyway, on any device.',
+      'The flag is one-shot: it resets itself the moment the tour is shown, so later sign-ins go straight in. It syncs with the account, so it works across devices -- and anyone can still replay the tour any time from the Home page\'s "Take the tour" card.',
+    ],
+  },
+  {
     v: 812,
     title: 'Sort every catalog page — by name, date, workbook, adapter, and more',
     kind: 'feature',
