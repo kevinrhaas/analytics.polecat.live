@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 821,
+    title: 'View Builder hero shots — a live Map and Donut, not the plain table',
+    kind: 'polish',
+    ts: '2026-07-31T15:06:20.000Z',
+    items: [
+      'New tools/shoot-viewbuilder-charts.mjs captures the View Builder rendering real charts for the "pivot & crosstab, no code" story: a dense 144-county Map (choropleth) and an 8-slice Donut, both the full builder UI with the shelves and the chart-type highlighted. The tour\'s View Builder shot is upgraded from the crosstab table to the Map to match.',
+      'A Treemap is included too -- but treemap is a dashboard chart type, not a View Builder one, so it is rendered as a clean standalone dashboard export rather than faked into the builder.',
+      'Captures land in docs/shots/view-builder/<date>/ with a README + session.json manifest; every PNG carries the image-session timestamp in its tEXt metadata, same convention as the rest of the gallery.',
+    ],
+  },
+  {
     v: 820,
     title: 'View Builder: the file drop-zone no longer sits on screen permanently',
     kind: 'fix',
