@@ -80,7 +80,7 @@
       // KEVIN-COPY (live, 2026-07-31): was "Take the tour" — you've already
       // chosen to take a tour by the time this chooser is up, so the row names
       // WHAT the tour covers instead of repeating the verb.
-      label: "Getting started",
+      label: "Getting started", ic: "home", tint: "--brand",
       blurb: "A two-minute walk through the whole app — what each part is for. Start here.",
       steps: [
         {
@@ -175,7 +175,7 @@
       ]
     },
     quick: {
-      label: "Quick analysis",
+      label: "Quick analysis", ic: "search", tint: "--dk",
       blurb: "From a dataset to a saved, reusable chart in about a minute — the fastest way in.",
       steps: [
         {
@@ -235,7 +235,7 @@
       ]
     },
     build: {
-      label: "Build a dashboard",
+      label: "Build a dashboard", ic: "grid", tint: "--good",
       blurb: "The full Dashboard Builder loop — arrange panels, tune charts, export a file that runs anywhere.",
       steps: [
         {
@@ -282,7 +282,7 @@
       ]
     },
     jobs: {
-      label: "Prep data (Jobs)",
+      label: "Prep data (Jobs)", ic: "sliders", tint: "--warn",
       blurb: "Clean, roll up, and combine data before it's charted — a job's output becomes a new dataset.",
       steps: [
         {
@@ -320,7 +320,7 @@
       ]
     },
     connect: {
-      label: "Connections & Datasets",
+      label: "Connections & Datasets", ic: "gear", tint: "--bad",
       blurb: "Where your data lives, and the reusable queries built on top of it — both in one walk.",
       steps: [
         {
@@ -377,7 +377,7 @@
       ]
     },
     conservation: {
-      label: "Conservation Insight pack",
+      label: "Conservation Insight pack", ic: "globe", tint: "--brand",
       blurb: "A guided look at the sample pack's featured dashboard — three choropleth scales, and the geography story behind them.",
       steps: [
         {
@@ -504,11 +504,16 @@
       "#st-tip button.st-btn.pri{background:var(--dk,#7d3c98);border-color:transparent;color:#fff}" +
       "#st-tip button.st-btn.pri:hover{background:color-mix(in srgb,var(--dk,#7d3c98) 85%,black)}" +
       /* tour chooser cards */
-      "#st-tip .st-choice{display:flex;width:100%;text-align:left;flex-direction:column;gap:3px;border:1.5px solid var(--line,#d5dce8);" +
+      "#st-tip .st-choice{display:flex;width:100%;text-align:left;align-items:center;gap:12px;border:1.5px solid var(--line,#d5dce8);" +
         "background:var(--field,#f5f8fc);border-radius:11px;padding:12px 14px;margin:0 0 9px;cursor:pointer}" +
       "#st-tip .st-choice:hover{border-color:var(--dk,#7d3c98)}" +
       "#st-tip .st-choice b{font-size:13.5px;color:var(--ink,#16233b)}" +
-      "#st-tip .st-choice small{font-size:11.5px;color:var(--muted,#6e809a);line-height:1.45}";
+      "#st-tip .st-choice small{font-size:11.5px;color:var(--muted,#6e809a);line-height:1.45}" +
+      // TOUR-FRONT: chooser sizing + per-tour colored icon chips (welcome-dialog
+      // width so the two dialogs feel like one flow, not two different apps).
+      "#st-tip.st-chooser{width:min(560px,94vw);max-width:min(560px,94vw)}" +
+      "#st-tip .st-ch-ic{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;flex:0 0 auto}" +
+      "#st-tip .st-ch-tx{display:flex;flex-direction:column;gap:3px;min-width:0}";
     document.head.appendChild(s);
   }
 
@@ -565,21 +570,33 @@
   }
 
   /* --- Tour chooser --- */
+  // TOUR-FRONT (Kevin live, 2026-07-31): the chooser matches the welcome
+  // dialog's size, each tour row wears its own colored icon, and a Back button
+  // returns to the welcome screen for anyone who changes their mind.
   function renderChooser() {
     clearOverlays();
     var scrim = document.createElement("div"); scrim.id = "st-scrim";
     scrim.onclick = function (e) { if (e.target === scrim) close(); };
     document.body.appendChild(scrim);
-    var tip = document.createElement("div"); tip.id = "st-tip";
+    var tip = document.createElement("div"); tip.id = "st-tip"; tip.className = "st-chooser";
     tip.innerHTML =
       "<h3>Pick a tour</h3>" +
-      '<div class="st-h">Quick, guided walkthroughs — spotlights on the real app, a couple of minutes each.</div>' +
+      '<div class="st-h">Quick, guided walkthroughs — spotlights on the real app, a couple of minutes each. Every tour brings you back here when it’s done.</div>' +
       visibleTourKeys().map(function (k) {
-        return '<button type="button" class="st-choice" data-tour="' + k + '"><b>' + TOURS[k].label + "</b><small>" + TOURS[k].blurb + "</small></button>";
+        var tint = TOURS[k].tint || "--brand";
+        return '<button type="button" class="st-choice" data-tour="' + k + '">' +
+          '<span class="st-ch-ic" data-ic="' + (TOURS[k].ic || "home") + '" style="background:color-mix(in srgb,var(' + tint + ') 14%,transparent);color:var(' + tint + ')"></span>' +
+          '<span class="st-ch-tx"><b>' + TOURS[k].label + "</b><small>" + TOURS[k].blurb + "</small></span></button>";
       }).join("") +
-      '<div class="st-ft"><button class="st-skip" aria-label="Close tours">Maybe later</button><div class="st-sp"></div></div>';
+      '<div class="st-ft"><button class="st-btn" data-act="chooser-back">← Back</button><div class="st-sp"></div><button class="st-skip" aria-label="Close tours">Maybe later</button></div>';
     tip.querySelector(".st-skip").onclick = close;
+    tip.querySelector('[data-act="chooser-back"]').onclick = function () {
+      close();
+      if (window.StudioWelcome) StudioWelcome.open();
+    };
     [].slice.call(tip.querySelectorAll("[data-tour]")).forEach(function (btn) {
+      var ic = btn.querySelector(".st-ch-ic");
+      if (ic && window.Studio && Studio.icon) ic.appendChild(Studio.icon(ic.getAttribute("data-ic"), 17));
       btn.onclick = function () { startTour(btn.getAttribute("data-tour")); };
     });
     document.body.appendChild(tip);
@@ -705,6 +722,10 @@
     var msg = FINISH_TOASTS[_tour] || "Tutorial complete! Start building your dashboard.";
     close();
     if (window.__fireToast) window.__fireToast(msg);
+    // TOUR-FRONT (Kevin live, 2026-07-31): every tour winds up back at the
+    // start — the welcome screen — so you can pick another tour or head off
+    // and explore, instead of being dropped wherever the last spotlight was.
+    if (window.StudioWelcome) StudioWelcome.open();
   }
 
   function _onKey(e) {

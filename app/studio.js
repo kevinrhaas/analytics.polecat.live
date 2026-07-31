@@ -8967,8 +8967,10 @@
     var accepted = false;
     modal("Welcome!", function (b) {
       var p = el("p"); p.className = "adopt-welcome-copy";
+      // ADOPT-COPY (Kevin live, 2026-07-31): say what's replaced precisely — any
+      // OTHER workspace this device holds — and land on where you'll be working.
       p.innerHTML = "You're about to connect to <b>“" + esc(label) + "”</b> — your account's own workspace. " +
-        "Anything stored locally on this device will be replaced by that workspace's data, and from here on you'll be working live in " + esc(label) + ".";
+        "Any other workspace stored locally on this device will be replaced when you connect, and from here on you'll be working in " + esc(label) + ".";
       b.appendChild(p);
       var foot = el("div", "cx-wiz-foot");
       var later = el("button", "btn"); later.type = "button"; later.id = "adoptLaterBtn"; later.textContent = "Not now";
