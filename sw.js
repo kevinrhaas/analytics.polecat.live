@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v421"; /* v421: USERS-DURABLE + GATE-FIX-2 + ADMIN-LOCAL —
+var CACHE_NAME = "studio-shell-v422"; /* v422: USERS-DURABLE 2 — the users table is
+   UPSERT-ONLY in sync (a stale admin mirror target-deleted the freshly-
+   provisioned fntest row as "stale" minutes after v421); account removal is the
+   Admin flow's explicit supabaseSource.deleteRows() at click time
+   (supabase.js + studio.js). VB shelves column gains top padding to align
+   COLUMNS with the DATASETS header (studio.css). */
+/* v421: USERS-DURABLE + GATE-FIX-2 + ADMIN-LOCAL —
    the push is upsert-first with targeted stale-row deletes (never delete-all;
    an empty local table deletes nothing — the users-wipe class is dead,
    supabase.js); the gate adopts by verified sign-in email when the gotrueId

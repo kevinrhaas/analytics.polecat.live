@@ -10055,23 +10055,44 @@ function serve() {
       snap.tables.dashboards = [{ id: "d1", name: "kept", title: "K", spec: { panels: [], kpis: [], filters: [] } }];
       // …and users deliberately EMPTY — the exact device shape that wiped the live table
       const res = await Studio.supabaseSource.save({ url: "https://x.supabase.co", key: "k" }, snap);
-      window.fetch = fetch0;
       const postDash = calls.findIndex((c) => /^POST \/dashboards/.test(c));
       const delDash = calls.findIndex((c) => /^DELETE \/dashboards/.test(c));
-      return {
+      const out = {
         ok: !!(res && res.ok),
         noBlanketDelete: !calls.some((c) => /DELETE .*id=not\.is\.null/.test(c)),
         noUsersTouch: !calls.some((c) => /(POST|DELETE) \/users/.test(c)),
         upsertBeforeDelete: postDash >= 0 && delDash > postDash,
         deleteTargetsStaleOnly: calls.some((c) => /^DELETE \/dashboards\?id=in\.\(.*d_stale.*\)$/.test(c)) &&
-          !calls.some((c) => /^DELETE \/dashboards\?id=in\.\(.*%22d1%22.*\)$/.test(c)),
-        calls: calls.filter((c) => /dashboards|users/.test(c))
+          !calls.some((c) => /^DELETE \/dashboards\?id=in\.\(.*%22d1%22.*\)$/.test(c))
       };
+      // USERS-DURABLE 2 (Kevin live, minutes after the first fix): even a push
+      // WITH local users rows must never delete users rows — a stale admin
+      // mirror target-deleted the freshly-provisioned fntest account as
+      // "stale". Sync is upsert-only for users; removal is only ever the
+      // Admin flow's explicit deleteRows() at click time.
+      calls.length = 0;
+      const snap2 = Studio.WS.emptySnapshot();
+      snap2.tables.users = [{ id: "user_kevin", u: "kevin@example.com", name: "K", role: "admin" }];
+      const res2 = await Studio.supabaseSource.save({ url: "https://x.supabase.co", key: "k" }, snap2);
+      out.ok2 = !!(res2 && res2.ok);
+      out.usersUpserted = calls.some((c) => /^POST \/users/.test(c));
+      // remoteIds.users carries user_stale — with local rows present, the old
+      // logic would have target-deleted it; the new rule NEVER deletes users
+      out.usersNeverDeleted = !calls.some((c) => /^DELETE \/users/.test(c));
+      // the explicit admin-removal path DOES issue a targeted users delete
+      calls.length = 0;
+      const delRes = await Studio.supabaseSource.deleteRows({ url: "https://x.supabase.co", key: "k" }, "users", ["user_gone"]);
+      out.explicitDeleteOk = !!(delRes && delRes.ok);
+      out.explicitDeleteTargeted = calls.some((c) => /^DELETE \/users\?id=in\.\(%22user_gone%22\)$/.test(c));
+      window.fetch = fetch0;
+      return out;
     });
     ok("USERS-DURABLE: a push with an EMPTY local users table never touches the remote users rows (no delete, no insert) — an empty mirror can't wipe a table it never saw",
       durable.ok && durable.noUsersTouch && durable.noBlanketDelete, JSON.stringify(durable));
     ok("USERS-DURABLE: a table with local rows upserts FIRST, then deletes ONLY the specific stale remote ids (id=in.), never a blanket id=not.is.null wipe",
       durable.upsertBeforeDelete && durable.deleteTargetsStaleOnly, JSON.stringify(durable));
+    ok("USERS-DURABLE 2: the users table is UPSERT-ONLY in sync — even a push WITH local users rows deletes nothing (a stale admin mirror can't kill a freshly-provisioned account) — while the Admin remove flow's explicit deleteRows() still issues its targeted delete",
+      durable.ok2 && durable.usersUpserted && durable.usersNeverDeleted && durable.explicitDeleteOk && durable.explicitDeleteTargeted, JSON.stringify(durable));
 
     // ---- SB-PULL-GUARD (the data-loss half of "wildly flaky"): Refresh does
     // push-then-pull — when the push FAILS, the pull used to adopt the remote
