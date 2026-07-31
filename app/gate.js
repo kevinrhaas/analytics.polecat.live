@@ -87,8 +87,15 @@
          card grow and push the hint down instead. */
       "#studio-gate .g-err{color:var(--bad,#d63a5e);font-size:12.5px;min-height:16px;line-height:1.45;margin:8px 0 2px}" +
       "#studio-gate .g-note{color:var(--faint,#8a97ab);font-size:11px;margin-top:14px}" +
-      "#studio-gate .g-connect{margin-top:10px;background:transparent;border:0;color:var(--faint,#8a97ab);font-size:12px;text-decoration:underline;cursor:pointer;padding:4px}" +
+      /* DEMO-LOCAL slice polish (Kevin, 2026-07-31): the footer "Connect to your
+         workspace…" link is DUPLICATIVE with the Workspace picker on top (its
+         "Custom workspace…" opens the same wizard) — hidden by default now. It
+         still APPEARS as the cued suggestion after a failed unknown-account
+         sign-in (its original LF39 job); the picker's __custom option clicks it
+         programmatically, which works regardless of visibility. */
+      "#studio-gate .g-connect{display:none;margin-top:10px;background:transparent;border:0;color:var(--faint,#8a97ab);font-size:12px;text-decoration:underline;cursor:pointer;padding:4px}" +
       "#studio-gate .g-connect:hover{color:var(--brand,#005bb5)}" +
+      "#studio-gate .g-connect.g-connect-cue{display:inline-block}" +
       // LF39: when a NEVER-connected browser fails sign-in (a teammate on a new device), the small
       // underlined "Connect to your workspace" link is easy to miss — promote it to an obvious,
       // pulsing primary-outline button so the one-step path to join the team workspace is unmissable.
@@ -248,7 +255,12 @@
       var p = document.getElementById("g-pass").value || "";
       if (!u) { fail("Enter a username."); return; }
       Auth.verify(u, p).then(function (okAuth) {
-        if (okAuth) { Auth.login(u); afterLogin(); return; }
+        if (okAuth) {
+          // DEMO-LOCAL: a demo sign-in is local-only — same rule as the button.
+          var la = Auth.find(u);
+          if (u === "demo" || (la && la.demo)) forceLocalWorkspace();
+          Auth.login(u); afterLogin(); return;
+        }
         var known = !!Auth.find(u);
         tryGotrueDirectAuth(u, p, function (done, why) {
           if (done) return;
@@ -386,9 +398,22 @@
     window.__studioGateWorkspaces = { list: workspaceList, addCustom: saveCustomWorkspace,
       render: renderWorkspaceSelect, connect: connectWorkspace };
 
+    // DEMO-LOCAL (Kevin, 2026-07-31): the demo account is a LOCAL sample-workspace
+    // concept — "Explore the demo" (and any demo/demo sign-in) must NEVER run
+    // against a picked remote backend: its pushes would be anonymous 403 noise
+    // and its sample seeds would try to mirror into the real workspace. Entering
+    // the demo forces the workspace back to Local, whatever the picker said.
+    function forceLocalWorkspace() {
+      try { if (window.Studio && Studio.Sync) Studio.Sync.disconnect(); } catch (e) {}
+      try { localStorage.setItem(LAST_WS_KEY, "local"); } catch (e) {}
+      var sel = document.getElementById("g-workspace");
+      if (sel) { sel.value = "local"; sel.dataset.prev = "local"; }
+      wsNote("");
+    }
     document.getElementById("g-demo").addEventListener("click", function () {
       // The public demo account always exists (seeded); logging in as it triggers
       // studio.js to auto-install the sample workspace.
+      forceLocalWorkspace();
       if (Auth.login("demo")) afterLogin(); else fail("Demo account unavailable.");
     });
     var connectBtn = document.getElementById("g-connect");

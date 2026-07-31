@@ -15766,6 +15766,46 @@ function serve() {
     ok("GATE-FIX: with the workspace pull unavailable and no local mirror, a verified sign-in adopts from the DIRECT own-users-row read — a provisioned account can no longer dead-end at the gate",
       fixAdopt.gateGone && fixAdopt.who === "fallbackkevin", JSON.stringify(fixAdopt));
 
+    // ---- DEMO-LOCAL (Kevin, 2026-07-31): the demo is a LOCAL concept — entering
+    // it must force the workspace back to Local even when a remote backend is
+    // picked/bound (else the demo session pushes anonymous 403 noise at the
+    // real workspace and tries to mirror sample seeds into it). ----
+    const gpDemo = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpDemo.on("pageerror", (e) => errors.push("DEMO-LOCAL page: " + e.message));
+    await gpDemo.addInitScript((port) => {
+      try {
+        localStorage.setItem("analytics.datasource.v1", JSON.stringify({ sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid" }, at: 1 }));
+        localStorage.setItem("studio-workspace-last", "polecat-test");
+      } catch (e) {}
+    }, PORT);
+    await gpDemo.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpDemo.waitForFunction(() => {
+      if (!window.Studio || !Studio.Sync) return false;
+      var s = Studio.Sync.syncState();
+      return s.sourceId === "supabase" && s.status !== "connecting";
+    }, { timeout: 20000 }).catch(() => {});
+    await gpDemo.waitForSelector("#g-demo", { timeout: 4000 });
+    // (same page, pre-demo): the footer "Connect to your workspace…" link is
+    // hidden by default now — duplicative with the Workspace picker (Kevin,
+    // 2026-07-31); it only appears as the LF39 cue after a failed sign-in.
+    const connectLinkHidden = await gpDemo.evaluate(() => {
+      var b = document.getElementById("g-connect");
+      return { exists: !!b, display: b ? getComputedStyle(b).display : "" };
+    });
+    ok("GATE polish: the footer Connect-to-workspace link is hidden by default (the Workspace picker owns that job); the element stays for the failed-sign-in cue + the picker's Custom option",
+      connectLinkHidden.exists && connectLinkHidden.display === "none", JSON.stringify(connectLinkHidden));
+    await gpDemo.click("#g-demo");
+    await gpDemo.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 8000 }).catch(() => {});
+    const demoLocal = await gpDemo.evaluate(() => ({
+      gateGone: !document.querySelector("#studio-gate"),
+      who: (window.PolecatAuth.current() || {}).u,
+      sourceId: Studio.Sync.syncState().sourceId,
+      lastWs: localStorage.getItem("studio-workspace-last")
+    }));
+    await gpDemo.close();
+    ok("DEMO-LOCAL: 'Explore the demo' with a remote workspace picked/bound signs into demo AND forces the connection back to Local — the demo can never run against a real backend",
+      demoLocal.gateGone && demoLocal.who === "demo" && demoLocal.sourceId === "local" && demoLocal.lastWs === "local", JSON.stringify(demoLocal));
+
     // ---- GOLIVE-CARD (Kevin live, 2026-07-30): the Admin per-user-security card
     // reflects the DATABASE's real posture — after the RLS script was applied
     // manually, the "Go live" CTA kept showing forever. The probe contrast (anon
