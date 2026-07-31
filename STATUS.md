@@ -116,6 +116,27 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LIVE-d slice 6 — Views joins multi-select; the LIVE-d track is COMPLETE
+  (v807, sw v441, 2026-07-31, steward):** the Views page was the one catalog
+  the LIVE-d spec names that never got select mode. app/views.js adopts the
+  exact shape slices 1-5 proved everywhere else: `#viewsSelectBtn` (new, in
+  app/index.html beside the tile toggle) toggles session-only select mode;
+  `.vw-select-cb` checkbox overlay on rows AND tiles (reuses the shared
+  .cx-select/.is-selected/.dash-bulk-bar CSS — no new styles); tap-a-row
+  toggles selection instead of opening; stale-id pruning on render; bulk bar
+  with Select all (everything shown) / Clear / **Move to folder…** (the
+  slice-5 shared Studio.bulkMoveToFolder, type "analysis") / Delete
+  (confirm + the same open-editor pointer guard the single delete applies +
+  silent removes + ONE notify). Test hooks __studioVwSelectMode/__studioVwSelected.
+  Docs: the bulk-actions passage now names Views. 3 new checks (select mode
+  enters + highlights + counts; bulk move via the real picker with inline
+  folder-create + selection clears; bulk delete removes both after confirm).
+  Verified live headless first (zero pageerrors). With this, EVERY catalog
+  section (Dashboards, Views, Datasets, Connections, Jobs, Repository) shares
+  the one selection+bulk-bar pattern — LIVE-d is fully done. Claimed live by
+  the interactive session — lane: skip LIVE-d. Files: app/views.js,
+  app/index.html, docs/index.html, sw.js, js/changelog.js v807, tests/run.js,
+  STATUS.md.
 - **LIVE-d slice 5 — bulk "Move to folder…" on every section bulk bar (v806,
   sw v440, 2026-07-31, steward):** closes Kevin's ORIGINAL driving example
   behind the whole LIVE-d track ("I want to select multiple dashboards and
@@ -8566,6 +8587,9 @@
 >       ✓ **Slice 3 shipped (2026-07-30, v762, steward): Jobs gains Select/bulk-delete.**
 >       See DONE for the full writeup — same shape, bulk confirm notes output datasets are
 >       kept.
+>       ✓ **Slice 6 shipped (2026-07-31, v807, interactive session): Views joins
+>       multi-select (select mode + bulk move/delete) — LIVE-d is now FULLY DONE;
+>       every catalog section shares the one selection+bulk-bar pattern. See DONE.**
 >       ✓ **Slice 5 shipped (2026-07-31, v806, interactive session — lane: skip): bulk
 >       "Move to folder…" on ALL FIVE bulk bars** (Dashboards/Datasets/Connections/Jobs/
 >       Repository incl. mixed selections) via shared Studio.bulkMoveToFolder + the LF56

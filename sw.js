@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v440"; /* v440: LIVE-d slice 5 — bulk "Move to
+var CACHE_NAME = "studio-shell-v441"; /* v441: LIVE-d slice 6 — Views section
+   multi-select + bulk move/delete (views.js, app/index.html + docs changed);
+   LIVE-d track complete. */
+/* v440: LIVE-d slice 5 — bulk "Move to
    folder…" on every section bulk bar (studio.js, datasets.js, connections.js,
    jobs.js + docs changed). */
 /* v439: EXPORT-2 — export data-mode
