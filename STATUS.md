@@ -7623,13 +7623,26 @@
 > **CLAIMED by the live session — do NOT start these** unless the claim expires
 > (no commit referencing the item lands on main within ~6 hours of the
 > timestamp above; then take over using the context given):
-> 0. **USER-ADD-DURABLE ★ (hotfix, FIRST):** Admin +Add user creates the Auth
->    account but the users row never syncs — mirrorUserRow's silent Workspace.put
->    schedules no push, so the row is local-only and the next pull erases it
->    (Kevin's test2 vanished on sign-out/in; public.users never got the row).
->    Fix: explicit non-silent put + Sync.pushNow() + verify + loud toast in the
->    add/edit-user save path (mirror v787's explicit-delete pattern); handle the
->    existing-auth-account re-add case. Last M7 blocker.
+> 0. **USER-ADD-DURABLE ★ + SYNC-FRESH ★★ (one durability slice, FIRST):**
+>    Admin +Add user creates the Auth account but the users row never syncs —
+>    mirrorUserRow's silent Workspace.put schedules no push, so the row is
+>    local-only and the next pull erases it (Kevin's test2 vanished on
+>    sign-out/in; public.users never got the row). Fix: mirrorUserRow gains
+>    change-detection (skip when identical, NON-silent put when the row
+>    actually changed — covers boot mirror, gotrueId stamp, and admin add/edit
+>    alike); admin finishSave additionally Sync.pushNow() + loud failure toast.
+>    Last M7 blocker. SYNC-FRESH rides along — the silent-write audit is DONE
+>    (2026-07-31 ~06:30Z): all batch sweeps already notify(); the only real
+>    holes besides mirrorUserRow are status-stamp writes that must persist but
+>    not repaint — connections.js testConnectionRow (lastTest), jobs.js runJob
+>    failure paths (lastRun), studio.js runDataset (lastRun/columns). Cure: a
+>    new `Sync.touch()` export (schedulePush without a change event — do NOT
+>    notify() from runDataset, it's the builder live path and would churn
+>    renders). Plus the freshness half: quiet background pull in sync.js
+>    (~2.5min interval + window focus/visibilitychange), guarded — skip when
+>    local source, _dirty, _inflight, or document.hidden (DURABLE-1: never
+>    adopt over pending edits); adoption already repaints every section
+>    silently via the existing change "*" + "replaced" listeners.
 > 1. **FILTERS-1 ★ (bug, next up):** Conservation pack dashboard filters are
 >    DEAD — root cause CONFIRMED: pack DAs are file-kind (real engine), and
 >    `app/sources/localfile.js queryData` ignores params entirely; SCORE-1's
@@ -7652,6 +7665,14 @@
 > 4. **DURABLE-2 ★:** deletion tombstones for the non-users tables (a stale
 >    admin mirror can still target-delete rows it never saw — users is already
 >    upsert-only, v787; the general cure is tombstoned deletes like relay's).
+> 5. **VB-DROP (Kevin, 2026-07-31 late):** drag a CSV/JSON (Excel stretch)
+>    file onto the View Builder → auto-create a real dataset (it appears in
+>    Datasets + the VB tree) → inspect columns and auto-pick the most
+>    interesting encodable View (dates→trend, geo ids→choropleth,
+>    category+measure→bar/donut, two measures→scatter) → open it live in the
+>    VB with shelves pre-filled; toast narrates the pick. Reuse the existing
+>    file-drop adapter + quickmode.js auto-build heuristics (LF24/LF50
+>    lineage) — do not reinvent parsing or chart-picking.
 >
 > **OPEN FOR THE AUTOMATED LANE (independent, minimal overlap with the above):**
 > LF24 (Quick mode CSV-drop auto-dashboard) · LF59 (Dashboards section
