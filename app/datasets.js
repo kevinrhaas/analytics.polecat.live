@@ -571,8 +571,12 @@
             " (" + lineage.map(function (r) { return r.title || r.name || "Untitled"; }).join(", ") + ") — those keep working off their own saved copy, but won't get live updates from this dataset anymore."
           : "";
         if (!window.confirm('Delete dataset "' + d.name + '"?' + warn)) return;
+        // DURABLE-2: single-row deletes get the same undo the bulk bar has
+        var clone = Studio.clone(d);
         Studio.Workspace.remove("datasets", d.id);
-        toast("Deleted " + d.name);
+        Studio.undoToast("Deleted " + d.name + ".", function () {
+          Studio.undoRestoreRows([{ table: "datasets", rows: [clone] }]);
+        });
       };
     });
   }

@@ -370,8 +370,12 @@
       btn.onclick = function () {
         var j = Studio.Workspace.get("jobs", btn.getAttribute("data-job-del")); if (!j) return;
         if (!window.confirm('Delete job "' + j.name + '"? Its output dataset is kept.')) return;
+        // DURABLE-2: single-row deletes get the same undo the bulk bar has
+        var clone = Studio.clone(j);
         Studio.Workspace.remove("jobs", j.id);
-        toast("Deleted " + j.name);
+        Studio.undoToast("Deleted " + j.name + ".", function () {
+          Studio.undoRestoreRows([{ table: "jobs", rows: [clone] }]);
+        });
       };
     });
   }

@@ -457,8 +457,12 @@
           ? 'Delete connection "' + c.name + '"? ' + used.length + " dataset" + (used.length > 1 ? "s" : "") + " reference" + (used.length > 1 ? "" : "s") + " it and will stop running."
           : 'Delete connection "' + c.name + '"?';
         if (!window.confirm(msg)) return;
+        // DURABLE-2: single-row deletes get the same undo the bulk bar has
+        var clone = Studio.clone(c);
         Studio.Workspace.remove("connections", c.id);
-        toast("Deleted " + c.name);
+        Studio.undoToast("Deleted " + c.name + ".", function () {
+          Studio.undoRestoreRows([{ table: "connections", rows: [clone] }]);
+        });
       };
     });
   }

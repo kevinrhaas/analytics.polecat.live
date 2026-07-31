@@ -9861,6 +9861,50 @@ function serve() {
       durUndo.undoBtnShown && durUndo.toastVisible && durUndo.aBack && durUndo.bBack && durUndo.aName === "livd_bulk_a" && durUndo.restoredToast,
       JSON.stringify(durUndo));
 
+    // DURABLE-2b: the four per-row deletes (Datasets, Connections, Jobs, Views)
+    // get the same undo — clone before remove, one Undo restores the exact row.
+    const durSingle = await page.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      var confirm0 = window.confirm; window.confirm = function () { return true; };
+      var out = {}, W = Studio.Workspace;
+      var cases = [
+        { table: "datasets", sec: "datasets", render: window.__studioRenderDatasets, attr: "data-dsx-del",
+          row: { id: "d2b-ds", name: "d2b_ds", kind: "sql", sql: "SELECT 1" } },
+        { table: "connections", sec: "connections", render: window.__studioRenderConnections, attr: "data-conn-del",
+          row: { id: "d2b-cn", name: "d2b_cn", adapter: "postgrest", cfg: { url: "http://x" } } },
+        { table: "jobs", sec: "jobs", render: window.__studioRenderJobs, attr: "data-job-del",
+          row: { id: "d2b-jb", name: "d2b_jb", steps: [] } },
+        { table: "analyses", sec: "views", render: window.__studioRenderViews, attr: "data-vw-del",
+          row: { id: "d2b-vw", name: "d2b_vw", datasetId: "d2b-ds", chartType: "bars" } }
+      ];
+      for (var i = 0; i < cases.length; i++) {
+        var c = cases[i];
+        W.put(c.table, JSON.parse(JSON.stringify(c.row)), { silent: true }); W.notify(c.table);
+        window.__studioShellSetSection(c.sec); if (c.render) c.render();
+        var btn = document.querySelector("[" + c.attr + '="' + c.row.id + '"]');
+        var r = { btn: !!btn };
+        if (btn) {
+          btn.click();
+          await sleep(120);
+          r.gone = !W.get(c.table, c.row.id);
+          var ub = document.getElementById("toastUndoBtn");
+          r.undoOffered = !!ub;
+          if (ub) { ub.click(); await sleep(80); }
+          var back = W.get(c.table, c.row.id);
+          r.restored = !!back && back.name === c.row.name;
+          W.remove(c.table, c.row.id, { silent: true }); W.notify(c.table);
+        }
+        out[c.table] = r;
+      }
+      window.confirm = confirm0;
+      window.__studioShellSetSection("studio");
+      return out;
+    });
+    ok("DURABLE-2b: deleting a single dataset / connection / job / View offers Undo on the toast, and Undo restores the exact row under its original id",
+      ["datasets", "connections", "jobs", "analyses"].every(function (t) {
+        var r = durSingle[t] || {}; return r.btn && r.gone && r.undoOffered && r.restored;
+      }), JSON.stringify(durSingle));
+
     // clicking Select again (now "Cancel") leaves select mode and restores normal open-on-click
     const livdCancel = await page.evaluate(function () {
       document.getElementById("dsxSelectBtn").click();

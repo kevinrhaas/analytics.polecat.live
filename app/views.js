@@ -334,8 +334,12 @@
         // clear that pointer too so re-opening Explore doesn't reference a gone id
         // (same guard explore.js's own data-xp-del handler applies).
         if (Studio.Explore.XP && Studio.Explore.XP.analysisId === id) Studio.Explore.XP.analysisId = null;
+        // DURABLE-2: single-row deletes get the same undo the bulk bar has
+        var clone = Studio.clone(a);
         Studio.Workspace.remove("analyses", id);
-        toast("Deleted " + (a.name || "View"));
+        Studio.undoToast("Deleted " + (a.name || "View") + ".", function () {
+          Studio.undoRestoreRows([{ table: "analyses", rows: [clone] }]);
+        });
       };
     });
   }
