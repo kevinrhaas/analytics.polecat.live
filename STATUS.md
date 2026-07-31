@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **ACTIVITY-ANON — anonymous/local visits reach polecat_activity (v819,
+  sw v452, 2026-07-31, steward — Kevin live: "recording anonymous users as
+  well... collect what you can on them ip, whatever"):** activity.js gains
+  `packagedLogCfg()` — when no live Supabase connection exists, log inserts
+  fall back to the PACKAGED Polecat workspace's anon key (app/workspaces.js),
+  HARD-OFF on localhost/127.x so dev pages and the suite never phone home.
+  New anonymous events: ONE `gate-view` per browser session for a
+  not-signed-in arrival (route/referrer/viewport client-side) and
+  `session-end` now logs for anonymous visits too (username null); plus one
+  deferred flush per load so earlier queued rows deliver. SQL: NEW § 6b in
+  tools/supabase-deploy.sql — anon INSERT-ONLY policies on both log tables
+  (WITH CHECK gotrue_id IS NULL — no identity spoofing; NO anon reads, § 8
+  verify still all-zeros) + `polecat_stamp_request_meta()` trigger stamping
+  ip (x-forwarded-for) and ua server-side onto new ip/ua columns for ALL
+  inserts. **KEVIN ACTION: re-run tools/supabase-deploy.sql (or just § 6b)
+  on the Polecat project once** — until then anonymous rows queue on-device
+  (capped) and start delivering the moment the policy exists. 3 new checks
+  (packaged fallback resolves on deployed host + hard-off on localhost;
+  § 6b posture markers incl. never-anon-SELECT; anonymous gate-view +
+  session-end queue shape). Lane: skip ACTIVITY-ANON — done here.
 - **USER-DISABLE — disable/enable a user's sign-in without deleting the
   account (v818, sw v451, 2026-07-31, steward — Kevin live: "disable a user
   from login but i could re-enable them, instead of deleting them

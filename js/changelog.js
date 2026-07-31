@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 819,
+    title: 'The activity trail now covers anonymous and local visits',
+    kind: 'feature',
+    ts: '2026-07-31T14:47:09.000Z',
+    items: [
+      'On the deployed site, a visitor who never signs in (or signs in to a local-only account) now leaves a footprint in the workspace activity log: a sign-in-screen view and a time-on-page event, with the route, referrer and viewport from the browser -- delivered through the packaged Polecat workspace even when no backend is connected.',
+      'The requester\'s IP address and user agent are stamped server-side on arrival (a browser can\'t see or spoof its own public IP). Anonymous visitors can only WRITE log rows: reads stay admin-only, an anonymous row can never claim a signed-in identity, and local development pages never send anything. Requires re-running the deploy SQL (new section 6b) on the backend once.',
+    ],
+  },
+  {
     v: 818,
     title: 'Disable a user without deleting them',
     kind: 'feature',
