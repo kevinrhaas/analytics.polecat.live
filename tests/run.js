@@ -4367,7 +4367,9 @@ function serve() {
           // resolving on SVGs+transform alone raced it under load (2026-07-30
           // flake: widgetTheme null with everything else fine). Poll for the
           // theme too; the 15s timeout still fails honestly if theming breaks.
-          var wThemed = wd && wd.documentElement.getAttribute("data-theme") === window.__STUDIO_STATE.theme;
+          // documentElement is NULL mid-doc-swap (2026-07-31 FATAL, nondeterministic
+          // at check 282/1165) — guard it and just poll again next tick.
+          var wThemed = wd && wd.documentElement && wd.documentElement.getAttribute("data-theme") === window.__STUDIO_STATE.theme;
           if (fOk && wOk && wThemed && fi.style.transform && wi.style.transform) {
             resolve({ featSvgs: fd.querySelectorAll(".dk-grid svg").length,
               featScale: +(fi.style.transform.match(/scale\(([\d.]+)\)/) || [])[1],
