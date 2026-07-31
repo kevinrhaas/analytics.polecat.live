@@ -10093,33 +10093,33 @@ function serve() {
     ok("SB-RLS auth-aware: a 403 on a Supabase-Auth connection explains expired-session/ownership + points at the canonical script — and NEVER hands out the anon open-policy SQL that reopened the live project",
       sbRlsAuth.failed && sbRlsAuth.noWeakeningSql && sbRlsAuth.explainsAuth && sbRlsAuth.pointsAtCanonical && sbRlsAuth.openSqlWarns, JSON.stringify(sbRlsAuth));
 
-    // ---- USERS-DURABLE (Kevin live, 2026-07-31): the push was DELETE-ALL then
-    // bulk insert per table — on users, under the admin-arm RLS, that
-    // SELF-DESTRUCTS (the delete de-admins the pusher, the re-insert is then
-    // refused, the wipe sticks, and an empty users table means NOBODY is admin —
-    // it emptied the live table twice and locked the workspace). The push is now
-    // upsert-FIRST with targeted stale-row deletes, and an empty local table
-    // never deletes anything. ----
-    console.log("\n• USERS-DURABLE: wipe-proof workspace push");
+    // ---- USERS-DURABLE + DURABLE-2 (Kevin live, 2026-07-31): the push was
+    // DELETE-ALL then bulk insert per table — on users, under the admin-arm
+    // RLS, that SELF-DESTRUCTS (it emptied the live table twice and locked the
+    // workspace). The interim fix inferred deletions from remote-vs-local
+    // ABSENCE, which still let a stale mirror target-delete rows it never saw
+    // (the fntest class). DURABLE-2 finishes it: deletion is EXPLICIT — only
+    // ids the workspace tombstoned (meta.tombstones, written by
+    // Workspace.remove) are ever deleted; a ghost row absent from the mirror
+    // simply survives. No more per-table ?select=id reads either. ----
+    console.log("\n• USERS-DURABLE + DURABLE-2: wipe-proof, tombstone-driven push");
     const durable = await page.evaluate(async () => {
       const fetch0 = window.fetch;
       const calls = [];
-      const remoteIds = { users: [{ id: "user_kevin" }, { id: "user_stale" }], dashboards: [{ id: "d1" }, { id: "d_stale" }] };
       window.fetch = (url, opts) => {
         const method = (opts && opts.method) || "GET";
         const u = String(url);
         calls.push(method + " " + (u.split("/rest/v1")[1] || u));
-        if (method === "GET") {
-          const t = (u.match(/rest\/v1\/([a-z_]+)\?select=id/) || [])[1];
-          return Promise.resolve(new Response(JSON.stringify(remoteIds[t] || []), { status: 200, headers: { "Content-Type": "application/json" } }));
-        }
         // a 204 must carry a NULL body — Response("[]", {status:204}) throws
         if (method === "DELETE") return Promise.resolve(new Response(null, { status: 204 }));
-        return Promise.resolve(new Response("[]", { status: 201, headers: { "Content-Type": "application/json" } }));
+        if (method === "POST" || method === "PATCH") return Promise.resolve(new Response("[]", { status: 201, headers: { "Content-Type": "application/json" } }));
+        return Promise.resolve(new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }));
       };
       const snap = Studio.WS.emptySnapshot();
-      // one table WITH local rows (d1 kept, d_stale should go)…
+      // one table WITH local rows; d_gone was explicitly deleted (tombstoned);
+      // any remote-only ghost rows this mirror never saw have NO tombstone
       snap.tables.dashboards = [{ id: "d1", name: "kept", title: "K", spec: { panels: [], kpis: [], filters: [] } }];
+      snap.meta.tombstones = { "dashboards|d_gone": Date.now() };
       // …and users deliberately EMPTY — the exact device shape that wiped the live table
       const res = await Studio.supabaseSource.save({ url: "https://x.supabase.co", key: "k" }, snap);
       const postDash = calls.findIndex((c) => /^POST \/dashboards/.test(c));
@@ -10128,10 +10128,33 @@ function serve() {
         ok: !!(res && res.ok),
         noBlanketDelete: !calls.some((c) => /DELETE .*id=not\.is\.null/.test(c)),
         noUsersTouch: !calls.some((c) => /(POST|DELETE) \/users/.test(c)),
+        noIdReads: !calls.some((c) => /select=id/.test(c)), // DURABLE-2 retired the remote-vs-local diff
         upsertBeforeDelete: postDash >= 0 && delDash > postDash,
-        deleteTargetsStaleOnly: calls.some((c) => /^DELETE \/dashboards\?id=in\.\(.*d_stale.*\)$/.test(c)) &&
-          !calls.some((c) => /^DELETE \/dashboards\?id=in\.\(.*%22d1%22.*\)$/.test(c))
+        deleteTombstonedOnly: calls.some((c) => /^DELETE \/dashboards\?id=in\.\(.*d_gone.*\)$/.test(c)) &&
+          !calls.some((c) => /^DELETE \/dashboards\?id=in\.\(.*%22d1%22.*\)$/.test(c)),
+        onlyOneDelete: calls.filter((c) => /^DELETE /.test(c)).length === 1 // no absence-inferred deletes anywhere
       };
+      // a tombstone-less push (a stale mirror missing another device's rows)
+      // deletes NOTHING at all — the fntest class is structurally impossible
+      calls.length = 0;
+      const snapGhost = Studio.WS.emptySnapshot();
+      snapGhost.tables.dashboards = [{ id: "d1", name: "kept", title: "K", spec: { panels: [], kpis: [], filters: [] } }];
+      await Studio.supabaseSource.save({ url: "https://x.supabase.co", key: "k" }, snapGhost);
+      out.ghostSurvives = !calls.some((c) => /^DELETE /.test(c));
+      // deleting a table's LAST row now propagates (the old shape's accepted
+      // trade-off dies): empty local table + a tombstone still issues the delete
+      calls.length = 0;
+      const snapLast = Studio.WS.emptySnapshot();
+      snapLast.meta.tombstones = { "dashboards|d_last": Date.now() };
+      await Studio.supabaseSource.save({ url: "https://x.supabase.co", key: "k" }, snapLast);
+      out.lastRowDeletePropagates = calls.some((c) => /^DELETE \/dashboards\?id=in\.\(.*d_last.*\)$/.test(c));
+      // a hand-crafted users tombstone must be IGNORED — users has no sync deletes, period
+      calls.length = 0;
+      const snapU = Studio.WS.emptySnapshot();
+      snapU.tables.users = [{ id: "user_kevin", u: "kevin@example.com", name: "K", role: "admin" }];
+      snapU.meta.tombstones = { "users|user_x": Date.now() };
+      await Studio.supabaseSource.save({ url: "https://x.supabase.co", key: "k" }, snapU);
+      out.usersTombstoneIgnored = !calls.some((c) => /^DELETE \/users/.test(c));
       // USERS-DURABLE 2 (Kevin live, minutes after the first fix): even a push
       // WITH local users rows must never delete users rows — a stale admin
       // mirror target-deleted the freshly-provisioned fntest account as
@@ -10143,8 +10166,8 @@ function serve() {
       const res2 = await Studio.supabaseSource.save({ url: "https://x.supabase.co", key: "k" }, snap2);
       out.ok2 = !!(res2 && res2.ok);
       out.usersUpserted = calls.some((c) => /^POST \/users/.test(c));
-      // remoteIds.users carries user_stale — with local rows present, the old
-      // logic would have target-deleted it; the new rule NEVER deletes users
+      // with local users rows present, the old absence-diff logic would have
+      // target-deleted rows it never saw; the new rule NEVER deletes users
       out.usersNeverDeleted = !calls.some((c) => /^DELETE \/users/.test(c));
       // the explicit admin-removal path DOES issue a targeted users delete
       calls.length = 0;
@@ -10152,14 +10175,46 @@ function serve() {
       out.explicitDeleteOk = !!(delRes && delRes.ok);
       out.explicitDeleteTargeted = calls.some((c) => /^DELETE \/users\?id=in\.\(%22user_gone%22\)$/.test(c));
       window.fetch = fetch0;
+      // ---- the STORE half of DURABLE-2: tombstone lifecycle in the workspace ----
+      const W = Studio.Workspace;
+      W.put("dashboards", { id: "dur2_a", title: "A", spec: { panels: [], kpis: [], filters: [] } }, { silent: true });
+      W.remove("dashboards", "dur2_a", { silent: true });
+      out.storeTombstoned = !!(W.meta().tombstones && W.meta().tombstones["dashboards|dur2_a"]);
+      W.put("users", { id: "dur2_u", u: "t" }, { silent: true });
+      W.remove("users", "dur2_u", { silent: true });
+      out.storeUsersSkipped = !(W.meta().tombstones && W.meta().tombstones["users|dur2_u"]);
+      W.put("dashboards", { id: "dur2_a", title: "A2", spec: { panels: [], kpis: [], filters: [] } }, { silent: true });
+      out.putRevokes = !(W.meta().tombstones && W.meta().tombstones["dashboards|dur2_a"]);
+      // adoption: a snapshot from an OLDER device still carrying a row we
+      // tombstoned must not resurrect it; a re-created (newer) row lives
+      W.remove("dashboards", "dur2_a", { silent: true });
+      const tombAt = W.meta().tombstones["dashboards|dur2_a"];
+      const keepSnap = W.snapshot();
+      const oldSnap = JSON.parse(JSON.stringify(keepSnap));
+      oldSnap.tables.dashboards = (oldSnap.tables.dashboards || []).concat([
+        { id: "dur2_a", title: "zombie", updatedAt: tombAt - 1000, spec: { panels: [], kpis: [], filters: [] } },
+        { id: "dur2_b", title: "recreated", updatedAt: tombAt + 1000, spec: { panels: [], kpis: [], filters: [] } }
+      ]);
+      oldSnap.meta.tombstones = Object.assign({}, oldSnap.meta.tombstones, { "dashboards|dur2_b": tombAt - 500 });
+      W.replaceAll(oldSnap);
+      out.adoptStaysDead = !W.get("dashboards", "dur2_a");
+      out.adoptRecreatedLives = !!W.get("dashboards", "dur2_b");
+      // restore the pre-test workspace (and drop the fixture tombstones/rows)
+      W.remove("dashboards", "dur2_b", { silent: true });
+      delete W.meta().tombstones["dashboards|dur2_a"];
+      delete W.meta().tombstones["dashboards|dur2_b"];
+      W.replaceAll(keepSnap);
+      delete W.meta().tombstones["dashboards|dur2_a"];
       return out;
     });
     ok("USERS-DURABLE: a push with an EMPTY local users table never touches the remote users rows (no delete, no insert) — an empty mirror can't wipe a table it never saw",
       durable.ok && durable.noUsersTouch && durable.noBlanketDelete, JSON.stringify(durable));
-    ok("USERS-DURABLE: a table with local rows upserts FIRST, then deletes ONLY the specific stale remote ids (id=in.), never a blanket id=not.is.null wipe",
-      durable.upsertBeforeDelete && durable.deleteTargetsStaleOnly, JSON.stringify(durable));
-    ok("USERS-DURABLE 2: the users table is UPSERT-ONLY in sync — even a push WITH local users rows deletes nothing (a stale admin mirror can't kill a freshly-provisioned account) — while the Admin remove flow's explicit deleteRows() still issues its targeted delete",
-      durable.ok2 && durable.usersUpserted && durable.usersNeverDeleted && durable.explicitDeleteOk && durable.explicitDeleteTargeted, JSON.stringify(durable));
+    ok("DURABLE-2: pushes upsert FIRST then delete ONLY tombstoned ids (targeted id=in., no blanket wipe, no ?select=id diffing) — a remote-only ghost row a stale mirror never saw always survives, and deleting a table's LAST row now propagates",
+      durable.upsertBeforeDelete && durable.deleteTombstonedOnly && durable.onlyOneDelete && durable.noIdReads && durable.ghostSurvives && durable.lastRowDeletePropagates, JSON.stringify(durable));
+    ok("USERS-DURABLE 2: the users table is UPSERT-ONLY in sync — even a hand-crafted users tombstone is ignored (a stale admin mirror can't kill a freshly-provisioned account) — while the Admin remove flow's explicit deleteRows() still issues its targeted delete",
+      durable.ok2 && durable.usersUpserted && durable.usersNeverDeleted && durable.usersTombstoneIgnored && durable.explicitDeleteOk && durable.explicitDeleteTargeted, JSON.stringify(durable));
+    ok("DURABLE-2: Workspace.remove tombstones the id (users excluded), put revokes it, and adoption merges tombstones — a tombstoned row in an older device's snapshot stays dead while a RE-CREATED (newer) row lives",
+      durable.storeTombstoned && durable.storeUsersSkipped && durable.putRevokes && durable.adoptStaysDead && durable.adoptRecreatedLives, JSON.stringify(durable));
 
     // ---- USER-ADD-DURABLE + SYNC-FRESH (Kevin live, 2026-07-31): Add-user
     // created the Auth account and listed the row, but mirrorUserRow's SILENT

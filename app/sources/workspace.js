@@ -75,6 +75,8 @@
       if (!prev) row.createdAt = row.createdAt || now();
       row.updatedAt = now();
       db.tables[table][row.id] = row;
+      // DURABLE-2: re-creating an id revokes its tombstone (the new row wins)
+      if (db.meta.tombstones) delete db.meta.tombstones[table + "|" + row.id];
       persist();
       if (!opts.silent) emit("change", { table: table, id: row.id, prev: prev, row: row });
       return row;
@@ -85,6 +87,15 @@
       var prev = db.tables[table][id];
       if (!prev) return null;
       delete db.tables[table][id];
+      // DURABLE-2 (the fntest class, generalized): deletion is EXPLICIT, synced
+      // data — never inferred from absence. The tombstone rides meta into every
+      // snapshot; push deletes only tombstoned ids, and adoption won't
+      // resurrect a row an older device still carries. users stays out: account
+      // removal is only ever the Admin flow's explicit deleteRows() (v787).
+      if (table !== "users") {
+        db.meta.tombstones = db.meta.tombstones || {};
+        db.meta.tombstones[table + "|" + id] = now();
+      }
       persist();
       if (!opts.silent) emit("change", { table: table, id: id, prev: prev, removed: true });
       return prev;
@@ -111,13 +122,32 @@
     // persists locally, and emits a whole-store change + 'replaced'.
     replaceAll: function (snapshot) {
       var next = blank();
+      // DURABLE-2: merge tombstones (local ∪ incoming, newest wins) so a delete
+      // made on either side survives adoption; a row whose tombstone is newer
+      // than its updatedAt is DEAD and must not be resurrected by an older
+      // device's snapshot (a re-created row has a newer updatedAt and lives).
+      var tombs = {};
+      function mergeTombs(src) {
+        Object.keys(src || {}).forEach(function (k) {
+          if (!tombs[k] || src[k] > tombs[k]) tombs[k] = src[k];
+        });
+      }
+      mergeTombs(db && db.meta && db.meta.tombstones);
+      mergeTombs(snapshot && snapshot.meta && snapshot.meta.tombstones);
+      // prune: 30 days is plenty for every mirror to have adopted the delete
+      var cutoff = now() - 30 * 86400000;
+      Object.keys(tombs).forEach(function (k) { if (tombs[k] < cutoff) delete tombs[k]; });
       WS.TABLE_NAMES.forEach(function (t) {
         ((snapshot && snapshot.tables && snapshot.tables[t]) || []).forEach(function (r) {
-          if (r && r.id) next.tables[t][r.id] = r;
+          if (!r || !r.id) return;
+          var tk = tombs[t + "|" + r.id];
+          if (tk && tk >= (r.updatedAt || 0)) return; // tombstoned — stays dead
+          next.tables[t][r.id] = r;
         });
       });
       next.settings = (snapshot && snapshot.settings) || {};
       next.meta = (snapshot && snapshot.meta) || { createdAt: now() };
+      next.meta.tombstones = tombs;
       db = next;
       persist();
       emit("change", { table: "*" });
