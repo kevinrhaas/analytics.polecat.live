@@ -179,6 +179,15 @@
     // one batched notify (not a remove per row), same convention bulkDeleteSelectedConnections established.
     W.notify("jobs");
   }
+  // LIVE-d slice 5: bulk Move to folder — the shared Studio.bulkMoveToFolder flow.
+  function bulkMoveSelectedJobs() {
+    var ids = Object.keys(_jobsSelected);
+    if (!ids.length) return;
+    var allPaths = Studio.Workspace.all("jobs").map(function (j) { return j.folder; }).filter(Boolean);
+    Studio.bulkMoveToFolder(ids.map(function (id) { return { type: "job", id: id }; }), allPaths, function (moved) {
+      if (moved) _jobsSelected = {};
+    });
+  }
   window.__studioJobsSelectMode = function () { return _jobsSelectMode; }; // test hook
   window.__studioJobsSelected = function () { return Object.keys(_jobsSelected); }; // test hook
   function renderJobs() {
@@ -284,6 +293,8 @@
       ? '<div class="dash-bulk-bar"><span class="dash-bulk-count">' + selCount + ' selected</span>' +
         '<button type="button" class="btn" id="jobsSelAllBtn">Select all</button>' +
         '<button type="button" class="btn" id="jobsSelNoneBtn">Clear</button>' +
+        '<button type="button" class="btn" id="jobsSelMoveBtn"' + (selCount ? '' : ' disabled') + '>' +
+        'Move' + (selCount ? ' ' + selCount : '') + ' to folder…</button>' +
         '<button type="button" class="btn danger" id="jobsSelDelBtn"' + (selCount ? '' : ' disabled') + '>' +
         'Delete' + (selCount ? ' ' + selCount : '') + '</button></div>'
       : '';
@@ -319,6 +330,8 @@
       if (jobsSelNoneBtn) jobsSelNoneBtn.onclick = function () { _jobsSelected = {}; renderJobs(); };
       var jobsSelDelBtn = $("#jobsSelDelBtn", results);
       if (jobsSelDelBtn) jobsSelDelBtn.onclick = bulkDeleteSelectedJobs;
+      var jobsSelMoveBtn = $("#jobsSelMoveBtn", results);
+      if (jobsSelMoveBtn) jobsSelMoveBtn.onclick = bulkMoveSelectedJobs; // LIVE-d slice 5
       $$(".job-select-cb", results).forEach(function (cb) {
         cb.onclick = function (e) { e.stopPropagation(); };
         cb.onchange = function () { toggleJobSelect(cb.getAttribute("data-job-select")); };

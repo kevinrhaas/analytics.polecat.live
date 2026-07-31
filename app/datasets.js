@@ -114,6 +114,16 @@
     // once — same convention bulkDeleteSelectedDashboards (LF59) established.
     W.notify("datasets");
   }
+  // LIVE-d slice 5: bulk Move to folder — the shared Studio.bulkMoveToFolder flow (LF56
+  // picker, silent writes, one batched notify) over this section's own folder namespace.
+  function bulkMoveSelectedDatasets() {
+    var ids = Object.keys(_dsxSelected);
+    if (!ids.length) return;
+    var allPaths = Studio.Workspace.all("datasets").map(function (d) { return d.folder; }).filter(Boolean);
+    Studio.bulkMoveToFolder(ids.map(function (id) { return { type: "dataset", id: id }; }), allPaths, function (moved) {
+      if (moved) _dsxSelected = {};
+    });
+  }
   window.__studioDsxSelectMode = function () { return _dsxSelectMode; }; // test hook
   window.__studioDsxSelected = function () { return Object.keys(_dsxSelected); }; // test hook
   function dsxConnOf(d) { return Studio.Workspace.get("connections", d.connectionId); }
@@ -382,6 +392,8 @@
       ? '<div class="dash-bulk-bar"><span class="dash-bulk-count">' + selCount + ' selected</span>' +
         '<button type="button" class="btn" id="dsxSelAllBtn">Select all</button>' +
         '<button type="button" class="btn" id="dsxSelNoneBtn">Clear</button>' +
+        '<button type="button" class="btn" id="dsxSelMoveBtn"' + (selCount ? '' : ' disabled') + '>' +
+        'Move' + (selCount ? ' ' + selCount : '') + ' to folder…</button>' +
         '<button type="button" class="btn danger" id="dsxSelDelBtn"' + (selCount ? '' : ' disabled') + '>' +
         'Delete' + (selCount ? ' ' + selCount : '') + '</button></div>'
       : '';
@@ -500,6 +512,8 @@
       if (dsxSelNoneBtn) dsxSelNoneBtn.onclick = function () { _dsxSelected = {}; renderDatasets(); };
       var dsxSelDelBtn = $("#dsxSelDelBtn", results);
       if (dsxSelDelBtn) dsxSelDelBtn.onclick = bulkDeleteSelectedDatasets;
+      var dsxSelMoveBtn = $("#dsxSelMoveBtn", results);
+      if (dsxSelMoveBtn) dsxSelMoveBtn.onclick = bulkMoveSelectedDatasets; // LIVE-d slice 5
       $$(".dsx-select-cb", results).forEach(function (cb) {
         cb.onclick = function (e) { e.stopPropagation(); };
         cb.onchange = function () { toggleDsxSelect(cb.getAttribute("data-dsx-select")); };

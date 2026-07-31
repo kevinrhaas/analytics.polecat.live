@@ -109,6 +109,15 @@
     // one batched notify (not a remove per row), same convention bulkDeleteSelectedDatasets established.
     W.notify("connections");
   }
+  // LIVE-d slice 5: bulk Move to folder — the shared Studio.bulkMoveToFolder flow.
+  function bulkMoveSelectedConnections() {
+    var ids = Object.keys(_connSelected);
+    if (!ids.length) return;
+    var allPaths = Studio.Workspace.all("connections").map(function (c) { return c.folder; }).filter(Boolean);
+    Studio.bulkMoveToFolder(ids.map(function (id) { return { type: "connection", id: id }; }), allPaths, function (moved) {
+      if (moved) _connSelected = {};
+    });
+  }
   window.__studioConnSelectMode = function () { return _connSelectMode; }; // test hook
   window.__studioConnSelected = function () { return Object.keys(_connSelected); }; // test hook
   // M4.2 slice 2 (per-section rights + object privacy — connections): same
@@ -299,6 +308,8 @@
       ? '<div class="dash-bulk-bar"><span class="dash-bulk-count">' + selCount + ' selected</span>' +
         '<button type="button" class="btn" id="connSelAllBtn">Select all</button>' +
         '<button type="button" class="btn" id="connSelNoneBtn">Clear</button>' +
+        '<button type="button" class="btn" id="connSelMoveBtn"' + (selCount ? '' : ' disabled') + '>' +
+        'Move' + (selCount ? ' ' + selCount : '') + ' to folder…</button>' +
         '<button type="button" class="btn danger" id="connSelDelBtn"' + (selCount ? '' : ' disabled') + '>' +
         'Delete' + (selCount ? ' ' + selCount : '') + '</button></div>'
       : '';
@@ -394,6 +405,8 @@
       if (connSelNoneBtn) connSelNoneBtn.onclick = function () { _connSelected = {}; renderConnections(); };
       var connSelDelBtn = $("#connSelDelBtn", results);
       if (connSelDelBtn) connSelDelBtn.onclick = bulkDeleteSelectedConnections;
+      var connSelMoveBtn = $("#connSelMoveBtn", results);
+      if (connSelMoveBtn) connSelMoveBtn.onclick = bulkMoveSelectedConnections; // LIVE-d slice 5
       $$(".conn-select-cb", results).forEach(function (cb) {
         cb.onclick = function (e) { e.stopPropagation(); };
         cb.onchange = function () { toggleConnSelect(cb.getAttribute("data-conn-select")); };
