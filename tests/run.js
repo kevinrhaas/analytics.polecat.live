@@ -11972,6 +11972,57 @@ function serve() {
     ok("VB-14: Clear canvas resets ONLY the current dataset (clean slate, draft forgotten) while other datasets' drafts survive",
       vb14.aCleared && vb14.aDraftGone && vb14.bDraftKept, JSON.stringify(vb14));
 
+    // ---- VB-DROP (Kevin): drag a CSV/JSON onto the View Builder -> it becomes a
+    // REAL dataset AND the most interesting encodable view pops onto the canvas
+    // (geo->map, time->line with a small-category color split, category->bars,
+    // else table). Driven through the module hook -- headless drop events can't
+    // carry files. ----
+    console.log("\n\u2022 VB-DROP: file drop -> dataset + auto-picked view");
+    const vbDrop = await page.evaluate(async () => {
+      const o = {};
+      const B = window.__studioBuild;
+      const prevKind = B.state.dsKind, prevId = B.state.dsId;
+      const csv1 = "year,team,revenue\n2020,East,10\n2020,West,12\n2021,East,14\n2021,West,16\n2022,East,18\n2022,West,21";
+      window.__studioBdDropFile(new File([csv1], "vbdrop trend.csv", { type: "text/csv" }));
+      await new Promise((r) => setTimeout(r, 700));
+      o.lineChart = B.state.chartType;
+      o.lineShelves = B.state.shelfCols.map((f) => f.col + ":" + f.agg);
+      o.lineColor = (B.state.shelfColor[0] || {}).col;
+      const ds1 = Studio.Workspace.all("datasets").find((d) => d.name === "vbdrop trend");
+      o.datasetReal = !!ds1 && ds1.kind === "file" && !!ds1.connectionId; // a first-class dataset, not a shadow
+      const csv2 = "fips,adoption\n17001,42\n17003,38\n17005,51";
+      window.__studioBdDropFile(new File([csv2], "vbdrop geo.csv", { type: "text/csv" }));
+      await new Promise((r) => setTimeout(r, 700));
+      o.mapChart = B.state.chartType;
+      o.mapShelves = B.state.shelfCols.map((f) => f.col + ":" + f.agg);
+      const json3 = JSON.stringify([{ dept: "Ops", cost: 9 }, { dept: "Eng", cost: 22 }, { dept: "Sales", cost: 15 }]);
+      window.__studioBdDropFile(new File([json3], "vbdrop costs.json", { type: "application/json" }));
+      await new Promise((r) => setTimeout(r, 700));
+      o.barChart = B.state.chartType;
+      // a non-data file is rejected without touching the canvas
+      window.__studioBdDropFile(new File(["x"], "notes.txt", { type: "text/plain" }));
+      await new Promise((r) => setTimeout(r, 200));
+      o.txtRejected = B.state.chartType === "bars";
+      // the drop overlay exists on the section and is hidden at rest
+      const ov = document.querySelector("#secBuild .bd-drop-ov");
+      o.overlayReady = !!ov && ov.hidden === true;
+      // cleanup + hand back the surrounding tests' selection
+      ["vbdrop trend", "vbdrop geo", "vbdrop costs"].forEach((n) => {
+        const d = Studio.Workspace.all("datasets").find((x) => x.name === n);
+        if (d) Studio.Workspace.remove("datasets", d.id);
+      });
+      if (prevKind && prevId) await B.selectDataset(prevKind, prevId);
+      return o;
+    });
+    ok("VB-DROP: a dropped CSV becomes a first-class file dataset and the pick ladder charts it -- time+measure+small category opens a LINE with a color split",
+      vbDrop.datasetReal && vbDrop.lineChart === "line" &&
+      JSON.stringify(vbDrop.lineShelves) === JSON.stringify(["year:null", "revenue:sum"]) && vbDrop.lineColor === "team",
+      JSON.stringify(vbDrop));
+    ok("VB-DROP: geo+measure opens a MAP (avg), category+measure (JSON) opens BARS, a non-data file is rejected untouched, and the drop overlay is wired on the section",
+      vbDrop.mapChart === "choropleth" && JSON.stringify(vbDrop.mapShelves) === JSON.stringify(["fips:null", "adoption:avg"]) &&
+      vbDrop.barChart === "bars" && vbDrop.txtRejected && vbDrop.overlayReady,
+      JSON.stringify(vbDrop));
+
     // 13b. VB-4 slice 2 (Kevin overnight queue continued, "hit major ones first"):
     // Stacked bars + Stacked area join the chart strip. Studio's own chart registry
     // (model.js Studio.CHARTS + Studio.newPanel) already treats "stacked" and

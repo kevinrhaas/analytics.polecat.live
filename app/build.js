@@ -36,6 +36,37 @@
   var D = null;
   function configure(deps) {
     D = deps;
+    // VB-DROP: the whole Build section is a file drop target. The overlay is
+    // created once, shown on dragenter of an actual file, and the drop hands
+    // off to bdDropFile above. dragleave only clears when leaving the section.
+    var dropSec = document.getElementById("secBuild");
+    if (dropSec && !dropSec.__bdDropWired) {
+      dropSec.__bdDropWired = true;
+      var ov = document.createElement("div");
+      ov.className = "bd-drop-ov"; ov.hidden = true;
+      ov.innerHTML = '<div class="bd-drop-msg">Drop a CSV, TSV, or JSON file<br><small>It becomes a dataset — and an instant View</small></div>';
+      dropSec.appendChild(ov);
+      var depth = 0;
+      dropSec.addEventListener("dragenter", function (e) {
+        if (![].some.call((e.dataTransfer || {}).types || [], function (t) { return t === "Files"; })) return;
+        e.preventDefault(); depth++; ov.hidden = false;
+      });
+      dropSec.addEventListener("dragover", function (e) {
+        if (ov.hidden) return;
+        e.preventDefault(); e.dataTransfer.dropEffect = "copy";
+      });
+      dropSec.addEventListener("dragleave", function () {
+        if (ov.hidden) return;
+        depth = Math.max(0, depth - 1);
+        if (!depth) ov.hidden = true;
+      });
+      dropSec.addEventListener("drop", function (e) {
+        if (ov.hidden) return;
+        e.preventDefault(); depth = 0; ov.hidden = true;
+        var f = e.dataTransfer.files && e.dataTransfer.files[0];
+        if (f) bdDropFile(f);
+      });
+    }
     // Topbar actions (#tbSectionActions) for the Build section — same
     // register-once, nodes-are-moved-not-cloned contract studio.js uses.
     if (window.__studioRegisterSectionActions) {
@@ -141,6 +172,74 @@
     render();
   }
   window.__studioBdDrafts = { get: bdDrafts, stash: bdStashDraft, clear: bdClearCanvas, hasContent: bdDraftHasContent }; // test hook
+
+  // ---------- VB-DROP: drag a file onto the View Builder ----------
+  // Kevin: "drag a csv or json file ... have it generate a dataset for the view
+  // and bring it into the datasets and then find a best coolest most interesting
+  // view ... and pop a view onto the screen." Reuses LF24's existing machinery
+  // end-to-end: the same file-kind connection/dataset shape the editor's drop
+  // zone writes, and QuickMode.profileColumns for the column inspection. The
+  // pick ladder (geo→map, time→line with a small-category color split,
+  // category→bars, else table) is VB-DROP's own — it plans ONE view for the
+  // shelves, not LF24's whole dashboard.
+  function bdPickView(profile) {
+    var usable = profile.filter(function (c) { return c.type !== "empty" && c.type !== "constant" && c.type !== "id"; });
+    function first(t) { return usable.filter(function (c) { return c.type === t; })[0]; }
+    var geo = first("geo"), temporal = first("temporal");
+    var measures = usable.filter(function (c) { return c.type === "measure"; });
+    var cats = usable.filter(function (c) { return c.type === "categorical"; })
+      .sort(function (a, b) { return a.cardinality - b.cardinality; });
+    var m = measures[0];
+    if (geo && m) return { chartType: "choropleth", cols: [{ col: geo.name, agg: null }, { col: m.name, agg: "avg" }],
+      story: "a map of " + m.name + " by " + geo.name };
+    if (temporal && m) {
+      var pick = { chartType: "line", cols: [{ col: temporal.name, agg: null }, { col: m.name, agg: "sum" }],
+        story: m.name + " over " + temporal.name };
+      var series = cats.filter(function (c) { return c.cardinality >= 2 && c.cardinality <= 8; })[0];
+      if (series) { pick.color = { col: series.name }; pick.story += ", split by " + series.name; }
+      return pick;
+    }
+    if (cats.length && m) return { chartType: "bars", cols: [{ col: cats[0].name, agg: null }, { col: m.name, agg: "sum" }],
+      story: m.name + " by " + cats[0].name };
+    return { chartType: "table", cols: [], story: "the raw rows (no chartable pairing found — drag fields onto the shelves)" };
+  }
+  function bdDropFile(file) {
+    if (!file) return;
+    if (!/\.(csv|tsv|json)$/i.test(file.name)) { D.toast("Drop a .csv, .tsv, or .json file to build a View from it", true); return; }
+    file.text().then(function (text) {
+      if (text.length > Studio.FILE_DATASET_MAX_CHARS) {
+        D.toast(file.name + " is too large (" + Math.round(text.length / 1e6) + "MB > 2MB) — host it and use the DuckDB (remote file) connector instead.", true);
+        return;
+      }
+      var format = /\.json$/i.test(file.name) ? "json"
+        : /\.(csv|tsv)$/i.test(file.name) ? "csv"
+        : ((text.replace(/^\s+/, "")[0] === "[" || text.replace(/^\s+/, "")[0] === "{") ? "json" : "csv");
+      var parsed;
+      try { parsed = format === "json" ? Studio.parseJSONText(text) : Studio.parseCSVText(text); }
+      catch (e) { D.toast("Could not parse " + file.name + ": " + e.message, true); return; }
+      if (!parsed.columns.length) { D.toast(file.name + " has no columns to import", true); return; }
+      var W = Studio.Workspace;
+      var conn = (W.all("connections") || []).filter(function (c) { return c.adapter === "file"; })[0];
+      if (!conn) conn = W.put("connections", { name: "Quick imports", adapter: "file", cfg: {} });
+      var base = file.name.replace(/\.[^.]+$/, ""), used = {};
+      W.all("datasets").forEach(function (d2) { if (d2.name) used[d2.name] = true; });
+      var name = base, n = 2;
+      while (used[name]) name = base + " " + n++;
+      var d = { name: name, connectionId: conn.id, kind: "file", fileName: file.name, format: format,
+        content: text, columns: parsed.columns, params: [], tags: [] };
+      var uid = D.currentUserId(); if (uid) d.acctOwner = uid;
+      d = W.put("datasets", d); // a REAL dataset — it appears in Datasets and this pane like any other
+      var pick = bdPickView(Studio.QuickMode.profileColumns(parsed));
+      bdSelectDataset("ws", d.id, { noDraft: true }).then(function () {
+        BD.shelfCols = pick.cols.map(function (f) { return { col: f.col, agg: f.agg }; });
+        if (pick.color) BD.shelfColor = [{ col: pick.color.col }];
+        BD.chartType = pick.chartType;
+        render();
+        D.toast("Imported " + name + " (" + parsed.rows.length + " rows) — showing " + pick.story + ". It's saved as a dataset; keep editing or Save View.");
+      });
+    });
+  }
+  window.__studioBdDropFile = bdDropFile; // test hook (drop events can't carry files headlessly)
 
   // ---------- calculated columns (slice 4) ----------
   // The SAME formula engine the rest of the app uses (Studio.applyCalcCols /

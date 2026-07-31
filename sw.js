@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v431"; /* v431: VB-14 — per-dataset drafts in
+var CACHE_NAME = "studio-shell-v432"; /* v432: VB-DROP — drag a CSV/TSV/JSON
+   anywhere onto the Build section: bdDropFile creates the same file-kind
+   dataset LF24's Quick import writes, profiles columns via QuickMode, and the
+   bdPickView ladder (geo→choropleth avg, temporal→line + small-category color
+   split, categorical→bars, else table) opens the pick on the shelves
+   (build.js configure dropzone + overlay; .bd-drop-ov CSS). */
+/* v431: VB-14 — per-dataset drafts in
    the View Builder: bdSelectDataset stashes the outgoing dataset's shelves/
    filters/calcs/chart and restores the incoming one's draft (localStorage
    studio-bd-drafts, LRU 20, debounced persist from render()); draft dot in the

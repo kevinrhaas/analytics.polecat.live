@@ -116,6 +116,22 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **VB-DROP (v797, sw v432, 2026-07-31, steward — Kevin live: "drag a csv or
+  json file ... find a best coolest most interesting view ... pop a view onto
+  the screen"):** the whole Build section is a file drop target (overlay
+  .bd-drop-ov, wired once in build.js configure). bdDropFile reuses LF24's
+  machinery end-to-end — same file-kind connection/dataset shape Quick import
+  writes (unique name, acctOwner, ≤2MB guard, parse errors toasted), plus
+  QuickMode.profileColumns — then VB-DROP's own bdPickView ladder plans ONE
+  view: geo+measure→choropleth (avg), temporal+measure→line (+ color split
+  when a 2–8-cardinality category exists), categorical+measure→bars, else
+  table with a drag-fields hint. Selects the new dataset {noDraft:true}, fills
+  the shelves, renders, toasts the story ("showing revenue over year, split by
+  team"). Excel deferred (no vendored XLSX parser — a future slice if wanted).
+  Headless-verified all four ladder rungs + .txt rejection; 2 suite checks via
+  the __studioBdDropFile hook (headless drop events can't carry files). Files:
+  app/build.js, app/studio.css, tests/run.js, docs/index.html, js/changelog.js
+  v797, sw v432.
 - **VB-14 (v796, sw v431, 2026-07-31, steward — Kevin live: "when you change
   from one dataset to the other you lose what you selected ... maybe you need a
   clear canvas button"):** per-dataset drafts in the View Builder. bdSelectDataset
@@ -7750,14 +7766,9 @@
 >    admin mirror can still target-delete rows it never saw — users is already
 >    upsert-only, v787; the general cure is tombstoned deletes like relay's).
 > 5. ~~VB-14~~ **SHIPPED v796 (this session, 2026-07-31 ~05:55Z — see DONE).**
-> 6. **VB-DROP (Kevin, 2026-07-31 late):** drag a CSV/JSON (Excel stretch)
->    file onto the View Builder → auto-create a real dataset (it appears in
->    Datasets + the VB tree) → inspect columns and auto-pick the most
->    interesting encodable View (dates→trend, geo ids→choropleth,
->    category+measure→bar/donut, two measures→scatter) → open it live in the
->    VB with shelves pre-filled; toast narrates the pick. Reuse the existing
->    file-drop adapter + quickmode.js auto-build heuristics (LF24/LF50
->    lineage) — do not reinvent parsing or chart-picking.
+> 6. ~~VB-DROP~~ **SHIPPED v797 (this session, 2026-07-31 ~06:25Z — see DONE).**
+>    Excel (.xlsx) deferred — needs a vendored parser; a future slice if
+>    Kevin still wants it.
 >
 > **OPEN FOR THE AUTOMATED LANE (independent, minimal overlap with the above):**
 > ~~LF21 (title header as first-class widget)~~ **SHIPPED v793 (automated lane,
