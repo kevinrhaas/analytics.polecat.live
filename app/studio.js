@@ -1403,9 +1403,14 @@
     var chips = ["bars", "donut", "line", "treemap", "table"].map(function (t) {
       return '<span class="chip" data-t="' + t + '">+ ' + Studio.CHARTS[t].label + "</span>";
     }).join("") + '<span class="chip" data-t="kpi">+ KPI</span>';
+    // Track H: the library pane renders one daCard per authored query, so a bare "Edit
+    // data source"/"Delete data source" title is ambiguous the moment there's more than
+    // one — and these icon-only buttons had no aria-label at all. Name the specific
+    // source (same shape as the v808/v804 disambiguation fixes elsewhere in the app).
+    var daLbl = esc(d.name || d.id);
     c.innerHTML = '<div class="da-top"><div class="da-id">' + hlq(d.id, q) + "</div>" +
-      '<div class="da-acts"><button class="da-act" data-a="edit" title="Edit data source"></button>' +
-      '<button class="da-act" data-a="del" title="Delete data source"></button></div></div>' +
+      '<div class="da-acts"><button class="da-act" data-a="edit" title="Edit data source ' + daLbl + '" aria-label="Edit data source ' + daLbl + '"></button>' +
+      '<button class="da-act" data-a="del" title="Delete data source ' + daLbl + '" aria-label="Delete data source ' + daLbl + '"></button></div></div>' +
       '<div class="da-cols">' + cols + params + "</div><div class=\"da-add\">" + chips + "</div>";
     c.querySelector('[data-a="edit"]').appendChild(Studio.icon("edit", 12));
     c.querySelector('[data-a="del"]').appendChild(Studio.icon("trash", 12));

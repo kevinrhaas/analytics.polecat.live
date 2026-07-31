@@ -116,6 +116,25 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Track H sweep round 2 — library "My queries" cards now name themselves to
+  screen readers (v827, sw v459, 2026-07-31, steward — Track H/L/N rotation,
+  H's turn):** the QA-05/v596/v603 disambiguation sweeps already fixed
+  `myDACard` (the "My Data Sources" rail), but `daCard()` — the OTHER,
+  stem-grouped catalog card the library renders once per AUTHORED query under
+  "My queries" — was a separate render path those sweeps never touched: its
+  Edit/Delete buttons carried a bare, un-disambiguated `title` ("Edit data
+  source"/"Delete data source") and NO `aria-label` at all, so every card in
+  a group announced the identical name. Both buttons now read `title`/
+  `aria-label="Edit data source <name>"`/`"Delete data source <name>"`,
+  falling back to the DA's id when it has no name — same convention as
+  myDACard and the v804/v808 Inspector/canvas fixes. 2 new regression checks
+  (two authored queries seeded under one stem: the named one gets its name in
+  both title and aria-label, the un-named one falls back to its id, and the
+  two get genuinely distinct accessible names). Full suite green (2919
+  passed, 0 failed). Files: app/studio.js, tests/run.js, sw.js,
+  js/changelog.js. NEXT: continuing the Track H/L/N self-directed rotation —
+  Track N (last ran ~v611, by far the most overdue) is a good next slice; a
+  fresh Track L cross-check found no new orphaned keys since round 7 (v816).
 - **CONS-1 — three CTIC/OpTIS reference dashboards, fully ADDITIVE (v826,
   sw v458, 2026-07-31, steward — Kevin: additive only, then hold):** the
   Conservation Insight pack grows 3→6 dashboards, 5→8 datasets; existing

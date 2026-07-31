@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 827,
+    title: 'Library data-source cards now name themselves to screen readers',
+    kind: 'polish',
+    ts: '2026-07-31T17:15:13.000Z',
+    items: [
+      'The library panel\'s "My queries" cards had icon-only Edit/Delete buttons with a generic, unnamed tooltip and no accessible name at all -- with more than one query in a group, every button announced the same "Edit data source"/"Delete data source." Both buttons now name the specific query in their hover tooltip and aria-label.',
+    ],
+  },
+  {
     v: 826,
     title: 'Three new Conservation dashboards, styled after the real CTIC and OpTIS visuals',
     kind: 'feature',
