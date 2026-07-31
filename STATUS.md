@@ -8043,6 +8043,17 @@
 >    Excel (.xlsx) deferred — needs a vendored parser; a future slice if
 >    Kevin still wants it.
 >
+> **LANE STEER (Kevin, 2026-07-31 ~12:15Z — while the interactive session is
+> ACTIVE on the feature backlog):** to keep both lanes fast, scheduled runs
+> should prefer the SELF-DIRECTED tracks over feature-backlog items while
+> this steer stands: Track H/L/N quality sweeps and LF58 docs/tour/marketing
+> currency. Those touch few contested files; the feature backlog is being
+> worked live and every same-day collision on js/changelog.js + sw.js costs
+> a rebase + a full re-gate (three today: v793, v804, v808). The interactive
+> session claims its items in DONE ("lane: skip …") as always. When the
+> interactive session goes quiet (no main commit from it for ~6 hours), this
+> steer expires and the whole NEXT backlog is open again.
+>
 > **OPEN FOR THE AUTOMATED LANE (independent, minimal overlap with the above):**
 > ~~LF21 (title header as first-class widget)~~ **SHIPPED v793 (automated lane,
 > 2026-07-31 ~05:10Z — see DONE):** the remaining alignment ask, done.
