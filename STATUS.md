@@ -8033,6 +8033,20 @@
 
 ## NEXT (top = do first)
 
+> SORT-1. ★ **Standard sorting on every catalog panel (Kevin live, 2026-07-31 —
+>       CLAIMED by the interactive session; lane: skip).** "On all of the panels
+>       like dashboards, datasets, connections, etc you should be able to sort by
+>       name, last used date, workbook, things like that. Standard sorting things
+>       so you can find things easier." Add a compact sort control (dropdown or
+>       toggle-chips beside the list/tile toggle) to Dashboards, Views, Datasets,
+>       Connections, Jobs and Repository: Name A–Z/Z–A, Last updated (newest/
+>       oldest — the current default order stays the default), plus per-section
+>       extras where they exist (Dashboards: workbook, folder; Datasets:
+>       adapter/connection; Jobs: last run). Persist the choice per section per
+>       device (localStorage, same convention as the list/tile toggles). Pinned
+>       items should stay pinned-first within any sort. One shared sort helper +
+>       per-section wiring, same adopt-per-section pattern LIVE-d proved.
+
 ### ⚠ SESSION HANDOFF — live steward session active (written 2026-07-31 ~04:20Z)
 > Kevin is enabling the continuous manager lane while an interactive steward
 > session is still working. Coordination rules for ANY automated run:
