@@ -88,17 +88,30 @@ LANGUAGE sql SECURITY DEFINER STABLE AS $$
   );
 $$;
 
+-- GATE-FIX-2 (live incident, 2026-07-31): "own row" is matched by gotrueId OR
+-- by the account's sign-in EMAIL (users.data->>'u' vs the JWT's email claim).
+-- gotrueId-only was CIRCULAR: a row missing its gotrueId stamp (hand-restored,
+-- pre-link-era) was invisible to its own password-verified user — and
+-- polecat_is_admin() needs that same stamp, so an admin couldn't see or heal
+-- their own row either. The email arm breaks the loop: a verified sign-in can
+-- always read + update its own row, and the app then stamps gotrueId itself.
 DROP POLICY IF EXISTS polecat_select ON public.users;
 DROP POLICY IF EXISTS polecat_insert ON public.users;
 DROP POLICY IF EXISTS polecat_update ON public.users;
 DROP POLICY IF EXISTS polecat_delete ON public.users;
 CREATE POLICY polecat_select ON public.users FOR SELECT TO authenticated USING (
-  (data::jsonb->>'gotrueId') = auth.uid()::text OR public.polecat_is_admin()
+  (data::jsonb->>'gotrueId') = auth.uid()::text
+  OR lower(data::jsonb->>'u') = lower(coalesce(auth.jwt()->>'email',''))
+  OR public.polecat_is_admin()
 );
 CREATE POLICY polecat_update ON public.users FOR UPDATE TO authenticated USING (
-  (data::jsonb->>'gotrueId') = auth.uid()::text OR public.polecat_is_admin()
+  (data::jsonb->>'gotrueId') = auth.uid()::text
+  OR lower(data::jsonb->>'u') = lower(coalesce(auth.jwt()->>'email',''))
+  OR public.polecat_is_admin()
 ) WITH CHECK (
-  (data::jsonb->>'gotrueId') = auth.uid()::text OR public.polecat_is_admin()
+  (data::jsonb->>'gotrueId') = auth.uid()::text
+  OR lower(data::jsonb->>'u') = lower(coalesce(auth.jwt()->>'email',''))
+  OR public.polecat_is_admin()
 );
 CREATE POLICY polecat_insert ON public.users FOR INSERT TO authenticated WITH CHECK (public.polecat_is_admin());
 CREATE POLICY polecat_delete ON public.users FOR DELETE TO authenticated USING (public.polecat_is_admin());

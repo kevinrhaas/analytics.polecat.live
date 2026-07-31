@@ -316,6 +316,18 @@ function handleMockSupabase(req, rep, p) {
     });
   }
   if (req.method === "DELETE" && tableRows) {
+    // USERS-DURABLE: honor the targeted id filter the new push shape sends
+    // (id=in.("a","b")); a filterless DELETE (or id=not.is.null) still clears.
+    const dqs = new URLSearchParams(req.url.split("?")[1] || "");
+    const idFilter = dqs.get("id") || "";
+    const inm = /^in\.\((.*)\)$/.exec(idFilter);
+    if (inm) {
+      const ids = inm[1].split(",").map((s) => s.replace(/^"|"$/g, ""));
+      for (let i = tableRows.length - 1; i >= 0; i--) {
+        if (ids.indexOf(String(tableRows[i].id)) >= 0) tableRows.splice(i, 1);
+      }
+      return send(204, []);
+    }
     tableRows.length = 0;
     return send(204, []);
   }
@@ -10014,6 +10026,53 @@ function serve() {
     ok("SB-RLS auth-aware: a 403 on a Supabase-Auth connection explains expired-session/ownership + points at the canonical script — and NEVER hands out the anon open-policy SQL that reopened the live project",
       sbRlsAuth.failed && sbRlsAuth.noWeakeningSql && sbRlsAuth.explainsAuth && sbRlsAuth.pointsAtCanonical && sbRlsAuth.openSqlWarns, JSON.stringify(sbRlsAuth));
 
+    // ---- USERS-DURABLE (Kevin live, 2026-07-31): the push was DELETE-ALL then
+    // bulk insert per table — on users, under the admin-arm RLS, that
+    // SELF-DESTRUCTS (the delete de-admins the pusher, the re-insert is then
+    // refused, the wipe sticks, and an empty users table means NOBODY is admin —
+    // it emptied the live table twice and locked the workspace). The push is now
+    // upsert-FIRST with targeted stale-row deletes, and an empty local table
+    // never deletes anything. ----
+    console.log("\n• USERS-DURABLE: wipe-proof workspace push");
+    const durable = await page.evaluate(async () => {
+      const fetch0 = window.fetch;
+      const calls = [];
+      const remoteIds = { users: [{ id: "user_kevin" }, { id: "user_stale" }], dashboards: [{ id: "d1" }, { id: "d_stale" }] };
+      window.fetch = (url, opts) => {
+        const method = (opts && opts.method) || "GET";
+        const u = String(url);
+        calls.push(method + " " + (u.split("/rest/v1")[1] || u));
+        if (method === "GET") {
+          const t = (u.match(/rest\/v1\/([a-z_]+)\?select=id/) || [])[1];
+          return Promise.resolve(new Response(JSON.stringify(remoteIds[t] || []), { status: 200, headers: { "Content-Type": "application/json" } }));
+        }
+        // a 204 must carry a NULL body — Response("[]", {status:204}) throws
+        if (method === "DELETE") return Promise.resolve(new Response(null, { status: 204 }));
+        return Promise.resolve(new Response("[]", { status: 201, headers: { "Content-Type": "application/json" } }));
+      };
+      const snap = Studio.WS.emptySnapshot();
+      // one table WITH local rows (d1 kept, d_stale should go)…
+      snap.tables.dashboards = [{ id: "d1", name: "kept", title: "K", spec: { panels: [], kpis: [], filters: [] } }];
+      // …and users deliberately EMPTY — the exact device shape that wiped the live table
+      const res = await Studio.supabaseSource.save({ url: "https://x.supabase.co", key: "k" }, snap);
+      window.fetch = fetch0;
+      const postDash = calls.findIndex((c) => /^POST \/dashboards/.test(c));
+      const delDash = calls.findIndex((c) => /^DELETE \/dashboards/.test(c));
+      return {
+        ok: !!(res && res.ok),
+        noBlanketDelete: !calls.some((c) => /DELETE .*id=not\.is\.null/.test(c)),
+        noUsersTouch: !calls.some((c) => /(POST|DELETE) \/users/.test(c)),
+        upsertBeforeDelete: postDash >= 0 && delDash > postDash,
+        deleteTargetsStaleOnly: calls.some((c) => /^DELETE \/dashboards\?id=in\.\(.*d_stale.*\)$/.test(c)) &&
+          !calls.some((c) => /^DELETE \/dashboards\?id=in\.\(.*%22d1%22.*\)$/.test(c)),
+        calls: calls.filter((c) => /dashboards|users/.test(c))
+      };
+    });
+    ok("USERS-DURABLE: a push with an EMPTY local users table never touches the remote users rows (no delete, no insert) — an empty mirror can't wipe a table it never saw",
+      durable.ok && durable.noUsersTouch && durable.noBlanketDelete, JSON.stringify(durable));
+    ok("USERS-DURABLE: a table with local rows upserts FIRST, then deletes ONLY the specific stale remote ids (id=in.), never a blanket id=not.is.null wipe",
+      durable.upsertBeforeDelete && durable.deleteTargetsStaleOnly, JSON.stringify(durable));
+
     // ---- SB-PULL-GUARD (the data-loss half of "wildly flaky"): Refresh does
     // push-then-pull — when the push FAILS, the pull used to adopt the remote
     // anyway, replaceAll-ing OVER the very rows the backend just refused
@@ -15834,6 +15893,86 @@ function serve() {
     await gpFix.close();
     ok("GATE-FIX: with the workspace pull unavailable and no local mirror, a verified sign-in adopts from the DIRECT own-users-row read — a provisioned account can no longer dead-end at the gate",
       fixAdopt.gateGone && fixAdopt.who === "fallbackkevin", JSON.stringify(fixAdopt));
+
+    // ---- GATE-FIX-2 (Kevin live, 2026-07-31 round 2): his users row existed but
+    // was missing its gotrueId stamp — the gotrueId-only adopt matched nothing
+    // and the verified sign-in STILL dead-ended. GoTrue verified the password
+    // for this exact email, so a row whose username IS that email is
+    // unambiguously this person: adopt by email, then stamp the uid. ----
+    const gpFix2 = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpFix2.on("pageerror", (e) => errors.push("GATE-FIX-2 page: " + e.message));
+    await gpFix2.addInitScript((port) => {
+      try { localStorage.setItem("analytics.datasource.v1", JSON.stringify({ sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid" }, at: 1 })); } catch (e) {}
+    }, PORT);
+    await gpFix2.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpFix2.waitForFunction(() => {
+      if (!window.Studio || !Studio.Sync) return false;
+      var s = Studio.Sync.syncState();
+      return s.sourceId === "supabase" && s.status !== "connecting";
+    }, { timeout: 20000 }).catch(() => {});
+    await gpFix2.waitForSelector("#g-form", { timeout: 4000 });
+    await gpFix2.evaluate(() => {
+      Studio.Sync.pullNow = function () { return Promise.resolve(); };
+      Studio.Workspace.all("users").forEach(function (u) { if (u.gotrueId) Studio.Workspace.remove("users", u.id, { silent: true }); });
+      // the fetched row has NO gotrueId — only the email-shaped username
+      Studio.supabaseSource.fetchUsers = function () {
+        return Promise.resolve([{ id: "user_owner", u: "owner@example.com", name: "Owner", role: "admin", demo: false }]);
+      };
+    });
+    await gpFix2.fill("#g-user", "owner@example.com");
+    await gpFix2.fill("#g-pass", "secret123");
+    await gpFix2.click("#g-form button[type=submit]");
+    await gpFix2.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 8000 }).catch(() => {});
+    const fix2 = await gpFix2.evaluate(() => ({
+      gateGone: !document.querySelector("#studio-gate"),
+      who: (window.PolecatAuth.current() || {}).u,
+      stampedUid: (window.PolecatAuth.current() || {}).gotrueId
+    }));
+    await gpFix2.close();
+    ok("GATE-FIX-2: a users row missing its gotrueId stamp still adopts by the verified sign-in EMAIL, and the uid gets stamped onto the account (self-healing the link)",
+      fix2.gateGone && fix2.who === "owner@example.com" && fix2.stampedUid === MOCK_GOTRUE_USER_ID, JSON.stringify(fix2));
+
+    // ---- ADMIN-LOCAL (Kevin, 2026-07-31): admin/admin joins demo/demo as the
+    // two strictly-LOCAL demo accounts — signing into either forces the
+    // workspace back to Local even with a remote picked/bound; the gate hint
+    // names both, tiny, at the bottom. ----
+    const gpAdm = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpAdm.on("pageerror", (e) => errors.push("ADMIN-LOCAL page: " + e.message));
+    await gpAdm.addInitScript((port) => {
+      try { localStorage.setItem("analytics.datasource.v1", JSON.stringify({ sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid" }, at: 1 })); } catch (e) {}
+    }, PORT);
+    await gpAdm.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpAdm.waitForSelector("#g-form", { timeout: 8000 });
+    const admHint = await gpAdm.evaluate(() => (document.getElementById("g-hint") || {}).textContent || "");
+    ok("ADMIN-LOCAL: the gate's tiny footer hint names BOTH local demo accounts (admin/admin and demo/demo) as local-workspace-only",
+      /admin/.test(admHint) && /demo/.test(admHint) && /local workspace only/i.test(admHint), JSON.stringify({ admHint }));
+    // seed self-heal: a store missing the admin account gets it re-added (and
+    // an existing row is never overwritten — demo's row is left untouched)
+    const admHeal = await gpAdm.evaluate(async () => {
+      var KEY = "analytics.users.v1";
+      var find = function (u2) { return (JSON.parse(localStorage.getItem(KEY) || "[]")).filter(function (x) { return x.u === u2; })[0]; };
+      var list = JSON.parse(localStorage.getItem(KEY) || "[]").filter(function (x) { return x.u !== "admin"; });
+      localStorage.setItem(KEY, JSON.stringify(list));
+      var goneBefore = !find("admin");
+      await window.PolecatAuth.seedIfEmpty();
+      var back = find("admin");
+      return { goneBefore: goneBefore, restored: !!back, role: back && back.role };
+    });
+    ok("ADMIN-LOCAL: a local store missing the admin/admin account self-heals it back on boot (role admin)",
+      admHeal.goneBefore && admHeal.restored && admHeal.role === "admin", JSON.stringify(admHeal));
+    await gpAdm.fill("#g-user", "admin");
+    await gpAdm.fill("#g-pass", "admin");
+    await gpAdm.click("#g-form button[type=submit]");
+    await gpAdm.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 8000 }).catch(() => {});
+    const admLocal = await gpAdm.evaluate(() => ({
+      gateGone: !document.querySelector("#studio-gate"),
+      who: (window.PolecatAuth.current() || {}).u,
+      role: (window.PolecatAuth.current() || {}).role,
+      sourceId: Studio.Sync.syncState().sourceId
+    }));
+    await gpAdm.close();
+    ok("ADMIN-LOCAL: signing in as admin/admin with a remote workspace bound signs in as a LOCAL admin and forces the workspace back to Local — same strictly-local rule as demo/demo",
+      admLocal.gateGone && admLocal.who === "admin" && admLocal.role === "admin" && admLocal.sourceId === "local", JSON.stringify(admLocal));
 
     // ---- DEMO-LOCAL (Kevin, 2026-07-31): the demo is a LOCAL concept — entering
     // it must force the workspace back to Local even when a remote backend is
@@ -26154,6 +26293,51 @@ function serve() {
     ok("Z14 fix: a duckdb-only export bundles the DuckDB façade but not the SQLite one", z14Bundling.duckdbHasFacade && z14Bundling.duckdbOmitsSqlite, JSON.stringify(z14Bundling));
     ok("Z14 fix: an httpvfs-only export bundles the SQLite façade but not the DuckDB one", z14Bundling.httpvfsHasFacade && z14Bundling.httpvfsOmitsDuckdb, JSON.stringify(z14Bundling));
     ok("Z14 fix: a dashboard using neither connector bundles neither façade (stays lean)", z14Bundling.plainOmitsBoth, JSON.stringify(z14Bundling));
+
+    // ---- EXPORT-1 (Kevin live, confirmed on his uploaded huc8embed.html): an
+    // exported dashboard was EMPTY wherever a DA has no real engine — full
+    // STUDIO_GEO baked, zero DASHKIT_MOCK. Every export now embeds a data
+    // snapshot for JUST the engine-less DAs (live engines stay live), with the
+    // View Builder's cached REAL rows overlaying fabricated samples. ----
+    console.log("\n• EXPORT-1: exported HTML carries data for engine-less DAs");
+    const export1 = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var spec = {
+        name: "exp1", title: "E1", filters: [], kpis: [],
+        panels: [{ id: "p1", title: "P", span: "full", chart: { type: "bars", da: "da_sample", map: {}, opts: {} } }],
+        cda: { connections: [], dataAccesses: [
+          { id: "da_sample", name: "s", kind: "sql", columns: ["label", "value"], authored: true },
+          { id: "da_live", name: "l", kind: "sql", connAdapter: "supabase", columns: ["a"] }
+        ] }
+      };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      var m = html.match(/window\.DASHKIT_MOCK = (.*);/);
+      var mock = m ? JSON.parse(m[1]) : null;
+      var out = {
+        hasMock: !!mock,
+        sampleRows: mock && mock.da_sample && mock.da_sample.rows ? mock.da_sample.rows.length : 0,
+        liveNotShadowed: !!mock && !("da_live" in mock),
+        notPreview: html.indexOf("window.STUDIO_PREVIEW=true") < 0
+      };
+      // the View Builder's cached REAL computed rows overlay the fabricated sample
+      var B = Studio.Build, orig = B && B.specMocks;
+      if (B) B.specMocks = function () { return { da_sample: { cols: ["label", "value"], rows: [["REALROW", 7]] } }; };
+      var html2 = Studio.exportCDF(spec, assets, "/x");
+      if (B) B.specMocks = orig;
+      var m2 = html2.match(/window\.DASHKIT_MOCK = (.*);/);
+      var mock2 = m2 ? JSON.parse(m2[1]) : null;
+      out.builderRowsWin = !!mock2 && !!mock2.da_sample && mock2.da_sample.rows.length === 1 && mock2.da_sample.rows[0][0] === "REALROW";
+      // the PDF path builds with the same snapshot (buildHtml preview:false + exportMock)
+      var pdfHtml = Studio.buildHtml(spec, assets, { deployPath: "/x", preview: false, mock: Studio.exportMock(spec) });
+      out.pdfHasMock = /window\.DASHKIT_MOCK = /.test(pdfHtml);
+      return out;
+    });
+    ok("EXPORT-1: an exported .html embeds DASHKIT_MOCK rows for an engine-less (authored/sample) DA — no more blank charts on upload — while STUDIO_PREVIEW stays unset (live engines stay live)",
+      export1.hasMock && export1.sampleRows > 0 && export1.notPreview, JSON.stringify(export1));
+    ok("EXPORT-1: a DA with a real engine (connAdapter) is NEVER shadowed by the export snapshot, and the View Builder's cached REAL computed rows overlay fabricated samples",
+      export1.liveNotShadowed && export1.builderRowsWin, JSON.stringify(export1));
+    ok("EXPORT-1: the PDF export path carries the same data snapshot as the .html export",
+      export1.pdfHasMock, JSON.stringify(export1));
 
     // Functional dispatch check — load the REAL exported HTML (no DASHKIT_MOCK, zero panels so the
     // auto-boot never itself calls DashKit.cda) into a throwaway iframe, stub Studio.DuckDB.query

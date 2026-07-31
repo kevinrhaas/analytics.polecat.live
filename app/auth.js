@@ -46,7 +46,7 @@
     { u: "demo", name: "Demonstration User", role: "viewer", demo: true, pass: "demo" }
   ];
   async function seedIfEmpty() {
-    if (raw().length) { migrateDemoName(); return raw(); }
+    if (raw().length) { migrateDemoName(); await ensureLocalDemoAccounts(); return raw(); }
     var list = [];
     for (var i = 0; i < SEED.length; i++) {
       var s = SEED[i];
@@ -54,6 +54,18 @@
     }
     saveRaw(list);
     return list;
+  }
+  // ADMIN-LOCAL (Kevin, 2026-07-31): admin/admin + demo/demo are the app's two
+  // LOCAL demo accounts — if either has gone missing from this browser's store
+  // (removed, or the store predates one), restore it. Only ADDS missing rows;
+  // an existing row (renamed, password changed) is never touched.
+  async function ensureLocalDemoAccounts() {
+    var list = raw(), changed = false;
+    for (var i = 0; i < SEED.length; i++) {
+      var s = SEED[i];
+      if (!find(s.u)) { list.push({ u: s.u, name: s.name, role: s.role, demo: s.demo, hash: await sha256(s.pass) }); changed = true; }
+    }
+    if (changed) saveRaw(list);
   }
   // #108: rename the seeded demo account "Demo user" -> "Demonstration User" for
   // existing local stores too. Additive + conservative: only touches the public demo

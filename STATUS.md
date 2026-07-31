@@ -116,6 +116,65 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **USERS-DURABLE ★★ + GATE-FIX-2 + ADMIN-LOCAL (v786, sw v421, 2026-07-31, steward —
+  Kevin live, the users-table wipe finally explained):**
+  - **USERS-DURABLE (app/sources/supabase.js save):** the push was DELETE-ALL then
+    bulk insert per table. On users, under the admin-arm RLS, that SELF-DESTRUCTS:
+    the delete succeeds (pusher is admin) and removes the very row granting
+    adminship; the re-insert is refused (users INSERT policy is admin-only); the
+    wipe sticks; and with zero users rows polecat_is_admin() is false for EVERYONE
+    — the workspace locks itself. It emptied the live users table twice tonight
+    (each of Kevin's sign-ins triggered a boot push that re-wiped his restored
+    row). New shape for every table: upsert FIRST (merge-duplicates), then read
+    remote ids and delete ONLY the stale ones (id=in.(…), 40-id chunks), and NEVER
+    delete anything when the local table is empty. Accepted trade-off: deleting a
+    table's last row doesn't propagate. Suite mock's DELETE now honors id=in.().
+  - **GATE-FIX-2 (app/gate.js + both SQL scripts):** adopt falls back to matching
+    the VERIFIED sign-in email against users.u when the gotrueId match fails, then
+    finish() stamps the uid (self-healing). The users select/update policies gain
+    the email arm (lower(data->>'u') = lower(auth.jwt()->>'email')) — gotrueId-only
+    was circular (a stamp-less row was invisible to its own user AND is_admin needs
+    the stamp). tools/supabase-deploy.sql § 4 + tools/supabase-rls-real.sql updated;
+    Kevin re-runs § 4 once on the live project.
+  - **ADMIN-LOCAL (gate.js, auth.js, docs):** admin/admin + demo/demo are the two
+    LOCAL demo accounts. demo forces Local always; admin forces Local on a
+    GoTrue-auth (supabase) workspace — but NOT on a provisioned custom workspace
+    (Turso/local-auth, M3.2), whose seeded admin genuinely administers it. Gate
+    hint names both, tiny. ensureLocalDemoAccounts() re-adds a missing seed row on
+    boot (never touches an existing row).
+  - **EXPORT-1 follow-up (exporters.js):** daHasRealEngine resolves da.connectionId
+    → workspace connection adapter (the raw spec has no connAdapter stamp — that
+    comes from redactSecrets later), so connection-bound DAs are never shadowed by
+    the export snapshot (16 suite failures in the first gate run, all this cause).
+  6 new checks (empty-users push no-op; upsert-before-targeted-delete; email-adopt
+  + uid stamp; hint copy; seed heal; admin-forces-local-on-supabase). Files:
+  app/sources/supabase.js, app/gate.js, app/auth.js, app/exporters.js,
+  tools/supabase-deploy.sql, tools/supabase-rls-real.sql, docs/index.html, sw.js,
+  js/changelog.js, tests/run.js, STATUS.md.
+- **EXPORT-1 ★ — exported dashboards carry their data (v785, sw v420, 2026-07-31,
+  steward):** Kevin's uploaded `covercropadoption…huc8embed.html` had the full 1.9MB
+  STUDIO_GEO and ZERO `DASHKIT_MOCK` — engine-less DAs exported EMPTY (sample-pack
+  content, authored datasets, builder Views; his came via the View-embed path).
+  - `app/exporters.js`: `Studio.daHasRealEngine` + `Studio.exportMock(spec)` — the
+    engine classifier MOVED here from viewer.js's #106 fix (one list; a new adapter
+    in studio-render.js's dispatch must be added here too) + genMock subset for
+    engine-less DAs + `Studio.Build.specMocks` overlay (REAL computed rows win for
+    builder-blob DAs, same overlay the in-Studio preview applies). `exportCDF` now
+    passes `mock: Studio.exportMock(spec)` on its preview:false build — the LF23
+    buildHtml branch already embeds a non-preview mock WITHOUT STUDIO_PREVIEW, so
+    live engines stay live and the mock only shadows engine-less DAs.
+  - `app/viewer.js`: sampleMock delegates to Studio.exportMock (classifier deduped).
+  - `app/studio.js`: the PDF path's direct buildHtml gains the same mock;
+    `withSpecMocks(sp, fn)` warms the builder cache (ensureSpecMocks) before the
+    two embed exports (exportPanelEmbed / exportAnalysisEmbed — Kevin's path)
+    build their file, so a builder View exports real rows even if it wasn't
+    previewed this session.
+  - Docs: "What data travels with an export" intro on the Exporting page
+    (live-queried vs snapshot-at-export-time).
+  3 new checks (mock rows present + STUDIO_PREVIEW unset; live DA never shadowed +
+  builder rows overlay; PDF parity). EXPORT-2 (snapshot/dynamic modes + credential
+  handling for live DAs) remains queued. Files: app/exporters.js, app/viewer.js,
+  app/studio.js, docs/index.html, sw.js, js/changelog.js, tests/run.js, STATUS.md.
 - **VB-12 — the View Builder canvas fills to the screen bottom + drag-resizes on both
   axes (v784, sw v419, 2026-07-31, steward):** Kevin: "have the canvas for the panel be
   to the bottom of the screen (just like the left rail is and the dataset left panel

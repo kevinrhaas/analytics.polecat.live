@@ -1649,8 +1649,13 @@
   <p>The sign-in screen has a <strong>Workspace</strong> picker above the username field, so a
   teammate never has to touch connection setup at all:</p>
   <ul>
-    <li><strong>Local only (this browser)</strong> — the default: everything stays on this device,
-      and the local <code>admin</code>/<code>demo</code> accounts work as always.</li>
+    <li><strong>Local only (this browser)</strong> — the default: everything stays on this device.
+      The two <strong>local demo accounts</strong> — <code>admin</code>/<code>admin</code> (an
+      admin) and <code>demo</code>/<code>demo</code> (a viewer) — live here; signing into either
+      one switches the workspace back to Local even if a Supabase workspace was picked, so a demo
+      session can never touch a real backend. (On a custom workspace you provisioned yourself,
+      the seeded <code>admin</code> account is genuinely that workspace's admin and signs into it
+      as before.)</li>
     <li><strong>A packaged workspace</strong> — workspaces shipped with the app appear here by
       name. Picking one points the app at that workspace's database; then just sign in with the
       email and password of <em>your own</em> account there (the one-step direct sign-in above).
@@ -1748,6 +1753,13 @@
 <section id="exporting">
   <h2>Exporting dashboards</h2>
   <p>Click <strong>Export ▾</strong> in the topbar to open the export menu (it only shows while Studio is open). Every option opens an export modal with file size, a copy-to-clipboard button, and a download button.</p>
+  <p><strong>What data travels with an export.</strong> A View or dashboard whose data source has a
+  real engine (a connected database, a file/parquet source, a Google Sheet…) keeps querying it
+  <em>live</em> from the exported file. A source with no engine behind it — sample-pack content,
+  authored datasets, View Builder results — can't be re-queried from a standalone file, so the
+  export bakes in a <strong>data snapshot</strong> taken at export time: the file shows real
+  numbers anywhere you host it, and simply doesn't update until you export again. (View Builder
+  Views snapshot their actual computed rows.)</p>
 
   <table class="export-table">
     <thead><tr><th>Format</th><th>What you get</th><th>Use when</th></tr></thead>

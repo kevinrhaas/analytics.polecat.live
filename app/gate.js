@@ -151,7 +151,7 @@
       '<div class="g-or">or</div>' +
       '<button type="button" class="g-demo" id="g-demo">Explore the demo</button>' +
       '<div class="g-err" id="g-err"></div>' +
-      '<div class="g-hint" id="g-hint">Demo account <code>demo</code> / <code>demo</code> — a local sample workspace.</div>' +
+      '<div class="g-hint" id="g-hint">Local demo accounts <code>admin</code> / <code>admin</code> and <code>demo</code> / <code>demo</code> — local workspace only.</div>' +
       '<button type="button" class="g-connect" id="g-connect">Connect to your workspace…</button>' +
       '<div class="g-note">analytics.polecat.live</div></div>';
     document.body.appendChild(ov);
@@ -224,6 +224,22 @@
       } catch (e) {}
       return null;
     }
+    // GATE-FIX-2 (Kevin live, 2026-07-31): a users row can exist WITHOUT its
+    // gotrueId stamp (hand-restored rows, pre-link-era rows). GoTrue just
+    // verified the password for this exact email, so a row whose username IS
+    // that email is unambiguously this person — adopt it; finish() then stamps
+    // the gotrueId, healing the link for every later sign-in.
+    function findUserByEmail(email) {
+      try {
+        var key = String(email || "").trim().toLowerCase();
+        if (!key) return null;
+        var rows = (window.Studio && window.Studio.Workspace && window.Studio.Workspace.all("users")) || [];
+        for (var i = 0; i < rows.length; i++) {
+          if (String(rows[i].u || "").trim().toLowerCase() === key) return rows[i];
+        }
+      } catch (e) {}
+      return null;
+    }
     function tryGotrueDirectAuth(u, p, next) {
       var Sync = window.Studio && window.Studio.Sync;
       var src = window.Studio && window.Studio.supabaseSource;
@@ -251,7 +267,7 @@
         // GoTrue verified the password — now adopt the local identity for this uid.
         var adopt = function () {
           try { Auth.importFromStore(window.Studio.Workspace.all("users")); } catch (e) {}
-          var acct = findUserByGotrue(r.userId);
+          var acct = findUserByGotrue(r.userId) || findUserByEmail(u);
           if (acct) { finish(acct); return; }
           // GATE-FIX (Kevin live, 2026-07-31): the whole-workspace pull can be
           // GUARDED (dirty local edits from a failed-push episode) or the local
@@ -265,7 +281,7 @@
               try { window.Studio.Workspace.put("users", row, { silent: true }); } catch (e) {}
             });
             try { Auth.importFromStore(window.Studio.Workspace.all("users")); } catch (e) {}
-            var acct2 = findUserByGotrue(r.userId);
+            var acct2 = findUserByGotrue(r.userId) || findUserByEmail(u);
             if (acct2) finish(acct2); else next(false, "noaccount");
           }, function () { next(false, "noaccount"); });
         };
@@ -279,9 +295,16 @@
       if (!u) { fail("Enter a username."); return; }
       Auth.verify(u, p).then(function (okAuth) {
         if (okAuth) {
-          // DEMO-LOCAL: a demo sign-in is local-only — same rule as the button.
+          // DEMO-LOCAL / ADMIN-LOCAL (Kevin): admin/admin and demo/demo are the
+          // two LOCAL demo accounts. demo is strictly local ALWAYS. admin is
+          // strictly local on a GoTrue-auth workspace (Supabase — its real
+          // accounts are emails, so bare "admin" can only mean the local demo
+          // account); on a PROVISIONED custom workspace (Turso/local-auth
+          // model, M3.2) the seeded admin genuinely is that workspace's admin —
+          // forcing local there would leave custom workspaces with no admin.
           var la = Auth.find(u);
-          if (u === "demo" || (la && la.demo)) forceLocalWorkspace();
+          var st = (window.Studio && Studio.Sync && Studio.Sync.syncState) ? Studio.Sync.syncState() : null;
+          if (u === "demo" || (la && la.demo) || (u === "admin" && st && st.sourceId === "supabase")) forceLocalWorkspace();
           Auth.login(u); afterLogin(); return;
         }
         var known = !!Auth.find(u);

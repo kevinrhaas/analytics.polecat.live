@@ -130,13 +130,23 @@ DROP POLICY IF EXISTS polecat_insert ON public.users;
 DROP POLICY IF EXISTS polecat_update ON public.users;
 DROP POLICY IF EXISTS polecat_delete ON public.users;
 
+-- GATE-FIX-2 (2026-07-31): own row = gotrueId OR sign-in email (JWT claim) —
+-- gotrueId-only was circular: a row missing its stamp was invisible to its own
+-- verified user, and polecat_is_admin() needs the same stamp. See
+-- tools/supabase-deploy.sql § 4 for the full incident note.
 CREATE POLICY polecat_select ON public.users FOR SELECT TO authenticated USING (
-  (data::jsonb->>'gotrueId') = auth.uid()::text OR public.polecat_is_admin()
+  (data::jsonb->>'gotrueId') = auth.uid()::text
+  OR lower(data::jsonb->>'u') = lower(coalesce(auth.jwt()->>'email',''))
+  OR public.polecat_is_admin()
 );
 CREATE POLICY polecat_update ON public.users FOR UPDATE TO authenticated USING (
-  (data::jsonb->>'gotrueId') = auth.uid()::text OR public.polecat_is_admin()
+  (data::jsonb->>'gotrueId') = auth.uid()::text
+  OR lower(data::jsonb->>'u') = lower(coalesce(auth.jwt()->>'email',''))
+  OR public.polecat_is_admin()
 ) WITH CHECK (
-  (data::jsonb->>'gotrueId') = auth.uid()::text OR public.polecat_is_admin()
+  (data::jsonb->>'gotrueId') = auth.uid()::text
+  OR lower(data::jsonb->>'u') = lower(coalesce(auth.jwt()->>'email',''))
+  OR public.polecat_is_admin()
 );
 -- INSERT/DELETE: admin-only — provisioning is an admin action, and a brand-new
 -- self-signup row can't satisfy an owner check on itself yet.
