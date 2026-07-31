@@ -1516,7 +1516,11 @@ body.lib-dragging #preview{pointer-events:none}
 .sync-loss-banner{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:900;
   max-width:min(680px,calc(100vw - 28px));padding:10px 16px;border-radius:12px;
   background:color-mix(in srgb,var(--bad,#c0392b) 14%,var(--pane));border:1px solid color-mix(in srgb,var(--bad,#c0392b) 45%,transparent);
-  color:var(--ink);font-size:var(--fs-13);line-height:1.45;box-shadow:0 8px 28px rgba(0,0,0,.18)}
+  color:var(--ink);font-size:var(--fs-13);line-height:1.45;box-shadow:0 8px 28px rgba(0,0,0,.18);
+  display:flex;align-items:flex-start;gap:10px}
+.sync-loss-x{flex:0 0 auto;margin:-2px -6px 0 0;border:0;background:none;color:var(--muted);
+  font-size:var(--fs-13);line-height:1;padding:4px 6px;border-radius:8px;cursor:pointer}
+.sync-loss-x:hover{color:var(--ink);background:color-mix(in srgb,var(--bad,#c0392b) 18%,transparent)}
 .bd-ifr{width:100%;height:min(62vh,540px);border:1px solid var(--line);border-radius:12px;background:var(--pane)}
 /* VB-5: the cross-editor notice — shared look between the View Builder's
    #buildNotice and Quick Views' .xp-cross-note (a soft brand-tinted banner
@@ -2442,6 +2446,12 @@ body.simple-mode .da-acts{display:none!important}
 .cx-src-txt b{color:var(--ink);font-size:var(--fs-13)}
 .cx-src-txt small{color:var(--muted);font-size:var(--fs-12);line-height:1.45}
 .cx-src-txt .cx-badge{align-self:flex-start;color:var(--muted);border-color:var(--line)}
+/* BACKEND-FUTURE: planned-but-not-yet backends — visibly present, clearly inert */
+.cx-src-card.cx-src-future{opacity:.55;cursor:default;pointer-events:none}
+.cx-src-card.cx-src-future .cx-src-ic{color:var(--muted)}
+.cx-future-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;
+  border:1px solid var(--line);color:var(--muted);font-size:var(--fs-10,10px);font-weight:600;
+  text-transform:uppercase;letter-spacing:.04em;vertical-align:middle}
 .cx-wiz-head{display:flex;gap:10px;align-items:flex-start;margin-bottom:14px}
 .cx-wiz-ic{flex:0 0 auto;margin-top:2px}
 .cx-wiz-ttl b{display:block;color:var(--ink);font-size:var(--fs-14)}

@@ -116,6 +116,31 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **HOTLINK-1 + BANNER-DISMISS + BACKEND-FUTURE (v783, sw v418, 2026-07-31, steward):**
+  three queued Kevin asks in one slice.
+  - **HOTLINK-1 (app/gate.js):** the handout sign-in link —
+    `/app/#ws=WORKSPACE-ID&user=EMAIL&pass=PASSWORD` — is parsed and SCRUBBED
+    (history.replaceState) at the very top of gate.js's IIFE, before the gate renders;
+    only a hash STARTING with `#ws=` is treated as a hot link so `#share=`/`?dash=`
+    deep links are untouched. At gate render the captured link selects the workspace in
+    the picker (customs override packaged ids — the tests ride that to bind a mock),
+    binds it via the same connectWorkspace path, prefills #g-user/#g-pass (URL-decoded),
+    and swaps the demo hint for "just click Sign in". An unknown ws id gets an honest
+    ws-note. Docs: new "Invite hot links" section under Backends & sign-in (format,
+    URL-encoding, fragment-never-sent-to-servers, treat-like-a-password).
+  - **BANNER-DISMISS (#158 remainder, app/studio.js + studio.css):** the DURABLE-1
+    sync-loss banner gains a ✕. Dismissal is a session var scoped to the CURRENT
+    failure episode: while `lossShow` stays true the banner stays gone; the moment the
+    condition clears (push landed / went local) the dismissal resets, so the next
+    failure episode re-shows it. Banner is now flex (text + ✕ button).
+  - **BACKEND-FUTURE (app/studio.js + studio.css):** the connect picker's grid appends
+    3 greyed, inert `div.cx-src-card.cx-src-future` cards — PostgreSQL (PostgREST),
+    Cloudflare D1, MongoDB Atlas — each with a "Future" badge, aria-disabled,
+    pointer-events:none. Deliberately NOT in remoteMetaSources() so nothing else
+    (Admin backends list, access files, sync) can ever see an unconnectable source.
+  5 new regression checks (hot link prefill + scrub, banner episode lifecycle,
+  future cards inert while real ones stay buttons). Files: app/gate.js, app/studio.js,
+  app/studio.css, docs/index.html, sw.js, js/changelog.js, tests/run.js, STATUS.md.
 - **BOOT-FLASH follow-up — the standalone dashboard viewer also stamps theme pre-paint
   (v771, sw v407, 2026-07-30, steward):** #508 fixed the refresh-flash for the main app
   (`app/index.html`) but missed the second boot entry point, `app/viewer.html`

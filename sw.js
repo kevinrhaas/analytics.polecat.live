@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v417"; /* v417: ACTIVITY-1 + BRAND-LINK — NEW app/activity.js
+var CACHE_NAME = "studio-shell-v418"; /* v418: HOTLINK-1 + BANNER-DISMISS + BACKEND-FUTURE —
+   gate.js parses+scrubs a #ws=&user=&pass= invite fragment (workspace picked, fields
+   prefilled); the DURABLE-1 sync-loss banner gains a ✕ (episode-scoped dismissal,
+   studio.js/studio.css); the backend picker lists 3 greyed Future cards (PostgreSQL/
+   D1/MongoDB Atlas); docs/index.html documents the hot-link format. */
+/* v417: ACTIVITY-1 + BRAND-LINK — NEW app/activity.js
    (precached; loads after sources/sync.js): Studio.Activity logs sign-in/sign-out/
    session-end/dashboard-open/export to polecat_activity and the new topbar feedback
    button's reports to polecat_feedback (both via supabase.js insertRow with the

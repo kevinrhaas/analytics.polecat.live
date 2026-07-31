@@ -15827,6 +15827,80 @@ function serve() {
     ok("DEMO-LOCAL: 'Explore the demo' with a remote workspace picked/bound signs into demo AND forces the live workspace back to Local (sync source = local) — the demo can never read from or push to a real backend",
       demoLocal.gateGone && demoLocal.who === "demo" && demoLocal.sourceId === "local", JSON.stringify(demoLocal));
 
+    // ---- HOTLINK-1 (Kevin, 2026-07-31): the handout sign-in link —
+    // /app/#ws=ID&user=EMAIL&pass=PASSWORD picks the workspace, prefills both
+    // credential fields, and SCRUBS the fragment before the gate renders. ----
+    console.log("\n• HOTLINK-1: prefilled sign-in hot link");
+    const gpHot = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpHot.on("pageerror", (e) => errors.push("HOTLINK page: " + e.message));
+    await gpHot.addInitScript((port) => {
+      // a custom workspace with the packaged id OVERRIDES it (workspaceList's
+      // documented escape hatch) — so #ws=polecat binds the test mock, not the
+      // real database.
+      try { localStorage.setItem("studio-workspaces-custom", JSON.stringify([{ id: "polecat", label: "Polecat (test)", sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid" } }])); } catch (e) {}
+    }, PORT);
+    await gpHot.goto(`http://localhost:${PORT}/app/#ws=polecat&user=kevin%40example.com&pass=p%26w%2F1`, { waitUntil: "domcontentloaded" });
+    await gpHot.waitForSelector("#g-form", { timeout: 8000 });
+    await gpHot.waitForFunction(() => (document.getElementById("g-workspace") || {}).value === "polecat", { timeout: 6000 }).catch(() => {});
+    const hot = await gpHot.evaluate(() => ({
+      hash: location.hash,
+      ws: (document.getElementById("g-workspace") || {}).value,
+      user: (document.getElementById("g-user") || {}).value,
+      pass: (document.getElementById("g-pass") || {}).value,
+      hint: (document.getElementById("g-hint") || {}).textContent || ""
+    }));
+    await gpHot.close();
+    ok("HOTLINK-1: #ws=&user=&pass= selects the workspace in the picker and prefills username + password (URL-decoded), and the hint tells the recipient to just click Sign in",
+      hot.ws === "polecat" && hot.user === "kevin@example.com" && hot.pass === "p&w/1" && /Sign in/.test(hot.hint), JSON.stringify({ ws: hot.ws, user: hot.user, hint: hot.hint, passOk: hot.pass === "p&w/1" }));
+    ok("HOTLINK-1: the credential-bearing fragment is scrubbed from the URL before the gate renders (nothing to shoulder-read, bookmark, or re-share)",
+      hot.hash === "", JSON.stringify({ hash: hot.hash }));
+
+    // ---- BANNER-DISMISS (#158 remainder): the DURABLE-1 sync-loss banner gets a
+    // ✕ — dismissal is session-scoped to the CURRENT failure episode; a push
+    // landing (condition clears) re-arms it for the next episode. ----
+    const bannerDismiss = await page.evaluate(() => {
+      var render = window.__studioSyncLossBanner;
+      var failing = { isRemote: true, pendingEdits: true, pushFails: 3, lastError: "HTTP 500 during push" };
+      render(failing);
+      var shown = !!document.getElementById("syncLossBanner");
+      var xBtn = document.querySelector("#syncLossBanner .sync-loss-x");
+      var hasX = !!xBtn;
+      if (xBtn) xBtn.click();
+      var goneAfterX = !document.getElementById("syncLossBanner");
+      render(failing); // the SAME episode keeps failing — stays dismissed
+      var staysDismissed = !document.getElementById("syncLossBanner");
+      render({ isRemote: true, pendingEdits: false, pushFails: 0 }); // a push lands — episode over
+      render(failing); // a NEW failure episode — banner must come back
+      var backOnNewEpisode = !!document.getElementById("syncLossBanner");
+      render({}); // cleanup
+      var cleaned = !document.getElementById("syncLossBanner");
+      return { shown: shown, hasX: hasX, goneAfterX: goneAfterX, staysDismissed: staysDismissed, backOnNewEpisode: backOnNewEpisode, cleaned: cleaned };
+    });
+    ok("BANNER-DISMISS: the sync-loss banner has a ✕ that dismisses it for the CURRENT failure episode only — it stays gone while that episode continues, and reappears on the next failure episode after a successful push",
+      bannerDismiss.shown && bannerDismiss.hasX && bannerDismiss.goneAfterX && bannerDismiss.staysDismissed && bannerDismiss.backOnNewEpisode && bannerDismiss.cleaned,
+      JSON.stringify(bannerDismiss));
+
+    // ---- BACKEND-FUTURE (Kevin, 2026-07-31): the connect picker shows where the
+    // roster is headed — 3 planned backends, clearly greyed + inert. ----
+    await page.evaluate(function () { window.__studioOpenBackendWizard(); });
+    await page.waitForTimeout(120);
+    const futureCards = await page.evaluate(() => {
+      var cards = [].slice.call(document.querySelectorAll(".cx-src-card.cx-src-future"));
+      var real = [].slice.call(document.querySelectorAll("button.cx-src-card"));
+      return {
+        count: cards.length,
+        labels: cards.map(function (c) { return (c.querySelector("b") || {}).textContent || ""; }),
+        allInert: cards.every(function (c) { return c.tagName !== "BUTTON" && c.getAttribute("aria-disabled") === "true" && getComputedStyle(c).pointerEvents === "none"; }),
+        allBadged: cards.every(function (c) { return !!c.querySelector(".cx-future-badge"); }),
+        realStillButtons: real.length >= 2 && real.every(function (c) { return !c.classList.contains("cx-src-future"); })
+      };
+    });
+    await page.evaluate(function () { var x = document.querySelector(".modal-ov .x"); if (x) x.click(); });
+    await page.waitForTimeout(100);
+    ok("BACKEND-FUTURE: the backend picker lists PostgreSQL / Cloudflare D1 / MongoDB Atlas as greyed, inert 'Future' cards (badged, aria-disabled, pointer-events none) while the real backends stay clickable buttons",
+      futureCards.count === 3 && /PostgreSQL/.test(futureCards.labels[0]) && /Cloudflare D1/.test(futureCards.labels[1]) && /MongoDB Atlas/.test(futureCards.labels[2]) &&
+      futureCards.allInert && futureCards.allBadged && futureCards.realStillButtons, JSON.stringify(futureCards));
+
     // ---- GOLIVE-CARD (Kevin live, 2026-07-30): the Admin per-user-security card
     // reflects the DATABASE's real posture — after the RLS script was applied
     // manually, the "Go live" CTA kept showing forever. The probe contrast (anon

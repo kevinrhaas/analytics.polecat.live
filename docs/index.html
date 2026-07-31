@@ -1665,6 +1665,22 @@
   with people who should be able to sign in), and it deliberately strips the connection's own
   service sign-in — each teammate authenticates as themselves.</p>
 
+  <h3>Invite hot links (prefilled sign-in)</h3>
+  <p>For a hand-out that's even lighter than an access file, an admin can send a teammate a
+  <strong>hot link</strong> that pre-selects the workspace and prefills their credentials, so all
+  they do is click <strong>Sign in</strong>:</p>
+  <p><code>https://analytics.polecat.live/app/#ws=WORKSPACE-ID&amp;user=EMAIL&amp;pass=PASSWORD</code></p>
+  <p><code>ws</code> is the workspace's picker id (the packaged Polecat workspace is
+  <code>polecat</code>; <code>local</code> works too), and <code>user</code>/<code>pass</code> are
+  optional — include either or both. Values must be URL-encoded if they contain characters like
+  <code>@</code> or <code>&amp;</code> (an encoded <code>@</code> is <code>%40</code>). The
+  credentials ride the URL <em>fragment</em> (everything after <code>#</code>), which browsers never
+  send to any server, and the app scrubs it from the address bar the moment the page loads — it
+  won't sit in the location bar or be bookmarkable after that first load. Treat a hot link exactly
+  like the password it contains: share it over a channel you'd trust with the password itself, and
+  don't put one anywhere public. Links that carry a workspace this browser doesn't know prompt the
+  recipient to pick one or import an access file instead.</p>
+
   <h3>Adding users when connected to Supabase (in-app account provisioning)</h3>
   <p>Once the workspace backend is Supabase, the Admin page's <strong>+ Add user</strong> form
   gains an <strong>Email</strong> field and creates a real Supabase Auth (GoTrue) account via the

@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 783,
+    title: 'Invite hot links, a dismissible sync warning, and a peek at future backends',
+    kind: 'feature',
+    ts: '2026-07-31T01:51:18.000Z',
+    items: [
+      'Invite hot links: hand a teammate a single URL — /app/#ws=WORKSPACE&user=EMAIL&pass=PASSWORD — and the sign-in screen opens with the workspace picked and both fields filled; they just click Sign in. The credentials ride the URL fragment (never sent to any server) and are scrubbed from the address bar the moment the page loads. Treat a hot link like the password it carries — the Docs’ Backends & sign-in page has the format and the fine print.',
+      'The “changes aren’t reaching the backend” warning banner can now be dismissed with its new ✕ — for the current trouble episode only: once a save lands and syncing breaks again later, the banner returns.',
+      'The workspace-backend picker now shows where it’s headed: PostgreSQL (PostgREST), Cloudflare D1, and MongoDB Atlas appear as greyed “Future” cards alongside the backends you can connect today.',
+    ],
+  },
+  {
     v: 782,
     title: 'A feedback button in the top bar, a backend activity trail, and custom brand links',
     kind: 'feature',

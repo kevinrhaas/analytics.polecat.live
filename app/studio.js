@@ -368,17 +368,29 @@
       var _lastSyncErrToasted = "";
       // DURABLE-1: the persistent push-failure banner (see the onSync handler
       // below). Named + exposed so the suite can drive it with fabricated states.
+      var _lossDismissed = false; // session-scoped; resets when the failure episode ends
       function renderSyncLossBanner(st) {
         var lossBanner = document.getElementById("syncLossBanner");
         var lossShow = st && st.isRemote && st.pendingEdits && (st.pushFails || 0) >= 2;
-        if (!lossShow) { if (lossBanner) lossBanner.remove(); return; }
+        // BANNER-DISMISS: the episode is over the moment the condition clears (a
+        // push landed or we went local) — clear the dismissal so the NEXT failure
+        // episode gets a fresh banner. While the same episode continues, a
+        // dismissed banner stays dismissed.
+        if (!lossShow) { _lossDismissed = false; if (lossBanner) lossBanner.remove(); return; }
+        if (_lossDismissed) { if (lossBanner) lossBanner.remove(); return; }
         if (!lossBanner) {
           lossBanner = el("div"); lossBanner.id = "syncLossBanner"; lossBanner.className = "sync-loss-banner";
           document.body.appendChild(lossBanner);
         }
-        lossBanner.innerHTML = "<b>Your changes aren’t reaching the backend.</b> " +
+        lossBanner.innerHTML = "<span>" +
+          "<b>Your changes aren’t reaching the backend.</b> " +
           Studio.escapeHtml(st.lastError || "The workspace keeps rejecting pushes.") +
-          " Recent edits live only in this browser until a push succeeds — retrying automatically.";
+          " Recent edits live only in this browser until a push succeeds — retrying automatically.</span>" +
+          "<button type=\"button\" class=\"sync-loss-x\" title=\"Dismiss until the next sync problem\" aria-label=\"Dismiss\">✕</button>";
+        lossBanner.querySelector(".sync-loss-x").onclick = function () {
+          _lossDismissed = true;
+          lossBanner.remove();
+        };
       }
       window.__studioSyncLossBanner = renderSyncLossBanner; // test hook
       Studio.Sync.onSync(function (st) {
@@ -8042,6 +8054,25 @@
         txt.innerHTML = "<b>" + esc(src.label) + "</b><small>" + esc(src.blurb || "") + "</small>";
         cardEl.appendChild(ic); cardEl.appendChild(txt);
         cardEl.onclick = function () { credsStep(src); };
+        grid.appendChild(cardEl);
+      });
+      // BACKEND-FUTURE (Kevin): show where the backend roster is headed — real
+      // candidates (each can host the app's catalog over a REST surface), greyed
+      // and disabled until an adapter ships. Deliberately NOT in
+      // remoteMetaSources(): nothing else (Admin backends list, access files,
+      // sync) should ever see a source that can't connect.
+      [
+        { label: "PostgreSQL", blurb: "Your own Postgres, exposed over REST (PostgREST)." },
+        { label: "Cloudflare D1", blurb: "Serverless SQLite at the edge, via a Worker API." },
+        { label: "MongoDB Atlas", blurb: "Hosted MongoDB through the Atlas Data API." }
+      ].forEach(function (f) {
+        var cardEl = el("div", "cx-src-card cx-src-future");
+        var ic = el("span", "cx-src-ic"); ic.appendChild(Studio.icon("db", 22));
+        var txt = el("span", "cx-src-txt");
+        txt.innerHTML = "<b>" + esc(f.label) + " <span class=\"cx-future-badge\">Future</span></b><small>" + esc(f.blurb) + "</small>";
+        cardEl.appendChild(ic); cardEl.appendChild(txt);
+        cardEl.setAttribute("aria-disabled", "true");
+        cardEl.title = f.label + " support is planned — not available yet";
         grid.appendChild(cardEl);
       });
       b.appendChild(grid);
