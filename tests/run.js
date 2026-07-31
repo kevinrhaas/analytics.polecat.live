@@ -15808,7 +15808,11 @@ function serve() {
       var qAfter = JSON.parse(localStorage.getItem(Studio.Activity._queueKey) || "[]");
       var fb = calls.filter(function (c) { return c.table === "polecat_feedback"; })[0];
       var out = {
+        // NOTE: the manual flush() below often reports 0 because binding the
+        // connection ALREADY auto-flushed via the connected onSync event (the
+        // by-design path) — assert DELIVERY of the queued row, not who sent it.
         flushed: flushed, qAfter: qAfter.length,
+        queuedDelivered: calls.some(function (c) { return c.table === "polecat_activity" && c.row.action === "hx-test"; }),
         tables: calls.map(function (c) { return c.table; }),
         liveAction: (calls.filter(function (c) { return c.row.action === "hx-live"; })[0] || {}).table,
         fbKind: fb && fb.row.kind, fbMsg: fb && fb.row.message,
@@ -15819,8 +15823,8 @@ function serve() {
       localStorage.removeItem(Studio.Activity._queueKey);
       return out;
     });
-    ok("ACTIVITY-1: once a Supabase connection is live the queue flushes, live events insert directly, and a feedback report lands in polecat_feedback with kind + message + auto-captured context (version/viewport/UA)",
-      actFlush.flushed === 1 && actFlush.qAfter === 0 && actFlush.liveAction === "polecat_activity" &&
+    ok("ACTIVITY-1: once a Supabase connection is live the queued event is DELIVERED (auto-flush on connect), live events insert directly, and a feedback report lands in polecat_feedback with kind + message + auto-captured context (version/viewport/UA)",
+      actFlush.queuedDelivered && actFlush.qAfter === 0 && actFlush.liveAction === "polecat_activity" &&
       actFlush.fbKind === "bug" && actFlush.fbMsg === "it broke on the map" &&
       actFlush.fbCtx && actFlush.fbCtx.hasVersion && actFlush.fbCtx.hasViewport && actFlush.fbCtx.hasUa, JSON.stringify(actFlush));
     // C) the topbar button (right of What's-next) opens the tiny dialog; Send routes
