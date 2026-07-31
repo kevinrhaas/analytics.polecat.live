@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v423"; /* v423: SETTINGS-ROAM slice 1 — branding lives
+var CACHE_NAME = "studio-shell-v424"; /* v424: XP-UPDATE — Quick Views' Update View
+   preserves every analyses-row field the editor doesn't own (builder blob, kpi
+   when still a KPI, private, owner) via a prev-spread instead of a bare rebuild
+   — a builder-born map no longer blanks after Update; Quick View sections read
+   Data/Chart/Mapping/Result (app/explore.js). */
+/* v423: SETTINGS-ROAM slice 1 — branding lives
    in the SYNCED workspace settings (branding.js: workspace-first get/set, one-time
    local lift, re-apply on adopt); a signed-in account's theme prefs ride its own
    users row (studio.js saveUserPref/applyUserPrefs, applied in initAuthBoot; local

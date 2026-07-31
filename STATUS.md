@@ -116,6 +116,16 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **XP-UPDATE (v789, sw v424, 2026-07-31, steward — Kevin live):** "Update View" in
+  Quick Views rebuilt the analyses row from ONLY the fields that editor owns —
+  dropping `builder` (the VB blob that computes a cross-editor View's real rows;
+  Kevin's map went permanently blank after one Update), `kpi`, `private`, `owner`.
+  xpSave now spreads the previous row and overrides only what Quick Views edits
+  (`kpi` still removed when the chart type is no longer "kpi" — the VB-5
+  best-effort contract). Rode along: Quick View section headers are Data / Chart /
+  Mapping / Result (Kevin: drop "The"). 2 new checks (builder/private/owner survive
+  Update; header copy). Files: app/explore.js, sw.js, js/changelog.js,
+  tests/run.js, STATUS.md.
 - **SETTINGS-ROAM slice 1 (v788, sw v423, 2026-07-31, steward — Kevin: "all the admin
   settings and all of the user settings should be persisted to the database so i can
   login later from another browser and get my entire environment"):**
