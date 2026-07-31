@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v445"; /* v445: LF53-CODE — dead CDE registry
+var CACHE_NAME = "studio-shell-v446"; /* v446: SORT-1 — sort control on every
+   catalog panel (studio.js, datasets.js, connections.js, jobs.js, views.js,
+   index.html, studio.css + docs changed). */
+/* v445: LF53-CODE — dead CDE registry
    metadata + cdeUnsupported deleted; exportCDF/parseCDFHtml renamed to
    exportDashboardHtml/parseDashboardHtml (model.js, studio-charts.js,
    exporters.js, studio.js, studio-render.js changed). */

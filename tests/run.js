@@ -9955,6 +9955,45 @@ function serve() {
     });
     await page.waitForTimeout(100);
 
+    // SORT-1 (Kevin live): standard sorting on every catalog panel — one shared
+    // Studio.catalogSort kit, a header <select> per section, per-device persistence,
+    // pinned-first preserved within any sort.
+    const sort1 = await page.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      var W = Studio.Workspace, out = {};
+      W.put("datasets", { id: "srt-a", name: "aaa_srt", kind: "sql", sql: "x" }, { silent: true });
+      W.put("datasets", { id: "srt-z", name: "zzz_srt", kind: "sql", sql: "x", pinned: true, pinnedAt: new Date().toISOString() }, { silent: true });
+      window.__studioRenderDatasets();
+      await sleep(150);
+      var sel = document.getElementById("dsxSortSel");
+      out.selShape = !!sel && sel.options.length === 6 && sel.value === "updated-desc";
+      function names() { return [].slice.call(document.querySelectorAll("#dsxResults .cx-name b")).map(function (b) { return b.textContent; }); }
+      sel.value = "name-asc"; sel.onchange();
+      await sleep(200);
+      var n = names();
+      // pinned zzz_srt stays FIRST even under Name A–Z; the unpinned rest is A–Z sorted
+      out.pinnedFirst = n[0] === "zzz_srt";
+      var unpinned = n.slice(1).map(function (x) { return x.toLowerCase(); });
+      out.nameAscApplied = unpinned.indexOf("aaa_srt") >= 0 &&
+        unpinned.every(function (x, i) { return i === 0 || unpinned[i - 1].localeCompare(x) <= 0; });
+      out.persisted = localStorage.getItem("studio-sort-datasets") === "name-asc";
+      // the choice survives a full re-render (idempotent wire restores the value)
+      window.__studioRenderDatasets();
+      await sleep(150);
+      out.valueRestored = document.getElementById("dsxSortSel").value === "name-asc";
+      // every other catalog section has its select too
+      out.allSelects = ["dashSortSel", "jobsSortSel", "connSortSel", "viewsSortSel", "repoSortSel"].every(function (id) { return !!document.getElementById(id); });
+      // cleanup
+      try { localStorage.removeItem("studio-sort-datasets"); } catch (e) {}
+      W.remove("datasets", "srt-a", { silent: true }); W.remove("datasets", "srt-z", { silent: true });
+      W.notify("datasets");
+      return out;
+    });
+    ok("SORT-1: the Datasets header gains a persisted sort select (6 options, Newest-first default) and Name A–Z reorders the list",
+      sort1.selShape && sort1.nameAscApplied && sort1.persisted && sort1.valueRestored, JSON.stringify(sort1));
+    ok("SORT-1: pinned items stay first within any sort, and every catalog section carries its own sort select",
+      sort1.pinnedFirst && sort1.allSelects, JSON.stringify(sort1));
+
     // LIVE-d (slice 2): multi-select + bulk delete on Connections — same shape slice 1
     // proved on Datasets (session-only select mode, checkbox overlay, bulk bar with
     // Select all/Clear/Delete). Two throwaway connections keep this from touching the

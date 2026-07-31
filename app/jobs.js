@@ -221,7 +221,16 @@
       };
     }
     var q = (($("#jobsSearch") || {}).value || "").toLowerCase();
-    var list = Studio.Workspace.all("jobs").filter(isVisibleToMe).sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
+    // SORT-1: header sort <select> — same idempotent-binding convention as the toggles.
+    var _jobsSortKey = Studio.catalogSort.wire($("#jobsSortSel"), "jobs", "updated-desc", [
+      ["updated-desc", "Newest first"], ["updated-asc", "Oldest first"],
+      ["name-asc", "Name A–Z"], ["name-desc", "Name Z–A"],
+      ["lastrun", "Last run"]
+    ], renderJobs);
+    var jobsSortCmp = Studio.catalogSort.cmp(_jobsSortKey, { extras: {
+      lastrun: function (a, b) { return ((b.lastRun && b.lastRun.at) || 0) - ((a.lastRun && a.lastRun.at) || 0); }
+    } });
+    var list = Studio.Workspace.all("jobs").filter(isVisibleToMe).sort(jobsSortCmp);
     // drop any selected id that no longer exists/is visible (deleted elsewhere) so a
     // stale entry can't inflate the bulk-bar count or survive a bulk delete — same
     // pruning renderDatasets/renderConnections do for their own selection sets.

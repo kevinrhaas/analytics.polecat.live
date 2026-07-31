@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 812,
+    title: 'Sort every catalog page — by name, date, workbook, adapter, and more',
+    kind: 'feature',
+    ts: '2026-07-31T12:51:53.000Z',
+    items: [
+      'Dashboards, Views, Datasets, Connections, Jobs and the Repository each gain a compact sort control beside the layout toggle: Newest first (the default, exactly the old order), Oldest first, and Name A-Z / Z-A everywhere -- plus the sorts each page deserves: Dashboards by workbook or folder, Datasets by adapter or connection, Views by chart type, Jobs by last run.',
+      'Your choice is remembered per page on this device, and pinned items always stay at the top whatever the sort. In the Repository, sorting applies inside each folder group.',
+    ],
+  },
+  {
     v: 811,
     title: 'Under the hood: the last of the legacy Pentaho-era code is gone',
     kind: 'polish',
