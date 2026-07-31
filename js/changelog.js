@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 797,
+    title: 'Drop a file on the View Builder — get a dataset and an instant chart',
+    kind: 'feature',
+    ts: '2026-07-31T06:22:06.000Z',
+    items: [
+      'Drag a CSV, TSV, or JSON file anywhere onto the View Builder: it becomes a real dataset (in your Datasets list, like any other) and the builder inspects the columns and pops the most interesting view straight onto the canvas — a map for geographic ids, a trend line for time data (with a color split when a small category column exists), bars for categories, or the raw table when nothing pairs up.',
+      'The shelves arrive pre-filled, so you can keep editing from the auto-pick — or hit Save View to keep it.',
+    ],
+  },
+  {
     v: 796,
     title: 'View Builder: switching datasets no longer loses your work',
     kind: 'feature',

@@ -1530,6 +1530,13 @@ body.lib-dragging #preview{pointer-events:none}
 .bd-flt-row:hover{background:var(--field)}
 .bd-flt input[type="number"]{flex:1;box-sizing:border-box}
 .bd-charts{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:var(--sp-8)}
+/* VB-DROP: full-section file drop target overlay */
+#secBuild{position:relative}
+.bd-drop-ov{position:absolute;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;
+  background:color-mix(in srgb,var(--brand) 10%,transparent);border:2px dashed var(--brand);border-radius:12px;pointer-events:none}
+.bd-drop-msg{background:var(--pane);border:1px solid var(--brand);border-radius:12px;padding:var(--sp-16) var(--sp-24);
+  font-size:var(--fs-15);font-weight:700;color:var(--ink);text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.18)}
+.bd-drop-msg small{display:block;margin-top:4px;font-size:var(--fs-12);font-weight:500;color:var(--muted)}
 /* VB-14: per-dataset draft affordances — the outline dot + the Clear-canvas button */
 .bd-draft-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--brand);margin-left:6px;vertical-align:middle;flex:none}
 .bd-clear{margin-left:auto;background:none;border:1px solid var(--line);border-radius:9px;color:var(--muted);
