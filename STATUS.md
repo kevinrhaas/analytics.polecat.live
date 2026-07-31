@@ -116,6 +116,25 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **DURABLE-2 (v799, sw v434, 2026-07-31, steward — generalizes v786/787's
+  users-wipe fixes to every table):** deletion TOMBSTONES. Workspace.remove
+  writes meta.tombstones["<table>|<id>"] = Date.now() (users EXCLUDED — account
+  removal stays the Admin flow's explicit deleteRows, v787); put() revokes the
+  tombstone (re-creation wins); replaceAll merges local∪incoming tombstones
+  (newest wins), prunes >30 days, and drops any adopted row whose tombstone is
+  >= its updatedAt (an older device's snapshot can't resurrect a deleted row;
+  a re-created row has a newer updatedAt and lives). supabase.js save() now
+  deletes ONLY tombstoned ids (targeted id=in. chunks) — ABSENCE IS NOT
+  DELETION: a stale mirror that never saw another device's rows has no
+  tombstones for them and can no longer target-delete them (the fntest class
+  is structurally impossible for ALL tables now). Bonus: the per-table
+  ?select=id remote diff is retired (faster pushes), and deleting a table's
+  LAST row finally propagates (the v786 trade-off dies). Tombstones ride
+  snapshot.meta through push/pull/export automatically. USERS-DURABLE suite
+  block rewritten to the strictly-safer contract + a new store-half check
+  (tombstone lifecycle, users exclusion, put-revoke, adoption stays-dead /
+  re-created-lives). Files: app/sources/workspace.js, app/sources/supabase.js,
+  tests/run.js, js/changelog.js v799, sw v434.
 - **SETTINGS-ROAM slice 2 (v798, sw v433, 2026-07-31, steward — completes
   Kevin's "get my entire environment ... history, favorites, recents"):** the
   remaining per-user chrome roams as ONE prefs.ls blob on the signed-in
@@ -7780,9 +7799,11 @@
 >    wanted): shell rail open/width keys (shell-owned storage), per-user
 >    dashboard defaults (Defaults module has its own store), VB draft-map
 >    roaming (growth risk — deliberate skip).
-> 4. **DURABLE-2 ★:** deletion tombstones for the non-users tables (a stale
->    admin mirror can still target-delete rows it never saw — users is already
->    upsert-only, v787; the general cure is tombstoned deletes like relay's).
+> 4. ~~DURABLE-2 ★~~ **SHIPPED v799 (this session, 2026-07-31 ~06:50Z — see
+>    DONE). ALL session claims (0–6) are now shipped** — the automated lane
+>    may treat the whole NEXT backlog as open (the DO-NOT-TOUCH list below
+>    still stands, now including the tombstone semantics: absence is never
+>    deletion, users has no sync deletes).
 > 5. ~~VB-14~~ **SHIPPED v796 (this session, 2026-07-31 ~05:55Z — see DONE).**
 > 6. ~~VB-DROP~~ **SHIPPED v797 (this session, 2026-07-31 ~06:25Z — see DONE).**
 >    Excel (.xlsx) deferred — needs a vendored parser; a future slice if

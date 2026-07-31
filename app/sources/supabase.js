@@ -462,56 +462,47 @@
         // re-insert is then refused (users INSERT policy is admin-only), the
         // wipe sticks, and with zero users rows NOBODY is admin, so no client
         // can ever repair it. It emptied the live users table twice tonight.
-        // New shape for EVERY table:
+        // DURABLE-2 shape for EVERY table (generalizes USERS-DURABLE):
         //   1) UPSERT the local rows FIRST — privilege state never vanishes
         //      mid-push;
-        //   2) then delete ONLY the specific remote rows absent locally
-        //      (read ids, targeted id=in.(…) deletes, chunked);
-        //   3) NEVER delete anything when the local table is EMPTY — an empty
-        //      mirror must not be able to wipe a table it never saw. (The
-        //      accepted trade-off: deleting a table's LAST row doesn't
-        //      propagate; the next push with ≥1 row reconciles.)
+        //   2) then delete ONLY ids the workspace explicitly TOMBSTONED
+        //      (meta.tombstones, written by Workspace.remove and synced in
+        //      the snapshot). ABSENCE IS NOT DELETION — a stale mirror that
+        //      never saw another device's rows has no tombstones for them,
+        //      so it can no longer target-delete them as "stale" (the exact
+        //      class that killed the freshly-provisioned fntest account).
+        //      This also retires the per-table ?select=id read the old
+        //      remote-vs-local diff needed, and the old trade-off where
+        //      deleting a table's LAST row never propagated.
+        //   3) users stays UPSERT-ONLY with NO deletes ever (v787) — account
+        //      removal is only the Admin flow's explicit deleteRows().
         chain = chain.then(function () {
           var rows = byTable[t].map(function (rec) {
             var o = { id: rec.id, data: rec.data };
             Object.keys(rec.cols).forEach(function (k) { o[k] = rec.cols[k]; });
             return o;
           });
-          if (!rows.length) return null; // nothing local → push nothing, DELETE NOTHING
-          var localIds = {};
-          rows.forEach(function (r) { localIds[String(r.id)] = 1; });
-          return rest(cfg, "/" + t, { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify(rows) }).then(mustOk(t))
-            .then(function () {
-              // USERS-DURABLE 2 (Kevin live, minutes after the first fix): the
-              // users table is UPSERT-ONLY in sync. Even TARGETED deletes are
-              // unsafe from an admin device whose mirror is behind — Kevin's
-              // main session target-deleted the freshly-provisioned fntest row
-              // as "stale" minutes after the Edge Function created it. Account
-              // removal is an EXPLICIT admin action: the Admin remove-user flow
-              // calls deleteRows() directly at click time instead.
-              if (t === "users") return null;
-              return rest(cfg, "/" + t + "?select=id");
-            })
-            .then(function (r) {
-              if (!r || r.ok === false) return []; // users, or can't read ids → skip deletes (safe)
-              return r.json();
-            })
-            .then(function (remote) {
-              var stale = [];
-              (remote || []).forEach(function (x) {
-                if (x && x.id != null && !localIds[String(x.id)]) stale.push(String(x.id));
-              });
-              var dp = Promise.resolve();
-              for (var i = 0; i < stale.length; i += 40) {
-                (function (chunk) {
-                  dp = dp.then(function () {
-                    var list = chunk.map(function (id) { return "%22" + encodeURIComponent(id) + "%22"; }).join(",");
-                    return rest(cfg, "/" + t + "?id=in.(" + list + ")", { method: "DELETE" }).then(mustOk(t));
-                  });
-                })(stale.slice(i, i + 40));
-              }
-              return dp;
-            });
+          var upsert = rows.length
+            ? rest(cfg, "/" + t, { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify(rows) }).then(mustOk(t))
+            : Promise.resolve(null);
+          return upsert.then(function () {
+            if (t === "users") return null;
+            var tombs = (snapshot.meta && snapshot.meta.tombstones) || {};
+            var prefix = t + "|";
+            var dead = Object.keys(tombs)
+              .filter(function (k) { return k.indexOf(prefix) === 0; })
+              .map(function (k) { return k.slice(prefix.length); });
+            var dp = Promise.resolve();
+            for (var i = 0; i < dead.length; i += 40) {
+              (function (chunk) {
+                dp = dp.then(function () {
+                  var list = chunk.map(function (id) { return "%22" + encodeURIComponent(id) + "%22"; }).join(",");
+                  return rest(cfg, "/" + t + "?id=in.(" + list + ")", { method: "DELETE" }).then(mustOk(t));
+                });
+              })(dead.slice(i, i + 40));
+            }
+            return dp;
+          });
         });
       });
       return chain.then(function () {

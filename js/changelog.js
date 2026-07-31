@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 799,
+    title: 'Deletes now sync safely everywhere — and nothing else can be mistaken for one',
+    kind: 'fix',
+    ts: '2026-07-31T06:49:56.000Z',
+    items: [
+      'Deleting a dashboard, dataset, connection, job, or View now records an explicit deletion marker that syncs with your workspace — so the delete propagates to every device, including the last row of a table (which previously never did).',
+      'The flip side is the real fix: a device whose mirror is behind can no longer wipe rows it simply never saw. Sync only ever deletes what was explicitly deleted — absence is not deletion. Old markers clean themselves up after 30 days, and re-creating something deleted always wins.',
+      'User accounts remain fully exempt: sync never deletes an account under any circumstances — removal is only ever the explicit Admin action.',
+    ],
+  },
+  {
     v: 798,
     title: 'Your whole environment follows your sign-in now',
     kind: 'feature',

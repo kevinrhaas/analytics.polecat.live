@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v433"; /* v433: SETTINGS-ROAM slice 2 — the
+var CACHE_NAME = "studio-shell-v434"; /* v434: DURABLE-2 — deletion
+   tombstones: Workspace.remove records meta.tombstones[table|id] (users
+   excluded), put revokes, replaceAll merges local∪incoming (newest wins,
+   30-day prune) and never resurrects a tombstoned row older than its stone;
+   supabase save() deletes ONLY tombstoned ids — absence is not deletion, the
+   ?select=id remote diff is retired, last-row deletes finally propagate
+   (workspace.js + supabase.js). */
+/* v433: SETTINGS-ROAM slice 2 — the
    per-user chrome roams as one prefs.ls blob on the account's users row
    (curated ROAM_LS_KEYS: simple mode, restore opt-in, panels default, sample
    visibility, pane/canvas sizes, view toggles); captured on a 60s interval +
