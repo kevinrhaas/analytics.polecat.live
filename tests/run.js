@@ -22493,6 +22493,44 @@ function serve() {
     ok("Track H: myDACard's Duplicate/Delete buttons' hover title also names the data source",
       daA11y.found && daA11y.dupTitle === "Duplicate qa05LibDa" && daA11y.delTitle === "Delete qa05LibDa", JSON.stringify(daA11y));
 
+    // Track H sweep (2026-07-31, round 2): the QA-05/myDACard fix above covers "My Data
+    // Sources", but the library's OTHER stem-grouped catalog cards (daCard(), the "My
+    // queries" group — one per AUTHORED query, same ambiguous-duplicate shape) still had
+    // a bare "Edit data source"/"Delete data source" title and NO aria-label at all —
+    // worse than myDACard's pre-fix gap, and never caught by that sweep since it's a
+    // separate render function. Seed two authored queries under one stem so the bug
+    // (identical accessible name/tooltip on every card) would be visible if unfixed.
+    const daCardA11y = await page.evaluate(function () {
+      var cat = window.__STUDIO_STATE.catalog;
+      cat.trackH2Seed = { file: "trackH2Seed.cda", dataAccesses: [
+        { id: "th2_a", name: "Cover Crop Trend", authored: true, kind: "sql", sql: "select 1 a", columns: ["a"], params: [] },
+        { id: "th2_b", authored: true, kind: "sql", sql: "select 1 b", columns: ["b"], params: [] }
+      ] };
+      window.__studioBuildLibrary();
+      var stem = document.querySelector('.lib-cda[data-stem="trackH2Seed"]');
+      if (stem) stem.classList.add("open");
+      var cards = stem ? [].slice.call(stem.querySelectorAll(".da")) : [];
+      function acts(c) { return { edit: c.querySelector('[data-a="edit"]'), del: c.querySelector('[data-a="del"]') }; }
+      var a = cards[0] && acts(cards[0]), b = cards[1] && acts(cards[1]);
+      var out = {
+        found: cards.length === 2,
+        aEditTitle: a && a.edit && a.edit.title, aEditLabel: a && a.edit && a.edit.getAttribute("aria-label"),
+        aDelTitle: a && a.del && a.del.title, aDelLabel: a && a.del && a.del.getAttribute("aria-label"),
+        bEditTitle: b && b.edit && b.edit.title, bDelTitle: b && b.del && b.del.title
+      };
+      delete window.__STUDIO_STATE.catalog.trackH2Seed;
+      window.__studioBuildLibrary();
+      return out;
+    });
+    ok("Track H sweep (round 2): daCard's Edit/Delete buttons (library 'My queries' group) name the specific data source in both title and aria-label",
+      daCardA11y.found && daCardA11y.aEditTitle === "Edit data source Cover Crop Trend" &&
+      daCardA11y.aEditLabel === "Edit data source Cover Crop Trend" &&
+      daCardA11y.aDelTitle === "Delete data source Cover Crop Trend" &&
+      daCardA11y.aDelLabel === "Delete data source Cover Crop Trend", JSON.stringify(daCardA11y));
+    ok("Track H sweep (round 2): a sibling daCard with no d.name falls back to its id, and two cards in the same group get DISTINCT accessible names",
+      daCardA11y.found && daCardA11y.bEditTitle === "Edit data source th2_b" && daCardA11y.bDelTitle === "Delete data source th2_b" &&
+      daCardA11y.bEditTitle !== daCardA11y.aEditTitle, JSON.stringify(daCardA11y));
+
     // Track H sweep (2026-07-31): the Inspector's shared delBtn() helper (KPIs/filters/panels/
     // columns/params/calc columns/output filters/sort rules/union members, plus versions.js's
     // Builder notes) said the bare "Delete" with NO aria-label at all -- worse than myDACard's gap
