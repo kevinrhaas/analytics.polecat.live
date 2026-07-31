@@ -361,7 +361,7 @@
        resulting auto-built dashboard open in the builder. -->
   <figure class="fig-slot has-img"><img src="img/quickimport.png" alt="Home&#8217;s quick-action cards, with Quick import highlighted as a file drop target" loading="lazy"/><figcaption>Quick import: drop a file, get a dashboard</figcaption></figure>
   <p>Home's <strong>Quick import</strong> card is the fastest way in with your own data. Drop a
-  <code>.csv</code> or <code>.json</code> onto it (or click to browse) and the app:</p>
+  <code>.csv</code>, <code>.json</code>, or <code>.xlsx</code> (Excel — its first worksheet is read) onto it (or click to browse) and the app:</p>
   <ul>
     <li><strong>Profiles every column</strong> — recognizing map fields, dates, measures, and
       categories from names and values — and saves the file as a real dataset (a "Quick imports"
@@ -652,7 +652,7 @@
   200 to 480px when long dataset names get cut off — the width sticks across visits. The chevron
   in its header collapses the whole panel to a slim vertical strip (more room for the canvas);
   click the strip to bring it back.</p>
-  <p><strong>Drop a file to start instantly.</strong> Drag a CSV, TSV, or JSON file anywhere onto
+  <p><strong>Drop a file to start instantly.</strong> Drag a CSV, TSV, JSON, or Excel (.xlsx) file anywhere onto
   the View Builder: it becomes a real dataset (it appears in your Datasets list like any other)
   and the builder inspects the columns and opens the most interesting view on the canvas — a map
   for geographic ids, a trend line for time data (color-split when a small category column
@@ -1430,7 +1430,7 @@
   <h3>Workspace connections: CSV / JSON files</h3>
   <p>The <strong>CSV / JSON file</strong> adapter is the fastest way from a file on disk to a
   chart: add a file connection (nothing to configure), create a dataset on it, and drop a
-  <code>.csv</code>, <code>.tsv</code>, or <code>.json</code> onto the editor's drop zone.</p>
+  <code>.csv</code>, <code>.tsv</code>, <code>.json</code>, or <code>.xlsx</code> onto the editor's drop zone (an Excel file's first worksheet is read — values only, dates as Excel serial numbers).</p>
   <ul>
     <li>The file's data is stored <em>inside the dataset</em> — fully offline, no re-picking after
       a reload, and it travels with your workspace (including to a remote backend).</li>

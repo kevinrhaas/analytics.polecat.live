@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 824,
+    title: 'Drop an Excel file — .xlsx joins every file-import path',
+    kind: 'feature',
+    ts: '2026-07-31T15:45:52.000Z',
+    items: [
+      'The View Builder canvas, Home\'s Quick import, and the dataset editor\'s drop zone all accept .xlsx now: the first worksheet converts to tabular data on the spot and flows through the exact same pipeline as a CSV -- profiled, charted, and saved as a real dataset.',
+      'The reader handles shared and rich-text strings, numbers, booleans and formula results (cached values); dates arrive as Excel serial numbers for now, and extra worksheets beyond the first are ignored. An unreadable file explains itself instead of failing silently.',
+    ],
+  },
+  {
     v: 823,
     title: 'The welcome tour finally introduces the View Builder',
     kind: 'polish',

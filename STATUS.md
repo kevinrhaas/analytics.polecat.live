@@ -116,6 +116,21 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF24-XLSX — Excel (.xlsx) joins every file-import path (v824, sw v456,
+  2026-07-31, steward — closes LF24's deferred half "needs a vendored
+  parser"):** NEW vendor/fflate.js (fflate 0.8.2 UMD, MIT, ~32KB, attribution
+  header; unzipSync only) + NEW app/xlsx.js — `Studio.xlsxToCSV(buf)` reads
+  the FIRST worksheet (workbook.xml order via rels, sheet1 fallback):
+  sharedStrings incl. rich-text runs/entities, inline strings, numbers,
+  TRUE/FALSE booleans, cached formula results; CSV-escaped; plain-message
+  throws. `Studio.readTabularFile(file)` is the shared intake front door —
+  .xlsx converts to CSV up front so file datasets stay TEXT and NOTHING
+  downstream changes. Wired: bdDropFile (View Builder canvas), quickImportFile
+  (Home Quick import), datasets.js editor drop zone (+ all accept attrs).
+  Both new files precached (sw v456). Limitations documented in Help: first
+  sheet only, values only, dates as Excel serials. 2 new checks (exact CSV
+  conversion incl. escaping/rich-text; real drop → csv-format file dataset +
+  plain-message rejection). Lane: skip LF24-XLSX — done here.
 - **TOUR-WOW slice 1 — View Builder joins the welcome + overview tour;
   hero motion polish (v823, sw v455, 2026-07-31, steward — Kevin live: "i
   hope you will make this more impressive... the whole tour thing is on
