@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 786,
+    title: 'Critical fix: syncing can no longer wipe the workspace’s users table',
+    kind: 'fix',
+    ts: '2026-07-31T02:39:13.000Z',
+    items: [
+      'The workspace push replaced each backend table by deleting every row and re-inserting the device’s local copy. On the users table, under per-user security, that self-destructed: the delete removed the very row that made the pusher an admin, the re-insert was then refused, and the wipe stuck — with zero users rows nobody is admin, so no device could repair it. The live workspace’s users table was emptied twice tonight this way. Pushes now upsert first, then delete only the specific rows a device actually removed — and a device with an empty local table never deletes anything.',
+      'Sign-in self-heals a broken account link: if your users row is missing its auth-ID stamp, the gate now matches you by your verified sign-in email and stamps the ID for next time. The database policies gained the matching email rule (run the updated tools/supabase-deploy.sql § 4 once on an existing environment).',
+      'admin/admin joins demo/demo as the two LOCAL demo accounts: the sign-in hint names both, signing into either on a Supabase workspace switches back to the Local workspace (a demo session can never touch a real backend), and a browser store missing either account restores it on boot. On a custom workspace you provisioned yourself, the seeded admin still administers that workspace.',
+      'Fix (follow-up to the export-data fix): a dashboard whose data source is a bound connection (Turso, PostgREST, Supabase, Google Sheets, Redshift…) exports live-querying again — the snapshot no longer shadows it.',
+    ],
+  },
+  {
     v: 785,
     title: 'Fix: exported dashboards carry their data — no more blank charts on upload',
     kind: 'fix',

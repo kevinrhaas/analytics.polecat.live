@@ -455,17 +455,53 @@
         };
       }
       WS.TABLE_NAMES.forEach(function (t) {
-        // replace-all: clear then bulk upsert (metadata-sized, so this is fine)
+        // USERS-DURABLE (Kevin live, 2026-07-31): the old shape here was
+        // DELETE-ALL then bulk insert. On the users table, under the admin-arm
+        // RLS posture, that SELF-DESTRUCTS: the delete succeeds (pusher is
+        // admin), which removes the very row that made them admin — the
+        // re-insert is then refused (users INSERT policy is admin-only), the
+        // wipe sticks, and with zero users rows NOBODY is admin, so no client
+        // can ever repair it. It emptied the live users table twice tonight.
+        // New shape for EVERY table:
+        //   1) UPSERT the local rows FIRST — privilege state never vanishes
+        //      mid-push;
+        //   2) then delete ONLY the specific remote rows absent locally
+        //      (read ids, targeted id=in.(…) deletes, chunked);
+        //   3) NEVER delete anything when the local table is EMPTY — an empty
+        //      mirror must not be able to wipe a table it never saw. (The
+        //      accepted trade-off: deleting a table's LAST row doesn't
+        //      propagate; the next push with ≥1 row reconciles.)
         chain = chain.then(function () {
-          return rest(cfg, "/" + t + "?id=not.is.null", { method: "DELETE" }).then(mustOk(t));
-        }).then(function () {
           var rows = byTable[t].map(function (rec) {
             var o = { id: rec.id, data: rec.data };
             Object.keys(rec.cols).forEach(function (k) { o[k] = rec.cols[k]; });
             return o;
           });
-          if (!rows.length) return null;
-          return rest(cfg, "/" + t, { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify(rows) }).then(mustOk(t));
+          if (!rows.length) return null; // nothing local → push nothing, DELETE NOTHING
+          var localIds = {};
+          rows.forEach(function (r) { localIds[String(r.id)] = 1; });
+          return rest(cfg, "/" + t, { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify(rows) }).then(mustOk(t))
+            .then(function () { return rest(cfg, "/" + t + "?select=id"); })
+            .then(function (r) {
+              if (!r || r.ok === false) return []; // can't read ids → skip deletes (safe)
+              return r.json();
+            })
+            .then(function (remote) {
+              var stale = [];
+              (remote || []).forEach(function (x) {
+                if (x && x.id != null && !localIds[String(x.id)]) stale.push(String(x.id));
+              });
+              var dp = Promise.resolve();
+              for (var i = 0; i < stale.length; i += 40) {
+                (function (chunk) {
+                  dp = dp.then(function () {
+                    var list = chunk.map(function (id) { return "%22" + encodeURIComponent(id) + "%22"; }).join(",");
+                    return rest(cfg, "/" + t + "?id=in.(" + list + ")", { method: "DELETE" }).then(mustOk(t));
+                  });
+                })(stale.slice(i, i + 40));
+              }
+              return dp;
+            });
         });
       });
       return chain.then(function () {

@@ -853,7 +853,17 @@
   var REAL_DA_KINDS = { duckdb: 1, httpvfs: 1, snowflake: 1, databricks: 1, bigquery: 1, http: 1 };
   var REAL_CONN_ADAPTERS = { turso: 1, postgrest: 1, supabase: 1, gsheets: 1, file: 1, redshift: 1 };
   Studio.daHasRealEngine = function (da) {
-    return !!(da && (REAL_DA_KINDS[da.kind] || (da.connAdapter && REAL_CONN_ADAPTERS[da.connAdapter])));
+    if (!da) return false;
+    if (REAL_DA_KINDS[da.kind] || (da.connAdapter && REAL_CONN_ADAPTERS[da.connAdapter])) return true;
+    // A connection-bound DA carries only connectionId in the RAW spec —
+    // da.connAdapter is stamped later, by redactSecrets, on the redacted clone.
+    // Resolve the workspace connection the same way redactSecrets does, or a
+    // live-queryable DA would be wrongly shadowed by the export snapshot.
+    if (da.connectionId && Studio.Workspace) {
+      var conn = Studio.Workspace.get("connections", da.connectionId);
+      if (conn && REAL_CONN_ADAPTERS[conn.adapter]) return true;
+    }
+    return false;
   };
   // The DASHKIT_MOCK an export should carry: deterministic sample rows for JUST
   // the engine-less DAs (live engines stay live — the mock never shadows them),

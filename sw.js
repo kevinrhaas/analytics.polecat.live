@@ -5,7 +5,15 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v420"; /* v420: EXPORT-1 — exported HTML carries a data
+var CACHE_NAME = "studio-shell-v421"; /* v421: USERS-DURABLE + GATE-FIX-2 + ADMIN-LOCAL —
+   the push is upsert-first with targeted stale-row deletes (never delete-all;
+   an empty local table deletes nothing — the users-wipe class is dead,
+   supabase.js); the gate adopts by verified sign-in email when the gotrueId
+   stamp is missing and stamps it (gate.js); admin/admin joins demo/demo as the
+   strictly-local demo accounts w/ self-healing seed (gate.js, auth.js);
+   daHasRealEngine resolves connectionId so connection-bound DAs aren't
+   shadowed by the EXPORT-1 snapshot (exporters.js). */
+/* v420: EXPORT-1 — exported HTML carries a data
    snapshot for engine-less DAs: Studio.exportMock in exporters.js (shared engine
    classifier moved from viewer.js; genMock subset + Build.specMocks overlay),
    exportCDF/PDF pass it, the two embed paths warm the builder cache first
