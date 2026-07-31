@@ -16409,6 +16409,110 @@ function serve() {
     ok("PACK-FEATURED: with nothing featured, the pack's watershed (HUC8) geo dashboard becomes Home's featured tile — and a workspace with an existing featured choice is left alone",
       packFeat.did === true && packFeat.watershed && packFeat.respectsChoice, JSON.stringify(packFeat));
 
+    // ---- FILTERS-1 (Kevin live, 2026-07-31: "filters did not seem to work here,
+    // check this dashboard and all the other in the conservation insight sample
+    // pack ... those should probably be in your recurring tests"): three causes,
+    // three checks. (1) paramsFor only forwards params a DA DECLARES — the
+    // featured dashboard's maps + KPIs declared none, so 6 of 8 panels ignored
+    // every flip (fixed in the spec + the ensureConservationFilterParams heal
+    // for existing installs). (2) "sinceYear" never matched the mock's "year"
+    // column, so "Since year" fell through to seeded variation instead of
+    // actually narrowing the x-axis (fixed: since<Col> ⇒ >= against col).
+    // (3) real engines (file adapter etc.) ignored params entirely (fixed:
+    // applyParamFilter on every real-engine dispatch result). Runs in its own
+    // browser context so the pack install never pollutes the main workspace. ----
+    console.log("\n• FILTERS-1: pack dashboard filters genuinely filter (viewer, real flip)");
+    {
+      const fCtx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+      const fApp = await fCtx.newPage();
+      fApp.on("pageerror", (e) => errors.push("FILTERS-1 app page: " + e.message));
+      await fApp.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+      await fApp.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+      await fApp.waitForFunction(() => window.Studio && Studio.Workspace && Studio.installDemoPack && window.__studioReconcilePackDashboards, { timeout: 15000 });
+      const fSetup = await fApp.evaluate(() => {
+        ["conservation", "datamanagement"].forEach((p) => { try { if (!Studio.demoPackInstalled(p)) Studio.installDemoPack(p); } catch (e) {} });
+        window.__studioReconcilePackDashboards();
+        const W = Studio.Workspace;
+        const featured = W.all("dashboards").filter((r) => r.demoPackId === "conservation" && r.spec && (r.spec.name || r.spec.id) === "conservation-insight-demo")[0];
+        // the recurring config sweep: EVERY pack dashboard filter must be
+        // declared by at least one DA a panel actually uses — a filter no
+        // panel can answer is decorative, the exact regression class Kevin hit
+        const orphans = [];
+        W.all("dashboards").filter((r) => r.demoPackId && r.spec && (r.spec.filters || []).length).forEach((r) => {
+          const das = ((r.spec.cda || {}).dataAccesses) || [];
+          const panelDaIds = (r.spec.panels || []).map((p) => p.chart && p.chart.da).filter(Boolean);
+          (r.spec.filters || []).forEach((f) => {
+            const reachable = das.some((da) => panelDaIds.indexOf(da.id) >= 0 && (da.params || []).some((p) => p.name === f.id));
+            if (!reachable) orphans.push((r.spec.title || r.id) + ":" + f.id);
+          });
+        });
+        // the heal: strip the params off two DAs (simulating an old install)
+        // and reconcile them back
+        let healed = false;
+        if (featured) {
+          const das = featured.spec.cda.dataAccesses;
+          das.forEach((da) => { if (da.id === "vv_county" || da.id === "vv_prov") delete da.params; });
+          W.put("dashboards", featured, { silent: true });
+          Studio.ensureConservationFilterParams();
+          const after = W.get("dashboards", featured.id).spec.cda.dataAccesses;
+          healed = ["vv_county", "vv_prov"].every((id) => {
+            const da = after.filter((d) => d.id === id)[0];
+            const names = ((da && da.params) || []).map((p) => p.name);
+            return names.indexOf("practice") >= 0 && names.indexOf("sinceYear") >= 0;
+          });
+        }
+        return { featuredId: featured && featured.id, orphans: orphans, healed: healed };
+      });
+      ok("FILTERS-1 sweep (recurring): every installed pack dashboard filter is declared by a DA its panels actually use — no decorative filters",
+        fSetup.featuredId && fSetup.orphans.length === 0, JSON.stringify(fSetup));
+      ok("FILTERS-1 heal: an install materialized before the param declarations gets them stamped back by reconcile (ensureConservationFilterParams)",
+        fSetup.healed === true, JSON.stringify(fSetup));
+
+      const fView = await fCtx.newPage();
+      fView.on("pageerror", (e) => errors.push("FILTERS-1 viewer page: " + e.message));
+      await fView.goto(`http://localhost:${PORT}/app/viewer.html?dash=${fSetup.featuredId}`, { waitUntil: "networkidle" });
+      await fView.waitForFunction(() => {
+        const ifr = document.getElementById("viewerFrame");
+        return ifr && ifr.contentWindow && ifr.contentWindow.__lastRenderData && ifr.contentDocument.getElementById("f_sinceYear");
+      }, { timeout: 15000 });
+      const fFlip = await fView.evaluate(async () => {
+        const ifr = document.getElementById("viewerFrame");
+        const doc = ifr.contentDocument, win = ifr.contentWindow;
+        const o = {};
+        const yearsOf = () => {
+          const r = (win.__lastRenderData || {}).vv_coverCrops;
+          if (!r) return null;
+          const yi = r.cols.indexOf("year");
+          return [...new Set(r.rows.map((x) => Number(x[yi])))].sort();
+        };
+        const mapJson = () => JSON.stringify(((win.__lastRenderData || {}).vv_county || {}).rows || []).slice(0, 400);
+        o.yearsBefore = yearsOf();
+        o.mapBefore = mapJson();
+        const ys = doc.getElementById("f_sinceYear");
+        const opts = [].slice.call(ys.options).map((x) => x.value).filter((v) => v !== "%");
+        o.pick = opts[Math.floor(opts.length / 2)];
+        ys.value = o.pick; ys.dispatchEvent(new win.Event("change", { bubbles: true }));
+        await new Promise((r) => setTimeout(r, 1200));
+        o.yearsAfter = yearsOf();
+        o.trendNarrowed = !!o.yearsAfter && o.yearsAfter.length < o.yearsBefore.length && o.yearsAfter.every((y) => y >= Number(o.pick));
+        // restore to "all" — the data must come back
+        ys.value = "%"; ys.dispatchEvent(new win.Event("change", { bubbles: true }));
+        await new Promise((r) => setTimeout(r, 1200));
+        o.yearsRestored = JSON.stringify(yearsOf()) === JSON.stringify(o.yearsBefore);
+        const ps = doc.getElementById("f_practice");
+        const popts = [].slice.call(ps.options).map((x) => x.value).filter((v) => v !== "%");
+        ps.value = popts[0]; ps.dispatchEvent(new win.Event("change", { bubbles: true }));
+        await new Promise((r) => setTimeout(r, 1200));
+        o.mapChanged = mapJson() !== o.mapBefore;
+        return o;
+      });
+      ok("FILTERS-1: flipping 'Since year' in the VIEWER genuinely narrows every trend to years >= the pick (since<Col> range semantics, not value jiggle) — and '%' restores the full range",
+        fFlip.trendNarrowed && fFlip.yearsRestored, JSON.stringify(fFlip));
+      ok("FILTERS-1: flipping 'Practice' now reaches the maps (6 formerly-frozen panels declare the params) — the county choropleth's data visibly responds",
+        fFlip.mapChanged === true, JSON.stringify(fFlip));
+      await fCtx.close();
+    }
+
     // ---- Kevin's polish pair: the Data-panel library card description uses the
     // small grey meta style, and the Build section gets the app-standard gutter ----
     const polishPair = await page.evaluate(() => {

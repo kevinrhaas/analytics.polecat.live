@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 794,
+    title: 'Fix: dashboard filters actually filter — every panel, real data included',
+    kind: 'fix',
+    ts: '2026-07-31T05:13:28.000Z',
+    items: [
+      'The Conservation Insight dashboard’s filters now genuinely work: “Since year” truly narrows every trend to the years from your pick onward (it used to just wobble the values), and “Practice” now reaches the maps and KPIs — six of the eight panels previously ignored the filters entirely. Existing installs are healed automatically on next load, no reinstall needed.',
+      'Filters now also apply to real data engines (CSV/JSON file datasets and live connections): a filter whose name matches a result column filters the rows, and “Since …” filters apply from-that-value-onward. Sample-badged panels keep their illustrative response.',
+      'The test suite now sweeps every installed sample-pack dashboard on every run, verifying no filter is decorative — each one must reach at least one panel’s data.',
+    ],
+  },
+  {
     v: 793,
     title: 'Dashboard header can be left, center, or right aligned',
     kind: 'feature',
