@@ -10046,7 +10046,9 @@ function serve() {
           const t = (u.match(/rest\/v1\/([a-z_]+)\?select=id/) || [])[1];
           return Promise.resolve(new Response(JSON.stringify(remoteIds[t] || []), { status: 200, headers: { "Content-Type": "application/json" } }));
         }
-        return Promise.resolve(new Response("[]", { status: method === "POST" ? 201 : 204, headers: { "Content-Type": "application/json" } }));
+        // a 204 must carry a NULL body — Response("[]", {status:204}) throws
+        if (method === "DELETE") return Promise.resolve(new Response(null, { status: 204 }));
+        return Promise.resolve(new Response("[]", { status: 201, headers: { "Content-Type": "application/json" } }));
       };
       const snap = Studio.WS.emptySnapshot();
       // one table WITH local rows (d1 kept, d_stale should go)…
