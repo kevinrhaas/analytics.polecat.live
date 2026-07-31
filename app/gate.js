@@ -192,6 +192,16 @@
       setErr(msg || "Incorrect username or password.");
       var c = ov.querySelector(".g-card"); c.classList.add("shake"); setTimeout(function () { c.classList.remove("shake"); }, 400);
     }
+    // USER-DISABLE: an admin-disabled account is refused at EVERY sign-in path —
+    // the account (and everything it owns) still exists; only sign-in is blocked
+    // until an admin re-enables it. The password is still verified first, so
+    // this message never leaks whether a guessed password was right.
+    function failDisabled() { fail("This account has been disabled. Ask your workspace admin to re-enable it."); }
+    function deniedDisabled(uName) {
+      var row = Auth.find(uName);
+      if (row && row.disabled) { failDisabled(); return true; }
+      return false;
+    }
     // LF39: the gate only knows accounts already mirrored into THIS browser's local
     // store (analytics.users.v1), so a teammate provisioned on a connected workspace
     // backend from another browser gets a misleading "Incorrect username or password"
@@ -211,7 +221,7 @@
         try { Auth.importFromStore(window.Studio.Workspace.all("users")); } catch (e) {}
         return Auth.verify(u, p);
       }).then(function (okAuth) {
-        if (okAuth) { Auth.login(u); afterLogin(); return; }
+        if (okAuth) { if (deniedDisabled(u)) return; Auth.login(u); afterLogin(); return; }
         fail("“" + u + "” isn’t in your connected workspace. Check the username, or ask an admin to add you.");
         document.getElementById("g-pass").select();
       });
@@ -268,6 +278,10 @@
         // pull (and every later sync) runs as this user.
         if (Sync.setAuthCredentials) Sync.setAuthCredentials(u, p);
         var finish = function (acct) {
+          // USER-DISABLE: the adopted row may carry the flag before the local
+          // store does (fresh device) — check the row itself, then the store.
+          if (acct.disabled) { failDisabled(); return; }
+          if (deniedDisabled(acct.u)) return;
           Auth.upsert(acct.u, { gotrueId: r.userId }).then(function () { Auth.login(acct.u); afterLogin(); });
         };
         // GoTrue verified the password — now adopt the local identity for this uid.
@@ -308,6 +322,7 @@
           // account); on a PROVISIONED custom workspace (Turso/local-auth
           // model, M3.2) the seeded admin genuinely is that workspace's admin —
           // forcing local there would leave custom workspaces with no admin.
+          if (deniedDisabled(u)) return;
           var la = Auth.find(u);
           var st = (window.Studio && Studio.Sync && Studio.Sync.syncState) ? Studio.Sync.syncState() : null;
           if (u === "demo" || (la && la.demo) || (u === "admin" && st && st.sourceId === "supabase")) forceLocalWorkspace();
@@ -491,6 +506,7 @@
     document.getElementById("g-demo").addEventListener("click", function () {
       // The public demo account always exists (seeded); logging in as it triggers
       // studio.js to auto-install the sample workspace.
+      if (deniedDisabled("demo")) return;
       forceLocalWorkspace();
       if (Auth.login("demo")) afterLogin(); else fail("Demo account unavailable.");
     });

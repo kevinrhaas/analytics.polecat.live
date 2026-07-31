@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 818,
+    title: 'Disable a user without deleting them',
+    kind: 'feature',
+    ts: '2026-07-31T14:31:48.000Z',
+    items: [
+      'Every row in the Admin users list gains a Disable button: sign-in is refused everywhere with a clear message, and a session that\'s already open ends the next time the app loads. Nothing is deleted -- the account, its role, and everything it owns stay intact, and Enable restores sign-in instantly.',
+      'Guardrails: you can\'t disable your own signed-in account, and the last admin still able to sign in can never be disabled. The flag syncs with the workspace, so a disable made on one device holds on every device.',
+    ],
+  },
+  {
     v: 817,
     title: 'Safer sign-in: a picked workspace can no longer touch local data before you sign in',
     kind: 'fix',

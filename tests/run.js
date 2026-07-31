@@ -17709,6 +17709,39 @@ function serve() {
     ok("TOUR-FORCE: a second sign-in after the forced showing does NOT re-open the welcome (the flag was consumed, not sticky)",
       tfSecond.reshow === false, JSON.stringify(tfSecond));
 
+    // ---- USER-DISABLE: block an account's sign-in without deleting it ----
+    // The Admin list gains a Disable/Enable toggle; the flag rides the auth
+    // store AND the mirrored users row (cross-device), and Enable undoes it.
+    const udAdmin = await gp41.evaluate(async function () {
+      var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+      var res = {};
+      window.PolecatAuth.login("admin");
+      window.__studioShellSetSection("admin"); window.__studioRenderAdmin();
+      var btn = document.querySelector('[data-usr-tgl="tfuser"]');
+      var selfBtn = document.querySelector('[data-usr-tgl="admin"]');
+      res.hasBtn = !!btn; res.label = btn && btn.textContent;
+      res.selfBlocked = !!(selfBtn && selfBtn.disabled);
+      var confirm0 = window.confirm; window.confirm = function () { return true; };
+      btn.click();
+      await sleep(250);
+      window.confirm = confirm0;
+      res.stored = window.PolecatAuth.find("tfuser").disabled === true;
+      res.exported = (window.PolecatAuth.exportForStore().filter(function (x) { return x.u === "tfuser"; })[0] || {}).disabled === true;
+      res.mirrored = (Studio.Workspace.all("users").filter(function (r) { return r.u === "tfuser"; })[0] || {}).disabled === true;
+      var btn2 = document.querySelector('[data-usr-tgl="tfuser"]');
+      res.flipped = btn2 && btn2.textContent === "Enable";
+      res.badge = !!document.querySelector('[data-usr-id="tfuser"] .cx-badge.disabled');
+      btn2.click();
+      await sleep(250);
+      res.reEnabled = window.PolecatAuth.find("tfuser").disabled === false;
+      return res;
+    });
+    ok("USER-DISABLE: the Admin users list has a Disable action (own signed-in account blocked from it); disabling stores the flag, exports it, mirrors it onto the workspace users row, flips the button to Enable and shows a disabled badge",
+      udAdmin.hasBtn && udAdmin.label === "Disable" && udAdmin.selfBlocked && udAdmin.stored && udAdmin.exported && udAdmin.mirrored && udAdmin.flipped && udAdmin.badge,
+      JSON.stringify(udAdmin));
+    ok("USER-DISABLE: Enable re-enables the account (nothing was deleted — same row, same everything)",
+      udAdmin.reEnabled === true, JSON.stringify(udAdmin));
+
     await gp41.close();
 
     // ---- LF42 slice 1: Admin "Backends" — a registered backend list ----
@@ -39509,6 +39542,72 @@ function serve() {
     ok("SYNC-PREAUTH: bindConnection re-latches (live + saved), and disconnect resets the latch",
       paRebind.relatched && paRebind.clearedOnDisconnect, JSON.stringify(paRebind));
     await paPage.close();
+
+    // ---- USER-DISABLE: the gate refuses a disabled account on every path, ----
+    // and a live session whose account was disabled is ended at the next boot.
+    console.log("\n• USER-DISABLE: gate refusal + boot sign-out");
+    const udGate = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    udGate.on("pageerror", (e) => errors.push("USER-DISABLE gate page: " + e.message));
+    await udGate.addInitScript(() => { try { localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-tutorial-done", "1"); } catch (e) {} });
+    await udGate.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await udGate.waitForSelector("#g-form", { timeout: 8000 });
+    const udG = await udGate.evaluate(async function () {
+      var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+      var Auth = window.PolecatAuth, res = {};
+      await Auth.seedIfEmpty();
+      await Auth.upsert("demo", { disabled: true });
+      document.getElementById("g-user").value = "demo";
+      document.getElementById("g-pass").value = "demo";
+      document.getElementById("g-form").dispatchEvent(new Event("submit", { cancelable: true }));
+      await sleep(500);
+      res.gateStays = !!document.getElementById("g-form");
+      res.errMsg = (document.getElementById("g-err") || {}).textContent || "";
+      res.notSignedIn = !Auth.current();
+      document.getElementById("g-demo").click();
+      await sleep(300);
+      res.demoBtnRefused = !Auth.current() && /disabled/i.test((document.getElementById("g-err") || {}).textContent || "");
+      await Auth.upsert("demo", { disabled: false });
+      document.getElementById("g-user").value = "demo";
+      document.getElementById("g-pass").value = "demo";
+      document.getElementById("g-form").dispatchEvent(new Event("submit", { cancelable: true }));
+      await sleep(700);
+      res.signedInAfterEnable = !!(Auth.current() && Auth.current().u === "demo");
+      return res;
+    });
+    ok("USER-DISABLE: the gate refuses a disabled account with a clear message (typed sign-in AND the demo quick button) — password still verified first, session never created",
+      udG.gateStays && /disabled/i.test(udG.errMsg) && udG.notSignedIn && udG.demoBtnRefused, JSON.stringify(udG));
+    ok("USER-DISABLE: re-enabling the account restores sign-in immediately",
+      udG.signedInAfterEnable === true, JSON.stringify(udG));
+    await udGate.close();
+    const udBoot = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    udBoot.on("pageerror", (e) => errors.push("USER-DISABLE boot page: " + e.message));
+    await udBoot.addInitScript(() => {
+      try {
+        localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-tutorial-done", "1");
+        // a live session whose account was disabled (e.g. from another device).
+        // Seed ONCE — this init script re-runs on the boot guard's reload, and
+        // re-seeding the session would fake a reload loop the app doesn't have.
+        if (!localStorage.getItem("__ud-seeded")) {
+          localStorage.setItem("__ud-seeded", "1");
+          localStorage.setItem("analytics.users.v1", JSON.stringify([
+            { u: "admin", name: "Administrator", role: "admin", demo: false, hash: "x" },
+            { u: "udkev", name: "UD Kev", role: "viewer", demo: false, hash: "x", disabled: true }
+          ]));
+          localStorage.setItem("analytics.session.v1", JSON.stringify({ u: "udkev" }));
+        }
+      } catch (e) {}
+    });
+    await udBoot.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" }).catch(() => {});
+    await udBoot.waitForSelector("#g-form", { timeout: 15000 }); // the boot guard signs out + reloads into the gate
+    await udBoot.waitForTimeout(300);
+    const udB = await udBoot.evaluate(() => ({
+      signedOut: !window.PolecatAuth.current(),
+      gateShown: !!document.getElementById("g-form"),
+      rowIntact: !!window.PolecatAuth.find("udkev")
+    }));
+    ok("USER-DISABLE: an already-signed-in session whose account was disabled is ended at the next boot — back to the gate, with the account row (and all its data) fully intact",
+      udB.signedOut && udB.gateShown && udB.rowIntact, JSON.stringify(udB));
+    await udBoot.close();
 
   } catch (e) {
     failed++; console.error("FATAL", e);

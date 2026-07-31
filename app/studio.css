@@ -2471,6 +2471,7 @@ body.simple-mode .da-acts{display:none!important}
   border:1px solid color-mix(in srgb, var(--ink) 20%, transparent);border-radius:999px;padding:var(--sp-2) var(--sp-8);flex:0 0 auto}
 .cx-badge.cx-refresh-due{color:var(--warn);border-color:color-mix(in srgb, var(--warn) 45%, transparent)}
 .cx-badge.admin{color:var(--brand);border-color:color-mix(in srgb, var(--brand) 45%, transparent)}
+.cx-badge.disabled{color:var(--bad);border-color:color-mix(in srgb, var(--bad) 45%, transparent)}
 .cx-badge.developer{color:var(--accent);border-color:color-mix(in srgb, var(--accent) 45%, transparent)}
 .cx-badge.cx-folder{color:var(--ink);background:color-mix(in srgb, var(--ink) 8%, transparent);text-transform:none;letter-spacing:0;font-weight:600}
 .cx-when{color:var(--faint);font-size:var(--fs-12);flex:0 0 auto}

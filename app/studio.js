@@ -8833,6 +8833,8 @@
     // TOUR-FORCE: the one-shot flag must ride the mirrored row — importFromStore
     // reads it back on other devices, which is the whole point of the feature.
     row.forceTour = !!u.forceTour;
+    // USER-DISABLE: same deal — a disable must hold on every device.
+    row.disabled = !!u.disabled;
     // M7: carry the GoTrue id onto the backend `users` row. Dropping it here (as
     // this once did) meant the mirrored row never had the gotrueId the
     // polecat-admin relay's requireAdmin() / RLS polecat_is_admin() match on, so
@@ -8915,6 +8917,18 @@
     try {
       var me = Auth.current();
       var mine = me && (Auth.exportForStore() || []).filter(function (u) { return u.u === me.u; })[0];
+      // USER-DISABLE: an admin disabled this account (possibly from another
+      // device — the flag rides the users-table sync). End the session now;
+      // the gate then refuses any re-sign-in until the account is re-enabled.
+      // Checked BEFORE the own-row mirror so a disabled session can't push
+      // anything, and before any provisioning/backend/tour work runs.
+      // me.u guards the historical gate-ok bypass identity ("local"), which
+      // has no store row and must never be signed out from here.
+      if (mine && mine.disabled) {
+        Auth.logout();
+        try { location.reload(); } catch (e2) {}
+        return;
+      }
       if (mine) mirrorUserRow(mine);
     } catch (e) {}
     try {
@@ -9246,6 +9260,9 @@
     }
     var users = Auth.list().sort(function (a, b) { return (a.name || a.u).localeCompare(b.name || b.u); });
     var adminCount = users.filter(function (u) { return u.role === "admin"; }).length;
+    // USER-DISABLE: disabling counts against the ENABLED admin pool — the last
+    // admin still able to sign in can never be disabled (nobody left to undo it).
+    var enabledAdminCount = users.filter(function (u) { return u.role === "admin" && !u.disabled; }).length;
     var adminBackendsByRow = getAdminBackends();
     var rows = users.map(function (u) {
       var lastAdmin = u.role === "admin" && adminCount <= 1;
@@ -9258,9 +9275,14 @@
         '<span class="cx-name"><b>' + esc(u.name || u.u) + '</b><small>' + esc(u.u) + '</small></span>' +
         '<span class="cx-badge' + (u.role === "admin" ? " admin" : u.role === "developer" ? " developer" : "") + '">' + esc(u.role) + '</span>' +
         (u.demo ? '<span class="cx-badge">demo</span>' : "") +
+        (u.disabled ? '<span class="cx-badge disabled">disabled</span>' : "") +
         (me.u === u.u ? '<span class="cx-badge">you</span>' : "") +
         (assignedBk ? '<span class="cx-badge">→ ' + esc(assignedBk.name) + '</span>' : "") +
         '<span class="cx-actions">' +
+          '<button type="button" class="btn" data-usr-tgl="' + esc(u.u) + '"' +
+            (me.u === u.u ? ' disabled title="You can\'t disable your own signed-in account"'
+              : (!u.disabled && u.role === "admin" && enabledAdminCount <= 1) ? ' disabled title="The workspace needs at least one admin who can sign in"' : "") +
+            ' aria-label="' + (u.disabled ? "Enable" : "Disable") + ' ' + esc(u.name || u.u) + '">' + (u.disabled ? "Enable" : "Disable") + '</button>' +
           '<button type="button" class="btn" data-usr-edit="' + esc(u.u) + '">Edit</button>' +
           '<button type="button" class="btn" data-usr-del="' + esc(u.u) + '"' + (lastAdmin ? ' disabled title="The workspace needs at least one admin"' : "") + ' aria-label="Remove ' + esc(u.name || u.u) + '">✕</button>' +
         '</span></div>';
@@ -9296,6 +9318,23 @@
     if (showGoLive) refreshGoLiveCard(); // GOLIVE-CARD: swap the CTA for "is ON" when the DB is already live
     $$("[data-usr-edit]", sec).forEach(function (btn) {
       btn.onclick = function () { var u = Auth.find(btn.getAttribute("data-usr-edit")); if (u) openUserEditor(u); };
+    });
+    // USER-DISABLE: block sign-in without deleting anything — the account, its
+    // provisioning, and everything it owns stay intact, and Enable undoes it.
+    $$("[data-usr-tgl]", sec).forEach(function (btn) {
+      btn.onclick = function () {
+        if (btn.disabled) return;
+        var uid = btn.getAttribute("data-usr-tgl");
+        var u = Auth.find(uid); if (!u) return;
+        var turningOff = !u.disabled;
+        if (turningOff && !confirm('Disable "' + (u.name || u.u) + '"? They won\'t be able to sign in until re-enabled — nothing about the account is deleted.')) return;
+        Auth.upsert(uid, { disabled: turningOff }).then(function (saved) {
+          mirrorUserRow(saved);
+          toast(turningOff ? "Disabled " + (saved.name || saved.u) + " — sign-in is blocked until you re-enable them."
+            : "Re-enabled " + (saved.name || saved.u) + " — they can sign in again.");
+          renderAdmin();
+        });
+      };
     });
     $$("[data-usr-del]", sec).forEach(function (btn) {
       btn.onclick = function () {
