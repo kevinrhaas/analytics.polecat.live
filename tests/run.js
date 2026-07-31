@@ -25919,6 +25919,10 @@ function serve() {
         if (await ringFor('.rail-item[data-sec="' + railSecs[i] + '"]', 4000)) hits++;
         await sleep(100);
       }
+      // #23: the glossary step (centered, target:null) sits between the last rail
+      // section and the closer — advance past it first.
+      document.querySelector("#st-tip button.pri").click();
+      await sleep(150);
       // final centered step → should land on Home, then Done!
       document.querySelector("#st-tip button.pri").click();
       await sleep(250);
@@ -26047,16 +26051,16 @@ function serve() {
     // J6-10b (LF40): the OVERVIEW tour is pack-aware too (not just a dedicated pack tour) —
     // installing a pack splices one acknowledgment step in right after the intro, naming
     // the pack; removing it collapses the overview back to its (ambient) base step count.
-    // datamanagement ships installed by default, so assert against 10 + installed count
-    // (same pattern as J6-5's shape check and welcome.js's own packAware test) rather than
-    // a number that assumes conservation is the only installed pack.
+    // datamanagement ships installed by default, so assert against 11 + installed count
+    // (the 11-step base includes the #23 glossary step; same pattern as J6-5's shape
+    // check) rather than a number that assumes conservation is the only installed pack.
     const j6OverviewPackAware = await page.evaluate(function () {
       var packs = Studio.DEMO_PACKS || {};
       var installedCount = Object.keys(packs).filter(function (id) { return Studio.demoPackInstalled(id); }).length;
       return { withPack: StudioTutorial.stepCount("overview"), installedCount: installedCount, titles: StudioTutorial.computeOverviewStepTitles() };
     });
     ok("J6: overview tour gains one spliced step (right after the intro) naming the installed Conservation Insight pack",
-      j6OverviewPackAware.withPack === 10 + j6OverviewPackAware.installedCount &&
+      j6OverviewPackAware.withPack === 11 + j6OverviewPackAware.installedCount &&
       j6OverviewPackAware.titles[1] === "Conservation Insight — cover crop & tillage adoption",
       JSON.stringify(j6OverviewPackAware));
 
@@ -26133,7 +26137,7 @@ function serve() {
       return ok2;
     });
     ok("J6: Conservation Insight tour disappears from the chooser again once the pack is removed, and the overview tour's pack step goes with it",
-      j6ConservationCleanup.count === 5 && !j6ConservationCleanup.installed && j6ConservationCleanup.overviewSteps === 10 + j6ConservationCleanup.installedCount,
+      j6ConservationCleanup.count === 5 && !j6ConservationCleanup.installed && j6ConservationCleanup.overviewSteps === 11 + j6ConservationCleanup.installedCount,
       JSON.stringify(j6ConservationCleanup));
 
     // restore studio section for later tests
