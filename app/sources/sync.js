@@ -335,10 +335,16 @@
 
     // Detach and go back to local-only; the working copy stays as-is.
     disconnect: function () {
-      clearTimeout(_timer);
-      state.sourceId = "local"; state.cfg = null; state.lastError = ""; state.lastPushAt = 0;
-      _sec.enabled = false; _sec.key = null; _sec.salt = null; // forget the encryption context
+      // Persist the local state FIRST — before clearTimeout/_sec teardown, which
+      // must never be able to throw and leave the remote connection persisted
+      // (the DEMO-LOCAL symptom: in-memory sourceId=local but CONN_KEY still
+      // pointing at the backend, so a reload silently reconnects).
+      _connGen++; // fence any in-flight boot connect so a late pull can't re-adopt/re-persist
+      state.sourceId = "local"; state.cfg = null;
       saveConn();
+      try { clearTimeout(_timer); } catch (e) {}
+      state.lastError = ""; state.lastPushAt = 0;
+      _sec.enabled = false; _sec.key = null; _sec.salt = null; // forget the encryption context
       setStatus("local");
       return publicState();
     },

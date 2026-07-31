@@ -15819,7 +15819,8 @@ function serve() {
       // in-flight (the #111 auth-race retries) used to complete AFTER the demo
       // click and re-persist the remote; sync.js's _connGen guard fences it now.
       sourceId: Studio.Sync.syncState().sourceId,
-      connIsLocal: !((JSON.parse(localStorage.getItem("analytics.datasource.v1") || "null") || {}).cfg || {}).url
+      connIsLocal: !((JSON.parse(localStorage.getItem("analytics.datasource.v1") || "null") || {}).cfg || {}).url,
+      rawConn: localStorage.getItem("analytics.datasource.v1") // diagnostic on failure
     }));
     await gpDemo.close();
     ok("DEMO-LOCAL: 'Explore the demo' with a remote workspace picked/bound signs into demo AND forces the connection back to Local — in memory AND persisted (no remote cfg survives a mid-flight boot connect) — so the demo can never run against a real backend",

@@ -405,6 +405,10 @@
     // the demo forces the workspace back to Local, whatever the picker said.
     function forceLocalWorkspace() {
       try { if (window.Studio && Studio.Sync) Studio.Sync.disconnect(); } catch (e) {}
+      // Hard guarantee the persisted connection is cleared even if Sync isn't
+      // ready or disconnect() partially ran — the demo must never leave a remote
+      // backend persisted (it would silently reconnect on the next reload).
+      try { localStorage.removeItem("analytics.datasource.v1"); } catch (e) {}
       try { localStorage.setItem(LAST_WS_KEY, "local"); } catch (e) {}
       var sel = document.getElementById("g-workspace");
       if (sel) { sel.value = "local"; sel.dataset.prev = "local"; }
