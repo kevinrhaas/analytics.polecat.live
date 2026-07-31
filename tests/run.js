@@ -2450,6 +2450,9 @@ function serve() {
       function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
       var S = window.__STUDIO_STATE;
       var prevSpec = S.spec;
+      // the real button path bumps the N-FUN export-milestone counter — restore it after,
+      // or the later N-FUN "second export doesn't celebrate" check lands on a milestone.
+      var prevCount = localStorage.getItem("studio-export-count");
       try { localStorage.removeItem("studio-export-datamode"); } catch (e) {}
       var conn = Studio.Workspace.put("connections", { name: "x2-modal-turso", adapter: "turso", cfg: { url: "libsql://m.turso.io", token: "MODAL-SECRET-X2" } });
       S.spec = {
@@ -2483,7 +2486,10 @@ function serve() {
       out.credsBundleShown = !!document.querySelector(".modal-ov .dl-row");
       document.querySelectorAll(".modal-ov").forEach(function (m) { m.remove(); });
       Studio.Workspace.remove("connections", conn.id, { silent: true });
-      try { localStorage.removeItem("studio-export-datamode"); localStorage.removeItem("studio-export-history"); } catch (e) {}
+      try {
+        localStorage.removeItem("studio-export-datamode"); localStorage.removeItem("studio-export-history");
+        if (prevCount === null) localStorage.removeItem("studio-export-count"); else localStorage.setItem("studio-export-count", prevCount);
+      } catch (e) {}
       S.spec = prevSpec;
       return out;
     });
@@ -2499,6 +2505,7 @@ function serve() {
       function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
       var S = window.__STUDIO_STATE;
       var prevSpec = S.spec;
+      var prevCount = localStorage.getItem("studio-export-count"); // see X2-4's milestone note
       S.spec = {
         name: "x2-plain", title: "X2P", panels: [], kpis: [], filters: [],
         cda: { dataAccesses: [{ id: "d1", name: "sDa", kind: "sql", columns: ["x"] }] }
@@ -2510,7 +2517,10 @@ function serve() {
         bundleDirect: !!document.querySelector(".modal-ov .dl-row")
       };
       document.querySelectorAll(".modal-ov").forEach(function (m) { m.remove(); });
-      try { localStorage.removeItem("studio-export-history"); } catch (e) {}
+      try {
+        localStorage.removeItem("studio-export-history");
+        if (prevCount === null) localStorage.removeItem("studio-export-count"); else localStorage.setItem("studio-export-count", prevCount);
+      } catch (e) {}
       S.spec = prevSpec;
       return out;
     });
