@@ -295,11 +295,15 @@
     render();
   }
 
-  function bdSelectDataset(kind, id) {
+  function bdSelectDataset(kind, id, opts) {
     bdStashDraft(); // VB-14: keep the outgoing dataset's work-in-progress
     BD.dsKind = kind; BD.dsId = id;
-    // VB-14: an incoming dataset restores its own draft; a fresh one starts clean
-    var draft = bdDrafts()[kind + BD_SEP + id] || {};
+    // VB-14: an incoming dataset restores its own draft; a fresh one starts
+    // clean. opts.noDraft skips the restore — bdLoad/bdLoadForeign open a
+    // SAVED View and must show its saved state, not the dataset's draft
+    // (before this, the restore clobbered the freshly-set analysisId, so
+    // "Update" on the opened View would have silently saved a NEW one).
+    var draft = (opts && opts.noDraft) ? {} : (bdDrafts()[kind + BD_SEP + id] || {});
     BD.shelfCols = draft.shelfCols || []; BD.shelfRows = draft.shelfRows || [];
     BD.filters = draft.filters || []; BD.calcs = draft.calcs || [];
     BD.shelfColor = draft.shelfColor || []; BD.paletteKey = draft.paletteKey || "";
@@ -1862,9 +1866,10 @@
     var a = Studio.Workspace.get("analyses", id);
     if (!a || !a.builder) return;
     bdReset();
-    BD.analysisId = a.id; BD.name = a.name || ""; BD.folder = a.folder || ""; BD.panelTitle = a.panelTitle || ""; // VB-7
+    var openId = a.id, openName = a.name || "", openFolder = a.folder || "", openPanelTitle = a.panelTitle || ""; // VB-7
     var b = a.builder;
-    bdSelectDataset(b.dsKind, b.dsId).then(function () {
+    bdSelectDataset(b.dsKind, b.dsId, { noDraft: true }).then(function () {
+      BD.analysisId = openId; BD.name = openName; BD.folder = openFolder; BD.panelTitle = openPanelTitle;
       if (!BD.run) { toast("This View’s source dataset is gone — pick another to rebuild it.", true); render(); return; }
       BD.calcs = Studio.clone(b.calcs || []);
       BD._eff = null;

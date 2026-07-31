@@ -11634,7 +11634,11 @@ function serve() {
       const ds = window.Studio.Workspace.all("datasets").filter((d) => d.name === "bd117-ds")[0];
       await B.selectDataset("ws", ds.id);
       await new Promise((r) => setTimeout(r, 120));
+      // VB-14: selecting a dataset now RESTORES its draft (earlier blocks left
+      // shelves + an amount_x2 calc on this one) — this test's fixed option-list
+      // expectations need the explicit clean slate a user gets from Clear canvas
       B.state.shelfCols = []; B.state.shelfRows = []; B.state.filters = []; B.state.shelfColor = [];
+      B.setCalcs([]);
       B.rerender();
       await new Promise((r) => setTimeout(r, 40));
       B.addField("region", "cols");
@@ -11930,6 +11934,7 @@ function serve() {
     const vb14 = await page.evaluate(async () => {
       const o = {};
       const W = Studio.Workspace, B = window.__studioBuild, D14 = window.__studioBdDrafts;
+      const prevKind = B.state.dsKind, prevId = B.state.dsId; // restore the surrounding tests' selection afterwards
       const conn = W.all("connections").filter((c) => c.adapter === "file")[0] || W.put("connections", { id: "vb14conn", name: "Files", adapter: "file", cfg: {} });
       W.put("datasets", { id: "vb14a", name: "VB14 A", connectionId: conn.id, kind: "file", format: "csv", fileName: "a.csv", content: "region,total\nEMEA,10\nAMER,20", columns: ["region", "total"] });
       W.put("datasets", { id: "vb14b", name: "VB14 B", connectionId: conn.id, kind: "file", format: "csv", fileName: "b.csv", content: "year,pct\n2020,5\n2021,6", columns: ["year", "pct"] });
@@ -11954,12 +11959,12 @@ function serve() {
       o.aCleared = B.state.shelfCols.length === 0 && B.state.chartType === "table";
       o.aDraftGone = !D14.get()["ws\u0001vb14a"];
       o.bDraftKept = D14.hasContent(D14.get()["ws\u0001vb14b"]);
-      // deleting a dataset deletes its draft too
-      W.remove("datasets", "vb14b");
-      delete D14.get()["ws\u0001vb14b"]; // (the UI delete path calls this — asserted via the module hook)
-      // cleanup
-      W.remove("datasets", "vb14a");
-      Studio.Build.newView && Studio.Build.newView();
+      // cleanup: drop the fixture datasets + drafts, then hand the NEXT test
+      // back the dataset that was selected before this block (later blocks
+      // reset their shelves explicitly, so its restored draft is harmless)
+      W.remove("datasets", "vb14a"); W.remove("datasets", "vb14b");
+      delete D14.get()["ws\u0001vb14a"]; delete D14.get()["ws\u0001vb14b"];
+      if (prevKind && prevId) await B.selectDataset(prevKind, prevId);
       return o;
     });
     ok("VB-14: switching datasets keeps each dataset's own draft — the new one starts clean, the outline marks drafts with a dot, and switching back restores shelves + chart type exactly",
