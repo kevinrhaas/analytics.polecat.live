@@ -25815,7 +25815,7 @@ function serve() {
         var packs = Studio.DEMO_PACKS || {};
         var installedPackCount = Object.keys(packs).filter(function (id) { return Studio.demoPackInstalled(id); }).length;
         return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build,jobs,connect,conservation" &&
-          StudioTutorial.stepCount("overview") === 10 + installedPackCount && StudioTutorial.stepCount("quick") === 8 &&
+          StudioTutorial.stepCount("overview") === 11 + installedPackCount && StudioTutorial.stepCount("quick") === 8 &&
           StudioTutorial.stepCount("build") === 6 && StudioTutorial.stepCount("jobs") === 5 &&
           StudioTutorial.stepCount("connect") === 8 && StudioTutorial.stepCount("conservation") === 6,
           keys: StudioTutorial.tourKeys().join(","), o: StudioTutorial.stepCount("overview"), installedPackCount: installedPackCount,
@@ -25823,7 +25823,30 @@ function serve() {
           j: StudioTutorial.stepCount("jobs"), c: StudioTutorial.stepCount("connect"), cv: StudioTutorial.stepCount("conservation") };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("J6: six tours registered — Overview (10-step base + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (5 — LF18(b)), Connections & Datasets (8 — LF18(b)), Conservation Insight pack (6 — LF40, pack-gated)", j6Shape.ok, JSON.stringify(j6Shape));
+    ok("J6: six tours registered — Overview (11-step base incl. the #23 glossary + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (5 — LF18(b)), Connections & Datasets (8 — LF18(b)), Conservation Insight pack (6 — LF40, pack-gated)", j6Shape.ok, JSON.stringify(j6Shape));
+
+    // #23 (Kevin): the overview tour defines EVERY domain term — a glossary step
+    // covers the full list one line each, and the terms missing from the walk
+    // steps (adapter, workbook, filter) are woven into their sections' copy.
+    const g23 = await page.evaluate(function () {
+      var steps = (StudioTutorial.tourSteps ? StudioTutorial.tourSteps("overview") : null);
+      // fall back to reading the registered tour object if no steps hook exists
+      var all = steps || (window.__studioTours && window.__studioTours.overview && window.__studioTours.overview.steps) || [];
+      var joined = all.map(function (s) { return (s.t || "") + " " + (s.h || "") + " " + (s.sub || ""); }).join(" ").toLowerCase();
+      var terms = ["adapter", "connection", "dataset", "job", "workbook", "dashboard", "view", "filter", "sample pack"];
+      var missing = terms.filter(function (t) { return joined.indexOf(t) < 0; });
+      var glossaryStep = all.filter(function (s) { return /words, one line each/i.test(s.t || ""); })[0];
+      return { stepsSeen: all.length, missing: missing, hasGlossaryStep: !!glossaryStep,
+        glossaryDefines: glossaryStep ? terms.filter(function (t) { return (glossaryStep.h || "").toLowerCase().indexOf(t) < 0; }) : terms };
+    });
+    ok("#23: the overview tour now defines every domain term — adapter/connection/dataset/job/workbook/dashboard/View/filter/sample pack all appear, and the glossary step covers the full list one line each",
+      g23.stepsSeen > 0 && g23.missing.length === 0 && g23.hasGlossaryStep && g23.glossaryDefines.length === 0, JSON.stringify(g23));
+    const g23Help = await page.evaluate(async function () {
+      var res = await fetch("docs/index.html");
+      var txt = await res.text();
+      return { hasGlossary: /id="glossary"/.test(txt) && /Glossary — every term/.test(txt) };
+    });
+    ok("#23: Help carries the same glossary section (the tour's 'lives in Help' pointer is honest)", g23Help.hasGlossary, JSON.stringify(g23Help));
 
     // J6-6: the QUICK tour walks the real Explore UI — it switches the section,
     // seeds a sample dataset, and every spotlighted step finds its live target
@@ -25896,6 +25919,10 @@ function serve() {
         if (await ringFor('.rail-item[data-sec="' + railSecs[i] + '"]', 4000)) hits++;
         await sleep(100);
       }
+      // #23: the glossary step (centered, target:null) sits between the last rail
+      // section and the closer — advance past it first.
+      document.querySelector("#st-tip button.pri").click();
+      await sleep(150);
       // final centered step → should land on Home, then Done!
       document.querySelector("#st-tip button.pri").click();
       await sleep(250);
@@ -26024,16 +26051,16 @@ function serve() {
     // J6-10b (LF40): the OVERVIEW tour is pack-aware too (not just a dedicated pack tour) —
     // installing a pack splices one acknowledgment step in right after the intro, naming
     // the pack; removing it collapses the overview back to its (ambient) base step count.
-    // datamanagement ships installed by default, so assert against 10 + installed count
-    // (same pattern as J6-5's shape check and welcome.js's own packAware test) rather than
-    // a number that assumes conservation is the only installed pack.
+    // datamanagement ships installed by default, so assert against 11 + installed count
+    // (the 11-step base includes the #23 glossary step; same pattern as J6-5's shape
+    // check) rather than a number that assumes conservation is the only installed pack.
     const j6OverviewPackAware = await page.evaluate(function () {
       var packs = Studio.DEMO_PACKS || {};
       var installedCount = Object.keys(packs).filter(function (id) { return Studio.demoPackInstalled(id); }).length;
       return { withPack: StudioTutorial.stepCount("overview"), installedCount: installedCount, titles: StudioTutorial.computeOverviewStepTitles() };
     });
     ok("J6: overview tour gains one spliced step (right after the intro) naming the installed Conservation Insight pack",
-      j6OverviewPackAware.withPack === 10 + j6OverviewPackAware.installedCount &&
+      j6OverviewPackAware.withPack === 11 + j6OverviewPackAware.installedCount &&
       j6OverviewPackAware.titles[1] === "Conservation Insight — cover crop & tillage adoption",
       JSON.stringify(j6OverviewPackAware));
 
@@ -26110,7 +26137,7 @@ function serve() {
       return ok2;
     });
     ok("J6: Conservation Insight tour disappears from the chooser again once the pack is removed, and the overview tour's pack step goes with it",
-      j6ConservationCleanup.count === 5 && !j6ConservationCleanup.installed && j6ConservationCleanup.overviewSteps === 10 + j6ConservationCleanup.installedCount,
+      j6ConservationCleanup.count === 5 && !j6ConservationCleanup.installed && j6ConservationCleanup.overviewSteps === 11 + j6ConservationCleanup.installedCount,
       JSON.stringify(j6ConservationCleanup));
 
     // restore studio section for later tests
