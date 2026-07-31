@@ -8756,6 +8756,69 @@ function serve() {
     ok("LF57: Delete removes the View (after confirm) and clears Explore's own pointer if it was open",
       lf57Actions.deleted && lf57Actions.explorePointerCleared, JSON.stringify(lf57Actions));
 
+    // LIVE-d (slice 6): multi-select + bulk actions on Views — the LAST catalog section
+    // to adopt the shape (select mode, checkbox overlay, bulk bar with Select all /
+    // Clear / Move to folder / Delete), completing the LIVE-d track.
+    const livdViews = await page.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      window.__studioShellSetSection("views");
+      var W = Studio.Workspace;
+      W.put("analyses", { id: "livd-vw-a", name: "livd_vw_a", chartType: "bars", da: { columns: [] } }, { silent: true });
+      W.put("analyses", { id: "livd-vw-b", name: "livd_vw_b", chartType: "line", da: { columns: [] } }, { silent: true });
+      window.__studioRenderViews();
+      var out = {};
+      document.getElementById("viewsSelectBtn").click();
+      await sleep(150);
+      out.mode = window.__studioVwSelectMode();
+      out.cbCount = document.querySelectorAll("#viewsResults .vw-select-cb").length;
+      out.bulkBar = !!document.querySelector("#viewsResults .dash-bulk-bar");
+      out.btnText = document.getElementById("viewsSelectBtn").textContent;
+      document.querySelector('.vw-select-cb[data-vw-select="livd-vw-a"]').click();
+      await sleep(120);
+      document.querySelector('.vw-select-cb[data-vw-select="livd-vw-b"]').click();
+      await sleep(120);
+      out.selCount = window.__studioVwSelected().length;
+      out.rowHighlighted = !!document.querySelector('.cx-row[data-vw-id="livd-vw-a"].is-selected');
+      // bulk Move to folder — the shared LF56 picker, one choice files both
+      var moveBtn = document.getElementById("vwSelMoveBtn");
+      out.moveLabel = moveBtn.textContent;
+      moveBtn.click();
+      await sleep(200);
+      out.pickerOpen = !!document.querySelector(".modal-ov .fp");
+      document.querySelector(".fp-add-inp").value = "VwMoved";
+      document.querySelector(".fp-add-btn").click();
+      await sleep(150);
+      document.querySelector(".fp-use").click();
+      await sleep(300);
+      out.fA = (W.get("analyses", "livd-vw-a") || {}).folder;
+      out.fB = (W.get("analyses", "livd-vw-b") || {}).folder;
+      out.selAfterMove = window.__studioVwSelected().length;
+      // bulk Delete — confirm gate, both rows gone, one batched notify
+      document.querySelector('.vw-select-cb[data-vw-select="livd-vw-a"]').click();
+      await sleep(120);
+      document.querySelector('.vw-select-cb[data-vw-select="livd-vw-b"]').click();
+      await sleep(120);
+      window.confirm = function () { return true; };
+      document.getElementById("vwSelDelBtn").click();
+      await sleep(250);
+      out.goneA = !W.get("analyses", "livd-vw-a");
+      out.goneB = !W.get("analyses", "livd-vw-b");
+      out.selAfterDelete = window.__studioVwSelected().length;
+      // exit select mode + leave the section as we found it
+      if (window.__studioVwSelectMode()) document.getElementById("viewsSelectBtn").click();
+      window.__studioShellSetSection("studio");
+      return out;
+    });
+    ok("LIVE-d (6): Views gains select mode — checkboxes + a bulk bar appear, rows highlight, count tracks",
+      livdViews.mode && livdViews.cbCount >= 2 && livdViews.bulkBar && /Cancel/.test(livdViews.btnText) &&
+      livdViews.selCount === 2 && livdViews.rowHighlighted, JSON.stringify(livdViews));
+    ok("LIVE-d (6): Views bulk Move to folder files every selected View in one picker choice and clears the selection",
+      /Move 2 to folder/.test(livdViews.moveLabel) && livdViews.pickerOpen &&
+      livdViews.fA === "VwMoved" && livdViews.fB === "VwMoved" && livdViews.selAfterMove === 0,
+      JSON.stringify(livdViews));
+    ok("LIVE-d (6): Views bulk Delete removes every selected View after confirming",
+      livdViews.goneA && livdViews.goneB && livdViews.selAfterDelete === 0, JSON.stringify(livdViews));
+
     // LF57 follow-up: Duplicate — a straight clone (chart/folder/private carried over,
     // pinned reset, uniquified "(copy)" name), one of the three items LF57 slice 1's own
     // DONE note left "genuinely still open."

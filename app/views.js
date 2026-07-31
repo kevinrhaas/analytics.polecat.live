@@ -54,8 +54,57 @@
     return svg.replace('<svg ', '<svg width="20" height="14" preserveAspectRatio="xMidYMid meet" ');
   }
 
+  // LIVE-d (slice 6): multi-select + bulk actions on Views — the last catalog section
+  // to adopt the shape slices 1-5 proved everywhere else (session-only select mode,
+  // checkbox overlay, bulk bar with Select all / Clear / Move to folder / Delete).
+  var _vwSelectMode = false;
+  var _vwSelected = {}; // id -> true, only meaningful while _vwSelectMode
+  function toggleVwSelect(id) {
+    if (_vwSelected[id]) delete _vwSelected[id]; else _vwSelected[id] = true;
+    renderViews();
+  }
+  function bulkDeleteSelectedViews() {
+    var ids = Object.keys(_vwSelected);
+    if (!ids.length) return;
+    var W = Studio.Workspace;
+    var rows = ids.map(function (id) { return W.get("analyses", id); }).filter(Boolean);
+    var msg = "Delete " + rows.length + " View" + (rows.length === 1 ? "" : "s") + "? This can't be undone.";
+    if (!window.confirm(msg)) return;
+    rows.forEach(function (a) {
+      // same open-editor pointer guard the single-row delete applies
+      if (Studio.Explore.XP && Studio.Explore.XP.analysisId === a.id) Studio.Explore.XP.analysisId = null;
+      W.remove("analyses", a.id, { silent: true });
+    });
+    _vwSelected = {};
+    toast("Deleted " + rows.length + " View" + (rows.length === 1 ? "" : "s"));
+    // one batched notify (not a remove per row), same convention every other bulk delete uses
+    W.notify("analyses");
+  }
+  // LIVE-d slice 5's shared Studio.bulkMoveToFolder flow, Views edition.
+  function bulkMoveSelectedViews() {
+    var ids = Object.keys(_vwSelected);
+    if (!ids.length) return;
+    var allPaths = Studio.Workspace.all("analyses").map(function (a) { return a.folder; }).filter(Boolean);
+    Studio.bulkMoveToFolder(ids.map(function (id) { return { type: "analysis", id: id }; }), allPaths, function (moved) {
+      if (moved) _vwSelected = {};
+    });
+  }
+  window.__studioVwSelectMode = function () { return _vwSelectMode; }; // test hook
+  window.__studioVwSelected = function () { return Object.keys(_vwSelected); }; // test hook
   function renderViews() {
     var results = $("#viewsResults"); if (!results) return;
+    // LIVE-d slice 6: the "Select" toolbar toggle, same idempotent-binding convention
+    // as the view toggle below — lives outside #viewsResults so it survives re-renders.
+    var selBtn = $("#viewsSelectBtn");
+    if (selBtn) {
+      selBtn.textContent = _vwSelectMode ? "Cancel" : "Select";
+      selBtn.setAttribute("aria-pressed", _vwSelectMode ? "true" : "false");
+      selBtn.onclick = function () {
+        _vwSelectMode = !_vwSelectMode;
+        if (!_vwSelectMode) _vwSelected = {};
+        renderViews();
+      };
+    }
     // LF51 (d): wire the persistent list/tile toggle (lives in the section header,
     // outside #viewsResults, so this idempotent binding survives every re-render).
     var vt = $("#viewsViewToggle");
@@ -75,6 +124,12 @@
       if (a.pinned) return (b.pinnedAt || "").localeCompare(a.pinnedAt || "");
       return (b.updatedAt || 0) - (a.updatedAt || 0);
     });
+    // LIVE-d slice 6: drop any selected id that no longer exists/is visible so a stale
+    // entry can't inflate the bulk-bar count — same pruning every other section does.
+    if (_vwSelectMode) {
+      var vwListIds = {}; list.forEach(function (a) { vwListIds[a.id] = true; });
+      Object.keys(_vwSelected).forEach(function (id) { if (!vwListIds[id]) delete _vwSelected[id]; });
+    }
     var typeCounts = {}, folderCounts = {}, folderUnfiled = 0;
     list.forEach(function (a) {
       var t = a.chartType || "bars";
@@ -114,6 +169,13 @@
     shown.forEach(function (a) { typeById[a.id] = a.chartType || "bars"; });
     var rows = shown.map(function (a) {
       var t = a.chartType || "bars";
+      // LIVE-d slice 6: the select-mode checkbox overlay (same .cx-select/.is-selected
+      // CSS every other section reuses; a distinct .vw-select-cb class scopes wiring).
+      var vwSelected = _vwSelectMode && !!_vwSelected[a.id];
+      var selectHtml = _vwSelectMode
+        ? '<label class="cx-select" onclick="event.stopPropagation()"><input type="checkbox" class="vw-select-cb" data-vw-select="' +
+          esc(a.id) + '"' + (vwSelected ? " checked" : "") + ' aria-label="Select ' + esc(a.name || "View") + '"/></label>'
+        : "";
       var icon = '<span class="cx-ic"></span>';
       var folderBadge = a.folder ? '<span class="cx-badge cx-folder" data-tip="Folder: ' + esc(a.folder) + '">' + esc(a.folder) + '</span>' : "";
       // A row opens into whichever editor actually owns it (a.builder → the View
@@ -141,20 +203,33 @@
           '<button type="button" class="btn" data-vw-del="' + esc(a.id) + '" aria-label="Delete ' + esc(a.name || "View") + '">✕</button>' +
         '</span>';
       if (isTiles) {
-        return '<div class="dsx-tile" data-vw-id="' + esc(a.id) + '">' +
-          '<div class="dsx-tile-head">' + icon + name + pinBtn + privateBtn + '</div>' +
+        return '<div class="dsx-tile' + (vwSelected ? " is-selected" : "") + '" data-vw-id="' + esc(a.id) + '">' +
+          '<div class="dsx-tile-head">' + selectHtml + icon + name + pinBtn + privateBtn + '</div>' +
           (badges ? '<div class="dsx-tile-badges">' + badges + '</div>' : "") +
           '<div class="dsx-tile-foot">' + when + actions + '</div>' +
           '</div>';
       }
-      return '<div class="cx-row" data-vw-id="' + esc(a.id) + '">' +
-        icon + name + badges + when + privateBtn + pinBtn + actions + '</div>';
+      return '<div class="cx-row' + (vwSelected ? " is-selected" : "") + '" data-vw-id="' + esc(a.id) + '">' +
+        selectHtml + icon + name + badges + when + privateBtn + pinBtn + actions + '</div>';
     });
+    // LIVE-d slice 6: the bulk bar — same anatomy as every other section's, reusing the
+    // section-agnostic .dash-bulk-bar CSS.
+    var vwSelCount = Object.keys(_vwSelected).length;
+    var vwBulkBarHtml = _vwSelectMode
+      ? '<div class="dash-bulk-bar"><span class="dash-bulk-count">' + vwSelCount + ' selected</span>' +
+        '<button type="button" class="btn" id="vwSelAllBtn">Select all</button>' +
+        '<button type="button" class="btn" id="vwSelNoneBtn">Clear</button>' +
+        '<button type="button" class="btn" id="vwSelMoveBtn"' + (vwSelCount ? '' : ' disabled') + '>' +
+        'Move' + (vwSelCount ? ' ' + vwSelCount : '') + ' to folder…</button>' +
+        '<button type="button" class="btn danger" id="vwSelDelBtn"' + (vwSelCount ? '' : ' disabled') + '>' +
+        'Delete' + (vwSelCount ? ' ' + vwSelCount : '') + '</button></div>'
+      : '';
     results.innerHTML =
       (pillsF ? '<div class="wb-chips cx-filter-strip">' + pillsF + '</div>' : "") +
       (pillsT ? '<div class="wb-chips cx-pills cx-filter-strip">' + pillsT +
         (anyT || anyF ? '<button type="button" class="wb-chip" id="vwPillClear" title="Show everything">Clear</button>' : "") +
         '</div>' : "") +
+      vwBulkBarHtml +
       (rows.length ? '<div class="' + (isTiles ? "dsx-grid" : "cx-list") + '">' + rows.join("") + '</div>'
         : '<div class="cx-empty">' +
             (q || anyT || anyF ? "No Views match." :
@@ -186,10 +261,28 @@
         if (mini) icEl.innerHTML = mini; else icEl.appendChild(Studio.icon("trend-up", 18));
       }
       row.addEventListener("click", function (e) {
-        if (e.target.closest("[data-vw-pin],[data-vw-private],[data-vw-open],[data-vw-open-in],[data-vw-dash],[data-vw-dup],[data-vw-export],[data-vw-del]")) return;
+        if (e.target.closest("[data-vw-pin],[data-vw-private],[data-vw-open],[data-vw-open-in],[data-vw-dash],[data-vw-dup],[data-vw-export],[data-vw-del],.vw-select-cb")) return;
+        // LIVE-d slice 6: while select mode is on, tapping a row toggles its selection
+        // instead of opening the editor — same convention as every other section.
+        if (_vwSelectMode) { toggleVwSelect(id); return; }
         vwOpen(id);
       });
     });
+    // LIVE-d slice 6: bulk-bar buttons + checkbox wiring while select mode is on.
+    if (_vwSelectMode) {
+      var vwSelAllBtn = $("#vwSelAllBtn", results);
+      if (vwSelAllBtn) vwSelAllBtn.onclick = function () { shown.forEach(function (a) { _vwSelected[a.id] = true; }); renderViews(); };
+      var vwSelNoneBtn = $("#vwSelNoneBtn", results);
+      if (vwSelNoneBtn) vwSelNoneBtn.onclick = function () { _vwSelected = {}; renderViews(); };
+      var vwSelMoveBtn = $("#vwSelMoveBtn", results);
+      if (vwSelMoveBtn) vwSelMoveBtn.onclick = bulkMoveSelectedViews;
+      var vwSelDelBtn = $("#vwSelDelBtn", results);
+      if (vwSelDelBtn) vwSelDelBtn.onclick = bulkDeleteSelectedViews;
+      $$(".vw-select-cb", results).forEach(function (cb) {
+        cb.onclick = function (e) { e.stopPropagation(); };
+        cb.onchange = function () { toggleVwSelect(cb.getAttribute("data-vw-select")); };
+      });
+    }
     $$(".cx-pin", results).forEach(function (btn) {
       btn.appendChild(Studio.icon("star", 14));
       btn.onclick = function (e) { e.stopPropagation(); Studio.Explore.togglePin(btn.getAttribute("data-vw-pin")); };

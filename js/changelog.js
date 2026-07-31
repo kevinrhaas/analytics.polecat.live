@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 807,
+    title: 'Views joins multi-select — bulk move and delete, like every other catalog',
+    kind: 'feature',
+    ts: '2026-07-31T11:29:19.000Z',
+    items: [
+      'The Views page was the one catalog section without multi-select. It now has the same Select button as Dashboards, Datasets, Connections, Jobs and the Repository: checkboxes on every row and tile, tap-to-select, Select all / Clear, a bulk "Move to folder..." (one folder choice files the whole selection), and a bulk Delete behind a confirmation.',
+      'This completes the cross-app multi-select track -- every catalog section now shares the same selection and bulk-actions pattern.',
+    ],
+  },
+  {
     v: 806,
     title: 'Move many things to a folder at once, from every catalog page',
     kind: 'feature',
