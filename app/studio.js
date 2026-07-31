@@ -287,6 +287,7 @@
       wireTopbar();
       try { renderFooter(); } catch (e) { /* footer is non-critical chrome */ }
       setupPanes();
+      setupBuildPane();
       setupMobileTabs();
       try { setTheme(localStorage.getItem("studio-theme") || "light"); } catch (e) { setTheme("light"); }
       try { setAppTheme(localStorage.getItem("studio-app-theme") || "polecat"); } catch (e) {}
@@ -10961,6 +10962,52 @@
 
     document.addEventListener("click", function (e) { if (!e.target.closest(".menu-wrap")) closeMenus(); });
   }
+  /* ---------- VB-13: View Builder datasets pane — collapse + drag width ----------
+     Same affordances as the Studio Data panel (setupPanes below): a chevron in the
+     head collapses to a vertical rail strip, the right edge drags 200–480px. Both
+     persist locally (SETTINGS-ROAM slice 2 lifts them into roamed user prefs). */
+  function setupBuildPane() {
+    var wrap = document.querySelector("#secBuild .bd-wrap"), left = $("#bdLeft");
+    if (!wrap || !left) return;
+    function setBdCollapsed(c, silent) {
+      left.classList.toggle("collapsed", c);
+      wrap.classList.toggle("bd-left-collapsed", c);
+      if (!silent) { try { localStorage.setItem("studio-bd-collapse", c ? "1" : "0"); } catch (e) {} }
+    }
+    try {
+      var w = localStorage.getItem("studio-bd-lw");
+      if (w) wrap.style.setProperty("--bd-left-w", w);
+      if (localStorage.getItem("studio-bd-collapse") === "1") setBdCollapsed(true, true);
+    } catch (e) {}
+    var cBtn = $("#bdLeftCollapse"), rail = $("#bdLeftRail"), rez = $("#bdLeftResize");
+    if (cBtn) {
+      cBtn.textContent = ""; cBtn.appendChild(Studio.icon("chevron-left", 14));
+      cBtn.onclick = function (e) { e.stopPropagation(); setBdCollapsed(true); };
+    }
+    if (rail) {
+      var rb = rail.querySelector(".rail-btn");
+      if (rb) { rb.textContent = ""; rb.appendChild(Studio.icon("chevron-right", 14)); }
+      rail.onclick = function () { setBdCollapsed(false); };
+    }
+    if (rez) rez.addEventListener("pointerdown", function (e) {
+      e.preventDefault(); rez.classList.add("drag");
+      document.body.style.userSelect = "none"; document.body.style.cursor = "col-resize";
+      var startX = e.clientX;
+      var start = parseFloat(wrap.style.getPropertyValue("--bd-left-w")) || left.getBoundingClientRect().width || 250;
+      function mv(ev) {
+        var nw = Math.max(200, Math.min(480, start + (ev.clientX - startX)));
+        wrap.style.setProperty("--bd-left-w", nw + "px");
+      }
+      function up() {
+        window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up);
+        rez.classList.remove("drag"); document.body.style.userSelect = ""; document.body.style.cursor = "";
+        try { localStorage.setItem("studio-bd-lw", wrap.style.getPropertyValue("--bd-left-w")); } catch (x) {}
+      }
+      window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up);
+    });
+    window.__studioBdPane = { setCollapsed: setBdCollapsed }; // test hook
+  }
+
   /* ---------- resizable + collapsible side panels ---------- */
   function setupPanes() {
     var ws = $("#workspace");

@@ -1405,8 +1405,11 @@ body.lib-dragging #preview{pointer-events:none}
 /* Kevin (2026-07-31): the Build section sat flush against the rail + topbar
    while every other section breathes (.repo-wrap's 28/32px gutter) — give it
    the same outer padding so the app feels like ONE product. */
-.bd-wrap{display:grid;grid-template-columns:250px minmax(0,1fr);gap:var(--sp-16);align-items:start;
+/* VB-13: the datasets column is a draggable width (200–480px, persisted) and
+   collapses to a 40px vertical strip — the fixed 250px cut dataset names off. */
+.bd-wrap{display:grid;grid-template-columns:var(--bd-left-w,250px) minmax(0,1fr);gap:var(--sp-16);align-items:start;
   padding:var(--sp-20) var(--sp-32) var(--sp-20) var(--sp-28)}
+.bd-wrap.bd-left-collapsed{grid-template-columns:40px minmax(0,1fr)}
 /* Kevin (2026-07-31): breathe at the top — the shelves column starts flush at 0
    while the sticky datasets pane sits ~20px down (sticky offset + pane padding);
    pad the main column so the COLUMNS row aligns with the DATASETS header. */
@@ -1418,6 +1421,20 @@ body.lib-dragging #preview{pointer-events:none}
   height:calc(100vh - 140px);max-height:calc(100vh - 140px)}
 .bd-left-head{display:flex;align-items:center;justify-content:space-between;font-size:var(--fs-11);font-weight:800;letter-spacing:.06em;text-transform:uppercase;
   color:var(--faint);padding:var(--sp-2) var(--sp-4) var(--sp-8)}
+/* VB-13: collapse chevron sits inside the head; the rail + resize handle reuse
+   the Studio Data-panel affordances (see .pane-rail / .pane-collapse above). */
+.bd-left-title{display:flex;align-items:center;gap:4px}
+.bd-left{position:relative}
+.bd-rail{display:none;flex-direction:column;align-items:center;gap:12px;padding:var(--sp-12) 0;height:100%;cursor:pointer}
+.bd-rail .rail-btn{background:var(--field);border:1px solid var(--line);color:var(--muted);width:24px;height:24px;border-radius:7px;cursor:pointer;font-size:var(--fs-13);line-height:1}
+.bd-rail .rail-btn:hover{border-color:var(--brand);color:var(--brand)}
+.bd-rail .rail-label{writing-mode:vertical-rl;transform:rotate(180deg);font-size:var(--fs-12);font-weight:800;letter-spacing:.4px;color:var(--muted);white-space:nowrap}
+.bd-left.collapsed{padding:var(--sp-6) 0}
+.bd-left.collapsed .bd-left-body,.bd-left.collapsed .bd-left-resize{display:none}
+.bd-left.collapsed .bd-rail{display:flex}
+.bd-left-resize{position:absolute;top:0;right:-7px;width:12px;height:100%;cursor:col-resize;z-index:2}
+.bd-left-resize::after{content:"";position:absolute;top:0;bottom:0;left:5px;width:2px;border-radius:2px;background:transparent;transition:background .12s}
+.bd-left-resize:hover::after,.bd-left-resize.drag::after{background:var(--brand)}
 /* VB-1: navigator parity — search + New in the pane header, an Explore-style
    folder tree, stacked readable labels, per-row icons + hover manage ops */
 .bd-ds-new{background:none;border:1px solid var(--line);border-radius:7px;color:var(--brand);cursor:pointer;
@@ -1587,6 +1604,11 @@ body.lib-dragging #preview{pointer-events:none}
 @media (max-width:900px){
   .bd-wrap{grid-template-columns:1fr;padding:var(--sp-12) var(--sp-16)}
   .bd-left{position:static;height:auto;max-height:240px}
+  /* VB-13: stacked layout — width drag + collapse strip make no sense here */
+  .bd-left-resize,#bdLeftCollapse{display:none}
+  .bd-left.collapsed{padding:var(--sp-10)}
+  .bd-left.collapsed .bd-left-body{display:block}
+  .bd-left.collapsed .bd-rail{display:none}
   .bd-shelf-row{flex-direction:column;align-items:stretch;gap:4px}
   .bd-shelf-lbl{flex:none}
   /* VB-12: no drag handles on phones — full width, JS auto height still applies */

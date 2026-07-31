@@ -291,15 +291,22 @@ html[data-reduce-motion="1"] #app{transition:none}
   </section>
   <section id="secBuild" class="app-sec has-content" hidden>
     <div class="bd-wrap">
-      <aside class="bd-left">
-        <!-- VB-1 (Kevin overnight queue): navigator parity with Quick Views/Studio —
-             search + New live OUTSIDE #buildOutline so they survive re-renders
-             (keystroke focus is never lost when the tree repaints). -->
-        <div class="bd-left-head">Datasets
-          <button type="button" class="bd-ds-new" id="bdDsNew" title="Create a new dataset" aria-label="Create a new dataset">＋ New</button>
+      <aside class="bd-left" id="bdLeft">
+        <!-- VB-13 (Kevin): the pane collapses to a vertical strip (same pattern as
+             Studio's Data panel .pane-rail) and drag-resizes via the right-edge
+             handle — dataset names were unreadable at the fixed 250px. -->
+        <div class="bd-rail" id="bdLeftRail" title="Expand Datasets pane"><button type="button" class="rail-btn" aria-label="Expand Datasets pane"></button><span class="rail-label">Datasets</span></div>
+        <div class="bd-left-body" id="bdLeftBody">
+          <!-- VB-1 (Kevin overnight queue): navigator parity with Quick Views/Studio —
+               search + New live OUTSIDE #buildOutline so they survive re-renders
+               (keystroke focus is never lost when the tree repaints). -->
+          <div class="bd-left-head"><span class="bd-left-title"><button type="button" class="pane-collapse" id="bdLeftCollapse" title="Collapse panel" aria-label="Collapse Datasets pane"></button>Datasets</span>
+            <button type="button" class="bd-ds-new" id="bdDsNew" title="Create a new dataset" aria-label="Create a new dataset">＋ New</button>
+          </div>
+          <input id="bdOutlineSearch" class="bd-ol-search" type="search" placeholder="Search datasets…" aria-label="Search datasets"/>
+          <div id="buildOutline"></div>
         </div>
-        <input id="bdOutlineSearch" class="bd-ol-search" type="search" placeholder="Search datasets…" aria-label="Search datasets"/>
-        <div id="buildOutline"></div>
+        <div class="bd-left-resize" id="bdLeftResize" title="Drag to resize" aria-hidden="true"></div>
       </aside>
       <div class="bd-main">
         <!-- VB-5 (cross-editor opening): dismissible notice shown when a View made

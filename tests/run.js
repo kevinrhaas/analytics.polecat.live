@@ -11873,6 +11873,56 @@ function serve() {
     ok("VB-12: an explicit persisted {w,h} applies to the canvas, the width handle rides the live right edge, and double-clicking a handle resets ONLY that axis back to auto",
       vb12.explicit && vb12.wBarTracks && vb12.hResetKeepsW && vb12.autoAfterReset && vb12.wReset, JSON.stringify(vb12));
 
+    // ---- VB-13 (Kevin): the datasets pane itself is drag-resizable (200–480px,
+    // persisted) and collapses to a vertical rail strip — dataset names were
+    // unreadable at the fixed 250px ("i cant read the names ... take a cue from
+    // dashboard builder and how it does its dataset rail area"). ----
+    console.log("\n• VB-13: datasets pane drag-width + collapse strip");
+    const vb13 = await page.evaluate(async () => {
+      const out = {};
+      const wrap = document.querySelector("#secBuild .bd-wrap");
+      const left = document.getElementById("bdLeft");
+      const rez = document.getElementById("bdLeftResize");
+      out.hasAffordances = !!rez && !!document.getElementById("bdLeftCollapse") && !!document.getElementById("bdLeftRail");
+      localStorage.removeItem("studio-bd-lw"); localStorage.removeItem("studio-bd-collapse");
+      wrap.style.removeProperty("--bd-left-w");
+      const w0 = Math.round(left.getBoundingClientRect().width);
+      out.startW = w0;
+      // a REAL pointer drag widens the pane and persists the width
+      const r = rez.getBoundingClientRect();
+      rez.dispatchEvent(new PointerEvent("pointerdown", { clientX: r.x + 5, clientY: r.y + 100, bubbles: true }));
+      window.dispatchEvent(new PointerEvent("pointermove", { clientX: r.x + 5 + 150, clientY: r.y + 100 }));
+      window.dispatchEvent(new PointerEvent("pointerup", {}));
+      await new Promise((res) => setTimeout(res, 60));
+      out.draggedW = Math.round(left.getBoundingClientRect().width);
+      out.dragApplied = Math.abs(out.draggedW - (w0 + 150)) <= 2;
+      out.persisted = localStorage.getItem("studio-bd-lw") === out.draggedW + "px";
+      // the drag clamps at 480 (and 200 on the small end)
+      rez.dispatchEvent(new PointerEvent("pointerdown", { clientX: 500, clientY: 300, bubbles: true }));
+      window.dispatchEvent(new PointerEvent("pointermove", { clientX: 2000, clientY: 300 }));
+      window.dispatchEvent(new PointerEvent("pointerup", {}));
+      await new Promise((res) => setTimeout(res, 60));
+      out.clampedMax = Math.round(left.getBoundingClientRect().width) === 480;
+      // collapse via the head chevron → 40px rail strip, body hidden, persisted
+      document.getElementById("bdLeftCollapse").click();
+      await new Promise((res) => setTimeout(res, 60));
+      out.collapsedW = Math.round(left.getBoundingClientRect().width);
+      out.railShown = getComputedStyle(document.getElementById("bdLeftRail")).display === "flex";
+      out.bodyHidden = getComputedStyle(document.getElementById("bdLeftBody")).display === "none";
+      out.collapsePersisted = localStorage.getItem("studio-bd-collapse") === "1";
+      // expand via the rail → the dragged width comes back
+      document.getElementById("bdLeftRail").click();
+      await new Promise((res) => setTimeout(res, 60));
+      out.expandedW = Math.round(left.getBoundingClientRect().width);
+      localStorage.removeItem("studio-bd-lw"); localStorage.removeItem("studio-bd-collapse");
+      wrap.style.removeProperty("--bd-left-w");
+      return out;
+    });
+    ok("VB-13: the View Builder datasets pane drag-resizes via its right-edge handle (width persists, clamped 200–480px)",
+      vb13.hasAffordances && vb13.dragApplied && vb13.persisted && vb13.clampedMax, JSON.stringify(vb13));
+    ok("VB-13: the head chevron collapses the pane to a 40px vertical rail (body hidden, state persisted) and clicking the rail expands it back to the dragged width",
+      vb13.collapsedW === 40 && vb13.railShown && vb13.bodyHidden && vb13.collapsePersisted && vb13.expandedW === 480, JSON.stringify(vb13));
+
     // 13b. VB-4 slice 2 (Kevin overnight queue continued, "hit major ones first"):
     // Stacked bars + Stacked area join the chart strip. Studio's own chart registry
     // (model.js Studio.CHARTS + Studio.newPanel) already treats "stacked" and
