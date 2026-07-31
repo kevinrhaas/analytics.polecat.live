@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 820,
+    title: 'View Builder: the file drop-zone no longer sits on screen permanently',
+    kind: 'fix',
+    ts: '2026-07-31T14:59:32.000Z',
+    items: [
+      'The "Drop a CSV, TSV, or JSON file" overlay was meant to appear only while dragging a file over the View Builder, but a style conflict kept it (and its tinted backdrop, which washed out the whole canvas) visible from the moment the section opened. It now stays hidden until a real drag is in progress and disappears when the drag leaves.',
+    ],
+  },
+  {
     v: 819,
     title: 'The activity trail now covers anonymous and local visits',
     kind: 'feature',

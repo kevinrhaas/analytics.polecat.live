@@ -116,6 +116,19 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **VB-DROPZONE — View Builder file drop-zone showed permanently (v820,
+  sw v453, 2026-07-31, steward — Kevin live with screenshot: "that drop zone
+  always shows when you open regardless"; the tinted backdrop also washed
+  out/"subdued" the whole canvas):** build.js creates the overlay hidden and
+  only shows it on a real file dragenter — but `.bd-drop-ov`'s display:flex
+  DEFEATED the [hidden] attribute (author styles beat the UA's
+  [hidden]{display:none}; same bug class as the .bd-notice strip). Fix: one
+  `.bd-drop-ov[hidden]{display:none}` override, house pattern. Suite: the
+  old check asserted only the hidden ATTRIBUTE (green while the bug showed);
+  it now asserts COMPUTED display at rest plus a real dragenter→shown /
+  dragleave→hidden round-trip. Lane: skip VB-DROPZONE — done here. (Lane
+  sweep idea: audit other `.hidden = true` targets whose class carries
+  display:flex/grid without an [hidden] override.)
 - **ACTIVITY-ANON — anonymous/local visits reach polecat_activity (v819,
   sw v452, 2026-07-31, steward — Kevin live: "recording anonymous users as
   well... collect what you can on them ip, whatever"):** activity.js gains
