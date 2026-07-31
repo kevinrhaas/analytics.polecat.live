@@ -116,6 +116,15 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **DURABLE-2b — undo on single-row deletes (v822, sw v454, 2026-07-31,
+  steward):** the four per-row deletes (datasets.js data-dsx-del,
+  connections.js data-conn-del, jobs.js data-job-del, views.js data-vw-del)
+  now clone-before-remove and show Studio.undoToast, restoring via
+  undoRestoreRows under the ORIGINAL id (tombstone-clearing put — sync-safe,
+  same as the bulk path). Dashboards/Repository singles already ride the
+  bulk-bar undo. Views keeps its Explore-pointer clear guard. 1 new
+  4-section check (delete → gone → Undo offered → restored exact row).
+  Lane: skip DURABLE-2b — DURABLE-2 undo coverage is now COMPLETE.
 - **VB-SHOTS — View Builder hero shots (Map, Donut, Treemap) (v821,
   2026-07-31, session — Kevin's ask, deck slide):** new
   `tools/shoot-viewbuilder-charts.mjs` drives the real View Builder to render a

@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 822,
+    title: 'Undo now covers single deletes too',
+    kind: 'feature',
+    ts: '2026-07-31T15:25:45.000Z',
+    items: [
+      'Deleting one dataset, connection, job, or View from its row now offers the same Undo the bulk delete bar got -- one click on the toast puts the exact row back, same id, same contents. Dashboards and Repository single deletes already ran through the bulk bar\'s undo.',
+    ],
+  },
+  {
     v: 821,
     title: 'View Builder hero shots — a live Map and Donut, not the plain table',
     kind: 'polish',

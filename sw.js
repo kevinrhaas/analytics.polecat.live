@@ -5,7 +5,9 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v453"; /* v453: VB-DROPZONE — drop overlay
+var CACHE_NAME = "studio-shell-v454"; /* v454: DURABLE-2b — undo on
+   single-row deletes (datasets/connections/jobs/views.js). */
+/* v453: VB-DROPZONE — drop overlay
    hidden at rest (studio.css [hidden] override). */
 /* v452: ACTIVITY-ANON — anonymous/local
    visits reach the activity trail via the packaged workspace (activity.js). */
