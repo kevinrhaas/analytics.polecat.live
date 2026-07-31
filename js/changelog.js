@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 805,
+    title: 'Exporting a live dashboard now picks its data mode — snapshot, live, or standalone',
+    kind: 'feature',
+    ts: '2026-07-31T10:32:28.000Z',
+    items: [
+      'Exporting a dashboard that queries live remote sources (a connected database, Google Sheet, or warehouse) now asks what travels inside the .html file: a data snapshot (the default -- the app runs each source once at export time and bakes the rows in, no credentials included, works anywhere), live with a credential prompt on open (nothing embedded -- the previous behavior), or live with credentials embedded so the file works standalone against the real backend.',
+      'The embedded-credentials option carries a plain-spoken warning -- anyone with the file can read them -- and is never remembered as a default: it must be chosen deliberately every time.',
+      'A live source that cannot be reached at export time degrades safely: it stays live (prompting) in the file rather than exporting an empty View. Dashboards with no live remote source skip the dialog entirely -- their export is already a full snapshot.',
+      'The Docs Exporting page explains all three modes.',
+    ],
+  },
+  {
     v: 804,
     title: 'Track H sweep: the Inspector\'s delete buttons now name what they delete, on hover and to a screen reader',
     kind: 'fix',

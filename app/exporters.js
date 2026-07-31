@@ -73,13 +73,17 @@
   var PDF_PAGE_SIZE_KEYWORDS = { letter: "letter", a4: "A4", legal: "legal" };
   var PDF_PAGE_DIMS_IN = { letter: [8.5, 11], a4: [8.27, 11.69], legal: [8.5, 14] };
   var PDF_PAGE_MARGIN_IN = 12 / 25.4; // matches the @page{margin:12mm} rule below
-  function redactSecrets(spec) {
+  // EXPORT-2: `embedCreds` inverts the contract ON EXPLICIT USER CHOICE ONLY (the "Live —
+  // credentials embedded" export mode, picked behind a loud warning): secrets stay on the DA /
+  // get copied into connCfg so the exported file queries standalone, and needsSecret is never
+  // stamped (nothing to prompt for). Default (falsy) keeps the historical behavior above.
+  function redactSecrets(spec, embedCreds) {
     var das = spec && spec.cda && spec.cda.dataAccesses;
     if (!das || !das.length) return spec;
     var clone = JSON.parse(JSON.stringify(spec));
     (clone.cda.dataAccesses || []).forEach(function (da) {
       var field = SECRET_FIELDS[da.kind];
-      if (field && da[field]) { delete da[field]; da.needsSecret = field; }
+      if (field && da[field] && !embedCreds) { delete da[field]; da.needsSecret = field; }
       if (da.connectionId && Studio.Workspace) {
         var conn = Studio.Workspace.get("connections", da.connectionId);
         var cfgFields = conn && CONN_ADAPTER_CFG_FIELDS[conn.adapter];
@@ -88,11 +92,12 @@
           da.connAdapter = conn.adapter;
           da.connCfg = {};
           cfgFields.forEach(function (f) { da.connCfg[f] = (conn.cfg || {})[f]; });
-          if (Array.isArray(secretField)) {
-            var setFields = secretField.filter(function (f) { return (conn.cfg || {})[f]; });
-            if (setFields.length) da.needsSecret = setFields;
-          } else if (secretField && (conn.cfg || {})[secretField]) {
-            da.needsSecret = secretField;
+          var secretList = Array.isArray(secretField) ? secretField : (secretField ? [secretField] : []);
+          var setFields = secretList.filter(function (f) { return (conn.cfg || {})[f]; });
+          if (embedCreds) {
+            setFields.forEach(function (f) { da.connCfg[f] = (conn.cfg || {})[f]; });
+          } else if (setFields.length) {
+            da.needsSecret = Array.isArray(secretField) ? setFields : setFields[0];
           }
         }
       }
@@ -416,7 +421,7 @@
     // bundle below AND is what actually gets embedded as window.STUDIO_SPEC at the bottom of this
     // function — so the connAdapter/connCfg stamping in redactSecrets and the bundling decision
     // here never see two different views of the same dashboard.
-    var redacted = redactSecrets(spec);
+    var redacted = redactSecrets(spec, opts.embedCreds);
     var daKinds = {}, connAdapters = {};
     ((redacted.cda && redacted.cda.dataAccesses) || []).forEach(function (d) {
       if (d.kind) daKinds[d.kind] = 1;
@@ -897,8 +902,29 @@
     }
     return out;
   };
-  Studio.exportCDF = function (spec, assets, deployPath) {
-    return Studio.buildHtml(spec, assets, { deployPath: deployPath, preview: false, mock: Studio.exportMock(spec) });
+  // EXPORT-2: the live DAs an export's data-mode choice actually applies to — DAs with a real
+  // REMOTE engine. The `file` adapter is deliberately excluded: a dropped file's data rides on
+  // da.dataset inside the export already (nothing remote to snapshot, no credentials to embed),
+  // so a file-only dashboard exports with no mode dialog, same as a pure-sample one.
+  Studio.liveRemoteDas = function (spec) {
+    return ((spec && spec.cda && spec.cda.dataAccesses) || []).filter(function (da) {
+      if (!Studio.daHasRealEngine(da)) return false;
+      if (da.connAdapter === "file") return false;
+      if (da.connectionId && Studio.Workspace) {
+        var conn = Studio.Workspace.get("connections", da.connectionId);
+        if (conn && conn.adapter === "file") return false;
+      }
+      return true;
+    });
+  };
+  // EXPORT-2: opts = { mock, embedCreds } — both optional; the historical 3-arg call is the
+  // "live, prompt for credentials" mode and stays byte-identical.
+  Studio.exportCDF = function (spec, assets, deployPath, opts) {
+    opts = opts || {};
+    return Studio.buildHtml(spec, assets, {
+      deployPath: deployPath, preview: false,
+      mock: opts.mock || Studio.exportMock(spec), embedCreds: opts.embedCreds
+    });
   };
   Studio.previewHtml = function (spec, assets, sampleData, deployPath) {
     return Studio.buildHtml(spec, assets, { deployPath: deployPath, preview: true, mock: Studio.mockFor(spec, sampleData), launcher: false });

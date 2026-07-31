@@ -1799,13 +1799,28 @@
 <section id="exporting">
   <h2>Exporting dashboards</h2>
   <p>Click <strong>Export ▾</strong> in the topbar to open the export menu (it only shows while Studio is open). Every option opens an export modal with file size, a copy-to-clipboard button, and a download button.</p>
-  <p><strong>What data travels with an export.</strong> A View or dashboard whose data source has a
-  real engine (a connected database, a file/parquet source, a Google Sheet…) keeps querying it
-  <em>live</em> from the exported file. A source with no engine behind it — sample-pack content,
-  authored datasets, View Builder results — can't be re-queried from a standalone file, so the
-  export bakes in a <strong>data snapshot</strong> taken at export time: the file shows real
-  numbers anywhere you host it, and simply doesn't update until you export again. (View Builder
-  Views snapshot their actual computed rows.)</p>
+  <p><strong>What data travels with an export.</strong> A source with no engine behind it —
+  sample-pack content, authored datasets, View Builder results — can't be re-queried from a
+  standalone file, so the export always bakes in a <strong>data snapshot</strong> taken at export
+  time: the file shows real numbers anywhere you host it, and simply doesn't update until you
+  export again. (View Builder Views snapshot their actual computed rows.)</p>
+  <p><strong>Live data sources pick a data mode.</strong> When the dashboard queries live remote
+  sources (a connected database, a Google Sheet, a warehouse…), the <em>.html</em> export first
+  asks what should travel inside the file:</p>
+  <ul>
+    <li><strong>Data snapshot</strong> (recommended, the default) — the app runs each live source
+    once at export time and bakes the rows in. No credentials are included; the file works
+    anywhere, offline, forever showing that moment's numbers. A source that can't be reached at
+    export time stays live in the file instead of exporting empty.</li>
+    <li><strong>Live — ask for credentials on open</strong> — the file keeps querying your sources
+    live, and whoever opens it is prompted for the credentials. None are embedded.</li>
+    <li><strong>Live — credentials embedded</strong> — the file queries live <em>and</em> carries
+    your credentials in plain text so it works standalone. <strong>Anyone who gets the file can
+    read them</strong> — choose this only where you'd share the credentials themselves. This
+    choice is never remembered as a default; you must pick it deliberately each time.</li>
+  </ul>
+  <p>Dashboards with no live remote source skip the dialog — everything in them is already a
+  snapshot. (A dropped local file's data always travels inside the export; it needs no mode.)</p>
 
   <table class="export-table">
     <thead><tr><th>Format</th><th>What you get</th><th>Use when</th></tr></thead>

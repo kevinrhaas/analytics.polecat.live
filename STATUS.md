@@ -116,6 +116,34 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **EXPORT-2 (v805, sw v439, 2026-07-31, steward — export data modes for live
+  remote sources):** the .html export of a dashboard with live REMOTE DAs now
+  opens a data-mode dialog (both the plain export and the "All artifacts"
+  bundle): (1) **Data snapshot** (default) — `snapshotLiveRows` runs each live
+  DA at export time (`runDaLive`: connection-bound DAs via the shared
+  runDataset bridge with templateVars as params; the six direct-connector
+  kinds via their query modules) and bakes the rows into DASHKIT_MOCK; no
+  credentials in the file; a source that can't be reached is reported via
+  toast and left live-with-prompt (never an empty View). (2) **Live — prompt**
+  — the historical redactSecrets behavior, unchanged + now formalized as a
+  mode. (3) **Live — credentials embedded** — `redactSecrets(spec, embedCreds)`
+  keeps DA-kind secrets and copies connection secret fields into connCfg, no
+  needsSecret; the option carries a plain-spoken warning and is NEVER
+  remembered as the sticky default (the remembered choice is only ever
+  snapshot/live). `Studio.liveRemoteDas` is the classifier the dialog keys off
+  — real engines EXCLUDING the file adapter (a dropped file's data already
+  rides inside the export), so sample/authored/builder/file-only dashboards
+  skip the dialog entirely (byte-identical old path). `Studio.exportCDF`
+  gains an optional 4th opts arg ({mock, embedCreds}) — all existing 3-arg
+  callers (viewer, bulk export, embeds) unchanged. Docs Exporting page
+  explains the three modes. 8 new checks (redaction both modes for
+  connection + direct secrets; classifier counts; snapshot end-to-end
+  through a routed Sheets API with real rows baked + no secret; unreachable
+  source missed + left live; dialog UX — default/warning/persistence/
+  creds-never-sticky; no-dialog path unchanged). Verified live headless
+  (zero pageerrors). Claimed live by the interactive session — lane: skip
+  EXPORT-2. Files: app/exporters.js, app/studio.js, docs/index.html, sw.js,
+  js/changelog.js v805, tests/run.js, STATUS.md.
 - **Track H sweep — the Inspector's shared delete button now names what it deletes, on hover and
   to a screen reader (v804, sw v438, 2026-07-31, steward — Track H/L/N rotation, H's turn):** H
   was the most overdue of the three self-directed lenses (last ran v609, vs L at v613 and N at
@@ -8467,7 +8495,8 @@
 >       the file). Check filters: baked rows must be the FULL backing set so filterDef
 >       params still narrow client-side; note in the export UI that the data is a
 >       snapshot. Ship ahead of CONS-1.
-> EXPORT-2. **Export modes for LIVE data sources (Kevin live, 2026-07-30).** His three
+> EXPORT-2. ✓ **SHIPPED v805 (2026-07-31, interactive session — see DONE). Lane: skip
+>       EXPORT-2.** Original spec: **Export modes for LIVE data sources (Kevin live, 2026-07-30).** His three
 >       options: (1) embed the data snapshot (EXPORT-1 covers the engine-less case; add
 >       a "snapshot current data" option for live DAs too), (2) export DYNAMIC with the
 >       data-source credentials included (works standalone; warn loudly — credentials in
