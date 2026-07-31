@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 802,
+    title: 'Home Examples now group by sample pack',
+    kind: 'feature',
+    ts: '2026-07-31T09:49:50.000Z',
+    items: [
+      'With more than one sample pack installed, Home’s Examples section now shows each pack under its own heading — Conservation Insight’s cards in one group, Data Management & Governance’s in another — instead of one blended grid. Each group shows its first four with its own “+N more” into Dashboards.',
+      'With a single pack installed nothing changes: the flat strip stays exactly as it was.',
+    ],
+  },
+  {
     v: 801,
     title: 'Marketing site refresh — screenshots and copy catch up to Quick Views/View',
     kind: 'polish',

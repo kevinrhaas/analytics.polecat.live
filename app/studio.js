@@ -6078,15 +6078,41 @@
         if (!currentUserCanDevelop()) return "";
         var vis = visibleExamples();
         if (!showSamples() || !vis.length) return "";
-        return '<div class="home-examples">' + vis.slice(0, 8).map(function (e) {
+        function exCardHtml(e) {
           var types = (e.types || []).slice(0, 3).map(function (t) { return '<span class="ex-chip">' + esc(t) + '</span>'; }).join("");
           return '<button type="button" class="home-ex-card" data-home-example="' + esc(e.file) + '">' +
             '<div class="home-ex-thumb" aria-hidden="true">' + exLayoutSvg(e) + '</div>' +
             '<div class="home-ex-title">' + esc(e.title || e.file) + '</div>' +
             (types ? '<div class="home-ex-types">' + types + '</div>' : '') +
             '</button>';
-        }).join("") + '</div>' +
-          (vis.length > 8 ? '<button type="button" class="home-feat-more home-feat-more-btn" data-home-examples-more aria-label="Show ' + (vis.length - 8) + ' more sample dashboards">+ ' + (vis.length - 8) + ' more \u2014 see Dashboards</button>' : '');
+        }
+        function moreBtn(n) {
+          return '<button type="button" class="home-feat-more home-feat-more-btn" data-home-examples-more aria-label="Show ' + n + ' more sample dashboards">+ ' + n + ' more \u2014 see Dashboards</button>';
+        }
+        // #101 (Kevin): when MORE THAN ONE pack contributes cards, group them
+        // under a subheading per pack (the same nested-subhead pattern the
+        // Dashboards section uses for Pinned/Recent) instead of one blended
+        // grid \u2014 each pack shows its first 4 with its own "+N more". A single
+        // contributing pack keeps the flat 8-card strip exactly as before.
+        var byPack = {}, packOrder = [];
+        vis.forEach(function (e) {
+          var id = e.demoPackId || "other";
+          if (!byPack[id]) { byPack[id] = []; packOrder.push(id); }
+          byPack[id].push(e);
+        });
+        if (packOrder.length < 2) {
+          return '<div class="home-examples">' + vis.slice(0, 8).map(exCardHtml).join("") + '</div>' +
+            (vis.length > 8 ? moreBtn(vis.length - 8) : '');
+        }
+        return packOrder.map(function (id) {
+          var p = (Studio.DEMO_PACKS || {})[id];
+          // short display name: the part before the "\u2014 tagline" dash
+          var label = p ? String(p.name || id).split("\u2014")[0].trim() : "More samples";
+          var list = byPack[id];
+          return '<h2 class="home-sub home-sub-nested" data-home-ex-pack="' + esc(id) + '">' + esc(label) + '</h2>' +
+            '<div class="home-examples">' + list.slice(0, 4).map(exCardHtml).join("") + '</div>' +
+            (list.length > 4 ? moreBtn(list.length - 4) : '');
+        }).join("");
       },
       dashboards: function () {
         // Always renders SOMETHING (grids or the friendly empty hint) — never hidden — so it
