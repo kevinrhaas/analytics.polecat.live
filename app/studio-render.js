@@ -2179,6 +2179,7 @@
       if (!descEl.querySelector(".sr-desc-del")) {
         var del = document.createElement("button");
         del.className = "sr-desc-del"; del.type = "button"; del.innerHTML = I_CLOSE; del.title = "Remove this text object";
+        del.setAttribute("aria-label", "Remove this text object");
         del.addEventListener("click", function (e) { e.stopPropagation(); post({ type: "header-edit", field: "description", value: "" }); });
         del.addEventListener("dblclick", function (e) { e.stopPropagation(); });
         descEl.appendChild(del);
@@ -2315,7 +2316,15 @@
     [].forEach.call(tiles, function (t, i) {
       t.setAttribute("data-kpi-index", i); t.classList.add("sr-sel");
       if (t.querySelector(".sr-kpi-del")) return; // SCORE-1: idempotent across reloads on a surviving tile
-      var x = document.createElement("button"); x.className = "sr-kpi-del"; x.innerHTML = I_CLOSE; x.title = "Delete KPI";
+      // Track H sweep (2026-07-31): name the tile this deletes, not just "Delete KPI" for
+      // every tile alike -- same disambiguation delBtn() gained for the Inspector's own KPI
+      // rows. The label lives in ".l"'s own leading text node (DashKit.kpis may append an
+      // info-dot span after it), so grab only that.
+      var lblEl = t.querySelector(".l");
+      var kLabel = (lblEl && lblEl.firstChild && lblEl.firstChild.nodeType === 3) ? lblEl.firstChild.textContent.trim() : "";
+      var kName = kLabel ? "Delete KPI " + kLabel : "Delete KPI";
+      var x = document.createElement("button"); x.className = "sr-kpi-del"; x.innerHTML = I_CLOSE; x.title = kName;
+      x.setAttribute("aria-label", kName);
       x.addEventListener("click", function (e) { e.stopPropagation(); post({ type: "kpi-delete", index: i }); });
       t.appendChild(x);
     });

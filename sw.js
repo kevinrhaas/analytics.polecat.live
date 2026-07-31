@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v441"; /* v441: LIVE-d slice 6 — Views section
+var CACHE_NAME = "studio-shell-v442"; /* v442: Track H sweep — the canvas
+   in-place editing overlay's icon-only ✕ buttons (remove-description-text-
+   object, delete-KPI-tile) now carry an aria-label, and the KPI one names
+   the tile it deletes instead of a bare "Delete KPI" for every tile alike
+   (app/studio-render.js changed, so the precached copy needs to roll). */
+/* v441: LIVE-d slice 6 — Views section
    multi-select + bulk move/delete (views.js, app/index.html + docs changed);
    LIVE-d track complete. */
 /* v440: LIVE-d slice 5 — bulk "Move to

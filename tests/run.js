@@ -4274,7 +4274,7 @@ function serve() {
     console.log("\n• CANVAS: KPI ✕ matches the widget ✕, and the dashboard header can be turned off");
     const canvas = await page.evaluate(async function () {
       var spec = { id: "cvt", name: "cvt", title: "My Dashboard", subtitle: "sub", description: "A description text object",
-        gridCols: 2, kpis: [{ title: "Total", valueCol: "v", da: "d1" }],
+        gridCols: 2, kpis: [{ title: "Total", label: "Total", valueCol: "v", da: "d1" }],
         panels: [{ id: "p1", title: "Chart", span: 2, chart: { type: "bars", da: "d1", map: { labelCol: "region", valueCol: "v" }, opts: {} } }],
         filters: [], cda: { connections: [], dataAccesses: [{ id: "d1", kind: "sql", columns: ["region", "v"] }] } };
       function renderTo(sp, preview) {
@@ -4290,6 +4290,7 @@ function serve() {
                 var kc = d.defaultView.getComputedStyle(kdel), pc = d.defaultView.getComputedStyle(pdel);
                 out.kpiRadius = kc.borderRadius; out.panelRadius = pc.borderRadius;
                 out.kpiBorder = kc.borderStyle; out.panelBorder = pc.borderStyle;
+                out.kpiDelTitle = kdel.title; out.kpiDelLabel = kdel.getAttribute("aria-label");
                 var hdr = d.querySelector(".dk-header"), desc = d.querySelector(".dk-desc-bar");
                 out.hdrDisplay = hdr ? d.defaultView.getComputedStyle(hdr).display : "gone";
                 out.descDisplay = desc ? d.defaultView.getComputedStyle(desc).display : "gone";
@@ -4307,6 +4308,8 @@ function serve() {
     });
     ok("CANVAS: the KPI delete ✕ matches the widget delete ✕ — same rounded-square, bordered control (not a red circle), so canvas delete affordances are consistent",
       canvas.on.kpiRadius === canvas.on.panelRadius && canvas.on.kpiBorder === "solid" && canvas.on.panelBorder === "solid" && canvas.on.kpiRadius !== "50%", JSON.stringify(canvas.on));
+    ok("Track H sweep: the canvas KPI delete button names the KPI it deletes, in both the hover title and aria-label (not just a bare 'Delete KPI' for every tile alike)",
+      canvas.on.kpiDelTitle === "Delete KPI Total" && canvas.on.kpiDelLabel === canvas.on.kpiDelTitle, JSON.stringify(canvas.on));
     ok("CANVAS: 'Show dashboard header' off hides the title banner AND the description bar in the live preview (embed mode = just KPIs + widgets)",
       canvas.on.hdrDisplay === "flex" && canvas.on.descDisplay === "block" && canvas.off.hdrDisplay === "none" && canvas.off.descDisplay === "none", JSON.stringify({ on: canvas.on, off: canvas.off }));
     ok("CANVAS: header-off carries into the EXPORTED HTML too — the export inlines the same '.dk-header{display:none}' rule the preview uses (preview == export)",
@@ -4332,7 +4335,8 @@ function serve() {
           if (title && d.querySelector(".dk-desc-bar")) {
             var sub = d.querySelector(".dk-sub"), desc = d.querySelector(".dk-desc-bar"), delBtn = desc.querySelector(".sr-desc-del");
             var affords = { title: title.classList.contains("sr-head-edit"), sub: sub.classList.contains("sr-head-edit"),
-              desc: desc.classList.contains("sr-desc"), delBtn: !!delBtn };
+              desc: desc.classList.contains("sr-desc"), delBtn: !!delBtn,
+              delBtnLabel: delBtn && delBtn.getAttribute("aria-label"), delBtnTitle: delBtn && delBtn.title };
             // edit the title inline: dblclick -> input -> new value -> Enter
             title.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
             var inp = title.parentNode.querySelector(".sr-rename");
@@ -4353,6 +4357,8 @@ function serve() {
     ok("CANVAS-HDR: committing a title edit posts header-edit{field:title}, and the description ✕ posts header-edit{field:description,value:''} (remove)",
       (hdrEdit.msgs || []).some(function (m) { return m.field === "title" && m.value === "Renamed Dashboard"; }) &&
       (hdrEdit.msgs || []).some(function (m) { return m.field === "description" && m.value === ""; }), JSON.stringify(hdrEdit.msgs));
+    ok("Track H sweep: the description text object's ✕ carries an aria-label matching its hover title (was title-only — no accessible name at all)",
+      hdrEdit.affords.delBtnLabel === "Remove this text object" && hdrEdit.affords.delBtnTitle === hdrEdit.affords.delBtnLabel, JSON.stringify(hdrEdit.affords));
 
     // ---- LF21: the header bar itself is now a selectable/deletable canvas object -----
     console.log("\n• LF21: the header is a selectable canvas object, with its own ✕ affordance");
