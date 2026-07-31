@@ -10094,6 +10094,66 @@ function serve() {
     ok("USERS-DURABLE 2: the users table is UPSERT-ONLY in sync — even a push WITH local users rows deletes nothing (a stale admin mirror can't kill a freshly-provisioned account) — while the Admin remove flow's explicit deleteRows() still issues its targeted delete",
       durable.ok2 && durable.usersUpserted && durable.usersNeverDeleted && durable.explicitDeleteOk && durable.explicitDeleteTargeted, JSON.stringify(durable));
 
+    // ---- SETTINGS-ROAM slice 1 (Kevin, 2026-07-31): "sign in later from
+    // another browser and get my entire environment." Branding lives in the
+    // SYNCED workspace settings; a signed-in account's theme rides its own
+    // users row (prefs) and applies at sign-in. ----
+    console.log("\n• SETTINGS-ROAM: branding + theme roam");
+    const roam = await page.evaluate(() => {
+      const W = Studio.Workspace, B = Studio.Branding;
+      const out = {};
+      const brand0 = (W.settings() || {}).branding || null;
+      const local0 = localStorage.getItem("studio-branding");
+      // 1) an admin edit lands in the SYNCED workspace settings (not just localStorage)
+      B.set({ mode: "default", suite: "custom", suiteText: "Roam Co", suiteUrl: "https://roam.example" });
+      out.setSynced = ((W.settings() || {}).branding || {}).suiteText === "Roam Co";
+      // 2) a pull/adopt carrying different branding wins over stale local state
+      W.setSetting("branding", { mode: "default", suite: "custom", suiteText: "Adopted Inc" });
+      out.adoptedWins = B.suiteLabel() === "Adopted Inc";
+      // 3) lift migration: a device with ONLY local (pre-roam) branding hands it
+      // to a workspace that has none, exactly once
+      W.setSetting("branding", null);
+      localStorage.setItem("studio-branding", JSON.stringify({ mode: "default", suite: "custom", suiteText: "Lifted LLC" }));
+      B.apply();
+      out.lifted = ((W.settings() || {}).branding || {}).suiteText === "Lifted LLC";
+      // restore
+      if (brand0) W.setSetting("branding", brand0); else W.setSetting("branding", null);
+      if (local0 == null) localStorage.removeItem("studio-branding"); else localStorage.setItem("studio-branding", local0);
+      B.apply();
+
+      // 4) theme prefs ride the signed-in account's users row and re-apply
+      const P = window.__studioUserPrefs;
+      const Auth = window.PolecatAuth;
+      const cur0 = Auth.current;
+      const theme0 = document.documentElement.getAttribute("data-theme");
+      const appTheme0 = document.documentElement.getAttribute("data-app-theme");
+      W.put("users", { id: "user_roam", u: "roam@example.com", name: "Roam", role: "editor", gotrueId: "g-roam" }, { silent: true });
+      Auth.current = function () { return { u: "roam@example.com", name: "Roam", role: "editor", gotrueId: "g-roam" }; };
+      P.save("theme", "dark"); P.save("appTheme", "conservation");
+      const row = W.all("users").filter((r) => r.id === "user_roam")[0];
+      out.prefsSaved = !!(row && row.prefs && row.prefs.theme === "dark" && row.prefs.appTheme === "conservation");
+      // fresh-device simulation: DOM shows other values, then apply() roams them in
+      document.documentElement.setAttribute("data-theme", "light");
+      document.documentElement.setAttribute("data-app-theme", "polecat");
+      P.apply();
+      out.prefsApplied = document.documentElement.getAttribute("data-theme") === "dark" &&
+        document.documentElement.getAttribute("data-app-theme") === "conservation";
+      // a LOCAL account (no gotrueId) never writes prefs anywhere
+      Auth.current = function () { return { u: "admin", name: "A", role: "admin", gotrueId: null }; };
+      P.save("theme", "light");
+      out.localStaysLocal = !(W.all("users").filter((r) => r.u === "admin")[0] || {}).prefs;
+      // restore everything (Auth.current FIRST so theme restores don't write prefs)
+      Auth.current = cur0;
+      W.remove("users", "user_roam", { silent: true });
+      try { window.__studioAppTheme.set(appTheme0); } catch (e) {}
+      try { window.__studioSetTheme(theme0); } catch (e) {}
+      return out;
+    });
+    ok("SETTINGS-ROAM: branding is workspace-wide + synced — an admin edit lands in workspace settings, adopted (pulled) branding wins, and a device's old local-only branding lifts into an empty workspace once",
+      roam.setSynced && roam.adoptedWins && roam.lifted, JSON.stringify(roam));
+    ok("SETTINGS-ROAM: a signed-in account's theme choices save onto its own users row (prefs), re-apply from that row on a fresh device, and a LOCAL account's theme never leaves the browser",
+      roam.prefsSaved && roam.prefsApplied && roam.localStaysLocal, JSON.stringify(roam));
+
     // ---- SB-PULL-GUARD (the data-loss half of "wildly flaky"): Refresh does
     // push-then-pull — when the push FAILS, the pull used to adopt the remote
     // anyway, replaceAll-ing OVER the very rows the backend just refused

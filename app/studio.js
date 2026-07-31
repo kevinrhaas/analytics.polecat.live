@@ -8685,6 +8685,11 @@
         Auth.upsert(me.u, { provisioned: true }).then(function (saved) { mirrorUserRow(saved); });
       }
     } catch (e) {}
+    // SETTINGS-ROAM: apply the account's roamed prefs (theme etc.) AFTER the
+    // once-only provisioning defaults above — on a first sign-in there are no
+    // prefs yet so provisioning seeds the look; every later sign-in the user's
+    // own saved prefs win, on any device.
+    try { applyUserPrefs(); } catch (e) {}
     // Re-render the identity-dependent sections now that an account is known.
     // The app boots BEHIND the sign-in overlay (before any identity exists), so
     // the Admin section rendered once as not-signed-in and kept its stale
@@ -9468,11 +9473,52 @@
   function updateHistButtons() { var u = $("#btnUndo"), r = $("#btnRedo"); if (u) u.disabled = !_undo.length; if (r) r.disabled = !_redo.length; }
   window.__studioUndo = undoAct; window.__studioRedo = redoAct;   // exposed for tests
   function postToPreview(msg) { try { $("#preview").contentWindow.postMessage(Object.assign({ studio: 1 }, msg), "*"); } catch (e) {} }
+  // ---------- SETTINGS-ROAM slice 1 (Kevin, 2026-07-31): per-user prefs ----------
+  // "sign in later from another browser and get my entire environment." A signed-in
+  // REMOTE account's personal look-and-feel rides its own users row (row.prefs),
+  // which syncs via the (upsert-only) users push and applies at sign-in on any
+  // device. Local accounts (admin/demo) stay browser-local — no backend identity.
+  // mirrorUserRow deliberately reuses the existing row object, so prefs survive
+  // every sign-in mirror.
+  var _applyingUserPrefs = false;
+  function myUsersRow() {
+    var Auth = window.PolecatAuth, me = Auth && Auth.current();
+    if (!me || !Studio.Workspace) return null;
+    var rows = Studio.Workspace.all("users");
+    return rows.filter(function (r) { return me.gotrueId && r.gotrueId === me.gotrueId; })[0] ||
+           rows.filter(function (r) { return r.u === me.u; })[0] || null;
+  }
+  function saveUserPref(key, value) {
+    if (_applyingUserPrefs) return; // applying roamed prefs must not echo-save them
+    try {
+      var Auth = window.PolecatAuth, me = Auth && Auth.current();
+      if (!me || !me.gotrueId) return; // local accounts: browser-local by design
+      var row = myUsersRow(); if (!row) return;
+      if (row.prefs && row.prefs[key] === value) return;
+      var next = Studio.clone(row);
+      next.prefs = next.prefs || {};
+      next.prefs[key] = value;
+      Studio.Workspace.put("users", next); // rides the upsert-only users push
+    } catch (e) {}
+  }
+  function applyUserPrefs() {
+    try {
+      var row = myUsersRow();
+      var prefs = row && row.prefs;
+      if (!prefs) return;
+      _applyingUserPrefs = true;
+      if (prefs.appTheme) setAppTheme(prefs.appTheme);
+      if (prefs.theme) setTheme(prefs.theme);
+    } catch (e) {}
+    _applyingUserPrefs = false;
+  }
+  window.__studioUserPrefs = { save: saveUserPref, apply: applyUserPrefs, mine: myUsersRow }; // test hooks
   function setTheme(t) {
     S.theme = t; document.documentElement.setAttribute("data-theme", t);
     var b = $("#btnTheme"); if (b) setIconBtn(b, t === "dark" ? "sun" : "moon", t === "dark" ? "Light" : "Dark");
     refreshTbThemeIcon();
     try { localStorage.setItem("studio-theme", t); } catch (e) {}
+    saveUserPref("theme", t); // SETTINGS-ROAM: roams with the signed-in account
     postToPreview({ type: "theme", value: t });
     syncDocsTheme();
     renderHome();
@@ -9585,9 +9631,11 @@
     // studio-theme / studio-app-theme pair — no user state is touched).
     document.documentElement.setAttribute("data-palette", t);
     try { localStorage.setItem("studio-app-theme", t); } catch (e) {}
+    saveUserPref("appTheme", t); // SETTINGS-ROAM: roams with the signed-in account
     syncDocsTheme(); // LIVE-e: the Help iframe tracks app-theme changes live
   }
   window.__studioAppTheme = { get: appTheme, set: setAppTheme }; // test hook
+  window.__studioSetTheme = setTheme; // test hook (SETTINGS-ROAM restores)
   // LF17: the Settings "Color theme" picker shows each option as a real preview instead of a
   // text-only <option>, so pick-by-looking replaces pick-by-reading. Rather than hand-copying
   // studio.css's per-theme hex values into a second, easily-stale JS table, this briefly flips
