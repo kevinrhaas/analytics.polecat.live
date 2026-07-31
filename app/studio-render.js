@@ -1,7 +1,7 @@
 /* ============================================================================
    studio-render.js — runs INSIDE the dashboard (preview iframe AND exported
-   CDF html). Reads window.STUDIO_SPEC and renders it through the DashKit toolkit,
-   so the live preview is byte-identical to the deployed CDF dashboard.
+   exported dashboard html). Reads window.STUDIO_SPEC and renders it through the DashKit toolkit,
+   so the live preview is byte-identical to the deployed dashboard html.
    Depends only on DashKit (vendor/dashkit.js). No build step.
    ============================================================================ */
 (function () {
@@ -887,7 +887,7 @@
     var isChoropleth = !!(p.chart && p.chart.type === "choropleth");
     var canImg = (!!svg || isChoropleth) && dlTypeShown(p, "dlPng");
     var canData = !!(res && res.rows && res.rows.length) && dlTypeShown(p, "dlCsv");
-    // Export-as-HTML needs the builder's full spec + asset bundle (Studio.exportCDF),
+    // Export-as-HTML needs the builder's full spec + asset bundle (Studio.exportDashboardHtml),
     // which only exists in the parent window — so it's builder/preview-only, like the
     // zoom/duplicate/delete acts it joins, never rendered into a real static export.
     var canEmbed = isPreview() && dlTypeShown(p, "dlEmbed");

@@ -42,7 +42,7 @@ function assets() {
 function buildArtifacts(Studio, spec, deployPath) {
   const a = assets(), stem = spec.name;
   return [
-    { name: stem + ".html", mime: "text/html", body: Studio.exportCDF(spec, a, deployPath) }
+    { name: stem + ".html", mime: "text/html", body: Studio.exportDashboardHtml(spec, a, deployPath) }
   ].map(function (f) { f.path = deployPath + "/" + f.name; return f; });
 }
 

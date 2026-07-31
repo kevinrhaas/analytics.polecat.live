@@ -2251,7 +2251,7 @@ function serve() {
         name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
         cda: { dataAccesses: [{ id: "d1", name: "gsDa", kind: "sql", columns: ["x"], connectionId: conn.id, dataset: { kind: "sheet", sheet: "Sales" } }] }
       };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       Studio.Workspace.remove("connections", conn.id, { silent: true });
       return {
         leaksSecret: html.indexOf("SUPER-SECRET-GS-OAUTH-TOKEN") >= 0,
@@ -2260,9 +2260,9 @@ function serve() {
         stampsNeedsSecret: html.indexOf("\"needsSecret\":\"token\"") >= 0
       };
     });
-    ok("GS-OAUTH: exportCDF never embeds a private gsheets connection's OAuth token in the output HTML",
+    ok("GS-OAUTH: exportDashboardHtml never embeds a private gsheets connection's OAuth token in the output HTML",
       !gsOauthRedaction.leaksSecret, JSON.stringify(gsOauthRedaction));
-    ok("GS-OAUTH: exportCDF keeps the connection's non-secret url so the dataset still resolves",
+    ok("GS-OAUTH: exportDashboardHtml keeps the connection's non-secret url so the dataset still resolves",
       gsOauthRedaction.keepsUrl, JSON.stringify(gsOauthRedaction));
     ok("GS-OAUTH: the redacted DA is stamped with connAdapter:\"gsheets\" so the runtime knows which engine to use",
       gsOauthRedaction.stampsConnAdapter, JSON.stringify(gsOauthRedaction));
@@ -2278,7 +2278,7 @@ function serve() {
         name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
         cda: { dataAccesses: [{ id: "d1", name: "gsDa", kind: "sql", columns: ["x"], connectionId: conn.id, dataset: { kind: "sheet", sheet: "Sales" } }] }
       };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       Studio.Workspace.remove("connections", conn.id, { silent: true });
       return { stampsConnAdapter: html.indexOf("\"connAdapter\":\"gsheets\"") >= 0, stampsNeedsSecret: html.indexOf("\"needsSecret\"") >= 0 };
     });
@@ -2295,7 +2295,7 @@ function serve() {
       var conn = Studio.Workspace.put("connections", { name: "gs-oauth-dispatch-test", adapter: "gsheets", cfg: { url: "https://docs.google.com/spreadsheets/d/GSOAUTHDISPATCH1/edit", token: "orig-secret" } });
       var da = { id: "d1", name: "d1", kind: "sql", columns: ["x"], sql: "", query: "", connectionId: conn.id, dataset: { kind: "sheet", sheet: "Sales" } };
       var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       var ifr = document.createElement("iframe");
       ifr.style.display = "none";
       document.body.appendChild(ifr);
@@ -2331,8 +2331,8 @@ function serve() {
         name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
         cda: { dataAccesses: [{ id: "d1", name: "tDa", kind: "sql", columns: ["x"], connectionId: conn.id, dataset: { kind: "sql", sql: "select 1" } }] }
       };
-      var liveHtml = Studio.exportCDF(spec, assets, "/x");
-      var credsHtml = Studio.exportCDF(spec, assets, "/x", { embedCreds: true });
+      var liveHtml = Studio.exportDashboardHtml(spec, assets, "/x");
+      var credsHtml = Studio.exportDashboardHtml(spec, assets, "/x", { embedCreds: true });
       Studio.Workspace.remove("connections", conn.id, { silent: true });
       return {
         liveLeaks: liveHtml.indexOf("TURSO-EMBED-SECRET-X2") >= 0,
@@ -2354,8 +2354,8 @@ function serve() {
         name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
         cda: { dataAccesses: [{ id: "d1", name: "sfDa", kind: "snowflake", columns: ["x"], sfAccount: "acct1", sfToken: "SF-EMBED-SECRET-X2", query: "select 1" }] }
       };
-      var liveHtml = Studio.exportCDF(spec, assets, "/x");
-      var credsHtml = Studio.exportCDF(spec, assets, "/x", { embedCreds: true });
+      var liveHtml = Studio.exportDashboardHtml(spec, assets, "/x");
+      var credsHtml = Studio.exportDashboardHtml(spec, assets, "/x", { embedCreds: true });
       return {
         liveLeaks: liveHtml.indexOf("SF-EMBED-SECRET-X2") >= 0,
         livePrompts: liveHtml.indexOf("\"needsSecret\":\"sfToken\"") >= 0,
@@ -2403,7 +2403,7 @@ function serve() {
       };
       var snap = await window.__studioSnapshotLiveRows(spec);
       var mock = Object.assign(Studio.exportMock(spec), snap.rows);
-      var html = Studio.exportCDF(spec, assets, "/x", { mock: mock });
+      var html = Studio.exportDashboardHtml(spec, assets, "/x", { mock: mock });
       Studio.Workspace.remove("connections", conn.id, { silent: true });
       Studio.Workspace.remove("datasets", "d1", { silent: true }); // runDataset's ad-hoc stamp row
       return {
@@ -8929,7 +8929,7 @@ function serve() {
       out.modalTitle = title;
       out.rowCount = rows.length;
       out.isHtmlFile = /\.html$/.test(fileName);
-      var expectedHtml = Studio.exportCDF(Studio.Explore.analysisSpec(a), window.__STUDIO_STATE.assets, window.__STUDIO_STATE.settings.deployPath);
+      var expectedHtml = Studio.exportDashboardHtml(Studio.Explore.analysisSpec(a), window.__STUDIO_STATE.assets, window.__STUDIO_STATE.settings.deployPath);
       out.hasThisChartType = expectedHtml.indexOf('"type":"donut"') >= 0;
       out.noKpis = expectedHtml.indexOf('"kpis":[]') >= 0;
       var ov = document.querySelector(".modal-ov"); if (ov) ov.remove();
@@ -14217,7 +14217,7 @@ function serve() {
     ok("PANEL-H: pointer-dragging the bottom edge sets an explicit panel height on chart.opts.height — no upper cap, 120px floor",
       typeof hAfter === "number" && hAfter >= 120 && hAfter !== hBefore, JSON.stringify({ hBefore: hBefore, hAfter: hAfter }));
     const hExport = await page.evaluate((hv) => {
-      const html = Studio.exportCDF(window.__STUDIO_STATE.spec, window.__STUDIO_STATE.assets, "/x");
+      const html = Studio.exportDashboardHtml(window.__STUDIO_STATE.spec, window.__STUDIO_STATE.assets, "/x");
       return html.indexOf('"height":' + hv) >= 0;
     }, hAfter);
     ok("PANEL-H: the drag-set height rides the spec into the export byte-stream (preview/viewer/export parity)", hExport === true, String(hAfter));
@@ -14365,7 +14365,7 @@ function serve() {
     console.log("\n• exporters");
     const exp = await page.evaluate(() => {
       const S = window.__STUDIO_STATE, sp = S.spec, A = S.assets, dp = S.settings.deployPath;
-      const cdf = Studio.exportCDF(sp, A, dp);
+      const cdf = Studio.exportDashboardHtml(sp, A, dp);
       return {
         cdfHasSpec: cdf.includes("window.STUDIO_SPEC") && cdf.includes("dk-header") && cdf.includes("StudioRender"),
         cdfInlinesToolkit: cdf.includes("DashKit.bars") && cdf.includes(".dk-header{"),
@@ -14961,10 +14961,9 @@ function serve() {
         polys: doc.querySelectorAll("#content svg polygon").length,
         dots: doc.querySelectorAll("#content svg circle").length,
         err: /Render error/.test(doc.querySelector("#content").textContent),
-        reg: !!Studio.CHARTS.radar, cdfOnly: Studio.cdeUnsupported("radar"),
-      };
+        reg: !!Studio.CHARTS.radar,       };
     });
-    ok("radar is registered as a CDF-only chart type", radar.reg && radar.cdfOnly, JSON.stringify(radar));
+    ok("radar is registered as a chart type", radar.reg, JSON.stringify(radar));
     ok("radar renders ring + series polygons in the preview", radar.polys >= 5 && radar.dots >= 1 && !radar.err, JSON.stringify(radar));
 
     // ---- waterfall chart (F4) ----
@@ -14981,12 +14980,11 @@ function serve() {
       const doc = await window.__waitForPreview((d) => (d.querySelector("#content") || {}).textContent.indexOf("Waterfall") >= 0);
       var rects = doc.querySelectorAll("#content svg rect");
       return {
-        reg: !!Studio.CHARTS.waterfall, cdfOnly: Studio.cdeUnsupported("waterfall"),
-        rectCount: rects.length,
+        reg: !!Studio.CHARTS.waterfall,         rectCount: rects.length,
         err: /Render error/.test(doc.querySelector("#content").textContent)
       };
     });
-    ok("waterfall is registered as a CDF-only chart type", wf.reg && wf.cdfOnly, JSON.stringify(wf));
+    ok("waterfall is registered as a chart type", wf.reg, JSON.stringify(wf));
     ok("waterfall renders floating delta bars in the preview", wf.rectCount >= 2 && !wf.err, JSON.stringify(wf));
 
     // ---- sankey (flow) chart type (F1) ----
@@ -15006,12 +15004,11 @@ function serve() {
       const doc = await window.__waitForPreview((d) => (d.querySelector("#content") || {}).textContent.indexOf("Sankey") >= 0);
       var paths = doc.querySelectorAll("#content svg path");
       return {
-        reg: !!Studio.CHARTS.sankey, cdfOnly: Studio.cdeUnsupported("sankey"),
-        pathCount: paths.length,
+        reg: !!Studio.CHARTS.sankey,         pathCount: paths.length,
         err: /Render error/.test(doc.querySelector("#content").textContent)
       };
     });
-    ok("sankey is registered as a CDF-only chart type", sankey.reg && sankey.cdfOnly, JSON.stringify(sankey));
+    ok("sankey is registered as a chart type", sankey.reg, JSON.stringify(sankey));
     ok("sankey renders flow paths in the preview", sankey.pathCount >= 1 && !sankey.err, JSON.stringify(sankey));
 
     // ---- chord / dependency wheel chart type (F2) ----
@@ -15030,12 +15027,11 @@ function serve() {
       const doc = await window.__waitForPreview((d) => (d.querySelector("#content") || {}).textContent.indexOf("Chord") >= 0);
       var content = doc.querySelector("#content");
       return {
-        reg: !!Studio.CHARTS.chord, cdfOnly: Studio.cdeUnsupported("chord"),
-        svgPresent: !!content.querySelector("svg"),
+        reg: !!Studio.CHARTS.chord,         svgPresent: !!content.querySelector("svg"),
         err: /Render error/.test(content.textContent)
       };
     });
-    ok("chord is registered as a CDF-only chart type", chord.reg && chord.cdfOnly, JSON.stringify(chord));
+    ok("chord is registered as a chart type", chord.reg, JSON.stringify(chord));
     ok("chord renders SVG content in the preview", chord.svgPresent && !chord.err, JSON.stringify(chord));
 
     // ---- funnel chart (F5) ----
@@ -15055,12 +15051,11 @@ function serve() {
       var content = doc.querySelector("#content");
       var rects = content.querySelectorAll("svg rect");
       return {
-        reg: !!Studio.CHARTS.funnel, cdfOnly: Studio.cdeUnsupported("funnel"),
-        rectCount: rects.length,
+        reg: !!Studio.CHARTS.funnel,         rectCount: rects.length,
         err: /Render error/.test(content.textContent)
       };
     });
-    ok("funnel is registered as a CDF-only chart type", funnel.reg && funnel.cdfOnly, JSON.stringify(funnel));
+    ok("funnel is registered as a chart type", funnel.reg, JSON.stringify(funnel));
     ok("funnel renders stage bars in the preview", funnel.rectCount >= 1 && !funnel.err, JSON.stringify(funnel));
 
     // ---- sunburst chart (F6) ----
@@ -15080,13 +15075,12 @@ function serve() {
       var content = doc.querySelector("#content");
       var paths = content.querySelectorAll("svg path");
       return {
-        reg: !!Studio.CHARTS.sunburst, cdfOnly: Studio.cdeUnsupported("sunburst"),
-        pathCount: paths.length,
+        reg: !!Studio.CHARTS.sunburst,         pathCount: paths.length,
         hasGroupCol: Array.isArray((Studio.CHARTS.sunburst || {}).fields) && Studio.CHARTS.sunburst.fields.indexOf("groupCol") >= 0,
         err: /Render error/.test(content.textContent)
       };
     });
-    ok("sunburst is registered as a CDF-only chart type", sunburst.reg && sunburst.cdfOnly, JSON.stringify(sunburst));
+    ok("sunburst is registered as a chart type", sunburst.reg, JSON.stringify(sunburst));
     ok("sunburst renders arc paths in the preview", sunburst.pathCount >= 2 && !sunburst.err, JSON.stringify(sunburst));
     ok("sunburst model has groupCol field for two-ring hierarchy", sunburst.hasGroupCol, JSON.stringify(sunburst));
 
@@ -15212,7 +15206,7 @@ function serve() {
       // grab the exported HTML the same way the modal's Copy button would, to check its contents
       var single = Studio.clone(sp);
       single.panels = [Studio.clone(p)]; single.kpis = []; single.filters = []; single.title = p.title || sp.title;
-      var html = Studio.exportCDF(single, window.__STUDIO_STATE.assets, window.__STUDIO_STATE.settings.deployPath);
+      var html = Studio.exportDashboardHtml(single, window.__STUDIO_STATE.assets, window.__STUDIO_STATE.settings.deployPath);
       return {
         found: true, rowCount: rows.length, isHtml: /\.html$/.test(fileName), modalTitle: title,
         hasThisPanelType: html.indexOf('"type":"' + p.chart.type + '"') >= 0,
@@ -16077,8 +16071,8 @@ function serve() {
     // ---- CDF (.html) import: recover the embedded spec ----
     const cdfImp = await page.evaluate(async () => {
       const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
-      const html = Studio.exportCDF(spec, window.__STUDIO_STATE.assets, "/public/pdc-iteration/v2");
-      const back = Studio.parseCDFHtml(html);
+      const html = Studio.exportDashboardHtml(spec, window.__STUDIO_STATE.assets, "/public/pdc-iteration/v2");
+      const back = Studio.parseDashboardHtml(html);
       return back ? { name: back.name, title: back.title, panels: back.panels.length, kpis: back.kpis.length, srcPanels: spec.panels.length, srcKpis: spec.kpis.length } : null;
     });
     ok("CDF .html import recovers the full spec", !!cdfImp && cdfImp.name === "studio-cost" && cdfImp.panels === cdfImp.srcPanels && cdfImp.kpis === cdfImp.srcKpis, JSON.stringify(cdfImp));
@@ -21361,13 +21355,12 @@ function serve() {
       var content = doc.querySelector("#content");
       var rects = content.querySelectorAll("svg rect");
       return {
-        reg: !!Studio.CHARTS.bullet, cdfOnly: Studio.cdeUnsupported("bullet"),
-        hasTarget: Array.isArray((Studio.CHARTS.bullet || {}).fields) && Studio.CHARTS.bullet.fields.indexOf("targetCol") >= 0,
+        reg: !!Studio.CHARTS.bullet,         hasTarget: Array.isArray((Studio.CHARTS.bullet || {}).fields) && Studio.CHARTS.bullet.fields.indexOf("targetCol") >= 0,
         rectCount: rects.length,
         err: /Render error/.test(content.textContent)
       };
     });
-    ok("F7a: bullet is registered as a CDF-only chart type", bullet.reg && bullet.cdfOnly, JSON.stringify(bullet));
+    ok("F7a: bullet is registered as a chart type", bullet.reg, JSON.stringify(bullet));
     ok("F7a: bullet model has targetCol field", bullet.hasTarget, JSON.stringify(bullet));
     ok("F7a: bullet renders quality-band + actual-value rects in the preview", bullet.rectCount >= 3 && !bullet.err, JSON.stringify(bullet));
 
@@ -21392,13 +21385,12 @@ function serve() {
       var content = doc.querySelector("#content");
       var cells = content.querySelectorAll("svg rect");
       return {
-        reg: !!Studio.CHARTS.calHeatmap, cdfOnly: Studio.cdeUnsupported("calHeatmap"),
-        cellCount: cells.length,
+        reg: !!Studio.CHARTS.calHeatmap,         cellCount: cells.length,
         err: /Render error/.test(content.textContent),
         noDate: /No parseable dates/.test(content.textContent)
       };
     });
-    ok("F7b: calHeatmap is registered as a CDF-only chart type", calHm.reg && calHm.cdfOnly, JSON.stringify(calHm));
+    ok("F7b: calHeatmap is registered as a chart type", calHm.reg, JSON.stringify(calHm));
     ok("F7b: calHeatmap renders day-grid cells in the preview", calHm.cellCount >= 5 && !calHm.err && !calHm.noDate, JSON.stringify(calHm));
 
     // ---- Z8 slice 11: calendar heatmap gets its own options (cell color + week start) ----
@@ -22135,12 +22127,11 @@ function serve() {
       if (!c) return { reg: false };
       return {
         reg: true,
-        cdfOnly: c.cde === null,
         hasSourceCol: (c.fields || []).indexOf("sourceCol") >= 0,
         label: c.label
       };
     });
-    ok("F9: network chart registered as CDF-only", f9Reg.reg && f9Reg.cdfOnly, JSON.stringify(f9Reg));
+    ok("F9: network chart registered", f9Reg.reg, JSON.stringify(f9Reg));
     ok("F9: network chart has sourceCol field", f9Reg.reg && f9Reg.hasSourceCol, JSON.stringify(f9Reg));
 
     // Render a network chart in the preview and check for SVG circles (nodes)
@@ -22857,10 +22848,8 @@ function serve() {
     const lolReg = await page.evaluate(() => ({
       hasType: !!(window.Studio && window.Studio.CHARTS && window.Studio.CHARTS.lollipop),
       group: window.Studio && window.Studio.CHARTS.lollipop && window.Studio.CHARTS.lollipop.group,
-      cde: window.Studio && window.Studio.CHARTS.lollipop && window.Studio.CHARTS.lollipop.cde
     }));
     ok("v73: Studio.CHARTS.lollipop registered under Comparison", lolReg.hasType && lolReg.group === "Comparison", JSON.stringify(lolReg));
-    ok("v73: lollipop is CDF-only (cde: null)", lolReg.cde === null, JSON.stringify(lolReg));
 
     // 2. DashKit.lollipop extension present in the preview iframe
     const lolExt = await page.evaluate(() => {
@@ -22938,7 +22927,7 @@ function serve() {
         if (!freshSpec.panels || freshSpec.panels.length < 2) return { ok: false, reason: "not enough panels in fresh spec" };
         freshSpec.panels[1].section = "Overview";
         var assets = window.__STUDIO_STATE.assets;
-        var html = Studio.exportCDF(freshSpec, assets, "/public/pdc-iteration/v2");
+        var html = Studio.exportDashboardHtml(freshSpec, assets, "/public/pdc-iteration/v2");
         return {
           hasCss: html.includes(".dk-sec-hdr"),
           hasEl: html.includes("dk-sec-hdr")
@@ -22962,11 +22951,9 @@ function serve() {
       return {
         hasType: !!(window.Studio && window.Studio.CHARTS && window.Studio.CHARTS.slope),
         group: window.Studio && window.Studio.CHARTS.slope && window.Studio.CHARTS.slope.group,
-        cde: window.Studio && window.Studio.CHARTS.slope && window.Studio.CHARTS.slope.cde
       };
     });
     ok("v74: Studio.CHARTS.slope registered under Trend group", slopeReg.hasType && slopeReg.group === "Trend", JSON.stringify(slopeReg));
-    ok("v74: slope is CDF-only (cde: null)", slopeReg.cde === null, JSON.stringify(slopeReg));
 
     // 2. DashKit.slope extension is present in the preview iframe
     await page.waitForTimeout(250);
@@ -23014,7 +23001,7 @@ function serve() {
         var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
         freshSpec.description = "This dashboard shows monthly cloud spending by region and workload type.";
         var assets = window.__STUDIO_STATE.assets;
-        var html = Studio.exportCDF(freshSpec, assets, "/public/pdc-iteration/v2");
+        var html = Studio.exportDashboardHtml(freshSpec, assets, "/public/pdc-iteration/v2");
         return {
           hasCss: html.includes("dk-desc-bar"),
           hasEl: html.includes("monthly cloud spending")
@@ -23030,7 +23017,7 @@ function serve() {
         var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
         freshSpec.description = "";
         var assets = window.__STUDIO_STATE.assets;
-        var html = Studio.exportCDF(freshSpec, assets, "/public/pdc-iteration/v2");
+        var html = Studio.exportDashboardHtml(freshSpec, assets, "/public/pdc-iteration/v2");
         return { hasEl: html.includes('<div class="dk-desc-bar">') };
       } catch (e) { return { ok: false, err: e.message }; }
     });
@@ -23051,11 +23038,9 @@ function serve() {
       return {
         hasType: !!(window.Studio && window.Studio.CHARTS && window.Studio.CHARTS.dotplot),
         group: window.Studio && window.Studio.CHARTS.dotplot && window.Studio.CHARTS.dotplot.group,
-        cde: window.Studio && window.Studio.CHARTS.dotplot && window.Studio.CHARTS.dotplot.cde
       };
     });
     ok("v75: Studio.CHARTS.dotplot registered under Distribution group", dotReg.hasType && dotReg.group === "Distribution", JSON.stringify(dotReg));
-    ok("v75: dotplot is CDF-only (cde: null)", dotReg.cde === null, JSON.stringify(dotReg));
 
     // 2. DashKit.dotplot extension is present in the preview iframe
     await page.waitForTimeout(300);
@@ -23135,7 +23120,7 @@ function serve() {
         var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
         freshSpec.panels[0].note = "Exported note check";
         var assets = window.__STUDIO_STATE.assets;
-        var html = Studio.exportCDF(freshSpec, assets, "/public/pdc-iteration/v2");
+        var html = Studio.exportDashboardHtml(freshSpec, assets, "/public/pdc-iteration/v2");
         return {
           hasCss: html.includes("dk-panel-note"),
           hasEl: html.includes("Exported note check")
@@ -23159,11 +23144,9 @@ function serve() {
       return {
         hasType: !!(window.Studio && window.Studio.CHARTS && window.Studio.CHARTS.beeswarm),
         group: window.Studio && window.Studio.CHARTS.beeswarm && window.Studio.CHARTS.beeswarm.group,
-        cde: window.Studio && window.Studio.CHARTS.beeswarm && window.Studio.CHARTS.beeswarm.cde
       };
     });
     ok("v76: Studio.CHARTS.beeswarm registered under Distribution group", bsReg.hasType && bsReg.group === "Distribution", JSON.stringify(bsReg));
-    ok("v76: beeswarm is CDF-only (cde: null)", bsReg.cde === null, JSON.stringify(bsReg));
 
     // 2. DashKit.beeswarm extension is present in the preview iframe
     await page.waitForTimeout(300);
@@ -23239,7 +23222,7 @@ function serve() {
         var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
         freshSpec.panels[0].accentColor = "#3498db";
         var assets = window.__STUDIO_STATE.assets;
-        var html = Studio.exportCDF(freshSpec, assets, "/public/pdc-iteration/v2");
+        var html = Studio.exportDashboardHtml(freshSpec, assets, "/public/pdc-iteration/v2");
         return {
           hasCss: html.includes("dk-accent-panel"),
           hasPapVar: html.includes("--pap-color")
@@ -23735,10 +23718,10 @@ function serve() {
     const histReg = await page.evaluate(function () {
       try {
         var c = Studio.CHARTS["histogram"];
-        return { found: !!c, group: c ? c.group : null, cdfOnly: c ? !c.cde : null, label: c ? c.label : null };
+        return { found: !!c, group: c ? c.group : null, label: c ? c.label : null };
       } catch (e) { return { found: false, err: e.message }; }
     });
-    ok("v82: histogram registered in Distribution group and CDF-only", histReg.found && histReg.group === "Distribution" && histReg.cdfOnly === true, JSON.stringify(histReg));
+    ok("v82: histogram registered in Distribution group", histReg.found && histReg.group === "Distribution", JSON.stringify(histReg));
 
     // 2. DashKit.histogram extension defined in preview iframe
     const histFn = await page.evaluate(function () {
@@ -24041,11 +24024,11 @@ function serve() {
     const paReg = await page.evaluate(function () {
       try {
         var c = Studio.CHARTS.polarArea;
-        return { label: c.label, group: c.group, cdeNull: c.cde === null };
+        return { label: c.label, group: c.group };
       } catch (e) { return { err: e.message }; }
     });
-    ok("v86: polarArea registered in Composition group, CDF-only",
-      paReg.label === "Polar area" && paReg.group === "Composition" && paReg.cdeNull, JSON.stringify(paReg));
+    ok("v86: polarArea registered in Composition group",
+      paReg.label === "Polar area" && paReg.group === "Composition", JSON.stringify(paReg));
 
     // 2. DashKit.polarArea defined in preview iframe after boot
     const paDef = await page.evaluate(function () {
@@ -24673,34 +24656,21 @@ function serve() {
     });
     ok("v601: exported CDF HTML embeds periodSplit config in STUDIO_SPEC", v601ExportResult.hasPeriodSplit, JSON.stringify(v601ExportResult));
 
-    // ---- Track L sweep (chart-extension API lens): every Studio.CHARTS entry declares `cde` ----
-    // The registry's contract is "every chart type has a `cde` key: an object (exportable to CCC/
-    // CDE) or an explicit `null` (CDF-only)". Studio.cdeUnsupported() happens to work even when a
-    // type OMITS the key (undefined is falsy too), so a silent omission never broke at runtime —
-    // but it left the extension surface ad-hoc. choropleth/ensembleSeries/richtext/boxplot were
-    // missing the key outright; this guards the registry from silently regressing back to that.
-    console.log("\n• Track L sweep: chart registry cde contract");
-    const chartsCdeResult = await page.evaluate(function () {
-      var missing = [];
+    // ---- LF53-CODE: the retired CDE mapping apparatus stays gone ----
+    // The CDE exporter was removed at Z0 and the dead `cde:` registry metadata +
+    // Studio.cdeUnsupported were deleted with LF53-CODE. Guard the registry (and the
+    // Studio surface) from silently regressing the dead apparatus back in.
+    console.log("\n• LF53-CODE: retired CDE apparatus stays gone");
+    const cdeGone = await page.evaluate(function () {
+      var carriers = [];
       for (var t in Studio.CHARTS) {
-        if (!Object.prototype.hasOwnProperty.call(Studio.CHARTS[t], "cde")) missing.push(t);
+        if (Object.prototype.hasOwnProperty.call(Studio.CHARTS[t], "cde")) carriers.push(t);
       }
-      return { missing: missing, total: Object.keys(Studio.CHARTS).length };
+      return { carriers: carriers, total: Object.keys(Studio.CHARTS).length,
+        fnGone: typeof Studio.cdeUnsupported === "undefined" };
     });
-    ok("Track L: every Studio.CHARTS entry declares a `cde` key (object or explicit null)",
-      chartsCdeResult.missing.length === 0, JSON.stringify(chartsCdeResult));
-    const cdeNullSpotCheck = await page.evaluate(function () {
-      return {
-        choropleth: Studio.CHARTS.choropleth.cde,
-        ensembleSeries: Studio.CHARTS.ensembleSeries.cde,
-        richtext: Studio.CHARTS.richtext.cde,
-        boxplot: Studio.CHARTS.boxplot.cde
-      };
-    });
-    ok("Track L: choropleth/ensembleSeries/richtext/boxplot are explicitly cde: null (CDF-only)",
-      cdeNullSpotCheck.choropleth === null && cdeNullSpotCheck.ensembleSeries === null &&
-      cdeNullSpotCheck.richtext === null && cdeNullSpotCheck.boxplot === null,
-      JSON.stringify(cdeNullSpotCheck));
+    ok("LF53-CODE: no Studio.CHARTS entry carries the retired `cde` key, and Studio.cdeUnsupported is gone",
+      cdeGone.carriers.length === 0 && cdeGone.total > 40 && cdeGone.fnGone, JSON.stringify(cdeGone));
 
     // Restore clean spec
     await page.evaluate(async function () {
@@ -26635,11 +26605,11 @@ function serve() {
     const f16Reg = await page.evaluate(function () {
       try {
         var c = Studio.CHARTS.step;
-        return { ok: !!c, group: c && c.group, hasCde: c && !!c.cde, desc: c && c.desc };
+        return { ok: !!c, group: c && c.group, desc: c && c.desc };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F16: step chart registered in Studio.CHARTS (Trend group, CDF-only)",
-      f16Reg.ok && f16Reg.group === "Trend" && !f16Reg.hasCde, JSON.stringify(f16Reg));
+    ok("F16: step chart registered in Studio.CHARTS (Trend group)",
+      f16Reg.ok && f16Reg.group === "Trend", JSON.stringify(f16Reg));
 
     // F16-2: DashKit.step defined in preview iframe
     const f16Dk = await page.evaluate(function () {
@@ -27507,9 +27477,9 @@ function serve() {
           cda: { dataAccesses: kind ? [{ id: "d1", name: "d1", kind: kind, columns: ["x"], fileUrl: "https://x/y.parquet" }] : [] }
         };
       }
-      var duckHtml = Studio.exportCDF(specWith("duckdb"), assets, "/x");
-      var httpvfsHtml = Studio.exportCDF(specWith("httpvfs"), assets, "/x");
-      var plainHtml = Studio.exportCDF(specWith(""), assets, "/x");
+      var duckHtml = Studio.exportDashboardHtml(specWith("duckdb"), assets, "/x");
+      var httpvfsHtml = Studio.exportDashboardHtml(specWith("httpvfs"), assets, "/x");
+      var plainHtml = Studio.exportDashboardHtml(specWith(""), assets, "/x");
       return {
         duckdbHasFacade: /Studio\.DuckDB\s*=/.test(duckHtml),
         duckdbOmitsSqlite: !/Studio\.SQLiteHttp\s*=/.test(duckHtml),
@@ -27538,7 +27508,7 @@ function serve() {
           { id: "da_live", name: "l", kind: "sql", connAdapter: "supabase", columns: ["a"] }
         ] }
       };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       var m = html.match(/window\.DASHKIT_MOCK = (.*);/);
       var mock = m ? JSON.parse(m[1]) : null;
       var out = {
@@ -27550,7 +27520,7 @@ function serve() {
       // the View Builder's cached REAL computed rows overlay the fabricated sample
       var B = Studio.Build, orig = B && B.specMocks;
       if (B) B.specMocks = function () { return { da_sample: { cols: ["label", "value"], rows: [["REALROW", 7]] } }; };
-      var html2 = Studio.exportCDF(spec, assets, "/x");
+      var html2 = Studio.exportDashboardHtml(spec, assets, "/x");
       if (B) B.specMocks = orig;
       var m2 = html2.match(/window\.DASHKIT_MOCK = (.*);/);
       var mock2 = m2 ? JSON.parse(m2[1]) : null;
@@ -27577,7 +27547,7 @@ function serve() {
         name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
         cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "duckdb", columns: ["x"], fileUrl: "https://x/y.parquet", sql: "SELECT * FROM t" }] }
       };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       var ifr = document.createElement("iframe");
       ifr.style.display = "none";
       document.body.appendChild(ifr);
@@ -27598,7 +27568,7 @@ function serve() {
         name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
         cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "httpvfs", columns: ["x"], fileUrl: "https://x/y.sqlite", tableName: "t" }] }
       };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       var ifr = document.createElement("iframe");
       ifr.style.display = "none";
       document.body.appendChild(ifr);
@@ -27628,7 +27598,7 @@ function serve() {
           }]
         }
       };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       var ifr = document.createElement("iframe");
       ifr.style.display = "none";
       document.body.appendChild(ifr);
@@ -27650,7 +27620,7 @@ function serve() {
         name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
         cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "duckdb", columns: ["x"], fileUrl: "https://x/y.parquet", sql: "SELECT * FROM t" }] }
       };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       var ifr = document.createElement("iframe");
       ifr.style.display = "none";
       document.body.appendChild(ifr);
@@ -27684,16 +27654,16 @@ function serve() {
           }]
         }
       };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       return {
         leaksSecret: html.indexOf("SUPER-SECRET-TOKEN-123") >= 0,
         keepsAccount: html.indexOf("xy12345") >= 0,
         stampsNeedsSecret: html.indexOf("\"needsSecret\":\"sfToken\"") >= 0
       };
     });
-    ok("Post-overhaul item 3: exportCDF never embeds a Snowflake DA's access token in the output HTML",
+    ok("Post-overhaul item 3: exportDashboardHtml never embeds a Snowflake DA's access token in the output HTML",
       !credRedaction.leaksSecret, JSON.stringify(credRedaction));
-    ok("Post-overhaul item 3: exportCDF keeps the DA's non-secret fields (account) so the connection still resolves",
+    ok("Post-overhaul item 3: exportDashboardHtml keeps the DA's non-secret fields (account) so the connection still resolves",
       credRedaction.keepsAccount, JSON.stringify(credRedaction));
     ok("Post-overhaul item 3: the redacted DA is stamped with needsSecret so the runtime knows to prompt for it",
       credRedaction.stampsNeedsSecret, JSON.stringify(credRedaction));
@@ -27706,11 +27676,11 @@ function serve() {
           cda: { dataAccesses: kind ? [{ id: "d1", name: "d1", kind: kind, columns: ["x"] }] : [] }
         };
       }
-      var sfHtml = Studio.exportCDF(specWith("snowflake"), assets, "/x");
-      var dbxHtml = Studio.exportCDF(specWith("databricks"), assets, "/x");
-      var bqHtml = Studio.exportCDF(specWith("bigquery"), assets, "/x");
-      var httpHtml = Studio.exportCDF(specWith("http"), assets, "/x");
-      var plainHtml = Studio.exportCDF(specWith(""), assets, "/x");
+      var sfHtml = Studio.exportDashboardHtml(specWith("snowflake"), assets, "/x");
+      var dbxHtml = Studio.exportDashboardHtml(specWith("databricks"), assets, "/x");
+      var bqHtml = Studio.exportDashboardHtml(specWith("bigquery"), assets, "/x");
+      var httpHtml = Studio.exportDashboardHtml(specWith("http"), assets, "/x");
+      var plainHtml = Studio.exportDashboardHtml(specWith(""), assets, "/x");
       function has(html, name) { return new RegExp("Studio\\." + name + "\\s*=").test(html); }
       return {
         sfHasFacade: has(sfHtml, "Snowflake"),
@@ -27746,7 +27716,7 @@ function serve() {
         var c = cases[i];
         var da = Object.assign({ id: "d1", name: "d1", kind: c.kind, columns: ["x"], sql: "SELECT 1" }, c.extra);
         var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
-        var html = Studio.exportCDF(spec, assets, "/x");
+        var html = Studio.exportDashboardHtml(spec, assets, "/x");
         var ifr = document.createElement("iframe");
         ifr.style.display = "none";
         document.body.appendChild(ifr);
@@ -27811,7 +27781,7 @@ function serve() {
         name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
         cda: { dataAccesses: [{ id: "d1", name: "tursoDa", kind: "sql", columns: ["x"], sql: "SELECT 1", connectionId: conn.id, datasetId: "ds-turso-1" }] }
       };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       return {
         leaksSecret: html.indexOf("SUPER-SECRET-TURSO-TOKEN") >= 0,
         keepsUrl: html.indexOf("my-db-org.turso.io") >= 0,
@@ -27819,9 +27789,9 @@ function serve() {
         stampsNeedsSecret: html.indexOf("\"needsSecret\":\"token\"") >= 0
       };
     });
-    ok("Post-overhaul item 3 (connection-bound): exportCDF never embeds a Turso connection's auth token in the output HTML",
+    ok("Post-overhaul item 3 (connection-bound): exportDashboardHtml never embeds a Turso connection's auth token in the output HTML",
       !connRedaction.leaksSecret, JSON.stringify(connRedaction));
-    ok("Post-overhaul item 3 (connection-bound): exportCDF keeps the connection's non-secret fields (url) so the dataset still resolves",
+    ok("Post-overhaul item 3 (connection-bound): exportDashboardHtml keeps the connection's non-secret fields (url) so the dataset still resolves",
       connRedaction.keepsUrl, JSON.stringify(connRedaction));
     ok("Post-overhaul item 3 (connection-bound): the redacted DA is stamped with connAdapter so the runtime knows which engine to use",
       connRedaction.stampsConnAdapter, JSON.stringify(connRedaction));
@@ -27836,7 +27806,7 @@ function serve() {
         name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
         cda: { dataAccesses: [{ id: "d1", name: "plainDa", kind: "sql", columns: ["x"], sql: "SELECT 1" }] }
       };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       // Quoted JSON-key form only — studio-render.js's own bundled source legitimately mentions
       // the bare identifiers da.connAdapter/CONN_ENGINES in code/comments on every export.
       return { touchesConnFields: html.indexOf("\"connAdapter\"") >= 0 || html.indexOf("\"connCfg\"") >= 0 };
@@ -27849,8 +27819,8 @@ function serve() {
       var conn = Studio.Workspace.put("connections", { name: "turso-bundling-test", adapter: "turso", cfg: { url: "https://x.turso.io", token: "t" } });
       var tursoSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"], connectionId: conn.id }] } };
       var plainSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"] }] } };
-      var tursoHtml = Studio.exportCDF(tursoSpec, assets, "/x");
-      var plainHtml = Studio.exportCDF(plainSpec, assets, "/x");
+      var tursoHtml = Studio.exportDashboardHtml(tursoSpec, assets, "/x");
+      var plainHtml = Studio.exportDashboardHtml(plainSpec, assets, "/x");
       function has(html, name) { return new RegExp("Studio\\." + name + "\\s*=").test(html); }
       return { tursoHasFacade: has(tursoHtml, "tursoSource"), plainOmitsFacade: !has(plainHtml, "tursoSource") };
     });
@@ -27864,7 +27834,7 @@ function serve() {
       var conn = Studio.Workspace.put("connections", { name: "turso-dispatch-test", adapter: "turso", cfg: { url: "https://x.turso.io", token: "orig-secret" } });
       var da = { id: "d1", name: "d1", kind: "sql", columns: ["x"], sql: "SELECT 1", connectionId: conn.id };
       var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       var ifr = document.createElement("iframe");
       ifr.style.display = "none";
       document.body.appendChild(ifr);
@@ -27893,7 +27863,7 @@ function serve() {
       var conn = Studio.Workspace.put("connections", { name: "turso-error-test", adapter: "turso", cfg: { url: "https://x.turso.io", token: "t" } });
       var da = { id: "d1", name: "d1", kind: "sql", columns: ["x"], sql: "SELECT 1", connectionId: conn.id };
       var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       var ifr = document.createElement("iframe");
       ifr.style.display = "none";
       document.body.appendChild(ifr);
@@ -27947,7 +27917,7 @@ function serve() {
         name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
         cda: { dataAccesses: [{ id: "d1", name: "pgDa", kind: "sql", columns: ["x"], connectionId: conn.id, datasetId: "ds-pg-1", dataset: { kind: "table", table: "orders", query: "select=*" } }] }
       };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       return {
         leaksSecret: html.indexOf("SUPER-SECRET-PG-JWT") >= 0,
         keepsUrl: html.indexOf("pg.example.com") >= 0,
@@ -27956,9 +27926,9 @@ function serve() {
         stampsNeedsSecret: html.indexOf("\"needsSecret\":\"token\"") >= 0
       };
     });
-    ok("Post-overhaul item 3 (PostgREST): exportCDF never embeds a PostgREST connection's bearer token in the output HTML",
+    ok("Post-overhaul item 3 (PostgREST): exportDashboardHtml never embeds a PostgREST connection's bearer token in the output HTML",
       !pgRedactionWithToken.leaksSecret, JSON.stringify(pgRedactionWithToken));
-    ok("Post-overhaul item 3 (PostgREST): exportCDF keeps the connection's non-secret fields (url, schema) so the dataset still resolves",
+    ok("Post-overhaul item 3 (PostgREST): exportDashboardHtml keeps the connection's non-secret fields (url, schema) so the dataset still resolves",
       pgRedactionWithToken.keepsUrl && pgRedactionWithToken.keepsSchema, JSON.stringify(pgRedactionWithToken));
     ok("Post-overhaul item 3 (PostgREST): the redacted DA is stamped with connAdapter:\"postgrest\" so the runtime knows which engine to use",
       pgRedactionWithToken.stampsConnAdapter, JSON.stringify(pgRedactionWithToken));
@@ -27975,7 +27945,7 @@ function serve() {
         name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
         cda: { dataAccesses: [{ id: "d1", name: "pgDa", kind: "sql", columns: ["x"], connectionId: conn.id, dataset: { kind: "table", table: "orders", query: "select=*" } }] }
       };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       return {
         stampsConnAdapter: html.indexOf("\"connAdapter\":\"postgrest\"") >= 0,
         stampsNeedsSecret: html.indexOf("\"needsSecret\"") >= 0
@@ -27991,8 +27961,8 @@ function serve() {
       var conn = Studio.Workspace.put("connections", { name: "pg-bundling-test", adapter: "postgrest", cfg: { url: "https://x.example.com" } });
       var pgSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"], connectionId: conn.id, dataset: { kind: "table", table: "t", query: "" } }] } };
       var plainSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"] }] } };
-      var pgHtml = Studio.exportCDF(pgSpec, assets, "/x");
-      var plainHtml = Studio.exportCDF(plainSpec, assets, "/x");
+      var pgHtml = Studio.exportDashboardHtml(pgSpec, assets, "/x");
+      var plainHtml = Studio.exportDashboardHtml(plainSpec, assets, "/x");
       function has(html, name) { return new RegExp("Studio\\." + name + "\\s*=").test(html); }
       return { pgHasFacade: has(pgHtml, "postgrestSource"), plainOmitsFacade: !has(plainHtml, "postgrestSource") };
     });
@@ -28008,7 +27978,7 @@ function serve() {
       // shape ("" for a table-kind dataset) — the real table/query pair rides on da.dataset only.
       var da = { id: "d1", name: "d1", kind: "sql", columns: ["x"], sql: "", query: "", connectionId: conn.id, dataset: { kind: "table", table: "orders", query: "select=region,total" } };
       var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       var ifr = document.createElement("iframe");
       ifr.style.display = "none";
       document.body.appendChild(ifr);
@@ -28044,7 +28014,7 @@ function serve() {
       var conn = Studio.Workspace.put("connections", { name: "pg-real-query-test", adapter: "postgrest", cfg: { url: location.origin + "/__postgrest" } });
       var da = { id: "d1", name: "d1", kind: "sql", columns: ["x"], sql: "", query: "", connectionId: conn.id, dataset: { kind: "table", table: "orders", query: "select=region,total&region=eq.EMEA" } };
       var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       var ifr = document.createElement("iframe");
       ifr.style.display = "none";
       document.body.appendChild(ifr);
@@ -28076,7 +28046,7 @@ function serve() {
         name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
         cda: { dataAccesses: [{ id: "d1", name: "sbDa", kind: "sql", columns: ["x"], connectionId: conn.id, datasetId: "ds-sb-1", dataset: { kind: "table", table: "orders", query: "select=*" } }] }
       };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       return {
         leaksSecret: html.indexOf("SUPER-SECRET-SB-KEY") >= 0,
         keepsUrl: html.indexOf("sb.example.com") >= 0,
@@ -28084,9 +28054,9 @@ function serve() {
         stampsNeedsSecret: html.indexOf("\"needsSecret\":\"key\"") >= 0
       };
     });
-    ok("Post-overhaul item 3 (Supabase): exportCDF never embeds a Supabase connection's anon key in the output HTML",
+    ok("Post-overhaul item 3 (Supabase): exportDashboardHtml never embeds a Supabase connection's anon key in the output HTML",
       !sbRedactionWithKey.leaksSecret, JSON.stringify(sbRedactionWithKey));
-    ok("Post-overhaul item 3 (Supabase): exportCDF keeps the connection's non-secret field (url) so the dataset still resolves",
+    ok("Post-overhaul item 3 (Supabase): exportDashboardHtml keeps the connection's non-secret field (url) so the dataset still resolves",
       sbRedactionWithKey.keepsUrl, JSON.stringify(sbRedactionWithKey));
     ok("Post-overhaul item 3 (Supabase): the redacted DA is stamped with connAdapter:\"supabase\" so the runtime knows which engine to use",
       sbRedactionWithKey.stampsConnAdapter, JSON.stringify(sbRedactionWithKey));
@@ -28098,8 +28068,8 @@ function serve() {
       var conn = Studio.Workspace.put("connections", { name: "sb-bundling-test", adapter: "supabase", cfg: { url: "https://x.example.com", key: "k" } });
       var sbSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"], connectionId: conn.id, dataset: { kind: "table", table: "t", query: "" } }] } };
       var plainSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"] }] } };
-      var sbHtml = Studio.exportCDF(sbSpec, assets, "/x");
-      var plainHtml = Studio.exportCDF(plainSpec, assets, "/x");
+      var sbHtml = Studio.exportDashboardHtml(sbSpec, assets, "/x");
+      var plainHtml = Studio.exportDashboardHtml(plainSpec, assets, "/x");
       function has(html, name) { return new RegExp("Studio\\." + name + "\\s*=").test(html); }
       return { sbHasFacade: has(sbHtml, "supabaseSource"), plainOmitsFacade: !has(plainHtml, "supabaseSource") };
     });
@@ -28115,7 +28085,7 @@ function serve() {
       // shape ("" for a table-kind dataset) — the real table/query pair rides on da.dataset only.
       var da = { id: "d1", name: "d1", kind: "sql", columns: ["x"], sql: "", query: "", connectionId: conn.id, dataset: { kind: "table", table: "orders", query: "select=region,total" } };
       var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       var ifr = document.createElement("iframe");
       ifr.style.display = "none";
       document.body.appendChild(ifr);
@@ -28149,7 +28119,7 @@ function serve() {
       var conn = Studio.Workspace.put("connections", { name: "sb-real-query-test", adapter: "supabase", cfg: { url: location.origin + "/__supabase", key: "sb_publishable_valid" } });
       var da = { id: "d1", name: "d1", kind: "sql", columns: ["x"], sql: "", query: "", connectionId: conn.id, dataset: { kind: "table", table: "orders", query: "select=region,total&region=eq.EMEA" } };
       var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       var ifr = document.createElement("iframe");
       ifr.style.display = "none";
       document.body.appendChild(ifr);
@@ -28188,14 +28158,14 @@ function serve() {
         name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
         cda: { dataAccesses: [{ id: "d1", name: "gsDa", kind: "sql", columns: ["x"], connectionId: conn.id, datasetId: "ds-gs-1", dataset: { kind: "sheet", sheet: "Sales", query: "" } }] }
       };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       return {
         keepsUrl: html.indexOf("GSXPORTTEST123") >= 0,
         stampsConnAdapter: html.indexOf("\"connAdapter\":\"gsheets\"") >= 0,
         stampsNeedsSecret: html.indexOf("\"needsSecret\"") >= 0
       };
     });
-    ok("Post-overhaul item 3 (Google Sheets): exportCDF keeps the connection's non-secret field (url) so the dataset still resolves",
+    ok("Post-overhaul item 3 (Google Sheets): exportDashboardHtml keeps the connection's non-secret field (url) so the dataset still resolves",
       gsRedaction.keepsUrl, JSON.stringify(gsRedaction));
     ok("Post-overhaul item 3 (Google Sheets): the redacted DA is stamped with connAdapter:\"gsheets\" so the runtime knows which engine to use",
       gsRedaction.stampsConnAdapter, JSON.stringify(gsRedaction));
@@ -28207,8 +28177,8 @@ function serve() {
       var conn = Studio.Workspace.put("connections", { name: "gs-bundling-test", adapter: "gsheets", cfg: { url: "https://docs.google.com/spreadsheets/d/GSBUNDLETEST1/edit" } });
       var gsSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"], connectionId: conn.id, dataset: { kind: "sheet", sheet: "", query: "" } }] } };
       var plainSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"] }] } };
-      var gsHtml = Studio.exportCDF(gsSpec, assets, "/x");
-      var plainHtml = Studio.exportCDF(plainSpec, assets, "/x");
+      var gsHtml = Studio.exportDashboardHtml(gsSpec, assets, "/x");
+      var plainHtml = Studio.exportDashboardHtml(plainSpec, assets, "/x");
       function has(html, name) { return new RegExp("Studio\\." + name + "\\s*=").test(html); }
       return { gsHasFacade: has(gsHtml, "gsheetsSource"), plainOmitsFacade: !has(plainHtml, "gsheetsSource") };
     });
@@ -28224,7 +28194,7 @@ function serve() {
       // shape ("" for a sheet-kind dataset) — the real sheet/query pair rides on da.dataset only.
       var da = { id: "d1", name: "d1", kind: "sql", columns: ["x"], sql: "", query: "", connectionId: conn.id, dataset: { kind: "sheet", sheet: "Costs", query: "select A, B" } };
       var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       var ifr = document.createElement("iframe");
       ifr.style.display = "none";
       document.body.appendChild(ifr);
@@ -28258,7 +28228,7 @@ function serve() {
       var conn = Studio.Workspace.put("connections", { name: "gs-real-query-test", adapter: "gsheets", cfg: { url: location.origin + "/__gsheets/spreadsheets/d/TESTSHEET1234x/edit" } });
       var da = { id: "d1", name: "d1", kind: "sql", columns: ["x"], sql: "", query: "", connectionId: conn.id, dataset: { kind: "sheet", sheet: "", query: "select A, B where A = 'EMEA'" } };
       var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       var ifr = document.createElement("iframe");
       ifr.style.display = "none";
       document.body.appendChild(ifr);
@@ -28287,14 +28257,14 @@ function serve() {
         name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
         cda: { dataAccesses: [{ id: "d1", name: "flDa", kind: "sql", columns: ["region", "total"], connectionId: conn.id, datasetId: "ds-fl-1", dataset: { kind: "file", fileName: "flredactiontest.csv", format: "csv", content: "region,total\nFLREDACTIONTEST,120\n" } }] }
       };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       return {
         keepsContent: html.indexOf("FLREDACTIONTEST") >= 0,
         stampsConnAdapter: html.indexOf("\"connAdapter\":\"file\"") >= 0,
         stampsNeedsSecret: html.indexOf("\"needsSecret\"") >= 0
       };
     });
-    ok("Post-overhaul item 3 (local files): exportCDF keeps the dropped file's content so the dataset still resolves once deployed",
+    ok("Post-overhaul item 3 (local files): exportDashboardHtml keeps the dropped file's content so the dataset still resolves once deployed",
       flRedaction.keepsContent, JSON.stringify(flRedaction));
     ok("Post-overhaul item 3 (local files): the redacted DA is stamped with connAdapter:\"file\" so the runtime knows which engine to use",
       flRedaction.stampsConnAdapter, JSON.stringify(flRedaction));
@@ -28306,8 +28276,8 @@ function serve() {
       var conn = Studio.Workspace.put("connections", { name: "fl-bundling-test", adapter: "file", cfg: {} });
       var flSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"], connectionId: conn.id, dataset: { kind: "file", fileName: "a.csv", format: "csv", content: "x\n1\n" } }] } };
       var plainSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"] }] } };
-      var flHtml = Studio.exportCDF(flSpec, assets, "/x");
-      var plainHtml = Studio.exportCDF(plainSpec, assets, "/x");
+      var flHtml = Studio.exportDashboardHtml(flSpec, assets, "/x");
+      var plainHtml = Studio.exportDashboardHtml(plainSpec, assets, "/x");
       function has(html, name) { return new RegExp("Studio\\." + name + "\\s*=").test(html); }
       return { flHasFacade: has(flHtml, "fileSource"), plainOmitsFacade: !has(plainHtml, "fileSource") };
     });
@@ -28326,7 +28296,7 @@ function serve() {
       // shape ("" for a file-kind dataset) — the real fileName/format/content ride on da.dataset only.
       var da = { id: "d1", name: "d1", kind: "sql", columns: ["region", "total"], sql: "", query: "", connectionId: conn.id, dataset: { kind: "file", fileName: "sales.csv", format: "csv", content: "region,total\nEMEA,120\nAPAC,80\n" } };
       var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       var ifr = document.createElement("iframe");
       ifr.style.display = "none";
       document.body.appendChild(ifr);
@@ -28370,7 +28340,7 @@ function serve() {
         name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
         cda: { dataAccesses: [{ id: "d1", name: "rsDa", kind: "sql", columns: ["x"], sql: "SELECT * FROM sales", query: "SELECT * FROM sales", connectionId: conn.id, datasetId: "ds-rs-1" }] }
       };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       return {
         keepsRegion: html.indexOf("\"region\":\"us-east-1\"") >= 0,
         keepsWorkgroup: html.indexOf("\"workgroupName\":\"default\"") >= 0,
@@ -28380,9 +28350,9 @@ function serve() {
         needsSecret: (html.match(/"needsSecret":(\[[^\]]*\]|"[^"]*")/) || [])[1]
       };
     });
-    ok("Post-overhaul item 3 (Redshift): exportCDF keeps the connection's non-secret cfg fields (region, workgroup) so the dataset still resolves",
+    ok("Post-overhaul item 3 (Redshift): exportDashboardHtml keeps the connection's non-secret cfg fields (region, workgroup) so the dataset still resolves",
       rsRedaction.keepsRegion && rsRedaction.keepsWorkgroup, JSON.stringify(rsRedaction));
-    ok("Post-overhaul item 3 (Redshift): exportCDF strips both credential fields — the access key ID and secret access key never appear in the exported HTML",
+    ok("Post-overhaul item 3 (Redshift): exportDashboardHtml strips both credential fields — the access key ID and secret access key never appear in the exported HTML",
       rsRedaction.omitsAccessKey && rsRedaction.omitsSecret, JSON.stringify(rsRedaction));
     ok("Post-overhaul item 3 (Redshift): the redacted DA is stamped with connAdapter:\"redshift\" so the runtime knows which engine to use",
       rsRedaction.stampsConnAdapter, JSON.stringify(rsRedaction));
@@ -28394,8 +28364,8 @@ function serve() {
       var conn = Studio.Workspace.put("connections", { name: "rs-bundling-test", adapter: "redshift", cfg: { region: "us-east-1", accessKeyId: "AKID", secretAccessKey: "sk", workgroupName: "default" } });
       var rsSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"], sql: "SELECT 1", query: "SELECT 1", connectionId: conn.id }] } };
       var plainSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"] }] } };
-      var rsHtml = Studio.exportCDF(rsSpec, assets, "/x");
-      var plainHtml = Studio.exportCDF(plainSpec, assets, "/x");
+      var rsHtml = Studio.exportDashboardHtml(rsSpec, assets, "/x");
+      var plainHtml = Studio.exportDashboardHtml(plainSpec, assets, "/x");
       function has(html, re) { return re.test(html); }
       return {
         rsHasRedshift: has(rsHtml, /Studio\.Redshift\s*=/),
@@ -28425,7 +28395,7 @@ function serve() {
       });
       var da = { id: "d1", name: "d1", kind: "sql", columns: ["region", "total"], sql: "SELECT * FROM sales", query: "SELECT * FROM sales", connectionId: conn.id };
       var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
-      var html = Studio.exportCDF(spec, assets, "/x");
+      var html = Studio.exportDashboardHtml(spec, assets, "/x");
       var ifr = document.createElement("iframe");
       ifr.style.display = "none";
       document.body.appendChild(ifr);
@@ -28727,11 +28697,11 @@ function serve() {
     ok("F20: dumbbell in Studio.CHARTS with startCol + endCol fields", f20Registry.ok, JSON.stringify(f20Registry));
 
     // ── H-track: Print button in exported CDF ───────────────────────────────
-    // H-print-1: exportCDF HTML contains the #printBtn element
+    // H-print-1: exportDashboardHtml HTML contains the #printBtn element
     const hPrintExport = await page.evaluate(function () {
       try {
         var spec = window.__STUDIO_STATE && window.__STUDIO_STATE.spec;
-        var html = window.Studio.exportCDF(spec, {
+        var html = window.Studio.exportDashboardHtml(spec, {
           css:    "",
           js:     "var DashKit={}; DashKit.cda=function(){return Promise.resolve({cols:[],rows:[]});};DashKit.boot=function(){};",
           render: "",
@@ -28764,7 +28734,7 @@ function serve() {
     const hPrintPolish = await page.evaluate(function () {
       try {
         var spec = window.__STUDIO_STATE && window.__STUDIO_STATE.spec;
-        var html = window.Studio.exportCDF(spec, {
+        var html = window.Studio.exportDashboardHtml(spec, {
           css:    "",
           js:     "var DashKit={}; DashKit.cda=function(){return Promise.resolve({cols:[],rows:[]});};DashKit.boot=function(){};",
           render: "",
@@ -30230,8 +30200,7 @@ function serve() {
         return {
           ok: c.group === "Comparison" &&
               c.fields && c.fields.indexOf("labelCol") >= 0 &&
-              c.fields.indexOf("series") >= 0 &&
-              c.cde === null,
+              c.fields.indexOf("series") >= 0,
           group: c.group, fields: c.fields, label: c.label
         };
       } catch (e) { return { ok: false, err: e.message }; }
@@ -34347,7 +34316,7 @@ function serve() {
     ok("N-DATA/Track N: deleteCanvasNote() removes just that one note", noteDelete.count === 1, JSON.stringify(noteDelete));
 
     const noteNeverExported = await page.evaluate(function () {
-      var html = Studio.exportCDF(window.__STUDIO_STATE.spec, window.__STUDIO_STATE.assets, window.__STUDIO_STATE.settings.deployPath);
+      var html = Studio.exportDashboardHtml(window.__STUDIO_STATE.spec, window.__STUDIO_STATE.assets, window.__STUDIO_STATE.settings.deployPath);
       return { specHasNoteField: JSON.stringify(window.__STUDIO_STATE.spec).indexOf("canvas-notes") >= 0, htmlClean: html.indexOf("Double-check") < 0 && html.indexOf("Edited text") < 0 };
     });
     ok("N-DATA/Track N: sticky notes are never part of the dashboard spec/export (scratch space only, keyed separately in localStorage)",
