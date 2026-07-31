@@ -516,6 +516,12 @@
   full-page, in a new tab: the same live, interactive renderer (filters, cross-filter, provider
   toggles all work) with none of the builder chrome. Handy for sharing with someone who should
   read a dashboard, not edit it.</p>
+  <p id="filters-how"><strong>How dashboard filters find their data:</strong> a filter applies to a
+  panel when the panel's dataset either declares the filter as a query parameter (live SQL engines
+  substitute it server-side) or simply has a column with the same name — the rows are then
+  filtered to the picked value. A filter named <em>Since …</em> keeps everything from the picked
+  value onward (so "Since year 2020" shows 2020 to today, not just 2020). This works the same on
+  live data, file datasets, and sample data.</p>
   <ul>
     <li>A private dashboard's viewer link only works for its owner (or an admin).</li>
     <li>A <strong>viewer</strong>-role account clicking any dashboard lands here directly — the

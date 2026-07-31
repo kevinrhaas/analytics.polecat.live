@@ -205,7 +205,14 @@
   // sample engine crosses it against the provider domain, so the choropleth's
   // median-across-providers "common estimate" convention colors every region.
   function geoDA(id, idCol, label) {
-    return { id: id, name: "Conservation Insight — " + label + " (demo)", kind: "sql", columns: [idCol, "provider", "pct"], authored: true };
+    // FILTERS-1 (Kevin live, 2026-07-31): declare BOTH dashboard filters —
+    // paramsFor only forwards params a DA declares, so without these the maps
+    // (6 of the featured dashboard's 8 panels, with the KPIs) silently ignored
+    // every filter flip and the dashboard read as "filters don't work". The
+    // mock columns carry no practice/year, so sample data responds via
+    // mockRespond's seeded variation — the documented SCORE-1 convention.
+    return { id: id, name: "Conservation Insight — " + label + " (demo)", kind: "sql", columns: [idCol, "provider", "pct"], authored: true,
+      params: [{ name: "practice", type: "String", default: "%" }, { name: "sinceYear", type: "String", default: "%" }] };
   }
   // LF7: `channel` names the ensemble bus this choropleth listens on — shared
   // with ensembleChart() below so a provider toggle on any ensemble trend
@@ -218,12 +225,15 @@
       map: { idCol: idCol, valueCol: "pct", seriesCol: "provider" },
       opts: { scale: scale, fmt: "pct", agg: "median", channel: "providers" } };
   }
-  function kpiDA(id, col) { return { id: id, name: id, kind: "sql", columns: [col], authored: true }; }
+  function kpiDA(id, col) {
+    return { id: id, name: id, kind: "sql", columns: [col], authored: true,
+      params: [{ name: "practice", type: "String", default: "%" }, { name: "sinceYear", type: "String", default: "%" }] }; // FILTERS-1 — see geoDA
+  }
   // LF7: takes an optional "practice" param (wired to the featured dashboard's
   // "Practice" filter below) so the provider-comparison bar responds to it.
   function providerDA(id) {
     return { id: id, name: "Conservation Insight — adoption by provider (demo)", kind: "sql", columns: ["provider", "pct"], authored: true,
-      params: [{ name: "practice", type: "String", default: "%" }] };
+      params: [{ name: "practice", type: "String", default: "%" }, { name: "sinceYear", type: "String", default: "%" }] }; // FILTERS-1: sinceYear joined — see geoDA
   }
   // Filter-options DAs (LF7): no real backing query (see the module header —
   // this pack's DAs never carry literal `sql:` text, same as every other DA in
@@ -549,6 +559,40 @@
       W.all(t).filter(function (r) { return r.demoPackId === id; }).forEach(function (r) { W.remove(t, r.id); });
     });
     setInstalledIds(installedIds().filter(function (x) { return x !== id; }));
+  };
+
+  // FILTERS-1 heal (Kevin live, 2026-07-31): installs materialized before the
+  // geo/KPI/provider DAs declared the practice/sinceYear params never forward a
+  // filter flip to those panels (studio-render.js paramsFor only sends params a
+  // DA declares) — the featured dashboard's maps and KPIs sat frozen while the
+  // filters changed, reading as "filters don't work". Stamp the declarations
+  // onto the installed spec in place (identity/pins preserved); called from
+  // studio.js's reconcilePackDashboards on every boot, so it also catches specs
+  // a sync pull brings in from a device on an older build.
+  Studio.ensureConservationFilterParams = function () {
+    var W = Studio.Workspace, FILTER_PARAMS = [
+      { name: "practice", type: "String", default: "%" },
+      { name: "sinceYear", type: "String", default: "%" }
+    ];
+    var changedAny = false;
+    W.all("dashboards").forEach(function (r) {
+      if (r.demoPackId !== "conservation" || !r.spec || !r.spec.cda) return;
+      if ((r.spec.name || r.spec.id) !== "conservation-insight-demo") return;
+      var changed = false;
+      (r.spec.cda.dataAccesses || []).forEach(function (da) {
+        if (!/^(vv_county|vv_huc8|vv_state|vv_prov$|vk_)/.test(da.id)) return;
+        var have = (da.params || []).map(function (p) { return p.name; });
+        FILTER_PARAMS.forEach(function (p) {
+          if (have.indexOf(p.name) < 0) {
+            da.params = (da.params || []).concat([{ name: p.name, type: p.type, default: p.default }]);
+            changed = true;
+          }
+        });
+      });
+      if (changed) { W.put("dashboards", r, { silent: true }); changedAny = true; }
+    });
+    if (changedAny) W.notify("dashboards");
+    return changedAny;
   };
 
   // CONS-2 heal: workspaces installed before the watershed dashboard existed get it on

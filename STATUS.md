@@ -116,6 +116,28 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **FILTERS-1 (v794, sw v429, 2026-07-31, steward — Kevin live: "filters did not
+  seem to work here ... those should probably be in your recurring tests"):**
+  three causes, three fixes. (1) studio-render.js paramsFor only forwards params
+  a DA DECLARES — the featured Conservation dashboard's 3 maps + 4 KPIs (+ the
+  provider bar for sinceYear) declared none, so 6/8 panels ignored every filter
+  flip. geoDA/kpiDA/providerDA now declare practice+sinceYear (demopacks.js) and
+  `Studio.ensureConservationFilterParams` heals installed specs in place (called
+  from reconcilePackDashboards — also catches specs synced in from older
+  builds). (2) "sinceYear" never matched the mock's "year" column, so "Since
+  year" fell through to SCORE-1's seeded variation — values wobbled but the
+  x-axis never narrowed. New shared `filterRowsByParams` adds since<Col> ⇒
+  column-x >= value range semantics (numeric compare, string fallback). (3) real
+  engines (localfile "the content IS the data", duckdb/httpvfs/cred/conn) got
+  NO param application at all — new `applyParamFilter` wraps every real-engine
+  dispatch result (matched-column filtering only; real data is NEVER given the
+  seeded variation). Verified end-to-end headless: Since-year 2019 narrows
+  trends to 2019–2025 and restores on "%"; practice reaches the county map. 4
+  suite checks incl. the RECURRING sweep: every installed pack dashboard filter
+  must be declared by a DA its panels actually use (no decorative filters), in
+  an isolated browser context (pack install can't pollute the main workspace).
+  Files: app/studio-render.js, app/demopacks.js, app/studio.js (reconcile
+  hook), tests/run.js, docs/index.html, js/changelog.js v794, sw v429.
 - **LF21 alignment follow-up (v793, sw v428, 2026-07-31, steward — automated lane,
   LF21 is now fully done):** slice 1 (v546) shipped the header as a selectable/
   deletable object but deliberately scoped OUT alignment ("doesn't map cleanly
@@ -7678,15 +7700,12 @@
 >    2026-07-31 ~05:00Z — see DONE).** Kevin-side verify: re-add test2 via
 >    Admin → +Add user (watch for the "synced to the workspace backend" toast),
 >    sign out/in, confirm the row persists in Supabase public.users.
-> 1. **FILTERS-1 ★ (bug, next up):** Conservation pack dashboard filters are
->    DEAD — root cause CONFIRMED: pack DAs are file-kind (real engine), and
->    `app/sources/localfile.js queryData` ignores params entirely; SCORE-1's
->    filter fix only covered the mock branch. Fix at the DISPATCH level in
->    app/studio-render.js: extract the SCORE-1 mock wrapper's param↔column
->    matching into one shared applyParamFilter(result, params) and apply it to
->    REAL engine results too (before outputOptions/aggregation). Then add
->    recurring per-pack-dashboard filter-flip tests (flip each filter, assert
->    rendered data changes and restores).
+> 1. ~~FILTERS-1 ★~~ **SHIPPED v794 (this session, 2026-07-31 ~05:15Z — see
+>    DONE).** Root cause was three-fold (undeclared params on 6/8 panels +
+>    sinceYear/year name mismatch + real engines ignoring params), not just
+>    the file-engine path. Recurring no-decorative-filters sweep now in the
+>    suite. Kevin-side verify: open Cover Crop & Tillage Adoption, flip
+>    Since year (trends narrow) and Practice (maps/KPIs respond).
 > 2. **VB-13:** View Builder datasets pane collapsible/resizable — mirror the
 >    Studio Data panel pattern exactly (`.pane-rail` collapsed strip +
 >    `.pane-collapse` header button, app/index.html:401-402); drag handle for

@@ -344,6 +344,22 @@
       var cols = applied.cols;
       return { cols: cols, rows: applied.rows, col: function (n) { return cols.indexOf(n); } };
     }
+    // FILTERS-1 (Kevin live, 2026-07-31: pack dashboard filters were DEAD): the
+    // file-engine path ignores {{params}} entirely (localfile.js: "the content
+    // IS the data"), and SCORE-1 only made the MOCK branch respond — so every
+    // real-engine result whose SQL/def didn't consume a param just ignored the
+    // dashboard's filters. Shared honest filter for REAL results: a param whose
+    // name matches a result column (case-insensitive) filters rows by value;
+    // "%"/empty means "all". A param with NO matching column is left alone here
+    // — a live SQL engine may already have applied it server-side (in which
+    // case this re-filter is a no-op by construction), and unlike the mock
+    // branch we never fabricate variation on real data.
+    function applyParamFilter(res, params) {
+      var cols = res.cols || [];
+      var f = filterRowsByParams(cols, res.rows || [], params); // shared with mockRespond below
+      if (!f.active || !f.matched) return res; // unlike the mock branch, real data is NEVER given seeded variation
+      return { cols: cols, rows: f.rows, col: function (n) { return cols.indexOf(n); } };
+    }
     // SCORE-1 (Kevin live, 2026-07-30: "i change practice, it does not have any
     // change in the data"): the vendored mock branch returns DASHKIT_MOCK rows and
     // IGNORES params entirely, so interactive filters were dead against sample
@@ -354,30 +370,54 @@
     // DETERMINISTIC seeded variation to numeric cells instead, so sample-badged
     // panels visibly react the way live data would. "%" (the every-filter
     // default) means "all" — untouched.
-    function mockRespond(res, dataAccessId, params) {
+    // Shared by mockRespond (mock branch) and applyParamFilter (real engines):
+    // a param whose name matches a column (case-insensitive) filters rows by
+    // exact value, and a "sinceX" param filters column x with >= (FILTERS-1 —
+    // "Since year" means from-that-year-on, which the old equality-only match
+    // could never express, so the featured dashboard's year filter fell through
+    // to seeded variation and the trend x-axes never actually narrowed).
+    // "%"/empty means "all" — untouched.
+    function filterRowsByParams(cols, rows, params) {
       var keys = Object.keys(params || {}).filter(function (k) {
         var v = params[k];
         return v != null && v !== "" && v !== "%";
       });
-      if (!keys.length) return res;
-      var cols = res.cols || [], rows = res.rows || [];
+      if (!keys.length) return { rows: rows, matched: false, active: false };
       var lower = cols.map(function (c) { return String(c).toLowerCase(); });
-      var matchedAny = false;
+      var matched = false;
       keys.forEach(function (k) {
         var ci = lower.indexOf(String(k).toLowerCase());
-        if (ci < 0) return;
-        matchedAny = true;
-        rows = rows.filter(function (r) { return String(r[ci]) === String(params[k]); });
+        if (ci >= 0) {
+          matched = true;
+          rows = rows.filter(function (r) { return String(r[ci]) === String(params[k]); });
+          return;
+        }
+        var m = /^since(.+)$/i.exec(String(k));
+        var si = m ? lower.indexOf(m[1].toLowerCase()) : -1;
+        if (si >= 0) {
+          matched = true;
+          var min = Number(params[k]);
+          rows = rows.filter(function (r) { return isNaN(min) ? String(r[si]) >= String(params[k]) : Number(r[si]) >= min; });
+        }
       });
-      if (!matchedAny) {
-        var seedStr = dataAccessId + "|" + keys.map(function (k) { return k + "=" + params[k]; }).join(",");
+      return { rows: rows, matched: matched, active: true };
+    }
+    function mockRespond(res, dataAccessId, params) {
+      var cols = res.cols || [];
+      var f = filterRowsByParams(cols, res.rows || [], params);
+      if (!f.active) return res;
+      var rows = f.rows;
+      if (!f.matched) {
+        var seedStr = dataAccessId + "|" + Object.keys(params || {}).filter(function (k) {
+          var v = params[k]; return v != null && v !== "" && v !== "%";
+        }).map(function (k) { return k + "=" + params[k]; }).join(",");
         var h = 0;
         for (var i = 0; i < seedStr.length; i++) h = (h * 31 + seedStr.charCodeAt(i)) >>> 0;
         rows = rows.map(function (r, ri) {
           return r.map(function (v, ci2) {
             if (typeof v !== "number") return v;
-            var f = 0.6 + (((h + ri * 37 + ci2 * 101) % 1000) / 1000) * 0.8; // deterministic 0.6–1.4
-            return Math.round(v * f * 100) / 100;
+            var vf = 0.6 + (((h + ri * 37 + ci2 * 101) % 1000) / 1000) * 0.8; // deterministic 0.6–1.4
+            return Math.round(v * vf * 100) / 100;
           });
         });
       }
@@ -389,19 +429,19 @@
       var spec = window.STUDIO_SPEC;
       var da = spec && ((spec.cda && spec.cda.dataAccesses) || []).filter(function (d) { return d.id === dataAccessId; })[0];
       if (da && da.kind === "duckdb" && window.Studio && Studio.DuckDB)
-        return Studio.DuckDB.query({ fileUrl: da.fileUrl, fileFormat: da.fileFormat }, da.sql || da.query).then(function (r) { return wrapResult(r, da); });
+        return Studio.DuckDB.query({ fileUrl: da.fileUrl, fileFormat: da.fileFormat }, da.sql || da.query).then(function (r) { return applyParamFilter(wrapResult(r, da), params); });
       if (da && da.kind === "httpvfs" && window.Studio && Studio.SQLiteHttp)
-        return Studio.SQLiteHttp.query({ fileUrl: da.fileUrl, tableName: da.tableName }, da.sql || da.query).then(function (r) { return wrapResult(r, da); });
+        return Studio.SQLiteHttp.query({ fileUrl: da.fileUrl, tableName: da.tableName }, da.sql || da.query).then(function (r) { return applyParamFilter(wrapResult(r, da), params); });
       var cred = da && !window.STUDIO_PREVIEW && CRED_ENGINES[da.kind];
       var engine = cred && cred.engine();
       if (da && cred && engine)
-        return engine.query(cred.cfg(da, resolveSecret(da)), da.sql || da.query).then(function (r) { return wrapResult(r, da); });
+        return engine.query(cred.cfg(da, resolveSecret(da)), da.sql || da.query).then(function (r) { return applyParamFilter(wrapResult(r, da), params); });
       var conn = da && !window.STUDIO_PREVIEW && CONN_ENGINES[da.connAdapter];
       var connEngine = conn && conn.engine();
       if (da && conn && connEngine)
         return connEngine.queryData(conn.cfg(da, resolveSecret(da)), conn.dataset(da)).then(function (r) {
           if (r.error) throw new Error(r.error);
-          return wrapResult({ cols: r.columns, rows: r.rows }, da);
+          return applyParamFilter(wrapResult({ cols: r.columns, rows: r.rows }, da), params);
         });
       return realCda(dataAccessId, params);
     };
