@@ -12591,6 +12591,37 @@ function serve() {
       vbDrop.overlayInvisibleAtRest && vbDrop.overlayShownMidDrag && vbDrop.overlayHiddenAfterDrag,
       JSON.stringify({ rest: vbDrop.overlayInvisibleAtRest, drag: vbDrop.overlayShownMidDrag, after: vbDrop.overlayHiddenAfterDrag }));
 
+    // LF24-XLSX: Excel joins the drop formats — the first worksheet converts to
+    // CSV up front (vendor/fflate.js + app/xlsx.js) and flows through the same
+    // text pipeline as every other file. Fixture: 2 sheets (first must win),
+    // shared strings incl. a rich-text run + entity, numbers, booleans, and an
+    // inline string that needs CSV escaping.
+    const XLSX_FIXTURE_B64 = "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";
+    const xlsxRes = await page.evaluate(async (b64) => {
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      const bin = atob(b64), u8 = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      const out = {};
+      out.csv = Studio.xlsxToCSV(u8);
+      window.__studioBdDropFile(new File([u8], "vbdrop excel.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+      await sleep(900);
+      const d = Studio.Workspace.all("datasets").find((x) => x.name === "vbdrop excel");
+      out.dataset = d ? { format: d.format, kind: d.kind, cols: d.columns } : null;
+      if (d) Studio.Workspace.remove("datasets", d.id);
+      try { Studio.xlsxToCSV(new Uint8Array([1, 2, 3, 4])); out.badErr = null; } catch (e) { out.badErr = e.message; }
+      out.quickAccept = /\.xlsx/.test((document.querySelector(".home-quickimport-input") || {}).accept || "") ||
+        /\.xlsx/.test(((document.querySelector("#secHome .home-quickimport-input") || {}).accept || ""));
+      return out;
+    }, XLSX_FIXTURE_B64);
+    ok("LF24-XLSX: xlsxToCSV reads the FIRST worksheet — shared strings (incl. rich-text runs + entities), numbers, TRUE/FALSE booleans, and inline strings CSV-escaped exactly",
+      xlsxRes.csv === 'region,amount,flag\nNorth & South,42.5,TRUE\n"inline, ""quoted""",7,FALSE',
+      JSON.stringify(xlsxRes.csv));
+    ok("LF24-XLSX: dropping an .xlsx on the View Builder creates a REAL csv-format file dataset with the right columns, and unreadable bytes fail with a plain message (never a crash)",
+      xlsxRes.dataset && xlsxRes.dataset.format === "csv" && xlsxRes.dataset.kind === "file" &&
+      JSON.stringify(xlsxRes.dataset.cols) === JSON.stringify(["region", "amount", "flag"]) &&
+      /isn't a zip archive/.test(xlsxRes.badErr || ""),
+      JSON.stringify(xlsxRes));
+
     // 13b. VB-4 slice 2 (Kevin overnight queue continued, "hit major ones first"):
     // Stacked bars + Stacked area join the chart strip. Studio's own chart registry
     // (model.js Studio.CHARTS + Studio.newPanel) already treats "stacked" and

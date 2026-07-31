@@ -678,23 +678,28 @@
           // CSV/JSON drop zone — the file's text is stored INSIDE the dataset row
           // (works offline, mirrors with the workspace; capped, see localfile.js).
           var zone = el("div", "dsx-drop");
-          var fileInp = el("input"); fileInp.type = "file"; fileInp.accept = ".csv,.tsv,.json,text/csv,application/json"; fileInp.hidden = true;
+          var fileInp = el("input"); fileInp.type = "file"; fileInp.accept = ".csv,.tsv,.json,.xlsx,text/csv,application/json"; fileInp.hidden = true;
           function zoneLabel() {
             zone.innerHTML = d.content
-              ? "<b>" + esc(d.fileName || "file") + "</b> · " + Math.max(1, Math.round(d.content.length / 1024)) + " KB loaded<small>Drop a new .csv / .json here (or click) to replace it</small>"
-              : "<b>Drop a .csv or .json file here</b><small>or click to browse — the data is stored with the dataset and works offline</small>";
+              ? "<b>" + esc(d.fileName || "file") + "</b> · " + Math.max(1, Math.round(d.content.length / 1024)) + " KB loaded<small>Drop a new .csv / .json / .xlsx here (or click) to replace it</small>"
+              : "<b>Drop a .csv, .json, or .xlsx file here</b><small>or click to browse — the data is stored with the dataset and works offline</small>";
           }
           function loadFile(f) {
             if (!f) return;
-            f.text().then(function (text) {
+            // LF24-XLSX: readTabularFile converts an Excel first sheet to CSV
+            // up front — the stored content is text for every format.
+            Studio.readTabularFile(f).then(function (r) {
+              var text = r.text;
               if (text.length > Studio.FILE_DATASET_MAX_CHARS) {
                 zone.innerHTML = "<b class='dsx-drop-err'>" + esc(f.name) + " is too large (" + Math.round(text.length / 1e6) + "MB > 2MB)</b><small>Host it and use the DuckDB (remote file) connector instead.</small>";
                 return;
               }
               d.fileName = f.name; d.content = text;
-              d.format = /\.(csv|tsv)$/i.test(f.name) ? "csv" : /\.json$/i.test(f.name) ? "json" : "";
+              d.format = /\.(csv|tsv|xlsx)$/i.test(f.name) ? "csv" : /\.json$/i.test(f.name) ? "json" : "";
               if (!nameInp.value.trim()) nameInp.value = f.name.replace(/\.[^.]+$/, "");
               zoneLabel();
+            }, function (e) {
+              zone.innerHTML = "<b class='dsx-drop-err'>Could not read " + esc(f.name) + "</b><small>" + esc((e && e.message) || "unreadable file") + "</small>";
             });
           }
           zone.onclick = function () { fileInp.click(); };

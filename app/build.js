@@ -205,15 +205,15 @@
   }
   function bdDropFile(file) {
     if (!file) return;
-    if (!/\.(csv|tsv|json)$/i.test(file.name)) { D.toast("Drop a .csv, .tsv, or .json file to build a View from it", true); return; }
-    file.text().then(function (text) {
+    if (!/\.(csv|tsv|json|xlsx)$/i.test(file.name)) { D.toast("Drop a .csv, .tsv, .json, or .xlsx file to build a View from it", true); return; }
+    // LF24-XLSX: readTabularFile converts an .xlsx's first sheet to CSV up
+    // front, so everything below is the same text pipeline for every format.
+    Studio.readTabularFile(file).then(function (r) {
+      var text = r.text, format = r.format;
       if (text.length > Studio.FILE_DATASET_MAX_CHARS) {
         D.toast(file.name + " is too large (" + Math.round(text.length / 1e6) + "MB > 2MB) — host it and use the DuckDB (remote file) connector instead.", true);
         return;
       }
-      var format = /\.json$/i.test(file.name) ? "json"
-        : /\.(csv|tsv)$/i.test(file.name) ? "csv"
-        : ((text.replace(/^\s+/, "")[0] === "[" || text.replace(/^\s+/, "")[0] === "{") ? "json" : "csv");
       var parsed;
       try { parsed = format === "json" ? Studio.parseJSONText(text) : Studio.parseCSVText(text); }
       catch (e) { D.toast("Could not parse " + file.name + ": " + e.message, true); return; }

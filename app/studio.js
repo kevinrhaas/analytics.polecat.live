@@ -5984,7 +5984,7 @@
         return '<button class="home-card" data-home="' + c.act + '"><span class="home-card-ic" data-ic="' + c.ic + '"></span>' +
           '<div><b>' + esc(c.t) + '</b><small>' + esc(c.d) + '</small></div></button>';
       }).join("") +
-      '<input type="file" class="home-quickimport-input" accept=".csv,.tsv,.json,text/csv,application/json" hidden>' +
+      '<input type="file" class="home-quickimport-input" accept=".csv,.tsv,.json,.xlsx,text/csv,application/json" hidden>' +
       '</div>' +
       '<div class="home-tip"><span class="home-tip-ic" data-ic="info"></span>' +
       '<p class="home-tip-txt">' + esc(HOME_TIPS[_homeTipIdx]) + '</p>' +
@@ -6329,13 +6329,16 @@
       }
       function quickImportFile(file) {
         if (!file) return;
-        if (!/\.(csv|tsv|json)$/i.test(file.name)) { toast("Quick import needs a .csv, .tsv, or .json file", true); return; }
-        file.text().then(function (text) {
+        if (!/\.(csv|tsv|json|xlsx)$/i.test(file.name)) { toast("Quick import needs a .csv, .tsv, .json, or .xlsx file", true); return; }
+        // LF24-XLSX: an .xlsx converts (first sheet → CSV) up front; every
+        // format flows through the same text pipeline below.
+        Studio.readTabularFile(file).then(function (r) {
+          var text = r.text;
           if (text.length > Studio.FILE_DATASET_MAX_CHARS) {
             toast(file.name + " is too large (" + Math.round(text.length / 1e6) + "MB > 2MB) — host it and use the DuckDB (remote file) connector instead.", true);
             return;
           }
-          var format = quickImportFormat(file.name, text);
+          var format = /\.xlsx$/i.test(file.name) ? "csv" : quickImportFormat(file.name, text);
           var parsed;
           try {
             parsed = format === "json" ? Studio.parseJSONText(text) : Studio.parseCSVText(text);
@@ -6354,7 +6357,7 @@
           var built = quickBuildDashboard(d, profile);
           toast("Imported " + name + " — built a dashboard with " + built.kpiCount + " KPI" + (built.kpiCount !== 1 ? "s" : "") +
             " + " + built.panelCount + " View" + (built.panelCount !== 1 ? "s" : "") + " (" + built.kinds.join(", ") + "). Opening in Studio…");
-        });
+        }, function (e) { toast("Could not read " + file.name + ": " + ((e && e.message) || "unreadable file"), true); });
       }
       // LF61: exposed the same way as quickBuildDashboard above, so the Studio
       // canvas's own empty-state drop zone (wireCanvas, wired once outside this

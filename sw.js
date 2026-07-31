@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v455"; /* v455: TOUR-WOW — View Builder step
+var CACHE_NAME = "studio-shell-v456"; /* v456: LF24-XLSX — .xlsx drop support
+   (vendor/fflate.js + app/xlsx.js NEW in precache; build/datasets/studio.js,
+   index.html changed). */
+/* v455: TOUR-WOW — View Builder step
    in welcome + overview tour; hero motion polish (welcome.js, tutorial.js). */
 /* v454: DURABLE-2b — undo on
    single-row deletes (datasets/connections/jobs/views.js). */
@@ -2483,6 +2486,8 @@ var SHELL_FILES = [
   "app/defaults.js",
   "app/celebrations.js",
   "app/versions.js",
+  "vendor/fflate.js",
+  "app/xlsx.js",
   "app/explore.js",
   "app/jobs.js",
   "app/connections.js",
