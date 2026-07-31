@@ -16483,7 +16483,13 @@ function serve() {
     // quick-action shortcuts ahead of the footer buttons in DOM order (matching their on-screen
     // position above the footer), so the true first/last focusable are computed rather than
     // hardcoded to the old carousel's control names.
-    await gp.evaluate(() => document.querySelector('#studio-welcome [data-act="quicktour"]').focus());
+    // TOUR-FRONT moved the quicktour card into the body, so the last focusable
+    // is computed (currently the footer's guided-tour button), not hardcoded.
+    await gp.evaluate(() => {
+      var dlg = document.querySelector("#studio-welcome");
+      var f = dlg.querySelectorAll('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])');
+      f[f.length - 1].focus();
+    });
     await gp.keyboard.press("Tab");
     const wrapCheck = await gp.evaluate(() => {
       var dlg = document.querySelector("#studio-welcome");
