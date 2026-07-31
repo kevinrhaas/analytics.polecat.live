@@ -48,7 +48,7 @@
   // Hero quick-actions: jump straight into a section instead of walking the
   // carousel. Section keys match __studioShellSetSection (app/shell.js).
   var QUICK_ACTIONS = [
-    { qa: "explore", ic: "search", t: "New Quick View" },
+    { qa: "explore", ic: "search", t: "New View" },
     { qa: "studio", ic: "grid", t: "Build a dashboard" },
     { qa: "connections", ic: "gear", t: "Bring your data" }
   ];

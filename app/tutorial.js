@@ -77,7 +77,10 @@
      last:   true on the final step — shows "Done!" instead of "Next" */
   var TOURS = {
     overview: {
-      label: "Take the tour",
+      // KEVIN-COPY (live, 2026-07-31): was "Take the tour" — you've already
+      // chosen to take a tour by the time this chooser is up, so the row names
+      // WHAT the tour covers instead of repeating the verb.
+      label: "Getting started",
       blurb: "A two-minute walk through the whole app — what each part is for. Start here.",
       steps: [
         {

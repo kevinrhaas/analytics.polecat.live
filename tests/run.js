@@ -16212,7 +16212,7 @@ function serve() {
       seen: localStorage.getItem("studio-welcome-seen") === "1",
       section: window.__studioShellGetSection ? window.__studioShellGetSection() : null
     }));
-    ok("welcome hero's 'New Quick View' quick action dismisses the hero and jumps to Quick Views",
+    ok("welcome hero's 'New View' quick action dismisses the hero and jumps to Quick Views",
       qaJumped.closed && qaJumped.seen && qaJumped.section === "explore", JSON.stringify(qaJumped));
     // Reopen fresh (seen is already persisted) and take the quick tour into the carousel.
     await gp.evaluate(() => window.StudioWelcome.open());
@@ -18073,6 +18073,18 @@ function serve() {
       confirms = 0;
       window.__studioApplyAssignedBackend(mine);
       out.noReprompt = confirms === 0 && calls.length === 0;
+      // KEVIN-COPY: an adapter-named backend ("Supabase") whose url matches the
+      // packaged catalog must be announced by the WORKSPACE's human label, and
+      // the prompt reads adopt/overwrite, never "workspace backend".
+      var msg = "";
+      window.confirm = function (m) { msg = m; return false; };
+      var mineAdapterish = { provisioning: { backend: { id: "bk6", name: "Supabase", adapter: "supabase",
+        cfg: { url: (window.STUDIO_WORKSPACES[0] || {}).cfg.url, key: "pub-k6" } } } };
+      try { localStorage.removeItem("studio-backend-decline:bk6"); } catch (e) {}
+      window.__studioApplyAssignedBackend(mineAdapterish);
+      out.namedByWorkspace = msg.indexOf("Polecat workspace") >= 0 && msg.indexOf("Supabase") < 0 && /Adopt it on this device/.test(msg) && /overwritten/.test(msg);
+      out.confirmMsg = msg;
+      try { localStorage.removeItem("studio-backend-decline:bk6"); } catch (e) {}
       Studio.Sync.connectAdopt = realAdopt; window.confirm = realConfirm;
       try { localStorage.removeItem("studio-backend-decline:bk5"); } catch (e) {}
       Studio.Workspace.remove("datasets", "a103-ds", { silent: true });
@@ -18082,6 +18094,8 @@ function serve() {
       a103Apply.freshSilent && a103Apply.promptedAndAdopted, JSON.stringify(a103Apply));
     ok("#103: declining the switch is remembered per backend id — later sign-ins never nag",
       a103Apply.declinedNoAdopt && a103Apply.declineStored && a103Apply.noReprompt, JSON.stringify(a103Apply));
+    ok("KEVIN-COPY: the adopt prompt names the workspace by its human catalog label (never the adapter) and asks adopt/overwrite",
+      a103Apply.namedByWorkspace, JSON.stringify({ msg: a103Apply.confirmMsg }));
 
     // (c) The connectAdopt skipIfEmpty guard: an EMPTY remote read (the signature of
     // an unauthenticated pull against authenticated-only RLS) must never wipe local.
@@ -26320,8 +26334,8 @@ function serve() {
         labels: [].map.call(choices, function (c) { return c.querySelector("b").textContent; }).join("|"),
         overviewFirst: choices[0] && choices[0].getAttribute("data-tour") === "overview" };
     });
-    ok("J6: open() presents the tour chooser — Overview first, then Quick analysis + Build a dashboard + Prep data (Jobs) + Connections & Datasets",
-      j6Chooser.ok && j6Chooser.overviewFirst && /Quick analysis/.test(j6Chooser.labels) && /Take the tour/.test(j6Chooser.labels) && /Prep data \(Jobs\)/.test(j6Chooser.labels) && /Connections & Datasets/.test(j6Chooser.labels), JSON.stringify(j6Chooser));
+    ok("J6: open() presents the tour chooser — Overview first (labeled 'Getting started', not a repeated 'Take the tour'), then Quick analysis + Build a dashboard + Prep data (Jobs) + Connections & Datasets",
+      j6Chooser.ok && j6Chooser.overviewFirst && /Quick analysis/.test(j6Chooser.labels) && /Getting started/.test(j6Chooser.labels) && !/Take the tour/.test(j6Chooser.labels) && /Prep data \(Jobs\)/.test(j6Chooser.labels) && /Connections & Datasets/.test(j6Chooser.labels), JSON.stringify(j6Chooser));
 
     // J6-3: choosing "Build a dashboard" → step 0 centered card; Next spotlights #library
     await page.click('#st-tip .st-choice[data-tour="build"]');
