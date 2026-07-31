@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 829,
+    title: 'Connected-workspace saves stay signed in, and pack dashboards stop duplicating',
+    kind: 'fix',
+    ts: '2026-07-31T19:53:38.000Z',
+    items: [
+      'Re-connecting to your workspace (signing in, or accepting the assigned-workspace welcome) silently dropped the sign-in that your saves ride on -- from then on every save was refused with an HTTP 401 and the error offered a database script that would have weakened a shared workspace\'s security. Re-binding the same workspace now keeps your sign-in attached, the "already connected" check no longer reconnects needlessly on every login, and that error now gives the right advice for signed-in workspaces: sign out and back in.',
+      'Opening a sample-pack dashboard and pressing Save quietly created a same-named, unfiled copy instead of the intended "save as your own" prompt -- that\'s where the duplicate dashboards came from. Save now recognizes the open pack dashboard correctly, the protection prompt appears as designed, and a one-time cleanup removes the stray unedited copies automatically (any copy you actually changed is kept).',
+    ],
+  },
+  {
     v: 828,
     title: 'Your workspace branding now truly applies everywhere, for everyone',
     kind: 'fix',

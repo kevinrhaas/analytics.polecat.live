@@ -131,6 +131,25 @@
   // healed state finally persists remotely instead of being re-clobbered.
   var _adoptHeals = [];
   function healAfterAdopt() { _adoptHeals.forEach(function (fn) { try { fn(); } catch (e) {} }); }
+  // KEVIN-LIVE-2 (Kevin live, 2026-07-31 — "set the icon and name, then every
+  // save was refused with HTTP 401 RLS"): re-binding a workspace must never LOG
+  // THE USER OUT of its database. Picker/assigned-backend configs carry only
+  // url+key; the signed-in user's Supabase Auth credentials live on the ACTIVE
+  // cfg (stamped by setAuthCredentials after direct sign-in). Replacing the cfg
+  // wholesale dropped that stamp, so every later request ran as anon — reads
+  // came back empty-but-fine, and authenticated-only RLS refused every write.
+  // Re-binding the SAME source+url without credentials carries the stamp over.
+  function carryAuthCredentials(sourceId, cfg) {
+    try {
+      if (!cfg || cfg.authEmail || !state.cfg || !state.cfg.authEmail) return cfg;
+      if (state.sourceId === sourceId && state.cfg.url && state.cfg.url === cfg.url) {
+        cfg = JSON.parse(JSON.stringify(cfg));
+        cfg.authEmail = state.cfg.authEmail;
+        cfg.authPassword = state.cfg.authPassword;
+      }
+    } catch (e) { /* malformed cfg — bind it as-is */ }
+    return cfg;
+  }
   function emit() { listeners.forEach(function (fn) { try { fn(publicState()); } catch (e) {} }); }
   function setStatus(status, err) {
     state.status = status; state.lastError = err || "";
@@ -353,6 +372,7 @@
     connectAdopt: function (sourceId, cfg, opts) {
       var src = Studio.sourceById(sourceId);
       if (!src) return Promise.reject(new Error("unknown source"));
+      cfg = carryAuthCredentials(sourceId, cfg);
       setStatus("connecting");
       _suspend = true;
       return src.load(cfg).then(decTransform).then(function (snap) {
@@ -413,6 +433,7 @@
       saveConn();
       return publicState();
     },
+    _carryAuthCredentials: carryAuthCredentials, // KEVIN-LIVE-2 test seam
 
     // WORKSPACE-LOGIN: bind a connection WITHOUT pulling. The sign-in screen
     // uses this — under authenticated-only RLS an unauthenticated pull reads
@@ -422,6 +443,7 @@
     bindConnection: function (sourceId, cfg) {
       var src = Studio.sourceById(sourceId);
       if (!src) return Promise.reject(new Error("unknown source"));
+      cfg = carryAuthCredentials(sourceId, cfg);
       state.sourceId = sourceId; state.cfg = cfg ? JSON.parse(JSON.stringify(cfg)) : null;
       _preAuth = true; // SYNC-PREAUTH: latch automatic pulls off until a signed-in pull adopts
       saveConn();

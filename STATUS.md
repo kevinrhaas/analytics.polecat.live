@@ -116,6 +116,36 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **KEVIN-LIVE-2 — same-workspace re-binds keep the Supabase sign-in +
+  Save-on-open shadow-copy fix (v829, sw v461, 2026-07-31, steward — Kevin
+  live: branding save → HTTP 401 RLS + the open-RW remedy SQL; "maybe
+  dashboards are duplicating?"):** two bugs, one session. (A) CREDENTIAL
+  WIPE: applyAssignedBackend's "already there" check compared the whole cfg
+  JSON — the live cfg carries the stamped authEmail (setAuthCredentials),
+  the admin-registered target cfg never does, so it NEVER matched and every
+  sign-in silently reconnected with the bare cfg; connectAdopt/bindConnection
+  replaced state.cfg wholesale, wiping the stamp. Pushes then ran as anon →
+  authenticated-only RLS refused every save (401) → and the remedy branch
+  (keyed only on cfg.authEmail, now gone) handed Kevin the polecat_open_rw
+  SQL — the exact statement that defeated the whole posture on 2026-07-30.
+  Fix: carryAuthCredentials() (sync.js) — re-binding the SAME source+url
+  without credentials inherits the stamp (different url never does); the
+  already-there check compares workspace identity (adapter+url) only; the
+  remedy (extracted to rlsRemedyMessage, supabase.js) treats a signed-in
+  Supabase Auth account (gotrueId) as an authenticated workspace and never
+  emits weakening SQL for it. (B) SHADOW COPIES: openRecent left S.spec.id
+  as the pack row's embedded spec id (row.id ≠ spec.id for all pack-seeded
+  rows), so plain Save missed the LF26 guardrail ("not in the catalog — a
+  normal create") and silently wrote a same-titled, unfiled, un-packed copy
+  — one per pack dashboard Kevin pressed Save in. Fix: openRecent aligns
+  S.spec.id = row.id (guardrail + Save-as prompt work again); noteRecent
+  carries folder/demoPackId/sourceFile through saves; reconcilePackDashboards
+  gains a shadow heal — a row whose id IS some pack row's spec.id, same
+  title, no pack provenance, identical panels/kpis/filters is dropped
+  (user-edited copies are kept). Heals Kevin's 3 dupes on next load. 2 new
+  checks (headless-verified first: 11/11). Files: app/studio.js,
+  app/sources/sync.js, app/sources/supabase.js, tests/run.js, sw.js,
+  js/changelog.js. Lane: skip KEVIN-LIVE-2 — done here.
 - **BRAND-BOOT — admin branding finally applies workspace-wide + branded
   sign-in (v828, sw v460, 2026-07-31, steward — Kevin live: "branding the
   admin defined didn't show when I logged in… should be workspace-wide"):**
