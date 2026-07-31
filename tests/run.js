@@ -16243,6 +16243,11 @@ function serve() {
     // own explicit featured choice. ----
     const packFeat = await page.evaluate(() => {
       const W = Studio.Workspace;
+      // the helper needs the pack's dashboards present — install if this page
+      // state doesn't have them (restored below)
+      const wasInstalled = Studio.demoPackInstalled("conservation");
+      if (!wasInstalled) Studio.installDemoPack("conservation");
+      Studio.ensureConservationWatershedDashboard();
       const prevFeatured = W.all("dashboards").filter((r) => r.featured).map((r) => r.id);
       prevFeatured.forEach((id) => {
         const r = W.get("dashboards", id);
@@ -16263,6 +16268,7 @@ function serve() {
         const r = W.get("dashboards", id);
         if (r) { r.featured = true; W.put("dashboards", r, { silent: true }); }
       });
+      if (!wasInstalled) Studio.removeDemoPack("conservation");
       return out;
     });
     ok("PACK-FEATURED: with nothing featured, the pack's watershed (HUC8) geo dashboard becomes Home's featured tile — and a workspace with an existing featured choice is left alone",

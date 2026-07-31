@@ -435,7 +435,8 @@
     if (W.all("dashboards").some(function (r) { return r.featured; })) return false;
     var target = W.all("dashboards").filter(function (r) {
       return r.demoPackId === "conservation" &&
-        (r.name === "conservation-watershed-map" || (r.spec && r.spec.name === "conservation-watershed-map"));
+        (r.name === "conservation-watershed-map" || (r.spec && r.spec.name === "conservation-watershed-map") ||
+         /watershed/i.test(r.title || ""));
     })[0] || W.all("dashboards").filter(function (r) {
       // fallback: the county/hero cover-crop geo dashboard
       return r.demoPackId === "conservation" && /cover ?crop|county/i.test(r.title || r.name || "");
