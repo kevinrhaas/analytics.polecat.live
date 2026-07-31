@@ -4,9 +4,9 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Analytics — connect your data, build beautiful dashboards, share them anywhere</title>
-<meta name="description" content="A local-first analytics workspace in your browser: connect databases, warehouses, files and Google Sheets, design interactive dashboards visually, and export them as single self-contained HTML files. Free, private, no account."/>
+<meta name="description" content="A full analytics workspace in your browser: connect databases, warehouses, files and Google Sheets, design interactive dashboards visually, share a workspace with your team, and export dashboards as single self-contained HTML files. Free — and it can run fully local and private if you prefer."/>
 <meta property="og:title" content="Analytics"/>
-<meta property="og:description" content="Connect your data, build beautiful dashboards, share them anywhere. Local-first, in your browser."/>
+<meta property="og:description" content="Connect your data, build beautiful dashboards, share them anywhere. Solo or with your team, right in your browser."/>
 <meta property="og:url" content="https://analytics.polecat.live/"/>
 <meta property="og:image" content="https://analytics.polecat.live/site/shots/dashboard-dark.png"/>
 <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
@@ -45,12 +45,13 @@
 <main>
   <section class="hero">
     <h1>Connect your data.<br/>Build <em>beautiful</em> dashboards.<br/>Share them anywhere.</h1>
-    <p class="sub">A full analytics workspace that runs entirely in your browser — connect databases,
+    <p class="sub">A full analytics workspace that runs in your browser — connect databases,
     warehouses, files and Google Sheets, design interactive dashboards visually, and export them as
-    single self-contained HTML files anyone can open. Free. Private. No account.</p>
+    single self-contained HTML files anyone can open. Work solo or share a workspace with your
+    team. Free — and it can run fully local and private if you prefer.</p>
     <div class="hero-cta">
       <a href="app/" class="btn-cta">Open Analytics →</a>
-      <span class="cta-note">nothing to install · your data stays on your device</span>
+      <span class="cta-note">nothing to install · solo or with your team · local if you want</span>
     </div>
     <!-- hero: auto-playing carousel of real app screenshots -->
     <div class="hero-carousel" id="showcase">
@@ -86,6 +87,9 @@
         the Dashboard Builder composes Views, KPIs and filters on a three-pane canvas — 50+ chart
         types from KPIs to heatmaps to forecasts, including US choropleth maps down to county,
         district, and watershed scale.</p></div>
+      <div class="card"><span class="ic">☍</span><b>Bring your team</b>
+        <p>Sign in and share one workspace on your own Supabase, Turso or Firebase — admin, editor
+        and viewer roles, per-user security, and read-only viewer links for everyone else.</p></div>
       <div class="card"><span class="ic">⬡</span><b>Parameterized datasets</b>
         <p>Define a query once with {{parameters}}; dashboard template variables fill them at run
         time — one dataset powers many views, filters cascade, everything stays linked.</p></div>
@@ -93,12 +97,10 @@
         <p>Every dashboard exports as one self-contained .html file — byte-identical to the live
         preview, no server, no dependencies. Also PDF, Excel, PowerPoint and Word, plus a
         header-off embed mode for dropping dashboards into other sites.</p></div>
-      <div class="card"><span class="ic">☍</span><b>Bring your team</b>
-        <p>Sign in and share one workspace on your own Supabase, Turso or Firebase — admin, editor
-        and viewer roles, per-user security, and read-only viewer links for everyone else.</p></div>
-      <div class="card"><span class="ic">⌂</span><b>Local-first &amp; private</b>
-        <p>Your workspace lives in your browser and works offline. Optionally mirror it to your own
-        Turso, Supabase or Firebase backend — with zero-knowledge secret encryption.</p></div>
+      <div class="card"><span class="ic">⌂</span><b>Local &amp; offline — your call</b>
+        <p>Prefer to keep everything on your device? The whole workspace can run fully local and
+        offline, no backend at all — and when you're ready to sync or share, mirror it to your own
+        backend with zero-knowledge secret encryption.</p></div>
       <div class="card"><span class="ic">✦</span><b>Delightful by design</b>
         <p>Warm themes, light and dark, keyboard palette, guided tours, version history with visual
         compare — analytics that feels like a creative tool, not a chore.</p></div>
@@ -141,9 +143,9 @@
 
   <section id="sources" class="strip">
     <h2>Your data, wherever it lives</h2>
-    <p class="strip-sub">Local-first never means local-only. Connections and datasets form a reusable
-    catalog that follows you — and every adapter speaks a friendly, in-band-error dialect when
-    something's misconfigured.</p>
+    <p class="strip-sub">Work against a shared backend, or entirely on your device — connections and
+    datasets form a reusable catalog that follows you, and every adapter speaks a friendly,
+    in-band-error dialect when something's misconfigured.</p>
     <div class="chips">
       <span>PostgreSQL</span><span>Supabase</span><span>Turso</span><span>Firebase</span>
       <span>Snowflake</span><span>Databricks</span><span>BigQuery</span><span>DuckDB</span>

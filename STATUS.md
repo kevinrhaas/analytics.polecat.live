@@ -135,7 +135,12 @@
   "Bring your team" card covers sign-in, admin/editor/viewer roles, shared workspaces on
   your own Supabase/Turso/Firebase and read-only viewer links. `#charts` headline bumped
   to "50+ chart types" and `site/chart-gallery.js` re-generated from the app registry
-  (54 types). sw CACHE → v464 (index.html is precached).
+  (54 types). sw CACHE → v464 (index.html is precached). Kevin follow-up mid-gate:
+  "steer it away from the local first — it's more of local as an option" — the messaging
+  now leads with team/shared workspaces (Bring-your-team card moved up to slot 3, hero +
+  meta + sources-strip copy reworked), and local/offline is framed as a choice
+  ("Local & offline — your call") instead of the product's identity; "Free. Private.
+  No account." replaced since sign-in IS the team story now.
 - **Track N — private-sheet Google Sheets datasets get a local tq subset (v831, sw v463,
   2026-07-31, steward — Track H/L/N rotation, N's turn):** v808's own NEXT pointer named
   Track L (last at v613) and Track N (last at v611) as both overdue vs Track H at v808;
