@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 832,
+    title: 'The public site catches up with the app',
+    kind: 'polish',
+    ts: '2026-07-31T21:49:16.000Z',
+    items: [
+      'Every marketing screenshot re-captured against the current build, and two new carousel slides join the tour: the View Builder (columns dragged onto shelves, chart rendering live) and the Dashboards library (searchable tiles organized in folders).',
+      'The feature grid now tells the truth at today\'s scale: 13 kinds of data sources (Redshift joins the list, and file drop takes Excel alongside CSV/JSON), 50+ chart types across the two builders, and exports that include PDF, Excel, PowerPoint and Word plus the header-off embed mode.',
+      'A new Bring-your-team card covers sign-in, admin/editor/viewer roles, a shared workspace on your own Supabase/Turso/Firebase, and read-only viewer links.',
+      'The messaging leads with team and shared workspaces now -- "local-first" is retired as the headline identity, and running fully local/offline is presented as an option ("Local & offline -- your call") rather than the product\'s definition.',
+      'Carousel captions rewritten in current terminology -- Views, Quick Views, View Builder and Dashboard Builder -- and the chart-type gallery re-generated from the app\'s own registry (54 types).',
+    ],
+  },
+  {
     v: 831,
     title: 'Google Sheets: private-sheet datasets can now filter/sort/page too',
     kind: 'feature',

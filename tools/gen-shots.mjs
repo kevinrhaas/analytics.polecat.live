@@ -65,6 +65,7 @@ async function bootBuilder(browser, { theme }) {
     try {
       sessionStorage.setItem("studio-gate-ok", "1");
       localStorage.setItem("studio-welcome-seen", "1");
+      localStorage.setItem("studio-tutorial-done", "1");
       localStorage.setItem("studio-theme", t);
     } catch (e) {}
   }, theme);
@@ -289,6 +290,24 @@ function countyValue(fips) {
       } catch (e) {}
     } });
     await snapSection(browser, "datasets-dark", { section: "datasets", extraWait: 1400 });
+    // The Dashboards tile browser (LF27) — the "your library" survey shot.
+    // Materialize the Data Management pack's showcase dashboards + run the
+    // pack heals first so the grid reads like a real library, not 4 tiles;
+    // thumbnails render asynchronously, so give them room.
+    await snapSection(browser, "dashboards-dark", { section: "dashboards", extraWait: 3400, prep: () => {
+      try { if (window.__studioEnsurePackExamplesMaterialized) window.__studioEnsurePackExamplesMaterialized("datamanagement"); } catch (e) {}
+      try { if (window.Studio && Studio.Sync && Studio.Sync.healAfterAdopt) Studio.Sync.healAfterAdopt(); } catch (e) {}
+    } });
+    // The View Builder (the flagship drag-drop canvas): load a Builder-native
+    // pack View so the shelves + live chart are populated, not the empty state.
+    await snapSection(browser, "viewbuilder-dark", { section: "build", extraWait: 2200, prep: () => {
+      try {
+        var A = (window.Studio && Studio.Workspace) ? Studio.Workspace.all("analyses") : [];
+        var pick = A.filter(function (a) { return a.builder && /no-?till|tillage|cover/i.test(a.name || ""); })[0] ||
+                   A.filter(function (a) { return a.builder; })[0];
+        if (pick && window.__studioBuild && __studioBuild.load) __studioBuild.load(pick.id);
+      } catch (e) {}
+    } });
 
     console.log(`\ngen-shots: ${ok} captured, ${fail} failed → site/shots/`);
     process.exitCode = fail && !ok ? 1 : 0;

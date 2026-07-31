@@ -116,6 +116,31 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **MARKETING-REFRESH — the public site catches up with the app (v832, sw v464, 2026-07-31,
+  Kevin request):** Kevin's phone showed a broken carousel image on the live site and asked
+  for a comprehensive refresh — current slides, features and screenshots, no CTIC branding
+  (charts/dashboards fine, the literal brand banned). All 12 `site/shots/*.png` re-captured
+  via `tools/gen-shots.mjs` against current main (the tool now also seeds
+  `studio-tutorial-done` so no tour pop pollutes a frame), plus two NEW shots wired as new
+  carousel slides: `viewbuilder-dark` (a Conservation View loaded in the View Builder —
+  populated shelves, live line chart, provider legend) and `dashboards-dark` (the
+  Dashboards library — 19 tiles across Conservation Insight / Data Management / Unfiled
+  folders; the tool materializes the Data Management showcase pack first). Every shot
+  visually audited — no CTIC text anywhere (pack titles are OpTIS/CRD, which are fine).
+  `index.html` rewritten to match today's app: carousel 9→11 slides with
+  current-terminology captions (Views / Quick Views / View Builder / Dashboard Builder),
+  feature grid now says 13 kinds of sources (Redshift chip added; file drop takes
+  CSV/JSON/Excel), "Two builders, one canvas" replaces the single-studio story, exports
+  card adds PDF/Excel/PowerPoint/Word + the header-off embed mode, and a new
+  "Bring your team" card covers sign-in, admin/editor/viewer roles, shared workspaces on
+  your own Supabase/Turso/Firebase and read-only viewer links. `#charts` headline bumped
+  to "50+ chart types" and `site/chart-gallery.js` re-generated from the app registry
+  (54 types). sw CACHE → v464 (index.html is precached). Kevin follow-up mid-gate:
+  "steer it away from the local first — it's more of local as an option" — the messaging
+  now leads with team/shared workspaces (Bring-your-team card moved up to slot 3, hero +
+  meta + sources-strip copy reworked), and local/offline is framed as a choice
+  ("Local & offline — your call") instead of the product's identity; "Free. Private.
+  No account." replaced since sign-in IS the team story now.
 - **Track N — private-sheet Google Sheets datasets get a local tq subset (v831, sw v463,
   2026-07-31, steward — Track H/L/N rotation, N's turn):** v808's own NEXT pointer named
   Track L (last at v613) and Track N (last at v611) as both overdue vs Track H at v808;
