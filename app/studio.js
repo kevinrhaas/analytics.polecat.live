@@ -979,6 +979,28 @@
       dupChanged = true;
     });
     if (dupChanged) Studio.Workspace.notify("dashboards");
+    // KEVIN-LIVE-2 (Kevin live, 2026-07-31): heal the SHADOW copies the
+    // Save-on-open id mismatch left behind. A shadow's fingerprint is precise:
+    // its row id IS some pack row's embedded spec.id, same title, no pack
+    // provenance of its own. Drop it only when its content still matches the
+    // pack row (identical panels/kpis/filters) — a copy the user went on to
+    // edit is genuinely theirs and is kept.
+    var shadowById = {}, shadowChanged = false;
+    Studio.Workspace.all("dashboards").forEach(function (r) { shadowById[r.id] = r; });
+    Studio.Workspace.all("dashboards").forEach(function (r) {
+      if (!r.demoPackId || !r.spec || !r.spec.id || r.spec.id === r.id) return;
+      var shadow = shadowById[r.spec.id];
+      if (!shadow || shadow.demoPackId || shadow.id === r.id) return;
+      if ((shadow.title || "") !== (r.title || "")) return;
+      try {
+        var body = function (row) { var s = row.spec || {}; return JSON.stringify([s.panels || [], s.kpis || [], s.filters || []]); };
+        if (body(shadow) !== body(r)) return; // user-edited — keep it
+      } catch (e) { return; }
+      Studio.Workspace.remove("dashboards", shadow.id, { silent: true });
+      delete shadowById[shadow.id];
+      shadowChanged = true;
+    });
+    if (shadowChanged) Studio.Workspace.notify("dashboards");
     // CONS-2: backfill the watershed dashboard into installs that predate it.
     try { if (Studio.ensureConservationWatershedDashboard) Studio.ensureConservationWatershedDashboard(); } catch (e) {}
     // CONS-4 heal: pre-existing installs get their per-practice pack Views
@@ -5591,6 +5613,13 @@
       if (prior.createdAt) entry.createdAt = prior.createdAt;
       if (prior.owner) entry.owner = prior.owner;
       if (prior.private) entry.private = true;
+      // KEVIN-LIVE-2: filing, pack provenance and the Home featured flag are
+      // catalog organization too — a Save must not silently un-file a
+      // dashboard, orphan a pack row, or un-feature it from Home.
+      if (prior.folder) entry.folder = prior.folder;
+      if (prior.demoPackId) entry.demoPackId = prior.demoPackId;
+      if (prior.sourceFile) entry.sourceFile = prior.sourceFile;
+      if (prior.featured) entry.featured = true;
     } else {
       var newUid = currentUserId();
       if (newUid) entry.owner = newUid;
@@ -5711,10 +5740,19 @@
       "This Quick-import dashboard hasn’t been saved yet — opening “" +
       ((r.spec && r.spec.title) || r.title || "another dashboard") + "” will lose it. Open anyway?"
     )) return;
-    S.spec = normalize(r.spec); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
+    S.spec = normalize(r.spec); S.selection = null;
+    // KEVIN-LIVE-2 (Kevin live, 2026-07-31 — "maybe dashboards are duplicating?"):
+    // the catalog ROW is the dashboard's identity. Pack-seeded rows store a spec
+    // whose embedded id differs from the row id, so opening one left S.spec.id
+    // pointing at a row that doesn't exist — plain Save then missed the LF26
+    // sample-content guardrail ("not in the catalog yet — a normal create") and
+    // silently wrote a same-titled, unfiled shadow copy on every Save.
+    S.spec.id = r.id;
+    syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
     enterStudio();
     markLastViewed(id); // "since you were last here" resets the clock the moment you actually open it
   }
+  window.__studioOpenRecent = openRecent; // KEVIN-LIVE-2 test hook
 
   /* ---------- N-FUN innovation idea: "what changed since your last visit" digest ----------
      Home/Repository already know when a dashboard was last touched (studio-recents) and Version
@@ -8887,8 +8925,14 @@
       : (prov.backendId && getAdminBackends().filter(function (r) { return r.id === prov.backendId; })[0]);
     if (!target || !target.adapter || !target.cfg || !Studio.Sync) return;
     var st = Studio.Sync.syncState();
-    if (st.isRemote && st.sourceId === target.adapter &&
-        JSON.stringify(Studio.Sync.currentConfig()) === JSON.stringify(target.cfg)) return; // already there
+    // KEVIN-LIVE-2: "already there" must compare the WORKSPACE IDENTITY (adapter
+    // + url), not the whole cfg JSON — the live cfg carries the signed-in user's
+    // stamped Auth credentials (setAuthCredentials), which the admin-registered
+    // target cfg never has, so a full compare NEVER matched and every sign-in
+    // silently reconnected with the bare cfg, wiping the credentials. From then
+    // on pushes ran as anon and authenticated-only RLS refused every save.
+    var curCfg = Studio.Sync.currentConfig() || {};
+    if (st.isRemote && st.sourceId === target.adapter && curCfg.url && curCfg.url === target.cfg.url) return; // already there
     // KEVIN-COPY (live, 2026-07-31): name the WORKSPACE, never the adapter — his
     // dialog read "the “Supabase” workspace backend" because the admin's backend
     // registration was named after its adapter. When the stored name is missing

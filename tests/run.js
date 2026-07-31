@@ -17556,6 +17556,77 @@ function serve() {
     ok("BRAND-BOOT: a pull adoption repaints branding without lifting (a mid-suspend lift's push is silently swallowed), the rail keeps the device's branding through the wipe, and the post-adopt heal performs the lift with pushes flowing — old device-local branding finally lands workspace-wide",
       brandBoot.paintOnlyNoLift && brandBoot.railStillCustom && brandBoot.healLifted, JSON.stringify(brandBoot));
 
+    // ---- KEVIN-LIVE-2 (Kevin live, 2026-07-31): "set the icon and name, then
+    // every save was refused with HTTP 401 RLS" + "maybe dashboards are
+    // duplicating?" Two bugs, one session. (A) Re-binding the same workspace
+    // (picker / assigned-backend) replaced the cfg wholesale and dropped the
+    // signed-in user's stamped Auth credentials — every push then ran as anon,
+    // authenticated-only RLS refused it, and the 401 remedy (keyed only on
+    // cfg.authEmail) handed out the open-policy SQL that defeated the whole
+    // posture once before. (B) openRecent left S.spec.id as the PACK row's
+    // embedded spec id, so plain Save missed the LF26 guardrail and wrote a
+    // same-titled, unfiled shadow copy on every Save. ----
+    const kl2Sync = await page.evaluate(function () {
+      var Sync = Studio.Sync, out = {};
+      var conn0 = localStorage.getItem("analytics.datasource.v1");
+      return Sync.bindConnection("supabase", { url: "https://kl2.supabase.co", key: "k1", label: "T" }).then(function () {
+        Sync.setAuthCredentials("kevin@example.com", "pw");
+        return Sync.bindConnection("supabase", { url: "https://kl2.supabase.co", key: "k1", label: "T" });
+      }).then(function () {
+        out.rebindKeepsEmail = (Sync.currentConfig() || {}).authEmail === "kevin@example.com";
+        return Sync.bindConnection("supabase", { url: "https://kl2other.supabase.co", key: "k2", label: "O" });
+      }).then(function () {
+        out.otherUrlNoInherit = !(Sync.currentConfig() || {}).authEmail;
+        Sync.disconnect();
+        if (conn0 == null) localStorage.removeItem("analytics.datasource.v1"); else localStorage.setItem("analytics.datasource.v1", conn0);
+        // the 401 remedy: a signed-in Supabase Auth account means an
+        // authenticated workspace — never the open-policy SQL.
+        var origCur = window.PolecatAuth.current;
+        window.PolecatAuth.current = function () { return { u: "kevin", role: "admin", gotrueId: "g-kl2" }; };
+        var m1 = window.__studioRlsRemedy({ url: "u", key: "k" }, "HTTP 401: new row violates row-level security policy");
+        out.authRemedyNoOpenRw = m1.indexOf("polecat_open_rw") === -1 && /sign out and back in/i.test(m1);
+        window.PolecatAuth.current = function () { return { u: "local", role: "admin", gotrueId: null }; };
+        var m2 = window.__studioRlsRemedy({ url: "u", key: "k" }, "HTTP 401: new row violates row-level security policy");
+        out.keylessStillGetsSql = m2.indexOf("polecat_open_rw") !== -1;
+        window.PolecatAuth.current = origCur;
+        return out;
+      });
+    });
+    ok("KEVIN-LIVE-2: re-binding the SAME workspace url carries the stamped sign-in credentials over (a different url never inherits them), and the RLS 401 remedy for any authenticated workspace — stamped cfg OR signed-in Supabase Auth account — explains re-sign-in instead of handing out the open-policy SQL (keyless workspaces still get their paste-me policy)",
+      kl2Sync.rebindKeepsEmail && kl2Sync.otherUrlNoInherit && kl2Sync.authRemedyNoOpenRw && kl2Sync.keylessStillGetsSql, JSON.stringify(kl2Sync));
+    const kl2Shadow = await page.evaluate(function () {
+      var W = Studio.Workspace, out = {};
+      var row = W.put("dashboards", {
+        name: "kl2-pack", title: "KL2 Pack Dash", ts: new Date().toISOString(),
+        demoPackId: "conservation", folder: "Conservation Insight",
+        spec: { id: "kl2-embedded-id", name: "kl2-pack", title: "KL2 Pack Dash", panels: [], kpis: [], filters: [] }
+      });
+      out.idsDiffer = row.id !== "kl2-embedded-id";
+      var before = W.all("dashboards").length;
+      window.__studioOpenRecent(row.id);
+      window.__studioSaveToCatalog();
+      var ov = document.querySelector(".modal-ov");
+      out.saveHitsGuardrail = !!ov && /sample content/i.test(ov.textContent || "");
+      if (ov) ov.remove();
+      out.noShadowCreated = W.all("dashboards").length === before;
+      // heal: a leftover exact-copy shadow is dropped; a user-edited one is kept
+      W.put("dashboards", { id: "kl2-embedded-id", title: "KL2 Pack Dash", ts: new Date().toISOString(), spec: { id: "kl2-embedded-id", title: "KL2 Pack Dash", panels: [], kpis: [], filters: [] } }, { silent: true });
+      var row2 = W.put("dashboards", {
+        name: "kl2-pack2", title: "KL2 Edited", ts: new Date().toISOString(),
+        demoPackId: "conservation", folder: "Conservation Insight",
+        spec: { id: "kl2-embedded-2", name: "kl2-pack2", title: "KL2 Edited", panels: [{ id: "p1", type: "bar" }], kpis: [], filters: [] }
+      });
+      W.put("dashboards", { id: "kl2-embedded-2", title: "KL2 Edited", ts: new Date().toISOString(), spec: { id: "kl2-embedded-2", title: "KL2 Edited", panels: [{ id: "p1", type: "bar", color: "red" }], kpis: [], filters: [] } }, { silent: true });
+      Studio.Sync.healAfterAdopt();
+      out.exactShadowHealed = !W.get("dashboards", "kl2-embedded-id");
+      out.editedShadowKept = !!W.get("dashboards", "kl2-embedded-2");
+      [row.id, row2.id, "kl2-embedded-2"].forEach(function (id) { try { W.remove("dashboards", id, { silent: true }); } catch (e) {} });
+      W.notify("dashboards");
+      return out;
+    });
+    ok("KEVIN-LIVE-2: opening a pack dashboard aligns the working spec to the CATALOG row id, so plain Save hits the sample-content guardrail (Save-as modal, no same-titled unfiled shadow copy), and the adopt heal drops leftover exact-copy shadows while keeping any the user actually edited",
+      kl2Shadow.idsDiffer && kl2Shadow.saveHitsGuardrail && kl2Shadow.noShadowCreated && kl2Shadow.exactShadowHealed && kl2Shadow.editedShadowKept, JSON.stringify(kl2Shadow));
+
     // ---- M4: Admin — manage users (first slice of "Admin + permissions") ----
     console.log("\n• M4: admin — manage users");
     // The main `page` carries the historical studio-gate-ok bypass with no stored

@@ -201,6 +201,30 @@
     }).catch(function (e) { return { columns: [], rows: [], error: e.message }; });
   }
 
+  // AUTH-AWARE remedy for RLS write-refusals (2026-07-30 live incident, hardened
+  // KEVIN-LIVE-2 2026-07-31): this workspace counts as an AUTHENTICATED one when
+  // the cfg carries stamped credentials OR the signed-in app account is a real
+  // Supabase Auth user (gotrueId) — Kevin's packaged-workspace connection had
+  // just lost its credential stamp to a re-bind, so the old cfg.authEmail-only
+  // test fell through and handed him the open-policy SQL (polecat_open_rw), the
+  // exact statement that defeated the whole per-user posture once before. Never
+  // emit weakening SQL when any auth signal is present; explain the real causes.
+  function rlsRemedyMessage(cfg, msg) {
+    var authModel = !!(cfg && cfg.authEmail);
+    try {
+      var acct = window.PolecatAuth && window.PolecatAuth.current && window.PolecatAuth.current();
+      if (acct && acct.gotrueId) authModel = true;
+    } catch (e) {}
+    if (authModel) {
+      return msg + " — this workspace's database enforces per-user Row-Level Security, so this usually means the sign-in session expired or this device's connection lost its sign-in (sign out and back in with your email — that re-attaches your credentials), or this account doesn't own some of the rows being pushed (shared/sample rows sync from an ADMIN account). If this is a brand-new project, apply the canonical policy script (tools/supabase-rls-real.sql) once in Supabase → SQL editor.";
+    }
+    // RLS on, no write policy, anon-key-only workspace: reads return empty
+    // (pull looks fine), every write 401/403s forever — no retry can fix a
+    // policy. Hand over the one-time paste-me policy SQL.
+    return msg + " — a workspace table has Row-Level Security enabled without a write policy for the app's key, so reads look fine but every save is refused. Run this once in Supabase → SQL editor: " + WS.rlsPolicySQL();
+  }
+  window.__studioRlsRemedy = rlsRemedyMessage; // KEVIN-LIVE-2 test hook
+
   Studio.supabaseSource = {
     id: "supabase",
     label: "Supabase",
@@ -515,21 +539,7 @@
           // predates the analyses or jobs table needs one paste-me statement —
           // say so instead of a bare 404.
           if (/row-level security|permission denied/i.test(msg)) {
-            if (cfg && cfg.authEmail) {
-              // AUTH-AWARE (2026-07-30 live incident): this connection signs into
-              // Supabase Auth, so its database is expected to enforce per-user RLS —
-              // handing out the open-policy SQL here is how the anon allow-all
-              // (polecat_open_rw) landed on the live project and silently defeated
-              // the whole tightened posture (permissive policies OR together).
-              // Never emit weakening SQL for an authenticated workspace; explain
-              // the real causes instead.
-              msg += " — this workspace's database enforces per-user Row-Level Security, so this usually means the sign-in session expired (sign out and back in with your email), or this account doesn't own some of the rows being pushed (shared/sample rows sync from an ADMIN account). If this is a brand-new project, apply the canonical policy script (tools/supabase-rls-real.sql) once in Supabase → SQL editor.";
-            } else {
-              // RLS on, no write policy, anon-key-only workspace: reads return
-              // empty (pull looks fine), every write 401/403s forever — no retry
-              // can fix a policy. Hand over the one-time paste-me policy SQL.
-              msg += " — a workspace table has Row-Level Security enabled without a write policy for the app's key, so reads look fine but every save is refused. Run this once in Supabase → SQL editor: " + WS.rlsPolicySQL();
-            }
+            msg = rlsRemedyMessage(cfg, msg);
           } else if (/analyses|jobs/.test(msg)) {
             msg += " — your workspace predates the analyses/jobs tables. Run this once in Supabase → SQL editor: " + WS.provisionDeltaSQL();
           }
