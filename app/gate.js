@@ -128,7 +128,7 @@
       '<div class="g-or">or</div>' +
       '<button type="button" class="g-demo" id="g-demo">Explore the demo</button>' +
       '<div class="g-err" id="g-err"></div>' +
-      '<div class="g-hint" id="g-hint">Demo account <code>demo</code> / <code>demo</code> — a local sample workspace, not the Polecat backend.</div>' +
+      '<div class="g-hint" id="g-hint">Demo account <code>demo</code> / <code>demo</code> — a local sample workspace.</div>' +
       '<button type="button" class="g-connect" id="g-connect">Connect to your workspace…</button>' +
       '<div class="g-note">analytics.polecat.live</div></div>';
     document.body.appendChild(ov);
