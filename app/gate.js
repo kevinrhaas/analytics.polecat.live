@@ -111,7 +111,7 @@
 
     var ov = document.createElement("div"); ov.id = "studio-gate";
     ov.innerHTML = '<div class="g-card"><div class="g-logo"><img src="assets/brand/polecat-logo-coin-cream.svg" width="48" height="48" alt=""/></div><h1>Sign in to Analytics</h1>' +
-      '<p>Your local workspace on analytics.polecat.live.</p>' +
+      '<p id="g-sub">Your analytics workspace on analytics.polecat.live.</p>' +
       '<form id="g-form" autocomplete="off">' +
       '<label for="g-workspace">Workspace</label>' +
       '<select id="g-workspace" aria-describedby="g-ws-note"></select>' +

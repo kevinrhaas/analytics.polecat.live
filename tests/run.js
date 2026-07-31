@@ -15814,16 +15814,15 @@ function serve() {
       gateGone: !document.querySelector("#studio-gate"),
       who: (window.PolecatAuth.current() || {}).u,
       // the AUTHORITATIVE invariant: the demo session is DISCONNECTED from the
-      // remote (sourceId + the persisted connection's cfg both local). The
-      // studio-workspace-last key is derived-cosmetic — currentWorkspaceId()
-      // keys off the live connection's cfg.url, not this key — so it's recorded
-      // but not gated (a boot-race can leave it stale with zero behavioral effect).
+      // remote — in memory AND in the PERSISTED connection (no cfg.url). The
+      // connIsLocal check is what caught the real bug: a boot-connect still
+      // in-flight (the #111 auth-race retries) used to complete AFTER the demo
+      // click and re-persist the remote; sync.js's _connGen guard fences it now.
       sourceId: Studio.Sync.syncState().sourceId,
-      connIsLocal: !((JSON.parse(localStorage.getItem("analytics.datasource.v1") || "null") || {}).cfg || {}).url,
-      lastWs: localStorage.getItem("studio-workspace-last")
+      connIsLocal: !((JSON.parse(localStorage.getItem("analytics.datasource.v1") || "null") || {}).cfg || {}).url
     }));
     await gpDemo.close();
-    ok("DEMO-LOCAL: 'Explore the demo' with a remote workspace picked/bound signs into demo AND forces the connection back to Local (disconnected — no remote cfg) so the demo can never run against a real backend",
+    ok("DEMO-LOCAL: 'Explore the demo' with a remote workspace picked/bound signs into demo AND forces the connection back to Local — in memory AND persisted (no remote cfg survives a mid-flight boot connect) — so the demo can never run against a real backend",
       demoLocal.gateGone && demoLocal.who === "demo" && demoLocal.sourceId === "local" && demoLocal.connIsLocal, JSON.stringify(demoLocal));
 
     // ---- GOLIVE-CARD (Kevin live, 2026-07-30): the Admin per-user-security card
