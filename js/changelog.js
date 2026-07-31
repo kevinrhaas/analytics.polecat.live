@@ -6,15 +6,25 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
-    v: 814,
+    v: 815,
     title: 'A dated reference gallery of the whole app -- every sample-pack dashboard, plus a tour of the app itself',
     kind: 'polish',
-    ts: '2026-07-31T13:37:02.000Z',
+    ts: '2026-07-31T13:53:53.000Z',
     items: [
       'New tools/shoot-pack-dashboards.mjs drives the real app headless, installs both sample packs (Conservation Insight and Data Management & Governance), and captures every one of their dashboards as a full-page PNG -- rendered through the same recipe as Home\'s live tiles, so builder-backed panels show their real computed rows.',
       'New tools/shoot-app-tour.mjs captures the app itself with both packs installed so nothing reads empty: every rail section (Home, Views, Dashboards, Datasets, Connections, Jobs, Repository, the View + Dashboard Builders, Settings) plus the good menus and dialogs staged with sample input -- command palette, export, Save as, JSON editor, version history + diff, compare, quick import, the connection wizard, bulk move-to-folder, the guided tours, welcome, dark theme, and a handful of phone-width shots.',
       'Captures land in docs/shots/<sample-packs|app-tour>/<date>/, each with a README and a session.json manifest recording exactly when the image session ran and at which commit; every PNG also carries the session timestamp in its own tEXt metadata, so a file stays traceable even after being copied elsewhere.',
       'First committed session: 2026-07-31 -- 23 pack dashboards + 40 app-tour surfaces (34 desktop, 6 mobile), zero failures.',
+    ],
+  },
+  {
+    v: 814,
+    title: 'Clearer words in the welcome screen, tour chooser, and workspace prompt',
+    kind: 'polish',
+    ts: '2026-07-31T13:36:41.000Z',
+    items: [
+      'The welcome screen\'s first shortcut now reads "New View" (was "New Quick View"), and the tour chooser\'s first entry is "Getting started" instead of repeating "Take the tour" -- you\'ve already chosen a tour by the time you\'re picking one.',
+      'The prompt that offers to switch a device to your account\'s assigned workspace now names the workspace itself (like "Polecat workspace") instead of the database technology behind it, and asks plainly: adopt it on this device, and your local workspace will be overwritten. A brand-new device still connects silently with no prompt at all.',
     ],
   },
   {
