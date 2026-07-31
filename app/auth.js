@@ -35,7 +35,7 @@
   function raw() { var v = readJSON(localStorage, USERS_KEY, null); return Array.isArray(v) ? v : []; }
   function saveRaw(list) { writeJSON(localStorage, USERS_KEY, list); }
   function find(u) { var key = String(u || "").trim().toLowerCase(); return raw().filter(function (x) { return String(x.u).toLowerCase() === key; })[0] || null; }
-  function pub(x) { return x ? { u: x.u, name: x.name || x.u, role: x.role || "viewer", demo: !!x.demo, gotrueId: x.gotrueId || null, provisioning: x.provisioning || null, provisioned: !!x.provisioned, forceTour: !!x.forceTour } : null; }
+  function pub(x) { return x ? { u: x.u, name: x.name || x.u, role: x.role || "viewer", demo: !!x.demo, gotrueId: x.gotrueId || null, provisioning: x.provisioning || null, provisioned: !!x.provisioned, forceTour: !!x.forceTour, disabled: !!x.disabled } : null; }
 
   // First-run seed: an admin the local operator owns, plus a PUBLIC demo account
   // whose credentials the sign-in screen shows on-screen. Both passwords are the
@@ -118,7 +118,7 @@
   function importFromStore(rows) {
     if (!Array.isArray(rows) || !rows.length) return;
     saveRaw(rows.map(function (r) {
-      return { u: r.u, name: r.name || r.u, role: r.role || "viewer", demo: !!r.demo, hash: r.hash || "", gotrueId: r.gotrueId || null, provisioning: r.provisioning || null, provisioned: !!r.provisioned, forceTour: !!r.forceTour };
+      return { u: r.u, name: r.name || r.u, role: r.role || "viewer", demo: !!r.demo, hash: r.hash || "", gotrueId: r.gotrueId || null, provisioning: r.provisioning || null, provisioned: !!r.provisioned, forceTour: !!r.forceTour, disabled: !!r.disabled };
     }));
   }
 
@@ -149,6 +149,13 @@
     // whole point: the device-local studio-welcome-seen flag can't cover a NEW account
     // signing in on a browser that has already seen the welcome.
     if (opts.forceTour != null) row.forceTour = !!opts.forceTour;
+    // USER-DISABLE (Kevin live, 2026-07-31): "disable a user from login but i
+    // could re-enable them, instead of deleting them outright." The account and
+    // everything it owns stay intact — only sign-in is refused (gate.js checks
+    // this on every path) and an already-signed-in session is ended at the next
+    // boot (studio.js initAuthBoot). Travels with the users-table sync like
+    // forceTour, so a disable on one device holds everywhere.
+    if (opts.disabled != null) row.disabled = !!opts.disabled;
     saveRaw(list);
     return pub(row);
   }
@@ -189,6 +196,6 @@
     isDemo: function () { var c = current(); return !!(c && c.demo); }, upsert: upsert, remove: remove, importFromStore: importFromStore,
     // Full rows INCLUDING the pw hash — for mirroring into the workspace `users`
     // table (that table is meant to BE the backend user store). Not for display.
-    exportForStore: function () { return raw().map(function (x) { return { u: x.u, name: x.name || x.u, role: x.role || "viewer", demo: !!x.demo, hash: x.hash || "", gotrueId: x.gotrueId || null, provisioning: x.provisioning || null, provisioned: !!x.provisioned, forceTour: !!x.forceTour }; }); }
+    exportForStore: function () { return raw().map(function (x) { return { u: x.u, name: x.name || x.u, role: x.role || "viewer", demo: !!x.demo, hash: x.hash || "", gotrueId: x.gotrueId || null, provisioning: x.provisioning || null, provisioned: !!x.provisioned, forceTour: !!x.forceTour, disabled: !!x.disabled }; }); }
   };
 }());

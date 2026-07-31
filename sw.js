@@ -5,7 +5,9 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v450"; /* v450: SYNC-PREAUTH — no automatic pulls
+var CACHE_NAME = "studio-shell-v451"; /* v451: USER-DISABLE — block/restore an
+   account's sign-in without deleting it (auth.js, gate.js, studio.js, docs). */
+/* v450: SYNC-PREAUTH — no automatic pulls
    on a gate-bound connection before sign-in (sources/sync.js). */
 /* v449: Track L sweep round 7 — Clear
    local data now wipes every orphaned key found across the 2026-07-31 feature

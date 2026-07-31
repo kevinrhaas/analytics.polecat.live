@@ -116,6 +116,27 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **USER-DISABLE — disable/enable a user's sign-in without deleting the
+  account (v818, sw v451, 2026-07-31, steward — Kevin live: "disable a user
+  from login but i could re-enable them, instead of deleting them
+  outright"):** `disabled` boolean on the auth row, carried through all four
+  auth.js enumerations (upsert opts / pub / exportForStore / importFromStore)
+  AND mirrorUserRow, so a disable holds on every device via the users-table
+  sync. Admin users list: Disable/Enable toggle per row (+ red `disabled`
+  badge; confirm on disable; toasts both ways). Guardrails: own signed-in
+  account can't be disabled; an admin can't be disabled when they're the
+  last ENABLED admin (new enabledAdminCount check — nobody left to undo
+  it). gate.js: `deniedDisabled()` refuses sign-in on ALL FOUR paths (local
+  verify success, workspace re-pull adopt, GoTrue direct-auth finish —
+  which also checks the adopted row itself for fresh devices — and the
+  demo quick button); password verified BEFORE the message so it never
+  leaks validity. initAuthBoot: a live session whose row is disabled is
+  logged out + reloaded to the gate before the own-row mirror or any
+  provisioning runs (me.u="local" bypass identity unaffected — no store
+  row). Docs: "Disable a user (without deleting them)" in Admin. 5 new
+  checks (admin toggle + store/mirror carry + badge + re-enable in the
+  admin context; gate refusal both paths + re-enable restore + boot
+  sign-out with row intact, run last). Lane: skip USER-DISABLE — done here.
 - **SYNC-PREAUTH — no automatic pulls on a gate-bound connection before
   sign-in (v817, sw v450, 2026-07-31, steward — found via a WORKSPACE-LOGIN
   suite flake):** bindConnection (the gate picker / hot links / #103's
