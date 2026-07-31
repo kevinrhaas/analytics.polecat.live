@@ -116,6 +116,28 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **SORT-1 ★ — standard sorting on every catalog panel (v812, sw v446,
+  2026-07-31, steward — Kevin live: "sort by name, last used date, workbook,
+  things like that"):** NEW shared `Studio.catalogSort` kit (studio.js:
+  load/save per-device persistence at `studio-sort-<section>`, a comparator
+  factory with name/updated accessor overrides + per-section `extras`, and
+  wire() — an idempotent header-<select> binder, same convention as the
+  list/tile toggles). Six selects added to app/index.html (.cx-sort styling
+  in studio.css): Dashboards (Last updated default = the exact old ts-desc
+  order; Name A–Z/Z–A; By workbook; By folder), Datasets (Newest/Oldest/
+  Name; By adapter; By connection), Connections (+By adapter), Views (+By
+  chart type), Jobs (+Last run), Repository (Newest/Oldest/Name — applied to
+  `filtered` BEFORE tree insertion, so it sorts within every folder group).
+  Every section keeps its pinned-first rule by composing the comparator
+  AFTER the pinned check; defaults reproduce the previous order exactly (no
+  behavior change until a sort is picked). Docs: Sorting paragraph in the
+  browsing section. 2 new checks (select shape + Name A–Z sortedness of the
+  unpinned rest + persistence across re-render; pinned-first under any sort
+  + all six selects present). Verified live headless first (zero
+  pageerrors). Lane: skip SORT-1. Files: app/studio.js, app/datasets.js,
+  app/connections.js, app/jobs.js, app/views.js, app/index.html,
+  app/studio.css, docs/index.html, sw.js, js/changelog.js v812,
+  tests/run.js, STATUS.md.
 - **LF53-CODE — the dead CDE apparatus is deleted; internal CDF identifiers
   renamed (v811, sw v445, 2026-07-31, steward — closes LF53's deliberately-
   deferred remainder):** consumer analysis first: the CDE exporter was
@@ -8033,8 +8055,8 @@
 
 ## NEXT (top = do first)
 
-> SORT-1. ★ **Standard sorting on every catalog panel (Kevin live, 2026-07-31 —
->       CLAIMED by the interactive session; lane: skip).** "On all of the panels
+> SORT-1. ✓ **SHIPPED v812 (2026-07-31, interactive session — see DONE). Lane: skip.**
+>       Original: **Standard sorting on every catalog panel (Kevin live, 2026-07-31).** "On all of the panels
 >       like dashboards, datasets, connections, etc you should be able to sort by
 >       name, last used date, workbook, things like that. Standard sorting things
 >       so you can find things easier." Add a compact sort control (dropdown or
