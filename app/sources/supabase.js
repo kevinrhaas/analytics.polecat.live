@@ -517,6 +517,23 @@
       }).catch(function () { return null; }); // network trouble → unknown, card stays as-is
     },
 
+    // GATE-FIX (Kevin live, 2026-07-31): read the users rows THIS SESSION can
+    // see — under the tightened select policy that's the caller's own row (an
+    // admin sees all). The sign-in adopt path uses this as its fallback: the
+    // whole-workspace pull can be guarded (dirty local edits) or the local
+    // mirror stale/wiped, but a signed-in user can ALWAYS read their own row —
+    // so a verified password must never dead-end in "isn't in your workspace".
+    fetchUsers: function (cfg) {
+      return rest(cfg, "/users?select=data").then(function (r) {
+        if (!r.ok) return [];
+        return r.json().then(function (rows) {
+          return (rows || []).map(function (row) {
+            try { var p = JSON.parse(row.data); return (p && p.id) ? p : null; } catch (e) { return null; }
+          }).filter(Boolean);
+        });
+      }).catch(function () { return []; });
+    },
+
     // ACTIVITY-1 (Kevin, 2026-07-30): append ONE row to a log table
     // (polecat_activity / polecat_feedback), riding the connection's signed-in
     // session — the tables are INSERT-only for authenticated users, admin-read.

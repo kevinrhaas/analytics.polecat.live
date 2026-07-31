@@ -14,6 +14,7 @@ export const CHANGELOG = [
       'New speech-bubble button in the top bar (right of What’s-next): report a bug, ask a question, or leave a comment in one tiny dialog. Who you are, where you were, and the app version are captured automatically — nothing to fill in beyond the thought itself.',
       'The workspace backend now keeps a concise activity trail — sign-ins, sign-outs, dashboard opens, exports, and one time-on-page event per visit — recorded with the acting account and timestamp. Reports and the trail live in two separate admin-only tables; on a local-only workspace events queue on the device and send once a backend is connected.',
       'Branding: a custom rail name can now carry its own link — Admin → Branding gains a “Custom link” field (e.g. your organization’s site), opened in a new tab when someone clicks the name. Without one, a custom name is plain text; the default label still points at polecat.live.',
+      'Sign-in fixes from tonight’s live debugging: a rejected password now says exactly that (with a nudge that autofill sometimes inserts a saved token) instead of the misleading “isn’t in your connected workspace”; a verified sign-in can no longer dead-end when the workspace pull is unavailable — the gate reads your own account row directly; and multi-line sign-in errors get room instead of overprinting the demo hint.',
     ],
   },
   {

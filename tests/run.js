@@ -15719,6 +15719,53 @@ function serve() {
       wsAccess.hasBtn && wsAccess.entryOk && wsAccess.stripped && wsAccess.liveKeepsCreds && wsAccess.importable, JSON.stringify(wsAccess));
     await gpWs.close();
 
+    // ---- GATE-FIX + GATE-ERR (Kevin live, 2026-07-31): his curl proved the
+    // password RIGHT while the gate still said "isn't in your connected
+    // workspace" — two defects: (a) a GoTrue rejection shared the unknown-account
+    // message, (b) the adopt step depended entirely on the whole-workspace pull,
+    // which can be guarded (dirty edits) or wiped (anon-era pulls). ----
+    console.log("\n• GATE-FIX: own-row adopt fallback + honest wrong-password error");
+    await fetch(`http://localhost:${PORT}/__supabase/rest/v1/__cleartokenflap`, { headers: { apikey: "sb_publishable_valid" } });
+    const gpFix = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpFix.on("pageerror", (e) => errors.push("GATE-FIX page: " + e.message));
+    await gpFix.addInitScript((port) => {
+      try { localStorage.setItem("analytics.datasource.v1", JSON.stringify({ sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid" }, at: 1 })); } catch (e) {}
+    }, PORT);
+    await gpFix.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpFix.waitForFunction(() => {
+      if (!window.Studio || !Studio.Sync) return false;
+      var s = Studio.Sync.syncState();
+      return s.sourceId === "supabase" && s.status !== "connecting";
+    }, { timeout: 20000 }).catch(() => {});
+    await gpFix.waitForSelector("#g-form", { timeout: 4000 });
+    // A) wrong password → the honest message
+    await gpFix.fill("#g-user", "owner@example.com");
+    await gpFix.fill("#g-pass", "wrong-password-123");
+    await gpFix.click("#g-form button[type=submit]");
+    await gpFix.waitForFunction(() => /match/.test((document.getElementById("g-err") || {}).textContent || ""), { timeout: 6000 }).catch(() => {});
+    const gateErrTxt = await gpFix.evaluate(() => (document.getElementById("g-err") || {}).textContent || "");
+    ok("GATE-ERR: a GoTrue-rejected password says the password doesn't match (with the autofill warning) — never the misleading 'isn't in your connected workspace'",
+      /doesn’t match/.test(gateErrTxt) && /autofill/.test(gateErrTxt) && !/connected workspace/.test(gateErrTxt), JSON.stringify({ gateErrTxt }));
+    // B) correct password + NO usable pull + NO local mirror → own-row fetch fallback adopts
+    await gpFix.evaluate(() => {
+      Studio.Sync.pullNow = function () { return Promise.resolve(); }; // the guarded/no-op pull case
+      Studio.Workspace.all("users").forEach(function (u) { if (u.gotrueId) Studio.Workspace.remove("users", u.id, { silent: true }); });
+      Studio.supabaseSource.fetchUsers = function () {
+        return Promise.resolve([{ id: "user_fbk", u: "fallbackkevin", name: "Fallback Kevin", role: "admin", demo: false, gotrueId: "11111111-1111-1111-1111-111111111111" }]);
+      };
+    });
+    await gpFix.fill("#g-pass", "secret123");
+    await gpFix.click("#g-form button[type=submit]");
+    await gpFix.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 8000 }).catch(() => {});
+    const fixAdopt = await gpFix.evaluate(() => ({
+      gateGone: !document.querySelector("#studio-gate"),
+      who: (window.PolecatAuth.current() || {}).u,
+      gateErr: (document.getElementById("g-err") || {}).textContent || ""
+    }));
+    await gpFix.close();
+    ok("GATE-FIX: with the workspace pull unavailable and no local mirror, a verified sign-in adopts from the DIRECT own-users-row read — a provisioned account can no longer dead-end at the gate",
+      fixAdopt.gateGone && fixAdopt.who === "fallbackkevin", JSON.stringify(fixAdopt));
+
     // ---- GOLIVE-CARD (Kevin live, 2026-07-30): the Admin per-user-security card
     // reflects the DATABASE's real posture — after the RLS script was applied
     // manually, the "Go live" CTA kept showing forever. The probe contrast (anon

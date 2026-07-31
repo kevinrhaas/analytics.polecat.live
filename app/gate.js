@@ -82,7 +82,10 @@
       // block, make it "really small" and tied to the Local workspace) — not a boxed callout.
       "#studio-gate .g-hint{margin-top:14px;font-size:11.5px;line-height:1.55;color:var(--faint,#8a97ab);text-align:center}" +
       "#studio-gate .g-hint b{color:var(--muted,#5d6b82)}#studio-gate .g-hint code{font-family:ui-monospace,Menlo,monospace;background:var(--field,#fff);border:1px solid var(--line,#c8d2df);padding:1px 5px;border-radius:5px;color:var(--muted,#5d6b82)}" +
-      "#studio-gate .g-err{color:var(--bad,#d63a5e);font-size:12.5px;height:16px;margin-top:8px}" +
+      /* GATE-ERR polish (Kevin, 2026-07-31): height was FIXED at 16px, so any
+         multi-line error overprinted the demo hint below — min-height lets the
+         card grow and push the hint down instead. */
+      "#studio-gate .g-err{color:var(--bad,#d63a5e);font-size:12.5px;min-height:16px;line-height:1.45;margin:8px 0 2px}" +
       "#studio-gate .g-note{color:var(--faint,#8a97ab);font-size:11px;margin-top:14px}" +
       "#studio-gate .g-connect{margin-top:10px;background:transparent;border:0;color:var(--faint,#8a97ab);font-size:12px;text-decoration:underline;cursor:pointer;padding:4px}" +
       "#studio-gate .g-connect:hover{color:var(--brand,#005bb5)}" +
@@ -200,7 +203,11 @@
       if (!cfg || !cfg.url || !cfg.key) { next(false); return; }
       setErr("Signing you in…");
       src.authenticate(cfg, { email: u, password: p }).then(function (r) {
-        if (!r || !r.ok || !r.userId) { next(false); return; }
+        // GATE-ERR (Kevin live, 2026-07-31): a GoTrue REJECTION is a different
+        // failure than "no matching account" — reporting both as "isn't in your
+        // connected workspace" sent a whole debugging session down the wrong
+        // road. Surface the wrong-password case as exactly that.
+        if (!r || !r.ok || !r.userId) { next(false, "badpass"); return; }
         // WORKSPACE-LOGIN fix (Kevin live, 2026-07-30): a picker-bound
         // connection has only url+key, so the adopting pull below used to run
         // as ANON — under authenticated-only RLS that reads users as EMPTY and
@@ -208,15 +215,32 @@
         // Stamp the just-verified credentials on the connection FIRST so the
         // pull (and every later sync) runs as this user.
         if (Sync.setAuthCredentials) Sync.setAuthCredentials(u, p);
+        var finish = function (acct) {
+          Auth.upsert(acct.u, { gotrueId: r.userId }).then(function () { Auth.login(acct.u); afterLogin(); });
+        };
         // GoTrue verified the password — now adopt the local identity for this uid.
         var adopt = function () {
           try { Auth.importFromStore(window.Studio.Workspace.all("users")); } catch (e) {}
           var acct = findUserByGotrue(r.userId);
-          if (!acct) { next(false); return; }
-          Auth.upsert(acct.u, { gotrueId: r.userId }).then(function () { Auth.login(acct.u); afterLogin(); });
+          if (acct) { finish(acct); return; }
+          // GATE-FIX (Kevin live, 2026-07-31): the whole-workspace pull can be
+          // GUARDED (dirty local edits from a failed-push episode) or the local
+          // mirror stale/wiped — but the select policy guarantees a signed-in
+          // user reads their OWN users row. A verified password must never
+          // dead-end: fetch the visible users rows directly and adopt from those.
+          var cfg2 = (Sync.currentConfig && Sync.currentConfig()) || cfg;
+          if (!src.fetchUsers) { next(false, "noaccount"); return; }
+          src.fetchUsers(cfg2).then(function (rows) {
+            (rows || []).forEach(function (row) {
+              try { window.Studio.Workspace.put("users", row, { silent: true }); } catch (e) {}
+            });
+            try { Auth.importFromStore(window.Studio.Workspace.all("users")); } catch (e) {}
+            var acct2 = findUserByGotrue(r.userId);
+            if (acct2) finish(acct2); else next(false, "noaccount");
+          }, function () { next(false, "noaccount"); });
         };
         if (Sync.pullNow) Sync.pullNow().then(adopt, adopt); else adopt();
-      }, function () { next(false); });
+      }, function () { next(false, "badpass"); });
     }
     document.getElementById("g-form").addEventListener("submit", function (e) {
       e.preventDefault();
@@ -226,8 +250,17 @@
       Auth.verify(u, p).then(function (okAuth) {
         if (okAuth) { Auth.login(u); afterLogin(); return; }
         var known = !!Auth.find(u);
-        tryGotrueDirectAuth(u, p, function (done) {
+        tryGotrueDirectAuth(u, p, function (done, why) {
           if (done) return;
+          // GATE-ERR: the workspace's own auth REJECTED the password — say so
+          // plainly instead of the misleading "isn't in your workspace" (which
+          // stays for genuinely unknown accounts). Watch for autofill: password
+          // managers have saved API tokens under this site before.
+          if (why === "badpass") {
+            fail("That password doesn’t match " + u + "’s account in this workspace. Re-type it by hand (the eye button shows it) — autofill sometimes inserts a saved token instead.");
+            document.getElementById("g-pass").select();
+            return;
+          }
           if (known) { fail(); document.getElementById("g-pass").select(); return; }
           handleUnknownUser(u, p);
         });
