@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v434"; /* v434: DURABLE-2 — deletion
+var CACHE_NAME = "studio-shell-v435"; /* v435: the overview ("Take the
+   tour") walkthrough is now pack-aware too, same engine as welcome.js's
+   computeSteps() — one acknowledgment step per installed sample pack
+   splices in right after the intro (app/tutorial.js changed, so the
+   precached copy needs to roll). */
+/* v434: DURABLE-2 — deletion
    tombstones: Workspace.remove records meta.tombstones[table|id] (users
    excluded), put revokes, replaceAll merges local∪incoming (newest wins,
    30-day prune) and never resurrects a tombstoned row older than its stone;

@@ -19,6 +19,9 @@
        watershed/HUC8 → state) and closes on the custom-geo story. The
        TOUR_GATES mechanism generalizes to any future pack's tour — add a
        TOURS.<key> entry + a gate fn, no chooser/engine changes needed.
+     · The "overview" tour itself is ALSO pack-aware (LF40, mirrors welcome.js's
+       computeSteps() engine): one acknowledgment step per INSTALLED sample pack
+       splices in right after the intro — see computeOverviewSteps() below.
    Distinct from the welcome tour (welcome.js), which is informational.
    Steps may carry a `before()` hook (switch section, seed Explore) and the
    renderer WAITS for the step's target to exist, so tours can walk UI that
@@ -396,6 +399,40 @@
       ]
     }
   };
+  // LF40 (overview tour, pack-aware engine): mirrors welcome.js's computeSteps() — the
+  // overview's static steps get one "your sample pack" step spliced in right after the
+  // intro (before "Home"), per INSTALLED pack, reusing the pack's own name/tagline from
+  // demopacks.js. Recomputed on every access so install state changing mid-session (a pack
+  // installed/removed from Settings) is reflected the next time the tour opens.
+  function installedPacks() {
+    var packs = (window.Studio && Studio.DEMO_PACKS) || {};
+    if (!window.Studio || !Studio.demoPackInstalled) return [];
+    return Object.keys(packs)
+      .filter(function (id) { return Studio.demoPackInstalled(id); })
+      .map(function (id) { return { id: id, pack: packs[id] }; });
+  }
+  function packOverviewStep(entry) {
+    var p = entry.pack || {}, esc = (window.Studio && Studio.escapeHtml) || function (s) { return s; };
+    return {
+      t: p.name || "Sample pack",
+      h: "Your workspace comes with the <b>" + esc(p.name || "sample pack") + "</b> sample pack — " +
+        esc(p.tagline || p.blurb || "curated dashboards and datasets, ready to explore") + ".",
+      sub: TOUR_GATES[entry.id]
+        ? "There's a dedicated tour for it too — pick it from the chooser (⋯ More → Interactive tutorial)."
+        : "Find its dashboards on Home and in Dashboards.",
+      target: null
+    };
+  }
+  function computeOverviewSteps() {
+    var packs = installedPacks(), base = TOURS.overview.steps;
+    if (!packs.length) return base;
+    return base.slice(0, 1).concat(packs.map(packOverviewStep)).concat(base.slice(1));
+  }
+  // Single accessor every step-array read goes through — "overview" is computed live,
+  // every other tour reads its own static array unchanged.
+  function tourSteps(key) { return key === "overview" ? computeOverviewSteps() : TOURS[key].steps; }
+  T.computeOverviewStepTitles = function () { return computeOverviewSteps().map(function (s) { return s.t; }); };
+
   var TOUR_ORDER = ["overview", "quick", "build", "jobs", "connect", "conservation"];
   // Some tours only make sense once a sample pack is installed — gate their
   // CHOOSER visibility here (openTour(key) still works directly regardless,
@@ -525,7 +562,7 @@
   /* --- Core renderer --- */
   function render(idx) {
     _cur = idx;
-    var steps = TOURS[_tour].steps;
+    var steps = tourSteps(_tour);
     var step = steps[idx];
     Promise.resolve(step.before ? step.before() : null).then(function () {
       return waitFor(step.target, step.inPreview ? 6000 : 2500, step.inPreview);
@@ -646,7 +683,7 @@
     if (!_active) return;
     if (e.key === "Escape") { e.stopPropagation(); close(); }
     if (!_tour) return; // chooser: arrows don't apply
-    if (e.key === "ArrowRight" && _cur < TOURS[_tour].steps.length - 1) render(_cur + 1);
+    if (e.key === "ArrowRight" && _cur < tourSteps(_tour).length - 1) render(_cur + 1);
     if (e.key === "ArrowLeft" && _cur > 0) render(_cur - 1);
   }
 
@@ -681,7 +718,7 @@
   T.currentStep = function () { return _cur; };
   T.currentTour = function () { return _tour; };
   T.tourKeys = function () { return TOUR_ORDER.slice(); };
-  T.stepCount = function (key) { return TOURS[key || _tour || "overview"].steps.length; };
+  T.stepCount = function (key) { return tourSteps(key || _tour || "overview").length; };
   window.__studioTutorialActive = function () { return _active; };
   window.__studioTutorialStep = function () { return _cur; };
   window.__studioTutorialTour = function () { return _tour; };

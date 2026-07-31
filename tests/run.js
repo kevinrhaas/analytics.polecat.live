@@ -25806,18 +25806,24 @@ function serve() {
     ok("J6: Escape closes the tutorial (tip, ring, and active flag all cleared)", j6Closed.ok, JSON.stringify(j6Closed));
 
     // J6-5: tour shapes — six tours (overview leads), quick has 8 steps, build has 6, jobs has 5,
-    // connect has 8, conservation (LF40, pack-gated) has 6
+    // connect has 8, conservation (LF40, pack-gated) has 6. Overview's own base is 10, but (LF40)
+    // it's ALSO pack-aware, same engine as welcome.js — one step splices in per installed sample
+    // pack (datamanagement ships installed by default), so assert against that ambient count
+    // rather than a fixed number, same pattern as welcome.js's own packAware check.
     const j6Shape = await page.evaluate(function () {
       try {
+        var packs = Studio.DEMO_PACKS || {};
+        var installedPackCount = Object.keys(packs).filter(function (id) { return Studio.demoPackInstalled(id); }).length;
         return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build,jobs,connect,conservation" &&
-          StudioTutorial.stepCount("overview") === 10 && StudioTutorial.stepCount("quick") === 8 &&
+          StudioTutorial.stepCount("overview") === 10 + installedPackCount && StudioTutorial.stepCount("quick") === 8 &&
           StudioTutorial.stepCount("build") === 6 && StudioTutorial.stepCount("jobs") === 5 &&
           StudioTutorial.stepCount("connect") === 8 && StudioTutorial.stepCount("conservation") === 6,
-          keys: StudioTutorial.tourKeys().join(","), q: StudioTutorial.stepCount("quick"), b: StudioTutorial.stepCount("build"),
+          keys: StudioTutorial.tourKeys().join(","), o: StudioTutorial.stepCount("overview"), installedPackCount: installedPackCount,
+          q: StudioTutorial.stepCount("quick"), b: StudioTutorial.stepCount("build"),
           j: StudioTutorial.stepCount("jobs"), c: StudioTutorial.stepCount("connect"), cv: StudioTutorial.stepCount("conservation") };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("J6: six tours registered — Overview (10 steps, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (5 — LF18(b)), Connections & Datasets (8 — LF18(b)), Conservation Insight pack (6 — LF40, pack-gated)", j6Shape.ok, JSON.stringify(j6Shape));
+    ok("J6: six tours registered — Overview (10-step base + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (5 — LF18(b)), Connections & Datasets (8 — LF18(b)), Conservation Insight pack (6 — LF40, pack-gated)", j6Shape.ok, JSON.stringify(j6Shape));
 
     // J6-6: the QUICK tour walks the real Explore UI — it switches the section,
     // seeds a sample dataset, and every spotlighted step finds its live target
@@ -25877,6 +25883,12 @@ function serve() {
         }
         return false;
       }
+      // LF40: skip past the pack-acknowledgment step(s) spliced right after the intro — one per
+      // installed sample pack (datamanagement ships installed by default) — before the fixed
+      // rail-section walk below, same count check the shape test (J6-5) makes.
+      var packs = Studio.DEMO_PACKS || {};
+      var packCount = Object.keys(packs).filter(function (id) { return Studio.demoPackInstalled(id); }).length;
+      for (var p = 0; p < packCount; p++) { document.querySelector("#st-tip button.pri").click(); await sleep(150); }
       var railSecs = ["home", "explore", "dashboards", "datasets", "connections", "jobs", "repository", "studio"];
       var hits = 0;
       for (var i = 0; i < railSecs.length; i++) {
@@ -26009,6 +26021,22 @@ function serve() {
     ok("J6: Conservation Insight tour appears in the chooser once the pack is installed",
       j6ConservationGateOn.count === 6 && j6ConservationGateOn.label === "Conservation Insight pack", JSON.stringify(j6ConservationGateOn));
 
+    // J6-10b (LF40): the OVERVIEW tour is pack-aware too (not just a dedicated pack tour) —
+    // installing a pack splices one acknowledgment step in right after the intro, naming
+    // the pack; removing it collapses the overview back to its (ambient) base step count.
+    // datamanagement ships installed by default, so assert against 10 + installed count
+    // (same pattern as J6-5's shape check and welcome.js's own packAware test) rather than
+    // a number that assumes conservation is the only installed pack.
+    const j6OverviewPackAware = await page.evaluate(function () {
+      var packs = Studio.DEMO_PACKS || {};
+      var installedCount = Object.keys(packs).filter(function (id) { return Studio.demoPackInstalled(id); }).length;
+      return { withPack: StudioTutorial.stepCount("overview"), installedCount: installedCount, titles: StudioTutorial.computeOverviewStepTitles() };
+    });
+    ok("J6: overview tour gains one spliced step (right after the intro) naming the installed Conservation Insight pack",
+      j6OverviewPackAware.withPack === 10 + j6OverviewPackAware.installedCount &&
+      j6OverviewPackAware.titles[1] === "Conservation Insight — cover crop & tillage adoption",
+      JSON.stringify(j6OverviewPackAware));
+
     await page.evaluate(function () { StudioTutorial.openTour("conservation"); });
     await page.waitForTimeout(250);
     const j6Conservation = await page.evaluate(async function () {
@@ -26075,12 +26103,15 @@ function serve() {
       window.__studioDemoPacks.remove("conservation");
       StudioTutorial.open();
       var choices = document.querySelectorAll("#st-tip .st-choice[data-tour]");
-      var ok2 = { count: choices.length, installed: Studio.demoPackInstalled("conservation") };
+      var packs = Studio.DEMO_PACKS || {};
+      var installedCount = Object.keys(packs).filter(function (id) { return Studio.demoPackInstalled(id); }).length;
+      var ok2 = { count: choices.length, installed: Studio.demoPackInstalled("conservation"), overviewSteps: StudioTutorial.stepCount("overview"), installedCount: installedCount };
       document.querySelector("#st-tip .st-skip").click();
       return ok2;
     });
-    ok("J6: Conservation Insight tour disappears from the chooser again once the pack is removed",
-      j6ConservationCleanup.count === 5 && !j6ConservationCleanup.installed, JSON.stringify(j6ConservationCleanup));
+    ok("J6: Conservation Insight tour disappears from the chooser again once the pack is removed, and the overview tour's pack step goes with it",
+      j6ConservationCleanup.count === 5 && !j6ConservationCleanup.installed && j6ConservationCleanup.overviewSteps === 10 + j6ConservationCleanup.installedCount,
+      JSON.stringify(j6ConservationCleanup));
 
     // restore studio section for later tests
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
