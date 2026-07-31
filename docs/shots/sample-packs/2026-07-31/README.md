@@ -1,10 +1,10 @@
-# Sample-pack dashboard screenshots — image session 2026-07-31T12:47:49Z
+# Sample-pack dashboard screenshots — image session 2026-07-31T13:37:54Z
 
 Every dashboard in every sample pack, captured from the live app by
 `node tools/shoot-pack-dashboards.mjs`.
 
-- **Image session ran:** 2026-07-31T12:47:49Z (also stamped into each PNG's tEXt metadata)
-- **App commit at capture:** 4878893b6ac418f63e9eb16c010094ea2753b116
+- **Image session ran:** 2026-07-31T13:37:54Z (also stamped into each PNG's tEXt metadata)
+- **App commit at capture:** 45d229d6044e2979215f7f08655619827ff78e6b
 - **Render:** full-page, 1440px wide, light theme; each dashboard wears its own dashboardTheme skin
 - **Data:** the packs' own seeded/sample data (synthetic by design — see app/demopacks.js)
 
