@@ -93,6 +93,19 @@
   // counter fences it: disconnect() (and any new connect) bumps _connGen; an
   // in-flight connectOnce whose captured gen is stale bails without applying.
   var _connGen = 0;
+  // SYNC-PREAUTH (2026-07-31): a connection bound at the SIGN-IN screen
+  // (bindConnection — the gate's workspace picker / hot links / #103's failure
+  // preselect) has no user session yet. Until the user actually signs in and an
+  // explicit adopting pull runs, NO automatic pull may touch it: quietPull
+  // (focus/visibility/interval freshness), the boot pull on a reload, and
+  // retryNow's re-pull would all read the backend as ANON and replaceAll this
+  // device's local data with whatever anon can see — a silent pre-sign-in wipe
+  // whenever the backend is anon-readable (the empty-remote guard only covers
+  // authenticated-only RLS, where anon reads nothing). The latch rides the
+  // saved connection JSON so a reload keeps it; the first explicit pull
+  // (pullNow, post-sign-in) or explicit connect (connectAdopt/connectPush)
+  // clears it.
+  var _preAuth = false;
   var listeners = [];
 
   function publicState() {
@@ -102,7 +115,10 @@
       // DURABLE-1: consumers (the push-failure banner) need to know that local
       // edits exist which the backend keeps refusing — a quiet rail dot wasn't
       // enough warning that work was one stale pull away from being clobbered.
-      pendingEdits: _dirty, pushFails: state.pushFails || 0 };
+      pendingEdits: _dirty, pushFails: state.pushFails || 0,
+      // SYNC-PREAUTH: true while the connection is gate-bound but nobody has
+      // signed in through it yet (automatic pulls are latched off)
+      preAuth: _preAuth };
   }
   // DURABLE-1 (Kevin live, 2026-07-30 — vanished + duplicated dashboards): a pull
   // ADOPTION replaces the whole workspace with the remote snapshot. When that
@@ -145,6 +161,7 @@
     if (state.sourceId === "local") return Promise.resolve();
     if (_inflight) { scheduleRetry(); return Promise.resolve(); }
     if (_dirty) return flushPush(true);
+    if (_preAuth) return Promise.resolve(); // SYNC-PREAUTH: no automatic anon pull before sign-in
     var src = Studio.sourceById(state.sourceId);
     if (!src) return Promise.resolve();
     _suspend = true;
@@ -161,7 +178,7 @@
   function saveConn() {
     try {
       if (state.sourceId === "local") localStorage.removeItem(CONN_KEY);
-      else localStorage.setItem(CONN_KEY, JSON.stringify({ sourceId: state.sourceId, cfg: state.cfg, at: Date.now() }));
+      else localStorage.setItem(CONN_KEY, JSON.stringify({ sourceId: state.sourceId, cfg: state.cfg, at: Date.now(), preAuth: _preAuth || undefined }));
     } catch (e) {}
   }
   function loadConn() { try { return JSON.parse(localStorage.getItem(CONN_KEY) || "null"); } catch (e) { return null; } }
@@ -240,6 +257,7 @@
   }
   function quietPull(force) {
     if (state.sourceId === "local" || _inflight || _dirty) return Promise.resolve(false);
+    if (_preAuth) return Promise.resolve(false); // SYNC-PREAUTH: gate-bound, nobody signed in — never adopt
     if (state.status !== "connected") return Promise.resolve(false);
     if (typeof document !== "undefined" && document.hidden) return Promise.resolve(false);
     // focus events can burst (alt-tab flurries) — space quiet pulls out, except
@@ -313,6 +331,7 @@
         return src.load(state.cfg).then(decTransform).then(function (snap) {
           W().replaceAll(snap);
           logSync("pull", true);
+          if (_preAuth) { _preAuth = false; saveConn(); } // SYNC-PREAUTH: an explicit adopting pull unlatches
           setStatus("connected");
         }).catch(function (e) { logSync("pull", false, e.message || "refresh failed"); setStatus("error", e.message || "refresh failed"); })
           .then(function () { _suspend = false; healAfterAdopt(); return publicState(); });
@@ -347,6 +366,7 @@
         W().replaceAll(snap);
       }).then(function () {
         _suspend = false;
+        _preAuth = false; // SYNC-PREAUTH: an explicit connect-adopt is a deliberate, credentialed act
         state.sourceId = sourceId; state.cfg = cfg; saveConn();
         setStatus("connected");
         healAfterAdopt();
@@ -370,6 +390,7 @@
         return src.save(cfg, snap);
       }).then(function (res) {
         if (res && res.ok === false) throw new Error(res.error || "initial push failed");
+        _preAuth = false; // SYNC-PREAUTH: explicit connect
         state.lastPushAt = Date.now(); saveConn(); setStatus("connected");
         return publicState();
       }).catch(function (e) {
@@ -402,6 +423,7 @@
       var src = Studio.sourceById(sourceId);
       if (!src) return Promise.reject(new Error("unknown source"));
       state.sourceId = sourceId; state.cfg = cfg ? JSON.parse(JSON.stringify(cfg)) : null;
+      _preAuth = true; // SYNC-PREAUTH: latch automatic pulls off until a signed-in pull adopts
       saveConn();
       setStatus("connected"); // optimistic — the first real pull/push corrects it
       return Promise.resolve(publicState());
@@ -415,6 +437,7 @@
       // pointing at the backend, so a reload silently reconnects).
       _connGen++; // fence any in-flight boot connect so a late pull can't re-adopt/re-persist
       state.sourceId = "local"; state.cfg = null;
+      _preAuth = false; // SYNC-PREAUTH: nothing bound, nothing latched
       saveConn();
       try { clearTimeout(_timer); } catch (e) {}
       state.lastError = ""; state.lastPushAt = 0;
@@ -499,6 +522,10 @@
       var src = Studio.sourceById(conn.sourceId);
       if (!src) { setStatus("local"); return Promise.resolve(publicState()); }
       state.sourceId = conn.sourceId; state.cfg = conn.cfg;
+      // SYNC-PREAUTH: a connection bound at the gate but never signed in through
+      // must NOT boot-pull — that load would run as anon and replaceAll local
+      // data before anyone authenticates. Re-bind and wait for the sign-in.
+      if (conn.preAuth) { _preAuth = true; setStatus("connected"); return Promise.resolve(publicState()); }
       setStatus("connecting");
       _suspend = true;
       var myGen = ++_connGen; // fence this boot connect against a mid-flight disconnect

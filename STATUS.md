@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **SYNC-PREAUTH — no automatic pulls on a gate-bound connection before
+  sign-in (v817, sw v450, 2026-07-31, steward — found via a WORKSPACE-LOGIN
+  suite flake):** bindConnection (the gate picker / hot links / #103's
+  preselect) sets status "connected" optimistically, so quietPull (focus/
+  visibility/interval), initSync's boot pull on reload, and retryNow's
+  re-pull could all run as ANON and `W().replaceAll` local data BEFORE the
+  user signed in — a silent pre-sign-in wipe whenever the backend is
+  anon-readable (the empty-remote guard only covers authenticated-only
+  RLS). Fix: a `_preAuth` latch — bindConnection sets it and it RIDES the
+  saved connection JSON (so reload boot re-binds without pulling);
+  quietPull (even forced), retryNow's pull branch, and the boot pull all
+  refuse while latched; the first explicit adopting pull (pullNow,
+  post-sign-in) or explicit connect (connectAdopt/connectPush) clears it;
+  disconnect resets. Exposed as syncState().preAuth. 4 new suite checks
+  (run LAST — the explicit pull writes the mock backend): preAuth boot
+  binds without adopting, forced quietPull + retryNow refuse (marker
+  survives), explicit pull unlatches live+saved, re-bind re-latches +
+  disconnect resets. Also fully explains the suite44 flake (focus-event
+  quietPull adopting the mock backend mid-WORKSPACE-LOGIN). Lane: skip
+  SYNC-PREAUTH — done here.
 - **Track L sweep (orphaned-key lens, round 7) — Clear local data now wipes
   every key the 2026-07-31 feature burst quietly left behind (v816, sw v449,
   2026-07-31, steward — Track H/L/N rotation, L's turn, was overdue since
