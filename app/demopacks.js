@@ -38,12 +38,12 @@
       id: "conservation",
       kind: "workspace",
       name: "Conservation Insight — cover crop & tillage adoption",
-      tagline: "2 connections · 5 datasets · a county→state rollup job · 4 analyses · 3 dashboards (featured + watershed map + metrics wheel)",
-      blurb: "3 dashboards (the featured multi-scale map, a dedicated HUC8 watershed map, and the " +
-        "Conservation System Metrics wheel), 5 datasets (a raw provider export, county and watershed " +
-        "choropleths, and the scored metrics index), 2 connections, a county→state rollup job, and " +
-        "4 View Builder analyses pinned to Home. All data is synthetic and embedded in the pack — " +
-        "nothing to connect."
+      // PACK-BLURB (Kevin, 2026-07-31): "keep it concise" — half the words, same
+      // counts (the #116 suite check keeps it count-led + embedded-data honest).
+      tagline: "3 dashboards · 4 Views · 5 datasets · rollup job — synthetic data, nothing to connect",
+      blurb: "3 dashboards — county, watershed (HUC8), and state maps plus the Conservation " +
+        "System Metrics wheel — 4 practice Views pinned to Home, 5 datasets, and a county→state " +
+        "rollup job. All data is synthetic and embedded — nothing to connect."
     },
     // LF2(c)/LF16: the pre-existing generic showcase gallery (governance, platform ops,
     // delivery, finance, marketing, reliability, compliance, feature tour) folded into a

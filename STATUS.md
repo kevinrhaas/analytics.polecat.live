@@ -116,6 +116,21 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **DECLUTTER-1 + PACK-BLURB + SET-ROW-B (v791, sw v426, 2026-07-31, steward — Kevin
+  live):** (1) the Sample-packs group no longer renders in the builder's Data panel —
+  Settings' pack cards are the one install/remove surface (buildDemoPacksLib call
+  removed; kept defined until a tech-debt sweep). (2) The app FOOTER is retired —
+  Kevin: "we might want to bring it back later but across app as a feature of polecat
+  platform so its universal" — the What's-New feed stays on the topbar #tbWhatsNew
+  (same openWhatsNew + seen contract; fleet.js/renderFooter null-guard the missing
+  footer; #statusbar CSS stays for the future shell adoption). PLATFORM NOTE: a
+  fleet-wide footer belongs in kevinrhaas/polecat-platform lib/ when picked up.
+  (3) Conservation pack tagline/blurb halved, still count-led + "embedded" (the #116
+  check). (4) .set-row-txt>b scoping so inline <b> inside descriptions stays inline
+  (the "A / square / PNG" branding-card wrap). 7 test areas rewritten for the removed
+  group + footer (What's-New flow now drives #tbWhatsNew). Files: app/studio.js,
+  app/index.html, app/demopacks.js, app/studio.css, sw.js, js/changelog.js,
+  tests/run.js, STATUS.md.
 - **PANEL-H batch (v790, sw v425, 2026-07-31, steward — five Kevin live asks in one
   slice):**
   - **PANEL-H:** dashboard panels drag-resize VERTICALLY — a bottom-edge handle per

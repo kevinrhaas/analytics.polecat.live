@@ -580,8 +580,8 @@ function serve() {
       libCount: document.getElementById("libCount").textContent,
       cards: document.querySelectorAll("#libList .da").length,
     }));
-    ok("LF65: the legacy Samples/demo-db library group is gone at boot (packs are the one source of sample content)",
-      !lf65Boot.samplesGroup && lf65Boot.cdaGroups === 0 && lf65Boot.packsGroup, JSON.stringify(lf65Boot));
+    ok("LF65/DECLUTTER-1: the legacy Samples/demo-db library group is gone at boot — and so is the Sample-packs group (packs install from Settings only now)",
+      !lf65Boot.samplesGroup && lf65Boot.cdaGroups === 0 && !lf65Boot.packsGroup, JSON.stringify(lf65Boot));
     ok("LF65: #libCount reports the cards actually rendered, not the retired sample-query count",
       /^\d+ items$/.test(lf65Boot.libCount) && parseInt(lf65Boot.libCount) === lf65Boot.cards, JSON.stringify(lf65Boot));
     // LF43 slice 2: the Studio Examples ▾ menu is GONE — an installed pack's curated
@@ -5362,12 +5362,9 @@ function serve() {
       /^\d/.test(copyTweaks.consBlurb) && /embedded/i.test(copyTweaks.consBlurb) &&
       /^\d/.test(copyTweaks.dmBlurb) && /embedded/i.test(copyTweaks.dmBlurb) && !/turn it off/i.test(copyTweaks.dmBlurb),
       JSON.stringify(copyTweaks));
-    const dpLibLabel = await page.evaluate(function () {
-      var nm = document.querySelector(".lib-demopacks .nm");
-      return nm ? nm.textContent : "";
-    });
-    ok("LF16: the Studio library's demo-packs group is also labelled 'Sample packs'",
-      dpLibLabel === "Sample packs", dpLibLabel);
+    const dpLibGone = await page.evaluate(function () { return !document.querySelector(".lib-demopacks"); });
+    ok("DECLUTTER-1: the Sample-packs group no longer renders in the builder's Data panel — Settings' pack cards are the one install/remove surface",
+      dpLibGone, String(dpLibGone));
     await page.evaluate(function () { window.__studioShowSamples.set(false); });
     await page.waitForTimeout(150);
     const dpHidden = await page.evaluate(function () {
@@ -5640,8 +5637,8 @@ function serve() {
       var card = c ? c.closest(".da") : null;
       return { installedAgain: installedAgain, hasInstallChip: !!c, hasOpenChip: !!(card && card.querySelector('[data-lib-demopack-open="datamanagement"]')) };
     });
-    ok("LF16: reinstalling the datamanagement pack restores the installed flag, and its library card has no 'Open dashboard' chip (examples-kind packs own no dashboard row)",
-      dmLibCard.installedAgain && dmLibCard.hasInstallChip && !dmLibCard.hasOpenChip, JSON.stringify(dmLibCard));
+    ok("LF16/DECLUTTER-1: reinstalling the datamanagement pack restores the installed flag, and the Data panel shows NO pack cards at all anymore",
+      dmLibCard.installedAgain && !dmLibCard.hasInstallChip && !dmLibCard.hasOpenChip, JSON.stringify(dmLibCard));
 
     // LF2: the same Conservation cards disappear from Home's gallery once the pack is removed again.
     await page.evaluate(function () { window.__studioRenderHome(); });
@@ -10368,30 +10365,18 @@ function serve() {
     });
     ok("keyboard-focused controls get a visible outline ring", focusRing.ok, JSON.stringify(focusRing));
 
-    // ---- status-bar footer + What's-new right panel (shell adoption, stage 4) ----
-    const footer = await page.evaluate(() => {
-      var f = document.getElementById("statusbar");
-      var stamp = document.getElementById("fbStamp");
-      return {
-        hasFooter: !!f,
-        atBottom: f ? Math.abs(f.getBoundingClientRect().bottom - window.innerHeight) < 2 : false,
-        stamp: stamp ? stamp.textContent : "",
-        panelClosed: !document.querySelector(".ps-rpanel"),
-        hasUnseenDot: !!document.getElementById("wnDot")
-      };
-    });
-    ok("page has a status-bar footer pinned to the bottom", footer.hasFooter && footer.atBottom, JSON.stringify(footer));
-    ok("footer shows a “Last updated” stamp", /Last updated/.test(footer.stamp), footer.stamp);
+    // ---- DECLUTTER-1 (Kevin): the per-app footer is RETIRED (it returns later
+    // as a universal polecat-platform shell feature) — the What's-New feed lives
+    // on the topbar #tbWhatsNew button, same openWhatsNew path + seen contract. ----
+    const footer = await page.evaluate(() => ({
+      hasFooter: !!document.getElementById("statusbar"),
+      panelClosed: !document.querySelector(".ps-rpanel"),
+      hasUnseenDot: !!document.getElementById("wnDotTb")
+    }));
+    ok("DECLUTTER-1: the per-app footer/status bar is gone (future: fleet-wide via polecat-shell)", !footer.hasFooter, JSON.stringify(footer));
     ok("What's-new panel starts closed", footer.panelClosed === true);
-    // Fresh profile (no studio-whatsnew-seen key) → the footer button carries the unseen dot.
-    ok("unseen-updates dot lights the Changelog button on a fresh profile (shell seen-version contract)", footer.hasUnseenDot);
-    // UX6: the Changelog button used to lead with the raw 📋 emoji (full-color, misses the
-    // fleet's single-color currentColor-icon bar) -- now a themed Studio.icon SVG.
-    const clIcon = await page.evaluate(() => {
-      var b = document.getElementById("btnChangelog");
-      return { hasSvg: !!b.querySelector("svg"), hasEmoji: b.textContent.indexOf("📋") >= 0 };
-    });
-    ok("Changelog button uses a themed SVG icon, not the 📋 emoji", clIcon.hasSvg && !clIcon.hasEmoji, JSON.stringify(clIcon));
+    // Fresh profile (no studio-whatsnew-seen key) → the TOPBAR button carries the unseen dot.
+    ok("unseen-updates dot lights the topbar What's-New button on a fresh profile (shell seen-version contract)", footer.hasUnseenDot);
     // UX6 (icon migration, slice 2): the builder chrome's "⋯ More", "＋ New ▾", inspector
     // "‹ Dashboard" back-link, and the pane-rail expand/collapse chevrons used to be raw
     // Unicode glyphs -- now themed Studio.icon SVGs.
@@ -10421,7 +10406,7 @@ function serve() {
         if (!b) return null;
         return { svgCount: b.querySelectorAll("svg").length, text: b.textContent };
       }
-      return { newBtn: check("#btnNew"), exportBtn: check("#btnExport"), examplesBtn: check("#btnExamples"), newDS: check("#btnNewDS"), changelog: check("#btnChangelog") };
+      return { newBtn: check("#btnNew"), exportBtn: check("#btnExport"), examplesBtn: check("#btnExamples"), newDS: check("#btnNewDS") };
     });
     const caretGlyphs = ["▾", "▴"];
     ok("New ▾/Export ▾/+New ▾ dropdown triggers each show 2 SVGs (leading icon + trailing caret), no raw glyph",
@@ -10430,9 +10415,7 @@ function serve() {
       JSON.stringify(caretIcons));
     // LF43 slice 2: the Examples ▾ trigger is gone entirely — assert the removal instead.
     ok("Examples ▾ trigger is removed from the dashbar (LF43 slice 2)", caretIcons.examplesBtn === null, JSON.stringify(caretIcons.examplesBtn));
-    ok("Changelog footer button's expand indicator is a themed SVG, not a raw ▴ glyph",
-      caretIcons.changelog.svgCount === 2 && !caretGlyphs.some((g) => caretIcons.changelog.text.indexOf(g) >= 0), JSON.stringify(caretIcons.changelog));
-    await page.click("#btnChangelog");
+    await page.click("#tbWhatsNew");
     await page.waitForTimeout(300);
     const cl = await page.evaluate(() => {
       var panel = document.querySelector(".ps-rpanel");
@@ -10443,11 +10426,11 @@ function serve() {
       return { open: !!panel && !!pop, inBody: pop && !!pop.closest(".ps-rpanel-body"),
         title: panel ? panel.querySelector(".ps-rpanel-head h2").textContent : "",
         count: entries.length, first, latest,
-        expanded: document.getElementById("btnChangelog").getAttribute("aria-expanded"),
+        expanded: document.getElementById("tbWhatsNew").getAttribute("aria-expanded"),
         seen: localStorage.getItem("studio-whatsnew-seen"),
-        dotCleared: !document.getElementById("wnDot") };
+        dotCleared: !document.getElementById("wnDotTb") && !document.getElementById("wnDot") };
     });
-    ok("Changelog opens the What's-new feed in the shell right panel, newest revision first",
+    ok("The topbar What's-New button opens the feed in the shell right panel, newest revision first",
       cl.open && cl.inBody && /new/i.test(cl.title) && cl.count >= 3 && cl.first === "v" + cl.latest && cl.expanded === "true", JSON.stringify(cl));
     ok("opening marks the latest version seen and clears the unseen dot",
       cl.seen === String(cl.latest) && cl.dotCleared, JSON.stringify({ seen: cl.seen, latest: cl.latest, dotCleared: cl.dotCleared }));
@@ -10455,7 +10438,7 @@ function serve() {
     await page.waitForTimeout(320);
     const clEsc = await page.evaluate(() => ({
       closed: !document.querySelector(".ps-rpanel"),
-      expanded: document.getElementById("btnChangelog").getAttribute("aria-expanded")
+      expanded: document.getElementById("tbWhatsNew").getAttribute("aria-expanded")
     }));
     ok("Escape closes the What's-new panel and resets aria-expanded", clEsc.closed && clEsc.expanded === "false", JSON.stringify(clEsc));
 
@@ -17732,23 +17715,20 @@ function serve() {
       window.__studioLoad(bigSpec); // re-render (fresh DOM) with the same many-DA spec
       const stillOpenAfterReload = document.querySelector(".lib-mine").classList.contains("open");
 
-      const demoBefore = document.querySelector(".lib-demopacks").classList.contains("open");
-      document.querySelector(".lib-demopacks .h").click();
-      const demoAfterToggle = document.querySelector(".lib-demopacks").classList.contains("open");
-      window.__studioLoad(bigSpec);
-      const demoAfterReload = document.querySelector(".lib-demopacks").classList.contains("open");
-      if (demoAfterReload !== demoBefore) document.querySelector(".lib-demopacks .h").click(); // restore
+      // DECLUTTER-1: the Sample-packs group no longer renders here — the
+      // remember-the-choice mechanism is covered by the .lib-mine half above.
+      const demoGroupGone = !document.querySelector(".lib-demopacks");
       localStorage.removeItem("studio-lib-mine-open");
       localStorage.removeItem("studio-lib-demopacks-open");
       window.__studioLoad(spec); // leave the workspace back on the small, unmodified spec
-      return { smallOpen, bigCollapsed, openedAfterClick, stillOpenAfterReload, demoBefore, demoAfterToggle, demoAfterReload };
+      return { smallOpen, bigCollapsed, openedAfterClick, stillOpenAfterReload, demoGroupGone };
     });
     ok("LF19: 'This dashboard's datasets' defaults OPEN with a handful of datasets (<= 6)", lf19.smallOpen, JSON.stringify(lf19));
     ok("LF19: it defaults COLLAPSED once there are many (> 6) with no explicit preference stored", lf19.bigCollapsed, JSON.stringify(lf19));
     ok("LF19: clicking the header opens a collapsed group", lf19.openedAfterClick, JSON.stringify(lf19));
     ok("LF19: an explicit open choice persists across a reload, overriding the many-items default", lf19.stillOpenAfterReload, JSON.stringify(lf19));
-    ok("LF19: toggling 'Sample packs' persists across a reload too (same remember-the-choice mechanism)",
-      lf19.demoAfterToggle !== lf19.demoBefore && lf19.demoAfterReload === lf19.demoAfterToggle, JSON.stringify(lf19));
+    ok("DECLUTTER-1: the Data panel carries no Sample-packs group at all (packs live in Settings)",
+      lf19.demoGroupGone, JSON.stringify(lf19));
 
     // LF19 "next" slice — every top-level Data-panel group header carries its own
     // glyph (car, then icon, then name) so the panel reads as "what kind of thing
@@ -17764,9 +17744,9 @@ function serve() {
       const mine = svgOf(".lib-mine:not(.lib-wsds):not(.lib-analyses):not(.lib-demopacks) .h");
       const wsds = svgOf(".lib-wsds .h");
       const analyses = svgOf(".lib-analyses .h");
-      const demopacks = svgOf(".lib-demopacks .h");
       const samples = svgOf(".lib-samples .h");
-      const svgs = [mine, wsds, analyses, demopacks, samples];
+      // DECLUTTER-1: the Sample-packs group no longer renders in the Data panel
+      const svgs = [mine, wsds, analyses, samples];
       const result = {
         allPresent: svgs.every(Boolean),
         allBeforeName: svgs.every((s) => s && s.nextElementSibling && s.nextElementSibling.classList.contains("nm")),
@@ -17777,9 +17757,9 @@ function serve() {
       return result;
     });
     ok("LF19 group icons: every top-level Data-panel group (This dashboard's datasets, Workspace datasets, " +
-      "Analyses, Sample packs, My queries) shows its own header glyph", grpIcons.allPresent, JSON.stringify(grpIcons));
+      "Analyses, My queries) shows its own header glyph", grpIcons.allPresent, JSON.stringify(grpIcons));
     ok("LF19 group icons: each glyph sits right before the group's name span", grpIcons.allBeforeName, JSON.stringify(grpIcons));
-    ok("LF19 group icons: the 5 groups use 5 visually distinct glyphs, not one repeated icon", grpIcons.distinctPaths, JSON.stringify(grpIcons));
+    ok("LF19 group icons: the groups use visually distinct glyphs, not one repeated icon", grpIcons.distinctPaths, JSON.stringify(grpIcons));
 
     // LF19 Inspector slice 1 — the right panel gets the same treatment: every
     // top-level Dashboard-inspector section now carries its own header glyph

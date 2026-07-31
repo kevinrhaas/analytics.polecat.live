@@ -476,19 +476,13 @@ html[data-reduce-motion="1"] #app{transition:none}
   </main>
 
   <nav id="mobile-tabs" aria-label="Section navigation"></nav>
-  <footer id="statusbar">
-    <span class="sb-brand"><span class="sb-dot"></span>Analytics · analytics.polecat.live</span>
-    <span class="spacer"></span>
-    <div class="sb-cl">
-      <!-- Opens the What's-new feed in the shell right panel (app/fleet.js provides
-           window.PolecatShell; the feed body is built per-open in studio.js renderFooter).
-           app/fleet.js adds an unseen dot here when there are releases newer than the
-           stored seen-version (studio-whatsnew-seen). -->
-      <button class="sb-btn" id="btnChangelog" aria-expanded="false" aria-haspopup="dialog"
-        title="What changed recently"><span class="sb-ic" data-ic="clock"></span> Changelog <span class="sb-caret" data-ic="chevron-up"></span></button>
-    </div>
-    <span class="sb-stamp" id="fbStamp" title="When this build was last published"></span>
-  </footer>
+  <!-- DECLUTTER-1 (Kevin, 2026-07-31): the app footer (brand line · Changelog
+       feed toggle · Last-updated stamp) is RETIRED for now — it returns later
+       as a UNIVERSAL polecat-platform shell feature across the fleet, not
+       per-app chrome. The What's-New feed stays reachable from the topbar
+       #tbWhatsNew button (same openWhatsNew path); renderFooter + fleet.js
+       null-guard the missing #btnChangelog/#fbStamp, and the #statusbar CSS
+       stays for the future shell adoption. -->
   </div>
   </div>
   </div>

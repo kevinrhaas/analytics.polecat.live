@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v425"; /* v425: PANEL-H batch — dashboard panels drag
+var CACHE_NAME = "studio-shell-v426"; /* v426: DECLUTTER-1 + PACK-BLURB + SET-ROW-B —
+   the Sample-packs group is out of the builder Data panel (Settings is the one
+   install surface; buildDemoPacksLib call removed, studio.js) and the app
+   footer is RETIRED (returns fleet-wide via polecat-shell later; What's-New
+   stays on the topbar — app/index.html); Conservation pack copy halved
+   (demopacks.js); .set-row-txt block-bold scoped to direct children so inline
+   emphasis in descriptions stays inline (studio.css). */
+/* v425: PANEL-H batch — dashboard panels drag
    taller via a bottom-edge handle (studio-render.js .sr-resize-h posts resizeH →
    studio.js writes chart.opts.height, the knob charts already draw to; card
    opts.h stretches table/richtext too; exporters.js handle CSS); PACK-FEATURED
