@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 791,
+    title: 'Declutter: packs live in Settings, the footer retires, crisper copy',
+    ts: '2026-07-31T04:16:39.000Z',
+    items: [
+      'The Dashboard Builder’s Data panel no longer lists Sample packs — installing and removing packs lives in Settings, and the builder rail stays focused on the data you chart with.',
+      'The app footer (brand line, Changelog toggle, build stamp) is retired for now — it returns later as a platform-wide feature shared by every Polecat app. What’s-New stays one click away on the top bar.',
+      'The Conservation Insight pack description is half the length: 3 dashboards · 4 Views · 5 datasets · rollup job — synthetic data, nothing to connect.',
+      'Fix: bold words inside a settings-row description (like “square” on the Custom-logo card) no longer break onto their own lines.',
+    ],
+  },
+  {
     v: 790,
     title: 'Drag dashboard panels taller — plus the watershed map takes the featured spot',
     kind: 'feature',

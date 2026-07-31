@@ -116,6 +116,21 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **DECLUTTER-1 + PACK-BLURB + SET-ROW-B (v791, sw v426, 2026-07-31, steward — Kevin
+  live):** (1) the Sample-packs group no longer renders in the builder's Data panel —
+  Settings' pack cards are the one install/remove surface (buildDemoPacksLib call
+  removed; kept defined until a tech-debt sweep). (2) The app FOOTER is retired —
+  Kevin: "we might want to bring it back later but across app as a feature of polecat
+  platform so its universal" — the What's-New feed stays on the topbar #tbWhatsNew
+  (same openWhatsNew + seen contract; fleet.js/renderFooter null-guard the missing
+  footer; #statusbar CSS stays for the future shell adoption). PLATFORM NOTE: a
+  fleet-wide footer belongs in kevinrhaas/polecat-platform lib/ when picked up.
+  (3) Conservation pack tagline/blurb halved, still count-led + "embedded" (the #116
+  check). (4) .set-row-txt>b scoping so inline <b> inside descriptions stays inline
+  (the "A / square / PNG" branding-card wrap). 7 test areas rewritten for the removed
+  group + footer (What's-New flow now drives #tbWhatsNew). Files: app/studio.js,
+  app/index.html, app/demopacks.js, app/studio.css, sw.js, js/changelog.js,
+  tests/run.js, STATUS.md.
 - **PANEL-H batch (v790, sw v425, 2026-07-31, steward — five Kevin live asks in one
   slice):**
   - **PANEL-H:** dashboard panels drag-resize VERTICALLY — a bottom-edge handle per
@@ -7600,6 +7615,96 @@
   later — parked, not attempted here to keep this one coherent slice.
 
 ## NEXT (top = do first)
+
+### ⚠ SESSION HANDOFF — live steward session active (written 2026-07-31 ~04:20Z)
+> Kevin is enabling the continuous manager lane while an interactive steward
+> session is still working. Coordination rules for ANY automated run:
+>
+> **CLAIMED by the live session — do NOT start these** unless the claim expires
+> (no commit referencing the item lands on main within ~6 hours of the
+> timestamp above; then take over using the context given):
+> 0. **USER-ADD-DURABLE ★ + SYNC-FRESH ★★ (one durability slice, FIRST):**
+>    Admin +Add user creates the Auth account but the users row never syncs —
+>    mirrorUserRow's silent Workspace.put schedules no push, so the row is
+>    local-only and the next pull erases it (Kevin's test2 vanished on
+>    sign-out/in; public.users never got the row). Fix: mirrorUserRow gains
+>    change-detection (skip when identical, NON-silent put when the row
+>    actually changed — covers boot mirror, gotrueId stamp, and admin add/edit
+>    alike); admin finishSave additionally Sync.pushNow() + loud failure toast.
+>    Last M7 blocker. SYNC-FRESH rides along — the silent-write audit is DONE
+>    (2026-07-31 ~06:30Z): all batch sweeps already notify(); the only real
+>    holes besides mirrorUserRow are status-stamp writes that must persist but
+>    not repaint — connections.js testConnectionRow (lastTest), jobs.js runJob
+>    failure paths (lastRun), studio.js runDataset (lastRun/columns). Cure: a
+>    new `Sync.touch()` export (schedulePush without a change event — do NOT
+>    notify() from runDataset, it's the builder live path and would churn
+>    renders). Plus the freshness half: quiet background pull in sync.js
+>    (~2.5min interval + window focus/visibilitychange), guarded — skip when
+>    local source, _dirty, _inflight, or document.hidden (DURABLE-1: never
+>    adopt over pending edits); adoption already repaints every section
+>    silently via the existing change "*" + "replaced" listeners.
+> 1. **FILTERS-1 ★ (bug, next up):** Conservation pack dashboard filters are
+>    DEAD — root cause CONFIRMED: pack DAs are file-kind (real engine), and
+>    `app/sources/localfile.js queryData` ignores params entirely; SCORE-1's
+>    filter fix only covered the mock branch. Fix at the DISPATCH level in
+>    app/studio-render.js: extract the SCORE-1 mock wrapper's param↔column
+>    matching into one shared applyParamFilter(result, params) and apply it to
+>    REAL engine results too (before outputOptions/aggregation). Then add
+>    recurring per-pack-dashboard filter-flip tests (flip each filter, assert
+>    rendered data changes and restores).
+> 2. **VB-13:** View Builder datasets pane collapsible/resizable — mirror the
+>    Studio Data panel pattern exactly (`.pane-rail` collapsed strip +
+>    `.pane-collapse` header button, app/index.html:401-402); drag handle for
+>    width (min 200/max 480, CSS var), persist both.
+> 3. **SETTINGS-ROAM slice 2 (#164):** remaining per-user prefs onto the users
+>    row prefs blob (recents-cleared marker, rail open/width, STUDIO-PANELS
+>    pref, restore-banner opt-in, VB canvas + pane sizes, dashboard defaults)
+>    + workspace-wide hidden-sections/sample-toggle into synced settings.
+>    Slice 1 (branding + theme) shipped v788 — follow its saveUserPref/
+>    applyUserPrefs + Workspace.setSetting patterns.
+> 4. **DURABLE-2 ★:** deletion tombstones for the non-users tables (a stale
+>    admin mirror can still target-delete rows it never saw — users is already
+>    upsert-only, v787; the general cure is tombstoned deletes like relay's).
+> 5. **VB-14 (Kevin, 2026-07-31 late):** View Builder loses the shelves
+>    (rows/columns/marks) when you click a different dataset — switching must
+>    NOT destroy work. Give each dataset its own draft encoding state: click
+>    dataset A → drag fields; click B → clean shelves (or B's own earlier
+>    draft); click back to A → A's picks and rendered view return. Show a
+>    small draft badge/dot on datasets in the pane that carry a draft so you
+>    can walk through them, plus an explicit "Clear canvas" button that
+>    resets the current dataset's draft (fresh-arrival clean slate).
+>    Sketch: session draft map keyed by dataset id (persist to localStorage —
+>    a draft layer, NOT saved Views); stash-on-switch / restore-on-click;
+>    per-dataset dirty semantics unchanged.
+> 6. **VB-DROP (Kevin, 2026-07-31 late):** drag a CSV/JSON (Excel stretch)
+>    file onto the View Builder → auto-create a real dataset (it appears in
+>    Datasets + the VB tree) → inspect columns and auto-pick the most
+>    interesting encodable View (dates→trend, geo ids→choropleth,
+>    category+measure→bar/donut, two measures→scatter) → open it live in the
+>    VB with shelves pre-filled; toast narrates the pick. Reuse the existing
+>    file-drop adapter + quickmode.js auto-build heuristics (LF24/LF50
+>    lineage) — do not reinvent parsing or chart-picking.
+>
+> **OPEN FOR THE AUTOMATED LANE (independent, minimal overlap with the above):**
+> LF24 (Quick mode CSV-drop auto-dashboard) · LF59 (Dashboards section
+> multi-select/bulk mgmt) · LF40 (animated welcome/tour overhaul) · #23 (tour
+> defines every domain term) · LF53 code-level CDF/CDE purge · LF21 (title
+> header as first-class widget) · marketing-site refresh. One coherent item per
+> run, `steward/<topic>` branch off latest main, rebase if the live session
+> shipped meanwhile. The live session works on `claude/lucid-keller-nff4pb`.
+>
+> **DO NOT touch:** tools/supabase-*.sql posture files, app/workspaces.js
+> packaged keys, and the users-table sync semantics (upsert-only, v787) — these
+> encode tonight's live-incident fixes.
+>
+> **Kevin-side pending (not agent work):** re-add fntest via Admin → +Add user
+> (safe since v787) → incognito sign-in → M7 steps 3-4 close out; two CTIC
+> admins after that.
+>
+> Shipped tonight (context): v778–v791 — WORKSPACE-LOGIN, RLS posture + canonical
+> deploy script, ACTIVITY-1, GATE-FIX/2, DEMO/ADMIN-LOCAL, USERS-DURABLE 1+2
+> (users wipe class eliminated), SETTINGS-ROAM slice 1, EXPORT-1, XP-UPDATE,
+> VB-12, PANEL-H, PACK-FEATURED, HOME-LAND, HOTLINK-1, DECLUTTER-1.
 
 ### ★★★ VIEW BUILDER OVERNIGHT QUEUE (Kevin live, 2026-07-30 — "i like the new view builder")
 > Kevin's overnight worklist for #117's View Builder. Work top-down as separate steward

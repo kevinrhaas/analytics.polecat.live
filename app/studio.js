@@ -823,7 +823,11 @@
     // "Analyses" (saved Quick Views results), then "Workspace datasets" (the shared
     // connections → datasets catalog), then "This dashboard's datasets" — all
     // pinned over the authored queries (each insertBefore stacks above the previous).
-    buildDemoPacksLib(list);
+    // DECLUTTER-1 (Kevin, 2026-07-31): the Sample-packs group no longer renders
+    // in the builder's Data panel — Settings' pack cards are the one install/
+    // remove surface ("you can install that stuff in settings"). The builder
+    // rail is for data you chart with. buildDemoPacksLib stays (unused) only
+    // until the next tech-debt sweep confirms nothing else needs it.
     buildAnalysesLib(list, q);
     buildWorkspaceDatasets(list, q);
     buildMyDataSources(list);

@@ -4,6 +4,9 @@ tests/package-lock.json
 # never cleaned up — throwaway artifacts, not committed fixtures (those live in
 # tests/fixtures/). Keeps `git status` clean after a suite run.
 tests/fixture-*.csv
+# Debug screenshot the suite rewrites on every run (tests/run.js page.screenshot);
+# nothing reads it back — untracked so a gate run never dirties the tree.
+tests/flagship.png
 *.log
 .DS_Store
 
