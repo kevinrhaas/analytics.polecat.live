@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v437"; /* v437: #23 — the overview tour
+var CACHE_NAME = "studio-shell-v438"; /* v438: Track H sweep — the Inspector's
+   shared delBtn() helper (KPIs/filters/panels/columns/params/calculated
+   columns/output filters/sort rules/union members, plus versions.js's
+   Builder notes) now names its target in both title and aria-label instead
+   of a bare "Delete" (app/studio.js, app/versions.js changed, so precached
+   copies need to roll). */
+/* v437: #23 — the overview tour
    defines every domain term: adapter woven into the Connections step,
    workbooks into Dashboards, filters into the Dashboard Builder, plus a new
    one-line-each glossary step (tutorial.js, base 10\u219211 steps) and a matching
