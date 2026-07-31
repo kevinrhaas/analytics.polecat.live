@@ -7665,7 +7665,18 @@
 > 4. **DURABLE-2 ★:** deletion tombstones for the non-users tables (a stale
 >    admin mirror can still target-delete rows it never saw — users is already
 >    upsert-only, v787; the general cure is tombstoned deletes like relay's).
-> 5. **VB-DROP (Kevin, 2026-07-31 late):** drag a CSV/JSON (Excel stretch)
+> 5. **VB-14 (Kevin, 2026-07-31 late):** View Builder loses the shelves
+>    (rows/columns/marks) when you click a different dataset — switching must
+>    NOT destroy work. Give each dataset its own draft encoding state: click
+>    dataset A → drag fields; click B → clean shelves (or B's own earlier
+>    draft); click back to A → A's picks and rendered view return. Show a
+>    small draft badge/dot on datasets in the pane that carry a draft so you
+>    can walk through them, plus an explicit "Clear canvas" button that
+>    resets the current dataset's draft (fresh-arrival clean slate).
+>    Sketch: session draft map keyed by dataset id (persist to localStorage —
+>    a draft layer, NOT saved Views); stash-on-switch / restore-on-click;
+>    per-dataset dirty semantics unchanged.
+> 6. **VB-DROP (Kevin, 2026-07-31 late):** drag a CSV/JSON (Excel stretch)
 >    file onto the View Builder → auto-create a real dataset (it appears in
 >    Datasets + the VB tree) → inspect columns and auto-pick the most
 >    interesting encodable View (dates→trend, geo ids→choropleth,
