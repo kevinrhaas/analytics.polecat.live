@@ -10,14 +10,18 @@
    link-shared — needs real auth, so an optional `token` connection field
    switches the adapter onto the Sheets API v4 `values.get` endpoint with
    `Authorization: Bearer <token>` instead, the same "paste a short-lived
-   OAuth access token, never a key file" shape as app/bigquery.js. The gviz
-   query language (tq) doesn't exist in v4, so the token path reads the
-   `sheet` tab as a plain values range — the honest 80% case (no server-side
-   filter/sort on a private sheet); {{params}} still work on the LINK-SHARED
-   path via tq, unaffected.
+   OAuth access token, never a key file" shape as app/bigquery.js. The real
+   gviz query language (tq) doesn't exist server-side in v4, so the token
+   path fetches the whole tab and applies a small LOCAL subset of tq
+   client-side (see tqLite below) — select/where/order-by/limit/offset,
+   enough for the common cases without a real query engine; {{params}} are
+   substituted upstream (Studio.WS.applyParams) before either path ever sees
+   dataset.query, so both paths take the same already-resolved string.
 
    DATA-plane only. Datasets are kind:'sheet' — { sheet (tab name, optional),
-   query (optional gviz tq, {{params}} allowed — gviz/link-shared path only) }.
+   query (optional gviz tq, {{params}} allowed — full grammar server-side on
+   the link-shared/gviz path, a select/where/order-by/limit/offset subset
+   applied client-side on the private/token path — see tqLite) }.
    The connection cfg is the sheet's URL (or bare spreadsheet id) plus the
    optional OAuth token. */
 (function () {
@@ -87,9 +91,129 @@
     }).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (json) {
         if (!r.ok) throw new Error(friendlyV4Error(r.status, json));
-        return parseV4(json);
+        var data = parseV4(json);
+        try { return tqLite((dataset && dataset.query) || "", data); }
+        catch (e) { return data; } // best-effort: an unsupported/malformed clause just falls back to the plain read
       });
     }).catch(function (e) { return { columns: [], rows: [], error: e.message }; });
+  }
+
+  // ---- tqLite: a small LOCAL subset of Google's gviz query language ---------
+  // The v4 API has no server-side query language, so this applies the common
+  // clauses client-side to the {columns,rows} v4 already returned. Columns are
+  // addressed by spreadsheet letter (A, B, C…, matching the gviz convention and
+  // the private-sheets UI hint), NOT by header label. Supported grammar (case-
+  // insensitive keywords, clauses optional, order-independent):
+  //   select A, C          -- project columns (default: all)
+  //   where B > 100         -- AND-joined conditions; = != <> < <= > >= contains
+  //   order by B desc, A    -- multi-key sort (default direction: asc)
+  //   limit 10 offset 5     -- pagination
+  // Not supported: group by, pivot, label, format, options, OR, aggregate
+  // functions — those still require a link-shared sheet via the real gviz path.
+  function colLetterToIndex(letter) {
+    var n = 0, s = letter.toUpperCase();
+    for (var i = 0; i < s.length; i++) n = n * 26 + (s.charCodeAt(i) - 64);
+    return n - 1;
+  }
+
+  function tqSplitClauses(q) {
+    // Mask out single-quoted string literals before scanning for keywords so a
+    // clause word that happens to appear inside a quoted value (e.g. 'order now')
+    // never gets mistaken for the SQL-ish keyword.
+    var masked = q.replace(/'(?:[^'\\]|\\.)*'/g, function (m) { return new Array(m.length + 1).join(" "); });
+    var re = /\b(select|where|order\s+by|limit|offset)\b/gi;
+    var hits = [], m;
+    while ((m = re.exec(masked))) hits.push({ kw: m[1].toLowerCase().replace(/\s+/g, " "), start: m.index, end: m.index + m[0].length });
+    var clauses = {};
+    for (var i = 0; i < hits.length; i++) {
+      var end = i + 1 < hits.length ? hits[i + 1].start : q.length;
+      clauses[hits[i].kw] = q.slice(hits[i].end, end).trim();
+    }
+    return clauses;
+  }
+
+  function tqParseValue(raw) {
+    var s = raw.trim();
+    var qm = s.match(/^'((?:[^'\\]|\\.)*)'$/);
+    if (qm) return qm[1].replace(/\\'/g, "'");
+    if (/^-?\d+(\.\d+)?$/.test(s)) return parseFloat(s);
+    return s;
+  }
+
+  function tqParseCond(part) {
+    var m = part.match(/^\s*([A-Za-z]+)\s*(!=|<>|>=|<=|=|>|<|contains)\s*(.+?)\s*$/i);
+    if (!m) return null;
+    return { idx: colLetterToIndex(m[1]), op: m[2].toLowerCase(), value: tqParseValue(m[3]) };
+  }
+
+  function tqCellNum(v) {
+    var n = parseFloat(v);
+    return (v !== "" && v != null && !isNaN(n) && isFinite(n)) ? n : null;
+  }
+
+  function tqEvalCond(cond, row) {
+    var cell = row[cond.idx];
+    if (cell === undefined) return false;
+    if (cond.op === "contains") return String(cell).toLowerCase().indexOf(String(cond.value).toLowerCase()) >= 0;
+    var cellNum = tqCellNum(cell), valNum = typeof cond.value === "number" ? cond.value : tqCellNum(cond.value);
+    var useNum = cellNum !== null && valNum !== null;
+    var a = useNum ? cellNum : String(cell), b = useNum ? valNum : String(cond.value);
+    switch (cond.op) {
+      case "=": return a === b;
+      case "!=": case "<>": return a !== b;
+      case "<": return a < b;
+      case "<=": return a <= b;
+      case ">": return a > b;
+      case ">=": return a >= b;
+      default: return true;
+    }
+  }
+
+  function tqCompare(a, b) {
+    var an = tqCellNum(a), bn = tqCellNum(b);
+    if (an !== null && bn !== null) return an < bn ? -1 : an > bn ? 1 : 0;
+    var as = String(a), bs = String(b);
+    return as < bs ? -1 : as > bs ? 1 : 0;
+  }
+
+  function tqLite(query, data) {
+    var q = (query || "").trim();
+    if (!q) return data;
+    var columns = data.columns, rows = data.rows;
+    var clauses = tqSplitClauses(q);
+    var outRows = rows;
+
+    if (clauses.where) {
+      var conds = clauses.where.split(/\s+and\s+/i).map(tqParseCond).filter(Boolean);
+      if (conds.length) outRows = outRows.filter(function (r) { return conds.every(function (c) { return tqEvalCond(c, r); }); });
+    }
+    if (clauses["order by"]) {
+      var orders = clauses["order by"].split(",").map(function (part) {
+        var m = part.trim().match(/^([A-Za-z]+)(\s+(asc|desc))?$/i);
+        return m ? { idx: colLetterToIndex(m[1]), dir: (m[3] || "asc").toLowerCase() } : null;
+      }).filter(Boolean);
+      if (orders.length) {
+        outRows = outRows.slice().sort(function (r1, r2) {
+          for (var i = 0; i < orders.length; i++) {
+            var cmp = tqCompare(r1[orders[i].idx], r2[orders[i].idx]);
+            if (cmp !== 0) return orders[i].dir === "desc" ? -cmp : cmp;
+          }
+          return 0;
+        });
+      }
+    }
+    if (clauses.offset && /^\d+$/.test(clauses.offset)) outRows = outRows.slice(parseInt(clauses.offset, 10));
+    if (clauses.limit && /^\d+$/.test(clauses.limit)) outRows = outRows.slice(0, parseInt(clauses.limit, 10));
+
+    var selIdx = null;
+    if (clauses.select && clauses.select.trim() && clauses.select.trim() !== "*") {
+      selIdx = clauses.select.split(",").map(function (s) { return colLetterToIndex(s.trim()); });
+    }
+    if (!selIdx) return { columns: columns, rows: outRows };
+    return {
+      columns: selIdx.map(function (i) { return columns[i]; }),
+      rows: outRows.map(function (r) { return selIdx.map(function (i) { return r[i]; }); })
+    };
   }
 
   // The gviz endpoint answers JS, not JSON: `/*O_o*/\ngoogle.visualization.
@@ -147,8 +271,9 @@
 
     // dataset: { kind:'sheet', sheet?, query? } — query is gviz tq
     // ("select A, B where C > 100 order by B desc"); {{params}} applied upstream.
-    // A connection with a token set (private sheet) uses the v4 values.get path instead — no tq
-    // query language there, so `dataset.query` is only honored on the link-shared/gviz path.
+    // A connection with a token set (private sheet) uses the v4 values.get path instead, then
+    // applies the tqLite subset of the same query client-side (see above) — full tq grammar only
+    // on the link-shared/gviz path, since there's no server-side query engine in v4.
     queryData: function (cfg, dataset) {
       if (cfg.token) return v4Fetch(cfg, dataset);
       var url;
