@@ -1671,7 +1671,7 @@ function serve() {
     await page.waitForTimeout(100);
     const fileZone = await page.evaluate(function () {
       var zone = document.querySelector(".modal .dsx-drop");
-      return { hasZone: !!zone, invites: !!zone && /Drop a \.csv or \.json/.test(zone.textContent) };
+      return { hasZone: !!zone, invites: !!zone && /Drop a \.csv, \.json, or \.xlsx/.test(zone.textContent) };
     });
     ok("FILE: picking a file connection in the dataset editor renders the drop zone", fileZone.hasZone && fileZone.invites, JSON.stringify(fileZone));
     await page.setInputFiles(".modal .dsx-drop-input", fixturePath);
@@ -12602,12 +12602,16 @@ function serve() {
       const bin = atob(b64), u8 = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
       const out = {};
+      // hand the builder back exactly where it was (same convention as VB-DROP
+      // above — the vb4b tests below depend on the prior dataset selection)
+      const B0 = window.__studioBuild, prevKind = B0.state.dsKind, prevId = B0.state.dsId;
       out.csv = Studio.xlsxToCSV(u8);
       window.__studioBdDropFile(new File([u8], "vbdrop excel.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
       await sleep(900);
       const d = Studio.Workspace.all("datasets").find((x) => x.name === "vbdrop excel");
       out.dataset = d ? { format: d.format, kind: d.kind, cols: d.columns } : null;
       if (d) Studio.Workspace.remove("datasets", d.id);
+      if (prevKind && prevId) await window.__studioBuild.selectDataset(prevKind, prevId);
       try { Studio.xlsxToCSV(new Uint8Array([1, 2, 3, 4])); out.badErr = null; } catch (e) { out.badErr = e.message; }
       out.quickAccept = /\.xlsx/.test((document.querySelector(".home-quickimport-input") || {}).accept || "") ||
         /\.xlsx/.test(((document.querySelector("#secHome .home-quickimport-input") || {}).accept || ""));
