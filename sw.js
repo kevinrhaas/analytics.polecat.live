@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v427"; /* v427: USER-ADD-DURABLE + SYNC-FRESH —
+var CACHE_NAME = "studio-shell-v428"; /* v428: LF21 header alignment —
+   Header inspector gains a Left/Center/Right Alignment picker (app/studio.js);
+   exporters.js always emits a leading ".dk-header-lead" spacer next to the
+   brand block and a conditional CSS override (headerAlignCss) so center/right
+   apply identically in preview and every export; app/model.js carries
+   spec.headerAlign through emptySpec/normalize/diffSpecs. */
+/* v427: USER-ADD-DURABLE + SYNC-FRESH —
    mirrorUserRow change-detects and puts NON-silently so a new/changed account
    row schedules a push (Add-user also pushNow()s + verifies, studio.js);
    Sync.touch() lets silent status stamps (dataset lastRun/columns, job failed

@@ -2438,6 +2438,16 @@
     ["bold", "Bold"],
     ["bold-italic", "Bold italic"]
   ];
+  // LF21: header alignment — where the brand mark + title + subtitle sit in the header bar.
+  // Left (default) matches today's flush-left layout untouched. Center/right are pure CSS
+  // (exporters.js headerAlignCss, a symmetric leading spacer vs. the header's existing
+  // trailing .spacer) — the info/print/waffle icon cluster always stays pinned to the far
+  // right regardless of this setting.
+  Studio.HEADER_ALIGNS = [
+    ["", "Left"],
+    ["center", "Center"],
+    ["right", "Right"]
+  ];
   // N-DESIGN "chart skins" (first cut): an alternate render mood for every chart card + KPI tile,
   // toggled dashboard-wide. "Raised" is today's default material (shadow + glass edge + hover lift,
   // vendor/dashkit.css); "Flat" strips all three for a quieter, editorial-minimal boardroom look —
@@ -2473,6 +2483,7 @@
       headerBg: "", // optional hex color that overrides the banner background (fg auto-contrasts); "" = default navy gradient
       titleSize: "", // optional key into Studio.TITLE_SIZE_PX overriding the banner title's font size; "" = default
       subtitleStyle: "", // optional key into Studio.SUBTITLE_STYLES ("italic"/"bold"/"bold-italic"); "" = default
+      headerAlign: "", // LF21: optional key into Studio.HEADER_ALIGNS ("center"/"right"); "" = default flush-left
       cardSkin: "", // N-DESIGN: "flat" drops the raised shadow/hover-lift on chart cards + KPI tiles for an editorial-minimal mood; "" = default raised skin
       renderMode: "", // LF20: fixed per-dashboard light/dark for the exported HTML ("" = light, "dark" = dark) — replaces the old in-header toggle button; the app-level light/dark control (canvas-bar #btnTheme) is separate and unaffected
       templateVars: [], // N-DEV: [{key,value}] — {{key}} tokens in dashboard title/subtitle AND panel title/note get substituted at render time
@@ -3354,7 +3365,7 @@
   var DIFF_FIELDS = [
     ["title", "Title"], ["subtitle", "Subtitle"], ["name", "File name"], ["description", "Description"],
     ["themeColor", "Accent color"], ["headerBg", "Header background color"], ["headerLink", "Header link"],
-    ["titleSize", "Title size"], ["subtitleStyle", "Subtitle style"], ["paletteKey", "Series palette"],
+    ["titleSize", "Title size"], ["subtitleStyle", "Subtitle style"], ["headerAlign", "Header alignment"], ["paletteKey", "Series palette"],
     ["dashboardTheme", "Dashboard theme"],
     ["gridCols", "Grid columns"]
   ];

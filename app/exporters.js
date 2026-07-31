@@ -261,6 +261,15 @@
     if (spec.subtitleStyle === "italic") subtitleStyleCss = "\n.dk-sub{font-style:italic}";
     else if (spec.subtitleStyle === "bold") subtitleStyleCss = "\n.dk-sub{font-weight:800}";
     else if (spec.subtitleStyle === "bold-italic") subtitleStyleCss = "\n.dk-sub{font-weight:800;font-style:italic}";
+    // LF21: header alignment. The header markup always carries a leading ".dk-header-lead"
+    // spacer before the brand block (an empty flex item — flex:0 1 auto by default, so it
+    // takes no space and changes nothing unless this override grows it). "center" grows the
+    // lead spacer to match the header's existing trailing .spacer, centering the brand+title
+    // block in the room left of the icon cluster; "right" grows the lead spacer and collapses
+    // the trailing one, pushing brand+title flush against the icons. Left (default) needs no
+    // override — the trailing .spacer already does all the work (vendor/dashkit.css).
+    var headerAlignCss = spec.headerAlign === "center" ? "\n.dk-header-lead{flex:1}" :
+      spec.headerAlign === "right" ? "\n.dk-header-lead{flex:1}\n.dk-header .spacer{flex:0}" : "";
     // N-DESIGN "chart skins": "flat" strips the raised shadow/glass-edge/hover-lift .card and
     // .kpi already carry (vendor/dashkit.css) for a quieter, editorial-minimal mood; "sketch"
     // (follow-up) swaps the shadow for a dashed border + an asymmetric, hand-wobbled radius
@@ -370,7 +379,7 @@
     var head =
       "<!DOCTYPE html>\n" + htmlOpenTag + "\n<head>\n<meta charset=\"utf-8\"/>\n" +
       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n" +
-      "<title>" + xml(titleText) + " — Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + dlActsCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + dashboardThemeCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + hideHeaderCss + subtitleStyleCss + cardSkinCss + paletteCss + geoCtrlCss + printCss + previewCss + "\n</style>\n</head>\n";
+      "<title>" + xml(titleText) + " — Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + dlActsCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + dashboardThemeCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + hideHeaderCss + subtitleStyleCss + headerAlignCss + cardSkinCss + paletteCss + geoCtrlCss + printCss + previewCss + "\n</style>\n</head>\n";
     var logoHtml = spec.headerLogo ?
       "<img class=\"dk-logo\" src=\"" + xml(spec.headerLogo) + "\" alt=\"\"/>" :
       "<span class=\"dk-logo\">P</span>";
@@ -382,6 +391,7 @@
       "<div class=\"dk-brand\">" + brandInner + "</div>";
     var body =
       "<body>\n<header class=\"dk-header\">\n" +
+      "  <div class=\"dk-header-lead\"></div>\n" +
       "  " + brandHtml + "\n" +
       "  <div class=\"dk-sub\">" + xml(subtitleText || "") + "</div>\n  <div class=\"spacer\"></div>\n" +
       "  <div class=\"dk-ctrls\" id=\"ctrls\"></div>\n" +
