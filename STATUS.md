@@ -138,10 +138,11 @@
   path then preselects the gate's Workspace picker (studio-workspace-last)
   and toasts guidance, since picker + direct-auth is the working path for a
   cross-project switch needing its own session. Kevin's #104 note confirmed
-  the gate picker already covers the sign-in side (WORKSPACE-LOGIN); a
-  ctic.org catalog entry is a one-line workspaces.js add ONCE Kevin supplies
-  keys + the verified anon-reads-nothing posture (file's own shipping rule).
-  Same-DB multitenancy deferred to M7 phase 2 (Kevin). Docs: Admin backends
+  the gate picker already covers the sign-in side (WORKSPACE-LOGIN); the
+  ctic.org catalog entry is SKIPPED for now (Kevin, 2026-07-31 — revisit
+  when wanted: one workspaces.js line + keys + the verified anon-reads-
+  nothing posture per that file's shipping rule). Same-DB multitenancy
+  deferred to M7 phase 2 (Kevin). #103 and #104 both close with this slice. Docs: Admin backends
   section rewritten. 4 new checks in the gp42 context (snapshot embed;
   fresh-silent + prompt semantics with skipIfEmpty threaded; decline
   remembered/never-nags; sentinel-row proof the empty-remote guard never
