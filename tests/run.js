@@ -26155,6 +26155,51 @@ function serve() {
     ok("Z14 fix: an httpvfs-only export bundles the SQLite façade but not the DuckDB one", z14Bundling.httpvfsHasFacade && z14Bundling.httpvfsOmitsDuckdb, JSON.stringify(z14Bundling));
     ok("Z14 fix: a dashboard using neither connector bundles neither façade (stays lean)", z14Bundling.plainOmitsBoth, JSON.stringify(z14Bundling));
 
+    // ---- EXPORT-1 (Kevin live, confirmed on his uploaded huc8embed.html): an
+    // exported dashboard was EMPTY wherever a DA has no real engine — full
+    // STUDIO_GEO baked, zero DASHKIT_MOCK. Every export now embeds a data
+    // snapshot for JUST the engine-less DAs (live engines stay live), with the
+    // View Builder's cached REAL rows overlaying fabricated samples. ----
+    console.log("\n• EXPORT-1: exported HTML carries data for engine-less DAs");
+    const export1 = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var spec = {
+        name: "exp1", title: "E1", filters: [], kpis: [],
+        panels: [{ id: "p1", title: "P", span: "full", chart: { type: "bars", da: "da_sample", map: {}, opts: {} } }],
+        cda: { connections: [], dataAccesses: [
+          { id: "da_sample", name: "s", kind: "sql", columns: ["label", "value"], authored: true },
+          { id: "da_live", name: "l", kind: "sql", connAdapter: "supabase", columns: ["a"] }
+        ] }
+      };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      var m = html.match(/window\.DASHKIT_MOCK = (.*);/);
+      var mock = m ? JSON.parse(m[1]) : null;
+      var out = {
+        hasMock: !!mock,
+        sampleRows: mock && mock.da_sample && mock.da_sample.rows ? mock.da_sample.rows.length : 0,
+        liveNotShadowed: !!mock && !("da_live" in mock),
+        notPreview: html.indexOf("window.STUDIO_PREVIEW=true") < 0
+      };
+      // the View Builder's cached REAL computed rows overlay the fabricated sample
+      var B = Studio.Build, orig = B && B.specMocks;
+      if (B) B.specMocks = function () { return { da_sample: { cols: ["label", "value"], rows: [["REALROW", 7]] } }; };
+      var html2 = Studio.exportCDF(spec, assets, "/x");
+      if (B) B.specMocks = orig;
+      var m2 = html2.match(/window\.DASHKIT_MOCK = (.*);/);
+      var mock2 = m2 ? JSON.parse(m2[1]) : null;
+      out.builderRowsWin = !!mock2 && !!mock2.da_sample && mock2.da_sample.rows.length === 1 && mock2.da_sample.rows[0][0] === "REALROW";
+      // the PDF path builds with the same snapshot (buildHtml preview:false + exportMock)
+      var pdfHtml = Studio.buildHtml(spec, assets, { deployPath: "/x", preview: false, mock: Studio.exportMock(spec) });
+      out.pdfHasMock = /window\.DASHKIT_MOCK = /.test(pdfHtml);
+      return out;
+    });
+    ok("EXPORT-1: an exported .html embeds DASHKIT_MOCK rows for an engine-less (authored/sample) DA — no more blank charts on upload — while STUDIO_PREVIEW stays unset (live engines stay live)",
+      export1.hasMock && export1.sampleRows > 0 && export1.notPreview, JSON.stringify(export1));
+    ok("EXPORT-1: a DA with a real engine (connAdapter) is NEVER shadowed by the export snapshot, and the View Builder's cached REAL computed rows overlay fabricated samples",
+      export1.liveNotShadowed && export1.builderRowsWin, JSON.stringify(export1));
+    ok("EXPORT-1: the PDF export path carries the same data snapshot as the .html export",
+      export1.pdfHasMock, JSON.stringify(export1));
+
     // Functional dispatch check — load the REAL exported HTML (no DASHKIT_MOCK, zero panels so the
     // auto-boot never itself calls DashKit.cda) into a throwaway iframe, stub Studio.DuckDB.query
     // inside it (the network boundary, same rationale as the builder's own Run-live tests above),

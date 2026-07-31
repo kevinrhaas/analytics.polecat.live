@@ -14,26 +14,11 @@
   // #106 (viewer 404 on sample dashboards): a data access with no real engine — the
   // demo/sample packs' authored kind:"sql" DAs — has nothing to query, so studio-render.js's
   // DashKit.cda falls all the way through to the retired Pentaho-CDA server endpoint → 404. The
-  // fix is to bake a deterministic sample mock into the build for JUST those DAs (real ones
-  // still query live). REAL_DA_KINDS / REAL_CONN_ADAPTERS mirror studio-render.js's own
-  // duckdb/httpvfs + CRED_ENGINES (keyed on da.kind) + CONN_ENGINES (keyed on da.connAdapter)
-  // dispatch — a new adapter added there must be added here too, or the viewer would mock a
-  // DA that actually has live data. (Same duplicate-in-miniature pattern as the helpers below;
-  // studio-render.js runs inside the exported iframe, not on this page.)
-  var REAL_DA_KINDS = { duckdb: 1, httpvfs: 1, snowflake: 1, databricks: 1, bigquery: 1, http: 1 };
-  var REAL_CONN_ADAPTERS = { turso: 1, postgrest: 1, supabase: 1, gsheets: 1, file: 1, redshift: 1 };
-  function daHasRealEngine(da) {
-    return !!(da && (REAL_DA_KINDS[da.kind] || (da.connAdapter && REAL_CONN_ADAPTERS[da.connAdapter])));
-  }
-  // A DASHKIT_MOCK covering only the spec's sample-only data accesses (see above). buildHtml embeds
-  // it as-is; DashKit.cda prefers a mocked id, so a real DA is never shadowed — its entry is absent.
+  // fix: bake a deterministic sample mock into the build for JUST those DAs (real ones still
+  // query live). EXPORT-1 moved the engine classifier + mock builder into exporters.js
+  // (Studio.exportMock) so this page and every export path share ONE list.
   function sampleMock(spec) {
-    if (!Studio.genMock) return {};
-    var full = Studio.genMock(spec), out = {};
-    ((spec.cda && spec.cda.dataAccesses) || []).forEach(function (da) {
-      if (!daHasRealEngine(da) && full[da.id] != null) out[da.id] = full[da.id];
-    });
-    return out;
+    return Studio.exportMock ? Studio.exportMock(spec) : {};
   }
   // The one place the viewer turns a spec+assets into standalone HTML — the live iframe AND every
   // export funnel through here, so what you download is byte-identical to what you're looking at.

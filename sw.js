@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v419"; /* v419: VB-12 — the View Builder preview canvas
+var CACHE_NAME = "studio-shell-v420"; /* v420: EXPORT-1 — exported HTML carries a data
+   snapshot for engine-less DAs: Studio.exportMock in exporters.js (shared engine
+   classifier moved from viewer.js; genMock subset + Build.specMocks overlay),
+   exportCDF/PDF pass it, the two embed paths warm the builder cache first
+   (withSpecMocks). app/exporters.js, app/viewer.js, app/studio.js changed. */
+/* v419: VB-12 — the View Builder preview canvas
    fills to the viewport bottom by default (JS-synced like .bd-left) and gains
    drag-resize handles on both axes (persisted at studio-bd-preview-size;
    double-click resets an axis to auto). app/build.js + app/studio.css changed;

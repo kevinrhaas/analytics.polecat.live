@@ -1748,6 +1748,13 @@
 <section id="exporting">
   <h2>Exporting dashboards</h2>
   <p>Click <strong>Export ▾</strong> in the topbar to open the export menu (it only shows while Studio is open). Every option opens an export modal with file size, a copy-to-clipboard button, and a download button.</p>
+  <p><strong>What data travels with an export.</strong> A View or dashboard whose data source has a
+  real engine (a connected database, a file/parquet source, a Google Sheet…) keeps querying it
+  <em>live</em> from the exported file. A source with no engine behind it — sample-pack content,
+  authored datasets, View Builder results — can't be re-queried from a standalone file, so the
+  export bakes in a <strong>data snapshot</strong> taken at export time: the file shows real
+  numbers anywhere you host it, and simply doesn't update until you export again. (View Builder
+  Views snapshot their actual computed rows.)</p>
 
   <table class="export-table">
     <thead><tr><th>Format</th><th>What you get</th><th>Use when</th></tr></thead>

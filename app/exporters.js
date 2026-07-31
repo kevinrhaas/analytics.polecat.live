@@ -842,8 +842,40 @@
     return zipStore(parts);
   };
 
+  // EXPORT-1 (Kevin live, confirmed on his upload): an exported dashboard was
+  // EMPTY wherever a data access has no real engine — his huc8embed.html carried
+  // the full 1.9MB STUDIO_GEO but zero DASHKIT_MOCK, so the map drew and the data
+  // never came. The engine classifier (which DA kinds/adapters studio-render.js
+  // can actually query live) moved HERE from viewer.js's #106 fix so the viewer
+  // and every export path share ONE list — a new adapter added to
+  // studio-render.js's dispatch must be added here too, or exports would mock a
+  // DA that has live data.
+  var REAL_DA_KINDS = { duckdb: 1, httpvfs: 1, snowflake: 1, databricks: 1, bigquery: 1, http: 1 };
+  var REAL_CONN_ADAPTERS = { turso: 1, postgrest: 1, supabase: 1, gsheets: 1, file: 1, redshift: 1 };
+  Studio.daHasRealEngine = function (da) {
+    return !!(da && (REAL_DA_KINDS[da.kind] || (da.connAdapter && REAL_CONN_ADAPTERS[da.connAdapter])));
+  };
+  // The DASHKIT_MOCK an export should carry: deterministic sample rows for JUST
+  // the engine-less DAs (live engines stay live — the mock never shadows them),
+  // overlaid with the View Builder's cached REAL computed rows for builder-blob
+  // DAs (#118/#134 — same overlay the in-Studio preview applies), so an exported
+  // builder View shows its actual numbers, not fabricated samples.
+  Studio.exportMock = function (spec) {
+    var out = {};
+    if (Studio.genMock) {
+      var full = Studio.genMock(spec);
+      ((spec.cda && spec.cda.dataAccesses) || []).forEach(function (da) {
+        if (!Studio.daHasRealEngine(da) && full[da.id] != null) out[da.id] = full[da.id];
+      });
+    }
+    if (window.Studio && Studio.Build && Studio.Build.specMocks) {
+      var real = Studio.Build.specMocks(spec);
+      if (real) Object.keys(real).forEach(function (id) { out[id] = real[id]; });
+    }
+    return out;
+  };
   Studio.exportCDF = function (spec, assets, deployPath) {
-    return Studio.buildHtml(spec, assets, { deployPath: deployPath, preview: false });
+    return Studio.buildHtml(spec, assets, { deployPath: deployPath, preview: false, mock: Studio.exportMock(spec) });
   };
   Studio.previewHtml = function (spec, assets, sampleData, deployPath) {
     return Studio.buildHtml(spec, assets, { deployPath: deployPath, preview: true, mock: Studio.mockFor(spec, sampleData), launcher: false });

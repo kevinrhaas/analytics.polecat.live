@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 785,
+    title: 'Fix: exported dashboards carry their data — no more blank charts on upload',
+    kind: 'fix',
+    ts: '2026-07-31T02:20:02.000Z',
+    items: [
+      'An exported .html dashboard or embedded View drew its frame but no data wherever its source has no live engine behind it — sample-pack content, authored datasets, and View Builder results all exported empty (the live report: an uploaded watershed-map embed with the full base map and zero numbers). Every export — Dashboard Framework, embed View, the PDF path — now bakes in a data snapshot for exactly those sources, taken at export time.',
+      'Sources with a real engine (a connected database, file/parquet, Google Sheets) are untouched: the exported file still queries them live, never a stale copy. View Builder Views snapshot their actual computed rows, not fabricated samples.',
+      'The Docs’ Exporting page now explains what data travels with an export (live-queried vs snapshot).',
+    ],
+  },
+  {
     v: 784,
     title: 'The View Builder canvas fills the screen and resizes by drag',
     ts: '2026-07-31T02:06:00.000Z',

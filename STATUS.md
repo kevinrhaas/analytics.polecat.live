@@ -116,6 +116,30 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **EXPORT-1 ★ — exported dashboards carry their data (v785, sw v420, 2026-07-31,
+  steward):** Kevin's uploaded `covercropadoption…huc8embed.html` had the full 1.9MB
+  STUDIO_GEO and ZERO `DASHKIT_MOCK` — engine-less DAs exported EMPTY (sample-pack
+  content, authored datasets, builder Views; his came via the View-embed path).
+  - `app/exporters.js`: `Studio.daHasRealEngine` + `Studio.exportMock(spec)` — the
+    engine classifier MOVED here from viewer.js's #106 fix (one list; a new adapter
+    in studio-render.js's dispatch must be added here too) + genMock subset for
+    engine-less DAs + `Studio.Build.specMocks` overlay (REAL computed rows win for
+    builder-blob DAs, same overlay the in-Studio preview applies). `exportCDF` now
+    passes `mock: Studio.exportMock(spec)` on its preview:false build — the LF23
+    buildHtml branch already embeds a non-preview mock WITHOUT STUDIO_PREVIEW, so
+    live engines stay live and the mock only shadows engine-less DAs.
+  - `app/viewer.js`: sampleMock delegates to Studio.exportMock (classifier deduped).
+  - `app/studio.js`: the PDF path's direct buildHtml gains the same mock;
+    `withSpecMocks(sp, fn)` warms the builder cache (ensureSpecMocks) before the
+    two embed exports (exportPanelEmbed / exportAnalysisEmbed — Kevin's path)
+    build their file, so a builder View exports real rows even if it wasn't
+    previewed this session.
+  - Docs: "What data travels with an export" intro on the Exporting page
+    (live-queried vs snapshot-at-export-time).
+  3 new checks (mock rows present + STUDIO_PREVIEW unset; live DA never shadowed +
+  builder rows overlay; PDF parity). EXPORT-2 (snapshot/dynamic modes + credential
+  handling for live DAs) remains queued. Files: app/exporters.js, app/viewer.js,
+  app/studio.js, docs/index.html, sw.js, js/changelog.js, tests/run.js, STATUS.md.
 - **VB-12 — the View Builder canvas fills to the screen bottom + drag-resizes on both
   axes (v784, sw v419, 2026-07-31, steward):** Kevin: "have the canvas for the panel be
   to the bottom of the screen (just like the left rail is and the dataset left panel

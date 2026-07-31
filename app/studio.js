@@ -9717,6 +9717,13 @@
   // N-DIST: embeddable single-chart widget — reuses the full CDF exporter on a spec pared
   // down to just this one panel, so it stays byte-for-byte the same self-contained toolkit as
   // any other export (no separate embed-only code path to drift out of sync).
+  // EXPORT-1: a builder-blob DA exports its REAL computed rows (Studio.exportMock
+  // overlays Build.specMocks) — but only if the builder cache is warm. Warm it
+  // before building the file; no-op (sync) when already cached or not a builder DA.
+  function withSpecMocks(sp, fn) {
+    var pend = Studio.Build && Studio.Build.ensureSpecMocks ? Studio.Build.ensureSpecMocks(sp) : null;
+    if (pend && pend.then) pend.then(fn, fn); else fn();
+  }
   function exportPanelEmbed(p) {
     var single = Studio.clone(S.spec);
     single.panels = [Studio.clone(p)];
@@ -9726,7 +9733,9 @@
     single.name = stem;
     celebrateFirstExport();
     bumpExportMilestone();
-    bundleModal("Embed View", [{ name: stem + "-embed.html", body: Studio.exportCDF(single, S.assets, S.settings.deployPath), mime: "text/html" }]);
+    withSpecMocks(single, function () {
+      bundleModal("Embed View", [{ name: stem + "-embed.html", body: Studio.exportCDF(single, S.assets, S.settings.deployPath), mime: "text/html" }]);
+    });
   }
   // LF57 follow-up: the Views catalog's own "Export" action — the last of the three items
   // LF57 slice 1's own DONE note flagged as "genuinely still open" (Duplicate and the
@@ -9740,7 +9749,9 @@
     var stem = (a.name || "view").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "view";
     celebrateFirstExport();
     bumpExportMilestone();
-    bundleModal("Embed View", [{ name: stem + "-embed.html", body: Studio.exportCDF(spec, S.assets, S.settings.deployPath), mime: "text/html" }]);
+    withSpecMocks(spec, function () {
+      bundleModal("Embed View", [{ name: stem + "-embed.html", body: Studio.exportCDF(spec, S.assets, S.settings.deployPath), mime: "text/html" }]);
+    });
   }
   // N-DIST: client-side PNG export of a chart — first cut of "Client-side PNG/PDF export of a whole
   // dashboard" (the SVG-chart half; legend/title/table chart types are a separate follow-up).
@@ -11179,7 +11190,7 @@
     if (kind === "pdf") {
       openPdfExportModal(function (pdfOpts) {
         var pdfHtml = Studio.buildHtml(sp, S.assets, {
-          deployPath: dp, preview: false,
+          deployPath: dp, preview: false, mock: Studio.exportMock(sp), // EXPORT-1: same data snapshot as .html
           pdfPageSize: pdfOpts.pageSize, pdfOrientation: pdfOpts.orientation, pdfAutoFit: pdfOpts.fit === "fit"
         });
         var pdfBlob = new Blob([pdfHtml], { type: "text/html;charset=utf-8" });
