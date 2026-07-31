@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v429"; /* v429: FILTERS-1 — pack dashboard filters
+var CACHE_NAME = "studio-shell-v430"; /* v430: VB-13 — the View Builder
+   datasets pane drag-resizes (200-480px via #bdLeftResize, persisted at
+   studio-bd-lw) and collapses to a 40px vertical rail (#bdLeftRail, persisted
+   at studio-bd-collapse) — setupBuildPane in studio.js, bd-rail/bd-left-resize
+   CSS in studio.css, restructured .bd-left in app/index.html. */
+/* v429: FILTERS-1 — pack dashboard filters
    genuinely filter: since<Col> range semantics + shared filterRowsByParams in
    mockRespond AND a new applyParamFilter on every real-engine dispatch result
    (studio-render.js); geo/KPI/provider DAs declare practice+sinceYear so

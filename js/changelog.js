@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 795,
+    title: 'View Builder: resize or collapse the Datasets panel',
+    kind: 'feature',
+    ts: '2026-07-31T05:38:00.000Z',
+    items: [
+      'The View Builder’s Datasets panel is now drag-resizable — pull its right edge anywhere from 200 to 480px when long dataset names get cut off. The width sticks across visits.',
+      'The chevron in the panel header collapses it to a slim vertical strip (same move as the Dashboard Builder’s Data panel), giving the canvas the full width; click the strip to bring it back.',
+    ],
+  },
+  {
     v: 794,
     title: 'Fix: dashboard filters actually filter — every panel, real data included',
     kind: 'fix',

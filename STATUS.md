@@ -116,6 +116,19 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **VB-13 (v795, sw v430, 2026-07-31, steward — Kevin live: "i cant read the
+  names of the datasets because its cut off ... take a cue from dashboard
+  builder"):** the View Builder datasets pane drag-resizes via a right-edge
+  handle (200–480px, clamped; width persisted at studio-bd-lw as a --bd-left-w
+  CSS var on .bd-wrap) and collapses to a 40px vertical rail strip via the head
+  chevron (persisted at studio-bd-collapse) — the exact .pane-rail/.pane-collapse
+  pattern Studio's Data panel uses, wired by a new setupBuildPane() (called
+  from init next to setupPanes; test hook window.__studioBdPane). ≤900px keeps
+  the stacked layout (handle + chevron hidden — width drag makes no sense
+  there). Headless-verified 250→400 drag persists, collapse/expand round-trips.
+  2 suite checks. SETTINGS-ROAM slice 2 should lift studio-bd-lw/-collapse into
+  roamed user prefs (noted in claim 3). Files: app/index.html, app/studio.css,
+  app/studio.js, tests/run.js, docs/index.html, js/changelog.js v795, sw v430.
 - **FILTERS-1 (v794, sw v429, 2026-07-31, steward — Kevin live: "filters did not
   seem to work here ... those should probably be in your recurring tests"):**
   three causes, three fixes. (1) studio-render.js paramsFor only forwards params
@@ -7706,10 +7719,9 @@
 >    the file-engine path. Recurring no-decorative-filters sweep now in the
 >    suite. Kevin-side verify: open Cover Crop & Tillage Adoption, flip
 >    Since year (trends narrow) and Practice (maps/KPIs respond).
-> 2. **VB-13:** View Builder datasets pane collapsible/resizable — mirror the
->    Studio Data panel pattern exactly (`.pane-rail` collapsed strip +
->    `.pane-collapse` header button, app/index.html:401-402); drag handle for
->    width (min 200/max 480, CSS var), persist both.
+> 2. ~~VB-13~~ **SHIPPED v795 (this session, 2026-07-31 ~05:40Z — see DONE).**
+>    Note for SETTINGS-ROAM slice 2: lift studio-bd-lw / studio-bd-collapse
+>    into the roamed per-user prefs blob with the other VB sizes.
 > 3. **SETTINGS-ROAM slice 2 (#164):** remaining per-user prefs onto the users
 >    row prefs blob (recents-cleared marker, rail open/width, STUDIO-PANELS
 >    pref, restore-banner opt-in, VB canvas + pane sizes, dashboard defaults)
