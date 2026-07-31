@@ -103,9 +103,12 @@
       (usedCount ? " " + usedCount + " of these are referenced by a dataset — those datasets will stop running." : "") +
       " This can't be undone.";
     if (!window.confirm(msg)) return;
+    var removed = rows.map(Studio.clone); // DURABLE-2 follow-up: captured for Undo
     rows.forEach(function (c) { W.remove("connections", c.id, { silent: true }); });
     _connSelected = {};
-    toast("Deleted " + rows.length + " connection" + (rows.length === 1 ? "" : "s"));
+    Studio.undoToast("Deleted " + rows.length + " connection" + (rows.length === 1 ? "" : "s") + ".", function () {
+      Studio.undoRestoreRows([{ table: "connections", rows: removed }]);
+    });
     // one batched notify (not a remove per row), same convention bulkDeleteSelectedDatasets established.
     W.notify("connections");
   }

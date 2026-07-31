@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 809,
+    title: 'Deleted several things by mistake? Undo it — bulk deletes get an Undo button',
+    kind: 'feature',
+    ts: '2026-07-31T11:43:09.000Z',
+    items: [
+      'Every bulk Delete -- Dashboards, Views, Datasets, Connections, Jobs, and the Repository’s mixed selections -- now shows its confirmation toast with an Undo button for a few seconds. One click restores everything just removed, under the same ids, exactly as it was.',
+      'Undo is workspace-backend safe: a restored item propagates as a re-creation, so it comes back on your other devices too instead of being re-deleted by sync.',
+    ],
+  },
+  {
     v: 808,
     title: 'Track H sweep: the canvas ✕ buttons for removing a description or deleting a KPI now name what they act on',
     kind: 'fix',

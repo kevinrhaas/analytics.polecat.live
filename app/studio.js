@@ -6615,9 +6615,12 @@
       (sampleCount ? " " + sampleCount + " of these are sample-pack dashboards — reinstall the pack to get them back." : "") +
       " This can't be undone.";
     if (!window.confirm(msg)) return;
+    var removedDash = rows.map(Studio.clone); // DURABLE-2 follow-up: captured for Undo
     rows.forEach(function (r) { W.remove("dashboards", r.id, { silent: true }); });
     _dashSelected = {};
-    toast("Deleted " + rows.length + " dashboard" + (rows.length === 1 ? "" : "s"));
+    Studio.undoToast("Deleted " + rows.length + " dashboard" + (rows.length === 1 ? "" : "s") + ".", function () {
+      Studio.undoRestoreRows([{ table: "dashboards", rows: removedDash }]);
+    });
     // a single notify (rather than a remove per row) drives the existing "dashboards"-table
     // change listener, which already repaints Home/Repository/library — same convention as
     // migrateOwnerToGotrueId's batch-then-notify.
@@ -7104,10 +7107,15 @@
     });
     var msg = "Delete " + rows.length + " object" + (rows.length === 1 ? "" : "s") + " (" + parts.join(", ") + ")? This can't be undone.";
     if (!window.confirm(msg)) return;
+    // DURABLE-2 follow-up: capture clones grouped by table for the Undo toast
+    var removedByTable = {};
+    rows.forEach(function (r) { (removedByTable[r.table] = removedByTable[r.table] || []).push(Studio.clone(r.row)); });
     var touchedTables = {};
     rows.forEach(function (r) { W.remove(r.table, r.row.id, { silent: true }); touchedTables[r.table] = true; });
     _repoSelected = {};
-    toast("Deleted " + rows.length + " object" + (rows.length === 1 ? "" : "s"));
+    Studio.undoToast("Deleted " + rows.length + " object" + (rows.length === 1 ? "" : "s") + ".", function () {
+      Studio.undoRestoreRows(Object.keys(removedByTable).map(function (t) { return { table: t, rows: removedByTable[t] }; }));
+    });
     // one batched notify per touched table (not a remove per row), same convention
     // bulkDeleteSelectedJobs/Connections/Datasets established.
     Object.keys(touchedTables).forEach(function (t) { W.notify(t); });
@@ -12563,6 +12571,34 @@
   // export/dashboard counts, zero-warnings) so they read as earned, not just confirmed —
   // distinct from the plain check/warn toast every ordinary action already uses.
   function toast(msg, isErr, celebrate) { var t = $("#toast"); t.innerHTML = ""; t.appendChild(Studio.icon(isErr ? "warn" : (celebrate ? "trophy" : "check"), 13)); t.appendChild(document.createTextNode(" " + msg)); t.className = "toast show" + (isErr ? " err" : (celebrate ? " celebrate" : "")); clearTimeout(_toastT); _toastT = setTimeout(function () { t.className = "toast"; }, 2600); }
+  // DURABLE-2 follow-up (Kevin's queued durability ask — "every destructive bulk action
+  // gets an undo toast"): a toast variant carrying an Undo button, shown longer than the
+  // plain toast so there's real time to react. onUndo runs once, on click, before the
+  // toast hides.
+  function undoToast(msg, onUndo) {
+    var t = $("#toast"); t.innerHTML = "";
+    t.appendChild(Studio.icon("check", 13));
+    t.appendChild(document.createTextNode(" " + msg + " "));
+    var b = el("button", "toast-undo"); b.type = "button"; b.id = "toastUndoBtn"; b.textContent = "Undo";
+    b.onclick = function () { clearTimeout(_toastT); t.className = "toast"; onUndo(); };
+    t.appendChild(b);
+    t.className = "toast show";
+    clearTimeout(_toastT);
+    _toastT = setTimeout(function () { t.className = "toast"; }, 7000);
+  }
+  Studio.undoToast = undoToast;
+  // The restore half: re-put the captured row clones under their ORIGINAL ids (silent,
+  // one batched notify per table — the bulk convention). Sync-safe by design: v799's
+  // tombstone semantics say Workspace.put deletes a row's tombstone, so an undone delete
+  // propagates as a re-creation to the workspace backend instead of being re-deleted.
+  Studio.undoRestoreRows = function (batches) { // [{ table, rows: [clones] }]
+    var n = 0;
+    batches.forEach(function (b) {
+      (b.rows || []).forEach(function (r) { Studio.Workspace.put(b.table, r, { silent: true }); n++; });
+      Studio.Workspace.notify(b.table);
+    });
+    toast("Restored " + n + " item" + (n === 1 ? "" : "s"));
+  };
 
   // canvas drag-drop
   function wireCanvas() {

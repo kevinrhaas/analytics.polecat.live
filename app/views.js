@@ -70,13 +70,16 @@
     var rows = ids.map(function (id) { return W.get("analyses", id); }).filter(Boolean);
     var msg = "Delete " + rows.length + " View" + (rows.length === 1 ? "" : "s") + "? This can't be undone.";
     if (!window.confirm(msg)) return;
+    var removed = rows.map(Studio.clone); // DURABLE-2 follow-up: captured for Undo
     rows.forEach(function (a) {
       // same open-editor pointer guard the single-row delete applies
       if (Studio.Explore.XP && Studio.Explore.XP.analysisId === a.id) Studio.Explore.XP.analysisId = null;
       W.remove("analyses", a.id, { silent: true });
     });
     _vwSelected = {};
-    toast("Deleted " + rows.length + " View" + (rows.length === 1 ? "" : "s"));
+    Studio.undoToast("Deleted " + rows.length + " View" + (rows.length === 1 ? "" : "s") + ".", function () {
+      Studio.undoRestoreRows([{ table: "analyses", rows: removed }]);
+    });
     // one batched notify (not a remove per row), same convention every other bulk delete uses
     W.notify("analyses");
   }
