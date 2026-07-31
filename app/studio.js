@@ -9022,6 +9022,18 @@
         var r = Auth.remove(uid);
         if (!r.ok) { toast(r.error === "last-admin" ? "Can't remove the last admin." : "Couldn't remove that user.", true); return; }
         try { Studio.Workspace.remove("users", "user_" + uid, { silent: true }); } catch (e) {}
+        // USERS-DURABLE 2: sync is UPSERT-ONLY for the users table (a stale
+        // admin mirror must never target-delete accounts it hasn't seen) —
+        // removal is THIS explicit action, so delete the backend row directly,
+        // right now, as the acting admin.
+        try {
+          var delSt = Studio.Sync.syncState();
+          if (delSt.isRemote && delSt.sourceId === "supabase" && Studio.supabaseSource.deleteRows) {
+            Studio.supabaseSource.deleteRows(Studio.Sync.currentConfig(), "users", ["user_" + uid]).then(function (dr) {
+              if (dr && dr.ok === false) toast("Removed locally, but the backend refused the delete: " + dr.error, true);
+            }, function () {});
+          }
+        } catch (e) {}
         toast("Removed " + (u.name || u.u));
         renderAdmin();
       };

@@ -116,6 +116,20 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **USERS-DURABLE 2 (v787, sw v422, 2026-07-31, steward — Kevin live, minutes after
+  v786 shipped):** the freshly-provisioned fntest account vanished AGAIN — this time
+  to v786's own TARGETED delete: Kevin's signed-in admin session's mirror predated
+  the Edge-Function-created row, so the push computed it "stale" and (as admin)
+  deleted it. Even targeted deletes are unsafe from a stale admin mirror without
+  deletion tombstones (DURABLE-2, still queued). Fix: the users table is
+  **UPSERT-ONLY in sync** — save() skips the stale-delete phase for users entirely;
+  account removal is the Admin remove-user flow calling the new
+  `supabaseSource.deleteRows(cfg, "users", [id])` explicitly at click time (surfaces
+  a toast if the backend refuses). Rode along: Kevin's VB polish — `.bd-main` top
+  padding aligns the COLUMNS shelf with the DATASETS pane header. 1 upgraded suite
+  check (push WITH local users rows still deletes nothing + explicit deleteRows
+  issues its targeted delete). Files: app/sources/supabase.js, app/studio.js,
+  app/studio.css, sw.js, js/changelog.js, tests/run.js, STATUS.md.
 - **USERS-DURABLE ★★ + GATE-FIX-2 + ADMIN-LOCAL (v786, sw v421, 2026-07-31, steward —
   Kevin live, the users-table wipe finally explained):**
   - **USERS-DURABLE (app/sources/supabase.js save):** the push was DELETE-ALL then

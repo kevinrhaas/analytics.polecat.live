@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 787,
+    title: 'Fix: adding a user can no longer be undone by another device’s sync',
+    kind: 'fix',
+    ts: '2026-07-31T03:08:59.000Z',
+    items: [
+      'Minutes after the last fix, a freshly-added account vanished again — this time to a targeted delete: a signed-in admin device whose local copy hadn’t yet seen the new account treated its row as stale and removed it on the next sync. The users table is now strictly upsert-only in sync — no push ever deletes an account.',
+      'Removing a user is now an explicit, immediate action: when an admin clicks remove, the app deletes that one row on the backend right then (and says so plainly if the backend refuses). Nothing else can delete an account.',
+      'View Builder polish: the shelves column gets breathing room at the top, so the Columns shelf lines up with the Datasets panel header.',
+    ],
+  },
+  {
     v: 786,
     title: 'Critical fix: syncing can no longer wipe the workspace’s users table',
     kind: 'fix',

@@ -1395,6 +1395,10 @@ body.lib-dragging #preview{pointer-events:none}
 .dsb-empty{font-size:var(--fs-12);color:var(--faint)}
 /* ---------- #117: the View Builder (Build section) ---------- */
 .bd-wrap{display:grid;grid-template-columns:250px minmax(0,1fr);gap:var(--sp-16);align-items:start}
+/* Kevin (2026-07-31): breathe at the top — the shelves column starts flush at 0
+   while the sticky datasets pane sits ~20px down (sticky offset + pane padding);
+   pad the main column so the COLUMNS row aligns with the DATASETS header. */
+.bd-main{padding-top:var(--sp-16)}
 .bd-left{background:var(--pane);border:1px solid var(--line);border-radius:12px;padding:var(--sp-10);
   box-sizing:border-box;position:sticky;top:var(--sp-10);overflow:auto;
   /* fill the viewport column (Kevin live) rather than sizing to content */

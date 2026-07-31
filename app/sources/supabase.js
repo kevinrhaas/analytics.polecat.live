@@ -481,9 +481,19 @@
           var localIds = {};
           rows.forEach(function (r) { localIds[String(r.id)] = 1; });
           return rest(cfg, "/" + t, { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify(rows) }).then(mustOk(t))
-            .then(function () { return rest(cfg, "/" + t + "?select=id"); })
+            .then(function () {
+              // USERS-DURABLE 2 (Kevin live, minutes after the first fix): the
+              // users table is UPSERT-ONLY in sync. Even TARGETED deletes are
+              // unsafe from an admin device whose mirror is behind — Kevin's
+              // main session target-deleted the freshly-provisioned fntest row
+              // as "stale" minutes after the Edge Function created it. Account
+              // removal is an EXPLICIT admin action: the Admin remove-user flow
+              // calls deleteRows() directly at click time instead.
+              if (t === "users") return null;
+              return rest(cfg, "/" + t + "?select=id");
+            })
             .then(function (r) {
-              if (!r || r.ok === false) return []; // can't read ids → skip deletes (safe)
+              if (!r || r.ok === false) return []; // users, or can't read ids → skip deletes (safe)
               return r.json();
             })
             .then(function (remote) {
@@ -582,6 +592,20 @@
         keepalive: !!(opts && opts.keepalive)
       }).then(function (r) {
         if (!r.ok) return r.text().then(function (t) { throw new Error("HTTP " + r.status + " " + String(t).slice(0, 120)); });
+        return { ok: true };
+      });
+    },
+
+    // USERS-DURABLE 2: the explicit, targeted row delete — the ONLY way users
+    // rows leave the backend (sync is upsert-only for users; the Admin
+    // remove-user flow calls this at click time, as the acting admin).
+    deleteRows: function (cfg, table, ids) {
+      if (!ids || !ids.length) return Promise.resolve({ ok: true });
+      var list = ids.map(function (id) { return "%22" + encodeURIComponent(String(id)) + "%22"; }).join(",");
+      return rest(cfg, "/" + table + "?id=in.(" + list + ")", { method: "DELETE" }).then(function (r) {
+        if (r && r.ok === false) {
+          return r.text().then(function (b) { return { ok: false, error: "HTTP " + r.status + ": " + String(b || "").slice(0, 140) }; });
+        }
         return { ok: true };
       });
     },
