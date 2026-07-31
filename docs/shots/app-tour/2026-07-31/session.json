@@ -1,0 +1,255 @@
+{
+  "session": "2026-07-31T13:25:19Z",
+  "commit": "d5406d1bb9494f8458029e3731005a6a3bf8416a",
+  "tool": "tools/shoot-app-tour.mjs",
+  "desktop": {
+    "width": 1440,
+    "height": 900
+  },
+  "mobile": {
+    "width": 390,
+    "height": 780
+  },
+  "shots": [
+    {
+      "group": "desktop",
+      "file": "desktop/01-home.png",
+      "title": "Home",
+      "note": "featured live dashboard tile, pinned Views, quick actions"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/02-dashboards-catalog.png",
+      "title": "Dashboards catalog",
+      "note": "both packs' dashboards, filed in pack folders"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/03-views-catalog.png",
+      "title": "Views catalog",
+      "note": "list mode, chart-type icons + folder badges"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/04-view-builder.png",
+      "title": "View Builder",
+      "note": "dataset on the shelves, live crosstab + chart"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/05-explore.png",
+      "title": "Explore",
+      "note": "a saved pack View open in the designer"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/06-datasets-catalog.png",
+      "title": "Datasets catalog",
+      "note": "pack datasets with folders, tags and kinds"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/07-connections.png",
+      "title": "Connections",
+      "note": "the pack's demo file store + repo backend"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/08-jobs.png",
+      "title": "Jobs",
+      "note": "the county-to-state rollup job seeded by the pack"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/09-repository.png",
+      "title": "Repository",
+      "note": "every kind in one tree — kind chips + nested folders"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/10-settings.png",
+      "title": "Settings",
+      "note": "color theme cards at the top"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/11-settings-sample-packs.png",
+      "title": "Settings — sample packs",
+      "note": "both packs installed, with Remove toggles"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/12-dashboard-builder.png",
+      "title": "Dashboard Builder",
+      "note": "the featured pack dashboard on the canvas, inspector right"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/13-dashboard-theme-picker.png",
+      "title": "Dashboard theme picker",
+      "note": "per-dashboard skins in the inspector"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/14-workspace-backend-wizard.png",
+      "title": "Workspace backend wizard",
+      "note": "point the workspace at your own Turso / Supabase / Firebase"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/15-export-menu.png",
+      "title": "Export menu",
+      "note": "standalone HTML export options"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/16-save-as.png",
+      "title": "Save as",
+      "note": "naming a copy of a protected pack dashboard"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/17-json-editor.png",
+      "title": "JSON editor",
+      "note": "the dashboard spec, editable in place"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/18-version-history.png",
+      "title": "Version history",
+      "note": "checkpoints in the dashboard inspector"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/19-version-diff.png",
+      "title": "Version diff",
+      "note": "oldest checkpoint vs the current state"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/20-compare-dashboards.png",
+      "title": "Compare dashboards",
+      "note": "any two dashboards, side by side"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/21-what-s-new.png",
+      "title": "What's new",
+      "note": "the live changelog panel"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/22-keyboard-shortcuts.png",
+      "title": "Keyboard shortcuts",
+      "note": "the shortcut reference overlay"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/23-command-palette.png",
+      "title": "Command palette",
+      "note": "Ctrl+K, searching across the whole workspace"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/24-app-switcher.png",
+      "title": "App switcher",
+      "note": "the Polecat fleet waffle menu"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/25-quick-import.png",
+      "title": "Quick import",
+      "note": "a dropped CSV becomes an instant dashboard — 1 KPI + 5 Views"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/26-new-connection.png",
+      "title": "New connection",
+      "note": "the adapter picker — every supported backend"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/27-dataset-detail.png",
+      "title": "Dataset detail",
+      "note": "the pack's county dataset opened — columns + preview"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/28-job-editor.png",
+      "title": "Job editor",
+      "note": "the acreage-weighted county-to-state rollup steps"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/29-move-to-folder.png",
+      "title": "Move to folder",
+      "note": "bulk-select two datasets, one folder choice files both"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/30-interactive-tours.png",
+      "title": "Interactive tours",
+      "note": "the tour chooser — overview, quick build, jobs, connect"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/31-tour-in-progress.png",
+      "title": "Tour in progress",
+      "note": "the View Builder tour — spotlight ring + step card"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/32-welcome.png",
+      "title": "Welcome",
+      "note": "the first-run welcome — before any data exists"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/33-home-dark.png",
+      "title": "Home — dark",
+      "note": "the same lived-in Home in the dark theme"
+    },
+    {
+      "group": "desktop",
+      "file": "desktop/34-dashboard-builder-dark.png",
+      "title": "Dashboard Builder — dark",
+      "note": "the builder in dark, preview matching"
+    },
+    {
+      "group": "mobile",
+      "file": "mobile/01-home.png",
+      "title": "Home",
+      "note": "the phone layout — cards stack, rail collapses"
+    },
+    {
+      "group": "mobile",
+      "file": "mobile/02-navigation-drawer.png",
+      "title": "Navigation drawer",
+      "note": "the rail as an off-canvas drawer"
+    },
+    {
+      "group": "mobile",
+      "file": "mobile/03-dashboards.png",
+      "title": "Dashboards",
+      "note": "the catalog on a phone"
+    },
+    {
+      "group": "mobile",
+      "file": "mobile/04-command-palette.png",
+      "title": "Command palette",
+      "note": "workspace search on a phone"
+    },
+    {
+      "group": "mobile",
+      "file": "mobile/05-settings.png",
+      "title": "Settings",
+      "note": "theme cards in the phone layout"
+    },
+    {
+      "group": "mobile",
+      "file": "mobile/06-dashboard-on-a-phone.png",
+      "title": "Dashboard on a phone",
+      "note": "the watershed map export at 390px, full length"
+    }
+  ]
+}

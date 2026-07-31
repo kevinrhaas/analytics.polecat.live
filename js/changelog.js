@@ -7,13 +7,14 @@
 export const CHANGELOG = [
   {
     v: 811,
-    title: 'Every sample-pack dashboard captured — a dated reference gallery under docs/shots',
+    title: 'A dated reference gallery of the whole app -- every sample-pack dashboard, plus a tour of the app itself',
     kind: 'polish',
     ts: '2026-07-31T12:52:08.000Z',
     items: [
       'New tools/shoot-pack-dashboards.mjs drives the real app headless, installs both sample packs (Conservation Insight and Data Management & Governance), and captures every one of their dashboards as a full-page PNG -- rendered through the same recipe as Home\'s live tiles, so builder-backed panels show their real computed rows.',
-      'Captures land in docs/shots/sample-packs/<date>/ per pack, with a README and a session.json manifest recording exactly when the image session ran and at which commit; every PNG also carries the session timestamp in its own tEXt metadata, so a file stays traceable even after being copied elsewhere.',
-      'First committed session: 2026-07-31 -- all 23 pack dashboards captured (Conservation Insight 11, Data Management & Governance 12), zero failures.',
+      'New tools/shoot-app-tour.mjs captures the app itself with both packs installed so nothing reads empty: every rail section (Home, Views, Dashboards, Datasets, Connections, Jobs, Repository, the View + Dashboard Builders, Settings) plus the good menus and dialogs staged with sample input -- command palette, export, Save as, JSON editor, version history + diff, compare, quick import, the connection wizard, bulk move-to-folder, the guided tours, welcome, dark theme, and a handful of phone-width shots.',
+      'Captures land in docs/shots/<sample-packs|app-tour>/<date>/, each with a README and a session.json manifest recording exactly when the image session ran and at which commit; every PNG also carries the session timestamp in its own tEXt metadata, so a file stays traceable even after being copied elsewhere.',
+      'First committed session: 2026-07-31 -- 23 pack dashboards + 40 app-tour surfaces (34 desktop, 6 mobile), zero failures.',
     ],
   },
   {
