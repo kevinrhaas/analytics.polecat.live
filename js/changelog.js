@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 784,
+    title: 'The View Builder canvas fills the screen and resizes by drag',
+    ts: '2026-07-31T02:06:00.000Z',
+    items: [
+      'The View Builder’s chart canvas now runs to the bottom of the screen by default — the same fill-the-column behavior as the dataset panel beside it — instead of stopping at a fixed height.',
+      'Drag the slim bar under the canvas to make it taller or shorter, or the bar on its right edge to make it narrower or wider; the size you set is remembered. Double-click a bar to snap that direction back to automatic.',
+    ],
+  },
+  {
     v: 783,
     title: 'Invite hot links, a dismissible sync warning, and a peek at future backends',
     kind: 'feature',

@@ -11543,6 +11543,61 @@ function serve() {
     ok("VB-4: a Color field widens the basis into the long [id, series, value] form and reaches the renderer as chart.map.seriesCol",
       vb4.basisColorHead === "region,quarter,SUM amount" && vb4.iframeSeries, JSON.stringify(vb4));
 
+    // ---- VB-12 (Kevin): the preview canvas fills to the bottom of the screen
+    // by default and is drag-resizable on both axes (persisted; double-click a
+    // handle resets that axis to auto). ----
+    console.log("\n• VB-12: canvas fills to viewport bottom + drag-resize");
+    const vb12 = await page.evaluate(async () => {
+      const out = {};
+      const result = document.getElementById("buildResult");
+      const ifr = result.querySelector("iframe.bd-ifr");
+      out.hasHandles = !!result.querySelector(".bd-rs-h") && !!result.querySelector(".bd-rs-w");
+      // AUTO height: the canvas bottom lands at the viewport bottom (18px margin),
+      // floored at 260px — same fill-the-column idea as .bd-left
+      localStorage.removeItem("studio-bd-preview-size");
+      window.__bdSyncPreviewSize(result, ifr);
+      const r = ifr.getBoundingClientRect();
+      out.autoH = Math.round(r.height);
+      out.expectedH = Math.max(260, Math.round(window.innerHeight - r.top - 18));
+      out.autoFill = Math.abs(out.autoH - out.expectedH) <= 2;
+      // a REAL pointer drag on the bottom bar makes it taller and persists it
+      const hBar = result.querySelector(".bd-rs-h");
+      const h0 = r.height;
+      hBar.dispatchEvent(new PointerEvent("pointerdown", { clientX: 200, clientY: 400, bubbles: true }));
+      document.dispatchEvent(new PointerEvent("pointermove", { clientX: 200, clientY: 340 }));
+      document.dispatchEvent(new PointerEvent("pointerup", {}));
+      const sAfterDrag = JSON.parse(localStorage.getItem("studio-bd-preview-size") || "{}");
+      out.dragPersistedH = sAfterDrag.h;
+      out.dragApplied = Math.abs((sAfterDrag.h || 0) - Math.max(260, Math.round(h0 - 60))) <= 2 &&
+        Math.abs(ifr.getBoundingClientRect().height - sAfterDrag.h) <= 2;
+      // explicit width via the same persisted path the width bar's drag writes
+      localStorage.setItem("studio-bd-preview-size", JSON.stringify({ h: 300, w: 400 }));
+      window.__bdSyncPreviewSize(result, ifr);
+      out.explicit = ifr.style.height === "300px" && ifr.style.width === "400px";
+      // the width handle tracks the canvas's live right edge
+      const wBar = result.querySelector(".bd-rs-w");
+      out.wBarTracks = Math.abs(parseInt(wBar.style.left, 10) - (ifr.offsetLeft + ifr.offsetWidth - 5)) <= 1;
+      // double-click resets ONE axis to auto, keeping the other
+      hBar.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+      const s1 = JSON.parse(localStorage.getItem("studio-bd-preview-size") || "{}");
+      out.hResetKeepsW = !s1.h && s1.w === 400;
+      // (compare against the auto formula, not "≠300px" — auto could land on 300)
+      out.autoAfterReset = Math.abs(parseInt(ifr.style.height, 10) -
+        Math.max(260, Math.round(window.innerHeight - ifr.getBoundingClientRect().top - 18))) <= 2;
+      wBar.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+      const s2 = JSON.parse(localStorage.getItem("studio-bd-preview-size") || "{}");
+      out.wReset = !s2.w && ifr.style.width === "";
+      localStorage.removeItem("studio-bd-preview-size");
+      window.__bdSyncPreviewSize(result, ifr);
+      return out;
+    });
+    ok("VB-12: the preview canvas AUTO-fills to the bottom of the viewport (like the datasets pane) and carries both resize handles",
+      vb12.hasHandles && vb12.autoFill, JSON.stringify(vb12));
+    ok("VB-12: dragging the bottom bar resizes the canvas height and persists it; drag math lands within 2px of the pointer delta",
+      vb12.dragApplied, JSON.stringify(vb12));
+    ok("VB-12: an explicit persisted {w,h} applies to the canvas, the width handle rides the live right edge, and double-clicking a handle resets ONLY that axis back to auto",
+      vb12.explicit && vb12.wBarTracks && vb12.hResetKeepsW && vb12.autoAfterReset && vb12.wReset, JSON.stringify(vb12));
+
     // 13b. VB-4 slice 2 (Kevin overnight queue continued, "hit major ones first"):
     // Stacked bars + Stacked area join the chart strip. Studio's own chart registry
     // (model.js Studio.CHARTS + Studio.newPanel) already treats "stacked" and
