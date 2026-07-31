@@ -955,6 +955,8 @@
           // channel — provider toggles on an Ensemble chart re-color it live.
           var choroCfg = { scale: o.scale || "county", agg: o.agg || "median",
             classes: o.classes || 5, colorToken: o.color || "--good",
+            // CONS-1: diverging change-map ramp — orange→pane→green around opts.center
+            divergeToken: o.divergeToken || null, center: o.center != null ? o.center : null,
             fit: o.fit || "data", stateLines: o.stateLines !== false,
             renderer: o.renderer || "svg",
             // LF22(4): the user's own county-FIPS→region lookup — only consumed when
@@ -989,6 +991,7 @@
           DashKit.ensembleSeries(body, {
             rows: res.rows.map(function (r) { return { label: String(r[eli]), series: String(r[esi]), value: +r[evi] }; }),
             refSeries: o.refSeries || "", channel: o.channel || "providers",
+            seriesColors: o.seriesColors || null, // CONS-1: pinned real-world provider colors
             agg: o.agg || "median", medianLabel: o.medianLabel || "Common estimate",
             showBand: o.showBand !== false, showProviders: o.showProviders !== false,
             showToggles: o.showToggles !== false, fmt: f, height: o.height || 320,

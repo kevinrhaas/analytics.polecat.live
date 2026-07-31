@@ -116,6 +116,33 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **CONS-1 — three CTIC/OpTIS reference dashboards, fully ADDITIVE (v826,
+  sw v458, 2026-07-31, steward — Kevin: additive only, then hold):** the
+  Conservation Insight pack grows 3→6 dashboards, 5→8 datasets; existing
+  dashboards untouched (per Kevin: never restyle in place — pinned/featured
+  copies must not morph). NEW: (1) "OpTIS Cover Crop Trends" — sequential
+  green county map beside a DIVERGING % Change map (new opt-in choropleth
+  `opts.divergeToken`/`opts.center` — orange→pane→green, studio-charts
+  geoDivergeRamp + centered colorOf; threaded in studio-render), the
+  cover-crop-type stacked area 2005–2021 (curated CSV + builder-blob DA —
+  the metrics-wheel real-rows pattern; per-series colors on areaStacked
+  map.series), and a pre-sorted divergingBar county-change distribution.
+  (2) "CRD Cover Crop Data" — headerBg #1c5d99 blue banner, state+sinceYear
+  filters, curated 2015–2021 green area trend beside a REAL crd-scale
+  choropleth (vendored us-crd-counties geometry — no approximation) + a
+  richtext Map Legend card. (3) "Provider Ensemble" — new ensembleSeries
+  `opts.seriesColors` pins the real provider colors (DTN #7d3c98, Indigo
+  #e67e22, Iowa State #f1c40f, Regrow #2e8bd0, Terra #2f8f52; series draw +
+  legend chips), Median label, red AgCensus squares (existing refSeries),
+  provider toggles, linked CRD map inset. Seeding is shared install+heal
+  (`seedConservationReferenceContent`, idempotent by name);
+  `ensureConservationReferenceDashboards` wired into reconcilePackDashboards
+  so pre-CONS-1 installs pick the three up on boot. Pack blurb 6/8 counts.
+  Headless-verified: all three render zero-empty/zero-pageerror; ensemble
+  strokes are exactly the pinned colors. Suite: DP install counts 8/6 + 3
+  new CONS-1 checks (spec shapes, heal round-trip + idempotency).
+  Ensemble-View palette change deliberately NOT made (flagged in the PR —
+  existing pack Views keep theme colors). Lane: skip CONS-1 — done here.
 - **ADOPT-WELCOME — the assigned-workspace ask is a welcome, not a warning
   (v825, sw v457, 2026-07-31, steward — Kevin live with screenshot: "make
   this less of a warning and more of a Welcome!... make this nice instead
@@ -8919,8 +8946,9 @@
 >       placeholder + small gate UI in the exported HTML). Design the picker into the
 >       Export menu (HTML entry grows a mode choice), keep the default = safest
 >       (snapshot). Slices after EXPORT-1.
-> CONS-1. **Conservation pack ↔ real CTIC reference dashboards (Kevin live, 2026-07-30,
->       three reference screenshots — CLAIMED by the dedicated session).** Make the
+> CONS-1. ✓ **SHIPPED v826 (2026-07-31, interactive steward session — Kevin reassigned it here
+>       from the dedicated session; see DONE). Lane: skip.** Original: **Conservation pack ↔ real
+>       CTIC reference dashboards (Kevin live, 2026-07-30, three reference screenshots).** Make the
 >       Conservation sample-pack dashboards look "immediately as close as possible" to the
 >       real CTIC/OpTIS visuals — Views, colors, legends: (1) the OpTIS pair — two Midwest
 >       county choropleths side by side (Avg % Winter Cover Crops, sequential light→dark

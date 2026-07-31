@@ -4830,12 +4830,62 @@ function serve() {
         choroScales: dashes[0] && dashes[0].spec.panels.filter(function (p) { return p.chart.type === "choropleth"; }).map(function (p) { return p.chart.opts.scale; }),
         allFileCsv: dss.every(function (d) { return d.kind === "file" && d.format === "csv"; }) };
     });
-    ok("DP: installDemoPack seeds a whole workspace — 2 connections, 5 file datasets, 1 rollup job, 4 pinned builder-native analyses (CONS-4), the featured + Watershed Map + System Metrics dashboards (CONS-2/CONS-3)",
-      dpInstall.installed && dpInstall.conns === 2 && dpInstall.dss === 5 && dpInstall.ans === 4 && dpInstall.dashes === 3 && dpInstall.jobs === 1 &&
+    ok("DP: installDemoPack seeds a whole workspace — 2 connections, 8 file datasets, 1 rollup job, 4 pinned builder-native analyses (CONS-4), and SIX dashboards: featured + Watershed Map + System Metrics + the three CTIC/OpTIS references (CONS-1/2/3)",
+      dpInstall.installed && dpInstall.conns === 2 && dpInstall.dss === 8 && dpInstall.ans === 4 && dpInstall.dashes === 6 && dpInstall.jobs === 1 &&
       dpInstall.pinned && dpInstall.ansBuilder && dpInstall.featured && dpInstall.allFileCsv &&
       dpInstall.panelTypes.filter(function (t) { return t === "ensembleSeries"; }).length === 4 &&
       dpInstall.panelTypes.filter(function (t) { return t === "choropleth"; }).length === 3,
       JSON.stringify(dpInstall));
+
+    // CONS-1: the three CTIC/OpTIS reference dashboards — spec shapes match the
+    // reference visuals (diverging change map, real provider colors, real CRD
+    // scale, blue banner, curated builder-blob DAs feeding real rows).
+    const cons1Shape = await page.evaluate(function () {
+      var W = Studio.Workspace;
+      function dash(name) { return W.all("dashboards").filter(function (r) { return r.demoPackId === "conservation" && (r.spec && r.spec.name) === name; })[0]; }
+      var optis = dash("conservation-optis-trends"), crd = dash("conservation-crd-cover-crop"), ens = dash("conservation-provider-ensemble");
+      var chg = optis && optis.spec.panels.filter(function (p) { return p.id === "po_change"; })[0];
+      var area = optis && optis.spec.panels.filter(function (p) { return p.id === "po_types"; })[0];
+      var dist = optis && optis.spec.panels.filter(function (p) { return p.id === "po_dist"; })[0];
+      var ensP = ens && ens.spec.panels.filter(function (p) { return p.id === "pe_ens"; })[0];
+      var crdMap = crd && crd.spec.panels.filter(function (p) { return p.id === "pc_map"; })[0];
+      var typeDa = area && optis.spec.cda.dataAccesses.filter(function (d) { return d.id === area.chart.da; })[0];
+      return {
+        all3: !!(optis && crd && ens),
+        diverge: chg && chg.chart.opts.divergeToken === "--warn" && chg.chart.opts.center === 50,
+        areaStacked: area && area.chart.type === "areaStacked" && area.chart.map.series.length === 2 &&
+          area.chart.map.series[1].name === "Cover Crop",
+        areaCurated: !!(typeDa && typeDa.builder && typeDa.builder.dsId),
+        dist: dist && dist.chart.type === "divergingBar",
+        ensColors: ensP && ensP.chart.opts.seriesColors && ensP.chart.opts.seriesColors["DTN"] === "#7d3c98" &&
+          ensP.chart.opts.seriesColors["Terra Diagnostics"] === "#2f8f52" && ensP.chart.opts.refSeries === "AgCensus",
+        crdScale: crdMap && crdMap.chart.opts.scale === "crd",
+        blueBanner: crd && crd.spec.headerBg === "#1c5d99",
+        crdFilters: crd && crd.spec.filters.map(function (f) { return f.id; }).join(",") === "state,sinceYear"
+      };
+    });
+    ok("CONS-1: the OpTIS dashboard carries the diverging change map (--warn ramp, center 50), the two-type stacked area over a curated builder-blob dataset, and the sorted divergingBar distribution",
+      cons1Shape.all3 && cons1Shape.diverge && cons1Shape.areaStacked && cons1Shape.areaCurated && cons1Shape.dist, JSON.stringify(cons1Shape));
+    ok("CONS-1: the CRD dashboard is blue-bannered with state + since-year filters and a REAL crd-scale choropleth; the ensemble reference pins the five real provider colors with AgCensus reference points",
+      cons1Shape.blueBanner && cons1Shape.crdFilters && cons1Shape.crdScale && cons1Shape.ensColors, JSON.stringify(cons1Shape));
+    // The heal: a pre-CONS-1 install (reference dashboards deleted) gets them
+    // back on boot reconcile; a second run is a no-op.
+    const cons1Heal = await page.evaluate(function () {
+      var W = Studio.Workspace;
+      ["conservation-optis-trends", "conservation-crd-cover-crop", "conservation-provider-ensemble"].forEach(function (n) {
+        W.all("dashboards").filter(function (r) { return (r.spec && r.spec.name) === n; })
+          .forEach(function (r) { W.remove("dashboards", r.id, { silent: true }); });
+      });
+      W.notify("dashboards");
+      var healed = Studio.ensureConservationReferenceDashboards();
+      var back = ["conservation-optis-trends", "conservation-crd-cover-crop", "conservation-provider-ensemble"].every(function (n) {
+        return W.all("dashboards").some(function (r) { return (r.spec && r.spec.name) === n; });
+      });
+      var again = Studio.ensureConservationReferenceDashboards();
+      return { healed: healed, back: back, idempotent: again === false };
+    });
+    ok("CONS-1: the boot heal re-adds the three reference dashboards to a pre-CONS-1 install and is idempotent on a healthy one",
+      cons1Heal.healed && cons1Heal.back && cons1Heal.idempotent, JSON.stringify(cons1Heal));
     // LF2: pack-gated examples — the Conservation showcase dashboards (data/examples/index.json
     // demoPackId) only surface in the sample gallery once their pack is installed. LF43 slice 2:
     // the gallery is Home's tile strip now (the Studio Examples ▾ menu is gone) — the install

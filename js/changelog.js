@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 826,
+    title: 'Three new Conservation dashboards, styled after the real CTIC and OpTIS visuals',
+    kind: 'feature',
+    ts: '2026-07-31T16:53:10.000Z',
+    items: [
+      'The Conservation Insight pack grows from three dashboards to six -- all additive, nothing existing changed. "OpTIS Cover Crop Trends" pairs the sequential-green county map with a diverging orange-to-green % Change map, a cover-crop-type stacked area (2005-2021), and a sorted county change distribution. "CRD Cover Crop Data" is the blue-banner Crop Reporting District view -- a green adoption trend beside a real CRD-scale choropleth with state and year filters. "Provider Ensemble" shows the five providers in their real-world colors with the bold median, red AgCensus reference squares, provider toggles, and a linked CRD map.',
+      'Under the hood the choropleth gains an opt-in diverging color ramp and the ensemble chart can pin per-provider colors -- both available to your own dashboards too. Existing installs pick the three new dashboards up automatically on next load.',
+    ],
+  },
+  {
     v: 825,
     title: 'Connecting to your assigned workspace is a welcome now, not a warning',
     kind: 'polish',

@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v457"; /* v457: ADOPT-WELCOME — warm styled
+var CACHE_NAME = "studio-shell-v458"; /* v458: CONS-1 — three CTIC/OpTIS
+   reference dashboards + diverging choropleth ramp + ensemble seriesColors
+   (demopacks.js, studio-charts.js, studio-render.js, studio.js). */
+/* v457: ADOPT-WELCOME — warm styled
    dialog replaces the native adopt confirm (studio.js). */
 /* v456: LF24-XLSX — .xlsx drop support
    (vendor/fflate.js + app/xlsx.js NEW in precache; build/datasets/studio.js,
