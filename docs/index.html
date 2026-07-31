@@ -1424,8 +1424,12 @@
     <li>With a token set, the connection uses the
       <a href="https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/get" target="_blank" rel="noopener noreferrer">Sheets API v4</a>
       — the Tab reads as a plain values range (header row → column names).</li>
-    <li>The gviz query language doesn't exist in v4, so a private-sheet dataset can't filter/sort
-      server-side yet — leave the token blank to keep querying a link-shared sheet.</li>
+    <li>The full gviz query language doesn't exist server-side in v4, so the Query field runs a
+      small local subset instead — <code>select</code>, <code>where</code> (<code>=&nbsp;!=&nbsp;&lt;&nbsp;&lt;=&nbsp;&gt;&nbsp;&gt;=&nbsp;contains</code>,
+      joined with <code>and</code>), <code>order by</code>, <code>limit</code>, and <code>offset</code>
+      — applied client-side to the fetched tab, columns still addressed as <code>A, B, C…</code>. Anything
+      beyond that subset (<code>group by</code>, <code>pivot</code>, aggregates) needs the link-shared/gviz
+      path — leave the token blank for full server-side query support.</li>
     <li>An expired or scope-mismatched token surfaces a clear message, not a raw 401/403.</li>
   </ul>
 

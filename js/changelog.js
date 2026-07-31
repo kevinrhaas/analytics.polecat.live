@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 831,
+    title: 'Google Sheets: private-sheet datasets can now filter/sort/page too',
+    kind: 'feature',
+    ts: '2026-07-31T20:45:28.000Z',
+    items: [
+      'A private (OAuth token) Google Sheets connection previously ignored the dataset Query field entirely -- only a link-shared sheet honored select/where/order by/limit. Private sheets now run a local subset of the same query language client-side: select, where (with =, !=, <, <=, >, >=, contains, joined with and), order by, limit, and offset -- columns still addressed as A, B, C...',
+      'Anything beyond that subset (group by, pivot, aggregate functions) still needs a link-shared sheet -- leave the token blank for full server-side query support.',
+    ],
+  },
+  {
     v: 830,
     title: 'The welcome screen leads with the tours, and every tour brings you back to it',
     kind: 'feature',

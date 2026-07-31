@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v462"; /* v462: TOUR-FRONT + ADOPT-COPY — welcome hero
+var CACHE_NAME = "studio-shell-v463"; /* v463: Track N sweep — the private-
+   sheet (OAuth/v4) Google Sheets path now honors a local select/where/order-
+   by/limit/offset subset of the Query field instead of silently ignoring it
+   (app/sources/gsheets.js, docs/index.html changed, so the precached copies
+   need to roll). */
+/* v462: TOUR-FRONT + ADOPT-COPY — welcome hero
    leads with two descriptive tour cards, shortcuts demoted, prominent skip; chooser
    welcome-sized w/ colored icons + Back; tours finish back at the welcome screen;
    adopt-dialog copy (welcome.js, tutorial.js, studio.js, docs). */

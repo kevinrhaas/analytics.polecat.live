@@ -2239,6 +2239,48 @@ function serve() {
       gsOauth.tabCols === "item|cost" && gsOauth.tabRow === '["Compute",900]', JSON.stringify(gsOauth));
     ok("GS-OAUTH: an expired/invalid token surfaces a friendly message, not a raw 401", gsOauth.badFriendly, JSON.stringify(gsOauth));
     ok("GS-OAUTH: the token is sent as a real Bearer Authorization header", /^Bearer /.test(v4LastAuth), v4LastAuth);
+
+    // tqLite: the private-sheet (v4) path has no server-side query language, so a small local
+    // subset of tq (select/where/order by/limit/offset) is applied client-side to the same rows
+    // gsOauth above proved come back unfiltered from the mock — closes the documented parity gap
+    // vs. the link-shared/gviz path's real tq (GS: "filtered read" test above).
+    const gsTqLite = await page.evaluate(async function () {
+      var gs = Studio.sourceById("gsheets");
+      var cfg = { url: "https://docs.google.com/spreadsheets/d/OAUTHSHEET1/edit", token: "ya29.faketoken" };
+      var where = await gs.queryData(cfg, { kind: "sheet", query: "where A = 'AMER'" });
+      var select = await gs.queryData(cfg, { kind: "sheet", query: "select B" });
+      var order = await gs.queryData(cfg, { kind: "sheet", query: "order by B desc" });
+      var limit = await gs.queryData(cfg, { kind: "sheet", query: "limit 1" });
+      var offset = await gs.queryData(cfg, { kind: "sheet", query: "offset 1" });
+      var combo = await gs.queryData(cfg, { kind: "sheet", query: "select A where B > 150 order by A" });
+      var contains = await gs.queryData(cfg, { kind: "sheet", query: "where A contains 'ame'" });
+      var junk = await gs.queryData(cfg, { kind: "sheet", query: "this is not tq at all" });
+      return {
+        whereRows: JSON.stringify(where.rows),
+        selectCols: select.columns.join("|"), selectRows: JSON.stringify(select.rows),
+        orderRows: JSON.stringify(order.rows),
+        limitRows: JSON.stringify(limit.rows),
+        offsetRows: JSON.stringify(offset.rows),
+        comboCols: combo.columns.join("|"), comboRows: JSON.stringify(combo.rows),
+        containsRows: JSON.stringify(contains.rows),
+        junkRows: JSON.stringify(junk.rows), junkOk: !junk.error
+      };
+    });
+    ok("GS-TQLITE: where filters the private-sheet path's rows client-side (column addressed by letter, matching gviz's convention)",
+      gsTqLite.whereRows === '[["AMER","200"]]', JSON.stringify(gsTqLite));
+    ok("GS-TQLITE: select projects just the named column(s)",
+      gsTqLite.selectCols === "total" && gsTqLite.selectRows === '[["120"],["200"]]', JSON.stringify(gsTqLite));
+    ok("GS-TQLITE: order by sorts numerically (desc) even though v4 cells are formatted strings",
+      gsTqLite.orderRows === '[["AMER","200"],["EMEA","120"]]', JSON.stringify(gsTqLite));
+    ok("GS-TQLITE: limit caps the row count", gsTqLite.limitRows === '[["EMEA","120"]]', JSON.stringify(gsTqLite));
+    ok("GS-TQLITE: offset skips rows", gsTqLite.offsetRows === '[["AMER","200"]]', JSON.stringify(gsTqLite));
+    ok("GS-TQLITE: select + where + order by compose in one query",
+      gsTqLite.comboCols === "region" && gsTqLite.comboRows === '[["AMER"]]', JSON.stringify(gsTqLite));
+    ok("GS-TQLITE: contains does a case-insensitive substring match",
+      gsTqLite.containsRows === '[["AMER","200"]]', JSON.stringify(gsTqLite));
+    ok("GS-TQLITE: a query with no recognized clause keywords fails open — the plain unfiltered read, not an error",
+      gsTqLite.junkOk && gsTqLite.junkRows === '[["EMEA","120"],["AMER","200"]]', JSON.stringify(gsTqLite));
+
     await page.unroute("https://sheets.googleapis.com/v4/spreadsheets/**");
     // Exported-runtime dispatch: a gsheets connection WITH a token now needs the same
     // prompted-once-never-embedded secret treatment as turso/postgrest/supabase (it was

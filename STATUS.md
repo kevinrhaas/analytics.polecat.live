@@ -116,6 +116,30 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Track N — private-sheet Google Sheets datasets get a local tq subset (v831, sw v463,
+  2026-07-31, steward — Track H/L/N rotation, N's turn):** v808's own NEXT pointer named
+  Track L (last at v613) and Track N (last at v611) as both overdue vs Track H at v808;
+  N ran further back (611 < 613), so it's next per the rotation's own convention. Read the
+  N-* backlog top to bottom (N-AI/N-FUN/N-DATA/N-DIST/N-DESIGN/N-DEV) — the Google Sheets
+  adapter's private-sheet (OAuth/Sheets-API-v4) path has carried a documented parity gap
+  since the LF2 follow-up shipped: `dataset.query` (the tq filter/sort string typed into the
+  same Query field the link-shared/gviz path already honors) was silently IGNORED on the
+  token path, because the real gviz query language doesn't exist server-side in v4. Closed
+  it with a small LOCAL interpreter (`tqLite` in `app/sources/gsheets.js`) applied
+  client-side to the rows v4 already returned — `select`/`where`/`order by`/`limit`/`offset`,
+  columns addressed by spreadsheet letter (A, B, C…) same as gviz, `where` supports
+  `= != <> < <= > >= contains` joined with `and`, numeric-vs-string comparison auto-detected
+  per cell since v4's FORMATTED_VALUE cells are always strings. Fails open (unsupported/
+  malformed clauses just return the plain unfiltered read, never an error) — deliberately NOT
+  a full grammar; `group by`/`pivot`/aggregates still require a link-shared sheet, called out
+  in both the file's own header comment and docs/index.html's Private sheets section. 8 new
+  regression checks (GS-TQLITE) against the existing `page.route`-mocked v4 endpoint — where,
+  select, order by (numeric desc despite string cells), limit, offset, select+where+order-by
+  composed, contains, and the fail-open case. Full suite green. Files: app/sources/gsheets.js,
+  docs/index.html, sw.js, js/changelog.js, tests/run.js. NEXT: continuing the Track H/L/N
+  self-directed rotation (Track L now the most overdue, last at v613; its own convention
+  prefers an underused lens — `performance-budget` has run only once, at v605) is a good next
+  slice while the findings queue and ★ backlog stay thin.
 - **TOUR-FRONT + ADOPT-COPY — welcome screen leads with the tours; tours end
   back at the start; adopt-dialog copy (v830, sw v462, 2026-07-31, steward —
   Kevin live with screenshots):** the welcome hero now leads with TWO big
