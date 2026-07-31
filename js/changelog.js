@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 830,
+    title: 'The welcome screen leads with the tours, and every tour brings you back to it',
+    kind: 'feature',
+    ts: '2026-07-31T20:21:42.000Z',
+    items: [
+      'The welcome screen now puts the two tours front and center as big descriptive cards -- the guided tour first, saying exactly what it covers (getting started, quick analyses, building dashboards, prepping and connecting your data). The jump-straight-in shortcuts (New View, Build a dashboard, Bring your data) move below them, smaller, and "Skip the tour -- I just want to explore" is a real, clearly-visible button.',
+      'The guided-tour picker matches the welcome dialog\'s size, each tour wears its own colored icon, and a Back button returns to the welcome screen if you change your mind. Every tour -- quick or guided -- now winds up back at the welcome screen when it finishes, so you can take another or head off and explore.',
+      'The connect-to-your-workspace dialog now says precisely what happens: any other workspace stored locally on this device is replaced when you connect, and from then on you\'re working in your account\'s workspace.',
+    ],
+  },
+  {
     v: 829,
     title: 'Connected-workspace saves stay signed in, and pack dashboards stop duplicating',
     kind: 'fix',

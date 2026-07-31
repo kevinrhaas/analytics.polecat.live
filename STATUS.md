@@ -116,6 +116,30 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **TOUR-FRONT + ADOPT-COPY — welcome screen leads with the tours; tours end
+  back at the start; adopt-dialog copy (v830, sw v462, 2026-07-31, steward —
+  Kevin live with screenshots):** the welcome hero now leads with TWO big
+  descriptive tour cards — guided first + emphasized (`.sw-tour.pri`), its
+  copy naming what the guided tours cover; quick-tour card beside it — with
+  the jump-straight-in shortcuts (New View / Build a dashboard / Bring your
+  data) demoted below them (smaller `.sw-qa` chips under an "Or jump straight
+  in" lead), and the skip is a real bordered button ("Skip the tour — I just
+  want to explore", `.sw-skip.b`). The guided-tour chooser matches the
+  welcome dialog's width (`#st-tip.st-chooser`, 560px), every tour row wears
+  its own colored icon chip (TOURS[k].ic/tint), and a "← Back" button
+  returns to the welcome screen. EVERY tour now winds up back at the start:
+  the quick carousel's last button is "Finish" → hero, and tutorial.js
+  finish() reopens StudioWelcome after the toast. ADOPT-COPY: the
+  assigned-workspace welcome dialog now reads "Any other workspace stored
+  locally on this device will be replaced when you connect, and from here on
+  you'll be working in <label>." Kept all test-critical selectors
+  (data-act=quicktour/guidedtour, .sw-qa ×3, .sw-skip, .st-choice b/small);
+  the 5 tour-completion suite drives now record backAtStart + dismiss the
+  reopened welcome; 3 new checks (hero cards/order/skip; quick-tour loop;
+  chooser size/icons/Back). Headless-verified 10/10 first, zero pageerrors.
+  docs/index.html "Your first sign-in" rewritten to match. Files:
+  app/welcome.js, app/tutorial.js, app/studio.js, docs/index.html,
+  tests/run.js, sw.js, js/changelog.js. Lane: skip TOUR-FRONT — done here.
 - **KEVIN-LIVE-2 — same-workspace re-binds keep the Supabase sign-in +
   Save-on-open shadow-copy fix (v829, sw v461, 2026-07-31, steward — Kevin
   live: branding save → HTTP 401 RLS + the open-RW remedy SQL; "maybe

@@ -121,15 +121,28 @@
       "#studio-welcome button.b{border:1px solid var(--line,#d9e0ec);background:var(--field,#f5f8fc);color:var(--ink,#16233b);border-radius:9px;padding:9px 16px;font-size:13.5px;font-weight:700;cursor:pointer}" +
       "#studio-welcome button.b:hover{border-color:var(--brand,#005bb5);color:var(--brand,#005bb5)}" +
       "#studio-welcome button.b.pri{background:var(--dk,#7d3c98);border-color:transparent;color:#fff}#studio-welcome button.b.pri:hover{background:color-mix(in srgb,var(--dk,#7d3c98) 85%,black)}" +
-      // Hero screen additions.
-      "#studio-welcome .sw-hero-sub{margin:0 0 16px}" +
-      "#studio-welcome .sw-qa-row{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 16px}" +
-      "#studio-welcome .sw-qa{display:flex;align-items:center;gap:8px;flex:1 1 150px;border:1px solid var(--line,#d9e0ec);background:var(--field,#f5f8fc);color:var(--ink,#16233b);border-radius:10px;padding:10px 12px;font-size:12.5px;font-weight:700;cursor:pointer;text-align:left;transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease}" +
-      "#studio-welcome .sw-qa:hover{border-color:var(--brand,#005bb5);color:var(--brand,#005bb5);transform:translateY(-1px);box-shadow:0 4px 14px rgba(8,20,45,.10)}" +
-      "@media(prefers-reduced-motion:reduce){#studio-welcome .sw-qa{transition:none}#studio-welcome .sw-qa:hover{transform:none}}" +
-      "#studio-welcome .sw-qa-ic{display:flex;flex:0 0 auto;color:var(--dk,#7d3c98)}" +
-      "#studio-welcome .sw-hero-note{color:var(--muted,#5d6b82);font-size:12.5px;line-height:1.5;margin:0}" +
+      // Hero screen additions. TOUR-FRONT (Kevin live, 2026-07-31): the TOURS are
+      // the hero's main event — two big descriptive cards — and the section
+      // shortcuts drop below them, smaller and clearly secondary.
+      "#studio-welcome .sw-hero-sub{margin:0 0 14px}" +
+      "#studio-welcome .sw-tour-row{display:flex;gap:12px;margin:0 0 16px}" +
+      "#studio-welcome .sw-tour{flex:1 1 0;display:flex;flex-direction:column;align-items:flex-start;gap:7px;text-align:left;border:1px solid var(--line,#d9e0ec);background:var(--field,#f5f8fc);color:var(--ink,#16233b);border-radius:12px;padding:14px 15px;cursor:pointer;transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease}" +
+      "#studio-welcome .sw-tour:hover{border-color:var(--brand,#005bb5);transform:translateY(-1px);box-shadow:0 6px 18px rgba(8,20,45,.12)}" +
+      "#studio-welcome .sw-tour.pri{border-color:color-mix(in srgb,var(--dk,#7d3c98) 55%,transparent);background:color-mix(in srgb,var(--dk,#7d3c98) 9%,var(--field,#f5f8fc))}" +
+      "#studio-welcome .sw-tour b{font-size:14px;font-weight:800}" +
+      "#studio-welcome .sw-tour small{color:var(--muted,#5d6b82);font-size:12px;line-height:1.5;font-weight:400}" +
+      "#studio-welcome .sw-tour-ic{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;background:color-mix(in srgb,var(--dk,#7d3c98) 14%,transparent);color:var(--dk,#7d3c98);flex:0 0 auto}" +
+      "@media(prefers-reduced-motion:reduce){#studio-welcome .sw-tour{transition:none}#studio-welcome .sw-tour:hover{transform:none}}" +
+      "#studio-welcome .sw-qa-lead{color:var(--faint,#8a97ab);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:0 0 7px}" +
+      "#studio-welcome .sw-qa-row{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 4px}" +
+      "#studio-welcome .sw-qa{display:flex;align-items:center;gap:7px;flex:0 1 auto;border:1px solid var(--line,#d9e0ec);background:transparent;color:var(--muted,#5d6b82);border-radius:9px;padding:7px 11px;font-size:11.5px;font-weight:700;cursor:pointer;text-align:left;transition:border-color .12s ease,color .12s ease}" +
+      "#studio-welcome .sw-qa:hover{border-color:var(--brand,#005bb5);color:var(--brand,#005bb5)}" +
+      "#studio-welcome .sw-qa-ic{display:flex;flex:0 0 auto;color:inherit}" +
+      "#studio-welcome .sw-hero-note{color:var(--muted,#5d6b82);font-size:12px;line-height:1.5;margin:0}" +
       "#studio-welcome .sw-hero-note b{color:var(--ink,#16233b)}" +
+      // TOUR-FRONT: the skip is a real, noticeable button now, not a whisper.
+      "#studio-welcome .sw-ft button.sw-skip.b{background:var(--field,#f5f8fc);border:1px solid var(--line,#d9e0ec);color:var(--ink,#16233b);border-radius:9px;padding:9px 14px;font-size:13px;font-weight:700}" +
+      "#studio-welcome .sw-ft button.sw-skip.b:hover{border-color:var(--brand,#005bb5);color:var(--brand,#005bb5)}" +
       // Theme-colored confetti entrance — colors follow the active app theme/palette
       // (--brand/--dk/--good/--warn/--bad exist in every palette × light/dark combo)
       // instead of a fixed color set, so it never clashes with whatever's active.
@@ -184,22 +197,34 @@
 
   function renderHero() {
     var ov = document.getElementById("studio-welcome"); if (!ov) return;
+    // TOUR-FRONT (Kevin live, 2026-07-31): the hero leads with the TWO TOURS as
+    // big descriptive cards — the guided tour first and emphasized, saying what
+    // it actually covers — with the jump-straight-in shortcuts demoted below
+    // them, and a skip that reads like a real choice instead of a whisper.
     ov.querySelector(".sw").innerHTML =
       '<div class="sw-hd"><div class="sw-ic" data-ic="sparkle"></div><h1>' + Studio.escapeHtml(greeting()) + "</h1></div>" +
       '<div class="sw-bd"><p class="sw-hero-sub">A modern, visual way to turn your data into quick analyses and interactive dashboards — entirely in your browser, local-first, nothing to install.</p>' +
+      '<div class="sw-tour-row">' +
+      '<button class="sw-tour pri" data-act="guidedtour"><span class="sw-tour-ic" data-ic="sparkle"></span><b>Take the guided tour</b>' +
+      "<small>Spotlights on the real app — pick a topic: getting started, quick analyses, building dashboards, prepping and connecting your data. A couple of minutes each.</small></button>" +
+      '<button class="sw-tour" data-act="quicktour"><span class="sw-tour-ic" data-ic="search"></span><b>Take a quick tour</b>' +
+      "<small>A few quick cards right here — what each part of the app is for, under a minute, no clicking around.</small></button>" +
+      "</div>" +
+      '<p class="sw-qa-lead">Or jump straight in</p>' +
       '<div class="sw-qa-row">' + QUICK_ACTIONS.map(function (qa) {
         return '<button class="sw-qa" data-act="qa" data-qa="' + qa.qa + '"><span class="sw-qa-ic" data-ic="' + qa.ic + '"></span>' + qa.t + "</button>";
       }).join("") + "</div>" +
-      '<p class="sw-hero-note">Prefer to look around first? You can always come back to this tour later via <b>Settings → Tour</b>.</p></div>' +
-      '<div class="sw-ft"><button class="sw-skip">Explore on my own</button><span class="sp"></span>' +
-      '<button class="b" data-act="guidedtour">Take the guided tour</button>' +
-      '<button class="b pri" data-act="quicktour">Take a quick tour</button></div>';
+      '<p class="sw-hero-note">You can always come back to the tours later via <b>Settings → Tour</b>.</p></div>' +
+      '<div class="sw-ft"><button class="sw-skip b">Skip the tour — I just want to explore</button><span class="sp"></span>' +
+      '<button class="b pri" data-act="guidedtour2">Take the guided tour</button></div>';
     ov.querySelector(".sw-ic").appendChild(Studio.icon("sparkle", 26));
+    var tourIcs = ov.querySelectorAll(".sw-tour-ic");
+    for (var t = 0; t < tourIcs.length; t++) tourIcs[t].appendChild(Studio.icon(tourIcs[t].getAttribute("data-ic"), 18));
     var qaButtons = ov.querySelectorAll(".sw-qa");
     for (var i = 0; i < qaButtons.length; i++) {
       (function (btn) {
         var icSpan = btn.querySelector(".sw-qa-ic");
-        icSpan.appendChild(Studio.icon(icSpan.getAttribute("data-ic"), 16));
+        icSpan.appendChild(Studio.icon(icSpan.getAttribute("data-ic"), 14));
         btn.onclick = function () {
           var key = btn.getAttribute("data-qa");
           close();
@@ -208,11 +233,13 @@
       })(qaButtons[i]);
     }
     ov.querySelector(".sw-skip").onclick = close;
-    ov.querySelector('[data-act="guidedtour"]').onclick = function () { close(); if (window.StudioTutorial) StudioTutorial.open(); };
+    function goGuided() { close(); if (window.StudioTutorial) StudioTutorial.open(); }
+    ov.querySelector('[data-act="guidedtour"]').onclick = goGuided;
+    ov.querySelector('[data-act="guidedtour2"]').onclick = goGuided;
     ov.querySelector('[data-act="quicktour"]').onclick = function () { render(0); };
     // Re-render replaces .sw's innerHTML, dropping whatever had focus — land it on the
     // hero's primary CTA so Tab stays inside the trap below (same convention as render(i)).
-    ov.querySelector('[data-act="quicktour"]').focus();
+    ov.querySelector('[data-act="guidedtour"]').focus();
     heroConfetti();
   }
 
@@ -227,10 +254,12 @@
       '<div class="sw-ft"><button class="sw-skip">Skip</button><span class="sp"></span>' +
       '<button class="b" data-act="back">Back</button>' +
       (i === steps.length - 1 ? '<button class="b" data-act="tour">Take the guided tour</button>' : "") +
-      '<button class="b pri" data-act="next">' + (i === steps.length - 1 ? "Get started" : "Next") + "</button></div>";
+      '<button class="b pri" data-act="next">' + (i === steps.length - 1 ? "Finish" : "Next") + "</button></div>";
     ov.querySelector(".sw-ic").appendChild(Studio.icon(step.ic, 26));
     ov.querySelector(".sw-skip").onclick = close;
-    var nx = ov.querySelector('[data-act="next"]'); if (nx) nx.onclick = function () { i === steps.length - 1 ? close() : render(i + 1); };
+    // TOUR-FRONT (Kevin): every tour winds up back at the start — finishing the
+    // quick tour returns to the hero (pick another tour, or skip out from there).
+    var nx = ov.querySelector('[data-act="next"]'); if (nx) nx.onclick = function () { i === steps.length - 1 ? render(-1) : render(i + 1); };
     var tr = ov.querySelector('[data-act="tour"]'); if (tr) tr.onclick = function () { close(); if (window.StudioTutorial) StudioTutorial.open(); };
     // Back from step 0 now returns to the hero screen (index -1) instead of being
     // hidden, so "start over" is reachable from anywhere in the carousel.

@@ -16405,6 +16405,43 @@ function serve() {
     ok("Back from the carousel's first step returns to the hero screen (not hidden/dead-ended)", backToHero);
     await gp.evaluate(() => document.querySelector("#studio-welcome .sw-skip").click()); await gp.waitForTimeout(120);
     ok("welcome tour dismisses + persists", await gp.evaluate(() => !document.querySelector("#studio-welcome") && localStorage.getItem("studio-welcome-seen") === "1"));
+    // ---- TOUR-FRONT (Kevin live, 2026-07-31): the hero leads with the TOURS ----
+    await gp.evaluate(() => window.StudioWelcome.open());
+    await gp.waitForTimeout(200);
+    const tourFront = await gp.evaluate(() => {
+      var ov = document.getElementById("studio-welcome");
+      var guided = ov.querySelector('[data-act="guidedtour"]');
+      var quick = ov.querySelector('[data-act="quicktour"]');
+      var qaRow = ov.querySelector(".sw-qa-row");
+      var skip = ov.querySelector(".sw-skip");
+      return {
+        guidedIsCard: !!guided && guided.classList.contains("sw-tour") && /building dashboards/i.test(guided.textContent),
+        guidedFirst: !!guided && guided.classList.contains("pri"),
+        quickIsCard: !!quick && quick.classList.contains("sw-tour"),
+        cardIcons: ov.querySelectorAll(".sw-tour .sw-tour-ic svg").length === 2,
+        toursAboveShortcuts: !!(guided && qaRow) && !!(guided.compareDocumentPosition(qaRow) & Node.DOCUMENT_POSITION_FOLLOWING),
+        skipProminent: !!skip && skip.classList.contains("b") && /skip the tour/i.test(skip.textContent)
+      };
+    });
+    ok("TOUR-FRONT: the hero leads with two descriptive tour CARDS (guided emphasized + says what it covers, both with icons), the jump-straight-in shortcuts sit BELOW them, and the skip is a real clearly-labeled button",
+      tourFront.guidedIsCard && tourFront.guidedFirst && tourFront.quickIsCard && tourFront.cardIcons && tourFront.toursAboveShortcuts && tourFront.skipProminent,
+      JSON.stringify(tourFront));
+    const tourLoop = await gp.evaluate(async () => {
+      function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+      document.querySelector('#studio-welcome [data-act="quicktour"]').click(); await sleep(120);
+      var guard = 0;
+      while (guard++ < 14) {
+        var nx = document.querySelector('#studio-welcome [data-act="next"]');
+        if (!nx) break;
+        var last = /Finish/.test(nx.textContent);
+        nx.click(); await sleep(90);
+        if (last) break;
+      }
+      return { backAtHero: !!document.querySelector('#studio-welcome [data-act="quicktour"]'), stillOpen: !!document.getElementById("studio-welcome") };
+    });
+    ok("TOUR-FRONT: finishing the quick tour winds up back at the start (the hero screen), not dumped out of the flow",
+      tourLoop.backAtHero && tourLoop.stillOpen, JSON.stringify(tourLoop));
+    await gp.evaluate(() => document.querySelector("#studio-welcome .sw-skip").click()); await gp.waitForTimeout(100);
     // Tour moved out of the topbar (user feedback) — reachable via Settings and the
     // ⌘K palette (LF46 ⋯ teardown slice 2 dropped the ⋯ More → Tour button entirely,
     // it duplicated this exact path). That topbar lives inside Studio, which the
@@ -26878,13 +26915,18 @@ function serve() {
       doneBtn.click();
       await sleep(150);
       out.closed = !document.getElementById("st-tip") && !window.__studioTutorialActive();
+      // TOUR-FRONT: every tour winds up back at the start (the welcome screen) —
+      // record it, then dismiss so the next test isn't under the overlay.
+      out.backAtStart = !!document.getElementById("studio-welcome");
+      var wskip = document.querySelector("#studio-welcome .sw-skip");
+      if (wskip) wskip.click();
       out.done = StudioTutorial.isDone();
       try { out.doneQuick = localStorage.getItem("studio-tutorial-done-quick") === "1"; } catch (e) {}
       return out;
     });
     ok("J6: the Quick analysis tour drives the REAL Explore flow — section switched, sample seeded, all 6 spotlighted steps find live targets, Done! completes and records",
       j6QuickWalk.tour === "quick" && j6QuickWalk.explore && j6QuickWalk.rings === 6 &&
-      /Done/.test(j6QuickWalk.lastLabel) && j6QuickWalk.closed && j6QuickWalk.done && j6QuickWalk.doneQuick,
+      /Done/.test(j6QuickWalk.lastLabel) && j6QuickWalk.closed && j6QuickWalk.done && j6QuickWalk.doneQuick && j6QuickWalk.backAtStart,
       JSON.stringify(j6QuickWalk));
 
     // J6-7 (M2): the OVERVIEW tour walks the whole app down the rail and ENDS on Home
@@ -26929,7 +26971,10 @@ function serve() {
       var lastLabel = (document.querySelector("#st-tip button.pri") || {}).textContent || "";
       document.querySelector("#st-tip button.pri").click();
       await sleep(150);
-      return { tour: "overview", railHits: hits, onHome: onHome, lastLabel: lastLabel,
+      var backAtStart = !!document.getElementById("studio-welcome"); // TOUR-FRONT
+      var wskip = document.querySelector("#studio-welcome .sw-skip");
+      if (wskip) wskip.click();
+      return { tour: "overview", railHits: hits, onHome: onHome, lastLabel: lastLabel, backAtStart: backAtStart,
         closed: !document.getElementById("st-tip") && !window.__studioTutorialActive() };
     });
     ok("J6: the Overview tour spotlights all 9 rail sections in order (View Builder included — TOUR-WOW) and ENDS on Home (getting-started), then completes",
@@ -26971,6 +27016,11 @@ function serve() {
       doneBtn.click();
       await sleep(150);
       out.closed = !document.getElementById("st-tip") && !window.__studioTutorialActive();
+      // TOUR-FRONT: every tour winds up back at the start (the welcome screen) —
+      // record it, then dismiss so the next test isn't under the overlay.
+      out.backAtStart = !!document.getElementById("studio-welcome");
+      var wskip = document.querySelector("#studio-welcome .sw-skip");
+      if (wskip) wskip.click();
       out.done = StudioTutorial.isDone();
       try { out.doneJobs = localStorage.getItem("studio-tutorial-done-jobs") === "1"; } catch (e) {}
       return out;
@@ -27016,6 +27066,11 @@ function serve() {
       doneBtn.click();
       await sleep(150);
       out.closed = !document.getElementById("st-tip") && !window.__studioTutorialActive();
+      // TOUR-FRONT: every tour winds up back at the start (the welcome screen) —
+      // record it, then dismiss so the next test isn't under the overlay.
+      out.backAtStart = !!document.getElementById("studio-welcome");
+      var wskip = document.querySelector("#studio-welcome .sw-skip");
+      if (wskip) wskip.click();
       out.done = StudioTutorial.isDone();
       try { out.doneConnect = localStorage.getItem("studio-tutorial-done-connect") === "1"; } catch (e) {}
       return out;
@@ -27116,6 +27171,11 @@ function serve() {
       doneBtn.click();
       await sleep(150);
       out.closed = !document.getElementById("st-tip") && !window.__studioTutorialActive();
+      // TOUR-FRONT: every tour winds up back at the start (the welcome screen) —
+      // record it, then dismiss so the next test isn't under the overlay.
+      out.backAtStart = !!document.getElementById("studio-welcome");
+      var wskip = document.querySelector("#studio-welcome .sw-skip");
+      if (wskip) wskip.click();
       out.done = StudioTutorial.isDone();
       try { out.doneConservation = localStorage.getItem("studio-tutorial-done-conservation") === "1"; } catch (e) {}
       return out;
@@ -27138,6 +27198,33 @@ function serve() {
     ok("J6: Conservation Insight tour disappears from the chooser again once the pack is removed, and the overview tour's pack step goes with it",
       j6ConservationCleanup.count === 5 && !j6ConservationCleanup.installed && j6ConservationCleanup.overviewSteps === 12 + j6ConservationCleanup.installedCount,
       JSON.stringify(j6ConservationCleanup));
+
+    // ---- TOUR-FRONT (Kevin live, 2026-07-31): the chooser matches the welcome
+    // dialog's size, wears per-tour colored icons, and its Back button returns
+    // to the welcome screen for anyone who changes their mind. ----
+    const tfChooser = await page.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      StudioTutorial.open();
+      await sleep(150);
+      var tip = document.getElementById("st-tip");
+      var out = {
+        chooserClass: !!tip && tip.classList.contains("st-chooser"),
+        wide: !!tip && tip.offsetWidth >= 500,
+        iconCount: tip ? tip.querySelectorAll(".st-choice .st-ch-ic svg").length : 0,
+        choiceCount: tip ? tip.querySelectorAll(".st-choice[data-tour]").length : 0,
+        hasBack: !!(tip && tip.querySelector('[data-act="chooser-back"]'))
+      };
+      tip.querySelector('[data-act="chooser-back"]').click();
+      await sleep(150);
+      out.backAtWelcome = !!document.getElementById("studio-welcome");
+      out.chooserGone = !document.getElementById("st-tip");
+      var wskip = document.querySelector("#studio-welcome .sw-skip");
+      if (wskip) wskip.click();
+      return out;
+    });
+    ok("TOUR-FRONT: the guided-tour chooser is welcome-dialog sized with a colored icon per tour, and its Back button returns to the welcome screen (chooser closed, welcome open)",
+      tfChooser.chooserClass && tfChooser.wide && tfChooser.choiceCount >= 5 && tfChooser.iconCount === tfChooser.choiceCount && tfChooser.hasBack && tfChooser.backAtWelcome && tfChooser.chooserGone,
+      JSON.stringify(tfChooser));
 
     // restore studio section for later tests
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
