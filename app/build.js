@@ -1804,6 +1804,10 @@
     if (!a) return;
     if (a.builder) { bdLoad(id); return; }
     bdReset();
+    // VB-14: identity is stamped in two places — here for the no-dataset early
+    // return below, and again AFTER the noDraft select (whose draft restore
+    // would otherwise clobber it — the same bug bdLoad had: Update would then
+    // silently save a NEW View instead of upgrading this one in place).
     BD.analysisId = a.id; BD.name = a.name || ""; BD.folder = a.folder || ""; BD.panelTitle = a.panelTitle || ""; // VB-7
     BD.paletteKey = a.paletteKey || "";
     var kind = null, dsId = null;
@@ -1821,9 +1825,10 @@
       render();
       return;
     }
-    bdSelectDataset(kind, dsId).then(function () {
+    bdSelectDataset(kind, dsId, { noDraft: true }).then(function () {
+      BD.analysisId = a.id; BD.name = a.name || ""; BD.folder = a.folder || ""; BD.panelTitle = a.panelTitle || "";
+      BD.paletteKey = a.paletteKey || "";
       if (!BD.run) {
-        BD.analysisId = a.id;
         BD.notice = "“" + (a.name || "This View") + "”’s source dataset is gone — pick another dataset to rebuild it.";
         render();
         return;
