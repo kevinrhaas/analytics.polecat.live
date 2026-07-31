@@ -8877,11 +8877,24 @@
     var st = Studio.Sync.syncState();
     if (st.isRemote && st.sourceId === target.adapter &&
         JSON.stringify(Studio.Sync.currentConfig()) === JSON.stringify(target.cfg)) return; // already there
-    var label = target.name || "your assigned workspace";
+    // KEVIN-COPY (live, 2026-07-31): name the WORKSPACE, never the adapter — his
+    // dialog read "the “Supabase” workspace backend" because the admin's backend
+    // registration was named after its adapter. When the stored name is missing
+    // or adapter-ish, prefer the packaged workspace catalog's human label for the
+    // same URL (e.g. "Polecat workspace").
+    var label = target.name || "";
+    if (!label || /^(supabase|turso|firebase|postgres(ql)?|custom)$/i.test(label.trim())) {
+      try {
+        var cat = window.STUDIO_WORKSPACES || [];
+        var hit = cat.filter(function (w) { return w.cfg && target.cfg && w.cfg.url === target.cfg.url; })[0];
+        if (hit && hit.label) label = hit.label;
+      } catch (e) {}
+    }
+    if (!label) label = "your assigned workspace";
     var declineKey = "studio-backend-decline:" + (target.id || "cfg");
     function go() {
       Studio.Sync.connectAdopt(target.adapter, target.cfg, { skipIfEmpty: true }).then(function () {
-        toast("Connected to " + label + " — your account's assigned workspace backend.");
+        toast("Connected to " + label + " — your account's assigned workspace.");
         try { renderSettings(); renderAdmin(); renderHome(); } catch (e) {}
       }, function (e) {
         try { localStorage.setItem("studio-workspace-last", target.id || ""); } catch (e2) {}
@@ -8890,7 +8903,7 @@
     }
     if (!workspaceHasUserContent()) { go(); return; }
     try { if (localStorage.getItem(declineKey) === "1") return; } catch (e) {}
-    if (window.confirm("Your account is assigned to the “" + label + "” workspace backend. Switch this device to it now? What's stored locally will be replaced by that workspace's data.")) go();
+    if (window.confirm("Your account uses “" + label + "”. Adopt it on this device? Your local workspace will be overwritten with its data.")) go();
     else { try { localStorage.setItem(declineKey, "1"); } catch (e) {} }
   }
   window.__studioApplyAssignedBackend = applyAssignedBackend; // #103 test hook

@@ -5,7 +5,8 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v447"; /* v447: TOUR-FORCE — per-user one-shot
+var CACHE_NAME = "studio-shell-v448"; /* v448: KEVIN-COPY — welcome/chooser/
+   adopt-prompt wording (welcome.js, tutorial.js, studio.js). v447: TOUR-FORCE — per-user one-shot
    force-the-welcome-tour flag (auth.js + studio.js + docs). v446: SORT-1 — sort control on every
    catalog panel (studio.js, datasets.js, connections.js, jobs.js, views.js,
    index.html, studio.css + docs changed). */

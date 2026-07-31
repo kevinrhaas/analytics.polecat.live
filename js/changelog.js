@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 814,
+    title: 'Clearer words in the welcome screen, tour chooser, and workspace prompt',
+    kind: 'polish',
+    ts: '2026-07-31T13:36:41.000Z',
+    items: [
+      'The welcome screen\'s first shortcut now reads "New View" (was "New Quick View"), and the tour chooser\'s first entry is "Getting started" instead of repeating "Take the tour" -- you\'ve already chosen a tour by the time you\'re picking one.',
+      'The prompt that offers to switch a device to your account\'s assigned workspace now names the workspace itself (like "Polecat workspace") instead of the database technology behind it, and asks plainly: adopt it on this device, and your local workspace will be overwritten. A brand-new device still connects silently with no prompt at all.',
+    ],
+  },
+  {
     v: 813,
     title: 'Admins can force the welcome tour at an account\'s next sign-in',
     kind: 'feature',

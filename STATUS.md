@@ -116,6 +116,22 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **KEVIN-COPY — welcome/chooser/adopt-prompt wording (v814, sw v448,
+  2026-07-31, steward — three Kevin-live notes):** (1) welcome hero shortcut
+  "New Quick View" → "New View" (destination unchanged: Quick Views, the
+  guided first-timer path; the Home cards / Views ＋New menu keep the full
+  New View vs New Quick View distinction). (2) Tour chooser first row
+  "Take the tour" → "Getting started" (you've already chosen to take a tour
+  by the time the chooser is up; per Kevin "overview or getting started").
+  The bigger make-the-tour-impressive pass stays on LF58. (3) #103
+  applyAssignedBackend prompt names the WORKSPACE, never the adapter: when
+  the stored backend name is missing/adapter-ish (Supabase/Turso/Firebase/
+  Postgres/custom) it resolves the packaged STUDIO_WORKSPACES label by cfg.url
+  ("Polecat workspace"); copy is now "Your account uses “X”. Adopt it on
+  this device? Your local workspace will be overwritten with its data." A
+  fresh device (no user-authored rows) still connects silently. Suite: J6
+  chooser labels updated (+ asserts no "Take the tour" row), new
+  KEVIN-COPY prompt-naming check. Lane: skip KEVIN-COPY — done here.
 - **TOUR-FORCE — per-user one-shot "show the welcome tour at next sign-in"
   flag (v813, sw v447, 2026-07-31, steward — Kevin live: signed in as a
   brand-new test account on a device that had already seen the welcome and
