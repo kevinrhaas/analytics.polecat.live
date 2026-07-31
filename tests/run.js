@@ -20085,12 +20085,13 @@ function serve() {
 
     // ---- M12: What's-new panel stays within phone viewport ----
     console.log("\n• M12: What's-new panel width on phone (390px)");
-    // Earlier phone checks can leave a drawer open; its #mobile-scrim covers the
-    // footer and would swallow the click (the pre-panel M12 never clicked, so this
-    // never mattered before). Close any open drawer first.
+    // Earlier phone checks can leave a drawer open; close any open drawer first.
     await phonePage.evaluate(() => { var s = document.getElementById("mobile-scrim"); if (s && s.classList.contains("active")) s.click(); });
     await phonePage.waitForTimeout(350);
-    await phonePage.click("#btnChangelog");
+    // DECLUTTER-1: the footer #btnChangelog is retired — open the same feed via
+    // the topbar button (programmatic click: at 390px it may be menu-tucked, and
+    // this check is about the PANEL's width, not the trigger's tap target).
+    await phonePage.evaluate(() => document.getElementById("tbWhatsNew").click());
     await phonePage.waitForTimeout(550);
     const m12CL = await phonePage.evaluate(() => {
       var p = document.querySelector(".ps-rpanel");
@@ -20184,7 +20185,7 @@ function serve() {
     ok("MNAV: Inspector tab opens the inspector drawer on-screen", mnavInsp.onScreen, JSON.stringify(mnavInsp));
     await phonePage.evaluate(() => document.querySelector('#mobile-tabs .mob-tab[data-mob-tab="canvas"]').click());
 
-    await phonePage.click("#btnChangelog");
+    await phonePage.evaluate(() => document.getElementById("tbWhatsNew").click()); // DECLUTTER-1: footer button retired
     await phonePage.waitForTimeout(550);
     const mnavCL = await phonePage.evaluate(() => { var c = document.querySelector(".ps-rpanel"); if (!c) return { open: false }; var r = c.getBoundingClientRect(); return { open: true, inView: r.left >= -1 && r.right <= window.innerWidth + 1 }; });
     ok("MNAV: What's-new panel sits fully within the viewport", mnavCL.open && mnavCL.inView, JSON.stringify(mnavCL));
@@ -20214,7 +20215,7 @@ function serve() {
 
     // ---- E6: Changelog search (inside the shell right panel) ----
     console.log("\n• Changelog search (E6)");
-    await page.click("#btnChangelog"); await page.waitForTimeout(320);
+    await page.click("#tbWhatsNew"); await page.waitForTimeout(320); // DECLUTTER-1: footer button retired
     const e6Init = await page.evaluate(() => {
       var pop = document.getElementById("changelogPop");
       var srch = pop ? pop.querySelector("#clSearch") : null;
@@ -20363,7 +20364,7 @@ function serve() {
     // ---- E7: Changelog time stamps ----
     console.log("\n• Changelog time stamps (E7)");
     // Ensure changelog is open (open it again)
-    await page.click("#btnChangelog"); await page.waitForTimeout(150);
+    await page.click("#tbWhatsNew"); await page.waitForTimeout(150); // DECLUTTER-1: footer button retired
     const e7 = await page.evaluate(() => {
       var pop = document.getElementById("changelogPop");
       if (!pop) return { ok: false };
@@ -36228,13 +36229,15 @@ function serve() {
 
     // ── m-e: "What's new"/changelog + Help reachable on mobile ──
     console.log("\n• m-e: changelog + Help reachable at 390px");
+    // DECLUTTER-1: the footer Changelog button is retired — the feed opens from
+    // the topbar What's-New (programmatic: may be menu-tucked at 390px; this
+    // check is about the SHEET's reachability, not the trigger's tap target).
     const meChangelog = await mp2.evaluate(() => {
-      var btn = document.getElementById("btnChangelog");
-      var r = btn.getBoundingClientRect();
-      return { onScreen: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.width > 10 };
+      var gone = !document.getElementById("btnChangelog");
+      document.getElementById("tbWhatsNew").click();
+      return { footerBtnGone: gone };
     });
-    ok("m-e: the footer Changelog button is on-screen at 390px (root-caused by the m-b 100dvh fix)", meChangelog.onScreen, JSON.stringify(meChangelog));
-    await mp2.click("#btnChangelog");
+    ok("m-e: the retired footer Changelog button is genuinely gone at 390px too", meChangelog.footerBtnGone, JSON.stringify(meChangelog));
     await mp2.waitForTimeout(300);
     const meCloseBtn = await mp2.evaluate(() => {
       var b = document.querySelector('.ps-rpanel-head button[aria-label="Close panel"]');
