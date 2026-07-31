@@ -10648,6 +10648,11 @@ function serve() {
         // bindConnection: wire the REAL Sync write-through to the stub without a
         // destructive adopting pull (that's the WORKSPACE-LOGIN entry path too)
         await Studio.Sync.bindConnection("supabase", { url: "https://x.supabase.co", key: "k" });
+        // SYNC-PREAUTH: a bound connection is latched (no automatic pulls until a
+        // sign-in). This page plays a SIGNED-IN session, so run the same explicit
+        // adopting pull the real sign-in flow runs — it unlatches, and the empty
+        // stub remote it adopts is restored from `keep` in the finally below.
+        await Studio.Sync.pullNow();
         // 1) a NEW account row schedules a push (the exact test2 hole)…
         calls.length = 0;
         window.__studioMirrorUserRow({ u: "t2add", name: "T2", role: "member", hash: "h1" });
@@ -39474,14 +39479,24 @@ function serve() {
     ok("SYNC-PREAUTH: quietPull (even forced) and retryNow both refuse while latched — local rows survive, nothing adopted",
       paQuiet.quietRefused && paQuiet.markerSurvives && paQuiet.stillNoRemote && paQuiet.stillLatched, JSON.stringify(paQuiet));
     const paExplicit = await paPage.evaluate(async function () {
+      // stub the adapter (same seam as the #103 guard test) — the shared mock
+      // backend's end-of-suite state must not decide this check
+      var src = Studio.sourceById("supabase");
+      var realLoad = src.load, realSave = src.save;
+      src.load = function () { return Promise.resolve({ tables: { users: [{ id: "user_remotepa", u: "remotepa", name: "RPA", role: "member" }] } }); };
+      src.save = function () { return Promise.resolve({ ok: true }); };
       await Studio.Sync.pullNow(); // the post-sign-in adopting pull
+      src.load = realLoad; src.save = realSave;
       var conn = {};
       try { conn = JSON.parse(localStorage.getItem("analytics.datasource.v1") || "{}"); } catch (e) {}
       var st = Studio.Sync.syncState();
-      return { unlatched: st.preAuth === false, savedUnlatched: !conn.preAuth, status: st.status };
+      return {
+        unlatched: st.preAuth === false, savedUnlatched: !conn.preAuth, status: st.status,
+        adopted: Studio.Workspace.all("users").some(function (u) { return u.u === "remotepa"; })
+      };
     });
     ok("SYNC-PREAUTH: the first explicit pull (post-sign-in) adopts and clears the latch — live state AND the saved connection both unlatch",
-      paExplicit.unlatched && paExplicit.savedUnlatched && paExplicit.status === "connected", JSON.stringify(paExplicit));
+      paExplicit.unlatched && paExplicit.savedUnlatched && paExplicit.status === "connected" && paExplicit.adopted, JSON.stringify(paExplicit));
     const paRebind = await paPage.evaluate(function () {
       return Studio.Sync.bindConnection("supabase", Studio.Sync.currentConfig()).then(function (st) {
         var conn = {};
