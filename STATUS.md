@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **DURABLE-2 follow-up — Undo on every bulk delete (v809, sw v443, 2026-07-31,
+  steward):** Kevin's queued durability ask ("every destructive bulk action
+  gets an undo toast"). NEW `Studio.undoToast(msg, onUndo)` (studio.js, beside
+  toast) — same #toast pill with an Undo button (`#toastUndoBtn`,
+  .toast-undo CSS with pointer-events:auto since the base .toast is
+  pointer-events:none) and a longer 7s window — plus
+  `Studio.undoRestoreRows(batches)`: re-puts the captured row CLONES under
+  their ORIGINAL ids (silent, one notify per table). Sync-safe BY the v799
+  tombstone design: Workspace.put deletes the row's tombstone, so an undone
+  delete propagates to the workspace backend as a re-creation instead of
+  being re-deleted. Wired into all six bulk deletes (dashboards, datasets,
+  connections, jobs, Views, Repository — the mixed delete restores across
+  tables in one click). Single-row deletes deliberately unchanged (their
+  confirms stay; a follow-up if wanted). Docs: Undo paragraph in the
+  bulk-actions section. 2 new checks (datasets bulk delete → Undo restores
+  both rows with original id+content + "Restored 2" toast; Repository mixed
+  delete → Undo restores the job AND dataset). Lane: skip the DURABLE-2
+  undo-toast follow-up. Files: app/studio.js, app/datasets.js,
+  app/connections.js, app/jobs.js, app/views.js, app/studio.css,
+  docs/index.html, sw.js, js/changelog.js v809, tests/run.js, STATUS.md.
 - **Track H sweep — the canvas description/KPI ✕ buttons now name what they act on (v808,
   sw v442, 2026-07-31, steward — Track H/L/N rotation, continuing H's turn):** picked up
   where the v804 Inspector delBtn() sweep left off (that fix covered the Inspector's rows;

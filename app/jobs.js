@@ -173,9 +173,12 @@
     var rows = ids.map(function (id) { return W.get("jobs", id); }).filter(Boolean);
     var msg = "Delete " + rows.length + " job" + (rows.length === 1 ? "" : "s") + "? Their output datasets are kept. This can't be undone.";
     if (!window.confirm(msg)) return;
+    var removed = rows.map(Studio.clone); // DURABLE-2 follow-up: captured for Undo
     rows.forEach(function (j) { W.remove("jobs", j.id, { silent: true }); });
     _jobsSelected = {};
-    toast("Deleted " + rows.length + " job" + (rows.length === 1 ? "" : "s"));
+    Studio.undoToast("Deleted " + rows.length + " job" + (rows.length === 1 ? "" : "s") + ".", function () {
+      Studio.undoRestoreRows([{ table: "jobs", rows: removed }]);
+    });
     // one batched notify (not a remove per row), same convention bulkDeleteSelectedConnections established.
     W.notify("jobs");
   }

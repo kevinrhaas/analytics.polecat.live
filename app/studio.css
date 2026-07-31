@@ -1272,6 +1272,11 @@ body.lib-dragging #preview{pointer-events:none}
    milestones, dashboard health) — the same brand gradient the changelog's "latest" badge and
    version chip already use, so a milestone reads as earned rather than a plain confirmation. */
 .toast.celebrate{background:linear-gradient(135deg,var(--brand),var(--dk));color:#fff}
+/* DURABLE-2 follow-up: the Undo button inside an undo toast — pointer-events:auto is
+   REQUIRED (the .toast base is pointer-events:none, which cascades to children). */
+.toast-undo{pointer-events:auto;margin-left:6px;padding:3px 12px;border-radius:7px;border:1px solid color-mix(in srgb,currentColor 45%,transparent);
+  background:transparent;color:inherit;font:inherit;font-weight:700;cursor:pointer}
+.toast-undo:hover{background:color-mix(in srgb,currentColor 14%,transparent)}
 
 /* ── N-FUN: first-export delight moment ── a small, rare, tasteful burst — never repeats
    (see celebrateFirstExport() in studio.js), skipped entirely under prefers-reduced-motion. */

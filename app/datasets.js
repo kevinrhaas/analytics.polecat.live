@@ -107,9 +107,12 @@
       (linkedCount ? " " + linkedCount + " of these are used in a dashboard — those keep working off their own saved copy, but won't get live updates from here anymore." : "") +
       " This can't be undone.";
     if (!window.confirm(msg)) return;
+    var removed = rows.map(Studio.clone); // DURABLE-2 follow-up: captured for Undo
     rows.forEach(function (d) { W.remove("datasets", d.id, { silent: true }); });
     _dsxSelected = {};
-    toast("Deleted " + rows.length + " dataset" + (rows.length === 1 ? "" : "s"));
+    Studio.undoToast("Deleted " + rows.length + " dataset" + (rows.length === 1 ? "" : "s") + ".", function () {
+      Studio.undoRestoreRows([{ table: "datasets", rows: removed }]);
+    });
     // one batched notify (not a remove per row) so Home/Repository/the library repaint
     // once — same convention bulkDeleteSelectedDashboards (LF59) established.
     W.notify("datasets");

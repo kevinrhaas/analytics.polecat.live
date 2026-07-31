@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v442"; /* v442: Track H sweep — the canvas
+var CACHE_NAME = "studio-shell-v443"; /* v443: DURABLE-2 follow-up — Undo button
+   on every bulk-delete toast (studio.js, datasets.js, connections.js, jobs.js,
+   views.js, studio.css + docs changed). */
+/* v442: Track H sweep — the canvas
    in-place editing overlay's icon-only ✕ buttons (remove-description-text-
    object, delete-KPI-tile) now carry an aria-label, and the KPI one names
    the tile it deletes instead of a bare "Delete KPI" for every tile alike

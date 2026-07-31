@@ -9838,6 +9838,29 @@ function serve() {
       !livdDeleted.stillA && !livdDeleted.stillB && livdDeleted.selectedAfter === 0 && livdDeleted.remaining === livdDeleted.before - 2,
       JSON.stringify(livdDeleted));
 
+    // DURABLE-2 follow-up: the bulk delete's toast now carries an Undo button — clicking it
+    // restores the removed rows under their ORIGINAL ids (Workspace.put clears their v799
+    // tombstones, so the restore propagates as a re-creation to a connected backend too).
+    const durUndo = await page.evaluate(function () {
+      var btn = document.getElementById("toastUndoBtn");
+      var out = { undoBtnShown: !!btn, toastVisible: /show/.test((document.getElementById("toast") || {}).className || "") };
+      if (btn) btn.click();
+      out.aBack = !!Studio.Workspace.get("datasets", "livd-bulk-a");
+      out.bBack = !!Studio.Workspace.get("datasets", "livd-bulk-b");
+      var a = Studio.Workspace.get("datasets", "livd-bulk-a");
+      out.aName = a && a.name;
+      out.tombACleared = !((Studio.Workspace.db && Studio.Workspace.db.meta && Studio.Workspace.db.meta.tombstones) || {})["datasets|livd-bulk-a"];
+      out.restoredToast = /Restored 2/.test((document.getElementById("toast") || {}).textContent || "");
+      // clean up: these were throwaway rows — remove them again, silently
+      Studio.Workspace.remove("datasets", "livd-bulk-a", { silent: true });
+      Studio.Workspace.remove("datasets", "livd-bulk-b", { silent: true });
+      Studio.Workspace.notify("datasets");
+      return out;
+    });
+    ok("DURABLE-2 follow-up: Undo on the bulk-delete toast restores every removed dataset with its original id and content",
+      durUndo.undoBtnShown && durUndo.toastVisible && durUndo.aBack && durUndo.bBack && durUndo.aName === "livd_bulk_a" && durUndo.restoredToast,
+      JSON.stringify(durUndo));
+
     // clicking Select again (now "Cancel") leaves select mode and restores normal open-on-click
     const livdCancel = await page.evaluate(function () {
       document.getElementById("dsxSelectBtn").click();
@@ -38287,6 +38310,22 @@ function serve() {
       !livdRepoDeleted.stillJob && !livdRepoDeleted.stillDs && livdRepoDeleted.selectedAfter === 0 && livdRepoDeleted.coreIntact &&
       /1 job/.test(livdRepoDeleted.confirmMsg) && /1 dataset/.test(livdRepoDeleted.confirmMsg),
       JSON.stringify(livdRepoDeleted));
+
+    // DURABLE-2 follow-up: the mixed delete's Undo restores across BOTH tables at once.
+    const durRepoUndo = await repoPage.evaluate(function () {
+      var btn = document.getElementById("toastUndoBtn");
+      var out = { undoBtnShown: !!btn };
+      if (btn) btn.click();
+      out.jobBack = !!Studio.Workspace.get("jobs", "livd-repobulk-job");
+      out.dsBack = !!Studio.Workspace.get("datasets", "livd-repobulk-ds");
+      // clean up: these were throwaway rows — remove them again, silently
+      Studio.Workspace.remove("jobs", "livd-repobulk-job", { silent: true });
+      Studio.Workspace.remove("datasets", "livd-repobulk-ds", { silent: true });
+      Studio.Workspace.notify("jobs"); Studio.Workspace.notify("datasets");
+      return out;
+    });
+    ok("DURABLE-2 follow-up: Undo on the Repository's mixed bulk delete restores the job AND the dataset (two tables) in one click",
+      durRepoUndo.undoBtnShown && durRepoUndo.jobBack && durRepoUndo.dsBack, JSON.stringify(durRepoUndo));
 
     // clicking Select again (now "Cancel") leaves select mode and restores normal open-on-click
     const livdRepoCancel = await repoPage.evaluate(function () {
