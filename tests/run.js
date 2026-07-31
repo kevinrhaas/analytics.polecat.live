@@ -2316,6 +2316,209 @@ function serve() {
     ok("GS-OAUTH: DashKit.cda dispatches a private gsheets DA to Studio.gsheetsSource.queryData with the freshly-prompted token merged into cfg",
       gsOauthDispatch.gotRows && gsOauthDispatch.secretIsFresh && gsOauthDispatch.gotSheet, JSON.stringify(gsOauthDispatch));
 
+    // ---- EXPORT-2: export data modes for live remote sources -----------------
+    // Three modes on the .html export of a dashboard with live remote DAs:
+    // snapshot (default — bake the live rows at export time, no credentials),
+    // live-with-prompt (the historical redactSecrets behavior), and
+    // live-with-credentials-embedded (explicit, warned, never a sticky default).
+    console.log("\n• EXPORT-2: export data modes (snapshot / live-prompt / creds-embedded)");
+
+    // X2-1a: connection-bound secret — default export redacts + prompts; embedCreds embeds.
+    const x2Turso = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "x2-turso", adapter: "turso", cfg: { url: "libsql://x2-db.turso.io", token: "TURSO-EMBED-SECRET-X2" } });
+      var spec = {
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "d1", name: "tDa", kind: "sql", columns: ["x"], connectionId: conn.id, dataset: { kind: "sql", sql: "select 1" } }] }
+      };
+      var liveHtml = Studio.exportCDF(spec, assets, "/x");
+      var credsHtml = Studio.exportCDF(spec, assets, "/x", { embedCreds: true });
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      return {
+        liveLeaks: liveHtml.indexOf("TURSO-EMBED-SECRET-X2") >= 0,
+        livePrompts: liveHtml.indexOf("\"needsSecret\":\"token\"") >= 0,
+        credsEmbeds: credsHtml.indexOf("TURSO-EMBED-SECRET-X2") >= 0,
+        credsPrompts: credsHtml.indexOf("\"needsSecret\"") >= 0,
+        credsKeepsUrl: credsHtml.indexOf("libsql://x2-db.turso.io") >= 0
+      };
+    });
+    ok("EXPORT-2: the default (live-prompt) export still never embeds a connection secret and stamps needsSecret",
+      !x2Turso.liveLeaks && x2Turso.livePrompts, JSON.stringify(x2Turso));
+    ok("EXPORT-2: embedCreds embeds the connection secret into connCfg and stamps NO needsSecret (nothing to prompt for)",
+      x2Turso.credsEmbeds && !x2Turso.credsPrompts && x2Turso.credsKeepsUrl, JSON.stringify(x2Turso));
+
+    // X2-1b: DA-level secret (the four direct connectors) — same contract via SECRET_FIELDS.
+    const x2Direct = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var spec = {
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "d1", name: "sfDa", kind: "snowflake", columns: ["x"], sfAccount: "acct1", sfToken: "SF-EMBED-SECRET-X2", query: "select 1" }] }
+      };
+      var liveHtml = Studio.exportCDF(spec, assets, "/x");
+      var credsHtml = Studio.exportCDF(spec, assets, "/x", { embedCreds: true });
+      return {
+        liveLeaks: liveHtml.indexOf("SF-EMBED-SECRET-X2") >= 0,
+        livePrompts: liveHtml.indexOf("\"needsSecret\":\"sfToken\"") >= 0,
+        credsEmbeds: credsHtml.indexOf("SF-EMBED-SECRET-X2") >= 0,
+        credsPrompts: credsHtml.indexOf("\"needsSecret\"") >= 0
+      };
+    });
+    ok("EXPORT-2: a direct-connector DA secret (sfToken) is redacted + prompted by default, embedded verbatim with NO prompt under embedCreds",
+      !x2Direct.liveLeaks && x2Direct.livePrompts && x2Direct.credsEmbeds && !x2Direct.credsPrompts, JSON.stringify(x2Direct));
+
+    // X2-2: the classifier the mode dialog keys off — remote engines only, `file` excluded
+    // (a dropped file's data already rides inside the export; nothing remote to snapshot).
+    const x2Classify = await page.evaluate(function () {
+      var fileConn = Studio.Workspace.put("connections", { name: "x2-file", adapter: "file", cfg: {} });
+      var tursoConn = Studio.Workspace.put("connections", { name: "x2-turso2", adapter: "turso", cfg: { url: "libsql://x.turso.io", token: "t" } });
+      function spec(das) { return { name: "n", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: das } }; }
+      var out = {
+        sampleOnly: Studio.liveRemoteDas(spec([{ id: "d1", kind: "sql", columns: ["x"] }])).length,
+        fileOnly: Studio.liveRemoteDas(spec([{ id: "d1", kind: "sql", columns: ["x"], connectionId: fileConn.id }])).length,
+        turso: Studio.liveRemoteDas(spec([{ id: "d1", kind: "sql", columns: ["x"], connectionId: tursoConn.id }])).length,
+        direct: Studio.liveRemoteDas(spec([{ id: "d1", kind: "duckdb", columns: ["x"], fileUrl: "https://x/y.parquet" }])).length
+      };
+      Studio.Workspace.remove("connections", fileConn.id, { silent: true });
+      Studio.Workspace.remove("connections", tursoConn.id, { silent: true });
+      return out;
+    });
+    ok("EXPORT-2: liveRemoteDas counts only genuinely-remote live DAs — sample:0, file-adapter:0, turso:1, duckdb:1",
+      x2Classify.sampleOnly === 0 && x2Classify.fileOnly === 0 && x2Classify.turso === 1 && x2Classify.direct === 1,
+      JSON.stringify(x2Classify));
+
+    // X2-3: snapshot mode end-to-end — a live gsheets DA's REAL rows (served by the routed
+    // Sheets API) land in the exported file's DASHKIT_MOCK, so the file shows real numbers
+    // with zero credentials and zero prompts.
+    await page.route("https://sheets.googleapis.com/v4/spreadsheets/**", (route) => {
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+        values: [["region", "total"], ["SNAPEMEA", "120"], ["SNAPAMER", "200"]]
+      }) });
+    });
+    const x2Snapshot = await page.evaluate(async function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "x2-gs", adapter: "gsheets", cfg: { url: "https://docs.google.com/spreadsheets/d/X2SNAP1/edit", token: "gs-snap-secret" } });
+      var spec = {
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "d1", name: "gsDa", kind: "sql", columns: ["region", "total"], connectionId: conn.id, dataset: { kind: "sheet", sheet: "" } }] }
+      };
+      var snap = await window.__studioSnapshotLiveRows(spec);
+      var mock = Object.assign(Studio.exportMock(spec), snap.rows);
+      var html = Studio.exportCDF(spec, assets, "/x", { mock: mock });
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      Studio.Workspace.remove("datasets", "d1", { silent: true }); // runDataset's ad-hoc stamp row
+      return {
+        total: snap.total, missed: snap.missed,
+        cols: snap.rows.d1 ? snap.rows.d1.cols.join("|") : "",
+        bakedRows: html.indexOf("SNAPEMEA") >= 0 && html.indexOf("SNAPAMER") >= 0,
+        leaksSecret: html.indexOf("gs-snap-secret") >= 0
+      };
+    });
+    ok("EXPORT-2: snapshot mode runs the live source at export time and bakes its REAL rows into DASHKIT_MOCK (no credentials in the file)",
+      x2Snapshot.total === 1 && x2Snapshot.missed === 0 && x2Snapshot.cols === "region|total" && x2Snapshot.bakedRows && !x2Snapshot.leaksSecret,
+      JSON.stringify(x2Snapshot));
+    await page.unroute("https://sheets.googleapis.com/v4/spreadsheets/**");
+
+    // X2-3b: an unreachable live source degrades safely — missed count reported, its id absent
+    // from the snapshot map (so the export leaves that DA live-with-prompt, never empty).
+    await page.route("https://sheets.googleapis.com/v4/spreadsheets/**", (route) => route.abort());
+    const x2Missed = await page.evaluate(async function () {
+      // token set → the adapter uses the Sheets API v4 endpoint, which the route above aborts
+      var conn = Studio.Workspace.put("connections", { name: "x2-gs-down", adapter: "gsheets", cfg: { url: "https://docs.google.com/spreadsheets/d/X2DOWN1/edit", token: "t-down" } });
+      var spec = {
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "d1", name: "gsDa", kind: "sql", columns: ["x"], connectionId: conn.id, dataset: { kind: "sheet", sheet: "" } }] }
+      };
+      var snap = await window.__studioSnapshotLiveRows(spec);
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      Studio.Workspace.remove("datasets", "d1", { silent: true }); // runDataset's ad-hoc stamp row
+      return { total: snap.total, missed: snap.missed, hasD1: !!snap.rows.d1 };
+    });
+    ok("EXPORT-2: a live source that can't be reached at export time is reported missed and left OUT of the snapshot (stays live in the file)",
+      x2Missed.total === 1 && x2Missed.missed === 1 && !x2Missed.hasD1, JSON.stringify(x2Missed));
+    await page.unroute("https://sheets.googleapis.com/v4/spreadsheets/**");
+
+    // X2-4: the mode dialog itself, driven through the REAL export menu path. The export
+    // menu only materializes (from its <template>) while Studio is the active section.
+    const x2PrevSec = await page.evaluate(function () {
+      var a = document.querySelector(".rail-item.active");
+      var prev = a ? a.getAttribute("data-sec") : "home";
+      window.__studioShellSetSection("studio");
+      return prev;
+    });
+    await page.waitForTimeout(300);
+    const x2Modal = await page.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      var S = window.__STUDIO_STATE;
+      var prevSpec = S.spec;
+      try { localStorage.removeItem("studio-export-datamode"); } catch (e) {}
+      var conn = Studio.Workspace.put("connections", { name: "x2-modal-turso", adapter: "turso", cfg: { url: "libsql://m.turso.io", token: "MODAL-SECRET-X2" } });
+      S.spec = {
+        name: "x2-modal", title: "X2", panels: [], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "d1", name: "tDa", kind: "sql", columns: ["x"], connectionId: conn.id, dataset: { kind: "sql", sql: "select 1" } }] }
+      };
+      var out = {};
+      // 1st open: dialog appears, snapshot preselected, warning copy on the creds option
+      document.querySelector("#menuExport button[data-exp='cdf']").click();
+      await sleep(150);
+      var ov = document.querySelector(".modal-ov");
+      out.dialogShown = !!(ov && document.getElementById("exdm-snapshot") && document.getElementById("exdm-live") && document.getElementById("exdm-creds"));
+      out.snapshotDefault = !!(document.querySelector("#exdm-snapshot input") || {}).checked;
+      out.credsWarn = /anyone who gets the file/i.test((document.getElementById("exdm-creds") || {}).textContent || "");
+      // pick LIVE and export → bundleModal with the redacted html
+      var liveInp = document.querySelector("#exdm-live input"); if (liveInp) { liveInp.click(); }
+      document.getElementById("exdmGo").click();
+      await sleep(250);
+      out.liveRemembered = localStorage.getItem("studio-export-datamode") === "live";
+      out.bundleShown = !!document.querySelector(".modal-ov .dl-row");
+      document.querySelectorAll(".modal-ov").forEach(function (m) { m.remove(); });
+      // 2nd open: live is preselected (remembered); pick CREDS and export
+      document.querySelector("#menuExport button[data-exp='cdf']").click();
+      await sleep(150);
+      out.livePreselected = !!(document.querySelector("#exdm-live input") || {}).checked;
+      var credsInp = document.querySelector("#exdm-creds input"); if (credsInp) { credsInp.click(); }
+      document.getElementById("exdmGo").click();
+      await sleep(250);
+      // creds must NEVER become the sticky default
+      out.credsNotRemembered = localStorage.getItem("studio-export-datamode") === "snapshot";
+      out.credsBundleShown = !!document.querySelector(".modal-ov .dl-row");
+      document.querySelectorAll(".modal-ov").forEach(function (m) { m.remove(); });
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      try { localStorage.removeItem("studio-export-datamode"); localStorage.removeItem("studio-export-history"); } catch (e) {}
+      S.spec = prevSpec;
+      return out;
+    });
+    ok("EXPORT-2: exporting a live-remote dashboard opens the data-mode dialog — snapshot preselected, plain-spoken warning on the embed-credentials option",
+      x2Modal.dialogShown && x2Modal.snapshotDefault && x2Modal.credsWarn, JSON.stringify(x2Modal));
+    ok("EXPORT-2: choosing Live exports the redacted file and is remembered as the next default",
+      x2Modal.liveRemembered && x2Modal.bundleShown && x2Modal.livePreselected, JSON.stringify(x2Modal));
+    ok("EXPORT-2: choosing embed-credentials exports but is NEVER remembered as a default (falls back to snapshot)",
+      x2Modal.credsNotRemembered && x2Modal.credsBundleShown, JSON.stringify(x2Modal));
+
+    // X2-5: no live remote DAs → no dialog, the export modal opens directly (unchanged path).
+    const x2NoDialog = await page.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      var S = window.__STUDIO_STATE;
+      var prevSpec = S.spec;
+      S.spec = {
+        name: "x2-plain", title: "X2P", panels: [], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "d1", name: "sDa", kind: "sql", columns: ["x"] }] }
+      };
+      document.querySelector("#menuExport button[data-exp='cdf']").click();
+      await sleep(200);
+      var out = {
+        modeDialog: !!document.getElementById("exdm-snapshot"),
+        bundleDirect: !!document.querySelector(".modal-ov .dl-row")
+      };
+      document.querySelectorAll(".modal-ov").forEach(function (m) { m.remove(); });
+      try { localStorage.removeItem("studio-export-history"); } catch (e) {}
+      S.spec = prevSpec;
+      return out;
+    });
+    ok("EXPORT-2: a dashboard with no live remote source skips the dialog — the export modal opens directly, exactly as before",
+      !x2NoDialog.modeDialog && x2NoDialog.bundleDirect, JSON.stringify(x2NoDialog));
+    await page.evaluate(function (sec) { window.__studioShellSetSection(sec); }, x2PrevSec);
+    await page.waitForTimeout(200);
+
     // ---- GEO (Viridis V2): vendored assets + choropleth chart type ----------
     console.log("\n• GEO: vendored geometry + choropleth (Viridis V2)");
     (function () {

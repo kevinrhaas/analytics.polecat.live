@@ -11387,6 +11387,109 @@
   var bumpDashMilestone = Studio.Celebrations.bumpDashMilestone;
   var celebrateHealthZero = Studio.Celebrations.celebrateHealthZero;
 
+  // EXPORT-2: run ONE live DA's query from the builder, resolving {cols, rows} or null (never
+  // rejects — a failed snapshot degrades to "that DA stays live in the file"). Mirrors the panel
+  // editor's runLive() branches: connection-bound DAs ride the shared runDataset bridge; the six
+  // direct-connector kinds call their query modules with the same cfg mappers.
+  function runDaLive(da, sp) {
+    return new Promise(function (resolve) {
+      function done(r) { resolve(r && r.cols && r.cols.length ? { cols: r.cols, rows: r.rows || [] } : null); }
+      function fail() { resolve(null); }
+      try {
+        if (da.connectionId) {
+          var wsd = (da.datasetId && Studio.Workspace.get("datasets", da.datasetId)) ||
+            Object.assign({ id: da.datasetId || da.id, name: da.name, connectionId: da.connectionId }, da.dataset || { kind: "sql", sql: da.sql || da.query });
+          var dsParams = {};
+          ((sp && sp.templateVars) || []).forEach(function (tv) { if (tv.key) dsParams[tv.key] = tv.value; });
+          runDataset(wsd, dsParams).then(function (r) {
+            if (r.error) return fail();
+            done({ cols: r.columns || [], rows: r.rows || [] });
+          }).catch(fail);
+          return;
+        }
+        if (da.kind === "duckdb" && da.fileUrl) { Studio.DuckDB.query({ fileUrl: da.fileUrl, fileFormat: da.fileFormat }, da.sql || da.query).then(done).catch(fail); return; }
+        if (da.kind === "httpvfs" && da.fileUrl) { Studio.SQLiteHttp.query({ fileUrl: da.fileUrl, tableName: da.tableName }, da.sql || da.query).then(done).catch(fail); return; }
+        if (da.kind === "snowflake" && da.sfAccount && da.sfToken) { Studio.Snowflake.query(sfCfg(da), da.sql || da.query).then(done).catch(fail); return; }
+        if (da.kind === "databricks" && da.dbxHost && da.dbxToken) { Studio.Databricks.query(dbxCfg(da), da.sql || da.query).then(done).catch(fail); return; }
+        if (da.kind === "bigquery" && da.bqProject && da.bqToken) { Studio.BigQuery.query(bqCfg(da), da.sql || da.query).then(done).catch(fail); return; }
+        if (da.kind === "http" && da.httpUrl) { Studio.GenericSql.query(httpCfg(da), da.sql || da.query).then(done).catch(fail); return; }
+        fail();
+      } catch (e) { fail(); }
+    });
+  }
+  // EXPORT-2 snapshot mode: fetch every live remote DA's current rows; resolves a
+  // { daId: {cols, rows} } map covering only the fetches that succeeded (failures fall back to
+  // staying live-with-prompt in the file — never an empty View).
+  function snapshotLiveRows(sp) {
+    var live = Studio.liveRemoteDas(sp);
+    return Promise.all(live.map(function (da) {
+      return runDaLive(da, sp).then(function (r) { return { id: da.id, r: r }; });
+    })).then(function (list) {
+      var out = {};
+      list.forEach(function (x) { if (x.r) out[x.id] = x.r; });
+      return { rows: out, total: live.length, missed: live.length - Object.keys(out).length };
+    });
+  }
+  window.__studioSnapshotLiveRows = snapshotLiveRows; // EXPORT-2 test hook
+
+  // EXPORT-2: the export data-mode choice, shown only when the dashboard has live REMOTE data
+  // sources. Snapshot is the safe default; the last choice is remembered EXCEPT embed-credentials,
+  // which must be re-chosen deliberately every time (never a sticky default).
+  var EXPORT_DATAMODE_KEY = "studio-export-datamode";
+  function openExportDataModeModal(sp, onConfirm) {
+    var remembered = "snapshot";
+    try { var v = localStorage.getItem(EXPORT_DATAMODE_KEY); if (v === "live") remembered = "live"; } catch (e) {}
+    var chosen = remembered;
+    modal("Export dashboard — data", function (b) {
+      var hint = el("p"); hint.style.cssText = "font-size:12.5px;color:var(--faint);margin:0 0 10px;line-height:1.5";
+      hint.textContent = "This dashboard queries live data sources. Choose what travels inside the exported file.";
+      b.appendChild(hint);
+      var modes = [
+        { id: "snapshot", t: "Data snapshot (recommended)", d: "Bakes today's data into the file. No credentials included — the file works anywhere, offline, forever showing this moment's numbers." },
+        { id: "live", t: "Live — ask for credentials on open", d: "The file queries your sources live. No credentials included — whoever opens it is prompted for them." },
+        { id: "creds", t: "Live — credentials embedded", d: "⚠ The file queries live AND carries your credentials in plain text. Anyone who gets the file can read them — share it only where you'd share the credentials themselves." }
+      ];
+      var wrap = el("div"); wrap.style.cssText = "display:flex;flex-direction:column;gap:8px";
+      modes.forEach(function (m) {
+        var lab = el("label"); lab.className = "exdm-opt"; lab.id = "exdm-" + m.id;
+        lab.style.cssText = "display:flex;gap:9px;align-items:flex-start;padding:9px 11px;border:1px solid var(--panel-border);border-radius:8px;cursor:pointer";
+        var inp = el("input"); inp.type = "radio"; inp.name = "exdm"; inp.value = m.id; inp.checked = m.id === chosen;
+        inp.style.marginTop = "3px";
+        inp.onchange = function () { chosen = m.id; };
+        var txt = el("div");
+        txt.innerHTML = '<div style="font-weight:600;font-size:13px">' + esc(m.t) + '</div>' +
+          '<div style="font-size:12px;color:var(--faint);line-height:1.45;margin-top:2px">' + esc(m.d) + '</div>';
+        lab.appendChild(inp); lab.appendChild(txt); wrap.appendChild(lab);
+      });
+      b.appendChild(wrap);
+      var foot = el("div"); foot.style.cssText = "display:flex;justify-content:flex-end;gap:8px;margin-top:14px";
+      var cancelBtn = el("button"); cancelBtn.type = "button"; cancelBtn.className = "btn"; cancelBtn.textContent = "Cancel";
+      var goBtn = el("button"); goBtn.type = "button"; goBtn.className = "btn btn-primary"; goBtn.id = "exdmGo"; goBtn.textContent = "Export";
+      foot.appendChild(cancelBtn); foot.appendChild(goBtn); b.appendChild(foot);
+      cancelBtn.onclick = function () { var ov = cancelBtn.closest(".modal-ov"); if (ov) ov.remove(); };
+      goBtn.onclick = function () {
+        var ov = goBtn.closest(".modal-ov"); if (ov) ov.remove();
+        try { localStorage.setItem(EXPORT_DATAMODE_KEY, chosen === "creds" ? "snapshot" : chosen); } catch (e) {}
+        onConfirm(chosen);
+      };
+      requestAnimationFrame(function () { goBtn.focus(); });
+    });
+  }
+
+  // EXPORT-2: build the .html export body under a data mode. Async (snapshot mode awaits the
+  // live queries); resolves the HTML string.
+  function buildCdfHtmlForMode(sp, dp, mode) {
+    if (mode === "snapshot") {
+      return snapshotLiveRows(sp).then(function (snap) {
+        if (snap.missed > 0) toast(snap.missed + " live source" + (snap.missed > 1 ? "s" : "") + " couldn't be snapshotted — left live (will prompt for credentials) in the file.", true);
+        var mock = Object.assign(Studio.exportMock(sp), snap.rows);
+        return Studio.exportCDF(sp, S.assets, dp, { mock: mock });
+      });
+    }
+    if (mode === "creds") return Promise.resolve(Studio.exportCDF(sp, S.assets, dp, { embedCreds: true }));
+    return Promise.resolve(Studio.exportCDF(sp, S.assets, dp));
+  }
+
   function doExport(kind) {
     celebrateFirstExport();
     bumpExportMilestone();
@@ -11395,7 +11498,19 @@
     if (problems.length) { toast(problems[0].msg, true); }
     recordExport(kind, sp.title || sp.name);
     if (kind === "spec") return bundleModal("Editable spec", [{ name: sp.name + ".studio.json", body: JSON.stringify(sp, null, 2), mime: "application/json" }]);
-    if (kind === "cdf") return bundleModal("Dashboard", [{ name: sp.name + ".html", body: Studio.exportCDF(sp, S.assets, dp), mime: "text/html" }]);
+    if (kind === "cdf") {
+      // EXPORT-2: a dashboard on live remote sources picks its data mode first; anything else
+      // (samples, authored data, builder Views, dropped files) is already a snapshot — no dialog.
+      if (Studio.liveRemoteDas(sp).length) {
+        openExportDataModeModal(sp, function (mode) {
+          buildCdfHtmlForMode(sp, dp, mode).then(function (html) {
+            bundleModal("Dashboard", [{ name: sp.name + ".html", body: html, mime: "text/html" }]);
+          });
+        });
+        return;
+      }
+      return bundleModal("Dashboard", [{ name: sp.name + ".html", body: Studio.exportCDF(sp, S.assets, dp), mime: "text/html" }]);
+    }
     // LF49 slice 1: XLSX — a genuine multi-sheet .xlsx workbook (dependency-free OOXML,
     // Studio.xlsxBook in exporters.js). Tab 1 is a "Dashboard" summary (title, KPIs + their
     // values, the list of Views, filters); each following tab is the backend data behind one
@@ -11441,10 +11556,18 @@
       return;
     }
     if (kind === "all") {
-      bundleModal("All artifacts", [
-        { name: sp.name + ".html", body: Studio.exportCDF(sp, S.assets, dp), mime: "text/html" },
-        { name: sp.name + ".studio.json", body: JSON.stringify(sp, null, 2), mime: "application/json" }
-      ]);
+      var allBundle = function (html) {
+        bundleModal("All artifacts", [
+          { name: sp.name + ".html", body: html, mime: "text/html" },
+          { name: sp.name + ".studio.json", body: JSON.stringify(sp, null, 2), mime: "application/json" }
+        ]);
+      };
+      // EXPORT-2: the bundle's .html half honors the same data-mode choice as the plain export.
+      if (Studio.liveRemoteDas(sp).length) {
+        openExportDataModeModal(sp, function (mode) { buildCdfHtmlForMode(sp, dp, mode).then(allBundle); });
+        return;
+      }
+      allBundle(Studio.exportCDF(sp, S.assets, dp));
     }
   }
 
