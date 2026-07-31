@@ -5,7 +5,9 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v452"; /* v452: ACTIVITY-ANON — anonymous/local
+var CACHE_NAME = "studio-shell-v453"; /* v453: VB-DROPZONE — drop overlay
+   hidden at rest (studio.css [hidden] override). */
+/* v452: ACTIVITY-ANON — anonymous/local
    visits reach the activity trail via the packaged workspace (activity.js). */
 /* v451: USER-DISABLE — block/restore an
    account's sign-in without deleting it (auth.js, gate.js, studio.js, docs). */

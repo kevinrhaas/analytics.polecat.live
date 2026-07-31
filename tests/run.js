@@ -12511,9 +12511,20 @@ function serve() {
       window.__studioBdDropFile(new File(["x"], "notes.txt", { type: "text/plain" }));
       await new Promise((r) => setTimeout(r, 200));
       o.txtRejected = B.state.chartType === "bars";
-      // the drop overlay exists on the section and is hidden at rest
+      // the drop overlay exists on the section and is hidden at rest.
+      // VB-DROPZONE (Kevin live): the hidden ATTRIBUTE was always set, but
+      // .bd-drop-ov's display:flex defeated [hidden]{display:none} so the
+      // overlay (and its tinted backdrop) showed permanently — assert the
+      // COMPUTED state, not the attribute, and walk a real drag round-trip.
       const ov = document.querySelector("#secBuild .bd-drop-ov");
       o.overlayReady = !!ov && ov.hidden === true;
+      o.overlayInvisibleAtRest = !!ov && getComputedStyle(ov).display === "none";
+      const dt = new DataTransfer();
+      dt.items.add(new File(["a,b\n1,2"], "hover.csv", { type: "text/csv" }));
+      document.getElementById("secBuild").dispatchEvent(new DragEvent("dragenter", { bubbles: true, dataTransfer: dt }));
+      o.overlayShownMidDrag = getComputedStyle(ov).display !== "none";
+      document.getElementById("secBuild").dispatchEvent(new DragEvent("dragleave", { bubbles: true, dataTransfer: dt }));
+      o.overlayHiddenAfterDrag = getComputedStyle(ov).display === "none";
       // cleanup + hand back the surrounding tests' selection
       ["vbdrop trend", "vbdrop geo", "vbdrop costs"].forEach((n) => {
         const d = Studio.Workspace.all("datasets").find((x) => x.name === n);
@@ -12530,6 +12541,9 @@ function serve() {
       vbDrop.mapChart === "choropleth" && JSON.stringify(vbDrop.mapShelves) === JSON.stringify(["fips:null", "adoption:avg"]) &&
       vbDrop.barChart === "bars" && vbDrop.txtRejected && vbDrop.overlayReady,
       JSON.stringify(vbDrop));
+    ok("VB-DROPZONE: the drop overlay is INVISIBLE at rest (computed display none — the [hidden] attribute alone was being defeated by display:flex), appears mid-drag, and hides again on dragleave",
+      vbDrop.overlayInvisibleAtRest && vbDrop.overlayShownMidDrag && vbDrop.overlayHiddenAfterDrag,
+      JSON.stringify({ rest: vbDrop.overlayInvisibleAtRest, drag: vbDrop.overlayShownMidDrag, after: vbDrop.overlayHiddenAfterDrag }));
 
     // 13b. VB-4 slice 2 (Kevin overnight queue continued, "hit major ones first"):
     // Stacked bars + Stacked area join the chart strip. Studio's own chart registry

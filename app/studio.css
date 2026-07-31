@@ -1544,6 +1544,12 @@ body.lib-dragging #preview{pointer-events:none}
 #secBuild{position:relative}
 .bd-drop-ov{position:absolute;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;
   background:color-mix(in srgb,var(--brand) 10%,transparent);border:2px dashed var(--brand);border-radius:12px;pointer-events:none}
+/* VB-DROPZONE (Kevin live, 2026-07-31): display:flex above DEFEATS the [hidden]
+   attribute (author styles beat the UA's [hidden]{display:none}), so the drop
+   overlay — created hidden, meant to appear only mid-drag — showed permanently
+   and its tinted backdrop washed out the whole Build section. Same bug class
+   as the .bd-notice strip fixed earlier. */
+.bd-drop-ov[hidden]{display:none}
 .bd-drop-msg{background:var(--pane);border:1px solid var(--brand);border-radius:12px;padding:var(--sp-16) var(--sp-24);
   font-size:var(--fs-15);font-weight:700;color:var(--ink);text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.18)}
 .bd-drop-msg small{display:block;margin-top:4px;font-size:var(--fs-12);font-weight:500;color:var(--muted)}
