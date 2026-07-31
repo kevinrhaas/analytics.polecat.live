@@ -116,6 +116,17 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **PACK-SHOTS — every sample-pack dashboard captured to a dated reference
+  gallery (v811, 2026-07-31, session — Kevin's ask):** new
+  `tools/shoot-pack-dashboards.mjs` boots the real app headless, installs both
+  packs and materializes their gallery dashboards, then full-page-captures all
+  23 (Conservation Insight 11 = 3 seeded + 8 examples; Data Management &
+  Governance 12) through the Home live-tile render recipe (ensureGeoAssets +
+  Build.ensureSpecMocks real rows + genMock → Studio.buildHtml). Output:
+  `docs/shots/sample-packs/2026-07-31/` with README.md + session.json manifests
+  (session 2026-07-31T12:47:49Z @ commit 4878893); each PNG carries the session
+  timestamp in its tEXt metadata. No app code touched; nothing precached
+  changed, so no sw CACHE bump.
 - **#103 AUTO-BACKEND — the assigned backend ships with the account and
   connects at sign-in (v810, sw v444, 2026-07-31, steward — Kevin picked the
   semantics live):** LF42 slice 2 left provisioning.backendId as reference

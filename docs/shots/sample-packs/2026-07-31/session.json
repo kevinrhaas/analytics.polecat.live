@@ -1,0 +1,184 @@
+{
+  "session": "2026-07-31T12:47:49Z",
+  "commit": "4878893b6ac418f63e9eb16c010094ea2753b116",
+  "tool": "tools/shoot-pack-dashboards.mjs",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "fullPage": true,
+  "theme": "light",
+  "packs": {
+    "conservation": {
+      "name": "Conservation Insight — cover crop & tillage adoption",
+      "tagline": "3 dashboards · 4 Views · 5 datasets · rollup job — synthetic data, nothing to connect"
+    },
+    "datamanagement": {
+      "name": "Data Management & Governance — showcase gallery",
+      "tagline": "12 generic showcase dashboards: governance, platform ops, delivery, finance, marketing, reliability, compliance, data quality, pipeline, storage, cost, feature tour"
+    }
+  },
+  "shots": [
+    {
+      "pack": "conservation",
+      "packName": "Conservation Insight — cover crop & tillage adoption",
+      "file": "conservation/01-cover-crop-and-tillage-adoption-illustrative-demo.png",
+      "title": "Cover Crop & Tillage Adoption (illustrative demo)",
+      "source": "seeded by installDemoPack"
+    },
+    {
+      "pack": "conservation",
+      "packName": "Conservation Insight — cover crop & tillage adoption",
+      "file": "conservation/02-watershed-map-huc8-cover-crop-adoption.png",
+      "title": "Watershed Map — HUC8 Cover Crop Adoption",
+      "source": "seeded by installDemoPack"
+    },
+    {
+      "pack": "conservation",
+      "packName": "Conservation Insight — cover crop & tillage adoption",
+      "file": "conservation/03-conservation-system-metrics.png",
+      "title": "Conservation System Metrics",
+      "source": "seeded by installDemoPack"
+    },
+    {
+      "pack": "conservation",
+      "packName": "Conservation Insight — cover crop & tillage adoption",
+      "file": "conservation/04-conservation-practice-adoption-scorecard.png",
+      "title": "Conservation Practice Adoption Scorecard",
+      "source": "data/examples/conservation-scorecard.studio.json"
+    },
+    {
+      "pack": "conservation",
+      "packName": "Conservation Insight — cover crop & tillage adoption",
+      "file": "conservation/05-crop-and-practice-flow.png",
+      "title": "Crop & Practice Flow",
+      "source": "data/examples/conservation-flow.studio.json"
+    },
+    {
+      "pack": "conservation",
+      "packName": "Conservation Insight — cover crop & tillage adoption",
+      "file": "conservation/06-watershed-scale-adoption.png",
+      "title": "Watershed-Scale Adoption",
+      "source": "data/examples/conservation-watershed.studio.json"
+    },
+    {
+      "pack": "conservation",
+      "packName": "Conservation Insight — cover crop & tillage adoption",
+      "file": "conservation/07-program-cost-share-roi.png",
+      "title": "Program Cost-Share ROI",
+      "source": "data/examples/conservation-costshare.studio.json"
+    },
+    {
+      "pack": "conservation",
+      "packName": "Conservation Insight — cover crop & tillage adoption",
+      "file": "conservation/08-provider-agreement-over-time.png",
+      "title": "Provider Agreement Over Time",
+      "source": "data/examples/conservation-agreement.studio.json"
+    },
+    {
+      "pack": "conservation",
+      "packName": "Conservation Insight — cover crop & tillage adoption",
+      "file": "conservation/09-county-level-outlier-detection.png",
+      "title": "County-Level Outlier Detection",
+      "source": "data/examples/conservation-outliers.studio.json"
+    },
+    {
+      "pack": "conservation",
+      "packName": "Conservation Insight — cover crop & tillage adoption",
+      "file": "conservation/10-year-over-year-practice-switching.png",
+      "title": "Year-over-Year Practice Switching",
+      "source": "data/examples/conservation-switching.studio.json"
+    },
+    {
+      "pack": "conservation",
+      "packName": "Conservation Insight — cover crop & tillage adoption",
+      "file": "conservation/11-the-story-so-far.png",
+      "title": "The Story So Far",
+      "source": "data/examples/conservation-overview.studio.json"
+    },
+    {
+      "pack": "datamanagement",
+      "packName": "Data Management & Governance — showcase gallery",
+      "file": "datamanagement/01-interactive-feature-showcase.png",
+      "title": "Interactive Feature Showcase",
+      "source": "data/examples/feature-showcase.studio.json"
+    },
+    {
+      "pack": "datamanagement",
+      "packName": "Data Management & Governance — showcase gallery",
+      "file": "datamanagement/02-data-governance-command-center.png",
+      "title": "Data Governance Command Center",
+      "source": "data/examples/governance-command.studio.json"
+    },
+    {
+      "pack": "datamanagement",
+      "packName": "Data Management & Governance — showcase gallery",
+      "file": "datamanagement/03-data-platform-operations-center.png",
+      "title": "Data Platform Operations Center",
+      "source": "data/examples/ops-command.studio.json"
+    },
+    {
+      "pack": "datamanagement",
+      "packName": "Data Management & Governance — showcase gallery",
+      "file": "datamanagement/04-product-delivery-and-engineering-console.png",
+      "title": "Product Delivery & Engineering Console",
+      "source": "data/examples/engineering-delivery.studio.json"
+    },
+    {
+      "pack": "datamanagement",
+      "packName": "Data Management & Governance — showcase gallery",
+      "file": "datamanagement/05-finance-and-fp-and-a-command-center.png",
+      "title": "Finance & FP&A Command Center",
+      "source": "data/examples/finance-command.studio.json"
+    },
+    {
+      "pack": "datamanagement",
+      "packName": "Data Management & Governance — showcase gallery",
+      "file": "datamanagement/06-marketing-and-growth-performance-console.png",
+      "title": "Marketing & Growth Performance Console",
+      "source": "data/examples/marketing-growth.studio.json"
+    },
+    {
+      "pack": "datamanagement",
+      "packName": "Data Management & Governance — showcase gallery",
+      "file": "datamanagement/07-incident-response-and-reliability-distributions.png",
+      "title": "Incident Response & Reliability Distributions",
+      "source": "data/examples/reliability-distributions.studio.json"
+    },
+    {
+      "pack": "datamanagement",
+      "packName": "Data Management & Governance — showcase gallery",
+      "file": "datamanagement/08-sensitivity-and-compliance-radar.png",
+      "title": "Sensitivity & Compliance Radar",
+      "source": "data/examples/compliance-radar.studio.json"
+    },
+    {
+      "pack": "datamanagement",
+      "packName": "Data Management & Governance — showcase gallery",
+      "file": "datamanagement/09-data-quality-scorecard.png",
+      "title": "Data Quality Scorecard",
+      "source": "data/examples/quality-scorecard.studio.json"
+    },
+    {
+      "pack": "datamanagement",
+      "packName": "Data Management & Governance — showcase gallery",
+      "file": "datamanagement/10-pipeline-observability.png",
+      "title": "Pipeline Observability",
+      "source": "data/examples/pipeline-observability.studio.json"
+    },
+    {
+      "pack": "datamanagement",
+      "packName": "Data Management & Governance — showcase gallery",
+      "file": "datamanagement/11-storage-footprint-and-growth.png",
+      "title": "Storage Footprint & Growth",
+      "source": "data/examples/storage-growth.studio.json"
+    },
+    {
+      "pack": "datamanagement",
+      "packName": "Data Management & Governance — showcase gallery",
+      "file": "datamanagement/12-cost-optimization-and-sustainability.png",
+      "title": "Cost Optimization & Sustainability",
+      "source": "data/examples/studio-cost.studio.json"
+    }
+  ]
+}

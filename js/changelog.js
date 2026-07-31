@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 811,
+    title: 'Every sample-pack dashboard captured — a dated reference gallery under docs/shots',
+    kind: 'polish',
+    ts: '2026-07-31T12:52:08.000Z',
+    items: [
+      'New tools/shoot-pack-dashboards.mjs drives the real app headless, installs both sample packs (Conservation Insight and Data Management & Governance), and captures every one of their dashboards as a full-page PNG -- rendered through the same recipe as Home\'s live tiles, so builder-backed panels show their real computed rows.',
+      'Captures land in docs/shots/sample-packs/<date>/ per pack, with a README and a session.json manifest recording exactly when the image session ran and at which commit; every PNG also carries the session timestamp in its own tEXt metadata, so a file stays traceable even after being copied elsewhere.',
+      'First committed session: 2026-07-31 -- all 23 pack dashboards captured (Conservation Insight 11, Data Management & Governance 12), zero failures.',
+    ],
+  },
+  {
     v: 810,
     title: 'Your assigned workspace backend now connects itself at sign-in',
     kind: 'feature',
