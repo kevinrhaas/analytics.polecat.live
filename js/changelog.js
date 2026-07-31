@@ -6,7 +6,7 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
-    v: 819,
+    v: 821,
     title: 'View Builder hero shots — a live Map and Donut, not the plain table',
     kind: 'polish',
     ts: '2026-07-31T15:06:20.000Z',
@@ -14,6 +14,25 @@ export const CHANGELOG = [
       'New tools/shoot-viewbuilder-charts.mjs captures the View Builder rendering real charts for the "pivot & crosstab, no code" story: a dense 144-county Map (choropleth) and an 8-slice Donut, both the full builder UI with the shelves and the chart-type highlighted. The tour\'s View Builder shot is upgraded from the crosstab table to the Map to match.',
       'A Treemap is included too -- but treemap is a dashboard chart type, not a View Builder one, so it is rendered as a clean standalone dashboard export rather than faked into the builder.',
       'Captures land in docs/shots/view-builder/<date>/ with a README + session.json manifest; every PNG carries the image-session timestamp in its tEXt metadata, same convention as the rest of the gallery.',
+    ],
+  },
+  {
+    v: 820,
+    title: 'View Builder: the file drop-zone no longer sits on screen permanently',
+    kind: 'fix',
+    ts: '2026-07-31T14:59:32.000Z',
+    items: [
+      'The "Drop a CSV, TSV, or JSON file" overlay was meant to appear only while dragging a file over the View Builder, but a style conflict kept it (and its tinted backdrop, which washed out the whole canvas) visible from the moment the section opened. It now stays hidden until a real drag is in progress and disappears when the drag leaves.',
+    ],
+  },
+  {
+    v: 819,
+    title: 'The activity trail now covers anonymous and local visits',
+    kind: 'feature',
+    ts: '2026-07-31T14:47:09.000Z',
+    items: [
+      'On the deployed site, a visitor who never signs in (or signs in to a local-only account) now leaves a footprint in the workspace activity log: a sign-in-screen view and a time-on-page event, with the route, referrer and viewport from the browser -- delivered through the packaged Polecat workspace even when no backend is connected.',
+      'The requester\'s IP address and user agent are stamped server-side on arrival (a browser can\'t see or spoof its own public IP). Anonymous visitors can only WRITE log rows: reads stay admin-only, an anonymous row can never claim a signed-in identity, and local development pages never send anything. Requires re-running the deploy SQL (new section 6b) on the backend once.',
     ],
   },
   {

@@ -33,6 +33,26 @@
       return (cfg && cfg.url && cfg.key) ? cfg : null;
     } catch (e) { return null; }
   }
+  // ACTIVITY-ANON (Kevin, 2026-07-31): "recording anonymous users as well,
+  // like when someone logins in even without supabase." A local-only sign-in
+  // (or a not-signed-in visitor) has no live Supabase connection, so their
+  // rows used to queue on the device forever. Fall back to the PACKAGED
+  // Polecat workspace (app/workspaces.js) — its anon key can INSERT (and only
+  // insert) into the log tables once supabase-deploy.sql § 6b is applied; the
+  // server stamps ip/ua from the request headers there. Until § 6b is applied
+  // the insert 401s and the row just re-queues (capped) — nothing breaks.
+  // NEVER from localhost: dev pages and the test suite must not phone home
+  // (deployed visits are the traffic Kevin wants recorded).
+  function packagedLogCfg(hostname) {
+    var h = hostname != null ? hostname : location.hostname;
+    if (/^(localhost|127\.|0\.0\.0\.0)/.test(String(h))) return null;
+    try {
+      var w = (window.STUDIO_WORKSPACES || [])[0];
+      if (w && w.sourceId === "supabase" && w.cfg && w.cfg.url && w.cfg.key) return { url: w.cfg.url, key: w.cfg.key };
+    } catch (e) {}
+    return null;
+  }
+  function logCfg() { return connCfg() || packagedLogCfg(); }
   function loadQ() {
     try { var q = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]"); return Array.isArray(q) ? q : []; } catch (e) { return []; }
   }
@@ -47,13 +67,13 @@
     saveQ(q);
   }
   function send(table, row, keepalive) {
-    var cfg = connCfg();
+    var cfg = logCfg();
     var src = window.Studio && Studio.supabaseSource;
     if (!cfg || !src || !src.insertRow) { enqueue(table, row); return; }
     src.insertRow(cfg, table, row, { keepalive: !!keepalive }).catch(function () { enqueue(table, row); });
   }
   function flush() {
-    var cfg = connCfg();
+    var cfg = logCfg();
     var src = window.Studio && Studio.supabaseSource;
     if (!cfg || !src || !src.insertRow) return Promise.resolve(0);
     var q = loadQ();
@@ -117,24 +137,47 @@
     flush: flush,
     // test hooks
     _queueKey: QUEUE_KEY,
-    _context: ctx
+    _context: ctx,
+    _packagedLogCfg: packagedLogCfg // ACTIVITY-ANON: hostname injectable for tests
   };
 
   // ONE session-end event per visit with time-on-page — keepalive so the
-  // request survives the page going away. Signed-in visits only (an anonymous
-  // gate bounce isn't worth a row).
+  // request survives the page going away. ACTIVITY-ANON: anonymous visits get
+  // a row too (username null; the server stamps ip/ua) — Kevin wants the
+  // not-signed-in traffic visible, not just accounts.
   window.addEventListener("pagehide", function () {
     if (_endSent) return;
     _endSent = true;
     try {
       var m = me();
-      if (!m.username) return;
       send("polecat_activity", {
         gotrue_id: m.gotrue_id, username: m.username, action: "session-end",
         detail: { ms: Math.round(performance.now()) }
       }, true);
     } catch (e) {}
   });
+
+  // ACTIVITY-ANON: one "gate-view" per browser session for a visitor who
+  // arrives NOT signed in — the anonymous footprint (route/referrer/viewport
+  // client-side; ip/ua stamped server-side). Sign-in later in the visit still
+  // logs its own "sign-in" event as before.
+  try {
+    var authed = window.PolecatAuth && PolecatAuth.authed && PolecatAuth.authed();
+    if (!authed && !sessionStorage.getItem("studio-activity-gate-seen")) {
+      sessionStorage.setItem("studio-activity-gate-seen", "1");
+      Studio.Activity.log("gate-view", {
+        route: (location.pathname || "") + (location.hash || ""),
+        ref: String(document.referrer || "").slice(0, 200),
+        viewport: window.innerWidth + "x" + window.innerHeight
+      });
+    }
+  } catch (e) {}
+
+  // ACTIVITY-ANON: one deferred flush per load — with the packaged-workspace
+  // fallback there can be a delivery path even when no backend ever connects
+  // (rows queued on earlier local-only visits finally land). No-op wherever
+  // logCfg() is null (localhost, catalog missing).
+  setTimeout(function () { try { flush(); } catch (e) {} }, 4000);
 
   // Flush the offline queue whenever the sync layer reports a live connection.
   // (Studio.Sync exists — sources/sync.js loads before this file.)

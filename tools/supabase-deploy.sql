@@ -162,6 +162,50 @@ DROP POLICY IF EXISTS polecat_feedback_select ON public.polecat_feedback;
 CREATE POLICY polecat_feedback_select ON public.polecat_feedback
   FOR SELECT TO authenticated USING (public.polecat_is_admin());
 
+-- ---------------------------------------------------------------------------
+-- 6b) ACTIVITY-ANON (added 2026-07-31, Kevin: "recording anonymous users as
+--     well... collect what you can on them ip, whatever"). Lets the app log
+--     activity/feedback for LOCAL and not-signed-in visitors via the packaged
+--     workspace's anon key. Posture stays intact:
+--       * INSERT-ONLY for anon — SELECT remains admin-only (the § 8 anon
+--         verify still reads ALL ZEROS), and an anon row can never claim an
+--         authenticated identity (gotrue_id must be NULL).
+--       * ip/ua are stamped SERVER-side from the PostgREST request headers by
+--         a trigger — a browser can't see its own public IP, and this way the
+--         client can't spoof one either. Works for signed-in rows too.
+ALTER TABLE public.polecat_activity ADD COLUMN IF NOT EXISTS ip text;
+ALTER TABLE public.polecat_activity ADD COLUMN IF NOT EXISTS ua text;
+ALTER TABLE public.polecat_feedback ADD COLUMN IF NOT EXISTS ip text;
+ALTER TABLE public.polecat_feedback ADD COLUMN IF NOT EXISTS ua text;
+
+CREATE OR REPLACE FUNCTION public.polecat_stamp_request_meta() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  BEGIN
+    NEW.ip := split_part(coalesce(current_setting('request.headers', true)::json->>'x-forwarded-for', ''), ',', 1);
+    NEW.ua := left(coalesce(current_setting('request.headers', true)::json->>'user-agent', ''), 200);
+  EXCEPTION WHEN others THEN
+    NULL; -- header stamping is best-effort; never block the insert
+  END;
+  RETURN NEW;
+END $$;
+
+DROP TRIGGER IF EXISTS polecat_activity_stamp ON public.polecat_activity;
+CREATE TRIGGER polecat_activity_stamp BEFORE INSERT ON public.polecat_activity
+  FOR EACH ROW EXECUTE FUNCTION public.polecat_stamp_request_meta();
+DROP TRIGGER IF EXISTS polecat_feedback_stamp ON public.polecat_feedback;
+CREATE TRIGGER polecat_feedback_stamp BEFORE INSERT ON public.polecat_feedback
+  FOR EACH ROW EXECUTE FUNCTION public.polecat_stamp_request_meta();
+
+DROP POLICY IF EXISTS polecat_activity_insert_anon ON public.polecat_activity;
+CREATE POLICY polecat_activity_insert_anon ON public.polecat_activity
+  FOR INSERT TO anon
+  WITH CHECK (gotrue_id IS NULL);
+DROP POLICY IF EXISTS polecat_feedback_insert_anon ON public.polecat_feedback;
+CREATE POLICY polecat_feedback_insert_anon ON public.polecat_feedback
+  FOR INSERT TO anon
+  WITH CHECK (gotrue_id IS NULL);
+
 NOTIFY pgrst, 'reload schema';
 
 -- ---------------------------------------------------------------------------

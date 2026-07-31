@@ -2028,6 +2028,14 @@
   once a backend is connected. Separately, the backend keeps a concise activity trail —
   sign-ins/outs, dashboard opens, exports, and one time-on-page event per visit — also
   admin-only, with nothing visible to anonymous readers.</p>
+  <p>On the deployed site the trail covers <strong>anonymous and local visits too</strong>: a
+  visitor who never signs in (or signs in to a local-only account) still records a
+  sign-in-screen view and a time-on-page event, delivered through the packaged Polecat
+  workspace. Those rows carry the route, referrer, and viewport from the browser, and the
+  server stamps the requester's IP address and user agent on arrival (a browser can't see —
+  or spoof — its own public IP). Writing is all anonymous visitors can do: the log stays
+  admin-only to read, and an anonymous row can never claim a signed-in identity. Local
+  development pages never send anything.</p>
 
   <h3>Color theme</h3>
   <!-- IMAGE-SLOT: the Settings Appearance card with the seven Color-theme palette

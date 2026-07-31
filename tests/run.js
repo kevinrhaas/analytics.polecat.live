@@ -12511,9 +12511,20 @@ function serve() {
       window.__studioBdDropFile(new File(["x"], "notes.txt", { type: "text/plain" }));
       await new Promise((r) => setTimeout(r, 200));
       o.txtRejected = B.state.chartType === "bars";
-      // the drop overlay exists on the section and is hidden at rest
+      // the drop overlay exists on the section and is hidden at rest.
+      // VB-DROPZONE (Kevin live): the hidden ATTRIBUTE was always set, but
+      // .bd-drop-ov's display:flex defeated [hidden]{display:none} so the
+      // overlay (and its tinted backdrop) showed permanently — assert the
+      // COMPUTED state, not the attribute, and walk a real drag round-trip.
       const ov = document.querySelector("#secBuild .bd-drop-ov");
       o.overlayReady = !!ov && ov.hidden === true;
+      o.overlayInvisibleAtRest = !!ov && getComputedStyle(ov).display === "none";
+      const dt = new DataTransfer();
+      dt.items.add(new File(["a,b\n1,2"], "hover.csv", { type: "text/csv" }));
+      document.getElementById("secBuild").dispatchEvent(new DragEvent("dragenter", { bubbles: true, dataTransfer: dt }));
+      o.overlayShownMidDrag = getComputedStyle(ov).display !== "none";
+      document.getElementById("secBuild").dispatchEvent(new DragEvent("dragleave", { bubbles: true, dataTransfer: dt }));
+      o.overlayHiddenAfterDrag = getComputedStyle(ov).display === "none";
       // cleanup + hand back the surrounding tests' selection
       ["vbdrop trend", "vbdrop geo", "vbdrop costs"].forEach((n) => {
         const d = Studio.Workspace.all("datasets").find((x) => x.name === n);
@@ -12530,6 +12541,9 @@ function serve() {
       vbDrop.mapChart === "choropleth" && JSON.stringify(vbDrop.mapShelves) === JSON.stringify(["fips:null", "adoption:avg"]) &&
       vbDrop.barChart === "bars" && vbDrop.txtRejected && vbDrop.overlayReady,
       JSON.stringify(vbDrop));
+    ok("VB-DROPZONE: the drop overlay is INVISIBLE at rest (computed display none — the [hidden] attribute alone was being defeated by display:flex), appears mid-drag, and hides again on dragleave",
+      vbDrop.overlayInvisibleAtRest && vbDrop.overlayShownMidDrag && vbDrop.overlayHiddenAfterDrag,
+      JSON.stringify({ rest: vbDrop.overlayInvisibleAtRest, drag: vbDrop.overlayShownMidDrag, after: vbDrop.overlayHiddenAfterDrag }));
 
     // 13b. VB-4 slice 2 (Kevin overnight queue continued, "hit major ones first"):
     // Stacked bars + Stacked area join the chart strip. Studio's own chart registry
@@ -17293,6 +17307,32 @@ function serve() {
       actFlush.queuedDelivered && actFlush.qAfter === 0 && actFlush.liveAction === "polecat_activity" &&
       actFlush.fbKind === "bug" && actFlush.fbMsg === "it broke on the map" &&
       actFlush.fbCtx && actFlush.fbCtx.hasVersion && actFlush.fbCtx.hasViewport && actFlush.fbCtx.hasUa, JSON.stringify(actFlush));
+    // ACTIVITY-ANON: with no live connection the DEPLOYED site falls back to
+    // the packaged Polecat workspace's anon key (insert-only per § 6b) — but a
+    // localhost/dev page (this suite included) must NEVER phone home.
+    const actAnonCfg = await page.evaluate(function () {
+      var pk = (window.STUDIO_WORKSPACES || [])[0] || {};
+      var deployed = Studio.Activity._packagedLogCfg("analytics.polecat.live");
+      return {
+        deployedUrl: deployed && deployed.url, catalogUrl: pk.cfg && pk.cfg.url,
+        deployedHasKey: !!(deployed && deployed.key),
+        localhostNull: Studio.Activity._packagedLogCfg("localhost") === null,
+        loopbackNull: Studio.Activity._packagedLogCfg("127.0.0.1") === null
+      };
+    });
+    ok("ACTIVITY-ANON: the packaged-workspace log fallback resolves the shipped Polecat catalog entry on the deployed host, and is HARD-OFF on localhost/127.x — dev pages and this suite never phone home",
+      actAnonCfg.deployedUrl && actAnonCfg.deployedUrl === actAnonCfg.catalogUrl && actAnonCfg.deployedHasKey &&
+      actAnonCfg.localhostNull && actAnonCfg.loopbackNull, JSON.stringify(actAnonCfg));
+    // The deploy SQL carries the matching posture: anon INSERT-only policies
+    // (gotrue_id must stay NULL — no identity spoofing) + the server-side
+    // ip/ua stamping trigger, and NO anon read anywhere.
+    const anonSql = fs.readFileSync(path.join(ROOT, "tools/supabase-deploy.sql"), "utf8");
+    ok("ACTIVITY-ANON: supabase-deploy.sql § 6b grants anon INSERT-ONLY on both log tables (WITH CHECK gotrue_id IS NULL), stamps ip/ua server-side via trigger, and never grants anon SELECT",
+      /polecat_activity_insert_anon/.test(anonSql) && /polecat_feedback_insert_anon/.test(anonSql) &&
+      /FOR INSERT TO anon\s*\n\s*WITH CHECK \(gotrue_id IS NULL\)/.test(anonSql) &&
+      /polecat_stamp_request_meta/.test(anonSql) && /x-forwarded-for/.test(anonSql) &&
+      !/FOR SELECT TO anon/.test(anonSql) && !/FOR ALL TO anon/.test(anonSql),
+      "policy/trigger markers in tools/supabase-deploy.sql");
     // C) the topbar button (right of What's-next) opens the tiny dialog; Send routes
     //    through Studio.Activity.feedback and closes
     const fbUi = await page.evaluate(async function () {
@@ -39608,6 +39648,33 @@ function serve() {
     ok("USER-DISABLE: an already-signed-in session whose account was disabled is ended at the next boot — back to the gate, with the account row (and all its data) fully intact",
       udB.signedOut && udB.gateShown && udB.rowIntact, JSON.stringify(udB));
     await udBoot.close();
+
+    // ---- ACTIVITY-ANON: an anonymous (not signed-in) visit leaves a footprint ----
+    // On localhost the packaged fallback is off, so the rows QUEUE — which is
+    // exactly what lets us inspect them: one gate-view per browser session and
+    // a session-end with username null (ip/ua are stamped server-side on the
+    // deployed site, so the client rows just carry route/referrer/viewport).
+    const anonPage = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    anonPage.on("pageerror", (e) => errors.push("ACTIVITY-ANON page: " + e.message));
+    await anonPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await anonPage.waitForSelector("#g-form", { timeout: 8000 });
+    await anonPage.waitForTimeout(300);
+    const anonQ = await anonPage.evaluate(function () {
+      var q = JSON.parse(localStorage.getItem(Studio.Activity._queueKey) || "[]");
+      var gv = q.filter(function (i) { return i.t === "polecat_activity" && i.r.action === "gate-view"; });
+      window.dispatchEvent(new Event("pagehide")); // simulate the visit ending
+      var q2 = JSON.parse(localStorage.getItem(Studio.Activity._queueKey) || "[]");
+      var se = q2.filter(function (i) { return i.t === "polecat_activity" && i.r.action === "session-end"; });
+      return {
+        gateViews: gv.length, gvUserNull: gv.length && gv[0].r.username === null,
+        gvStamped: gv.length && !!gv[0].r.at, gvHasRoute: gv.length && !!(gv[0].r.detail && gv[0].r.detail.route),
+        sessionEnds: se.length, seUserNull: se.length && se[0].r.username === null
+      };
+    });
+    ok("ACTIVITY-ANON: an anonymous visit logs ONE gate-view (username null, event-time stamped, route captured) and pagehide logs an anonymous session-end — both queued locally on localhost instead of phoning home",
+      anonQ.gateViews === 1 && anonQ.gvUserNull && anonQ.gvStamped && anonQ.gvHasRoute && anonQ.sessionEnds === 1 && anonQ.seUserNull,
+      JSON.stringify(anonQ));
+    await anonPage.close();
 
   } catch (e) {
     failed++; console.error("FATAL", e);
