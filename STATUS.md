@@ -116,6 +116,19 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **ADOPT-WELCOME — the assigned-workspace ask is a welcome, not a warning
+  (v825, sw v457, 2026-07-31, steward — Kevin live with screenshot: "make
+  this less of a warning and more of a Welcome!... make this nice instead
+  of a scary warning dialog"):** applyAssignedBackend's native confirm() is
+  now a styled modal("Welcome!") — "You're about to connect to “<label>” —
+  your account's own workspace. Anything stored locally... you'll be working
+  live in <label>." with #adoptGoBtn "Let's go!" (primary) + #adoptLaterBtn
+  "Not now". ANY non-accept close (Not now/✕/Escape/backdrop) stores the
+  per-backend decline key — same never-nag semantics the confirm's Cancel
+  had; accepting never stores it. Fresh devices still connect silently, no
+  dialog. Suite: the a103Apply block is rewritten dialog-driven (was
+  window.confirm stubs) + 1 new ADOPT-WELCOME check (title/copy/buttons/
+  accept-not-remembered). Lane: skip ADOPT-WELCOME — done here.
 - **LF24-XLSX — Excel (.xlsx) joins every file-import path (v824, sw v456,
   2026-07-31, steward — closes LF24's deferred half "needs a vendored
   parser"):** NEW vendor/fflate.js (fflate 0.8.2 UMD, MIT, ~32KB, attribution

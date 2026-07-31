@@ -18198,62 +18198,80 @@ function serve() {
       JSON.stringify(a103Embed));
 
     // (b) applyAssignedBackend semantics: fresh device → silent adopt; device with
-    // user data → confirm; decline remembered per backend id (never nags again).
+    // user data → the ADOPT-WELCOME dialog (Kevin: a warm welcome, not a scary
+    // native confirm); decline remembered per backend id (never nags again).
     const a103Apply = await gp42.evaluate(async function () {
       function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      function dialog() {
+        var ov = document.querySelector(".modal-ov");
+        return ov && document.getElementById("adoptGoBtn") ? ov : null;
+      }
       var out = {};
       var realAdopt = Studio.Sync.connectAdopt, calls = [];
       Studio.Sync.connectAdopt = function (a, c, o) { calls.push({ a: a, c: c, o: o }); return Promise.resolve({}); };
-      var confirms = 0, realConfirm = window.confirm;
-      window.confirm = function () { confirms++; return true; };
       var mine = { provisioning: { backend: { id: "bk5", name: "CTIC Supabase", adapter: "supabase", cfg: { url: "https://bk5.example.co", key: "pub-k5" } } } };
       try { localStorage.removeItem("studio-backend-decline:bk5"); } catch (e) {}
-      // fresh device: no user-authored rows → silent (confirm never consulted)
+      // fresh device: no user-authored rows → silent (no dialog at all)
       var realAll = Studio.Workspace.all;
       Studio.Workspace.all = function () { return []; };
       window.__studioApplyAssignedBackend(mine);
       await sleep(80);
       Studio.Workspace.all = realAll;
-      out.freshSilent = confirms === 0 && calls.length === 1 &&
+      out.freshSilent = !dialog() && calls.length === 1 &&
         calls[0].a === "supabase" && calls[0].c.url === "https://bk5.example.co" &&
         calls[0].o && calls[0].o.skipIfEmpty === true;
-      // device WITH user data: ensure one user-authored row, then expect the confirm
+      // device WITH user data: expect the welcome dialog; "Let's go!" adopts
       Studio.Workspace.put("datasets", { id: "a103-ds", name: "a103", kind: "sql", sql: "SELECT 1" }, { silent: true });
-      calls.length = 0; confirms = 0;
+      calls.length = 0;
       window.__studioApplyAssignedBackend(mine);
       await sleep(80);
-      out.promptedAndAdopted = confirms === 1 && calls.length === 1;
-      // decline path: remembered, and a later sign-in never re-asks
-      calls.length = 0; confirms = 0;
-      window.confirm = function () { confirms++; return false; };
+      var dlg = dialog();
+      out.dialogShown = !!dlg;
+      out.dialogWelcome = !!dlg && /Welcome!/.test(dlg.querySelector(".modal-h").textContent) &&
+        /You(’|')re about to connect to/.test(dlg.textContent) && /CTIC Supabase/.test(dlg.textContent);
+      out.dialogButtons = !!document.getElementById("adoptGoBtn") && /Let(’|')s go!/.test(document.getElementById("adoptGoBtn").textContent) &&
+        !!document.getElementById("adoptLaterBtn") && document.getElementById("adoptLaterBtn").textContent === "Not now";
+      if (dlg) document.getElementById("adoptGoBtn").click();
+      await sleep(80);
+      out.promptedAndAdopted = out.dialogShown && calls.length === 1 && !dialog();
+      out.acceptNotRemembered = localStorage.getItem("studio-backend-decline:bk5") !== "1";
+      // decline path: "Not now" is remembered, and a later sign-in never re-asks
+      calls.length = 0;
       window.__studioApplyAssignedBackend(mine);
-      out.declinedNoAdopt = calls.length === 0 && confirms === 1;
+      await sleep(80);
+      if (dialog()) document.getElementById("adoptLaterBtn").click();
+      await sleep(80);
+      out.declinedNoAdopt = calls.length === 0 && !dialog();
       out.declineStored = localStorage.getItem("studio-backend-decline:bk5") === "1";
-      confirms = 0;
       window.__studioApplyAssignedBackend(mine);
-      out.noReprompt = confirms === 0 && calls.length === 0;
+      await sleep(80);
+      out.noReprompt = !dialog() && calls.length === 0;
       // KEVIN-COPY: an adapter-named backend ("Supabase") whose url matches the
-      // packaged catalog must be announced by the WORKSPACE's human label, and
-      // the prompt reads adopt/overwrite, never "workspace backend".
-      var msg = "";
-      window.confirm = function (m) { msg = m; return false; };
+      // packaged catalog must be announced by the WORKSPACE's human label.
       var mineAdapterish = { provisioning: { backend: { id: "bk6", name: "Supabase", adapter: "supabase",
         cfg: { url: (window.STUDIO_WORKSPACES[0] || {}).cfg.url, key: "pub-k6" } } } };
       try { localStorage.removeItem("studio-backend-decline:bk6"); } catch (e) {}
       window.__studioApplyAssignedBackend(mineAdapterish);
-      out.namedByWorkspace = msg.indexOf("Polecat workspace") >= 0 && msg.indexOf("Supabase") < 0 && /Adopt it on this device/.test(msg) && /overwritten/.test(msg);
-      out.confirmMsg = msg;
+      await sleep(80);
+      var dlg2 = dialog();
+      var msg = dlg2 ? dlg2.textContent : "";
+      out.namedByWorkspace = msg.indexOf("Polecat workspace") >= 0 && msg.indexOf("Supabase”") < 0 && !/“Supabase”/.test(msg);
+      out.confirmMsg = msg.slice(0, 260);
+      if (dlg2) document.getElementById("adoptLaterBtn").click();
+      await sleep(60);
       try { localStorage.removeItem("studio-backend-decline:bk6"); } catch (e) {}
-      Studio.Sync.connectAdopt = realAdopt; window.confirm = realConfirm;
+      Studio.Sync.connectAdopt = realAdopt;
       try { localStorage.removeItem("studio-backend-decline:bk5"); } catch (e) {}
       Studio.Workspace.remove("datasets", "a103-ds", { silent: true });
       return out;
     });
     ok("#103: a fresh device adopts the assigned backend silently (skipIfEmpty threaded); a device with user data is asked first",
       a103Apply.freshSilent && a103Apply.promptedAndAdopted, JSON.stringify(a103Apply));
-    ok("#103: declining the switch is remembered per backend id — later sign-ins never nag",
+    ok("ADOPT-WELCOME: the ask is a warm in-app dialog — 'Welcome!' title, you're-about-to-connect copy naming the workspace, a Let's-go! primary and a Not-now secondary (no native confirm); accepting does NOT store a decline",
+      a103Apply.dialogShown && a103Apply.dialogWelcome && a103Apply.dialogButtons && a103Apply.acceptNotRemembered, JSON.stringify(a103Apply));
+    ok("#103: declining the switch (Not now) is remembered per backend id — later sign-ins never nag",
       a103Apply.declinedNoAdopt && a103Apply.declineStored && a103Apply.noReprompt, JSON.stringify(a103Apply));
-    ok("KEVIN-COPY: the adopt prompt names the workspace by its human catalog label (never the adapter) and asks adopt/overwrite",
+    ok("KEVIN-COPY: the adopt dialog names the workspace by its human catalog label (never the adapter)",
       a103Apply.namedByWorkspace, JSON.stringify({ msg: a103Apply.confirmMsg }));
 
     // (c) The connectAdopt skipIfEmpty guard: an EMPTY remote read (the signature of

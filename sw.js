@@ -5,7 +5,9 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v456"; /* v456: LF24-XLSX — .xlsx drop support
+var CACHE_NAME = "studio-shell-v457"; /* v457: ADOPT-WELCOME — warm styled
+   dialog replaces the native adopt confirm (studio.js). */
+/* v456: LF24-XLSX — .xlsx drop support
    (vendor/fflate.js + app/xlsx.js NEW in precache; build/datasets/studio.js,
    index.html changed). */
 /* v455: TOUR-WOW — View Builder step
