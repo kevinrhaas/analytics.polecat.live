@@ -116,6 +116,25 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **SETTINGS-ROAM slice 2 (v798, sw v433, 2026-07-31, steward — completes
+  Kevin's "get my entire environment ... history, favorites, recents"):** the
+  remaining per-user chrome roams as ONE prefs.ls blob on the signed-in
+  account's users row. Curated ROAM_LS_KEYS: studio-simple-mode,
+  restore-unsaved, panels-default, show-samples, lib-samples-open, lw/rw
+  (Studio panes), bd-lw/bd-collapse (VB-13), bd-preview-size (VB-12),
+  dash-view/repo-view. Captured on a 60s interval + visibilitychange-hidden
+  (compare-guarded — saveUserPref now compares by JSON.stringify so the object
+  blob doesn't re-save every tick); applied at sign-in by writing localStorage
+  back with CURATED-KEY FILTERING (a synced row can never write arbitrary
+  localStorage keys — the suite proves a smuggled key is dropped) + live
+  re-apply of already-painted chrome (applyRoamedChrome: pane width vars, bd
+  pane, simple-mode class, then renderSettings/buildLibrary/renderHome/
+  renderDashboards; lazily-read prefs take effect on their next read).
+  Deliberately NOT roamed: workspace data that already syncs, transient nav,
+  studio-collapse-* (STUDIO-PANELS boots from the preference), the VB draft
+  map (growth risk). Local accounts stay browser-local. 1 suite check.
+  Files: app/studio.js, tests/run.js, docs/index.html, js/changelog.js v798,
+  sw v433.
 - **VB-DROP (v797, sw v432, 2026-07-31, steward — Kevin live: "drag a csv or
   json file ... find a best coolest most interesting view ... pop a view onto
   the screen"):** the whole Build section is a file drop target (overlay
@@ -7756,12 +7775,11 @@
 > 2. ~~VB-13~~ **SHIPPED v795 (this session, 2026-07-31 ~05:40Z — see DONE).**
 >    Note for SETTINGS-ROAM slice 2: lift studio-bd-lw / studio-bd-collapse
 >    into the roamed per-user prefs blob with the other VB sizes.
-> 3. **SETTINGS-ROAM slice 2 (#164):** remaining per-user prefs onto the users
->    row prefs blob (recents-cleared marker, rail open/width, STUDIO-PANELS
->    pref, restore-banner opt-in, VB canvas + pane sizes, dashboard defaults)
->    + workspace-wide hidden-sections/sample-toggle into synced settings.
->    Slice 1 (branding + theme) shipped v788 — follow its saveUserPref/
->    applyUserPrefs + Workspace.setSetting patterns.
+> 3. ~~SETTINGS-ROAM slice 2~~ **SHIPPED v798 (this session, 2026-07-31
+>    ~06:40Z — see DONE).** #164 closes. Not covered (small follow-ups if
+>    wanted): shell rail open/width keys (shell-owned storage), per-user
+>    dashboard defaults (Defaults module has its own store), VB draft-map
+>    roaming (growth risk — deliberate skip).
 > 4. **DURABLE-2 ★:** deletion tombstones for the non-users tables (a stale
 >    admin mirror can still target-delete rows it never saw — users is already
 >    upsert-only, v787; the general cure is tombstoned deletes like relay's).

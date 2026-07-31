@@ -10303,6 +10303,50 @@ function serve() {
     ok("SETTINGS-ROAM: a signed-in account's theme choices save onto its own users row (prefs), re-apply from that row on a fresh device, and a LOCAL account's theme never leaves the browser",
       roam.prefsSaved && roam.prefsApplied && roam.localStaysLocal, JSON.stringify(roam));
 
+    // ---- SETTINGS-ROAM slice 2: the rest of the per-user chrome roams as one
+    // prefs.ls blob — captured from a curated localStorage key set, applied at
+    // sign-in by writing the keys back (curated-only: a synced row can never
+    // write arbitrary localStorage keys). ----
+    const roam2 = await page.evaluate(() => {
+      const out = {};
+      const UP = window.__studioUserPrefs;
+      const Auth = window.PolecatAuth, W = Studio.Workspace;
+      // same stubbed sign-in dance the slice-1 test above uses (and restores)
+      const cur0 = Auth.current;
+      W.put("users", { id: "user_roam2", u: "roam2@example.com", name: "Roam2", role: "editor", gotrueId: "g-roam2" }, { silent: true });
+      Auth.current = function () { return { u: "roam2@example.com", name: "Roam2", role: "editor", gotrueId: "g-roam2" }; };
+      out.signedIn = !!(Auth.current() && Auth.current().gotrueId);
+      const keep = {};
+      UP.roamKeys.forEach((k) => { keep[k] = localStorage.getItem(k); });
+      try {
+        localStorage.setItem("studio-simple-mode", "1");
+        localStorage.setItem("studio-bd-lw", "444px");
+        localStorage.setItem("studio-dash-view", "list");
+        UP.captureLs();
+        const row = UP.mine();
+        const ls = (row && row.prefs && row.prefs.ls) || {};
+        out.captured = ls["studio-simple-mode"] === "1" && ls["studio-bd-lw"] === "444px" && ls["studio-dash-view"] === "list";
+        // fresh-device apply: wipe the local keys, then apply from the row
+        localStorage.removeItem("studio-simple-mode"); localStorage.removeItem("studio-bd-lw"); localStorage.removeItem("studio-dash-view");
+        // an out-of-set key smuggled into the synced blob must NOT be written
+        const row2 = UP.mine(); row2.prefs.ls["studio-gate-ok"] = "0"; row2.prefs.ls["evil-key"] = "x";
+        Studio.Workspace.put("users", row2, { silent: true });
+        UP.apply();
+        out.applied = localStorage.getItem("studio-simple-mode") === "1" && localStorage.getItem("studio-bd-lw") === "444px" && localStorage.getItem("studio-dash-view") === "list";
+        out.curatedOnly = localStorage.getItem("evil-key") === null && sessionStorage.getItem("studio-gate-ok") === "1" && localStorage.getItem("studio-gate-ok") === null;
+        out.simpleApplied = document.body.classList.contains("simple-mode");
+      } finally {
+        Auth.current = cur0; // restore FIRST so cleanup writes never save prefs
+        UP.roamKeys.forEach((k) => { if (keep[k] == null) localStorage.removeItem(k); else localStorage.setItem(k, keep[k]); });
+        document.body.classList.remove("simple-mode");
+        if (window.__STUDIO_STATE) window.__STUDIO_STATE.simpleMode = localStorage.getItem("studio-simple-mode") === "1";
+        W.remove("users", "user_roam2", { silent: true });
+      }
+      return out;
+    });
+    ok("SETTINGS-ROAM slice 2: the per-user chrome (simple mode, pane sizes, view toggles…) captures into the account row's prefs.ls blob and re-applies on a fresh device — curated keys only, a smuggled key in the synced blob is never written",
+      roam2.signedIn && roam2.captured && roam2.applied && roam2.curatedOnly && roam2.simpleApplied, JSON.stringify(roam2));
+
     // ---- SB-PULL-GUARD (the data-loss half of "wildly flaky"): Refresh does
     // push-then-pull — when the push FAILS, the pull used to adopt the remote
     // anyway, replaceAll-ing OVER the very rows the backend just refused

@@ -9533,11 +9533,55 @@
       var Auth = window.PolecatAuth, me = Auth && Auth.current();
       if (!me || !me.gotrueId) return; // local accounts: browser-local by design
       var row = myUsersRow(); if (!row) return;
-      if (row.prefs && row.prefs[key] === value) return;
+      // SETTINGS-ROAM slice 2: value can be an OBJECT (the ls snapshot below) —
+      // identity comparison would re-save it on every capture tick, so compare
+      // by serialization instead.
+      if (row.prefs && JSON.stringify(row.prefs[key]) === JSON.stringify(value)) return;
       var next = Studio.clone(row);
       next.prefs = next.prefs || {};
       next.prefs[key] = value;
       Studio.Workspace.put("users", next); // rides the upsert-only users push
+    } catch (e) {}
+  }
+  // SETTINGS-ROAM slice 2 (Kevin: "get my entire environment"): the rest of the
+  // per-user chrome lives in scattered localStorage keys — roam a curated set as
+  // one prefs.ls blob on the signed-in account's own users row. Captured on a
+  // slow interval + when the tab hides (cheap, compare-guarded in saveUserPref),
+  // applied at sign-in by writing localStorage back and re-applying the pieces
+  // that already rendered. Deliberately NOT roamed: workspace data that already
+  // syncs (recents/pins/workbooks), transient nav (last section/mobile tab),
+  // and the VB draft map (can grow large; still browser-local).
+  var ROAM_LS_KEYS = [
+    "studio-simple-mode", "studio-restore-unsaved", "studio-panels-default",
+    "studio-show-samples", "studio-lib-samples-open",
+    "studio-lw", "studio-rw",
+    "studio-bd-lw", "studio-bd-collapse", "studio-bd-preview-size",
+    "studio-dash-view", "studio-repo-view"
+  ]; // (studio-collapse-* stays local: STUDIO-PANELS boots panels from the preference, not chevron state)
+  function captureLsPrefs() {
+    var snap = {};
+    ROAM_LS_KEYS.forEach(function (k) {
+      try { var v = localStorage.getItem(k); if (v != null) snap[k] = v; } catch (e) {}
+    });
+    saveUserPref("ls", snap);
+  }
+  setInterval(captureLsPrefs, 60000);
+  document.addEventListener("visibilitychange", function () { if (document.hidden) captureLsPrefs(); });
+  // Re-apply the roamed chrome that already painted before sign-in (the app
+  // boots BEHIND the gate). Lazily-read prefs (restore banner, panels default,
+  // preview size, view toggles) take effect via the re-renders at the end.
+  function applyRoamedChrome() {
+    try {
+      var ws = $("#workspace");
+      var lw = localStorage.getItem("studio-lw"), rw = localStorage.getItem("studio-rw");
+      if (ws && lw) ws.style.setProperty("--lw", lw);
+      if (ws && rw) ws.style.setProperty("--rw", rw);
+      var wrap = document.querySelector("#secBuild .bd-wrap"), bdw = localStorage.getItem("studio-bd-lw");
+      if (wrap && bdw) wrap.style.setProperty("--bd-left-w", bdw);
+      if (window.__studioBdPane) window.__studioBdPane.setCollapsed(localStorage.getItem("studio-bd-collapse") === "1", true);
+      var simple = localStorage.getItem("studio-simple-mode") === "1";
+      S.simpleMode = simple; document.body.classList.toggle("simple-mode", simple);
+      renderSettings(); buildLibrary(); renderHome(); renderDashboards();
     } catch (e) {}
   }
   function applyUserPrefs() {
@@ -9548,10 +9592,17 @@
       _applyingUserPrefs = true;
       if (prefs.appTheme) setAppTheme(prefs.appTheme);
       if (prefs.theme) setTheme(prefs.theme);
+      if (prefs.ls) {
+        Object.keys(prefs.ls).forEach(function (k) {
+          if (ROAM_LS_KEYS.indexOf(k) < 0) return; // only the curated set — a synced row can't write arbitrary keys
+          try { localStorage.setItem(k, prefs.ls[k]); } catch (e) {}
+        });
+        applyRoamedChrome();
+      }
     } catch (e) {}
     _applyingUserPrefs = false;
   }
-  window.__studioUserPrefs = { save: saveUserPref, apply: applyUserPrefs, mine: myUsersRow }; // test hooks
+  window.__studioUserPrefs = { save: saveUserPref, apply: applyUserPrefs, mine: myUsersRow, captureLs: captureLsPrefs, roamKeys: ROAM_LS_KEYS }; // test hooks
   function setTheme(t) {
     S.theme = t; document.documentElement.setAttribute("data-theme", t);
     var b = $("#btnTheme"); if (b) setIconBtn(b, t === "dark" ? "sun" : "moon", t === "dark" ? "Light" : "Dark");
