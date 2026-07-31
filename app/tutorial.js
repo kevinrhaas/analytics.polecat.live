@@ -102,7 +102,7 @@
         {
           t: "Dashboards — the finished thing",
           h: "A dashboard is built from <b>Views</b> — each View shows one chart, KPI, map, or block of text. Arrange several into a page, feature it on Home, and export it as a self-contained file.",
-          sub: "A saved analysis from Quick Views drops straight onto a dashboard as a View.",
+          sub: "A saved analysis from Quick Views drops straight in as a View — and dashboards group into named <b>workbooks</b> you can filter by.",
           target: '.rail-item[data-sec="dashboards"]',
           pos: "right"
         },
@@ -114,7 +114,7 @@
         },
         {
           t: "Connections — where your data lives",
-          h: "Point at Postgres, Supabase, Snowflake, BigQuery, Google Sheets, a dropped CSV, and more — or work entirely on the built-in sample data. Credentials stay in your browser by default; connecting a workspace backend syncs them there too (encrypt them from Settings). There's a dedicated tour that walks Connections and Datasets together, too.",
+          h: "Point at Postgres, Supabase, Snowflake, BigQuery, Google Sheets, a dropped CSV, and more — each connection uses an <b>adapter</b>, the driver that speaks that backend's language. Credentials stay in your browser by default; connecting a workspace backend syncs them there too (encrypt them from Settings). There's a dedicated tour that walks Connections and Datasets together.",
           target: '.rail-item[data-sec="connections"]',
           pos: "right"
         },
@@ -132,9 +132,25 @@
         },
         {
           t: "Dashboard Builder — assemble & export",
-          h: "Where you assemble a dashboard: drag data in, tune each View in the inspector, and watch the real dashboard render live. Export a file that runs anywhere when you're done.",
+          h: "Where you assemble a dashboard: drag data in, tune each View in the inspector, add interactive <b>filters</b> that narrow every View at once, and watch the real dashboard render live. Export a file that runs anywhere when you're done.",
           target: '.rail-item[data-sec="studio"]',
           pos: "right"
+        },
+        {
+          // #23 (Kevin): every domain term, one line each — the same glossary
+          // lives in Help (rail → Help → Glossary) for later reference.
+          t: "The words, one line each",
+          h: "<b>Adapter</b> — the driver that speaks one backend's language (Postgres, Supabase, CSV…).<br>" +
+             "<b>Connection</b> — an adapter plus your credentials, pointing at one place data lives.<br>" +
+             "<b>Dataset</b> — a named, reusable query on a connection.<br>" +
+             "<b>Job</b> — a prep pipeline that cleans or rolls a dataset up into a new one.<br>" +
+             "<b>View</b> — one chart, KPI, map, or text block; the unit dashboards are made of.<br>" +
+             "<b>Dashboard</b> — Views arranged into a page you feature, share, and export.<br>" +
+             "<b>Workbook</b> — a named group of dashboards, used as a filter chip.<br>" +
+             "<b>Filter</b> — a dashboard control that narrows every View wired to it.<br>" +
+             "<b>Sample pack</b> — installable demo content: datasets, Views, and dashboards.",
+          sub: "Forget one later? The same glossary lives in Help.",
+          target: null
         },
         {
           t: "You're set — start on Home",
@@ -719,6 +735,7 @@
   T.currentTour = function () { return _tour; };
   T.tourKeys = function () { return TOUR_ORDER.slice(); };
   T.stepCount = function (key) { return tourSteps(key || _tour || "overview").length; };
+  T.tourSteps = function (key) { return tourSteps(key || _tour || "overview").slice(); }; // #23 test hook
   window.__studioTutorialActive = function () { return _active; };
   window.__studioTutorialStep = function () { return _cur; };
   window.__studioTutorialTour = function () { return _tour; };

@@ -116,6 +116,21 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **#23 (v803, sw v437, 2026-07-31, steward — "tour: introduce & define every
+  domain term"):** builds ON the lane's fresh LF40 tour engine (no conflicts —
+  overview base 10→11 steps, still + one per installed pack). Adapter woven
+  into the Connections step ("each connection uses an adapter, the driver
+  that speaks that backend's language"), workbooks into the Dashboards step
+  sub, interactive filters into the Dashboard Builder step, and a NEW
+  glossary step ("The words, one line each") before the closer covering
+  adapter/connection/dataset/job/View/dashboard/workbook/filter/sample pack.
+  Help gains a matching #glossary section (10 terms incl. workspace backend)
+  so the step's "lives in Help" pointer is honest. J6 shape assertion updated
+  to the new base; 2 new #23 checks (every term present across the walk +
+  glossary step covers the full list; Help section exists). T.tourSteps test
+  hook exported. Claimed live by the interactive session — lane: skip #23.
+  Files: app/tutorial.js, docs/index.html, tests/run.js, js/changelog.js
+  v803, sw v437.
 - **#101 (v802, sw v436, 2026-07-31, steward — Kevin: "Home Examples: separate
   sample packs"):** with MORE THAN ONE pack contributing cards, Home's Examples
   section renders a subheading per pack (short display name = the part before

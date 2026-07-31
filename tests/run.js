@@ -25815,7 +25815,7 @@ function serve() {
         var packs = Studio.DEMO_PACKS || {};
         var installedPackCount = Object.keys(packs).filter(function (id) { return Studio.demoPackInstalled(id); }).length;
         return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build,jobs,connect,conservation" &&
-          StudioTutorial.stepCount("overview") === 10 + installedPackCount && StudioTutorial.stepCount("quick") === 8 &&
+          StudioTutorial.stepCount("overview") === 11 + installedPackCount && StudioTutorial.stepCount("quick") === 8 &&
           StudioTutorial.stepCount("build") === 6 && StudioTutorial.stepCount("jobs") === 5 &&
           StudioTutorial.stepCount("connect") === 8 && StudioTutorial.stepCount("conservation") === 6,
           keys: StudioTutorial.tourKeys().join(","), o: StudioTutorial.stepCount("overview"), installedPackCount: installedPackCount,
@@ -25823,7 +25823,30 @@ function serve() {
           j: StudioTutorial.stepCount("jobs"), c: StudioTutorial.stepCount("connect"), cv: StudioTutorial.stepCount("conservation") };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("J6: six tours registered — Overview (10-step base + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (5 — LF18(b)), Connections & Datasets (8 — LF18(b)), Conservation Insight pack (6 — LF40, pack-gated)", j6Shape.ok, JSON.stringify(j6Shape));
+    ok("J6: six tours registered — Overview (11-step base incl. the #23 glossary + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (5 — LF18(b)), Connections & Datasets (8 — LF18(b)), Conservation Insight pack (6 — LF40, pack-gated)", j6Shape.ok, JSON.stringify(j6Shape));
+
+    // #23 (Kevin): the overview tour defines EVERY domain term — a glossary step
+    // covers the full list one line each, and the terms missing from the walk
+    // steps (adapter, workbook, filter) are woven into their sections' copy.
+    const g23 = await page.evaluate(function () {
+      var steps = (StudioTutorial.tourSteps ? StudioTutorial.tourSteps("overview") : null);
+      // fall back to reading the registered tour object if no steps hook exists
+      var all = steps || (window.__studioTours && window.__studioTours.overview && window.__studioTours.overview.steps) || [];
+      var joined = all.map(function (s) { return (s.t || "") + " " + (s.h || "") + " " + (s.sub || ""); }).join(" ").toLowerCase();
+      var terms = ["adapter", "connection", "dataset", "job", "workbook", "dashboard", "view", "filter", "sample pack"];
+      var missing = terms.filter(function (t) { return joined.indexOf(t) < 0; });
+      var glossaryStep = all.filter(function (s) { return /words, one line each/i.test(s.t || ""); })[0];
+      return { stepsSeen: all.length, missing: missing, hasGlossaryStep: !!glossaryStep,
+        glossaryDefines: glossaryStep ? terms.filter(function (t) { return (glossaryStep.h || "").toLowerCase().indexOf(t) < 0; }) : terms };
+    });
+    ok("#23: the overview tour now defines every domain term — adapter/connection/dataset/job/workbook/dashboard/View/filter/sample pack all appear, and the glossary step covers the full list one line each",
+      g23.stepsSeen > 0 && g23.missing.length === 0 && g23.hasGlossaryStep && g23.glossaryDefines.length === 0, JSON.stringify(g23));
+    const g23Help = await page.evaluate(async function () {
+      var res = await fetch("docs/index.html");
+      var txt = await res.text();
+      return { hasGlossary: /id="glossary"/.test(txt) && /Glossary — every term/.test(txt) };
+    });
+    ok("#23: Help carries the same glossary section (the tour's 'lives in Help' pointer is honest)", g23Help.hasGlossary, JSON.stringify(g23Help));
 
     // J6-6: the QUICK tour walks the real Explore UI — it switches the section,
     // seeds a sample dataset, and every spotlighted step finds its live target

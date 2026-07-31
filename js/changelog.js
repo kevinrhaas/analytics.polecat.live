@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 803,
+    title: 'The tour now defines every term — and Help gains a glossary',
+    ts: '2026-07-31T10:02:42.000Z',
+    items: [
+      'The overview tour introduces every domain term as it walks the app — adapters now explained on the Connections stop, workbooks on Dashboards, interactive filters on the Dashboard Builder — and a new one-line-each glossary step recaps them all: adapter, connection, dataset, job, View, dashboard, workbook, filter, sample pack.',
+      'Help carries the same glossary as its own section, so a forgotten term is one click away any time.',
+    ],
+  },
+  {
     v: 802,
     title: 'Home Examples now group by sample pack',
     kind: 'feature',

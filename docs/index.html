@@ -1904,6 +1904,23 @@
   <p><strong>Voice command mode:</strong> on a browser with the built-in Speech Recognition API (Chrome, Edge, Safari — no API key, no backend, no sign-up), the palette shows a small mic button beside the search field. Click it, say a command out loud ("add a bar chart", "go to settings", "toggle light dark theme"), and it runs the same way pressing <kbd>↵</kbd> on that text would — fully hands-free. The mic pulses red while listening and stops on its own once you finish speaking. Not shown at all in browsers without the API (e.g. Firefox) — typing still works everywhere.</p>
 </section>
 
+<!-- ── Glossary (#23 — the overview tour's "words, one line each" lives here too) ── -->
+<section id="glossary">
+  <h2>Glossary — every term, one line each</h2>
+  <ul>
+    <li><strong>Adapter</strong> — the driver that speaks one backend's language (Postgres, Supabase, Snowflake, BigQuery, Google Sheets, CSV/JSON files…). You never pick one directly — choosing what to connect to picks it for you.</li>
+    <li><strong>Connection</strong> — an adapter plus your credentials, pointing at one place data lives. Credentials stay in your browser by default.</li>
+    <li><strong>Dataset</strong> — a named, reusable query on a connection; the building block every chart draws from.</li>
+    <li><strong>Job</strong> — a prep pipeline (rename, filter, aggregate, roll up) whose output lands back in Datasets as a new dataset.</li>
+    <li><strong>View</strong> — one chart, KPI, map, or text block; the unit dashboards are made of. Built in Quick Views (fast) or the View Builder (shelves, pivots, calculations).</li>
+    <li><strong>Dashboard</strong> — Views arranged into a page you can feature on Home, share read-only, and export as a self-contained file.</li>
+    <li><strong>Workbook</strong> — a named group of dashboards, used as a filter chip in the Dashboards section.</li>
+    <li><strong>Filter</strong> — a dashboard-level control that narrows every View wired to it; "Since …" filters keep everything from the picked value onward.</li>
+    <li><strong>Sample pack</strong> — installable demo content (datasets, Views, dashboards, a job) so you can explore before connecting anything. Install/remove from Settings.</li>
+    <li><strong>Workspace backend</strong> — where the whole workspace syncs (Supabase, Turso…), so it follows you between devices; Local keeps everything in this browser.</li>
+  </ul>
+</section>
+
 <!-- ── Simple mode ────────────────────────────────────────────── -->
 <section id="simple-mode">
   <h2>Simple mode vs Advanced mode</h2>

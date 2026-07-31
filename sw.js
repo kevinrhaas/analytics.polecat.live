@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v436"; /* v436: #101 — Home Examples group by
+var CACHE_NAME = "studio-shell-v437"; /* v437: #23 — the overview tour
+   defines every domain term: adapter woven into the Connections step,
+   workbooks into Dashboards, filters into the Dashboard Builder, plus a new
+   one-line-each glossary step (tutorial.js, base 10\u219211 steps) and a matching
+   Help Glossary section (docs/index.html #glossary). */
+/* v436: #101 — Home Examples group by
    sample pack: >1 contributing pack renders a subheading per pack (short name,
    4 cards each, per-group "+N more"); one pack keeps the flat strip
    (studio.js examples()). */
