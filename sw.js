@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v435"; /* v435: the overview ("Take the
+var CACHE_NAME = "studio-shell-v436"; /* v436: #101 — Home Examples group by
+   sample pack: >1 contributing pack renders a subheading per pack (short name,
+   4 cards each, per-group "+N more"); one pack keeps the flat strip
+   (studio.js examples()). */
+/* v435: the overview ("Take the
    tour") walkthrough is now pack-aware too, same engine as welcome.js's
    computeSteps() — one acknowledgment step per installed sample pack
    splices in right after the intro (app/tutorial.js changed, so the

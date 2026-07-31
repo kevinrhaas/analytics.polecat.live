@@ -116,6 +116,17 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **#101 (v802, sw v436, 2026-07-31, steward — Kevin: "Home Examples: separate
+  sample packs"):** with MORE THAN ONE pack contributing cards, Home's Examples
+  section renders a subheading per pack (short display name = the part before
+  the "—" in DEMO_PACKS[id].name; data-home-ex-pack attr for tests) with that
+  pack's first 4 cards and its own "+N more — see Dashboards" (same
+  data-home-examples-more routing); a SINGLE contributing pack keeps the flat
+  8-card strip byte-for-byte. Headless-verified (2 packs → 2 groups, 4+4 cards,
+  "+8/+4 more"; single → flat). 2 suite checks (grouped-cards-belong-to-their-
+  pack + single-pack flat). Claimed live by the interactive session while the
+  lane runs — lane: skip #101. Files: app/studio.js, tests/run.js,
+  docs/index.html, js/changelog.js v802, sw v436.
 - **Marketing-site refresh — screenshots and copy catch up to Quick Views/View (v801, sw v436,
   2026-07-31, steward — automated lane, DOCS-CURRENCY/LF58 track):** the root `index.html` hero
   carousel and chart gallery are generated artifacts (`tools/gen-shots.mjs`,

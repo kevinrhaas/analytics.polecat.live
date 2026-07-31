@@ -32438,6 +32438,46 @@ function serve() {
       lf37After.inDashboards && lf37After.noStudioEntry && lf37After.activeChip === "Sample packs", JSON.stringify(lf37After));
     await page.evaluate(function () { Studio.Workspace.remove("dashboards", "lf37-pack-dash", { silent: true }); Studio.Workspace.notify("*"); });
     await page.click('#railNav .rail-item[data-sec="home"]');
+
+    // ---- #101 (Kevin): Home Examples grouped BY SAMPLE PACK when several
+    // contribute — a per-pack subheading + its own 4-card grid + its own
+    // "+N more"; a single contributing pack keeps the flat strip. ----
+    console.log("\n\u2022 #101: Home Examples separate by sample pack");
+    const ex101 = await page.evaluate(async function () {
+      const out = {};
+      const hadCons = Studio.demoPackInstalled("conservation");
+      if (!hadCons) Studio.installDemoPack("conservation"); // datamanagement is already on at this point
+      window.__studioRenderHome();
+      await new Promise((r) => setTimeout(r, 120));
+      const blk = document.querySelector('#secHome .home-block[data-home-sec="examples"]');
+      const heads = blk ? [].slice.call(blk.querySelectorAll("[data-home-ex-pack]")) : [];
+      out.headPacks = heads.map((h) => h.getAttribute("data-home-ex-pack")).sort();
+      out.headLabels = heads.map((h) => h.textContent.trim());
+      // every card sits under the RIGHT heading: walk each group's grid and
+      // check its cards' files carry that pack's demoPackId in S.examples
+      const byFile = {};
+      (window.__STUDIO_STATE.examples || []).forEach((e) => { byFile[e.file] = e.demoPackId || "other"; });
+      out.grouped = heads.length >= 2 && heads.every((h) => {
+        const grid = h.nextElementSibling;
+        const cards = grid ? [].slice.call(grid.querySelectorAll(".home-ex-card")) : [];
+        return cards.length > 0 && cards.length <= 4 &&
+          cards.every((c) => byFile[c.getAttribute("data-home-example")] === h.getAttribute("data-home-ex-pack"));
+      });
+      out.perPackMore = blk ? blk.querySelectorAll("[data-home-examples-more]").length : 0;
+      // single-pack case: remove conservation again -> flat strip, no subheads
+      if (!hadCons) Studio.removeDemoPack("conservation");
+      window.__studioRenderHome();
+      await new Promise((r) => setTimeout(r, 120));
+      const blk2 = document.querySelector('#secHome .home-block[data-home-sec="examples"]');
+      out.flatWhenSingle = !!blk2 && blk2.querySelectorAll("[data-home-ex-pack]").length === 0 &&
+        blk2.querySelectorAll(".home-examples").length === 1;
+      return out;
+    });
+    ok("#101: with two packs installed, Home Examples splits into per-pack groups — a subheading per pack, each grid's cards belonging to THAT pack, each with its own '+N more'",
+      JSON.stringify(ex101.headPacks) === JSON.stringify(["conservation", "datamanagement"]) && ex101.grouped && ex101.perPackMore >= 2,
+      JSON.stringify(ex101));
+    ok("#101: with a single contributing pack the section stays the flat 8-card strip (no subheadings)",
+      ex101.flatWhenSingle === true, JSON.stringify(ex101));
     await page.waitForTimeout(100);
 
     // ── HOME-EX2 (Kevin live, 2026-07-30): "Clear recents" on Home — a per-user,
