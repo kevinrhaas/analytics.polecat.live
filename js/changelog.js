@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 801,
+    title: 'Marketing site refresh — screenshots and copy catch up to Quick Views/View',
+    kind: 'polish',
+    ts: '2026-07-31T07:34:37.000Z',
+    items: [
+      'The marketing homepage\'s screenshot carousel is regenerated from the live app (tools/gen-shots.mjs) — several shots still showed the retired "Explore"/"analysis" naming from before the Quick Views/View rename.',
+      'Carousel captions and alt text updated to match: pinned Views (not "analysis widgets"), Quick Views (not "Explore").',
+      'The chart-type gallery is regenerated from the app\'s own chart registry (tools/gen-chart-gallery.mjs) — picks up the "Metrics wheel" chart type and a refreshed choropleth description (congressional districts, ZIP codes) that had drifted out of sync.',
+    ],
+  },
+  {
     v: 800,
     title: 'The guided app tour acknowledges your installed sample packs',
     kind: 'polish',
