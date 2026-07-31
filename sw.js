@@ -5,7 +5,9 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v454"; /* v454: DURABLE-2b — undo on
+var CACHE_NAME = "studio-shell-v455"; /* v455: TOUR-WOW — View Builder step
+   in welcome + overview tour; hero motion polish (welcome.js, tutorial.js). */
+/* v454: DURABLE-2b — undo on
    single-row deletes (datasets/connections/jobs/views.js). */
 /* v453: VB-DROPZONE — drop overlay
    hidden at rest (studio.css [hidden] override). */

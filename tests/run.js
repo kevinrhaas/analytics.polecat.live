@@ -16297,8 +16297,8 @@ function serve() {
         allNamesPresent: installed.every(function (id) { return titles.indexOf(packs[id].name) >= 0; })
       };
     });
-    ok("LF40: the welcome carousel adds one curated-content step per installed sample pack (5-step base + N packs)",
-      packAware.allNamesPresent && packAware.titleCount === 5 + packAware.installedCount, JSON.stringify(packAware));
+    ok("LF40: the welcome carousel adds one curated-content step per installed sample pack (6-step base incl. TOUR-WOW's View Builder step + N packs)",
+      packAware.allNamesPresent && packAware.titleCount === 6 + packAware.installedCount, JSON.stringify(packAware));
     // UX6 (icon migration): each step tile used to bake a raw Unicode letter glyph
     // (P/◈/▥/⤓/⚙, a full-color-font miss) into the header -- now a themed Studio.icon SVG,
     // and it swaps per step (not the same icon stuck on every tile).
@@ -26568,7 +26568,7 @@ function serve() {
         var packs = Studio.DEMO_PACKS || {};
         var installedPackCount = Object.keys(packs).filter(function (id) { return Studio.demoPackInstalled(id); }).length;
         return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build,jobs,connect,conservation" &&
-          StudioTutorial.stepCount("overview") === 11 + installedPackCount && StudioTutorial.stepCount("quick") === 8 &&
+          StudioTutorial.stepCount("overview") === 12 + installedPackCount && StudioTutorial.stepCount("quick") === 8 &&
           StudioTutorial.stepCount("build") === 6 && StudioTutorial.stepCount("jobs") === 5 &&
           StudioTutorial.stepCount("connect") === 8 && StudioTutorial.stepCount("conservation") === 6,
           keys: StudioTutorial.tourKeys().join(","), o: StudioTutorial.stepCount("overview"), installedPackCount: installedPackCount,
@@ -26576,7 +26576,7 @@ function serve() {
           j: StudioTutorial.stepCount("jobs"), c: StudioTutorial.stepCount("connect"), cv: StudioTutorial.stepCount("conservation") };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("J6: six tours registered — Overview (11-step base incl. the #23 glossary + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (5 — LF18(b)), Connections & Datasets (8 — LF18(b)), Conservation Insight pack (6 — LF40, pack-gated)", j6Shape.ok, JSON.stringify(j6Shape));
+    ok("J6: six tours registered — Overview (12-step base incl. the #23 glossary + TOUR-WOW's View Builder stop + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (5 — LF18(b)), Connections & Datasets (8 — LF18(b)), Conservation Insight pack (6 — LF40, pack-gated)", j6Shape.ok, JSON.stringify(j6Shape));
 
     // #23 (Kevin): the overview tour defines EVERY domain term — a glossary step
     // covers the full list one line each, and the terms missing from the walk
@@ -26665,7 +26665,7 @@ function serve() {
       var packs = Studio.DEMO_PACKS || {};
       var packCount = Object.keys(packs).filter(function (id) { return Studio.demoPackInstalled(id); }).length;
       for (var p = 0; p < packCount; p++) { document.querySelector("#st-tip button.pri").click(); await sleep(150); }
-      var railSecs = ["home", "explore", "dashboards", "datasets", "connections", "jobs", "repository", "studio"];
+      var railSecs = ["home", "explore", "build", "dashboards", "datasets", "connections", "jobs", "repository", "studio"];
       var hits = 0;
       for (var i = 0; i < railSecs.length; i++) {
         document.querySelector("#st-tip button.pri").click();
@@ -26686,8 +26686,8 @@ function serve() {
       return { tour: "overview", railHits: hits, onHome: onHome, lastLabel: lastLabel,
         closed: !document.getElementById("st-tip") && !window.__studioTutorialActive() };
     });
-    ok("J6: the Overview tour spotlights all 8 rail sections in order and ENDS on Home (getting-started), then completes",
-      j6Overview.railHits === 8 && j6Overview.onHome && /Done/.test(j6Overview.lastLabel) && j6Overview.closed,
+    ok("J6: the Overview tour spotlights all 9 rail sections in order (View Builder included — TOUR-WOW) and ENDS on Home (getting-started), then completes",
+      j6Overview.railHits === 9 && j6Overview.onHome && /Done/.test(j6Overview.lastLabel) && j6Overview.closed,
       JSON.stringify(j6Overview));
 
     // J6-8 (LF18b): the JOBS tour walks the real Jobs section — the list, the
@@ -26813,7 +26813,7 @@ function serve() {
       return { withPack: StudioTutorial.stepCount("overview"), installedCount: installedCount, titles: StudioTutorial.computeOverviewStepTitles() };
     });
     ok("J6: overview tour gains one spliced step (right after the intro) naming the installed Conservation Insight pack",
-      j6OverviewPackAware.withPack === 11 + j6OverviewPackAware.installedCount &&
+      j6OverviewPackAware.withPack === 12 + j6OverviewPackAware.installedCount &&
       j6OverviewPackAware.titles[1] === "Conservation Insight — cover crop & tillage adoption",
       JSON.stringify(j6OverviewPackAware));
 
@@ -26890,7 +26890,7 @@ function serve() {
       return ok2;
     });
     ok("J6: Conservation Insight tour disappears from the chooser again once the pack is removed, and the overview tour's pack step goes with it",
-      j6ConservationCleanup.count === 5 && !j6ConservationCleanup.installed && j6ConservationCleanup.overviewSteps === 11 + j6ConservationCleanup.installedCount,
+      j6ConservationCleanup.count === 5 && !j6ConservationCleanup.installed && j6ConservationCleanup.overviewSteps === 12 + j6ConservationCleanup.installedCount,
       JSON.stringify(j6ConservationCleanup));
 
     // restore studio section for later tests

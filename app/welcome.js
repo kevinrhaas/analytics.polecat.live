@@ -34,6 +34,11 @@
     { t: "Quick Views — answers in a minute", ic: "search",
       h: "<b>Quick Views</b> (left rail) is the fastest path in: pick a dataset, see it as a table, choose a chart — including the <b>US county map</b> and the <b>Ensemble common-estimate</b> chart — and save it as a reusable <b>analysis</b>.",
       s: "Pin an analysis ★ to Home and it greets you live when you open the app; drop it into any dashboard with one click." },
+    // TOUR-WOW (Kevin live, 2026-07-31): the flagship View Builder was absent
+    // from the whole welcome flow — new users never learned it existed.
+    { t: "View Builder — drag, drop, chart", ic: "sliders",
+      h: "<b>View Builder</b> (left rail: Build) is the drag-and-drop canvas: pull a dataset's columns onto the <b>Columns / Rows / Filters / Color</b> shelves and the result renders live — tables, bars, lines, donuts, heatmaps, and full <b>US maps</b>, one click apart.",
+      s: "Drop a CSV straight onto the canvas and it becomes a dataset — charted instantly. Every save is a View you can reuse on any dashboard." },
     { t: "Dashboard Builder — full dashboards", ic: "grid",
       h: "<b>Library</b> (left) lists your analyses, datasets and samples · <b>Live preview</b> (center) is the real dashboard · <b>Inspector</b> (right) edits whatever you select. Drag to reorder, resize, rename; Ctrl/Cmd-Z undoes.",
       s: "Or hit <b>New ▸ Auto-build</b> to scaffold a whole dashboard from a query set in one click." },
@@ -98,9 +103,13 @@
       "#studio-welcome{position:fixed;inset:0;z-index:95;display:flex;align-items:center;justify-content:center;background:rgba(10,10,15,.55);backdrop-filter:blur(3px);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}" +
       "#studio-welcome .sw{background:var(--pane,#fff);border-radius:16px;box-shadow:0 28px 80px rgba(8,20,45,.5);width:min(560px,94vw);overflow:hidden;animation:sw-scale-in .16s ease-out}" +
       "@keyframes sw-scale-in{from{opacity:0;transform:scale(.96) translateY(6px)}to{opacity:1;transform:none}}" +
-      "@media(prefers-reduced-motion:reduce){#studio-welcome .sw{animation:none}}" +
-      "#studio-welcome .sw-hd{background:linear-gradient(120deg,var(--brand,#005bb5),var(--dk,#7d3c98));color:#fff;padding:26px 28px;display:flex;gap:16px;align-items:center}" +
-      "#studio-welcome .sw-ic{width:52px;height:52px;border-radius:13px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex:0 0 auto}" +
+      // TOUR-WOW: a slow gradient pan on the header + a gentle sparkle float —
+      // the "alive" feel Kevin asked for, all CSS, killed by reduced-motion.
+      "@media(prefers-reduced-motion:reduce){#studio-welcome .sw,#studio-welcome .sw-hd,#studio-welcome .sw-ic{animation:none}}" +
+      "#studio-welcome .sw-hd{background:linear-gradient(120deg,var(--brand,#005bb5),var(--dk,#7d3c98),var(--brand,#005bb5));background-size:220% 220%;animation:sw-hd-pan 9s ease-in-out infinite alternate;color:#fff;padding:26px 28px;display:flex;gap:16px;align-items:center}" +
+      "@keyframes sw-hd-pan{from{background-position:0% 40%}to{background-position:100% 60%}}" +
+      "#studio-welcome .sw-ic{width:52px;height:52px;border-radius:13px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex:0 0 auto;animation:sw-ic-float 4.5s ease-in-out infinite}" +
+      "@keyframes sw-ic-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}" +
       "#studio-welcome .sw-hd h1{margin:0;font-size:19px;font-weight:800}" +
       "#studio-welcome .sw-bd{padding:20px 28px 8px;color:var(--ink,#243149);font-size:14px;line-height:1.6}#studio-welcome .sw-bd b{color:var(--brand,#005bb5)}" +
       "#studio-welcome .sw-sub{color:var(--muted,#5d6b82);font-size:13px;margin-top:10px;line-height:1.55}" +
@@ -115,8 +124,9 @@
       // Hero screen additions.
       "#studio-welcome .sw-hero-sub{margin:0 0 16px}" +
       "#studio-welcome .sw-qa-row{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 16px}" +
-      "#studio-welcome .sw-qa{display:flex;align-items:center;gap:8px;flex:1 1 150px;border:1px solid var(--line,#d9e0ec);background:var(--field,#f5f8fc);color:var(--ink,#16233b);border-radius:10px;padding:10px 12px;font-size:12.5px;font-weight:700;cursor:pointer;text-align:left}" +
-      "#studio-welcome .sw-qa:hover{border-color:var(--brand,#005bb5);color:var(--brand,#005bb5)}" +
+      "#studio-welcome .sw-qa{display:flex;align-items:center;gap:8px;flex:1 1 150px;border:1px solid var(--line,#d9e0ec);background:var(--field,#f5f8fc);color:var(--ink,#16233b);border-radius:10px;padding:10px 12px;font-size:12.5px;font-weight:700;cursor:pointer;text-align:left;transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease}" +
+      "#studio-welcome .sw-qa:hover{border-color:var(--brand,#005bb5);color:var(--brand,#005bb5);transform:translateY(-1px);box-shadow:0 4px 14px rgba(8,20,45,.10)}" +
+      "@media(prefers-reduced-motion:reduce){#studio-welcome .sw-qa{transition:none}#studio-welcome .sw-qa:hover{transform:none}}" +
       "#studio-welcome .sw-qa-ic{display:flex;flex:0 0 auto;color:var(--dk,#7d3c98)}" +
       "#studio-welcome .sw-hero-note{color:var(--muted,#5d6b82);font-size:12.5px;line-height:1.5;margin:0}" +
       "#studio-welcome .sw-hero-note b{color:var(--ink,#16233b)}" +
