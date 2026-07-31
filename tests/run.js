@@ -9803,6 +9803,66 @@ function serve() {
     await page.click("#dsxViewToggle"); // back to list view
     await page.waitForTimeout(80);
 
+    // LIVE-d (slice 5): bulk "Move to folder…" — Kevin's original driving example. The
+    // bulk bar gains a Move button that opens the shared LF56 folder picker once for the
+    // whole selection; every selected row is refiled in one go, and clearing to "No
+    // folder" un-files them the same way.
+    await page.evaluate(function () {
+      Studio.Workspace.put("datasets", { id: "livd-mv-a", name: "livd_mv_a", kind: "sql", sql: "SELECT 1" }, { silent: true });
+      Studio.Workspace.put("datasets", { id: "livd-mv-b", name: "livd_mv_b", kind: "sql", sql: "SELECT 2", folder: "OldSpot" }, { silent: true });
+      window.__studioRenderDatasets();
+      document.getElementById("dsxSelectBtn").click();
+    });
+    await page.waitForTimeout(120);
+    await page.evaluate(function () { document.querySelector('.dsx-select-cb[data-dsx-select="livd-mv-a"]').click(); });
+    await page.evaluate(function () { document.querySelector('.dsx-select-cb[data-dsx-select="livd-mv-b"]').click(); });
+    const livdMoveOpen = await page.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      var btn = document.getElementById("dsxSelMoveBtn");
+      var out = { btnThere: !!btn, disabled: btn && btn.disabled, label: btn && btn.textContent };
+      btn.click();
+      await sleep(200);
+      out.pickerOpen = !!document.querySelector(".modal-ov .fp");
+      // create a folder inline and file both there
+      var addInp = document.querySelector(".fp-add-inp"), addBtn = document.querySelector(".fp-add-btn");
+      addInp.value = "BulkMoved"; addBtn.click();
+      await sleep(150);
+      document.querySelector(".fp-use").click();
+      await sleep(300);
+      out.fA = (Studio.Workspace.get("datasets", "livd-mv-a") || {}).folder;
+      out.fB = (Studio.Workspace.get("datasets", "livd-mv-b") || {}).folder;
+      out.selAfter = window.__studioDsxSelected().length;
+      out.stillSelectMode = window.__studioDsxSelectMode();
+      return out;
+    });
+    ok("LIVE-d (5): the Datasets bulk bar offers Move to folder — one picker choice refiles every selected dataset (a new folder created inline), and the selection clears",
+      livdMoveOpen.btnThere && !livdMoveOpen.disabled && /Move 2 to folder/.test(livdMoveOpen.label) && livdMoveOpen.pickerOpen &&
+      livdMoveOpen.fA === "BulkMoved" && livdMoveOpen.fB === "BulkMoved" && livdMoveOpen.selAfter === 0 && livdMoveOpen.stillSelectMode,
+      JSON.stringify(livdMoveOpen));
+    // un-file via the picker's "No folder" — the same bulk flow clears the folder key
+    const livdMoveClear = await page.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      document.querySelector('.dsx-select-cb[data-dsx-select="livd-mv-a"]').click();
+      await sleep(100);
+      document.querySelector('.dsx-select-cb[data-dsx-select="livd-mv-b"]').click();
+      await sleep(100);
+      document.getElementById("dsxSelMoveBtn").click();
+      await sleep(200);
+      document.querySelector(".fp-clear").click();
+      await sleep(300);
+      var a = Studio.Workspace.get("datasets", "livd-mv-a"), b = Studio.Workspace.get("datasets", "livd-mv-b");
+      return { aFolder: a && a.folder, bFolder: b && b.folder, aHasKey: !!(a && ("folder" in a)), bHasKey: !!(b && ("folder" in b)) };
+    });
+    ok("LIVE-d (5): picking No folder un-files the whole selection (the folder key is removed, matching repoSetObjectFolder's semantics)",
+      !livdMoveClear.aHasKey && !livdMoveClear.bHasKey, JSON.stringify(livdMoveClear));
+    await page.evaluate(function () {
+      Studio.Workspace.remove("datasets", "livd-mv-a", { silent: true });
+      Studio.Workspace.remove("datasets", "livd-mv-b", { silent: true });
+      Studio.Workspace.notify("datasets");
+      if (window.__studioDsxSelectMode()) document.getElementById("dsxSelectBtn").click(); // back out of select mode
+    });
+    await page.waitForTimeout(100);
+
     // LIVE-d (slice 2): multi-select + bulk delete on Connections — same shape slice 1
     // proved on Datasets (session-only select mode, checkbox overlay, bulk bar with
     // Select all/Clear/Delete). Two throwaway connections keep this from touching the
@@ -33371,6 +33431,51 @@ function serve() {
     await page.click("#dashViewToggle");
     await page.waitForTimeout(80);
 
+    // LIVE-d (slice 5): bulk "Move to folder…" on Dashboards — Kevin's literal ask
+    // ("I want to select multiple dashboards and move to folder but had to do each one
+    // individually"). One picker choice files every selected dashboard.
+    await page.evaluate(function () {
+      Studio.Workspace.put("dashboards", { id: "lf59-mv-a", ts: new Date().toISOString(),
+        spec: { id: "lf59-mv-a", title: "LF59 move A", panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] } } }, { silent: true });
+      Studio.Workspace.put("dashboards", { id: "lf59-mv-b", ts: new Date().toISOString(),
+        spec: { id: "lf59-mv-b", title: "LF59 move B", panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] } } }, { silent: true });
+      window.__studioRenderDashboards();
+      document.getElementById("repoSelectBtn").click();
+    });
+    await page.waitForTimeout(120);
+    await page.evaluate(function () { document.querySelector('.dash-select-cb[data-select="lf59-mv-a"]').click(); });
+    await page.evaluate(function () { document.querySelector('.dash-select-cb[data-select="lf59-mv-b"]').click(); });
+    const lf59Move = await page.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      var btn = document.getElementById("dashSelMoveBtn");
+      var out = { btnThere: !!btn, label: btn && btn.textContent };
+      btn.click();
+      await sleep(200);
+      out.pickerOpen = !!document.querySelector(".modal-ov .fp");
+      var addInp = document.querySelector(".fp-add-inp"), addBtn = document.querySelector(".fp-add-btn");
+      addInp.value = "MovedTogether"; addBtn.click();
+      await sleep(150);
+      document.querySelector(".fp-use").click();
+      await sleep(300);
+      out.fA = (Studio.Workspace.get("dashboards", "lf59-mv-a") || {}).folder;
+      out.fB = (Studio.Workspace.get("dashboards", "lf59-mv-b") || {}).folder;
+      out.selAfter = window.__studioDashSelected().length;
+      // the Dashboards folder facet strip should now know the new folder
+      out.facetHasFolder = !!document.querySelector('[data-dash-folder="MovedTogether"]');
+      return out;
+    });
+    ok("LIVE-d (5): the Dashboards bulk bar's Move to folder files every selected dashboard in one go, clears the selection, and the folder facet picks the new folder up",
+      lf59Move.btnThere && /Move 2 to folder/.test(lf59Move.label) && lf59Move.pickerOpen &&
+      lf59Move.fA === "MovedTogether" && lf59Move.fB === "MovedTogether" && lf59Move.selAfter === 0 && lf59Move.facetHasFolder,
+      JSON.stringify(lf59Move));
+    await page.evaluate(function () {
+      Studio.Workspace.remove("dashboards", "lf59-mv-a", { silent: true });
+      Studio.Workspace.remove("dashboards", "lf59-mv-b", { silent: true });
+      Studio.Workspace.notify("dashboards");
+      if (window.__studioDashSelectMode()) document.getElementById("repoSelectBtn").click(); // back out of select mode
+    });
+    await page.waitForTimeout(100);
+
     const repoImport = await page.evaluate(function () {
       delete window.__STUDIO_STATE.catalog.repoExportTest;
       var before = !!window.__STUDIO_STATE.catalog.repoImportTest;
@@ -38064,6 +38169,32 @@ function serve() {
     });
     ok("LIVE-d: Clear deselects everything and disables Delete again",
       livdRepoClear.selectedCount === 0 && livdRepoClear.delDisabled, JSON.stringify(livdRepoClear));
+
+    // LIVE-d (slice 5): bulk Move to folder over the MIXED selection — one picker choice
+    // refiles a job and a dataset (two different tables) together.
+    await repoPage.evaluate(function () { document.querySelector('.repo-select-cb[data-repo-select-type="job"][data-repo-select-id="livd-repobulk-job"]').click(); });
+    await repoPage.evaluate(function () { document.querySelector('.repo-select-cb[data-repo-select-type="dataset"][data-repo-select-id="livd-repobulk-ds"]').click(); });
+    const livdRepoMove = await repoPage.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      var btn = document.getElementById("repoSelMoveBtn");
+      var out = { btnThere: !!btn, label: btn && btn.textContent };
+      btn.click();
+      await sleep(200);
+      out.pickerOpen = !!document.querySelector(".modal-ov .fp");
+      var addInp = document.querySelector(".fp-add-inp"), addBtn = document.querySelector(".fp-add-btn");
+      addInp.value = "MixMove"; addBtn.click();
+      await sleep(150);
+      document.querySelector(".fp-use").click();
+      await sleep(300);
+      out.jobFolder = (Studio.Workspace.get("jobs", "livd-repobulk-job") || {}).folder;
+      out.dsFolder = (Studio.Workspace.get("datasets", "livd-repobulk-ds") || {}).folder;
+      out.selAfter = window.__studioRepoSelected().length;
+      return out;
+    });
+    ok("LIVE-d (5): Repository's bulk Move to folder refiles a MIXED selection (a job + a dataset, two tables) with one picker choice and clears the selection",
+      livdRepoMove.btnThere && /Move 2 to folder/.test(livdRepoMove.label) && livdRepoMove.pickerOpen &&
+      livdRepoMove.jobFolder === "MixMove" && livdRepoMove.dsFolder === "MixMove" && livdRepoMove.selAfter === 0,
+      JSON.stringify(livdRepoMove));
 
     // re-select just the two throwaway rows (a job + a dataset) and bulk-delete them —
     // the confirmation should name both kinds, and only those two rows should go.

@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 806,
+    title: 'Move many things to a folder at once, from every catalog page',
+    kind: 'feature',
+    ts: '2026-07-31T11:15:46.000Z',
+    items: [
+      'Every multi-select bulk bar -- Dashboards, Datasets, Connections, Jobs, and the Repository -- now has a "Move to folder..." button beside Delete: select any number of items, pick a folder once (the same folder browser every Folder field uses -- browse, search, create a nested folder inline), and the whole selection is filed in one go.',
+      'Choosing "No folder" un-files the selection the same way, and the Repository can refile a mixed selection -- dashboards, datasets, jobs, connections and Views together -- with one choice.',
+      'This closes the original ask behind the multi-select work: moving several dashboards into a folder no longer means doing each one individually.',
+    ],
+  },
+  {
     v: 805,
     title: 'Exporting a live dashboard now picks its data mode — snapshot, live, or standalone',
     kind: 'feature',

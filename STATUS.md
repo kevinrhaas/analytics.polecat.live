@@ -116,6 +116,32 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LIVE-d slice 5 — bulk "Move to folder…" on every section bulk bar (v806,
+  sw v440, 2026-07-31, steward):** closes Kevin's ORIGINAL driving example
+  behind the whole LIVE-d track ("I want to select multiple dashboards and
+  move to folder but had to do each one individually") — slices 1-4 shipped
+  bulk-delete only. NEW shared `Studio.bulkMoveToFolder(items, allPaths,
+  done)` (studio.js, beside repoSetObjectFolder): items are {type,id} pairs
+  keyed through REPO_EDIT_TABLE (so Repository's mixed selection works), one
+  LF56 folder picker over the caller's folder namespace, silent per-row
+  writes with repoSetObjectFolder's clear-deletes-the-key semantics, done()
+  BEFORE the batched per-table notifies (caller clears its selection ahead
+  of the repaint), then ONE notify per touched table (the LF59 bulk
+  convention — the central change listener repaints every section). Wired
+  into all five bulk bars: Dashboards (#dashSelMoveBtn, folder namespace =
+  facet folders + repo folder seeds), Datasets (#dsxSelMoveBtn), Connections
+  (#connSelMoveBtn), Jobs (#jobsSelMoveBtn), Repository (#repoSelMoveBtn —
+  one choice refiles a mixed dashboards/datasets/jobs/connections/Views
+  selection; namespace = all five tables' folders + seeds). Button disabled
+  at zero, labeled "Move N to folder…". Docs: both bulk-actions passages
+  (Dashboards + the Datasets/Connections/Jobs/Repository section) rewritten
+  as "bulk actions" covering Move. 4 new checks (Datasets full flow incl.
+  inline folder-create + selection-clear; No-folder un-file removes the key;
+  Dashboards full flow + folder facet picks the new folder up; Repository
+  mixed job+dataset refile). Verified live headless first (zero pageerrors).
+  Claimed live by the interactive session — lane: skip LIVE-d move-to-folder.
+  Files: app/studio.js, app/datasets.js, app/connections.js, app/jobs.js,
+  docs/index.html, sw.js, js/changelog.js v806, tests/run.js, STATUS.md.
 - **EXPORT-2 (v805, sw v439, 2026-07-31, steward — export data modes for live
   remote sources):** the .html export of a dashboard with live REMOTE DAs now
   opens a data-mode dialog (both the plain export and the "All artifacts"
@@ -8540,6 +8566,10 @@
 >       ✓ **Slice 3 shipped (2026-07-30, v762, steward): Jobs gains Select/bulk-delete.**
 >       See DONE for the full writeup — same shape, bulk confirm notes output datasets are
 >       kept.
+>       ✓ **Slice 5 shipped (2026-07-31, v806, interactive session — lane: skip): bulk
+>       "Move to folder…" on ALL FIVE bulk bars** (Dashboards/Datasets/Connections/Jobs/
+>       Repository incl. mixed selections) via shared Studio.bulkMoveToFolder + the LF56
+>       picker — Kevin's original driving example closes. See DONE.
 >       ✓ **Slice 4 shipped (2026-07-30, v775, steward): Repository gains Select/bulk-delete.**
 >       The all-object catalog (dashboards + datasets + connections + Views + jobs in one
 >       searchable tree) is the one section where a single selection can span FIVE different

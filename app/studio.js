@@ -6716,6 +6716,8 @@
       ? '<div class="dash-bulk-bar"><span class="dash-bulk-count">' + selCount + ' selected</span>' +
         '<button type="button" class="btn" id="dashSelAllBtn">Select all</button>' +
         '<button type="button" class="btn" id="dashSelNoneBtn">Clear</button>' +
+        '<button type="button" class="btn" id="dashSelMoveBtn"' + (selCount ? '' : ' disabled') + '>' +
+        'Move' + (selCount ? ' ' + selCount : '') + ' to folder…</button>' +
         '<button type="button" class="btn danger" id="dashSelDelBtn"' + (selCount ? '' : ' disabled') + '>' +
         'Delete' + (selCount ? ' ' + selCount : '') + '</button></div>'
       : '';
@@ -6845,6 +6847,14 @@
       if (selNoneBtn) selNoneBtn.onclick = function () { _dashSelected = {}; renderDashboards(); };
       var selDelBtn = $("#dashSelDelBtn", results);
       if (selDelBtn) selDelBtn.onclick = bulkDeleteSelectedDashboards;
+      // LIVE-d slice 5: bulk Move to folder — same folder namespace the per-row move uses.
+      var selMoveBtn = $("#dashSelMoveBtn", results);
+      if (selMoveBtn) selMoveBtn.onclick = function () {
+        var items = Object.keys(_dashSelected).map(function (id) { return { type: "dashboard", id: id }; });
+        Studio.bulkMoveToFolder(items, Object.keys(folderCounts).concat(repoLoadFolderSeeds()), function (moved) {
+          if (moved) _dashSelected = {};
+        });
+      };
       $$(".dash-select-cb", results).forEach(function (cb) {
         cb.onclick = function (e) { e.stopPropagation(); };
         cb.onchange = function () { toggleDashSelect(cb.getAttribute("data-select")); };
@@ -7418,6 +7428,8 @@
       ? '<div class="dash-bulk-bar"><span class="dash-bulk-count">' + repoSelCount + ' selected</span>' +
         '<button type="button" class="btn" id="repoSelAllBtn">Select all</button>' +
         '<button type="button" class="btn" id="repoSelNoneBtn">Clear</button>' +
+        '<button type="button" class="btn" id="repoSelMoveBtn"' + (repoSelCount ? '' : ' disabled') + '>' +
+        'Move' + (repoSelCount ? ' ' + repoSelCount : '') + ' to folder…</button>' +
         '<button type="button" class="btn danger" id="repoSelDelBtn"' + (repoSelCount ? '' : ' disabled') + '>' +
         'Delete' + (repoSelCount ? ' ' + repoSelCount : '') + '</button></div>'
       : '';
@@ -7488,6 +7500,24 @@
       if (repoSelNoneBtn) repoSelNoneBtn.onclick = function () { _repoSelected = {}; renderRepository(); };
       var repoSelDelBtn = $("#repoSelDelBtn", results);
       if (repoSelDelBtn) repoSelDelBtn.onclick = bulkDeleteSelectedRepo;
+      // LIVE-d slice 5: bulk Move to folder over the MIXED selection ("type:id" keys) —
+      // the shared helper maps each type through REPO_EDIT_TABLE, so one picker choice
+      // refiles datasets, jobs, dashboards, connections and Views together. The folder
+      // namespace is the Repository's own: every filed row's folder plus the seeds.
+      var repoSelMoveBtn = $("#repoSelMoveBtn", results);
+      if (repoSelMoveBtn) repoSelMoveBtn.onclick = function () {
+        var items = Object.keys(_repoSelected).map(function (key) {
+          var i = key.indexOf(":");
+          return { type: key.slice(0, i), id: key.slice(i + 1) };
+        });
+        var allPaths = repoLoadFolderSeeds();
+        Object.keys(REPO_EDIT_TABLE).forEach(function (t) {
+          Studio.Workspace.all(REPO_EDIT_TABLE[t]).forEach(function (r) { if (r.folder) allPaths.push(r.folder); });
+        });
+        Studio.bulkMoveToFolder(items, allPaths, function (moved) {
+          if (moved) { _repoSelected = {}; renderRepository(); }
+        });
+      };
       $$(".repo-select-cb", results).forEach(function (cb) {
         cb.onclick = function (e) { e.stopPropagation(); };
         cb.onchange = function () { toggleRepoSelect(cb.getAttribute("data-repo-select-type"), cb.getAttribute("data-repo-select-id")); };
@@ -7536,6 +7566,37 @@
     Studio.Workspace.put(table, obj);
     return true;
   }
+  // LIVE-d slice 5 — Kevin's original driving example ("I want to select multiple dashboards
+  // and move to folder but had to do each one individually"): the shared bulk "Move to
+  // folder…" flow behind every section bulk bar. One LF56 picker over the given folder
+  // namespace, silent per-row writes (repoSetObjectFolder's clear-deletes-the-key semantics),
+  // done() BEFORE the batched notifies so the caller can clear its selection ahead of the
+  // repaint the notify triggers, then ONE notify per touched table (the LF59 bulk convention).
+  // items: [{ type, id }] — type keys REPO_EDIT_TABLE, so Repository's mixed selection works.
+  function bulkMoveToFolder(items, allPaths, done) {
+    var W = Studio.Workspace;
+    var rows = (items || []).map(function (it) {
+      var table = REPO_EDIT_TABLE[it.type], row = table && W.get(table, it.id);
+      return row ? { table: table, row: row } : null;
+    }).filter(Boolean);
+    if (!rows.length) return;
+    Studio.openFolderPicker("", allPaths, function (path) {
+      var moved = 0, touched = {};
+      rows.forEach(function (r) {
+        if ((r.row.folder || "") === (path || "")) return;
+        if (path) r.row.folder = path; else delete r.row.folder;
+        W.put(r.table, r.row, { silent: true });
+        touched[r.table] = true;
+        moved++;
+      });
+      if (done) done(moved, path);
+      Object.keys(touched).forEach(function (t) { W.notify(t); });
+      toast(moved
+        ? "Moved " + moved + " to " + (path ? "“" + path + "”" : "Home (no folder)")
+        : "Already there — nothing to move.");
+    });
+  }
+  Studio.bulkMoveToFolder = bulkMoveToFolder;
   // Dashboards carry no top-level `.name` (their title lives at `spec.title`, edited in
   // Studio's own dashboard settings) — quick edit is folder-only for this one kind, so it
   // doesn't duplicate title-editing UI outside Studio.
