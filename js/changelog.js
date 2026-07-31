@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 817,
+    title: 'Correlation explorer -- discover strong relationships between columns automatically',
+    kind: 'feature',
+    ts: '2026-07-31T14:21:03.000Z',
+    items: [
+      'The Data preview modal now scans every pair of numeric columns in its current result for a strong Pearson correlation and surfaces the strongest ones as plain-English notes, e.g. "Revenue and Marketing spend show a strong positive correlation (r = 0.82)." -- no scatter chart has to be built first to discover the relationship.',
+      'Reuses the same correlation math the Scatter/bubble Insight narration and a KPI\'s "Correlation" aggregation already use, just run automatically across a whole dataset instead of one column pair you\'ve already chosen.',
+    ],
+  },
+  {
     v: 816,
     title: 'Clear local data now wipes everything it promises to',
     kind: 'fix',

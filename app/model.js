@@ -246,6 +246,44 @@
     return picks.slice(0, 3);
   };
 
+  /* ---- N-DATA: correlation explorer ----
+     Given a whole data access's own sample rows, scan EVERY pair of numeric columns for
+     Pearson correlation (reusing Studio.pearsonCorr, which today only runs on a scatter/bubble
+     panel's already-chosen x/y pair, or a KPI's "vs. Compare-to column" aggregation) and surface
+     the strongest relationships automatically — no chart has to be built first to discover them.
+     Pure, no DOM; classification reuses the same numeric heuristic recommendCharts() already
+     established (Studio.classifyCols). Returns pairs sorted by |r| descending, capped at
+     maxResults, keeping only pairs at or above minAbsR (weak/incidental correlations are noise). */
+  Studio.findCorrelations = function (cols, rows, opts) {
+    opts = opts || {};
+    var minAbsR = opts.minAbsR != null ? opts.minAbsR : 0.5;
+    var maxResults = opts.maxResults != null ? opts.maxResults : 5;
+    if (!cols || !cols.length || !rows || rows.length < 3) return [];
+    var numeric = Studio.classifyCols(cols, rows).numeric;
+    var results = [];
+    for (var i = 0; i < numeric.length; i++) {
+      var ci = cols.indexOf(numeric[i]);
+      var a = rows.map(function (r) { return r[ci]; });
+      for (var j = i + 1; j < numeric.length; j++) {
+        var cj = cols.indexOf(numeric[j]);
+        var b = rows.map(function (r) { return r[cj]; });
+        var r = Studio.pearsonCorr(a, b);
+        if (Math.abs(r) >= minAbsR) results.push({ colA: numeric[i], colB: numeric[j], r: r });
+      }
+    }
+    results.sort(function (x, y) { return Math.abs(y.r) - Math.abs(x.r); });
+    return results.slice(0, maxResults);
+  };
+  // Plain-English rendering of one Studio.findCorrelations() result — same "strength + direction"
+  // convention as computeCorrelation()'s scatter-chart narration below, so the two features read
+  // as one coherent voice even though this one scans a whole dataset instead of one chosen pair.
+  Studio.correlationMessage = function (c) {
+    var abs = Math.abs(c.r);
+    var strength = abs >= 0.8 ? "very strong" : abs >= 0.6 ? "strong" : "moderate";
+    var dir = c.r > 0 ? "positive" : "negative";
+    return c.colA + " and " + c.colB + " show a " + strength + " " + dir + " correlation (r = " + c.r.toFixed(2) + ").";
+  };
+
   /* ---- N-AI: "Explain this chart" auto-insight narration ----
      Pure client-side stats over a chart's own sample rows (no API, ties to Z7): trend
      direction via OLS slope, the single biggest point-to-point move, and any outlier

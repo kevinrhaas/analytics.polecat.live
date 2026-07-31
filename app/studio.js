@@ -4923,6 +4923,9 @@
     var qualityWrap = el("div", "daprev-quality");
     sec.appendChild(qualityWrap);
 
+    var corrWrap = el("div", "daprev-correlations");
+    sec.appendChild(corrWrap);
+
     function renderTable(result, src) {
       tableWrap.innerHTML = ""; pagination.style.display = "none";
       if (!result || !result.cols || !result.cols.length) {
@@ -4975,6 +4978,16 @@
       Studio.dataQualityIssues(result.cols, sample).forEach(function (issue) {
         qualityWrap.appendChild(noteEl("warn", Studio.dataQualityMessage(issue)));
       });
+
+      // N-DATA innovation sweep: correlation explorer — scan every numeric column pair in this
+      // preview's own sample for a strong relationship, so a builder discovers it without having
+      // to bind a scatter chart first. Informational (tone "info"), not a warning.
+      corrWrap.innerHTML = "";
+      var corrPairs = Studio.findCorrelations(result.cols, sample);
+      corrPairs.forEach(function (c) {
+        corrWrap.appendChild(noteEl("info", Studio.correlationMessage(c)));
+      });
+      window.__studioLastDaPrevCorrPairs = corrPairs; // test hook — the exact pairs this render decided on
     }
 
     function runSample() {

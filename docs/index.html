@@ -1473,6 +1473,16 @@
       badge-free rather than showing "Never verified live" everywhere.</li>
   </ul>
 
+  <h3>Correlation explorer</h3>
+  <p>The <strong>Data preview</strong> modal (the paginated, live-or-sample table you get from a
+  data source's own preview, not the smaller inline Query preview) automatically scans every pair
+  of numeric columns in its current result for a strong Pearson correlation — no scatter chart has
+  to be built first to discover one. A note appears below the table for each pair at or above a
+  moderate relationship (e.g. "Revenue and Marketing spend show a strong positive correlation
+  (r = 0.82)."), strongest first. It's the same correlation math the Scatter/bubble Insight
+  narration and a KPI's "Correlation" aggregation already use, just run automatically across a whole
+  dataset instead of one column pair you've already chosen.</p>
+
   <h3>Joins and compound DAs</h3>
   <p>Click <strong>⧈ Join</strong> in the library to create a <strong>Compound data access</strong> — either a join (left/right DA + key columns) or a union (stack rows from N DAs). The result is computed in the builder over the member DAs' rows.</p>
 

@@ -116,6 +116,60 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **N-DATA innovation sweep — Correlation explorer (v817, sw v450, 2026-07-31,
+  steward — Track H/L/N self-directed rotation, N's turn):** v816's own NEXT
+  pointer named Track N as the most overdue of the three self-directed lenses
+  (last ran v611, vs Track L just done at v816 and Track H at v808/v804), and
+  the platform's LANE STEER (STATUS.md NEXT section, ~12:15Z today) asked
+  scheduled/automated runs to prefer these self-directed tracks over the
+  feature backlog while the live interactive session is active on it (same-day
+  file collisions already cost three rebases). Read the whole N-* backlog
+  (N-AI/N-FUN/N-DATA/N-DIST/N-DESIGN/N-DEV) top to bottom for a genuinely
+  still-open, unblocked idea: **"Pivot / crosstab builder and anomaly +
+  correlation explorer as first-class analysis surfaces"** was the one entry
+  with zero shipped sub-items at all. A full pivot builder or anomaly explorer
+  is a multi-slice track of its own (like Period-over-period's KPI-only first
+  cut, v600/601) — scoped the smallest real, still-useful cut instead: a
+  **correlation explorer**. `Studio.pearsonCorr` already existed (used by a
+  scatter/bubble panel's Insight narration and a KPI's "Correlation"
+  aggregation) but only ever ran on ONE column pair a builder had already
+  chosen — there was no way to discover which pairs in a dataset are related
+  without building a chart for each candidate pair first. New
+  `Studio.findCorrelations(cols, rows, opts)` (app/model.js, pure) reuses
+  `Studio.classifyCols` (the same numeric-column heuristic `recommendCharts`
+  already established) to scan every pair of numeric columns, computes each
+  pair's Pearson r via the existing `pearsonCorr`, and returns pairs at or
+  above a moderate threshold (`minAbsR`, default 0.5) sorted strongest-first,
+  capped at `maxResults` (default 5) — weak/incidental correlations are noise,
+  not signal. `Studio.correlationMessage(c)` renders each as one plain-English
+  sentence ("Revenue and Marketing spend show a strong positive correlation
+  (r = 0.82)."), same strength/direction vocabulary `computeCorrelation`'s
+  scatter narration already uses, so the two features read as one voice.
+  Wired into the **Data preview** modal (`renderDAPreview`, `app/studio.js`)
+  right below the existing data-quality-watchdog notes — a new
+  `.daprev-correlations` wrap renders a `.note.info` per finding (informational,
+  not a warning) every time the preview's own result/sample re-renders, live or
+  cached or offline. Deliberately scoped to the Data preview modal only (the
+  richer, paginated exploratory surface), not the smaller inline Query preview
+  — same "smallest slice first" precedent the quality watchdog itself set
+  (v260 → Query preview, v261 → Data preview modal, in that order). 11 new
+  regression tests: 7 unit tests for `findCorrelations`/`correlationMessage`
+  (finds a real strong pair, message names both columns + strength + direction
+  + r value, empty input, fewer than 3 rows, no numeric columns, weak pairs
+  filtered by `minAbsR`, `maxResults` caps the list) + 2 wiring tests (the
+  modal's `.note.info` count exactly matches `findCorrelations()` over that
+  same result sample) + 2 end-to-end tests (a genuinely correlated synthetic
+  pair renders a real note naming both columns). `docs/index.html` gained a
+  "Correlation explorer" section alongside the existing "Data source
+  freshness" one. SW cache → v450 (`app/model.js`, `app/studio.js`,
+  `docs/index.html` all precached). Full suite green. (app/model.js,
+  app/studio.js, docs/index.html, sw.js, js/changelog.js, tests/run.js) NEXT:
+  continuing the Track H/L/N self-directed rotation (Track H last at v808/
+  v804, Track L at v816) is a good next slice while the findings queue and ★
+  backlog stay thin. Larger, separate follow-ups deliberately not attempted
+  here: extending correlation discovery to the smaller inline Query preview
+  too, and the "Pivot / crosstab builder" half of the original idea (a
+  first-class analysis surface of its own, not a small slice).
 - **Track L sweep (orphaned-key lens, round 7) — Clear local data now wipes
   every key the 2026-07-31 feature burst quietly left behind (v816, sw v449,
   2026-07-31, steward — Track H/L/N rotation, L's turn, was overdue since
@@ -13876,6 +13930,14 @@ gets covered over time:
 > the original ask (bar/line/donut widgets, not just KPIs), and letting a builder pick two
 > EXPLICIT ranges rather than an even chronological split.
 - **Pivot / crosstab builder** and **anomaly + correlation explorer** as first-class analysis surfaces.
+> ✓ **Correlation explorer first cut shipped (v817, sw v450, 2026-07-31, steward — closes the
+> "correlation" half of this idea):** the Data preview modal now auto-scans every numeric column
+> pair in its result for a strong Pearson correlation (`Studio.findCorrelations`, reusing the
+> existing `pearsonCorr`) and surfaces the strongest as plain-English notes, no chart needed to
+> discover one. See DONE for the full writeup. **Still open:** a Pivot/crosstab builder (a
+> first-class analysis surface of its own — not a small slice), and a distinct "anomaly explorer"
+> UI beyond the single-point outlier flagging N-AI's auto-insight narration (v212) and the Data
+> quality watchdog (v260/v261) already do inline.
 - **Data quality watchdog (added 2026-07-03):** scan a data access's own sample rows for common quality
   smells — blank/null values, a zero-variance ("always the same value") column, duplicate rows, an
   obviously-inconsistent type mix in one column — and surface them as a small inline note right where the

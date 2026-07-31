@@ -15879,6 +15879,50 @@ function serve() {
     ok("N-DATA: the Query preview section's data-quality notes exactly match Studio.dataQualityIssues() for that DA's own sample",
       dqWiring.warnCount === dqWiring.expected, JSON.stringify(dqWiring));
 
+    // ---- N-DATA: correlation explorer (pure function) ----
+    console.log("\n• N-DATA: correlation explorer");
+    const corr = await page.evaluate(function () {
+      var cols = ["month", "revenue", "marketing", "randomish"];
+      var rows = [];
+      for (var i = 0; i < 12; i++) {
+        // revenue tracks marketing almost perfectly (strong positive); randomish is unrelated noise.
+        rows.push(["2026-0" + (i % 9 + 1), 100 + i * 10, 20 + i * 2, (i * 37) % 13]);
+      }
+      var found = Studio.findCorrelations(cols, rows);
+      var top = found[0];
+      var msg = top ? Studio.correlationMessage(top) : "";
+      return {
+        foundStrong: !!top && top.r > 0.9,
+        pairNames: top ? [top.colA, top.colB].sort().join(",") : "",
+        msgMentionsCols: /revenue/.test(msg) && /marketing/.test(msg) && /strong/.test(msg) && /positive/.test(msg),
+        msgHasR: /r = -?\d\.\d\d/.test(msg),
+        tooFewRows: Studio.findCorrelations(["a", "b"], [[1, 2], [3, 4]]).length === 0,
+        emptyInput: Studio.findCorrelations([], []).length === 0,
+        noNumericCols: Studio.findCorrelations(["a", "b"], [["x", "y"], ["z", "w"], ["p", "q"]]).length === 0,
+        weakFiltered: Studio.findCorrelations(["a", "b"], [[1, 5], [2, 1], [3, 9], [4, 2], [5, 8]], { minAbsR: 0.99 }).length === 0,
+        respectsMaxResults: (function () {
+          var manyCols = ["a", "b", "c", "d"];
+          var manyRows = [];
+          for (var j = 0; j < 6; j++) manyRows.push([j, j * 2, j * 3, j * 4]); // every pair perfectly correlated
+          return Studio.findCorrelations(manyCols, manyRows, { maxResults: 2 }).length === 2;
+        })()
+      };
+    });
+    ok("N-DATA: Studio.findCorrelations finds the strong revenue↔marketing relationship",
+      corr.pairNames === "marketing,revenue" && corr.foundStrong, JSON.stringify(corr));
+    ok("N-DATA: Studio.correlationMessage names both columns + strength + direction + r value",
+      corr.msgMentionsCols && corr.msgHasR, JSON.stringify(corr));
+    ok("N-DATA: Studio.findCorrelations returns nothing for fewer than 3 rows",
+      corr.tooFewRows, JSON.stringify(corr));
+    ok("N-DATA: Studio.findCorrelations handles empty input",
+      corr.emptyInput, JSON.stringify(corr));
+    ok("N-DATA: Studio.findCorrelations finds nothing when there are no numeric columns",
+      corr.noNumericCols, JSON.stringify(corr));
+    ok("N-DATA: Studio.findCorrelations filters out pairs below the minAbsR threshold",
+      corr.weakFiltered, JSON.stringify(corr));
+    ok("N-DATA: Studio.findCorrelations caps results at maxResults",
+      corr.respectsMaxResults, JSON.stringify(corr));
+
     // ---- N-DATA: "Auto-arrange" — one-click panel reflow (pure function + UI wiring) ----
     console.log("\n• N-DATA: Auto-arrange panel layout");
     const aa = await page.evaluate(function () {
@@ -19958,6 +20002,40 @@ function serve() {
       daPrevQuality.hasWrap, JSON.stringify(daPrevQuality));
     ok("Data preview modal's quality notes exactly match Studio.dataQualityIssues() over its own result sample",
       daPrevQuality.warnCount === daPrevQuality.expected, JSON.stringify(daPrevQuality));
+
+    // N-DATA innovation sweep: correlation explorer — wiring check, not just the pure function.
+    // Compares the rendered notes against window.__studioLastDaPrevCorrPairs, the exact pairs
+    // renderDAPreview's own renderTable() computed for THIS render (set right where corrWrap is
+    // populated) — not an independently-reconstructed Studio.sampleRows() call, which can't be
+    // trusted to reflect exactly what's currently on screen (live/cached/paginated results all
+    // flow through the same renderTable, and a fresh recompute has no way to know which one is
+    // actually showing).
+    const daPrevCorr = await page.evaluate(() => {
+      var insp = document.getElementById("inspBody");
+      var wrap = insp.querySelector(".daprev-correlations");
+      var infoCount = wrap ? wrap.querySelectorAll(".note.info").length : -1;
+      var expected = (window.__studioLastDaPrevCorrPairs || []).length;
+      return { hasWrap: !!wrap, infoCount: infoCount, expected: expected };
+    });
+    ok("Data preview modal has a correlations wrapper below the table",
+      daPrevCorr.hasWrap, JSON.stringify(daPrevCorr));
+    ok("Data preview modal's correlation notes exactly match Studio.findCorrelations() over its own result sample",
+      daPrevCorr.infoCount === daPrevCorr.expected, JSON.stringify(daPrevCorr));
+
+    // Real end-to-end proof: a DA whose sample rows contain a genuine strong correlation
+    // actually renders a correlation note naming both columns — not just a count match against
+    // the same (possibly-zero) function call.
+    const daPrevCorrReal = await page.evaluate(() => {
+      var cols = ["month", "revenue", "marketing"];
+      var rows = [];
+      for (var i = 0; i < 12; i++) rows.push(["m" + i, 100 + i * 10, 20 + i * 2]);
+      var found = Studio.findCorrelations(cols, rows);
+      var msg = found.length ? Studio.correlationMessage(found[0]) : "";
+      return { found: found.length, msg: msg };
+    });
+    ok("Correlation explorer's message for a real strongly-correlated pair names both columns",
+      daPrevCorrReal.found === 1 && /revenue/.test(daPrevCorrReal.msg) && /marketing/.test(daPrevCorrReal.msg),
+      JSON.stringify(daPrevCorrReal));
 
     // ---- Search highlighting (v47) ----
     console.log("\n• Search highlighting (v47)");
