@@ -1521,7 +1521,16 @@ body.lib-dragging #preview{pointer-events:none}
 .sync-loss-x{flex:0 0 auto;margin:-2px -6px 0 0;border:0;background:none;color:var(--muted);
   font-size:var(--fs-13);line-height:1;padding:4px 6px;border-radius:8px;cursor:pointer}
 .sync-loss-x:hover{color:var(--ink);background:color-mix(in srgb,var(--bad,#c0392b) 18%,transparent)}
-.bd-ifr{width:100%;height:min(62vh,540px);border:1px solid var(--line);border-radius:12px;background:var(--pane)}
+/* VB-12: the canvas fills to the viewport bottom by default (JS-synced, like
+   .bd-left) and is drag-resizable via the two handle bars below/right of it */
+.bd-ifr{display:block;width:100%;height:min(62vh,540px);border:1px solid var(--line);border-radius:12px;background:var(--pane)}
+.bd-result{position:relative}
+.bd-rs-h{position:absolute;left:0;right:0;bottom:-3px;height:12px;cursor:row-resize;touch-action:none;z-index:5}
+.bd-rs-h::after{content:"";position:absolute;left:50%;transform:translateX(-50%);bottom:4px;width:56px;height:4px;border-radius:4px;background:var(--line);transition:background .12s}
+.bd-rs-h:hover::after,.bd-rs-h.drag::after{background:color-mix(in srgb,var(--brand) 55%,transparent)}
+.bd-rs-w{position:absolute;top:0;bottom:0;width:12px;cursor:col-resize;touch-action:none;z-index:5}
+.bd-rs-w::after{content:"";position:absolute;top:50%;transform:translateY(-50%);left:4px;width:4px;height:56px;border-radius:4px;background:var(--line);transition:background .12s}
+.bd-rs-w:hover::after,.bd-rs-w.drag::after{background:color-mix(in srgb,var(--brand) 55%,transparent)}
 /* VB-5: the cross-editor notice — shared look between the View Builder's
    #buildNotice and Quick Views' .xp-cross-note (a soft brand-tinted banner
    with a dismiss ✕; theme-token driven so all 7 app themes × light/dark work). */
@@ -1563,6 +1572,9 @@ body.lib-dragging #preview{pointer-events:none}
   .bd-left{position:static;height:auto;max-height:240px}
   .bd-shelf-row{flex-direction:column;align-items:stretch;gap:4px}
   .bd-shelf-lbl{flex:none}
+  /* VB-12: no drag handles on phones — full width, JS auto height still applies */
+  .bd-rs-h,.bd-rs-w{display:none}
+  .bd-ifr{width:100%!important}
 }
 
 /* LF63 slice 3: the builder's live SQL sanity hints (Studio.sqlLint) */

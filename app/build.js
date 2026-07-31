@@ -999,6 +999,79 @@
   // buildHtml(spec, assets, { preview, mock }) srcdoc-iframe path Explore's
   // preview uses, with the COMPUTED basis rows injected as the mock so what
   // you see is the actual pivot, not fabricated sample data.
+  // ---------- VB-12: the preview canvas fills to the bottom of the screen ----------
+  // Kevin: "have the canvas for the panel be to the bottom of the screen (just
+  // like the left rail is and the dataset left panel should be)" and "you
+  // should also be able to drag up down to make it taller". Default height is
+  // AUTO: computed so the canvas bottom lands at the viewport bottom (re-synced
+  // on window resize). Dragging the bottom bar sets an explicit height, the
+  // right-edge bar an explicit width — both persisted so the builder reopens
+  // the way you shaped it. Double-click a handle to reset that axis to auto
+  // (fill to bottom / full width).
+  var BD_SIZE_KEY = "studio-bd-preview-size";
+  function bdPrevSize() {
+    try { return JSON.parse(localStorage.getItem(BD_SIZE_KEY) || "{}") || {}; } catch (e) { return {}; }
+  }
+  function bdPrevSaveSize(s) { try { localStorage.setItem(BD_SIZE_KEY, JSON.stringify(s)); } catch (e) {} }
+  function bdSyncPreviewSize(result, ifr) {
+    var s = bdPrevSize();
+    var maxW = Math.round(result.getBoundingClientRect().width) || 0;
+    if (s.w && maxW) ifr.style.width = Math.max(320, Math.min(maxW, s.w)) + "px";
+    else ifr.style.width = "";
+    if (s.h) {
+      ifr.style.height = Math.max(260, s.h) + "px";
+    } else {
+      // auto: fill to the bottom of the viewport (like .bd-left), never < 260px
+      var top = ifr.getBoundingClientRect().top;
+      ifr.style.height = Math.max(260, window.innerHeight - top - 18) + "px";
+    }
+    // keep the width handle riding the canvas's live right edge
+    var wBar = result.querySelector(".bd-rs-w");
+    if (wBar) wBar.style.left = (ifr.offsetLeft + ifr.offsetWidth - 5) + "px";
+  }
+  function bdWirePreviewResize(result, ifr) {
+    if (result.querySelector(".bd-rs-h")) { bdSyncPreviewSize(result, ifr); return; }
+    var hBar = document.createElement("div");
+    hBar.className = "bd-rs-h";
+    hBar.title = "Drag to make the canvas taller or shorter — double-click to fill to the bottom again";
+    hBar.setAttribute("aria-label", "Resize canvas height");
+    var wBar = document.createElement("div");
+    wBar.className = "bd-rs-w";
+    wBar.title = "Drag to make the canvas narrower or wider — double-click for full width";
+    wBar.setAttribute("aria-label", "Resize canvas width");
+    result.appendChild(wBar); result.appendChild(hBar);
+    function startDrag(axis, bar) {
+      return function (e) {
+        e.preventDefault();
+        var startX = e.clientX, startY = e.clientY, r0 = ifr.getBoundingClientRect();
+        ifr.style.pointerEvents = "none"; // the iframe would swallow the moves
+        bar.classList.add("drag");
+        function move(ev) {
+          var s = bdPrevSize();
+          if (axis === "h") s.h = Math.max(260, Math.round(r0.height + (ev.clientY - startY)));
+          else s.w = Math.max(320, Math.round(r0.width + (ev.clientX - startX)));
+          bdPrevSaveSize(s); bdSyncPreviewSize(result, ifr);
+        }
+        function up() {
+          ifr.style.pointerEvents = ""; bar.classList.remove("drag");
+          document.removeEventListener("pointermove", move);
+          document.removeEventListener("pointerup", up);
+        }
+        document.addEventListener("pointermove", move);
+        document.addEventListener("pointerup", up);
+      };
+    }
+    hBar.addEventListener("pointerdown", startDrag("h", hBar));
+    wBar.addEventListener("pointerdown", startDrag("w", wBar));
+    hBar.addEventListener("dblclick", function () { var s = bdPrevSize(); delete s.h; bdPrevSaveSize(s); bdSyncPreviewSize(result, ifr); });
+    wBar.addEventListener("dblclick", function () { var s = bdPrevSize(); delete s.w; bdPrevSaveSize(s); bdSyncPreviewSize(result, ifr); });
+    window.addEventListener("resize", function () { if (ifr.isConnected) bdSyncPreviewSize(result, ifr); });
+    bdSyncPreviewSize(result, ifr);
+  }
+  // test hooks
+  window.__bdPreviewSize = bdPrevSize;
+  window.__bdSyncPreviewSize = bdSyncPreviewSize;
+
   var _bdPvTimer = null;
   function renderChartPreview(result) {
     var basis = chartBasis(BD.chartType);
@@ -1033,6 +1106,7 @@
         }
         D.postThemeOnLoad(ifr);
         ifr.srcdoc = html;
+        bdWirePreviewResize(result, ifr); // VB-12: fill-to-bottom + drag handles
       }
       // VB-4: a choropleth panel needs its geometry inlined before buildHtml can
       // draw it — same lazy fetch-once/cache-forever path Studio's own dashboard

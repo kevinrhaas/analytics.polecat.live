@@ -116,6 +116,23 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **VB-12 — the View Builder canvas fills to the screen bottom + drag-resizes on both
+  axes (v784, sw v419, 2026-07-31, steward):** Kevin: "have the canvas for the panel be
+  to the bottom of the screen (just like the left rail is and the dataset left panel
+  should be)… you should also be able to drag up down to make it taller."
+  `app/build.js`: `bdWirePreviewResize` appends a bottom bar (`.bd-rs-h`, height) and a
+  right-edge bar (`.bd-rs-w`, width) to `#buildResult` when the chart preview paints;
+  `bdSyncPreviewSize` applies the persisted size (`studio-bd-preview-size` {w,h},
+  floors 260px/320px, width clamped to the column) or — with no persisted height — the
+  AUTO fill: canvas bottom lands at the viewport bottom (innerHeight − top − 18, like
+  `.bd-left`'s calc), re-synced on window resize. Pointer drags set + persist an
+  explicit size (iframe gets pointer-events:none during the drag so it can't swallow
+  the moves); double-click a bar resets ONLY that axis to auto. The width bar tracks
+  the canvas's live right edge. ≤900px: handles hidden, width forced 100% (mobile
+  release gate untouched). 3 new checks (auto-fill formula, real pointer-drag persists
+  within 2px, explicit size + per-axis reset). Docs: chart-canvas paragraph in the
+  View Builder section. Files: app/build.js, app/studio.css, docs/index.html, sw.js,
+  js/changelog.js, tests/run.js, STATUS.md.
 - **HOTLINK-1 + BANNER-DISMISS + BACKEND-FUTURE (v783, sw v418, 2026-07-31, steward):**
   three queued Kevin asks in one slice.
   - **HOTLINK-1 (app/gate.js):** the handout sign-in link —
