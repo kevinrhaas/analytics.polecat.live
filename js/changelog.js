@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 793,
+    title: 'Dashboard header can be left, center, or right aligned',
+    kind: 'feature',
+    ts: '2026-07-31T05:10:53.000Z',
+    items: [
+      'The Dashboard Builder\'s Header inspector (click the title banner in the live preview to open it) now has an Alignment picker: Left (the standard layout), Center, or Right. It moves the brand mark, title, and subtitle within the banner — the info/print/waffle icons always stay pinned to the far right.',
+      'Pure CSS, applies identically in the live preview and every export (PNG/PDF/standalone HTML all stay byte-identical to preview).',
+    ],
+  },
+  {
     v: 792,
     title: 'Added accounts can never vanish again — and screens quietly stay current',
     kind: 'fix',

@@ -116,6 +116,34 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF21 alignment follow-up (v793, sw v428, 2026-07-31, steward — automated lane,
+  LF21 is now fully done):** slice 1 (v546) shipped the header as a selectable/
+  deletable object but deliberately scoped OUT alignment ("doesn't map cleanly
+  onto a simple left/center/right toggle without real restructuring"). Solved
+  it without restructuring: the header markup (`app/exporters.js`, the single
+  builder that produces both the live preview and every export) now always
+  carries an empty `.dk-header-lead` div right before the brand block — by
+  itself it takes zero space (default flex:0 1 auto on an empty element), so
+  "Left" needs no CSS and nothing changes for existing dashboards. A new
+  conditional `headerAlignCss` (same pattern as `titleSizeCss`/
+  `subtitleStyleCss`, vendor/dashkit.css itself stays untouched) grows that
+  lead spacer to match the header's existing trailing `.spacer` for "Center"
+  (the brand+title block centers in the room left of the info/print/waffle
+  icon cluster, which always stays pinned far right), or grows the lead
+  spacer AND collapses the trailing one for "Right" (brand+title flush
+  against the icons). New `Studio.HEADER_ALIGNS` (app/model.js) drives an
+  "Alignment" select in the Header inspector (`app/studio.js`
+  renderHeaderInspector, next to Title/Subtitle) writing `spec.headerAlign`;
+  added to `emptySpec()`, the `normalize()` reopen whitelist (the exact bug
+  class the v193 headerLogo fix found — a field missing there silently
+  resets on every Open), and `DIFF_FIELDS` (version-history Compare). 7 new
+  regression tests (field present + no override when unset; picking Center/
+  Right sets the spec field and emits the matching CSS; survives a reopen
+  through normalize(); picking Left clears it). Deliberately NOT wired into
+  the admin provisioning-defaults system (LF41) — the ask was alignment, not
+  a new admin-default surface; a reasonable future follow-up if wanted.
+  Files: app/model.js, app/exporters.js, app/studio.js, docs/index.html,
+  sw.js, js/changelog.js, tests/run.js, STATUS.md.
 - **USER-ADD-DURABLE + SYNC-FRESH (v792, sw v427, 2026-07-31, steward — Kevin live,
   the last M7 blocker):** (1) mirrorUserRow change-detects (JSON compare before
   mutation) and puts NON-silently when the row actually changed — the old
@@ -7693,12 +7721,17 @@
 >    lineage) — do not reinvent parsing or chart-picking.
 >
 > **OPEN FOR THE AUTOMATED LANE (independent, minimal overlap with the above):**
-> LF24 (Quick mode CSV-drop auto-dashboard) · LF59 (Dashboards section
+> ~~LF21 (title header as first-class widget)~~ **SHIPPED v793 (automated lane,
+> 2026-07-31 ~05:10Z — see DONE):** the remaining alignment ask, done. Still
+> open: LF24 (Quick mode CSV-drop auto-dashboard) · LF59 (Dashboards section
 > multi-select/bulk mgmt) · LF40 (animated welcome/tour overhaul) · #23 (tour
-> defines every domain term) · LF53 code-level CDF/CDE purge · LF21 (title
-> header as first-class widget) · marketing-site refresh. One coherent item per
-> run, `steward/<topic>` branch off latest main, rebase if the live session
-> shipped meanwhile. The live session works on `claude/lucid-keller-nff4pb`.
+> defines every domain term) · LF53 code-level CDF/CDE purge · marketing-site
+> refresh — NOTE (2026-07-31, automated lane): several of these codes read as
+> already fully shipped elsewhere in this file (grep DONE before starting;
+> STATUS.md has drifted stale in a few queue blocks during tonight's fast
+> pace). One coherent item per run, `steward/<topic>` branch off latest main,
+> rebase if the live session shipped meanwhile. The live session works on
+> `claude/lucid-keller-nff4pb`.
 >
 > **DO NOT touch:** tools/supabase-*.sql posture files, app/workspaces.js
 > packaged keys, and the users-table sync semantics (upsert-only, v787) — these

@@ -4204,6 +4204,76 @@ function serve() {
       lf21Hide.hideHeader === true && lf21Hide.inspTitle === "Dashboard", JSON.stringify(lf21Hide));
     await page.evaluate(function () { delete window.__STUDIO_STATE.spec.hideHeader; window.__studioSelectDashboard(); });
 
+    // ---- LF21 (alignment follow-up): the Header inspector gets a left/center/right toggle ----
+    console.log("\n• LF21: header alignment (left / center / right)");
+    const lf21AlignBefore = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      delete sp.headerAlign;
+      window.__studioSelect({ kind: "header" });
+      var fields = [].slice.call(document.querySelectorAll("#inspBody .field"));
+      var row = fields.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent === "Alignment"; })[0];
+      var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
+      return {
+        fieldPresent: !!row, hasSelect: !!(row && row.querySelector("select")),
+        leadInMarkup: html.indexOf("dk-header-lead") >= 0,
+        noOverrideCss: html.indexOf(".dk-header-lead{flex:1}") < 0
+      };
+    });
+    ok("LF21: the Header inspector has an Alignment field (select), the export always carries the lead spacer, and left (default) emits no CSS override",
+      lf21AlignBefore.fieldPresent && lf21AlignBefore.hasSelect && lf21AlignBefore.leadInMarkup && lf21AlignBefore.noOverrideCss,
+      JSON.stringify(lf21AlignBefore));
+
+    const lf21AlignCenter = await page.evaluate(function () {
+      var rows = [].slice.call(document.querySelectorAll("#inspBody .field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent === "Alignment"; })[0];
+      var sel = row.querySelector("select");
+      sel.value = "center"; sel.dispatchEvent(new Event("change", { bubbles: true }));
+      var sp = window.__STUDIO_STATE.spec;
+      var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
+      return { specSet: sp.headerAlign === "center", cssOverride: html.indexOf(".dk-header-lead{flex:1}") >= 0 };
+    });
+    ok("LF21: picking 'Center' sets spec.headerAlign and emits the centering CSS override",
+      lf21AlignCenter.specSet && lf21AlignCenter.cssOverride, JSON.stringify(lf21AlignCenter));
+
+    const lf21AlignReopen = await page.evaluate(function () {
+      var sp = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+      window.__studioLoad(sp);
+      return { headerAlign: window.__STUDIO_STATE.spec.headerAlign };
+    });
+    ok("LF21: headerAlign survives a reopen through normalize() (whitelist kept in sync)",
+      lf21AlignReopen.headerAlign === "center", JSON.stringify(lf21AlignReopen));
+
+    const lf21AlignRight = await page.evaluate(function () {
+      window.__studioSelect({ kind: "header" });
+      var rows = [].slice.call(document.querySelectorAll("#inspBody .field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent === "Alignment"; })[0];
+      var sel = row.querySelector("select");
+      sel.value = "right"; sel.dispatchEvent(new Event("change", { bubbles: true }));
+      var sp = window.__STUDIO_STATE.spec;
+      var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
+      return {
+        specSet: sp.headerAlign === "right",
+        leadGrows: html.indexOf(".dk-header-lead{flex:1}") >= 0,
+        trailingCollapses: html.indexOf(".dk-header .spacer{flex:0}") >= 0
+      };
+    });
+    ok("LF21: picking 'Right' sets spec.headerAlign and emits both the lead-grows + trailing-collapses CSS overrides",
+      lf21AlignRight.specSet && lf21AlignRight.leadGrows && lf21AlignRight.trailingCollapses, JSON.stringify(lf21AlignRight));
+
+    const lf21AlignCleared = await page.evaluate(function () {
+      window.__studioSelect({ kind: "header" });
+      var rows = [].slice.call(document.querySelectorAll("#inspBody .field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent === "Alignment"; })[0];
+      var sel = row.querySelector("select");
+      sel.value = ""; sel.dispatchEvent(new Event("change", { bubbles: true }));
+      var sp = window.__STUDIO_STATE.spec;
+      var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
+      return { headerAlign: sp.headerAlign, noOverrideCss: html.indexOf(".dk-header-lead{flex:1}") < 0 };
+    });
+    ok("LF21: picking 'Left' clears the alignment override", lf21AlignCleared.headerAlign === "" && lf21AlignCleared.noOverrideCss, JSON.stringify(lf21AlignCleared));
+    await page.evaluate(function () { window.__studioSelectDashboard(); });
+    await page.waitForTimeout(200);
+
     // Part B (builder side): the header-edit message updates the live spec — title/subtitle
     // set the value, an empty description removes it, and an empty title is ignored (a
     // dashboard always keeps a name). Dispatched straight at the app window's handler.

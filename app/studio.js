@@ -4377,6 +4377,9 @@
     var sec = section(body, "Header", null, null, "dashboard-header", "freeze-header");
     sec.appendChild(field("Title", input(sp.title, function (v) { sp.title = v; syncHeader(); refreshPreview(); })));
     sec.appendChild(field("Subtitle", input(sp.subtitle || "", function (v) { sp.subtitle = v; refreshPreview(); }, "Optional")));
+    sec.appendChild(field("Alignment", select2pairs(Studio.HEADER_ALIGNS, sp.headerAlign || "", function (v) {
+      sp.headerAlign = v; refreshPreview();
+    })));
     var delBtn = el("button", "btn-wide"); delBtn.style.color = "var(--bad)";
     setIconBtn(delBtn, "trash", "Hide header");
     delBtn.onclick = function () {
@@ -10213,7 +10216,7 @@
     // Open / restore-banner / example-load / drag-drop-file silently reset a saved dashboard's accent
     // color and series palette back to the default. Keep this list in sync with Studio.emptySpec()'s
     // top-level scalar/optional fields whenever a new one is added (see also headerLogo, Z6).
-    ["schema", "id", "name", "title", "subtitle", "group", "description", "themeColor", "dashboardTheme", "customTheme", "paletteKey", "headerLogo", "headerLink", "headerBg", "titleSize", "subtitleStyle", "cardSkin", "hideHeader", "templateVars"].forEach(function (k) { if (spec[k] != null) base[k] = spec[k]; });
+    ["schema", "id", "name", "title", "subtitle", "group", "description", "themeColor", "dashboardTheme", "customTheme", "paletteKey", "headerLogo", "headerLink", "headerBg", "titleSize", "subtitleStyle", "headerAlign", "cardSkin", "hideHeader", "templateVars"].forEach(function (k) { if (spec[k] != null) base[k] = spec[k]; });
     base.cda = spec.cda || base.cda;
     base.filters = spec.filters || []; base.kpis = spec.kpis || [];
     base.gridCols = spec.gridCols || 3; base.panels = (spec.panels || []).map(function (p) { if (!p.id) p.id = Studio.uid("p"); return p; });
