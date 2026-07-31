@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 792,
+    title: 'Added accounts can never vanish again — and screens quietly stay current',
+    kind: 'fix',
+    ts: '2026-07-31T04:52:48.000Z',
+    items: [
+      'Fix: a user added via Admin → Add user was created and listed but its account row never actually pushed to the workspace backend — signing out and back in made the account vanish. Adding or editing a user now pushes immediately, verifies the push landed, and warns loudly if the backend refused it.',
+      'Every save now reaches the backend promptly: silent status stamps (a dataset’s last run, a job’s failed run, a connection’s test result) used to sit local-only until some other edit happened to push them.',
+      'The app now quietly checks the backend for changes — every couple of minutes and whenever you return to the tab — and silently refreshes the screen when another device saved something. It never overwrites edits you haven’t synced, and an empty or glitched read can never wipe your workspace.',
+    ],
+  },
+  {
     v: 791,
     title: 'Declutter: packs live in Settings, the footer retires, crisper copy',
     ts: '2026-07-31T04:16:39.000Z',

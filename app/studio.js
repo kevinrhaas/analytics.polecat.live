@@ -6946,7 +6946,11 @@
     return src.queryData(conn.cfg || {}, Studio.Datasets.runnableDef(d, extraParams)).then(function (r) {
       d.lastRun = { ok: !r.error, error: r.error || "", at: Date.now(), rows: (r.rows || []).length };
       if (!r.error && (r.columns || []).length) d.columns = r.columns.slice();
+      // SYNC-FRESH: MUST stay a silent put — this is the builder's live path
+      // (every panel render runs datasets) and a change event here would churn
+      // full-section repaints. Sync.touch() schedules the push without the event.
       Studio.Workspace.put("datasets", d, { silent: true });
+      if (Studio.Sync && Studio.Sync.touch) Studio.Sync.touch();
       return r;
     });
   }
@@ -8635,6 +8639,13 @@
     var W = Studio.Workspace;
     var existing = W.all("users").filter(function (r) { return r.u === u.u; })[0];
     var row = existing || { id: "user_" + u.u };
+    // USER-ADD-DURABLE (Kevin live, 2026-07-31 — test2 vanished): capture the
+    // pre-mutation shape so an actually-changed row can be written NON-silently.
+    // The old unconditional silent put never emitted a change event, the sync
+    // write-through never scheduled a push, and a freshly added account's row
+    // stayed local-only — erased by the next pull. Change-detection keeps the
+    // every-boot own-row mirror quiet (no push, no event) when nothing moved.
+    var before = existing ? JSON.stringify(existing) : "";
     row.u = u.u; row.name = u.name; row.role = u.role; row.demo = u.demo; row.hash = u.hash;
     row.provisioning = u.provisioning || null; row.provisioned = !!u.provisioned;
     // M7: carry the GoTrue id onto the backend `users` row. Dropping it here (as
@@ -8643,8 +8654,9 @@
     // an account could sign in yet still read as "not an admin of this
     // workspace" — the first-admin bootstrap chicken-and-egg.
     if (u.gotrueId) row.gotrueId = u.gotrueId;
-    W.put("users", row, { silent: true });
+    if (JSON.stringify(row) !== before) W.put("users", row);
   }
+  window.__studioMirrorUserRow = mirrorUserRow; // test hook (USER-ADD-DURABLE)
   // M3 (auth): run once at boot after the workspace is ready, and again after every
   // sign-in. (1) Mirror the SIGNED-IN account's own row into the workspace `users`
   // table — never every locally-known account (M7 slice 4's proven RLS design
@@ -9391,6 +9403,22 @@
             try { if (window.__studioAuthBoot) window.__studioAuthBoot(); } catch (e) {}
             try { if (window.__studioShellApplyRoleGating) window.__studioShellApplyRoleGating(); } catch (e) {}
             toast(existing ? "Saved " + opts.name : "Added " + opts.name);
+            // USER-ADD-DURABLE: an account row is the one object whose loss locks a
+            // person out — don't leave it to the debounced mirror. Push immediately
+            // and VERIFY the push landed; a refused push gets a loud, specific toast
+            // instead of the row silently evaporating on the next pull (Kevin's
+            // test2: added, listed, synced badge shown — gone after sign-out/in).
+            try {
+              var sy = Studio.Sync && Studio.Sync.syncState && Studio.Sync.syncState();
+              if (sy && sy.isRemote) {
+                Studio.Sync.pushNow().then(function () {
+                  var st = Studio.Sync.syncState();
+                  if (st.pendingEdits || st.status === "error")
+                    toast("⚠ " + opts.name + " saved locally but NOT synced — the backend refused the push (" + (st.lastError || "see Settings → workspace backend") + "). The account will vanish from other devices until sync recovers.", true);
+                  else toast(opts.name + " synced to the workspace backend");
+                });
+              }
+            } catch (e) {}
             renderAdmin();
             document.querySelector(".modal-ov .x").click();
           });
