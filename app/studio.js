@@ -8908,8 +8908,26 @@
     }
     if (!workspaceHasUserContent()) { go(); return; }
     try { if (localStorage.getItem(declineKey) === "1") return; } catch (e) {}
-    if (window.confirm("Your account uses “" + label + "”. Adopt it on this device? Your local workspace will be overwritten with its data.")) go();
-    else { try { localStorage.setItem(declineKey, "1"); } catch (e) {} }
+    // ADOPT-WELCOME (Kevin live, 2026-07-31): "make this less of a warning and
+    // more of a Welcome!... and make this nice instead of a scary warning
+    // dialog." A warm in-app dialog replaces the native confirm(). Any
+    // non-accept close (Not now / ✕ / Escape / backdrop) counts as the
+    // remembered decline, same never-nag semantics the confirm's Cancel had.
+    var accepted = false;
+    modal("Welcome!", function (b) {
+      var p = el("p"); p.className = "adopt-welcome-copy";
+      p.innerHTML = "You're about to connect to <b>“" + esc(label) + "”</b> — your account's own workspace. " +
+        "Anything stored locally on this device will be replaced by that workspace's data, and from here on you'll be working live in " + esc(label) + ".";
+      b.appendChild(p);
+      var foot = el("div", "cx-wiz-foot");
+      var later = el("button", "btn"); later.type = "button"; later.id = "adoptLaterBtn"; later.textContent = "Not now";
+      later.onclick = function () { document.querySelector(".modal-ov .x").click(); };
+      var goBtn = el("button", "btn primary"); goBtn.type = "button"; goBtn.id = "adoptGoBtn"; goBtn.textContent = "Let's go!";
+      goBtn.onclick = function () { accepted = true; document.querySelector(".modal-ov .x").click(); go(); };
+      foot.appendChild(later); foot.appendChild(goBtn); b.appendChild(foot);
+    }, function () {
+      if (!accepted) { try { localStorage.setItem(declineKey, "1"); } catch (e) {} }
+    });
   }
   window.__studioApplyAssignedBackend = applyAssignedBackend; // #103 test hook
 

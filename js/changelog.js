@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 825,
+    title: 'Connecting to your assigned workspace is a welcome now, not a warning',
+    kind: 'polish',
+    ts: '2026-07-31T16:07:50.000Z',
+    items: [
+      'When your account is assigned to a workspace and this device has local data, the ask is now a warm in-app dialog -- "Welcome! You\'re about to connect to your workspace... Let\'s go!" -- instead of a stark browser warning. "Not now" (or just closing it) is still remembered, so it never nags, and a brand-new device still connects silently with no dialog at all.',
+    ],
+  },
+  {
     v: 824,
     title: 'Drop an Excel file — .xlsx joins every file-import path',
     kind: 'feature',
