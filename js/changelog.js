@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 808,
+    title: 'Track H sweep: the canvas ✕ buttons for removing a description or deleting a KPI now name what they act on',
+    kind: 'fix',
+    ts: '2026-07-31T11:31:43.000Z',
+    items: [
+      'Two icon-only ✕ buttons on the Dashboard Builder canvas -- the one that removes a dashboard\'s free description text, and the one on each KPI tile that deletes it -- carried a hover tooltip but no aria-label at all, so screen readers announced nothing useful for either.',
+      'Both now expose an aria-label matching their tooltip, and the KPI delete button names the specific tile it deletes (e.g. "Delete KPI Total Revenue") instead of the same bare "Delete KPI" on every tile in a dashboard.',
+    ],
+  },
+  {
     v: 807,
     title: 'Views joins multi-select — bulk move and delete, like every other catalog',
     kind: 'feature',

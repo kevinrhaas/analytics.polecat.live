@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Track H sweep — the canvas description/KPI ✕ buttons now name what they act on (v808,
+  sw v442, 2026-07-31, steward — Track H/L/N rotation, continuing H's turn):** picked up
+  where the v804 Inspector delBtn() sweep left off (that fix covered the Inspector's rows;
+  this is the SAME bug shape one layer over, on the Dashboard Builder's in-canvas editing
+  overlay). Two icon-only ✕ buttons in `app/studio-render.js` had a `title` tooltip but NO
+  `aria-label` at all: `sr-desc-del` (removes the dashboard's free description text object,
+  in `wireHeaderEditing`) and `sr-kpi-del` (deletes a KPI tile, in `tagKpis`) — the sibling
+  `sr-head-del` button already had both from LF21 and was left alone. `sr-desc-del` now sets
+  `aria-label` to match its existing "Remove this text object" title. `sr-kpi-del` goes
+  further, matching delBtn()'s v804 disambiguation: it now names the SPECIFIC tile it
+  deletes (e.g. "Delete KPI Total Revenue" instead of the same bare "Delete KPI" on every
+  tile), reading the label from the rendered tile's own `.l` element (its leading text node,
+  so an attached info-dot span never pollutes the name) rather than touching pristine
+  `vendor/dashkit.js`. 2 new regression checks, through the real preview iframe: the
+  CANVAS test's KPI tile asserts `title`/`aria-label` both equal "Delete KPI Total"; the
+  CANVAS-HDR test's description ✕ asserts `aria-label` equals its own title. Full suite
+  green. Files: app/studio-render.js, tests/run.js, sw.js, js/changelog.js. NEXT: continuing
+  the Track H/L/N self-directed rotation (Track L last at v613, Track N at v611 — both now
+  the most overdue of the three) is a good next slice while the findings queue and ★ backlog
+  stay thin.
 - **LIVE-d slice 6 — Views joins multi-select; the LIVE-d track is COMPLETE
   (v807, sw v441, 2026-07-31, steward):** the Views page was the one catalog
   the LIVE-d spec names that never got select mode. app/views.js adopts the
