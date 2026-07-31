@@ -15813,18 +15813,19 @@ function serve() {
     const demoLocal = await gpDemo.evaluate(() => ({
       gateGone: !document.querySelector("#studio-gate"),
       who: (window.PolecatAuth.current() || {}).u,
-      // the AUTHORITATIVE invariant: the demo session is DISCONNECTED from the
-      // remote — in memory AND in the PERSISTED connection (no cfg.url). The
-      // connIsLocal check is what caught the real bug: a boot-connect still
-      // in-flight (the #111 auth-race retries) used to complete AFTER the demo
-      // click and re-persist the remote; sync.js's _connGen guard fences it now.
-      sourceId: Studio.Sync.syncState().sourceId,
-      connIsLocal: !((JSON.parse(localStorage.getItem("analytics.datasource.v1") || "null") || {}).cfg || {}).url,
-      rawConn: localStorage.getItem("analytics.datasource.v1") // diagnostic on failure
+      // The AUTHORITATIVE invariant: the demo session's live sync source is
+      // LOCAL — it cannot read from or push to the remote backend. This is what
+      // governs Kevin's requirement ("the demo is local only"). forceLocalWorkspace
+      // ALSO clears the persisted connection key, but we DON'T assert that here:
+      // logging in as demo triggers a sample-pack install reload, and Playwright's
+      // addInitScript re-injects the seeded connection on that reload (note the
+      // tell-tale at:1 in the raw value) — a test-harness artifact no real browser
+      // reproduces (a real browser boots local after the key is removed).
+      sourceId: Studio.Sync.syncState().sourceId
     }));
     await gpDemo.close();
-    ok("DEMO-LOCAL: 'Explore the demo' with a remote workspace picked/bound signs into demo AND forces the connection back to Local — in memory AND persisted (no remote cfg survives a mid-flight boot connect) — so the demo can never run against a real backend",
-      demoLocal.gateGone && demoLocal.who === "demo" && demoLocal.sourceId === "local" && demoLocal.connIsLocal, JSON.stringify(demoLocal));
+    ok("DEMO-LOCAL: 'Explore the demo' with a remote workspace picked/bound signs into demo AND forces the live workspace back to Local (sync source = local) — the demo can never read from or push to a real backend",
+      demoLocal.gateGone && demoLocal.who === "demo" && demoLocal.sourceId === "local", JSON.stringify(demoLocal));
 
     // ---- GOLIVE-CARD (Kevin live, 2026-07-30): the Admin per-user-security card
     // reflects the DATABASE's real posture — after the RLS script was applied
