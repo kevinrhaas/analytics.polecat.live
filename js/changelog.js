@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 828,
+    title: 'Your workspace branding now truly applies everywhere, for everyone',
+    kind: 'fix',
+    ts: '2026-07-31T19:22:45.000Z',
+    items: [
+      'The admin-defined branding (custom logo, name, and link) could look right on the admin\'s own device yet never reach anyone else: the one-time migration that hands old device-local branding to the shared workspace ran at a moment when the sync layer silently swallowed its save, so the backend never received it and every reload quietly undid it. The hand-off now runs with the same post-sync machinery that heals dashboards, so it genuinely lands workspace-wide -- every user, every device.',
+      'The sign-in screen joins the branding too: when a custom logo is set, the sign-in card shows it instead of the default mark, and the moment the app reveals after sign-in the rail is already wearing the custom logo and name. The Admin card and Help copy now say branding is saved with the workspace (the old "stored locally on this device" note was stale).',
+    ],
+  },
+  {
     v: 827,
     title: 'Library data-source cards now name themselves to screen readers',
     kind: 'polish',

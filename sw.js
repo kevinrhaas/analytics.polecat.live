@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v459"; /* v459: Track H sweep round 2 — library
+var CACHE_NAME = "studio-shell-v460"; /* v460: BRAND-BOOT — the branding lift runs
+   as an adopt heal so it finally pushes workspace-wide; the gate card wears the
+   custom logo; afterLogin re-applies branding (branding.js, gate.js, studio.js, docs). */
+/* v459: Track H sweep round 2 — library
    daCard Edit/Delete buttons name the specific data source (studio.js). */
 /* v458: CONS-1 — three CTIC/OpTIS
    reference dashboards + diverging choropleth ramp + ensemble seriesColors

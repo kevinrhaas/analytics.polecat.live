@@ -9414,7 +9414,7 @@
         '</select></div>' +
       '<div class="set-row" id="brandUploadRow"' + (mode === "custom" ? "" : ' style="display:none"') + '>' +
         '<span class="set-row-ic" data-ic="upload"></span>' +
-        '<div class="set-row-txt"><b>Custom logo</b><small>A <b>square</b> PNG, JPG, or SVG — ideally a simple, transparent-background icon around 64–256&nbsp;px (it renders at 26&nbsp;px in the rail and tiny in the browser tab, so avoid fine detail or lots of text). Up to 200&nbsp;KB. Becomes both the rail mark and the browser-tab favicon. Stored locally on this device.</small>' +
+        '<div class="set-row-txt"><b>Custom logo</b><small>A <b>square</b> PNG, JPG, or SVG — ideally a simple, transparent-background icon around 64–256&nbsp;px (it renders at 26&nbsp;px in the rail and tiny in the browser tab, so avoid fine detail or lots of text). Up to 200&nbsp;KB. Becomes both the rail mark and the browser-tab favicon &mdash; and the sign-in screen&rsquo;s logo. Saved with this workspace, so everyone who opens it sees it.</small>' +
           (mode === "custom" && b.dataUrl ? '<div class="brand-preview"><img src="' + esc(b.dataUrl) + '" alt="Custom logo preview" width="26" height="26"/></div>' : '') +
         '</div>' +
         '<input type="file" id="brandFileInp" accept="image/png,image/jpeg,image/svg+xml" style="display:none"/>' +
