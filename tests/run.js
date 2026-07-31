@@ -15374,9 +15374,16 @@ function serve() {
     gp3.on("pageerror", (e) => errors.push("gate connect page: " + e.message));
     await gp3.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
     await gp3.waitForTimeout(500);
-    const g3Gate = await gp3.evaluate(() => ({ hasConnect: !!document.getElementById("g-connect"), overlay: !!document.querySelector("#studio-gate") }));
-    ok("M3.2: the sign-in screen offers a 'Connect to your workspace' entry point before any login",
-      g3Gate.overlay && g3Gate.hasConnect, JSON.stringify(g3Gate));
+    // DEMO-LOCAL slice (2026-07-31): the connect entry point is the Workspace
+    // picker's "Custom workspace…" option now (the footer #g-connect link is
+    // hidden — duplicative — but still present for the failed-sign-in cue).
+    const g3Gate = await gp3.evaluate(() => {
+      var sel = document.getElementById("g-workspace");
+      var hasCustom = sel && [].slice.call(sel.options).some(function (o) { return o.value === "__custom"; });
+      return { hasConnect: !!document.getElementById("g-connect"), hasCustom: !!hasCustom, overlay: !!document.querySelector("#studio-gate") };
+    });
+    ok("M3.2: the sign-in screen offers a 'Connect to your workspace' entry point before any login (the picker's Custom workspace… option)",
+      g3Gate.overlay && g3Gate.hasConnect && g3Gate.hasCustom, JSON.stringify(g3Gate));
     const importGuard = await gp3.evaluate(function () {
       var before = window.PolecatAuth.list().map(function (u) { return u.u; }).sort();
       window.PolecatAuth.importFromStore([]);
@@ -15386,7 +15393,12 @@ function serve() {
     });
     ok("M3.2: PolecatAuth.importFromStore no-ops on an empty/missing list (never locks the browser out mid-provision)",
       importGuard.sameAfterNoop && importGuard.before.indexOf("admin") >= 0 && importGuard.before.indexOf("demo") >= 0, JSON.stringify(importGuard));
-    await gp3.click("#g-connect");
+    // open the wizard via the picker's Custom option (the real user path; it
+    // programmatically clicks the hidden #g-connect, which works while hidden)
+    await gp3.evaluate(() => {
+      var sel = document.getElementById("g-workspace");
+      sel.value = "__custom"; sel.dispatchEvent(new Event("change"));
+    });
     await gp3.waitForFunction(() => !!document.querySelector(".modal-ov .modal-h"), { timeout: 5000 });
     const wizStack = await gp3.evaluate(function () {
       var gateZ = getComputedStyle(document.getElementById("studio-gate")).zIndex;
