@@ -1341,7 +1341,7 @@
             var r = el("div", "field row");
             var opts = allDaIds.map(function (id) { return [id, id]; });
             var sel = select2pairs(opts, did, function (v) { draft.unionDas[i] = v; });
-            var rm = delBtn(function () { draft.unionDas.splice(i, 1); renderBody(); });
+            var rm = delBtn(function () { draft.unionDas.splice(i, 1); renderBody(); }, did ? "member data access " + did : null);
             r.appendChild(sel); r.appendChild(rm); body.appendChild(r);
           });
         } else {
@@ -2933,7 +2933,7 @@
       ks.appendChild(rowItem("◧", k.label || "(metric)", k.da + " · " + k.valueCol,
         function () { select({ kind: "kpi", index: i }); },
         [moveBtn("↑", function () { swap(sp.kpis, i, i - 1); }), moveBtn("↓", function () { swap(sp.kpis, i, i + 1); }),
-         delBtn(function () { sp.kpis.splice(i, 1); selectDashboard(); refreshPreview(); })],
+         delBtn(function () { sp.kpis.splice(i, 1); selectDashboard(); refreshPreview(); }, "KPI " + (k.label || "(metric)"))],
         S.selection && S.selection.kind === "kpi" && S.selection.index === i));
     });
 
@@ -2942,7 +2942,7 @@
     if (!sp.filters.length) fs.appendChild(hint("Optional cascading header selects (e.g. Data Source)."));
     sp.filters.forEach(function (f, i) {
       fs.appendChild(rowItem("⛃", f.label, f.da + " · " + f.valueCol, function () { select({ kind: "filter", index: i }); },
-        [delBtn(function () { sp.filters.splice(i, 1); selectDashboard(); refreshPreview(); })],
+        [delBtn(function () { sp.filters.splice(i, 1); selectDashboard(); refreshPreview(); }, "filter " + (f.label || "(untitled)"))],
         S.selection && S.selection.kind === "filter" && S.selection.index === i));
     });
 
@@ -3034,7 +3034,7 @@
       var row = rowItem(ic, p.title || "(View)", p.chart.type + " · " + p.chart.da + " · span " + p.span,
         function () { select({ kind: "panel", id: p.id }); },
         [moveBtn("↑", function () { swap(sp.panels, i, i - 1); }), moveBtn("↓", function () { swap(sp.panels, i, i + 1); }),
-         delBtn(function () { sp.panels.splice(i, 1); selectDashboard(); refreshPreview(); })],
+         delBtn(function () { sp.panels.splice(i, 1); selectDashboard(); refreshPreview(); }, p.title || "(View)")],
         S.selection && S.selection.kind === "panel" && S.selection.id === p.id);
       // Dim panels that don't match the active tag filter
       if (_tagFilter && !matchesFilter) row.style.opacity = "0.35";
@@ -4673,7 +4673,7 @@
     (da.columns || []).forEach(function (col, i) {
       var r = el("div", "field row");
       var nm = input(col, function (v) { da.columns[i] = v.trim() || col; refreshPreview(); }); nm.placeholder = "column_name";
-      var rm = delBtn(function () { da.columns.splice(i, 1); renderInspector(); refreshPreview(); });
+      var rm = delBtn(function () { da.columns.splice(i, 1); renderInspector(); refreshPreview(); }, "column " + col);
       var d1 = el("div"); d1.style.flex = "1"; d1.appendChild(labelEl("Column " + (i + 1))); d1.appendChild(nm);
       r.appendChild(d1); r.appendChild(rm); cs.appendChild(r);
     });
@@ -4689,7 +4689,7 @@
       var paramTypePairs = Studio.COLUMN_TYPES.map(function (t) { return [t, t]; });
       var ty = select2pairs(paramTypePairs, p.type || "String", function (v) { p.type = v; });
       var def = input(p.default != null ? String(p.default) : "", function (v) { p.default = v; }); def.placeholder = "default value";
-      var rm = delBtn(function () { da.params.splice(i, 1); renderInspector(); });
+      var rm = delBtn(function () { da.params.splice(i, 1); renderInspector(); }, "parameter " + p.name);
       var d1 = el("div"); d1.appendChild(labelEl("Name")); d1.appendChild(nm);
       var d2 = el("div"); d2.appendChild(labelEl("Type")); d2.appendChild(ty);
       var d3 = el("div"); d3.appendChild(labelEl("Default")); d3.appendChild(def);
@@ -4721,7 +4721,7 @@
       var fm = input(cc.formula, function (v) { cc.formula = v; revalidate(); refreshPreview(); }); fm.placeholder = "=[col1] + [col2]";
       var calcTypePairs = Studio.COLUMN_TYPES.map(function (t) { return [t, t]; });
       var ty = select2pairs(calcTypePairs, cc.type || "Numeric", function (v) { cc.type = v; });
-      var rm = delBtn(function () { da.calcColumns.splice(i, 1); renderInspector(); refreshPreview(); });
+      var rm = delBtn(function () { da.calcColumns.splice(i, 1); renderInspector(); refreshPreview(); }, "calculated column " + (cc.name || "(unnamed)"));
       var d1 = el("div"); d1.style.flex = "1.5"; d1.appendChild(labelEl("Name")); d1.appendChild(nm);
       var d2 = el("div"); d2.style.flex = "2"; d2.appendChild(labelEl("Formula")); d2.appendChild(fm);
       var d3 = el("div"); d3.appendChild(labelEl("Type")); d3.appendChild(ty);
@@ -4753,7 +4753,7 @@
       var cs = select2pairs(colPairs, f.col || (daCols[0] || ""), function (v) { f.col = v; refreshPreview(); }); cs.style.flex = "1";
       var os = select2pairs(opPairs, f.op || "=", function (v) { f.op = v; refreshPreview(); }); os.style.flex = "1";
       var vs = input(String(f.val || ""), function (v) { f.val = v; refreshPreview(); }); vs.placeholder = "value"; vs.style.flex = "1";
-      var rm = delBtn(function () { oo.filters.splice(fi, 1); renderInspector(); refreshPreview(); });
+      var rm = delBtn(function () { oo.filters.splice(fi, 1); renderInspector(); refreshPreview(); }, "filter rule on " + (f.col || "(no column)"));
       r.appendChild(cs); r.appendChild(os); r.appendChild(vs); r.appendChild(rm);
       fSec.appendChild(r);
     });
@@ -4770,7 +4770,7 @@
       var colPairs2 = daCols.length ? daCols.map(function (c) { return [c, c]; }) : [["", "(columns not yet defined)"]];
       var cs2 = select2pairs(colPairs2, s.col || (daCols[0] || ""), function (v) { s.col = v; refreshPreview(); }); cs2.style.flex = "2";
       var ds = select2pairs([["asc", "↑ Ascending"], ["desc", "↓ Descending"]], s.dir || "asc", function (v) { s.dir = v; refreshPreview(); }); ds.style.flex = "1";
-      var rm2 = delBtn(function () { oo.sortBy.splice(si, 1); renderInspector(); refreshPreview(); });
+      var rm2 = delBtn(function () { oo.sortBy.splice(si, 1); renderInspector(); refreshPreview(); }, "sort rule on " + (s.col || "(no column)"));
       r.appendChild(cs2); r.appendChild(ds); r.appendChild(rm2);
       sSec.appendChild(r);
     });
@@ -5158,7 +5158,7 @@
         var r = el("div", "field row");
         var pairs = emptyPair.concat(nonCompound.map(function (id) { return [id, id]; }));
         var sel = select2pairs(pairs, did, function (v) { da.unionDas[i] = v; });
-        var rm = delBtn(function () { da.unionDas.splice(i, 1); renderInspector(); });
+        var rm = delBtn(function () { da.unionDas.splice(i, 1); renderInspector(); }, did ? "member data access " + did : null);
         r.appendChild(sel); r.appendChild(rm); us.appendChild(r);
       });
     } else {
@@ -5795,7 +5795,7 @@
     section: function (parent, title, onAdd, summaryFn, helpAnchor, iconName) { return section(parent, title, onAdd, summaryFn, helpAnchor, iconName); },
     rowItem: function (icon, title, sub, onClick, btns, active) { return rowItem(icon, title, sub, onClick, btns, active); },
     compareBtn: function (fn) { return compareBtn(fn); },
-    delBtn: function (fn) { return delBtn(fn); },
+    delBtn: function (fn, name) { return delBtn(fn, name); },
     panelById: function (id) { return panelById(id); },
     esc: function (s) { return esc(s); }
   });
@@ -12201,7 +12201,13 @@
     if (btns && btns.length) { var bb = el("span", "ri-btns"); btns.forEach(function (b) { bb.appendChild(b); }); r.appendChild(bb); }
     return r;
   }
-  function delBtn(fn) { var b = el("button", "icobtn danger"); b.appendChild(Studio.icon("trash", 14)); b.title = "Delete"; b.onclick = function (e) { e.stopPropagation(); fn(); }; return b; }
+  // Track H sweep (2026-07-31): `name`, when given, disambiguates the button among a whole list
+  // of otherwise-identical trash icons (Inspector rows for KPIs/filters/panels/columns/params/
+  // calc columns/output filters/sort rules/union members all reuse this one helper) — mirrors the
+  // "title AND aria-label both name the target" fix v606 already made for myDACard's Duplicate/
+  // Delete pair. Falls back to the bare "Delete" for call sites with nothing nameable yet (e.g. an
+  // empty placeholder row).
+  function delBtn(fn, name) { var b = el("button", "icobtn danger"); b.appendChild(Studio.icon("trash", 14)); var t = name ? "Delete " + name : "Delete"; b.title = t; b.setAttribute("aria-label", t); b.onclick = function (e) { e.stopPropagation(); fn(); }; return b; }
   function compareBtn(fn) { var b = el("button", "icobtn"); b.appendChild(Studio.icon("diff", 14)); b.title = "Compare to current"; b.setAttribute("aria-label", "Compare to current"); b.onclick = function (e) { e.stopPropagation(); fn(); }; return b; }
   function moveBtn(t, fn) { var b = el("button", "icobtn"); b.appendChild(Studio.icon(t === "↑" ? "chevron-up" : "chevron-down", 13)); b.title = t === "↑" ? "Move up" : "Move down"; b.onclick = function (e) { e.stopPropagation(); fn(); }; return b; }
   function setIconBtn(btn, iconName, text, sz) { btn.innerHTML = ""; btn.appendChild(Studio.icon(iconName, sz || 14)); btn.appendChild(document.createTextNode(" " + text)); }

@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 804,
+    title: 'Track H sweep: the Inspector\'s delete buttons now name what they delete, on hover and to a screen reader',
+    kind: 'fix',
+    ts: '2026-07-31T10:32:43.000Z',
+    items: [
+      'Every trash-icon button in the dashboard Inspector (KPIs, Filters, Panels, output columns, parameters, calculated columns, output filter/sort rules, union members) shares one delBtn() helper, which just said the bare "Delete" -- no aria-label at all, and no way to tell rows apart once a list has more than one.',
+      'It now names its target both in the hover title and a new aria-label, e.g. "Delete KPI Revenue" or "Delete filter rule on region" -- the same tooltip-vs-label fix earlier Track H sweeps made for myDACard and the workspace row/card titles.',
+      'Builder notes (app/versions.js) share the helper and pick up the same fix.',
+    ],
+  },
+  {
     v: 803,
     title: 'The tour now defines every term — and Help gains a glossary',
     ts: '2026-07-31T10:02:42.000Z',

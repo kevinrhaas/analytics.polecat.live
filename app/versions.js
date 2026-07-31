@@ -328,7 +328,7 @@
         var sub = n.panelId ? ("Pinned to: " + (panel ? (panel.title || panel.id) : "a deleted panel")) : "General note";
         var dot = '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + D.esc(n.color || NOTE_COLORS[0]) + '"></span>';
         var label = n.text.length > 40 ? n.text.slice(0, 40) + "…" : n.text;
-        noteSec.appendChild(D.rowItem(dot, label, sub, function () { openNoteEditor(n); }, [D.delBtn(function () { deleteCanvasNote(n.id); })], false));
+        noteSec.appendChild(D.rowItem(dot, label, sub, function () { openNoteEditor(n); }, [D.delBtn(function () { deleteCanvasNote(n.id); }, "note “" + label + "”")], false));
       });
     }
   }

@@ -21643,6 +21643,34 @@ function serve() {
     ok("Track H: myDACard's Duplicate/Delete buttons' hover title also names the data source",
       daA11y.found && daA11y.dupTitle === "Duplicate qa05LibDa" && daA11y.delTitle === "Delete qa05LibDa", JSON.stringify(daA11y));
 
+    // Track H sweep (2026-07-31): the Inspector's shared delBtn() helper (KPIs/filters/panels/
+    // columns/params/calc columns/output filters/sort rules/union members, plus versions.js's
+    // Builder notes) said the bare "Delete" with NO aria-label at all -- worse than myDACard's gap
+    // above, which at least had a generic aria-label. A list of several KPIs or panels gave every
+    // trash icon the identical accessible name and hover tooltip. Exercised through the real
+    // Inspector rows: load a spec with several KPIs and panels, and check the LAST button in each
+    // row's .ri-btns (the trash icon) names that row's own KPI/panel, matching the row's own
+    // visible title.
+    await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
+    await page.waitForTimeout(200);
+    const delBtnRows = await page.evaluate(function () {
+      var rows = [].slice.call(document.querySelectorAll("#inspBody .row-item"));
+      var kpiRow = rows.filter(function (r) { return r.querySelector(".ri-icon") && r.querySelector(".ri-icon").textContent === "◧"; })[0];
+      var panelRow = rows.filter(function (r) { var t = r.querySelector(".ri-icon") && r.querySelector(".ri-icon").textContent; return t !== "◧" && t !== "⛃"; })[0];
+      function lastBtn(row) { var btns = row.querySelectorAll(".ri-btns .icobtn"); return btns[btns.length - 1]; }
+      var kDel = kpiRow && lastBtn(kpiRow), pDel = panelRow && lastBtn(panelRow);
+      return {
+        kpiRowTitle: kpiRow && kpiRow.querySelector(".ri-t").textContent,
+        kDelTitle: kDel && kDel.title, kDelLabel: kDel && kDel.getAttribute("aria-label"),
+        panelRowTitle: panelRow && panelRow.querySelector(".ri-t").textContent,
+        pDelTitle: pDel && pDel.title, pDelLabel: pDel && pDel.getAttribute("aria-label"),
+      };
+    });
+    ok("Track H: a KPI row's delete button names that KPI (title + aria-label)",
+      delBtnRows.kDelTitle === "Delete KPI " + delBtnRows.kpiRowTitle && delBtnRows.kDelLabel === delBtnRows.kDelTitle, JSON.stringify(delBtnRows));
+    ok("Track H: a panel row's delete button names that panel (title + aria-label)",
+      delBtnRows.pDelTitle === "Delete " + delBtnRows.panelRowTitle && delBtnRows.pDelLabel === delBtnRows.pDelTitle, JSON.stringify(delBtnRows));
+
     // ---- F9: Network / topology chart ----
     console.log("\n• Network / topology chart (F9)");
     const f9Reg = await page.evaluate(() => {

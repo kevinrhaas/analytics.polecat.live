@@ -116,6 +116,31 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Track H sweep — the Inspector's shared delete button now names what it deletes, on hover and
+  to a screen reader (v804, sw v438, 2026-07-31, steward — Track H/L/N rotation, H's turn):** H
+  was the most overdue of the three self-directed lenses (last ran v609, vs L at v613 and N at
+  v611, and both open sweep issues — #395 UX, #370 tech — already resolved per their own
+  follow-up comments), so walked the workspace for one more instance of the "tooltip/aria-label
+  doesn't name its target" bug shape the v596/v603/v606/v609 sweeps already fixed elsewhere.
+  Found a worse case in `delBtn()` (app/studio.js): the one shared trash-icon helper behind the
+  Dashboard Inspector's KPI, Filter, Panel, output-column, parameter, calculated-column, output
+  filter-rule, sort-rule, and union-member rows (plus versions.js's Builder notes) — every row's
+  delete button said the bare "Delete" with **no `aria-label` at all** (myDACard's equivalent gap,
+  fixed at v606, at least had a generic aria-label to fix; this one had nothing), so a list of
+  several KPIs or panels gave every trash icon in a row group the exact same accessible name and
+  hover tooltip. `delBtn(fn, name)` now takes an optional `name` and sets BOTH `title` and
+  `aria-label` to "Delete " + name (falls back to the bare "Delete" — still gets an aria-label now
+  — when a call site has nothing nameable, e.g. an empty union-member placeholder row); the
+  internal `D.delBtn` wrapper handed to versions.js's `Studio.VersionsUI.configure()` and all 10
+  call sites (app/studio.js) plus versions.js's Builder-notes list were updated to pass their
+  row's own label/name (KPI label, filter label, panel title, column/param/calc-column name,
+  filter/sort rule's column, union member's data access id, note text). 2 new regression checks,
+  through real Inspector rows (KPI row, panel row): confirms the delete button's title AND
+  aria-label match that row's own visible name. Full suite green. SW cache → v438. Files:
+  app/studio.js, app/versions.js, sw.js,
+  js/changelog.js, tests/run.js. NEXT: continuing the Track H/L/N self-directed rotation (Track L
+  last at v613, Track N at v611) is a good next slice while the findings queue and ★ backlog stay
+  thin.
 - **#23 (v803, sw v437, 2026-07-31, steward — "tour: introduce & define every
   domain term"):** builds ON the lane's fresh LF40 tour engine (no conflicts —
   overview base 10→11 steps, still + one per installed pack). Adapter woven
