@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v426"; /* v426: DECLUTTER-1 + PACK-BLURB + SET-ROW-B —
+var CACHE_NAME = "studio-shell-v427"; /* v427: USER-ADD-DURABLE + SYNC-FRESH —
+   mirrorUserRow change-detects and puts NON-silently so a new/changed account
+   row schedules a push (Add-user also pushNow()s + verifies, studio.js);
+   Sync.touch() lets silent status stamps (dataset lastRun/columns, job failed
+   lastRun, connection lastTest) reach the mirror (sync.js + 3 call sites);
+   quietPull background freshness — interval + tab-focus re-pull, adopt only
+   when different, dirty/empty-remote guarded (sync.js). */
+/* v426: DECLUTTER-1 + PACK-BLURB + SET-ROW-B —
    the Sample-packs group is out of the builder Data panel (Settings is the one
    install surface; buildDemoPacksLib call removed, studio.js) and the app
    footer is RETIRED (returns fleet-wide via polecat-shell later; What's-New

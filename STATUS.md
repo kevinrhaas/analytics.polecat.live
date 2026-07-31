@@ -116,6 +116,29 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **USER-ADD-DURABLE + SYNC-FRESH (v792, sw v427, 2026-07-31, steward — Kevin live,
+  the last M7 blocker):** (1) mirrorUserRow change-detects (JSON compare before
+  mutation) and puts NON-silently when the row actually changed — the old
+  unconditional silent put never scheduled a push, so Admin +Add user's row was
+  local-only and the next pull erased it (Kevin's test2). Covers the admin
+  add/edit flow, the every-boot own-row mirror (quiet when unchanged), and the
+  gotrueId stamp alike; the Add-user save additionally Sync.pushNow()s, verifies
+  (pendingEdits/status), and toasts loudly with the exact error if the backend
+  refused. (2) Sync.touch() = schedulePush without a change event, for silent
+  status-stamp writes that must persist but not repaint: dataset lastRun/columns
+  (studio.js runDataset — the builder live path, MUST stay silent), job failed
+  lastRun (jobs.js ×3), connection lastTest (connections.js). (3) quietPull
+  background freshness in sync.js: ~2.5min interval + window focus +
+  visibilitychange re-pull; adopt ONLY when the canonicalized snapshot differs
+  (tables/rows sorted — backend row order can't fake churn); guards: local
+  source / _inflight / _dirty (checked again AFTER the async load, DURABLE-1) /
+  document.hidden / 30s min-gap (force=true bypasses for tests) / NEVER adopt an
+  all-empty remote over non-empty local. Adoption repaints all sections via the
+  existing change "*" + "replaced" listeners — Kevin's "silently quietly refresh
+  the cards". 5 suite checks (fetch-stub + bindConnection so no destructive
+  adopt; restores workspace via snapshot/replaceAll). Files: app/studio.js,
+  app/sources/sync.js, app/jobs.js, app/connections.js, tests/run.js,
+  docs/index.html, js/changelog.js v792, sw v427.
 - **DECLUTTER-1 + PACK-BLURB + SET-ROW-B (v791, sw v426, 2026-07-31, steward — Kevin
   live):** (1) the Sample-packs group no longer renders in the builder's Data panel —
   Settings' pack cards are the one install/remove surface (buildDemoPacksLib call
@@ -7623,26 +7646,10 @@
 > **CLAIMED by the live session — do NOT start these** unless the claim expires
 > (no commit referencing the item lands on main within ~6 hours of the
 > timestamp above; then take over using the context given):
-> 0. **USER-ADD-DURABLE ★ + SYNC-FRESH ★★ (one durability slice, FIRST):**
->    Admin +Add user creates the Auth account but the users row never syncs —
->    mirrorUserRow's silent Workspace.put schedules no push, so the row is
->    local-only and the next pull erases it (Kevin's test2 vanished on
->    sign-out/in; public.users never got the row). Fix: mirrorUserRow gains
->    change-detection (skip when identical, NON-silent put when the row
->    actually changed — covers boot mirror, gotrueId stamp, and admin add/edit
->    alike); admin finishSave additionally Sync.pushNow() + loud failure toast.
->    Last M7 blocker. SYNC-FRESH rides along — the silent-write audit is DONE
->    (2026-07-31 ~06:30Z): all batch sweeps already notify(); the only real
->    holes besides mirrorUserRow are status-stamp writes that must persist but
->    not repaint — connections.js testConnectionRow (lastTest), jobs.js runJob
->    failure paths (lastRun), studio.js runDataset (lastRun/columns). Cure: a
->    new `Sync.touch()` export (schedulePush without a change event — do NOT
->    notify() from runDataset, it's the builder live path and would churn
->    renders). Plus the freshness half: quiet background pull in sync.js
->    (~2.5min interval + window focus/visibilitychange), guarded — skip when
->    local source, _dirty, _inflight, or document.hidden (DURABLE-1: never
->    adopt over pending edits); adoption already repaints every section
->    silently via the existing change "*" + "replaced" listeners.
+> 0. ~~USER-ADD-DURABLE ★ + SYNC-FRESH ★★~~ **SHIPPED v792 (this session,
+>    2026-07-31 ~05:00Z — see DONE).** Kevin-side verify: re-add test2 via
+>    Admin → +Add user (watch for the "synced to the workspace backend" toast),
+>    sign out/in, confirm the row persists in Supabase public.users.
 > 1. **FILTERS-1 ★ (bug, next up):** Conservation pack dashboard filters are
 >    DEAD — root cause CONFIRMED: pack DAs are file-kind (real engine), and
 >    `app/sources/localfile.js queryData` ignores params entirely; SCORE-1's

@@ -441,6 +441,9 @@
     return fn.call(src, c.cfg || {}).then(function (r) {
       c.lastTest = { ok: !!r.ok, error: r.ok ? "" : (r.error || "failed"), at: Date.now() };
       Studio.Workspace.put("connections", c, { silent: true });
+      // SYNC-FRESH: silent (the caller repaints its own row) but still durable —
+      // schedule the mirror push so the status dot is honest on other devices too
+      if (Studio.Sync && Studio.Sync.touch) Studio.Sync.touch();
       toast(r.ok ? "Connection OK" : "Test failed: " + (r.error || ""), !r.ok);
       return r;
     });

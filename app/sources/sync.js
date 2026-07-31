@@ -220,6 +220,55 @@
     });
   }
 
+  // ---- background freshness (SYNC-FRESH) ------------------------------------
+  // See the Sync.quietPull export comment for the contract. Comparison is done
+  // on a canonicalized snapshot (tables sorted, rows sorted by id) so backend
+  // row ordering can't fake a difference and trigger no-op repaint churn.
+  var FRESH_EVERY_MS = 150000, FRESH_MIN_GAP_MS = 30000;
+  var _lastFreshAt = 0;
+  function snapCanon(snap) {
+    var o = { settings: (snap && snap.settings) || {}, tables: {} };
+    var tabs = (snap && snap.tables) || {};
+    Object.keys(tabs).sort().forEach(function (t) {
+      o.tables[t] = (tabs[t] || []).slice().sort(function (a, b) { return String(a.id).localeCompare(String(b.id)); });
+    });
+    return JSON.stringify(o);
+  }
+  function snapRowCount(snap) {
+    var tabs = (snap && snap.tables) || {};
+    return Object.keys(tabs).reduce(function (n, t) { return n + (tabs[t] || []).length; }, 0);
+  }
+  function quietPull(force) {
+    if (state.sourceId === "local" || _inflight || _dirty) return Promise.resolve(false);
+    if (state.status !== "connected") return Promise.resolve(false);
+    if (typeof document !== "undefined" && document.hidden) return Promise.resolve(false);
+    // focus events can burst (alt-tab flurries) — space quiet pulls out, except
+    // when explicitly forced (tests / a deliberate programmatic check)
+    if (force !== true && Date.now() - _lastFreshAt < FRESH_MIN_GAP_MS) return Promise.resolve(false);
+    _lastFreshAt = Date.now();
+    var src = Studio.sourceById(state.sourceId);
+    if (!src) return Promise.resolve(false);
+    // NOTE: _suspend is NOT held across the async load — a user edit landing
+    // mid-load must still schedule its push. It wraps only the replaceAll.
+    return src.load(state.cfg).then(decTransform).then(function (snap) {
+      if (_dirty || _inflight) return false; // edits arrived during the load — local wins
+      if (snapRowCount(snap) === 0 && snapRowCount(W().snapshot()) > 0) return false; // empty-remote guard
+      if (snapCanon(snap) === snapCanon(W().snapshot())) return false; // nothing new
+      _suspend = true;
+      try { W().replaceAll(snap); } finally { _suspend = false; }
+      logSync("pull", true);
+      healAfterAdopt();
+      return true;
+    }).catch(function () { return false; }); // best-effort: the backoff retry owns error handling
+  }
+  var _freshTimer = null;
+  function startFreshness() {
+    if (_freshTimer || typeof window === "undefined") return;
+    _freshTimer = setInterval(quietPull, FRESH_EVERY_MS);
+    window.addEventListener("focus", function () { quietPull(); });
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) quietPull(); });
+  }
+
   var Sync = {
     onSync: function (fn) { listeners.push(fn); return function () { var i = listeners.indexOf(fn); if (i >= 0) listeners.splice(i, 1); }; },
     // DURABLE-1: register a heal to re-run after every remote adoption (see
@@ -234,6 +283,12 @@
     secretsState: function () { return { available: C().cryptoAvailable(), enabled: _sec.enabled, locked: _sec.enabled && !_sec.key }; },
 
     pushNow: function () { clearTimeout(_timer); return flushPush(true); },
+    // SYNC-FRESH: status-stamp writes (a dataset's lastRun/columns, a job's
+    // failed lastRun, a connection's lastTest) persist via SILENT puts so the
+    // builder's live path doesn't churn full-section re-renders — but silent
+    // means no change event, so the mirror never learned about them. touch()
+    // schedules the same debounced push a change event would, without the event.
+    touch: function () { schedulePush(); },
     // immediate self-heal attempt (also what the backoff timer fires)
     retryNow: retryNow,
     // recent sync attempts (newest first) — the Settings card renders these
@@ -401,12 +456,25 @@
       return Sync.pushNow().then(function () { emit(); return Sync.secretsState(); });
     },
 
+    // SYNC-FRESH (Kevin, 2026-07-31 — "screens should be current"): the mirror
+    // always pushed promptly but only ever PULLED at boot/Refresh, so another
+    // device's saves didn't appear until a reload. quietPull re-checks the
+    // remote on a slow interval and whenever the tab regains focus, adopting
+    // ONLY when the remote genuinely differs — adoption repaints every section
+    // via the store's change "*" + "replaced" events, so cards refresh silently.
+    // Hard guards, in order: never local-only / mid-push / hidden / not-green;
+    // never with pending local edits (DURABLE-1 — local wins while dirty, and
+    // re-checked AFTER the async load too); never adopt an all-empty remote
+    // over non-empty local state (a glitched read must not wipe the workspace).
+    quietPull: quietPull,
+
     // ---- boot ---------------------------------------------------------------
     // Restores a saved remote by pulling it fresh (the remote is the source of
     // truth) and starts the write-through subscription. On failure we stay
     // usable on the local mirror and surface the error.
     initSync: function () {
       W().on("change", function () { if (!_suspend) schedulePush(); });
+      startFreshness();
       var conn = loadConn();
       if (!conn || !conn.sourceId || conn.sourceId === "local") { setStatus("local"); return Promise.resolve(publicState()); }
       var src = Studio.sourceById(conn.sourceId);

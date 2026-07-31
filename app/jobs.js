@@ -78,12 +78,14 @@
     if (!src) {
       job.lastRun = { ok: false, error: "No source dataset selected.", at: Date.now(), rows: 0 };
       Studio.Workspace.put("jobs", job, { silent: true });
+      if (Studio.Sync && Studio.Sync.touch) Studio.Sync.touch(); // SYNC-FRESH: failed-run stamp still mirrors
       return Promise.resolve({ error: job.lastRun.error });
     }
     return runDataset(src).then(function (r) {
       if (r.error) {
         job.lastRun = { ok: false, error: r.error, at: Date.now(), rows: 0 };
         Studio.Workspace.put("jobs", job, { silent: true });
+        if (Studio.Sync && Studio.Sync.touch) Studio.Sync.touch(); // SYNC-FRESH
         return r;
       }
       return resolveJobCtx(job.steps).then(function (ctx) {
@@ -92,6 +94,7 @@
         if (out.error) {
           job.lastRun = { ok: false, error: out.error, at: Date.now(), rows: 0 };
           Studio.Workspace.put("jobs", job, { silent: true });
+          if (Studio.Sync && Studio.Sync.touch) Studio.Sync.touch(); // SYNC-FRESH
           return out;
         }
         var row = (job.outputDatasetId && Studio.Workspace.get("datasets", job.outputDatasetId)) ||

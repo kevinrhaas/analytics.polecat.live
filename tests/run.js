@@ -10091,6 +10091,88 @@ function serve() {
     ok("USERS-DURABLE 2: the users table is UPSERT-ONLY in sync — even a push WITH local users rows deletes nothing (a stale admin mirror can't kill a freshly-provisioned account) — while the Admin remove flow's explicit deleteRows() still issues its targeted delete",
       durable.ok2 && durable.usersUpserted && durable.usersNeverDeleted && durable.explicitDeleteOk && durable.explicitDeleteTargeted, JSON.stringify(durable));
 
+    // ---- USER-ADD-DURABLE + SYNC-FRESH (Kevin live, 2026-07-31): Add-user
+    // created the Auth account and listed the row, but mirrorUserRow's SILENT
+    // put never emitted a change event, so the write-through never scheduled a
+    // push — test2 was local-only and evaporated on the next pull. And the
+    // mirror only ever PULLED at boot/Refresh, so other devices' saves never
+    // appeared without a reload. ----
+    console.log("\n• USER-ADD-DURABLE + SYNC-FRESH: account rows push, quiet pulls refresh");
+    const fresh = await page.evaluate(async () => {
+      const fetch0 = window.fetch;
+      const calls = [];
+      let usersRemote = []; // what a quiet pull's GET /users returns
+      window.fetch = (url, opts) => {
+        const method = (opts && opts.method) || "GET";
+        const u = String(url);
+        calls.push(method + " " + (u.split("/rest/v1")[1] || u));
+        if (method === "DELETE") return Promise.resolve(new Response(null, { status: 204 }));
+        if (method === "POST" || method === "PATCH")
+          return Promise.resolve(new Response("[]", { status: 201, headers: { "Content-Type": "application/json" } }));
+        const t = (u.match(/rest\/v1\/([a-z_]+)\?/) || [])[1];
+        const body = t === "users" ? usersRemote : [];
+        return Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } }));
+      };
+      const keep = Studio.Workspace.snapshot(); // quietPull adoption below replaces the store — restore at the end
+      const out = {};
+      try {
+        // bindConnection: wire the REAL Sync write-through to the stub without a
+        // destructive adopting pull (that's the WORKSPACE-LOGIN entry path too)
+        await Studio.Sync.bindConnection("supabase", { url: "https://x.supabase.co", key: "k" });
+        // 1) a NEW account row schedules a push (the exact test2 hole)…
+        calls.length = 0;
+        window.__studioMirrorUserRow({ u: "t2add", name: "T2", role: "member", hash: "h1" });
+        out.dirtyAfterMirror = Studio.Sync.syncState().pendingEdits === true;
+        await Studio.Sync.pushNow();
+        out.pushedUsers = calls.some((c) => /^POST \/users/.test(c));
+        out.cleanAfterPush = Studio.Sync.syncState().pendingEdits === false;
+        // 2) …but the every-boot own-row mirror stays quiet when NOTHING changed
+        window.__studioMirrorUserRow({ u: "t2add", name: "T2", role: "member", hash: "h1" });
+        out.noDirtyOnIdentical = Studio.Sync.syncState().pendingEdits === false;
+        // 3) Sync.touch(): a silent status-stamp write (dataset lastRun, job
+        // failed lastRun, connection lastTest) still reaches the mirror
+        Studio.Sync.touch();
+        out.touchDirty = Studio.Sync.syncState().pendingEdits === true;
+        calls.length = 0;
+        await Studio.Sync.pushNow();
+        out.touchPushed = calls.some((c) => /^POST \//.test(c));
+        // 4a) quietPull dirty-guard: pending local edits block adoption (DURABLE-1)
+        usersRemote = [{ data: { id: "user_remote9", u: "remote9", name: "R9", role: "member" } }];
+        Studio.Workspace.put("dashboards", { id: "qp_dirty", title: "d", spec: { panels: [], kpis: [], filters: [] } });
+        const qpBlocked = await Studio.Sync.quietPull(true);
+        out.qpBlockedByDirty = qpBlocked === false && !Studio.Workspace.get("users", "user_remote9");
+        await Studio.Sync.pushNow();
+        // 4b) with a clean mirror, a genuinely-different remote is adopted and
+        // every section repaints via the store's own replaced event — silently
+        let repainted = false;
+        const off = Studio.Workspace.on("replaced", () => { repainted = true; });
+        const qpAdopted = await Studio.Sync.quietPull(true);
+        off();
+        out.qpAdopted = qpAdopted === true && !!Studio.Workspace.get("users", "user_remote9");
+        out.qpRepainted = repainted;
+        await Studio.Sync.pushNow(); // adopt-heals may have queued edits — clear before the guard check
+        // 4c) an all-EMPTY remote read must never wipe a non-empty local workspace
+        usersRemote = [];
+        const qpEmpty = await Studio.Sync.quietPull(true);
+        out.qpEmptyGuard = qpEmpty === false && Studio.Workspace.all("users").length > 0;
+      } finally {
+        Studio.Sync.disconnect();
+        window.fetch = fetch0;
+        Studio.Workspace.replaceAll(keep);
+      }
+      return out;
+    });
+    ok("USER-ADD-DURABLE: mirroring a NEW/changed account row marks the mirror dirty and the push lands a POST /users (a freshly added account can no longer stay local-only and vanish on the next pull)",
+      fresh.dirtyAfterMirror && fresh.pushedUsers && fresh.cleanAfterPush, JSON.stringify(fresh));
+    ok("USER-ADD-DURABLE: the every-boot own-row mirror stays QUIET when the row is unchanged (change-detection — no push storm, no event)",
+      fresh.noDirtyOnIdentical === true, JSON.stringify(fresh));
+    ok("SYNC-FRESH: Sync.touch() schedules the same push a change event would, without the event — silent status-stamp writes (lastRun/lastTest/columns) now reach the backend",
+      fresh.touchDirty && fresh.touchPushed, JSON.stringify(fresh));
+    ok("SYNC-FRESH: quietPull adopts a genuinely-different remote and the store's replaced event repaints sections silently — but NEVER over pending local edits (DURABLE-1 guard)",
+      fresh.qpBlockedByDirty && fresh.qpAdopted && fresh.qpRepainted, JSON.stringify(fresh));
+    ok("SYNC-FRESH: an all-empty remote read is never adopted over a non-empty local workspace (a glitched read can't wipe the store)",
+      fresh.qpEmptyGuard === true, JSON.stringify(fresh));
+
     // ---- SETTINGS-ROAM slice 1 (Kevin, 2026-07-31): "sign in later from
     // another browser and get my entire environment." Branding lives in the
     // SYNCED workspace settings; a signed-in account's theme rides its own
