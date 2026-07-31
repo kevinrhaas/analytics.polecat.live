@@ -65,6 +65,13 @@ window.CHART_GALLERY = [
     "svg": "<svg viewBox=\"0 0 44 30\"><polygon points=\"22,3 37,12 31,27 13,27 7,12\" fill=\"none\" stroke=\"#e3e8f0\" stroke-width=\"1\"/><polygon points=\"22,9 31,14 28,22 16,22 13,14\" fill=\"none\" stroke=\"#e3e8f0\" stroke-width=\"1\"/><polygon points=\"22,6 34,18 26,25 15,20 14,13\" fill=\"#005bb5\" fill-opacity=\".2\" stroke=\"#005bb5\" stroke-width=\"1.6\" stroke-linejoin=\"round\"/></svg>"
   },
   {
+    "type": "radarSectors",
+    "label": "Metrics wheel",
+    "group": "Comparison",
+    "desc": "System-health wheel — scored metrics grouped into tinted category sectors with a numbered rim",
+    "svg": "<svg viewBox=\"0 0 44 30\"><path d=\"M22 15 L22 3 A12 12 0 0 1 34 15 Z\" fill=\"#2e8b57\" fill-opacity=\".18\"/><path d=\"M22 15 L34 15 A12 12 0 0 1 22 27 Z\" fill=\"#005bb5\" fill-opacity=\".18\"/><path d=\"M22 15 L22 27 A12 12 0 0 1 10 15 Z\" fill=\"#c98a1b\" fill-opacity=\".2\"/><path d=\"M22 15 L10 15 A12 12 0 0 1 22 3 Z\" fill=\"#8e44ad\" fill-opacity=\".18\"/><circle cx=\"22\" cy=\"15\" r=\"12\" fill=\"none\" stroke=\"#e3e8f0\" stroke-width=\"1\"/><circle cx=\"22\" cy=\"15\" r=\"6\" fill=\"none\" stroke=\"#e3e8f0\" stroke-width=\"1\"/><polygon points=\"22,6 31,15 22,23 15,15\" fill=\"none\" stroke=\"#4a5568\" stroke-width=\"1.6\" stroke-linejoin=\"round\"/></svg>"
+  },
+  {
     "type": "waterfall",
     "label": "Waterfall",
     "group": "Comparison",
@@ -152,7 +159,7 @@ window.CHART_GALLERY = [
     "type": "choropleth",
     "label": "Map (US choropleth)",
     "group": "Maps",
-    "desc": "US regions colored by value — county, state, district, or watershed",
+    "desc": "US regions colored by value — county, state, district, watershed, congressional district, or ZIP code",
     "svg": "<svg viewBox=\"0 0 44 30\"><path d=\"M4 6 L16 4 L18 12 L10 15 L5 12 Z\" fill=\"#1f9d57\" opacity=\".85\"/><path d=\"M16 4 L30 5 L29 14 L18 12 Z\" fill=\"#1f9d57\" opacity=\".45\"/><path d=\"M30 5 L40 8 L38 18 L29 14 Z\" fill=\"#1f9d57\" opacity=\".65\"/><path d=\"M10 15 L18 12 L29 14 L27 24 L12 25 Z\" fill=\"#1f9d57\" opacity=\".3\"/><path d=\"M29 14 L38 18 L35 26 L27 24 Z\" fill=\"#1f9d57\" opacity=\".95\"/></svg>"
   },
   {

@@ -116,6 +116,22 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Marketing-site refresh — screenshots and copy catch up to Quick Views/View (v801, sw v436,
+  2026-07-31, steward — automated lane, DOCS-CURRENCY/LF58 track):** the root `index.html` hero
+  carousel and chart gallery are generated artifacts (`tools/gen-shots.mjs`,
+  `tools/gen-chart-gallery.mjs`) and had drifted behind the app: `site/shots/explore-dark.png` and
+  `home-dark.png` still showed the pre-rename "Explore" section heading, "an analysis" copy, and a
+  "SAVED ANALYSES" panel — all replaced by "Quick Views"/"View"/"Saved Views" in the real app weeks
+  ago (LIVE-a, LF52) but never re-captured. Ran both generators fresh against the current app (all
+  10 carousel shots + the chart gallery changed — the gallery pass also picked up a chart type,
+  "Metrics wheel," that was missing from the marketing tile grid, plus an updated choropleth
+  description naming congressional districts/ZIP codes). Hand-fixed the carousel's own alt text and
+  captions to match (`analysis widgets` → `Views`, `Explore` → `Quick Views`, `a reusable analysis`
+  → `a reusable View`) since those are hand-authored strings the generator doesn't touch. Left
+  `site/shots/explore-dark.png`'s filename and the `secExplore` internal id alone (asset-path/
+  internal-identifier churn, not user-facing — same carve-out LF52/LF53 used). Full suite green
+  (2864/2864) before and after. Files: index.html, site/shots/*.png, site/chart-gallery.js,
+  js/changelog.js.
 - **LF40 — the overview ("Take the tour") walkthrough is pack-aware too, LF40 now fully done
   (v800, sw v435, 2026-07-31, steward — automated lane):** LF40's own NEXT pointer (left after
   the welcome carousel's engine shipped, v704) asked for "the same pack-aware treatment for
@@ -7834,16 +7850,16 @@
 > 2026-07-31 ~05:10Z — see DONE):** the remaining alignment ask, done.
 > ~~LF40 (animated welcome/tour overhaul)~~ **SHIPPED v800 (automated lane,
 > 2026-07-31 ~06:51Z — see DONE):** its last open item (the overview tour's own
-> pack-aware treatment) is done — LF40 as a whole is now fully shipped. Still
-> open: LF24 (Quick mode CSV-drop auto-dashboard) · LF59 (Dashboards section
-> multi-select/bulk mgmt) · #23 (tour defines every domain term) · LF53
-> code-level CDF/CDE purge · marketing-site refresh — NOTE (2026-07-31,
-> automated lane): several of these codes read as already fully shipped
-> elsewhere in this file (grep DONE before starting; STATUS.md has drifted
-> stale in a few queue blocks during tonight's fast pace — LF24, LF59 and LF53
-> all read as fully done in their own DONE entries already, so the genuinely
-> open items here may just be #23 and the marketing-site refresh; verify
-> against DONE before claiming either). One coherent item per run,
+> pack-aware treatment) is done — LF40 as a whole is now fully shipped.
+> ~~marketing-site refresh~~ **SHIPPED v801 (automated lane, 2026-07-31
+> ~07:35Z — see DONE):** the carousel screenshots + chart gallery were stale
+> against the current app (pre-rename "Explore"/"analysis" UI baked into the
+> PNGs, a missing chart type). Confirmed LF24, LF59 and LF53's user-facing
+> scope read as already fully shipped elsewhere in this file (their own DONE
+> entries) — LF53's remaining piece is a deliberately-deferred internal-only
+> identifier rename (`Studio.exportCDF` etc.), not user-facing, so not picked
+> up here. Still open: #23 (tour defines every domain term — a real gap, not
+> yet built). One coherent item per run,
 > `steward/<topic>` branch off latest main, rebase if the live session shipped
 > meanwhile. The live session works on
 > `claude/lucid-keller-nff4pb`.
