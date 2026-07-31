@@ -6,25 +6,23 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
-    v: 816,
-    title: 'Clear local data now wipes everything it promises to',
+    v: 817,
+    title: 'Safer sign-in: a picked workspace can no longer touch local data before you sign in',
     kind: 'fix',
-    ts: '2026-07-31T13:58:55.000Z',
+    ts: '2026-07-31T14:12:11.000Z',
     items: [
-      'Several recent features (per-dataset drafts in the View Builder, the assigned-backend auto-connect, page sort choices, and a handful of other on-device preferences) had quietly slipped past "Clear local data," so a device reset left traces behind instead of a truly clean slate.',
-      'Everything those features write is now covered, including the per-account and per-backend preferences that cannot be listed by name up front.',
+      'Choosing a workspace on the sign-in screen only BINDS the connection -- but background freshness refreshes (tab focus, the periodic re-check, error retries, and the reload boot pull) could still quietly pull that workspace before anyone signed in, and against a publicly-readable backend that replaced the device\'s local data. All automatic pulls are now latched off from the moment a workspace is picked until the first signed-in refresh -- across reloads too.',
+      'Nothing changes about the flows you drive yourself: signing in still adopts the workspace immediately, and connecting from Settings works exactly as before.',
     ],
   },
   {
     v: 815,
-    title: 'A dated reference gallery of the whole app -- every sample-pack dashboard, plus a tour of the app itself',
-    kind: 'polish',
-    ts: '2026-07-31T13:53:53.000Z',
+    title: 'Safer sign-in: a picked workspace can no longer touch local data before you sign in',
+    kind: 'fix',
+    ts: '2026-07-31T13:49:52.000Z',
     items: [
-      'New tools/shoot-pack-dashboards.mjs drives the real app headless, installs both sample packs (Conservation Insight and Data Management & Governance), and captures every one of their dashboards as a full-page PNG -- rendered through the same recipe as Home\'s live tiles, so builder-backed panels show their real computed rows.',
-      'New tools/shoot-app-tour.mjs captures the app itself with both packs installed so nothing reads empty: every rail section (Home, Views, Dashboards, Datasets, Connections, Jobs, Repository, the View + Dashboard Builders, Settings) plus the good menus and dialogs staged with sample input -- command palette, export, Save as, JSON editor, version history + diff, compare, quick import, the connection wizard, bulk move-to-folder, the guided tours, welcome, dark theme, and a handful of phone-width shots.',
-      'Captures land in docs/shots/<sample-packs|app-tour>/<date>/, each with a README and a session.json manifest recording exactly when the image session ran and at which commit; every PNG also carries the session timestamp in its own tEXt metadata, so a file stays traceable even after being copied elsewhere.',
-      'First committed session: 2026-07-31 -- 23 pack dashboards + 40 app-tour surfaces (34 desktop, 6 mobile), zero failures.',
+      'Choosing a workspace on the sign-in screen only BINDS the connection -- but background freshness refreshes (tab focus, the periodic re-check, error retries, and the reload boot pull) could still quietly pull that workspace before anyone signed in, and against a publicly-readable backend that replaced the device\'s local data. All automatic pulls are now latched off from the moment a workspace is picked until the first signed-in refresh -- across reloads too.',
+      'Nothing changes about the flows you drive yourself: signing in still adopts the workspace immediately, and connecting from Settings works exactly as before.',
     ],
   },
   {
