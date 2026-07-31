@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 800,
+    title: 'The guided app tour acknowledges your installed sample packs',
+    kind: 'polish',
+    ts: '2026-07-31T06:54:22.000Z',
+    items: [
+      'Take the tour (the overview walkthrough) now names whatever sample pack(s) your workspace has installed right after the intro — the same pack-aware trick the welcome carousel already does — instead of only the standalone per-pack tour knowing about them.',
+    ],
+  },
+  {
     v: 799,
     title: 'Deletes now sync safely everywhere — and nothing else can be mistaken for one',
     kind: 'fix',

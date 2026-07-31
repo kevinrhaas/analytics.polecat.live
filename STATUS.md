@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF40 — the overview ("Take the tour") walkthrough is pack-aware too, LF40 now fully done
+  (v800, sw v435, 2026-07-31, steward — automated lane):** LF40's own NEXT pointer (left after
+  the welcome carousel's engine shipped, v704) asked for "the same pack-aware treatment for
+  tutorial.js's spotlight overview tour, if wanted." Mirrors welcome.js's computeSteps() engine
+  exactly: `TOURS.overview.steps` is no longer read directly — every access now goes through a
+  new `tourSteps(key)` accessor, and for `"overview"` it computes live (`computeOverviewSteps()`)
+  by splicing one centered, no-spotlight acknowledgment step per INSTALLED sample pack right
+  after the intro (before "Home"), reusing each pack's own name/tagline from `demopacks.js` (no
+  hardcoded copy — any future pack gets a step automatically). The step's `sub` line points at the
+  pack's own dedicated tour when one exists (checked via the existing `TOUR_GATES` map — currently
+  just Conservation Insight) or a generic "find its dashboards on Home and in Dashboards"
+  otherwise. New `StudioTutorial.computeOverviewStepTitles()` test hook (mirrors
+  `StudioWelcome.computeStepTitles()`). 3 regression tests updated/added: the existing tour-shape
+  and rail-walk checks (J6-5, J6-7) now assert against `10 + <ambient installed-pack count>`
+  instead of a fixed 10 (datamanagement ships installed by default, same as welcome.js's own
+  test already accounted for) and skip past the spliced step(s) before the rail-section walk; a
+  new check installs Conservation Insight and asserts the overview tour gains exactly one more
+  step naming it, then confirms it disappears again on removal. docs/index.html's "Take the
+  guided tour" bullet now says so too. Files: app/tutorial.js, tests/run.js, docs/index.html,
+  sw.js, js/changelog.js.
 - **DURABLE-2 (v799, sw v434, 2026-07-31, steward — generalizes v786/787's
   users-wipe fixes to every table):** deletion TOMBSTONES. Workspace.remove
   writes meta.tombstones["<table>|<id>"] = Date.now() (users EXCLUDED — account
@@ -7811,15 +7831,21 @@
 >
 > **OPEN FOR THE AUTOMATED LANE (independent, minimal overlap with the above):**
 > ~~LF21 (title header as first-class widget)~~ **SHIPPED v793 (automated lane,
-> 2026-07-31 ~05:10Z — see DONE):** the remaining alignment ask, done. Still
+> 2026-07-31 ~05:10Z — see DONE):** the remaining alignment ask, done.
+> ~~LF40 (animated welcome/tour overhaul)~~ **SHIPPED v800 (automated lane,
+> 2026-07-31 ~06:51Z — see DONE):** its last open item (the overview tour's own
+> pack-aware treatment) is done — LF40 as a whole is now fully shipped. Still
 > open: LF24 (Quick mode CSV-drop auto-dashboard) · LF59 (Dashboards section
-> multi-select/bulk mgmt) · LF40 (animated welcome/tour overhaul) · #23 (tour
-> defines every domain term) · LF53 code-level CDF/CDE purge · marketing-site
-> refresh — NOTE (2026-07-31, automated lane): several of these codes read as
-> already fully shipped elsewhere in this file (grep DONE before starting;
-> STATUS.md has drifted stale in a few queue blocks during tonight's fast
-> pace). One coherent item per run, `steward/<topic>` branch off latest main,
-> rebase if the live session shipped meanwhile. The live session works on
+> multi-select/bulk mgmt) · #23 (tour defines every domain term) · LF53
+> code-level CDF/CDE purge · marketing-site refresh — NOTE (2026-07-31,
+> automated lane): several of these codes read as already fully shipped
+> elsewhere in this file (grep DONE before starting; STATUS.md has drifted
+> stale in a few queue blocks during tonight's fast pace — LF24, LF59 and LF53
+> all read as fully done in their own DONE entries already, so the genuinely
+> open items here may just be #23 and the marketing-site refresh; verify
+> against DONE before claiming either). One coherent item per run,
+> `steward/<topic>` branch off latest main, rebase if the live session shipped
+> meanwhile. The live session works on
 > `claude/lucid-keller-nff4pb`.
 >
 > **DO NOT touch:** tools/supabase-*.sql posture files, app/workspaces.js
