@@ -4367,7 +4367,9 @@ function serve() {
           // resolving on SVGs+transform alone raced it under load (2026-07-30
           // flake: widgetTheme null with everything else fine). Poll for the
           // theme too; the 15s timeout still fails honestly if theming breaks.
-          var wThemed = wd && wd.documentElement.getAttribute("data-theme") === window.__STUDIO_STATE.theme;
+          // documentElement is NULL mid-doc-swap (2026-07-31 FATAL, nondeterministic
+          // at check 282/1165) — guard it and just poll again next tick.
+          var wThemed = wd && wd.documentElement && wd.documentElement.getAttribute("data-theme") === window.__STUDIO_STATE.theme;
           if (fOk && wOk && wThemed && fi.style.transform && wi.style.transform) {
             resolve({ featSvgs: fd.querySelectorAll(".dk-grid svg").length,
               featScale: +(fi.style.transform.match(/scale\(([\d.]+)\)/) || [])[1],
@@ -15372,9 +15374,16 @@ function serve() {
     gp3.on("pageerror", (e) => errors.push("gate connect page: " + e.message));
     await gp3.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
     await gp3.waitForTimeout(500);
-    const g3Gate = await gp3.evaluate(() => ({ hasConnect: !!document.getElementById("g-connect"), overlay: !!document.querySelector("#studio-gate") }));
-    ok("M3.2: the sign-in screen offers a 'Connect to your workspace' entry point before any login",
-      g3Gate.overlay && g3Gate.hasConnect, JSON.stringify(g3Gate));
+    // DEMO-LOCAL slice (2026-07-31): the connect entry point is the Workspace
+    // picker's "Custom workspace…" option now (the footer #g-connect link is
+    // hidden — duplicative — but still present for the failed-sign-in cue).
+    const g3Gate = await gp3.evaluate(() => {
+      var sel = document.getElementById("g-workspace");
+      var hasCustom = sel && [].slice.call(sel.options).some(function (o) { return o.value === "__custom"; });
+      return { hasConnect: !!document.getElementById("g-connect"), hasCustom: !!hasCustom, overlay: !!document.querySelector("#studio-gate") };
+    });
+    ok("M3.2: the sign-in screen offers a 'Connect to your workspace' entry point before any login (the picker's Custom workspace… option)",
+      g3Gate.overlay && g3Gate.hasConnect && g3Gate.hasCustom, JSON.stringify(g3Gate));
     const importGuard = await gp3.evaluate(function () {
       var before = window.PolecatAuth.list().map(function (u) { return u.u; }).sort();
       window.PolecatAuth.importFromStore([]);
@@ -15384,7 +15393,12 @@ function serve() {
     });
     ok("M3.2: PolecatAuth.importFromStore no-ops on an empty/missing list (never locks the browser out mid-provision)",
       importGuard.sameAfterNoop && importGuard.before.indexOf("admin") >= 0 && importGuard.before.indexOf("demo") >= 0, JSON.stringify(importGuard));
-    await gp3.click("#g-connect");
+    // open the wizard via the picker's Custom option (the real user path; it
+    // programmatically clicks the hidden #g-connect, which works while hidden)
+    await gp3.evaluate(() => {
+      var sel = document.getElementById("g-workspace");
+      sel.value = "__custom"; sel.dispatchEvent(new Event("change"));
+    });
     await gp3.waitForFunction(() => !!document.querySelector(".modal-ov .modal-h"), { timeout: 5000 });
     const wizStack = await gp3.evaluate(function () {
       var gateZ = getComputedStyle(document.getElementById("studio-gate")).zIndex;
@@ -15719,6 +15733,100 @@ function serve() {
       wsAccess.hasBtn && wsAccess.entryOk && wsAccess.stripped && wsAccess.liveKeepsCreds && wsAccess.importable, JSON.stringify(wsAccess));
     await gpWs.close();
 
+    // ---- GATE-FIX + GATE-ERR (Kevin live, 2026-07-31): his curl proved the
+    // password RIGHT while the gate still said "isn't in your connected
+    // workspace" — two defects: (a) a GoTrue rejection shared the unknown-account
+    // message, (b) the adopt step depended entirely on the whole-workspace pull,
+    // which can be guarded (dirty edits) or wiped (anon-era pulls). ----
+    console.log("\n• GATE-FIX: own-row adopt fallback + honest wrong-password error");
+    await fetch(`http://localhost:${PORT}/__supabase/rest/v1/__cleartokenflap`, { headers: { apikey: "sb_publishable_valid" } });
+    const gpFix = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpFix.on("pageerror", (e) => errors.push("GATE-FIX page: " + e.message));
+    await gpFix.addInitScript((port) => {
+      try { localStorage.setItem("analytics.datasource.v1", JSON.stringify({ sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid" }, at: 1 })); } catch (e) {}
+    }, PORT);
+    await gpFix.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpFix.waitForFunction(() => {
+      if (!window.Studio || !Studio.Sync) return false;
+      var s = Studio.Sync.syncState();
+      return s.sourceId === "supabase" && s.status !== "connecting";
+    }, { timeout: 20000 }).catch(() => {});
+    await gpFix.waitForSelector("#g-form", { timeout: 4000 });
+    // A) wrong password → the honest message
+    await gpFix.fill("#g-user", "owner@example.com");
+    await gpFix.fill("#g-pass", "wrong-password-123");
+    await gpFix.click("#g-form button[type=submit]");
+    await gpFix.waitForFunction(() => /match/.test((document.getElementById("g-err") || {}).textContent || ""), { timeout: 6000 }).catch(() => {});
+    const gateErrTxt = await gpFix.evaluate(() => (document.getElementById("g-err") || {}).textContent || "");
+    ok("GATE-ERR: a GoTrue-rejected password says the password doesn't match (with the autofill warning) — never the misleading 'isn't in your connected workspace'",
+      /doesn’t match/.test(gateErrTxt) && /autofill/.test(gateErrTxt) && !/connected workspace/.test(gateErrTxt), JSON.stringify({ gateErrTxt }));
+    // B) correct password + NO usable pull + NO local mirror → own-row fetch fallback adopts
+    await gpFix.evaluate(() => {
+      Studio.Sync.pullNow = function () { return Promise.resolve(); }; // the guarded/no-op pull case
+      Studio.Workspace.all("users").forEach(function (u) { if (u.gotrueId) Studio.Workspace.remove("users", u.id, { silent: true }); });
+      Studio.supabaseSource.fetchUsers = function () {
+        return Promise.resolve([{ id: "user_fbk", u: "fallbackkevin", name: "Fallback Kevin", role: "admin", demo: false, gotrueId: "11111111-1111-1111-1111-111111111111" }]);
+      };
+    });
+    await gpFix.fill("#g-pass", "secret123");
+    await gpFix.click("#g-form button[type=submit]");
+    await gpFix.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 8000 }).catch(() => {});
+    const fixAdopt = await gpFix.evaluate(() => ({
+      gateGone: !document.querySelector("#studio-gate"),
+      who: (window.PolecatAuth.current() || {}).u,
+      gateErr: (document.getElementById("g-err") || {}).textContent || ""
+    }));
+    await gpFix.close();
+    ok("GATE-FIX: with the workspace pull unavailable and no local mirror, a verified sign-in adopts from the DIRECT own-users-row read — a provisioned account can no longer dead-end at the gate",
+      fixAdopt.gateGone && fixAdopt.who === "fallbackkevin", JSON.stringify(fixAdopt));
+
+    // ---- DEMO-LOCAL (Kevin, 2026-07-31): the demo is a LOCAL concept — entering
+    // it must force the workspace back to Local even when a remote backend is
+    // picked/bound (else the demo session pushes anonymous 403 noise at the
+    // real workspace and tries to mirror sample seeds into it). ----
+    const gpDemo = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpDemo.on("pageerror", (e) => errors.push("DEMO-LOCAL page: " + e.message));
+    await gpDemo.addInitScript((port) => {
+      try {
+        localStorage.setItem("analytics.datasource.v1", JSON.stringify({ sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid" }, at: 1 }));
+        localStorage.setItem("studio-workspace-last", "polecat-test");
+      } catch (e) {}
+    }, PORT);
+    await gpDemo.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpDemo.waitForFunction(() => {
+      if (!window.Studio || !Studio.Sync) return false;
+      var s = Studio.Sync.syncState();
+      return s.sourceId === "supabase" && s.status !== "connecting";
+    }, { timeout: 20000 }).catch(() => {});
+    await gpDemo.waitForSelector("#g-demo", { timeout: 4000 });
+    // (same page, pre-demo): the footer "Connect to your workspace…" link is
+    // hidden by default now — duplicative with the Workspace picker (Kevin,
+    // 2026-07-31); it only appears as the LF39 cue after a failed sign-in.
+    const connectLinkHidden = await gpDemo.evaluate(() => {
+      var b = document.getElementById("g-connect");
+      return { exists: !!b, display: b ? getComputedStyle(b).display : "" };
+    });
+    ok("GATE polish: the footer Connect-to-workspace link is hidden by default (the Workspace picker owns that job); the element stays for the failed-sign-in cue + the picker's Custom option",
+      connectLinkHidden.exists && connectLinkHidden.display === "none", JSON.stringify(connectLinkHidden));
+    await gpDemo.click("#g-demo");
+    await gpDemo.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 8000 }).catch(() => {});
+    const demoLocal = await gpDemo.evaluate(() => ({
+      gateGone: !document.querySelector("#studio-gate"),
+      who: (window.PolecatAuth.current() || {}).u,
+      // The AUTHORITATIVE invariant: the demo session's live sync source is
+      // LOCAL — it cannot read from or push to the remote backend. This is what
+      // governs Kevin's requirement ("the demo is local only"). forceLocalWorkspace
+      // ALSO clears the persisted connection key, but we DON'T assert that here:
+      // logging in as demo triggers a sample-pack install reload, and Playwright's
+      // addInitScript re-injects the seeded connection on that reload (note the
+      // tell-tale at:1 in the raw value) — a test-harness artifact no real browser
+      // reproduces (a real browser boots local after the key is removed).
+      sourceId: Studio.Sync.syncState().sourceId
+    }));
+    await gpDemo.close();
+    ok("DEMO-LOCAL: 'Explore the demo' with a remote workspace picked/bound signs into demo AND forces the live workspace back to Local (sync source = local) — the demo can never read from or push to a real backend",
+      demoLocal.gateGone && demoLocal.who === "demo" && demoLocal.sourceId === "local", JSON.stringify(demoLocal));
+
     // ---- GOLIVE-CARD (Kevin live, 2026-07-30): the Admin per-user-security card
     // reflects the DATABASE's real posture — after the RLS script was applied
     // manually, the "Go live" CTA kept showing forever. The probe contrast (anon
@@ -15778,6 +15886,112 @@ function serve() {
       /polecat-logo-coin-cream\.svg/.test(gateSrc) && !/polecat-mark-white\.png/.test(gateSrc) &&
       /polecat-logo-coin-cream\.svg/.test(landSrc) && /polecat-logo-black\.svg/.test(landSrc) && !/polecat-mark-(white|black)\.png/.test(landSrc),
       JSON.stringify({ favLen: favSrc.length }));
+
+    // ---- ACTIVITY-1 (Kevin, 2026-07-30): backend activity + feedback logging ----
+    console.log("\n• ACTIVITY-1: activity log + feedback button");
+    // A) local-only → events QUEUE (never lost, never an error); consecutive dupes throttle
+    const actQueue = await page.evaluate(function () {
+      Studio.Sync.disconnect();
+      localStorage.removeItem(Studio.Activity._queueKey);
+      Studio.Activity.log("hx-test", { x: 1 });
+      Studio.Activity.log("hx-test", { x: 1 }); // dup within 5s → throttled
+      var q = JSON.parse(localStorage.getItem(Studio.Activity._queueKey) || "[]");
+      return { n: q.length, table: q[0] && q[0].t, action: q[0] && q[0].r.action,
+        hasUser: !!(q[0] && q[0].r.username), hasAt: !!(q[0] && q[0].r.at) };
+    });
+    ok("ACTIVITY-1: on a local-only workspace an event QUEUES locally (username + real event time stamped) and a back-to-back duplicate is throttled",
+      actQueue.n === 1 && actQueue.table === "polecat_activity" && actQueue.action === "hx-test" && actQueue.hasUser && actQueue.hasAt, JSON.stringify(actQueue));
+    // B) connected → the queue FLUSHES via the adapter's signed-in insert; live
+    //    events go straight through; feedback carries auto-captured context
+    const actFlush = await page.evaluate(async function () {
+      var calls = [];
+      var insert0 = Studio.supabaseSource.insertRow, save0 = Studio.supabaseSource.save;
+      Studio.supabaseSource.insertRow = function (cfg, table, row) { calls.push({ table: table, row: row }); return Promise.resolve({ ok: true }); };
+      Studio.supabaseSource.save = function () { return Promise.resolve({ ok: true }); }; // keep any stray push off the network
+      await Studio.Sync.bindConnection("supabase", { url: "https://x.supabase.co", key: "k" });
+      var flushed = await Studio.Activity.flush();
+      Studio.Activity.log("hx-live", { y: 2 });
+      Studio.Activity.feedback("bug", "it broke on the map");
+      await new Promise(function (r) { setTimeout(r, 50); });
+      var qAfter = JSON.parse(localStorage.getItem(Studio.Activity._queueKey) || "[]");
+      var fb = calls.filter(function (c) { return c.table === "polecat_feedback"; })[0];
+      var out = {
+        // NOTE: the manual flush() below often reports 0 because binding the
+        // connection ALREADY auto-flushed via the connected onSync event (the
+        // by-design path) — assert DELIVERY of the queued row, not who sent it.
+        flushed: flushed, qAfter: qAfter.length,
+        queuedDelivered: calls.some(function (c) { return c.table === "polecat_activity" && c.row.action === "hx-test"; }),
+        tables: calls.map(function (c) { return c.table; }),
+        liveAction: (calls.filter(function (c) { return c.row.action === "hx-live"; })[0] || {}).table,
+        fbKind: fb && fb.row.kind, fbMsg: fb && fb.row.message,
+        fbCtx: fb && fb.row.context ? { hasVersion: !!fb.row.context.version, hasViewport: !!fb.row.context.viewport, hasUa: !!fb.row.context.ua } : null
+      };
+      Studio.supabaseSource.insertRow = insert0; Studio.supabaseSource.save = save0;
+      Studio.Sync.disconnect();
+      localStorage.removeItem(Studio.Activity._queueKey);
+      return out;
+    });
+    ok("ACTIVITY-1: once a Supabase connection is live the queued event is DELIVERED (auto-flush on connect), live events insert directly, and a feedback report lands in polecat_feedback with kind + message + auto-captured context (version/viewport/UA)",
+      actFlush.queuedDelivered && actFlush.qAfter === 0 && actFlush.liveAction === "polecat_activity" &&
+      actFlush.fbKind === "bug" && actFlush.fbMsg === "it broke on the map" &&
+      actFlush.fbCtx && actFlush.fbCtx.hasVersion && actFlush.fbCtx.hasViewport && actFlush.fbCtx.hasUa, JSON.stringify(actFlush));
+    // C) the topbar button (right of What's-next) opens the tiny dialog; Send routes
+    //    through Studio.Activity.feedback and closes
+    const fbUi = await page.evaluate(async function () {
+      var out = {};
+      var next = document.getElementById("tbWhatsNext");
+      out.btnAfterNext = !!(next && next.nextElementSibling && next.nextElementSibling.id === "tbFeedback");
+      var captured = null;
+      var fb0 = Studio.Activity.feedback;
+      Studio.Activity.feedback = function (kind, msg) { captured = { kind: kind, msg: msg }; };
+      window.__studioOpenFeedback();
+      out.kindOptions = document.querySelectorAll("#fbKind option").length;
+      out.hasMsg = !!document.getElementById("fbMsg");
+      document.getElementById("fbKind").value = "feature";
+      document.getElementById("fbMsg").value = "add sparkle";
+      document.getElementById("fbSendBtn").click();
+      await new Promise(function (r) { setTimeout(r, 100); });
+      out.captured = captured;
+      out.modalClosed = !document.querySelector(".modal-ov");
+      Studio.Activity.feedback = fb0;
+      return out;
+    });
+    ok("ACTIVITY-1: the topbar feedback button sits right of What's-next; the dialog offers bug/feature/comment/question + optional text, and Send records + closes",
+      fbUi.btnAfterNext && fbUi.kindOptions === 4 && fbUi.hasMsg && fbUi.captured && fbUi.captured.kind === "feature" && fbUi.captured.msg === "add sparkle" && fbUi.modalClosed, JSON.stringify(fbUi));
+
+    // ---- BRAND-LINK (Kevin live, 2026-07-31): custom rail-name destination ----
+    const brandLink = await page.evaluate(function () {
+      var B = window.__studioBranding, out = {};
+      var orig = B.get();
+      B.set({ mode: "default", suite: "custom", suiteText: "Viridis View", suiteUrl: "ctic.org" });
+      var suite = document.querySelector(".rail-suite");
+      out.customHref = suite.getAttribute("href");
+      out.customLabel = suite.textContent;
+      B.set({ mode: "default", suite: "custom", suiteText: "Viridis View", suiteUrl: "javascript:alert(1)" });
+      out.badSchemeHref = suite.getAttribute("href"); // must be gone — plain text
+      B.set({ mode: "default" });
+      out.defaultHref = suite.getAttribute("href");
+      B.set(orig && orig.mode ? orig : { mode: "default" });
+      return out;
+    });
+    ok("BRAND-LINK: a custom rail name can carry its own destination (bare domains get https://), an unsafe scheme renders as plain text, and the default label still points at polecat.live",
+      brandLink.customHref === "https://ctic.org" && brandLink.customLabel === "Viridis View" &&
+      brandLink.badSchemeHref === null && brandLink.defaultHref === "https://polecat.live", JSON.stringify(brandLink));
+    const brandLinkAdmin = await page.evaluate(function () {
+      var B = window.__studioBranding;
+      var orig = B.get();
+      B.set({ mode: "default", suite: "custom", suiteText: "Viridis View", suiteUrl: "https://ctic.org" });
+      window.__studioShellSetSection("admin");
+      window.__studioRenderAdmin();
+      var inp = document.getElementById("brandSuiteUrlInp");
+      var row = document.getElementById("brandSuiteUrlRow");
+      var out = { hasInput: !!inp, value: inp && inp.value, rowVisible: !!(row && row.style.display !== "none") };
+      B.set(orig && orig.mode ? orig : { mode: "default" });
+      window.__studioRenderAdmin();
+      return out;
+    });
+    ok("BRAND-LINK: the Admin branding card gains a Custom link field (shown with a custom name, prefilled from the stored URL)",
+      brandLinkAdmin.hasInput && brandLinkAdmin.value === "https://ctic.org" && brandLinkAdmin.rowVisible, JSON.stringify(brandLinkAdmin));
 
     // ---- M4: Admin — manage users (first slice of "Admin + permissions") ----
     console.log("\n• M4: admin — manage users");

@@ -5666,6 +5666,8 @@
   function openRecent(id) {
     var r = loadRecents().filter(function (x) { return x.id === id; })[0];
     if (!r) return;
+    // ACTIVITY-1: every "open this dashboard" call site funnels through here.
+    if (Studio.Activity) Studio.Activity.log("dashboard-open", { id: id });
     // LF23 slice 2: a viewer-role account (canDevelop() false) never lands in
     // Studio — every "open this dashboard" call site (Home/Dashboards cards +
     // rows, the picker, xpAddAnalysisToSpec) funnels through here, so gating
@@ -8827,6 +8829,7 @@
     // M3: Account card — sign out.
     var signOutBtn = $("#setSignOutBtn", sec);
     if (signOutBtn) signOutBtn.onclick = function () {
+      if (Studio.Activity) Studio.Activity.log("sign-out"); // ACTIVITY-1 (before logout — needs the username)
       if (window.PolecatAuth) window.PolecatAuth.logout();
       location.reload();
     };
@@ -9032,6 +9035,11 @@
         '<span class="set-row-ic" data-ic="tag"></span>' +
         '<div class="set-row-txt"><b>Custom name</b><small>Shown under the app name in the rail. Short and simple reads best.</small></div>' +
         '<input type="text" id="brandSuiteInp" class="set-txt" maxlength="' + MAX + '" value="' + esc(suiteText) + '" placeholder="e.g. Acme Analytics"/></div>' +
+      // BRAND-LINK (Kevin live, 2026-07-31): where clicking the custom name goes.
+      '<div class="set-row" id="brandSuiteUrlRow"' + (suiteMode === "custom" ? "" : ' style="display:none"') + '>' +
+        '<span class="set-row-ic" data-ic="link"></span>' +
+        '<div class="set-row-txt"><b>Custom link</b><small>Where clicking the custom name goes (opens in a new tab) — e.g. your organization\'s site. Leave empty and the name is plain text, not a link.</small></div>' +
+        '<input type="url" id="brandSuiteUrlInp" class="set-txt" value="' + esc(b.suiteUrl || "") + '" placeholder="e.g. https://ctic.org"/></div>' +
     '</div>';
   }
 
@@ -9062,7 +9070,46 @@
       var b = getBranding(); b.suite = "custom"; b.suiteText = suiteInp.value.slice(0, Studio.Branding.SUITE_MAX); setBranding(b);
       // live-apply only (don't re-render mid-typing — it would blur the input)
     };
+    var suiteUrlInp = $("#brandSuiteUrlInp", sec);
+    if (suiteUrlInp) suiteUrlInp.oninput = function () {
+      var b = getBranding(); b.suite = "custom"; b.suiteUrl = suiteUrlInp.value.trim(); setBranding(b);
+      // same live-apply rule as the name input above
+    };
   }
+
+  // ---- ACTIVITY-1 (Kevin, 2026-07-30): the topbar feedback dialog ----------
+  // Deliberately tiny: classify, optionally say more, send. Who/where/when/app
+  // version are captured automatically (app/activity.js ctx) into the backend
+  // polecat_feedback log — nothing to fill in beyond the thought itself.
+  function openFeedbackModal() {
+    modal("Send feedback", function (b) {
+      var form = el("div", "cx-wiz-form");
+      var kRow = el("label", "cx-field"); kRow.innerHTML = "<span>What kind?</span>";
+      var kSel = el("select"); kSel.id = "fbKind";
+      [["bug", "Bug — something's broken"], ["feature", "Feature — I'd like something"],
+       ["comment", "Comment"], ["question", "Question"]].forEach(function (o) {
+        var op = el("option"); op.value = o[0]; op.textContent = o[1]; kSel.appendChild(op);
+      });
+      kRow.appendChild(kSel); form.appendChild(kRow);
+      var mRow = el("label", "cx-field"); mRow.innerHTML = "<span>Anything to add?</span>";
+      var mInp = el("textarea"); mInp.id = "fbMsg"; mInp.rows = 4;
+      mInp.placeholder = "Optional — what happened, or what you'd like";
+      mRow.appendChild(mInp); form.appendChild(mRow);
+      var hint = el("small", "cx-hint");
+      hint.textContent = "Your name, the current page and the app version are included automatically.";
+      form.appendChild(hint);
+      b.appendChild(form);
+      var bar = el("div", "modal-actions");
+      var sendBtn = el("button", "btn primary"); sendBtn.type = "button"; sendBtn.id = "fbSendBtn"; sendBtn.textContent = "Send";
+      sendBtn.onclick = function () {
+        if (Studio.Activity) Studio.Activity.feedback(kSel.value, mInp.value);
+        var x = b.closest(".modal-ov"); x = x && x.querySelector(".x"); if (x) x.click();
+        toast("Thanks — recorded for the team.");
+      };
+      bar.appendChild(sendBtn); b.appendChild(bar);
+    });
+  }
+  window.__studioOpenFeedback = openFeedbackModal; // test hook
 
   // ---- M7 slice 7: in-app go-live via the polecat-admin Edge Function -------
   // Only offered once the workspace is connected to Supabase (renderAdmin's
@@ -10477,6 +10524,9 @@
     if (tbWN && Studio.icon) { tbWN.appendChild(Studio.icon("sparkle", 16)); tbWN.addEventListener("click", function () { openWhatsNew(tbWN); }); }
     var tbNext = $("#tbWhatsNext");
     if (tbNext && Studio.icon) { tbNext.appendChild(Studio.icon("compass", 16)); tbNext.addEventListener("click", openWhatsNext); }
+    // ACTIVITY-1 (Kevin, 2026-07-30): feedback button — right of What's-next.
+    var tbFb = $("#tbFeedback");
+    if (tbFb && Studio.icon) { tbFb.appendChild(Studio.icon("feedback", 16)); tbFb.addEventListener("click", openFeedbackModal); }
     var tbTh = $("#tbTheme");
     if (tbTh) { refreshTbThemeIcon(); tbTh.addEventListener("click", function () { setTheme(S.theme === "dark" ? "light" : "dark"); }); }
     // Z5 follow-up: "quick settings" mirror in the mobile nav drawer (relay.polecat.live-style) —
@@ -10574,7 +10624,7 @@
     var btnExportEl = sa("#btnExport"); setIconBtnCaret(btnExportEl, "download", "Export", 14);
     var menuExportEl = sa("#menuExport");
     menuToggle(btnExportEl, menuExportEl);
-    Array.prototype.slice.call(menuExportEl.querySelectorAll("button")).forEach(function (b) { b.onclick = function () { doExport(b.getAttribute("data-exp")); closeMenus(); }; });
+    Array.prototype.slice.call(menuExportEl.querySelectorAll("button")).forEach(function (b) { b.onclick = function () { var f = b.getAttribute("data-exp"); if (Studio.Activity) Studio.Activity.log("export", { format: f }); doExport(f); closeMenus(); }; });
     var histWrap = el("div"); histWrap.id = "exportHistWrap"; menuExportEl.appendChild(histWrap);
     loadExportHistory(); renderExportHistory();
 
@@ -10723,6 +10773,7 @@
     // and the gate never appeared. End the auth session too (same as Settings' button).
     var moreSignOut = $("#moreSignOut"); if (moreSignOut) moreSignOut.onclick = function () {
       closeMenus();
+      if (Studio.Activity) Studio.Activity.log("sign-out"); // ACTIVITY-1 (before logout — needs the username)
       if (window.PolecatAuth) window.PolecatAuth.logout();
       try { sessionStorage.removeItem("studio-gate-ok"); } catch (e) {}
       location.reload();

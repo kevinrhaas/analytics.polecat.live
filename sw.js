@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v416"; /* v416: BRAND v2 + polish — favicon/icon-192/512/
+var CACHE_NAME = "studio-shell-v417"; /* v417: ACTIVITY-1 + BRAND-LINK — NEW app/activity.js
+   (precached; loads after sources/sync.js): Studio.Activity logs sign-in/sign-out/
+   session-end/dashboard-open/export to polecat_activity and the new topbar feedback
+   button's reports to polecat_feedback (both via supabase.js insertRow with the
+   user's session; local-only queues + flushes). branding.js suiteHref: the custom
+   rail name can carry its own destination. index.html, studio.js, gate.js,
+   icons.js changed (all precached). */
+/* v416: BRAND v2 + polish — favicon/icon-192/512/
    apple-touch are the new vector coin mark; precache swaps polecat-mark-*.png for
    polecat-logo-coin-cream.svg + polecat-logo-black.svg; gate logo = coin; rail
    defaults EXPANDED on first desktop visit (shell.js); Admin go-live card is
@@ -2284,6 +2291,7 @@ var SHELL_FILES = [
   "app/sources/workspace.js",
   "app/sources/jobs-engine.js",
   "app/sources/sync.js",
+  "app/activity.js",
   "app/sampledata.js",
   "app/demopacks.js",
   "app/duckdb.js",

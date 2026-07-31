@@ -125,7 +125,9 @@
       return fetch(base + path, {
         method: opts.method || "GET",
         headers: headers(cfg, opts.headers, session && session.accessToken),
-        body: opts.body
+        body: opts.body,
+        // ACTIVITY-1: lets the one session-end log event survive pagehide
+        keepalive: !!opts.keepalive
       }).catch(function (e) {
         throw new Error("Could not reach Supabase (network or CORS): " + e.message);
       }).then(function (res) {
@@ -513,6 +515,39 @@
         if (!r.ok) return { denied: true, rows: 0 };
         return r.json().then(function (j) { return { denied: false, rows: Array.isArray(j) ? j.length : 0 }; });
       }).catch(function () { return null; }); // network trouble → unknown, card stays as-is
+    },
+
+    // GATE-FIX (Kevin live, 2026-07-31): read the users rows THIS SESSION can
+    // see — under the tightened select policy that's the caller's own row (an
+    // admin sees all). The sign-in adopt path uses this as its fallback: the
+    // whole-workspace pull can be guarded (dirty local edits) or the local
+    // mirror stale/wiped, but a signed-in user can ALWAYS read their own row —
+    // so a verified password must never dead-end in "isn't in your workspace".
+    fetchUsers: function (cfg) {
+      return rest(cfg, "/users?select=data").then(function (r) {
+        if (!r.ok) return [];
+        return r.json().then(function (rows) {
+          return (rows || []).map(function (row) {
+            try { var p = JSON.parse(row.data); return (p && p.id) ? p : null; } catch (e) { return null; }
+          }).filter(Boolean);
+        });
+      }).catch(function () { return []; });
+    },
+
+    // ACTIVITY-1 (Kevin, 2026-07-30): append ONE row to a log table
+    // (polecat_activity / polecat_feedback), riding the connection's signed-in
+    // session — the tables are INSERT-only for authenticated users, admin-read.
+    // Fire-and-forget callers (app/activity.js) swallow rejections and queue.
+    insertRow: function (cfg, table, row, opts) {
+      return rest(cfg, "/" + table, {
+        method: "POST",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify([row]),
+        keepalive: !!(opts && opts.keepalive)
+      }).then(function (r) {
+        if (!r.ok) return r.text().then(function (t) { throw new Error("HTTP " + r.status + " " + String(t).slice(0, 120)); });
+        return { ok: true };
+      });
     },
 
     testData: function (cfg) {

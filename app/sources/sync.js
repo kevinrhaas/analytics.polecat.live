@@ -86,6 +86,13 @@
   // status: 'local' | 'connecting' | 'connected' | 'syncing' | 'error'
   var state = { sourceId: "local", status: "local", lastError: "", lastPushAt: 0, cfg: null };
   var _suspend = false, _timer = null, _inflight = false, _dirty = false;
+  // DEMO-LOCAL race guard (Kevin live, 2026-07-31): the boot connect retries for
+  // up to ~2s (#111 auth-race). If the user disconnects mid-flight (e.g. clicks
+  // "Explore the demo", which forces Local), the late connect used to apply its
+  // pull + re-persist the remote over the just-cleared local state. A generation
+  // counter fences it: disconnect() (and any new connect) bumps _connGen; an
+  // in-flight connectOnce whose captured gen is stale bails without applying.
+  var _connGen = 0;
   var listeners = [];
 
   function publicState() {
@@ -328,10 +335,16 @@
 
     // Detach and go back to local-only; the working copy stays as-is.
     disconnect: function () {
-      clearTimeout(_timer);
-      state.sourceId = "local"; state.cfg = null; state.lastError = ""; state.lastPushAt = 0;
-      _sec.enabled = false; _sec.key = null; _sec.salt = null; // forget the encryption context
+      // Persist the local state FIRST — before clearTimeout/_sec teardown, which
+      // must never be able to throw and leave the remote connection persisted
+      // (the DEMO-LOCAL symptom: in-memory sourceId=local but CONN_KEY still
+      // pointing at the backend, so a reload silently reconnects).
+      _connGen++; // fence any in-flight boot connect so a late pull can't re-adopt/re-persist
+      state.sourceId = "local"; state.cfg = null;
       saveConn();
+      try { clearTimeout(_timer); } catch (e) {}
+      state.lastError = ""; state.lastPushAt = 0;
+      _sec.enabled = false; _sec.key = null; _sec.salt = null; // forget the encryption context
       setStatus("local");
       return publicState();
     },
@@ -401,6 +414,7 @@
       state.sourceId = conn.sourceId; state.cfg = conn.cfg;
       setStatus("connecting");
       _suspend = true;
+      var myGen = ++_connGen; // fence this boot connect against a mid-flight disconnect
       // Boot self-heal (#111): a fresh page has no cached GoTrue session, and the
       // very first authenticated read can race the session/secrets setup and come
       // back 401/403 ("rejected the API key") — the exact flap a manual Refresh
@@ -410,11 +424,15 @@
       // unreachable/misconfigured source falls through to the local mirror as before.
       var RETRY_MS = [500, 1500];
       function connectOnce(attempt) {
+        // superseded by a disconnect (or a newer connect) while in-flight → abandon
+        if (myGen !== _connGen) return Promise.resolve();
         return src.load(state.cfg).then(decTransform).then(function (snap) {
+          if (myGen !== _connGen) return; // user disconnected during the load — don't adopt/persist
           W().replaceAll(snap);
           logSync("boot pull", true);
           setStatus("connected");
         }).catch(function (e) {
+          if (myGen !== _connGen) return; // stale — swallow silently
           var msg = e.message || "could not reach source";
           var recoverable = /401|403|rejected the api key|sign-in failed|session|jwt/i.test(msg);
           if (recoverable && attempt < RETRY_MS.length) {
@@ -425,7 +443,7 @@
           setStatus("error", msg + " — working from the local mirror");
         });
       }
-      return connectOnce(0).then(function () { _suspend = false; healAfterAdopt(); return publicState(); });
+      return connectOnce(0).then(function () { if (myGen === _connGen) { _suspend = false; healAfterAdopt(); } return publicState(); });
     }
   };
 

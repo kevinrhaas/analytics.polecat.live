@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 782,
+    title: 'A feedback button in the top bar, a backend activity trail, and custom brand links',
+    kind: 'feature',
+    ts: '2026-07-31T00:17:29.000Z',
+    items: [
+      'New speech-bubble button in the top bar (right of What’s-next): report a bug, ask a question, or leave a comment in one tiny dialog. Who you are, where you were, and the app version are captured automatically — nothing to fill in beyond the thought itself.',
+      'The workspace backend now keeps a concise activity trail — sign-ins, sign-outs, dashboard opens, exports, and one time-on-page event per visit — recorded with the acting account and timestamp. Reports and the trail live in two separate admin-only tables; on a local-only workspace events queue on the device and send once a backend is connected.',
+      'Branding: a custom rail name can now carry its own link — Admin → Branding gains a “Custom link” field (e.g. your organization’s site), opened in a new tab when someone clicks the name. Without one, a custom name is plain text; the default label still points at polecat.live.',
+      'Sign-in fixes from tonight’s live debugging: a rejected password now says exactly that (with a nudge that autofill sometimes inserts a saved token) instead of the misleading “isn’t in your connected workspace”; a verified sign-in can no longer dead-end when the workspace pull is unavailable — the gate reads your own account row directly; and multi-line sign-in errors get room instead of overprinting the demo hint.',
+      '“Explore the demo” (and any demo/demo sign-in) is strictly local now: entering the demo switches the workspace back to Local even if a remote workspace was picked, so a demo session can never push at — or pull from — a real backend.',
+    ],
+  },
+  {
     v: 781,
     title: 'New Polecat logo, an open navigation rail for first-timers, and an honest security card',
     ts: '2026-07-30T23:35:03.000Z',

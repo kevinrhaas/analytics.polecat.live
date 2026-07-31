@@ -33,6 +33,8 @@
   // (already-authed loads reveal without a login and never call this).
   function afterLogin() {
     try { if (window.__studioAuthBoot) window.__studioAuthBoot(); } catch (e) {}
+    // ACTIVITY-1: record the sign-in (AFTER auth boot, so current() is fresh).
+    try { if (window.Studio && Studio.Activity) Studio.Activity.log("sign-in"); } catch (e) {}
     // shell.js already ran (and gated the Admin rail item) before anyone signed in —
     // refresh it now that PolecatAuth.current() actually reflects who logged in.
     try { if (window.__studioShellApplyRoleGating) window.__studioShellApplyRoleGating(); } catch (e) {}
@@ -80,10 +82,20 @@
       // block, make it "really small" and tied to the Local workspace) — not a boxed callout.
       "#studio-gate .g-hint{margin-top:14px;font-size:11.5px;line-height:1.55;color:var(--faint,#8a97ab);text-align:center}" +
       "#studio-gate .g-hint b{color:var(--muted,#5d6b82)}#studio-gate .g-hint code{font-family:ui-monospace,Menlo,monospace;background:var(--field,#fff);border:1px solid var(--line,#c8d2df);padding:1px 5px;border-radius:5px;color:var(--muted,#5d6b82)}" +
-      "#studio-gate .g-err{color:var(--bad,#d63a5e);font-size:12.5px;height:16px;margin-top:8px}" +
+      /* GATE-ERR polish (Kevin, 2026-07-31): height was FIXED at 16px, so any
+         multi-line error overprinted the demo hint below — min-height lets the
+         card grow and push the hint down instead. */
+      "#studio-gate .g-err{color:var(--bad,#d63a5e);font-size:12.5px;min-height:16px;line-height:1.45;margin:8px 0 2px}" +
       "#studio-gate .g-note{color:var(--faint,#8a97ab);font-size:11px;margin-top:14px}" +
-      "#studio-gate .g-connect{margin-top:10px;background:transparent;border:0;color:var(--faint,#8a97ab);font-size:12px;text-decoration:underline;cursor:pointer;padding:4px}" +
+      /* DEMO-LOCAL slice polish (Kevin, 2026-07-31): the footer "Connect to your
+         workspace…" link is DUPLICATIVE with the Workspace picker on top (its
+         "Custom workspace…" opens the same wizard) — hidden by default now. It
+         still APPEARS as the cued suggestion after a failed unknown-account
+         sign-in (its original LF39 job); the picker's __custom option clicks it
+         programmatically, which works regardless of visibility. */
+      "#studio-gate .g-connect{display:none;margin-top:10px;background:transparent;border:0;color:var(--faint,#8a97ab);font-size:12px;text-decoration:underline;cursor:pointer;padding:4px}" +
       "#studio-gate .g-connect:hover{color:var(--brand,#005bb5)}" +
+      "#studio-gate .g-connect.g-connect-cue{display:inline-block}" +
       // LF39: when a NEVER-connected browser fails sign-in (a teammate on a new device), the small
       // underlined "Connect to your workspace" link is easy to miss — promote it to an obvious,
       // pulsing primary-outline button so the one-step path to join the team workspace is unmissable.
@@ -99,7 +111,7 @@
 
     var ov = document.createElement("div"); ov.id = "studio-gate";
     ov.innerHTML = '<div class="g-card"><div class="g-logo"><img src="assets/brand/polecat-logo-coin-cream.svg" width="48" height="48" alt=""/></div><h1>Sign in to Analytics</h1>' +
-      '<p>Your local workspace on analytics.polecat.live.</p>' +
+      '<p id="g-sub">Your analytics workspace on analytics.polecat.live.</p>' +
       '<form id="g-form" autocomplete="off">' +
       '<label for="g-workspace">Workspace</label>' +
       '<select id="g-workspace" aria-describedby="g-ws-note"></select>' +
@@ -116,7 +128,7 @@
       '<div class="g-or">or</div>' +
       '<button type="button" class="g-demo" id="g-demo">Explore the demo</button>' +
       '<div class="g-err" id="g-err"></div>' +
-      '<div class="g-hint" id="g-hint">Demo account <code>demo</code> / <code>demo</code> — a local sample workspace, not the Polecat backend.</div>' +
+      '<div class="g-hint" id="g-hint">Demo account <code>demo</code> / <code>demo</code> — a local sample workspace.</div>' +
       '<button type="button" class="g-connect" id="g-connect">Connect to your workspace…</button>' +
       '<div class="g-note">analytics.polecat.live</div></div>';
     document.body.appendChild(ov);
@@ -198,7 +210,11 @@
       if (!cfg || !cfg.url || !cfg.key) { next(false); return; }
       setErr("Signing you in…");
       src.authenticate(cfg, { email: u, password: p }).then(function (r) {
-        if (!r || !r.ok || !r.userId) { next(false); return; }
+        // GATE-ERR (Kevin live, 2026-07-31): a GoTrue REJECTION is a different
+        // failure than "no matching account" — reporting both as "isn't in your
+        // connected workspace" sent a whole debugging session down the wrong
+        // road. Surface the wrong-password case as exactly that.
+        if (!r || !r.ok || !r.userId) { next(false, "badpass"); return; }
         // WORKSPACE-LOGIN fix (Kevin live, 2026-07-30): a picker-bound
         // connection has only url+key, so the adopting pull below used to run
         // as ANON — under authenticated-only RLS that reads users as EMPTY and
@@ -206,15 +222,32 @@
         // Stamp the just-verified credentials on the connection FIRST so the
         // pull (and every later sync) runs as this user.
         if (Sync.setAuthCredentials) Sync.setAuthCredentials(u, p);
+        var finish = function (acct) {
+          Auth.upsert(acct.u, { gotrueId: r.userId }).then(function () { Auth.login(acct.u); afterLogin(); });
+        };
         // GoTrue verified the password — now adopt the local identity for this uid.
         var adopt = function () {
           try { Auth.importFromStore(window.Studio.Workspace.all("users")); } catch (e) {}
           var acct = findUserByGotrue(r.userId);
-          if (!acct) { next(false); return; }
-          Auth.upsert(acct.u, { gotrueId: r.userId }).then(function () { Auth.login(acct.u); afterLogin(); });
+          if (acct) { finish(acct); return; }
+          // GATE-FIX (Kevin live, 2026-07-31): the whole-workspace pull can be
+          // GUARDED (dirty local edits from a failed-push episode) or the local
+          // mirror stale/wiped — but the select policy guarantees a signed-in
+          // user reads their OWN users row. A verified password must never
+          // dead-end: fetch the visible users rows directly and adopt from those.
+          var cfg2 = (Sync.currentConfig && Sync.currentConfig()) || cfg;
+          if (!src.fetchUsers) { next(false, "noaccount"); return; }
+          src.fetchUsers(cfg2).then(function (rows) {
+            (rows || []).forEach(function (row) {
+              try { window.Studio.Workspace.put("users", row, { silent: true }); } catch (e) {}
+            });
+            try { Auth.importFromStore(window.Studio.Workspace.all("users")); } catch (e) {}
+            var acct2 = findUserByGotrue(r.userId);
+            if (acct2) finish(acct2); else next(false, "noaccount");
+          }, function () { next(false, "noaccount"); });
         };
         if (Sync.pullNow) Sync.pullNow().then(adopt, adopt); else adopt();
-      }, function () { next(false); });
+      }, function () { next(false, "badpass"); });
     }
     document.getElementById("g-form").addEventListener("submit", function (e) {
       e.preventDefault();
@@ -222,10 +255,24 @@
       var p = document.getElementById("g-pass").value || "";
       if (!u) { fail("Enter a username."); return; }
       Auth.verify(u, p).then(function (okAuth) {
-        if (okAuth) { Auth.login(u); afterLogin(); return; }
+        if (okAuth) {
+          // DEMO-LOCAL: a demo sign-in is local-only — same rule as the button.
+          var la = Auth.find(u);
+          if (u === "demo" || (la && la.demo)) forceLocalWorkspace();
+          Auth.login(u); afterLogin(); return;
+        }
         var known = !!Auth.find(u);
-        tryGotrueDirectAuth(u, p, function (done) {
+        tryGotrueDirectAuth(u, p, function (done, why) {
           if (done) return;
+          // GATE-ERR: the workspace's own auth REJECTED the password — say so
+          // plainly instead of the misleading "isn't in your workspace" (which
+          // stays for genuinely unknown accounts). Watch for autofill: password
+          // managers have saved API tokens under this site before.
+          if (why === "badpass") {
+            fail("That password doesn’t match " + u + "’s account in this workspace. Re-type it by hand (the eye button shows it) — autofill sometimes inserts a saved token instead.");
+            document.getElementById("g-pass").select();
+            return;
+          }
           if (known) { fail(); document.getElementById("g-pass").select(); return; }
           handleUnknownUser(u, p);
         });
@@ -351,9 +398,26 @@
     window.__studioGateWorkspaces = { list: workspaceList, addCustom: saveCustomWorkspace,
       render: renderWorkspaceSelect, connect: connectWorkspace };
 
+    // DEMO-LOCAL (Kevin, 2026-07-31): the demo account is a LOCAL sample-workspace
+    // concept — "Explore the demo" (and any demo/demo sign-in) must NEVER run
+    // against a picked remote backend: its pushes would be anonymous 403 noise
+    // and its sample seeds would try to mirror into the real workspace. Entering
+    // the demo forces the workspace back to Local, whatever the picker said.
+    function forceLocalWorkspace() {
+      try { if (window.Studio && Studio.Sync) Studio.Sync.disconnect(); } catch (e) {}
+      // Hard guarantee the persisted connection is cleared even if Sync isn't
+      // ready or disconnect() partially ran — the demo must never leave a remote
+      // backend persisted (it would silently reconnect on the next reload).
+      try { localStorage.removeItem("analytics.datasource.v1"); } catch (e) {}
+      try { localStorage.setItem(LAST_WS_KEY, "local"); } catch (e) {}
+      var sel = document.getElementById("g-workspace");
+      if (sel) { sel.value = "local"; sel.dataset.prev = "local"; }
+      wsNote("");
+    }
     document.getElementById("g-demo").addEventListener("click", function () {
       // The public demo account always exists (seeded); logging in as it triggers
       // studio.js to auto-install the sample workspace.
+      forceLocalWorkspace();
       if (Auth.login("demo")) afterLogin(); else fail("Demo account unavailable.");
     });
     var connectBtn = document.getElementById("g-connect");
