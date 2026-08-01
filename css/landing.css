@@ -128,6 +128,25 @@ a:hover{text-decoration:underline}
   linear-gradient(135deg,var(--brand),var(--brand-2)) border-box;border:1.5px solid transparent}
 @media (max-width:860px){ .geo-wrap{grid-template-columns:1fr;gap:18px} }
 
+/* ── make it yours: themes + white-label branding ── */
+.skin-sec{max-width:1020px;margin:0 auto;padding:26px 22px 64px}
+.skin-sec h2{font-size:clamp(22px,3.4vw,30px);text-align:center;margin:0 0 10px;font-weight:800}
+.skin-sub{text-align:center;color:var(--muted);font-size:14.5px;max-width:680px;margin:0 auto 28px}
+.skin-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:26px}
+.skin-grid figure{margin:0}
+.skin-grid img{width:100%;height:auto;display:block;border-radius:12px;border:1px solid var(--line);
+  box-shadow:0 12px 30px rgba(15,20,40,.12)}
+.skin-grid figcaption{margin-top:8px;font-size:12.5px;font-weight:600;color:var(--ink);text-align:center}
+.skin-grid figcaption small{display:block;font-weight:400;color:var(--faint);font-size:11.5px}
+.skin-points{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.skin-points li{background:var(--pane);border:1px solid var(--line);border-radius:12px;
+  padding:12px 15px;font-size:13px;color:var(--muted);line-height:1.5}
+.skin-points li b{color:var(--ink)}
+@media (max-width:860px){
+  .skin-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .skin-points{grid-template-columns:1fr}
+}
+
 /* ── sources strip ── */
 .strip{max-width:860px;margin:0 auto;padding:44px 22px;text-align:center}
 .strip-sub{color:var(--muted);font-size:14.5px;max-width:640px;margin:0 auto 24px}

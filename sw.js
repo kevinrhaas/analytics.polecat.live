@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v464"; /* v464: marketing refresh — the
+var CACHE_NAME = "studio-shell-v465"; /* v465: "Make it yours" — the precached
+   root index.html + css/landing.css gain a theming/white-label section with
+   four themed-chrome thumbnails and a Theming nav link, so the precached
+   copies need to roll. */
+/* v464: marketing refresh — the
    precached root index.html gains two new carousel slides (View Builder +
    Dashboards library), current-terminology captions, a 13-source/50+-chart
    feature grid and a Bring-your-team card, so the precached copy needs to

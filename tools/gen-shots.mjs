@@ -58,17 +58,18 @@ let ok = 0, fail = 0;
 const done = (name) => { console.log("  ✓", name); ok++; };
 const oops = (name, e) => { console.log("  ✗", name, "—", (e && e.message) || e); fail++; };
 
-async function bootBuilder(browser, { theme }) {
+async function bootBuilder(browser, { theme, palette }) {
   const ctx = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 1.5 });
   const page = await ctx.newPage();
-  await page.addInitScript((t) => {
+  await page.addInitScript((seed) => {
     try {
       sessionStorage.setItem("studio-gate-ok", "1");
       localStorage.setItem("studio-welcome-seen", "1");
       localStorage.setItem("studio-tutorial-done", "1");
-      localStorage.setItem("studio-theme", t);
+      localStorage.setItem("studio-theme", seed.t);
+      if (seed.p) localStorage.setItem("studio-app-theme", seed.p);
     } catch (e) {}
-  }, theme);
+  }, { t: theme, p: palette || "" });
   await page.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
   await page.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 15000 });
   await page.waitForTimeout(600);
@@ -88,8 +89,8 @@ async function loadExample(page, file) {
 // Snap a real app SECTION (Home tiles, Explore designer, Datasets catalog…) in
 // DARK, with the Conservation sample pack installed so the workspace looks
 // populated — the marketing "survey the app" shots.
-async function snapSection(browser, name, { section, extraWait = 1500, prep = null } = {}) {
-  const { ctx, page } = await bootBuilder(browser, { theme: "dark" });
+async function snapSection(browser, name, { section, extraWait = 1500, prep = null, theme = "dark", palette = "" } = {}) {
+  const { ctx, page } = await bootBuilder(browser, { theme, palette });
   try {
     await page.evaluate(() => {
       try {
@@ -308,6 +309,15 @@ function countyValue(fips) {
         if (pick && window.__studioBuild && __studioBuild.load) __studioBuild.load(pick.id);
       } catch (e) {}
     } });
+
+    // Theme thumbnails — the SAME screen (Home) in four different app palettes,
+    // so the marketing "Make it yours" section can show the chrome re-skinning
+    // itself. Palettes picked for maximum visual spread: warm light, editorial
+    // light, neon dark, conservation dark.
+    await snapSection(browser, "theme-classic", { section: "home", extraWait: 1900, theme: "light", palette: "classic" });
+    await snapSection(browser, "theme-editorial", { section: "home", extraWait: 1900, theme: "light", palette: "editorial" });
+    await snapSection(browser, "theme-neon", { section: "home", extraWait: 1900, theme: "dark", palette: "neon" });
+    await snapSection(browser, "theme-conservation", { section: "home", extraWait: 1900, theme: "dark", palette: "conservation" });
 
     console.log(`\ngen-shots: ${ok} captured, ${fail} failed → site/shots/`);
     process.exitCode = fail && !ok ? 1 : 0;
