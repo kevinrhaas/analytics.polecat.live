@@ -116,6 +116,20 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **MARKETING-THEMES — the skinnable/white-label story on the public site (v833, sw v465,
+  2026-08-01, Kevin request):** "mention how it's designed to be skinnable and maybe show the
+  different chromes in some thumbnails, and you can customize the logos and everything so
+  it's highly adaptable." New `#themes` "Make it yours" section on the landing page (between
+  Maps and Data sources, with a Theming nav link): a 4-up grid of the SAME Home screen in
+  four palettes — Classic Blue (light), Editorial (light), Neon (dark), Conservation (dark) —
+  captured from the real app via `tools/gen-shots.mjs`, which now takes a `palette` option
+  per capture (seeds `studio-app-theme`; snapSection accepts theme/palette). Below the grid,
+  three points: white-label branding (admin logo/name/link, applied at sign-in +
+  workspace-wide), chrome vs dashboard theming being separate axes, and domain
+  packs/custom-geo adaptability. All four thumbnails visually audited — distinct chromes, no
+  CTIC. The 12 existing shots were regenerated in the run but reverted (byte-churn only);
+  only the four `theme-*.png` are new. sw CACHE → v465 (index.html + css/landing.css are
+  precached).
 - **MARKETING-REFRESH — the public site catches up with the app (v832, sw v464, 2026-07-31,
   Kevin request):** Kevin's phone showed a broken carousel image on the live site and asked
   for a comprehensive refresh — current slides, features and screenshots, no CTIC branding

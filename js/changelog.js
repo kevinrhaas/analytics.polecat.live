@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 833,
+    title: 'The public site shows off the skinnable chrome',
+    kind: 'polish',
+    ts: '2026-08-01T01:03:26.000Z',
+    items: [
+      'A new "Make it yours" section on the marketing page shows the same Home screen in four different app palettes -- Classic Blue, Editorial, Neon and Conservation -- captured fresh from the real app, with a Theming link in the site nav.',
+      'The section spells out the adaptability story: seven chrome palettes in light and dark, admin white-labeling (custom logo, workspace name and link applied at sign-in and workspace-wide), separately themed dashboards, and domain packs/custom geographies.',
+      'tools/gen-shots.mjs can now seed any app palette per capture, so themed-chrome shots regenerate with the rest.',
+    ],
+  },
+  {
     v: 832,
     title: 'The public site catches up with the app',
     kind: 'polish',
