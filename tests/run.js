@@ -38176,7 +38176,10 @@ function serve() {
         navLink: !!navLink,
         custom: !!custom && /sales territories/.test(custom.textContent),
         mentions: /HUC8/.test(secText) && /ZIP codes/.test(secText) && /Congressional/.test(secText),
-        beforeSources: !!sec && !!sec.nextElementSibling && sec.nextElementSibling.id === "sources"
+        // Document order, not adjacency: v833's "Make it yours" (#themes) section
+        // legitimately sits between #geo and #sources.
+        beforeSources: !!sec && !!document.getElementById("sources") &&
+          !!(sec.compareDocumentPosition(document.getElementById("sources")) & Node.DOCUMENT_POSITION_FOLLOWING)
       };
     });
     ok("#28: the marketing page gains a #geo custom-geographies section (nav link, before Data sources)",
@@ -38195,6 +38198,48 @@ function serve() {
     });
     ok("#28: at 390px the geo section stacks to one column with no horizontal overflow",
       mktGeoMobile.cols === 1 && mktGeoMobile.noOverflow, JSON.stringify(mktGeoMobile));
+    await mkt.setViewportSize({ width: 1280, height: 900 });
+    await mkt.waitForTimeout(150);
+
+    // ---- MARKETING-THEMES (v833): the "Make it yours" skinnable/white-label section ----
+    const mktSkin = await mkt.evaluate(async function () {
+      var sec = document.getElementById("themes");
+      var figs = sec ? [].slice.call(sec.querySelectorAll(".skin-grid figure")) : [];
+      var imgsOk = 0;
+      for (var i = 0; i < figs.length; i++) {
+        var img = figs[i].querySelector("img");
+        var src = img && img.getAttribute("src") || "";
+        if (/^site\/shots\/theme-[\w-]+\.png$/.test(src)) {
+          var r = await fetch(src); if (r.ok) imgsOk++;
+        }
+      }
+      var text = sec ? sec.textContent : "";
+      return {
+        sec: !!sec,
+        navLink: !!document.querySelector('.nav-links a[href="#themes"]'),
+        figs: figs.length, imgsOk: imgsOk,
+        points: sec ? sec.querySelectorAll(".skin-points li").length : 0,
+        brandCopy: /logo/i.test(text) && /white-label/i.test(text),
+        palettes: /Classic Blue/.test(text) && /Editorial/.test(text) && /Neon/.test(text) && /Conservation/.test(text)
+      };
+    });
+    ok("MARKETING-THEMES: #themes 'Make it yours' section — nav link, 4 themed-chrome thumbnails (all resolve), 3 points, white-label + palette copy",
+      mktSkin.sec && mktSkin.navLink && mktSkin.figs === 4 && mktSkin.imgsOk === 4 &&
+      mktSkin.points === 3 && mktSkin.brandCopy && mktSkin.palettes, JSON.stringify(mktSkin));
+    // Mobile: the 4-up theme grid drops to two columns, points stack, no overflow.
+    await mkt.setViewportSize({ width: 390, height: 780 });
+    await mkt.waitForTimeout(150);
+    const mktSkinMobile = await mkt.evaluate(function () {
+      var grid = document.querySelector(".skin-grid");
+      var pts = document.querySelector(".skin-points");
+      return {
+        gridCols: grid ? getComputedStyle(grid).gridTemplateColumns.split(" ").length : 0,
+        ptCols: pts ? getComputedStyle(pts).gridTemplateColumns.split(" ").length : 0,
+        noOverflow: document.documentElement.scrollWidth <= window.innerWidth + 1
+      };
+    });
+    ok("MARKETING-THEMES: at 390px the theme grid is 2-up, the points stack, no horizontal overflow",
+      mktSkinMobile.gridCols === 2 && mktSkinMobile.ptCols === 1 && mktSkinMobile.noOverflow, JSON.stringify(mktSkinMobile));
     await mkt.setViewportSize({ width: 1280, height: 900 });
     await mkt.waitForTimeout(150);
 
