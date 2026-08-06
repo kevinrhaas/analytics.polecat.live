@@ -275,7 +275,12 @@ function handleMockSupabase(req, rep, p) {
     });
   }
   const key = req.headers.apikey || "";
-  if (key !== "sb_publishable_valid") return send(401, { message: "Invalid API key" });
+  // "signupsdisabled" is a VALID project key whose GoTrue rejects signups — on
+  // real Supabase its REST reads still work fine. It must not 401 here: since
+  // AUD-04, a failed table read rejects the whole load() (instead of being
+  // silently adopted as an empty workspace), so a 401 on this key would make
+  // connectAdopt fail before the signup flow under test is ever reached.
+  if (key !== "sb_publishable_valid" && key !== "sb_publishable_signupsdisabled") return send(401, { message: "Invalid API key" });
   if (rel === "rest/v1/secure_check") {
     if (req.headers.authorization !== "Bearer " + MOCK_GOTRUE_TOKEN) return send(401, { message: "JWT invalid" });
     return send(200, [{ ok: true }]);
