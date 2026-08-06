@@ -114,6 +114,15 @@
   Keep the notice intact; don't add OSS license headers that contradict it. New first-party source
   files may carry a one-line header (`/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */`).
   Do NOT relicense or add notices to vendored third-party toolkit files.
+  (Note: `LICENSE` is now GPL-3.0 since LICENSE-1 — this proprietary line is stale, tracked as AUD-11.)
+- **KH-### — Kevin-reported items (fleet series, 2026-08).** Anything Kevin reports (live session,
+  issue, PR comment) gets the next number from the fleet register at `kevinrhaas/polecat-platform` →
+  `docs/KH-REGISTER.md` — a single fleet-wide counter (appending a row is a sanctioned direct commit,
+  like `focus.json`). Format `KH-001 [category] title`, categories bug/ux/feature/perf/data/security/
+  docs/process. The implementing backlog entry HERE cites its id (`(KH-012)`); the register row links
+  back with `implements:`. Legacy series (LF, LIVE-x, QA, VB, CONS, DURABLE, …) are grandfathered —
+  never renumbered. This replaces the five ad-hoc Kevin-attribution formats; new work is greppable by
+  `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
 - **MARKETING-THEMES — the skinnable/white-label story on the public site (v833, sw v465,
@@ -8466,6 +8475,78 @@
   later — parked, not attempted here to keep this one coherent slice.
 
 ## NEXT (top = do first)
+
+### 🔬 AUDIT-2026-08 — comprehensive audit findings (see `AUDIT-2026-08.md`)
+> A four-sweep audit (2026-08-06, v833) filed these as coherent workstreams,
+> not micro-items — the QA-01…QA-10 precedent. `★★` = P1. Each cites its audit
+> section. Any Kevin follow-up spawned here ships under the fleet KH-### series
+> (see Conventions + `kevinrhaas/polecat-platform` docs/KH-REGISTER.md).
+> Interleave with the feature backlog; the four P1s first when a slot is free.
+> AUD-04 is ALSO the precondition for analytics joining the dev→qa→prod
+> promotion pipeline (rollout #2 after the jobtracker pilot).
+>
+> - **AUD-01 ★★ [data] Supabase atomic save** (§1.2). The default backend is the
+>   only adapter whose save isn't atomic; the users self-destruct is fixed
+>   (upsert-first/tombstone, v787/v799) but general saves are still
+>   whole-snapshot with no conflict resolution, and `load()`'s per-table
+>   `.catch(()=>{})` (`app/sources/supabase.js:450`) adopts a failed read as an
+>   empty table. Move to staged write-then-swap or a batched RPC; add the
+>   mid-save-failure-window test the suite lacks.
+> - **AUD-02 ★★ [security] Escape the confirmed XSS sinks** (§1.1):
+>   `app/studio-charts.js:3069` (bar-cell), `:3072` (badge), `:6688` (ensemble
+>   provider name), `app/gate.js:410-411` (imported-workspace `<option>`). The
+>   chart sinks ship inside EVERY exported dashboard — fix in the toolkit source,
+>   keep the export==preview byte-identity invariant, don't touch the
+>   `he()`/`svgEsc` export-iframe carve-out. Add escaping regression tests.
+> - **AUD-03 ★★ [security] Secrets hygiene** (§1.3): stop persisting the
+>   secrets-vault passphrase (`analytics.datasource.secret.v1`) — make it
+>   session-only; migrate password hashing off unsalted single-round SHA-256
+>   (`app/auth.js:30-33`) to a salted/iterated KDF; make the Settings/credential
+>   copy honest about what's plaintext-local vs synced.
+> - **AUD-04 ★★ [data] Data-loss cluster** (§1.2) — the pipeline precondition:
+>   `replaceAll()` must PRESERVE tables it doesn't know about
+>   (`app/sources/workspace.js:124-151` currently drops them — a v5→v4→push
+>   loses the v5 table); `persist()` must surface quota failure instead of
+>   silently going memory-only (`workspace.js:28-29`); a failed table read must
+>   be distinguishable from a genuinely empty one before `replaceAll` adopts it.
+> - **AUD-05 ★ [security] Harden the preview channel** (§1.1): validate
+>   `e.origin`/`e.source` in both postMessage receivers (`app/studio.js:10179`,
+>   `app/studio-render.js:2493` — today only `d.studio===1`), and add a `sandbox`
+>   attribute to the srcdoc preview iframe (carefully — must not break the
+>   builder↔preview protocol or exports). Add a CSP `<meta>` where feasible.
+> - **AUD-06 ★ [ux] Filter consolidation program** (§2.1): 19 mechanisms, minimal
+>   shared code. Extend the SORT-1/`Studio.catalogSort` + `bulkMoveToFolder`
+>   precedent to the search+facet axis (one shared matcher/facet module for the
+>   7 catalog lists), and unify the two filter-operator vocabularies
+>   (DA-output 8 ops vs job-step 7 ops). Multi-slice; also decide TIME_RANGE
+>   (a real date filter, or delete — see AUD-09).
+> - **AUD-07 ★ [ux] Finish delete-undo coverage** (§2.2): the 3 bare-confirm
+>   deletes with no undo — `app/build.js:389`, `app/explore.js:938`,
+>   `app/studio.js:890` — get `Studio.undoToast` like the DURABLE-2b per-row
+>   deletes; folds into the DURABLE-2 trash model.
+> - **AUD-08 [perf] Boot + preview cost** (§1.4): get `js/changelog.js` (~660KB)
+>   off the render-blocking boot + precache path; trim the sw.js comment block;
+>   make `refreshPreview()` incremental instead of a full ~570KB–4.4MB srcdoc
+>   re-parse from 208 call sites on a 130ms debounce.
+> - **AUD-09 [code] Dead code** (§1.5): delete `app/gate-config.js` (ships +
+>   precached, contains two live access-code hashes, ZERO readers) and its
+>   index.html/viewer.html/sw.js references; implement-or-delete
+>   `DashKit.TIME_RANGE` (zero app callers — deleting it makes the "no date
+>   filter" gap explicit for AUD-06).
+> - **AUD-10 [code] Test-harness hardening** (§1.6): per-section `try` isolation
+>   so one throw can't FATAL-abort the run; cut the ~3m23s of unconditional
+>   `waitForTimeout`; close the coverage gaps (Firebase adapter, sync-conflict,
+>   Supabase mid-save, escaping, postMessage origin).
+> - **AUD-11 [docs] Copy/doc truth pass** (§3, §2.4): `LICENSE` is now GPL-3.0
+>   but Conventions still says "proprietary"; CLAUDE.md's "~22.6K LOC / ~1,400
+>   checks" is ~4×/2× stale; marketing "25+"/"50+" vs docs "52" vs real 55 chart
+>   types; the in-app What's-next modal shows 5 shipped items as upcoming; the
+>   mobile gate is documented 390×780 but tested ~half at 844 — pick one.
+>   Consider splitting STATUS.md DONE into a dated archive (§4).
+> - **AUD-12 [ux] Discoverability coverage** (§2.3): ⌘K (`app/palette.js`) reaches
+>   only 7 of 13 sections — add Views/Quick Views/View Builder/Repository/Jobs/
+>   Admin; `CONFIGURABLE_SECTIONS` (`app/studio.js:8740`) must cover
+>   views/build/docs so viewer-hiding matches what the rights UI implies.
 
 > SORT-1. ✓ **SHIPPED v812 (2026-07-31, interactive session — see DONE). Lane: skip.**
 >       Original: **Standard sorting on every catalog panel (Kevin live, 2026-07-31).** "On all of the panels
