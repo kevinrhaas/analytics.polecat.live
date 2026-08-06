@@ -125,6 +125,33 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **AUD-04 ★★ — the data-loss cluster, closed (v834, sw v466, 2026-08-06, dedicated
+  session; AUDIT-2026-08.md §1.2):** the three quiet data-loss paths and THE
+  PRECONDITION for analytics joining the dev→qa→prod promotion pipeline (rollout #2
+  after the jobtracker pilot — previews share the origin's localStorage, so an
+  older build adopting over a newer build's data had to become safe first).
+  (1) `Workspace.replaceAll` now PRESERVES tables this build doesn't know about:
+  unknown tables in the incoming snapshot are adopted (arrays re-keyed by id) and
+  unknown tables already in the local db survive adoption of an older-shaped
+  snapshot — the v5-preview→v4-prod→pull sequence no longer deletes the v5 table
+  locally (the remote copy was already safe via DURABLE-2's absence-is-not-deletion).
+  Explicit `reset()` still clears everything (user intent). The DURABLE-2 tombstone
+  merge is untouched. (2) `persist()` failure is now STATE, not silence: it tracks
+  fail↔ok transitions, emits a `persistfail` workspace event, and exposes
+  `Workspace.persistFailed()`; studio.js renders a persistent dismissible
+  storage-full banner (same episode semantics + `.sync-loss-banner` chrome as the
+  DURABLE-1 push-failure banner; test hook `window.__studioPersistFailBanner`),
+  clearing itself the moment a persist succeeds. (3) `supabase.load()` now
+  distinguishes a FAILED table read from an EMPTY table: any non-404 failure
+  (HTTP error, thrown fetch, meta read included) rejects the whole load naming the
+  table(s), so sync's existing rejection paths keep the local mirror and show the
+  honest red "working from the local mirror" state — while a 404 (table missing =
+  the legitimate v1→vN schema delta save() already has paste-me SQL for) still
+  reads as empty, so un-migrated workspaces keep loading. Four suite checks added
+  (unknown-table survival incl. persistence; end-to-end quota banner via a real
+  broken `Storage.prototype.setItem`; banner episode semantics; supabase
+  reject-vs-404 via a stubbed fetch). Remaining AUD-01 scope (atomic multi-table
+  save / conflict resolution) is deliberately untouched here.
 - **MARKETING-THEMES — the skinnable/white-label story on the public site (v833, sw v465,
   2026-08-01, Kevin request):** "mention how it's designed to be skinnable and maybe show the
   different chromes in some thumbnails, and you can customize the logos and everything so
@@ -8482,7 +8509,7 @@
 > section. Any Kevin follow-up spawned here ships under the fleet KH-### series
 > (see Conventions + `kevinrhaas/polecat-platform` docs/KH-REGISTER.md).
 > Interleave with the feature backlog; the four P1s first when a slot is free.
-> AUD-04 is ALSO the precondition for analytics joining the dev→qa→prod
+> AUD-04 (now SHIPPED v834) was ALSO the precondition for analytics joining the dev→qa→prod
 > promotion pipeline (rollout #2 after the jobtracker pilot).
 >
 > - **AUD-01 ★★ [data] Supabase atomic save** (§1.2). The default backend is the
@@ -8503,8 +8530,10 @@
 >   session-only; migrate password hashing off unsalted single-round SHA-256
 >   (`app/auth.js:30-33`) to a salted/iterated KDF; make the Settings/credential
 >   copy honest about what's plaintext-local vs synced.
-> - **AUD-04 ★★ [data] Data-loss cluster** (§1.2) — the pipeline precondition:
->   `replaceAll()` must PRESERVE tables it doesn't know about
+> - ~~AUD-04 ★★ [data] Data-loss cluster~~ ✓ **SHIPPED v834, sw v466
+>   (2026-08-06, dedicated session — see DONE). The pipeline precondition is
+>   MET: analytics is clear to adopt the dev→qa→prod pipeline (rollout #2).**
+>   Original: (§1.2) `replaceAll()` must PRESERVE tables it doesn't know about
 >   (`app/sources/workspace.js:124-151` currently drops them — a v5→v4→push
 >   loses the v5 table); `persist()` must surface quota failure instead of
 >   silently going memory-only (`workspace.js:28-29`); a failed table read must

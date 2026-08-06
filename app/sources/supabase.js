@@ -438,28 +438,42 @@
     },
 
     load: function (cfg) {
+      // AUD-04: a FAILED read must be distinguishable from an EMPTY table.
+      // The old shape caught every per-table error into "leave the table
+      // empty" — so a transient 500/RLS hiccup came back as a successful
+      // empty-table snapshot, replaceAll adopted it as truth, and the next
+      // push could propagate the emptiness. Now: a 404 (table doesn't exist —
+      // the legitimate v1→vN schema delta, save() has the paste-me SQL for
+      // it) still reads as empty, but ANY OTHER failure rejects the whole
+      // load, so sync's existing error paths keep the local mirror and show
+      // the honest red "working from the local mirror" state instead.
       var snap = WS.emptySnapshot();
+      var failed = [];
+      function readFail(what, why) { failed.push(what + " (" + why + ")"); }
       var reads = WS.TABLE_NAMES.map(function (t) {
         return rest(cfg, "/" + t + "?select=data").then(function (r) {
-          if (!r.ok) return;
+          if (!r.ok) { if (r.status !== 404) readFail(t, "HTTP " + r.status); return; }
           return r.json().then(function (rows) {
             snap.tables[t] = rows.map(function (x) {
               return WS.cellsToRow(typeof x.data === "string" ? x.data : JSON.stringify(x.data));
             }).filter(Boolean);
           });
-        }).catch(function () {});
+        }).catch(function (e) { readFail(t, (e && e.message) || "read failed"); });
       });
       return Promise.all(reads).then(function () {
         return rest(cfg, "/" + WS.META_TABLE + "?select=key,value").then(function (r) {
-          if (!r.ok) return;
+          if (!r.ok) { if (r.status !== 404) readFail(WS.META_TABLE, "HTTP " + r.status); return; }
           return r.json().then(function (meta) {
             meta.forEach(function (m) {
               if (m.key === "settings") { try { snap.settings = JSON.parse(m.value); } catch (e) {} }
               if (m.key === "meta") { try { snap.meta = JSON.parse(m.value); } catch (e) {} }
             });
           });
-        }).catch(function () {});
-      }).then(function () { return snap; });
+        }).catch(function (e) { readFail(WS.META_TABLE, (e && e.message) || "read failed"); });
+      }).then(function () {
+        if (failed.length) throw new Error("workspace read incomplete — " + failed.join(", "));
+        return snap;
+      });
     },
 
     save: function (cfg, snapshot) {

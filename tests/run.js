@@ -275,7 +275,12 @@ function handleMockSupabase(req, rep, p) {
     });
   }
   const key = req.headers.apikey || "";
-  if (key !== "sb_publishable_valid") return send(401, { message: "Invalid API key" });
+  // "signupsdisabled" is a VALID project key whose GoTrue rejects signups — on
+  // real Supabase its REST reads still work fine. It must not 401 here: since
+  // AUD-04, a failed table read rejects the whole load() (instead of being
+  // silently adopted as an empty workspace), so a 401 on this key would make
+  // connectAdopt fail before the signup flow under test is ever reached.
+  if (key !== "sb_publishable_valid" && key !== "sb_publishable_signupsdisabled") return send(401, { message: "Invalid API key" });
   if (rel === "rest/v1/secure_check") {
     if (req.headers.authorization !== "Bearer " + MOCK_GOTRUE_TOKEN) return send(401, { message: "JWT invalid" });
     return send(200, [{ ok: true }]);
@@ -7570,6 +7575,126 @@ function serve() {
     });
     ok("WS: replaceAll adopts a snapshot wholesale (rows re-keyed by id, settings merged)",
       wsReplace.count === 1 && wsReplace.name === "orders" && wsReplace.setting === "world", JSON.stringify(wsReplace));
+
+    // ---- AUD-04: the data-loss cluster (AUDIT-2026-08.md §1.2) --------------
+    console.log("\n• AUD-04: data-loss guards — unknown tables, quota surfacing, failed reads");
+
+    // (a) replaceAll must PRESERVE tables this build doesn't know about — the
+    // /qa/-preview-wrote-a-v5-table scenario: an unknown table arrives in one
+    // snapshot, then a LATER adoption of an older-shaped snapshot (no such
+    // table) must carry it forward, not delete it. Explicit reset() still
+    // clears everything (that's user intent, locked in here).
+    const aud04Unknown = await page.evaluate(function () {
+      var W = Studio.Workspace;
+      var out = {};
+      var snapV5 = Studio.WS.emptySnapshot();
+      snapV5.tables.datasets = [{ id: "ds-a4", name: "known", connectionId: "c", kind: "sql", updatedAt: Date.now() }];
+      snapV5.tables.future_widgets = [{ id: "fw-1", name: "from-the-future", updatedAt: Date.now() }];
+      W.replaceAll(snapV5);
+      out.adoptedUnknown = !!(W.get("future_widgets", "fw-1"));
+      var snapV4 = Studio.WS.emptySnapshot(); // an older build's snapshot — no future_widgets
+      snapV4.tables.datasets = [{ id: "ds-a4", name: "known", connectionId: "c", kind: "sql", updatedAt: Date.now() }];
+      W.replaceAll(snapV4);
+      out.survivedOldAdopt = !!(W.get("future_widgets", "fw-1"));
+      out.knownStill = !!(W.get("datasets", "ds-a4"));
+      var persisted = null;
+      try { persisted = JSON.parse(localStorage.getItem("analytics.workspace.v1")); } catch (e) {}
+      out.persistedUnknown = !!(persisted && persisted.tables && persisted.tables.future_widgets &&
+        persisted.tables.future_widgets["fw-1"]);
+      W.reset();
+      out.resetClears = !W.get("future_widgets", "fw-1");
+      return out;
+    });
+    ok("AUD-04: replaceAll preserves unknown tables through an older-shaped adoption (and persists them)",
+      aud04Unknown.adoptedUnknown && aud04Unknown.survivedOldAdopt && aud04Unknown.knownStill &&
+      aud04Unknown.persistedUnknown && aud04Unknown.resetClears, JSON.stringify(aud04Unknown));
+
+    // (b) a failing persist must surface: end-to-end through the REAL event
+    // path — break Storage.prototype.setItem, mutate, assert the state getter
+    // AND the live banner; heal storage, mutate, assert full recovery.
+    const aud04Quota = await page.evaluate(function () {
+      var W = Studio.Workspace, out = {};
+      var orig = Storage.prototype.setItem;
+      Storage.prototype.setItem = function () { throw new Error("QuotaExceededError (simulated)"); };
+      var row;
+      try {
+        row = W.put("connections", { name: "quota-probe", adapter: "turso" });
+        out.failedState = !!W.persistFailed();
+        out.bannerShown = !!document.getElementById("persistFailBanner");
+        out.bannerSaysFull = !!(out.bannerShown &&
+          /storage is full/i.test(document.getElementById("persistFailBanner").textContent));
+      } finally {
+        Storage.prototype.setItem = orig;
+      }
+      W.remove("connections", row.id); // persists fine now → recovery transition
+      out.recoveredState = !W.persistFailed();
+      out.bannerCleared = !document.getElementById("persistFailBanner");
+      return out;
+    });
+    ok("AUD-04: a failing persist raises the storage-full banner via the real event path, and recovery clears it",
+      aud04Quota.failedState && aud04Quota.bannerShown && aud04Quota.bannerSaysFull &&
+      aud04Quota.recoveredState && aud04Quota.bannerCleared, JSON.stringify(aud04Quota));
+
+    // (c) banner episode semantics via the test hook (mirrors __studioSyncLossBanner):
+    // dismiss holds within an episode; recovery resets the dismissal.
+    const aud04Banner = await page.evaluate(function () {
+      var out = {};
+      window.__studioPersistFailBanner({ failed: true, error: "QuotaExceededError" });
+      var b = document.getElementById("persistFailBanner");
+      out.shown = !!b;
+      out.saysWhy = !!(b && b.textContent.indexOf("QuotaExceededError") >= 0);
+      b.querySelector(".sync-loss-x").click();
+      out.dismissed = !document.getElementById("persistFailBanner");
+      window.__studioPersistFailBanner({ failed: true, error: "QuotaExceededError" });
+      out.staysDismissed = !document.getElementById("persistFailBanner");
+      window.__studioPersistFailBanner({ failed: false });
+      window.__studioPersistFailBanner({ failed: true, error: "again" });
+      out.freshEpisodeShows = !!document.getElementById("persistFailBanner");
+      window.__studioPersistFailBanner({ failed: false });
+      return out;
+    });
+    ok("AUD-04: storage-full banner dismissal holds for the episode and resets on recovery",
+      aud04Banner.shown && aud04Banner.saysWhy && aud04Banner.dismissed &&
+      aud04Banner.staysDismissed && aud04Banner.freshEpisodeShows, JSON.stringify(aud04Banner));
+
+    // (d) supabase load(): a FAILED table read (500) must reject the whole
+    // load naming the table — never resolve as an empty table — while a 404
+    // (table missing = legitimate v1→vN schema delta) still reads as empty.
+    const aud04Load = await page.evaluate(async function () {
+      var out = {};
+      var sb = Studio.sourceById("supabase");
+      var cfg = { url: "https://aud04-test.supabase.co", key: "test-anon-key" };
+      var origFetch = window.fetch;
+      function fakeResp(status, body) {
+        return Promise.resolve({ ok: status >= 200 && status < 300, status: status,
+          json: function () { return Promise.resolve(body); },
+          text: function () { return Promise.resolve(JSON.stringify(body)); } });
+      }
+      try {
+        // case 1: datasets read blows up server-side → load must REJECT
+        window.fetch = function (url) {
+          if (/\/datasets\?/.test(url)) return fakeResp(500, { message: "boom" });
+          return fakeResp(200, []);
+        };
+        try { await sb.load(cfg); out.rejected = false; }
+        catch (e) { out.rejected = true; out.namesTable = /datasets/.test(e.message || ""); }
+        // case 2: a MISSING table (404, old workspace before the vN migration)
+        // still loads — empty there, rows elsewhere
+        window.fetch = function (url) {
+          if (/\/analyses\?/.test(url)) return fakeResp(404, { message: "relation does not exist" });
+          if (/\/datasets\?/.test(url)) return fakeResp(200, [{ data: JSON.stringify({ id: "d1", name: "n", updatedAt: 1 }) }]);
+          return fakeResp(200, []);
+        };
+        var snap = await sb.load(cfg);
+        out.missingTolerated = (snap.tables.analyses || []).length === 0 &&
+          (snap.tables.datasets || []).length === 1;
+      } finally {
+        window.fetch = origFetch;
+      }
+      return out;
+    });
+    ok("AUD-04: supabase load rejects on a failed table read (naming it) but tolerates a 404 schema delta",
+      aud04Load.rejected && aud04Load.namesTable && aud04Load.missingTolerated, JSON.stringify(aud04Load));
 
     const wsParams = await page.evaluate(function () {
       return {
