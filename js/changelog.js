@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 834,
+    title: 'Three quiet ways to lose data, closed',
+    kind: 'fix',
+    ts: '2026-08-06T23:28:26.000Z',
+    items: [
+      'Adopting a synced workspace no longer discards data this build doesn’t recognize — tables written by a newer version of the app now survive a pull from an older one instead of being silently deleted.',
+      'If this browser’s storage fills up, a clear banner now warns that changes are not being saved (and clears itself the moment saving works again) — previously the app went silently memory-only and recent work vanished on reload.',
+      'A backend table that fails to load now keeps you safely on your local copy with an honest “reconnecting” state, instead of being mistaken for an empty table and adopted as truth. A table that simply doesn’t exist yet (an older workspace awaiting migration) still loads normally.',
+    ],
+  },
+  {
     v: 833,
     title: 'The public site shows off the skinnable chrome',
     kind: 'polish',

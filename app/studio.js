@@ -394,6 +394,39 @@
         };
       }
       window.__studioSyncLossBanner = renderSyncLossBanner; // test hook
+      // AUD-04: the storage-full banner. When the workspace's localStorage
+      // persist fails (quota exhausted / storage blocked), every change since
+      // then lives ONLY in memory and evaporates on reload — the user must
+      // know NOW, not at the next refresh. Same episode semantics as the
+      // sync-loss banner: dismissal holds for the episode, clears on recovery
+      // (workspace.js emits 'persistfail' only on fail↔ok transitions).
+      var _quotaDismissed = false;
+      function renderPersistFailBanner(p) {
+        var b = document.getElementById("persistFailBanner");
+        if (!p || !p.failed) { _quotaDismissed = false; if (b) b.remove(); return; }
+        if (_quotaDismissed) { if (b) b.remove(); return; }
+        if (!b) {
+          b = el("div"); b.id = "persistFailBanner"; b.className = "sync-loss-banner";
+          document.body.appendChild(b);
+        }
+        b.innerHTML = "<span>" +
+          "<b>This browser’s storage is full — changes are NOT being saved.</b> " +
+          Studio.escapeHtml(p.error || "") +
+          " Everything since this warning lives only in memory and will be lost on reload. " +
+          "Free space (remove large file datasets, or clear other sites’ data) and keep working — this clears itself once saving succeeds.</span>" +
+          "<button type=\"button\" class=\"sync-loss-x\" title=\"Dismiss until storage recovers\" aria-label=\"Dismiss\">✕</button>";
+        b.querySelector(".sync-loss-x").onclick = function () {
+          _quotaDismissed = true;
+          b.remove();
+        };
+      }
+      window.__studioPersistFailBanner = renderPersistFailBanner; // test hook
+      Studio.Workspace.on("persistfail", renderPersistFailBanner);
+      // late boot: if persists were already failing before this listener wired
+      if (Studio.Workspace.persistFailed) {
+        var pf = Studio.Workspace.persistFailed();
+        if (pf) renderPersistFailBanner({ failed: true, error: pf.error });
+      }
       Studio.Sync.onSync(function (st) {
         var dot = $("#railSourceDot"), lbl = $("#railSourceLbl"), rs = $("#railSource");
         if (dot) dot.className = "cx-dot " + (st.status === "connected" || st.status === "syncing" ? "ok" : st.status === "error" ? "bad" : st.status === "local" ? "" : "busy");

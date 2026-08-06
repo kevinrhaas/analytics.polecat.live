@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v465"; /* v465: "Make it yours" — the precached
+var CACHE_NAME = "studio-shell-v466"; /* v466: AUD-04 data-loss guards — the
+   precached workspace.js (unknown-table preservation + persist-failure
+   events), supabase.js (failed reads reject the load; 404 schema deltas
+   still tolerated) and studio.js (storage-full banner) all changed. */
+/* v465: "Make it yours" — the precached
    root index.html + css/landing.css gain a theming/white-label section with
    four themed-chrome thumbnails and a Theming nav link, so the precached
    copies need to roll. */

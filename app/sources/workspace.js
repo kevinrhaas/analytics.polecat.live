@@ -25,8 +25,27 @@
     return { tables: tables, settings: {}, meta: { createdAt: now() } };
   }
 
+  // AUD-04: a persist that fails (quota full, storage blocked) must never be
+  // silent — the app would keep running memory-only and every change since
+  // the failure would evaporate on the next reload. Track the failure as
+  // STATE and emit only on transitions (fail↔ok), so the banner listener
+  // isn't spammed on every keystroke-persist while storage stays full.
+  var _persistFailed = false;
+  var _persistError = "";
   function persist() {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(db)); } catch (e) { /* quota/blocked — stay in-memory */ }
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(db));
+      if (_persistFailed) {
+        _persistFailed = false; _persistError = "";
+        emit("persistfail", { failed: false });
+      }
+    } catch (e) {
+      var msg = String((e && e.message) || e || "storage write failed");
+      if (!_persistFailed) {
+        _persistFailed = true; _persistError = msg;
+        emit("persistfail", { failed: true, error: msg });
+      }
+    }
   }
 
   function load() {
@@ -145,6 +164,28 @@
           next.tables[t][r.id] = r;
         });
       });
+      // AUD-04: PRESERVE tables this build doesn't know about. A NEWER build
+      // (e.g. a /qa/ pipeline preview sharing this origin's localStorage) may
+      // have written a schema-v(N+1) table; adopting an older-shaped snapshot
+      // must carry it forward, not delete data it can't understand. Incoming
+      // unknown tables (an imported v(N+1) export) win over the local copy;
+      // local unknown tables survive when the snapshot has no opinion. Note
+      // snapshot()/pushes still cover only TABLE_NAMES — the remote copy of an
+      // unknown table survives on its own because saves are upsert+tombstone
+      // (absence is never deletion, DURABLE-2).
+      function carryUnknown(tables) {
+        Object.keys(tables || {}).forEach(function (t) {
+          if (WS.TABLE_NAMES.indexOf(t) >= 0 || next.tables[t]) return;
+          var tv = tables[t];
+          if (Array.isArray(tv)) {
+            var m = {}; tv.forEach(function (r) { if (r && r.id) m[r.id] = r; });
+            tv = m;
+          }
+          if (tv && typeof tv === "object") next.tables[t] = tv;
+        });
+      }
+      carryUnknown(snapshot && snapshot.tables);
+      carryUnknown(db && db.tables);
       next.settings = (snapshot && snapshot.settings) || {};
       next.meta = (snapshot && snapshot.meta) || { createdAt: now() };
       next.meta.tombstones = tombs;
@@ -155,6 +196,10 @@
     },
 
     reset: function () { db = blank(); persist(); emit("change", { table: "*" }); emit("replaced", {}); },
+
+    // AUD-04: is the local mirror currently failing to persist (quota full /
+    // storage blocked)? Read by the storage-full banner and by tests.
+    persistFailed: function () { return _persistFailed ? { error: _persistError } : null; },
 
     // Fire a change event for a table without mutating it — used after a batch
     // of silent puts (e.g. secrets unlock decrypting rows in place).
