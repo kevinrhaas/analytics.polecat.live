@@ -36652,6 +36652,99 @@ function serve() {
     ok("UX sweep: in the Studio builder's own preview, an untouched KPI tile is NOT given cursor:pointer (click-to-select stays unambiguous)",
       kpiBuilderCursor.ok && kpiBuilderCursor.cursor !== "pointer", JSON.stringify(kpiBuilderCursor));
 
+    // ── SWEEP574-3 (UX sweep #574, a11y): those clickable KPI tiles are keyboard-reachable ──
+    // Finding: the tiles above open the detail drawer on click, but they are plain <div>s —
+    // not focusable, not announced as interactive — so Tab skipped them and Enter/Space did
+    // nothing. Fix (studio-render.js makeTileActivatable): role=button + tabindex=0 + a keydown
+    // handler that re-fires the vendor's own click listener. Ships inside every exported
+    // dashboard and the Viewer; the builder's preview is deliberately untouched.
+    console.log("\n• SWEEP574-3: KPI tiles are keyboard-operable in exports + Viewer");
+
+    const kpiKeyboard = await page.evaluate(async () => {
+      try {
+        var spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
+        if (!spec.kpis || !spec.kpis.length) return { ok: false, reason: "no KPIs" };
+        delete spec.kpis[0].drill; // the default detail-drawer case, same as the block above
+        var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: false, mock: Studio.genMock(spec) });
+        var ifr = document.createElement("iframe");
+        ifr.style.cssText = "position:fixed;left:-9999px;width:1200px;height:900px";
+        document.body.appendChild(ifr);
+        await new Promise((res) => { ifr.onload = res; ifr.srcdoc = html; });
+        await new Promise((r) => setTimeout(r, 850));
+        var d = ifr.contentDocument, w = ifr.contentWindow;
+        var tile = d.querySelector("#kpis .kpi");
+        var role = tile ? tile.getAttribute("role") : null;
+        var tabindex = tile ? tile.getAttribute("tabindex") : null;
+        var name = tile ? (tile.textContent || "").replace(/\s+/g, " ").trim() : "";
+
+        function press(key) {
+          var ev = new w.KeyboardEvent("keydown", { key: key, bubbles: true, cancelable: true });
+          tile.dispatchEvent(ev);
+          return ev.defaultPrevented;
+        }
+        function drawerTitle() {
+          var dr = d.getElementById("dk-dt");
+          var t = dr && dr.querySelector(".dk-dt-t");
+          return t ? t.textContent : null;
+        }
+        function closeDrawer() { var dr = d.getElementById("dk-dt"); if (dr) dr.remove(); }
+
+        closeDrawer();
+        var enterPrevented = press("Enter");
+        await new Promise((r) => setTimeout(r, 250));
+        var enterTitle = drawerTitle();
+
+        closeDrawer();
+        var spacePrevented = press(" ");
+        await new Promise((r) => setTimeout(r, 250));
+        var spaceTitle = drawerTitle();
+
+        // a key that means nothing here must NOT open anything
+        closeDrawer();
+        press("a");
+        await new Promise((r) => setTimeout(r, 200));
+        var strayTitle = drawerTitle();
+
+        // the ring the focus state relies on comes from the vendored stylesheet — pin it so a
+        // future dashkit.css edit can't silently make the tiles focusable-but-invisible
+        var hasFocusRing = /\[tabindex\]:focus-visible\{[^}]*outline:\s*2px/.test(html);
+
+        ifr.remove();
+        return {
+          role: role, tabindex: tabindex, accName: name,
+          enterPrevented: enterPrevented, enterTitle: enterTitle,
+          spacePrevented: spacePrevented, spaceTitle: spaceTitle,
+          strayTitle: strayTitle, hasFocusRing: hasFocusRing,
+          expectedLabel: spec.kpis[0].label
+        };
+      } catch (e) { return { err: e.message }; }
+    });
+    ok("SWEEP574-3: an exported dashboard's clickable KPI tile is a real button in the a11y tree (role=button, tabindex=0)",
+      kpiKeyboard.role === "button" && kpiKeyboard.tabindex === "0", JSON.stringify(kpiKeyboard));
+    ok("SWEEP574-3: the tile keeps its own text (value + label) as its accessible name — no aria-label hiding the number",
+      !!kpiKeyboard.accName && kpiKeyboard.accName.indexOf(kpiKeyboard.expectedLabel) >= 0, JSON.stringify(kpiKeyboard));
+    ok("SWEEP574-3: Enter on a focused KPI tile opens the same detail drawer a click does",
+      kpiKeyboard.enterTitle === kpiKeyboard.expectedLabel, JSON.stringify(kpiKeyboard));
+    ok("SWEEP574-3: Space opens it too, and its default is prevented so the dashboard doesn't scroll away",
+      kpiKeyboard.spaceTitle === kpiKeyboard.expectedLabel && kpiKeyboard.spacePrevented === true, JSON.stringify(kpiKeyboard));
+    ok("SWEEP574-3: an unrelated keypress on the tile opens nothing",
+      kpiKeyboard.strayTitle === null, JSON.stringify(kpiKeyboard));
+    ok("SWEEP574-3: the exported bundle still carries the [tabindex]:focus-visible ring, so a focused tile is visible",
+      kpiKeyboard.hasFocusRing === true, JSON.stringify(kpiKeyboard));
+
+    // The builder's own preview must stay exactly as it was: clicking a tile SELECTS it for
+    // editing, so promoting it to a button there would announce the wrong action and put every
+    // tile in the tab order of an editing surface that has its own keyboard model.
+    const kpiPreviewNotButton = await page.evaluate(function () {
+      var iw = document.getElementById("preview") && document.getElementById("preview").contentWindow;
+      var tile = iw && iw.document.querySelector("#kpis .kpi");
+      if (!tile) return { ok: false, reason: "no .kpi tile" };
+      return { ok: true, role: tile.getAttribute("role"), tabindex: tile.getAttribute("tabindex") };
+    });
+    ok("SWEEP574-3: in the Studio builder's preview the KPI tile is NOT promoted to a button (click-to-select is untouched)",
+      kpiPreviewNotButton.ok && kpiPreviewNotButton.role !== "button" && kpiPreviewNotButton.tabindex !== "0",
+      JSON.stringify(kpiPreviewNotButton));
+
     // ── Z8 slice 13: Stacked area gets its own type-specific options (smooth + legend) ──
     console.log("\n• Z8 areaStacked: smooth curve + legend toggle");
 
