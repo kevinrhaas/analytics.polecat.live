@@ -5,7 +5,7 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v478"; /* v478: AUD-07 — the last three bare-confirm deletes offer Undo; precached js/changelog.js, app/build.js, app/explore.js, app/studio.js, app/demopacks.js, docs/index.html changed. */
+var CACHE_NAME = "studio-shell-v479"; /* v479: AUD-06 slice 1 — one shared catalog search matcher (Studio.catalogSearch); precached js/changelog.js, app/studio.js, app/views.js, app/datasets.js, app/connections.js, app/jobs.js, docs/index.html changed. */
 /* v477: AUD-05 — the builder/preview/Help postMessage channel is origin+source checked; precached js/changelog.js, app/studio.js, app/studio-render.js, docs/index.html changed. */
 /* v476: SWEEP574-3b (table family) — clickable table rows are keyboard-operable in exports; precached js/changelog.js, app/studio-charts.js, docs/index.html changed. */
 /* v475: SWEEP574-3b — bar/donut/treemap marks are keyboard-operable in exports; precached js/changelog.js, app/studio-charts.js, docs/index.html changed. */

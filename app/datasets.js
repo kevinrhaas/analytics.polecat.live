@@ -250,7 +250,15 @@
         return ca.localeCompare(cb) || _dsxNameCmp(a, b);
       }
     } });
-    var q = (($("#dsxSearch") || {}).value || "").toLowerCase();
+    var q = ($("#dsxSearch") || {}).value || "";
+    // AUD-06 slice 1: the shared matcher (Studio.catalogSearch) — this section only
+    // declares WHICH fields are searchable; the rules (AND-ed terms, quoted phrases,
+    // case-insensitivity) are the same in every catalog panel.
+    var dsxMatch = Studio.catalogSearch.matcher(q, function (d) {
+      var conn = dsxConnOf(d);
+      return [d.name, d.desc, d.owner, d.sql || d.table || d.collection,
+        d.tags, d.folder, conn ? conn.name : "", d.columns];
+    });
     var list = Studio.Workspace.all("datasets").filter(isDatasetVisibleToMe).sort(function (a, b) {
       if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
       if (a.pinned) return (b.pinnedAt || "").localeCompare(a.pinnedAt || "");
@@ -352,11 +360,7 @@
       if (anyK && !_dsxKindFilter[d.kind || "sql"]) return false;
       if (_dsxFolderFilter === "__unfiled") { if (d.folder) return false; }
       else if (_dsxFolderFilter) { if (d.folder !== _dsxFolderFilter) return false; }
-      if (!q) return true;
-      var conn = dsxConnOf(d);
-      var hay = (d.name + " " + (d.desc || "") + " " + (d.owner || "") + " " + (d.sql || d.table || d.collection || "") + " " +
-        (d.tags || []).join(" ") + " " + (d.folder || "") + " " + (conn ? conn.name : "") + " " + (d.columns || []).join(" ")).toLowerCase();
-      return hay.indexOf(q) >= 0;
+      return dsxMatch(d);
     });
     // LF51 (d): each dataset renders as either a compact list row (default) or a
     // richer tile card. Both wrappers reuse the exact same inner fragments and the
@@ -425,7 +429,7 @@
         pillsC + (pillsC && (pillsK || pillsT) ? '<span class="dsx-pill-sep"></span>' : "") +
         pillsK + (pillsK && pillsT ? '<span class="dsx-pill-sep"></span>' : "") +
         pillsT +
-        (anyA || anyC || anyT || anyK || anyF ? '<button type="button" class="wb-chip" id="dsxPillClear" title="Show everything">Clear</button>' : "") +
+        (anyA || anyC || anyT || anyK || anyF || q ? '<button type="button" class="wb-chip" id="dsxPillClear" title="Show everything">Clear</button>' : "") +
         viewAddHtml + '</div>' : "") +
       bulkBarHtml +
       (rows.length ? '<div class="' + (isTiles ? "dsx-grid" : "cx-list") + '">' + rows.join("") + '</div>'
@@ -468,7 +472,12 @@
       btn.onclick = function () { _dsxFolderFilter = btn.getAttribute("data-dsx-folder"); renderDatasets(); };
     });
     var clearBtn = $("#dsxPillClear", results);
-    if (clearBtn) clearBtn.onclick = function () { _dsxAdapterFilter = {}; _dsxConnFilter = {}; _dsxTagFilter = {}; _dsxKindFilter = {}; _dsxFolderFilter = ""; renderDatasets(); };
+    // AUD-06 slice 1: "Clear" means SHOW EVERYTHING — the search box included.
+    if (clearBtn) clearBtn.onclick = function () {
+      _dsxAdapterFilter = {}; _dsxConnFilter = {}; _dsxTagFilter = {}; _dsxKindFilter = {}; _dsxFolderFilter = "";
+      Studio.catalogSearch.clearInput($("#dsxSearch"));
+      renderDatasets();
+    };
     $$("[data-dsx-view]", results).forEach(function (btn) {
       btn.onclick = function () {
         var v = dsxLoadViews().filter(function (x) { return x.id === btn.getAttribute("data-dsx-view"); })[0];

@@ -207,7 +207,20 @@
         return la.localeCompare(lb) || _connNameCmp(a, b);
       }
     } });
-    var q = (($("#connSearch") || {}).value || "").toLowerCase();
+    var q = ($("#connSearch") || {}).value || "";
+    // AUD-06 slice 1: the shared matcher (Studio.catalogSearch) — this section only
+    // declares WHICH fields are searchable; the rules (AND-ed terms, quoted phrases,
+    // case-insensitivity) are the same in every catalog panel. The password carve-out
+    // stays right here where it belongs: a secret NEVER enters the haystack, so a
+    // stored token can't be confirmed by typing it into the search box.
+    var connMatch = Studio.catalogSearch.matcher(q, function (c) {
+      var src = Studio.sourceById(c.adapter) || {};
+      var cfgHay = Object.keys(c.cfg || {}).map(function (k) {
+        var f = (src.fields || []).filter(function (x) { return x.key === k; })[0];
+        return f && f.type === "password" ? "" : String(c.cfg[k] || "");
+      }).join(" ");
+      return [c.name, src.label || c.adapter, cfgHay, c.tags, c.folder];
+    });
     var list = Studio.Workspace.all("connections").filter(isVisibleToMe).sort(function (a, b) {
       if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
       if (a.pinned) return (b.pinnedAt || "").localeCompare(a.pinnedAt || "");
@@ -274,14 +287,7 @@
       if (anyTag && !(c.tags || []).some(function (t) { return _connTagFilter[t]; })) return false;
       if (_connFolderFilter === "__unfiled") { if (c.folder) return false; }
       else if (_connFolderFilter) { if (c.folder !== _connFolderFilter) return false; }
-      if (!q) return true;
-      var src = Studio.sourceById(c.adapter) || {};
-      var cfgHay = Object.keys(c.cfg || {}).map(function (k) {
-        // never match on secrets
-        var f = (src.fields || []).filter(function (x) { return x.key === k; })[0];
-        return f && f.type === "password" ? "" : String(c.cfg[k] || "");
-      }).join(" ");
-      return (c.name + " " + (src.label || c.adapter) + " " + cfgHay + " " + (c.tags || []).join(" ") + " " + (c.folder || "")).toLowerCase().indexOf(q) >= 0;
+      return connMatch(c);
     });
     // LF51 (d): list row or tile card, same pattern as Datasets — one build, two
     // wrappers, identical data-conn-* hooks so every handler works in both.
@@ -338,7 +344,7 @@
         pillsV + (pillsV && (pills || pillsT) ? '<span class="dsx-pill-sep"></span>' : "") +
         pills + (pills && pillsT ? '<span class="dsx-pill-sep"></span>' : "") +
         pillsT +
-        ((anyFilter || anyTag || anyConnFolder) ? '<button type="button" class="wb-chip" id="connPillClear" title="Show all connections">Clear</button>' : "") +
+        ((anyFilter || anyTag || anyConnFolder || q) ? '<button type="button" class="wb-chip" id="connPillClear" title="Show everything">Clear</button>' : "") +
         connViewAddHtml + '</div>' : "") +
       bulkBarHtml +
       (rows.length ? '<div class="' + (isTiles ? "dsx-grid" : "cx-list") + '">' + rows.join("") + '</div>'
@@ -366,7 +372,12 @@
       btn.onclick = function () { _connFolderFilter = btn.getAttribute("data-conn-folder"); renderConnections(); };
     });
     var clearBtn = $("#connPillClear", results);
-    if (clearBtn) clearBtn.onclick = function () { _connAdapterFilter = {}; _connTagFilter = {}; _connFolderFilter = ""; renderConnections(); };
+    // AUD-06 slice 1: "Clear" means SHOW EVERYTHING — the search box included.
+    if (clearBtn) clearBtn.onclick = function () {
+      _connAdapterFilter = {}; _connTagFilter = {}; _connFolderFilter = "";
+      Studio.catalogSearch.clearInput($("#connSearch"));
+      renderConnections();
+    };
     $$("[data-conn-view]", results).forEach(function (btn) {
       btn.onclick = function () {
         var v = connLoadViews().filter(function (x) { return x.id === btn.getAttribute("data-conn-view"); })[0];

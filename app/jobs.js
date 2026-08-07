@@ -220,7 +220,14 @@
         renderJobs();
       };
     }
-    var q = (($("#jobsSearch") || {}).value || "").toLowerCase();
+    var q = ($("#jobsSearch") || {}).value || "";
+    // AUD-06 slice 1: the shared matcher (Studio.catalogSearch) — this section only
+    // declares WHICH fields are searchable; the rules (AND-ed terms, quoted phrases,
+    // case-insensitivity) are the same in every catalog panel.
+    var jobsMatch = Studio.catalogSearch.matcher(q, function (j) {
+      var src = Studio.Workspace.get("datasets", j.sourceDatasetId);
+      return [j.name, src ? src.name : "", j.outputName, j.folder];
+    });
     // SORT-1: header sort <select> — same idempotent-binding convention as the toggles.
     var _jobsSortKey = Studio.catalogSort.wire($("#jobsSortSel"), "jobs", "updated-desc", [
       ["updated-desc", "Newest first"], ["updated-asc", "Oldest first"],
@@ -255,9 +262,7 @@
     var shown = list.filter(function (j) {
       if (_jobsFolderFilter === "__unfiled") { if (j.folder) return false; }
       else if (_jobsFolderFilter) { if (j.folder !== _jobsFolderFilter) return false; }
-      if (!q) return true;
-      var src = Studio.Workspace.get("datasets", j.sourceDatasetId);
-      return (j.name + " " + (src ? src.name : "") + " " + (j.outputName || "") + " " + (j.folder || "")).toLowerCase().indexOf(q) >= 0;
+      return jobsMatch(j);
     });
     // LF51 (d): list row or tile card, same pattern as Datasets/Connections.
     var isTiles = _jobsViewMode === "tiles";
@@ -310,8 +315,14 @@
         '<button type="button" class="btn danger" id="jobsSelDelBtn"' + (selCount ? '' : ' disabled') + '>' +
         'Delete' + (selCount ? ' ' + selCount : '') + '</button></div>'
       : '';
+    // AUD-06 slice 1: Jobs was the one catalog panel with a facet strip and NO "Clear"
+    // chip — same markup, same id convention and the same "show everything" meaning as
+    // Views/Datasets/Connections, and it appears for a lone search too (the strip renders
+    // for it even when this workspace has no folders to show pills for).
+    var jobsClearHtml = (_jobsFolderFilter || q)
+      ? '<button type="button" class="wb-chip" id="jobsPillClear" title="Show everything">Clear</button>' : "";
     results.innerHTML =
-      (pillsFJobs ? '<div class="wb-chips cx-filter-strip">' + pillsFJobs + '</div>' : "") +
+      (pillsFJobs || jobsClearHtml ? '<div class="wb-chips cx-filter-strip">' + pillsFJobs + jobsClearHtml + '</div>' : "") +
       bulkBarHtml +
       (rows.length ? '<div class="' + (isTiles ? "dsx-grid" : "cx-list") + '">' + rows.join("") + '</div>'
       : '<div class="cx-empty"><b>' + (q || _jobsFolderFilter ? "No jobs match." : "No jobs yet.") + '</b><br/>' +
@@ -323,6 +334,12 @@
     $$("[data-jobs-folder]", results).forEach(function (btn) {
       btn.onclick = function () { _jobsFolderFilter = btn.getAttribute("data-jobs-folder"); renderJobs(); };
     });
+    var jobsClearBtn = $("#jobsPillClear", results);
+    if (jobsClearBtn) jobsClearBtn.onclick = function () {
+      _jobsFolderFilter = "";
+      Studio.catalogSearch.clearInput($("#jobsSearch"));
+      renderJobs();
+    };
     $$(".cx-row, .dsx-tile", results).forEach(function (row) {
       var j = Studio.Workspace.get("jobs", row.getAttribute("data-job-id"));
       var icEl = row.querySelector(".cx-ic"); if (icEl && Studio.icon) icEl.appendChild(Studio.icon("sliders", 18));

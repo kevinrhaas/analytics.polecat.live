@@ -135,6 +135,45 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **AUD-06 ★ slice 1 — one shared catalog SEARCH matcher (v847, sw v479, 2026-08-07,
+  steward; AUDIT-2026-08 §2.1 family D, ux):** SORT-1 (v812) proved the shape with
+  `Studio.catalogSort`; the audit's headline finding was that the *search + facet* axis
+  never got the same treatment — six catalog panels each hand-rolling
+  `hay.toLowerCase().indexOf(q) >= 0` over their own ad-hoc haystack. New
+  **`Studio.catalogSearch`** (`app/studio.js`, right beside `catalogSort`) owns the rules;
+  Dashboards, Repository, Views, Datasets, Connections and Jobs now declare only WHICH
+  fields are searchable and pass them as an array.
+  - **The rule change users feel:** terms are whitespace-split and **ANDed across all
+    fields in any order**, instead of one literal adjacent substring in one field. "crops
+    2024" now finds a dataset named "Cover crops" filed in "2024" — that returned *nothing*
+    before, with no hint why. `"quoted phrases"` opt back into adjacency; matching stays
+    case-insensitive; an empty query matches all, so no caller needs its own `if (!q)`.
+  - **Haystack drift closed:** Dashboards gained `folder` (every other panel already had
+    it), so the panels differ now only where they genuinely should. Dashboards keeps the
+    one thing only it does — the DA **column-name fallback**, which now receives just the
+    terms the title/desc/folder didn't account for (a single-term query behaves exactly as
+    before) and still names the matched column on the card. Connections' password
+    carve-out moved into the shared matcher **verbatim**: a secret never enters the
+    haystack, so a stored token still can't be confirmed by typing it into search.
+  - **"Clear" means show everything.** The chip now empties the search box along with the
+    facet pills, and appears when a **search alone** is narrowing the list (it used to
+    need a pill, which is how you ended up with "I cleared the filters and the list is
+    still short"). **Jobs gained the chip entirely** — it was the one panel with a facet
+    strip and no one-click way out; its strip renders for the chip alone, since a
+    workspace with no folders has no pills to hang it on.
+  - Not in this slice, deliberately (AUD-06 is multi-slice — see NEXT): the **facet**
+    layer itself is still per-section (each panel builds its own count maps + pill
+    markup), the default view mode still differs (Dashboards tiles, others list), the two
+    filter-operator vocabularies (DA-output 8 ops vs job-step 7) are untouched, and
+    TIME_RANGE is still undecided. The 11 non-catalog search surfaces (library, inspector,
+    chart gallery, ⌘K, docs, folder picker) are out of family D's scope.
+  Docs: the catalog section gains a "Searching" paragraph beside SORT-1's "Sorting" one,
+  spelling out the multi-term rule, quoted phrases, what each page searches, and the Clear
+  chip's meaning. Tests: 6 new checks — two pinning the matcher's own rules (term parsing,
+  dedupe, quoted phrases, AND-across-fields, array/null-safe haystacks, empty=match-all)
+  and four driving real panels (a two-word Jobs search that spans the job's name and its
+  source dataset's name, Jobs' new Clear chip appearing and clearing, Datasets' chip now
+  appearing for a search-only filter). **3015 passed, 0 failed.**
 - **AUD-07 ★ — the last three bare-confirm deletes offer Undo (v846, sw v478, 2026-08-07,
   steward; AUDIT-2026-08 §2.2, ux):** DURABLE-2b (v822) gave the four catalog per-row
   deletes and the bulk bars an Undo toast; the audit found three destructive paths still
@@ -8983,11 +9022,30 @@
 >   (carefully — must not break the builder↔preview protocol or exports). Add a
 >   CSP `<meta>` where feasible.
 > - **AUD-06 ★ [ux] Filter consolidation program** (§2.1): 19 mechanisms, minimal
->   shared code. Extend the SORT-1/`Studio.catalogSort` + `bulkMoveToFolder`
->   precedent to the search+facet axis (one shared matcher/facet module for the
->   7 catalog lists), and unify the two filter-operator vocabularies
->   (DA-output 8 ops vs job-step 7 ops). Multi-slice; also decide TIME_RANGE
->   (a real date filter, or delete — see AUD-09).
+>   shared code. Multi-slice. **Slice 1 — the shared SEARCH matcher — SHIPPED
+>   v847, sw v479 (2026-08-07, steward — see DONE):** `Studio.catalogSearch` now
+>   owns the matching rules for all six catalog panels (AND-ed terms across every
+>   field, quoted phrases, one haystack convention), Dashboards' haystack gained
+>   `folder`, and the "Clear" chip counts the search box as a filter and finally
+>   exists on Jobs. **Still open, in rough order:**
+>   - **Slice 2 — the FACET layer.** Each panel still hand-builds its own count
+>     maps + pill markup (`pillsA/pillsC/pillsT/pillsF…`); a shared
+>     facet-strip builder (counts → pills → click wiring) is the direct analogue
+>     of what slice 1 did for search. Fold in the default-view-mode
+>     inconsistency while there (Dashboards defaults to tiles, every other panel
+>     to list — pick one).
+>   - **Slice 3 — one filter-operator vocabulary:** DA output rules use 8 ops
+>     (`=,!=,>,>=,<,<=,contains,startsWith`, `model.js:2956`), the Job "Filter
+>     rows" step uses 7 different ones (`eq/ne/gt/gte/lt/lte/contains`) for the
+>     same conceptual operation. Data-shaped, not UI-shaped: it wants a
+>     migration for saved jobs/specs, so it is its own slice.
+>   - **Decide TIME_RANGE** (a real date filter, or delete — see AUD-09); there
+>     is still no first-class date/range filter anywhere, only `{{today-30}}`
+>     SQL tokens.
+>   - Out of family D but named in §2.1: the 11 other search affordances
+>     (library, inspector, chart gallery, ⌘K, docs, folder picker) could adopt
+>     `Studio.catalogSearch` opportunistically — none is a catalog panel, so
+>     none blocks the slices above.
 > - ~~AUD-07 ★ [ux] Finish delete-undo coverage~~ ✓ **SHIPPED v846, sw v478
 >   (2026-08-07, steward — see DONE).** All three paths carry Undo, each
 >   restoring what it uniquely owns beyond the row (the View Builder draft +
