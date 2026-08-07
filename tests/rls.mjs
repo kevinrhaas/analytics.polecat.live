@@ -13,16 +13,20 @@
 // check: it applies THE REAL FILES (not a paraphrase of them) and asserts, from
 // the database's own point of view, that an unauthorized read is refused.
 //
-// It runs the same checks against BOTH shipped postures — `supabase-rls-real.sql`
-// (re-tighten an environment whose tables exist) and `supabase-deploy.sql` (the
-// fresh one-file deploy, which calls itself the superset) — because "keep the two
-// in sync" was an honour-system comment until something compared them. Each one
-// is installed into its OWN empty schema, so "does this work on a genuinely fresh
-// database?" is tested every run. That is what caught the ordering bug both files
-// carried on 2026-08-07: they created policies calling `polecat_is_admin()` a
-// section before defining it, so the documented top-to-bottom fresh install died
-// on its first CREATE POLICY and had only ever survived on a project where an
-// earlier run left the function behind.
+// It runs the same checks against ALL THREE shipped postures —
+// `tools/supabase-rls-real.sql` (re-tighten an environment whose tables exist),
+// `tools/supabase-deploy.sql` (the fresh one-file deploy, which calls itself the
+// superset) and the Edge Function's inlined `BOOTSTRAP_DDL` + `RLS_REAL_SQL`
+// (what an in-app **Admin → Go live** actually installs) — because "keep them in
+// sync" was an honour-system comment until something compared them. Each one is
+// installed into its OWN empty schema, so "does this work on a genuinely fresh
+// database?" is tested every run. That is what caught the ordering bug the two
+// files carried on 2026-08-07: they created policies calling `polecat_is_admin()`
+// a section before defining it, so the documented top-to-bottom fresh install
+// died on its first CREATE POLICY and had only ever survived on a project where
+// an earlier run left the function behind. Adding the third posture (N2 slice 2)
+// caught the bigger one: the one-click go-live had drifted to a WEAKER posture
+// than the manual paste.
 //
 // SAFETY — read before changing anything here. Every statement runs inside ONE
 // throwaway `steward_test_rls_<random>` schema that this script creates and
@@ -56,13 +60,68 @@ import { randomBytes } from "node:crypto";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const tool = (f) => resolve(__dirname, "..", "tools", f);
 
-// The two canonical postures, each installed into its own throwaway schema and
-// then put through the SAME checks — because they are supposed to be the same
-// posture (supabase-deploy.sql's header calls itself the superset). Testing both
-// is what keeps "keep the two in sync" from being an honour-system comment.
+// ---------------------------------------------------------------------------
+// The three shipped postures, each installed into its own throwaway schema and
+// then put through the SAME checks — because they are all supposed to BE the
+// same posture (supabase-deploy.sql's header calls itself the superset; the Edge
+// Function's sql.ts calls itself the condensed runtime copy). Testing all three
+// is what keeps "keep them in sync" from being an honour-system comment.
+//
+// The third one matters most in practice: it is what an in-app **Admin → Go
+// live** actually installs. It HAD drifted (N2 slice 2, 2026-08-07) — missing
+// the admin arm, the explicit `TO authenticated`, the `users` email-claim arm,
+// the `polecat_meta` policy and the legacy-policy drop loop — so the one-click
+// path installed a weaker posture than the documented manual paste. Nothing
+// compared them until this check did.
+
+/** The Edge Function's SQL is a TypeScript module of template-literal constants
+ *  (it must be: the Supabase Edge Runtime bundles only the module graph, so a
+ *  sibling .sql file is not readable at runtime — see sql.ts's header). Pull the
+ *  constants back out textually rather than importing, because Node cannot
+ *  import .ts and the point is to test the exact bytes that deploy. */
+function edgeConst(name) {
+  const src = readFileSync(resolve(__dirname, "..", "supabase", "functions", "polecat-admin", "sql.ts"), "utf8");
+  const open = src.indexOf(`export const ${name} = \``);
+  if (open < 0) {
+    console.error(`rls: FATAL — supabase/functions/polecat-admin/sql.ts no longer exports ${name}.`);
+    process.exit(1);
+  }
+  // Scan for the terminating backtick, honouring backslash escapes (the SQL
+  // contains \` around identifiers like \`go-live\`).
+  let i = open + `export const ${name} = \``.length;
+  let out = "";
+  for (; i < src.length; i++) {
+    const c = src[i];
+    if (c === "\\") { out += src[++i] ?? ""; continue; }  // \` -> `, \$ -> $
+    if (c === "`") return out;
+    out += c;
+  }
+  console.error(`rls: FATAL — ${name} in sql.ts has no closing backtick.`);
+  process.exit(1);
+}
+
 const POSTURES = [
-  { label: "supabase-rls-real.sql (re-tighten an existing environment)", file: tool("supabase-rls-real.sql"), needsTables: true },
-  { label: "supabase-deploy.sql (the fresh one-file deploy)", file: tool("supabase-deploy.sql"), needsTables: false },
+  {
+    label: "tools/supabase-rls-real.sql (re-tighten an existing environment)",
+    source: "tools/supabase-rls-real.sql",
+    load: () => readFileSync(tool("supabase-rls-real.sql"), "utf8"),
+    needsTables: true,
+  },
+  {
+    label: "tools/supabase-deploy.sql (the fresh one-file deploy)",
+    source: "tools/supabase-deploy.sql",
+    load: () => readFileSync(tool("supabase-deploy.sql"), "utf8"),
+    needsTables: false,
+  },
+  {
+    // Exactly what actionGoLive() runs, in order: BOOTSTRAP_DDL (which also
+    // installs the demo allow-all policies) then RLS_REAL_SQL — so the drop
+    // loop that has to retire them is under test too, not assumed.
+    label: "the Edge Function's inlined go-live SQL (Admin → Go live)",
+    source: "supabase/functions/polecat-admin/sql.ts",
+    load: () => `${edgeConst("BOOTSTRAP_DDL")}\n${edgeConst("RLS_REAL_SQL")}`,
+    needsTables: false,
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -111,13 +170,12 @@ function psql(sql, { stopOnError = true } = {}) {
 // ---------------------------------------------------------------------------
 // The policy set, re-pointed at the throwaway schema
 
-/** The canonical files name `public` explicitly (`public.users`,
- *  `public.polecat_is_admin()`, `public.%I`, `SET search_path = public`).
- *  Rewriting those references moves the WHOLE posture into the test schema while
- *  leaving the policy logic — which is the thing under test — byte-for-byte what
- *  ships. */
-function sqlForTestSchema(file, schema) {
-  const raw = readFileSync(file, "utf8");
+/** The shipped SQL names `public` explicitly (`public.users`,
+ *  `public.polecat_is_admin()`, `public.%I`, `SET search_path = public`,
+ *  `GRANT … ON SCHEMA public`). Rewriting those references moves the WHOLE
+ *  posture into the test schema while leaving the policy logic — which is the
+ *  thing under test — byte-for-byte what ships. */
+function sqlForTestSchema(raw, source, schema) {
   // Strip comments first so prose about `public` can neither be rewritten nor
   // trip the guard below.
   const code = raw
@@ -128,7 +186,7 @@ function sqlForTestSchema(file, schema) {
     .replace(/\bpublic\./g, `${schema}.`)
     .replace(/\bschema\s+public\b/gi, `SCHEMA ${schema}`)
     .replace(/search_path\s*=\s*public\b/gi, `search_path = ${schema}`);
-  assertTestSchemaOnly(rewritten, file);
+  assertTestSchemaOnly(rewritten, source);
   return rewritten;
 }
 
@@ -136,10 +194,10 @@ function sqlForTestSchema(file, schema) {
  *  live schema, at all, anywhere. If a canonical file ever grows a reference the
  *  rewrite above does not cover, the run fails loudly instead of touching
  *  production. */
-function assertTestSchemaOnly(sql, file) {
+function assertTestSchemaOnly(sql, source) {
   const offenders = sql.split("\n").filter((l) => /\bpublic\b/.test(l));
   if (offenders.length) {
-    console.error(`rls: FATAL — refusing to run ${file}: these statements still name the LIVE \`public\` schema:`);
+    console.error(`rls: FATAL — refusing to run ${source}: these statements still name the LIVE \`public\` schema:`);
     offenders.forEach((l) => console.error(`  ${l.trim()}`));
     process.exit(1);
   }
@@ -336,9 +394,8 @@ const checksSql = (schema) => [
 
 /** Install one posture into its own throwaway schema, run every check against
  *  it, and drop the schema. Returns { passed, failed }. */
-function checkPosture({ label, file, needsTables }) {
+function checkPosture({ label, source, load, needsTables }) {
   const schema = newSchema();
-  const name = file.split("/").pop();
   console.log(`\nrls: ${label}`);
   let passed = 0;
   let failed = 0;
@@ -349,9 +406,9 @@ function checkPosture({ label, file, needsTables }) {
       return { passed: 0, failed: 1 };
     }
 
-    const applied = psql(`SET search_path TO ${schema};\n${sqlForTestSchema(file, schema)}`);
+    const applied = psql(`SET search_path TO ${schema};\n${sqlForTestSchema(load(), source, schema)}`);
     if (applied.code !== 0) {
-      console.error(`rls: FAIL — tools/${name} did not apply to a fresh schema:\n${applied.out.trim()}`);
+      console.error(`rls: FAIL — ${source} did not apply to a fresh schema:\n${applied.out.trim()}`);
       return { passed: 0, failed: 1 };
     }
 
