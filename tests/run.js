@@ -40001,7 +40001,10 @@ function serve() {
         panels: [{ id: "p1", title: "Notes", span: 1, chart: { type: "richtext", opts: { content: "LF23S2_MARKER" } } }]
       };
       Studio.Workspace.put("dashboards", { id: "lf23s2-dash", ts: new Date().toISOString(), spec: spec, title: spec.title, name: spec.name, owner: "admin" });
-      window.PolecatAuth.upsert("lf23s2dev", { role: "developer", pass: "lf23s2dev" });
+      // return the upsert promise so evaluate awaits it — PBKDF2 hashing
+      // (AUD-03) is slow enough that a dropped promise loses the race with
+      // the login("lf23s2dev") in the next evaluate
+      return window.PolecatAuth.upsert("lf23s2dev", { role: "developer", pass: "lf23s2dev" });
     });
 
     // Rail + section gating: a signed-in viewer never sees the Studio rail item, and
