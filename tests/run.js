@@ -6998,8 +6998,8 @@ function serve() {
     // predicate a DA output rule uses. These are the behaviours that USED to
     // differ between the two surfaces, exercised through the real engine.
     const jobsFilterOps = await page.evaluate(function () {
-      var input = { columns: ["county", "acres", "grade"], rows: [
-        ["Story", "1.0", "B"], ["Polk", "2", "A"], ["Boone", "10", "C"]
+      var input = { columns: ["county", "acres", "grade", "surveyed"], rows: [
+        ["Story", "1.0", "B", "2024-06-01"], ["Polk", "2", "A", "2024-01-15"], ["Boone", "10", "C", "2023-11-02"]
       ]};
       function run(cmp, col, value) {
         var out = Studio.runJobSteps(input, [{ op: "filter", col: col, cmp: cmp, value: value }], {});
@@ -7014,16 +7014,20 @@ function serve() {
         startsWith: run("startsWith", "county", "st"),
         // the DA spelling is understood too, so the vocabularies interoperate
         symbolGte: run(">=", "acres", "2"),
+        // AUD-06 slice 4: a date column filters by date. Before, the leading
+        // number decided it, so "after 2024-02-01" also kept January's row.
+        afterDate: run("gt", "surveyed", "2024-02-01"),
         // an unknown operator passes rows through rather than quietly
         // filtering as equality (which used to drop every row)
         unknown: run("someFutureOp", "county", "Story")
       };
     });
-    ok("AUD-06(3): the job Filter step runs the shared filterOps predicate — numeric-aware eq, text-capable gt, startsWith, the DA spelling, and a pass-through unknown op",
+    ok("AUD-06(3/4): the job Filter step runs the shared filterOps predicate — numeric-aware eq, text-capable gt, startsWith, real date ordering, the DA spelling, and a pass-through unknown op",
       jobsFilterOps.numericEq.join() === "Story"
       && jobsFilterOps.textGt.join() === "Story,Boone"
       && jobsFilterOps.startsWith.join() === "Story"
       && jobsFilterOps.symbolGte.join() === "Polk,Boone"
+      && jobsFilterOps.afterDate.join() === "Story"
       && jobsFilterOps.unknown.length === 3,
       JSON.stringify(jobsFilterOps));
     await page.evaluate(function () {
@@ -20977,11 +20981,14 @@ function serve() {
         // step's numeric-only comparators returned false for all of these)
         textGt: t("banana", "gt", "apple") === true && t("apple", "gt", "banana") === false
           && t("B", "gte", "B") === true,
-        // the inherited parseFloat quirk, asserted so it stays VISIBLE and
-        // identical on both surfaces: a leading number wins, so an ISO date
-        // column orders by year. Deliberately unchanged by this slice.
-        leadingNumberQuirk: t("2024-06-01", "gt", "2024-01-01") === false
-          && t("2024-06-01", "gt", "2023-01-01") === true,
+        // AUD-06 slice 4: the inherited parseFloat quirk is GONE — a date
+        // column used to order by its leading number (its year), so
+        // "2024-06-01" > "2024-01-01" was false and `>=` on a date swept in
+        // the whole year before it. Dates now compare as dates.
+        dateOrdering: t("2024-06-01", "gt", "2024-01-01") === true
+          && t("2024-01-01", "gt", "2024-06-01") === false
+          && t("2024-06-01", "gt", "2023-01-01") === true
+          && t("2024-06-01", "gte", "2024-06-01") === true,
         // contains / startsWith are case-insensitive, and startsWith now
         // reaches the job step too
         text: t("Snowflake", "contains", "FLAKE") === true && t("Snowflake", "startsWith", "snow") === true
@@ -20994,7 +21001,60 @@ function serve() {
       };
     });
     ok("filterOps.test: one predicate — both spellings agree, numeric-aware =, string-fallback ordering, safe unknown op",
-      foTest.agree && foTest.numericEq && foTest.textGt && foTest.leadingNumberQuirk && foTest.text && foTest.nulls && foTest.unknown, JSON.stringify(foTest));
+      foTest.agree && foTest.numericEq && foTest.textGt && foTest.dateOrdering && foTest.text && foTest.nulls && foTest.unknown, JSON.stringify(foTest));
+
+    // AUD-06 slice 4 — the date semantics in full: what counts as a date, what
+    // a plain date means, and the promise that nothing else changed meaning.
+    const foDates = await page.evaluate(() => {
+      var F = Studio.filterOps, t = F.test;
+      return {
+        // a plain date means the WHOLE day, on either side of the comparison
+        wholeDay: t("2024-06-01T23:59:59Z", "=", "2024-06-01") === true
+          && t("2024-06-01T09:30:00Z", "lte", "2024-06-01") === true
+          && t("2024-06-01T09:30:00Z", "gt", "2024-06-01") === false
+          && t("2024-06-02T00:00:00Z", "=", "2024-06-01") === false,
+        // two timestamps compare to the instant, not the day
+        instants: t("2024-06-01T10:00:00Z", "gt", "2024-06-01T09:00:00Z") === true
+          && t("2024-06-01T10:00:00Z", "=", "2024-06-01T09:00:00Z") === false,
+        // a zone is honoured; a missing one reads as UTC on BOTH sides, so a
+        // filter matches the same rows in every timezone
+        zones: t("2024-06-01T00:00:00+02:00", "lt", "2024-06-01T00:00:00Z") === true
+          && t("2024-06-01T12:00:00", "gt", "2024-06-01T09:00:00Z") === true,
+        // != is the exact inverse of = at the same granularity
+        notEquals: t("2024-06-01T09:30:00Z", "ne", "2024-06-01") === false
+          && t("2024-06-02", "ne", "2024-06-01") === true,
+        // STRICT about what a date is: a non-calendar date, a loose "date"
+        // Date.parse would have swallowed, and a bare year all keep their old
+        // number/text comparison rather than silently becoming dates
+        strict: F.dateKey("2024-02-31") === null && F.dateKey("March 2024") === null
+          && F.dateKey("2024") === null && F.dateKey("5") === null
+          && F.dateKey("2024-06-01") !== null && F.dateKey("2024-06-01T09:30:00Z") !== null,
+        // dateCmp only speaks up when BOTH sides are dates — text and number
+        // filters are untouched by any of this
+        onlyBothDates: F.dateCmp("2024-06-01", "banana") === null
+          && F.dateCmp("2024-06-01", "2024") === null
+          && t("10", "gt", "9") === true && t("banana", "gt", "apple") === true
+      };
+    });
+    ok("AUD-06(4): dates compare as dates — a plain date means the whole day, timestamps compare to the instant, zones are honoured, and only real ISO dates qualify",
+      foDates.wholeDay && foDates.instants && foDates.zones && foDates.notEquals && foDates.strict && foDates.onlyBothDates,
+      JSON.stringify(foDates));
+
+    // The same fix in the SORT rule: a date column used to tie on its year and
+    // come out in whatever order the query returned.
+    const foDateSort = await page.evaluate(() => {
+      var da = { outputOptions: {
+        filters: [{ col: "when", op: ">=", val: "2024-02-01" }],
+        sortBy: [{ col: "when", dir: "asc" }]
+      } };
+      var res = { cols: ["when", "n"], rows: [
+        ["2024-06-01", 3], ["2024-01-15", 1], ["2024-03-09", 2], ["2023-12-31", 0], ["2024-02-01", 9]
+      ]};
+      var out = Studio.applyOutputOptions(da, res);
+      return { order: out.rows.map(function (r) { return r[0]; }) };
+    });
+    ok("AUD-06(4): a DA output rule filters and sorts a date column chronologically (the year-only tie is gone)",
+      foDateSort.order.join() === "2024-02-01,2024-03-09,2024-06-01", JSON.stringify(foDateSort));
 
     // DA_OPS is derived from the shared list (labels can't drift apart again).
     const foDerived = await page.evaluate(() => {
