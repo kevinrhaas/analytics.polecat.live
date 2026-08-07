@@ -1,0 +1,45 @@
+name: Dev gate (area tests)
+
+# The pipeline's LIGHT gate: fast syntax validation, the fleet changelog
+# contract, and the boot smoke (tools/dev-smoke.mjs) — run on work heading
+# into the `dev` integration branch. This gate IS allowed to be hard: it
+# gates an integration branch, never a production deploy, so the "never
+# hard-gate deploy on CI" doctrine (the ~21h freeze, STATUS.md "CI / deploy")
+# is untouched — prod hotfixes go straight to main and only Guard main
+# watches them. The FULL suite (tests/run.js) runs at qa-promotion time in
+# promote-to-qa.yml.
+on:
+  pull_request:
+    branches: [dev]
+  push:
+    branches: [dev]
+  # Manual escape hatch: PRs opened via API tokens (bots, integrations) don't
+  # fire event-triggered workflows, so the gate can be run by hand on any ref.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dev-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax validation (shared with Guard main)
+        run: node tools/validate.mjs
+      - name: Changelog contract (manager's exact parser)
+        run: node tools/changelog-check.js
+      - name: Install Playwright Chromium
+        run: |
+          npm install -g playwright
+          npx playwright install --with-deps chromium
+      - name: Boot smoke (marketing + app + docs, desktop + 390px, zero pageerrors)
+        run: NODE_PATH=$(npm root -g) node tools/dev-smoke.mjs

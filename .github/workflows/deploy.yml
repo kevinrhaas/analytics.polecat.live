@@ -1,18 +1,28 @@
 name: Deploy to GitHub Pages
 
 # Static-site deploy for analytics.polecat.live. Replaces GitHub's default
-# "deploy from a branch" pipeline, which has NO concurrency control — the fast
-# self-improvement loop pushes several commits per run, and those overlapping
-# deploys collided under the managed pipeline ("Deployment failed, try again
-# later"). Here a single `pages` concurrency group with cancel-in-progress
-# means a newer push cancels an in-flight deploy, so only the latest one runs
-# and it never fails on contention.
+# "deploy from a branch" pipeline, which has NO concurrency control — a single
+# `pages` concurrency group with cancel-in-progress means a newer push cancels
+# an in-flight deploy, so only the latest one runs and never fails on
+# contention.
+#
+# Since the promotion-pipeline adoption (docs/PIPELINE.md; jobtracker's
+# docs/PIPELINE.md is the canonical runbook) the Pages artifact carries THREE
+# stages:
+#   /        production  = main            (untouched, real sw.js, indexed)
+#   /qa/     candidate   = the qa branch   (stage-preview: re-based paths,
+#   /dev/    integration = the dev branch    stub SW, noindex, stage banner)
+# The stage steps no-op while the qa/dev refs don't exist, so this workflow is
+# safe to merge before pipeline-setup.yml ever runs. Main is ALWAYS assembled
+# at the artifact root regardless of which branch's push triggered the run.
+# The promotion workflows push with GITHUB_TOKEN (which can't trigger `push`),
+# so they dispatch this workflow explicitly — same bridge Guard main uses.
 #
 # NOTE: requires repo Settings → Pages → Source = "GitHub Actions".
 
 on:
   push:
-    branches: [main]
+    branches: [main, qa, dev]
   workflow_dispatch:
 
 permissions:
@@ -26,13 +36,12 @@ concurrency:
 
 jobs:
   # SOFT test signal — this MUST NOT gate the live deploy. A hard `needs: test` gate was
-  # briefly added and it FROZE the live site for ~21 hours: a flaky CI-only test (the
-  # offline service-worker / PWA check reports catalogSize:0 on a cold runner and cascades
-  # into a FATAL) failed the `test` job, so `deploy` never ran and ~55 versions never went
-  # live while the repo kept advancing. The autonomous loop already runs the full Playwright
-  # suite GREEN before every push (RESUME PROTOCOL), so re-testing in CI is redundant
-  # belt-and-braces. `continue-on-error: true` keeps it as a visible signal (a red test job
-  # tells the loop to harden a flaky test) WITHOUT ever blocking or failing the deploy.
+  # briefly added and it FROZE the live site for ~21 hours: a flaky CI-only test failed the
+  # `test` job, so `deploy` never ran and ~55 versions never went live while the repo kept
+  # advancing. The pipeline now runs this same suite as a HARD gate at qa-promotion time
+  # (promote-to-qa.yml) — which is fine, because that gates an integration branch, never
+  # the production deploy. `continue-on-error: true` keeps this run as a visible signal
+  # WITHOUT ever blocking or failing the deploy.
   # DO NOT re-add `needs: test` to the deploy job — see STATUS.md "CI / deploy" convention.
   test:
     runs-on: ubuntu-latest
@@ -55,11 +64,28 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout main (production is always the artifact root)
         uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Assemble /qa/ and /dev/ stage previews (no-op until the refs exist)
+        run: |
+          for stage in qa dev; do
+            if git fetch origin "$stage" 2>/dev/null; then
+              sha="$(git rev-parse --short FETCH_HEAD)"
+              git worktree add "_${stage}-src" FETCH_HEAD
+              node tools/stage-preview.mjs "_${stage}-src" "$stage" "$sha"
+              git worktree remove --force "_${stage}-src"
+            else
+              echo "stage-preview: no '$stage' ref yet — skipping /$stage/"
+            fi
+          done
       - name: Configure Pages
         uses: actions/configure-pages@v5
-      - name: Upload site artifact (repo root — plain static site)
+      - name: Upload site artifact (repo root + assembled previews)
         uses: actions/upload-pages-artifact@v3
         with:
           path: '.'

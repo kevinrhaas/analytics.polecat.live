@@ -9,16 +9,25 @@ work the NEXT backlog (★ items first). For how work ships fleet-wide, read
 is docs/MIGRATION.md #6 — assigned to a dedicated session; scheduled steward
 runs skip this app).
 
-## How work ships (the platform process)
+## How work ships (the promotion pipeline — read docs/PIPELINE.md)
 
-- Branch `steward/<topic>` off latest main → ONE coherent unit of work → PR →
-  **merge your own PR when green. Never push to main directly.** Merge is ship:
-  `deploy.yml` publishes on merge. Never hard-gate deploy on CI — a hard
-  `needs: test` gate once froze the live site ~21 hours (STATUS.md "CI /
-  deploy"). Guard main (`.github/workflows/auto-revert.yml`) self-heals a
-  broken main; the platform janitor re-tests and merges green `steward/*` PRs
-  every 2h as a backstop. Park work for Kevin ONLY via the `hold` label plus a
-  written explanation on the PR.
+- **This repo is on the dev → qa → main pipeline** (rollout #2 of the
+  jobtracker pilot; that repo's docs/PIPELINE.md is the canonical runbook).
+  Branch `steward/<topic>` off latest **dev** → ONE coherent unit of work →
+  PR **into dev** → merge when the dev gate is green (`ci.yml`: validate +
+  changelog-check + `tools/dev-smoke.mjs`). **Merge-to-dev is STAGE, not
+  ship** — it publishes only the `/dev/` preview. `promote-to-qa.yml` (on
+  command, or nightly at 07:00Z per `.github/pipeline.json`) moves dev→qa
+  under the FULL `tests/run.js` suite + a staged-form boot smoke, rolling qa
+  back on red; `promote-to-prod.yml` (dispatch-only) ships qa→main with a
+  `release-vNNN` tag. **Hotfix exception:** a production emergency still PRs
+  straight into main — deploy stays ungated, Guard main watches, and the next
+  promotion back-merges the fix into dev. Never hard-gate deploy on CI — a
+  hard `needs: test` gate once froze the live site ~21 hours (STATUS.md "CI /
+  deploy"); the qa gate is fine because it gates an integration branch, never
+  the deploy. Park work for Kevin ONLY via the `hold` label plus a written
+  explanation on the PR. Stamp the changelog BEFORE merging to dev — nothing
+  stamps later in the pipeline.
 - **The changelog contract is sacred.** `js/changelog.js` is fleet-format,
   literal style, parsed live by Manager and the polecat.live launcher. Prepend
   ONE entry with `ts: ''` at the TOP, then run `node tools/changelog-normalize.js`
