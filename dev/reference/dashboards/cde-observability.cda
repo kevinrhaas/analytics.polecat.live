@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <DataAccess id="assetsBySource" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>AssetsBySource</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(d.datasource_type,''),'Unknown') AS src, SUM(s.entity_count) AS assets
+      FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="sensitivityMix" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>SensitivityMix</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(e.sensitivity,''),'Unclassified') AS sens, SUM(s.entity_count) AS assets
+      FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="govBySource" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>GovBySource</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT d.datasource_type AS src, ROUND(100.0*SUM(s.governed_entity_count)/NULLIF(SUM(s.entity_count),0),1) AS gov_pct
+      FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

@@ -1,0 +1,385 @@
+/* app/sources/schema.js — the backend-agnostic description of THIS app's
+   workspace (dashboards, datasets, connections), ported from the fleet's
+   reference implementation in manager.polecat.live/js/sources/schema.js.
+
+   This is the single source of truth every adapter builds against, so adding
+   a backend is "map these tables onto your storage" and nothing more. It is
+   deliberately free of any Store/DOM dependency.
+
+   ── The adapter contract (every entry in Studio.SOURCES) ────────────────────
+   A source adapter is a PLAIN OBJECT exposing:
+
+     id          'local' | 'turso' | 'supabase' | 'firebase' | 'snowflake' | …
+     label       human name for the picker
+     blurb       one line describing the backend
+     icon        Studio icon name
+     accent      brand color for the card/dot
+     caps        { meta:bool, data:bool } — what this adapter can DO:
+                   meta: can host the app's own workspace (dashboards/datasets/
+                         connections metadata) — the "repo backend" plane
+                   data: can run dataset queries for dashboards — the data plane
+     browserProvision  can it CREATE its objects from the browser? (meta plane;
+                       false → provision() returns a paste-me `sql` script)
+     local       optional bool — true only for the local adapter
+     fields      [{ key, label, placeholder, type:'text'|'password', hint? }]
+                 connection inputs; their values become `cfg`
+     docsUrl     where to get those values
+
+   META-plane methods (required when caps.meta; all async, and they NEVER throw
+   for an expected condition — bad creds/empty DB/foreign DB come back in the
+   result so the connect flow can branch; a throw means a genuine fault):
+
+     test(cfg)      → { ok, error? }                    reachable + authed?
+     probe(cfg)     → { state:'empty'|'polecat'|'foreign', app?, schemaVersion?,
+                        tables:[{name,count}] }
+     provision(cfg, snapshot) → { ok, error? }          create all objects
+                       (browserProvision:false → { ok:false, manual:true, sql })
+     summarize(cfg) → { tables:[{name,count}], app?, schemaVersion? }
+     drop(cfg)      → { ok, error? }                    destroy everything
+     load(cfg)      → snapshot                          read whole workspace
+     save(cfg, snapshot) → { ok, error? }               write whole workspace
+
+   DATA-plane methods (required when caps.data):
+
+     testData(cfg)  → { ok, error?, note? }             reachable for queries?
+     queryData(cfg, dataset, params) → { columns:[names], rows:[[cells]] }
+                       dataset: a dataset definition ({ kind:'sql', sql, … } —
+                       kinds vary by adapter); params: {key:value} already
+                       applied to the definition via Studio.WS.applyParams.
+
+   listSchema(cfg) → { tables:[{schema,name,columns:[{name,type}]}], error? }
+                       OPTIONAL (post-overhaul backlog item 5, "dataset
+                       delight" — the schema browser half): lists the
+                       connection's tables/columns so the Connections editor
+                       can offer a "Browse schema" panel. Adapters that don't
+                       implement it simply omit it — the UI hides the button.
+   ──────────────────────────────────────────────────────────────────────────── */
+(function () {
+  "use strict";
+  window.Studio = window.Studio || {};
+  var WS = {};
+
+  // Bump when the shape below changes in a way an older client couldn't read.
+  // v2 (Viridis V5): + analyses table — saved Explore analyses (a dataset +
+  // one chart mapping). v3 (Viridis V8): + jobs table — prep/rollup jobs that
+  // materialize their output as an ordinary workspace dataset. v4 (M3 auth): +
+  // users table — the internal user store the sign-in verifies against (mirrored
+  // from the local user store so it rides the backend snapshot; the `data` blob
+  // carries the SHA-256 password hash — UX-level gating, not RLS). Every bump is
+  // ADDITIVE: an older workspace loads fine (the local store fills missing
+  // tables; SQL adapters ensure-create on save; Supabase needs the provision
+  // delta run once — see provisionDeltaSQL below).
+  WS.SCHEMA_VERSION = 4;
+
+  // The app that owns a workspace. probe() uses it to tell "my repo" from
+  // "another Polecat app's repo" (manager, relay, …) from "a foreign database".
+  WS.APP_ID = "analytics";
+
+  // The marker table every provisioned workspace carries.
+  WS.META_TABLE = "polecat_meta";
+
+  // AUD-01: the Postgres function that saves a whole snapshot in ONE
+  // transaction (see atomicSaveSQL below). Named once here because both the
+  // SQL that creates it and the adapter that calls it have to agree.
+  WS.ATOMIC_SAVE_FN = "polecat_workspace_save";
+
+  // Entity tables that make up THIS app's workspace, in dependency order
+  // (connections before datasets before dashboards, so a relational restore
+  // never violates a foreign-key-shaped expectation). `columns` are promoted
+  // to real, indexed DB columns; every other field rides in a `data` JSON
+  // blob, so the schema never migrates when a row grows a new attribute.
+  // `id` + `data` are implicit on every table.
+  WS.WORKSPACE_TABLES = [
+    { name: "connections", columns: ["name", "adapter", "updatedAt"] },
+    { name: "datasets",    columns: ["name", "connectionId", "kind", "updatedAt"] },
+    { name: "dashboards",  columns: ["name", "title", "updatedAt"] },
+    { name: "analyses",    columns: ["name", "datasetId", "chartType", "updatedAt"] }, // v2 — Explore
+    { name: "jobs",        columns: ["name", "sourceDatasetId", "updatedAt"] }, // v3 — prep/rollup jobs
+    { name: "users",       columns: ["name", "role", "updatedAt"] } // v4 — auth (M3); data blob carries the pw hash
+  ];
+  WS.TABLE_NAMES = WS.WORKSPACE_TABLES.map(function (t) { return t.name; });
+
+  function sqlType(col) {
+    // updatedAt holds epoch-MILLISECONDS (~1.78e12), which overflows Postgres
+    // INTEGER (int4, max ~2.1e9) — Supabase writes fail with "value … is out of
+    // range for type integer" (22003). BIGINT holds it; SQLite/Turso accept
+    // BIGINT too (integer affinity), so this is safe for every adapter.
+    return col === "updatedAt" ? "BIGINT" : "TEXT";
+  }
+
+  // A promoted column's value, normalised for a scalar SQL cell. updatedAt is
+  // stored as epoch-ms (rows may carry ISO strings — coerce).
+  WS.columnValue = function (table, col, row) {
+    var v = row[col];
+    if (v == null) return null;
+    if (col === "updatedAt") { var t = +new Date(v); return isNaN(t) ? null : t; }
+    if (typeof v === "object") return null;
+    return v;
+  };
+
+  WS.tableDDL = function (table) {
+    var def = WS.WORKSPACE_TABLES.filter(function (t) { return t.name === table; })[0];
+    var cols = ['id TEXT PRIMARY KEY']
+      .concat(def.columns.map(function (c) { return '"' + c + '" ' + sqlType(c); }))
+      .concat(['data TEXT']);
+    return 'CREATE TABLE IF NOT EXISTS "' + table + '" (' + cols.join(", ") + ')';
+  };
+
+  WS.provisionDDL = function () {
+    return ['CREATE TABLE IF NOT EXISTS "' + WS.META_TABLE + '" (key TEXT PRIMARY KEY, value TEXT)']
+      .concat(WS.TABLE_NAMES.map(WS.tableDDL));
+  };
+
+  // The paste-me SQL that upgrades an older workspace to the current version
+  // (Supabase can't DDL from the browser; Turso self-heals — its save() runs
+  // the ensure-DDL). Cumulative and idempotent (CREATE TABLE IF NOT EXISTS),
+  // so it's safe to run against a v1 OR v2 workspace, and safe to run twice.
+  WS.provisionDeltaSQL = function () {
+    return "-- Analytics workspace delta — adds the analyses (v2), jobs (v3) and users (v4) tables\n" +
+      "-- plus the atomic-save function. Safe to run twice.\n" +
+      WS.tableDDL("analyses") + ";\n" + WS.tableDDL("jobs") + ";\n" + WS.tableDDL("users") + ";\n\n" +
+      WS.atomicSaveSQL();
+  };
+
+  // AUD-01 (audit §1.2) — the paste-me SQL for ATOMIC saves.
+  //
+  // PostgREST runs one statement per request, so a Supabase push is a SEQUENCE
+  // of independent writes (upsert connections, upsert datasets, delete
+  // tombstoned dashboards, …). Lose the connection half-way and the workspace
+  // is HALF SAVED — some tables carry the new state, some the old — with
+  // nothing to roll it back. Every other adapter is atomic (Turso batches;
+  // Firebase upserts-then-prunes); Supabase, the DEFAULT backend, was the
+  // outlier.
+  //
+  // A PL/pgSQL function IS a single transaction, so one RPC call carrying the
+  // whole snapshot either fully lands or fully rolls back. This is the
+  // one-time SQL that installs it; `supabase.js` calls it when it's there and
+  // falls back to the per-table push when it isn't, so an un-upgraded
+  // workspace keeps working exactly as before.
+  //
+  // Two deliberate properties, both load-bearing:
+  //   • SECURITY INVOKER (the default, stated explicitly) — every statement
+  //     inside still runs under the CALLER's Row-Level Security, exactly like
+  //     the per-table push. A SECURITY DEFINER function here would quietly
+  //     bypass the admin-arm posture and re-open the USERS-DURABLE wipe class.
+  //   • `users` is UPSERT-ONLY, forever (v787) — sync never deletes an account
+  //     row; removal is only ever the Admin flow's explicit deleteRows().
+  // Idempotent (CREATE OR REPLACE), safe to run twice.
+  WS.atomicSaveSQL = function () {
+    var tableList = WS.TABLE_NAMES.map(function (t) { return "'" + t + "'"; }).join(", ");
+    return "-- Analytics workspace — atomic saves. Installs polecat_workspace_save(jsonb): the whole\n" +
+      "-- workspace snapshot written in ONE transaction, so a dropped connection can never leave it\n" +
+      "-- half-saved. Runs under YOUR RLS policies (SECURITY INVOKER) and never deletes a users row.\n" +
+      "-- Safe to run twice.\n" +
+      'CREATE OR REPLACE FUNCTION public.' + WS.ATOMIC_SAVE_FN + '(payload jsonb)\n' +
+      "RETURNS jsonb\n" +
+      "LANGUAGE plpgsql\n" +
+      "SECURITY INVOKER\n" +
+      "SET search_path = public\n" +
+      "AS $polecat$\n" +
+      "DECLARE\n" +
+      "  t text;\n" +
+      "  cols text;\n" +
+      "  upd text;\n" +
+      "  rows_json jsonb;\n" +
+      "  dead jsonb;\n" +
+      "BEGIN\n" +
+      "  -- capability probe: the app asks 'are you here?' without writing anything\n" +
+      "  IF coalesce(payload->>'probe', '') = 'true' THEN\n" +
+      "    RETURN jsonb_build_object('ok', true, 'probe', true, 'version', 1);\n" +
+      "  END IF;\n" +
+      "  FOREACH t IN ARRAY ARRAY[" + tableList + "] LOOP\n" +
+      "    rows_json := coalesce(payload->'tables'->t, '[]'::jsonb);\n" +
+      "    IF jsonb_array_length(rows_json) > 0 THEN\n" +
+      "      -- Only touch columns the payload actually carries, so a column this\n" +
+      "      -- build has never heard of is left alone instead of nulled out\n" +
+      "      -- (the same shape PostgREST's merge-duplicates upsert has).\n" +
+      "      SELECT string_agg(quote_ident(c.column_name), ', ' ORDER BY c.ordinal_position),\n" +
+      "           string_agg(format('%I = excluded.%I', c.column_name, c.column_name), ', ' ORDER BY c.ordinal_position)\n" +
+      "             FILTER (WHERE c.column_name <> 'id')\n" +
+      "        INTO cols, upd\n" +
+      "        FROM information_schema.columns c\n" +
+      "       WHERE c.table_schema = 'public' AND c.table_name = t\n" +
+      "         AND EXISTS (SELECT 1 FROM jsonb_array_elements(rows_json) r WHERE r ? c.column_name);\n" +
+      "      EXECUTE format(\n" +
+      "        'INSERT INTO public.%I (%s) SELECT %s FROM jsonb_populate_recordset(null::public.%I, $1) ON CONFLICT (id) DO %s',\n" +
+      "        t, cols, cols, t,\n" +
+      "        CASE WHEN upd IS NULL THEN 'NOTHING' ELSE 'UPDATE SET ' || upd END)\n" +
+      "        USING rows_json;\n" +
+      "    END IF;\n" +
+      "    -- users is upsert-only: sync must never delete an account row\n" +
+      "    IF t <> 'users' THEN\n" +
+      "      dead := coalesce(payload->'tombstones'->t, '[]'::jsonb);\n" +
+      "      IF jsonb_array_length(dead) > 0 THEN\n" +
+      "        EXECUTE format('DELETE FROM public.%I WHERE id IN (SELECT jsonb_array_elements_text($1))', t)\n" +
+      "          USING dead;\n" +
+      "      END IF;\n" +
+      "    END IF;\n" +
+      "  END LOOP;\n" +
+      '  INSERT INTO public."' + WS.META_TABLE + '" (key, value)\n' +
+      "  SELECT m->>'key', m->>'value'\n" +
+      "    FROM jsonb_array_elements(coalesce(payload->'meta', '[]'::jsonb)) m\n" +
+      "  ON CONFLICT (key) DO UPDATE SET value = excluded.value;\n" +
+      "  RETURN jsonb_build_object('ok', true, 'version', 1);\n" +
+      "END;\n" +
+      "$polecat$;\n" +
+      'GRANT EXECUTE ON FUNCTION public.' + WS.ATOMIC_SAVE_FN + '(jsonb) TO anon, authenticated;';
+  };
+
+  // The paste-me SQL for the RLS-without-a-write-policy failure mode: a table
+  // with Row-Level Security enabled but no policy answers reads with EMPTY rows
+  // (so pulls look fine) and refuses every write with 401/403 (so pushes fail
+  // forever — no retry can fix a policy). Enables RLS with an open read/write
+  // policy on every workspace table — which matches the app's CURRENT posture
+  // (roles + private/public are UX-level gating; per-user enforcement is the M7
+  // track). Idempotent: drop-then-create, safe to run twice.
+  WS.rlsPolicySQL = function () {
+    var tables = [WS.META_TABLE].concat(WS.TABLE_NAMES);
+    return "-- Analytics workspace access — RLS on, with an open read/write policy for the app's key.\n" +
+      "-- ⚠ This grants the app's shared (anon) key FULL access — right for a personal/keyless workspace,\n" +
+      "-- WRONG for a shared workspace using Supabase Auth sign-in: there, one permissive policy like this\n" +
+      "-- silently defeats every per-user policy beside it (permissive policies OR together). Shared\n" +
+      "-- workspaces use the canonical tools/supabase-rls-real.sql instead. Safe to run twice.\n" +
+      tables.map(function (t) {
+        return 'ALTER TABLE "' + t + '" ENABLE ROW LEVEL SECURITY;\n' +
+          'DROP POLICY IF EXISTS "polecat_open_rw" ON "' + t + '";\n' +
+          'CREATE POLICY "polecat_open_rw" ON "' + t + '" FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);';
+      }).join("\n");
+  };
+
+  // The rows written into polecat_meta at provision time — workspace identity
+  // plus the app-level singletons (settings/meta) so the whole workspace is
+  // captured relationally without a bespoke table each.
+  WS.metaRows = function (snapshot) {
+    return [
+      { key: "app",            value: WS.APP_ID },
+      { key: "schema_version", value: String(WS.SCHEMA_VERSION) },
+      { key: "settings",       value: JSON.stringify((snapshot && snapshot.settings) || {}) },
+      { key: "meta",           value: JSON.stringify((snapshot && snapshot.meta) || {}) }
+    ];
+  };
+
+  // A snapshot is the portable, adapter-neutral form of a whole workspace:
+  //   { app, schemaVersion, tables:{ connections:[…rows], … }, settings, meta }
+  WS.emptySnapshot = function () {
+    var tables = {};
+    WS.TABLE_NAMES.forEach(function (t) { tables[t] = []; });
+    return { app: WS.APP_ID, schemaVersion: WS.SCHEMA_VERSION, tables: tables, settings: {}, meta: {} };
+  };
+
+  WS.isOwnApp = function (app) { return app === WS.APP_ID; };
+
+  // ---- SQL-shaped adapter helpers (from the fleet base.js) ----------------
+  // Split a row into { cols:{promoted→cell}, data:JSON-of-the-whole-row }.
+  // The full row always survives in `data` — promoted columns are a queryable
+  // projection, never the source of truth.
+  WS.rowToCells = function (table, row) {
+    var def = WS.WORKSPACE_TABLES.filter(function (t) { return t.name === table; })[0];
+    var cols = {};
+    def.columns.forEach(function (c) { cols[c] = WS.columnValue(table, c, row); });
+    return { id: row.id, cols: cols, data: JSON.stringify(row) };
+  };
+
+  WS.cellsToRow = function (dataText) {
+    try { var r = JSON.parse(dataText); return (r && r.id) ? r : null; }
+    catch (e) { return null; }
+  };
+
+  WS.snapshotToRows = function (snapshot) {
+    var out = {};
+    WS.TABLE_NAMES.forEach(function (t) {
+      out[t] = (snapshot.tables[t] || []).map(function (row) { return WS.rowToCells(t, row); });
+    });
+    return out;
+  };
+
+  WS.describeContents = function (res) {
+    var tbls = (res.tables || []).filter(function (t) { return t.count > 0; });
+    if (!tbls.length) return "no rows yet";
+    return tbls.map(function (t) { return t.count + " " + t.name; }).join(", ");
+  };
+
+  // ---- dataset parameter substitution --------------------------------------
+  // Dashboard-level template variables flow into dataset definitions as
+  // {{key}} placeholders (same syntax the dashboards already use), e.g.
+  //   SELECT * FROM {{schema}}.orders WHERE region = '{{region}}'
+  // Values are substituted as plain text; unmatched placeholders are left
+  // intact so the adapter's own error surfaces them clearly.
+  WS.applyParams = function (text, params) {
+    if (!text) return text;
+    params = params || {};
+    return String(text).replace(/\{\{\s*([A-Za-z0-9_.+-]+)\s*\}\}/g, function (m, key) {
+      // A user-supplied param value always wins (so an explicit {{today}} override still works)…
+      if (Object.prototype.hasOwnProperty.call(params, key) && params[key] != null) return String(params[key]);
+      // …otherwise fall back to a built-in DYNAMIC value (relative dates, resolved at run time —
+      // LF64). Unknown placeholders are left intact so the adapter's own error surfaces them.
+      var dyn = WS.dynamicParam(key);
+      return dyn != null ? dyn : m;
+    });
+  };
+
+  // LF64 — built-in DYNAMIC parameters: relative/date tokens usable in any dataset query (or
+  // dashboard variable) with NO param definition, resolved fresh every time the query runs so
+  // "last 30 days"-style filters stay current. Returns null for a non-dynamic key (so a plain
+  // {{region}} placeholder is left for a real param / the adapter error). Dates are ISO YYYY-MM-DD
+  // (local calendar day); {{now}} is a full ISO timestamp for datetime comparisons.
+  WS.dynamicParam = function (key) {
+    var k = String(key || "").toLowerCase();
+    function pad(n) { return (n < 10 ? "0" : "") + n; }
+    function iso(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+    var now = new Date();
+    if (k === "today") return iso(now);
+    if (k === "now") return now.toISOString();
+    if (k === "yesterday") { var y = new Date(now); y.setDate(y.getDate() - 1); return iso(y); }
+    if (k === "tomorrow") { var t = new Date(now); t.setDate(t.getDate() + 1); return iso(t); }
+    if (k === "month_start") return iso(new Date(now.getFullYear(), now.getMonth(), 1));
+    if (k === "month_end") return iso(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+    if (k === "year_start") return iso(new Date(now.getFullYear(), 0, 1));
+    if (k === "year_end") return iso(new Date(now.getFullYear(), 11, 31));
+    // Week is ISO/Postgres-style — Monday-start (matches date_trunc('week')).
+    if (k === "week_start" || k === "week_end") {
+      var dow = (now.getDay() + 6) % 7; // 0 = Monday … 6 = Sunday
+      var ws = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow);
+      if (k === "week_end") ws.setDate(ws.getDate() + 6);
+      return iso(ws);
+    }
+    // Calendar quarter (Q1 = Jan–Mar, …).
+    if (k === "quarter_start" || k === "quarter_end") {
+      var qsm = Math.floor(now.getMonth() / 3) * 3; // 0,3,6,9
+      return iso(k === "quarter_end"
+        ? new Date(now.getFullYear(), qsm + 3, 0)   // last day of the quarter's 3rd month
+        : new Date(now.getFullYear(), qsm, 1));
+    }
+    // {{today-30}} / {{today+7}} — N-day offsets from today
+    var off = k.match(/^today\s*([+-])\s*(\d+)$/);
+    if (off) { var d = new Date(now); d.setDate(d.getDate() + (off[1] === "-" ? -1 : 1) * parseInt(off[2], 10)); return iso(d); }
+    return null;
+  };
+
+  // ---- PostgREST-shaped data-plane helper ----------------------------------
+  // Shared by every adapter whose DATA plane literally IS PostgREST
+  // (sources/postgrest.js and sources/supabase.js — Supabase's REST API is
+  // PostgREST) — both had byte-identical copies of this table+query-string →
+  // {columns,rows} conversion (found in a Track L duplication-lens sweep).
+  // `restFn` is the caller's own `rest(cfg, path)` fetch wrapper, so each
+  // adapter's distinct base URL / auth-header / error-message behavior stays
+  // exactly where it was; only the response-shaping tail is shared.
+  // dataset: { kind:'table', table, query? } — `query` a raw PostgREST query
+  // string (e.g. "select=name,total&order=total.desc&limit=200").
+  WS.postgrestQueryData = function (restFn, cfg, dataset) {
+    var table = (dataset && dataset.table || "").trim();
+    if (!table) return Promise.resolve({ columns: [], rows: [], error: "Dataset has no table" });
+    var qs = (dataset.query || "select=*").replace(/^\?/, "");
+    return restFn(cfg, "/" + encodeURIComponent(table) + "?" + qs).then(function (r) {
+      if (!r.ok) return { columns: [], rows: [], error: "HTTP " + r.status };
+      return r.json().then(function (list) {
+        if (!Array.isArray(list) || !list.length) return { columns: [], rows: [] };
+        var columns = Object.keys(list[0]);
+        var rows = list.map(function (o) { return columns.map(function (c) { return o[c]; }); });
+        return { columns: columns, rows: rows };
+      });
+    }).catch(function (e) { return { columns: [], rows: [], error: e.message }; });
+  };
+
+  Studio.WS = WS;
+}());

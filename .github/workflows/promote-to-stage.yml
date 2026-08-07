@@ -47,12 +47,26 @@ jobs:
       - name: Schedule gate (cron ticks only — dispatch always promotes)
         id: gate
         run: |
-          if [ "${{ github.event_name }}" = "schedule" ]; then
-            if node tools/pipeline-schedule.mjs; then
-              echo "due=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "due=false" >> "$GITHUB_OUTPUT"
-            fi
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "due=true" >> "$GITHUB_OUTPUT"     # a dispatch always promotes
+            exit 0
+          fi
+          if ! node tools/pipeline-schedule.mjs; then
+            echo "due=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # NOTHING-TO-PROMOTE guard. The schedule now fires across a several-hour
+          # catch-up window (see tools/pipeline-schedule.mjs) so a delayed cron tick
+          # can still carry the night's promotion. That means several ticks are
+          # "due" — this keeps only the FIRST one doing work: once stage already
+          # contains dev, there is nothing to promote and the rest exit quietly
+          # instead of re-running the full suite. If dev moves again inside the
+          # window, the next tick promotes the newer work, which is what we want.
+          git fetch origin dev stage --quiet 2>/dev/null || true
+          DEV="$(git rev-parse origin/dev 2>/dev/null || echo none)"
+          if [ "$DEV" != "none" ] && git merge-base --is-ancestor "$DEV" origin/stage 2>/dev/null; then
+            echo "stage already contains dev ($DEV) — nothing to promote"
+            echo "due=false" >> "$GITHUB_OUTPUT"
           else
             echo "due=true" >> "$GITHUB_OUTPUT"
           fi

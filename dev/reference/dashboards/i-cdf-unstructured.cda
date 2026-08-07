@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <DataAccess id="kpi" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>KPI</Name><Parameters><Parameter name="ds" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT count(*) FILTER (WHERE e.entity_type='FILE') AS files,
+             count(*) FILTER (WHERE e.entity_type='FOLDER') AS folders,
+             (SELECT count(DISTINCT extension_name) FROM fact_extension_daily) AS extensions,
+             (SELECT SUM(file_count) FROM fact_extension_daily
+                WHERE snapshot_date_key=(SELECT max(snapshot_date_key) FROM fact_extension_daily)) AS scanned_files
+      FROM dim_entity e
+      LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key
+      WHERE COALESCE(dd.datasource_type,'') LIKE ${ds}
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="by_extension" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>ByExtension</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT extension_name AS ext, SUM(file_count) AS files FROM fact_extension_daily
+      WHERE snapshot_date_key=(SELECT max(snapshot_date_key) FROM fact_extension_daily)
+      GROUP BY 1 HAVING SUM(file_count)>0 ORDER BY 2 DESC LIMIT 14
+    ]]></Query>
+  </DataAccess>
+  <DataAccess id="detail_files_by_ext" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180"><Name>DFE</Name><Parameters><Parameter name="ext" type="String" default="%"/></Parameters>
+    <Query><![CDATA[ SELECT COALESCE(NULLIF(e.entity_name,''),'(unnamed)') AS name,
+             COALESCE(NULLIF(dd.datasource_type,''),'Unknown') AS src,
+             COALESCE(NULLIF(e.owner_name,''),'—') AS owner,
+             COALESCE(NULLIF(e.sensitivity,''),'Unclassified') AS sensitivity
+      FROM dim_entity e LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key
+      WHERE e.entity_type='FILE' AND lower(regexp_replace(e.entity_name,'^.*\.','')) = lower(${ext})
+      ORDER BY e.entity_name LIMIT 500 ]]></Query></DataAccess>
+
+  <DataAccess id="by_source" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>BySource</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(dd.datasource_type,''),'Unknown') AS src, count(*) AS files
+      FROM dim_entity e LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key
+      WHERE e.entity_type='FILE' GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="trend" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>Trend</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT dd.year_month_name AS month, SUM(f.file_count) AS files
+      FROM fact_extension_daily f JOIN dim_date dd ON f.snapshot_date_key=dd.date_key
+      WHERE f.snapshot_date_key<>19000101 GROUP BY dd.year_month_name, dd.year_month_number ORDER BY dd.year_month_number
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="datasources" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>DataSources</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT '%' AS v, 'All sources' AS l, 0 AS ord
+      UNION ALL
+      SELECT DISTINCT datasource_type AS v, datasource_type AS l, 1 AS ord
+        FROM dim_datasource WHERE datasource_type IS NOT NULL AND datasource_type<>''
+      ORDER BY ord, l
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

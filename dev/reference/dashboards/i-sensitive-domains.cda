@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <DataAccess id="kpi" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>KPI</Name><Parameters><Parameter name="glossary" type="String" default="%"/><Parameter name="owner" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT count(DISTINCT g.level_1_glossary) FILTER (WHERE e.sensitivity IN ('HIGH','MEDIUM','LOW')) AS glossaries_w_sens,
+             count(DISTINCT f.entity_key) FILTER (WHERE e.sensitivity='HIGH') AS high_entities,
+             count(DISTINCT f.entity_key) FILTER (WHERE e.sensitivity IN ('HIGH','MEDIUM')) AS hm_entities,
+             ROUND(100.0*count(DISTINCT f.entity_key) FILTER (WHERE e.sensitivity IN ('HIGH','MEDIUM','LOW'))/NULLIF(count(DISTINCT f.entity_key),0),1) AS sens_pct
+      FROM fact_entity_term f
+      JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key
+      JOIN dim_entity e ON f.entity_key=e.entity_key
+      WHERE COALESCE(g.level_1_glossary,'') LIKE ${glossary}
+        AND COALESCE(NULLIF(e.owner_name,''),'—') LIKE ${owner}
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="heat" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>Heat</Name><Parameters><Parameter name="glossary" type="String" default="%"/><Parameter name="owner" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT g.level_1_glossary AS glossary, COALESCE(NULLIF(e.sensitivity,''),'Unclassified') AS sens,
+             count(DISTINCT f.entity_key) AS entities
+      FROM fact_entity_term f
+      JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key
+      JOIN dim_entity e ON f.entity_key=e.entity_key
+      WHERE NULLIF(g.level_1_glossary,'') IS NOT NULL AND COALESCE(g.level_1_glossary,'') LIKE ${glossary}
+        AND COALESCE(NULLIF(e.owner_name,''),'—') LIKE ${owner}
+      GROUP BY 1,2 ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="risk_rank" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>RiskRank</Name><Parameters><Parameter name="glossary" type="String" default="%"/><Parameter name="owner" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT g.level_1_glossary AS glossary,
+             count(DISTINCT f.entity_key) FILTER (WHERE e.sensitivity IN ('HIGH','MEDIUM')) AS hm_entities
+      FROM fact_entity_term f
+      JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key
+      JOIN dim_entity e ON f.entity_key=e.entity_key
+      WHERE NULLIF(g.level_1_glossary,'') IS NOT NULL AND COALESCE(g.level_1_glossary,'') LIKE ${glossary}
+        AND COALESCE(NULLIF(e.owner_name,''),'—') LIKE ${owner}
+      GROUP BY 1 HAVING count(DISTINCT f.entity_key) FILTER (WHERE e.sensitivity IN ('HIGH','MEDIUM')) > 0
+      ORDER BY 2 DESC LIMIT 12
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="detail_risk_domain" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>DetailRiskDomain</Name><Parameters><Parameter name="glossary" type="String" default="%"/><Parameter name="owner" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT DISTINCT COALESCE(NULLIF(e.entity_name,''),'(unnamed)') AS name,
+             COALESCE(NULLIF(g.term_name,''),'—') AS term,
+             e.sensitivity AS sensitivity,
+             COALESCE(NULLIF(e.owner_name,''),'—') AS owner
+      FROM fact_entity_term f
+      JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key
+      JOIN dim_entity e ON f.entity_key=e.entity_key
+      WHERE e.sensitivity IN ('HIGH','MEDIUM') AND COALESCE(g.level_1_glossary,'') LIKE ${glossary}
+        AND COALESCE(NULLIF(e.owner_name,''),'—') LIKE ${owner}
+      ORDER BY 3, 1
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="sens_mix" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>SensMix</Name><Parameters><Parameter name="glossary" type="String" default="%"/><Parameter name="owner" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(e.sensitivity,''),'Unclassified') AS sens, count(DISTINCT f.entity_key) AS entities
+      FROM fact_entity_term f
+      JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key
+      JOIN dim_entity e ON f.entity_key=e.entity_key
+      WHERE NULLIF(g.level_1_glossary,'') IS NOT NULL AND COALESCE(g.level_1_glossary,'') LIKE ${glossary}
+        AND COALESCE(NULLIF(e.owner_name,''),'—') LIKE ${owner}
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="top_terms" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>TopTerms</Name><Parameters><Parameter name="glossary" type="String" default="%"/><Parameter name="owner" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT g.term_name AS term, g.level_1_glossary AS glossary,
+             COALESCE(NULLIF(e.sensitivity,''),'?') AS sens, count(DISTINCT f.entity_key) AS entities
+      FROM fact_entity_term f
+      JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key
+      JOIN dim_entity e ON f.entity_key=e.entity_key
+      WHERE e.sensitivity IN ('HIGH','MEDIUM') AND COALESCE(g.level_1_glossary,'') LIKE ${glossary}
+        AND COALESCE(NULLIF(e.owner_name,''),'—') LIKE ${owner}
+      GROUP BY 1,2,3 ORDER BY 4 DESC LIMIT 16
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="glossaries" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>Glossaries</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT DISTINCT g.level_1_glossary FROM fact_entity_term f
+      JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key
+      WHERE NULLIF(g.level_1_glossary,'') IS NOT NULL ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="owners" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>Owners</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT DISTINCT COALESCE(NULLIF(e.owner_name,''),'—') AS owner
+      FROM fact_entity_term f
+      JOIN dim_entity e ON f.entity_key=e.entity_key
+      WHERE e.sensitivity IN ('HIGH','MEDIUM') ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

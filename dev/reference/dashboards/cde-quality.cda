@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <DataAccess id="completenessBySource" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>CompletenessBySource</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT d.datasource_type AS src,
+             ROUND(100.0*SUM(s.metadata_completed_field_count)/NULLIF(SUM(s.metadata_expected_field_count),0),1) AS pct
+      FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="profilingStatus" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>ProfilingStatus</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(e.data_profile_status,''),'Not Profiled') AS status, SUM(s.entity_count) AS assets
+      FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="missingAttrs" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>MissingAttrs</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT 'Owner' AS attr, SUM(missing_owner_count) AS cnt FROM fact_entity_snapshot
+      UNION ALL SELECT 'Group', SUM(missing_group_count) FROM fact_entity_snapshot
+      UNION ALL SELECT 'File Type', SUM(missing_filetype_count) FROM fact_entity_snapshot
+      UNION ALL SELECT 'Path', SUM(missing_path_count) FROM fact_entity_snapshot
+      UNION ALL SELECT 'Created Date', SUM(missing_created_date_count) FROM fact_entity_snapshot
+      UNION ALL SELECT 'Modified Date', SUM(missing_modified_date_count) FROM fact_entity_snapshot
+      UNION ALL SELECT 'Accessed Date', SUM(missing_accessed_date_count) FROM fact_entity_snapshot
+      ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

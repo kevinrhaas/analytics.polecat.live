@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <DataAccess id="kpi" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>KPI</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="schema" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT count(*) FILTER (WHERE e.resource_type='Structured') AS structured_assets,
+             count(*) FILTER (WHERE e.entity_type='TABLE') AS tables,
+             count(*) FILTER (WHERE e.entity_type='COLUMN') AS columns,
+             count(DISTINCT e.structured_schema) FILTER (WHERE e.structured_schema NOT IN ('','Unknown')) AS schemas
+      FROM dim_entity e LEFT JOIN dim_datasource d ON md5(e.datasource_nk)=d.datasource_key
+      WHERE COALESCE(d.datasource_type,'') LIKE ${ds} AND COALESCE(e.structured_schema,'') LIKE ${schema}
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="by_type" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>ByType</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="schema" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT e.entity_type AS etype, count(*) AS n FROM dim_entity e
+      LEFT JOIN dim_datasource d ON md5(e.datasource_nk)=d.datasource_key
+      WHERE COALESCE(d.datasource_type,'') LIKE ${ds} AND COALESCE(e.structured_schema,'') LIKE ${schema} AND e.entity_type IS NOT NULL AND e.entity_type<>''
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="data_types" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>DataTypes</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="schema" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT upper(e.column_data_type) AS dt, count(*) AS n FROM dim_entity e
+      LEFT JOIN dim_datasource d ON md5(e.datasource_nk)=d.datasource_key
+      WHERE COALESCE(d.datasource_type,'') LIKE ${ds} AND COALESCE(e.structured_schema,'') LIKE ${schema} AND e.column_data_type IS NOT NULL AND e.column_data_type<>''
+      GROUP BY 1 ORDER BY 2 DESC LIMIT 12
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="keys" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>Keys</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT 'Primary Key' AS k, count(*) AS n FROM dim_entity WHERE is_primary_key
+      UNION ALL SELECT 'Foreign Key', count(*) FROM dim_entity WHERE is_foreign_key
+      UNION ALL SELECT 'Other Columns', count(*) FROM dim_entity
+        WHERE entity_type='COLUMN' AND NOT COALESCE(is_primary_key,false) AND NOT COALESCE(is_foreign_key,false)
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="schemas_by_cols" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>SchemasByCols</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT e.structured_schema AS schema, count(*) FILTER (WHERE e.entity_type='COLUMN') AS cols
+      FROM dim_entity e WHERE e.structured_schema NOT IN ('','Unknown')
+      GROUP BY 1 ORDER BY 2 DESC LIMIT 12
+    ]]></Query>
+  </DataAccess>
+  <DataAccess id="detail_schema_columns" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180">
+    <Name>DSC</Name><Parameters><Parameter name="schema" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(e.structured_table,''),'(no table)') AS tbl,
+             COALESCE(NULLIF(e.entity_name,''),'(unnamed)') AS col,
+             COALESCE(NULLIF(e.column_data_type,''),'—') AS dtype,
+             e.cardinality, e.row_count
+      FROM dim_entity e WHERE e.entity_type='COLUMN' AND e.structured_schema = ${schema}
+      ORDER BY e.structured_table, e.entity_name
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="top_schemas" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>TopSchemas</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT e.structured_schema AS schema,
+             count(*) FILTER (WHERE e.entity_type='COLUMN') AS cols,
+             count(*) FILTER (WHERE e.entity_type='TABLE') AS tables
+      FROM dim_entity e WHERE e.structured_schema NOT IN ('','Unknown')
+      GROUP BY 1 ORDER BY 2 DESC LIMIT 12
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="schema_growth" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180">
+    <Name>SchemaGrowth</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="schema" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      WITH monthly AS (
+        SELECT to_char(dt.full_date,'YYYY-MM') AS ym,
+               COUNT(*) FILTER (WHERE e.entity_type='TABLE') AS new_tables,
+               COUNT(*) FILTER (WHERE e.entity_type='COLUMN') AS new_cols
+        FROM fact_entity_snapshot s
+        JOIN dim_date dt ON s.scanned_date_key=dt.date_key
+        JOIN dim_entity e ON s.entity_key=e.entity_key
+        JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+        WHERE s.scanned_date_key<>19000101 AND e.entity_type IN ('TABLE','COLUMN')
+          AND d.datasource_type LIKE ${ds} AND COALESCE(e.structured_schema,'') LIKE ${schema}
+        GROUP BY 1
+      )
+      SELECT ym,
+             SUM(new_tables) OVER (ORDER BY ym ROWS UNBOUNDED PRECEDING) AS total_tables,
+             SUM(new_cols) OVER (ORDER BY ym ROWS UNBOUNDED PRECEDING) AS total_cols
+      FROM monthly ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="datasources" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>DataSources</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT '%' AS v, 'All sources' AS l, 0 AS ord
+      UNION ALL
+      SELECT DISTINCT datasource_type AS v, datasource_type AS l, 1 AS ord
+        FROM dim_datasource WHERE datasource_type IS NOT NULL AND datasource_type<>''
+      ORDER BY ord, l
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="schemas" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>Schemas</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT '%' AS v, 'All schemas' AS l, 0 AS ord, 0 AS cols
+      UNION ALL
+      SELECT e.structured_schema AS v, e.structured_schema AS l, 1 AS ord,
+             count(*) FILTER (WHERE e.entity_type='COLUMN') AS cols
+        FROM dim_entity e WHERE e.structured_schema NOT IN ('','Unknown') AND e.structured_schema IS NOT NULL
+        GROUP BY 1,2,3
+      ORDER BY ord, cols DESC, l
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

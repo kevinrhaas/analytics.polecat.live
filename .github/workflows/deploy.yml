@@ -44,6 +44,10 @@ jobs:
   # WITHOUT ever blocking or failing the deploy.
   # DO NOT re-add `needs: test` to the deploy job — see STATUS.md "CI / deploy" convention.
   test:
+    # Only on real pushes — the preview re-dispatch below re-enters this same
+    # workflow on main, and running the ~10-minute suite twice per merge doubles
+    # CI for no extra signal.
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
@@ -56,7 +60,37 @@ jobs:
       - name: Run Playwright test suite
         run: NODE_PATH=$(npm root -g) node tests/run.js
 
+  # PREVIEW-REFRESH (2026-08-07): Pages deployments can only run from main.
+  # The `github-pages` environment carries a deployment-branch policy, so a
+  # `deploy` job on a dev/stage ref is REJECTED before a runner is even
+  # assigned — a 1-second failure with no steps and no logs. That is exactly
+  # what happened to every steward merge overnight: the push fired this
+  # workflow, the deploy job was refused, and /dev/ silently stayed frozen at
+  # the last main deploy while dev raced ahead 15 versions.
+  # So a dev/stage push does not deploy itself — it re-enters this workflow ON
+  # MAIN, which rebuilds the whole artifact: production from main, plus the
+  # /dev/ and /stage/ previews assembled from their own refs (see the deploy
+  # job's assembly step — the refs are inputs, main is always the root).
+  # workflow_dispatch is one of the documented events GITHUB_TOKEN may trigger,
+  # and the dispatched run is on main, so it never re-dispatches itself.
+  refresh-previews:
+    if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Re-run this deploy on main (rebuilds /dev/ + /stage/ previews)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "push to ${GITHUB_REF#refs/heads/} — dispatching deploy.yml on main to refresh the previews"
+          gh workflow run deploy.yml --ref main
+
   deploy:
+    # Pages deploys run from main ONLY (the github-pages environment rejects
+    # other refs outright — see refresh-previews above).
+    if: github.ref == 'refs/heads/main'
     # Intentionally NOT `needs: test` — the static site must stay live regardless of the
     # soft test signal above (a flaky test froze it for ~21h). Runs in parallel with test.
     environment:

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dashboard>
+<title>i1 Catalog Composition Overview</title>
+<heading/>
+<enableWidgetPrinting>false</enableWidgetPrinting>
+<documentation><author>admin</author><description>Pentaho-native Analyzer dashboard over cube 01 (Data Asset Analysis): assets by source and resource type, glossary coverage, and a catalog summary pivot.</description><icon/></documentation>
+<template-ref>xul/04-1-then-2.xul</template-ref>
+<theme-ref>0-Ruby</theme-ref>
+<layout>
+<overlay xmlns:pho="http://www.pentaho.com" pho:fixie="withme">
+<box id="Panel_1" pho:title="Assets by Data Source" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_2" pho:title="Assets by Resource Type" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_3" pho:title="Assets by Source and Resource Type" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_4" pho:title="Distinct Terms by Glossary" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_5" pho:title="Catalog Coverage by Glossary" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_6" pho:title="Catalog Summary Pivot" flex="1" collapsed="false" type="titled-panel"/>
+</overlay>
+</layout>
+<parameters>
+</parameters>
+<widgetJavascript><![CDATA[]]></widgetJavascript>
+<widgets>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/iteration/i1-assets-by-source.xanalyzer</xactionPath><localizedName jsonType="string">i1-assets-by-source</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">9100</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/iteration/i1-assets-by-source.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_1</htmlObject><solution jsonType="string"/><name jsonType="string">widget1</name><action jsonType="string">i1-assets-by-source.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/iteration/i1-assets-by-resource.xanalyzer</xactionPath><localizedName jsonType="string">i1-assets-by-resource</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">9101</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/iteration/i1-assets-by-resource.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_2</htmlObject><solution jsonType="string"/><name jsonType="string">widget2</name><action jsonType="string">i1-assets-by-resource.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/iteration/i1-source-resource-matrix.xanalyzer</xactionPath><localizedName jsonType="string">i1-source-resource-matrix</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">9102</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/iteration/i1-source-resource-matrix.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_3</htmlObject><solution jsonType="string"/><name jsonType="string">widget3</name><action jsonType="string">i1-source-resource-matrix.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/iteration/i1-terms-by-glossary.xanalyzer</xactionPath><localizedName jsonType="string">i1-terms-by-glossary</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">9103</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/iteration/i1-terms-by-glossary.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_4</htmlObject><solution jsonType="string"/><name jsonType="string">widget4</name><action jsonType="string">i1-terms-by-glossary.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/iteration/i1-glossary-treemap.xanalyzer</xactionPath><localizedName jsonType="string">i1-glossary-treemap</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">9104</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/iteration/i1-glossary-treemap.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_5</htmlObject><solution jsonType="string"/><name jsonType="string">widget5</name><action jsonType="string">i1-glossary-treemap.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/iteration/i1-catalog-pivot.xanalyzer</xactionPath><localizedName jsonType="string">i1-catalog-pivot</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">9105</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/iteration/i1-catalog-pivot.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_6</htmlObject><solution jsonType="string"/><name jsonType="string">widget6</name><action jsonType="string">i1-catalog-pivot.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+</widgets>
+</dashboard>

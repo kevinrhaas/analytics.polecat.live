@@ -1,0 +1,2561 @@
+/* ============================================================================
+   studio-render.js — runs INSIDE the dashboard (preview iframe AND exported
+   exported dashboard html). Reads window.STUDIO_SPEC and renders it through the DashKit toolkit,
+   so the live preview is byte-identical to the deployed dashboard html.
+   Depends only on DashKit (vendor/dashkit.js). No build step.
+   ============================================================================ */
+(function () {
+  "use strict";
+  var SR = window.StudioRender = {};
+  // read lazily — the boot script may set STUDIO_PREVIEW AFTER this file loads
+  function isPreview() { return !!window.STUDIO_PREVIEW; }
+  // V9 (scientific-honesty polish): "Last updated" epoch ms for a data access's
+  // backing dataset, stamped by exporters.js's buildHtml into window.STUDIO_DA_META
+  // (a sibling global to STUDIO_SPEC, not a spec field — see that file for why).
+  // null when the DA has no linked workspace dataset (samples, direct connectors).
+  function daLastUpdated(daId) { return (window.STUDIO_DA_META && window.STUDIO_DA_META[daId]) || null; }
+
+  // Studio.icon() is NOT available here (iframe scope). Tiny inline SVG helper for builder-only buttons.
+  function iSvg(d, sz) {
+    return '<svg viewBox="0 0 24 24" width="' + sz + '" height="' + sz + '" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
+  }
+  var I_DUP   = iSvg('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>', 13);
+  var I_CLOSE = iSvg('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>', 12);
+  var I_MAXIMIZE = iSvg('<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>', 13);
+  // LF6: per-panel download chrome icons (image / tabular data).
+  var I_IMG = iSvg('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>', 13);
+  var I_TABLE = iSvg('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>', 13);
+  // LF25(a): on-panel "export this panel as HTML" icon (builder/preview only — see addDownloadChrome).
+  var I_CODE = iSvg('<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>', 13);
+  // LF69(d): the "Export ▾" menu trigger — a download-tray glyph + a small caret (see addDownloadChrome).
+  var I_DLTRIG = iSvg('<path d="M12 3v11m0 0l-3.5-3.5M12 14l3.5-3.5"/><path d="M5 16v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"/>', 13);
+  var I_CARET_SM = iSvg('<polyline points="6 9 12 15 18 9"/>', 9);
+
+  // N-DEV: {{key}} template-var substitution for panel titles/notes. Studio.applyTemplateVars
+  // (app/model.js) is NOT available here — model.js is a builder-only module, never inlined into
+  // the exported/preview bundle (see the file header + the pctOf() note above). Local copy of the
+  // same pure substitution logic; the dashboard Title/Subtitle banner is resolved separately, in
+  // exporters.js's buildHtml (which runs in the builder page where Studio.applyTemplateVars exists).
+  function applyTemplateVars(str, vars) {
+    if (!str || !vars || !vars.length) return str;
+    var map = {};
+    vars.forEach(function (v) { if (v && v.key) map[v.key] = v.value == null ? "" : v.value; });
+    return str.replace(/\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g, function (m, key) {
+      return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : m;
+    });
+  }
+
+  // Z14 architecture-gap fix: app/duckdb.js / app/sqlitehttp.js (bundled into the export only
+  // when the dashboard uses one, see exporters.js) both call Studio.withTimeout /
+  // Studio.friendlyConnectorError, which live in app/model.js — same "builder-only module, never
+  // inlined here" situation as applyTemplateVars above. Local copies of the same pure helpers.
+  window.Studio = window.Studio || {};
+  Studio.withTimeout = Studio.withTimeout || function (promise, ms, label) {
+    return new Promise(function (resolve, reject) {
+      var timer = setTimeout(function () { reject(new Error((label || "Operation") + " timed out — check the URL and your network connection.")); }, ms);
+      promise.then(function (v) { clearTimeout(timer); resolve(v); }, function (e) { clearTimeout(timer); reject(e); });
+    });
+  };
+  Studio.friendlyConnectorError = Studio.friendlyConnectorError || function (message) {
+    var msg = String(message || "Unknown error"), low = msg.toLowerCase(), hint = null;
+    if (/failed to fetch|networkerror|load failed|cors/.test(low)) hint = "This usually means the host doesn't allow cross-origin requests (CORS) or blocks HTTP Range Requests. Try a public S3/GCS/R2 bucket with CORS enabled for your origin, or a direct static-file host.";
+    else if (/timed out/.test(low)) hint = "The file may be unreachable, very large, or the host may be slow to respond to range requests — double-check the URL in a new browser tab first.";
+    else if (/404|not found/.test(low)) hint = "The file URL returned a 404 — double-check the path and that the file is publicly readable.";
+    return hint ? msg + " — " + hint : msg;
+  };
+
+  // N-DATA follow-up (STATUS.md, "a calc column still isn't appended to the v318 DuckDB/SQLite
+  // live runtime query result"): Studio.evalFormula/applyCalcCols (app/model.js) are, again, a
+  // "builder-only module, never inlined here" situation (see applyTemplateVars above) — local
+  // copies of the same pure logic so a DA's Calculated columns actually land in the live-query
+  // result once deployed, matching what the builder's own offline preview already computes.
+  function evalFormula(formula, rowObj, ctx) {
+    var s = String(formula || "").replace(/^\s*=\s*/, "");
+    var i = 0;
+    function skipWs() { while (i < s.length && /\s/.test(s[i])) i++; }
+    function parseExpr() {
+      var v = parseTerm();
+      for (;;) {
+        skipWs();
+        var c = s[i];
+        if (c === "+" || c === "-") { i++; var r = parseTerm(); v = c === "+" ? v + r : v - r; }
+        else break;
+      }
+      return v;
+    }
+    function parseTerm() {
+      var v = parseFactor();
+      for (;;) {
+        skipWs();
+        var c = s[i];
+        if (c === "*" || c === "/") {
+          i++; var r = parseFactor();
+          if (c === "*") v = v * r;
+          else { if (r === 0) throw new Error("division by zero"); v = v / r; }
+        } else break;
+      }
+      return v;
+    }
+    function parseColRef() {
+      if (s[i] !== "[") throw new Error("expected a [column] reference");
+      i++; var start = i;
+      while (i < s.length && s[i] !== "]") i++;
+      if (s[i] !== "]") throw new Error("missing closing ]");
+      var name = s.slice(start, i); i++;
+      return name;
+    }
+    function parseNamedFn(name) {
+      i++; // consume "("
+      var colName = parseColRef();
+      var windowArg = null;
+      skipWs();
+      if (s[i] === ",") {
+        i++; skipWs();
+        var numStart = i;
+        while (i < s.length && /[0-9.]/.test(s[i])) i++;
+        if (i === numStart) throw new Error(name + "()'s second argument must be a number");
+        windowArg = parseFloat(s.slice(numStart, i));
+      }
+      skipWs();
+      if (s[i] !== ")") throw new Error("missing closing ) in " + name + "(...)");
+      i++;
+      if (!ctx || typeof ctx.series !== "function" || ctx.index == null)
+        throw new Error(name + "() isn't available here");
+      var series = ctx.series(colName);
+      if (!series) throw new Error("unknown column [" + colName + "] in " + name + "()");
+      if (name === "pctChange") {
+        if (ctx.index <= 0) throw new Error("pctChange() has no prior row to compare against");
+        var prev = series[ctx.index - 1], cur = series[ctx.index];
+        if (!isFinite(prev) || prev === 0) throw new Error("pctChange()'s previous value isn't a usable number");
+        return ((cur - prev) / prev) * 100;
+      }
+      var w = Math.max(1, Math.round(windowArg || 3));
+      var from = Math.max(0, ctx.index - w + 1), sum = 0, cnt = 0;
+      for (var j = from; j <= ctx.index; j++) { var v = series[j]; if (isFinite(v)) { sum += v; cnt++; } }
+      if (!cnt) throw new Error("movingAvg() has no numeric values in its window");
+      return sum / cnt;
+    }
+    function parseFactor() {
+      skipWs();
+      var c = s[i];
+      if (c === "+") { i++; return parseFactor(); }
+      if (c === "-") { i++; return -parseFactor(); }
+      if (c === "(") {
+        i++; var v = parseExpr(); skipWs();
+        if (s[i] !== ")") throw new Error("missing closing )");
+        i++; return v;
+      }
+      if (c === "[") {
+        var name = parseColRef();
+        if (!rowObj || !(name in rowObj)) throw new Error("unknown column [" + name + "]");
+        var val = +rowObj[name];
+        if (isNaN(val)) throw new Error("[" + name + "] isn't numeric here");
+        return val;
+      }
+      var identMatch = /^(pctChange|movingAvg)\s*\(/.exec(s.slice(i));
+      if (identMatch) { i += identMatch[1].length; skipWs(); return parseNamedFn(identMatch[1]); }
+      var numStart = i;
+      while (i < s.length && /[0-9.]/.test(s[i])) i++;
+      if (i === numStart) throw new Error(c ? "unexpected \"" + c + "\"" : "unexpected end of formula");
+      return parseFloat(s.slice(numStart, i));
+    }
+    try {
+      if (!s.trim()) throw new Error("empty formula");
+      var result = parseExpr();
+      skipWs();
+      if (i < s.length) throw new Error("unexpected trailing text");
+      return { value: result, error: null };
+    } catch (e) {
+      return { value: null, error: e.message };
+    }
+  }
+  function applyCalcCols(cols, rows, calcColumns) {
+    cols = cols || []; rows = rows || [];
+    var valid = (calcColumns || []).filter(function (c) { return c && c.name && c.formula; });
+    if (!valid.length) return { cols: cols.slice(), rows: rows.map(function (r) { return r.slice(); }) };
+    var outCols = cols.concat(valid.map(function (c) { return c.name; }));
+    var seriesCache = {};
+    function seriesFor(name) {
+      if (Object.prototype.hasOwnProperty.call(seriesCache, name)) return seriesCache[name];
+      var ci = cols.indexOf(name);
+      var s = ci < 0 ? null : rows.map(function (r) { return +r[ci]; });
+      seriesCache[name] = s;
+      return s;
+    }
+    var outRows = rows.map(function (row, rowIndex) {
+      var rowObj = {};
+      cols.forEach(function (c, i) { rowObj[c] = row[i]; });
+      var out = row.slice();
+      valid.forEach(function (c) {
+        var r = evalFormula(c.formula, rowObj, { index: rowIndex, series: seriesFor });
+        out.push(r.error ? null : r.value);
+      });
+      return out;
+    });
+    return { cols: outCols, rows: outRows };
+  }
+
+  // Z14 architecture-gap fix (STATUS.md): DashKit.cda (vendor/dashkit.js, kept pristine) only ever
+  // reads injected mock data (in-app preview) or calls a real Pentaho CDA endpoint — a duckdb/
+  // httpvfs data access has no CDA definition on the server, so it 404s the moment a dashboard
+  // with one bound is actually exported/deployed. Wrap DashKit.cda so a matching spec DA of kind
+  // "duckdb"/"httpvfs" is answered by querying its file directly over HTTP Range Requests
+  // instead — the mock and real-Pentaho-CDA paths (and DashKit.cda's contract) are untouched.
+  // Post-overhaul backlog item 3 follow-up: the four credential-based direct connectors
+  // (Snowflake/Databricks/BigQuery/Generic SQL) join duckdb/httpvfs above. exporters.js's
+  // redactSecrets() strips each DA's secret field (token/auth header) before it's ever embedded
+  // in window.STUDIO_SPEC and stamps `da.needsSecret` with the field name; here, at open time, we
+  // prompt for that ONE value (never the non-secret fields already on the DA) and keep it
+  // in-memory only for the rest of the page's lifetime — "credentials prompted at open, never
+  // embedded." Only wired for a real deployment (not the builder's own live-editing preview
+  // iframe, window.STUDIO_PREVIEW) so editing a dashboard never pops a browser prompt.
+  var CRED_ENGINES = {
+    snowflake: {
+      label: "Snowflake access token",
+      engine: function () { return window.Studio && Studio.Snowflake; },
+      cfg: function (da, secret) { return { account: da.sfAccount, token: secret, tokenType: da.sfTokenType, warehouse: da.sfWarehouse, database: da.sfDatabase, schema: da.sfSchema, role: da.sfRole }; }
+    },
+    databricks: {
+      label: "Databricks access token",
+      engine: function () { return window.Studio && Studio.Databricks; },
+      cfg: function (da, secret) { return { host: da.dbxHost, token: secret, warehouseId: da.dbxWarehouseId, catalog: da.dbxCatalog, schema: da.dbxSchema }; }
+    },
+    bigquery: {
+      label: "BigQuery OAuth access token",
+      engine: function () { return window.Studio && Studio.BigQuery; },
+      cfg: function (da, secret) { return { project: da.bqProject, token: secret, location: da.bqLocation, dataset: da.bqDataset }; }
+    },
+    http: {
+      label: "Authorization header value",
+      engine: function () { return window.Studio && Studio.GenericSql; },
+      cfg: function (da, secret) { return { url: da.httpUrl, method: da.httpMethod, authHeader: secret, paramName: da.httpParamName }; }
+    }
+  };
+  // Post-overhaul backlog item 3, OTHER half ("connection-bound dataset adapters"): CRED_ENGINES
+  // above dispatches on da.kind because the four legacy connectors ARE their own kind — a
+  // connection-bound DA (the connections → datasets model) always carries da.kind:"sql", so
+  // there's nothing on kind to key off. exporters.js's redactSecrets instead stamps da.connAdapter
+  // (which registered source the Workspace connection used) + a redacted da.connCfg (its non-secret
+  // fields) onto the DA at export time; this dispatches on THAT field instead, same
+  // prompt-once/never-embed contract as CRED_ENGINES. Turso shipped first; PostgREST is the
+  // second; Supabase is the third; Google Sheets is the fourth; local files are the fifth;
+  // Redshift is the sixth and last — this backlog item is now fully closed (a later follow-up
+  // slice added gsheets' own optional OAuth-token secret for private sheets, same shape as
+  // postgrest/supabase above). `dataset(da)` shapes the def each adapter's own queryData(cfg,
+  // dataset) expects — Turso's speaks raw SQL (da.sql/da.query, same as every other kind:"sql"
+  // DA), but a table-kind connection (PostgREST/Supabase, same protocol) has no da.table/
+  // da.query of its own: dsToDA (app/studio.js) always sets da.kind:"sql" and clobbers da.query
+  // to alias da.sql regardless of the underlying dataset's real kind, so the real {table,query}
+  // pair only survives on da.dataset (the original dataset definition, carried through
+  // redactSecrets' JSON clone untouched).
+  var CONN_ENGINES = {
+    turso: {
+      label: "Turso auth token",
+      engine: function () { return window.Studio && Studio.tursoSource; },
+      cfg: function (da, secret) { return Object.assign({}, da.connCfg, { token: secret }); },
+      dataset: function (da) { return { sql: da.sql || da.query, params: da.params }; }
+    },
+    postgrest: {
+      label: "PostgREST bearer token",
+      engine: function () { return window.Studio && Studio.postgrestSource; },
+      cfg: function (da, secret) { return Object.assign({}, da.connCfg, { token: secret }); },
+      dataset: function (da) { return { table: da.dataset && da.dataset.table, query: da.dataset && da.dataset.query }; }
+    },
+    supabase: {
+      label: "Supabase anon/publishable key",
+      engine: function () { return window.Studio && Studio.supabaseSource; },
+      cfg: function (da, secret) { return Object.assign({}, da.connCfg, { key: secret }); },
+      dataset: function (da) { return { table: da.dataset && da.dataset.table, query: da.dataset && da.dataset.query }; }
+    },
+    // Google Sheets: a link-shared sheet needs no auth at all — same optional-secret shape as
+    // PostgREST's token (resolveSecret is a no-op, cfg() merges nothing extra, when da.needsSecret
+    // was never stamped). The FOLLOW-UP (shipped): a PRIVATE sheet's connection carries an OAuth
+    // access token instead, which IS a secret — cfg() merges it in only when resolveSecret actually
+    // returned one, exactly like turso/postgrest above. dataset() carries the {sheet, query} pair
+    // dsToDA (app/studio.js) threads onto da.dataset for a sheet-kind DA.
+    gsheets: {
+      label: "Google Sheets OAuth access token",
+      engine: function () { return window.Studio && Studio.gsheetsSource; },
+      cfg: function (da, secret) { return Object.assign({}, da.connCfg, secret ? { token: secret } : {}); },
+      dataset: function (da) { return { sheet: da.dataset && da.dataset.sheet, query: da.dataset && da.dataset.query }; }
+    },
+    // Local files: the fifth adapter, and — like Google Sheets — no secret and no cfg at all
+    // (its "connection" is a bare grouping row; see exporters.js's CONN_ADAPTER_CFG_FIELDS). The
+    // file's own text already rides on da.dataset (dsToDA, app/studio.js), so dataset(da) just
+    // passes that whole object straight through to Studio.fileSource.queryData, no reshaping
+    // needed — unlike the table/sheet adapters above, whose real def lives under nested keys.
+    file: {
+      label: "",
+      engine: function () { return window.Studio && Studio.fileSource; },
+      cfg: function () { return {}; },
+      dataset: function (da) { return da.dataset || {}; }
+    },
+    // Redshift: the sixth and last adapter, and the first whose secret isn't a single field — the
+    // Data API is SigV4-signed with an access key ID + secret access key (plus an optional session
+    // token), so exporters.js's CONN_ADAPTER_SECRET_FIELD carries an ARRAY for redshift and
+    // resolveSecret() below returns an OBJECT ({accessKeyId,secretAccessKey,sessionToken}) instead
+    // of a bare string. Its keys already match Studio.Redshift's own cfg field names, so cfg()
+    // merges it straight onto da.connCfg with no reshaping, same as the single-field adapters
+    // above merge their one string in under a hardcoded key. Speaks raw SQL like Turso — a
+    // redshift-backed dataset is always kind:"sql", so da.sql/da.query already carries the query.
+    redshift: {
+      label: "Redshift AWS credentials",
+      engine: function () { return window.Studio && Studio.Redshift; },
+      cfg: function (da, secret) { return Object.assign({}, da.connCfg, secret); },
+      dataset: function (da) { return { sql: da.sql || da.query, params: da.params }; }
+    }
+  };
+  var _secretCache = {};
+  // Post-overhaul backlog item 3, OTHER half: friendly per-field labels for a multi-field
+  // da.needsSecret array (redshift) — resolveSecret() prompts once per field below.
+  var SECRET_FIELD_LABELS = {
+    accessKeyId: "AWS access key ID", secretAccessKey: "AWS secret access key", sessionToken: "AWS session token"
+  };
+  function resolveSecret(da) {
+    var field = da.needsSecret;
+    if (!field) return "";
+    var label = (CRED_ENGINES[da.kind] && CRED_ENGINES[da.kind].label) ||
+      (CONN_ENGINES[da.connAdapter] && CONN_ENGINES[da.connAdapter].label) || "credential";
+    if (Array.isArray(field)) {
+      var multiKey = da.id + "|" + field.join(",");
+      if (Object.prototype.hasOwnProperty.call(_secretCache, multiKey)) return _secretCache[multiKey];
+      var vals = {};
+      field.forEach(function (f) {
+        vals[f] = window.prompt("This dashboard needs its " + (SECRET_FIELD_LABELS[f] || f) + " (" + label +
+          ") to query “" + (da.name || da.id) + "” live. It's used only in your browser for this session and is never saved.") || "";
+      });
+      _secretCache[multiKey] = vals;
+      return vals;
+    }
+    var key = da.id + "|" + field;
+    if (Object.prototype.hasOwnProperty.call(_secretCache, key)) return _secretCache[key];
+    var val = window.prompt("This dashboard needs a " + label + " to query “" + (da.name || da.id) +
+      "” live. It's used only in your browser for this session and is never saved.") || "";
+    _secretCache[key] = val;
+    return val;
+  }
+
+  (function () {
+    var realCda = DashKit.cda;
+    function wrapResult(r, da) {
+      var applied = (da && da.calcColumns && da.calcColumns.length)
+        ? applyCalcCols(r.cols || [], r.rows || [], da.calcColumns)
+        : { cols: r.cols || [], rows: r.rows || [] };
+      var cols = applied.cols;
+      return { cols: cols, rows: applied.rows, col: function (n) { return cols.indexOf(n); } };
+    }
+    // FILTERS-1 (Kevin live, 2026-07-31: pack dashboard filters were DEAD): the
+    // file-engine path ignores {{params}} entirely (localfile.js: "the content
+    // IS the data"), and SCORE-1 only made the MOCK branch respond — so every
+    // real-engine result whose SQL/def didn't consume a param just ignored the
+    // dashboard's filters. Shared honest filter for REAL results: a param whose
+    // name matches a result column (case-insensitive) filters rows by value;
+    // "%"/empty means "all". A param with NO matching column is left alone here
+    // — a live SQL engine may already have applied it server-side (in which
+    // case this re-filter is a no-op by construction), and unlike the mock
+    // branch we never fabricate variation on real data.
+    function applyParamFilter(res, params) {
+      var cols = res.cols || [];
+      var f = filterRowsByParams(cols, res.rows || [], params); // shared with mockRespond below
+      if (!f.active || !f.matched) return res; // unlike the mock branch, real data is NEVER given seeded variation
+      return { cols: cols, rows: f.rows, col: function (n) { return cols.indexOf(n); } };
+    }
+    // SCORE-1 (Kevin live, 2026-07-30: "i change practice, it does not have any
+    // change in the data"): the vendored mock branch returns DASHKIT_MOCK rows and
+    // IGNORES params entirely, so interactive filters were dead against sample
+    // data (they only ever worked against live engines). Make mock data respond:
+    // a param that matches a mock column name filters rows by value (the honest
+    // case); a param with no matching column (the da's SQL would apply it
+    // server-side — e.g. the scorecard's per-practice rollups) applies a
+    // DETERMINISTIC seeded variation to numeric cells instead, so sample-badged
+    // panels visibly react the way live data would. "%" (the every-filter
+    // default) means "all" — untouched.
+    // Shared by mockRespond (mock branch) and applyParamFilter (real engines):
+    // a param whose name matches a column (case-insensitive) filters rows by
+    // exact value, and a "sinceX" param filters column x with >= (FILTERS-1 —
+    // "Since year" means from-that-year-on, which the old equality-only match
+    // could never express, so the featured dashboard's year filter fell through
+    // to seeded variation and the trend x-axes never actually narrowed).
+    // "%"/empty means "all" — untouched.
+    function filterRowsByParams(cols, rows, params) {
+      var keys = Object.keys(params || {}).filter(function (k) {
+        var v = params[k];
+        return v != null && v !== "" && v !== "%";
+      });
+      if (!keys.length) return { rows: rows, matched: false, active: false };
+      var lower = cols.map(function (c) { return String(c).toLowerCase(); });
+      var matched = false;
+      keys.forEach(function (k) {
+        var ci = lower.indexOf(String(k).toLowerCase());
+        if (ci >= 0) {
+          matched = true;
+          rows = rows.filter(function (r) { return String(r[ci]) === String(params[k]); });
+          return;
+        }
+        var m = /^since(.+)$/i.exec(String(k));
+        var si = m ? lower.indexOf(m[1].toLowerCase()) : -1;
+        if (si >= 0) {
+          matched = true;
+          var min = Number(params[k]);
+          rows = rows.filter(function (r) { return isNaN(min) ? String(r[si]) >= String(params[k]) : Number(r[si]) >= min; });
+        }
+      });
+      return { rows: rows, matched: matched, active: true };
+    }
+    function mockRespond(res, dataAccessId, params) {
+      var cols = res.cols || [];
+      var f = filterRowsByParams(cols, res.rows || [], params);
+      if (!f.active) return res;
+      var rows = f.rows;
+      if (!f.matched) {
+        var seedStr = dataAccessId + "|" + Object.keys(params || {}).filter(function (k) {
+          var v = params[k]; return v != null && v !== "" && v !== "%";
+        }).map(function (k) { return k + "=" + params[k]; }).join(",");
+        var h = 0;
+        for (var i = 0; i < seedStr.length; i++) h = (h * 31 + seedStr.charCodeAt(i)) >>> 0;
+        rows = rows.map(function (r, ri) {
+          return r.map(function (v, ci2) {
+            if (typeof v !== "number") return v;
+            var vf = 0.6 + (((h + ri * 37 + ci2 * 101) % 1000) / 1000) * 0.8; // deterministic 0.6–1.4
+            return Math.round(v * vf * 100) / 100;
+          });
+        });
+      }
+      return { cols: cols, rows: rows, col: function (n) { return cols.indexOf(n); } };
+    }
+    DashKit.cda = function (dataAccessId, params) {
+      if (window.DASHKIT_MOCK && window.DASHKIT_MOCK[dataAccessId])
+        return realCda(dataAccessId, params).then(function (r) { return mockRespond(r, dataAccessId, params); });
+      var spec = window.STUDIO_SPEC;
+      var da = spec && ((spec.cda && spec.cda.dataAccesses) || []).filter(function (d) { return d.id === dataAccessId; })[0];
+      if (da && da.kind === "duckdb" && window.Studio && Studio.DuckDB)
+        return Studio.DuckDB.query({ fileUrl: da.fileUrl, fileFormat: da.fileFormat }, da.sql || da.query).then(function (r) { return applyParamFilter(wrapResult(r, da), params); });
+      if (da && da.kind === "httpvfs" && window.Studio && Studio.SQLiteHttp)
+        return Studio.SQLiteHttp.query({ fileUrl: da.fileUrl, tableName: da.tableName }, da.sql || da.query).then(function (r) { return applyParamFilter(wrapResult(r, da), params); });
+      var cred = da && !window.STUDIO_PREVIEW && CRED_ENGINES[da.kind];
+      var engine = cred && cred.engine();
+      if (da && cred && engine)
+        return engine.query(cred.cfg(da, resolveSecret(da)), da.sql || da.query).then(function (r) { return applyParamFilter(wrapResult(r, da), params); });
+      var conn = da && !window.STUDIO_PREVIEW && CONN_ENGINES[da.connAdapter];
+      var connEngine = conn && conn.engine();
+      if (da && conn && connEngine)
+        return connEngine.queryData(conn.cfg(da, resolveSecret(da)), conn.dataset(da)).then(function (r) {
+          if (r.error) throw new Error(r.error);
+          return applyParamFilter(wrapResult({ cols: r.columns, rows: r.rows }, da), params);
+        });
+      return realCda(dataAccessId, params);
+    };
+  })();
+
+  function fmt(id) {
+    if (id === "plain" || !id) return function (v) { return v == null ? "" : String(v); };
+    return (DashKit.fmt[id] || DashKit.fmt.abbr);
+  }
+  function color(tok, fallback) {
+    if (!tok) return fallback ? DashKit.cssvar(fallback) : undefined;
+    return /^--/.test(tok) ? DashKit.cssvar(tok) : tok;
+  }
+  // Z7: statistical KPI aggregation. Studio.aggregate()/percentileOf() (app/model.js) are NOT
+  // available here — model.js is a builder-only module, never inlined into the exported/preview
+  // bundle (this file only ships with DashKit + studio-charts.js, see the file header). Local copy of
+  // the same pure math, same convention as fmt()/color() above going through DashKit instead of Studio.
+  function pctOf(sorted, p) {
+    if (!sorted.length) return 0;
+    if (sorted.length === 1) return sorted[0];
+    var idx = (p / 100) * (sorted.length - 1);
+    var lo = Math.floor(idx), hi = Math.ceil(idx);
+    if (lo === hi) return sorted[lo];
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+  }
+  function aggregateOf(values, agg) {
+    var v = (values || []).map(Number).filter(function (n) { return !isNaN(n); });
+    if (!v.length) return 0;
+    if (agg === "sum") return v.reduce(function (a, b) { return a + b; }, 0);
+    if (agg === "min") return Math.min.apply(null, v);
+    if (agg === "max") return Math.max.apply(null, v);
+    var mean = v.reduce(function (a, b) { return a + b; }, 0) / v.length;
+    if (agg === "avg") return mean;
+    var variance = v.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / v.length;
+    var sd = Math.sqrt(variance);
+    if (agg === "stddev") return sd;
+    if (agg === "variance") return variance;
+    if (agg === "zscore") return sd === 0 ? 0 : (v[v.length - 1] - mean) / sd;
+    var sorted = v.slice().sort(function (a, b) { return a - b; });
+    if (agg === "range") return sorted[sorted.length - 1] - sorted[0];
+    if (agg === "median") return pctOf(sorted, 50);
+    if (agg === "p90") return pctOf(sorted, 90);
+    if (agg === "p95") return pctOf(sorted, 95);
+    return sorted[0];
+  }
+  // Same local-copy convention as aggregateOf/pctOf above — Studio.pearsonCorr (model.js) isn't
+  // available in the exported/preview bundle. Backs the Aggregation picker's "Correlation" option.
+  function pearsonCorrOf(a, b) {
+    var n = Math.min((a || []).length, (b || []).length), xs = [], ys = [];
+    for (var i = 0; i < n; i++) {
+      var x = Number(a[i]), y = Number(b[i]);
+      if (!isNaN(x) && !isNaN(y)) { xs.push(x); ys.push(y); }
+    }
+    if (xs.length < 2) return 0;
+    var mx = xs.reduce(function (s, v) { return s + v; }, 0) / xs.length;
+    var my = ys.reduce(function (s, v) { return s + v; }, 0) / ys.length;
+    var num = 0, dx2 = 0, dy2 = 0;
+    for (var j = 0; j < xs.length; j++) {
+      var dx = xs[j] - mx, dy = ys[j] - my;
+      num += dx * dy; dx2 += dx * dx; dy2 += dy * dy;
+    }
+    var denom = Math.sqrt(dx2 * dy2);
+    return denom === 0 ? 0 : num / denom;
+  }
+  // Build a DashKit.openDetail config from p.detail — used by bars, donut, treemap, table.
+  // Returns null when no detail DA is configured so charts render without the drawer.
+  function buildDetailCfg(p) {
+    var d = p.detail;
+    if (!d || !d.da) return null;
+    var prefix = d.titlePrefix || "";
+    return {
+      da: d.da,
+      param: d.param || "label",
+      noun: d.noun || "records",
+      title: function (label) { return prefix ? prefix + " " + label : String(label); }
+    };
+  }
+  // Build a DashKit.openDetail config for a KPI tile — same shape as buildDetailCfg but defaults
+  // to the tile's OWN bound DA (k.da) so every KPI links to its detail records without any
+  // per-tile setup (design bar: "dashboard tiles/KPIs always link to their detail"). k.detail
+  // lets an author override da/noun/title — e.g. point at a row-grain DA when k.da is itself
+  // already a pre-aggregated summary query.
+  function buildKpiDetailCfg(k) {
+    var d = k.detail || {};
+    var da = d.da || k.da;
+    if (!da) return null;
+    var prefix = d.titlePrefix || "";
+    return {
+      da: da,
+      param: d.param || null,
+      noun: d.noun || "records",
+      title: function () { return prefix ? prefix + " " + k.label : (k.label || "Detail"); }
+    };
+  }
+  // SWEEP574-3 (UX sweep #574, a11y): a tile that DOES something on click has to be reachable
+  // without a mouse. DashKit.bindDrill / DashKit.bindDetail only set `cursor:pointer` and a
+  // click listener (vendor/dashkit.js stays pristine), and a bare <div> is neither focusable
+  // nor announced as interactive — so Tab skipped every KPI tile and Enter/Space did nothing.
+  // Promote the tile to a real button in the accessibility tree and re-fire the vendor's OWN
+  // click handler from the keyboard, so mouse and keyboard keep exactly one activation path.
+  // The tile's text (value + label + delta) stays its accessible name — deliberately no
+  // aria-label, which would hide the number a screen-reader user actually came for.
+  // vendor/dashkit.css already draws the ring: `[tabindex]:focus-visible` (line 53).
+  function makeTileActivatable(el) {
+    if (!el || el.getAttribute("role") === "button") return; // idempotent across re-renders
+    el.setAttribute("role", "button");
+    el.setAttribute("tabindex", "0");
+    el.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+      e.preventDefault(); // Space would otherwise scroll the dashboard out from under you
+      el.click();
+    });
+  }
+  // Evaluate conditional formatting rules against a numeric value — returns a CSS color
+  // string for the first matching rule, or null when no rule matches.
+  // Rules are {op:">="|">"|"<="|"<"|"="|"!=", value:number, color:hexColor}.
+  function evalCondFmt(rules, value) {
+    if (!rules || !rules.length) return null;
+    var n = +value;
+    for (var i = 0; i < rules.length; i++) {
+      var r = rules[i]; if (!r || !r.color) continue;
+      var t = +r.value;
+      var m = (r.op === ">=" && n >= t) || (r.op === ">"  && n > t)  ||
+              (r.op === "<=" && n <= t) || (r.op === "<"  && n < t)  ||
+              (r.op === "="  && n === t) || (r.op === "!=" && n !== t);
+      if (m) return /^--/.test(r.color) ? DashKit.cssvar(r.color) : r.color;
+    }
+    return null;
+  }
+  // Apply condFmt rules to a label-value array (bars, donut, treemap, lollipop).
+  // Items matching a rule receive a .color property; others are returned unchanged.
+  function cfData(data, rules) {
+    if (!rules || !rules.length) return data;
+    return data.map(function (d) {
+      var c = evalCondFmt(rules, d.value);
+      return c ? { label: d.label, value: d.value, color: c } : d;
+    });
+  }
+  // Interpolate between two #RRGGBB hex colors at position t ∈ [0,1].
+  function hexInterp(a, b, t) {
+    function ph(h) { h = h.replace("#",""); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
+    function th(n) { return ("0" + Math.round(Math.max(0,Math.min(255,n))).toString(16)).slice(-2); }
+    var ca = ph(a), cb = ph(b);
+    return "#" + th(ca[0]+(cb[0]-ca[0])*t) + th(ca[1]+(cb[1]-ca[1])*t) + th(ca[2]+(cb[2]-ca[2])*t);
+  }
+  // Apply a continuous color gradient to a label-value array (color scale encoding).
+  // scale = {enabled, low:'#hex', high:'#hex'} from p.colorScale.
+  // Called BEFORE cfData so condFmt threshold rules always override the gradient.
+  function csData(data, scale) {
+    if (!scale || !scale.enabled || !data || !data.length) return data;
+    var low  = /^#[0-9a-fA-F]{6}$/.test(scale.low)  ? scale.low  : "#005bb5";
+    var high = /^#[0-9a-fA-F]{6}$/.test(scale.high) ? scale.high : "#c0392b";
+    var vals = data.map(function (d) { return +d.value || 0; });
+    var mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals), rng = mx - mn;
+    return data.map(function (d) {
+      var t = rng > 0 ? ((+d.value || 0) - mn) / rng : 0.5;
+      return { label: d.label, value: d.value, color: hexInterp(low, high, t) };
+    });
+  }
+  // Minimal markdown → safe HTML for richtext panels.
+  // Escapes HTML first, then applies block- and inline-level markdown.
+  // No XSS risk: content is authored by the SE in the inspector textarea.
+  function mdToHtml(raw) {
+    if (!raw || !raw.trim()) return '<span class="sr-rt-placeholder">Add content in the inspector…</span>';
+    function he(t) { return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+    // Inline transforms run on already-escaped text (*, _, ` don't need escaping)
+    function inl(t) {
+      return he(t)
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.+?)\*/g, "<em>$1</em>")
+        .replace(/_([^_\n]+)_/g, "<em>$1</em>")
+        .replace(/`([^`\n]+)`/g, "<code>$1</code>");
+    }
+    var out = "", inUL = false, buf = [];
+    function fp() { if (buf.length) { out += "<p>" + buf.join("<br>") + "</p>"; buf = []; } }
+    function fl() { if (inUL) { out += "</ul>"; inUL = false; } }
+    raw.split("\n").forEach(function (ln) {
+      var hm = ln.match(/^(#{1,4})\s+(.+)/), lim = ln.match(/^[-*]\s+(.+)/), hr = /^-{3,}$/.test(ln.trim());
+      if (hm)      { fl(); fp(); out += "<h" + hm[1].length + ">" + inl(hm[2]) + "</h" + hm[1].length + ">"; }
+      else if (lim) { fp(); if (!inUL) { out += "<ul>"; inUL = true; } out += "<li>" + inl(lim[1]) + "</li>"; }
+      else if (hr)  { fl(); fp(); out += "<hr>"; }
+      else if (!ln.trim()) { fl(); fp(); }
+      else           { fl(); buf.push(inl(ln)); }
+    });
+    fl(); fp();
+    return out || "<em>" + he(raw) + "</em>";
+  }
+
+  // result -> [{label,value(,color)}]
+  function lv(res, labelCol, valueCol) {
+    var li = res.col(labelCol), vi = res.col(valueCol);
+    return res.rows.map(function (r) { return { label: String(r[li]), value: +r[vi] || 0 }; });
+  }
+  // Color-as-a-first-class-encoding (View Builder VB-3, same pattern Timeline's
+  // colorCol already used): tags each row with a palette color keyed to its
+  // colorCol value's first-seen order, so bars split into per-category colors
+  // (donut already colors per-slice by default — this makes it explicit/stable
+  // when a colorCol is actually mapped) instead of every bar sharing one flat
+  // color. Falls back to plain lv() when no colorCol is mapped.
+  function lvColor(res, labelCol, valueCol, colorCol) {
+    var base = lv(res, labelCol, valueCol);
+    if (!colorCol) return base;
+    var ci = res.col(colorCol);
+    if (ci < 0) return base;
+    var cats = [];
+    return base.map(function (d, i) {
+      var cat = String(res.rows[i][ci] != null ? res.rows[i][ci] : "");
+      var ord = cats.indexOf(cat);
+      if (ord < 0) { ord = cats.length; cats.push(cat); }
+      return { label: d.label, value: d.value, color: DashKit.color(ord) };
+    });
+  }
+  function colVals(res, c) { var i = res.col(c); return res.rows.map(function (r) { return r[i]; }); }
+
+  // ---- Cross-filter state: paramName → active label (or absent when cleared).
+  //      Lives at module scope so it survives re-renders within one iframe session.
+  var _crossFilters = {};
+
+  // Toggle a cross-filter selection (same label = deselect) then reload all panels.
+  function xfEmit(param, label, spec) {
+    if (_crossFilters[param] === label) delete _crossFilters[param];
+    else _crossFilters[param] = label;
+    load(spec);
+  }
+
+  // After a chart renders, tag each data element with its label and wire click-to-filter.
+  // Supports bars (rect.bar in data order, or value-desc order when "Sort by value" is on),
+  // donut (svg path in data order, or value-desc order when "Sort slices" is on),
+  // treemap (rect.bar always sorted by value descending, mirroring DashKit._treemap's sort),
+  // lollipop (circle.dot in data order — lollipop has no "sort by value" option of its own),
+  // and the stacked/grouped bar family (stacked / groupedBars / barNorm — a category maps to
+  // MULTIPLE segments there, and a stacked/normalized bar can render a variable segment count
+  // per category since zero-value series are skipped, so index-based re-tagging isn't reliable;
+  // those three renderers (studio-charts.js) self-tag every segment with data-xf-label directly
+  // at creation time instead, keyed off the category — not the series — so a click anywhere in
+  // a stack/group filters to that whole category, same semantics as every other chart type here.
+  function wireXFilter(body, param, lvData, spec, chartType, sortByValue) {
+    if (!param || !lvData || !lvData.length) return;
+    var els, sorted = lvData, selfTagged = false;
+    if (chartType === "bars" || chartType === "treemap") {
+      els = [].slice.call(body.querySelectorAll("rect.bar"));
+      // Treemap always pre-sorts by value desc; bars only sorts when "Sort by value" is on.
+      // Mirror both here so a click on a bar/tile maps back to the right label.
+      if (chartType === "treemap" || (chartType === "bars" && sortByValue))
+        sorted = lvData.slice().sort(function (a, b) { return (+b.value || 0) - (+a.value || 0); });
+    } else if (chartType === "donut") {
+      els = [].slice.call(body.querySelectorAll("svg path"));
+      // Donut's own "Sort slices by value" option reorders its rendered paths; mirror
+      // that here too so a click on a slice maps back to the right label.
+      if (sortByValue) sorted = lvData.slice().sort(function (a, b) { return (+b.value || 0) - (+a.value || 0); });
+    } else if (chartType === "lollipop") {
+      els = [].slice.call(body.querySelectorAll("circle.dot"));
+    } else if (chartType === "funnel") {
+      // Funnel has no "sort by value" option of its own — stages render in given order,
+      // same reasoning as lollipop above, so `sorted` stays as lvData with no re-sort.
+      els = [].slice.call(body.querySelectorAll("rect.funnel-bar"));
+    } else if (chartType === "waterfall") {
+      // Exclude the optional synthetic "Total" bar (.wf-total) — it isn't a real data
+      // label, so it stays unclickable; the remaining bars render in given order (no
+      // sort option of its own), matching lvData with no re-sort needed.
+      els = [].slice.call(body.querySelectorAll("rect.wf-bar:not(.wf-total)"));
+    } else if (chartType === "stacked" || chartType === "groupedBars" || chartType === "barNorm") {
+      var cls = chartType === "stacked" ? "stacked-seg" : chartType === "groupedBars" ? "grouped-bar" : "barnorm-seg";
+      els = [].slice.call(body.querySelectorAll("rect." + cls));
+      selfTagged = true;
+    } else {
+      return;
+    }
+    if (!selfTagged) sorted.forEach(function (d, i) {
+      var el = els[i]; if (!el) return;
+      el.setAttribute("data-xf-label", d.label);
+    });
+    // Single delegated listener on the container — wireXFilter is called again on every
+    // DashKit.redrawAll() replay (debounced resize, theme change), so guard against re-adding a
+    // second/third listener onto the same still-live `body` each time: a bare
+    // `addEventListener` call here duplicated the listener on every redraw, and a single click
+    // then fired xfEmit's toggle N times in one go — for an even N that instantly cancels the
+    // filter right back off (found while adding this feature; not specific to the chart types
+    // added here, every cross-filter-capable chart type shared this latent bug).
+    if (!body.__xfWired) {
+      body.__xfWired = true;
+      body.addEventListener("click", function (e) {
+        var t = e.target;
+        while (t && t !== body) { if (t.getAttribute && t.getAttribute("data-xf-label") != null) break; t = t.parentNode; }
+        if (!t || t === body) return;
+        e.stopPropagation();
+        xfEmit(body.__xfParam, t.getAttribute("data-xf-label"), body.__xfSpec);
+      });
+    }
+    // The active param/spec can change across redraws (e.g. a different panel's data access is
+    // now bound) — always refresh what the delegated listener above will read at click time.
+    body.__xfParam = param;
+    body.__xfSpec = spec;
+    // Dim non-selected elements when a filter is active
+    var active = _crossFilters[param];
+    if (active != null) {
+      els.forEach(function (el) {
+        if (el.getAttribute("data-xf-label") != null)
+          el.style.opacity = el.getAttribute("data-xf-label") === active ? "1" : "0.18";
+      });
+    }
+  }
+
+  // params actually declared by a data access (avoid sending unknowns).
+  // Cross-filters override filter-bar state; filter-bar overrides defaults.
+  function paramsFor(spec, daId, state) {
+    var da = (spec.cda.dataAccesses || []).filter(function (d) { return d.id === daId; })[0];
+    if (!da || !da.params || !da.params.length) return undefined;
+    var out = {};
+    da.params.forEach(function (p) {
+      var xfVal = _crossFilters[p.name];
+      out[p.name] = xfVal != null ? xfVal
+        : (state && state[p.name] != null) ? state[p.name]
+        : (p.default != null ? p.default : "%");
+    });
+    return out;
+  }
+
+  // LF6: per-panel download chrome (image + data), on by default, per-panel toggleable off
+  // (p.allowDownloads) via the Inspector. Lives here — not in the builder-only app/studio.js —
+  // so the SAME code renders it in the live preview iframe AND the exported/embedded HTML (the
+  // export==preview invariant this file's header describes). Self-contained: reads straight off
+  // the local `card`/`res` already in scope, no reach-through to a builder `#preview` iframe.
+  var SVG_STYLE_PROPS = ["fill", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap",
+    "stroke-linejoin", "stroke-opacity", "fill-opacity", "opacity", "font-family", "font-size",
+    "font-weight", "font-style", "text-anchor", "dominant-baseline", "letter-spacing"];
+  function inlineSvgComputedStyle(srcEl, destEl, win) {
+    var cs = win.getComputedStyle(srcEl), css = "";
+    SVG_STYLE_PROPS.forEach(function (k) { var v = cs.getPropertyValue(k); if (v) css += k + ":" + v + ";"; });
+    if (css) destEl.setAttribute("style", css);
+    for (var i = 0; i < srcEl.children.length; i++) inlineSvgComputedStyle(srcEl.children[i], destEl.children[i], win);
+  }
+  function slug(s) { return (s || "chart").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "chart"; }
+  // `onDataUrl` is test-only (Playwright drives the rasterization path directly since a real
+  // click/download isn't observable headlessly); the real UI click path never passes it.
+  function downloadPanelPng(card, p, onDataUrl) {
+    var svg = card.body.querySelector("svg");
+    if (!svg) {
+      // LF69(c): the GL/MapLibre choropleth renders into a <canvas>, not an <svg> — capture it
+      // directly instead of bailing. studio-charts.js sets preserveDrawingBuffer:true on the map
+      // so the buffer is still readable here; no manual 2x upscale needed, MapLibre already
+      // renders its canvas backing store at devicePixelRatio.
+      var glCanvas = card.body.querySelector("[data-geo-gl] canvas");
+      var glDataUrl = null;
+      if (glCanvas) { try { glDataUrl = glCanvas.toDataURL("image/png"); } catch (e) { glDataUrl = null; } }
+      if (onDataUrl) { onDataUrl(glDataUrl); return; }
+      if (glDataUrl) {
+        var glA = document.createElement("a");
+        glA.download = slug(p.title) + ".png"; glA.href = glDataUrl;
+        document.body.appendChild(glA); glA.click(); glA.remove();
+      }
+      return;
+    }
+    var win = (card.el.ownerDocument && card.el.ownerDocument.defaultView) || window;
+    var rect = svg.getBoundingClientRect();
+    var w = Math.max(1, Math.round(rect.width)), h = Math.max(1, Math.round(rect.height));
+    var clone = svg.cloneNode(true);
+    inlineSvgComputedStyle(svg, clone, win);
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clone.setAttribute("width", w); clone.setAttribute("height", h);
+    var bg = win.getComputedStyle(card.body).backgroundColor;
+    var xml = new XMLSerializer().serializeToString(clone);
+    var blobUrl = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml;charset=utf-8" }));
+    var img = new Image();
+    img.onload = function () {
+      var scale = 2; // export at 2x for a crisp, slide/doc-ready image
+      var canvas = document.createElement("canvas");
+      canvas.width = w * scale; canvas.height = h * scale;
+      var ctx = canvas.getContext("2d");
+      ctx.scale(scale, scale);
+      if (bg && bg !== "rgba(0, 0, 0, 0)") { ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h); }
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(blobUrl);
+      var dataUrl = canvas.toDataURL("image/png");
+      if (onDataUrl) { onDataUrl(dataUrl); return; }
+      var a = document.createElement("a");
+      a.download = slug(p.title) + ".png"; a.href = dataUrl;
+      document.body.appendChild(a); a.click(); a.remove();
+    };
+    img.onerror = function () { URL.revokeObjectURL(blobUrl); if (onDataUrl) onDataUrl(null); };
+    img.src = blobUrl;
+  }
+  function csvCell(v) {
+    var s = v == null ? "" : String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  // `onRows` is test-only, same convention as downloadPanelPng's onDataUrl above.
+  function downloadPanelData(p, res, onRows) {
+    // LF6 slice 2: choropleth/ensemble panels register a "current selection" rows fn (studio-
+    // charts.js's DashKit._panelCsvRows, keyed by panel id) that respects live filter/toggle state —
+    // prefer it over the raw bound query rows when present. Read lazily here (not at chrome-
+    // creation time) so it's immune to the choropleth's async geometry load.
+    var override = DashKit._panelCsvRows && DashKit._panelCsvRows[p.id];
+    var rows = override ? override() : ((res && res.rows && res.rows.length) ? [res.cols].concat(res.rows) : null);
+    if (!rows) { if (onRows) onRows(null); return; }
+    if (onRows) { onRows(rows); return; }
+    var csv = rows.map(function (r) { return r.map(csvCell).join(","); }).join("\r\n");
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    a.download = slug(p.title) + ".csv"; a.style.display = "none";
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(a.href); }, 0);
+  }
+  // Test hooks — exercised by Playwright (identical in the preview iframe and the exported page):
+  // a real click/download isn't observable headlessly, so these drive the same functions the
+  // click handlers call and hand the result back directly.
+  window.__downloadPanelPngDataUrl = function (panelId, cb) {
+    var el = document.querySelector('[data-panel-id="' + panelId + '"]');
+    var body = el && el.querySelector(".body");
+    if (!el || !body) { cb(null); return; }
+    var spec = window.STUDIO_SPEC || {};
+    var p = (spec.panels || []).filter(function (x) { return x.id === panelId; })[0] || {};
+    downloadPanelPng({ el: el, body: body }, p, cb);
+  };
+  window.__downloadPanelDataRows = function (panelId, cb) {
+    var spec = window.STUDIO_SPEC || {};
+    var p = (spec.panels || []).filter(function (x) { return x.id === panelId; })[0];
+    if (!p) { cb(null); return; }
+    var res = (window.__lastRenderData || {})[p.chart.da];
+    downloadPanelData(p, res, cb);
+  };
+  // LF25(a): each download/export affordance is independently toggleable
+  // (p.dlPng / p.dlCsv / p.dlEmbed, each default-on). A panel saved before this
+  // slice existed carries none of those keys, so they fall back to the old
+  // single p.allowDownloads switch (undefined/true = show, false = hide) —
+  // old dashboards keep behaving exactly as before.
+  function dlTypeShown(p, key) {
+    return p[key] === false ? false : (p[key] === true ? true : p.allowDownloads !== false);
+  }
+  // LF69(d): one popover open at a time, dismissed by an outside click or Escape — wired
+  // once (guarded) even though addDownloadChrome runs per-panel, on every render.
+  var _dlMenuWired = false;
+  function closeAllDlMenus() {
+    var open = document.querySelectorAll(".dk-dl-menu.open");
+    for (var i = 0; i < open.length; i++) {
+      open[i].classList.remove("open");
+      var t = open[i].querySelector(".dk-dl-trigger");
+      if (t) t.setAttribute("aria-expanded", "false");
+    }
+  }
+  function wireDlMenuDismiss() {
+    if (_dlMenuWired) return;
+    _dlMenuWired = true;
+    document.addEventListener("click", function (e) { if (!e.target.closest(".dk-dl-menu")) closeAllDlMenus(); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeAllDlMenus(); });
+  }
+  // LF69(d): PNG/CSV/standalone-HTML collapse into a single "Export ▾" menu instead of up to
+  // 3 separate row buttons — a tidier header, consistent with the dashboard-level topbar
+  // Export ▾ menu's own PDF/XLSX/Word options (LF49, a separate mechanism in studio.js). Same
+  // toggles (dlTypeShown), same handlers, same .dk-dl-act buttons — they just live inside a
+  // popover now, so the existing count/title based tests still find them unchanged; only the
+  // visible row gains ONE trigger button.
+  function addDownloadChrome(container, card, p, res) {
+    var svg = card.body.querySelector("svg");
+    // LF69(c): a choropleth (either renderer) draws its geometry asynchronously
+    // (geoFeatures()/geoFeaturesGL() are promise-based) — addDownloadChrome runs synchronously
+    // right after renderPanel, before that geometry has actually painted an <svg> or a
+    // `[data-geo-gl]` <canvas>. Trust the chart TYPE instead of the DOM snapshot at this instant:
+    // a choropleth always eventually renders as one or the other, and downloadPanelPng itself
+    // re-checks the live DOM lazily at click/export time (the same "immune to the async geometry
+    // race" convention downloadPanelData's DashKit._panelCsvRows lookup already uses).
+    var isChoropleth = !!(p.chart && p.chart.type === "choropleth");
+    var canImg = (!!svg || isChoropleth) && dlTypeShown(p, "dlPng");
+    var canData = !!(res && res.rows && res.rows.length) && dlTypeShown(p, "dlCsv");
+    // Export-as-HTML needs the builder's full spec + asset bundle (Studio.exportDashboardHtml),
+    // which only exists in the parent window — so it's builder/preview-only, like the
+    // zoom/duplicate/delete acts it joins, never rendered into a real static export.
+    var canEmbed = isPreview() && dlTypeShown(p, "dlEmbed");
+    if (!canImg && !canData && !canEmbed) return;
+    wireDlMenuDismiss();
+    var menu = document.createElement("div"); menu.className = "dk-dl-menu";
+    var trigger = document.createElement("button");
+    trigger.type = "button"; trigger.className = "dk-dl-trigger"; trigger.title = "Export";
+    trigger.setAttribute("aria-haspopup", "true"); trigger.setAttribute("aria-expanded", "false");
+    trigger.innerHTML = I_DLTRIG + I_CARET_SM;
+    var pop = document.createElement("div"); pop.className = "dk-dl-pop"; pop.setAttribute("role", "menu");
+    trigger.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var willOpen = !menu.classList.contains("open");
+      closeAllDlMenus();
+      if (willOpen) { menu.classList.add("open"); trigger.setAttribute("aria-expanded", "true"); }
+    });
+    function addItem(iconSvg, title, label, onClick) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "dk-dl-act dk-dl-item"; b.title = title; b.setAttribute("role", "menuitem");
+      b.innerHTML = iconSvg + '<span class="dk-dl-lbl">' + label + "</span>";
+      b.addEventListener("click", function (e) { e.stopPropagation(); closeAllDlMenus(); onClick(); });
+      pop.appendChild(b);
+    }
+    if (canImg) addItem(I_IMG, "Download chart as PNG image", "Download PNG image", function () { downloadPanelPng(card, p); });
+    if (canData) addItem(I_TABLE, "Download data as CSV", "Download data (CSV)", function () { downloadPanelData(p, res); });
+    if (canEmbed) addItem(I_CODE, "Export this View as a standalone HTML file", "Export as standalone HTML", function () { post({ type: "panel-export-embed", id: p.id }); });
+    menu.appendChild(trigger); menu.appendChild(pop);
+    container.appendChild(menu);
+  }
+
+  /* ---- one panel ---- */
+  function renderPanel(spec, p, data, body) {
+    var ch = p.chart, o = ch.opts || {}, m = ch.map || {}, res = data[ch.da];
+    // richtext panels carry no DA; skip the "no query bound" guard for them
+    if (!res && ch.type !== "richtext") { body.innerHTML = '<div class="empty">No query bound</div>'; return; }
+    // Honour per-panel animate toggle: canAnim() / animD() in studio-charts.js read these flags.
+    DashKit._anim = p.animate !== false;
+    DashKit._animD = p.animDuration || 600;
+    var f = fmt(o.fmt);
+    // drill-through: pass DashKit.bindDrill config to charts that natively support cfg.drill
+    var drillCfg = (p.drill && p.drill.url) ? { to: p.drill.url, param: p.drill.param || "" } : null;
+    // detail drawer: pass DashKit.bindDetail config — bars, donut, treemap, table all support cfg.detail
+    var detailCfg = buildDetailCfg(p);
+    try {
+      switch (ch.type) {
+        case "bars":
+          DashKit.bars(body, { horizontal: o.horizontal !== false, rotate: !!o.rotate, fmt: f,
+            sortBars: !!o.sortBars, showValues: o.showValues !== false,
+            showTrend: !!o.showTrend, trendMethod: o.trendMethod,
+            alpha: o.alpha, beta: o.beta, gamma: o.gamma, seasonLength: o.seasonLength,
+            color: color(o.color, "--pentaho"), height: o.height || 300,
+            data: cfData(csData(lvColor(res, m.labelCol, m.valueCol, m.colorCol), p.colorScale), p.condFmt),
+            drill: drillCfg, detail: detailCfg });
+          break;
+        case "donut":
+          DashKit.donut(body, { centerCap: o.centerCap || "Total", fmt: f, height: o.height || 300,
+            sortSlices: !!o.sortSlices, legend: o.showLegend !== false, innerPct: o.innerPct,
+            data: cfData(csData(lvColor(res, m.labelCol, m.valueCol, m.colorCol), p.colorScale), p.condFmt), drill: drillCfg, detail: detailCfg });
+          break;
+        case "choropleth":
+          // Viridis V2/V3: US region map, colored by the MEDIAN of the rows per
+          // region (the "single best common estimate" convention). With a series
+          // column mapped, rows go long-format and the map joins the ensemble
+          // channel — provider toggles on an Ensemble chart re-color it live.
+          var choroCfg = { scale: o.scale || "county", agg: o.agg || "median",
+            classes: o.classes || 5, colorToken: o.color || "--good",
+            // CONS-1: diverging change-map ramp — orange→pane→green around opts.center
+            divergeToken: o.divergeToken || null, center: o.center != null ? o.center : null,
+            fit: o.fit || "data", stateLines: o.stateLines !== false,
+            renderer: o.renderer || "svg",
+            // LF22(4): the user's own county-FIPS→region lookup — only consumed when
+            // scale === "custom" (studio-charts.js's geoFeatures/geoFeaturesGL).
+            customMap: o.customMap || null,
+            // LF35 slice 1: GL-renderer-only zoom/pan control cluster size (show/compact/hidden).
+            mapControls: o.mapControls || "show",
+            // LF35 slice 2: GL-renderer-only zoom/pan control cluster corner.
+            mapControlsPos: o.mapControlsPos || "top-right",
+            legend: o.showLegend !== false, fmt: f, height: o.height || 380,
+            lastUpdated: daLastUpdated(ch.da),
+            // LF6 slice 2: lets studio-charts.js register a "current selection" CSV rows fn for
+            // this panel's download chrome instead of drawing its own redundant legend button.
+            panelId: p.id };
+          // LF28: the GL renderer's last interactive pan/zoom (cfg.viewport = {center,zoom})
+          // round-trips on the panel spec — restored on load instead of re-fitting bounds, and
+          // (builder-only) written back live via onViewport as the user pans/zooms.
+          choroCfg.viewport = o.viewport || null;
+          if (isPreview()) choroCfg.onViewport = function (vp) { post({ type: "viewport", id: p.id, viewport: vp }); };
+          if (m.seriesCol && res.col(m.seriesCol) >= 0) {
+            var cli = res.col(m.idCol), csi = res.col(m.seriesCol), cvi = res.col(m.valueCol);
+            choroCfg.rowsSV = res.rows.map(function (r) { return { label: String(r[cli]), series: String(r[csi]), value: +r[cvi] }; });
+            choroCfg.providersChannel = o.channel || "providers";
+          } else {
+            choroCfg.data = lv(res, m.idCol, m.valueCol);
+          }
+          DashKit.choropleth(body, choroCfg);
+          break;
+        case "ensembleSeries":
+          // Viridis V3: THE MEDIAN IS THE PRODUCT — bold consensus over muted evidence.
+          var eli = res.col(m.labelCol), esi = res.col(m.seriesCol), evi = res.col(m.valueCol);
+          DashKit.ensembleSeries(body, {
+            rows: res.rows.map(function (r) { return { label: String(r[eli]), series: String(r[esi]), value: +r[evi] }; }),
+            refSeries: o.refSeries || "", channel: o.channel || "providers",
+            seriesColors: o.seriesColors || null, // CONS-1: pinned real-world provider colors
+            agg: o.agg || "median", medianLabel: o.medianLabel || "Common estimate",
+            showBand: o.showBand !== false, showProviders: o.showProviders !== false,
+            showToggles: o.showToggles !== false, fmt: f, height: o.height || 320,
+            lastUpdated: daLastUpdated(ch.da),
+            // LF6 slice 2: see the matching choropleth comment above.
+            panelId: p.id });
+          break;
+        case "treemap":
+          DashKit.treemap(body, { fmt: f, height: o.height || 300,
+            showLabels: o.showLabels !== false, showPct: !!o.showPct,
+            data: cfData(csData(lv(res, m.labelCol, m.valueCol), p.colorScale), p.condFmt), detail: detailCfg });
+          break;
+        case "line":
+        case "stacked":
+        case "areaStacked":
+        case "streamgraph":
+        case "radar":
+        case "step":
+          var labels = colVals(res, m.labelCol).map(String);
+          var series = (m.series || []).map(function (s, i) {
+            return { name: s.name || s.col, color: color(s.color, "--c" + ((i % 10) + 1)),
+                     values: colVals(res, s.col).map(function (v) { return +v || 0; }) };
+          });
+          if (ch.type === "line")
+            // Bug fix (found auditing the Z7 forecasting track): trendMethod/alpha/beta/gamma/
+            // seasonLength were declared in Studio.CHARTS.line.opts and editable in the inspector,
+            // but this dispatch — the ONLY render path for both the live preview and every real
+            // export (Studio itself is never inlined here, see the v214 note above) — never passed
+            // them through. showTrend/forecastPeriods DID make it across, so the trend line still
+            // appeared, but it silently rendered as plain OLS linear no matter what "Forecast
+            // method" was picked, and any alpha/beta/gamma/seasonLength tuning was ignored — the
+            // Holt / Holt-Winters options have been dead on arrival outside the Studio-only test
+            // harness (which calls DashKit.line directly) since they shipped.
+            DashKit.line(body, { area: o.area !== false, smooth: !!o.smooth, showDots: o.showDots !== false,
+              showMA: !!o.showMA, maWindow: o.maWindow,
+              showTrend: !!o.showTrend, forecastPeriods: o.forecastPeriods, trendMethod: o.trendMethod,
+              alpha: o.alpha, beta: o.beta, gamma: o.gamma, seasonLength: o.seasonLength,
+              fmt: f, height: o.height || 300, labels: labels, series: series });
+          else if (ch.type === "areaStacked")
+            DashKit.areaStacked(body, { smooth: !!o.smooth, legend: o.showLegend !== false,
+              fmt: f, height: o.height || 300, labels: labels, series: series });
+          else if (ch.type === "streamgraph")
+            DashKit.streamgraph(body, { fmt: f, height: o.height || 300, legend: o.showLegend !== false,
+              opacity: o.bandOpacity, labels: labels, series: series });
+          else if (ch.type === "radar")
+            DashKit.radar(body, { fill: o.fill !== false, legend: o.showLegend !== false, showDots: o.showDots !== false,
+              fmt: f, height: o.height || 300, labels: labels, series: series });
+          else if (ch.type === "step")
+            DashKit.step(body, { area: !!o.area, fmt: f, height: o.height || 300, labels: labels, series: series });
+          else
+            DashKit.stacked(body, { rotate: !!o.rotate, sortStack: !!o.sortStack, showValues: !!o.showValues,
+              showTrend: !!o.showTrend, trendMethod: o.trendMethod,
+              alpha: o.alpha, beta: o.beta, gamma: o.gamma, seasonLength: o.seasonLength,
+              fmt: f, height: o.height || 300,
+              categories: labels, series: series.map(function (s) { return { name: s.name, color: s.color, values: s.values }; }) });
+          break;
+        case "combo":
+          DashKit.combo(body, { height: o.height || 300, fmt: f, fmt2: fmt(o.fmt2),
+            showTrend: !!o.showTrend, forecastPeriods: o.forecastPeriods, trendMethod: o.trendMethod,
+            alpha: o.alpha, beta: o.beta, gamma: o.gamma, seasonLength: o.seasonLength,
+            labels: colVals(res, m.labelCol).map(String),
+            bars: { name: m.barCol, color: color(o.color, "--pentaho"), values: colVals(res, m.barCol) },
+            line: { name: m.lineCol, color: color(o.lineColor, "--dk"), values: colVals(res, m.lineCol) } });
+          break;
+        case "scatter":
+          var xi = res.col(m.xCol), yi = res.col(m.yCol), ri = m.rCol ? res.col(m.rCol) : -1, lbi = m.labelCol ? res.col(m.labelCol) : -1;
+          // o.fmt didn't exist on scatter panels before this option was added, so fall back
+          // to abbr (the chart's true default) rather than the ambient plain/identity fallback.
+          var sf = o.fmt ? f : DashKit.fmt.abbr;
+          DashKit.scatter(body, { height: o.height || 300, xLabel: o.xLabel || m.xCol, yLabel: o.yLabel || m.yCol,
+            fmtX: sf, fmtY: sf, trend: !!o.trend,
+            points: res.rows.map(function (r) {
+              return { x: +r[xi] || 0, y: +r[yi] || 0, r: ri >= 0 ? +r[ri] || 1 : 1, label: lbi >= 0 ? String(r[lbi]) : "" };
+            }) });
+          break;
+        case "waterfall":
+          DashKit.waterfall(body, { height: o.height || 300, fmt: f,
+            showTotal: o.showTotal !== false, totalLabel: o.totalLabel || "Total",
+            labels: colVals(res, m.labelCol).map(String),
+            values: colVals(res, m.valueCol).map(function (v) { return +v || 0; }) });
+          break;
+        case "funnel":
+          DashKit.funnel(body, { height: o.height || 300, fmt: f,
+            showPct: o.showPct !== false,
+            labels: colVals(res, m.labelCol).map(String),
+            values: colVals(res, m.valueCol).map(function (v) { return +v || 0; }) });
+          break;
+        case "sunburst":
+          DashKit.sunburst(body, { height: o.height || 300, fmt: f,
+            showLabels: o.showLabels !== false,
+            labels: colVals(res, m.labelCol).map(String),
+            values: colVals(res, m.valueCol).map(function (v) { return +v || 0; }),
+            groups: m.groupCol ? colVals(res, m.groupCol).map(String) : null });
+          break;
+        case "bullet": {
+          var lblI = m.labelCol ? res.col(m.labelCol) : -1;
+          var valI = res.col(m.valueCol), tgtI = m.targetCol ? res.col(m.targetCol) : -1;
+          var brows = res.rows.map(function (r) {
+            return { label: lblI >= 0 ? String(r[lblI]) : p.title, value: +r[valI] || 0, target: tgtI >= 0 ? +r[tgtI] : null };
+          });
+          DashKit.bullet(body, { rows: brows, max: o.max || 0, fmt: f, height: o.height || 220 });
+          break;
+        }
+        case "calHeatmap": {
+          var dI = res.col(m.dateCol), vI2 = res.col(m.valueCol);
+          var itms = res.rows.map(function (r) { return { date: String(r[dI] || ""), value: +r[vI2] || 0 }; });
+          DashKit.calHeatmap(body, { items: itms, fmt: f, height: o.height || 190,
+            color: color(o.color, "--pentaho"), weekStart: o.weekStart || "mon" });
+          break;
+        }
+        case "sankey":
+        case "chord":
+        case "network": {
+          var sIdx = res.col(m.sourceCol), tIdx = res.col(m.targetCol), vIdx = res.col(m.valueCol);
+          var links = res.rows.map(function (r) { return { source: String(r[sIdx]), target: String(r[tIdx]), value: +r[vIdx] || 0 }; }).filter(function (l) { return l.value > 0; });
+          if (ch.type === "sankey")
+            DashKit.sankey(body, { links: links, height: o.height || 360, fmt: f, srcCap: o.srcCap || "Source", dstCap: o.dstCap || "Destination" });
+          else if (ch.type === "chord")
+            DashKit.chord(body, { links: links, height: o.height || 360, fmt: f, showLabels: o.showLabels !== false });
+          else
+            DashKit.network(body, { links: links, height: o.height || 380, fmt: f, showLabels: o.showLabels !== false });
+          break;
+        }
+        case "gauge":
+          var gv = +(res.rows[0] || [])[res.col(m.valueCol)] || 0;
+          var gUnit = o.unit != null ? o.unit : "%";
+          // DashKit.fmt.pct already appends its own "%" — don't also tack on the default unit,
+          // or a gauge left at fmt:"pct" + the default Unit:"%" reads "42.3%%".
+          if (o.fmt === "pct" && gUnit === "%") gUnit = "";
+          DashKit.gauge(body, {
+            value: gv, max: o.max || 100, unit: gUnit, label: p.title, fmt: f,
+            warnAt: (o.warnAt != null ? o.warnAt : 70) / 100,
+            goodAt: (o.goodAt != null ? o.goodAt : 90) / 100
+          });
+          break;
+        case "radarSectors":
+          // metrics wheel (CONS-3): one row per metric — [label, category, score]
+          var rsLi = res.col(m.labelCol), rsCi = res.col(m.catCol), rsVi = res.col(m.valueCol);
+          DashKit.radarSectors(body, { fmt: f, height: o.height || 340, max: o.max || 100,
+            legend: o.showLegend !== false,
+            labels: res.rows.map(function (r) { return String(r[rsLi]); }),
+            cats: res.rows.map(function (r) { return String(r[rsCi]); }),
+            values: res.rows.map(function (r) { return +r[rsVi] || 0; }) });
+          break;
+        case "heatmap":
+          var ri2 = res.col(m.rowCol), ci2 = res.col(m.colCol), vi2 = res.col(m.valueCol);
+          var rowKeys = [], colKeys = [], idx = {};
+          res.rows.forEach(function (r) {
+            var rk = String(r[ri2]), ck = String(r[ci2]);
+            if (rowKeys.indexOf(rk) < 0) rowKeys.push(rk);
+            if (colKeys.indexOf(ck) < 0) colKeys.push(ck);
+            idx[rk + " " + ck] = +r[vi2] || 0;
+          });
+          var matrix = rowKeys.map(function (rk) { return colKeys.map(function (ck) { return idx[rk + " " + ck] || 0; }); });
+          DashKit.heatmap(body, { rows: rowKeys, cols: colKeys, matrix: matrix, fmt: f, showVals: o.showVals !== false, height: o.height || 320 });
+          break;
+        case "table":
+          var cols = (m.cols || []).map(function (c) {
+            return { label: c.label || c.col, num: !!c.num, fmt: c.fmt ? fmt(c.fmt) : null };
+          });
+          var idxs = (m.cols || []).map(function (c) { return res.col(c.col); });
+          var tblRows = res.rows.map(function (r) { return idxs.map(function (i) { return r[i]; }); });
+          if (o.maxRows > 0) tblRows = tblRows.slice(0, o.maxRows);
+          DashKit.table(body, { cols: cols, rows: tblRows, detail: detailCfg, grandTotal: !!o.grandTotal,
+            pageSize: o.pageSize || 0, freezeHeader: !!o.freezeHeader, density: o.density || "comfortable" });
+          break;
+        case "richtext":
+          // Text/annotation panel — no DA; content in chart.opts.content (light markdown)
+          body.innerHTML = '<div class="sr-richtext">' + mdToHtml(o.content || "") + '</div>';
+          break;
+        case "boxplot": {
+          // Group rows by labelCol, collect valueCol numbers, then compute quartiles in _boxplot.
+          var bpLi = res.col(m.labelCol), bpVi = res.col(m.valueCol);
+          var bpGroups = {}, bpOrder = [];
+          res.rows.forEach(function (r) {
+            var lab = String(r[bpLi] != null ? r[bpLi] : ""), val = +r[bpVi] || 0;
+            if (!bpGroups[lab]) { bpGroups[lab] = { label: lab, values: [] }; bpOrder.push(lab); }
+            bpGroups[lab].values.push(val);
+          });
+          DashKit.boxplot(body, { data: bpOrder.map(function (k) { return bpGroups[k]; }),
+            height: o.height || 300, fmt: f, horizontal: o.horizontal !== false });
+          break;
+        }
+        case "lollipop":
+          DashKit.lollipop(body, { data: cfData(csData(lv(res, m.labelCol, m.valueCol), p.colorScale), p.condFmt),
+            height: o.height || 280, fmt: f, color: color(o.color, "--pentaho") });
+          break;
+        case "slope": {
+          var slopeItems = (function () {
+            var li = res.col(m.labelCol), v1i = res.col(m.valueCol1), v2i = res.col(m.valueCol2);
+            return res.rows.map(function (r) { return { label: String(r[li] || ""), v1: +r[v1i] || 0, v2: +r[v2i] || 0 }; });
+          })();
+          DashKit.slope(body, { items: slopeItems, t1: o.t1 || "Before", t2: o.t2 || "After",
+            height: o.height || 300, fmt: f });
+          break;
+        }
+        case "dotplot": {
+          // Dot plot: one dot per row at the value position. Optional groupCol adds a second
+          // dot per row (compare two measures side-by-side on the same row track).
+          var dpItems = (function () {
+            var li = res.col(m.labelCol), v1i = res.col(m.valueCol);
+            var v2i = m.groupCol ? res.col(m.groupCol) : -1;
+            return res.rows.map(function (r) {
+              var it = { label: String(r[li] != null ? r[li] : ""), v1: +r[v1i] || 0 };
+              if (v2i >= 0) it.v2 = +r[v2i] || 0;
+              return it;
+            });
+          })();
+          DashKit.dotplot(body, { items: dpItems, height: o.height || 280, fmt: f,
+            sorted: o.sorted !== false,
+            group1: o.group1 || m.valueCol || "Primary",
+            group2: o.group2 || m.groupCol || "Compare" });
+          break;
+        }
+        case "beeswarm": {
+          // Beeswarm: each row is a dot jittered vertically to avoid overlap.
+          // Optional categoryCol groups rows into labelled horizontal strips.
+          var bsItems = (function () {
+            var li = res.col(m.labelCol), vi = res.col(m.valueCol);
+            var ci = m.categoryCol ? res.col(m.categoryCol) : -1;
+            return res.rows.map(function (r) {
+              var it = { label: String(r[li] != null ? r[li] : ""), value: +r[vi] || 0 };
+              if (ci >= 0) it.category = String(r[ci] != null ? r[ci] : "");
+              return it;
+            });
+          })();
+          DashKit.beeswarm(body, { items: bsItems, height: o.height || 300, fmt: f,
+            dotR: o.dotR || 5 });
+          break;
+        }
+        case "histogram": {
+          // Histogram: auto-bins the numeric valueCol into N equal-width buckets.
+          // Bars touch (no gap) to emphasise the continuous numeric range.
+          var histRows = res.rows.map(function (r) {
+            var v = {}; v[m.valueCol] = +r[res.col(m.valueCol)]; return v;
+          });
+          DashKit.histogram(body, histRows, { valueCol: m.valueCol }, {
+            bins: o.bins || 10, color: o.color, fmt: f, height: o.height || 300
+          });
+          break;
+        }
+        case "polarArea": {
+          // Polar area chart: equal-angle wedges, radius proportional to sqrt(value).
+          // Area encoding is more perceptually accurate than linear radius.
+          var paLabels = [], paValues = [];
+          res.rows.forEach(function (r) {
+            paLabels.push(String(r[res.col(m.labelCol)] || ""));
+            paValues.push(+r[res.col(m.valueCol)] || 0);
+          });
+          DashKit.polarArea(body, {
+            labels: paLabels, values: paValues,
+            fmt: f, showLabels: o.showLabels !== false, height: o.height || 280
+          });
+          break;
+        }
+        case "violin": {
+          // Violin plot: group rows by labelCol; collect all valueCol numbers per group;
+          // pass to DashKit.violin which runs Gaussian KDE + draws symmetric density silhouettes.
+          var vlLi = res.col(m.labelCol), vlVi = res.col(m.valueCol);
+          var vlGroups = {}, vlOrder = [];
+          res.rows.forEach(function (r) {
+            var lab = String(r[vlLi] != null ? r[vlLi] : "");
+            var val = +r[vlVi];
+            if (!isFinite(val)) return;
+            if (!vlGroups[lab]) { vlGroups[lab] = { name: lab, values: [] }; vlOrder.push(lab); }
+            vlGroups[lab].values.push(val);
+          });
+          DashKit.violin(body, {
+            categories: vlOrder.map(function (k) { return vlGroups[k]; }),
+            showBox: o.showBox !== false, fmt: f, height: o.height || 300
+          });
+          break;
+        }
+        case "ridgeline": {
+          // Ridgeline / joy plot: same grouping approach as violin — group rows by labelCol,
+          // collect all valueCol numbers per group, then pass pre-grouped categories to
+          // DashKit.ridgeline which draws horizontally-stacked KDE density curves.
+          var rlLi = res.col(m.labelCol), rlVi = res.col(m.valueCol);
+          var rlGroups = {}, rlOrder = [];
+          res.rows.forEach(function (r) {
+            var lab = String(r[rlLi] != null ? r[rlLi] : "");
+            var val = +r[rlVi];
+            if (!isFinite(val)) return;
+            if (!rlGroups[lab]) { rlGroups[lab] = { name: lab, values: [] }; rlOrder.push(lab); }
+            rlGroups[lab].values.push(val);
+          });
+          DashKit.ridgeline(body, {
+            categories: rlOrder.map(function (k) { return rlGroups[k]; }),
+            overlap: o.overlap != null ? +o.overlap : 0.4,
+            fmt: f, height: o.height || 320
+          });
+          break;
+        }
+        case "bump": {
+          // Bump chart: labelCol = period (x-axis); series = one numeric column per entity.
+          // At each period, ranks all series by value (rank 1 = highest); draws curved lines
+          // connecting each series' rank across periods. Line crossings show overtaking.
+          var bumpLabels = colVals(res, m.labelCol).map(String);
+          var bumpSeries = (m.series || []).map(function (s, i) {
+            return { name: s.name || s.col,
+                     color: color(s.color, "--c" + ((i % 10) + 1)),
+                     values: colVals(res, s.col).map(function (v) { return +v || 0; }) };
+          });
+          DashKit.bump(body, { labels: bumpLabels, series: bumpSeries, fmt: f, height: o.height || 300, showRankNumbers: o.showRankNumbers !== false });
+          break;
+        }
+        case "marimekko": {
+          // Marimekko (Mekko) chart: two-dimensional proportional stacked bars.
+          // labelCol = x-axis category (column width ∝ that category's total value)
+          // groupCol = stacking segment dimension (each segment = one group)
+          // valueCol = numeric cell value (determines column width share + stack height share)
+          var mCatCol = m.labelCol, mGrpCol = m.groupCol, mValCol = m.valueCol;
+          var mRows = res.rows || [];
+          DashKit.marimekko(body, {
+            rows:     mRows,
+            cols:     res.cols || [],
+            catCol:   mCatCol,
+            grpCol:   mGrpCol,
+            valCol:   mValCol,
+            fmt:      f,
+            showPct:  o.showPct !== false,
+            height:   o.height || 320
+          });
+          break;
+        }
+        case "dumbbell": {
+          // Dumbbell chart: labelCol = row label; startCol = baseline value; endCol = current value.
+          // Renders two dots per row connected by a colored line (green=improvement, red=decline).
+          var dbLi = res.col(m.labelCol), dbSi = res.col(m.startCol), dbEi = res.col(m.endCol);
+          var dbItems = res.rows.map(function (r) {
+            return { label: String(r[dbLi] != null ? r[dbLi] : ""),
+                     start: +r[dbSi] || 0, end: +r[dbEi] || 0 };
+          });
+          DashKit.dumbbell(body, {
+            items:      dbItems,
+            startLabel: o.startLabel || m.startCol || "Before",
+            endLabel:   o.endLabel   || m.endCol   || "After",
+            fmt:        f,
+            height:     o.height || 280
+          });
+          break;
+        }
+        case "packedBubble": {
+          // Packed bubble chart: each row becomes one circle whose area is proportional
+          // to its numeric value. A simple force-directed packing algorithm attracts all
+          // bubbles toward the container centre and repels overlapping pairs until they
+          // settle in a compact, non-overlapping cluster.
+          var pbLi = res.col(m.labelCol), pbVi = res.col(m.valueCol);
+          var pbItems = res.rows.map(function (r) {
+            return { label: String(r[pbLi] != null ? r[pbLi] : ""),
+                     value: Math.max(0, +r[pbVi] || 0) };
+          }).filter(function (d) { return d.value > 0; });
+          DashKit.packedBubble(body, {
+            items:      pbItems,
+            fmt:        f,
+            height:     o.height || 320,
+            showLabels: o.showLabels !== false
+          });
+          break;
+        }
+        case "wordCloud": {
+          // Word cloud: each row is one word/phrase whose font size is proportional
+          // to its numeric value (log scale). Words are placed outward from the centre
+          // via an Archimedean spiral with bounding-box overlap detection.
+          var wcLi = res.col(m.labelCol), wcVi = res.col(m.valueCol);
+          var wcItems = res.rows.map(function (r) {
+            return { label: String(r[wcLi] != null ? r[wcLi] : "").trim(),
+                     value: Math.max(0, +r[wcVi] || 0) };
+          }).filter(function (d) { return d.value > 0 && d.label; });
+          DashKit.wordCloud(body, {
+            items:    wcItems,
+            fmt:      f,
+            height:   o.height   || 320,
+            maxWords: o.maxWords || 60
+          });
+          break;
+        }
+        case "gantt": {
+          // Gantt / Timeline: each row has a label, a start value, and an end value.
+          // Bars float horizontally from start → end on a shared x-scale.
+          var gLi = res.col(m.labelCol), gSi = res.col(m.startCol), gEi = res.col(m.endCol);
+          var gRows = res.rows.map(function (r) {
+            return {
+              label: String(r[gLi] != null ? r[gLi] : ""),
+              start: +r[gSi] || 0,
+              end:   +r[gEi] || 0
+            };
+          }).filter(function (d) { return d.label; });
+          DashKit.gantt(body, {
+            rows:       gRows,
+            startLabel: o.startLabel || "Start",
+            endLabel:   o.endLabel   || "End",
+            fmt:        f,
+            height:     o.height || 300
+          });
+          break;
+        }
+        case "divergingBar": {
+          // Diverging bar: one bar per row extending right (positive) or left (negative)
+          // from a shared zero baseline. Perfect for variance, growth rates, or sentiment.
+          var dLi = res.col(m.labelCol), dVi = res.col(m.valueCol);
+          var dRows = res.rows.map(function (r) {
+            return {
+              label: String(r[dLi] != null ? r[dLi] : ""),
+              value: +r[dVi] || 0
+            };
+          }).filter(function (d) { return d.label; });
+          DashKit.divergingBar(body, {
+            rows:     dRows,
+            posColor: o.posColor || "--pentaho",
+            negColor: o.negColor || "--bad",
+            fmt:      f,
+            height:   o.height || 300
+          });
+          break;
+        }
+        case "parallelCoords": {
+          var pcLabels = colVals(res, m.labelCol).map(String);
+          var pcAxes = (m.series || []).map(function (s) {
+            return { name: s.name || s.col, values: colVals(res, s.col).map(function (v) { return +v || 0; }) };
+          });
+          DashKit.parallelCoords(body, { labels: pcLabels, axes: pcAxes, fmt: f, opacity: o.opacity != null ? o.opacity : 70, height: o.height || 320 });
+          break;
+        }
+        case "candlestick": {
+          // Each row must supply open, high, low, close values (any numeric unit).
+          // Bullish (close ≥ open) bodies use upColor; bearish use downColor.
+          var csLi = res.col(m.labelCol), csOi = res.col(m.openCol);
+          var csHi = res.col(m.highCol),  csLow = res.col(m.lowCol), csCi = res.col(m.closeCol);
+          var csRows = res.rows.map(function (r) {
+            return {
+              label: String(r[csLi] != null ? r[csLi] : ""),
+              open:  +r[csOi] || 0,
+              high:  +r[csHi] || 0,
+              low:   +r[csLow] || 0,
+              close: +r[csCi] || 0
+            };
+          }).filter(function (d) { return d.label; });
+          DashKit.candlestick(body, {
+            rows:      csRows,
+            upColor:   o.upColor   || "--good",
+            downColor: o.downColor || "--bad",
+            fmt:       f,
+            height:    o.height || 320
+          });
+          break;
+        }
+        case "waffle":
+          DashKit.waffle(body, {
+            data: lv(res, m.labelCol, m.valueCol),
+            cols: o.cols || 10,
+            fmt:  f,
+            height: o.height || 300
+          });
+          break;
+        case "timeline": {
+          // Timeline / milestone: one diamond marker per row on a horizontal baseline,
+          // alternating above/below. labelCol = event name; optional dateCol = period
+          // label on the opposite side of the baseline; colorCol = category palette.
+          var tLi  = res.col(m.labelCol);
+          var tDi  = m.dateCol   ? res.col(m.dateCol)   : -1;
+          var tCi  = m.colorCol  ? res.col(m.colorCol)  : -1;
+          var tCats = [];
+          if (tCi >= 0) {
+            res.rows.forEach(function (r) {
+              var cat = String(r[tCi] != null ? r[tCi] : "");
+              if (tCats.indexOf(cat) < 0) tCats.push(cat);
+            });
+          }
+          var tEvs = res.rows.map(function (r) {
+            var ev = { label: String(r[tLi] != null ? r[tLi] : "") };
+            if (tDi >= 0) ev.date  = String(r[tDi] != null ? r[tDi] : "");
+            if (tCi >= 0) ev.color = DashKit.color(tCats.indexOf(String(r[tCi] != null ? r[tCi] : "")));
+            return ev;
+          }).filter(function (e) { return e.label; });
+          DashKit.timeline(body, { events: tEvs, height: o.height || 220 });
+          break;
+        }
+        case "radialBar":
+          DashKit.radialBar(body, {
+            data:   lv(res, m.labelCol, m.valueCol),
+            fmt:    f,
+            maxVal: o.maxVal || 0,
+            height: o.height || 320
+          });
+          break;
+        case "pyramidBar": {
+          // Population pyramid: labelCol = category; leftCol and rightCol = the two numeric
+          // measures rendered as mirrored horizontal bars from a shared centre axis.
+          var pyLi = res.col(m.labelCol), pyLe = res.col(m.leftCol), pyRi = res.col(m.rightCol);
+          var pyRows = res.rows.map(function (r) {
+            return {
+              label: String(r[pyLi] != null ? r[pyLi] : ""),
+              left:  +r[pyLe] || 0,
+              right: +r[pyRi] || 0
+            };
+          }).filter(function (d) { return d.label; });
+          DashKit.pyramidBar(body, {
+            rows:       pyRows,
+            leftLabel:  o.leftLabel  || m.leftCol  || "Left",
+            rightLabel: o.rightLabel || m.rightCol || "Right",
+            leftColor:  color(o.leftColor,  "--dk"),
+            rightColor: color(o.rightColor, "--pentaho"),
+            fmt:        f,
+            height:     o.height || 300
+          });
+          break;
+        }
+        case "icicle": {
+          // Icicle / rectangular partition: groupCol (optional parent) + labelCol + valueCol.
+          // In two-level mode (groupCol set), groups span the top row and children fill the
+          // bottom portion of each group's horizontal slice (same binding as sunburst).
+          var icGi = m.groupCol ? res.col(m.groupCol) : -1;
+          var icLi = res.col(m.labelCol), icVi = res.col(m.valueCol);
+          var icRows = res.rows.map(function (r) {
+            var row = { label: String(r[icLi] != null ? r[icLi] : ""), value: +r[icVi] || 0 };
+            if (icGi >= 0) row.group = String(r[icGi] != null ? r[icGi] : "Other");
+            return row;
+          }).filter(function (d) { return d.label; });
+          DashKit.icicle(body, {
+            rows:     icRows,
+            labelCol: "label",
+            groupCol: icGi >= 0 ? "group" : "",
+            valueCol: "value",
+            fmt:        f,
+            height:     o.height || 280,
+            showLabels: o.showLabels !== false,
+            showPct:    !!o.showPct
+          });
+          break;
+        }
+        case "pareto": {
+          // Pareto chart: bars sorted descending + cumulative % line (80/20 rule).
+          // labelCol = category; valueCol = numeric measure.
+          var ptLi = res.col(m.labelCol), ptVi = res.col(m.valueCol);
+          var ptData = res.rows.map(function (r) {
+            return { label: String(r[ptLi] != null ? r[ptLi] : ""), value: +r[ptVi] || 0 };
+          }).filter(function (d) { return d.label; });
+          DashKit.pareto(body, {
+            data:    ptData,
+            showRef: o.showRef !== false,
+            fmt:     f,
+            height:  o.height || 300
+          });
+          break;
+        }
+        case "groupedBars": {
+          // Grouped bars: same labelCol + series binding as stacked/areaStacked.
+          // Renders N groups of M side-by-side vertical bars for direct cross-series
+          // comparison within each category (e.g. Q1/Q2/Q3 revenue by region).
+          var gbLabels = colVals(res, m.labelCol).map(String);
+          var gbSeries = (m.series || []).map(function (ser, i) {
+            return {
+              name:   ser.name || ser.col,
+              color:  color(ser.color, "--c" + ((i % 10) + 1)),
+              values: colVals(res, ser.col).map(function (v) { return +v || 0; })
+            };
+          });
+          DashKit.groupedBars(body, {
+            labels:     gbLabels,
+            series:     gbSeries,
+            rotate:     !!o.rotate,
+            showValues: !!o.showValues,
+            fmt:        f,
+            height:     o.height || 300
+          });
+          break;
+        }
+        case "barNorm": {
+          // 100% Normalized Stacked Bar: same labelCol + series binding as stacked/groupedBars.
+          // Every bar totals 100%; segments show proportional share (composition, not absolute).
+          var bnLabels = colVals(res, m.labelCol).map(String);
+          var bnSeries = (m.series || []).map(function (ser, i) {
+            return {
+              name:   ser.name || ser.col,
+              color:  color(ser.color, "--c" + ((i % 10) + 1)),
+              values: colVals(res, ser.col).map(function (v) { return +v || 0; })
+            };
+          });
+          DashKit.barNorm(body, {
+            labels:  bnLabels,
+            series:  bnSeries,
+            rotate:  !!o.rotate,
+            showPct: !!o.showPct,
+            fmt:     f,
+            height:  o.height || 300
+          });
+          break;
+        }
+        case "areaRange": {
+          // Area range / confidence band: labelCol → x-axis; lowerCol + upperCol → band edges;
+          // optional centerCol → bold centre line through the middle of the band.
+          var arLi = res.col(m.labelCol);
+          var arLow = m.lowerCol  ? res.col(m.lowerCol)  : -1;
+          var arUp  = m.upperCol  ? res.col(m.upperCol)  : -1;
+          var arCen = m.centerCol ? res.col(m.centerCol) : -1;
+          DashKit.areaRange(body, {
+            labels:      res.rows.map(function (r) { return String(r[arLi] != null ? r[arLi] : ""); }),
+            lower:       arLow >= 0 ? res.rows.map(function (r) { return +r[arLow] || 0; }) : [],
+            upper:       arUp  >= 0 ? res.rows.map(function (r) { return +r[arUp]  || 0; }) : [],
+            center:      arCen >= 0 ? res.rows.map(function (r) { return +r[arCen] || 0; }) : null,
+            showCenter:  o.showCenter !== false,
+            bandOpacity: o.bandOpacity != null ? o.bandOpacity / 100 : 0.22,
+            fmt:         f,
+            height:      o.height || 300
+          });
+          break;
+        }
+        case "quadrant": {
+          // Quadrant chart: scatter-style x/y plot divided into four labelled zones by
+          // configurable threshold lines — perfect for BCG matrix, effort/impact, risk grids.
+          // Dots are coloured by quadrant so categorisation reads instantly.
+          var qxIdx = m.xCol     ? res.col(m.xCol)     : -1;
+          var qyIdx = m.yCol     ? res.col(m.yCol)     : -1;
+          var qlIdx = m.labelCol ? res.col(m.labelCol) : -1;
+          var qPts  = res.rows.map(function (r) {
+            return { x: qxIdx >= 0 ? +r[qxIdx] || 0 : 0,
+                     y: qyIdx >= 0 ? +r[qyIdx] || 0 : 0,
+                     label: qlIdx >= 0 ? String(r[qlIdx] != null ? r[qlIdx] : "") : "" };
+          });
+          DashKit.quadrant(body, {
+            points:     qPts,
+            xThreshold: o.xThreshold != null ? +o.xThreshold : 50,
+            yThreshold: o.yThreshold != null ? +o.yThreshold : 50,
+            q1Label:    o.q1 || "High Value",
+            q2Label:    o.q2 || "Explore",
+            q3Label:    o.q3 || "Low Priority",
+            q4Label:    o.q4 || "Quick Wins",
+            xLabel:     o.xLabel || m.xCol || "",
+            yLabel:     o.yLabel || m.yCol || "",
+            fmt:        f,
+            height:     o.height || 300
+          });
+          break;
+        }
+        default:
+          body.innerHTML = '<div class="empty">Unknown chart type: ' + ch.type + '</div>';
+      }
+    } catch (e) {
+      body.innerHTML = '<div class="empty">Render error: ' + (e && e.message || e) + '</div>';
+    }
+    // Target line: horizontal dashed reference overlay positioned at p.targetLine.pct% from the
+    // top of the chart body (card.body). Works for every chart type — position is visual, not
+    // data-scaled, so there is nothing to compute against the Y axis.
+    // Uses setTimeout(0) to defer past any synchronous chart drawing that clears body content,
+    // then also registers in DashKit._reg so it re-applies after theme-change / resize redraws.
+    if (p.targetLine && p.targetLine.label) {
+      var _tlPct = p.targetLine.pct != null ? +p.targetLine.pct : 30;
+      var _tlColor = p.targetLine.color || "#e74c3c";
+      var _tlLabel = p.targetLine.label;
+      var _tlBody = body;
+      function _applyTL() {
+        try {
+          [].slice.call(_tlBody.querySelectorAll(".dk-target-line")).forEach(function (el) { el.remove(); });
+          var tl = document.createElement("div");
+          tl.className = "dk-target-line";
+          tl.style.top = _tlPct + "%";
+          tl.style.borderTopColor = _tlColor;
+          var tlLbl = document.createElement("span");
+          tlLbl.className = "dk-target-label";
+          tlLbl.style.color = _tlColor;
+          tlLbl.textContent = _tlLabel;
+          tl.appendChild(tlLbl);
+          _tlBody.style.position = "relative";
+          _tlBody.appendChild(tl);
+        } catch (etl) {}
+      }
+      setTimeout(_applyTL, 0);
+      DashKit._reg.push(_applyTL);
+    }
+    // Reference band: semi-transparent shaded range between topPct and bottomPct (% from chart top).
+    // Uses rgba background so the band fill is translucent while the label text is solid.
+    // Same defer+reg pattern as target line to survive synchronous chart renders and redraws.
+    if (p.refBand && p.refBand.label) {
+      var _rbTop = p.refBand.topPct != null ? +p.refBand.topPct : 20;
+      var _rbBot = p.refBand.bottomPct != null ? +p.refBand.bottomPct : 50;
+      var _rbHex = p.refBand.color || "#2ecc71";
+      var _rbLabel = p.refBand.label;
+      var _rbBody = body;
+      // parse hex → rgba so the fill can be semi-transparent without affecting the label
+      var _rbR = parseInt(_rbHex.slice(1,3),16), _rbG = parseInt(_rbHex.slice(3,5),16), _rbB = parseInt(_rbHex.slice(5,7),16);
+      var _rbBg = "rgba(" + _rbR + "," + _rbG + "," + _rbB + ",0.14)";
+      function _applyRB() {
+        try {
+          [].slice.call(_rbBody.querySelectorAll(".dk-ref-band")).forEach(function (el) { el.remove(); });
+          var rb = document.createElement("div");
+          rb.className = "dk-ref-band";
+          rb.style.top = _rbTop + "%";
+          rb.style.height = Math.max(0, _rbBot - _rbTop) + "%";
+          rb.style.backgroundColor = _rbBg;
+          rb.style.borderTop = "1px dashed " + _rbHex;
+          rb.style.borderBottom = "1px dashed " + _rbHex;
+          if (_rbLabel) {
+            var rbLbl = document.createElement("span");
+            rbLbl.className = "dk-ref-label";
+            rbLbl.style.color = _rbHex;
+            rbLbl.textContent = _rbLabel;
+            rb.appendChild(rbLbl);
+          }
+          _rbBody.style.position = "relative";
+          _rbBody.appendChild(rb);
+        } catch (erb) {}
+      }
+      setTimeout(_applyRB, 0);
+      DashKit._reg.push(_applyRB);
+    }
+    // Callout arrow: an SVG text bubble with a dashed leader line pointing to an (x%, y%)
+    // position on the chart. Good for "Peak here", "Drop point", "Watch this" annotations.
+    // Uses an absolutely-positioned <svg> overlay so it works with every chart type.
+    // Same defer+DashKit._reg pattern as target line and reference band.
+    if (p.callout && p.callout.text) {
+      var _caX = p.callout.x != null ? +p.callout.x : 50;
+      var _caY = p.callout.y != null ? +p.callout.y : 30;
+      var _caText = p.callout.text;
+      var _caColor = p.callout.color || "#e74c3c";
+      var _caBody = body;
+      function _applyCA() {
+        try {
+          [].slice.call(_caBody.querySelectorAll(".dk-callout")).forEach(function (el) { el.remove(); });
+          var bw = _caBody.clientWidth  || 300;
+          var bh = _caBody.clientHeight || 200;
+          var tx = bw * _caX / 100;
+          var ty = bh * _caY / 100;
+          // Bubble dimensions (cap text width at 160px; ~7px per char estimate)
+          var textW = Math.min(Math.max(_caText.length * 6.8 + 18, 44), 160);
+          var textH = 20;
+          // Bubble sits above the arrow tip; clamp to stay within the body
+          var bx = Math.max(2, Math.min(tx - textW / 2, bw - textW - 2));
+          var by = Math.max(2, ty - 36);
+          // Leader line from the bubble's bottom-centre to the tip
+          var lx1 = bx + textW / 2, ly1 = by + textH;
+          // Arrow-head direction unit vector
+          var aDx = tx - lx1, aDy = ty - ly1, len = Math.sqrt(aDx*aDx + aDy*aDy) || 1;
+          var ux = aDx / len, uy = aDy / len, aw = 4;
+          var ax1 = tx - uy*aw - ux*7, ay1 = ty + ux*aw - uy*7;
+          var ax2 = tx + uy*aw - ux*7, ay2 = ty - ux*aw - uy*7;
+
+          function svgEl(tag, attrs) {
+            var el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+            Object.keys(attrs).forEach(function (k) { el.setAttribute(k, attrs[k]); });
+            return el;
+          }
+          var svg = svgEl("svg", { "class": "dk-callout" });
+          svg.style.cssText = "position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:4;overflow:visible";
+
+          var g = svgEl("g", {});
+          // Dashed leader line
+          g.appendChild(svgEl("line", { x1: lx1, y1: ly1, x2: tx, y2: ty,
+            stroke: _caColor, "stroke-width": "1.5", "stroke-dasharray": "3 2" }));
+          // Filled arrow head
+          g.appendChild(svgEl("polygon", {
+            points: tx+","+ty+" "+ax1.toFixed(1)+","+ay1.toFixed(1)+" "+ax2.toFixed(1)+","+ay2.toFixed(1),
+            fill: _caColor }));
+          // Bubble background
+          g.appendChild(svgEl("rect", { x: bx, y: by, width: textW, height: textH, rx: "4", ry: "4",
+            fill: _caColor, opacity: "0.92" }));
+          // Bubble label
+          var txt = svgEl("text", { x: bx + textW / 2, y: by + 13.5,
+            "text-anchor": "middle", fill: "#fff",
+            "font-size": "10.5", "font-weight": "700", "font-family": "inherit" });
+          txt.textContent = _caText;
+          g.appendChild(txt);
+
+          svg.appendChild(g);
+          _caBody.style.position = "relative";
+          _caBody.appendChild(svg);
+        } catch (eca) {}
+      }
+      setTimeout(_applyCA, 0);
+      DashKit._reg.push(_applyCA);
+    }
+    // Period highlight: semi-transparent vertical band across an x% range of the chart body.
+    // Type-aware — only applies when periodHighlight is set and a label is provided.
+    // Uses the same setTimeout(0) + DashKit._reg.push() pattern as other overlay annotations so
+    // it survives synchronous chart redraws, theme changes, and window resize events.
+    var _phTypes = ["line","areaStacked","streamgraph","combo","stacked","bars"];
+    if (p.periodHighlight && p.periodHighlight.label && _phTypes.indexOf(p.chart && p.chart.type) >= 0) {
+      var _phXs = p.periodHighlight.xStart != null ? +p.periodHighlight.xStart : 25;
+      var _phXe = p.periodHighlight.xEnd   != null ? +p.periodHighlight.xEnd   : 60;
+      var _phHex   = p.periodHighlight.color || "#3498db";
+      var _phLabel = p.periodHighlight.label;
+      var _phBody  = body;
+      // Parse hex color to rgba so fill stays semi-transparent while label text is solid
+      var _phR = parseInt(_phHex.slice(1,3),16), _phG = parseInt(_phHex.slice(3,5),16), _phB = parseInt(_phHex.slice(5,7),16);
+      var _phBg = "rgba(" + _phR + "," + _phG + "," + _phB + ",0.12)";
+      function _applyPH() {
+        try {
+          [].slice.call(_phBody.querySelectorAll(".dk-period")).forEach(function (e) { e.remove(); });
+          var ph = document.createElement("div");
+          ph.className = "dk-period";
+          var xs = Math.min(_phXs, _phXe), xe = Math.max(_phXs, _phXe);
+          ph.style.left = xs + "%";
+          ph.style.width = Math.max(0, xe - xs) + "%";
+          ph.style.backgroundColor = _phBg;
+          ph.style.borderLeft  = "1px dashed " + _phHex;
+          ph.style.borderRight = "1px dashed " + _phHex;
+          if (_phLabel) {
+            var phLbl = document.createElement("span");
+            phLbl.className = "dk-period-label";
+            phLbl.style.color = _phHex;
+            phLbl.textContent = _phLabel;
+            ph.appendChild(phLbl);
+          }
+          _phBody.style.position = "relative";
+          _phBody.appendChild(ph);
+        } catch (eph) {}
+      }
+      setTimeout(_applyPH, 0);
+      DashKit._reg.push(_applyPH);
+    }
+    // Event markers: named vertical dashed lines at specific x% positions.
+    // Type-aware — only for chart types that have a meaningful horizontal x-axis.
+    // Each marker in p.eventMarkers is {label, xPct, color}; multiple markers are supported.
+    // Great for annotating "Product launch", "Incident", "Campaign start" on line and bar charts.
+    var _emAxisTypes = ["line","areaStacked","streamgraph","combo","stacked","bars"];
+    if (p.eventMarkers && p.eventMarkers.length && _emAxisTypes.indexOf(p.chart && p.chart.type) >= 0) {
+      var _emBody = body;
+      var _emMarkers = (p.eventMarkers || []).filter(function (m) { return m && m.label; });
+      if (_emMarkers.length) {
+        function _applyEM() {
+          try {
+            [].slice.call(_emBody.querySelectorAll(".dk-event-mark")).forEach(function (e) { e.remove(); });
+            _emMarkers.forEach(function (m) {
+              var mk = document.createElement("div");
+              mk.className = "dk-event-mark";
+              mk.style.left = (m.xPct != null ? +m.xPct : 50) + "%";
+              mk.style.borderLeftColor = m.color || "#e74c3c";
+              var lbl = document.createElement("span");
+              lbl.className = "dk-event-mark-label";
+              lbl.style.color = m.color || "#e74c3c";
+              lbl.textContent = m.label;
+              mk.appendChild(lbl);
+              _emBody.style.position = "relative";
+              _emBody.appendChild(mk);
+            });
+          } catch (eem) {}
+        }
+        setTimeout(_applyEM, 0);
+        DashKit._reg.push(_applyEM);
+      }
+    }
+    // Scatter point annotations: text labels pinned at visual (x%, y%) positions on scatter plots.
+    // Each item in p.scatterAnnotations is {text, xPct, yPct, color}; multiple items are supported.
+    // Ideal for highlighting outliers, clusters, or regions of interest — the label is a small
+    // colored box with a dot indicator. Position is visual (% of chart body), not data-scaled.
+    if (p.scatterAnnotations && p.scatterAnnotations.length && p.chart && p.chart.type === "scatter") {
+      var _saBody = body;
+      var _saItems = (p.scatterAnnotations || []).filter(function (a) { return a && a.text; });
+      if (_saItems.length) {
+        function _applySA() {
+          try {
+            [].slice.call(_saBody.querySelectorAll(".dk-pt-annot")).forEach(function (e) { e.remove(); });
+            _saItems.forEach(function (a) {
+              var div = document.createElement("div");
+              div.className = "dk-pt-annot";
+              div.style.left = (a.xPct != null ? +a.xPct : 50) + "%";
+              div.style.top  = (a.yPct != null ? +a.yPct : 50) + "%";
+              var dot = document.createElement("span");
+              dot.className = "dk-pt-annot-dot";
+              dot.style.background = a.color || "#005bb5";
+              var txt = document.createElement("span");
+              txt.className = "dk-pt-annot-txt";
+              txt.style.color = a.color || "#005bb5";
+              txt.style.background = "var(--panel-bg,#fff)";
+              txt.style.border = "1.5px solid " + (a.color || "#005bb5");
+              txt.textContent = a.text;
+              div.appendChild(dot);
+              div.appendChild(txt);
+              _saBody.style.position = "relative";
+              _saBody.appendChild(div);
+            });
+          } catch (esa) {}
+        }
+        setTimeout(_applySA, 0);
+        DashKit._reg.push(_applySA);
+      }
+    }
+    // Cross-filter emission: tag elements with their labels and wire click-to-filter.
+    // Supported chart types are whitelisted in Studio.ANNOT_CAPS.crossFilter (model.js) and
+    // handled one-by-one in wireXFilter above; silently skipped for every other chart type.
+    // DashKit.redrawAll() (fired on theme change / resize) calls _bars again, which
+    // clears body.innerHTML and re-renders bars — so we push a re-tagger into
+    // DashKit._reg to re-apply data-xf-label after every redraw as well.
+    // The stacked/grouped bar family (stacked/groupedBars/barNorm) binds labelCol+series
+    // rather than labelCol+valueCol — there's no single "value" column to read, so build
+    // the label list straight off labelCol (value is unused downstream in wireXFilter).
+    var xfSeriesFamily = ch.type === "stacked" || ch.type === "groupedBars" || ch.type === "barNorm";
+    var xfParam = p.crossFilter && p.crossFilter.emit;
+    if (xfParam && res && m.labelCol && (m.valueCol || (xfSeriesFamily && m.series && m.series.length))) {
+      var _xfLv = xfSeriesFamily
+        ? colVals(res, m.labelCol).map(function (v) { return { label: String(v), value: 0 }; })
+        : lv(res, m.labelCol, m.valueCol);
+      var _xfType = ch.type, _xfSort = !!(o.sortSlices || o.sortBars);
+      try { wireXFilter(body, xfParam, _xfLv, spec, _xfType, _xfSort); } catch (e2) {}
+      DashKit._reg.push(function () {
+        try { wireXFilter(body, xfParam, _xfLv, spec, _xfType, _xfSort); } catch (e3) {}
+      });
+    }
+  }
+
+  /* ---- whole dashboard ---- */
+  function renderAll(spec, data) {
+    // Test-only: lets __downloadPanelDataRows look up a panel's bound query result by da id
+    // without threading `data` through a whole extra parameter (a real click handler already
+    // closes over it directly — see the per-panel loop below).
+    window.__lastRenderData = data;
+    // LF6 slice 2: reset the per-panel CSV-override registry every full render so a panel whose
+    // chart type just changed away from choropleth/ensembleSeries can't keep a stale rows fn.
+    DashKit._panelCsvRows = {};
+    // KPIs
+    var kEl = DashKit.el("kpis");
+    if (kEl) {
+      if ((spec.kpis || []).length) {
+        // Build tile descriptors; sparkType 'bar'/'area' are post-processed below
+        // after DashKit.kpis renders, using DashKit.sparkSvgBar / DashKit.sparkSvgArea from studio-charts.js.
+        var _kTiles = spec.kpis.map(function (k) {
+          var res = data[k.da], val = res ? (res.rows[0] || [])[res.col(k.valueCol)] : "—";
+          // Z7: statistical KPI computation — "agg" other than the default "first row"
+          // recomputes val as a statistic (sum/avg/median/min/max/p90/p95/stddev/corr) across
+          // every row the DA returns, instead of only reading the first row's value. "corr" is
+          // special: it needs a SECOND column, so it reuses the Compare-to field (k.compareCol)
+          // as its column picker rather than the "Compare to" delta feature below.
+          if (k.agg === "corr" && res && k.compareCol) {
+            var cvi = res.col(k.valueCol), cci = res.col(k.compareCol);
+            if (cvi >= 0 && cci >= 0) val = pearsonCorrOf(res.rows.map(function (r) { return r[cvi]; }), res.rows.map(function (r) { return r[cci]; }));
+          } else if (k.agg && k.agg !== "first" && res) {
+            var vi = res.col(k.valueCol);
+            if (vi >= 0) val = aggregateOf(res.rows.map(function (r) { return r[vi]; }), k.agg);
+          }
+          var tile = { value: fmt(k.fmt)(val), label: k.label, state: k.state || "", info: k.info || "", _raw: val };
+          // Computed comparison delta: compareCol auto-computes the delta from a second numeric
+          // column (same DA first row). Takes priority over manual deltaText when both are set.
+          // Skipped for "corr" — that mode already consumed compareCol as its second series above.
+          // N-DATA innovation sweep: period-over-period auto-compare. Unlike compareCol (a second
+          // column in the same row), periodCol needs only the ONE value column already bound —
+          // it sorts the DA's own rows chronologically by periodCol and splits them into two
+          // contiguous halves, aggregating each with k.agg (default "sum", since "first row"/
+          // "corr" don't make sense split in half). Takes priority over compareCol when both are
+          // set (mutually exclusive in the inspector). The tile's headline value itself becomes
+          // the CURRENT half's aggregate — that's the whole point of a period-over-period KPI.
+          if (k.periodCol && res) {
+            var pcIdx = res.col(k.periodCol), pvIdx = res.col(k.valueCol);
+            if (pcIdx >= 0 && pvIdx >= 0 && res.rows.length > 1) {
+              var pSorted = res.rows.slice().sort(function (a, b) {
+                var av = a[pcIdx], bv = b[pcIdx];
+                return av < bv ? -1 : av > bv ? 1 : 0;
+              });
+              var priorRows, curRows;
+              // k.periodSplit: an explicit boundary value (typed in the inspector) instead of
+              // the default even 50/50 split — rows before it are "prior", it and after are
+              // "current". Falls back to the midpoint split when unset/empty.
+              if (k.periodSplit) {
+                priorRows = pSorted.filter(function (r) { return r[pcIdx] < k.periodSplit; });
+                curRows = pSorted.filter(function (r) { return r[pcIdx] >= k.periodSplit; });
+              } else {
+                var pMid = Math.floor(pSorted.length / 2);
+                priorRows = pSorted.slice(0, pMid); curRows = pSorted.slice(pMid);
+              }
+              if (priorRows.length && curRows.length) {
+                var pAgg = (k.agg && k.agg !== "first" && k.agg !== "corr") ? k.agg : "sum";
+                var curVal = aggregateOf(curRows.map(function (r) { return r[pvIdx]; }), pAgg);
+                var priorVal = aggregateOf(priorRows.map(function (r) { return r[pvIdx]; }), pAgg);
+                val = curVal; tile.value = fmt(k.fmt)(curVal); tile._raw = curVal;
+                var pMode = k.compareMode || "pct";
+                var pLbl = k.compareLabel || "prior period";
+                if (pMode === "value") {
+                  tile.delta = 0; tile.deltaText = fmt(k.fmt)(priorVal) + " " + pLbl;
+                } else if (pMode === "abs") {
+                  var pDiff = curVal - priorVal;
+                  tile.delta = pDiff >= 0 ? 1 : -1;
+                  tile.deltaText = fmt(k.fmt)(Math.abs(pDiff)) + " vs " + pLbl;
+                } else { // pct (default)
+                  var pPct = priorVal !== 0 ? ((curVal - priorVal) / Math.abs(priorVal)) * 100 : 0;
+                  tile.delta = pPct >= 0 ? 1 : -1;
+                  tile.deltaText = Math.abs(pPct).toFixed(1) + "% vs " + pLbl;
+                }
+              }
+            }
+          } else if (k.compareCol && res && k.agg !== "corr") {
+            var ci = res.col(k.compareCol);
+            if (ci >= 0) {
+              var cmpRaw = (res.rows[0] || [])[ci];
+              var numVal = +val || 0, cmpVal = +cmpRaw || 0;
+              var mode = k.compareMode || "pct";
+              var lbl = k.compareLabel || k.compareCol;
+              if (mode === "value") {
+                tile.delta = 0; tile.deltaText = fmt(k.fmt)(cmpRaw) + " " + lbl;
+              } else if (mode === "abs") {
+                var diff = numVal - cmpVal;
+                tile.delta = diff >= 0 ? 1 : -1;
+                tile.deltaText = fmt(k.fmt)(Math.abs(diff)) + " vs " + lbl;
+              } else { // pct (default) — most useful for period-over-period comparisons
+                var pct = cmpVal !== 0 ? ((numVal - cmpVal) / Math.abs(cmpVal)) * 100 : 0;
+                tile.delta = pct >= 0 ? 1 : -1;
+                tile.deltaText = Math.abs(pct).toFixed(1) + "% vs " + lbl;
+              }
+            }
+          } else if (k.deltaText) {
+            tile.delta = k.deltaDir === "down" ? -1 : k.deltaDir === "flat" ? 0 : 1; tile.deltaText = k.deltaText;
+          }
+          if (k.sparkCol && res) {
+            var si = res.col(k.sparkCol);
+            if (si >= 0) {
+              var sVals = res.rows.map(function (r) { return +r[si] || 0; });
+              var sColor = color(k.sparkColor);
+              if (!k.sparkType || k.sparkType === "line") {
+                tile.spark = sVals; tile.sparkColor = sColor;
+              } else {
+                tile._sparkVals = sVals; tile._sparkColor = sColor; tile._sparkType = k.sparkType;
+              }
+            }
+          }
+          return tile;
+        });
+        DashKit.kpis(kEl, _kTiles);
+        // Post-process non-line sparklines (bar / area) via studio-charts.js extensions
+        _kTiles.forEach(function (tile, idx) {
+          if (!tile._sparkVals) return;
+          var kDiv = kEl.querySelectorAll(".kpi")[idx]; if (!kDiv) return;
+          var sp = kDiv.querySelector(".spark");
+          if (!sp) { sp = document.createElement("div"); sp.className = "spark"; kDiv.appendChild(sp); }
+          var fn = tile._sparkType === "bar" ? DashKit.sparkSvgBar : DashKit.sparkSvgArea;
+          if (fn) sp.innerHTML = fn(tile._sparkVals, 90, 26, tile._sparkColor);
+        });
+        // KPI subtitle: optional italic subline below each tile value
+        spec.kpis.forEach(function (k, idx) {
+          if (!k.subtitle) return;
+          var kDiv = kEl.querySelectorAll(".kpi")[idx]; if (!kDiv) return;
+          var sub = document.createElement("div");
+          sub.className = "kpi-sub";
+          sub.textContent = k.subtitle;
+          kDiv.appendChild(sub);
+        });
+        // KPI click-through: navigate to a target URL when the tile is clicked, mirroring
+        // panel Drill-through (same shared DashKit.bindDrill helper bars/donut use). Falls back to
+        // the shared detail-rows drawer (buildKpiDetailCfg) when no drill URL is configured, so
+        // every KPI tile links somewhere by default instead of requiring per-tile setup (design
+        // bar: "dashboard tiles/KPIs always link to their detail"). Skipped in preview mode
+        // (the Studio builder's own live iframe, Panel-zoom, Slideshow, Compare) — there,
+        // clicking a tile SELECTS it for editing (wireSelection/tagKpis below); the detail
+        // drawer is for the read-only exported bundle and Viewer only.
+        spec.kpis.forEach(function (k, idx) {
+          var kDiv = kEl.querySelectorAll(".kpi")[idx]; if (!kDiv) return;
+          if (k.drill && k.drill.url) {
+            DashKit.bindDrill(kDiv, { to: k.drill.url, param: k.drill.param }, _kTiles[idx]._raw);
+          } else if (!isPreview()) {
+            var detailCfg = buildKpiDetailCfg(k);
+            if (detailCfg) DashKit.bindDetail(kDiv, detailCfg, _kTiles[idx]._raw);
+          }
+          // SWEEP574-3: give the keyboard the same door the mouse has. `cursor:pointer` is the
+          // vendor's own marker that it bound a click handler — so exactly the tiles that DO
+          // something become buttons, and a tile whose detail config came back empty stays
+          // inert instead of promising an action it can't perform. Preview is excluded on
+          // purpose: there a click SELECTS the tile for editing (tagKpis/wireSelection below),
+          // and the builder owns its own keyboard model.
+          if (!isPreview() && kDiv.style.cursor === "pointer") makeTileActivatable(kDiv);
+        });
+        if (isPreview()) tagKpis(kEl, spec);
+      } else kEl.innerHTML = "";
+    }
+    // panels grid
+    var content = DashKit.el("content"); content.innerHTML = "";
+    if (!(spec.panels || []).length) {
+      content.innerHTML = isPreview()
+        ? '<div class="sr-empty"><div class="sr-empty-ic">▤</div><div class="sr-empty-t">Your dashboard is empty</div>' +
+          '<div class="sr-empty-s">Drag a query from the <b>Query Library</b> onto this canvas — or use a <b>＋ chart</b> chip — to add your first panel.</div></div>'
+        : '<div class="loading">No panels configured yet.</div>';
+      return;
+    }
+    // Group consecutive panels under their optional section label so section-divider
+    // headers appear in the correct grid rows. Panels without a section form an
+    // implicit group (label = ""). A new grid is started for each group so spans
+    // behave correctly within each section.
+    var groups = []; // [{label: string, panels: [...]}]
+    spec.panels.forEach(function (p) {
+      var lbl = p.section || "";
+      if (!groups.length || groups[groups.length - 1].label !== lbl) {
+        groups.push({ label: lbl, panels: [] });
+      }
+      groups[groups.length - 1].panels.push(p);
+    });
+
+    groups.forEach(function (grp) {
+      // Section divider (skipped for unlabeled groups)
+      if (grp.label) {
+        var hdr = document.createElement("div");
+        hdr.className = "dk-sec-hdr";
+        hdr.textContent = grp.label;
+        content.appendChild(hdr);
+      }
+      var g = DashKit.grid(spec.gridCols || 3); content.appendChild(g);
+      grp.panels.forEach(function (p) {
+        var spanClass = p.span === "full" ? "full" : (p.span > 1 ? String(p.span) : null);
+        // N-DEV follow-up: {{key}} template vars now resolve in panel titles/notes too (previously
+        // only the dashboard Title/Subtitle banner), same shared Studio.applyTemplateVars pass so
+        // preview and every export agree. The RAW p.title (with the literal {{token}}) stays the
+        // source of truth in the spec — resolution happens only for display, here at render time.
+        var titleText = applyTemplateVars(p.title || "", spec.templateVars);
+        var noteText = applyTemplateVars(p.note || "", spec.templateVars);
+        var card = DashKit.card(titleText, { pill: p.pill || "", sub: p.sub || "", info: p.info || "",
+          src: p.src || "", query: (p.chart && p.chart.da) || "", span: spanClass,
+          // PANEL-H (Kevin): a drag-set panel height rides chart.opts.height —
+          // charts already draw to it (cfg.height); opts.h makes the CARD BODY
+          // honor it too, so table/richtext panels stretch the same way.
+          h: (p.chart && p.chart.opts && p.chart.opts.height) || 0 });
+        // Panel note: visible annotation line shown below the card header, above the chart.
+        // Gives stakeholders quick context without needing to hover over the info dot.
+        if (noteText) {
+          var noteEl = document.createElement("div");
+          noteEl.className = "dk-panel-note";
+          noteEl.textContent = noteText;
+          card.el.insertBefore(noteEl, card.body);
+        }
+        // Per-panel accent color: a colored left border that visually differentiates panels
+        // by topic or domain in multi-subject dashboards. The --pap-color CSS variable is set
+        // inline so the .dk-accent-panel rule in panelAccentCss can reference it.
+        if (p.accentColor) {
+          card.el.classList.add("dk-accent-panel");
+          card.el.style.setProperty("--pap-color", p.accentColor);
+        }
+        // data-panel-id is set unconditionally (not just in preview) so the download chrome's
+        // test hooks (and anything else keying off it) can find the right panel in an exported
+        // page too, not only the builder's preview iframe.
+        card.el.setAttribute("data-panel-id", p.id);
+        if (isPreview()) {
+          card.el.classList.add("sr-sel");
+          var h3 = card.el.querySelector("h3");
+          if (h3) { var grip = document.createElement("span"); grip.className = "sr-grip"; grip.textContent = "⠿"; grip.title = "Drag to reorder"; h3.insertBefore(grip, h3.firstChild); }
+          var titleEl = card.el.querySelector(".dk-h-t");
+          if (titleEl && h3) {
+            titleEl.title = "Double-click to rename";
+            // Keep the RAW (unresolved) title on the element so double-click-to-rename edits the
+            // real {{token}}-bearing string, not the resolved display text — otherwise saving would
+            // silently bake the resolved value back into spec.panels[i].title and destroy the template.
+            titleEl.setAttribute("data-raw-title", p.title || "");
+            (function (h, t, id) { t.addEventListener("dblclick", function (e) { e.preventDefault(); e.stopPropagation(); startRename(h, t, id); }); })(h3, titleEl, p.id);
+          }
+          var rz = document.createElement("div"); rz.className = "sr-resize"; rz.title = "Drag to resize"; card.el.appendChild(rz);
+          var rzh = document.createElement("div"); rzh.className = "sr-resize-h"; rzh.title = "Drag to make this panel taller or shorter"; card.el.appendChild(rzh);
+          var acts = document.createElement("div"); acts.className = "sr-card-acts";
+          acts.innerHTML = '<button class="sr-act" data-act="zoom" title="Zoom panel full-screen">' + I_MAXIMIZE + '</button><button class="sr-act" data-act="dup" title="Duplicate panel">' + I_DUP + '</button><button class="sr-act" data-act="del" title="Delete panel">' + I_CLOSE + '</button>';
+          (function (pid) {
+            acts.querySelector('[data-act="dup"]').addEventListener("click", function (e) { e.stopPropagation(); post({ type: "panel-dup", id: pid }); });
+            acts.querySelector('[data-act="del"]').addEventListener("click", function (e) { e.stopPropagation(); post({ type: "panel-delete", id: pid }); });
+            acts.querySelector('[data-act="zoom"]').addEventListener("click", function (e) { e.stopPropagation(); post({ type: "zoom", panelId: pid }); });
+          })(p.id);
+          card.el.appendChild(acts);
+        }
+        g.appendChild(card.el);
+        renderPanel(spec, p, data, card.body);
+        // LF6/LF25(a): download+export chrome, on by default, each of PNG/CSV/HTML-embed
+        // independently toggleable (dlTypeShown) — addDownloadChrome no-ops if every type is
+        // off for this panel. In preview it joins the existing .sr-card-acts row (builder-only,
+        // styled by previewCss in exporters.js) so zoom/dup/del/download sit together; in export
+        // (no .sr-card-acts there) it gets its own .dk-dl-acts container at the same top-right
+        // spot — .dk-dl-act is styled unconditionally (exporters.js's dlActsCss) so it looks
+        // identical either way.
+        {
+          if (isPreview()) {
+            addDownloadChrome(acts, card, p, data[p.chart.da]);
+            // LF69(a): destructive/close belongs at the FAR RIGHT, not mid-row — addDownloadChrome
+            // just appended the export buttons after del, so re-append del to move it to the end
+            // (appendChild on an already-connected node relocates it, no duplicate).
+            var delBtn = acts.querySelector('[data-act="del"]');
+            if (delBtn) acts.appendChild(delBtn);
+          } else {
+            var dlActs = document.createElement("div"); dlActs.className = "dk-dl-acts";
+            addDownloadChrome(dlActs, card, p, data[p.chart.da]);
+            if (dlActs.children.length) card.el.appendChild(dlActs);
+          }
+        }
+      });
+    });
+    if (isPreview()) { wireSelection(); wireEditing(spec); wireHeaderEditing(spec); }
+  }
+
+  // builder-only: make the dashboard header text objects directly editable on the
+  // canvas — double-click the title, subtitle, or description to edit inline, and
+  // give the description (the free "text object") a ✕ to remove it. All preview-only:
+  // the exported header stays byte-identical (these affordances never render in export).
+  function wireHeaderEditing(spec) {
+    // SCORE-1 (Kevin live, 2026-07-30): this runs after EVERY load() — and a
+    // filter change reloads all panels while the header DOM survives, so each
+    // change appended ANOTHER ✕ ("a bunch of close x boxes forming every
+    // time"). Every append below is now idempotent.
+    var titleEl = document.querySelector(".dk-header .dk-title");
+    if (titleEl) headerEditable(titleEl, "title", { placeholder: "Dashboard title" });
+    var subEl = document.querySelector(".dk-header .dk-sub");
+    if (subEl) headerEditable(subEl, "subtitle", { placeholder: "Subtitle (optional)", allowEmpty: true });
+    var descEl = document.querySelector(".dk-desc-bar");
+    if (descEl) {
+      descEl.classList.add("sr-desc");
+      headerEditable(descEl, "description", { placeholder: "Description text…", allowEmpty: true, multiline: true });
+      if (!descEl.querySelector(".sr-desc-del")) {
+        var del = document.createElement("button");
+        del.className = "sr-desc-del"; del.type = "button"; del.innerHTML = I_CLOSE; del.title = "Remove this text object";
+        del.setAttribute("aria-label", "Remove this text object");
+        del.addEventListener("click", function (e) { e.stopPropagation(); post({ type: "header-edit", field: "description", value: "" }); });
+        del.addEventListener("dblclick", function (e) { e.stopPropagation(); });
+        descEl.appendChild(del);
+      }
+    }
+    // LF21: make the header bar itself a selectable/deletable canvas object, same as a
+    // panel or KPI tile — click anywhere on it (that isn't already its own control) tells
+    // the builder to select it, so the Inspector can show a dedicated "Header" view.
+    var headerEl = document.querySelector(".dk-header");
+    if (headerEl && !headerEl.__srHeadWired) {
+      headerEl.__srHeadWired = true; // once per header DOM — survives filter reloads
+      headerEl.classList.add("sr-header-sel");
+      headerEl.addEventListener("click", function (e) {
+        if (e.target.closest("button") || e.target.closest("a") || e.target.closest(".sr-rename")) return;
+        post({ type: "select", kind: "header" });
+      });
+      var hdel = document.createElement("button");
+      hdel.className = "sr-head-del"; hdel.type = "button"; hdel.innerHTML = I_CLOSE;
+      hdel.title = "Hide dashboard header"; hdel.setAttribute("aria-label", "Hide dashboard header");
+      hdel.addEventListener("click", function (e) { e.stopPropagation(); post({ type: "header-delete" }); });
+      headerEl.appendChild(hdel);
+    }
+  }
+  // Generic inline editor for a header text object: double-click swaps the element for
+  // an input/textarea; Enter (or blur) commits, Esc cancels. Commit posts a header-edit
+  // message the builder applies to the spec. An empty commit is allowed only when
+  // opts.allowEmpty (clears the subtitle / removes the description); the title never
+  // clears to empty (a dashboard needs a name in the store).
+  function headerEditable(el, field, opts) {
+    opts = opts || {};
+    if (el.classList.contains("sr-head-edit")) return; // SCORE-1: once per element — no stacked dblclick listeners across reloads
+    el.classList.add("sr-head-edit");
+    el.title = "Double-click to edit";
+    el.addEventListener("dblclick", function (e) {
+      e.preventDefault(); e.stopPropagation();
+      if (el.querySelector(".sr-rename")) return;
+      var cur = el.textContent.trim();
+      var inp = document.createElement(opts.multiline ? "textarea" : "input");
+      inp.className = "sr-rename"; inp.value = cur; if (opts.placeholder) inp.placeholder = opts.placeholder;
+      if (opts.multiline) { inp.rows = 2; inp.style.minWidth = "260px"; inp.style.resize = "vertical"; }
+      var prev = el.style.display; el.style.display = "none";
+      el.parentNode.insertBefore(inp, el.nextSibling); inp.focus(); inp.select();
+      var done = false;
+      function commit(save) {
+        if (done) return; done = true; inp.remove(); el.style.display = prev;
+        var v = inp.value.trim();
+        if (!save) return;
+        if (v === cur) return;
+        if (!v && !opts.allowEmpty) return;
+        post({ type: "header-edit", field: field, value: v });
+      }
+      inp.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter" && !(opts.multiline && ev.shiftKey)) { ev.preventDefault(); commit(true); }
+        else if (ev.key === "Escape") { ev.preventDefault(); commit(false); }
+      });
+      inp.addEventListener("blur", function () { commit(true); });
+      inp.addEventListener("pointerdown", function (ev) { ev.stopPropagation(); });
+      inp.addEventListener("click", function (ev) { ev.stopPropagation(); });
+    });
+  }
+
+  // collect every dataAccess id the dashboard needs
+  function neededDAs(spec) {
+    var ids = {};
+    (spec.kpis || []).forEach(function (k) { if (k.da) ids[k.da] = 1; });
+    (spec.panels || []).forEach(function (p) {
+      if (p.chart.type === "richtext") return; // text panels carry no DA
+      if (p.chart.da) ids[p.chart.da] = 1;
+    });
+    return Object.keys(ids);
+  }
+
+  function load(spec) {
+    var content = DashKit.el("content");
+    if (content) content.innerHTML = '<div class="loading">Loading…</div>';
+    DashKit.resetCharts();
+    var das = neededDAs(spec), state = DashKit.filterState || {};
+    var reqs = {};
+    das.forEach(function (id) { reqs[id] = [id, paramsFor(spec, id, state)]; });
+    if (!das.length) { renderAll(spec, {}); return Promise.resolve(); }
+    return DashKit.load(reqs).then(function (data) { renderAll(spec, data); })
+      .catch(function (e) { DashKit.fail("Could not load data. " + (e && e.message || "")); if (window.console) console.error(e); });
+  }
+
+  SR.boot = function (spec) {
+    spec = spec || window.STUDIO_SPEC;
+    if (!spec) return;
+    // LF20: data-theme is now baked onto <html> at build time from spec.renderMode (see
+    // exporters.js) — no runtime toggle button left to wire up here.
+    // E4: extend DashKit.urlParams to also read location.hash for deep-link filter pre-selection
+    (function () { var _up = DashKit.urlParams; DashKit.urlParams = function () { var o = _up(); try { var h = (window.location.hash || "").replace(/^#/, ""); if (h) h.split("&").forEach(function (kv) { if (!kv) return; var i = kv.indexOf("="); var k = decodeURIComponent(i < 0 ? kv : kv.slice(0, i)); if (k && o[k] == null) o[k] = decodeURIComponent(i < 0 ? "" : kv.slice(i + 1).replace(/\+/g, " ")); }); } catch (e) {} return o; }; })();
+    if ((spec.filters || []).length) {
+      // initial: load each filter's option query (with current/default params), build the bar
+      loadFilterOptions(spec).then(function (fdata) {
+        var defs = spec.filters.map(function (f) { return filterDef(f, fdata, spec); });
+        DashKit.filters(defs, function () { load(spec); cascadeFilters(spec); });
+        load(spec);
+      }).catch(function () { load(spec); });
+    } else {
+      load(spec);
+    }
+  };
+  // load the option resultset for every filter, honoring current filter state (so downstream cascade)
+  function loadFilterOptions(spec) {
+    var fr = {}; spec.filters.forEach(function (f) { fr["__f_" + f.id] = [f.da, paramsFor(spec, f.da, DashKit.filterState || {})]; });
+    return DashKit.load(fr);
+  }
+  function filterDef(f, fdata, spec) {
+    var res = fdata["__f_" + f.id], def = f.def != null ? f.def : "%", opts = [{ v: def, t: f.allLabel || "All" }];
+    if (res) { var vi = res.col(f.valueCol), ti = res.col(f.textCol || f.valueCol); res.rows.forEach(function (r) { opts.push({ v: String(r[vi]), t: String(r[ti]) }); }); }
+    return { id: f.id, label: f.label, options: opts, def: def };
+  }
+  // a filter "cascades" if its option query declares any parameter → its options depend on other filters
+  function isParameterized(spec, f) { var d = (spec.cda.dataAccesses || []).filter(function (x) { return x.id === f.da; })[0]; return !!(d && d.params && d.params.length); }
+  function cascadeFilters(spec) {
+    var deps = (spec.filters || []).filter(function (f) { return isParameterized(spec, f); });
+    if (!deps.length) return;
+    var fr = {}; deps.forEach(function (f) { fr["__f_" + f.id] = [f.da, paramsFor(spec, f.da, DashKit.filterState || {})]; });
+    DashKit.load(fr).then(function (fdata) {
+      deps.forEach(function (f) {
+        var sel = DashKit.el("f_" + f.id); if (!sel) return;
+        var cur = sel.value, def = filterDef(f, fdata, spec);
+        sel.innerHTML = ""; def.options.forEach(function (o) { var op = document.createElement("option"); op.value = o.v; op.textContent = o.t; sel.appendChild(op); });
+        sel.value = cur; if (sel.value !== cur) sel.value = def.def;     // keep selection if still valid
+        DashKit.filterState[f.id] = sel.value;
+      });
+    }).catch(function () {});
+  }
+  SR.reload = function () { if (window.STUDIO_SPEC) load(window.STUDIO_SPEC); };
+
+  /* ---- builder-only: click a panel/KPI -> tell the parent to select it ---- */
+  function tagKpis(kEl, spec) {
+    var tiles = kEl.querySelectorAll(".kpi");
+    [].forEach.call(tiles, function (t, i) {
+      t.setAttribute("data-kpi-index", i); t.classList.add("sr-sel");
+      if (t.querySelector(".sr-kpi-del")) return; // SCORE-1: idempotent across reloads on a surviving tile
+      // Track H sweep (2026-07-31): name the tile this deletes, not just "Delete KPI" for
+      // every tile alike -- same disambiguation delBtn() gained for the Inspector's own KPI
+      // rows. The label lives in ".l"'s own leading text node (DashKit.kpis may append an
+      // info-dot span after it), so grab only that.
+      var lblEl = t.querySelector(".l");
+      var kLabel = (lblEl && lblEl.firstChild && lblEl.firstChild.nodeType === 3) ? lblEl.firstChild.textContent.trim() : "";
+      var kName = kLabel ? "Delete KPI " + kLabel : "Delete KPI";
+      var x = document.createElement("button"); x.className = "sr-kpi-del"; x.innerHTML = I_CLOSE; x.title = kName;
+      x.setAttribute("aria-label", kName);
+      x.addEventListener("click", function (e) { e.stopPropagation(); post({ type: "kpi-delete", index: i }); });
+      t.appendChild(x);
+    });
+  }
+  function wireSelection() {
+    document.querySelectorAll("[data-panel-id]").forEach(function (el) {
+      el.addEventListener("click", function (e) {
+        if (e.target.closest("a") || e.target.closest(".sr-card-acts")) return;
+        post({ type: "select", kind: "panel", id: el.getAttribute("data-panel-id") });
+      }, true);
+    });
+    document.querySelectorAll("[data-kpi-index]").forEach(function (el) {
+      el.addEventListener("click", function () {
+        post({ type: "select", kind: "kpi", index: +el.getAttribute("data-kpi-index") });
+      }, true);
+    });
+  }
+  /* AUD-05: address the builder explicitly instead of "*". This file is inlined
+     into every exported dashboard, so it must stay self-contained AND correct in
+     three homes: the builder's `srcdoc` preview (inherits the builder's origin —
+     the exact match holds), a standalone export on http(s) (parent === self), and
+     a `file://` export (opaque origin, reported as "null", which is not a legal
+     targetOrigin — fall back to "*" there). */
+  function msgOrigin() {
+    var o = (window.location && window.location.origin) || "";
+    return (o && o !== "null") ? o : "*";
+  }
+  function post(msg) { try { parent.postMessage(Object.assign({ studio: 1 }, msg), msgOrigin()); } catch (e) {} }
+
+  // builder-only: double-click a panel title to rename it inline (commit on Enter/blur, cancel on Esc)
+  function startRename(h3, titleEl, id) {
+    var raw = titleEl.getAttribute("data-raw-title");
+    var node = titleEl.firstChild;
+    var cur = raw != null ? raw.trim() : (node && node.nodeType === 3 ? node.textContent : titleEl.textContent).trim();
+    var inp = document.createElement("input"); inp.className = "sr-rename"; inp.value = cur;
+    titleEl.style.display = "none"; h3.insertBefore(inp, titleEl); inp.focus(); inp.select();
+    var done = false;
+    function commit(save) {
+      if (done) return; done = true; inp.remove(); titleEl.style.display = "";
+      var v = inp.value.trim(); if (save && v && v !== cur) post({ type: "rename", id: id, title: v });
+    }
+    inp.addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); commit(true); } else if (ev.key === "Escape") { commit(false); } });
+    inp.addEventListener("blur", function () { commit(true); });
+    inp.addEventListener("pointerdown", function (e) { e.stopPropagation(); });
+  }
+
+  /* ---- builder-only: drag a card header to reorder · drag the right edge to resize ---- */
+  function applySpan(card, span) {
+    card.classList.remove("span-2", "span-3", "span-4", "span-full");
+    if (span === "full") card.classList.add("span-full");
+    else if (span > 1) card.classList.add("span-" + span);
+  }
+  function wireEditing(spec) {
+    var content = DashKit.el("content"); if (!content) return;
+    var grid = content.querySelector(".dk-grid"); if (!grid) return;
+    var cards = [].slice.call(grid.querySelectorAll("[data-panel-id]"));
+    var ids = function () { return [].slice.call(grid.querySelectorAll("[data-panel-id]")).map(function (c) { return c.getAttribute("data-panel-id"); }); };
+
+    // ── reorder (cross-row): insertion caret + cursor ghost, drop anywhere ──
+    grid.style.position = grid.style.position || "relative";
+    var caret = document.createElement("div"); caret.className = "sr-caret"; caret.style.display = "none"; grid.appendChild(caret);
+    var dragEl = null, ghost = null, insertIdx = -1, moved = false, sx = 0, sy = 0;
+    function others() { return [].slice.call(grid.querySelectorAll("[data-panel-id]")).filter(function (c) { return c !== dragEl; }); }
+    function showCaret(target, after) {
+      var gr = grid.getBoundingClientRect(), r = target.getBoundingClientRect();
+      caret.style.display = "block";
+      caret.style.left = ((after ? r.right : r.left) - gr.left - 1) + "px";
+      caret.style.top = (r.top - gr.top) + "px"; caret.style.height = r.height + "px";
+    }
+    function onMove(e) {
+      if (!dragEl) return;
+      if (!moved && Math.abs(e.clientX - sx) + Math.abs(e.clientY - sy) < 5) return;
+      if (!moved) {
+        moved = true; dragEl.classList.add("sr-dragging"); dragEl.style.pointerEvents = "none"; document.body.style.userSelect = "none";
+        ghost = document.createElement("div"); ghost.className = "sr-ghost";
+        ghost.textContent = (dragEl.querySelector(".dk-h-t") || dragEl.querySelector("h3") || {}).textContent || "panel";
+        document.body.appendChild(ghost);
+      }
+      if (ghost) { ghost.style.left = (e.clientX + 14) + "px"; ghost.style.top = (e.clientY + 16) + "px"; }
+      var t = document.elementFromPoint(e.clientX, e.clientY); t = t && t.closest("[data-panel-id]");
+      var rest = others(), order = rest.map(function (c) { return c.getAttribute("data-panel-id"); });
+      if (t && t !== dragEl) {
+        var r = t.getBoundingClientRect(), after = e.clientX > r.left + r.width / 2;
+        showCaret(t, after);
+        var ti = order.indexOf(t.getAttribute("data-panel-id")); insertIdx = after ? ti + 1 : ti;
+      } else if (rest.length) {
+        // empty grid space / end zone → drop after the last panel
+        showCaret(rest[rest.length - 1], true); insertIdx = order.length;
+      } else { caret.style.display = "none"; insertIdx = 0; }
+    }
+    function onUp() {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointercancel", onUp);
+      if (dragEl && moved && insertIdx >= 0) {
+        var order = others().map(function (c) { return c.getAttribute("data-panel-id"); });
+        order.splice(Math.min(insertIdx, order.length), 0, dragEl.getAttribute("data-panel-id"));
+        post({ type: "reorder", order: order });
+      }
+      if (dragEl) { dragEl.classList.remove("sr-dragging"); dragEl.style.pointerEvents = ""; }
+      if (ghost) { ghost.remove(); ghost = null; }
+      caret.style.display = "none"; document.body.style.userSelect = ""; dragEl = null; insertIdx = -1; moved = false;
+    }
+    cards.forEach(function (card) {
+      var handle = card.querySelector("h3") || card;
+      handle.style.touchAction = "none";
+      handle.addEventListener("pointerdown", function (e) {
+        if ((e.button !== 0 && e.pointerType !== "touch") || e.target.closest(".sr-resize") || e.target.closest(".sr-rename") || e.target.closest("a") || e.target.closest(".dk-i") || e.target.closest(".src")) return;
+        try { e.target.setPointerCapture(e.pointerId); } catch (x) {}
+        dragEl = card; moved = false; sx = e.clientX; sy = e.clientY;
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp, { once: true });
+        window.addEventListener("pointercancel", onUp, { once: true });
+      });
+    });
+
+    // ── PANEL-H (Kevin): resize (drag the BOTTOM edge → explicit panel height) ──
+    // Live feedback stretches the card body (min-height) while dragging; the
+    // real chart redraw happens on release, when the height posts back to the
+    // builder and lands on chart.opts.height (charts already draw to it — the
+    // same knob the inspector's Height field uses). No upper cap: a panel can
+    // grow to fill the whole screen. Floor keeps the header + a sliver of body.
+    cards.forEach(function (card) {
+      var hh = card.querySelector(".sr-resize-h"); if (!hh) return;
+      hh.addEventListener("pointerdown", function (e) {
+        e.preventDefault(); e.stopPropagation();
+        try { e.target.setPointerCapture(e.pointerId); } catch (x) {}
+        var body = card.querySelector(".body"); if (!body) return;
+        var startY = e.clientY, h0 = body.getBoundingClientRect().height, cur = null;
+        document.body.style.userSelect = "none";
+        function rzh(ev) {
+          cur = Math.max(120, Math.round(h0 + (ev.clientY - startY)));
+          body.style.minHeight = cur + "px";
+        }
+        function uph() {
+          window.removeEventListener("pointermove", rzh); window.removeEventListener("pointerup", uph);
+          window.removeEventListener("pointercancel", uph);
+          document.body.style.userSelect = "";
+          if (cur != null) post({ type: "resizeH", id: card.getAttribute("data-panel-id"), h: cur });
+        }
+        window.addEventListener("pointermove", rzh); window.addEventListener("pointerup", uph);
+        window.addEventListener("pointercancel", uph);
+      });
+    });
+
+    // ── resize (drag the right edge → column span) ──
+    cards.forEach(function (card) {
+      var h = card.querySelector(".sr-resize"); if (!h) return;
+      h.style.touchAction = "none";
+      h.addEventListener("pointerdown", function (e) {
+        e.preventDefault(); e.stopPropagation();
+        try { e.target.setPointerCapture(e.pointerId); } catch (x) {}
+        var gcols = spec.gridCols || 3, gridRect = grid.getBoundingClientRect(), colW = gridRect.width / gcols, left = card.getBoundingClientRect().left, cur = null;
+        document.body.style.userSelect = "none";
+        function rz(ev) {
+          var span = Math.max(1, Math.min(gcols, Math.round((ev.clientX - left) / colW)));
+          var sv = span >= gcols ? "full" : span;
+          if (sv !== cur) { cur = sv; applySpan(card, sv); DashKit.redrawAll(); }
+        }
+        function up() {
+          window.removeEventListener("pointermove", rz); window.removeEventListener("pointerup", up);
+          window.removeEventListener("pointercancel", up);
+          document.body.style.userSelect = "";
+          if (cur != null) post({ type: "resize", id: card.getAttribute("data-panel-id"), span: cur });
+        }
+        window.addEventListener("pointermove", rz); window.addEventListener("pointerup", up);
+        window.addEventListener("pointercancel", up);
+      });
+    });
+  }
+
+  // always register — only reacts to Studio messages (no-op in a deployed dashboard)
+  window.addEventListener("message", function (e) {
+      var d = e.data || {};
+      if (d.studio !== 1) return;
+      // AUD-05: only the document that embeds us (the builder) may steer the
+      // render — plus this document's own scripts, which could do it directly
+      // anyway. Two checks, and the origin one has a real subtlety:
+      //   * A standalone export on http(s) has a normal origin, so a hostile
+      //     page that frames it cross-origin is rejected by the exact match.
+      //   * The builder's preview is `about:srcdoc`. It is same-origin with the
+      //     builder for DOM purposes, but `location.origin` there reports the
+      //     opaque "null" (the origin is inherited; the URL has none) — there is
+      //     nothing to compare against, so an opaque self-origin falls back to
+      //     the source check alone, which in a srcdoc frame means "our embedder",
+      //     i.e. the builder by construction. `file://` exports land here too.
+      var mo = (window.location && window.location.origin) || "";
+      var opaque = (!mo || mo === "null");
+      if (!opaque && e.origin !== mo) return;
+      if (!(e.source === window.parent || e.source === window)) return;
+      if (d.type === "highlight") {
+        document.querySelectorAll(".sr-active").forEach(function (el) { el.classList.remove("sr-active"); });
+        var sel = d.kind === "kpi" ? document.querySelector('[data-kpi-index="' + d.index + '"]')
+                                   : d.kind === "header" ? document.querySelector(".dk-header")
+                                   : document.querySelector('[data-panel-id="' + d.id + '"]');
+        if (sel) { sel.classList.add("sr-active"); sel.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
+      } else if (d.type === "theme") {
+        document.documentElement.setAttribute("data-theme", d.value); DashKit.redrawAll();
+      }
+  });
+
+  // auto-boot when spec already present (export html sets it inline before this script)
+  if (window.STUDIO_SPEC && window.STUDIO_AUTOBOOT !== false) {
+    if (document.readyState !== "loading") SR.boot();
+    else document.addEventListener("DOMContentLoaded", function () { SR.boot(); });
+  }
+})();

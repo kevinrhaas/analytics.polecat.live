@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="robots" content="noindex"/>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Analytics — connect your data, build beautiful dashboards, share them anywhere</title>
+<meta name="description" content="A full analytics workspace in your browser: connect databases, warehouses, files and Google Sheets, design interactive dashboards visually, share a workspace with your team, and export dashboards as single self-contained HTML files. Free — and it can run fully local and private if you prefer."/>
+<meta property="og:title" content="Analytics"/>
+<meta property="og:description" content="Connect your data, build beautiful dashboards, share them anywhere. Solo or with your team, right in your browser."/>
+<meta property="og:url" content="https://analytics.polecat.live/"/>
+<meta property="og:image" content="https://analytics.polecat.live/site/shots/dashboard-dark.png"/>
+<link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+<link rel="apple-touch-icon" href="apple-touch-icon.png"/>
+<meta name="theme-color" content="#231e28"/>
+<link rel="stylesheet" href="css/landing.css"/>
+<script>
+/* Deep links minted before the app moved to /app/ (share codes, saved views) landed on
+   the root with a meaningful hash — forward them into the app so old links keep working.
+   Only app-shaped hashes are forwarded; the marketing page's own #section anchors are not. */
+(function () {
+  var h = location.hash || "";
+  if (/^#(share=|view|filter)/.test(h)) location.replace("/app/" + h);
+}());
+</script>
+</head>
+<body>
+
+<header class="nav">
+  <a class="brand" href="/dev/">
+    <img src="favicon.svg" width="30" height="30" alt=""/>
+    <span>Analytics<b>polecat.live</b></span>
+  </a>
+  <nav class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#charts">Chart types</a>
+    <a href="#geo">Maps</a>
+    <a href="#themes">Theming</a>
+    <a href="#sources">Data sources</a>
+    <a href="docs/">Docs</a>
+    <!-- BRAND v2: dark surface → light COIN mark, never a white knockout (LOGO.md rule) -->
+    <a href="https://polecat.live" class="fleet-link"><img class="pc-mark" src="assets/brand/polecat-logo-coin-cream.svg" width="16" height="16" alt=""/>polecat.live</a>
+    <a href="app/" class="btn-cta small">Open Analytics</a>
+  </nav>
+</header>
+
+<main>
+  <section class="hero">
+    <h1>Connect your data.<br/>Build <em>beautiful</em> dashboards.<br/>Share them anywhere.</h1>
+    <p class="sub">A full analytics workspace that runs in your browser — connect databases,
+    warehouses, files and Google Sheets, design interactive dashboards visually, and export them as
+    single self-contained HTML files anyone can open. Work solo or share a workspace with your
+    team. Free — and it can run fully local and private if you prefer.</p>
+    <div class="hero-cta">
+      <a href="app/" class="btn-cta">Open Analytics →</a>
+      <span class="cta-note">nothing to install · solo or with your team · local if you want</span>
+    </div>
+    <!-- hero: auto-playing carousel of real app screenshots -->
+    <div class="hero-carousel" id="showcase">
+      <div class="hc-frame" aria-roledescription="carousel" aria-label="Analytics screenshots">
+        <img class="hc-img on" data-i="0"  src="site/shots/dashboard-dark.png"  width="2160" height="1350" alt="A finished dashboard in Polecat dark — KPIs, bars, a donut and a treemap"/>
+        <img class="hc-img"    data-i="1"  src="site/shots/viewbuilder-dark.png" width="2160" height="1350" loading="lazy" alt="The View Builder — drag columns onto shelves and the chart renders live"/>
+        <img class="hc-img"    data-i="2"  src="site/shots/map.png"             width="2160" height="1350" loading="lazy" alt="A US county choropleth of the Corn Belt in dark mode"/>
+        <img class="hc-img"    data-i="3"  src="site/shots/watershed.png"       width="2160" height="1350" loading="lazy" alt="A HUC8 watershed choropleth — a custom geography, in dark mode"/>
+        <img class="hc-img"    data-i="4"  src="site/shots/home-dark.png"       width="2160" height="1350" loading="lazy" alt="The Home screen — featured dashboards and pinned Views as live tiles"/>
+        <img class="hc-img"    data-i="5"  src="site/shots/dashboards-dark.png" width="2160" height="1350" loading="lazy" alt="The Dashboards library — every saved dashboard as searchable tiles, organized in folders"/>
+        <img class="hc-img"    data-i="6"  src="site/shots/explore-dark.png"    width="2160" height="1350" loading="lazy" alt="The Quick Views designer — a dataset table, a chart-type picker and a live result"/>
+        <img class="hc-img"    data-i="7"  src="site/shots/datasets-dark.png"   width="2160" height="1350" loading="lazy" alt="The Datasets workspace — reusable, tagged queries built on your connections"/>
+        <img class="hc-img"    data-i="8"  src="site/shots/showcase.png"        width="2160" height="1350" loading="lazy" alt="A chart-showcase dashboard in dark — flowing ribbons, before/after slopes and a marimekko"/>
+        <img class="hc-img"    data-i="9"  src="site/shots/ensemble.png"        width="2160" height="1350" loading="lazy" alt="The Ensemble chart — a common-estimate line over muted provider estimates"/>
+        <img class="hc-img"    data-i="10" src="site/shots/studio-dark.png"     width="2160" height="1350" loading="lazy" alt="The Dashboard Builder in dark theme with the data and inspector panels"/>
+        <button class="hc-arrow prev" id="hcPrev" type="button" aria-label="Previous screenshot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <button class="hc-arrow next" id="hcNext" type="button" aria-label="Next screenshot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+      <p class="hc-cap" id="hcCap"></p>
+      <div class="hc-dots" id="hcDots" role="tablist" aria-label="Choose a screenshot"></div>
+    </div>
+  </section>
+
+  <section id="features" class="grid-sec">
+    <h2>Everything an analytics team needs, nothing to run</h2>
+    <div class="cards">
+      <div class="card"><span class="ic">⛁</span><b>Connect 13 kinds of sources</b>
+        <p>Postgres (PostgREST), Supabase, Turso, Firebase, Snowflake, Databricks, BigQuery, Redshift,
+        DuckDB &amp; SQLite over HTTP, Google Sheets, any SQL/HTTP API — or just drop a CSV, JSON or
+        Excel file.</p></div>
+      <div class="card"><span class="ic">▦</span><b>Two builders, one canvas</b>
+        <p>The View Builder drags columns onto shelves and renders the chart live, spreadsheet-style;
+        the Dashboard Builder composes Views, KPIs and filters on a three-pane canvas — 50+ chart
+        types from KPIs to heatmaps to forecasts, including US choropleth maps down to county,
+        district, and watershed scale.</p></div>
+      <div class="card"><span class="ic">☍</span><b>Bring your team</b>
+        <p>Sign in and share one workspace on your own Supabase, Turso or Firebase — admin, editor
+        and viewer roles, per-user security, and read-only viewer links for everyone else.</p></div>
+      <div class="card"><span class="ic">⬡</span><b>Parameterized datasets</b>
+        <p>Define a query once with {{parameters}}; dashboard template variables fill them at run
+        time — one dataset powers many views, filters cascade, everything stays linked.</p></div>
+      <div class="card"><span class="ic">⇩</span><b>Exports that just work</b>
+        <p>Every dashboard exports as one self-contained .html file — byte-identical to the live
+        preview, no server, no dependencies. Also PDF, Excel, PowerPoint and Word, plus a
+        header-off embed mode for dropping dashboards into other sites.</p></div>
+      <div class="card"><span class="ic">⌂</span><b>Local &amp; offline — your call</b>
+        <p>Prefer to keep everything on your device? The whole workspace can run fully local and
+        offline, no backend at all — and when you're ready to sync or share, mirror it to your own
+        backend with zero-knowledge secret encryption.</p></div>
+      <div class="card"><span class="ic">✦</span><b>Delightful by design</b>
+        <p>Warm themes, light and dark, keyboard palette, guided tours, version history with visual
+        compare — analytics that feels like a creative tool, not a chore.</p></div>
+    </div>
+  </section>
+
+  <section id="charts" class="gallery-sec">
+    <h2>25+ chart types, built in</h2>
+    <p class="gallery-sub">Every chart Analytics can draw — click a category to filter, click a tile for details.</p>
+    <div class="gallery-chips" id="galChips" role="tablist" aria-label="Chart categories"></div>
+    <div class="gallery-grid" id="galGrid"></div>
+    <button class="gallery-more" id="galMore" type="button" hidden>Show all chart types</button>
+  </section>
+
+  <section id="geo" class="geo-sec">
+    <h2>Maps that speak your geography</h2>
+    <p class="geo-sub">Choropleth maps aren't just fifty states on a US outline. Analytics ships seven
+    region scales — pick one in the inspector and the same dataset lights up a different map.</p>
+    <div class="geo-wrap">
+      <figure class="geo-shot">
+        <img src="site/shots/watershed.png" alt="A watershed choropleth map rendered in Analytics — conservation data shaded by HUC8 hydrologic unit" loading="lazy"/>
+        <figcaption>Real screenshot: conservation data by HUC8 watershed — hydrology, not administrative borders.</figcaption>
+      </figure>
+      <ul class="geo-scales">
+        <li><b>States</b> — the classic US choropleth, always a safe default.</li>
+        <li><b>Counties (FIPS)</b> — 3,000+ counties for real local granularity.</li>
+        <li><b>Watersheds (HUC8)</b> — hydrologic units for conservation, water-quality and
+        agriculture work, where drainage basins matter more than county lines.</li>
+        <li><b>USDA crop districts (CRD)</b> — the multi-county reporting districts agricultural
+        statistics are published in.</li>
+        <li><b>Congressional districts</b> — for policy, outreach and civic data.</li>
+        <li><b>ZIP codes (ZCTA)</b> — market and service-area analysis at postal granularity.</li>
+        <li class="geo-custom"><b>Custom regions — your own map.</b> Import a two-column CSV
+        (county → region name) and the map aggregates counties into whatever your organization
+        calls its slices of the country: sales territories, service areas, ecoregions, franchise
+        zones. No GIS tooling required.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="themes" class="skin-sec">
+    <h2>Make it yours</h2>
+    <p class="skin-sub">Analytics is designed to be skinned. Seven chrome palettes — each in light and
+    dark — restyle the whole app in one click, and admins can white-label the workspace with their
+    own logo, name and link. Same app, four very different looks:</p>
+    <div class="skin-grid">
+      <figure><img src="site/shots/theme-classic.png" width="2160" height="1350" loading="lazy" alt="The app chrome in the Classic Blue palette, light mode"/><figcaption>Classic Blue<small>light</small></figcaption></figure>
+      <figure><img src="site/shots/theme-editorial.png" width="2160" height="1350" loading="lazy" alt="The app chrome in the Editorial palette, light mode"/><figcaption>Editorial<small>light</small></figcaption></figure>
+      <figure><img src="site/shots/theme-neon.png" width="2160" height="1350" loading="lazy" alt="The app chrome in the Neon palette, dark mode"/><figcaption>Neon<small>dark</small></figcaption></figure>
+      <figure><img src="site/shots/theme-conservation.png" width="2160" height="1350" loading="lazy" alt="The app chrome in the Conservation palette, dark mode"/><figcaption>Conservation<small>dark</small></figcaption></figure>
+    </div>
+    <ul class="skin-points">
+      <li><b>Your brand, not ours.</b> Admins set a custom logo, workspace name and link — applied
+      at sign-in and across the whole app for every member, straight from Admin → Branding.</li>
+      <li><b>Chrome and content theme separately.</b> The app chrome has its palettes; each
+      dashboard carries its own theme too, so an embedded or exported dashboard matches wherever
+      it lands.</li>
+      <li><b>Adaptable by design.</b> Domain packs, custom geographies, your own sample content —
+      the same workspace reshapes itself for conservation science, data-platform ops, or whatever
+      your team does.</li>
+    </ul>
+  </section>
+
+  <section id="sources" class="strip">
+    <h2>Your data, wherever it lives</h2>
+    <p class="strip-sub">Work against a shared backend, or entirely on your device — connections and
+    datasets form a reusable catalog that follows you, and every adapter speaks a friendly,
+    in-band-error dialect when something's misconfigured.</p>
+    <div class="chips">
+      <span>PostgreSQL</span><span>Supabase</span><span>Turso</span><span>Firebase</span>
+      <span>Snowflake</span><span>Databricks</span><span>BigQuery</span><span>DuckDB</span>
+      <span>SQLite</span><span>Google Sheets</span><span>CSV / JSON files</span><span>Any SQL/HTTP API</span>
+    </div>
+  </section>
+
+  <section class="final">
+    <h2>Open a browser. Build a dashboard. That's it.</h2>
+    <a href="app/" class="btn-cta">Open Analytics →</a>
+  </section>
+</main>
+
+<script>
+// Hero screenshot carousel: a large, auto-playing showcase of real app screens
+// with a caption per slide and clickable dots. Pauses on hover / focus, respects
+// prefers-reduced-motion, and stops when scrolled out of view.
+(function () {
+  var frame = document.querySelector(".hero-carousel");
+  var imgs = [].slice.call(document.querySelectorAll(".hc-img"));
+  var cap = document.getElementById("hcCap");
+  var dotsWrap = document.getElementById("hcDots");
+  if (!frame || !imgs.length) return;
+  var CAPS = [
+    "<b>The finished product.</b> A polished, interactive dashboard — KPIs, bars, a donut and a treemap — that exports as one self-contained .html file, no server required. This is what you ship.",
+    "<b>The View Builder.</b> Drag columns onto Rows, Values and Color shelves — the chart re-renders live as you build, spreadsheet-style. Save the result as a View and reuse it anywhere.",
+    "<b>Map your data.</b> Color-code US maps down to the county — state, county and USDA-district scales built in. Pan, zoom and pick your color ramp.",
+    "<b>Custom geographies, too.</b> Not just states and counties — bring your own boundaries, like these USGS HUC8 watersheds. Any region you can draw, you can map.",
+    "<b>Everything in one place.</b> Home gathers your featured dashboards and pinned Views as live tiles — open one, edit it, or drop it into any dashboard.",
+    "<b>A library, not a pile.</b> Every dashboard you save becomes a searchable tile, organized into folders — with starter packs of ready-made examples you can open and remix.",
+    "<b>Build a View in seconds.</b> Quick Views: start from a dataset, see it as a table, pick a chart, map the fields, and save it as a reusable View.",
+    "<b>A real data workspace.</b> Connections and reusable, tagged datasets — the building blocks every dashboard is made of, all in your browser.",
+    "<b>50+ chart types.</b> Flowing ribbons, before/after slopes, treemaps, Marimekkos, packed bubbles — a full visual vocabulary, not just bars and lines.",
+    "<b>Special charts, built in.</b> Custom chart types you won’t find in a spreadsheet — like the Ensemble chart, which blends many sources into one common estimate with the evidence still visible.",
+    "<b>The Dashboard Builder — light or dark.</b> Drag datasets onto the canvas, tune every chart in the inspector, and watch it render live. Warm themes, a keyboard palette, guided tours and version history. (Shown in Polecat dark; a light mode ships too.)"
+  ];
+  var dots = imgs.map(function (_, i) {
+    var d = document.createElement("button");
+    d.className = "hc-dot" + (i === 0 ? " on" : ""); d.type = "button";
+    d.setAttribute("role", "tab"); d.setAttribute("aria-label", "Screenshot " + (i + 1));
+    d.addEventListener("click", function () { stop(); show(i); });
+    dotsWrap.appendChild(d); return d;
+  });
+  var cur = 0, timer = null;
+  var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function show(i) {
+    cur = (i + imgs.length) % imgs.length;
+    imgs.forEach(function (m, k) { m.classList.toggle("on", k === cur); });
+    dots.forEach(function (d, k) { d.classList.toggle("on", k === cur); d.setAttribute("aria-selected", k === cur); });
+    cap.innerHTML = CAPS[cur] || "";
+  }
+  function stop() { if (timer) { clearInterval(timer); timer = null; } }
+  function play() { if (!timer && !reduce) timer = setInterval(function () { show(cur + 1); }, 5200); }
+  document.getElementById("hcPrev").addEventListener("click", function () { stop(); show(cur - 1); });
+  document.getElementById("hcNext").addEventListener("click", function () { stop(); show(cur + 1); });
+  frame.addEventListener("mouseenter", stop);
+  frame.addEventListener("mouseleave", play);
+  frame.addEventListener("focusin", stop);
+  frame.addEventListener("focusout", play);
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(function (es) { es[0].isIntersecting ? play() : stop(); }, { threshold: 0.15 }).observe(frame);
+  } else { play(); }
+  show(0);
+}());
+</script>
+
+<script src="site/chart-gallery.js"></script>
+<script>
+// Marketing chart-type gallery (LF30): a filterable tile grid of every real chart
+// type Studio supports, sourced from site/chart-gallery.js (built by
+// tools/gen-chart-gallery.mjs from the app's own Studio.CHARTS/CHART_SVG registry —
+// this page never loads the app itself, so the data has to be dumped ahead of time).
+// Bounded by default (a capped grid, "Show all" expands) so 50+ tiles don't run the
+// page long; a category filter always shows its full set since no category is large.
+(function () {
+  var DATA = window.CHART_GALLERY || [];
+  var chipsWrap = document.getElementById("galChips");
+  var grid = document.getElementById("galGrid");
+  var moreBtn = document.getElementById("galMore");
+  if (!DATA.length || !chipsWrap || !grid) return;
+  var CAP = 18;
+  var groups = [];
+  DATA.forEach(function (c) { if (groups.indexOf(c.group) === -1) groups.push(c.group); });
+  var cats = ["All"].concat(groups);
+  var active = "All", expanded = false;
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  function render() {
+    var list = active === "All" ? DATA : DATA.filter(function (c) { return c.group === active; });
+    var capped = active === "All" && !expanded && list.length > CAP;
+    var shown = capped ? list.slice(0, CAP) : list;
+    grid.innerHTML = shown.map(function (c) {
+      return '<div class="gal-tile"><span class="gal-ic">' + c.svg + '</span><b>' + esc(c.label) + "</b><p>" + esc(c.desc) + "</p></div>";
+    }).join("");
+    moreBtn.hidden = !capped;
+  }
+  cats.forEach(function (cat) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "gal-chip" + (cat === active ? " on" : "");
+    b.setAttribute("role", "tab"); b.setAttribute("aria-selected", cat === active);
+    b.textContent = cat;
+    b.addEventListener("click", function () {
+      active = cat; expanded = false;
+      [].slice.call(chipsWrap.children).forEach(function (el) { el.classList.toggle("on", el === b); el.setAttribute("aria-selected", el === b); });
+      render();
+    });
+    chipsWrap.appendChild(b);
+  });
+  moreBtn.addEventListener("click", function () { expanded = true; render(); });
+  render();
+}());
+</script>
+
+<footer class="foot">
+  <span><img class="pc-mark pc-mark-foot" src="assets/brand/polecat-logo-black.svg" width="18" height="18" alt="Polecat"/>Analytics · part of the <a href="https://polecat.live">polecat.live</a> suite</span>
+  <span class="foot-links"><a href="docs/">Docs</a> · <a href="app/">App</a> · <a href="THIRD-PARTY-NOTICES.md">Third-party notices</a> · <a href="LICENSE">GPL-3.0</a> · © 2026 Polecat.live</span>
+</footer>
+
+<div id="__stage" role="status" style="position:fixed;left:0;right:0;bottom:0;z-index:2147483000;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;padding:7px 44px 7px 16px;font:600 13px -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;color:#fff;background:linear-gradient(135deg,#fbbf24,#d97706);box-shadow:0 -6px 20px rgba(0,0,0,.25)">
+  <span><b>DEV preview</b> — dev@testsha · uses your live workspace data</span>
+  <a href="/" style="color:#fff;text-decoration:underline">open production</a>
+  <button id="__stagemin" aria-label="Collapse the DEV preview banner" title="Collapse" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);width:28px;height:28px;border:0;border-radius:50%;background:rgba(0,0,0,.25);color:#fff;font:700 14px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;cursor:pointer">✕</button>
+</div>
+<button id="__stagepill" aria-label="Expand the DEV preview banner" title="DEV preview — tap for details" style="position:fixed;right:10px;bottom:10px;z-index:2147483000;display:none;border:0;border-radius:999px;padding:7px 13px;font:800 11px -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;letter-spacing:.06em;color:#fff;background:linear-gradient(135deg,#fbbf24,#d97706);box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer">DEV</button>
+<script>(function(){var K="__stage.min",b=document.getElementById("__stage"),p=document.getElementById("__stagepill");function set(m){b.style.display=m?"none":"flex";p.style.display=m?"inline-block":"none";try{localStorage.setItem(K,m?"1":"0")}catch(e){}}document.getElementById("__stagemin").onclick=function(){set(true)};p.onclick=function(){set(false)};try{if(localStorage.getItem(K)==="1")set(true)}catch(e){}})();</script>
+</body>
+</html>

@@ -1,0 +1,2298 @@
+{
+ "field-and-geo": {
+  "file": "field-and-geo.cda",
+  "connection": {
+   "type": "sql",
+   "note": "sample family \u2014 runs on typed sample rows offline"
+  },
+  "dataAccesses": [
+   {
+    "id": "county_cover_crop_pct",
+    "name": "Cover crop % by county (multi-provider)",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT county_fips, provider, year, pct FROM cover_crop_estimates",
+    "columns": [
+     "county_fips",
+     "provider",
+     "year",
+     "pct"
+    ]
+   },
+   {
+    "id": "county_conservation_tillage",
+    "name": "Conservation tillage % by county",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT county_fips, practice, pct FROM tillage_estimates",
+    "columns": [
+     "county_fips",
+     "practice",
+     "pct"
+    ]
+   },
+   {
+    "id": "practice_trend_by_provider",
+    "name": "Practice adoption trend (per provider)",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT year, provider, pct FROM practice_adoption_trend",
+    "columns": [
+     "year",
+     "provider",
+     "pct"
+    ]
+   },
+   {
+    "id": "state_practice_adoption",
+    "name": "Practice adoption by state",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT state, practice, pct FROM state_practice_adoption",
+    "columns": [
+     "state",
+     "practice",
+     "pct"
+    ]
+   },
+   {
+    "id": "district_cover_crop",
+    "name": "Cover crop % by USDA district (CRD)",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT district, year, pct FROM crd_cover_crop",
+    "columns": [
+     "district",
+     "year",
+     "pct"
+    ]
+   },
+   {
+    "id": "watershed_cover_pct",
+    "name": "Cover % by watershed (HUC8)",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT huc8, pct FROM watershed_cover",
+    "columns": [
+     "huc8",
+     "pct"
+    ]
+   },
+   {
+    "id": "county_yield_by_crop",
+    "name": "Yield by county and crop",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT county_fips, crop, bu_per_acre FROM county_yield",
+    "columns": [
+     "county_fips",
+     "crop",
+     "bu_per_acre"
+    ]
+   },
+   {
+    "id": "county_acres_by_practice",
+    "name": "Acres by county and practice",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT county_fips, practice, acres FROM practice_acres",
+    "columns": [
+     "county_fips",
+     "practice",
+     "acres"
+    ]
+   }
+  ]
+ },
+ "command-center": {
+  "file": "command-center.cda",
+  "connection": {
+   "id": "pdc",
+   "jndi": "PDC-BIDB-EXT"
+  },
+  "dataAccesses": [
+   {
+    "id": "kpi",
+    "name": "KPI",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT SUM(s.entity_count) AS total_assets, ROUND(100.0*SUM(s.governed_entity_count)/NULLIF(SUM(s.entity_count),0),1) AS governed_pct, ROUND(100.0*SUM(s.metadata_completed_field_count)/NULLIF(SUM(s.metadata_expected_field_count),0),1) AS completeness_pct, ROUND(SUM(st.size_bytes)/1e12::numeric,1) AS total_tb, ROUND(SUM(st.monthly_cost_usd)::numeric,0) AS monthly_cost FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key LEFT JOIN entity_storage_demo st ON s.entity_key=st.entity_key WHERE d.datasource_type LIKE ${ds}",
+    "columns": [
+     "total_assets",
+     "governed_pct",
+     "completeness_pct",
+     "total_tb",
+     "monthly_cost"
+    ]
+   },
+   {
+    "id": "pipeline",
+    "name": "Pipeline",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT ROUND(100.0*SUM(completed_count)/NULLIF(SUM(terminal_count),0),1) AS success_pct, SUM(started_count) AS runs FROM fact_lineage_event",
+    "columns": [
+     "success_pct",
+     "runs"
+    ]
+   },
+   {
+    "id": "lineage",
+    "name": "Lineage",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT SUM(restricted_to_ungoverned_count) AS restricted_ungov FROM fact_lineage_connection",
+    "columns": [
+     "restricted_ungov"
+    ]
+   },
+   {
+    "id": "storage_by_source",
+    "name": "StorageBySource",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT datasource_type AS src, ROUND(SUM(size_bytes)/1e12::numeric,2) AS tb, count(*) AS assets FROM entity_storage_demo WHERE datasource_type LIKE ${ds} GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "src",
+     "tb",
+     "assets"
+    ]
+   },
+   {
+    "id": "governance",
+    "name": "Governance",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT COALESCE(NULLIF(regexp_replace(s.governance_coverage_status,'^[0-9]+\\.\\s*',''),''),'Unknown') AS status, SUM(s.entity_count) AS assets FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key WHERE d.datasource_type LIKE ${ds} GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "status",
+     "assets"
+    ]
+   },
+   {
+    "id": "sensitivity",
+    "name": "Sensitivity",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT COALESCE(NULLIF(e.sensitivity,''),'Unclassified') AS sens, SUM(s.entity_count) AS assets FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key JOIN dim_datasource d ON s.datasource_key=d.datasource_key WHERE d.datasource_type LIKE ${ds} GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "sens",
+     "assets"
+    ]
+   },
+   {
+    "id": "freshness",
+    "name": "Freshness",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT COALESCE(NULLIF(regexp_replace(s.scan_freshness_band,'^[0-9]+\\.\\s*',''),''),'Unknown') AS band, SUM(s.entity_count) AS assets FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key WHERE d.datasource_type LIKE ${ds} GROUP BY 1 ORDER BY 1",
+    "columns": [
+     "band",
+     "assets"
+    ]
+   },
+   {
+    "id": "completeness_by_source",
+    "name": "CompletenessBySource",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT d.datasource_type AS src, ROUND(100.0*SUM(s.metadata_completed_field_count)/NULLIF(SUM(s.metadata_expected_field_count),0),1) AS pct FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "src",
+     "pct"
+    ]
+   },
+   {
+    "id": "datasources",
+    "name": "DataSources",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT DISTINCT datasource_type FROM dim_datasource WHERE datasource_type IS NOT NULL AND datasource_type<>'' ORDER BY 1",
+    "columns": []
+   },
+   {
+    "id": "scorecard",
+    "name": "SourceScorecard",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT d.datasource_type AS src, count(*) AS assets, ROUND(100.0*SUM(s.governed_entity_count)/NULLIF(SUM(s.entity_count),0),1) AS gov_pct, ROUND(100.0*SUM(s.metadata_completed_field_count)/NULLIF(SUM(s.metadata_expected_field_count),0),1) AS comp_pct, ROUND(SUM(st.size_bytes)/1e12::numeric,2) AS tb FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key LEFT JOIN entity_storage_demo st ON s.entity_key=st.entity_key WHERE d.datasource_type LIKE ${ds} GROUP BY 1 ORDER BY 2 DESC NULLS LAST",
+    "columns": [
+     "src",
+     "assets",
+     "gov_pct",
+     "comp_pct",
+     "tb"
+    ]
+   }
+  ]
+ },
+ "cost-finops": {
+  "file": "cost-finops.cda",
+  "connection": {
+   "id": "pdc",
+   "jndi": "PDC-BIDB-EXT"
+  },
+  "dataAccesses": [
+   {
+    "id": "kpi",
+    "name": "KPI",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT ROUND(SUM(monthly_cost_usd)::numeric,0) AS monthly, ROUND(SUM(monthly_cost_usd)*12::numeric,0) AS annual, ROUND(SUM(co2e_kg)/1000::numeric,1) AS co2e_tonnes, ROUND(SUM(monthly_cost_usd*dup_savings_bytes/NULLIF(size_bytes,0))::numeric,0) AS reclaimable FROM entity_storage_demo WHERE datasource_type LIKE ${ds} AND COALESCE(NULLIF(sensitivity,''),'Unclassified') LIKE ${sens}",
+    "columns": [
+     "monthly",
+     "annual",
+     "co2e_tonnes",
+     "reclaimable"
+    ]
+   },
+   {
+    "id": "cost_by_source",
+    "name": "CostBySource",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT datasource_type AS src, ROUND(SUM(monthly_cost_usd)::numeric,0) AS cost FROM entity_storage_demo WHERE datasource_type LIKE ${ds} AND COALESCE(NULLIF(sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "src",
+     "cost"
+    ]
+   },
+   {
+    "id": "cost_by_sens",
+    "name": "CostBySens",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT sensitivity AS sens, ROUND(SUM(monthly_cost_usd)::numeric,0) AS cost FROM entity_storage_demo WHERE datasource_type LIKE ${ds} GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "sens",
+     "cost"
+    ]
+   },
+   {
+    "id": "co2e_by_source",
+    "name": "Co2eBySource",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT datasource_type AS src, ROUND(SUM(co2e_kg)/1000::numeric,2) AS tonnes FROM entity_storage_demo WHERE datasource_type LIKE ${ds} AND COALESCE(NULLIF(sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "src",
+     "tonnes"
+    ]
+   },
+   {
+    "id": "reclaimable_by_source",
+    "name": "ReclaimBySource",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT datasource_type AS src, ROUND(SUM(monthly_cost_usd*dup_savings_bytes/NULLIF(size_bytes,0))::numeric,0) AS cost FROM entity_storage_demo WHERE datasource_type LIKE ${ds} AND COALESCE(NULLIF(sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 HAVING SUM(dup_savings_bytes)>0 ORDER BY 2 DESC",
+    "columns": [
+     "src",
+     "cost"
+    ]
+   },
+   {
+    "id": "cost_trend",
+    "name": "CostTrend",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 180,
+    "sql": "WITH first_scan AS ( SELECT s.entity_key, MIN(d.year_month_number) AS ym, MIN(d.year_month_name) AS ymn FROM fact_entity_snapshot s JOIN dim_date d ON s.scanned_date_key=d.date_key WHERE s.scanned_date_key<>19000101 GROUP BY 1) SELECT fs.ymn AS month, ROUND(SUM(st.monthly_cost_usd)::numeric,0) AS cost, ROUND(SUM(SUM(st.monthly_cost_usd)) OVER (ORDER BY fs.ym)::numeric,0) AS cum_cost FROM entity_storage_demo st JOIN first_scan fs ON st.entity_key=fs.entity_key WHERE st.datasource_type LIKE ${ds} AND COALESCE(NULLIF(st.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY fs.ym, fs.ymn ORDER BY fs.ym",
+    "columns": [
+     "ym",
+     "ymn",
+     "month",
+     "cost",
+     "cum_cost"
+    ]
+   },
+   {
+    "id": "detail_costed",
+    "name": "DetailCosted",
+    "params": [
+     {
+      "name": "src",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT COALESCE(NULLIF(e.entity_name,''),'(unnamed)') AS name, st.datasource_type AS src, ROUND(st.monthly_cost_usd::numeric,2) AS monthly_usd, ROUND(st.size_bytes/1e9::numeric,2) AS gb, ROUND(st.co2e_kg::numeric,1) AS co2e_kg, COALESCE(NULLIF(st.sensitivity,''),'Unclassified') AS sensitivity, COALESCE(NULLIF(st.owner_name,''),'\u2014') AS owner FROM entity_storage_demo st JOIN dim_entity e ON st.entity_key=e.entity_key WHERE st.datasource_type LIKE ${src} AND COALESCE(NULLIF(st.sensitivity,''),'Unclassified') LIKE ${sens} ORDER BY st.monthly_cost_usd DESC",
+    "columns": [
+     "name",
+     "src",
+     "monthly_usd",
+     "gb",
+     "co2e_kg",
+     "sensitivity",
+     "owner"
+    ]
+   },
+   {
+    "id": "datasources",
+    "name": "DataSources",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT DISTINCT datasource_type FROM dim_datasource WHERE datasource_type IS NOT NULL AND datasource_type<>'' ORDER BY 1",
+    "columns": []
+   },
+   {
+    "id": "sensitivities",
+    "name": "Sensitivities",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT DISTINCT COALESCE(NULLIF(sensitivity,''),'Unclassified') AS s FROM entity_storage_demo ORDER BY 1",
+    "columns": [
+     "s"
+    ]
+   }
+  ]
+ },
+ "data-quality": {
+  "file": "data-quality.cda",
+  "connection": {
+   "id": "pdc",
+   "jndi": "PDC-BIDB-EXT"
+  },
+  "dataAccesses": [
+   {
+    "id": "kpi",
+    "name": "KPI",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT SUM(s.entity_count) AS assets, ROUND(100.0*SUM(s.metadata_completed_field_count)/NULLIF(SUM(s.metadata_expected_field_count),0),1) AS completeness_pct, SUM(s.missing_owner_count) AS missing_owner, SUM(s.missing_created_date_count)+SUM(s.missing_modified_date_count)+SUM(s.missing_accessed_date_count) AS missing_dates FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON s.entity_key=e.entity_key WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}",
+    "columns": [
+     "assets",
+     "completeness_pct",
+     "missing_owner",
+     "missing_dates"
+    ]
+   },
+   {
+    "id": "profiled",
+    "name": "Profiled",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT COALESCE(NULLIF(e.data_profile_status,''),'Not Profiled') AS status, SUM(s.entity_count) AS assets FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key JOIN dim_datasource d ON s.datasource_key=d.datasource_key WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "status",
+     "assets"
+    ]
+   },
+   {
+    "id": "completeness_band",
+    "name": "CompletenessBand",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT COALESCE(NULLIF(s.metadata_completeness_band,''),'Unknown') AS band, SUM(s.entity_count) AS assets FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON s.entity_key=e.entity_key WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 1",
+    "columns": [
+     "band",
+     "assets"
+    ]
+   },
+   {
+    "id": "completeness_by_source",
+    "name": "CompletenessBySource",
+    "params": [
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT d.datasource_type AS src, ROUND(100.0*SUM(s.metadata_completed_field_count)/NULLIF(SUM(s.metadata_expected_field_count),0),1) AS pct FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON s.entity_key=e.entity_key WHERE COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "src",
+     "pct"
+    ]
+   },
+   {
+    "id": "missing_attrs",
+    "name": "MissingAttrs",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "WITH s AS (SELECT fes.* FROM fact_entity_snapshot fes JOIN dim_datasource d ON fes.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON fes.entity_key=e.entity_key WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}) SELECT 'Owner' AS attr, SUM(missing_owner_count) AS cnt FROM s UNION ALL SELECT 'Group', SUM(missing_group_count) FROM s UNION ALL SELECT 'File Type', SUM(missing_filetype_count) FROM s UNION ALL SELECT 'Path', SUM(missing_path_count) FROM s UNION ALL SELECT 'Created Date', SUM(missing_created_date_count) FROM s UNION ALL SELECT 'Modified Date', SUM(missing_modified_date_count) FROM s UNION ALL SELECT 'Accessed Date', SUM(missing_accessed_date_count) FROM s ORDER BY 2 DESC",
+    "columns": [
+     "attr",
+     "cnt"
+    ]
+   },
+   {
+    "id": "quality_scatter",
+    "name": "QualityScatter",
+    "params": [
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT d.datasource_type AS src, ROUND(100.0*SUM(s.metadata_completed_field_count)/NULLIF(SUM(s.metadata_expected_field_count),0),1) AS comp_pct, ROUND(100.0*SUM(s.governed_entity_count)/NULLIF(SUM(s.entity_count),0),1) AS gov_pct, SUM(s.entity_count) AS assets FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON s.entity_key=e.entity_key WHERE COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 HAVING SUM(s.entity_count)>0 ORDER BY 4 DESC",
+    "columns": [
+     "src",
+     "comp_pct",
+     "gov_pct",
+     "assets"
+    ]
+   },
+   {
+    "id": "worst_entities",
+    "name": "WorstEntities",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT e.entity_name AS entity, COALESCE(NULLIF(d.datasource_type,''),'Unknown') AS src, SUM(s.metadata_expected_field_count) AS expected, ROUND(100.0*SUM(s.metadata_completed_field_count)/NULLIF(SUM(s.metadata_expected_field_count),0),1) AS complete_pct FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key JOIN dim_datasource d ON s.datasource_key=d.datasource_key WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1,2 HAVING SUM(s.metadata_expected_field_count) >= 5 ORDER BY complete_pct ASC, expected DESC LIMIT 15",
+    "columns": [
+     "entity",
+     "src",
+     "expected",
+     "complete_pct"
+    ]
+   },
+   {
+    "id": "detail_by_band",
+    "name": "DetailByBand",
+    "params": [
+     {
+      "name": "band",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT COALESCE(NULLIF(e.entity_name,''),'(unnamed)') AS name, d.datasource_type AS src, COALESCE(NULLIF(s.metadata_completeness_band,''),'Unknown') AS band, s.metadata_completed_field_count AS completed, s.metadata_expected_field_count AS expected, COALESCE(NULLIF(e.sensitivity,''),'Unclassified') AS sensitivity, COALESCE(NULLIF(e.owner_name,''),'\u2014') AS owner FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON s.entity_key=e.entity_key WHERE COALESCE(NULLIF(s.metadata_completeness_band,''),'Unknown') LIKE ${band} AND d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} ORDER BY s.metadata_completed_field_count ASC, e.entity_name",
+    "columns": [
+     "name",
+     "src",
+     "band",
+     "completed",
+     "expected",
+     "sensitivity",
+     "owner"
+    ]
+   },
+   {
+    "id": "datasources",
+    "name": "DataSources",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT DISTINCT datasource_type FROM dim_datasource WHERE datasource_type IS NOT NULL AND datasource_type<>'' ORDER BY 1",
+    "columns": []
+   },
+   {
+    "id": "sensitivities",
+    "name": "Sensitivities",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT DISTINCT COALESCE(NULLIF(sensitivity,''),'Unclassified') AS s FROM dim_entity ORDER BY 1",
+    "columns": [
+     "s"
+    ]
+   }
+  ]
+ },
+ "pipeline-health": {
+  "file": "pipeline-health.cda",
+  "connection": {
+   "id": "pdc",
+   "jndi": "PDC-BIDB-EXT"
+  },
+  "dataAccesses": [
+   {
+    "id": "kpi",
+    "name": "KPI",
+    "params": [
+     {
+      "name": "integration",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "fromkey",
+      "type": "Integer",
+      "default": "0"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT SUM(e.started_count) AS runs, ROUND(100.0*SUM(e.completed_count)/NULLIF(SUM(e.terminal_count),0),1) AS success_pct, SUM(e.failed_count)+SUM(e.aborted_count) AS failures, ROUND(SUM(e.output_bytes)/1e9::numeric,1) AS gb, COUNT(DISTINCT j.job_name) AS jobs FROM fact_lineage_event e JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key WHERE j.integration LIKE ${integration} AND e.event_date_key >= ${fromkey}",
+    "columns": [
+     "runs",
+     "success_pct",
+     "failures",
+     "gb",
+     "jobs"
+    ]
+   },
+   {
+    "id": "success_trend",
+    "name": "SuccessTrend",
+    "params": [
+     {
+      "name": "integration",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "fromkey",
+      "type": "Integer",
+      "default": "0"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT to_char(date_trunc('month', s.event_date),'YYYY-MM') AS month, ROUND(100.0*SUM(e.completed_count)/NULLIF(SUM(e.terminal_count),0),1) AS success_pct, SUM(e.started_count) AS runs FROM fact_lineage_event e JOIN v_stg_lineage_event s ON e.lineage_event_nk = md5(lower(trim(s.event_nk))) JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key WHERE j.integration LIKE ${integration} AND e.event_date_key >= ${fromkey} AND s.event_date IS NOT NULL GROUP BY 1 ORDER BY 1",
+    "columns": [
+     "month",
+     "success_pct",
+     "runs"
+    ]
+   },
+   {
+    "id": "by_integration",
+    "name": "ByIntegration",
+    "params": [
+     {
+      "name": "fromkey",
+      "type": "Integer",
+      "default": "0"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT j.integration AS integ, ROUND(100.0*SUM(e.completed_count)/NULLIF(SUM(e.terminal_count),0),1) AS success_pct, SUM(e.failed_count)+SUM(e.aborted_count) AS failures, SUM(e.started_count) AS runs FROM fact_lineage_event e JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key WHERE e.event_date_key >= ${fromkey} AND j.integration<>'Unknown' GROUP BY 1 ORDER BY 4 DESC",
+    "columns": [
+     "integ",
+     "success_pct",
+     "failures",
+     "runs"
+    ]
+   },
+   {
+    "id": "failures_by_job",
+    "name": "FailuresByJob",
+    "params": [
+     {
+      "name": "integration",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "fromkey",
+      "type": "Integer",
+      "default": "0"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT j.job_name AS job, SUM(e.failed_count)+SUM(e.aborted_count) AS failures FROM fact_lineage_event e JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key WHERE j.integration LIKE ${integration} AND e.event_date_key >= ${fromkey} GROUP BY 1 HAVING SUM(e.failed_count)+SUM(e.aborted_count) > 0 ORDER BY 2 DESC LIMIT 15",
+    "columns": [
+     "job",
+     "failures"
+    ]
+   },
+   {
+    "id": "job_topology",
+    "name": "JobTopology",
+    "params": [
+     {
+      "name": "integration",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "fromkey",
+      "type": "Integer",
+      "default": "0"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "WITH jf AS ( SELECT lineage_job_key, SUM(failed_count)+SUM(aborted_count) AS fails FROM fact_lineage_event GROUP BY 1 ), top AS ( SELECT c.lineage_job_key, SUM(c.bytes_moved) AS tb FROM fact_lineage_connection c JOIN dim_lineage_job j ON j.lineage_job_key=c.lineage_job_key WHERE j.integration LIKE ${integration} AND c.event_date_key >= ${fromkey} AND c.event_date_key<>19000101 GROUP BY 1 ORDER BY tb DESC NULLS LAST LIMIT 14 ) SELECT j.job_name AS job, regexp_replace(c.dest_namespace,'^([a-z0-9]+)://.*','\\1') AS dest, SUM(c.bytes_moved) AS bytes, COUNT(*) AS conns, COALESCE(jf.fails,0) AS fails FROM fact_lineage_connection c JOIN top ON top.lineage_job_key=c.lineage_job_key JOIN dim_lineage_job j ON j.lineage_job_key=c.lineage_job_key LEFT JOIN jf ON jf.lineage_job_key=c.lineage_job_key WHERE c.event_date_key >= ${fromkey} AND c.event_date_key<>19000101 GROUP BY j.job_name, dest, jf.fails ORDER BY bytes DESC",
+    "columns": [
+     "fails",
+     "tb",
+     "job",
+     "dest",
+     "bytes",
+     "conns"
+    ]
+   },
+   {
+    "id": "lifecycle",
+    "name": "Lifecycle",
+    "params": [
+     {
+      "name": "integration",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "fromkey",
+      "type": "Integer",
+      "default": "0"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT et.event_type_label AS type, SUM(e.event_count) AS events FROM fact_lineage_event e JOIN dim_lineage_event_type et ON e.event_type_key=et.event_type_key JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key WHERE j.integration LIKE ${integration} AND e.event_date_key >= ${fromkey} GROUP BY 1 ORDER BY 1",
+    "columns": [
+     "type",
+     "events"
+    ]
+   },
+   {
+    "id": "run_volume",
+    "name": "RunVolume",
+    "params": [
+     {
+      "name": "integration",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "fromkey",
+      "type": "Integer",
+      "default": "0"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT to_char(date_trunc('month', s.event_date),'YYYY-MM') AS month, SUM(e.started_count) AS runs FROM fact_lineage_event e JOIN v_stg_lineage_event s ON e.lineage_event_nk = md5(lower(trim(s.event_nk))) JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key WHERE j.integration LIKE ${integration} AND e.event_date_key >= ${fromkey} AND s.event_date IS NOT NULL GROUP BY 1 ORDER BY 1",
+    "columns": [
+     "month",
+     "runs"
+    ]
+   },
+   {
+    "id": "run_calendar",
+    "name": "RunCalendar",
+    "params": [
+     {
+      "name": "integration",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "fromkey",
+      "type": "Integer",
+      "default": "0"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT to_char(d.full_date,'YYYY-MM-DD') AS day, SUM(e.event_count) AS events, SUM(e.started_count) AS runs, SUM(e.failed_count)+SUM(e.aborted_count) AS fails FROM fact_lineage_event e JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key JOIN dim_date d ON e.event_date_key=d.date_key WHERE j.integration LIKE ${integration} AND e.event_date_key >= ${fromkey} AND e.event_date_key<>19000101 GROUP BY 1 ORDER BY 1",
+    "columns": [
+     "day",
+     "events",
+     "runs",
+     "fails"
+    ]
+   },
+   {
+    "id": "slowest",
+    "name": "Slowest",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT view_name AS job, ROUND(AVG(runtime_seconds)::numeric,1) AS avg_secs, SUM(run_count) AS runs, ROUND(100.0*SUM(success_count)/NULLIF(SUM(run_count),0),1) AS success_pct FROM fact_pipeline_run GROUP BY 1 ORDER BY 2 DESC NULLS LAST LIMIT 12",
+    "columns": [
+     "job",
+     "avg_secs",
+     "runs",
+     "success_pct"
+    ]
+   },
+   {
+    "id": "detail_failed_runs",
+    "name": "DetailFailedRuns",
+    "params": [
+     {
+      "name": "job",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "integration",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "fromkey",
+      "type": "Integer",
+      "default": "0"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT e.run_id, COALESCE(NULLIF(et.event_type_label,''),'(event)') AS event, e.event_date_key AS day, j.integration AS integration, COALESCE(NULLIF(e.out_namespace,''),NULLIF(e.in_namespace,''),'\u2014') AS namespace, e.record_count AS records FROM fact_lineage_event e JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key LEFT JOIN dim_lineage_event_type et ON e.event_type_key=et.event_type_key WHERE j.job_name LIKE ${job} AND (e.failed_count>0 OR e.aborted_count>0) AND j.integration LIKE ${integration} AND e.event_date_key >= ${fromkey} ORDER BY e.event_date_key DESC, e.run_id",
+    "columns": [
+     "event",
+     "day",
+     "integration",
+     "namespace",
+     "records"
+    ]
+   },
+   {
+    "id": "integrations",
+    "name": "Integrations",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT DISTINCT integration FROM dim_lineage_job WHERE integration NOT IN ('Unknown') ORDER BY 1",
+    "columns": []
+   }
+  ]
+ },
+ "freshness": {
+  "file": "freshness.cda",
+  "connection": {
+   "id": "pdc",
+   "jndi": "PDC-BIDB-EXT"
+  },
+  "dataAccesses": [
+   {
+    "id": "scan_calendar",
+    "name": "ScanCalendar",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT to_char(dt.full_date,'YYYY-MM-DD') AS day, SUM(s.entity_count) AS assets, SUM(s.governed_entity_count) AS governed FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key JOIN dim_date dt ON s.scanned_date_key=dt.date_key LEFT JOIN dim_entity e ON s.entity_key=e.entity_key WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} AND s.scanned_date_key<>19000101 GROUP BY 1 ORDER BY 1",
+    "columns": [
+     "day",
+     "assets",
+     "governed"
+    ]
+   },
+   {
+    "id": "kpi",
+    "name": "KPI",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT SUM(s.entity_count) AS assets, ROUND(100.0*SUM(s.entity_count) FILTER (WHERE s.scan_freshness_band ILIKE '%stale%')/NULLIF(SUM(s.entity_count),0),1) AS stale_pct, ROUND(AVG(s.accessed_age_months)::numeric,1) AS avg_access_age, SUM(s.entity_count) FILTER (WHERE s.accessed_age_months >= 24) AS cold_assets FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON s.entity_key=e.entity_key WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}",
+    "columns": [
+     "assets",
+     "stale_pct",
+     "avg_access_age",
+     "cold_assets"
+    ]
+   },
+   {
+    "id": "scan_fresh",
+    "name": "ScanFresh",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT COALESCE(NULLIF(s.scan_freshness_band,''),'Unknown') AS band, SUM(s.entity_count) AS assets FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON s.entity_key=e.entity_key WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 1",
+    "columns": [
+     "band",
+     "assets"
+    ]
+   },
+   {
+    "id": "accessed_age",
+    "name": "AccessedAge",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT COALESCE(NULLIF(s.accessed_age_band,''),'Unknown') AS band, SUM(s.entity_count) AS assets FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON s.entity_key=e.entity_key WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 1",
+    "columns": [
+     "band",
+     "assets"
+    ]
+   },
+   {
+    "id": "modified_age",
+    "name": "ModifiedAge",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT COALESCE(NULLIF(s.modified_age_band,''),'Unknown') AS band, SUM(s.entity_count) AS assets FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON s.entity_key=e.entity_key WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 1",
+    "columns": [
+     "band",
+     "assets"
+    ]
+   },
+   {
+    "id": "temperature",
+    "name": "Temperature",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT t.temperature_name AS temp, SUM(f.file_count) AS files FROM fact_temperature_daily f JOIN dim_temperature t ON f.temperature_key=t.temperature_key WHERE f.snapshot_date_key=(SELECT MAX(snapshot_date_key) FROM fact_temperature_daily) GROUP BY t.temperature_name, t.temperature_sort ORDER BY t.temperature_sort",
+    "columns": [
+     "temp",
+     "files"
+    ]
+   },
+   {
+    "id": "stale_by_source",
+    "name": "StaleBySource",
+    "params": [
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT d.datasource_type AS src, ROUND(100.0*SUM(s.entity_count) FILTER (WHERE s.scan_freshness_band ILIKE '%stale%' OR s.scan_freshness_band ILIKE '%aging%')/NULLIF(SUM(s.entity_count),0),1) AS stale_pct, SUM(s.entity_count) AS assets FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON s.entity_key=e.entity_key WHERE COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC NULLS LAST",
+    "columns": [
+     "src",
+     "stale_pct",
+     "assets"
+    ]
+   },
+   {
+    "id": "temp_trend",
+    "name": "TempTrend",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT to_char(to_date(f.snapshot_date_key::text,'YYYYMMDD'),'YYYY-MM') AS month, SUM(f.file_count) FILTER (WHERE t.temperature_name ILIKE '%cold%' OR t.temperature_name ILIKE '%frozen%') AS cold, SUM(f.file_count) FILTER (WHERE t.temperature_name ILIKE '%hot%' OR t.temperature_name ILIKE '%warm%') AS hotwarm FROM fact_temperature_daily f JOIN dim_temperature t ON f.temperature_key=t.temperature_key WHERE f.snapshot_date_key<>19000101 GROUP BY 1 ORDER BY 1",
+    "columns": [
+     "month",
+     "cold",
+     "hotwarm"
+    ]
+   },
+   {
+    "id": "detail_by_freshband",
+    "name": "DetailByFreshBand",
+    "params": [
+     {
+      "name": "band",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT COALESCE(NULLIF(e.entity_name,''),'(unnamed)') AS name, d.datasource_type AS src, COALESCE(NULLIF(s.scan_freshness_band,''),'Unknown') AS scan_band, COALESCE(NULLIF(s.accessed_age_band,''),'\u2014') AS access_age, COALESCE(NULLIF(e.sensitivity,''),'Unclassified') AS sensitivity, COALESCE(NULLIF(e.owner_name,''),'\u2014') AS owner FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON s.entity_key=e.entity_key WHERE COALESCE(NULLIF(s.scan_freshness_band,''),'Unknown') LIKE ${band} AND d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} ORDER BY e.entity_name",
+    "columns": [
+     "name",
+     "src",
+     "scan_band",
+     "access_age",
+     "sensitivity",
+     "owner"
+    ]
+   },
+   {
+    "id": "datasources",
+    "name": "DataSources",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT DISTINCT datasource_type FROM dim_datasource WHERE datasource_type IS NOT NULL AND datasource_type<>'' ORDER BY 1",
+    "columns": []
+   },
+   {
+    "id": "sensitivities",
+    "name": "Sensitivities",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT DISTINCT COALESCE(NULLIF(sensitivity,''),'Unclassified') AS s FROM dim_entity ORDER BY 1",
+    "columns": [
+     "s"
+    ]
+   }
+  ]
+ },
+ "governance": {
+  "file": "governance.cda",
+  "connection": {
+   "id": "pdc",
+   "jndi": "PDC-BIDB-EXT"
+  },
+  "dataAccesses": [
+   {
+    "id": "kpi",
+    "name": "KPI",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT ROUND(100.0*SUM(s.governed_entity_count)/NULLIF(SUM(s.entity_count),0),1) AS governed_pct, SUM(s.governed_entity_count) AS governed, SUM(s.ungoverned_entity_count) AS ungoverned, (SELECT SUM(assignment_count) FROM fact_entity_policy) AS assignments FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON s.entity_key=e.entity_key WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}",
+    "columns": [
+     "governed_pct",
+     "governed",
+     "ungoverned",
+     "assignments"
+    ]
+   },
+   {
+    "id": "gov_status",
+    "name": "GovStatus",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT COALESCE(NULLIF(regexp_replace(s.governance_coverage_status,'^[0-9]+\\.\\s*',''),''),'Unknown') AS status, SUM(s.entity_count) AS assets FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON s.entity_key=e.entity_key WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "status",
+     "assets"
+    ]
+   },
+   {
+    "id": "gov_by_source",
+    "name": "GovBySource",
+    "params": [
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT d.datasource_type AS src, ROUND(100.0*SUM(s.governed_entity_count)/NULLIF(SUM(s.entity_count),0),1) AS gov_pct FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON s.entity_key=e.entity_key WHERE COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "src",
+     "gov_pct"
+    ]
+   },
+   {
+    "id": "ungov_by_source",
+    "name": "UngovBySource",
+    "params": [
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT d.datasource_type AS src, SUM(s.ungoverned_entity_count) AS ungoverned FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON s.entity_key=e.entity_key WHERE COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "src",
+     "ungoverned"
+    ]
+   },
+   {
+    "id": "top_policies",
+    "name": "TopPolicies",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT p.policy_name AS policy, SUM(f.assignment_count) AS assigns FROM fact_entity_policy f JOIN dim_policy p ON f.policy_key=p.policy_key GROUP BY 1 ORDER BY 2 DESC LIMIT 15",
+    "columns": [
+     "policy",
+     "assigns"
+    ]
+   },
+   {
+    "id": "policy_network",
+    "name": "PolicyNetwork",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT p.policy_name AS policy, d.datasource_type AS src, SUM(f.assignment_count) AS assigns FROM fact_entity_policy f JOIN dim_policy p ON f.policy_key=p.policy_key JOIN dim_datasource d ON f.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON f.entity_key=e.entity_key WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1,2 HAVING SUM(f.assignment_count) > 0 ORDER BY assigns DESC",
+    "columns": [
+     "policy",
+     "src",
+     "assigns"
+    ]
+   },
+   {
+    "id": "policy_type",
+    "name": "PolicyType",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT COALESCE(NULLIF(p.policy_type,''),'unknown') AS ptype, SUM(f.assignment_count) AS assigns FROM fact_entity_policy f JOIN dim_policy p ON f.policy_key=p.policy_key GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "ptype",
+     "assigns"
+    ]
+   },
+   {
+    "id": "trend",
+    "name": "Trend",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 180,
+    "sql": "SELECT d.year_month_name AS month, ROUND(100.0*SUM(s.governed_entity_count)/NULLIF(SUM(s.entity_count),0),1) AS governed_pct, ROUND(100.0*SUM(s.metadata_completed_field_count)/NULLIF(SUM(s.metadata_expected_field_count),0),1) AS complete_pct FROM fact_entity_snapshot s JOIN dim_date d ON s.scanned_date_key=d.date_key JOIN dim_datasource dd ON s.datasource_key=dd.datasource_key LEFT JOIN dim_entity e ON s.entity_key=e.entity_key WHERE s.scanned_date_key<>19000101 AND dd.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY d.year_month_name, d.year_month_number ORDER BY d.year_month_number",
+    "columns": [
+     "month",
+     "governed_pct",
+     "complete_pct"
+    ]
+   },
+   {
+    "id": "detail_ungov",
+    "name": "DetailUngoverned",
+    "params": [
+     {
+      "name": "src",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT COALESCE(NULLIF(e.entity_name,''),'(unnamed)') AS name, d.datasource_type AS src, COALESCE(NULLIF(s.governance_coverage_status,''),'Ungoverned') AS status, COALESCE(NULLIF(e.sensitivity,''),'Unclassified') AS sensitivity, COALESCE(NULLIF(e.owner_name,''),'\u2014') AS owner FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON s.entity_key=e.entity_key WHERE s.ungoverned_entity_count=1 AND d.datasource_type LIKE ${src} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} ORDER BY COALESCE(NULLIF(e.sensitivity,''),'Unclassified') DESC, e.entity_name",
+    "columns": [
+     "name",
+     "src",
+     "status",
+     "sensitivity",
+     "owner"
+    ]
+   },
+   {
+    "id": "datasources",
+    "name": "DataSources",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT DISTINCT datasource_type FROM dim_datasource WHERE datasource_type IS NOT NULL AND datasource_type<>'' ORDER BY 1",
+    "columns": []
+   },
+   {
+    "id": "sensitivities",
+    "name": "Sensitivities",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT DISTINCT COALESCE(NULLIF(sensitivity,''),'Unclassified') AS s FROM dim_entity ORDER BY 1",
+    "columns": [
+     "s"
+    ]
+   }
+  ]
+ },
+ "storage-capacity": {
+  "file": "storage-capacity.cda",
+  "connection": {
+   "id": "pdc",
+   "jndi": "PDC-BIDB-EXT"
+  },
+  "dataAccesses": [
+   {
+    "id": "kpi",
+    "name": "KPI",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT ROUND(SUM(size_bytes)/1e12::numeric,1) AS total_tb, count(*) AS assets, ROUND(AVG(size_bytes)/1e9::numeric,2) AS avg_gb, ROUND(MAX(size_bytes)/1e9::numeric,1) AS max_gb FROM entity_storage_demo WHERE datasource_type LIKE ${ds} AND COALESCE(NULLIF(sensitivity,''),'Unclassified') LIKE ${sens}",
+    "columns": [
+     "total_tb",
+     "assets",
+     "avg_gb",
+     "max_gb"
+    ]
+   },
+   {
+    "id": "by_source",
+    "name": "BySource",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT datasource_type AS src, ROUND(SUM(size_bytes)/1e12::numeric,2) AS tb, count(*) AS assets FROM entity_storage_demo WHERE datasource_type LIKE ${ds} AND COALESCE(NULLIF(sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "src",
+     "tb",
+     "assets"
+    ]
+   },
+   {
+    "id": "by_restype",
+    "name": "ByResType",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT resource_type AS rt, ROUND(SUM(size_bytes)/1e12::numeric,2) AS tb FROM entity_storage_demo WHERE datasource_type LIKE ${ds} AND COALESCE(NULLIF(sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "rt",
+     "tb"
+    ]
+   },
+   {
+    "id": "size_dist",
+    "name": "SizeDist",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT band, count(*) AS assets FROM ( SELECT CASE WHEN size_bytes<1e9 THEN '1. <1 GB' WHEN size_bytes<1e10 THEN '2. 1-10 GB' WHEN size_bytes<1e11 THEN '3. 10-100 GB' WHEN size_bytes<1e12 THEN '4. 100GB-1TB' ELSE '5. 1 TB+' END AS band FROM entity_storage_demo WHERE datasource_type LIKE ${ds} AND COALESCE(NULLIF(sensitivity,''),'Unclassified') LIKE ${sens}) t GROUP BY 1 ORDER BY 1",
+    "columns": [
+     "assets",
+     "band"
+    ]
+   },
+   {
+    "id": "top_assets",
+    "name": "TopAssets",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT COALESCE(NULLIF(e.entity_name,''),'(unnamed)') AS name, st.datasource_type AS src, st.resource_type AS rt, ROUND(st.size_bytes/1e9::numeric,1) AS gb FROM entity_storage_demo st JOIN dim_entity e ON st.entity_key=e.entity_key WHERE st.datasource_type LIKE ${ds} AND COALESCE(NULLIF(st.sensitivity,''),'Unclassified') LIKE ${sens} ORDER BY st.size_bytes DESC LIMIT 14",
+    "columns": [
+     "name",
+     "src",
+     "rt",
+     "gb"
+    ]
+   },
+   {
+    "id": "growth",
+    "name": "Growth",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 180,
+    "sql": "WITH first_scan AS ( SELECT s.entity_key, MIN(d.year_month_number) AS ym, MIN(d.year_month_name) AS ymn FROM fact_entity_snapshot s JOIN dim_date d ON s.scanned_date_key=d.date_key WHERE s.scanned_date_key<>19000101 GROUP BY 1) SELECT fs.ymn AS month, ROUND(SUM(st.size_bytes)/1e12::numeric,2) AS tb, ROUND(SUM(SUM(st.size_bytes)) OVER (ORDER BY fs.ym)/1e12::numeric,2) AS cum_tb FROM entity_storage_demo st JOIN first_scan fs ON st.entity_key=fs.entity_key WHERE st.datasource_type LIKE ${ds} AND COALESCE(NULLIF(st.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY fs.ym, fs.ymn ORDER BY fs.ym",
+    "columns": [
+     "ym",
+     "ymn",
+     "month",
+     "tb",
+     "cum_tb"
+    ]
+   },
+   {
+    "id": "detail_assets",
+    "name": "DetailAssets",
+    "params": [
+     {
+      "name": "src",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT COALESCE(NULLIF(e.entity_name,''),'(unnamed)') AS name, st.datasource_type AS src, st.resource_type AS restype, ROUND(st.size_bytes/1e9::numeric,2) AS gb, COALESCE(NULLIF(st.sensitivity,''),'Unclassified') AS sensitivity, COALESCE(NULLIF(st.owner_name,''),'\u2014') AS owner FROM entity_storage_demo st JOIN dim_entity e ON st.entity_key=e.entity_key WHERE st.datasource_type LIKE ${src} AND COALESCE(NULLIF(st.sensitivity,''),'Unclassified') LIKE ${sens} ORDER BY st.size_bytes DESC",
+    "columns": [
+     "name",
+     "src",
+     "restype",
+     "gb",
+     "sensitivity",
+     "owner"
+    ]
+   },
+   {
+    "id": "datasources",
+    "name": "DataSources",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT DISTINCT datasource_type FROM dim_datasource WHERE datasource_type IS NOT NULL AND datasource_type<>'' ORDER BY 1",
+    "columns": []
+   },
+   {
+    "id": "sensitivities",
+    "name": "Sensitivities",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT DISTINCT COALESCE(NULLIF(sensitivity,''),'Unclassified') AS s FROM entity_storage_demo ORDER BY 1",
+    "columns": [
+     "s"
+    ]
+   }
+  ]
+ },
+ "app-usage": {
+  "file": "app-usage.cda",
+  "connection": {
+   "id": "pdc",
+   "jndi": "PDC-BIDB-EXT"
+  },
+  "dataAccesses": [
+   {
+    "id": "kpi",
+    "name": "K",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT count(DISTINCT f.application_key) AS apps, SUM(f.access_count) AS accesses, count(DISTINCT f.entity_key) AS assets, ROUND(SUM(st.size_bytes)/1e12::numeric,1) AS tb FROM fact_entity_application f JOIN dim_datasource d ON f.datasource_key=d.datasource_key LEFT JOIN entity_storage_demo st ON f.entity_key=st.entity_key LEFT JOIN dim_entity e ON f.entity_key=e.entity_key WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}",
+    "columns": [
+     "apps",
+     "accesses",
+     "assets",
+     "tb"
+    ]
+   },
+   {
+    "id": "by_app",
+    "name": "A",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT a.application_name AS app, SUM(f.access_count) AS acc FROM fact_entity_application f JOIN dim_application a ON f.application_key=a.application_key JOIN dim_datasource d ON f.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON f.entity_key=e.entity_key WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC LIMIT 14",
+    "columns": [
+     "app",
+     "acc"
+    ]
+   },
+   {
+    "id": "by_type",
+    "name": "T",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT COALESCE(NULLIF(a.application_type,''),'unknown') AS atype, SUM(f.access_count) AS acc FROM fact_entity_application f JOIN dim_application a ON f.application_key=a.application_key JOIN dim_datasource d ON f.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON f.entity_key=e.entity_key WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "atype",
+     "acc"
+    ]
+   },
+   {
+    "id": "by_source",
+    "name": "S",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT d.datasource_type AS src, SUM(f.access_count) AS acc FROM fact_entity_application f JOIN dim_datasource d ON f.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON f.entity_key=e.entity_key WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "src",
+     "acc"
+    ]
+   },
+   {
+    "id": "reach",
+    "name": "R",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT a.application_name AS app, SUM(f.access_count) AS acc, count(DISTINCT f.entity_key) AS assets, ROUND(SUM(st.size_bytes)/1e12::numeric,2) AS tb FROM fact_entity_application f JOIN dim_application a ON f.application_key=a.application_key JOIN dim_datasource d ON f.datasource_key=d.datasource_key LEFT JOIN entity_storage_demo st ON f.entity_key=st.entity_key LEFT JOIN dim_entity e ON f.entity_key=e.entity_key WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC LIMIT 14",
+    "columns": [
+     "app",
+     "acc",
+     "assets",
+     "tb"
+    ]
+   },
+   {
+    "id": "app_source_flow",
+    "name": "ASF",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT a.application_name AS app, COALESCE(NULLIF(d.datasource_type,''),'Unknown') AS src, SUM(f.access_count) AS acc FROM fact_entity_application f JOIN dim_application a ON f.application_key=a.application_key JOIN dim_datasource d ON f.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON f.entity_key=e.entity_key WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1,2 HAVING SUM(f.access_count)>0 ORDER BY 3 DESC LIMIT 30",
+    "columns": [
+     "app",
+     "src",
+     "acc"
+    ]
+   },
+   {
+    "id": "detail_app_entities",
+    "name": "DetailAppEntities",
+    "params": [
+     {
+      "name": "app",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT COALESCE(NULLIF(e.entity_name,''),'(unnamed)') AS name, d.datasource_type AS src, f.access_count AS accesses, ROUND(f.accessed_size_tb*1000::numeric,2) AS accessed_gb, COALESCE(NULLIF(e.sensitivity,''),'Unclassified') AS sensitivity, COALESCE(NULLIF(e.owner_name,''),'\u2014') AS owner FROM fact_entity_application f JOIN dim_application a ON f.application_key=a.application_key JOIN dim_datasource d ON f.datasource_key=d.datasource_key LEFT JOIN dim_entity e ON f.entity_key=e.entity_key WHERE a.application_name LIKE ${app} AND d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} ORDER BY f.access_count DESC",
+    "columns": [
+     "name",
+     "src",
+     "accesses",
+     "accessed_gb",
+     "sensitivity",
+     "owner"
+    ]
+   },
+   {
+    "id": "datasources",
+    "name": "DS",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT DISTINCT datasource_type FROM dim_datasource WHERE datasource_type IS NOT NULL AND datasource_type<>'' ORDER BY 1",
+    "columns": []
+   },
+   {
+    "id": "sensitivities",
+    "name": "SENS",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT DISTINCT COALESCE(NULLIF(sensitivity,''),'Unclassified') AS s FROM dim_entity ORDER BY 1",
+    "columns": [
+     "s"
+    ]
+   }
+  ]
+ },
+ "growth": {
+  "file": "growth.cda",
+  "connection": {
+   "id": "pdc",
+   "jndi": "PDC-BIDB-EXT"
+  },
+  "dataAccesses": [
+   {
+    "id": "kpi",
+    "name": "KPI",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT SUM(s.entity_count) AS total_assets, count(DISTINCT s.scanned_date_key) FILTER (WHERE s.scanned_date_key<>19000101) AS scan_days, count(DISTINCT s.datasource_key) AS sources, SUM(s.entity_count) FILTER (WHERE s.scanned_date_key >= to_char(current_date-90,'YYYYMMDD')::int) AS last90 FROM fact_entity_snapshot s JOIN dim_datasource dd ON s.datasource_key=dd.datasource_key WHERE dd.datasource_type LIKE ${ds}",
+    "columns": [
+     "total_assets",
+     "scan_days",
+     "sources",
+     "last90"
+    ]
+   },
+   {
+    "id": "trend_cum",
+    "name": "TrendCum",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT d.year_month_name AS month, SUM(SUM(s.entity_count)) OVER (ORDER BY d.year_month_number) AS cumulative FROM fact_entity_snapshot s JOIN dim_date d ON s.scanned_date_key=d.date_key JOIN dim_datasource dd ON s.datasource_key=dd.datasource_key WHERE s.scanned_date_key<>19000101 AND dd.datasource_type LIKE ${ds} GROUP BY d.year_month_name, d.year_month_number ORDER BY d.year_month_number",
+    "columns": [
+     "month",
+     "cumulative"
+    ]
+   },
+   {
+    "id": "by_month",
+    "name": "ByMonth",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT d.year_month_name AS month, SUM(s.entity_count) AS assets FROM fact_entity_snapshot s JOIN dim_date d ON s.scanned_date_key=d.date_key JOIN dim_datasource dd ON s.datasource_key=dd.datasource_key WHERE s.scanned_date_key<>19000101 AND dd.datasource_type LIKE ${ds} GROUP BY d.year_month_name, d.year_month_number ORDER BY d.year_month_number",
+    "columns": [
+     "month",
+     "assets"
+    ]
+   },
+   {
+    "id": "by_source",
+    "name": "BySource",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT COALESCE(NULLIF(dd.datasource_type,''),'Unknown') AS src, SUM(s.entity_count) AS assets FROM fact_entity_snapshot s JOIN dim_datasource dd ON s.datasource_key=dd.datasource_key GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "src",
+     "assets"
+    ]
+   },
+   {
+    "id": "recent",
+    "name": "Recent",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT e.entity_name AS name, COALESCE(NULLIF(dd.datasource_type,''),'Unknown') AS src, d.full_date AS scan_date FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key JOIN dim_date d ON s.scanned_date_key=d.date_key LEFT JOIN dim_datasource dd ON s.datasource_key=dd.datasource_key WHERE s.scanned_date_key<>19000101 AND COALESCE(dd.datasource_type,'') LIKE ${ds} ORDER BY s.scanned_date_key DESC LIMIT 16",
+    "columns": [
+     "name",
+     "src",
+     "scan_date"
+    ]
+   },
+   {
+    "id": "datasources",
+    "name": "DataSources",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT '%' AS v, 'All sources' AS l, 0 AS ord UNION ALL SELECT DISTINCT datasource_type AS v, datasource_type AS l, 1 AS ord FROM dim_datasource WHERE datasource_type IS NOT NULL AND datasource_type<>'' ORDER BY ord, l",
+    "columns": [
+     "v",
+     "l",
+     "ord"
+    ]
+   }
+  ]
+ },
+ "lineage": {
+  "file": "lineage.cda",
+  "connection": {
+   "id": "pdc",
+   "jndi": "PDC-BIDB-EXT"
+  },
+  "dataAccesses": [
+   {
+    "id": "kpi",
+    "name": "KPI",
+    "params": [
+     {
+      "name": "integration",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "fromkey",
+      "type": "Integer",
+      "default": "0"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT (SELECT count(DISTINCT integration) FROM dim_lineage_job WHERE integration<>'Unknown') AS integrations, SUM(e.started_count) AS runs, ROUND(100.0*SUM(e.completed_count)/NULLIF(SUM(e.terminal_count),0),1) AS success_pct, ROUND(SUM(e.output_bytes)/1e9::numeric,1) AS gb, (SELECT SUM(restricted_to_ungoverned_count) FROM fact_lineage_connection) AS restricted_ungov FROM fact_lineage_event e JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key WHERE j.integration LIKE ${integration} AND j.integration<>'Unknown' AND e.event_date_key >= ${fromkey}",
+    "columns": [
+     "integrations",
+     "runs",
+     "success_pct",
+     "gb",
+     "restricted_ungov"
+    ]
+   },
+   {
+    "id": "gb_by_integration",
+    "name": "GBI",
+    "params": [
+     {
+      "name": "integration",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "fromkey",
+      "type": "Integer",
+      "default": "0"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT j.integration AS integ, ROUND(SUM(e.output_bytes)/1e9::numeric,1) AS gb FROM fact_lineage_event e JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key WHERE j.integration<>'Unknown' AND j.integration LIKE ${integration} AND e.event_date_key >= ${fromkey} GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "integ",
+     "gb"
+    ]
+   },
+   {
+    "id": "success_by_integration",
+    "name": "SBI",
+    "params": [
+     {
+      "name": "integration",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "fromkey",
+      "type": "Integer",
+      "default": "0"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT j.integration AS integ, ROUND(100.0*SUM(e.completed_count)/NULLIF(SUM(e.terminal_count),0),1) AS success_pct FROM fact_lineage_event e JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key WHERE j.integration<>'Unknown' AND j.integration LIKE ${integration} AND e.event_date_key >= ${fromkey} GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "integ",
+     "success_pct"
+    ]
+   },
+   {
+    "id": "status_mix",
+    "name": "SM",
+    "params": [
+     {
+      "name": "integration",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "fromkey",
+      "type": "Integer",
+      "default": "0"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT 'Completed' AS status, SUM(e.completed_count) AS runs FROM fact_lineage_event e JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key WHERE j.integration<>'Unknown' AND j.integration LIKE ${integration} AND e.event_date_key >= ${fromkey} UNION ALL SELECT 'Failed / Aborted' AS status, GREATEST(SUM(e.terminal_count)-SUM(e.completed_count),0) AS runs FROM fact_lineage_event e JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key WHERE j.integration<>'Unknown' AND j.integration LIKE ${integration} AND e.event_date_key >= ${fromkey}",
+    "columns": [
+     "status",
+     "runs"
+    ]
+   },
+   {
+    "id": "trend",
+    "name": "T",
+    "params": [
+     {
+      "name": "integration",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "fromkey",
+      "type": "Integer",
+      "default": "0"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT to_char(date_trunc('month', s.event_date),'YYYY-MM') AS month, ROUND(SUM(e.output_bytes)/1e9::numeric,1) AS gb FROM fact_lineage_event e JOIN v_stg_lineage_event s ON e.lineage_event_nk = md5(lower(trim(s.event_nk))) JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key WHERE j.integration LIKE ${integration} AND s.event_date IS NOT NULL AND e.event_date_key >= ${fromkey} GROUP BY 1 ORDER BY 1",
+    "columns": [
+     "month",
+     "gb"
+    ]
+   },
+   {
+    "id": "top_flows",
+    "name": "TF",
+    "params": [
+     {
+      "name": "integration",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "fromkey",
+      "type": "Integer",
+      "default": "0"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT j.integration AS integ, c.orig_namespace||' \u2192 '||c.dest_namespace AS flow, ROUND(SUM(c.bytes_moved)/1e9::numeric,1) AS gb, SUM(c.connection_count) AS conns FROM fact_lineage_connection c JOIN dim_lineage_job j ON c.lineage_job_key=j.lineage_job_key WHERE j.integration LIKE ${integration} AND c.event_date_key >= ${fromkey} GROUP BY 1,2 ORDER BY 3 DESC LIMIT 18",
+    "columns": [
+     "integ",
+     "flow",
+     "gb",
+     "conns"
+    ]
+   },
+   {
+    "id": "ranges",
+    "name": "R",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT 0 AS v, 'All time' AS l, 0 AS ord UNION ALL SELECT to_char(current_date-365,'YYYYMMDD')::int, 'Last 12 months', 1 UNION ALL SELECT to_char(current_date-180,'YYYYMMDD')::int, 'Last 6 months', 2 UNION ALL SELECT to_char(current_date-90,'YYYYMMDD')::int, 'Last 90 days', 3 ORDER BY ord",
+    "columns": [
+     "v",
+     "l",
+     "ord"
+    ]
+   },
+   {
+    "id": "integrations",
+    "name": "I",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT '%' AS v, 'All integrations' AS l, 0 AS ord UNION ALL SELECT DISTINCT integration AS v, integration AS l, 1 AS ord FROM dim_lineage_job WHERE integration NOT IN ('Unknown') ORDER BY ord, l",
+    "columns": [
+     "v",
+     "l",
+     "ord"
+    ]
+   }
+  ]
+ },
+ "privacy": {
+  "file": "privacy.cda",
+  "connection": {
+   "id": "pdc",
+   "jndi": "PDC-BIDB-EXT"
+  },
+  "dataAccesses": [
+   {
+    "id": "kpi",
+    "name": "KPI",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "WITH priv AS ( SELECT DISTINCT f.entity_key, COALESCE(NULLIF(g.leaf_name,''),g.term_name) AS term, e.sensitivity FROM fact_entity_term f JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key JOIN dim_entity e ON f.entity_key=e.entity_key LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key WHERE lower(g.term_name||' '||COALESCE(g.leaf_name,'')) ~ '(pii|restrict|classif|sensitive|confidential|gdpr|hipaa|pci|phi|secret|personal)' AND COALESCE(dd.datasource_type,'') LIKE ${ds}) SELECT count(DISTINCT entity_key) AS priv_assets, count(DISTINCT term) AS terms, count(DISTINCT entity_key) FILTER (WHERE sensitivity IN ('HIGH','MEDIUM')) AS elevated, count(DISTINCT entity_key) FILTER (WHERE sensitivity='HIGH') AS high FROM priv",
+    "columns": [
+     "term",
+     "priv_assets",
+     "terms",
+     "elevated",
+     "high"
+    ]
+   },
+   {
+    "id": "by_term",
+    "name": "ByTerm",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT COALESCE(NULLIF(g.leaf_name,''),g.term_name) AS term, count(DISTINCT f.entity_key) AS entities FROM fact_entity_term f JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key JOIN dim_entity e ON f.entity_key=e.entity_key LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key WHERE lower(g.term_name||' '||COALESCE(g.leaf_name,'')) ~ '(pii|restrict|classif|sensitive|confidential|gdpr|hipaa|pci|phi|secret|personal)' AND COALESCE(dd.datasource_type,'') LIKE ${ds} GROUP BY 1 ORDER BY 2 DESC LIMIT 12",
+    "columns": [
+     "term",
+     "entities"
+    ]
+   },
+   {
+    "id": "scale",
+    "name": "Scale",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT e.sensitivity AS s, count(*) AS n FROM dim_entity e LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key WHERE e.sensitivity IN ('LOW','MEDIUM','HIGH') AND COALESCE(dd.datasource_type,'') LIKE ${ds} GROUP BY 1",
+    "columns": [
+     "s",
+     "n"
+    ]
+   },
+   {
+    "id": "by_source",
+    "name": "BySource",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT COALESCE(NULLIF(dd.datasource_type,''),'Unknown') AS src, count(DISTINCT f.entity_key) AS entities FROM fact_entity_term f JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key JOIN dim_entity e ON f.entity_key=e.entity_key LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key WHERE lower(g.term_name||' '||COALESCE(g.leaf_name,'')) ~ '(pii|restrict|classif|sensitive|confidential|gdpr|hipaa|pci|phi|secret|personal)' GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "src",
+     "entities"
+    ]
+   },
+   {
+    "id": "heat_stacked",
+    "name": "HeatStacked",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "WITH tt AS ( SELECT COALESCE(NULLIF(g.leaf_name,''),g.term_name) AS term, count(DISTINCT f.entity_key) AS n FROM fact_entity_term f JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key WHERE lower(g.term_name||' '||COALESCE(g.leaf_name,'')) ~ '(pii|restrict|classif|sensitive|confidential|gdpr|hipaa|pci|phi|secret|personal)' GROUP BY 1 ORDER BY 2 DESC LIMIT 8) SELECT COALESCE(NULLIF(dd.datasource_type,''),'Unknown') AS src, COALESCE(NULLIF(g.leaf_name,''),g.term_name) AS term, count(DISTINCT f.entity_key) AS entities FROM fact_entity_term f JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key JOIN dim_entity e ON f.entity_key=e.entity_key LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key WHERE lower(g.term_name||' '||COALESCE(g.leaf_name,'')) ~ '(pii|restrict|classif|sensitive|confidential|gdpr|hipaa|pci|phi|secret|personal)' AND COALESCE(NULLIF(g.leaf_name,''),g.term_name) IN (SELECT term FROM tt) GROUP BY 1,2 ORDER BY 1,2",
+    "columns": [
+     "term",
+     "n",
+     "src",
+     "entities"
+    ]
+   },
+   {
+    "id": "datasources",
+    "name": "DataSources",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT '%' AS v, 'All sources' AS l, 0 AS ord UNION ALL SELECT DISTINCT datasource_type AS v, datasource_type AS l, 1 AS ord FROM dim_datasource WHERE datasource_type IS NOT NULL AND datasource_type<>'' ORDER BY ord, l",
+    "columns": [
+     "v",
+     "l",
+     "ord"
+    ]
+   }
+  ]
+ },
+ "schema-explorer": {
+  "file": "schema-explorer.cda",
+  "connection": {
+   "id": "pdc",
+   "jndi": "PDC-BIDB-EXT"
+  },
+  "dataAccesses": [
+   {
+    "id": "kpi",
+    "name": "KPI",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT count(*) FILTER (WHERE e.resource_type='Structured') AS structured_assets, count(*) FILTER (WHERE e.entity_type='TABLE') AS tables, count(*) FILTER (WHERE e.entity_type='COLUMN') AS columns, count(DISTINCT e.structured_schema) FILTER (WHERE e.structured_schema NOT IN ('','Unknown')) AS schemas FROM dim_entity e LEFT JOIN dim_datasource d ON md5(e.datasource_nk)=d.datasource_key WHERE COALESCE(d.datasource_type,'') LIKE ${ds}",
+    "columns": [
+     "structured_assets",
+     "tables",
+     "columns",
+     "schemas"
+    ]
+   },
+   {
+    "id": "by_type",
+    "name": "ByType",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT e.entity_type AS etype, count(*) AS n FROM dim_entity e LEFT JOIN dim_datasource d ON md5(e.datasource_nk)=d.datasource_key WHERE COALESCE(d.datasource_type,'') LIKE ${ds} AND e.entity_type IS NOT NULL AND e.entity_type<>'' GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "etype",
+     "n"
+    ]
+   },
+   {
+    "id": "data_types",
+    "name": "DataTypes",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT upper(e.column_data_type) AS dt, count(*) AS n FROM dim_entity e LEFT JOIN dim_datasource d ON md5(e.datasource_nk)=d.datasource_key WHERE COALESCE(d.datasource_type,'') LIKE ${ds} AND e.column_data_type IS NOT NULL AND e.column_data_type<>'' GROUP BY 1 ORDER BY 2 DESC LIMIT 12",
+    "columns": [
+     "dt",
+     "n"
+    ]
+   },
+   {
+    "id": "keys",
+    "name": "Keys",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT 'Primary Key' AS k, count(*) AS n FROM dim_entity WHERE is_primary_key UNION ALL SELECT 'Foreign Key', count(*) FROM dim_entity WHERE is_foreign_key UNION ALL SELECT 'Other Columns', count(*) FROM dim_entity WHERE entity_type='COLUMN' AND NOT COALESCE(is_primary_key,false) AND NOT COALESCE(is_foreign_key,false)",
+    "columns": [
+     "k",
+     "n"
+    ]
+   },
+   {
+    "id": "schemas_by_cols",
+    "name": "SchemasByCols",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT e.structured_schema AS schema, count(*) FILTER (WHERE e.entity_type='COLUMN') AS cols FROM dim_entity e WHERE e.structured_schema NOT IN ('','Unknown') GROUP BY 1 ORDER BY 2 DESC LIMIT 12",
+    "columns": [
+     "schema",
+     "cols"
+    ]
+   },
+   {
+    "id": "top_schemas",
+    "name": "TopSchemas",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT e.structured_schema AS schema, count(*) FILTER (WHERE e.entity_type='COLUMN') AS cols, count(*) FILTER (WHERE e.entity_type='TABLE') AS tables FROM dim_entity e WHERE e.structured_schema NOT IN ('','Unknown') GROUP BY 1 ORDER BY 2 DESC LIMIT 12",
+    "columns": [
+     "schema",
+     "cols",
+     "tables"
+    ]
+   },
+   {
+    "id": "datasources",
+    "name": "DataSources",
+    "params": [],
+    "cache": true,
+    "cacheDuration": 300,
+    "sql": "SELECT '%' AS v, 'All sources' AS l, 0 AS ord UNION ALL SELECT DISTINCT datasource_type AS v, datasource_type AS l, 1 AS ord FROM dim_datasource WHERE datasource_type IS NOT NULL AND datasource_type<>'' ORDER BY ord, l",
+    "columns": [
+     "v",
+     "l",
+     "ord"
+    ]
+   }
+  ]
+ }
+}

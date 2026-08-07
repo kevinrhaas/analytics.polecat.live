@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dashboard>
+<title>D84 Temperature Trends</title>
+<heading/>
+<enableWidgetPrinting>false</enableWidgetPrinting>
+<documentation>
+<author>admin</author>
+<description>Hot/Warm/Cold/Frozen mix and trend — single-metric charts.</description>
+<icon/>
+</documentation>
+<template-ref>xul/04-1-then-2.xul</template-ref>
+<theme-ref>0-Ruby</theme-ref>
+<layout>
+<overlay xmlns:pho="http://www.pentaho.com" pho:fixie="withme">
+<box id="Panel_1" pho:title="Temperature Mix" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_2" pho:title="Files by Source Pivot" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_3" pho:title="Files by Source Bar" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_4" pho:title="Temperature Trend" flex="1" collapsed="false" type="titled-panel"/>
+</overlay>
+</layout>
+<parameters>
+</parameters>
+<widgetJavascript><![CDATA[]]></widgetJavascript>
+<widgets>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/18-temperature-mix.xanalyzer</xactionPath><localizedName jsonType="string">18-temperature-mix</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19001</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/18-temperature-mix.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_1</htmlObject><solution jsonType="string"/><name jsonType="string">widget1</name><action jsonType="string">18-temperature-mix.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/18-temperature-by-source.xanalyzer</xactionPath><localizedName jsonType="string">18-temperature-by-source</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19002</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/18-temperature-by-source.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_2</htmlObject><solution jsonType="string"/><name jsonType="string">widget2</name><action jsonType="string">18-temperature-by-source.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/18-temperature-by-source-bar.xanalyzer</xactionPath><localizedName jsonType="string">18-temperature-by-source-bar</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19003</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/18-temperature-by-source-bar.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_3</htmlObject><solution jsonType="string"/><name jsonType="string">widget3</name><action jsonType="string">18-temperature-by-source-bar.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/18-temperature-trend.xanalyzer</xactionPath><localizedName jsonType="string">18-temperature-trend</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19004</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/18-temperature-trend.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_4</htmlObject><solution jsonType="string"/><name jsonType="string">widget4</name><action jsonType="string">18-temperature-trend.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+</widgets>
+</dashboard>

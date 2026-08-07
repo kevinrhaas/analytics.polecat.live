@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<reportRecord xmlns="http://www.pentaho.com">
+    <commonStorageAttributes createdBy="admin" updatedBy="admin" created="2026-02-05T23:25:18.950Z" update="2026-02-06T17:44:39.358Z">
+        <path name="00-resource-type-structured-detail" folder="/public/pdc-analysis/analyzer/00-resource-type-structured-detail.xanalyzer"/>
+    </commonStorageAttributes>
+    <report catalog="PDC" cube="01. Data Asset Analysis" reportTypeEnum="PIVOT" showRowGrandTotal="true" showColumnGrandTotal="true" showSubTotals="true" totalsOnTopLeft="true" useNonVisualTotals="false" showEmptyCells="false" showEmptyEnum="SHOW_MEASURE" emptyCellDisplay="-" showDrillLinks="true" version="15" autoRefresh="true" freezeColumns="true" freezeRows="true">
+        <measures>
+            <measure formula="[Measures].[Entity Count]" showSum="true" showAggregate="false" showAverage="false" showCount="false" showMax="false" showMin="false" measureTypeEnum="VALUE" sortOrderEnum="ASC" id="[MEASURE:0]">
+                <numberFormat formatCategory="Default" formatScale="0" formatShortcut="COLOR_SCALE_R_Y_B" currencySymbol="$" measureDisplayUnits="UNITS_0">
+                    <formatExpression></formatExpression>
+                </numberFormat>
+            </measure>
+            <measure formula="[Measures].[Storage - Size Bytes]" showSum="true" showAggregate="false" showAverage="false" showCount="false" showMax="false" showMin="false" measureTypeEnum="VALUE" sortOrderEnum="NONE" id="[MEASURE:1]" gembarId="size" gembarOrdinal="0">
+                <numberFormat formatCategory="Default" formatScale="0" formatShortcut="COLOR_SCALE_R_Y_B" currencySymbol="$" measureDisplayUnits="UNITS_0">
+                    <formatExpression></formatExpression>
+                </numberFormat>
+            </measure>
+        </measures>
+        <columnAttributes/>
+        <rowAttributes>
+            <attribute formula="[Data Source].[Data Source Type]" showSubtotal="false" sortOrderEnum="ASC" wordWrap="false" gembarId="rows" gembarOrdinal="0"/>
+            <attribute formula="[Data Source].[Data Source]" showSubtotal="false" sortOrderEnum="ASC" wordWrap="false"/>
+        </rowAttributes>
+        <filters defaultFiltersAvailable="false">
+            <filter formula="[Resource Type].[Resource Type]" viewFilterEnum="MULTIPLE" isDefaultFilter="false" isDefaultMetricFilter="false">
+                <predicates>
+                    <predicate ordinal="1" operatorEnum="EQUAL">
+                        <member formula="[Resource Type].[Structured]" caption="Structured" pos="0"/>
+                    </predicate>
+                </predicates>
+            </filter>
+            <filter formula="[Type].[Type]" viewFilterEnum="MULTIPLE" isDefaultFilter="false" isDefaultMetricFilter="false">
+                <predicates>
+                    <predicate ordinal="1" operatorEnum="EQUAL">
+                        <member formula="[Type].[COLUMN]" caption="COLUMN" pos="0"/>
+                    </predicate>
+                </predicates>
+            </filter>
+        </filters>
+        <chartOptions vizApiVersion="3.0" chartType="CUSTOM" customChartType="pentaho/visual/models/Treemap" showMultiChart="false" legendPosition="RIGHT" showLegend="true" autoRange="true" displayUnits="UNITS_0" autoRangeSecondary="true" displayUnitsSecondary="UNITS_0" lineWidth="2" lineShape="CIRCLE" maxValues="250" backgroundColor="#ffffff" labelColor="#000000" labelSize="12" backgroundFill="NONE" maxChartsPerRow="3" multiChartMax="50" multiChartRangeScope="GLOBAL" emptyCellMode="GAP" sizeByNegativesMode="NEG_LOWEST" backgroundColorEnd="#ffffff" labelStyle="PLAIN" legendBackgroundColor="#ffffff" legendSize="12" legendColor="#000000" legendStyle="PLAIN" labelFontFamily="Default" legendFontFamily="Default" scatterReverseColors="false"/>
+        <selectionFilters/>
+        <selectionItems/>
+        <pageSetup excelPageSize="LETTER" pdfPageSize="LETTER" excelOrientation="LANDSCAPE" pdfOrientation="LANDSCAPE" excelScalingType="PERCENT" excelScalingPercent="100" excelScalingPageWide="1" excelScalingPageTall="1" excelMergePivotCells="true" csvIncludeSubtotals="true" csvFormatNumbers="true"/>
+        <drillColumns>
+            <drillColumn>[Name].[Name]</drillColumn>
+            <drillColumn>[Resource Type].[Resource Type]</drillColumn>
+            <drillColumn>[Type].[Type]</drillColumn>
+            <drillColumn>[FQDN].[FQDN]</drillColumn>
+            <drillColumn>[Measures].[Storage - Size Bytes]</drillColumn>
+        </drillColumns>
+    </report>
+    <uiAttributes showFieldList="true" showFieldLayout="true" showFilterPanel="true" fieldListView="CMDVIEWCATEGORY">
+        <rowFieldWidths actualWidths="136,165">
+            <labelWidth index="0">
+                <width>-56</width>
+            </labelWidth>
+            <labelWidth index="1">
+                <width>-42</width>
+            </labelWidth>
+        </rowFieldWidths>
+        <columnDataFieldWidths actualWidths="138,120">
+            <labelWidth index="0">
+                <width>-18</width>
+            </labelWidth>
+            <labelWidth index="1">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="2">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="4">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="5">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="6">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="7">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="8">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="9">
+                <width>0</width>
+            </labelWidth>
+        </columnDataFieldWidths>
+        <pluginData>[]</pluginData>
+    </uiAttributes>
+</reportRecord>

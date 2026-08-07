@@ -1,11 +1,15 @@
 {
-  "_doc": "Promotion-pipeline config (dev → stage → main). DATA file, like polecat-platform's .github/steward/focus.json — editing it is a sanctioned direct commit to main (sessions: pull → edit → push; Manager's Pipeline view: contents-API PUT with sha compare-and-swap). Changes take effect on the next hourly tick of promote-to-stage.yml. Fields: promoteToStage.enabled turns the scheduled dev→stage promotion on/off entirely; paused is a soft hold (schedule keeps ticking, does nothing); everyHours is the cadence; offset anchors which UTC hour the cadence counts from (7Z ≈ 2am Central — overnight, per Kevin); window [start,end) limits promotions to those UTC hours. Manual dispatches of promote-to-stage.yml ignore the schedule. stage→prod promotion is promote-to-prod.yml, dispatch-only, and refuses while the latest stage promotion run is red unless requireGreenStageForProd is false or the dispatch passes force.",
+  "_doc": "Promotion-pipeline config (dev \u2192 stage \u2192 main). DATA file, like polecat-platform's .github/steward/focus.json \u2014 editing it is a sanctioned direct commit to main (sessions: pull \u2192 edit \u2192 push; Manager's Pipeline view: contents-API PUT with sha compare-and-swap). Changes take effect on the next hourly tick of promote-to-stage.yml. Fields: promoteToStage.enabled turns the scheduled dev\u2192stage promotion on/off entirely; paused is a soft hold (schedule keeps ticking, does nothing); everyHours is the cadence; offset anchors which UTC hour the cadence counts from (7Z \u2248 2am Central \u2014 overnight, per Kevin); window [start,end) limits promotions to those UTC hours; catchUpHours (default 4) is how long after the firing hour a DELAYED cron tick may still carry the promotion \u2014 GitHub routinely runs a scheduled tick 20-30 min late, and a one-hour firing window silently missed the whole nightly sweep on 2026-08-07. Extra ticks inside the catch-up window exit quietly once stage already contains dev. Manual dispatches of promote-to-stage.yml ignore the schedule. stage\u2192prod promotion is promote-to-prod.yml, dispatch-only, and refuses while the latest stage promotion run is red unless requireGreenStageForProd is false or the dispatch passes force.",
   "promoteToStage": {
     "enabled": true,
     "paused": false,
     "everyHours": 24,
     "offset": 7,
-    "window": [0, 24]
+    "window": [
+      0,
+      24
+    ],
+    "catchUpHours": 4
   },
   "gates": {
     "devGate": "tools/validate.mjs + tools/changelog-check.js + tools/dev-smoke.mjs (ci.yml on PRs into dev and pushes to dev)",

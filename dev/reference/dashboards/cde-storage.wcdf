@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cdf>
+  <title>Storage Footprint &amp; Capacity (CDE)</title>
+  <author>PDC Analytics</author>
+  <description>CDE-authored — storage TB by source, structured-vs-unstructured &amp; object-size distribution over PDC-BIDB-EXT.</description>
+  <icon/>
+  <style>clean</style>
+  <rendererType>blueprint</rendererType>
+  <widget>false</widget>
+  <widgetParameters/>
+</cdf>

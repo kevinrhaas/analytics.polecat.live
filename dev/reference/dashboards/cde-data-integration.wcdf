@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cdf>
+  <title>Data Integration Health (CDE)</title>
+  <author>PDC Analytics</author>
+  <description>CDE-authored — GB moved by integration, run share by integration &amp; job success rate by integration over PDC-BIDB-EXT.</description>
+  <icon/>
+  <style>clean</style>
+  <rendererType>blueprint</rendererType>
+  <widget>false</widget>
+  <widgetParameters/>
+</cdf>

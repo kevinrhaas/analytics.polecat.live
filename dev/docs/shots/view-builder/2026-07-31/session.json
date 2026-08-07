@@ -1,0 +1,26 @@
+{
+  "session": "2026-07-31T15:01:03Z",
+  "commit": "13b6f4ea383673fd2f736fceb110c0c32a90bc07",
+  "tool": "tools/shoot-viewbuilder-charts.mjs",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "shots": [
+    {
+      "file": "01-view-builder-map.png",
+      "title": "View Builder — county Map (choropleth)",
+      "note": "cover-crop % by county, avg across providers; Map chart type, dense 144-county render"
+    },
+    {
+      "file": "02-view-builder-donut.png",
+      "title": "View Builder — Donut",
+      "note": "assets by source; Donut chart type"
+    },
+    {
+      "file": "03-treemap-standalone.png",
+      "title": "Treemap (standalone export)",
+      "note": "treemap is a DASHBOARD chart type, not a View Builder one — rendered via buildHtml"
+    }
+  ]
+}
