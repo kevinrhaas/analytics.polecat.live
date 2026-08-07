@@ -6801,17 +6801,18 @@
     var packCount = list.filter(function (r) { return !!r.demoPackId; }).length;
     if (_repoWbFilter === "__packs" && !packCount) _repoWbFilter = "";
     if (_repoWbFilter && _repoWbFilter !== "__unfiled" && _repoWbFilter !== "__packs" && !validWbIds[_repoWbFilter]) _repoWbFilter = "";
-    // LF66/LF59: folder facet counts (single-select, same convention as datasets)
-    var folderCounts = {}, folderUnfiled = 0;
-    list.forEach(function (r) { if (r.folder) folderCounts[r.folder] = (folderCounts[r.folder] || 0) + 1; else folderUnfiled++; });
-    if (_dashFolderFilter && _dashFolderFilter !== "__unfiled" && !folderCounts[_dashFolderFilter]) _dashFolderFilter = "";
+    // LF66/LF59: folder facet (single-select), now on the shared kit — AUD-06 slice 2.
+    // `folderCounts` stays as the name the folder-picker seeds below already read.
+    var dashFolderOf = function (r) { return r.folder || ""; };
+    var dashFolderTally = Studio.catalogFacets.tally(list, dashFolderOf);
+    var folderCounts = dashFolderTally.counts;
+    _dashFolderFilter = Studio.catalogFacets.pick(_dashFolderFilter, dashFolderTally);
+    var dashFolderMatch = Studio.catalogFacets.matchOne(_dashFolderFilter, dashFolderOf);
     var filtered = list.filter(function (r) {
       if (_repoWbFilter === "__unfiled") { if (r.workbookId && validWbIds[r.workbookId]) return false; }
       else if (_repoWbFilter === "__packs") { if (!r.demoPackId) return false; }
       else if (_repoWbFilter) { if (r.workbookId !== _repoWbFilter) return false; }
-      if (_dashFolderFilter === "__unfiled") { if (r.folder) return false; }
-      else if (_dashFolderFilter) { if (r.folder !== _dashFolderFilter) return false; }
-      return true;
+      return dashFolderMatch(r);
     });
     // Innovation-sweep idea (added 2026-07-04): "which of my saved dashboards use column X" —
     // once a query's schema changes upstream, this is the only way to find the blast radius
@@ -6868,15 +6869,13 @@
     // LF66/LF59: the FOLDER facet — a single-select strip that appears only once at least one
     // dashboard has been filed into a folder (same "don't show an empty facet" rule as datasets).
     // Composes with the workbook chips above; labelled so the two facets read distinctly.
-    var foldersHtml = Object.keys(folderCounts).length
-      ? '<div class="wb-chips cx-folder-chips"><span class="cx-facet-label">Folders</span>' +
-        ['<button type="button" class="wb-chip cx-pill' + (!_dashFolderFilter ? " active" : "") + '" data-dash-folder="" aria-pressed="' + (!_dashFolderFilter ? "true" : "false") + '"><span class="wb-chip-label">All folders</span> <span class="wb-chip-n">' + list.length + '</span></button>']
-          .concat(Object.keys(folderCounts).sort().map(function (f) {
-            return '<button type="button" class="wb-chip cx-pill' + (_dashFolderFilter === f ? " active" : "") + '" data-dash-folder="' + esc(f) + '" aria-pressed="' + (_dashFolderFilter === f ? "true" : "false") + '"><span class="wb-chip-label">' + esc(f) + '</span> <span class="wb-chip-n">' + folderCounts[f] + '</span></button>';
-          }))
-          .concat(['<button type="button" class="wb-chip cx-pill' + (_dashFolderFilter === "__unfiled" ? " active" : "") + '" data-dash-folder="__unfiled" aria-pressed="' + (_dashFolderFilter === "__unfiled" ? "true" : "false") + '"><span class="wb-chip-label">Unfiled</span> <span class="wb-chip-n">' + folderUnfiled + '</span></button>'])
-          .join("") + '</div>'
-      : '';
+    // AUD-06 slice 2: Dashboards was the last catalog panel with no "Clear" chip — it has
+    // two facets AND a search, so it was the easiest place to get stranded in a narrowed
+    // list. It rides in the folder strip (which renders for the chip alone in a workspace
+    // with no folders, the same way Jobs' does).
+    var dashClearHtml = Studio.catalogFacets.clearChip("dashPillClear", !!(_repoWbFilter || _dashFolderFilter || q));
+    var foldersHtml = Studio.catalogFacets.folderStrip(dashFolderTally, _dashFolderFilter, "data-dash-folder", list.length,
+      { extra: dashClearHtml });
     var selCount = Object.keys(_dashSelected).length;
     var bulkBarHtml = _dashSelectMode
       ? '<div class="dash-bulk-bar"><span class="dash-bulk-count">' + selCount + ' selected</span>' +
@@ -6904,6 +6903,14 @@
     $$("[data-wb-filter]", results).forEach(function (btn) {
       btn.onclick = function () { _repoWbFilter = btn.getAttribute("data-wb-filter"); renderDashboards(); };
     });
+    // AUD-06 slice 2: "Clear" means SHOW EVERYTHING — both facets and the search box, the
+    // same contract slice 1 gave the other five panels.
+    var dashClearBtn = $("#dashPillClear", results);
+    if (dashClearBtn) dashClearBtn.onclick = function () {
+      _repoWbFilter = ""; _dashFolderFilter = "";
+      Studio.catalogSearch.clearInput($("#repoSearch"));
+      renderDashboards();
+    };
     // LF66/LF59: folder facet clicks (single-select, composes with the workbook filter)
     $$("[data-dash-folder]", results).forEach(function (btn) {
       btn.onclick = function () { _dashFolderFilter = btn.getAttribute("data-dash-folder"); renderDashboards(); };
@@ -7874,6 +7881,118 @@
       if (!inp || !inp.value) return false;
       inp.value = "";
       return true;
+    }
+  };
+  // AUD-06 slice 2 (audit §2.1, family D) — one shared FACET kit, the last of the three
+  // catalog axes to be unified (SORT-1 did sorting, slice 1 did search). Six panels each
+  // hand-rolled the same three steps: tally a count map, prune a selection that no longer
+  // exists, then concatenate pill markup — ~40 near-identical lines apiece, and the small
+  // divergences between the copies were exactly the bugs users felt:
+  //   • pills were ordered by their internal KEY, not by the label you can read, so the
+  //     Views type facet listed "Map" under c (choropleth) and folders sorted by raw
+  //     codepoint ("Zoning" before "acreage", "Q10" before "Q2"). Sorting is now natural
+  //     and label-based everywhere — the same order the folder PICKER already used;
+  //   • only Dashboards labelled its folder strip; the other five were an unexplained row
+  //     of chips. Every folder facet now reads "FOLDERS <All folders> … <Unfiled>";
+  //   • the filter predicate (`__unfiled` means "filed nowhere") was retyped per section.
+  // A section now declares WHICH field each axis reads and nothing else.
+  Studio.catalogFacets = {
+    UNFILED: "__unfiled",
+    // Natural, case-insensitive, digit-aware compare — "Q2" before "Q10", "acreage"
+    // before "Zoning". Used for every facet's pill order.
+    cmpLabel: function (a, b) {
+      return String(a == null ? "" : a).localeCompare(String(b == null ? "" : b), undefined, { numeric: true, sensitivity: "base" });
+    },
+    // tally(list, keyOf) → { counts, unfiled, keys }. keyOf may return one key, an ARRAY
+    // of keys (a row's tags count once per tag), or a falsy value — "unfiled", which is
+    // counted separately and never becomes a pill of its own.
+    tally: function (list, keyOf) {
+      var counts = {}, unfiled = 0;
+      (list || []).forEach(function (row) {
+        var k = keyOf(row);
+        if (Object.prototype.toString.call(k) === "[object Array]") {
+          k.forEach(function (one) { if (one || one === 0) counts[one] = (counts[one] || 0) + 1; });
+          return;
+        }
+        if (k || k === 0) counts[k] = (counts[k] || 0) + 1; else unfiled++;
+      });
+      return { counts: counts, unfiled: unfiled, keys: Object.keys(counts) };
+    },
+    // A multi-select facet keeps its selection in a plain object. prune() drops keys whose
+    // last row just went away, so a deleted tag can't keep narrowing an already-empty list
+    // from a pill you can no longer see.
+    prune: function (state, t) {
+      Object.keys(state || {}).forEach(function (k) { if (!t.counts[k]) delete state[k]; });
+      return state;
+    },
+    // The single-select counterpart: returns the value the caller should keep. "" (all) and
+    // UNFILED always survive; a folder that no longer exists falls back to "".
+    pick: function (value, t) {
+      if (!value || value === Studio.catalogFacets.UNFILED) return value || "";
+      return t.counts[value] ? value : "";
+    },
+    // matcher(...) → fn(row) → bool, mirroring Studio.catalogSearch.matcher so a section's
+    // filter reads as one composed chain. Multi: an EMPTY selection means "all" (that's
+    // what makes the pills a narrowing tool rather than a mode).
+    matchMulti: function (state, keyOf) {
+      var on = Object.keys(state || {});
+      if (!on.length) return function () { return true; };
+      return function (row) {
+        var k = keyOf(row);
+        if (Object.prototype.toString.call(k) === "[object Array]") {
+          return k.some(function (one) { return !!state[one]; });
+        }
+        return !!state[k];
+      };
+    },
+    matchOne: function (value, keyOf) {
+      if (!value) return function () { return true; };
+      if (value === Studio.catalogFacets.UNFILED) return function (row) { return !keyOf(row); };
+      return function (row) { return keyOf(row) === value; };
+    },
+    // pill({ attr, value, label, n, active, dot }) — the one place the chip markup lives.
+    pill: function (o) {
+      return '<button type="button" class="wb-chip cx-pill' + (o.active ? " active" : "") + '" ' +
+        o.attr + '="' + esc(o.value) + '" aria-pressed="' + (o.active ? "true" : "false") + '">' +
+        (o.dot ? '<span class="cx-pill-dot" style="background:' + esc(o.dot) + '"></span>' : "") +
+        '<span class="wb-chip-label">' + esc(o.label) + '</span> <span class="wb-chip-n">' + o.n + '</span></button>';
+    },
+    // pills(tally, state, attr, opts) → the multi-select strip's HTML (no wrapper), ordered
+    // by the label the user reads. opts.label(key) / opts.dot(key) are optional.
+    pills: function (t, state, attr, opts) {
+      opts = opts || {};
+      var F = Studio.catalogFacets;
+      var labelOf = function (k) { return opts.label ? opts.label(k) : k; };
+      return t.keys.slice().sort(function (a, b) { return F.cmpLabel(labelOf(a), labelOf(b)); })
+        .map(function (k) {
+          return F.pill({
+            attr: attr, value: k, label: labelOf(k), n: t.counts[k],
+            active: !!(state || {})[k], dot: opts.dot ? opts.dot(k) : ""
+          });
+        }).join("");
+    },
+    // folderStrip(tally, value, attr, total, opts) → the whole single-select folder facet,
+    // wrapper included, or "" when nothing has been filed yet (the long-standing "don't show
+    // an empty facet" rule). `total` is the unfiltered row count behind "All folders".
+    // opts.extra rides along inside the wrapper (Jobs hangs its Clear chip there) and keeps
+    // the strip alive when there are no folders — bare, without the label, since there'd be
+    // no facet for it to name.
+    folderStrip: function (t, value, attr, total, opts) {
+      opts = opts || {};
+      var wrap = '<div class="wb-chips cx-folder-chips' + (opts.wrapClass ? " " + opts.wrapClass : "") + '">';
+      if (!t.keys.length) return opts.extra ? wrap + opts.extra + "</div>" : "";
+      var F = Studio.catalogFacets;
+      var html = F.pill({ attr: attr, value: "", label: "All folders", n: total, active: !value }) +
+        t.keys.slice().sort(F.cmpLabel).map(function (f) {
+          return F.pill({ attr: attr, value: f, label: f, n: t.counts[f], active: value === f });
+        }).join("") +
+        F.pill({ attr: attr, value: F.UNFILED, label: "Unfiled", n: t.unfiled, active: value === F.UNFILED });
+      return wrap + '<span class="cx-facet-label">Folders</span>' + html + (opts.extra || "") + '</div>';
+    },
+    // Every catalog's "Clear" chip: same markup, same meaning (show everything), rendered
+    // only while something is actually narrowing the list.
+    clearChip: function (id, on) {
+      return on ? '<button type="button" class="wb-chip" id="' + id + '" title="Show everything">Clear</button>' : "";
     }
   };
   // Dashboards carry no top-level `.name` (their title lives at `spec.title`, edited in

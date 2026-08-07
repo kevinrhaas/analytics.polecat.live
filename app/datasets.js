@@ -271,73 +271,56 @@
       var listIds = {}; list.forEach(function (d) { listIds[d.id] = true; });
       Object.keys(_dsxSelected).forEach(function (id) { if (!listIds[id]) delete _dsxSelected[id]; });
     }
-    var adapterCounts = {}, connCounts = {}, tagCounts = {}, kindCounts = {}, folderCounts = {}, folderUnfiled = 0;
-    list.forEach(function (d) {
-      var src = dsxAdapterOf(d);
-      var aid = src ? src.id : "—";
-      adapterCounts[aid] = (adapterCounts[aid] || 0) + 1;
-      var cid = d.connectionId || "—";
-      connCounts[cid] = (connCounts[cid] || 0) + 1;
-      (d.tags || []).forEach(function (t) { tagCounts[t] = (tagCounts[t] || 0) + 1; });
-      var kind = d.kind || "sql";
-      kindCounts[kind] = (kindCounts[kind] || 0) + 1;
-      if (d.folder) folderCounts[d.folder] = (folderCounts[d.folder] || 0) + 1; else folderUnfiled++;
-    });
-    Object.keys(_dsxAdapterFilter).forEach(function (k) { if (!adapterCounts[k]) delete _dsxAdapterFilter[k]; });
-    Object.keys(_dsxConnFilter).forEach(function (k) { if (!connCounts[k]) delete _dsxConnFilter[k]; });
-    Object.keys(_dsxTagFilter).forEach(function (k) { if (!tagCounts[k]) delete _dsxTagFilter[k]; });
-    Object.keys(_dsxKindFilter).forEach(function (k) { if (!kindCounts[k]) delete _dsxKindFilter[k]; });
-    if (_dsxFolderFilter && _dsxFolderFilter !== "__unfiled" && !folderCounts[_dsxFolderFilter]) _dsxFolderFilter = "";
+    // AUD-06 slice 2: the shared facet kit (Studio.catalogFacets). Datasets has the widest
+    // facet set in the app — adapter, connection, tag and kind multi-select plus the
+    // single-select folder — and it now declares each one as a field accessor + a label,
+    // with tallying, pruning, pill order and the "__unfiled" rule owned in one place.
+    var F = Studio.catalogFacets;
+    var dsxAdapterIdOf = function (d) { var src = dsxAdapterOf(d); return src ? src.id : "—"; };
+    var dsxConnIdOf = function (d) { return d.connectionId || "—"; };
+    var dsxTagsOf = function (d) { return d.tags || []; };
+    var dsxKindOf = function (d) { return d.kind || "sql"; };
+    var dsxFolderOf = function (d) { return d.folder || ""; };
+    var adapterTally = F.tally(list, dsxAdapterIdOf),
+      connTally = F.tally(list, dsxConnIdOf),
+      tagTally = F.tally(list, dsxTagsOf),
+      kindTally = F.tally(list, dsxKindOf),
+      folderTally = F.tally(list, dsxFolderOf);
+    F.prune(_dsxAdapterFilter, adapterTally);
+    F.prune(_dsxConnFilter, connTally);
+    F.prune(_dsxTagFilter, tagTally);
+    F.prune(_dsxKindFilter, kindTally);
+    _dsxFolderFilter = F.pick(_dsxFolderFilter, folderTally);
     var anyA = Object.keys(_dsxAdapterFilter).length > 0, anyC = Object.keys(_dsxConnFilter).length > 0, anyT = Object.keys(_dsxTagFilter).length > 0,
       anyK = Object.keys(_dsxKindFilter).length > 0;
-    var pillsA = Object.keys(adapterCounts).sort().map(function (aid) {
-      var src = Studio.sourceById(aid) || { label: aid === "—" ? "No connection" : aid };
-      return '<button type="button" class="wb-chip cx-pill' + (_dsxAdapterFilter[aid] ? " active" : "") + '" data-dsx-adapter="' + esc(aid) + '" aria-pressed="' + (_dsxAdapterFilter[aid] ? "true" : "false") + '">' +
-        '<span class="cx-pill-dot" style="background:' + esc(src.accent || "var(--faint)") + '"></span>' +
-        '<span class="wb-chip-label">' + esc(src.label) + '</span> <span class="wb-chip-n">' + adapterCounts[aid] + '</span></button>';
-    }).join("");
+    var pillsA = F.pills(adapterTally, _dsxAdapterFilter, "data-dsx-adapter", {
+      label: function (aid) { return (Studio.sourceById(aid) || { label: aid === "—" ? "No connection" : aid }).label; },
+      dot: function (aid) { return (Studio.sourceById(aid) || {}).accent || "var(--faint)"; }
+    });
     // Post-overhaul backlog item 7 ("organization at scale") — the by-adapter
     // pills above group e.g. two different Postgres connections together;
     // this facet narrows to ONE specific connection (same multi-select /
     // saved-view plumbing, just keyed by connectionId instead of adapter id).
-    var pillsC = Object.keys(connCounts).sort(function (a, b) {
-      var na = a === "—" ? "No connection" : ((Studio.Workspace.get("connections", a) || {}).name || a);
-      var nb = b === "—" ? "No connection" : ((Studio.Workspace.get("connections", b) || {}).name || b);
-      return na.localeCompare(nb);
-    }).map(function (cid) {
+    function dsxConnLabel(cid) {
       var conn = cid === "—" ? null : Studio.Workspace.get("connections", cid);
-      var src = conn ? Studio.sourceById(conn.adapter) : null;
-      var label = conn ? conn.name : "No connection";
-      return '<button type="button" class="wb-chip cx-pill' + (_dsxConnFilter[cid] ? " active" : "") + '" data-dsx-conn="' + esc(cid) + '" aria-pressed="' + (_dsxConnFilter[cid] ? "true" : "false") + '">' +
-        '<span class="cx-pill-dot" style="background:' + esc((src && src.accent) || "var(--faint)") + '"></span>' +
-        '<span class="wb-chip-label">' + esc(label) + '</span> <span class="wb-chip-n">' + connCounts[cid] + '</span></button>';
-    }).join("");
-    var pillsT = Object.keys(tagCounts).sort().map(function (t) {
-      return '<button type="button" class="wb-chip cx-pill' + (_dsxTagFilter[t] ? " active" : "") + '" data-dsx-tag="' + esc(t) + '" aria-pressed="' + (_dsxTagFilter[t] ? "true" : "false") + '">' +
-        '<span class="wb-chip-label">#' + esc(t) + '</span> <span class="wb-chip-n">' + tagCounts[t] + '</span></button>';
-    }).join("");
+      return conn ? conn.name : "No connection";
+    }
+    var pillsC = F.pills(connTally, _dsxConnFilter, "data-dsx-conn", {
+      label: dsxConnLabel,
+      dot: function (cid) {
+        var conn = cid === "—" ? null : Studio.Workspace.get("connections", cid);
+        var src = conn ? Studio.sourceById(conn.adapter) : null;
+        return (src && src.accent) || "var(--faint)";
+      }
+    });
+    var pillsT = F.pills(tagTally, _dsxTagFilter, "data-dsx-tag", { label: function (t) { return "#" + t; } });
     // Post-overhaul backlog item 7's optional "by type" facet — kind is one of
     // sql/table/file/collection/sheet, driven by the dataset's connection
     // adapter (dsxKindFor); same always-shown convention as the adapter/tag
     // pills (every dataset has a kind, even the single-value case).
-    var pillsK = Object.keys(kindCounts).sort().map(function (k) {
-      return '<button type="button" class="wb-chip cx-pill' + (_dsxKindFilter[k] ? " active" : "") + '" data-dsx-kind="' + esc(k) + '" aria-pressed="' + (_dsxKindFilter[k] ? "true" : "false") + '">' +
-        '<span class="wb-chip-label">' + esc(dsxKindLabel(k)) + '</span> <span class="wb-chip-n">' + kindCounts[k] + '</span></button>';
-    }).join("");
-    // Folder facet: single-select (unlike the multi-select adapter/conn/tag
-    // pills above) — only appears once at least one dataset has been filed,
-    // same "don't show an empty facet" convention as the other pills.
-    var pillsF = Object.keys(folderCounts).length
-      ? ['<button type="button" class="wb-chip cx-pill' + (!_dsxFolderFilter ? " active" : "") + '" data-dsx-folder="" aria-pressed="' + (!_dsxFolderFilter ? "true" : "false") + '">' +
-          '<span class="wb-chip-label">All folders</span> <span class="wb-chip-n">' + list.length + '</span></button>']
-        .concat(Object.keys(folderCounts).sort().map(function (f) {
-          return '<button type="button" class="wb-chip cx-pill' + (_dsxFolderFilter === f ? " active" : "") + '" data-dsx-folder="' + esc(f) + '" aria-pressed="' + (_dsxFolderFilter === f ? "true" : "false") + '">' +
-            '<span class="wb-chip-label">' + esc(f) + '</span> <span class="wb-chip-n">' + folderCounts[f] + '</span></button>';
-        }))
-        .concat(['<button type="button" class="wb-chip cx-pill' + (_dsxFolderFilter === "__unfiled" ? " active" : "") + '" data-dsx-folder="__unfiled" aria-pressed="' + (_dsxFolderFilter === "__unfiled" ? "true" : "false") + '">' +
-          '<span class="wb-chip-label">Unfiled</span> <span class="wb-chip-n">' + folderUnfiled + '</span></button>'])
-        .join("")
-      : "";
+    var pillsK = F.pills(kindTally, _dsxKindFilter, "data-dsx-kind", { label: dsxKindLabel });
+    var pillsF = F.folderStrip(folderTally, _dsxFolderFilter, "data-dsx-folder", list.length,
+      { wrapClass: "cx-filter-strip" });
     var dsxViews = dsxLoadViews();
     var pillsV = dsxViews.map(function (v) {
       return '<div class="wb-chip-wrap">' +
@@ -352,15 +335,14 @@
       ? '<span class="wb-add"><input type="text" id="dsxViewNameInp" class="wb-name-inp" placeholder="Name this view…" aria-label="Name this saved view"/>' +
         '<button type="button" class="btn" id="dsxViewAddBtn">+ Save view</button></span>'
       : "";
+    var dsxAdapterMatch = F.matchMulti(_dsxAdapterFilter, dsxAdapterIdOf),
+      dsxConnMatch = F.matchMulti(_dsxConnFilter, dsxConnIdOf),
+      dsxTagMatch = F.matchMulti(_dsxTagFilter, dsxTagsOf),
+      dsxKindMatch = F.matchMulti(_dsxKindFilter, dsxKindOf),
+      dsxFolderMatch = F.matchOne(_dsxFolderFilter, dsxFolderOf);
     var shown = list.filter(function (d) {
-      var src = dsxAdapterOf(d);
-      if (anyA && !_dsxAdapterFilter[src ? src.id : "—"]) return false;
-      if (anyC && !_dsxConnFilter[d.connectionId || "—"]) return false;
-      if (anyT && !(d.tags || []).some(function (t) { return _dsxTagFilter[t]; })) return false;
-      if (anyK && !_dsxKindFilter[d.kind || "sql"]) return false;
-      if (_dsxFolderFilter === "__unfiled") { if (d.folder) return false; }
-      else if (_dsxFolderFilter) { if (d.folder !== _dsxFolderFilter) return false; }
-      return dsxMatch(d);
+      return dsxAdapterMatch(d) && dsxConnMatch(d) && dsxTagMatch(d) && dsxKindMatch(d) &&
+        dsxFolderMatch(d) && dsxMatch(d);
     });
     // LF51 (d): each dataset renders as either a compact list row (default) or a
     // richer tile card. Both wrappers reuse the exact same inner fragments and the
@@ -422,14 +404,14 @@
         'Delete' + (selCount ? ' ' + selCount : '') + '</button></div>'
       : '';
     results.innerHTML =
-      (pillsF ? '<div class="wb-chips cx-filter-strip">' + pillsF + '</div>' : "") +
+      pillsF +
       (pillsA || pillsC || pillsK || pillsT || pillsV || viewAddHtml ? '<div class="wb-chips cx-pills cx-filter-strip">' +
         pillsV + (pillsV && (pillsA || pillsC || pillsK || pillsT) ? '<span class="dsx-pill-sep"></span>' : "") +
         pillsA + (pillsA && (pillsC || pillsK || pillsT) ? '<span class="dsx-pill-sep"></span>' : "") +
         pillsC + (pillsC && (pillsK || pillsT) ? '<span class="dsx-pill-sep"></span>' : "") +
         pillsK + (pillsK && pillsT ? '<span class="dsx-pill-sep"></span>' : "") +
         pillsT +
-        (anyA || anyC || anyT || anyK || anyF || q ? '<button type="button" class="wb-chip" id="dsxPillClear" title="Show everything">Clear</button>' : "") +
+        F.clearChip("dsxPillClear", !!(anyA || anyC || anyT || anyK || anyF || q)) +
         viewAddHtml + '</div>' : "") +
       bulkBarHtml +
       (rows.length ? '<div class="' + (isTiles ? "dsx-grid" : "cx-list") + '">' + rows.join("") + '</div>'
