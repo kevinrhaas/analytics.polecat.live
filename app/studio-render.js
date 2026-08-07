@@ -536,6 +536,25 @@
       title: function () { return prefix ? prefix + " " + k.label : (k.label || "Detail"); }
     };
   }
+  // SWEEP574-3 (UX sweep #574, a11y): a tile that DOES something on click has to be reachable
+  // without a mouse. DashKit.bindDrill / DashKit.bindDetail only set `cursor:pointer` and a
+  // click listener (vendor/dashkit.js stays pristine), and a bare <div> is neither focusable
+  // nor announced as interactive — so Tab skipped every KPI tile and Enter/Space did nothing.
+  // Promote the tile to a real button in the accessibility tree and re-fire the vendor's OWN
+  // click handler from the keyboard, so mouse and keyboard keep exactly one activation path.
+  // The tile's text (value + label + delta) stays its accessible name — deliberately no
+  // aria-label, which would hide the number a screen-reader user actually came for.
+  // vendor/dashkit.css already draws the ring: `[tabindex]:focus-visible` (line 53).
+  function makeTileActivatable(el) {
+    if (!el || el.getAttribute("role") === "button") return; // idempotent across re-renders
+    el.setAttribute("role", "button");
+    el.setAttribute("tabindex", "0");
+    el.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+      e.preventDefault(); // Space would otherwise scroll the dashboard out from under you
+      el.click();
+    });
+  }
   // Evaluate conditional formatting rules against a numeric value — returns a CSS color
   // string for the first matching rule, or null when no rule matches.
   // Rules are {op:">="|">"|"<="|"<"|"="|"!=", value:number, color:hexColor}.
@@ -2037,11 +2056,17 @@
           var kDiv = kEl.querySelectorAll(".kpi")[idx]; if (!kDiv) return;
           if (k.drill && k.drill.url) {
             DashKit.bindDrill(kDiv, { to: k.drill.url, param: k.drill.param }, _kTiles[idx]._raw);
-            return;
+          } else if (!isPreview()) {
+            var detailCfg = buildKpiDetailCfg(k);
+            if (detailCfg) DashKit.bindDetail(kDiv, detailCfg, _kTiles[idx]._raw);
           }
-          if (isPreview()) return;
-          var detailCfg = buildKpiDetailCfg(k);
-          if (detailCfg) DashKit.bindDetail(kDiv, detailCfg, _kTiles[idx]._raw);
+          // SWEEP574-3: give the keyboard the same door the mouse has. `cursor:pointer` is the
+          // vendor's own marker that it bound a click handler — so exactly the tiles that DO
+          // something become buttons, and a tile whose detail config came back empty stays
+          // inert instead of promising an action it can't perform. Preview is excluded on
+          // purpose: there a click SELECTS the tile for editing (tagKpis/wireSelection below),
+          // and the builder owns its own keyboard model.
+          if (!isPreview() && kDiv.style.cursor === "pointer") makeTileActivatable(kDiv);
         });
         if (isPreview()) tagKpis(kEl, spec);
       } else kEl.innerHTML = "";

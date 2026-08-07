@@ -135,6 +135,35 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **SWEEP574-3 — KPI tiles are keyboard-operable in exports + the Viewer (v841, sw v473,
+  2026-08-07, steward; UX sweep #574 finding 3, a11y):** a KPI tile that opens the shared
+  detail drawer on click was a bare `<div>` — not focusable, not announced as interactive —
+  so Tab skipped every tile and Enter/Space did nothing. The click affordance itself comes
+  from `DashKit.bindDrill`/`bindDetail`, which only set `cursor:pointer` + a click listener,
+  and **`vendor/dashkit.js` stays pristine** — so the fix lives app-side in
+  `app/studio-render.js`: a new `makeTileActivatable()` gives the tile `role="button"` +
+  `tabindex="0"` and a keydown handler that **re-fires the vendor's own click listener**, so
+  mouse and keyboard keep exactly ONE activation path instead of two that can drift. Space's
+  default is prevented (it would otherwise scroll the dashboard away). No `aria-label` — the
+  tile's own text (value + label + delta) stays its accessible name, so the number a
+  screen-reader user came for isn't overwritten. The focus ring needed no new CSS:
+  `vendor/dashkit.css:53` already styles `[tabindex]:focus-visible`, and the suite now pins
+  that rule's presence in the exported bundle so a future vendor edit can't leave the tiles
+  focusable-but-invisible. **Scoped by the vendor's own marker:** only tiles whose
+  `style.cursor === "pointer"` (i.e. that the vendor actually bound) are promoted, so a tile
+  whose detail config came back empty stays inert rather than promising an action it can't
+  perform. **Preview is deliberately excluded** — in the Studio builder a tile click SELECTS
+  it for editing, and the builder owns its own keyboard model. Ships inside every exported
+  dashboard (`exporters.js` inlines `studio-render.js`), so the export == live-preview
+  byte-identity invariant is preserved by construction — one code path, no per-context branch.
+  `docs/index.html` gains a "Reading a dashboard without a mouse" note under Keyboard
+  shortcuts. Suite: 7 new `SWEEP574-3:` checks (role/tabindex on the exported tile; accessible
+  name still carries the label; Enter opens the drawer titled with the KPI's label; Space does
+  too AND reports `defaultPrevented`; an unrelated key opens nothing; the focus-ring rule is
+  present in the bundle; the builder preview's tile is NOT promoted). Not covered: bar/donut/
+  treemap/table marks bound by the same vendor helpers are still mouse-only — the same
+  `makeTileActivatable` generalizes to them, but each mark type needs its own accessible-name
+  decision, so that is a follow-up slice, not this one.
 - **TOPBAR-TITLE — the mobile topbar's page label is readable again (v840, sw v472,
   2026-08-07, steward; UX sweep #574 finding 2):** at 390px `#topbarSection` was being
   handed **29px of client width for a 41px word**, so "Home" rendered "H…" and
@@ -8675,12 +8704,22 @@
 >   i.e. an inline resolver, never a per-context branch. Touches the export invariant, so
 >   it wants the FULL `tests/run.js` suite, not just the dev gate. Worth confirming the
 >   direction with Kevin first, since it changes what a freshly-authored dashboard does.
-> - **SWEEP574-3 (Low) [a11y] KPI tiles are mouse-only.** Inside the viewer frame `.kpi`
+> - ~~SWEEP574-3 (Low) [a11y] KPI tiles are mouse-only~~ ✓ **SHIPPED v841, sw v473
+>   (2026-08-07, steward — see DONE).**
+>   Original: Inside the viewer frame `.kpi`
 >   tiles open the detail drawer on click but carry `tabIndex="-1"` and no `role="button"`,
 >   so they can't be reached by Tab or fired with Enter/Space. Fix belongs in the rendered
 >   dashboard markup (`app/studio-render.js` / `app/exporters.js`), which means it ships
 >   inside every exported dashboard too — a genuine a11y win, same full-suite caution as
 >   SWEEP574-1.
+> - **SWEEP574-3b [a11y] The same keyboard door for the other clickable marks.** SWEEP574-3
+>   shipped `makeTileActivatable()` (app/studio-render.js) and applied it to KPI tiles only.
+>   Bar/donut/treemap/table marks are bound by the same `DashKit.bindDrill`/`bindDetail`
+>   helpers and are still mouse-only. The helper generalizes as-is; what each mark type needs
+>   is its own accessible-name decision (an SVG `<rect>` has no useful text content, so it
+>   wants an `aria-label` built from label + value — unlike a KPI tile, where an aria-label
+>   would have hidden the number). One slice per mark family; same full-suite caution, since
+>   these ship inside every exported dashboard.
 
 ### 🔬 AUDIT-2026-08 — comprehensive audit findings (see `AUDIT-2026-08.md`)
 > A four-sweep audit (2026-08-06, v833) filed these as coherent workstreams,

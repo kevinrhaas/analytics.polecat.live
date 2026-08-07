@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 841,
+    title: 'Dashboard KPI tiles can be reached and opened with the keyboard',
+    kind: 'polish',
+    ts: '2026-08-07T03:41:04.000Z',
+    items: [
+      'In the Viewer, and in every dashboard exported as a self-contained file, a KPI tile opens a drawer of the underlying records when you click it — but the tile was mouse-only. Tab skipped straight past it and pressing a key did nothing.',
+      'Those tiles are now proper buttons: Tab stops on each one, a focus ring shows where you are, and Enter or Space opens the same detail drawer a click does. Space no longer scrolls the dashboard out from under you.',
+      'The tile still reads out its own number and label, so nothing is hidden from a screen reader by the change.',
+      'Only tiles that actually do something become buttons, and the Studio builder\'s own canvas is untouched — clicking a tile there still selects it for editing.',
+      'Help gains a "Reading a dashboard without a mouse" note under Keyboard shortcuts.',
+    ],
+  },
+  {
     v: 840,
     title: 'The page name at the top of the screen is readable again on phones',
     kind: 'fix',
