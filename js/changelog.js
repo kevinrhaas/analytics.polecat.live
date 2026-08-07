@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 857,
+    title: 'The app updates itself with 190KB less to download',
+    kind: 'polish',
+    ts: '2026-08-07T13:55:03.000Z',
+    items: [
+      'Analytics installs a service worker -- the small background file that lets the app open offline and keeps your cached copy fresh. Your browser re-downloads that file every time it checks for a new version, several times a session, and it had grown to 190KB to deliver about 5KB of actual logic.',
+      'The other 185KB was documentation: 2,454 lines of notes, one per release since v19, describing which files changed in each build. Useful history, but nothing read it at runtime and every visitor paid to fetch it.',
+      'The notes are all preserved -- every one of them, v19 through v488 -- in docs/sw-history.md, where they can be read without being downloaded. The service worker itself is now under 7KB, so update checks are quick even on a slow connection.',
+      'A size budget in the build gate keeps it that way: if the boot files ever start absorbing prose again, the build says so instead of letting it creep back over another 400 releases.',
+    ],
+  },
+  {
     v: 856,
     title: 'The docs, the marketing page and the roadmap say what is actually true',
     kind: 'fix',

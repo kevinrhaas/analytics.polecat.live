@@ -1,7 +1,7 @@
 # analytics.polecat.live — agent guide
 
 Analytics Dashboard Studio: a local-first, in-browser analytics workspace and
-visual dashboard builder (~56K LOC vanilla HTML/JS/CSS, no build step, no
+visual dashboard builder (~54K LOC vanilla HTML/JS/CSS, no build step, no
 framework, no runtime deps) deployed from the repo ROOT via GitHub Pages.
 (That LOC figure is first-party source — `app/ css/ tools/ index.html sw.js
 docs/index.html` — excluding `vendor/`, the test suite and `js/changelog.js`;

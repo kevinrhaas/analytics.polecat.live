@@ -941,6 +941,16 @@ function serve() {
       ok("AUD-08: sw.js precaches js/changelog-head.js and no longer precaches the full history",
         /"js\/changelog-head\.js"/.test(shellList) && !/"js\/changelog\.js"/.test(shellList),
         "SHELL_FILES slice " + shellList.length + " chars");
+      // The worker itself was the other half of the boot payload: 2,454 lines of per-bump
+      // release notes ahead of the code, re-fetched on every SW update check. They live in
+      // docs/sw-history.md now. tools/validate.mjs holds the byte budget in the dev gate;
+      // these two checks pin the SHAPE — no version-note block, and the archive still there.
+      ok("AUD-08: sw.js carries no release-note history block (it is in docs/sw-history.md)",
+        swSrc.length < 16 * 1024 && (swSrc.match(/^\/\* v\d+:/gm) || []).length === 0,
+        swSrc.length + " bytes");
+      ok("AUD-08: docs/sw-history.md holds the archived notes",
+        fs.existsSync(path.join(ROOT, "docs/sw-history.md")) &&
+        /## v19\b/.test(fs.readFileSync(path.join(ROOT, "docs/sw-history.md"), "utf8")));
       const idxSrc = fs.readFileSync(path.join(ROOT, "app/index.html"), "utf8");
       ok("AUD-08: app/index.html boots the head file only",
         /<script src="js\/changelog-head\.js"><\/script>/.test(idxSrc) && !/src="js\/changelog\.js"/.test(idxSrc), "");
@@ -17273,7 +17283,9 @@ function serve() {
     ok("AUD-09: app/gate-config.js is gone", !fs.existsSync(path.join(ROOT, "app", "gate-config.js")));
     ok("AUD-09: tools/gen-code.js (its hash generator) is gone", !fs.existsSync(path.join(ROOT, "tools", "gen-code.js")));
     // Match the ways it could actually LOAD -- a <script src> or a precache-list entry --
-    // rather than any mention, so sw.js's historical release-notes block stays untouched.
+    // rather than any mention. (Written when sw.js still carried its release-notes block,
+    // which mentioned the file; AUD-08 has since archived those notes to docs/sw-history.md,
+    // but matching the load shape rather than the name is still the right test.)
     const gateRefFiles = ["app/index.html", "app/viewer.html", "sw.js"];
     const gateRefs = gateRefFiles.filter((f) => /["'][^"']*gate-config\.js["']/.test(fs.readFileSync(path.join(ROOT, f), "utf8")));
     ok("AUD-09: nothing loads or precaches gate-config.js", gateRefs.length === 0, gateRefs.join(","));
