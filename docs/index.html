@@ -438,8 +438,9 @@
   <strong>Select all</strong> / <strong>Clear</strong>, a <strong>Move to folder…</strong> button that
   files every selected dashboard in one go (the same folder browser the per-row folder button opens —
   pick a folder, create a nested one inline, or choose "No folder" to un-file them), and a
-  <strong>Delete</strong> button that removes every selected dashboard after a confirmation (this can't
-  be undone). Sample-pack dashboards can be selected and deleted individually like any other — removing
+  <strong>Delete</strong> button that removes every selected dashboard after a confirmation (the toast
+  that follows carries an <strong>Undo</strong> button for a few seconds). Sample-pack dashboards can be
+  selected and deleted individually like any other — removing
   one just drops it from your workspace; remove and re-add the sample pack in Settings to restore the
   full set. Click Select again (now labeled Cancel) to leave select mode.</p>
 
@@ -744,6 +745,10 @@
   tables only appear in the dataset pickers while the pack is installed — an uninstalled pack leaves
   no trace. Like the built-in catalog, sample packs live under the same <strong>Sample content</strong>
   switch in Settings — turn that off and both disappear from the library, with nothing deleted.</p>
+  <p><strong>Removed the wrong pack? Undo.</strong> Remove shows its toast with an <strong>Undo</strong>
+  button for a few seconds. One click restores every dataset, View, dashboard, connection and job the
+  pack owned — under the same ids, with any edits you'd made to them intact — and marks the pack
+  installed again.</p>
   <ul>
     <li><strong>Conservation Insight</strong> is an illustrative sample for a county-level cover-crop
     and conservation-tillage ensemble use case: a raw provider CSV to try a mapping workflow on, four
@@ -1514,7 +1519,7 @@
   the current search/filters show) / <strong>Clear</strong>, a <strong>Move to folder…</strong> button that
   files the whole selection in one go (the same folder browser every Folder field uses — pick a folder,
   create a nested one inline, or choose "No folder" to un-file), and a <strong>Delete</strong> button that
-  removes every selected item after a confirmation (this can't be undone; datasets referenced by a saved
+  removes every selected item after a confirmation (see Undo below; datasets referenced by a saved
   dashboard, connections referenced by a dataset, are called out by count in that confirmation, same as
   deleting one individually — deleting jobs in bulk keeps their output datasets, same as deleting one).
   Click Select again (now labeled Cancel) to leave select mode. The same pattern first shipped on
@@ -1528,10 +1533,14 @@
   Oldest first, Name A–Z / Z–A, plus per-section extras (Dashboards by workbook or folder, Datasets
   by adapter or connection, Views by chart type, Jobs by last run). Your choice sticks per section
   on this device, and pinned items always stay at the top whatever the sort.</p>
-  <p><strong>Changed your mind? Undo.</strong> Every bulk Delete shows its toast with an
-  <strong>Undo</strong> button for a few seconds — one click restores everything just removed, under the
-  same ids, exactly as it was. The restore is workspace-backend safe: an undone delete propagates as a
-  re-creation, so the items come back on your other devices too.</p>
+  <p><strong>Changed your mind? Undo.</strong> Every Delete — bulk or a single row — shows its toast with an
+  <strong>Undo</strong> button for a few seconds, and one click restores everything just removed, under the
+  same ids, exactly as it was. That now covers every destructive button in the app, including three that
+  used to only ask once and forget: the <strong>View Builder's "Delete dataset"</strong> (which also brings
+  back the shelves/filters/calculations you had in flight on it, and re-selects it if you were building on
+  it), the <strong>Quick Views</strong> sidebar's delete (which reopens the View if it was the one you had
+  open), and <strong>Remove</strong> on a sample pack. The restore is workspace-backend safe: an undone
+  delete propagates as a re-creation, so the items come back on your other devices too.</p>
 
   <h3>Filing a dataset, connection, job or analysis into a Folder</h3>
   <p>Datasets, connections, jobs, saved Views, and (via Repository quick-edit) dashboards all have a

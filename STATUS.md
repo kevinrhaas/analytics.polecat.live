@@ -135,6 +135,44 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **AUD-07 ★ — the last three bare-confirm deletes offer Undo (v846, sw v478, 2026-08-07,
+  steward; AUDIT-2026-08 §2.2, ux):** DURABLE-2b (v822) gave the four catalog per-row
+  deletes and the bulk bars an Undo toast; the audit found three destructive paths still
+  confirming-and-forgetting. All three now use the same `Studio.undoToast` +
+  `Studio.undoRestoreRows` pair, so an undone delete propagates to the workspace backend as
+  a re-creation (v799 tombstone semantics) rather than being re-deleted. What each one
+  needed BEYOND restoring its row is the actual content of the slice:
+  - **View Builder "Delete dataset"** (`app/build.js` `bdDeleteDataset`) owns three things,
+    and an undo that restored only the row would have read as broken. It now captures the
+    dataset clone, the dataset's VB-14 **draft** (the shelves/filters/calcs in flight — the
+    part a user genuinely cannot rebuild from memory) and whether it was the **selected**
+    dataset. Order matters on the way back: the draft is written to `bdDrafts()` BEFORE
+    `bdSelectDataset` re-selects, because that function restores the incoming dataset's
+    draft as it switches — reversed, the shelves come back empty.
+  - **Quick Views' saved-View delete** (`app/explore.js`, the `data-xp-del` handler) — the
+    Views catalog already had this (DURABLE-2b); Explore's own copy of the button did not.
+    The editor pointer rides along: deleting the View you had open cleared `XP.analysisId`,
+    so Undo restores it and re-renders, landing you back in the View instead of an empty
+    picker.
+  - **Sample-pack removal** (`app/demopacks.js` + `toggleDemoPack` in `app/studio.js`) —
+    the biggest destructive click in the app: one confirmation deletes every job,
+    connection, dataset, View and dashboard the pack owns, *including edits made to them*.
+    `Studio.removeDemoPack` now CAPTURES what it deleted and returns an undo snapshot
+    (row clones per table + the pack id); `Studio.restoreDemoPack` replays it. Additive by
+    design — the return value is new, so the other callers (`__studioDemoPacks.remove`, the
+    suite's own pack juggling) are untouched. **The non-obvious half is the installed
+    flag:** restoring the rows without re-adding the id to `installedIds` would leave the
+    whole pack's content sitting in the catalogs behind an "Install sample pack" button.
+    The flag is flipped back FIRST, before the row re-puts fire their change hooks, because
+    Settings/Home/the library all read `demoPackInstalled` while they repaint.
+  Docs: the Sample packs section gains its own Undo paragraph, and the catalog "Changed
+  your mind? Undo" paragraph now names all three surfaces. **Also corrected two stale
+  copy claims found in passing** (they were flatly contradicted by the paragraph below
+  them, an AUD-11 §2.4-flavored fix inside the one subject this slice owns): the
+  Dashboards and Datasets bulk-delete descriptions still said the delete "can't be
+  undone", which stopped being true at DURABLE-2. Tests: three checks driving the real
+  buttons — click delete, assert the row/draft/selection/pack-set is gone, click the
+  toast's Undo, assert everything is back (3009 passed, 0 failed).
 - **AUD-05 ★ — the builder ↔ preview postMessage channel is authenticated (v845, sw v477,
   2026-08-07, steward; AUDIT-2026-08 §1.1, security):** every `{ studio: 1, … }` message
   drives a real spec mutation — select / reorder / resize / resizeH / rename / kpi-delete /
@@ -8950,7 +8988,19 @@
 >   7 catalog lists), and unify the two filter-operator vocabularies
 >   (DA-output 8 ops vs job-step 7 ops). Multi-slice; also decide TIME_RANGE
 >   (a real date filter, or delete — see AUD-09).
-> - **AUD-07 ★ [ux] Finish delete-undo coverage** (§2.2): the 3 bare-confirm
+> - ~~AUD-07 ★ [ux] Finish delete-undo coverage~~ ✓ **SHIPPED v846, sw v478
+>   (2026-08-07, steward — see DONE).** All three paths carry Undo, each
+>   restoring what it uniquely owns beyond the row (the View Builder draft +
+>   selection, Explore's open-View pointer, the pack's installed flag).
+>   **Still open from §2.2, deliberately its own item — the OTHER half of
+>   "unify delete confirmation":** the ~23 delete sites still each hand-roll a
+>   `window.confirm` string, so the wording, the consequence sentence and the
+>   lineage warning are per-site rather than one shared confirm helper. That is
+>   a copy/consistency refactor across every section, not a durability gap, and
+>   it also wants a decision on whether the fleet's `confirmDialog` replaces
+>   native `confirm()` here (it did in manager/relay). The DURABLE-2 trash model
+>   is the other natural home for it.
+>   Original: (§2.2): the 3 bare-confirm
 >   deletes with no undo — `app/build.js:389`, `app/explore.js:938`,
 >   `app/studio.js:890` — get `Studio.undoToast` like the DURABLE-2b per-row
 >   deletes; folds into the DURABLE-2 trash model.

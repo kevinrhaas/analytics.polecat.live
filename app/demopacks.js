@@ -788,12 +788,40 @@
     return after > before;
   };
 
+  // AUD-07: removing a pack is the single biggest destructive click in the app — one
+  // confirmation takes out every job, connection, dataset, View and dashboard the pack
+  // owns, including any edits you made to them. So the remove now CAPTURES what it
+  // deleted and hands back an undo snapshot: row clones per table, plus the fact that
+  // the pack was installed. Callers that ignore the return value behave exactly as
+  // before; studio.js's Remove-pack chip replays it from an Undo toast.
   Studio.removeDemoPack = function (id) {
     var W = Studio.Workspace;
+    var batches = [];
     ["jobs", "connections", "datasets", "analyses", "dashboards"].forEach(function (t) {
-      W.all(t).filter(function (r) { return r.demoPackId === id; }).forEach(function (r) { W.remove(t, r.id); });
+      var rows = W.all(t).filter(function (r) { return r.demoPackId === id; });
+      if (!rows.length) return;
+      batches.push({ table: t, rows: rows.map(function (r) { return Studio.clone(r); }) });
+      rows.forEach(function (r) { W.remove(t, r.id); });
     });
     setInstalledIds(installedIds().filter(function (x) { return x !== id; }));
+    return { id: id, batches: batches };
+  };
+
+  // The undo half. Order matters: flip the installed flag back FIRST, because the
+  // re-put rows fire Workspace change hooks that re-render Settings/Home/the library,
+  // and those surfaces read demoPackInstalled to decide what to draw. Restoring the
+  // rows goes through Studio.undoRestoreRows so an undone pack removal propagates to
+  // the workspace backend as a re-creation (v799 tombstone semantics), same as every
+  // other undo in the app.
+  // Returns how many rows came back, so the caller can say something sensible when a
+  // pack owned no rows at all (undoRestoreRows would otherwise announce "Restored 0").
+  Studio.restoreDemoPack = function (snap) {
+    if (!snap || !snap.id) return -1;
+    if (installedIds().indexOf(snap.id) < 0) setInstalledIds(installedIds().concat([snap.id]));
+    var batches = snap.batches || [], n = 0;
+    batches.forEach(function (b) { n += (b.rows || []).length; });
+    if (n) Studio.undoRestoreRows(batches);
+    return n;
   };
 
   // FILTERS-1 heal (Kevin live, 2026-07-31): installs materialized before the

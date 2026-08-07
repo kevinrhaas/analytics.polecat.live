@@ -961,8 +961,14 @@
         ? "Remove the “" + (p && p.name || id) + "” sample pack? This removes its showcase dashboards from Dashboards and the Examples gallery — nothing else is deleted."
         : "Remove the “" + (p && p.name || id) + "” sample pack? This deletes its datasets, Views, and dashboards.";
       if (!window.confirm(removeMsg)) return;
-      Studio.removeDemoPack(id);
-      toast("Sample pack removed");
+      // AUD-07: the removal is undoable. removeDemoPack hands back a snapshot of every
+      // row it deleted (plus the installed flag); Undo replays it and repaints the three
+      // surfaces that show pack state, exactly as the remove itself does.
+      var snap = Studio.removeDemoPack(id);
+      Studio.undoToast("Sample pack removed.", function () {
+        if (Studio.restoreDemoPack(snap) < 1) toast("Sample pack restored");
+        buildLibrary(); renderSettings(); renderHome();
+      });
     } else {
       Studio.installDemoPack(id);
       ensurePackExamplesMaterialized(id);

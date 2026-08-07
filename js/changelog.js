@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 846,
+    title: 'Three more deletes you can take back',
+    kind: 'polish',
+    ts: '2026-08-07T07:24:55.000Z',
+    items: [
+      'Most deletes in the app already show a toast with an Undo button — one click and the thing comes back exactly as it was, under the same id, on every device you sync to. Three destructive buttons had been left out of that, and they were arguably the three that needed it most.',
+      'The View Builder\'s "Delete dataset" now offers Undo, and it brings back more than the dataset row: the work-in-progress you had on the canvas for it — the columns, rows, filters and calculations you had dragged onto the shelves — comes back too, and if you were building on that dataset when you deleted it, you land straight back in it. That draft is the part you genuinely could not have rebuilt from memory.',
+      'Deleting a saved View from the Quick Views sidebar now offers Undo as well. If the View you deleted was the one open in the editor, undoing reopens it rather than leaving you staring at an empty picker.',
+      'Removing a sample pack — one confirmation that until now quietly deleted every dataset, View, dashboard, connection and job the pack owned, including any edits you had made to them — now offers Undo too. Undoing restores the whole set across all five catalogs and marks the pack installed again, so you are not left with orphaned rows sitting behind an "Install" button.',
+      'None of the confirmations changed, and nothing new is kept around after the toast fades. The undo simply holds a copy of what it removed for the few seconds the toast is on screen.',
+    ],
+  },
+  {
     v: 845,
     title: 'The dashboard preview only takes orders from you',
     kind: 'fix',
