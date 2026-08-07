@@ -3,6 +3,6 @@
    the version label and the What's-new unseen dot, so the ~680KB of full history is
    fetched lazily (Studio.loadChangelog) the first time someone opens the feed.
    Regenerated from js/changelog.js on every normalize run — never hand-edit. */
-window.STUDIO_LATEST_VERSION = 858;
-window.STUDIO_LATEST = {"v":858,"title":"Every search box in the app searches the same way","kind":"polish","ts":"2026-08-07T14:25:48.000Z"};
+window.STUDIO_LATEST_VERSION = 859;
+window.STUDIO_LATEST = {"v":859,"title":"Chart tooltips open on keyboard focus, not just on hover","kind":"polish","ts":"2026-08-07T15:41:35.000Z"};
 window.STUDIO_BUILD = "__BUILD_TS__";

@@ -38245,9 +38245,23 @@ function serve() {
           pagedText = (first() || {}).textContent;
           paged.changed = pagedText !== before;
         }
+        // SWEEP574-3b tail: the mark helper opens the hover tooltip on keyboard focus too. A row
+        // is deliberately out of that — it has no tooltip, because its own cells already carry
+        // every value one would repeat — so focusing a row must stay silent, not pop an empty card.
+        var rowFocus = null;
+        var fr = first();
+        if (fr) {
+          fr.focus();
+          await new Promise((r) => setTimeout(r, 150));
+          var t = d.querySelector("body > div.tip");
+          rowFocus = { tipShown: !!(t && (t.style.opacity === "1" || +t.style.opacity === 1)), focused: d.activeElement === fr };
+          fr.blur();
+        }
+
         ifr.remove();
         return { snap: snap, entPrev: entPrev, entTitle: entTitle, spPrev: spPrev, spTitle: spTitle,
           stray: stray, bound: bound, unbound: unbound, roleOverrides: roleOverrides, paged: paged,
+          rowFocus: rowFocus,
           hasFocusRing: /\[tabindex\]:focus-visible\{[^}]*outline:\s*2px/.test(html) };
       } catch (e) { return { err: e.message }; }
     });
@@ -38278,6 +38292,9 @@ function serve() {
       rowKeyboard.paged.focusable === rowKeyboard.paged.clickable, JSON.stringify(rowKeyboard));
     ok("SWEEP574-3b (table): the exported bundle still carries the [tabindex]:focus-visible ring, so a focused row is visible",
       rowKeyboard.hasFocusRing === true, JSON.stringify(rowKeyboard));
+    ok("SWEEP574-3b (table): focusing a row opens no tooltip — unlike a chart mark, a row's cells already ARE its values",
+      !!rowKeyboard.rowFocus && rowKeyboard.rowFocus.focused === true && rowKeyboard.rowFocus.tipShown === false,
+      JSON.stringify(rowKeyboard.rowFocus));
 
     // Same reasoning as the KPI tile and the SVG marks: on the builder canvas a click is an
     // EDITING gesture, so table rows must stay out of that surface's tab order too.
@@ -38301,6 +38318,154 @@ function serve() {
     });
     ok("SWEEP574-3b (table): in the Studio builder's preview no table row is promoted (click-to-select is untouched)",
       rowPreviewInert.rows > 0 && rowPreviewInert.promoted === 0, JSON.stringify(rowPreviewInert));
+
+    // ── SWEEP574-3b TAIL (UX sweep #574, a11y): the tooltip opens on FOCUS, not just hover ──
+    // The one gap both mark slices left open. A mark's numbers live in two places — the aria-label
+    // markActivatable() writes, and the hover tooltip — and only a pointer could summon the
+    // tooltip, so a keyboard user got the screen-reader fact but never the SIGHTED one (the
+    // percentage, the share, a chart's custom cfg.tip markup). tipOnFocus() in studio-charts.js
+    // closes it, and ships inside every exported dashboard the way markActivatable() does.
+    //
+    // The frame is rendered ON SCREEN here, unlike the sibling blocks above, because the pointer
+    // half of this behaviour cannot be faked: Chromium's :focus-visible heuristic keys off REAL
+    // input, and a synthesised mousedown leaves it untouched (verified — it still reports
+    // focus-visible). So the mouse case is driven with an actual page.mouse.click() into the
+    // frame, and the keyboard case with a programmatic .focus(), which with no preceding pointer
+    // input is exactly what Tab looks like to the heuristic.
+    console.log("\n• SWEEP574-3b (tail): chart tooltips open on keyboard focus, not just hover");
+
+    const tipKeyboard = await page.evaluate(async () => {
+      try {
+        var spec = await fetch("data/examples/feature-showcase.studio.json").then((r) => r.json());
+        var det = { da: "cost_detail", param: "label", noun: "invoice lines" };
+        spec.panels.forEach(function (p) {
+          if (["bars", "donut", "treemap"].indexOf(p.chart.type) >= 0) { p.detail = det; delete p.drill; }
+        });
+        var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: false, mock: Studio.genMock(spec) });
+        var ifr = document.createElement("iframe");
+        // Top-left of the viewport with no border, so a coordinate inside the frame's document is
+        // the same coordinate page.mouse.click() takes. The z-index is deliberately absurd: the
+        // sign-in gate sits at 100000 and would otherwise swallow the real click.
+        ifr.style.cssText = "position:fixed;left:0;top:0;width:1200px;height:1000px;border:0;z-index:2147483000;background:#fff";
+        document.body.appendChild(ifr);
+        await new Promise((res) => { ifr.onload = res; ifr.srcdoc = html; });
+        await new Promise((r) => setTimeout(r, 1200));
+        window.__tipFrame = ifr;
+        var d = ifr.contentDocument, w = ifr.contentWindow;
+        // Parked on window so the pointer half below (a separate evaluate, because a real click
+        // has to happen between the two) reads the tooltip exactly the same way.
+        window.__tipHelpers = {
+          state: function () {
+            var t = d.querySelector("body > div.tip");
+            return t ? { shown: t.style.opacity === "1" || +t.style.opacity === 1, html: t.innerHTML,
+              left: parseFloat(t.style.left), top: parseFloat(t.style.top) } : { shown: false, html: null };
+          },
+          hide: function () { var t = d.querySelector("body > div.tip"); if (t) t.style.opacity = 0; }
+        };
+        var st = window.__tipHelpers.state;
+        var bar = d.querySelector('[data-panel-id="p_region"] svg rect.bar');
+        if (!bar) return { err: "no bar mark" };
+
+        // 1. The keyboard case: focus it the way Tab would, and the tooltip appears — anchored to
+        //    the mark, because there is no cursor for it to follow.
+        bar.focus();
+        await new Promise((r) => setTimeout(r, 120));
+        var box = bar.getBoundingClientRect();
+        var onFocus = st();
+        onFocus.focusVisible = bar.matches(":focus-visible");
+        onFocus.matchesHover = onFocus.html === bar.__dkTip;     // the SAME card hover shows
+        onFocus.anchored = Math.abs(onFocus.top - (box.top + box.height / 2 - 8)) < 2;
+
+        // 2. Escape dismisses it WITHOUT moving focus (WCAG 1.4.13 "Content on Hover or Focus").
+        bar.dispatchEvent(new w.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+        await new Promise((r) => setTimeout(r, 60));
+        var afterEsc = st();
+        afterEsc.stillFocused = d.activeElement === bar;
+
+        // 3. Moving focus off the mark takes the tooltip with it. (Escape left focus in place, so
+        //    re-showing needs a real focus CHANGE, not a second .focus() on the already-focused node.)
+        bar.blur();
+        await new Promise((r) => setTimeout(r, 40));
+        bar.focus();
+        await new Promise((r) => setTimeout(r, 80));
+        var reshown = st().shown;
+        bar.blur();
+        await new Promise((r) => setTimeout(r, 60));
+        var afterBlur = st();
+
+        // 4. Coverage, not samples: every mark promoted for the keyboard also carries tooltip text,
+        //    so no chart type ends up named-but-silent on focus.
+        var promoted = [].slice.call(d.querySelectorAll('svg [role="button"][tabindex="0"]'));
+        var withTip = promoted.filter(function (el) { return typeof el.__dkTip === "string" && el.__dkTip.length > 0; });
+
+        // Hand back a click target for the pointer half. A <rect> mark, never a donut slice: an
+        // SVG <path> only hit-tests where it is actually painted, so the centre of an arc's
+        // bounding box is empty space, while a rect fills its box. The TALLEST promoted rect that
+        // is fully on screen, clicked near its top EDGE, so the pointer's y and the shape's
+        // centre y are far enough apart to tell the two anchors apart.
+        window.__tipHelpers.hide();
+        var rects = promoted.filter(function (el) {
+          var b = el.getBoundingClientRect();
+          return el.tagName === "rect" && b.height > 14 && b.width > 8 && b.top > 0 && b.bottom < w.innerHeight;
+        }).sort(function (a, b) { return b.getBoundingClientRect().height - a.getBoundingClientRect().height; });
+        var target = null;
+        if (rects.length) {
+          var cb = rects[0].getBoundingClientRect();
+          target = { sel: rects[0].getAttribute("aria-label"),
+            x: Math.round(cb.left + cb.width / 2), y: Math.round(cb.top + 3), centerY: cb.top + cb.height / 2 };
+        }
+        return { onFocus: onFocus, afterEsc: afterEsc, reshown: reshown, afterBlur: afterBlur,
+          promoted: promoted.length, withTip: withTip.length, target: target };
+      } catch (e) { return { err: e.message }; }
+    });
+
+    // The pointer half, driven for real: a click inside the frame both focuses the mark AND leaves
+    // the cursor on it, so the tooltip must keep following the POINTER — focus must not yank it to
+    // the shape's centre under the mouse user's hand. What is asserted afterwards is WHERE the
+    // tooltip was last placed, not whether it is still up: the drawer this click opens slides in
+    // over the cursor, and the resulting mouseout hides the tooltip. That is the pre-existing
+    // hover behaviour and this slice does not touch it.
+    let tipMouse = { skipped: true };
+    if (tipKeyboard.target) {
+      await page.mouse.move(tipKeyboard.target.x, tipKeyboard.target.y);
+      await page.mouse.click(tipKeyboard.target.x, tipKeyboard.target.y);
+      await page.waitForTimeout(200);
+      tipMouse = await page.evaluate((t) => {
+        var d = window.__tipFrame.contentDocument;
+        var mark = [].slice.call(d.querySelectorAll('svg [role="button"][tabindex="0"]'))
+          .filter(function (el) { return el.getAttribute("aria-label") === t.sel; })[0];
+        var s = window.__tipHelpers.state();
+        // Whether a click focuses an SVG mark at all is the browser's business; what matters is
+        // that the mark is NOT focus-visible, so the focus path stays out of the pointer's way.
+        s.focusVisible = mark ? mark.matches(":focus-visible") : null;
+        s.focused = d.activeElement === mark;
+        s.atPointer = Math.abs(s.top - (t.y - 8)) < 3;             // still under the cursor…
+        s.notAtShapeCentre = Math.abs(s.top - (t.centerY - 8)) > 4; // …not re-anchored to the shape
+        return s;
+      }, tipKeyboard.target);
+    }
+    await page.evaluate(() => {
+      var dr = window.__tipFrame.contentDocument.getElementById("dk-dt"); if (dr) dr.remove();
+      window.__tipFrame.remove(); delete window.__tipFrame; delete window.__tipHelpers;
+    });
+
+    ok("SWEEP574-3b (tail): tabbing to an exported chart mark opens the same tooltip a mouse user hovers for",
+      !!tipKeyboard.onFocus && tipKeyboard.onFocus.shown === true && tipKeyboard.onFocus.matchesHover === true,
+      JSON.stringify(tipKeyboard));
+    ok("SWEEP574-3b (tail): with no cursor to follow, the tooltip anchors to the mark's own box",
+      !!tipKeyboard.onFocus && tipKeyboard.onFocus.anchored === true, JSON.stringify(tipKeyboard.onFocus));
+    ok("SWEEP574-3b (tail): Escape dismisses the tooltip without moving focus off the mark (WCAG 1.4.13)",
+      !!tipKeyboard.afterEsc && tipKeyboard.afterEsc.shown === false && tipKeyboard.afterEsc.stillFocused === true,
+      JSON.stringify(tipKeyboard.afterEsc));
+    ok("SWEEP574-3b (tail): moving focus off the mark takes the tooltip with it",
+      tipKeyboard.reshown === true && !!tipKeyboard.afterBlur && tipKeyboard.afterBlur.shown === false,
+      JSON.stringify(tipKeyboard.afterBlur));
+    ok("SWEEP574-3b (tail): EVERY keyboard-promoted mark in the export carries its tooltip text — none is named but silent",
+      tipKeyboard.promoted > 0 && tipKeyboard.withTip === tipKeyboard.promoted, JSON.stringify(tipKeyboard));
+    ok("SWEEP574-3b (tail): a real MOUSE click leaves the tooltip where the POINTER put it — focus never re-anchors it to the shape",
+      !tipMouse.skipped && tipMouse.focusVisible === false &&
+      tipMouse.atPointer === true && tipMouse.notAtShapeCentre === true,
+      JSON.stringify(tipMouse));
 
     // ── Z8 slice 13: Stacked area gets its own type-specific options (smooth + legend) ──
     console.log("\n• Z8 areaStacked: smooth curve + legend toggle");
