@@ -9512,15 +9512,48 @@
   than assume). (b) Re-check `vendor/polecat-shell/` drift against the hub's `lib/VERSION`;
   it was 2 patches behind in July and the shell has moved since. Sync PRs come FROM the
   platform repo — never edit the vendored copy.
-- **N5 ⛔ — Viewer render mode `auto` (UX sweep #574 finding 1).** A dark-mode app opens a
-  light dashboard, because `spec.renderMode` is a fixed per-dashboard author choice baked
-  onto the exported `<html>`. The proposed fix is ADDITIVE: a third value, `auto`, that
-  resolves at render time (framed: follow the host app's `data-theme`; standalone:
-  `prefers-color-scheme`), default for NEW dashboards, every existing explicit choice
-  untouched. **Kevin's call, because it changes what a freshly-authored dashboard does.**
-  If yes: one byte stream must behave correctly both framed and standalone
-  (`buildViewerHtml()` emits the srcdoc AND the download from one call), so it is an inline
-  resolver, never a per-context branch — and it touches the export invariant, so full suite.
+- **N5a ★★ — DECIDED (Kevin, 2026-08-07): inside the app, the READER's theme wins.** UX
+  sweep #574 finding 1 — a dark app frames a light dashboard and reads as broken. The
+  Viewer's iframe now follows the app's live `data-theme`, whatever `spec.renderMode` says.
+  **Downloads and embeds are NOT touched** — a handed-out file stays exactly as authored,
+  because an exported dashboard is a deliverable (it goes on ctic.org and into stakeholders'
+  inboxes) and deterministic appearance is worth more there than adaptivity.
+  **Implementation, precisely:**
+  * `buildViewerHtml(spec, assets, extraOpts)` already emits BOTH the srcdoc and the
+    download from one call, so the override rides an explicit **opt-in `extraOpts` flag**
+    (e.g. `{ frameTheme: "dark" }`) that ONLY the Viewer's srcdoc call passes. The download
+    path passes nothing and is provably unchanged — same shape as the existing
+    `{ pdfPageSize… }` options.
+  * **The Studio builder preview is NOT the Viewer — leave it alone.** The author is
+    composing the appearance there, so the preview must keep showing `spec.renderMode` or
+    they cannot see what they are making. Only READ mode follows the app.
+  * **Amended invariant** (CLAUDE.md says the export stays byte-identical to the live
+    preview): builder preview ≡ export, still true and still asserted. The VIEWER srcdoc may
+    now differ from the download by the theme attribute alone — that is the deliberate,
+    scoped exception. Update the invariant's wording in the same PR so the next reader is
+    not misled.
+  * Full `tests/run.js`. New checks: an explicit-light dashboard opened in a dark app renders
+    dark IN THE VIEWER; the same dashboard's DOWNLOAD is byte-unchanged; the builder preview
+    still shows the authored mode.
+- **N5b ★ — DECIDED: `auto` ships as an OPT-IN third Appearance choice, never the default.**
+  A second, separate slice after N5a (own PR — it is additive and independently revertible).
+  `spec.renderMode` gains `"auto"`; the Inspector's Appearance select becomes
+  Light / Dark / Auto ("match the reader"). **New dashboards keep `""` (Light)** — Kevin's
+  explicit call: a chameleon export is something an author opts into, not something that
+  happens to them.
+  * When `auto`, the export bakes NO `data-theme` and instead carries a tiny inline resolver:
+    standalone → `prefers-color-scheme`; framed → follow the host document when it is
+    readable, else fall back to `prefers-color-scheme`. Same-origin (our Viewer) can read the
+    host; a third-party cross-origin embed cannot, so the resolver must **never throw** —
+    wrap the parent read and fall through silently.
+  * ONE byte stream that branches at RUNTIME. Never a per-context build-time branch: the
+    srcdoc and the download must remain the same bytes for an `auto` dashboard.
+  * `""` and `"dark"` exports stay byte-for-byte what they are today — this adds a value, it
+    changes no existing one.
+  * Full suite. New checks: an `auto` export contains the resolver and no baked
+    `data-theme`; it honors `prefers-color-scheme` standalone (Playwright `emulateMedia`);
+    it follows the host inside the Viewer; and the Inspector offers exactly three options
+    with Light still the default for a new dashboard. Docs + Help updated in the same slice.
 - **N6 ★ — Turn the "Dave" north-star into an automated acceptance test.** The onboarding
   epic's whole point is one end-to-end story: an admin provisions a user once; that user
   signs in on a FRESH browser and lands in a fully-configured workspace — role, theme,
