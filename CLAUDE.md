@@ -5,9 +5,9 @@ visual dashboard builder (~22.6K LOC vanilla HTML/JS/CSS, no build step, no
 framework, no runtime deps) deployed from the repo ROOT via GitHub Pages.
 **STATUS.md is the product playbook** — read its protocol + GOAL blocks first,
 work the NEXT backlog (★ items first). For how work ships fleet-wide, read
-`kevinrhaas/polecat-platform` → docs/FLEET-GUIDE.md (this app's migration row
-is docs/MIGRATION.md #6 — assigned to a dedicated session; scheduled steward
-runs skip this app).
+`kevinrhaas/polecat-platform` → docs/FLEET-GUIDE.md. Scheduled steward improve
+runs are ON for this app (the platform's focus.json lane, since 2026-08-07) —
+they branch from dev and PR into dev per the pipeline rules below.
 
 ## How work ships (the promotion pipeline — read docs/PIPELINE.md)
 

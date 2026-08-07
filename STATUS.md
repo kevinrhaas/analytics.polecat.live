@@ -9,14 +9,16 @@
 > work, hold label) is unchanged.**
 
 > **SHIP PROTOCOL (Polecat platform process, adopted 2026-07-15 — supersedes the old hourly loop):**
-> This app is on the fleet flow — read `kevinrhaas/polecat-platform` → docs/FLEET-GUIDE.md; the
-> migration row is docs/MIGRATION.md #6, **ASSIGNED to a dedicated session** (scheduled steward
-> improve runs SKIP this app and its open `steward/*` PRs). The old hourly push-to-main routine is
+> This app is on the fleet flow — read `kevinrhaas/polecat-platform` → docs/FLEET-GUIDE.md.
+> **Scheduled steward improve runs are ON for this app** (platform focus.json lane, enabled
+> 2026-08-07 — they branch from dev and PR into dev per the pipeline rules; the old
+> dedicated-session assignment is retired). The old hourly push-to-main routine is
 > **RETIRED** (its trigger is kept disabled as zzARCHIVE — never re-enable it), which also retires
 > the old ⛔ pause block that guarded it. The flow for EVERY unit of work now:
 > 1. Check for open `steward/*` PRs and sweep-findings issues first (daily platform UX/tech sweeps
 >    file them in this repo; fixing a top finding is a first-class unit of work). Don't collide.
-> 2. Branch `steward/<topic>` off latest main. **Never push to main directly.**
+> 2. Branch `steward/<topic>` off latest **dev** (the pipeline's integration branch) and PR
+>    into dev. **Never push to main directly, never PR into main** (hotfix exception aside).
 > 3. Build ONE coherent unit of work (top NEXT item below, ★ items first). Keep the Playwright
 >    suite green (`NODE_PATH=$(npm root -g) node tests/run.js`); add a check per feature; never
 >    weaken assertions to pass.
