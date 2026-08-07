@@ -135,6 +135,58 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **AUD-05 ★ — the builder ↔ preview postMessage channel is authenticated (v845, sw v477,
+  2026-08-07, steward; AUDIT-2026-08 §1.1, security):** every `{ studio: 1, … }` message
+  drives a real spec mutation — select / reorder / resize / resizeH / rename / kpi-delete /
+  panel-delete / panel-dup / viewport / header-edit — and the receiver's only check was the
+  `studio: 1` magic number. That is a shape convention, not authentication: any page that
+  had framed the Studio, or held a handle on its window, could post the same messages and
+  rearrange or delete panels in the dashboard being edited. Both receivers now check the
+  sender, and every sender addresses a real origin instead of `"*"`:
+  - **Builder** (`app/studio.js`): `trustedMsg(e)` — `e.origin` must equal ours, and
+    `e.source` must be this window or the `contentWindow` of a frame THIS document embeds
+    (`isOwnFrame`). Same-document scripts stay allowed on purpose: they already have full
+    DOM access, so allowing them adds no surface (and it keeps the suite's existing
+    `window.postMessage(...)` drivers honest rather than forcing them into a fiction).
+  - **Renderer** (`app/studio-render.js`, inlined into EVERY export): `e.source` must be
+    `window.parent` or `window`, plus the origin match.
+  - **Help** (`docs/index.html`): the `studioDocsTheme` receiver got the same guard — Help
+    is a plain page anyone may frame, so an unchecked sender could repaint it.
+  - Senders (`postThemeOnLoad`, `postToPreview`, `syncDocsTheme`, the renderer's `post()`)
+    now target `msgOrigin()` — our real origin, falling back to `"*"` only on an opaque one.
+  **The subtlety that made this a careful slice, and the reason the guard is not a plain
+  equality:** the preview is `about:srcdoc`. It is same-origin with the builder for DOM
+  purposes (that is how the builder reads `contentDocument` at all), but inside it
+  `location.origin` reports the OPAQUE `"null"` — the origin is inherited, the URL has
+  none. A strict self-compare there silently drops every builder→preview message, which is
+  exactly what the first cut of this change did (caught by the harness, not by review). So
+  a document on an opaque origin has nothing to compare and falls back to the source check
+  alone — which in a `srcdoc` frame means "our embedder", the builder by construction.
+  Messages arriving AT the builder FROM the frame carry the inherited (real) origin, so the
+  builder's own check stays strict. `file://` exports land in the opaque case too.
+  **Deliberately NOT done, with the reason — this is a finding, not an omission:**
+  - **`sandbox` on the preview iframe is infeasible as designed.** Every srcdoc frame in
+    the app depends on same-origin DOM access: the builder reads `#preview.contentDocument`
+    throughout, panel-zoom injects a `#pz-fill` style and an Escape listener into the zoom
+    frame's document (`app/studio.js`, and its own comment says "srcdoc without a sandbox
+    attribute, so it's same-origin"), and the Viewer's frame is read the same way. A
+    `sandbox` without `allow-same-origin` breaks all of it; a `sandbox` WITH
+    `allow-same-origin allow-scripts` is escapable by the framed document itself and buys
+    nothing — it would be an attribute that looks like a control and is not one. Making it
+    real means moving builder↔preview off DOM reach-in and onto postMessage entirely: a
+    architectural slice of its own, not a line in this one.
+  - **A `<meta>` CSP is out of reach without a build step.** `app/index.html` carries 56
+    script tags including inline blocks, the marketing page 3, `app/model.js` uses dynamic
+    evaluation, and every exported dashboard is inline script inside a srcdoc frame that
+    would inherit the parent policy. A policy with `'unsafe-inline'`/`'unsafe-eval'`
+    constrains nothing, and hashes are unmaintainable in a repo whose whole premise is that
+    you edit the file and reload. It becomes feasible if the app ever gains a build step.
+  Suite: the two live checks (a frame-sourced `select` still steers the builder; a
+  CROSS-ORIGIN frame's `reorder` is dropped — `tests/fixtures/xorigin-poster.html` relays
+  it from `127.0.0.1` while the app runs on `localhost`, a different origin at the same
+  port) plus a source guard on the renderer. Worth noting the FIRST of those covers a path
+  the suite never exercised: every existing driver posts from the top window, so the real
+  preview→builder direction had zero coverage — one of the gaps AUD-10 lists.
 - **SWEEP574-3b (TABLE family) — clickable table rows are keyboard-operable in exports
   (v844, sw v476, 2026-08-07, steward; UX sweep #574, a11y — SWEEP574-3b is now FULLY
   shipped):** the last mark family. The enhanced `DashKit.table` override binds `<tbody>
@@ -8872,11 +8924,26 @@
 >   loses the v5 table); `persist()` must surface quota failure instead of
 >   silently going memory-only (`workspace.js:28-29`); a failed table read must
 >   be distinguishable from a genuinely empty one before `replaceAll` adopts it.
-> - **AUD-05 ★ [security] Harden the preview channel** (§1.1): validate
->   `e.origin`/`e.source` in both postMessage receivers (`app/studio.js:10179`,
->   `app/studio-render.js:2493` — today only `d.studio===1`), and add a `sandbox`
->   attribute to the srcdoc preview iframe (carefully — must not break the
->   builder↔preview protocol or exports). Add a CSP `<meta>` where feasible.
+> - ~~AUD-05 ★ [security] Harden the preview channel~~ ✓ **SHIPPED v845, sw v477
+>   (2026-08-07, steward — see DONE).** The origin/source checks are in, on all
+>   THREE receivers (builder, renderer-inside-every-export, Help). The other two
+>   halves were investigated and **deliberately not shipped, with the evidence in
+>   DONE**: `sandbox` on the preview iframe is infeasible while builder↔preview
+>   runs on same-origin DOM reach-in (`allow-same-origin` would make the attribute
+>   decorative), and a `<meta>` CSP is unreachable in a no-build-step app whose
+>   exports are inline script inside srcdoc. **Spun out as their own items:**
+>   - **AUD-05a [arch] Move builder↔preview fully onto postMessage** — retire
+>     `#preview.contentDocument` reach-in (the builder's reads, panel-zoom's
+>     `#pz-fill` style + Escape listener injection, the Viewer frame reads) so the
+>     frame can take a real `sandbox`. Large, architectural; wants its own design
+>     pass and the FULL suite (it touches the export invariant).
+>   - **AUD-05b [security] Revisit CSP if the app ever gains a build step** —
+>     blocked on that, not on effort.
+>   Original: (§1.1) validate `e.origin`/`e.source` in both postMessage receivers
+>   (`app/studio.js:10179`, `app/studio-render.js:2493` — today only
+>   `d.studio===1`), and add a `sandbox` attribute to the srcdoc preview iframe
+>   (carefully — must not break the builder↔preview protocol or exports). Add a
+>   CSP `<meta>` where feasible.
 > - **AUD-06 ★ [ux] Filter consolidation program** (§2.1): 19 mechanisms, minimal
 >   shared code. Extend the SORT-1/`Studio.catalogSort` + `bulkMoveToFolder`
 >   precedent to the search+facet axis (one shared matcher/facet module for the

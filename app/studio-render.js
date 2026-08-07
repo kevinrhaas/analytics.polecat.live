@@ -2370,7 +2370,17 @@
       }, true);
     });
   }
-  function post(msg) { try { parent.postMessage(Object.assign({ studio: 1 }, msg), "*"); } catch (e) {} }
+  /* AUD-05: address the builder explicitly instead of "*". This file is inlined
+     into every exported dashboard, so it must stay self-contained AND correct in
+     three homes: the builder's `srcdoc` preview (inherits the builder's origin —
+     the exact match holds), a standalone export on http(s) (parent === self), and
+     a `file://` export (opaque origin, reported as "null", which is not a legal
+     targetOrigin — fall back to "*" there). */
+  function msgOrigin() {
+    var o = (window.location && window.location.origin) || "";
+    return (o && o !== "null") ? o : "*";
+  }
+  function post(msg) { try { parent.postMessage(Object.assign({ studio: 1 }, msg), msgOrigin()); } catch (e) {} }
 
   // builder-only: double-click a panel title to rename it inline (commit on Enter/blur, cancel on Esc)
   function startRename(h3, titleEl, id) {
@@ -2517,6 +2527,21 @@
   window.addEventListener("message", function (e) {
       var d = e.data || {};
       if (d.studio !== 1) return;
+      // AUD-05: only the document that embeds us (the builder) may steer the
+      // render — plus this document's own scripts, which could do it directly
+      // anyway. Two checks, and the origin one has a real subtlety:
+      //   * A standalone export on http(s) has a normal origin, so a hostile
+      //     page that frames it cross-origin is rejected by the exact match.
+      //   * The builder's preview is `about:srcdoc`. It is same-origin with the
+      //     builder for DOM purposes, but `location.origin` there reports the
+      //     opaque "null" (the origin is inherited; the URL has none) — there is
+      //     nothing to compare against, so an opaque self-origin falls back to
+      //     the source check alone, which in a srcdoc frame means "our embedder",
+      //     i.e. the builder by construction. `file://` exports land here too.
+      var mo = (window.location && window.location.origin) || "";
+      var opaque = (!mo || mo === "null");
+      if (!opaque && e.origin !== mo) return;
+      if (!(e.source === window.parent || e.source === window)) return;
       if (d.type === "highlight") {
         document.querySelectorAll(".sr-active").forEach(function (el) { el.classList.remove("sr-active"); });
         var sel = d.kind === "kpi" ? document.querySelector('[data-kpi-index="' + d.index + '"]')

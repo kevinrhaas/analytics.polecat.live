@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 845,
+    title: 'The dashboard preview only takes orders from you',
+    kind: 'fix',
+    ts: '2026-08-07T06:58:58.000Z',
+    items: [
+      'The builder and the dashboard preview inside it talk to each other constantly — you drag a panel wider in the preview and the builder writes that width onto the dashboard. That conversation is how resizing, reordering, renaming, deleting a KPI and clicking a panel to select it all work.',
+      'Until now the builder accepted that conversation from anyone. It checked only that a message looked like one of its own; it never checked who sent it. A page that had loaded the Studio in a frame, or that had kept a handle on the window, could have posted the same messages and rearranged or deleted parts of the dashboard you were editing.',
+      'Both ends now check the sender. The builder listens only to messages from this same site and from a frame it put on the page itself; the dashboard renderer listens only to the page that embedded it. Everything else is dropped in silence. The same check now guards the Help panel, which the app repaints when you change theme.',
+      'Nothing you do changes. Dragging, resizing and selecting in the preview behave exactly as before, dashboards you export still open and render standalone, and the tests now cover the real path a preview message travels — which had no coverage at all before.',
+      'One thing the audit asked for that we deliberately did NOT do: lock the preview frame down with a sandbox attribute. The builder reads and writes inside that frame to draw it, so the frame has to stay same-origin, and a sandbox that allows same-origin gives no protection while looking like it does. The honest fix was the sender check above. A content-security-policy is out of reach for the same kind of reason until the app has a build step.',
+    ],
+  },
+  {
     v: 844,
     title: 'Table rows open with the keyboard too — and stay real table rows',
     kind: 'polish',
