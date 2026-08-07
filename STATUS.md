@@ -135,6 +135,36 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **SWEEP574-3b — bar / donut / treemap marks are keyboard-operable in exports (v843,
+  sw v475, 2026-08-07, steward; UX sweep #574, a11y):** SWEEP574-3 shipped the keyboard
+  door for KPI tiles; the marks beside them were still mouse-only wherever a drill or a
+  detail drawer is bound. Same root cause — `DashKit.bindDrill`/`bindDetail` only set
+  `cursor:pointer` + a click listener, and an SVG `<rect>`/`<path>` is neither focusable
+  nor announced. Fix: `markActivatable()` in **app/studio-charts.js** (the toolkit source,
+  so it ships byte-identically in the live preview and inside every exported dashboard —
+  vendor/dashkit.js stays pristine), applied at the four bind sites the overrides own
+  (horizontal bars, vertical bars, donut slices, treemap tiles): `role="button"` +
+  `tabindex="0"` + a keydown handler that re-fires the vendor's OWN click listener, so
+  mouse and keyboard keep exactly one activation path and Space's scroll is prevented.
+  **The one real design difference from the KPI tile:** a tile's own text is a fine
+  accessible name (SWEEP574-3 deliberately added no aria-label, which would have hidden
+  the number); an SVG mark has NO text content, so each one carries an explicit
+  `aria-label` of `"<label>: <value>"` — the same pairing its hover tooltip shows, with
+  the percentage appended where the tooltip has one ("Snowflake: 3,413 (36.8%)"). Scoped
+  by the vendor's own `cursor:pointer` marker, so a mark with nothing bound stays inert
+  and out of the tab order; the builder's preview is excluded on purpose (there a click is
+  an EDITING gesture). No new CSS — `[tabindex]:focus-visible` in vendor/dashkit.css
+  already draws the ring, and it was verified to actually PAINT on an SVG shape in
+  Chromium (`outline` on SVG), not just compute. 18 suite checks added, including
+  full-coverage assertions (every clickable mark promoted AND named, no inert mark
+  dragged into the tab order) rather than three samples. Verified with REAL keyboard
+  input as well: Tab-focus → Enter → drawer, Escape → close, re-focus → Space → drawer,
+  no scroll, on all three mark families. **Still open (its own slice, deliberately):**
+  the enhanced table's row-click detail (`DashKit.table` override, studio-charts.js
+  ~`:3160`) binds `<tr>` elements DIRECTLY rather than through bindDrill/bindDetail, and a
+  table row already has real text content — so it wants a different accessible-name
+  decision (no aria-label) and has sort/filter/paging interplay. Also not done: showing
+  the hover tooltip on keyboard focus (the aria-label carries the same fact today).
 - **AUD-01 ★★ — the Supabase save is ATOMIC (v842, sw v474, 2026-08-07, steward;
   AUDIT-2026-08.md §1.2):** the last of the four audit P1s. PostgREST runs one
   statement per request, so the push was a SEQUENCE of independent writes
@@ -8748,7 +8778,16 @@
 >   dashboard markup (`app/studio-render.js` / `app/exporters.js`), which means it ships
 >   inside every exported dashboard too — a genuine a11y win, same full-suite caution as
 >   SWEEP574-1.
-> - **SWEEP574-3b [a11y] The same keyboard door for the other clickable marks.** SWEEP574-3
+> - ~~SWEEP574-3b [a11y] The same keyboard door for the other clickable marks~~ ✓ **SHIPPED
+>   v843, sw v475 (2026-08-07, steward — see DONE)** for the SVG mark families: bars
+>   (horizontal + vertical), donut slices and treemap tiles, via `markActivatable()` in
+>   app/studio-charts.js with an explicit `"<label>: <value>"` aria-label. **Still open —
+>   the TABLE family, deliberately its own slice:** the enhanced `DashKit.table` override
+>   binds `<tbody> <tr>` rows DIRECTLY (studio-charts.js, the "Row-click detail" block),
+>   not through bindDrill/bindDetail, so `markActivatable` doesn't reach them; and a row
+>   already HAS text content, so the naming decision inverts (no aria-label, like the KPI
+>   tile) and sort/filter/paging re-render interplay needs its own thought.
+>   Original: SWEEP574-3
 >   shipped `makeTileActivatable()` (app/studio-render.js) and applied it to KPI tiles only.
 >   Bar/donut/treemap/table marks are bound by the same `DashKit.bindDrill`/`bindDetail`
 >   helpers and are still mouse-only. The helper generalizes as-is; what each mark type needs

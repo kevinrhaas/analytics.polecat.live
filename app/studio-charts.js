@@ -53,6 +53,49 @@
     node.addEventListener("mousemove", function (e) { DashKit.showTip(e, html); });
     node.addEventListener("mouseout", DashKit.hideTip);
   }
+  // SWEEP574-3b (UX sweep #574, a11y): the keyboard door for CHART MARKS — the bar, slice and
+  // treemap tile a drill or detail is bound to. Same gap SWEEP574-3 closed for KPI tiles
+  // (makeTileActivatable in app/studio-render.js): DashKit.bindDrill / DashKit.bindDetail only
+  // set `cursor:pointer` and a click listener (vendor/dashkit.js stays pristine), so a mark was
+  // mouse-only — Tab skipped it, Enter/Space did nothing. Promote it to a real button in the
+  // accessibility tree and re-fire the vendor's OWN click listener from the keyboard, so mouse
+  // and keyboard keep exactly one activation path.
+  //
+  // What differs from the KPI tile: a tile is a <div> whose own text (value + label) is a fine
+  // accessible name, so it deliberately got NO aria-label. An SVG <rect>/<path> has no text
+  // content at all — the label and value live in sibling <text> nodes or only in the hover
+  // tooltip — so a mark MUST carry an explicit name, and the honest one is what a sighted user
+  // reads off the chart: "<label>: <value>". (Hover tooltips stay mouse-only; the aria-label is
+  // the keyboard/screen-reader path to the same fact.)
+  //
+  // Lives in the toolkit source, not a post-process, so it ships byte-identically in the live
+  // preview and in every exported dashboard — which is where these marks mostly get used.
+  // Scoped by the vendor's own marker (`cursor:pointer`, set only when a bind actually took),
+  // so a mark whose drill/detail config came back empty stays inert. The builder's own preview
+  // is excluded on purpose: there a click is an EDITING gesture, and the editing surface has
+  // its own keyboard model — exports and the Viewer are where a mark is really a control.
+  // The focus ring needs no new CSS: vendor/dashkit.css already styles [tabindex]:focus-visible.
+  function markActivatable(node, name) {
+    if (window.STUDIO_PREVIEW) return;                          // builder preview: click = select
+    if (!node || node.style.cursor !== "pointer") return;        // nothing was bound — stay inert
+    if (node.getAttribute("role") === "button") return;          // idempotent across redraws
+    node.setAttribute("role", "button");
+    node.setAttribute("tabindex", "0");
+    if (name) node.setAttribute("aria-label", name);
+    node.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+      e.preventDefault(); // Space would otherwise scroll the dashboard out from under you
+      // SVGElement has no HTMLElement.click(), so synthesize the click the vendor listens for.
+      if (typeof node.click === "function") node.click();
+      else node.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+    });
+  }
+  // The accessible name for a mark: the same "<label>: <value>" pairing its tooltip shows,
+  // as plain text (aria-label is not markup) with any extra context — a percentage, a share —
+  // appended the way the tooltip words it.
+  function markName(label, value, extra) {
+    return String(label == null ? "" : label) + ": " + value + (extra ? " (" + extra + ")" : "");
+  }
   // V9 (Viridis scientific-honesty polish) originally gave the geo/ensemble charts their own
   // legend-embedded "Download CSV" button. LF6 slice 2 folds that into the generic per-panel
   // download chrome (app/studio-render.js): instead of rendering a button here, these charts
@@ -3232,6 +3275,7 @@
         var rc = S("rect", { x: rx + 1, y: ry + 1, width: Math.max(0, rw - 2), height: Math.max(0, rh2 - 2), rx: 3, fill: col, opacity: .92, class: "bar" });
         _tip(rc, "<b>" + r.d.label + "</b><br>" + fmt(r.d.value) + " (" + pctTxt + ")");
         if (cfg.detail) DashKit.bindDetail(rc, cfg.detail, r.d.label);
+        markActivatable(rc, markName(r.d.label, fmt(r.d.value), pctTxt));
         s.appendChild(rc);
         if (showLabels && rw > 54 && rh2 > 22) {
           s.appendChild(S("text", { x: rx + 6, y: ry + 15, fill: "#fff", "font-size": "11", "font-weight": "700" }, DashKit.fmt.trunc(r.d.label, Math.floor(rw / 7))));
@@ -3483,6 +3527,7 @@
       _tip(p, "<b>" + d.label + "</b><br>" + fmt(d.value) + " (" + (100 * d.value / total).toFixed(1) + "%)");
       if (cfg.drill) DashKit.bindDrill(p, cfg.drill, d.label);
       if (cfg.detail) DashKit.bindDetail(p, cfg.detail, d.label);
+      markActivatable(p, markName(d.label, fmt(d.value), (100 * d.value / total).toFixed(1) + "%"));
       s.appendChild(p);
       if (canAnim()) { p.style.opacity = "0"; setTimeout(function () { p.style.transition = "opacity .42s ease"; p.style.opacity = "1"; }, animD(i * 45)); }
       a0 = a1;
@@ -3530,6 +3575,7 @@
         _tip(r, cfg.tip ? cfg.tip(d) : ("<b>" + d.label + "</b><br>" + fmt(d.value)));
         if (cfg.drill) DashKit.bindDrill(r, cfg.drill, d.label);
         if (cfg.detail) DashKit.bindDetail(r, cfg.detail, d.label);
+        markActivatable(r, markName(d.label, fmt(d.value)));
         s.appendChild(r);
         anims.push({ el: r, kind: "width", to: Math.max(1, bw), delay: animD(i * 28) });
         s.appendChild(S("text", { class: "tick", x: mL - 8, y: y + bh / 2 + 3, "text-anchor": "end" }, DashKit.fmt.trunc(d.label, cfg.labelChars || 20)));
@@ -3545,6 +3591,7 @@
         _tip(r, cfg.tip ? cfg.tip(d) : ("<b>" + d.label + "</b><br>" + fmt(d.value)));
         if (cfg.drill) DashKit.bindDrill(r, cfg.drill, d.label);
         if (cfg.detail) DashKit.bindDetail(r, cfg.detail, d.label);
+        markActivatable(r, markName(d.label, fmt(d.value)));
         s.appendChild(r);
         anims.push({ el: r, kind: "height", y0: mT2 + ih2, yTo: mT2 + ih2 - bhh, to: Math.max(1, bhh), delay: animD(i * 28) });
         var lx = x + bw2 / 2, ty = mT2 + ih2 + 13;
