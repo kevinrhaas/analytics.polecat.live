@@ -37,6 +37,14 @@
    tutorial walks (Quick Views, Dashboard Builder panes, export, Jobs,
    Connections, Datasets) updates the copy here in the SAME slice — the suite
    greps this file for retired product terms.
+   That ratchet only catches retired NOUNS, though. N7 (2026-08-07) found every
+   tour still closing on "reopen these tours from ⋯ More → Interactive tutorial"
+   — an entry LF46 (⋯ teardown, slice 2) had DELETED, so all six tours sent the
+   reader to a menu that no longer has it. The route is the ⌘K palette now (and
+   Home → Take the tour / Settings → Presentation → Take the tour). So any
+   AFFORDANCE named in this file's copy is now held accountable too:
+   tools/doc-truth.mjs check 13 resolves every "⋯ More → X" against the real
+   #menuMore markup and every "⌘K → X" against app/palette.js's command list.
 
    window.StudioTutorial.open()        — tour chooser (or restart)
    window.StudioTutorial.openTour(key) — start a specific tour ("overview"|"quick"|"build"|"jobs"|"connect")
@@ -92,7 +100,7 @@
         {
           t: "Welcome — here's the whole app",
           h: "Analytics turns your data into quick analyses and full dashboards, right in your browser. This two-minute tour walks the left rail from the top down — <b>Workspace</b> (the things you have), <b>Build</b> (where you make them), <b>Manage</b> (keeping them fed) — then leaves you on Home, ready to start.",
-          sub: "You can reopen any tour from ⋯ More → Interactive tutorial, or Home → Take the tour.",
+          sub: "You can reopen any tour from ⌘K → Interactive tutorial, or Home → Take the tour.",
           target: null,
           before: function () { goSection("home"); }
         },
@@ -199,7 +207,7 @@
         {
           t: "Your first analysis, fast",
           h: "This is the quickest path from data to insight: pick a dataset, see it as a table, choose a chart, and save the result as a reusable <b>analysis</b>. Six quick steps.",
-          sub: "You can reopen these tours any time from ⋯ More → Interactive tutorial, or Home → Take the tour.",
+          sub: "You can reopen these tours any time from ⌘K → Interactive tutorial, or Home → Take the tour.",
           target: null,
           before: function () { goSection("explore"); }
         },
@@ -246,7 +254,7 @@
         {
           t: "That's the fast path!",
           h: "<b>Dataset → table → chart → saved analysis.</b> When you want full dashboards — many panels, KPIs, filters, export — take the <b>Build a dashboard</b> tour next.",
-          sub: "⋯ More → Interactive tutorial brings you back here any time.",
+          sub: "⌘K → Interactive tutorial brings you back here any time.",
           target: null,
           last: true
         }
@@ -259,7 +267,7 @@
         {
           t: "Build a full dashboard",
           h: "This walkthrough shows the Dashboard Builder loop — from picking data to exporting a live, self-contained dashboard file. Press <b>Next</b> to begin.",
-          sub: "You can reopen these tours any time from ⋯ More → Interactive tutorial.",
+          sub: "You can reopen these tours any time from ⌘K → Interactive tutorial.",
           target: null,
           before: function () { goSection("studio"); }
         },
@@ -306,7 +314,7 @@
         {
           t: "Prep &amp; roll up your data",
           h: "A <b>job</b> reshapes one dataset before it's charted — rename columns, filter rows, roll up with sum/mean/count/median (or an acreage-weighted mean for honest regional roll-ups), or join/union in another dataset. The result lands back in <b>Datasets</b>, ready to chart like any other.",
-          sub: "You can reopen these tours any time from ⋯ More → Interactive tutorial.",
+          sub: "You can reopen these tours any time from ⌘K → Interactive tutorial.",
           target: null,
           before: function () { goSection("jobs"); }
         },
@@ -331,7 +339,7 @@
         {
           t: "That's Jobs!",
           h: "<b>Source dataset → steps → new dataset.</b> Prep data here, then chart it in <b>Quick Views</b> or the <b>Dashboard Builder</b> exactly like anything else in Datasets.",
-          sub: "⋯ More → Interactive tutorial brings you back here any time.",
+          sub: "⌘K → Interactive tutorial brings you back here any time.",
           target: null,
           last: true
         }
@@ -344,7 +352,7 @@
         {
           t: "Connect your data, then query it",
           h: "A <b>connection</b> points at where your data lives; a <b>dataset</b> is a named, reusable query on top of one — the building block every chart and dashboard draws from. This tour walks both.",
-          sub: "You can reopen these tours any time from ⋯ More → Interactive tutorial.",
+          sub: "You can reopen these tours any time from ⌘K → Interactive tutorial.",
           target: null,
           before: function () { goSection("connections"); }
         },
@@ -388,7 +396,7 @@
         {
           t: "That's Connections &amp; Datasets!",
           h: "<b>Connection → dataset → chart it.</b> Head to <b>Quick Views</b> for the fast path to a chart, or <b>Jobs</b> first if the data needs prep.",
-          sub: "⋯ More → Interactive tutorial brings you back here any time.",
+          sub: "⌘K → Interactive tutorial brings you back here any time.",
           target: null,
           last: true
         }
@@ -401,7 +409,7 @@
         {
           t: "Your Conservation Insight pack, guided",
           h: "Installing the <b>Conservation Insight</b> sample pack seeded a whole workspace — connections, datasets, a prep job, and one FEATURED dashboard built as a best-practice conservation story. This short tour walks that dashboard's three map scales, then the geography behind them.",
-          sub: "You can reopen this tour any time from ⋯ More → Interactive tutorial.",
+          sub: "You can reopen this tour any time from ⌘K → Interactive tutorial.",
           target: null,
           before: function () { goSection("home"); }
         },
@@ -438,7 +446,7 @@
         {
           t: "That's the geography story",
           h: "County, watershed, and state are three of the choropleth's built-in scales — it also ships USDA crop-reporting districts, congressional districts, and 5-digit ZIP codes, plus your own <b>custom regions</b> (Inspector → Region scale → Custom regions, import a CSV mapping county → your own boundary). Same geometry engine underneath every scale, no shapefiles to source.",
-          sub: "⋯ More → Interactive tutorial brings you back here any time.",
+          sub: "⌘K → Interactive tutorial brings you back here any time.",
           target: null,
           last: true
         }
@@ -464,7 +472,7 @@
       h: "Your workspace comes with the <b>" + esc(p.name || "sample pack") + "</b> sample pack — " +
         esc(p.tagline || p.blurb || "curated dashboards and datasets, ready to explore") + ".",
       sub: TOUR_GATES[entry.id]
-        ? "There's a dedicated tour for it too — pick it from the chooser (⋯ More → Interactive tutorial)."
+        ? "There's a dedicated tour for it too — pick it from the chooser (⌘K → Interactive tutorial)."
         : "Find its dashboards on Home and in Dashboards.",
       target: null
     };

@@ -318,6 +318,78 @@ ok("app/welcome.js: the quick tour names every rail section, by the rail's own l
   `never named in BASE_STEPS: ${unnamedInWelcome.map(label).join(", ")}` +
   `\n      (deliberate skips: ${Object.entries(SKIP_IN_WELCOME).map(([s, why]) => `${label(s)} — ${why}`).join("; ")})`);
 
+// 13. The tours tell you HOW TO GET BACK — and that instruction is a claim about the UI like
+//     any other. Checks 11 and 12 hold the tours accountable for which SECTIONS they name;
+//     nothing held them accountable for the AFFORDANCES they tell you to click, and the suite's
+//     own freshness ratchet (tests/run.js "J6: … NO retired product terms") only greps for
+//     retired nouns. So this rotted silently: LF46 (⋯ teardown, slice 2) deleted the ⋯ More
+//     menu's "Help & power tools" group, and all six tours went on closing with "you can reopen
+//     these tours any time from ⋯ More → Interactive tutorial" — 11 times, pointing at an entry
+//     that had not existed for weeks. The palette is the route now. Resolve every affordance the
+//     tour/welcome copy names: a "⋯ More → A → B" chain against the real #menuMore markup (its
+//     buttons AND its .grp group headings), and a "⌘K → X" against app/palette.js's command
+//     labels. Rename a palette command or drop a menu entry and the copy that points at it fails
+//     here. (docs/index.html is deliberately out of scope: its prose takes deliberate liberties —
+//     "⋯ More → Simple mode off" — that an exact label match would false-positive on. Its two ⋯
+//     More references were checked by hand in this slice and both resolve.)
+const norm = (s) => s.replace(/&amp;/g, "&").replace(/[✦…]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+const moreMenuLabels = (() => {
+  const src = read("app/index.html");
+  const start = src.indexOf('<div class="menu" id="menuMore">');
+  if (start < 0) throw new Error("doc-truth: #menuMore not found in app/index.html");
+  // Brace-free block walk: to the matching </div> of the menu, comments and all.
+  const block = src.slice(start, src.indexOf('<div class="menu-wrap"', start + 1) > -1
+    ? src.indexOf('<div class="menu-wrap"', start + 1) : src.length);
+  const stripComments = block.replace(/<!--[\s\S]*?-->/g, "");
+  const labels = [...stripComments.matchAll(/<button[^>]*>([^<]+)<\/button>/g)].map((m) => m[1]);
+  const groups = [...stripComments.matchAll(/<div class="grp">([^<]+)<\/div>/g)].map((m) => m[1]);
+  return new Set([...labels, ...groups].map(norm));
+})();
+const paletteLabels = new Set(
+  [...read("app/palette.js").matchAll(/\blabel:\s*"((?:[^"\\]|\\.)*)"/g)].map((m) => norm(m[1])));
+ok("app/index.html + app/palette.js: the affordance lists parsed for check 13 are non-empty",
+  moreMenuLabels.size > 3 && paletteLabels.size > 5,
+  `#menuMore: ${moreMenuLabels.size} labels · palette: ${paletteLabels.size} commands`);
+// Only the COPY a reader actually sees — string literals, with comments stripped first. This
+// file's own prose describes the very drift it guards ("⋯ More → Interactive tutorial"), and a
+// comment must never be able to fail the check nor to satisfy it (check 12's lesson). Neither
+// file contains "://", so the naive comment strip is safe here.
+const copyOf = (f) => {
+  const bare = read(f).replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+  return norm([...bare.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]).join("\n"));
+};
+// A route resolves by consuming "→ <label>" steps off the front, longest label first, so
+// "⌘K → Interactive tutorial brings you back here any time" resolves on the command and the
+// trailing sentence is simply not part of the route.
+const byLen = (set) => [...set].filter(Boolean).sort((a, b) => b.length - a.length);
+const MORE_L = byLen(moreMenuLabels), PAL_L = byLen(paletteLabels);
+const skipWs = (s, i) => { while (i < s.length && /\s/.test(s[i])) i++; return i; };
+function unresolvedRoutes(text, anchor, labels, what, f) {
+  const out = [];
+  for (let i = text.indexOf(anchor); i !== -1; i = text.indexOf(anchor, i)) {
+    let p = i + anchor.length;
+    for (;;) {
+      let q = skipWs(text, p);
+      if (text[q] !== "→") break;
+      q = skipWs(text, q + 1);
+      const hit = labels.find((l) => text.startsWith(l, q));
+      if (!hit) { out.push(`${f}: "${anchor} → ${text.slice(q, q + 32)}…" — no such ${what}`); break; }
+      p = q + hit.length;
+    }
+    i = Math.max(p, i + anchor.length);
+  }
+  return out;
+}
+const badRoutes = ["app/tutorial.js", "app/welcome.js"].flatMap((f) => {
+  const copy = copyOf(f);
+  return [
+    ...unresolvedRoutes(copy, norm("⋯ More"), MORE_L, "entry in #menuMore", f),
+    ...unresolvedRoutes(copy, norm("⌘K"), PAL_L, "command in app/palette.js", f),
+  ];
+});
+ok("app/tutorial.js + app/welcome.js: every affordance the tour copy names actually exists",
+  !badRoutes.length, badRoutes.join("\n      "));
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
