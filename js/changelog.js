@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 843,
+    title: 'Bars, slices and treemap tiles open with the keyboard too',
+    kind: 'polish',
+    ts: '2026-08-07T05:27:51.000Z',
+    items: [
+      'Last release made a dashboard\'s KPI tiles keyboard-operable. The chart marks beside them — the bars of a bar chart, the slices of a donut, the tiles of a treemap — were still mouse-only wherever they open a detail drawer or a click-through.',
+      'Now they are buttons as well: Tab stops on each clickable mark, a focus ring shows where you are, and Enter or Space does exactly what a click does. Space no longer scrolls the dashboard away underneath you.',
+      'A bar or a slice has no text of its own to read out, so each one announces itself as its label and value — "Snowflake: $84.2K" — the same fact its hover tooltip shows.',
+      'Marks with nothing bound to them stay inert and out of the tab order, and the Studio canvas is untouched: clicking a mark there still selects the panel for editing.',
+      'This ships inside every dashboard you export as a self-contained file, and in the Viewer. Help says so under "Reading a dashboard without a mouse".',
+    ],
+  },
+  {
     v: 842,
     title: 'Supabase workspaces can now save everything in one go, or nothing at all',
     kind: 'fix',

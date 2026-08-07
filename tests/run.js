@@ -36947,6 +36947,129 @@ function serve() {
       kpiPreviewNotButton.ok && kpiPreviewNotButton.role !== "button" && kpiPreviewNotButton.tabindex !== "0",
       JSON.stringify(kpiPreviewNotButton));
 
+    // ── SWEEP574-3b (UX sweep #574, a11y): the same keyboard door for CHART MARKS ──
+    // SWEEP574-3 above closed this for KPI tiles. Bars, donut slices and treemap tiles are bound
+    // by the same DashKit.bindDrill/bindDetail helpers and were still mouse-only. The fix lives in
+    // the toolkit source (studio-charts.js markActivatable), so it ships inside every exported
+    // dashboard. Unlike a KPI tile, an SVG mark has NO text content, so it must carry an explicit
+    // aria-label — "<label>: <value>", the same pairing its hover tooltip shows.
+    // NOTE the `delete p.drill` below: p_region ships with a drill URL, and a drill CLICK navigates
+    // the frame away (correct — keyboard parity with the mouse), which would tear down the document
+    // mid-check. Deleting it isolates the detail-drawer case, same as the KPI block does.
+    console.log("\n• SWEEP574-3b: bar / donut / treemap marks are keyboard-operable in exports");
+
+    const markKeyboard = await page.evaluate(async () => {
+      try {
+        var spec = await fetch("data/examples/feature-showcase.studio.json").then((r) => r.json());
+        var det = { da: "cost_detail", param: "label", noun: "invoice lines" };
+        spec.panels.forEach(function (p) {
+          if (["bars", "donut", "treemap"].indexOf(p.chart.type) >= 0) { p.detail = det; delete p.drill; }
+        });
+        var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: false, mock: Studio.genMock(spec) });
+        var ifr = document.createElement("iframe");
+        ifr.style.cssText = "position:fixed;left:-9999px;width:1200px;height:1400px";
+        document.body.appendChild(ifr);
+        await new Promise((res) => { ifr.onload = res; ifr.srcdoc = html; });
+        await new Promise((r) => setTimeout(r, 1200));
+        var d = ifr.contentDocument, w = ifr.contentWindow;
+        // p_region = bars, p_assets = donut, p_storage = treemap (feature-showcase panel ids).
+        var SEL = {
+          bar: '[data-panel-id="p_region"] svg rect.bar',
+          slice: '[data-panel-id="p_assets"] svg path[role=button]',
+          tile: '[data-panel-id="p_storage"] svg rect.bar'
+        };
+        function pick(k) { return d.querySelector(SEL[k]); }
+        function snap(el) {
+          return el ? { role: el.getAttribute("role"), tabindex: el.getAttribute("tabindex"), aria: el.getAttribute("aria-label") } : null;
+        }
+        function press(k, key) {
+          var el = pick(k); if (!el) return null;
+          var ev = new w.KeyboardEvent("keydown", { key: key, bubbles: true, cancelable: true });
+          el.dispatchEvent(ev);
+          return ev.defaultPrevented;
+        }
+        function drawerTitle() { var dr = d.getElementById("dk-dt"); var t = dr && dr.querySelector(".dk-dt-t"); return t ? t.textContent : null; }
+        function closeDrawer() { var dr = d.getElementById("dk-dt"); if (dr) dr.remove(); }
+        var marks = { bar: snap(pick("bar")), slice: snap(pick("slice")), tile: snap(pick("tile")) }, acts = {};
+        for (var i = 0; i < 3; i++) {
+          var k = ["bar", "slice", "tile"][i];
+          if (!pick(k)) { acts[k] = { missing: true }; continue; }
+          closeDrawer();
+          var entPrev = press(k, "Enter");
+          await new Promise((r) => setTimeout(r, 300));
+          var entTitle = drawerTitle();
+          closeDrawer();
+          await new Promise((r) => setTimeout(r, 200));
+          var spPrev = press(k, " ");
+          await new Promise((r) => setTimeout(r, 300));
+          var spTitle = drawerTitle();
+          closeDrawer();
+          await new Promise((r) => setTimeout(r, 200));
+          press(k, "a"); // a key that means nothing here must open nothing
+          await new Promise((r) => setTimeout(r, 200));
+          var stray = drawerTitle();
+          closeDrawer();
+          acts[k] = { entPrev: entPrev, entTitle: entTitle, spPrev: spPrev, spTitle: spTitle, stray: stray };
+        }
+        // Coverage, not just samples: EVERY mark the vendor made clickable is promoted and named,
+        // and no mark that wasn't clickable was dragged into the tab order.
+        var all = [].slice.call(d.querySelectorAll("svg rect.bar, svg path"));
+        var clickable = all.filter(function (el) { return el.style.cursor === "pointer"; });
+        var promoted = clickable.filter(function (el) { return el.getAttribute("role") === "button" && el.getAttribute("tabindex") === "0"; });
+        var named = promoted.filter(function (el) { return (el.getAttribute("aria-label") || "").indexOf(": ") > 0; });
+        var inert = all.filter(function (el) { return el.style.cursor !== "pointer" && el.getAttribute("role") === "button"; });
+        ifr.remove();
+        return { marks: marks, acts: acts, clickable: clickable.length, promoted: promoted.length,
+          named: named.length, inert: inert.length,
+          hasFocusRing: /\[tabindex\]:focus-visible\{[^}]*outline:\s*2px/.test(html) };
+      } catch (e) { return { err: e.message }; }
+    });
+    ["bar", "slice", "tile"].forEach(function (k) {
+      var m = markKeyboard.marks && markKeyboard.marks[k], a = markKeyboard.acts && markKeyboard.acts[k];
+      ok("SWEEP574-3b: the exported " + k + " mark is a real button in the a11y tree (role=button, tabindex=0)",
+        !!m && m.role === "button" && m.tabindex === "0", JSON.stringify(markKeyboard));
+      ok("SWEEP574-3b: the " + k + " mark carries an explicit \"<label>: <value>\" accessible name (an SVG shape has no text of its own)",
+        !!m && !!m.aria && m.aria.indexOf(": ") > 0, JSON.stringify(m));
+      ok("SWEEP574-3b: Enter on a focused " + k + " mark opens the same detail drawer a click does",
+        !!a && !!a.entTitle && a.entPrev === true, JSON.stringify(a));
+      ok("SWEEP574-3b: Space opens it too, and its default is prevented so the dashboard doesn't scroll away",
+        !!a && !!a.spTitle && a.spPrev === true, JSON.stringify(a));
+      ok("SWEEP574-3b: an unrelated keypress on the " + k + " mark opens nothing",
+        !!a && a.stray === null, JSON.stringify(a));
+    });
+    ok("SWEEP574-3b: EVERY clickable mark in the export is promoted and named — no half-covered chart type",
+      markKeyboard.clickable > 0 && markKeyboard.promoted === markKeyboard.clickable && markKeyboard.named === markKeyboard.clickable,
+      JSON.stringify(markKeyboard));
+    ok("SWEEP574-3b: a mark with nothing bound to it stays inert — it is not dragged into the tab order",
+      markKeyboard.inert === 0, JSON.stringify(markKeyboard));
+    ok("SWEEP574-3b: the exported bundle still carries the [tabindex]:focus-visible ring, so a focused mark is visible",
+      markKeyboard.hasFocusRing === true, JSON.stringify(markKeyboard));
+
+    // Same reasoning as the KPI tile above: in the builder's own preview a click is an EDITING
+    // gesture, so the marks must stay out of that surface's tab order.
+    const markPreviewNotButton = await page.evaluate(async () => {
+      try {
+        var spec = await fetch("data/examples/feature-showcase.studio.json").then((r) => r.json());
+        var det = { da: "cost_detail", param: "label", noun: "invoice lines" };
+        spec.panels.forEach(function (p) {
+          if (["bars", "donut", "treemap"].indexOf(p.chart.type) >= 0) { p.detail = det; delete p.drill; }
+        });
+        var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true, mock: Studio.genMock(spec) });
+        var ifr = document.createElement("iframe");
+        ifr.style.cssText = "position:fixed;left:-9999px;width:1200px;height:1400px";
+        document.body.appendChild(ifr);
+        await new Promise((res) => { ifr.onload = res; ifr.srcdoc = html; });
+        await new Promise((r) => setTimeout(r, 1200));
+        var d = ifr.contentDocument;
+        var marks = [].slice.call(d.querySelectorAll("svg rect.bar, svg path"));
+        var promoted = marks.filter(function (el) { return el.getAttribute("role") === "button"; }).length;
+        ifr.remove();
+        return { marks: marks.length, promoted: promoted };
+      } catch (e) { return { err: e.message }; }
+    });
+    ok("SWEEP574-3b: in the Studio builder's preview no chart mark is promoted to a button (click-to-select is untouched)",
+      markPreviewNotButton.marks > 0 && markPreviewNotButton.promoted === 0, JSON.stringify(markPreviewNotButton));
+
     // ── Z8 slice 13: Stacked area gets its own type-specific options (smooth + legend) ──
     console.log("\n• Z8 areaStacked: smooth curve + legend toggle");
 
