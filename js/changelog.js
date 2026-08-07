@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 864,
+    title: 'On a connected workspace, the workspace itself decides who may sign in',
+    kind: 'fix',
+    ts: '2026-08-07T18:55:40.000Z',
+    items: [
+      'When you sign in with an email address and a Supabase workspace is selected, the app now asks that workspace\'s own sign-in service first, and treats its answer as final. Until now it checked a copy of your password kept in this browser first, and only asked the workspace if that copy did not match — so the copy on the device, not the workspace, was really deciding.',
+      'What that changes in practice: an administrator who changes or revokes someone\'s password sees it take effect everywhere at once, instead of waiting for each browser to catch up. And a password saved on a device is no longer a way in on its own.',
+      'Going offline still never locks you out. If the workspace genuinely cannot be reached — no network, or the browser blocks the request — the app falls back to signing you in on this device exactly as before. "We could not ask" is deliberately not treated as "the answer was no".',
+      'Nothing changes for local sign-in. Plain usernames, the built-in admin and demo accounts, and any local or non-Supabase workspace behave exactly as they always have; choosing "Local only (this browser)" on the sign-in screen puts you back on that path at any time.',
+      'A rejected password now says so plainly, and says that the workspace is what decided — so a wrong password is never mistaken for a missing account.',
+    ],
+  },
+  {
     v: 863,
     title: 'The one-click "Go live" now locks a workspace down exactly as tightly as the manual setup',
     kind: 'fix',

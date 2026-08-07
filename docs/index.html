@@ -1793,8 +1793,10 @@
       iterated (PBKDF2-SHA-256), so two accounts with the same password no longer look identical
       and a stolen user table can't be reversed with a lookup table. Older single-round digests
       are upgraded automatically the next time that person signs in; nobody has to re-enter
-      anything. Real per-user enforcement still comes from <strong>Supabase Auth +
-      Row-Level Security</strong> — local sign-in remains UX-level gating, as described above.</li>
+      anything. Real per-user enforcement comes from <strong>Supabase Auth +
+      Row-Level Security</strong>, and on a connected Supabase workspace an email sign-in is now
+      decided by that workspace's own Auth rather than by the digest mirrored here (see below).
+      Local and non-Supabase sign-in remains UX-level gating, as described above.</li>
     <li><strong>Exported dashboards never carry a secret.</strong> The export strips it and the
       finished file prompts once, in memory only, the first time it needs to query.</li>
   </ul>
@@ -1813,6 +1815,23 @@
       validates the URL and anon key — so it can't silently connect with the wrong identity.</li>
   </ul>
   <p><strong>Signing in on a new device is one step.</strong> Once a workspace is connected to a Supabase backend, a teammate can sign in on a brand-new browser by entering their <strong>email</strong> and password on the sign-in screen — the app verifies those straight against the backend's own Supabase Auth (GoTrue), then adopts their account locally. No admin needs to re-add them here first, this browser doesn't need to have seen the account before, and no password is ever mirrored between devices — the backend itself is the source of truth. (Signing in with a plain <em>username</em>, or on a local/non-Supabase workspace, works exactly as before.)</p>
+
+  <p><strong>On a connected Supabase workspace, the workspace decides who gets in.</strong> When you
+  sign in with an <em>email</em> and a Supabase workspace is selected, the app now asks that
+  workspace's own Supabase Auth <em>first</em> and takes its answer as final. If it says no, the
+  copy of your password digest that happens to be mirrored on this device gets no second vote —
+  so changing (or revoking) a password in the workspace takes effect everywhere immediately,
+  instead of waiting for each browser's mirror to catch up. Two deliberate exceptions:</p>
+  <ul>
+    <li><strong>Offline still works.</strong> If the workspace can't be reached at all — no
+      network, blocked by CORS — the app falls back to the local sign-in exactly as before. "We
+      couldn't ask" is never treated as "the answer was no", so losing your connection never locks
+      you out of your own device.</li>
+    <li><strong>Local accounts are unaffected.</strong> Plain usernames (including the
+      <code>admin</code> and <code>demo</code> demo accounts) and any local or non-Supabase
+      workspace sign in locally, as they always have. Choosing <strong>Local only (this
+      browser)</strong> in the Workspace picker puts you back on the local path.</li>
+  </ul>
 
   <h3>Picking a workspace on the sign-in screen</h3>
   <p>The sign-in screen has a <strong>Workspace</strong> picker above the username field, so a

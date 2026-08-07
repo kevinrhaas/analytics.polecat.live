@@ -47,7 +47,12 @@
       headers: { apikey: (cfg.key || "").trim(), "Content-Type": "application/json" },
       body: JSON.stringify({ email: cfg.authEmail, password: cfg.authPassword })
     }).catch(function (e) {
-      throw new Error("Could not reach Supabase Auth (network or CORS): " + e.message);
+      // N2 slice 3: the caller has to tell "the database refused you" apart from
+      // "we never reached the database" — the first must never fall back to a
+      // locally-stored password hash, the second must (an offline device).
+      var err = new Error("Could not reach Supabase Auth (network or CORS): " + e.message);
+      err.unreachable = true;
+      throw err;
     }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (data) {
         if (!res.ok || !data.access_token) throw new Error("Supabase Auth sign-in failed: " + (data.error_description || data.msg || data.error || ("HTTP " + res.status)));
@@ -423,7 +428,11 @@
         if (!uid) return { ok: false, error: "Sign-in failed." };
         return { ok: true, userId: uid };
       }, function (e) {
-        return { ok: false, error: (e && e.message) || "Sign-in failed." };
+        // `unreachable` distinguishes a network/CORS failure from a genuine
+        // rejection (N2 slice 3) — a REJECTION is the database's authoritative
+        // "no" and callers must honour it; UNREACHABLE means we simply never
+        // asked, so an offline caller may still fall back to its local path.
+        return { ok: false, unreachable: !!(e && e.unreachable), error: (e && e.message) || "Sign-in failed." };
       });
     },
 
