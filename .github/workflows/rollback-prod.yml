@@ -1,6 +1,6 @@
 name: Rollback prod
 
-# Undo the most recent qa→prod promotion. Dispatch-only. NEVER force-pushes
+# Undo the most recent stage→prod promotion. Dispatch-only. NEVER force-pushes
 # main: rollback is `git revert -m 1` of the promotion merge commit —
 # append-only history, so Guard main, stale clones and the platform janitor
 # all keep their assumptions.
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       merge_sha:
-        description: SHA of the promotion merge to revert (default = the most recent "Promote qa→prod" merge on main)
+        description: SHA of the promotion merge to revert (default = the most recent "Promote stage→prod" merge on main)
         required: false
 
 permissions:
@@ -36,10 +36,10 @@ jobs:
           git config user.email "bot@users.noreply.github.com"
           SHA="${{ inputs.merge_sha }}"
           if [ -z "$SHA" ]; then
-            SHA="$(git log --merges --grep='^Promote qa→prod' -n 1 --pretty=%H)"
+            SHA="$(git log --merges --grep='^Promote stage→prod' -n 1 --pretty=%H)"
           fi
           if [ -z "$SHA" ]; then
-            echo "::error::No 'Promote qa→prod' merge found on main and no merge_sha given."
+            echo "::error::No 'Promote stage→prod' merge found on main and no merge_sha given."
             exit 1
           fi
           SUBJECT="$(git log -1 --pretty=%s "$SHA")"

@@ -1,4 +1,4 @@
-// stage-preview.mjs — assemble a hosted preview of a pipeline stage (dev|qa)
+// stage-preview.mjs — assemble a hosted preview of a pipeline stage (dev|stage)
 // as a subdirectory of the production Pages artifact.
 //
 //   node tools/stage-preview.mjs <srcDir> <stage> [sha]
@@ -13,7 +13,7 @@
 // marketing + docs pages are relative-linked and just work from the subpath.
 // What still needs doing per page: rewrite the few root-absolute URLs,
 // inject <meta name="robots" content="noindex"> (no page ships a robots meta
-// today), and add the fixed stage banner (amber = dev, violet = qa).
+// today), and add the fixed stage banner (amber = dev, violet = stage).
 // The stage's sw.js is REPLACED with a self-unregistering stub — previews
 // never cache offline, and any stale preview SW cleans itself up.
 //
@@ -22,7 +22,7 @@
 // replaceAll preserves tables an older build doesn't recognize, so a newer
 // preview build's data can no longer be deleted by production code.
 //
-// Excluded from the copy: .git, .github, /dev/, /qa/, CNAME, node_modules.
+// Excluded from the copy: .git, .github, /dev/, /stage/, CNAME, node_modules.
 // Runs inside deploy.yml; the caller skips it while the stage ref doesn't
 // exist, so this is safe to merge before the pipeline is activated.
 import { readFile, writeFile, cp, rm, readdir, stat } from "node:fs/promises";
@@ -30,15 +30,15 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 const [srcDir, stage, sha = ""] = process.argv.slice(2);
-if (!srcDir || !["dev", "qa"].includes(stage)) {
-  console.error("usage: node tools/stage-preview.mjs <srcDir> <dev|qa> [sha]");
+if (!srcDir || !["dev", "stage"].includes(stage)) {
+  console.error("usage: node tools/stage-preview.mjs <srcDir> <dev|stage> [sha]");
   process.exit(2);
 }
 
-const EXCLUDE = new Set([".git", ".github", "dev", "qa", "CNAME", "node_modules"]);
+const EXCLUDE = new Set([".git", ".github", "dev", "stage", "CNAME", "node_modules"]);
 const COLORS = {
   dev: "linear-gradient(135deg,#fbbf24,#d97706)", // amber — work in progress
-  qa: "linear-gradient(135deg,#a78bfa,#7c3aed)", // violet — release candidate
+  stage: "linear-gradient(135deg,#a78bfa,#7c3aed)", // violet — release candidate
 };
 
 await rm(stage, { recursive: true, force: true });

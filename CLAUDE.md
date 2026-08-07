@@ -11,20 +11,20 @@ runs skip this app).
 
 ## How work ships (the promotion pipeline — read docs/PIPELINE.md)
 
-- **This repo is on the dev → qa → main pipeline** (rollout #2 of the
+- **This repo is on the dev → stage → main pipeline** (rollout #2 of the
   jobtracker pilot; that repo's docs/PIPELINE.md is the canonical runbook).
   Branch `steward/<topic>` off latest **dev** → ONE coherent unit of work →
   PR **into dev** → merge when the dev gate is green (`ci.yml`: validate +
   changelog-check + `tools/dev-smoke.mjs`). **Merge-to-dev is STAGE, not
-  ship** — it publishes only the `/dev/` preview. `promote-to-qa.yml` (on
-  command, or nightly at 07:00Z per `.github/pipeline.json`) moves dev→qa
-  under the FULL `tests/run.js` suite + a staged-form boot smoke, rolling qa
-  back on red; `promote-to-prod.yml` (dispatch-only) ships qa→main with a
+  ship** — it publishes only the `/dev/` preview. `promote-to-stage.yml` (on
+  command, or nightly at 07:00Z per `.github/pipeline.json`) moves dev→stage
+  under the FULL `tests/run.js` suite + a staged-form boot smoke, rolling stage
+  back on red; `promote-to-prod.yml` (dispatch-only) ships stage→main with a
   `release-vNNN` tag. **Hotfix exception:** a production emergency still PRs
   straight into main — deploy stays ungated, Guard main watches, and the next
   promotion back-merges the fix into dev. Never hard-gate deploy on CI — a
   hard `needs: test` gate once froze the live site ~21 hours (STATUS.md "CI /
-  deploy"); the qa gate is fine because it gates an integration branch, never
+  deploy"); the stage gate is fine because it gates an integration branch, never
   the deploy. Park work for Kevin ONLY via the `hold` label plus a written
   explanation on the PR. Stamp the changelog BEFORE merging to dev — nothing
   stamps later in the pipeline.

@@ -1,4 +1,4 @@
-# The promotion pipeline on analytics — dev → qa → main (prod)
+# The promotion pipeline on analytics — dev → stage → main (prod)
 
 Analytics is **rollout #2** of the fleet's staged-delivery pipeline. The
 **canonical runbook is `kevinrhaas/jobtracker.polecat.live` →
@@ -11,7 +11,7 @@ had to become safe first — it is now (`replaceAll` preserves unknown tables).
 
 - **Stage assembly is a base-href swap** (`tools/stage-preview.mjs`):
   `app/index.html` + `app/viewer.html` anchor everything to `<base href="/"/>`
-  — re-pointing that one tag at `/qa/` or `/dev/` re-roots the whole app,
+  — re-pointing that one tag at `/stage/` or `/dev/` re-roots the whole app,
   including the (relative) service-worker registration, which lands on the
   stage's own self-unregistering stub with the stage's own scope. Marketing +
   docs pages are relative-linked and just work. The artifact also gains a
@@ -21,10 +21,10 @@ had to become safe first — it is now (`replaceAll` preserves unknown tables).
     (the Guard-main syntax sweep, extracted) + `tools/changelog-check.js` +
     **`tools/dev-smoke.mjs`** — a fast boot smoke (marketing, app past the
     gate, docs; desktop + 390px; zero pageerrors). This is the "area test".
-  - *QA gate* (`promote-to-qa.yml`): the **FULL `tests/run.js` suite**
-    (~2,900 checks) on the qa tree, **then** the staged `/qa/` form is
-    assembled and boot-smoked (`SMOKE_PREFIX=/qa`), so staging bugs are
-    caught too. Red → qa rolls back automatically + an issue is filed.
+  - *Stage gate* (`promote-to-stage.yml`): the **FULL `tests/run.js` suite**
+    (~2,900 checks) on the stage tree, **then** the staged `/stage/` form is
+    assembled and boot-smoked (`SMOKE_PREFIX=/stage`), so staging bugs are
+    caught too. Red → stage rolls back automatically + an issue is filed.
 - **No `/v/` archive**: prod promotion tags `release-vNNN` (from
   `js/changelog.js` `LATEST_VERSION`) as the rollback anchor;
   `rollback-prod.yml` is `git revert -m 1` of the promotion merge — main is
@@ -41,7 +41,7 @@ had to become safe first — it is now (`replaceAll` preserves unknown tables).
 ## How work ships now
 
 Feature work: branch off **dev** → PR **into dev** → dev gate green → merge.
-That *stages* it at `/dev/`. Promotion to `/qa/` happens on command (Manager's
+That *stages* it at `/dev/`. Promotion to `/stage/` happens on command (Manager's
 Pipeline view / workflow dispatch) or on the overnight schedule, under the
 full suite. Production ships **only** on an explicit `promote-to-prod`
 dispatch. Manager's Pipeline section picks this repo up automatically (it
@@ -50,6 +50,6 @@ probes for `.github/pipeline.json`).
 ## Activation
 
 Merging the adoption PR activates nothing. To go live: dispatch
-**`pipeline-setup.yml`** (creates `dev` + `qa` from main, publishes the first
-previews), verify `/`, `/qa/`, `/dev/`, then dispatch **`promote-to-qa.yml`**
+**`pipeline-setup.yml`** (creates `dev` + `stage` from main, publishes the first
+previews), verify `/`, `/stage/`, `/dev/`, then dispatch **`promote-to-stage.yml`**
 once and watch it run the full suite end-to-end.

@@ -1,6 +1,6 @@
 {
-  "_doc": "Promotion-pipeline config (dev → qa → main). DATA file, like polecat-platform's .github/steward/focus.json — editing it is a sanctioned direct commit to main (sessions: pull → edit → push; Manager's Pipeline view: contents-API PUT with sha compare-and-swap). Changes take effect on the next hourly tick of promote-to-qa.yml. Fields: promoteToQa.enabled turns the scheduled dev→qa promotion on/off entirely; paused is a soft hold (schedule keeps ticking, does nothing); everyHours is the cadence; offset anchors which UTC hour the cadence counts from (7Z ≈ 2am Central — overnight, per Kevin); window [start,end) limits promotions to those UTC hours. Manual dispatches of promote-to-qa.yml ignore the schedule. qa→prod promotion is promote-to-prod.yml, dispatch-only, and refuses while the latest qa promotion run is red unless requireGreenQaForProd is false or the dispatch passes force.",
-  "promoteToQa": {
+  "_doc": "Promotion-pipeline config (dev → stage → main). DATA file, like polecat-platform's .github/steward/focus.json — editing it is a sanctioned direct commit to main (sessions: pull → edit → push; Manager's Pipeline view: contents-API PUT with sha compare-and-swap). Changes take effect on the next hourly tick of promote-to-stage.yml. Fields: promoteToStage.enabled turns the scheduled dev→stage promotion on/off entirely; paused is a soft hold (schedule keeps ticking, does nothing); everyHours is the cadence; offset anchors which UTC hour the cadence counts from (7Z ≈ 2am Central — overnight, per Kevin); window [start,end) limits promotions to those UTC hours. Manual dispatches of promote-to-stage.yml ignore the schedule. stage→prod promotion is promote-to-prod.yml, dispatch-only, and refuses while the latest stage promotion run is red unless requireGreenStageForProd is false or the dispatch passes force.",
+  "promoteToStage": {
     "enabled": true,
     "paused": false,
     "everyHours": 24,
@@ -9,8 +9,8 @@
   },
   "gates": {
     "devGate": "tools/validate.mjs + tools/changelog-check.js + tools/dev-smoke.mjs (ci.yml on PRs into dev and pushes to dev)",
-    "qaSuite": "the FULL tests/run.js suite on the qa tree, then dev-smoke against the STAGED /qa/ form (promote-to-qa.yml)",
-    "qaSuiteTimeoutMinutes": 45
+    "stageSuite": "the FULL tests/run.js suite on the stage tree, then dev-smoke against the STAGED /stage/ form (promote-to-stage.yml)",
+    "stageSuiteTimeoutMinutes": 45
   },
-  "requireGreenQaForProd": true
+  "requireGreenStageForProd": true
 }

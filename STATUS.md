@@ -1,9 +1,9 @@
 # Analytics Dashboard Studio — STATUS (product playbook + resume anchor)
 
 > **⚡ PIPELINE UPDATE (2026-08-07, supersedes the branch/merge target below): this repo is now on
-> the dev → qa → main promotion pipeline (rollout #2 of the jobtracker pilot — read
+> the dev → stage → main promotion pipeline (rollout #2 of the jobtracker pilot — read
 > `docs/PIPELINE.md` + CLAUDE.md "How work ships"). Feature PRs target `dev` (light gate),
-> promotion to qa runs the FULL suite (nightly 07:00Z or on command, auto-rollback on red),
+> promotion to stage runs the FULL suite (nightly 07:00Z or on command, auto-rollback on red),
 > prod ships only by explicit dispatch. Hotfix-to-main stays as the documented exception.
 > Everything else in the protocol below (changelog contract, STATUS discipline, one unit of
 > work, hold label) is unchanged.**
@@ -133,22 +133,22 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
-- **PIPELINE — analytics adopts staged dev → qa → prod delivery (v835, sw v467,
+- **PIPELINE — analytics adopts staged dev → stage → prod delivery (v835, sw v467,
   2026-08-07, dedicated session; rollout #2 of the jobtracker pilot, Kevin request):**
-  `tools/stage-preview.mjs` assembles `/dev/` + `/qa/` previews inside the Pages
+  `tools/stage-preview.mjs` assembles `/dev/` + `/stage/` previews inside the Pages
   artifact via ONE root-absolute rewrite (which also re-points `<base href="/"/>`,
   re-rooting the whole app incl. the relative SW registration onto the stage's
   self-unregistering stub; noindex + generated robots.txt + stage banner);
   `tools/dev-smoke.mjs` is the new LIGHT gate (marketing + app-past-gate + docs,
   desktop + 390px, zero pageerrors; SMOKE_PREFIX re-points it at a staged form);
   `tools/validate.mjs` extracts Guard-main's dual-parse syntax sweep so Guard main /
-  ci.yml / promote-to-qa agree. Workflows: pipeline-setup (idempotent branch
-  creation), ci (dev gate: validate + changelog-check + dev-smoke), promote-to-qa
+  ci.yml / promote-to-stage agree. Workflows: pipeline-setup (idempotent branch
+  creation), ci (dev gate: validate + changelog-check + dev-smoke), promote-to-stage
   (hourly cron gated by `.github/pipeline.json` — nightly 07:00Z ≈ 2am CT — or
-  dispatch; back-merges main→dev, merges dev→qa, runs the FULL tests/run.js suite
-  on the qa tree THEN boot-smokes the staged /qa/ form, force-with-lease rollback
-  of qa + an issue on red, deploy dispatch on green), promote-to-prod (dispatch-only,
-  requires green qa unless forced, tags release-vNNN from LATEST_VERSION — no /v/
+  dispatch; back-merges main→dev, merges dev→stage, runs the FULL tests/run.js suite
+  on the stage tree THEN boot-smokes the staged /stage/ form, force-with-lease rollback
+  of stage + an issue on red, deploy dispatch on green), promote-to-prod (dispatch-only,
+  requires green stage unless forced, tags release-vNNN from LATEST_VERSION — no /v/
   archive here), rollback-prod (revert -m 1, never force-push main); deploy.yml
   assembles main at `/` + both previews (no-op until the refs exist — merging
   activated nothing until pipeline-setup was dispatched); auto-revert.yml learns
@@ -156,11 +156,11 @@
   doctrine); previews share localStorage SAFELY because of AUD-04 (v834). CLAUDE.md
   ship section + the STATUS header note rewritten; canonical runbook =
   jobtracker's docs/PIPELINE.md, analytics deltas in this repo's docs/PIPELINE.md.
-  Verified locally: staged /qa/ assembly (base re-root, stub SW, robots) + dev-smoke
+  Verified locally: staged /stage/ assembly (base re-root, stub SW, robots) + dev-smoke
   green on BOTH the production and staged forms + schedule evaluator sanity.
 - **AUD-04 ★★ — the data-loss cluster, closed (v834, sw v466, 2026-08-06, dedicated
   session; AUDIT-2026-08.md §1.2):** the three quiet data-loss paths and THE
-  PRECONDITION for analytics joining the dev→qa→prod promotion pipeline (rollout #2
+  PRECONDITION for analytics joining the dev→stage→prod promotion pipeline (rollout #2
   after the jobtracker pilot — previews share the origin's localStorage, so an
   older build adopting over a newer build's data had to become safe first).
   (1) `Workspace.replaceAll` now PRESERVES tables this build doesn't know about:
@@ -8542,7 +8542,7 @@
 > section. Any Kevin follow-up spawned here ships under the fleet KH-### series
 > (see Conventions + `kevinrhaas/polecat-platform` docs/KH-REGISTER.md).
 > Interleave with the feature backlog; the four P1s first when a slot is free.
-> AUD-04 (now SHIPPED v834) was ALSO the precondition for analytics joining the dev→qa→prod
+> AUD-04 (now SHIPPED v834) was ALSO the precondition for analytics joining the dev→stage→prod
 > promotion pipeline (rollout #2 after the jobtracker pilot).
 >
 > - **AUD-01 ★★ [data] Supabase atomic save** (§1.2). The default backend is the
@@ -8565,7 +8565,7 @@
 >   copy honest about what's plaintext-local vs synced.
 > - ~~AUD-04 ★★ [data] Data-loss cluster~~ ✓ **SHIPPED v834, sw v466
 >   (2026-08-06, dedicated session — see DONE). The pipeline precondition is
->   MET: analytics is clear to adopt the dev→qa→prod pipeline (rollout #2).**
+>   MET: analytics is clear to adopt the dev→stage→prod pipeline (rollout #2).**
 >   Original: (§1.2) `replaceAll()` must PRESERVE tables it doesn't know about
 >   (`app/sources/workspace.js:124-151` currently drops them — a v5→v4→push
 >   loses the v5 table); `persist()` must surface quota failure instead of
