@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 860,
+    title: 'Project housekeeping: the backlog gets a readable archive',
+    kind: 'polish',
+    ts: '2026-08-07T16:42:18.000Z',
+    items: [
+      'Nothing in the app changes with this one. It is repo housekeeping, noted here because the whole backlog is public: the project playbook (STATUS.md) had grown past 15,800 lines, and you could no longer tell what was still open from what had already shipped.',
+      'Seven finished tracks — the August audit, the July geo/mapping track, the mobile track, the post-overhaul backlog and three others — moved word-for-word into a new docs/BACKLOG-ARCHIVE.md. Nothing was deleted; every one of them still sits under its original heading, so old links and searches land where they always did.',
+      'Where a finished track had left a loose end behind, the note left in its place names that loose end explicitly, so it stays visible in the working queue instead of disappearing into the archive with the rest.',
+      'A new index at the top of the backlog lists what is left and whether it is still live.',
+    ],
+  },
+  {
     v: 859,
     title: 'Chart tooltips open on keyboard focus, not just on hover',
     kind: 'polish',
