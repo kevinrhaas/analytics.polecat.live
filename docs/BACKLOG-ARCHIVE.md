@@ -1136,3 +1136,55 @@
 > new m-f) once that confirms the fix actually lands on-device, or if the user reports something
 > still broken.
 > Keep the desktop experience untouched (scope changes to `≤900px` / touch). Update `docs` + STATUS each slice.
+
+## ✓ Shipped out of the ▶ NOW queue (grooming pass, 2026-08-07)
+
+> Struck entries moved verbatim from STATUS.md ▶ NOW per docs/BACKLOG.md grooming.
+
+- ~~**N1 ★★ — Make this file navigable again (the queue's own precondition).**~~ ✓ **SHIPPED
+  2026-08-07 (steward — see DONE, "N1: STATUS.md splits").** All seven drained tracks moved
+  verbatim into `docs/BACKLOG-ARCHIVE.md`, each leaving a pointer stub that ALSO names the
+  live tails it left behind (AUD-01/06/07/08/11's tails, LF43 slice 2, the mobile
+  real-device check, Viridis' four parked questions) so nothing went quiet in the move.
+  A 🗂 Reservoir index now sits directly under this NOW block, so a track is findable and
+  "is this still open?" is answerable without scrolling. STATUS.md 15,869 → 14,947 lines.
+  Deliberately NOT done: the remaining live reservoir sections stay in place — pruning them
+  is a judgement call per track, not this slice's mechanical move.
+  Original: STATUS.md is
+  ~15,700 lines; NEXT alone is ~6,300 across 32 subsections, and open-vs-shipped can no
+  longer be determined by reading or grepping it — cross-references in DONE match nearly
+  every open item, so tooling and humans both mis-answer "what is left." Split it: move the
+  DRAINED tracks (mobile 2026-07-02, post-overhaul 07-13, Viridis/geo 07-16, Conservation
+  M1–M2 07-21, the locked build order 07-27, and the AUDIT-2026-08 block now that
+  AUD-01…12 are all shipped) into `docs/BACKLOG-ARCHIVE.md` with a pointer left behind.
+  NEXT keeps only this NOW queue plus genuinely-live reservoir sections. Nothing is
+  deleted — it moves. Docs-only, so the dev gate is the whole gate.
+- ~~**N3 ★ — a11y: show the mark tooltip on keyboard focus.**~~ ✓ **SHIPPED v859, sw v491
+  (2026-08-07, steward — see DONE, "SWEEP574-3b tail").** `tipOnFocus()` in
+  `app/studio-charts.js` opens the same tooltip card on `:focus-visible`, anchored to the
+  mark instead of to a cursor that isn't there; Escape dismisses it without moving focus
+  (WCAG 1.4.13); the mouse path and `vendor/dashkit.js` are both untouched. 7 new checks,
+  and the FULL suite was run as this item asked (3078 passed, 0 failed), not just the dev
+  gate. Table rows are the one deliberate exclusion — a row's cells already ARE its values.
+  Original: SWEEP574-3/3b shipped keyboard
+  activation for KPI tiles, the SVG mark families and table rows, and names exactly one
+  remaining gap: the hover tooltip never appears for a keyboard user, so a focused mark
+  announces its label but not its value context. Ships inside every exported dashboard →
+  full `tests/run.js`, not just the dev gate.
+- ~~**N6 ★ — Turn the "Dave" north-star into an automated acceptance test.**~~ ✓ **SHIPPED
+  v861, sw v493 (2026-08-07, steward — see DONE, "N6: the 'Dave' north-star becomes an
+  automated acceptance test").** 11 checks walk the whole story in two contexts through the
+  real Add-user form and the real gate form, ending on a fresh 390×780 phone. It failed at
+  first exactly as this item predicted, and the fix shipped in the same slice
+  (GREET-AFTER-SIGNIN: the welcome painted behind the sign-in gate before any identity
+  existed, and the post-sign-in re-open no-oped on it — a provisioned user burned their
+  one-shot welcome on a generic greeting). Still open as a second slice: the no-binding
+  device using the WORKSPACE-LOGIN picker, and the same walk for a `viewer` role.
+  Original: The onboarding
+  epic's whole point is one end-to-end story: an admin provisions a user once; that user
+  signs in on a FRESH browser and lands in a fully-configured workspace — role, theme,
+  sample pack, backend connection, and the pack tour. Today that is a manual demo nobody
+  re-runs. Make it a real suite check driving the actual UI in a clean context, so the
+  pieces (LF39/LF40/LF41/LF42) can never silently regress apart from each other. Failing at
+  first is fine and informative — write it against the intended behavior and fix what it
+  catches, one slice at a time.
