@@ -1676,6 +1676,16 @@
   saving a View then fails with "HTTP 404 writing analyses". The Settings card shows the one-time
   upgrade SQL in a copyable block: paste it into <strong>Supabase → SQL editor</strong>, run it
   once, then hit <strong>Retry now</strong> and the pending changes push up.</p>
+  <p><strong>Atomic saves (Supabase).</strong> A Supabase workspace normally saves one table at a
+  time, so a connection dropped part-way through a push can leave it half-written — the newest
+  dashboards saved, say, but not the datasets they read. Installing one small database function
+  makes every save a single transaction instead: it either fully lands or fully rolls back. The
+  <strong>Settings → Workspace backend</strong> card says which state your workspace is in, and
+  offers the one-time SQL with a <strong>Copy SQL</strong> button when it isn't atomic yet — paste
+  it into <strong>Supabase → SQL editor</strong> and run it once. It changes no data, runs under
+  your own database permissions, and is safe to run twice. Workspaces provisioned from now on get
+  it as part of the bootstrap script; ones that skip it keep saving exactly as before. (Turso and
+  Firebase workspaces were already atomic — nothing to do there.)</p>
   <p>Sync is also hardened against a flaky network or backend: a single failed request (a rate-limit 429, a 5xx, a dropped connection) retries once on the spot before anything is reported, automatic pushes keep a minimum spacing so rapid editing can't hammer the backend into rate limits, and the Settings backend card shows a <strong>Recent sync activity</strong> log — the last several push/pull attempts with the exact error text for any that failed, so "it keeps reconnecting" always has a readable reason attached.</p>
   <p>Syncing works in both directions on its own: besides pushing your changes up, the app
   <strong>quietly checks the backend</strong> every couple of minutes and whenever you return to

@@ -225,6 +225,152 @@
   }
   window.__studioRlsRemedy = rlsRemedyMessage; // KEVIN-LIVE-2 test hook
 
+  // ---- AUD-01: saving the workspace (audit §1.2) -----------------------------
+  // Two shapes, one behaviour. saveAtomic() hands the WHOLE snapshot to the
+  // polecat_workspace_save() Postgres function (WS.atomicSaveSQL) — a PL/pgSQL
+  // function is a single transaction, so the push either fully lands or fully
+  // rolls back. saveSequential() is the historical per-table push, kept
+  // verbatim for workspaces that have not installed the function: it is a
+  // SEQUENCE of independent PostgREST writes, so a connection dropped part-way
+  // leaves the workspace HALF SAVED — some tables new, some old, nothing to
+  // roll it back. That was the AUD-01 finding, and Supabase (the default
+  // backend) was the only adapter with it: Turso batches, Firebase
+  // upserts-then-prunes.
+  // Resolved lazily, never at load: this file is also bundled STANDALONE into
+  // exported dashboards, where schema.js is absent and `WS` is undefined (see
+  // pgQueryData's note above). Only the builder ever calls the save path.
+  function atomicRpc() { return "/rpc/" + WS.ATOMIC_SAVE_FN; }
+  var _atomic = {};        // project URL -> true (function present) | false (absent)
+  var _atomicPending = {}; // project URL -> the one in-flight capability probe
+  function atomicKey(cfg) {
+    try { return projectBase(cfg); } catch (e) { return String((cfg && cfg.url) || ""); }
+  }
+  // The snapshot in the shape the function expects: rows per table, the
+  // explicitly-tombstoned ids per table (never users — sync is upsert-only
+  // there, v787), and the meta key/value rows.
+  function atomicPayload(snapshot, byTable) {
+    var tables = {}, tombstones = {};
+    var tombs = (snapshot.meta && snapshot.meta.tombstones) || {};
+    WS.TABLE_NAMES.forEach(function (t) {
+      tables[t] = byTable[t].map(function (rec) {
+        var o = { id: rec.id, data: rec.data };
+        Object.keys(rec.cols).forEach(function (k) { o[k] = rec.cols[k]; });
+        return o;
+      });
+      if (t === "users") return;
+      var prefix = t + "|";
+      var dead = Object.keys(tombs)
+        .filter(function (k) { return k.indexOf(prefix) === 0; })
+        .map(function (k) { return k.slice(prefix.length); });
+      if (dead.length) tombstones[t] = dead;
+    });
+    return {
+      tables: tables,
+      tombstones: tombstones,
+      meta: WS.metaRows(snapshot).map(function (m) { return { key: m.key, value: m.value }; })
+    };
+  }
+  function saveAtomic(cfg, snapshot, byTable) {
+    return rest(cfg, atomicRpc(), { method: "POST", body: JSON.stringify(atomicPayload(snapshot, byTable)) })
+      .then(function (r) {
+        if (r.status === 404) return { rpcMissing: true }; // not installed — fall back
+        if (!r.ok) {
+          return r.text().then(function (b) {
+            throw new Error("HTTP " + r.status + " in " + WS.ATOMIC_SAVE_FN + "(): " + String(b || "").slice(0, 140));
+          });
+        }
+        return { ok: true, atomic: true };
+      });
+  }
+  function saveSequential(cfg, snapshot, byTable) {
+    var chain = Promise.resolve();
+    // a write that lands on a missing table (v1 workspace, v2 client) must
+    // FAIL LOUDLY, not silently skip — rest() only throws on auth errors.
+    function mustOk(t) {
+      return function (r) {
+        if (r && r.ok === false) {
+          return r.text().then(function (b) {
+            throw new Error('HTTP ' + r.status + ' writing "' + t + '": ' + String(b || "").slice(0, 140));
+          });
+        }
+        return r;
+      };
+    }
+    WS.TABLE_NAMES.forEach(function (t) {
+      // USERS-DURABLE (Kevin live, 2026-07-31): the old shape here was
+      // DELETE-ALL then bulk insert. On the users table, under the admin-arm
+      // RLS posture, that SELF-DESTRUCTS: the delete succeeds (pusher is
+      // admin), which removes the very row that made them admin — the
+      // re-insert is then refused (users INSERT policy is admin-only), the
+      // wipe sticks, and with zero users rows NOBODY is admin, so no client
+      // can ever repair it. It emptied the live users table twice tonight.
+      // DURABLE-2 shape for EVERY table (generalizes USERS-DURABLE):
+      //   1) UPSERT the local rows FIRST — privilege state never vanishes
+      //      mid-push;
+      //   2) then delete ONLY ids the workspace explicitly TOMBSTONED
+      //      (meta.tombstones, written by Workspace.remove and synced in
+      //      the snapshot). ABSENCE IS NOT DELETION — a stale mirror that
+      //      never saw another device's rows has no tombstones for them,
+      //      so it can no longer target-delete them as "stale" (the exact
+      //      class that killed the freshly-provisioned fntest account).
+      //      This also retires the per-table ?select=id read the old
+      //      remote-vs-local diff needed, and the old trade-off where
+      //      deleting a table's LAST row never propagated.
+      //   3) users stays UPSERT-ONLY with NO deletes ever (v787) — account
+      //      removal is only the Admin flow's explicit deleteRows().
+      chain = chain.then(function () {
+        var rows = byTable[t].map(function (rec) {
+          var o = { id: rec.id, data: rec.data };
+          Object.keys(rec.cols).forEach(function (k) { o[k] = rec.cols[k]; });
+          return o;
+        });
+        var upsert = rows.length
+          ? rest(cfg, "/" + t, { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify(rows) }).then(mustOk(t))
+          : Promise.resolve(null);
+        return upsert.then(function () {
+          if (t === "users") return null;
+          var tombs = (snapshot.meta && snapshot.meta.tombstones) || {};
+          var prefix = t + "|";
+          var dead = Object.keys(tombs)
+            .filter(function (k) { return k.indexOf(prefix) === 0; })
+            .map(function (k) { return k.slice(prefix.length); });
+          var dp = Promise.resolve();
+          for (var i = 0; i < dead.length; i += 40) {
+            (function (chunk) {
+              dp = dp.then(function () {
+                var list = chunk.map(function (id) { return "%22" + encodeURIComponent(id) + "%22"; }).join(",");
+                return rest(cfg, "/" + t + "?id=in.(" + list + ")", { method: "DELETE" }).then(mustOk(t));
+              });
+            })(dead.slice(i, i + 40));
+          }
+          return dp;
+        });
+      });
+    });
+    return chain.then(function () {
+      var meta = WS.metaRows(snapshot).map(function (m) { return { key: m.key, value: m.value }; });
+      return rest(cfg, "/" + WS.META_TABLE, { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify(meta) }).then(mustOk(WS.META_TABLE));
+    }).then(function () { return { ok: true }; });
+  }
+  // One place that turns a thrown save error into the message the Settings
+  // card shows — including, when this workspace is still on the per-table
+  // push, the one-time SQL that makes its saves atomic. At most ONE paste-me
+  // block is ever attached: the card splits the message on "SQL editor: ".
+  function saveErrorMessage(cfg, e, sequential) {
+    var msg = e.message || String(e);
+    // v1 → v2 → v3 delta: Supabase can't DDL over REST, so a workspace that
+    // predates the analyses or jobs table needs one paste-me statement —
+    // say so instead of a bare 404.
+    if (/row-level security|permission denied/i.test(msg)) {
+      msg = rlsRemedyMessage(cfg, msg);
+    } else if (/analyses|jobs/.test(msg)) {
+      msg += " — your workspace predates the analyses/jobs tables. Run this once in Supabase → SQL editor: " + WS.provisionDeltaSQL();
+    } else if (sequential) {
+      msg += " — this workspace saves one table at a time, so a failure part-way through can leave it half-written. Run this once in Supabase → SQL editor: " + WS.atomicSaveSQL();
+    }
+    return msg;
+  }
+
   Studio.supabaseSource = {
     id: "supabase",
     label: "Supabase",
@@ -420,6 +566,7 @@
         .concat(meta.map(function (m) {
           return 'INSERT INTO "' + WS.META_TABLE + '"(key,value) VALUES(' + sqlLit(m.key) + ", " + sqlLit(m.value) + ") ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value;";
         }))
+        .concat(["", WS.atomicSaveSQL()]) // AUD-01: atomic from day one
         .concat(["", "-- Then enable Row-Level Security policies appropriate to your project", "-- before exposing the anon key beyond your own use."])
         .join("\n");
       return Promise.resolve({ ok: false, manual: true, sql: sql });
@@ -476,89 +623,48 @@
       });
     },
 
+    // AUD-01 (audit §1.2): the whole workspace in ONE transaction when this
+    // project carries the atomic-save function, the historical per-table push
+    // when it does not. See saveAtomic / saveSequential above.
     save: function (cfg, snapshot) {
       var byTable;
       try { byTable = WS.snapshotToRows(snapshot); } catch (e) { return Promise.resolve({ ok: false, error: e.message }); }
-      var chain = Promise.resolve();
-      // a write that lands on a missing table (v1 workspace, v2 client) must
-      // FAIL LOUDLY, not silently skip — rest() only throws on auth errors.
-      function mustOk(t) {
-        return function (r) {
-          if (r && r.ok === false) {
-            return r.text().then(function (b) {
-              throw new Error('HTTP ' + r.status + ' writing "' + t + '": ' + String(b || "").slice(0, 140));
-            });
-          }
-          return r;
-        };
-      }
-      WS.TABLE_NAMES.forEach(function (t) {
-        // USERS-DURABLE (Kevin live, 2026-07-31): the old shape here was
-        // DELETE-ALL then bulk insert. On the users table, under the admin-arm
-        // RLS posture, that SELF-DESTRUCTS: the delete succeeds (pusher is
-        // admin), which removes the very row that made them admin — the
-        // re-insert is then refused (users INSERT policy is admin-only), the
-        // wipe sticks, and with zero users rows NOBODY is admin, so no client
-        // can ever repair it. It emptied the live users table twice tonight.
-        // DURABLE-2 shape for EVERY table (generalizes USERS-DURABLE):
-        //   1) UPSERT the local rows FIRST — privilege state never vanishes
-        //      mid-push;
-        //   2) then delete ONLY ids the workspace explicitly TOMBSTONED
-        //      (meta.tombstones, written by Workspace.remove and synced in
-        //      the snapshot). ABSENCE IS NOT DELETION — a stale mirror that
-        //      never saw another device's rows has no tombstones for them,
-        //      so it can no longer target-delete them as "stale" (the exact
-        //      class that killed the freshly-provisioned fntest account).
-        //      This also retires the per-table ?select=id read the old
-        //      remote-vs-local diff needed, and the old trade-off where
-        //      deleting a table's LAST row never propagated.
-        //   3) users stays UPSERT-ONLY with NO deletes ever (v787) — account
-        //      removal is only the Admin flow's explicit deleteRows().
-        chain = chain.then(function () {
-          var rows = byTable[t].map(function (rec) {
-            var o = { id: rec.id, data: rec.data };
-            Object.keys(rec.cols).forEach(function (k) { o[k] = rec.cols[k]; });
-            return o;
-          });
-          var upsert = rows.length
-            ? rest(cfg, "/" + t, { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify(rows) }).then(mustOk(t))
-            : Promise.resolve(null);
-          return upsert.then(function () {
-            if (t === "users") return null;
-            var tombs = (snapshot.meta && snapshot.meta.tombstones) || {};
-            var prefix = t + "|";
-            var dead = Object.keys(tombs)
-              .filter(function (k) { return k.indexOf(prefix) === 0; })
-              .map(function (k) { return k.slice(prefix.length); });
-            var dp = Promise.resolve();
-            for (var i = 0; i < dead.length; i += 40) {
-              (function (chunk) {
-                dp = dp.then(function () {
-                  var list = chunk.map(function (id) { return "%22" + encodeURIComponent(id) + "%22"; }).join(",");
-                  return rest(cfg, "/" + t + "?id=in.(" + list + ")", { method: "DELETE" }).then(mustOk(t));
-                });
-              })(dead.slice(i, i + 40));
+      var key = atomicKey(cfg);
+      var sequential = _atomic[key] === false;
+      var run = sequential
+        ? saveSequential(cfg, snapshot, byTable)
+        : saveAtomic(cfg, snapshot, byTable).then(function (r) {
+            // ONLY a missing function falls back — an RLS refusal or a 5xx
+            // must never be retried as a half-write.
+            if (r && r.rpcMissing) {
+              _atomic[key] = false; sequential = true;
+              return saveSequential(cfg, snapshot, byTable);
             }
-            return dp;
+            _atomic[key] = true;
+            return r;
           });
-        });
-      });
-      return chain.then(function () {
-        var meta = WS.metaRows(snapshot).map(function (m) { return { key: m.key, value: m.value }; });
-        return rest(cfg, "/" + WS.META_TABLE, { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify(meta) }).then(mustOk(WS.META_TABLE));
-      }).then(function () { return { ok: true }; })
-        .catch(function (e) {
-          var msg = e.message || String(e);
-          // v1 → v2 → v3 delta: Supabase can't DDL over REST, so a workspace that
-          // predates the analyses or jobs table needs one paste-me statement —
-          // say so instead of a bare 404.
-          if (/row-level security|permission denied/i.test(msg)) {
-            msg = rlsRemedyMessage(cfg, msg);
-          } else if (/analyses|jobs/.test(msg)) {
-            msg += " — your workspace predates the analyses/jobs tables. Run this once in Supabase → SQL editor: " + WS.provisionDeltaSQL();
-          }
-          return { ok: false, error: msg };
-        });
+      return run.catch(function (e) { return { ok: false, error: saveErrorMessage(cfg, e, sequential) }; });
+    },
+
+    // Does this project carry the atomic-save function? "yes" | "no" |
+    // "unknown" (nothing has asked yet). Drives the Settings card row.
+    atomicState: function (cfg) {
+      var v = _atomic[atomicKey(cfg)];
+      return v === true ? "yes" : v === false ? "no" : "unknown";
+    },
+
+    // One cheap, side-effect-free round-trip that answers the same question
+    // before any save has run — the function s probe branch writes nothing.
+    // Concurrent callers share the one in-flight request; a network/auth
+    // fault answers nothing rather than guessing.
+    checkAtomic: function (cfg) {
+      var key = atomicKey(cfg);
+      if (_atomic[key] !== undefined) return Promise.resolve(_atomic[key]);
+      if (_atomicPending[key]) return _atomicPending[key];
+      _atomicPending[key] = rest(cfg, atomicRpc(), { method: "POST", body: JSON.stringify({ probe: true }) })
+        .then(function (r) { _atomic[key] = !!r.ok; }, function () {})
+        .then(function () { delete _atomicPending[key]; return _atomic[key]; });
+      return _atomicPending[key];
     },
 
     // ---- data plane ---------------------------------------------------------

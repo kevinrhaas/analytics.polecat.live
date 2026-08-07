@@ -78,6 +78,11 @@
   // The marker table every provisioned workspace carries.
   WS.META_TABLE = "polecat_meta";
 
+  // AUD-01: the Postgres function that saves a whole snapshot in ONE
+  // transaction (see atomicSaveSQL below). Named once here because both the
+  // SQL that creates it and the adapter that calls it have to agree.
+  WS.ATOMIC_SAVE_FN = "polecat_workspace_save";
+
   // Entity tables that make up THIS app's workspace, in dependency order
   // (connections before datasets before dashboards, so a relational restore
   // never violates a foreign-key-shaped expectation). `columns` are promoted
@@ -130,8 +135,95 @@
   // the ensure-DDL). Cumulative and idempotent (CREATE TABLE IF NOT EXISTS),
   // so it's safe to run against a v1 OR v2 workspace, and safe to run twice.
   WS.provisionDeltaSQL = function () {
-    return "-- Analytics workspace delta — adds the analyses (v2), jobs (v3) and users (v4) tables. Safe to run twice.\n" +
-      WS.tableDDL("analyses") + ";\n" + WS.tableDDL("jobs") + ";\n" + WS.tableDDL("users") + ";";
+    return "-- Analytics workspace delta — adds the analyses (v2), jobs (v3) and users (v4) tables\n" +
+      "-- plus the atomic-save function. Safe to run twice.\n" +
+      WS.tableDDL("analyses") + ";\n" + WS.tableDDL("jobs") + ";\n" + WS.tableDDL("users") + ";\n\n" +
+      WS.atomicSaveSQL();
+  };
+
+  // AUD-01 (audit §1.2) — the paste-me SQL for ATOMIC saves.
+  //
+  // PostgREST runs one statement per request, so a Supabase push is a SEQUENCE
+  // of independent writes (upsert connections, upsert datasets, delete
+  // tombstoned dashboards, …). Lose the connection half-way and the workspace
+  // is HALF SAVED — some tables carry the new state, some the old — with
+  // nothing to roll it back. Every other adapter is atomic (Turso batches;
+  // Firebase upserts-then-prunes); Supabase, the DEFAULT backend, was the
+  // outlier.
+  //
+  // A PL/pgSQL function IS a single transaction, so one RPC call carrying the
+  // whole snapshot either fully lands or fully rolls back. This is the
+  // one-time SQL that installs it; `supabase.js` calls it when it's there and
+  // falls back to the per-table push when it isn't, so an un-upgraded
+  // workspace keeps working exactly as before.
+  //
+  // Two deliberate properties, both load-bearing:
+  //   • SECURITY INVOKER (the default, stated explicitly) — every statement
+  //     inside still runs under the CALLER's Row-Level Security, exactly like
+  //     the per-table push. A SECURITY DEFINER function here would quietly
+  //     bypass the admin-arm posture and re-open the USERS-DURABLE wipe class.
+  //   • `users` is UPSERT-ONLY, forever (v787) — sync never deletes an account
+  //     row; removal is only ever the Admin flow's explicit deleteRows().
+  // Idempotent (CREATE OR REPLACE), safe to run twice.
+  WS.atomicSaveSQL = function () {
+    var tableList = WS.TABLE_NAMES.map(function (t) { return "'" + t + "'"; }).join(", ");
+    return "-- Analytics workspace — atomic saves. Installs polecat_workspace_save(jsonb): the whole\n" +
+      "-- workspace snapshot written in ONE transaction, so a dropped connection can never leave it\n" +
+      "-- half-saved. Runs under YOUR RLS policies (SECURITY INVOKER) and never deletes a users row.\n" +
+      "-- Safe to run twice.\n" +
+      'CREATE OR REPLACE FUNCTION public.' + WS.ATOMIC_SAVE_FN + '(payload jsonb)\n' +
+      "RETURNS jsonb\n" +
+      "LANGUAGE plpgsql\n" +
+      "SECURITY INVOKER\n" +
+      "SET search_path = public\n" +
+      "AS $polecat$\n" +
+      "DECLARE\n" +
+      "  t text;\n" +
+      "  cols text;\n" +
+      "  upd text;\n" +
+      "  rows_json jsonb;\n" +
+      "  dead jsonb;\n" +
+      "BEGIN\n" +
+      "  -- capability probe: the app asks 'are you here?' without writing anything\n" +
+      "  IF coalesce(payload->>'probe', '') = 'true' THEN\n" +
+      "    RETURN jsonb_build_object('ok', true, 'probe', true, 'version', 1);\n" +
+      "  END IF;\n" +
+      "  FOREACH t IN ARRAY ARRAY[" + tableList + "] LOOP\n" +
+      "    rows_json := coalesce(payload->'tables'->t, '[]'::jsonb);\n" +
+      "    IF jsonb_array_length(rows_json) > 0 THEN\n" +
+      "      -- Only touch columns the payload actually carries, so a column this\n" +
+      "      -- build has never heard of is left alone instead of nulled out\n" +
+      "      -- (the same shape PostgREST's merge-duplicates upsert has).\n" +
+      "      SELECT string_agg(quote_ident(c.column_name), ', ' ORDER BY c.ordinal_position),\n" +
+      "           string_agg(format('%I = excluded.%I', c.column_name, c.column_name), ', ' ORDER BY c.ordinal_position)\n" +
+      "             FILTER (WHERE c.column_name <> 'id')\n" +
+      "        INTO cols, upd\n" +
+      "        FROM information_schema.columns c\n" +
+      "       WHERE c.table_schema = 'public' AND c.table_name = t\n" +
+      "         AND EXISTS (SELECT 1 FROM jsonb_array_elements(rows_json) r WHERE r ? c.column_name);\n" +
+      "      EXECUTE format(\n" +
+      "        'INSERT INTO public.%I (%s) SELECT %s FROM jsonb_populate_recordset(null::public.%I, $1) ON CONFLICT (id) DO %s',\n" +
+      "        t, cols, cols, t,\n" +
+      "        CASE WHEN upd IS NULL THEN 'NOTHING' ELSE 'UPDATE SET ' || upd END)\n" +
+      "        USING rows_json;\n" +
+      "    END IF;\n" +
+      "    -- users is upsert-only: sync must never delete an account row\n" +
+      "    IF t <> 'users' THEN\n" +
+      "      dead := coalesce(payload->'tombstones'->t, '[]'::jsonb);\n" +
+      "      IF jsonb_array_length(dead) > 0 THEN\n" +
+      "        EXECUTE format('DELETE FROM public.%I WHERE id IN (SELECT jsonb_array_elements_text($1))', t)\n" +
+      "          USING dead;\n" +
+      "      END IF;\n" +
+      "    END IF;\n" +
+      "  END LOOP;\n" +
+      '  INSERT INTO public."' + WS.META_TABLE + '" (key, value)\n' +
+      "  SELECT m->>'key', m->>'value'\n" +
+      "    FROM jsonb_array_elements(coalesce(payload->'meta', '[]'::jsonb)) m\n" +
+      "  ON CONFLICT (key) DO UPDATE SET value = excluded.value;\n" +
+      "  RETURN jsonb_build_object('ok', true, 'version', 1);\n" +
+      "END;\n" +
+      "$polecat$;\n" +
+      'GRANT EXECUTE ON FUNCTION public.' + WS.ATOMIC_SAVE_FN + '(jsonb) TO anon, authenticated;';
   };
 
   // The paste-me SQL for the RLS-without-a-write-policy failure mode: a table
