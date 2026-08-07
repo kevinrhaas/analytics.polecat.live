@@ -6,6 +6,21 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 865,
+    title: 'Your workspace password is no longer kept on the device',
+    kind: 'fix',
+    ts: '2026-08-07T19:25:02.000Z',
+    items: [
+      'When you signed in to a connected workspace, the app used to save your password in this browser\'s storage and keep it there — not because you asked it to, but because it needed something to renew your sign-in with when it expired. It never needed the password for that.',
+      'Now it keeps the short-lived renewal pass the workspace hands out at sign-in instead, and only for as long as the browser session lasts. Your password is used once, to sign in, and is never written down. Any copy an earlier version left behind is deleted the next time you open the app — you will not be signed out when that happens.',
+      'The renewal pass is a weaker thing than a password by design: it only works with this one workspace, it cannot be used to change your account, and an administrator can cancel it without anyone having to change their password.',
+      'What you will notice: after closing the browser completely, a connected workspace asks for your password once more. The sign-in screen fills your email in for you, so it is one field and you are back in. Reloading a tab, or leaving one open, still does not ask.',
+      'That extra ask is also a safeguard. Before, a browser that could no longer prove who you were would quietly carry on as an anonymous visitor — which, on a workspace with per-person privacy switched on, looks exactly like an empty workspace. It now waits for you to sign in rather than showing you nothing and syncing that nothing back.',
+      'Signing out now ends the workspace session as well, so the next person to use the browser cannot pick up where you left off.',
+      'Nothing changes for local-only workspaces, the built-in admin and demo accounts, or workspaces that do not use per-person sign-in.',
+    ],
+  },
+  {
     v: 864,
     title: 'On a connected workspace, the workspace itself decides who may sign in',
     kind: 'fix',

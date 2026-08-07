@@ -1797,6 +1797,14 @@
       Row-Level Security</strong>, and on a connected Supabase workspace an email sign-in is now
       decided by that workspace's own Auth rather than by the digest mirrored here (see below).
       Local and non-Supabase sign-in remains UX-level gating, as described above.</li>
+    <li><strong>Your workspace password is never written to disk either.</strong> Signing in to a
+      connected Supabase workspace used to save it in local storage, so the app could renew your
+      sign-in when it expired. It now keeps the workspace's own short-lived <em>renewal token</em>
+      instead, for the current <em>browser session</em> only — the same treatment the encryption
+      passphrase gets. A renewal token is deliberately weaker than a password: it works only with
+      that one workspace, can't change your account, and an admin can cancel it without anyone
+      changing a password. Any password an earlier version left in storage is deleted the first
+      time this version loads, and you are not signed out when that happens.</li>
     <li><strong>Exported dashboards never carry a secret.</strong> The export strips it and the
       finished file prompts once, in memory only, the first time it needs to query.</li>
   </ul>
@@ -1832,6 +1840,15 @@
       workspace sign in locally, as they always have. Choosing <strong>Local only (this
       browser)</strong> in the Workspace picker puts you back on the local path.</li>
   </ul>
+
+  <p><strong>Once per browser session, you'll be asked again.</strong> Because the password isn't
+  kept on the device, a workspace session lasts as long as the browser session does. Reloading a
+  tab, or leaving one open, never asks; closing the browser completely and coming back does — with
+  your email already filled in, so it's one field. That ask is also a safeguard: a browser that can
+  no longer prove who you are would otherwise carry on as an anonymous visitor, and on a workspace
+  with per-person privacy switched on that looks exactly like an <em>empty</em> workspace. The app
+  waits for you to sign in rather than showing you nothing and syncing that nothing back. Signing
+  out ends the workspace session too, so the next person at this browser starts from scratch.</p>
 
   <h3>Picking a workspace on the sign-in screen</h3>
   <p>The sign-in screen has a <strong>Workspace</strong> picker above the username field, so a
