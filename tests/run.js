@@ -17376,6 +17376,43 @@ function serve() {
     ok("HOME-LAND (Kevin): a fresh sign-in always lands on the Home section, whatever this browser last had open",
       admLocal.section === "home", JSON.stringify({ section: admLocal.section }));
 
+    // ---- DEMO-LOCAL-2 (Kevin live mobile, 2026-08-07): a connected workspace's
+    // users-table import replaces the seeded rows wholesale, so a browser that
+    // once connected can carry an "admin" row with the workspace's foreign hash —
+    // and the on-screen "admin/admin — local workspace only" promise broke even
+    // with the picker on Local. The seed pair must still open the local
+    // workspace, and the stored (foreign) hash must NOT be rewritten. ----
+    const gpClb = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    gpClb.on("pageerror", (e) => errors.push("DEMO-LOCAL-2 page: " + e.message));
+    await gpClb.addInitScript(() => {
+      try {
+        localStorage.setItem("analytics.users.v1", JSON.stringify([
+          { u: "admin", name: "Workspace Admin", role: "admin", demo: false, hash: "a-foreign-workspace-hash" },
+          { u: "kevin@example.com", name: "Kevin", role: "admin", demo: false, hash: "", gotrueId: "uid-1" }
+        ]));
+      } catch (e) {}
+    });
+    await gpClb.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpClb.waitForSelector("#g-form", { timeout: 8000 });
+    await gpClb.fill("#g-user", "admin");
+    await gpClb.fill("#g-pass", "admin");
+    await gpClb.click("#g-form button[type=submit]");
+    await gpClb.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 8000 }).catch(() => {});
+    const clb = await gpClb.evaluate(() => ({
+      gateGone: !document.querySelector("#studio-gate"),
+      who: (window.PolecatAuth.current() || {}).u,
+      sourceId: Studio.Sync.syncState().sourceId,
+      // the imported row must keep its foreign hash — no silent reset that a
+      // later users-table mirror could push back into the real workspace
+      hash: (JSON.parse(localStorage.getItem("analytics.users.v1") || "[]")
+        .filter((x) => x.u === "admin")[0] || {}).hash
+    }));
+    await gpClb.close();
+    ok("DEMO-LOCAL-2 (Kevin mobile): admin/admin still opens the LOCAL workspace after a workspace users-import overwrote the seeded admin row's hash",
+      clb.gateGone && clb.who === "admin" && clb.sourceId === "local", JSON.stringify(clb));
+    ok("DEMO-LOCAL-2: the imported admin row's foreign hash is left untouched (nothing to mirror back into the workspace users table)",
+      clb.hash === "a-foreign-workspace-hash", JSON.stringify({ hash: clb.hash }));
+
     // ---- DEMO-LOCAL (Kevin, 2026-07-31): the demo is a LOCAL concept — entering
     // it must force the workspace back to Local even when a remote backend is
     // picked/bound (else the demo session pushes anonymous 403 noise at the

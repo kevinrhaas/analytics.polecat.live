@@ -357,6 +357,34 @@
           Auth.login(u); afterLogin(); return;
         }
         var known = !!Auth.find(u);
+        // DEMO-LOCAL-2 (Kevin live, 2026-08-07): the hint PROMISES admin/admin +
+        // demo/demo always open the local workspace — but a connected workspace's
+        // users-table import replaces the seeded rows wholesale (Auth.importFromStore),
+        // so a browser that once connected can carry an "admin" row with that
+        // workspace's foreign hash, and the promise broke even with the picker on
+        // Local. When the typed pair IS a seed pair and the target is the LOCAL
+        // workspace (demo always; admin when the picker says Local or under the
+        // supabase strictly-local rule above), sign in as the local demo account
+        // WITHOUT touching the stored row — no hash reset, so nothing can ever
+        // mirror back into a real workspace's users table. A custom (local-auth)
+        // workspace's admin stays real: no bypass when one is the picked target.
+        var seedPair = (u === "demo" && p === "demo") || (u === "admin" && p === "admin");
+        if (seedPair) {
+          var wsPick = document.getElementById("g-workspace");
+          var pickLocal = !wsPick || wsPick.value === "local";
+          var st2 = (window.Studio && Studio.Sync && Studio.Sync.syncState) ? Studio.Sync.syncState() : null;
+          if (u === "demo" || pickLocal || (st2 && st2.sourceId === "supabase")) {
+            if (deniedDisabled(u)) return;
+            var goLocal = function () { forceLocalWorkspace(); Auth.login(u); afterLogin(); };
+            if (known) { goLocal(); return; }
+            // The import dropped the row entirely — restore the seed account
+            // (adding a missing row is the ADMIN-LOCAL self-heal, always allowed).
+            Auth.upsert(u, u === "admin"
+              ? { name: "Administrator", role: "admin", demo: false, pass: "admin" }
+              : { name: "Demonstration User", role: "viewer", demo: true, pass: "demo" }).then(goLocal);
+            return;
+          }
+        }
         tryGotrueDirectAuth(u, p, function (done, why) {
           if (done) return;
           // GATE-ERR: the workspace's own auth REJECTED the password — say so

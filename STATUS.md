@@ -135,6 +135,19 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **DEMO-LOCAL-2 — admin/admin always opens the local workspace again (v839,
+  sw v471, 2026-08-07, Kevin live mobile):** on a browser that had connected to
+  a team workspace, `Auth.importFromStore` (wholesale users-table replace) left
+  an "admin" row carrying the WORKSPACE's hash — so admin/admin failed with
+  "Incorrect username or password" even with the gate picker on Local, breaking
+  the on-screen "local workspace only" promise. gate.js now catches a failed
+  verify whose typed pair IS a seed pair (admin/admin, demo/demo) and — when the
+  target is the local workspace (demo always; admin when the picker says Local
+  or under the supabase strictly-local rule) — signs in as the local demo
+  account WITHOUT touching the stored row (no hash rewrite → nothing a later
+  users-table mirror could push back into the real workspace; a missing row is
+  re-seeded, which was already the ADMIN-LOCAL self-heal). A custom local-auth
+  workspace's admin is never bypassed. Suite: 2 new DEMO-LOCAL-2 checks (390×780).
 - **AUD-03 ★★ — secrets hygiene: session-only vault passphrase + salted password
   digests (v838, sw v470, 2026-08-07, steward; AUDIT-2026-08.md §1.3):** the P1's
   three parts, shipped together.
