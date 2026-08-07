@@ -5,7 +5,8 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v475"; /* v475: SWEEP574-3b — bar/donut/treemap marks are keyboard-operable in exports; precached js/changelog.js, app/studio-charts.js, docs/index.html changed. */
+var CACHE_NAME = "studio-shell-v476"; /* v476: SWEEP574-3b (table family) — clickable table rows are keyboard-operable in exports; precached js/changelog.js, app/studio-charts.js, docs/index.html changed. */
+/* v475: SWEEP574-3b — bar/donut/treemap marks are keyboard-operable in exports; precached js/changelog.js, app/studio-charts.js, docs/index.html changed. */
 /* v471: DEMO-LOCAL-2 — admin/admin always opens the local workspace; precached app/gate.js, js/changelog.js changed. */
 /* v470: AUD-03 — session-only vault passphrase + salted/iterated password digests; precached js/changelog.js, app/auth.js, app/sources/sync.js, app/studio.js, app/connections.js changed. */
 /* v467: pipeline adoption — the precached
