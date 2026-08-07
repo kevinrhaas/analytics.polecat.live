@@ -135,6 +135,39 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **AUD-08 slice 2 — the service worker stops shipping its own history (v857, sw v489,
+  2026-08-07, steward; AUDIT-2026-08 §1.4, perf):** `sw.js` was **194,734 bytes** to deliver
+  about 5KB of worker. The other 185KB was 2,454 lines of `/* vNNN: … */` release notes —
+  one per cache bump since v19 — sitting between `"use strict"` and `SHELL_FILES`. The
+  browser re-fetches the service-worker script on every update check, so every visitor paid
+  for that prose repeatedly, and nothing read it at runtime.
+  - **Archived, not deleted.** All 433 notes (v19 → v488) are in **`docs/sw-history.md`**,
+    one `## vNNN` section each, text verbatim. The extraction was mechanical (parse the
+    comment blocks, split on version markers, assert the numbering is strictly decreasing —
+    433 sections, no duplicates, no dropped marker) rather than hand-copied, because a
+    hand-copied archive of 2,454 lines is an archive with holes in it.
+  - **The worker code is byte-identical.** `sw.js` is now **6,773 bytes**; everything from
+    `var SHELL_FILES = [` down diffs clean against the previous revision. What changed above
+    it: the header explains the new ritual (bump the number, that is all), and the durable
+    facts that were buried in those notes — *why* `app/viewer.*`, `docs/index.html`,
+    `vendor/maplibre/*` and `site/shots/*.png` are deliberately not precached, and that
+    `js/changelog.js` left the precache in slice 1 — are restated as a short conventions
+    comment above the list, where someone editing the list will actually read them.
+  - **The ritual is retired.** No per-bump note is expected any more: what shipped is
+    `js/changelog.js` (the changelog users read), and which precached files rolled is visible
+    in the commit that bumped the cache. That is what stops the file regrowing by habit.
+  - **The pin: a boot-path byte budget in `tools/validate.mjs`** — sw.js 16KB,
+    `js/changelog-head.js` 4KB — so a regression fails the **dev gate** (and Guard main, and
+    stage promotion; all three run validate) instead of accumulating quietly over another 400
+    releases. Generous headroom on purpose: it is a creep alarm, not a golf score. The suite
+    additionally pins the shape (no version-note block in sw.js, the archive still present),
+    and `tests/run.js`'s AUD-09 comment — which cited the now-absent notes block — was
+    corrected.
+  - CLAUDE.md's LOC figure moved ~56K → ~54K, since 2,454 lines left the first-party tree
+    that `tools/doc-truth.mjs` measures.
+  - **Deliberately NOT in this slice** (AUD-08's remaining, still in NEXT): incremental
+    `refreshPreview()` — the substantial half — plus the 52 render-blocking `<script src>`
+    tags in `app/index.html` and the ~20 boot-time `S.assets` fetches.
 - **AUD-11 — the copy/doc TRUTH pass (v856, sw v488, 2026-08-07, steward;
   AUDIT-2026-08 §3 + §2.4, docs):** the audit's last docs workstream. Every countable claim
   the app publishes about itself was re-measured against the thing it claims to count, and
@@ -9473,8 +9506,13 @@
 >   (2026-08-07, steward — see DONE):** boot loads a generated ~650-byte
 >   `js/changelog-head.js`; `Studio.loadChangelog()` fetches the history on demand
 >   (prefetched on hover/focus of either What's-new trigger); the big file is no longer
->   precached. **Still open:** trim the sw.js comment block (~2,450 lines of release
->   notes sitting ahead of `SHELL_FILES`); and the substantial half —
+>   precached. **SLICE 2 SHIPPED v857, sw v489 (2026-08-07, steward — see DONE):**
+>   the sw.js comment block is gone — 2,454 lines of per-bump release notes archived
+>   verbatim to `docs/sw-history.md`, taking the service worker from 194,734 to 6,773
+>   bytes (the worker code below `SHELL_FILES` is byte-identical), and the per-bump
+>   note ritual is retired in favour of the changelog + the commit diff. A boot-path
+>   byte budget in `tools/validate.mjs` (sw.js 16KB, changelog-head 4KB) makes the
+>   creep loud next time. **Still open:** the substantial half —
 >   make `refreshPreview()` incremental instead of a full ~570KB–4.4MB srcdoc
 >   re-parse from 208 call sites on a 130ms debounce. Also untouched and named in
 >   §1.4: the 52 render-blocking `<script src>` tags in `app/index.html` and the ~20
