@@ -135,6 +135,29 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **AUD-02 ★★ — escaped the confirmed XSS sinks (v837, sw v469, 2026-08-07,
+  steward; AUDIT-2026-08.md §1.1):** the four confirmed unescaped-`innerHTML`
+  sinks now escape their values before interpolating. `app/studio-charts.js`
+  table renderer: the bar-mode cell's display value (`:3069`, text context) and
+  a badge cell's `cls` (`:3072`, attribute context — quote-escaped) + `text`
+  (text context). `app/studio-charts.js` ensemble legend chip (`:6688`): the
+  provider name (sourced straight from query rows) and the swatch color token,
+  both escaped. `app/gate.js` workspace `<option>` list (`renderWorkspaceSelect`,
+  ~`:417-419`): `w.id` (attribute context) and `w.label` (text context) from an
+  imported/custom workspace entry (`studio-workspaces-custom`, an untrusted
+  imported access file). Two new local escapers: `esc3`/`escAttr3` in
+  studio-charts.js (that file runs inside the sandboxed export iframe where
+  `model.js` isn't inlined, so it can't reach `Studio.escapeHtml` — kept
+  standalone on purpose, same reasoning as the existing `he()`/`svgEsc`
+  carve-out, which this leaves untouched) and a tiny `escGate` in gate.js
+  (which itself executes before `model.js` loads in script order). The
+  export == live-preview byte-identity invariant holds — both render through
+  the same `studio-charts.js`. Five new suite checks: bar-cell and badge-cell
+  payloads render as inert text (no `<img>`/`<b>` tag, no attribute breakout,
+  no handler fires), the ensemble legend escapes a malicious provider name, and
+  the gate's workspace picker escapes an imported entry's id/label. Remaining
+  AUD-01/AUD-03 security scope (Supabase atomicity, secrets hygiene) is
+  untouched here — separate workstreams.
 - **PIPELINE — analytics adopts staged dev → stage → prod delivery (v835, sw v467,
   2026-08-07, dedicated session; rollout #2 of the jobtracker pilot, Kevin request):**
   `tools/stage-preview.mjs` assembles `/dev/` + `/stage/` previews inside the Pages
@@ -8554,12 +8577,8 @@
 >   `.catch(()=>{})` (`app/sources/supabase.js:450`) adopts a failed read as an
 >   empty table. Move to staged write-then-swap or a batched RPC; add the
 >   mid-save-failure-window test the suite lacks.
-> - **AUD-02 ★★ [security] Escape the confirmed XSS sinks** (§1.1):
->   `app/studio-charts.js:3069` (bar-cell), `:3072` (badge), `:6688` (ensemble
->   provider name), `app/gate.js:410-411` (imported-workspace `<option>`). The
->   chart sinks ship inside EVERY exported dashboard — fix in the toolkit source,
->   keep the export==preview byte-identity invariant, don't touch the
->   `he()`/`svgEsc` export-iframe carve-out. Add escaping regression tests.
+> - ~~AUD-02 ★★ [security] Escape the confirmed XSS sinks~~ ✓ **SHIPPED v837, sw v469
+>   (2026-08-07, steward — see DONE).**
 > - **AUD-03 ★★ [security] Secrets hygiene** (§1.3): stop persisting the
 >   secrets-vault passphrase (`analytics.datasource.secret.v1`) — make it
 >   session-only; migrate password hashing off unsalted single-round SHA-256

@@ -15,6 +15,13 @@
 (function () {
   "use strict";
   var Auth = window.PolecatAuth;
+  // AUD-02: gate.js renders before model.js loads (script order), so this stays a
+  // tiny standalone escaper rather than depending on Studio.escapeHtml.
+  function escGate(s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
   // HOTLINK-1 (Kevin, 2026-07-31): a handout sign-in link —
   //   https://analytics.polecat.live/app/#ws=polecat&user=EMAIL&pass=PASSWORD
   // picks the workspace and prefills the credentials so the recipient only has
@@ -408,7 +415,7 @@
       var sel = document.getElementById("g-workspace"); if (!sel) return;
       var cur = currentWorkspaceId();
       var html = workspaceList().map(function (w) {
-        return '<option value="' + w.id + '"' + (w.id === cur ? " selected" : "") + '>' + w.label + "</option>";
+        return '<option value="' + escGate(w.id) + '"' + (w.id === cur ? " selected" : "") + '>' + escGate(w.label) + "</option>";
       }).join("");
       if (cur === "__connected") html += '<option value="__connected" selected>Connected workspace (this browser)</option>';
       html += '<option value="__custom">Custom workspace…</option>' +
