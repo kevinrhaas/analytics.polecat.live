@@ -39,6 +39,12 @@ they branch from dev and PR into dev per the pipeline rules below.
   to stamp + canonicalize it YOURSELF before merging — nothing stamps after
   merge. `node tools/changelog-check.js` verifies with the manager's exact
   parser without writing (Guard main runs it).
+- **The database posture has its own test**: `node tests/rls.mjs` applies both
+  shipped RLS files (`tools/supabase-rls-real.sql`, `tools/supabase-deploy.sql`)
+  into throwaway `steward_test_rls_*` schemas on the live project and asserts an
+  unauthorized read is refused. Run it after ANY change to those files. It SKIPs
+  with exit 0 without `SUPABASE_PASSWORD`, and it never touches `public` — that
+  is enforced in the script, not just promised.
 - **Tests green before merge**: `NODE_PATH=$(npm root -g) node tests/run.js`
   (Playwright; global install, Chromium under `/opt/pw-browsers/`). Add a
   check per feature; **never weaken assertions to pass.** Zero pageerrors at

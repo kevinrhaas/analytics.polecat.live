@@ -135,6 +135,41 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N2 slice 1 — the live security posture gets an integration test, and it found a fresh-install
+  bug on its first run (v862, sw v494, 2026-08-07, steward — NOW item N2):**
+  `tools/supabase-rls-real.sql` has been the canonical Row-Level Security posture for every
+  Polecat analytics workspace database since it went live 2026-07-30, but it was only ever
+  proven **by hand** — a July steward run pasted it into a throwaway schema, read the counts and
+  dropped the schema (M7 slices 1 and 4). Nothing in the repo re-checked it afterwards, so an
+  edit that quietly reopened anonymous reads would have shipped unnoticed — which is precisely
+  the 2026-07-30 incident (one leftover `polecat_anon_all` policy ORs itself past every tighter
+  policy beside it). **New `tests/rls.mjs`** closes that: it creates a throwaway
+  `steward_test_rls_<random>` schema on the live project **for each of the two shipped
+  postures** — `supabase-rls-real.sql` (re-tighten existing tables) and `supabase-deploy.sql`
+  (the fresh one-file deploy, which calls itself the superset) — so "keep the two in sync",
+  until now an honour-system comment, is now something a run compares. Each schema carries
+  **the same anon/authenticated GRANTs live has** (so a refused read proves RLS, not a missing
+  privilege) and gets **the real file** — not a paraphrase, just re-pointed at the test schema
+  by rewriting its `public` references — and then impersonates anon,
+  two signed-in users and an admin via `request.jwt.claims`, which is what Supabase's
+  `auth.uid()`/`auth.jwt()` read. **27 checks per posture, 54 in all:** anon reads zero rows from all seven tables and
+  cannot write; a signed-in user sees public rows plus only their own private ones (including
+  the `datasets` `acctOwner` branch) and none of a co-worker's; an admin sees everything; the
+  `users` table shows a plain account only its own row; and updates, deletes, spoofed inserts
+  and non-admin `users` writes against someone else's rows are all rejected or filtered to zero.
+  **Safety is mechanical, not a promise:** `assertTestSchemaOnly()` refuses to send any statement
+  that still names `public`, `search_path` is pinned to the test schema, and the schema is
+  dropped in a `finally`. Without `SUPABASE_PASSWORD` the script SKIPs with exit 0, so it never
+  breaks a local run or the dev gate. **The bug it caught immediately:** the policy file created
+  policies calling `public.polecat_is_admin()` before defining it (§ 1 vs § 2 in the posture
+  file, § 3 vs § 4 in the deploy file), so the documented "run it top-to-bottom on a FRESH
+  project" path died on the first `CREATE POLICY`; it had survived only because a 2026-07-24
+  run left the function behind on this project. The helper is hoisted to a new § 0.5 / § 2.5 in
+  both files — a pure move, no policy logic touched, and the live posture is byte-for-byte the
+  same one. Verified: 54/54 green against the live project, plus TWO negative controls —
+  re-adding a single allow-all policy turns 8 checks red, and restoring the pre-fix deploy file
+  fails it outright — so the test and both fixes are load-bearing. **Est 2pt, this slice took 1**; the remaining point (the Edge Function's inlined
+  `RLS_REAL_SQL` has drifted weaker than the canonical posture) is written up on N2.
 - **N6: the "Dave" north-star becomes an automated acceptance test — and it immediately caught a
   real one (v861, sw v493, 2026-08-07, steward — NOW item N6):** the ONBOARDING & PROVISIONING
   EPIC is one story, not five features, but it was only ever tested as five: LF39 (cross-device
@@ -9497,15 +9532,32 @@
 > struck entries and propose the next batch to Kevin on a `hold` PR — never graze the
 > reservoir directly.
 
-- **N2 ★★ [2pt] — M7: real Row-Level Security enforcement (slice 1).** The standing security
-  debt. `app/auth.js` is explicit that today's model is honest UX-gating over a shared
+- **N2 ★★ [1pt remaining, est 2pt] — M7: real Row-Level Security enforcement.** The standing
+  security debt. `app/auth.js` is explicit that today's model is honest UX-gating over a shared
   local store, not isolation between users, and AUD-03 hardened the password digests
-  without changing that posture. Slice 1 is SERVER-SIDE ONLY: enable RLS on the workspace
-  tables, write the policy set (a signed-in user reads/writes their own workspace; the
-  users table stays upsert-only), and add a psql integration test that proves an
-  unauthorized read is refused. No client changes, no behavior change for existing users —
-  the client flip is a later slice behind the existing Admin go-live card. Use the
-  `steward_test` schema for experiments; never CREATE/DROP/ALTER against live `public`.
+  without changing that posture. **Slice 1 is SHIPPED (v862, 2026-08-07, steward — see DONE):
+  `tests/rls.mjs` installs BOTH shipped postures — `tools/supabase-rls-real.sql` and
+  `tools/supabase-deploy.sql` — each into its own throwaway `steward_test_rls_*` schema on the
+  live project, and proves in 27 checks apiece (54 total) that an unauthorized read is refused
+  (anon reads zero rows from all seven tables; a signed-in user sees public + only their own
+  private rows; writes against another user's rows are rejected or filtered to zero). It
+  caught a real fresh-install bug on its first run — BOTH files created policies calling
+  `polecat_is_admin()` a section before defining the function, so the documented
+  top-to-bottom run on a FRESH project died on its first CREATE POLICY. Fixed by hoisting the
+  helper in both.**
+  **What remains (slice 2 — SERVER-SIDE ONLY, no client changes):** the Edge Function's
+  inlined `RLS_REAL_SQL` (`supabase/functions/polecat-admin/sql.ts`) has DRIFTED from the
+  canonical `/tools` posture it is supposed to mirror — it is missing the admin arm on the
+  five owner/private tables, the explicit `TO authenticated` (its policies still apply to
+  `anon`), the `users` email-claim arm from GATE-FIX-2, the `polecat_meta` policy and the
+  RLS-enable/legacy-policy-drop loop. So an in-app **Admin → Go live** on a fresh project
+  installs a WEAKER posture than a manual `supabase-rls-real.sql` paste. Bring `sql.ts` back
+  in sync and extend `tests/rls.mjs` to assert the two are equivalent (the same 27 checks
+  should pass against either), so they cannot drift again. Changing what `go-live` installs
+  touches Kevin's live security posture — land it as its own PR with the diff spelled out.
+  Also still open, unchanged: the client flip is a later slice behind the existing Admin
+  go-live card. Use a throwaway `steward_test*` schema; never CREATE/DROP/ALTER against
+  live `public`.
 - **N4 ★ [1pt] — Repo hygiene from tech sweep #370 (still open).** Two concrete items: (a)
   `delete_branch_on_merge` is `false`, so every merged PR leaves its branch behind — 251
   stale `steward/*` branches at sweep time and the loop has merged far more since; flip the
