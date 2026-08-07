@@ -135,6 +135,41 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N6: the "Dave" north-star becomes an automated acceptance test — and it immediately caught a
+  real one (v861, sw v493, 2026-08-07, steward — NOW item N6):** the ONBOARDING & PROVISIONING
+  EPIC is one story, not five features, but it was only ever tested as five: LF39 (cross-device
+  sign-in), LF41 (provisioning defaults), LF42/#103 (assigned backend) and LF40 (welcome/tour)
+  each had green checks while nothing asserted they still ADD UP. `tests/run.js` now runs the
+  story end to end in two browser contexts, through the REAL UI, with nothing stubbed in the
+  sign-in path: an admin registers a workspace backend, sets the house Dashboard defaults and
+  provisions `dgustafson` in ONE pass of the actual Add-user form (admin role, Conservation
+  theme + pack, copied Dashboard defaults, assigned backend, one-shot tour flag); the workspace
+  syncs; then a **fresh phone at 390×780** — carrying nothing but the workspace binding — types
+  Dave's username and password into the actual gate form. 11 checks assert he lands ready:
+  identity + admin role adopted from the backend, Conservation theme stamped on the document,
+  the pack installed with its 14 example dashboards materialized, the house Dashboard defaults
+  replayed, connected to his assigned workspace with no adopt prompt and no decline recorded,
+  the welcome fired and its one-shot flag consumed, the account stamped provisioned, and the
+  pack-gated Conservation tour unlocked in the chooser. A "before" assertion proves the phone
+  was genuinely blank first, so nothing passes by accident.
+  **What it caught (GREET-AFTER-SIGNIN, the fix in this same slice):** the app boots BEHIND the
+  sign-in gate, so `StudioWelcome.maybeShow()` painted the hero ~300ms into boot while no
+  identity existed — an un-personalized "Welcome to Analytics" — and the post-sign-in
+  `open()` from the TOUR-FORCE one-shot then hit `if (document.getElementById("studio-welcome"))
+  return;` and no-oped on that stale hero. Net effect: a freshly provisioned user burned their
+  one-time welcome on a greeting that did not know who they were, and the pack-aware
+  `computeSteps()` recompute never ran either, so the tour skipped the pack they had just been
+  given. Exactly the boot-behind-the-gate ordering bug **#108** fixed for Home's greeting, in a
+  module #108 never touched. `app/welcome.js` now tracks which screen the overlay is on and, on
+  a re-`open()`, re-renders the hero in place when it is still the hero (a visitor who has paged
+  into the carousel keeps their place). Files: tests/run.js, app/welcome.js, sw.js,
+  js/changelog.js, STATUS.md. Full suite green (3089 passed, 0 failed) — run in full, not just
+  the dev gate, because the fix is on the boot path.
+  **NEXT in N6:** this covers the story's happy path on a device already bound to the workspace.
+  The other half of "from any device" — a phone with NO binding at all, using the gate's
+  WORKSPACE-LOGIN picker to choose the workspace first — is a natural second slice, as is the
+  same walk for a `viewer`-role provisioning (role gating is asserted here only as the stored
+  role, not as what Dave can actually reach).
 - **N1: STATUS.md splits — the drained tracks move to `docs/BACKLOG-ARCHIVE.md` (v860, sw v492,
   2026-08-07, steward):** the NOW queue's own precondition, and the last half of AUD-11's
   tail. The file had reached 15,869 lines with NEXT alone at ~6,300 across 32 subsections,
@@ -9554,7 +9589,16 @@
     `data-theme`; it honors `prefers-color-scheme` standalone (Playwright `emulateMedia`);
     it follows the host inside the Viewer; and the Inspector offers exactly three options
     with Light still the default for a new dashboard. Docs + Help updated in the same slice.
-- **N6 ★ — Turn the "Dave" north-star into an automated acceptance test.** The onboarding
+- ~~**N6 ★ — Turn the "Dave" north-star into an automated acceptance test.**~~ ✓ **SHIPPED
+  v861, sw v493 (2026-08-07, steward — see DONE, "N6: the 'Dave' north-star becomes an
+  automated acceptance test").** 11 checks walk the whole story in two contexts through the
+  real Add-user form and the real gate form, ending on a fresh 390×780 phone. It failed at
+  first exactly as this item predicted, and the fix shipped in the same slice
+  (GREET-AFTER-SIGNIN: the welcome painted behind the sign-in gate before any identity
+  existed, and the post-sign-in re-open no-oped on it — a provisioned user burned their
+  one-shot welcome on a generic greeting). Still open as a second slice: the no-binding
+  device using the WORKSPACE-LOGIN picker, and the same walk for a `viewer` role.
+  Original: The onboarding
   epic's whole point is one end-to-end story: an admin provisions a user once; that user
   signs in on a FRESH browser and lands in a fully-configured workspace — role, theme,
   sample pack, backend connection, and the pack tour. Today that is a manual demo nobody

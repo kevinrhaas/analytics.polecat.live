@@ -22,6 +22,10 @@
   // ported in-place rather than switching to modal()).
   var FOCUSABLE = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
   var trigger = null;
+  // Which screen the overlay is showing (-1 = the hero, 0..n = the carousel).
+  // open() needs it to tell "still on the un-personalized hero" from "the
+  // visitor has paged into the carousel" — see the GREET-AFTER-SIGNIN note there.
+  var at = -1;
 
   // UX6 (icon migration): each step's tile used to bake a raw Unicode "letter"
   // glyph (P / ◈ / ▥ / ⤓ / ⚙) into the header text — full-color-font glyphs,
@@ -244,6 +248,7 @@
   }
 
   function render(i) {
+    at = i;
     if (i === -1) { renderHero(); return; }
     var ov = document.getElementById("studio-welcome"); if (!ov) return;
     var step = steps[i];
@@ -296,7 +301,20 @@
 
   W.open = function () {
     injectStyle();
-    if (document.getElementById("studio-welcome")) return;
+    if (document.getElementById("studio-welcome")) {
+      // GREET-AFTER-SIGNIN (found by the N6 "Dave" acceptance test): the app
+      // boots BEHIND the sign-in gate, so maybeShow() can paint this hero while
+      // no identity exists yet — an un-personalized "Welcome to Analytics".
+      // A LATER open() (the TOUR-FORCE one-shot fired at sign-in, Home's "Take
+      // the tour", ⌘K) means an identity IS known now, so re-render the hero in
+      // place rather than no-op on the stale one — otherwise a freshly
+      // provisioned user burns their one-shot welcome on a greeting that
+      // doesn't know who they are. Same boot-behind-the-gate ordering bug #108
+      // fixed for Home's greeting. Only the hero repaints: someone who has
+      // already paged into the carousel keeps their place.
+      if (at === -1) { steps = computeSteps(); renderHero(); }
+      return;
+    }
     trigger = document.activeElement;
     var ov = document.createElement("div"); ov.id = "studio-welcome";
     ov.setAttribute("role", "dialog"); ov.setAttribute("aria-modal", "true"); ov.setAttribute("aria-label", "Welcome to Analytics");
