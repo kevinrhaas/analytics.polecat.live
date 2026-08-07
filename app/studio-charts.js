@@ -90,6 +90,37 @@
       else node.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
     });
   }
+  // SWEEP574-3b (table family) — the same keyboard door for a clickable table ROW.
+  //
+  // Deliberately NOT markActivatable(). Two things make a row different from an SVG mark:
+  //
+  //  1. A <tr> that claims role="button" stops being a row. That collapses the whole table
+  //     out of the accessibility tree's grid model — no row/column position, no header
+  //     association — which is exactly how a screen-reader user reads a table. Trading the
+  //     table's structure for a button label would cost more than the keyboard door buys, so
+  //     the row keeps its native semantics and gains ONLY what it was missing: a tab stop,
+  //     Enter/Space, and aria-haspopup="dialog" to say what activating it does.
+  //  2. Naming inverts back to the KPI-tile decision. A row's own cells ARE its accessible
+  //     name ("INC-4471, Bug, Priya, Open, 312"), so an aria-label here would REPLACE that
+  //     text with a worse summary. No aria-label.
+  //
+  // The row-click bind below sets cursor:pointer on every tbody row, so unlike the mark
+  // helper there is no "was anything bound?" test to make — the caller already knows.
+  // Same STUDIO_PREVIEW carve-out (on the builder canvas a click is an editing gesture) and
+  // the same no-new-CSS focus ring: [tabindex]:focus-visible in vendor/dashkit.css draws it,
+  // and an outline on a table-row paints in Chromium. Sorting, filtering and paging rebuild
+  // <tbody> from scratch, so each fresh row is promoted on its own — nothing to keep in sync.
+  function rowActivatable(tr) {
+    if (window.STUDIO_PREVIEW) return;                          // builder preview: click = select
+    if (!tr || tr.getAttribute("tabindex") === "0") return;      // idempotent across redraws
+    tr.setAttribute("tabindex", "0");
+    tr.setAttribute("aria-haspopup", "dialog");
+    tr.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+      e.preventDefault(); // Space would otherwise scroll the dashboard out from under you
+      tr.click();         // re-fire the row's OWN click listener — one activation path
+    });
+  }
   // The accessible name for a mark: the same "<label>: <value>" pairing its tooltip shows,
   // as plain text (aria-label is not markup) with any extra context — a percentage, a share —
   // appended the way the tooltip words it.
@@ -3169,6 +3200,7 @@
               DashKit.openDetail(cfg.detail, row[cfg.detail.keyIdx || 0]);
             }
           });
+          rowActivatable(tr); // SWEEP574-3b: the same door from the keyboard (see the helper)
         });
       }
 

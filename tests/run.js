@@ -37070,6 +37070,160 @@ function serve() {
     ok("SWEEP574-3b: in the Studio builder's preview no chart mark is promoted to a button (click-to-select is untouched)",
       markPreviewNotButton.marks > 0 && markPreviewNotButton.promoted === 0, JSON.stringify(markPreviewNotButton));
 
+    // ── SWEEP574-3b, TABLE family (the last mark family, deliberately its own slice) ──
+    // The enhanced DashKit.table override binds <tbody> <tr> rows DIRECTLY (its "Row-click detail"
+    // block), not through bindDrill/bindDetail, so markActivatable never reached them. The fix is
+    // rowActivatable() in studio-charts.js, and it makes two decisions the SVG marks did NOT:
+    //   • NO role="button" — a <tr> claiming a button role stops being a row and takes the whole
+    //     table's grid semantics with it. The row keeps its native role and gains a tab stop,
+    //     Enter/Space and aria-haspopup="dialog" instead. These checks assert the ABSENCE of the
+    //     role override as hard as they assert the presence of the tab stop.
+    //   • NO aria-label — a row's own cell text is already its accessible name (the KPI-tile
+    //     decision; an aria-label here would REPLACE the row's content with a worse summary).
+    // Paging matters here in a way it didn't for the marks: sort/filter/page rebuild <tbody> from
+    // scratch, so the check below pages forward and re-asserts on the freshly-rendered rows.
+    console.log("\n• SWEEP574-3b (table): clickable table rows are keyboard-operable in exports");
+
+    const rowKeyboard = await page.evaluate(async () => {
+      try {
+        var spec = await fetch("data/examples/engineering-delivery.studio.json").then((r) => r.json());
+        var tp = spec.panels.filter(function (p) { return p.chart && p.chart.type === "table"; })[0];
+        if (!tp) return { err: "no table panel in engineering-delivery" };
+        tp.detail = { da: tp.chart.da, param: "item_title", noun: "backlog items" };
+        // The panel ships pageSize:10 and the mock yields fewer rows than that, so the real
+        // dashboard renders a single page and no pagination bar. Shrink the page so the rebuild
+        // path this check exists to exercise actually runs.
+        tp.chart.opts = Object.assign({}, tp.chart.opts, { pageSize: 3 });
+        // A second, identical table with NOTHING bound — its rows must stay out of the tab order.
+        var plain = JSON.parse(JSON.stringify(tp));
+        plain.id = "p_backlog_plain"; plain.title = "Backlog (no detail bound)"; delete plain.detail;
+        spec.panels.push(plain);
+
+        var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: false, mock: Studio.genMock(spec) });
+        var ifr = document.createElement("iframe");
+        ifr.style.cssText = "position:fixed;left:-9999px;width:1200px;height:1800px";
+        document.body.appendChild(ifr);
+        await new Promise((res) => { ifr.onload = res; ifr.srcdoc = html; });
+        await new Promise((r) => setTimeout(r, 1400));
+        var d = ifr.contentDocument, w = ifr.contentWindow;
+        var BOUND = '[data-panel-id="' + tp.id + '"] tbody tr';
+        var PLAIN = '[data-panel-id="p_backlog_plain"] tbody tr';
+        function first() { return d.querySelector(BOUND); }
+        function drawerTitle() { var dr = d.getElementById("dk-dt"); var t = dr && dr.querySelector(".dk-dt-t"); return t ? t.textContent : null; }
+        function closeDrawer() { var dr = d.getElementById("dk-dt"); if (dr) dr.remove(); }
+        function press(key) {
+          var el = first(); if (!el) return null;
+          var ev = new w.KeyboardEvent("keydown", { key: key, bubbles: true, cancelable: true });
+          el.dispatchEvent(ev);
+          return ev.defaultPrevented;
+        }
+        var f = first();
+        var snap = f ? {
+          tabindex: f.getAttribute("tabindex"), haspopup: f.getAttribute("aria-haspopup"),
+          role: f.getAttribute("role"), aria: f.getAttribute("aria-label"),
+          text: (f.textContent || "").trim().length
+        } : null;
+
+        closeDrawer();
+        var entPrev = press("Enter");
+        await new Promise((r) => setTimeout(r, 400));
+        var entTitle = drawerTitle();
+        closeDrawer();
+        await new Promise((r) => setTimeout(r, 200));
+        var spPrev = press(" ");
+        await new Promise((r) => setTimeout(r, 400));
+        var spTitle = drawerTitle();
+        closeDrawer();
+        await new Promise((r) => setTimeout(r, 200));
+        press("a"); // a key that means nothing here must open nothing
+        await new Promise((r) => setTimeout(r, 250));
+        var stray = drawerTitle();
+        closeDrawer();
+
+        // Coverage, not samples: every row the override made clickable is promoted; the
+        // unbound table's rows are left alone; and the table structure survives (no row
+        // anywhere claims role="button", which would dissolve the grid).
+        function tally(sel) {
+          var rows = [].slice.call(d.querySelectorAll(sel));
+          return {
+            rows: rows.length,
+            clickable: rows.filter(function (r) { return r.style.cursor === "pointer"; }).length,
+            focusable: rows.filter(function (r) { return r.getAttribute("tabindex") === "0"; }).length,
+            haspopup: rows.filter(function (r) { return r.getAttribute("aria-haspopup") === "dialog"; }).length,
+            labelled: rows.filter(function (r) { return r.getAttribute("aria-label"); }).length
+          };
+        }
+        var bound = tally(BOUND), unbound = tally(PLAIN);
+        var roleOverrides = d.querySelectorAll('tbody tr[role="button"]').length;
+
+        // Paging rebuilds <tbody>: the rows on page 2 must be promoted too, not just page 1's.
+        var nextBtn = d.querySelector('[data-panel-id="' + tp.id + '"] .tbl-page-bar button:last-of-type');
+        var pagedText = null, paged = null;
+        if (nextBtn) {
+          var before = (first() || {}).textContent;
+          nextBtn.click();
+          await new Promise((r) => setTimeout(r, 350));
+          paged = tally(BOUND);
+          pagedText = (first() || {}).textContent;
+          paged.changed = pagedText !== before;
+        }
+        ifr.remove();
+        return { snap: snap, entPrev: entPrev, entTitle: entTitle, spPrev: spPrev, spTitle: spTitle,
+          stray: stray, bound: bound, unbound: unbound, roleOverrides: roleOverrides, paged: paged,
+          hasFocusRing: /\[tabindex\]:focus-visible\{[^}]*outline:\s*2px/.test(html) };
+      } catch (e) { return { err: e.message }; }
+    });
+    ok("SWEEP574-3b (table): an exported dashboard's clickable table row is a tab stop that announces it opens a dialog",
+      !!rowKeyboard.snap && rowKeyboard.snap.tabindex === "0" && rowKeyboard.snap.haspopup === "dialog",
+      JSON.stringify(rowKeyboard));
+    ok("SWEEP574-3b (table): the row stays a ROW — no role=\"button\" override anywhere in the table, so the grid semantics survive",
+      rowKeyboard.roleOverrides === 0 && !!rowKeyboard.snap && rowKeyboard.snap.role === null,
+      JSON.stringify(rowKeyboard));
+    ok("SWEEP574-3b (table): the row keeps its own cell text as its accessible name — no aria-label replacing it",
+      !!rowKeyboard.snap && rowKeyboard.snap.aria === null && rowKeyboard.snap.text > 0 &&
+      rowKeyboard.bound && rowKeyboard.bound.labelled === 0, JSON.stringify(rowKeyboard));
+    ok("SWEEP574-3b (table): Enter on a focused row opens the same detail drawer a click does",
+      !!rowKeyboard.entTitle && rowKeyboard.entPrev === true, JSON.stringify(rowKeyboard));
+    ok("SWEEP574-3b (table): Space opens it too, and its default is prevented so the dashboard doesn't scroll away",
+      !!rowKeyboard.spTitle && rowKeyboard.spPrev === true, JSON.stringify(rowKeyboard));
+    ok("SWEEP574-3b (table): an unrelated keypress on the row opens nothing",
+      rowKeyboard.stray === null, JSON.stringify(rowKeyboard));
+    ok("SWEEP574-3b (table): EVERY clickable row is promoted — no half-covered table",
+      !!rowKeyboard.bound && rowKeyboard.bound.clickable > 0 &&
+      rowKeyboard.bound.focusable === rowKeyboard.bound.clickable &&
+      rowKeyboard.bound.haspopup === rowKeyboard.bound.clickable, JSON.stringify(rowKeyboard));
+    ok("SWEEP574-3b (table): a table with no detail bound keeps its rows out of the tab order entirely",
+      !!rowKeyboard.unbound && rowKeyboard.unbound.rows > 0 && rowKeyboard.unbound.clickable === 0 &&
+      rowKeyboard.unbound.focusable === 0, JSON.stringify(rowKeyboard));
+    ok("SWEEP574-3b (table): paging rebuilds the rows and the new page is promoted too",
+      !!rowKeyboard.paged && rowKeyboard.paged.changed === true && rowKeyboard.paged.clickable > 0 &&
+      rowKeyboard.paged.focusable === rowKeyboard.paged.clickable, JSON.stringify(rowKeyboard));
+    ok("SWEEP574-3b (table): the exported bundle still carries the [tabindex]:focus-visible ring, so a focused row is visible",
+      rowKeyboard.hasFocusRing === true, JSON.stringify(rowKeyboard));
+
+    // Same reasoning as the KPI tile and the SVG marks: on the builder canvas a click is an
+    // EDITING gesture, so table rows must stay out of that surface's tab order too.
+    const rowPreviewInert = await page.evaluate(async () => {
+      try {
+        var spec = await fetch("data/examples/engineering-delivery.studio.json").then((r) => r.json());
+        var tp = spec.panels.filter(function (p) { return p.chart && p.chart.type === "table"; })[0];
+        tp.detail = { da: tp.chart.da, param: "item_title", noun: "backlog items" };
+        var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true, mock: Studio.genMock(spec) });
+        var ifr = document.createElement("iframe");
+        ifr.style.cssText = "position:fixed;left:-9999px;width:1200px;height:1800px";
+        document.body.appendChild(ifr);
+        await new Promise((res) => { ifr.onload = res; ifr.srcdoc = html; });
+        await new Promise((r) => setTimeout(r, 1400));
+        var d = ifr.contentDocument;
+        var rows = [].slice.call(d.querySelectorAll('[data-panel-id="' + tp.id + '"] tbody tr'));
+        var promoted = rows.filter(function (r) { return r.getAttribute("tabindex") === "0"; }).length;
+        ifr.remove();
+        return { rows: rows.length, promoted: promoted };
+      } catch (e) { return { err: e.message }; }
+    });
+    ok("SWEEP574-3b (table): in the Studio builder's preview no table row is promoted (click-to-select is untouched)",
+      rowPreviewInert.rows > 0 && rowPreviewInert.promoted === 0, JSON.stringify(rowPreviewInert));
+
     // ── Z8 slice 13: Stacked area gets its own type-specific options (smooth + legend) ──
     console.log("\n• Z8 areaStacked: smooth curve + legend toggle");
 

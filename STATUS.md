@@ -135,6 +135,35 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **SWEEP574-3b (TABLE family) — clickable table rows are keyboard-operable in exports
+  (v844, sw v476, 2026-08-07, steward; UX sweep #574, a11y — SWEEP574-3b is now FULLY
+  shipped):** the last mark family. The enhanced `DashKit.table` override binds `<tbody>
+  <tr>` rows DIRECTLY (its "Row-click detail" block, app/studio-charts.js), not through
+  `bindDrill`/`bindDetail`, so `markActivatable()` never reached them — a table panel with
+  a detail drawer was still mouse-only. Fix: **`rowActivatable()`** beside it in the same
+  toolkit source, so it ships byte-identically in the live preview and inside every
+  exported dashboard (vendor/dashkit.js stays pristine). **It deliberately does NOT reuse
+  `markActivatable`, and the two differences ARE the slice:**
+  (1) **no `role="button"`.** A `<tr>` that claims a button role stops being a row, and
+  that collapses the whole table out of the a11y tree's grid model — row/column position,
+  header association — which is exactly how a screen-reader user reads a table. Trading
+  the table's structure for a button label costs more than the keyboard door buys, so the
+  row keeps its native semantics and gains only what it lacked: `tabindex="0"`,
+  Enter/Space, and `aria-haspopup="dialog"` to say what activating it does.
+  (2) **no `aria-label`** — the naming decision inverts back to the KPI tile: a row's own
+  cells already ARE its accessible name, so a label here would REPLACE the record with a
+  worse summary. (An SVG `<rect>` has no text, which is why the marks needed one.)
+  Sort/filter/paging rebuild `<tbody>` from scratch, so each fresh row is promoted on its
+  own — nothing to keep in sync, and the suite pages forward and re-asserts on page 2. The
+  caller already sets `cursor:pointer` on every bound row, so there is no "was anything
+  bound?" test to make; a table with no detail bound never enters the block and its rows
+  stay out of the tab order. Builder preview excluded on purpose (there a click is an
+  EDITING gesture). No new CSS — `[tabindex]:focus-visible` in vendor/dashkit.css draws
+  the ring and an outline on a table-row paints in Chromium. 11 suite checks added,
+  including full-coverage assertions (every clickable row promoted; ZERO
+  `tr[role=button]` anywhere, so the grid semantics are asserted as hard as the tab stop;
+  the unbound table's rows untouched; page 2 promoted too). **Not done, same as the mark
+  slice:** showing the hover tooltip on keyboard focus.
 - **SWEEP574-3b — bar / donut / treemap marks are keyboard-operable in exports (v843,
   sw v475, 2026-08-07, steward; UX sweep #574, a11y):** SWEEP574-3 shipped the keyboard
   door for KPI tiles; the marks beside them were still mouse-only wherever a drill or a
@@ -8778,11 +8807,16 @@
 >   dashboard markup (`app/studio-render.js` / `app/exporters.js`), which means it ships
 >   inside every exported dashboard too — a genuine a11y win, same full-suite caution as
 >   SWEEP574-1.
-> - ~~SWEEP574-3b [a11y] The same keyboard door for the other clickable marks~~ ✓ **SHIPPED
->   v843, sw v475 (2026-08-07, steward — see DONE)** for the SVG mark families: bars
->   (horizontal + vertical), donut slices and treemap tiles, via `markActivatable()` in
->   app/studio-charts.js with an explicit `"<label>: <value>"` aria-label. **Still open —
->   the TABLE family, deliberately its own slice:** the enhanced `DashKit.table` override
+> - ~~SWEEP574-3b [a11y] The same keyboard door for the other clickable marks~~ ✓ **FULLY
+>   SHIPPED.** The SVG mark families (bars horizontal + vertical, donut slices, treemap
+>   tiles) landed v843, sw v475 via `markActivatable()` with an explicit
+>   `"<label>: <value>"` aria-label; **the TABLE family landed v844, sw v476 (2026-08-07,
+>   steward — see DONE)** via a separate `rowActivatable()`: a clickable row gets
+>   `tabindex="0"` + Enter/Space + `aria-haspopup="dialog"` but deliberately NO
+>   `role="button"` (it would dissolve the table's grid semantics) and NO `aria-label`
+>   (the row's own cells are its name). Only remaining a11y gap noted by either slice:
+>   showing the hover tooltip on keyboard focus.
+>   Original (table half): the enhanced `DashKit.table` override
 >   binds `<tbody> <tr>` rows DIRECTLY (studio-charts.js, the "Row-click detail" block),
 >   not through bindDrill/bindDetail, so `markActivatable` doesn't reach them; and a row
 >   already HAS text content, so the naming decision inverts (no aria-label, like the KPI

@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 844,
+    title: 'Table rows open with the keyboard too — and stay real table rows',
+    kind: 'polish',
+    ts: '2026-08-07T05:53:44.000Z',
+    items: [
+      'The last mark family that was still mouse-only: the rows of a table panel that opens a detail drawer when you click one. Tab now stops on each clickable row, a focus ring shows where you are, and Enter or Space opens the same drawer a click does. Space no longer scrolls the dashboard away underneath you.',
+      'Unlike a bar or a slice, a row was NOT turned into a button. A row that claims to be a button stops being a row, and a screen reader loses the whole table — which column you are in, which header a cell belongs to. So the row keeps its table semantics and simply says it opens a dialog; its own cells stay its spoken name, so you hear the record, not a summary of it.',
+      'Sorting, filtering and paging rebuild the table, and every freshly-drawn page gets the same treatment. A table with no detail drawer bound keeps its rows out of the tab order entirely.',
+      'This ships inside every dashboard you export as a self-contained file, and in the Viewer. The Studio canvas is untouched: clicking a row there still selects the panel for editing. Help says so under "Reading a dashboard without a mouse".',
+    ],
+  },
+  {
     v: 843,
     title: 'Bars, slices and treemap tiles open with the keyboard too',
     kind: 'polish',
