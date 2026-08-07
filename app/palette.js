@@ -18,14 +18,9 @@
   function goSec(sec) { var b = document.querySelector('.rail-item[data-sec="' + sec + '"]'); if (b) b.click(); }
 
   var COMMANDS = [
-    // navigation
-    { label: "Go to Home", hint: "Section", kw: "home start recent", ic: "home", run: function () { goSec("home"); } },
-    { label: "Go to Dashboards", hint: "Section", kw: "dashboards catalog repository saved workbooks", ic: "layers", run: function () { goSec("dashboards"); } },
-    { label: "Go to Datasets", hint: "Section", kw: "datasets queries data catalog", ic: "db", run: function () { goSec("datasets"); } },
-    { label: "Go to Connections", hint: "Section", kw: "connections adapters databases warehouses servers", ic: "join", run: function () { goSec("connections"); } },
-    { label: "Go to Dashboard Builder", hint: "Section", kw: "studio builder canvas editor", ic: "grid", run: function () { studio(); } },
-    { label: "Go to Settings", hint: "Section", kw: "settings preferences theme mode config", ic: "gear", run: function () { goSec("settings"); } },
-    { label: "Open Help & docs", hint: "Reference", kw: "help docs documentation reference guide", ic: "info", run: function () { goSec("docs"); } },
+    // NOTE: the "Go to <section>" navigation commands used to be hardcoded here and had
+    // drifted to 7 of the app's 13 sections (AUD-12) — they are built from the rail itself
+    // now, see navCommands() below.
     // dashboard lifecycle
     { label: "New dashboard", hint: "Create", kw: "new create blank start build", ic: "plus", run: function () { studio(); click("btnNew"); } },
     // LF43 slice 2: the Studio Examples ▾ menu is gone — sample dashboards are real rows
@@ -61,6 +56,50 @@
     { label: "Clear local data…", hint: "Manage", kw: "clear reset wipe local storage cache data", ic: "trash", run: function () { studio(); click("moreClearData"); } },
     { label: "Sign out", hint: "Manage", kw: "sign out logout leave lock", ic: "close", run: function () { studio(); click("moreSignOut"); } }
   ];
+
+  // ---- navigation commands (built from the rail) --------------------------
+  // AUD-12 (AUDIT-2026-08 §2.3): "Go to …" is generated from `__studioRailSections()`
+  // — the rail's own list of sections (app/shell.js) — instead of a hand-kept copy that
+  // had drifted to 7 of 13 (Views, Quick Views, View Builder, Repository, Jobs and Admin
+  // were unreachable from ⌘K). Two things fall out of reading the live rail:
+  //   • a section added to the rail is instantly ⌘K-able, with the rail's own label + icon;
+  //   • a section the current account may NOT see (Admin for a non-admin, Dashboard
+  //     Builder for a viewer, anything an admin hid via Section access) is left out —
+  //     previously the palette happily navigated into all three, since a `.click()` on a
+  //     hidden rail button still switches sections. Rebuilt on every open(), so it tracks
+  //     a sign-in or a rights change without any wiring.
+  // Only the search synonyms stay hand-written: they're the words a person might type
+  // for a section, which nothing else in the app knows.
+  var SECTION_KW = {
+    home: "start recent",
+    views: "analyses saved charts library catalog",
+    dashboards: "catalog saved workbooks",
+    datasets: "queries data catalog",
+    connections: "adapters databases warehouses servers",
+    repository: "files folders browse storage tree",
+    explore: "explore fast one chart adhoc ad hoc",
+    build: "shelves pivot crosstab calculations fields",
+    studio: "studio canvas editor",
+    jobs: "pipelines steps prep transform schedule etl",
+    admin: "users roles access rights permissions accounts",
+    settings: "preferences theme mode config",
+    docs: "help documentation reference guide"
+  };
+  function navCommands() {
+    var secs = (window.__studioRailSections && window.__studioRailSections()) || [];
+    return secs.filter(function (s) { return s.visible; }).map(function (s) {
+      // Help keeps its historical wording ("Open Help & docs") — it reads as a reference
+      // to open rather than a place to go, and the label is what usage ranking keys on.
+      var isDocs = s.sec === "docs";
+      return {
+        label: isDocs ? "Open Help & docs" : "Go to " + s.label,
+        hint: isDocs ? "Reference" : "Section",
+        kw: s.sec + " " + s.label.toLowerCase() + " " + (SECTION_KW[s.sec] || ""),
+        ic: s.icon || "grid",
+        run: function () { goSec(s.sec); }
+      };
+    });
+  }
 
   // ---- dynamic commands ---------------------------------------------------
   // Samples and recent dashboards change as the user works, so unlike the
@@ -323,7 +362,10 @@
   function open() {
     build();
     stopVoice();
-    allCommands = COMMANDS.concat(exampleCommands(), recentCommands(), chartTypeCommands());
+    // Navigation leads the list (it is the app's own rail order, and the empty-query
+    // open is a "where do I want to be?" surface), then the static verbs, then whatever
+    // the workspace currently holds.
+    allCommands = navCommands().concat(COMMANDS, exampleCommands(), recentCommands(), chartTypeCommands());
     input.value = "";
     refresh();
     overlay.classList.add("open");
@@ -358,5 +400,5 @@
   var tbSearch = document.getElementById("tbSearch");
   if (tbSearch) tbSearch.addEventListener("click", open);
 
-  window.StudioPalette = { open: open, close: close, toggle: toggle, isOpen: isOpen, commands: COMMANDS, usage: loadUsage, voiceSupported: voiceSupported, startVoice: startVoice };
+  window.StudioPalette = { open: open, close: close, toggle: toggle, isOpen: isOpen, commands: COMMANDS, navCommands: navCommands, usage: loadUsage, voiceSupported: voiceSupported, startVoice: startVoice };
 })();

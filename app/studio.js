@@ -9148,12 +9148,33 @@
      opts to narrow it, so adopting this feature changes nothing for existing
      workspaces. Home is deliberately NOT offered here — it's the fallback
      landing section a bounced viewer is sent to (same convention as the Admin
-     rail's own bounce), so it must always stay reachable. */
-  var CONFIGURABLE_SECTIONS = [
-    ["explore", "Explore"], ["dashboards", "Dashboards"],
-    ["datasets", "Datasets"], ["jobs", "Jobs"], ["connections", "Connections"],
-    ["repository", "Repository"], ["studio", "Studio"]
-  ];
+     rail's own bounce), so it must always stay reachable.
+
+     AUD-12 (AUDIT-2026-08 §2.3): this was a hand-kept list and it no longer matched
+     the rail — Views, View Builder and Help could never be hidden even though the
+     card reads as covering every section, "Explore" had been renamed Quick Views on
+     the rail, and the "Studio" row was a silent no-op (Dashboard Builder is
+     data-develop-only, so shell.js's rights pass skips it and a viewer never sees it
+     anyway). It is derived from the rail now — every section the rail offers, minus
+     the two deliberate carve-outs and minus anything the rail already gates by role —
+     so the card and the rail can't drift apart again.
+
+     THE CARVE-OUTS, both deliberate:
+       • Home — the fallback a bounced viewer lands on; it must stay reachable.
+       • Settings — it holds the viewer's ONLY sign-out (the Account card; the ⋯ More
+         menu's Sign out lives inside Studio, which viewers can't reach), so hiding it
+         would strand them signed in with no way out. */
+  var CONFIGURABLE_CARVE_OUTS = ["home", "settings"];
+  function configurableSections() {
+    var rail = (window.__studioRailSections && window.__studioRailSections()) || [];
+    var derived = rail.filter(function (s) {
+      return !s.gate && CONFIGURABLE_CARVE_OUTS.indexOf(s.sec) < 0;
+    }).map(function (s) { return [s.sec, s.label]; });
+    // Fallback for any host page that loads studio.js without the rail (shell.js bails
+    // when #railNav is absent): offer nothing rather than guess a stale list.
+    return derived;
+  }
+  var CONFIGURABLE_SECTIONS = configurableSections();
   function getHiddenSections() { return lsGet("studio-hidden-sections", []); }
   function setSectionHidden(sec, hidden) {
     var list = getHiddenSections().slice();
@@ -9788,7 +9809,7 @@
       (rows ? '<div class="cx-list">' + rows + '</div>' : '<div class="cx-empty">No users yet.</div>') +
       (showGoLive ? goLiveCardHtml() : "") +
       '<div class="settings-card"><h2>Section access</h2>' +
-      '<p class="ws-card-intro">Turn a section off for the <b>viewer</b> role — it disappears from their rail. Admins always see every section.</p>' +
+      '<p class="ws-card-intro">Turn a section off for the <b>viewer</b> role — it disappears from their rail. Admins always see every section. Home and Settings are always available (Settings is where a viewer signs out), and Admin and Dashboard Builder are already off-limits to viewers.</p>' +
       sectionRows +
       '</div>' +
       backendsCardHtml() +

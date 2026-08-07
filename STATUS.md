@@ -135,6 +135,43 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **AUD-12 — the rail is the one list of sections (v854, sw v486, 2026-08-07, steward;
+  AUDIT-2026-08 §2.3, ux/gating):** two hand-kept copies of "what sections exist" had both
+  drifted away from the rail, in different directions.
+  - **⌘K reached 7 of 13 sections.** `app/palette.js` hardcoded its "Go to …" commands, so
+    Views, Quick Views, View Builder, Repository, Jobs and Admin had **no palette entry at
+    all** — a third of the app had no keyboard route. Worse, the commands were blind to
+    gating: `goSec()` clicks the rail button, and **clicking a hidden button still switches
+    section**, so ⌘K walked a viewer straight into Admin or the Dashboard Builder.
+  - **Admin → Section access offered 7 rows that matched neither the rail nor reality.**
+    `views`/`build`/`docs` could never be hidden though the card reads as covering the app;
+    `explore` was still labelled "Explore" after the rail renamed it Quick Views; and the
+    **"Studio" row was a silent no-op** — Dashboard Builder is `data-develop-only`, which
+    shell.js's rights pass skips, and viewers never see it anyway.
+  - **One primitive, in the rail's own module:** `window.__studioRailSections()`
+    (`app/shell.js`) returns `{sec, label, icon, gate, visible}` per rail item, read from
+    the live buttons — `label` from the existing `SECTION_LABELS`, `gate` from the
+    `data-admin-only`/`data-develop-only` markup, `visible` from `btn.hidden` (which is
+    exactly where role gating and per-section rights already land). Both consumers derive
+    from it, so a section added to `app/index.html` appears in both surfaces for free.
+  - **Palette:** navigation commands are rebuilt on every open from that list, filtered to
+    `visible`, using the rail's own label and icon. All 7 historical labels are byte-identical
+    ("Go to Home", "Open Help & docs", …) so usage ranking and the existing checks keep
+    working; only the search synonyms stay hand-written. Nav leads the empty-query list.
+  - **Section access:** derived as *every rail section, minus role-gated ones, minus two
+    documented carve-outs* — **Home** (the bounce target a hidden-out viewer lands on) and
+    **Settings** (it holds the viewer's ONLY sign-out; the ⋯ More menu's Sign out lives
+    inside Studio, which viewers can't reach — hiding it would strand them signed in). The
+    card's intro now states both carve-outs instead of implying full coverage.
+  - **10 new checks** — full rail coverage (13/13) and the six formerly-missing entries by
+    name; every nav row carries the rail's icon; a viewer's palette drops Admin +
+    Dashboard Builder; a rights-hidden section drops out of the palette too; the rights card
+    equals the derived set (with `views`/`build`/`docs` in and the `studio` no-op out); the
+    carve-outs hold; rows read "Quick Views"/"View Builder"/"Help"; and hiding **Views**
+    end-to-end really removes it from a viewer's rail.
+  - **Full suite green: 3059 passed, 0 failed** (dev gate — validate + changelog-check +
+    dev-smoke — green too). Merged to `dev`; the pipeline stages it.
+  - **AUDIT-2026-08 is now down to AUD-06's tail, AUD-08's tail, AUD-10 and AUD-11.**
 - **AUD-06 ★ slice 4 — dates compare as DATES (v853, sw v485, 2026-08-07, steward;
   AUDIT-2026-08 §2.1, ux/correctness):** the concrete sub-finding slice 3 wrote up and
   deliberately left alone is closed. `Studio.filterOps.test` leaned entirely on
@@ -9367,7 +9404,15 @@
 >   types; the in-app What's-next modal shows 5 shipped items as upcoming; the
 >   mobile gate is documented 390×780 but tested ~half at 844 — pick one.
 >   Consider splitting STATUS.md DONE into a dated archive (§4).
-> - **AUD-12 [ux] Discoverability coverage** (§2.3): ⌘K (`app/palette.js`) reaches
+> - ~~AUD-12 [ux] Discoverability coverage~~ ✓ **SHIPPED v854, sw v486 (2026-08-07,
+>   steward — see DONE).** Both halves, and both from ONE new primitive
+>   (`__studioRailSections()` in `app/shell.js`) rather than two corrected copies:
+>   ⌘K now offers every rail section — and **only** the ones the signed-in account
+>   may open, which also closed the gating hole where clicking a hidden rail button
+>   still switched section; Section access derives its rows the same way, gaining
+>   views/build/docs, correcting "Explore"→Quick Views, and dropping the no-op
+>   Studio row. Carve-outs (documented, deliberate): Home and Settings.
+>   Original: (§2.3): ⌘K (`app/palette.js`) reaches
 >   only 7 of 13 sections — add Views/Quick Views/View Builder/Repository/Jobs/
 >   Admin; `CONFIGURABLE_SECTIONS` (`app/studio.js:8740`) must cover
 >   views/build/docs so viewer-hiding matches what the rights UI implies.
