@@ -38304,6 +38304,61 @@ function serve() {
     const mcMenuOpen = await mp2.evaluate(() => document.getElementById("menuMore").classList.contains("open"));
     ok("m-c: tapping the pinned ⋯ More button opens its menu", mcMenuOpen === true);
 
+    // ── TOPBAR-TITLE (UX sweep 2026-08-01 #2): the page label must actually be READABLE ──
+    // m-c above only proved the title clears the hamburger — it never checked the title had
+    // any usable WIDTH. It didn't: measured at 390px, #topbarSection got 29px of client width
+    // for a 41px word, so "Home" rendered "H…" and "Dashboards" "Da…" on essentially every
+    // screen. .tb-section is the ONLY shrinkable item in the topbar flex row, so it absorbed
+    // every pixel the button cluster wanted. Assert the real invariant: at phone width each
+    // section's name fits without ellipsis (scrollWidth <= clientWidth). Setting textContent
+    // measures layout capacity directly and deterministically — no navigation, no timing.
+    const ttFits = await mp2.evaluate(() => {
+      const el = document.getElementById("topbarSection");
+      const was = el.textContent;
+      const out = [];
+      for (const n of ["Home", "Dashboards", "Datasets", "Connections", "Studio", "Jobs", "Settings", "Admin"]) {
+        el.textContent = n;
+        out.push({ n, client: el.clientWidth, scroll: el.scrollWidth, clipped: el.scrollWidth > el.clientWidth + 1 });
+      }
+      el.textContent = was;
+      return out;
+    });
+    const ttClipped = ttFits.filter((r) => r.clipped);
+    ok("topbar-title: every section name renders unclipped in the 390px topbar (no ellipsis on short labels)",
+      ttClipped.length === 0, JSON.stringify(ttClipped));
+    // The width came back from three places; guard each so a future tweak can't quietly
+    // re-crush the label. (1) Send feedback keeps an always-reachable home now that its
+    // topbar button hides on phones — the same ⋯More convention What's new uses.
+    const ttFeedback = await mp2.evaluate(() => {
+      const tb = document.getElementById("tbFeedback"), mf = document.getElementById("moreFeedback");
+      return {
+        topbarHidden: !tb || getComputedStyle(tb).display === "none",
+        inMoreMenu: !!(mf && mf.offsetParent !== null && mf.getBoundingClientRect().width > 10),
+      };
+    });
+    ok("topbar-title: #tbFeedback hides at phone width", ttFeedback.topbarHidden, JSON.stringify(ttFeedback));
+    ok("topbar-title: Send feedback stays reachable from the ⋯ More menu on phones", ttFeedback.inMoreMenu, JSON.stringify(ttFeedback));
+    // (2) the idle auto-save indicator must not sit in the flex row burning a gap on each
+    // side, and (3) markSaved() must CLEAR its "Saved ✓" text again rather than parking it
+    // there forever at opacity 0 (it used to toggle a class no stylesheet defines).
+    const ttSaveState = await mp2.evaluate(() => {
+      const ss = document.getElementById("saveState");
+      const before = ss.textContent;
+      ss.textContent = "";
+      const idle = { display: getComputedStyle(ss).display, w: ss.getBoundingClientRect().width };
+      ss.textContent = "Saved ✓";
+      const flashing = { display: getComputedStyle(ss).display, w: Math.round(ss.getBoundingClientRect().width) };
+      ss.textContent = before;
+      return { idle, flashing };
+    });
+    ok("topbar-title: an idle #saveState is out of the topbar flex flow (:empty → display:none)",
+      ttSaveState.idle.display === "none" && ttSaveState.idle.w === 0, JSON.stringify(ttSaveState));
+    ok("topbar-title: #saveState still takes its place the moment it has something to announce",
+      ttSaveState.flashing.display !== "none" && ttSaveState.flashing.w > 0, JSON.stringify(ttSaveState));
+    const ttStudioSrc = await mp2.evaluate(() => fetch("app/studio.js").then((r) => r.text()));
+    ok("topbar-title: markSaved() flashes with the real .saved class and clears the text afterwards",
+      /function markSaved\([\s\S]{0,400}?className = "save-state saved"[\s\S]{0,300}?textContent = ""/.test(ttStudioSrc));
+
     // m-c: each section's top content must also clear the fixed hamburger.
     // Same bug class as the topbar: a LATER ≤640px rule for each `*-wrap` reset padding-top
     // back to 28px (from the 60px the earlier ≤900px block set), silently pulling the

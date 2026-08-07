@@ -6,12 +6,24 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 840,
+    title: 'The page name at the top of the screen is readable again on phones',
+    kind: 'fix',
+    ts: '2026-08-07T02:43:42.000Z',
+    items: [
+      'On a phone the topbar\'s page label was being squeezed to about 29 pixels — so even "Home" showed as "H…" and "Dashboards" as "Da…", on essentially every screen. Every section name now fits in full at phone width, "Connections" included.',
+      'The label was the only part of that row allowed to shrink, so it gave up its width to everything beside it. Three things were quietly taking the space: an idle auto-save indicator that held a gap on each side while showing nothing, a leftover "Saved ✓" that was never cleared after an explicit save, and the feedback button.',
+      'Send feedback now lives in the ⋯ menu on phones, exactly where What\'s new already is, and is unchanged on tablet and desktop.',
+      'The "Saved ✓" flash after a manual save actually appears now — it had been fading in with a style that was never defined, so it stayed invisible and then sat in the bar forever.',
+    ],
+  },
+  {
     v: 839,
     title: 'Sign-in fix: admin/admin always opens the local workspace again',
     kind: 'fix',
     ts: '2026-08-07T01:49:09.000Z',
     items: [
-      'On a browser that had connected to a team workspace, the imported user list could overwrite the built-in local demo accounts \u2014 and admin/admin then failed with "Incorrect username or password" even with the workspace picker on Local. The advertised local pairs (admin/admin, demo/demo) now always open the local workspace, without touching the imported accounts.',
+      'On a browser that had connected to a team workspace, the imported user list could overwrite the built-in local demo accounts — and admin/admin then failed with "Incorrect username or password" even with the workspace picker on Local. The advertised local pairs (admin/admin, demo/demo) now always open the local workspace, without touching the imported accounts.',
     ],
   },
   {
@@ -20,7 +32,7 @@ export const CHANGELOG = [
     kind: 'fix',
     ts: '2026-08-07T01:42:51.000Z',
     items: [
-      'The workspace-secrets passphrase is no longer cached on disk. It is held for the current browser session only, so you enter it once per session per browser and every sync in between stays silent \u2014 closing the tab forgets it. A passphrase left in local storage by an older version is adopted into the session and deleted the first time this version loads, so nothing re-prompts mid-flight.',
+      'The workspace-secrets passphrase is no longer cached on disk. It is held for the current browser session only, so you enter it once per session per browser and every sync in between stays silent — closing the tab forgets it. A passphrase left in local storage by an older version is adopted into the session and deleted the first time this version loads, so nothing re-prompts mid-flight.',
       'Sign-in passwords are now stored as salted, iterated PBKDF2-SHA-256 digests instead of a single unsalted SHA-256 round. Two accounts with the same password no longer share a digest, and a copied user table can no longer be reversed with a lookup table.',
       'Existing accounts upgrade themselves: the old digest still verifies, and it is rewritten in the stronger form the first time that person signs in. Nobody has to re-enter a password.',
       'Clear local data now also drops the cached passphrase from the session.',
