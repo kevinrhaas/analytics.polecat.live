@@ -84,8 +84,9 @@
   // same list/tile choice the Dashboards section already offers (#dashViewToggle
   // / studio-dash-view). Device-remembered UI state, same bucket as
   // studio-dash-view — a localStorage key, not workspace data.
-  var _dsxViewMode = "list";
-  try { _dsxViewMode = localStorage.getItem("studio-dsx-view") || "list"; } catch (e) {}
+  // AUD-06: the live value is assigned by Studio.catalogView.wire() at the top of this
+  // section's render (the kit owns the default and the persisted key).
+  var _dsxViewMode;
   // LIVE-d (Kevin, 2026-07-30): cross-app multi-select + bulk actions. Datasets is the
   // first section to adopt the shape LF59 (slice 2) proved on Dashboards — session-only
   // select mode, a checkbox overlay on every row/tile, and a bulk bar with Select all /
@@ -208,19 +209,9 @@
   }
   function renderDatasets() {
     var results = $("#dsxResults"); if (!results) return;
-    // LF51 (d): wire the persistent list/tile toggle (lives in the section header,
-    // outside #dsxResults, so this idempotent binding survives every re-render).
-    var vt = $("#dsxViewToggle");
-    if (vt) {
-      var tilesNow = _dsxViewMode === "tiles";
-      vt.textContent = tilesNow ? "List view" : "Tile view";
-      vt.setAttribute("aria-pressed", tilesNow ? "true" : "false");
-      vt.onclick = function () {
-        _dsxViewMode = _dsxViewMode === "tiles" ? "list" : "tiles";
-        try { localStorage.setItem("studio-dsx-view", _dsxViewMode); } catch (e) {}
-        renderDatasets();
-      };
-    }
+    // LF51 (d) / AUD-06: the persistent list ⇆ tile toggle in the section header, from
+    // the shared kit — idempotent, so re-calling it on every render IS the binding.
+    _dsxViewMode = Studio.catalogView.wire($("#dsxViewToggle"), "dsx", renderDatasets);
     // LIVE-d: the "Select" toolbar toggle, same idempotent-binding convention as the
     // view toggle above — lives outside #dsxResults so it survives every re-render.
     var selBtn = $("#dsxSelectBtn");

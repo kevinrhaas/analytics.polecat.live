@@ -135,6 +135,44 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **AUD-06 ★ — one shared catalog VIEW-MODE kit (v849, sw v481, 2026-08-07, steward;
+  AUDIT-2026-08 §2.1 family D, ux):** the fourth and last shared axis, after SORT-1's
+  `Studio.catalogSort` (v812), slice 1's `Studio.catalogSearch` (v847) and slice 2's
+  `Studio.catalogFacets` (v848). Six panels each carried their own copy of the LF51 (d)
+  list ⇆ tiles toggle — the same dozen lines, hand-adapted — and the copies had drifted
+  in three ways a user or a screen reader could see:
+  - **Dashboards opened as tiles; the other five opened as a list.** The audit's ask was
+    "pick one". **It is `list`** — `Studio.catalogView.DEFAULT`, one constant, one place.
+    Rationale: five of six panels already opened that way (smallest behaviour delta), the
+    list is the denser scan-first shape the sort/search/facet controls above these lists
+    are built around, and it reads better at the 390×780 mobile gate. Nothing is lost on
+    Dashboards — the tile grid is one tap away and remembered per device from then on, and
+    Home still greets you with the same `recentCardHtml` thumbnail cards it always has.
+    Reversible by editing that one constant if Kevin wants tiles back.
+  - **Only Dashboards had UX6's grid/list ICON;** the other five were bare text, so the
+    same control looked like two different controls. The icon now rides inside the kit.
+  - **`aria-pressed` meant the opposite thing on Dashboards** (pressed = showing a list)
+    from the other five (pressed = showing tiles) — worse than no state at all for anyone
+    listening. One meaning everywhere now: pressed = showing tiles. The visible label keeps
+    naming the destination ("Tile view" while you're reading a list).
+  **`Studio.catalogView`** (`app/studio.js`, beside the other three kits) is
+  `DEFAULT` / `key(sec)` / `load(sec)` / `save(sec, v)` / `wire(btn, sec, rerender)`.
+  `wire()` is idempotent — every render re-syncs icon + label + aria-pressed and re-binds
+  the single handler — so a section calls it at the top of its render exactly the way it
+  calls `catalogSort.wire()`. The historical per-section storage keys are unchanged
+  (`studio-<dash|vwc|dsx|conn|jobs|repo>-view`), so **no saved preference moves**, and a
+  corrupt/unknown stored value now falls back to the default instead of sticking.
+  Adopted in `app/studio.js` (Dashboards + Repository), `app/views.js`, `app/datasets.js`,
+  `app/connections.js`, `app/jobs.js`; the six hand-rolled blocks and their module-level
+  `try { localStorage.getItem(…) }` reads are gone.
+  - **Suite:** three new unit checks (key + fallback, `wire()` idempotence incl. exactly one
+    handler after a re-wire, all six panels resolving to the same default), one panel-level
+    check that Dashboards opens as a list from a clean slate, and the LF51 label assertions
+    strengthened to also assert the icon and the aria-pressed value. The Dashboards block
+    of the suite now sets its own tile-view precondition explicitly instead of inheriting
+    it from the default.
+  - **Not covered (deliberate):** the 11 non-catalog surfaces in §2.1 have no list/tile
+    toggle at all, so there is nothing for this kit to reach there.
 - **AUD-06 ★ slice 2 — one shared catalog FACET kit (v848, sw v480, 2026-08-07,
   steward; AUDIT-2026-08 §2.1 family D, ux):** the third and last catalog axis to be
   unified — SORT-1 (v812) did sorting, slice 1 (v847) did search, and this closes the
@@ -9073,12 +9111,13 @@
 >   pick / pills / folderStrip / matchMulti / matchOne / clearChip) replaced the
 >   six hand-built count-map + pill-markup blocks; pills now sort by their
 >   visible label (natural, case-insensitive), every folder strip is labelled
->   "Folders", and Dashboards gained the Clear chip. **Still open, in rough
->   order:**
->   - **The default view mode** still differs (Dashboards defaults to tiles,
->     every other panel to list — pick one). Carried over from slice 2, which
->     stayed on the facet layer itself; this one is a per-section default, not
->     shared code, so it is a small independent slice.
+>   "Folders", and Dashboards gained the Clear chip.
+>   ~~The default view mode still differs~~ ✓ **SHIPPED v849, sw v481 (2026-08-07,
+>   steward — see DONE):** `Studio.catalogView` is the fourth shared axis (the toggle
+>   itself, not just its default) — one default for all six panels (**`list`**), the
+>   grid/list icon on every panel instead of only Dashboards, and one meaning for
+>   `aria-pressed` (pressed = showing tiles). Historical storage keys unchanged.
+>   **Still open, in rough order:**
 >   - **Slice 3 — one filter-operator vocabulary:** DA output rules use 8 ops
 >     (`=,!=,>,>=,<,<=,contains,startsWith`, `model.js:2956`), the Job "Filter
 >     rows" step uses 7 different ones (`eq/ne/gt/gte/lt/lte/contains`) for the

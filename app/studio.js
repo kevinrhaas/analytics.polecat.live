@@ -6719,8 +6719,10 @@
   // Dashboards section (was "Repository"): the saved-dashboards catalog only —
   // data-source browsing moved to the Datasets/Connections sections, and the
   // sample catalog stays reachable from the Studio library pane.
-  var _dashViewMode = "tiles";
-  try { _dashViewMode = localStorage.getItem("studio-dash-view") || "tiles"; } catch (e) {}
+  // AUD-06: the list ⇆ tiles mode comes from the shared kit (Studio.catalogView), assigned
+  // by its wire() call at the top of renderDashboards — the kit owns the default and the
+  // persisted key, so the toggle and the markup can never disagree about the current mode.
+  var _dashViewMode;
   // LF59 (2): multi-select + bulk delete on the Dashboards rows/tiles. Select mode is
   // session-only (not persisted) — a fresh visit always starts in normal browse/open mode.
   // Sample-pack dashboards are selectable and deletable like any other row (LF59's own
@@ -6757,6 +6759,9 @@
   window.__studioDashSelected = function () { return Object.keys(_dashSelected); }; // test hook
   function renderDashboards() {
     var results = $("#repoResults"); if (!results) return;
+    // AUD-06: the shared list ⇆ tiles kit (Studio.catalogView) — same wiring call every
+    // catalog panel makes, idempotent across re-renders.
+    _dashViewMode = Studio.catalogView.wire($("#dashViewToggle"), "dash", renderDashboards);
     var q = ($("#repoSearch") || {}).value || "";
     var list = loadRecents().filter(isVisibleToMe), pins = loadPins(), workbooks = loadWorkbooks();
     // SORT-1: header sort <select>. loadRecents() already returns ts-desc (last touched),
@@ -7296,8 +7301,9 @@
   // Connections/Jobs, extended here — the last of the four workspace catalogs. A tile
   // renders inside whichever folder group it belongs to (the grouping itself is unchanged),
   // so only the per-row markup and each group's contents-wrapper class switch.
-  var _repoViewMode = "list";
-  try { _repoViewMode = localStorage.getItem("studio-repo-view") || "list"; } catch (e) {}
+  // AUD-06: the live value is assigned by Studio.catalogView.wire() at the top of this
+  // section's render (the kit owns the default and the persisted key).
+  var _repoViewMode;
   // M5 slice 2 (STATUS.md's Conservation Insight track — "NEXT in M5" after slice 1's
   // flat list): which folder GROUPS are collapsed, session-only (in-memory, not
   // persisted) — default expanded, keyed by folder name or "__unfiled".
@@ -7411,19 +7417,10 @@
       var repoNewDash = repoNewMenu.querySelector('[data-repo-new="dashboard"]');
       if (repoNewDash) repoNewDash.hidden = !currentUserCanDevelop();
     }
-    // LF51 (d): wire the persistent list/tile toggle (lives in the section header,
-    // outside #repoAllResults, so this idempotent binding survives every re-render).
-    var repoVt = $("#repoViewToggle");
-    if (repoVt) {
-      var repoTilesNow = _repoViewMode === "tiles";
-      repoVt.textContent = repoTilesNow ? "List view" : "Tile view";
-      repoVt.setAttribute("aria-pressed", repoTilesNow ? "true" : "false");
-      repoVt.onclick = function () {
-        _repoViewMode = _repoViewMode === "tiles" ? "list" : "tiles";
-        try { localStorage.setItem("studio-repo-view", _repoViewMode); } catch (e) {}
-        renderRepository();
-      };
-    }
+    // LF51 (d) / AUD-06: the persistent list ⇆ tile toggle, now the shared kit's
+    // (Studio.catalogView) — it lives in the section header, outside #repoAllResults, and
+    // the wiring is idempotent, so re-calling it on every render is the binding.
+    _repoViewMode = Studio.catalogView.wire($("#repoViewToggle"), "repo", renderRepository);
     // LIVE-d slice 4: the "Select" toolbar toggle, same idempotent-binding
     // convention as the view toggle above — lives outside #repoAllResults so it
     // survives every re-render.
@@ -7993,6 +7990,53 @@
     // only while something is actually narrowing the list.
     clearChip: function (id, on) {
       return on ? '<button type="button" class="wb-chip" id="' + id + '" title="Show everything">Clear</button>' : "";
+    }
+  };
+  // AUD-06 (audit §2.1, family D), the fourth and last shared axis after SORT-1's
+  // Studio.catalogSort, slice 1's Studio.catalogSearch and slice 2's Studio.catalogFacets:
+  // one shared VIEW-MODE kit for the list ⇆ tiles toggle every catalog panel carries.
+  // Six sections had each hand-adapted the same dozen lines (LF51 (d)), and the copies had
+  // drifted in three ways you could see:
+  //   • Dashboards opened as TILES while the other five opened as a LIST;
+  //   • Dashboards' button carried a grid/list ICON (UX6) while the other five stayed bare
+  //     text, so the same control looked like two different controls;
+  //   • `aria-pressed` meant the OPPOSITE thing on Dashboards (pressed = showing a list)
+  //     from everywhere else (pressed = showing tiles), which is worse than no state at all
+  //     for anyone listening to it.
+  // One place now answers all three. The audit's ask was "pick one" default: it is `list`,
+  // the form five of the six panels already opened in — the denser, scan-first shape that
+  // the sort/search/facet affordances above these lists are built around, and the one that
+  // reads best at the 390px mobile gate. Nothing is lost on Dashboards: the tile grid is one
+  // tap away and remembered per device from then on, and Home still greets you with the same
+  // thumbnail cards (recentCardHtml) it always has.
+  Studio.catalogView = {
+    DEFAULT: "list",
+    // Persisted per section per device under the historical LF51 (d) keys — the section
+    // slugs are the storage names, so nobody's saved preference moves: studio-<sec>-view
+    // for dash / vwc / dsx / conn / jobs / repo.
+    key: function (sec) { return "studio-" + sec + "-view"; },
+    load: function (sec) {
+      var V = Studio.catalogView;
+      try {
+        var v = localStorage.getItem(V.key(sec));
+        return v === "tiles" || v === "list" ? v : V.DEFAULT;
+      } catch (e) { return V.DEFAULT; }
+    },
+    save: function (sec, v) { try { localStorage.setItem(Studio.catalogView.key(sec), v); } catch (e) {} },
+    // wire(btnEl, sec, rerender) → the current mode ("list" | "tiles"). Idempotent, like the
+    // sort <select> and the Select toggles: every render re-syncs the icon, the label and
+    // aria-pressed and re-binds the single handler, so the binding survives a re-render of
+    // the section body (these buttons live in the section header, outside the results div).
+    // The LABEL names where the click takes you ("Tile view" while you're reading a list);
+    // aria-pressed answers where you are now (pressed = showing tiles).
+    wire: function (btn, sec, rerender) {
+      var V = Studio.catalogView, mode = V.load(sec);
+      if (!btn) return mode;
+      var tiles = mode === "tiles";
+      setIconBtn(btn, tiles ? "list" : "grid", tiles ? "List view" : "Tile view", 14);
+      btn.setAttribute("aria-pressed", tiles ? "true" : "false");
+      btn.onclick = function () { V.save(sec, tiles ? "list" : "tiles"); rerender(); };
+      return mode;
     }
   };
   // Dashboards carry no top-level `.name` (their title lives at `spec.title`, edited in
@@ -11467,21 +11511,10 @@
     });
     $("#libSearch").addEventListener("input", buildLibrary);
     var repoSearchInp = $("#repoSearch"); if (repoSearchInp) repoSearchInp.addEventListener("input", renderDashboards);
-    var dashViewToggle = $("#dashViewToggle");
-    if (dashViewToggle) {
-      // UX6 (icon migration, slice 2): was raw "☰ List view"/"▦ Tile view" glyph+label.
-      var syncDashToggle = function () {
-        var isList = _dashViewMode === "list";
-        setIconBtn(dashViewToggle, isList ? "grid" : "list", isList ? "Tile view" : "List view", 14);
-        dashViewToggle.setAttribute("aria-pressed", isList ? "true" : "false");
-      };
-      syncDashToggle();
-      dashViewToggle.onclick = function () {
-        _dashViewMode = _dashViewMode === "list" ? "tiles" : "list";
-        try { localStorage.setItem("studio-dash-view", _dashViewMode); } catch (e) {}
-        syncDashToggle(); renderDashboards();
-      };
-    }
+    // AUD-06: the list ⇆ tiles toggle is the shared kit's (renderDashboards re-wires it on
+    // every render like every other panel; this boot call just paints it before the
+    // Dashboards section is ever opened). UX6's icon treatment now rides inside the kit.
+    _dashViewMode = Studio.catalogView.wire($("#dashViewToggle"), "dash", renderDashboards);
     // LF59 (2): "Select" enters multi-select mode (checkboxes appear, tapping a tile/row
     // selects it instead of opening it) so the bulk bar's Select all / Clear / Delete apply
     // to more than one dashboard at once.

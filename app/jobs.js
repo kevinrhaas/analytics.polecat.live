@@ -155,8 +155,9 @@
   // section's first search box (title/source/output/folder text match).
   var _jobsFolderFilter = ""; // "" = All, "__unfiled" = no folder, else a folder name
   // LF51 (d): list ⇆ tile view, same as Datasets/Connections — device-remembered.
-  var _jobsViewMode = "list";
-  try { _jobsViewMode = localStorage.getItem("studio-jobs-view") || "list"; } catch (e) {}
+  // AUD-06: the live value is assigned by Studio.catalogView.wire() at the top of this
+  // section's render (the kit owns the default and the persisted key).
+  var _jobsViewMode;
   // LIVE-d slice 3 (Kevin, 2026-07-30): Jobs adopts the same select-mode +
   // bulk-bar shape Datasets/Connections proved in slices 1-2 (_dsxSelectMode/
   // _connSelectMode) — session-only, pruned against the live list every render.
@@ -195,18 +196,9 @@
   window.__studioJobsSelected = function () { return Object.keys(_jobsSelected); }; // test hook
   function renderJobs() {
     var results = $("#jobsResults"); if (!results) return;
-    // LF51 (d): persistent list/tile toggle in the section header.
-    var vt = $("#jobsViewToggle");
-    if (vt) {
-      var tilesNow = _jobsViewMode === "tiles";
-      vt.textContent = tilesNow ? "List view" : "Tile view";
-      vt.setAttribute("aria-pressed", tilesNow ? "true" : "false");
-      vt.onclick = function () {
-        _jobsViewMode = _jobsViewMode === "tiles" ? "list" : "tiles";
-        try { localStorage.setItem("studio-jobs-view", _jobsViewMode); } catch (e) {}
-        renderJobs();
-      };
-    }
+    // LF51 (d) / AUD-06: the persistent list ⇆ tile toggle in the section header, from
+    // the shared kit — idempotent, so re-calling it on every render IS the binding.
+    _jobsViewMode = Studio.catalogView.wire($("#jobsViewToggle"), "jobs", renderJobs);
     // LIVE-d slice 3: the "Select" toolbar toggle, same idempotent-binding
     // convention as the view toggle above — lives outside #jobsResults so it
     // survives every re-render.
