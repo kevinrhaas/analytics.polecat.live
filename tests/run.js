@@ -42736,6 +42736,126 @@ function serve() {
       window.__studioShellSetSection("studio");
     });
 
+    // ---- N5a: inside the app the READER's theme wins — the Viewer's frame follows the app ----
+    // Kevin's call (2026-08-07, UX sweep #574 finding 1): a dark app framing a light dashboard
+    // reads as broken. The Viewer's srcdoc now opts into buildHtml's `frameTheme` and follows the
+    // app's live data-theme whatever spec.renderMode says. The scope is exactly that one surface:
+    // DOWNLOADS are deliverables and stay byte-for-byte as authored, and the Studio builder
+    // preview keeps showing the authored mode (the author has to see what they are making).
+    console.log("\n• N5a: the Viewer frame follows the reader's theme; downloads stay as authored");
+    await page.evaluate(function () {
+      function dash(id, renderMode) {
+        var spec = {
+          schema: 1, id: id, name: id, title: "N5a " + id, subtitle: "", group: "", description: "",
+          renderMode: renderMode,
+          cda: { connections: [], dataAccesses: [
+            { id: "n5a-da", name: "n5a sample", kind: "sql", columns: ["month", "value"], authored: true }
+          ] },
+          filters: [], kpis: [], gridCols: 1,
+          panels: [{ id: "p1", title: "Adoption", span: 1, chart: { type: "bar", da: "n5a-da", map: { x: "month", y: "value" } } }]
+        };
+        Studio.Workspace.put("dashboards", { id: id, ts: new Date().toISOString(), spec: spec, title: spec.title, name: spec.name });
+      }
+      dash("n5a-light", "");   // authored Light
+      dash("n5a-dark", "dark"); // authored Dark
+    });
+
+    // Read the pair (frame bytes + download bytes) out of a viewer page running under a given app
+    // theme. Both builds happen in the SAME tick from the SAME assets, so any difference between
+    // them is the frame-theme override and nothing else.
+    async function n5aRead(appTheme, dashId) {
+      const ctx = await browser.newContext({ storageState: await page.context().storageState() });
+      const p = await ctx.newPage();
+      p.on("pageerror", (e) => errors.push("N5a viewer page: " + e.message));
+      await p.addInitScript((t) => {
+        try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-theme", t); } catch (e) {}
+      }, appTheme);
+      await p.goto(`http://localhost:${PORT}/app/viewer.html?dash=${dashId}`, { waitUntil: "networkidle" });
+      await p.waitForFunction(function () { return !!window.__viewerFrameHtml; }, { timeout: 8000 }).catch(function () {});
+      await p.waitForTimeout(250);
+      const out = await p.evaluate(function () {
+        var ifr = document.querySelector("#viewerFrame");
+        var doc = ifr && ifr.contentDocument;
+        return {
+          appTheme: document.documentElement.getAttribute("data-theme") || "light",
+          // what the reader actually SEES: the live attribute on the rendered dashboard document
+          renderedTheme: doc ? (doc.documentElement.getAttribute("data-theme") || "light") : null,
+          frameHtml: window.__viewerFrameHtml ? window.__viewerFrameHtml() : "",
+          downloadHtml: window.__viewerBuildHtml ? window.__viewerBuildHtml() : ""
+        };
+      });
+      await ctx.close();
+      return out;
+    }
+
+    const n5aLightInDark = await n5aRead("dark", "n5a-light");
+    ok("N5a: an explicit-LIGHT dashboard opened in a DARK app renders DARK in the viewer — inside the app the reader's theme wins over spec.renderMode",
+      n5aLightInDark.appTheme === "dark" && n5aLightInDark.renderedTheme === "dark" &&
+      /<html lang="en" data-theme="dark">/.test(n5aLightInDark.frameHtml), JSON.stringify({
+        appTheme: n5aLightInDark.appTheme, renderedTheme: n5aLightInDark.renderedTheme,
+        frameTag: (n5aLightInDark.frameHtml.match(/<html[^>]*>/) || [""])[0]
+      }));
+    ok("N5a: that same dashboard's DOWNLOAD build is untouched by the reader's theme — no data-theme baked in, and it differs from the framed srcdoc by that one attribute and nothing else",
+      n5aLightInDark.downloadHtml.length > 0 &&
+      !/data-theme="dark"/.test((n5aLightInDark.downloadHtml.match(/<html[^>]*>/) || [""])[0]) &&
+      n5aLightInDark.frameHtml.replace(' data-theme="dark"', "") === n5aLightInDark.downloadHtml,
+      JSON.stringify({
+        downloadTag: (n5aLightInDark.downloadHtml.match(/<html[^>]*>/) || [""])[0],
+        strippedMatchesDownload: n5aLightInDark.frameHtml.replace(' data-theme="dark"', "") === n5aLightInDark.downloadHtml,
+        frameLen: n5aLightInDark.frameHtml.length, downloadLen: n5aLightInDark.downloadHtml.length
+      }));
+
+    // The reverse direction, so the override is proven to be a real follow rather than a
+    // one-way "always dark": an authored-DARK dashboard read in a LIGHT app renders light.
+    const n5aDarkInLight = await n5aRead("light", "n5a-dark");
+    const n5aDarkInDark = await n5aRead("dark", "n5a-dark");
+    ok("N5a: an explicit-DARK dashboard opened in a LIGHT app renders LIGHT in the viewer (the frame follows the reader both directions, not just into dark)",
+      n5aDarkInLight.appTheme === "light" && n5aDarkInLight.renderedTheme === "light" &&
+      !/data-theme="dark"/.test((n5aDarkInLight.frameHtml.match(/<html[^>]*>/) || [""])[0]), JSON.stringify({
+        appTheme: n5aDarkInLight.appTheme, renderedTheme: n5aDarkInLight.renderedTheme,
+        frameTag: (n5aDarkInLight.frameHtml.match(/<html[^>]*>/) || [""])[0]
+      }));
+    ok("N5a: the DOWNLOAD of an authored-Dark dashboard is byte-identical whether the reader's app is light or dark — a handed-out file is a deliverable and never adapts",
+      n5aDarkInLight.downloadHtml.length > 0 && n5aDarkInLight.downloadHtml === n5aDarkInDark.downloadHtml &&
+      /<html lang="en" data-theme="dark">/.test(n5aDarkInLight.downloadHtml), JSON.stringify({
+        equal: n5aDarkInLight.downloadHtml === n5aDarkInDark.downloadHtml,
+        lightAppLen: n5aDarkInLight.downloadHtml.length, darkAppLen: n5aDarkInDark.downloadHtml.length,
+        downloadTag: (n5aDarkInLight.downloadHtml.match(/<html[^>]*>/) || [""])[0]
+      }));
+    ok("N5a: when the reader's theme already matches the authored mode the frame and the download are the same bytes — the override adds nothing when it has nothing to change",
+      n5aDarkInDark.frameHtml === n5aDarkInDark.downloadHtml,
+      JSON.stringify({ frameLen: n5aDarkInDark.frameHtml.length, downloadLen: n5aDarkInDark.downloadHtml.length }));
+
+    // The Studio builder preview is a DIFFERENT surface and must keep showing the authored mode —
+    // the author is composing the appearance there. buildHtml only honors frameTheme when a caller
+    // passes it, and the builder never does; flipping the app's own theme must change nothing.
+    const n5aBuilder = await page.evaluate(function () {
+      var root = document.documentElement, was = root.getAttribute("data-theme");
+      root.setAttribute("data-theme", "dark");
+      var spec = window.__STUDIO_STATE.spec, assets = window.__STUDIO_STATE.assets;
+      var wasMode = spec.renderMode;
+      spec.renderMode = "";
+      var lightPreview = window.Studio.buildHtml(spec, assets, { deployPath: "/x", preview: true });
+      spec.renderMode = "dark";
+      var darkPreview = window.Studio.buildHtml(spec, assets, { deployPath: "/x", preview: true });
+      spec.renderMode = wasMode;
+      if (was) root.setAttribute("data-theme", was); else root.removeAttribute("data-theme");
+      return {
+        lightTag: (lightPreview.match(/<html[^>]*>/) || [""])[0],
+        darkTag: (darkPreview.match(/<html[^>]*>/) || [""])[0],
+        restoredMode: spec.renderMode
+      };
+    });
+    ok("N5a: the Studio builder preview still shows the AUTHORED mode regardless of the app's theme — only the read-only Viewer follows the reader",
+      n5aBuilder.lightTag === '<html lang="en">' && n5aBuilder.darkTag === '<html lang="en" data-theme="dark">',
+      JSON.stringify(n5aBuilder));
+
+    await page.evaluate(function () {
+      Studio.Workspace.remove("dashboards", "n5a-light");
+      Studio.Workspace.remove("dashboards", "n5a-dark");
+      window.__studioShellSetSection("studio");
+    });
+
     // ---- SYNC-PREAUTH: a gate-bound (never signed-in) connection must never ----
     // auto-pull. bindConnection latches automatic pulls off; the latch rides the
     // saved connection so a RELOAD can't boot-pull as anon and replaceAll local

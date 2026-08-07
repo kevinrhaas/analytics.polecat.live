@@ -64,7 +64,12 @@ they branch from dev and PR into dev per the pipeline rules below.
   `app/studio-charts.js` only.
 - **The exported `.html` dashboard stays byte-identical to the live preview**
   (the preview iframe and the export inline the same toolkit; builder ↔ iframe
-  talk via postMessage).
+  talk via postMessage). **One scoped exception (N5a, Kevin 2026-08-07):** the
+  read-only Viewer's srcdoc opts into `buildHtml`'s `frameTheme` so the framed
+  dashboard follows the app's live `data-theme` — inside the app, the reader's
+  theme wins. It may therefore differ from the download by that one `<html>`
+  attribute. Nothing else passes `frameTheme`: the builder preview and every
+  download/PDF path are unchanged and still assert byte-identity.
 - `provisioning/` and `reference/` stay untouched unless a task explicitly
   requires them.
 - **Local-first**: workspace data lives in localStorage with additive

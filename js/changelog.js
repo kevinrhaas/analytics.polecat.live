@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 867,
+    title: 'Open a dashboard in the viewer and it matches your theme, not the author\'s',
+    kind: 'fix',
+    ts: '2026-08-07T20:38:31.000Z',
+    items: [
+      'Every dashboard has an Appearance setting — Light or Dark — that its author picks. Until now the full-page viewer honoured that setting even when it clashed with the app around it, so if you work in dark mode and opened a dashboard someone built in light mode, you got a bright white sheet inside a dark window. It did not look like a choice. It looked like something had failed to load.',
+      'Inside the app, your theme now wins. Open anything in the viewer and it renders in the light or dark you are already using. Switch your own theme and the viewer follows the next time you open a dashboard. The dashboard itself is not modified in any way — nobody\'s Appearance setting is changed, and the author sees no difference in their own saved work.',
+      'Files you hand out are deliberately left alone. Download a dashboard as .html, or print it to PDF, and it looks exactly the way its author set Appearance — on your machine, on a colleague\'s, on a website, five months from now. A file you send to someone is a deliverable, and a deliverable that quietly changes appearance depending on where it is opened is worse than one that simply looks the way it was made. So the rule is narrow on purpose: the reader\'s theme wins inside the app, and only inside the app.',
+      'The Dashboard Builder\'s live preview is unchanged too, for the same kind of reason in reverse: you are composing how the dashboard looks there, so the preview has to keep showing you the Appearance you chose rather than the one you happen to be browsing in.',
+      'One older claim in the Help got corrected on the way past: it said the live dashboard cards on Home follow your theme. They never did — they show each dashboard\'s own Appearance. The Help now says so.',
+    ],
+  },
+  {
     v: 866,
     title: 'The shared Polecat Shell catches up to v0.6.2',
     kind: 'polish',

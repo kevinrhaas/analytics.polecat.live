@@ -512,8 +512,10 @@
       open back into their builder.</li>
     <li><strong>Favorite datasets &amp; connections</strong> (the ★ toggle on their catalog rows)
       show as compact cards — click one to jump into its editor.</li>
-    <li>Frames follow your light/dark theme and hydrate lazily, so offscreen cards cost
-      nothing.</li>
+    <li>Frames render in each dashboard's own <strong>Appearance</strong> (Light or Dark, as its
+      author set it) and hydrate lazily, so offscreen cards cost nothing. The full-page
+      <strong>viewer</strong> is the one place that follows <em>your</em> theme instead — see
+      "Open in viewer" below.</li>
     <li>Each Home section (Featured, Pinned, Favorites, Examples, Dashboards) has a ▲▼ control in
       its heading — reorder them to taste; the order sticks between visits.</li>
     <li><strong>Examples</strong> shows sample dashboards from the packs you actually have
@@ -532,6 +534,16 @@
   full-page, in a new tab: the same live, interactive renderer (filters, cross-filter, provider
   toggles all work) with none of the builder chrome. Handy for sharing with someone who should
   read a dashboard, not edit it.</p>
+  <p><strong>Light or dark in the viewer follows you, not the author.</strong> A dashboard's
+  <strong>Appearance</strong> setting (Dashboard panel → Appearance: Light or Dark) decides how the
+  dashboard looks as a finished piece — but inside this app the viewer renders it in
+  <em>your</em> light/dark theme instead, because a dark app wrapped around a light dashboard just
+  looks broken. Nothing about the dashboard is changed: switch your own theme and the viewer
+  follows on the next open. Files you hand out are untouched by this — a downloaded
+  <strong>Dashboard (.html)</strong> and a <strong>PDF</strong> always look exactly the way the
+  author set Appearance, wherever they're opened, so what lands in someone's inbox or on a website
+  is predictable. The builder's live preview also keeps showing the authored Appearance, so you can
+  see what you're making.</p>
   <p id="filters-how"><strong>How dashboard filters find their data:</strong> a filter applies to a
   panel when the panel's dataset either declares the filter as a query parameter (live SQL engines
   substitute it server-side) or simply has a column with the same name — the rows are then
