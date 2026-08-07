@@ -1764,7 +1764,15 @@ body.lib-dragging #preview{pointer-events:none}
      read instead of ellipsising to a letter. The three lowest-priority icon buttons hide:
      What's-new (still on the Studio footer), What's-next, and the dark toggle (dark mode is
      one tap away in the rail drawer's quick settings and in Settings). */
-  #tbWhatsNew,#tbWhatsNext,#tbTheme{display:none!important}
+  /* TOPBAR-TITLE (UX sweep 2026-08-01 #2): Slice A's intent above never actually landed —
+     measured on a 390px viewport, "Home" still rendered as "H…" (29px of usable width for a
+     41px word) and "Dashboards" as "Da…", on essentially every screen. .tb-section is the ONLY
+     shrinkable item in the row, so every pixel the button cluster wants comes out of the page
+     label first. Feedback joins the hide-behind-⋯More convention (#moreFeedback), and the row
+     gaps tighten — together that hands the section name ~3x the width it had. */
+  #tbWhatsNew,#tbWhatsNext,#tbTheme,#tbFeedback{display:none!important}
+  #topbar{gap:6px}
+  .top-app{gap:4px}
   .topbar-search{width:auto;padding:var(--sp-8);min-width:44px;min-height:44px;justify-content:center}
   .topbar-search .tbs-lbl,.topbar-search kbd{display:none}
   .tb-center{flex:0 0 auto}
@@ -2090,6 +2098,12 @@ body.simple-mode #moreSimple{color:var(--brand);font-weight:700}
   opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;
   align-self:center;font-family:var(--font)}
 .save-state.saved{opacity:1}
+/* TOPBAR-TITLE (UX sweep 2026-08-01 #2): the indicator is a flex ITEM of #topbar, so while it
+   is idle it still consumed a gap on EACH side (20px on phones) even at zero width — width the
+   section title was then ellipsised out of. :empty takes it out of the flex flow entirely
+   between flashes; it reappears the moment textContent is set (the aria-live announcement
+   still fires, since the element is only display:none while it has nothing to announce). */
+.save-state:empty{display:none}
 .simple-badge{display:none;align-items:center;background:var(--brand);color:#fff;font-size:var(--fs-10);
   font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:var(--sp-2) var(--sp-8);border-radius:20px;
   white-space:nowrap;pointer-events:none;user-select:none;margin-right:4px;font-family:var(--font)}

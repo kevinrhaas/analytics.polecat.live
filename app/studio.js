@@ -11380,6 +11380,11 @@
     // comment on #moreWhatsNew) — shares the same openWhatsNew() as #tbWhatsNew/#btnChangelog.
     var moreWhatsNew = $("#moreWhatsNew");
     if (moreWhatsNew) moreWhatsNew.onclick = function () { closeMenus(); openWhatsNew(moreWhatsNew); };
+    // TOPBAR-TITLE (UX sweep 2026-08-01 #2): same phone-only escape hatch for Send feedback,
+    // whose topbar button (#tbFeedback) now hides at ≤640px to give the section name its width
+    // back. Same openFeedbackModal() the topbar button uses — one behaviour, two entry points.
+    var moreFeedback = $("#moreFeedback");
+    if (moreFeedback) moreFeedback.onclick = function () { closeMenus(); openFeedbackModal(); };
     // LF46 (⋯ teardown): Demo mode is no longer wired here — it lives in Settings → Presentation
     // (Z5 SETTINGS_TOGGLES) as its single labelled home; toggleDemoMode() stays the shared toggle.
     // LF48: Focus mode + Slideshow now share ONE switcher (#modeSwitch) instead of two flat
@@ -11680,9 +11685,20 @@
   }
   window.__studioIsDashboardMine = isDashboardMine; // test hook
 
+  // TOPBAR-TITLE (UX sweep 2026-08-01 #2): this used to toggle a class "show" that no
+  // stylesheet defines — so the explicit-save flash never actually became visible (.save-state
+  // is opacity:0 until `.saved`), AND the "Saved ✓" text was never cleared afterwards. It sat
+  // in the topbar forever at zero opacity, still occupying layout width that the section title
+  // is the only shrinkable item to give up. Same shape as the autosave flash above now.
+  var _msTimer = null;
   function markSaved(msg) {
     var ss = $("#saveState");
-    if (ss) { ss.textContent = "Saved ✓"; ss.classList.add("show"); setTimeout(function () { ss.classList.remove("show"); }, 2000); }
+    if (ss) {
+      clearTimeout(_msTimer);
+      ss.textContent = "Saved ✓";
+      ss.className = "save-state saved";
+      _msTimer = setTimeout(function () { ss.textContent = ""; ss.className = "save-state"; }, 2000);
+    }
     toast(msg);
   }
 

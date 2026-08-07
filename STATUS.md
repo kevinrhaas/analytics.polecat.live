@@ -135,6 +135,35 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **TOPBAR-TITLE — the mobile topbar's page label is readable again (v840, sw v472,
+  2026-08-07, steward; UX sweep #574 finding 2):** at 390px `#topbarSection` was being
+  handed **29px of client width for a 41px word**, so "Home" rendered "H…" and
+  "Dashboards" "Da…" — on essentially every screen, not as a long-title edge case.
+  `.tb-section` is the ONLY shrinkable item in the `#topbar` flex row (`flex:0 1 auto`;
+  `.tb-center` and `.top-app` are both `flex-shrink:0`), so every pixel the button
+  cluster wanted came out of the page label first. The ≤640px block already *intended*
+  otherwise ("so the section name has room to read instead of ellipsising to a letter",
+  Slice A) — that intent had simply never been measured. Three contributors, all fixed:
+  (1) `.save-state:empty{display:none}` — the idle auto-save indicator was a zero-width
+  flex ITEM, so it burned a gap on **each** side (20px on phones) while displaying
+  nothing; (2) `markSaved()` toggled a class `"show"` that no stylesheet defines, so the
+  explicit-save flash never became visible (`.save-state` is `opacity:0` until `.saved`)
+  **and never cleared its text** — "Saved ✓" parked in the bar forever at zero opacity,
+  permanently holding width. It now mirrors the autosave path (`.saved` class, text
+  cleared after 2s), which also makes the flash actually appear; (3) `#tbFeedback` joins
+  `#tbWhatsNew`/`#tbWhatsNext`/`#tbTheme` in the ≤640px hide-behind-⋯More convention,
+  with `#moreFeedback` (`more-phone-only`, same `openFeedbackModal()`) as its home —
+  exactly the shape `#moreWhatsNew` set. Row gaps tighten on phones too (`#topbar`
+  10→6px, `.top-app` 6→4px). Measured at 390×780: every section name now renders in
+  full — Home 41px, Datasets 62, Dashboards 83, Connections 88 (the longest) — up from
+  29px of usable width; ⋯More stays on-screen, no horizontal scroll, zero pageerrors,
+  desktop untouched. Suite: five new `topbar-title:` checks in the m-c mobile block
+  (every section name unclipped at 390px; feedback hidden in the topbar but present in
+  ⋯More; idle `#saveState` out of the flow but back the moment it has something to say;
+  `markSaved` clears its text). Not covered: at viewports narrower than ~360px the label
+  still yields first — no hard `min-width` floor was added, because one would push
+  ⋯More off the clipped bar on such screens (the exact m-c regression). The mobile gate
+  is 390px.
 - **DEMO-LOCAL-2 — admin/admin always opens the local workspace again (v839,
   sw v471, 2026-08-07, Kevin live mobile):** on a browser that had connected to
   a team workspace, `Auth.importFromStore` (wholesale users-table replace) left
@@ -8621,6 +8650,37 @@
   later — parked, not attempted here to keep this one coherent slice.
 
 ## NEXT (top = do first)
+
+### 🔎 UX sweep #574 (2026-08-01) — remaining findings
+> The platform's daily read-only UX walk. Protocol says sweep findings come before the
+> feature backlog. Finding 2 (mobile topbar title clipped to "H…") is **SHIPPED v840 —
+> see DONE (TOPBAR-TITLE)**. Still open:
+>
+> - **SWEEP574-1 (High → but it is a PRODUCT DECISION, not a bug — read this before
+>   starting) [ux] The Viewer renders every dashboard in the author's fixed mode, so a
+>   dark-mode app opens a light dashboard.** The sweep reads this as a theming bug; it is
+>   actually **LF20 working as specified** — `spec.renderMode` was deliberately made a
+>   fixed, persisted, per-dashboard author choice ("" = light, "dark") baked onto the
+>   `<html>` tag in `app/exporters.js`, replacing the old in-header runtime toggle, so
+>   the export and the live preview always open in the mode the author chose. The
+>   friction the sweep found is real all the same: with the fleet's "both themes always"
+>   bar, a dark app framing a light dashboard reads as broken. The coherent resolution is
+>   **additive, not a reversal** — a third `renderMode` value, `auto`, that resolves at
+>   render time (inside the Viewer's `srcdoc`: follow the host app's `data-theme`;
+>   standalone: `prefers-color-scheme`), defaulting for NEW dashboards while every
+>   existing explicit light/dark choice is untouched. **Constraint that makes this a
+>   careful slice, not a quick one:** `app/viewer.js` `buildViewerHtml()` produces the
+>   `#viewerFrame` srcdoc AND the downloaded `.html` from the same call, so whatever
+>   `auto` emits must be ONE byte stream that behaves correctly framed and standalone —
+>   i.e. an inline resolver, never a per-context branch. Touches the export invariant, so
+>   it wants the FULL `tests/run.js` suite, not just the dev gate. Worth confirming the
+>   direction with Kevin first, since it changes what a freshly-authored dashboard does.
+> - **SWEEP574-3 (Low) [a11y] KPI tiles are mouse-only.** Inside the viewer frame `.kpi`
+>   tiles open the detail drawer on click but carry `tabIndex="-1"` and no `role="button"`,
+>   so they can't be reached by Tab or fired with Enter/Space. Fix belongs in the rendered
+>   dashboard markup (`app/studio-render.js` / `app/exporters.js`), which means it ships
+>   inside every exported dashboard too — a genuine a11y win, same full-suite caution as
+>   SWEEP574-1.
 
 ### 🔬 AUDIT-2026-08 — comprehensive audit findings (see `AUDIT-2026-08.md`)
 > A four-sweep audit (2026-08-06, v833) filed these as coherent workstreams,
