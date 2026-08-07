@@ -135,6 +135,30 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **KH-024 ★ [1pt] — two more mobile layout crushes, and the red dev hiding behind
+  them (v867, sw v499, 2026-08-07, Kevin live phone):** (a) the rail's
+  WORKSPACE/BUILD/MANAGE group headers carry BOTH `.rail-group-lbl` and `.rail-lbl`,
+  so the collapsed-icon-rail hide trick (`height:1px` + `overflow:hidden`) applied to
+  them in the mobile drawer. The drawer override restores height/width/position/clip
+  but NOT overflow, leaving a **2.3px content box for 10px text** — the top of every
+  glyph clipped, only the bottom sliver visible. Restoring overflow gives them 15px.
+  (b) `.set-row` was the KH-023 flex-collapse family again: `.set-txt` goes
+  `width:100%` at ≤640px (meant to be full-width) but the row never wrapped and the
+  input is `flex:0 0 auto`, so it ate the whole line, crushed the description to one
+  word per line, and overflowed the right edge. The row wraps now, `.set-row-txt`
+  carries a 180px floor, the input takes its own line. Measured at 390px: label
+  276px, input right edge 355px == row right edge.
+  **Also unblocked the pipeline:** a clean `origin/dev` run ALONE failed `N2 slice 4`,
+  so dev was red and tonight's promotion would have rolled stage back. Root cause was
+  a test-fixture collision, not a security regression — three of the assertion's four
+  parts already held (password nowhere in localStorage, only the email kept,
+  authPassword gone); the failing part was WHICH account signed in, because the mock
+  GoTrue hands every sign-in the same uid and the mock backend carries earlier tests'
+  users rows, so LF39's `gtmate` fixture (planted with that uid) won
+  `findUserByGotrue` over the row this test seeds. Two accounts can never share a real
+  auth uid. The seed step now drops any other row carrying that uid; no assertion
+  weakened, no app code touched. Suite: 3,106 passed, 0 failed. Est 1pt, took 1 (plus
+  an unplanned pipeline unblock).
 - **KH-023 ★ [1pt] — list rows no longer crush long names to a letter-per-line
   sliver (v869, sw v501, 2026-08-07, Kevin live phone):** Kevin's Admin screenshot
   showed "A/d/m/i/n/i/s/t/r/a/t/o/r" running down the card. `.cx-row` is a nowrap
