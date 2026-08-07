@@ -2844,6 +2844,41 @@ function serve() {
       ens.before.legendMin0 === "4.1" && ens.after.legendMin1 === "3.8",
       JSON.stringify({ before: ens.before.legendMin0, after: ens.after.legendMin1 }));
 
+    // ---- AUD-02: the ensemble legend chip escapes an attacker-influenceable provider name ----
+    console.log("\n• AUD-02: ensemble provider-name chip escapes untrusted values");
+    const ensXss = await page.evaluate(async function () {
+      var payload = '<img src=x onerror=window.__aud02Ens=1>';
+      var chartRows = [["2019", payload, 5], ["2021", payload, 6], ["2019", "Normal", 7], ["2021", "Normal", 8]];
+      var spec = { id: "ens-xss", name: "ens-xss", title: "t",
+        panels: [ { id: "c1", title: "c", span: "full", chart: { type: "ensembleSeries", da: "ts",
+          map: { labelCol: "year", seriesCol: "provider", valueCol: "pct" }, opts: { fmt: "raw" } } } ],
+        kpis: [], filters: [], cda: { connections: [], dataAccesses: [
+          { id: "ts", kind: "sql", columns: ["year", "provider", "pct"] }] } };
+      var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true,
+        mock: { ts: { cols: ["year", "provider", "pct"], rows: chartRows } } });
+      return await new Promise(function (resolve) {
+        var ifr = document.createElement("iframe");
+        ifr.style.cssText = "position:fixed;left:-2200px;top:0;width:1100px;height:900px";
+        document.body.appendChild(ifr);
+        ifr.srcdoc = html;
+        var t0 = Date.now();
+        (function poll() {
+          var doc = null; try { doc = ifr.contentDocument; } catch (e) {}
+          var toggles = doc ? doc.querySelectorAll("[data-ens-toggle]") : [];
+          if (toggles.length >= 2) {
+            var legend = doc.querySelector(".dk-ens-legend");
+            var noImgTag = !legend.querySelector("img");
+            var textPresent = legend.textContent.indexOf(payload) >= 0;
+            var fired = !!ifr.contentWindow.__aud02Ens;
+            ifr.remove();
+            resolve({ ok: noImgTag && textPresent && !fired, noImgTag: noImgTag, textPresent: textPresent, fired: fired });
+          } else if (Date.now() - t0 > 15000) { ifr.remove(); resolve({ ok: false, timeout: true }); }
+          else setTimeout(poll, 200);
+        })();
+      });
+    });
+    ok("AUD-02: ensemble legend chip HTML-escapes an untrusted provider name instead of injecting markup", ensXss.ok, JSON.stringify(ensXss));
+
     // ---- CSV DOWNLOAD (Viridis V9 + LF6 slice 2): "the current selection" as a real file, via
     // the generic per-panel download chrome (the chart-specific legend buttons were folded into
     // it — see DashKit._panelCsvRows in app/studio-charts.js / app/studio-render.js) ----
@@ -17334,6 +17369,37 @@ function serve() {
     ok("HOTLINK-1: the credential-bearing fragment is scrubbed from the URL before the gate renders (nothing to shoulder-read, bookmark, or re-share)",
       hot.hash === "", JSON.stringify({ hash: hot.hash }));
 
+    // ---- AUD-02: an imported custom workspace's id/label render escaped in the
+    // #g-workspace <option> list (studio-workspaces-custom is an imported access
+    // file — untrusted input reaching gate.js's renderWorkspaceSelect). ----
+    console.log("\n• AUD-02: gate workspace picker escapes an untrusted imported workspace id/label");
+    const gpGateXss = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpGateXss.on("pageerror", (e) => errors.push("AUD-02 gate page: " + e.message));
+    await gpGateXss.addInitScript(() => {
+      try {
+        localStorage.setItem("studio-workspaces-custom", JSON.stringify([{
+          id: 'x" onmouseover="window.__aud02GateAttr=1" data-x="',
+          label: '<img src=x onerror=window.__aud02GateLabel=1>',
+          sourceId: "supabase", cfg: { url: "http://localhost/__aud02", key: "k" }
+        }]));
+      } catch (e) {}
+    });
+    await gpGateXss.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpGateXss.waitForSelector("#g-form", { timeout: 8000 });
+    const gateXss = await gpGateXss.evaluate(() => {
+      var sel = document.getElementById("g-workspace");
+      var opts = sel ? Array.from(sel.options) : [];
+      return {
+        hasImgTag: !!(sel && sel.innerHTML.indexOf("<img") >= 0),
+        labelTextPresent: opts.some(function (o) { return o.textContent.indexOf("<img src=x onerror=window.__aud02GateLabel=1>") >= 0; }),
+        optionCount: opts.length,
+        fired: !!(window.__aud02GateAttr || window.__aud02GateLabel)
+      };
+    });
+    await gpGateXss.close();
+    ok("AUD-02: the gate's workspace <option> list HTML-escapes an untrusted imported id/label (no <img> tag, no attribute breakout, no handler fired)",
+      !gateXss.hasImgTag && gateXss.labelTextPresent && !gateXss.fired && gateXss.optionCount > 0, JSON.stringify(gateXss));
+
     // ---- BANNER-DISMISS (#158 remainder): the DURABLE-1 sync-loss banner gets a
     // ✕ — dismissal is session-scoped to the CURRENT failure episode; a push
     // landing (condition clears) re-arms it for the next episode. ----
@@ -30261,6 +30327,63 @@ function serve() {
       } catch (e) { return { ok: false, err: e.message }; }
     });
     ok("H113: alternating row stripes (.tbl-stripe) on even-indexed rows", h113Stripe.ok, JSON.stringify(h113Stripe));
+
+    // ── AUD-02: table bar-cell / badge-cell innerHTML sinks stay escaped ───────
+    console.log("\n• AUD-02: table cell XSS sinks escape untrusted values");
+
+    // AUD-02-1: a bar-mode cell's display value is escaped (query-result cells are
+    // untrusted — the non-bar branch already used textContent; the bar branch used
+    // to concatenate raw String(disp) into innerHTML)
+    var aud02Bar = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
+      try {
+        var el = iframeDoc.createElement("div");
+        el.style.cssText = "position:absolute;top:-9999px;width:400px";
+        iframeDoc.body.appendChild(el);
+        var payload = '<img src=x onerror=window.__aud02Bar=1>';
+        w.DashKit.table(el, {
+          cols: [{ label: "Name", bar: true, fmt: function () { return payload; } }],
+          rows: [["irrelevant"]]
+        });
+        var cell = el.querySelector("td.barcell") || el.querySelector("td .fill") && el.querySelector("td .fill").closest("td");
+        var noImgTag = !el.querySelector("td img");
+        var textPresent = el.textContent.indexOf(payload) >= 0;
+        iframeDoc.body.removeChild(el);
+        return { ok: noImgTag && textPresent && !w.__aud02Bar, noImgTag: noImgTag, textPresent: textPresent, fired: !!w.__aud02Bar };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("AUD-02: bar-cell display value is HTML-escaped, not injected as markup", aud02Bar.ok, JSON.stringify(aud02Bar));
+
+    // AUD-02-2: a badge cell's cls (attribute context) and text (content context) are escaped
+    var aud02Badge = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.DashKit && typeof w.DashKit.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no DashKit iframe" };
+      try {
+        var el = iframeDoc.createElement("div");
+        el.style.cssText = "position:absolute;top:-9999px;width:400px";
+        iframeDoc.body.appendChild(el);
+        w.DashKit.table(el, {
+          cols: [{ label: "Status", badge: function () {
+            return { cls: 'x" onmouseover="window.__aud02Cls=1" data-x="', text: '<b>bold</b>' };
+          } }],
+          rows: [["irrelevant"]]
+        });
+        var span = el.querySelector("td .badge");
+        var clsBroke = !span; // if attr injection worked, ".badge" class span wouldn't be found intact
+        var noBoldTag = !el.querySelector("td b");
+        var textPresent = span ? span.textContent.indexOf("<b>bold</b>") >= 0 : false;
+        iframeDoc.body.removeChild(el);
+        return { ok: !clsBroke && noBoldTag && textPresent, hasBadgeSpan: !!span, noBoldTag: noBoldTag, textPresent: textPresent };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("AUD-02: badge cls (attribute) and text (content) are HTML-escaped", aud02Badge.ok, JSON.stringify(aud02Badge));
 
     // ── Z8 table extras: row limit + grand total row ───────────────────────────
     console.log("\n• Z8 table extras: row limit + grand total");

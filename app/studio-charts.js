@@ -878,6 +878,9 @@
     }
   }
   function esc3(s2) { return String(s2 == null ? "" : s2).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  // AUD-02: attribute-context variant of esc3 — also escapes quotes, for values
+  // interpolated inside a "..."-quoted HTML attribute rather than text content.
+  function escAttr3(s2) { return esc3(s2).replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
 
   /* ---------- box plot (distribution: quartiles + whiskers per category) ----------
      Data: cfg.data = [{label, values:[v,...]}] — raw values per category.
@@ -3066,10 +3069,10 @@
           if (c.bar) {
             var pc = (100 * (+v || 0) / maxes[ci]).toFixed(1);
             td.className = "num barcell";
-            td.innerHTML = '<span class="fill" style="width:' + pc + '%"></span><span>' + String(disp) + '</span>';
+            td.innerHTML = '<span class="fill" style="width:' + pc + '%"></span><span>' + esc3(String(disp)) + '</span>';
           } else if (c.badge) {
             var b = c.badge(v);
-            td.innerHTML = '<span class="badge ' + b.cls + '">' + b.text + '</span>';
+            td.innerHTML = '<span class="badge ' + escAttr3(b.cls) + '">' + esc3(b.text) + '</span>';
           } else {
             if (c.num) td.className = "num";
             if (c.title) td.title = String(r[ci]).replace(/"/g, "&quot;");
@@ -6685,7 +6688,7 @@
         chip.style.cssText = "display:inline-flex;align-items:center;gap:5px;border:1px solid var(--panel-border,#dfe4ee);" +
           "border-radius:999px;padding:2px 9px;background:none;cursor:pointer;font:inherit;font-size:10.5px;" +
           "color:" + (isOn ? "var(--text-secondary,#3a4560)" : "var(--text-muted,#9aa4b8)") + (isOn ? "" : ";opacity:.55;text-decoration:line-through");
-        chip.innerHTML = '<i style="width:10px;height:10px;border-radius:50%;border:2px solid ' + c + ';background:' + (isOn ? c : "transparent") + '"></i>' + name;
+        chip.innerHTML = '<i style="width:10px;height:10px;border-radius:50%;border:2px solid ' + escAttr3(c) + ';background:' + (isOn ? escAttr3(c) : "transparent") + '"></i>' + esc3(name);
         chip.title = (isOn ? "Click to exclude " : "Click to include ") + name + " — the common estimate recomputes from the providers left on.";
         chip.onclick = function () {
           var next = provOrder.filter(function (n) { return (n === name) ? !(on.indexOf(n) >= 0) : on.indexOf(n) >= 0; });

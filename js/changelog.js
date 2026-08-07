@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 837,
+    title: 'Security hardening: escaped the confirmed table and chart XSS sinks',
+    kind: 'fix',
+    ts: '2026-08-07T00:58:41.000Z',
+    items: [
+      'Four spots that built HTML by string concatenation now escape their values first: the bar/badge table cell renderer, the multi-provider chart legend, and the sign-in screen\'s workspace picker. All four could previously render attacker-influenceable text as live markup instead of plain text.',
+    ],
+  },
+  {
     v: 836,
     title: 'The release pipeline speaks plainly: dev, stage, main',
     kind: 'polish',
