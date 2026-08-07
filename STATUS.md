@@ -135,6 +135,39 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — every tour told you to reopen it from a menu that no longer has it (v874, sw v506,
+  2026-08-07, steward; LF58 recurring slice, dev branch):** the ▶ NOW queue again held no ready
+  non-recurring item (N2/N4b/N5a/N5b shipped, N4a is ⛔ on Kevin, grooming still parked for him
+  on `hold` PR #623), so the recurring N7 came up. Checks 9/11/12 had made the rail the one list
+  of SECTIONS for Help, the guided tour and the welcome carousel; this slice takes the next
+  question — the AFFORDANCES the tours tell you to click.
+  - **The drift.** All six tours closed on some form of *"you can reopen these tours any time
+    from ⋯ More → Interactive tutorial"* — **11 references**. LF46 (⋯ teardown, slice 2) deleted
+    that entry: the ⋯ menu's whole "Help & power tools" group went to the ⌘K palette, and
+    `app/index.html`'s own comment says so. So every tour ended by naming a menu item that had
+    not existed for weeks — and the tours are precisely what a first-time user reads. The
+    suite's existing freshness ratchet (`J6: … NO retired product terms`) could never catch it:
+    it greps for retired NOUNS (CDF/CDA/Pentaho/Dashboard Studio), not for routes.
+  - **Shipped.** The copy names the routes that exist: `⌘K → Interactive tutorial` (universal —
+    the palette is the canonical home for this now), keeping `Home → Take the tour` on the two
+    lines that already carried it. The module header records why, so the next reader does not
+    re-derive it.
+  - **The guard — doc-truth check 13.** Every affordance the tour copy names is resolved against
+    the real UI: a `⋯ More → A → B` chain against `#menuMore`'s actual markup (its buttons AND
+    its `.grp` headings, so `⋯ More → Present → Slideshow` resolves), a `⌘K → X` against
+    `app/palette.js`'s command labels. Routes resolve by consuming `→ <label>` steps longest-
+    label-first, so trailing prose is not mistaken for part of the route. It reads only the COPY
+    (string literals, comments stripped) — check 12's lesson: this file's own prose describes
+    the drift it guards, and a comment must neither fail the check nor satisfy it.
+  - **Verified both ways, which is the point of a guard:** green on the fix; re-introducing the
+    old copy fails it with all 11 references named, and renaming the palette's `Interactive
+    tutorial` command fails it too. Dev gate green (validate + changelog-check + doc-truth +
+    dev-smoke, 390×780 + desktop, zero pageerrors).
+  - **Also audited, no change needed:** all 23 tour spotlight selectors still resolve;
+    `app/welcome.js` never carried the stale route; Help's two ⋯ More references both resolve.
+    And the N7 candidate list's claim that the ⌘K palette still reached only 7 of 13 rail
+    sections was itself stale — AUD-12 (v854) fixed that and added the guard; the note is struck.
+  - **est 1pt, took 1.**
 - **N7 — the welcome quick tour stops skipping the rail's Workspace group (v873, sw v505,
   2026-08-07, steward; LF58 recurring slice, dev branch):** the ▶ NOW queue again held no ready
   non-recurring item (N2/N4b/N5a/N5b shipped, N4a is ⛔ on Kevin, and the grooming pass is
@@ -10063,14 +10096,26 @@
     workspace-catalogs card was added between Dashboard Builder and Export; doc-truth
     check 12 now holds `BASE_STEPS`' copy accountable to the rail's section list
     (coverage, not order — the carousel is a value narrative, not a rail walk).
+  * *The tours' own "how to get back here" — v874, sw v506, 2026-08-07 (see DONE).* Every
+    one of the six tours closed on "reopen these tours from ⋯ More → Interactive tutorial",
+    an entry LF46 (⋯ teardown, slice 2) had DELETED — 11 stale references, pointing at a
+    menu that had not carried the tour for weeks. Now ⌘K → Interactive tutorial (plus Home →
+    Take the tour where the line already said so). Doc-truth check 13 now resolves every
+    affordance the tour copy names — "⋯ More → X" against `#menuMore`'s real markup, "⌘K → X"
+    against `app/palette.js`'s command labels.
+  * **Audited and found CURRENT in this pass, no change needed:** all 23 spotlight target
+    selectors across the six tours still resolve in `app/`; `app/welcome.js` never carried
+    the stale route; and Help's two ⋯ More references (`Present → Slideshow`,
+    `Simple mode off`) both resolve against the live menu.
   * **Not yet audited (candidates for the next N7 slice):** the marketing page's hero
     carousel captions + screenshots, which the v871 slice deliberately left alone (the copy
-    pass stayed textual — regenerating shots is its own slice); `app/tutorial.js`'s five
-    NON-overview tours (Quick analysis / Build a dashboard / Prep & connect / the pack tour
-    and their completion lines), which no check measures the way check 11 measures the
-    overview tour; and the ⌘K palette's section list (`app/palette.js`), which AUD-12
-    recorded as reaching only 7 of 13 rail sections — the same rail-is-the-source-of-truth
-    guard would fit it.
+    pass stayed textual — regenerating shots is its own slice); and the per-feature tours'
+    remaining BODY copy (Quick analysis / Build a dashboard / Prep & connect / the pack
+    tour), which the v874 slice only touched at the closing lines — the "analysis" vs "View"
+    wording in the Quick analysis tour is the strongest candidate there, and it overlaps
+    AUD-11's tail (§2.4's wording sweep). **Struck from this list:** the ⌘K palette's section
+    coverage, which this pass found was NOT stale — AUD-12 (v854) already made the palette
+    derive from the rail and added the guard, so the note above was itself out of date.
 
 ### 🗂 Reservoir index (added 2026-08-07, N1) — what is below, and whether it is alive
 

@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 874,
+    title: 'Every tour told you to reopen it from a menu that no longer has it',
+    kind: 'fix',
+    ts: '2026-08-07T23:42:08.000Z',
+    items: [
+      'All six interactive tours closed by telling you that you could run them again any time from the ⋯ More menu\'s "Interactive tutorial" entry. That entry was removed weeks ago, when the ⋯ menu\'s power-tools group was folded into the ⌘K command palette — so every tour ended by sending you somewhere the thing it named was not, eleven times over across the tours.',
+      'The tours now name the routes that exist: ⌘K → Interactive tutorial opens the tour chooser from anywhere, and where a tour already mentioned it, Home → Take the tour still does too.',
+      'The checks that run on every change now resolve the affordances the tour copy names, instead of only the sections it names: a "⋯ More → …" route is matched against the real ⋯ menu, and a "⌘K → …" route against the palette\'s own list of commands. Removing a menu entry or renaming a palette command now fails the check that points at it, which is exactly what nobody noticed the first time.',
+    ],
+  },
+  {
     v: 873,
     title: 'The quick tour stops skipping a third of the app',
     kind: 'fix',
