@@ -60,8 +60,9 @@
   var _connFolderFilter = ""; // "" = All, "__unfiled" = no folder, else a folder name
   // LF51 (d): list ⇆ tile view, same as Datasets (studio-dsx-view) — a device-
   // remembered localStorage key, not workspace data.
-  var _connViewMode = "list";
-  try { _connViewMode = localStorage.getItem("studio-conn-view") || "list"; } catch (e) {}
+  // AUD-06: the live value is assigned by Studio.catalogView.wire() at the top of this
+  // section's render (the kit owns the default and the persisted key).
+  var _connViewMode;
   // Post-overhaul backlog item 6 follow-up ("same treatment for the
   // Connections list"): identical saved-view contract to the Datasets
   // section's dsxLoadViews/dsxSaveViews/dsxApplyView, now including the tag
@@ -162,18 +163,9 @@
   }
   function renderConnections() {
     var results = $("#connResults"); if (!results) return;
-    // LF51 (d): persistent list/tile toggle in the section header.
-    var vt = $("#connViewToggle");
-    if (vt) {
-      var tilesNow = _connViewMode === "tiles";
-      vt.textContent = tilesNow ? "List view" : "Tile view";
-      vt.setAttribute("aria-pressed", tilesNow ? "true" : "false");
-      vt.onclick = function () {
-        _connViewMode = _connViewMode === "tiles" ? "list" : "tiles";
-        try { localStorage.setItem("studio-conn-view", _connViewMode); } catch (e) {}
-        renderConnections();
-      };
-    }
+    // LF51 (d) / AUD-06: the persistent list ⇆ tile toggle in the section header, from
+    // the shared kit — idempotent, so re-calling it on every render IS the binding.
+    _connViewMode = Studio.catalogView.wire($("#connViewToggle"), "conn", renderConnections);
     var credNote = $("#connCredNote");
     if (credNote) {
       var cc = connCredentialCopy();

@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 849,
+    title: 'Every catalog page opens the same way',
+    kind: 'polish',
+    ts: '2026-08-07T09:16:54.000Z',
+    items: [
+      'The list/tile switch above every catalog page — Dashboards, Views, Datasets, Connections, Jobs and Repository — now comes from one shared kit instead of six copies, so the button looks and behaves identically wherever you meet it.',
+      'All six pages now open in the compact list view. Dashboards was the one page that opened as tiles; tile view is still one tap away in the page header, and once you pick it the page remembers your choice on that device. Home still greets you with dashboard thumbnails.',
+      'The switch carries its grid/list icon on every page now — only Dashboards had it before, so the same control looked like two different controls.',
+      'Screen readers get a straight answer: the button reports "pressed" when the page is showing tiles, on all six pages. It used to mean the opposite thing on Dashboards from everywhere else.',
+    ],
+  },
+  {
     v: 848,
     title: 'Filter pills that behave the same on every page',
     kind: 'polish',

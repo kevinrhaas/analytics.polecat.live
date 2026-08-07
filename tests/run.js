@@ -797,7 +797,10 @@ function serve() {
     await page.waitForTimeout(150);
     await page.evaluate(() => window.__studioShellSetSection("dashboards"));
     await page.waitForTimeout(150);
-    await page.click("#repoResults .recent-open");
+    // AUD-06: Dashboards now opens as a list like every other catalog panel, so reach for
+    // whichever opener the current layout paints — the tile's whole-card button or the
+    // list row's title button (both open the dashboard).
+    await page.click("#repoResults .recent-open, #repoResults .dash-li .cx-title-btn");
     await page.waitForTimeout(150);
     const lf27bDashOrigin = await page.evaluate(() => window.__STUDIO_STATE.studioOrigin);
     ok("LF27(b): origin tracks whichever section Studio was actually entered from (Dashboards, not just Home)",
@@ -7809,6 +7812,58 @@ function serve() {
     ok("AUD-06 slice 2: facet pills sort naturally and case-insensitively (Q2 before Q10, acreage before Zoning) instead of by raw codepoint",
       catalogFacetsUnit.naturalOrder === "acreage|Q2|Q10|Zoning", JSON.stringify(catalogFacetsUnit));
 
+    // Studio.catalogView is the fourth and last shared axis (sort → search → facets → view
+    // mode). Unit-level: one default for every panel, the historical per-section storage
+    // keys, a hostile/absent stored value falling back to the default rather than sticking,
+    // and a wire() that is safe to call on every render (label + aria-pressed + icon all
+    // re-synced, one handler, no duplicate listeners).
+    const catalogViewUnit = await page.evaluate(function () {
+      var V = Studio.catalogView, out = { def: V.DEFAULT, key: V.key("dsx") };
+      var K = V.key("__unit");
+      try { localStorage.removeItem(K); } catch (e) {}
+      out.absentIsDefault = V.load("__unit");
+      V.save("__unit", "tiles"); out.roundTrip = V.load("__unit");
+      try { localStorage.setItem(K, "garbage"); } catch (e) {}
+      out.garbageIsDefault = V.load("__unit");
+      try { localStorage.removeItem(K); } catch (e) {}
+      // wire(): a detached button stands in for a section header's toggle.
+      var btn = document.createElement("button");
+      var renders = 0, rerender = function () { renders++; };
+      out.wired = V.wire(btn, "__unit", rerender);
+      out.listLabel = btn.textContent.trim();
+      out.listPressed = btn.getAttribute("aria-pressed");
+      out.listIcon = !!btn.querySelector("svg");
+      btn.click();                       // → tiles (persisted), one rerender
+      out.afterClick = V.load("__unit");
+      out.renders = renders;
+      V.wire(btn, "__unit", rerender);   // re-render: same button, re-synced
+      out.tilesLabel = btn.textContent.trim();
+      out.tilesPressed = btn.getAttribute("aria-pressed");
+      out.tilesIcon = !!btn.querySelector("svg");
+      btn.click();                       // → back to list, still exactly one handler
+      out.afterSecondClick = V.load("__unit");
+      out.rendersTotal = renders;
+      try { localStorage.removeItem(K); } catch (e) {}
+      // and the six real panels all resolve to the SAME default with nothing persisted
+      var secs = ["dash", "vwc", "dsx", "conn", "jobs", "repo"], stash = {};
+      secs.forEach(function (sec) {
+        try { stash[sec] = localStorage.getItem(V.key(sec)); localStorage.removeItem(V.key(sec)); } catch (e) {}
+      });
+      out.allDefaults = secs.map(function (sec) { return V.load(sec); }).join("|");
+      secs.forEach(function (sec) { if (stash[sec] != null) { try { localStorage.setItem(V.key(sec), stash[sec]); } catch (e) {} } });
+      return out;
+    });
+    ok("AUD-06: Studio.catalogView keeps the historical per-section key (studio-dsx-view) and falls back to its one default for an absent or corrupt value",
+      catalogViewUnit.key === "studio-dsx-view" && catalogViewUnit.absentIsDefault === "list" &&
+      catalogViewUnit.roundTrip === "tiles" && catalogViewUnit.garbageIsDefault === "list", JSON.stringify(catalogViewUnit));
+    ok("AUD-06: catalogView.wire() is idempotent — it re-syncs icon + label + aria-pressed on every render and leaves exactly ONE click handler behind",
+      catalogViewUnit.wired === "list" && catalogViewUnit.listLabel === "Tile view" && catalogViewUnit.listPressed === "false" &&
+      catalogViewUnit.listIcon && catalogViewUnit.afterClick === "tiles" && catalogViewUnit.renders === 1 &&
+      catalogViewUnit.tilesLabel === "List view" && catalogViewUnit.tilesPressed === "true" && catalogViewUnit.tilesIcon &&
+      catalogViewUnit.afterSecondClick === "list" && catalogViewUnit.rendersTotal === 2, JSON.stringify(catalogViewUnit));
+    ok("AUD-06: all six catalog panels (Dashboards, Views, Datasets, Connections, Jobs, Repository) now open in the SAME default view mode",
+      catalogViewUnit.allDefaults === "list|list|list|list|list|list" && catalogViewUnit.def === "list", JSON.stringify(catalogViewUnit));
+
     // The panel-level proof: four folders whose CODEPOINT order ("Q10" < "Q2" < "Zoning" <
     // "acreage") is not the order a human reads them in. The strip is also labelled now —
     // Dashboards was the only panel that named its folder facet before this slice.
@@ -9004,9 +9059,10 @@ function serve() {
       window.__studioShellSetSection("dashboards");
       window.__studioRenderDashboards();
       // dashListRowHtml (the "cx-when"-carrying compact row) only paints in List
-      // view — tiles (recentCardHtml) are the default — so toggle into List for
-      // this check, then toggle back so later view-toggle tests aren't disturbed.
-      var wasList = localStorage.getItem("studio-dash-view") === "list";
+      // view, so make sure we're there for this check and put the section back
+      // afterwards. AUD-06: ask the shared kit which mode is current rather than
+      // second-guessing the persisted key (absent == the kit's default).
+      var wasList = Studio.catalogView.load("dash") === "list";
       if (!wasList) document.getElementById("dashViewToggle").click();
       window.__studioShellSetSection("repository");
       window.__studioRenderRepository();
@@ -9058,7 +9114,9 @@ function serve() {
       var out = {
         toggleExists: !!toggle,
         listDefault: !!listRow && !results.querySelector(".dsx-tile"),
-        listToggleLabel: toggle ? toggle.textContent : null
+        listToggleLabel: toggle ? toggle.textContent.trim() : null,
+        listToggleHasIcon: !!(toggle && toggle.querySelector("svg")),
+        listTogglePressed: toggle ? toggle.getAttribute("aria-pressed") : null
       };
       // switch to tiles
       if (toggle) toggle.click();
@@ -9066,7 +9124,9 @@ function serve() {
       out.tilesAfterClick = !!tile && !results.querySelector(".cx-row");
       out.tileHasTitleBtn = !!(tile && tile.querySelector(".cx-title-btn"));
       out.tileHasEdit = !!(tile && tile.querySelector('[data-dsx-edit="' + ds.id + '"]'));
-      out.tileToggleLabel = toggle ? toggle.textContent : null;
+      out.tileToggleLabel = toggle ? toggle.textContent.trim() : null;
+      out.tileToggleHasIcon = !!(toggle && toggle.querySelector("svg"));
+      out.tileTogglePressed = toggle ? toggle.getAttribute("aria-pressed") : null;
       out.persisted = localStorage.getItem("studio-dsx-view");
       // switch back to list
       if (toggle) toggle.click();
@@ -9080,6 +9140,9 @@ function serve() {
     });
     ok("LF51: the Datasets section defaults to the compact list with a 'Tile view' toggle",
       lf51View.toggleExists && lf51View.listDefault && lf51View.listToggleLabel === "Tile view", JSON.stringify(lf51View));
+    ok("AUD-06: the view toggle carries the shared kit's grid/list ICON and reports aria-pressed=false while showing a list",
+      lf51View.listToggleHasIcon && lf51View.listTogglePressed === "false" &&
+      lf51View.tileToggleHasIcon && lf51View.tileTogglePressed === "true", JSON.stringify(lf51View));
     ok("LF51: the toggle switches Datasets to a tile grid (persisted), keeping title + Edit hooks",
       lf51View.tilesAfterClick && lf51View.tileHasTitleBtn && lf51View.tileHasEdit &&
       lf51View.tileToggleLabel === "List view" && lf51View.persisted === "tiles", JSON.stringify(lf51View));
@@ -9095,7 +9158,7 @@ function serve() {
         render();
         var results = document.getElementById(resultsId), toggle = document.getElementById(toggleId);
         var listDefault = !!results.querySelector('.cx-row[' + dataAttr + '="' + id + '"]') && !results.querySelector(".dsx-tile");
-        var listLabel = toggle ? toggle.textContent : null;
+        var listLabel = toggle ? toggle.textContent.trim() : null;
         if (toggle) toggle.click();
         var tile = results.querySelector('.dsx-tile[' + dataAttr + '="' + id + '"]');
         var out = {
@@ -9142,13 +9205,13 @@ function serve() {
       var toggle = document.getElementById("repoViewToggle");
       window.__studioRenderRepository();
       var listDefault = !!results.querySelector('.cx-row[data-repo-id="' + ds.id + '"]') && !results.querySelector(".dsx-tile");
-      var out = { toggleExists: !!toggle, listDefault: listDefault, listLabel: toggle ? toggle.textContent : null };
+      var out = { toggleExists: !!toggle, listDefault: listDefault, listLabel: toggle ? toggle.textContent.trim() : null };
       if (toggle) toggle.click();
       var tile = results.querySelector('.dsx-tile[data-repo-id="' + ds.id + '"]');
       out.tiles = !!tile && !results.querySelector(".cx-row");
       out.titleBtn = !!(tile && tile.querySelector(".cx-title-btn"));
       out.editBtn = !!(tile && tile.querySelector('[data-repo-edit-id="' + ds.id + '"]'));
-      out.tileLabel = toggle ? toggle.textContent : null;
+      out.tileLabel = toggle ? toggle.textContent.trim() : null;
       out.persisted = localStorage.getItem("studio-repo-view");
       if (toggle) toggle.click();
       out.backToList = !!results.querySelector('.cx-row[data-repo-id="' + ds.id + '"]') && !results.querySelector(".dsx-tile");
@@ -9182,7 +9245,7 @@ function serve() {
         railItemExists: !!document.querySelector('.rail-item[data-sec="views"]'),
         sectionVisible: !document.getElementById("secViews").hidden,
         toggleExists: !!toggle,
-        toggleLabel: toggle ? toggle.textContent : null,
+        toggleLabel: toggle ? toggle.textContent.trim() : null,
         listDefault: !!row && !results.querySelector(".dsx-tile"),
         rowHasTitle: !!(row && row.querySelector(".cx-title-btn") && row.querySelector(".cx-title-btn b").textContent === "lf57-a"),
         rowHasChartType: !!(row && row.textContent.indexOf("Bar chart") >= 0),
@@ -34694,6 +34757,31 @@ function serve() {
     console.log("\n• Z3: Dashboards section");
     await page.click('#railNav .rail-item[data-sec="dashboards"]');
     await page.waitForTimeout(150);
+
+    // AUD-06 (audit §2.1, family D — "the default view mode differs"): Dashboards used to be
+    // the one catalog panel that opened as tiles while the other five opened as a list. With
+    // the shared kit there is ONE default for all six, and it is the list. Prove it from a
+    // clean slate (nothing persisted), then put this block back into the tile layout it
+    // exercises below, explicitly rather than by inheriting whatever the default happens to be.
+    const z3DefaultView = await page.evaluate(function () {
+      try { localStorage.removeItem("studio-dash-view"); } catch (e) {}
+      window.__studioRenderDashboards();
+      var btn = document.getElementById("dashViewToggle");
+      return {
+        kitDefault: Studio.catalogView.DEFAULT,
+        rows: document.querySelectorAll("#repoResults .dash-li").length,
+        tiles: document.querySelectorAll("#repoResults .recent-card").length,
+        pressed: btn ? btn.getAttribute("aria-pressed") : null,
+        label: btn ? btn.textContent.trim() : null,
+        hasIcon: !!(btn && btn.querySelector("svg"))
+      };
+    });
+    ok("AUD-06: with nothing persisted, Dashboards opens in the LIST view every other catalog panel already defaulted to (one shared Studio.catalogView.DEFAULT, not six copies)",
+      z3DefaultView.kitDefault === "list" && z3DefaultView.rows > 0 && z3DefaultView.tiles === 0 &&
+      z3DefaultView.pressed === "false" && z3DefaultView.label === "Tile view" && z3DefaultView.hasIcon,
+      JSON.stringify(z3DefaultView));
+    await page.click("#dashViewToggle"); // → tiles, for the rest of this block
+    await page.waitForTimeout(80);
     const z3Nav = await page.evaluate(function () {
       return {
         repoVisible: document.getElementById("secDashboards").hidden === false,

@@ -38,8 +38,9 @@
   // convention as every other catalog section's folder pilot.
   var _vwTypeFilter = {};
   var _vwFolderFilter = "";
-  var _vwViewMode = "list";
-  try { _vwViewMode = localStorage.getItem("studio-vwc-view") || "list"; } catch (e) {}
+  // AUD-06: the live value is assigned by Studio.catalogView.wire() at the top of this
+  // section's render (the kit owns the default and the persisted key).
+  var _vwViewMode;
 
   function vwChartLabel(t) { return t === "kpi" ? "KPI" : (Studio.CHARTS[t] || {}).label || t; }
   // LF57 follow-up: a per-chart-type row icon, reusing the same themed gallery-thumbnail
@@ -108,19 +109,9 @@
         renderViews();
       };
     }
-    // LF51 (d): wire the persistent list/tile toggle (lives in the section header,
-    // outside #viewsResults, so this idempotent binding survives every re-render).
-    var vt = $("#viewsViewToggle");
-    if (vt) {
-      var tilesNow = _vwViewMode === "tiles";
-      vt.textContent = tilesNow ? "List view" : "Tile view";
-      vt.setAttribute("aria-pressed", tilesNow ? "true" : "false");
-      vt.onclick = function () {
-        _vwViewMode = _vwViewMode === "tiles" ? "list" : "tiles";
-        try { localStorage.setItem("studio-vwc-view", _vwViewMode); } catch (e) {}
-        renderViews();
-      };
-    }
+    // LF51 (d) / AUD-06: the persistent list ⇆ tile toggle in the section header, from
+    // the shared kit — idempotent, so re-calling it on every render IS the binding.
+    _vwViewMode = Studio.catalogView.wire($("#viewsViewToggle"), "vwc", renderViews);
     // SORT-1: header sort <select> — same idempotent-binding convention as the toggles.
     var _vwSortKey = Studio.catalogSort.wire($("#viewsSortSel"), "views", "updated-desc", [
       ["updated-desc", "Newest first"], ["updated-asc", "Oldest first"],
