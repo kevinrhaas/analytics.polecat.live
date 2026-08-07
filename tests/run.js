@@ -16758,7 +16758,9 @@ function serve() {
     gp2.on("pageerror", (e) => errors.push("gate theme page: " + e.message));
     await gp2.addInitScript(() => { try { localStorage.setItem("studio-theme", "dark"); localStorage.setItem("studio-app-theme", "polecat"); } catch (e) {} });
     await gp2.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
-    await gp2.waitForTimeout(400);
+    // wait for the gate card itself, not a fixed delay — first-run seeding now
+    // runs PBKDF2 (AUD-03), which pushes the gate's first paint past 400ms
+    await gp2.waitForSelector("#studio-gate .g-card", { timeout: 8000 });
     const gateThemed = await gp2.evaluate(() => ({
       attr: document.documentElement.getAttribute("data-app-theme") + "/" + document.documentElement.getAttribute("data-theme"),
       card: getComputedStyle(document.querySelector("#studio-gate .g-card")).backgroundColor
