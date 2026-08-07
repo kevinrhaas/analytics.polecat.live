@@ -36,7 +36,7 @@
       h: "A modern, visual way to turn your data into <b>quick analyses</b> and <b>interactive dashboards</b> — entirely in your browser, local-first, nothing to install.",
       s: "Your work saves to this device and can mirror to your own backend. Everything also works offline on sample data." },
     { t: "Quick Views — answers in a minute", ic: "search",
-      h: "<b>Quick Views</b> (left rail) is the fastest path in: pick a dataset, see it as a table, choose a chart — including the <b>US county map</b> and the <b>Ensemble common-estimate</b> chart — and save it as a reusable <b>analysis</b>.",
+      h: "<b>Quick Views</b> (left rail: Build) is the fastest path in: pick a dataset, see it as a table, choose a chart — including the <b>US county map</b> and the <b>Ensemble common-estimate</b> chart — and save it as a reusable <b>analysis</b>.",
       s: "Pin an analysis ★ to Home and it greets you live when you open the app; drop it into any dashboard with one click." },
     // TOUR-WOW (Kevin live, 2026-07-31): the flagship View Builder was absent
     // from the whole welcome flow — new users never learned it existed.
@@ -46,6 +46,14 @@
     { t: "Dashboard Builder — full dashboards", ic: "grid",
       h: "<b>Library</b> (left) lists your analyses, datasets and samples · <b>Live preview</b> (center) is the real dashboard · <b>Inspector</b> (right) edits whatever you select. Drag to reorder, resize, rename; Ctrl/Cmd-Z undoes.",
       s: "Or hit <b>New ▸ Auto-build</b> to scaffold a whole dashboard from a query set in one click." },
+    // N7 (2026-08-07): the quick tour walked straight from the builders to Export, so it
+    // never said where anything you build ends up. The rail's whole Workspace group —
+    // the Views catalog LF57 added, the Dashboards catalog, Repository — went unnamed,
+    // the same gap doc-truth check 11 had just found in the guided overview tour. Check
+    // 12 now holds this array accountable to the rail's own section list.
+    { t: "Your workspace — find it all again", ic: "folder",
+      h: "The rail's <b>Workspace</b> group is everything you have: <b>Views</b> is the catalog of every chart you've saved, <b>Dashboards</b> lists the ones you've assembled, and <b>Repository</b> searches across all five kinds of object at once — with folders, chip filters and rename-in-place.",
+      s: "<b>Home</b> is the front door: your featured dashboards render live there and pinned analyses greet you the moment you open the app." },
     { t: "Export — it runs anywhere", ic: "download",
       h: "Export a self-contained, interactive <b>.html</b> dashboard you can open or host anywhere — no server, no dependencies. The editable source is the <b>.studio.json</b> (Save / Open).",
       s: "The live preview is byte-identical to the exported dashboard." },

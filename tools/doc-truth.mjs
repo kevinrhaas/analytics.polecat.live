@@ -272,6 +272,52 @@ ok("app/tutorial.js: the overview tour walks the rail top-to-bottom, skipping no
   `tour: ${tourWalk.map(label).join(" → ") || "(no rail steps found)"}\n      rail: ${expectedWalk.map(label).join(" → ")}` +
   `\n      (deliberate skips: ${Object.entries(SKIP_IN_TOUR).map(([s, why]) => `${label(s)} — ${why}`).join("; ")})`);
 
+// 12. The welcome overlay's QUICK TOUR — the "a few quick cards right here, what each part of
+//     the app is for" carousel — is the other first-run surface that describes the app's
+//     sections, and nothing was measuring it either. It had drifted exactly the way the guided
+//     overview tour had (check 11): the Views catalog LF57 added, the Dashboards catalog and
+//     Repository were never named, so the tour of "each part of the app" walked straight past
+//     the rail's whole Workspace group. Unlike check 11 this is NOT an ordering claim — the
+//     carousel is a value narrative (make it → find it → hand it out → feed it), not a rail
+//     walk — so it asserts COVERAGE only: every rail section is named, by the rail's own label.
+const SKIP_IN_WELCOME = {
+  admin: "role-gated (M4) — most accounts never see it",
+  settings: "pinned below the groups; the hero screen already points at Settings → Tour",
+  docs: "pinned below the groups — the last card hands off to the guided tour, not to Help",
+};
+const welcomeSteps = (() => {
+  const src = read("app/welcome.js");
+  const start = src.indexOf("var BASE_STEPS = [");
+  if (start < 0) throw new Error("doc-truth: BASE_STEPS not found in app/welcome.js");
+  let depth = 0, open = src.indexOf("[", start), i = open;
+  for (; i < src.length; i++) {
+    if (src[i] === "[") depth++;
+    else if (src[i] === "]" && --depth === 0) break;
+  }
+  // Only the COPY a visitor reads — the t/h/s fields' string literals. Not the raw block:
+  // a source comment ABOUT the drift (this one's own, first time round) would otherwise be
+  // enough to make the check pass while the carousel still said nothing.
+  return [...src.slice(open, i + 1).matchAll(/\b[ths]:\s*"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]).join("\n");
+})();
+const strayInWelcomeSkip = Object.keys(SKIP_IN_WELCOME).filter((s) => !railWalk.includes(s));
+ok("tools/doc-truth.mjs: every deliberately-skipped welcome section is still on the rail", !strayInWelcomeSkip.length,
+  `SKIP_IN_WELCOME names sections the rail no longer has: ${strayInWelcomeSkip.join(", ")}`);
+// Longest label first, consuming each match, so "Quick Views" can never be the reason "Views"
+// looks covered (nor "Dashboard Builder" the reason "Dashboards" does).
+const unnamedInWelcome = (() => {
+  const wanted = railWalk.filter((s) => !SKIP_IN_WELCOME[s]);
+  let text = welcomeSteps, missing = [];
+  for (const sec of [...wanted].sort((a, b) => label(b).length - label(a).length)) {
+    if (text.includes(label(sec))) text = text.split(label(sec)).join("");
+    else missing.push(sec);
+  }
+  return wanted.filter((s) => missing.includes(s));
+})();
+ok("app/welcome.js: the quick tour names every rail section, by the rail's own label",
+  !unnamedInWelcome.length,
+  `never named in BASE_STEPS: ${unnamedInWelcome.map(label).join(", ")}` +
+  `\n      (deliberate skips: ${Object.entries(SKIP_IN_WELCOME).map(([s, why]) => `${label(s)} — ${why}`).join("; ")})`);
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 873,
+    title: 'The quick tour stops skipping a third of the app',
+    kind: 'fix',
+    ts: '2026-08-07T23:13:34.000Z',
+    items: [
+      'The welcome screen\'s quick tour — the cards that promise to show you what each part of the app is for — went from the builders straight to exporting, and never mentioned where anything you build ends up. Views, Dashboards and Repository, the whole Workspace group on the left rail, were absent, so a first-time visitor finished the tour without being told there is a catalog of every chart they save.',
+      'There is a card for them now, between the Dashboard Builder and Export: Views is the catalog of every chart you have saved, Dashboards lists the ones you have assembled, Repository searches across all five kinds of object at once, and Home is where your featured dashboards and pinned analyses greet you. The Quick Views card also says which rail group to find it in, the way the View Builder card already did.',
+      'The Help page now describes what the quick tour actually covers, rather than only that it exists and adapts to your sample pack.',
+      'And the checks that run on every change now read the rail\'s own section list out of the app and fail if the quick tour stops naming all of it — the same guard the Help page and the guided tour got earlier this week. Adding a section to the rail now forces a decision about whether the welcome cards should mention it.',
+    ],
+  },
+  {
     v: 872,
     title: 'The Getting started tour now walks the rail in the order the rail is in',
     kind: 'fix',

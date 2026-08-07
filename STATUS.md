@@ -135,6 +135,45 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the welcome quick tour stops skipping the rail's Workspace group (v873, sw v505,
+  2026-08-07, steward; LF58 recurring slice, dev branch):** the ▶ NOW queue again held no ready
+  non-recurring item (N2/N4b/N5a/N5b shipped, N4a is ⛔ on Kevin, and the grooming pass is
+  already parked for him on `hold` PR #623), so the recurring N7 came up again — this is the
+  third first-run surface to be measured against the rail, after Help (v870, check 9) and the
+  guided overview tour (v872, check 11). `app/welcome.js`'s `BASE_STEPS` — the carousel behind
+  the hero's "what each part of the app is for" card — went Welcome → Quick Views → View
+  Builder → Dashboard Builder → Export → Bring your data, so it named the three builders and
+  the two data sections and **never mentioned where anything you build ends up**: `Views` (the
+  catalog LF57 added), `Dashboards` and `Repository` were absent, i.e. the whole Workspace
+  group. Nothing noticed, for the same reason nothing noticed on the tour: nothing was
+  measuring. Shipped: a workspace-catalogs card ("Your workspace — find it all again") between
+  Dashboard Builder and Export naming Views / Dashboards / Repository / Home with the rail's
+  own labels and the Repository description docs/index.html already uses (all five object
+  kinds, folders, chip filters, rename in place); the Quick Views card now says
+  `(left rail: Build)` the way the View Builder card already did; and the Help page's "Take a
+  quick tour" bullet, which said only that the carousel exists and is pack-aware, now says
+  what it covers.
+  **doc-truth check 12** holds it there: it extracts `BASE_STEPS`' `t`/`h`/`s` STRING LITERALS
+  (not the raw source block — a source comment ABOUT the drift would otherwise satisfy the
+  check, which is exactly what the first draft of it did) and requires every rail section's
+  `SECTION_LABELS` label to appear, consuming longest-label-first so "Quick Views" can never
+  be the reason "Views" looks covered. Deliberate skips are declared with reasons (`admin`
+  role-gated, `settings`/`docs` pinned below the groups). Unlike check 11 it asserts
+  COVERAGE, not order — the carousel is a value narrative (make it → find it → hand it out →
+  feed it), not a rail walk. Proved non-vacuous by deleting the new card: it then fails naming
+  exactly `Views, Dashboards, Repository`. Suite: the LF40 pack-aware count moves 6→7 base
+  steps, plus two checks that walk the RENDERED deck to the new card and assert its bold
+  labels — walking the rendered titles rather than indexing `computeStepTitles()`, because a
+  sample pack that finishes installing after `open()` makes a freshly-computed index disagree
+  with the deck on screen (it did: 9 computed titles vs 8 rendered dots — the first draft of
+  the check landed on the Export card because of it).
+  **Verified:** the full dev gate green (`validate` 207 files, `changelog-check` 850 entries,
+  `doc-truth` 23/23, `dev-smoke` desktop + 390px, zero pageerrors) plus a scratch Playwright
+  driver running the slice's own new suite checks verbatim against a signed-in app at
+  1200×900 AND 390×780 — the new card fits the mobile gate viewport without overflow, and the
+  existing icon-swap / back-to-hero / finish-loops-to-hero checks still pass around the
+  insertion. The FULL `tests/run.js` runs at stage-promotion time, per the pipeline. est 1pt,
+  took 1.
 - **N7 — the Getting started tour walks the rail in the order the rail is in, and can no
   longer drift from it (v872, sw v504, 2026-08-07, steward; LF58 recurring slice):** the ▶ NOW
   queue again held no ready non-recurring item (N2/N4b/N5a/N5b shipped, N4a is ⛔ on Kevin,
@@ -10018,11 +10057,20 @@
     the rail in the rail's order (five group crossings) and skipped the Views catalog
     entirely. Reordered to Workspace → Build → Manage with a Views stop added; doc-truth
     check 11 now derives the expected walk from `app/index.html`'s rail DOM order.
+  * *The welcome quick tour vs the rail — v873, sw v505, 2026-08-07 (see DONE).* The
+    carousel went from the builders straight to Export and never named the rail's whole
+    Workspace group — Views (LF57), Dashboards and Repository were absent. A
+    workspace-catalogs card was added between Dashboard Builder and Export; doc-truth
+    check 12 now holds `BASE_STEPS`' copy accountable to the rail's section list
+    (coverage, not order — the carousel is a value narrative, not a rail walk).
   * **Not yet audited (candidates for the next N7 slice):** the marketing page's hero
     carousel captions + screenshots, which the v871 slice deliberately left alone (the copy
-    pass stayed textual — regenerating shots is its own slice); and `app/welcome.js`'s
-    informational welcome carousel, whose section copy has never been checked against the
-    rail the way the guided tour now is.
+    pass stayed textual — regenerating shots is its own slice); `app/tutorial.js`'s five
+    NON-overview tours (Quick analysis / Build a dashboard / Prep & connect / the pack tour
+    and their completion lines), which no check measures the way check 11 measures the
+    overview tour; and the ⌘K palette's section list (`app/palette.js`), which AUD-12
+    recorded as reaching only 7 of 13 rail sections — the same rail-is-the-source-of-truth
+    guard would fit it.
 
 ### 🗂 Reservoir index (added 2026-08-07, N1) — what is below, and whether it is alive
 

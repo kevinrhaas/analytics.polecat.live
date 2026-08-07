@@ -17476,8 +17476,45 @@ function serve() {
         allNamesPresent: installed.every(function (id) { return titles.indexOf(packs[id].name) >= 0; })
       };
     });
-    ok("LF40: the welcome carousel adds one curated-content step per installed sample pack (6-step base incl. TOUR-WOW's View Builder step + N packs)",
-      packAware.allNamesPresent && packAware.titleCount === 6 + packAware.installedCount, JSON.stringify(packAware));
+    ok("LF40: the welcome carousel adds one curated-content step per installed sample pack (7-step base incl. TOUR-WOW's View Builder step + N7's workspace-catalogs step + N packs)",
+      packAware.allNamesPresent && packAware.titleCount === 7 + packAware.installedCount, JSON.stringify(packAware));
+    // N7 (2026-08-07): the quick tour never named the rail's Workspace group — the Views
+    // catalog (LF57), the Dashboards catalog and Repository were all absent, so "what each
+    // part of the app is for" skipped a whole third of the rail. tools/doc-truth.mjs check 12
+    // holds BASE_STEPS accountable to the rail's section list; this asserts the step a visitor
+    // actually SEES, rendered, with the labels the rail uses.
+    //
+    // Walk the RENDERED carousel rather than indexing computeStepTitles(): the live array is
+    // whatever open() computed, and a pack that finishes installing after that point makes a
+    // freshly-computed index disagree with the deck on screen.
+    const wsWalk = await gp.evaluate(async () => {
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      var guard = 0, seen = [];
+      while (guard++ < 14) {
+        var t = ((document.querySelector("#studio-welcome .sw-hd h1") || {}).textContent || "");
+        seen.push(t);
+        if (/Your workspace/i.test(t)) return { found: true, steps: seen.length - 1, seen: seen };
+        var nx = document.querySelector('#studio-welcome [data-act="next"]');
+        if (!nx || /Finish/.test(nx.textContent)) break;
+        nx.click(); await sleep(90);
+      }
+      return { found: false, steps: seen.length - 1, seen: seen };
+    });
+    ok("N7: the welcome quick tour has a workspace-catalogs card", wsWalk.found, JSON.stringify(wsWalk.seen));
+    const wsCopy = await gp.evaluate(() => {
+      var bd = document.querySelector("#studio-welcome .sw-bd");
+      var hd = document.querySelector("#studio-welcome .sw-hd h1");
+      var bolds = [].map.call(bd.querySelectorAll("b"), (b) => b.textContent);
+      return { title: hd ? hd.textContent : "", bolds: bolds };
+    });
+    ok("N7: that step names Views, Dashboards, Repository and Home by their rail labels",
+      ["Views", "Dashboards", "Repository", "Home"].every((l) => wsCopy.bolds.indexOf(l) >= 0),
+      JSON.stringify(wsCopy));
+    // Back to step 0, so the icon checks below still start where they always did.
+    for (let s = 0; s < wsWalk.steps; s++) { await gp.click('#studio-welcome [data-act="back"]'); await gp.waitForTimeout(80); }
+    ok("N7: paging back from the workspace card lands on the carousel's first step again",
+      await gp.evaluate(() => !!document.querySelector('#studio-welcome [data-act="next"]') &&
+        !document.querySelector('#studio-welcome [data-act="quicktour"]')));
     // UX6 (icon migration): each step tile used to bake a raw Unicode letter glyph
     // (P/◈/▥/⤓/⚙, a full-color-font miss) into the header -- now a themed Studio.icon SVG,
     // and it swaps per step (not the same icon stuck on every tile).
