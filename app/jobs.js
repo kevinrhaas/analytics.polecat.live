@@ -826,6 +826,7 @@
           // values are known, offer them via a <datalist> — the same "type or pick" affordance
           // the Folder fields already use elsewhere in this editor.
           var valInp = mini("value", step.value, function (v) { step.value = v; });
+          valInp.title = Studio.filterOps.VALUE_HINT;   // AUD-06 slice 4 — same sentence the DA filter rule shows
           var distinct = distinctColValues(step.col);
           if (distinct.length) {
             var dlId = "jobsFilterVals" + stepIdx;

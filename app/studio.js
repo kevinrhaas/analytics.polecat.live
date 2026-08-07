@@ -4920,6 +4920,7 @@
       var cs = select2pairs(colPairs, f.col || (daCols[0] || ""), function (v) { f.col = v; refreshPreview(); }); cs.style.flex = "1";
       var os = select2pairs(opPairs, f.op || "=", function (v) { f.op = v; refreshPreview(); }); os.style.flex = "1";
       var vs = input(String(f.val || ""), function (v) { f.val = v; refreshPreview(); }); vs.placeholder = "value"; vs.style.flex = "1";
+      vs.title = Studio.filterOps.VALUE_HINT;   // AUD-06 slice 4 — same sentence on the job step's value box
       var rm = delBtn(function () { oo.filters.splice(fi, 1); renderInspector(); refreshPreview(); }, "filter rule on " + (f.col || "(no column)"));
       r.appendChild(cs); r.appendChild(os); r.appendChild(vs); r.appendChild(rm);
       fSec.appendChild(r);

@@ -135,6 +135,49 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **AUD-06 ★ slice 4 — dates compare as DATES (v853, sw v485, 2026-08-07, steward;
+  AUDIT-2026-08 §2.1, ux/correctness):** the concrete sub-finding slice 3 wrote up and
+  deliberately left alone is closed. `Studio.filterOps.test` leaned entirely on
+  `parseFloat`, which takes a **leading** number, so `"2024-06-01"` read as `2024`:
+  filtering a date column compared YEARS (`> 2024-02-01` also kept January) and every
+  day of a year counted as equal. The DA **sort** comparator had the identical flaw —
+  a date sort tied on the year and rows came out in whatever order the query returned.
+  - **One new primitive, shared:** `filterOps.dateKey(v)` → `{ms, dayOnly}` for an
+    ISO-8601 date/datetime, `filterOps.dateCmp(a,b)` → -1/0/1 **only when BOTH sides
+    are dates**, else `null`. Every ordering/equality branch of `test()` consults it
+    first; `applyOutputOptions`'s sort consults it first. Nothing else moved, so text
+    and number filters compare exactly as they did (asserted).
+  - **Deliberately STRICT about what a date is:** `YYYY-MM-DD`, optional `T`/space
+    time, optional zone, and the calendar date has to be real (`2024-02-31` is not).
+    `Date.parse` would have swallowed `"5"` and `"March 2024"` and silently changed
+    the meaning of filters that have nothing to do with dates.
+  - **Granularity, decided and documented:** if either side is a plain date, both
+    compare by DAY — `= 2024-06-01` matches every row stamped that day, `<=` includes
+    all of it. Two timestamps compare to the instant. A zoneless value reads as UTC on
+    **both** sides, so what a filter matches never depends on the viewer's timezone.
+  - **The job engine's standby predicate is gone.** `cmpFallback` in
+    `app/sources/jobs-engine.js` existed "in case model.js is absent" — but that file
+    DEFINES `Studio.runJobSteps`, so Studio is always there. It could only ever drift,
+    and by this slice it already had. ONE vocabulary now means one implementation.
+  - **This DOES re-filter saved work, on purpose** — a dashboard whose date filter was
+    quietly letting extra rows through will now show the rows the author asked for.
+    That is the fix, and the changelog says so plainly. No on-disk format changed, so
+    an older client sharing the workspace (or a `/dev/`/`/stage/` preview on the same
+    origin — AUD-04) still reads every saved rule; it just keeps comparing them the old
+    way until it updates.
+  - **Discoverability:** both value boxes (DA filter rule + job Filter step) carry one
+    shared sentence (`filterOps.VALUE_HINT`) saying what they accept, and `docs/index.html`
+    documents the date rules.
+  - **3 new/updated checks** — the predicate's date semantics (whole-day, instants,
+    zones, `!=` as the exact inverse, strictness, "only both dates"), a real
+    `applyOutputOptions` filter+sort over a date column, and the job Filter step's date
+    ordering through the real engine. The old `leadingNumberQuirk` assertion was
+    **replaced** by its corrected form (the quirk it pinned is what this slice removes).
+  - **Full suite green: 3049 passed, 0 failed** (dev gate — validate + changelog-check +
+    dev-smoke — green too). Merged to `dev`; the pipeline stages it.
+  - **Still open in AUD-06:** the date *filter* (a picker / relative ranges like "last 30
+    days" — this slice fixed how dates COMPARE, not how they're chosen), and the 11
+    non-catalog search affordances that could adopt `Studio.catalogSearch`.
 - **AUD-09 — the dead code is deleted (v852, sw v484, 2026-08-07, steward;
   AUDIT-2026-08 §1.5, code):** two leftovers that shipped to every visitor, both
   removed rather than tidied.
@@ -9254,17 +9297,22 @@
 >   same origin — AUD-04) still reads every saved rule correctly. The job step
 >   gained `startsWith`, real labels instead of raw ids, numeric-aware equality
 >   and text-capable ordering.
+>   **Slice 4 — DATES COMPARE AS DATES — SHIPPED v853, sw v485 (2026-08-07,
+>   steward — see DONE):** slice 3's concrete sub-finding is closed.
+>   `filterOps.dateKey`/`dateCmp` give both surfaces (and the DA sort rule, which
+>   had the same flaw) real chronological comparison — strictly for ISO-8601
+>   shapes, day-granularity when either side is a plain date, UTC for a zoneless
+>   value. The job engine's standby copy of the predicate was deleted rather than
+>   taught the new trick. This one DID re-filter saved dashboards, deliberately
+>   and loudly in the changelog: the rows an author asked for are the rows they
+>   now get.
 >   **Still open, in rough order:**
->   - **Build a real date filter.** The "or delete" half is DONE — AUD-09 (v852)
->     removed the dead `DashKit.TIME_RANGE` picker, so the gap is now explicit
->     rather than half-answered: there is still no first-class date/range filter
->     anywhere, only `{{today-30}}`
->     SQL tokens. **Now carries a concrete sub-finding from slice 3:** the
->     shared predicate compares with `parseFloat`, which takes a LEADING
->     number, so ordering an ISO-date column (`2024-06-01`) compares YEARS.
->     Both surfaces have always done this identically, so slice 3 asserted the
->     quirk rather than changing it — re-filtering every saved dashboard is not
->     a consolidation slice's call. A real date filter is the right fix.
+>   - **Build a real date FILTER** — the remaining half. Comparison is fixed;
+>     *choosing* a date is still raw text typed into a value box. Wanted: a date
+>     input on a date-typed column, and relative ranges ("last 30 days", "this
+>     year") as first-class rules rather than `{{today-30}}` SQL tokens — the
+>     honest replacement for the dead `DashKit.TIME_RANGE` picker AUD-09 removed.
+>     `filterOps.dateKey` is the primitive to build it on.
 >   - Out of family D but named in §2.1: the 11 other search affordances
 >     (library, inspector, chart gallery, ⌘K, docs, folder picker) could adopt
 >     `Studio.catalogSearch` opportunistically — none is a catalog panel, so

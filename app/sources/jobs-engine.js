@@ -94,31 +94,15 @@
   // AUD-06 slice 3: the comparators live in Studio.filterOps (model.js, loaded
   // ahead of this file) so a job step and a DA output rule mean exactly the
   // same thing by the same name. Saved steps keep their own `eq`/`gte`/… ids on
-  // disk — filterOps.normalize understands that spelling. The local fallback
-  // below only covers a context where model.js is absent, and matches it.
-  function cmpFallback(a, op, b) {
-    var sv = String(a == null ? "" : a), fv = String(b == null ? "" : b);
-    var nv = parseFloat(sv), fnv = parseFloat(fv);
-    var numCmp = !isNaN(nv) && !isNaN(fnv);
-    switch (op) {
-      case "eq": case "=":                   return numCmp ? nv === fnv : sv === fv;
-      case "ne": case "!=":                  return numCmp ? nv !== fnv : sv !== fv;
-      case "gt": case ">":                   return numCmp ? nv > fnv   : sv > fv;
-      case "gte": case ">=":                 return numCmp ? nv >= fnv  : sv >= fv;
-      case "lt": case "<":                   return numCmp ? nv < fnv   : sv < fv;
-      case "lte": case "<=":                 return numCmp ? nv <= fnv  : sv <= fv;
-      case "contains":                       return sv.toLowerCase().indexOf(fv.toLowerCase()) >= 0;
-      case "startsWith":                     return sv.toLowerCase().indexOf(fv.toLowerCase()) === 0;
-      default:                               return true;
-    }
-  }
-  function cmpTest(a, op, b) {
-    var S = (typeof Studio !== "undefined") ? Studio : null;
-    return (S && S.filterOps) ? S.filterOps.test(a, op, b) : cmpFallback(a, op, b);
-  }
+  // disk — filterOps.normalize understands that spelling.
+  // Slice 4 deleted the local copy that used to stand in "if model.js is
+  // absent": this file DEFINES Studio.runJobSteps, so Studio (and with it
+  // filterOps) is always there, and the standby copy could only ever drift —
+  // it had already missed slice 4's date handling by the time it was removed.
+  // ONE vocabulary means one implementation of it too.
   function applyFilter(columns, objs, step) {
     var op = step.cmp || "eq";
-    return { columns: columns, objs: objs.filter(function (o) { return cmpTest(o[step.col], op, step.value); }) };
+    return { columns: columns, objs: objs.filter(function (o) { return Studio.filterOps.test(o[step.col], op, step.value); }) };
   }
 
   function median(nums) {

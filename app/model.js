@@ -2933,15 +2933,64 @@
     function get(op) { var c = normalize(op); return c ? LIST.filter(function (o) { return o.id === c; })[0] : null; }
     function label(op) { var o = get(op); return o ? o.label : String(op == null ? "" : op); }
 
-    // The one predicate. Numeric when BOTH sides parse as numbers, otherwise a
-    // string comparison — so `>` orders plain text as well as numbers (the job
-    // step's comparators used to return false for anything non-numeric).
-    // NOTE the inherited quirk, unchanged here on purpose: parseFloat takes a
-    // LEADING number, so "2024-06-01" reads as 2024 and ordering an ISO date
-    // column compares years. Both surfaces have always done this identically;
-    // changing it would silently re-filter every saved dashboard, so it is
-    // written up as its own item (see AUD-06 "decide TIME_RANGE" / a real
-    // date filter) rather than smuggled into a consolidation slice.
+    /* ---- AUD-06 slice 4: dates compare as DATES ------------------------
+       The predicate below used to lean entirely on parseFloat, which takes a
+       LEADING number: "2024-06-01" read as 2024, so ordering a date column
+       compared YEARS — `date >= 2024-06-01` quietly swept in the five months
+       before it, and every day of a year tied. dateKey() recognises the
+       ISO-8601 shapes this app actually stores and turns them into a
+       comparable instant, so a date filter means what a human means.
+
+       Deliberately STRICT about what counts as a date: only `YYYY-MM-DD`,
+       optionally a `T`/space time, optionally a zone — and the calendar date
+       has to be real (`2024-02-31` is not). Date.parse() would cheerfully
+       read "5" or "March", which would silently change the meaning of text
+       and number filters that have nothing to do with dates. Anything this
+       doesn't recognise falls through to the number/text comparison below,
+       exactly as before.
+
+       GRANULARITY: if either side is a plain date (no clock time), both
+       sides compare by DAY — so `= 2024-06-01` matches every row stamped
+       that day whatever the time says, and `<= 2024-06-01` includes the
+       whole day rather than only its first instant. Two timestamps compare
+       to the instant. A value with no zone reads as UTC on BOTH sides, so
+       what a filter matches never depends on the viewer's timezone. */
+    var ISO_DT = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?)?\s*(Z|z|[+-]\d{2}:?\d{2})?$/;
+    var DAY_MS = 86400000;
+    // → { ms, dayOnly } for an ISO-ish date/datetime, else null.
+    function dateKey(v) {
+      var m = ISO_DT.exec(String(v == null ? "" : v).trim());
+      if (!m) return null;
+      var mo = +m[2], day = +m[3], hh = +(m[4] || 0), mi = +(m[5] || 0), se = +(m[6] || 0);
+      if (mo < 1 || mo > 12 || day < 1 || day > 31 || hh > 23 || mi > 59 || se > 59) return null;
+      // Build the instant through setUTCFullYear so a year like 0099 stays
+      // itself (Date.UTC would map 0-99 into the 1900s).
+      var d = new Date(0);
+      d.setUTCFullYear(+m[1], mo - 1, day);
+      d.setUTCHours(hh, mi, se, 0);
+      // Reject a date the calendar doesn't have — Date rolls 2024-02-31 into March.
+      if (d.getUTCMonth() !== mo - 1 || d.getUTCDate() !== day) return null;
+      var ms = d.getTime(), z = m[7];
+      if (z && z !== "Z" && z !== "z") {
+        var zz = z.slice(1).replace(":", "");
+        ms -= (z.charAt(0) === "-" ? -1 : 1) * ((+zz.slice(0, 2)) * 60 + (+zz.slice(2, 4))) * 60000;
+      }
+      return { ms: ms, dayOnly: m[4] === undefined };
+    }
+    // -1 / 0 / 1 when BOTH sides are dates; null when they aren't (the caller
+    // then keeps its own number/text comparison — dates never hijack those).
+    function dateCmp(a, b) {
+      var ka = dateKey(a), kb = dateKey(b);
+      if (!ka || !kb) return null;
+      var x = ka.ms, y = kb.ms;
+      if (ka.dayOnly || kb.dayOnly) { x = Math.floor(x / DAY_MS) * DAY_MS; y = Math.floor(y / DAY_MS) * DAY_MS; }
+      return x < y ? -1 : (x > y ? 1 : 0);
+    }
+
+    // The one predicate. Dates first (above), then numeric when BOTH sides
+    // parse as numbers, otherwise a string comparison — so `>` orders plain
+    // text as well as numbers (the job step's comparators used to return
+    // false for anything non-numeric).
     // null/undefined cells read as "" rather than the strings "null"/"undefined".
     // An unrecognised operator passes the row through (never silently filters
     // on some other operator's meaning — the same choice both surfaces now make
@@ -2951,13 +3000,14 @@
       var fv = String(filterValue == null ? "" : filterValue);
       var nv = parseFloat(sv), fnv = parseFloat(fv);
       var numCmp = !isNaN(nv) && !isNaN(fnv);
+      var dc = dateCmp(sv, fv);
       switch (normalize(op)) {
-        case "=":          return numCmp ? nv === fnv : sv === fv;
-        case "!=":         return numCmp ? nv !== fnv : sv !== fv;
-        case ">":          return numCmp ? nv > fnv   : sv > fv;
-        case ">=":         return numCmp ? nv >= fnv  : sv >= fv;
-        case "<":          return numCmp ? nv < fnv   : sv < fv;
-        case "<=":         return numCmp ? nv <= fnv  : sv <= fv;
+        case "=":          return dc !== null ? dc === 0 : (numCmp ? nv === fnv : sv === fv);
+        case "!=":         return dc !== null ? dc !== 0 : (numCmp ? nv !== fnv : sv !== fv);
+        case ">":          return dc !== null ? dc > 0   : (numCmp ? nv > fnv   : sv > fv);
+        case ">=":         return dc !== null ? dc >= 0  : (numCmp ? nv >= fnv  : sv >= fv);
+        case "<":          return dc !== null ? dc < 0   : (numCmp ? nv < fnv   : sv < fv);
+        case "<=":         return dc !== null ? dc <= 0  : (numCmp ? nv <= fnv  : sv <= fv);
         case "contains":   return sv.toLowerCase().indexOf(fv.toLowerCase()) >= 0;
         case "startsWith": return sv.toLowerCase().indexOf(fv.toLowerCase()) === 0;
         default:           return true;
@@ -2971,7 +3021,12 @@
       return LIST.map(function (o) { return [o[key], o.label]; });
     }
 
-    return { LIST: LIST, normalize: normalize, get: get, label: label, test: test, pairs: pairs };
+    // One sentence, shown on the value box of BOTH surfaces, so the rules a
+    // filter actually follows are discoverable where they're typed.
+    var VALUE_HINT = "Text, a number, or a date (YYYY-MM-DD). Dates compare chronologically, and a plain date means the whole day.";
+
+    return { LIST: LIST, normalize: normalize, get: get, label: label, test: test, pairs: pairs,
+             dateKey: dateKey, dateCmp: dateCmp, VALUE_HINT: VALUE_HINT };
   })();
 
   /* ---- output options (post-query filter / sort / limit) ---- */
@@ -3054,8 +3109,13 @@
           var ci = cols.indexOf(s.col);
           if (ci < 0) continue;
           var av = a[ci], bv = b[ci];
+          // AUD-06 slice 4: dates sort chronologically. parseFloat alone read
+          // "2024-06-01" as 2024, so every day of a year tied and the rows
+          // came out in whatever order the query happened to return.
+          var dcmp = Studio.filterOps.dateCmp(av, bv);
           var na = parseFloat(av), nb = parseFloat(bv);
-          var cmp = (!isNaN(na) && !isNaN(nb)) ? na - nb : String(av || "").localeCompare(String(bv || ""));
+          var cmp = dcmp !== null ? dcmp
+            : ((!isNaN(na) && !isNaN(nb)) ? na - nb : String(av || "").localeCompare(String(bv || "")));
           if (cmp !== 0) return s.dir === "desc" ? -cmp : cmp;
         }
         return 0;

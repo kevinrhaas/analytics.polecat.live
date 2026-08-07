@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 853,
+    title: 'Dates in filters and sorts finally compare as dates',
+    kind: 'fix',
+    ts: '2026-08-07T11:15:16.000Z',
+    items: [
+      'Filtering a date column compared only the leading number -- the year. So "after 2024-02-01" also kept every January row, and any two days of the same year counted as equal. Dates now compare chronologically, everywhere a filter rule or a prep-job "Filter rows" step runs: in Explore, on Home, in dashboards and inside exported dashboards alike.',
+      'Sorting a date column had the same flaw: every day of a year tied, so the rows came back in whatever order the query happened to produce. A date sort is now in real date order.',
+      'A plain date means the whole day. "= 2024-06-01" matches every row stamped that day whatever the clock says, and "on or before 2024-06-01" includes all of it. Two full timestamps compare to the instant, and a value with no timezone is read as UTC on both sides, so a filter matches the same rows for every reader wherever they are.',
+      'Only real ISO dates (2024-06-01, optionally with a time) count as dates -- text and numbers filter exactly as before, and something like "2024" or "March 2024" is still compared the old way rather than quietly turning into a date.',
+      'The value box on both the dataset filter rule and the job Filter step now says what it accepts, and the Help page documents the date rules.',
+      'If you have a saved dashboard whose date filter was silently letting extra rows through, it will now show the rows you actually asked for -- worth a look at anything filtered by date.',
+    ],
+  },
+  {
     v: 852,
     title: 'Housekeeping: a retired passcode gate and an unused filter stop shipping',
     kind: 'polish',
