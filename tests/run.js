@@ -18299,6 +18299,19 @@ function serve() {
     // the LF39 direct-auth check uses, planted after the boot pull has settled so
     // a late replaceAll can't wipe it.
     await gpPw.evaluate(() => {
+      // The mock GoTrue hands every sign-in the SAME uid, and the mock backend
+      // carries earlier tests' users rows — so the LF39 fixture ("gtmate", planted
+      // with this very uid) is still in the table and gate.js findUserByGotrue
+      // adopts IT rather than the owner row seeded below (first match wins). That
+      // is a fixture collision, not app behavior: two accounts can never share a
+      // real auth uid. Drop any other row carrying this uid so the check tests
+      // what it says it tests — where the PASSWORD ends up, not which fixture
+      // happened to be planted first.
+      Studio.Workspace.all("users").forEach(function (u) {
+        if (u.gotrueId === "11111111-1111-1111-1111-111111111111" && u.u !== "owner@example.com") {
+          Studio.Workspace.remove("users", u.id, { silent: true });
+        }
+      });
       Studio.Workspace.put("users", { id: "user_owner", u: "owner@example.com", name: "Owner", role: "admin", demo: false, gotrueId: "11111111-1111-1111-1111-111111111111" }, { silent: true });
       Studio.Sync.pullNow = function () { return Promise.resolve(); }; // sync detail, not what's under test
     });
