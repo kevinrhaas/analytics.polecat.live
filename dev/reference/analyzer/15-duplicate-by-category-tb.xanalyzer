@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<reportRecord xmlns="http://www.pentaho.com">
+    <commonStorageAttributes createdBy="admin" updatedBy="admin" created="2026-05-12T00:00:00.000Z" update="2026-05-12T00:00:00.000Z">
+        <path name="15-duplicate-by-category-tb" folder="/public/pdc-analysis/analyzer/15-duplicate-by-category-tb.xanalyzer"/>
+    </commonStorageAttributes>
+    <report catalog="PDC" cube="75. Duplicate Savings" reportTypeEnum="JSON" showRowGrandTotal="false" showColumnGrandTotal="false" showSubTotals="true" totalsOnTopLeft="false" useNonVisualTotals="false" showEmptyCells="false" showEmptyEnum="SHOW_MEASURE" emptyCellDisplay="-" showDrillLinks="true" version="15" autoRefresh="true" freezeColumns="true" freezeRows="true">
+        <measures>
+            <measure formula="[Measures].[Savings Size TB]" showSum="true" showAggregate="false" showAverage="false" showCount="false" showMax="false" showMin="false" measureTypeEnum="VALUE" sortOrderEnum="DESC" id="[MEASURE:0]" gembarId="measures" gembarOrdinal="0"/>
+        </measures>
+        <columnAttributes>
+
+        </columnAttributes>
+        <rowAttributes>
+            <attribute formula="[Duplicate Attributes].[Category]" showSubtotal="false" sortOrderEnum="ASC" wordWrap="false" gembarId="rows" gembarOrdinal="0"/>
+        </rowAttributes>
+        <filters defaultFiltersAvailable="false"/>
+        <chartOptions vizApiVersion="3.0" chartType="CUSTOM" customChartType="pentaho/visual/models/BarHorizontal" showMultiChart="false" legendPosition="RIGHT" showLegend="true" autoRange="true" displayUnits="UNITS_0" autoRangeSecondary="true" displayUnitsSecondary="UNITS_0" lineWidth="2" lineShape="CIRCLE" maxValues="100" backgroundColor="#ffffff" labelColor="#000000" labelSize="12" backgroundFill="NONE" maxChartsPerRow="3" multiChartMax="50" multiChartRangeScope="GLOBAL" emptyCellMode="GAP" sizeByNegativesMode="NEG_LOWEST" backgroundColorEnd="#ffffff" labelStyle="PLAIN" legendBackgroundColor="#ffffff" legendSize="12" legendColor="#000000" legendStyle="PLAIN" labelFontFamily="Default" legendFontFamily="Default" scatterReverseColors="false"/>
+        <selectionFilters/>
+        <selectionItems/>
+        <pageSetup excelPageSize="LETTER" pdfPageSize="LETTER" excelOrientation="LANDSCAPE" pdfOrientation="LANDSCAPE" excelScalingType="PERCENT" excelScalingPercent="100" excelScalingPageWide="1" excelScalingPageTall="1" excelMergePivotCells="true" csvIncludeSubtotals="true" csvFormatNumbers="true"/>
+        <drillColumns/>
+    </report>
+    <uiAttributes showFieldList="true" showFieldLayout="true" showFilterPanel="true" fieldListView="CMDVIEWCATEGORY"><rowFieldWidths actualWidths="280"/><columnDataFieldWidths actualWidths="120"/><pluginData>[{}]</pluginData></uiAttributes>
+</reportRecord>

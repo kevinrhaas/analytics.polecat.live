@@ -1,0 +1,20 @@
+tests/node_modules/
+tests/package-lock.json
+# Runtime file-upload drop targets written by tests/run.js (fs.writeFileSync) and
+# never cleaned up — throwaway artifacts, not committed fixtures (those live in
+# tests/fixtures/). Keeps `git status` clean after a suite run.
+tests/fixture-*.csv
+# Debug screenshot the suite rewrites on every run (tests/run.js page.screenshot);
+# nothing reads it back — untracked so a gate run never dirties the tree.
+tests/flagship.png
+*.log
+.DS_Store
+
+__pycache__/
+*.pyc
+data/legacy-v2-boards/
+
+dist/
+node_modules/
+package-lock.json
+package.json

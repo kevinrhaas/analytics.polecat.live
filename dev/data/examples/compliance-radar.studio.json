@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "id": "showcase-compliance",
+  "name": "compliance-radar",
+  "title": "Sensitivity & Compliance Radar",
+  "subtitle": "framework coverage, risk exposure & control gaps",
+  "group": "Privacy",
+  "description": "A compliance showcase — a framework-coverage radar, a sensitivity donut, a control-coverage heatmap, a risk-vs-exposure scatter, and findings by severity.",
+  "cda": {
+    "connection": { "id": "pdc", "jndi": "PDC-BIDB-EXT" },
+    "dataAccesses": [
+      {
+        "id": "kpi", "name": "CompKPI", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT ROUND(AVG(coverage_pct),1) AS coverage, SUM(CASE WHEN severity='High' THEN 1 ELSE 0 END) AS high_findings, COUNT(DISTINCT framework) AS frameworks, ROUND(100.0*SUM(CASE WHEN sensitivity<>'Public' THEN 1 ELSE 0 END)/NULLIF(COUNT(*),0),0) AS sensitive_pct FROM v_compliance_master",
+        "columns": ["coverage", "high_findings", "frameworks", "sensitive_pct"]
+      },
+      {
+        "id": "framework", "name": "FrameworkCoverage", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT framework, ROUND(AVG(coverage_pct),0) AS coverage FROM v_compliance_master GROUP BY 1 ORDER BY 1",
+        "columns": ["framework", "coverage"]
+      },
+      {
+        "id": "sensitivity", "name": "SensitivityMix", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT COALESCE(NULLIF(sensitivity,''),'Unclassified') AS sensitivity, COUNT(*) AS n FROM v_compliance_master GROUP BY 1 ORDER BY 2 DESC",
+        "columns": ["sensitivity", "n"]
+      },
+      {
+        "id": "controls", "name": "ControlGrid", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT domain, control, ROUND(AVG(coverage_pct),0) AS coverage FROM v_control_coverage GROUP BY 1,2",
+        "columns": ["domain", "control", "coverage"]
+      },
+      {
+        "id": "risk", "name": "RiskExposure", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT entity, exposure_score AS exposure, risk_score AS risk, record_count AS records FROM v_risk_exposure ORDER BY risk_score DESC LIMIT 40",
+        "columns": ["entity", "exposure", "risk", "records"]
+      },
+      {
+        "id": "findings", "name": "FindingsBySeverity", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT severity, COUNT(*) AS n FROM v_compliance_finding GROUP BY 1 ORDER BY 2 DESC",
+        "columns": ["severity", "n"]
+      }
+    ]
+  },
+  "filters": [],
+  "kpis": [
+    { "da": "kpi", "valueCol": "coverage", "label": "Avg Coverage", "fmt": "pct", "state": "good", "info": "Average control coverage across frameworks." },
+    { "da": "kpi", "valueCol": "sensitive_pct", "label": "Sensitive Data", "fmt": "pct", "state": "warn", "info": "Share of assets classified above Public." },
+    { "da": "kpi", "valueCol": "high_findings", "label": "High Findings", "fmt": "n", "state": "purple", "info": "Open high-severity compliance findings." },
+    { "da": "kpi", "valueCol": "frameworks", "label": "Frameworks", "fmt": "n", "state": "", "info": "Regulatory frameworks tracked." }
+  ],
+  "gridCols": 3,
+  "panels": [
+    {
+      "id": "p_radar", "title": "Coverage by Framework", "span": 1, "pill": "%", "sub": "",
+      "info": "Control coverage across each regulatory framework.", "src": "v_compliance_master",
+      "chart": { "type": "radar", "da": "framework", "map": { "labelCol": "framework", "series": [ { "col": "coverage", "name": "Coverage" } ] }, "opts": { "height": 300 } }
+    },
+    {
+      "id": "p_sens", "title": "Sensitivity Mix", "span": 1, "pill": "count", "sub": "",
+      "info": "Classification distribution across assets.", "src": "v_compliance_master",
+      "chart": { "type": "donut", "da": "sensitivity", "map": { "labelCol": "sensitivity", "valueCol": "n" }, "opts": { "centerCap": "assets", "fmt": "n", "height": 300 } }
+    },
+    {
+      "id": "p_find", "title": "Findings by Severity", "span": 1, "pill": "count", "sub": "",
+      "info": "Open findings grouped by severity.", "src": "v_compliance_finding",
+      "chart": { "type": "bars", "da": "findings", "map": { "labelCol": "severity", "valueCol": "n" }, "opts": { "horizontal": true, "fmt": "n", "color": "--c5", "height": 300 } }
+    },
+    {
+      "id": "p_grid", "title": "Control Coverage by Domain", "span": 2, "pill": "%", "sub": "domain × control",
+      "info": "Control-coverage grid — spot the gaps.", "src": "v_control_coverage",
+      "chart": { "type": "heatmap", "da": "controls", "map": { "rowCol": "domain", "colCol": "control", "valueCol": "coverage" }, "opts": { "fmt": "pct", "height": 320 } }
+    },
+    {
+      "id": "p_risk", "title": "Risk vs Exposure", "span": 1, "pill": "risk", "sub": "size ∝ records",
+      "info": "High-risk, high-exposure assets sit top-right.", "src": "v_risk_exposure",
+      "chart": { "type": "scatter", "da": "risk", "map": { "xCol": "exposure", "yCol": "risk", "rCol": "records", "labelCol": "entity" }, "opts": { "height": 320 } }
+    }
+  ]
+}

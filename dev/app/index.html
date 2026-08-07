@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="robots" content="noindex"/>
+<meta charset="utf-8"/>
+<!-- The app lives at /app/ (root is the marketing site since V1 of the Viridis track).
+     base=/ keeps every historical relative reference (app/*.js, js/, data/, vendor/,
+     sw.js, manifest) resolving from the repo root exactly as before the move — no
+     path rewrites, no drift. ES-module imports resolve against the MODULE's own URL
+     (not this base), so app/fleet.js's ../vendor/... imports are unaffected. -->
+<base href="/dev/"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Analytics — build interactive dashboards from your data · analytics.polecat.live</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+<link rel="apple-touch-icon" href="apple-touch-icon.png"/>
+<link rel="manifest" href="site.webmanifest"/>
+<meta name="theme-color" content="#d4773b"/>
+<!-- Polecat Shell design tokens (vendor/polecat-shell/ is READ-ONLY — synced from
+     kevinrhaas/polecat-platform). Loads BEFORE studio.css so the Studio's own variable
+     blocks win every name collision; the shell-token bridge lives in studio.css. -->
+<script>
+/* BOOT-FLASH (Kevin live, 2026-07-30): a refresh used to flash default-theme chrome before
+   studio.js re-stamped the saved theme (on an already-authed load, gate.js reveals before
+   its own theme stamping runs). Stamp the saved attributes here — before the first paint —
+   and veil #app until the boot tail releases it with a short fade (studio.js). The 4s
+   failsafe below means a boot error can never leave a blank app. */
+(function () {
+  try {
+    var m = localStorage.getItem("studio-theme"), t = localStorage.getItem("studio-app-theme");
+    if (m) document.documentElement.setAttribute("data-theme", m);
+    if (t) { document.documentElement.setAttribute("data-app-theme", t); document.documentElement.setAttribute("data-palette", t); }
+  } catch (e) {}
+  document.documentElement.classList.add("ps-booting");
+  setTimeout(function () { document.documentElement.classList.remove("ps-booting"); }, 4000);
+}());
+</script>
+<style>
+/* BOOT-FLASH veil: the app fades in once boot has themed + rendered everything. */
+#app{opacity:1;transition:opacity .22s ease}
+html.ps-booting #app{opacity:0;transition:none}
+@media (prefers-reduced-motion: reduce){#app{transition:none}}
+html[data-reduce-motion="1"] #app{transition:none}
+</style>
+<link rel="stylesheet" href="vendor/polecat-shell/tokens.css"/>
+<link rel="stylesheet" href="app/studio.css"/>
+<script src="app/workspaces.js"></script>
+<script src="app/auth.js"></script>
+<script src="app/gate.js"></script>
+</head>
+<body>
+<div id="app">
+  <nav id="railNav" aria-label="App sections">
+    <div class="rail-brand-wrap">
+      <button id="railBrand" class="rail-brand" title="Analytics — Home" aria-label="Analytics — go to Home">
+        <img class="rail-brand-mark" src="favicon.svg" width="26" height="26" alt=""/>
+        <span class="rail-brand-txt rail-lbl">Analytics</span>
+      </button>
+      <a class="rail-suite rail-lbl" href="https://polecat.live" target="_blank" rel="noopener" title="Back to polecat.live">polecat.live</a>
+    </div>
+    <!-- Rail IA (Kevin, 2026-07): Workspace = the things you HAVE (browse/manage
+         catalogs), Build = the places you MAKE them (builders), Manage = ops.
+         Two pairs deliberately share a name across groups (Views the catalog vs
+         Views the builder; Dashboards the catalog vs Dashboards the builder) —
+         the group label disambiguates on the rail, the title/topbar spell it out. -->
+    <div class="rail-group-lbl rail-lbl" aria-hidden="true">Workspace</div>
+    <button class="rail-item active" data-sec="home" title="Home" aria-label="Home" aria-current="page"><span class="rail-ic" data-ic="home"></span><span class="rail-lbl">Home</span></button>
+    <!-- LF57 slice 1: a dedicated browse/manage section for saved Views (the analyses
+         table the View builders write) — the builders live in the Build group below. -->
+    <button class="rail-item" data-sec="views" title="Views" aria-label="Views"><span class="rail-ic" data-ic="image"></span><span class="rail-lbl">Views</span></button>
+    <button class="rail-item" data-sec="dashboards" title="Dashboards" aria-label="Dashboards"><span class="rail-ic" data-ic="layers"></span><span class="rail-lbl">Dashboards</span></button>
+    <button class="rail-item" data-sec="datasets" title="Datasets" aria-label="Datasets"><span class="rail-ic" data-ic="db"></span><span class="rail-lbl">Datasets</span></button>
+    <button class="rail-item" data-sec="connections" title="Connections" aria-label="Connections"><span class="rail-ic" data-ic="link"></span><span class="rail-lbl">Connections</span></button>
+    <button class="rail-item" data-sec="repository" title="Repository" aria-label="Repository"><span class="rail-ic" data-ic="folder"></span><span class="rail-lbl">Repository</span></button>
+    <div class="rail-group-lbl rail-lbl" aria-hidden="true">Build</div>
+    <button class="rail-item" data-sec="explore" title="Quick Views — the fast one-chart builder" aria-label="Quick Views"><span class="rail-ic" data-ic="trend-up"></span><span class="rail-lbl">Quick Views</span></button>
+    <button class="rail-item" data-sec="build" title="View Builder — shelves, pivots and calculations" aria-label="View Builder"><span class="rail-ic" data-ic="board"></span><span class="rail-lbl">Views</span></button>
+    <!-- LF23 slice 2: developer-only — hidden for the viewer role by shell.js's role gating
+         (a viewer's own read-only path is app/viewer.html, opened from a dashboard's eye icon) -->
+    <button class="rail-item" data-sec="studio" data-develop-only title="Dashboard Builder" aria-label="Dashboard Builder"><span class="rail-ic" data-ic="grid"></span><span class="rail-lbl">Dashboards</span></button>
+    <div class="rail-group-lbl rail-lbl" aria-hidden="true">Manage</div>
+    <button class="rail-item" data-sec="jobs" title="Jobs" aria-label="Jobs"><span class="rail-ic" data-ic="sliders"></span><span class="rail-lbl">Jobs</span></button>
+    <!-- M4: admin-only — hidden for non-admin accounts by shell.js's role gating -->
+    <button class="rail-item" data-sec="admin" data-admin-only title="Admin" aria-label="Admin"><span class="rail-ic" data-ic="shield"></span><span class="rail-lbl">Admin</span></button>
+    <button id="railSource" class="rail-item rail-source" title="Workspace backend — Local" aria-label="Workspace backend status"><span class="rail-ic"><span class="cx-dot" id="railSourceDot"></span></span><span class="rail-lbl" id="railSourceLbl">Local</span></button>
+    <div class="rail-spacer"></div>
+    <button class="rail-item" data-sec="settings" title="Settings" aria-label="Settings"><span class="rail-ic" data-ic="gear"></span><span class="rail-lbl">Settings</span></button>
+    <button id="railHelp" class="rail-item" data-sec="docs" title="Help &amp; docs" aria-label="Help and documentation"><span class="rail-ic" data-ic="info"></span><span class="rail-lbl">Help</span></button>
+    <div id="railQuick" class="rail-quick">
+      <label class="rail-quick-row"><span class="rail-quick-lbl">Dark mode</span><span class="set-sw"><input type="checkbox" id="railQuickDark" data-set="dark"/><span class="set-sw-track"></span></span></label>
+      <label class="rail-quick-row"><span class="rail-quick-lbl">Simple mode</span><span class="set-sw"><input type="checkbox" id="railQuickSimple" data-set="simple"/><span class="set-sw-track"></span></span></label>
+    </div>
+    <button id="railCollapse" class="rail-item rail-toggle" title="Collapse navigation" aria-label="Collapse navigation" aria-expanded="true"><span class="rail-ic" data-ic="chevron-left"></span><span class="rail-lbl">Collapse</span></button>
+  </nav>
+
+  <!-- Slice A: #topbar is now a GLOBAL frame element (out of Studio's #appMain), so it
+       persists across every rail section. #appRight is the flex column that stacks the
+       persistent topbar over #appBody (the swappable section area, incl. Studio). -->
+  <div id="appRight">
+  <header id="topbar">
+    <!-- Fleet-standard GLOBAL topbar: the CURRENT SECTION name sits at the top-left (the
+         app's own identity lives in the left-rail brand, like JobTracker/AutoSelector).
+         Updated by app/shell.js setActive(). -->
+    <div class="tb-section" id="topbarSection" aria-live="polite">Home</div>
+    <!-- H-track: auto-save state indicator — flashes "Saved ✓" for 2s after each auto-save -->
+    <span id="saveState" class="save-state" aria-live="polite" aria-atomic="true"></span>
+    <!-- Mode chips (near the section name): shown only while their mode is active -->
+    <span id="simpleBadge" class="simple-badge" aria-live="polite" aria-label="Simple mode active">Simple mode</span>
+    <!-- H-track v117: Demo mode — pulsing LIVE badge shown while demo simulation is running -->
+    <span id="demoBadge" class="demo-badge" aria-live="polite" aria-label="Demo mode: data refreshes every 4 seconds"><span class="sb-ic" data-ic="dot"></span> LIVE</span>
+    <!-- Center: command-palette search (⌘K). Wired in app/palette.js via window.__openCommandPalette. -->
+    <div class="tb-center">
+      <button id="tbSearch" class="topbar-search" type="button" title="Search — commands, datasets, dashboards (⌘K / Ctrl-K)" aria-label="Open command palette">
+        <span class="tbs-ic" data-ic="search"></span>
+        <span class="tbs-lbl">Search…</span>
+        <kbd>⌘K</kbd>
+      </button>
+    </div>
+    <div class="top-app">
+      <!-- Slice A scaffolding: per-section action slot (EMPTY now; Slice B fills it for Studio,
+           left of the common cluster). Populated via window.__studioSetSectionActions. -->
+      <div id="tbSectionActions" class="tb-section-actions"></div>
+      <!-- Slice B/C: Studio's dashboard-scoped actions (Undo/Redo/Open/Save/Save-as/
+           Duplicate/Export) live here, inert, until app/studio.js moves them into
+           #tbSectionActions while Studio is the active section (app/shell.js setActive →
+           the "studio" section-actions provider). A <template> keeps them out of the live
+           document (and #tbSectionActions genuinely empty) on every other section. -->
+      <template id="tplStudioSectionActions">
+        <button class="btn icon" id="btnUndo" title="Undo (Ctrl/Cmd+Z)" disabled>↶</button>
+        <button class="btn icon" id="btnRedo" title="Redo (Ctrl/Cmd+Shift+Z)" disabled>↷</button>
+        <button class="btn icon" id="btnImport" title="Open a dashboard from your catalog" aria-label="Open a dashboard from your catalog">Open</button>
+        <button class="btn" id="btnSaveSpec" title="Save to your Dashboards catalog (Ctrl/Cmd+S)">Save</button>
+        <button class="btn icon" id="btnSaveAsSpec" title="Save the current dashboard as a new dashboard" aria-label="Save the current dashboard as a new dashboard">Save as…</button>
+        <button class="btn icon" id="btnDupDash" title="Duplicate the current dashboard" aria-label="Duplicate the current dashboard">Duplicate</button>
+        <div class="menu-wrap"><button class="btn btn-primary" id="btnExport">Export ▾</button>
+          <div class="menu" id="menuExport">
+            <button data-exp="cdf">Dashboard (.html)</button>
+            <button data-exp="xlsx" title="Multi-sheet Excel workbook — the dashboard summary on tab 1, then each data source's rows on its own tab">Excel workbook (.xlsx)</button>
+            <button data-exp="docx" title="Word report — the dashboard title, KPIs and Views, then a table of the data behind each source">Word document (.docx)</button>
+            <button data-exp="pptx" title="PowerPoint deck — a title slide, a KPI slide, then one slide per View with its chart as an image">PowerPoint (.pptx)</button>
+            <button data-exp="pdf" title="Opens the dashboard in a new tab and starts your browser's print dialog — choose &quot;Save as PDF&quot; there">PDF (print)</button>
+            <button data-exp="spec">Editable spec (.studio.json)</button>
+            <button data-exp="all">All artifacts (bundle)</button>
+          </div>
+        </div>
+      </template>
+      <!-- Standard right-side cluster: What's-new · What's-next · Dark toggle · (waffle) · +New · More.
+           The fleet waffle (.ps-waffle-btn) is inserted just left of +New by app/fleet.js. -->
+      <button class="btn icon tb-ic" id="tbWhatsNew" type="button" title="What's new" aria-label="What's new" aria-expanded="false"></button>
+      <button class="btn icon tb-ic" id="tbWhatsNext" type="button" title="What's next" aria-label="What's next — roadmap"></button>
+      <!-- ACTIVITY-1 (Kevin, 2026-07-30): report a bug / ask / comment — one tap,
+           auto-captures the situation, recorded to the backend feedback log. -->
+      <button class="btn icon tb-ic" id="tbFeedback" type="button" title="Send feedback — report a bug, ask a question, or suggest something" aria-label="Send feedback"></button>
+      <button class="btn icon tb-ic" id="tbTheme" type="button" title="Toggle dark mode" aria-label="Toggle dark mode"></button>
+      <div class="menu-wrap"><button class="btn btn-primary" id="btnNew" title="New dashboard">New ▾</button>
+        <div class="menu" id="menuNew"></div></div>
+      <div class="menu-wrap" id="moreWrap">
+        <button class="btn icon" id="btnMore" title="More actions" aria-label="More actions"></button>
+        <div class="menu" id="menuMore">
+          <!-- UX sweep 2026-07-28 #1: #tbWhatsNew (topbar) is hidden at ≤640px and
+               #btnChangelog (Studio footer) only exists while Studio is the active
+               section, so phones had zero way to open What's New from Home/Dashboards/
+               etc — yet the unread dot kept showing. more-phone-only puts it in the
+               always-reachable ⋯More menu (M10's fixed-position escape hatch). LF46
+               (⋯ teardown, slice 2): the "View" group's Tour/Theme buttons are gone
+               (Tour = Settings → Take the tour + ⌘K palette; Theme = the topbar
+               #tbTheme toggle), so What's new no longer needs its own group label. -->
+          <button id="moreWhatsNew" class="more-phone-only">What's new</button>
+          <!-- TOPBAR-TITLE (UX sweep 2026-08-01 #2): #tbFeedback now hides at ≤640px so the
+               section name has room to read, so Send feedback needs the same always-reachable
+               ⋯More home What's new already has. Both open the very same modal as the topbar
+               button — one wiring, in app/studio.js. -->
+          <button id="moreFeedback" class="more-phone-only">Send feedback</button>
+          <div class="sep"></div>
+          <div class="grp">Present</div>
+          <!-- LF46 (⋯ teardown): Demo mode (the stakeholder-demo live-feed simulation) is no longer
+               listed here — it has a proper labelled home in Settings → Presentation (Z5
+               SETTINGS_TOGGLES), so the everyday ⋯ menu no longer carries the duplicate. -->
+          <!-- LF48: Focus mode and Slideshow are the two "enter, then Escape/✕ back out" present
+               modes reachable from here (Panel-zoom is the third, but it's entered by clicking a
+               panel, not from a menu) — ONE elegant switcher replaces what used to be two
+               look-alike flat buttons. Focus mode's own Settings → Presentation toggle is retired
+               in the same slice, so this switcher is the SINGLE entry point for either mode (no
+               second, parallel toggle to drift out of sync). Simple mode stays listed separately
+               below: it's a persistent editing preference (LF41), not a transient present mode, so
+               it's deliberately not folded into the switcher (Kevin, 2026-07-27). -->
+          <div class="mode-switch" id="modeSwitch" role="group" aria-label="Enter a presentation mode">
+            <button type="button" id="modeSwitchFocus" class="mode-switch-opt" data-mode="focus">Focus mode</button>
+            <button type="button" id="modeSwitchSlideshow" class="mode-switch-opt" data-mode="slideshow">Slideshow</button>
+          </div>
+          <div class="sep"></div>
+          <button id="moreSimple">Simple mode  ✦</button>
+          <!-- LF46 (⋯ teardown, slice 2): the "Help & power tools" group (Keyboard shortcuts,
+               Help docs, Interactive tutorial, Edit JSON spec) is gone — help lives in the
+               rail's Help link, "?" still opens shortcuts, and all four (plus the tour) are
+               one ⌘K search away in the command palette (app/palette.js), which is the
+               canonical home for this kind of power-tool discoverability now. -->
+          <!-- M7: phone-only items — revealed via CSS at ≤400px when topbar hides these buttons -->
+          <div class="sep more-phone-only"></div>
+          <button id="moreUndo" class="more-phone-only">Undo</button>
+          <button id="moreRedo" class="more-phone-only">Redo</button>
+          <button id="moreImport" class="more-phone-only">Open…</button>
+          <button id="moreSaveSpec" class="more-phone-only">Save</button>
+          <button id="moreSaveAsSpec" class="more-phone-only">Save as…</button>
+          <button id="moreDupDash" class="more-phone-only">Duplicate</button>
+          <button id="moreCloseStudio" class="more-phone-only">Close</button>
+          <button id="moreExport" class="more-phone-only">Export…</button>
+          <div class="sep"></div>
+          <button id="moreClearData">Clear local data…</button>
+          <button id="moreSignOut">Sign out</button>
+        </div>
+      </div>
+    </div>
+  </header>
+  <div id="appBody">
+
+  <section id="secHome" class="app-sec">
+    <div class="sec-empty">
+      <div class="sec-empty-ic" data-ic="home"></div>
+      <h2>Home</h2>
+      <div class="sec-skel" role="status" aria-label="Loading">
+        <span class="sec-skel-bar"></span><span class="sec-skel-bar"></span><span class="sec-skel-bar sec-skel-bar-short"></span>
+      </div>
+    </div>
+  </section>
+  <section id="secDashboards" class="app-sec has-content" hidden>
+    <div class="repo-wrap">
+      <div class="repo-hero">
+        <p>Every dashboard you've saved — searchable, filterable by workbook, as tiles or a list. Searching also finds dashboards by the columns their datasets use.</p>
+        <input id="repoSearch" class="repo-search" type="search" placeholder="Search dashboards…" aria-label="Search dashboards"/>
+        <div class="repo-io">
+          <select id="dashSortSel" class="cx-sort" aria-label="Sort dashboards" title="Sort dashboards"></select>
+          <button type="button" class="btn" id="dashViewToggle" title="Switch between tile and list layout" aria-pressed="false">List view</button>
+          <button type="button" class="btn" id="repoSelectBtn" title="Select multiple dashboards for bulk actions" aria-pressed="false">Select</button>
+          <button type="button" class="btn" id="repoCompareBtn" title="Pick any two saved dashboards and see what differs between them">Compare dashboards…</button>
+          <div class="menu-wrap">
+            <button type="button" class="btn icon" id="dashMoreBtn" title="More dashboard actions" aria-label="More dashboard actions"></button>
+            <div class="menu" id="dashMoreMenu">
+              <button type="button" id="repoExportBtn">Export dashboards…</button>
+              <button type="button" id="repoImportBtn">Import dashboards…</button>
+            </div>
+          </div>
+          <button type="button" class="btn primary" id="dashNewBtn" title="New dashboard">+ New dashboard</button>
+        </div>
+      </div>
+      <div id="repoResults"></div>
+    </div>
+  </section>
+  <section id="secExplore" class="app-sec has-content" hidden>
+    <div class="repo-wrap">
+      <div class="repo-hero">
+        <p>Start from a dataset, see it as a table, pick a chart, and save the result as a <b>View</b> — a reusable chart you can pin to Home or drop into any dashboard.</p>
+      </div>
+      <div id="xpBody" class="xp-body"></div>
+    </div>
+  </section>
+  <section id="secDatasets" class="app-sec has-content" hidden>
+    <div class="repo-wrap">
+      <div class="repo-hero">
+        <p>Named, parameterizable queries defined on top of your connections — the reusable building blocks dashboards are made of.</p>
+        <input id="dsxSearch" class="repo-search" type="search" placeholder="Search datasets…" aria-label="Search datasets"/>
+        <div class="repo-io">
+          <select id="dsxSortSel" class="cx-sort" aria-label="Sort datasets" title="Sort datasets"></select>
+          <button type="button" class="btn" id="dsxViewToggle" title="Switch between tile and list layout" aria-pressed="false">Tile view</button>
+          <button type="button" class="btn" id="dsxSelectBtn" title="Select multiple datasets for bulk actions" aria-pressed="false">Select</button>
+          <button type="button" class="btn primary" id="dsxNewBtn">+ New dataset</button>
+        </div>
+      </div>
+      <div id="dsxResults"></div>
+    </div>
+  </section>
+  <section id="secJobs" class="app-sec has-content" hidden>
+    <div class="repo-wrap">
+      <div class="repo-hero">
+        <p>Prep a dataset before it's charted: rename/cast/derive columns, filter rows, and roll up with an acreage-weighted mean for honest State/CRD/HUC8 aggregates. Run a job and its output lands back in Datasets, ready for Quick Views or any dashboard.</p>
+        <input id="jobsSearch" class="repo-search" type="search" placeholder="Search jobs…" aria-label="Search jobs"/>
+        <div class="repo-io">
+          <select id="jobsSortSel" class="cx-sort" aria-label="Sort jobs" title="Sort jobs"></select>
+          <button type="button" class="btn" id="jobsViewToggle" title="Switch between tile and list layout" aria-pressed="false">Tile view</button>
+          <button type="button" class="btn" id="jobsSelectBtn" title="Select multiple jobs for bulk actions" aria-pressed="false">Select</button>
+          <button type="button" class="btn primary" id="jobsNewBtn">+ New job</button>
+        </div>
+      </div>
+      <div id="jobsResults"></div>
+    </div>
+  </section>
+  <section id="secConnections" class="app-sec has-content" hidden>
+    <div class="repo-wrap">
+      <div class="repo-hero">
+        <p>Where your dashboards' data lives — reusable connections to warehouses, files and APIs, one adapter each. <span id="connCredNote">Credentials stay in this browser.</span></p>
+        <input id="connSearch" class="repo-search" type="search" placeholder="Search connections…" aria-label="Search connections"/>
+        <div class="repo-io">
+          <select id="connSortSel" class="cx-sort" aria-label="Sort connections" title="Sort connections"></select>
+          <button type="button" class="btn" id="connViewToggle" title="Switch between tile and list layout" aria-pressed="false">Tile view</button>
+          <button type="button" class="btn" id="connSelectBtn" title="Select multiple connections for bulk actions" aria-pressed="false">Select</button>
+          <button type="button" class="btn primary" id="connNewBtn">+ New connection</button>
+        </div>
+      </div>
+      <div id="connResults"></div>
+    </div>
+  </section>
+  <section id="secBuild" class="app-sec has-content" hidden>
+    <div class="bd-wrap">
+      <aside class="bd-left" id="bdLeft">
+        <!-- VB-13 (Kevin): the pane collapses to a vertical strip (same pattern as
+             Studio's Data panel .pane-rail) and drag-resizes via the right-edge
+             handle — dataset names were unreadable at the fixed 250px. -->
+        <div class="bd-rail" id="bdLeftRail" title="Expand Datasets pane"><button type="button" class="rail-btn" aria-label="Expand Datasets pane"></button><span class="rail-label">Datasets</span></div>
+        <div class="bd-left-body" id="bdLeftBody">
+          <!-- VB-1 (Kevin overnight queue): navigator parity with Quick Views/Studio —
+               search + New live OUTSIDE #buildOutline so they survive re-renders
+               (keystroke focus is never lost when the tree repaints). -->
+          <div class="bd-left-head"><span class="bd-left-title"><button type="button" class="pane-collapse" id="bdLeftCollapse" title="Collapse panel" aria-label="Collapse Datasets pane"></button>Datasets</span>
+            <button type="button" class="bd-ds-new" id="bdDsNew" title="Create a new dataset" aria-label="Create a new dataset">＋ New</button>
+          </div>
+          <input id="bdOutlineSearch" class="bd-ol-search" type="search" placeholder="Search datasets…" aria-label="Search datasets"/>
+          <div id="buildOutline"></div>
+        </div>
+        <div class="bd-left-resize" id="bdLeftResize" title="Drag to resize" aria-hidden="true"></div>
+      </aside>
+      <div class="bd-main">
+        <!-- VB-5 (cross-editor opening): dismissible notice shown when a View made
+             in the other editor is opened here (best-effort shelf reconstruction). -->
+        <div id="buildNotice" class="bd-notice" role="note" hidden></div>
+        <div class="bd-shelves">
+          <div class="bd-shelf-row"><span class="bd-shelf-lbl">Columns</span><div class="bd-shelf" id="bdShelfCols" data-bd-shelf="cols"></div></div>
+          <div class="bd-shelf-row"><span class="bd-shelf-lbl">Rows</span><div class="bd-shelf" id="bdShelfRows" data-bd-shelf="rows"></div></div>
+          <div class="bd-shelf-row"><span class="bd-shelf-lbl">Filters</span><div class="bd-shelf" id="bdShelfFilters" data-bd-shelf="filters"></div></div>
+          <div class="bd-shelf-row"><span class="bd-shelf-lbl">Color</span><div class="bd-shelf" id="bdShelfColor" data-bd-shelf="color"></div></div>
+        </div>
+        <div id="bdCharts" class="bd-charts" role="group" aria-label="Chart type"></div>
+        <div id="buildStatus" class="bd-status"></div>
+        <div id="buildResult" class="bd-result"></div>
+      </div>
+    </div>
+  </section>
+  <section id="secViews" class="app-sec has-content" hidden>
+    <div class="repo-wrap">
+      <div class="repo-hero">
+        <p>Every reusable chart, KPI, pivot, or map you've saved — pin one to Home, drop it into any dashboard, or reopen it in its builder to refine.</p>
+        <input id="viewsSearch" class="repo-search" type="search" placeholder="Search Views…" aria-label="Search Views"/>
+        <div class="repo-io">
+          <select id="viewsSortSel" class="cx-sort" aria-label="Sort Views" title="Sort Views"></select>
+          <button type="button" class="btn" id="viewsViewToggle" title="Switch between tile and list layout" aria-pressed="false">Tile view</button>
+          <button type="button" class="btn" id="viewsSelectBtn" title="Select multiple Views for bulk actions" aria-pressed="false">Select</button>
+          <!-- Kevin (2026-07): New splits into the two builders — the full View
+               Builder (shelves/pivots/calcs) and the fast one-chart Quick View. -->
+          <div class="menu-wrap">
+            <button type="button" class="btn primary" id="viewsNewBtn" title="Create a new View">＋ New ▾</button>
+            <div class="menu" id="viewsNewMenu">
+              <button type="button" data-views-new="build">New View</button>
+              <button type="button" data-views-new="quick">New Quick View</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="viewsResults"></div>
+    </div>
+  </section>
+  <section id="secRepository" class="app-sec has-content" hidden>
+    <div class="repo-wrap">
+      <div class="repo-hero">
+        <p>Every object in your workspace — dashboards, datasets, connections, analyses and jobs — in one searchable, filterable place. Pick a kind below, or search across all of them; opening a row takes you straight to that object's own editor, and <strong>+ New</strong> creates any kind of object right from here.</p>
+        <input id="repoAllSearch" class="repo-search" type="search" placeholder="Search the whole workspace…" aria-label="Search the whole workspace"/>
+        <div class="repo-io">
+          <!-- LF51: Repository is the cross-object command center — New EVERYTHING, each
+               entry routing into that object kind's own builder/editor. -->
+          <div class="menu-wrap">
+            <button type="button" class="btn btn-primary" id="repoNewBtn" title="Create a new object">＋ New ▾</button>
+            <div class="menu" id="repoNewMenu">
+              <button type="button" data-repo-new="dashboard">New dashboard</button>
+              <button type="button" data-repo-new="view">New View</button>
+              <button type="button" data-repo-new="dataset">New dataset</button>
+              <button type="button" data-repo-new="connection">New connection</button>
+              <button type="button" data-repo-new="job">New job</button>
+            </div>
+          </div>
+          <select id="repoSortSel" class="cx-sort" aria-label="Sort repository objects" title="Sort repository objects"></select>
+          <button type="button" class="btn" id="repoViewToggle" title="Switch between tile and list layout" aria-pressed="false">Tile view</button>
+          <button type="button" class="btn" id="repoAllSelectBtn" title="Select multiple objects for bulk actions" aria-pressed="false">Select</button>
+        </div>
+      </div>
+      <div id="repoAllResults"></div>
+    </div>
+  </section>
+  <section id="secSettings" class="app-sec" hidden>
+    <div class="sec-empty">
+      <div class="sec-empty-ic" data-ic="gear"></div>
+      <h2>Settings</h2>
+      <div class="sec-skel" role="status" aria-label="Loading">
+        <span class="sec-skel-bar"></span><span class="sec-skel-bar"></span><span class="sec-skel-bar sec-skel-bar-short"></span>
+      </div>
+    </div>
+  </section>
+  <section id="secAdmin" class="app-sec" hidden>
+    <div class="sec-empty">
+      <div class="sec-empty-ic" data-ic="shield"></div>
+      <h2>Admin</h2>
+      <div class="sec-skel" role="status" aria-label="Loading">
+        <span class="sec-skel-bar"></span><span class="sec-skel-bar"></span><span class="sec-skel-bar sec-skel-bar-short"></span>
+      </div>
+    </div>
+  </section>
+  <!-- LF60 (in-app Docs, slice 1): the Help rail item now opens documentation INSIDE the app
+       (embedded via an iframe over the same docs/index.html the standalone page serves) with a
+       pop-out "Open in new tab" for the standalone view. -->
+  <section id="secDocs" class="app-sec" hidden>
+    <div class="docs-wrap">
+      <div class="docs-bar">
+        <h1 class="docs-title">Help &amp; documentation</h1>
+        <a class="btn docs-popout" id="docsPopout" href="docs/index.html" target="_blank" rel="noopener noreferrer" title="Open the documentation in a new tab" aria-label="Open the documentation in a new tab">Open in new tab ↗</a>
+      </div>
+      <iframe id="docsFrame" class="docs-frame" title="Analytics documentation" src="docs/index.html" loading="lazy"></iframe>
+    </div>
+  </section>
+
+  <div id="appMain" hidden>
+  <main id="workspace">
+    <!-- LEFT: query library -->
+    <aside id="library" class="pane">
+      <div class="pane-rail" data-pane="library" title="Expand Data panel"><button class="rail-btn" aria-label="Expand Data panel"></button><span class="rail-label">Data</span></div>
+      <div class="pane-h"><button class="pane-collapse" data-pane="library" title="Collapse panel" aria-label="Collapse Data panel"></button><span>Data</span>
+        <div class="menu-wrap"><button class="pane-add" id="btnNewDS" title="Add a dataset, connection, or dashboard-only query">＋ New ▾</button>
+          <div class="menu" id="menuNewData">
+            <button id="ndWorkspaceDataset">Dataset (workspace)…</button>
+            <button id="ndConnection">Connection…</button>
+            <div class="sep"></div>
+            <button id="ndDashQuery">Dashboard-only query…</button>
+          </div></div>
+        <span class="count" id="libCount"></span></div>
+      <input id="libSearch" class="search" placeholder="Search datasets, columns, tables…"/>
+      <div class="lib-scroll" id="libList"></div>
+    </aside>
+
+    <div class="resizer" id="resizeL" title="Drag to resize"></div>
+
+    <!-- CENTER: live preview -->
+    <section id="canvas">
+      <!-- UX sprint 2026-07-14: dashboard-scoped controls live HERE, above the preview they
+           act on — the app topbar keeps only app-level actions (＋New, ⋯More), manager-style. -->
+      <div id="dashbar">
+        <div class="dash-id">
+          <button type="button" id="dashTitle" class="dash-title-btn" title="Click to rename"><span class="dash-title-txt">Dashboard title</span></button>
+          <span class="dash-meta"><code id="dashName">untitled</code><span id="dashGroupWrap"> · <span id="dashGroup"></span></span></span>
+          <!-- LF50: the stray Low/High "Creativity" live tuner was removed from the builder —
+               Quick import honors the Settings-level "Quick import creativity" default instead.
+               #qmTuner now only carries the LF67 "unsaved" reminder for a Quick-import build that
+               hasn't been through Save yet (studio.js hasUnsavedQuickBuild/syncHeader); openRecent
+               also warns before replacing it. -->
+          <span id="qmTuner" class="qm-tuner" hidden>
+            <span id="qmUnsaved" class="qm-unsaved" hidden>Unsaved — Save to keep</span>
+          </span>
+        </div>
+        <div class="spacer"></div>
+        <div class="top-actions">
+          <!-- LF43 slice 2: the Examples ▾ menu is gone — an installed pack's curated
+               dashboards are real rows in the Dashboards section (Sample-packs chip). -->
+          <button class="btn icon" id="btnCloseStudio" title="Close the builder and return to where you opened it from" aria-label="Close the builder and return to where you opened it from">Close</button>
+          <span class="top-sep sep-connect" aria-hidden="true"></span>
+          <button class="btn icon btn-secondary" id="btnTheme" title="Toggle preview light/dark">Theme</button>
+        </div>
+      </div>
+      <div id="canvas-bar">
+        <span class="cb-title">Live preview</span>
+        <span class="cb-hint">click to edit · drag the header to reorder · drag the right edge wider, the bottom edge taller · drop a dataset to add</span>
+        <span class="spacer"></span>
+        <span class="cb-status" id="previewStatus"></span>
+      </div>
+      <div id="canvas-stage">
+        <iframe id="preview" name="Dashboard preview" title="Dashboard preview"></iframe>
+        <div id="dropHint" class="drop-hint">Drop a dataset here to add a View</div>
+        <!-- H-track: canvas empty state overlay; shown when the spec has 0 panels and 0 KPIs -->
+        <div id="canvasEmpty" aria-hidden="true">
+          <div class="ces-ic" id="cesIc"></div>
+          <div class="ces-title">Canvas is empty</div>
+          <div class="ces-desc">Drag a dataset or sample query from the Data panel onto the canvas, or drop a CSV/JSON file here to build a dashboard instantly.</div>
+          <button type="button" class="ces-btn" id="cesLib">Open data panel</button>
+          <button type="button" class="ces-btn ces-btn-2" id="cesText">¶ Add a text View</button>
+          <button type="button" class="ces-btn ces-btn-2" id="cesImport">Import a file</button>
+          <input type="file" id="cesImportInput" accept=".csv,.tsv,.json,text/csv,application/json" hidden>
+        </div>
+      </div>
+    </section>
+
+    <div class="resizer" id="resizeR" title="Drag to resize"></div>
+
+    <!-- RIGHT: inspector -->
+    <aside id="inspector" class="pane">
+      <div class="pane-rail" data-pane="inspector" title="Expand Inspector"><button class="rail-btn" aria-label="Expand Inspector"></button><span class="rail-label">Inspector</span></div>
+      <div class="pane-h"><span id="inspTitle">Dashboard</span>
+        <a id="inspHelpLink" class="insp-help-link" href="docs/index.html#builder" target="_blank" rel="noopener noreferrer" title="Open help docs" aria-label="Open help documentation">?</a>
+        <button class="link" id="inspBack" hidden>Dashboard</button>
+        <button class="pane-collapse" data-pane="inspector" title="Collapse panel" aria-label="Collapse Inspector"></button></div>
+      <div class="insp-scroll" id="inspBody"></div>
+    </aside>
+  </main>
+
+  <nav id="mobile-tabs" aria-label="Section navigation"></nav>
+  <!-- DECLUTTER-1 (Kevin, 2026-07-31): the app footer (brand line · Changelog
+       feed toggle · Last-updated stamp) is RETIRED for now — it returns later
+       as a UNIVERSAL polecat-platform shell feature across the fleet, not
+       per-app chrome. The What's-New feed stays reachable from the topbar
+       #tbWhatsNew button (same openWhatsNew path); renderFooter + fleet.js
+       null-guard the missing #btnChangelog/#fbStamp, and the #statusbar CSS
+       stays for the future shell adoption. -->
+  </div>
+  </div>
+  </div>
+</div>
+<div id="mobile-scrim" aria-hidden="true"></div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="app/model.js"></script>
+<script src="app/sources/schema.js"></script>
+<script src="app/sources/crypto.js"></script>
+<script src="app/sources/sigv4.js"></script>
+<script src="app/sources/local.js"></script>
+<script src="app/sources/turso.js"></script>
+<script src="app/sources/supabase.js"></script>
+<script src="app/sources/firebase.js"></script>
+<script src="app/sources/registry.js"></script>
+<script src="app/sources/postgrest.js"></script>
+<script src="app/sources/localfile.js"></script>
+<script src="app/sources/gsheets.js"></script>
+<script src="app/sources/workspace.js"></script>
+<script src="app/sources/jobs-engine.js"></script>
+<script src="app/sources/sync.js"></script>
+<script src="app/activity.js"></script>
+<script src="app/sampledata.js"></script>
+<script src="app/demopacks.js"></script>
+<script src="app/duckdb.js"></script>
+<script src="app/sqlitehttp.js"></script>
+<script src="app/snowflake.js"></script>
+<script src="app/databricks.js"></script>
+<script src="app/bigquery.js"></script>
+<script src="app/redshift.js"></script>
+<script src="app/genericsql.js"></script>
+<script src="app/sources/data-adapters.js"></script>
+<script src="app/exporters.js"></script>
+<script src="app/icons.js"></script>
+<script src="app/tooltip.js"></script>
+<script src="app/welcome.js"></script>
+<script src="app/tutorial.js"></script>
+<!-- AUD-08: boot loads only the generated head (a few hundred bytes: latest version +
+     newest entry). The full ~680KB js/changelog.js is fetched on demand by
+     Studio.loadChangelog() when the What's-new feed is first opened or hovered. -->
+<script src="js/changelog-head.js"></script>
+<script type="module" src="app/fleet.js"></script>
+<script src="app/shell.js"></script>
+<script src="app/chart-thumbnails.js"></script>
+<script src="app/branding.js"></script>
+<script src="app/defaults.js"></script>
+<script src="app/celebrations.js"></script>
+<script src="app/versions.js"></script>
+<script src="vendor/fflate.js"></script>
+<script src="app/xlsx.js"></script>
+<script src="app/explore.js"></script>
+<script src="app/jobs.js"></script>
+<script src="app/connections.js"></script>
+<script src="app/datasets.js"></script>
+<script src="app/views.js"></script>
+<script src="app/build.js"></script>
+<script src="app/quickmode.js"></script>
+<script src="app/studio.js"></script>
+<script src="app/palette.js"></script>
+<script>
+  // N-DIST: installable, offline-capable app shell. Feature-detected (older browsers / the
+  // occasional restricted embed just skip it, no behavior change); registered last so it never
+  // delays first paint or any of the boot-time modules above.
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("sw.js").catch(function () { /* offline support is a bonus, never fatal */ });
+    });
+  }
+</script>
+<div id="__stage" role="status" style="position:fixed;left:0;right:0;bottom:0;z-index:2147483000;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;padding:7px 44px 7px 16px;font:600 13px -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;color:#fff;background:linear-gradient(135deg,#fbbf24,#d97706);box-shadow:0 -6px 20px rgba(0,0,0,.25)">
+  <span><b>DEV preview</b> — dev@testsha · uses your live workspace data</span>
+  <a href="/" style="color:#fff;text-decoration:underline">open production</a>
+  <button id="__stagemin" aria-label="Collapse the DEV preview banner" title="Collapse" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);width:28px;height:28px;border:0;border-radius:50%;background:rgba(0,0,0,.25);color:#fff;font:700 14px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;cursor:pointer">✕</button>
+</div>
+<button id="__stagepill" aria-label="Expand the DEV preview banner" title="DEV preview — tap for details" style="position:fixed;right:10px;bottom:10px;z-index:2147483000;display:none;border:0;border-radius:999px;padding:7px 13px;font:800 11px -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;letter-spacing:.06em;color:#fff;background:linear-gradient(135deg,#fbbf24,#d97706);box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer">DEV</button>
+<script>(function(){var K="__stage.min",b=document.getElementById("__stage"),p=document.getElementById("__stagepill");function set(m){b.style.display=m?"none":"flex";p.style.display=m?"inline-block":"none";try{localStorage.setItem(K,m?"1":"0")}catch(e){}}document.getElementById("__stagemin").onclick=function(){set(true)};p.onclick=function(){set(false)};try{if(localStorage.getItem(K)==="1")set(true)}catch(e){}})();</script>
+</body>
+</html>

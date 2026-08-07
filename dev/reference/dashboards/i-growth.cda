@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+  <DataAccess id="kpi" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180"><Name>K</Name><Parameters/>
+    <Query><![CDATA[ SELECT SUM(entity_count) AS total_assets,
+      count(DISTINCT scanned_date_key) FILTER (WHERE scanned_date_key<>19000101) AS scan_days,
+      count(DISTINCT datasource_key) AS sources,
+      SUM(entity_count) FILTER (WHERE scanned_date_key >= to_char(current_date-90,'YYYYMMDD')::int) AS last90
+      FROM fact_entity_snapshot ]]></Query></DataAccess>
+  <DataAccess id="trend" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180"><Name>T</Name><Parameters/>
+    <Query><![CDATA[ SELECT d.year_month_name AS month, d.year_month_number AS ym, SUM(s.entity_count) AS assets,
+      SUM(SUM(s.entity_count)) OVER (ORDER BY d.year_month_number) AS cumulative
+      FROM fact_entity_snapshot s JOIN dim_date d ON s.scanned_date_key=d.date_key
+      WHERE s.scanned_date_key<>19000101 GROUP BY 1,2 ORDER BY 2 ]]></Query></DataAccess>
+  <DataAccess id="by_source" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180"><Name>BS</Name><Parameters/>
+    <Query><![CDATA[ SELECT COALESCE(NULLIF(dd.datasource_type,''),'Unknown') AS src, SUM(s.entity_count) AS assets
+      FROM fact_entity_snapshot s JOIN dim_datasource dd ON s.datasource_key=dd.datasource_key GROUP BY 1 ORDER BY 2 DESC ]]></Query></DataAccess>
+  <DataAccess id="recent" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180"><Name>R</Name><Parameters/>
+    <Query><![CDATA[ SELECT e.entity_name AS name, COALESCE(NULLIF(dd.datasource_type,''),'Unknown') AS src, d.full_date AS scan_date
+      FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key
+      JOIN dim_date d ON s.scanned_date_key=d.date_key
+      LEFT JOIN dim_datasource dd ON s.datasource_key=dd.datasource_key
+      WHERE s.scanned_date_key<>19000101 ORDER BY s.scanned_date_key DESC LIMIT 18 ]]></Query></DataAccess>
+  <DataAccess id="growth_by_source" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180"><Name>GBS</Name><Parameters/>
+    <Query><![CDATA[ SELECT d.year_month_name AS month, d.year_month_number AS ym,
+      COALESCE(NULLIF(dd.datasource_type,''),'Unknown') AS src,
+      SUM(s.entity_count) AS assets
+      FROM fact_entity_snapshot s
+      JOIN dim_date d ON s.scanned_date_key=d.date_key
+      LEFT JOIN dim_datasource dd ON s.datasource_key=dd.datasource_key
+      WHERE s.scanned_date_key<>19000101
+      GROUP BY 1,2,3 ORDER BY 2,3 ]]></Query></DataAccess>
+</CDADescriptor>

@@ -1,0 +1,567 @@
+{
+ "datasources": {
+  "rows": [
+   {
+    "id": "DSGROUP",
+    "parent": "UnIqEiD",
+    "type": "Label",
+    "typeDesc": "<i>Group</i>",
+    "name": "Datasources",
+    "properties": [
+     {
+      "name": "Group",
+      "type": "Label",
+      "value": "Datasources"
+     }
+    ]
+   },
+   {
+    "id": "ds-a",
+    "parent": "DSGROUP",
+    "type": "CDADataSource",
+    "typeDesc": "CDA Data Source",
+    "properties": [
+     {
+      "name": "name",
+      "type": "Id",
+      "value": "accessByApp"
+     },
+     {
+      "name": "access",
+      "type": "Access",
+      "value": "public"
+     },
+     {
+      "name": "cdaPath",
+      "type": "CdaPath",
+      "value": "/public/pdc-iteration/v2/cde-applications.cda"
+     },
+     {
+      "name": "dataAccessId",
+      "type": "String",
+      "value": "accessByApp"
+     },
+     {
+      "name": "outputIndexId",
+      "type": "String",
+      "value": ""
+     }
+    ]
+   },
+   {
+    "id": "ds-b",
+    "parent": "DSGROUP",
+    "type": "CDADataSource",
+    "typeDesc": "CDA Data Source",
+    "properties": [
+     {
+      "name": "name",
+      "type": "Id",
+      "value": "accessByType"
+     },
+     {
+      "name": "access",
+      "type": "Access",
+      "value": "public"
+     },
+     {
+      "name": "cdaPath",
+      "type": "CdaPath",
+      "value": "/public/pdc-iteration/v2/cde-applications.cda"
+     },
+     {
+      "name": "dataAccessId",
+      "type": "String",
+      "value": "accessByType"
+     },
+     {
+      "name": "outputIndexId",
+      "type": "String",
+      "value": ""
+     }
+    ]
+   },
+   {
+    "id": "ds-c",
+    "parent": "DSGROUP",
+    "type": "CDADataSource",
+    "typeDesc": "CDA Data Source",
+    "properties": [
+     {
+      "name": "name",
+      "type": "Id",
+      "value": "accessBySource"
+     },
+     {
+      "name": "access",
+      "type": "Access",
+      "value": "public"
+     },
+     {
+      "name": "cdaPath",
+      "type": "CdaPath",
+      "value": "/public/pdc-iteration/v2/cde-applications.cda"
+     },
+     {
+      "name": "dataAccessId",
+      "type": "String",
+      "value": "accessBySource"
+     },
+     {
+      "name": "outputIndexId",
+      "type": "String",
+      "value": ""
+     }
+    ]
+   }
+  ]
+ },
+ "layout": {
+  "rows": [
+   {
+    "id": "hdrRow",
+    "parent": "UnIqEiD",
+    "type": "LayoutRow",
+    "typeDesc": "Row",
+    "properties": [
+     {
+      "name": "name",
+      "type": "Id",
+      "value": ""
+     },
+     {
+      "name": "height",
+      "type": "Integer",
+      "value": ""
+     },
+     {
+      "name": "cssClass",
+      "type": "String",
+      "value": ""
+     }
+    ]
+   },
+   {
+    "id": "hdrZone",
+    "parent": "hdrRow",
+    "type": "LayoutColumn",
+    "typeDesc": "Column",
+    "properties": [
+     {
+      "name": "name",
+      "type": "Id",
+      "value": "hdrZone"
+     },
+     {
+      "name": "columnSpan",
+      "type": "Integer",
+      "value": "24"
+     },
+     {
+      "name": "height",
+      "type": "Integer",
+      "value": ""
+     },
+     {
+      "name": "textAlign",
+      "type": "TextAlign",
+      "value": ""
+     },
+     {
+      "name": "cssClass",
+      "type": "String",
+      "value": ""
+     }
+    ]
+   },
+   {
+    "id": "hdrHtml",
+    "parent": "hdrZone",
+    "type": "LayoutHtml",
+    "typeDesc": "Html",
+    "properties": [
+     {
+      "name": "name",
+      "type": "Id",
+      "value": "hdrHtml"
+     },
+     {
+      "name": "html",
+      "type": "Html",
+      "value": "<style>body{background:#f4f6fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}.pdc-cde-hdr{display:flex;align-items:center;gap:12px;background:linear-gradient(100deg,#0b2e63,#005bb5);color:#fff;padding:13px 18px;border-radius:12px;margin:8px 6px 16px;box-shadow:0 6px 18px rgba(8,33,72,.18)}.pdc-cde-hdr .lg{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;flex:0 0 auto}.pdc-cde-hdr h1{font-size:17px;margin:0;font-weight:800;letter-spacing:.2px}.pdc-cde-hdr .sub{font-size:11.5px;opacity:.82;font-style:italic}.pdc-cde-hdr .right{margin-left:auto;display:flex;align-items:center;gap:12px}.pdc-cde-hdr a{color:#cfe2ff;font-size:11px;text-decoration:none;font-weight:700;white-space:nowrap}.pdc-cde-hdr a:hover{color:#fff}.pdc-cde-hdr .pill{font-size:10px;font-weight:800;letter-spacing:.5px;background:#7d3c98;padding:4px 11px;border-radius:20px;text-transform:uppercase}.pdc-cde-hdr .qinfo{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font-size:14px;font-weight:700;text-decoration:none}.pdc-cde-hdr .qinfo:hover{background:rgba(255,255,255,.3);color:#fff}[id$=Col]{background:#fff;background-clip:padding-box;border:7px solid transparent;border-radius:14px;padding:12px 12px 6px;box-shadow:0 2px 10px rgba(20,40,80,.07);box-sizing:border-box}.pdc-cde-foot{text-align:center;color:#8a93a6;font-size:11px;margin:18px 6px 10px}</style><div class='pdc-cde-hdr'><div class='lg'>P</div><div><h1>Application &amp; Access Reach</h1></div><span class='sub'>Pentaho CDE \u00b7 editable</span><div class='right'><a class='qinfo' href='/pentaho/api/repos/public:pdc-iteration:v2:cde-applications.cda/content' target='_blank' title='View the CDA queries behind this dashboard'>&#9432;</a><a href='/pentaho/api/repos/public:pdc-iteration:v2:i-home.html/content'>\u25b8 All dashboards</a><span class='pill'>CDE</span></div></div>"
+     },
+     {
+      "name": "cssClass",
+      "type": "String",
+      "value": ""
+     }
+    ]
+   },
+   {
+    "id": "row1",
+    "parent": "UnIqEiD",
+    "type": "LayoutRow",
+    "typeDesc": "Row",
+    "properties": [
+     {
+      "name": "name",
+      "type": "Id",
+      "value": ""
+     },
+     {
+      "name": "height",
+      "type": "Integer",
+      "value": ""
+     },
+     {
+      "name": "cssClass",
+      "type": "String",
+      "value": ""
+     }
+    ]
+   },
+   {
+    "id": "col-a",
+    "parent": "row1",
+    "type": "LayoutColumn",
+    "typeDesc": "Column",
+    "properties": [
+     {
+      "name": "name",
+      "type": "Id",
+      "value": "aCol"
+     },
+     {
+      "name": "columnSpan",
+      "type": "Integer",
+      "value": "12"
+     },
+     {
+      "name": "height",
+      "type": "Integer",
+      "value": ""
+     },
+     {
+      "name": "textAlign",
+      "type": "TextAlign",
+      "value": ""
+     },
+     {
+      "name": "cssClass",
+      "type": "String",
+      "value": ""
+     }
+    ]
+   },
+   {
+    "id": "col-b",
+    "parent": "row1",
+    "type": "LayoutColumn",
+    "typeDesc": "Column",
+    "properties": [
+     {
+      "name": "name",
+      "type": "Id",
+      "value": "bCol"
+     },
+     {
+      "name": "columnSpan",
+      "type": "Integer",
+      "value": "12"
+     },
+     {
+      "name": "height",
+      "type": "Integer",
+      "value": ""
+     },
+     {
+      "name": "textAlign",
+      "type": "TextAlign",
+      "value": ""
+     },
+     {
+      "name": "cssClass",
+      "type": "String",
+      "value": ""
+     }
+    ]
+   },
+   {
+    "id": "row2",
+    "parent": "UnIqEiD",
+    "type": "LayoutRow",
+    "typeDesc": "Row",
+    "properties": [
+     {
+      "name": "name",
+      "type": "Id",
+      "value": ""
+     },
+     {
+      "name": "height",
+      "type": "Integer",
+      "value": ""
+     },
+     {
+      "name": "cssClass",
+      "type": "String",
+      "value": ""
+     }
+    ]
+   },
+   {
+    "id": "col-c",
+    "parent": "row2",
+    "type": "LayoutColumn",
+    "typeDesc": "Column",
+    "properties": [
+     {
+      "name": "name",
+      "type": "Id",
+      "value": "cCol"
+     },
+     {
+      "name": "columnSpan",
+      "type": "Integer",
+      "value": "24"
+     },
+     {
+      "name": "height",
+      "type": "Integer",
+      "value": ""
+     },
+     {
+      "name": "textAlign",
+      "type": "TextAlign",
+      "value": ""
+     },
+     {
+      "name": "cssClass",
+      "type": "String",
+      "value": ""
+     }
+    ]
+   }
+  ]
+ },
+ "components": {
+  "rows": [
+   {
+    "id": "CHARTS",
+    "parent": "UnIqEiD",
+    "type": "Label",
+    "typeDesc": "<i>Group</i>",
+    "name": "Charts",
+    "properties": [
+     {
+      "name": "Group",
+      "type": "Label",
+      "value": "Charts"
+     }
+    ]
+   },
+   {
+    "id": "BarChart",
+    "parent": "CHARTS",
+    "meta_cdwSupport": "true",
+    "type": "ComponentscccBarChart",
+    "typeDesc": "CCC BarChart",
+    "properties": [
+     {
+      "name": "name",
+      "type": "Id",
+      "value": "chA"
+     },
+     {
+      "name": "title",
+      "type": "String",
+      "value": ""
+     },
+     {
+      "name": "dataSource",
+      "type": "Datasource",
+      "value": "accessByApp"
+     },
+     {
+      "name": "htmlObject",
+      "type": "HtmlObject",
+      "value": "${h:aCol}"
+     },
+     {
+      "name": "executeAtStart",
+      "type": "Boolean",
+      "value": "true"
+     },
+     {
+      "name": "width",
+      "type": "Integer",
+      "value": ""
+     },
+     {
+      "name": "height",
+      "type": "Integer",
+      "value": "300"
+     },
+     {
+      "name": "crosstabMode",
+      "type": "Boolean",
+      "value": "false"
+     },
+     {
+      "name": "seriesInRows",
+      "type": "Boolean",
+      "value": "false"
+     },
+     {
+      "name": "colors",
+      "type": "Array",
+      "value": "['#005bb5','#7d3c98','#2e8bd0','#9b59b6','#00a39a','#e67e22','#c0392b','#16a085']"
+     },
+     {
+      "name": "orientation",
+      "type": "Orientation",
+      "value": "horizontal"
+     },
+     {
+      "name": "valuesVisible",
+      "type": "Boolean",
+      "value": "true"
+     }
+    ]
+   },
+   {
+    "id": "PieChart",
+    "parent": "CHARTS",
+    "meta_cdwSupport": "true",
+    "type": "ComponentscccPieChart",
+    "typeDesc": "CCC PieChart",
+    "properties": [
+     {
+      "name": "name",
+      "type": "Id",
+      "value": "chB"
+     },
+     {
+      "name": "title",
+      "type": "String",
+      "value": ""
+     },
+     {
+      "name": "dataSource",
+      "type": "Datasource",
+      "value": "accessByType"
+     },
+     {
+      "name": "htmlObject",
+      "type": "HtmlObject",
+      "value": "${h:bCol}"
+     },
+     {
+      "name": "executeAtStart",
+      "type": "Boolean",
+      "value": "true"
+     },
+     {
+      "name": "width",
+      "type": "Integer",
+      "value": ""
+     },
+     {
+      "name": "height",
+      "type": "Integer",
+      "value": "300"
+     },
+     {
+      "name": "crosstabMode",
+      "type": "Boolean",
+      "value": "false"
+     },
+     {
+      "name": "seriesInRows",
+      "type": "Boolean",
+      "value": "false"
+     },
+     {
+      "name": "colors",
+      "type": "Array",
+      "value": "['#005bb5','#7d3c98','#2e8bd0','#9b59b6','#00a39a','#e67e22','#c0392b','#16a085']"
+     },
+     {
+      "name": "valuesVisible",
+      "type": "Boolean",
+      "value": "true"
+     }
+    ]
+   },
+   {
+    "id": "BarChart",
+    "parent": "CHARTS",
+    "meta_cdwSupport": "true",
+    "type": "ComponentscccBarChart",
+    "typeDesc": "CCC BarChart",
+    "properties": [
+     {
+      "name": "name",
+      "type": "Id",
+      "value": "chC"
+     },
+     {
+      "name": "title",
+      "type": "String",
+      "value": ""
+     },
+     {
+      "name": "dataSource",
+      "type": "Datasource",
+      "value": "accessBySource"
+     },
+     {
+      "name": "htmlObject",
+      "type": "HtmlObject",
+      "value": "${h:cCol}"
+     },
+     {
+      "name": "executeAtStart",
+      "type": "Boolean",
+      "value": "true"
+     },
+     {
+      "name": "width",
+      "type": "Integer",
+      "value": ""
+     },
+     {
+      "name": "height",
+      "type": "Integer",
+      "value": "300"
+     },
+     {
+      "name": "crosstabMode",
+      "type": "Boolean",
+      "value": "false"
+     },
+     {
+      "name": "seriesInRows",
+      "type": "Boolean",
+      "value": "false"
+     },
+     {
+      "name": "colors",
+      "type": "Array",
+      "value": "['#005bb5','#7d3c98','#2e8bd0','#9b59b6','#00a39a','#e67e22','#c0392b','#16a085']"
+     },
+     {
+      "name": "orientation",
+      "type": "Orientation",
+      "value": "vertical"
+     },
+     {
+      "name": "valuesVisible",
+      "type": "Boolean",
+      "value": "true"
+     }
+    ]
+   }
+  ]
+ }
+}

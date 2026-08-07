@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<reportRecord xmlns="http://www.pentaho.com">
+    <commonStorageAttributes createdBy="admin" updatedBy="admin" created="2026-02-10T18:21:38.919Z" update="2026-02-10T18:21:38.920Z">
+        <path name="00-sensitivity-scatter" folder="/public/pdc-analysis/analyzer/00-sensitivity-scatter.xanalyzer"/>
+    </commonStorageAttributes>
+    <report catalog="PDC" cube="01. Data Asset Analysis" reportTypeEnum="JSON" showRowGrandTotal="false" showColumnGrandTotal="false" showSubTotals="true" totalsOnTopLeft="false" useNonVisualTotals="false" showEmptyCells="false" showEmptyEnum="SHOW_MEASURE" emptyCellDisplay="-" showDrillLinks="false" version="15" autoRefresh="true" freezeColumns="true" freezeRows="true">
+        <measures>
+            <measure formula="[Measures].[Distinct Entities]" showSum="true" showAggregate="false" showAverage="false" showCount="false" showMax="false" showMin="false" measureTypeEnum="PCTOF" sortOrderEnum="NONE" id="[MEASURE:1]" gembarId="x" gembarOrdinal="0">
+                <displayLabels>
+                    <displayLabel locale="" label="% of Distinct Entities" labelPlural=""/>
+                </displayLabels>
+                <summaryFacet summaryAcrossEnum="ROWS" useNonVisualTotals="false"/>
+                <numberFormat formatCategory="Percentage (%)" formatScale="1" formatShortcut="NONE" currencySymbol="$" measureDisplayUnits="UNITS_0">
+                    <formatExpression></formatExpression>
+                </numberFormat>
+            </measure>
+            <measure formula="[Measures].[Term - Size Bytes]" showSum="true" showAggregate="false" showAverage="false" showCount="false" showMax="false" showMin="false" measureTypeEnum="PCTOF" sortOrderEnum="NONE" id="[MEASURE:2]" gembarId="y" gembarOrdinal="0">
+                <displayLabels>
+                    <displayLabel locale="" label="% of Term - Size Bytes" labelPlural=""/>
+                </displayLabels>
+                <summaryFacet summaryAcrossEnum="ROWS" useNonVisualTotals="false"/>
+                <numberFormat formatCategory="Percentage (%)" formatScale="1" formatShortcut="NONE" currencySymbol="$" measureDisplayUnits="UNITS_0">
+                    <formatExpression></formatExpression>
+                </numberFormat>
+            </measure>
+            <measure formula="[Measures].[Term - Size Bytes]" showSum="true" showAggregate="false" showAverage="false" showCount="false" showMax="false" showMin="false" hideInChart="false" measureTypeEnum="VALUE" sortOrderEnum="NONE" id="[MEASURE:0]" gembarId="size" gembarOrdinal="0"/>
+        </measures>
+        <columnAttributes/>
+        <rowAttributes>
+            <attribute formula="[Business Glossary].[Level 3]" showSubtotal="false" sortOrderEnum="ASC" wordWrap="false" gembarId="rows" gembarOrdinal="0"/>
+            <attribute formula="[Term].[Term]" showSubtotal="false" sortOrderEnum="ASC" wordWrap="false" gembarId="color" gembarOrdinal="0"/>
+        </rowAttributes>
+        <filters defaultFiltersAvailable="false">
+            <filter formula="[Business Glossary].[Level 2]" viewFilterEnum="MULTIPLE" isDefaultFilter="false" isDefaultMetricFilter="false">
+                <predicates>
+                    <predicate ordinal="1" operatorEnum="EQUAL">
+                        <member formula="[Business Glossary].[BGC_DW].[PII]" caption="PII" pos="0"/>
+                    </predicate>
+                </predicates>
+            </filter>
+            <filter formula="[Business Glossary].[Level 3]" viewFilterEnum="MULTIPLE" isDefaultFilter="false" isDefaultMetricFilter="false">
+                <predicates>
+                    <predicate ordinal="1" operatorEnum="NOT_EQUAL">
+                        <member formula="[Business Glossary].[BGC_DW].[PII].[PII Parent]" caption="PII Parent" pos="0"/>
+                    </predicate>
+                </predicates>
+            </filter>
+        </filters>
+        <chartOptions vizApiVersion="3.0" chartType="CUSTOM" customChartType="pentaho/visual/models/Bubble" showMultiChart="false" legendPosition="RIGHT" showLegend="true" autoRange="true" displayUnits="UNITS_0" autoRangeSecondary="true" displayUnitsSecondary="UNITS_0" lineWidth="2" lineShape="CIRCLE" maxValues="1000" backgroundColor="#ffffff" labelColor="#000000" labelSize="12" backgroundFill="NONE" maxChartsPerRow="3" multiChartMax="50" multiChartRangeScope="GLOBAL" emptyCellMode="GAP" sizeByNegativesMode="NEG_LOWEST" backgroundColorEnd="#ffffff" labelStyle="PLAIN" legendBackgroundColor="#ffffff" legendSize="12" legendColor="#000000" legendStyle="PLAIN" labelFontFamily="Default" legendFontFamily="Default" scatterReverseColors="false"/>
+        <selectionFilters/>
+        <selectionItems/>
+        <pageSetup excelPageSize="LETTER" pdfPageSize="LETTER" excelOrientation="LANDSCAPE" pdfOrientation="LANDSCAPE" excelScalingType="PERCENT" excelScalingPercent="100" excelScalingPageWide="1" excelScalingPageTall="1" excelMergePivotCells="true" csvIncludeSubtotals="true" csvFormatNumbers="true"/>
+        <drillColumns>
+            <drillColumn>[Name].[Name]</drillColumn>
+            <drillColumn>[Resource Type].[Resource Type]</drillColumn>
+            <drillColumn>[Data Source].[Data Source Type]</drillColumn>
+            <drillColumn>[Data Source].[Data Source]</drillColumn>
+            <drillColumn>[FQDN].[FQDN]</drillColumn>
+            <drillColumn>[Measures].[Entity Count]</drillColumn>
+            <drillColumn>[Measures].[Storage - Size Bytes]</drillColumn>
+            <drillColumn>[Measures].[Distinct Entities]</drillColumn>
+            <drillColumn>[Measures].[Distinct Terms]</drillColumn>
+            <drillColumn>[Measures].[Term - Size Bytes]</drillColumn>
+        </drillColumns>
+    </report>
+    <uiAttributes showFieldList="true" showFieldLayout="true" showFilterPanel="false" fieldListView="CMDVIEWCATEGORY">
+        <rowFieldWidths actualWidths="149">
+            <labelWidth index="0">
+                <width>-69</width>
+            </labelWidth>
+        </rowFieldWidths>
+        <columnDataFieldWidths actualWidths="254,120">
+            <labelWidth index="0">
+                <width>-134</width>
+            </labelWidth>
+            <labelWidth index="1">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="2">
+                <width>0</width>
+            </labelWidth>
+        </columnDataFieldWidths>
+        <pluginData>[{"labelsOption":"none"}]</pluginData>
+    </uiAttributes>
+</reportRecord>

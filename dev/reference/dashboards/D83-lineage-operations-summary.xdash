@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dashboard>
+<title>D83 Lineage Operations Summary</title>
+<heading/>
+<enableWidgetPrinting>false</enableWidgetPrinting>
+<documentation>
+<author>admin</author>
+<description>Run reliability and operations. Success rates, failures by integration and job, and reliability KPIs across the estate.</description>
+<icon/>
+</documentation>
+<template-ref>xul/04-1-then-2.xul</template-ref>
+<theme-ref>0-Ruby</theme-ref>
+<layout>
+<overlay xmlns:pho="http://www.pentaho.com" pho:fixie="withme">
+<box id="Panel_1" pho:title="Reliability KPIs by Integration and Job Type" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_2" pho:title="Job Success Rate % by Month" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_3" pho:title="Job Success Rate % by Integration" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_4" pho:title="Failed and Aborted Runs by Integration" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_5" pho:title="Failed Runs by Job (Top 20)" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_6" pho:title="Event Count by Lifecycle Type" flex="1" collapsed="false" type="titled-panel"/>
+</overlay>
+</layout>
+<parameters>
+</parameters>
+<widgetJavascript><![CDATA[]]></widgetJavascript>
+<widgets>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-rel-kpi-pivot.xanalyzer</xactionPath><localizedName jsonType="string">19-rel-kpi-pivot</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19301</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-rel-kpi-pivot.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_1</htmlObject><solution jsonType="string"/><name jsonType="string">widget1</name><action jsonType="string">19-rel-kpi-pivot.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-rel-success-trend.xanalyzer</xactionPath><localizedName jsonType="string">19-rel-success-trend</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19302</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-rel-success-trend.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_2</htmlObject><solution jsonType="string"/><name jsonType="string">widget2</name><action jsonType="string">19-rel-success-trend.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-rel-success-by-integration.xanalyzer</xactionPath><localizedName jsonType="string">19-rel-success-by-integration</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19303</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-rel-success-by-integration.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_3</htmlObject><solution jsonType="string"/><name jsonType="string">widget3</name><action jsonType="string">19-rel-success-by-integration.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-rel-failures-by-integration.xanalyzer</xactionPath><localizedName jsonType="string">19-rel-failures-by-integration</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19304</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-rel-failures-by-integration.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_4</htmlObject><solution jsonType="string"/><name jsonType="string">widget4</name><action jsonType="string">19-rel-failures-by-integration.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-rel-failures-by-job.xanalyzer</xactionPath><localizedName jsonType="string">19-rel-failures-by-job</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19305</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-rel-failures-by-job.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_5</htmlObject><solution jsonType="string"/><name jsonType="string">widget5</name><action jsonType="string">19-rel-failures-by-job.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-rel-lifecycle-mix.xanalyzer</xactionPath><localizedName jsonType="string">19-rel-lifecycle-mix</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19306</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-rel-lifecycle-mix.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_6</htmlObject><solution jsonType="string"/><name jsonType="string">widget6</name><action jsonType="string">19-rel-lifecycle-mix.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+</widgets>
+</dashboard>

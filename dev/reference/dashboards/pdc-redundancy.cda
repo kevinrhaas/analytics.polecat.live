@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+  <DataAccess id="kpi" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>KPI</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[ SELECT count(*) FILTER (WHERE is_duplicate) AS dup_assets,
+      ROUND(SUM(dup_savings_bytes)/1e12::numeric,1) AS savings_tb,
+      ROUND(SUM(monthly_cost_usd*dup_savings_bytes/NULLIF(size_bytes,0))::numeric,0) AS savings_cost,
+      ROUND(100.0*count(*) FILTER (WHERE is_duplicate)/NULLIF(count(*),0),1) AS dup_pct
+      FROM entity_storage_demo WHERE datasource_type LIKE ${ds} AND COALESCE(NULLIF(sensitivity,''),'Unclassified') LIKE ${sens} ]]></Query>
+  </DataAccess>
+  <DataAccess id="dups_by_source" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>DupsBySource</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[ SELECT datasource_type AS src, count(*) FILTER (WHERE is_duplicate) AS dups
+      FROM entity_storage_demo WHERE datasource_type LIKE ${ds} AND COALESCE(NULLIF(sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC ]]></Query>
+  </DataAccess>
+  <DataAccess id="savings_by_source" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>SavingsBySource</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[ SELECT datasource_type AS src, ROUND(SUM(dup_savings_bytes)/1e12::numeric,2) AS tb
+      FROM entity_storage_demo WHERE datasource_type LIKE ${ds} AND COALESCE(NULLIF(sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 HAVING SUM(dup_savings_bytes)>0 ORDER BY 2 DESC ]]></Query>
+  </DataAccess>
+  <DataAccess id="savings_by_sens" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>SavingsBySens</Name><Parameters><Parameter name="ds" type="String" default="%"/></Parameters>
+    <Query><![CDATA[ SELECT sensitivity AS sens, ROUND(SUM(dup_savings_bytes)/1e12::numeric,2) AS tb
+      FROM entity_storage_demo WHERE datasource_type LIKE ${ds} AND is_duplicate GROUP BY 1 ORDER BY 2 DESC ]]></Query>
+  </DataAccess>
+  <DataAccess id="top_dups" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>TopDups</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[ SELECT COALESCE(NULLIF(e.entity_name,''),'(unnamed)') AS name, st.datasource_type AS src,
+      ROUND(st.dup_savings_bytes/1e9::numeric,1) AS gb
+      FROM entity_storage_demo st JOIN dim_entity e ON st.entity_key=e.entity_key
+      WHERE st.datasource_type LIKE ${ds} AND COALESCE(NULLIF(st.sensitivity,''),'Unclassified') LIKE ${sens} AND st.is_duplicate ORDER BY st.dup_savings_bytes DESC LIMIT 14 ]]></Query>
+  </DataAccess>
+  <DataAccess id="detail_dups" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>DetailDups</Name><Parameters><Parameter name="src" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[ SELECT COALESCE(NULLIF(e.entity_name,''),'(unnamed)') AS name,
+      st.datasource_type AS src,
+      ROUND(st.size_bytes/1e9::numeric,2) AS gb,
+      ROUND(st.dup_savings_bytes/1e9::numeric,2) AS savings_gb,
+      COALESCE(NULLIF(st.sensitivity,''),'Unclassified') AS sensitivity,
+      COALESCE(NULLIF(st.owner_name,''),'—') AS owner
+      FROM entity_storage_demo st JOIN dim_entity e ON st.entity_key=e.entity_key
+      WHERE st.is_duplicate AND st.datasource_type LIKE ${src} AND COALESCE(NULLIF(st.sensitivity,''),'Unclassified') LIKE ${sens}
+      ORDER BY st.dup_savings_bytes DESC ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="datasources" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>DataSources</Name><Parameters/>
+    <Query><![CDATA[ SELECT DISTINCT datasource_type FROM dim_datasource WHERE datasource_type IS NOT NULL AND datasource_type<>'' ORDER BY 1 ]]></Query>
+  </DataAccess>
+  <DataAccess id="sensitivities" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>Sensitivities</Name><Parameters/>
+    <Query><![CDATA[ SELECT DISTINCT COALESCE(NULLIF(sensitivity,''),'Unclassified') AS s FROM entity_storage_demo ORDER BY 1 ]]></Query>
+  </DataAccess>
+</CDADescriptor>
