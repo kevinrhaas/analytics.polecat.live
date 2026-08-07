@@ -558,6 +558,11 @@ function serve() {
     };
   });
   const errors = [];
+  // AUD-08: record which changelog file the app actually asks the network for. The full
+  // history is ~680KB and must stay OFF the boot path — only the generated head file may
+  // be fetched before the user opens the What's-new feed.
+  const clRequests = [];
+  page.on("request", (r) => { const u = r.url(); if (/\/js\/changelog(-head)?\.js/.test(u)) clRequests.push(u); });
   page.on("pageerror", (e) => errors.push("page: " + e.message));
   page.on("console", (m) => {
     if (m.type() !== "error") return;
@@ -580,6 +585,26 @@ function serve() {
     await page.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     await page.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
     await page.waitForTimeout(400);
+
+    // ---- AUD-08 slice 1: the release history is off the boot path ----
+    // js/changelog.js is the single largest file in the app and the ONLY reader is the
+    // What's-new feed, so boot loads the generated js/changelog-head.js (the latest
+    // version + newest entry, a few hundred bytes) and Studio.loadChangelog() fetches the
+    // rest on demand. These checks are what stops the big file creeping back onto boot.
+    const aud08Boot = await page.evaluate(() => ({
+      latest: window.STUDIO_LATEST_VERSION || 0,
+      latestEntry: window.STUDIO_LATEST || null,
+      fullLoaded: !!window.STUDIO_CHANGELOG,
+      hasLoader: typeof (window.Studio && window.Studio.loadChangelog) === "function",
+    }));
+    ok("AUD-08: boot fetches js/changelog-head.js and NOT the ~680KB js/changelog.js",
+      clRequests.some((u) => /changelog-head\.js/.test(u)) && !clRequests.some((u) => /\/changelog\.js/.test(u)),
+      JSON.stringify(clRequests));
+    ok("AUD-08: the full history is absent from the boot window (window.STUDIO_CHANGELOG unset)",
+      aud08Boot.fullLoaded === false, JSON.stringify(aud08Boot));
+    ok("AUD-08: the head file still supplies the version the footer label + unseen dot need",
+      aud08Boot.latest > 0 && !!aud08Boot.latestEntry && aud08Boot.latestEntry.v === aud08Boot.latest && aud08Boot.hasLoader,
+      JSON.stringify(aud08Boot));
 
     // LF65: the legacy "Samples (115) · demo db" catalog group is gone from the Data
     // panel — sample content comes only via Sample packs. At boot (no authored queries
@@ -894,6 +919,31 @@ function serve() {
       const w = {}; new Function("window", clSrc.replace(/export\s+const/g, "const"))(w);
       const actual = (w.STUDIO_CHANGELOG || []).length;
       ok("manager parse yields ALL changelog entries (no silent truncation)", parsed && parsed.length === actual, (parsed ? parsed.length : 0) + " parsed vs " + actual + " actual");
+
+      // ---- AUD-08: the generated boot-path head file ----
+      // js/changelog-head.js is derived from js/changelog.js by tools/changelog-normalize.js.
+      // Two files carrying the same fact can drift, so pin them together here: a normalize
+      // run that somehow skipped the head file (or a hand-edit of a DO-NOT-EDIT file) fails
+      // the suite instead of shipping a stale version label to every visitor.
+      const headSrc = fs.readFileSync(path.join(ROOT, "js/changelog-head.js"), "utf8");
+      const hw = {}; new Function("window", headSrc)(hw);
+      const entriesAll = w.STUDIO_CHANGELOG || [];
+      const maxEntry = entriesAll.reduce((a, b) => (b.v > a.v ? b : a), entriesAll[0] || { v: 0 });
+      ok("AUD-08: js/changelog-head.js matches the newest entry in js/changelog.js (no drift)",
+        hw.STUDIO_LATEST_VERSION === maxEntry.v && !!hw.STUDIO_LATEST &&
+        hw.STUDIO_LATEST.v === maxEntry.v && hw.STUDIO_LATEST.title === maxEntry.title,
+        JSON.stringify({ head: hw.STUDIO_LATEST_VERSION, full: maxEntry.v }));
+      ok("AUD-08: the boot head file stays tiny (< 4KB) — it carries no item bullets",
+        headSrc.length < 4096, headSrc.length + " bytes");
+      const swSrc = fs.readFileSync(path.join(ROOT, "sw.js"), "utf8");
+      const swStart = swSrc.indexOf("var SHELL_FILES = [");
+      const shellList = swSrc.slice(swStart, swSrc.indexOf("];", swStart));
+      ok("AUD-08: sw.js precaches js/changelog-head.js and no longer precaches the full history",
+        /"js\/changelog-head\.js"/.test(shellList) && !/"js\/changelog\.js"/.test(shellList),
+        "SHELL_FILES slice " + shellList.length + " chars");
+      const idxSrc = fs.readFileSync(path.join(ROOT, "app/index.html"), "utf8");
+      ok("AUD-08: app/index.html boots the head file only",
+        /<script src="js\/changelog-head\.js"><\/script>/.test(idxSrc) && !/src="js\/changelog\.js"/.test(idxSrc), "");
     })();
 
     // ---- vendored Polecat Shell integrity guard ----
@@ -12001,6 +12051,10 @@ function serve() {
     // LF43 slice 2: the Examples ▾ trigger is gone entirely — assert the removal instead.
     ok("Examples ▾ trigger is removed from the dashbar (LF43 slice 2)", caretIcons.examplesBtn === null, JSON.stringify(caretIcons.examplesBtn));
     await page.click("#tbWhatsNew");
+    // AUD-08: the feed's chrome is synchronous but the entries arrive with the lazily
+    // fetched history — wait for them (a swallowed timeout keeps the assertions below the
+    // thing that reports the failure, rather than aborting the whole run).
+    await page.waitForFunction(() => document.querySelectorAll(".cl-entry").length > 0, null, { timeout: 15000 }).catch(() => {});
     await page.waitForTimeout(300);
     const cl = await page.evaluate(() => {
       var panel = document.querySelector(".ps-rpanel");
@@ -12011,12 +12065,16 @@ function serve() {
       return { open: !!panel && !!pop, inBody: pop && !!pop.closest(".ps-rpanel-body"),
         title: panel ? panel.querySelector(".ps-rpanel-head h2").textContent : "",
         count: entries.length, first, latest,
+        lazyLoaded: !!window.STUDIO_CHANGELOG,
         expanded: document.getElementById("tbWhatsNew").getAttribute("aria-expanded"),
         seen: localStorage.getItem("studio-whatsnew-seen"),
         dotCleared: !document.getElementById("wnDotTb") && !document.getElementById("wnDot") };
     });
     ok("The topbar What's-New button opens the feed in the shell right panel, newest revision first",
       cl.open && cl.inBody && /new/i.test(cl.title) && cl.count >= 3 && cl.first === "v" + cl.latest && cl.expanded === "true", JSON.stringify(cl));
+    ok("AUD-08: opening the feed lazily pulls in the full history (and every entry renders)",
+      cl.lazyLoaded === true && cl.count >= 100 && clRequests.some((u) => /\/js\/changelog\.js/.test(u)),
+      JSON.stringify({ lazyLoaded: cl.lazyLoaded, count: cl.count, requests: clRequests }));
     ok("opening marks the latest version seen and clears the unseen dot",
       cl.seen === String(cl.latest) && cl.dotCleared, JSON.stringify({ seen: cl.seen, latest: cl.latest, dotCleared: cl.dotCleared }));
     await page.keyboard.press("Escape");
@@ -22623,6 +22681,9 @@ function serve() {
     // the topbar button (programmatic click: at 390px it may be menu-tucked, and
     // this check is about the PANEL's width, not the trigger's tap target).
     await phonePage.evaluate(() => document.getElementById("tbWhatsNew").click());
+    // AUD-08: these checks measure the PANEL against the viewport, so let the lazily
+    // fetched entries land first — a half-filled sheet is not what we mean to measure.
+    await phonePage.waitForFunction(() => document.querySelectorAll(".cl-entry").length > 0, null, { timeout: 15000 }).catch(() => {});
     await phonePage.waitForTimeout(550);
     const m12CL = await phonePage.evaluate(() => {
       var p = document.querySelector(".ps-rpanel");
@@ -22717,6 +22778,7 @@ function serve() {
     await phonePage.evaluate(() => document.querySelector('#mobile-tabs .mob-tab[data-mob-tab="canvas"]').click());
 
     await phonePage.evaluate(() => document.getElementById("tbWhatsNew").click()); // DECLUTTER-1: footer button retired
+    await phonePage.waitForFunction(() => document.querySelectorAll(".cl-entry").length > 0, null, { timeout: 15000 }).catch(() => {}); // AUD-08: history is lazy
     await phonePage.waitForTimeout(550);
     const mnavCL = await phonePage.evaluate(() => { var c = document.querySelector(".ps-rpanel"); if (!c) return { open: false }; var r = c.getBoundingClientRect(); return { open: true, inView: r.left >= -1 && r.right <= window.innerWidth + 1 }; });
     ok("MNAV: What's-new panel sits fully within the viewport", mnavCL.open && mnavCL.inView, JSON.stringify(mnavCL));

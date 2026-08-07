@@ -52,9 +52,10 @@ function mount() {
   }
   // Unseen dot: light the global topbar What's-new button AND the Studio footer
   // Changelog button when there are releases newer than the stored seen-version.
-  // js/changelog.js (a module earlier in document order) has already set
-  // STUDIO_LATEST_VERSION by the time this runs; opening either feed marks it seen
-  // (studio.js calls markSeen + clearWhatsNewDot).
+  // js/changelog-head.js (a classic script earlier in document order, so it has already
+  // run — AUD-08 moved the full ~680KB history off the boot path) sets
+  // STUDIO_LATEST_VERSION; opening either feed marks it seen (studio.js calls markSeen +
+  // clearWhatsNewDot).
   var latest = window.STUDIO_LATEST_VERSION || 0;
   if (latest && hasUnseen(SEEN_KEY, latest)) {
     [["btnChangelog", "wnDot"], ["tbWhatsNew", "wnDotTb"]].forEach(function (pair) {

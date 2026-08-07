@@ -541,7 +541,10 @@ html[data-reduce-motion="1"] #app{transition:none}
 <script src="app/tooltip.js"></script>
 <script src="app/welcome.js"></script>
 <script src="app/tutorial.js"></script>
-<script type="module" src="js/changelog.js"></script>
+<!-- AUD-08: boot loads only the generated head (a few hundred bytes: latest version +
+     newest entry). The full ~680KB js/changelog.js is fetched on demand by
+     Studio.loadChangelog() when the What's-new feed is first opened or hovered. -->
+<script src="js/changelog-head.js"></script>
 <script type="module" src="app/fleet.js"></script>
 <script src="app/shell.js"></script>
 <script src="app/chart-thumbnails.js"></script>

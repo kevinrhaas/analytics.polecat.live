@@ -104,7 +104,9 @@
       if (sp && sp.id) { c.dashboard = sp.id; c.dashboardTitle = String(sp.title || "").slice(0, 80); }
     } catch (e) {}
     try {
-      var cl = window.STUDIO_CHANGELOG && window.STUDIO_CHANGELOG[0];
+      // AUD-08: the full history is lazy now, so read the generated head file first and
+      // only fall back to CHANGELOG[0] when the feed has already pulled it in.
+      var cl = window.STUDIO_LATEST || (window.STUDIO_CHANGELOG && window.STUDIO_CHANGELOG[0]);
       if (cl) c.version = cl.v;
     } catch (e) {}
     if (extra) { for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) c[k] = extra[k]; }
