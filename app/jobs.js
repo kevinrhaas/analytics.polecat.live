@@ -806,9 +806,21 @@
         } else if (step.op === "filter") {
           // LF55 (1): filter targets a known incoming column — dropdown, not free text.
           wrap.appendChild(colSelect(colsBeforeStep(stepIdx), step.col, function (v) { step.col = v; renderSteps(); }));
+          // AUD-06 slice 3: the operator list is Studio.filterOps, the same one the
+          // DA output rules use — so "Filter rows" and a dashboard filter offer the
+          // same operators, worded the same way, meaning the same thing. The step
+          // keeps persisting the job spelling (eq/gte/…), and it gains the one
+          // operator it was missing ("starts with").
           var cmpSel = el("select");
-          cmpSel.innerHTML = ["eq", "ne", "gt", "gte", "lt", "lte", "contains"].map(function (c) { return '<option value="' + c + '"' + (step.cmp === c ? " selected" : "") + '>' + c + '</option>'; }).join("");
-          step.cmp = step.cmp || "eq"; cmpSel.value = step.cmp; cmpSel.onchange = function () { step.cmp = cmpSel.value; }; wrap.appendChild(cmpSel);
+          var cmpPairs = Studio.filterOps.pairs("alias");
+          cmpPairs.forEach(function (p) {
+            var o = el("option"); o.value = p[0]; o.textContent = p[1]; cmpSel.appendChild(o);
+          });
+          // A step saved with the other spelling (or by a future build) still
+          // selects the right row rather than showing a blank select.
+          var cmpKnown = Studio.filterOps.get(step.cmp || "eq");
+          step.cmp = cmpKnown ? cmpKnown.alias : "eq";
+          cmpSel.value = step.cmp; cmpSel.onchange = function () { step.cmp = cmpSel.value; }; wrap.appendChild(cmpSel);
           // LF55 (2): the value field stays free text (comparators like gt/lt need arbitrary
           // typed values a fixed list can't cover), but when the target column's actual sample
           // values are known, offer them via a <datalist> — the same "type or pick" affordance

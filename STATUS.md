@@ -135,6 +135,53 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **AUD-06 ★ slice 3 — ONE filter-operator vocabulary (v850, sw v482, 2026-08-07,
+  steward; AUDIT-2026-08 §2.1 family B, ux):** the audit's last named divergence in the
+  filter program. Two surfaces defined the *same conceptual operation* twice:
+  - DA output rules — 8 ops, symbol ids (`= != > >= < <= contains startsWith`),
+    numeric-aware compare with a string fallback (`model.js` `Studio.DA_OPS`).
+  - The job "Filter rows" step — 7 different ops, word ids (`eq ne gt gte lt lte
+    contains`), string-ONLY equality, numeric-ONLY ordering, no "starts with" — and it
+    rendered those **raw ids to the user as its labels** (`jobs.js`, `jobs-engine.js` `CMP`).
+
+  **`Studio.filterOps` (model.js) is now the single registry**: one op list, one label
+  set, one predicate (`LIST / normalize / get / label / test / pairs`). `Studio.DA_OPS` is
+  derived from it, `applyOutputOptions` calls `filterOps.test`, `jobs-engine`'s
+  `applyFilter` calls it too (with a local fallback that matches, for a context without
+  model.js), and the job dropdown is built from `filterOps.pairs("alias")`.
+
+  **The deliberate call — no migration, because none was needed.** The item was filed as
+  "data-shaped… it wants a migration for saved jobs/specs". It doesn't, and shouldn't
+  have one: each surface keeps **writing the spelling it always wrote** (`>=` in a DA
+  rule, `gte` in a job step) and `normalize()` maps either onto one meaning at read time.
+  Re-spelling saved rules would have been the exact forward-compat hazard AUD-04 closed —
+  workspaces are shared across devices *and* across the `/dev/` + `/stage/` previews,
+  which run on production's own localStorage, so an older build must keep reading
+  everything this one writes. Unification is in the code, not on disk.
+
+  **What changed for the user** (job step only; DA rules are behaviour-identical):
+  real labels instead of `eq`/`gte`; `startsWith` added; `=` is numeric-aware (`"1.0"`
+  matches `1`); ordering falls back to string compare so it works on text columns (it
+  previously matched *nothing* unless both sides parsed as numbers); null cells read as
+  `""` not `"null"`; and an **unrecognised operator now passes rows through** instead of
+  being silently re-read as equality (which emptied the result) — matching what
+  `applyOutputOptions` already did.
+
+  **Found and deliberately NOT fixed here, written up instead:** the shared predicate
+  compares via `parseFloat`, which takes a *leading* number — so `>` on an ISO-date
+  column (`"2024-06-01"` → `2024`) compares years. Both surfaces have always done this
+  identically; changing it would silently re-filter every saved dashboard, which is not a
+  consolidation slice's call. The suite now **asserts the quirk** so it stays visible, and
+  it is recorded against AUD-06's "decide TIME_RANGE / a real date filter" item.
+
+  Verified in the foreground: the shared predicate and the real `runJobSteps` filter path
+  unit-checked in Node first, then the dev gate — `tools/validate.mjs`,
+  `tools/changelog-check.js`, `tools/dev-smoke.mjs` (marketing + app + docs, desktop and
+  390×780, zero pageerrors). All 8 new suite checks were additionally run against the
+  real booted app before push (they otherwise first execute at the stage gate): 5 on
+  `filterOps`, 1 on `DA_OPS` staying derived, 1 end-to-end through `runJobSteps`, and 1
+  on the job editor's actual operator dropdown. `docs/index.html` gained the operator
+  list; sw `studio-shell-v481`→`v482`.
 - **AUD-06 ★ — one shared catalog VIEW-MODE kit (v849, sw v481, 2026-08-07, steward;
   AUDIT-2026-08 §2.1 family D, ux):** the fourth and last shared axis, after SORT-1's
   `Studio.catalogSort` (v812), slice 1's `Studio.catalogSearch` (v847) and slice 2's
@@ -9117,15 +9164,25 @@
 >   itself, not just its default) — one default for all six panels (**`list`**), the
 >   grid/list icon on every panel instead of only Dashboards, and one meaning for
 >   `aria-pressed` (pressed = showing tiles). Historical storage keys unchanged.
+>   **Slice 3 — the OPERATOR vocabulary — SHIPPED v850, sw v482 (2026-08-07,
+>   steward — see DONE):** `Studio.filterOps` is the single registry (one op
+>   list, one label set, ONE predicate) behind both the DA output rules and the
+>   job "Filter rows" step. **No workspace migration was needed and none was
+>   done** — each surface keeps WRITING its own on-disk spelling (`>=` vs
+>   `gte`) and `normalize()` maps either onto one meaning at read time, so an
+>   older client sharing the workspace (or a `/dev/`-`/stage/` preview on the
+>   same origin — AUD-04) still reads every saved rule correctly. The job step
+>   gained `startsWith`, real labels instead of raw ids, numeric-aware equality
+>   and text-capable ordering.
 >   **Still open, in rough order:**
->   - **Slice 3 — one filter-operator vocabulary:** DA output rules use 8 ops
->     (`=,!=,>,>=,<,<=,contains,startsWith`, `model.js:2956`), the Job "Filter
->     rows" step uses 7 different ones (`eq/ne/gt/gte/lt/lte/contains`) for the
->     same conceptual operation. Data-shaped, not UI-shaped: it wants a
->     migration for saved jobs/specs, so it is its own slice.
 >   - **Decide TIME_RANGE** (a real date filter, or delete — see AUD-09); there
 >     is still no first-class date/range filter anywhere, only `{{today-30}}`
->     SQL tokens.
+>     SQL tokens. **Now carries a concrete sub-finding from slice 3:** the
+>     shared predicate compares with `parseFloat`, which takes a LEADING
+>     number, so ordering an ISO-date column (`2024-06-01`) compares YEARS.
+>     Both surfaces have always done this identically, so slice 3 asserted the
+>     quirk rather than changing it — re-filtering every saved dashboard is not
+>     a consolidation slice's call. A real date filter is the right fix.
 >   - Out of family D but named in §2.1: the 11 other search affordances
 >     (library, inspector, chart gallery, ⌘K, docs, folder picker) could adopt
 >     `Studio.catalogSearch` opportunistically — none is a catalog panel, so

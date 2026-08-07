@@ -6593,6 +6593,31 @@ function serve() {
     });
     ok("LF55 (1): filter + rename column fields are dropdowns of the incoming columns (current value selected)",
       jobColDrop.filterIsSelect && jobColDrop.filterSelected && jobColDrop.renameIsSelect && jobColDrop.renameSelected, JSON.stringify(jobColDrop));
+
+    // AUD-06 slice 3: the operator dropdown on that same open filter step is
+    // built from Studio.filterOps — human labels, not the raw ids it used to
+    // print, and the eight ops the DA output rules offer.
+    const jobCmpDrop = await page.evaluate(function () {
+      var card = document.querySelectorAll(".jobs-step-card")[0];
+      var sel = Array.prototype.slice.call(card.querySelectorAll(".jobs-step-fields select")).filter(function (s) {
+        return s.value === "eq" || s.value === "gte";
+      })[0];
+      if (!sel) return { missing: true };
+      var opts = Array.prototype.slice.call(sel.options).map(function (o) { return { v: o.value, t: o.textContent }; });
+      return {
+        count: opts.length,
+        values: opts.map(function (o) { return o.v; }).join(","),
+        labels: opts.map(function (o) { return o.t; }).join(","),
+        selected: sel.value,
+        // no option still renders its own id as its label
+        noRawIds: opts.every(function (o) { return o.t !== o.v; }),
+        // and the labels are the DA rules' labels, character for character
+        matchesDaOps: opts.every(function (o, i) { return o.t === Studio.DA_OPS[i].label; })
+      };
+    });
+    ok("AUD-06(3): the job Filter step's operator dropdown is the shared vocabulary — 8 ops, DA labels, job spelling, no raw ids",
+      jobCmpDrop.count === 8 && jobCmpDrop.values === "eq,ne,gt,gte,lt,lte,contains,startsWith"
+      && jobCmpDrop.selected === "eq" && jobCmpDrop.noRawIds && jobCmpDrop.matchesDaOps, JSON.stringify(jobCmpDrop));
     await page.evaluate(function () {
       document.querySelector(".modal-ov .x").click();
       Studio.Workspace.all("jobs").filter(function (j) { return j.name === "coldrop-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
@@ -6918,6 +6943,39 @@ function serve() {
     ok("LF13(b): the jobs-engine itself already chains two aggregate steps correctly end to end (Story county avg of 100/200 = 150)",
       jobsMultiAggRun.columns.indexOf("acres_avg") >= 0 && jobsMultiAggRun.rows.some(function (r) { return r[jobsMultiAggRun.columns.indexOf("county")] === "Story" && r[jobsMultiAggRun.columns.indexOf("acres_avg")] === 150; }),
       JSON.stringify(jobsMultiAggRun));
+
+    // AUD-06 slice 3: the "Filter rows" step runs on Studio.filterOps — the same
+    // predicate a DA output rule uses. These are the behaviours that USED to
+    // differ between the two surfaces, exercised through the real engine.
+    const jobsFilterOps = await page.evaluate(function () {
+      var input = { columns: ["county", "acres", "grade"], rows: [
+        ["Story", "1.0", "B"], ["Polk", "2", "A"], ["Boone", "10", "C"]
+      ]};
+      function run(cmp, col, value) {
+        var out = Studio.runJobSteps(input, [{ op: "filter", col: col, cmp: cmp, value: value }], {});
+        return out.rows.map(function (r) { return r[0]; });
+      }
+      return {
+        // numeric-aware equality: "1.0" matches 1 (string-only eq said no)
+        numericEq: run("eq", "acres", 1),
+        // ordering on a text column: the numeric-only gt matched NOTHING here
+        textGt: run("gt", "grade", "A"),
+        // the operator the job step never had
+        startsWith: run("startsWith", "county", "st"),
+        // the DA spelling is understood too, so the vocabularies interoperate
+        symbolGte: run(">=", "acres", "2"),
+        // an unknown operator passes rows through rather than quietly
+        // filtering as equality (which used to drop every row)
+        unknown: run("someFutureOp", "county", "Story")
+      };
+    });
+    ok("AUD-06(3): the job Filter step runs the shared filterOps predicate — numeric-aware eq, text-capable gt, startsWith, the DA spelling, and a pass-through unknown op",
+      jobsFilterOps.numericEq.join() === "Story"
+      && jobsFilterOps.textGt.join() === "Story,Boone"
+      && jobsFilterOps.startsWith.join() === "Story"
+      && jobsFilterOps.symbolGte.join() === "Polk,Boone"
+      && jobsFilterOps.unknown.length === 3,
+      JSON.stringify(jobsFilterOps));
     await page.evaluate(function () {
       Studio.Workspace.all("jobs").filter(function (j) { return j.name === "multiagg-editor-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
       Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-multiagg-editor-ds"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
@@ -20796,6 +20854,93 @@ function serve() {
       return Array.isArray(ops) && ops.length === 8 && ops.some(function (o) { return o.id === "="; }) && ops.some(function (o) { return o.id === "contains"; });
     });
     ok("Studio.DA_OPS has 8 operators including = and contains", opsOk);
+
+    // ---- AUD-06 slice 3: ONE filter-operator vocabulary ----
+    // Studio.filterOps is the single registry behind both the DA output rules
+    // and the Job "Filter rows" step. These lock the contract that made the two
+    // surfaces diverge: the same names, the same labels, the same predicate.
+    const foShape = await page.evaluate(() => {
+      var F = Studio.filterOps;
+      if (!F) return { missing: true };
+      return {
+        len: F.LIST.length,
+        // every entry carries both spellings + a human label (never a raw id)
+        wellFormed: F.LIST.every(function (o) { return o.id && o.alias && o.label && o.label !== o.id && o.label !== o.alias; }),
+        api: ["normalize", "get", "label", "test", "pairs"].every(function (k) { return typeof F[k] === "function"; })
+      };
+    });
+    ok("Studio.filterOps is the shared registry: 8 ops, both spellings, human labels",
+      foShape.len === 8 && foShape.wellFormed && foShape.api, JSON.stringify(foShape));
+
+    // normalize() accepts EITHER on-disk spelling and yields one meaning.
+    const foNorm = await page.evaluate(() => {
+      var F = Studio.filterOps, n = F.normalize;
+      return {
+        aliases: n("eq") === "=" && n("ne") === "!=" && n("gt") === ">" && n("gte") === ">=" && n("lt") === "<" && n("lte") === "<=",
+        canonical: n("=") === "=" && n(">=") === ">=" && n("contains") === "contains" && n("startsWith") === "startsWith",
+        unknown: n("nope") === "" && n(null) === "" && n(undefined) === ""
+      };
+    });
+    ok("filterOps.normalize maps the job spelling (eq/gte/…) onto the DA spelling (=/>=/…)",
+      foNorm.aliases && foNorm.canonical && foNorm.unknown, JSON.stringify(foNorm));
+
+    // The predicate itself — one meaning per operator, reached by either name.
+    const foTest = await page.evaluate(() => {
+      var t = Studio.filterOps.test;
+      return {
+        // both spellings agree, operator for operator
+        agree: ["=", "!=", ">", ">=", "<", "<="].every(function (id, i) {
+          var alias = ["eq", "ne", "gt", "gte", "lt", "lte"][i];
+          return t("10", id, "9") === t("10", alias, "9") && t("3", id, "7") === t("3", alias, "7");
+        }),
+        // numeric-aware equality: "1.0" equals 1 (the job step used to say no)
+        numericEq: t("1.0", "eq", 1) === true && t(1, "=", "1.0") === true,
+        // ordering falls back to string compare for non-numeric text (the job
+        // step's numeric-only comparators returned false for all of these)
+        textGt: t("banana", "gt", "apple") === true && t("apple", "gt", "banana") === false
+          && t("B", "gte", "B") === true,
+        // the inherited parseFloat quirk, asserted so it stays VISIBLE and
+        // identical on both surfaces: a leading number wins, so an ISO date
+        // column orders by year. Deliberately unchanged by this slice.
+        leadingNumberQuirk: t("2024-06-01", "gt", "2024-01-01") === false
+          && t("2024-06-01", "gt", "2023-01-01") === true,
+        // contains / startsWith are case-insensitive, and startsWith now
+        // reaches the job step too
+        text: t("Snowflake", "contains", "FLAKE") === true && t("Snowflake", "startsWith", "snow") === true
+          && t("Snowflake", "startsWith", "flake") === false,
+        // null cells read as "", never the literal string "null"
+        nulls: t(null, "=", "") === true && t(null, "contains", "null") === false,
+        // an operator this build doesn't know passes the row through — it is
+        // never silently re-read as equality
+        unknown: t("Snowflake", "someFutureOp", "Oracle") === true
+      };
+    });
+    ok("filterOps.test: one predicate — both spellings agree, numeric-aware =, string-fallback ordering, safe unknown op",
+      foTest.agree && foTest.numericEq && foTest.textGt && foTest.leadingNumberQuirk && foTest.text && foTest.nulls && foTest.unknown, JSON.stringify(foTest));
+
+    // DA_OPS is derived from the shared list (labels can't drift apart again).
+    const foDerived = await page.evaluate(() => {
+      var F = Studio.filterOps;
+      return Studio.DA_OPS.length === F.LIST.length && Studio.DA_OPS.every(function (o, i) {
+        return o.id === F.LIST[i].id && o.label === F.LIST[i].label;
+      });
+    });
+    ok("Studio.DA_OPS is derived from Studio.filterOps (labels stay in lockstep)", foDerived);
+
+    // pairs() gives each surface its own on-disk spelling with shared labels.
+    const foPairs = await page.evaluate(() => {
+      var F = Studio.filterOps;
+      var byId = F.pairs("id"), byAlias = F.pairs("alias");
+      return {
+        ids: byId.length === 8 && byId[0][0] === "=" && byId[3][0] === ">=",
+        aliases: byAlias.length === 8 && byAlias[0][0] === "eq" && byAlias[3][0] === "gte",
+        sharedLabels: byId.every(function (p, i) { return p[1] === byAlias[i][1]; }),
+        // the job dropdown no longer renders raw ids as its labels
+        notRawIds: byAlias.every(function (p) { return p[1] !== p[0]; })
+      };
+    });
+    ok("filterOps.pairs: each surface keeps its own ids, both render the shared labels",
+      foPairs.ids && foPairs.aliases && foPairs.sharedLabels && foPairs.notRawIds, JSON.stringify(foPairs));
 
     // Studio.newOutputFilter / newOutputSort return correct shapes
     const shapeOk = await page.evaluate(() => {

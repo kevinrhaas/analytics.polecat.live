@@ -5,7 +5,8 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v481"; /* v481: AUD-06 — one shared catalog view-mode kit (Studio.catalogView), one default (list) for all six panels; precached js/changelog.js, app/studio.js, app/views.js, app/datasets.js, app/connections.js, app/jobs.js, docs/index.html changed. */
+var CACHE_NAME = "studio-shell-v482"; /* v482: AUD-06 slice 3 — one filter-operator vocabulary (Studio.filterOps) behind both the DA output rules and the job Filter step; precached js/changelog.js, app/model.js, app/jobs.js, app/sources/jobs-engine.js, docs/index.html changed. */
+/* v481: AUD-06 — one shared catalog view-mode kit (Studio.catalogView), one default (list) for all six panels; precached js/changelog.js, app/studio.js, app/views.js, app/datasets.js, app/connections.js, app/jobs.js, docs/index.html changed. */
 /* v477: AUD-05 — the builder/preview/Help postMessage channel is origin+source checked; precached js/changelog.js, app/studio.js, app/studio-render.js, docs/index.html changed. */
 /* v476: SWEEP574-3b (table family) — clickable table rows are keyboard-operable in exports; precached js/changelog.js, app/studio-charts.js, docs/index.html changed. */
 /* v475: SWEEP574-3b — bar/donut/treemap marks are keyboard-operable in exports; precached js/changelog.js, app/studio-charts.js, docs/index.html changed. */

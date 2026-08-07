@@ -2897,17 +2897,87 @@
   };
   Studio.isCompoundDA = function (da) { return da && da.kind === "compound"; };
 
+  /* ---- AUD-06 slice 3: ONE filter-operator vocabulary ----------------------
+     Two surfaces defined the same conceptual operation twice. DA output rules
+     used 8 symbol ids (`=`, `>=`, `contains`, `startsWith`) with numeric-aware
+     comparison and a string fallback; the Job "Filter rows" step used 7 word
+     ids (`eq`/`ne`/`gt`/`gte`/`lt`/`lte`/`contains`) with string-only equality,
+     numeric-ONLY ordering (so `gt` on a date column matched nothing) and no
+     "starts with" — and it rendered those raw ids to the user as labels.
+
+     Studio.filterOps is now the single registry: one op list, one label set,
+     one predicate. Both on-disk spellings are kept and both keep being WRITTEN
+     by their own surface — a job step still persists `gte`, a DA filter still
+     persists `>=`. That is deliberate: workspaces are shared across clients
+     (and across the /dev/ and /stage/ previews, which share production's
+     localStorage — see AUD-04), so re-spelling saved rules would make an older
+     build silently misread them. Unification is in the CODE, not on disk;
+     normalize() maps either spelling onto one meaning at read time. */
+  Studio.filterOps = (function () {
+    // id = the DA/symbol spelling (canonical). alias = the job/word spelling.
+    var LIST = [
+      { id: "=",          alias: "eq",       label: "= equals" },
+      { id: "!=",         alias: "ne",       label: "≠ not equals" },
+      { id: ">",          alias: "gt",       label: "> greater than" },
+      { id: ">=",         alias: "gte",      label: "≥ greater or equal" },
+      { id: "<",          alias: "lt",       label: "< less than" },
+      { id: "<=",         alias: "lte",      label: "≤ less or equal" },
+      { id: "contains",   alias: "contains", label: "contains (text)" },
+      { id: "startsWith", alias: "startsWith", label: "starts with" }
+    ];
+    var CANON = {};
+    LIST.forEach(function (o) { CANON[o.id] = o.id; CANON[o.alias] = o.id; });
+
+    // Either spelling in, canonical id out; "" for anything unrecognised.
+    function normalize(op) { return CANON[String(op == null ? "" : op)] || ""; }
+    function get(op) { var c = normalize(op); return c ? LIST.filter(function (o) { return o.id === c; })[0] : null; }
+    function label(op) { var o = get(op); return o ? o.label : String(op == null ? "" : op); }
+
+    // The one predicate. Numeric when BOTH sides parse as numbers, otherwise a
+    // string comparison — so `>` orders plain text as well as numbers (the job
+    // step's comparators used to return false for anything non-numeric).
+    // NOTE the inherited quirk, unchanged here on purpose: parseFloat takes a
+    // LEADING number, so "2024-06-01" reads as 2024 and ordering an ISO date
+    // column compares years. Both surfaces have always done this identically;
+    // changing it would silently re-filter every saved dashboard, so it is
+    // written up as its own item (see AUD-06 "decide TIME_RANGE" / a real
+    // date filter) rather than smuggled into a consolidation slice.
+    // null/undefined cells read as "" rather than the strings "null"/"undefined".
+    // An unrecognised operator passes the row through (never silently filters
+    // on some other operator's meaning — the same choice both surfaces now make
+    // for a rule written by a build this one doesn't know).
+    function test(cellValue, op, filterValue) {
+      var sv = String(cellValue == null ? "" : cellValue);
+      var fv = String(filterValue == null ? "" : filterValue);
+      var nv = parseFloat(sv), fnv = parseFloat(fv);
+      var numCmp = !isNaN(nv) && !isNaN(fnv);
+      switch (normalize(op)) {
+        case "=":          return numCmp ? nv === fnv : sv === fv;
+        case "!=":         return numCmp ? nv !== fnv : sv !== fv;
+        case ">":          return numCmp ? nv > fnv   : sv > fv;
+        case ">=":         return numCmp ? nv >= fnv  : sv >= fv;
+        case "<":          return numCmp ? nv < fnv   : sv < fv;
+        case "<=":         return numCmp ? nv <= fnv  : sv <= fv;
+        case "contains":   return sv.toLowerCase().indexOf(fv.toLowerCase()) >= 0;
+        case "startsWith": return sv.toLowerCase().indexOf(fv.toLowerCase()) === 0;
+        default:           return true;
+      }
+    }
+
+    // [value, label] pairs for a <select>. spelling: "id" (DA rules) or
+    // "alias" (job steps) — each surface keeps writing the ids it always wrote.
+    function pairs(spelling) {
+      var key = spelling === "alias" ? "alias" : "id";
+      return LIST.map(function (o) { return [o[key], o.label]; });
+    }
+
+    return { LIST: LIST, normalize: normalize, get: get, label: label, test: test, pairs: pairs };
+  })();
+
   /* ---- output options (post-query filter / sort / limit) ---- */
-  Studio.DA_OPS = [
-    { id: "=",          label: "= equals" },
-    { id: "!=",         label: "≠ not equals" },
-    { id: ">",          label: "> greater than" },
-    { id: ">=",         label: "≥ greater or equal" },
-    { id: "<",          label: "< less than" },
-    { id: "<=",         label: "≤ less or equal" },
-    { id: "contains",   label: "contains (text)" },
-    { id: "startsWith", label: "starts with" }
-  ];
+  // The DA-rule face of Studio.filterOps (kept as its own name: the inspector
+  // and the suite have referenced it since before the vocabulary was shared).
+  Studio.DA_OPS = Studio.filterOps.LIST.map(function (o) { return { id: o.id, label: o.label }; });
   Studio.newOutputFilter = function () { return { col: "", op: "=", val: "" }; };
   Studio.newOutputSort   = function () { return { col: "", dir: "asc" }; };
 
@@ -2965,23 +3035,7 @@
     activeFilters.forEach(function (f) {
       var ci = cols.indexOf(f.col);
       if (ci < 0) return;
-      rows = rows.filter(function (row) {
-        var sv = String(row[ci] == null ? "" : row[ci]);
-        var fv = String(f.val);
-        var nv = parseFloat(sv), fnv = parseFloat(fv);
-        var numCmp = !isNaN(nv) && !isNaN(fnv);
-        switch (f.op) {
-          case "=":          return numCmp ? nv === fnv : sv === fv;
-          case "!=":         return numCmp ? nv !== fnv : sv !== fv;
-          case ">":          return numCmp ? nv > fnv   : sv > fv;
-          case ">=":         return numCmp ? nv >= fnv  : sv >= fv;
-          case "<":          return numCmp ? nv < fnv   : sv < fv;
-          case "<=":         return numCmp ? nv <= fnv  : sv <= fv;
-          case "contains":   return sv.toLowerCase().indexOf(fv.toLowerCase()) >= 0;
-          case "startsWith": return sv.toLowerCase().indexOf(fv.toLowerCase()) === 0;
-          default: return true;
-        }
-      });
+      rows = rows.filter(function (row) { return Studio.filterOps.test(row[ci], f.op, f.val); });
     });
 
     // aggregate (group-by rollup) — runs after filters, before sort/limit, so
