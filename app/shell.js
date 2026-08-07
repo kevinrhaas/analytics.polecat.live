@@ -264,6 +264,32 @@
   applyRoleGating();
   window.__studioShellApplyRoleGating = applyRoleGating;
 
+  /* AUD-12 (AUDIT-2026-08 §2.3): the rail is the ONE place that knows which sections
+     exist, what each is called, which icon it wears and who may see it — so anything
+     else that needs to enumerate sections asks here rather than keeping its own copy
+     that quietly goes stale. (It had: the ⌘K palette listed 7 of the 13 sections, and
+     the Admin page's Section-access card offered 7 that didn't match the rail either.)
+     Reading the live buttons means a section added to index.html shows up everywhere
+     for free, and `visible` reflects the gating applied a moment ago — role gating,
+     develop-only, and the per-section viewer rights all land on `btn.hidden`. */
+  function railSections() {
+    return items.map(function (btn) {
+      var sec = btn.getAttribute("data-sec");
+      var ic = btn.querySelector(".rail-ic");
+      return {
+        sec: sec,
+        label: SECTION_LABELS[sec] || sec,
+        icon: ic ? ic.getAttribute("data-ic") : null,
+        // Which role gate the rail markup puts on this item, if any — "admin"
+        // (data-admin-only) and "develop" (data-develop-only) are enforced above and
+        // are NOT candidates for the admin-configurable per-section viewer rights.
+        gate: btn.hasAttribute("data-admin-only") ? "admin" : btn.hasAttribute("data-develop-only") ? "develop" : null,
+        visible: !btn.hidden
+      };
+    });
+  }
+  window.__studioRailSections = railSections;
+
   // Slice A: per-section topbar action slot. setSectionActions(nodes) replaces the
   // contents of #tbSectionActions (the empty container left of the common right cluster).
   function setSectionActions(nodes) {

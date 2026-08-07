@@ -20203,6 +20203,66 @@ function serve() {
     ok("M4.2: unhiding a section restores it for viewers, and the Admin page's checkbox reflects the restored state",
       adminRestoresJobs.cbChecked && adminRestoresJobs.jobsVisibleAgain, JSON.stringify(adminRestoresJobs));
 
+    // ---- AUD-12 (AUDIT-2026-08 §2.3): the Section access card covers what it implies ----
+    // The hand-kept list offered 7 sections that no longer matched the rail: Views, View
+    // Builder and Help could never be hidden, "Explore" was still labelled that after the
+    // rail renamed it Quick Views, and the "Studio" row did nothing at all (Dashboard
+    // Builder is data-develop-only, so the rights pass skips it). It derives from the rail
+    // now, minus two deliberate carve-outs (Home, the bounce target; Settings, the viewer's
+    // only sign-out) and minus the sections the rail already gates by role.
+    const rightsCoverage = await page.evaluate(function () {
+      window.PolecatAuth.login("admin");
+      window.__studioRenderAdmin();
+      var rail = window.__studioRailSections();
+      var offered = Array.prototype.map.call(document.querySelectorAll("#secAdmin [data-sec-right]"), function (cb) {
+        return cb.getAttribute("data-sec-right");
+      });
+      var expected = rail.filter(function (s) { return !s.gate && s.sec !== "home" && s.sec !== "settings"; })
+        .map(function (s) { return s.sec; });
+      var labelOf = function (sec) {
+        var cb = document.querySelector('#secAdmin [data-sec-right="' + sec + '"]');
+        var row = cb && cb.closest(".set-row");
+        return row ? row.querySelector(".set-row-txt b").textContent : null;
+      };
+      return {
+        offered: offered, expected: expected,
+        matchesRail: offered.join(",") === expected.join(","),
+        hasNewThree: ["views", "build", "docs"].every(function (s) { return offered.indexOf(s) >= 0; }),
+        noStudioNoop: offered.indexOf("studio") < 0 && offered.indexOf("admin") < 0,
+        carveOuts: offered.indexOf("home") < 0 && offered.indexOf("settings") < 0,
+        railLabels: { explore: labelOf("explore"), build: labelOf("build"), docs: labelOf("docs") }
+      };
+    });
+    ok("AUD-12: Section access offers exactly the rail's hideable sections — no hand-kept list to drift",
+      rightsCoverage.matchesRail, JSON.stringify(rightsCoverage));
+    ok("AUD-12: Views, View Builder and Help are hideable now (the three the audit found missing), and the no-op Studio row is gone",
+      rightsCoverage.hasNewThree && rightsCoverage.noStudioNoop, JSON.stringify(rightsCoverage));
+    ok("AUD-12: Home and Settings stay carved out (the bounce target, and the viewer's only sign-out)",
+      rightsCoverage.carveOuts, JSON.stringify(rightsCoverage));
+    ok("AUD-12: each row is labelled with the rail's own name — 'Explore' now reads Quick Views",
+      rightsCoverage.railLabels.explore === "Quick Views" && rightsCoverage.railLabels.build === "View Builder" &&
+      rightsCoverage.railLabels.docs === "Help", JSON.stringify(rightsCoverage.railLabels));
+
+    // end-to-end on one of the newly-covered sections: hiding Views really hides it
+    const hideViews = await page.evaluate(function () {
+      window.PolecatAuth.login("admin");
+      window.__studioRenderAdmin();
+      var cb = document.querySelector('#secAdmin [data-sec-right="views"]');
+      cb.checked = false;
+      cb.dispatchEvent(new Event("change"));
+      window.PolecatAuth.login("demo");
+      window.__studioShellApplyRoleGating();
+      var viewsBtn = document.querySelector('.rail-item[data-sec="views"]');
+      var out = { viewerLosesViews: !!(viewsBtn && viewsBtn.hidden) };
+      window.PolecatAuth.login("admin");
+      window.__studioSectionRights.set("views", false); // restore
+      window.__studioShellApplyRoleGating();
+      out.restored = !!(viewsBtn && !viewsBtn.hidden);
+      return out;
+    });
+    ok("AUD-12: hiding Views (newly covered) really removes it from a viewer's rail, and unhiding restores it",
+      hideViews.viewerLosesViews && hideViews.restored, JSON.stringify(hideViews));
+
     await page.evaluate(function () {
       window.PolecatAuth.logout();
       sessionStorage.setItem("studio-gate-ok", "1");
@@ -38610,6 +38670,77 @@ function serve() {
     ok("Track N: palette filters commands by query text", cmdk.filters, JSON.stringify(cmdk));
     ok("Track N: running a command closes the palette + navigates (Settings)", cmdk.closedAfterRun && cmdk.navigated, JSON.stringify(cmdk));
     ok("Track N: Escape closes the palette", cmdk.reopened && cmdk.escCloses, JSON.stringify(cmdk));
+
+    // ---- AUD-12 (AUDIT-2026-08 §2.3): ⌘K reaches EVERY section it should, and only those ----
+    // The palette's navigation commands were a hardcoded 7 of the app's 13 sections (Views,
+    // Quick Views, View Builder, Repository, Jobs and Admin had no ⌘K entry at all) and were
+    // blind to role gating — clicking a hidden rail button still switches sections, so ⌘K was
+    // a way into Admin/Dashboard Builder for accounts the rail deliberately keeps out. Both
+    // halves are now derived from the rail itself (__studioRailSections).
+    console.log("\n• AUD-12: ⌘K section coverage + gating");
+    const cmdkCoverage = await page.evaluate(function () {
+      var r = {};
+      var P = window.StudioPalette;
+      var navLabels = function () {
+        P.open();
+        var out = Array.prototype.map.call(document.querySelectorAll("#cmdkList .cmdk-row"), function (li) {
+          return li.querySelector(".cmdk-lbl").textContent;
+        }).filter(function (l) { return l.indexOf("Go to ") === 0 || l === "Open Help & docs"; });
+        P.close();
+        return out;
+      };
+      // Signed out behaves as full-access (see applyRoleGating), so this is the whole rail.
+      window.PolecatAuth.logout();
+      window.__studioShellApplyRoleGating();
+      var rail = window.__studioRailSections();
+      r.railCount = rail.length;
+      var full = navLabels();
+      r.fullCount = full.length;
+      r.missing = rail.map(function (s) { return s.sec === "docs" ? "Open Help & docs" : "Go to " + s.label; })
+        .filter(function (l) { return full.indexOf(l) < 0; });
+      // the six the audit found missing, by their rail names
+      r.newOnes = ["Go to Views", "Go to Quick Views", "Go to View Builder", "Go to Repository", "Go to Jobs", "Go to Admin"]
+        .filter(function (l) { return full.indexOf(l) >= 0; });
+      // every nav row carries the rail's own icon
+      P.open();
+      r.allNavHaveIcons = Array.prototype.slice.call(document.querySelectorAll("#cmdkList .cmdk-row"))
+        .filter(function (li) { return li.querySelector(".cmdk-lbl").textContent.indexOf("Go to ") === 0; })
+        .every(function (li) { return !!li.querySelector(".cmdk-ic svg"); });
+      P.close();
+
+      // As a viewer: Admin (admin-only) and Dashboard Builder (develop-only) drop out.
+      window.PolecatAuth.login("demo"); // seeded viewer account
+      window.__studioShellApplyRoleGating();
+      var asViewer = navLabels();
+      r.viewerHasNoAdmin = asViewer.indexOf("Go to Admin") < 0;
+      r.viewerHasNoBuilder = asViewer.indexOf("Go to Dashboard Builder") < 0;
+      r.viewerStillHasHome = asViewer.indexOf("Go to Home") >= 0;
+
+      // …and so does a section an admin hid via Admin → Section access.
+      window.PolecatAuth.login("admin");
+      window.__studioSectionRights.set("jobs", true);
+      window.PolecatAuth.login("demo");
+      window.__studioShellApplyRoleGating();
+      r.viewerHasNoHiddenJobs = navLabels().indexOf("Go to Jobs") < 0;
+
+      // restore: nothing hidden, signed out, parked back in Studio
+      window.PolecatAuth.login("admin");
+      window.__studioSectionRights.set("jobs", false);
+      window.PolecatAuth.logout();
+      sessionStorage.setItem("studio-gate-ok", "1");
+      window.__studioShellApplyRoleGating();
+      window.__studioShellSetSection("studio");
+      return r;
+    });
+    ok("AUD-12: ⌘K offers a command for EVERY rail section (was 7 of 13), using the rail's own labels",
+      cmdkCoverage.railCount === 13 && cmdkCoverage.fullCount === 13 && cmdkCoverage.missing.length === 0, JSON.stringify(cmdkCoverage));
+    ok("AUD-12: the six sections the audit found unreachable from ⌘K (Views, Quick Views, View Builder, Repository, Jobs, Admin) are all there",
+      cmdkCoverage.newOnes.length === 6, JSON.stringify(cmdkCoverage));
+    ok("AUD-12: every navigation row renders the rail's own icon", cmdkCoverage.allNavHaveIcons, JSON.stringify(cmdkCoverage));
+    ok("AUD-12: a viewer's palette drops Admin and Dashboard Builder — ⌘K is no longer a way past the rail's role gating",
+      cmdkCoverage.viewerHasNoAdmin && cmdkCoverage.viewerHasNoBuilder && cmdkCoverage.viewerStillHasHome, JSON.stringify(cmdkCoverage));
+    ok("AUD-12: a section an admin hid via Section access disappears from the viewer's palette too",
+      cmdkCoverage.viewerHasNoHiddenJobs, JSON.stringify(cmdkCoverage));
 
     // ---- Track N follow-up: rail ⌘K hint + dynamic commands (examples + recent dashboards) ----
     console.log("\n• Track N follow-up: palette dynamic commands + rail ⌘K hint");

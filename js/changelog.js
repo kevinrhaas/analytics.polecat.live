@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 854,
+    title: 'The ⌘K palette reaches every section, and Section access covers every section',
+    kind: 'fix',
+    ts: '2026-08-07T11:56:57.000Z',
+    items: [
+      'The command palette (Ctrl-K / Cmd-K) only knew 7 of the app\'s 13 sections: Views, Quick Views, View Builder, Repository, Jobs and Admin had no entry at all, so the keyboard route to a third of the app simply did not exist. It now lists every section on the left rail, under the rail\'s own name and icon.',
+      'It also lists only the sections your account can actually open. Before, typing "admin" as a viewer would take you into a section the rail deliberately hides -- the palette clicked the hidden button anyway. Admin, the Dashboard Builder, and anything an admin has turned off for viewers are now left out of the list for the accounts that cannot reach them.',
+      'Admin\'s "Section access" card had drifted the same way: Views, the View Builder and Help could never be turned off for viewers even though the card reads as covering the app, "Quick Views" was still listed under its old name Explore, and the "Studio" switch did nothing at all (the Dashboard Builder is already hidden from viewers). The card now offers exactly the sections that can be hidden, named the way the rail names them.',
+      'Home and Settings are deliberately always available to a viewer: Home is where someone is sent when a section is taken away, and Settings is the only place a viewer can sign out. The card says so now.',
+      'Both lists are read from the rail itself rather than kept by hand, so a section added to the app shows up in the palette and in Section access on its own -- this particular drift cannot come back.',
+    ],
+  },
+  {
     v: 853,
     title: 'Dates in filters and sorts finally compare as dates',
     kind: 'fix',
