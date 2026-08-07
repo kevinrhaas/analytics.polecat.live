@@ -24,6 +24,7 @@
 - [VIRIDIS VIEW / GEO-ANALYTICS TRACK (2026-07-16)](#viridis-view-geo-analytics-track)
 - [POST-OVERHAUL BACKLOG (2026-07-13)](#post-overhaul-backlog)
 - [MOBILE TRACK (2026-07-02)](#mobile-track)
+- [✓ Shipped out of the ▶ NOW queue (grooming passes)](#shipped-out-of-the--now-queue-grooming-pass-2026-08-07)
 
 ---
 
@@ -1188,3 +1189,111 @@
   pieces (LF39/LF40/LF41/LF42) can never silently regress apart from each other. Failing at
   first is fine and informative — write it against the intended behavior and fix what it
   catches, one slice at a time.
+
+### Grooming pass 2 (2026-08-07) — N2 · N4b · N5a · N5b
+
+> The four entries below shipped on 2026-08-07 and were struck in place; this pass moved them
+> out of ▶ NOW verbatim, leaving the queue at N4a (⛔ Kevin) + N7 (🔁). No live tails were left
+> behind: M7 closed with N2 slice 4, and N5a/N5b together also close the reservoir's SWEEP574-1.
+
+- ~~**N2 ★★ [2pt est, 4 slices shipped] — M7: real Row-Level Security enforcement.**~~
+  ✓ SHIPPED v865 (2026-08-07, steward — see DONE). All four slices are in; M7 is closed. The
+  history below stays until the next grooming pass archives it.
+  **The debt it closed:** `app/auth.js` was explicit that the model was honest UX-gating over a shared
+  local store, not isolation between users, and AUD-03 hardened the password digests
+  without changing that posture. **Slice 1 is SHIPPED (v862, 2026-08-07, steward — see DONE):
+  `tests/rls.mjs` installs BOTH shipped postures — `tools/supabase-rls-real.sql` and
+  `tools/supabase-deploy.sql` — each into its own throwaway `steward_test_rls_*` schema on the
+  live project, and proves in 27 checks apiece (54 total) that an unauthorized read is refused
+  (anon reads zero rows from all seven tables; a signed-in user sees public + only their own
+  private rows; writes against another user's rows are rejected or filtered to zero). It
+  caught a real fresh-install bug on its first run — BOTH files created policies calling
+  `polecat_is_admin()` a section before defining the function, so the documented
+  top-to-bottom run on a FRESH project died on its first CREATE POLICY. Fixed by hoisting the
+  helper in both.**
+  **Slice 2 is SHIPPED (v863, 2026-08-07, steward — see DONE): the Edge Function's inlined
+  `RLS_REAL_SQL` (`supabase/functions/polecat-admin/sql.ts`) had DRIFTED, so an in-app Admin →
+  Go live installed a WEAKER posture than a manual `supabase-rls-real.sql` paste — anon could
+  read every non-private row and all of `polecat_meta`, and admins could not push a snapshot
+  containing rows they do not own. `sql.ts` is now a section-for-section mirror of the canonical
+  file, and `tests/rls.mjs` runs the go-live sequence (`BOOTSTRAP_DDL` + `RLS_REAL_SQL`) as a
+  THIRD posture through the identical 27 checks — 81/81 green — so they cannot drift again.**
+  **Slice 3 is SHIPPED (v864, sw v496, 2026-08-07, steward — see DONE): THE CLIENT FLIP.**
+  `app/gate.js` ran `Auth.verify()` FIRST, so a matching row in the mirrored local `users` store
+  signed you in without the workspace ever being asked — GoTrue was only the fallback. The
+  mirrored hash was therefore the real credential at the front door, and a password changed or
+  revoked in the workspace kept opening every browser whose mirror was stale. Now: a bound
+  Supabase workspace + an email username asks the DATABASE first and its rejection is final. An
+  unreachable backend still falls back locally (offline never locks anyone out — the adapter's
+  `authenticate()` gained an `unreachable` flag to tell "no" apart from "we never asked"), and
+  local accounts, the `admin`/`demo` seed pair, custom local-auth workspaces and "Local only
+  (this browser)" are all untouched. 3 new checks; est 2pt, took 1.
+  **Slice 4 is SHIPPED (v865, sw v497, 2026-08-07, steward — see DONE): THE PASSWORD STOPS BEING
+  PERSISTED.** `Sync.setAuthCredentials()` stamped `authEmail`/`authPassword` onto the live cfg and
+  `saveConn()` serialised that cfg straight into `analytics.datasource.v1`, so a plaintext
+  workspace password sat in localStorage forever — purely so `ensureSession()` could re-mint an
+  expired JWT from it. It now keeps GoTrue's `refresh_token` instead, in sessionStorage (the AUD-03
+  posture), and re-mints from that; any password an earlier version stored is migrated away on load
+  without signing anyone out. The hazard that opens — a browser with no resumable session
+  boot-pulling as ANON and adopting an RLS-empty workspace over real local data — is closed by
+  `Sync.needsSignIn()`: pulls latch off and the gate asks for the password once, email prefilled.
+  Sign-out and disconnect both drop the session. 9 new checks, 3101/3101 green; est 1pt, took 1.
+  Notes for future database work: use a throwaway `steward_test*` schema for any
+  database work; never CREATE/DROP/ALTER against live `public`. Note for any run touching an
+  already-live workspace: `actionGoLive` TRUNCATEs the workspace tables, so "just re-run Go live"
+  is never the way to pick up a posture fix — re-paste `tools/supabase-rls-real.sql` instead.
+- ~~**N4b ★ [1pt] — Repo hygiene from tech sweep #370: vendored shell drift.**~~ ✓ SHIPPED
+  v866, sw v498 (2026-08-07, steward — see DONE). The re-check found the copy FIVE releases
+  behind (v0.5.4 vs the hub's v0.6.2), not the 2 patches the July sweep recorded, and it is
+  now current — a verbatim `lib/` copy from the platform repo, 29/29 files sha256-clean
+  against `MANIFEST.json`, no strays.
+- ~~**N5a ★★ [2pt] — DECIDED (Kevin, 2026-08-07): inside the app, the READER's theme wins.**~~
+  ✓ SHIPPED v867, sw v499 (2026-08-07, steward — see DONE). Shipped as written: one opt-in
+  `frameTheme` flag on `Studio.buildHtml`, passed by the Viewer's srcdoc call and by nothing
+  else; downloads, PDFs and the builder preview provably unchanged; the CLAUDE.md invariant
+  amended to name the exception. est 2pt, took 1. The spec below stays until grooming archives it.
+  UX
+  sweep #574 finding 1 — a dark app frames a light dashboard and reads as broken. The
+  Viewer's iframe now follows the app's live `data-theme`, whatever `spec.renderMode` says.
+  **Downloads and embeds are NOT touched** — a handed-out file stays exactly as authored,
+  because an exported dashboard is a deliverable (it goes on ctic.org and into stakeholders'
+  inboxes) and deterministic appearance is worth more there than adaptivity.
+  **Implementation, precisely:**
+  * `buildViewerHtml(spec, assets, extraOpts)` already emits BOTH the srcdoc and the
+    download from one call, so the override rides an explicit **opt-in `extraOpts` flag**
+    (e.g. `{ frameTheme: "dark" }`) that ONLY the Viewer's srcdoc call passes. The download
+    path passes nothing and is provably unchanged — same shape as the existing
+    `{ pdfPageSize… }` options.
+  * **The Studio builder preview is NOT the Viewer — leave it alone.** The author is
+    composing the appearance there, so the preview must keep showing `spec.renderMode` or
+    they cannot see what they are making. Only READ mode follows the app.
+  * **Amended invariant** (CLAUDE.md says the export stays byte-identical to the live
+    preview): builder preview ≡ export, still true and still asserted. The VIEWER srcdoc may
+    now differ from the download by the theme attribute alone — that is the deliberate,
+    scoped exception. Update the invariant's wording in the same PR so the next reader is
+    not misled.
+  * Full `tests/run.js`. New checks: an explicit-light dashboard opened in a dark app renders
+    dark IN THE VIEWER; the same dashboard's DOWNLOAD is byte-unchanged; the builder preview
+    still shows the authored mode.
+- ~~**N5b ★ [1pt] — DECIDED: `auto` ships as an OPT-IN third Appearance choice, never the default.**~~
+  ✓ SHIPPED v868, sw v500 (2026-08-07, steward — see DONE). Shipped exactly as specified: one
+  runtime resolver, one byte stream, Light still the default for a new dashboard. est 1pt, took 1.
+  The spec below stays until grooming archives it.
+  A second, separate slice after N5a (own PR — it is additive and independently revertible).
+  `spec.renderMode` gains `"auto"`; the Inspector's Appearance select becomes
+  Light / Dark / Auto ("match the reader"). **New dashboards keep `""` (Light)** — Kevin's
+  explicit call: a chameleon export is something an author opts into, not something that
+  happens to them.
+  * When `auto`, the export bakes NO `data-theme` and instead carries a tiny inline resolver:
+    standalone → `prefers-color-scheme`; framed → follow the host document when it is
+    readable, else fall back to `prefers-color-scheme`. Same-origin (our Viewer) can read the
+    host; a third-party cross-origin embed cannot, so the resolver must **never throw** —
+    wrap the parent read and fall through silently.
+  * ONE byte stream that branches at RUNTIME. Never a per-context build-time branch: the
+    srcdoc and the download must remain the same bytes for an `auto` dashboard.
+  * `""` and `"dark"` exports stay byte-for-byte what they are today — this adds a value, it
+    changes no existing one.
+  * Full suite. New checks: an `auto` export contains the resolver and no baked
+    `data-theme`; it honors `prefers-color-scheme` standalone (Playwright `emulateMedia`);
+    it follows the host inside the Viewer; and the Inspector offers exactly three options
+    with Light still the default for a new dashboard. Docs + Help updated in the same slice.

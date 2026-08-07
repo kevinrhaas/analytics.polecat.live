@@ -9729,52 +9729,6 @@
 > struck entries and propose the next batch to Kevin on a `hold` PR — never graze the
 > reservoir directly.
 
-- ~~**N2 ★★ [2pt est, 4 slices shipped] — M7: real Row-Level Security enforcement.**~~
-  ✓ SHIPPED v865 (2026-08-07, steward — see DONE). All four slices are in; M7 is closed. The
-  history below stays until the next grooming pass archives it.
-  **The debt it closed:** `app/auth.js` was explicit that the model was honest UX-gating over a shared
-  local store, not isolation between users, and AUD-03 hardened the password digests
-  without changing that posture. **Slice 1 is SHIPPED (v862, 2026-08-07, steward — see DONE):
-  `tests/rls.mjs` installs BOTH shipped postures — `tools/supabase-rls-real.sql` and
-  `tools/supabase-deploy.sql` — each into its own throwaway `steward_test_rls_*` schema on the
-  live project, and proves in 27 checks apiece (54 total) that an unauthorized read is refused
-  (anon reads zero rows from all seven tables; a signed-in user sees public + only their own
-  private rows; writes against another user's rows are rejected or filtered to zero). It
-  caught a real fresh-install bug on its first run — BOTH files created policies calling
-  `polecat_is_admin()` a section before defining the function, so the documented
-  top-to-bottom run on a FRESH project died on its first CREATE POLICY. Fixed by hoisting the
-  helper in both.**
-  **Slice 2 is SHIPPED (v863, 2026-08-07, steward — see DONE): the Edge Function's inlined
-  `RLS_REAL_SQL` (`supabase/functions/polecat-admin/sql.ts`) had DRIFTED, so an in-app Admin →
-  Go live installed a WEAKER posture than a manual `supabase-rls-real.sql` paste — anon could
-  read every non-private row and all of `polecat_meta`, and admins could not push a snapshot
-  containing rows they do not own. `sql.ts` is now a section-for-section mirror of the canonical
-  file, and `tests/rls.mjs` runs the go-live sequence (`BOOTSTRAP_DDL` + `RLS_REAL_SQL`) as a
-  THIRD posture through the identical 27 checks — 81/81 green — so they cannot drift again.**
-  **Slice 3 is SHIPPED (v864, sw v496, 2026-08-07, steward — see DONE): THE CLIENT FLIP.**
-  `app/gate.js` ran `Auth.verify()` FIRST, so a matching row in the mirrored local `users` store
-  signed you in without the workspace ever being asked — GoTrue was only the fallback. The
-  mirrored hash was therefore the real credential at the front door, and a password changed or
-  revoked in the workspace kept opening every browser whose mirror was stale. Now: a bound
-  Supabase workspace + an email username asks the DATABASE first and its rejection is final. An
-  unreachable backend still falls back locally (offline never locks anyone out — the adapter's
-  `authenticate()` gained an `unreachable` flag to tell "no" apart from "we never asked"), and
-  local accounts, the `admin`/`demo` seed pair, custom local-auth workspaces and "Local only
-  (this browser)" are all untouched. 3 new checks; est 2pt, took 1.
-  **Slice 4 is SHIPPED (v865, sw v497, 2026-08-07, steward — see DONE): THE PASSWORD STOPS BEING
-  PERSISTED.** `Sync.setAuthCredentials()` stamped `authEmail`/`authPassword` onto the live cfg and
-  `saveConn()` serialised that cfg straight into `analytics.datasource.v1`, so a plaintext
-  workspace password sat in localStorage forever — purely so `ensureSession()` could re-mint an
-  expired JWT from it. It now keeps GoTrue's `refresh_token` instead, in sessionStorage (the AUD-03
-  posture), and re-mints from that; any password an earlier version stored is migrated away on load
-  without signing anyone out. The hazard that opens — a browser with no resumable session
-  boot-pulling as ANON and adopting an RLS-empty workspace over real local data — is closed by
-  `Sync.needsSignIn()`: pulls latch off and the gate asks for the password once, email prefilled.
-  Sign-out and disconnect both drop the session. 9 new checks, 3101/3101 green; est 1pt, took 1.
-  Notes for future database work: use a throwaway `steward_test*` schema for any
-  database work; never CREATE/DROP/ALTER against live `public`. Note for any run touching an
-  already-live workspace: `actionGoLive` TRUNCATEs the workspace tables, so "just re-run Go live"
-  is never the way to pick up a posture fix — re-paste `tools/supabase-rls-real.sql` instead.
 - ⛔ **N4a ★ [1pt] — KEVIN DECISION/ACTION: turn on `delete_branch_on_merge`.** Tech sweep
   #370, item (a): the setting is `false`, so every merged PR leaves its branch behind — 251
   stale `steward/*` branches at sweep time and it has grown since — `git ls-remote --heads`
@@ -9788,65 +9742,70 @@
   NOT mass-delete branches on its own guess. Alternative if the flip is unwanted: grant the
   PAT admin scope, or say "leave them" and this item closes as WONTFIX. Nothing else here is
   agent-actionable; N4b (the other half) is shipped.
-- ~~**N4b ★ [1pt] — Repo hygiene from tech sweep #370: vendored shell drift.**~~ ✓ SHIPPED
-  v866, sw v498 (2026-08-07, steward — see DONE). The re-check found the copy FIVE releases
-  behind (v0.5.4 vs the hub's v0.6.2), not the 2 patches the July sweep recorded, and it is
-  now current — a verbatim `lib/` copy from the platform repo, 29/29 files sha256-clean
-  against `MANIFEST.json`, no strays.
-- ~~**N5a ★★ [2pt] — DECIDED (Kevin, 2026-08-07): inside the app, the READER's theme wins.**~~
-  ✓ SHIPPED v867, sw v499 (2026-08-07, steward — see DONE). Shipped as written: one opt-in
-  `frameTheme` flag on `Studio.buildHtml`, passed by the Viewer's srcdoc call and by nothing
-  else; downloads, PDFs and the builder preview provably unchanged; the CLAUDE.md invariant
-  amended to name the exception. est 2pt, took 1. The spec below stays until grooming archives it.
-  UX
-  sweep #574 finding 1 — a dark app frames a light dashboard and reads as broken. The
-  Viewer's iframe now follows the app's live `data-theme`, whatever `spec.renderMode` says.
-  **Downloads and embeds are NOT touched** — a handed-out file stays exactly as authored,
-  because an exported dashboard is a deliverable (it goes on ctic.org and into stakeholders'
-  inboxes) and deterministic appearance is worth more there than adaptivity.
-  **Implementation, precisely:**
-  * `buildViewerHtml(spec, assets, extraOpts)` already emits BOTH the srcdoc and the
-    download from one call, so the override rides an explicit **opt-in `extraOpts` flag**
-    (e.g. `{ frameTheme: "dark" }`) that ONLY the Viewer's srcdoc call passes. The download
-    path passes nothing and is provably unchanged — same shape as the existing
-    `{ pdfPageSize… }` options.
-  * **The Studio builder preview is NOT the Viewer — leave it alone.** The author is
-    composing the appearance there, so the preview must keep showing `spec.renderMode` or
-    they cannot see what they are making. Only READ mode follows the app.
-  * **Amended invariant** (CLAUDE.md says the export stays byte-identical to the live
-    preview): builder preview ≡ export, still true and still asserted. The VIEWER srcdoc may
-    now differ from the download by the theme attribute alone — that is the deliberate,
-    scoped exception. Update the invariant's wording in the same PR so the next reader is
-    not misled.
-  * Full `tests/run.js`. New checks: an explicit-light dashboard opened in a dark app renders
-    dark IN THE VIEWER; the same dashboard's DOWNLOAD is byte-unchanged; the builder preview
-    still shows the authored mode.
-- ~~**N5b ★ [1pt] — DECIDED: `auto` ships as an OPT-IN third Appearance choice, never the default.**~~
-  ✓ SHIPPED v868, sw v500 (2026-08-07, steward — see DONE). Shipped exactly as specified: one
-  runtime resolver, one byte stream, Light still the default for a new dashboard. est 1pt, took 1.
-  The spec below stays until grooming archives it.
-  A second, separate slice after N5a (own PR — it is additive and independently revertible).
-  `spec.renderMode` gains `"auto"`; the Inspector's Appearance select becomes
-  Light / Dark / Auto ("match the reader"). **New dashboards keep `""` (Light)** — Kevin's
-  explicit call: a chameleon export is something an author opts into, not something that
-  happens to them.
-  * When `auto`, the export bakes NO `data-theme` and instead carries a tiny inline resolver:
-    standalone → `prefers-color-scheme`; framed → follow the host document when it is
-    readable, else fall back to `prefers-color-scheme`. Same-origin (our Viewer) can read the
-    host; a third-party cross-origin embed cannot, so the resolver must **never throw** —
-    wrap the parent read and fall through silently.
-  * ONE byte stream that branches at RUNTIME. Never a per-context build-time branch: the
-    srcdoc and the download must remain the same bytes for an `auto` dashboard.
-  * `""` and `"dark"` exports stay byte-for-byte what they are today — this adds a value, it
-    changes no existing one.
-  * Full suite. New checks: an `auto` export contains the resolver and no baked
-    `data-theme`; it honors `prefers-color-scheme` standalone (Playwright `emulateMedia`);
-    it follows the host inside the Viewer; and the Inspector offers exactly three options
-    with Light still the default for a new dashboard. Docs + Help updated in the same slice.
 - 🔁 **N7 — Recurring, when the queue is thin: keep the docs, tours, Help and marketing page
   current with the app (LF58).** One coherent slice per run, never a big-bang at the end.
   The app has changed a lot this week; the in-app Help and the tour copy are the parts most
   likely to have drifted.
+
+> **Queue state after grooming pass 2 (2026-08-07): ZERO ready items.** N4a is ⛔ (Kevin's
+> call), N7 is 🔁 (worked only when nothing ready sits above it — which is now the case, so
+> the next run takes N7). N2 · N4b · N5a · N5b all shipped and moved verbatim to
+> [`docs/BACKLOG-ARCHIVE.md`](docs/BACKLOG-ARCHIVE.md) → "Grooming pass 2". **The batch below
+> is waiting on Kevin** — until he picks, the lane has only N7 to work.
+
+### 📋 PROPOSED NEXT BATCH — awaiting Kevin's approval (grooming pass 2, 2026-08-07)
+
+> **NOT the queue.** Per `docs/BACKLOG.md`, grooming proposes and Kevin disposes: the loop
+> never promotes reservoir items into ▶ NOW on its own. Kevin — **pick the ones you want and
+> the order you want them in**, and they move up into NOW as-is (strike or ignore the rest).
+> Every item below is a genuinely-open remit that was re-verified against DONE during this
+> pass, not a hopeful re-listing; each keeps its stable ID, with a letter suffix where it is
+> the remaining split of a partly-shipped parent.
+>
+> Estimates use the observed 1 slice ≈ 1 PR ≈ 1 run scale. Nothing here is bigger than 3pt;
+> the epics they came from (LF63's query builder, the onboarding epic) stay in the reservoir.
+
+- **LIVE-c ★★ [2pt] — Supabase sync stops doing DELETE-all + rewrite; per-table diff pushes.**
+  The one structural item the workspace-backend track left open, and the most likely source
+  of the "Reconnecting…" flake Kevin hit — a full rewrite per push is both the slowest and the
+  most destructive shape available, and N2's RLS work made write rejections more likely, not
+  less. Highest-value item in this batch.
+- **LF43b ★ [2pt] — drop the "Examples" naming and remove Studio's Examples button.** The one
+  live tail the LIVE-FEEDBACK queue left behind (slice 1 shipped v617): a pack's "examples"
+  are already surfaced as real dashboards, so the parallel Examples menu is now duplicate
+  UI with its own vocabulary. Budgeted a dedicated slice because it touches ~20 existing
+  tests plus Home's "Browse examples" quick action.
+- **M4.2d ★★ [1pt] — the privacy toggle reaches the last two object types (analyses + jobs).**
+  Dashboards, connections and datasets each shipped it (slices 1–3); analyses and jobs are the
+  only catalogs where "private" still isn't offered, which reads as a bug rather than a gap.
+  The `isVisibleToMe` pattern is proven, so this is mechanical — note datasets needed their own
+  sibling helper rather than a second parameter, and analyses will too.
+- **M4.2e ★★ [3pt] — per-section (left-rail) rights per role.** The other, entirely unshipped
+  half of M4.2: today a role gates whole sections by hard-coded convention (`CONFIGURABLE_SECTIONS`
+  + `applyRoleGating`), so an admin cannot grant "this role sees Datasets but not Connections."
+  Pairs naturally with M4.2d but is independently shippable; 3pt because it needs a rights
+  model that survives the workspace sync, not just a UI filter.
+- **DURABLE-2c ★ [3pt] — the Trash half of soft-delete.** DURABLE-2's undo toasts shipped
+  (v809 bulk, v822 single-row), but the durable half — tombstoned objects in a restorable
+  Trash, purged after N days — did not, so a delete is still unrecoverable once the toast
+  times out. The riskiest remaining data-loss path in the app now that DURABLE-1 is fixed.
+- **M5d ★ [2pt] — Repository gets its right-panel editor for simple objects.** Slices 1–3 built
+  the cross-object search, the folder grouping and the real nested tree; the original remit's
+  last third — edit a simple object in place in a right panel, deep-link the complex ones to
+  their full editors — is still open, and it is what turns Repository from a browser into the
+  command centre LF51 aimed at.
+- **M6b ★ [2pt] — a dashboard can occupy Home as a hero, plus favourites-with-thumbnails.**
+  M6 slice 1 shipped section reordering only. The hero was the point of the item — instant
+  value on open (a drillable consensus chart or choropleth) rather than a list of links — and
+  it is the most visible unshipped idea in the Conservation Insight track.
+- **PDC-RENAME-2 ★ [2pt] — the data-level "PDC" leftovers.** The code-level rename shipped
+  (v760); the sample-pack connection id `pdc` / jndi `PDC-BIDB-EXT` in `data/cda-catalog.json`,
+  `data/examples/*.studio.json` and the seeded demo connections did not, so the retired acronym
+  still greets anyone who opens a pack's connection. Needs a migration story for
+  already-installed packs (no duplicate connections on reinstall/boot-reconcile) and SPEC.md
+  kept in sync — **and it needs one decision from you**: whether the CDF-export deploy path
+  default `/public/pdc-iteration/v2` should change at all, since it mirrors the real Pentaho
+  environment.
 
 ### 🗂 Reservoir index (added 2026-08-07, N1) — what is below, and whether it is alive
 
@@ -9862,8 +9821,12 @@
 >
 > **Live reservoir — real open items, but NOT a priority order.** Several of these still carry
 > expired "TOP PRIORITY" headers from July and contradict each other; ignore the headers:
-> - **UX sweep #574** — worked out; only SWEEP574-1 remains and it is Kevin's product call.
-> - **VIEW BUILDER OVERNIGHT QUEUE** (07-30) — the largest live block.
+> - **UX sweep #574** — ✓ **FULLY worked out (grooming pass 2, 2026-08-07).** SWEEP574-1 was
+>   the last open finding and N5a + N5b together shipped it (the Viewer follows the app's
+>   theme; `auto` exists as an opt-in third Appearance). The GitHub issue can be closed.
+> - **VIEW BUILDER OVERNIGHT QUEUE** (07-30) — **no longer the largest live block** (grooming
+>   pass 2 re-checked it): VB-1…VB-10 and every LIVE-/CONS-/DURABLE-/EXPORT- item in it have
+>   shipped. Only **PDC-RENAME-2** and **LIVE-c** remain open, and both are proposed above.
 > - **FRONTEND QA REPORT** (07-24) · **LIVE-QA QUEUE** (07-27) · **LIVE-FEEDBACK QUEUE**
 >   (07-22, holds LF43 slice 2) — Kevin-captured item queues.
 > - **ONBOARDING & PROVISIONING EPIC** (07-27) — the "Dave" north-star; NOW item **N6** is its
@@ -9881,13 +9844,20 @@
 > The platform's daily read-only UX walk. Protocol says sweep findings come before the
 > feature backlog. Finding 2 (mobile topbar title clipped to "H…") is **SHIPPED v840 —
 > see DONE (TOPBAR-TITLE)**. Finding 3 and its 3b/tail follow-ups are all **SHIPPED
-> (v841/v843/v844/v859)**. The ONLY thing still open in this sweep is SWEEP574-1, and it
-> is a **product decision for Kevin, not agent work** — so the lane should treat this
-> sweep as worked out and move to the AUDIT block below.
+> (v841/v843/v844/v859)**. **SWEEP574-1 is now SHIPPED too — this sweep is FULLY CLOSED**
+> (grooming pass 2, 2026-08-07): Kevin took the product decision on 2026-08-07 and the lane
+> executed it as NOW items N5a (v867 — inside the app the reader's theme wins) and N5b
+> (v868 — `auto` as an opt-in third Appearance choice, never the default). Nothing in this
+> sweep is open; the GitHub issue can be closed.
 >
-> - **SWEEP574-1 (High → but it is a PRODUCT DECISION, not a bug — read this before
+> - ~~**SWEEP574-1 (High → but it is a PRODUCT DECISION, not a bug — read this before
 >   starting) [ux] The Viewer renders every dashboard in the author's fixed mode, so a
->   dark-mode app opens a light dashboard.** The sweep reads this as a theming bug; it is
+>   dark-mode app opens a light dashboard.**~~ ✓ **SHIPPED v867 + v868 (2026-08-07, steward
+>   — see DONE; the N5a/N5b specs are in `docs/BACKLOG-ARCHIVE.md` → "Grooming pass 2").**
+>   Resolved additively exactly as the note below predicted, with one deliberate change of
+>   direction from Kevin: `auto` is **opt-in and NOT the default for new dashboards**,
+>   because a chameleon export is something an author chooses rather than something that
+>   happens to them. Original: The sweep reads this as a theming bug; it is
 >   actually **LF20 working as specified** — `spec.renderMode` was deliberately made a
 >   fixed, persisted, per-dashboard author choice ("" = light, "dark") baked onto the
 >   `<html>` tag in `app/exporters.js`, replacing the old in-header runtime toggle, so
