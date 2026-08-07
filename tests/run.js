@@ -302,6 +302,13 @@ function handleMockSupabase(req, rep, p) {
   if (!rel) return send(401, { message: "Secret API key required", hint: "Only secret API keys can be used for this endpoint." });
   // `p` (and so `rel`) is already query-stripped by the caller's own req.url.split("?")[0] — the
   // real query string only survives on req.url, same as handleMockPostgrest reads it above.
+  // AUD-01: this mock models a workspace that has NOT installed the
+  // polecat_workspace_save function, so the adapter takes its per-table
+  // fallback push — exactly the shape every test below was written against.
+  // PostgREST answers a missing function with 404/PGRST202.
+  if (/^rest\/v1\/rpc\//.test(rel)) {
+    return send(404, { code: "PGRST202", message: "Could not find the function public." + rel.split("/rpc/")[1] + " in the schema cache" });
+  }
   const table = rel.replace(/^rest\/v1\//, "");
   const tableRows = mockSupaTables[decodeURIComponent(table)];
   if (req.method === "POST" && tableRows) {
@@ -10748,6 +10755,198 @@ function serve() {
       healFlow.logHasFail && healFlow.cardLog && healFlow.logHealed,
       JSON.stringify({ fail: healFlow.logHasFail, card: healFlow.cardLog, healed: healFlow.logHealed }));
 
+    // ---- AUD-01 (audit §1.2): the Supabase save is ATOMIC when the project
+    // carries polecat_workspace_save. PostgREST runs one statement per request,
+    // so the historical per-table push is a SEQUENCE of independent writes —
+    // drop the connection half-way and the workspace is half-saved, with
+    // nothing to roll it back. A PL/pgSQL function is one transaction, so the
+    // whole snapshot goes in a single RPC that fully lands or fully rolls back.
+    // Un-upgraded workspaces keep the sequential path, and ONLY a missing
+    // function (404) falls back — an RLS refusal or a 5xx must never be
+    // retried as a half-write. ----
+    console.log("\n• AUD-01: atomic Supabase save (single-transaction RPC + safe fallback)");
+    const aud01 = await page.evaluate(async () => {
+      const fetch0 = window.fetch;
+      const sb = Studio.supabaseSource;
+      const out = {};
+      let calls = [];
+      // one stub shape: `mode` decides how the RPC answers, everything else
+      // behaves like a healthy PostgREST
+      let mode = "atomic", rpcBody = null;
+      window.fetch = (url, opts) => {
+        const method = (opts && opts.method) || "GET";
+        const u = String(url);
+        calls.push(method + " " + (u.split("/rest/v1")[1] || u));
+        if (/\/rpc\//.test(u)) {
+          if (opts && opts.body) rpcBody = JSON.parse(opts.body);
+          if (mode === "missing") return Promise.resolve(new Response(JSON.stringify({ code: "PGRST202", message: "Could not find the function" }), { status: 404, headers: { "Content-Type": "application/json" } }));
+          if (mode === "broken") return Promise.resolve(new Response(JSON.stringify({ message: "deadlock detected" }), { status: 500, headers: { "Content-Type": "application/json" } }));
+          return Promise.resolve(new Response(JSON.stringify({ ok: true, version: 1 }), { status: 200, headers: { "Content-Type": "application/json" } }));
+        }
+        if (method === "DELETE") return Promise.resolve(new Response(null, { status: 204 }));
+        if (method === "POST") return Promise.resolve(new Response("[]", { status: 201, headers: { "Content-Type": "application/json" } }));
+        return Promise.resolve(new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }));
+      };
+      function fixture() {
+        const snap = Studio.WS.emptySnapshot();
+        snap.tables.dashboards = [{ id: "d1", name: "kept", title: "K", spec: { panels: [], kpis: [], filters: [] } }];
+        snap.tables.users = [{ id: "user_kevin", u: "kevin@example.com", name: "K", role: "admin" }];
+        snap.meta.tombstones = { "dashboards|d_gone": 1770000000000, "users|user_x": 1770000000000 };
+        return snap;
+      }
+
+      // (a) function present → ONE request, and it carries the whole snapshot
+      const cfgA = { url: "https://aud01-atomic.supabase.co", key: "k" };
+      const resA = await sb.save(cfgA, fixture());
+      out.atomicOk = !!(resA && resA.ok && resA.atomic);
+      out.oneRequest = calls.length === 1 && /^POST \/rpc\/polecat_workspace_save$/.test(calls[0]);
+      out.payloadRows = !!(rpcBody && rpcBody.tables && (rpcBody.tables.dashboards || []).length === 1 &&
+        rpcBody.tables.dashboards[0].id === "d1" && typeof rpcBody.tables.dashboards[0].data === "string");
+      out.payloadTombs = !!(rpcBody && rpcBody.tombstones &&
+        (rpcBody.tombstones.dashboards || []).indexOf("d_gone") >= 0);
+      // users is upsert-only forever (v787): a users tombstone never travels
+      out.payloadNoUsersTombs = !!(rpcBody && rpcBody.tombstones && !rpcBody.tombstones.users);
+      out.payloadMeta = !!(rpcBody && (rpcBody.meta || []).some((m) => m.key === "schema_version"));
+      out.stateYes = sb.atomicState(cfgA) === "yes";
+      // …and it stays on the atomic path: a second save is one request again
+      calls = [];
+      await sb.save(cfgA, fixture());
+      out.staysAtomic = calls.length === 1;
+
+      // (b) function absent → falls back to the per-table push, and REMEMBERS
+      // (no wasted 404 round-trip on every later save)
+      mode = "missing"; calls = [];
+      const cfgB = { url: "https://aud01-legacy.supabase.co", key: "k" };
+      const resB = await sb.save(cfgB, fixture());
+      out.fallbackOk = !!(resB && resB.ok);
+      out.fallbackWroteTables = calls.some((c) => /^POST \/dashboards/.test(c)) && calls.some((c) => /^POST \/polecat_meta/.test(c));
+      out.fallbackTriedRpcOnce = calls.filter((c) => /\/rpc\//.test(c)).length === 1;
+      out.stateNo = sb.atomicState(cfgB) === "no";
+      calls = [];
+      await sb.save(cfgB, fixture());
+      out.remembersNo = calls.filter((c) => /\/rpc\//.test(c)).length === 0 && calls.some((c) => /^POST \/dashboards/.test(c));
+
+      // (c) THE MID-SAVE FAILURE WINDOW — the check the suite lacked.
+      // Sequential: the connection dies after connections/datasets are written
+      // → the workspace is left HALF SAVED (early tables new, later tables and
+      // the meta row old). Atomic: the same failure writes NOTHING.
+      calls = [];
+      const cfgC = { url: "https://aud01-halfway.supabase.co", key: "k" };
+      window.fetch = (url, opts) => {
+        const method = (opts && opts.method) || "GET";
+        const u = String(url);
+        calls.push(method + " " + (u.split("/rest/v1")[1] || u));
+        if (/\/rpc\//.test(u)) return Promise.resolve(new Response(JSON.stringify({ code: "PGRST202" }), { status: 404, headers: { "Content-Type": "application/json" } }));
+        if (/\/dashboards/.test(u) && method === "POST") return Promise.resolve(new Response(JSON.stringify({ message: "connection reset" }), { status: 500, headers: { "Content-Type": "application/json" } }));
+        if (method === "POST") return Promise.resolve(new Response("[]", { status: 201, headers: { "Content-Type": "application/json" } }));
+        return Promise.resolve(new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }));
+      };
+      const seqSnap = fixture();
+      seqSnap.tables.connections = [{ id: "c1", name: "C", adapter: "file" }];
+      const resC = await sb.save(cfgC, seqSnap);
+      out.seqFails = !!(resC && resC.ok === false);
+      out.seqHalfWrote = calls.some((c) => /^POST \/connections/.test(c)) && !calls.some((c) => /^POST \/polecat_meta/.test(c));
+      // …and the failure hands over the one-time SQL that ends the half-write class
+      out.seqOffersFix = /SQL editor: /.test(resC.error || "") && /polecat_workspace_save/.test(resC.error || "");
+      // the atomic path, same failure: one request, zero table writes, no
+      // fallback (a 5xx must NEVER be retried as a half-write)
+      calls = [];
+      const cfgD = { url: "https://aud01-rollback.supabase.co", key: "k" };
+      window.fetch = (url, opts) => {
+        const method = (opts && opts.method) || "GET";
+        const u = String(url);
+        calls.push(method + " " + (u.split("/rest/v1")[1] || u));
+        if (/\/rpc\//.test(u)) return Promise.resolve(new Response(JSON.stringify({ message: "deadlock detected" }), { status: 500, headers: { "Content-Type": "application/json" } }));
+        if (method === "POST") return Promise.resolve(new Response("[]", { status: 201, headers: { "Content-Type": "application/json" } }));
+        return Promise.resolve(new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }));
+      };
+      const resD = await sb.save(cfgD, fixture());
+      out.atomicFails = !!(resD && resD.ok === false);
+      out.atomicNoPartialWrite = !calls.some((c) => /^POST \/(connections|dashboards|datasets|users|polecat_meta)/.test(c));
+      out.atomicNoFallback = sb.atomicState(cfgD) !== "no";
+      // rest() absorbs one transient 5xx before surfacing it — 2 RPC attempts,
+      // never a table write
+      out.atomicRetriedOnce = calls.filter((c) => /\/rpc\//.test(c)).length === 2;
+
+      // (d) the capability probe writes nothing and asks at most once
+      calls = []; mode = "atomic";
+      const cfgE = { url: "https://aud01-probe.supabase.co", key: "k" };
+      window.fetch = (url, opts) => {
+        const method = (opts && opts.method) || "GET";
+        const u = String(url);
+        calls.push(method + " " + (u.split("/rest/v1")[1] || u));
+        if (/\/rpc\//.test(u)) { rpcBody = JSON.parse((opts && opts.body) || "{}"); return Promise.resolve(new Response(JSON.stringify({ ok: true, probe: true }), { status: 200, headers: { "Content-Type": "application/json" } })); }
+        return Promise.resolve(new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }));
+      };
+      out.probeUnknownFirst = sb.atomicState(cfgE) === "unknown";
+      const [p1, p2] = await Promise.all([sb.checkAtomic(cfgE), sb.checkAtomic(cfgE)]);
+      out.probeAnswers = p1 === true && p2 === true && sb.atomicState(cfgE) === "yes";
+      out.probeIsProbeOnly = !!(rpcBody && rpcBody.probe === true && !rpcBody.tables);
+      out.probeAskedOnce = calls.filter((c) => /\/rpc\//.test(c)).length === 1;
+      window.fetch = fetch0;
+
+      // (e) the SQL itself: one transaction, caller's RLS, never deletes users
+      const sql = Studio.WS.atomicSaveSQL();
+      out.sqlCreatesFn = /CREATE OR REPLACE FUNCTION public\.polecat_workspace_save\(payload jsonb\)/.test(sql);
+      out.sqlInvoker = /SECURITY INVOKER/.test(sql) && !/SECURITY DEFINER/.test(sql);
+      out.sqlPlpgsql = /LANGUAGE plpgsql/.test(sql);
+      out.sqlCoversTables = Studio.WS.TABLE_NAMES.every((t) => sql.indexOf("'" + t + "'") >= 0);
+      out.sqlUsersNeverDeleted = /IF t <> 'users' THEN/.test(sql);
+      out.sqlWritesMeta = sql.indexOf('INSERT INTO public."polecat_meta"') >= 0;
+      out.sqlGrants = /GRANT EXECUTE ON FUNCTION public\.polecat_workspace_save\(jsonb\) TO anon, authenticated/.test(sql);
+      // and it reaches users: shipped in the bootstrap AND the upgrade delta
+      const boot = await sb.provision({}, Studio.WS.emptySnapshot());
+      out.inBootstrap = (boot.sql || "").indexOf("polecat_workspace_save") >= 0;
+      out.inDelta = Studio.WS.provisionDeltaSQL().indexOf("polecat_workspace_save") >= 0;
+      return out;
+    });
+    ok("AUD-01: with the function installed, a save is ONE transactional RPC carrying the whole snapshot — rows, tombstoned ids (never users) and meta — and stays on that path",
+      aud01.atomicOk && aud01.oneRequest && aud01.payloadRows && aud01.payloadTombs &&
+      aud01.payloadNoUsersTombs && aud01.payloadMeta && aud01.stateYes && aud01.staysAtomic, JSON.stringify(aud01));
+    ok("AUD-01: a workspace without the function still saves table-by-table (404 is the ONLY fallback trigger) and the adapter remembers, so later pushes skip the dead round-trip",
+      aud01.fallbackOk && aud01.fallbackWroteTables && aud01.fallbackTriedRpcOnce &&
+      aud01.stateNo && aud01.remembersNo, JSON.stringify(aud01));
+    ok("AUD-01 mid-save failure window: the per-table push leaves the workspace HALF SAVED (early tables written, meta never) and says how to fix it — the atomic path writes NOTHING on the same failure and never falls back to a half-write",
+      aud01.seqFails && aud01.seqHalfWrote && aud01.seqOffersFix && aud01.atomicFails &&
+      aud01.atomicNoPartialWrite && aud01.atomicNoFallback && aud01.atomicRetriedOnce, JSON.stringify(aud01));
+    ok("AUD-01: the capability probe writes nothing, answers once, and is shared by concurrent callers",
+      aud01.probeUnknownFirst && aud01.probeAnswers && aud01.probeIsProbeOnly && aud01.probeAskedOnce, JSON.stringify(aud01));
+    ok("AUD-01: the paste-me SQL installs one plpgsql transaction under the CALLER's RLS (never SECURITY DEFINER), covers every workspace table, never deletes a users row, and ships in both the bootstrap and the upgrade delta",
+      aud01.sqlCreatesFn && aud01.sqlInvoker && aud01.sqlPlpgsql && aud01.sqlCoversTables &&
+      aud01.sqlUsersNeverDeleted && aud01.sqlWritesMeta && aud01.sqlGrants && aud01.inBootstrap && aud01.inDelta, JSON.stringify(aud01));
+
+    // the Settings card names the durability property and hands over the fix
+    const aud01Card = await page.evaluate(async () => {
+      const fetch0 = window.fetch;
+      window.fetch = (url, opts) => {
+        const method = (opts && opts.method) || "GET";
+        if (/\/rpc\//.test(String(url))) return Promise.resolve(new Response(JSON.stringify({ code: "PGRST202" }), { status: 404, headers: { "Content-Type": "application/json" } }));
+        if (method === "DELETE") return Promise.resolve(new Response(null, { status: 204 }));
+        if (method === "POST") return Promise.resolve(new Response("[]", { status: 201, headers: { "Content-Type": "application/json" } }));
+        return Promise.resolve(new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }));
+      };
+      const cfg = { url: "https://aud01-card.supabase.co", key: "k" };
+      await Studio.Sync.connectPush("supabase", cfg);
+      await Studio.supabaseSource.save(cfg, Studio.WS.emptySnapshot()); // learns the state
+      window.__studioShellSetSection("settings"); window.__studioRenderWorkspaceBackendCard();
+      const card = document.getElementById("wsBackendCard");
+      const out = {
+        saysNotAtomic: /Saves are not atomic yet/.test(card.textContent),
+        explains: /half-written/.test(card.textContent),
+        offersSql: !!card.querySelector("#wsAtomicSqlBtn"),
+        showsSql: /polecat_workspace_save/.test((card.querySelector(".ws-secrets .ws-sync-err-sql code") || {}).textContent || "")
+      };
+      Studio.Sync.disconnect();
+      window.__studioRenderWorkspaceBackendCard();
+      out.hiddenWhenLocal = !/Saves are not atomic/.test(document.getElementById("wsBackendCard").textContent);
+      window.fetch = fetch0;
+      Studio.Workspace.reset();
+      return out;
+    });
+    ok("AUD-01: the Settings backend card says whether saves are atomic and hands over the one-time SQL when they are not (and stays quiet for a local workspace)",
+      aud01Card.saysNotAtomic && aud01Card.explains && aud01Card.offersSql &&
+      aud01Card.showsSql && aud01Card.hiddenWhenLocal, JSON.stringify(aud01Card));
+
     // ---- SB-FLAKE: one transient blip inside a Supabase request must not fail
     // the whole push (Kevin: "supabase seems very flaky") — rest() retries a
     // single 5xx/429 or network throw once before surfacing anything.
@@ -10857,6 +11056,9 @@ function serve() {
         const method = (opts && opts.method) || "GET";
         const u = String(url);
         calls.push(method + " " + (u.split("/rest/v1")[1] || u));
+        // AUD-01: this workspace has no polecat_workspace_save function, so the
+        // adapter falls back to the per-table push these checks are about
+        if (/\/rpc\//.test(u)) return Promise.resolve(new Response(JSON.stringify({ code: "PGRST202" }), { status: 404, headers: { "Content-Type": "application/json" } }));
         // a 204 must carry a NULL body — Response("[]", {status:204}) throws
         if (method === "DELETE") return Promise.resolve(new Response(null, { status: 204 }));
         if (method === "POST" || method === "PATCH") return Promise.resolve(new Response("[]", { status: 201, headers: { "Content-Type": "application/json" } }));

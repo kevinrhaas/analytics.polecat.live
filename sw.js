@@ -5,7 +5,7 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v473"; /* v473: SWEEP574-3 — KPI tiles are keyboard-operable buttons in exports + the Viewer; precached js/changelog.js, app/studio-render.js, docs/index.html changed. */
+var CACHE_NAME = "studio-shell-v474"; /* v474: AUD-01 — atomic Supabase save (single-transaction RPC + safe fallback); precached js/changelog.js, app/sources/schema.js, app/sources/supabase.js, app/studio.js, docs/index.html changed. */
 /* v471: DEMO-LOCAL-2 — admin/admin always opens the local workspace; precached app/gate.js, js/changelog.js changed. */
 /* v470: AUD-03 — session-only vault passphrase + salted/iterated password digests; precached js/changelog.js, app/auth.js, app/sources/sync.js, app/studio.js, app/connections.js changed. */
 /* v467: pipeline adoption — the precached

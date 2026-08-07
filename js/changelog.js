@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 842,
+    title: 'Supabase workspaces can now save everything in one go, or nothing at all',
+    kind: 'fix',
+    ts: '2026-08-07T04:43:27.000Z',
+    items: [
+      'Saving to a Supabase backend wrote one table at a time. If the connection dropped part-way through, the workspace was left half-saved — the newest dashboards stored, say, but not the datasets they read — and nothing undid the part that had already landed.',
+      'A save can now run as a single database transaction: one request carries the whole workspace, and it either fully lands or fully rolls back. There is no half-saved state to recover from.',
+      'That needs one small function in your database, so Settings → Workspace backend now tells you plainly whether this workspace saves atomically, and hands you the one-time SQL with a Copy SQL button when it does not. Paste it into Supabase → SQL editor and run it once; it changes no data, runs under your own database permissions, and is safe to run twice.',
+      'New Supabase workspaces get it as part of the bootstrap script, and the existing "your workspace predates these tables" upgrade SQL now installs it too.',
+      'Workspaces that skip it keep saving exactly as before, so nothing changes until you choose to. Turso and Firebase backends were already all-or-nothing.',
+      'Saving never deletes an account row, transaction or not — that rule is written into the database function as well.',
+    ],
+  },
+  {
     v: 841,
     title: 'Dashboard KPI tiles can be reached and opened with the keyboard',
     kind: 'polish',

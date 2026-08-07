@@ -8012,6 +8012,38 @@
             '<span class="ws-log-m">' + (row.ok ? "ok" : esc(row.error)) + '</span></div>';
         }).join("") + "</div>"
       : "";
+    // AUD-01 (audit §1.2) — say whether this backend's saves are ATOMIC.
+    // A Supabase project that carries the polecat_workspace_save function
+    // writes the whole snapshot in one transaction; one that doesn't still
+    // writes table by table, where a connection dropped part-way leaves the
+    // workspace half-saved. That's a real durability property, so name it —
+    // and hand over the one-time SQL that fixes it, same copy-paste treatment
+    // the schema-delta and RLS remedies get. The state comes from the
+    // adapter's own memo; when nothing has asked yet, one side-effect-free
+    // probe answers it and re-renders (asked at most once per page).
+    var atomicHtml = "";
+    if (st.isRemote && st.sourceId === "supabase" && Studio.supabaseSource.atomicState) {
+      var atomicCfg = Studio.Sync.currentConfig() || {};
+      var atomicState = Studio.supabaseSource.atomicState(atomicCfg);
+      if (atomicState === "unknown") {
+        if (!renderWorkspaceBackendCard._atomicAsked) {
+          renderWorkspaceBackendCard._atomicAsked = true;
+          Studio.supabaseSource.checkAtomic(atomicCfg).then(function (v) {
+            if (v !== undefined) renderWorkspaceBackendCard();
+          });
+        }
+      } else {
+        var atomicOk = atomicState === "yes";
+        atomicHtml = '<div class="ws-secrets">' +
+          '<span class="cx-name"><b>' + (atomicOk ? "Saves are atomic" : "Saves are not atomic yet") + '</b>' +
+          '<small>' + (atomicOk
+            ? "Each save writes the whole workspace in a single database transaction — it either fully lands or fully rolls back."
+            : "This workspace saves one table at a time, so a connection dropped part-way through can leave it half-written. Run the SQL below once in Supabase → SQL editor to fix that; it changes no data and is safe to run twice.") + '</small></span>' +
+          (atomicOk ? "" : '<span class="cx-actions ws-actions"><button type="button" class="btn" id="wsAtomicSqlBtn">Copy SQL</button></span>' +
+            '<pre class="ws-sync-err-sql"><code>' + esc(Studio.WS.atomicSaveSQL()) + '</code></pre>') +
+          '</div>';
+      }
+    }
     card.innerHTML = '<h2>Workspace backend</h2>' +
       '<p class="ws-card-intro">Where this workspace\'s catalog lives — dashboards, datasets and connections. Local by default; connect a database to reach the same workspace from any browser. <b>' + esc(credLine) + '</b></p>' +
       '<div class="ws-current">' +
@@ -8037,6 +8069,7 @@
               ? (sec.locked ? '<button type="button" class="btn primary" id="wsUnlockBtn">Unlock…</button>' : '<button type="button" class="btn" id="wsSecretsOffBtn">Turn off</button>')
               : '<button type="button" class="btn" id="wsSecretsOnBtn"' + (sec.available ? "" : " disabled title=\"WebCrypto unavailable\"") + '>Encrypt secrets…</button>') +
           '</span></div>' : "") +
+      atomicHtml +
       syncLogHtml;
     var refreshBtn = $("#wsRefreshBtn", card);
     if (refreshBtn) refreshBtn.onclick = function () {
@@ -8057,6 +8090,13 @@
       var sql = code ? code.textContent : "";
       (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(sql) : Promise.reject())
         .then(function () { toast("SQL copied — paste it into Supabase → SQL editor, then hit Retry now"); },
+              function () { window.prompt("Copy this SQL:", sql); });
+    };
+    var atomicSqlBtn = $("#wsAtomicSqlBtn", card);
+    if (atomicSqlBtn) atomicSqlBtn.onclick = function () {
+      var sql = Studio.WS.atomicSaveSQL();
+      (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(sql) : Promise.reject())
+        .then(function () { toast("SQL copied — paste it into Supabase → SQL editor; saves become atomic from the next push"); },
               function () { window.prompt("Copy this SQL:", sql); });
     };
     // WORKSPACE-LOGIN: export the current connection as an access file — the

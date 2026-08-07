@@ -135,6 +135,42 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **AUD-01 ★★ — the Supabase save is ATOMIC (v842, sw v474, 2026-08-07, steward;
+  AUDIT-2026-08.md §1.2):** the last of the four audit P1s. PostgREST runs one
+  statement per request, so the push was a SEQUENCE of independent writes
+  (upsert connections, upsert datasets, delete tombstoned dashboards, … then
+  the meta row). Lose the connection half-way and the workspace is HALF SAVED —
+  early tables new, later tables and meta old — with nothing to roll it back.
+  Supabase, the DEFAULT backend, was the only adapter with that hole (Turso
+  batches; Firebase upserts-then-prunes). Fix: a PL/pgSQL function IS a single
+  transaction, so `WS.atomicSaveSQL()` (`app/sources/schema.js`) installs
+  `polecat_workspace_save(jsonb)` and `supabase.save()` hands it the WHOLE
+  snapshot in one RPC that either fully lands or fully rolls back. Two
+  properties are load-bearing and asserted by the suite: **SECURITY INVOKER**
+  (every statement inside still runs under the caller's RLS — a SECURITY
+  DEFINER function here would bypass the admin-arm posture and re-open the
+  USERS-DURABLE wipe class) and **users is upsert-only, forever** (the `IF t <>
+  'users'` guard is inside the function too). The upsert only touches columns
+  the payload actually carries, matching PostgREST's merge-duplicates
+  semantics, so a column this build has never heard of is left alone rather
+  than nulled. Adoption is non-breaking: the atomic path is tried first, and
+  **only a 404 (function not installed) falls back** to the historical
+  per-table push — an RLS refusal or a 5xx must never be retried as a
+  half-write. The answer is memoized per project, so an un-upgraded workspace
+  pays the dead round-trip once, not on every push. Surfaces three ways: the
+  bootstrap script `provision()` returns (new workspaces are atomic from day
+  one), `provisionDeltaSQL()` (the existing "your workspace predates these
+  tables" upgrade), and a new **Settings → Workspace backend** row that names
+  the property either way and offers Copy SQL when it's missing — fed by a
+  side-effect-free capability probe (the function's own `probe` branch writes
+  nothing) asked at most once per page. Six suite checks added, including **the
+  mid-save-failure-window check the suite lacked**: the same mid-push failure
+  leaves the sequential path half-written (connections stored, meta never) and
+  the atomic path with zero table writes. Help gains an "Atomic saves" note.
+  Remaining AUD-01 scope deliberately untouched: cross-device conflict
+  resolution is still last-writer-wins over the whole snapshot — a separate
+  design question (merge semantics), not a durability hole, and worth its own
+  slice.
 - **SWEEP574-3 — KPI tiles are keyboard-operable in exports + the Viewer (v841, sw v473,
   2026-08-07, steward; UX sweep #574 finding 3, a11y):** a KPI tile that opens the shared
   detail drawer on click was a bare `<div>` — not focusable, not announced as interactive —
@@ -8730,13 +8766,17 @@
 > AUD-04 (now SHIPPED v834) was ALSO the precondition for analytics joining the dev→stage→prod
 > promotion pipeline (rollout #2 after the jobtracker pilot).
 >
-> - **AUD-01 ★★ [data] Supabase atomic save** (§1.2). The default backend is the
->   only adapter whose save isn't atomic; the users self-destruct is fixed
->   (upsert-first/tombstone, v787/v799) but general saves are still
->   whole-snapshot with no conflict resolution, and `load()`'s per-table
->   `.catch(()=>{})` (`app/sources/supabase.js:450`) adopts a failed read as an
->   empty table. Move to staged write-then-swap or a batched RPC; add the
->   mid-save-failure-window test the suite lacks.
+> - ~~AUD-01 ★★ [data] Supabase atomic save~~ ✓ **SHIPPED v842, sw v474
+>   (2026-08-07, steward — see DONE). ALL FOUR AUDIT P1s ARE NOW CLOSED.**
+>   The batched-RPC option: `polecat_workspace_save(jsonb)`, one PL/pgSQL
+>   transaction carrying the whole snapshot, tried first and falling back to
+>   the per-table push ONLY on a 404. The mid-save-failure-window check the
+>   suite lacked is in. The failed-read half was already closed by AUD-04
+>   (v834). **Still open, deliberately deferred to its own slice: cross-device
+>   CONFLICT RESOLUTION** — two devices editing concurrently is still
+>   last-writer-wins over the whole snapshot. That's a merge-semantics design
+>   question (per-row updatedAt wins? per-table? a real 3-way merge?), not a
+>   durability hole, and it wants its own decision before code.
 > - ~~AUD-02 ★★ [security] Escape the confirmed XSS sinks~~ ✓ **SHIPPED v837, sw v469
 >   (2026-08-07, steward — see DONE).**
 > - ~~AUD-03 ★★ [security] Secrets hygiene~~ ✓ **SHIPPED v838, sw v470
