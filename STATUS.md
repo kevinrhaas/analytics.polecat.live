@@ -135,6 +135,54 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **AUD-03 ★★ — secrets hygiene: session-only vault passphrase + salted password
+  digests (v838, sw v470, 2026-08-07, steward; AUDIT-2026-08.md §1.3):** the P1's
+  three parts, shipped together.
+  (1) **The vault passphrase is no longer cached at rest.** `app/sources/sync.js`
+  keeps it in `sessionStorage` instead of `localStorage` — caching the one secret
+  that protects all the others, right next to the ciphertext it unlocks, negated
+  the vault. Session scope keeps the real convenience (one prompt per browser
+  session; every pull in between still silent) and drops the on-disk copy.
+  `migrateSecretCache()` runs at load AND lazily on read: a pre-AUD-03
+  `analytics.datasource.secret.v1` in localStorage is adopted into the session
+  and DELETED, so an already-unlocked browser upgrades without re-prompting and
+  without leaving the old copy behind. `cachePass()` always removes the
+  localStorage key, and Clear-local-data now drops the session copy too (the
+  localStorage key stays on `CLEAR_DATA_KEYS` so stale copies are still swept).
+  (2) **Password digests move off unsalted single-round SHA-256** (`app/auth.js`).
+  The `hash` field is now self-describing so one column carries both generations:
+  legacy v1 = bare 64-hex SHA-256, current v2 = `pbkdf2$<iters>$<salt>$<dk>`
+  (PBKDF2-HMAC-SHA-256, fresh 16-byte salt per password, 210k rounds, 256-bit —
+  measured ~33ms in Chromium). Every WRITE produces v2 (seed, `upsert`, admin
+  Add-user / password change) and `verify()` UPGRADES a v1 row in place on the
+  first successful sign-in — the one moment the plaintext is in hand — so a store
+  heals itself as people log in and nobody re-types a password. v1 digests stay
+  verifiable forever; the migration can't lock anyone out. New exported surface:
+  `hashPassword`/`checkPassword`/`isKdfHash` (`sha256` stays — the LF39 test and
+  legacy verification still use it). Known window, documented in auth.js's header:
+  a row upgraded by a NEWER build can't be verified by a build predating this
+  change, which matters only because the dev/stage previews share prod's origin
+  storage — let prod catch up before signing in on a preview.
+  (3) **Honest copy** about what is plaintext-local vs synced: the Settings
+  backend card's local line said "stored in this browser only" (true about
+  LOCATION, silent about FORM) and now names the plaintext; the Connections
+  header note matches; the encrypted-state line says the passphrase is held for
+  the session only; the enable prompt says it is never stored on disk. `docs/`
+  gains a "Where credentials and passwords are kept" section covering all five
+  facts (local plaintext, plaintext-vs-ciphertext sync, session-only passphrase,
+  salted digests + automatic upgrade, exports never carrying a secret).
+  Five suite checks added (KDF+salt+iterations on seeded rows, legacy verify →
+  flagged → upgraded in place with wrong-password still rejected, upsert writes
+  v2, passphrase session-only through the real enableSecrets/disableSecrets flow,
+  boot migration of a pre-AUD-03 on-disk passphrase). Verified in the foreground
+  before merge: dev gate (validate + changelog-check + dev-smoke at desktop AND
+  390×780) plus a headless harness running those same five checks against the real
+  code paths — including a real gate sign-in as the seeded admin at 390×780 — zero
+  pageerrors. Remaining AUD-03-adjacent scope deliberately untouched: the backend
+  `key`/`token` and Supabase `authEmail`/`authPassword` still live in localStorage
+  (a static local-first app has nowhere else to put them — now stated plainly
+  rather than fixed), and the fails-open auth posture stays as documented
+  UX-gating.
 - **AUD-02 ★★ — escaped the confirmed XSS sinks (v837, sw v469, 2026-08-07,
   steward; AUDIT-2026-08.md §1.1):** the four confirmed unescaped-`innerHTML`
   sinks now escape their values before interpolating. `app/studio-charts.js`
@@ -8579,7 +8627,14 @@
 >   mid-save-failure-window test the suite lacks.
 > - ~~AUD-02 ★★ [security] Escape the confirmed XSS sinks~~ ✓ **SHIPPED v837, sw v469
 >   (2026-08-07, steward — see DONE).**
-> - **AUD-03 ★★ [security] Secrets hygiene** (§1.3): stop persisting the
+> - ~~AUD-03 ★★ [security] Secrets hygiene~~ ✓ **SHIPPED v838, sw v470
+>   (2026-08-07, steward — see DONE).** All three parts: session-only vault
+>   passphrase (with a delete-on-boot migration of the on-disk copy), PBKDF2
+>   password digests with upgrade-on-sign-in, honest Settings/Connections/docs
+>   copy. NOT covered (deliberate, stated in the copy rather than fixed): the
+>   backend key/token and Supabase authEmail/authPassword still sit in
+>   localStorage, and auth still fails open by design.
+>   Original: (§1.3) stop persisting the
 >   secrets-vault passphrase (`analytics.datasource.secret.v1`) — make it
 >   session-only; migrate password hashing off unsalted single-round SHA-256
 >   (`app/auth.js:30-33`) to a salted/iterated KDF; make the Settings/credential

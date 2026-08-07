@@ -152,7 +152,9 @@
   // is on). State-aware copy, shared with the Settings card below.
   function connCredentialCopy() {
     var st = Studio.Sync.syncState();
-    if (!st.isRemote) return { text: "Credentials stay in this browser.", warn: false };
+    // AUD-03 (audit §1.3): "stay in this browser" answered WHERE but not in what
+    // form — local-only credentials are still plaintext in this browser's storage.
+    if (!st.isRemote) return { text: "Credentials stay in this browser, unencrypted in local storage.", warn: false };
     var sec = Studio.Sync.secretsState();
     return sec.enabled
       ? { text: "Credentials sync to " + st.label + " as encrypted ciphertext.", warn: false }

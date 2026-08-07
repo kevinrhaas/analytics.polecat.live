@@ -7993,8 +7993,12 @@
     }
     // QA-02: this line used to always say "stored in this browser only" even
     // once a remote backend was connected — state-aware now (see connCredentialCopy).
-    var credLine = !st.isRemote ? "Credentials are stored in this browser only."
-      : sec.enabled ? "Credentials sync to the backend as encrypted ciphertext."
+    // AUD-03 (audit §1.3) — say plainly what is where, and in what form. The old
+    // local line ("stored in this browser only") was true about LOCATION and
+    // silent about FORM: a local-only workspace still keeps its connection
+    // credentials as plaintext in this browser's storage.
+    var credLine = !st.isRemote ? "Credentials stay in this browser — unencrypted in local storage, readable by anyone using this device profile."
+      : sec.enabled ? "Credentials sync to the backend as encrypted ciphertext; the copy in this browser stays plaintext."
       : "Credentials sync to the backend as PLAINTEXT unless you turn on encryption below.";
     // Recent sync attempts (Kevin: "supabase seems very flaky") — the dot alone
     // can't explain a flaky backend; the actual per-attempt outcomes can.
@@ -8026,7 +8030,7 @@
         '<div class="ws-secrets">' +
           '<span class="cx-name"><b>' + (sec.enabled ? (sec.locked ? "Secrets encrypted — locked" : "Secrets encrypted") : "Secrets stored as plaintext") + '</b>' +
           '<small>' + (sec.enabled
-            ? (sec.locked ? "This browser hasn't unlocked the passphrase yet — connection credentials stay ciphertext until it does." : "Connection credentials are AES-GCM ciphertext in the backend; the passphrase never leaves this browser.")
+            ? (sec.locked ? "This browser hasn't unlocked the passphrase yet — connection credentials stay ciphertext until it does." : "Connection credentials are AES-GCM ciphertext in the backend. The passphrase never leaves this browser and is held for this session only — you'll re-enter it in a new session.")
             : "Connection credential values are written to the backend unencrypted. Turn on encryption to store them as ciphertext only.") + '</small></span>' +
           '<span class="cx-actions ws-actions">' +
             (sec.enabled
@@ -8080,7 +8084,7 @@
     if (switchBtn) switchBtn.onclick = function () { openSwitchBackendPicker(); };
     var onBtn = $("#wsSecretsOnBtn", card);
     if (onBtn) onBtn.onclick = function () {
-      var pass = window.prompt("Choose an encryption passphrase (needed on every browser that opens this workspace):");
+      var pass = window.prompt("Choose an encryption passphrase (needed once per session on every browser that opens this workspace — it is never stored on disk):");
       if (!pass) return;
       Studio.Sync.enableSecrets(pass).then(function () { toast("Secrets encrypted"); }, function (e) { toast(e.message, true); });
     };
@@ -10874,7 +10878,10 @@
     // connection — exactly the "Saved server connections" the Clear-local-data confirm dialog
     // already promises to remove) and "analytics.datasource.secret.v1" (its cached decryption
     // passphrase, this browser only — leaving it behind after disconnecting the connection it
-    // belongs to is stale-secret hygiene, not just a missed toggle).
+    // belongs to is stale-secret hygiene, not just a missed toggle). Since AUD-03 that
+    // passphrase is cached in sessionStorage instead; the localStorage key stays on this list
+    // so any pre-AUD-03 copy still on disk is swept too (the handler also clears the session
+    // copy directly).
     "studio-show-samples", "studio-lib-samples-open", "studio-dash-view", "studio-dsx-view",
     "studio-conn-view", "studio-jobs-view",
     // LF51 (d) extended to Repository, the last of the four workspace catalogs to gain the
@@ -11453,6 +11460,11 @@
       // truly lands on the sign-in screen instead of silently re-authing via the historical
       // studio-gate-ok bypass (see auth.js's current()).
       try { sessionStorage.removeItem("studio-gate-ok"); } catch (e) {}
+      // AUD-03: the workspace-secrets passphrase now lives in sessionStorage
+      // (see sync.js) — the localStorage sweep above can't reach it, and leaving
+      // the key to the credential vault behind is exactly the stale-secret gap
+      // the Track L round-3 note cited when it added the localStorage key here.
+      try { sessionStorage.removeItem("analytics.datasource.secret.v1"); } catch (e) {}
       // N-DIST: also drop the offline-shell service worker cache so a clean reload can't
       // still be served a stale cached copy of the app.
       try {
