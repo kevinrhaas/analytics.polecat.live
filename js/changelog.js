@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 850,
+    title: 'One set of filter operators, everywhere you filter',
+    kind: 'polish',
+    ts: '2026-08-07T10:08:38.000Z',
+    items: [
+      'A job\'s "Filter rows" step and a dataset\'s output filter rules now offer the same operators, worded the same way. The job step used to list bare codes — "eq", "ne", "gte" — while the same choices elsewhere in the app read "= equals", "≠ not equals", "≥ greater or equal". They now read the same in both places.',
+      'The job step gained "starts with", the one operator it was missing.',
+      '"= equals" in a job step now understands numbers the way the rest of the app does: a value stored as "1.0" matches a filter of 1. It used to compare the raw text, so those two looked different.',
+      'The greater/less-than operators in a job step now work on text columns too — sorting-order comparison, the same as everywhere else. They previously matched nothing at all unless both sides were numbers.',
+      'A filter rule written by a newer version of the app now lets rows through untouched instead of being quietly read as "equals", which used to empty the result.',
+      'Existing saved jobs and dataset filters keep working exactly as before — nothing was rewritten, and older devices sharing the same workspace still read everything correctly.',
+    ],
+  },
+  {
     v: 849,
     title: 'Every catalog page opens the same way',
     kind: 'polish',

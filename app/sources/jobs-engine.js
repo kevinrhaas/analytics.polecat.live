@@ -91,18 +91,34 @@
     return { columns: next, objs: objs };
   }
 
-  var CMP = {
-    eq: function (a, b) { return String(a) === String(b); },
-    ne: function (a, b) { return String(a) !== String(b); },
-    gt: function (a, b) { return num(a) != null && num(b) != null && num(a) > num(b); },
-    gte: function (a, b) { return num(a) != null && num(b) != null && num(a) >= num(b); },
-    lt: function (a, b) { return num(a) != null && num(b) != null && num(a) < num(b); },
-    lte: function (a, b) { return num(a) != null && num(b) != null && num(a) <= num(b); },
-    contains: function (a, b) { return String(a == null ? "" : a).toLowerCase().indexOf(String(b == null ? "" : b).toLowerCase()) >= 0; }
-  };
+  // AUD-06 slice 3: the comparators live in Studio.filterOps (model.js, loaded
+  // ahead of this file) so a job step and a DA output rule mean exactly the
+  // same thing by the same name. Saved steps keep their own `eq`/`gte`/… ids on
+  // disk — filterOps.normalize understands that spelling. The local fallback
+  // below only covers a context where model.js is absent, and matches it.
+  function cmpFallback(a, op, b) {
+    var sv = String(a == null ? "" : a), fv = String(b == null ? "" : b);
+    var nv = parseFloat(sv), fnv = parseFloat(fv);
+    var numCmp = !isNaN(nv) && !isNaN(fnv);
+    switch (op) {
+      case "eq": case "=":                   return numCmp ? nv === fnv : sv === fv;
+      case "ne": case "!=":                  return numCmp ? nv !== fnv : sv !== fv;
+      case "gt": case ">":                   return numCmp ? nv > fnv   : sv > fv;
+      case "gte": case ">=":                 return numCmp ? nv >= fnv  : sv >= fv;
+      case "lt": case "<":                   return numCmp ? nv < fnv   : sv < fv;
+      case "lte": case "<=":                 return numCmp ? nv <= fnv  : sv <= fv;
+      case "contains":                       return sv.toLowerCase().indexOf(fv.toLowerCase()) >= 0;
+      case "startsWith":                     return sv.toLowerCase().indexOf(fv.toLowerCase()) === 0;
+      default:                               return true;
+    }
+  }
+  function cmpTest(a, op, b) {
+    var S = (typeof Studio !== "undefined") ? Studio : null;
+    return (S && S.filterOps) ? S.filterOps.test(a, op, b) : cmpFallback(a, op, b);
+  }
   function applyFilter(columns, objs, step) {
-    var fn = CMP[step.cmp] || CMP.eq;
-    return { columns: columns, objs: objs.filter(function (o) { return fn(o[step.col], step.value); }) };
+    var op = step.cmp || "eq";
+    return { columns: columns, objs: objs.filter(function (o) { return cmpTest(o[step.col], op, step.value); }) };
   }
 
   function median(nums) {
