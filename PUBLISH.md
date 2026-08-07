@@ -29,14 +29,16 @@ HTTPS"). Allow a few minutes to an hour for the certificate.
 
 ## 3. Gating
 
-**Now — passcode (soft gate, already on).** `app/gate-config.js` holds the SHA-256 of the passcode.
-No default passcode ships in the config — only the rotated hashes committed there work against the
-live gate. Set or rotate a code:
+**Now — sign-in (soft gate, already on).** Every page renders `app/gate.js`'s username/password
+screen first, authenticating against the user store in `app/auth.js` — the local demo accounts
+(`admin`/`admin`, `demo`/`demo`) out of the box, or the `users` table of whatever workspace backend
+you connect the app to (Settings → Workspace, or "Connect to your workspace" right on the sign-in
+screen). Manage accounts in-app under **Admin → Users**; passwords are stored as salted PBKDF2
+digests, never plaintext.
 
-```bash
-node -e 'console.log(require("crypto").createHash("sha256").update("YOUR NEW CODE").digest("hex"))'
-# paste the hash into app/gate-config.js → window.STUDIO_GATE_SHA256, then commit + push
-```
+> The single site-wide **passcode** this section used to describe was retired when the sign-in
+> screen landed. Its config file (`app/gate-config.js`, `window.STUDIO_GATE_SHA256`) had no readers
+> left and was deleted in v852 (AUD-09) — there is nothing to rotate any more.
 
 This is a speed-bump only — static assets are still downloadable. For **real** gating:
 
@@ -47,7 +49,8 @@ free up to 50 users):
 3. Policy: allow a named email list, a domain, or Google / Okta SSO.
 Then every visitor authenticates before the site loads.
 
-To disable the passcode once Access is in front, set `window.STUDIO_GATE_SHA256 = ""` and re-deploy.
+With Access in front, the app's own sign-in screen stays — it is what identifies the user *inside*
+the app (per-user rights, saved layouts), so it is not redundant with the perimeter.
 
 ## Notes
 

@@ -96,7 +96,8 @@ It's a static site, and **this repo *is* the published site** — deployed to Gi
 `.github/workflows/deploy.yml` on every push to `main`; the committed `CNAME` wires the custom
 domain **`analytics.polecat.live`**. Full runbook: **[PUBLISH.md](PUBLISH.md)**.
 
-A **passcode gate** (configurable in `app/gate-config.js`) is on by default; put **Cloudflare
+A **sign-in gate** (`app/gate.js` over the `app/auth.js` user store — demo accounts `admin`/`admin`
+and `demo`/`demo`, or your connected workspace's `users` table) is on by default; put **Cloudflare
 Access** in front for real SSO/email gating. First-run users get a **welcome tour** (reopen via
 **ⓘ Tour**).
 
