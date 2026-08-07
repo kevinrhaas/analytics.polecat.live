@@ -135,6 +135,36 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **AUD-11 tail — the suite stops hand-typing a number doc-truth measures (issue #607,
+  2026-08-07, steward; no version/sw bump — test-only, see below):** the **STAGE gate was
+  red on `dev`** and would have auto-rolled-back every promotion, including unrelated work.
+  One assertion, `F38/J` (`tests/run.js`), fetched `docs/index.html` and required the
+  literal string `"52 types"`. AUD-11 (v856) had resolved the chart-type count to **54**
+  everywhere, so the claim the suite was defending was the one number that is no longer
+  true. Kevin found it while verifying #606 and filed it separately rather than bundling it,
+  so each stayed one revertible unit.
+  - **The fix is a deletion, not a retype.** `54` typed into the suite would only re-arm the
+    same trap for the next chart type. `tools/doc-truth.mjs` (AUD-11's whole point) already
+    pins that count **from its source** — it reads the `Studio.CHARTS` registry and asserts
+    "docs/index.html: chart-type counts all read N" — and it runs in the dev gate, i.e.
+    earlier and more often than the suite. So F38/J keeps only the half doc-truth does not
+    duplicate at *that* granularity: the `ct-quadrant` anchor. The comment above it now
+    records why the count left, so nobody restores it as a "missing" assertion.
+  - **Swept for siblings, as the issue asked.** Every other numeric literal asserted against
+    a doc/marketing page in `tests/run.js` was checked: F36/J and F37/J assert anchors only,
+    and the chart-count comparisons at LF53-CODE and the ⌘K "Add panel:" check measure
+    `Object.keys(Studio.CHARTS).length` live rather than freezing it. **F38/J was the only
+    hard-coded countable claim.** One stale *label* was retired alongside it — the Z13
+    reliability-distributions check announced "(51/51 gallery coverage)" on every run, a
+    completeness claim about a registry that has since grown to 54; its assertion (four named
+    types are present) was already correct and is unchanged.
+  - **No changelog entry and no `sw.js` bump, deliberately** — nothing user-visible changed
+    and no precached file moved. Same precedent as QA-09/QA-10 and LF69(b)'s verify-only
+    closes. `ok()` count is unchanged, so doc-truth's "~3,000 checks" claim still holds.
+  - **Verified in the foreground:** the full dev gate (`validate.mjs` + `changelog-check.js`
+    + `doc-truth.mjs` + `dev-smoke.mjs` at 390×780 and desktop, zero pageerrors) and the
+    **FULL `tests/run.js` suite** — the gate that was red — now green. Files: tests/run.js,
+    STATUS.md.
 - **AUD-06 slice 6 — the search kit stops being catalog-only (v858, sw v490, 2026-08-07,
   steward; AUDIT-2026-08 §2.1, ux):** §2.1's closing sentence — "add the 11 other search
   affordances (library, inspector, chart gallery, ⌘K, docs, folder-picker…) and the pattern
@@ -9595,6 +9625,11 @@
 >   `tools/dev-smoke.mjs`, and a "What's next" modal that no longer advertises
 >   five shipped items as upcoming. Pinned by **`tools/doc-truth.mjs` in the dev
 >   gate** so a drifted number fails the build instead of ageing quietly.
+>   ~~Tail: a stale suite assertion still pinned the retired "52 types" count, so the
+>   STAGE gate was red on dev (issue #607)~~ ✓ **SHIPPED 2026-08-07 (steward — see
+>   DONE); test-only, no version bump.** F38/J keeps its `ct-quadrant` anchor check and
+>   drops the hand-typed count, which `tools/doc-truth.mjs` already pins from the
+>   registry; swept the rest of the suite and this was the only one.
 >   **Still open (AUD-11's tail, deliberately deferred — each its own unit):**
 >   splitting STATUS.md's DONE into a dated archive (§4), and §2.4's third
 >   bullet, the "Studio" vs "Dashboard Builder" / "demo" vs "sample" wording

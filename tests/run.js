@@ -15886,7 +15886,10 @@ function serve() {
     ok("Z13: marketing-growth covers all 10 target chart types", wantMktTypes.every((t) => mktShow.types.includes(t)), mktShow.types.join(","));
     ok("Z13: every marketing-growth panel renders visual content", Object.values(mktShow.perType).every((n) => n > 0), JSON.stringify(mktShow.perType));
 
-    // ---- Z13: "reliability-distributions" showcase covers the last 4 chart types (boxplot/violin/beeswarm/ridgeline) — gallery now 51/51 ----
+    // ---- Z13: "reliability-distributions" showcase covers the last 4 chart types (boxplot/violin/beeswarm/ridgeline) ----
+    // (this closed the gallery's last coverage gap at 51 types; the registry has grown since, and
+    //  "every chart type has a sample" is now measured from the registry by tools/doc-truth.mjs
+    //  rather than asserted here against a frozen number)
     console.log("\n• Z13: reliability-distributions showcase (boxplot/violin/beeswarm/ridgeline) — gallery coverage complete");
     const relShow = await page.evaluate(async () => {
       const spec = await fetch("data/examples/reliability-distributions.studio.json").then((r) => r.json());
@@ -15918,7 +15921,7 @@ function serve() {
     });
     const wantRelTypes = ["boxplot", "violin", "beeswarm", "ridgeline"];
     ok("Z13: reliability-distributions is listed among the bundled examples", relShow.inIndex);
-    ok("Z13: reliability-distributions covers all 4 remaining chart types (51/51 gallery coverage)",
+    ok("Z13: reliability-distributions covers boxplot/violin/beeswarm/ridgeline",
       wantRelTypes.every((t) => relShow.types.includes(t)), relShow.types.join(","));
     ok("Z13: every reliability-distributions panel renders visual content", Object.values(relShow.perType).every((n) => n > 0), JSON.stringify(relShow.perType));
     ok("Z13 multi-row sample data: distribution DAs get >8 rows with real per-row spread (not one point per label)",
@@ -34578,19 +34581,22 @@ function serve() {
     });
     ok("F38: quadrant gallery thumbnail is an SVG with circle elements", f38Thumb.ok, JSON.stringify(f38Thumb));
 
-    // F38-5: docs/index.html has ct-quadrant anchor and the current type count
-    // (51 at F38; CONS-3's Metrics wheel made it 52)
+    // F38-5: docs/index.html documents the quadrant chart (its own anchor).
+    // This check used to ALSO pin the published chart-type count by literal string ("51 types"
+    // at F38, then "52 types" after CONS-3's Metrics wheel) — a hand-retyped number that went
+    // stale the moment the registry grew, and did: AUD-11 (v856) resolved the count to 54
+    // everywhere and this assertion kept failing on a number that was no longer the truth,
+    // reddening the STAGE gate for unrelated work. The count is now pinned FROM ITS SOURCE by
+    // tools/doc-truth.mjs ("docs/index.html: chart-type counts all read N", measured off the
+    // Studio.CHARTS registry, run in the dev gate), so re-typing 54 here would only re-arm the
+    // trap for the next renumber. Anchor coverage stays — doc-truth checks that too, per type.
     const f38Docs = await page.evaluate(async function () {
       try {
         var html = await fetch("docs/index.html").then(function (r) { return r.text(); });
-        return {
-          ok: html.indexOf('id="ct-quadrant"') >= 0 && html.indexOf("52 types") >= 0,
-          hasAnchor: html.indexOf('id="ct-quadrant"') >= 0,
-          has52: html.indexOf("52 types") >= 0
-        };
+        return { ok: html.indexOf('id="ct-quadrant"') >= 0, hasAnchor: html.indexOf('id="ct-quadrant"') >= 0 };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F38/J: docs/index.html includes ct-quadrant anchor and the current '52 types' count", f38Docs.ok, JSON.stringify(f38Docs));
+    ok("F38/J: docs/index.html includes the ct-quadrant anchor", f38Docs.ok, JSON.stringify(f38Docs));
 
     // ── Z1: App shell — collapsible left rail (Home · Repository · Studio · Settings) ──
     console.log("\n• Z1: App shell left rail");
