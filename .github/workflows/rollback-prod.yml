@@ -1,0 +1,58 @@
+name: Rollback prod
+
+# Undo the most recent qa→prod promotion. Dispatch-only. NEVER force-pushes
+# main: rollback is `git revert -m 1` of the promotion merge commit —
+# append-only history, so Guard main, stale clones and the platform janitor
+# all keep their assumptions.
+on:
+  workflow_dispatch:
+    inputs:
+      merge_sha:
+        description: SHA of the promotion merge to revert (default = the most recent "Promote qa→prod" merge on main)
+        required: false
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: rollback-prod
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Revert the promotion merge on main
+        run: |
+          set -e
+          git config user.name  "analytics-bot"
+          git config user.email "bot@users.noreply.github.com"
+          SHA="${{ inputs.merge_sha }}"
+          if [ -z "$SHA" ]; then
+            SHA="$(git log --merges --grep='^Promote qa→prod' -n 1 --pretty=%H)"
+          fi
+          if [ -z "$SHA" ]; then
+            echo "::error::No 'Promote qa→prod' merge found on main and no merge_sha given."
+            exit 1
+          fi
+          SUBJECT="$(git log -1 --pretty=%s "$SHA")"
+          if ! git revert --no-edit -m 1 "$SHA"; then
+            git revert --abort || true
+            echo "::error::Revert of $SHA did not apply cleanly — needs a human (later commits touch the same files)."
+            exit 1
+          fi
+          git commit --amend -m "Rollback prod: revert \"$SUBJECT\" ($(git rev-parse --short "$SHA"))"
+          git push origin main
+          echo "Reverted $SHA on main."
+
+      - name: Publish the rolled-back build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --ref main

@@ -1,0 +1,41 @@
+name: Pipeline setup (create dev + qa branches)
+
+# One-button activation for the dev → qa → main promotion pipeline (rollout #2
+# of the jobtracker pilot — that repo's docs/PIPELINE.md is the canonical
+# runbook; analytics deltas live in this repo's docs/PIPELINE.md). Idempotent:
+# creates the long-lived `dev` and `qa` branches from the current main if (and
+# only if) they don't exist yet, then dispatches a deploy so the /dev/ and
+# /qa/ previews go live. Until this is dispatched, the pipeline workflows are
+# inert and deploy.yml skips the stage previews — merging the adoption PR
+# activates nothing by itself.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Create dev and qa from main if absent
+        run: |
+          git config user.name  "analytics-bot"
+          git config user.email "bot@users.noreply.github.com"
+          for b in dev qa; do
+            if git ls-remote --exit-code --heads origin "$b" >/dev/null; then
+              echo "$b already exists — leaving it alone."
+            else
+              git push origin "HEAD:refs/heads/$b"
+              echo "created $b at $(git rev-parse --short HEAD)"
+            fi
+          done
+      - name: Publish the previews
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --ref main

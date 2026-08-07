@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 835,
+    title: 'Staged releases: dev and qa previews before production',
+    kind: 'feature',
+    ts: '2026-08-07T00:08:19.000Z',
+    items: [
+      'Analytics joins the fleet’s dev → qa → production pipeline: work lands on a dev branch first, gets promoted to a qa candidate under the full test suite (nightly at ~2am Central, or on command), and only reaches production when a promotion is explicitly approved.',
+      'Live previews of upcoming builds are hosted at /dev/ and /qa/ — each marked with a stage banner and kept out of search engines, while production stays untouched. Previews use your real workspace safely (the v834 data guards made sharing it across builds safe).',
+      'A failed qa candidate rolls itself back automatically, and every production release is tagged for one-click rollback — see docs/PIPELINE.md.',
+    ],
+  },
+  {
     v: 834,
     title: 'Three quiet ways to lose data, closed',
     kind: 'fix',
