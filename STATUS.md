@@ -135,6 +135,47 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **AUD-06 ★ slice 2 — one shared catalog FACET kit (v848, sw v480, 2026-08-07,
+  steward; AUDIT-2026-08 §2.1 family D, ux):** the third and last catalog axis to be
+  unified — SORT-1 (v812) did sorting, slice 1 (v847) did search, and this closes the
+  **facet** layer the slice-1 writeup explicitly deferred. Six panels each hand-rolled
+  the same four steps (tally a count map → prune a selection whose rows are gone → build
+  pill markup → re-type the `__unfiled` predicate), ~40 near-identical lines apiece.
+  New **`Studio.catalogFacets`** (`app/studio.js`, beside `catalogSort`/`catalogSearch`)
+  owns all four: `tally` / `prune` / `pick` / `pills` / `folderStrip` / `matchMulti` /
+  `matchOne` / `clearChip`. A section now declares only WHICH field each axis reads —
+  Dashboards (folder), Views (chart type + folder), Datasets (adapter, connection, tag,
+  kind + folder), Connections (adapter, tag + folder), Jobs (folder), Quick Views
+  (folder).
+  - **The rule changes users feel.** (1) **Pill order is the order you read.** Pills
+    were sorted by their internal KEY, not their label — the Views type facet listed
+    "Map" under c (`choropleth`), and folder strips sorted by raw codepoint, so "Q10"
+    came before "Q2" and "Zoning" before "acreage". One natural, case-insensitive,
+    digit-aware compare now orders every facet by its visible label — the same rule the
+    folder PICKER already used, so the pills and the picker finally agree. (2) **Every
+    folder strip is labelled "Folders"**; Dashboards was the only panel that named its
+    facet, the other five were an unexplained row of chips. (3) **Dashboards gained the
+    Clear chip** — the last catalog panel without one, and the only one with two facets
+    AND a search, i.e. the easiest place to get stranded in a short list. It resets the
+    workbook filter, the folder filter and the search box together, exactly the
+    "Clear means show everything" contract slice 1 gave the other five.
+  - **Consistency that isn't visible but was a latent bug:** stale-pill pruning is now
+    one code path for every axis (multi-select via `prune`, single-select via `pick`),
+    so no panel can drift into keeping a selection whose pill no longer renders, and the
+    `__unfiled` sentinel exists in exactly one place instead of six copies of the same
+    two-branch `if`.
+  - Deliberately NOT in this slice (AUD-06 continues — see NEXT): the two filter-operator
+    vocabularies (DA-output 8 ops vs job-step 7), TIME_RANGE's implement-or-delete
+    decision, the default view mode still differing (Dashboards tiles, others list), and
+    the 11 non-catalog search/filter surfaces outside family D's scope.
+  Docs: the catalog section gains a "Filtering with pills" paragraph beside slice 1's
+  "Searching" one. Tests: 7 new checks — four pinning the kit's own rules (tally of
+  single/array/falsy keys, prune + pick, the three predicates, natural label order) and
+  three driving real panels (Jobs' folder pills in natural order, the "Folders" label,
+  and Dashboards' new Clear chip clearing search + filters). One pre-existing test was
+  hardened rather than weakened along the way (AUD-10's family): LF70's "All" chip lookup
+  read `.wb-chip-label.textContent` off every `.wb-chip` on the page and threw the moment
+  Dashboards gained a label-less Clear chip. **3022 passed, 0 failed.**
 - **AUD-06 ★ slice 1 — one shared catalog SEARCH matcher (v847, sw v479, 2026-08-07,
   steward; AUDIT-2026-08 §2.1 family D, ux):** SORT-1 (v812) proved the shape with
   `Studio.catalogSort`; the audit's headline finding was that the *search + facet* axis
@@ -9027,13 +9068,17 @@
 >   owns the matching rules for all six catalog panels (AND-ed terms across every
 >   field, quoted phrases, one haystack convention), Dashboards' haystack gained
 >   `folder`, and the "Clear" chip counts the search box as a filter and finally
->   exists on Jobs. **Still open, in rough order:**
->   - **Slice 2 — the FACET layer.** Each panel still hand-builds its own count
->     maps + pill markup (`pillsA/pillsC/pillsT/pillsF…`); a shared
->     facet-strip builder (counts → pills → click wiring) is the direct analogue
->     of what slice 1 did for search. Fold in the default-view-mode
->     inconsistency while there (Dashboards defaults to tiles, every other panel
->     to list — pick one).
+>   exists on Jobs. **Slice 2 — the FACET layer — SHIPPED v848, sw v480
+>   (2026-08-07, steward — see DONE):** `Studio.catalogFacets` (tally / prune /
+>   pick / pills / folderStrip / matchMulti / matchOne / clearChip) replaced the
+>   six hand-built count-map + pill-markup blocks; pills now sort by their
+>   visible label (natural, case-insensitive), every folder strip is labelled
+>   "Folders", and Dashboards gained the Clear chip. **Still open, in rough
+>   order:**
+>   - **The default view mode** still differs (Dashboards defaults to tiles,
+>     every other panel to list — pick one). Carried over from slice 2, which
+>     stayed on the facet layer itself; this one is a per-section default, not
+>     shared code, so it is a small independent slice.
 >   - **Slice 3 — one filter-operator vocabulary:** DA output rules use 8 ops
 >     (`=,!=,>,>=,<,<=,contains,startsWith`, `model.js:2956`), the Job "Filter
 >     rows" step uses 7 different ones (`eq/ne/gt/gte/lt/lte/contains`) for the

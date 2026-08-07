@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 848,
+    title: 'Filter pills that behave the same on every page',
+    kind: 'polish',
+    ts: '2026-08-07T08:33:13.000Z',
+    items: [
+      'The filter pills above every catalog list — Dashboards, Views, Datasets, Connections, Jobs and Quick Views — now come from one shared kit instead of six copies that had drifted apart. Same behaviour everywhere, same wording, same order.',
+      'Pills are listed in the order you actually read them: alphabetically by their label, ignoring capitals, and numerically where numbers appear — so "Q2" comes before "Q10", and "acreage" sits with the a\'s instead of below "Zoning". Before, they were sorted by an internal id you never see, which is why the Views type filter listed "Map" under C.',
+      'Every folder strip is now labelled "Folders", so a row of chips explains itself. Only the Dashboards page did that before.',
+      'Dashboards gained the "Clear" chip: it was the last page with both filters and a search and no one-click way back to the full list.',
+      'A filter pill disappears the moment its last item does, on every page — so a filter can no longer keep your list short from a chip you can\'t see any more.',
+    ],
+  },
+  {
     v: 847,
     title: 'Search that finds the thing you were thinking of',
     kind: 'feature',

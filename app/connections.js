@@ -233,42 +233,28 @@
       var listIds = {}; list.forEach(function (c) { listIds[c.id] = true; });
       Object.keys(_connSelected).forEach(function (id) { if (!listIds[id]) delete _connSelected[id]; });
     }
-    // adapter pills: one per adapter present, multi-select (empty selection = all)
-    var counts = {}, tagCounts = {}, folderCounts = {}, folderUnfiled = 0;
-    list.forEach(function (c) {
-      counts[c.adapter] = (counts[c.adapter] || 0) + 1;
-      (c.tags || []).forEach(function (t) { tagCounts[t] = (tagCounts[t] || 0) + 1; });
-      if (c.folder) folderCounts[c.folder] = (folderCounts[c.folder] || 0) + 1; else folderUnfiled++;
-    });
-    Object.keys(_connAdapterFilter).forEach(function (k) { if (!counts[k]) delete _connAdapterFilter[k]; });
-    Object.keys(_connTagFilter).forEach(function (k) { if (!tagCounts[k]) delete _connTagFilter[k]; });
-    if (_connFolderFilter && _connFolderFilter !== "__unfiled" && !folderCounts[_connFolderFilter]) _connFolderFilter = "";
+    // AUD-06 slice 2: the shared facet kit (Studio.catalogFacets). Three axes — adapter and
+    // tags multi-select, folder single-select — declared as "which field", nothing more.
+    var F = Studio.catalogFacets;
+    var connAdapterOf = function (c) { return c.adapter; };
+    var connTagsOf = function (c) { return c.tags || []; };
+    var connFolderOf = function (c) { return c.folder || ""; };
+    var adapterTally = F.tally(list, connAdapterOf),
+      tagTally = F.tally(list, connTagsOf),
+      connFolderTally = F.tally(list, connFolderOf);
+    F.prune(_connAdapterFilter, adapterTally);
+    F.prune(_connTagFilter, tagTally);
+    _connFolderFilter = F.pick(_connFolderFilter, connFolderTally);
     var anyFilter = Object.keys(_connAdapterFilter).length > 0;
     var anyTag = Object.keys(_connTagFilter).length > 0;
     var anyConnFolder = !!_connFolderFilter;
-    var pills = Object.keys(counts).sort().map(function (aid) {
-      var src = Studio.sourceById(aid) || { label: aid };
-      return '<button type="button" class="wb-chip cx-pill' + (_connAdapterFilter[aid] ? " active" : "") + '" data-conn-adapter="' + esc(aid) + '" aria-pressed="' + (_connAdapterFilter[aid] ? "true" : "false") + '">' +
-        '<span class="cx-pill-dot" style="background:' + esc(src.accent || "var(--brand)") + '"></span>' +
-        '<span class="wb-chip-label">' + esc(src.label) + '</span> <span class="wb-chip-n">' + counts[aid] + '</span></button>';
-    }).join("");
-    var pillsT = Object.keys(tagCounts).sort().map(function (t) {
-      return '<button type="button" class="wb-chip cx-pill' + (_connTagFilter[t] ? " active" : "") + '" data-conn-tag="' + esc(t) + '" aria-pressed="' + (_connTagFilter[t] ? "true" : "false") + '">' +
-        '<span class="wb-chip-label">#' + esc(t) + '</span> <span class="wb-chip-n">' + tagCounts[t] + '</span></button>';
-    }).join("");
-    // Folder facet (single-select, mirrors Datasets' pillsF): only appears
-    // once at least one connection has been filed.
-    var pillsFConn = Object.keys(folderCounts).length
-      ? ['<button type="button" class="wb-chip cx-pill' + (!_connFolderFilter ? " active" : "") + '" data-conn-folder="" aria-pressed="' + (!_connFolderFilter ? "true" : "false") + '">' +
-          '<span class="wb-chip-label">All folders</span> <span class="wb-chip-n">' + list.length + '</span></button>']
-        .concat(Object.keys(folderCounts).sort().map(function (f) {
-          return '<button type="button" class="wb-chip cx-pill' + (_connFolderFilter === f ? " active" : "") + '" data-conn-folder="' + esc(f) + '" aria-pressed="' + (_connFolderFilter === f ? "true" : "false") + '">' +
-            '<span class="wb-chip-label">' + esc(f) + '</span> <span class="wb-chip-n">' + folderCounts[f] + '</span></button>';
-        }))
-        .concat(['<button type="button" class="wb-chip cx-pill' + (_connFolderFilter === "__unfiled" ? " active" : "") + '" data-conn-folder="__unfiled" aria-pressed="' + (_connFolderFilter === "__unfiled" ? "true" : "false") + '">' +
-          '<span class="wb-chip-label">Unfiled</span> <span class="wb-chip-n">' + folderUnfiled + '</span></button>'])
-        .join("")
-      : "";
+    var pills = F.pills(adapterTally, _connAdapterFilter, "data-conn-adapter", {
+      label: function (aid) { return (Studio.sourceById(aid) || { label: aid }).label; },
+      dot: function (aid) { return (Studio.sourceById(aid) || {}).accent || "var(--brand)"; }
+    });
+    var pillsT = F.pills(tagTally, _connTagFilter, "data-conn-tag", { label: function (t) { return "#" + t; } });
+    var pillsFConn = F.folderStrip(connFolderTally, _connFolderFilter, "data-conn-folder", list.length,
+      { wrapClass: "cx-filter-strip" });
     var connViews = connLoadViews();
     var pillsV = connViews.map(function (v) {
       return '<div class="wb-chip-wrap">' +
@@ -282,12 +268,11 @@
       ? '<span class="wb-add"><input type="text" id="connViewNameInp" class="wb-name-inp" placeholder="Name this view…" aria-label="Name this saved view"/>' +
         '<button type="button" class="btn" id="connViewAddBtn">+ Save view</button></span>'
       : "";
+    var connAdapterMatch = F.matchMulti(_connAdapterFilter, connAdapterOf),
+      connTagMatch = F.matchMulti(_connTagFilter, connTagsOf),
+      connFolderMatch = F.matchOne(_connFolderFilter, connFolderOf);
     var shown = list.filter(function (c) {
-      if (anyFilter && !_connAdapterFilter[c.adapter]) return false;
-      if (anyTag && !(c.tags || []).some(function (t) { return _connTagFilter[t]; })) return false;
-      if (_connFolderFilter === "__unfiled") { if (c.folder) return false; }
-      else if (_connFolderFilter) { if (c.folder !== _connFolderFilter) return false; }
-      return connMatch(c);
+      return connAdapterMatch(c) && connTagMatch(c) && connFolderMatch(c) && connMatch(c);
     });
     // LF51 (d): list row or tile card, same pattern as Datasets — one build, two
     // wrappers, identical data-conn-* hooks so every handler works in both.
@@ -339,12 +324,12 @@
         'Delete' + (selCount ? ' ' + selCount : '') + '</button></div>'
       : '';
     results.innerHTML =
-      (pillsFConn ? '<div class="wb-chips cx-filter-strip">' + pillsFConn + '</div>' : "") +
+      pillsFConn +
       (pills || pillsT || pillsV || connViewAddHtml ? '<div class="wb-chips cx-pills cx-filter-strip">' +
         pillsV + (pillsV && (pills || pillsT) ? '<span class="dsx-pill-sep"></span>' : "") +
         pills + (pills && pillsT ? '<span class="dsx-pill-sep"></span>' : "") +
         pillsT +
-        ((anyFilter || anyTag || anyConnFolder || q) ? '<button type="button" class="wb-chip" id="connPillClear" title="Show everything">Clear</button>' : "") +
+        F.clearChip("connPillClear", !!(anyFilter || anyTag || anyConnFolder || q)) +
         connViewAddHtml + '</div>' : "") +
       bulkBarHtml +
       (rows.length ? '<div class="' + (isTiles ? "dsx-grid" : "cx-list") + '">' + rows.join("") + '</div>'

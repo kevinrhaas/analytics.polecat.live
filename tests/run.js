@@ -6089,7 +6089,9 @@ function serve() {
       JSON.stringify(lf70Landed));
     const lf70AllChip = await page.evaluate(function () {
       var chips = Array.prototype.slice.call(document.querySelectorAll(".wb-chip"));
-      var allChip = chips.filter(function (c) { return c.querySelector(".wb-chip-label").textContent === "All"; })[0];
+      // AUD-06 slice 2: not every .wb-chip carries a .wb-chip-label — the shared "Clear"
+      // chip is bare text, and Dashboards has one now — so read the label defensively.
+      var allChip = chips.filter(function (c) { return (c.querySelector(".wb-chip-label") || {}).textContent === "All"; })[0];
       allChip.click();
       return document.querySelectorAll("#repoResults [data-recent]").length;
     });
@@ -7762,6 +7764,79 @@ function serve() {
     ok("AUD-06: Datasets' 'Clear' chip appears for a search-only filter and empties the search box",
       dsxSearchClear.shownWhileSearching === 1 && dsxSearchClear.hasClear && dsxSearchClear.q === "",
       JSON.stringify(dsxSearchClear));
+
+    // ── AUD-06 slice 2 (audit §2.1, family D): ONE shared catalog FACET kit ───────────
+    // Studio.catalogFacets is the third and last axis (SORT-1 did sorting, slice 1 search):
+    // tally → prune → pills → predicate, shared by all six catalog panels. These pin the
+    // kit's own rules, then prove a real panel runs them — including the two divergences
+    // the audit called out: pills ordered by internal KEY instead of the readable label,
+    // and only Dashboards labelling its folder strip.
+    const catalogFacetsUnit = await page.evaluate(function () {
+      var F = Studio.catalogFacets;
+      var folderOf = function (r) { return r.folder || ""; };
+      var tagsOf = function (r) { return r.tags || []; };
+      var rows = [{ folder: "Finance" }, { folder: "Finance" }, { folder: "" }, { tags: ["ops", "eu"] }, { tags: ["ops"] }];
+      var folders = F.tally(rows, folderOf), tags = F.tally(rows, tagsOf);
+      var state = { Finance: true, Gone: true };
+      F.prune(state, folders);
+      var multi = F.matchMulti({ ops: true }, tagsOf);
+      return {
+        folderCounts: folders.counts.Finance, folderUnfiled: folders.unfiled,
+        tagCounts: tags.counts.ops + "/" + tags.counts.eu, tagUnfiled: tags.unfiled,
+        pruned: Object.keys(state).join("|"),
+        pickKeepsUnfiled: F.pick("__unfiled", folders), pickKeepsLive: F.pick("Finance", folders),
+        pickDropsGone: F.pick("Gone", folders),
+        multiAny: multi({ tags: ["eu", "ops"] }), multiNone: multi({ tags: ["eu"] }),
+        multiEmptyIsAll: F.matchMulti({}, tagsOf)({ tags: [] }),
+        oneAll: F.matchOne("", folderOf)({ folder: "x" }),
+        oneUnfiled: F.matchOne("__unfiled", folderOf)({ folder: "" }),
+        oneUnfiledRejectsFiled: F.matchOne("__unfiled", folderOf)({ folder: "x" }),
+        // natural + case-insensitive: "Q2" before "Q10", "acreage" before "Zoning"
+        naturalOrder: ["Zoning", "Q10", "acreage", "Q2"].sort(F.cmpLabel).join("|")
+      };
+    });
+    ok("AUD-06 slice 2: Studio.catalogFacets.tally counts one key or an array of keys per row and buckets falsy keys as 'unfiled'",
+      catalogFacetsUnit.folderCounts === 2 && catalogFacetsUnit.folderUnfiled === 3 &&
+      catalogFacetsUnit.tagCounts === "2/1" && catalogFacetsUnit.tagUnfiled === 0, JSON.stringify(catalogFacetsUnit));
+    ok("AUD-06 slice 2: prune() drops a multi-select key whose last row is gone, and pick() keeps ''/__unfiled but drops a vanished folder",
+      catalogFacetsUnit.pruned === "Finance" && catalogFacetsUnit.pickKeepsUnfiled === "__unfiled" &&
+      catalogFacetsUnit.pickKeepsLive === "Finance" && catalogFacetsUnit.pickDropsGone === "",
+      JSON.stringify(catalogFacetsUnit));
+    ok("AUD-06 slice 2: the shared predicates — an empty multi-select means ALL, an array field matches on any selected value, and __unfiled means filed nowhere",
+      catalogFacetsUnit.multiAny && !catalogFacetsUnit.multiNone && catalogFacetsUnit.multiEmptyIsAll &&
+      catalogFacetsUnit.oneAll && catalogFacetsUnit.oneUnfiled && !catalogFacetsUnit.oneUnfiledRejectsFiled,
+      JSON.stringify(catalogFacetsUnit));
+    ok("AUD-06 slice 2: facet pills sort naturally and case-insensitively (Q2 before Q10, acreage before Zoning) instead of by raw codepoint",
+      catalogFacetsUnit.naturalOrder === "acreage|Q2|Q10|Zoning", JSON.stringify(catalogFacetsUnit));
+
+    // The panel-level proof: four folders whose CODEPOINT order ("Q10" < "Q2" < "Zoning" <
+    // "acreage") is not the order a human reads them in. The strip is also labelled now —
+    // Dashboards was the only panel that named its folder facet before this slice.
+    const jobsFacetOrder = await page.evaluate(function (ids) {
+      window.__studioShellSetSection("jobs");
+      var made = ["Zoning", "Q10", "acreage", "Q2"].map(function (f) {
+        return Studio.Workspace.put("jobs", { name: "facet-" + f, sourceDatasetId: ids.dsId, steps: [], folder: f }).id;
+      });
+      window.__studioRenderJobs();
+      var strip = document.querySelector("#jobsResults .cx-folder-chips");
+      var order = [].slice.call(document.querySelectorAll("#jobsResults [data-jobs-folder]"))
+        .map(function (b) { return b.getAttribute("data-jobs-folder"); });
+      return {
+        order: order.join("|"),
+        label: strip ? (strip.querySelector(".cx-facet-label") || {}).textContent : null,
+        made: made
+      };
+    }, jobsFolderSetup);
+    // Codepoint order would be Q10 → Q2 → Zoning → acreage (capitals first, "10" before
+    // "2"); the shared compare reads them the way a person does.
+    ok("AUD-06 slice 2: Jobs' folder pills read All folders → acreage → Q2 → Q10 → Zoning → Unfiled (natural order, not codepoint)",
+      jobsFacetOrder.order === "|acreage|Q2|Q10|Zoning|__unfiled", JSON.stringify(jobsFacetOrder));
+    ok("AUD-06 slice 2: every catalog's folder strip is labelled 'Folders' now, not just Dashboards'",
+      jobsFacetOrder.label === "Folders", JSON.stringify(jobsFacetOrder));
+    await page.evaluate(function (made) {
+      made.forEach(function (id) { Studio.Workspace.remove("jobs", id, { silent: true }); });
+      Studio.Workspace.notify("jobs");
+    }, jobsFacetOrder.made);
 
     await page.evaluate(function (ids) {
       Studio.Workspace.remove("jobs", ids.filedId, { silent: true });
@@ -35307,6 +35382,26 @@ function serve() {
     }, wbDashId);
     ok("LF66/LF59: a filed dashboard's list row shows a folder badge + a move-to-folder button",
       dfRow.badge === "Finance/2026" && dfRow.hasMove, JSON.stringify(dfRow));
+
+    // AUD-06 slice 2: Dashboards was the LAST catalog panel with no "Clear" chip, despite
+    // being the one with two facets AND a search — the easiest place to get stranded in a
+    // narrowed list. Same id convention, same "show everything" contract as the other five.
+    const dashClear = await page.evaluate(function () {
+      var inp = document.getElementById("repoSearch");
+      inp.value = "zzz-nothing-matches-this"; inp.dispatchEvent(new Event("input"));
+      var hasChip = !!document.getElementById("dashPillClear");
+      var narrowed = document.querySelectorAll('#repoResults [data-recent]').length;
+      if (hasChip) document.getElementById("dashPillClear").click();
+      return {
+        hasChip: hasChip, narrowed: narrowed, q: inp.value,
+        restored: document.querySelectorAll('#repoResults [data-recent]').length,
+        chipGone: !document.getElementById("dashPillClear")
+      };
+    });
+    ok("AUD-06 slice 2: Dashboards finally gets the shared 'Clear' chip — it shows while a search narrows the list, empties the search box, restores every dashboard and hides itself",
+      dashClear.hasChip && dashClear.narrowed === 0 && dashClear.q === "" &&
+      dashClear.restored > 0 && dashClear.chipGone, JSON.stringify(dashClear));
+
     // cleanup: unfile the dashboard + restore tile view so later tests see the pre-existing state
     await page.evaluate(function (dashId) {
       var r = Studio.Workspace.get("dashboards", dashId); delete r.folder; Studio.Workspace.put("dashboards", r);

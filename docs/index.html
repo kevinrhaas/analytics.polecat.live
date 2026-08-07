@@ -1543,7 +1543,16 @@
   the title, description, folder and, as a fallback, the column names its charts are bound to (the
   matching column is named right on the card). The <strong>Clear</strong> chip above the list means show
   everything: it drops the facet pills <em>and</em> empties the search box, and it appears whenever
-  either one is narrowing the list.</p>
+  either one is narrowing the list. Every catalog page has one, Dashboards included.</p>
+  <p><strong>Filtering with pills.</strong> Above each list sits a row of filter pills, each showing how many
+  items it covers. The <strong>Folders</strong> strip is single-select — <em>All folders</em>, one pill per
+  folder in use, and <em>Unfiled</em> for everything filed nowhere — and it only appears once something has
+  actually been filed. The other facets are multi-select and narrow within the folder: Datasets by adapter,
+  connection, type or tag; Connections by adapter or tag; Views by chart type; Dashboards by workbook.
+  Picking none of a facet's pills means all of them, so the pills only ever narrow — and pills are listed in
+  the order you read them, alphabetically by their label and numerically where numbers appear (so "Q2" comes
+  before "Q10"). A pill disappears as soon as its last item does, so a filter can never keep narrowing the
+  list from a chip you can no longer see.</p>
   <p><strong>Changed your mind? Undo.</strong> Every Delete — bulk or a single row — shows its toast with an
   <strong>Undo</strong> button for a few seconds, and one click restores everything just removed, under the
   same ids, exactly as it was. That now covers every destructive button in the app, including three that

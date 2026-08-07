@@ -716,25 +716,15 @@
     // M5 folder pilot (analyses): same single-select facet shape as Datasets'/
     // Connections'/Jobs' `_dsxFolderFilter`/`_connFolderFilter`/`_jobsFolderFilter`
     // — only shown once at least one analysis has been filed.
-    var xpFolderCounts = {}, xpFolderUnfiled = 0;
-    analyses.forEach(function (a) { if (a.folder) xpFolderCounts[a.folder] = (xpFolderCounts[a.folder] || 0) + 1; else xpFolderUnfiled++; });
-    if (_xpFolderFilter && _xpFolderFilter !== "__unfiled" && !xpFolderCounts[_xpFolderFilter]) _xpFolderFilter = "";
-    var pillsFXp = Object.keys(xpFolderCounts).length
-      ? ['<button type="button" class="wb-chip cx-pill' + (!_xpFolderFilter ? " active" : "") + '" data-xp-folder="" aria-pressed="' + (!_xpFolderFilter ? "true" : "false") + '">' +
-          '<span class="wb-chip-label">All folders</span> <span class="wb-chip-n">' + analyses.length + '</span></button>']
-        .concat(Object.keys(xpFolderCounts).sort().map(function (f) {
-          return '<button type="button" class="wb-chip cx-pill' + (_xpFolderFilter === f ? " active" : "") + '" data-xp-folder="' + esc(f) + '" aria-pressed="' + (_xpFolderFilter === f ? "true" : "false") + '">' +
-            '<span class="wb-chip-label">' + esc(f) + '</span> <span class="wb-chip-n">' + xpFolderCounts[f] + '</span></button>';
-        }))
-        .concat(['<button type="button" class="wb-chip cx-pill' + (_xpFolderFilter === "__unfiled" ? " active" : "") + '" data-xp-folder="__unfiled" aria-pressed="' + (_xpFolderFilter === "__unfiled" ? "true" : "false") + '">' +
-          '<span class="wb-chip-label">Unfiled</span> <span class="wb-chip-n">' + xpFolderUnfiled + '</span></button>'])
-        .join("")
-      : "";
-    var shownAnalyses = analyses.filter(function (a) {
-      if (_xpFolderFilter === "__unfiled") return !a.folder;
-      if (_xpFolderFilter) return a.folder === _xpFolderFilter;
-      return true;
-    });
+    // AUD-06 slice 2: the shared facet kit (Studio.catalogFacets) owns the tally, the stale
+    // pruning, the pill markup/order and the "__unfiled" rule for every catalog panel.
+    var xpFolderOf = function (a) { return a.folder || ""; };
+    var xpFolderTally = Studio.catalogFacets.tally(analyses, xpFolderOf);
+    var xpFolderCounts = xpFolderTally.counts; // the folder <datalist>/picker below reads these
+
+    _xpFolderFilter = Studio.catalogFacets.pick(_xpFolderFilter, xpFolderTally);
+    var pillsFXp = Studio.catalogFacets.folderStrip(xpFolderTally, _xpFolderFilter, "data-xp-folder", analyses.length);
+    var shownAnalyses = analyses.filter(Studio.catalogFacets.matchOne(_xpFolderFilter, xpFolderOf));
     var savedRows = shownAnalyses.map(function (a) {
       var on = XP.analysisId === a.id;
       var folderBadge = a.folder ? '<span class="cx-badge cx-folder" data-tip="Folder: ' + esc(a.folder) + '">' + esc(a.folder) + '</span>' : "";
@@ -815,7 +805,7 @@
         "</div>" +
         '<div class="xp-list">' + (dsRows || '<div class="xp-none">No datasets yet — connect a data source, or install a sample pack in Settings (pack datasets arrive filed in the pack\'s folder).</div>') + "</div>" +
         '<div class="xp-saved"><div class="xp-saved-h">Saved Views <span class="badge">' + analyses.length + "</span></div>" +
-          (pillsFXp ? '<div class="wb-chips">' + pillsFXp + '</div>' : "") +
+          pillsFXp +
           (savedRows || '<div class="xp-none">' + (_xpFolderFilter ? "No Views in this folder." : "Nothing saved yet.") + '</div>') + "</div>" +
       "</aside>" +
       '<div class="xp-main">' + main + "</div>";

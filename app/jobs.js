@@ -245,24 +245,15 @@
       var listIds = {}; list.forEach(function (j) { listIds[j.id] = true; });
       Object.keys(_jobsSelected).forEach(function (id) { if (!listIds[id]) delete _jobsSelected[id]; });
     }
-    var folderCounts = {}, folderUnfiled = 0;
-    list.forEach(function (j) { if (j.folder) folderCounts[j.folder] = (folderCounts[j.folder] || 0) + 1; else folderUnfiled++; });
-    if (_jobsFolderFilter && _jobsFolderFilter !== "__unfiled" && !folderCounts[_jobsFolderFilter]) _jobsFolderFilter = "";
-    var pillsFJobs = Object.keys(folderCounts).length
-      ? ['<button type="button" class="wb-chip cx-pill' + (!_jobsFolderFilter ? " active" : "") + '" data-jobs-folder="" aria-pressed="' + (!_jobsFolderFilter ? "true" : "false") + '">' +
-          '<span class="wb-chip-label">All folders</span> <span class="wb-chip-n">' + list.length + '</span></button>']
-        .concat(Object.keys(folderCounts).sort().map(function (f) {
-          return '<button type="button" class="wb-chip cx-pill' + (_jobsFolderFilter === f ? " active" : "") + '" data-jobs-folder="' + esc(f) + '" aria-pressed="' + (_jobsFolderFilter === f ? "true" : "false") + '">' +
-            '<span class="wb-chip-label">' + esc(f) + '</span> <span class="wb-chip-n">' + folderCounts[f] + '</span></button>';
-        }))
-        .concat(['<button type="button" class="wb-chip cx-pill' + (_jobsFolderFilter === "__unfiled" ? " active" : "") + '" data-jobs-folder="__unfiled" aria-pressed="' + (_jobsFolderFilter === "__unfiled" ? "true" : "false") + '">' +
-          '<span class="wb-chip-label">Unfiled</span> <span class="wb-chip-n">' + folderUnfiled + '</span></button>'])
-        .join("")
-      : "";
+    // AUD-06 slice 2: the shared facet kit — see Studio.catalogFacets. Jobs' one axis is
+    // the folder, so this section declares the field and nothing else.
+    var F = Studio.catalogFacets;
+    var jobFolderOf = function (j) { return j.folder || ""; };
+    var jobsFolderTally = F.tally(list, jobFolderOf);
+    _jobsFolderFilter = F.pick(_jobsFolderFilter, jobsFolderTally);
+    var jobsFolderMatch = F.matchOne(_jobsFolderFilter, jobFolderOf);
     var shown = list.filter(function (j) {
-      if (_jobsFolderFilter === "__unfiled") { if (j.folder) return false; }
-      else if (_jobsFolderFilter) { if (j.folder !== _jobsFolderFilter) return false; }
-      return jobsMatch(j);
+      return jobsFolderMatch(j) && jobsMatch(j);
     });
     // LF51 (d): list row or tile card, same pattern as Datasets/Connections.
     var isTiles = _jobsViewMode === "tiles";
@@ -319,10 +310,10 @@
     // chip — same markup, same id convention and the same "show everything" meaning as
     // Views/Datasets/Connections, and it appears for a lone search too (the strip renders
     // for it even when this workspace has no folders to show pills for).
-    var jobsClearHtml = (_jobsFolderFilter || q)
-      ? '<button type="button" class="wb-chip" id="jobsPillClear" title="Show everything">Clear</button>' : "";
+    var jobsClearHtml = F.clearChip("jobsPillClear", !!(_jobsFolderFilter || q));
     results.innerHTML =
-      (pillsFJobs || jobsClearHtml ? '<div class="wb-chips cx-filter-strip">' + pillsFJobs + jobsClearHtml + '</div>' : "") +
+      F.folderStrip(jobsFolderTally, _jobsFolderFilter, "data-jobs-folder", list.length,
+        { wrapClass: "cx-filter-strip", extra: jobsClearHtml }) +
       bulkBarHtml +
       (rows.length ? '<div class="' + (isTiles ? "dsx-grid" : "cx-list") + '">' + rows.join("") + '</div>'
       : '<div class="cx-empty"><b>' + (q || _jobsFolderFilter ? "No jobs match." : "No jobs yet.") + '</b><br/>' +

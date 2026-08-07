@@ -151,37 +151,22 @@
       var vwListIds = {}; list.forEach(function (a) { vwListIds[a.id] = true; });
       Object.keys(_vwSelected).forEach(function (id) { if (!vwListIds[id]) delete _vwSelected[id]; });
     }
-    var typeCounts = {}, folderCounts = {}, folderUnfiled = 0;
-    list.forEach(function (a) {
-      var t = a.chartType || "bars";
-      typeCounts[t] = (typeCounts[t] || 0) + 1;
-      if (a.folder) folderCounts[a.folder] = (folderCounts[a.folder] || 0) + 1; else folderUnfiled++;
-    });
-    Object.keys(_vwTypeFilter).forEach(function (k) { if (!typeCounts[k]) delete _vwTypeFilter[k]; });
-    if (_vwFolderFilter && _vwFolderFilter !== "__unfiled" && !folderCounts[_vwFolderFilter]) _vwFolderFilter = "";
+    // AUD-06 slice 2: the shared facet kit (Studio.catalogFacets) — this section declares
+    // only WHICH field each axis reads; tallying, stale-pill pruning, label-ordered pills
+    // and the "__unfiled" rule are now identical in every catalog panel.
+    var F = Studio.catalogFacets;
+    var vwTypeOf = function (a) { return a.chartType || "bars"; };
+    var vwFolderOf = function (a) { return a.folder || ""; };
+    var typeTally = F.tally(list, vwTypeOf), folderTally = F.tally(list, vwFolderOf);
+    F.prune(_vwTypeFilter, typeTally);
+    _vwFolderFilter = F.pick(_vwFolderFilter, folderTally);
     var anyT = Object.keys(_vwTypeFilter).length > 0;
     var anyF = !!_vwFolderFilter;
-    var pillsT = Object.keys(typeCounts).sort().map(function (t) {
-      return '<button type="button" class="wb-chip cx-pill' + (_vwTypeFilter[t] ? " active" : "") + '" data-vw-type="' + esc(t) + '" aria-pressed="' + (_vwTypeFilter[t] ? "true" : "false") + '">' +
-        '<span class="wb-chip-label">' + esc(vwChartLabel(t)) + '</span> <span class="wb-chip-n">' + typeCounts[t] + '</span></button>';
-    }).join("");
-    var pillsF = Object.keys(folderCounts).length
-      ? ['<button type="button" class="wb-chip cx-pill' + (!_vwFolderFilter ? " active" : "") + '" data-vw-folder="" aria-pressed="' + (!_vwFolderFilter ? "true" : "false") + '">' +
-          '<span class="wb-chip-label">All folders</span> <span class="wb-chip-n">' + list.length + '</span></button>']
-        .concat(Object.keys(folderCounts).sort().map(function (f) {
-          return '<button type="button" class="wb-chip cx-pill' + (_vwFolderFilter === f ? " active" : "") + '" data-vw-folder="' + esc(f) + '" aria-pressed="' + (_vwFolderFilter === f ? "true" : "false") + '">' +
-            '<span class="wb-chip-label">' + esc(f) + '</span> <span class="wb-chip-n">' + folderCounts[f] + '</span></button>';
-        }))
-        .concat(['<button type="button" class="wb-chip cx-pill' + (_vwFolderFilter === "__unfiled" ? " active" : "") + '" data-vw-folder="__unfiled" aria-pressed="' + (_vwFolderFilter === "__unfiled" ? "true" : "false") + '">' +
-          '<span class="wb-chip-label">Unfiled</span> <span class="wb-chip-n">' + folderUnfiled + '</span></button>'])
-        .join("")
-      : "";
+    var pillsT = F.pills(typeTally, _vwTypeFilter, "data-vw-type", { label: vwChartLabel });
+    var pillsF = F.folderStrip(folderTally, _vwFolderFilter, "data-vw-folder", list.length, { wrapClass: "cx-filter-strip" });
+    var vwTypeMatch = F.matchMulti(_vwTypeFilter, vwTypeOf), vwFolderMatch = F.matchOne(_vwFolderFilter, vwFolderOf);
     var shown = list.filter(function (a) {
-      var t = a.chartType || "bars";
-      if (anyT && !_vwTypeFilter[t]) return false;
-      if (_vwFolderFilter === "__unfiled") { if (a.folder) return false; }
-      else if (_vwFolderFilter) { if (a.folder !== _vwFolderFilter) return false; }
-      return vwMatch(a);
+      return vwTypeMatch(a) && vwFolderMatch(a) && vwMatch(a);
     });
     var isTiles = _vwViewMode === "tiles";
     var typeById = {};
@@ -245,10 +230,9 @@
       : '';
     // AUD-06 slice 1: the chip counts the search box as a filter, and its strip renders
     // for the chip alone — a search that matches nothing still offers the way back.
-    var vwClearHtml = (anyT || anyF || q)
-      ? '<button type="button" class="wb-chip" id="vwPillClear" title="Show everything">Clear</button>' : "";
+    var vwClearHtml = F.clearChip("vwPillClear", anyT || anyF || !!q);
     results.innerHTML =
-      (pillsF ? '<div class="wb-chips cx-filter-strip">' + pillsF + '</div>' : "") +
+      pillsF +
       (pillsT || vwClearHtml ? '<div class="wb-chips cx-pills cx-filter-strip">' + pillsT + vwClearHtml + '</div>' : "") +
       vwBulkBarHtml +
       (rows.length ? '<div class="' + (isTiles ? "dsx-grid" : "cx-list") + '">' + rows.join("") + '</div>'
