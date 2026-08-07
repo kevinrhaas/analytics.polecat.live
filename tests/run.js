@@ -5535,7 +5535,15 @@ function serve() {
       var dash = Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "conservation"; })[0];
       window.__studioOpenRecent ? window.__studioOpenRecent(dash.id) : null;
     });
-    await page.waitForTimeout(700);
+    // wait for the rendered iframe content itself (county choropleth paths +
+    // the ensemble legend toggle), not a fixed 700ms — under suite load the
+    // preview can take longer and the "before" sample comes back empty
+    await page.waitForFunction(function () {
+      var fr = document.getElementById("preview"), doc = fr && fr.contentDocument;
+      if (!doc || !doc.querySelector("[data-ens-toggle]")) return false;
+      var panel = Array.prototype.filter.call(doc.querySelectorAll("[data-panel-id]"), function (p) { return p.getAttribute("data-panel-id") === "p_county"; })[0];
+      return !!(panel && panel.querySelectorAll("svg path").length);
+    }, { timeout: 15000 });
     const lf7Before = await page.evaluate(function () {
       var fr = document.getElementById("preview"), doc = fr && fr.contentDocument;
       var panel = doc && Array.prototype.filter.call(doc.querySelectorAll("[data-panel-id]"), function (p) { return p.getAttribute("data-panel-id") === "p_county"; })[0];
