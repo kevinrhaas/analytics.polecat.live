@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <DataAccess id="kpi" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>KPI</Name><Parameters><Parameter name="ds" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT (SELECT count(DISTINCT f.application_key) FROM fact_entity_application f
+                JOIN dim_datasource dd ON f.datasource_key=dd.datasource_key
+                WHERE COALESCE(dd.datasource_type,'') LIKE ${ds}) AS apps,
+             (SELECT count(DISTINCT f.glossary_term_key) FROM fact_entity_term f
+                JOIN dim_entity e ON f.entity_key=e.entity_key
+                LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key
+                WHERE COALESCE(dd.datasource_type,'') LIKE ${ds}) AS terms,
+             (SELECT count(DISTINCT f.policy_key) FROM fact_entity_policy f
+                JOIN dim_entity e ON f.entity_key=e.entity_key
+                LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key
+                WHERE COALESCE(dd.datasource_type,'') LIKE ${ds}) AS policies,
+             round(100.0*(SELECT count(DISTINCT f.entity_key) FROM fact_entity_term f
+                JOIN dim_entity e ON f.entity_key=e.entity_key
+                LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key
+                WHERE COALESCE(dd.datasource_type,'') LIKE ${ds})
+              /NULLIF((SELECT SUM(s.entity_count) FROM fact_entity_snapshot s
+                JOIN dim_datasource dd ON s.datasource_key=dd.datasource_key
+                WHERE COALESCE(dd.datasource_type,'') LIKE ${ds}),0),1) AS classified_pct
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="coverage" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>Coverage</Name><Parameters><Parameter name="ds" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT 'Classified (terms)' AS dim, count(DISTINCT f.entity_key) AS assets
+        FROM fact_entity_term f JOIN dim_entity e ON f.entity_key=e.entity_key
+        LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key WHERE COALESCE(dd.datasource_type,'') LIKE ${ds}
+      UNION ALL SELECT 'Policy-Governed', count(DISTINCT f.entity_key)
+        FROM fact_entity_policy f JOIN dim_entity e ON f.entity_key=e.entity_key
+        LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key WHERE COALESCE(dd.datasource_type,'') LIKE ${ds}
+      UNION ALL SELECT 'App-Accessed', count(DISTINCT f.entity_key)
+        FROM fact_entity_application f JOIN dim_datasource dd ON f.datasource_key=dd.datasource_key WHERE COALESCE(dd.datasource_type,'') LIKE ${ds}
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="top_apps" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>TopApps</Name><Parameters><Parameter name="ds" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT a.application_name AS app, SUM(f.access_count) AS acc
+      FROM fact_entity_application f
+      JOIN dim_application a ON f.application_key=a.application_key
+      JOIN dim_datasource dd ON f.datasource_key=dd.datasource_key
+      WHERE COALESCE(dd.datasource_type,'') LIKE ${ds} GROUP BY 1 ORDER BY 2 DESC LIMIT 12
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="top_policies" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>TopPolicies</Name><Parameters><Parameter name="ds" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT p.policy_name AS pol, SUM(f.assignment_count) AS assigns
+      FROM fact_entity_policy f JOIN dim_policy p ON f.policy_key=p.policy_key
+      JOIN dim_entity e ON f.entity_key=e.entity_key
+      LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key
+      WHERE COALESCE(dd.datasource_type,'') LIKE ${ds} GROUP BY 1 ORDER BY 2 DESC LIMIT 12
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="by_source" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>BySource</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(dd.datasource_type,''),'Unknown') AS src, count(DISTINCT f.entity_key) AS classified
+      FROM fact_entity_term f JOIN dim_entity e ON f.entity_key=e.entity_key
+      LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="datasources" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>DataSources</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT '%' AS v, 'All sources' AS l, 0 AS ord
+      UNION ALL
+      SELECT DISTINCT datasource_type AS v, datasource_type AS l, 1 AS ord
+        FROM dim_datasource WHERE datasource_type IS NOT NULL AND datasource_type<>''
+      ORDER BY ord, l
+    ]]></Query>
+  </DataAccess>
+  <DataAccess id="app_src_chord" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180">
+    <Name>AppSrcChord</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT a.application_name AS app,
+             COALESCE(NULLIF(dd.datasource_type,''),'Unknown') AS src,
+             SUM(f.access_count) AS accesses
+        FROM fact_entity_application f
+        JOIN dim_application a ON f.application_key=a.application_key
+        JOIN dim_datasource dd ON f.datasource_key=dd.datasource_key
+       GROUP BY 1,2 ORDER BY 3 DESC LIMIT 80
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

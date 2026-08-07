@@ -1,0 +1,365 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<reportRecord xmlns="http://www.pentaho.com">
+    <commonStorageAttributes createdBy="admin" updatedBy="admin" created="2026-02-10T16:18:22.425Z" update="2026-03-19T19:36:30.695Z">
+        <path name="00-temperature-data-source" folder="/public/pdc-analysis/analyzer/00-temperature-data-source.xanalyzer"/>
+    </commonStorageAttributes>
+    <report catalog="PDC" cube="01. Data Asset Analysis" reportTypeEnum="JSON" showRowGrandTotal="false" showColumnGrandTotal="false" showSubTotals="true" totalsOnTopLeft="false" useNonVisualTotals="false" showEmptyCells="false" showEmptyEnum="SHOW_MEASURE" emptyCellDisplay="-" showDrillLinks="false" version="15" autoRefresh="true" freezeColumns="true" freezeRows="true">
+        <measures>
+            <measure formula="[Measures].[Term - Size Bytes]" showSum="true" showAggregate="false" showAverage="false" showCount="false" showMax="false" showMin="false" hideInChart="false" measureTypeEnum="PCTOF" sortOrderEnum="NONE" id="[MEASURE:0]" gembarId="measures" gembarOrdinal="0">
+                <displayLabels>
+                    <displayLabel locale="" label="% of Term - Size Bytes" labelPlural=""/>
+                </displayLabels>
+                <summaryFacet summaryAcrossEnum="ROWS" useNonVisualTotals="false"/>
+                <numberFormat formatCategory="Percentage (%)" formatScale="2" formatShortcut="NONE" currencySymbol="$" measureDisplayUnits="UNITS_0">
+                    <formatExpression></formatExpression>
+                </numberFormat>
+            </measure>
+        </measures>
+        <columnAttributes>
+            <attribute formula="[Data Source].[Data Source Type]" showSubtotal="false" sortOrderEnum="ASC" wordWrap="false" gembarId="rows" gembarOrdinal="0"/>
+        </columnAttributes>
+        <rowAttributes>
+            <attribute formula="[Business Glossary].[Level 2]" showSubtotal="false" sortOrderEnum="ASC" wordWrap="false" gembarId="columns" gembarOrdinal="0"/>
+        </rowAttributes>
+        <filters defaultFiltersAvailable="false">
+            <filter formula="[Business Glossary].[Glossary]" viewFilterEnum="MULTIPLE" isDefaultFilter="false" isDefaultMetricFilter="false">
+                <predicates>
+                    <predicate ordinal="1" operatorEnum="EQUAL">
+                        <member formula="[Business Glossary].[Data Temperature]" caption="Data Temperature" pos="0"/>
+                    </predicate>
+                </predicates>
+            </filter>
+            <filter formula="[Data Source].[Data Source Type]" viewFilterEnum="MULTIPLE" isDefaultFilter="false" isDefaultMetricFilter="false">
+                <predicates>
+                    <predicate ordinal="1" operatorEnum="EQUAL" parameterName="PARM_DST">
+                        <member formula="[Data Source].[AWS]" caption="AWS" pos="0"/>
+                        <member formula="[Data Source].[AZURE_BLOB_STORAGE]" caption="AZURE_BLOB_STORAGE" pos="0"/>
+                        <member formula="[Data Source].[BIGQUERY]" caption="BIGQUERY" pos="0"/>
+                        <member formula="[Data Source].[MSSQL]" caption="MSSQL" pos="0"/>
+                        <member formula="[Data Source].[ORACLE]" caption="ORACLE" pos="0"/>
+                        <member formula="[Data Source].[POSTGRES]" caption="POSTGRES" pos="0"/>
+                        <member formula="[Data Source].[SNOWFLAKE]" caption="SNOWFLAKE" pos="0"/>
+                    </predicate>
+                </predicates>
+            </filter>
+            <filter formula="[Resource Type].[Resource Type]" viewFilterEnum="MULTIPLE" isDefaultFilter="false" isDefaultMetricFilter="false">
+                <predicates>
+                    <predicate ordinal="1" operatorEnum="EQUAL" parameterName="PARM_RT">
+                        <member formula="[Resource Type].[Structured]" caption="Structured" pos="0"/>
+                        <member formula="[Resource Type].[Unstructured]" caption="Unstructured" pos="0"/>
+                    </predicate>
+                </predicates>
+            </filter>
+            <filter formula="[File Type].[File Type]" viewFilterEnum="MULTIPLE" isDefaultFilter="false" isDefaultMetricFilter="false">
+                <predicates>
+                    <predicate ordinal="1" operatorEnum="EQUAL" parameterName="PARM_FT">
+                        <member formula="[File Type].[DS_Store]" caption="DS_Store" pos="0"/>
+                        <member formula="[File Type].[Dir]" caption="Dir" pos="0"/>
+                        <member formula="[File Type].[#null]" caption="Not Available" pos="0"/>
+                        <member formula="[File Type].[c]" caption="c" pos="0"/>
+                        <member formula="[File Type].[csv]" caption="csv" pos="0"/>
+                        <member formula="[File Type].[cvs]" caption="cvs" pos="0"/>
+                        <member formula="[File Type].[dir]" caption="dir" pos="0"/>
+                        <member formula="[File Type].[docx]" caption="docx" pos="0"/>
+                        <member formula="[File Type].[hl7]" caption="hl7" pos="0"/>
+                        <member formula="[File Type].[html]" caption="html" pos="0"/>
+                        <member formula="[File Type].[jar]" caption="jar" pos="0"/>
+                        <member formula="[File Type].[jpg]" caption="jpg" pos="0"/>
+                        <member formula="[File Type].[json]" caption="json" pos="0"/>
+                        <member formula="[File Type].[ktr]" caption="ktr" pos="0"/>
+                        <member formula="[File Type].[null]" caption="null" pos="0"/>
+                        <member formula="[File Type].[parquet]" caption="parquet" pos="0"/>
+                        <member formula="[File Type].[pdf]" caption="pdf" pos="0"/>
+                        <member formula="[File Type].[png]" caption="png" pos="0"/>
+                        <member formula="[File Type].[pptx]" caption="pptx" pos="0"/>
+                        <member formula="[File Type].[py]" caption="py" pos="0"/>
+                        <member formula="[File Type].[qvd]" caption="qvd" pos="0"/>
+                        <member formula="[File Type].[txt]" caption="txt" pos="0"/>
+                        <member formula="[File Type].[vnd.openxmlformats-officedocument.wordprocessingml.document]" caption="vnd.openxmlformats-officedocument.wordprocessingml.document" pos="0"/>
+                        <member formula="[File Type].[wav]" caption="wav" pos="0"/>
+                        <member formula="[File Type].[xlsx]" caption="xlsx" pos="0"/>
+                        <member formula="[File Type].[xml]" caption="xml" pos="0"/>
+                    </predicate>
+                </predicates>
+            </filter>
+            <filter formula="[Modified Date].[Modified Year-Month]" viewFilterEnum="MULTIPLE" isDefaultFilter="false" isDefaultMetricFilter="false">
+                <predicates>
+                    <predicate ordinal="1" operatorEnum="EQUAL" parameterName="PARM_MYM">
+                        <member formula="[Modified Date].[1900].[1900-Jan]" caption="1900-Jan" pos="0"/>
+                        <member formula="[Modified Date].[2023].[2023-Apr]" caption="2023-Apr" pos="0"/>
+                        <member formula="[Modified Date].[2023].[2023-Aug]" caption="2023-Aug" pos="0"/>
+                        <member formula="[Modified Date].[2023].[2023-Dec]" caption="2023-Dec" pos="0"/>
+                        <member formula="[Modified Date].[2023].[2023-Feb]" caption="2023-Feb" pos="0"/>
+                        <member formula="[Modified Date].[2023].[2023-Jul]" caption="2023-Jul" pos="0"/>
+                        <member formula="[Modified Date].[2023].[2023-Jun]" caption="2023-Jun" pos="0"/>
+                        <member formula="[Modified Date].[2023].[2023-Mar]" caption="2023-Mar" pos="0"/>
+                        <member formula="[Modified Date].[2023].[2023-May]" caption="2023-May" pos="0"/>
+                        <member formula="[Modified Date].[2023].[2023-Nov]" caption="2023-Nov" pos="0"/>
+                        <member formula="[Modified Date].[2023].[2023-Oct]" caption="2023-Oct" pos="0"/>
+                        <member formula="[Modified Date].[2023].[2023-Sep]" caption="2023-Sep" pos="0"/>
+                        <member formula="[Modified Date].[2024].[2024-Apr]" caption="2024-Apr" pos="0"/>
+                        <member formula="[Modified Date].[2024].[2024-Aug]" caption="2024-Aug" pos="0"/>
+                        <member formula="[Modified Date].[2024].[2024-Dec]" caption="2024-Dec" pos="0"/>
+                        <member formula="[Modified Date].[2024].[2024-Feb]" caption="2024-Feb" pos="0"/>
+                        <member formula="[Modified Date].[2024].[2024-Jan]" caption="2024-Jan" pos="0"/>
+                        <member formula="[Modified Date].[2024].[2024-Jul]" caption="2024-Jul" pos="0"/>
+                        <member formula="[Modified Date].[2024].[2024-Jun]" caption="2024-Jun" pos="0"/>
+                        <member formula="[Modified Date].[2024].[2024-Mar]" caption="2024-Mar" pos="0"/>
+                        <member formula="[Modified Date].[2024].[2024-May]" caption="2024-May" pos="0"/>
+                        <member formula="[Modified Date].[2024].[2024-Nov]" caption="2024-Nov" pos="0"/>
+                        <member formula="[Modified Date].[2024].[2024-Oct]" caption="2024-Oct" pos="0"/>
+                        <member formula="[Modified Date].[2024].[2024-Sep]" caption="2024-Sep" pos="0"/>
+                        <member formula="[Modified Date].[2025].[2025-Apr]" caption="2025-Apr" pos="0"/>
+                        <member formula="[Modified Date].[2025].[2025-Aug]" caption="2025-Aug" pos="0"/>
+                        <member formula="[Modified Date].[2025].[2025-Dec]" caption="2025-Dec" pos="0"/>
+                        <member formula="[Modified Date].[2025].[2025-Feb]" caption="2025-Feb" pos="0"/>
+                        <member formula="[Modified Date].[2025].[2025-Jan]" caption="2025-Jan" pos="0"/>
+                        <member formula="[Modified Date].[2025].[2025-Jul]" caption="2025-Jul" pos="0"/>
+                        <member formula="[Modified Date].[2025].[2025-Jun]" caption="2025-Jun" pos="0"/>
+                        <member formula="[Modified Date].[2025].[2025-Mar]" caption="2025-Mar" pos="0"/>
+                        <member formula="[Modified Date].[2025].[2025-May]" caption="2025-May" pos="0"/>
+                        <member formula="[Modified Date].[2025].[2025-Nov]" caption="2025-Nov" pos="0"/>
+                        <member formula="[Modified Date].[2025].[2025-Oct]" caption="2025-Oct" pos="0"/>
+                        <member formula="[Modified Date].[2025].[2025-Sep]" caption="2025-Sep" pos="0"/>
+                        <member formula="[Modified Date].[2026].[2026-Feb]" caption="2026-Feb" pos="0"/>
+                        <member formula="[Modified Date].[2026].[2026-Jan]" caption="2026-Jan" pos="0"/>
+                        <member formula="[Modified Date].[2026].[2026-Mar]" caption="2026-Mar" pos="0"/>
+                    </predicate>
+                </predicates>
+            </filter>
+            <filter formula="[Scanned Date].[Scanned Year-Month]" viewFilterEnum="MULTIPLE" isDefaultFilter="false" isDefaultMetricFilter="false">
+                <predicates>
+                    <predicate ordinal="1" operatorEnum="EQUAL" parameterName="PARM_SYM">
+                        <member formula="[Scanned Date].[1900].[1900-Jan]" caption="1900-Jan" pos="0"/>
+                        <member formula="[Scanned Date].[2023].[2023-Apr]" caption="2023-Apr" pos="0"/>
+                        <member formula="[Scanned Date].[2023].[2023-Aug]" caption="2023-Aug" pos="0"/>
+                        <member formula="[Scanned Date].[2023].[2023-Dec]" caption="2023-Dec" pos="0"/>
+                        <member formula="[Scanned Date].[2023].[2023-Feb]" caption="2023-Feb" pos="0"/>
+                        <member formula="[Scanned Date].[2023].[2023-Jul]" caption="2023-Jul" pos="0"/>
+                        <member formula="[Scanned Date].[2023].[2023-Jun]" caption="2023-Jun" pos="0"/>
+                        <member formula="[Scanned Date].[2023].[2023-Mar]" caption="2023-Mar" pos="0"/>
+                        <member formula="[Scanned Date].[2023].[2023-May]" caption="2023-May" pos="0"/>
+                        <member formula="[Scanned Date].[2023].[2023-Nov]" caption="2023-Nov" pos="0"/>
+                        <member formula="[Scanned Date].[2023].[2023-Oct]" caption="2023-Oct" pos="0"/>
+                        <member formula="[Scanned Date].[2023].[2023-Sep]" caption="2023-Sep" pos="0"/>
+                        <member formula="[Scanned Date].[2024].[2024-Apr]" caption="2024-Apr" pos="0"/>
+                        <member formula="[Scanned Date].[2024].[2024-Aug]" caption="2024-Aug" pos="0"/>
+                        <member formula="[Scanned Date].[2024].[2024-Dec]" caption="2024-Dec" pos="0"/>
+                        <member formula="[Scanned Date].[2024].[2024-Feb]" caption="2024-Feb" pos="0"/>
+                        <member formula="[Scanned Date].[2024].[2024-Jan]" caption="2024-Jan" pos="0"/>
+                        <member formula="[Scanned Date].[2024].[2024-Jul]" caption="2024-Jul" pos="0"/>
+                        <member formula="[Scanned Date].[2024].[2024-Jun]" caption="2024-Jun" pos="0"/>
+                        <member formula="[Scanned Date].[2024].[2024-Mar]" caption="2024-Mar" pos="0"/>
+                        <member formula="[Scanned Date].[2024].[2024-May]" caption="2024-May" pos="0"/>
+                        <member formula="[Scanned Date].[2024].[2024-Nov]" caption="2024-Nov" pos="0"/>
+                        <member formula="[Scanned Date].[2024].[2024-Oct]" caption="2024-Oct" pos="0"/>
+                        <member formula="[Scanned Date].[2024].[2024-Sep]" caption="2024-Sep" pos="0"/>
+                        <member formula="[Scanned Date].[2025].[2025-Apr]" caption="2025-Apr" pos="0"/>
+                        <member formula="[Scanned Date].[2025].[2025-Aug]" caption="2025-Aug" pos="0"/>
+                        <member formula="[Scanned Date].[2025].[2025-Dec]" caption="2025-Dec" pos="0"/>
+                        <member formula="[Scanned Date].[2025].[2025-Feb]" caption="2025-Feb" pos="0"/>
+                        <member formula="[Scanned Date].[2025].[2025-Jan]" caption="2025-Jan" pos="0"/>
+                        <member formula="[Scanned Date].[2025].[2025-Jul]" caption="2025-Jul" pos="0"/>
+                        <member formula="[Scanned Date].[2025].[2025-Jun]" caption="2025-Jun" pos="0"/>
+                        <member formula="[Scanned Date].[2025].[2025-Mar]" caption="2025-Mar" pos="0"/>
+                        <member formula="[Scanned Date].[2025].[2025-May]" caption="2025-May" pos="0"/>
+                        <member formula="[Scanned Date].[2025].[2025-Nov]" caption="2025-Nov" pos="0"/>
+                        <member formula="[Scanned Date].[2025].[2025-Oct]" caption="2025-Oct" pos="0"/>
+                        <member formula="[Scanned Date].[2025].[2025-Sep]" caption="2025-Sep" pos="0"/>
+                        <member formula="[Scanned Date].[2026].[2026-Feb]" caption="2026-Feb" pos="0"/>
+                        <member formula="[Scanned Date].[2026].[2026-Jan]" caption="2026-Jan" pos="0"/>
+                        <member formula="[Scanned Date].[2026].[2026-Mar]" caption="2026-Mar" pos="0"/>
+                    </predicate>
+                </predicates>
+            </filter>
+        </filters>
+        <chartOptions vizApiVersion="3.0" chartType="CUSTOM" customChartType="pentaho/visual/models/BarNormalized" showMultiChart="false" legendPosition="TOP" showLegend="true" autoRange="true" displayUnits="UNITS_0" autoRangeSecondary="true" displayUnitsSecondary="UNITS_0" lineWidth="2" lineShape="CIRCLE" maxValues="100" backgroundColor="#ffffff" labelColor="#000000" labelSize="12" backgroundFill="NONE" maxChartsPerRow="3" multiChartMax="50" multiChartRangeScope="GLOBAL" emptyCellMode="GAP" sizeByNegativesMode="NEG_LOWEST" backgroundColorEnd="#ffffff" labelStyle="PLAIN" legendBackgroundColor="#ffffff" legendSize="12" legendColor="#000000" legendStyle="PLAIN" labelFontFamily="Default" legendFontFamily="Default" scatterReverseColors="false"/>
+        <selectionFilters/>
+        <selectionItems/>
+        <pageSetup excelPageSize="LETTER" pdfPageSize="LETTER" excelOrientation="LANDSCAPE" pdfOrientation="LANDSCAPE" excelScalingType="PERCENT" excelScalingPercent="100" excelScalingPageWide="1" excelScalingPageTall="1" excelMergePivotCells="true" csvIncludeSubtotals="true" csvFormatNumbers="true"/>
+        <drillColumns>
+            <drillColumn>[Name].[Name]</drillColumn>
+            <drillColumn>[Resource Type].[Resource Type]</drillColumn>
+            <drillColumn>[Data Source].[Data Source Type]</drillColumn>
+            <drillColumn>[Data Source].[Data Source]</drillColumn>
+            <drillColumn>[FQDN].[FQDN]</drillColumn>
+            <drillColumn>[Measures].[Entity Count]</drillColumn>
+            <drillColumn>[Measures].[Storage - Size Bytes]</drillColumn>
+            <drillColumn>[Measures].[Distinct Entities]</drillColumn>
+            <drillColumn>[Measures].[Distinct Terms]</drillColumn>
+            <drillColumn>[Measures].[Term - Size Bytes]</drillColumn>
+        </drillColumns>
+    </report>
+    <uiAttributes showFieldList="true" showFieldLayout="true" showFilterPanel="true" fieldListView="CMDVIEWCATEGORY">
+        <rowFieldWidths actualWidths="110,80"/>
+        <columnDataFieldWidths actualWidths="120,120">
+            <labelWidth index="0">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="1">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="2">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="3">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="4">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="5">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="6">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="7">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="8">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="9">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="10">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="11">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="12">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="13">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="14">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="15">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="16">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="17">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="18">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="19">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="20">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="21">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="22">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="23">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="24">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="25">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="26">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="27">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="28">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="29">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="30">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="31">
+                <width>0</width>
+            </labelWidth>
+        </columnDataFieldWidths>
+        <pluginData>[{"labelsOption":"center"}]</pluginData>
+        <pluginViewData>[
+  {
+    "select": {
+      "module": [
+        "pentaho/ccc/visual/Pie",
+        "pentaho/ccc/visual/Bar",
+        "pentaho/ccc/visual/BarStacked",
+        "pentaho/ccc/visual/BarNormalized",
+        "pentaho/ccc/visual/BarHorizontal",
+        "pentaho/ccc/visual/BarStackedHorizontal",
+        "pentaho/ccc/visual/BarNormalizedHorizontal",
+        "pentaho/ccc/visual/Line",
+        "pentaho/ccc/visual/AreaStacked",
+        "pentaho/ccc/visual/BarLine",
+        "pentaho/ccc/visual/HeatGrid",
+        "pentaho/ccc/visual/Bubble",
+        "pentaho/ccc/visual/Scatter",
+        "pentaho/ccc/visual/Sunburst"
+      ]
+    },
+    "apply": {
+      "extension": {
+        "animate": true,
+        "hoverable": true,
+        "selectable": true,
+        "colors": [
+          "#79B6C8",
+          "#F1C38E",
+          "#E07A5F",
+          "#99d98c",
+          "#b5e48c",
+          "#d9ed92",
+          "#168aad",
+          "#1a759f",
+          "#1e6091",
+          "#184e77"
+        ]
+      }
+    }
+  },
+  {
+    "select": {
+      "module": "pentaho/ccc/visual/Pie",
+      "application": "pentaho/dashboardDesigner"
+    },
+    "apply": {
+      "extension": {
+        "animate": true,
+        "hoverable": true,
+        "selectable": true,
+        "tooltipOpacity": "0.7",
+        "slice_innerRadiusEx": "15%",
+        "explodedSliceIndex": "7",
+        "explodedSliceRadius": "5%",
+        "colors": [
+          "#34a0a4",
+          "#52b69a",
+          "#76c893",
+          "#99d98c",
+          "#b5e48c",
+          "#d9ed92",
+          "#168aad",
+          "#1a759f",
+          "#1e6091",
+          "#184e77"
+        ]
+      }
+    }
+  }
+]</pluginViewData>
+    </uiAttributes>
+</reportRecord>

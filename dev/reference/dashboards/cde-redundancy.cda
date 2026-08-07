@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <DataAccess id="dupsBySource" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>DupsBySource</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT datasource_type AS src, count(*) FILTER (WHERE is_duplicate) AS dups
+      FROM entity_storage_demo GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="reclaimBySens" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>ReclaimBySens</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT sensitivity AS sens, ROUND(SUM(dup_savings_bytes)/1e12::numeric,2) AS tb
+      FROM entity_storage_demo WHERE is_duplicate GROUP BY 1 HAVING SUM(dup_savings_bytes)>0 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="savingsBySource" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>SavingsBySource</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT datasource_type AS src, ROUND(SUM(dup_savings_bytes)/1e12::numeric,2) AS tb
+      FROM entity_storage_demo GROUP BY 1 HAVING SUM(dup_savings_bytes)>0 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

@@ -22,13 +22,22 @@ else if (p.paused === true) { due = false; why += " · paused"; }
 else {
   const every = Math.max(1, Number(p.everyHours) || 24);
   const offset = ((Number(p.offset) || 0) % 24 + 24) % 24;
+  // CATCH-UP (2026-08-07): the firing hour is a RANGE, not one exact hour.
+  // GitHub delays scheduled runs routinely — the 07:37Z tick that was meant to
+  // catch hour 7 executed at 08:01Z, `hour` read 8, the equality test failed,
+  // and the whole nightly promotion was silently skipped (dev ran 15 versions
+  // ahead of stage overnight). Firing across the next `catchUpHours` hours
+  // absorbs that delay; the caller's "is there anything to promote?" check
+  // keeps the extra ticks from re-promoting what is already staged.
+  const catchUp = Math.max(1, Math.min(every, Number(p.catchUpHours) || 4));
   const [start = 0, end = 24] = Array.isArray(p.window) ? p.window : [];
+  const sinceFiring = ((hour - offset) % every + every) % every;
   if (hour < start || hour >= end) { due = false; why += ` · outside window [${start},${end})`; }
-  else if (((hour - offset) % every + every) % every !== 0) {
+  else if (sinceFiring >= catchUp) {
     due = false;
-    why += ` · not a firing hour (every ${every}h from ${offset}Z)`;
+    why += ` · not a firing hour (every ${every}h from ${offset}Z, +${catchUp}h catch-up)`;
   } else {
-    why += ` · due (every ${every}h from ${offset}Z, window [${start},${end}))`;
+    why += ` · due (every ${every}h from ${offset}Z, +${catchUp}h catch-up, window [${start},${end}))`;
   }
 }
 

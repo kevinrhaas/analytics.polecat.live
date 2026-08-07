@@ -42,7 +42,6 @@ html[data-reduce-motion="1"] #app{transition:none}
 </style>
 <link rel="stylesheet" href="vendor/polecat-shell/tokens.css"/>
 <link rel="stylesheet" href="app/studio.css"/>
-<script src="app/gate-config.js"></script>
 <script src="app/workspaces.js"></script>
 <script src="app/auth.js"></script>
 <script src="app/gate.js"></script>
@@ -165,6 +164,11 @@ html[data-reduce-motion="1"] #app{transition:none}
                (Tour = Settings → Take the tour + ⌘K palette; Theme = the topbar
                #tbTheme toggle), so What's new no longer needs its own group label. -->
           <button id="moreWhatsNew" class="more-phone-only">What's new</button>
+          <!-- TOPBAR-TITLE (UX sweep 2026-08-01 #2): #tbFeedback now hides at ≤640px so the
+               section name has room to read, so Send feedback needs the same always-reachable
+               ⋯More home What's new already has. Both open the very same modal as the topbar
+               button — one wiring, in app/studio.js. -->
+          <button id="moreFeedback" class="more-phone-only">Send feedback</button>
           <div class="sep"></div>
           <div class="grp">Present</div>
           <!-- LF46 (⋯ teardown): Demo mode (the stakeholder-demo live-feed simulation) is no longer
@@ -536,7 +540,10 @@ html[data-reduce-motion="1"] #app{transition:none}
 <script src="app/tooltip.js"></script>
 <script src="app/welcome.js"></script>
 <script src="app/tutorial.js"></script>
-<script type="module" src="js/changelog.js"></script>
+<!-- AUD-08: boot loads only the generated head (a few hundred bytes: latest version +
+     newest entry). The full ~680KB js/changelog.js is fetched on demand by
+     Studio.loadChangelog() when the What's-new feed is first opened or hovered. -->
+<script src="js/changelog-head.js"></script>
 <script type="module" src="app/fleet.js"></script>
 <script src="app/shell.js"></script>
 <script src="app/chart-thumbnails.js"></script>

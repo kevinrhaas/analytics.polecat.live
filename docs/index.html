@@ -24,6 +24,12 @@
       window.addEventListener("message", function (ev) {
         var t = ev && ev.data && ev.data.studioDocsTheme;
         if (!t) return;
+        // AUD-05: same-origin embedder only (the app's Help iframe). Help is a
+        // plain page anyone may frame, so an unchecked sender could otherwise
+        // repaint it out from under the reader.
+        var mo = (window.location && window.location.origin) || "";
+        if (ev.origin !== mo) return;
+        if (!(ev.source === window.parent || ev.source === window)) return;
         if (t.theme === "dark") document.documentElement.setAttribute("data-theme", "dark");
         else document.documentElement.removeAttribute("data-theme");
         if (t.appTheme) document.documentElement.setAttribute("data-app-theme", t.appTheme);
@@ -319,7 +325,9 @@
       </ul></li>
     <li><strong>Manage</strong> — <strong>Jobs</strong>, <strong>Admin</strong> (admin accounts only:
       who can sign in, and whether they're an admin, developer, or viewer — each role a superset of
-      the one below), and the <strong>workspace-backend indicator</strong>:
+      the one below; its <strong>Section access</strong> card turns any of the other rail sections off
+      for the viewer role, and Home and Settings always stay — Settings is where a viewer signs out),
+      and the <strong>workspace-backend indicator</strong>:
       <ul>
         <li><em>Local</em> — your workspace lives only in this browser</li>
         <li><em>Connected</em> — every change mirrors to your backend automatically</li>
@@ -432,8 +440,9 @@
   <strong>Select all</strong> / <strong>Clear</strong>, a <strong>Move to folder…</strong> button that
   files every selected dashboard in one go (the same folder browser the per-row folder button opens —
   pick a folder, create a nested one inline, or choose "No folder" to un-file them), and a
-  <strong>Delete</strong> button that removes every selected dashboard after a confirmation (this can't
-  be undone). Sample-pack dashboards can be selected and deleted individually like any other — removing
+  <strong>Delete</strong> button that removes every selected dashboard after a confirmation (the toast
+  that follows carries an <strong>Undo</strong> button for a few seconds). Sample-pack dashboards can be
+  selected and deleted individually like any other — removing
   one just drops it from your workspace; remove and re-add the sample pack in Settings to restore the
   full set. Click Select again (now labeled Cancel) to leave select mode.</p>
 
@@ -738,6 +747,10 @@
   tables only appear in the dataset pickers while the pack is installed — an uninstalled pack leaves
   no trace. Like the built-in catalog, sample packs live under the same <strong>Sample content</strong>
   switch in Settings — turn that off and both disappear from the library, with nothing deleted.</p>
+  <p><strong>Removed the wrong pack? Undo.</strong> Remove shows its toast with an <strong>Undo</strong>
+  button for a few seconds. One click restores every dataset, View, dashboard, connection and job the
+  pack owned — under the same ids, with any edits you'd made to them intact — and marks the pack
+  installed again.</p>
   <ul>
     <li><strong>Conservation Insight</strong> is an illustrative sample for a county-level cover-crop
     and conservation-tillage ensemble use case: a raw provider CSV to try a mapping workflow on, four
@@ -791,11 +804,27 @@
     through. A dataset that hasn't been queried yet is probed live in the background the moment you
     open the job editor, and the dropdowns fill in as soon as its columns are known; a column you'd
     already set stays selectable even if the list has since changed.</li>
+    <li><strong>The same filter operators as everywhere else</strong> — a Filter step offers
+    <em>= equals</em>, <em>≠ not equals</em>, <em>&gt; greater than</em>, <em>≥ greater or
+    equal</em>, <em>&lt; less than</em>, <em>≤ less or equal</em>, <em>contains (text)</em> and
+    <em>starts with</em>: the identical list, wording and behaviour you get from a dataset's own
+    output filter rules. <em>Equals</em> compares as numbers when both sides are numbers (so
+    <code>1.0</code> matches <code>1</code>) and as text otherwise; the greater/less-than operators
+    order numbers numerically and text alphabetically; <em>contains</em> and <em>starts with</em>
+    ignore capitalisation.</li>
+    <li><strong>Dates compare as dates</strong> — write a date as <code>2024-06-01</code> (or a
+    full timestamp like <code>2024-06-01T09:30:00Z</code>) and both sides are compared
+    chronologically rather than as text, in filter rules and in sort rules alike. A plain date
+    means the <em>whole day</em>, so <code>= 2024-06-01</code> matches every row stamped that day
+    whatever the clock says, and <code>≤ 2024-06-01</code> includes all of it. Values without a
+    timezone are read as UTC on both sides, so what a filter matches never depends on where the
+    reader is. Anything that isn't a real calendar date in that shape keeps comparing as a number
+    or as text, exactly as before.</li>
     <li><strong>Filter values suggest themselves</strong> — once a Filter step's column is picked,
     its field's known sample values (drawn from the same live source-row sample as the previews
     above) appear as a dropdown of suggestions in the value box; you can still type any value by
-    hand (needed for gt/lt-style comparisons), the suggestions are just a shortcut when the column
-    has a small, known set of real values.</li>
+    hand (needed for greater/less-than comparisons), the suggestions are just a shortcut when the
+    column has a small, known set of real values.</li>
     <li><strong>A small diagram</strong> under each rollup, join, or stack (union) step shows the
     operation visually — columns going in, the operation in the middle (group-by columns for a
     rollup, the join key/type for a join, the other dataset for a stack), and the columns that come
@@ -1508,7 +1537,7 @@
   the current search/filters show) / <strong>Clear</strong>, a <strong>Move to folder…</strong> button that
   files the whole selection in one go (the same folder browser every Folder field uses — pick a folder,
   create a nested one inline, or choose "No folder" to un-file), and a <strong>Delete</strong> button that
-  removes every selected item after a confirmation (this can't be undone; datasets referenced by a saved
+  removes every selected item after a confirmation (see Undo below; datasets referenced by a saved
   dashboard, connections referenced by a dataset, are called out by count in that confirmation, same as
   deleting one individually — deleting jobs in bulk keeps their output datasets, same as deleting one).
   Click Select again (now labeled Cancel) to leave select mode. The same pattern first shipped on
@@ -1517,15 +1546,45 @@
   jobs together; one Move-to-folder choice refiles them all, and the delete confirmation names how many of
   each kind you're about to remove. The <strong>Views</strong> page has the same Select button and bulk
   bar — select any number of saved Views, then move them to a folder or delete them together.</p>
+  <p><strong>Layout.</strong> Every catalog page opens as the compact <strong>list</strong> — the
+  densest way to scan a lot of items, and the shape the search, sort and filter controls above it are
+  built around. The <strong>Tile view</strong> button in the page header swaps it for a grid of cards
+  (dashboards show their thumbnail there), and your choice is remembered per section on this device
+  from then on. Dashboards used to be the one page that opened as tiles; all six now start the same
+  way, and Home still greets you with dashboard thumbnails either way.</p>
   <p><strong>Sorting.</strong> Every catalog page — Dashboards, Views, Datasets, Connections, Jobs
   and the Repository — has a sort control beside the layout toggle: Newest first (the default),
   Oldest first, Name A–Z / Z–A, plus per-section extras (Dashboards by workbook or folder, Datasets
   by adapter or connection, Views by chart type, Jobs by last run). Your choice sticks per section
   on this device, and pinned items always stay at the top whatever the sort.</p>
-  <p><strong>Changed your mind? Undo.</strong> Every bulk Delete shows its toast with an
-  <strong>Undo</strong> button for a few seconds — one click restores everything just removed, under the
-  same ids, exactly as it was. The restore is workspace-backend safe: an undone delete propagates as a
-  re-creation, so the items come back on your other devices too.</p>
+  <p><strong>Searching.</strong> Every catalog page searches the same way. Type as many words as you
+  like: each one has to turn up <em>somewhere</em> on the item, in any order and across any field — so
+  <code>crops 2024</code> finds a dataset named "Cover crops" filed in the "2024" folder, even though
+  those two words never sit next to each other. Wrap words in <code>"double quotes"</code> when you do
+  mean the exact phrase. Case never matters. What counts as a field depends on the page — name, folder,
+  tags, description, owner, the query text and column names for Datasets; adapter and settings for
+  Connections (never a password or token); the source and output dataset for Jobs; and for Dashboards,
+  the title, description, folder and, as a fallback, the column names its charts are bound to (the
+  matching column is named right on the card). The <strong>Clear</strong> chip above the list means show
+  everything: it drops the facet pills <em>and</em> empties the search box, and it appears whenever
+  either one is narrowing the list. Every catalog page has one, Dashboards included.</p>
+  <p><strong>Filtering with pills.</strong> Above each list sits a row of filter pills, each showing how many
+  items it covers. The <strong>Folders</strong> strip is single-select — <em>All folders</em>, one pill per
+  folder in use, and <em>Unfiled</em> for everything filed nowhere — and it only appears once something has
+  actually been filed. The other facets are multi-select and narrow within the folder: Datasets by adapter,
+  connection, type or tag; Connections by adapter or tag; Views by chart type; Dashboards by workbook.
+  Picking none of a facet's pills means all of them, so the pills only ever narrow — and pills are listed in
+  the order you read them, alphabetically by their label and numerically where numbers appear (so "Q2" comes
+  before "Q10"). A pill disappears as soon as its last item does, so a filter can never keep narrowing the
+  list from a chip you can no longer see.</p>
+  <p><strong>Changed your mind? Undo.</strong> Every Delete — bulk or a single row — shows its toast with an
+  <strong>Undo</strong> button for a few seconds, and one click restores everything just removed, under the
+  same ids, exactly as it was. That now covers every destructive button in the app, including three that
+  used to only ask once and forget: the <strong>View Builder's "Delete dataset"</strong> (which also brings
+  back the shelves/filters/calculations you had in flight on it, and re-selects it if you were building on
+  it), the <strong>Quick Views</strong> sidebar's delete (which reopens the View if it was the one you had
+  open), and <strong>Remove</strong> on a sample pack. The restore is workspace-backend safe: an undone
+  delete propagates as a re-creation, so the items come back on your other devices too.</p>
 
   <h3>Filing a dataset, connection, job or analysis into a Folder</h3>
   <p>Datasets, connections, jobs, saved Views, and (via Repository quick-edit) dashboards all have a
@@ -1676,6 +1735,16 @@
   saving a View then fails with "HTTP 404 writing analyses". The Settings card shows the one-time
   upgrade SQL in a copyable block: paste it into <strong>Supabase → SQL editor</strong>, run it
   once, then hit <strong>Retry now</strong> and the pending changes push up.</p>
+  <p><strong>Atomic saves (Supabase).</strong> A Supabase workspace normally saves one table at a
+  time, so a connection dropped part-way through a push can leave it half-written — the newest
+  dashboards saved, say, but not the datasets they read. Installing one small database function
+  makes every save a single transaction instead: it either fully lands or fully rolls back. The
+  <strong>Settings → Workspace backend</strong> card says which state your workspace is in, and
+  offers the one-time SQL with a <strong>Copy SQL</strong> button when it isn't atomic yet — paste
+  it into <strong>Supabase → SQL editor</strong> and run it once. It changes no data, runs under
+  your own database permissions, and is safe to run twice. Workspaces provisioned from now on get
+  it as part of the bootstrap script; ones that skip it keep saving exactly as before. (Turso and
+  Firebase workspaces were already atomic — nothing to do there.)</p>
   <p>Sync is also hardened against a flaky network or backend: a single failed request (a rate-limit 429, a 5xx, a dropped connection) retries once on the spot before anything is reported, automatic pushes keep a minimum spacing so rapid editing can't hammer the backend into rate limits, and the Settings backend card shows a <strong>Recent sync activity</strong> log — the last several push/pull attempts with the exact error text for any that failed, so "it keeps reconnecting" always has a readable reason attached.</p>
   <p>Syncing works in both directions on its own: besides pushing your changes up, the app
   <strong>quietly checks the backend</strong> every couple of minutes and whenever you return to
@@ -1683,6 +1752,34 @@
   something. It never overwrites edits this browser hasn't pushed yet — if anything is pending
   here, the check simply waits — and an empty or failed read is never adopted over real local
   work.</p>
+
+  <h3>Where credentials and passwords are kept</h3>
+  <p>Studio runs entirely in your browser, so it is worth being plain about what is stored where —
+  and in what form.</p>
+  <ul>
+    <li><strong>Connection credentials (tokens, keys, database passwords)</strong> live in this
+      browser's local storage as <strong>plaintext</strong>, on every backend including Local.
+      Anyone with access to this device profile can read them, and clearing site data removes
+      them.</li>
+    <li><strong>With a backend connected</strong>, those same values mirror to the backend as
+      plaintext too — <em>unless</em> you turn on <strong>Encrypt secrets</strong> on the
+      <strong>Settings → Workspace backend</strong> card. Then every password-style field is
+      AES-GCM ciphertext in the backend, and only a browser that knows your passphrase can read
+      it back.</li>
+    <li><strong>The encryption passphrase is never written to disk.</strong> It is held for the
+      current <em>browser session</em> only, so you enter it once per session per browser and
+      every sync in between is silent; closing the tab forgets it. (Earlier versions cached it in
+      local storage next to the data it protects — that copy is deleted automatically the first
+      time this version loads.)</li>
+    <li><strong>Sign-in passwords</strong> are never stored, only their digests — salted and
+      iterated (PBKDF2-SHA-256), so two accounts with the same password no longer look identical
+      and a stolen user table can't be reversed with a lookup table. Older single-round digests
+      are upgraded automatically the next time that person signs in; nobody has to re-enter
+      anything. Real per-user enforcement still comes from <strong>Supabase Auth +
+      Row-Level Security</strong> — local sign-in remains UX-level gating, as described above.</li>
+    <li><strong>Exported dashboards never carry a secret.</strong> The export strips it and the
+      finished file prompts once, in memory only, the first time it needs to query.</li>
+  </ul>
 
   <h3>Signing in with real Supabase Auth (optional)</h3>
   <p>The <strong>Supabase</strong> connect wizard has two optional fields below the Project URL and
@@ -1950,8 +2047,13 @@
     </tbody>
   </table>
 
+  <h3>Reading a dashboard without a mouse</h3>
+  <p>In the <strong>Viewer</strong> and in any dashboard you've exported as a self-contained file, KPI tiles are buttons: <kbd>Tab</kbd> moves through them, a focus ring shows which one you're on, and <kbd>↵</kbd> or <kbd>Space</kbd> opens that tile's detail — the same drawer of underlying records a click gives you. Inside the drawer, <kbd>Escape</kbd> closes it.</p>
+  <p>The same is true of the <strong>chart marks</strong> that do something when clicked — the bars of a bar chart, the slices of a donut, the tiles of a treemap, wherever that panel has a detail drawer or a click-through set up. <kbd>Tab</kbd> stops on each one and <kbd>↵</kbd> or <kbd>Space</kbd> activates it. Because a bar or a slice has no text of its own, each one announces itself as its label and value — "Snowflake: $84.2K" — so a screen reader reads the same fact the hover tooltip shows. Marks that aren't clickable stay out of the way entirely. On the Studio canvas, clicking a mark still selects the panel for editing, so the builder's keyboard behaviour is unchanged.</p>
+  <p><strong>Table rows</strong> that open a detail drawer work the same way from the keyboard — <kbd>Tab</kbd> stops on each clickable row, <kbd>↵</kbd> or <kbd>Space</kbd> opens the drawer — with one deliberate difference: a row is <em>not</em> turned into a button. Doing that would stop it being a row, and a screen reader would lose the table itself (which column you're in, which header a cell belongs to). So the row keeps its table semantics, announces that it opens a dialog, and reads out its own cells rather than a summary. Sorting, filtering and paging redraw the table, and every new page behaves the same; a table with no detail drawer bound keeps its rows out of the tab order.</p>
+
   <h3>Command palette</h3>
-  <p>Press <kbd>Ctrl K</kbd> / <kbd>⌘ K</kbd> anywhere in the app — or click the <strong>Search…</strong> pill in the top bar — to open a fuzzy-searchable list of commands. It covers section navigation, dashboard lifecycle (new/open/save/export), editing actions, view/mode toggles, every curated example and recent dashboard you've opened, and an <strong>"Add View: &lt;chart type&gt;"</strong> command for each of the chart-type gallery's types (creates a View bound to a catalog query and switches it straight to that type) — so you can jump straight to any of those by typing part of its name. Recently- and frequently-run commands rise to the top of an empty-query open. Use <kbd>↑</kbd>/<kbd>↓</kbd> to move, <kbd>↵</kbd> to run, <kbd>Escape</kbd> to close.</p>
+  <p>Press <kbd>Ctrl K</kbd> / <kbd>⌘ K</kbd> anywhere in the app — or click the <strong>Search…</strong> pill in the top bar — to open a fuzzy-searchable list of commands. It covers <strong>every section in the left rail</strong> — and only the ones your account can actually open, so a section your role can't reach (or one an admin has turned off for viewers) never shows up there either — plus dashboard lifecycle (new/open/save/export), editing actions, view/mode toggles, every curated example and recent dashboard you've opened, and an <strong>"Add View: &lt;chart type&gt;"</strong> command for each of the chart-type gallery's types (creates a View bound to a catalog query and switches it straight to that type) — so you can jump straight to any of those by typing part of its name. Recently- and frequently-run commands rise to the top of an empty-query open. Use <kbd>↑</kbd>/<kbd>↓</kbd> to move, <kbd>↵</kbd> to run, <kbd>Escape</kbd> to close.</p>
   <p><strong>Voice command mode:</strong> on a browser with the built-in Speech Recognition API (Chrome, Edge, Safari — no API key, no backend, no sign-up), the palette shows a small mic button beside the search field. Click it, say a command out loud ("add a bar chart", "go to settings", "toggle light dark theme"), and it runs the same way pressing <kbd>↵</kbd> on that text would — fully hands-free. The mic pulses red while listening and stops on its own once you finish speaking. Not shown at all in browsers without the API (e.g. Firefox) — typing still works everywhere.</p>
 </section>
 
@@ -2025,7 +2127,9 @@
   <p>Branding is saved with the <strong>workspace</strong> — on a connected workspace it syncs to the backend and applies for everyone who signs in, on every device (a custom logo shows on the sign-in screen too). <strong>Export settings</strong> also carries a copy along. This only affects the app's own chrome — it's independent of any exported dashboard's branding.</p>
 
   <h3>Sending feedback (and what gets recorded)</h3>
-  <p>The speech-bubble button in the top bar (next to What's-next) opens a tiny dialog: pick
+  <p>The speech-bubble button in the top bar (next to What's-next) opens a tiny dialog — on a
+  phone the top bar keeps only its essentials, so you'll find <strong>Send feedback</strong> in
+  the <strong>⋯</strong> menu instead, right below What's new. Either way: pick
   <strong>Bug</strong>, <strong>Feature</strong>, <strong>Comment</strong>, or
   <strong>Question</strong>, optionally say more, and hit Send. Your account name, the section
   you were on, the open dashboard (if any), and the app version are captured automatically, so

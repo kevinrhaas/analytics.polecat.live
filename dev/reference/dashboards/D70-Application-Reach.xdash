@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dashboard>
+<title>D70 Application Reach</title>
+<heading/>
+<enableWidgetPrinting>false</enableWidgetPrinting>
+<documentation>
+<author>admin</author>
+<description>Application access reach — each chart is a single metric.</description>
+<icon/>
+</documentation>
+<template-ref>xul/04-1-then-2.xul</template-ref>
+<theme-ref>0-Ruby</theme-ref>
+<layout>
+<overlay xmlns:pho="http://www.pentaho.com" pho:fixie="withme">
+<box id="Panel_1" pho:title="Access Count by Application" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_2" pho:title="Accessed Size TB by Application" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_3" pho:title="Access Count by Data Source" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_4" pho:title="Accessed Size TB by Data Source" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_5" pho:title="Application Type Mix" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_6" pho:title="Access Count by Owner" flex="1" collapsed="false" type="titled-panel"/>
+</overlay>
+</layout>
+<parameters>
+</parameters>
+<widgetJavascript><![CDATA[]]></widgetJavascript>
+<widgets>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/14-app-access-by-app.xanalyzer</xactionPath><localizedName jsonType="string">14-app-access-by-app</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">15001</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/14-app-access-by-app.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_1</htmlObject><solution jsonType="string"/><name jsonType="string">widget1</name><action jsonType="string">14-app-access-by-app.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/14-app-access-by-app-tb.xanalyzer</xactionPath><localizedName jsonType="string">14-app-access-by-app-tb</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">15002</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/14-app-access-by-app-tb.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_2</htmlObject><solution jsonType="string"/><name jsonType="string">widget2</name><action jsonType="string">14-app-access-by-app-tb.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/14-app-access-by-source.xanalyzer</xactionPath><localizedName jsonType="string">14-app-access-by-source</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">15003</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/14-app-access-by-source.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_3</htmlObject><solution jsonType="string"/><name jsonType="string">widget3</name><action jsonType="string">14-app-access-by-source.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/14-app-access-by-source-tb.xanalyzer</xactionPath><localizedName jsonType="string">14-app-access-by-source-tb</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">15004</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/14-app-access-by-source-tb.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_4</htmlObject><solution jsonType="string"/><name jsonType="string">widget4</name><action jsonType="string">14-app-access-by-source-tb.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/14-app-mix-donut.xanalyzer</xactionPath><localizedName jsonType="string">14-app-mix-donut</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">15005</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/14-app-mix-donut.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_5</htmlObject><solution jsonType="string"/><name jsonType="string">widget5</name><action jsonType="string">14-app-mix-donut.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/14-app-by-owner.xanalyzer</xactionPath><localizedName jsonType="string">14-app-by-owner</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">15006</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/14-app-by-owner.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_6</htmlObject><solution jsonType="string"/><name jsonType="string">widget6</name><action jsonType="string">14-app-by-owner.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+</widgets>
+</dashboard>

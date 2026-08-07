@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <DataAccess id="gbBySource" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>GbBySource</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT split_part(c.orig_namespace,'://',1) AS src, ROUND(SUM(c.bytes_moved)/1e9::numeric,1) AS gb
+      FROM fact_lineage_connection c
+      WHERE c.orig_namespace<>c.dest_namespace AND c.bytes_moved>0
+      GROUP BY 1 HAVING SUM(c.bytes_moved)>0 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="gbByDest" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>GbByDest</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT split_part(c.dest_namespace,'://',1) AS dst, ROUND(SUM(c.bytes_moved)/1e9::numeric,1) AS gb
+      FROM fact_lineage_connection c
+      WHERE c.orig_namespace<>c.dest_namespace AND c.bytes_moved>0
+      GROUP BY 1 HAVING SUM(c.bytes_moved)>0 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="gbByIntegration" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>GbByIntegration</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT j.integration AS integ, ROUND(SUM(c.bytes_moved)/1e9::numeric,1) AS gb
+      FROM fact_lineage_connection c JOIN dim_lineage_job j ON c.lineage_job_key=j.lineage_job_key
+      WHERE c.bytes_moved>0 AND j.integration<>'Unknown'
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

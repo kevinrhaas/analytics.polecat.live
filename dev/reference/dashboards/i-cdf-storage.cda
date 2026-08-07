@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <!-- STORAGE FOOTPRINT from the dimensional model (fact_entity_snapshot.bytes over bidb MVs); FILE+TABLE own-bytes only. -->
+  <DataAccess id="kpi" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>KPI</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[ SELECT ROUND(SUM(s.bytes)/1e12::numeric,1) AS total_tb, count(*) AS assets,
+      ROUND(AVG(s.bytes)/1e9::numeric,2) AS avg_gb, ROUND(MAX(s.bytes)/1e9::numeric,1) AS max_gb
+      FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      WHERE e.entity_type IN ('FILE','TABLE') AND d.datasource_type LIKE ${ds}
+        AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="by_source" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>BySource</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[ SELECT d.datasource_type AS src, ROUND(SUM(s.bytes)/1e12::numeric,2) AS tb
+      FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      WHERE e.entity_type IN ('FILE','TABLE') AND d.datasource_type LIKE ${ds}
+        AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="by_restype" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>ByResType</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[ SELECT COALESCE(NULLIF(e.resource_type,''),'(unknown)') AS rt, ROUND(SUM(s.bytes)/1e12::numeric,2) AS tb
+      FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      WHERE e.entity_type IN ('FILE','TABLE') AND d.datasource_type LIKE ${ds}
+        AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="size_dist" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>SizeDist</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[ SELECT band, count(*) AS assets FROM (
+        SELECT CASE WHEN s.bytes<1e9 THEN '1. <1 GB' WHEN s.bytes<1e10 THEN '2. 1-10 GB'
+                    WHEN s.bytes<1e11 THEN '3. 10-100 GB' WHEN s.bytes<1e12 THEN '4. 100GB-1TB'
+                    ELSE '5. 1 TB+' END AS band
+        FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key
+        JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+        WHERE e.entity_type IN ('FILE','TABLE') AND d.datasource_type LIKE ${ds}
+          AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}) t GROUP BY 1 ORDER BY 1 ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="growth_cum" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180">
+    <Name>GrowthCum</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      WITH first_scan AS (
+        SELECT s.entity_key, MIN(d.year_month_number) AS ym, MIN(d.year_month_name) AS ymn
+        FROM fact_entity_snapshot s JOIN dim_date d ON s.scanned_date_key=d.date_key
+        WHERE s.scanned_date_key<>19000101 GROUP BY 1)
+      SELECT fs.ymn AS month,
+             ROUND(SUM(SUM(s.bytes)) OVER (ORDER BY fs.ym)/1e12::numeric,2) AS cum_tb
+      FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      JOIN first_scan fs ON s.entity_key=fs.entity_key
+      WHERE e.entity_type IN ('FILE','TABLE') AND d.datasource_type LIKE ${ds}
+        AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+      GROUP BY fs.ym, fs.ymn ORDER BY fs.ym
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="top_assets" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>TopAssets</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[ SELECT COALESCE(NULLIF(e.entity_name,''),'(unnamed)') AS name, d.datasource_type AS src,
+      COALESCE(NULLIF(e.resource_type,''),'(unknown)') AS rt, ROUND(s.bytes/1e9::numeric,1) AS gb
+      FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      WHERE e.entity_type IN ('FILE','TABLE') AND d.datasource_type LIKE ${ds}
+        AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} ORDER BY s.bytes DESC LIMIT 14 ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="growth_by_source" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180">
+    <Name>GrowthBySource</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      WITH top_src AS (
+        SELECT d.datasource_type AS src
+        FROM fact_entity_snapshot s
+        JOIN dim_entity e ON s.entity_key=e.entity_key
+        JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+        WHERE e.entity_type IN ('FILE','TABLE')
+          AND d.datasource_type LIKE ${ds}
+          AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+        GROUP BY 1 ORDER BY SUM(s.bytes) DESC LIMIT 8
+      ),
+      first_scan AS (
+        SELECT s.entity_key, d.datasource_type AS src,
+               MIN(f.year_month_number) AS ym, MIN(f.year_month_name) AS ymn
+        FROM fact_entity_snapshot s
+        JOIN dim_entity e ON s.entity_key=e.entity_key
+        JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+        JOIN dim_date f ON s.scanned_date_key=f.date_key
+        WHERE e.entity_type IN ('FILE','TABLE') AND s.scanned_date_key<>19000101
+          AND d.datasource_type LIKE ${ds}
+          AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+        GROUP BY 1, 2
+      )
+      SELECT fs.ym, fs.ymn AS month, fs.src,
+             ROUND(SUM(SUM(s.bytes)) OVER (PARTITION BY fs.src ORDER BY fs.ym)/1e12::numeric,2) AS cum_tb
+      FROM fact_entity_snapshot s
+      JOIN dim_entity e ON s.entity_key=e.entity_key
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      JOIN first_scan fs ON s.entity_key=fs.entity_key AND d.datasource_type=fs.src
+      JOIN top_src ts ON fs.src=ts.src
+      WHERE e.entity_type IN ('FILE','TABLE')
+        AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+      GROUP BY fs.ym, fs.ymn, fs.src ORDER BY fs.ym, fs.src
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="detail_assets" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>DetailAssets</Name><Parameters><Parameter name="src" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[ SELECT COALESCE(NULLIF(e.entity_name,''),'(unnamed)') AS name,
+      d.datasource_type AS src, COALESCE(NULLIF(e.resource_type,''),'(unknown)') AS restype,
+      ROUND(s.bytes/1e9::numeric,2) AS gb,
+      COALESCE(NULLIF(e.sensitivity,''),'Unclassified') AS sensitivity,
+      COALESCE(NULLIF(e.owner_name,''),'—') AS owner
+      FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      WHERE e.entity_type IN ('FILE','TABLE') AND d.datasource_type LIKE ${src}
+        AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+      ORDER BY s.bytes DESC ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="datasources" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>DataSources</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT '%' AS v, 'All sources' AS l, 0 AS ord
+      UNION ALL
+      SELECT DISTINCT datasource_type AS v, datasource_type AS l, 1 AS ord
+        FROM dim_datasource WHERE datasource_type IS NOT NULL AND datasource_type<>''
+      ORDER BY ord, l
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="sensitivities" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>Sensitivities</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT '%' AS v, 'All sensitivities' AS l, 0 AS ord
+      UNION ALL
+      SELECT DISTINCT COALESCE(NULLIF(sensitivity,''),'Unclassified') AS v,
+                      COALESCE(NULLIF(sensitivity,''),'Unclassified') AS l, 1 AS ord
+        FROM dim_entity WHERE entity_type IN ('FILE','TABLE')
+      ORDER BY ord, l
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>
