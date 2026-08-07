@@ -1018,7 +1018,7 @@
   <p>Every structural edit (add, remove, reorder, resize, rename) is snapshotted. Use <kbd>Ctrl Z</kbd> / <kbd>⌘ Z</kbd> to undo and <kbd>Shift Z</kbd> to redo. The ↶/↷ buttons in the topbar work too (they only show while Studio is open). Text-field edits are not tracked individually (to avoid flooding the history).</p>
 
   <h3>Sample dashboards</h3>
-  <p>The bundled sample dashboards — a curated, most-spectacular-first gallery spanning operations, engineering delivery, finance, marketing & growth, reliability, governance, compliance, quality, pipelines, storage, and cost, together covering all 52 chart types at least once (the newest — the Metrics wheel — in the Conservation pack’s own System Metrics dashboard) — live in two places: <strong>Home's sample gallery</strong> (click a tile to open it in the builder) and the <strong>Dashboards</strong> section under the <strong>Sample packs</strong> chip. A great way to explore what's possible before building your own. (The old Studio "Examples ▾" toolbar menu is gone — same dashboards, better homes.)</p>
+  <p>The bundled sample dashboards — a curated, most-spectacular-first gallery spanning operations, engineering delivery, finance, marketing & growth, reliability, governance, compliance, quality, pipelines, storage, and cost, together covering all 54 chart types at least once (the newest — the Metrics wheel — in the Conservation pack’s own System Metrics dashboard) — live in two places: <strong>Home's sample gallery</strong> (click a tile to open it in the builder) and the <strong>Dashboards</strong> section under the <strong>Sample packs</strong> chip. A great way to explore what's possible before building your own. (The old Studio "Examples ▾" toolbar menu is gone — same dashboards, better homes.)</p>
   <p><strong>＋ Import from URL…</strong> (in the Open-dashboard picker's footer) loads a dashboard
   from any public link to a <code>.studio.json</code> file — a GitHub raw link, a gist, a static
   host. A plain client-side fetch, no backend, no account:</p>
@@ -1176,7 +1176,7 @@
   <h3>Maps</h3>
   <div class="chart-card" id="ct-choropleth"><div class="chart-group"></div><div class="chart-name">Map (US choropleth)</div><div class="chart-desc">US regions colored by a value — counties (FIPS), states, USDA crop-reporting districts, watersheds (HUC8, nationwide), congressional districts (119th Congress, nationwide), 5-digit ZIP codes (ZCTA, nationwide), or your own <b>custom regions</b> ("these counties = this territory" — the Inspector's Region scale &gt; Custom regions lets you <b>Import a CSV</b> of two columns, county FIPS and region name; no new geometry ships, the app merges the existing county shapes per region the same way it merges them into USDA districts, and your value data's region-id column should then use those same region names). Bind a <b>region id column</b> and a <b>value column</b>; when several rows land on one region they combine by the <b>median</b> by default (a single best common estimate). Optionally map a <b>provider/series column</b> and the map joins an <b>ensemble channel</b>: the provider toggles on an Ensemble chart sharing that channel re-color the map live, from the same median. Regions without data render as a hatched "No data" texture, a state-border overlay keeps orientation, and the map auto-zooms to the regions that carry data. Exported dashboards inline the geometry, so maps work offline and from a plain .html file. A <b>Renderer</b> option picks between the built-in renderer (light — the smallest export) and <b>Interactive GL</b> (smooth pan &amp; zoom at any polygon count, with zoom buttons, a pan nudge-pad (up/down/left/right), and hover highlight; adds ~1MB of MapLibre to that dashboard's export, and falls back to the built-in renderer wherever WebGL is unavailable). The View's on-canvas <b>Download data</b> button exports the region id/value pairs currently shown (post-aggregation, post-selection) instead of the raw bound query. An <b>ⓘ Sources</b> button opens a provenance popover showing what fraction of regions actually have data and, when a provider/series column is mapped, each provider's own region count (struck through when toggled off) — so the map's honesty story is always one click away.</div></div>
   <div class="chart-card" id="ct-ensembleSeries"><div class="chart-group"></div><div class="chart-name">Ensemble (common estimate)</div><div class="chart-desc">One best estimate from many sources. Bind a <b>label column</b> (e.g. year), a <b>provider/series column</b>, and a <b>value column</b>: the chart draws each provider as a thin, muted line and the <b>median of the providers toggled on</b> as a bold consensus line — the product is the common estimate, not a vendor comparison. A translucent <b>agreement band</b> spans the providers' range (a tight band means high confidence); an optional <b>reference series</b> (e.g. AgCensus) draws as hollow squares for context and never joins the estimate. Click the provider chips under the chart to include/exclude sources — the median recomputes live, and any map on the same ensemble channel re-colors with it. The View's on-canvas <b>Download data</b> button exports exactly that selection — the providers left on plus the common estimate — as a file. An <b>ⓘ Sources</b> button opens a provenance popover: how many providers are selected, how many points have every one of them reporting, each provider's own point count (struck through when excluded), and the reference series' point count. Works identically in exports.</div></div>
-  <p>52 chart types are available, grouped by purpose. Select the chart type in the View inspector after clicking a View on the canvas.</p>
+  <p>54 chart types are available, grouped by purpose. Select the chart type in the View inspector after clicking a View on the canvas.</p>
   <p>Not sure where to start? Once a View has a query bound, a <strong>"Recommended for this data"</strong> strip appears above the full gallery with 1–3 suggested types (e.g. Line for a date column + a number, Donut for a low-cardinality category) — each button explains its "why" on hover and switches the chart type on click.</p>
   <p>Once you're in a chart type's own options (below the gallery), common toggles like <strong>Sort by value</strong>, <strong>Show legend</strong>, <strong>Smooth curve</strong>, <strong>Show data points</strong>, <strong>Show value/label</strong>, <strong>Show %</strong>, and <strong>Rotate labels</strong> carry a small glyph next to their label — hover it (or Tab to it) for a one-line explanation of what the toggle actually changes. <strong>Sort by value</strong>, <strong>Smooth curve</strong>, <strong>Show legend</strong>, <strong>Show data points</strong>, <strong>Show value/label</strong>, and <strong>Rotate labels</strong> go a step further with a genuine Off → On picture — two tiny side-by-side diagrams showing exactly what the toggle redraws, not just a sentence about it.</p>
 
@@ -1268,7 +1268,7 @@
   <div class="tip">
     <div class="tip-ic">💡</div>
     <div class="tip-body">
-      <p><strong>Simple mode</strong> shows only the 13 most universally understood chart types. Switch to <strong>Advanced mode</strong> (⋯ More → Simple mode off) to unlock all 52 types plus specialist annotation tools.</p>
+      <p><strong>Simple mode</strong> shows only the 15 most universally understood chart types. Switch to <strong>Advanced mode</strong> (⋯ More → Simple mode off) to unlock all 54 types plus specialist annotation tools.</p>
     </div>
   </div>
 </section>
@@ -2090,7 +2090,7 @@
 
   <h3>Simple mode</h3>
   <ul>
-    <li>13 chart types shown in the gallery (the most universally understood).</li>
+    <li>15 chart types shown in the gallery (the most universally understood).</li>
     <li>Advanced inspector sections hidden (Drill-through, Cross-filter, Conditional formatting, Callout arrow, Color scale, Period highlight, Event markers, etc.).</li>
     <li>Query Library is read-only browse + drag — no data-source authoring controls.</li>
     <li>Guided <strong>Getting started</strong> checklist and <strong>What's next?</strong> tips appear in the dashboard inspector to help newcomers.</li>
@@ -2099,7 +2099,7 @@
 
   <h3>Advanced mode (default)</h3>
   <ul>
-    <li>All 52 chart types + specialist annotation and interaction tools.</li>
+    <li>All 54 chart types + specialist annotation and interaction tools.</li>
     <li>Full data-source authoring: author SQL (sample engine) and direct-connector data accesses; create compound joins and unions; manage workspace connections and datasets; configure output options.</li>
     <li>Drill-through, Detail drawer, Cross-filter, Conditional formatting, Color scales, Target lines, Reference bands, and more.</li>
   </ul>
@@ -2205,7 +2205,7 @@
 })();
 
 // LF60 slice 2: in-page docs search. Indexes every top-level section (by its <h2>) plus every
-// chart-type card individually (the chart-types section alone is 50+ entries too coarse to find
+// chart-type card individually (the chart-types section alone is 54 entries too coarse to find
 // by scanning), matches on title first then body text, and jumps + flashes the hit on click/Enter.
 (function () {
   var input = document.getElementById("docSearch");

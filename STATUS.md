@@ -120,11 +120,11 @@
   net instead of a gate: on every push to main it runs a fast browser-free validation (syntax across
   first-party JS + the manager's exact changelog parser via `tools/changelog-check.js`) and, if main is
   broken, auto-reverts the offending commit and redeploys — self-healing beats gating.
-- **License.** The Studio is proprietary — see `LICENSE` (© 2026 Polecat.live; all rights reserved).
-  Keep the notice intact; don't add OSS license headers that contradict it. New first-party source
-  files may carry a one-line header (`/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */`).
-  Do NOT relicense or add notices to vendored third-party toolkit files.
-  (Note: `LICENSE` is now GPL-3.0 since LICENSE-1 — this proprietary line is stale, tracked as AUD-11.)
+- **License.** Analytics is free software under the **GNU GPL v3** — see `LICENSE` (© 2026
+  Polecat.live). Keep the notice intact; don't add headers that contradict it. New first-party
+  source files may carry a one-line header (`/* Analytics Dashboard Studio — © 2026 Polecat.live.
+  GPL-3.0, see LICENSE. */`). Do NOT relicense or add notices to vendored third-party toolkit
+  files — they keep their own upstream license text (see `THIRD-PARTY-NOTICES.md`).
 - **KH-### — Kevin-reported items (fleet series, 2026-08).** Anything Kevin reports (live session,
   issue, PR comment) gets the next number from the fleet register at `kevinrhaas/polecat-platform` →
   `docs/KH-REGISTER.md` — a single fleet-wide counter (appending a row is a sanctioned direct commit,
@@ -135,6 +135,50 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **AUD-11 — the copy/doc TRUTH pass (v856, sw v488, 2026-08-07, steward;
+  AUDIT-2026-08 §3 + §2.4, docs):** the audit's last docs workstream. Every countable claim
+  the app publishes about itself was re-measured against the thing it claims to count, and
+  the ones that had drifted were corrected — then pinned so they cannot drift again silently.
+  - **One chart-type number: 54.** The four disagreeing numbers (marketing "25+" in one
+    place and "50+" in two others, Help "52" in four places, reality 54) are now one number
+    everywhere, read from `Studio.CHARTS`. Help's card grid was already complete (all 54,
+    plus the KPI tile, which is a panel kind rather than a registry entry). The generated
+    marketing gallery (`site/chart-gallery.js`) was already truthful — it is regenerated
+    from the registry — which is exactly why it was the only surface that had not drifted.
+  - **Simple mode says 15**, the size of `SIMPLE_CHART_TYPES`, in both places Help quoted 13.
+  - **The "What's next" modal stopped advertising shipped work.** Five of its six items had
+    shipped weeks earlier (topbar actions, sample-data separation, the Views language, PDF
+    export, duplicate-name labels). The list now carries the real near-term backlog — AUD-08's
+    incremental preview, AUD-06's search tail, AUD-07's shared delete confirmation, the
+    keyboard-tooltip gap SWEEP574-3b left open, SWEEP574-1's reader-themed dashboards — and
+    the code comment above it now states the contract: shipping an item DELETES its row in
+    the same slice, because a roadmap that lists finished work is a lie with a nice font.
+  - **The license copy caught up with `LICENSE`** (GPL-3.0 since LICENSE-1): THIRD-PARTY-
+    NOTICES.md and STATUS.md's own Conventions block both still called the app proprietary
+    software. STATUS's DONE history is deliberately NOT rewritten — it records what the
+    license used to be, which was true when written.
+  - **The size figures were measured, not guessed:** ~56K LOC of first-party source (the
+    recipe is now written down next to the number), not ~22.6K; ~3,000 suite checks, not
+    ~1,400 (CLAUDE.md and README.md).
+  - **The mobile gate is one viewport again.** Documented 390×780, tested ~half at 844 —
+    resolved toward the fleet standard AND toward the stricter (shorter) viewport:
+    `tools/dev-smoke.mjs` now runs 390×780, and CLAUDE.md says plainly that 780 is the gate
+    while the full suite additionally exercises 844 as a taller phone.
+  - **The pin: `tools/doc-truth.mjs`, wired into the dev gate** (`ci.yml`, beside validate +
+    changelog-check; browser-free, sub-second). It re-derives every claim above from its
+    source and fails on drift: chart counts exact (a "50+" hedge fails too), Help documents
+    every registry type, the generated gallery matches the registry, Simple-mode size, the
+    bundled samples really do cover all 54 (examples + demo packs — `radarSectors` lives only
+    in the Conservation pack), license wording vs `LICENSE`, the LOC/check figures within
+    tolerance, and dev-smoke's viewport vs the documented gate. Verified in both directions:
+    green on this tree, red when a count is edited away from the registry.
+  - **Deliberately NOT in this slice** (AUD-11's remaining tail, still in NEXT): splitting
+    STATUS.md's DONE into a dated archive (§4 — a big mechanical move that deserves its own
+    unit), and the "Studio" vs "Dashboard Builder" / "demo" vs "sample" wording sweep across
+    toasts and empty states (§2.4's third bullet — a copy refactor across every section, not
+    a countable claim, so the guard cannot hold it honest either way).
+  - **AUDIT-2026-08 is now down to AUD-06's tail, AUD-08's tail, AUD-10, and AUD-11's own
+    two deferred pieces above.** Every P1 (AUD-01…AUD-05) is shipped.
 - **AUD-06 ★ slice 5 — a REAL date filter (v855, sw v487, 2026-08-07, steward;
   AUDIT-2026-08 §2.1, ux/feature):** slice 4 taught the *comparison* to think in dates;
   *choosing* a date was still raw text typed into a value box, so "the last 30 days" could
@@ -9452,12 +9496,20 @@
 >   so one throw can't FATAL-abort the run; cut the ~3m23s of unconditional
 >   `waitForTimeout`; close the coverage gaps (Firebase adapter, sync-conflict,
 >   Supabase mid-save, escaping, postMessage origin).
-> - **AUD-11 [docs] Copy/doc truth pass** (§3, §2.4): `LICENSE` is now GPL-3.0
->   but Conventions still says "proprietary"; CLAUDE.md's "~22.6K LOC / ~1,400
->   checks" is ~4×/2× stale; marketing "25+"/"50+" vs docs "52" vs real 55 chart
->   types; the in-app What's-next modal shows 5 shipped items as upcoming; the
->   mobile gate is documented 390×780 but tested ~half at 844 — pick one.
->   Consider splitting STATUS.md DONE into a dated archive (§4).
+> - ~~AUD-11 [docs] Copy/doc truth pass~~ ✓ **SHIPPED v856, sw v488 (2026-08-07,
+>   steward — see DONE).** Every countable claim now matches its source: ONE
+>   chart-type number (**54**, from `Studio.CHARTS` — the audit's "real 55"
+>   counted Help's KPI-tile card, which is a panel kind, not a chart type),
+>   Simple mode 15, GPL-3.0 license copy, ~56K LOC / ~3,000 checks measured
+>   rather than guessed, the mobile gate resolved to 390×780 in BOTH the doc and
+>   `tools/dev-smoke.mjs`, and a "What's next" modal that no longer advertises
+>   five shipped items as upcoming. Pinned by **`tools/doc-truth.mjs` in the dev
+>   gate** so a drifted number fails the build instead of ageing quietly.
+>   **Still open (AUD-11's tail, deliberately deferred — each its own unit):**
+>   splitting STATUS.md's DONE into a dated archive (§4), and §2.4's third
+>   bullet, the "Studio" vs "Dashboard Builder" / "demo" vs "sample" wording
+>   sweep across toasts and empty states (a copy refactor, not a countable
+>   claim — the guard cannot hold that one honest).
 > - ~~AUD-12 [ux] Discoverability coverage~~ ✓ **SHIPPED v854, sw v486 (2026-08-07,
 >   steward — see DONE).** Both halves, and both from ONE new primitive
 >   (`__studioRailSections()` in `app/shell.js`) rather than two corrected copies:

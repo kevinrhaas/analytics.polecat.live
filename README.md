@@ -82,7 +82,7 @@ analytics.polecat.live/          ← served by GitHub Pages at the root
 │   ├── cda-catalog.json          ← the bundled sample-query library
 │   └── examples/                 ← ★ flagship + example dashboards as openable specs
 ├── tools/                        ← changelog-normalize.js · export.js · gen-* asset generators
-├── tests/                        ← Playwright end-to-end suite (~1400 checks, incl. a mock backend)
+├── tests/                        ← Playwright end-to-end suite (~3,000 checks, incl. a mock backend)
 ├── SPEC.md                       ← the dashboard-spec schema
 ├── CNAME                         ← analytics.polecat.live (GitHub Pages custom domain)
 │

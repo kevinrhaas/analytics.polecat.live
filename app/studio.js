@@ -10487,12 +10487,16 @@
   // Slice A: the global topbar "What's next" (#tbWhatsNext) opens a compact roadmap modal —
   // a peek at near-term, user-facing work (seeded from STATUS.md's NEXT list), grouped by
   // how firm it is. Deliberately not a commitment; kept short and honest.
+  // AUD-11: this list is a PROMISE — an item that has shipped must come out of it the moment
+  // it ships, or the modal advertises finished work as upcoming (the audit found five such
+  // items here). When you ship something named below, delete its row in the same slice; the
+  // shipped story belongs in What's new, not What's next.
   var WHATS_NEXT = [
-    { title: "Studio actions in the topbar", note: "The dashboard builder's Save, Export and Open move into the topbar's new per-section action slot.", status: "next" },
-    { title: "Cleaner sample-data separation", note: "Keep the built-in demo packs clearly distinct from your own datasets across the workspace.", status: "next" },
-    { title: "Unified “Views” language", note: "One consistent name for Explore analyses and the charts you pin, so the workspace reads the same everywhere.", status: "planned" },
-    { title: "Polished print-to-PDF export", note: "A tidier PDF path for sharing a dashboard as a document.", status: "planned" },
-    { title: "Duplicate-name disambiguation everywhere", note: "Stable, distinguishing labels for same-named objects across every picker and the Repository.", status: "exploring" },
+    { title: "Faster preview updates", note: "The dashboard preview re-renders only what changed instead of rebuilding the whole board on every edit.", status: "next" },
+    { title: "The same search everywhere", note: "The library, the inspector and the chart gallery pick up the catalog panels' search rules, so one query behaves the same everywhere.", status: "next" },
+    { title: "One delete confirmation", note: "Every delete asks the same way, names what else goes with it, and offers Undo.", status: "planned" },
+    { title: "Charts that answer the keyboard", note: "Keyboard focus on a bar, slice or tile shows the same tooltip a mouse hover does — inside exported dashboards too.", status: "planned" },
+    { title: "Dashboards that follow your theme", note: "An optional third render mode so a dashboard can open in the reader's light or dark theme instead of the author's fixed choice.", status: "exploring" },
     { title: "Cross-filtering in exported dashboards", note: "Carry interactive filter and cross-filter state into the standalone .html export.", status: "exploring" },
   ];
   function openWhatsNext() {

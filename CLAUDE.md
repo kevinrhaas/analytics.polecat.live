@@ -1,8 +1,11 @@
 # analytics.polecat.live — agent guide
 
 Analytics Dashboard Studio: a local-first, in-browser analytics workspace and
-visual dashboard builder (~22.6K LOC vanilla HTML/JS/CSS, no build step, no
+visual dashboard builder (~56K LOC vanilla HTML/JS/CSS, no build step, no
 framework, no runtime deps) deployed from the repo ROOT via GitHub Pages.
+(That LOC figure is first-party source — `app/ css/ tools/ index.html sw.js
+docs/index.html` — excluding `vendor/`, the test suite and `js/changelog.js`;
+`node tools/doc-truth.mjs` re-measures it and fails if this line drifts.)
 **STATUS.md is the product playbook** — read its protocol + GOAL blocks first,
 work the NEXT backlog (★ items first). For how work ships fleet-wide, read
 `kevinrhaas/polecat-platform` → docs/FLEET-GUIDE.md. Scheduled steward improve
@@ -37,8 +40,10 @@ they branch from dev and PR into dev per the pipeline rules below.
 - **Tests green before merge**: `NODE_PATH=$(npm root -g) node tests/run.js`
   (Playwright; global install, Chromium under `/opt/pw-browsers/`). Add a
   check per feature; **never weaken assertions to pass.** Zero pageerrors at
-  390×780 AND desktop, both theme modes; mobile is a release gate; dashboard
-  tiles/KPIs link to their detail.
+  **390×780** AND desktop, both theme modes; mobile is a release gate; dashboard
+  tiles/KPIs link to their detail. 390×780 is THE mobile gate (the fleet's
+  narrow-phone baseline, what `tools/dev-smoke.mjs` runs); the full suite also
+  exercises 390×844 as a taller phone — extra coverage, not a second standard.
 - Update STATUS.md (DONE/NEXT) in the same PR as the work, and keep
   `docs/index.html` (in-app Help) current in the same slice as any
   user-facing feature change.
@@ -79,10 +84,13 @@ app/                Studio modules: model.js → studio-render.js ↔ studio.js
                     is the contract); studio-charts.js = chart extensions
 js/changelog.js     Fleet-format changelog (see contract above)
 vendor/             dashkit.js toolkit mirror (pristine) + polecat-shell/ (read-only)
-tests/run.js        The Playwright suite (~1,400 checks) — the merge gate
-tools/              changelog-normalize/check, export.js CLI, lib.js
+tests/run.js        The Playwright suite (~3,000 checks) — the stage gate
+tools/              changelog-normalize/check, validate + dev-smoke + doc-truth
+                    (the dev gate), export.js CLI, lib.js
 docs/index.html     User-facing Help (update in the same slice as features)
 provisioning/ reference/   Frozen inputs — do not touch
-.github/workflows/  deploy (soft test, never gated), auto-revert (Guard main),
-                    claude (@claude mentions)
+.github/workflows/  ci (the dev gate), promote-to-stage / promote-to-prod /
+                    rollback-prod / pipeline-setup (the promotion pipeline),
+                    deploy (soft test, never gated), auto-revert (Guard main),
+                    supabase-provision, claude (@claude mentions)
 ```

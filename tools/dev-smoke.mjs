@@ -71,7 +71,9 @@ try {
     () => !!document.body && document.body.textContent.length > 500, "docs render");
   await desktop.close();
 
-  const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
+  // 390x780 is THE documented mobile gate (CLAUDE.md, the fleet standard) — the shorter
+  // viewport is the stricter one, so the gate runs it rather than the taller 844.
+  const mobile = await browser.newContext({ viewport: { width: 390, height: 780 }, isMobile: true });
   await checkPage(mobile, at("/app/"),
     () => window.Studio && window.Studio.Workspace, "app boots at 390px mobile");
   await mobile.close();
