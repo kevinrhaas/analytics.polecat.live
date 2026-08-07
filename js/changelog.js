@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 852,
+    title: 'Housekeeping: a retired passcode gate and an unused filter stop shipping',
+    kind: 'polish',
+    ts: '2026-08-07T10:51:05.000Z',
+    items: [
+      'The app was still downloading -- and storing offline -- a leftover config file from the old site-wide passcode gate. That gate was replaced by the sign-in screen long ago and nothing had read the file since; it carried two live access codes (as hashes) out to every visitor for no reason. Deleted, along with the little tool that generated those hashes.',
+      'Nothing about signing in changes: the same username and password, the same demo accounts, the same workspace accounts if you have connected one.',
+      'The dashboard toolkit lost an unfinished "Last 30 days / Last 90 days" time-range picker that no dashboard could ever use -- it was only riding along inside every exported file. Exports are that much smaller, and the honest position is now visible: there is still no real date filter, and building one is a tracked piece of work.',
+      'The published setup guide and the README described the retired passcode instead of the sign-in screen. Both now say what actually happens.',
+    ],
+  },
+  {
     v: 851,
     title: 'The app starts faster — the update history no longer loads with it',
     kind: 'polish',

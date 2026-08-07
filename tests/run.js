@@ -17212,8 +17212,28 @@ function serve() {
     const cliHtml = fs.readFileSync(path.join(outDir, "studio-cost.html"), "utf8");
     ok("CLI artifacts are well-formed (html self-contained)", cliHtml.includes("window.STUDIO_SPEC") && cliHtml.includes("DashKit.bars"));
 
-    const genHash = cp.execFileSync("node", [path.join(ROOT, "tools", "gen-code.js"), "pentaho-studio"]).toString().trim().split("\n")[0];
-    ok("gen-code.js hashes an access code (matches the default gate hash)", genHash === "a0b4ac228aecdf5dfdffd338c5b9d0b10b945860712a14259fa95bb7be3bf279", genHash.slice(0, 16));
+    // ---- AUD-09: the dead code stays dead ----
+    // The site-wide passcode gate was replaced by the sign-in screen long ago, but its
+    // config file kept shipping (and kept two live access-code hashes in the precache).
+    // These checks keep it -- and its hash generator -- from creeping back.
+    console.log("\n• AUD-09 dead code");
+    ok("AUD-09: app/gate-config.js is gone", !fs.existsSync(path.join(ROOT, "app", "gate-config.js")));
+    ok("AUD-09: tools/gen-code.js (its hash generator) is gone", !fs.existsSync(path.join(ROOT, "tools", "gen-code.js")));
+    // Match the ways it could actually LOAD -- a <script src> or a precache-list entry --
+    // rather than any mention, so sw.js's historical release-notes block stays untouched.
+    const gateRefFiles = ["app/index.html", "app/viewer.html", "sw.js"];
+    const gateRefs = gateRefFiles.filter((f) => /["'][^"']*gate-config\.js["']/.test(fs.readFileSync(path.join(ROOT, f), "utf8")));
+    ok("AUD-09: nothing loads or precaches gate-config.js", gateRefs.length === 0, gateRefs.join(","));
+    const gateHashHits = gateRefFiles.concat(["app/gate.js", "app/auth.js"])
+      .filter((f) => fs.readFileSync(path.join(ROOT, f), "utf8").includes("STUDIO_GATE_SHA256"));
+    ok("AUD-09: no access-code hashes ship with the app", gateHashHits.length === 0, gateHashHits.join(","));
+    // TIME_RANGE/fromkey: a relative-days picker with zero callers that rode along in
+    // every export. Deleted rather than half-implemented -- the real date filter is AUD-06.
+    const dashkitSrc = fs.readFileSync(path.join(ROOT, "vendor", "dashkit.js"), "utf8");
+    ok("AUD-09: DashKit no longer defines the uncalled TIME_RANGE/fromkey pair",
+      !/DashKit\.TIME_RANGE\s*=/.test(dashkitSrc) && !/DashKit\.fromkey\s*=/.test(dashkitSrc));
+    ok("AUD-09: exported dashboards carry neither (the toolkit is inlined verbatim)",
+      cliHtml.indexOf("TIME_RANGE") < 0 && cliHtml.indexOf("fromkey") < 0);
 
     // ---- sign-in (M3) + welcome tour (fresh context, no bypass) ----
     console.log("\n• sign-in + welcome");

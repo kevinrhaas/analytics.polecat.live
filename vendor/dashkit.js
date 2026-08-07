@@ -785,8 +785,6 @@ DashKit.filters=function(defs,onChange){
   });
   return DashKit.filterState;
 };
-DashKit.TIME_RANGE=[{v:"0",t:"All time"},{v:"365",t:"Last 12 months"},{v:"180",t:"Last 6 months"},{v:"90",t:"Last 90 days"},{v:"30",t:"Last 30 days"}];
-DashKit.fromkey=function(days){days=+days||0;if(days<=0)return 0;var d=new Date(Date.now()-days*864e5);return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();};
 /* error helper for dashboards */
 DashKit.fail=function(msg){var c=DashKit.el("content");if(c)c.innerHTML='<div class="loading">'+(msg||"Could not load data. Ensure you are logged into Pentaho.")+'</div>';};
 })();

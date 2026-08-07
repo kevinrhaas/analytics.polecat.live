@@ -135,6 +135,46 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **AUD-09 — the dead code is deleted (v852, sw v484, 2026-08-07, steward;
+  AUDIT-2026-08 §1.5, code):** two leftovers that shipped to every visitor, both
+  removed rather than tidied.
+  - **`app/gate-config.js` is GONE.** It defined `window.STUDIO_GATE_SHA256` — the
+    hash list of the retired site-wide passcode gate — and **nothing has read that
+    global since `app/gate.js` became the username/password sign-in screen** (verified:
+    zero readers in `app/`, `js/`, `vendor/`, `tools/`). It was still a render-blocking
+    `<script src>` in BOTH `app/index.html` and `app/viewer.html` and still sat in
+    `sw.js`'s `SHELL_FILES`, so two live access-code hashes were downloaded and
+    precached into every install for nothing. Its hash generator, **`tools/gen-code.js`**,
+    went with it (its only purpose was producing values for that file), and so did the
+    suite's stale "gen-code.js hashes an access code" check — a test that pinned a
+    mechanism the app no longer has.
+  - **`DashKit.TIME_RANGE` + `DashKit.fromkey` are GONE** (`vendor/dashkit.js`) — a
+    relative-days picker (All time / Last 12 months / …) and its yyyymmdd key helper,
+    Pentaho-era leftovers with zero callers anywhere in the app. Because the toolkit is
+    inlined verbatim, they rode along inside **every exported dashboard**. This is
+    AUD-09's "implement-or-delete" decision, made deliberately: **delete**, because
+    implementing it properly is a real date-filter feature (AUD-06's open item), and a
+    dead picker in the toolkit made the gap look half-answered. The `reference/`
+    dashboards keep their own historical `PDC.TIME_RANGE` copies — untouched, they are
+    frozen source material. **No "removed here" marker comment was left in
+    `dashkit.js`**: the first cut wrote one and the new export assertion promptly failed
+    it — a comment in the toolkit is inlined into every exported dashboard, which is the
+    exact cost this item is removing. The rationale lives here and in the changelog; the
+    test is what keeps the symbols from returning.
+  - **Docs told the old story:** `PUBLISH.md` § Gating walked operators through rotating
+    a passcode hash that does nothing, and `README.md` advertised "a passcode gate
+    (configurable in `app/gate-config.js`)". Both now describe the actual sign-in gate
+    (local demo accounts or the connected workspace's `users` table, PBKDF2 digests per
+    AUD-03), and PUBLISH.md notes that the app's own sign-in stays meaningful *behind*
+    Cloudflare Access because it is what identifies the user inside the app.
+  - **6 new checks** replacing the one deleted: both files are absent; nothing `<script
+    src>`s or precaches `gate-config.js` (matched on the quoted-path form, so `sw.js`'s
+    historical release-notes block stays untouched — trimming that is AUD-08's open
+    item); no `STUDIO_GATE_SHA256` ships; `dashkit.js` defines neither dead symbol; and
+    a **CLI-export** assertion that a real exported dashboard carries neither string.
+  - **Full suite green: 3047 passed, 0 failed.** Ran the whole suite rather than the dev
+    gate alone — this removes a boot-path script tag and changes the exported artifact.
+  - **AUDIT-2026-08 is now down to AUD-06's tail, AUD-08's tail, AUD-10, AUD-11, AUD-12.**
 - **AUD-08 slice 1 — the release history is off the boot + precache path (v851, sw v483,
   2026-08-07, steward; AUDIT-2026-08 §1.4, perf):** `js/changelog.js` is ~680KB — the
   single largest file the app ships — and the ONLY thing that ever reads it is the
@@ -9215,8 +9255,10 @@
 >   gained `startsWith`, real labels instead of raw ids, numeric-aware equality
 >   and text-capable ordering.
 >   **Still open, in rough order:**
->   - **Decide TIME_RANGE** (a real date filter, or delete — see AUD-09); there
->     is still no first-class date/range filter anywhere, only `{{today-30}}`
+>   - **Build a real date filter.** The "or delete" half is DONE — AUD-09 (v852)
+>     removed the dead `DashKit.TIME_RANGE` picker, so the gap is now explicit
+>     rather than half-answered: there is still no first-class date/range filter
+>     anywhere, only `{{today-30}}`
 >     SQL tokens. **Now carries a concrete sub-finding from slice 3:** the
 >     shared predicate compares with `parseFloat`, which takes a LEADING
 >     number, so ordering an ISO-date column (`2024-06-01`) compares YEARS.
@@ -9255,7 +9297,14 @@
 >   §1.4: the 52 render-blocking `<script src>` tags in `app/index.html` and the ~20
 >   boot-time asset fetches into `S.assets` — the next-largest boot win after the
 >   preview work.
-> - **AUD-09 [code] Dead code** (§1.5): delete `app/gate-config.js` (ships +
+> - ~~AUD-09 [code] Dead code~~ ✓ **SHIPPED v852, sw v484 (2026-08-07, steward —
+>   see DONE).** Both halves: `app/gate-config.js` (+ `tools/gen-code.js` + the
+>   stale suite check that pinned it) deleted with its index.html/viewer.html/sw.js
+>   references; `DashKit.TIME_RANGE`/`fromkey` **deleted** rather than implemented —
+>   the implement side IS AUD-06's real date filter, and the dead picker made the
+>   gap look half-answered. PUBLISH.md + README.md now describe the sign-in gate
+>   instead of the retired passcode.
+>   Original: (§1.5): delete `app/gate-config.js` (ships +
 >   precached, contains two live access-code hashes, ZERO readers) and its
 >   index.html/viewer.html/sw.js references; implement-or-delete
 >   `DashKit.TIME_RANGE` (zero app callers — deleting it makes the "no date
