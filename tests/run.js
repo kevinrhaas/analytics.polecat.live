@@ -19695,6 +19695,172 @@ function serve() {
 
     await gp42.close();
 
+    // ---- N6: the "Dave" north-star acceptance test -------------------------
+    // STATUS.md's ONBOARDING & PROVISIONING EPIC is ONE story, not five
+    // separate features: an admin provisions a user ONCE, and that user signs
+    // in on a FRESH device to a workspace that is already fully configured —
+    // role, theme, sample pack, dashboard defaults, the assigned backend, and
+    // the welcome tour. Every piece has its own checks above (LF39 cross-device
+    // sign-in, LF41 provisioning defaults, LF42/#103 assigned backend, LF40 the
+    // welcome/tour), but nothing asserted they still ADD UP: each could stay
+    // green while the story quietly broke at a seam. This is that acceptance
+    // test — two browser contexts, the REAL Add-user form, the REAL gate form,
+    // and no stubbed app internals in the sign-in path.
+    //
+    // Dave's device is a PHONE (390x780): "signs in from any device" is the
+    // whole point of the story, and mobile is a release gate.
+    console.log("\n• N6: the “Dave” north-star — provision once, sign in on a fresh device, land ready");
+    const daveCfg = { url: `http://localhost:${PORT}/__turso`, token: "davetok" };
+
+    // (a) The admin's device. Register the workspace backend, set the house
+    // Dashboard defaults, then provision Dave through the real Add-user form —
+    // one pass, every field, exactly what an admin actually does.
+    const daveAdmin = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    daveAdmin.on("pageerror", (e) => errors.push("N6 admin page: " + e.message));
+    await daveAdmin.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    await daveAdmin.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await daveAdmin.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
+    await daveAdmin.waitForTimeout(300);
+    await daveAdmin.evaluate(function (cfg) {
+      localStorage.setItem("studio-admin-backends", JSON.stringify([
+        { id: "bk-dave", name: "CTIC Conservation workspace", adapter: "turso", cfg: cfg }
+      ]));
+      // the house style this admin wants every new account to start from
+      Studio.Defaults.setSubtitle("Prepared by CTIC");
+      Studio.Defaults.setAccentColor("#2f7d5b");
+      Studio.Defaults.setCardSkin("flat");
+      window.__studioShellSetSection("admin");
+      window.__studioRenderAdmin();
+      window.__studioOpenUserEditor();
+      document.getElementById("usrEditUser").value = "dgustafson";
+      document.getElementById("usrEditName").value = "Dave Gustafson";
+      document.getElementById("usrEditPass").value = "davepw12345";
+      document.getElementById("usrEditRole").value = "admin";
+      document.getElementById("usrEditTheme").value = "conservation";
+      document.getElementById("usrEditPack").checked = true;
+      document.getElementById("usrEditBackend").value = "bk-dave";
+      document.getElementById("usrEditForceTour").checked = true;
+      document.getElementById("usrEditDDCopyBtn").click();   // "Copy my current Dashboard defaults"
+      document.querySelector(".cx-wiz-foot .btn.primary").click();
+    }, daveCfg);
+    await daveAdmin.waitForFunction(() => !document.querySelector(".modal-ov"), { timeout: 8000 });
+    const daveProfile = await daveAdmin.evaluate(function () {
+      var row = window.PolecatAuth.find("dgustafson") || {};
+      var mirrored = Studio.Workspace.all("users").filter(function (u) { return u.u === "dgustafson"; })[0] || null;
+      return {
+        role: row.role, forceTour: row.forceTour, provisioned: row.provisioned, prov: row.provisioning || null,
+        mirroredRole: mirrored && mirrored.role, mirroredHasHash: !!(mirrored && mirrored.hash)
+      };
+    });
+    ok("N6 (provision): one pass of the real Add-user form stores Dave's WHOLE starting profile on the account — admin role, Conservation theme + pack, the copied Dashboard defaults, the assigned backend's full snapshot and the one-shot tour flag — and marks it not-yet-applied",
+      daveProfile.role === "admin" && daveProfile.provisioned === false && daveProfile.forceTour === true &&
+      daveProfile.prov && daveProfile.prov.theme === "conservation" && daveProfile.prov.pack === "conservation" &&
+      daveProfile.prov.backend && daveProfile.prov.backend.adapter === "turso" && daveProfile.prov.backend.cfg.url === daveCfg.url &&
+      daveProfile.prov.dashboardDefaults && daveProfile.prov.dashboardDefaults.subtitle === "Prepared by CTIC" &&
+      daveProfile.prov.dashboardDefaults.accentColor === "#2f7d5b" && daveProfile.prov.dashboardDefaults.cardSkin === "flat",
+      JSON.stringify(daveProfile));
+    ok("N6 (provision): the new account is mirrored into the workspace users table WITH its password digest, so the profile can actually travel to a device that has never seen it",
+      daveProfile.mirroredRole === "admin" && daveProfile.mirroredHasHash, JSON.stringify(daveProfile));
+
+    // The admin's device syncs the workspace (Dave's account row rides along).
+    await daveAdmin.evaluate(async function (cfg) {
+      await Studio.tursoSource.provision(cfg, Studio.Workspace.snapshot());
+      await Studio.Sync.connectPush("turso", cfg);
+    }, daveCfg);
+    await daveAdmin.close();
+
+    // (b) Dave's phone. The ONLY thing on it is the workspace binding (what the
+    // gate's workspace picker / an access link leaves behind) — no account, no
+    // theme, no pack, no dashboard defaults, no welcome-seen flag.
+    const davePhone = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    davePhone.on("pageerror", (e) => errors.push("N6 Dave phone: " + e.message));
+    await davePhone.addInitScript((cfg) => {
+      try { localStorage.setItem("analytics.datasource.v1", JSON.stringify({ sourceId: "turso", cfg: cfg, at: 1 })); } catch (e) {}
+    }, daveCfg);
+    await davePhone.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await davePhone.waitForSelector("#g-form", { timeout: 10000 });
+    // The gate can only adopt an account it has never seen once the boot pull
+    // has landed (the LF39 mechanism) — wait for it to SETTLE rather than race it.
+    const daveSyncReady = await davePhone.waitForFunction(() => {
+      if (!window.Studio || !Studio.Sync) return false;
+      var s = Studio.Sync.syncState();
+      return s.sourceId === "turso" && s.status !== "connecting";
+    }, { timeout: 20000 }).then(() => true).catch(() => false);
+    const daveBefore = await davePhone.evaluate(() => ({
+      knowsDave: !!window.PolecatAuth.find("dgustafson"),
+      theme: window.__studioAppTheme.get(),
+      packInstalled: !!(window.Studio && Studio.demoPackInstalled("conservation")),
+      subtitle: Studio.Defaults.subtitle()
+    }));
+    ok("N6 (fresh device): before Dave signs in his phone is genuinely blank — it has never heard of his account, wears no Conservation theme, has no sample pack and none of the house Dashboard defaults (so everything asserted after sign-in was really delivered by provisioning)",
+      !daveBefore.knowsDave && daveBefore.theme !== "conservation" && !daveBefore.packInstalled &&
+      daveBefore.subtitle !== "Prepared by CTIC", JSON.stringify(daveBefore));
+
+    // The one action Dave takes: type his username + password into the gate.
+    await davePhone.fill("#g-user", "dgustafson");
+    await davePhone.fill("#g-pass", "davepw12345");
+    await davePhone.click("#g-form button[type=submit]");
+    await davePhone.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 15000 }).catch(() => {});
+    await davePhone.waitForTimeout(500);
+    const daveLanded = await davePhone.evaluate(function () {
+      var me = window.PolecatAuth.current() || {};
+      var row = window.PolecatAuth.find("dgustafson") || {};
+      var st = Studio.Sync.syncState();
+      var wel = document.getElementById("studio-welcome");
+      return {
+        gateGone: !document.querySelector("#studio-gate"), who: me.u, role: row.role,
+        theme: window.__studioAppTheme.get(), htmlTheme: document.documentElement.getAttribute("data-app-theme"),
+        packInstalled: Studio.demoPackInstalled("conservation"),
+        packDashboards: Studio.Workspace.all("dashboards").filter(function (d) { return d.demoPackId === "conservation"; }).length,
+        subtitle: Studio.Defaults.subtitle(), accent: Studio.Defaults.accentColor(), skin: Studio.Defaults.cardSkin(),
+        provisioned: row.provisioned, forceTour: row.forceTour,
+        remote: !!st.isRemote, sourceId: st.sourceId, cfgUrl: (Studio.Sync.currentConfig() || {}).url,
+        adoptDialog: !!document.getElementById("adoptGoBtn"),
+        declined: localStorage.getItem("studio-backend-decline:bk-dave"),
+        welcomeOpen: !!wel, welcomeGreetsDave: !!wel && /Dave/.test(wel.textContent),
+        gateErr: (document.getElementById("g-err") || {}).textContent || ""
+      };
+    });
+    daveLanded.syncReadyBeforeSubmit = daveSyncReady;
+    ok("N6 (identity): Dave signs in on a device that never held his account — the gate adopts it from the workspace backend and he lands as himself, with the admin role the provisioning gave him",
+      daveLanded.gateGone && daveLanded.who === "dgustafson" && daveLanded.role === "admin", JSON.stringify(daveLanded));
+    ok("N6 (look): the provisioned Conservation theme is applied to the app at that first sign-in, stamped on the document so the whole chrome comes up in it",
+      daveLanded.theme === "conservation" && daveLanded.htmlTheme === "conservation", JSON.stringify(daveLanded));
+    ok("N6 (content): the provisioned Conservation Insight pack is installed AND its example dashboards are materialized — Dave lands on real content, not an empty workspace",
+      daveLanded.packInstalled === true && daveLanded.packDashboards > 0, JSON.stringify(daveLanded));
+    ok("N6 (settings): the admin's copied Dashboard defaults are replayed onto Dave's device — subtitle, accent and card style all match the house style he was provisioned with",
+      daveLanded.subtitle === "Prepared by CTIC" && daveLanded.accent === "#2f7d5b" && daveLanded.skin === "flat",
+      JSON.stringify(daveLanded));
+    ok("N6 (backend): Dave lands connected to the workspace his account was assigned, with no adopt prompt and no decline recorded — the assignment resolved to the workspace he is already in instead of churning the connection",
+      daveLanded.remote && daveLanded.sourceId === "turso" && daveLanded.cfgUrl === daveCfg.url &&
+      !daveLanded.adoptDialog && daveLanded.declined !== "1", JSON.stringify(daveLanded));
+    ok("N6 (tour): the one-shot welcome fires on Dave's first sign-in, greets him BY NAME, and the flag is consumed in the same breath so his next sign-in is a normal one",
+      daveLanded.welcomeOpen && daveLanded.welcomeGreetsDave && daveLanded.forceTour === false, JSON.stringify(daveLanded));
+    ok("N6 (once-only): the account is stamped provisioned, so this whole starting profile is delivered exactly once and never fights Dave's own later choices",
+      daveLanded.provisioned === true, JSON.stringify(daveLanded));
+
+    // The pack Dave was provisioned with is what unlocks its guided tour — the
+    // last seam of the story (LF40 slice 2 gated the tour on pack installation).
+    await davePhone.keyboard.press("Escape");
+    await davePhone.waitForTimeout(150);
+    const daveTour = await davePhone.evaluate(function () {
+      var out = { welcomeDismissed: !document.getElementById("studio-welcome") };
+      window.StudioTutorial.open();
+      var chooser = document.getElementById("st-tip");
+      out.keys = [].slice.call(chooser ? chooser.querySelectorAll("[data-tour]") : []).map(function (b) { return b.getAttribute("data-tour"); });
+      out.steps = window.StudioTutorial.tourSteps("conservation").length;
+      return out;
+    });
+    ok("N6 (tour): installing the provisioned pack unlocks its walkthrough — the Conservation Insight tour is offered in the chooser on Dave's phone, with real steps behind it",
+      daveTour.welcomeDismissed && daveTour.keys.indexOf("conservation") >= 0 && daveTour.steps > 0, JSON.stringify(daveTour));
+
+    // cleanup: drop the mock backend's tables so a later reuse of /__turso starts empty
+    await davePhone.evaluate(async function (cfg) {
+      Studio.Sync.disconnect();
+      await Studio.tursoSource.drop(cfg);
+    }, daveCfg);
+    await davePhone.close();
+
     // ---- M7 slice 6: in-app account provisioning (browser self-signup) ----
     // A separate page/context so connecting it to a (mocked) Supabase backend
     // never disturbs the main page's local-only workspace the rest of the

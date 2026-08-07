@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 861,
+    title: 'A new account\'s welcome greets them by name',
+    kind: 'fix',
+    ts: '2026-08-07T17:30:57.000Z',
+    items: [
+      'Sign in for the first time on a new device and the welcome now greets you by name. The app starts up behind the sign-in screen, so the welcome could be drawn before it knew who was arriving — and a freshly set-up account spent its one-time welcome on a generic hello.',
+      'The welcome also picks up any sample pack that was just installed for you, so its tour covers the content you actually landed on.',
+      'Behind the scenes: an end-to-end check now walks the whole set-up story in one go — an admin creates an account once, and that person signs in on a fresh phone to find their role, theme, sample pack, dashboard defaults, workspace and welcome tour all waiting. It is what caught the greeting above.',
+    ],
+  },
+  {
     v: 860,
     title: 'Project housekeeping: the backlog gets a readable archive',
     kind: 'polish',
