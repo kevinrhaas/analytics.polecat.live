@@ -135,6 +135,46 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **AUD-08 slice 1 — the release history is off the boot + precache path (v851, sw v483,
+  2026-08-07, steward; AUDIT-2026-08 §1.4, perf):** `js/changelog.js` is ~680KB — the
+  single largest file the app ships — and the ONLY thing that ever reads it is the
+  What's-new feed. Every visitor downloaded all of it at boot, and the service worker
+  precached it into every install, so the footer could print one version label.
+  - **`js/changelog-head.js`** (new, ~650 bytes, GENERATED) carries the two facts boot
+    actually needs: `STUDIO_LATEST_VERSION` and `STUDIO_LATEST` (the newest entry *without*
+    its item bullets, so the file stays small no matter how long a release note runs).
+    `tools/changelog-normalize.js` emits it from the same canonical entry list on every
+    run, so the pair cannot drift — and the suite pins them together anyway.
+  - **`Studio.loadChangelog()`** (studio.js) fetches the full history on demand by appending
+    the very same `<script type="module" src="js/changelog.js">` the page used to carry, so
+    module resolution is byte-identical to before — notably it still resolves against
+    `<base href="/">`, which is what keeps the `/dev/` and `/stage/` previews on their OWN
+    changelog instead of production's. Memoized; a failed load resolves empty and drops the
+    memo so a retry is one more click.
+  - **The feed opens instantly.** `buildWhatsNewBody()` builds its chrome (search box,
+    heading) synchronously with a `Loading…` line, then fills in; a search typed during the
+    fetch is honoured. Both triggers **prefetch on `pointerenter`/`focus`**, so in practice
+    the click renders in one frame. `markSeen` now reads the head file's version, so the
+    unseen dot clears without waiting on anything.
+  - Readers updated to prefer the head file: `renderFooter` (studio.js), `app/activity.js`
+    (the version stamped on activity events), `app/fleet.js` (comment only — it already read
+    `STUDIO_LATEST_VERSION`). Each still falls back to `STUDIO_CHANGELOG[0]` once the full
+    history is in memory.
+  - `sw.js` v483: `js/changelog.js` **removed** from `SHELL_FILES`, `js/changelog-head.js`
+    added. Installs and updates no longer store ~680KB up front; the fetch handler
+    runtime-caches the history after the first open, so offline behaviour survives one visit
+    to the feed. (Deliberately NOT precaching it back: the audit's point is the boot cost.)
+  - **8 new checks** (`tests/run.js`): boot requests the head file and *not* the big one;
+    `window.STUDIO_CHANGELOG` is unset in the boot window; the head file supplies the
+    version + `Studio.loadChangelog` exists; head-vs-full **drift guard** (version, id and
+    title must match the max-`v` entry); head file < 4KB; `sw.js` precaches the head and not
+    the history; `app/index.html` boots the head only; and opening the feed lazily pulls the
+    full history with every entry rendered. Six existing What's-new sites gained an explicit
+    `.cl-entry` wait — the assertions themselves are unchanged.
+  - **Full suite green: 3042 passed, 0 failed** (this touches boot, so the dev gate alone
+    wasn't enough). **Still open in AUD-08:** the ~2,450-line `sw.js` comment block, and the
+    big one — `refreshPreview()` rebuilding the entire ~570KB–4.4MB srcdoc from 208 call
+    sites on a 130ms debounce.
 - **AUD-06 ★ slice 3 — ONE filter-operator vocabulary (v850, sw v482, 2026-08-07,
   steward; AUDIT-2026-08 §2.1 family B, ux):** the audit's last named divergence in the
   filter program. Two surfaces defined the *same conceptual operation* twice:
@@ -9203,10 +9243,18 @@
 >   deletes with no undo — `app/build.js:389`, `app/explore.js:938`,
 >   `app/studio.js:890` — get `Studio.undoToast` like the DURABLE-2b per-row
 >   deletes; folds into the DURABLE-2 trash model.
-> - **AUD-08 [perf] Boot + preview cost** (§1.4): get `js/changelog.js` (~660KB)
->   off the render-blocking boot + precache path; trim the sw.js comment block;
+> - **AUD-08 [perf] Boot + preview cost** (§1.4): ~~get `js/changelog.js` (~660KB)
+>   off the render-blocking boot + precache path~~ ✓ **SLICE 1 SHIPPED v851, sw v483
+>   (2026-08-07, steward — see DONE):** boot loads a generated ~650-byte
+>   `js/changelog-head.js`; `Studio.loadChangelog()` fetches the history on demand
+>   (prefetched on hover/focus of either What's-new trigger); the big file is no longer
+>   precached. **Still open:** trim the sw.js comment block (~2,450 lines of release
+>   notes sitting ahead of `SHELL_FILES`); and the substantial half —
 >   make `refreshPreview()` incremental instead of a full ~570KB–4.4MB srcdoc
->   re-parse from 208 call sites on a 130ms debounce.
+>   re-parse from 208 call sites on a 130ms debounce. Also untouched and named in
+>   §1.4: the 52 render-blocking `<script src>` tags in `app/index.html` and the ~20
+>   boot-time asset fetches into `S.assets` — the next-largest boot win after the
+>   preview work.
 > - **AUD-09 [code] Dead code** (§1.5): delete `app/gate-config.js` (ships +
 >   precached, contains two live access-code hashes, ZERO readers) and its
 >   index.html/viewer.html/sw.js references; implement-or-delete

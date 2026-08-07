@@ -645,11 +645,42 @@
         " · " + d.toLocaleTimeString("en-US", { timeZone: "America/Chicago", hour: "2-digit", minute: "2-digit" }) + " CT";
     } catch (e) { return d.toISOString().slice(0, 16).replace("T", " "); }
   }
+  // AUD-08 — the changelog is LAZY. js/changelog.js is ~680KB of history and the only
+  // thing that reads it is this feed, so boot loads just js/changelog-head.js (latest
+  // version + newest entry) and we fetch the rest the first time someone actually wants
+  // it. Implemented by appending the very same `<script type="module" src="js/changelog.js">`
+  // the page used to carry, so module resolution is byte-identical to before — notably it
+  // still resolves against <base href="/">, which is what makes the /dev/ and /stage/
+  // previews load their OWN changelog rather than production's.
+  var _clPromise = null;
+  // True once a load attempt has completed — lets the feed tell "still fetching" (show a
+  // Loading… line) apart from "fetched, but there is nothing" (show the empty state).
+  var _clLoaded = false;
+  function loadChangelog() {
+    if (window.STUDIO_CHANGELOG) { _clLoaded = true; return Promise.resolve(window.STUDIO_CHANGELOG); }
+    if (_clPromise) return _clPromise;
+    _clPromise = new Promise(function (resolve) {
+      var s = document.createElement("script");
+      s.type = "module";
+      s.src = "js/changelog.js";
+      s.onload = function () { resolve(window.STUDIO_CHANGELOG || []); };
+      // Offline with a cold cache is a real possibility here (the file is no longer
+      // precached). Resolve empty rather than hanging: the feed shows its empty state
+      // and a retry is one more click away, because we drop the memoized promise.
+      s.onerror = function () { _clPromise = null; resolve([]); };
+      document.head.appendChild(s);
+    });
+    return _clPromise;
+  }
+  Studio.loadChangelog = loadChangelog;
+
   // Slice A: the What's-new feed is now reachable from TWO places — the global topbar
   // button (#tbWhatsNew) and the Studio footer Changelog button (#btnChangelog). The
   // feed body (Studio's richer live-search feed) and the shell right-panel open/toggle
   // live here at module scope so both triggers share one implementation and one open
   // state. Built fresh per open — the shell removes the panel DOM on close.
+  // AUD-08: the chrome (search box, heading) is built synchronously so the panel never
+  // opens empty; only the entry list waits on loadChangelog().
   function buildWhatsNewBody() {
     var log = window.STUDIO_CHANGELOG || [];
     var pop = document.createElement("div");
@@ -661,6 +692,7 @@
       '<div id="clEntries"></div>';
     var clEntries = pop.querySelector("#clEntries");
     function renderClEntries(q) {
+      if (!log.length && !_clLoaded) { clEntries.innerHTML = '<div class="cl-empty">Loading…</div>'; return; }
       var needle = (q || "").trim().toLowerCase();
       var matched = log.filter(function (e) {
         if (!needle) return true;
@@ -678,6 +710,15 @@
     renderClEntries("");
     var clSrch = pop.querySelector("#clSearch");
     if (clSrch) clSrch.addEventListener("input", function () { renderClEntries(clSrch.value); });
+    // AUD-08: fill in once the history lands. If the panel was closed meanwhile, the node
+    // is detached and this is a harmless no-op; any search typed in the interim is honoured.
+    if (!log.length) {
+      loadChangelog().then(function (entries) {
+        _clLoaded = true;
+        log = entries || [];
+        renderClEntries(clSrch ? clSrch.value : "");
+      });
+    }
     return pop;
   }
   // Shared open/toggle state across both triggers. `triggerBtn` is whichever button was
@@ -690,19 +731,37 @@
     if (_wnPanel) { _wnPanel.close(); return; } // toggle: second click (either trigger) closes
     _wnTrigger = triggerBtn || null;
     if (_wnTrigger) _wnTrigger.setAttribute("aria-expanded", "true");
-    var log = window.STUDIO_CHANGELOG || [];
     _wnPanel = PS.rightPanel({
       title: "What’s new",
       body: buildWhatsNewBody(),
       onClose: function () { _wnPanel = null; if (_wnTrigger) _wnTrigger.setAttribute("aria-expanded", "false"); _wnTrigger = null; },
     });
-    PS.markSeen(PS.SEEN_KEY, window.STUDIO_LATEST_VERSION || (log[0] && log[0].v) || 0);
+    // AUD-08: the seen-version comes from the head file now, so marking seen no longer
+    // waits on (or requires) the full history — the dot clears the instant you open.
+    var latest = window.STUDIO_LATEST_VERSION ||
+      (window.STUDIO_LATEST && window.STUDIO_LATEST.v) ||
+      ((window.STUDIO_CHANGELOG || [])[0] || {}).v || 0;
+    PS.markSeen(PS.SEEN_KEY, latest);
     PS.clearWhatsNewDot();
   }
   window.__studioOpenWhatsNew = openWhatsNew;
+  // AUD-08: warm the history on intent rather than on boot — a hover or a keyboard focus
+  // on either trigger starts the fetch, so by the time the click lands the feed usually
+  // renders in one frame. Costs nothing for the visitors who never open it.
+  ["tbWhatsNew", "btnChangelog"].forEach(function (id) {
+    ["pointerenter", "focus"].forEach(function (ev) {
+      document.addEventListener(ev, function (e) {
+        var t = e.target;
+        if (t && t.closest && t.closest("#" + id)) loadChangelog();
+      }, true);
+    });
+  });
 
   function renderFooter() {
-    var log = window.STUDIO_CHANGELOG || [];
+    // AUD-08: the footer only ever needed the NEWEST entry, so it reads the generated head
+    // file (window.STUDIO_LATEST) and falls back to the full history when that is already
+    // in memory — no reason to pull 680KB to print one version label.
+    var log = [window.STUDIO_LATEST || (window.STUDIO_CHANGELOG || [])[0]].filter(Boolean);
     var stamp = $("#fbStamp");
     // "Last updated": real CI deploy time when present, else the latest entry's date.
     var build = window.STUDIO_BUILD, when = null;

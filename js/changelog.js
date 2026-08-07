@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 851,
+    title: 'The app starts faster — the update history no longer loads with it',
+    kind: 'polish',
+    ts: '2026-08-07T10:29:09.000Z',
+    items: [
+      'Every visit used to download the entire release history — about 680KB, the single largest file in the app — before the workspace could finish starting, even though nothing on screen shows it until you open "What\'s new".',
+      'Startup now loads only the current version number, a few hundred bytes. The full history is fetched the first time you open the feed, and hovering the What\'s-new button starts that fetch early, so it is normally already there when you click.',
+      'The offline app shell is that much lighter too: installing or updating the app no longer stores the whole history up front, so first installs and updates finish sooner and take less space. Once you have opened the feed, it stays available offline as before.',
+      'The footer version, the "new updates" dot and the What\'s-new panel all behave exactly as they did.',
+    ],
+  },
+  {
     v: 850,
     title: 'One set of filter operators, everywhere you filter',
     kind: 'polish',
