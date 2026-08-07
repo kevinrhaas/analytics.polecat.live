@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 866,
+    title: 'The shared Polecat Shell catches up to v0.6.2',
+    kind: 'polish',
+    ts: '2026-08-07T20:19:39.000Z',
+    items: [
+      'The app is built on Polecat Shell, the design foundation shared across the polecat.live suite. Our vendored copy had fallen five releases behind the fleet, so this brings it back to v0.6.2 — a verbatim copy, checked file-by-file against its signed manifest by the test suite, exactly as a read-only vendored library should be.',
+      'What actually changes on screen here: nothing. Analytics uses the shell for its app switcher, icons, the What\'s-new panel and the design tokens, and it styles all of those with its own values on top; the fixes in this release land in shell parts other apps in the suite use. We are saying so plainly rather than dressing up a maintenance update as a feature.',
+      'Why do it anyway: the drift was a real finding from the fleet tech sweep, and a stale foundation is how small differences between the apps in the suite quietly become big ones. Keeping the copy current means the next piece of the shell this app adopts is the fixed version, not the old one.',
+    ],
+  },
+  {
     v: 865,
     title: 'Your workspace password is no longer kept on the device',
     kind: 'fix',

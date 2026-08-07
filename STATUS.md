@@ -135,6 +135,44 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N4b — the vendored Polecat Shell catches up to v0.6.2, and N4a is raised for Kevin
+  (v866, sw v498, 2026-08-07, steward — NOW item N4, split per `docs/BACKLOG.md`):** tech
+  sweep #370 recorded the vendored copy as "2 patches behind in July". **The re-check found
+  it five releases behind: `vendor/polecat-shell/VERSION` said `0.5.4` against the hub's
+  `0.6.2`.** Ten files moved (8 changed, `fonts.css` + `fonts/` newly part of the shell), and
+  the copy is now a verbatim `rsync -a --exclude demo/` of `kevinrhaas/polecat-platform`
+  `lib/` @ `6a09750` — the same operation `sync-shell.yml` performs, so provenance is the
+  platform repo and nothing was hand-edited in `vendor/` (the read-only rule holds).
+  **Why this was done here rather than by a `sync-shell` dispatch:** that workflow clones the
+  app's DEFAULT branch and opens its PR into `main`, which is wrong for a pipeline repo —
+  feature-shaped work has to enter at `dev`. Filed as a platform-side note; until the
+  workflow is pipeline-aware, an analytics shell catch-up rides a `dev` PR like this one.
+  **What actually changes for a user of this app: nothing, and the changelog entry says so
+  plainly.** `app/fleet.js` imports only `appSwitcher`/`rightPanel` from `shell.js`, so the
+  v0.6.x rail work (a mobile drawer close button; the rail re-applying the desktop preference
+  when the viewport grows back out of drawer range) lives in `initShell`, which this app does
+  not call. `views.js` (popover toggle-shut) and `site-chrome.css` are not imported here at
+  all. The one linked file, `tokens.css`, changed only its `--font` default (Inter → Hanken
+  Grotesk) and `app/studio.css`'s bridge already declares Hanken Grotesk over it from this
+  repo's own `assets/fonts/`, so the computed face is identical before and after — measured,
+  not assumed: `--font` and `body`'s computed `font-family` both still resolve to the Studio
+  bridge's Hanken Grotesk stack in a real browser on this branch. The value
+  is that the foundation stops drifting: the next shell surface this app adopts is the fixed
+  version. **Verified:** the suite's own vendor-integrity assertions reproduced standalone
+  before commit — 29/29 files sha256-match `MANIFEST.json`, zero strays, `VERSION` agrees
+  with the manifest — plus the suite's "polecat-shell token bridge" section reproduced
+  standalone in Chromium (6/6, zero pageerrors), plus the full dev gate green in the
+  foreground (`tools/validate.mjs`, `tools/changelog-check.js`, `tools/doc-truth.mjs`,
+  `tools/dev-smoke.mjs`). The FULL `tests/run.js` runs at stage promotion, as designed. `sw.js`
+  `CACHE_NAME` bumped v497 → v498 because two precached files (`tokens.css`, `shell.js`)
+  changed. **N4a, the other half, is NOT shippable by any agent and is now ⛔ on Kevin:**
+  `gh api -X PATCH … -f delete_branch_on_merge=true` returns `403 Resource not accessible by
+  personal access token` — `STEWARD_PAT` carries repo scope, not repo administration. Raised
+  rather than assumed, which is what the item asked for; the 265 already-merged `steward/*`
+  branches were deliberately left alone pending his answer. **Est 1pt, took 1** — but only
+  half the item shipped, so the estimate was right for the work an agent can actually do and
+  wrong about N4a being agent work at all. Calibration note for future "repo hygiene" items:
+  split the settings-change half out as ⛔ at grooming time instead of estimating it.
 - **N2 slice 4 — the workspace password stops being persisted; the refresh token takes its place
   (v865, sw v497, 2026-08-07, steward — NOW item N2, the LAST of M7):** the standing security debt
   the item named in one line — "the client still keeps the signed-in user's plaintext Supabase
@@ -9678,13 +9716,24 @@
   database work; never CREATE/DROP/ALTER against live `public`. Note for any run touching an
   already-live workspace: `actionGoLive` TRUNCATEs the workspace tables, so "just re-run Go live"
   is never the way to pick up a posture fix — re-paste `tools/supabase-rls-real.sql` instead.
-- **N4 ★ [1pt] — Repo hygiene from tech sweep #370 (still open).** Two concrete items: (a)
-  `delete_branch_on_merge` is `false`, so every merged PR leaves its branch behind — 251
-  stale `steward/*` branches at sweep time and the loop has merged far more since; flip the
-  repo setting (Kevin may need to do this — it is a repo admin setting, so raise it rather
-  than assume). (b) Re-check `vendor/polecat-shell/` drift against the hub's `lib/VERSION`;
-  it was 2 patches behind in July and the shell has moved since. Sync PRs come FROM the
-  platform repo — never edit the vendored copy.
+- ⛔ **N4a ★ [1pt] — KEVIN DECISION/ACTION: turn on `delete_branch_on_merge`.** Tech sweep
+  #370, item (a): the setting is `false`, so every merged PR leaves its branch behind — 251
+  stale `steward/*` branches at sweep time and it has grown since — `git ls-remote --heads`
+  counts **265 `steward/*` branches of 273 total** on 2026-08-07. **Raised, not assumed, exactly as the item asked:** the steward
+  attempted the flip on 2026-08-07 with `gh api -X PATCH repos/kevinrhaas/analytics.polecat.live
+  -f delete_branch_on_merge=true` and got `403 Resource not accessible by personal access
+  token` — `STEWARD_PAT` has repo scope but not repo *administration*, so no agent can do
+  this. **The exact ask for Kevin:** flip Settings → General → "Automatically delete head
+  branches" ON (it only affects future merges; it never deletes an unmerged branch), and say
+  whether the ~250 already-merged `steward/*` branches should be bulk-deleted — the loop will
+  NOT mass-delete branches on its own guess. Alternative if the flip is unwanted: grant the
+  PAT admin scope, or say "leave them" and this item closes as WONTFIX. Nothing else here is
+  agent-actionable; N4b (the other half) is shipped.
+- ~~**N4b ★ [1pt] — Repo hygiene from tech sweep #370: vendored shell drift.**~~ ✓ SHIPPED
+  v866, sw v498 (2026-08-07, steward — see DONE). The re-check found the copy FIVE releases
+  behind (v0.5.4 vs the hub's v0.6.2), not the 2 patches the July sweep recorded, and it is
+  now current — a verbatim `lib/` copy from the platform repo, 29/29 files sha256-clean
+  against `MANIFEST.json`, no strays.
 - **N5a ★★ [2pt] — DECIDED (Kevin, 2026-08-07): inside the app, the READER's theme wins.** UX
   sweep #574 finding 1 — a dark app frames a light dashboard and reads as broken. The
   Viewer's iframe now follows the app's live `data-theme`, whatever `spec.renderMode` says.
