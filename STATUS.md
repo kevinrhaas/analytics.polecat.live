@@ -135,6 +135,42 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the marketing landing page says what the app actually does now, and can no longer
+  drift from the adapter registry (v871, sw v503, 2026-08-07, steward; LF58 recurring slice):**
+  the ▶ NOW queue again held no ready non-recurring item (N2/N4b/N5a/N5b shipped, N4a is ⛔ on
+  Kevin, grooming is still claimed by held PR #623), so this run took the 🔁 item and worked
+  the FIRST of the two candidates the previous slice left named on it: the marketing page
+  against this week's features.
+  - **The drift, measured against the app.** `app/sources/` registers 14 adapters; 13 of them
+    are things you connect TO (`local` is the no-backend workspace). The `#sources` strip
+    listed only 12 — **Amazon Redshift** shipped as an adapter and the strip never learned
+    about it — and it still said "CSV / JSON files" although `.xlsx` import shipped with
+    LF24-XLSX (2026-07-31, first worksheet → CSV, wired into the dataset drop zone, Quick
+    import and the View Builder). Both are named now, so the strip is exactly the connectable
+    set and the features card's "Connect 13 kinds of sources" count is a measurable claim.
+  - **Two claims weaker than the week's work.** "Bring your team" advertised "per-user
+    security", written when the model was honest UX-gating; after N2 closed M7 it is roles
+    plus **row-level security enforced by the database itself**, with the workspace password
+    never written to disk — it says that now. The theming section still claimed each
+    dashboard "carries its own theme too, so an embedded or exported dashboard matches
+    wherever it lands", which was never true of a baked theme; after N5a/N5b it reads as
+    shipped: Appearance is **Light, Dark or Auto**, inside the app the reader's theme wins,
+    and a handed-out file always looks the way its author made it.
+  - **The guard, again the point.** `tools/doc-truth.mjs` check 10 parses every adapter
+    id/label out of `app/sources/*.js` and holds the landing page to it three ways: every
+    connectable adapter must have a landing-page name in the script's `SOURCE_CHIP` map (a
+    NEW adapter fails until someone decides how the page says it), every mapped name must
+    appear in the `<div class="chips">` strip, and the "Connect N kinds of sources" number
+    must equal the count. **Proved by deleting the Redshift chip and setting the count to 12
+    and re-running: exit 1 naming both — "missing from the strip: Redshift (redshift)" and
+    "index.html says 12, the registry has 13" — then exit 0 restored.** Measured from the
+    source, never re-typed into the test.
+  - **Verified in the foreground:** the full DEV GATE — `tools/validate.mjs`,
+    `tools/changelog-check.js`, `tools/doc-truth.mjs` (19 checks) and `tools/dev-smoke.mjs`
+    at 390×780 AND desktop with zero pageerrors. `sw.js` → v503 (the precached `index.html`
+    and the stamped `js/changelog-head.js` both changed). No estimate to compare (🔁 items
+    carry no points); took 1 slice. Files: index.html, tools/doc-truth.mjs, js/changelog.js,
+    js/changelog-head.js, sw.js, STATUS.md.
 - **N7 — the Help page describes the left rail the app actually has, and can no longer drift
   from it (v870, sw v502, 2026-08-07, steward; LF58 recurring slice):** the ▶ NOW queue held
   no ready non-recurring item (N2/N4b/N5a/N5b shipped, N4a is ⛔ on Kevin, and the grooming
@@ -9928,9 +9964,14 @@
     never written to disk" security copy (N2 slice 4 shipped it), and the section labels
     used throughout `app/welcome.js` + `app/tutorial.js` — the tours already say "View
     Builder" and "Dashboard Builder" correctly; only the Help page had drifted.
-  * **Not yet audited (candidates for the next N7 slice):** the marketing landing page
-    against this week's features, and whether the overview tour still walks the rail in the
-    order the rail now presents it.
+  * *The marketing landing page vs the app — v871, 2026-08-07 (see DONE).* The `#sources`
+    strip was missing Amazon Redshift and `.xlsx` import; "per-user security" and the
+    dashboard-theme bullet predated N2/N5a/N5b. Doc-truth check 10 now holds the page's
+    source count and per-source names accountable to `app/sources/`'s adapter registry.
+  * **Not yet audited (candidates for the next N7 slice):** whether the overview tour still
+    walks the rail in the order the rail now presents it; and the marketing page's hero
+    carousel captions + screenshots, which this slice deliberately left alone (the copy pass
+    stayed textual — regenerating shots is its own slice).
 
 ### 🗂 Reservoir index (added 2026-08-07, N1) — what is below, and whether it is alive
 

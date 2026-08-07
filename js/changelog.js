@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 871,
+    title: 'The front page says what the app actually does now',
+    kind: 'fix',
+    ts: '2026-08-07T22:16:40.000Z',
+    items: [
+      'The public analytics.polecat.live page had fallen a little behind the app it advertises. Its list of data sources was missing Amazon Redshift, which has been connectable for a while, and it still offered to take a CSV or JSON file without mentioning that Excel workbooks work too. Both are named now, so the strip of sources on the page is exactly the set you can actually connect to.',
+      'Two claims were also vaguer than the app now deserves. Sharing a workspace with your team is described as what it is since this week: roles plus row-level security enforced by your own database rather than by the interface around it, and a workspace password that is never written to disk. And the theming section now says that a dashboard\'s Appearance can be Light, Dark or Auto, that inside the app a dashboard follows the theme you are reading in, and that a file you hand out always looks the way its author made it.',
+      'The checks that run on every change now measure the page against the app\'s own list of data-source adapters: the count it advertises and the name of every connectable source. Adding a new adapter now fails those checks until the front page has learned about it, which is how this drift gets caught next time instead of a year from now.',
+    ],
+  },
+  {
     v: 870,
     title: 'The Help page describes the left rail the app actually has',
     kind: 'fix',

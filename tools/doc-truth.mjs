@@ -194,6 +194,42 @@ ok("docs/index.html: the rail tour names every rail section", railBlock && !unna
   railBlock ? `not named in the Help's rail block: ${unnamed.join(", ")}`
             : "the <h3>The left rail…</h3> block was not found at all");
 
+// 10. The landing page's data-source claims answer to the adapter registry. The app's
+//     CONNECTABLE sources are the registered adapters minus `local` (the no-backend
+//     workspace — not something you connect TO), and index.html makes two claims about that
+//     set: a COUNT in the features card and a NAME per source in the #sources strip. Both had
+//     drifted — Amazon Redshift shipped as an adapter and .xlsx import shipped with LF24-XLSX,
+//     and the strip never learned about either. Every adapter must also appear in the name map
+//     below, so adding one forces a decision about how the landing page says it.
+const adapters = (() => {
+  const out = new Map();
+  for (const f of fs.readdirSync(path.join(ROOT, "app/sources")).filter((f) => f.endsWith(".js"))) {
+    const src = read("app/sources/" + f);
+    for (const m of src.matchAll(/\bid:\s*"([\w-]+)",\s*(?:\/\/[^\n]*)?\s*label:\s*"([^"]+)"/g)) out.set(m[1], m[2]);
+  }
+  return out;
+})();
+// adapter id → the token the landing page has to use for it (its chip in the #sources strip).
+const SOURCE_CHIP = {
+  postgrest: "PostgreSQL", supabase: "Supabase", turso: "Turso", firebase: "Firebase",
+  snowflake: "Snowflake", databricks: "Databricks", bigquery: "BigQuery", redshift: "Redshift",
+  duckdb: "DuckDB", sqlite: "SQLite", gsheets: "Google Sheets", httpsql: "SQL/HTTP", file: "CSV",
+};
+const connectable = [...adapters.keys()].filter((id) => id !== "local");
+const unmapped = connectable.filter((id) => !SOURCE_CHIP[id]);
+ok("every registered source adapter has a landing-page name", !unmapped.length,
+  `not in tools/doc-truth.mjs's SOURCE_CHIP map: ${unmapped.join(", ")} — name the new adapter ` +
+  "on index.html and add it there");
+const chipStrip = (marketing.match(/<div class="chips">([\s\S]*?)<\/div>/) || [, ""])[1];
+const unnamedSources = connectable.filter((id) => SOURCE_CHIP[id] && !chipStrip.includes(SOURCE_CHIP[id]));
+ok("index.html: the #sources strip names every source you can connect to", !unnamedSources.length,
+  `missing from the strip: ${unnamedSources.map((id) => SOURCE_CHIP[id] + ` (${id})`).join(", ")}`);
+const kindsClaim = marketing.match(/Connect (\d+) kinds of sources/);
+ok(`index.html: the source-count claim reads ${connectable.length}`,
+  kindsClaim && Number(kindsClaim[1]) === connectable.length,
+  `index.html says ${kindsClaim ? kindsClaim[1] : "(no claim found)"}, the registry has ` +
+  `${connectable.length} connectable adapters (${adapters.size} registered, minus \`local\`)`);
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
