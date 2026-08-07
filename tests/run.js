@@ -7688,6 +7688,81 @@ function serve() {
     ok("JOBS: clearing the Folder field and saving removes the job's folder (goes back to Unfiled)",
       jobsFolderSaveResult.folder === undefined, JSON.stringify(jobsFolderSaveResult));
 
+    // ── AUD-06 slice 1 (audit §2.1, family D): ONE shared catalog search matcher ──────
+    // Studio.catalogSearch is the search-axis counterpart to SORT-1's Studio.catalogSort:
+    // the six catalog panels (Dashboards, Repository, Views, Datasets, Connections, Jobs)
+    // now declare only their own haystack FIELDS and share one set of rules. These checks
+    // pin the rules themselves, then prove a real panel actually runs them — and that the
+    // "Clear" chip finally reaches Jobs and counts the search box as a filter.
+    const catalogSearchUnit = await page.evaluate(function () {
+      var CS = Studio.catalogSearch;
+      function m(q, hayOf, row) { return CS.matcher(q, hayOf)(row); }
+      var byNameFolder = function (r) { return [r.name, r.folder]; };
+      return {
+        terms: CS.terms('  Cover   CROP  "no till" cover ').join("|"),
+        emptyTerms: CS.terms("   ").length,
+        hay: CS.hay(["Cover", null, ["ops", "finance"], 2024]),
+        anyOrder: m("crop cover", function (r) { return [r.name]; }, { name: "Cover crop adoption" }),
+        acrossFields: m("crops 2024", byNameFolder, { name: "Cover crops", folder: "2024" }),
+        missingTerm: m("crops 2025", byNameFolder, { name: "Cover crops", folder: "2024" }),
+        phraseAdjacent: m('"cover crops"', byNameFolder, { name: "Cover crops 2024" }),
+        phraseOutOfOrder: m('"cover crops"', byNameFolder, { name: "crops cover" }),
+        emptyMatchesAll: m("", function () { return ["anything"]; }, {}),
+        arrayField: m("finance", function (r) { return [r.name, r.tags]; }, { name: "x", tags: ["ops", "finance"] }),
+        nullSafe: m("x", byNameFolder, { name: "X", folder: null })
+      };
+    });
+    ok("AUD-06: Studio.catalogSearch.terms splits on whitespace, lowercases, dedupes and keeps \"quoted phrases\" whole",
+      catalogSearchUnit.terms === "cover|crop|no till" && catalogSearchUnit.emptyTerms === 0 &&
+      catalogSearchUnit.hay === "cover  ops finance 2024", JSON.stringify(catalogSearchUnit));
+    ok("AUD-06: the shared matcher ANDs terms across every haystack field in any order, honours quoted adjacency, and treats an empty query as match-all",
+      catalogSearchUnit.anyOrder && catalogSearchUnit.acrossFields && !catalogSearchUnit.missingTerm &&
+      catalogSearchUnit.phraseAdjacent && !catalogSearchUnit.phraseOutOfOrder &&
+      catalogSearchUnit.emptyMatchesAll && catalogSearchUnit.arrayField && catalogSearchUnit.nullSafe,
+      JSON.stringify(catalogSearchUnit));
+
+    // The behaviour change a user actually feels: two words that live in DIFFERENT fields
+    // (here the job's own name and its source dataset's name) used to find nothing at all,
+    // because every panel matched the query as one literal adjacent string.
+    const jobsSearchTerms = await page.evaluate(function () {
+      var inp = document.getElementById("jobsSearch");
+      inp.value = "unfiled folder-ds"; inp.dispatchEvent(new Event("input"));
+      var rows = [].slice.call(document.querySelectorAll("#jobsResults .cx-row, #jobsResults .dsx-tile"))
+        .map(function (r) { return (r.querySelector(".cx-name b") || {}).textContent; });
+      return { rows: rows, hasClear: !!document.getElementById("jobsPillClear") };
+    });
+    ok("AUD-06: a two-word Jobs search matches across the job's name AND its source dataset's name (one row, not zero)",
+      jobsSearchTerms.rows.length === 1 && jobsSearchTerms.rows[0] === "unfiled-job", JSON.stringify(jobsSearchTerms));
+    ok("AUD-06: Jobs finally gets the 'Clear' chip every other catalog panel has, shown for a search-only filter",
+      jobsSearchTerms.hasClear, JSON.stringify(jobsSearchTerms));
+
+    const jobsSearchCleared = await page.evaluate(function () {
+      document.getElementById("jobsPillClear").click();
+      return {
+        q: document.getElementById("jobsSearch").value,
+        rows: document.querySelectorAll("#jobsResults .cx-row, #jobsResults .dsx-tile").length,
+        chipGone: !document.getElementById("jobsPillClear")
+      };
+    });
+    ok("AUD-06: 'Clear' means show everything — it empties the search box, restores the full list and hides itself",
+      jobsSearchCleared.q === "" && jobsSearchCleared.rows === 2 && jobsSearchCleared.chipGone,
+      JSON.stringify(jobsSearchCleared));
+
+    // Same contract on a panel that already HAD the chip: it now appears for a search
+    // alone (it used to need a facet pill), and clearing wipes the search with it.
+    const dsxSearchClear = await page.evaluate(function () {
+      window.__studioRenderDatasets();
+      var inp = document.getElementById("dsxSearch");
+      inp.value = "jobs-folder-ds"; inp.dispatchEvent(new Event("input"));
+      var shownWhileSearching = document.querySelectorAll("#dsxResults .cx-row, #dsxResults .dsx-tile").length;
+      var hasClear = !!document.getElementById("dsxPillClear");
+      if (hasClear) document.getElementById("dsxPillClear").click();
+      return { shownWhileSearching: shownWhileSearching, hasClear: hasClear, q: inp.value };
+    });
+    ok("AUD-06: Datasets' 'Clear' chip appears for a search-only filter and empties the search box",
+      dsxSearchClear.shownWhileSearching === 1 && dsxSearchClear.hasClear && dsxSearchClear.q === "",
+      JSON.stringify(dsxSearchClear));
+
     await page.evaluate(function (ids) {
       Studio.Workspace.remove("jobs", ids.filedId, { silent: true });
       Studio.Workspace.remove("jobs", ids.unfiledId, { silent: true });

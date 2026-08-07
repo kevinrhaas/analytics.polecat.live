@@ -133,7 +133,13 @@
         return vwChartLabel(a.chartType || "bars").localeCompare(vwChartLabel(b.chartType || "bars")) || _vwNameCmp(a, b);
       }
     } });
-    var q = (($("#viewsSearch") || {}).value || "").toLowerCase();
+    var q = ($("#viewsSearch") || {}).value || "";
+    // AUD-06 slice 1: the shared matcher (Studio.catalogSearch) — this section only
+    // declares WHICH fields are searchable; the rules (AND-ed terms, quoted phrases,
+    // case-insensitivity) are the same in every catalog panel.
+    var vwMatch = Studio.catalogSearch.matcher(q, function (a) {
+      return [a.name, vwChartLabel(a.chartType || "bars"), a.folder];
+    });
     var list = Studio.Workspace.all("analyses").filter(isVisibleToMe).sort(function (a, b) {
       if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
       if (a.pinned) return (b.pinnedAt || "").localeCompare(a.pinnedAt || "");
@@ -175,9 +181,7 @@
       if (anyT && !_vwTypeFilter[t]) return false;
       if (_vwFolderFilter === "__unfiled") { if (a.folder) return false; }
       else if (_vwFolderFilter) { if (a.folder !== _vwFolderFilter) return false; }
-      if (!q) return true;
-      var hay = ((a.name || "") + " " + vwChartLabel(t) + " " + (a.folder || "")).toLowerCase();
-      return hay.indexOf(q) >= 0;
+      return vwMatch(a);
     });
     var isTiles = _vwViewMode === "tiles";
     var typeById = {};
@@ -239,11 +243,13 @@
         '<button type="button" class="btn danger" id="vwSelDelBtn"' + (vwSelCount ? '' : ' disabled') + '>' +
         'Delete' + (vwSelCount ? ' ' + vwSelCount : '') + '</button></div>'
       : '';
+    // AUD-06 slice 1: the chip counts the search box as a filter, and its strip renders
+    // for the chip alone — a search that matches nothing still offers the way back.
+    var vwClearHtml = (anyT || anyF || q)
+      ? '<button type="button" class="wb-chip" id="vwPillClear" title="Show everything">Clear</button>' : "";
     results.innerHTML =
       (pillsF ? '<div class="wb-chips cx-filter-strip">' + pillsF + '</div>' : "") +
-      (pillsT ? '<div class="wb-chips cx-pills cx-filter-strip">' + pillsT +
-        (anyT || anyF ? '<button type="button" class="wb-chip" id="vwPillClear" title="Show everything">Clear</button>' : "") +
-        '</div>' : "") +
+      (pillsT || vwClearHtml ? '<div class="wb-chips cx-pills cx-filter-strip">' + pillsT + vwClearHtml + '</div>' : "") +
       vwBulkBarHtml +
       (rows.length ? '<div class="' + (isTiles ? "dsx-grid" : "cx-list") + '">' + rows.join("") + '</div>'
         : '<div class="cx-empty">' +
@@ -263,7 +269,14 @@
       btn.onclick = function () { _vwFolderFilter = btn.getAttribute("data-vw-folder"); renderViews(); };
     });
     var clearBtn = $("#vwPillClear", results);
-    if (clearBtn) clearBtn.onclick = function () { _vwTypeFilter = {}; _vwFolderFilter = ""; renderViews(); };
+    // AUD-06 slice 1: "Clear" means SHOW EVERYTHING, so it empties the search box too —
+    // the search is a filter like any other, and leaving it set was the single most
+    // confusing thing about the old chip ("I cleared the filters and the list is still short").
+    if (clearBtn) clearBtn.onclick = function () {
+      _vwTypeFilter = {}; _vwFolderFilter = "";
+      Studio.catalogSearch.clearInput($("#viewsSearch"));
+      renderViews();
+    };
     var emptyNew = $("#vwEmptyNew", results);
     if (emptyNew) emptyNew.onclick = function () { vwNewBuilderView(); };
     var emptyQuick = $("#vwEmptyQuick", results);

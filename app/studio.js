@@ -6757,7 +6757,7 @@
   window.__studioDashSelected = function () { return Object.keys(_dashSelected); }; // test hook
   function renderDashboards() {
     var results = $("#repoResults"); if (!results) return;
-    var q = (($("#repoSearch") || {}).value || "").toLowerCase();
+    var q = ($("#repoSearch") || {}).value || "";
     var list = loadRecents().filter(isVisibleToMe), pins = loadPins(), workbooks = loadWorkbooks();
     // SORT-1: header sort <select>. loadRecents() already returns ts-desc (last touched),
     // which stays the default; the workbook/folder keys group alphabetically with title
@@ -6818,22 +6818,32 @@
     // without opening every dashboard. Falls back to matching a bound data access's column
     // names once the title/desc don't match, and surfaces WHICH column matched on the card so
     // a title-less hit isn't a mystery.
-    function matchedColumnName(sp, ql) {
+    // AUD-06 slice 1: the column fallback now takes the TERMS the row's own text didn't
+    // already account for (a single-term query behaves exactly as before) — returns the
+    // first data-access column whose name contains all of them.
+    function matchedColumnName(sp, terms) {
       var found = null;
       ((sp.cda && sp.cda.dataAccesses) || []).some(function (da) {
         return (da.columns || []).some(function (c) {
-          if (String(c).toLowerCase().indexOf(ql) >= 0) { found = c; return true; }
+          var cl = String(c).toLowerCase();
+          if (terms.every(function (t) { return cl.indexOf(t) >= 0; })) { found = c; return true; }
           return false;
         });
       });
       return found;
     }
+    var dashTerms = Studio.catalogSearch.terms(q);
     var dashMatches = filtered.map(function (r) {
       var sp = r.spec || {};
-      if (!q) return { r: r, show: true, col: null };
-      var titleMatch = ((sp.title || sp.name || "") + " " + (sp.desc || "")).toLowerCase().indexOf(q) >= 0;
-      var col = titleMatch ? null : matchedColumnName(sp, q);
-      return { r: r, show: titleMatch || !!col, col: col };
+      if (!dashTerms.length) return { r: r, show: true, col: null };
+      // The dashboard's own text first — AUD-06 adds `folder` here, so this panel now
+      // searches the same fields every other catalog panel does; the column fallback
+      // above is the extra Dashboards uniquely offers, not a different baseline.
+      var hay = Studio.catalogSearch.hay([sp.title || sp.name, sp.desc, r.folder]);
+      var missing = dashTerms.filter(function (t) { return hay.indexOf(t) < 0; });
+      if (!missing.length) return { r: r, show: true, col: null };
+      var col = matchedColumnName(sp, missing);
+      return { r: r, show: !!col, col: col };
     }).filter(function (x) { return x.show; });
     // tiles (thumbnail cards) or a compact list — the user picks via #dashViewToggle
     var dashCards = _dashViewMode === "list"
@@ -7420,7 +7430,11 @@
         renderRepository();
       };
     }
-    var q = (($("#repoAllSearch") || {}).value || "").toLowerCase();
+    var q = ($("#repoAllSearch") || {}).value || "";
+    // AUD-06 slice 1: the shared matcher (Studio.catalogSearch) — this section only
+    // declares WHICH fields are searchable; the rules (AND-ed terms, quoted phrases,
+    // case-insensitivity) are the same in every catalog panel.
+    var repoMatch = Studio.catalogSearch.matcher(q, function (r) { return [r.title, r.meta, r.folder]; });
     var all = repoAllRows();
     // drop any selected key whose row no longer exists/is visible (deleted elsewhere)
     // so a stale entry can't inflate the bulk-bar count or survive a bulk delete —
@@ -7445,8 +7459,7 @@
     });
     var filtered = all.filter(function (r) {
       if (_repoAllType && r.type !== _repoAllType) return false;
-      if (!q) return true;
-      return (r.title + " " + r.meta + " " + r.folder).toLowerCase().indexOf(q) >= 0;
+      return repoMatch(r);
     }).sort(repoSortCmp);
     // QA-04 slice 2: two rows of the SAME type sharing a title (the report's concrete
     // case was two "State Map" analyses) are indistinguishable at a glance — collide
@@ -7808,6 +7821,59 @@
       if (selEl.value !== cur) selEl.value = cur;
       selEl.onchange = function () { Studio.catalogSort.save(sec, selEl.value); rerender(); };
       return cur;
+    }
+  };
+  // AUD-06 slice 1 (audit §2.1, family D — "the search + facet layers are still
+  // copy-adapted per section"): one shared SEARCH kit for every catalog panel, the
+  // search-axis counterpart to SORT-1's Studio.catalogSort. Each of the six catalog
+  // lists used to hand-roll `hay.toLowerCase().indexOf(q) >= 0` over its own ad-hoc
+  // haystack, so the same query behaved differently depending on where you typed it —
+  // and because a raw indexOf only matches LITERAL ADJACENCY, a perfectly reasonable
+  // two-word query ("cover crops" for a dataset named "Cover crop adoption") could
+  // come back empty. One place now owns the rules, and every section passes only its
+  // own haystack fields:
+  //   • terms are whitespace-separated and ANDed — each term must appear SOMEWHERE in
+  //     the row, in any order, across any field (so "crops 2024" finds a dataset named
+  //     "Cover crops" filed in the "2024" folder);
+  //   • "a quoted phrase" matches adjacently, for when you do mean the literal string;
+  //   • matching is case-insensitive, and an empty query matches everything (callers
+  //     no longer need their own `if (!q) return true` short-circuit).
+  Studio.catalogSearch = {
+    // terms('cover crop "no till"') → ["cover", "crop", "no till"], deduped.
+    terms: function (q) {
+      var out = [], re = /"([^"]*)"|(\S+)/g, m;
+      var s = String(q == null ? "" : q).toLowerCase();
+      while ((m = re.exec(s)) !== null) {
+        var t = (m[1] != null ? m[1] : m[2]).trim();
+        if (t && out.indexOf(t) < 0) out.push(t);
+      }
+      return out;
+    },
+    // hay([parts…]) → one lowercase haystack string. null/undefined parts drop out and
+    // arrays (a row's tags, a dataset's columns) flatten, so callers can just list fields.
+    hay: function (parts) {
+      return (parts || []).map(function (p) {
+        if (p == null) return "";
+        return Object.prototype.toString.call(p) === "[object Array]" ? p.join(" ") : String(p);
+      }).join(" ").toLowerCase();
+    },
+    // matcher(q, hayOf) → fn(row) → bool, where hayOf(row) returns that row's haystack
+    // FIELDS (an array, per hay() above). The terms are parsed once, not per row.
+    matcher: function (q, hayOf) {
+      var terms = Studio.catalogSearch.terms(q);
+      if (!terms.length) return function () { return true; };
+      return function (row) {
+        var h = Studio.catalogSearch.hay(hayOf(row));
+        return terms.every(function (t) { return h.indexOf(t) >= 0; });
+      };
+    },
+    // Every section's "Clear" chip means SHOW EVERYTHING — which includes the search
+    // box, not just the facet pills. Blanks the input (if it exists) and reports whether
+    // there was anything to blank, so a caller can skip a needless re-render.
+    clearInput: function (inp) {
+      if (!inp || !inp.value) return false;
+      inp.value = "";
+      return true;
     }
   };
   // Dashboards carry no top-level `.name` (their title lives at `spec.title`, edited in

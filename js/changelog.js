@@ -6,6 +6,21 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 847,
+    title: 'Search that finds the thing you were thinking of',
+    kind: 'feature',
+    ts: '2026-08-07T08:01:39.000Z',
+    items: [
+      'Every catalog page — Dashboards, Views, Datasets, Connections, Jobs and the Repository — now searches the same way, because they finally share one matcher instead of six hand-written ones that had quietly drifted apart.',
+      'Type as many words as you like. Each word only has to turn up somewhere on the item, in any order and across any field — so "crops 2024" now finds a dataset named "Cover crops" filed in your "2024" folder. Before, the whole phrase had to appear literally, side by side, in one field, so that search came back empty and left you to guess why.',
+      'Want the exact phrase after all? Put it in "double quotes" and it matches only where those words sit together.',
+      'Dashboards now search their folder too, like every other page already did, and they keep the trick only they have: if your words are not in the title, they are looked for in the column names the dashboard\'s charts are bound to, and the card tells you which column matched.',
+      'The "Clear" chip above a list now means show everything — it drops the filter pills and empties the search box, instead of leaving a search behind and a list that stayed mysteriously short. It also shows up when a search alone is narrowing things.',
+      'Jobs gained that Clear chip: it was the one catalog page with filters and no way back out of them in one click.',
+      'Searching a connection still never matches its password or token — that carve-out moved into the shared matcher untouched.',
+    ],
+  },
+  {
     v: 846,
     title: 'Three more deletes you can take back',
     kind: 'polish',
