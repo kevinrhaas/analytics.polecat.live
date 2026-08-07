@@ -6,8 +6,10 @@ framework, no runtime deps) deployed from the repo ROOT via GitHub Pages.
 (That LOC figure is first-party source — `app/ css/ tools/ index.html sw.js
 docs/index.html` — excluding `vendor/`, the test suite and `js/changelog.js`;
 `node tools/doc-truth.mjs` re-measures it and fails if this line drifts.)
-**STATUS.md is the product playbook** — read its protocol + GOAL blocks first,
-work the NEXT backlog (★ items first). For how work ships fleet-wide, read
+**STATUS.md is the product playbook** — read its protocol + GOAL blocks first, then
+work the **▶ NOW queue at the top of NEXT** (that block is the only priority order;
+everything below it is a reservoir whose older "TOP PRIORITY" headers are expired).
+For how work ships fleet-wide, read
 `kevinrhaas/polecat-platform` → docs/FLEET-GUIDE.md. Scheduled steward improve
 runs are ON for this app (the platform's focus.json lane, since 2026-08-07) —
 they branch from dev and PR into dev per the pipeline rules below.

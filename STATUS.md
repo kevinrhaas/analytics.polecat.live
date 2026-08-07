@@ -9388,6 +9388,74 @@
 
 ## NEXT (top = do first)
 
+### ▶ NOW — the working queue (Kevin-directed, 2026-08-07). START HERE.
+
+> **How to read this file.** This NOW block is the ONLY queue. Everything below it is the
+> RESERVOIR: months of accumulated tracks, valuable as context and source material, but
+> NOT a priority order. Several reservoir sections still carry their original
+> "TOP PRIORITY" / "do these FIRST" headers from July — **those claims are expired and
+> contradict each other** (five sections claim first place). Ignore them; they are marked
+> superseded in place. Work NOW top-down. Take the first item that is not ⛔.
+>
+> **When NOW empties, do NOT graze the reservoir.** Open a PR that proposes the next batch
+> (5–10 scoped items, pulled from the reservoir with a one-line case for each) and leave it
+> for Kevin with the `hold` label. Picking the next direction is his call, not the loop's.
+>
+> ⛔ = blocked on a Kevin decision. Do not start it; the note says what is being asked.
+
+- **N1 ★★ — Make this file navigable again (the queue's own precondition).** STATUS.md is
+  ~15,700 lines; NEXT alone is ~6,300 across 32 subsections, and open-vs-shipped can no
+  longer be determined by reading or grepping it — cross-references in DONE match nearly
+  every open item, so tooling and humans both mis-answer "what is left." Split it: move the
+  DRAINED tracks (mobile 2026-07-02, post-overhaul 07-13, Viridis/geo 07-16, Conservation
+  M1–M2 07-21, the locked build order 07-27, and the AUDIT-2026-08 block now that
+  AUD-01…12 are all shipped) into `docs/BACKLOG-ARCHIVE.md` with a pointer left behind.
+  NEXT keeps only this NOW queue plus genuinely-live reservoir sections. Nothing is
+  deleted — it moves. Docs-only, so the dev gate is the whole gate.
+- **N2 ★★ — M7: real Row-Level Security enforcement (slice 1).** The standing security
+  debt. `app/auth.js` is explicit that today's model is honest UX-gating over a shared
+  local store, not isolation between users, and AUD-03 hardened the password digests
+  without changing that posture. Slice 1 is SERVER-SIDE ONLY: enable RLS on the workspace
+  tables, write the policy set (a signed-in user reads/writes their own workspace; the
+  users table stays upsert-only), and add a psql integration test that proves an
+  unauthorized read is refused. No client changes, no behavior change for existing users —
+  the client flip is a later slice behind the existing Admin go-live card. Use the
+  `steward_test` schema for experiments; never CREATE/DROP/ALTER against live `public`.
+- **N3 ★ — a11y: show the mark tooltip on keyboard focus.** SWEEP574-3/3b shipped keyboard
+  activation for KPI tiles, the SVG mark families and table rows, and names exactly one
+  remaining gap: the hover tooltip never appears for a keyboard user, so a focused mark
+  announces its label but not its value context. Ships inside every exported dashboard →
+  full `tests/run.js`, not just the dev gate.
+- **N4 ★ — Repo hygiene from tech sweep #370 (still open).** Two concrete items: (a)
+  `delete_branch_on_merge` is `false`, so every merged PR leaves its branch behind — 251
+  stale `steward/*` branches at sweep time and the loop has merged far more since; flip the
+  repo setting (Kevin may need to do this — it is a repo admin setting, so raise it rather
+  than assume). (b) Re-check `vendor/polecat-shell/` drift against the hub's `lib/VERSION`;
+  it was 2 patches behind in July and the shell has moved since. Sync PRs come FROM the
+  platform repo — never edit the vendored copy.
+- **N5 ⛔ — Viewer render mode `auto` (UX sweep #574 finding 1).** A dark-mode app opens a
+  light dashboard, because `spec.renderMode` is a fixed per-dashboard author choice baked
+  onto the exported `<html>`. The proposed fix is ADDITIVE: a third value, `auto`, that
+  resolves at render time (framed: follow the host app's `data-theme`; standalone:
+  `prefers-color-scheme`), default for NEW dashboards, every existing explicit choice
+  untouched. **Kevin's call, because it changes what a freshly-authored dashboard does.**
+  If yes: one byte stream must behave correctly both framed and standalone
+  (`buildViewerHtml()` emits the srcdoc AND the download from one call), so it is an inline
+  resolver, never a per-context branch — and it touches the export invariant, so full suite.
+- **N6 ★ — Turn the "Dave" north-star into an automated acceptance test.** The onboarding
+  epic's whole point is one end-to-end story: an admin provisions a user once; that user
+  signs in on a FRESH browser and lands in a fully-configured workspace — role, theme,
+  sample pack, backend connection, and the pack tour. Today that is a manual demo nobody
+  re-runs. Make it a real suite check driving the actual UI in a clean context, so the
+  pieces (LF39/LF40/LF41/LF42) can never silently regress apart from each other. Failing at
+  first is fine and informative — write it against the intended behavior and fix what it
+  catches, one slice at a time.
+- **N7 — Recurring, when the queue is thin: keep the docs, tours, Help and marketing page
+  current with the app (LF58).** One coherent slice per run, never a big-bang at the end.
+  The app has changed a lot this week; the in-app Help and the tour copy are the parts most
+  likely to have drifted.
+
+
 ### 🔎 UX sweep #574 (2026-08-01) — remaining findings
 > The platform's daily read-only UX walk. Protocol says sweep findings come before the
 > feature backlog. Finding 2 (mobile topbar title clipped to "H…") is **SHIPPED v840 —
@@ -9443,7 +9511,10 @@
 >   would have hidden the number). One slice per mark family; same full-suite caution, since
 >   these ship inside every exported dashboard.
 
-### 🔬 AUDIT-2026-08 — comprehensive audit findings (see `AUDIT-2026-08.md`)
+### ✅ AUDIT-2026-08 — comprehensive audit findings — **FULLY DRAINED (2026-08-07)**
+> **AUD-01 through AUD-12 are ALL shipped** (see DONE; the last six landed overnight
+> 2026-08-06→07). Nothing here is open — kept for the reasoning and the audit citations.
+> Archive candidate under N1.
 > A four-sweep audit (2026-08-06, v833) filed these as coherent workstreams,
 > not micro-items — the QA-01…QA-10 precedent. `★★` = P1. Each cites its audit
 > section. Any Kevin follow-up spawned here ships under the fleet KH-### series
@@ -9662,7 +9733,9 @@
 >       items should stay pinned-first within any sort. One shared sort helper +
 >       per-section wiring, same adopt-per-section pattern LIVE-d proved.
 
-### ⚠ SESSION HANDOFF — live steward session active (written 2026-07-31 ~04:20Z)
+### ✅ SESSION HANDOFF (2026-07-31) — **EXPIRED, historical only**
+> That session ended long ago and every claim below shipped. The coordination rules do
+> NOT apply to current runs; nothing here is claimed. Archive candidate under N1.
 > Kevin is enabling the continuous manager lane while an interactive steward
 > session is still working. Coordination rules for ANY automated run:
 >
@@ -10506,6 +10579,8 @@
 >    RLS enforcement lands in M7. Do not gate the M4 flag on the backend being ready.
 
 ### ★★ LOCKED BUILD ORDER (Kevin approved, 2026-07-27) — work the queue in THIS sequence
+
+> ⚠ **Priority header SUPERSEDED by the ▶ NOW queue at the top of NEXT (2026-08-07).**
 > Kevin locked the sequence. Do these in order (each still sliced; quick bug-class items first so the
 > "Dave" demo's ingredients become real before the flashy tour and the chrome work):
 > 1. **Fast bug/cleanup wins:** LF44 ✓ (role gating — hide Admin+Studio from viewers) · LF43 (sample-pack
@@ -12250,6 +12325,8 @@
 >      → Datasets) is now fully done.**
 
 ### ★★★★★ CONSERVATION INSIGHT PRODUCT PLATFORM (2026-07-21, user-directed — NOW THE TOP PRIORITY)
+
+> ⚠ **Priority header SUPERSEDED by the ▶ NOW queue at the top of NEXT (2026-08-07).**
 > Kevin's big charter: turn Analytics into a multi-user, permissioned product. Decisions locked
 > with Kevin (2026-07-21): product/demo name = **Conservation Insight** (CTIC / conservation-ag —
 > Viridis is retired from the app); auth = **phased** (UX-level multi-user login now, real
@@ -12765,6 +12842,8 @@
 > app already speaks. Keep logging concrete cross-app reporting opportunities here as they appear.
 
 ### ★★★★ VIRIDIS VIEW / GEO-ANALYTICS TRACK (2026-07-16, user-directed — TOP priority)
+
+> ⚠ **Priority header SUPERSEDED by the ▶ NOW queue at the top of NEXT (2026-08-07).**
 > **The case:** CTIC's Viridis View RFP (bid due 7/31, $35–45K, launch Nov 18–19 at SAS) — a public
 > tool showing county-level cover-crop + conservation-tillage adoption (2015–2025, annual updates
 > to 2030) from FIVE providers (DTN, Indigo/Terion, Iowa State, Regrow, Terra Diagnostics), maps
@@ -13043,6 +13122,8 @@
 > (d) whether Explore replaces "New dashboard" as the Simple-mode default entry.
 
 ### ★★★ POST-OVERHAUL BACKLOG (2026-07-13, user-directed — do these FIRST when the loop resumes)
+
+> ⚠ **Priority header SUPERSEDED by the ▶ NOW queue at the top of NEXT (2026-08-07).**
 > The adapters → connections → datasets overhaul (see GOAL block) landed its baseline in one long
 > interactive session (Polecat default look · app/sources/ adapter layer · Connections/Datasets/
 > Dashboards sections · manager-style rail · workspace-backend sync w/ secrets · full Pentaho removal).
@@ -13334,6 +13415,8 @@
 > command palette updated for the new sections.
 
 ### ★★★ TOP PRIORITY — MOBILE IS BROKEN, FIX IT FIRST (user-requested 2026-07-02, with screenshots)
+
+> ⚠ **Priority header SUPERSEDED by the ▶ NOW queue at the top of NEXT (2026-08-07).**
 > **Spend the next several consecutive runs on mobile — ahead of ALL Z-platform work — until the app is
 > genuinely usable on a real iPhone.** The user reports (and a 390×844 probe confirms) that mobile is
 > "wildly inoperable": no navigation, unreachable buttons, hidden panels, hidden footer. This is not a
