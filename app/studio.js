@@ -2892,12 +2892,16 @@
     // button INSIDE the exported/preview header — confusing next to the app-level light/dark
     // control in the canvas-bar. Now a persisted per-dashboard option instead: "" (Light) is the
     // historical default; picking Dark bakes data-theme="dark" onto every export (see exporters.js).
-    var renderModeSel = select2pairs([["", "Light"], ["dark", "Dark"]], sp.renderMode || "", function (v) {
+    // N5b (Kevin's call, 2026-08-07): "Auto" joins them as an opt-in THIRD choice — the export
+    // carries no baked theme and matches whoever opens it (the surrounding page when it can read
+    // it, otherwise their OS light/dark). New dashboards still default to Light: a chameleon
+    // export is something an author chooses, not something that happens to them.
+    var renderModeSel = select2pairs([["", "Light"], ["dark", "Dark"], ["auto", "Auto (match the reader)"]], sp.renderMode || "", function (v) {
       sp.renderMode = v; refreshPreview();
     });
     renderModeSel.id = "dashRenderMode";
     sec.appendChild(field("Appearance", renderModeSel,
-      "Light or dark render for this dashboard's exported HTML — fixed per dashboard, replacing the old in-header toggle button."));
+      "Light or dark render for this dashboard's exported HTML — fixed per dashboard, replacing the old in-header toggle button. Auto bakes no theme at all: the dashboard follows whoever opens it (the page it's embedded in, or their system light/dark)."));
 
     var grpSel = select2(["Observability", "Governance & Privacy", "Storage & Cost", "Usage & People", "Data Integration", "Executive"], sp.group, function (v) { sp.group = v; syncHeader(); });
     sec.appendChild(field("Group", grpSel));

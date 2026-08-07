@@ -513,7 +513,8 @@
     <li><strong>Favorite datasets &amp; connections</strong> (the ★ toggle on their catalog rows)
       show as compact cards — click one to jump into its editor.</li>
     <li>Frames render in each dashboard's own <strong>Appearance</strong> (Light or Dark, as its
-      author set it) and hydrate lazily, so offscreen cards cost nothing. The full-page
+      author set it — or your theme, if its author chose Auto) and hydrate lazily, so offscreen
+      cards cost nothing. The full-page
       <strong>viewer</strong> is the one place that follows <em>your</em> theme instead — see
       "Open in viewer" below.</li>
     <li>Each Home section (Featured, Pinned, Favorites, Examples, Dashboards) has a ▲▼ control in
@@ -535,15 +536,16 @@
   toggles all work) with none of the builder chrome. Handy for sharing with someone who should
   read a dashboard, not edit it.</p>
   <p><strong>Light or dark in the viewer follows you, not the author.</strong> A dashboard's
-  <strong>Appearance</strong> setting (Dashboard panel → Appearance: Light or Dark) decides how the
-  dashboard looks as a finished piece — but inside this app the viewer renders it in
+  <strong>Appearance</strong> setting (Dashboard panel → Appearance: Light, Dark or Auto) decides
+  how the dashboard looks as a finished piece — but inside this app the viewer renders it in
   <em>your</em> light/dark theme instead, because a dark app wrapped around a light dashboard just
   looks broken. Nothing about the dashboard is changed: switch your own theme and the viewer
   follows on the next open. Files you hand out are untouched by this — a downloaded
   <strong>Dashboard (.html)</strong> and a <strong>PDF</strong> always look exactly the way the
   author set Appearance, wherever they're opened, so what lands in someone's inbox or on a website
-  is predictable. The builder's live preview also keeps showing the authored Appearance, so you can
-  see what you're making.</p>
+  is predictable — unless the author picked <strong>Auto</strong>, which is the one Appearance that
+  asks the file itself to adapt (see "Appearance" below). The builder's live preview also keeps
+  showing the authored Appearance, so you can see what you're making.</p>
   <p id="filters-how"><strong>How dashboard filters find their data:</strong> a filter applies to a
   panel when the panel's dataset either declares the filter as a query parameter (live SQL engines
   substitute it server-side) or simply has a column with the same name — the rows are then
@@ -908,6 +910,17 @@
   <p><strong>Header logo:</strong> the Dashboard inspector's <strong>Header logo</strong> field (below Subtitle) uploads a PNG/JPG/SVG (up to 200KB) that replaces the default "P" mark in the dashboard's banner, in both the live preview and the exported Dashboard Framework — a per-dashboard brand mark, separate from the app-wide rail branding in Admin. Leave it blank to keep the default mark.</p>
 
   <p><strong>Header link:</strong> the <strong>Header link URL</strong> field right below it makes the logo + title in the banner clickable, opening that URL in a new tab — handy for linking back to a company site or portal. Leave it blank to keep the banner as plain, non-clickable text.</p>
+
+  <p id="dashboard-appearance"><strong>Appearance (Light · Dark · Auto):</strong> the
+  <strong>Appearance</strong> picker in the Dashboard inspector decides the light/dark of this one
+  dashboard — in the live preview and in everything it exports. <strong>Light</strong> and
+  <strong>Dark</strong> bake that choice in: the file looks the same everywhere it's opened, which
+  is what you want for a deliverable that lands in an inbox or on a website.
+  <strong>Auto (match the reader)</strong> bakes no theme at all — the dashboard follows whoever
+  opens it: the page it's embedded in when it can read that page's theme, and otherwise the
+  reader's own system light/dark setting. It's exactly the same file either way; it just decides
+  when it opens. New dashboards start on <strong>Light</strong> — Auto is something you turn on
+  deliberately.</p>
 
   <p><strong>Show dashboard header (embed mode):</strong> the <strong>Header</strong> toggle in the Dashboard inspector. Turn it <em>off</em> and the entire title banner and description bar disappear from both the live preview and the exported <code>.html</code>, leaving just the KPIs and Views — a clean, chrome-free dashboard you can drop straight inside your own page. Turn it back on and the title, subtitle and description return, all still editable in the inspector.</p>
 
