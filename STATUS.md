@@ -9486,40 +9486,18 @@
 
 ## NEXT (top = do first)
 
-### ▶ NOW — the working queue (Kevin-directed, 2026-08-07). START HERE.
+### ▶ NOW — the working queue (Kevin-directed). START HERE.
 
-> **How to read this file.** This NOW block is the ONLY queue. Everything below it is the
-> RESERVOIR: months of accumulated tracks, valuable as context and source material, but
-> NOT a priority order. Several reservoir sections still carry their original
-> "TOP PRIORITY" / "do these FIRST" headers from July — **those claims are expired and
-> contradict each other** (five sections claim first place). Ignore them; they are marked
-> superseded in place. Work NOW top-down. Take the first item that is not ⛔.
->
-> **When NOW empties, do NOT graze the reservoir.** Open a PR that proposes the next batch
-> (5–10 scoped items, pulled from the reservoir with a one-line case for each) and leave it
-> for Kevin with the `hold` label. Picking the next direction is his call, not the loop's.
->
-> ⛔ = blocked on a Kevin decision. Do not start it; the note says what is being asked.
+> **Operated per `docs/BACKLOG.md` — read it first; it is the contract** (stable IDs,
+> the item grammar `**ID stars [pts] — title**`, states ⏳/⛔/🔁, one slice per PR,
+> same-PR bookkeeping, grooming, and who decides what). The short form: this block is
+> the ONLY priority order, worked strictly top-down — everything below it is the
+> RESERVOIR (context, never a queue; its old "TOP PRIORITY" headers are expired).
+> Take the first ready item. When fewer than 3 ready items remain, GROOM: archive the
+> struck entries and propose the next batch to Kevin on a `hold` PR — never graze the
+> reservoir directly.
 
-- ~~**N1 ★★ — Make this file navigable again (the queue's own precondition).**~~ ✓ **SHIPPED
-  2026-08-07 (steward — see DONE, "N1: STATUS.md splits").** All seven drained tracks moved
-  verbatim into `docs/BACKLOG-ARCHIVE.md`, each leaving a pointer stub that ALSO names the
-  live tails it left behind (AUD-01/06/07/08/11's tails, LF43 slice 2, the mobile
-  real-device check, Viridis' four parked questions) so nothing went quiet in the move.
-  A 🗂 Reservoir index now sits directly under this NOW block, so a track is findable and
-  "is this still open?" is answerable without scrolling. STATUS.md 15,869 → 14,947 lines.
-  Deliberately NOT done: the remaining live reservoir sections stay in place — pruning them
-  is a judgement call per track, not this slice's mechanical move.
-  Original: STATUS.md is
-  ~15,700 lines; NEXT alone is ~6,300 across 32 subsections, and open-vs-shipped can no
-  longer be determined by reading or grepping it — cross-references in DONE match nearly
-  every open item, so tooling and humans both mis-answer "what is left." Split it: move the
-  DRAINED tracks (mobile 2026-07-02, post-overhaul 07-13, Viridis/geo 07-16, Conservation
-  M1–M2 07-21, the locked build order 07-27, and the AUDIT-2026-08 block now that
-  AUD-01…12 are all shipped) into `docs/BACKLOG-ARCHIVE.md` with a pointer left behind.
-  NEXT keeps only this NOW queue plus genuinely-live reservoir sections. Nothing is
-  deleted — it moves. Docs-only, so the dev gate is the whole gate.
-- **N2 ★★ — M7: real Row-Level Security enforcement (slice 1).** The standing security
+- **N2 ★★ [2pt] — M7: real Row-Level Security enforcement (slice 1).** The standing security
   debt. `app/auth.js` is explicit that today's model is honest UX-gating over a shared
   local store, not isolation between users, and AUD-03 hardened the password digests
   without changing that posture. Slice 1 is SERVER-SIDE ONLY: enable RLS on the workspace
@@ -9528,26 +9506,14 @@
   unauthorized read is refused. No client changes, no behavior change for existing users —
   the client flip is a later slice behind the existing Admin go-live card. Use the
   `steward_test` schema for experiments; never CREATE/DROP/ALTER against live `public`.
-- ~~**N3 ★ — a11y: show the mark tooltip on keyboard focus.**~~ ✓ **SHIPPED v859, sw v491
-  (2026-08-07, steward — see DONE, "SWEEP574-3b tail").** `tipOnFocus()` in
-  `app/studio-charts.js` opens the same tooltip card on `:focus-visible`, anchored to the
-  mark instead of to a cursor that isn't there; Escape dismisses it without moving focus
-  (WCAG 1.4.13); the mouse path and `vendor/dashkit.js` are both untouched. 7 new checks,
-  and the FULL suite was run as this item asked (3078 passed, 0 failed), not just the dev
-  gate. Table rows are the one deliberate exclusion — a row's cells already ARE its values.
-  Original: SWEEP574-3/3b shipped keyboard
-  activation for KPI tiles, the SVG mark families and table rows, and names exactly one
-  remaining gap: the hover tooltip never appears for a keyboard user, so a focused mark
-  announces its label but not its value context. Ships inside every exported dashboard →
-  full `tests/run.js`, not just the dev gate.
-- **N4 ★ — Repo hygiene from tech sweep #370 (still open).** Two concrete items: (a)
+- **N4 ★ [1pt] — Repo hygiene from tech sweep #370 (still open).** Two concrete items: (a)
   `delete_branch_on_merge` is `false`, so every merged PR leaves its branch behind — 251
   stale `steward/*` branches at sweep time and the loop has merged far more since; flip the
   repo setting (Kevin may need to do this — it is a repo admin setting, so raise it rather
   than assume). (b) Re-check `vendor/polecat-shell/` drift against the hub's `lib/VERSION`;
   it was 2 patches behind in July and the shell has moved since. Sync PRs come FROM the
   platform repo — never edit the vendored copy.
-- **N5a ★★ — DECIDED (Kevin, 2026-08-07): inside the app, the READER's theme wins.** UX
+- **N5a ★★ [2pt] — DECIDED (Kevin, 2026-08-07): inside the app, the READER's theme wins.** UX
   sweep #574 finding 1 — a dark app frames a light dashboard and reads as broken. The
   Viewer's iframe now follows the app's live `data-theme`, whatever `spec.renderMode` says.
   **Downloads and embeds are NOT touched** — a handed-out file stays exactly as authored,
@@ -9570,7 +9536,7 @@
   * Full `tests/run.js`. New checks: an explicit-light dashboard opened in a dark app renders
     dark IN THE VIEWER; the same dashboard's DOWNLOAD is byte-unchanged; the builder preview
     still shows the authored mode.
-- **N5b ★ — DECIDED: `auto` ships as an OPT-IN third Appearance choice, never the default.**
+- **N5b ★ [1pt] — DECIDED: `auto` ships as an OPT-IN third Appearance choice, never the default.**
   A second, separate slice after N5a (own PR — it is additive and independently revertible).
   `spec.renderMode` gains `"auto"`; the Inspector's Appearance select becomes
   Light / Dark / Auto ("match the reader"). **New dashboards keep `""` (Light)** — Kevin's
@@ -9589,28 +9555,10 @@
     `data-theme`; it honors `prefers-color-scheme` standalone (Playwright `emulateMedia`);
     it follows the host inside the Viewer; and the Inspector offers exactly three options
     with Light still the default for a new dashboard. Docs + Help updated in the same slice.
-- ~~**N6 ★ — Turn the "Dave" north-star into an automated acceptance test.**~~ ✓ **SHIPPED
-  v861, sw v493 (2026-08-07, steward — see DONE, "N6: the 'Dave' north-star becomes an
-  automated acceptance test").** 11 checks walk the whole story in two contexts through the
-  real Add-user form and the real gate form, ending on a fresh 390×780 phone. It failed at
-  first exactly as this item predicted, and the fix shipped in the same slice
-  (GREET-AFTER-SIGNIN: the welcome painted behind the sign-in gate before any identity
-  existed, and the post-sign-in re-open no-oped on it — a provisioned user burned their
-  one-shot welcome on a generic greeting). Still open as a second slice: the no-binding
-  device using the WORKSPACE-LOGIN picker, and the same walk for a `viewer` role.
-  Original: The onboarding
-  epic's whole point is one end-to-end story: an admin provisions a user once; that user
-  signs in on a FRESH browser and lands in a fully-configured workspace — role, theme,
-  sample pack, backend connection, and the pack tour. Today that is a manual demo nobody
-  re-runs. Make it a real suite check driving the actual UI in a clean context, so the
-  pieces (LF39/LF40/LF41/LF42) can never silently regress apart from each other. Failing at
-  first is fine and informative — write it against the intended behavior and fix what it
-  catches, one slice at a time.
-- **N7 — Recurring, when the queue is thin: keep the docs, tours, Help and marketing page
+- 🔁 **N7 — Recurring, when the queue is thin: keep the docs, tours, Help and marketing page
   current with the app (LF58).** One coherent slice per run, never a big-bang at the end.
   The app has changed a lot this week; the in-app Help and the tour copy are the parts most
   likely to have drifted.
-
 
 ### 🗂 Reservoir index (added 2026-08-07, N1) — what is below, and whether it is alive
 
