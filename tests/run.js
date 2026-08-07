@@ -5535,7 +5535,15 @@ function serve() {
       var dash = Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "conservation"; })[0];
       window.__studioOpenRecent ? window.__studioOpenRecent(dash.id) : null;
     });
-    await page.waitForTimeout(700);
+    // wait for the rendered iframe content itself (county choropleth paths +
+    // the ensemble legend toggle), not a fixed 700ms — under suite load the
+    // preview can take longer and the "before" sample comes back empty
+    await page.waitForFunction(function () {
+      var fr = document.getElementById("preview"), doc = fr && fr.contentDocument;
+      if (!doc || !doc.querySelector("[data-ens-toggle]")) return false;
+      var panel = Array.prototype.filter.call(doc.querySelectorAll("[data-panel-id]"), function (p) { return p.getAttribute("data-panel-id") === "p_county"; })[0];
+      return !!(panel && panel.querySelectorAll("svg path").length);
+    }, { timeout: 15000 });
     const lf7Before = await page.evaluate(function () {
       var fr = document.getElementById("preview"), doc = fr && fr.contentDocument;
       var panel = doc && Array.prototype.filter.call(doc.querySelectorAll("[data-panel-id]"), function (p) { return p.getAttribute("data-panel-id") === "p_county"; })[0];
@@ -16758,7 +16766,9 @@ function serve() {
     gp2.on("pageerror", (e) => errors.push("gate theme page: " + e.message));
     await gp2.addInitScript(() => { try { localStorage.setItem("studio-theme", "dark"); localStorage.setItem("studio-app-theme", "polecat"); } catch (e) {} });
     await gp2.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
-    await gp2.waitForTimeout(400);
+    // wait for the gate card itself, not a fixed delay — first-run seeding now
+    // runs PBKDF2 (AUD-03), which pushes the gate's first paint past 400ms
+    await gp2.waitForSelector("#studio-gate .g-card", { timeout: 8000 });
     const gateThemed = await gp2.evaluate(() => ({
       attr: document.documentElement.getAttribute("data-app-theme") + "/" + document.documentElement.getAttribute("data-theme"),
       card: getComputedStyle(document.querySelector("#studio-gate .g-card")).backgroundColor
@@ -17375,6 +17385,43 @@ function serve() {
       admLocal.gateGone && admLocal.who === "admin" && admLocal.role === "admin" && admLocal.sourceId === "local", JSON.stringify(admLocal));
     ok("HOME-LAND (Kevin): a fresh sign-in always lands on the Home section, whatever this browser last had open",
       admLocal.section === "home", JSON.stringify({ section: admLocal.section }));
+
+    // ---- DEMO-LOCAL-2 (Kevin live mobile, 2026-08-07): a connected workspace's
+    // users-table import replaces the seeded rows wholesale, so a browser that
+    // once connected can carry an "admin" row with the workspace's foreign hash —
+    // and the on-screen "admin/admin — local workspace only" promise broke even
+    // with the picker on Local. The seed pair must still open the local
+    // workspace, and the stored (foreign) hash must NOT be rewritten. ----
+    const gpClb = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    gpClb.on("pageerror", (e) => errors.push("DEMO-LOCAL-2 page: " + e.message));
+    await gpClb.addInitScript(() => {
+      try {
+        localStorage.setItem("analytics.users.v1", JSON.stringify([
+          { u: "admin", name: "Workspace Admin", role: "admin", demo: false, hash: "a-foreign-workspace-hash" },
+          { u: "kevin@example.com", name: "Kevin", role: "admin", demo: false, hash: "", gotrueId: "uid-1" }
+        ]));
+      } catch (e) {}
+    });
+    await gpClb.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpClb.waitForSelector("#g-form", { timeout: 8000 });
+    await gpClb.fill("#g-user", "admin");
+    await gpClb.fill("#g-pass", "admin");
+    await gpClb.click("#g-form button[type=submit]");
+    await gpClb.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 8000 }).catch(() => {});
+    const clb = await gpClb.evaluate(() => ({
+      gateGone: !document.querySelector("#studio-gate"),
+      who: (window.PolecatAuth.current() || {}).u,
+      sourceId: Studio.Sync.syncState().sourceId,
+      // the imported row must keep its foreign hash — no silent reset that a
+      // later users-table mirror could push back into the real workspace
+      hash: (JSON.parse(localStorage.getItem("analytics.users.v1") || "[]")
+        .filter((x) => x.u === "admin")[0] || {}).hash
+    }));
+    await gpClb.close();
+    ok("DEMO-LOCAL-2 (Kevin mobile): admin/admin still opens the LOCAL workspace after a workspace users-import overwrote the seeded admin row's hash",
+      clb.gateGone && clb.who === "admin" && clb.sourceId === "local", JSON.stringify(clb));
+    ok("DEMO-LOCAL-2: the imported admin row's foreign hash is left untouched (nothing to mirror back into the workspace users table)",
+      clb.hash === "a-foreign-workspace-hash", JSON.stringify({ hash: clb.hash }));
 
     // ---- DEMO-LOCAL (Kevin, 2026-07-31): the demo is a LOCAL concept — entering
     // it must force the workspace back to Local even when a remote backend is
@@ -39962,7 +40009,10 @@ function serve() {
         panels: [{ id: "p1", title: "Notes", span: 1, chart: { type: "richtext", opts: { content: "LF23S2_MARKER" } } }]
       };
       Studio.Workspace.put("dashboards", { id: "lf23s2-dash", ts: new Date().toISOString(), spec: spec, title: spec.title, name: spec.name, owner: "admin" });
-      window.PolecatAuth.upsert("lf23s2dev", { role: "developer", pass: "lf23s2dev" });
+      // return the upsert promise so evaluate awaits it — PBKDF2 hashing
+      // (AUD-03) is slow enough that a dropped promise loses the race with
+      // the login("lf23s2dev") in the next evaluate
+      return window.PolecatAuth.upsert("lf23s2dev", { role: "developer", pass: "lf23s2dev" });
     });
 
     // Rail + section gating: a signed-in viewer never sees the Studio rail item, and
