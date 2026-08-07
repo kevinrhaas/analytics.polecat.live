@@ -18299,6 +18299,19 @@ function serve() {
     // the LF39 direct-auth check uses, planted after the boot pull has settled so
     // a late replaceAll can't wipe it.
     await gpPw.evaluate(() => {
+      // The mock GoTrue hands every sign-in the SAME uid, and the mock backend
+      // carries earlier tests' users rows — so the LF39 fixture ("gtmate", planted
+      // with this very uid) is still in the table and gate.js findUserByGotrue
+      // adopts IT rather than the owner row seeded below (first match wins). That
+      // is a fixture collision, not app behavior: two accounts can never share a
+      // real auth uid. Drop any other row carrying this uid so the check tests
+      // what it says it tests — where the PASSWORD ends up, not which fixture
+      // happened to be planted first.
+      Studio.Workspace.all("users").forEach(function (u) {
+        if (u.gotrueId === "11111111-1111-1111-1111-111111111111" && u.u !== "owner@example.com") {
+          Studio.Workspace.remove("users", u.id, { silent: true });
+        }
+      });
       Studio.Workspace.put("users", { id: "user_owner", u: "owner@example.com", name: "Owner", role: "admin", demo: false, gotrueId: "11111111-1111-1111-1111-111111111111" }, { silent: true });
       Studio.Sync.pullNow = function () { return Promise.resolve(); }; // sync detail, not what's under test
     });
@@ -19196,6 +19209,72 @@ function serve() {
     });
     ok("M4: PolecatAuth.remove refuses to drop the last admin, and the Admin page disables that row's ✕",
       lastAdminGuard.refused && lastAdminGuard.stillListed && lastAdminGuard.delDisabled, JSON.stringify(lastAdminGuard));
+
+    // ---- KH-023 (Kevin live phone, 2026-08-07): the shared .cx-row must never crush
+    // .cx-name to a letter-per-line sliver. The Admin users row is the worst case in
+    // the app (icon + name + up to 4 badges + 3 action buttons), so assert it here at
+    // the 390px mobile gate: the name keeps a readable width and stays a couple of
+    // lines tall, instead of one character per line down the card. ----
+    const khPhone = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    khPhone.on("pageerror", (e) => errors.push("KH-023/024 page: " + e.message));
+    await khPhone.addInitScript(() => {
+      try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {}
+    });
+    await khPhone.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await khPhone.waitForFunction(() => window.Studio && window.PolecatAuth && window.__studioRenderAdmin, { timeout: 10000 });
+    const khRow = await khPhone.evaluate(async function () {
+      // a long display name is the case that broke — "Administrator" wrapped per letter
+      await window.PolecatAuth.upsert("kh023", { name: "Administrator Longname", role: "admin", pass: "kh023pass" });
+      window.__studioShellSetSection("admin");
+      window.__studioRenderAdmin();          // the same explicit re-render the M4 tests use
+      var row = document.querySelector('.cx-row[data-usr-id="kh023"]');
+      if (!row) return { missing: true };
+      var name = row.querySelector(".cx-name"), b = name.querySelector("b");
+      var rr = row.getBoundingClientRect();
+      return {
+        nameW: Math.round(name.getBoundingClientRect().width),
+        nameH: Math.round(b.getBoundingClientRect().height),
+        rightEdge: Math.round(rr.right)
+      };
+    });
+    ok("KH-023 (Kevin phone): the Admin user row keeps its NAME readable at 390px — badges/buttons wrap instead of crushing it to a letter-per-line sliver",
+      !khRow.missing && khRow.nameW >= 120 && khRow.nameH <= 60, JSON.stringify(khRow));
+    ok("KH-023: the wrapped row still fits inside the 390px viewport (no horizontal spill)",
+      !khRow.missing && khRow.rightEdge <= 390, JSON.stringify(khRow));
+
+    // ---- KH-024 (Kevin live phone, 2026-08-07), two more of the same shape ----
+    // (a) the rail's WORKSPACE/BUILD/MANAGE group headers carry BOTH .rail-group-lbl
+    //     and .rail-lbl, so the collapsed-rail hide trick (height:1px + overflow:hidden)
+    //     clipped them in the drawer — only the bottom sliver of each glyph showed.
+    // (b) Settings rows never wrapped, so the <=640px full-width .set-txt ate the whole
+    //     line: the description collapsed to one word per line AND the input overflowed.
+    const khRail = await khPhone.evaluate(function () {
+      var l = document.querySelector("#railNav .rail-group-lbl");
+      if (!l) return { missing: true };
+      var r = l.getBoundingClientRect(), cs = getComputedStyle(l);
+      return { text: (l.textContent || "").trim(), overflow: cs.overflow,
+        // the box the glyphs actually get, padding removed — must fit the font
+        contentH: Math.round(r.height - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)),
+        fontPx: Math.round(parseFloat(cs.fontSize)) };
+    });
+    ok("KH-024a (Kevin phone): the rail's group headers (WORKSPACE/BUILD/MANAGE) are not clipped in the mobile drawer — the glyphs get a box at least as tall as their font",
+      !khRail.missing && khRail.contentH >= khRail.fontPx, JSON.stringify(khRail));
+
+    const khSet = await khPhone.evaluate(function () {
+      window.__studioShellSetSection("settings");
+      var inp = document.getElementById("setDefaultSubtitleInp");
+      if (!inp) return { missing: true };
+      var row = inp.closest(".set-row"), txt = row.querySelector(".set-row-txt");
+      return { txtW: Math.round(txt.getBoundingClientRect().width),
+        inputRight: Math.round(inp.getBoundingClientRect().right),
+        rowRight: Math.round(row.getBoundingClientRect().right) };
+    });
+    await khPhone.close();
+    ok("KH-024b (Kevin phone): a Settings row with a full-width text input keeps its description readable at 390px (the input wraps to its own line instead of crushing the label)",
+      !khSet.missing && khSet.txtW >= 180, JSON.stringify(khSet));
+    ok("KH-024b: that Settings input no longer overflows past the row's right edge",
+      !khSet.missing && khSet.inputRight <= khSet.rowRight + 1, JSON.stringify(khSet));
+
 
     // A signed-in viewer never sees the Admin rail item. Simulate the real trigger
     // path (gate.js's afterLogin re-runs role gating post-login) while already
