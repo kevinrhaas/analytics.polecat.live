@@ -37,6 +37,8 @@ jobs:
         run: node tools/validate.mjs
       - name: Changelog contract (manager's exact parser)
         run: node tools/changelog-check.js
+      - name: Doc truth (published claims vs their sources)
+        run: node tools/doc-truth.mjs
       - name: Install Playwright Chromium
         run: |
           npm install -g playwright

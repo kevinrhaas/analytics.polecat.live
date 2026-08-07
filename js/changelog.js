@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 856,
+    title: 'The docs, the marketing page and the roadmap say what is actually true',
+    kind: 'fix',
+    ts: '2026-08-07T13:25:33.000Z',
+    items: [
+      'How many chart types does Analytics have? The marketing page said "25+" in one place and "50+" in another, Help said 52 in four places, and the real answer was 54. All of them now say 54, which is the number the chart registry actually holds -- and the Help gallery was already showing every one of them.',
+      'Simple mode advertises the right size too: Help said it shows 13 chart types where it has shown 15 for months.',
+      'The "What\'s next" roadmap in the topbar was showing six items, five of which had already shipped weeks earlier -- topbar actions, sample-data separation, the Views language, PDF export and duplicate-name labels were all being advertised as upcoming work. It now lists what is genuinely next: faster preview updates, one search everywhere, one delete confirmation, keyboard tooltips on charts, reader-themed dashboards and cross-filtering in exports.',
+      'The license notices caught up with the license: Analytics has been GNU GPL v3 since the LICENSE file changed, but the third-party notices and the internal playbook still called it proprietary software.',
+      'The internal guides were re-measured rather than guessed: the source tree is ~56K lines, not ~22.6K, the test suite runs ~3,000 checks, not ~1,400, and the mobile release gate is one viewport (390x780) that the boot smoke now actually runs, instead of a documented number nothing was measured against.',
+      'None of this can quietly rot again: a new check (tools/doc-truth.mjs) re-measures every published claim against the code it describes -- chart counts, Simple-mode size, sample coverage, license wording, the size figures and the mobile gate -- and fails the build if a number drifts from the thing it is meant to count.',
+    ],
+  },
+  {
     v: 855,
     title: 'A real date filter: pick a date from a calendar, or filter by a moving window',
     kind: 'feature',
