@@ -135,6 +135,46 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **SWEEP574-3b tail — chart tooltips open on keyboard FOCUS, not just hover (v859, sw v491,
+  2026-08-07, steward):** the last a11y gap either mark slice named, and the last actionable
+  finding in UX sweep #574. A mark's numbers live in two places — the `aria-label`
+  `markActivatable()` writes, and the hover tooltip — and only a pointer could summon the
+  second, so a keyboard user heard "Snowflake: $84.2K" but never saw the card a mouse user
+  gets (the percentage, the share of total, a chart's custom `cfg.tip` markup).
+  - **`tipOnFocus()` in `app/studio-charts.js`**, called at the end of `markActivatable()`, so
+    it covers exactly the marks the keyboard can already reach and ships byte-identically in
+    the live preview and every exported dashboard (the export invariant is untouched — the
+    fix is in the toolkit source, not a post-process). `_tip()` now parks its html on the node
+    (`__dkTip`) because `markActivatable()` runs after it and has no other way to learn what
+    this mark's tooltip says.
+  - **Gated on `:focus-visible`, not `focus`.** It is the browser's own answer to "did this
+    focus come from the keyboard?", and it is what `vendor/dashkit.css` already paints the
+    focus ring on — so the card and the ring appear and leave together, and a mouse click
+    (which already has the tooltip under the cursor) never yanks it to the shape's centre.
+  - **Anchored to the mark, not a cursor.** `DashKit.showTip()` reads only `clientX`/`clientY`
+    off the event it is handed, so a plain object carrying the shape's centre reuses the
+    vendor's exact tooltip element, styling and viewport clamping — **`vendor/dashkit.js`
+    stays pristine** and there is no second tooltip implementation to keep in sync.
+  - **Escape dismisses it without moving focus** (WCAG 1.4.13 "Content on Hover or Focus"): a
+    card pinned over the next bar has to be closeable while you keep your place.
+  - **Table rows deliberately get nothing** — `rowActivatable()` never calls it and a row has
+    no `__dkTip`, because a row's own cells already ARE the values a tooltip would repeat.
+    Pinned by a check in the existing table block rather than left to the reader.
+  - **7 new checks** (6 in a new `SWEEP574-3b (tail)` block + 1 in the table block). The block
+    renders its export frame ON SCREEN, unlike its siblings, because the pointer half cannot
+    be faked: Chromium's `:focus-visible` heuristic keys off REAL input and a synthesised
+    `mousedown` leaves it untouched (verified). So the mouse case is driven with an actual
+    `page.mouse.click()` into the frame — at z-index 2147483000, since the sign-in gate sits
+    at 100000 and would otherwise swallow it — and the keyboard case with a programmatic
+    `.focus()`, which with no preceding pointer input is what Tab looks like to the heuristic.
+    The click target is picked as the tallest fully-visible promoted `<rect>`: an SVG `<path>`
+    only hit-tests where it is painted, so the centre of a donut arc's bounding box is empty
+    space. What the mouse check asserts is WHERE the tooltip was last placed, not whether it
+    is still up — the drawer the click opens slides in over the cursor and the resulting
+    `mouseout` hides it, which is pre-existing hover behaviour this slice does not touch.
+  - Help gained a paragraph under "Reading a dashboard without a mouse". Not covered
+    (deliberate): KPI tiles, which have no tooltip because their own text is the value, and
+    the hover-tooltip behaviour itself, which is unchanged in every respect.
 - **AUD-11 tail — the suite stops hand-typing a number doc-truth measures (issue #607,
   2026-08-07, steward; no version/sw bump — test-only, see below):** the **STAGE gate was
   red on `dev`** and would have auto-rolled-back every promotion, including unrelated work.
@@ -9421,7 +9461,14 @@
   unauthorized read is refused. No client changes, no behavior change for existing users —
   the client flip is a later slice behind the existing Admin go-live card. Use the
   `steward_test` schema for experiments; never CREATE/DROP/ALTER against live `public`.
-- **N3 ★ — a11y: show the mark tooltip on keyboard focus.** SWEEP574-3/3b shipped keyboard
+- ~~**N3 ★ — a11y: show the mark tooltip on keyboard focus.**~~ ✓ **SHIPPED v859, sw v491
+  (2026-08-07, steward — see DONE, "SWEEP574-3b tail").** `tipOnFocus()` in
+  `app/studio-charts.js` opens the same tooltip card on `:focus-visible`, anchored to the
+  mark instead of to a cursor that isn't there; Escape dismisses it without moving focus
+  (WCAG 1.4.13); the mouse path and `vendor/dashkit.js` are both untouched. 7 new checks,
+  and the FULL suite was run as this item asked (3078 passed, 0 failed), not just the dev
+  gate. Table rows are the one deliberate exclusion — a row's cells already ARE its values.
+  Original: SWEEP574-3/3b shipped keyboard
   activation for KPI tiles, the SVG mark families and table rows, and names exactly one
   remaining gap: the hover tooltip never appears for a keyboard user, so a focused mark
   announces its label but not its value context. Ships inside every exported dashboard →
@@ -9459,7 +9506,10 @@
 ### 🔎 UX sweep #574 (2026-08-01) — remaining findings
 > The platform's daily read-only UX walk. Protocol says sweep findings come before the
 > feature backlog. Finding 2 (mobile topbar title clipped to "H…") is **SHIPPED v840 —
-> see DONE (TOPBAR-TITLE)**. Still open:
+> see DONE (TOPBAR-TITLE)**. Finding 3 and its 3b/tail follow-ups are all **SHIPPED
+> (v841/v843/v844/v859)**. The ONLY thing still open in this sweep is SWEEP574-1, and it
+> is a **product decision for Kevin, not agent work** — so the lane should treat this
+> sweep as worked out and move to the AUDIT block below.
 >
 > - **SWEEP574-1 (High → but it is a PRODUCT DECISION, not a bug — read this before
 >   starting) [ux] The Viewer renders every dashboard in the author's fixed mode, so a
@@ -9495,8 +9545,13 @@
 >   steward — see DONE)** via a separate `rowActivatable()`: a clickable row gets
 >   `tabindex="0"` + Enter/Space + `aria-haspopup="dialog"` but deliberately NO
 >   `role="button"` (it would dissolve the table's grid semantics) and NO `aria-label`
->   (the row's own cells are its name). Only remaining a11y gap noted by either slice:
->   showing the hover tooltip on keyboard focus.
+>   (the row's own cells are its name). ~~Only remaining a11y gap noted by either slice:
+>   showing the hover tooltip on keyboard focus.~~ ✓ **TAIL SHIPPED v859, sw v491
+>   (2026-08-07, steward — see DONE):** `tipOnFocus()` opens the same tooltip card on
+>   `:focus-visible`, anchored to the mark, Escape-dismissible without moving focus;
+>   the mouse path and `vendor/dashkit.js` are both untouched. **With this, every
+>   actionable finding in UX sweep #574 is closed** — the only thing left in the sweep
+>   is SWEEP574-1, which is a product decision for Kevin, not agent work.
 >   Original (table half): the enhanced `DashKit.table` override
 >   binds `<tbody> <tr>` rows DIRECTLY (studio-charts.js, the "Row-click detail" block),
 >   not through bindDrill/bindDetail, so `markActivatable` doesn't reach them; and a row

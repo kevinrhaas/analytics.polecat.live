@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 859,
+    title: 'Chart tooltips open on keyboard focus, not just on hover',
+    kind: 'polish',
+    ts: '2026-08-07T15:41:35.000Z',
+    items: [
+      'Tabbing onto a clickable chart mark — a bar, a donut slice, a treemap tile — now opens the same tooltip card a mouse user gets by hovering it: the exact figure, the percentage, the share of the total. Until now the keyboard reached the mark and could activate it, but the numbers on the card were pointer-only.',
+      'With no cursor to follow, the card anchors to the mark itself, so it lands on the shape you are actually on.',
+      'Escape dismisses the card without moving focus, so one sitting over the next bar is never in your way, and tabbing off takes it with you.',
+      'Reaching a mark with the mouse is unchanged: the tooltip keeps following the pointer, and clicking still opens the detail drawer.',
+      'Ships inside every exported dashboard and the Viewer, the same way the keyboard activation itself does. Table rows are deliberately left out — a row\'s own cells already are its values, so there is no tooltip to repeat.',
+      'Documented in Help under Reading a dashboard without a mouse.',
+    ],
+  },
+  {
     v: 858,
     title: 'Every search box in the app searches the same way',
     kind: 'polish',
