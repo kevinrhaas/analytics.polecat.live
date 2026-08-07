@@ -672,7 +672,9 @@
         function paint() {
           var q = (search.value || "").toLowerCase();
           listBox.innerHTML = "";
-          vals.filter(function (v) { return !q || v.toLowerCase().indexOf(q) >= 0; }).forEach(function (v) {
+          // AUD-06 slice 6: the shared matcher, so the value list narrows the same way
+          // every other search box in the app does.
+          vals.filter(Studio.catalogSearch.textMatcher(q)).forEach(function (v) {
             var lab = D.el("label", "bd-flt-row");
             var cb = D.el("input"); cb.type = "checkbox"; cb.checked = picked.indexOf(v) >= 0; cb.value = v;
             cb.onchange = function () {
@@ -1404,9 +1406,11 @@
       } else if (bq) {
         // a search query flattens the tree (Explore convention): finding by name
         // never depends on knowing where something is filed
-        var hits = dss.filter(function (d) {
-          return (d.name + " " + d.sub + " " + (d.cols || []).join(" ")).toLowerCase().indexOf(bq) >= 0;
-        });
+        // AUD-06 slice 6: the shared matcher — the same rules as the Datasets section and
+        // the Explore pane, which is where a View Builder user came from.
+        var hits = dss.filter(Studio.catalogSearch.matcher(bq, function (d) {
+          return [d.name, d.sub, d.cols];
+        }));
         outline.innerHTML = hits.length ? hits.slice(0, 60).map(bdDsRowHtml).join("")
           : '<div class="bd-empty">No datasets match.</div>';
       } else {

@@ -613,11 +613,15 @@
   // loads this file at all, so a plain <a target="_blank"> is enough; no JS
   // routing needed.
   function viewerUrl(id) { return "app/viewer.html?dash=" + encodeURIComponent(id); }
+  // AUD-06 slice 6: mark every TERM, not the raw query string. The feed matches through
+  // Studio.catalogSearch now (terms ANDed in any order), so a hit for "panel export" has
+  // no literal "panel export" in it to mark — highlighting the whole query would leave
+  // the matched entry looking like a false positive.
   function hlq(text, q) {
     var s = esc(String(text == null ? "" : text));
-    if (!q) return s;
-    return s.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"),
-      function (m) { return '<mark class="hl">' + m + "</mark>"; });
+    var re = Studio.catalogSearch.markRe(q);
+    if (!re) return s;
+    return s.replace(re, function (m) { return '<mark class="hl">' + m + "</mark>"; });
   }
   // Changelog entry times are authored in UTC ("HH:MM UTC"); display them in US Central (CT)
   // so future UTC-authored entries convert automatically (handles CST/CDT via the IANA zone).
@@ -694,10 +698,11 @@
     function renderClEntries(q) {
       if (!log.length && !_clLoaded) { clEntries.innerHTML = '<div class="cl-empty">Loading…</div>'; return; }
       var needle = (q || "").trim().toLowerCase();
-      var matched = log.filter(function (e) {
-        if (!needle) return true;
-        return (vLabel(e) + " " + (e.title || "") + " " + (e.ts || e.date || "") + " " + (e.items || []).join(" ")).toLowerCase().indexOf(needle) >= 0;
-      });
+      // AUD-06 slice 6: the shared matcher — "v850 filter" finds the entry even though the
+      // version and the word live in different fields.
+      var matched = log.filter(Studio.catalogSearch.matcher(needle, function (e) {
+        return [vLabel(e), e.title, e.ts || e.date, e.items];
+      }));
       clEntries.innerHTML = matched.length ? matched.map(function (e) {
         var items = (e.items || []).map(function (x) { return "<li>" + hlq(x, needle) + "</li>"; }).join("");
         return '<div class="cl-entry' + (e === log[0] ? " cl-latest" : "") + '">' +
@@ -909,12 +914,14 @@
     var shownDA = 0;
     var stems = Object.keys(S.catalog);
     var stemWraps = [];
+    // AUD-06 slice 6: the shared matcher, built once for the whole library sweep.
+    var daMatch = Studio.catalogSearch.matcher(q, function (x) {
+      return [x.stem, x.d.id, x.d.columns, x.d.sql];
+    });
     stems.forEach(function (stem) {
       var entry = S.catalog[stem];
       var das = (entry.dataAccesses || []).filter(function (d) {
-        if (!d.authored) return false;
-        if (!q) return true;
-        return (stem + " " + d.id + " " + (d.columns || []).join(" ") + " " + (d.sql || "")).toLowerCase().indexOf(q) >= 0;
+        return d.authored && daMatch({ stem: stem, d: d });
       });
       if (!das.length) return;
       shownDA += das.length;
@@ -1158,10 +1165,10 @@
   function buildWorkspaceDatasets(list, q) {
     var all = (window.Studio.Workspace ? Studio.Workspace.all("datasets") : []);
     if (!all.length) return;
-    var dss = all.filter(function (d) {
-      if (!q) return true;
-      return (d.name + " " + (d.sql || d.table || d.collection || "") + " " + (d.columns || []).join(" ") + " " + (d.tags || []).join(" ")).toLowerCase().indexOf(q) >= 0;
-    }).sort(function (a, b) { return (a.name || "").localeCompare(b.name || ""); });
+    // AUD-06 slice 6: the shared matcher — same rules as the Datasets section's own search.
+    var dss = all.filter(Studio.catalogSearch.matcher(q, function (d) {
+      return [d.name, d.sql || d.table || d.collection, d.columns, d.tags];
+    })).sort(function (a, b) { return (a.name || "").localeCompare(b.name || ""); });
     if (!dss.length) return;
     var wrap = el("div", "lib-mine lib-wsds open");
     var h = el("div", "h");
@@ -2545,9 +2552,12 @@
   // Hide sections whose visible text doesn't contain the search query.
   function applyInspSearch(body) {
     var q = (_inspSearch || "").trim().toLowerCase();
+    // AUD-06 slice 6: the shared matcher over the section's visible text, so "axis label"
+    // reaches a section that says "Label on the axis".
+    var match = Studio.catalogSearch.textMatcher(q);
     var secs = body.querySelectorAll(".insp-sec");
     secs.forEach(function (sec) {
-      sec.style.display = (!q || sec.textContent.toLowerCase().indexOf(q) >= 0) ? "" : "none";
+      sec.style.display = match(sec.textContent) ? "" : "none";
     });
   }
 
@@ -3406,6 +3416,8 @@
     function applyGalleryState() {
       var q = searchInp.value.trim().toLowerCase();
       var isSearch = q.length > 0;
+      // AUD-06 slice 6: the shared matcher — "stacked bar" now finds "Bar chart (stacked)".
+      var match = Studio.catalogSearch.textMatcher(q);
       clearBtn.style.display = isSearch ? "" : "none";
       grid.querySelectorAll(".cg-label").forEach(function (lbl) {
         if (isSearch) { lbl.style.display = "none"; return; }
@@ -3416,7 +3428,7 @@
           // Search mode: match label or description text inside the card
           var text = (card.querySelector(".lb") ? card.querySelector(".lb").textContent : "") +
                      " " + (card.querySelector(".lb-desc") ? card.querySelector(".lb-desc").textContent : "");
-          card.style.display = text.toLowerCase().indexOf(q) >= 0 ? "" : "none";
+          card.style.display = match(text) ? "" : "none";
         } else {
           card.style.display = (_activeGroup === "All" || card.dataset.grp === _activeGroup) ? "" : "none";
         }
@@ -7914,6 +7926,11 @@
   //   • "a quoted phrase" matches adjacently, for when you do mean the literal string;
   //   • matching is case-insensitive, and an empty query matches everything (callers
   //     no longer need their own `if (!q) return true` short-circuit).
+  // AUD-06 slice 6 finished the job: the kit is no longer catalog-only. Every OTHER search
+  // box in the app (audit §2.1's "11 other search affordances" — the Studio library, the
+  // inspector, the chart gallery, ⌘K, the What's-new feed, the folder picker, the Explore
+  // and View Builder panes, the connection schema browser, the value filter) now matches
+  // through it too, so "cover crops" means the same thing wherever you type it.
   Studio.catalogSearch = {
     // terms('cover crop "no till"') → ["cover", "crop", "no till"], deduped.
     terms: function (q) {
@@ -7942,6 +7959,22 @@
         var h = Studio.catalogSearch.hay(hayOf(row));
         return terms.every(function (t) { return h.indexOf(t) >= 0; });
       };
+    },
+    // AUD-06 slice 6: the same rules for the surfaces whose "row" IS a string — a chart
+    // gallery card's text, an inspector section's textContent, a folder path, a distinct
+    // column value. They don't have haystack FIELDS to declare, so they'd otherwise have
+    // to fake an array at every call site.
+    textMatcher: function (q) {
+      return Studio.catalogSearch.matcher(q, function (s) { return [s]; });
+    },
+    // AUD-06 slice 6: one escaped alternation over the parsed terms, for the surfaces that
+    // MARK their hits (the What's-new feed). A single-string needle would highlight nothing
+    // for a two-word query that matched across fields, which reads as a broken search.
+    // Longest term first so a short term can't swallow the head of a longer one.
+    markRe: function (q) {
+      var terms = Studio.catalogSearch.terms(q).slice().sort(function (a, b) { return b.length - a.length; });
+      if (!terms.length) return null;
+      return new RegExp(terms.map(function (t) { return t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }).join("|"), "gi");
     },
     // Every section's "Clear" chip means SHOW EVERYTHING — which includes the search
     // box, not just the facet pills. Blanks the input (if it exists) and reports whether
@@ -8160,7 +8193,8 @@
         list.innerHTML = "";
         if (q) {
           // Flat search across every filed path; click picks it directly.
-          var hits = paths.filter(function (p) { return p.toLowerCase().indexOf(q) >= 0; }).slice(0, 60);
+          // AUD-06 slice 6: the shared matcher — "2024 crops" finds "Crops/2024".
+          var hits = paths.filter(Studio.catalogSearch.textMatcher(q)).slice(0, 60);
           if (!hits.length) { var e = el("div", "fp-empty"); e.textContent = "No folders match."; list.appendChild(e); }
           hits.forEach(function (p) {
             var r = el("button", "fp-row fp-hit"); r.type = "button";
@@ -11364,7 +11398,9 @@
     var stemSets = !showSamples() ? [] : Object.keys(S.catalog).filter(function (st) {
       return (S.catalog[st].dataAccesses || []).some(function (d) { return (d.columns || []).length >= 2; });
     }).sort().map(function (st) { return { kind: "stem", key: st, label: st }; });
-    var sets = dsSets.concat(stemSets).filter(function (x) { return !flt || x.label.toLowerCase().indexOf(flt) >= 0; });
+    // AUD-06 slice 6: the shared matcher, same as every other filter box.
+    var setMatch = Studio.catalogSearch.textMatcher(flt);
+    var sets = dsSets.concat(stemSets).filter(function (x) { return setMatch(x.label); });
     var CAP = 10, total = sets.length, needsFilter = total > CAP || flt;
     var shown = sets.slice(0, CAP);
     nm.innerHTML = '<button data-new="blank">＋ Blank dashboard</button>' +
@@ -12183,11 +12219,11 @@
       }
       function paint() {
         var q = (search.value || "").toLowerCase();
-        var list = loadRecents().filter(isVisibleToMe).filter(function (r) {
-          if (!q) return true;
+        // AUD-06 slice 6: the shared matcher, same rules as the Dashboards panel's search.
+        var list = loadRecents().filter(isVisibleToMe).filter(Studio.catalogSearch.matcher(q, function (r) {
           var sp = r.spec || {};
-          return ((sp.title || "") + " " + (sp.name || "")).toLowerCase().indexOf(q) >= 0;
-        });
+          return [sp.title, sp.name];
+        }));
         listWrap.innerHTML = list.length ? "" : '<div class="odp-empty">' + (q ? "No dashboards match." : "Nothing saved yet — Save adds the current dashboard here.") + '</div>';
         var titleOf = function (r) { var sp = r.spec || {}; return sp.title || sp.name || "Untitled"; };
         var labels = disambiguateLabels(list, titleOf);

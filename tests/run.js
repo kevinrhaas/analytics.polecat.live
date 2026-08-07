@@ -7939,6 +7939,63 @@ function serve() {
       dsxSearchClear.shownWhileSearching === 1 && dsxSearchClear.hasClear && dsxSearchClear.q === "",
       JSON.stringify(dsxSearchClear));
 
+    // ── AUD-06 slice 6 (audit §2.1, "the 11 other search affordances") ───────────────
+    // The kit stopped being catalog-only. Every other search box — the Studio library, the
+    // inspector, the chart gallery, ⌘K, the What's-new feed, the folder picker, the Explore
+    // and View Builder panes, the connection schema browser, the value filter — matches
+    // through Studio.catalogSearch now, so one query means one thing app-wide. Two small
+    // additions carry the surfaces the catalog panels never needed: textMatcher, for a "row"
+    // that IS a plain string (a folder path, a card's text), and markRe, for the one surface
+    // that highlights its hits and would otherwise mark nothing on a multi-word match.
+    const searchKit6 = await page.evaluate(function () {
+      var CS = Studio.catalogSearch;
+      var tm = CS.textMatcher("crops 2024");
+      function marked(text, q) {
+        var re = CS.markRe(q);
+        return re ? text.replace(re, function (m) { return "[" + m + "]"; }) : text;
+      }
+      return {
+        textAnyOrder: tm("Cover crops filed under 2024"),
+        textMissing: tm("Cover crops filed under 2025"),
+        textEmptyAll: CS.textMatcher("   ")("anything"),
+        // A two-word query has no literal "export panel" to mark, so mark both terms.
+        marks: marked("Panel export failed", "export panel"),
+        markNoQuery: CS.markRe("   ") === null,
+        // Longest-first, or "filter" eats the head of "filtering" and the mark reads wrong.
+        markLongest: marked("filtering", "filter filtering")
+      };
+    });
+    ok("AUD-06: catalogSearch.textMatcher applies the same term rules to a plain-string haystack (any order, all terms required, empty matches all)",
+      searchKit6.textAnyOrder && !searchKit6.textMissing && searchKit6.textEmptyAll, JSON.stringify(searchKit6));
+    ok("AUD-06: catalogSearch.markRe highlights every TERM (longest first) and is null for an empty query",
+      searchKit6.marks === "[Panel] [export] failed" && searchKit6.markNoQuery &&
+      searchKit6.markLongest === "[filtering]", JSON.stringify(searchKit6));
+
+    // The What's-new feed is the surface where matching and marking meet: it now finds an
+    // entry whose terms live in different fields (the version label vs the body), and marks
+    // both of them.
+    const clSearchTerms = await page.evaluate(async function () {
+      if (Studio.loadChangelog) await Studio.loadChangelog();
+      var log = window.STUDIO_CHANGELOG || [];
+      var target = log.filter(function (e) { return typeof e.v === "number" && (e.items || []).length; })[0];
+      if (!target) return { skipped: true };
+      // A word from the entry's BODY plus the entry's own version label — two fields, and
+      // deliberately in the order the old literal-substring match could never have found.
+      var word = (target.items.join(" ").match(/[A-Za-z]{6,}/) || ["changelog"])[0].toLowerCase();
+      var q = word + " v" + target.v;
+      var hits = log.filter(Studio.catalogSearch.matcher(q, function (e) {
+        return [typeof e.v === "number" ? "v" + e.v : e.v, e.title, e.ts || e.date, e.items];
+      }));
+      var flat = ("v" + target.v + " " + target.title + " " + target.items.join(" ")).toLowerCase();
+      return {
+        q: q, hitCount: hits.length, foundTarget: hits.indexOf(target) >= 0,
+        noLiteralRun: flat.indexOf(q) < 0,
+        marks: (target.items[0] || "").replace(Studio.catalogSearch.markRe(q), function (m) { return "[" + m + "]"; })
+      };
+    });
+    ok("AUD-06: the What's-new feed matches terms across an entry's version label and its body — a query with no literal run in the entry still finds it",
+      clSearchTerms.skipped || (clSearchTerms.foundTarget && clSearchTerms.noLiteralRun), JSON.stringify(clSearchTerms));
+
     // ── AUD-06 slice 2 (audit §2.1, family D): ONE shared catalog FACET kit ───────────
     // Studio.catalogFacets is the third and last axis (SORT-1 did sorting, slice 1 search):
     // tally → prune → pills → predicate, shared by all six catalog panels. These pin the
@@ -28791,6 +28848,39 @@ function serve() {
     });
     ok("H102: clicking 'Trend' tab filters gallery to only Trend charts", h102Filter.ok, JSON.stringify(h102Filter));
 
+    // AUD-06 slice 6: the gallery search runs on Studio.catalogSearch now. Rather than
+    // hard-code a chart name, take two words from a REAL card — one from its label, one
+    // from its description — and ask for them in the order the old literal-substring match
+    // could never satisfy. Restores the Trend tab afterwards so the state the next checks
+    // inherit is the one h102Filter left.
+    const galleryTerms = await page.evaluate(function () {
+      try {
+        var card = Array.from(document.querySelectorAll("#inspBody .chart-opt")).find(function (c) {
+          var lb = c.querySelector(".lb"), d = c.querySelector(".lb-desc");
+          return lb && d && (lb.textContent.match(/[A-Za-z]{4,}/) || [])[0] && (d.textContent.match(/[A-Za-z]{5,}/g) || []).length;
+        });
+        if (!card) return { skipped: true };
+        var labelWord = card.querySelector(".lb").textContent.match(/[A-Za-z]{4,}/)[0].toLowerCase();
+        var descWords = card.querySelector(".lb-desc").textContent.match(/[A-Za-z]{5,}/g).map(function (w) { return w.toLowerCase(); });
+        var descWord = descWords.filter(function (w) { return w !== labelWord; }).pop();
+        if (!descWord) return { skipped: true };
+        var q = descWord + " " + labelWord; // description word FIRST — reversed on purpose
+        var text = (card.querySelector(".lb").textContent + " " + card.querySelector(".lb-desc").textContent).toLowerCase();
+        var inp = document.querySelector(".cg-search");
+        inp.value = q; inp.dispatchEvent(new Event("input", { bubbles: true }));
+        var visible = card.style.display !== "none";
+        var shown = Array.from(document.querySelectorAll("#inspBody .chart-opt")).filter(function (c) { return c.style.display !== "none"; }).length;
+        // restore
+        inp.value = ""; inp.dispatchEvent(new Event("input", { bubbles: true }));
+        var trendTab = Array.from(document.querySelectorAll(".cg-tab")).find(function (b) { return b.textContent === "Trend"; });
+        if (trendTab) trendTab.click();
+        return { q: q, visible: visible, shown: shown, noLiteralRun: text.indexOf(q) < 0, restored: inp.value === "" };
+      } catch (e) { return { err: e.message }; }
+    });
+    ok("AUD-06: the chart gallery search matches terms in any order across a card's name AND description (a query with no literal run in the card still finds it)",
+      galleryTerms.skipped || (galleryTerms.visible && galleryTerms.noLiteralRun && galleryTerms.shown > 0 && galleryTerms.restored),
+      JSON.stringify(galleryTerms));
+
     // ── F17: Violin plot (v103) ────────────────────────────────────────────────
     console.log("\n• F17: Violin plot");
 
@@ -36707,6 +36797,25 @@ function serve() {
     });
     ok("N-DEV: ⋯ More → Edit JSON spec… button is retired; the ⌘K palette's 'Edit JSON spec…' command opens the editor modal instead",
       jsonEdMenu.moreEditJSONGone && /edit json spec/i.test(jsonEdMenu.paletteRowLabel) && jsonEdMenu.modalOpened, JSON.stringify(jsonEdMenu));
+
+    // AUD-06 slice 6: the same command, words REVERSED. ⌘K matches through
+    // Studio.catalogSearch now, so word order stopped being part of the query — while the
+    // palette keeps its own ranking (a prefix hit on the visible label still wins).
+    const paletteTerms = await page.evaluate(function () {
+      window.StudioPalette.open();
+      var inp = document.getElementById("cmdkInput");
+      inp.value = "spec json edit";
+      inp.dispatchEvent(new Event("input", { bubbles: true }));
+      var labels = Array.from(document.querySelectorAll("#cmdkList .cmdk-row .cmdk-lbl")).map(function (n) { return n.textContent; });
+      // and a prefix query still ranks its command first
+      inp.value = "edit json";
+      inp.dispatchEvent(new Event("input", { bubbles: true }));
+      var topForPrefix = (document.querySelector("#cmdkList .cmdk-row .cmdk-lbl") || {}).textContent || "";
+      window.StudioPalette.close();
+      return { labels: labels, reversedFinds: labels.some(function (l) { return /edit json spec/i.test(l); }), topForPrefix: topForPrefix };
+    });
+    ok("AUD-06: ⌘K finds 'Edit JSON spec…' from the reversed query 'spec json edit', and a prefix query still ranks that command first",
+      paletteTerms.reversedFinds && /edit json spec/i.test(paletteTerms.topForPrefix), JSON.stringify(paletteTerms));
 
     const jsonEd = await page.evaluate(function (id) {
       var r = {};
