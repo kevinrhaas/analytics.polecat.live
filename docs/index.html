@@ -24,6 +24,12 @@
       window.addEventListener("message", function (ev) {
         var t = ev && ev.data && ev.data.studioDocsTheme;
         if (!t) return;
+        // AUD-05: same-origin embedder only (the app's Help iframe). Help is a
+        // plain page anyone may frame, so an unchecked sender could otherwise
+        // repaint it out from under the reader.
+        var mo = (window.location && window.location.origin) || "";
+        if (ev.origin !== mo) return;
+        if (!(ev.source === window.parent || ev.source === window)) return;
         if (t.theme === "dark") document.documentElement.setAttribute("data-theme", "dark");
         else document.documentElement.removeAttribute("data-theme");
         if (t.appTheme) document.documentElement.setAttribute("data-app-theme", t.appTheme);

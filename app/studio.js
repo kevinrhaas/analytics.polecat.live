@@ -150,12 +150,52 @@
     return wrap;
   }
 
+  /* ── AUD-05: the builder ↔ preview postMessage channel is authenticated ──────
+     Every `{ studio: 1, … }` message drives a real spec mutation (select /
+     reorder / resize / rename / kpi-delete / panel-delete / …), so the channel
+     needs to say WHO may speak on it — the old `d.studio === 1` was a shape
+     convention, not a check, and `targetOrigin: "*"` let any page that had
+     framed us (or held a handle to our window) both read and drive it.
+
+     Two helpers, used by every sender and by the receiver below:
+     - `msgOrigin()` — the origin we address messages to. Our preview frames are
+       `srcdoc`, so they INHERIT this document's origin and the exact match
+       works; a `file://` or otherwise opaque origin reports "null", which is
+       not a legal targetOrigin, so we fall back to "*" there rather than
+       silently dropping every message.
+     - `trustedMsg()` — the receive-side gate: same origin, and a sender that is
+       either this window (same-document scripts, which already have full DOM
+       access — no new surface) or one of the frames THIS document embeds.
+       A cross-origin embedder/opener fails both halves. */
+  function msgOrigin() {
+    var o = (window.location && window.location.origin) || "";
+    return (o && o !== "null") ? o : "*";
+  }
+  function isOwnFrame(src) {
+    if (!src) return false;
+    var frames = document.getElementsByTagName("iframe");
+    for (var i = 0; i < frames.length; i++) {
+      try { if (frames[i].contentWindow === src) return true; } catch (x) {}
+    }
+    return false;
+  }
+  function trustedMsg(e) {
+    // A `srcdoc` preview is same-origin with us, and its messages arrive stamped
+    // with OUR origin (the inherited one) — so the exact match is the live path
+    // and a foreign embedder/opener fails it. If we ourselves are on an opaque
+    // origin (`file://`) there is nothing to compare, and the source check below
+    // carries the whole guard.
+    var o = (window.location && window.location.origin) || "";
+    if (!(!o || o === "null") && e.origin !== o) return false;
+    return e.source === window || isOwnFrame(e.source);
+  }
+
   // R2 (tech-debt sweep): the 4 identical "tell the preview iframe the app theme once it
   // loads" envelopes (compare-dashboards preview, Home's live mini-render, Panel zoom,
   // Slideshow) collapsed onto one helper.
   function postThemeOnLoad(ifr) {
     ifr.onload = function () {
-      try { ifr.contentWindow.postMessage({ studio: 1, type: "theme", value: S.theme }, "*"); } catch (e) {}
+      try { ifr.contentWindow.postMessage({ studio: 1, type: "theme", value: S.theme }, msgOrigin()); } catch (e) {}
     };
   }
 
@@ -9983,7 +10023,7 @@
   function redoAct() { if (!_redo.length) return; _undo.push(_lastSnap); applyHistory(_redo.pop()); toast("Redo"); }
   function updateHistButtons() { var u = $("#btnUndo"), r = $("#btnRedo"); if (u) u.disabled = !_undo.length; if (r) r.disabled = !_redo.length; }
   window.__studioUndo = undoAct; window.__studioRedo = redoAct;   // exposed for tests
-  function postToPreview(msg) { try { $("#preview").contentWindow.postMessage(Object.assign({ studio: 1 }, msg), "*"); } catch (e) {} }
+  function postToPreview(msg) { try { $("#preview").contentWindow.postMessage(Object.assign({ studio: 1 }, msg), msgOrigin()); } catch (e) {} }
   // ---------- SETTINGS-ROAM slice 1 (Kevin, 2026-07-31): per-user prefs ----------
   // "sign in later from another browser and get my entire environment." A signed-in
   // REMOTE account's personal look-and-feel rides its own users row (row.prefs),
@@ -10096,7 +10136,7 @@
       f.contentWindow.postMessage({ studioDocsTheme: {
         theme: document.documentElement.getAttribute("data-theme") || "",
         appTheme: document.documentElement.getAttribute("data-app-theme") || ""
-      } }, "*");
+      } }, msgOrigin());
     } catch (e) {}
   }
   // Slice A: the GLOBAL topbar dark-mode toggle (#tbTheme) shows a moon in light mode and a
@@ -10254,6 +10294,7 @@
   }
   window.addEventListener("message", function (e) {
     var d = e.data || {}; if (d.studio !== 1) return;
+    if (!trustedMsg(e)) return; // AUD-05: only our own origin + our own frames drive the spec
     if (d.type === "select") {
       if (d.kind === "kpi") select({ kind: "kpi", index: d.index });
       else if (d.kind === "header") select({ kind: "header" });

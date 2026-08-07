@@ -14801,6 +14801,55 @@ function serve() {
     const span = await page.evaluate((id) => (window.__STUDIO_STATE.spec.panels.find((p) => p.id === id) || {}).span, orderBefore[1]);
     ok("resize message updates panel span", span === "full", "span=" + span);
 
+    // ── AUD-05: the preview channel is authenticated ──────────────────────────
+    // Until v845 the receiver's only check was the `studio:1` magic number, so any
+    // page that had framed the builder (or held a handle to its window) could post
+    // full spec mutations. Now: same origin + a sender that is this window or one
+    // of this document's own frames. The two checks below are the live proof —
+    // the REAL preview-frame path (a sender that is not `window`) had no coverage
+    // at all before, which is why the guard could have silently broken drag-resize.
+    console.log("\n• AUD-05: preview postMessage channel is origin/source-checked");
+
+    // 1. POSITIVE — a message that genuinely originates INSIDE the preview frame
+    //    (eval'd in the frame's own realm, so e.source is the frame) still steers
+    //    the builder. Uses `select`, whose only effect is selection state.
+    const aud05From = await page.evaluate((id) => {
+      const w = document.querySelector("#preview").contentWindow;
+      w.eval("parent.postMessage({studio:1,type:'select',id:" + JSON.stringify(id) + "}, '*')");
+      return new Promise((r) => setTimeout(() => r(window.__STUDIO_STATE.selection), 250));
+    }, orderBefore[2]);
+    ok("AUD-05: a message from the preview frame itself still selects (real sender path, e.source = the frame)",
+      !!aud05From && aud05From.kind === "panel" && aud05From.id === orderBefore[2], JSON.stringify(aud05From));
+
+    // 2. NEGATIVE — the same mutation from a CROSS-ORIGIN frame is dropped.
+    //    127.0.0.1 vs localhost on the same port is a different origin to the
+    //    browser; tests/fixtures/xorigin-poster.html relays the payload to us.
+    const aud05Xo = await page.evaluate((port) => {
+      const before = window.__STUDIO_STATE.spec.panels.map((p) => p.id);
+      const msg = { studio: 1, type: "reorder", order: before.slice(1).concat(before[0]) };
+      const f = document.createElement("iframe");
+      f.style.cssText = "position:fixed;left:-9999px;width:10px;height:10px";
+      f.src = "http://127.0.0.1:" + port + "/tests/fixtures/xorigin-poster.html?msg=" +
+        encodeURIComponent(JSON.stringify(msg));
+      document.body.appendChild(f);
+      return new Promise((r) => setTimeout(() => {
+        const after = window.__STUDIO_STATE.spec.panels.map((p) => p.id);
+        f.remove();
+        r({ before, after });
+      }, 1200));
+    }, PORT);
+    ok("AUD-05: a CROSS-ORIGIN frame's studio message is ignored (panel order untouched)",
+      JSON.stringify(aud05Xo.before) === JSON.stringify(aud05Xo.after), JSON.stringify(aud05Xo));
+
+    // 3. The render side ships inside every export, so assert its guard at the
+    //    source: an exported dashboard must not accept steering from a framer.
+    //    `about:srcdoc` reports an OPAQUE location.origin ("null") even though it
+    //    is same-origin with the builder — hence the deliberate opaque fallback.
+    const aud05Src = await page.evaluate(() => fetch("app/studio-render.js").then((r) => r.text()));
+    ok("AUD-05: studio-render.js's message receiver checks e.origin and e.source (ships in every export)",
+      /e\.origin\s*!==\s*mo/.test(aud05Src) && /e\.source\s*===\s*window\.parent/.test(aud05Src) &&
+      /opaque/.test(aud05Src), "guard not found in app/studio-render.js");
+
     // LF28: simulate the GL choropleth's viewport message — persists onto the panel's
     // chart.opts silently (no toast/refresh, unlike resize/rename above)
     const vpResult = await page.evaluate((id) => {

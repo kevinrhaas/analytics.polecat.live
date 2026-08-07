@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>cross-origin postMessage probe</title>
+</head>
+<body>
+<!--
+  AUD-05 test fixture. The suite loads this page into an iframe from the OTHER
+  loopback spelling than the app under test (127.0.0.1 vs localhost, same port),
+  which the browser treats as a different origin. It then posts the message given
+  in ?msg= to its parent — a real spec mutation. If the builder's message
+  receiver ever stops checking `e.origin`, the mutation lands and the assertion
+  that the spec is unchanged fails. Nothing outside tests/ loads this file.
+-->
+<script>
+(function () {
+  var raw = new URLSearchParams(location.search).get("msg") || "{}";
+  var msg;
+  try { msg = JSON.parse(raw); } catch (e) { msg = {}; }
+  // "*" on purpose: a real attacker would not narrow its target either.
+  try { parent.postMessage(msg, "*"); } catch (e) {}
+  document.title = "posted";
+})();
+</script>
+</body>
+</html>
