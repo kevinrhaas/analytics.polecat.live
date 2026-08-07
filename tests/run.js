@@ -28908,7 +28908,7 @@ function serve() {
     ok("J6: Escape closes the tutorial (tip, ring, and active flag all cleared)", j6Closed.ok, JSON.stringify(j6Closed));
 
     // J6-5: tour shapes — six tours (overview leads), quick has 8 steps, build has 6, jobs has 5,
-    // connect has 8, conservation (LF40, pack-gated) has 6. Overview's own base is 10, but (LF40)
+    // connect has 8, conservation (LF40, pack-gated) has 6. Overview's own base is 13, but (LF40)
     // it's ALSO pack-aware, same engine as welcome.js — one step splices in per installed sample
     // pack (datamanagement ships installed by default), so assert against that ambient count
     // rather than a fixed number, same pattern as welcome.js's own packAware check.
@@ -28917,7 +28917,7 @@ function serve() {
         var packs = Studio.DEMO_PACKS || {};
         var installedPackCount = Object.keys(packs).filter(function (id) { return Studio.demoPackInstalled(id); }).length;
         return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build,jobs,connect,conservation" &&
-          StudioTutorial.stepCount("overview") === 12 + installedPackCount && StudioTutorial.stepCount("quick") === 8 &&
+          StudioTutorial.stepCount("overview") === 13 + installedPackCount && StudioTutorial.stepCount("quick") === 8 &&
           StudioTutorial.stepCount("build") === 6 && StudioTutorial.stepCount("jobs") === 5 &&
           StudioTutorial.stepCount("connect") === 8 && StudioTutorial.stepCount("conservation") === 6,
           keys: StudioTutorial.tourKeys().join(","), o: StudioTutorial.stepCount("overview"), installedPackCount: installedPackCount,
@@ -28925,7 +28925,7 @@ function serve() {
           j: StudioTutorial.stepCount("jobs"), c: StudioTutorial.stepCount("connect"), cv: StudioTutorial.stepCount("conservation") };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("J6: six tours registered — Overview (12-step base incl. the #23 glossary + TOUR-WOW's View Builder stop + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (5 — LF18(b)), Connections & Datasets (8 — LF18(b)), Conservation Insight pack (6 — LF40, pack-gated)", j6Shape.ok, JSON.stringify(j6Shape));
+    ok("J6: six tours registered — Overview (13-step base incl. the #23 glossary + TOUR-WOW's View Builder stop + N7's Views-catalog stop + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (5 — LF18(b)), Connections & Datasets (8 — LF18(b)), Conservation Insight pack (6 — LF40, pack-gated)", j6Shape.ok, JSON.stringify(j6Shape));
 
     // #23 (Kevin): the overview tour defines EVERY domain term — a glossary step
     // covers the full list one line each, and the terms missing from the walk
@@ -29019,7 +29019,12 @@ function serve() {
       var packs = Studio.DEMO_PACKS || {};
       var packCount = Object.keys(packs).filter(function (id) { return Studio.demoPackInstalled(id); }).length;
       for (var p = 0; p < packCount; p++) { document.querySelector("#st-tip button.pri").click(); await sleep(150); }
-      var railSecs = ["home", "explore", "build", "dashboards", "datasets", "connections", "jobs", "repository", "studio"];
+      // N7 (2026-08-07): the walk is now the RAIL's own top-to-bottom order, by its own
+      // groups — Workspace, then Build, then Manage — with the Views catalog no longer
+      // skipped. tools/doc-truth.mjs check 11 derives this same list from app/index.html
+      // and fails if the tour and the rail ever disagree again; this walks it for real.
+      var railSecs = ["home", "views", "dashboards", "datasets", "connections", "repository",
+        "explore", "build", "studio", "jobs"];
       var hits = 0;
       for (var i = 0; i < railSecs.length; i++) {
         document.querySelector("#st-tip button.pri").click();
@@ -29043,8 +29048,8 @@ function serve() {
       return { tour: "overview", railHits: hits, onHome: onHome, lastLabel: lastLabel, backAtStart: backAtStart,
         closed: !document.getElementById("st-tip") && !window.__studioTutorialActive() };
     });
-    ok("J6: the Overview tour spotlights all 9 rail sections in order (View Builder included — TOUR-WOW) and ENDS on Home (getting-started), then completes",
-      j6Overview.railHits === 9 && j6Overview.onHome && /Done/.test(j6Overview.lastLabel) && j6Overview.closed,
+    ok("J6/N7: the Overview tour spotlights all 10 rail sections IN THE RAIL'S OWN ORDER (Workspace → Build → Manage, Views catalog included) and ENDS on Home (getting-started), then completes",
+      j6Overview.railHits === 10 && j6Overview.onHome && /Done/.test(j6Overview.lastLabel) && j6Overview.closed,
       JSON.stringify(j6Overview));
 
     // J6-8 (LF18b): the JOBS tour walks the real Jobs section — the list, the
@@ -29171,8 +29176,8 @@ function serve() {
     // J6-10b (LF40): the OVERVIEW tour is pack-aware too (not just a dedicated pack tour) —
     // installing a pack splices one acknowledgment step in right after the intro, naming
     // the pack; removing it collapses the overview back to its (ambient) base step count.
-    // datamanagement ships installed by default, so assert against 11 + installed count
-    // (the 11-step base includes the #23 glossary step; same pattern as J6-5's shape
+    // datamanagement ships installed by default, so assert against 12 + installed count
+    // (the 12-step base includes the #23 glossary step; same pattern as J6-5's shape
     // check) rather than a number that assumes conservation is the only installed pack.
     const j6OverviewPackAware = await page.evaluate(function () {
       var packs = Studio.DEMO_PACKS || {};
@@ -29180,7 +29185,7 @@ function serve() {
       return { withPack: StudioTutorial.stepCount("overview"), installedCount: installedCount, titles: StudioTutorial.computeOverviewStepTitles() };
     });
     ok("J6: overview tour gains one spliced step (right after the intro) naming the installed Conservation Insight pack",
-      j6OverviewPackAware.withPack === 12 + j6OverviewPackAware.installedCount &&
+      j6OverviewPackAware.withPack === 13 + j6OverviewPackAware.installedCount &&
       j6OverviewPackAware.titles[1] === "Conservation Insight — cover crop & tillage adoption",
       JSON.stringify(j6OverviewPackAware));
 
@@ -29262,7 +29267,7 @@ function serve() {
       return ok2;
     });
     ok("J6: Conservation Insight tour disappears from the chooser again once the pack is removed, and the overview tour's pack step goes with it",
-      j6ConservationCleanup.count === 5 && !j6ConservationCleanup.installed && j6ConservationCleanup.overviewSteps === 12 + j6ConservationCleanup.installedCount,
+      j6ConservationCleanup.count === 5 && !j6ConservationCleanup.installed && j6ConservationCleanup.overviewSteps === 13 + j6ConservationCleanup.installedCount,
       JSON.stringify(j6ConservationCleanup));
 
     // ---- TOUR-FRONT (Kevin live, 2026-07-31): the chooser matches the welcome

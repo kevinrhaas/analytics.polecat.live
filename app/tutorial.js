@@ -1,8 +1,14 @@
 /* tutorial.js — Analytics interactive tutorials.
    J6 (rebuilt) / LF18(b): guided, spotlighted walkthroughs behind a chooser —
-     · "Take the tour" (overview) — walks the whole app down the rail
-       (Home · Quick Views · Dashboards · Datasets · Connections · Jobs ·
-       Repository · Dashboard Builder) and ends on Home. The first-run / recommended tour.
+     · "Getting started" (overview) — walks the whole app DOWN THE RAIL, in the
+       rail's own top-to-bottom order and by its own groups: Workspace (Home ·
+       Views · Dashboards · Datasets · Connections · Repository) → Build (Quick
+       Views · View Builder · Dashboard Builder) → Manage (Jobs), then ends on
+       Home. The first-run / recommended tour. **The order is not free-form:**
+       tools/doc-truth.mjs check 11 compares this tour's rail targets against
+       the rail's actual DOM order and fails if they diverge, so a new rail
+       section forces a decision here (add a step, or add it to that check's
+       documented skip set).
      · "Quick analysis"  — the Quick Views flow: dataset → table → chart →
        saved analysis → pin/add. The fastest data-to-chart path.
      · "Build a dashboard" — the Dashboard Builder loop: library → canvas →
@@ -85,36 +91,30 @@
       steps: [
         {
           t: "Welcome — here's the whole app",
-          h: "Analytics turns your data into quick analyses and full dashboards, right in your browser. This two-minute tour walks the parts down the left rail, then leaves you on Home, ready to start.",
+          h: "Analytics turns your data into quick analyses and full dashboards, right in your browser. This two-minute tour walks the left rail from the top down — <b>Workspace</b> (the things you have), <b>Build</b> (where you make them), <b>Manage</b> (keeping them fed) — then leaves you on Home, ready to start.",
           sub: "You can reopen any tour from ⋯ More → Interactive tutorial, or Home → Take the tour.",
           target: null,
           before: function () { goSection("home"); }
         },
+        /* ── Workspace — the things you HAVE (rail group 1, in rail order) ── */
         {
           t: "Home — where you land",
-          h: "Every time you open Analytics you arrive here: your featured dashboards render live, pinned analyses greet you, examples are one click away, and getting-started shortcuts sit up top.",
+          h: "First in the rail's <b>Workspace</b> group, and where every visit starts: your featured dashboards render live, pinned analyses greet you, examples are one click away, and getting-started shortcuts sit up top.",
           target: '.rail-item[data-sec="home"]',
           pos: "right"
         },
+        // N7 (2026-08-07): the Views CATALOG (LF57 slice 1) was missing from the
+        // walk entirely — the tour jumped from Home straight to Dashboards.
         {
-          t: "Quick Views — the fast path to a chart",
-          h: "Start from a dataset, see it as a table, pick a chart, and save the result as a reusable <b>analysis</b>. The quickest way from data to insight — there's a dedicated tour for it.",
-          target: '.rail-item[data-sec="explore"]',
-          pos: "right"
-        },
-        // TOUR-WOW (Kevin live, 2026-07-31): the flagship View Builder was
-        // missing from the app walk entirely.
-        {
-          t: "View Builder — drag-and-drop charts",
-          h: "The flagship chart canvas: drag a dataset's columns onto <b>Columns / Rows / Filters / Color</b> shelves and the result renders live as you go — tables, bars, lines, donuts, heatmaps, and full US maps. Every save is a <b>View</b>.",
-          sub: "You can even drop a CSV file straight onto the canvas — it becomes a dataset and an instant View.",
-          target: '.rail-item[data-sec="build"]',
+          t: "Views — every chart you've saved",
+          h: "A <b>View</b> is one saved chart, KPI, map, or block of text — the unit dashboards are made of. This is the catalog of all of them, wherever you built them: search, rename, ★ pin one to Home, or drop it into a dashboard.",
+          sub: "Two rail items are called Views: this catalog under <b>Workspace</b>, and the builder under <b>Build</b> further down. The group label is what tells them apart.",
+          target: '.rail-item[data-sec="views"]',
           pos: "right"
         },
         {
           t: "Dashboards — the finished thing",
-          h: "A dashboard is built from <b>Views</b> — each View shows one chart, KPI, map, or block of text. Arrange several into a page, feature it on Home, and export it as a self-contained file.",
-          sub: "A saved analysis from Quick Views drops straight in as a View — and dashboards group into named <b>workbooks</b> you can filter by.",
+          h: "Arrange several Views into a page, feature it on Home, and export it as a self-contained file. This is the catalog of the ones you've made — and they group into named <b>workbooks</b> you can filter by.",
           target: '.rail-item[data-sec="dashboards"]',
           pos: "right"
         },
@@ -131,21 +131,39 @@
           pos: "right"
         },
         {
-          t: "Jobs — prep &amp; roll up",
-          h: "Clean and reshape data before it's charted: rename, filter, and aggregate (including an acreage-weighted mean for honest state / district / watershed roll-ups). A job's output lands back in Datasets — there's a dedicated tour for it too.",
-          target: '.rail-item[data-sec="jobs"]',
+          t: "Repository — find anything",
+          h: "Last in <b>Workspace</b>: a searchable, folder-grouped view of every dashboard, View, dataset, connection and job at once. Pick a kind or search by name — a row opens straight into that object's own editor.",
+          target: '.rail-item[data-sec="repository"]',
           pos: "right"
         },
+        /* ── Build — where you MAKE them (rail group 2, in rail order) ── */
         {
-          t: "Repository — find anything",
-          h: "A searchable, folder-grouped view of every dashboard, dataset, connection, analysis and job in your workspace. Pick a kind or search by name — a row opens straight into that object's own editor.",
-          target: '.rail-item[data-sec="repository"]',
+          t: "Quick Views — the fast path to a chart",
+          h: "Now the rail's <b>Build</b> group, the places you make all of that. First and fastest: start from a dataset, see it as a table, pick a chart, and save the result as a reusable <b>View</b>. There's a dedicated tour for it.",
+          target: '.rail-item[data-sec="explore"]',
+          pos: "right"
+        },
+        // TOUR-WOW (Kevin live, 2026-07-31): the flagship View Builder was
+        // missing from the app walk entirely.
+        {
+          t: "View Builder — drag-and-drop charts",
+          h: "The flagship chart canvas: drag a dataset's columns onto <b>Columns / Rows / Filters / Color</b> shelves and the result renders live as you go — tables, bars, lines, donuts, heatmaps, and full US maps. Every save lands in the Views catalog up top.",
+          sub: "You can even drop a CSV file straight onto the canvas — it becomes a dataset and an instant View.",
+          target: '.rail-item[data-sec="build"]',
           pos: "right"
         },
         {
           t: "Dashboard Builder — assemble & export",
-          h: "Where you assemble a dashboard: drag data in, tune each View in the inspector, add interactive <b>filters</b> that narrow every View at once, and watch the real dashboard render live. Export a file that runs anywhere when you're done.",
+          h: "Where you assemble a dashboard: drag Views in, tune each one in the inspector, add interactive <b>filters</b> that narrow every View at once, and watch the real dashboard render live. Export a file that runs anywhere when you're done.",
           target: '.rail-item[data-sec="studio"]',
+          pos: "right"
+        },
+        /* ── Manage — keeping the data fed (rail group 3) ── */
+        {
+          t: "Jobs — prep &amp; roll up",
+          h: "The rail's <b>Manage</b> group. A job cleans and reshapes data before it's charted: rename, filter, and aggregate (including an acreage-weighted mean for honest state / district / watershed roll-ups). Its output lands back in Datasets — there's a dedicated tour for it too.",
+          sub: "Settings and Help sit pinned at the very bottom of the rail, always one click away.",
+          target: '.rail-item[data-sec="jobs"]',
           pos: "right"
         },
         {
@@ -166,7 +184,7 @@
         },
         {
           t: "You're set — start on Home",
-          h: "That's the whole app: <b>Connections</b> → <b>Datasets</b> → (Jobs to prep) → <b>Quick Views</b> or the <b>Dashboard Builder</b> to build → <b>Home</b> to see it all. Take the <b>Quick analysis</b> tour next for a hands-on run, or open an example below.",
+          h: "That's the rail, top to bottom. The <i>work</i> runs the other way: <b>Connections</b> → <b>Datasets</b> → (Jobs to prep) → <b>Quick Views</b> or a builder → <b>Home</b> to see it all. Take the <b>Quick analysis</b> tour next for a hands-on run, or open an example below.",
           sub: "You'll always land here on Home — pick up a recent dashboard, or start something new.",
           target: null,
           last: true,
