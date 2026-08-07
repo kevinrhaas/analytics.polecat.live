@@ -135,6 +135,36 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N2 slice 2 — the one-click go-live installed a WEAKER posture than the manual paste; the two
+  are now identical and a test holds them there (v863, sw v495, 2026-08-07, steward — NOW item
+  N2):** slice 1 proved the two `/tools` postures, but the path most workspaces actually take is
+  neither of them — it is **Admin → Go live**, which runs the Edge Function's *inlined* copy
+  (`supabase/functions/polecat-admin/sql.ts`, inlined because the Edge Runtime bundles only the
+  module graph and cannot read a sibling `.sql` at runtime). That copy had drifted from the
+  canonical posture it calls itself a condensed mirror of: **no admin arm** on the five
+  owner/private tables, **no explicit `TO authenticated`** (so its policies still applied to
+  `anon`), **no `users` email-claim arm** (GATE-FIX-2), **no `polecat_meta` policy** and **no
+  RLS-enable / legacy-policy drop loop** — so it never retired the demo `polecat_anon_all`
+  policies its own `BOOTSTRAP_DDL` had just created a few lines earlier. **What that meant
+  live:** a workspace taken live with the button left a signed-out visitor able to read every
+  non-private row and the whole of `polecat_meta`, and left admins unable to push a workspace
+  snapshot containing rows they do not own. **SERVER-SIDE ONLY, as scoped — no client change.**
+  `RLS_REAL_SQL` is now a section-for-section mirror of `tools/supabase-rls-real.sql` (§ 0 enable
+  + drop legacy, § 0.5 the `polecat_is_admin()` helper hoisted above its callers, § 1 the five
+  owner/private tables, § 2 `users`, § 3 `polecat_meta`), and **`tests/rls.mjs` gained it as a
+  THIRD posture** — the real go-live sequence, `BOOTSTRAP_DDL` then `RLS_REAL_SQL`, into its own
+  throwaway schema, put through the identical 27 checks. The constants are pulled out of the
+  `.ts` textually (Node cannot import TypeScript, and the point is to test the exact bytes that
+  deploy). Running BOOTSTRAP first is deliberate: it puts the demo allow-all policies in place,
+  so the drop loop that has to retire them is under test rather than assumed. **Verification:
+  81/81 checks green across the three postures (25.6s) against the live project; negative
+  control — reverting `sql.ts` alone turns exactly 4 red (`anon reads 0 rows from dashboards`,
+  `… datasets`, `… polecat_meta`, `an admin sees every dashboard`), which is the drift itself,
+  observed.** Dev gate green (`validate.mjs`, `changelog-check.js`, `doc-truth.mjs`,
+  `dev-smoke.mjs`). Runbook § Path C now states the enforcement. **Note for an already-live
+  workspace:** do NOT "just re-run Go live" to pick the fix up — `actionGoLive` TRUNCATEs the
+  workspace tables first; re-paste `tools/supabase-rls-real.sql`, which tightens in place. **Est
+  1pt, took 1.**
 - **N2 slice 1 — the live security posture gets an integration test, and it found a fresh-install
   bug on its first run (v862, sw v494, 2026-08-07, steward — NOW item N2):**
   `tools/supabase-rls-real.sql` has been the canonical Row-Level Security posture for every
@@ -9532,7 +9562,8 @@
 > struck entries and propose the next batch to Kevin on a `hold` PR — never graze the
 > reservoir directly.
 
-- **N2 ★★ [1pt remaining, est 2pt] — M7: real Row-Level Security enforcement.** The standing
+- **N2 ★★ [2pt remaining — the client flip; est 2pt, 2 slices shipped] — M7: real Row-Level
+  Security enforcement.** The standing
   security debt. `app/auth.js` is explicit that today's model is honest UX-gating over a shared
   local store, not isolation between users, and AUD-03 hardened the password digests
   without changing that posture. **Slice 1 is SHIPPED (v862, 2026-08-07, steward — see DONE):
@@ -9545,19 +9576,20 @@
   `polecat_is_admin()` a section before defining the function, so the documented
   top-to-bottom run on a FRESH project died on its first CREATE POLICY. Fixed by hoisting the
   helper in both.**
-  **What remains (slice 2 — SERVER-SIDE ONLY, no client changes):** the Edge Function's
-  inlined `RLS_REAL_SQL` (`supabase/functions/polecat-admin/sql.ts`) has DRIFTED from the
-  canonical `/tools` posture it is supposed to mirror — it is missing the admin arm on the
-  five owner/private tables, the explicit `TO authenticated` (its policies still apply to
-  `anon`), the `users` email-claim arm from GATE-FIX-2, the `polecat_meta` policy and the
-  RLS-enable/legacy-policy-drop loop. So an in-app **Admin → Go live** on a fresh project
-  installs a WEAKER posture than a manual `supabase-rls-real.sql` paste. Bring `sql.ts` back
-  in sync and extend `tests/rls.mjs` to assert the two are equivalent (the same 27 checks
-  should pass against either), so they cannot drift again. Changing what `go-live` installs
-  touches Kevin's live security posture — land it as its own PR with the diff spelled out.
-  Also still open, unchanged: the client flip is a later slice behind the existing Admin
-  go-live card. Use a throwaway `steward_test*` schema; never CREATE/DROP/ALTER against
-  live `public`.
+  **Slice 2 is SHIPPED (v863, 2026-08-07, steward — see DONE): the Edge Function's inlined
+  `RLS_REAL_SQL` (`supabase/functions/polecat-admin/sql.ts`) had DRIFTED, so an in-app Admin →
+  Go live installed a WEAKER posture than a manual `supabase-rls-real.sql` paste — anon could
+  read every non-private row and all of `polecat_meta`, and admins could not push a snapshot
+  containing rows they do not own. `sql.ts` is now a section-for-section mirror of the canonical
+  file, and `tests/rls.mjs` runs the go-live sequence (`BOOTSTRAP_DDL` + `RLS_REAL_SQL`) as a
+  THIRD posture through the identical 27 checks — 81/81 green — so they cannot drift again.**
+  **What remains (slice 3 — the client flip):** the app still treats the shared local store as
+  the source of truth; flipping it to rely on the database's own enforcement sits behind the
+  existing Admin go-live card. That is the last piece of M7 and it DOES touch the client, so it
+  wants its own PR and its own verification story. Use a throwaway `steward_test*` schema for any
+  database work; never CREATE/DROP/ALTER against live `public`. Note for any run touching an
+  already-live workspace: `actionGoLive` TRUNCATEs the workspace tables, so "just re-run Go live"
+  is never the way to pick up a posture fix — re-paste `tools/supabase-rls-real.sql` instead.
 - **N4 ★ [1pt] — Repo hygiene from tech sweep #370 (still open).** Two concrete items: (a)
   `delete_branch_on_merge` is `false`, so every merged PR leaves its branch behind — 251
   stale `steward/*` branches at sweep time and the loop has merged far more since; flip the

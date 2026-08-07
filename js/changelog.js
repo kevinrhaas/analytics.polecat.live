@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 863,
+    title: 'The one-click "Go live" now locks a workspace down exactly as tightly as the manual setup',
+    kind: 'fix',
+    ts: '2026-08-07T18:33:15.000Z',
+    items: [
+      'Nothing in the app looks or behaves differently. This is about the moment a workspace database is switched over to real per-person security — the step that makes "private" mean private in the database itself, rather than only in the app.',
+      'There are two ways to take that step: paste the setup file into your database console by hand, or press "Go live" in Admin. They are meant to install the very same protection. They had quietly stopped matching, and the one-click path was the weaker of the two: a signed-out visitor could still read every item that was not individually marked private, plus all of the workspace\'s own settings rows. Administrators, meanwhile, lost the reach they need to save work on behalf of the whole team.',
+      'Both paths now install identical rules, line for line. Anyone who went live with the button had less protection than they had been told they had; re-applying the security file from the go-live runbook corrects an existing workspace in place, without touching any of your data.',
+      'Behind the scenes: last week\'s security check now tries to break into all three ways a workspace can be set up, not just the two written-down ones — the same 27 attempts each, 81 in total, every one of them refused. It is what found this. Left alone, the two setups could have drifted apart again without anyone noticing.',
+    ],
+  },
+  {
     v: 862,
     title: 'The rule that keeps your private work private is now tested, not just written down',
     kind: 'fix',
