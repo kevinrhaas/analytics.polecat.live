@@ -135,6 +135,39 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N2 slice 3 — THE CLIENT FLIP: on a bound Supabase workspace the DATABASE decides who signs in,
+  not the mirrored local hash (v864, sw v496, 2026-08-07, steward — NOW item N2):** slices 1 and 2
+  proved the database's posture; this is the first slice that changes the CLIENT, and it closes the
+  gap the N2 item names in one line — "the app still treats the shared local store as the source of
+  truth". **The defect, precisely:** `app/gate.js`'s submit handler ran `Auth.verify(u, p)` FIRST,
+  and a matching row in `analytics.users.v1` signed you straight in — the workspace was never
+  asked. GoTrue direct-auth (LF39 item 2 / M7) existed only as the FALLBACK for when the local hash
+  missed. So the mirrored `users` hash was the real credential at the front door: anyone able to
+  edit this browser's localStorage could mint a row and be signed in as anybody, and a password
+  CHANGED or REVOKED in the workspace kept opening every browser whose mirror hadn't caught up.
+  RLS still protected the DATA the whole time (every request carries the user's own token — that
+  is what slices 1/2 proved), but the door in front of it was decided locally. **The flip:** when a
+  Supabase workspace is bound AND the typed username is an email — exactly the accounts that
+  workspace's GoTrue owns — the gate asks the database FIRST (`submitSignIn` →
+  `tryGotrueDirectAuth`) and honours its answer; a rejection is final and the local hash gets no
+  second vote. **The two things it deliberately does NOT break:** (a) an UNREACHABLE backend
+  (offline, CORS) still falls back to the local path in full, so losing your connection never locks
+  you out of your own device — which required teaching the adapter to distinguish the two, so
+  `supabaseSource.authenticate()` now returns `unreachable:true` for a network/CORS failure and
+  `false` for a genuine "no" (`gotrueSignIn` tags the error); (b) local accounts are untouched —
+  plain usernames, the `admin`/`demo` seed pair (never emails, so the new branch cannot see them),
+  custom local-auth workspaces (Turso/M3.2) and a plain local workspace all keep the local-first
+  path byte for byte, and the Workspace picker's "Local only (this browser)" is the one-click
+  escape hatch. The "no" message now also says the workspace is what decided it. **Verified:** the
+  full `tests/run.js` suite plus the dev gate (`tools/validate.mjs`, `tools/changelog-check.js`,
+  `tools/dev-smoke.mjs`), with 3 new checks — the adapter's reject-vs-unreachable distinction; a
+  local hash that PROVABLY matches (`PolecatAuth.verify` re-asserted true in the payload) no longer
+  signing an email account in; and an unreachable workspace still signing that same account in.
+  The existing GATE-ERR / GATE-FIX / GATE-FIX-2 / LF39-direct-auth / ADMIN-LOCAL checks all still
+  pass unchanged, which is what pins "local accounts are untouched". (Files: app/gate.js,
+  app/sources/supabase.js, tests/run.js, docs/index.html, js/changelog.js, sw.js, STATUS.md.)
+  **est 2pt, took 1** — the remaining piece (the Admin-side surfacing of which posture a workspace
+  is actually running under) is genuinely separate and is re-scoped on the N2 item as 1pt.
 - **N2 slice 2 — the one-click go-live installed a WEAKER posture than the manual paste; the two
   are now identical and a test holds them there (v863, sw v495, 2026-08-07, steward — NOW item
   N2):** slice 1 proved the two `/tools` postures, but the path most workspaces actually take is
@@ -9562,7 +9595,7 @@
 > struck entries and propose the next batch to Kevin on a `hold` PR — never graze the
 > reservoir directly.
 
-- **N2 ★★ [2pt remaining — the client flip; est 2pt, 2 slices shipped] — M7: real Row-Level
+- **N2 ★★ [1pt remaining — stop persisting the workspace password; est 2pt, 3 slices shipped] — M7: real Row-Level
   Security enforcement.** The standing
   security debt. `app/auth.js` is explicit that today's model is honest UX-gating over a shared
   local store, not isolation between users, and AUD-03 hardened the password digests
@@ -9583,10 +9616,26 @@
   containing rows they do not own. `sql.ts` is now a section-for-section mirror of the canonical
   file, and `tests/rls.mjs` runs the go-live sequence (`BOOTSTRAP_DDL` + `RLS_REAL_SQL`) as a
   THIRD posture through the identical 27 checks — 81/81 green — so they cannot drift again.**
-  **What remains (slice 3 — the client flip):** the app still treats the shared local store as
-  the source of truth; flipping it to rely on the database's own enforcement sits behind the
-  existing Admin go-live card. That is the last piece of M7 and it DOES touch the client, so it
-  wants its own PR and its own verification story. Use a throwaway `steward_test*` schema for any
+  **Slice 3 is SHIPPED (v864, sw v496, 2026-08-07, steward — see DONE): THE CLIENT FLIP.**
+  `app/gate.js` ran `Auth.verify()` FIRST, so a matching row in the mirrored local `users` store
+  signed you in without the workspace ever being asked — GoTrue was only the fallback. The
+  mirrored hash was therefore the real credential at the front door, and a password changed or
+  revoked in the workspace kept opening every browser whose mirror was stale. Now: a bound
+  Supabase workspace + an email username asks the DATABASE first and its rejection is final. An
+  unreachable backend still falls back locally (offline never locks anyone out — the adapter's
+  `authenticate()` gained an `unreachable` flag to tell "no" apart from "we never asked"), and
+  local accounts, the `admin`/`demo` seed pair, custom local-auth workspaces and "Local only
+  (this browser)" are all untouched. 3 new checks; est 2pt, took 1.
+  **What remains (slice 4 — [1pt], the last of M7):** the client still keeps the signed-in user's
+  **plaintext Supabase password** on disk. `Sync.setAuthCredentials()` stamps `authEmail`/
+  `authPassword` onto the live cfg and `saveConn()` serialises that cfg straight into
+  `analytics.datasource.v1` (app/sources/sync.js:219-224), purely so `ensureSession()` can re-mint
+  an expired JWT from `cfg.authPassword`. GoTrue already returns a `refresh_token` on every
+  password grant and the adapter throws it away — keep that instead (session-scoped, the same
+  posture AUD-03 gave the secrets-vault passphrase) and re-mint from it, so a workspace password
+  never reaches localStorage. Verifiable the same way this slice was: the mock GoTrue already
+  returns a refresh token, so both the refresh path and a "the password is no longer persisted"
+  assertion are testable without the live project. Use a throwaway `steward_test*` schema for any
   database work; never CREATE/DROP/ALTER against live `public`. Note for any run touching an
   already-live workspace: `actionGoLive` TRUNCATEs the workspace tables, so "just re-run Go live"
   is never the way to pick up a posture fix — re-paste `tools/supabase-rls-real.sql` instead.

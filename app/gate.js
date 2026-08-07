@@ -297,7 +297,11 @@
         // failure than "no matching account" — reporting both as "isn't in your
         // connected workspace" sent a whole debugging session down the wrong
         // road. Surface the wrong-password case as exactly that.
-        if (!r || !r.ok || !r.userId) { next(false, "badpass"); return; }
+        // N2 slice 3: "the backend refused these credentials" (badpass — the
+        // database's authoritative no) and "we never reached the backend"
+        // (unreachable — offline/CORS) are different answers and the caller
+        // treats them differently. Only the first one may lock a sign-in out.
+        if (!r || !r.ok || !r.userId) { next(false, r && r.unreachable ? "unreachable" : "badpass"); return; }
         // WORKSPACE-LOGIN fix (Kevin live, 2026-07-30): a picker-bound
         // connection has only url+key, so the adopting pull below used to run
         // as ANON — under authenticated-only RLS that reads users as EMPTY and
@@ -334,13 +338,57 @@
           }, function () { next(false, "noaccount"); });
         };
         if (Sync.pullNow) Sync.pullNow().then(adopt, adopt); else adopt();
-      }, function () { next(false, "badpass"); });
+      }, function () { next(false, "unreachable"); });
     }
-    document.getElementById("g-form").addEventListener("submit", function (e) {
-      e.preventDefault();
-      var u = (document.getElementById("g-user").value || "").trim();
-      var p = document.getElementById("g-pass").value || "";
-      if (!u) { fail("Enter a username."); return; }
+    // ---- N2 slice 3 (M7): THE CLIENT FLIP — the workspace decides ------------
+    // Until now the LOCAL store was the source of truth at sign-in: Auth.verify()
+    // ran first, and a matching local hash signed you in without the database ever
+    // being asked. GoTrue was only the fallback for when the local hash missed.
+    // That made the mirrored `users` hash the real credential — anyone who can
+    // edit this browser's localStorage could mint a matching row and be signed in
+    // as anybody, and a password CHANGED in the workspace kept working here until
+    // the mirror caught up. RLS still protected the DATA (every request carries
+    // the user's own token), but the front door was decided locally.
+    //
+    // So: when a Supabase workspace is bound AND the typed username is an email —
+    // i.e. exactly the accounts the workspace's own GoTrue owns — ask the DATABASE
+    // first and honour its answer. A rejection is final; the local hash gets no
+    // second vote. Everything else is untouched: the local demo accounts
+    // (admin/demo — never emails), non-email usernames, custom local-auth
+    // workspaces (Turso/M3.2) and a plain local workspace all still take the
+    // local-first path exactly as before. If the database can't be REACHED
+    // (offline, CORS) we fall back to that path too, so going offline never locks
+    // anyone out of their own device.
+    //
+    // The escape hatch stays one click away: the Workspace picker's "Local only
+    // (this browser)" disconnects, and a local workspace is local-first again.
+    function backendOwnsSignIn(u) {
+      var st = (window.Studio && Studio.Sync && Studio.Sync.syncState) ? Studio.Sync.syncState() : null;
+      return !!(st && st.sourceId === "supabase" && u.indexOf("@") >= 0);
+    }
+    function failBadPass(u, flipped) {
+      // GATE-ERR (Kevin live, 2026-07-31): a GoTrue REJECTION is a different
+      // failure than "no matching account" — reporting both as "isn't in your
+      // connected workspace" sent a whole debugging session down the wrong
+      // road. Surface the wrong-password case as exactly that. Watch for
+      // autofill: password managers have saved API tokens under this site.
+      fail("That password doesn’t match " + u + "’s account in this workspace." +
+        (flipped ? " Sign-in here is decided by the workspace itself, so a password saved on this device can’t open it." : "") +
+        " Re-type it by hand (the eye button shows it) — autofill sometimes inserts a saved token instead.");
+      document.getElementById("g-pass").select();
+    }
+    function submitSignIn(u, p) {
+      if (!backendOwnsSignIn(u)) { localFirstSignIn(u, p, false); return; }
+      tryGotrueDirectAuth(u, p, function (done, why) {
+        if (done) return;
+        if (why === "badpass") { failBadPass(u, true); return; }
+        // "noaccount" (GoTrue said yes, no matching row yet), "unreachable", or
+        // the branch simply not applying: run today's path, but never re-ask
+        // GoTrue — it has already given its answer.
+        localFirstSignIn(u, p, true);
+      });
+    }
+    function localFirstSignIn(u, p, skipGotrue) {
       Auth.verify(u, p).then(function (okAuth) {
         if (okAuth) {
           // DEMO-LOCAL / ADMIN-LOCAL (Kevin): admin/admin and demo/demo are the
@@ -385,21 +433,29 @@
             return;
           }
         }
-        tryGotrueDirectAuth(u, p, function (done, why) {
-          if (done) return;
+        var afterGotrue = function (why) {
           // GATE-ERR: the workspace's own auth REJECTED the password — say so
           // plainly instead of the misleading "isn't in your workspace" (which
-          // stays for genuinely unknown accounts). Watch for autofill: password
-          // managers have saved API tokens under this site before.
-          if (why === "badpass") {
-            fail("That password doesn’t match " + u + "’s account in this workspace. Re-type it by hand (the eye button shows it) — autofill sometimes inserts a saved token instead.");
-            document.getElementById("g-pass").select();
-            return;
-          }
+          // stays for genuinely unknown accounts).
+          if (why === "badpass") { failBadPass(u, false); return; }
           if (known) { fail(); document.getElementById("g-pass").select(); return; }
           handleUnknownUser(u, p);
+        };
+        // skipGotrue: submitSignIn already asked the backend and it did not sign
+        // this person in — asking again would just repeat the same answer.
+        if (skipGotrue) { afterGotrue(null); return; }
+        tryGotrueDirectAuth(u, p, function (done, why) {
+          if (done) return;
+          afterGotrue(why);
         });
       });
+    }
+    document.getElementById("g-form").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var u = (document.getElementById("g-user").value || "").trim();
+      var p = document.getElementById("g-pass").value || "";
+      if (!u) { fail("Enter a username."); return; }
+      submitSignIn(u, p);
     });
     // ---- WORKSPACE-LOGIN (Kevin live, 2026-07-30): the Workspace picker ----
     // "Ship with the default polecat supabase workspace... he should not have to

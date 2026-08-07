@@ -18175,6 +18175,83 @@ function serve() {
     ok("GATE-FIX-2: a users row missing its gotrueId stamp still adopts by the verified sign-in EMAIL, and the uid gets stamped onto the account (self-healing the link)",
       fix2.gateGone && fix2.who === "owner@example.com" && fix2.stampedUid === MOCK_GOTRUE_USER_ID, JSON.stringify(fix2));
 
+    // ---- N2 slice 3 (M7): THE CLIENT FLIP — on a bound Supabase workspace the
+    // DATABASE decides who gets in, not the mirrored local password hash. Before
+    // this, Auth.verify() ran FIRST and a matching local row signed you straight
+    // in without the workspace ever being asked; GoTrue was only the fallback.
+    // These checks pin the new precedence AND the two things it must not break:
+    // a rejection is final (no local second vote), but an UNREACHABLE backend
+    // still falls back locally so going offline can't lock anyone out. ----
+    console.log("\n• N2 slice 3: the client flip (the workspace decides)");
+    await fetch(`http://localhost:${PORT}/__supabase/rest/v1/__cleartokenflap`, { headers: { apikey: "sb_publishable_valid" } });
+    const gpFlip = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpFlip.on("pageerror", (e) => errors.push("N2 client-flip page: " + e.message));
+    await gpFlip.addInitScript((port) => {
+      try { localStorage.setItem("analytics.datasource.v1", JSON.stringify({ sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid" }, at: 1 })); } catch (e) {}
+    }, PORT);
+    await gpFlip.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpFlip.waitForFunction(() => {
+      if (!window.Studio || !Studio.Sync) return false;
+      var s = Studio.Sync.syncState();
+      return s.sourceId === "supabase" && s.status !== "connecting";
+    }, { timeout: 20000 }).catch(() => {});
+    await gpFlip.waitForSelector("#g-form", { timeout: 4000 });
+
+    // A) the adapter reports WHY it failed — the distinction the flip rests on.
+    const flipAdapter = await gpFlip.evaluate(async (port) => {
+      const good = { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid" };
+      const rejected = await Studio.supabaseSource.authenticate(good, { email: "owner@example.com", password: "definitely-wrong" });
+      // a port nothing is listening on = a genuine network failure, not a "no"
+      const offline = await Studio.supabaseSource.authenticate({ url: "http://127.0.0.1:39123/__supabase", key: "sb_publishable_valid" }, { email: "owner@example.com", password: "secret123" });
+      return { rejectedOk: rejected.ok, rejectedUnreachable: !!rejected.unreachable,
+               offlineOk: offline.ok, offlineUnreachable: !!offline.unreachable };
+    }, PORT);
+    ok("N2 FLIP: supabaseSource.authenticate() distinguishes a GoTrue REJECTION (unreachable:false) from never reaching GoTrue at all (unreachable:true) — the signal the gate needs to know whether a 'no' is authoritative",
+      flipAdapter.rejectedOk === false && flipAdapter.rejectedUnreachable === false &&
+      flipAdapter.offlineOk === false && flipAdapter.offlineUnreachable === true, JSON.stringify(flipAdapter));
+
+    // B) THE FLIP ITSELF: a local row whose password hash DOES match is no longer
+    // enough. Seed one, type its real local password, and watch the workspace
+    // refuse it — pre-flip this signed straight in.
+    await gpFlip.evaluate(() => {
+      Studio.Sync.pullNow = function () { return Promise.resolve(); };
+      return window.PolecatAuth.upsert("owner@example.com", { name: "Local Owner", role: "admin", demo: false, pass: "localonly123" });
+    });
+    await gpFlip.fill("#g-user", "owner@example.com");
+    await gpFlip.fill("#g-pass", "localonly123");
+    await gpFlip.click("#g-form button[type=submit]");
+    await gpFlip.waitForFunction(() => /match/.test((document.getElementById("g-err") || {}).textContent || ""), { timeout: 8000 }).catch(() => {});
+    const flipRefused = await gpFlip.evaluate(async () => ({
+      gateStillUp: !!document.querySelector("#studio-gate"),
+      signedIn: !!window.PolecatAuth.current(),
+      // the whole point: the LOCAL hash really does match — and it still didn't get in
+      localHashMatches: await window.PolecatAuth.verify("owner@example.com", "localonly123"),
+      gateErr: (document.getElementById("g-err") || {}).textContent || ""
+    }));
+    ok("N2 FLIP: on a bound Supabase workspace a MATCHING local password hash no longer signs an email account in — the workspace's own rejection is final, and the message says sign-in is decided by the workspace",
+      flipRefused.gateStillUp && !flipRefused.signedIn && flipRefused.localHashMatches === true &&
+      /decided by the workspace/.test(flipRefused.gateErr), JSON.stringify(flipRefused));
+
+    // C) NO LOCKOUT: when the workspace can't be REACHED (offline/CORS) the same
+    // account signs in on its local hash exactly as before. "We never asked" must
+    // never be treated as "the database said no".
+    await gpFlip.evaluate(() => {
+      Studio.supabaseSource.authenticate = function () {
+        return Promise.resolve({ ok: false, unreachable: true, error: "Could not reach Supabase Auth (network or CORS): test" });
+      };
+    });
+    await gpFlip.fill("#g-pass", "localonly123");
+    await gpFlip.click("#g-form button[type=submit]");
+    await gpFlip.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 8000 }).catch(() => {});
+    const flipOffline = await gpFlip.evaluate(() => ({
+      gateGone: !document.querySelector("#studio-gate"),
+      who: (window.PolecatAuth.current() || {}).u,
+      gateErr: (document.getElementById("g-err") || {}).textContent || ""
+    }));
+    await gpFlip.close();
+    ok("N2 FLIP: an UNREACHABLE workspace falls back to the local sign-in path — going offline never locks a user out of their own device",
+      flipOffline.gateGone && flipOffline.who === "owner@example.com", JSON.stringify(flipOffline));
+
     // ---- ADMIN-LOCAL (Kevin, 2026-07-31): admin/admin joins demo/demo as the
     // two strictly-LOCAL demo accounts — signing into either forces the
     // workspace back to Local even with a remote picked/bound; the gate hint
