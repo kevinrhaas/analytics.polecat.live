@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 862,
+    title: 'The rule that keeps your private work private is now tested, not just written down',
+    kind: 'fix',
+    ts: '2026-08-07T18:22:30.000Z',
+    items: [
+      'Nothing in the app changes with this one. It is about the database rules behind "private" — the ones that decide, in the database itself, that a dashboard you marked private is yours alone, that a signed-out visitor sees nothing at all, and that nobody can quietly write over someone else\'s work.',
+      'Those rules were written down and switched on back in July, but they had only ever been checked by hand, once. From now on a check runs them for real: it stands up a scratch copy of the workspace, installs the actual rules file, and then tries to break in — as a signed-out visitor, as a colleague reaching for your private dashboard, as someone claiming to be you. All 54 attempts have to be refused.',
+      'The very first run found something worth finding. Setting up a brand-new workspace from scratch would have failed partway through the security step, because one piece of it was defined after the pieces that needed it. It never showed up here, where that piece had been left behind by earlier work — only a genuinely fresh installation would have hit it. Fixed, and the check now sets up from scratch every time, so it cannot come back.',
+    ],
+  },
+  {
     v: 861,
     title: 'A new account\'s welcome greets them by name',
     kind: 'fix',

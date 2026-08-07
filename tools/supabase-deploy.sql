@@ -44,6 +44,24 @@ BEGIN
 END $$;
 
 -- ---------------------------------------------------------------------------
+-- 2.5) The admin helper — DEFINED FIRST, because every policy from § 3 on calls
+--    it. It used to sit with the `users` policies in § 4, which made this
+--    file's whole point — a FRESH one-file deploy — fail on its first
+--    CREATE POLICY with "function public.polecat_is_admin() does not exist"
+--    (caught 2026-08-07 by tests/rls.mjs, which builds a fresh schema every
+--    run). Keep it above § 3.
+--    SECURITY DEFINER avoids the policy-recursion trap: the owner-run
+--    function's internal SELECT bypasses RLS (no FORCE RLS set), so the admin
+--    check never re-enters the policy it serves.
+CREATE OR REPLACE FUNCTION public.polecat_is_admin() RETURNS boolean
+LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.users
+    WHERE (data::jsonb->>'gotrueId') = auth.uid()::text AND "role" = 'admin'
+  );
+$$;
+
+-- ---------------------------------------------------------------------------
 -- 3) The five owner/private tables: reads = not-private OR own OR admin;
 --    writes = own OR admin. The admin arm is REQUIRED — sync pushes the whole
 --    workspace snapshot including rows other accounts own; pure owner-only
@@ -76,17 +94,8 @@ BEGIN
 END $$;
 
 -- ---------------------------------------------------------------------------
--- 4) `users` — self-row + admin (holds password hashes; stricter shape).
---    SECURITY DEFINER helper avoids the policy-recursion trap: the owner-run
---    function's internal SELECT bypasses RLS (no FORCE RLS set), so the admin
---    check never re-enters the policy it serves.
-CREATE OR REPLACE FUNCTION public.polecat_is_admin() RETURNS boolean
-LANGUAGE sql SECURITY DEFINER STABLE AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.users
-    WHERE (data::jsonb->>'gotrueId') = auth.uid()::text AND "role" = 'admin'
-  );
-$$;
+-- 4) `users` — self-row + admin (holds password hashes; stricter shape). The
+--    `polecat_is_admin()` helper these policies lean on is defined in § 2.5.
 
 -- GATE-FIX-2 (live incident, 2026-07-31): "own row" is matched by gotrueId OR
 -- by the account's sign-in EMAIL (users.data->>'u' vs the JWT's email claim).

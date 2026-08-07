@@ -14,7 +14,9 @@ designed + proven against an isolated `steward_test` schema).
 
 - **Who runs it:** an admin with Supabase dashboard (SQL editor) access. The
   autonomous lane cannot and will not run this — it changes live production
-  security posture.
+  security posture. What the lane CAN do, and does: `node tests/rls.mjs` installs
+  both posture files into throwaway `steward_test_rls_*` schemas and asserts the
+  refusals below automatically, so the SQL is proven before anyone pastes it.
 - **Rollback:** one command, instant (see the end).
 
 > Do every step in the **Supabase SQL editor**. Paste back only the
