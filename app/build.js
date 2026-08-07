@@ -387,10 +387,25 @@
     var ds = Studio.Workspace.get("datasets", id);
     if (!ds) return;
     if (!window.confirm("Delete dataset “" + (ds.name || ds.id) + "”? Views built on it fall back to sample rows.")) return;
+    // AUD-07: undoable, like every other single-row delete (DURABLE-2b). Three things
+    // have to come back together, or Undo would only half-work: the dataset row, its
+    // View-Builder draft (the shelves/filters/calcs you had in flight — the part you
+    // genuinely can't rebuild from memory), and the selection if this was the dataset
+    // you were building on.
+    var clone = Studio.clone(ds);
+    var draftKey = "ws" + BD_SEP + id;
+    var draft = bdDrafts()[draftKey] ? Studio.clone(bdDrafts()[draftKey]) : null;
+    var wasSelected = BD.dsKind === "ws" && BD.dsId === id;
     Studio.Workspace.remove("datasets", id);
-    delete bdDrafts()["ws" + BD_SEP + id]; bdPersistDrafts(); // VB-14: a deleted dataset takes its draft with it
-    if (BD.dsKind === "ws" && BD.dsId === id) { bdReset(); }
-    D.toast("Dataset deleted");
+    delete bdDrafts()[draftKey]; bdPersistDrafts(); // VB-14: a deleted dataset takes its draft with it
+    if (wasSelected) { bdReset(); }
+    Studio.undoToast("Deleted " + (ds.name || ds.id) + ".", function () {
+      Studio.undoRestoreRows([{ table: "datasets", rows: [clone] }]);
+      // Put the draft back BEFORE re-selecting — bdSelectDataset restores the incoming
+      // dataset's draft as it switches, so the order is what makes the shelves reappear.
+      if (draft) { bdDrafts()[draftKey] = draft; bdPersistDrafts(); }
+      if (wasSelected) bdSelectDataset("ws", id); else render();
+    });
     render();
   }
 

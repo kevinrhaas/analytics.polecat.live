@@ -5137,6 +5137,115 @@ function serve() {
     ok("SAMPLE-DATA-1: the boot reconcile backfills the pack folder on pre-existing installs (no reinstall needed)",
       sd1Folders.healed === true, JSON.stringify(sd1Folders));
 
+    // ---- AUD-07 (audit §2.2): the last three bare-confirm deletes get Undo ----
+    // DURABLE-2b covered the four catalog per-row deletes and the bulk bars; the audit
+    // found three destructive paths still confirming-and-forgetting. Each has its own
+    // twist beyond "restore the row": the View Builder delete also owns an in-flight
+    // draft and the current selection, and pack removal owns a whole multi-table set
+    // plus the installed flag.
+    console.log("\n• AUD-07: Undo on the View Builder dataset delete, the Quick Views delete, and pack removal");
+    const aud07 = await page.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      var confirm0 = window.confirm; window.confirm = function () { return true; };
+      var W = Studio.Workspace, out = {};
+
+      // 1. View Builder "Delete dataset" — row + draft + selection all come back.
+      var bd = {};
+      W.put("datasets", { id: "aud07-bd", name: "aud07_bd", kind: "sql", sql: "select 1", columns: ["a", "b"] }, { silent: true });
+      W.notify("datasets");
+      await window.__studioBuild.selectDataset("ws", "aud07-bd");
+      window.__studioBuild.addField("a", "cols");
+      await sleep(150);
+      bd.shelfBefore = (window.__studioBuild.state.shelfCols || []).length;
+      var bdKey = "ws" + String.fromCharCode(1) + "aud07-bd"; // build.js BD_SEP draft key
+      bd.draftBefore = !!window.__studioBdDrafts.get()[bdKey];
+      var bdDel = document.querySelector('[data-bd-ds-del="aud07-bd"]');
+      bd.btn = !!bdDel;
+      if (bdDel) {
+        bdDel.click();
+        await sleep(200);
+        bd.gone = !W.get("datasets", "aud07-bd");
+        bd.deselected = window.__studioBuild.state.dsId !== "aud07-bd";
+        bd.draftGone = !window.__studioBdDrafts.get()[bdKey];
+        var bdUndo = document.getElementById("toastUndoBtn");
+        bd.undoOffered = !!bdUndo;
+        if (bdUndo) { bdUndo.click(); await sleep(600); }
+        var bdBack = W.get("datasets", "aud07-bd");
+        bd.restored = !!bdBack && bdBack.name === "aud07_bd";
+        bd.reselected = window.__studioBuild.state.dsId === "aud07-bd";
+        bd.shelfAfter = (window.__studioBuild.state.shelfCols || []).length;
+      }
+      out.bd = bd;
+      W.remove("datasets", "aud07-bd", { silent: true }); W.notify("datasets");
+      delete window.__studioBdDrafts.get()[bdKey];
+
+      // 2. Quick Views' own saved-View delete — row + the open-editor pointer.
+      var xp = {};
+      W.put("analyses", { id: "aud07-xp", name: "aud07_xp", chartType: "bars",
+        da: { id: "aud07x", name: "aud07_xp", columns: ["a"], params: [], authored: true } }, { silent: true });
+      W.notify("analyses");
+      window.__studioExplore.state.analysisId = "aud07-xp";
+      window.__studioRenderExplore();
+      await sleep(120);
+      var xpDel = document.querySelector('[data-xp-del="aud07-xp"]');
+      xp.btn = !!xpDel;
+      if (xpDel) {
+        xpDel.click();
+        await sleep(150);
+        xp.gone = !W.get("analyses", "aud07-xp");
+        xp.pointerCleared = window.__studioExplore.state.analysisId !== "aud07-xp";
+        var xpUndo = document.getElementById("toastUndoBtn");
+        xp.undoOffered = !!xpUndo;
+        if (xpUndo) { xpUndo.click(); await sleep(200); }
+        var xpBack = W.get("analyses", "aud07-xp");
+        xp.restored = !!xpBack && xpBack.name === "aud07_xp";
+        xp.pointerBack = window.__studioExplore.state.analysisId === "aud07-xp";
+      }
+      out.xp = xp;
+      window.__studioExplore.state.analysisId = null;
+      W.remove("analyses", "aud07-xp", { silent: true }); W.notify("analyses");
+
+      // 3. Sample-pack removal — every row the pack owns, across every table, plus the
+      // installed flag (a restore that forgot the flag would leave the rows orphaned
+      // behind an "Install" button).
+      var pk = {}, dm = window.__studioDemoPacks, TABLES = ["jobs", "connections", "datasets", "analyses", "dashboards"];
+      function packCount() {
+        var n = 0;
+        TABLES.forEach(function (t) { n += W.all(t).filter(function (r) { return r.demoPackId === "conservation"; }).length; });
+        return n;
+      }
+      pk.wasInstalled = dm.installed("conservation");
+      if (!pk.wasInstalled) dm.install("conservation");
+      pk.before = packCount();
+      window.__studioToggleDemoPack("conservation", dm.packs.conservation);
+      await sleep(150);
+      pk.afterRemove = packCount();
+      pk.uninstalled = !dm.installed("conservation");
+      var pkUndo = document.getElementById("toastUndoBtn");
+      pk.undoOffered = !!pkUndo;
+      if (pkUndo) { pkUndo.click(); await sleep(300); }
+      pk.afterUndo = packCount();
+      pk.reinstalled = dm.installed("conservation");
+      if (!pk.wasInstalled) dm.remove("conservation"); // leave the pack state as found
+      out.pk = pk;
+
+      window.confirm = confirm0;
+      window.__studioRenderBuild();
+      window.__studioRenderExplore();
+      await sleep(120);
+      return out;
+    });
+    ok("AUD-07: the View Builder's Delete dataset offers Undo, and Undo restores the row, its in-flight draft and the selection",
+      aud07.bd.btn && aud07.bd.gone && aud07.bd.deselected && aud07.bd.draftGone && aud07.bd.undoOffered &&
+      aud07.bd.restored && aud07.bd.reselected && aud07.bd.shelfBefore > 0 && aud07.bd.shelfAfter === aud07.bd.shelfBefore,
+      JSON.stringify(aud07.bd));
+    ok("AUD-07: Quick Views' saved-View delete offers Undo, and Undo restores the View under its original id and reopens it",
+      aud07.xp.btn && aud07.xp.gone && aud07.xp.pointerCleared && aud07.xp.undoOffered &&
+      aud07.xp.restored && aud07.xp.pointerBack, JSON.stringify(aud07.xp));
+    ok("AUD-07: removing a sample pack offers Undo, and Undo restores every row it deleted across all five tables plus the installed flag",
+      aud07.pk.before > 0 && aud07.pk.afterRemove === 0 && aud07.pk.uninstalled && aud07.pk.undoOffered &&
+      aud07.pk.afterUndo === aud07.pk.before && aud07.pk.reinstalled, JSON.stringify(aud07.pk));
+
     // ---- CONS-0 (Kevin live, 2026-07-30): positive trends + honest percent stacks ----
     console.log("\n• CONS-0: sample percent metrics trend up; share stacks stay under 100%");
     const cons0 = await page.evaluate(function () {

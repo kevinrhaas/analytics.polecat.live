@@ -936,9 +936,18 @@
       btn.onclick = function () {
         var a = Studio.Workspace.get("analyses", btn.getAttribute("data-xp-del")); if (!a) return;
         if (!window.confirm('Delete View "' + a.name + '"?')) return;
-        if (XP.analysisId === a.id) XP.analysisId = null;
+        // AUD-07: Quick Views' own delete gets the undo the Views catalog already has
+        // (DURABLE-2b) — clone before removing, restore under the original id. The
+        // editor pointer rides along: if you deleted the View you had open, Undo puts
+        // you back in it rather than leaving the editor blank.
+        var clone = Studio.clone(a), wasOpen = XP.analysisId === a.id;
+        if (wasOpen) XP.analysisId = null;
         Studio.Workspace.remove("analyses", a.id);
-        toast("Deleted " + a.name);
+        Studio.undoToast("Deleted " + a.name + ".", function () {
+          Studio.undoRestoreRows([{ table: "analyses", rows: [clone] }]);
+          if (wasOpen) XP.analysisId = a.id;
+          renderExplore();
+        });
       };
     });
     if (XP.dsId && XP.run) xpPreview();
