@@ -39,7 +39,7 @@
 > review · N: innovation/roadmap) remains a good instinct when the findings queue and the ★
 > backlog are thin: same rules, one shippable, tested slice per sweep, logged in DONE.
 
-> **GOAL / NORTH STAR:** build **Analytics Dashboard Studio** into a best-in-class, gorgeous, fun,
+> **GOAL / NORTH STAR:** build **Analytics** into a best-in-class, gorgeous, fun,
 > industry-leading **analytics application** (analytics.polecat.live) — not just a dashboard builder.
 > The app is a multi-section workspace (Home · Dashboards · Datasets · Connections · Studio · Settings)
 > built on the **adapters → connections → datasets** model (2026-07-13 overhaul, user-directed):
