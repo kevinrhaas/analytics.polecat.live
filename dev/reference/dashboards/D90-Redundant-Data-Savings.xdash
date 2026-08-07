@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dashboard>
+<title>D90 Redundant Data Savings</title>
+<heading/>
+<enableWidgetPrinting>false</enableWidgetPrinting>
+<documentation>
+<author>admin</author>
+<description>Storage redundancy savings — each chart is a single metric.</description>
+<icon/>
+</documentation>
+<template-ref>xul/04-1-then-2.xul</template-ref>
+<theme-ref>0-Ruby</theme-ref>
+<layout>
+<overlay xmlns:pho="http://www.pentaho.com" pho:fixie="withme">
+<box id="Panel_1" pho:title="Savings Size TB by Source" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_2" pho:title="Savings Cost USD by Source" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_3" pho:title="Duplicate File Count by Category" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_4" pho:title="Savings Size TB by Category" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_5" pho:title="Duplicate File Count by Resource" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_6" pho:title="Duplicate Summary Pivot" flex="1" collapsed="false" type="titled-panel"/>
+</overlay>
+</layout>
+<parameters>
+</parameters>
+<widgetJavascript><![CDATA[]]></widgetJavascript>
+<widgets>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/15-duplicate-savings-by-source.xanalyzer</xactionPath><localizedName jsonType="string">15-duplicate-savings-by-source</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">16001</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/15-duplicate-savings-by-source.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_1</htmlObject><solution jsonType="string"/><name jsonType="string">widget1</name><action jsonType="string">15-duplicate-savings-by-source.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/15-duplicate-savings-by-source-cost.xanalyzer</xactionPath><localizedName jsonType="string">15-duplicate-savings-by-source-cost</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">16002</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/15-duplicate-savings-by-source-cost.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_2</htmlObject><solution jsonType="string"/><name jsonType="string">widget2</name><action jsonType="string">15-duplicate-savings-by-source-cost.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/15-duplicate-by-category.xanalyzer</xactionPath><localizedName jsonType="string">15-duplicate-by-category</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">16003</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/15-duplicate-by-category.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_3</htmlObject><solution jsonType="string"/><name jsonType="string">widget3</name><action jsonType="string">15-duplicate-by-category.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/15-duplicate-by-category-tb.xanalyzer</xactionPath><localizedName jsonType="string">15-duplicate-by-category-tb</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">16004</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/15-duplicate-by-category-tb.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_4</htmlObject><solution jsonType="string"/><name jsonType="string">widget4</name><action jsonType="string">15-duplicate-by-category-tb.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/15-duplicate-by-resource-type.xanalyzer</xactionPath><localizedName jsonType="string">15-duplicate-by-resource-type</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">16005</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/15-duplicate-by-resource-type.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_5</htmlObject><solution jsonType="string"/><name jsonType="string">widget5</name><action jsonType="string">15-duplicate-by-resource-type.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/15-duplicate-summary.xanalyzer</xactionPath><localizedName jsonType="string">15-duplicate-summary</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">16006</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/15-duplicate-summary.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_6</htmlObject><solution jsonType="string"/><name jsonType="string">widget6</name><action jsonType="string">15-duplicate-summary.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+</widgets>
+</dashboard>

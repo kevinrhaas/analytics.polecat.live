@@ -1,0 +1,3548 @@
+/* ============================================================================
+   model.js — the Analytics (DashKit Studio) canonical model
+   The chart registry + spec helpers shared by the builder, the live preview
+   render runtime, and the dashboard html exporter.
+   Pure data + helpers; no DOM. Loaded as a plain <script> -> window.Studio.
+   ============================================================================ */
+(function () {
+  "use strict";
+  var Studio = window.Studio = window.Studio || {};
+
+  /* ---- value formatters (names map to DashKit.fmt; 'plain' = identity) ---- */
+  Studio.FORMATS = [
+    { id: "abbr",  label: "Abbreviated (1.2K)" },
+    { id: "n",     label: "Number (1,200)" },
+    { id: "money", label: "Money ($1.2K)" },
+    { id: "pct",   label: "Percent (12.3%)" },
+    { id: "gb",    label: "Storage (GB/TB)" },
+    { id: "bytes", label: "Bytes (KB/MB/GB)" },
+    { id: "plain", label: "Plain text" }
+  ];
+  /* ---- color tokens offered in the inspector ----
+     The token STRINGS are storage/compat identifiers (saved specs carry them;
+     "--pentaho" is the dashboard-theme accent variable the export CSS defines)
+     — the interface NEVER shows them raw: every picker renders the friendly
+     labels below (suite-ratcheted; per Kevin 2026-07-20, no retired product
+     names in the UI). */
+  Studio.COLOR_TOKENS = [
+    "--pentaho", "--dk", "--c1", "--c2", "--c3", "--c4", "--c5",
+    "--c6", "--c7", "--c8", "--c9", "--c10", "--good", "--warn", "--bad", "--info"
+  ];
+  Studio.COLOR_TOKEN_LABELS = {
+    "--pentaho": "Accent (theme)", "--dk": "Accent 2 (purple)",
+    "--c1": "Series 1", "--c2": "Series 2", "--c3": "Series 3", "--c4": "Series 4", "--c5": "Series 5",
+    "--c6": "Series 6", "--c7": "Series 7", "--c8": "Series 8", "--c9": "Series 9", "--c10": "Series 10",
+    "--good": "Good (green)", "--warn": "Warning (amber)", "--bad": "Bad (red)", "--info": "Info (blue)"
+  };
+  Studio.colorTokenLabel = function (t) { return Studio.COLOR_TOKEN_LABELS[t] || t; };
+  Studio.KPI_STATES = [
+    { id: "",       label: "Default (blue)" },
+    { id: "purple", label: "Purple" },
+    { id: "good",   label: "Good (green)" },
+    { id: "warn",   label: "Warn (amber)" },
+    { id: "bad",    label: "Bad (red)" }
+  ];
+
+  /* ---- Z7: statistical KPI computations ----
+     A KPI normally just reads its value column from the DA's first row (an
+     already-aggregated query). `agg` lets a KPI instead compute a statistic
+     across every row the DA returns — handy for binding a KPI straight to a
+     detail/chart-shaped query ("p90 response time", "median deal size")
+     without hand-writing a separate aggregate SQL query for it. */
+  Studio.KPI_AGGS = [
+    ["first",  "First row (default)"],
+    ["sum",    "Sum"],
+    ["avg",    "Average"],
+    ["median", "Median"],
+    ["min",    "Min"],
+    ["max",    "Max"],
+    ["p90",    "90th percentile"],
+    ["p95",    "95th percentile"],
+    ["stddev", "Std deviation"],
+    ["variance", "Variance"],
+    ["range",  "Range (max − min)"],
+    ["zscore", "Z-score (latest vs. mean)"],
+    ["corr",   "Correlation (vs. Compare-to column)"]
+  ];
+  // Pure function: values (numbers) + an id from KPI_AGGS -> a single number. "first" is handled
+  // by the caller (it needs the raw row, not just the column) so it's never passed in here.
+  Studio.aggregate = function (values, agg) {
+    var v = (values || []).map(Number).filter(function (n) { return !isNaN(n); });
+    if (!v.length) return 0;
+    if (agg === "sum") return v.reduce(function (a, b) { return a + b; }, 0);
+    if (agg === "min") return Math.min.apply(null, v);
+    if (agg === "max") return Math.max.apply(null, v);
+    var mean = v.reduce(function (a, b) { return a + b; }, 0) / v.length;
+    if (agg === "avg") return mean;
+    var variance = v.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / v.length;
+    var sd = Math.sqrt(variance);
+    if (agg === "stddev") return sd;
+    if (agg === "variance") return variance;
+    // How many std-deviations the most recent row sits from the distribution's mean —
+    // a quick anomaly/outlier read (e.g. "is today's number normal?") without a separate query.
+    if (agg === "zscore") return sd === 0 ? 0 : (v[v.length - 1] - mean) / sd;
+    // median / percentiles / range all need a sorted copy
+    var sorted = v.slice().sort(function (a, b) { return a - b; });
+    if (agg === "range") return sorted[sorted.length - 1] - sorted[0];
+    if (agg === "median") return Studio.percentileOf(sorted, 50);
+    if (agg === "p90") return Studio.percentileOf(sorted, 90);
+    if (agg === "p95") return Studio.percentileOf(sorted, 95);
+    return sorted[0];
+  };
+  // Linear-interpolation percentile over an already-sorted numeric array (standard "R-7" method).
+  Studio.percentileOf = function (sorted, p) {
+    if (!sorted.length) return 0;
+    if (sorted.length === 1) return sorted[0];
+    var idx = (p / 100) * (sorted.length - 1);
+    var lo = Math.floor(idx), hi = Math.ceil(idx);
+    if (lo === hi) return sorted[lo];
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+  };
+  // Pearson correlation coefficient between two same-length numeric series (-1..1), pairwise —
+  // rows where either side isn't a finite number are dropped together. Used by the KPI Aggregation
+  // picker's "Correlation" option (needs a second column, the KPI's existing Compare-to field).
+  Studio.pearsonCorr = function (a, b) {
+    var n = Math.min((a || []).length, (b || []).length), xs = [], ys = [];
+    for (var i = 0; i < n; i++) {
+      var x = Number(a[i]), y = Number(b[i]);
+      if (!isNaN(x) && !isNaN(y)) { xs.push(x); ys.push(y); }
+    }
+    if (xs.length < 2) return 0;
+    var mx = xs.reduce(function (s, v) { return s + v; }, 0) / xs.length;
+    var my = ys.reduce(function (s, v) { return s + v; }, 0) / ys.length;
+    var num = 0, dx2 = 0, dy2 = 0;
+    for (var j = 0; j < xs.length; j++) {
+      var dx = xs[j] - mx, dy = ys[j] - my;
+      num += dx * dy; dx2 += dx * dx; dy2 += dy * dy;
+    }
+    var denom = Math.sqrt(dx2 * dy2);
+    return denom === 0 ? 0 : num / denom;
+  };
+  // Z6: pick a readable foreground (near-black or near-white) for an arbitrary background hex,
+  // via standard WCAG relative luminance. Used by the custom "Header background color" so a light
+  // banner pick automatically gets dark text instead of the default white going invisible.
+  function hex6(hex) {
+    var h = (hex || "").replace("#", "");
+    if (h.length === 3) h = h.split("").map(function (c) { return c + c; }).join("");
+    return /^[0-9a-f]{6}$/i.test(h) ? h : null;
+  }
+  function rgbOf(hex) {
+    var h = hex6(hex); if (!h) return null;
+    return { r: parseInt(h.substr(0, 2), 16), g: parseInt(h.substr(2, 2), 16), b: parseInt(h.substr(4, 2), 16) };
+  }
+  // WCAG relative luminance (0..1) — shared by contrastFg and contrastRatio below.
+  Studio.relLuminance = function (hex) {
+    var c = rgbOf(hex); if (!c) return 0;
+    var lin = function (v) { v = v / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
+  };
+  Studio.contrastFg = function (hex) {
+    return Studio.relLuminance(hex) > 0.42 ? "#12213b" : "#ffffff";
+  };
+  // Theme studio: WCAG contrast ratio between two colors (1..21) — powers the Custom theme
+  // editor's live "may be hard to read" hint (Studio.deriveCustomTheme below has no curated,
+  // dataviz-skill-validated ramp to fall back on since the colors are user-authored).
+  Studio.contrastRatio = function (hexA, hexB) {
+    var la = Studio.relLuminance(hexA), lb = Studio.relLuminance(hexB);
+    var lighter = Math.max(la, lb), darker = Math.min(la, lb);
+    return (lighter + 0.05) / (darker + 0.05);
+  };
+  // Linear per-channel interpolation between two hex colors, t=0 -> hexA, t=1 -> hexB.
+  // Not perceptual (no LAB/OKLCH) — good enough for the small, consistent mixes
+  // Studio.deriveCustomTheme uses to fill in supporting tokens from 4 seed colors.
+  Studio.mixHex = function (hexA, hexB, t) {
+    var a = rgbOf(hexA), b = rgbOf(hexB);
+    if (!a || !b) return hexA || hexB || "#000000";
+    var ch = function (x, y) { return Math.round(x + (y - x) * t); };
+    var toHex = function (n) { n = Math.max(0, Math.min(255, n)); var s = n.toString(16); return s.length < 2 ? "0" + s : s; };
+    return "#" + toHex(ch(a.r, b.r)) + toHex(ch(a.g, b.g)) + toHex(ch(a.b, b.b));
+  };
+  // Theme studio ("author custom themes" — STATUS.md N-DESIGN, still open): a Custom dashboard
+  // theme is authored from just 4 seed colors per mode (Background/Panel/Text/Brand — the same
+  // count as the existing Accent color + Header background pickers combined), everything else
+  // Studio.DASHBOARD_THEMES' entries define (borders, subtle/header fills, sidebar, series
+  // secondary accent, grid/axis lines) is DERIVED with fixed, consistent mix ratios reverse-
+  // engineered from how the 5 curated presets actually relate their own tokens to each other
+  // (e.g. panel-border ~= panel mixed 16% toward text; header/sidebar stay near-black in both
+  // modes, matching the "dark chrome regardless of app mode" convention Fleet Modern established).
+  // Returns the same {light:{...},dark:{...}} shape as a Studio.DASHBOARD_THEMES entry so
+  // exporters.js's dashboardThemeCss can treat a custom theme identically to a built-in one.
+  Studio.DEFAULT_CUSTOM_THEME_SEED = {
+    light: { bg: "#faf6ef", panel: "#fffcf5", text: "#2b2027", brand: "#b8632e" },
+    dark:  { bg: "#141017", panel: "#1c1721", text: "#f5e9d6", brand: "#e79a5f" }
+  };
+  function deriveCustomMode(seed) {
+    seed = seed || {};
+    var bg = hex6(seed.bg) ? seed.bg : "#ffffff";
+    var panel = hex6(seed.panel) ? seed.panel : bg;
+    var text = hex6(seed.text) ? seed.text : "#1a1a1a";
+    var brand = hex6(seed.brand) ? seed.brand : "#005bb5";
+    var accent2 = Studio.mixHex(brand, text, 0.3);
+    var chrome = Studio.mixHex(text, "#000000", 0.86); // header/sidebar: near-black regardless of mode
+    var faint = Studio.mixHex(text, bg, 0.62);
+    return {
+      "--pentaho": brand, "--dk": accent2,
+      "--app-bg": bg, "--panel-bg": panel, "--panel-border": Studio.mixHex(panel, text, 0.16),
+      "--panel-subtle-bg": Studio.mixHex(panel, text, 0.06), "--panel-header-bg": Studio.mixHex(panel, text, 0.06),
+      "--panel-header-border": Studio.mixHex(panel, text, 0.16),
+      "--field-bg": panel, "--field-border": Studio.mixHex(panel, text, 0.16),
+      "--text-primary": text, "--text-muted": Studio.mixHex(text, bg, 0.42), "--text-faint": faint,
+      "--sidebar-bg": chrome, "--header-bg": chrome, "--header-bg-2": Studio.mixHex(chrome, brand, 0.25),
+      "--grid-line": Studio.mixHex(panel, text, 0.10), "--axis": faint
+    };
+  }
+  Studio.deriveCustomTheme = function (customTheme) {
+    var ct = customTheme || {};
+    return { light: deriveCustomMode(ct.light), dark: deriveCustomMode(ct.dark) };
+  };
+
+  /* ---- N-AI: smart chart recommender ----
+     Given a query's own columns + sample rows, suggest the 2-3 best-fit chart
+     types with a one-line "why" — a lightweight assistant over the chart-type
+     gallery for newcomers who don't yet know which of the 51 types fits their
+     data shape. Pure, no DOM; classification is a simplified version of the
+     same numeric/date heuristics autoPickCols() (studio.js) already uses. */
+  Studio.classifyCols = function (cols, rows) {
+    var DATEISH = /date|month|day|period|time|year|week/i;
+    var numeric = [], strings = [], dateish = [];
+    (cols || []).forEach(function (c, i) {
+      if (DATEISH.test(c)) { dateish.push(c); return; }
+      var vals = (rows || []).map(function (r) { return r[i]; }).filter(function (v) { return v !== "" && v != null; });
+      var isNum = vals.length > 0 && vals.every(function (v) { return !isNaN(Number(v)); });
+      (isNum ? numeric : strings).push(c);
+    });
+    return { numeric: numeric, strings: strings, dateish: dateish };
+  };
+  Studio.recommendCharts = function (cols, rows) {
+    if (!cols || !cols.length || !rows || !rows.length) return [];
+    var k = Studio.classifyCols(cols, rows);
+    var n = rows.length;
+    var strIdx = k.strings.length ? cols.indexOf(k.strings[0]) : -1;
+    var cardinality = strIdx >= 0 ? new Set(rows.map(function (r) { return r[strIdx]; })).size : 0;
+    var picks = [];
+    function add(type, why) {
+      if (!Studio.CHARTS[type] || picks.length >= 3 || picks.some(function (p) { return p.type === type; })) return;
+      picks.push({ type: type, label: Studio.CHARTS[type].label, why: why });
+    }
+    if (k.dateish.length && k.numeric.length) {
+      add("line", "Has a time-like column (" + k.dateish[0] + ") — good for showing a trend over time.");
+    }
+    if (k.strings.length && k.numeric.length) {
+      add("bars", "A category (" + k.strings[0] + ") plus a number is the classic side-by-side comparison.");
+      if (cardinality > 1 && cardinality <= 7) {
+        add("donut", k.strings[0] + " has only " + cardinality + " distinct values — good for a part-to-whole view.");
+      }
+    }
+    if (k.numeric.length >= 2 && n >= 5) {
+      add("scatter", "Two numeric columns across " + n + " rows — a scatter plot can reveal a relationship.");
+    }
+    if (cols.length >= 4) {
+      add("table", "This query returns " + cols.length + " columns — a table shows every field at once.");
+    }
+    if (n === 1 && k.numeric.length) {
+      add("kpi", "A single row is best summarized as one headline number.");
+    }
+    if (!picks.length && k.numeric.length) add("bars", "A safe general-purpose default for this data shape.");
+    return picks.slice(0, 3);
+  };
+
+  /* ---- N-AI: "Explain this chart" auto-insight narration ----
+     Pure client-side stats over a chart's own sample rows (no API, ties to Z7): trend
+     direction via OLS slope, the single biggest point-to-point move, and any outlier
+     more than 2 std-deviations from the mean. Returns a short plain-English paragraph,
+     or null when there isn't enough numeric data to say anything meaningful. */
+  Studio.abbrNum = function (n) {
+    if (n == null || isNaN(n)) return "0";
+    var sign = n < 0 ? "-" : ""; n = Math.abs(n);
+    if (n >= 1e9) return sign + (n / 1e9).toFixed(n >= 1e10 ? 0 : 1).replace(/\.0$/, "") + "B";
+    if (n >= 1e6) return sign + (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, "") + "M";
+    if (n >= 1e3) return sign + (n / 1e3).toFixed(n >= 1e4 ? 0 : 1).replace(/\.0$/, "") + "K";
+    return sign + (Math.round(n * 100) / 100).toLocaleString();
+  };
+  // Shared by computeInsights() and notablePoint() below: {label,value,index} points for a
+  // label/value column pair (NaN values dropped), plus their mean + population std-dev.
+  function numericSeries(cols, rows, labelCol, valueCol) {
+    var vi = (cols || []).indexOf(valueCol);
+    if (vi < 0 || !rows || rows.length < 2) return null;
+    var li = (cols || []).indexOf(labelCol);
+    var pts = rows.map(function (r, i) {
+      return { label: li >= 0 ? r[li] : "row " + (i + 1), value: Number(r[vi]), index: i };
+    }).filter(function (p) { return !isNaN(p.value); });
+    if (pts.length < 2) return null;
+    var n = pts.length;
+    var values = pts.map(function (p) { return p.value; });
+    var mean = values.reduce(function (a, b) { return a + b; }, 0) / n;
+    var sd = Math.sqrt(values.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / n);
+    return { pts: pts, values: values, n: n, mean: mean, sd: sd };
+  }
+  // The point furthest from the mean, if beyond 2 std-deviations — null otherwise.
+  function findOutlier(pts, mean, sd) {
+    if (sd <= 0) return null;
+    var outlier = null, bestZ = 0;
+    pts.forEach(function (p) {
+      var z = (p.value - mean) / sd;
+      if (Math.abs(z) > Math.abs(bestZ)) { bestZ = z; outlier = p; }
+    });
+    return (outlier && Math.abs(bestZ) > 2) ? { point: outlier, z: bestZ } : null;
+  }
+  // The biggest single point-to-point move, if any.
+  function findBiggestMove(pts) {
+    var biggest = null;
+    for (var j = 1; j < pts.length; j++) {
+      var d = pts[j].value - pts[j - 1].value;
+      if (!biggest || Math.abs(d) > Math.abs(biggest.delta)) biggest = { delta: d, point: pts[j] };
+    }
+    return (biggest && Math.abs(biggest.delta) > 0) ? biggest : null;
+  }
+
+  Studio.computeInsights = function (cols, rows, labelCol, valueCol) {
+    var series = numericSeries(cols, rows, labelCol, valueCol);
+    if (!series) return null;
+    var pts = series.pts, values = series.values, n = series.n, mean = series.mean, sd = series.sd;
+    var sentences = [];
+
+    // Trend: sign + magnitude of an OLS slope fit to point index -> value.
+    var sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    for (var i = 0; i < n; i++) { sumX += i; sumY += values[i]; sumXY += i * values[i]; sumXX += i * i; }
+    var denom = n * sumXX - sumX * sumX;
+    var slope = denom === 0 ? 0 : (n * sumXY - sumX * sumY) / denom;
+    var totalChange = slope * (n - 1);
+    var relChange = mean !== 0 ? totalChange / Math.abs(mean) : 0;
+    if (Math.abs(relChange) < 0.03) {
+      sentences.push("Overall, " + valueCol + " has stayed roughly flat across " + n + " points (avg " + Studio.abbrNum(mean) + ").");
+    } else {
+      sentences.push("Overall, " + valueCol + " trends " + (slope > 0 ? "upward" : "downward") +
+        " across " + n + " points, moving about " + Studio.abbrNum(Math.abs(totalChange)) +
+        " (avg " + Studio.abbrNum(mean) + ").");
+    }
+
+    // Biggest single point-to-point move.
+    var biggest = findBiggestMove(pts);
+    if (biggest) {
+      sentences.push("The biggest single move is at “" + biggest.point.label + "”, " +
+        (biggest.delta > 0 ? "up " : "down ") + Studio.abbrNum(Math.abs(biggest.delta)) + " from the prior point.");
+    }
+
+    // Outlier: the point furthest from the mean, if beyond 2 std-deviations.
+    var outlierHit = findOutlier(pts, mean, sd);
+    if (outlierHit) {
+      sentences.push("“" + outlierHit.point.label + "” stands out as an outlier at " + Studio.abbrNum(outlierHit.point.value) +
+        " (" + Math.abs(outlierHit.z).toFixed(1) + "× std-dev from the mean).");
+    }
+
+    // Seasonality: the lag with the strongest autocorrelation, if it's convincing.
+    // Detrend first (subtract the same OLS fit line used for the trend sentence above) —
+    // a plain monotonic trend is trivially "autocorrelated" at every lag (two shifted
+    // copies of a straight climb still track each other), so testing the raw values
+    // would flag ordinary growth as fake seasonality. Working on the residuals isolates
+    // the actual repeating wiggle, if there is one. Tries every candidate period from 2
+    // up to n/2 (capped at 12 — a year of months is the longest cycle worth calling out
+    // in a one-line insight).
+    var interceptOLS = (sumY - slope * sumX) / n;
+    var residuals = values.map(function (v, i) { return v - (interceptOLS + slope * i); });
+    var maxPeriod = Math.min(12, Math.floor(n / 2));
+    if (maxPeriod >= 2) {
+      var bestPeriod = 0, bestR = 0;
+      for (var p = 2; p <= maxPeriod; p++) {
+        var a = residuals.slice(p), b = residuals.slice(0, n - p), m = a.length;
+        if (m < 2) continue;
+        var ma = a.reduce(function (x, y) { return x + y; }, 0) / m;
+        var mb = b.reduce(function (x, y) { return x + y; }, 0) / m;
+        var num = 0, da = 0, db = 0;
+        for (var k = 0; k < m; k++) { num += (a[k] - ma) * (b[k] - mb); da += (a[k] - ma) * (a[k] - ma); db += (b[k] - mb) * (b[k] - mb); }
+        var rDenom = Math.sqrt(da * db);
+        var r = rDenom === 0 ? 0 : num / rDenom;
+        if (r > bestR) { bestR = r; bestPeriod = p; }
+      }
+      if (bestPeriod && bestR > 0.6) {
+        sentences.push("It also shows a repeating pattern roughly every " + bestPeriod + " points (autocorrelation " + bestR.toFixed(2) + ").");
+      }
+    }
+    return sentences.join(" ");
+  };
+
+  /* ---- N-AI: "auto-placed callout markers on the notable points" ----
+     Picks the single most notable point computeInsights already narrates in prose —
+     the outlier (if beyond 2 std-dev) else the biggest single point-to-point move —
+     and returns its position as (x%, y%) of the chart body, ready to drop straight
+     into a panel's `callout` overlay (see the Callout arrow inspector section).
+     x% comes from the point's position along the series (index / (n-1)); y% comes
+     from where its value falls within the observed min/max range (higher value =
+     smaller y%, since the chart's y-axis grows upward but SVG y-coordinates grow
+     downward), clamped to a 5–95% band so the bubble never clips the chart edge.
+     Pure/independently-testable, same offline-only spirit as computeInsights. */
+  Studio.notablePoint = function (cols, rows, labelCol, valueCol) {
+    var series = numericSeries(cols, rows, labelCol, valueCol);
+    if (!series) return null;
+    var pts = series.pts, values = series.values, n = series.n, mean = series.mean, sd = series.sd;
+    var min = Math.min.apply(null, values), max = Math.max.apply(null, values);
+
+    var chosen = null, kind = null;
+    var outlierHit = findOutlier(pts, mean, sd);
+    if (outlierHit) { chosen = outlierHit.point; kind = "outlier"; }
+    if (!chosen) {
+      var biggest = findBiggestMove(pts);
+      if (biggest) { chosen = biggest.point; kind = "move"; }
+    }
+    if (!chosen) return null;
+
+    var xPct = n > 1 ? Math.round(chosen.index / (n - 1) * 100) : 50;
+    var yPct = max > min ? Math.round(100 - (chosen.value - min) / (max - min) * 100) : 50;
+    yPct = Math.max(5, Math.min(95, yPct));
+    return { label: String(chosen.label), value: chosen.value, x: xPct, y: yPct, kind: kind };
+  };
+
+  /* ---- Z7/N-AI: correlation insight for two-numeric-variable charts (scatter/bubble) ----
+     Pearson's r between the bound X and Y columns, in the same plain-English style as
+     computeInsights above. Kept separate because it needs two series, not one. */
+  Studio.computeCorrelation = function (cols, rows, xCol, yCol) {
+    var xi = (cols || []).indexOf(xCol), yi = (cols || []).indexOf(yCol);
+    if (xi < 0 || yi < 0 || !rows) return null;
+    var pts = rows.map(function (r) { return [Number(r[xi]), Number(r[yi])]; })
+      .filter(function (p) { return !isNaN(p[0]) && !isNaN(p[1]); });
+    var n = pts.length;
+    if (n < 3) return null;
+    var sumX = 0, sumY = 0, sumXY = 0, sumXX = 0, sumYY = 0;
+    pts.forEach(function (p) { sumX += p[0]; sumY += p[1]; sumXY += p[0] * p[1]; sumXX += p[0] * p[0]; sumYY += p[1] * p[1]; });
+    var denom = Math.sqrt((n * sumXX - sumX * sumX) * (n * sumYY - sumY * sumY));
+    if (denom === 0) return null;
+    var r = (n * sumXY - sumX * sumY) / denom;
+    var abs = Math.abs(r);
+    if (abs < 0.2) {
+      return "Across " + n + " points, " + xCol + " and " + yCol + " show little to no linear relationship (r = " + r.toFixed(2) + ").";
+    }
+    var strength = abs >= 0.7 ? "strong" : abs >= 0.4 ? "moderate" : "weak";
+    var direction = r > 0 ? "positive" : "negative";
+    return "Across " + n + " points, " + xCol + " and " + yCol + " show a " + strength + " " + direction +
+      " correlation (r = " + r.toFixed(2) + ") — as " + xCol + " " + (r > 0 ? "increases, " + yCol + " tends to increase too." : "increases, " + yCol + " tends to decrease.");
+  };
+
+  /* ---- N-DATA: data quality watchdog (added 2026-07-03) ----
+     Pure client-side profiling of a data access's own sample rows — flags common smells
+     (blank/null values, a column that's the same value on every sampled row, duplicate
+     rows) so a builder notices a likely data problem before ever putting a chart on top
+     of it. Same "computed from the sample, offline, no API" spirit as computeInsights;
+     kept separate since it profiles the WHOLE row set rather than reasoning about one
+     value column. Sample rows are capped small (see sampleRows), so this is a quick smell
+     test on the preview, not an exhaustive audit of the real data. */
+  Studio.dataQualityIssues = function (cols, rows) {
+    if (!cols || !cols.length || !rows || !rows.length) return [];
+    var issues = [];
+    cols.forEach(function (col, i) {
+      var vals = rows.map(function (r) { return r[i]; });
+      var blankCount = vals.filter(function (v) { return v == null || v === ""; }).length;
+      if (blankCount > 0) issues.push({ type: "blank", col: col, count: blankCount });
+      var nonBlank = vals.filter(function (v) { return v != null && v !== ""; });
+      if (nonBlank.length > 1 && nonBlank.every(function (v) { return v === nonBlank[0]; })) {
+        issues.push({ type: "constant", col: col, value: nonBlank[0] });
+      }
+      // Inconsistent type mix: a column whose sample carries both number-looking and
+      // text-looking values (e.g. a quantity column with a stray "N/A") — usually a data error.
+      var numeric = nonBlank.filter(function (v) { return typeof v === "number" || /^-?\d+(\.\d+)?$/.test(String(v).trim()); });
+      var textLike = nonBlank.length - numeric.length;
+      if (numeric.length > 0 && textLike > 0) {
+        issues.push({ type: "mixed", col: col, numericCount: numeric.length, textCount: textLike });
+      }
+    });
+    var seen = {}, dupCount = 0;
+    rows.forEach(function (r) { var key = JSON.stringify(r); seen[key] = (seen[key] || 0) + 1; });
+    Object.keys(seen).forEach(function (k) { if (seen[k] > 1) dupCount += seen[k] - 1; });
+    if (dupCount > 0) issues.push({ type: "duplicate", count: dupCount });
+    return issues;
+  };
+  // Plain-English rendering of one Studio.dataQualityIssues() entry.
+  Studio.dataQualityMessage = function (issue) {
+    if (issue.type === "blank") return "“" + issue.col + "” has " + issue.count + " blank/missing value" + (issue.count === 1 ? "" : "s") + " in this sample.";
+    if (issue.type === "constant") return "“" + issue.col + "” is the same value (" + JSON.stringify(issue.value) + ") on every sampled row — check whether this column is useful here.";
+    if (issue.type === "duplicate") return issue.count + " duplicate row" + (issue.count === 1 ? "" : "s") + " found in this sample — check for an unintended join fan-out or a missing dedup step.";
+    if (issue.type === "mixed") return "“" + issue.col + "” mixes numbers and text — " + issue.numericCount + " numeric-looking and " + issue.textCount + " text value" + (issue.textCount === 1 ? "" : "s") + " in this sample — check for a data type error.";
+    return "";
+  };
+
+  /* ---- N-DATA: dashboard-wide formula language, first cut (added 2026-07-04) ----
+     A data access's "Calculated columns" (formula: "=[col1] + [col2]") originally only
+     round-tripped through the (since-retired) server-side CDA export. The builder never
+     evaluated the formula itself, so (a) the offline preview always showed a blank/undefined
+     value for a calc column and (b) the calc column's name was never offered as a real column
+     a panel/KPI could bind to, silently making the whole section a no-op for the six
+     direct-query connectors (DuckDB/SQLite/Snowflake/Databricks/BigQuery/Generic SQL).
+     `evalFormula` is a small, safe recursive-descent arithmetic parser — no eval()/Function(),
+     only add/subtract/multiply/divide, parens, numbers, [column] references, and the two named
+     functions below — safe to run on user-typed text.
+     `ctx` (added for pctChange()/movingAvg()) gives the parser row-position + whole-column
+     access: { index: <row's position>, series: function(colName){ returns that column's numeric
+     values for EVERY row, same order } }. Plain arithmetic never touches it — only the two named
+     functions need more than the current row. */
+  Studio.evalFormula = function (formula, rowObj, ctx) {
+    var s = String(formula || "").replace(/^\s*=\s*/, ""); // formulas are typed as "=[a]+[b]"
+    var i = 0;
+    function skipWs() { while (i < s.length && /\s/.test(s[i])) i++; }
+    function parseExpr() {
+      var v = parseTerm();
+      for (;;) {
+        skipWs();
+        var c = s[i];
+        if (c === "+" || c === "-") { i++; var r = parseTerm(); v = c === "+" ? v + r : v - r; }
+        else break;
+      }
+      return v;
+    }
+    function parseTerm() {
+      var v = parseFactor();
+      for (;;) {
+        skipWs();
+        var c = s[i];
+        if (c === "*" || c === "/") {
+          i++; var r = parseFactor();
+          if (c === "*") v = v * r;
+          else { if (r === 0) throw new Error("division by zero"); v = v / r; }
+        } else break;
+      }
+      return v;
+    }
+    // [colName] — a bare column reference, used both as an ordinary operand and as the
+    // required first argument to pctChange()/movingAvg() (they need the column's IDENTITY,
+    // not a computed number, so they can look up its values across other rows).
+    function parseColRef() {
+      if (s[i] !== "[") throw new Error("expected a [column] reference");
+      i++; var start = i;
+      while (i < s.length && s[i] !== "]") i++;
+      if (s[i] !== "]") throw new Error("missing closing ]");
+      var name = s.slice(start, i); i++;
+      return name;
+    }
+    // pctChange([col]) / movingAvg([col], n) — the two named functions the formula language
+    // supports beyond plain arithmetic. Both need the row's position + the column's full
+    // series (via `ctx`), not just the current row, so they can't be plain [col] arithmetic.
+    function parseNamedFn(name) {
+      i++; // consume "("
+      var colName = parseColRef();
+      var windowArg = null;
+      skipWs();
+      if (s[i] === ",") {
+        i++; skipWs();
+        var numStart = i;
+        while (i < s.length && /[0-9.]/.test(s[i])) i++;
+        if (i === numStart) throw new Error(name + "()'s second argument must be a number");
+        windowArg = parseFloat(s.slice(numStart, i));
+      }
+      skipWs();
+      if (s[i] !== ")") throw new Error("missing closing ) in " + name + "(...)");
+      i++;
+      if (!ctx || typeof ctx.series !== "function" || ctx.index == null)
+        throw new Error(name + "() isn't available here");
+      var series = ctx.series(colName);
+      if (!series) throw new Error("unknown column [" + colName + "] in " + name + "()");
+      if (name === "pctChange") {
+        if (ctx.index <= 0) throw new Error("pctChange() has no prior row to compare against");
+        var prev = series[ctx.index - 1], cur = series[ctx.index];
+        if (!isFinite(prev) || prev === 0) throw new Error("pctChange()'s previous value isn't a usable number");
+        return ((cur - prev) / prev) * 100; // expressed in percentage points, e.g. 12.5 for +12.5%
+      }
+      // movingAvg([col], n) — same "partial window at the start" semantics as the line chart's
+      // own Show moving average overlay (studio-charts.js), so the two never disagree: average
+      // of the trailing n values (default 3) ending at (and including) the current row.
+      var w = Math.max(1, Math.round(windowArg || 3));
+      var from = Math.max(0, ctx.index - w + 1), sum = 0, cnt = 0;
+      for (var j = from; j <= ctx.index; j++) { var v = series[j]; if (isFinite(v)) { sum += v; cnt++; } }
+      if (!cnt) throw new Error("movingAvg() has no numeric values in its window");
+      return sum / cnt;
+    }
+    function parseFactor() {
+      skipWs();
+      var c = s[i];
+      if (c === "+") { i++; return parseFactor(); }
+      if (c === "-") { i++; return -parseFactor(); }
+      if (c === "(") {
+        i++; var v = parseExpr(); skipWs();
+        if (s[i] !== ")") throw new Error("missing closing )");
+        i++; return v;
+      }
+      if (c === "[") {
+        var name = parseColRef();
+        if (!rowObj || !(name in rowObj)) throw new Error("unknown column [" + name + "]");
+        var val = +rowObj[name];
+        if (isNaN(val)) throw new Error("[" + name + "] isn't numeric here");
+        return val;
+      }
+      var identMatch = /^(pctChange|movingAvg)\s*\(/.exec(s.slice(i));
+      if (identMatch) { i += identMatch[1].length; skipWs(); return parseNamedFn(identMatch[1]); }
+      var numStart = i;
+      while (i < s.length && /[0-9.]/.test(s[i])) i++;
+      if (i === numStart) throw new Error(c ? "unexpected \"" + c + "\"" : "unexpected end of formula");
+      return parseFloat(s.slice(numStart, i));
+    }
+    try {
+      if (!s.trim()) throw new Error("empty formula");
+      var result = parseExpr();
+      skipWs();
+      if (i < s.length) throw new Error("unexpected trailing text");
+      return { value: result, error: null };
+    } catch (e) {
+      return { value: null, error: e.message };
+    }
+  };
+  // Appends every valid (name + formula) calc column to {cols, rows}, computing each row's
+  // value from that row's OTHER columns. A calc column that fails to evaluate (bad syntax,
+  // an unknown/non-numeric reference, pctChange() on the first row, …) becomes `null` for that
+  // row rather than throwing. `seriesFor` (memoized per column) is what lets pctChange()/
+  // movingAvg() see the WHOLE column, not just the row currently being computed.
+  Studio.applyCalcCols = function (cols, rows, calcColumns) {
+    cols = cols || []; rows = rows || [];
+    var valid = (calcColumns || []).filter(function (c) { return c && c.name && c.formula; });
+    if (!valid.length) return { cols: cols.slice(), rows: rows.map(function (r) { return r.slice(); }) };
+    var outCols = cols.concat(valid.map(function (c) { return c.name; }));
+    var seriesCache = {};
+    function seriesFor(name) {
+      if (Object.prototype.hasOwnProperty.call(seriesCache, name)) return seriesCache[name];
+      var ci = cols.indexOf(name);
+      var s = ci < 0 ? null : rows.map(function (r) { return +r[ci]; });
+      seriesCache[name] = s;
+      return s;
+    }
+    var outRows = rows.map(function (row, rowIndex) {
+      var rowObj = {};
+      cols.forEach(function (c, i) { rowObj[c] = row[i]; });
+      var out = row.slice();
+      valid.forEach(function (c) {
+        var r = Studio.evalFormula(c.formula, rowObj, { index: rowIndex, series: seriesFor });
+        out.push(r.error ? null : r.value);
+      });
+      return out;
+    });
+    return { cols: outCols, rows: outRows };
+  };
+
+  // N-DATA: chart types that read best filling an entire row on their own — a lot of
+  // rows/columns (Table), long-form prose (Text/annotation), or a wide flow diagram.
+  Studio.WIDE_CHART_TYPES = ["table", "richtext", "sankey", "chord", "calHeatmap", "choropleth"];
+
+  // N-DATA: "Auto-arrange" — a one-click reflow of a dashboard's existing panels into a
+  // more balanced grid, taking the tedium out of manual drag-resize for a first draft.
+  // Pure rearrangement of what's already there: no new spec fields, KPIs are untouched
+  // (they already lay out in their own row above the panel grid — see Studio.buildHtml).
+  //   - Wide chart types (Studio.WIDE_CHART_TYPES) get a full-width row of their own.
+  //   - Everything else defaults to a single grid column (the builder's own resize
+  //     handles still let a user widen any panel afterward — this is a starting point,
+  //     not a lock).
+  //   - Panels sharing a first tag are clustered together (stable within a cluster, and
+  //     clusters keep their first-seen order) so related content reads as one group.
+  // Returns a NEW array of shallow-cloned panels; does not mutate the input.
+  Studio.autoArrange = function (panels) {
+    var list = (panels || []).map(function (p) { return Studio.clone(p); });
+    list.forEach(function (p) {
+      var type = p.chart && p.chart.type;
+      p.span = Studio.WIDE_CHART_TYPES.indexOf(type) >= 0 ? "full" : 1;
+    });
+    var clusterOrder = [], clusters = {};
+    list.forEach(function (p) {
+      var key = (p.tags && p.tags[0]) || "";
+      if (!clusters[key]) { clusters[key] = []; clusterOrder.push(key); }
+      clusters[key].push(p);
+    });
+    var out = [];
+    clusterOrder.forEach(function (key) { out = out.concat(clusters[key]); });
+    return out;
+  };
+
+  /* ---- chart registry: the heart of the model ----
+     Each entry declares how a chart type binds columns + which knobs it exposes,
+     `fields` drives the inspector. */
+  Studio.CHARTS = {
+    bars: {
+      label: "Bar chart", icon: "▭", group: "Comparison",
+      desc: "Compare values across categories",
+      fields: ["labelCol", "valueCol"],
+      opts: [
+        { key: "horizontal", type: "bool",   label: "Horizontal", def: true },
+        { key: "rotate",     type: "bool",   label: "Rotate labels", def: false },
+        { key: "sortBars",   type: "bool",   label: "Sort by value", def: false },
+        { key: "showValues", type: "bool",   label: "Show value labels", def: true },
+        // Z7 follow-up: the trend/forecast overlay (linear/Holt/Holt-Winters, shared math
+        // with Line/Combo) extended to the vertical bar layout — reads across category
+        // centers on the same value scale as the bars. Horizontal bars have no meaningful
+        // left-to-right sequence, so the renderer skips it there (see studio-charts.js).
+        { key: "showTrend", type: "bool", label: "Show trend line (vertical bars only)", def: false },
+        { key: "trendMethod", type: "select", label: "Forecast method", def: "linear",
+          choices: [["linear", "Linear trend (OLS)"], ["holt", "Exponential smoothing (Holt)"], ["hw", "Seasonal (Holt-Winters)"]] },
+        { key: "alpha", type: "range", label: "Smoothing level α (%, Holt/Holt-Winters only)", def: 30, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "beta",  type: "range", label: "Smoothing trend β (%, Holt/Holt-Winters only)", def: 10, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "gamma", type: "range", label: "Smoothing seasonality γ (%, Holt-Winters only)", def: 20, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "seasonLength", type: "range", label: "Season length (points, Holt-Winters only)", def: 4, min: 2, max: 12, step: 1 },
+        { key: "fmt",        type: "fmt",    label: "Value format", def: "abbr" },
+        { key: "color",      type: "color",  label: "Bar color", def: "--pentaho" },
+        { key: "height",     type: "int",    label: "Height (px)", def: 300 }
+      ],
+    },
+    donut: {
+      label: "Donut / pie", icon: "◍", group: "Composition",
+      desc: "Part-to-whole proportions with center label",
+      fields: ["labelCol", "valueCol"],
+      // Z8 slice 8: donut gets its own type-specific options — the base toolkit always
+      // drew slices in row order with a fixed 60%-inner-radius ring and an always-on
+      // legend, none of which were adjustable from the inspector.
+      opts: [
+        { key: "centerCap",  type: "text",  label: "Center caption", def: "Total" },
+        { key: "fmt",        type: "fmt",   label: "Value format", def: "abbr" },
+        { key: "sortSlices", type: "bool",  label: "Sort slices by value", def: false },
+        { key: "showLegend", type: "bool",  label: "Show legend", def: true },
+        { key: "innerPct",   type: "range", label: "Inner radius %", def: 60, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "height",     type: "int",   label: "Height (px)", def: 300 }
+      ],
+    },
+    line: {
+      label: "Line / area", icon: "📈", group: "Trend",
+      desc: "Track changes over time or sequence",
+      fields: ["labelCol", "series"],
+      opts: [
+        { key: "area",     type: "bool",  label: "Area fill", def: true },
+        { key: "smooth",   type: "bool",  label: "Smooth curve", def: false },
+        { key: "showDots", type: "bool",  label: "Show data points", def: true },
+        { key: "showMA",   type: "bool",  label: "Show moving average", def: false },
+        { key: "maWindow", type: "range", label: "Moving avg window (points)", def: 3, min: 2, max: 14, step: 1 },
+        { key: "showTrend", type: "bool", label: "Show trend / forecast line", def: false },
+        { key: "forecastPeriods", type: "range", label: "Forecast periods ahead (0 = trend only)", def: 0, min: 0, max: 24, step: 1 },
+        // Z7 forecasting slice 3: a second forecast method alongside the v187 OLS linear
+        // trend — Holt's double exponential smoothing (level + trend, no seasonality yet).
+        // Unlike the straight OLS line, the drawn line tracks a smoothed version of the
+        // real data (reacts to recent moves, not just the overall slope) before extending
+        // linearly into the forecast tail. Only used when "Show trend / forecast line" is on.
+        { key: "trendMethod", type: "select", label: "Forecast method", def: "linear",
+          choices: [["linear", "Linear trend (OLS)"], ["holt", "Exponential smoothing (Holt)"], ["hw", "Seasonal (Holt-Winters)"]] },
+        // N-FUN "live what-if sliders": these three (%, Holt/Holt-Winters knobs) are the
+        // clearest "analysis as play" fit in the whole opts model — drag and watch the
+        // smoothed/forecast line re-shape live, so they render as range sliders, not a
+        // bare number box. min/max/step and the "%" suffix badge are optField()'s (studio.js).
+        { key: "alpha", type: "range", label: "Smoothing level α (%, Holt/Holt-Winters only)", def: 30, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "beta",  type: "range", label: "Smoothing trend β (%, Holt/Holt-Winters only)", def: 10, min: 0, max: 100, step: 5, suffix: "%" },
+        // Holt-Winters adds a repeating seasonal offset on top of Holt's level+trend —
+        // needs at least 2 full seasons of real data (seasonLength * 2 points) to fit;
+        // with less it quietly falls back to plain Holt (see holtWintersOf in
+        // studio-charts.js).
+        { key: "gamma", type: "range", label: "Smoothing seasonality γ (%, Holt-Winters only)", def: 20, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "seasonLength", type: "range", label: "Season length (points, Holt-Winters only)", def: 4, min: 2, max: 12, step: 1 },
+        { key: "fmt",      type: "fmt",   label: "Value format", def: "abbr" },
+        { key: "height",   type: "int",   label: "Height (px)", def: 300 }
+      ],
+    },
+    stacked: {
+      label: "Stacked bars", icon: "▤", group: "Composition",
+      desc: "Segment totals stacked per category",
+      fields: ["labelCol", "series"],
+      // Z8 slice 10: stacked bars get their own type-specific options — the base
+      // toolkit always drew categories in row order with no per-segment value text.
+      opts: [
+        { key: "rotate",     type: "bool", label: "Rotate labels", def: false },
+        { key: "sortStack",  type: "bool", label: "Sort by total", def: false },
+        { key: "showValues", type: "bool", label: "Show value labels", def: false },
+        // Z7 follow-up: same trend/forecast overlay as Bars/Line/Combo, fitted over each
+        // category's STACK TOTAL (the only single number per category a stacked bar has).
+        { key: "showTrend", type: "bool", label: "Show trend line (on category totals)", def: false },
+        { key: "trendMethod", type: "select", label: "Forecast method", def: "linear",
+          choices: [["linear", "Linear trend (OLS)"], ["holt", "Exponential smoothing (Holt)"], ["hw", "Seasonal (Holt-Winters)"]] },
+        { key: "alpha", type: "range", label: "Smoothing level α (%, Holt/Holt-Winters only)", def: 30, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "beta",  type: "range", label: "Smoothing trend β (%, Holt/Holt-Winters only)", def: 10, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "gamma", type: "range", label: "Smoothing seasonality γ (%, Holt-Winters only)", def: 20, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "seasonLength", type: "range", label: "Season length (points, Holt-Winters only)", def: 4, min: 2, max: 12, step: 1 },
+        { key: "fmt",        type: "fmt",  label: "Value format", def: "abbr" },
+        { key: "height",     type: "int",  label: "Height (px)", def: 300 }
+      ],
+    },
+    areaStacked: {
+      label: "Stacked area", icon: "◣", group: "Trend",
+      desc: "Cumulative filled bands over a sequence",
+      fields: ["labelCol", "series"],
+      // Z8 slice 13: stacked area gets its own type-specific options — the renderer
+      // already supported a legend toggle internally (cfg.legend) but the inspector
+      // never exposed it, and bands were always straight-edged with no smoothing.
+      opts: [
+        { key: "smooth",     type: "bool", label: "Smooth curve", def: false },
+        { key: "showLegend", type: "bool", label: "Show legend", def: true },
+        { key: "fmt",        type: "fmt",  label: "Value format", def: "abbr" },
+        { key: "height",     type: "int",  label: "Height (px)", def: 300 }
+      ],
+    },
+
+    // ── Stream graph (ThemeRiver layout) ─────────────────────────────────────
+    // Like stacked area but the baseline shifts at every data point so the
+    // entire stack is visually centered around a midline. Result: organic,
+    // flowing ribbon shapes ideal for evolving volume/share of multiple streams.
+    // Same data binding as Stacked area (labelCol + multi-series).
+    streamgraph: {
+      label: "Stream graph", icon: "〰", group: "Trend",
+      desc: "Flowing centered ribbons for evolving multi-stream volumes",
+      fields: ["labelCol", "series"],
+      // Z8 slice 14: the renderer already supported a legend toggle (cfg.legend) and a
+      // hardcoded 0.78 band fill-opacity, but neither was ever exposed in the inspector.
+      opts: [
+        { key: "showLegend",  type: "bool", label: "Show legend", def: true },
+        { key: "bandOpacity", type: "range", label: "Band opacity (%)", def: 78, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "fmt",    type: "fmt", label: "Value format", def: "abbr" },
+        { key: "height", type: "int", label: "Height (px)", def: 300 }
+      ],
+      thumb: (function () {
+        // Gallery thumbnail: three flowing ribbon shapes centered on a midline
+        // Each path is a smooth sinusoidal band; colors match the brand palette.
+        var svgW = 120, svgH = 50;
+        // Define control points for three organic ribbon bands (top-to-bottom stacking)
+        // Top series: ~12px high band floating around y=10
+        // Mid series: ~16px high band around y=26
+        // Bot series: ~10px high band around y=42
+        var bands = [
+          { hi: [9,7,11,8,10],  lo: [22,20,24,21,23], c: "#005bb5", op: 0.78 },
+          { hi: [23,21,25,22,24], lo: [34,32,36,33,35], c: "#7d3c98", op: 0.75 },
+          { hi: [35,33,37,34,36], lo: [44,42,46,43,45], c: "#2e8bd0", op: 0.75 }
+        ];
+        function thumbPath(lo, hi, nPts) {
+          var xs2 = function (i) { return 5 + i * (svgW - 10) / (nPts - 1); };
+          var d = "M" + xs2(0) + "," + hi[0];
+          for (var i = 1; i < nPts; i++) {
+            var cpx = (xs2(i - 1) + xs2(i)) / 2;
+            d += " Q" + cpx + "," + hi[i - 1] + " " + xs2(i) + "," + hi[i];
+          }
+          for (var j = nPts - 1; j >= 0; j--) {
+            var cpx2 = j > 0 ? (xs2(j - 1) + xs2(j)) / 2 : xs2(j);
+            d += " Q" + cpx2 + "," + lo[Math.min(j, lo.length - 1)] + " " + xs2(j) + "," + lo[j];
+          }
+          return d + "Z";
+        }
+        var paths = bands.map(function (b) {
+          return '<path d="' + thumbPath(b.lo, b.hi, 5) + '" fill="' + b.c + '" fill-opacity="' + b.op + '"/>';
+        });
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + svgW + ' ' + svgH + '">' +
+          '<line x1="5" y1="25" x2="115" y2="25" stroke="#e0e4ef" stroke-width="0.7" stroke-dasharray="3 2"/>' +
+          paths.join("") + '</svg>';
+      }()),
+    },
+
+    // Parallel coordinates chart — each entity (row) is drawn as a polyline crossing N
+    // parallel vertical axes, one axis per numeric dimension. Every axis has its own
+    // min/max scale so dimensions with different magnitudes (revenue + margin% + headcount)
+    // all fill the same visual height. Hover highlights one entity and dims the rest,
+    // making individual multi-metric profiles easy to trace.
+    //
+    // Data binding: labelCol = entity label (one line per row); series = one column per
+    // dimension (axis). Use 3–6 series for best readability.
+    //
+    // A DashKit.parallelCoords extension chart (studio-charts.js; dashkit.js pristine).
+    parallelCoords: {
+      label: "Parallel coords",
+      icon: "⫼",
+      group: "Comparison",
+      desc: "Multi-dimensional entity profiles across parallel axes",
+      fields: ["labelCol", "series"],
+      // Lines are colored per ENTITY (one polyline per row, via the palette in draw
+      // order) — there is no per-axis/series color concept here, unlike every other
+      // "series" chart. Tell the inspector to skip the (inert) per-series color picker.
+      seriesColor: false,
+      thumb: (function () {
+        // Gallery thumbnail: 4 vertical axis lines + 3 colored polylines crossing them
+        var W = 120, H = 56;
+        var axes = [12, 40, 78, 108]; // x positions
+        var lines = [
+          { pts: [[12,10],[40,8],[78,20],[108,12]], c: "#005bb5" },
+          { pts: [[12,28],[40,38],[78,14],[108,32]], c: "#7d3c98" },
+          { pts: [[12,42],[40,22],[78,40],[108,18]], c: "#2e8bd0" }
+        ];
+        var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '">';
+        // Draw axis lines
+        axes.forEach(function (x) { svg += '<line x1="' + x + '" y1="5" x2="' + x + '" y2="52" stroke="#dde3ef" stroke-width="1.2"/>'; });
+        // Draw entity polylines + dots
+        lines.forEach(function (ln) {
+          svg += '<polyline points="' + ln.pts.map(function (p) { return p[0] + ',' + p[1]; }).join(' ') + '" fill="none" stroke="' + ln.c + '" stroke-width="1.6" stroke-linejoin="round" opacity=".78"/>';
+          ln.pts.forEach(function (p) { svg += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="2.5" fill="' + ln.c + '" opacity=".78"/>'; });
+        });
+        return svg + '</svg>';
+      }()),
+      opts: [
+        { key: "opacity", type: "range", label: "Line opacity (%)", def: 70, min: 10, max: 100, step: 5, suffix: "%" },
+        { key: "height",  type: "int", label: "Height (px)",      def: 320 }
+      ],
+    },
+    combo: {
+      label: "Bar + line", icon: "◭", group: "Trend",
+      desc: "Dual-axis bars and line overlay",
+      fields: ["labelCol", "barCol", "lineCol"],
+      opts: [
+        { key: "fmt",       type: "fmt",   label: "Bar (left) format", def: "abbr" },
+        { key: "fmt2",      type: "fmt",   label: "Line (right) format", def: "abbr" },
+        { key: "lineColor", type: "color", label: "Line color", def: "--dk" },
+        { key: "color",     type: "color", label: "Bar color", def: "--pentaho" },
+        // Z7 follow-up: extend the Line chart's trend-line overlay to Combo's own line
+        // series (closes part of the "extending trend/forecast to bars/stacked/combo"
+        // backlog note). Now also carries a forecast tail (Combo widens its bar-slot
+        // count to make room, mirroring Line — see app/studio-charts.js's _combo).
+        { key: "showTrend", type: "bool", label: "Show trend line (on the line series)", def: false },
+        { key: "forecastPeriods", type: "range", label: "Forecast periods ahead (0 = trend only)", def: 0, min: 0, max: 24, step: 1 },
+        { key: "trendMethod", type: "select", label: "Forecast method", def: "linear",
+          choices: [["linear", "Linear trend (OLS)"], ["holt", "Exponential smoothing (Holt)"], ["hw", "Seasonal (Holt-Winters)"]] },
+        { key: "alpha", type: "range", label: "Smoothing level α (%, Holt/Holt-Winters only)", def: 30, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "beta",  type: "range", label: "Smoothing trend β (%, Holt/Holt-Winters only)", def: 10, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "gamma", type: "range", label: "Smoothing seasonality γ (%, Holt-Winters only)", def: 20, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "seasonLength", type: "range", label: "Season length (points, Holt-Winters only)", def: 4, min: 2, max: 12, step: 1 },
+        { key: "height",    type: "int",   label: "Height (px)", def: 300 }
+      ],
+    },
+    radar: {
+      label: "Radar / spider", icon: "✷", group: "Comparison",
+      desc: "Multi-metric polygon comparison",
+      fields: ["labelCol", "series"],
+      opts: [
+        { key: "fill",       type: "bool", label: "Fill polygons",     def: true },
+        { key: "showLegend", type: "bool", label: "Show legend",       def: true },
+        { key: "showDots",   type: "bool", label: "Show vertex dots",  def: true },
+        { key: "fmt",        type: "fmt",  label: "Value format",      def: "abbr" },
+        { key: "height",     type: "int",  label: "Height (px)",       def: 300 }
+      ],
+    },
+    // ── Metrics wheel — sectored radar (CONS-3) ──────────────────────────────
+    // One score per metric on a circular axis; metrics grouped into CATEGORIES
+    // that tint their background wedge; a numbered rim decoded by a grouped side
+    // legend. The "Food System Metrics" wheel convention — a system-health
+    // snapshot across domains, not a per-series comparison like radar above.
+    radarSectors: {
+      label: "Metrics wheel", icon: "✺", group: "Comparison",
+      desc: "System-health wheel — scored metrics grouped into tinted category sectors with a numbered rim",
+      fields: ["labelCol", "catCol", "valueCol"],
+      opts: [
+        { key: "max",        type: "int",  label: "Axis max (score scale)", def: 100 },
+        { key: "showLegend", type: "bool", label: "Show legend",  def: true },
+        { key: "fmt",        type: "fmt",  label: "Value format", def: "abbr" },
+        { key: "height",     type: "int",  label: "Height (px)",  def: 340 }
+      ],
+    },
+    waterfall: {
+      label: "Waterfall", icon: "↘", group: "Comparison",
+      desc: "Running total with incremental steps",
+      fields: ["labelCol", "valueCol"],
+      opts: [
+        { key: "showTotal",  type: "bool", label: "Show total bar", def: true },
+        { key: "totalLabel", type: "text", label: "Total label",    def: "Total" },
+        { key: "fmt",        type: "fmt",  label: "Value format",   def: "abbr" },
+        { key: "height",     type: "int",  label: "Height (px)",    def: 300 }
+      ],
+    },
+    sankey: {
+      label: "Sankey (flow)", icon: "⇢", group: "Flow",
+      desc: "Flow volume through a multi-step path",
+      fields: ["sourceCol", "targetCol", "valueCol"],
+      opts: [
+        { key: "srcCap",  type: "text", label: "Source caption",       def: "Source" },
+        { key: "dstCap",  type: "text", label: "Destination caption",   def: "Destination" },
+        { key: "fmt",     type: "fmt",  label: "Value format",          def: "abbr" },
+        { key: "height",  type: "int",  label: "Height (px)",           def: 360 }
+      ],
+    },
+    funnel: {
+      label: "Funnel", icon: "⋁", group: "Comparison",
+      desc: "Conversion drop-off through stages",
+      fields: ["labelCol", "valueCol"],
+      opts: [
+        { key: "showPct", type: "bool", label: "Show conversion %", def: true },
+        { key: "fmt",     type: "fmt",  label: "Value format",      def: "abbr" },
+        { key: "height",  type: "int",  label: "Height (px)",       def: 300 }
+      ],
+    },
+    chord: {
+      label: "Chord / wheel", icon: "◎", group: "Flow",
+      desc: "Bidirectional relationships in a circle",
+      fields: ["sourceCol", "targetCol", "valueCol"],
+      opts: [
+        { key: "showLabels", type: "bool", label: "Show arc labels", def: true },
+        { key: "fmt",    type: "fmt", label: "Value format", def: "abbr" },
+        { key: "height", type: "int", label: "Height (px)",  def: 360 }
+      ],
+    },
+    network: {
+      label: "Network / topology", icon: "⬡", group: "Flow",
+      desc: "Node-link topology graph",
+      fields: ["sourceCol", "targetCol", "valueCol"],
+      opts: [
+        { key: "showLabels", type: "bool", label: "Show node labels", def: true },
+        { key: "fmt",    type: "fmt", label: "Value format", def: "abbr" },
+        { key: "height", type: "int", label: "Height (px)",  def: 380 }
+      ],
+    },
+    sunburst: {
+      label: "Sunburst", icon: "◉", group: "Composition",
+      desc: "Hierarchical part-of-whole in rings",
+      fields: ["labelCol", "valueCol", "groupCol"],
+      opts: [
+        { key: "showLabels", type: "bool", label: "Show arc labels", def: true },
+        { key: "fmt",        type: "fmt",  label: "Value format",    def: "abbr" },
+        { key: "height",     type: "int",  label: "Height (px)",     def: 300 }
+      ],
+    },
+    bullet: {
+      label: "Bullet chart", icon: "▶", group: "Single value",
+      desc: "Actual vs. target with quality bands",
+      fields: ["labelCol", "valueCol", "targetCol"],
+      opts: [
+        { key: "max",    type: "int", label: "Max value (0 = auto)", def: 0 },
+        { key: "fmt",    type: "fmt", label: "Value format",         def: "abbr" },
+        { key: "height", type: "int", label: "Height (px)",          def: 220 }
+      ],
+    },
+    calHeatmap: {
+      label: "Calendar heatmap", icon: "⬦", group: "Distribution",
+      desc: "Daily density over weeks and months",
+      fields: ["dateCol", "valueCol"],
+      // Z8 slice 11: calendar heatmap gets its own type-specific options — the base
+      // toolkit always used the brand color and always rolled weeks over from Monday,
+      // neither of which was adjustable from the inspector.
+      opts: [
+        { key: "color",     type: "color",  label: "Cell color",     def: "--pentaho" },
+        { key: "weekStart", type: "select",  label: "Week starts on", def: "mon",
+          choices: [["mon", "Monday"], ["sun", "Sunday"]] },
+        { key: "fmt",       type: "fmt",    label: "Value format", def: "n" },
+        { key: "height",    type: "int",    label: "Height (px)",  def: 190 }
+      ],
+    },
+    treemap: {
+      label: "Treemap", icon: "▦", group: "Composition",
+      desc: "Rectangles nested and sized by value",
+      fields: ["labelCol", "valueCol"],
+      // Z8 slice 5: treemap gets its own type-specific options — the base toolkit always
+      // drew a title+value label on any tile big enough, with no way to hide it or swap
+      // in "% of total" (the question a treemap usually exists to answer).
+      opts: [
+        { key: "fmt",        type: "fmt",  label: "Value format",              def: "abbr" },
+        { key: "showLabels", type: "bool", label: "Show tile labels",          def: true },
+        { key: "showPct",    type: "bool", label: "Show % of total, not value", def: false },
+        { key: "height",     type: "int",  label: "Height (px)",               def: 300 }
+      ],
+    },
+    scatter: {
+      label: "Scatter / bubble", icon: "✦", group: "Distribution",
+      desc: "Correlation between two numeric variables",
+      fields: ["xCol", "yCol", "rCol", "labelCol"],
+      // Z8 slice 6: scatter gets its own type-specific options — a Value format
+      // (axis ticks + tooltip were always DashKit.fmt.abbr with no way to change it)
+      // and a Show trend line toggle (least-squares regression line, computed in
+      // studio-charts.js so the vendored toolkit stays untouched).
+      opts: [
+        { key: "fmt",    type: "fmt",  label: "Value format", def: "abbr" },
+        { key: "trend",  type: "bool", label: "Show trend line (regression)", def: false },
+        { key: "xLabel", type: "text", label: "X axis label", def: "" },
+        { key: "yLabel", type: "text", label: "Y axis label", def: "" },
+        { key: "height", type: "int",  label: "Height (px)", def: 300 }
+      ],
+    },
+    gauge: {
+      label: "Gauge", icon: "◑", group: "Single value",
+      desc: "Single value vs. a configurable max",
+      fields: ["valueCol"],
+      // Z8 slice 4: gauge gets its own type-specific options — value format (was raw
+      // number + unit only) and quality-zone thresholds (was hardcoded 70%/90% in the
+      // toolkit); the arc now shows visible red/amber/green bands, not just a color-
+      // changing needle, so the thresholds are self-explanatory at a glance.
+      opts: [
+        { key: "fmt",    type: "fmt", label: "Value format", def: "n" },
+        { key: "unit",   type: "text", label: "Unit", def: "%" },
+        { key: "max",    type: "int", label: "Max", def: 100 },
+        { key: "warnAt", type: "range", label: "Warning zone starts at %", def: 70, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "goodAt", type: "range", label: "Good zone starts at %", def: 90, min: 0, max: 100, step: 5, suffix: "%" }
+      ],
+    },
+    heatmap: {
+      label: "Heatmap (pivot)", icon: "▓", group: "Distribution",
+      desc: "Color-coded pivot of two categories",
+      fields: ["rowCol", "colCol", "valueCol"],
+      opts: [
+        { key: "fmt",     type: "fmt",  label: "Value format", def: "abbr" },
+        { key: "showVals", type: "bool", label: "Show values", def: true },
+        { key: "height",  type: "int",  label: "Height (px)", def: 320 }
+      ],
+    },
+    // ── US choropleth map (Viridis track V2) ──────────────────────
+    // County / State / NASS-district / Corn-Belt-HUC8 regions colored by a value
+    // column; duplicate rows per region aggregate via the MEDIAN by default (the
+    // Viridis "single best common estimate" convention). Geometry is vendored,
+    // pre-projected TopoJSON (vendor/geo/) rendered by studio-charts.js with
+    // topojson-client — inlined into any export that contains a map panel.
+    choropleth: {
+      label: "Map (US choropleth)", icon: "⬢", group: "Maps",
+      desc: "US regions colored by value — county, state, district, watershed, congressional district, or ZIP code",
+      fields: ["idCol", "valueCol", "seriesCol"],
+      opts: [
+        { key: "scale",   type: "select", label: "Region scale", def: "county",
+          choices: [["county", "Counties (FIPS)"], ["state", "States"], ["crd", "USDA districts (CRD)"], ["huc8", "Watersheds (HUC8)"], ["cd", "Congressional districts"], ["zcta", "ZIP codes (ZCTA)"], ["custom", "Custom regions"]] },
+        // LF22(4): "these counties = this territory" grouping — no new geometry, just a
+        // user-imported county-FIPS→region lookup that merges county polygons per region
+        // the same way the built-in CRD scale merges them per NASS district. Only read
+        // when scale = "custom"; the data's id column must then hold the REGION NAME
+        // (not a FIPS code) — same convention as CRD, whose id column holds district ids.
+        { key: "customMap", type: "customgeo", label: "County → region mapping", def: null,
+          hint: "Only used when Region scale = Custom regions. Import a 2-column CSV (county FIPS, region name); the map's id column should then use those region names." },
+        { key: "renderer", type: "select", label: "Renderer", def: "svg",
+          choices: [["svg", "Built-in (light — smallest export)"], ["gl", "Interactive GL (pan & zoom, ~1MB heavier export)"]],
+          hint: "GL mode pans and zooms smoothly at any polygon count; it inlines MapLibre into the export. Falls back to the built-in renderer where WebGL is unavailable." },
+        // LF35 slice 1: the zoom/pan control cluster (built-in zoom buttons + the LF4 pan
+        // nudge-pad) only exists on the GL renderer — the built-in renderer has no
+        // interactive controls to show/hide/shrink. One field covers both asks from the
+        // report (smaller, and hideable); a movable/repositioned cluster is a follow-up.
+        { key: "mapControls", type: "select", label: "Zoom/pan controls", def: "show",
+          choices: [["show", "Show"], ["compact", "Compact"], ["hidden", "Hidden"]],
+          hint: "GL renderer only — the built-in renderer has no on-map controls." },
+        // LF35 slice 2: the movable half of the original ask — which corner the GL cluster
+        // docks in. No effect when "Zoom/pan controls" above is Hidden, or on the built-in
+        // renderer (same "GL only" scope as mapControls).
+        { key: "mapControlsPos", type: "select", label: "Controls position", def: "top-right",
+          choices: [["top-right", "Top right"], ["top-left", "Top left"], ["bottom-right", "Bottom right"], ["bottom-left", "Bottom left"]],
+          hint: "GL renderer only; has no effect when Zoom/pan controls above is Hidden." },
+        { key: "channel", type: "text", label: "Ensemble channel", def: "providers",
+          hint: "Panels sharing a channel stay linked: an Ensemble chart's provider toggles re-color this map live." },
+        { key: "agg",     type: "select", label: "Combine duplicate rows by", def: "median",
+          choices: [["median", "Median (common estimate)"], ["mean", "Mean"], ["sum", "Sum"], ["min", "Min"], ["max", "Max"], ["last", "Last"]] },
+        { key: "classes", type: "int",  label: "Color classes", def: 5 },
+        { key: "color",   type: "color", label: "Ramp color", def: "--good" },
+        { key: "fit",     type: "select", label: "Zoom", def: "data",
+          choices: [["data", "Fit regions with data"], ["all", "Whole layer"]] },
+        { key: "stateLines", type: "bool", label: "State border overlay", def: true },
+        { key: "showLegend", type: "bool", label: "Show legend", def: true },
+        { key: "fmt",     type: "fmt",  label: "Value format", def: "raw" },
+        { key: "height",  type: "int",  label: "Height (px)", def: 380 }
+      ],
+    },
+    // ── Ensemble series (Viridis V3) ──────────────────────────────
+    // THE MEDIAN IS THE PRODUCT: a bold consensus line (median of the providers
+    // toggled on) over thin, muted provider series; an agreement band expressing
+    // confidence; reference-series rows (AgCensus) as hollow squares that never
+    // join the median. Toggles publish on an ensemble channel; a choropleth on
+    // the same channel re-colors live — map and chart share ONE aggregation.
+    ensembleSeries: {
+      label: "Ensemble (common estimate)", icon: "≋", group: "Trend",
+      desc: "One best estimate from many providers — bold median, muted evidence",
+      fields: ["labelCol", "seriesCol", "valueCol"],
+      opts: [
+        { key: "refSeries",   type: "text", label: "Reference series (excluded from the estimate)", def: "",
+          hint: "A series name (e.g. AgCensus) drawn as hollow squares for context — never part of the median." },
+        { key: "channel",     type: "text", label: "Ensemble channel", def: "providers",
+          hint: "Provider toggles broadcast on this channel; maps sharing it re-color live." },
+        { key: "agg",         type: "select", label: "Common estimate", def: "median",
+          choices: [["median", "Median (recommended)"], ["mean", "Mean"]] },
+        { key: "medianLabel", type: "text", label: "Estimate label", def: "Common estimate" },
+        { key: "showBand",    type: "bool", label: "Agreement band (confidence)", def: true },
+        { key: "showProviders", type: "bool", label: "Show provider series", def: true },
+        { key: "showToggles", type: "bool", label: "Provider on/off toggles", def: true },
+        { key: "fmt",         type: "fmt",  label: "Value format", def: "raw" },
+        { key: "height",      type: "int",  label: "Height (px)", def: 320 }
+      ],
+    },
+    table: {
+      label: "Table", icon: "▥", group: "Detail",
+      desc: "Scrollable row-by-row data view",
+      fields: ["cols"],
+      opts: [
+        { key: "maxRows",      type: "int",    label: "Row limit (0 = all)", def: 0 },
+        { key: "grandTotal",   type: "bool",   label: "Show grand total row", def: false },
+        { key: "pageSize",     type: "int",    label: "Rows per page (0 = all on one page)", def: 0 },
+        { key: "freezeHeader", type: "bool",   label: "Freeze header row (scroll body)", def: false },
+        { key: "density",      type: "select", label: "Row density", def: "comfortable",
+          choices: [["comfortable", "Comfortable"], ["compact", "Compact"]] }
+      ],
+    },
+    // Text/annotation panel — no DA needed; content stored in chart.opts.content (light markdown).
+    richtext: {
+      label: "Text / annotation",
+      icon: "¶",
+      group: "Content",
+      desc: "Headings, callouts, and explanatory text",
+      fields: [],
+      opts: [],
+    },
+    // Box plot — distribution chart (quartiles, median, whiskers) per category.
+    // A DashKit.boxplot extension chart (studio-charts.js; dashkit.js pristine).
+    boxplot: {
+      label: "Box plot",
+      icon: "⧠",
+      group: "Distribution",
+      desc: "Quartile spread per group (Q1, median, Q3)",
+      fields: ["labelCol", "valueCol"],
+      opts: [
+        { key: "horizontal", label: "Horizontal boxes", type: "bool", def: true },
+        { key: "fmt",        label: "Value format",    type: "fmt",  def: "abbr" },
+        { key: "height",     type: "int", label: "Height (px)", def: 300 }
+      ],
+    },
+    // Lollipop / dot-plot — clean ranked comparison: thin stem line + dot per row.
+    // Elegant alternative to bar charts; great for league tables and rankings.
+    // A DashKit.lollipop extension chart (studio-charts.js; dashkit.js pristine).
+    lollipop: {
+      label: "Lollipop chart",
+      icon: "◉",
+      group: "Comparison",
+      desc: "Ranked dots on stems — cleaner than bars",
+      fields: ["labelCol", "valueCol"],
+      opts: [
+        { key: "fmt",    label: "Value format", type: "fmt",   def: "abbr" },
+        { key: "color",  label: "Dot color",    type: "color", def: "--pentaho" },
+        { key: "height", label: "Height (px)",  type: "int",   def: 280 }
+      ],
+    },
+    // Dumbbell chart (connected dot chart) — shows the gap between two values per row.
+    // Each row: a label on the left, two dots (start=muted, end=brand color) connected by a
+    // horizontal line. Line colored green when end > start (improvement) or red when declining.
+    // Great for before/after, budget vs. actual, planned vs. achieved comparisons.
+    // A DashKit.dumbbell extension chart (studio-charts.js; dashkit.js pristine).
+    dumbbell: {
+      label: "Dumbbell chart",
+      icon: "⦾",
+      group: "Comparison",
+      desc: "Two values per row connected by a line — shows the gap at a glance",
+      fields: ["labelCol", "startCol", "endCol"],
+      opts: [
+        { key: "startLabel", label: "Start label",   type: "text", def: "Before" },
+        { key: "endLabel",   label: "End label",     type: "text", def: "After" },
+        { key: "fmt",        label: "Value format",  type: "fmt",  def: "abbr" },
+        { key: "height",     label: "Height (px)",   type: "int",  def: 280 }
+      ],
+    },
+    // Slope chart — before/after period comparison: one line per category
+    // connecting T1 (left axis) to T2 (right axis) with labels at both ends.
+    // Rising lines in green, falling in red — "what changed?" at a glance.
+    // A DashKit.slope extension chart (studio-charts.js; dashkit.js pristine).
+    slope: {
+      label: "Slope chart",
+      icon: "⟋",
+      group: "Trend",
+      desc: "Before-and-after change per category",
+      fields: ["labelCol", "valueCol1", "valueCol2"],
+      opts: [
+        { key: "t1",     label: "Period 1 label", type: "text", def: "Before" },
+        { key: "t2",     label: "Period 2 label", type: "text", def: "After" },
+        { key: "fmt",    label: "Value format",   type: "fmt",  def: "abbr" },
+        { key: "height", label: "Height (px)",    type: "int",  def: 300 }
+      ],
+    },
+    // Dot plot / Cleveland dot plot — pure dots positioned along a horizontal axis.
+    // Lower visual weight than bar charts; excellent for showing distributions and
+    // rankings. Optional groupCol enables two-dot-per-row comparison (e.g. budget vs actual).
+    // A DashKit.dotplot extension chart (studio-charts.js; dashkit.js pristine).
+    dotplot: {
+      label: "Dot plot",
+      icon: "⦿",
+      group: "Distribution",
+      desc: "Ranked dots for low-noise comparisons",
+      fields: ["labelCol", "valueCol"],
+      opts: [
+        { key: "groupCol",  label: "Compare column (optional)", type: "col",  def: "" },
+        { key: "group1",    label: "Primary label",             type: "text", def: "Primary" },
+        { key: "group2",    label: "Compare label",             type: "text", def: "Compare" },
+        { key: "fmt",       label: "Value format",              type: "fmt",  def: "abbr" },
+        { key: "sorted",    label: "Sort by value",             type: "bool", def: true },
+        { key: "height",    label: "Height (px)",               type: "int",  def: 280 }
+      ],
+    },
+    // Beeswarm / strip plot — individual data points jittered along one axis.
+    // Ideal for showing raw distributions, clusters, and outliers at the point level.
+    // Dots are deterministically packed to avoid overlap (no randomness — same data
+    // always produces the same layout). Optional categoryCol groups rows into labeled
+    // horizontal strips so multiple distributions can be compared side-by-side.
+    // A DashKit.beeswarm extension chart (studio-charts.js; dashkit.js pristine).
+    beeswarm: {
+      label: "Beeswarm plot",
+      icon: "⁘",
+      group: "Distribution",
+      desc: "Individual points spread to reveal clusters",
+      fields: ["labelCol", "valueCol"],
+      opts: [
+        { key: "categoryCol", label: "Category column (optional)", type: "col", def: "" },
+        { key: "dotR",        label: "Dot size",                   type: "int", def: 5 },
+        { key: "fmt",         label: "Value format",               type: "fmt", def: "abbr" },
+        { key: "height",      label: "Height (px)",                type: "int", def: 300 }
+      ],
+    },
+    // Histogram — frequency distribution chart.
+    // Auto-bins a single numeric valueCol into N equal-width buckets and renders bar-per-bin.
+    // Useful for understanding the shape of a data distribution (normal, skewed, multimodal).
+    // Bars touch (no gap) to emphasise continuity of the numeric range.
+    // A DashKit.histogram extension chart (studio-charts.js; dashkit.js pristine).
+    histogram: {
+      label: "Histogram",
+      icon: "⊟",
+      group: "Distribution",
+      desc: "Frequency distribution of a numeric column",
+      fields: ["valueCol"],
+      opts: [
+        { key: "bins",   label: "Bin count",     type: "int",   def: 10 },
+        { key: "color",  label: "Bar color",      type: "color", def: "--pentaho" },
+        { key: "fmt",    label: "Value format",   type: "fmt",   def: "n" },
+        { key: "height", label: "Height (px)",    type: "int",   def: 300 }
+      ],
+    },
+
+    // Polar area chart (rose chart): equal-angle wedges with radius proportional to √value.
+    // Area encoding is more perceptually accurate than linear radius. Excellent for cyclic
+    // data, periodic patterns, and comparing values across a set of named dimensions.
+    // A DashKit.polarArea extension chart (studio-charts.js; dashkit.js pristine).
+    polarArea: {
+      label: "Polar area",
+      icon: "◑",
+      group: "Composition",
+      desc: "Equal-angle wedges encoded by area",
+      fields: ["labelCol", "valueCol"],
+      opts: [
+        { key: "fmt",        label: "Value format",  type: "fmt",  def: "n" },
+        { key: "showLabels", label: "Show labels",   type: "bool", def: true },
+        { key: "height",     label: "Height (px)",   type: "int",  def: 280 }
+      ],
+    },
+
+    // Step / staircase chart — right-angle transitions between discrete values.
+    // Where a line chart interpolates diagonally, a step chart goes horizontal
+    // first then vertical — making the discrete nature of each state change explicit.
+    // Ideal for pricing tiers, API quotas, regulatory limits, step-function data.
+    // A DashKit.step extension chart (studio-charts.js; dashkit.js pristine).
+    step: {
+      label: "Step chart",
+      icon: "⌐",
+      group: "Trend",
+      desc: "Discrete jumps shown as right-angle steps",
+      fields: ["labelCol", "series"],
+      opts: [
+        { key: "area",   label: "Area fill",    type: "bool", def: false },
+        { key: "fmt",    label: "Value format", type: "fmt",  def: "abbr" },
+        { key: "height", label: "Height (px)",  type: "int",  def: 300 }
+      ],
+    },
+
+    // Violin plot — kernel density distribution per category.
+    // Each category's numeric values are kernel-density-estimated (Gaussian KDE, Silverman
+    // bandwidth), then drawn as a symmetric filled silhouette — wider where data is denser,
+    // narrower at tails. An optional IQR box + median line sits inside each violin for
+    // quick quartile reference. Pairs naturally with box plot, beeswarm, and histogram
+    // for richer distribution analysis.
+    // A DashKit.violin extension chart (studio-charts.js; dashkit.js pristine).
+    violin: {
+      label: "Violin plot",
+      icon: "⬠",
+      group: "Distribution",
+      desc: "Kernel density shape reveals full distribution",
+      fields: ["labelCol", "valueCol"],
+      opts: [
+        { key: "showBox", label: "Show IQR box", type: "bool", def: true },
+        { key: "fmt",     label: "Value format", type: "fmt",  def: "abbr" },
+        { key: "height",  label: "Height (px)",  type: "int",  def: 300 }
+      ],
+    },
+
+    // Bump / ranking chart — shows how ranked positions change across periods.
+    // labelCol = period/time (x-axis); series = one numeric column per entity being ranked.
+    // At each period, all series are ranked by their value (rank 1 = highest); the chart
+    // draws smooth lines connecting each series' rank across periods — lines crossing is
+    // immediately visible as competitive overtaking. Ideal for market share shifts,
+    // product performance tiers, regional rankings, and vendor comparisons.
+    // A DashKit.bump extension chart (studio-charts.js; dashkit.js pristine).
+    bump: {
+      label: "Bump chart",
+      icon: "⇅",
+      group: "Trend",
+      desc: "Ranking changes across periods — who rose and who fell",
+      fields: ["labelCol", "series"],
+      // Z8 slice 17: bump gets its own type-specific option — the tiny rank number
+      // inside every dot was always drawn with no way to turn it off; on a busy chart
+      // (many entities/periods) the numbers get crowded, so a clean dots-only mode helps.
+      opts: [
+        { key: "showRankNumbers", label: "Show rank numbers in dots", type: "bool", def: true },
+        { key: "fmt",             label: "Value format",              type: "fmt",  def: "abbr" },
+        { key: "height",          label: "Height (px)",                type: "int",  def: 300 }
+      ],
+    },
+
+    // Marimekko / Mekko chart — a two-dimensional proportional stacked bar chart.
+    // Columns are proportional in WIDTH to each category's total value (larger categories
+    // get wider columns); within each column the HEIGHT of each segment is proportional
+    // to that segment's share of the column total. Ideal for market share analysis,
+    // segment breakdowns, and any case where both "how big is this category?" and
+    // "what's inside it?" matter simultaneously.
+    //
+    // Data binding:
+    //   labelCol  = x-axis dimension (one column per category label, e.g. Region)
+    //   groupCol  = stacking dimension  (segment labels, e.g. Product)
+    //   valueCol  = numeric cell value  (e.g. Revenue)
+    //
+    // A DashKit.marimekko extension chart (studio-charts.js; dashkit.js pristine).
+    marimekko: {
+      label: "Marimekko",
+      icon: "▤",
+      group: "Comparison",
+      desc: "Proportional stacked bars — width encodes category size, height encodes composition",
+      fields: ["labelCol", "groupCol", "valueCol"],
+      thumb: (function () {
+        // Gallery thumbnail: 3 variable-width columns each with 2-3 coloured stack segments
+        var C = ["#005bb5","#3a87d4","#5ba9e6","#a8cff7","#d4e9fb"];
+        var cols = [
+          { w: 0.44, segs: [0.55, 0.30, 0.15] },
+          { w: 0.33, segs: [0.40, 0.40, 0.20] },
+          { w: 0.23, segs: [0.70, 0.20, 0.10] }
+        ];
+        var W = 120, H = 70, gap = 2, x = 0, rects = "";
+        cols.forEach(function (col) {
+          var cw = Math.round(col.w * W) - gap, y = 0;
+          col.segs.forEach(function (frac, si) {
+            var ch = Math.round(frac * H);
+            rects += '<rect x="' + x + '" y="' + y + '" width="' + cw + '" height="' + ch + '" fill="' + C[si] + '" rx="1"/>';
+            y += ch;
+          });
+          x += cw + gap;
+        });
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 70">' + rects + '</svg>';
+      }()),
+      opts: [
+        { key: "fmt",    label: "Value format", type: "fmt", def: "abbr" },
+        { key: "height", label: "Height (px)",  type: "int", def: 320 },
+        { key: "showPct", label: "Show % labels", type: "bool", def: true }
+      ],
+    },
+
+    // Packed bubble chart — a force-directed bubble cluster where each circle's area is
+    // proportional to its value. Great for comparing many categories at once without a
+    // linear axis. All bubbles attract toward the centre and repel from each other until
+    // they settle in a compact, non-overlapping arrangement.
+    //
+    // Data binding:
+    //   labelCol  = category label (one bubble per row)
+    //   valueCol  = numeric value (drives circle area)
+    //
+    // A DashKit.packedBubble extension chart (studio-charts.js; dashkit.js pristine).
+    packedBubble: {
+      label: "Packed bubbles",
+      icon: "◌",
+      group: "Composition",
+      desc: "Circles sized by value — compare many categories at a glance",
+      fields: ["labelCol", "valueCol"],
+      thumb: (function () {
+        // Gallery thumbnail: 6 circles of varying sizes packed together.
+        // Radii are hand-placed to look natural without a real packing algorithm.
+        var circles = [
+          { cx: 42, cy: 32, r: 22, c: "#005bb5" },
+          { cx: 84, cy: 26, r: 16, c: "#7d3c98" },
+          { cx: 89, cy: 56, r: 13, c: "#2e8bd0" },
+          { cx: 60, cy: 60, r: 11, c: "#00a39a" },
+          { cx: 18, cy: 54, r: 12, c: "#e67e22" },
+          { cx: 100, cy: 37, r:  8, c: "#27ae60" }
+        ];
+        var parts = circles.map(function (c) {
+          return '<circle cx="' + c.cx + '" cy="' + c.cy + '" r="' + c.r +
+            '" fill="' + c.c + '" opacity=".82"/>';
+        });
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80">' + parts.join("") + '</svg>';
+      }()),
+      opts: [
+        { key: "fmt",        label: "Value format", type: "fmt",  def: "abbr" },
+        { key: "height",     label: "Height (px)",  type: "int",  def: 320 },
+        { key: "showLabels", label: "Show labels",  type: "bool", def: true }
+      ],
+    },
+
+    // ── Word Cloud ────────────────────────────────────────────────────────────
+    // Text items sized by a numeric value — ideal for keywords by frequency,
+    // tag clouds, topic weights, survey responses, or any labelled measure
+    // where the relative magnitude matters more than precise comparison.
+    //
+    // Data binding:
+    //   labelCol  = text label (one word/phrase per row)
+    //   valueCol  = numeric value (drives font size via log scale)
+    //
+    // A DashKit.wordCloud extension chart (studio-charts.js; dashkit.js pristine).
+    wordCloud: {
+      label: "Word cloud",
+      icon: "⊞",
+      group: "Composition",
+      desc: "Text sized by value — keywords, tags, topics by frequency",
+      fields: ["labelCol", "valueCol"],
+      thumb: (function () {
+        // Gallery thumbnail: words of varying font sizes in a cloud arrangement.
+        var words = [
+          { t: "Revenue", x: 60, y: 34, fs: 14, fw: "700", c: "#005bb5" },
+          { t: "Growth",  x: 25, y: 22, fs:  9, fw: "600", c: "#7d3c98" },
+          { t: "Costs",   x: 96, y: 26, fs:  8, fw: "600", c: "#2e8bd0" },
+          { t: "Sales",   x: 87, y: 51, fs:  8, fw: "400", c: "#00a39a" },
+          { t: "Q4",      x: 28, y: 46, fs:  7, fw: "400", c: "#e67e22" },
+          { t: "Region",  x: 55, y: 58, fs:  7, fw: "400", c: "#27ae60" },
+          { t: "Users",   x: 16, y: 35, fs:  6, fw: "400", c: "#2e8bd0" },
+          { t: "Margin",  x: 91, y: 67, fs:  6, fw: "400", c: "#005bb5" }
+        ];
+        var parts = words.map(function (w) {
+          return '<text x="' + w.x + '" y="' + w.y + '" text-anchor="middle"' +
+            ' font-size="' + w.fs + '" font-weight="' + w.fw + '" fill="' + w.c + '">' +
+            w.t + '</text>';
+        });
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80"' +
+          ' font-family="sans-serif">' + parts.join("") + '</svg>';
+      }()),
+      opts: [
+        { key: "fmt",      label: "Value format", type: "fmt", def: "num"  },
+        { key: "height",   label: "Height (px)",  type: "int", def: 320    },
+        { key: "maxWords", label: "Max words",    type: "int", def: 60     }
+      ],
+    },
+
+    // ── Gantt / Timeline chart ────────────────────────────────────────────────
+    // Horizontal floating-bar chart where each row represents a task or phase.
+    // The bar starts at startCol and ends at endCol (numeric values — could be
+    // days-from-start, percentage completion, or any ordinal measure). Ideal for
+    // project timelines, sprint breakdowns, process stage durations, and any data
+    // where you care about WHEN something starts and stops rather than just its size.
+    //
+    // Data binding:
+    //   labelCol  = row/task label (y-axis)
+    //   startCol  = bar start value (left edge)
+    //   endCol    = bar end value   (right edge)
+    //
+    // A DashKit.gantt extension chart (studio-charts.js; dashkit.js pristine).
+    gantt: {
+      label: "Gantt / Timeline",
+      icon: "⇿",
+      group: "Comparison",
+      desc: "Floating bars showing start and end of tasks or phases",
+      fields: ["labelCol", "startCol", "endCol"],
+      thumb: (function () {
+        // Gallery thumbnail: 4 horizontal floating bars at staggered positions
+        var bars = [
+          { y: 5,  x1: 4,  x2: 55, c: "#005bb5" },
+          { y: 16, x1: 25, x2: 90, c: "#7d3c98" },
+          { y: 27, x1: 10, x2: 70, c: "#2e8bd0" },
+          { y: 38, x1: 45, x2: 115, c: "#00a39a" }
+        ];
+        var rects = bars.map(function (b) {
+          return '<rect x="' + b.x1 + '" y="' + b.y + '" width="' + (b.x2 - b.x1) +
+            '" height="8" rx="2" fill="' + b.c + '" opacity=".88"/>';
+        });
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 50">' +
+          '<line x1="4" y1="0" x2="4" y2="50" stroke="#e0e4ef" stroke-width=".8"/>' +
+          rects.join("") + '</svg>';
+      }()),
+      opts: [
+        { key: "startLabel", label: "Start column label", type: "text", def: "Start" },
+        { key: "endLabel",   label: "End column label",   type: "text", def: "End"   },
+        { key: "fmt",        label: "Value format",        type: "fmt",  def: "n"    },
+        { key: "height",     label: "Height (px)",          type: "int",  def: 300   }
+      ],
+    },
+
+    // ── Diverging bar chart ───────────────────────────────────────────────────
+    // Horizontal bars that extend left (negative) or right (positive) from a
+    // central zero baseline. Immediately reveals direction and magnitude for
+    // mixed positive/negative data: budget surplus/deficit, QoQ growth rates,
+    // sentiment scores, temperature anomalies, approval vs. disapproval splits.
+    //
+    // Data binding:
+    //   labelCol  = row label (y-axis, left of zero line)
+    //   valueCol  = numeric value (positive → right; negative → left)
+    //
+    // A DashKit.divergingBar extension chart (studio-charts.js; dashkit.js pristine).
+    divergingBar: {
+      label: "Diverging bars",
+      icon: "⇔",
+      group: "Comparison",
+      desc: "Positive and negative bars from a zero baseline — ideal for variance or growth",
+      fields: ["labelCol", "valueCol"],
+      thumb: (function () {
+        // Gallery thumbnail: 4 rows (2 positive right, 2 negative left) centered on zero at x=60
+        var rows = [
+          { label: "Alpha",  x1: 60, x2: 107, c: "#005bb5" },
+          { label: "Beta",   x1: 60, x2: 93,  c: "#2e8bd0" },
+          { label: "Gamma",  x1: 34, x2: 60,  c: "#c0392b" },
+          { label: "Delta",  x1: 17, x2: 60,  c: "#e74c3c" }
+        ];
+        var rects = rows.map(function (r, i) {
+          return '<rect x="' + r.x1 + '" y="' + (5 + i * 16) + '" width="' + (r.x2 - r.x1) +
+            '" height="10" rx="2" fill="' + r.c + '" opacity=".85"/>';
+        });
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 70">' +
+          '<line x1="60" y1="0" x2="60" y2="70" stroke="#c8d0dc" stroke-width=".9" stroke-dasharray="3 2"/>' +
+          rects.join("") + '</svg>';
+      }()),
+      opts: [
+        { key: "posColor", label: "Positive color",  type: "color", def: "--pentaho" },
+        { key: "negColor", label: "Negative color",  type: "color", def: "--bad" },
+        { key: "fmt",      label: "Value format",    type: "fmt",   def: "abbr" },
+        { key: "height",   label: "Height (px)",     type: "int",   def: 300 }
+      ],
+    },
+
+    // ── Candlestick / OHLC ────────────────────────────────────────────────────
+    // Classic financial-style candle chart. Each period has four values:
+    //   open  — value at the start of the period (body edge)
+    //   high  — period maximum (top wick tip)
+    //   low   — period minimum (bottom wick tip)
+    //   close — value at the end of the period (body edge)
+    // Bullish candles (close ≥ open) are filled with upColor; bearish with downColor.
+    // Wicks extend from the body to the high/low extremes.
+    // Ideal for revenue ranges, price data, performance spread, or any time-period
+    // scenario where showing full range + open/close marks is valuable.
+    // A DashKit.candlestick extension chart (studio-charts.js; dashkit.js pristine).
+    candlestick: {
+      label: "Candlestick / OHLC",
+      icon: "⋄",
+      group: "Trend",
+      desc: "Open-High-Low-Close chart for time-period ranges, price data, or performance spread",
+      fields: ["labelCol", "openCol", "highCol", "lowCol", "closeCol"],
+      thumb: (function () {
+        // Gallery thumbnail: 5 candles of varying heights on a subtle baseline.
+        // Two green (bullish: close > open), two red (bearish: close < open), one flat.
+        // Each candle has a thin wick extending above and below the body.
+        var candles = [
+          { x: 10, lo: 52, hi: 15, open: 45, close: 22, c: "#27ae60" }, // bull
+          { x: 28, lo: 55, hi: 25, open: 48, close: 55, c: "#e74c3c" }, // bear
+          { x: 46, lo: 45, hi: 10, open: 38, close: 18, c: "#27ae60" }, // bull (tall)
+          { x: 64, lo: 58, hi: 32, open: 50, close: 58, c: "#e74c3c" }, // bear
+          { x: 82, lo: 48, hi: 22, open: 40, close: 28, c: "#27ae60" }  // bull
+        ];
+        var svgW = 120, svgH = 70, bw = 10;
+        var items = candles.map(function (c) {
+          var bodyT = Math.min(c.open, c.close), bodyB = Math.max(c.open, c.close);
+          return '<line x1="' + c.x + '" y1="' + c.hi + '" x2="' + c.x + '" y2="' + c.lo +
+            '" stroke="' + c.c + '" stroke-width="1.5" stroke-linecap="round"/>' +
+            '<rect x="' + (c.x - bw / 2) + '" y="' + bodyT + '" width="' + bw + '" height="' + (bodyB - bodyT) +
+            '" rx="1.5" fill="' + c.c + '" opacity=".85" stroke="' + c.c + '" stroke-width="0.8"/>';
+        });
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + svgW + ' ' + svgH + '">' +
+          '<line x1="0" y1="65" x2="' + svgW + '" y2="65" stroke="#c8d0dc" stroke-width=".8"/>' +
+          items.join("") + '</svg>';
+      }()),
+      opts: [
+        { key: "upColor",   label: "Up (close≥open) color",  type: "color", def: "--good" },
+        { key: "downColor", label: "Down (close<open) color", type: "color", def: "--bad" },
+        { key: "fmt",       label: "Value format",            type: "fmt",   def: "abbr" },
+        { key: "height",    label: "Height (px)",             type: "int",   def: 320 }
+      ],
+    },
+
+    // ── Waffle chart ──────────────────────────────────────────────────────────
+    // A 10×10 grid of colored squares (100 cells) where each cell = 1% of the
+    // total and cells are filled by category. Ideal for "1 in N" storytelling
+    // (e.g. "73 out of every 100 customers chose X"). More concrete than a donut
+    // for audiences unfamiliar with reading pie-slice areas.
+    // A DashKit.waffle extension chart (studio-charts.js; dashkit.js pristine).
+    waffle: {
+      label: "Waffle chart",
+      icon: "⬛",
+      group: "Composition",
+      desc: "Part-to-whole grid — each square = 1% of the total, easy to read at a glance",
+      fields: ["labelCol", "valueCol"],
+      thumb: (function () {
+        // Gallery thumbnail: a miniature 5×5 waffle grid with 3 color zones.
+        var sz = 8, pad = 2, cols = 10, colors = ["#005bb5","#7d3c98","#2e8bd0"];
+        var counts = [56, 28, 16]; // ~split of 100 cells in a 10×10
+        var flat = [];
+        counts.forEach(function (n, ci) { for (var i = 0; i < n; i++) flat.push(ci); });
+        var svgW = 120, svgH = 60, side = Math.floor(svgW / cols);
+        var cells = flat.slice(0, 10 * Math.floor(svgH / side)).map(function (ci, idx) {
+          var row = Math.floor(idx / cols), col2 = idx % cols;
+          var x = col2 * side + pad, y = row * side + pad, csz = side - pad;
+          return '<rect x="' + x + '" y="' + y + '" width="' + csz + '" height="' + csz + '" rx="1.5" fill="' + colors[ci] + '" opacity=".87"/>';
+        });
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + svgW + ' ' + svgH + '">' + cells.join("") + '</svg>';
+      }()),
+      opts: [
+        { key: "cols",   label: "Grid columns",  type: "int", def: 10 },
+        { key: "fmt",    label: "Value format",  type: "fmt", def: "abbr" },
+        { key: "height", label: "Height (px)",   type: "int", def: 300 }
+      ],
+    },
+
+    // ── Timeline / milestone chart ────────────────────────────────────────────
+    // A horizontal baseline with alternating above/below diamond markers — the
+    // classic "alternating timeline" layout for product roadmaps, release trains,
+    // project milestones, and historical event sequences. Rows are evenly
+    // spaced along the x-axis; an optional dateCol provides period labels at
+    // the marker base (opposite side of the baseline from the event label).
+    //
+    // Data binding:
+    //   labelCol  = event / milestone name (required)
+    //   dateCol   = date or period label at the marker (optional; shown on the
+    //               opposite side of the baseline from the event name)
+    //
+    // Inspector opts: colorCol (category-based palette coloring), height.
+    // A DashKit.timeline extension chart (studio-charts.js; dashkit.js pristine).
+    timeline: {
+      label: "Timeline / milestones",
+      icon:  "◆",
+      group: "Trend",
+      desc:  "Events alternating above/below a baseline — roadmaps, releases, milestones",
+      fields: ["labelCol", "dateCol"],
+      thumb: (function () {
+        // Gallery thumbnail: 5 diamond markers on a horizontal baseline,
+        // alternating with short stalks above/below and small label lines.
+        var colors = ["#005bb5","#7d3c98","#2e8bd0","#00a39a","#e67e22"];
+        var pts = [
+          { x: 10, above: true  },
+          { x: 25, above: false },
+          { x: 40, above: true  },
+          { x: 55, above: false },
+          { x: 70, above: true  }
+        ];
+        var mid = 15; // baseline y
+        var out = '<line x1="6" y1="' + mid + '" x2="74" y2="' + mid + '" stroke="#d8dde8" stroke-width="1.5"/>';
+        pts.forEach(function (p, i) {
+          var c = colors[i], ds = 3.5;
+          var stalkDir = p.above ? -1 : 1;
+          var stalkH = 7;
+          // stalk
+          out += '<line x1="' + p.x + '" y1="' + (mid + stalkDir * 3.5) + '"'
+              + ' x2="' + p.x + '" y2="' + (mid + stalkDir * (stalkH + 1)) + '"'
+              + ' stroke="' + c + '" stroke-width="1" opacity=".65"/>';
+          // diamond
+          out += '<polygon points="' + p.x + ',' + (mid - ds) + ' ' + (p.x + ds) + ',' + mid + ' ' + p.x + ',' + (mid + ds) + ' ' + (p.x - ds) + ',' + mid + '"'
+              + ' fill="' + c + '" stroke="white" stroke-width="0.8"/>';
+          // label stub
+          var lblY = mid + stalkDir * (stalkH + 4);
+          out += '<line x1="' + (p.x - 6) + '" y1="' + lblY + '" x2="' + (p.x + 6) + '" y2="' + lblY + '"'
+              + ' stroke="' + c + '" stroke-width="1.4" stroke-linecap="round" opacity=".8"/>';
+        });
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 30">' + out + '</svg>';
+      }()),
+      opts: [
+        { key: "colorCol", label: "Color / category column (optional)", type: "col", def: "" },
+        { key: "height",   label: "Height (px)",                        type: "int", def: 220 }
+      ],
+    },
+
+    // Radial bar chart: concentric arc tracks, each arc length proportional to value.
+    // Sorted largest-outermost so visual hierarchy is immediate. All arcs share the same
+    // start point (12 o'clock) and sweep clockwise up to 270°. 
+    // DashKit.radialBar extension in studio-charts.js (dashkit.js pristine).
+    // Population pyramid: mirrored horizontal bars from a shared centre column.
+    // Classic for demographic data (age × gender) and any side-by-side comparison
+    // where two groups are measured across the same set of categories.
+    // DashKit.pyramidBar extension in studio-charts.js (dashkit.js pristine).
+    pyramidBar: {
+      label: "Population pyramid",
+      icon:  "◫",
+      group: "Comparison",
+      desc:  "Mirrored horizontal bars from a shared centre axis — compare two groups across categories",
+      fields: ["labelCol", "leftCol", "rightCol"],
+      thumb: (function () {
+        // Gallery thumbnail: 4 rows of mirrored bars with a vertical centre axis.
+        // Left bars (purple) extend left; right bars (blue) extend right; centre is implicit.
+        var cx = 22;  // centre x of the label zone (viewBox 0 0 44 30)
+        var lc = "#7d3c98", rc = "#005bb5";
+        var bars = [
+          { lw: 10, rw: 12, y: 2  },
+          { lw: 16, rw: 14, y: 9  },
+          { lw: 13, rw: 17, y: 16 },
+          { lw:  8, rw:  9, y: 23 }
+        ];
+        var LABEL = 8;   // width of centre label column
+        var out = '<line x1="' + (cx - LABEL/2) + '" y1="0" x2="' + (cx - LABEL/2) + '" y2="30" stroke="#c8d0da" stroke-width="0.5"/>' +
+                  '<line x1="' + (cx + LABEL/2) + '" y1="0" x2="' + (cx + LABEL/2) + '" y2="30" stroke="#c8d0da" stroke-width="0.5"/>';
+        bars.forEach(function (b) {
+          out += '<rect x="' + (cx - LABEL/2 - b.lw) + '" y="' + b.y + '" width="' + b.lw + '" height="5" rx="1" fill="' + lc + '" opacity=".85"/>';
+          out += '<rect x="' + (cx + LABEL/2) + '" y="' + b.y + '" width="' + b.rw + '" height="5" rx="1" fill="' + rc + '" opacity=".85"/>';
+        });
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 30">' + out + '</svg>';
+      }()),
+      opts: [
+        { key: "leftLabel",  label: "Left-side label",  type: "text",  def: "Left"       },
+        { key: "rightLabel", label: "Right-side label", type: "text",  def: "Right"      },
+        { key: "leftColor",  label: "Left bar color",   type: "color", def: "--dk"      },
+        { key: "rightColor", label: "Right bar color",  type: "color", def: "--pentaho"  },
+        { key: "fmt",        label: "Value format",     type: "fmt",   def: "abbr"       },
+        { key: "height",     label: "Height (px)",      type: "int",   def: 300          }
+      ],
+    },
+
+    radialBar: {
+      label: "Radial bar",
+      icon:  "◉",
+      group: "Comparison",
+      desc:  "Concentric arc tracks where arc length encodes value — great for ranking a handful of key metrics",
+      fields: ["labelCol", "valueCol"],
+      thumb: (function () {
+        // Gallery thumbnail: 5 concentric arcs starting at 12 o'clock (top), sweeping
+        // clockwise at different lengths to show a ranking of five metrics.
+        var cx = 22, cy = 15;
+        var radii  = [11, 8.8, 6.6, 4.4, 2.2];
+        var sweeps = [0.85, 0.65, 0.75, 0.45, 0.55]; // fraction of 270°
+        var colors = ["#005bb5","#7d3c98","#2e8bd0","#00a39a","#e67e22"];
+        var SW = 1.5 * Math.PI; // 270°
+        var A0 = -Math.PI / 2;  // 12 o'clock (top)
+        var tH  = 1.7;          // track height (visual stroke width)
+        function ap(r, frac) {
+          var a1 = A0 + SW * frac;
+          var x0 = cx + r * Math.cos(A0), y0 = cy + r * Math.sin(A0);
+          var x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
+          var lg = SW * frac > Math.PI ? 1 : 0;
+          return 'M' + x0.toFixed(1) + ',' + y0.toFixed(1) +
+                 ' A' + r + ',' + r + ' 0 ' + lg + ' 1 ' +
+                 x1.toFixed(1) + ',' + y1.toFixed(1);
+        }
+        var out = "";
+        radii.forEach(function (r, i) {
+          // ghost track
+          out += '<path d="' + ap(r, 1) + '" fill="none" stroke="' + colors[i] +
+                 '" stroke-opacity=".12" stroke-width="' + tH + '" stroke-linecap="round"/>';
+          // value arc
+          out += '<path d="' + ap(r, sweeps[i]) + '" fill="none" stroke="' + colors[i] +
+                 '" stroke-width="' + tH + '" stroke-linecap="round"/>';
+        });
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 30">' + out + '</svg>';
+      }()),
+      opts: [
+        { key: "maxVal", type: "int", label: "Max value (0 = auto-detect)", def: 0 },
+        { key: "fmt",    type: "fmt", label: "Value format",                 def: "abbr" },
+        { key: "height", type: "int", label: "Height (px)",                  def: 320 }
+      ],
+    },
+
+    // ── Icicle / rectangular partition chart ────────────────────────────────
+    // A space-filling hierarchical layout: the full width is divided proportionally
+    // among parent categories (top row), and each parent's slice is sub-divided
+    // proportionally among its children (bottom portion). Cleaner than treemap for
+    // showing two-level proportions — parents and children are always on separate
+    // horizontal tracks so the hierarchy is spatially explicit.
+    // Single-level mode (no groupCol): one horizontal band of items by value.
+    // Same groupCol/labelCol/valueCol binding as sunburst;
+    icicle: {
+      label: "Icicle / partition",
+      icon: "⊟",
+      group: "Composition",
+      desc: "Two-level rectangular partition — parent categories on top, children within each slice",
+      fields: ["labelCol", "valueCol", "groupCol"],
+      thumb: (function () {
+        // Gallery thumbnail: two-level icicle with 3 group headers + 2-3 child cells each.
+        // Groups are proportional widths; children subdivide within each group's column.
+        var W = 120, H = 50, PAD = 1.5;
+        var topH = H * 0.36 - 1, botH = H * 0.64 - 2, botY = H * 0.36 + 2;
+        var groups = [
+          { frac: 0.42, color: "#005bb5", items: [0.55, 0.28, 0.17] },
+          { frac: 0.35, color: "#7d3c98", items: [0.60, 0.40] },
+          { frac: 0.23, color: "#0e9aa7", items: [0.65, 0.35] }
+        ];
+        var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '">';
+        var gx = 0;
+        groups.forEach(function (g) {
+          var gw = W * g.frac;
+          svg += '<rect x="' + gx.toFixed(1) + '" y="0" width="' + Math.max(1, gw - PAD).toFixed(1) + '" height="' + topH.toFixed(1) + '" fill="' + g.color + '" rx="2"/>';
+          var cx = gx;
+          g.items.forEach(function (frac, ii) {
+            var iw = gw * frac;
+            var op = (0.62 + 0.3 * (1 - ii / Math.max(1, g.items.length - 1))).toFixed(2);
+            svg += '<rect x="' + cx.toFixed(1) + '" y="' + botY.toFixed(1) + '" width="' + Math.max(1, iw - PAD).toFixed(1) + '" height="' + (botH - 1).toFixed(1) + '" fill="' + g.color + '" rx="2" opacity="' + op + '"/>';
+            cx += iw;
+          });
+          gx += gw;
+        });
+        return svg + '</svg>';
+      }()),
+      // Z8 slice 17: icicle gets its own type-specific options, mirroring Treemap's
+      // pattern (both are proportional-area partitions) — a cell-label toggle for
+      // dense charts, and a "% of total" mode since that's usually the real question.
+      opts: [
+        { key: "fmt",        type: "fmt",  label: "Value format",              def: "abbr" },
+        { key: "showLabels", type: "bool", label: "Show cell labels",          def: true },
+        { key: "showPct",    type: "bool", label: "Show % of total, not value", def: false },
+        { key: "height",     type: "int",  label: "Height (px)",               def: 280 }
+      ],
+    },
+
+    // Pareto chart — the classic 80/20 rule visualisation for quality management and
+    // business prioritisation. Bars are sorted descending (largest category leftmost)
+    // and a cumulative percentage line rises from left to right. The 80% threshold
+    // shows exactly which vital few categories account for the majority of the total.
+    // Standard in ISO 9000, defect analysis, customer complaint prioritisation, and
+    // any context where "which categories matter most?" is the key question.
+    // A DashKit.pareto extension chart (studio-charts.js; dashkit.js pristine).
+    pareto: {
+      label: "Pareto chart",
+      icon: "⫠",
+      group: "Comparison",
+      desc: "80/20 rule — ranked bars with cumulative % line",
+      fields: ["labelCol", "valueCol"],
+      thumb: (function () {
+        // Gallery thumbnail: 5 descending bars + a rising cumulative % line from 0→100%.
+        // An 80% horizontal dashed reference line crosses the line at the 4th bar.
+        var W = 120, H = 70, mL = 8, mR = 16, mT = 6, mB = 14;
+        var iw = W - mL - mR, ih = H - mT - mB;
+        var bars = [0.68, 0.48, 0.30, 0.16, 0.09]; // relative heights (descending)
+        var cumPct = [0.27, 0.46, 0.58, 0.65, 1.0]; // cumulative %
+        var barColors = ["#005bb5","#2e8bd0","#5ea8e6","#90c4f4","#b8d9fb"];
+        var slotW = iw / bars.length, barW = slotW * 0.68;
+        var out = '';
+        // Gridlines (subtle)
+        for (var g = 0; g <= 3; g++) {
+          var gy = mT + ih * (1 - g / 3);
+          out += '<line x1="' + mL + '" y1="' + gy.toFixed(1) + '" x2="' + (W - mR) + '" y2="' + gy.toFixed(1) + '" stroke="#e8edf4" stroke-width="0.6"/>';
+        }
+        // Bars
+        bars.forEach(function (h, i) {
+          var bh = ih * h, by = mT + ih - bh;
+          var bx = mL + i * slotW + (slotW - barW) / 2;
+          out += '<rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="' + barColors[i] + '" opacity=".88" rx="1"/>';
+        });
+        // 80% dashed reference line
+        var y80 = (mT + ih * (1 - 0.80)).toFixed(1);
+        out += '<line x1="' + mL + '" y1="' + y80 + '" x2="' + (W - mR) + '" y2="' + y80 + '" stroke="#e74c3c" stroke-width="0.8" stroke-dasharray="2.5 1.5" opacity=".6"/>';
+        // Cumulative line
+        var pts = cumPct.map(function (cp, i) {
+          var cx = (mL + i * slotW + slotW / 2).toFixed(1);
+          var cy = (mT + ih * (1 - cp)).toFixed(1);
+          return cx + ',' + cy;
+        });
+        out += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#e67e22" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>';
+        // Dots on line
+        cumPct.forEach(function (cp, i) {
+          var cx = (mL + i * slotW + slotW / 2).toFixed(1);
+          var cy = (mT + ih * (1 - cp)).toFixed(1);
+          out += '<circle cx="' + cx + '" cy="' + cy + '" r="2" fill="#e67e22"/>';
+        });
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '">' + out + '</svg>';
+      }()),
+      opts: [
+        { key: "showRef", label: "80% reference line", type: "bool", def: true },
+        { key: "fmt",     label: "Value format",        type: "fmt",  def: "abbr" },
+        { key: "height",  label: "Height (px)",          type: "int",  def: 300 }
+      ],
+    },
+
+    // ── Grouped bar chart (multi-series, side-by-side per category) ─────────
+    // Renders N groups × M bars for direct cross-series comparison within every
+    // category — unlike Stacked bars (which hides individual values in the total)
+    // or plain Bar chart (single series only). Ideal for "Q1 vs Q2 vs Q3 by Region"
+    // or "Budget vs Actual vs Forecast by Department". Same labelCol+series binding
+    // as Stacked / Stacked area / Stream graph.
+    groupedBars: {
+      label: "Grouped bars",
+      icon: "▥",
+      group: "Comparison",
+      desc: "Multiple series side-by-side per category for direct comparison",
+      fields: ["labelCol", "series"],
+      thumb: (function () {
+        // Gallery thumbnail: 3 category groups × 3 series bars (blue, purple, cyan).
+        // Varying heights per group show the multi-series comparison at a glance.
+        var W = 120, H = 70;
+        var mL = 6, mR = 6, mT = 4, mB = 14;
+        var iw = W - mL - mR, ih = H - mT - mB;
+        var groups = [
+          [0.70, 0.45, 0.55],
+          [0.55, 0.85, 0.65],
+          [0.40, 0.60, 0.30]
+        ];
+        var colors = ["#005bb5", "#7d3c98", "#2e8bd0"];
+        var nCats = groups.length, nSer = 3;
+        var groupW = iw / nCats;
+        var barW = (groupW * 0.80) / nSer;
+        var barGap = groupW * 0.02;
+        var out = '';
+        // subtle gridlines
+        for (var g = 0; g <= 3; g++) {
+          var gy = (mT + ih * (1 - g / 3)).toFixed(1);
+          out += '<line x1="' + mL + '" y1="' + gy + '" x2="' + (W - mR) + '" y2="' + gy + '" stroke="#e8edf4" stroke-width="0.6"/>';
+        }
+        groups.forEach(function (vals, li) {
+          var blockW = barW * nSer + barGap * (nSer - 1);
+          var gx = mL + li * groupW + (groupW - blockW) / 2;
+          vals.forEach(function (rel, si) {
+            var bh = ih * rel;
+            var bx = (gx + si * (barW + barGap)).toFixed(1);
+            var by = (mT + ih - bh).toFixed(1);
+            out += '<rect x="' + bx + '" y="' + by + '" width="' + barW.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="' + colors[si] + '" rx="1" opacity=".88"/>';
+          });
+        });
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '">' + out + '</svg>';
+      }()),
+      opts: [
+        { key: "rotate",     type: "bool", label: "Rotate labels",     def: false },
+        { key: "showValues", type: "bool", label: "Show value labels", def: false },
+        { key: "fmt",        type: "fmt",  label: "Value format",      def: "abbr" },
+        { key: "height",     type: "int",  label: "Height (px)",       def: 300 }
+      ],
+    },
+
+    // Ridgeline / joy plot — horizontally stacked density curves per category.
+    // Each category's numeric values are KDE-estimated and drawn as a filled curve
+    // sweeping left-to-right on a shared value axis. Categories are stacked vertically
+    // with a configurable overlap ratio, producing the iconic "joy plot" appearance.
+    // Ideal for comparing distributions across many groups (e.g. sales by region, latency
+    // by service) in a single compact view — complementary to violin (symmetric, vertical)
+    // and beeswarm (raw points).
+    // A DashKit.ridgeline extension chart (studio-charts.js; dashkit.js pristine).
+    ridgeline: {
+      label: "Ridgeline plot",
+      icon: "≋",
+      group: "Distribution",
+      desc: "Stacked density curves compare distributions across categories",
+      fields: ["labelCol", "valueCol"],
+      thumb: (function () {
+        // Gallery thumbnail: 4 overlapping horizontal density ridge curves, each a
+        // different shade, stacked with slight overlap to show the joy-plot signature.
+        var W = 120, H = 70;
+        // Four ridges with hand-crafted smooth curves using cubic-bezier-like paths.
+        // Each curve starts and ends at baseline, peaking at different x-positions.
+        var ridges = [
+          // [yBaseline, peakXrel (0-1), color, pathRelH]
+          { y: 58, col: "#2e8bd0", pts: "M4,58 C14,58 22,32 36,28 C50,24 58,26 68,34 C78,42 88,56 116,58 Z" },
+          { y: 44, col: "#7d3c98", pts: "M4,44 C12,44 24,20 40,16 C56,12 64,18 76,26 C88,34 96,42 116,44 Z" },
+          { y: 30, col: "#005bb5", pts: "M4,30 C10,30 18,10 32,7 C46,4 58,8 72,18 C86,28 98,29 116,30 Z" },
+          { y: 16, col: "#2e8bd0", pts: "M4,16 C16,16 28,2 44,2 C60,2 68,6 82,12 C96,18 104,16 116,16 Z" }
+        ];
+        var out = '';
+        ridges.forEach(function (r) {
+          out += '<path d="' + r.pts + '" fill="' + r.col + '" opacity=".20"/>';
+          out += '<path d="' + r.pts + '" fill="none" stroke="' + r.col + '" stroke-width="1.2" opacity=".8"/>';
+          out += '<line x1="4" y1="' + r.y + '" x2="116" y2="' + r.y + '" stroke="' + r.col + '" stroke-width="0.4" opacity=".35"/>';
+        });
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 70">' + out + '</svg>';
+      }()),
+      opts: [
+        { key: "overlap", label: "Ridge overlap (0–1)", type: "float", def: 0.4, min: 0, max: 0.9, step: 0.05 },
+        { key: "fmt",     label: "Value format",       type: "fmt",   def: "abbr" },
+        { key: "height",  label: "Height (px)",         type: "int",   def: 320 }
+      ],
+    },
+
+    // 100% Normalized Stacked Bar chart — every bar reaches 100%; segments show proportional
+    // share rather than absolute value. The natural complement to Stacked bars (absolute totals)
+    // and Grouped bars (direct absolute comparison). Ideal for: market share by region, budget
+    // allocation by department, survey response breakdown by period, NPS distribution by team.
+    // Same labelCol+series binding as Stacked and Grouped bars.
+    barNorm: {
+      label: "100% stacked bars",
+      icon: "▤",
+      group: "Composition",
+      desc: "Proportional share per category — every bar totals 100%",
+      fields: ["labelCol", "series"],
+      thumb: (function () {
+        // Gallery thumbnail: 4 categories, each bar filled to 100% with 3 colored segments
+        // in varying proportions so the "shifting composition" story is immediately visible.
+        var W = 120, H = 70;
+        var mL = 6, mR = 6, mT = 6, mB = 14;
+        var iw = W - mL - mR, ih = H - mT - mB;
+        // 4 bars with different segment proportions (blue / purple / cyan)
+        var bars = [
+          [0.50, 0.30, 0.20],
+          [0.35, 0.45, 0.20],
+          [0.55, 0.20, 0.25],
+          [0.25, 0.50, 0.25]
+        ];
+        var colors = ["#005bb5", "#7d3c98", "#2e8bd0"];
+        var nBars = bars.length;
+        var groupW = iw / nBars;
+        var bW = groupW * 0.64, bX0 = (groupW - bW) / 2;
+        var out = '';
+        // faint horizontal 25%/50%/75%/100% gridlines
+        for (var g = 1; g <= 4; g++) {
+          var gy = (mT + ih * (1 - g / 4)).toFixed(1);
+          out += '<line x1="' + mL + '" y1="' + gy + '" x2="' + (W - mR) + '" y2="' + gy + '" stroke="#e8edf4" stroke-width="0.6"/>';
+        }
+        bars.forEach(function (segs, bi) {
+          var bx = (mL + bi * groupW + bX0).toFixed(1);
+          var cumY = mT + ih; // start at bottom
+          segs.forEach(function (pct, si) {
+            var segH = ih * pct;
+            cumY -= segH;
+            out += '<rect x="' + bx + '" y="' + cumY.toFixed(1) + '" width="' + bW.toFixed(1) + '" height="' + segH.toFixed(1) + '" fill="' + colors[si] + '" opacity=".88" rx="1"/>';
+          });
+        });
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '">' + out + '</svg>';
+      }()),
+      opts: [
+        { key: "rotate",  type: "bool", label: "Rotate labels",       def: false },
+        { key: "showPct", type: "bool", label: "Show segment % labels", def: false },
+        { key: "fmt",     type: "fmt",  label: "Value format",        def: "abbr" },
+        { key: "height",  type: "int",  label: "Height (px)",         def: 300 }
+      ],
+    },
+
+    // Area range / confidence band — a shaded band between a lower and an upper bound,
+    // with an optional centre/actual/forecast line drawn through the middle of the band.
+    // Use for: confidence intervals (model uncertainty), min/max sensor ranges, forecast
+    // floor/ceiling tracks, budget corridors, or any metric whose meaningful story is
+    // "the value should stay between X and Y."
+    areaRange: {
+      label: "Area range / band",
+      icon: "◉",
+      group: "Trend",
+      desc: "Shaded band between upper and lower bounds — for confidence intervals, ranges, and forecast corridors",
+      fields: ["labelCol", "lowerCol", "upperCol", "centerCol"],
+      thumb: (function () {
+        // Gallery thumbnail: sinusoidal-ish band with upper (solid) + lower (dashed) lines
+        // and a centre line running through the middle, in a 120×70 canvas.
+        var W = 120, H = 70, mL = 8, mR = 8, mT = 8, mB = 14;
+        var iw = W - mL - mR, ih = H - mT - mB;
+        var n = 5;
+        // Fractional offsets from the top of the chart area (0 = top, 1 = bottom)
+        var upper  = [0.14, 0.05, 0.17, 0.21, 0.11];
+        var lower  = [0.64, 0.54, 0.67, 0.71, 0.61];
+        var center = [0.39, 0.29, 0.42, 0.46, 0.36];
+        function yf(f, idx) { return (mT + ih * f).toFixed(1); }
+        function xf(i)      { return (mL + i / (n - 1) * iw).toFixed(1); }
+        var uPts  = [0,1,2,3,4].map(function (i) { return xf(i) + "," + yf(upper[i]);  }).join(" ");
+        var lPts  = [0,1,2,3,4].map(function (i) { return xf(i) + "," + yf(lower[i]);  }).join(" ");
+        var lRev  = [4,3,2,1,0].map(function (i) { return xf(i) + "," + yf(lower[i]);  }).join(" ");
+        var cPts  = [0,1,2,3,4].map(function (i) { return xf(i) + "," + yf(center[i]); }).join(" ");
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '">'
+          + '<polygon points="' + uPts + ' ' + lRev + '" fill="#005bb5" opacity=".18"/>'
+          + '<polyline points="' + uPts + '" fill="none" stroke="#005bb5" stroke-width="1.5" stroke-linejoin="round"/>'
+          + '<polyline points="' + lPts + '" fill="none" stroke="#005bb5" stroke-width="1.5" stroke-dasharray="5,3" stroke-linejoin="round"/>'
+          + '<polyline points="' + cPts + '" fill="none" stroke="#005bb5" stroke-width="2" stroke-linejoin="round" opacity=".9"/>'
+          + '</svg>';
+      }()),
+      opts: [
+        { key: "bandOpacity", type: "range", label: "Band opacity (%)",   def: 22, min: 5, max: 60, step: 1 },
+        { key: "showCenter",  type: "bool",  label: "Show centre line",   def: true },
+        { key: "height",      type: "int",   label: "Height (px)",        def: 300 }
+      ],
+    },
+
+    // Quadrant / 2×2 matrix chart — scatter-style x/y plot divided into four
+    // labelled zones by configurable threshold lines. Ideal for strategic analysis:
+    // BCG growth-share, Effort vs Impact, Risk vs Probability, Performance vs Potential.
+    // Dots are coloured by which quadrant they fall into so categorisation reads instantly.
+    quadrant: {
+      label: "Quadrant chart",
+      icon: "⊞",
+      group: "Comparison",
+      desc: "Position items in a 2×2 matrix — BCG, effort/impact, performance/potential",
+      fields: ["xCol", "yCol", "labelCol"],
+      thumb: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 70">'
+        + '<rect x="60" y="4" width="56" height="29" fill="#005bb5" opacity=".07"/>'
+        + '<rect x="4" y="4" width="56" height="29" fill="#9b59b6" opacity=".07"/>'
+        + '<rect x="4" y="33" width="56" height="33" fill="#c0392b" opacity=".07"/>'
+        + '<rect x="60" y="33" width="56" height="33" fill="#27ae60" opacity=".07"/>'
+        + '<line x1="60" y1="4" x2="60" y2="66" stroke="#888" stroke-width="1" stroke-dasharray="4,3" opacity=".4"/>'
+        + '<line x1="4" y1="33" x2="116" y2="33" stroke="#888" stroke-width="1" stroke-dasharray="4,3" opacity=".4"/>'
+        + '<circle cx="90" cy="12" r="5" fill="#005bb5" opacity=".85"/>'
+        + '<circle cx="76" cy="20" r="5" fill="#005bb5" opacity=".85"/>'
+        + '<circle cx="100" cy="22" r="5" fill="#005bb5" opacity=".85"/>'
+        + '<circle cx="22" cy="14" r="5" fill="#9b59b6" opacity=".85"/>'
+        + '<circle cx="38" cy="9" r="5" fill="#9b59b6" opacity=".85"/>'
+        + '<circle cx="18" cy="52" r="5" fill="#c0392b" opacity=".85"/>'
+        + '<circle cx="80" cy="50" r="5" fill="#27ae60" opacity=".85"/>'
+        + '<circle cx="96" cy="58" r="5" fill="#27ae60" opacity=".85"/>'
+        + '</svg>',
+      opts: [
+        { key: "xThreshold", type: "range", label: "X split (%)",          def: 50, min: 10, max: 90, step: 1 },
+        { key: "yThreshold", type: "range", label: "Y split (%)",          def: 50, min: 10, max: 90, step: 1 },
+        { key: "q1",         type: "text",  label: "Top-right label",       def: "High Value" },
+        { key: "q2",         type: "text",  label: "Top-left label",        def: "Explore" },
+        { key: "q3",         type: "text",  label: "Bottom-left label",     def: "Low Priority" },
+        { key: "q4",         type: "text",  label: "Bottom-right label",    def: "Quick Wins" },
+        { key: "xLabel",     type: "text",  label: "X axis label",          def: "" },
+        { key: "yLabel",     type: "text",  label: "Y axis label",          def: "" },
+        { key: "height",     type: "int",   label: "Height (px)",           def: 300 }
+      ],
+    }
+  };
+  /* ---- spec helpers ---- */
+  var _uid = 0;
+  Studio.uid = function (p) { _uid += 1; return (p || "p") + _uid + "_" + (Date.now() % 100000); };
+
+  // Built-in series palette presets. Each entry overrides --c1..--c10 CSS variables
+  // in both light and dark mode so chart series always look intentional together.
+  // key: "default" leaves dashkit.css values intact. Stored as spec.paletteKey.
+  Studio.PALETTE_PRESETS = [
+    { key: "default", label: "Classic (default)", swatch: "#005bb5", light: null, dark: null },
+    { key: "ocean",  label: "Ocean",  swatch: "#0277bd",
+      light: ["#0277bd","#006d77","#0097a7","#1aadca","#00838f","#1565c0","#00acc1","#29b6f6","#006064","#4fc3f7"],
+      dark:  ["#29b6f6","#4dd0e1","#26c6da","#80deea","#64b5f6","#64ffda","#7cc4ff","#00e5ff","#b3e5fc","#b2ebf2"]
+    },
+    { key: "forest", label: "Forest", swatch: "#2e7d32",
+      light: ["#2e7d32","#388e3c","#558b2f","#00695c","#1b5e20","#43a047","#33691e","#27ae60","#00796b","#5a7d2e"],
+      dark:  ["#a5d6a7","#81c784","#c5e1a5","#80cbc4","#b9f6ca","#69f0ae","#4cde8c","#66bb6a","#64ffda","#e6ee9c"]
+    },
+    { key: "sunset", label: "Sunset", swatch: "#e64a19",
+      light: ["#c62828","#e64a19","#f57c00","#ff8f00","#d84315","#bf360c","#6d4c41","#e65100","#ff6d00","#b71c1c"],
+      dark:  ["#ef9a9a","#ff8a65","#ffcc80","#ffd54f","#ff7043","#ef5350","#a1887f","#ff6e40","#ffab40","#ff5252"]
+    },
+    { key: "dusk",   label: "Dusk",   swatch: "#6a1b9a",
+      light: ["#6a1b9a","#512da8","#4527a0","#ad1457","#880e4f","#c62828","#5c1a78","#4a148c","#311b92","#9c27b0"],
+      dark:  ["#ce93d8","#b39ddb","#f8bbd0","#f48fb1","#ea80fc","#ef9a9a","#b388ff","#cc88ff","#c49de3","#e040fb"]
+    }
+  ];
+
+  // ★★ Visual refresh (A): full dashboard "look" presets — unlike PALETTE_PRESETS (series
+  // colors only) or themeColor/headerBg (one-off accent tweaks), each entry here overrides the
+  // WHOLE dashkit.css token system (bg/panel/text hierarchy + brand + series) in one pick, so a
+  // dashboard reads as one coherent system rather than a blue base with mismatched accents.
+  // "classic" (light/dark: null) leaves vendor/dashkit.css untouched. "fleet-modern" mirrors the
+  // jobtracker.polecat.live token hierarchy (bg -> surface -> surface-2, text/2/3, brand/accent)
+  // with a WCAG-AA, colorblind-safe (CVD >=12) 10-color series palette validated via the dataviz
+  // skill's validate_palette.js for both light and dark. Stored as spec.dashboardTheme.
+  Studio.DASHBOARD_THEMES = [
+    { key: "classic", label: "Classic Blue", swatch: "#005bb5", light: null, dark: null },
+    // "Polecat" — the house look and the DEFAULT for new dashboards: warm terracotta brand +
+    // plum accent on cream (light) / plum-black (dark), matching the app's own Polecat chrome.
+    // Its 10-color series ramp was validated against the #faf6ef / #141017 surfaces it actually
+    // uses via the dataviz skill's validate_palette.js — light AND dark: all six checks PASS
+    // outright (worst adjacent-pair CVD ΔE 24.8 light / 23.2 dark, target 12; all slots ≥3:1).
+    { key: "polecat", label: "Polecat", swatch: "#b8632e",
+      light: {
+        "--pentaho": "#b8632e", "--dk": "#8a3fa8",
+        "--app-bg": "#faf6ef", "--panel-bg": "#fffcf5", "--panel-border": "#e2d5c2",
+        "--panel-subtle-bg": "#f2ead9", "--panel-header-bg": "#f2ead9", "--panel-header-border": "#e2d5c2",
+        "--field-bg": "#fffcf5", "--field-border": "#e2d5c2",
+        "--text-primary": "#2b2027", "--text-muted": "#6b5a63", "--text-faint": "#8c7a83",
+        "--sidebar-bg": "#231e28", "--header-bg": "#231e28", "--header-bg-2": "#3a2f3a", "--grid-line": "#eadfca", "--axis": "#8c7a83",
+        "--c1": "#b8632e", "--c2": "#0e8f86", "--c3": "#8a3fa8", "--c4": "#b87d00", "--c5": "#2a63a8",
+        "--c6": "#00964a", "--c7": "#c9457f", "--c8": "#787a00", "--c9": "#5b3fa8", "--c10": "#a8461f"
+      },
+      dark: {
+        "--pentaho": "#e79a5f", "--dk": "#b573dc",
+        "--app-bg": "#141017", "--panel-bg": "#1c1721", "--panel-border": "#352b3a",
+        "--panel-subtle-bg": "#241d2a", "--panel-header-bg": "#241d2a", "--panel-header-border": "#352b3a",
+        "--field-bg": "#1c1721", "--field-border": "#352b3a",
+        "--text-primary": "#f5e9d6", "--text-muted": "#b3a0ab", "--text-faint": "#8a7d8a",
+        "--sidebar-bg": "#0f0c12", "--header-bg": "#0f0c12", "--header-bg-2": "#2a2130", "--grid-line": "#2a2230", "--axis": "#8a7d8a",
+        "--c1": "#cc7038", "--c2": "#17a08f", "--c3": "#b573dc", "--c4": "#bd8a0f", "--c5": "#4f8ed8",
+        "--c6": "#26a361", "--c7": "#e0639c", "--c8": "#96962a", "--c9": "#8a73dc", "--c10": "#d6683f"
+      }
+    },
+    { key: "fleet-modern", label: "Fleet Modern", swatch: "#0071bc",
+      light: {
+        "--pentaho": "#0071bc", "--dk": "#00964a",
+        "--app-bg": "#eef3f9", "--panel-bg": "#ffffff", "--panel-border": "#ccdcec",
+        "--panel-subtle-bg": "#e9f0f8", "--panel-header-bg": "#e9f0f8", "--panel-header-border": "#ccdcec",
+        "--field-bg": "#ffffff", "--field-border": "#ccdcec",
+        "--text-primary": "#0c1c2e", "--text-muted": "#48596f", "--text-faint": "#586b88",
+        "--sidebar-bg": "#0d1a2e", "--header-bg": "#0d1a2e", "--header-bg-2": "#1b3358", "--grid-line": "#dde6f0", "--axis": "#586b88",
+        "--c1": "#0071bc", "--c2": "#00964a", "--c3": "#c98500", "--c4": "#5b3fa8", "--c5": "#0e8f86",
+        "--c6": "#d1403f", "--c7": "#c94f82", "--c8": "#d95926", "--c9": "#2a63a8", "--c10": "#a8461f"
+      },
+      dark: {
+        "--pentaho": "#5bb3ea", "--dk": "#17b9a6",
+        "--app-bg": "#0a0f1a", "--panel-bg": "#111a2b", "--panel-border": "#26344f",
+        "--panel-subtle-bg": "#18243a", "--panel-header-bg": "#18243a", "--panel-header-border": "#26344f",
+        "--field-bg": "#18243a", "--field-border": "#26344f",
+        "--text-primary": "#e9eff8", "--text-muted": "#93a6c2", "--text-faint": "#8496ac",
+        "--sidebar-bg": "#060b14", "--header-bg": "#060b14", "--header-bg-2": "#122040", "--grid-line": "#1c2740", "--axis": "#8496ac",
+        "--c1": "#3d8fd6", "--c2": "#22a35f", "--c3": "#b8811f", "--c4": "#8a6fd0", "--c5": "#2aa89a",
+        "--c6": "#e2685f", "--c7": "#cf6b98", "--c8": "#c76a2f", "--c9": "#4a7bc4", "--c10": "#b56a3f"
+      }
+    },
+    // N-DESIGN "a few stunning presets" (theme studio/gallery idea) — the first genuinely
+    // alternate MOOD beyond Classic/Fleet Modern: true black/white extremes (not just a darker
+    // blue) for maximum legibility — bigger text/data contrast than either existing theme, solid
+    // (not soft-tinted) borders for crisp panel separation. The 10-color series ramp is a
+    // DIFFERENT set from Fleet Modern's, re-validated against the #ffffff/#000000 surfaces this
+    // theme actually uses (not reused from Fleet Modern's #eef3f9/#0a0f1a surfaces) via the
+    // dataviz skill's validate_palette.js — light: all six checks PASS (one legal WARN-band
+    // contrast case, same as Fleet Modern's own amber slot, mitigated the same way — direct
+    // value labels are already on by default); dark: all PASS except a legal floor-band (8-12)
+    // CVD WARN, again mitigated by the app's existing direct-value labels.
+    { key: "high-contrast", label: "High Contrast", swatch: "#0b3d91",
+      light: {
+        "--pentaho": "#0b3d91", "--dk": "#8a1c1c",
+        "--app-bg": "#ffffff", "--panel-bg": "#ffffff", "--panel-border": "#000000",
+        "--panel-subtle-bg": "#e8e8e8", "--panel-header-bg": "#e8e8e8", "--panel-header-border": "#000000",
+        "--field-bg": "#ffffff", "--field-border": "#000000",
+        "--text-primary": "#000000", "--text-muted": "#3d3d3d", "--text-faint": "#595959",
+        "--sidebar-bg": "#000000", "--header-bg": "#000000", "--header-bg-2": "#000000", "--grid-line": "#8a8a8a", "--axis": "#000000",
+        "--c1": "#2a78d6", "--c2": "#1baf7a", "--c3": "#eda100", "--c4": "#008300", "--c5": "#4a3aa7",
+        "--c6": "#e34948", "--c7": "#e87ba4", "--c8": "#eb6834", "--c9": "#0093ab", "--c10": "#a8531f"
+      },
+      dark: {
+        "--pentaho": "#5b9bff", "--dk": "#ff6b6b",
+        "--app-bg": "#000000", "--panel-bg": "#0a0a0a", "--panel-border": "#ffffff",
+        "--panel-subtle-bg": "#1a1a1a", "--panel-header-bg": "#1a1a1a", "--panel-header-border": "#ffffff",
+        "--field-bg": "#0a0a0a", "--field-border": "#ffffff",
+        "--text-primary": "#ffffff", "--text-muted": "#d9d9d9", "--text-faint": "#bfbfbf",
+        "--sidebar-bg": "#000000", "--header-bg": "#000000", "--header-bg-2": "#000000", "--grid-line": "#595959", "--axis": "#ffffff",
+        "--c1": "#3987e5", "--c2": "#199e70", "--c3": "#c98500", "--c4": "#008300", "--c5": "#9085e9",
+        "--c6": "#e66767", "--c7": "#d55181", "--c8": "#d95926", "--c9": "#1c93a5", "--c10": "#c96a3a"
+      }
+    },
+    // N-DESIGN "a few stunning presets" — second alternate mood: a warm, paper-and-ink editorial
+    // boardroom look (cream/ink instead of Fleet Modern's cool blue-gray or High Contrast's stark
+    // black/white) — quieter, warmer, more "print report" than "software UI." Its own 10-color
+    // earthy-but-saturated series ramp (terracotta/teal/ochre/moss/plum/slate/rust/berry/forest/
+    // gold), re-validated against the #f7f3ea (light) / #1c1712 (dark) surfaces it actually uses
+    // via the dataviz skill's validate_palette.js — light: all six checks PASS with one legal
+    // WARN-band contrast slot (mustard/ochre, same mitigation as Fleet Modern's own amber slot —
+    // the app already ships direct-value labels); dark: all six checks PASS outright.
+    { key: "editorial", label: "Editorial", swatch: "#8a3324",
+      light: {
+        "--pentaho": "#8a3324", "--dk": "#2f4858",
+        "--app-bg": "#f7f3ea", "--panel-bg": "#fffdf8", "--panel-border": "#d8cdb8",
+        "--panel-subtle-bg": "#efe8d8", "--panel-header-bg": "#efe8d8", "--panel-header-border": "#d8cdb8",
+        "--field-bg": "#fffdf8", "--field-border": "#d8cdb8",
+        "--text-primary": "#2b241c", "--text-muted": "#6b5f4d", "--text-faint": "#8c8069",
+        "--sidebar-bg": "#2b241c", "--header-bg": "#2b241c", "--header-bg-2": "#3a3024", "--grid-line": "#e3dac5", "--axis": "#8c8069",
+        "--c1": "#b0451f", "--c2": "#0a8a7a", "--c3": "#c8890c", "--c4": "#1f8a3f", "--c5": "#8a3a63",
+        "--c6": "#2166a3", "--c7": "#c1591b", "--c8": "#a13e5c", "--c9": "#3f8a54", "--c10": "#9c6b1f"
+      },
+      dark: {
+        "--pentaho": "#c97b5e", "--dk": "#5a90a3",
+        "--app-bg": "#1c1712", "--panel-bg": "#24201a", "--panel-border": "#3d362b",
+        "--panel-subtle-bg": "#2c261f", "--panel-header-bg": "#2c261f", "--panel-header-border": "#3d362b",
+        "--field-bg": "#24201a", "--field-border": "#3d362b",
+        "--text-primary": "#f2ece0", "--text-muted": "#b8ac95", "--text-faint": "#8f8570",
+        "--sidebar-bg": "#141009", "--header-bg": "#141009", "--header-bg-2": "#1f1710", "--grid-line": "#332c22", "--axis": "#8f8570",
+        "--c1": "#c96a3f", "--c2": "#2a9c89", "--c3": "#b8842a", "--c4": "#3f9c58", "--c5": "#a3577d",
+        "--c6": "#4a86c2", "--c7": "#c96f3a", "--c8": "#b8597a", "--c9": "#4fa066", "--c10": "#b8863f"
+      }
+    },
+    // N-DESIGN "a few stunning presets" — third alternate mood: "Neon," a near-black-and-white
+    // synthwave/cyberpunk look (electric cyan + magenta brand accents on true near-black panels)
+    // for a completely different energy than Fleet Modern's cool corporate blue, High Contrast's
+    // stark black/white, or Editorial's warm paper-and-ink. Header/sidebar stay near-black in
+    // BOTH light and dark mode (same convention Fleet Modern already uses) so the brand strip
+    // always reads "neon on black" even when the panels themselves are light. Its own 10-color
+    // series ramp re-validated against the #fafafa (light) / #050507 (dark) surfaces it actually
+    // uses via the dataviz skill's validate_palette.js — dark: all six checks PASS outright;
+    // light: all six checks PASS with one legal WARN-band contrast slot (green), mitigated the
+    // same way every other theme's WARN slot is — the app already ships direct-value labels.
+    { key: "neon", label: "Neon", swatch: "#0891b2",
+      light: {
+        "--pentaho": "#0891b2", "--dk": "#c2185b",
+        "--app-bg": "#fafafa", "--panel-bg": "#ffffff", "--panel-border": "#e2dfea",
+        "--panel-subtle-bg": "#f1eff7", "--panel-header-bg": "#f1eff7", "--panel-header-border": "#e2dfea",
+        "--field-bg": "#ffffff", "--field-border": "#e2dfea",
+        "--text-primary": "#14101d", "--text-muted": "#4f4a63", "--text-faint": "#6f6885",
+        "--sidebar-bg": "#000000", "--header-bg": "#000000", "--header-bg-2": "#180022", "--grid-line": "#e9e6f0", "--axis": "#6f6885",
+        "--c1": "#0d6efd", "--c2": "#00a86b", "--c3": "#b8860b", "--c4": "#7b2fbf", "--c5": "#0e8a7a",
+        "--c6": "#e0342a", "--c7": "#c2298a", "--c8": "#d1650c", "--c9": "#2f5fb0", "--c10": "#a8461f"
+      },
+      dark: {
+        "--pentaho": "#22d3ee", "--dk": "#ff3fd0",
+        "--app-bg": "#050507", "--panel-bg": "#0d0d13", "--panel-border": "#26232f",
+        "--panel-subtle-bg": "#131018", "--panel-header-bg": "#131018", "--panel-header-border": "#26232f",
+        "--field-bg": "#0d0d13", "--field-border": "#26232f",
+        "--text-primary": "#f5f3fb", "--text-muted": "#a9a3c0", "--text-faint": "#7a7492",
+        "--sidebar-bg": "#000000", "--header-bg": "#000000", "--header-bg-2": "#14001a", "--grid-line": "#1c1826", "--axis": "#7a7492",
+        "--c1": "#1e96e8", "--c2": "#009c58", "--c3": "#c1811f", "--c4": "#9b5fe0", "--c5": "#0da090",
+        "--c6": "#f0524a", "--c7": "#e0479c", "--c8": "#d1650c", "--c9": "#3f6fc2", "--c10": "#c0632f"
+      }
+    },
+    // "Conservation" — the CTIC look (ctic.org, Conservation Technology Information Center),
+    // built from their published theme colors: the olive/field GREEN #72892b and deep pine
+    // DARK-GREEN #10432e (their --fl-global-ctic-green / --ctic-dark-green), on natural
+    // paper-sage light surfaces (deep-forest chrome) and a deep forest-green dark mode. Made
+    // for the Conservation Insight demo + any conservation-agriculture dashboard. The 10-color
+    // series ramp — field green, sky/water blue, harvest gold, wildflower plum, clay, teal,
+    // soil brown, indigo, leaf green, grape — was validated against the #ffffff (light) /
+    // #12241a (dark) surfaces it uses via the dataviz skill's validate_palette.js: BOTH light
+    // AND dark PASS all six checks outright. (CTIC's signature #FFDD00 CTA yellow is unreadable
+    // as a thin-mark/text token on white, so the ramp carries its readable harvest-gold form.)
+    { key: "conservation", label: "Conservation", swatch: "#72892b",
+      light: {
+        "--pentaho": "#72892b", "--dk": "#10432e",
+        "--app-bg": "#f3f5ec", "--panel-bg": "#ffffff", "--panel-border": "#dde3d1",
+        "--panel-subtle-bg": "#eaf0e0", "--panel-header-bg": "#eaf0e0", "--panel-header-border": "#dde3d1",
+        "--field-bg": "#ffffff", "--field-border": "#dde3d1",
+        "--text-primary": "#1e2a20", "--text-muted": "#55614c", "--text-faint": "#7b8473",
+        "--sidebar-bg": "#10432e", "--header-bg": "#10432e", "--header-bg-2": "#1a5c40", "--grid-line": "#e6ead9", "--axis": "#7b8473",
+        "--c1": "#72892b", "--c2": "#2479b3", "--c3": "#b5822e", "--c4": "#8a3f6b", "--c5": "#c8632e",
+        "--c6": "#1f9e8a", "--c7": "#9c5a24", "--c8": "#4a5fa8", "--c9": "#4f8f3a", "--c10": "#7a4b8f"
+      },
+      dark: {
+        "--pentaho": "#a3bd52", "--dk": "#6fb894",
+        "--app-bg": "#0c1a12", "--panel-bg": "#12241a", "--panel-border": "#274434",
+        "--panel-subtle-bg": "#16301f", "--panel-header-bg": "#16301f", "--panel-header-border": "#274434",
+        "--field-bg": "#12241a", "--field-border": "#274434",
+        "--text-primary": "#eaf1df", "--text-muted": "#a3b39a", "--text-faint": "#7e8c76",
+        "--sidebar-bg": "#08130c", "--header-bg": "#08130c", "--header-bg-2": "#10432e", "--grid-line": "#223528", "--axis": "#7e8c76",
+        "--c1": "#7f9a3c", "--c2": "#3f90cf", "--c3": "#b98d2a", "--c4": "#b573c0", "--c5": "#d1703a",
+        "--c6": "#2aa290", "--c7": "#c07c3f", "--c8": "#7089d8", "--c9": "#58a83f", "--c10": "#a074c4"
+      }
+    }
+  ];
+
+  // Built-in dashboard accent-color presets. Used by the per-dashboard "Accent color"
+  // picker (Dashboard inspector) and the Settings "Default accent color" picker (Z6).
+  // color: "" keeps whichever accent the active dashboard theme defines (terracotta for
+  // Polecat, #005bb5 for Classic) rather than pinning a specific hex.
+  Studio.THEME_PRESETS = [
+    { label: "Theme default", color: "" },
+    { label: "Ocean teal",  color: "#0d7a8a" },
+    { label: "Forest",      color: "#1a7a4a" },
+    { label: "Sunset",      color: "#d95f2b" },
+    { label: "Royal",       color: "#6b35a8" },
+    { label: "Coral rose",  color: "#c82b5e" }
+  ];
+
+  // Z6: banner title size presets — the one lever of "full text formatting" that's genuinely
+  // useful across the widest range of dashboards (default keeps dashkit.css's 17px/800-weight).
+  Studio.TITLE_SIZES = [
+    ["", "Default"],
+    ["sm", "Small"],
+    ["lg", "Large"],
+    ["xl", "Extra large"]
+  ];
+  Studio.TITLE_SIZE_PX = { sm: "14px", lg: "21px", xl: "27px" };
+  // Z6: subtitle text style — .dk-sub is font-weight:500 (not bold) and upright by default
+  // (vendor/dashkit.css); these two are independent toggles (a subtitle can be both bold and italic).
+  Studio.SUBTITLE_STYLES = [
+    ["", "Normal"],
+    ["italic", "Italic"],
+    ["bold", "Bold"],
+    ["bold-italic", "Bold italic"]
+  ];
+  // LF21: header alignment — where the brand mark + title + subtitle sit in the header bar.
+  // Left (default) matches today's flush-left layout untouched. Center/right are pure CSS
+  // (exporters.js headerAlignCss, a symmetric leading spacer vs. the header's existing
+  // trailing .spacer) — the info/print/waffle icon cluster always stays pinned to the far
+  // right regardless of this setting.
+  Studio.HEADER_ALIGNS = [
+    ["", "Left"],
+    ["center", "Center"],
+    ["right", "Right"]
+  ];
+  // N-DESIGN "chart skins" (first cut): an alternate render mood for every chart card + KPI tile,
+  // toggled dashboard-wide. "Raised" is today's default material (shadow + glass edge + hover lift,
+  // vendor/dashkit.css); "Flat" strips all three for a quieter, editorial-minimal boardroom look —
+  // same data, same layout, just a different surface treatment. "Sketch" (added later) swaps the
+  // shadow for a dashed, asymmetric-radius "hand-drawn" border instead — the whimsical mood the
+  // original chart-skins idea named alongside Flat. Additive CSS override (see exporters.js
+  // cardSkinCss), vendor/dashkit.css itself stays untouched.
+  Studio.CARD_SKINS = [
+    ["", "Raised (default)"],
+    ["flat", "Flat / minimal"],
+    ["sketch", "Sketch / hand-drawn"]
+  ];
+
+  Studio.emptySpec = function () {
+    return {
+      schema: 1,
+      id: Studio.uid("dash"),
+      name: "untitled",
+      title: "Untitled Dashboard",
+      subtitle: "",
+      group: "", // no category until the author sets one — a blank dashboard shouldn't claim "Observability"
+      description: "",
+      cda: { dataAccesses: [] },
+      filters: [],
+      kpis: [],
+      gridCols: 3,
+      themeColor: "", // optional hex color that overrides the theme accent in preview + exported html
+      dashboardTheme: "", // optional full look preset key (see Studio.DASHBOARD_THEMES); "" = classic; "custom" reads customTheme below. New blanks/examples are seeded with the Settings default (Polecat out of the box) at create/load time.
+      customTheme: null, // N-DESIGN theme studio: {light:{bg,panel,text,brand},dark:{...}} seed colors when dashboardTheme==="custom" (see Studio.deriveCustomTheme); null until the author picks Custom
+      paletteKey: "", // optional series palette key (see Studio.PALETTE_PRESETS); "" = default
+      headerLogo: "", // optional data: URL image that replaces the default "P" mark in the banner
+      headerLink: "", // optional URL — wraps the header brand mark+title in a link (opens in a new tab)
+      headerBg: "", // optional hex color that overrides the banner background (fg auto-contrasts); "" = default navy gradient
+      titleSize: "", // optional key into Studio.TITLE_SIZE_PX overriding the banner title's font size; "" = default
+      subtitleStyle: "", // optional key into Studio.SUBTITLE_STYLES ("italic"/"bold"/"bold-italic"); "" = default
+      headerAlign: "", // LF21: optional key into Studio.HEADER_ALIGNS ("center"/"right"); "" = default flush-left
+      cardSkin: "", // N-DESIGN: "flat" drops the raised shadow/hover-lift on chart cards + KPI tiles for an editorial-minimal mood; "" = default raised skin
+      renderMode: "", // LF20: fixed per-dashboard light/dark for the exported HTML ("" = light, "dark" = dark) — replaces the old in-header toggle button; the app-level light/dark control (canvas-bar #btnTheme) is separate and unaffected
+      templateVars: [], // N-DEV: [{key,value}] — {{key}} tokens in dashboard title/subtitle AND panel title/note get substituted at render time
+      panels: []
+    };
+  };
+
+  // N-DEV: dashboard templates/variables — replace every {{key}} token in `str` with the matching
+  // entry's value from `vars` ([{key,value}]). A token whose key has no matching var is left as
+  // literal text (visibly wrong beats silently blank — makes a typo obvious instead of hiding it).
+  // Pure/independently-testable; called from the shared buildHtml pipeline so preview and every
+  // export substitute identically with zero separate wiring.
+  Studio.applyTemplateVars = function (str, vars) {
+    if (!str || !vars || !vars.length) return str;
+    var map = {};
+    vars.forEach(function (v) { if (v && v.key) map[v.key] = v.value == null ? "" : v.value; });
+    return str.replace(/\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g, function (m, key) {
+      return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : m;
+    });
+  };
+
+  // find a dataAccess def in the spec by id
+  Studio.daById = function (spec, id) {
+    return (spec.cda.dataAccesses || []).filter(function (d) { return d.id === id; })[0] || null;
+  };
+  // ensure a dataAccess from the catalog is present in the spec (so exports are self-contained)
+  Studio.ensureDA = function (spec, daDef) {
+    if (!daDef) return;
+    if (!Studio.daById(spec, daDef.id)) spec.cda.dataAccesses.push(JSON.parse(JSON.stringify(daDef)));
+  };
+  Studio.columnsOf = function (spec, daId) {
+    var d = Studio.daById(spec, daId);
+    if (!d) return [];
+    var cols = (d.columns || []).slice();
+    // A calc column is a real, bindable output column (mirrors real Pentaho CDA behavior,
+    // which appends <CalculatedColumns> to the query's own columns) — offer it here too.
+    (d.calcColumns || []).forEach(function (c) {
+      if (c && c.name && c.formula && cols.indexOf(c.name) < 0) cols.push(c.name);
+    });
+    return cols;
+  };
+
+  // QA-03: canonical column-typing for a choropleth's idCol/valueCol/seriesCol, shared by
+  // Studio.newPanel (Explore's first-load default + any fresh panel) and studio.js's
+  // autoPickCols (the inspector's "Auto-pick columns" button) so both name-guess the same
+  // way instead of drifting. Root cause of the original bug: valueCol fell back to "the
+  // first column that isn't the id/series column" with no regard for whether it actually
+  // looked like a value — so a second id-shaped column (e.g. a state postal code alongside
+  // a county fips id) silently won over the real numeric column and rendered an empty map.
+  Studio.guessChoroplethCols = function (cols) {
+    cols = cols || [];
+    var idCol = cols.filter(function (c) { return /fips|county|state|region|huc|district|geo/i.test(c); })[0] || cols[0] || "";
+    var seriesCol = cols.filter(function (c) { return /provider|series|source|method/i.test(c) && c !== idCol; })[0] || "";
+    var candidates = cols.filter(function (c) { return c !== idCol && c !== seriesCol; });
+    var VALUE_LIKE = /value|total|count|sum|avg|amount|revenue|cost|rate|pct|score|qty|num|metric|acres/i;
+    var ID_LIKE = /fips|county|state|region|huc|district|geo|code|provider|series|source|method|^id$|_id$/i;
+    var valueCol = candidates.filter(function (c) { return VALUE_LIKE.test(c); })[0]
+      || candidates.filter(function (c) { return !ID_LIKE.test(c); })[0]
+      || candidates[0] || cols[1] || "";
+    return { idCol: idCol, valueCol: valueCol, seriesCol: seriesCol };
+  };
+
+  // QV-1 / VB-10: guess a choropleth's Region SCALE from its region-id column —
+  // the column NAME first (a huc8 column is Watersheds however its values look),
+  // then the shape of the first non-empty VALUE when the name is ambiguous.
+  // Returns a scale key ("county"|"state"|"huc8"|"cd"|"zcta"|"crd") or null when
+  // the column doesn't look geographic at all — callers keep their own default.
+  // Shared by Quick Views (xpGuessMapping) and the View Builder (bdMapScale) so
+  // the two editors can never disagree on what an id column means.
+  Studio.guessRegionScale = function (col, run) {
+    var n = String(col || "").toLowerCase();
+    if (/huc|watershed/.test(n)) return "huc8";
+    if (/congress|(^|_)cd$/.test(n)) return "cd";
+    if (/zip|zcta/.test(n)) return "zcta";
+    if (/crd|district/.test(n)) return "crd";
+    if (/state|postal/.test(n)) return "state";   // before fips: "state_fips" means STATES
+    if (/fips|geoid|county/.test(n)) return "county";
+    // Temporal names never fall through to the value-shape check — a year column's
+    // "2015" is 4 digits (CRD-shaped) and a quarter/date can look just as id-like,
+    // but a column NAMED for time is never a region id.
+    if (/year|date|month|day|week|quarter|time|period/.test(n)) return null;
+    var cols = (run && run.cols) || [], rows = (run && run.rows) || [];
+    var ci = cols.indexOf(col);
+    if (ci >= 0) {
+      var v = null;
+      for (var i = 0; i < rows.length && v == null; i++) { var x = rows[i][ci]; if (x != null && x !== "") v = String(x); }
+      if (v != null) {
+        if (/^[A-Za-z]{2}$/.test(v)) return "state";   // 2-letter postal
+        if (/^\d{8}$/.test(v)) return "huc8";          // 8-digit HUC
+        if (/^\d{5}$/.test(v)) return "county";        // 5-digit FIPS (zips catch on name above)
+        if (/^\d{4}$/.test(v)) return "crd";           // 4-digit NASS district
+      }
+    }
+    return null;
+  };
+
+  // default panel for a chart type bound to a dataAccess (auto column mapping)
+  Studio.newPanel = function (type, daDef) {
+    var cols = (daDef && daDef.columns) || [];
+    var c = Studio.CHARTS[type] || Studio.CHARTS.bars;
+    var map = {};
+    if (type === "parallelCoords") {
+      // Parallel coordinates: entity name column + ALL remaining columns as axes.
+      // More axes = richer multi-dimensional view; the inspector lets the user add/remove them.
+      map.labelCol = cols[0] || "";
+      map.series = cols.slice(1).map(function (col) { return { col: col }; });
+    } else if (type === "line" || type === "stacked" || type === "barNorm" || type === "areaStacked" || type === "streamgraph" || type === "step" || type === "bump") {
+      map.labelCol = cols[0] || "";
+      map.series = cols.slice(1, 2).map(function (col) { return { col: col }; });
+      if (!map.series.length && cols[1]) map.series = [{ col: cols[1] }];
+    } else if (type === "scatter") {
+      map.xCol = cols[1] || cols[0] || ""; map.yCol = cols[2] || cols[1] || "";
+      map.rCol = cols[3] || ""; map.labelCol = cols[0] || "";
+    } else if (type === "heatmap") {
+      map.rowCol = cols[0] || ""; map.colCol = cols[1] || ""; map.valueCol = cols[2] || cols[1] || "";
+    } else if (type === "radarSectors") {
+      // metrics wheel (CONS-3): [metric, category, score] positionally
+      map.labelCol = cols[0] || ""; map.catCol = cols[1] || ""; map.valueCol = cols[2] || cols[1] || "";
+    } else if (type === "choropleth") {
+      var choroGuess = Studio.guessChoroplethCols(cols);
+      map.idCol = choroGuess.idCol;
+      if (choroGuess.seriesCol) map.seriesCol = choroGuess.seriesCol;
+      map.valueCol = choroGuess.valueCol;
+    } else if (type === "ensembleSeries") {
+      var provCol = cols.filter(function (c) { return /provider|series|source|method/i.test(c); })[0];
+      map.labelCol = cols[0] || "";
+      map.seriesCol = provCol || cols[1] || "";
+      map.valueCol = cols.filter(function (c) { return c !== map.labelCol && c !== map.seriesCol; })[0] || cols[2] || "";
+    } else if (type === "table") {
+      map.cols = cols.map(function (col, i) { return { col: col, label: titleize(col), num: i > 0 }; });
+    } else if (type === "gauge") {
+      map.valueCol = cols[1] || cols[0] || "";
+    } else if (type === "combo") {
+      map.labelCol = cols[0] || ""; map.barCol = cols[1] || cols[0] || ""; map.lineCol = cols[2] || cols[1] || "";
+    } else if (type === "sankey" || type === "chord" || type === "network") {
+      map.sourceCol = cols[0] || ""; map.targetCol = cols[1] || cols[0] || ""; map.valueCol = cols[2] || cols[1] || "";
+    } else if (type === "sunburst") {
+      map.labelCol = cols[0] || ""; map.valueCol = cols[1] || cols[0] || ""; map.groupCol = cols[2] || "";
+    } else if (type === "bullet") {
+      map.labelCol = cols[0] || ""; map.valueCol = cols[1] || cols[0] || ""; map.targetCol = cols[2] || "";
+    } else if (type === "calHeatmap") {
+      map.dateCol = cols[0] || ""; map.valueCol = cols[1] || cols[0] || "";
+    } else if (type === "boxplot") {
+      map.labelCol = cols[0] || ""; map.valueCol = cols[1] || cols[0] || "";
+    } else if (type === "dumbbell") {
+      // dumbbell chart: label + start value + end value columns
+      map.labelCol = cols[0] || ""; map.startCol = cols[1] || cols[0] || ""; map.endCol = cols[2] || cols[1] || cols[0] || "";
+    } else if (type === "slope") {
+      // slope chart: label + two value columns (before, after)
+      map.labelCol = cols[0] || ""; map.valueCol1 = cols[1] || cols[0] || ""; map.valueCol2 = cols[2] || cols[1] || cols[0] || "";
+    } else if (type === "dotplot") {
+      map.labelCol = cols[0] || ""; map.valueCol = cols[1] || cols[0] || "";
+      map.groupCol = cols[2] || "";
+    } else if (type === "beeswarm") {
+      map.labelCol = cols[0] || ""; map.valueCol = cols[1] || cols[0] || "";
+      map.categoryCol = cols[2] || "";
+    } else if (type === "histogram") {
+      // Histogram only needs the numeric valueCol; labelCol is not used
+      map.valueCol = cols[1] || cols[0] || "";
+    } else if (type === "polarArea") {
+      map.labelCol = cols[0] || ""; map.valueCol = cols[1] || cols[0] || "";
+    } else if (type === "marimekko") {
+      map.labelCol = cols[0] || ""; map.groupCol = cols[1] || ""; map.valueCol = cols[2] || cols[1] || "";
+    } else if (type === "richtext") {
+      // text panel: no DA binding; content authored in the inspector
+    } else if (type === "divergingBar") {
+      // diverging bar: same two-column binding as bars (label + value; value may be negative)
+      map.labelCol = cols[0] || ""; map.valueCol = cols[1] || cols[0] || "";
+    } else if (type === "icicle") {
+      // icicle: optional groupCol (parent category), labelCol (item), valueCol (size)
+      map.labelCol = cols[0] || ""; map.valueCol = cols[1] || cols[0] || "";
+      map.groupCol = cols[2] || "";
+    } else if (type === "ridgeline") {
+      // ridgeline: labelCol = category (each gets a ridge), valueCol = numeric distribution
+      map.labelCol = cols[0] || ""; map.valueCol = cols[1] || cols[0] || "";
+    } else if (type === "areaRange") {
+      // area range: labelCol = x-axis, lowerCol = lower bound, upperCol = upper bound, centerCol optional
+      map.labelCol  = cols[0] || "";
+      map.lowerCol  = cols[1] || cols[0] || "";
+      map.upperCol  = cols[2] || cols[1] || cols[0] || "";
+      map.centerCol = cols[3] || "";
+    } else if (type === "quadrant") {
+      // quadrant: xCol + yCol for position; optional labelCol for point labels
+      map.xCol = cols[1] || cols[0] || "";
+      map.yCol = cols[2] || cols[1] || cols[0] || "";
+      map.labelCol = cols[0] || "";
+    } else { // bars, donut, treemap, funnel, waterfall
+      map.labelCol = cols[0] || ""; map.valueCol = cols[1] || cols[0] || "";
+    }
+    var opts = {};
+    (c.opts || []).forEach(function (o) { opts[o.key] = o.def; });
+    // Smart default title: strip leading "da_" / "kpi_" / "query_" prefix so IDs like
+    // "da_monthly_cost" become "Monthly Cost · Line chart" instead of "Da Monthly Cost".
+    var panelTitle = c.label;
+    if (daDef) {
+      var cleanId = String(daDef.id).replace(/^(da|kpi|query|chart|data)[_\-]/i, "");
+      panelTitle = titleize(cleanId) + " · " + c.label;
+    }
+    return {
+      id: Studio.uid("p"),
+      title: panelTitle,
+      span: 1,
+      pill: "", sub: "", info: "",
+      src: daDef ? daSource(daDef) : "",
+      chart: { type: type, da: daDef ? daDef.id : "", map: map, opts: opts }
+    };
+  };
+
+  Studio.newKpi = function (daDef) {
+    var cols = (daDef && daDef.columns) || [];
+    return { da: daDef ? daDef.id : "", valueCol: cols[0] || "", label: daDef ? titleize(daDef.id) : "Metric",
+             fmt: "n", state: "", info: "", subtitle: "" };
+  };
+
+  // best-effort "source" provenance caption from the SQL (first table after FROM)
+  function daSource(da) {
+    var m = /\bFROM\s+([a-zA-Z_][\w.]*)/i.exec(da.sql || "");
+    return m ? m[1] : (da.name || da.id);
+  }
+  Studio.daSource = daSource;
+
+  function titleize(s) {
+    if (!s) return "";
+    // split camelCase + snake/kebab into words
+    return String(s)
+      .replace(/[_-]+/g, " ")
+      .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/\b\w/g, function (c) { return c.toUpperCase(); })
+      .replace(/\bCo2e\b/i, "CO2e").replace(/\bTb\b/, "TB").replace(/\bGb\b/, "GB")
+      .replace(/\bKpi\b/i, "KPI").replace(/\bPct\b/i, "%");
+  }
+  Studio.titleize = titleize;
+
+  // LF62 (live-QA queue): a shared "suggest a name from context" heuristic — the pure
+  // half of the sparkle-button affordance (the DOM/button half lives in studio.js's
+  // withSparkleButton, which calls this). Deliberately dumb and deterministic (no
+  // network/LLM call): pick the most specific source-shaped string already on the
+  // form (a file name, table, collection, sheet, or a `FROM x` clause pulled out of
+  // raw SQL/PostgREST-query text) and run it through titleize() so the suggestion
+  // reads like the app's own dataset names (e.g. demopacks.js's "County cover-crop
+  // adoption") rather than a bare identifier. Returns "" when nothing usable is on
+  // the form yet — callers treat that as "can't suggest, tell the user why."
+  Studio.nameSuggest = function (kind, ctx) {
+    ctx = ctx || {};
+    function stripExt(s) { return String(s || "").trim().replace(/\.[a-zA-Z0-9]{1,6}$/, ""); }
+    function fromFromClause(sql) {
+      var m = /\bfrom\s+["'`\[]?([a-zA-Z0-9_.]+)["'`\]]?/i.exec(sql || "");
+      return m ? m[1].split(".").pop() : "";
+    }
+    if (kind === "dataset") {
+      var raw = stripExt(ctx.fileName) || ctx.table || ctx.collection || ctx.sheet ||
+        fromFromClause(ctx.sql) || fromFromClause(ctx.query);
+      if (raw) return titleize(raw);
+    }
+    if (kind === "job" && ctx.sourceDatasetName) return titleize(ctx.sourceDatasetName);
+    if (kind === "view") {
+      // A View's context is closer to a dataset's than a dashboard's: it's built
+      // over exactly ONE picked dataset/sample, so that dataset's own display name
+      // (same field Explore's own picker list shows) is the obvious suggestion.
+      // Falls back to the charted value column for a self-contained/orphaned
+      // analysis whose source dataset is gone.
+      if (ctx.sourceDatasetName) return titleize(ctx.sourceDatasetName);
+      if (ctx.valueCol) return titleize(ctx.valueCol);
+    }
+    if (kind === "dashboard") {
+      // No single "source" field on a dashboard the way a dataset/job/connection has —
+      // the best stand-in is whichever panel source shows up most often across the
+      // spec's own panels (each panel's `src` is already a short provenance caption,
+      // e.g. "entity_storage_demo"; a title's " · Bar chart" suffix is stripped as a
+      // fallback for panels that never got one). Ties go to whichever was seen first.
+      var panels = ctx.panels || [];
+      var raws = panels.map(function (p) { return p && p.src; }).filter(Boolean);
+      if (!raws.length) {
+        raws = panels.map(function (p) { return ((p && p.title) || "").replace(/\s*·.*$/, "").trim(); }).filter(Boolean);
+      }
+      if (raws.length) {
+        var counts = {}, firstSeen = {}, bestKey = "", bestCount = 0;
+        raws.forEach(function (r) {
+          var k = r.toLowerCase();
+          counts[k] = (counts[k] || 0) + 1;
+          if (!(k in firstSeen)) firstSeen[k] = r;
+        });
+        Object.keys(counts).forEach(function (k) {
+          if (counts[k] > bestCount) { bestCount = counts[k]; bestKey = k; }
+        });
+        if (bestKey) return titleize(firstSeen[bestKey]);
+      }
+    }
+    if (kind === "connection") {
+      var cfg = ctx.cfg || {};
+      // Prefer a field that names the actual target (database/project/account/…)
+      // over a bare hostname — those read as a much better connection name.
+      var direct = ["database", "project", "account", "catalog", "dataset", "schema",
+        "workgroupName", "clusterIdentifier", "tableName", "warehouse"];
+      var val = "";
+      for (var i = 0; i < direct.length && !val; i++) val = cfg[direct[i]];
+      if (!val) {
+        var hostish = cfg.host || cfg.fileUrl || cfg.url;
+        if (hostish) val = String(hostish).replace(/^[a-z]+:\/\//i, "").split("/")[0].replace(/^www\./, "").split(".")[0];
+      }
+      if (val) return titleize(val);
+    }
+    if (kind === "preset") {
+      // A preset (per-dashboard custom theme, or the Settings-level style preset) has
+      // no bound source field the way a dataset/connection does — suggest from
+      // whatever it's actually being saved FROM instead: a per-dashboard theme preset
+      // names itself after the dashboard it was captured on; the Settings style
+      // preset (workspace-wide defaults, not scoped to one dashboard) names itself
+      // after the currently selected default dashboard theme.
+      if (ctx.dashboardTitle && ctx.dashboardTitle !== "Untitled Dashboard") return titleize(ctx.dashboardTitle);
+      if (ctx.themeLabel) return titleize(ctx.themeLabel);
+    }
+    if (kind === "folder") {
+      // The dataset/connection/job "Folder" field is a grouping home, not a name pulled
+      // from a source — but two of those three forms are one hop downstream of another
+      // object that may already have a home worth reusing: a dataset's own connection, or
+      // a job's own source dataset (the connections -> datasets -> jobs chain). Reusing
+      // that linked folder keeps a family of related objects filed together by default.
+      // Connections sit at the top of that chain with nothing upstream to reuse, so they
+      // (and any object with no linked folder yet) fall back to the object's own first Tag
+      // — the closest existing categorization already sitting on the same form.
+      if (ctx.linkedFolder) return titleize(ctx.linkedFolder);
+      if (ctx.tags && ctx.tags.length) return titleize(ctx.tags[0]);
+    }
+    return "";
+  };
+
+  // map an output column name -> a sensible default fmt id (used on auto-bind)
+  Studio.guessFmt = function (col) {
+    var c = String(col || "").toLowerCase();
+    if (/cost|usd|monthly|annual|reclaim|saving|spend|price/.test(c)) return "money";
+    if (/\btb\b|\bgb\b|bytes|size|storage|footprint/.test(c)) return "gb";
+    if (/pct|percent|rate|coverage|completeness|ratio/.test(c)) return "pct";
+    return "abbr";
+  };
+
+  Studio.clone = function (o) { return JSON.parse(JSON.stringify(o)); };
+
+  // Shared HTML-escape for plain text nodes/attributes (NOT the sandboxed export
+  // iframe's own escapers — studio-render.js's `he` and model.js's own `svgEsc`
+  // below stay standalone on purpose, since model.js is not inlined into an
+  // export and merging would break that self-contained-export invariant).
+  Studio.escapeHtml = function (s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  };
+
+  // LF51 spec (c): row timestamps (Connections/Datasets/Jobs/Dashboards/Repository
+  // "last edited" badges) showed a bare date, hiding same-day edit order. One shared
+  // formatter so every "cx-when" badge reads a real date-time, in the viewer's own
+  // locale/timezone (unlike the changelog's deliberately-Central-time build stamp).
+  Studio.fmtWhen = function (ts) {
+    var d = ts instanceof Date ? ts : new Date(ts);
+    if (isNaN(d)) return "";
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) +
+      ", " + d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  };
+
+  // N-DIST: shareable state links — encode a whole dashboard spec into a URL-safe string so it
+  // can travel as a `#share=...` link with no server/file needed (extends the existing E4
+  // per-filter `#hash` deep-link, which only ever carried filter *defaults* for exported html,
+  // never the builder's own working spec). btoa/atob only handle Latin1, so JSON text is UTF-8
+  // escaped first (the standard unescape/escape round-trip) — this is why a plain
+  // `btoa(JSON.stringify(spec))` breaks the moment a title/label has a non-ASCII character.
+  Studio.encodeSpecToShareString = function (spec) {
+    return encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(spec)))));
+  };
+  Studio.decodeSpecFromShareString = function (str) {
+    try {
+      var spec = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(str)))));
+      return (spec && typeof spec === "object") ? spec : null;
+    } catch (e) { return null; }
+  };
+
+  // allTags: returns a sorted array of unique tag strings across all panels in the spec.
+  // Tags are stored as p.tags (array of lowercase trimmed strings). Used to populate the
+  // tag filter bar in the dashboard inspector so builders can highlight panels by topic.
+  Studio.allTags = function (spec) {
+    var seen = {}, tags = [];
+    (spec && spec.panels || []).forEach(function (p) {
+      (p.tags || []).forEach(function (t) {
+        var s = String(t).trim().toLowerCase();
+        if (s && !seen[s]) { seen[s] = 1; tags.push(s); }
+      });
+    });
+    return tags.sort();
+  };
+
+  /* ---- CDA authoring helpers ---- */
+  Studio.DA_KINDS = [
+    { id: "sql",           label: "SQL (sample engine)" },
+    { id: "duckdb",        label: "DuckDB-Wasm (remote Parquet/CSV, no backend)" },
+    { id: "httpvfs",       label: "SQLite-WASM (remote .sqlite over HTTP, no backend)" },
+    { id: "snowflake",     label: "Snowflake (SQL API, needs token + CORS allow-list)" },
+    { id: "databricks",    label: "Databricks (Statement Execution API, needs token + CORS allow-list)" },
+    { id: "bigquery",      label: "BigQuery (jobs.query REST API, needs OAuth token)" },
+    { id: "http",          label: "Generic SQL/HTTP (any JSON API that runs SQL and returns rows)" }
+  ];
+  Studio.COLUMN_TYPES = ["String", "Integer", "Numeric", "Date", "Boolean"];
+
+  // Z8 context-aware inspector: which panel inspector "interaction" sections actually do
+  // something for a given chart type. Mirrors the real wiring in studio-render.js (buildDetailCfg,
+  // drillCfg, cfData/csData, _crossFilters) — a section is only worth showing when the renderer
+  // for that type actually consumes it. Keep in sync with studio-render.js if a chart type gains
+  // (or drops) support for one of these.
+  Studio.ANNOT_CAPS = {
+    drill:      { bars: 1, donut: 1 },                            // DashKit.bars/donut accept cfg.drill
+    detail:     { bars: 1, donut: 1, treemap: 1, table: 1 },      // DashKit.*/table accept cfg.detail
+    crossFilter:{ bars: 1, donut: 1, treemap: 1, lollipop: 1, funnel: 1, waterfall: 1,
+                  stacked: 1, groupedBars: 1, barNorm: 1 }, // only these emit on click
+    condFmt:    { bars: 1, donut: 1, treemap: 1, lollipop: 1 },   // cfData() consumers
+    colorScale: { bars: 1, donut: 1, treemap: 1, lollipop: 1 }    // csData() consumers
+  };
+  // true when chart type `t` supports interaction/annotation kind `k` (one of ANNOT_CAPS' keys).
+  Studio.chartSupports = function (k, t) { return !!(Studio.ANNOT_CAPS[k] && Studio.ANNOT_CAPS[k][t]); };
+
+  // Viridis V2: which vendor/geo asset keys a spec's choropleth panels need.
+  // One pure helper shared by the preview/export inliner (exporters.js) and the
+  // lazy asset loader (studio.js) so they can never disagree. Returns [] when
+  // the spec has no map panels — exports stay geometry-free unless needed.
+  Studio.geoAssetKeys = function (spec) {
+    var scales = {};
+    ((spec && spec.panels) || []).forEach(function (p) {
+      if (p.chart && p.chart.type === "choropleth") scales[(p.chart.opts && p.chart.opts.scale) || "county"] = 1;
+    });
+    var keys = {};
+    if (scales.county) { keys.county = 1; keys.state = 1; }           // + state border overlay
+    if (scales.huc8) { keys.huc8 = 1; keys.state = 1; }
+    if (scales.cd) { keys.cd = 1; keys.state = 1; }
+    if (scales.zcta) { keys.zcta = 1; keys.state = 1; }
+    if (scales.crd) { keys.county = 1; keys.crdMap = 1; keys.state = 1; } // CRDs merge county geometry
+    // LF22(4): custom regions merge county geometry too, but the lookup table rides
+    // INSIDE the panel's own opts.customMap (a user import, not a vendored asset) — so
+    // unlike CRD there is no extra fetch key, just the same county+state geometry need.
+    if (scales.custom) { keys.county = 1; keys.state = 1; }
+    if (scales.state) { keys.state = 1; }
+    return Object.keys(keys);
+  };
+  // LF22(4): turn a 2-column "county FIPS, region name" CSV into the {fips:region}
+  // lookup the custom-regions choropleth scale groups counties by (studio-charts.js's
+  // geoFeatures merges county polygons per distinct region value, exactly like the
+  // built-in CRD scale merges them per NASS district — just from a user's own table
+  // instead of the vendored one). A pure function (no DOM) so it's unit-testable and
+  // reusable from both the full Inspector's import button and any future bulk path.
+  Studio.parseCustomGeoCsv = function (text) {
+    var parsed = Studio.parseCSVText(text);
+    if (!parsed.columns || parsed.columns.length < 2) throw new Error("Expected 2 columns: county FIPS, region name");
+    var map = {}, n = 0;
+    parsed.rows.forEach(function (r) {
+      var raw = String(r[0] == null ? "" : r[0]).trim();
+      var region = String(r[1] == null ? "" : r[1]).trim();
+      if (!raw || !region) return;
+      var fips = /^\d{1,5}$/.test(raw) ? ("00000" + raw).slice(-5) : raw;
+      map[fips] = region; n++;
+    });
+    if (!n) throw new Error("No valid county FIPS → region rows found");
+    return map;
+  };
+  // Viridis V4: true when any map panel opts into the MapLibre GL renderer —
+  // the preview/export inliner and the lazy asset loader share this so a GL
+  // dashboard always carries its engine and an SVG-only one never does.
+  Studio.usesGLMap = function (spec) {
+    return ((spec && spec.panels) || []).some(function (p) {
+      return p.chart && p.chart.type === "choropleth" && p.chart.opts && p.chart.opts.renderer === "gl";
+    });
+  };
+  Studio.newDA = function () {
+    return { id: Studio.uid("da"), name: "", kind: "sql", connectionId: "", sql: "", columns: [], params: [], calcColumns: [], cache: true, cacheDuration: 300 };
+  };
+  Studio.newCalcCol = function () { return { name: "", formula: "", type: "Numeric" }; };
+  Studio.newCompoundDA = function (compoundType) {
+    return { id: Studio.uid("cda"), name: "", kind: "compound", compoundType: compoundType || "join",
+             leftId: "", rightId: "", leftKeys: "", rightKeys: "",
+             unionDas: [], columns: [], cache: true, cacheDuration: 300 };
+  };
+  Studio.isCompoundDA = function (da) { return da && da.kind === "compound"; };
+
+  /* ---- AUD-06 slice 3: ONE filter-operator vocabulary ----------------------
+     Two surfaces defined the same conceptual operation twice. DA output rules
+     used 8 symbol ids (`=`, `>=`, `contains`, `startsWith`) with numeric-aware
+     comparison and a string fallback; the Job "Filter rows" step used 7 word
+     ids (`eq`/`ne`/`gt`/`gte`/`lt`/`lte`/`contains`) with string-only equality,
+     numeric-ONLY ordering (so `gt` on a date column matched nothing) and no
+     "starts with" — and it rendered those raw ids to the user as labels.
+
+     Studio.filterOps is now the single registry: one op list, one label set,
+     one predicate. Both on-disk spellings are kept and both keep being WRITTEN
+     by their own surface — a job step still persists `gte`, a DA filter still
+     persists `>=`. That is deliberate: workspaces are shared across clients
+     (and across the /dev/ and /stage/ previews, which share production's
+     localStorage — see AUD-04), so re-spelling saved rules would make an older
+     build silently misread them. Unification is in the CODE, not on disk;
+     normalize() maps either spelling onto one meaning at read time. */
+  Studio.filterOps = (function () {
+    // id = the DA/symbol spelling (canonical). alias = the job/word spelling.
+    var LIST = [
+      { id: "=",          alias: "eq",       label: "= equals" },
+      { id: "!=",         alias: "ne",       label: "≠ not equals" },
+      { id: ">",          alias: "gt",       label: "> greater than" },
+      { id: ">=",         alias: "gte",      label: "≥ greater or equal" },
+      { id: "<",          alias: "lt",       label: "< less than" },
+      { id: "<=",         alias: "lte",      label: "≤ less or equal" },
+      { id: "contains",   alias: "contains", label: "contains (text)" },
+      { id: "startsWith", alias: "startsWith", label: "starts with" }
+    ];
+    var CANON = {};
+    LIST.forEach(function (o) { CANON[o.id] = o.id; CANON[o.alias] = o.id; });
+
+    // Either spelling in, canonical id out; "" for anything unrecognised.
+    function normalize(op) { return CANON[String(op == null ? "" : op)] || ""; }
+    function get(op) { var c = normalize(op); return c ? LIST.filter(function (o) { return o.id === c; })[0] : null; }
+    function label(op) { var o = get(op); return o ? o.label : String(op == null ? "" : op); }
+
+    /* ---- AUD-06 slice 4: dates compare as DATES ------------------------
+       The predicate below used to lean entirely on parseFloat, which takes a
+       LEADING number: "2024-06-01" read as 2024, so ordering a date column
+       compared YEARS — `date >= 2024-06-01` quietly swept in the five months
+       before it, and every day of a year tied. dateKey() recognises the
+       ISO-8601 shapes this app actually stores and turns them into a
+       comparable instant, so a date filter means what a human means.
+
+       Deliberately STRICT about what counts as a date: only `YYYY-MM-DD`,
+       optionally a `T`/space time, optionally a zone — and the calendar date
+       has to be real (`2024-02-31` is not). Date.parse() would cheerfully
+       read "5" or "March", which would silently change the meaning of text
+       and number filters that have nothing to do with dates. Anything this
+       doesn't recognise falls through to the number/text comparison below,
+       exactly as before.
+
+       GRANULARITY: if either side is a plain date (no clock time), both
+       sides compare by DAY — so `= 2024-06-01` matches every row stamped
+       that day whatever the time says, and `<= 2024-06-01` includes the
+       whole day rather than only its first instant. Two timestamps compare
+       to the instant. A value with no zone reads as UTC on BOTH sides, so
+       what a filter matches never depends on the viewer's timezone. */
+    var ISO_DT = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?)?\s*(Z|z|[+-]\d{2}:?\d{2})?$/;
+    var DAY_MS = 86400000;
+    // → { ms, dayOnly } for an ISO-ish date/datetime, else null.
+    function dateKey(v) {
+      var m = ISO_DT.exec(String(v == null ? "" : v).trim());
+      if (!m) return null;
+      var mo = +m[2], day = +m[3], hh = +(m[4] || 0), mi = +(m[5] || 0), se = +(m[6] || 0);
+      if (mo < 1 || mo > 12 || day < 1 || day > 31 || hh > 23 || mi > 59 || se > 59) return null;
+      // Build the instant through setUTCFullYear so a year like 0099 stays
+      // itself (Date.UTC would map 0-99 into the 1900s).
+      var d = new Date(0);
+      d.setUTCFullYear(+m[1], mo - 1, day);
+      d.setUTCHours(hh, mi, se, 0);
+      // Reject a date the calendar doesn't have — Date rolls 2024-02-31 into March.
+      if (d.getUTCMonth() !== mo - 1 || d.getUTCDate() !== day) return null;
+      var ms = d.getTime(), z = m[7];
+      if (z && z !== "Z" && z !== "z") {
+        var zz = z.slice(1).replace(":", "");
+        ms -= (z.charAt(0) === "-" ? -1 : 1) * ((+zz.slice(0, 2)) * 60 + (+zz.slice(2, 4))) * 60000;
+      }
+      return { ms: ms, dayOnly: m[4] === undefined };
+    }
+    // -1 / 0 / 1 when BOTH sides are dates; null when they aren't (the caller
+    // then keeps its own number/text comparison — dates never hijack those).
+    function dateCmp(a, b) {
+      var ka = dateKey(a), kb = dateKey(b);
+      if (!ka || !kb) return null;
+      var x = ka.ms, y = kb.ms;
+      if (ka.dayOnly || kb.dayOnly) { x = Math.floor(x / DAY_MS) * DAY_MS; y = Math.floor(y / DAY_MS) * DAY_MS; }
+      return x < y ? -1 : (x > y ? 1 : 0);
+    }
+
+    // The one predicate. Dates first (above), then numeric when BOTH sides
+    // parse as numbers, otherwise a string comparison — so `>` orders plain
+    // text as well as numbers (the job step's comparators used to return
+    // false for anything non-numeric).
+    // null/undefined cells read as "" rather than the strings "null"/"undefined".
+    // An unrecognised operator passes the row through (never silently filters
+    // on some other operator's meaning — the same choice both surfaces now make
+    // for a rule written by a build this one doesn't know).
+    function test(cellValue, op, filterValue) {
+      var sv = String(cellValue == null ? "" : cellValue);
+      var fv = String(filterValue == null ? "" : filterValue);
+      var nv = parseFloat(sv), fnv = parseFloat(fv);
+      var numCmp = !isNaN(nv) && !isNaN(fnv);
+      var dc = dateCmp(sv, fv);
+      switch (normalize(op)) {
+        case "=":          return dc !== null ? dc === 0 : (numCmp ? nv === fnv : sv === fv);
+        case "!=":         return dc !== null ? dc !== 0 : (numCmp ? nv !== fnv : sv !== fv);
+        case ">":          return dc !== null ? dc > 0   : (numCmp ? nv > fnv   : sv > fv);
+        case ">=":         return dc !== null ? dc >= 0  : (numCmp ? nv >= fnv  : sv >= fv);
+        case "<":          return dc !== null ? dc < 0   : (numCmp ? nv < fnv   : sv < fv);
+        case "<=":         return dc !== null ? dc <= 0  : (numCmp ? nv <= fnv  : sv <= fv);
+        case "contains":   return sv.toLowerCase().indexOf(fv.toLowerCase()) >= 0;
+        case "startsWith": return sv.toLowerCase().indexOf(fv.toLowerCase()) === 0;
+        default:           return true;
+      }
+    }
+
+    // [value, label] pairs for a <select>. spelling: "id" (DA rules) or
+    // "alias" (job steps) — each surface keeps writing the ids it always wrote.
+    function pairs(spelling) {
+      var key = spelling === "alias" ? "alias" : "id";
+      return LIST.map(function (o) { return [o[key], o.label]; });
+    }
+
+    // One sentence, shown on the value box of BOTH surfaces, so the rules a
+    // filter actually follows are discoverable where they're typed.
+    var VALUE_HINT = "Text, a number, or a date (YYYY-MM-DD). Dates compare chronologically, and a plain date means the whole day.";
+
+    return { LIST: LIST, normalize: normalize, get: get, label: label, test: test, pairs: pairs,
+             dateKey: dateKey, dateCmp: dateCmp, VALUE_HINT: VALUE_HINT };
+  })();
+
+  /* ---- output options (post-query filter / sort / limit) ---- */
+  // The DA-rule face of Studio.filterOps (kept as its own name: the inspector
+  // and the suite have referenced it since before the vocabulary was shared).
+  Studio.DA_OPS = Studio.filterOps.LIST.map(function (o) { return { id: o.id, label: o.label }; });
+  Studio.newOutputFilter = function () { return { col: "", op: "=", val: "" }; };
+  Studio.newOutputSort   = function () { return { col: "", dir: "asc" }; };
+
+  // Apply outputOptions (filters / sortBy / limit) to a {cols, rows} result.
+  // Returns a new object with the same cols and a new, filtered/sorted/limited rows array.
+  // Explore rollups (group-by aggregation). Rolls {cols, rows} up by one or two
+  // group-by dimensions, aggregating the value column with sum/avg/median/min/
+  // max/count. The aggregated column KEEPS the value column's name, so a chart's
+  // existing mapping (labelCol → a group-by dim, valueCol → the measure) keeps
+  // working unchanged — the data just arrives pre-rolled-up. Applied via
+  // applyOutputOptions (below) so it runs everywhere a DA resolves: Explore
+  // preview, Home, dashboards and exports alike. count with no value column
+  // counts rows per group.
+  Studio.AGG_FNS = [
+    ["sum", "Sum"], ["avg", "Mean (average)"], ["median", "Median"],
+    ["min", "Min"], ["max", "Max"], ["count", "Count"]
+  ];
+  Studio.aggregateRows = function (cols, rows, spec) {
+    if (!spec || !spec.fn || spec.fn === "none") return { cols: cols, rows: rows };
+    var groupBy = (spec.groupBy || []).filter(function (c) { return c && cols.indexOf(c) >= 0; });
+    var fn = spec.fn, vi = spec.valueCol ? cols.indexOf(spec.valueCol) : -1;
+    var gi = groupBy.map(function (c) { return cols.indexOf(c); });
+    var outValName = (fn === "count" && vi < 0) ? "count" : (spec.valueCol || "count");
+    var outCols = groupBy.concat([outValName]);
+    var groups = {}, order = [];
+    rows.forEach(function (r) {
+      var key = gi.map(function (i) { return String(r[i]); }).join("");
+      if (!groups[key]) { groups[key] = { keyVals: gi.map(function (i) { return r[i]; }), vals: [] }; order.push(key); }
+      groups[key].vals.push(vi >= 0 ? r[vi] : 1);
+    });
+    function num(v) { var n = parseFloat(v); return isNaN(n) ? null : n; }
+    function agg(vals) {
+      if (fn === "count") return vals.length;
+      var nums = vals.map(num).filter(function (n) { return n != null; });
+      if (!nums.length) return null;
+      if (fn === "sum") return nums.reduce(function (a, b) { return a + b; }, 0);
+      if (fn === "avg") return nums.reduce(function (a, b) { return a + b; }, 0) / nums.length;
+      if (fn === "min") return Math.min.apply(null, nums);
+      if (fn === "max") return Math.max.apply(null, nums);
+      if (fn === "median") { var s = nums.slice().sort(function (a, b) { return a - b; }); var m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
+      return null;
+    }
+    var outRows = order.map(function (key) { var g = groups[key]; return g.keyVals.concat([agg(g.vals)]); });
+    return { cols: outCols, rows: outRows };
+  };
+
+  Studio.applyOutputOptions = function (da, result) {
+    if (!da || !da.outputOptions) return result;
+    var oo = da.outputOptions;
+    var cols = result.cols;
+    var rows = result.rows.slice();
+
+    // filters — skip entries with no column or empty value
+    var activeFilters = (oo.filters || []).filter(function (f) { return f.col && String(f.val || "") !== ""; });
+    activeFilters.forEach(function (f) {
+      var ci = cols.indexOf(f.col);
+      if (ci < 0) return;
+      rows = rows.filter(function (row) { return Studio.filterOps.test(row[ci], f.op, f.val); });
+    });
+
+    // aggregate (group-by rollup) — runs after filters, before sort/limit, so
+    // the sort and limit apply to the rolled-up rows.
+    if (oo.aggregate && oo.aggregate.fn && oo.aggregate.fn !== "none") {
+      var agg = Studio.aggregateRows(cols, rows, oo.aggregate);
+      cols = agg.cols; rows = agg.rows;
+    }
+
+    // sort
+    var activeSorts = (oo.sortBy || []).filter(function (s) { return s.col; });
+    if (activeSorts.length) {
+      rows.sort(function (a, b) {
+        for (var i = 0; i < activeSorts.length; i++) {
+          var s = activeSorts[i];
+          var ci = cols.indexOf(s.col);
+          if (ci < 0) continue;
+          var av = a[ci], bv = b[ci];
+          // AUD-06 slice 4: dates sort chronologically. parseFloat alone read
+          // "2024-06-01" as 2024, so every day of a year tied and the rows
+          // came out in whatever order the query happened to return.
+          var dcmp = Studio.filterOps.dateCmp(av, bv);
+          var na = parseFloat(av), nb = parseFloat(bv);
+          var cmp = dcmp !== null ? dcmp
+            : ((!isNaN(na) && !isNaN(nb)) ? na - nb : String(av || "").localeCompare(String(bv || "")));
+          if (cmp !== 0) return s.dir === "desc" ? -cmp : cmp;
+        }
+        return 0;
+      });
+    }
+
+    // row limit
+    var limit = oo.limit ? parseInt(oo.limit, 10) : 0;
+    if (limit > 0) rows = rows.slice(0, limit);
+
+    return { cols: cols, rows: rows };
+  };
+
+  // extract column aliases from SQL (SELECT … AS alias …)
+  Studio.detectColumns = function (sql) {
+    var out = [], seen = {};
+    var re = /\bAS\s+([`"'\[]?[a-zA-Z_]\w*[`"'\]]?)/gi, m;
+    while ((m = re.exec(sql || "")) !== null) {
+      var col = m[1].replace(/^[`"'\[]+|[`"'\]]+$/g, "");
+      if (!seen[col]) { seen[col] = 1; out.push(col); }
+    }
+    return out;
+  };
+
+  /* E3 — Dashboard thumbnail (SVG layout preview, no DOM/canvas needed).
+     Returns a raw SVG string representing the spec's visual structure:
+     a header strip, optional KPI row, and the panel grid with per-chart-type
+     accent colors. Embed directly via innerHTML or as a data: img src. */
+  // Resolve a dashboard theme key to its token object for the given light/dark mode.
+  // Returns null for "classic" (or unknown keys) — classic has no token overrides.
+  Studio.resolveThemeTokens = function (themeKey, mode) {
+    if (!themeKey || themeKey === "classic") return null;
+    var t = (Studio.DASHBOARD_THEMES || []).filter(function (x) { return x.key === themeKey; })[0];
+    if (!t) return null;
+    return (mode === "dark" ? t.dark : t.light) || null;
+  };
+
+  Studio.makeThumbnail = function (spec, theme, defaultThemeKey) {
+    var W = 240, H = 140, dark = theme === "dark";
+    // The thumbnail wears the dashboard's own whole-look theme (or the app default for specs
+    // that don't set one) so Home cards and the inspector preview match what opens.
+    var tk = spec.dashboardTheme === "custom" && spec.customTheme
+      ? Studio.deriveCustomTheme(spec.customTheme)[dark ? "dark" : "light"]
+      : Studio.resolveThemeTokens(spec.dashboardTheme || defaultThemeKey, dark ? "dark" : "light");
+    var bg   = tk ? tk["--app-bg"]       : (dark ? "#161c2b" : "#f4f6fb");
+    var card = tk ? tk["--panel-bg"]     : (dark ? "#1c2235" : "#ffffff");
+    var text = tk ? tk["--text-primary"] : (dark ? "#c8d4e8" : "#1a2742");
+    var accent = tk ? tk["--pentaho"] : "#005bb5";
+    var pal  = tk ? [tk["--c1"], tk["--c3"], tk["--c5"], tk["--c2"], tk["--c4"]]
+                  : ["#005bb5","#7d3c98","#2e8bd0","#00a39a","#e67e22"];
+    var cpals = { bars:pal[0],donut:pal[1],line:pal[2],stacked:pal[0],
+      areaStacked:pal[1],combo:pal[0],treemap:pal[3],scatter:pal[4],
+      gauge:(tk?tk["--c10"]:"#c0392b"),radar:pal[1],heatmap:pal[3],table:(tk?tk["--text-muted"]:"#2c3e50"),
+      waterfall:(tk?tk["--c6"]:"#27ae60"),funnel:pal[4],sankey:pal[0],chord:pal[1],
+      network:pal[2],sunburst:pal[2],bullet:(tk?tk["--c10"]:"#c0392b"),calHeatmap:pal[3],kpi:pal[0] };
+    function svgEsc(s) { return (s || "").slice(0,32).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+    var p = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '">'];
+    p.push('<rect width="' + W + '" height="' + H + '" fill="' + bg + '"/>');
+    p.push('<rect width="' + W + '" height="20" fill="' + card + '"/>');
+    p.push('<rect width="3" height="20" fill="' + accent + '"/>');
+    p.push('<text x="8" y="13" font-family="system-ui,sans-serif" font-size="8.5" font-weight="700" fill="' + text + '">' + svgEsc(spec.title || "Dashboard") + '</text>');
+    var kpis = spec.kpis || [], startY = 24;
+    if (kpis.length) {
+      var kCount = Math.min(kpis.length, 6);
+      var kw = (W - 12 - (kCount - 1) * 4) / kCount;
+      for (var ki = 0; ki < kCount; ki++) {
+        var kx = 6 + ki * (kw + 4);
+        p.push('<rect x="' + kx + '" y="' + startY + '" width="' + kw + '" height="17" rx="2" fill="' + card + '"/>');
+        p.push('<rect x="' + kx + '" y="' + startY + '" width="3" height="17" fill="' + pal[ki % 5] + '"/>');
+      }
+      startY += 22;
+    }
+    var panels = spec.panels || [], cols = spec.gridCols || 3;
+    if (panels.length) {
+      var rows = Math.ceil(panels.length / cols), avail = H - startY - 4;
+      var pw = (W - 12 - (cols - 1) * 4) / cols;
+      var ph = Math.min((avail - (rows - 1) * 4) / rows, 40);
+      var pcol = 0, prow = 0;
+      for (var pi = 0; pi < panels.length && prow < 4; pi++) {
+        var panel = panels[pi];
+        var span = panel.span === "full" ? cols : Math.min(+panel.span || 1, cols);
+        if (pcol + span > cols) { pcol = 0; prow++; }
+        var px = 6 + pcol * (pw + 4), py = startY + prow * (ph + 4);
+        var pws = pw * span + 4 * (span - 1);
+        var cc = cpals[panel.chart && panel.chart.type] || accent;
+        p.push('<rect x="' + px + '" y="' + py + '" width="' + pws + '" height="' + ph + '" rx="2" fill="' + card + '"/>');
+        p.push('<rect x="' + px + '" y="' + py + '" width="' + pws + '" height="' + ph + '" rx="2" fill="' + cc + '" opacity="0.18"/>');
+        p.push('<rect x="' + px + '" y="' + py + '" width="' + pws + '" height="2.5" fill="' + cc + '" rx="1"/>');
+        pcol += span; if (pcol >= cols) { pcol = 0; prow++; }
+      }
+    }
+    p.push('</svg>');
+    return p.join("");
+  };
+
+  // Column aliases from a SQL string (used by the data-source builder's
+  // "Detect" button and dataset imports). Rescued from the retired Pentaho
+  // module — nothing Pentaho about it.
+  Studio.colsFromSql = function (sql) {
+    var cols = [], re = /\bAS\s+([a-zA-Z_]\w*)/gi, m;
+    sql = String(sql || "");
+    while ((m = re.exec(sql))) if (cols.indexOf(m[1]) < 0) cols.push(m[1]);
+    return cols;
+  };
+
+  // LF63 slice 3 — a deliberately LIGHTWEIGHT, dialect-agnostic sanity pass over a SQL
+  // string (the data-source builder's live lint). NOT a parser: the app talks to seven
+  // different engines, so anything cleverer than balance/shape checks would false-positive
+  // its way into being ignored. Returns an array of { level:'warn', msg } — empty means
+  // "nothing obviously wrong", never "valid SQL". The Preview/Test buttons remain the real
+  // run-the-query verification path. Pure (string in, issues out) so it's unit-testable.
+  Studio.sqlLint = function (sql, declaredCols) {
+    var issues = [];
+    sql = String(sql || "");
+    if (!sql.trim()) return issues;
+    // Strip string literals + line comments FIRST so quotes/parens inside them don't
+    // count, then check balance on what's left. '' escapes inside a literal are handled
+    // by the literal regex itself ('a''b' is one literal).
+    var stripped = sql.replace(/'(?:[^']|'')*'/g, "''").replace(/--[^\n]*/g, "");
+    if ((stripped.match(/'/g) || []).length % 2 !== 0)
+      issues.push({ level: "warn", msg: "Unbalanced single quote — a string literal never closes." });
+    if ((stripped.match(/"/g) || []).length % 2 !== 0)
+      issues.push({ level: "warn", msg: "Unbalanced double quote — a quoted identifier never closes." });
+    var open = (stripped.match(/\(/g) || []).length, close = (stripped.match(/\)/g) || []).length;
+    if (open !== close)
+      issues.push({ level: "warn", msg: "Unbalanced parentheses — " + open + " opening vs " + close + " closing." });
+    if (!/^\s*(select|with)\b/i.test(sql))
+      issues.push({ level: "warn", msg: "Queries here are reads — expected the statement to start with SELECT or WITH." });
+    // Declared columns the query never mentions: only when the query is explicit enough
+    // to judge (no SELECT * anywhere) — a bare word-boundary containment check, cheap and
+    // dialect-safe. Catches the classic drift where a chip was renamed but the SQL wasn't.
+    if (declaredCols && declaredCols.length && stripped.indexOf("*") < 0) {
+      declaredCols.forEach(function (c) {
+        if (!c) return;
+        var re2 = new RegExp("\\b" + c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i");
+        if (!re2.test(sql))
+          issues.push({ level: "warn", msg: "Declared column “" + c + "” never appears in the query — rename the chip or alias it in the SELECT." });
+      });
+    }
+    return issues;
+  };
+
+  /* ---------- exported .html → spec (Studio exports embed window.STUDIO_SPEC) ---------- */
+  Studio.parseDashboardHtml = function (html) {
+    var m = /window\.STUDIO_SPEC\s*=\s*\{/.exec(html); if (!m) return null;   // the assignment, not toolkit refs
+    var b = m.index + m[0].length - 1;
+    var depth = 0, inStr = false, esc2 = false, end = -1;
+    for (var k = b; k < html.length; k++) {
+      var ch = html[k];
+      if (inStr) { if (esc2) esc2 = false; else if (ch === "\\") esc2 = true; else if (ch === '"') inStr = false; }
+      else if (ch === '"') inStr = true; else if (ch === "{") depth++; else if (ch === "}") { depth--; if (depth === 0) { end = k + 1; break; } }
+    }
+    if (end < 0) return null;
+    try { return JSON.parse(html.slice(b, end)); } catch (e) { return null; }
+  };
+
+  // Track L (architecture sweep): shared by both browser-native connectors (duckdb.js, sqlitehttp.js) —
+  // each defined a byte-identical private copy of this promise-timeout wrapper. Consolidated here
+  // alongside Studio.friendlyConnectorError (the same pair's other shared helper, extracted in v170)
+  // so the two connectors can't drift on timeout-message wording again.
+  Studio.withTimeout = function (promise, ms, label) {
+    return new Promise(function (resolve, reject) {
+      var timer = setTimeout(function () { reject(new Error((label || "Operation") + " timed out — check the URL and your network connection.")); }, ms);
+      promise.then(
+        function (v) { clearTimeout(timer); resolve(v); },
+        function (e) { clearTimeout(timer); reject(e); }
+      );
+    });
+  };
+
+  // basic validation -> array of {level, msg}
+  // Z14 slice 4 — shared error-message polish for the browser-native connectors (DuckDB-Wasm,
+  // SQLite-WASM-HTTP): both fail in the same handful of recognizable ways (CORS blocked, host
+  // doesn't support HTTP Range Requests, plain network/DNS failure) but the raw browser error
+  // ("Failed to fetch", "NetworkError when attempting to fetch resource") means little to someone
+  // authoring a data source. Appends one plain-English, actionable hint when a known pattern
+  // matches; otherwise returns the original message untouched.
+  Studio.friendlyConnectorError = function (message) {
+    var msg = String(message || "Unknown error");
+    var low = msg.toLowerCase();
+    var hint = null;
+    if (/failed to fetch|networkerror|load failed|cors/.test(low)) {
+      hint = "This usually means the host doesn't allow cross-origin requests (CORS) or blocks HTTP Range Requests. Try a public S3/GCS/R2 bucket with CORS enabled for your origin, or a direct static-file host.";
+    } else if (/timed out/.test(low)) {
+      hint = "The file may be unreachable, very large, or the host may be slow to respond to range requests — double-check the URL in a new browser tab first.";
+    } else if (/404|not found/.test(low)) {
+      hint = "The file URL returned a 404 — double-check the path and that the file is publicly readable.";
+    }
+    return hint ? msg + " — " + hint : msg;
+  };
+
+  Studio.validate = function (spec) {
+    var out = [];
+    if (!spec.name || !/^[a-z0-9][a-z0-9-]*$/.test(spec.name))
+      out.push({ level: "error", msg: "Name must be lowercase letters/numbers/dashes (used for file names)." });
+    if (!spec.title) out.push({ level: "warn", msg: "Dashboard has no title." });
+    if (!spec.panels.length && !spec.kpis.length) out.push({ level: "warn", msg: "Dashboard has no panels or KPIs." });
+    spec.panels.forEach(function (p) {
+      if (!p.chart.da) out.push({ level: "error", msg: "Panel “" + (p.title || p.id) + "” has no data query bound." });
+    });
+    // N-DATA innovation idea (added 2026-07-04, "dashboard health score"): flag a declared data
+    // access that no panel/KPI actually references — dead config left over from an earlier draft
+    // that a builder would otherwise never notice (it doesn't break anything, it's just unused).
+    var das = (spec.cda && spec.cda.dataAccesses) || [];
+    var usedDaIds = {};
+    spec.panels.forEach(function (p) { if (p.chart && p.chart.da) usedDaIds[p.chart.da] = true; });
+    (spec.kpis || []).forEach(function (k) { if (k.da) usedDaIds[k.da] = true; });
+    // Found while extending this check: a DA bound only to a filter, or only feeding a compound
+    // (join/union) DA as its leftId/rightId source, was wrongly flagged "unused" — neither of those
+    // is dead config. Filters bind a DA directly (Studio.addFilter's `f.da`); a compound DA's own
+    // leftId/rightId sources are used BY that compound DA even with no panel bound straight to them.
+    (spec.filters || []).forEach(function (f) { if (f.da) usedDaIds[f.da] = true; });
+    das.forEach(function (da) {
+      if (Studio.isCompoundDA(da)) { if (da.leftId) usedDaIds[da.leftId] = true; if (da.rightId) usedDaIds[da.rightId] = true; }
+    });
+    das.forEach(function (da) {
+      if (!usedDaIds[da.id]) out.push({ level: "info", msg: "Data access “" + (da.name || da.id) + "” is declared but not used by any panel, KPI, or filter." });
+    });
+    // N-DATA follow-up (closes the "broken drill-through/detail-drawer target" health-score item):
+    // panel/KPI drill-through (`p.drill`/`k.drill`) only ever targets an external URL, which can't
+    // be meaningfully validated offline — but the Detail drawer (`p.detail.da`) targets a DA id
+    // INSIDE this same spec, and that DA can be deleted or renamed after the drawer was wired up.
+    // When that happens, clicking the chart silently does nothing (DashKit.openDetail finds no
+    // matching DA) — no error, no console warning, just a dead click. Flag it here instead.
+    var daIds = {}; das.forEach(function (da) { daIds[da.id] = true; });
+    spec.panels.forEach(function (p) {
+      if (p.detail && p.detail.da && !daIds[p.detail.da]) {
+        out.push({ level: "warn", msg: "Panel “" + (p.title || p.id) + "”'s Detail drawer points to a data access that no longer exists — clicking a chart element will silently do nothing." });
+      }
+    });
+    // N-DATA innovation idea follow-up: the "still open" half of the dashboard health score idea
+    // — run the existing Data quality watchdog (v260/v261) over every bound DA's own sample rows,
+    // not just the DA that happens to be selected in the inspector at the time. Compound DAs have
+    // no sample rows of their own (they're a join/union OF other DAs), so they're skipped here.
+    das.forEach(function (da) {
+      if (Studio.isCompoundDA(da) || !usedDaIds[da.id]) return; // an orphaned DA already has its own note above
+      var sample;
+      try { sample = Studio.sampleRows({ id: da.id, columns: da.columns || [], params: da.params || [] }).rows; } catch (e) { sample = []; }
+      Studio.dataQualityIssues(da.columns || [], sample).forEach(function (issue) {
+        out.push({ level: "warn", msg: "Data access “" + (da.name || da.id) + "”: " + Studio.dataQualityMessage(issue) });
+      });
+    });
+    // Architecture-gap finding (2026-07-04): the six direct-query connectors (DuckDB/SQLite/
+    // Snowflake/Databricks/BigQuery/Generic SQL) run genuinely live in the builder's own Test
+    // connection/Run live flow, but (at the time of this finding) the exported/deployed Dashboard
+    // Framework had no runtime query path for any of them — a real deployment would silently show
+    // only the offline sample data these DAs were authored against. DuckDB/SQLite got a real
+    // runtime path first (studio-render.js's DashKit.cda dispatch + exporters.js bundling their façade
+    // only when used). **The four token-based kinds now have one too** (post-overhaul backlog item
+    // 3 follow-up): exporters.js redacts each DA's secret field at export time and studio-render.js
+    // prompts for it at open, in-memory only, never re-embedded — so this finding is fully closed;
+    // DIRECT_DA_KINDS/the warning it drove are retired.
+    return out;
+  };
+
+  // N-DATA innovation idea follow-up ("dashboard health score" — closes the still-open "glanceable
+  // score beyond the Checks-section notes" half): a one-line summary of a Studio.validate() result,
+  // used as the Checks section's collapsed-state hint (section()'s summaryFn hook).
+  Studio.checksSummary = function (issues) {
+    if (!issues || !issues.length) return "all clear";
+    var errs = 0, warns = 0, infos = 0;
+    issues.forEach(function (x) {
+      if (x.level === "error") errs++; else if (x.level === "warn") warns++; else infos++;
+    });
+    var parts = [];
+    if (errs) parts.push(errs + (errs === 1 ? " error" : " errors"));
+    if (warns) parts.push(warns + (warns === 1 ? " warning" : " warnings"));
+    if (infos) parts.push(infos + (infos === 1 ? " note" : " notes"));
+    return parts.join(", ");
+  };
+
+  // N-FUN (Track N innovation backlog): "Build-completeness meter" — a tasteful, game-like nudge
+  // toward a well-rounded dashboard, distinct from Studio.validate() above (which only flags real
+  // problems). This is aspirational/gentle, never an error: a dashboard with zero KPIs is valid, but
+  // celebrating "you added one" is the fun, encouraging framing the north star asks for.
+  Studio.dashboardCompleteness = function (spec) {
+    var items = [
+      { key: "title",  label: "Give it a title",        done: !!(spec.title && spec.title.trim() && spec.title !== "Untitled Dashboard") },
+      { key: "panel",  label: "Add a panel",             done: (spec.panels || []).length > 0 },
+      { key: "kpi",    label: "Add a KPI tile",          done: (spec.kpis || []).length > 0 },
+      { key: "filter", label: "Add a filter",            done: (spec.filters || []).length > 0 },
+      { key: "style",  label: "Add your own accent color or logo", done: !!(spec.themeColor || spec.dashboardTheme || spec.paletteKey || spec.headerLogo) },
+    ];
+    var done = items.filter(function (i) { return i.done; }).length;
+    return { done: done, total: items.length, items: items };
+  };
+
+  // N-DIST follow-up: side-by-side diff between two dashboard specs (e.g. a past version
+  // history checkpoint vs. the current working spec) — "what changed" for time travel.
+  // Pure/testable: no DOM, no DashKit. Panels/filters match by their stable `id`; KPIs have no
+  // id (positional array), so they're compared by index. Field/value changes inside a
+  // matched panel/KPI/filter are reported as one JSON-equality check (not a nested diff) —
+  // enough to say "this changed," which is what a checkpoint-restore decision needs.
+  var DIFF_FIELDS = [
+    ["title", "Title"], ["subtitle", "Subtitle"], ["name", "File name"], ["description", "Description"],
+    ["themeColor", "Accent color"], ["headerBg", "Header background color"], ["headerLink", "Header link"],
+    ["titleSize", "Title size"], ["subtitleStyle", "Subtitle style"], ["headerAlign", "Header alignment"], ["paletteKey", "Series palette"],
+    ["dashboardTheme", "Dashboard theme"],
+    ["gridCols", "Grid columns"]
+  ];
+  Studio.diffSpecs = function (a, b) {
+    a = a || {}; b = b || {};
+    var out = { fields: [], panels: { added: [], removed: [], changed: [] }, kpis: { added: 0, removed: 0, changed: 0 }, filters: { added: [], removed: [], changed: [] } };
+    DIFF_FIELDS.forEach(function (f) {
+      var from = a[f[0]] || "", to = b[f[0]] || "";
+      if (from !== to) out.fields.push({ key: f[0], label: f[1], from: from, to: to });
+    });
+    if ((a.headerLogo || "") !== (b.headerLogo || "")) {
+      out.fields.push({ key: "headerLogo", label: "Header logo", from: a.headerLogo ? "custom image" : "(none)", to: b.headerLogo ? "custom image" : "(none)" });
+    }
+    if (JSON.stringify(a.customTheme || null) !== JSON.stringify(b.customTheme || null)) {
+      out.fields.push({ key: "customTheme", label: "Custom theme colors", from: a.customTheme ? "customized" : "(none)", to: b.customTheme ? "customized" : "(none)" });
+    }
+    var aP = a.panels || [], bP = b.panels || [];
+    var aPMap = {}; aP.forEach(function (p) { aPMap[p.id] = p; });
+    var bPMap = {}; bP.forEach(function (p) { bPMap[p.id] = p; });
+    bP.forEach(function (p) { if (!aPMap[p.id]) out.panels.added.push(p.title || p.id); });
+    aP.forEach(function (p) {
+      var bp = bPMap[p.id];
+      if (!bp) out.panels.removed.push(p.title || p.id);
+      else if (JSON.stringify(p) !== JSON.stringify(bp)) out.panels.changed.push(bp.title || bp.id);
+    });
+    var aK = a.kpis || [], bK = b.kpis || [];
+    if (bK.length > aK.length) out.kpis.added = bK.length - aK.length;
+    if (aK.length > bK.length) out.kpis.removed = aK.length - bK.length;
+    for (var i = 0; i < Math.min(aK.length, bK.length); i++) {
+      if (JSON.stringify(aK[i]) !== JSON.stringify(bK[i])) out.kpis.changed++;
+    }
+    var aF = a.filters || [], bF = b.filters || [];
+    var aFMap = {}; aF.forEach(function (f) { aFMap[f.id] = f; });
+    var bFMap = {}; bF.forEach(function (f) { bFMap[f.id] = f; });
+    bF.forEach(function (f) { if (!aFMap[f.id]) out.filters.added.push(f.label || f.id); });
+    aF.forEach(function (f) {
+      var bf = bFMap[f.id];
+      if (!bf) out.filters.removed.push(f.label || f.id);
+      else if (JSON.stringify(f) !== JSON.stringify(bf)) out.filters.changed.push(bf.label || bf.id);
+    });
+    return out;
+  };
+  // Flattens a diffSpecs() result into plain-English lines for display; [] means identical.
+  Studio.diffSummary = function (diff) {
+    var lines = [];
+    (diff.fields || []).forEach(function (f) {
+      lines.push(f.label + ": “" + (f.from || "(empty)") + "” → “" + (f.to || "(empty)") + "”");
+    });
+    function group(kind, d) {
+      if (d.added && d.added.length) lines.push(d.added.length + " " + kind + (d.added.length === 1 ? "" : "s") + " added: " + d.added.join(", "));
+      if (d.removed && d.removed.length) lines.push(d.removed.length + " " + kind + (d.removed.length === 1 ? "" : "s") + " removed: " + d.removed.join(", "));
+      if (d.changed) {
+        var n = typeof d.changed === "number" ? d.changed : d.changed.length;
+        var names = typeof d.changed === "number" ? "" : (d.changed.length ? ": " + d.changed.join(", ") : "");
+        if (n) lines.push(n + " " + kind + (n === 1 ? "" : "s") + " changed" + names);
+      }
+    }
+    group("panel", diff.panels); group("KPI", diff.kpis); group("filter", diff.filters);
+    return lines;
+  };
+
+  // N-DIST follow-up: diff-based share links. The "#share=" link above always encodes the
+  // WHOLE spec — fine the first time, wasteful/unwieldy for handing off a small edit to
+  // someone who already has the dashboard. buildSharePatch/applySharePatch reuse diffSpecs'
+  // exact matching rules (panels/filters by stable id, kpis positional since they carry none,
+  // scalar fields per DIFF_FIELDS) but produce/consume an APPLICABLE patch object instead of
+  // diffSummary's human-readable text. studio-share-base (one localStorage blob, keyed by
+  // dashboard id, same shape as studio-versions) tracks the last full spec either side of a
+  // share saw it at — set whenever a full spec is generated or opened — so a later diff link
+  // has something to apply against on both ends with no server involved.
+  var _LS_SHARE_BASE = "studio-share-base";
+  function loadShareBases() {
+    try { var v = localStorage.getItem(_LS_SHARE_BASE); var p = v ? JSON.parse(v) : {}; return (p && typeof p === "object") ? p : {}; } catch (e) { return {}; }
+  }
+  Studio.getShareBase = function (id) {
+    if (!id) return null;
+    return loadShareBases()[id] || null;
+  };
+  Studio.setShareBase = function (id, spec) {
+    if (!id || !spec) return;
+    var all = loadShareBases();
+    all[id] = JSON.parse(JSON.stringify(spec));
+    try { localStorage.setItem(_LS_SHARE_BASE, JSON.stringify(all)); } catch (e) { /* quota or private-mode */ }
+  };
+  var SHARE_PATCH_SCALARS = DIFF_FIELDS.map(function (f) { return f[0]; }).concat(["headerLogo"]);
+  // `order` (cur's own id sequence) is what makes reapplying byte-order-faithful even when an
+  // item is inserted or removed from the middle of the list — added/changed only need to carry
+  // NEW/CHANGED items (unchanged ids stay pointers back into the base), but order alone tells
+  // applySharePatch exactly where every id — new, changed, or untouched — belongs in the result.
+  function shareListPatch(baseList, curList) {
+    var bMap = {}; (baseList || []).forEach(function (x) { bMap[x.id] = x; });
+    var cMap = {}; (curList || []).forEach(function (x) { cMap[x.id] = x; });
+    var out = { order: (curList || []).map(function (x) { return x.id; }), added: [], changed: {} };
+    (curList || []).forEach(function (x) {
+      var bx = bMap[x.id];
+      if (!bx) out.added.push(x);
+      else if (JSON.stringify(bx) !== JSON.stringify(x)) out.changed[x.id] = x;
+    });
+    return out;
+  }
+  Studio.buildSharePatch = function (base, cur) {
+    base = base || {}; cur = cur || {};
+    var patch = { fields: {} };
+    SHARE_PATCH_SCALARS.forEach(function (k) {
+      if ((base[k] || "") !== (cur[k] || "")) patch.fields[k] = cur[k];
+    });
+    if (JSON.stringify(base.customTheme || null) !== JSON.stringify(cur.customTheme || null)) {
+      patch.fields.customTheme = cur.customTheme || null;
+    }
+    patch.panels = shareListPatch(base.panels, cur.panels);
+    patch.filters = shareListPatch(base.filters, cur.filters);
+    // kpis carry no stable id (matched positionally elsewhere) — patch wholesale when anything differs
+    if (JSON.stringify(base.kpis || []) !== JSON.stringify(cur.kpis || [])) patch.kpis = cur.kpis || [];
+    return patch;
+  };
+  function shareApplyList(list, p) {
+    if (!p) return (list || []).slice();
+    var pool = {};
+    (list || []).forEach(function (x) { pool[x.id] = x; });
+    (p.added || []).forEach(function (x) { pool[x.id] = x; });
+    Object.keys(p.changed || {}).forEach(function (id) { pool[id] = p.changed[id]; });
+    return (p.order || []).map(function (id) { return pool[id]; }).filter(Boolean);
+  }
+  Studio.applySharePatch = function (base, patch) {
+    var out = JSON.parse(JSON.stringify(base || {}));
+    patch = patch || {};
+    if (patch.fields) Object.keys(patch.fields).forEach(function (k) { out[k] = patch.fields[k]; });
+    out.panels = shareApplyList(out.panels, patch.panels);
+    out.filters = shareApplyList(out.filters, patch.filters);
+    if (patch.kpis) out.kpis = patch.kpis;
+    return out;
+  };
+})();

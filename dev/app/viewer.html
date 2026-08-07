@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="robots" content="noindex"/>
+<meta charset="utf-8"/>
+<!-- LF23 slice 1: a standalone, read-only route for ONE saved dashboard
+     (?dash=<id>) — openable in a new tab from the Dashboards list/Home,
+     with no Studio builder chrome. base=/ matches app/index.html's own
+     convention so every relative reference below resolves from the repo
+     root the same way. -->
+<base href="/dev/"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Analytics — Viewer</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+<link rel="apple-touch-icon" href="apple-touch-icon.png"/>
+<meta name="theme-color" content="#d4773b"/>
+<!-- BOOT-FLASH follow-up (2026-07-30, steward): app/index.html got this fix in #508 but
+   this standalone viewer route was missed — a refresh here flashed default-theme chrome
+   the same way. Same fix, verbatim: stamp the saved attributes before first paint and veil
+   #app until viewer.js's boot() releases it (app/viewer.js). The 4s failsafe means a boot
+   error can never leave a blank app. -->
+<script>
+(function () {
+  try {
+    var m = localStorage.getItem("studio-theme"), t = localStorage.getItem("studio-app-theme");
+    if (m) document.documentElement.setAttribute("data-theme", m);
+    if (t) { document.documentElement.setAttribute("data-app-theme", t); document.documentElement.setAttribute("data-palette", t); }
+  } catch (e) {}
+  document.documentElement.classList.add("ps-booting");
+  setTimeout(function () { document.documentElement.classList.remove("ps-booting"); }, 4000);
+}());
+</script>
+<style>
+/* BOOT-FLASH veil: the viewer fades in once boot has themed + rendered everything. */
+#app{opacity:1;transition:opacity .22s ease}
+html.ps-booting #app{opacity:0;transition:none}
+@media (prefers-reduced-motion: reduce){#app{transition:none}}
+html[data-reduce-motion="1"] #app{transition:none}
+</style>
+<link rel="stylesheet" href="vendor/polecat-shell/tokens.css"/>
+<link rel="stylesheet" href="app/studio.css"/>
+<script src="app/auth.js"></script>
+<script src="app/gate.js"></script>
+</head>
+<body class="viewer-body">
+<div id="app">
+  <div id="viewerBar">
+    <a id="viewerBack" class="viewer-back" href="app/" title="Back to Analytics" aria-label="Back to Analytics">
+      <span data-ic="chevron-left"></span> <span class="viewer-btn-txt">Analytics</span>
+    </a>
+    <div class="viewer-title" id="viewerTitle"></div>
+    <span class="viewer-badge">Viewer — read-only</span>
+    <!-- LF23 slice 2: both hidden until boot() confirms the dashboard loaded (and, for
+         Edit, that this account can develop) — see app/viewer.js. The label text is wrapped in
+         .viewer-btn-txt so the mobile bar rule (studio.css) can collapse these to icon-only and
+         fit a phone width — each keeps a title for the tooltip/aria name when text is hidden. -->
+    <button id="viewerSaveCopy" class="viewer-savecopy-btn" type="button" hidden title="Save a copy" aria-label="Save a copy">
+      <span data-ic="copy"></span> <span class="viewer-btn-txt">Save a copy</span>
+    </button>
+    <!-- #106/#107: export the dashboard from the viewer — offered to EVERYONE (like Save a copy),
+         since downloading what you can already see is a view-level capability. Hidden until boot()
+         confirms the dashboard loaded. The menu reuses the exact exporters.js pipeline. -->
+    <div class="viewer-export-wrap">
+      <button id="viewerExport" class="viewer-export-btn" type="button" hidden aria-haspopup="true" aria-expanded="false" title="Export" aria-label="Export">
+        <span data-ic="download"></span> <span class="viewer-btn-txt">Export</span> <span class="viewer-export-caret" data-ic="chevron-down"></span>
+      </button>
+      <div id="viewerExportMenu" class="viewer-export-menu" role="menu" hidden>
+        <button type="button" role="menuitem" data-exp="html"><span data-ic="code"></span> Dashboard (.html)</button>
+        <button type="button" role="menuitem" data-exp="pdf"><span data-ic="image"></span> PDF (print)</button>
+        <button type="button" role="menuitem" data-exp="spec"><span data-ic="duplicate"></span> Editable spec (.json)</button>
+      </div>
+    </div>
+    <a id="viewerEditLink" class="viewer-edit-link" href="#" hidden title="Edit in Dashboard Builder" aria-label="Edit in Dashboard Builder">
+      <span data-ic="edit"></span> <span class="viewer-btn-txt">Edit in Dashboard Builder</span>
+    </a>
+  </div>
+  <div id="viewerStage">
+    <iframe id="viewerFrame" title="Dashboard viewer"></iframe>
+    <div class="viewer-empty" id="viewerEmpty">
+      <div class="ces-ic" data-ic="layers"></div>
+      <div class="ces-title">Dashboard not found</div>
+      <div class="ces-desc">It may have been removed, or you don't have access to view it.</div>
+      <a class="ces-btn" href="app/">Back to Analytics</a>
+    </div>
+  </div>
+</div>
+<script src="app/model.js"></script>
+<!-- #106: Studio.genMock — deterministic sample rows for the demo/sample packs' data accesses,
+     so a sample-backed dashboard renders (and exports) here instead of 404ing on the retired
+     CDA server. Real (duckdb/httpvfs/credentialed/connection) data accesses still query live. -->
+<script src="app/sampledata.js"></script>
+<script src="app/sources/schema.js"></script>
+<script src="app/sources/workspace.js"></script>
+<script src="app/exporters.js"></script>
+<script src="app/icons.js"></script>
+<script src="app/viewer.js"></script>
+<div id="__stage" role="status" style="position:fixed;left:0;right:0;bottom:0;z-index:2147483000;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;padding:7px 44px 7px 16px;font:600 13px -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;color:#fff;background:linear-gradient(135deg,#fbbf24,#d97706);box-shadow:0 -6px 20px rgba(0,0,0,.25)">
+  <span><b>DEV preview</b> — dev@testsha · uses your live workspace data</span>
+  <a href="/" style="color:#fff;text-decoration:underline">open production</a>
+  <button id="__stagemin" aria-label="Collapse the DEV preview banner" title="Collapse" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);width:28px;height:28px;border:0;border-radius:50%;background:rgba(0,0,0,.25);color:#fff;font:700 14px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;cursor:pointer">✕</button>
+</div>
+<button id="__stagepill" aria-label="Expand the DEV preview banner" title="DEV preview — tap for details" style="position:fixed;right:10px;bottom:10px;z-index:2147483000;display:none;border:0;border-radius:999px;padding:7px 13px;font:800 11px -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;letter-spacing:.06em;color:#fff;background:linear-gradient(135deg,#fbbf24,#d97706);box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer">DEV</button>
+<script>(function(){var K="__stage.min",b=document.getElementById("__stage"),p=document.getElementById("__stagepill");function set(m){b.style.display=m?"none":"flex";p.style.display=m?"inline-block":"none";try{localStorage.setItem(K,m?"1":"0")}catch(e){}}document.getElementById("__stagemin").onclick=function(){set(true)};p.onclick=function(){set(false)};try{if(localStorage.getItem(K)==="1")set(true)}catch(e){}})();</script>
+</body>
+</html>

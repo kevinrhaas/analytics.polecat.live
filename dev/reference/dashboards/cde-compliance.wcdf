@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cdf>
+  <title>Sensitive Data &amp; Compliance Radar (CDE)</title>
+  <author>PDC Analytics</author>
+  <description>CDE-authored — restricted-to-ungoverned flows by source, asset sensitivity mix &amp; GB moved into each destination sensitivity tier over PDC-BIDB-EXT.</description>
+  <icon/>
+  <style>clean</style>
+  <rendererType>blueprint</rendererType>
+  <widget>false</widget>
+  <widgetParameters/>
+</cdf>

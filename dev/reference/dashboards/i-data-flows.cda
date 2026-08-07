@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <DataAccess id="kpi" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>KPI</Name><Parameters><Parameter name="integration" type="String" default="%"/><Parameter name="platform" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT ROUND(SUM(c.bytes_moved)/1e9::numeric,1) AS gb,
+             count(DISTINCT split_part(c.orig_namespace,'://',1)||'>'||split_part(c.dest_namespace,'://',1)) AS flows,
+             count(DISTINCT split_part(c.orig_namespace,'://',1)) AS src_platforms,
+             count(DISTINCT split_part(c.dest_namespace,'://',1)) AS dst_platforms,
+             SUM(c.connection_count) AS conns
+      FROM fact_lineage_connection c JOIN dim_lineage_job j ON c.lineage_job_key=j.lineage_job_key
+      WHERE c.orig_namespace<>c.dest_namespace AND c.bytes_moved>0 AND j.integration LIKE ${integration}
+        AND (${platform}='%' OR split_part(c.orig_namespace,'://',1) LIKE ${platform} OR split_part(c.dest_namespace,'://',1) LIKE ${platform})
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="flows" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>Flows</Name><Parameters><Parameter name="integration" type="String" default="%"/><Parameter name="platform" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT split_part(c.orig_namespace,'://',1) AS src, split_part(c.dest_namespace,'://',1) AS dst,
+             ROUND(SUM(c.bytes_moved)/1e9::numeric,1) AS gb, SUM(c.connection_count) AS conns
+      FROM fact_lineage_connection c JOIN dim_lineage_job j ON c.lineage_job_key=j.lineage_job_key
+      WHERE c.orig_namespace<>c.dest_namespace AND c.bytes_moved>0 AND j.integration LIKE ${integration}
+        AND (${platform}='%' OR split_part(c.orig_namespace,'://',1) LIKE ${platform} OR split_part(c.dest_namespace,'://',1) LIKE ${platform})
+      GROUP BY 1,2 HAVING SUM(c.bytes_moved)>0 ORDER BY 3 DESC LIMIT 24
+    ]]></Query>
+  </DataAccess>
+  <DataAccess id="detail_platform_flows" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>DetailPlatformFlows</Name><Parameters><Parameter name="platform" type="String" default="%"/><Parameter name="integration" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT (COALESCE(NULLIF(c.orig_name,''),'(unnamed)') || '  →  ' || COALESCE(NULLIF(c.dest_name,''),'(unnamed)')) AS flow,
+             split_part(c.orig_namespace,'://',1) || ' → ' || split_part(c.dest_namespace,'://',1) AS route,
+             j.integration AS integ,
+             SUM(c.record_count) AS records,
+             ROUND(SUM(c.bytes_moved)/1e9::numeric,2) AS gb
+      FROM fact_lineage_connection c JOIN dim_lineage_job j ON c.lineage_job_key=j.lineage_job_key
+      WHERE c.orig_namespace<>c.dest_namespace AND c.bytes_moved>0 AND j.integration LIKE ${integration}
+        AND (split_part(c.orig_namespace,'://',1) = ${platform} OR split_part(c.dest_namespace,'://',1) = ${platform})
+      GROUP BY 1,2,3 ORDER BY gb DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="by_src" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>BySrc</Name><Parameters><Parameter name="integration" type="String" default="%"/><Parameter name="platform" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT split_part(c.orig_namespace,'://',1) AS src, ROUND(SUM(c.bytes_moved)/1e9::numeric,1) AS gb
+      FROM fact_lineage_connection c JOIN dim_lineage_job j ON c.lineage_job_key=j.lineage_job_key
+      WHERE c.orig_namespace<>c.dest_namespace AND c.bytes_moved>0 AND j.integration LIKE ${integration}
+        AND (${platform}='%' OR split_part(c.orig_namespace,'://',1) LIKE ${platform} OR split_part(c.dest_namespace,'://',1) LIKE ${platform})
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="by_integration" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>ByIntegration</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT j.integration AS integ, ROUND(SUM(c.bytes_moved)/1e9::numeric,1) AS gb
+      FROM fact_lineage_connection c JOIN dim_lineage_job j ON c.lineage_job_key=j.lineage_job_key
+      WHERE c.bytes_moved>0 AND j.integration<>'Unknown' GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="top_flows" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>TopFlows</Name><Parameters><Parameter name="integration" type="String" default="%"/><Parameter name="platform" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT c.orig_namespace||' → '||c.dest_namespace AS flow, j.integration AS integ,
+             ROUND(SUM(c.bytes_moved)/1e9::numeric,1) AS gb, SUM(c.connection_count) AS conns
+      FROM fact_lineage_connection c JOIN dim_lineage_job j ON c.lineage_job_key=j.lineage_job_key
+      WHERE c.orig_namespace<>c.dest_namespace AND c.bytes_moved>0 AND j.integration LIKE ${integration}
+        AND (${platform}='%' OR split_part(c.orig_namespace,'://',1) LIKE ${platform} OR split_part(c.dest_namespace,'://',1) LIKE ${platform})
+      GROUP BY 1,2 ORDER BY 3 DESC LIMIT 16
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="integrations" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>I</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT DISTINCT integration FROM dim_lineage_job WHERE integration NOT IN ('Unknown') ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="platforms" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>Platforms</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT DISTINCT split_part(orig_namespace,'://',1) AS platform FROM fact_lineage_connection WHERE bytes_moved>0 AND split_part(orig_namespace,'://',1)<>''
+      UNION
+      SELECT DISTINCT split_part(dest_namespace,'://',1) FROM fact_lineage_connection WHERE bytes_moved>0 AND split_part(dest_namespace,'://',1)<>''
+      ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="movement_trend" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>MovementTrend</Name><Parameters><Parameter name="integration" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT to_char(d.full_date,'YYYY-MM') AS ym,
+             ROUND(SUM(e.output_bytes)/1e9::numeric,1) AS gb,
+             SUM(e.started_count) AS runs,
+             ROUND(100.0*SUM(e.completed_count)/NULLIF(SUM(e.terminal_count),0),1) AS success_pct
+      FROM fact_lineage_event e
+      JOIN dim_date d ON e.event_date_key=d.date_key
+      JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key
+      WHERE j.integration LIKE ${integration} AND j.integration<>'Unknown' AND e.event_date_key<>19000101
+      GROUP BY to_char(d.full_date,'YYYY-MM'), date_trunc('month',d.full_date)
+      ORDER BY date_trunc('month',d.full_date)
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

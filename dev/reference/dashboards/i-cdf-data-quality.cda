@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <DataAccess id="kpi" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>KPI</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT SUM(s.entity_count) AS assets,
+             ROUND(100.0*SUM(s.metadata_completed_field_count)/NULLIF(SUM(s.metadata_expected_field_count),0),1) AS completeness_pct,
+             SUM(s.missing_owner_count) AS missing_owner,
+             SUM(s.missing_created_date_count)+SUM(s.missing_modified_date_count)+SUM(s.missing_accessed_date_count) AS missing_dates
+      FROM fact_entity_snapshot s
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      LEFT JOIN dim_entity e ON s.entity_key=e.entity_key
+      WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="completeness_band" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>CompletenessBand</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(s.metadata_completeness_band,''),'Unknown') AS band, SUM(s.entity_count) AS assets
+      FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      LEFT JOIN dim_entity e ON s.entity_key=e.entity_key
+      WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="profiled" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>Profiled</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(e.data_profile_status,''),'Not Profiled') AS status, SUM(s.entity_count) AS assets
+      FROM fact_entity_snapshot s
+      JOIN dim_entity e ON s.entity_key=e.entity_key
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="missing_attrs" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>MissingAttrs</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      WITH s AS (SELECT fes.* FROM fact_entity_snapshot fes
+                 JOIN dim_datasource d ON fes.datasource_key=d.datasource_key
+                 LEFT JOIN dim_entity e ON fes.entity_key=e.entity_key
+                 WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens})
+      SELECT 'Owner' AS attr, SUM(missing_owner_count) AS cnt FROM s
+      UNION ALL SELECT 'Group', SUM(missing_group_count) FROM s
+      UNION ALL SELECT 'File Type', SUM(missing_filetype_count) FROM s
+      UNION ALL SELECT 'Path', SUM(missing_path_count) FROM s
+      UNION ALL SELECT 'Created Date', SUM(missing_created_date_count) FROM s
+      UNION ALL SELECT 'Modified Date', SUM(missing_modified_date_count) FROM s
+      UNION ALL SELECT 'Accessed Date', SUM(missing_accessed_date_count) FROM s
+      ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="completeness_by_source" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>CompletenessBySource</Name><Parameters><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT d.datasource_type AS src,
+             ROUND(100.0*SUM(s.metadata_completed_field_count)/NULLIF(SUM(s.metadata_expected_field_count),0),1) AS pct
+      FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      LEFT JOIN dim_entity e ON s.entity_key=e.entity_key
+      WHERE COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="worst_entities" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>WorstEntities</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT e.entity_name AS entity, COALESCE(NULLIF(d.datasource_type,''),'Unknown') AS src,
+             SUM(s.metadata_expected_field_count) AS expected,
+             ROUND(100.0*SUM(s.metadata_completed_field_count)/NULLIF(SUM(s.metadata_expected_field_count),0),1) AS complete_pct
+      FROM fact_entity_snapshot s
+      JOIN dim_entity e ON s.entity_key=e.entity_key
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+      GROUP BY 1,2 HAVING SUM(s.metadata_expected_field_count) >= 5
+      ORDER BY complete_pct ASC, expected DESC LIMIT 15
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="detail_by_band" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>DetailByBand</Name><Parameters><Parameter name="band" type="String" default="%"/><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[ SELECT COALESCE(NULLIF(e.entity_name,''),'(unnamed)') AS name,
+      d.datasource_type AS src,
+      COALESCE(NULLIF(s.metadata_completeness_band,''),'Unknown') AS band,
+      s.metadata_completed_field_count AS completed,
+      s.metadata_expected_field_count AS expected,
+      COALESCE(NULLIF(e.sensitivity,''),'Unclassified') AS sensitivity,
+      COALESCE(NULLIF(e.owner_name,''),'—') AS owner
+      FROM fact_entity_snapshot s
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      LEFT JOIN dim_entity e ON s.entity_key=e.entity_key
+      WHERE COALESCE(NULLIF(s.metadata_completeness_band,''),'Unknown') LIKE ${band}
+        AND d.datasource_type LIKE ${ds}
+        AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+      ORDER BY s.metadata_completed_field_count ASC, e.entity_name ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="datasources" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>DataSources</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT '%' AS v, 'All sources' AS l, 0 AS ord
+      UNION ALL
+      SELECT DISTINCT datasource_type AS v, datasource_type AS l, 1 AS ord
+        FROM dim_datasource WHERE datasource_type IS NOT NULL AND datasource_type<>''
+      ORDER BY ord, l
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="sensitivities" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>Sensitivities</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT '%' AS v, 'All sensitivities' AS l, 0 AS ord
+      UNION ALL
+      SELECT DISTINCT COALESCE(NULLIF(sensitivity,''),'Unclassified') AS v,
+                      COALESCE(NULLIF(sensitivity,''),'Unclassified') AS l, 1 AS ord
+        FROM dim_entity
+      ORDER BY ord, l
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="quality_race" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180">
+    <Name>QualityRace</Name><Parameters><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      WITH top_src AS (
+        SELECT d.datasource_type AS src, SUM(s.entity_count) AS tot
+        FROM fact_entity_snapshot s
+        JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+        LEFT JOIN dim_entity e ON s.entity_key=e.entity_key
+        WHERE s.scanned_date_key<>19000101
+          AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+        GROUP BY d.datasource_type ORDER BY tot DESC LIMIT 8
+      )
+      SELECT dd.year_month_number AS ym,
+             dd.year_month_name AS month,
+             d.datasource_type AS src,
+             ROUND(100.0*SUM(s.metadata_completed_field_count)/NULLIF(SUM(s.metadata_expected_field_count),0),1) AS completeness_pct
+      FROM fact_entity_snapshot s
+      JOIN dim_date dd ON s.scanned_date_key=dd.date_key
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      LEFT JOIN dim_entity e ON s.entity_key=e.entity_key
+      JOIN top_src ts ON d.datasource_type=ts.src
+      WHERE s.scanned_date_key<>19000101
+        AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+      GROUP BY dd.year_month_number, dd.year_month_name, d.datasource_type
+      ORDER BY dd.year_month_number, d.datasource_type
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

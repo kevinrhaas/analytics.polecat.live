@@ -104,8 +104,15 @@ async function htmlFiles(dir) {
 function stageBanner(s, rev) {
   const FONT = `-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif`;
   const label = s.toUpperCase();
-  return `<div id="__stage" role="status" style="position:fixed;left:0;right:0;bottom:0;z-index:2147483000;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;padding:7px 16px;font:600 13px ${FONT};color:#fff;background:${COLORS[s]};box-shadow:0 -6px 20px rgba(0,0,0,.25)">
+  // The full-width bar can cover real UI (the mobile rail's bottom items,
+  // dashboard footers), so it collapses to a small corner pill via the ✕ —
+  // remembered in localStorage across pages/visits (shared by dev + stage,
+  // same origin) — and the pill taps back open.
+  return `<div id="__stage" role="status" style="position:fixed;left:0;right:0;bottom:0;z-index:2147483000;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;padding:7px 44px 7px 16px;font:600 13px ${FONT};color:#fff;background:${COLORS[s]};box-shadow:0 -6px 20px rgba(0,0,0,.25)">
   <span><b>${label} preview</b>${rev ? ` — ${s}@${rev}` : ""} · uses your live workspace data</span>
   <a href="/" style="color:#fff;text-decoration:underline">open production</a>
-</div>`;
+  <button id="__stagemin" aria-label="Collapse the ${label} preview banner" title="Collapse" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);width:28px;height:28px;border:0;border-radius:50%;background:rgba(0,0,0,.25);color:#fff;font:700 14px/1 ${FONT};cursor:pointer">✕</button>
+</div>
+<button id="__stagepill" aria-label="Expand the ${label} preview banner" title="${label} preview — tap for details" style="position:fixed;right:10px;bottom:10px;z-index:2147483000;display:none;border:0;border-radius:999px;padding:7px 13px;font:800 11px ${FONT};letter-spacing:.06em;color:#fff;background:${COLORS[s]};box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer">${label}</button>
+<script>(function(){var K="__stage.min",b=document.getElementById("__stage"),p=document.getElementById("__stagepill");function set(m){b.style.display=m?"none":"flex";p.style.display=m?"inline-block":"none";try{localStorage.setItem(K,m?"1":"0")}catch(e){}}document.getElementById("__stagemin").onclick=function(){set(true)};p.onclick=function(){set(false)};try{if(localStorage.getItem(K)==="1")set(true)}catch(e){}})();</script>`;
 }

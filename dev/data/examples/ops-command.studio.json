@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "showcase-ops",
+  "name": "ops-command",
+  "title": "Data Platform Operations Center",
+  "subtitle": "flow, dependencies, rankings & risk — an ops command view",
+  "group": "Operations",
+  "description": "An operations showcase spanning eight distinct visual forms not used elsewhere in the gallery: pipeline flow (Sankey), a system dependency network, a calendar heatmap of daily reliability, a source-asset sunburst, a bump chart ranking top pipelines over time, a risk-vs-volume quadrant, a job-outcome waffle, and a Pareto of error sources.",
+  "cda": {
+    "connection": { "id": "pdc", "jndi": "PDC-BIDB-EXT" },
+    "dataAccesses": [
+      {
+        "id": "kpi", "name": "OpsKPI", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT ROUND(AVG(uptime_pct),1) AS uptime_pct, COUNT(DISTINCT pipeline_id) AS active_pipelines, SUM(CASE WHEN status='Failed' THEN 1 ELSE 0 END) AS open_incidents, ROUND(SUM(bytes_processed)/1099511627776.0,1) AS throughput_tb FROM v_ops_master",
+        "columns": ["uptime_pct", "active_pipelines", "open_incidents", "throughput_tb"]
+      },
+      {
+        "id": "flow", "name": "PipelineFlow", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT source_system, dest_tier, COUNT(*) AS record_count FROM v_pipeline_flow GROUP BY 1, 2",
+        "columns": ["source_system", "dest_tier", "record_count"]
+      },
+      {
+        "id": "deps", "name": "SystemDependencies", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT source_system, consuming_app, COUNT(*) AS request_count FROM v_system_deps GROUP BY 1, 2",
+        "columns": ["source_system", "consuming_app", "request_count"]
+      },
+      {
+        "id": "daily", "name": "DailyReliability", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT run_date, ROUND(AVG(success_pct),0) AS success_pct FROM v_daily_runs GROUP BY 1 ORDER BY 1",
+        "columns": ["run_date", "success_pct"]
+      },
+      {
+        "id": "domains", "name": "AssetsBySource", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT source_system AS asset_source, COUNT(*) AS asset_count FROM v_asset_inventory GROUP BY 1 ORDER BY 2 DESC",
+        "columns": ["asset_source", "asset_count"]
+      },
+      {
+        "id": "ranks", "name": "PipelineRanking", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT d.year_month_name AS period, SUM(CASE WHEN p.name='Ingest' THEN v.duration_min END) AS ingest, SUM(CASE WHEN p.name='Transform' THEN v.duration_min END) AS transform, SUM(CASE WHEN p.name='Publish' THEN v.duration_min END) AS publish, SUM(CASE WHEN p.name='Validate' THEN v.duration_min END) AS validate FROM v_pipeline_runtime v JOIN dim_pipeline p ON v.pipeline_id=p.id JOIN dim_date d ON v.date_key=d.date_key GROUP BY d.year_month_number, d.year_month_name ORDER BY d.year_month_number",
+        "columns": ["period", "ingest", "transform", "publish", "validate"]
+      },
+      {
+        "id": "riskvol", "name": "PipelineRiskVolume", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT pipeline_name, risk_score, volume_score FROM v_pipeline_risk ORDER BY risk_score DESC LIMIT 10",
+        "columns": ["pipeline_name", "risk_score", "volume_score"]
+      },
+      {
+        "id": "outcomes", "name": "JobOutcomeMix", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT run_status, COUNT(*) AS run_count FROM v_job_runs GROUP BY 1 ORDER BY 2 DESC",
+        "columns": ["run_status", "run_count"]
+      },
+      {
+        "id": "errors", "name": "ErrorsBySource", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT error_source, COUNT(*) AS error_count FROM v_pipeline_errors GROUP BY 1 ORDER BY 2 DESC",
+        "columns": ["error_source", "error_count"]
+      }
+    ]
+  },
+  "filters": [],
+  "kpis": [
+    { "da": "kpi", "valueCol": "uptime_pct", "label": "Platform Uptime", "fmt": "pct", "state": "good", "info": "Average uptime across all pipelines." },
+    { "da": "kpi", "valueCol": "active_pipelines", "label": "Active Pipelines", "fmt": "n", "state": "", "info": "Pipelines currently in production." },
+    { "da": "kpi", "valueCol": "open_incidents", "label": "Open Incidents", "fmt": "n", "state": "warn", "info": "Unresolved run failures." },
+    { "da": "kpi", "valueCol": "throughput_tb", "label": "Throughput (TB)", "fmt": "n", "state": "purple", "info": "Data processed in the current period." }
+  ],
+  "gridCols": 3,
+  "panels": [
+    {
+      "id": "p_flow", "title": "Pipeline Flow by Source", "span": "full", "pill": "records", "sub": "source → stage",
+      "info": "Volume moving from each source system into its destination pipeline tier.", "src": "v_pipeline_flow",
+      "chart": { "type": "sankey", "da": "flow", "map": { "sourceCol": "source_system", "targetCol": "dest_tier", "valueCol": "record_count" }, "opts": { "srcCap": "Source system", "dstCap": "Pipeline tier", "fmt": "n", "height": 320 } }
+    },
+    {
+      "id": "p_deps", "title": "System Dependency Network", "span": 2, "pill": "requests", "sub": "",
+      "info": "Which source systems feed which consuming apps.", "src": "v_system_deps",
+      "chart": { "type": "network", "da": "deps", "map": { "sourceCol": "source_system", "targetCol": "consuming_app", "valueCol": "request_count" }, "opts": { "showLabels": true, "fmt": "n", "height": 340 } }
+    },
+    {
+      "id": "p_quad", "title": "Pipeline Risk vs. Volume", "span": 1, "pill": "", "sub": "",
+      "info": "High-risk, high-volume pipelines sit top-right — prioritize those first.", "src": "v_pipeline_risk",
+      "chart": { "type": "quadrant", "da": "riskvol", "map": { "xCol": "risk_score", "yCol": "volume_score", "labelCol": "pipeline_name" }, "opts": { "xLabel": "Risk", "yLabel": "Volume", "height": 300 } }
+    },
+    {
+      "id": "p_cal", "title": "Daily Reliability", "span": "full", "pill": "%", "sub": "success rate by day",
+      "info": "Day-by-day pipeline success rate over the period.", "src": "v_daily_runs",
+      "chart": { "type": "calHeatmap", "da": "daily", "map": { "dateCol": "run_date", "valueCol": "success_pct" }, "opts": { "fmt": "pct", "height": 190 } }
+    },
+    {
+      "id": "p_rank", "title": "Stage Runtime Ranking", "span": 2, "pill": "min", "sub": "who rose, who fell",
+      "info": "Ranking of pipeline stages by monthly runtime — crossing lines show competitive shifts.", "src": "v_pipeline_runtime",
+      "chart": { "type": "bump", "da": "ranks", "map": { "labelCol": "period", "series": [ { "col": "ingest", "name": "Ingest" }, { "col": "transform", "name": "Transform" }, { "col": "publish", "name": "Publish" }, { "col": "validate", "name": "Validate" } ] }, "opts": { "fmt": "n", "height": 300 } }
+    },
+    {
+      "id": "p_sun", "title": "Assets by Source", "span": 1, "pill": "count", "sub": "",
+      "info": "Cataloged asset count per source system.", "src": "v_asset_inventory",
+      "chart": { "type": "sunburst", "da": "domains", "map": { "labelCol": "asset_source", "valueCol": "asset_count" }, "opts": { "fmt": "n", "height": 300 } }
+    },
+    {
+      "id": "p_waffle", "title": "Job Outcome Mix", "span": 1, "pill": "jobs", "sub": "",
+      "info": "Every square is 1% of all pipeline runs — success vs. failure at a glance.", "src": "v_job_runs",
+      "chart": { "type": "waffle", "da": "outcomes", "map": { "labelCol": "run_status", "valueCol": "run_count" }, "opts": { "fmt": "n", "height": 300 } }
+    },
+    {
+      "id": "p_pareto", "title": "Errors by Source System", "span": 2, "pill": "80/20", "sub": "",
+      "info": "The vital-few source systems responsible for most pipeline errors.", "src": "v_pipeline_errors",
+      "chart": { "type": "pareto", "da": "errors", "map": { "labelCol": "error_source", "valueCol": "error_count" }, "opts": { "showRef": true, "fmt": "n", "height": 300 } }
+    }
+  ]
+}

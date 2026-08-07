@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta name="robots" content="noindex"/>
+<meta charset="utf-8">
+<title>cross-origin postMessage probe</title>
+</head>
+<body>
+<!--
+  AUD-05 test fixture. The suite loads this page into an iframe from the OTHER
+  loopback spelling than the app under test (127.0.0.1 vs localhost, same port),
+  which the browser treats as a different origin. It then posts the message given
+  in ?msg= to its parent — a real spec mutation. If the builder's message
+  receiver ever stops checking `e.origin`, the mutation lands and the assertion
+  that the spec is unchanged fails. Nothing outside tests/ loads this file.
+-->
+<script>
+(function () {
+  var raw = new URLSearchParams(location.search).get("msg") || "{}";
+  var msg;
+  try { msg = JSON.parse(raw); } catch (e) { msg = {}; }
+  // "*" on purpose: a real attacker would not narrow its target either.
+  try { parent.postMessage(msg, "*"); } catch (e) {}
+  document.title = "posted";
+})();
+</script>
+<div id="__stage" role="status" style="position:fixed;left:0;right:0;bottom:0;z-index:2147483000;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;padding:7px 44px 7px 16px;font:600 13px -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;color:#fff;background:linear-gradient(135deg,#fbbf24,#d97706);box-shadow:0 -6px 20px rgba(0,0,0,.25)">
+  <span><b>DEV preview</b> — dev@testsha · uses your live workspace data</span>
+  <a href="/" style="color:#fff;text-decoration:underline">open production</a>
+  <button id="__stagemin" aria-label="Collapse the DEV preview banner" title="Collapse" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);width:28px;height:28px;border:0;border-radius:50%;background:rgba(0,0,0,.25);color:#fff;font:700 14px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;cursor:pointer">✕</button>
+</div>
+<button id="__stagepill" aria-label="Expand the DEV preview banner" title="DEV preview — tap for details" style="position:fixed;right:10px;bottom:10px;z-index:2147483000;display:none;border:0;border-radius:999px;padding:7px 13px;font:800 11px -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;letter-spacing:.06em;color:#fff;background:linear-gradient(135deg,#fbbf24,#d97706);box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer">DEV</button>
+<script>(function(){var K="__stage.min",b=document.getElementById("__stage"),p=document.getElementById("__stagepill");function set(m){b.style.display=m?"none":"flex";p.style.display=m?"inline-block":"none";try{localStorage.setItem(K,m?"1":"0")}catch(e){}}document.getElementById("__stagemin").onclick=function(){set(true)};p.onclick=function(){set(false)};try{if(localStorage.getItem(K)==="1")set(true)}catch(e){}})();</script>
+</body>
+</html>

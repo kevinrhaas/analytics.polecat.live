@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+  <DataAccess id="kpi" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180"><Name>K</Name><Parameters/>
+    <Query><![CDATA[ SELECT (SELECT count(DISTINCT application_key) FROM fact_entity_application) AS apps,
+      (SELECT count(DISTINCT glossary_term_key) FROM fact_entity_term) AS terms,
+      (SELECT count(DISTINCT policy_key) FROM fact_entity_policy) AS policies,
+      round(100.0*(SELECT count(DISTINCT entity_key) FROM fact_entity_term)/NULLIF((SELECT SUM(entity_count) FROM fact_entity_snapshot),0),1) AS classified_pct ]]></Query></DataAccess>
+  <DataAccess id="coverage" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180"><Name>C</Name><Parameters/>
+    <Query><![CDATA[ SELECT '1. Classified (terms)' AS dim, count(DISTINCT entity_key) AS assets FROM fact_entity_term
+      UNION ALL SELECT '2. Policy-Governed', count(DISTINCT entity_key) FROM fact_entity_policy
+      UNION ALL SELECT '3. App-Accessed', count(DISTINCT entity_key) FROM fact_entity_application ]]></Query></DataAccess>
+  <DataAccess id="top_apps" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180"><Name>TA</Name><Parameters/>
+    <Query><![CDATA[ SELECT a.application_name AS app, SUM(f.access_count) AS acc
+      FROM fact_entity_application f JOIN dim_application a ON f.application_key=a.application_key GROUP BY 1 ORDER BY 2 DESC LIMIT 12 ]]></Query></DataAccess>
+  <DataAccess id="top_policies" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180"><Name>TP</Name><Parameters/>
+    <Query><![CDATA[ SELECT p.policy_name AS pol, SUM(f.assignment_count) AS assigns
+      FROM fact_entity_policy f JOIN dim_policy p ON f.policy_key=p.policy_key GROUP BY 1 ORDER BY 2 DESC LIMIT 12 ]]></Query></DataAccess>
+  <DataAccess id="by_source" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180"><Name>BS</Name><Parameters/>
+    <Query><![CDATA[ SELECT COALESCE(NULLIF(dd.datasource_type,''),'Unknown') AS src, count(DISTINCT f.entity_key) AS classified
+      FROM fact_entity_term f JOIN dim_entity e ON f.entity_key=e.entity_key
+      LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key GROUP BY 1 ORDER BY 2 DESC ]]></Query></DataAccess>
+  <DataAccess id="app_src_chord" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180"><Name>ASC</Name><Parameters/>
+    <Query><![CDATA[ SELECT a.application_name AS app,
+      COALESCE(NULLIF(dd.datasource_type,''),'Unknown') AS src,
+      SUM(f.access_count) AS accesses
+    FROM fact_entity_application f
+    JOIN dim_application a ON f.application_key=a.application_key
+    JOIN dim_datasource dd ON f.datasource_key=dd.datasource_key
+    GROUP BY 1,2 ORDER BY 3 DESC LIMIT 80 ]]></Query></DataAccess>
+</CDADescriptor>

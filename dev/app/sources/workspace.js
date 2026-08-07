@@ -1,0 +1,211 @@
+/* app/sources/workspace.js — the unified local-first workspace store:
+   connections, datasets, and saved dashboards, persisted as one localStorage
+   blob and portable as a snapshot (see schema.js). Lean port of the fleet's
+   store pattern (manager.polecat.live/js/store.js): every table is an id→row
+   map, every row carries createdAt/updatedAt, every mutation persists and
+   emits an event, and snapshot()/replaceAll() bridge to the source adapters
+   so a remote backend can mirror the whole thing.
+
+   The dashboard SPEC editor keeps its own in-session state (studio.js S.spec)
+   — this store is the durable catalog those specs are saved into. */
+(function () {
+  "use strict";
+  var WS = Studio.WS;
+  var LS_KEY = "analytics.workspace.v1"; // kept in sync with sources/local.js
+
+  function now() { return Date.now(); }
+  function uid(p) { return (p || "id") + "-" + now().toString(36) + "-" + Math.random().toString(36).slice(2, 8); }
+
+  var listeners = {};   // evt -> [fn]; '*' hears everything
+  var db = null;
+
+  function blank() {
+    var tables = {};
+    WS.TABLE_NAMES.forEach(function (t) { tables[t] = {}; });
+    return { tables: tables, settings: {}, meta: { createdAt: now() } };
+  }
+
+  // AUD-04: a persist that fails (quota full, storage blocked) must never be
+  // silent — the app would keep running memory-only and every change since
+  // the failure would evaporate on the next reload. Track the failure as
+  // STATE and emit only on transitions (fail↔ok), so the banner listener
+  // isn't spammed on every keystroke-persist while storage stays full.
+  var _persistFailed = false;
+  var _persistError = "";
+  function persist() {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(db));
+      if (_persistFailed) {
+        _persistFailed = false; _persistError = "";
+        emit("persistfail", { failed: false });
+      }
+    } catch (e) {
+      var msg = String((e && e.message) || e || "storage write failed");
+      if (!_persistFailed) {
+        _persistFailed = true; _persistError = msg;
+        emit("persistfail", { failed: true, error: msg });
+      }
+    }
+  }
+
+  function load() {
+    try {
+      var raw = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+      if (raw && raw.tables) {
+        // tolerate array-shaped tables from an imported snapshot
+        WS.TABLE_NAMES.forEach(function (t) {
+          var tv = raw.tables[t];
+          if (Array.isArray(tv)) {
+            var m = {}; tv.forEach(function (r) { if (r && r.id) m[r.id] = r; });
+            raw.tables[t] = m;
+          } else if (!tv) raw.tables[t] = {};
+        });
+        db = raw;
+        return;
+      }
+    } catch (e) {}
+    db = blank();
+  }
+
+  function emit(evt, payload) {
+    (listeners[evt] || []).concat(listeners["*"] || []).forEach(function (fn) {
+      try { fn(payload || {}, evt); } catch (e) {}
+    });
+  }
+
+  var Workspace = {
+    uid: uid,
+
+    on: function (evt, fn) {
+      (listeners[evt] = listeners[evt] || []).push(fn);
+      return function () { var a = listeners[evt]; var i = a.indexOf(fn); if (i >= 0) a.splice(i, 1); };
+    },
+
+    all: function (table) {
+      var tv = db.tables[table] || {};
+      return Object.keys(tv).map(function (k) { return tv[k]; });
+    },
+    get: function (table, id) { return (db.tables[table] || {})[id] || null; },
+
+    put: function (table, row, opts) {
+      opts = opts || {};
+      if (!row.id) row.id = uid(table.slice(0, 4));
+      var prev = db.tables[table][row.id] || null;
+      if (!prev) row.createdAt = row.createdAt || now();
+      row.updatedAt = now();
+      db.tables[table][row.id] = row;
+      // DURABLE-2: re-creating an id revokes its tombstone (the new row wins)
+      if (db.meta.tombstones) delete db.meta.tombstones[table + "|" + row.id];
+      persist();
+      if (!opts.silent) emit("change", { table: table, id: row.id, prev: prev, row: row });
+      return row;
+    },
+
+    remove: function (table, id, opts) {
+      opts = opts || {};
+      var prev = db.tables[table][id];
+      if (!prev) return null;
+      delete db.tables[table][id];
+      // DURABLE-2 (the fntest class, generalized): deletion is EXPLICIT, synced
+      // data — never inferred from absence. The tombstone rides meta into every
+      // snapshot; push deletes only tombstoned ids, and adoption won't
+      // resurrect a row an older device still carries. users stays out: account
+      // removal is only ever the Admin flow's explicit deleteRows() (v787).
+      if (table !== "users") {
+        db.meta.tombstones = db.meta.tombstones || {};
+        db.meta.tombstones[table + "|" + id] = now();
+      }
+      persist();
+      if (!opts.silent) emit("change", { table: table, id: id, prev: prev, removed: true });
+      return prev;
+    },
+
+    settings: function () { return db.settings; },
+    setSetting: function (key, value) {
+      db.settings[key] = value; persist();
+      emit("change", { table: "settings", key: key });
+    },
+    meta: function () { return db.meta; },
+    setMeta: function (key, value) { db.meta[key] = value; persist(); },
+
+    // ---- data-source bridge (what sync pushes / adopts) ---------------------
+    snapshot: function () {
+      var snap = WS.emptySnapshot();
+      WS.TABLE_NAMES.forEach(function (t) { snap.tables[t] = Workspace.all(t); });
+      snap.settings = db.settings;
+      snap.meta = db.meta;
+      return snap;
+    },
+
+    // Adopt a loaded workspace wholesale (connect/pull). Re-keys arrays by id,
+    // persists locally, and emits a whole-store change + 'replaced'.
+    replaceAll: function (snapshot) {
+      var next = blank();
+      // DURABLE-2: merge tombstones (local ∪ incoming, newest wins) so a delete
+      // made on either side survives adoption; a row whose tombstone is newer
+      // than its updatedAt is DEAD and must not be resurrected by an older
+      // device's snapshot (a re-created row has a newer updatedAt and lives).
+      var tombs = {};
+      function mergeTombs(src) {
+        Object.keys(src || {}).forEach(function (k) {
+          if (!tombs[k] || src[k] > tombs[k]) tombs[k] = src[k];
+        });
+      }
+      mergeTombs(db && db.meta && db.meta.tombstones);
+      mergeTombs(snapshot && snapshot.meta && snapshot.meta.tombstones);
+      // prune: 30 days is plenty for every mirror to have adopted the delete
+      var cutoff = now() - 30 * 86400000;
+      Object.keys(tombs).forEach(function (k) { if (tombs[k] < cutoff) delete tombs[k]; });
+      WS.TABLE_NAMES.forEach(function (t) {
+        ((snapshot && snapshot.tables && snapshot.tables[t]) || []).forEach(function (r) {
+          if (!r || !r.id) return;
+          var tk = tombs[t + "|" + r.id];
+          if (tk && tk >= (r.updatedAt || 0)) return; // tombstoned — stays dead
+          next.tables[t][r.id] = r;
+        });
+      });
+      // AUD-04: PRESERVE tables this build doesn't know about. A NEWER build
+      // (e.g. a /qa/ pipeline preview sharing this origin's localStorage) may
+      // have written a schema-v(N+1) table; adopting an older-shaped snapshot
+      // must carry it forward, not delete data it can't understand. Incoming
+      // unknown tables (an imported v(N+1) export) win over the local copy;
+      // local unknown tables survive when the snapshot has no opinion. Note
+      // snapshot()/pushes still cover only TABLE_NAMES — the remote copy of an
+      // unknown table survives on its own because saves are upsert+tombstone
+      // (absence is never deletion, DURABLE-2).
+      function carryUnknown(tables) {
+        Object.keys(tables || {}).forEach(function (t) {
+          if (WS.TABLE_NAMES.indexOf(t) >= 0 || next.tables[t]) return;
+          var tv = tables[t];
+          if (Array.isArray(tv)) {
+            var m = {}; tv.forEach(function (r) { if (r && r.id) m[r.id] = r; });
+            tv = m;
+          }
+          if (tv && typeof tv === "object") next.tables[t] = tv;
+        });
+      }
+      carryUnknown(snapshot && snapshot.tables);
+      carryUnknown(db && db.tables);
+      next.settings = (snapshot && snapshot.settings) || {};
+      next.meta = (snapshot && snapshot.meta) || { createdAt: now() };
+      next.meta.tombstones = tombs;
+      db = next;
+      persist();
+      emit("change", { table: "*" });
+      emit("replaced", {});
+    },
+
+    reset: function () { db = blank(); persist(); emit("change", { table: "*" }); emit("replaced", {}); },
+
+    // AUD-04: is the local mirror currently failing to persist (quota full /
+    // storage blocked)? Read by the storage-full banner and by tests.
+    persistFailed: function () { return _persistFailed ? { error: _persistError } : null; },
+
+    // Fire a change event for a table without mutating it — used after a batch
+    // of silent puts (e.g. secrets unlock decrypting rows in place).
+    notify: function (table) { emit("change", { table: table || "*" }); }
+  };
+
+  load();
+  Studio.Workspace = Workspace;
+}());

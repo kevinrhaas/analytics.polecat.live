@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cdf>
+  <title>Redundancy &amp; Duplicate Data (CDE)</title>
+  <author>PDC Analytics</author>
+  <description>CDE-authored — duplicate assets by source, reclaimable TB by sensitivity &amp; reclaimable TB by source over PDC-BIDB-EXT.</description>
+  <icon/>
+  <style>clean</style>
+  <rendererType>blueprint</rendererType>
+  <widget>false</widget>
+  <widgetParameters/>
+</cdf>
