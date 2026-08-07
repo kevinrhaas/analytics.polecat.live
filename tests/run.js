@@ -239,6 +239,14 @@ let mockFlakyServed = 0;
 // then succeed — simulates the boot race where the first read(s) 401 until a
 // retry, which initSync now does automatically instead of staying red.
 let mockTokenFlaps = 0;
+// N2 slice 4: the REFRESH-token grant. The password grant already handed one
+// out; the refresh grant swaps it for a fresh session and ROTATES it (as a real
+// GoTrue does), so the adapter's "keep the newest token" path runs for real. An
+// unknown/revoked token is refused like a real one — that is what proves a
+// refused refresh is treated as final rather than silently falling back.
+const mockRefreshTokens = new Set(["mock-refresh"]);
+let mockRefreshSeq = 0;
+function mintMockRefresh() { const t = "mock-refresh-" + ++mockRefreshSeq; mockRefreshTokens.add(t); return t; }
 function handleMockSupabase(req, rep, p) {
   const send = (code, body) => {
     rep.writeHead(code, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*" });
@@ -249,11 +257,16 @@ function handleMockSupabase(req, rep, p) {
   if (rel === "auth/v1/token") {
     const key = req.headers.apikey || "";
     if (key !== "sb_publishable_valid") return send(401, { error: "invalid api key" });
+    const grant = (req.url.split("grant_type=")[1] || "password").split("&")[0];
     let body = "";
     req.on("data", (c) => (body += c));
     return req.on("end", () => {
       let creds = {};
       try { creds = JSON.parse(body || "{}"); } catch (e) {}
+      if (grant === "refresh_token") {
+        if (!mockRefreshTokens.has(creds.refresh_token)) return send(400, { error: "invalid_grant", error_description: "Invalid Refresh Token" });
+        return send(200, { access_token: MOCK_GOTRUE_TOKEN, token_type: "bearer", expires_in: 3600, refresh_token: mintMockRefresh(), user: { id: MOCK_GOTRUE_USER_ID, email: MOCK_GOTRUE_EMAIL } });
+      }
       if (creds.email === MOCK_GOTRUE_EMAIL && creds.password === MOCK_GOTRUE_PASSWORD) {
         if (mockTokenFlaps > 0) { mockTokenFlaps--; return send(400, { error: "invalid_grant", error_description: "boot flap (test)" }); }
         return send(200, { access_token: MOCK_GOTRUE_TOKEN, token_type: "bearer", expires_in: 3600, refresh_token: "mock-refresh", user: { id: MOCK_GOTRUE_USER_ID, email: creds.email } });
@@ -18251,6 +18264,189 @@ function serve() {
     await gpFlip.close();
     ok("N2 FLIP: an UNREACHABLE workspace falls back to the local sign-in path — going offline never locks a user out of their own device",
       flipOffline.gateGone && flipOffline.who === "owner@example.com", JSON.stringify(flipOffline));
+
+    // ---- N2 slice 4 (M7, the last of it): the workspace password stops being
+    // stored. It used to ride the connection cfg into localStorage so the
+    // adapter could re-mint an expired JWT from it; now the adapter keeps the
+    // REFRESH TOKEN GoTrue already returns, in sessionStorage (the AUD-03
+    // posture). These checks pin all four halves: nothing at rest, a reload
+    // re-mints from the token, an already-stored password is migrated away
+    // without signing anyone out, and a browser with no resumable session is
+    // asked for the password instead of silently reading the workspace as
+    // anon (which authenticated-only RLS answers with an EMPTY workspace). ----
+    console.log("\n• N2 slice 4: the password stops being persisted");
+    await fetch(`http://localhost:${PORT}/__supabase/rest/v1/__cleartokenflap`, { headers: { apikey: "sb_publishable_valid" } });
+    const gpPw = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpPw.on("pageerror", (e) => errors.push("N2 slice4 page: " + e.message));
+    // Guarded, because this page RELOADS below and the reload must inherit what
+    // the sign-in wrote, not the pristine seed.
+    await gpPw.addInitScript((port) => {
+      try {
+        if (!localStorage.getItem("analytics.datasource.v1")) {
+          localStorage.setItem("analytics.datasource.v1", JSON.stringify({ sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid" }, at: 1 }));
+        }
+      } catch (e) {}
+    }, PORT);
+    await gpPw.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpPw.waitForFunction(() => {
+      if (!window.Studio || !Studio.Sync) return false;
+      var s = Studio.Sync.syncState();
+      return s.sourceId === "supabase" && s.status !== "connecting";
+    }, { timeout: 20000 }).catch(() => {});
+    await gpPw.waitForSelector("#g-form", { timeout: 8000 });
+    // The gate adopts the local identity carrying the verified auth uid out of
+    // Studio.Workspace's users table (gate.js findUserByGotrue) — same seed shape
+    // the LF39 direct-auth check uses, planted after the boot pull has settled so
+    // a late replaceAll can't wipe it.
+    await gpPw.evaluate(() => {
+      Studio.Workspace.put("users", { id: "user_owner", u: "owner@example.com", name: "Owner", role: "admin", demo: false, gotrueId: "11111111-1111-1111-1111-111111111111" }, { silent: true });
+      Studio.Sync.pullNow = function () { return Promise.resolve(); }; // sync detail, not what's under test
+    });
+    await gpPw.fill("#g-user", "owner@example.com");
+    await gpPw.fill("#g-pass", "secret123"); // the workspace's real GoTrue password
+    await gpPw.click("#g-form button[type=submit]");
+    await gpPw.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 10000 }).catch(() => {});
+    const pwAtRest = await gpPw.evaluate(() => {
+      var everything = Object.keys(localStorage).map(function (k) { return k + "=" + localStorage.getItem(k); }).join("\n");
+      var conn = JSON.parse(localStorage.getItem("analytics.datasource.v1") || "null") || {};
+      var store = JSON.parse(sessionStorage.getItem("analytics.supabase.refresh.v1") || "{}");
+      var keys = Object.keys(store);
+      return {
+        signedIn: (window.PolecatAuth.current() || {}).u,
+        email: (conn.cfg || {}).authEmail || "",
+        passwordField: (conn.cfg || {}).authPassword,
+        anywhereInLocalStorage: /secret123/.test(everything),
+        tokenKeys: keys.length, token: keys.length ? store[keys[0]] : ""
+      };
+    });
+    ok("N2 slice 4: after signing in, the workspace password is NOWHERE in localStorage — the connection record keeps the email (not a secret) and drops authPassword entirely",
+      pwAtRest.signedIn === "owner@example.com" && pwAtRest.email === "owner@example.com" &&
+      pwAtRest.passwordField === undefined && pwAtRest.anywhereInLocalStorage === false, JSON.stringify(pwAtRest));
+    ok("N2 slice 4: what IS kept is GoTrue's refresh token, in sessionStorage (the AUD-03 posture — gone when the tab closes)",
+      pwAtRest.tokenKeys === 1 && /^mock-refresh/.test(pwAtRest.token), JSON.stringify(pwAtRest));
+
+    // The whole point of keeping the token: a RELOAD (no password anywhere) must
+    // still reach the workspace as this user, by re-minting from the token.
+    await gpPw.reload({ waitUntil: "domcontentloaded" });
+    await gpPw.waitForFunction(() => {
+      if (!window.Studio || !Studio.Sync) return false;
+      var s = Studio.Sync.syncState();
+      return s.sourceId === "supabase" && s.status !== "connecting";
+    }, { timeout: 20000 }).catch(() => {});
+    const pwRemint = await gpPw.evaluate(async () => {
+      var st = Studio.Sync.syncState();
+      var cfg = Studio.Sync.currentConfig() || {};
+      var signIn = await Studio.supabaseSource.signIn(cfg);
+      var store = JSON.parse(sessionStorage.getItem("analytics.supabase.refresh.v1") || "{}");
+      var keys = Object.keys(store);
+      return {
+        gateGone: !document.querySelector("#studio-gate"),
+        needsSignIn: Studio.Sync.needsSignIn(),
+        status: st.status, preAuth: !!st.preAuth,
+        passwordInMemory: cfg.authPassword,
+        userId: signIn.userId || "", signInOk: signIn.ok,
+        token: keys.length ? store[keys[0]] : ""
+      };
+    });
+    ok("N2 slice 4: a reload with NO password anywhere re-mints the session from the refresh token — the workspace connects as the real user, the gate stays out of the way, and pulls are never latched off",
+      pwRemint.gateGone && pwRemint.needsSignIn === false && pwRemint.status === "connected" &&
+      pwRemint.preAuth === false && pwRemint.passwordInMemory === undefined &&
+      pwRemint.signInOk && pwRemint.userId === "11111111-1111-1111-1111-111111111111", JSON.stringify(pwRemint));
+    ok("N2 slice 4: the refresh grant's ROTATED token replaces the one it was spent — the stored token is no longer the original password grant's",
+      /^mock-refresh-/.test(pwRemint.token) && pwRemint.token !== pwAtRest.token, JSON.stringify({ before: pwAtRest.token, after: pwRemint.token }));
+
+    // A refused refresh (revoked, rotated out, password changed in the workspace)
+    // is FINAL — it must not silently degrade to an anon session, and the dead
+    // token must not be retried on every later request.
+    const pwRevoked = await gpPw.evaluate(async (port) => {
+      var KEY = "analytics.supabase.refresh.v1";
+      var cfg = { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid", authEmail: "revoked@example.com" };
+      var store = JSON.parse(sessionStorage.getItem(KEY) || "{}");
+      store[cfg.url + "|" + cfg.authEmail] = "definitely-not-a-real-token";
+      sessionStorage.setItem(KEY, JSON.stringify(store));
+      var r = await Studio.supabaseSource.signIn(cfg);
+      var after = JSON.parse(sessionStorage.getItem(KEY) || "{}");
+      return { ok: r.ok, err: r.error || "", cleared: !after[cfg.url + "|" + cfg.authEmail] };
+    }, PORT);
+    await gpPw.close();
+    ok("N2 slice 4: a REVOKED refresh token is refused outright (no silent fall-back to an anon session) and is dropped rather than retried forever",
+      pwRevoked.ok === false && pwRevoked.cleared === true, JSON.stringify(pwRevoked));
+
+    // Upgrade path: a browser that already has a password at rest from an earlier
+    // version must lose the at-rest copy WITHOUT being signed out mid-session.
+    const gpMig = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpMig.on("pageerror", (e) => errors.push("N2 slice4 migration page: " + e.message));
+    // TOP FRAME ONLY: init scripts run in every same-origin frame, and the app
+    // boots offscreen preview iframes — an unguarded seed would re-plant the
+    // password AFTER sync.js migrated it away, and this check would read the
+    // iframe's re-seed as "the migration didn't run".
+    await gpMig.addInitScript((port) => {
+      try {
+        if (window.top !== window) return;
+        localStorage.setItem("analytics.datasource.v1", JSON.stringify({ sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid", authEmail: "owner@example.com", authPassword: "secret123" }, at: 1 }));
+      } catch (e) {}
+    }, PORT);
+    await gpMig.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpMig.waitForFunction(() => {
+      if (!window.Studio || !Studio.Sync) return false;
+      var s = Studio.Sync.syncState();
+      return s.sourceId === "supabase" && s.status !== "connecting";
+    }, { timeout: 20000 }).catch(() => {});
+    const migrated = await gpMig.evaluate(() => {
+      var everything = Object.keys(localStorage).map(function (k) { return k + "=" + localStorage.getItem(k); }).join("\n");
+      var conn = JSON.parse(localStorage.getItem("analytics.datasource.v1") || "null") || {};
+      var store = JSON.parse(sessionStorage.getItem("analytics.supabase.refresh.v1") || "{}");
+      return {
+        passwordField: (conn.cfg || {}).authPassword,
+        anywhereInLocalStorage: /secret123/.test(everything),
+        email: (conn.cfg || {}).authEmail || "",
+        status: Studio.Sync.syncState().status,
+        preAuth: !!Studio.Sync.syncState().preAuth,
+        tokens: Object.keys(store).length
+      };
+    });
+    ok("N2 slice 4 (upgrade): a pre-slice-4 record with the password at rest is migrated on load — the stored copy is gone, yet the connection still reaches 'connected' this session (nobody is signed out by upgrading)",
+      migrated.passwordField === undefined && migrated.anywhereInLocalStorage === false &&
+      migrated.email === "owner@example.com" && migrated.status === "connected" &&
+      migrated.preAuth === false && migrated.tokens === 1, JSON.stringify(migrated));
+    const signedOutForget = await gpMig.evaluate(() => {
+      window.PolecatAuth.logout();
+      var store = JSON.parse(sessionStorage.getItem("analytics.supabase.refresh.v1") || "{}");
+      return { tokens: Object.keys(store).length };
+    });
+    await gpMig.close();
+    ok("N2 slice 4: signing out drops the workspace session too — the next person at this browser can't inherit the previous user's database access",
+      signedOutForget.tokens === 0, JSON.stringify(signedOutForget));
+
+    // A NEW browser session: a signed-in local identity (that lives in
+    // localStorage) but no resumable workspace session. Revealing straight
+    // through would run every read as anon; ask for the password instead.
+    const gpReauth = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpReauth.on("pageerror", (e) => errors.push("N2 slice4 reauth page: " + e.message));
+    await gpReauth.addInitScript((port) => {
+      try {
+        if (window.top !== window) return; // top frame only — see the migration seed above
+        localStorage.setItem("analytics.datasource.v1", JSON.stringify({ sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid", authEmail: "owner@example.com" }, at: 1 }));
+        localStorage.setItem("analytics.users.v1", JSON.stringify([{ id: "user_owner", u: "owner@example.com", name: "Owner", role: "admin", demo: false, hash: "" }]));
+        localStorage.setItem("analytics.session.v1", JSON.stringify({ u: "owner@example.com" }));
+      } catch (e) {}
+    }, PORT);
+    await gpReauth.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpReauth.waitForSelector("#g-form", { timeout: 8000 }).catch(() => {});
+    const reauth = await gpReauth.evaluate(() => ({
+      gateUp: !!document.querySelector("#studio-gate"),
+      stillAuthedLocally: !!window.PolecatAuth.current(),
+      needsSignIn: !!(window.Studio && Studio.Sync && Studio.Sync.needsSignIn()),
+      preAuth: !!(window.Studio && Studio.Sync && Studio.Sync.syncState().preAuth),
+      prefilled: (document.getElementById("g-user") || {}).value || "",
+      msg: (document.getElementById("g-err") || {}).textContent || ""
+    }));
+    await gpReauth.close();
+    ok("N2 slice 4: a new browser session with a signed-in local identity but no resumable workspace session is asked for the password again instead of booting into an anon (RLS-empty) workspace",
+      reauth.gateUp && reauth.stillAuthedLocally && reauth.needsSignIn === true &&
+      /session ended/.test(reauth.msg), JSON.stringify(reauth));
+    ok("N2 slice 4: that boot never pulls as anon (pulls stay latched off, so an empty RLS read can't replace this device's local mirror), and the known email is prefilled so re-signing in is one field",
+      reauth.preAuth === true && reauth.prefilled === "owner@example.com", JSON.stringify(reauth));
 
     // ---- ADMIN-LOCAL (Kevin, 2026-07-31): admin/admin joins demo/demo as the
     // two strictly-LOCAL demo accounts — signing into either forces the

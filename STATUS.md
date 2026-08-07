@@ -135,6 +135,43 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N2 slice 4 — the workspace password stops being persisted; the refresh token takes its place
+  (v865, sw v497, 2026-08-07, steward — NOW item N2, the LAST of M7):** the standing security debt
+  the item named in one line — "the client still keeps the signed-in user's plaintext Supabase
+  password on disk". **The defect, precisely:** `Sync.setAuthCredentials()` stamped
+  `authEmail`/`authPassword` onto the live cfg and `saveConn()` serialised that cfg straight into
+  `analytics.datasource.v1`, so the password sat in localStorage in plaintext forever — for one
+  reason only: `ensureSession()` needed something to re-mint an expired JWT from. It never needed
+  the password for that. GoTrue returns a `refresh_token` on every grant and the adapter threw it
+  away. **The fix, in four parts:** (1) `app/sources/supabase.js` keeps the refresh token instead,
+  in `sessionStorage` under `analytics.supabase.refresh.v1` (the AUD-03 posture — one sign-in per
+  browser session, silent re-minting in between, nothing at rest when the tab closes);
+  `gotrueSignIn`/`gotrueRefresh` are now one `gotrueToken(cfg, grant, body)` and `ensureSession`
+  prefers the refresh grant, storing GoTrue's ROTATED token each time. A refused refresh is FINAL
+  (the token is dropped, not retried) unless a password happens to be in hand that turn; an
+  UNREACHABLE project still throws `unreachable` so slice 3's offline fallback is untouched.
+  (2) `saveConn()` strips `authPassword` on the way to disk (the live cfg still carries it in
+  memory), and a load-time migration deletes any copy an earlier version left at rest — carrying it
+  into memory for that page first, so upgrading never signs anyone out mid-session. (3) The hazard
+  this opens is handled explicitly: a browser with no resumable session would have boot-pulled as
+  ANON, which authenticated-only RLS answers with an EMPTY workspace, and adopting that would wipe
+  the device's local mirror. `Sync.needsSignIn()` detects exactly that shape and `initSync` latches
+  pulls off through the existing SYNC-PREAUTH mechanism, while `app/gate.js` asks for the password
+  once instead of revealing an app that reads as empty — the same "the workspace decides who signs
+  in" rule slice 3 established, with the known email prefilled so it is one field. (4) Sign-out
+  (`PolecatAuth.logout`) and `Sync.disconnect()` both call the new `Sync.forgetAuthSession()`, so
+  the next person at this browser cannot inherit the previous user's database access.
+  **Deliberately unchanged:** anon-key-only Supabase connections, Turso/Firebase/local workspaces,
+  and the `admin`/`demo` pair all behave exactly as before (`needsSignIn()` is false for every one
+  of those shapes). **Verified:** the full `tests/run.js` suite, 3101/3101 green, with 9 new checks
+  — the password is nowhere in localStorage after a real gate sign-in (scanning EVERY key, not just
+  the connection record); the refresh token is what is kept; a RELOAD with no password anywhere
+  re-mints the session and connects as the real user; the rotated token replaces the spent one; a
+  revoked token is refused and dropped; a pre-slice-4 record is migrated away without signing
+  anyone out; sign-out clears the session; and a new browser session is asked for the password with
+  pulls latched off and the email prefilled. The test harness's mock GoTrue gained the
+  `refresh_token` grant (with real rotation) so all of it runs without the live project.
+  **est 1pt, took 1** — and that closes M7.
 - **N2 slice 3 — THE CLIENT FLIP: on a bound Supabase workspace the DATABASE decides who signs in,
   not the mirrored local hash (v864, sw v496, 2026-08-07, steward — NOW item N2):** slices 1 and 2
   proved the database's posture; this is the first slice that changes the CLIENT, and it closes the
@@ -9595,9 +9632,10 @@
 > struck entries and propose the next batch to Kevin on a `hold` PR — never graze the
 > reservoir directly.
 
-- **N2 ★★ [1pt remaining — stop persisting the workspace password; est 2pt, 3 slices shipped] — M7: real Row-Level
-  Security enforcement.** The standing
-  security debt. `app/auth.js` is explicit that today's model is honest UX-gating over a shared
+- ~~**N2 ★★ [2pt est, 4 slices shipped] — M7: real Row-Level Security enforcement.**~~
+  ✓ SHIPPED v865 (2026-08-07, steward — see DONE). All four slices are in; M7 is closed. The
+  history below stays until the next grooming pass archives it.
+  **The debt it closed:** `app/auth.js` was explicit that the model was honest UX-gating over a shared
   local store, not isolation between users, and AUD-03 hardened the password digests
   without changing that posture. **Slice 1 is SHIPPED (v862, 2026-08-07, steward — see DONE):
   `tests/rls.mjs` installs BOTH shipped postures — `tools/supabase-rls-real.sql` and
@@ -9626,16 +9664,17 @@
   `authenticate()` gained an `unreachable` flag to tell "no" apart from "we never asked"), and
   local accounts, the `admin`/`demo` seed pair, custom local-auth workspaces and "Local only
   (this browser)" are all untouched. 3 new checks; est 2pt, took 1.
-  **What remains (slice 4 — [1pt], the last of M7):** the client still keeps the signed-in user's
-  **plaintext Supabase password** on disk. `Sync.setAuthCredentials()` stamps `authEmail`/
-  `authPassword` onto the live cfg and `saveConn()` serialises that cfg straight into
-  `analytics.datasource.v1` (app/sources/sync.js:219-224), purely so `ensureSession()` can re-mint
-  an expired JWT from `cfg.authPassword`. GoTrue already returns a `refresh_token` on every
-  password grant and the adapter throws it away — keep that instead (session-scoped, the same
-  posture AUD-03 gave the secrets-vault passphrase) and re-mint from it, so a workspace password
-  never reaches localStorage. Verifiable the same way this slice was: the mock GoTrue already
-  returns a refresh token, so both the refresh path and a "the password is no longer persisted"
-  assertion are testable without the live project. Use a throwaway `steward_test*` schema for any
+  **Slice 4 is SHIPPED (v865, sw v497, 2026-08-07, steward — see DONE): THE PASSWORD STOPS BEING
+  PERSISTED.** `Sync.setAuthCredentials()` stamped `authEmail`/`authPassword` onto the live cfg and
+  `saveConn()` serialised that cfg straight into `analytics.datasource.v1`, so a plaintext
+  workspace password sat in localStorage forever — purely so `ensureSession()` could re-mint an
+  expired JWT from it. It now keeps GoTrue's `refresh_token` instead, in sessionStorage (the AUD-03
+  posture), and re-mints from that; any password an earlier version stored is migrated away on load
+  without signing anyone out. The hazard that opens — a browser with no resumable session
+  boot-pulling as ANON and adopting an RLS-empty workspace over real local data — is closed by
+  `Sync.needsSignIn()`: pulls latch off and the gate asks for the password once, email prefilled.
+  Sign-out and disconnect both drop the session. 9 new checks, 3101/3101 green; est 1pt, took 1.
+  Notes for future database work: use a throwaway `steward_test*` schema for any
   database work; never CREATE/DROP/ALTER against live `public`. Note for any run touching an
   already-live workspace: `actionGoLive` TRUNCATEs the workspace tables, so "just re-run Go live"
   is never the way to pick up a posture fix — re-paste `tools/supabase-rls-real.sql` instead.

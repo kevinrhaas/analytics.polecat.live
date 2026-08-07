@@ -81,10 +81,25 @@
     reveal();
   }
 
+  // N2 slice 4 (M7): the workspace password is no longer kept at rest, so a NEW
+  // browser session can hold a signed-in local identity (that lives in
+  // localStorage) with no way to sign its DATABASE requests in. Revealing
+  // straight through would drop that person into an app whose workspace reads as
+  // empty, so ask for the password once instead — the same "the workspace
+  // decides who signs in" rule slice 3 established. Sync.needsSignIn() is false
+  // for every other shape (local workspaces, Turso/Firebase, anon-key-only
+  // Supabase, and a session that can still be resumed), so nothing else changes.
+  function workspaceNeedsSignIn() {
+    try {
+      var Sync = window.Studio && window.Studio.Sync;
+      return !!(Sync && Sync.needsSignIn && Sync.needsSignIn());
+    } catch (e) { return false; }
+  }
+
   async function start() {
     if (!Auth) { reveal(); return; }               // auth.js missing — fail open (dev)
     await Auth.seedIfEmpty();
-    if (Auth.authed()) { reveal(); return; }
+    if (Auth.authed() && !workspaceNeedsSignIn()) { reveal(); return; }
     var a = document.getElementById("app"); if (a) a.style.visibility = "hidden";
 
     // Themed via the same --brand/--dk/--ink/etc custom properties as the app
@@ -191,6 +206,20 @@
     } catch (e) { /* malformed storage — keep the default coin */ }
 
     var userInp = document.getElementById("g-user"); if (userInp) userInp.focus();
+    // N2 slice 4: when this screen is here only because the workspace session
+    // expired with the browser, the person is already known — prefill their email
+    // and put the cursor on the password so re-signing in is one field, not two.
+    if (userInp && !userInp.value && workspaceNeedsSignIn()) {
+      try {
+        var boundCfg = (window.Studio && Studio.Sync && Studio.Sync.currentConfig && Studio.Sync.currentConfig()) ||
+          (JSON.parse(localStorage.getItem("analytics.datasource.v1") || "null") || {}).cfg;
+        if (boundCfg && boundCfg.authEmail) {
+          userInp.value = boundCfg.authEmail; // setErr writes textContent — no escaping needed
+          if (Auth.authed()) setErr("Your workspace session ended when the browser closed — enter your password to continue.");
+          var pw0 = document.getElementById("g-pass"); if (pw0) pw0.focus();
+        }
+      } catch (e) { /* malformed record — just show an empty form */ }
+    }
     // LF39: editing the username clears both the error and the Connect cue (fresh attempt).
     if (userInp) userInp.addEventListener("input", function () { setErr(""); clearCue(); });
 
