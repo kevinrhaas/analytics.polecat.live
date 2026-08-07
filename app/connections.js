@@ -524,8 +524,10 @@
       return { el: det, needle: ((t.schema || "") + " " + t.name).toLowerCase() };
     });
     filterInp.oninput = function () {
-      var q = filterInp.value.trim().toLowerCase();
-      rows.forEach(function (row) { row.el.hidden = !!q && row.needle.indexOf(q) === -1; });
+      // AUD-06 slice 6: the shared matcher — "orders public" finds the orders table in the
+      // public schema, in either order, instead of only the one literal spelling.
+      var match = Studio.catalogSearch.textMatcher(filterInp.value.trim());
+      rows.forEach(function (row) { row.el.hidden = !match(row.needle); });
     };
   }
   // The 2-step connect wizard (manager pattern): pick an adapter → name +

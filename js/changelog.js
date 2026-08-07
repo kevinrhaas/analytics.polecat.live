@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 858,
+    title: 'Every search box in the app searches the same way',
+    kind: 'polish',
+    ts: '2026-08-07T14:25:48.000Z',
+    items: [
+      'Typing two words into a search box now finds things that contain both, in any order, wherever those words happen to live -- so "cover crops" finds "Cover crop adoption" and "crops 2024" finds a dataset named "Cover crops" filed under 2024. The catalog panels learned this earlier; now the rest of the app has.',
+      'The rest of the app is: the Studio library (your datasets and the sample queries), the panel inspector search, the chart-type gallery, the command palette, the What\'s-new feed, the folder picker, the Explore pane, the View Builder datasets pane and its value filter, the auto-build set list, the "add to dashboard" picker and the connection schema browser. Thirteen boxes that each used to demand the exact words in the exact order.',
+      'The command palette keeps its own ranking on top of that -- a command whose name starts with what you typed still comes first -- and a "quoted phrase" still means the literal string, everywhere.',
+      'The What\'s-new feed highlights each word it matched rather than the whole query, so a hit no longer looks like a false positive.',
+      'One shared module owns these rules now instead of thirteen near-copies, which is the point: the next search box gets the same behaviour for free.',
+    ],
+  },
+  {
     v: 857,
     title: 'The app updates itself with 190KB less to download',
     kind: 'polish',

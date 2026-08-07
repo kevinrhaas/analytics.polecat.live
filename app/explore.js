@@ -543,11 +543,11 @@
       var listWrap = el("div", "odp-list"); b.appendChild(listWrap);
       function paint() {
         var q = (search.value || "").toLowerCase();
-        var list = loadRecents().filter(isVisibleToMe).filter(function (r) {
-          if (!q) return true;
+        // AUD-06 slice 6: the shared matcher, same rules as the Dashboards panel's search.
+        var list = loadRecents().filter(isVisibleToMe).filter(Studio.catalogSearch.matcher(q, function (r) {
           var sp = r.spec || {};
-          return ((sp.title || "") + " " + (sp.name || "")).toLowerCase().indexOf(q) >= 0;
-        });
+          return [sp.title, sp.name];
+        }));
         listWrap.innerHTML = list.length ? "" : '<div class="odp-empty">' + (q ? "No dashboards match." : "Nothing saved yet — save a dashboard first, or add to a new one instead.") + '</div>';
         var titleOf = function (r) { var sp = r.spec || {}; return sp.title || sp.name || "Untitled"; };
         var labels = disambiguateLabels(list, titleOf);
@@ -648,9 +648,11 @@
     var body = $("#xpBody"); if (!body) return;
     var dss = xpDatasets();
     var q = XP.q.toLowerCase();
-    var shown = dss.filter(function (d) {
-      return !q || (d.name + " " + d.sub + " " + d.cols.join(" ")).toLowerCase().indexOf(q) >= 0;
-    });
+    // AUD-06 slice 6: the shared matcher — the Explore pane searches the way the Datasets
+    // section does, so "cover crops" finds "Cover crop adoption" here too.
+    var shown = dss.filter(Studio.catalogSearch.matcher(q, function (d) {
+      return [d.name, d.sub, d.cols];
+    }));
     var analyses = Studio.Workspace.all("analyses").filter(isVisibleToMe).sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
     function xpDsRowHtml(d) {
       var on = XP.kind === d.kind && XP.dsId === d.id;
@@ -945,10 +947,10 @@
   // Analyses in the Studio library — saved Explore results as drag-in objects.
   function buildAnalysesLib(list, q) {
     var all = (Studio.Workspace ? Studio.Workspace.all("analyses").filter(isVisibleToMe) : []);
-    var shown = all.filter(function (a) {
-      if (!q) return true;
-      return ((a.name || "") + " " + (a.chartType || "")).toLowerCase().indexOf(q) >= 0;
-    }).sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
+    // AUD-06 slice 6: the shared matcher, same rules as the Views section's own search.
+    var shown = all.filter(Studio.catalogSearch.matcher(q, function (a) {
+      return [a.name, a.chartType];
+    })).sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
     if (!shown.length) return;
     var wrap = el("div", "lib-mine lib-analyses open");
     var h = el("div", "h");

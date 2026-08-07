@@ -135,6 +135,47 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **AUD-06 slice 6 — the search kit stops being catalog-only (v858, sw v490, 2026-08-07,
+  steward; AUDIT-2026-08 §2.1, ux):** §2.1's closing sentence — "add the 11 other search
+  affordances (library, inspector, chart gallery, ⌘K, docs, folder-picker…) and the pattern
+  is: every surface reinvented its own filtering" — is now false everywhere the shared kit
+  can reach. Slices 1–5 unified the six CATALOG panels; this one takes the other thirteen
+  boxes off `hay.toLowerCase().indexOf(q) >= 0`.
+  - **The thirteen:** the Studio library's workspace-datasets group and its sample-query
+    (DA) groups (`studio.js`), the panel inspector's section search, the chart-type gallery,
+    the ⌘K palette (`palette.js`), the What's-new feed, the folder picker, the auto-build
+    "set" filter, the Studio open-dashboard picker, Explore's add-to-dashboard picker, its
+    datasets pane and its analyses library (`explore.js`), the View Builder's datasets pane
+    and its filter-value list (`build.js`), and a connection's schema browser
+    (`connections.js`). After this slice `grep 'toLowerCase().indexOf(q'` over `app/` returns
+    ONLY the comment in the kit that quotes the old idiom.
+  - **Two additions to the kit, both earned by a surface the catalog panels never had.**
+    `catalogSearch.textMatcher(q)` for the rows that ARE strings (a folder path, a distinct
+    column value, a card's text, an inspector section's `textContent`) — otherwise six call
+    sites would each fake a one-element array. `catalogSearch.markRe(q)` for the one surface
+    that HIGHLIGHTS: the What's-new feed's `hlq()` marked the raw query string, so a
+    two-word match across two fields marked nothing and the hit read as a false positive.
+    It now marks each term, **longest term first**, or `filter` eats the head of
+    `filtering`.
+  - **⌘K keeps its ranking.** Only the *inclusion* test moved to the shared rule; the
+    palette still buckets a prefix hit on the visible label above an interior hit (scored on
+    the first term) and still adds the usage tiebreak. The matcher and the terms are parsed
+    once per keystroke instead of once per command.
+  - **Deliberately NOT adopted — `docs/index.html`'s own search** (the audit's "docs"). That
+    page is standalone: three inline `<script>` blocks, zero app modules, and its search is a
+    different shape anyway (title-ranked-before-body, with a snippet + `<mark>` window).
+    Adopting the kit would mean either pulling `app/studio.js` into the Help page or copying
+    the rules into it — the exact duplication this program exists to remove. Recorded in NEXT
+    rather than quietly skipped.
+  - **No behaviour lost.** Empty query still matches everything; quoted phrases still match
+    adjacently; the truthiness of `q` still drives the surrounding UI that keys off "is the
+    user searching" (the View Builder tree flattens, the folder picker hides its crumbs, the
+    gallery hides its group labels). Verified in the foreground: the dev gate (validate +
+    changelog-check + doc-truth + dev-smoke at 390×780 and desktop) and the FULL
+    `tests/run.js` suite, zero pageerrors. New checks: the two kit additions, the What's-new
+    cross-field match, a gallery search built from a real card's own words in reversed order,
+    and ⌘K finding "Edit JSON spec…" from "spec json edit" while a prefix query still ranks
+    it first.
 - **AUD-08 slice 2 — the service worker stops shipping its own history (v857, sw v489,
   2026-08-07, steward; AUDIT-2026-08 §1.4, perf):** `sw.js` was **194,734 bytes** to deliver
   about 5KB of worker. The other 185KB was 2,454 lines of `/* vNNN: … */` release notes —
@@ -9480,11 +9521,22 @@
 >   none needed: a new operator id is invisible to older clients, which pass the
 >   rows through unfiltered rather than misreading the rule (the AUD-04
 >   constraint, honoured by the slice-3 unknown-operator contract).
+>   **Slice 6 — THE OTHER SEARCH BOXES — SHIPPED v858, sw v490 (2026-08-07,
+>   steward — see DONE):** §2.1's "11 other search affordances" adopted
+>   `Studio.catalogSearch`; thirteen boxes in `studio.js`/`palette.js`/
+>   `explore.js`/`build.js`/`connections.js` came off the literal-substring
+>   idiom, the kit gained `textMatcher` (string rows) and `markRe` (the
+>   highlighting surface), and ⌘K kept its own ranking on top of the shared
+>   inclusion test.
 >   **Still open, in rough order:**
->   - Out of family D but named in §2.1: the 11 other search affordances
->     (library, inspector, chart gallery, ⌘K, docs, folder picker) could adopt
->     `Studio.catalogSearch` opportunistically — none is a catalog panel, so
->     none blocks the slices above.
+>   - **The Help page's own search (`docs/index.html`).** The one affordance
+>     slice 6 deliberately left alone, with the evidence in DONE: the page is
+>     standalone (inline scripts, no app modules) and its search is
+>     title-ranked-before-body with a snippet window, so adopting the kit means
+>     either loading `app/studio.js` into Help or copying the rules — the
+>     duplication this program removes. It wants a decision first: extract the
+>     kit into a tiny standalone file both can load, or leave Help's search as
+>     its own thing and say so in the docs (slice 6 says so).
 > - ~~AUD-07 ★ [ux] Finish delete-undo coverage~~ ✓ **SHIPPED v846, sw v478
 >   (2026-08-07, steward — see DONE).** All three paths carry Undo, each
 >   restoring what it uniquely owns beyond the row (the View Builder draft +
