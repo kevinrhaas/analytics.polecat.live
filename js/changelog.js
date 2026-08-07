@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 836,
+    title: 'The release pipeline speaks plainly: dev, stage, main',
+    kind: 'polish',
+    ts: '2026-08-07T00:13:56.000Z',
+    items: [
+      'The middle pipeline step is now called what it is — stage. The hosted preview of the next release moved from /qa/ to /stage/, and every workflow, config and doc now reads dev → stage → main.',
+    ],
+  },
+  {
     v: 835,
     title: 'Staged releases: dev and qa previews before production',
     kind: 'feature',

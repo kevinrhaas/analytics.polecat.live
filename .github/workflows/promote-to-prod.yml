@@ -1,9 +1,9 @@
-name: Promote qa to prod
+name: Promote stage to prod
 
-# Ship a tested qa candidate to production. Dispatch-only — prod NEVER
-# promotes on a schedule. Refuses while the latest qa promotion run is red
-# (pipeline.json requireGreenQaForProd), unless dispatched with force.
-# Promotion = a --no-ff merge of qa into main + a release-vNNN tag (from
+# Ship a tested stage candidate to production. Dispatch-only — prod NEVER
+# promotes on a schedule. Refuses while the latest stage promotion run is red
+# (pipeline.json requireGreenStageForProd), unless dispatched with force.
+# Promotion = a --no-ff merge of stage into main + a release-vNNN tag (from
 # js/changelog.js LATEST_VERSION — analytics has no /v/ archive system; the
 # tag is the rollback anchor for rollback-prod.yml's git revert).
 #
@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       force:
-        description: Promote even if the latest qa promotion run is red
+        description: Promote even if the latest stage promotion run is red
         type: boolean
         default: false
 
@@ -39,42 +39,42 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Require a green qa (unless forced or disabled in pipeline.json)
+      - name: Require a green stage (unless forced or disabled in pipeline.json)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          REQUIRE="$(node -e "console.log(require('./.github/pipeline.json').requireGreenQaForProd !== false)")"
+          REQUIRE="$(node -e "console.log(require('./.github/pipeline.json').requireGreenStageForProd !== false)")"
           if [ "${{ inputs.force }}" = "true" ] || [ "$REQUIRE" != "true" ]; then
-            echo "qa-green check skipped (force=${{ inputs.force }}, require=$REQUIRE)."
+            echo "stage-green check skipped (force=${{ inputs.force }}, require=$REQUIRE)."
             exit 0
           fi
-          LAST="$(gh run list --workflow=promote-to-qa.yml --status=completed --limit=1 --json conclusion --jq '.[0].conclusion // "none"')"
-          echo "latest completed qa promotion: $LAST"
+          LAST="$(gh run list --workflow=promote-to-stage.yml --status=completed --limit=1 --json conclusion --jq '.[0].conclusion // "none"')"
+          echo "latest completed stage promotion: $LAST"
           if [ "$LAST" != "success" ] && [ "$LAST" != "none" ]; then
-            echo "::error::Latest qa promotion is '$LAST'. Fix qa (or dispatch with force) before promoting to prod."
+            echo "::error::Latest stage promotion is '$LAST'. Fix stage (or dispatch with force) before promoting to prod."
             exit 1
           fi
 
-      - name: Merge qa into main and tag the release
+      - name: Merge stage into main and tag the release
         run: |
           set -e
           git config user.name  "analytics-bot"
           git config user.email "bot@users.noreply.github.com"
-          if ! git fetch origin qa 2>/dev/null; then
-            echo "::error::qa branch missing — dispatch pipeline-setup.yml first."
+          if ! git fetch origin stage 2>/dev/null; then
+            echo "::error::stage branch missing — dispatch pipeline-setup.yml first."
             exit 1
           fi
-          COUNT="$(git rev-list --count main..origin/qa)"
+          COUNT="$(git rev-list --count main..origin/stage)"
           if [ "$COUNT" = "0" ]; then
-            echo "Nothing to promote — main already contains qa."
+            echo "Nothing to promote — main already contains stage."
             exit 0
           fi
-          git merge --no-ff origin/qa -m "Promote qa→prod: $COUNT commit(s)"
+          git merge --no-ff origin/stage -m "Promote stage→prod: $COUNT commit(s)"
           V="$(grep -oE 'LATEST_VERSION = [0-9]+' js/changelog.js | grep -oE '[0-9]+' | head -1)"
           [ -n "$V" ] || V="$(grep -oE 'v: [0-9]+' js/changelog.js | head -1 | grep -oE '[0-9]+')"
           git tag -f "release-v${V}"
           git push origin main "refs/tags/release-v${V}"
-          echo "Promoted qa→prod as release v${V}."
+          echo "Promoted stage→prod as release v${V}."
 
       - name: Publish (GITHUB_TOKEN pushes don't trigger deploy — dispatch it)
         env:

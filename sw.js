@@ -5,7 +5,8 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v467"; /* v467: pipeline adoption — the precached
+var CACHE_NAME = "studio-shell-v468"; /* v468: pipeline terminology — precached js/changelog.js gained v836 (qa stage renamed to 'stage'). */
+/* v467: pipeline adoption — the precached
    js/changelog.js gained the v835 staged-releases entry. */
 /* v466: AUD-04 data-loss guards — the
    precached workspace.js (unknown-table preservation + persist-failure

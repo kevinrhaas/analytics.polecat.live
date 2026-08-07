@@ -44,7 +44,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # The syntax sweep lives in tools/validate.mjs so Guard main, the dev
-          # gate (ci.yml) and promote-to-qa.yml agree on what "parses" means;
+          # gate (ci.yml) and promote-to-stage.yml agree on what "parses" means;
           # the changelog contract check stays chained here (Manager + the
           # launcher read js/changelog.js live — an unparseable main is broken).
           if node tools/validate.mjs && node tools/changelog-check.js; then
@@ -60,7 +60,7 @@ jobs:
           bad_sha="$(git rev-parse --short HEAD)"
           git config user.name  "analytics-bot"
           git config user.email "bot@users.noreply.github.com"
-          # HEAD may now be a promotion MERGE (qa→prod, docs/PIPELINE.md) —
+          # HEAD may now be a promotion MERGE (stage→prod, docs/PIPELINE.md) —
           # revert those against their first parent; plain commits as before.
           if git rev-parse -q --verify HEAD^2 >/dev/null; then
             revert_args="-m 1"

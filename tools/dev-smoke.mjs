@@ -1,15 +1,15 @@
 // dev-smoke.mjs — the pipeline's LIGHT gate ("area tests").
 //
 //   NODE_PATH=$(npm root -g) node tools/dev-smoke.mjs
-//   SMOKE_PREFIX=/qa … node tools/dev-smoke.mjs     (staged-preview form)
+//   SMOKE_PREFIX=/stage … node tools/dev-smoke.mjs     (staged-preview form)
 //
-// The FULL suite (tests/run.js, ~2,900 checks, ~10 min) runs at qa-promotion
-// time in promote-to-qa.yml. This is the fast boot sanity that gates work
+// The FULL suite (tests/run.js, ~2,900 checks, ~10 min) runs at stage-promotion
+// time in promote-to-stage.yml. This is the fast boot sanity that gates work
 // entering the `dev` integration branch: the marketing page, the app (past
 // the gate), and the docs all render with ZERO pageerrors, on desktop and at
 // the 390px mobile width. SMOKE_PREFIX re-points every URL at a staged
-// /qa/ or /dev/ assembly (tools/stage-preview.mjs output), so base-href and
-// path-rewrite bugs in the staging itself are caught by the qa gate too.
+// /stage/ or /dev/ assembly (tools/stage-preview.mjs output), so base-href and
+// path-rewrite bugs in the staging itself are caught by the stage gate too.
 import http from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname } from "node:path";

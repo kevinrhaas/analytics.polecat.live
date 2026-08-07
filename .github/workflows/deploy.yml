@@ -10,9 +10,9 @@ name: Deploy to GitHub Pages
 # docs/PIPELINE.md is the canonical runbook) the Pages artifact carries THREE
 # stages:
 #   /        production  = main            (untouched, real sw.js, indexed)
-#   /qa/     candidate   = the qa branch   (stage-preview: re-based paths,
+#   /stage/     candidate   = the stage branch   (stage-preview: re-based paths,
 #   /dev/    integration = the dev branch    stub SW, noindex, stage banner)
-# The stage steps no-op while the qa/dev refs don't exist, so this workflow is
+# The stage steps no-op while the stage/dev refs don't exist, so this workflow is
 # safe to merge before pipeline-setup.yml ever runs. Main is ALWAYS assembled
 # at the artifact root regardless of which branch's push triggered the run.
 # The promotion workflows push with GITHUB_TOKEN (which can't trigger `push`),
@@ -22,7 +22,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main, qa, dev]
+    branches: [main, stage, dev]
   workflow_dispatch:
 
 permissions:
@@ -38,8 +38,8 @@ jobs:
   # SOFT test signal — this MUST NOT gate the live deploy. A hard `needs: test` gate was
   # briefly added and it FROZE the live site for ~21 hours: a flaky CI-only test failed the
   # `test` job, so `deploy` never ran and ~55 versions never went live while the repo kept
-  # advancing. The pipeline now runs this same suite as a HARD gate at qa-promotion time
-  # (promote-to-qa.yml) — which is fine, because that gates an integration branch, never
+  # advancing. The pipeline now runs this same suite as a HARD gate at stage-promotion time
+  # (promote-to-stage.yml) — which is fine, because that gates an integration branch, never
   # the production deploy. `continue-on-error: true` keeps this run as a visible signal
   # WITHOUT ever blocking or failing the deploy.
   # DO NOT re-add `needs: test` to the deploy job — see STATUS.md "CI / deploy" convention.
@@ -71,9 +71,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Assemble /qa/ and /dev/ stage previews (no-op until the refs exist)
+      - name: Assemble /stage/ and /dev/ stage previews (no-op until the refs exist)
         run: |
-          for stage in qa dev; do
+          for stage in stage dev; do
             if git fetch origin "$stage" 2>/dev/null; then
               sha="$(git rev-parse --short FETCH_HEAD)"
               git worktree add "_${stage}-src" FETCH_HEAD

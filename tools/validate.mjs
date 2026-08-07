@@ -1,5 +1,5 @@
 // validate.mjs — the fast, browser-free syntax gate, shared by Guard main
-// (auto-revert.yml), the dev gate (ci.yml) and promote-to-qa.yml so all three
+// (auto-revert.yml), the dev gate (ci.yml) and promote-to-stage.yml so all three
 // agree on what "parses" means. Mirrors Guard main's historical inline loop:
 // the app mixes classic scripts (app/*.js via <script src>) with ES modules
 // (js/changelog.js), so a file passes if EITHER parse mode accepts it.

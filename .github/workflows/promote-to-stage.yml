@@ -1,11 +1,11 @@
-name: Promote dev to qa
+name: Promote dev to stage
 
-# The pipeline's FULL gate. Merges dev into qa, runs the WHOLE Playwright
-# suite (tests/run.js, ~2,900 checks) on the qa tree, then assembles the
-# staged /qa/ form (tools/stage-preview.mjs) and boot-smokes it — so both the
-# code AND the staging are proven before the preview publishes. Red → qa is
+# The pipeline's FULL gate. Merges dev into stage, runs the WHOLE Playwright
+# suite (tests/run.js, ~2,900 checks) on the stage tree, then assembles the
+# staged /stage/ form (tools/stage-preview.mjs) and boot-smokes it — so both the
+# code AND the staging are proven before the preview publishes. Red → stage is
 # rolled straight back to its pre-promotion commit and an issue is filed.
-# The green/red outcome of this workflow IS the qa status record —
+# The green/red outcome of this workflow IS the stage status record —
 # promote-to-prod.yml and Manager's Pipeline view read it from the Actions
 # API; there is no separate state file.
 #
@@ -28,7 +28,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: promote-to-qa
+  group: promote-to-stage
   cancel-in-progress: false
 
 jobs:
@@ -57,15 +57,15 @@ jobs:
             echo "due=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Merge main into dev (hotfix back-merge), then dev into qa
+      - name: Merge main into dev (hotfix back-merge), then dev into stage
         id: merge
         if: steps.gate.outputs.due == 'true'
         run: |
           set -e
           git config user.name  "analytics-bot"
           git config user.email "bot@users.noreply.github.com"
-          if ! git fetch origin dev qa 2>/dev/null; then
-            echo "::error::dev/qa branches missing — dispatch pipeline-setup.yml first."
+          if ! git fetch origin dev stage 2>/dev/null; then
+            echo "::error::dev/stage branches missing — dispatch pipeline-setup.yml first."
             exit 1
           fi
 
@@ -74,25 +74,25 @@ jobs:
           git checkout -B dev origin/dev
           if ! git merge --no-edit origin/main; then
             git merge --abort || true
-            gh issue create --title "qa promotion blocked: main→dev back-merge conflict" \
-              --body "Automatic back-merge of main into dev hit conflicts and was aborted. Resolve on dev, then re-dispatch promote-to-qa. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" || true
+            gh issue create --title "stage promotion blocked: main→dev back-merge conflict" \
+              --body "Automatic back-merge of main into dev hit conflicts and was aborted. Resolve on dev, then re-dispatch promote-to-stage. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" || true
             echo "::error::main→dev back-merge conflicted."
             exit 1
           fi
           git push origin dev
 
-          QA_PREV="$(git rev-parse origin/qa)"
-          echo "qa_prev=$QA_PREV" >> "$GITHUB_OUTPUT"
-          git checkout -B qa origin/qa
-          COUNT="$(git rev-list --count qa..dev)"
+          STAGE_PREV="$(git rev-parse origin/stage)"
+          echo "stage_prev=$STAGE_PREV" >> "$GITHUB_OUTPUT"
+          git checkout -B stage origin/stage
+          COUNT="$(git rev-list --count stage..dev)"
           if [ "$COUNT" = "0" ]; then
-            echo "Nothing to promote — qa already contains dev."
+            echo "Nothing to promote — stage already contains dev."
             echo "promoted=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          RANGE="$(git rev-parse --short qa)..$(git rev-parse --short dev)"
-          git merge --no-ff dev -m "Promote dev→qa: $COUNT commit(s) ($RANGE)"
-          git push origin qa
+          RANGE="$(git rev-parse --short stage)..$(git rev-parse --short dev)"
+          git merge --no-ff dev -m "Promote dev→stage: $COUNT commit(s) ($RANGE)"
+          git push origin stage
           echo "promoted=true" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ github.token }}
@@ -103,31 +103,31 @@ jobs:
           npm install -g playwright
           npx playwright install --with-deps chromium
 
-      - name: FULL suite on the qa tree (tests/run.js)
+      - name: FULL suite on the stage tree (tests/run.js)
         if: steps.merge.outputs.promoted == 'true'
         run: NODE_PATH=$(npm root -g) node tests/run.js
 
-      - name: Staged /qa/ form boots clean (stage assembly + boot smoke)
+      - name: Staged /stage/ form boots clean (stage assembly + boot smoke)
         if: steps.merge.outputs.promoted == 'true'
         run: |
-          node tools/stage-preview.mjs . qa "$(git rev-parse --short qa)"
-          SMOKE_PREFIX=/qa NODE_PATH=$(npm root -g) node tools/dev-smoke.mjs
+          node tools/stage-preview.mjs . stage "$(git rev-parse --short stage)"
+          SMOKE_PREFIX=/stage NODE_PATH=$(npm root -g) node tools/dev-smoke.mjs
 
-      - name: "Red: roll qa back to its pre-promotion commit"
+      - name: "Red: roll stage back to its pre-promotion commit"
         if: failure() && steps.merge.outputs.promoted == 'true'
         run: |
-          QA_PREV="${{ steps.merge.outputs.qa_prev }}"
-          QA_NOW="$(git rev-parse qa)"
-          # qa is a machine-owned pointer; this lease only rewinds the exact
+          STAGE_PREV="${{ steps.merge.outputs.stage_prev }}"
+          STAGE_NOW="$(git rev-parse stage)"
+          # stage is a machine-owned pointer; this lease only rewinds the exact
           # merge this run just pushed. main is never force-pushed, anywhere.
-          git push --force-with-lease=refs/heads/qa:"$QA_NOW" origin "$QA_PREV":refs/heads/qa
-          gh issue create --title "qa promotion failed: suite red, qa rolled back" \
-            --body "The full suite (or the staged-form boot smoke) failed on the promoted qa, so qa was rolled back to \`${QA_PREV}\`. dev still carries the promoted commits — fix on dev and re-promote. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" || true
-          echo "::error::qa gate failed — qa rolled back to ${QA_PREV}."
+          git push --force-with-lease=refs/heads/stage:"$STAGE_NOW" origin "$STAGE_PREV":refs/heads/stage
+          gh issue create --title "stage promotion failed: suite red, stage rolled back" \
+            --body "The full suite (or the staged-form boot smoke) failed on the promoted stage, so stage was rolled back to \`${STAGE_PREV}\`. dev still carries the promoted commits — fix on dev and re-promote. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" || true
+          echo "::error::stage gate failed — stage rolled back to ${STAGE_PREV}."
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: "Green: publish the new /qa/ preview"
+      - name: "Green: publish the new /stage/ preview"
         if: success() && steps.merge.outputs.promoted == 'true'
         run: gh workflow run deploy.yml --ref main
         env:

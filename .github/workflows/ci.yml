@@ -6,8 +6,8 @@ name: Dev gate (area tests)
 # gates an integration branch, never a production deploy, so the "never
 # hard-gate deploy on CI" doctrine (the ~21h freeze, STATUS.md "CI / deploy")
 # is untouched — prod hotfixes go straight to main and only Guard main
-# watches them. The FULL suite (tests/run.js) runs at qa-promotion time in
-# promote-to-qa.yml.
+# watches them. The FULL suite (tests/run.js) runs at stage-promotion time in
+# promote-to-stage.yml.
 on:
   pull_request:
     branches: [dev]
