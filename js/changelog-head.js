@@ -3,6 +3,6 @@
    the version label and the What's-new unseen dot, so the ~680KB of full history is
    fetched lazily (Studio.loadChangelog) the first time someone opens the feed.
    Regenerated from js/changelog.js on every normalize run — never hand-edit. */
-window.STUDIO_LATEST_VERSION = 866;
-window.STUDIO_LATEST = {"v":866,"title":"The shared Polecat Shell catches up to v0.6.2","kind":"polish","ts":"2026-08-07T20:19:39.000Z"};
+window.STUDIO_LATEST_VERSION = 867;
+window.STUDIO_LATEST = {"v":867,"title":"Open a dashboard in the viewer and it matches your theme, not the author's","kind":"fix","ts":"2026-08-07T20:38:31.000Z"};
 window.STUDIO_BUILD = "__BUILD_TS__";

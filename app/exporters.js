@@ -380,7 +380,17 @@
     // option (spec.renderMode) instead of a runtime toggle button inside the rendered header —
     // baked straight onto <html> here so both the export and the live preview open already in
     // the author's chosen mode, with zero interactive theme control left in the rendered content.
-    var htmlOpenTag = "<html lang=\"en\"" + (spec.renderMode === "dark" ? " data-theme=\"dark\"" : "") + ">";
+    //
+    // N5a (Kevin, 2026-08-07): inside the APP, the reader's theme wins — a dark app framing a
+    // light dashboard reads as broken. `opts.frameTheme` is the opt-in override for exactly that
+    // case: the Viewer passes its own live `data-theme` when it builds the srcdoc, and nothing
+    // else passes it at all. A handed-out file is a deliverable (it goes on ctic.org and into
+    // stakeholders' inboxes), so the DOWNLOAD path never sets this and stays byte-for-byte the
+    // author's `spec.renderMode` — same opt-in shape as the `pdfPageSize` options above. Only
+    // the two real values are honored, so a stray/unset value falls back to the authored mode.
+    var frameTheme = (opts.frameTheme === "dark" || opts.frameTheme === "light") ? opts.frameTheme : "";
+    var effectiveMode = frameTheme || spec.renderMode;
+    var htmlOpenTag = "<html lang=\"en\"" + (effectiveMode === "dark" ? " data-theme=\"dark\"" : "") + ">";
     var head =
       "<!DOCTYPE html>\n" + htmlOpenTag + "\n<head>\n<meta charset=\"utf-8\"/>\n" +
       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n" +

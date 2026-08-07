@@ -135,6 +135,42 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N5a — inside the app, the reader's theme wins; a handed-out file never adapts
+  (v867, sw v499, 2026-08-07, steward — NOW item N5a):** UX sweep #574 finding 1 —
+  a dark app frame around a light dashboard doesn't read as a design choice, it reads as
+  something that failed to load. Kevin's decision (recorded in the item) shipped exactly as
+  written, and the whole thing is ONE opt-in flag rather than a mode: `Studio.buildHtml` gained
+  `opts.frameTheme` (honoring only `"light"`/`"dark"`, otherwise falling through to
+  `spec.renderMode`), and `app/viewer.js` passes its own live `data-theme` on the ONE call that
+  builds the srcdoc. Every other caller — the viewer's `.html` download, its PDF build, the
+  Studio builder preview, Home's live cards — passes nothing and is provably unchanged, because
+  a caller that doesn't set the flag takes the identical code path it took before.
+  **Why downloads are excluded on purpose:** an exported dashboard is a deliverable that goes on
+  ctic.org and into stakeholders' inboxes, and a file whose appearance depends on where it is
+  opened is worse than one that simply looks the way it was authored. **Why the builder preview
+  is excluded:** the author is composing the appearance there and has to see what they are making.
+  **The invariant was amended, not quietly broken:** CLAUDE.md's "export stays byte-identical to
+  the live preview" now names the Viewer srcdoc as its one scoped exception (differing by that
+  single `<html>` attribute and nothing else) — the builder preview ≡ export identity it was
+  written to protect is untouched and still asserted.
+  **Verified** — 6 new checks in `tests/run.js`, full suite green at **3107/3107**: an authored-Light dashboard
+  read in a dark app renders dark (asserted on the iframe's live `documentElement`, not just the
+  bytes); its download carries no `data-theme` and equals the framed srcdoc with that one
+  attribute stripped — byte-for-byte, same tick, same assets; the reverse direction holds too
+  (authored-Dark read in a light app renders light), so this is a real follow and not a
+  one-way "always dark"; an authored-Dark dashboard's download is byte-identical whether the
+  reader's app is light or dark; and the builder preview still emits the authored mode with the
+  app flipped to dark. Help + changelog updated in the same slice. **est 2pt, took 1** — the
+  decision text did the expensive half of the work by naming the seam (`extraOpts`) up front.
+  **Found on the way past, NOT fixed (needs Kevin — it is a default-behavior call, so out of
+  scope for this slice):** (a) `docs/index.html` claimed Home's live dashboard cards follow your
+  light/dark theme; they never have — `homeLiveFrame` builds with `preview:true` and no frame
+  theme, so they show each dashboard's authored Appearance. The doc line is corrected to match
+  reality here; whether Home's cards should ALSO follow the reader (the same #574 argument
+  applies to them — they are app-framed too) is Kevin's call and would be its own item. (b) PR
+  #602 committed a full 915-file snapshot of the `/dev/` preview build into the repo root
+  (`dev/`, on both `main` and `dev`) — `tools/stage-preview.mjs` output that deploy.yml
+  assembles at deploy time anyway. Untouched here; worth a hygiene item.
 - **N4b — the vendored Polecat Shell catches up to v0.6.2, and N4a is raised for Kevin
   (v866, sw v498, 2026-08-07, steward — NOW item N4, split per `docs/BACKLOG.md`):** tech
   sweep #370 recorded the vendored copy as "2 patches behind in July". **The re-check found
@@ -9734,7 +9770,12 @@
   behind (v0.5.4 vs the hub's v0.6.2), not the 2 patches the July sweep recorded, and it is
   now current — a verbatim `lib/` copy from the platform repo, 29/29 files sha256-clean
   against `MANIFEST.json`, no strays.
-- **N5a ★★ [2pt] — DECIDED (Kevin, 2026-08-07): inside the app, the READER's theme wins.** UX
+- ~~**N5a ★★ [2pt] — DECIDED (Kevin, 2026-08-07): inside the app, the READER's theme wins.**~~
+  ✓ SHIPPED v867, sw v499 (2026-08-07, steward — see DONE). Shipped as written: one opt-in
+  `frameTheme` flag on `Studio.buildHtml`, passed by the Viewer's srcdoc call and by nothing
+  else; downloads, PDFs and the builder preview provably unchanged; the CLAUDE.md invariant
+  amended to name the exception. est 2pt, took 1. The spec below stays until grooming archives it.
+  UX
   sweep #574 finding 1 — a dark app frames a light dashboard and reads as broken. The
   Viewer's iframe now follows the app's live `data-theme`, whatever `spec.renderMode` says.
   **Downloads and embeds are NOT touched** — a handed-out file stays exactly as authored,
