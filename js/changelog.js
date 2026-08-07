@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 855,
+    title: 'A real date filter: pick a date from a calendar, or filter by a moving window',
+    kind: 'feature',
+    ts: '2026-08-07T12:36:17.000Z',
+    items: [
+      'Filter rules learned dates properly last release -- but *choosing* a date was still text you typed by hand, and "the last 30 days" could only be written as a fixed date that goes stale the next morning. Both filter surfaces (a dataset\'s output rules and a job\'s "Filter rows" step) now offer a new operator, "in date range (relative)", whose value is a list of real ranges: today, yesterday, the last 7 / 30 / 90 / 365 days, this or last week / month / quarter / year, and year to date.',
+      'The range is saved as the rule, not as a date. A dashboard filtered to "the last 30 days" means the 30 days ending on the day someone opens it -- today, tomorrow, next month.',
+      'Ranges are anchored to the reader\'s own calendar day, so someone reading late in the evening still gets their own "today" rather than tomorrow\'s. Weeks start Monday, and the dropdown says so. A row whose value is not a date is left out of a date range.',
+      'On a date column the value box is now a native date picker instead of a free text field -- no more remembering the format. It is offered when the column\'s own sample values are all dates, or (before anything has been run) when the column is named like a date; and only when the value it holds is one a picker can carry without losing anything, so an already-typed timestamp keeps its text box.',
+      'The new operator and the picker behave identically in both places because both read the same shared vocabulary -- one list, one predicate, one decision about which value box a rule earns.',
+      'An older client sharing the same workspace treats the new operator as one it does not know and shows the rows unfiltered, rather than misreading the rule as some other operator.',
+    ],
+  },
+  {
     v: 854,
     title: 'The ⌘K palette reaches every section, and Section access covers every section',
     kind: 'fix',

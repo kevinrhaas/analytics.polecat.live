@@ -4917,10 +4917,22 @@
         ? daCols.map(function (c) { return [c, c]; })
         : [["", "(columns not yet defined)"]];
       var opPairs = Studio.DA_OPS.map(function (o) { return [o.id, o.label]; });
-      var cs = select2pairs(colPairs, f.col || (daCols[0] || ""), function (v) { f.col = v; refreshPreview(); }); cs.style.flex = "1";
-      var os = select2pairs(opPairs, f.op || "=", function (v) { f.op = v; refreshPreview(); }); os.style.flex = "1";
-      var vs = input(String(f.val || ""), function (v) { f.val = v; refreshPreview(); }); vs.placeholder = "value"; vs.style.flex = "1";
-      vs.title = Studio.filterOps.VALUE_HINT;   // AUD-06 slice 4 — same sentence on the job step's value box
+      // AUD-06 slice 5: the column and the operator both decide what the VALUE
+      // control is, so changing either re-renders the row (a date column earns a
+      // calendar; "in date range" earns the range list).
+      var cs = select2pairs(colPairs, f.col || (daCols[0] || ""), function (v) { f.col = v; renderInspector(); refreshPreview(); }); cs.style.flex = "1";
+      var os = select2pairs(opPairs, f.op || "=", function (v) {
+        var wasRange = Studio.filterOps.normalize(f.op) === "inRange";
+        f.op = v;
+        var isRange = Studio.filterOps.normalize(v) === "inRange";
+        // Carry the value across the switch only when it still means something:
+        // a range token is nonsense to `>=`, and a typed date is nonsense to a
+        // range dropdown.
+        if (isRange && !Studio.filterOps.rangeBounds(f.val)) f.val = Studio.filterOps.RANGE_DEFAULT;
+        else if (!isRange && wasRange) f.val = "";
+        renderInspector(); refreshPreview();
+      }); os.style.flex = "1";
+      var vs = filterValueControl(f, daCols, function () { refreshPreview(); }); vs.style.flex = "1";
       var rm = delBtn(function () { oo.filters.splice(fi, 1); renderInspector(); refreshPreview(); }, "filter rule on " + (f.col || "(no column)"));
       r.appendChild(cs); r.appendChild(os); r.appendChild(vs); r.appendChild(rm);
       fSec.appendChild(r);
@@ -12868,6 +12880,40 @@
   function select2pairs(pairs, val, onChange) {
     var s = el("select"); pairs.forEach(function (p) { var o = el("option"); o.value = p[0]; o.textContent = p[1]; if (String(p[0]) === String(val)) o.selected = true; s.appendChild(o); });
     s.addEventListener("change", function () { onChange(s.value); }); return s;
+  }
+  /* AUD-06 slice 5 — the value box of a filter rule, chosen by what the rule
+     actually asks for. Three shapes, one place, so the DA inspector and the Job
+     "Filter rows" step (app/jobs.js, which builds its own DOM but follows the
+     same three-way rule) can never drift apart again:
+       "in date range" → the relative-range dropdown (a rule, not a typed value)
+       a date column    → a native date picker, when the saved value is one a
+                          picker can round-trip (empty, or plain YYYY-MM-DD)
+       anything else    → the free-text box it has always been
+     `samples` is optional: with real sample values the date test is decided by
+     the DATA; without them (the inspector knows column names long before it has
+     run a query) filterOps.looksDate falls back to the column name. */
+  function filterValueControl(f, cols, onChange) {
+    var F = Studio.filterOps, v = String(f.val || "");
+    var col = f.col || (cols || [])[0] || "";
+    switch (F.valueKind(f.op, col, null, v)) {
+      case "range": {
+        if (!F.rangeBounds(v)) { f.val = v = F.RANGE_DEFAULT; }
+        var rs = select2pairs(F.RANGES.map(function (r) { return [r.id, r.label]; }), v,
+          function (nv) { f.val = nv; onChange(); });
+        rs.title = F.RANGE_HINT;
+        return rs;
+      }
+      case "date": {
+        var di = el("input"); di.type = "date"; di.value = v; di.title = F.VALUE_HINT;
+        di.addEventListener("input", function () { f.val = di.value; onChange(); });
+        return di;
+      }
+      default: {
+        var ti = input(v, function (nv) { f.val = nv; onChange(); });
+        ti.placeholder = "value"; ti.title = F.VALUE_HINT;
+        return ti;
+      }
+    }
   }
   function colPicker(cols, val, onChange, allowEmpty) {
     var pairs = (allowEmpty ? [["", "(none)"]] : []).concat((cols || []).map(function (c) { return [c, c]; }));
