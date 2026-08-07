@@ -135,6 +135,40 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the Help page describes the left rail the app actually has, and can no longer drift
+  from it (v870, sw v502, 2026-08-07, steward; LF58 recurring slice):** the ▶ NOW queue held
+  no ready non-recurring item (N2/N4b/N5a/N5b shipped, N4a is ⛔ on Kevin, and the grooming
+  pass is already claimed by held PR #623), so this run took the 🔁 item — one coherent
+  slice, per its own instruction.
+  - **The drift.** Help's `<h3>The left rail — three groups</h3>` block named two sections by
+    the labels of two OTHER sections: under **Build** it called `build` (rail label "View
+    Builder") *"Views"* and `studio` (rail label "Dashboard Builder") *"Dashboards"* — and
+    "Views" and "Dashboards" are real, different sections listed in the **Workspace** group
+    three lines above. A reader matching the Help to the rail was matching the wrong names to
+    the wrong places. Separately, `settings` and `docs` — the two items pinned below the
+    groups — were never listed at all, so the Help page did not mention its own rail entry.
+    Both builders now carry their rail label plus one line on how each relates to the catalog
+    section that lists its output, and a fourth bullet describes the pinned pair.
+  - **The guard is the point, not the copy fix.** AUD-12 made the rail the ONE list of
+    sections; nothing made the Help answerable to it, which is why this went stale silently.
+    `tools/doc-truth.mjs` check 9 now reads `data-sec` from `app/index.html` and
+    `SECTION_LABELS` from `app/shell.js`, scopes to the Help's rail block alone (Home and
+    Repository are also named in the prose below it, which would otherwise pass for the wrong
+    reason), and fails naming any section the block stops mentioning. It runs in the DEV
+    gate, so it is early and cheap. **Proved by reverting the copy fix and re-running:
+    exit 1, "not named in the Help's rail block: View Builder, Dashboard Builder, Settings,
+    Help" — the exact four, then exit 0 restored.** Same shape as AUD-11's other checks:
+    measure from the source, never re-type the answer into the test.
+  - **Audited and found already CURRENT** (recorded on the N7 item so no future slice
+    re-treads it): the Appearance Light/Dark/Auto Help copy, the "your workspace password is
+    never written to disk" / renewal-token security copy, and the section labels in
+    `app/welcome.js` + `app/tutorial.js` — the tours were right; only Help had drifted.
+  - **Verified in the foreground:** the full DEV GATE — `tools/validate.mjs`,
+    `tools/changelog-check.js`, `tools/doc-truth.mjs`, and `tools/dev-smoke.mjs` at 390×780
+    AND desktop with zero pageerrors. `sw.js` → v502 because the stamped changelog rolled the
+    precached `js/changelog-head.js`. No estimate to compare (🔁 items carry no points); took
+    1 slice. Files: docs/index.html, tools/doc-truth.mjs, js/changelog.js,
+    js/changelog-head.js, sw.js, STATUS.md.
 - **KH-024 ★ [1pt] — two more mobile layout crushes, and the red dev hiding behind
   them (v867, sw v499, 2026-08-07, Kevin live phone):** (a) the rail's
   WORKSPACE/BUILD/MANAGE group headers carry BOTH `.rail-group-lbl` and `.rail-lbl`,
@@ -9886,6 +9920,17 @@
   current with the app (LF58).** One coherent slice per run, never a big-bang at the end.
   The app has changed a lot this week; the in-app Help and the tour copy are the parts most
   likely to have drifted.
+  **Slices worked so far (so the next run does not repeat one):**
+  * *Help § "The left rail" — v870, 2026-08-07 (see DONE).* Also added doc-truth check 9,
+    which now holds that block accountable to the rail's own section list.
+  * **Audited and found CURRENT in the same pass, no change needed:** the Appearance
+    Light/Dark/Auto copy in Help (N5a/N5b shipped it), the renewal-token / "password is
+    never written to disk" security copy (N2 slice 4 shipped it), and the section labels
+    used throughout `app/welcome.js` + `app/tutorial.js` — the tours already say "View
+    Builder" and "Dashboard Builder" correctly; only the Help page had drifted.
+  * **Not yet audited (candidates for the next N7 slice):** the marketing landing page
+    against this week's features, and whether the overview tour still walks the rail in the
+    order the rail now presents it.
 
 ### 🗂 Reservoir index (added 2026-08-07, N1) — what is below, and whether it is alive
 

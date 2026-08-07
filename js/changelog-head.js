@@ -3,6 +3,6 @@
    the version label and the What's-new unseen dot, so the ~680KB of full history is
    fetched lazily (Studio.loadChangelog) the first time someone opens the feed.
    Regenerated from js/changelog.js on every normalize run — never hand-edit. */
-window.STUDIO_LATEST_VERSION = 869;
-window.STUDIO_LATEST = {"v":869,"title":"Fixed: long names in list rows no longer break one letter per line on a phone","kind":"fix","ts":"2026-08-07T20:34:05.000Z"};
+window.STUDIO_LATEST_VERSION = 870;
+window.STUDIO_LATEST = {"v":870,"title":"The Help page describes the left rail the app actually has","kind":"fix","ts":"2026-08-07T21:59:00.000Z"};
 window.STUDIO_BUILD = "__BUILD_TS__";

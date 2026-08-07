@@ -166,6 +166,34 @@ ok("dev-smoke runs the mobile viewport CLAUDE.md documents",
   docGate && smokeGate && docGate[1] === smokeGate[1],
   `CLAUDE.md documents 390×${docGate ? docGate[1] : "?"}, dev-smoke runs 390×${smokeGate ? smokeGate[1] : "?"}`);
 
+// 9. Help's rail tour names every section the rail actually has, by the rail's OWN label.
+//    AUD-12 made the rail the single list of sections; this makes the Help page's description
+//    of it accountable to that list. It had drifted: the Build group called View Builder
+//    "Views" and Dashboard Builder "Dashboards" (the names of two DIFFERENT sections in the
+//    group above), and Settings/Help — the two items pinned below the groups — were never
+//    listed at all. A reader looking for the name on the rail could not find it in the Help.
+const railSecs = [...read("app/index.html").matchAll(/data-sec="([a-z]+)"/g)].map((m) => m[1]);
+const railLabels = (() => {
+  const m = read("app/shell.js").match(/var SECTION_LABELS = \{([\s\S]*?)\};/);
+  if (!m) throw new Error("doc-truth: SECTION_LABELS not found in app/shell.js");
+  const out = {};
+  for (const p of m[1].matchAll(/(\w+): "([^"]+)"/g)) out[p[1]] = p[2];
+  return out;
+})();
+// Just the "The left rail" block — Home and Repository are also named in the prose below it,
+// which would make this pass for the wrong reason.
+const railBlock = (() => {
+  const start = help.indexOf("<h3>The left rail");
+  const end = help.indexOf("<h3", start + 4);
+  return start < 0 ? "" : help.slice(start, end < 0 ? help.length : end);
+})();
+const unnamed = [...new Set(railSecs)]
+  .map((s) => railLabels[s] || s)
+  .filter((label) => !railBlock.includes(`<strong>${label}</strong>`));
+ok("docs/index.html: the rail tour names every rail section", railBlock && !unnamed.length,
+  railBlock ? `not named in the Help's rail block: ${unnamed.join(", ")}`
+            : "the <h3>The left rail…</h3> block was not found at all");
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

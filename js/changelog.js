@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 870,
+    title: 'The Help page describes the left rail the app actually has',
+    kind: 'fix',
+    ts: '2026-08-07T21:59:00.000Z',
+    items: [
+      'The Help page\'s tour of the left rail had fallen behind the rail itself. Under Build it called the View Builder "Views" and the Dashboard Builder "Dashboards" — which are the names of two different sections in the group above — so anyone reading the Help and then looking at the rail was matching the wrong names to the wrong places. Both are now called what the rail calls them, with a line saying how each builder relates to the catalog section that lists its output.',
+      'Settings and Help are pinned below the groups on the rail, and the Help page had never mentioned either of them. They are described now, including that Settings is where you sign out and that Help opens this guide inside the app rather than in a new tab.',
+      'To stop this particular kind of drift coming back, the checks that run on every change now read the rail\'s own list of sections and their labels straight from the app, and fail if the Help page stops naming one of them. The rail is already the single place that knows which sections exist; the Help page is now answerable to it.',
+    ],
+  },
+  {
     v: 869,
     title: 'Fixed: long names in list rows no longer break one letter per line on a phone',
     kind: 'fix',
