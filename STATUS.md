@@ -135,6 +135,21 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **KH-023 ★ [1pt] — list rows no longer crush long names to a letter-per-line
+  sliver (v869, sw v501, 2026-08-07, Kevin live phone):** Kevin's Admin screenshot
+  showed "A/d/m/i/n/i/s/t/r/a/t/o/r" running down the card. `.cx-row` is a nowrap
+  flex row whose ONLY shrinkable item is `.cx-name` (`min-width:0`); the badges and
+  the three action buttons are `flex:0 0 auto`, so at 390px they consumed the whole
+  line and the name box collapsed to **0px** wide, wrapping per character via
+  `overflow-wrap:anywhere`. This was the THIRD sighting of one bug — `.ws-current`/
+  `.ws-secrets` (2026-07-29 phone) and `.dsx-tile-foot` (2026-07-30 Views tiles) each
+  got their own local patch. Fixed at the FAMILY this time so a fourth instance
+  cannot appear: `.cx-row` wraps at any width, `.cx-name` carries a 140px readable
+  floor, and ≤640px the `.cx-actions` group takes its own full-width line under the
+  name. `.dsx-tile-head .cx-name{min-width:0}` still overrides, so Datasets tiles are
+  untouched. Measured on the real row markup at 390px: name width **0px → 177px**.
+  Suite: 2 new KH-023 checks at the 390px gate (name ≥120px wide and ≤60px tall; the
+  wrapped row stays inside the viewport). Est 1pt, took 1.
 - **N5b — `auto`, the opt-in third Appearance: a dashboard that matches whoever opens it
   (v868, sw v500, 2026-08-07, steward; Kevin's decision as written in the NOW item):**
   `spec.renderMode` gains a third value, `"auto"`, offered in the Dashboard inspector's

@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 869,
+    title: 'Fixed: long names in list rows no longer break one letter per line on a phone',
+    kind: 'fix',
+    ts: '2026-08-07T20:34:05.000Z',
+    items: [
+      'On a narrow screen a row with several badges and buttons — the Admin user list was the worst case — squeezed the name until it wrapped one character per line down the card. Rows now wrap properly: the name keeps a readable width and the buttons move to their own line beneath it.',
+      'The fix is on the shared row used across Admin, Connections, Datasets, Views and Jobs, so the same squeeze cannot come back in another list.',
+    ],
+  },
+  {
     v: 868,
     title: 'A dashboard can now be set to match whoever opens it',
     kind: 'feature',
