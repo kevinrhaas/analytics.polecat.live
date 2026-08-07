@@ -22,13 +22,35 @@
   var C = function () { return Studio.SecretsCrypto; };
 
   var CONN_KEY = "analytics.datasource.v1";
-  var SECRET_KEY = "analytics.datasource.secret.v1"; // cached passphrase (this browser)
+  var SECRET_KEY = "analytics.datasource.secret.v1"; // cached passphrase (this browser SESSION)
   var DEBOUNCE_MS = 1200;
 
   var _sec = { enabled: false, salt: null, iters: 150000, key: null };
 
-  function cachedPass() { try { return localStorage.getItem(SECRET_KEY) || ""; } catch (e) { return ""; } }
-  function cachePass(p) { try { if (p) localStorage.setItem(SECRET_KEY, p); else localStorage.removeItem(SECRET_KEY); } catch (e) {} }
+  // AUD-03 (audit §1.3): the vault passphrase is cached in sessionStorage, NOT
+  // localStorage. Caching at rest the one secret that protects all the others
+  // negated the vault — anything that could read the encrypted credentials could
+  // read the key to them, forever. Session scope keeps the convenience that
+  // matters (one prompt per browser session, every pull in between silent) and
+  // drops the at-rest copy: close the tab and the passphrase is gone.
+  // migrateSecretCache() moves a pre-AUD-03 localStorage copy into the session
+  // and deletes it, so an already-unlocked browser upgrades without re-prompting
+  // and without leaving the old copy behind. It runs at load AND lazily on read
+  // (a page can reach cachedPass before any other entry point).
+  function migrateSecretCache() {
+    try {
+      var old = localStorage.getItem(SECRET_KEY);
+      if (old == null) return;
+      localStorage.removeItem(SECRET_KEY);
+      if (old && !sessionStorage.getItem(SECRET_KEY)) sessionStorage.setItem(SECRET_KEY, old);
+    } catch (e) {}
+  }
+  function cachedPass() { migrateSecretCache(); try { return sessionStorage.getItem(SECRET_KEY) || ""; } catch (e) { return ""; } }
+  function cachePass(p) {
+    try { if (p) sessionStorage.setItem(SECRET_KEY, p); else sessionStorage.removeItem(SECRET_KEY); } catch (e) {}
+    try { localStorage.removeItem(SECRET_KEY); } catch (e) {} // never leave one at rest
+  }
+  migrateSecretCache();
 
   // Which cfg keys on a connection row are secret = its adapter's password fields.
   function secretKeysFor(row) {

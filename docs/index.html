@@ -1684,6 +1684,34 @@
   here, the check simply waits — and an empty or failed read is never adopted over real local
   work.</p>
 
+  <h3>Where credentials and passwords are kept</h3>
+  <p>Studio runs entirely in your browser, so it is worth being plain about what is stored where —
+  and in what form.</p>
+  <ul>
+    <li><strong>Connection credentials (tokens, keys, database passwords)</strong> live in this
+      browser's local storage as <strong>plaintext</strong>, on every backend including Local.
+      Anyone with access to this device profile can read them, and clearing site data removes
+      them.</li>
+    <li><strong>With a backend connected</strong>, those same values mirror to the backend as
+      plaintext too — <em>unless</em> you turn on <strong>Encrypt secrets</strong> on the
+      <strong>Settings → Workspace backend</strong> card. Then every password-style field is
+      AES-GCM ciphertext in the backend, and only a browser that knows your passphrase can read
+      it back.</li>
+    <li><strong>The encryption passphrase is never written to disk.</strong> It is held for the
+      current <em>browser session</em> only, so you enter it once per session per browser and
+      every sync in between is silent; closing the tab forgets it. (Earlier versions cached it in
+      local storage next to the data it protects — that copy is deleted automatically the first
+      time this version loads.)</li>
+    <li><strong>Sign-in passwords</strong> are never stored, only their digests — salted and
+      iterated (PBKDF2-SHA-256), so two accounts with the same password no longer look identical
+      and a stolen user table can't be reversed with a lookup table. Older single-round digests
+      are upgraded automatically the next time that person signs in; nobody has to re-enter
+      anything. Real per-user enforcement still comes from <strong>Supabase Auth +
+      Row-Level Security</strong> — local sign-in remains UX-level gating, as described above.</li>
+    <li><strong>Exported dashboards never carry a secret.</strong> The export strips it and the
+      finished file prompts once, in memory only, the first time it needs to query.</li>
+  </ul>
+
   <h3>Signing in with real Supabase Auth (optional)</h3>
   <p>The <strong>Supabase</strong> connect wizard has two optional fields below the Project URL and
   anon key: <strong>Supabase Auth email</strong> and <strong>password</strong>.</p>

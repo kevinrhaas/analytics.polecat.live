@@ -10581,6 +10581,10 @@ function serve() {
       out.marker = !!(enc.meta && enc.meta.secretsEnc && enc.meta.secretsEnc.salt);
       out.localStillPlain = Studio.Workspace.get("connections", "c-sec").cfg.token === "hunter2secret";
       out.secState = Studio.Sync.secretsState();
+      // AUD-03 (audit §1.3): the passphrase that protects those envelopes must not be
+      // cached AT REST next to them — it's session-scoped now.
+      out.passAtRest = localStorage.getItem("analytics.datasource.secret.v1");
+      out.passInSession = sessionStorage.getItem("analytics.datasource.secret.v1");
       // pull round-trip decrypts back to plaintext locally
       await Studio.Sync.pullNow();
       out.afterPullToken = Studio.Workspace.get("connections", "c-sec").cfg.token;
@@ -10590,6 +10594,9 @@ function serve() {
       await t.save(cfg, foreign);
       await Studio.Sync.pullNow();
       out.pulledForeign = !!Studio.Workspace.get("datasets", "d-other");
+      // turning encryption back off forgets the cached passphrase everywhere
+      await Studio.Sync.disableSecrets();
+      out.passAfterDisable = sessionStorage.getItem("analytics.datasource.secret.v1");
       // disconnect: local copy stays, mirroring stops, key cleared
       Studio.Sync.disconnect();
       out.afterDisconnect = Studio.Sync.syncState().status;
@@ -10597,7 +10604,7 @@ function serve() {
       out.connKeyGone = !localStorage.getItem("analytics.datasource.v1");
       await t.drop(cfg);
       Studio.Workspace.reset();
-      try { localStorage.removeItem("analytics.datasource.secret.v1"); } catch (e) {}
+      try { localStorage.removeItem("analytics.datasource.secret.v1"); sessionStorage.removeItem("analytics.datasource.secret.v1"); } catch (e) {}
       return out;
     }, PORT);
     ok("SYNC: connectPush mirrors the workspace up and persists the connection",
@@ -10610,6 +10617,36 @@ function serve() {
       syncFlow.afterPullToken === "hunter2secret" && syncFlow.pulledForeign, JSON.stringify(syncFlow));
     ok("SYNC: disconnect returns to local-only, keeping the working copy",
       syncFlow.afterDisconnect === "local" && syncFlow.keptLocal && syncFlow.connKeyGone, JSON.stringify(syncFlow));
+    ok("AUD-03: the vault passphrase is cached for the SESSION only — never written to localStorage next to the ciphertext it unlocks — and turning encryption off forgets it",
+      syncFlow.passAtRest === null && syncFlow.passInSession === "pass1234" && syncFlow.passAfterDisable === null,
+      JSON.stringify({ passAtRest: syncFlow.passAtRest, passInSession: syncFlow.passInSession, passAfterDisable: syncFlow.passAfterDisable }));
+
+    // AUD-03 migration: a browser that already unlocked its vault under a pre-AUD-03
+    // build has the passphrase sitting in localStorage. Booting THIS build must adopt it
+    // into the session (so nobody is re-prompted mid-flight) and delete the disk copy.
+    // Real boot path — a fresh page (own context, own storage) that lands on the
+    // marketing page first purely to seed this origin's storage the way a
+    // pre-AUD-03 build would have left it, then boots the app for real. (Seeding
+    // via addInitScript would re-plant the key on every navigation the boot makes,
+    // which looks exactly like a migration that failed to delete it.)
+    const secMig = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    secMig.on("pageerror", (e) => errors.push("AUD-03 secret-migration page: " + e.message));
+    await secMig.goto(`http://localhost:${PORT}/`, { waitUntil: "domcontentloaded" });
+    await secMig.evaluate(() => {
+      try {
+        localStorage.setItem("analytics.datasource.secret.v1", "legacy-at-rest-pass");
+        sessionStorage.setItem("studio-gate-ok", "1");
+      } catch (e) {}
+    });
+    await secMig.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await secMig.waitForTimeout(600);
+    const secMigOut = await secMig.evaluate(() => ({
+      atRest: localStorage.getItem("analytics.datasource.secret.v1"),
+      inSession: sessionStorage.getItem("analytics.datasource.secret.v1")
+    }));
+    await secMig.close();
+    ok("AUD-03: booting over a pre-AUD-03 store moves the cached passphrase into the session and deletes the on-disk copy (no re-prompt, nothing left at rest)",
+      secMigOut.atRest === null && secMigOut.inSession === "legacy-at-rest-pass", JSON.stringify(secMigOut));
 
     // the Settings card + rail indicator reflect the sync state
     await page.evaluate(function () { window.__studioShellSetSection("settings"); window.__studioRenderWorkspaceBackendCard(); });
@@ -11262,7 +11299,7 @@ function serve() {
       out.afterDisconnect = document.getElementById("connCredNote").textContent;
       await t.drop(cfg);
       Studio.Workspace.reset();
-      try { localStorage.removeItem("analytics.datasource.secret.v1"); } catch (e) {}
+      try { localStorage.removeItem("analytics.datasource.secret.v1"); sessionStorage.removeItem("analytics.datasource.secret.v1"); } catch (e) {}
       return out;
     }, PORT);
     ok("QA-02: Connections header note is state-aware — local, then warns of plaintext sync once remote+unencrypted",
@@ -16745,9 +16782,54 @@ function serve() {
         usersDelta: /CREATE TABLE IF NOT EXISTS "users"/.test(Studio.WS.provisionDeltaSQL())
       };
     });
-    ok("M3.1: the local user store seeds an admin + a public demo account, each with a SHA-256 hash; verify() accepts the right password and rejects the wrong one",
+    ok("M3.1: the local user store seeds an admin + a public demo account, each with a password digest; verify() accepts the right password and rejects the wrong one",
       authStore.seeded.indexOf("admin:admin") >= 0 && authStore.seeded.indexOf("demo:viewer:demo") >= 0 &&
       authStore.okDemo === true && authStore.badDemo === false && authStore.okAdmin === true, JSON.stringify(authStore));
+
+    // AUD-03 (audit §1.3): password digests move off unsalted single-round SHA-256 —
+    // every WRITE produces a salted, iterated PBKDF2 digest, and a legacy v1 row is
+    // upgraded in place the first time its owner signs in. Both generations stay
+    // verifiable, so the migration can never lock anyone out.
+    const aud03Pw = await page.evaluate(async function () {
+      var A = window.PolecatAuth, KEY = A.USERS_KEY, out = {};
+      var read = function () { return JSON.parse(localStorage.getItem(KEY) || "[]"); };
+      var rowOf = function (u) { return read().filter(function (x) { return x.u === u; })[0] || {}; };
+      var before = localStorage.getItem(KEY); // restored at the end — leave the store as found
+      out.seededIsKdf = A.isKdfHash(rowOf("admin").hash) && A.isKdfHash(rowOf("demo").hash);
+      out.seededNotBareSha = !/^[0-9a-f]{64}$/i.test(String(rowOf("admin").hash || ""));
+      // the same password hashed twice must not collide — that's the salt doing its job
+      var h1 = await A.hashPassword("samepass"), h2 = await A.hashPassword("samepass");
+      out.saltedDistinct = h1 !== h2 && A.isKdfHash(h1) && A.isKdfHash(h2);
+      out.bothVerify = (await A.checkPassword("samepass", h1)).ok && (await A.checkPassword("samepass", h2)).ok;
+      out.wrongFails = !(await A.checkPassword("nope", h1)).ok;
+      out.iters = parseInt(String(h1).split("$")[1], 10);
+      // a legacy v1 row: still accepted, flagged as legacy, and rewritten by verify()
+      var legacyHash = await A.sha256("aud03pw");
+      var list = read();
+      list.push({ u: "aud03legacy", name: "Legacy", role: "viewer", demo: false, hash: legacyHash });
+      localStorage.setItem(KEY, JSON.stringify(list));
+      var chk = await A.checkPassword("aud03pw", legacyHash);
+      out.legacyFlagged = chk.ok && chk.legacy === true;
+      out.legacyStoredBefore = !A.isKdfHash(rowOf("aud03legacy").hash);
+      out.legacyVerifies = await A.verify("aud03legacy", "aud03pw");
+      out.upgradedInPlace = A.isKdfHash(rowOf("aud03legacy").hash);
+      out.verifiesAfterUpgrade = await A.verify("aud03legacy", "aud03pw");
+      out.wrongStillFails = !(await A.verify("aud03legacy", "aud03pwX"));
+      // an admin-set password (Add user / password change) is written with the KDF too
+      await A.upsert("aud03new", { name: "New", role: "viewer", pass: "brandnew1" });
+      out.upsertIsKdf = A.isKdfHash(rowOf("aud03new").hash);
+      out.upsertVerifies = await A.verify("aud03new", "brandnew1");
+      if (before != null) localStorage.setItem(KEY, before);
+      return out;
+    });
+    ok("AUD-03: seeded accounts carry a salted, iterated PBKDF2 digest (not a bare SHA-256), and the same password hashed twice yields different digests",
+      aud03Pw.seededIsKdf && aud03Pw.seededNotBareSha && aud03Pw.saltedDistinct &&
+      aud03Pw.bothVerify && aud03Pw.wrongFails && aud03Pw.iters >= 100000, JSON.stringify(aud03Pw));
+    ok("AUD-03: a legacy single-round SHA-256 row still verifies, is flagged legacy, and is upgraded to the KDF in place on that sign-in (wrong password still rejected)",
+      aud03Pw.legacyFlagged && aud03Pw.legacyStoredBefore && aud03Pw.legacyVerifies &&
+      aud03Pw.upgradedInPlace && aud03Pw.verifiesAfterUpgrade && aud03Pw.wrongStillFails, JSON.stringify(aud03Pw));
+    ok("AUD-03: an admin-set password (upsert) is stored as a KDF digest and verifies",
+      aud03Pw.upsertIsKdf && aud03Pw.upsertVerifies, JSON.stringify(aud03Pw));
     ok("M3.1: the workspace schema is v4 with an additive users table (provisionDeltaSQL carries the paste-me upgrade) — the internal user store rides the backend snapshot",
       authStore.schemaV === 4 && authStore.hasUsersTable && authStore.usersDelta, JSON.stringify(authStore));
     // the SIGNED-IN account's own row is mirrored into the workspace `users` table by

@@ -8,14 +8,35 @@
 
    Storage (local-first, additive, never wiped by app migrations):
      analytics.users.v1   — [{ u, name, role, hash, demo, provisioning, provisioned }]
-       (hash = hex SHA-256; provisioning = { theme, pack, backendId } admin-set
+       (hash = a SELF-DESCRIBING password digest — see "Password digests" below;
+       provisioning = { theme, pack, backendId } admin-set
        first-login defaults, LF41 slice 1 — see studio.js initAuthBoot; backendId
        is LF42 slice 2's reference-only assignment to a Backends-card row, not
        applied automatically)
      analytics.session.v1 — { u }  (the signed-in user; survives reload)
    The historical sessionStorage key `studio-gate-ok` is kept as the
    "authenticated this session" bypass so the whole test suite (and any deep
-   link that pre-sets it) keeps working — login stamps it, sign-out clears it. */
+   link that pre-sets it) keeps working — login stamps it, sign-out clears it.
+
+   Password digests (AUD-03, 2026-08-07 — audit §1.3). The `hash` field is
+   self-describing so one column carries both generations:
+     • v1 (legacy) — a bare 64-char hex SHA-256 of the password. Unsalted and
+       single-round, so identical passwords collide across accounts and the
+       digest is trivially rainbow-tableable — and these digests SYNC to the
+       workspace `users` table.
+     • v2 (current) — `pbkdf2$<iters>$<saltHex>$<dkHex>`: PBKDF2-HMAC-SHA-256,
+       a fresh 16-byte random salt per password, PW_ITERS rounds, 256-bit key.
+   Every password WRITE (seed, admin add, password change) produces v2, and a
+   v1 digest is UPGRADED in place the first time its owner signs in — so a
+   store heals itself as people log in, without anyone re-typing a password.
+   v1 digests stay verifiable forever; nothing is ever locked out by the
+   migration. NOTE for anyone running two builds against one origin (the
+   dev/stage previews share localStorage with prod): a row upgraded to v2 by a
+   NEWER build can't be verified by a build that predates this change, so let
+   prod catch up before signing in on a preview with an account you need there.
+   This is still honest UX-gating, not cryptographic isolation — a KDF just
+   stops the shared store (and the mirrored users table) from handing out
+   everyone's password to anyone who reads it. */
 (function () {
   "use strict";
   var USERS_KEY = "analytics.users.v1";
@@ -27,9 +48,63 @@
   }
   function writeJSON(store, key, val) { try { store.setItem(key, JSON.stringify(val)); } catch (e) {} }
 
+  function toHex(bytes) {
+    return Array.prototype.map.call(new Uint8Array(bytes), function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+  }
+  function fromHex(hex) {
+    var s = String(hex || ""), out = new Uint8Array(Math.floor(s.length / 2));
+    for (var i = 0; i < out.length; i++) out[i] = parseInt(s.substr(i * 2, 2), 16) || 0;
+    return out;
+  }
+
+  // Kept exported: the LEGACY (v1) digest, still needed to verify pre-AUD-03
+  // rows (and used by callers that just want a plain hex SHA-256).
   async function sha256(s) {
     var buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(s)));
-    return Array.prototype.map.call(new Uint8Array(buf), function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+    return toHex(buf);
+  }
+
+  // ---- password digests (v2: salted + iterated — see the header note) ------
+  // 210k rounds is the OWASP PBKDF2-SHA-256 order of magnitude and costs ~0.1s
+  // in a browser: unnoticeable on the one sign-in a session needs, but it turns
+  // an offline guess-the-whole-table sweep into an expensive one.
+  var PW_ITERS = 210000;
+  var KDF_RE = /^pbkdf2\$(\d+)\$([0-9a-f]+)\$([0-9a-f]+)$/i;
+
+  function isKdfHash(h) { return KDF_RE.test(String(h || "")); }
+
+  async function pbkdf2Hex(pass, salt, iters) {
+    var base = await crypto.subtle.importKey("raw", new TextEncoder().encode(String(pass)), "PBKDF2", false, ["deriveBits"]);
+    var bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: salt, iterations: iters, hash: "SHA-256" }, base, 256);
+    return toHex(bits);
+  }
+  // The one place a password becomes a stored digest. Fresh random salt every
+  // call, so two accounts sharing a password no longer share a digest.
+  async function hashPassword(pass) {
+    var salt = crypto.getRandomValues(new Uint8Array(16));
+    var dk = await pbkdf2Hex(pass, salt, PW_ITERS);
+    return "pbkdf2$" + PW_ITERS + "$" + toHex(salt) + "$" + dk;
+  }
+  // Length-independent, early-exit-free comparison. Both sides are our own hex
+  // here, but comparing digests with === is the habit worth not having.
+  function sameDigest(a, b) {
+    a = String(a || ""); b = String(b || "");
+    if (a.length !== b.length) return false;
+    var diff = 0;
+    for (var i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    return diff === 0;
+  }
+  // → { ok, legacy } — `legacy` marks a v1 digest that verified, i.e. a row the
+  // caller should upgrade in place.
+  async function checkPassword(pass, stored) {
+    stored = String(stored || "");
+    if (!stored) return { ok: false, legacy: false };
+    var m = KDF_RE.exec(stored);
+    if (m) {
+      var dk = await pbkdf2Hex(pass, fromHex(m[2]), parseInt(m[1], 10) || PW_ITERS);
+      return { ok: sameDigest(dk, m[3].toLowerCase()), legacy: false };
+    }
+    return { ok: sameDigest(await sha256(pass), stored.toLowerCase()), legacy: true };
   }
 
   function raw() { var v = readJSON(localStorage, USERS_KEY, null); return Array.isArray(v) ? v : []; }
@@ -50,7 +125,7 @@
     var list = [];
     for (var i = 0; i < SEED.length; i++) {
       var s = SEED[i];
-      list.push({ u: s.u, name: s.name, role: s.role, demo: s.demo, hash: await sha256(s.pass) });
+      list.push({ u: s.u, name: s.name, role: s.role, demo: s.demo, hash: await hashPassword(s.pass) });
     }
     saveRaw(list);
     return list;
@@ -63,7 +138,7 @@
     var list = raw(), changed = false;
     for (var i = 0; i < SEED.length; i++) {
       var s = SEED[i];
-      if (!find(s.u)) { list.push({ u: s.u, name: s.name, role: s.role, demo: s.demo, hash: await sha256(s.pass) }); changed = true; }
+      if (!find(s.u)) { list.push({ u: s.u, name: s.name, role: s.role, demo: s.demo, hash: await hashPassword(s.pass) }); changed = true; }
     }
     if (changed) saveRaw(list);
   }
@@ -79,10 +154,24 @@
     if (changed) saveRaw(list);
   }
 
+  // Verifies a password and, when the stored digest is still a legacy v1
+  // SHA-256, transparently re-hashes it with the current KDF (upgrade-on-login:
+  // the only moment the plaintext is in hand). The upgrade writes to the row in
+  // the live list, so it also travels with the next users-table sync. A failed
+  // upgrade never fails the sign-in — the digest just stays v1 for now.
   async function verify(u, pass) {
     var row = find(u);
     if (!row) return false;
-    return (await sha256(pass)) === String(row.hash || "").toLowerCase();
+    var res = await checkPassword(pass, row.hash);
+    if (res.ok && res.legacy) {
+      try {
+        var next = await hashPassword(pass);
+        var list = raw(), key = String(row.u).toLowerCase();
+        list.forEach(function (x) { if (String(x.u).toLowerCase() === key && !isKdfHash(x.hash)) x.hash = next; });
+        saveRaw(list);
+      } catch (e) {}
+    }
+    return res.ok;
   }
 
   function current() {
@@ -138,7 +227,7 @@
     if (opts.name != null) row.name = opts.name;
     if (opts.role != null) row.role = opts.role;
     if (opts.demo != null) row.demo = !!opts.demo;
-    if (opts.pass != null) row.hash = await sha256(opts.pass);
+    if (opts.pass != null) row.hash = await hashPassword(opts.pass);
     if (opts.gotrueId != null) row.gotrueId = opts.gotrueId;
     if (opts.provisioning !== undefined) row.provisioning = opts.provisioning || null;
     if (opts.provisioned != null) row.provisioned = !!opts.provisioned;
@@ -191,6 +280,10 @@
     ROLES: ROLES, ROLE_LABELS: ROLE_LABELS,
     isAdmin: isAdmin, canDevelop: canDevelop,
     sha256: sha256, seedIfEmpty: seedIfEmpty, verify: verify,
+    // Password-digest surface (AUD-03): hashPassword is the ONLY way a password
+    // should become a stored value; checkPassword/isKdfHash let callers (and the
+    // suite) reason about a digest's generation without duplicating the format.
+    hashPassword: hashPassword, checkPassword: checkPassword, isKdfHash: isKdfHash,
     list: function () { return raw().map(pub); }, find: function (u) { return pub(find(u)); },
     current: current, authed: authed, login: login, logout: logout,
     isDemo: function () { var c = current(); return !!(c && c.demo); }, upsert: upsert, remove: remove, importFromStore: importFromStore,

@@ -5,7 +5,7 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v469"; /* v469: AUD-02 — escaped the confirmed table/chart/gate XSS sinks; precached js/changelog.js, app/studio-charts.js, app/gate.js changed. */
+var CACHE_NAME = "studio-shell-v470"; /* v470: AUD-03 — session-only vault passphrase + salted/iterated password digests; precached js/changelog.js, app/auth.js, app/sources/sync.js, app/studio.js, app/connections.js changed. */
 /* v467: pipeline adoption — the precached
    js/changelog.js gained the v835 staged-releases entry. */
 /* v466: AUD-04 data-loss guards — the
