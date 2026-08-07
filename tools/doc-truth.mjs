@@ -230,6 +230,48 @@ ok(`index.html: the source-count claim reads ${connectable.length}`,
   `index.html says ${kindsClaim ? kindsClaim[1] : "(no claim found)"}, the registry has ` +
   `${connectable.length} connectable adapters (${adapters.size} registered, minus \`local\`)`);
 
+// 11. The overview tour's own promise: "this tour walks the left rail from the top down". It
+//     had stopped being one — the walk crossed between the rail's Workspace/Build/Manage
+//     groups five times (Home → Quick Views → View Builder → Dashboards → … → Repository →
+//     Dashboard Builder) and never mentioned the Views CATALOG at all, which LF57 added to the
+//     Workspace group. Nothing noticed, because nothing was measuring. The rail is the source
+//     of truth (check 9's premise, AUD-12), so compare the tour's spotlight targets against the
+//     rail's DOM order: same sections, same sequence. A new rail section now forces a decision
+//     here — give it a step, or add it to SKIP below with the reason.
+const SKIP_IN_TOUR = {
+  admin: "role-gated (M4) — most accounts never see it",
+  settings: "pinned below the groups, not part of the app walk",
+  docs: "pinned below the groups — and it's where the tour sends you for more",
+};
+const railBlockHtml = (() => {
+  const src = read("app/index.html");
+  const start = src.indexOf('<nav id="railNav"');
+  return start < 0 ? "" : src.slice(start, src.indexOf("</nav>", start));
+})();
+const railWalk = [...new Set([...railBlockHtml.matchAll(/data-sec="([a-z]+)"/g)].map((m) => m[1]))];
+// The overview tour's step array only — the other five tours also target rail items.
+const overviewBlock = (() => {
+  const src = read("app/tutorial.js");
+  const start = src.indexOf("overview: {");
+  if (start < 0) throw new Error("doc-truth: TOURS.overview not found in app/tutorial.js");
+  let depth = 0, open = src.indexOf("{", start), i = open;
+  for (; i < src.length; i++) {
+    if (src[i] === "{") depth++;
+    else if (src[i] === "}" && --depth === 0) break;
+  }
+  return src.slice(open, i + 1);
+})();
+const tourWalk = [...overviewBlock.matchAll(/target: '\.rail-item\[data-sec="([a-z]+)"\]'/g)].map((m) => m[1]);
+const label = (s) => railLabels[s] || s;
+const strayInSkip = Object.keys(SKIP_IN_TOUR).filter((s) => !railWalk.includes(s));
+ok("tools/doc-truth.mjs: every deliberately-skipped tour section is still on the rail", !strayInSkip.length,
+  `SKIP_IN_TOUR names sections the rail no longer has: ${strayInSkip.join(", ")}`);
+const expectedWalk = railWalk.filter((s) => !SKIP_IN_TOUR[s]);
+ok("app/tutorial.js: the overview tour walks the rail top-to-bottom, skipping nothing",
+  tourWalk.length > 0 && tourWalk.join(" → ") === expectedWalk.join(" → "),
+  `tour: ${tourWalk.map(label).join(" → ") || "(no rail steps found)"}\n      rail: ${expectedWalk.map(label).join(" → ")}` +
+  `\n      (deliberate skips: ${Object.entries(SKIP_IN_TOUR).map(([s, why]) => `${label(s)} — ${why}`).join("; ")})`);
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

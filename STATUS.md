@@ -135,6 +135,52 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the Getting started tour walks the rail in the order the rail is in, and can no
+  longer drift from it (v872, sw v504, 2026-08-07, steward; LF58 recurring slice):** the ▶ NOW
+  queue again held no ready non-recurring item (N2/N4b/N5a/N5b shipped, N4a is ⛔ on Kevin,
+  grooming is still claimed by held PR #623), so this run took the 🔁 item and worked the
+  FIRST of the two candidates the previous slice left named on it: the overview tour against
+  the rail.
+  - **The drift.** `TOURS.overview` opens by promising "this tour walks the parts down the
+    left rail" and then did not: **Home → Quick Views → View Builder → Dashboards → Datasets
+    → Connections → Jobs → Repository → Dashboard Builder**, which crosses between the rail's
+    three groups (Workspace / Build / Manage) **five times**. Anyone following along on the
+    real rail was jumping up and down it. Worse, the **Views catalog** (`data-sec="views"`,
+    added by LF57 slice 1) was not in the tour at all — the walk went Home straight to
+    Dashboards, past a section it never named.
+  - **The fix.** The walk is now the rail's own DOM order, group by group and labelled as it
+    goes: **Workspace** (Home · Views · Dashboards · Datasets · Connections · Repository) →
+    **Build** (Quick Views · View Builder · Dashboard Builder) → **Manage** (Jobs). A new
+    Views step defines a View as the unit dashboards are made of and explains why two rail
+    items are both called "Views" (the group label is the disambiguator — the rail's own IA
+    comment says so). Copy that assumed the old sequence was rewritten rather than
+    re-ordered: Dashboards no longer re-defines "View" now that Views precedes it, View
+    Builder points at the catalog above it, Jobs notes that Settings and Help sit pinned at
+    the bottom, and the closer says outright that the rail runs top-to-bottom while the WORK
+    runs the other way (Connections → Datasets → Jobs → build → Home) — which previously read
+    as a contradiction of the tour that had just happened.
+  - **The guard is the point, not the copy fix.** `tools/doc-truth.mjs` **check 11** parses
+    the rail's `data-sec` order out of `app/index.html`'s `<nav id="railNav">` block, brace-
+    walks `TOURS.overview` out of `app/tutorial.js`, and requires the tour's spotlight targets
+    to equal the rail sequence — same sections, same order — modulo a `SKIP_IN_TOUR` map that
+    states a REASON per exclusion (`admin` role-gated; `settings`/`docs` pinned below the
+    groups). A second check fails if `SKIP_IN_TOUR` names a section the rail no longer has.
+    Adding a rail section now forces a decision: give it a tour step, or record why not.
+    **Proved by stashing the tutorial.js change and re-running: exit 1, printing both walks
+    side by side** ("tour: Home → Quick Views → View Builder → …" vs "rail: Home → Views →
+    Dashboards → …") — then exit 0 restored. Same shape as checks 9 and 10.
+  - **Verified in the foreground:** the full DEV GATE — `tools/validate.mjs` (207 files),
+    `tools/changelog-check.js`, `tools/doc-truth.mjs` (21 checks) and `tools/dev-smoke.mjs`
+    at 390×780 AND desktop, zero pageerrors — **plus the FULL suite, `tests/run.js`
+    3117/3117 green**, since this changes tour behaviour the suite walks. The suite's own
+    J6-7 now clicks through all **10** rail sections in the new order and still lands on
+    Home; three stale `12 + installedPackCount` step-count constants (J6-5, J6-10b and the
+    pack-removal cleanup) became 13 — the first full-suite run caught the third one, which
+    the dev gate alone would not have. `sw.js` → v504 (precached `app/tutorial.js`,
+    `docs/index.html` and the stamped `js/changelog-head.js` all changed). No estimate to
+    compare (🔁 items carry no points); took 1 slice. Files: app/tutorial.js,
+    tools/doc-truth.mjs, tests/run.js, docs/index.html, js/changelog.js, js/changelog-head.js,
+    sw.js, STATUS.md.
 - **N7 — the marketing landing page says what the app actually does now, and can no longer
   drift from the adapter registry (v871, sw v503, 2026-08-07, steward; LF58 recurring slice):**
   the ▶ NOW queue again held no ready non-recurring item (N2/N4b/N5a/N5b shipped, N4a is ⛔ on
@@ -9968,10 +10014,15 @@
     strip was missing Amazon Redshift and `.xlsx` import; "per-user security" and the
     dashboard-theme bullet predated N2/N5a/N5b. Doc-truth check 10 now holds the page's
     source count and per-source names accountable to `app/sources/`'s adapter registry.
-  * **Not yet audited (candidates for the next N7 slice):** whether the overview tour still
-    walks the rail in the order the rail now presents it; and the marketing page's hero
-    carousel captions + screenshots, which this slice deliberately left alone (the copy pass
-    stayed textual — regenerating shots is its own slice).
+  * *The overview tour vs the rail — v872, sw v504, 2026-08-07 (see DONE).* It did NOT walk
+    the rail in the rail's order (five group crossings) and skipped the Views catalog
+    entirely. Reordered to Workspace → Build → Manage with a Views stop added; doc-truth
+    check 11 now derives the expected walk from `app/index.html`'s rail DOM order.
+  * **Not yet audited (candidates for the next N7 slice):** the marketing page's hero
+    carousel captions + screenshots, which the v871 slice deliberately left alone (the copy
+    pass stayed textual — regenerating shots is its own slice); and `app/welcome.js`'s
+    informational welcome carousel, whose section copy has never been checked against the
+    rail the way the guided tour now is.
 
 ### 🗂 Reservoir index (added 2026-08-07, N1) — what is below, and whether it is alive
 

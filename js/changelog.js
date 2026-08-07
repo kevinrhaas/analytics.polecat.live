@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 872,
+    title: 'The Getting started tour now walks the rail in the order the rail is in',
+    kind: 'fix',
+    ts: '2026-08-07T22:30:39.000Z',
+    items: [
+      'The Getting started tour opens by saying it walks the parts of the app down the left rail, and then it did not. It went Home, Quick Views, View Builder, Dashboards, Datasets, Connections, Jobs, Repository, Dashboard Builder — crossing between the rail\'s three groups five times, so anyone following along on the rail itself was jumping up and down it. The tour now goes straight down: Workspace (Home, Views, Dashboards, Datasets, Connections, Repository), then Build (Quick Views, View Builder, Dashboard Builder), then Manage (Jobs), and it names each group as it reaches it.',
+      'The Views section was missing from the tour entirely. It is the catalog of every chart you have saved, it has been on the rail for a while, and the tour walked past it. It has a stop now — including a line about why two rail items are both called Views, since the group label is the thing that tells the catalog apart from the builder.',
+      'The closing step used to summarise the app in the order you actually work in it, which read like a contradiction right after a tour that had gone a different way. It now says so plainly: that was the rail top to bottom, and the work runs the other way.',
+      'As with the Help page and the front page before it, the checks that run on every change now read the rail\'s real order out of the app and fail if the tour stops matching it. Adding a section to the rail now forces a decision about whether the tour should visit it.',
+    ],
+  },
+  {
     v: 871,
     title: 'The front page says what the app actually does now',
     kind: 'fix',
