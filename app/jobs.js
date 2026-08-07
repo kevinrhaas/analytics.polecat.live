@@ -820,20 +820,52 @@
           // selects the right row rather than showing a blank select.
           var cmpKnown = Studio.filterOps.get(step.cmp || "eq");
           step.cmp = cmpKnown ? cmpKnown.alias : "eq";
-          cmpSel.value = step.cmp; cmpSel.onchange = function () { step.cmp = cmpSel.value; }; wrap.appendChild(cmpSel);
-          // LF55 (2): the value field stays free text (comparators like gt/lt need arbitrary
-          // typed values a fixed list can't cover), but when the target column's actual sample
-          // values are known, offer them via a <datalist> — the same "type or pick" affordance
-          // the Folder fields already use elsewhere in this editor.
-          var valInp = mini("value", step.value, function (v) { step.value = v; });
-          valInp.title = Studio.filterOps.VALUE_HINT;   // AUD-06 slice 4 — same sentence the DA filter rule shows
+          // AUD-06 slice 5: switching to (or away from) "in date range" changes what the
+          // value control IS, so the step re-renders — and the value only carries across
+          // when it still means something there.
+          cmpSel.value = step.cmp;
+          cmpSel.onchange = function () {
+            var wasRange = Studio.filterOps.normalize(step.cmp) === "inRange";
+            step.cmp = cmpSel.value;
+            var isRange = Studio.filterOps.normalize(step.cmp) === "inRange";
+            if (isRange && !Studio.filterOps.rangeBounds(step.value)) step.value = Studio.filterOps.RANGE_DEFAULT;
+            else if (!isRange && wasRange) step.value = "";
+            renderSteps();
+          };
+          wrap.appendChild(cmpSel);
+          // The value control is the same three-way choice the DA filter rule makes, decided
+          // by the same Studio.filterOps.valueKind: the relative-range dropdown for
+          // "in date range", a native date picker on a date column, else free text.
           var distinct = distinctColValues(step.col);
-          if (distinct.length) {
-            var dlId = "jobsFilterVals" + stepIdx;
-            var dl = el("datalist"); dl.id = dlId;
-            distinct.forEach(function (v) { var o = el("option"); o.value = v; dl.appendChild(o); });
-            valInp.setAttribute("list", dlId);
-            wrap.appendChild(dl);
+          var vKind = Studio.filterOps.valueKind(step.cmp, step.col, distinct, step.value);
+          if (vKind === "range") {
+            var rangeSel = el("select");
+            Studio.filterOps.RANGES.forEach(function (r) {
+              var o = el("option"); o.value = r.id; o.textContent = r.label; rangeSel.appendChild(o);
+            });
+            rangeSel.value = step.value;
+            rangeSel.title = Studio.filterOps.RANGE_HINT;
+            rangeSel.onchange = function () { step.value = rangeSel.value; };
+            wrap.appendChild(rangeSel);
+          } else if (vKind === "date") {
+            var dateInp = el("input"); dateInp.type = "date"; dateInp.value = step.value || "";
+            dateInp.title = Studio.filterOps.VALUE_HINT;
+            dateInp.oninput = function () { step.value = dateInp.value; };
+            wrap.appendChild(dateInp);
+          } else {
+            // LF55 (2): free text (comparators like gt/lt need arbitrary typed values a fixed
+            // list can't cover), but when the target column's actual sample values are known,
+            // offer them via a <datalist> — the same "type or pick" affordance the Folder
+            // fields already use elsewhere in this editor.
+            var valInp = mini("value", step.value, function (v) { step.value = v; });
+            valInp.title = Studio.filterOps.VALUE_HINT;   // AUD-06 slice 4 — same sentence the DA filter rule shows
+            if (distinct.length) {
+              var dlId = "jobsFilterVals" + stepIdx;
+              var dl = el("datalist"); dl.id = dlId;
+              distinct.forEach(function (v) { var o = el("option"); o.value = v; dl.appendChild(o); });
+              valInp.setAttribute("list", dlId);
+              wrap.appendChild(dl);
+            }
           }
         } else if (step.op === "aggregate") {
           var stepCols = colsBeforeStep(stepIdx);

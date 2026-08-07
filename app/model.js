@@ -2923,7 +2923,13 @@
       { id: "<",          alias: "lt",       label: "< less than" },
       { id: "<=",         alias: "lte",      label: "≤ less or equal" },
       { id: "contains",   alias: "contains", label: "contains (text)" },
-      { id: "startsWith", alias: "startsWith", label: "starts with" }
+      { id: "startsWith", alias: "startsWith", label: "starts with" },
+      // AUD-06 slice 5 — the relative-date operator. Appended LAST on purpose:
+      // both surfaces render this list in order, and everything above keeps the
+      // position it has had since slice 3. It is the one op whose value is not
+      // free text but a token from RANGES below, so it carries a single
+      // spelling (id === alias) — it has no legacy on-disk form to preserve.
+      { id: "inRange",    alias: "inRange",  label: "in date range (relative)" }
     ];
     var CANON = {};
     LIST.forEach(function (o) { CANON[o.id] = o.id; CANON[o.alias] = o.id; });
@@ -2987,6 +2993,132 @@
       return x < y ? -1 : (x > y ? 1 : 0);
     }
 
+    /* ---- AUD-06 slice 5: a REAL date filter -----------------------------
+       Slice 4 taught the comparison to think in dates; *choosing* a date was
+       still free text typed into a value box, so "the last 30 days" could only
+       be written as a date that goes stale the next morning. These are the
+       relative ranges the app owes its users — the honest replacement for the
+       dead `DashKit.TIME_RANGE` picker AUD-09 deleted.
+
+       The range is a first-class RULE, not a typed value: the `inRange`
+       operator's value is one of the tokens below, and the surfaces render a
+       dropdown instead of a text box for it.
+
+       FORWARD COMPATIBILITY (the AUD-04 constraint — a workspace is shared with
+       older builds and with the /dev/ + /stage/ previews on the same origin): a
+       build that predates this slice reads `inRange` as an unrecognised
+       operator, and test()'s `default` passes the row through. So an old client
+       shows the rule UNFILTERED rather than misreading it as some other
+       operator — the same deliberate contract slice 3 wrote down, now load-bearing.
+
+       WHAT "TODAY" MEANS: the bounds are anchored to the viewer's LOCAL
+       calendar day, then expressed as UTC day boundaries — the same space
+       dateKey() puts a plain `YYYY-MM-DD` in. So someone in Chicago at 8pm on
+       the 7th gets the 7th (not UTC's 8th), and a stored plain date still means
+       the whole of its own day. Weeks start Monday (ISO-8601), stated in the UI.  */
+    var RANGES = [
+      { id: "today",       label: "today" },
+      { id: "yesterday",   label: "yesterday" },
+      { id: "last7d",      label: "the last 7 days" },
+      { id: "last30d",     label: "the last 30 days" },
+      { id: "last90d",     label: "the last 90 days" },
+      { id: "last365d",    label: "the last 365 days" },
+      { id: "thisWeek",    label: "this week (Mon-Sun)" },
+      { id: "lastWeek",    label: "last week (Mon-Sun)" },
+      { id: "thisMonth",   label: "this month" },
+      { id: "lastMonth",   label: "last month" },
+      { id: "thisQuarter", label: "this quarter" },
+      { id: "lastQuarter", label: "last quarter" },
+      { id: "thisYear",    label: "this year (Jan 1 - Dec 31)" },
+      { id: "lastYear",    label: "last year" },
+      { id: "ytd",         label: "year to date (Jan 1 - today)" }
+    ];
+    var RANGE_DEFAULT = "last30d";
+    var RANGE_LABELS = {};
+    RANGES.forEach(function (r) { RANGE_LABELS[r.id] = r.label; });
+    function rangeLabel(id) { return RANGE_LABELS[String(id == null ? "" : id)] || String(id == null ? "" : id); }
+
+    // Midnight of the viewer's local calendar day, as a UTC-day instant.
+    function todayStart(nowMs) {
+      var n = nowMs == null ? new Date() : new Date(nowMs);
+      var d = new Date(0);
+      d.setUTCFullYear(n.getFullYear(), n.getMonth(), n.getDate());
+      d.setUTCHours(0, 0, 0, 0);
+      return d.getTime();
+    }
+    // Build a UTC-day instant from y/m/d parts (m is 0-based; out-of-range
+    // values roll over the way Date does, which is what the month/quarter/year
+    // arithmetic below relies on).
+    function dayAt(y, m, day) {
+      var d = new Date(0);
+      d.setUTCFullYear(y, m, day);
+      d.setUTCHours(0, 0, 0, 0);
+      return d.getTime();
+    }
+    /* HALF-OPEN bounds { start, end } for a range token: start <= value < end.
+       `nowMs` is injectable so the suite (and anything that wants "as of some
+       other day") can ask without waiting for the calendar. Unknown token → null. */
+    function rangeBounds(id, nowMs) {
+      var T = todayStart(nowMs), t = new Date(T);
+      var y = t.getUTCFullYear(), mo = t.getUTCMonth();
+      // ISO weekday: Monday = 0 … Sunday = 6.
+      var wd = (t.getUTCDay() + 6) % 7;
+      var q = Math.floor(mo / 3) * 3;
+      switch (String(id == null ? "" : id)) {
+        case "today":       return { start: T, end: T + DAY_MS };
+        case "yesterday":   return { start: T - DAY_MS, end: T };
+        // "the last N days" includes today and the N-1 days before it.
+        case "last7d":      return { start: T - 6 * DAY_MS, end: T + DAY_MS };
+        case "last30d":     return { start: T - 29 * DAY_MS, end: T + DAY_MS };
+        case "last90d":     return { start: T - 89 * DAY_MS, end: T + DAY_MS };
+        case "last365d":    return { start: T - 364 * DAY_MS, end: T + DAY_MS };
+        case "thisWeek":    return { start: T - wd * DAY_MS, end: T + (7 - wd) * DAY_MS };
+        case "lastWeek":    return { start: T - (wd + 7) * DAY_MS, end: T - wd * DAY_MS };
+        case "thisMonth":   return { start: dayAt(y, mo, 1), end: dayAt(y, mo + 1, 1) };
+        case "lastMonth":   return { start: dayAt(y, mo - 1, 1), end: dayAt(y, mo, 1) };
+        case "thisQuarter": return { start: dayAt(y, q, 1), end: dayAt(y, q + 3, 1) };
+        case "lastQuarter": return { start: dayAt(y, q - 3, 1), end: dayAt(y, q, 1) };
+        case "thisYear":    return { start: dayAt(y, 0, 1), end: dayAt(y + 1, 0, 1) };
+        case "lastYear":    return { start: dayAt(y - 1, 0, 1), end: dayAt(y, 0, 1) };
+        case "ytd":         return { start: dayAt(y, 0, 1), end: T + DAY_MS };
+        default:            return null;
+      }
+    }
+
+    // A value a native <input type="date"> can round-trip without losing
+    // anything — exactly `YYYY-MM-DD`, and a date the calendar really has.
+    function isPlainDate(v) {
+      var s = String(v == null ? "" : v).trim();
+      return /^\d{4}-\d{2}-\d{2}$/.test(s) && !!dateKey(s);
+    }
+    /* Should this column's value box be a date picker? SAMPLES DECIDE when we
+       have them — every non-empty sample has to be a real date, so a "year"
+       column of bare integers stays a text box. With no samples (the DA
+       inspector knows column NAMES long before it has run anything) fall back
+       to a deliberately narrow name test: `date`/`datetime`/`timestamp` as a
+       whole word, or the `_at` suffix. Narrower than the app's display-side
+       guessFieldKind, which also claims month/year/quarter/week — those are
+       usually numbers, and offering a calendar for them would be a downgrade. */
+    var DATE_NAME = /(?:^|[^a-z])(date|datetime|timestamp)(?:[^a-z]|$)|_at$/i;
+    function looksDate(colName, vals) {
+      var list = (vals || []).map(function (v) { return String(v == null ? "" : v).trim(); })
+        .filter(function (s) { return s !== ""; });
+      if (list.length) return list.every(function (s) { return !!dateKey(s); });
+      return DATE_NAME.test(String(colName == null ? "" : colName));
+    }
+    /* Which of the three value controls a rule wants: "range" (the relative
+       dropdown), "date" (a native picker) or "text" (the free box it has always
+       been). The DECISION lives here, not in either surface — the DA inspector
+       and the Job "Filter rows" step build their own DOM, and this is the piece
+       that would otherwise drift. "date" is offered only for a value a picker
+       can round-trip, so an already-typed timestamp is never truncated. */
+    function valueKind(op, colName, samples, val) {
+      if (normalize(op) === "inRange") return "range";
+      var v = String(val == null ? "" : val).trim();
+      if (looksDate(colName, samples) && (v === "" || isPlainDate(v))) return "date";
+      return "text";
+    }
+
     // The one predicate. Dates first (above), then numeric when BOTH sides
     // parse as numbers, otherwise a string comparison — so `>` orders plain
     // text as well as numbers (the job step's comparators used to return
@@ -3010,6 +3142,15 @@
         case "<=":         return dc !== null ? dc <= 0  : (numCmp ? nv <= fnv  : sv <= fv);
         case "contains":   return sv.toLowerCase().indexOf(fv.toLowerCase()) >= 0;
         case "startsWith": return sv.toLowerCase().indexOf(fv.toLowerCase()) === 0;
+        // AUD-06 slice 5. A row whose cell isn't a date can't be in a date
+        // range, so it drops out — unlike the comparisons above, which fall
+        // back to text. A range token this build doesn't know passes the row
+        // through, the same way an unknown operator does.
+        case "inRange": {
+          var k = dateKey(sv); if (!k) return false;
+          var b = rangeBounds(fv); if (!b) return true;
+          return k.ms >= b.start && k.ms < b.end;
+        }
         default:           return true;
       }
     }
@@ -3023,10 +3164,16 @@
 
     // One sentence, shown on the value box of BOTH surfaces, so the rules a
     // filter actually follows are discoverable where they're typed.
-    var VALUE_HINT = "Text, a number, or a date (YYYY-MM-DD). Dates compare chronologically, and a plain date means the whole day.";
+    var VALUE_HINT = "Text, a number, or a date (YYYY-MM-DD). Dates compare chronologically, and a plain date means the whole day. For a moving window, use the “in date range” operator.";
+    // Shown on the range dropdown, because "the last 30 days" has to say what
+    // it is relative TO before anyone can trust it in a saved dashboard.
+    var RANGE_HINT = "Relative to the day the dashboard is opened, on your own calendar. Weeks start Monday.";
 
     return { LIST: LIST, normalize: normalize, get: get, label: label, test: test, pairs: pairs,
-             dateKey: dateKey, dateCmp: dateCmp, VALUE_HINT: VALUE_HINT };
+             dateKey: dateKey, dateCmp: dateCmp, VALUE_HINT: VALUE_HINT,
+             RANGES: RANGES, RANGE_DEFAULT: RANGE_DEFAULT, RANGE_HINT: RANGE_HINT,
+             rangeBounds: rangeBounds, rangeLabel: rangeLabel,
+             isPlainDate: isPlainDate, looksDate: looksDate, valueKind: valueKind };
   })();
 
   /* ---- output options (post-query filter / sort / limit) ---- */

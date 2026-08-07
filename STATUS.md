@@ -135,6 +135,56 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **AUD-06 ★ slice 5 — a REAL date filter (v855, sw v487, 2026-08-07, steward;
+  AUDIT-2026-08 §2.1, ux/feature):** slice 4 taught the *comparison* to think in dates;
+  *choosing* a date was still raw text typed into a value box, so "the last 30 days" could
+  only be written as a fixed date that goes stale the next morning. This is the honest
+  replacement for the dead `DashKit.TIME_RANGE` picker AUD-09 deleted rather than implemented.
+  - **A range is a RULE, not a typed value.** One new operator, `inRange`
+    ("in date range (relative)"), whose value is a token from `filterOps.RANGES`:
+    today · yesterday · the last 7/30/90/365 days · this/last week · month · quarter ·
+    year · year to date (15 in all). Both filter surfaces offer it — a dataset's output
+    rules and a job's "Filter rows" step — because both read the one shared registry.
+  - **`filterOps.rangeBounds(id, nowMs)`** returns HALF-OPEN `{start, end}` day bounds.
+    `nowMs` is injectable, so the suite asserts exact instants instead of "whatever today
+    is". "The last N days" **includes today** and ends with it (tomorrow is out). Weeks
+    start **Monday** (ISO), and the dropdown's tooltip says so.
+  - **Anchored to the reader's LOCAL calendar day, expressed as a UTC day** — the same
+    space `dateKey()` puts a plain `YYYY-MM-DD` in. Someone in Chicago at 11:30pm gets
+    their own today, not UTC's tomorrow; a stored plain date still means the whole of its
+    own day. That reconciles the range feature with slice 4's zoneless-reads-as-UTC rule
+    instead of contradicting it.
+  - **A native date picker on date columns.** `filterOps.valueKind(op, col, samples, val)`
+    is the shared DECISION behind the value box — `range` / `date` / `text` — so the DA
+    inspector (`filterValueControl` in app/studio.js) and the job step (app/jobs.js, which
+    builds its own DOM) can't drift into different answers. SAMPLES decide when we have
+    them (every non-empty sample must be a real date); with none, a **deliberately narrow**
+    name test (`date`/`datetime`/`timestamp` as a word, or an `_at` suffix) — narrower than
+    the display-side `guessFieldKind`, which also claims month/year/quarter/week, where a
+    calendar would be a downgrade. And only when the saved value is one a picker can
+    round-trip, so an already-typed timestamp or a `{{param}}` keeps its text box.
+  - **Switching operators doesn't leave nonsense behind:** moving to `inRange` seeds the
+    default (`last30d`); moving away from it clears the range token instead of leaving
+    "last30d" sitting in a text box where it would silently match nothing.
+  - **The AUD-04 constraint is honoured without a migration.** A range rule is a NEW
+    operator id, so a build that predates this slice reads it as unrecognised and
+    `test()`'s `default` passes the row through — an older client sharing the workspace (or
+    a `/dev/`-`/stage/` preview on the same origin) shows the rows UNFILTERED rather than
+    misreading the rule as some other operator. Slice 3 wrote that contract down; here it
+    is load-bearing. Nothing on disk changed spelling.
+  - **A non-date row is not "in" a date range** — unlike the ordering comparisons, which
+    fall back to text. An unknown range token passes through, same as an unknown operator.
+  - **9 new/updated checks**: every offered range resolves to exact bounds (all 15, plus
+    the month/quarter/year rollovers and the local-day anchor); the predicate's window,
+    timestamp handling, non-date exclusion and forward-compat pass-through; an end-to-end
+    output rule keeping only the moving window; `valueKind`'s three answers including the
+    round-trip guard; and the job step's value box really becoming the range dropdown and
+    really clearing it on the way back. The four "8 operators" assertions became 9, with
+    `inRange` named and pinned LAST so every older op keeps its position.
+  - **Full suite green: 3064 passed, 0 failed**; dev gate (validate + changelog-check +
+    dev-smoke) green. Merged to `dev`; the pipeline stages it.
+  - **AUD-06's family D is now down to its opportunistic tail** (the 11 non-catalog search
+    affordances). Remaining audit backlog: AUD-08's tail, AUD-10, AUD-11.
 - **AUD-12 — the rail is the one list of sections (v854, sw v486, 2026-08-07, steward;
   AUDIT-2026-08 §2.3, ux/gating):** two hand-kept copies of "what sections exist" had both
   drifted away from the rail, in different directions.
@@ -9343,13 +9393,17 @@
 >   taught the new trick. This one DID re-filter saved dashboards, deliberately
 >   and loudly in the changelog: the rows an author asked for are the rows they
 >   now get.
+>   **Slice 5 — a REAL date FILTER — SHIPPED v855, sw v487 (2026-08-07, steward
+>   — see DONE):** the remaining half is closed. A new `inRange` operator
+>   ("in date range (relative)") whose value is one of 15 range tokens
+>   (`filterOps.RANGES` / `rangeBounds`) makes "the last 30 days" a saved RULE
+>   that still means the last 30 days tomorrow, and `filterOps.valueKind` gives
+>   a date column a native date picker on both surfaces. Anchored to the
+>   reader's local calendar day, weeks start Monday. No workspace migration and
+>   none needed: a new operator id is invisible to older clients, which pass the
+>   rows through unfiltered rather than misreading the rule (the AUD-04
+>   constraint, honoured by the slice-3 unknown-operator contract).
 >   **Still open, in rough order:**
->   - **Build a real date FILTER** — the remaining half. Comparison is fixed;
->     *choosing* a date is still raw text typed into a value box. Wanted: a date
->     input on a date-typed column, and relative ranges ("last 30 days", "this
->     year") as first-class rules rather than `{{today-30}}` SQL tokens — the
->     honest replacement for the dead `DashKit.TIME_RANGE` picker AUD-09 removed.
->     `filterOps.dateKey` is the primitive to build it on.
 >   - Out of family D but named in §2.1: the 11 other search affordances
 >     (library, inspector, chart gallery, ⌘K, docs, folder picker) could adopt
 >     `Studio.catalogSearch` opportunistically — none is a catalog panel, so

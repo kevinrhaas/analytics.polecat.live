@@ -3,6 +3,6 @@
    the version label and the What's-new unseen dot, so the ~680KB of full history is
    fetched lazily (Studio.loadChangelog) the first time someone opens the feed.
    Regenerated from js/changelog.js on every normalize run — never hand-edit. */
-window.STUDIO_LATEST_VERSION = 854;
-window.STUDIO_LATEST = {"v":854,"title":"The ⌘K palette reaches every section, and Section access covers every section","kind":"fix","ts":"2026-08-07T11:56:57.000Z"};
+window.STUDIO_LATEST_VERSION = 855;
+window.STUDIO_LATEST = {"v":855,"title":"A real date filter: pick a date from a calendar, or filter by a moving window","kind":"feature","ts":"2026-08-07T12:36:17.000Z"};
 window.STUDIO_BUILD = "__BUILD_TS__";

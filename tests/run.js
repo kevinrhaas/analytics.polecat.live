@@ -6665,9 +6665,58 @@ function serve() {
         matchesDaOps: opts.every(function (o, i) { return o.t === Studio.DA_OPS[i].label; })
       };
     });
-    ok("AUD-06(3): the job Filter step's operator dropdown is the shared vocabulary — 8 ops, DA labels, job spelling, no raw ids",
-      jobCmpDrop.count === 8 && jobCmpDrop.values === "eq,ne,gt,gte,lt,lte,contains,startsWith"
+    ok("AUD-06(3/5): the job Filter step's operator dropdown is the shared vocabulary — 9 ops (slice 5 added the date range), DA labels, job spelling, no raw ids",
+      jobCmpDrop.count === 9 && jobCmpDrop.values === "eq,ne,gt,gte,lt,lte,contains,startsWith,inRange"
       && jobCmpDrop.selected === "eq" && jobCmpDrop.noRawIds && jobCmpDrop.matchesDaOps, JSON.stringify(jobCmpDrop));
+
+    // AUD-06 slice 5: picking "in date range" turns the value box into the
+    // relative-range dropdown (a rule, not a typed value) — and switching back
+    // to a comparison drops the range token instead of leaving "last30d"
+    // sitting in a text box where it would silently match nothing.
+    const jobRangeCtl = await page.evaluate(function () {
+      function cmpSelect() {
+        var card = document.querySelectorAll(".jobs-step-card")[0];
+        // the operator select is the one whose value is a known operator (the
+        // column select holds a column name; a range select holds a range token)
+        return Array.prototype.slice.call(card.querySelectorAll(".jobs-step-fields select")).filter(function (s) {
+          return !!Studio.filterOps.normalize(s.value);
+        })[0];
+      }
+      function fields() { return document.querySelectorAll(".jobs-step-card")[0].querySelector(".jobs-step-fields"); }
+      var sel = cmpSelect();
+      sel.value = "inRange"; sel.dispatchEvent(new Event("change"));
+      var f = fields();
+      var selects = Array.prototype.slice.call(f.querySelectorAll("select"));
+      var rangeSel = selects[selects.length - 1];
+      var after = {
+        rangeIsSelect: rangeSel && rangeSel.tagName === "SELECT",
+        rangeCount: rangeSel ? rangeSel.options.length : 0,
+        rangeOffersAll: rangeSel ? rangeSel.options.length === Studio.filterOps.RANGES.length : false,
+        rangeValue: rangeSel ? rangeSel.value : "",
+        // same rule as the registry check: a range token never renders as its
+        // own label unless the token already reads as English
+        rangeLabelled: rangeSel ? Array.prototype.slice.call(rangeSel.options).every(function (o) {
+          return !!o.textContent && (o.textContent !== o.value || /^[a-z]+$/.test(o.value));
+        }) : false,
+        noTextBox: f.querySelectorAll('input[type="text"]').length === 0
+      };
+      var sel2 = cmpSelect();
+      sel2.value = "gte"; sel2.dispatchEvent(new Event("change"));
+      var f2 = fields();
+      var txt = f2.querySelector('input[type="text"]');
+      after.backToText = !!txt;
+      after.backEmpty = txt ? txt.value === "" : false;
+      after.rangeGone = Array.prototype.slice.call(f2.querySelectorAll("select")).every(function (s) {
+        return !Studio.filterOps.rangeBounds(s.value);
+      });
+      // leave the step the way the earlier checks found it
+      var sel3 = cmpSelect(); sel3.value = "eq"; sel3.dispatchEvent(new Event("change"));
+      return after;
+    });
+    ok("AUD-06(5): the job Filter step's value box becomes the relative-range dropdown for 'in date range', and switching back to a comparison clears the range token",
+      jobRangeCtl.rangeIsSelect && jobRangeCtl.rangeOffersAll && jobRangeCtl.rangeValue === "last30d"
+      && jobRangeCtl.rangeLabelled && jobRangeCtl.noTextBox && jobRangeCtl.backToText
+      && jobRangeCtl.backEmpty && jobRangeCtl.rangeGone, JSON.stringify(jobRangeCtl));
     await page.evaluate(function () {
       document.querySelector(".modal-ov .x").click();
       Studio.Workspace.all("jobs").filter(function (j) { return j.name === "coldrop-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
@@ -20993,9 +21042,10 @@ function serve() {
     // Studio.DA_OPS includes all 8 operator entries
     const opsOk = await page.evaluate(() => {
       var ops = Studio.DA_OPS;
-      return Array.isArray(ops) && ops.length === 8 && ops.some(function (o) { return o.id === "="; }) && ops.some(function (o) { return o.id === "contains"; });
+      return Array.isArray(ops) && ops.length === 9 && ops.some(function (o) { return o.id === "="; }) && ops.some(function (o) { return o.id === "contains"; })
+        && ops.some(function (o) { return o.id === "inRange"; });
     });
-    ok("Studio.DA_OPS has 8 operators including = and contains", opsOk);
+    ok("Studio.DA_OPS has 9 operators including =, contains and inRange", opsOk);
 
     // ---- AUD-06 slice 3: ONE filter-operator vocabulary ----
     // Studio.filterOps is the single registry behind both the DA output rules
@@ -21011,8 +21061,8 @@ function serve() {
         api: ["normalize", "get", "label", "test", "pairs"].every(function (k) { return typeof F[k] === "function"; })
       };
     });
-    ok("Studio.filterOps is the shared registry: 8 ops, both spellings, human labels",
-      foShape.len === 8 && foShape.wellFormed && foShape.api, JSON.stringify(foShape));
+    ok("Studio.filterOps is the shared registry: 9 ops, both spellings, human labels",
+      foShape.len === 9 && foShape.wellFormed && foShape.api, JSON.stringify(foShape));
 
     // normalize() accepts EITHER on-disk spelling and yields one meaning.
     const foNorm = await page.evaluate(() => {
@@ -21116,6 +21166,143 @@ function serve() {
     ok("AUD-06(4): a DA output rule filters and sorts a date column chronologically (the year-only tie is gone)",
       foDateSort.order.join() === "2024-02-01,2024-03-09,2024-06-01", JSON.stringify(foDateSort));
 
+    // ---- AUD-06 slice 5: a REAL date filter (relative ranges + a date picker) ----
+    // The bounds are the whole feature: every range is half-open [start, end),
+    // anchored on the viewer's LOCAL calendar day expressed as a UTC day — the
+    // same space a stored plain `YYYY-MM-DD` lives in. nowMs is injectable so
+    // these assert exact instants instead of "whatever today is".
+    const foRanges = await page.evaluate(() => {
+      var F = Studio.filterOps;
+      // Wednesday 2024-06-12, mid-afternoon local — a day inside Q2, month 06.
+      var now = new Date(2024, 5, 12, 15, 30).getTime();
+      function b(id) { var r = F.rangeBounds(id, now); return r ? [new Date(r.start).toISOString().slice(0, 10), new Date(r.end).toISOString().slice(0, 10)] : null; }
+      return {
+        // every advertised range resolves (the dropdown can't offer a dead token)
+        allResolve: F.RANGES.every(function (r) { return !!F.rangeBounds(r.id, now); }),
+        // no token is rendered as its own label — unless the token already IS
+        // an ordinary English word (today, yesterday)
+        labelled: F.RANGES.every(function (r) { return !!r.label && (r.label !== r.id || /^[a-z]+$/.test(r.id)); }),
+        today: b("today").join(), yesterday: b("yesterday").join(),
+        // "the last 7 days" = today plus the 6 before it, not 7 days ago to now
+        last7d: b("last7d").join(), last30d: b("last30d").join(),
+        // weeks start Monday (ISO) — the 12th is a Wednesday
+        thisWeek: b("thisWeek").join(), lastWeek: b("lastWeek").join(),
+        thisMonth: b("thisMonth").join(), lastMonth: b("lastMonth").join(),
+        thisQuarter: b("thisQuarter").join(), lastQuarter: b("lastQuarter").join(),
+        thisYear: b("thisYear").join(), lastYear: b("lastYear").join(), ytd: b("ytd").join(),
+        // year/quarter/month arithmetic rolls correctly across the boundary
+        janLastMonth: (function () { var n = new Date(2024, 0, 5, 9, 0).getTime(); var r = F.rangeBounds("lastMonth", n); return new Date(r.start).toISOString().slice(0, 10) + "," + new Date(r.end).toISOString().slice(0, 10); })(),
+        q1LastQuarter: (function () { var n = new Date(2024, 1, 5, 9, 0).getTime(); var r = F.rangeBounds("lastQuarter", n); return new Date(r.start).toISOString().slice(0, 10) + "," + new Date(r.end).toISOString().slice(0, 10); })(),
+        // the local calendar day decides, so a late-evening viewer west of UTC
+        // still gets their OWN today rather than tomorrow's
+        localDay: new Date(F.rangeBounds("today", new Date(2024, 5, 12, 23, 30).getTime()).start).toISOString().slice(0, 10),
+        unknown: F.rangeBounds("someFutureRange", now) === null,
+        defaultOffered: F.RANGES.some(function (r) { return r.id === F.RANGE_DEFAULT; })
+      };
+    });
+    ok("AUD-06(5): rangeBounds resolves every offered range to exact half-open day bounds — last-N includes today, weeks start Monday, month/quarter/year arithmetic rolls, and the LOCAL calendar day anchors it",
+      foRanges.allResolve && foRanges.labelled && foRanges.defaultOffered && foRanges.unknown
+      && foRanges.today === "2024-06-12,2024-06-13"
+      && foRanges.yesterday === "2024-06-11,2024-06-12"
+      && foRanges.last7d === "2024-06-06,2024-06-13"
+      && foRanges.last30d === "2024-05-14,2024-06-13"
+      && foRanges.thisWeek === "2024-06-10,2024-06-17"
+      && foRanges.lastWeek === "2024-06-03,2024-06-10"
+      && foRanges.thisMonth === "2024-06-01,2024-07-01"
+      && foRanges.lastMonth === "2024-05-01,2024-06-01"
+      && foRanges.thisQuarter === "2024-04-01,2024-07-01"
+      && foRanges.lastQuarter === "2024-01-01,2024-04-01"
+      && foRanges.thisYear === "2024-01-01,2025-01-01"
+      && foRanges.lastYear === "2023-01-01,2024-01-01"
+      && foRanges.ytd === "2024-01-01,2024-06-13"
+      && foRanges.janLastMonth === "2023-12-01,2024-01-01"
+      && foRanges.q1LastQuarter === "2023-10-01,2024-01-01"
+      && foRanges.localDay === "2024-06-12", JSON.stringify(foRanges));
+
+    // The `inRange` predicate itself, and what it does to rows that aren't dates.
+    const foInRange = await page.evaluate(() => {
+      var F = Studio.filterOps, t = F.test, DAY = 86400000;
+      var today = new Date(); today.setHours(12, 0, 0, 0);
+      function iso(offsetDays) {
+        var d = new Date(today.getTime() + offsetDays * DAY);
+        return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+      }
+      return {
+        today: t(iso(0), "inRange", "today") === true && t(iso(-1), "inRange", "today") === false,
+        last7: t(iso(0), "inRange", "last7d") === true && t(iso(-6), "inRange", "last7d") === true
+          && t(iso(-7), "inRange", "last7d") === false,
+        // tomorrow is not in "the last 30 days" — the window ends with today
+        future: t(iso(1), "inRange", "last30d") === false,
+        // a timestamp inside the day counts, at either end of it
+        timestamps: t(iso(0) + "T23:59:59Z", "inRange", "today") === true
+          && t(iso(0) + "T00:00:00Z", "inRange", "today") === true,
+        // a cell that isn't a date can't be in a date range (unlike the
+        // comparisons, which fall back to text)
+        nonDates: t("banana", "inRange", "last30d") === false && t("2024", "inRange", "last30d") === false
+          && t("", "inRange", "last30d") === false && t(null, "inRange", "last30d") === false,
+        // a range token this build doesn't know passes the row through, the
+        // same forward-compatible choice an unknown OPERATOR makes
+        unknownToken: t(iso(0), "inRange", "someFutureRange") === true,
+        // and the operator reaches by either spelling (it has only one)
+        spelling: F.normalize("inRange") === "inRange" && F.get("inRange").alias === "inRange",
+        rangeLabel: F.rangeLabel("last30d") === "the last 30 days" && F.rangeLabel("nope") === "nope"
+      };
+    });
+    ok("AUD-06(5): the inRange predicate — a relative window that ends with today, timestamps inside the day count, non-dates drop out, an unknown token passes through",
+      foInRange.today && foInRange.last7 && foInRange.future && foInRange.timestamps
+      && foInRange.nonDates && foInRange.unknownToken && foInRange.spelling && foInRange.rangeLabel,
+      JSON.stringify(foInRange));
+
+    // End to end through a DA output rule: the rule is saved as a RANGE, so it
+    // still means "the last 30 days" tomorrow — which is the whole point.
+    const foRangeRule = await page.evaluate(() => {
+      var DAY = 86400000, base = new Date(); base.setHours(12, 0, 0, 0);
+      function iso(off) {
+        var d = new Date(base.getTime() + off * DAY);
+        return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+      }
+      var da = { outputOptions: { filters: [{ col: "when", op: "inRange", val: "last7d" }] } };
+      var out = Studio.applyOutputOptions(da, { cols: ["when", "n"], rows: [
+        [iso(0), "now"], [iso(-3), "recent"], [iso(-30), "old"], [iso(2), "future"], ["not a date", "junk"]
+      ]});
+      return { kept: out.rows.map(function (r) { return r[1]; }).join(",") };
+    });
+    ok("AUD-06(5): a saved 'in the last 7 days' output rule keeps only the rows in that moving window",
+      foRangeRule.kept === "now,recent", JSON.stringify(foRangeRule));
+
+    // Which value control a rule earns — the decision both surfaces share, so
+    // the DA inspector and the job step can't drift into different answers.
+    const foValueKind = await page.evaluate(() => {
+      var F = Studio.filterOps;
+      return {
+        range: F.valueKind("inRange", "region", null, "last30d") === "range"
+          && F.valueKind("inRange", "signed_at", ["2024-01-01"], "") === "range",
+        // SAMPLES decide when we have them
+        samplesSayDate: F.valueKind(">=", "whatever", ["2024-01-01", "2024-06-30"], "") === "date",
+        samplesSayNo: F.valueKind(">=", "signed_at", ["1", "2", "3"], "") === "text",
+        // no samples → a deliberately narrow NAME test
+        nameDate: F.valueKind(">=", "signed_at", null, "") === "date"
+          && F.valueKind(">=", "order_date", null, "") === "date"
+          && F.valueKind(">=", "timestamp", null, "") === "date",
+        // …narrower than the display-side guess: month/year/quarter columns are
+        // usually numbers, and a calendar there would be a downgrade
+        nameNotDate: F.valueKind(">=", "year", null, "") === "text"
+          && F.valueKind(">=", "month", null, "") === "text"
+          && F.valueKind(">=", "region", null, "") === "text"
+          && F.valueKind(">=", "update", null, "") === "text",
+        // a picker is offered only for a value it can round-trip — an already
+        // typed timestamp keeps its text box rather than being truncated
+        roundTrip: F.valueKind(">=", "signed_at", null, "2024-06-01") === "date"
+          && F.valueKind(">=", "signed_at", null, "2024-06-01T09:30:00Z") === "text"
+          && F.valueKind(">=", "signed_at", null, "{{start}}") === "text",
+        isPlainDate: F.isPlainDate("2024-06-01") === true && F.isPlainDate("2024-02-31") === false
+          && F.isPlainDate("2024-06-01T09:30:00Z") === false && F.isPlainDate("") === false
+      };
+    });
+    ok("AUD-06(5): filterOps.valueKind is the shared decision — range for inRange, a date picker when the DATA (or a narrow name test) says date, and free text whenever a picker would lose something",
+      foValueKind.range && foValueKind.samplesSayDate && foValueKind.samplesSayNo && foValueKind.nameDate
+      && foValueKind.nameNotDate && foValueKind.roundTrip && foValueKind.isPlainDate, JSON.stringify(foValueKind));
+
     // DA_OPS is derived from the shared list (labels can't drift apart again).
     const foDerived = await page.evaluate(() => {
       var F = Studio.filterOps;
@@ -21130,8 +21317,9 @@ function serve() {
       var F = Studio.filterOps;
       var byId = F.pairs("id"), byAlias = F.pairs("alias");
       return {
-        ids: byId.length === 8 && byId[0][0] === "=" && byId[3][0] === ">=",
-        aliases: byAlias.length === 8 && byAlias[0][0] === "eq" && byAlias[3][0] === "gte",
+        // slice 5 appended inRange LAST, so every older op keeps its position
+        ids: byId.length === 9 && byId[0][0] === "=" && byId[3][0] === ">=" && byId[8][0] === "inRange",
+        aliases: byAlias.length === 9 && byAlias[0][0] === "eq" && byAlias[3][0] === "gte" && byAlias[8][0] === "inRange",
         sharedLabels: byId.every(function (p, i) { return p[1] === byAlias[i][1]; }),
         // the job dropdown no longer renders raw ids as its labels
         notRawIds: byAlias.every(function (p) { return p[1] !== p[0]; })
