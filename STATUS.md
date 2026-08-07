@@ -47,8 +47,8 @@
 > connection that dashboards bind to (imported into the spec as self-contained copies that stay LINKED
 > via datasetId/connectionId for live runs). The **workspace backend** (Settings card, manager-pattern
 > write-through sync, optional zero-knowledge secrets encryption) mirrors the whole catalog to
-> Turso/Supabase/Firebase. **Pentaho is fully removed** (sources, Servers, CDA/CDE export, publish);
-> the old CDA demo catalog now just feeds the built-in offline sample engine. Everything stays
+> Turso/Supabase/Firebase. All data access is first-class in-app adapters; the demo catalog feeds
+> the built-in offline sample engine. Everything stays
 > **pure HTML/JS, no build step**; local-first with the optional remote backend. Aesthetic: Polecat
 > warm-dark (the DEFAULT app + dashboard theme), fun, clean, elegant, a little **game-like** —
 > jobtracker-style filterable lists (multi-select pills, search, tiles/list), manager-style rail.
@@ -64,15 +64,15 @@
 - Regenerate catalog/examples from the reference suite: `python3 tools/import-v2.py` (reads
   `reference/dashboards/`).
 - One spec drives all: `app/model.js` (registry+helpers) → `app/studio-render.js` (in-iframe render +
-  in-canvas editing) ↔ `app/studio.js` (builder) → `app/exporters.js` (CDA/CDE/CDF). `SPEC.md` = schema.
-- Preview iframe == exported CDF html (same toolkit inlined). Builder ↔ iframe talk via postMessage
+  in-canvas editing) ↔ `app/studio.js` (builder) → `app/exporters.js` (dashboard/data exports). `SPEC.md` = schema.
+- Preview iframe == exported dashboard html (same toolkit inlined). Builder ↔ iframe talk via postMessage
   (`{studio:1,type:select|reorder|resize|...}`).
 
 ## Conventions (apply to ALL output, every run)
 - **HTML + JS only, light dependencies.** No Java, no Python, no build step, no heavy frameworks, no
   package installs baked into exported artifacts. The vendored toolkit stays self-contained; new chart
-  types/features go in `app/studio-charts.js`. Exported files (CDF .html / CDE / .cda / bundle) must
-  stay small and dependency-light so the Pentaho team can drop them in anywhere.
+  types/features go in `app/studio-charts.js`. Exported files (dashboard .html / data / bundle) must
+  stay small and dependency-light so they can be dropped into any host site or system.
 - **Clean code.** Cohesive modules (model/render/studio/exporters boundaries), consistent style, no dead
   code, no mess.
 - **Documented for the humans.** Add helpful, friendly, supportive comments where a
@@ -10816,7 +10816,7 @@
 >       ✓ **Slice 1 shipped (v552, sw v189, 2026-07-25, steward): progressive disclosure for "This
 >       dashboard's datasets" + "Sample packs."** Both groups now default to collapsed once they hold
 >       more than 6 cards (shared `libGroupOpen`/`libGroupPersist` helpers, same remember-the-choice
->       pattern the CDA "Samples" group already used) instead of always forcing wide open; an explicit
+>       pattern the legacy "Samples" group already used) instead of always forcing wide open; an explicit
 >       toggle always wins over that default from then on.
 >       ✓ **Slice 2 shipped (v553, sw v190, 2026-07-25, steward): header glyphs for every top-level
 >       group.** See DONE for the full writeup.
@@ -11740,7 +11740,7 @@
 > mode hides machinery; Home features live dashboards; pins/favorites/recents), a simpler
 > dataset-first "Explore" designer feeding Studio, BOTH MapLibre GL JS and D3+TopoJSON attempted
 > behind one geo API, multi-connection + file-type import with mapping, a Viridis demo/sample
-> pack (a SECOND sample library, distinct from the CDA catalog), light data-management (jobs:
+> pack (a SECOND sample library, distinct from the legacy sample catalog), light data-management (jobs:
 > mapping/aggregation/rollup/join/union → materialized datasets, repeatable loads), and a public
 > marketing site at the root with the app at /app/ (fleet pattern).
 >
