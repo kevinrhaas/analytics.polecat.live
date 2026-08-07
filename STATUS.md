@@ -135,6 +135,29 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N5b — `auto`, the opt-in third Appearance: a dashboard that matches whoever opens it
+  (v868, sw v500, 2026-08-07, steward; Kevin's decision as written in the NOW item):**
+  `spec.renderMode` gains a third value, `"auto"`, offered in the Dashboard inspector's
+  Appearance select as "Auto (match the reader)" beside Light and Dark. An `auto` export bakes
+  NO `data-theme` onto `<html>` and instead carries a ~380-byte resolver as the first thing in
+  `<head>` (so the attribute lands before the stylesheet paints — no light-then-dark flash):
+  read the parent document's `data-theme` when there IS a readable parent (our Viewer's srcdoc,
+  the builder preview, any same-origin embed), otherwise fall through to the reader's
+  `prefers-color-scheme`. Every step is wrapped — a cross-origin parent throws on `.document`
+  and the script runs inside pages we do not control, so it must never throw.
+  **The N5a interaction is the interesting part:** N5a's `frameTheme` is a BUILD-time override,
+  which would have forked an `auto` dashboard's srcdoc away from its download. So `buildHtml`
+  deliberately ignores `frameTheme` when the mode is `auto` — the resolver already does that job
+  at runtime, and the requirement that an `auto` dashboard be ONE byte stream (asserted in the
+  suite: srcdoc === download, and stable across app themes) outranks the override. `""` and
+  `"dark"` are untouched in every path, and a NEW dashboard still starts on `""` — Kevin's
+  explicit call that a chameleon export is chosen, never inherited. Docs: a new
+  `#dashboard-appearance` block in the in-app Help plus corrections to the two places that said
+  "Light or Dark"; the tours needed nothing (no retired terms). 5 new suite checks (no baked
+  theme + resolver present; srcdoc === download; framed follow in both directions through the
+  real Viewer; standalone `prefers-color-scheme` in both directions via a colorScheme context;
+  the three-option Inspector with Light still the new-dashboard default), and the LF20
+  option-count assertion moved 2 → 3. est 1pt, took 1.
 - **N5a — inside the app, the reader's theme wins; a handed-out file never adapts
   (v867, sw v499, 2026-08-07, steward — NOW item N5a):** UX sweep #574 finding 1 —
   a dark app frame around a light dashboard doesn't read as a design choice, it reads as
@@ -9798,7 +9821,10 @@
   * Full `tests/run.js`. New checks: an explicit-light dashboard opened in a dark app renders
     dark IN THE VIEWER; the same dashboard's DOWNLOAD is byte-unchanged; the builder preview
     still shows the authored mode.
-- **N5b ★ [1pt] — DECIDED: `auto` ships as an OPT-IN third Appearance choice, never the default.**
+- ~~**N5b ★ [1pt] — DECIDED: `auto` ships as an OPT-IN third Appearance choice, never the default.**~~
+  ✓ SHIPPED v868, sw v500 (2026-08-07, steward — see DONE). Shipped exactly as specified: one
+  runtime resolver, one byte stream, Light still the default for a new dashboard. est 1pt, took 1.
+  The spec below stays until grooming archives it.
   A second, separate slice after N5a (own PR — it is additive and independently revertible).
   `spec.renderMode` gains `"auto"`; the Inspector's Appearance select becomes
   Light / Dark / Auto ("match the reader"). **New dashboards keep `""` (Light)** — Kevin's

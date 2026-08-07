@@ -388,12 +388,32 @@
     // stakeholders' inboxes), so the DOWNLOAD path never sets this and stays byte-for-byte the
     // author's `spec.renderMode` — same opt-in shape as the `pdfPageSize` options above. Only
     // the two real values are honored, so a stray/unset value falls back to the authored mode.
-    var frameTheme = (opts.frameTheme === "dark" || opts.frameTheme === "light") ? opts.frameTheme : "";
+    //
+    // N5b (Kevin, 2026-08-07): `renderMode: "auto"` is the third, OPT-IN Appearance — "match the
+    // reader". It bakes NO data-theme at all and instead carries the tiny resolver below, which
+    // decides at RUNTIME: framed in a document we can read (our own Viewer, the builder preview,
+    // any same-origin embed) → follow that host's `data-theme`; anything else (standalone file, a
+    // cross-origin embed on someone else's site) → the reader's OS `prefers-color-scheme`.
+    // Runtime, never build time: an `auto` dashboard's srcdoc and its download must be the SAME
+    // bytes, so `frameTheme` is deliberately ignored here — the resolver already does that job,
+    // and honoring both would fork the byte stream per context. `""` and `"dark"` are untouched.
+    var autoTheme = spec.renderMode === "auto";
+    var frameTheme = (!autoTheme && (opts.frameTheme === "dark" || opts.frameTheme === "light")) ? opts.frameTheme : "";
     var effectiveMode = frameTheme || spec.renderMode;
     var htmlOpenTag = "<html lang=\"en\"" + (effectiveMode === "dark" ? " data-theme=\"dark\"" : "") + ">";
+    // The N5b resolver. First thing in <head> so the attribute lands before the stylesheet below
+    // paints anything — no light-then-dark flash. Every step is wrapped: a cross-origin parent
+    // throws on `.document`, and an ancient engine may have no `matchMedia`. It must NEVER throw,
+    // because this runs inside a stranger's page.
+    var autoThemeScript = autoTheme ?
+      "<script>(function(){try{var h=document.documentElement,m=\"\";" +
+      "try{var p=window.parent;if(p&&p!==window&&p.document&&p.document.documentElement)" +
+      "m=p.document.documentElement.getAttribute(\"data-theme\")===\"dark\"?\"dark\":\"light\";}catch(e){}" +
+      "if(!m)m=(window.matchMedia&&window.matchMedia(\"(prefers-color-scheme: dark)\").matches)?\"dark\":\"light\";" +
+      "if(m===\"dark\")h.setAttribute(\"data-theme\",\"dark\");else h.removeAttribute(\"data-theme\");}catch(e){}})();</script>\n" : "";
     var head =
       "<!DOCTYPE html>\n" + htmlOpenTag + "\n<head>\n<meta charset=\"utf-8\"/>\n" +
-      "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n" +
+      "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n" + autoThemeScript +
       "<title>" + xml(titleText) + " — Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + dlActsCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + dashboardThemeCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + hideHeaderCss + subtitleStyleCss + headerAlignCss + cardSkinCss + paletteCss + geoCtrlCss + printCss + previewCss + "\n</style>\n</head>\n";
     var logoHtml = spec.headerLogo ?
       "<img class=\"dk-logo\" src=\"" + xml(spec.headerLogo) + "\" alt=\"\"/>" :

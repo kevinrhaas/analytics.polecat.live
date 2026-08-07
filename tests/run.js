@@ -33932,7 +33932,23 @@ function serve() {
       return { present: !!sel, value: sel && sel.value, optionCount: sel ? sel.options.length : 0 };
     });
     ok("LF20: Inspector renders the #dashRenderMode Appearance select, defaulting to Light ('')",
-      renderModeRowOk.present && renderModeRowOk.value === "" && renderModeRowOk.optionCount === 2, JSON.stringify(renderModeRowOk));
+      renderModeRowOk.present && renderModeRowOk.value === "" && renderModeRowOk.optionCount === 3, JSON.stringify(renderModeRowOk));
+
+    // N5b: "auto" is the opt-in THIRD choice — Kevin's explicit call is that a chameleon export is
+    // something an author turns on, never something a new dashboard inherits. (What the value
+    // actually DOES is proven end-to-end in the N5b block near the end of this file.)
+    var n5bInspectorOk = await page.evaluate(function () {
+      var sel = document.getElementById("dashRenderMode");
+      var blank = Studio.emptySpec ? Studio.emptySpec() : null;
+      return {
+        values: sel ? Array.prototype.map.call(sel.options, function (o) { return o.value; }) : [],
+        labels: sel ? Array.prototype.map.call(sel.options, function (o) { return o.textContent; }) : [],
+        newSpecMode: blank ? blank.renderMode : null
+      };
+    });
+    ok("N5b: Appearance offers exactly three options (Light / Dark / Auto) and a brand-new dashboard still starts on Light",
+      n5bInspectorOk.values.join(",") === ",dark,auto" && n5bInspectorOk.newSpecMode === "" &&
+      /auto/i.test(n5bInspectorOk.labels[2] || ""), JSON.stringify(n5bInspectorOk));
 
     await page.evaluate(function () {
       var sel = document.getElementById("dashRenderMode");
@@ -42850,9 +42866,72 @@ function serve() {
       n5aBuilder.lightTag === '<html lang="en">' && n5aBuilder.darkTag === '<html lang="en" data-theme="dark">',
       JSON.stringify(n5aBuilder));
 
+    // ---- N5b: `auto` — the opt-in third Appearance that matches the reader ----
+    // The companion to N5a, and the deliberately different mechanism: N5a is a build-time
+    // override the Viewer passes, scoped to that one surface. `auto` is the AUTHOR asking the
+    // file itself to adapt, so it has to work in places we don't control (a standalone download,
+    // a cross-origin embed). It therefore bakes NO data-theme and carries a runtime resolver —
+    // ONE byte stream, framed or not. Light ("") and Dark ("dark") are untouched by all of this.
+    console.log("\n• N5b: Appearance 'auto' — no baked theme, one byte stream, resolved at runtime");
+    await page.evaluate(function () {
+      var spec = {
+        schema: 1, id: "n5b-auto", name: "n5b-auto", title: "N5b auto", subtitle: "", group: "", description: "",
+        renderMode: "auto",
+        cda: { connections: [], dataAccesses: [
+          { id: "n5b-da", name: "n5b sample", kind: "sql", columns: ["month", "value"], authored: true }
+        ] },
+        filters: [], kpis: [], gridCols: 1,
+        panels: [{ id: "p1", title: "Adoption", span: 1, chart: { type: "bar", da: "n5b-da", map: { x: "month", y: "value" } } }]
+      };
+      Studio.Workspace.put("dashboards", { id: spec.id, ts: new Date().toISOString(), spec: spec, title: spec.title, name: spec.name });
+    });
+
+    const n5bInDark = await n5aRead("dark", "n5b-auto");
+    const n5bInLight = await n5aRead("light", "n5b-auto");
+    ok("N5b: an 'auto' export bakes NO data-theme onto <html> and carries the runtime resolver instead",
+      n5bInDark.downloadHtml.length > 0 &&
+      (n5bInDark.downloadHtml.match(/<html[^>]*>/) || [""])[0] === '<html lang="en">' &&
+      n5bInDark.downloadHtml.indexOf("prefers-color-scheme: dark") !== -1, JSON.stringify({
+        tag: (n5bInDark.downloadHtml.match(/<html[^>]*>/) || [""])[0],
+        hasResolver: n5bInDark.downloadHtml.indexOf("prefers-color-scheme: dark") !== -1
+      }));
+    ok("N5b: an 'auto' dashboard's Viewer srcdoc and its DOWNLOAD are the SAME BYTES — the adaptation is runtime, never a per-context build (frameTheme is ignored for 'auto')",
+      n5bInDark.frameHtml.length > 0 && n5bInDark.frameHtml === n5bInDark.downloadHtml &&
+      n5bInLight.downloadHtml === n5bInDark.downloadHtml, JSON.stringify({
+        frameEqualsDownload: n5bInDark.frameHtml === n5bInDark.downloadHtml,
+        stableAcrossAppThemes: n5bInLight.downloadHtml === n5bInDark.downloadHtml,
+        frameLen: n5bInDark.frameHtml.length, downloadLen: n5bInDark.downloadHtml.length
+      }));
+    ok("N5b: framed in the Viewer, those identical bytes follow the HOST app both directions — dark app renders dark, light app renders light",
+      n5bInDark.renderedTheme === "dark" && n5bInLight.renderedTheme === "light",
+      JSON.stringify({ inDarkApp: n5bInDark.renderedTheme, inLightApp: n5bInLight.renderedTheme }));
+
+    // Standalone: no readable host document, so the resolver falls through to the reader's OS
+    // setting. domcontentloaded is enough — the resolver is inline in <head> and runs at parse.
+    // This throwaway `about:blank` host is deliberately NOT wired into the suite's pageerror gate:
+    // it is not one of the app's surfaces, and an export loaded via setContent has no real base
+    // URL for its own asset plumbing to resolve against. The resolver is all we read here; the
+    // real rendered-dashboard surfaces are gated everywhere else in this file.
+    async function n5bStandalone(colorScheme) {
+      const ctx = await browser.newContext({ colorScheme: colorScheme });
+      const p = await ctx.newPage();
+      await p.setContent(n5bInDark.downloadHtml, { waitUntil: "domcontentloaded" });
+      const theme = await p.evaluate(function () {
+        return document.documentElement.getAttribute("data-theme") || "light";
+      });
+      await ctx.close();
+      return theme;
+    }
+    const n5bPrefersDark = await n5bStandalone("dark");
+    const n5bPrefersLight = await n5bStandalone("light");
+    ok("N5b: opened standalone (no host to read), the same file honors the reader's prefers-color-scheme",
+      n5bPrefersDark === "dark" && n5bPrefersLight === "light",
+      JSON.stringify({ prefersDark: n5bPrefersDark, prefersLight: n5bPrefersLight }));
+
     await page.evaluate(function () {
       Studio.Workspace.remove("dashboards", "n5a-light");
       Studio.Workspace.remove("dashboards", "n5a-dark");
+      Studio.Workspace.remove("dashboards", "n5b-auto");
       window.__studioShellSetSection("studio");
     });
 

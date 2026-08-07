@@ -38,6 +38,9 @@
   // appearance has to see what they are making.) The attribute is stamped pre-paint by
   // app/viewer.html from the `studio-theme` key and never changes on this page, so reading it at
   // build time IS reading the live value; absence means light, matching studio.js's default.
+  // N5b: an `auto` dashboard reaches the same outcome by a different road — buildHtml ignores
+  // frameTheme for it and emits a runtime resolver instead, so its srcdoc and its download stay
+  // the same bytes. Nothing to special-case here; we pass frameTheme unconditionally either way.
   function readerTheme() {
     return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
   }

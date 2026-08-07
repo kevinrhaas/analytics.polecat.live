@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 868,
+    title: 'A dashboard can now be set to match whoever opens it',
+    kind: 'feature',
+    ts: '2026-08-07T21:07:02.000Z',
+    items: [
+      'A dashboard\'s Appearance setting has always been a fixed choice: Light or Dark, baked in, the same everywhere the file is opened. That is exactly right for a deliverable — you send someone a dashboard and it looks the way you made it, on their laptop, on a website, months later. But it is not right for every case. A dashboard embedded in a page that has its own light and dark modes should follow that page, not fight it.',
+      'So there is a third option: Auto (match the reader). Pick it in the Dashboard inspector, next to Light and Dark. An Auto dashboard carries no theme of its own. When it is embedded in a page it can read, it takes that page\'s light or dark. Anywhere else — opened as a downloaded file, dropped into a site on another domain — it follows the reader\'s own system setting. It decides the moment it opens, and it decides again every time.',
+      'It is the same file either way. Auto is not a second export or a special build: the version in the viewer and the version you download are byte-for-byte identical, and the deciding happens when the page loads. That matters if you publish dashboards somewhere and care that what you shipped is what you tested.',
+      'Nothing changes for dashboards you have already made. Light stays light, Dark stays dark, and both still export exactly the bytes they did yesterday. New dashboards still start on Light — a dashboard that changes appearance depending on who is looking is something you should choose deliberately, not something that quietly happens to your work.',
+    ],
+  },
+  {
     v: 867,
     title: 'Open a dashboard in the viewer and it matches your theme, not the author\'s',
     kind: 'fix',
