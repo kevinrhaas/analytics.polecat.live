@@ -11270,6 +11270,34 @@
   decides the rest); N22b the provisioning flow the spike selects; N22c the upgrade path wired
   into N16. **Verify:** stand up a brand-new project and reach a working, RLS-correct, admin-
   seeded workspace touching the Supabase dashboard exactly once — to click "New project".
+- **N23 ★★ [1pt] — The connection form calls the Auth fields "(optional)". Under the real RLS
+  posture they are MANDATORY, and getting it wrong looks like an empty database.** Kevin,
+  2026-08-08, reading the form while standing up `polecat_dev`: *"how optional are all of these
+  settings? should i really set them?"* — a fair question the UI answers wrongly.
+  **The facts.** `cfg.authEmail`/`authPassword` are labelled "(optional)" at
+  `app/sources/supabase.js:531-533`, and the adapter's own contract comment (`:33-39`) says
+  omitting them "keeps the exact pre-existing anon-key-only behavior". That was TRUE under the
+  legacy allow-all posture. It is FALSE under the posture every new environment now gets:
+  `supabase-rls-real.sql`'s header records that after it runs, the anon verify returns **ZERO
+  rows on all six workspace tables** while a signed-in admin sees everything, and
+  `supabase-deploy.sql` §8 tells you to expect "ALL ZEROS for anon". So on a correctly-secured
+  backend, a connection without the Auth fields authenticates as anon, `auth.uid()` is NULL,
+  every policy declines, and the user sees **an empty workspace** — indistinguishable, in the
+  UI, from a database that was never provisioned.
+  **Fix.** (a) Make the labels posture-aware rather than statically "(optional)": the adapter can
+  already tell the difference — tables present in `probe()` + zero readable rows as anon means
+  RLS is enforced, so the fields are required. Say that in the field help and on the connection
+  card. (b) Make the failure legible: an anon connection to an RLS-enforced workspace must
+  report "this workspace enforces per-user security — add the Supabase Auth email/password",
+  never render as empty. **Check first whether `Sync.needsSignIn()` (N2 slice 4) already covers
+  part of this** and extend rather than duplicate. (c) Say in the same help text what N2 slice 4
+  made true, because it surprises people: the PASSWORD is never persisted — GoTrue's refresh
+  token is kept in sessionStorage instead — so it is re-entered once per browser session BY
+  DESIGN, not because something failed. (d) `adminFnUrl` genuinely IS optional; keep it so, but
+  say what it costs to leave blank (go-live and admin user-creation fall back to the SQL editor)
+  and warn that a URL pointing at an undeployed function fails confusingly.
+  **Verify:** a suite check that a connection with no Auth fields against an RLS-enforced
+  workspace surfaces the sign-in-required state and NOT an empty catalog.
   Industry density and whitespace by county: where a chain is under-represented versus the
   population and the businesses already there. **Replaces `datamanagement` in
   `DEFAULT_INSTALLED`** (`demopacks.js:78`) — Data Management stays installable, just not the
