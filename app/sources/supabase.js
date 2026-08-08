@@ -75,6 +75,14 @@
     return !!(cfg && cfg.authEmail && (cfg.authPassword || refreshTokenFor(cfg)));
   }
 
+  // N14: "did the project ANSWER, or did the infrastructure in front of it give
+  // up?" — the status codes that carry no verdict about the credential. 408 is a
+  // proxy timing the request out, 429 is rate limiting (the caller is asked to
+  // come back, not turned away), and every 5xx is the server saying it could not
+  // handle the request at all. Everything else — including 400 invalid_grant,
+  // 401, 403 and 422 — is GoTrue speaking for itself and stays authoritative.
+  function transportStatus(status) { return status === 408 || status === 429 || status >= 500; }
+
   // One request shape, two grants (`password` and `refresh_token`) — both hit
   // /auth/v1/token and both answer with the same session envelope.
   function gotrueToken(cfg, grant, body) {
@@ -108,7 +116,23 @@
           throw err;
         }
         var data = r.data;
-        if (!res.ok || !data.access_token) throw new Error("Supabase Auth sign-in failed: " + (data.error_description || data.msg || data.error || ("HTTP " + res.status)));
+        if (!res.ok || !data.access_token) {
+          var refusal = new Error("Supabase Auth sign-in failed: " + (data.error_description || data.msg || data.error || ("HTTP " + res.status)));
+          // N14: the third and last way this call can come back without being an
+          // ANSWER. N2 slice 3 covered the fetch rejecting, N11 covered the body
+          // never finishing — but a status that arrived and parsed was still read
+          // as GoTrue's authoritative "no", whatever the number was. It isn't: an
+          // overloaded project answers 429, a restarting or wedged one answers
+          // 500/502/503/504, a proxy gives up with 408. None of those are the
+          // workspace refusing this credential; they are the workspace being
+          // unable to say. Since ensureSession DELETES the stored refresh token on
+          // a refusal, treating them as one signs the user out for the duration of
+          // a blip they had nothing to do with — the very failure N2 slice 3 and
+          // N11 each closed one door on. Only a real verdict (400 invalid_grant,
+          // 401/403, 422) may dispose of a credential.
+          if (transportStatus(res.status)) refusal.unreachable = true;
+          throw refusal;
+        }
         return data;
       });
     });

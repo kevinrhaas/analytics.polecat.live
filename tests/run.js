@@ -252,6 +252,12 @@ let mockRefreshSeq = 0;
 // resolves, res.json() rejects. Distinct from a refusal, and the adapter has to
 // keep telling the two apart (see the N11 check).
 let mockTokenTruncate = 0;
+// N14: arm the NEXT token answer to be a given STATUS with a plausible error body
+// — a project that is rate-limiting (429) or restarting/overloaded (5xx). The
+// answer arrives and parses, so neither the fetch-rejection path nor N11's
+// truncated-body path catches it; it is the third shape of "no answer", and the
+// adapter must not read it as GoTrue refusing the credential.
+let mockTokenStatus = 0;
 // N12: the mock's default posture keeps every token it has ever minted valid,
 // which is friendly but not what a real GoTrue does — it ROTATES, and a SPENT
 // token is refused outside its reuse-detection grace window. `strict` mode turns
@@ -278,6 +284,17 @@ function handleMockSupabase(req, rep, p) {
       req.resume(); // drain the request body; we answer without reading it
       rep.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
       return rep.end('{"access_token":"mock-gotr'); // cut off mid-JSON
+    }
+    if (mockTokenStatus > 0) {
+      const code = mockTokenStatus;
+      mockTokenStatus = 0;
+      req.resume(); // drain the request body; we answer without reading it
+      // Shaped like the real thing: a 429 from GoTrue's rate limiter, a 503 from
+      // the platform in front of a restarting project. Valid JSON, so it reaches
+      // the adapter's status check rather than N11's unreadable-body path.
+      return send(code, code === 429
+        ? { error: "over_request_rate_limit", error_description: "Request rate limit reached" }
+        : { error: "service_unavailable", error_description: "The project is not accepting requests right now" });
     }
     const grant = (req.url.split("grant_type=")[1] || "password").split("&")[0];
     let body = "";
@@ -336,6 +353,11 @@ function handleMockSupabase(req, rep, p) {
   // inherit a leftover invalid_grant from #111's arm (the LF39 direct-auth flake).
   if (rel === "rest/v1/__cleartokenflap") { mockTokenFlaps = 0; return send(200, []); }
   if (rel === "rest/v1/__armtokentruncate") { mockTokenTruncate = 1; return send(200, []); }
+  // N14: ?code=503 / ?code=429 — arm the next token answer to be that status.
+  if (rel === "rest/v1/__armtokenstatus") {
+    mockTokenStatus = parseInt((req.url.split("code=")[1] || "503").split("&")[0], 10) || 503;
+    return send(200, []);
+  }
   // N12 probes: turn the rotate-and-refuse posture on/off, and start a counted
   // token chain (the answer IS the token to seed the connection with).
   if (rel === "rest/v1/__armrefreshstrict") { mockRefreshStrict = true; return send(200, []); }
@@ -18866,6 +18888,33 @@ function serve() {
       };
     }, PORT);
 
+    // N14: the third shape of "we never got an answer" — a status that arrived
+    // and parsed cleanly, but carries no verdict about the credential. A project
+    // that is rate-limiting (429) or restarting behind its platform (5xx) used to
+    // read as GoTrue refusing this refresh token, so the token was DELETED and
+    // the user was asked for the workspace password — for the duration of a blip
+    // they had nothing to do with. Both statuses are probed on their own
+    // connection so neither can inherit the other's state.
+    const pwOutage = await gpPw.evaluate(async (port) => {
+      var KEY = "analytics.supabase.refresh.v1";
+      var base = "http://localhost:" + port + "/__supabase";
+      var probe = async function (email, code) {
+        var cfg = { url: base, key: "sb_publishable_valid", authEmail: email };
+        var store = JSON.parse(sessionStorage.getItem(KEY) || "{}");
+        store[cfg.url + "|" + cfg.authEmail] = "mock-refresh";
+        sessionStorage.setItem(KEY, JSON.stringify(store));
+        await fetch(base + "/rest/v1/__armtokenstatus?code=" + code, { headers: { apikey: "sb_publishable_valid" } });
+        var r = await Studio.supabaseSource.signIn(cfg);
+        var after = JSON.parse(sessionStorage.getItem(KEY) || "{}");
+        return {
+          ok: r.ok, err: r.error || "",
+          kept: after[cfg.url + "|" + cfg.authEmail] || "",
+          resumable: Studio.supabaseSource.hasResumableSession(cfg)
+        };
+      };
+      return { busy: await probe("busy@example.com", 503), limited: await probe("limited@example.com", 429) };
+    }, PORT);
+
     // N12: two flows that both miss the session cache must not each spend the
     // SAME refresh token. Run the mock in its REAL posture — rotate and refuse a
     // spent token — and fire two sign-ins concurrently on one connection: with
@@ -18919,6 +18968,15 @@ function serve() {
     ok("N11: the two answers stay distinguishable — an unreadable answer keeps the token, a genuine refusal still drops it (the N2 slice 3 posture is not weakened to fix the flake)",
       pwTruncated.kept === "mock-refresh" && pwRevoked.cleared === true &&
       !/connection dropped/.test(pwRevoked.err), JSON.stringify({ truncated: pwTruncated.err, revoked: pwRevoked.err }));
+    ok("N14: a project that is too busy to answer (503) is not the project refusing you — the stored refresh token SURVIVES, so the first reload during a backend blip no longer demands the workspace password",
+      pwOutage.busy.ok === false && pwOutage.busy.kept === "mock-refresh" && pwOutage.busy.resumable === true,
+      JSON.stringify(pwOutage.busy));
+    ok("N14: the same for a rate-limited project (429) — being asked to come back later is not being turned away, and the credential is kept for the retry",
+      pwOutage.limited.ok === false && pwOutage.limited.kept === "mock-refresh" && pwOutage.limited.resumable === true,
+      JSON.stringify(pwOutage.limited));
+    ok("N14: and the line still holds where it matters — a REAL verdict (400 invalid_grant) drops the token exactly as before, so only GoTrue may dispose of a credential",
+      pwRevoked.cleared === true && pwOutage.busy.kept === "mock-refresh",
+      JSON.stringify({ revoked: pwRevoked, busy: pwOutage.busy }));
     ok("N12: two concurrent sign-ins on one connection spend the refresh token EXACTLY ONCE — the second awaits the grant already in flight and both resolve from it, as the same user",
       n12.grants === 1 && n12.ok0 === true && n12.ok1 === true &&
       n12.id0 === MOCK_GOTRUE_USER_ID && n12.id1 === MOCK_GOTRUE_USER_ID, JSON.stringify(n12));
