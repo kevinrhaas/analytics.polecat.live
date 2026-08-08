@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 885,
+    title: 'A dropped connection can no longer sign you out of your workspace',
+    kind: 'fix',
+    ts: '2026-08-08T09:18:10.000Z',
+    items: [
+      'When you sign in to a workspace, the app keeps a short-lived renewal token for the rest of the browser session so it can quietly renew your access without ever writing your password down. Renewing means asking the workspace for a fresh session, and the app has always been careful to tell two answers apart: the workspace REFUSING you (final — the token is dead, drop it and ask for the password) and the workspace being unreachable (we never asked, so keep everything and carry on).',
+      'A third case was being filed under the wrong one. If the answer started arriving and then the connection dropped part-way through it — a flaky network, a phone changing towers, or simply navigating away while the request was in flight — the app could not read what came back, and treated an unreadable answer as a refusal. That threw the renewal token away. The next thing you saw was the sign-in screen asking for your workspace password again, in the middle of a session you never left.',
+      'An answer we could not read now counts as unreachable, which is what it is: nothing was decided, so nothing is discarded. Your session survives the blip and renews on the next try. A genuine refusal is still final and still drops the token — that protection is unchanged, and a test now pins the two apart so neither can drift into the other.',
+      'This was also making the test suite fail about one run in three, because reloading the page truncates exactly this request. The cause was real, not a testing artefact.',
+      'Two new checks: an answer cut off mid-body keeps the token and leaves the session resumable, and a refused token is still dropped.',
+    ],
+  },
+  {
     v: 884,
     title: 'The buttons above your dashboards, datasets and connections stop running off the edge of a phone',
     kind: 'fix',

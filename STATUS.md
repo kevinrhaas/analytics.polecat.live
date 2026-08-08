@@ -135,6 +135,52 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N11 — a dropped connection can no longer sign you out of your workspace (v885, sw v513,
+  2026-08-08, steward; dev branch):** the first ready item in ▶ NOW, and the second of the two
+  reasons `dev` was red on the full suite. **The spec's prime suspect was the test's boot race; it
+  was wrong, and the spec's own escalation clause was right** — "if the token genuinely does not
+  survive a reload, that is an APP bug in the AUD-03 posture and much more serious than a flake."
+  It does not survive, and the bug is one line of classification.
+  - **How it was found, since a 1-in-3 flake in a ~10-minute suite is not a debuggable loop.**
+    Built a standalone repro of just this path (mock GoTrue + the real app, ~15s per trial) and
+    instrumented every mutation of the refresh store into `localStorage` — so the trace SURVIVES
+    the reload under test, which is exactly why console logging had shown nothing: the messages
+    were emitted into a document that was already being torn down. **8 failures in 20 pre-fix
+    trials (40%)**, matching the ~1-in-3 seen in the full suite.
+  - **The trace named the culprit outright:** the store went to `{}` from
+    `app/sources/supabase.js:141` — `rememberRefresh(cfg, "")` inside `ensureSession`'s
+    refresh-REFUSED branch — and the rejection it reacted to read **`Supabase Auth sign-in
+    failed: HTTP 200`**. A 200 that fails. `gotrueToken` did `res.json().catch(() => ({}))`, so a
+    body that could not be READ became an empty object, which then failed the `!data.access_token`
+    test and was reported with the fallback `"HTTP " + res.status`. The reload aborts an in-flight
+    refresh mid-body: headers arrive, `fetch` resolves, `res.json()` rejects.
+  - **Why that is serious and not a test artefact.** N2 slice 3 established that the caller MUST
+    tell "the workspace refused you" (final — drop the token, ask for the password) apart from
+    "we never reached the workspace" (keep everything, carry on). A truncated answer is the
+    second, and it was being filed as the first. Any connection that drops mid-response — a phone
+    changing towers, a proxy timing out, a tab navigating away — therefore threw away the renewal
+    token and put the sign-in screen in front of a user who never left their session.
+  - **The fix, in `gotrueToken` only:** a body that cannot be read now throws an `unreachable`
+    error ("the connection dropped before its answer finished arriving") instead of being
+    laundered into a fake refusal. `ensureSession` already rethrows `unreachable` without touching
+    the stored token, so nothing else had to change. **The refusal path is untouched and NOT
+    weakened** — a revoked/unknown token is still refused outright and still dropped.
+  - **Verified.** The repro: **10/10 green after the fix, versus 8 failures in 20 trials before**;
+    the two new suite checks were then run against the PRE-fix adapter and both go red (a guard
+    that cannot fail is not a guard). Then the full `NODE_PATH=$(npm root -g) node tests/run.js`
+    suite **THREE consecutive times — 3149/0, 3149/0, 3149/0** — which is what the item asked for
+    (three green runs, not one, precisely because one green run is what let this survive). The
+    dev gate (validate + changelog-check + doc-truth + dev-smoke at desktop and 390px, zero
+    pageerrors) was run in the same pass. New mock fixture `__armtokentruncate` arms one genuinely truncated 200 (headers, then
+    the connection ends mid-JSON — not a stubbed rejection), and two checks ride it: the token
+    SURVIVES an unreadable answer and the session stays resumable, and the two answers stay
+    distinguishable (unreadable keeps, refused drops). est 1pt, took 1. Files:
+    app/sources/supabase.js, tests/run.js, js/changelog.js (+head), sw.js, STATUS.md.
+  - **Filed, not bundled — N12.** The same traces show the post-sign-in boot spending the SAME
+    refresh token on two concurrent grants ~55ms apart, because `ensureSession` has no
+    in-flight guard. The suite's mock keeps spent tokens valid so it passes there; a real GoTrue
+    rotates and refuses the second, which lands on the same (correct, unchanged) refusal path and
+    signs the user out. Different defect, own unit — see N12 in ▶ NOW.
 - **N10 — the tablet reachability probe measures a row a tablet user can actually see
   (2026-08-08, steward; dev branch; no version/sw bump — test-only):** the **STAGE gate was red
   on `dev`** — `3144 passed, 1 failed` — and every dev→stage promotion would have rolled back on
@@ -10639,8 +10685,14 @@
     today, but `#menuNew`/`#menuExport` could grow a phone-only first row at any time) and make
     the helper robust once for all three.
   **Position is the loop's placement, not Kevin's** — move or re-star it freely.
-- **N11 ★★ [1pt] — `dev` is STILL red on the full suite: N2 slice 4's refresh-token re-mint is
-  flaky.** Born in NOW from N10's verification (2026-08-08, steward) — measured, not suspected,
+- ~~**N11 ★★ [1pt] — `dev` is STILL red on the full suite: N2 slice 4's refresh-token re-mint is
+  flaky.**~~ ✓ SHIPPED v885, sw v513 (2026-08-08, steward — see DONE). **It was NOT the test's boot
+  race the spec suspected — it was the APP, in the direction the spec said to escalate:** a refresh
+  answer whose BODY never finished arriving was classified as a REFUSAL, and a refusal deletes the
+  stored refresh token. Fixed in `gotrueToken` (an unreadable answer is `unreachable`, not a "no"),
+  which is a real sign-you-out bug on any flaky connection, not just under a reloading test. est
+  1pt, took 1. The spec below stays until grooming archives it.
+  Born in NOW from N10's verification (2026-08-08, steward) — measured, not suspected,
   and NOT caused by N10 (its own six Z9 checks are green in all three runs). N10 fixed one of
   **two** causes; this is the other. **Take it before N9b for the same reason N10 came first:
   it is the gate between `dev` and stage, and a flaky gate rolls stage back on unrelated work.**
@@ -10669,6 +10721,28 @@
     does not survive a reload, that is an APP bug in the AUD-03 posture and much more serious
     than a flake — escalate it rather than stabilising the test.**
   * Verify with three consecutive full-suite runs green, not one.
+  **Position is the loop's placement, not Kevin's** — move or re-star it freely.
+- **N12 ★ [1pt] — Two concurrent renewals spend the SAME refresh token, and a real GoTrue
+  refuses the second.** Born in NOW from N11's investigation (2026-08-08, steward) — measured,
+  not suspected, and deliberately NOT bundled into N11 (different defect, own revertible unit).
+  * **The measurement.** In the N11 repro's own traces, the post-sign-in boot issues TWO
+    `grant_type=refresh_token` requests ~55ms apart carrying the **identical** token
+    (`{"refresh_token":"mock-refresh"}` both times): two `ensureSession()` flows each read
+    `refreshTokenFor(cfg)` before either wrote the rotated one back. `ensureSession` has no
+    in-flight guard — a cached session is reused, but a MISS starts a fresh grant every time.
+  * **Why it is a real hazard and not just chatter.** The suite's mock keeps every token it has
+    ever minted valid, so the second grant succeeds there. A real GoTrue **rotates** and, outside
+    its reuse-detection grace window, refuses a spent token — and a refusal is (correctly, per
+    N2 slice 3 and unchanged by N11) FINAL: the token is dropped and the user is asked for the
+    workspace password mid-session. The same class of user-visible symptom N11 just closed, from
+    a different cause.
+  * **Likely shape:** a single-flight promise per `sessionKey(cfg)` in `ensureSession` — a second
+    caller awaits the first grant instead of starting its own. Keep `force` (admin calls
+    deliberately re-mint) working, and keep a failed grant from being cached as the shared
+    result.
+  * Verify with the full suite + a check that two concurrent `ensureSession`/`signIn` calls issue
+    exactly ONE token request and both resolve from it, plus a mock posture where a spent refresh
+    token is refused (proving the fix, and that today's code fails it).
   **Position is the loop's placement, not Kevin's** — move or re-star it freely.
 - **N9b ★ [1pt] — The Studio Data pane's own controls are under the 44px touch bar.** The
   second half of the original N9, rewritten from measurement in the N9a slice (2026-08-08,

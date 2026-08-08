@@ -246,6 +246,12 @@ let mockTokenFlaps = 0;
 // refused refresh is treated as final rather than silently falling back.
 const mockRefreshTokens = new Set(["mock-refresh"]);
 let mockRefreshSeq = 0;
+// N11: arm the NEXT token answer to be TRUNCATED — a real 200 with headers, then
+// the connection ends mid-body. That is what a dropped network (or a tab
+// navigating away mid-flight) actually looks like to fetch: the response
+// resolves, res.json() rejects. Distinct from a refusal, and the adapter has to
+// keep telling the two apart (see the N11 check).
+let mockTokenTruncate = 0;
 function mintMockRefresh() { const t = "mock-refresh-" + ++mockRefreshSeq; mockRefreshTokens.add(t); return t; }
 function handleMockSupabase(req, rep, p) {
   const send = (code, body) => {
@@ -257,6 +263,12 @@ function handleMockSupabase(req, rep, p) {
   if (rel === "auth/v1/token") {
     const key = req.headers.apikey || "";
     if (key !== "sb_publishable_valid") return send(401, { error: "invalid api key" });
+    if (mockTokenTruncate > 0) {
+      mockTokenTruncate--;
+      req.resume(); // drain the request body; we answer without reading it
+      rep.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+      return rep.end('{"access_token":"mock-gotr'); // cut off mid-JSON
+    }
     const grant = (req.url.split("grant_type=")[1] || "password").split("&")[0];
     let body = "";
     req.on("data", (c) => (body += c));
@@ -306,6 +318,7 @@ function handleMockSupabase(req, rep, p) {
   // Drain any un-consumed flaps — a later test that signs in for real must never
   // inherit a leftover invalid_grant from #111's arm (the LF39 direct-auth flake).
   if (rel === "rest/v1/__cleartokenflap") { mockTokenFlaps = 0; return send(200, []); }
+  if (rel === "rest/v1/__armtokentruncate") { mockTokenTruncate = 1; return send(200, []); }
   if (rel === "rest/v1/__flaky_reset") { mockFlakyServed = 0; return send(200, []); }
   if (rel === "rest/v1/__flaky") {
     mockFlakyServed++;
@@ -18542,9 +18555,37 @@ function serve() {
       var after = JSON.parse(sessionStorage.getItem(KEY) || "{}");
       return { ok: r.ok, err: r.error || "", cleared: !after[cfg.url + "|" + cfg.authEmail] };
     }, PORT);
+    // N11: the OTHER half of that distinction, and the cause of the flaky pair
+    // above. A refresh whose BODY never finished arriving is not a refusal — we
+    // never got an answer at all. It used to be swallowed into `{}` and reported
+    // as "HTTP 200", which ensureSession treats as final: it DELETED the stored
+    // refresh token. One truncated response therefore signed a user out of their
+    // workspace, and the reload under test truncates an in-flight refresh often
+    // enough to fail this section roughly one run in three.
+    const pwTruncated = await gpPw.evaluate(async (port) => {
+      var KEY = "analytics.supabase.refresh.v1";
+      var cfg = { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid", authEmail: "truncated@example.com" };
+      var store = JSON.parse(sessionStorage.getItem(KEY) || "{}");
+      store[cfg.url + "|" + cfg.authEmail] = "mock-refresh";
+      sessionStorage.setItem(KEY, JSON.stringify(store));
+      await fetch("http://localhost:" + port + "/__supabase/rest/v1/__armtokentruncate", { headers: { apikey: "sb_publishable_valid" } });
+      var r = await Studio.supabaseSource.signIn(cfg);
+      var after = JSON.parse(sessionStorage.getItem(KEY) || "{}");
+      return {
+        ok: r.ok, err: r.error || "",
+        kept: after[cfg.url + "|" + cfg.authEmail] || "",
+        resumable: Studio.supabaseSource.hasResumableSession(cfg)
+      };
+    }, PORT);
     await gpPw.close();
     ok("N2 slice 4: a REVOKED refresh token is refused outright (no silent fall-back to an anon session) and is dropped rather than retried forever",
       pwRevoked.ok === false && pwRevoked.cleared === true, JSON.stringify(pwRevoked));
+    ok("N11: a refresh answer whose body never finished arriving reads as UNREACHABLE, not as the workspace refusing — the stored token SURVIVES (the session is still resumable) so a dropped connection can never silently sign a user out",
+      pwTruncated.ok === false && /connection dropped/.test(pwTruncated.err) &&
+      pwTruncated.kept === "mock-refresh" && pwTruncated.resumable === true, JSON.stringify(pwTruncated));
+    ok("N11: the two answers stay distinguishable — an unreadable answer keeps the token, a genuine refusal still drops it (the N2 slice 3 posture is not weakened to fix the flake)",
+      pwTruncated.kept === "mock-refresh" && pwRevoked.cleared === true &&
+      !/connection dropped/.test(pwRevoked.err), JSON.stringify({ truncated: pwTruncated.err, revoked: pwRevoked.err }));
 
     // Upgrade path: a browser that already has a password at rest from an earlier
     // version must lose the at-rest copy WITHOUT being signed out mid-session.
