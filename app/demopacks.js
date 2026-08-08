@@ -33,10 +33,30 @@
     { key: "conventional", label: "Conventional" }
   ];
 
+  // SP-0: THE REGISTRY IS THE ONLY PLACE A PACK IS NAMED. Nothing outside this object
+  // may branch on a pack id — `installDemoPack` dispatches through the entry's own
+  // `install`/`afterInstall`, folders come from `folder`, and the surfaces that used to
+  // say `id === "conservation"` / `"datamanagement"` now ask the registry for the packs
+  // carrying a FLAG (`demoLogin`, `catalogSamples`; see Studio.demoPacksWith). Adding the
+  // twelfth pack must be a new entry here and nothing else — the SP-0 conformance loop in
+  // tests/run.js walks every registered entry, so a new pack is covered by construction.
+  //
+  // Entry contract:
+  //   id            — must equal the key.
+  //   kind          — "workspace" (seeds real rows) | "examples" (gates gallery content only).
+  //   name/tagline/blurb — the Settings card copy.
+  //   folder        — the ONE folder every row this pack seeds is filed in, across all types.
+  //   seeds         — declared row counts per table, for the conformance loop to check the
+  //                   installer against. Omit on packs that seed nothing synchronously.
+  //   install()     — seed the workspace. Runs BEFORE the installed flag is set.
+  //   afterInstall()— post-flag steps, for anything that reads demoPackInstalled().
+  //   demoLogin     — install this pack for the demo account at sign-in.
+  //   catalogSamples— this pack owns the raw demo-DB catalog tables (app/build.js).
   Studio.DEMO_PACKS = {
     conservation: {
       id: "conservation",
       kind: "workspace",
+      folder: "Conservation Insight",
       name: "Conservation Insight — cover crop & tillage adoption",
       // PACK-BLURB (Kevin, 2026-07-31): "keep it concise" — half the words, same
       // counts (the #116 suite check keeps it count-led + embedded-data honest).
@@ -44,7 +64,16 @@
       blurb: "6 dashboards — county, watershed (HUC8), and CRD maps, the OpTIS trends and provider " +
         "ensemble references, and the Conservation System Metrics wheel — 4 practice Views pinned " +
         "to Home, 8 datasets, and a county→state rollup job. All data is synthetic and embedded — " +
-        "nothing to connect."
+        "nothing to connect.",
+      seeds: { connections: 2, datasets: 8, jobs: 1, analyses: 4, dashboards: 6 },
+      demoLogin: true,
+      install: function () { installConservationWorkspace(); },
+      // These two read demoPackInstalled("conservation"), so they can only run once the
+      // flag is set — hence the split into a post-flag hook rather than one install().
+      afterInstall: function () {
+        Studio.ensureConservationWatershedDashboard(); // no-op when install already seeded it
+        Studio.featureConservationGeo();
+      }
     },
     // LF2(c)/LF16: the pre-existing generic showcase gallery (governance, platform ops,
     // delivery, finance, marketing, reliability, compliance, feature tour) folded into a
@@ -58,6 +87,7 @@
     datamanagement: {
       id: "datamanagement",
       kind: "examples",
+      folder: "Data Management",
       // HOME-EX2 folded the 4 formerly pack-less showcases (data quality, pipeline,
       // storage, cost) into this pack — keep the counts here at 12, not 8.
       name: "Data Management & Governance — showcase gallery",
@@ -65,15 +95,31 @@
       blurb: "12 showcase dashboards — governance, platform ops, delivery, finance, marketing, " +
         "incident response, compliance, data quality, pipeline observability, storage, cost, " +
         "and an interactive feature tour. Dashboards only: no connections, datasets or jobs, " +
-        "and their sample data is embedded. Installed by default."
+        "and their sample data is embedded. Installed by default.",
+      // Its dashboards are materialized asynchronously from data/examples by studio.js's
+      // ensurePackExamplesMaterialized, so there is nothing for `seeds` to declare here.
+      catalogSamples: true
     }
+  };
+
+  // Registry query — the ONLY way a caller outside this file selects packs. Returns the
+  // ids of every registered pack whose entry carries the given flag, so a surface says
+  // "the packs that own catalog samples" instead of naming one.
+  Studio.demoPacksWith = function (flag) {
+    return Object.keys(Studio.DEMO_PACKS).filter(function (id) { return !!Studio.DEMO_PACKS[id][flag]; });
+  };
+  // The folder every row a pack seeds is filed in ("" when the pack isn't registered).
+  Studio.demoPackFolder = function (id) {
+    var p = Studio.DEMO_PACKS[id];
+    return (p && p.folder) || "";
   };
 
   var INSTALLED_KEY = "studio-demopacks-installed";
   // SAMPLE-DATA-1 (Kevin live, 2026-07-30): every object a pack seeds is FILED in the
-  // pack's folder — one folder per pack across all types (dashboards already do this
-  // via studio.js PACK_FOLDERS; keep the two names in sync).
-  var PACK_FOLDER = "Conservation Insight";
+  // pack's folder — one folder per pack across all types. SP-0: the name now lives on the
+  // registry entry, so demopacks.js and studio.js read the one value instead of keeping
+  // two literals in sync.
+  var PACK_FOLDER = Studio.DEMO_PACKS.conservation.folder;
   // Packs installed before a user ever opens Settings. "datamanagement" gates content that
   // used to be unconditional (the generic showcase gallery) — defaulting it to installed
   // keeps that gallery looking the same as it always has for every existing workspace, while
@@ -596,17 +642,16 @@
     return rows.join("\n");
   }
 
+  // SP-0: registry-driven. This function knows about no pack in particular — an entry
+  // that seeds a workspace supplies `install`; one that only gates gallery visibility
+  // ("examples" kind, e.g. datamanagement) supplies neither hook and just records the
+  // flag. `afterInstall` runs after the flag is set, for steps that read it.
   Studio.installDemoPack = function (id) {
-    if (!Studio.DEMO_PACKS[id] || Studio.demoPackInstalled(id)) return;
-    // "examples"-kind packs (datamanagement) only gate gallery visibility — the workspace
-    // seeding below is "workspace"-kind (conservation) only; every kind still records the
-    // installed flag at the bottom.
-    if (id === "conservation") installConservationWorkspace();
+    var p = Studio.DEMO_PACKS[id];
+    if (!p || Studio.demoPackInstalled(id)) return;
+    if (p.install) p.install();
     setInstalledIds(installedIds().concat([id]));
-    if (id === "conservation") {
-      Studio.ensureConservationWatershedDashboard(); // no-op when install already seeded it
-      Studio.featureConservationGeo();
-    }
+    if (p.afterInstall) p.afterInstall();
   };
 
   // PACK-FEATURED (Kevin, 2026-07-31): "this should be automatically made

@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 893,
+    title: 'Sample packs stop being two hard-coded names in the source',
+    kind: 'polish',
+    ts: '2026-08-08T14:26:36.000Z',
+    items: [
+      'The app ships sample packs — one-click workspaces you can install and remove from Settings. There are two today, Conservation Insight and the Data Management showcase gallery, and eleven more are planned. The machinery could not have carried them.',
+      'Installing a pack ran through a function that named the packs it knew: one branch for Conservation Insight, nothing for anything else. The folder each pack files its content into was written down twice, in two files, kept in step by a comment asking whoever edits one to remember the other. Signing in as the demo user, and the sample pack an administrator assigns to a new account, each named the same single pack again. A twelfth pack would have meant an edit in five places, and any one of them forgotten is a pack that half-installs.',
+      'A pack is now described entirely by its own entry in one registry: what it is called, the folder it files into, how to seed it, how many rows that seeding should produce, and flags for the two places a pack can be picked up automatically. Installing runs whatever the entry supplies and nothing else; every other part of the app asks the registry instead of naming a pack.',
+      'One visible consequence: the administrator\'s user editor offered a single checkbox, "install the Conservation Insight pack on first sign-in", which could never have meant any other pack. It is now a picker listing every registered pack. Accounts already carrying an assignment keep it — the stored value was always the pack\'s id, not the checkbox.',
+      'A new test walks every registered pack rather than the one it was written for, and puts each through the same contract: install sets the flag, every row it writes is tagged and filed in that pack\'s own folder, the counts the entry declares are the counts the installer actually produces, and removing it leaves nothing behind. A second guard reads the source and fails the build if any module outside the registry starts branching on a pack name again. So pack number twelve is covered the day it is added, not the day someone remembers to write it a test.',
+    ],
+  },
+  {
     v: 892,
     title: 'The catalog tours now tell you what a row can do, not just what it is',
     kind: 'polish',
