@@ -109,11 +109,30 @@ function mockTursoExec(stmt) {
     T.get(m[1]).set(m[2], m[3]); return result([], []);
   }
   if ((m = sql.match(/^INSERT OR REPLACE INTO "([^"]+)"\(key,value\)/i))) { T.get(m[1]).set(args[0], args[1]); return result([], []); }
-  if ((m = sql.match(/^INSERT INTO "([^"]+)"\(/i))) { T.get(m[1]).set(args[0], args); return result([], []); }
+  // N17: entity rows are stored COLUMN-KEYED (id -> {col:value}), not as the
+  // positional arg array they used to be, because the guarantee under test is
+  // per-COLUMN: a column the app never names must keep its value. Real SQLite
+  // semantics are modelled exactly — a plain INSERT leaves unnamed columns
+  // NULL (absent), and ON CONFLICT DO UPDATE SET writes only the columns it
+  // names, so anything else on the existing row survives.
+  if ((m = sql.match(/^INSERT INTO "([^"]+)"\(([^)]*)\)\s*VALUES/i))) {
+    const t = T.get(m[1]); if (!t) throw new Error("no such table: " + m[1]);
+    const cols = m[2].split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+    const incoming = {};
+    cols.forEach((c, i) => { incoming[c] = args[i]; });
+    const prev = t.get(incoming.id);
+    if (prev && !/ON CONFLICT/i.test(sql)) throw new Error("UNIQUE constraint failed: " + m[1] + ".id");
+    t.set(incoming.id, Object.assign({}, prev || {}, incoming));
+    return result([], []);
+  }
+  if ((m = sql.match(/^DELETE FROM "([^"]+)" WHERE id IN \(/i))) {
+    const t = T.get(m[1]); if (t) args.forEach((id) => t.delete(id));
+    return result([], []);
+  }
   if ((m = sql.match(/^SELECT COUNT\(\*\) FROM "([^"]+)"$/i))) { const t = T.get(m[1]); return result(["c"], [[t ? t.size : 0]]); }
   if ((m = sql.match(/^SELECT data FROM "([^"]+)"$/i))) {
     const t = T.get(m[1]); if (!t) throw new Error("no such table: " + m[1]);
-    return result(["data"], [...t.values()].map((args2) => [args2[args2.length - 1]]));
+    return result(["data"], [...t.values()].map((row) => [row.data]));
   }
   if ((m = sql.match(/^SELECT key, ?value FROM "([^"]+)"(?: WHERE key IN \('app','schema_version'\))?$/i))) {
     const t = T.get(m[1]); if (!t) throw new Error("no such table: " + m[1]);
@@ -9095,6 +9114,80 @@ function serve() {
       wsTurso.save.ok && wsTurso.loadedConn === "warehouse" && wsTurso.loadedDs === "SELECT * FROM orders" && wsTurso.loadedSetting === "polecat", JSON.stringify(wsTurso));
     ok("WS: turso data plane answers queryData and drop() resets to empty",
       wsTurso.query.columns.length === 1 && wsTurso.query.rows.length === 1 && wsTurso.drop.ok && wsTurso.probeAfterDrop === "empty", JSON.stringify(wsTurso.query));
+
+    // ---- N17: an older app must not clobber a newer workspace ---------------
+    // N16 latches a NEWER workspace read-only at the seams it can see. This is
+    // the half that covers the tab that got past it — a stale tab, a cached SW
+    // build, a phone that hasn't refreshed — still writing through the OLD code
+    // path. Stand a FUTURE-shaped (v+1) Turso workspace up directly in the mock,
+    // carrying all four things this build cannot see, then run a REAL
+    // edit-and-save through the adapter and assert nothing unknown was lost.
+    console.log("\n• N17: an older app must not clobber a newer workspace");
+    const n17AppVer = await page.evaluate(function () { return Studio.WS.SCHEMA_VERSION; });
+    {
+      const T = mockTurso.tables;
+      T.clear();
+      const mk = (name) => { const m = new Map(); T.set(name, m); return m; };
+      ["connections", "datasets", "dashboards", "analyses", "jobs", "users"].forEach(mk);
+      // (1) a TABLE this build has never heard of
+      mk("forecasts").set("f-1", { id: "f-1", data: JSON.stringify({ id: "f-1", horizon: 30 }) });
+      // (2) an unknown promoted COLUMN (`owner`) on a table it DOES know, and
+      // (3) an unknown FIELD (`retention`) inside that row's data blob
+      mk("datasets").set("d-1", {
+        id: "d-1", name: "orders", connectionId: "c-1", kind: "sql", updatedAt: 1, owner: "kevin",
+        data: JSON.stringify({ id: "d-1", name: "orders", connectionId: "c-1", kind: "sql", updatedAt: 1, sql: "SELECT 1", retention: "90d" })
+      });
+      // (4) a row this stale mirror has never seen (no tombstone ⇒ not a delete)
+      const dash = mk("dashboards");
+      dash.set("db-1", { id: "db-1", name: "ops", title: "Ops", updatedAt: 1, data: JSON.stringify({ id: "db-1", name: "ops", title: "Ops", updatedAt: 1 }) });
+      dash.set("db-unseen", { id: "db-unseen", name: "from-newer-device", title: "New", updatedAt: 9, data: JSON.stringify({ id: "db-unseen", name: "from-newer-device", title: "New", updatedAt: 9 }) });
+      const meta = mk("polecat_meta");
+      meta.set("app", "analytics");
+      meta.set("schema_version", String(n17AppVer + 1));
+    }
+    const n17 = await page.evaluate(async function (port) {
+      var t = Studio.tursoSource;
+      var cfg = { url: "http://localhost:" + port + "/__turso", token: "tok-n17" };
+      var out = {};
+      var snap = await t.load(cfg);
+      // load() reports what the BACKEND is (N16) and only ever reads the tables
+      // this build knows — the unknown one is never even in the snapshot.
+      out.loadedVersion = snap.schemaVersion;
+      out.loadedTables = Object.keys(snap.tables).sort().join(",");
+      var ds = (snap.tables.datasets || [])[0] || {};
+      out.blobFieldSurvivedLoad = ds.retention;
+      // A real user edit through the old code path…
+      ds.name = "orders (edited)";
+      // …from a mirror that never saw the other device's dashboard.
+      snap.tables.dashboards = (snap.tables.dashboards || []).filter(function (r) { return r.id !== "db-unseen"; });
+      out.save = await t.save(cfg, snap);
+      return out;
+    }, PORT);
+    const n17After = (() => {
+      const T = mockTurso.tables;
+      const ds = (T.get("datasets") || new Map()).get("d-1") || {};
+      let blob = {};
+      try { blob = JSON.parse(ds.data || "{}"); } catch (e) {}
+      return {
+        unknownTableKept: T.has("forecasts") && T.get("forecasts").size === 1,
+        unknownColumnKept: ds.owner,
+        unknownBlobFieldKept: blob.retention,
+        editLanded: blob.name,
+        unseenRowKept: (T.get("dashboards") || new Map()).has("db-unseen"),
+        marker: (T.get("polecat_meta") || new Map()).get("schema_version")
+      };
+    })();
+    ok("N17: an unknown TABLE, an unknown promoted COLUMN and an unknown data-blob FIELD all survive an older app's save",
+      n17.save.ok && n17.loadedTables === "analyses,connections,dashboards,datasets,jobs,users" &&
+      n17.blobFieldSurvivedLoad === "90d" && n17After.unknownTableKept &&
+      n17After.unknownColumnKept === "kevin" && n17After.unknownBlobFieldKept === "90d" &&
+      n17After.editLanded === "orders (edited)", JSON.stringify({ n17: n17, after: n17After }));
+    ok("N17: absence is not deletion — a row the stale mirror never saw survives its save (no tombstone, no delete)",
+      n17After.unseenRowKept, JSON.stringify(n17After));
+    ok("N17: an older app's save never rewinds the schema_version marker it found",
+      n17.loadedVersion === n17AppVer + 1 && n17After.marker === String(n17AppVer + 1),
+      JSON.stringify({ appVer: n17AppVer, loaded: n17.loadedVersion, marker: n17After.marker }));
+    mockTurso.tables.clear();   // leave the mock clean for the N16 block below
 
     // ---- N16 slice 1: the backend version handshake -------------------------
     // The marker existed end to end (WS.SCHEMA_VERSION → polecat_meta →
