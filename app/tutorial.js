@@ -31,7 +31,9 @@
    Distinct from the welcome tour (welcome.js), which is informational.
    Steps may carry a `before()` hook (switch section, seed Explore) and the
    renderer WAITS for the step's target to exist, so tours can walk UI that
-   builds asynchronously.
+   builds asynchronously. A builder step may also declare the `pane:` its
+   target lives in, which the renderer OPENS before it measures the spotlight —
+   existing is not the same as visible (see openPane below).
 
    KEEP THESE TOURS CURRENT: any slice that changes a user-facing flow this
    tutorial walks (Quick Views, Dashboard Builder panes, export, Jobs,
@@ -75,6 +77,17 @@
    unwired by DECLUTTER-1) cannot get back into this copy — and fails any copy
    here that reaches Auto-build through the wrong New menu.
 
+   Copy was only half of it. That same STUDIO-PANELS change also made the panes
+   this tour walks start CLOSED, and the tour never noticed: step 1 ringed a
+   34px collapsed rail while describing four groups the reader could not see,
+   step 3 did the same to the Inspector, and at ≤640px both panes are drawers
+   parked off-canvas, so the ring landed outside the viewport and the walk went
+   dark for two of its six steps. N7 (2026-08-08): a builder step now declares
+   its `pane:` and the renderer opens it (window.__studioOpenPane, silent).
+   doc-truth check 19 holds the two halves together — a step targeting a
+   collapsible pane must declare it, the declared names must be panes the
+   builder can actually open, and the opener must still exist.
+
    window.StudioTutorial.open()        — tour chooser (or restart)
    window.StudioTutorial.openTour(key) — start a specific tour ("overview"|"quick"|"build"|"jobs"|"connect")
    window.StudioTutorial.isDone()      — true once any tour was completed.
@@ -101,6 +114,22 @@
       if (btn) btn.click();
     } catch (e) {}
   }
+  /* A builder step that spotlights one of the Dashboard Builder's side panes has
+     to OPEN it first. STUDIO-PANELS made "panes closed" the builder's entry
+     state, so on desktop a ring around #library or #inspector fell on a 34px
+     collapsed rail, and at ≤640px those panes are drawers parked off-canvas
+     (translateX(±105%) — app/studio.css), so the ring landed outside the
+     viewport entirely and the reader saw a dimmed screen with nothing lit.
+     A step declares which pane its target lives in (`pane:`), and this asks the
+     builder's own opener — silently, so the walk never rewrites the reader's
+     persisted panel preference or drawer tab. */
+  function openPane(which) {
+    var phone = !!(window.matchMedia && window.matchMedia("(max-width:640px)").matches);
+    try { if (window.__studioOpenPane) window.__studioOpenPane(which); } catch (e) {}
+    // The phone drawers SLIDE in (transform .28s). Measuring before they land
+    // would ring where the drawer was, not where it is; desktop is instant.
+    return phone ? new Promise(function (r) { setTimeout(r, 340); }) : null;
+  }
   // Conservation tour: land in Studio on the pack's own featured dashboard.
   // Its row id is workspace-generated at install time (only spec.id/panel ids
   // are the pack's own literal strings — see demopacks.js dashboardSpec()), so
@@ -117,6 +146,10 @@
      target: CSS selector (null → centered card, no spotlight)
      pos:    preferred tooltip position ("right"/"left"/"top"/"bottom")
      before: optional fn run before the step renders (section switch / seeding)
+     pane:   builder steps only — the Dashboard Builder pane the target lives in
+             ("library" | "inspector" | "canvas"); opened silently before the
+             spotlight is measured (see openPane above). doc-truth check 19
+             requires one on any step targeting a collapsible pane.
      last:   true on the final step — shows "Done!" instead of "Next" */
   var TOURS = {
     overview: {
@@ -298,6 +331,7 @@
           h: "This walkthrough shows the Dashboard Builder loop — from picking data to exporting a live, self-contained dashboard file. Press <b>Next</b> to begin.",
           sub: "You can reopen these tours any time from ⌘K → Interactive tutorial.",
           target: null,
+          pane: "canvas",
           before: function () { goSection("studio"); }
         },
         {
@@ -305,6 +339,7 @@
           h: "The <b>Data</b> panel (left) holds everything chartable, top to bottom: <b>This dashboard's datasets</b>, your workspace <b>Datasets</b>, your saved <b>Views</b>, and — once you author your own queries — <b>My queries</b>. Search filters by name, column, or table.",
           sub: "Click a chart chip on any card — or drag the card straight onto the canvas.",
           target: "#library",
+          pane: "library",
           pos: "right"
         },
         {
@@ -312,12 +347,14 @@
           h: "The centre pane is the <b>real rendered dashboard</b>, not a mock-up. Drop data here to add a panel; drag the header grip to reorder; drag a panel's right edge to change its width, its bottom edge to change its height.",
           sub: "Every change updates instantly.",
           target: "#canvas",
+          pane: "canvas",
           pos: "right"
         },
         {
           t: "3 · Inspector",
           h: "Click any panel to select it. The <b>Inspector</b> (right pane) renames it, changes the chart type, binds columns, and tunes visual options — the same pane also configures KPI tiles, filters, and datasets.",
           target: "#inspector",
+          pane: "inspector",
           pos: "left"
         },
         {
@@ -325,6 +362,7 @@
           h: "Click <b>Export ▾</b> to download a <b>self-contained .html file</b> — no server, no dependencies; email it, host it, open it from disk. It's byte-identical to the preview you've been looking at.",
           sub: "The same menu also hands out Excel, Word, PowerPoint and PDF versions, or the editable .studio.json spec — and <b>Save</b> keeps the dashboard in your Dashboards catalog so you can reopen it and keep working.",
           target: "#btnExport",
+          pane: "canvas",
           pos: "bottom"
         },
         {
@@ -332,6 +370,7 @@
           h: "That's the loop: <b>pick data → arrange panels → configure → export</b>. Feature a dashboard on <b>Home</b> (the little house on its card) to see it live when you open the app, and use <b>Jobs</b> to prep or roll up data before charting.",
           sub: "In a hurry? <b>New ▾</b> in the topbar → <b>Auto-build a starter</b> scaffolds a whole dashboard from one dataset.",
           target: null,
+          pane: "canvas",
           last: true
         }
       ]
@@ -661,10 +700,25 @@
 
   /* --- Core renderer --- */
   function render(idx) {
-    _cur = idx;
     var steps = tourSteps(_tour);
     var step = steps[idx];
+    // A step can take a moment to become renderable — before() switches section,
+    // openPane() waits out a drawer transition, waitFor() polls the target for up
+    // to 2.5s (6s in the preview iframe). Throughout that window the PREVIOUS
+    // step's card is still on screen with a live Next, so a reader who taps twice
+    // (or taps while the app is busy) used to advance twice, walk off the end of
+    // the tour, and land here with steps[idx] undefined — an uncaught TypeError,
+    // which is a release gate. Both halves are closed: the navigation buttons of
+    // the outgoing card go inert while the next one is being prepared (Skip stays
+    // live — nobody should ever be trapped in a tour), and an out-of-range index
+    // simply finishes rather than throwing.
+    if (!step) return finish();
+    _cur = idx;
+    var live = document.getElementById("st-tip");
+    if (live) [].forEach.call(live.querySelectorAll("[data-act]"), function (b) { b.disabled = true; });
     Promise.resolve(step.before ? step.before() : null).then(function () {
+      return step.pane ? openPane(step.pane) : null;
+    }).then(function () {
       return waitFor(step.target, step.inPreview ? 6000 : 2500, step.inPreview);
     }).then(function (tEl) {
       if (!_active || _cur !== idx) return; // user moved on / closed while waiting

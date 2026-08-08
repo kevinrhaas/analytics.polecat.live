@@ -676,6 +676,48 @@ ok("tools/doc-truth.mjs: the builder copy parsed for check 18 is non-empty",
   APP_COPY_JS.every((f) => jsLiterals(f).filter((s) => !IDENTIFIERISH.test(s)).length > 50),
   APP_COPY_JS.map((f) => `${f}: ${jsLiterals(f).filter((s) => !IDENTIFIERISH.test(s)).length} copy literals`).join(" · "));
 
+// 19. Checks 16–18 all asked whether the builder's panes are NAMED correctly. This one asks
+//     whether the tour that walks them can SEE them — the same STUDIO-PANELS change that
+//     renamed the pane also made it start closed, and the tour kept ringing it regardless: a
+//     34px collapsed rail on desktop, and at ≤640px a drawer parked at translateX(±105%), i.e.
+//     a spotlight outside the viewport. The fix is declarative (a step's `pane:`), so it can
+//     rot the same way the copy did — a new builder step, or a new pane, would simply forget
+//     it. Three rules, every fact derived:
+//       (a) COVERAGE — a build-tour step whose `target` is one of app/index.html's collapsible
+//           <aside class="pane"> ids must declare that same id as its `pane`.
+//       (b) VOCABULARY — every `pane:` any tour declares must be a pane the builder can
+//           actually open, read off setupMobileTabs()'s own tab ids (library/canvas/inspector)
+//           rather than a list kept here.
+//       (c) THE OPENER — app/studio.js must still expose __studioOpenPane; without it
+//           tutorial.js's openPane() degrades to a silent no-op and (a) passes while every
+//           spotlight goes back to ringing a closed pane.
+const collapsiblePanes = [...appHtml.matchAll(/<aside id="(\w+)" class="pane">/g)].map((m) => m[1]);
+ok("app/index.html: the builder's collapsible panes parsed for check 19 are non-empty",
+  collapsiblePanes.length >= 2, `parsed: ${collapsiblePanes.join(" · ") || "(none)"}`);
+const buildSteps = buildBlock.split(/\n        \{/).slice(1);
+const missingPane = buildSteps
+  .map((s) => ({
+    target: (s.match(/target:\s*"#(\w+)"/) || [])[1],
+    pane: (s.match(/\bpane:\s*"(\w+)"/) || [])[1],
+    title: (s.match(/\bt:\s*"([^"]*)"/) || [])[1] || "(untitled)",
+  }))
+  .filter((s) => s.target && collapsiblePanes.includes(s.target) && s.pane !== s.target)
+  .map((s) => `"${s.title}" targets #${s.target} but declares pane: ${s.pane ? `"${s.pane}"` : "(none)"}`);
+ok(`app/tutorial.js: every build-tour step spotlighting a collapsible pane (${collapsiblePanes.join(", ")}) opens it first`,
+  !missingPane.length,
+  `${missingPane.join("\n      ")}\n      a closed pane is a 34px rail on desktop and off-canvas at 390px — the ring lands on nothing`);
+const mobTabIds = [...(fnBody(studioJs, "setupMobileTabs").match(/var TABS = \[[\s\S]*?\];/) || [""])[0]
+  .matchAll(/\bid:\s*"(\w+)"/g)].map((m) => m[1]);
+ok("app/studio.js: the builder's openable panes parsed for check 19 are non-empty",
+  mobTabIds.length >= 3, `parsed: ${mobTabIds.join(" · ") || "(none)"}`);
+const strayPaneNames = [...tutorialSrc.matchAll(/\bpane:\s*"(\w+)"/g)].map((m) => m[1])
+  .filter((p) => !mobTabIds.includes(p));
+ok(`app/tutorial.js: every declared pane is one the builder can open (${mobTabIds.join(", ")})`,
+  !strayPaneNames.length, `unknown: ${[...new Set(strayPaneNames)].join(", ")}`);
+ok("app/studio.js: __studioOpenPane — the opener app/tutorial.js's steps depend on — still exists",
+  /window\.__studioOpenPane\s*=/.test(studioJs),
+  "without it openPane() is a no-op and every builder spotlight silently goes back to ringing a closed pane");
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

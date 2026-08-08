@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 880,
+    title: 'The Build a dashboard tour opens the panels it points at',
+    kind: 'fix',
+    ts: '2026-08-08T04:18:54.000Z',
+    items: [
+      'The builder opens with its Data and Inspector panels closed. The guided tour never learned that, so two of its six steps spotlighted a 34-pixel closed edge while the text described everything inside it — "the Data panel holds everything chartable, top to bottom" pointing at a sliver you cannot read.',
+      'On a phone it was worse than useless: those two panels are drawers that sit off the side of the screen until you open them, so the spotlight was drawn somewhere you could not see at all. Two steps of the tour were a dimmed screen with nothing lit on it.',
+      'Both panels now slide open before the tour points at them, and close again as it moves on to the canvas. It leaves no trace — whether you like those panels open or closed, and which drawer you had open on your phone, are exactly as you left them when the tour ends.',
+      'Tapping Next twice in a row no longer skips a step. A step can take a moment to set up, and during that moment the previous card was still live, so an impatient second tap jumped two steps — and enough of them walked off the end of the tour and broke it. The buttons now go quiet while the next step is being prepared, Skip stays available the whole time, and the end of the tour is the end.',
+      'Six new tests walk the whole tour at phone and desktop size and measure where the spotlight actually lands, and the check that runs on every change now requires any tour step aimed at a closable panel to open it first.',
+    ],
+  },
+  {
     v: 879,
     title: 'The builder calls its own left panel Data, and the button that opens it works on a phone',
     kind: 'fix',

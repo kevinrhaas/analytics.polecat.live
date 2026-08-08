@@ -12030,11 +12030,28 @@
      silently, because this is a one-off nudge and must not rewrite the
      reader's persisted collapse preference. */
   function openDataPane() {
-    if (window.matchMedia && window.matchMedia("(max-width:640px)").matches) { activateMobTab("library"); return; }
-    var pane = $("#library");
-    if (pane && pane.classList.contains("collapsed")) collapsePane("library", false, true);
+    openBuilderPane("library");
+    if (window.matchMedia && window.matchMedia("(max-width:640px)").matches) return;
     var ls = $("#libSearch"); if (ls) { ls.focus(); ls.select(); }
   }
+  /* The width-agnostic half of openDataPane, for EITHER side pane — "library",
+     "inspector", or "canvas" (which means neither: on a phone it dismisses
+     whichever drawer is open, on desktop there is nothing to do because the
+     canvas is never covered). Splitting it out is what lets a guided tour point
+     at a pane it did not open: a spotlight on #library while the pane sits
+     collapsed rings a 34px rail on desktop, and on a phone rings a rect parked
+     at translateX(-105%) — entirely outside the viewport.
+     `silent` (the tour's mode) makes the nudge leave no trace: neither the
+     persisted collapse preference nor the persisted drawer tab is rewritten, so
+     the reader's builder looks exactly as they left it once the walk is over. */
+  function openBuilderPane(which, silent) {
+    if (window.matchMedia && window.matchMedia("(max-width:640px)").matches) { activateMobTab(which, silent); return; }
+    if (which === "canvas") return;
+    var pane = $("#" + which);
+    if (pane && pane.classList.contains("collapsed")) collapsePane(which, false, true);
+  }
+  // Test hook + the tour's opener (app/tutorial.js) — always silent, see above.
+  window.__studioOpenPane = function (which) { openBuilderPane(which, true); };
 
   /* ---------- mobile drawer tab bar (M2) ---------- */
   function setupMobileTabs() {

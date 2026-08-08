@@ -13,7 +13,7 @@
    changelog users actually read) and which precached files rolled is right there in the commit
    diff. tools/validate.mjs holds this file to a byte budget so the history cannot creep back. */
 "use strict";
-var CACHE_NAME = "studio-shell-v508";
+var CACHE_NAME = "studio-shell-v509";
 
 /* Precache conventions, worth knowing before you edit the list:
    - Rarely-visited pages are deliberately NOT precached (app/viewer.html + app/viewer.js,
