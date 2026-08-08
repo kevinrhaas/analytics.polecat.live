@@ -444,7 +444,7 @@
         },
         {
           t: "1 · Every job you've built",
-          h: "Jobs land here with a status dot for their last run (never run / OK / failed), a step count, and — once the source data updates — a reminder badge if you set one. Each row carries its own actions, including a <b>private</b> toggle: a private job stays yours alone when the workspace is shared.",
+          h: "Jobs land here with a status dot for their last run (never run / OK / failed), a step count, and — once the source data updates — a reminder badge if you set one. Every row acts on its own: <b>Run</b> it right here and watch the status dot answer, <b>Edit</b> its steps, or <b>Delete</b> it with the ✕ — plus a <b>private</b> toggle, because a private job stays yours alone when the workspace is shared.",
           target: "#jobsResults",
           pos: "bottom"
         },
@@ -493,7 +493,7 @@
         },
         {
           t: "1 · Every connection you've made",
-          h: "Point at Postgres, Supabase, Snowflake, BigQuery, Google Sheets, a dropped CSV, and more — or work entirely on the built-in sample data. Connections land here with folder chips once you start filing them, and each row has a <b>private</b> toggle for the ones that stay yours alone when the workspace is shared.",
+          h: "Point at Postgres, Supabase, Snowflake, BigQuery, Google Sheets, a dropped CSV, and more — or work entirely on the built-in sample data. Connections land here with folder chips once you start filing them. Every row acts on its own: <b>Test</b> it without leaving the page (the fastest way to find a credential that expired), <b>Edit</b> its settings, or <b>Delete</b> it with the ✕ — plus <b>Pin</b>, which holds the ones you open every day at the top of the list, and a <b>private</b> toggle for the ones that stay yours alone when the workspace is shared.",
           target: "#connResults",
           pos: "bottom"
         },
@@ -520,7 +520,7 @@
         },
         {
           t: "5 · From connection to dataset",
-          h: "A <b>dataset</b> is a named, <code>{{param}}</code>-substitutable query on top of a connection — define it once, chart it everywhere in Quick Views or the Dashboard Builder.",
+          h: "A <b>dataset</b> is a named, <code>{{param}}</code>-substitutable query on top of a connection — define it once, chart it everywhere in Quick Views or the Dashboard Builder. Its rows carry the same controls Connections do: <b>Run</b> the query right there to check it still works — you get the row count back without opening the editor — <b>Edit</b> it, <b>Delete</b> it with the ✕, <b>Pin</b> the ones you build on most to the top, and mark a dataset <b>private</b> to keep it yours.",
           target: "#dsxResults",
           pos: "bottom",
           before: function () { goSection("datasets"); }

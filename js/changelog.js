@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 892,
+    title: 'The catalog tours now tell you what a row can do, not just what it is',
+    kind: 'polish',
+    ts: '2026-08-08T14:11:12.000Z',
+    items: [
+      'A catalog row is where the work actually happens: you test a connection, run a job, and pin the dataset you open twenty times a day without ever leaving the list. The guided tours described the list, the + New button, the search box and the toolbar above them — and then said only that each row "carries its own actions", naming exactly one of them.',
+      'So a reader could finish the Jobs tour without ever learning that a job runs from its own row, finish the Connections tour without learning a connection can be tested from its row — the fastest way to find a credential that expired — and never discover Pin at all, on either catalog.',
+      'The Jobs tour now names Run, Edit and the ✕ delete alongside the private toggle it already had. The Connections & Datasets tour names Test, Edit, ✕ and Pin on the connection rows, and Run, Edit, ✕, Pin and private on the dataset rows, so both halves of that walk describe the same row anatomy.',
+      'The wording was checked against the code rather than assumed: running a job updates its status dot in place, running a dataset reports its row count back without opening the editor, and pinned items really do sort to the top of their list.',
+      'A new guard derives each catalog row\'s controls from the module that renders it — the action buttons by their own labels, the pin and private toggles by whether that catalog has them at all — and fails the build if a tour that walks the catalog stops naming one. It asks for the control to be named the way these tours name every other control, in bold, so prose that merely mentions the word does not count as explaining the button.',
+      'The in-app Help was audited in the same pass: it documents Test, Run and private in their own sections, but never the per-row Pin. That gap is written down as the next slice of this work rather than folded into this one.',
+    ],
+  },
+  {
     v: 891,
     title: 'The Conservation Insight tour finally tells you everything the pack gave you',
     kind: 'polish',
