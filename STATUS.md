@@ -135,6 +135,42 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N15 slice 2 of 2 — a chart's PNG/CSV download works on a phone (v895, sw v520, 2026-08-08,
+  steward; dev branch):** cause (b) of Kevin's phone report, and the close of N15. **Confirmed
+  before fixing, exactly as the item demanded** — a throwaway Playwright probe on the PRE-change
+  tree instrumented `HTMLAnchorElement.prototype.click` in BOTH documents and clicked the real menu
+  items: the bytes were never in doubt (a real `data:image/png;base64,…`, a real
+  `blob:` CSV) and both anchors were clicked in the **iframe's** document — a download started
+  from a nested browsing context, which is what iOS Safari refuses. So the rasterizer was
+  innocent and the delivery was the whole defect. **The fix.** `app/studio-render.js` gained
+  `inPreviewFrame()` + `deliverDownload(name, payload)`: when the shared chrome is painting a
+  builder preview it posts `{type:"panel-download", name, dataUrl}` (PNG, both the SVG and the
+  GL-canvas branch) or `{…, text, mime}` (CSV) up instead of clicking locally, and
+  `app/studio.js` performs the click in the top document. The CSV crosses as TEXT, not as a
+  `blob:` URL: a blob minted in the frame is revoked the moment the preview re-renders, and the
+  top window can mint its own with no lifetime shared across the seam. The receiver accepts only
+  those two shapes — a `data:image/` URL, or text it blobs itself — and never adopts an arbitrary
+  URL out of a message; the name is filename-sanitised. **One deliberate deviation from the item's
+  written fix shape:** it proposed routing `panel-download` through the `Studio.claimPreviewFrame`
+  claims added in slice 1, with a copy of the handler per builder. It is answered BEFORE the claim
+  routing instead, because unlike an export or a canvas edit nothing about a download depends on
+  which spec owns the frame — the message carries its own bytes and its own filename — so ONE
+  handler serves every preview in the app (dashboard builder, View Builder, Explore, panel zoom,
+  slideshow, version compare) rather than six copies of the same six lines. The non-preview path
+  is untouched, which is what keeps the exported file working with no app around it. **Verified:**
+  5 new checks in `tests/run.js` (13c-N15 slice 2) that drive the REAL menu click — the
+  test-only `onDataUrl`/`onRows` hooks are precisely what hid this — and assert WHERE the anchor
+  lands: two clicks, both in the top document, none in the iframe; the PNG carrying the real image
+  and the panel's own filename; the CSV crossing as text with the top window minting the blob; and
+  the REAL exported standalone file, embedded in an iframe so it demonstrably HAS a parent, still
+  clicking its own anchor and delegating nothing. **The checks were proven non-vacuous**: run
+  against the pre-change tree, 4 of the 5 fail (the fifth is the export path, which correctly does
+  not change). **Verification run, stated precisely:** the dev gate is fully green (`validate`,
+  `changelog-check` 872 entries manager-parse OK, `doc-truth`, `dev-smoke` desktop + 390px, zero
+  pageerrors), and the 5 new checks were run standalone against a live server in BOTH gates —
+  390×780 and 1280×900, zero pageerrors both times. `tests/run.js` in full again exceeds this
+  runner's 10-minute foreground command cap (same as slice 1); the stage promotion runs it whole.
+  **est 2pt for the item, took 1 per slice — 2 total, on estimate.**
 - **N15 slice 1 of 2 — the View Builder's "Export as standalone HTML" works, and one preview can
   no longer edit the other builder's dashboard (v894, sw v519, 2026-08-08, steward; dev branch):**
   Kevin reported both symptoms from a phone; this slice closes cause (a) plus the whole
@@ -10871,9 +10907,13 @@
 > struck entries and propose the next batch to Kevin on a `hold` PR — never graze the
 > reservoir directly.
 
-- **N15 ★★ [2pt est — slice 1 of 2 SHIPPED v894, sw v519 (2026-08-08, steward — see DONE); cause
-  (b) REMAINS] — Kevin, 2026-08-08: the View Builder's panel menu offers PNG and standalone
-  HTML, and neither works.** Reported live from a phone, with a screenshot of the open menu.
+- ~~**N15 ★★ [2pt est, 2 slices shipped] — Kevin, 2026-08-08: the View Builder's panel menu offers
+  PNG and standalone HTML, and neither works.**~~ ✓ **SHIPPED — slice 1 (cause (a) + the message
+  routing) v894, sw v519; slice 2 (cause (b), the mobile download path) v895, sw v520 (both
+  2026-08-08, steward — see DONE). The item is CLOSED; the two follow-ups it did not take are
+  written out at the bottom and are their own items when someone wants them.** The history below
+  stays until the next grooming pass archives it.
+  Reported live from a phone, with a screenshot of the open menu.
   ~~**Cause (a) — "Export as standalone HTML" is a silent no-op.**~~ **(a) is DONE** — messages
   from a preview now route by the FRAME that posted them: `Studio.claimPreviewFrame(getFrame,
   handle)` lets a module own its own preview's acts, `app/build.js` claims its `bd-ifr` and
@@ -10889,7 +10929,13 @@
   preview panel is minted fresh by `bdPanelFor()` → `Studio.newPanel()` into a private one-panel
   spec that is never in `S.spec`, so the lookup missed and the branch fell through. No error, no
   toast, exactly as reported.
-  **THE REMAINING SLICE IS CAUSE (b) — the PNG downloads from inside the iframe.** `downloadPanelPng()`
+  ~~**CAUSE (b) — the PNG downloads from inside the iframe.**~~ **(b) is DONE (v895)** — the
+  preview chrome now hands the finished bytes to the top window (`panel-download`) and the anchor
+  is clicked in the TOP document; the exported standalone file, which has no app around it, keeps
+  the in-document path. The prediction below was confirmed by probe before anything was changed:
+  the rasterizer was fine (a real `data:image/png;base64,…` and a real CSV blob were both being
+  produced) and BOTH anchors were being clicked in the iframe's document. The original reading,
+  kept as the map of the seam: `downloadPanelPng()`
   (`studio-render.js:780`) appends an `<a download>` to the IFRAME's document and clicks it.
   That works in desktop Chrome, and it is why the suite has always been green — the tests drive
   the rasterizer through the `onDataUrl` hook and never perform a real click. A download

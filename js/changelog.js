@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 895,
+    title: 'Downloading a chart as an image or a CSV works on a phone',
+    kind: 'fix',
+    ts: '2026-08-08T15:42:08.000Z',
+    items: [
+      'The other half of the same report: alongside the standalone-HTML export that did nothing, a chart\'s "Download PNG image" and "Download data (CSV)" also did nothing on a phone. On a laptop both worked, which is exactly why this survived so long.',
+      'The picture and the spreadsheet were never the problem — both were being produced correctly, every time. The problem was who asked the browser to save them. A live preview is a small page nested inside the app, and the download was being started from inside that nested page. Desktop browsers allow that. Mobile Safari refuses it outright, silently, and there is nothing on screen to say so.',
+      'Now the preview finishes the work and hands the file to the app around it, which asks for the save itself. Same image, same rows, same filename — just requested from a place the browser is willing to honour. Every preview in the app benefits: the dashboard builder, the View Builder, Explore, an enlarged panel and the slideshow.',
+      'A dashboard you export is the very same chart chrome running on its own, with no app around it to hand anything to, so it keeps saving files directly as it always has. That is checked too — the exported file was embedded inside another page and still saved its own image, so nothing about an export now depends on where it is opened.',
+      'Five new checks drive the real menu click rather than the internals, and assert where the file actually gets saved from. On the previous code four of them fail, which is the point: the old checks exercised the machinery either side of the bug and never touched it.',
+    ],
+  },
+  {
     v: 894,
     title: 'The View Builder can export a View as a standalone HTML file again',
     kind: 'fix',

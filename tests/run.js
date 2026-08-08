@@ -14519,6 +14519,125 @@ function serve() {
     ok("N15: the dashboard builder's own canvas edits still apply — the routing decides WHO spoke, it does not disable the acts",
       vbN15.ownEditStillWorks, JSON.stringify(vbN15));
 
+    // 13c-N15 slice 2 — the OTHER half of the same phone report: the panel menu's PNG and CSV
+    // items also did nothing. The bytes were never the problem (a probe on the pre-change tree
+    // showed a real `data:image/png;base64,…` and a real CSV blob both being produced) — the
+    // download was STARTED FROM THE PREVIEW IFRAME's document, a nested browsing context, which
+    // iOS Safari refuses. It works in desktop Chrome, and every existing check here drives the
+    // `onDataUrl`/`onRows` hooks instead of the click path, which is exactly why the suite was
+    // always green on a defect a phone hits immediately. So these checks exercise the CLICK
+    // path and assert WHERE the anchor ends up: the finished bytes are handed to the top window
+    // and clicked in the TOP document, while the exported standalone file — the same shared
+    // chrome, by the export==preview invariant — must keep clicking in its own.
+    const vbDl = await page.evaluate(async () => {
+      const W = window.Studio.Workspace;
+      const B = window.__studioBuild;
+      const out = {};
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const ds = W.put("datasets", { name: "bd-n15b-ds", kind: "sql", sql: "select region, quarter, amount from t", columns: ["region", "quarter", "amount"] });
+      await B.selectDataset("ws", ds.id);
+      await wait(120);
+      B.state.shelfCols = []; B.state.shelfRows = []; B.state.filters = []; B.state.shelfColor = [];
+      B.addField("region", "cols");
+      B.addField("amount", "cols");
+      B.state.chartType = "bars";
+      B.state.panelTitle = "N15 Download Probe";
+      B.rerender();
+      await wait(500);
+
+      const ifr = document.querySelector("#buildResult iframe.bd-ifr");
+      const doc = ifr && ifr.contentDocument;
+      const card = doc && doc.querySelector("[data-panel-id]");
+      out.hasCard = !!card;
+      if (!card) return out;
+
+      // Watch BOTH documents' anchor clicks — a download is only observable here by where the
+      // <a download> is clicked, which is precisely the thing that was wrong.
+      const clicks = [];
+      const IW = ifr.contentWindow;
+      const inOrig = IW.HTMLAnchorElement.prototype.click;
+      IW.HTMLAnchorElement.prototype.click = function () {
+        clicks.push({ doc: "iframe", name: this.download, href: (this.href || "").slice(0, 22) });
+      };
+      const topOrig = HTMLAnchorElement.prototype.click;
+      HTMLAnchorElement.prototype.click = function () {
+        clicks.push({ doc: "top", name: this.download, href: (this.href || "").slice(0, 22) });
+      };
+      try {
+        const acts = [].slice.call(card.querySelectorAll(".dk-dl-act"));
+        const png = acts.filter((b) => /PNG/i.test(b.title))[0];
+        const csv = acts.filter((b) => /CSV/i.test(b.title))[0];
+        out.hasPng = !!png; out.hasCsv = !!csv;
+        window.__lastPreviewDownload = null;
+        if (png) png.click();
+        await wait(700);
+        out.pngDelivered = window.__lastPreviewDownload;
+        window.__lastPreviewDownload = null;
+        if (csv) csv.click();
+        await wait(400);
+        out.csvDelivered = window.__lastPreviewDownload;
+        out.clicks = clicks.slice();
+
+        // The export is the same chrome running with no top window to lean on. Embed the REAL
+        // exported file in an iframe — so it demonstrably HAS a parent — and prove it still
+        // downloads in its own document rather than depending on a host answering it.
+        window.__lastBundle = null;
+        const embed = acts.filter((b) => /standalone HTML/.test(b.title))[0];
+        if (embed) embed.click();
+        await wait(400);
+        const body = (window.__lastBundle && window.__lastBundle.files[0] && window.__lastBundle.files[0].body) || "";
+        document.querySelectorAll(".modal-ov").forEach((m) => m.remove());
+        out.gotExport = body.length > 1000;
+        if (out.gotExport) {
+          const ex = document.createElement("iframe");
+          ex.style.cssText = "position:fixed;left:-9999px;width:900px;height:600px";
+          ex.srcdoc = body;
+          document.body.appendChild(ex);
+          await new Promise((r) => { ex.onload = r; setTimeout(r, 3000); });
+          await wait(700);
+          const exDoc = ex.contentDocument;
+          const exCard = exDoc && exDoc.querySelector("[data-panel-id]");
+          out.exportHasCard = !!exCard;
+          out.exportIsNotPreview = !ex.contentWindow.STUDIO_PREVIEW;
+          const exClicks = [];
+          ex.contentWindow.HTMLAnchorElement.prototype.click = function () {
+            exClicks.push({ name: this.download, href: (this.href || "").slice(0, 22) });
+          };
+          window.__lastPreviewDownload = null;
+          const exPng = exCard && [].slice.call(exCard.querySelectorAll(".dk-dl-act")).filter((b) => /PNG/i.test(b.title))[0];
+          out.exportHasPng = !!exPng;
+          if (exPng) exPng.click();
+          await wait(700);
+          out.exportClicks = exClicks;
+          out.exportDidNotDelegate = !window.__lastPreviewDownload;
+          ex.remove();
+        }
+      } finally {
+        IW.HTMLAnchorElement.prototype.click = inOrig;
+        HTMLAnchorElement.prototype.click = topOrig;
+      }
+      W.remove("datasets", ds.id);
+      await wait(150);
+      return out;
+    });
+    const vbDlTop = (vbDl.clicks || []).filter((c) => c.doc === "top");
+    ok("N15 (b): the View Builder's panel menu really offers PNG and CSV, and clicking them downloads — the click path, not the test-only onDataUrl/onRows hooks that hid this",
+      vbDl.hasCard && vbDl.hasPng && vbDl.hasCsv && vbDlTop.length === 2, JSON.stringify({ hasCard: vbDl.hasCard, hasPng: vbDl.hasPng, hasCsv: vbDl.hasCsv, clicks: vbDl.clicks }));
+    ok("N15 (b): NOTHING downloads from inside the preview iframe any more — both anchors are clicked in the TOP document, the fix for the nested-browsing-context download iOS Safari blocks",
+      (vbDl.clicks || []).length === 2 && !(vbDl.clicks || []).some((c) => c.doc === "iframe"), JSON.stringify(vbDl.clicks));
+    ok("N15 (b): the delegated PNG carries the real rasterized image and the panel's own filename",
+      !!vbDl.pngDelivered && vbDl.pngDelivered.name === "n15-download-probe.png" && vbDl.pngDelivered.bytes > 100 &&
+      vbDlTop.some((c) => c.name === "n15-download-probe.png" && c.href.indexOf("data:image/png") === 0),
+      JSON.stringify({ delivered: vbDl.pngDelivered, clicks: vbDlTop }));
+    ok("N15 (b): the delegated CSV carries the rows as TEXT and the top window mints the blob, so nothing depends on a URL the preview may revoke as it re-renders",
+      !!vbDl.csvDelivered && vbDl.csvDelivered.name === "n15-download-probe.csv" && vbDl.csvDelivered.bytes > 10 &&
+      vbDlTop.some((c) => c.name === "n15-download-probe.csv" && c.href.indexOf("blob:") === 0),
+      JSON.stringify({ delivered: vbDl.csvDelivered, clicks: vbDlTop }));
+    ok("N15 (b): the exported standalone file is the same shared chrome and keeps the in-document path — embedded in an iframe it still clicks its OWN anchor and delegates nothing",
+      vbDl.gotExport && vbDl.exportHasCard && vbDl.exportIsNotPreview && vbDl.exportHasPng &&
+      (vbDl.exportClicks || []).length === 1 && vbDl.exportClicks[0].href.indexOf("data:image/png") === 0 && vbDl.exportDidNotDelegate,
+      JSON.stringify(vbDl));
+
     // 13d. VB-4 remaining major (Kevin overnight queue, "hit major ones first"): KPI.
     // Structurally different from every other chart type here — a KPI tile lives in
     // spec.kpis, not spec.panels, so STATUS.md called it out as its own slice: it needs
