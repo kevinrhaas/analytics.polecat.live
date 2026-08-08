@@ -8836,6 +8836,22 @@
                 });
               });
             }
+          } else if (probe.state === "authRequired") {
+            // N23 (Kevin, 2026-08-08): the marker table is THERE and answered
+            // with nothing, which on a secured workspace means only one thing —
+            // this connection never signed in. Before this branch existed the
+            // app/null fall-through landed on "that database belongs to another
+            // Polecat app (“unknown”) — pick a different one", i.e. it blamed
+            // the database for a blank field. Say what is actually wrong and
+            // put the fields one click away.
+            result.className = "cx-test-result bad";
+            result.textContent = "🔒 " + (probe.note || "This workspace enforces per-user security — add the Supabase Auth email and password.");
+            // Not act(): that helper is for calls that connect and then close
+            // the modal. This one only rewinds the wizard a step.
+            var backBtn = el("button", "btn primary"); backBtn.type = "button";
+            backBtn.textContent = "← Back to credentials";
+            backBtn.onclick = function () { credsStep(src, cfg); };
+            foot.appendChild(backBtn);
           } else if (probe.state === "polecat" && Studio.WS.isOwnApp(probe.app)) {
             result.textContent = "Found an existing Studio workspace (" + Studio.WS.describeContents(probe) + "). Adopt it as your working copy, or overwrite it with this browser's.";
             act("Adopt backend copy", true, function () { return Studio.Sync.connectAdopt(src.id, cfg); });
@@ -8872,7 +8888,10 @@
           b.innerHTML = '<div class="cx-test-result bad">✕ ' + esc((e && e.message) || String(e)) + '</div>';
         });
       }
-      function credsStep(src) {
+      // `seedCfg` (N23) re-opens this step with what was just typed, so the
+      // "back to credentials" escape from the classify step doesn't make
+      // someone re-key a project URL to add the two fields they were missing.
+      function credsStep(src, seedCfg) {
         b.innerHTML = "";
         var head = el("div", "cx-wiz-head");
         var ic = el("span", "cx-wiz-ic"); ic.style.color = src.accent || "var(--brand)"; ic.appendChild(Studio.icon(src.icon || "db", 22));
@@ -8883,7 +8902,7 @@
         (src.fields || []).forEach(function (f) {
           var row = el("label", "cx-field");
           row.innerHTML = "<span>" + esc(f.label) + "</span>";
-          var savedValue = presetCfg && presetCfg[f.key];
+          var savedValue = (seedCfg && seedCfg[f.key]) || (presetCfg && presetCfg[f.key]);
           var inp = credentialFieldInput("cx-backend-cred-" + src.id, f, savedValue, !presetCfg);
           row.appendChild(inp.__revealWrap || inp);
           if (f.hint) { var h = el("small", "cx-hint"); h.textContent = f.hint; row.appendChild(h); }

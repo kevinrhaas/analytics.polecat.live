@@ -135,6 +135,60 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N23 — the Auth fields are required, and "secured" is no longer rendered as "empty"
+  (v907, sw v529, 2026-08-08, steward; dev branch; est 1pt, took 1 — on estimate, item CLOSED):**
+  Kevin's question about the connection form (*"how optional are all of these settings?"*) had a
+  worse answer than the labels implied: under the posture every environment now gets, a connection
+  without the Auth fields is not degraded, it is BLIND — `auth.uid()` is NULL, every policy
+  declines by returning nothing, and the workspace renders as empty rather than refused.
+  **The discriminator, which is what makes the rest possible.** Every provisioning path this repo
+  ships stamps `polecat_meta` with `app` + `schema_version`, and the anon role keeps its table
+  GRANT — so a marker read answers exactly three ways: 404/400 (blank database), 200 with rows
+  (readable marker: legacy allow-all, or we are signed in), and 200 with NO rows, which on a
+  provisioned workspace can only be RLS filtering every row from a caller who never signed in.
+  `lockedOut()` (`app/sources/supabase.js`) claims that third case ONLY when the connection carries
+  no auth session at all — with credentials in hand an empty marker read is a different problem and
+  must not be blamed on the user's fields.
+  (a) **`probe()` returns `state:"authRequired"`**, and the connect wizard has a branch for it: the
+  workspace enforces per-user security, plus a **← Back to credentials** step that re-opens the
+  form with everything already typed (`credsStep(src, seedCfg)`). It previously fell through the
+  `app === null` path to *"that database belongs to another Polecat app (“unknown”) — pick a
+  different one"*, i.e. it blamed the database for a blank field.
+  (b) **`load()` REJECTS instead of returning the empty snapshot** — the durability half, and the
+  reason this is more than copy. `initSync`'s `replaceAll(snap)` would have adopted that emptiness
+  over the device's local mirror; SYNC-PREAUTH and `needsSignIn()` (N2 slice 4) already guard the
+  auth-BOUND shape, but an anon-only connection (no `cfg.authEmail` at all) slips past both because
+  there is no email to re-prompt for — so the guard belongs at the read. Extended rather than
+  duplicated, exactly as the item asked. Sync's existing error path then keeps the local mirror and
+  renders the sentence on the Settings backend card ("What went wrong" + Retry).
+  (c)+(d) **Form copy made true:** the password hint says it is NEVER stored (N2 slice 4's
+  session-scoped refresh token is what is kept, so the once-per-session prompt is BY DESIGN, not a
+  failure), and `adminFnUrl` — which genuinely is optional — says what blank costs (go-live and
+  admin user-creation fall back to the SQL editor) and warns that a URL pointing at an undeployed
+  function fails confusingly. The adapter's own contract comment (which still said omitting the
+  fields "keeps the exact pre-existing anon-key-only behavior") was rewritten to say when that was
+  true and why it no longer is. `docs/index.html` gained "The Auth fields are required, not
+  optional".
+  **Verified:** 4 new `tests/run.js` checks (`N23:` …) over a stubbed PostgREST, shaped like the
+  N22b block — the secured+anon read classifies as `authRequired` and rejects in `load()`; the SAME
+  database with credentials classifies as it always did and loads; a blank database is still
+  `empty` (the paste-me provisioning path is untouched) and a legacy allow-all workspace still
+  `polecat` + own-app (anon-key-only keeps working); and the form's own labels/hints assert (c)+(d).
+  Plus the FULL suite (3221/0) and the dev gate: `validate`, `changelog-check`, `doc-truth`,
+  `dev-smoke` at desktop + 390×780 with zero pageerrors.
+  **Two existing fixtures the guard caught, and what was done about them** — worth recording,
+  because in both cases the FIXTURE was impersonating a secured workspace, not the guard
+  misfiring. AUD-04's 404-tolerance case reads rows from `datasets` while its stub answers the
+  marker read with `[]`; that is what added the third condition (a caller who can still read ROWS
+  is manifestly not locked out), which made the guard strictly more precise and left that check
+  untouched. SYNC-FRESH's `quietPull` fixture reads empty everywhere INCLUDING the marker, which
+  is exactly the shape this item now names — so the stub was corrected to answer the marker read
+  the way every real workspace does (`app` + `schema_version`), leaving what it actually tests
+  alone. No assertion was weakened in either.
+  **Deliberately NOT taken:** the same "200 with no rows" shape is theoretically reachable with
+  credentials in hand (signed in as an account no policy grants anything to). That is a different
+  diagnosis — the account, not the fields — and inventing a message for a state nobody has reported
+  would be guessing; the honest empty read still surfaces as it does today.
 - **N22b slice 2 — the app CALLS the migration RPC, so a Supabase workspace upgrades itself
   (v906, sw v528, 2026-08-08, steward; dev branch; est 2pt, took 2 — on estimate, item CLOSED):**
   slice 1 installed `polecat_migrate(mode text)` in both setup paths and proved it from the
@@ -11922,7 +11976,18 @@
   **Verify:** the adapter's probe/fallback covered in `tests/run.js` the way AUD-01's is, and the
   whole route re-run against a real database (`tests/rls.mjs`, which now has the RPC posture).
   N22c then wires the "backend is older" branch to the same call.
-- **N22c ★ [1pt] — Wire N16's "backend is older, upgrade it" to the RPCs from N22b.** Blocked on
+- ~~**N22c ★ [1pt] — Wire N16's "backend is older, upgrade it" to the RPCs from N22b.**~~ ✓
+  **CLOSED as ALREADY SHIPPED — subsumed by N22b slice 2 (v906, sw v528), not worked separately
+  (2026-08-08, steward).** Verified in the tree before N23 was picked up, so the queue's top-down
+  order was honoured rather than skipped: the only trigger for `Sync.upgradeWorkspace({backup})`
+  is `WS.compareSchema(_backendVersion) === "older"` (`app/sources/sync.js:589-594`) — i.e. the
+  "backend is older, upgrade it" branch IS this call — and since N22b slice 2 its Supabase arm
+  routes through `probeMigrate()` → `polecat_migrate({mode:'apply'})` and returns
+  `{ok:true, rpc:true}` with no SQL (`app/sources/supabase.js` `upgradeWorkspace`), with the
+  Settings card naming the database kind before the button is pressed (`app/studio.js:8496+`).
+  Nothing in this item's spec is left to do; N22b slice 2 shipped it in one piece rather than two.
+  The original text is kept below verbatim.
+  Blocked on
   N22b by construction; do not start it first. N16 slice 2 shipped `Sync.upgradeWorkspace({backup})`
   with `upgradeWorkspace(cfg)` on turso/firebase/supabase, and the Supabase arm deliberately does
   NOT route through the polecat-admin Edge Function — because that function's only DDL action,
@@ -11933,8 +11998,11 @@
   the N22a DONE entry). A migration RPC has neither problem — it is admin-gated and its DDL is
   fixed — so this is the piece that turns Supabase's upgrade path from a copy-paste SQL box into
   the real in-app button the rest of the adapters already have.
-- **N23 ★★ [1pt] — The connection form calls the Auth fields "(optional)". Under the real RLS
-  posture they are MANDATORY, and getting it wrong looks like an empty database.** Kevin,
+- ~~**N23 ★★ [1pt] — The connection form calls the Auth fields "(optional)". Under the real RLS
+  posture they are MANDATORY, and getting it wrong looks like an empty database.**~~ ✓ **SHIPPED
+  v907, sw v529 (2026-08-08, steward — see DONE). All four parts (a)–(d) shipped; est 1pt, took 1.
+  The item is CLOSED.** The history below stays until the next grooming pass archives it.
+  Kevin,
   2026-08-08, reading the form while standing up `polecat_dev`: *"how optional are all of these
   settings? should i really set them?"* — a fair question the UI answers wrongly.
   **The facts.** `cfg.authEmail`/`authPassword` are labelled "(optional)" at

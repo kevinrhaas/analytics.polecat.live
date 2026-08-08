@@ -29,14 +29,23 @@
     return h;
   }
 
-  // ---- optional Supabase Auth (GoTrue) sign-in (M7 slice 2) ------------------
-  // cfg.authEmail/authPassword are OPTIONAL fields on this adapter only — when
-  // both are set, every REST call below exchanges them for a real GoTrue JWT
-  // (via /auth/v1/token, a sibling of /rest/v1 under the same project URL) and
-  // sends it as the Bearer token instead of the plain anon key, so Postgres'
-  // auth.uid() resolves to a real user for RLS. Omitting them keeps the exact
-  // pre-existing anon-key-only behavior — nothing else about this adapter, or
-  // any other backend (Turso/Firebase), changes.
+  // ---- Supabase Auth (GoTrue) sign-in (M7 slice 2) ---------------------------
+  // When cfg.authEmail/authPassword are set, every REST call below exchanges
+  // them for a real GoTrue JWT (via /auth/v1/token, a sibling of /rest/v1 under
+  // the same project URL) and sends it as the Bearer token instead of the plain
+  // anon key, so Postgres' auth.uid() resolves to a real user for RLS.
+  //
+  // N23 (Kevin, 2026-08-08 — "how optional are all of these settings?"): they
+  // are NOT optional any more, and the old comment here said the opposite.
+  // Omitting them keeps the pre-existing anon-key-only behavior, which was
+  // fully functional under the LEGACY allow-all posture — and is functionally
+  // dead under the posture every new environment now gets (supabase-deploy.sql
+  // / supabase-rls-real.sql: every policy is `TO authenticated`, so an anon
+  // caller reads ZERO rows from all six workspace tables AND from polecat_meta).
+  // On such a workspace an anon connection doesn't fail, it reads EMPTY — which
+  // is indistinguishable, in the UI, from a database that was never provisioned.
+  // So the adapter detects that state by name (see AUTH_REQUIRED / lockedOut
+  // below) instead of leaving the caller to guess.
   var _sessions = {}; // "url|email" -> { accessToken, userId, expiresAt, refreshToken }
   function sessionKey(cfg) { return (cfg.url || "") + "|" + (cfg.authEmail || ""); }
 
@@ -73,6 +82,39 @@
   // authenticated workspace rather than silently falling back to anon.
   function hasAuthSession(cfg) {
     return !!(cfg && cfg.authEmail && (cfg.authPassword || refreshTokenFor(cfg)));
+  }
+
+  // ---- N23: "secured, and you are anonymous" is a STATE, not an empty read ----
+  // The discriminator is exact, and it is the workspace's own marker row. Every
+  // provisioning path this repo ships stamps `polecat_meta` with `app` and
+  // `schema_version` (§ 1 of tools/supabase-deploy.sql, the wizard's generated
+  // script, the migration RPC), and the anon role keeps its table GRANT — so
+  // PostgREST answers a marker read three distinguishable ways:
+  //   • 404/400          → the relation isn't there: a blank database.
+  //   • 200 with rows    → we can read the marker: legacy allow-all, or we are
+  //                        signed in. Nothing to report.
+  //   • 200 with NO rows → the relation IS there and RLS filtered every row
+  //                        away. A provisioned workspace always has a marker,
+  //                        so this can only be the authenticated-only posture
+  //                        seen by a caller who never signed in.
+  // Two further conditions keep the claim honest, and both are necessary:
+  // the connection must carry NO auth session at all (with credentials in hand
+  // an empty marker read is a different problem and must not be blamed on the
+  // user's fields), and no workspace table may have returned a single row —
+  // a caller who can read rows is manifestly not locked out, so an emptied
+  // marker table on an otherwise readable workspace stays the odd case it
+  // always was rather than becoming a sign-in prompt.
+  var AUTH_REQUIRED =
+    "This workspace enforces per-user security (Row-Level Security), so an anonymous " +
+    "connection reads it as EMPTY rather than being refused. Add this connection's " +
+    "Supabase Auth email and password — they are required on a secured workspace, not optional.";
+  function lockedOut(cfg, metaRelationExists, metaRowCount, tableRowsSeen) {
+    return !!(metaRelationExists && metaRowCount === 0 && !tableRowsSeen && !hasAuthSession(cfg));
+  }
+  function authRequiredError() {
+    var e = new Error(AUTH_REQUIRED);
+    e.authRequired = true;
+    return e;
   }
 
   // N14: "did the project ANSWER, or did the infrastructure in front of it give
@@ -602,12 +644,17 @@
         hint: "Settings → API → Project URL." },
       { key: "key", label: "anon / publishable key", placeholder: "sb_publishable_… or eyJ… (anon)", type: "password",
         hint: "Settings → API → Project API keys → publishable key (new projects) or anon public (legacy JWT format). Row-Level Security governs what it can touch." },
-      { key: "authEmail", label: "Supabase Auth email (optional)", placeholder: "you@example.com", type: "text",
-        hint: "Sign in with a real Supabase Auth (GoTrue) account so requests carry your identity — Postgres' auth.uid() resolves to a real user instead of NULL. Only needed for enforced per-user privacy (Row-Level Security); leave blank to keep using the shared anon key as before." },
-      { key: "authPassword", label: "Supabase Auth password (optional)", placeholder: "", type: "password",
-        hint: "Paired with the email above. Only ever sent to this project's own /auth/v1/token endpoint." },
+      // N23: these two said "(optional)" for as long as the legacy allow-all
+      // posture was the only one that existed. On every workspace this repo
+      // now stands up they are REQUIRED, and getting them wrong looks exactly
+      // like an empty database — so the label says so, and the hint says what
+      // actually happens if you leave them blank.
+      { key: "authEmail", label: "Supabase Auth email", placeholder: "you@example.com", type: "text",
+        hint: "REQUIRED on a secured workspace (any database set up by this app's script): every policy is granted to authenticated callers only, so a connection without these fields reads as an EMPTY workspace instead of being refused. Sign in with a real Supabase Auth (GoTrue) account and Postgres' auth.uid() resolves to a real user. Only a legacy allow-all database still works on the anon key alone." },
+      { key: "authPassword", label: "Supabase Auth password", placeholder: "", type: "password",
+        hint: "Paired with the email above, and only ever sent to this project's own /auth/v1/token endpoint. It is NEVER stored: the app keeps the short-lived refresh token in sessionStorage instead, so you re-enter this once per browser session BY DESIGN — that prompt is not a failure." },
       { key: "adminFnUrl", label: "Admin function URL (optional)", placeholder: "https://YOUR-REF.functions.supabase.co/polecat-admin", type: "text",
-        hint: "Only needed to run Go live / admin actions from the app instead of the SQL editor — deploy supabase/functions/polecat-admin once (tools/M7-RLS-GOLIVE-RUNBOOK.md Path C), then paste its URL here." }
+        hint: "Genuinely optional — leave it blank and Go live plus admin user-creation fall back to running SQL in the Supabase dashboard; everything else works. To run them from the app, deploy supabase/functions/polecat-admin once (tools/M7-RLS-GOLIVE-RUNBOOK.md Path C) and paste its URL here. A URL pointing at a function that was never deployed fails confusingly — blank is better than wrong." }
     ],
     docsUrl: "https://supabase.com/docs/guides/api",
 
@@ -795,6 +842,15 @@
                 return { name: t, count: cr ? Number(cr.split("/")[1]) || 0 : 0 };
               }).catch(function () { return { name: t, count: 0 }; });
           })).then(function (tables) {
+            // N23: the marker table is there, and neither it nor a single
+            // workspace table answered this caller with a row. Say "sign in",
+            // not "that database belongs to another Polecat app (unknown)" —
+            // which is what the app/null fall-through used to tell someone
+            // whose only mistake was leaving the Auth fields blank.
+            var rowsSeen = tables.some(function (t) { return t.count > 0; });
+            if (lockedOut(cfg, true, (meta || []).length, rowsSeen)) {
+              return { state: "authRequired", app: null, schemaVersion: null, tables: tables, note: AUTH_REQUIRED };
+            }
             return { state: "polecat", app: app, schemaVersion: schemaVersion, tables: tables };
           });
         });
@@ -948,11 +1004,13 @@
       // the honest red "working from the local mirror" state instead.
       var snap = WS.emptySnapshot();
       var failed = [];
+      var metaRelationExists = false, metaRowCount = 0, tableRowsSeen = false;
       function readFail(what, why) { failed.push(what + " (" + why + ")"); }
       var reads = WS.TABLE_NAMES.map(function (t) {
         return rest(cfg, "/" + t + "?select=data").then(function (r) {
           if (!r.ok) { if (r.status !== 404) readFail(t, "HTTP " + r.status); return; }
           return r.json().then(function (rows) {
+            if (rows && rows.length) tableRowsSeen = true;
             snap.tables[t] = rows.map(function (x) {
               return WS.cellsToRow(typeof x.data === "string" ? x.data : JSON.stringify(x.data));
             }).filter(Boolean);
@@ -962,7 +1020,9 @@
       return Promise.all(reads).then(function () {
         return rest(cfg, "/" + WS.META_TABLE + "?select=key,value").then(function (r) {
           if (!r.ok) { if (r.status !== 404) readFail(WS.META_TABLE, "HTTP " + r.status); return; }
+          metaRelationExists = true;
           return r.json().then(function (meta) {
+            metaRowCount = (meta || []).length;
             meta.forEach(function (m) {
               if (m.key === "settings") { try { snap.settings = JSON.parse(m.value); } catch (e) {} }
               if (m.key === "meta") { try { snap.meta = JSON.parse(m.value); } catch (e) {} }
@@ -974,6 +1034,16 @@
         }).catch(function (e) { readFail(WS.META_TABLE, (e && e.message) || "read failed"); });
       }).then(function () {
         if (failed.length) throw new Error("workspace read incomplete — " + failed.join(", "));
+        // N23, and the same class of hazard AUD-04 closed: this read SUCCEEDED
+        // and came back empty, so nothing above it can tell that the emptiness
+        // is a security posture rather than an empty database. Returning it
+        // would let initSync's replaceAll adopt "nothing" over this device's
+        // real local mirror — the very wipe SYNC-PREAUTH and needsSignIn()
+        // guard for auth-BOUND connections, which an anon-only connection
+        // (no cfg.authEmail at all) slips past because there is no email to
+        // re-prompt for. Reject instead: sync keeps the local mirror and shows
+        // this sentence.
+        if (lockedOut(cfg, metaRelationExists, metaRowCount, tableRowsSeen)) throw authRequiredError();
         return snap;
       });
     },

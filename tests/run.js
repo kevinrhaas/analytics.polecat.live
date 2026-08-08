@@ -9764,6 +9764,124 @@ function serve() {
     ok("N22b: the capability probe writes nothing and is asked once, however many callers ask",
       n22bApp.probeAnswers && n22bApp.probeAskedOnce && n22bApp.probeIsProbeOnly, JSON.stringify(n22bApp));
 
+    // ---- N23: the Auth fields are not optional, and "secured" is not "empty" --
+    // Kevin, 2026-08-08, reading the connection form while standing up
+    // polecat_dev: "how optional are all of these settings?". Under the posture
+    // every new environment gets (every policy TO authenticated), a connection
+    // with no Auth fields authenticates as anon, auth.uid() is NULL, and every
+    // policy declines by returning NOTHING — so the workspace reads EMPTY. The
+    // checks below stub PostgREST the way the N22b block above does and pin the
+    // three answers a marker read can give, because the whole risk is the false
+    // positive: a genuinely blank database and a legacy allow-all one must keep
+    // classifying exactly as they did.
+    const n23 = await page.evaluate(async function () {
+      var sb = Studio.supabaseSource, fetch0 = window.fetch, out = {};
+      function json(body, status, headers) {
+        var h = { "Content-Type": "application/json" };
+        Object.keys(headers || {}).forEach(function (k) { h[k] = headers[k]; });
+        return Promise.resolve(new Response(JSON.stringify(body), { status: status, headers: h }));
+      }
+      // meta: "empty" (relation there, RLS filtered every row away) | "rows"
+      // (readable marker) | "missing" (blank database). Workspace tables answer
+      // 200 with no rows — what an RLS-filtered read looks like — unless
+      // tableRows says otherwise (content-range is how probe() counts).
+      function stub(meta, tableRows) {
+        window.fetch = function (url) {
+          var u = String(url);
+          if (/\/auth\/v1\/token/.test(u)) return json({ access_token: "jwt", refresh_token: "rt", expires_in: 3600, user: { id: "uid-1" } }, 200);
+          var path = u.split("/rest/v1")[1] || "";
+          if (path.indexOf("/" + Studio.WS.META_TABLE) === 0) {
+            if (meta === "missing") return json({ message: 'relation "polecat_meta" does not exist' }, 404);
+            if (meta === "rows") return json([{ key: "app", value: Studio.WS.APP_ID },
+              { key: "schema_version", value: String(Studio.WS.SCHEMA_VERSION) }], 200);
+            return json([], 200);
+          }
+          if (tableRows && /^\/datasets/.test(path)) {
+            return json([{ id: "d1", data: JSON.stringify({ id: "d1", name: "n", updatedAt: 1 }) }], 200, { "content-range": "0-0/1" });
+          }
+          return json([], 200);
+        };
+      }
+
+      // (a) secured workspace + no Auth fields → named, not mistaken for
+      // another app's database (the pre-N23 fall-through said the marker read
+      // "unknown", so the wizard told the user to pick a different database).
+      stub("empty");
+      var anon = { url: "https://n23-secured.supabase.co", key: "k" };
+      var pAnon = await sb.probe(anon);
+      out.anonState = pAnon.state;
+      out.anonSaysAuth = /Row-Level Security/i.test(pAnon.note || "") && /email and password/i.test(pAnon.note || "");
+      out.anonNotOwnApp = !Studio.WS.isOwnApp(pAnon.app);
+
+      // …and the LOAD path refuses rather than handing back an empty snapshot.
+      // This is the durability half: initSync's replaceAll would adopt that
+      // emptiness over the local mirror, and needsSignIn() cannot catch it
+      // because there is no cfg.authEmail to re-prompt for.
+      var loadErr = null, loaded = null;
+      try { loaded = await sb.load(anon); } catch (e) { loadErr = e; }
+      out.loadRejected = !!loadErr && loaded === null;
+      out.loadSaysAuth = !!(loadErr && loadErr.authRequired === true && /required on a secured workspace/i.test(loadErr.message || ""));
+
+      // (b) the SAME database, with credentials → not the user's fault, so the
+      // adapter must not blame the fields. Classifies as it always did.
+      var authed = { url: "https://n23-authed.supabase.co", key: "k", authEmail: "a@b.co", authPassword: "pw" };
+      var pAuthed = await sb.probe(authed);
+      out.authedNotFlagged = pAuthed.state !== "authRequired";
+      var authedLoad = await sb.load(authed);
+      out.authedLoads = !!(authedLoad && authedLoad.tables);
+
+      // (c) a blank database is still "empty" — the paste-me provisioning path
+      // must not be replaced by a sign-in prompt.
+      stub("missing");
+      var pBlank = await sb.probe({ url: "https://n23-blank.supabase.co", key: "k" });
+      out.blankState = pBlank.state;
+
+      // (d) a legacy allow-all workspace is untouched: the marker is readable,
+      // so anon-key-only keeps working exactly as it does today.
+      stub("rows");
+      var legacy = { url: "https://n23-legacy.supabase.co", key: "k" };
+      var pLegacy = await sb.probe(legacy);
+      out.legacyState = pLegacy.state;
+      out.legacyIsOwn = Studio.WS.isOwnApp(pLegacy.app);
+      var legacyLoad = await sb.load(legacy);
+      out.legacyLoads = !!(legacyLoad && legacyLoad.tables);
+
+      // (e) the guard's precision: a caller who can READ ROWS is manifestly not
+      // locked out, so an emptied marker table on an otherwise readable
+      // workspace stays the odd case it always was (AUD-04's 404-tolerance
+      // fixture is exactly this shape) rather than becoming a sign-in prompt.
+      stub("empty", true);
+      var oddball = { url: "https://n23-readable.supabase.co", key: "k" };
+      var pOdd = await sb.probe(oddball);
+      out.rowsSeenNotFlagged = pOdd.state !== "authRequired";
+      var oddLoad = await sb.load(oddball);
+      out.rowsSeenLoads = !!(oddLoad && (oddLoad.tables.datasets || []).length === 1);
+
+      // (f) the form itself: the two Auth fields no longer claim to be
+      // optional, they say what happens if you skip them, the password says it
+      // is never stored, and adminFnUrl — which genuinely IS optional — still
+      // says so and says what it costs.
+      var f = {};
+      (sb.fields || []).forEach(function (x) { f[x.key] = x; });
+      out.emailNotOptional = !/optional/i.test(f.authEmail.label) && /REQUIRED/.test(f.authEmail.hint) && /EMPTY workspace/.test(f.authEmail.hint);
+      out.pwNotOptional = !/optional/i.test(f.authPassword.label) && /NEVER stored/i.test(f.authPassword.hint) && /once per browser session/i.test(f.authPassword.hint);
+      out.adminStillOptional = /optional/i.test(f.adminFnUrl.label) && /SQL/.test(f.adminFnUrl.hint) && /never deployed/i.test(f.adminFnUrl.hint);
+
+      window.fetch = fetch0;
+      return out;
+    });
+    ok("N23: a secured workspace read by an anonymous connection is reported as sign-in-required — not as an empty catalog, and not as another app's database",
+      n23.anonState === "authRequired" && n23.anonSaysAuth && n23.anonNotOwnApp, JSON.stringify(n23));
+    ok("N23: that same read REJECTS in load(), so an anon boot pull can never adopt the emptiness over this device's local workspace",
+      n23.loadRejected && n23.loadSaysAuth, JSON.stringify(n23));
+    ok("N23: with Auth credentials in hand the adapter never blames the fields, and a blank or legacy allow-all database classifies exactly as before",
+      n23.authedNotFlagged && n23.authedLoads && n23.blankState === "empty" &&
+      n23.legacyState === "polecat" && n23.legacyIsOwn && n23.legacyLoads, JSON.stringify(n23));
+    ok("N23: the claim needs a workspace that answered with NOTHING — a caller who can still read rows is never told to sign in",
+      n23.rowsSeenNotFlagged && n23.rowsSeenLoads, JSON.stringify(n23));
+    ok("N23: the connection form says the Auth fields are required, that the password is never stored, and that only the admin function URL is optional",
+      n23.emailNotOptional && n23.pwNotOptional && n23.adminStillOptional, JSON.stringify(n23));
+
     const wsSupabase = await page.evaluate(async function () {
       var res = await Studio.supabaseSource.provision({}, Studio.WS.emptySnapshot());
       return { manual: !!res.manual, hasDDL: /CREATE TABLE IF NOT EXISTS "connections"/.test(res.sql || ""), hasApp: /'app', 'analytics'/.test((res.sql || "").replace(/\s+/g, " ")) };
@@ -13215,7 +13333,16 @@ function serve() {
         if (method === "POST" || method === "PATCH")
           return Promise.resolve(new Response("[]", { status: 201, headers: { "Content-Type": "application/json" } }));
         const t = (u.match(/rest\/v1\/([a-z_]+)\?/) || [])[1];
-        const body = t === "users" ? usersRemote : [];
+        // N23: every provisioning path stamps the marker rows, and the adapter
+        // now reads a marker table that answers an anonymous caller with
+        // NOTHING as "this workspace is secured and you never signed in" —
+        // which is what this stub was accidentally impersonating. Answer the
+        // marker read the way a real Supabase workspace does, so the checks
+        // below keep testing quietPull rather than the connection's posture.
+        const body = t === "users" ? usersRemote
+          : t === Studio.WS.META_TABLE ? [{ key: "app", value: Studio.WS.APP_ID },
+            { key: "schema_version", value: String(Studio.WS.SCHEMA_VERSION) }]
+          : [];
         return Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } }));
       };
       const keep = Studio.Workspace.snapshot(); // quietPull adoption below replaces the store — restore at the end
