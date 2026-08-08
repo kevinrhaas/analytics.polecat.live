@@ -12111,8 +12111,76 @@
     nudgePreview();
   }
 
-  function menuToggle(btn, menu) { btn.onclick = function (e) { e.stopPropagation(); var open = menu.classList.contains("open"); closeMenus(); if (!open) menu.classList.add("open"); }; }
-  function closeMenus() { $$(".menu").forEach(function (m) { m.classList.remove("open", "phone-pos"); }); }
+  /* ---------- N8: an open dropdown always fits on screen ----------
+     Every menu in the app opens through menuToggle, so one clamp here covers all seven
+     (and any future one) instead of a per-toolbar CSS special case. It is needed because
+     `.menu` is `right:0` against its `.menu-wrap`: when the wrap's own toolbar row runs
+     past a 390px screen, the menu goes with it. Measured at 390×780 on 2026-08-08 —
+     #viewsNewMenu lost 135px off the right edge (more than half of it) and #dashMoreMenu
+     13px. The nudge goes through the --menu-shift custom property (see app/studio.css)
+     rather than `left`/`right`, because the app anchors menus BOTH ways — the topbar's are
+     right:0, `.repo-io .menu` is left:0;right:auto — and an offset property only moves the
+     side it anchors. closeMenus() clears it again. */
+  var MENU_EDGE = 8; // px of breathing room to keep between a menu and the viewport edge
+
+  /* getBoundingClientRect() reports the TRANSFORMED box, and we measure mid-animation while
+     `.menu` is still at translateY(-4px) scale(.98) — so a raw rect would under-correct by a
+     few px. transform-origin is the default centre and the transform is only translate+scale,
+     which means the settled layout box is simply the offset size centred on the measured
+     centre minus the translation. */
+  function settledRect(el) {
+    var r = el.getBoundingClientRect();
+    var m = new DOMMatrixReadOnly(getComputedStyle(el).transform);
+    var w = el.offsetWidth, h = el.offsetHeight;
+    var cx = r.left + r.width / 2 - m.m41, cy = r.top + r.height / 2 - m.m42;
+    return { left: cx - w / 2, right: cx + w / 2, top: cy - h / 2, bottom: cy + h / 2, width: w, height: h };
+  }
+
+  function resetMenuClamp(menu) {
+    menu.style.removeProperty("--menu-shift"); menu.style.maxWidth = ""; menu.style.maxHeight = "";
+  }
+
+  /* Re-clamping runs on every scroll frame (see reclampOpenMenu), so each property is
+     written only when its value actually changes — a no-op frame must not keep dirtying
+     style. The size caps still have to come OFF before measuring, since they are what the
+     measurement decides; --menu-shift does not, because settledRect() factors it out. */
+  function setMenuStyle(menu, prop, value) {
+    if (prop === "--menu-shift") {
+      if (menu.style.getPropertyValue(prop) === value) return;
+      if (value) menu.style.setProperty(prop, value); else menu.style.removeProperty(prop);
+    } else if (menu.style[prop] !== value) menu.style[prop] = value;
+  }
+
+  function clampMenuIntoView(menu) {
+    var vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
+    setMenuStyle(menu, "maxWidth", ""); setMenuStyle(menu, "maxHeight", "");
+    // a menu wider than the screen has to shrink before positioning it can mean anything
+    if (settledRect(menu).width > vw - MENU_EDGE * 2) setMenuStyle(menu, "maxWidth", (vw - MENU_EDGE * 2) + "px");
+    var r = settledRect(menu);
+    // pull it in from whichever edge it crosses (a negative shift moves it left)
+    var shift = r.right > vw - MENU_EDGE ? (vw - MENU_EDGE) - r.right
+      : r.left < MENU_EDGE ? MENU_EDGE - r.left : 0;
+    setMenuStyle(menu, "--menu-shift", shift ? Math.round(shift) + "px" : "");
+    // and never off the bottom: the CSS max-height is a constant, the room below the
+    // trigger is not (a menu opened from halfway down the page has much less of it)
+    if (r.bottom > vh - MENU_EDGE) setMenuStyle(menu, "maxHeight", Math.max(120, Math.floor(vh - r.top - MENU_EDGE)) + "px");
+  }
+
+  var _openMenu = null; // at most one menu is ever open — closeMenus() runs first on every open
+
+  function menuToggle(btn, menu) { btn.onclick = function (e) { e.stopPropagation(); var open = menu.classList.contains("open"); closeMenus(); if (!open) { menu.classList.add("open"); _openMenu = menu; clampMenuIntoView(menu); } }; }
+  function closeMenus() { $$(".menu").forEach(function (m) { m.classList.remove("open", "phone-pos"); resetMenuClamp(m); }); _openMenu = null; }
+
+  /* The anchor can keep MOVING after the menu opens, so one clamp at open time is not
+     enough. Clicking a control in a horizontally overflowing toolbar scrolls it into view
+     and that scroll is smooth: measured on Dashboards at 390px, `.repo-io` was still
+     sliding when the click handler ran, so the clamp used a position 8px stale and left
+     #dashMoreMenu flush against the edge. Re-clamp on scroll (capture, so an inner
+     scroller counts) and on resize — the two ways an anchor moves out from under a menu.
+     The `_openMenu` guard keeps this a null check on the overwhelmingly common path. */
+  function reclampOpenMenu() { if (_openMenu && _openMenu.classList.contains("open")) clampMenuIntoView(_openMenu); }
+  document.addEventListener("scroll", reclampOpenMenu, { capture: true, passive: true });
+  window.addEventListener("resize", reclampOpenMenu);
 
   function syncHeader() {
     var tb = $("#dashTitle");

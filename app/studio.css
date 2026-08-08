@@ -889,13 +889,20 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
    (not animatable). A short fade + slight rise/scale reads as more modern and "alive" — matches
    the Z9 ask for tasteful drawer/menu motion. pointer-events:none while closed keeps the (still
    display:block, just invisible) box from intercepting clicks/hover on whatever's behind it. */
+/* N8: --menu-shift is the horizontal nudge clampMenuIntoView() (app/studio.js) applies to
+   keep an open menu on screen. It rides INSIDE the transform rather than adjusting left or
+   right because the two anchoring conventions disagree — the topbar menus are right:0 and
+   `.repo-io .menu` below is left:0;right:auto, so neither offset property moves both. A
+   transform moves any of them, and folding it into the existing translate keeps the
+   open/close animation intact instead of overwriting it. */
 .menu{position:absolute;top:calc(100% + 6px);right:0;background:var(--pane);border:1px solid var(--line);
   border-radius:10px;box-shadow:var(--shadow-lg);padding:var(--sp-6);min-width:230px;z-index:50;
-  opacity:0;visibility:hidden;transform:translateY(-4px) scale(.98);pointer-events:none;
+  opacity:0;visibility:hidden;transform:translate(var(--menu-shift,0px),-4px) scale(.98);pointer-events:none;
   transition:opacity .14s ease,transform .14s ease,visibility 0s linear .14s}
-.menu.open{opacity:1;visibility:visible;transform:translateY(0) scale(1);pointer-events:auto;transition:opacity .14s ease,transform .14s ease}
+.menu.open{opacity:1;visibility:visible;transform:translate(var(--menu-shift,0px),0) scale(1);pointer-events:auto;transition:opacity .14s ease,transform .14s ease}
 .menu{max-height:min(72vh,540px);overflow:auto}
-@media(prefers-reduced-motion:reduce){.menu{transition:none;transform:none}}
+/* the shift is placement, not motion — it has to survive reduced-motion's transform reset */
+@media(prefers-reduced-motion:reduce){.menu{transition:none;transform:translateX(var(--menu-shift,0px))}}
 .menu button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--ink);font-size:var(--fs-13);
   padding:var(--sp-10) var(--sp-12);border-radius:7px;cursor:pointer;font-weight:500}
 .menu button:hover{background:var(--field);color:var(--brand)}
@@ -1770,6 +1777,13 @@ body.lib-dragging #preview{pointer-events:none}
      release-gate minimum; inline-flex centering matches the existing rb-acts .btn convention below. */
   .btn{font-size:var(--fs-12);padding:var(--sp-8) var(--sp-10);min-height:44px;display:inline-flex;align-items:center;justify-content:center}
   .btn.icon{padding:var(--sp-8) var(--sp-10);min-width:44px}
+  /* N8: UX7's 44px minimum above landed on `.btn`, but a dropdown row is a bare
+     `.menu button` — so it never applied, and every menu row measured 37px at 390×780
+     (padding 10/12, no min-height). That is now the PRIMARY phone route for ten builder
+     controls (v882 moved them behind ⋯ More), so the whole ⋯ menu was 7px under the bar.
+     flex + align-items:center keeps the label vertically centred in the taller row while
+     the default flex-start preserves the left alignment `.menu button` sets above. */
+  .menu button{min-height:44px;display:flex;align-items:center}
   /* M10: hide secondary topbar buttons at ALL phone widths; they are accessible via ⋯ More.
      Previously only hidden at ≤400px, leaving mid-size phones (400-640px) with a clipped topbar.
      Slice B/C: Undo/Redo/Open/Save/Save-as/Duplicate/Export moved from #dashbar (or, for
@@ -1778,7 +1792,11 @@ body.lib-dragging #preview{pointer-events:none}
      so they join the same phone hide-behind-More convention rather than crowding that row on
      a 390px screen (moreUndo/moreRedo/moreSaveAsSpec/moreDupDash/moreExport below). */
   #btnExamples,#btnImport,#btnSaveSpec,#btnSaveAsSpec,#btnDupDash,#btnCloseStudio,#btnUndo,#btnRedo,#btnExport{display:none!important}
-  .menu button.more-phone-only,.more-phone-only{display:block}
+  /* N8: `flex`, not `block` — this selector outranks the `.menu button` rule above, so
+     `block` here would have taken the phone-only rows back out of the centred layout the
+     44px minimum needs. The bare `.more-phone-only` half still means the separators. */
+  .menu button.more-phone-only{display:flex}
+  .more-phone-only{display:block}
   /* Slice A: on phones the global topbar keeps only its essentials — the section name, a
      compact icon-only search, the waffle, +New and ⋯More — so the section name has room to
      read instead of ellipsising to a letter. The three lowest-priority icon buttons hide:
