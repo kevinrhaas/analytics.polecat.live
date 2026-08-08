@@ -12791,6 +12791,38 @@ function serve() {
       aud01.sqlCreatesFn && aud01.sqlInvoker && aud01.sqlPlpgsql && aud01.sqlCoversTables &&
       aud01.sqlUsersNeverDeleted && aud01.sqlWritesMeta && aud01.sqlGrants && aud01.inBootstrap && aud01.inDelta, JSON.stringify(aud01));
 
+    // ---- N22b: the migration RPC ships in the one paste, and it is a locked
+    // door rather than a raw-SQL hatch. What it DOES to a database is proven
+    // from the database's own side in tests/rls.mjs (the "migration RPC route"
+    // posture: a legacy allow-all workspace, one admin call, anon reads zero).
+    // What is checked HERE is the browser-side half nothing else covers: that
+    // the script the connect wizard hands a user still contains it, and that
+    // its security shape has not been edited away. ----
+    const n22b = await page.evaluate(() => {
+      const sql = Studio.WS.migrationRpcSQL();
+      const wizard = Studio.WS.freshDeploySQL(Studio.WS.emptySnapshot(), null);
+      return {
+        creates: /CREATE OR REPLACE FUNCTION public\.polecat_migrate\(mode text DEFAULT 'apply'\)/.test(sql),
+        definer: /SECURITY DEFINER/.test(sql),
+        adminGated: /administrators only/.test(sql),
+        // The gate is the whole boundary under SECURITY DEFINER, so it must come
+        // before anything is created — not after the DDL has already run.
+        gateFirst: sql.indexOf("administrators only") < sql.indexOf("EXECUTE $polecat_ddl$"),
+        anonRevoked: /REVOKE ALL ON FUNCTION public\.polecat_migrate\(text\) FROM anon/.test(sql),
+        authGranted: /GRANT EXECUTE ON FUNCTION public\.polecat_migrate\(text\) TO authenticated/.test(sql),
+        // Fixed DDL: the posture is embedded verbatim, and no parameter is ever executed.
+        embedsPosture: sql.indexOf(Studio.WS.RLS_REAL_SQL) >= 0,
+        noExecHatch: !/EXECUTE\s+(mode|sql|stmt|query)\b/.test(sql),
+        // Raise-only marker (N17/N28): an older build cannot re-label a newer workspace.
+        markerRaiseOnly: /value::int < EXCLUDED\.value::int/.test(sql),
+        inWizardScript: wizard.indexOf("FUNCTION public.polecat_migrate") >= 0,
+      };
+    });
+    ok("N22b: the one paste installs an ADMIN-ONLY migration RPC — fixed DDL with the real posture embedded verbatim, no exec-SQL parameter, anon revoked, gate before any DDL, and the version marker raise-only",
+      n22b.creates && n22b.definer && n22b.adminGated && n22b.gateFirst && n22b.anonRevoked &&
+      n22b.authGranted && n22b.embedsPosture && n22b.noExecHatch && n22b.markerRaiseOnly &&
+      n22b.inWizardScript, JSON.stringify(n22b));
+
     // the Settings card names the durability property and hands over the fix
     const aud01Card = await page.evaluate(async () => {
       const fetch0 = window.fetch;

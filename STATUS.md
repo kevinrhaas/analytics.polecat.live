@@ -135,6 +135,54 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N22b slice 1 — the migration RPC: the one paste now leaves behind the door the app upgrades
+  through (v905, sw v527, 2026-08-08, steward; dev branch; est 2pt, 1 slice spent, 1 remains —
+  on estimate):** N22a closed the alternative (`api.supabase.com` refuses a preflight from our
+  origin on every DDL-capable endpoint), so "the app owns its database" can only mean "the app
+  calls something the one manual paste left behind". This slice builds that something; wiring the
+  app to call it is slice 2 (rewritten in NOW).
+  - **`WS.migrationRpcSQL()` (`app/sources/schema.js`) installs `polecat_migrate(mode text)`** —
+    admin-gated, `SECURITY DEFINER`, fixed DDL. It creates any workspace table this build
+    declares, re-applies the WHOLE posture (so a table a future version adds arrives with
+    policies rather than as a hole), and raises `schema_version`. It ships in BOTH supported
+    setup paths: § 6d of `tools/supabase-deploy.sql` and the connect wizard's generated script.
+  - **The body is the same SQL, wrapped, not paraphrased** — `provisionDDL()` then
+    `WS.RLS_REAL_SQL` verbatim, which is what the item asked for and what keeps the existing
+    drift guard sufficient. `tools/validate.mjs` (extended, not duplicated) now holds § 6d
+    statement-for-statement against the generator, asserts the posture constant is embedded
+    verbatim, and asserts the security shape itself: SECURITY DEFINER, an admin gate, EXECUTE
+    revoked from anon, no `exec(sql text)` escape hatch, and installed by the wizard too.
+  - **Four deliberate security properties.** SECURITY DEFINER is required here (DDL and
+    CREATE POLICY are owner-only) which makes the gate the whole boundary, so it runs FIRST and
+    inlines its admin lookup instead of calling `polecat_is_admin()` — a workspace old enough to
+    need migrating may predate that helper, and a gate that fails with "function does not exist"
+    is a gate that never runs. `mode` selects apply-or-probe and nothing else. EXECUTE is granted
+    to `authenticated` and revoked from PUBLIC and anon. The marker is RAISE-ONLY (N17/N28): an
+    older build cannot re-label a newer workspace.
+  - **Verified from the database's own side, not by reading it.** `tests/rls.mjs` gained the RPC
+    ROUTE as a fifth posture: `tools/supabase-bootstrap.sql` (the legacy allow-all demo posture —
+    the worst database we can still reach) + the RPC + ONE call as an admin, with nobody in the
+    SQL editor, then the same anon-reads-zero checks the four pasted postures face. **226/226
+    across 5 postures**, plus six route-specific checks (anon refused, a signed-in non-admin
+    refused, the probe answers a non-admin and writes nothing, an admin can re-run it, the
+    workspace stays locked afterwards, the marker never rewinds). **Negative control run:**
+    delete the single migrate call and 19 checks fail — so the green run is measuring the RPC,
+    not the fixture.
+  - **Also verified:** the full dev gate — `validate`, `changelog-check`, `doc-truth`, and
+    `dev-smoke` at desktop + 390×780 with zero pageerrors. `tests/run.js` gained one browser-side
+    check (the wizard's script still carries the RPC; its security shape is intact); the suite
+    itself runs at stage promotion, and that check's evaluate block was exercised standalone
+    against the real app before merge.
+  - **Kevin, the acceptance criterion needs your ruling, and it is flagged not redefined.** N22
+    says "touching the Supabase dashboard exactly once — to click New project". A paste into the
+    SQL editor is a second touch, and N22a proves that second touch is unavoidable on Supabase.
+    Your own words allow it (*"other than setting up the blank database manually"*), so this
+    slice treats one paste as the floor rather than a failure.
+  - **docs/index.html deliberately NOT updated yet:** nothing user-facing changed in the UI, and
+    the Help page must not promise an in-app upgrade button before slice 2 wires one. It updates
+    in the same slice as that button.
+  (app/sources/schema.js, tools/supabase-deploy.sql, tools/validate.mjs, tests/rls.mjs,
+  tests/run.js, js/changelog.js, sw.js, STATUS.md)
 - **N22a — the Management-API spike: a browser at our origin cannot call it (docs + tooling
   only; no app change, so no version bump, 2026-08-08, steward; dev branch; est 1pt, took 1 —
   on estimate, though the item guessed "half a slice" and the half it did not count was the
@@ -11798,25 +11846,34 @@
   into the app either. That makes the migration-RPC route strictly better than the Edge Function
   for this purpose, not merely an equal fallback: RPCs arrive with the one paste and need no CLI,
   no service-role key in a deployed function, and no second deployment surface to keep current.
-- **N22b ★★ [2pt] — ONE paste, then never again: the app owns the database after a single
-  manual step.** The design is no longer a choice — N22a closed the alternative. Make the connect
-  wizard's single manual step install named **migration RPCs**: `SECURITY DEFINER`, admin-gated,
-  **fixed DDL baked in — never an `exec(sql text)` escape hatch**, mirroring the security contract
-  `supabase/functions/polecat-admin` already holds itself to (four fixed named actions, never raw
-  SQL). After that one paste, provisioning and RLS belong to the app.
-  **Build it on what N21 just shipped, do not start over:** `WS.freshDeploySQL(snapshot, admin)`
-  already assembles the whole canonical deploy in `tools/supabase-deploy.sql`'s own order, and
-  `tools/validate.mjs` already holds it statement-for-statement against that file. The RPC
-  bodies are that same SQL, wrapped — so extend the existing drift guard to cover them rather
-  than minting a second one.
-  **Open question for Kevin, and the reason this is 2pt not 1:** the acceptance criterion says
-  "touching the Supabase dashboard exactly once — to click New project", but a paste into the SQL
-  editor is a second touch. N22a proves that second touch is unavoidable on Supabase. Kevin's own
-  words allow it (*"other than setting up the blank database manually"*) — flag it in the PR,
-  do not silently redefine the criterion.
-  **Verify:** stand up a throwaway project, paste once, then reach a working RLS-correct
-  admin-seeded workspace from the app alone; `tests/rls.mjs` gains the RPC route as a posture
-  alongside the four it now covers.
+- **N22b ★★ [2pt est, 1 slice shipped — SLICE 2 REMAINS] — ONE paste, then never again: the app
+  owns the database after a single manual step.** ~~Slice 1: the RPC itself.~~ ✓ **SHIPPED v905,
+  sw v527 (2026-08-08, steward — see DONE).** `polecat_migrate(mode text)` is installed by BOTH
+  setup paths (§ 6d of `tools/supabase-deploy.sql` and the connect wizard's generated script):
+  admin-gated, `SECURITY DEFINER`, fixed DDL, no `exec(sql text)` hatch, raise-only version
+  marker, `tools/validate.mjs`'s existing drift guard extended to cover it rather than a second
+  one minted, and proven from the database's own side by a fifth `tests/rls.mjs` posture (a
+  legacy allow-all workspace + ONE admin call = the locked posture; 226/226 across 5 postures,
+  and 19 checks fail if that single call is removed).
+  **The acceptance criterion is FLAGGED for Kevin, not redefined:** N22a proved the SQL-editor
+  paste is a second dashboard touch Supabase makes unavoidable, so this item now treats one
+  paste as the floor. Kevin's own words allow it (*"other than setting up the blank database
+  manually"*) — say so if they do not.
+  **SLICE 2 — what remains: the app has to CALL it.** The SQL exists and is proven; nothing in
+  the browser uses it yet.
+  (a) `app/sources/supabase.js` learns the RPC the way it already learned the atomic save — a
+  capability probe (`polecat_migrate('probe')`, deliberately answerable by any signed-in account
+  so the app can ask before it knows who is looking), a remembered state, and a graceful fall
+  back to today's copy-paste SQL when the function is absent, so an un-upgraded workspace keeps
+  working exactly as it does now.
+  (b) `Sync.upgradeWorkspace({backup})` (N16 slice 2) routes its Supabase arm through the RPC
+  instead of rendering a SQL box; the backup-first rule already there stays mandatory.
+  (c) The Settings backend card + `docs/index.html` say what is then true: the upgrade happens
+  in the app and the SQL box is the fallback. **Both were deliberately left alone in slice 1** —
+  the Help page must not promise a button that does not exist yet.
+  **Verify:** the adapter's probe/fallback covered in `tests/run.js` the way AUD-01's is, and the
+  whole route re-run against a real database (`tests/rls.mjs`, which now has the RPC posture).
+  N22c then wires the "backend is older" branch to the same call.
 - **N22c ★ [1pt] — Wire N16's "backend is older, upgrade it" to the RPCs from N22b.** Blocked on
   N22b by construction; do not start it first. N16 slice 2 shipped `Sync.upgradeWorkspace({backup})`
   with `upgradeWorkspace(cfg)` on turso/firebase/supabase, and the Supabase arm deliberately does

@@ -120,7 +120,7 @@ function edgeConst(name) {
  *  that the row-count checks below are calibrated to. Every other statement —
  *  the DDL, the atomic-save function, the whole posture, the grants — runs
  *  exactly as pasted. */
-function wizardDeploySQL() {
+function loadWS() {
   const sandbox = {};
   sandbox.window = sandbox;
   sandbox.globalThis = sandbox;
@@ -128,10 +128,15 @@ function wizardDeploySQL() {
   const file = resolve(__dirname, "..", "app", "sources", "schema.js");
   runInContext(readFileSync(file, "utf8"), sandbox, { filename: "app/sources/schema.js" });
   const WS = sandbox.Studio && sandbox.Studio.WS;
-  if (!WS || typeof WS.freshDeploySQL !== "function") {
-    console.error("rls: FATAL — app/sources/schema.js no longer exposes Studio.WS.freshDeploySQL().");
+  if (!WS || typeof WS.freshDeploySQL !== "function" || typeof WS.migrationRpcSQL !== "function") {
+    console.error("rls: FATAL — app/sources/schema.js no longer exposes Studio.WS.freshDeploySQL() + WS.migrationRpcSQL().");
     process.exit(1);
   }
+  return WS;
+}
+
+function wizardDeploySQL() {
+  const WS = loadWS();
   return WS.freshDeploySQL(WS.emptySnapshot(), null)
     .split("\n")
     .filter((l) => !/^INSERT INTO "polecat_meta"/.test(l))
@@ -166,7 +171,55 @@ const POSTURES = [
     load: wizardDeploySQL,
     needsTables: false,
   },
+  {
+    // N22b: the ROUTE, not a file. Everything above is something a human pastes;
+    // this is what happens afterwards, from inside the app, with nobody in the
+    // SQL editor — the whole point of the migration RPC. It starts from the
+    // WORST database we ship the ability to reach: tools/supabase-bootstrap.sql,
+    // the legacy demo posture whose `polecat_anon_all` policy hands the anon key
+    // every row of every table. One admin call has to end with the same locked
+    // posture the pasted files produce, or the app cannot honestly claim to own
+    // its own database.
+    label: "the migration RPC route (an admin upgrades a legacy allow-all workspace from the app — N22b)",
+    source: "app/sources/schema.js WS.migrationRpcSQL()",
+    load: migrationRpcRoute,
+    needsTables: false,
+    // Bound lazily: `rpcGateChecks` is declared with the other check builders,
+    // below this list.
+    extra: (schema) => rpcGateChecks(schema),
+  },
 ];
+
+/** The legacy workspace, the RPC installed onto it, and ONE admin call — which
+ *  is the only privileged thing that happens. The call runs as `authenticated`
+ *  with an admin's JWT claims, exactly as PostgREST would run it for a signed-in
+ *  admin in the browser: if the function's own gate or grants are wrong, this
+ *  fails here rather than in production.
+ *
+ *  The seeded admin is removed again on the way out, so `fixtureSql` still owns
+ *  the users table the row-count checks are calibrated to. */
+function migrationRpcRoute() {
+  const WS = loadWS();
+  return [
+    readFileSync(tool("supabase-bootstrap.sql"), "utf8"),
+    // An admin has to exist before the gate can recognise one. This is the row
+    // the one paste's § 7 creates; here it is seeded directly, as postgres,
+    // because that is what § 7 is.
+    `INSERT INTO "users"(id, "name", "role", data) VALUES
+       ('user_rpc_admin', 'RPC Admin', 'admin', '{"u":"rpc@example.com","gotrueId":"${UID_ADMIN}"}')
+     ON CONFLICT (id) DO NOTHING;`,
+    WS.migrationRpcSQL(),
+    `DO $route$
+BEGIN
+  PERFORM set_config('request.jwt.claims', '{"sub":"${UID_ADMIN}","email":"rpc@example.com"}', true);
+  PERFORM set_config('role', 'authenticated', true);
+  PERFORM public.polecat_migrate();
+  PERFORM set_config('role', 'none', true);
+END
+$route$;`,
+    `DELETE FROM "users" WHERE id = 'user_rpc_admin';`,
+  ].join("\n\n");
+}
 
 // ---------------------------------------------------------------------------
 // Environment / connection
@@ -417,6 +470,93 @@ $chk$;`;
   ].join("\n");
 };
 
+/** N22b: the checks that only make sense for the RPC route — the gate, the
+ *  probe, and the two properties a migration function must never lose. The
+ *  posture checks above already prove WHAT it installed; these prove WHO may
+ *  install it, which is the whole security boundary once a function is
+ *  SECURITY DEFINER.
+ *
+ *  Refusal is asserted as "raised at all" rather than as a specific SQLSTATE:
+ *  anon is refused by the missing EXECUTE grant (insufficient_privilege) and a
+ *  signed-in non-admin by the function's own gate (a raised exception). Both are
+ *  correct refusals; succeeding is the failure. */
+const rpcGateChecks = (schema) => {
+  /** Become `role` (with `uid`'s claims, if signed in), run `body` — a plpgsql
+   *  statement or nested block that reports its own PASS/FAIL — and step back
+   *  out. Same shape as `count`/`refuseWrite` above, but the body does the
+   *  asserting, because these checks return jsonb rather than a row count. */
+  const asRole = (role, uid, body) => `
+DO $chk$
+BEGIN
+  PERFORM set_config('search_path', '${schema}', true);
+  PERFORM set_config('request.jwt.claims', ${uid ? `'{"sub":"${uid}","email":"x@example.com"}'` : `''`}, true);
+  PERFORM set_config('role', '${role}', true);
+  ${body}
+  PERFORM set_config('role', 'none', true);
+END
+$chk$;`;
+  const refuseCall = (name, role, uid, call) => asRole(role, uid, `
+  BEGIN
+    PERFORM ${call};
+    PERFORM set_config('role', 'none', true);
+    RAISE NOTICE 'FAIL|${lit(name)}|the call SUCCEEDED|it must be refused';
+  EXCEPTION WHEN others THEN
+    PERFORM set_config('role', 'none', true);
+    RAISE NOTICE 'PASS|${lit(name)}';
+  END;`);
+  return [
+    refuseCall("anon cannot run the migration RPC (no EXECUTE grant)", "anon", null,
+      `${schema}.polecat_migrate()`),
+    refuseCall("a signed-in NON-admin cannot run the migration RPC (the gate is the whole boundary)", "authenticated", UID_A,
+      `${schema}.polecat_migrate()`),
+
+    // The probe is deliberately open to any signed-in account: the app has to be
+    // able to ask "can this workspace be upgraded from here?" before it knows
+    // whether the person looking is an admin. It must write nothing.
+    asRole("authenticated", UID_A, `
+  DECLARE probe jsonb; before bigint; after bigint;
+  BEGIN
+    SELECT count(*) INTO before FROM "polecat_meta";
+    SELECT ${schema}.polecat_migrate('probe') INTO probe;
+    SELECT count(*) INTO after FROM "polecat_meta";
+    PERFORM set_config('role', 'none', true);
+    IF (probe->>'probe') = 'true' AND before = after THEN RAISE NOTICE 'PASS|a signed-in non-admin can PROBE the RPC, and probing writes nothing';
+    ELSE RAISE NOTICE 'FAIL|a signed-in non-admin can PROBE the RPC, and probing writes nothing|probe %|rows % -> %', probe, before, after;
+    END IF;
+  END;`),
+
+    // Re-running it is how an upgrade is retried after a dropped connection, so
+    // "safe to run twice" is a property, not a hope.
+    asRole("authenticated", UID_ADMIN, `
+  DECLARE r jsonb;
+  BEGIN
+    SELECT ${schema}.polecat_migrate() INTO r;
+    PERFORM set_config('role', 'none', true);
+    IF (r->>'ok') = 'true' THEN RAISE NOTICE 'PASS|an admin can re-run the migration RPC, and the workspace stays locked';
+    ELSE RAISE NOTICE 'FAIL|an admin can re-run the migration RPC, and the workspace stays locked|returned %', r;
+    END IF;
+  END;`),
+    count(schema, "anon still reads 0 rows from dashboards after a second migrate", "anon", null,
+      `SELECT count(*) FROM "dashboards"`, 0),
+
+    // N17/N28: the marker only ever moves FORWARD. An older build's migrate must
+    // not re-label a newer workspace as its own shape — after which every client,
+    // including the newer app that upgraded it, reads it as older and offers the
+    // upgrade again, forever.
+    `UPDATE ${schema}."polecat_meta" SET value = '99' WHERE key = 'schema_version';`,
+    asRole("authenticated", UID_ADMIN, `
+  DECLARE v text;
+  BEGIN
+    PERFORM ${schema}.polecat_migrate();
+    SELECT value INTO v FROM "polecat_meta" WHERE key = 'schema_version';
+    PERFORM set_config('role', 'none', true);
+    IF v = '99' THEN RAISE NOTICE 'PASS|the migration RPC never REWINDS the schema marker';
+    ELSE RAISE NOTICE 'FAIL|the migration RPC never REWINDS the schema marker|marker is now %|want 99', v;
+    END IF;
+  END;`),
+  ].join("\n");
+};
+
 const checksSql = (schema) => [
   // 1) The headline assertion: anonymous is refused on every table. The anon key
   //    ships inside the app's packaged workspace catalog in a public repo, so
@@ -487,7 +627,7 @@ const checksSql = (schema) => [
 
 /** Install one posture into its own throwaway schema, run every check against
  *  it, and drop the schema. Returns { passed, failed }. */
-function checkPosture({ label, source, load, needsTables }) {
+function checkPosture({ label, source, load, needsTables, extra }) {
   const schema = newSchema();
   console.log(`\nrls: ${label}`);
   let passed = 0;
@@ -520,9 +660,16 @@ function checkPosture({ label, source, load, needsTables }) {
     }
 
     const run = psql(checksSql(schema));
+    // A posture may add checks only IT can make (the RPC route's gate + probe).
+    // They run last, because some of them change state the shared checks read.
+    const own = extra ? psql(extra(schema)) : { code: 0, out: "" };
     // psql prefixes every notice with its own `psql:<stdin>:<line>: NOTICE:  `,
     // so pull the reports out of the stream rather than matching line starts.
-    const results = [...grants.out.matchAll(/(?:PASS|FAIL)\|[^\n]*/g), ...run.out.matchAll(/(?:PASS|FAIL)\|[^\n]*/g)].map((m) => m[0].trim());
+    const results = [
+      ...grants.out.matchAll(/(?:PASS|FAIL)\|[^\n]*/g),
+      ...run.out.matchAll(/(?:PASS|FAIL)\|[^\n]*/g),
+      ...own.out.matchAll(/(?:PASS|FAIL)\|[^\n]*/g),
+    ].map((m) => m[0].trim());
     results.forEach((l) => {
       const [state, checkName, ...rest] = l.split("|");
       const detail = rest.length ? `  (${rest.join(", ")})` : "";
@@ -531,6 +678,10 @@ function checkPosture({ label, source, load, needsTables }) {
     passed = results.filter((l) => l.startsWith("PASS|")).length;
     failed = results.filter((l) => l.startsWith("FAIL|")).length;
 
+    if (own.code !== 0) {
+      console.error(`rls: FATAL — ${source}'s own checks did not run to completion:\n${own.out.trim()}`);
+      failed = failed || 1;
+    }
     if (run.code !== 0 || !results.length) {
       console.error(`rls: FATAL — the checks did not run to completion:\n${run.out.trim()}`);
       failed = failed || 1;
