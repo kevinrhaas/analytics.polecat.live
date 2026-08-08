@@ -179,7 +179,12 @@
     rather than N11's unreadable-body path), and three checks ride it: 503 keeps the token and
     the session stays resumable, 429 likewise, and — the guard against simply erasing the line —
     a 400 `invalid_grant` still clears it in the same run. Each status is probed on its own
-    connection so neither can inherit the other's state. est 1pt, took 1. Files:
+    connection so neither can inherit the other's state.
+    **And the guard was proved capable of failing** (a guard that cannot fail is not a guard, per
+    N11): the suite was run a second time with `transportStatus()` neutered to `return false` —
+    i.e. the pre-fix classification — and **exactly those three checks go red and nothing else**
+    (3158/3), each with the predicted payload `{"kept":"","resumable":false}`: the token really
+    was being deleted by a 503 and by a 429. est 1pt, took 1. Files:
     app/sources/supabase.js, tests/run.js, js/changelog.js (+head), STATUS.md.
   - **`sw.js` deliberately NOT bumped**, following #630's precedent that issue #631 itself
     endorses: the precache LIST is unchanged (`app/sources/supabase.js` is already on it), and
