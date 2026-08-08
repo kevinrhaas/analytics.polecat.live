@@ -135,6 +135,16 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N4a — `delete_branch_on_merge` is ON; the merged-branch pile stays (no app version — repo
+  setting + docs, 2026-08-08, Kevin + interactive session):** the queue's last ⛔ closed the
+  same day it was put to Kevin. He flipped Settings → General → "Automatically delete head
+  branches" himself (the 403 that made this ⛔ was real — `STEWARD_PAT` has repo scope, not
+  administration — so the human path was the right call, not a workaround). The ~269 merged
+  `steward/*` branches: **"leave them"**, a deliberate WONTFIX per the written recommendation
+  (merged refs, zero risk kept vs. real mis-delete risk in a 269-ref sweep). Every merge from
+  now on deletes its own branch, so branch hygiene needs no further agent time — this also
+  moots the session-side cleanup failures noted on PRs #654/#656. est 1pt (the agent half
+  shipped 08-07 as the ⛔ raise); Kevin's half took one settings click, as predicted.
 - **SP-0 slice 2 of 2 — the convention for shipping REAL pack data, and SP-0 closed (v896, sw
   v521, 2026-08-08, steward; dev branch):** blocker (b), the one SP-1 was actually waiting on.
   **The problem, stated plainly:** the rule for pack data was "synthetic, deterministic,
@@ -11176,19 +11186,15 @@
   database work; never CREATE/DROP/ALTER against live `public`. Note for any run touching an
   already-live workspace: `actionGoLive` TRUNCATEs the workspace tables, so "just re-run Go live"
   is never the way to pick up a posture fix — re-paste `tools/supabase-rls-real.sql` instead.
-- ⛔ **N4a ★ [1pt] — KEVIN DECISION/ACTION: turn on `delete_branch_on_merge`.** Tech sweep
-  #370, item (a): the setting is `false`, so every merged PR leaves its branch behind — 251
-  stale `steward/*` branches at sweep time and it has grown since — `git ls-remote --heads`
-  counts **265 `steward/*` branches of 273 total** on 2026-08-07. **Raised, not assumed, exactly as the item asked:** the steward
-  attempted the flip on 2026-08-07 with `gh api -X PATCH repos/kevinrhaas/analytics.polecat.live
-  -f delete_branch_on_merge=true` and got `403 Resource not accessible by personal access
-  token` — `STEWARD_PAT` has repo scope but not repo *administration*, so no agent can do
-  this. **The exact ask for Kevin:** flip Settings → General → "Automatically delete head
-  branches" ON (it only affects future merges; it never deletes an unmerged branch), and say
-  whether the ~250 already-merged `steward/*` branches should be bulk-deleted — the loop will
-  NOT mass-delete branches on its own guess. Alternative if the flip is unwanted: grant the
-  PAT admin scope, or say "leave them" and this item closes as WONTFIX. Nothing else here is
-  agent-actionable; N4b (the other half) is shipped.
+- ~~**N4a ★ [1pt] — turn on `delete_branch_on_merge`.**~~ ✓ CLOSED by Kevin, 2026-08-08 —
+  both halves answered on the same day the ⛔ was put to him: **the setting is ON** (Kevin
+  flipped Settings → General → "Automatically delete head branches" himself; the PAT never
+  needed admin scope) and the ~269 already-merged `steward/*` branches are **"leave them"** —
+  a deliberate WONTFIX on the bulk delete, per the recommendation: they are merged, they cost
+  nothing but dropdown noise, and a 269-ref mass delete risks more than it buys. With the
+  setting on, the pile is now a fixed historical artifact — every future merge cleans up after
+  itself. The last ⛔ in the queue is gone; nothing in ▶ NOW waits on Kevin. (History below
+  kept until grooming archives it; N4b shipped separately, v866.)
 - ~~**N4b ★ [1pt] — Repo hygiene from tech sweep #370: vendored shell drift.**~~ ✓ SHIPPED
   v866, sw v498 (2026-08-07, steward — see DONE). The re-check found the copy FIVE releases
   behind (v0.5.4 vs the hub's v0.6.2), not the 2 patches the July sweep recorded, and it is
