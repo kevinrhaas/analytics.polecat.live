@@ -784,6 +784,9 @@
             meta.forEach(function (m) {
               if (m.key === "settings") { try { snap.settings = JSON.parse(m.value); } catch (e) {} }
               if (m.key === "meta") { try { snap.meta = JSON.parse(m.value); } catch (e) {} }
+              // N16: report what the BACKEND is, not what this app is — the
+              // handshake in sync.js compares it against WS.SCHEMA_VERSION.
+              if (m.key === "schema_version") snap.schemaVersion = Number(m.value) || snap.schemaVersion;
             });
           });
         }).catch(function (e) { readFail(WS.META_TABLE, (e && e.message) || "read failed"); });

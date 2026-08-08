@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 897,
+    title: 'A workspace made by a newer version of the app opens read-only instead of being overwritten',
+    kind: 'fix',
+    ts: '2026-08-08T16:42:23.000Z',
+    items: [
+      'Every workspace has always recorded the version of the app that built it, and the app has always been able to read that number back. Nothing ever compared the two. So a browser running an older build — a tab left open for a week, a phone that had not refreshed, a computer holding an old copy of the app offline — would happily save over a workspace built by a newer version.',
+      'That was the direction that could lose work. A save writes a whole snapshot of everything the app knows about, so an older build saving into a newer workspace republishes it as the older build sees it, and anything the newer version added is simply not in the snapshot.',
+      'Now the app checks. When it connects, when you hit Refresh, and on the quiet background re-reads, it compares the workspace against itself. If the workspace is newer, saving is switched off: the rail reads Read-only, a banner names both versions and says what to do, and the Settings backend card stops claiming that changes are mirroring when they are not.',
+      'The workspace still opens and still works — reading a newer workspace was never the dangerous direction. Anything you change while read-only stays in this browser, and the moment the versions line up (usually just reloading the page), the next Refresh sends those changes up.',
+      'A workspace OLDER than the app keeps working exactly as before; every change to the workspace shape has only ever added to it. Offering to upgrade an older workspace from inside the app is the next piece of this work.',
+      'Eleven checks, including a stand-in backend that reports a version from the future: the app latches read-only, logs why, saves nothing at all while latched, keeps the edit pending, and pushes it once the versions agree. Another check compares the version stamped by the two hand-written database setup scripts against the one in the code, so those can never drift apart again.',
+    ],
+  },
+  {
     v: 896,
     title: 'Every sample pack now says where its data came from',
     kind: 'polish',

@@ -170,6 +170,9 @@
           r.rows.forEach(function (row) {
             if (row[0] === "settings") { try { snap.settings = JSON.parse(row[1]); } catch (e) {} }
             if (row[0] === "meta") { try { snap.meta = JSON.parse(row[1]); } catch (e) {} }
+            // N16: report what the BACKEND is, not what this app is — the
+            // handshake in sync.js compares it against WS.SCHEMA_VERSION.
+            if (row[0] === "schema_version") snap.schemaVersion = Number(row[1]) || snap.schemaVersion;
           });
         }).catch(function () {});
       }).then(function () { return snap; });

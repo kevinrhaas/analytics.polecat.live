@@ -102,6 +102,12 @@ function mockTursoExec(stmt) {
   if ((m = sql.match(/^CREATE TABLE IF NOT EXISTS "([^"]+)"/i))) { if (!T.has(m[1])) T.set(m[1], new Map()); return result([], []); }
   if ((m = sql.match(/^DROP TABLE IF EXISTS "([^"]+)"/i))) { T.delete(m[1]); return result([], []); }
   if ((m = sql.match(/^DELETE FROM "([^"]+)"$/i))) { if (T.has(m[1])) T.get(m[1]).clear(); return result([], []); }
+  // N16: the same statement with LITERAL values — how a test stands a mock
+  // workspace up at a schema version this build doesn't know about.
+  if ((m = sql.match(/^INSERT OR REPLACE INTO "([^"]+)"\(key,value\) VALUES\('([^']*)','([^']*)'\)$/i))) {
+    if (!T.has(m[1])) T.set(m[1], new Map());
+    T.get(m[1]).set(m[2], m[3]); return result([], []);
+  }
   if ((m = sql.match(/^INSERT OR REPLACE INTO "([^"]+)"\(key,value\)/i))) { T.get(m[1]).set(args[0], args[1]); return result([], []); }
   if ((m = sql.match(/^INSERT INTO "([^"]+)"\(/i))) { T.get(m[1]).set(args[0], args); return result([], []); }
   if ((m = sql.match(/^SELECT COUNT\(\*\) FROM "([^"]+)"$/i))) { const t = T.get(m[1]); return result(["c"], [[t ? t.size : 0]]); }
@@ -9079,15 +9085,149 @@ function serve() {
       out.query = await t.queryData(cfg, { kind: "sql", sql: "SELECT 1" });
       out.drop = await t.drop(cfg);
       out.probeAfterDrop = (await t.probe(cfg)).state;
+      out.appVer = Studio.WS.SCHEMA_VERSION; // N16: compare, never hardcode
       return out;
     }, PORT);
     ok("WS: turso adapter end-to-end — probe(empty)→provision→probe(ours, app=analytics)",
       wsTurso.test.ok && wsTurso.probeEmpty === "empty" && wsTurso.provision.ok &&
-      wsTurso.probeState === "polecat" && wsTurso.probeApp === "analytics" && wsTurso.probeVer === 4, JSON.stringify(wsTurso));
+      wsTurso.probeState === "polecat" && wsTurso.probeApp === "analytics" && wsTurso.probeVer === wsTurso.appVer, JSON.stringify(wsTurso));
     ok("WS: turso adapter round-trips a full workspace snapshot (save → load)",
       wsTurso.save.ok && wsTurso.loadedConn === "warehouse" && wsTurso.loadedDs === "SELECT * FROM orders" && wsTurso.loadedSetting === "polecat", JSON.stringify(wsTurso));
     ok("WS: turso data plane answers queryData and drop() resets to empty",
       wsTurso.query.columns.length === 1 && wsTurso.query.rows.length === 1 && wsTurso.drop.ok && wsTurso.probeAfterDrop === "empty", JSON.stringify(wsTurso.query));
+
+    // ---- N16 slice 1: the backend version handshake -------------------------
+    // The marker existed end to end (WS.SCHEMA_VERSION → polecat_meta →
+    // every probe()) and was consumed NOWHERE, so both mismatch directions
+    // proceeded silently. Slice 1 closes the direction that eats data: a
+    // workspace built by a NEWER app is read-only, because every adapter's
+    // save() is a whole-snapshot replace over the tables THIS build knows.
+    console.log("\n• N16: the backend version handshake (newer workspace ⇒ read-only)");
+    const n16Compare = await page.evaluate(function () {
+      var WS = Studio.WS, V = WS.SCHEMA_VERSION;
+      return {
+        newer: WS.compareSchema(V + 1), older: WS.compareSchema(V - 1), same: WS.compareSchema(V),
+        nullish: WS.compareSchema(null), undef: WS.compareSchema(undefined),
+        junk: WS.compareSchema("nope"), zero: WS.compareSchema(0),
+        strSame: WS.compareSchema(String(V)) // meta rows come back as TEXT
+      };
+    });
+    ok("N16: WS.compareSchema classifies newer/older/same and never mistakes a missing marker for newness",
+      n16Compare.newer === "newer" && n16Compare.older === "older" && n16Compare.same === "same" &&
+      n16Compare.strSame === "same" && n16Compare.nullish === "unknown" && n16Compare.undef === "unknown" &&
+      n16Compare.junk === "unknown" && n16Compare.zero === "unknown", JSON.stringify(n16Compare));
+
+    // A freshly provisioned backend of EVERY adapter must report exactly
+    // WS.SCHEMA_VERSION — the marker can never drift from the DDL again.
+    const n16Provision = await page.evaluate(async function (port) {
+      var WS = Studio.WS, out = { app: WS.SCHEMA_VERSION };
+      var cfg = { url: "http://localhost:" + port + "/__turso", token: "tok-n16" };
+      await Studio.tursoSource.provision(cfg, WS.emptySnapshot());
+      out.turso = (await Studio.tursoSource.probe(cfg)).schemaVersion;
+      out.local = (await Studio.localSource.probe()).schemaVersion;
+      // supabase provisions by paste-me SQL; firebase writes the marker onto the
+      // `app` doc. Read the version each one would actually stamp.
+      var sb = await Studio.supabaseSource.provision({}, WS.emptySnapshot());
+      var mSb = /'schema_version', '(\d+)'/.exec((sb.sql || "").replace(/\s+/g, " "));
+      out.supabase = mSb ? Number(mSb[1]) : null;
+      out.metaRow = Number((WS.metaRows(WS.emptySnapshot()).filter(function (r) { return r.key === "schema_version"; })[0] || {}).value);
+      await Studio.tursoSource.drop(cfg);
+      return out;
+    }, PORT);
+    ok("N16: a freshly provisioned workspace reports exactly WS.SCHEMA_VERSION on every adapter (no DDL drift)",
+      n16Provision.app > 0 && n16Provision.turso === n16Provision.app && n16Provision.local === n16Provision.app &&
+      n16Provision.supabase === n16Provision.app && n16Provision.metaRow === n16Provision.app, JSON.stringify(n16Provision));
+
+    // The same guard for the two hand-maintained SQL artifacts (the manual
+    // bootstrap and the Edge Function's inlined copy) — N2 slice 2 caught this
+    // exact drift class between sql.ts and the canonical RLS file.
+    const n16SchemaConst = Number((/WS\.SCHEMA_VERSION\s*=\s*(\d+)/.exec(fs.readFileSync(path.join(ROOT, "app/sources/schema.js"), "utf8")) || [])[1]);
+    const n16SqlVersions = ["tools/supabase-bootstrap.sql", "supabase/functions/polecat-admin/sql.ts"].map(function (rel) {
+      const m = /VALUES \('schema_version', '(\d+)'\)/.exec(fs.readFileSync(path.join(ROOT, rel), "utf8"));
+      return { rel: rel, v: m ? Number(m[1]) : null };
+    });
+    ok("N16: the hand-written provision SQL stamps the same schema version as app/sources/schema.js",
+      n16SchemaConst > 0 && n16SqlVersions.every(function (r) { return r.v === n16SchemaConst; }),
+      JSON.stringify({ constant: n16SchemaConst, files: n16SqlVersions }));
+
+    // load() must report what the BACKEND says, not this app's own constant —
+    // the whole handshake rests on it. Stand a mock workspace up at v+1.
+    const n16Load = await page.evaluate(async function (port) {
+      var WS = Studio.WS, t = Studio.tursoSource, out = { app: WS.SCHEMA_VERSION };
+      var cfg = { url: "http://localhost:" + port + "/__turso", token: "tok-n16b" };
+      await t.provision(cfg, WS.emptySnapshot());
+      out.atProvision = (await t.load(cfg)).schemaVersion;
+      await t.queryData(cfg, { kind: "sql", sql: "INSERT OR REPLACE INTO \"polecat_meta\"(key,value) VALUES('schema_version','" + (WS.SCHEMA_VERSION + 1) + "')" });
+      out.afterBump = (await t.load(cfg)).schemaVersion;
+      out.relation = WS.compareSchema(out.afterBump);
+      await t.drop(cfg);
+      return out;
+    }, PORT);
+    ok("N16: an adapter's load() reports the version the BACKEND carries, not the app's constant",
+      n16Load.atProvision === n16Load.app && n16Load.afterBump === n16Load.app + 1 && n16Load.relation === "newer",
+      JSON.stringify(n16Load));
+
+    // The behaviour that matters: connect to a newer workspace → writes latch
+    // off, edits stay local, the rail + banner say so; line the versions back up
+    // → the latch clears and the pending edit finally pushes.
+    const n16Latch = await page.evaluate(async function () {
+      var WS = Studio.WS, out = {};
+      var before = Studio.Workspace.snapshot();
+      window.__n16Remote = { version: WS.SCHEMA_VERSION + 1, saves: 0, snap: null };
+      Studio.registerSource({
+        id: "n16test", label: "N16Test", icon: "db", caps: { meta: true }, fields: [],
+        load: function () {
+          var s = window.__n16Remote.snap ? JSON.parse(JSON.stringify(window.__n16Remote.snap)) : WS.emptySnapshot();
+          s.schemaVersion = window.__n16Remote.version;
+          return Promise.resolve(s);
+        },
+        save: function (cfg, snap) {
+          window.__n16Remote.saves++;
+          window.__n16Remote.snap = JSON.parse(JSON.stringify(snap));
+          return Promise.resolve({ ok: true });
+        }
+      });
+      function rail() { return { lbl: document.getElementById("railSourceLbl").textContent, title: document.getElementById("railSource").title }; }
+
+      await Studio.Sync.connectAdopt("n16test", {});
+      out.schema = Studio.Sync.schemaState();
+      out.readOnly = Studio.Sync.syncState().readOnly === true;
+      out.rail = rail();
+      out.banner = (document.getElementById("schemaVersionBanner") || {}).textContent || "";
+      out.logged = Studio.Sync.syncLog().some(function (r) { return r.kind === "read-only" && /newer than this app/.test(r.error); });
+      // an edit while latched: kept locally + reported pending, never written
+      Studio.Workspace.put("analyses", { id: "a-n16", name: "Stays Local", chartType: "bars" });
+      await Studio.Sync.pushNow();
+      out.savesWhileNewer = window.__n16Remote.saves;
+      out.pendingWhileNewer = Studio.Sync.syncState().pendingEdits === true;
+      out.stillLocal = !!Studio.Workspace.all("analyses").filter(function (r) { return r.id === "a-n16"; })[0];
+      // the app catches up (or the workspace is downgraded): the latch clears on
+      // the next read and the pending edit is written for the first time
+      window.__n16Remote.version = WS.SCHEMA_VERSION;
+      await Studio.Sync.pullNow();
+      out.readOnlyAfter = Studio.Sync.syncState().readOnly === true;
+      out.railAfter = rail();
+      out.bannerAfter = !!document.getElementById("schemaVersionBanner");
+      await Studio.Sync.pushNow();
+      out.savesAfter = window.__n16Remote.saves;
+
+      Studio.Sync.disconnect();
+      out.schemaAfterDisconnect = Studio.Sync.schemaState();
+      Studio.Workspace.replaceAll(before);
+      return out;
+    });
+    ok("N16: a workspace newer than the app latches READ-ONLY — connect logs it, nothing is ever saved, the edit stays pending",
+      n16Latch.readOnly && n16Latch.schema.relation === "newer" && n16Latch.schema.backend === n16Latch.schema.app + 1 &&
+      n16Latch.savesWhileNewer === 0 && n16Latch.pendingWhileNewer && n16Latch.stillLocal && n16Latch.logged,
+      JSON.stringify(n16Latch));
+    ok("N16: the rail says Read-only and a banner names both versions instead of claiming everything synced",
+      n16Latch.rail.lbl === "Read-only" && /newer than this app/.test(n16Latch.rail.title) &&
+      /newer version of Analytics/.test(n16Latch.banner) && /schema v/.test(n16Latch.banner),
+      JSON.stringify({ rail: n16Latch.rail, banner: n16Latch.banner.slice(0, 120) }));
+    ok("N16: once the versions line up the latch clears — banner gone, rail Connected, the pending edit finally pushes",
+      n16Latch.readOnlyAfter === false && n16Latch.bannerAfter === false && n16Latch.railAfter.lbl === "Connected" &&
+      n16Latch.savesAfter > 0 && n16Latch.schemaAfterDisconnect.backend === null && n16Latch.schemaAfterDisconnect.readOnly === false,
+      JSON.stringify({ after: n16Latch.readOnlyAfter, rail: n16Latch.railAfter, saves: n16Latch.savesAfter, off: n16Latch.schemaAfterDisconnect }));
 
     const wsSupabase = await page.evaluate(async function () {
       var res = await Studio.supabaseSource.provision({}, Studio.WS.emptySnapshot());

@@ -135,6 +135,50 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N16 slice 1 of 2 — the backend version handshake: a workspace NEWER than the app is read-only
+  (v897, sw v522, 2026-08-08, steward; dev branch):** branch (b) + (c) of the item; branch (a)
+  (offer the upgrade for an OLDER workspace) is slice 2 and stays in NOW.
+  **The problem, stated plainly:** the marker existed end to end and was compared NOWHERE.
+  `WS.SCHEMA_VERSION` is stamped into `polecat_meta` at provision and every adapter's `probe()`
+  has always returned it — but no caller in sync.js / workspaces.js / studio.js / gate.js ever
+  looked at it, so both mismatch directions proceeded in silence. The dangerous one is a stale
+  tab, a cached PWA build or an unrefreshed phone running an OLD app against a NEWER workspace:
+  every adapter's `save()` is a whole-snapshot replace over the tables THAT BUILD knows, so one
+  push republishes a v4-shaped view of a v5 workspace and whatever v5 added is simply not in it.
+  **What shipped, in four parts.** (1) **The comparison, once** — `WS.compareSchema(v)` in
+  `app/sources/schema.js` returns `newer|older|same|unknown`; `unknown` (no readable marker) is
+  deliberately classified as proceed, because a pre-marker or partially-read backend is not
+  evidence of newness and latching on a missing row would be its own outage. (2) **Adapters
+  report the BACKEND, not themselves** — `load()` starts from `emptySnapshot()` (this app's
+  version) and now overwrites `schemaVersion` with the marker it actually read: supabase + turso
+  from the `polecat_meta` rows they were already fetching (free), firebase from the `app` doc
+  (one extra read). Local is this app's own store and needs nothing. (3) **The latch** —
+  `app/sources/sync.js` runs the handshake at ALL FIVE adoption points (boot pull, connectAdopt,
+  `pullNow`, the backoff `retryNow`, and the quiet freshness pull — the last one is how a slept-
+  through upgrade is discovered), and a `newer` verdict latches `_readOnly`. One guard in
+  `flushPush` closes every write path, because `schedulePush`/`pushNow`/`touch`/the retry/
+  `pagehide` all funnel through it. Edits are still made and still counted as pending — they
+  simply stay in this browser. `connectPush` claims our own version (we just provisioned it);
+  `disconnect` clears the latch. One wrinkle found while building: `pullNow`'s DURABLE-1 guard
+  bails when `_dirty`, and under the latch `_dirty` can never clear — a read-only tab with local
+  edits could never re-check the version. So read-only `pullNow` loads to re-run the HANDSHAKE
+  ONLY (never adopting over those edits) and flushes them the moment the latch clears.
+  (4) **Saying it** — the rail reads **Read-only** instead of the lie "Connected", its tooltip and
+  the Settings backend card's status line name both versions, and a banner (the third in the
+  `sync-loss-banner` family, same episode-dismiss semantics as its siblings) explains what to do:
+  reload, and hard-reset if a stuck service worker keeps serving the old build.
+  **Verified:** full `tests/run.js` green, plus the dev gate (validate + changelog-check +
+  dev-smoke). 6 new checks: `compareSchema`'s classification including the four unknown-marker
+  shapes; a freshly provisioned workspace reporting exactly `WS.SCHEMA_VERSION` on every adapter;
+  a drift guard comparing the version literal in `tools/supabase-bootstrap.sql` and
+  `supabase/functions/polecat-admin/sql.ts` against the constant in `schema.js` (the class N2
+  slice 2 caught); `load()` reporting a bumped backend marker rather than the app's constant
+  (driven through the turso mock, which gained a literal-values `INSERT OR REPLACE` branch); and
+  three behavioural checks over a stand-in adapter that reports a version from the future —
+  latch + log + zero saves + edit still pending, the rail/banner copy, and the clean unlatch that
+  finally pushes. The existing turso end-to-end check stopped hardcoding `4`.
+  **est 2pt, took 1 slice for half the item** — branch (a) is the other slice, so the estimate
+  holds.
 - **N4a — `delete_branch_on_merge` is ON; the merged-branch pile stays (no app version — repo
   setting + docs, 2026-08-08, Kevin + interactive session):** the queue's last ⛔ closed the
   same day it was put to Kevin. He flipped Settings → General → "Automatically delete head
@@ -11063,31 +11107,36 @@
   someone remembering.~~ (the test loop shipped with slice 1 — a new pack's `seeds` block is
   checked against its own installer, so slice (b) only has to add `source`/CSV-budget coverage
   on top of it.) No user-visible pack ships in this item.
-- **N16 ★★ [2pt] — Backend version handshake: the app finally READS the schema version every
-  adapter already reports (Kevin, 2026-08-08 — "future versions of the app will break previous
-  versions of the database back end… it should ask to upgrade").** The marker exists end to end
-  and is consumed NOWHERE: `WS.SCHEMA_VERSION = 4` (`app/sources/schema.js:72`) is stamped into
-  `polecat_meta` at provision, every adapter's `probe()` returns it (supabase.js:715,
-  turso.js:119, firebase.js:111, local.js:51) — and no caller in sync.js / workspaces.js /
-  studio.js / gate.js ever compares it to the app's. Both mismatch directions proceed silently.
-  **Ship the handshake at the two seams that matter** — connect (workspace picker / Admin) and
-  the boot pull — with three branches:
+- **N16 ★★ [2pt est, 1 slice shipped — SLICE 2 (branch (a), the in-app upgrade) IS WHAT REMAINS]
+  — Backend version handshake (Kevin, 2026-08-08 — "future versions of the app will break previous
+  versions of the database back end… it should ask to upgrade").**
+  ~~The marker exists end to end and is consumed NOWHERE: `WS.SCHEMA_VERSION = 4`
+  (`app/sources/schema.js`) is stamped into `polecat_meta` at provision, every adapter's `probe()`
+  returns it (supabase.js, turso.js, firebase.js, local.js) — and no caller in sync.js /
+  workspaces.js / studio.js / gate.js ever compares it to the app's. Both mismatch directions
+  proceed silently.~~ **The comparison now exists** — slice 1 shipped v897, sw v522 (2026-08-08,
+  steward — see DONE): `WS.compareSchema()`, every adapter's `load()` reporting the version the
+  BACKEND carries, and the handshake run at all five adoption points (boot pull, connect-adopt,
+  Refresh, the backoff retry, the quiet freshness pull).
+  ~~(b) **backend NEWER than the app** → NEVER write. Read-only mode with a banner.~~ **(b) is
+  DONE (v897)** — writes latch off at `flushPush` (every write path funnels through it), the rail
+  reads Read-only, a banner + the Settings card name both versions, and Refresh can still re-run
+  the handshake without adopting over the pending local edits.
+  ~~(c) equal → proceed, zero friction.~~ **(c) is DONE** — and 'unknown' (no readable marker) is
+  deliberately treated as 'same', so a pre-marker or partially-read backend can't latch itself off.
+  ~~assert in the suite that a freshly provisioned backend of EVERY adapter reports exactly
+  `WS.SCHEMA_VERSION`~~ **DONE**, plus a drift guard over the two hand-written SQL artifacts
+  (`tools/supabase-bootstrap.sql`, `supabase/functions/polecat-admin/sql.ts`) against the constant
+  in `schema.js` — the drift class N2 slice 2 caught between sql.ts and the canonical RLS file.
+  **SLICE 2 — the remaining half, unchanged from the original spec:**
   (a) **backend OLDER** → say so and offer the upgrade IN-APP: run `WS.provisionDeltaSQL()`
   (already cumulative + idempotent, safe from any older version) through the adapter where
   browser DDL is possible (Turso; Supabase via the polecat-admin Edge Function where bound), and
   show the copy-paste SQL where it is not — the flow that today only surfaces as a FAILED SAVE's
   error string (supabase.js:511) becomes a first-class "Upgrade workspace" step. **Take a backup
   first**: export the pre-upgrade snapshot (the existing workspace-export path) before touching
-  the backend, every time, no opt-out.
-  (b) **backend NEWER than the app** → NEVER write. Read-only mode with a banner: "this
-  workspace was created by a newer version of Analytics — refresh/update the app" (the app is a
-  PWA; the Settings hard-reset already exists for a stuck SW). This is the direction that eats
-  data today and it costs one integer comparison to close.
-  (c) equal → proceed, zero friction.
-  Manual-provision paths (`tools/supabase-bootstrap.sql`, sql.ts) already stamp the version;
-  assert in the suite that a freshly provisioned backend of EVERY adapter reports exactly
-  `WS.SCHEMA_VERSION`, so the marker can never drift from the DDL again (same drift class N2
-  slice 2 caught between sql.ts and the canonical RLS file).
+  the backend, every time, no opt-out. The seam is ready: `Sync.schemaState().relation === "older"`
+  is the trigger, and `syncState()` carries `backendSchemaVersion`/`appSchemaVersion` for the copy.
 - **N17 ★★ [2pt] — An older app must not clobber a newer workspace: prove it, then fix it.**
   The half of compatibility N16's banner cannot cover: a stale tab (open for weeks), a cached SW
   build, or a phone that hasn't refreshed still runs the OLD app against an upgraded backend —

@@ -261,6 +261,10 @@
 
   // A snapshot is the portable, adapter-neutral form of a whole workspace:
   //   { app, schemaVersion, tables:{ connections:[…rows], … }, settings, meta }
+  // `schemaVersion` starts as THIS app's version and every adapter's load()
+  // overwrites it with the version the backend actually reports (N16) — so a
+  // loaded snapshot always says what the BACKEND is, and a backend with no
+  // readable marker reads as "no evidence of a difference".
   WS.emptySnapshot = function () {
     var tables = {};
     WS.TABLE_NAMES.forEach(function (t) { tables[t] = []; });
@@ -268,6 +272,32 @@
   };
 
   WS.isOwnApp = function (app) { return app === WS.APP_ID; };
+
+  // ---- N16: the version handshake -----------------------------------------
+  // Every provisioned workspace stamps the schema version it was built at
+  // (metaRows → polecat_meta.schema_version) and every adapter's probe() has
+  // always reported it — but until N16 nothing COMPARED it, so both mismatch
+  // directions proceeded in silence. This is that comparison, in one place, so
+  // the seams that use it (sync's adoption points, the workspace picker) can't
+  // drift apart:
+  //   'newer'   the workspace was built by a NEWER app than this one. This
+  //             build must never WRITE to it — save() is a whole-snapshot
+  //             replace over the tables this build knows, so writing publishes
+  //             an old-shaped view of a new workspace. Reading is safe.
+  //   'older'   the workspace predates this build. Safe today (every bump is
+  //             additive); it wants the provision delta before it can hold
+  //             everything this build writes — N16 slice 2 owns that flow.
+  //   'same'    proceed, zero friction.
+  //   'unknown' no readable marker. Callers treat it as 'same': a pre-marker or
+  //             partially-read backend is not evidence of newness, and latching
+  //             a workspace read-only on a missing row would be its own outage.
+  WS.compareSchema = function (backendVersion) {
+    var v = Number(backendVersion);
+    if (backendVersion == null || isNaN(v) || v <= 0) return "unknown";
+    if (v > WS.SCHEMA_VERSION) return "newer";
+    if (v < WS.SCHEMA_VERSION) return "older";
+    return "same";
+  };
 
   // ---- SQL-shaped adapter helpers (from the fleet base.js) ----------------
   // Split a row into { cols:{promoted→cell}, data:JSON-of-the-whole-row }.

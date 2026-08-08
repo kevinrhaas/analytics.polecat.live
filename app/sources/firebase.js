@@ -173,6 +173,17 @@
           if (!res.ok) return;
           return res.json().then(function (d) { var r = fromDoc(d); if (r && r.meta) snap.meta = r.meta; });
         }).catch(function () {});
+      }).then(function () {
+        // N16: the version marker lives on the `app` doc here (probe reads the
+        // same one). Report what the BACKEND is, not what this app is — the
+        // handshake in sync.js compares it against WS.SCHEMA_VERSION.
+        return fsReq(cfg, "/" + WS.META_TABLE + "/app").then(function (res) {
+          if (!res.ok) return;
+          return res.json().then(function (d) {
+            var r = fromDoc(d);
+            if (r && r.schemaVersion) snap.schemaVersion = Number(r.schemaVersion) || snap.schemaVersion;
+          });
+        }).catch(function () {});
       }).then(function () { return snap; });
     },
 
