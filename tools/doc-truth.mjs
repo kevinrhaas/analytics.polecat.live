@@ -718,6 +718,75 @@ ok("app/studio.js: __studioOpenPane — the opener app/tutorial.js's steps depen
   /window\.__studioOpenPane\s*=/.test(studioJs),
   "without it openPane() is a no-op and every builder spotlight silently goes back to ringing a closed pane");
 
+// 20. Check 19 asked whether the tour can SEE the panes it walks. This asks the same question
+//     of the controls it walks, where the phone's answer is different in kind: a collapsed pane
+//     is merely shut, but M10 moved Undo/Redo/Open/Save/Save-as/Duplicate/Export off the ≤640px
+//     topbar into ⋯ More and hides their buttons with `display:none!important`, so at 390px they
+//     are not on the screen at all. The build tour's export step kept targeting #btnExport
+//     regardless: waitFor() polled a zero-box element for its full 2.5s, gave up, and rendered
+//     an unringed centered card still saying "Click Export ▾" and "Save" — two controls that
+//     screen does not have, after a two-and-a-half-second stall. The fix is declarative (a
+//     step's `phone:` form), so it rots exactly the way check 19's `pane:` could — the NEXT
+//     control to join the ⋯ More convention would silently leave a tour ringing thin air.
+//     Three rules, every fact derived:
+//       (a) COVERAGE — a build-tour step whose `target` is an id the phone stylesheet hides must
+//           carry a `phone:` form that retargets it.
+//       (b) THE PHONE TARGET IS REALLY THERE — that form's own target must not itself be in the
+//           hidden set (swapping one invisible control for another fixes nothing), and must be
+//           an element app/index.html actually has.
+//       (c) THE MERGER — app/tutorial.js must still resolve `phone:` at render time; without
+//           resolveStep() the overrides are inert data and (a) passes while the ring goes back
+//           to being measured on a display:none box.
+//     The hidden set is read off app/studio.css's own phone media blocks rather than a list kept
+//     here, so this check learns about a newly hidden control the moment the stylesheet does.
+const phoneHiddenIds = (() => {
+  const css = read("app/studio.css");
+  const out = new Set();
+  const at = /@media([^{]*)\{/g;
+  let m;
+  while ((m = at.exec(css))) {
+    // Only the PHONE bands — 640px is the gate width, 400px the narrower band nested under it.
+    if (!/max-width:\s*(640|400)px/.test(m[1])) continue;
+    let depth = 1, i = at.lastIndex;
+    for (; i < css.length && depth; i++) {
+      if (css[i] === "{") depth++;
+      else if (css[i] === "}") depth--;
+    }
+    const block = css.slice(at.lastIndex, i - 1).replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const rule of block.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (!/display\s*:\s*none\s*!important/.test(rule[2])) continue;
+      for (const sel of rule[1].split(",")) {
+        const id = /^#([\w-]+)$/.exec(sel.trim());
+        if (id) out.add(id[1]);
+      }
+    }
+  }
+  return out;
+})();
+ok("app/studio.css: the controls the phone layout hides outright, parsed for check 20, are non-empty",
+  phoneHiddenIds.size >= 4, `parsed: ${[...phoneHiddenIds].join(" · ") || "(none)"}`);
+const phoneBlind = buildSteps
+  .map((s) => ({
+    target: (s.match(/target:\s*"#([\w-]+)"/) || [])[1],
+    phoneTarget: (s.match(/\bphone:\s*\{[\s\S]*?\btarget:\s*"#([\w-]+)"/) || [])[1],
+    hasPhone: /\bphone:\s*\{/.test(s),
+    title: (s.match(/\bt:\s*"([^"]*)"/) || [])[1] || "(untitled)",
+  }))
+  .filter((s) => s.target && phoneHiddenIds.has(s.target))
+  .map((s) => {
+    if (!s.hasPhone || !s.phoneTarget) return `"${s.title}" targets #${s.target}, which is display:none at ≤640px, with no phone: form`;
+    if (phoneHiddenIds.has(s.phoneTarget)) return `"${s.title}" retargets #${s.target} to #${s.phoneTarget}, which the phone hides too`;
+    if (!appHtml.includes(`id="${s.phoneTarget}"`)) return `"${s.title}" retargets to #${s.phoneTarget}, which app/index.html does not have`;
+    return null;
+  })
+  .filter(Boolean);
+ok(`app/tutorial.js: every build-tour step spotlighting a phone-hidden control (${[...phoneHiddenIds].join(", ")}) has a phone: form that points somewhere real`,
+  !phoneBlind.length,
+  `${phoneBlind.join("\n      ")}\n      a display:none target has no box — waitFor polls it for 2.5s and the card renders with no spotlight at all`);
+ok("app/tutorial.js: resolveStep — the merger those phone: forms depend on — is still applied per render",
+  /function resolveStep\s*\(/.test(tutorialSrc) && /var step = resolveStep\(/.test(tutorialSrc),
+  "without it a phone: form is inert data: the ring goes back to being measured on a display:none box");
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

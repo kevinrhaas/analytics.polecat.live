@@ -43417,14 +43417,25 @@ function serve() {
         await sleep(150);   // let the ring paint where the card says it is
         return label;
       }
-      var out = { steps: [], labels: [] };
+      var out = { steps: [], labels: [], phone: window.matchMedia("(max-width:640px)").matches };
       StudioTutorial.openTour("build");
       await sleep(400);                          // step 0 (intro, centered card)
       // The build tour in order after the intro; null = the closing card, no spotlight.
-      var SEQ = ["#library", "#canvas", "#inspector", "#btnExport", null];
+      // The export stop is the one step that changes target with the viewport: at ≤640px
+      // M10 hides #btnExport outright, so the step's `phone:` form rings ⋯ More instead.
+      var SEQ = ["#library", "#canvas", "#inspector", out.phone ? "#btnMore" : "#btnExport", null];
       for (var i = 0; i < SEQ.length; i++) {
+        var t0 = Date.now();
         out.labels.push(await advance());
-        if (SEQ[i] && measure.indexOf(SEQ[i]) >= 0) out.steps.push({ sel: SEQ[i], r: ringOn(SEQ[i]) });
+        var ms = Date.now() - t0;
+        if (SEQ[i] && measure.indexOf(SEQ[i]) >= 0) {
+          // The COPY is measured with the ring: a step that points somewhere real while
+          // still naming the control the other width has is only half fixed.
+          var tipEl = document.getElementById("st-tip");
+          out.steps.push({ sel: SEQ[i], r: ringOn(SEQ[i]), ms: ms,
+            h: tipEl ? ((tipEl.querySelector(".st-h") || {}).innerHTML || "") : "",
+            sub: tipEl ? ((tipEl.querySelector(".st-sub") || {}).innerHTML || "") : "" });
+        }
       }
       out.lastLabel = (document.querySelector("#st-tip button.pri") || {}).textContent || "";
       await advance();                           // Done!
@@ -43439,24 +43450,41 @@ function serve() {
       } catch (e) {}
       return out;
     }, measure);
-    // At ≤640px #btnExport is display:none (M10 moved it behind ⋯ More), so the export step is
-    // measured on DESKTOP only and its phone form is the next N7 slice — see STATUS.md. The
-    // three pane steps are the ones this fix is about, and they are measured at both widths.
+    // All four spotlit steps are measured at BOTH widths now. The three pane steps are what the
+    // v880 fix was about; the fourth is the export stop, whose phone form this slice added — at
+    // ≤640px #btnExport is display:none (M10 moved it behind ⋯ More), so the step used to have
+    // no box at all: waitFor polled it for its full 2.5s, then rendered a spotlight-less card
+    // still telling the reader to click a control that screen does not have.
     const PANE_STEPS = ["#library", "#canvas", "#inspector"];
-    const btPhone = await walkBuildTour(btPage, PANE_STEPS);
+    const btPhone = await walkBuildTour(btPage, PANE_STEPS.concat(["#btnMore"]));
     ok("N7: at 390×780 the Build tour's pane spotlights all land on something the reader can actually see — the Data and Inspector drawers slide IN first (they used to be ringed off-canvas at translateX(-105%)/(105%))",
-      btPhone.steps.length === 3 && btPhone.steps.every((s) => s.r.ringed && s.r.onscreen) &&
+      btPhone.steps.length === 4 && btPhone.steps.slice(0, 3).every((s) => s.r.ringed && s.r.onscreen) &&
       /Done/.test(btPhone.lastLabel) && btPhone.closed && btPhone.done,
       JSON.stringify(btPhone));
     ok("N7: the phone walk leaves no trace — it never writes the persisted drawer tab",
       btPhone.mobTab === null || btPhone.mobTab === undefined, JSON.stringify({ mobTab: btPhone.mobTab }));
+    // The export stop, at the width where its desktop form was a dead end.
+    const btPhoneExport = btPhone.steps[3] || {};
+    ok("N7: at 390×780 the Build tour's export step rings a control that is ON the screen — ⋯ More, where M10 put Export — instead of measuring a display:none #btnExport and lighting nothing",
+      !!btPhoneExport.r && btPhoneExport.r.ringed && btPhoneExport.r.onscreen,
+      JSON.stringify(btPhoneExport));
+    ok("N7: and it names the route that phone actually has (⋯ More → Export…, ⋯ More → Save), never the hidden topbar buttons",
+      /⋯ More → Export/.test(btPhoneExport.h || "") && /⋯ More → Save/.test(btPhoneExport.sub || "") &&
+      !/Export ▾/.test(btPhoneExport.h || "") && !/<b>Save<\/b>/.test(btPhoneExport.sub || ""),
+      JSON.stringify({ h: btPhoneExport.h, sub: btPhoneExport.sub }));
+    ok("N7: and it no longer stalls the walk — the step resolves at once instead of burning waitFor's full 2.5s poll on an element with no box",
+      typeof btPhoneExport.ms === "number" && btPhoneExport.ms < 2000, JSON.stringify({ ms: btPhoneExport.ms }));
 
     // The impatient reader — deliberately run at 390px, where a step really does take time to
-    // prepare: #btnExport is display:none here (M10 moved it behind ⋯ More), so waitFor polls
-    // its full 2.5s. Throughout that window the OUTGOING card stayed live, so a second tap
-    // advanced a second time — off the end of the tour and into steps[idx].before on undefined,
-    // an uncaught TypeError, which is a release gate. (At desktop widths every target resolves
-    // in a frame and the race simply never opens, which is why this check lives on the phone.)
+    // prepare: the builder's panes are drawers that SLIDE in, so openPane() waits out their
+    // .28s transition before the spotlight is measured. Throughout that window the OUTGOING
+    // card stayed live, so a second tap advanced a second time — off the end of the tour and
+    // into steps[idx].before on undefined, an uncaught TypeError, which is a release gate. (At
+    // desktop widths the panes expand instantly and the race simply never opens, which is why
+    // this check lives on the phone.) The window used to be far wider here — the export step's
+    // display:none target burned waitFor's full 2.5s — and this slice closed that; the drawer
+    // transitions keep it open enough to reproduce, and the guard is what is under test either
+    // way, not the size of the window.
     // Hammer the primary button with no waiting at all: the tour must end cleanly and throw
     // nothing, and Skip must stay reachable throughout — nobody gets trapped in a tour.
     const btErrsBeforeSpam = btErrors.length;
@@ -43521,6 +43549,15 @@ function serve() {
       btDesk.steps.length === 4 && btDesk.steps.every((s) => s.r.ringed && s.r.onscreen) &&
       btDesk.steps[0].r.w > 100 && btDesk.steps[2].r.w > 100 && btOpenWidths.lib > 100 && btOpenWidths.insp > 100,
       JSON.stringify({ steps: btDesk.steps, widths: btOpenWidths }));
+    // The other half of the phone form: the desktop step is UNCHANGED by it. Where the topbar
+    // really carries Export ▾ and Save, that is still what the card rings and what it names —
+    // the ⋯ More detour is the phone's answer only.
+    const btDeskExport = btDesk.steps[3] || {};
+    ok("N7: the desktop export step is untouched by the phone form — it still rings #btnExport and still says Click Export ▾ / Save, with no ⋯ More detour",
+      btDeskExport.sel === "#btnExport" && !!btDeskExport.r && btDeskExport.r.ringed && btDeskExport.r.onscreen &&
+      /Export ▾/.test(btDeskExport.h || "") && /<b>Save<\/b>/.test(btDeskExport.sub || "") &&
+      !/⋯ More/.test((btDeskExport.h || "") + (btDeskExport.sub || "")),
+      JSON.stringify({ sel: btDeskExport.sel, h: btDeskExport.h, sub: btDeskExport.sub }));
     ok("N7: the desktop walk is silent — the reader's persisted 'panes collapsed' preference survives the tour",
       btDesk.collapsePref === "1" && btDesk.inspPref === "1",
       JSON.stringify({ library: btDesk.collapsePref, inspector: btDesk.inspPref }));

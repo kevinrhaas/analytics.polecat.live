@@ -33,7 +33,10 @@
    renderer WAITS for the step's target to exist, so tours can walk UI that
    builds asynchronously. A builder step may also declare the `pane:` its
    target lives in, which the renderer OPENS before it measures the spotlight —
-   existing is not the same as visible (see openPane below).
+   existing is not the same as visible (see openPane below). A step whose control
+   the ≤640px layout HIDES outright (M10's ⋯ More convention) carries a `phone:`
+   form the renderer merges per render — reachable is not the same as on screen
+   (see resolveStep below).
 
    KEEP THESE TOURS CURRENT: any slice that changes a user-facing flow this
    tutorial walks (Quick Views, Dashboard Builder panes, export, Jobs,
@@ -88,6 +91,19 @@
    collapsible pane must declare it, the declared names must be panes the
    builder can actually open, and the opener must still exist.
 
+   Closed was not the only way a phone hides a target. N7 (2026-08-08) took the
+   last of that walk: M10 moved Undo/Redo/Open/Save/Save-as/Duplicate/Export off
+   the ≤640px topbar into ⋯ More and hides their buttons with
+   `display:none!important`, so the build tour's export step had nothing to ring
+   at 390px at all — waitFor() polled #btnExport for its full 2.5s, gave up, and
+   rendered an unringed centered card whose copy told the reader to "Click
+   <b>Export ▾</b>" and to press <b>Save</b>, two controls that screen does not
+   have. A step now carries a `phone:` form (see resolveStep) that the renderer
+   merges at ≤640px: the export stop rings ⋯ More and names the route the phone
+   really has. doc-truth check 20 derives the hidden-at-≤640px id set from
+   app/studio.css itself, so a control that joins the ⋯ More convention later
+   cannot silently leave a tour ringing thin air.
+
    window.StudioTutorial.open()        — tour chooser (or restart)
    window.StudioTutorial.openTour(key) — start a specific tour ("overview"|"quick"|"build"|"jobs"|"connect")
    window.StudioTutorial.isDone()      — true once any tour was completed.
@@ -123,12 +139,36 @@
      A step declares which pane its target lives in (`pane:`), and this asks the
      builder's own opener — silently, so the walk never rewrites the reader's
      persisted panel preference or drawer tab. */
+  function isPhone() {
+    return !!(window.matchMedia && window.matchMedia("(max-width:640px)").matches);
+  }
   function openPane(which) {
-    var phone = !!(window.matchMedia && window.matchMedia("(max-width:640px)").matches);
+    var phone = isPhone();
     try { if (window.__studioOpenPane) window.__studioOpenPane(which); } catch (e) {}
     // The phone drawers SLIDE in (transform .28s). Measuring before they land
     // would ring where the drawer was, not where it is; desktop is instant.
     return phone ? new Promise(function (r) { setTimeout(r, 340); }) : null;
+  }
+  /* A step may carry a `phone:` variant — the same stop, told for the ≤640px app.
+     openPane above fixed the panes that were merely CLOSED on a phone; this fixes
+     the controls that are not there at all. M10 moved Undo/Redo/Open/Save/Save-as/
+     Duplicate/Export off the phone topbar into ⋯ More and hides their buttons with
+     `display:none!important` (app/studio.css), so the build tour's export step had
+     no box to ring at 390px: waitFor() polled #btnExport for its full 2.5s, gave up,
+     and rendered a centered card whose copy still said "Click Export ▾" — a control
+     that is not on that screen, after a two-and-a-half-second stall. The phone form
+     rings the ⋯ More button that IS there and names the route the reader has.
+     Merged at RENDER time, never at definition time, so a tour opened after a resize
+     (or a phone rotated mid-walk) always tells the truth about the app in front of
+     it — and tourSteps()/stepCount() keep reporting one step per stop at any width.
+     tools/doc-truth.mjs check 20 derives the hidden-at-≤640px id set from the
+     stylesheet itself and fails any step that spotlights one without a phone form. */
+  function resolveStep(step) {
+    if (!step || !step.phone || !isPhone()) return step;
+    var out = {}, k;
+    for (k in step) if (Object.prototype.hasOwnProperty.call(step, k)) out[k] = step[k];
+    for (k in step.phone) if (Object.prototype.hasOwnProperty.call(step.phone, k)) out[k] = step.phone[k];
+    return out;
   }
   // Conservation tour: land in Studio on the pack's own featured dashboard.
   // Its row id is workspace-generated at install time (only spec.id/panel ids
@@ -150,6 +190,10 @@
              ("library" | "inspector" | "canvas"); opened silently before the
              spotlight is measured (see openPane above). doc-truth check 19
              requires one on any step targeting a collapsible pane.
+     phone:  optional overrides merged over the step at ≤640px (see resolveStep
+             above) — for a stop whose control the phone layout hides behind ⋯ More
+             rather than merely collapses. doc-truth check 20 requires one on any
+             step targeting an id the phone stylesheet hides.
      last:   true on the final step — shows "Done!" instead of "Next" */
   var TOURS = {
     overview: {
@@ -363,7 +407,15 @@
           sub: "The same menu also hands out Excel, Word, PowerPoint and PDF versions, or the editable .studio.json spec — and <b>Save</b> keeps the dashboard in your Dashboards catalog so you can reopen it and keep working.",
           target: "#btnExport",
           pane: "canvas",
-          pos: "bottom"
+          pos: "bottom",
+          // ≤640px: M10 hides #btnExport and #btnSaveSpec outright and hands both to
+          // ⋯ More, so the desktop copy names two controls the reader cannot see and
+          // the desktop target has no box to ring. Same stop, the phone's own route.
+          phone: {
+            h: "Tap <b>⋯ More → Export…</b> to download a <b>self-contained .html file</b> — no server, no dependencies; email it, host it, open it from disk. It's byte-identical to the preview you've been looking at.",
+            sub: "The same menu also hands out Excel, Word, PowerPoint and PDF versions, or the editable .studio.json spec — and <b>⋯ More → Save</b> keeps the dashboard in your Dashboards catalog so you can reopen it and keep working.",
+            target: "#btnMore"
+          }
         },
         {
           t: "You're ready to build!",
@@ -701,7 +753,9 @@
   /* --- Core renderer --- */
   function render(idx) {
     var steps = tourSteps(_tour);
-    var step = steps[idx];
+    // Resolved per render, so the step describes the app the reader is looking at
+    // right now — a phone-hidden control gets its ⋯ More form (see resolveStep).
+    var step = resolveStep(steps[idx]);
     // A step can take a moment to become renderable — before() switches section,
     // openPane() waits out a drawer transition, waitFor() polls the target for up
     // to 2.5s (6s in the preview iframe). Throughout that window the PREVIOUS
