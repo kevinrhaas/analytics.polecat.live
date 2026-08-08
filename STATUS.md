@@ -11341,6 +11341,31 @@
   exposes list/addCustom/render/connect) that a wizard connection leaves a NAMED, selectable
   entry in the picker and that signing in against it works — the assertion that would have
   caught this.
+- **N25 ★★ [2pt] — The `/dev/` and `/stage/` previews sign you into PRODUCTION data.** Found
+  2026-08-08 while answering Kevin's *"I am concerned… that you will break prod on main"* — his
+  instinct was right, just about a different mechanism than secrets. **Measured:**
+  `app/workspaces.js` ships exactly one catalog entry (`id: "polecat"`) carrying the LIVE project
+  URL + publishable key, `app/index.html:45` loads it unconditionally, and `tools/stage-
+  preview.mjs` — which rewrites paths, stubs the SW and paints the banners — **does nothing to
+  that file**. So the dev preview's Workspace picker offers "Polecat workspace" and it is prod.
+  Every test sign-in, every sample-pack install, every push from `/dev/` lands in the production
+  workspace. That is the actual prod-safety hole, and it exists today, before any secret is added.
+  **Fix, once `polecat_dev` and `polecat_stage` exist:** make the shipped catalog stage-aware —
+  the preview builder rewrites (or the catalog declares) which entry belongs to which stage, so
+  `/dev/` offers the dev workspace, `/stage/` the stage one, and only `/` offers prod. Belt and
+  braces: label them unmistakably in the picker ("Polecat workspace (DEV)") since the banner
+  alone has already proven easy to dismiss, and consider refusing a prod-workspace connection
+  outright from a preview origin rather than relying on the reader noticing.
+  **Then the test topology follows the branch topology** — the point of Kevin's three databases:
+  mutating checks (`tests/rls.mjs`, which today CREATEs and DROPs `steward_test_rls_*` schemas on
+  the **production** project) move to `polecat_dev` at the dev gate; stage promotion runs them
+  against stage; and prod keeps only the **read-only** anon-verify (`supabase-deploy.sql` §8 —
+  expect all zeros) at promote-to-prod or on a schedule. Prod stays covered while stopping being
+  the thing we experiment on — strictly safer than the status quo, not a coverage trade.
+  **Note on the secrets themselves (the part that is NOT a risk):** `SUPABASE_DEV_*` are NEW
+  names. `SUPABASE_ANON_KEY` and `SUPABASE_PASSWORD` — read by `supabase-provision.yml:40,63` —
+  are untouched, so nothing pointing at prod changes behaviour. Adding is additive; the only way
+  to break prod here would be to REPLACE those two, which nothing in N19–N25 does.
   Industry density and whitespace by county: where a chain is under-represented versus the
   population and the businesses already there. **Replaces `datamanagement` in
   `DEFAULT_INSTALLED`** (`demopacks.js:78`) — Data Management stays installable, just not the
