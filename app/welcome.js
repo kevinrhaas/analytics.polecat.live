@@ -44,8 +44,8 @@
       h: "<b>View Builder</b> (left rail: Build) is the drag-and-drop canvas: pull a dataset's columns onto the <b>Columns / Rows / Filters / Color</b> shelves and the result renders live — tables, bars, lines, donuts, heatmaps, and full <b>US maps</b>, one click apart.",
       s: "Drop a CSV straight onto the canvas and it becomes a dataset — charted instantly. Every save is a View you can reuse on any dashboard." },
     { t: "Dashboard Builder — full dashboards", ic: "grid",
-      h: "<b>Library</b> (left) lists your saved <b>Views</b>, your <b>Datasets</b> and the samples · <b>Live preview</b> (center) is the real dashboard · <b>Inspector</b> (right) edits whatever you select. Drag to reorder, resize, rename; Ctrl/Cmd-Z undoes.",
-      s: "Or hit <b>New ▸ Auto-build</b> to scaffold a whole dashboard from a query set in one click." },
+      h: "The <b>Data</b> panel (left) lists this dashboard's datasets, your workspace <b>Datasets</b> and your saved <b>Views</b> · <b>Live preview</b> (center) is the real dashboard · <b>Inspector</b> (right) edits whatever you select. Drag to reorder, resize, rename; Ctrl/Cmd-Z undoes.",
+      s: "Or hit <b>New ▾</b> in the topbar → <b>Auto-build a starter</b> to scaffold a whole dashboard from one dataset in one click." },
     // N7 (2026-08-07): the quick tour walked straight from the builders to Export, so it
     // never said where anything you build ends up. The rail's whole Workspace group —
     // the Views catalog LF57 added, the Dashboards catalog, Repository — went unnamed,

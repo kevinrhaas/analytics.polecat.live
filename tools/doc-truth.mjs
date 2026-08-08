@@ -472,6 +472,113 @@ const staleHelp = [...helpBare.matchAll(new RegExp(`[^.<>]*${staleNoun.source}[^
 ok(`docs/index.html: Help calls a saved chart a "${savedNoun}" — the internal noun ("${savedChart.table}") only inside <code>`,
   !staleHelp.length, staleHelp.join("\n      "));
 
+// 16. The "Build a dashboard" tour walks the builder's LEFT PANEL, and both halves of what it
+//     said about that panel had rotted. (a) THE NAME: the pane is `#library` in the markup, but
+//     it has RENDERED "Data" since STUDIO-PANELS — its header, its collapsed rail label, its
+//     Settings toggle ("the Data and Inspector panels") and Help all say Data, while the tours
+//     still said "the Library". Same internal-name-vs-rendered-label split checks 14 and 15
+//     police for a saved chart, so it is derived the same way: the aside's id is the internal
+//     name, its pane header is the rendered one. (b) THE GROUPS: the step promised "the sample
+//     queries", a group LF65 deleted (sample content arrives only via Sample packs now), and
+//     never named "My queries" — the authored-query group that replaced it. So the groups are
+//     read off buildLibrary's OWN CALL GRAPH: a builder that still exists but is no longer
+//     called (buildDemoPacksLib, unwired from the panel by DECLUTTER-1) cannot get back into
+//     the copy's promise, which is exactly the mistake Help still makes. (c) THE ROUTE: the
+//     tour sent the reader to "＋ New ▾ → Auto-build" — the DATA PANEL's add button, whose menu
+//     offers a dataset, a connection or a dashboard-only query and has never had Auto-build.
+//     Auto-build is in the TOPBAR "New ▾" menu. Check 13 resolves ⋯More/⌘K routes; these two
+//     menus are built too differently to fold into it, so the rule here is narrower and blunter:
+//     copy that mentions Auto-build names the topbar button and not the panel's.
+const appHtml = read("app/index.html");
+const apos = (s) => s.replace(/[’]/g, "'");
+const unesc = (s) => s.replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+const dataPaneName = (() => {
+  const start = appHtml.indexOf('<aside id="library"');
+  if (start < 0) throw new Error('doc-truth: <aside id="library"> not found in app/index.html');
+  const block = appHtml.slice(start, appHtml.indexOf("</aside>", start));
+  const m = block.match(/<div class="pane-h">[\s\S]*?<span>([^<]+)<\/span>/);
+  if (!m) throw new Error("doc-truth: the builder's left pane no longer has a header label");
+  return m[1].trim();
+})();
+function fnBody(src, name) {
+  const start = src.indexOf("function " + name + "(");
+  if (start < 0) return "";
+  let depth = 0, open = src.indexOf("{", src.indexOf(")", start)), i = open;
+  for (; i < src.length; i++) {
+    if (src[i] === "{") depth++;
+    else if (src[i] === "}" && --depth === 0) break;
+  }
+  return src.slice(open, i + 1);
+}
+const studioJs = read("app/studio.js"), exploreJs = read("app/explore.js");
+const libBody = fnBody(studioJs, "buildLibrary");
+if (!libBody) throw new Error("doc-truth: buildLibrary not found in app/studio.js");
+// Literal group headers only — `<span class="nm">' + esc(stem) + '` is a per-item name, not a
+// group of the panel, and the quote/plus exclusion drops it.
+const groupLabels = (body) => [...body.matchAll(/<span class="nm">([^<'"+]+)<\/span>/g)].map((m) => unesc(m[1]));
+const dataGroups = new Set([
+  libBody,
+  // buildAnalysesLib is a one-line delegation in studio.js; the group it renders is explore.js's.
+  ...[...new Set([...libBody.matchAll(/\b(build[A-Z]\w*)\(/g)].map((m) => m[1]))].map((n) => fnBody(studioJs, n)),
+  fnBody(exploreJs, "buildAnalysesLib"),
+].flatMap(groupLabels));
+ok("app/studio.js: the Data panel's group list parsed for check 16 is non-empty",
+  dataGroups.size >= 3, `parsed: ${[...dataGroups].join(" · ") || "(none)"}`);
+const tutorialSrc = read("app/tutorial.js");
+const buildBlock = (() => {
+  const start = tutorialSrc.indexOf("build: {");
+  if (start < 0) throw new Error("doc-truth: TOURS.build not found in app/tutorial.js");
+  let depth = 0, open = tutorialSrc.indexOf("{", start), i = open;
+  for (; i < tutorialSrc.length; i++) {
+    if (tutorialSrc[i] === "{") depth++;
+    else if (tutorialSrc[i] === "}" && --depth === 0) break;
+  }
+  return tutorialSrc.slice(open, i + 1);
+})();
+const paneStep = (() => {
+  const at = buildBlock.indexOf('target: "#library"');
+  if (at < 0) return "";
+  return buildBlock.slice(buildBlock.lastIndexOf("\n        {", at), buildBlock.indexOf("\n        }", at));
+})();
+ok("app/tutorial.js: the build tour still has a step spotlighting the builder's left panel", !!paneStep,
+  'no step in TOURS.build targets "#library" — if the tour dropped it, drop this check with it');
+const paneBold = [...paneStep.matchAll(/<b>([^<]+)<\/b>/g)].map((m) => m[1]);
+const paneAllowed = new Set([dataPaneName, ...dataGroups].map(apos));
+const strayGroups = paneBold.filter((l) => !paneAllowed.has(apos(l)));
+ok(`app/tutorial.js: the build tour's panel step only bolds groups the panel renders`,
+  !!paneStep && !strayGroups.length,
+  `named but not rendered: ${strayGroups.join(", ")}\n      the panel renders: ${[...dataGroups].join(" · ")}`);
+// The COPY fields only — a step's `target: "#library"` selector is markup, not something the
+// reader is told, and check 13's copyOf() (every string literal) would trip over it.
+const stepCopy = (f) => {
+  const bare = read(f).replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+  return [...bare.matchAll(/\b(?:t|h|sub|s|blurb|label):\s*((?:"(?:[^"\\]|\\.)*"\s*\+?\s*)+)/g)].map((m) => m[1]).join("\n");
+};
+const stalePane = ["app/tutorial.js", "app/welcome.js"]
+  .flatMap((f) => [...stepCopy(f).matchAll(/[^.]*librar(?:y|ies)[^.]*/gi)]
+    .map((m) => `${f}: "…${m[0].replace(/\s+/g, " ").trim().slice(0, 90)}…"`));
+ok(`app/tutorial.js + app/welcome.js: the builder's left panel is called "${dataPaneName}", never by its id ("library")`,
+  !stalePane.length, stalePane.join("\n      "));
+const btnLabel = (id) => {
+  const m = appHtml.match(new RegExp(`<button[^>]*\\bid="${id}"[^>]*>([^<]+)</button>`));
+  if (!m) throw new Error(`doc-truth: #${id}'s label is no longer parseable from app/index.html`);
+  return m[1].trim();
+};
+const topbarNew = btnLabel("btnNew"), paneNew = btnLabel("btnNewDS");
+const autoBuildGroup = (fnBody(studioJs, "buildNewMenu").match(/<div class="grp">([^<]+)<\/div>/) || [])[1];
+ok("app/index.html + app/studio.js: the two New menus parsed for check 16 are distinct",
+  topbarNew && paneNew && topbarNew !== paneNew && /auto-build/i.test(autoBuildGroup || ""),
+  `topbar "${topbarNew}" · panel "${paneNew}" · starter group "${autoBuildGroup || "(none)"}"`);
+const autoRoutes = ["app/tutorial.js", "app/welcome.js"].flatMap((f) => {
+  const bare = read(f).replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+  return [...bare.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1])
+    .filter((s) => /auto-build/i.test(s))
+    .filter((s) => !s.includes(topbarNew) || s.includes(paneNew))
+    .map((s) => `${f}: "…${s.replace(/\s+/g, " ").trim().slice(0, 90)}…"`);
+});
+ok(`app/tutorial.js + app/welcome.js: Auto-build is reached from the topbar "${topbarNew}", not the panel's "${paneNew}"`,
+  !autoRoutes.length, autoRoutes.join("\n      "));
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
