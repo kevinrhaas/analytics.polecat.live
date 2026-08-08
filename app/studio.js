@@ -10433,6 +10433,30 @@
     }
     return null;
   }
+  // N15 slice 2: the top-document half of the panel download. The preview chrome has already
+  // done all the work (rasterized the PNG, serialized the CSV) and hands the finished bytes up
+  // because a download started inside an iframe is what iOS Safari blocks — all this does is
+  // perform the click HERE, in the top document.
+  // Deliberately NOT routed through the frame claims above: unlike an export or a canvas edit,
+  // nothing about a download depends on which spec owns the frame — the message carries its own
+  // bytes and its own filename — so every preview in the app (dashboard builder, View Builder,
+  // Explore, panel zoom, slideshow, version compare) is served by this one handler instead of a
+  // copy per builder.
+  function deliverPreviewDownload(d) {
+    // A filename, never a path: the name rides in from the frame and only ever names a file.
+    var name = String(d.name || "download").replace(/[\\/]+/g, "-").slice(0, 120) || "download";
+    var href = null, blobUrl = null;
+    // Only the two shapes we send are honoured — an image data: URL, or text we blob up
+    // ourselves. The receiver never adopts an arbitrary URL out of a message.
+    if (typeof d.dataUrl === "string" && /^data:image\//i.test(d.dataUrl)) href = d.dataUrl;
+    else if (typeof d.text === "string") href = blobUrl = URL.createObjectURL(new Blob([d.text], { type: d.mime || "text/plain;charset=utf-8" }));
+    if (!href) return;
+    var a = document.createElement("a");
+    a.href = href; a.download = name; a.style.display = "none";
+    document.body.appendChild(a); a.click();
+    window.__lastPreviewDownload = { name: name, bytes: (d.text || d.dataUrl || "").length }; // test hook
+    setTimeout(function () { a.remove(); if (blobUrl) URL.revokeObjectURL(blobUrl); }, 0);
+  }
   var SPEC_WIDE_MSGS = { reorder: 1, "kpi-delete": 1, "header-edit": 1, "header-delete": 1 };
   function mayEditOpenSpec(src) {
     if (src === window) return true;
@@ -10714,6 +10738,7 @@
   window.addEventListener("message", function (e) {
     var d = e.data || {}; if (d.studio !== 1) return;
     if (!trustedMsg(e)) return; // AUD-05: only our own origin + our own frames drive the spec
+    if (d.type === "panel-download") { deliverPreviewDownload(d); return; } // N15 slice 2 — spec-independent, see above
     var claim = previewClaimFor(e.source);          // N15 rule 1: a frame that owns its preview answers for it
     if (claim) { claim.handle(d, e); return; }
     if (SPEC_WIDE_MSGS[d.type] && !mayEditOpenSpec(e.source)) return; // N15 rule 2
