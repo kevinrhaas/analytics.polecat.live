@@ -15,6 +15,7 @@
 // budget is the cheap way to make that regression loud instead of invisible.
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
+import { createContext, runInContext } from "node:vm";
 
 const files = execFileSync("git", ["ls-files", "*.js", "*.mjs"], { encoding: "utf8" })
   .split("\n").filter(Boolean)
@@ -172,7 +173,69 @@ if (postureStart < 0 || postureEnd < postureStart) {
   }
 }
 
+// ---- N22b: the migration RPC is the SAME SQL, wrapped ----------------------
+// § 6d of tools/supabase-deploy.sql installs `polecat_migrate()` — the
+// admin-gated function that lets the app upgrade a database it already owns,
+// so the one manual paste stays the ONLY one. Its body embeds the posture
+// above it, which means there are now three ways for it to rot silently: the
+// file's copy drifting from the generator, the embedded posture drifting from
+// § 2–6c, and somebody "helpfully" giving it a raw-SQL parameter. All three
+// are checked here, in the same gate and by the same means as the posture
+// check above — the item asked for the existing guard to be EXTENDED rather
+// than a second one minted.
+//
+// The generator is read the way the browser reads it (a context whose global
+// object IS `window`, exactly what tests/rls.mjs does) so this compares the
+// bytes that actually ship, not a paraphrase of them.
+const rpcFail = (msg) => { failed++; console.error(`RPC FAIL: ${msg}`); };
+let WS = null;
+try {
+  const sandbox = {};
+  sandbox.window = sandbox;
+  sandbox.globalThis = sandbox;
+  createContext(sandbox);
+  runInContext(readFileSync("app/sources/schema.js", "utf8"), sandbox, { filename: "app/sources/schema.js" });
+  WS = sandbox.Studio && sandbox.Studio.WS;
+} catch (e) {
+  rpcFail(`app/sources/schema.js did not load in a bare window context: ${e.message}`);
+}
+if (WS && typeof WS.migrationRpcSQL !== "function") {
+  rpcFail("app/sources/schema.js no longer exposes WS.migrationRpcSQL() — the migration RPC is how the app owns the database after the one paste (N22b)");
+} else if (WS) {
+  const rpc = WS.migrationRpcSQL();
+  const rpcStart = deploySql.findIndex((l) => /^-- 6d\) THE MIGRATION RPC/.test(l));
+  const adminStart = deploySql.findIndex((l) => /^-- 7\) FIRST ADMIN/.test(l));
+  if (rpcStart < 0 || adminStart < rpcStart) {
+    rpcFail("tools/supabase-deploy.sql: could not find § 6d … § 7 — the section markers this check reads moved");
+  } else if (sqlCode(deploySql.slice(rpcStart, adminStart).join("\n")) !== sqlCode(rpc)) {
+    rpcFail("tools/supabase-deploy.sql § 6d has drifted from app/sources/schema.js WS.migrationRpcSQL() — " +
+      "the pasted file would install a DIFFERENT migration function than the connect wizard. Regenerate § 6d from the function in the same commit.");
+  }
+  // The body must BE the posture, not a second opinion about it.
+  if (!sqlCode(rpc).includes(sqlCode(WS.RLS_REAL_SQL))) {
+    rpcFail("WS.migrationRpcSQL() no longer embeds WS.RLS_REAL_SQL verbatim — a migration that installs its own idea of the posture " +
+      "is how the go-live path drifted to a weaker one (N2 slice 2)");
+  }
+  // The security contract, stated as checks so it survives the next edit.
+  if (!/SECURITY DEFINER/.test(rpc)) rpcFail("WS.migrationRpcSQL(): the migration RPC must be SECURITY DEFINER — DDL and CREATE POLICY are owner-only");
+  if (!/administrators only/.test(rpc) || !/"role" = 'admin'/.test(rpc)) {
+    rpcFail("WS.migrationRpcSQL(): the admin gate is gone — SECURITY DEFINER makes that gate the whole security boundary");
+  }
+  if (!/REVOKE ALL ON FUNCTION public\.polecat_migrate\(text\) FROM anon/.test(rpc)) {
+    rpcFail("WS.migrationRpcSQL(): anon must not hold EXECUTE — the anon key ships inside a public repo");
+  }
+  // The escape hatch that must never appear: SQL arriving as an argument.
+  if (/EXECUTE\s+(mode|sql|stmt|query)\b/.test(rpc) || /\(\s*sql\s+text/.test(rpc)) {
+    rpcFail("WS.migrationRpcSQL(): the function executes a PARAMETER — a SECURITY DEFINER function that runs caller-supplied SQL is a superuser shell. The DDL is fixed, baked in at generation time.");
+  }
+  // Both supported paths install it, or the app only owns half its databases.
+  if (WS.freshDeploySQL(WS.emptySnapshot(), null).indexOf("FUNCTION public.polecat_migrate") < 0) {
+    rpcFail("the connect wizard's script (WS.freshDeploySQL) no longer installs the migration RPC — a database adopted from the UI would still need the SQL editor to upgrade");
+  }
+}
+
 if (failed) { console.error(`validate: ${failed} file(s) failed`); process.exit(1); }
 console.log(`validate: ${files.length} files parse clean; boot-path files within budget; ` +
   `${packIds.length} sample pack(s) declare a source, ${scriptIds.length} extract script(s) registered; ` +
-  `the connect wizard's posture matches tools/supabase-deploy.sql § 2–6c`);
+  `the connect wizard's posture matches tools/supabase-deploy.sql § 2–6c, and its § 6d migration RPC ` +
+  `is that same posture wrapped in an admin-gated, fixed-DDL function`);

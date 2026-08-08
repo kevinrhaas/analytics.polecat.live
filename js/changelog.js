@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 905,
+    title: 'The database setup you paste once now leaves behind the button that upgrades it later',
+    kind: 'feature',
+    ts: '2026-08-08T21:33:52.000Z',
+    items: [
+      'Standing up a Supabase workspace ends with one trip to the SQL editor: the app writes a script, you paste it, the database exists. That has always been the deal. What was never true is the "once" — every later version of Analytics that added a table sent you back to the same editor with another script, because a web page cannot create tables in your database, and the app had no way to ask the database to do it on its behalf.',
+      'It does now. The setup script installs a named upgrade function alongside the tables and the security rules, and that function is what a future version of the app will call to bring your database forward: create whatever table the new version needs, re-apply the full security posture so a new table arrives protected rather than as a hole, and record the new version number. The paste you already make is the last one.',
+      'A function that can create tables is a function worth being careful about, so it is a locked door rather than an open one. It refuses anyone who is not an administrator of that workspace, and refuses the anonymous key outright. It cannot be handed SQL to run — the statements it executes are fixed when the script is generated, and the only thing you can pass it is a request to describe itself. And it can only move the recorded version forward, never backward, so an older browser tab can never re-label an already-upgraded database as the older shape it remembers.',
+      'The proof is not a code review. The upgrade function is installed onto the worst database this app can still reach — the old demo setup, whose policy hands every row of every table to the anonymous key — and then called exactly once, by an administrator, with nobody in the SQL editor. The result is put through the same checks as the setup scripts themselves: anonymous callers read zero rows from all seven tables, one person cannot see a colleague\'s private work, only an administrator can create an account. Remove that single call from the test and every one of those checks fails loudly, which is what makes the passing version mean something.',
+      'The button that calls it is the next piece of work; this release is the plumbing that has to exist first, shipped and verified on its own rather than bundled into the feature that will use it.',
+    ],
+  },
+  {
     v: 904,
     title: 'Setting up a new database from inside the app now installs the real security, instead of leaving it as homework',
     kind: 'fix',

@@ -307,6 +307,224 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE O
 NOTIFY pgrst, 'reload schema';
 
 -- ---------------------------------------------------------------------------
+-- 6d) THE MIGRATION RPC (N22b, 2026-08-08) — what makes this paste the LAST one.
+--
+--     Everything above stands the database up. This installs the named function
+--     an ADMIN signed into the app calls to bring it FORWARD afterwards: create
+--     any table a newer build added, re-apply the whole posture above (so a new
+--     table arrives with policies rather than as a hole), and raise the schema
+--     marker. Fixed DDL, admin-gated, no raw-SQL parameter — the same security
+--     contract supabase/functions/polecat-admin holds itself to.
+--
+--     Why an RPC at all: N22a measured that api.supabase.com refuses a preflight
+--     from this app's origin on every endpoint that could run DDL, so "the app
+--     provisions itself" can only ever mean "the app calls something the one
+--     paste left behind". This is that something.
+--
+--     KEEP IN SYNC: this section is app/sources/schema.js WS.migrationRpcSQL(),
+--     which embeds § 2–6c above verbatim. tools/validate.mjs holds the two
+--     statement-for-statement on every dev-gate run, and tests/rls.mjs installs
+--     the RPC over a legacy allow-all workspace, then puts the migrated result
+--     through the same anon-reads-zero checks as the pasted postures.
+-- Analytics workspace — the migration RPC. Installs polecat_migrate(mode text): an
+-- ADMIN-ONLY call that creates any missing workspace table, re-applies the full
+-- authenticated-only security posture and raises the schema marker, so upgrading this
+-- database never needs the SQL editor again. Fixed DDL — the only parameter chooses
+-- apply or probe, never SQL. Safe to run twice.
+CREATE OR REPLACE FUNCTION public.polecat_migrate(mode text DEFAULT 'apply') RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $polecat_migrate$
+DECLARE
+  was text;
+BEGIN
+  -- capability probe: the app asks 'can I upgrade you from here?' and writes nothing.
+  -- Deliberately answerable by any signed-in account — knowing the button exists is not
+  -- permission to press it, and the gate below is what refuses a non-admin.
+  IF mode = 'probe' THEN
+    RETURN jsonb_build_object('ok', true, 'probe', true, 'schemaVersion', 4);
+  END IF;
+  IF mode <> 'apply' THEN
+    RAISE EXCEPTION 'polecat_migrate: unknown mode %; expected apply or probe', mode USING ERRCODE = '22023';
+  END IF;
+  IF to_regclass('public.users') IS NULL THEN
+    RAISE EXCEPTION 'polecat_migrate: this database has no users table, so it has no administrators yet — run the setup script once first' USING ERRCODE = '42501';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.users
+    WHERE (data::jsonb->>'gotrueId') = auth.uid()::text AND "role" = 'admin'
+  ) THEN
+    RAISE EXCEPTION 'polecat_migrate: administrators only' USING ERRCODE = '42501';
+  END IF;
+  SELECT value INTO was FROM public.polecat_meta WHERE key = 'schema_version';
+  EXECUTE $polecat_ddl$
+CREATE TABLE IF NOT EXISTS "polecat_meta" (key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE IF NOT EXISTS "connections" (id TEXT PRIMARY KEY, "name" TEXT, "adapter" TEXT, "updatedAt" BIGINT, data TEXT);
+CREATE TABLE IF NOT EXISTS "datasets" (id TEXT PRIMARY KEY, "name" TEXT, "connectionId" TEXT, "kind" TEXT, "updatedAt" BIGINT, data TEXT);
+CREATE TABLE IF NOT EXISTS "dashboards" (id TEXT PRIMARY KEY, "name" TEXT, "title" TEXT, "updatedAt" BIGINT, data TEXT);
+CREATE TABLE IF NOT EXISTS "analyses" (id TEXT PRIMARY KEY, "name" TEXT, "datasetId" TEXT, "chartType" TEXT, "updatedAt" BIGINT, data TEXT);
+CREATE TABLE IF NOT EXISTS "jobs" (id TEXT PRIMARY KEY, "name" TEXT, "sourceDatasetId" TEXT, "updatedAt" BIGINT, data TEXT);
+CREATE TABLE IF NOT EXISTS "users" (id TEXT PRIMARY KEY, "name" TEXT, "role" TEXT, "updatedAt" BIGINT, data TEXT);
+$polecat_ddl$;
+  EXECUTE $polecat_posture$
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['dashboards','connections','datasets','analyses','jobs','users','polecat_meta'] LOOP
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('DROP POLICY IF EXISTS polecat_open_rw ON public.%I', t);
+    EXECUTE format('DROP POLICY IF EXISTS polecat_anon_all ON public.%I', t);
+  END LOOP;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.polecat_is_admin() RETURNS boolean
+LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.users
+    WHERE (data::jsonb->>'gotrueId') = auth.uid()::text AND "role" = 'admin'
+  );
+$$;
+
+DO $$
+DECLARE
+  t text;
+  owner_field text;
+  spec jsonb := '{"connections":"owner","dashboards":"owner","analyses":"owner","jobs":"owner","datasets":"acctOwner"}'::jsonb;
+BEGIN
+  FOR t IN SELECT jsonb_object_keys(spec) LOOP
+    owner_field := spec->>t;
+    EXECUTE format('DROP POLICY IF EXISTS polecat_select ON %I', t);
+    EXECUTE format('DROP POLICY IF EXISTS polecat_insert ON %I', t);
+    EXECUTE format('DROP POLICY IF EXISTS polecat_update ON %I', t);
+    EXECUTE format('DROP POLICY IF EXISTS polecat_delete ON %I', t);
+    EXECUTE format(
+      'CREATE POLICY polecat_select ON %I FOR SELECT TO authenticated USING (coalesce((data::jsonb->>%L)::boolean, false) = false OR (data::jsonb->>%L) = auth.uid()::text OR public.polecat_is_admin())',
+      t, 'private', owner_field);
+    EXECUTE format(
+      'CREATE POLICY polecat_insert ON %I FOR INSERT TO authenticated WITH CHECK ((data::jsonb->>%L) = auth.uid()::text OR public.polecat_is_admin())',
+      t, owner_field);
+    EXECUTE format(
+      'CREATE POLICY polecat_update ON %I FOR UPDATE TO authenticated USING ((data::jsonb->>%L) = auth.uid()::text OR public.polecat_is_admin()) WITH CHECK ((data::jsonb->>%L) = auth.uid()::text OR public.polecat_is_admin())',
+      t, owner_field, owner_field);
+    EXECUTE format(
+      'CREATE POLICY polecat_delete ON %I FOR DELETE TO authenticated USING ((data::jsonb->>%L) = auth.uid()::text OR public.polecat_is_admin())',
+      t, owner_field);
+  END LOOP;
+END $$;
+
+DROP POLICY IF EXISTS polecat_select ON public.users;
+DROP POLICY IF EXISTS polecat_insert ON public.users;
+DROP POLICY IF EXISTS polecat_update ON public.users;
+DROP POLICY IF EXISTS polecat_delete ON public.users;
+CREATE POLICY polecat_select ON public.users FOR SELECT TO authenticated USING (
+  (data::jsonb->>'gotrueId') = auth.uid()::text
+  OR lower(data::jsonb->>'u') = lower(coalesce(auth.jwt()->>'email',''))
+  OR public.polecat_is_admin()
+);
+CREATE POLICY polecat_update ON public.users FOR UPDATE TO authenticated USING (
+  (data::jsonb->>'gotrueId') = auth.uid()::text
+  OR lower(data::jsonb->>'u') = lower(coalesce(auth.jwt()->>'email',''))
+  OR public.polecat_is_admin()
+) WITH CHECK (
+  (data::jsonb->>'gotrueId') = auth.uid()::text
+  OR lower(data::jsonb->>'u') = lower(coalesce(auth.jwt()->>'email',''))
+  OR public.polecat_is_admin()
+);
+CREATE POLICY polecat_insert ON public.users FOR INSERT TO authenticated WITH CHECK (public.polecat_is_admin());
+CREATE POLICY polecat_delete ON public.users FOR DELETE TO authenticated USING (public.polecat_is_admin());
+
+DROP POLICY IF EXISTS polecat_meta_auth ON public.polecat_meta;
+CREATE POLICY polecat_meta_auth ON public.polecat_meta
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+CREATE TABLE IF NOT EXISTS public.polecat_activity (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  at timestamptz NOT NULL DEFAULT now(),
+  gotrue_id text,
+  username text,
+  action text NOT NULL,
+  detail jsonb
+);
+ALTER TABLE public.polecat_activity ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS polecat_activity_insert ON public.polecat_activity;
+CREATE POLICY polecat_activity_insert ON public.polecat_activity
+  FOR INSERT TO authenticated
+  WITH CHECK (gotrue_id IS NULL OR gotrue_id = auth.uid()::text OR public.polecat_is_admin());
+DROP POLICY IF EXISTS polecat_activity_select ON public.polecat_activity;
+CREATE POLICY polecat_activity_select ON public.polecat_activity
+  FOR SELECT TO authenticated USING (public.polecat_is_admin());
+
+CREATE TABLE IF NOT EXISTS public.polecat_feedback (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  at timestamptz NOT NULL DEFAULT now(),
+  gotrue_id text,
+  username text,
+  kind text NOT NULL,
+  message text,
+  context jsonb
+);
+ALTER TABLE public.polecat_feedback ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS polecat_feedback_insert ON public.polecat_feedback;
+CREATE POLICY polecat_feedback_insert ON public.polecat_feedback
+  FOR INSERT TO authenticated
+  WITH CHECK (gotrue_id IS NULL OR gotrue_id = auth.uid()::text OR public.polecat_is_admin());
+DROP POLICY IF EXISTS polecat_feedback_select ON public.polecat_feedback;
+CREATE POLICY polecat_feedback_select ON public.polecat_feedback
+  FOR SELECT TO authenticated USING (public.polecat_is_admin());
+
+ALTER TABLE public.polecat_activity ADD COLUMN IF NOT EXISTS ip text;
+ALTER TABLE public.polecat_activity ADD COLUMN IF NOT EXISTS ua text;
+ALTER TABLE public.polecat_feedback ADD COLUMN IF NOT EXISTS ip text;
+ALTER TABLE public.polecat_feedback ADD COLUMN IF NOT EXISTS ua text;
+
+CREATE OR REPLACE FUNCTION public.polecat_stamp_request_meta() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  BEGIN
+    NEW.ip := split_part(coalesce(current_setting('request.headers', true)::json->>'x-forwarded-for', ''), ',', 1);
+    NEW.ua := left(coalesce(current_setting('request.headers', true)::json->>'user-agent', ''), 200);
+  EXCEPTION WHEN others THEN
+    NULL; -- header stamping is best-effort; never block the insert
+  END;
+  RETURN NEW;
+END $$;
+
+DROP TRIGGER IF EXISTS polecat_activity_stamp ON public.polecat_activity;
+CREATE TRIGGER polecat_activity_stamp BEFORE INSERT ON public.polecat_activity
+  FOR EACH ROW EXECUTE FUNCTION public.polecat_stamp_request_meta();
+DROP TRIGGER IF EXISTS polecat_feedback_stamp ON public.polecat_feedback;
+CREATE TRIGGER polecat_feedback_stamp BEFORE INSERT ON public.polecat_feedback
+  FOR EACH ROW EXECUTE FUNCTION public.polecat_stamp_request_meta();
+
+DROP POLICY IF EXISTS polecat_activity_insert_anon ON public.polecat_activity;
+CREATE POLICY polecat_activity_insert_anon ON public.polecat_activity
+  FOR INSERT TO anon
+  WITH CHECK (gotrue_id IS NULL);
+DROP POLICY IF EXISTS polecat_feedback_insert_anon ON public.polecat_feedback;
+CREATE POLICY polecat_feedback_insert_anon ON public.polecat_feedback
+  FOR INSERT TO anon
+  WITH CHECK (gotrue_id IS NULL);
+
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO anon, authenticated, service_role;
+
+NOTIFY pgrst, 'reload schema';
+$polecat_posture$;
+  INSERT INTO public.polecat_meta(key, value) VALUES ('app', 'analytics')
+    ON CONFLICT (key) DO NOTHING;
+  INSERT INTO public.polecat_meta(key, value) VALUES ('schema_version', '4')
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+    WHERE polecat_meta.value !~ '^[0-9]+$' OR polecat_meta.value::int < EXCLUDED.value::int;
+  RETURN jsonb_build_object('ok', true, 'from', was, 'to', 4);
+END
+$polecat_migrate$;
+REVOKE ALL ON FUNCTION public.polecat_migrate(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.polecat_migrate(text) FROM anon;
+GRANT EXECUTE ON FUNCTION public.polecat_migrate(text) TO authenticated;
+
+-- ---------------------------------------------------------------------------
 -- 7) FIRST ADMIN (run once per environment, as postgres — bypasses RLS, which
 --    is required: users INSERT is admin-only and a fresh environment has none).
 --    First create the Auth account (Authentication → Add user), copy its UID,

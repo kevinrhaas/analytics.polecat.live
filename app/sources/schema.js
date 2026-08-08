@@ -411,6 +411,106 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE O
 
 NOTIFY pgrst, 'reload schema';`;
 
+  // ---- N22b: ONE paste, then never again ------------------------------------
+  // The named migration RPC. After the single manual paste that stands a
+  // database up, an ADMIN signed into the app can bring that database to this
+  // build's shape — missing tables, the full security posture, the version
+  // marker — with one call, and nobody opens the SQL editor again.
+  //
+  // WHY AN RPC AND NOT THE MANAGEMENT API. N22a measured it:
+  // `api.supabase.com` answers a preflight from https://analytics.polecat.live
+  // with HTTP 204 and NO `Access-Control-Allow-Origin` header, on every endpoint
+  // this would need (create project, run SQL, deploy a function, set secrets) —
+  // while the same preflight from https://supabase.com comes back allowed. It is
+  // an origin allowlist no third-party browser app is on, so nothing
+  // client-side can reach it. The RPC route needs no CLI, no service-role key
+  // in a deployed function and no second deployment surface: it arrives with the
+  // paste the user already has to make.
+  //
+  // THE SECURITY CONTRACT, mirroring supabase/functions/polecat-admin (fixed
+  // named actions, never raw SQL):
+  //   • FIXED DDL, baked in when this string is generated. `mode` chooses
+  //     apply-or-probe and NOTHING else — there is deliberately no
+  //     `exec(sql text)` escape hatch, because a SECURITY DEFINER function that
+  //     runs caller-supplied SQL is a superuser shell with extra steps.
+  //   • SECURITY DEFINER is required here, unlike the atomic save above which is
+  //     deliberately INVOKER: DDL and CREATE POLICY are owner-only and the
+  //     caller is `authenticated`. That makes the admin gate the WHOLE security
+  //     boundary, so it runs first, before anything is read or written.
+  //   • The gate inlines the admin lookup instead of calling
+  //     `polecat_is_admin()`: a workspace old enough to need migrating may
+  //     predate that helper, and a gate that fails with "function does not
+  //     exist" is a gate that never runs. SECURITY DEFINER already bypasses RLS
+  //     on that read — the same reason polecat_is_admin() is DEFINER itself.
+  //   • EXECUTE is granted to `authenticated` only, and revoked from PUBLIC and
+  //     anon: the anon key ships inside a public repo.
+  //   • The version marker is RAISE-ONLY (N17/N28). An older build's migrate can
+  //     never re-label a newer workspace as its own shape — the clobber N17
+  //     found in WS.metaRows() and fixed on the app side.
+  //
+  // The body is the SAME SQL the canonical paste runs — provisionDDL() then
+  // WS.RLS_REAL_SQL, verbatim — WRAPPED, not paraphrased. So tools/validate.mjs's
+  // existing drift guard covers the RPC by construction, and tests/rls.mjs puts
+  // the RPC ROUTE (a legacy allow-all workspace, migrated by an admin call
+  // alone) through the same anon-reads-zero checks as the pasted postures.
+  WS.MIGRATE_FN = "polecat_migrate";
+
+  WS.migrationRpcSQL = function () {
+    var fn = "public." + WS.MIGRATE_FN;
+    var ddl = WS.provisionDDL().map(function (s) { return s + ";"; }).join("\n");
+    return [
+      "-- Analytics workspace — the migration RPC. Installs " + WS.MIGRATE_FN + "(mode text): an",
+      "-- ADMIN-ONLY call that creates any missing workspace table, re-applies the full",
+      "-- authenticated-only security posture and raises the schema marker, so upgrading this",
+      "-- database never needs the SQL editor again. Fixed DDL — the only parameter chooses",
+      "-- apply or probe, never SQL. Safe to run twice.",
+      "CREATE OR REPLACE FUNCTION " + fn + "(mode text DEFAULT 'apply') RETURNS jsonb",
+      "LANGUAGE plpgsql",
+      "SECURITY DEFINER",
+      "SET search_path = public",
+      "AS $polecat_migrate$",
+      "DECLARE",
+      "  was text;",
+      "BEGIN",
+      "  -- capability probe: the app asks 'can I upgrade you from here?' and writes nothing.",
+      "  -- Deliberately answerable by any signed-in account — knowing the button exists is not",
+      "  -- permission to press it, and the gate below is what refuses a non-admin.",
+      "  IF mode = 'probe' THEN",
+      "    RETURN jsonb_build_object('ok', true, 'probe', true, 'schemaVersion', " + WS.SCHEMA_VERSION + ");",
+      "  END IF;",
+      "  IF mode <> 'apply' THEN",
+      "    RAISE EXCEPTION 'polecat_migrate: unknown mode %; expected apply or probe', mode USING ERRCODE = '22023';",
+      "  END IF;",
+      "  IF to_regclass('public.users') IS NULL THEN",
+      "    RAISE EXCEPTION 'polecat_migrate: this database has no users table, so it has no administrators yet — run the setup script once first' USING ERRCODE = '42501';",
+      "  END IF;",
+      "  IF NOT EXISTS (",
+      "    SELECT 1 FROM public.users",
+      "    WHERE (data::jsonb->>'gotrueId') = auth.uid()::text AND \"role\" = 'admin'",
+      "  ) THEN",
+      "    RAISE EXCEPTION 'polecat_migrate: administrators only' USING ERRCODE = '42501';",
+      "  END IF;",
+      "  SELECT value INTO was FROM public." + WS.META_TABLE + " WHERE key = 'schema_version';",
+      "  EXECUTE $polecat_ddl$",
+      ddl,
+      "$polecat_ddl$;",
+      "  EXECUTE $polecat_posture$",
+      WS.RLS_REAL_SQL,
+      "$polecat_posture$;",
+      "  INSERT INTO public." + WS.META_TABLE + "(key, value) VALUES ('app', " + sqlText(WS.APP_ID) + ")",
+      "    ON CONFLICT (key) DO NOTHING;",
+      "  INSERT INTO public." + WS.META_TABLE + "(key, value) VALUES ('schema_version', '" + WS.SCHEMA_VERSION + "')",
+      "    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+      "    WHERE " + WS.META_TABLE + ".value !~ '^[0-9]+$' OR " + WS.META_TABLE + ".value::int < EXCLUDED.value::int;",
+      "  RETURN jsonb_build_object('ok', true, 'from', was, 'to', " + WS.SCHEMA_VERSION + ");",
+      "END",
+      "$polecat_migrate$;",
+      "REVOKE ALL ON FUNCTION " + fn + "(text) FROM PUBLIC;",
+      "REVOKE ALL ON FUNCTION " + fn + "(text) FROM anon;",
+      "GRANT EXECUTE ON FUNCTION " + fn + "(text) TO authenticated;"
+    ].join("\n");
+  };
+
   // SQL string literal — the one quoting rule the generated script needs.
   function sqlText(v) { return "'" + String(v == null ? "" : v).replace(/'/g, "''") + "'"; }
 
@@ -515,6 +615,12 @@ NOTIFY pgrst, 'reload schema';`;
     out.push("--    owner/private rows, an admin arm, the activity logs and the grants");
     out.push("--    PostgREST needs. Anonymous callers read ZERO rows after this.");
     out.push(WS.RLS_REAL_SQL);
+    out.push("");
+    out.push("-- ---------------------------------------------------------------------------");
+    out.push("-- 6d) The migration RPC (N22b) — the reason this is the LAST paste. With it");
+    out.push("--    installed, an admin signed into the app can bring this database up to a");
+    out.push("--    newer build's shape from inside the app, instead of coming back here.");
+    out.push(WS.migrationRpcSQL());
     out.push("");
     out.push(WS.firstAdminSQL(admin));
     out.push("");
