@@ -135,6 +135,48 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the builder calls its own left panel Data, and the button that opens it works on a phone
+  (v879, sw v508, 2026-08-08, steward; LF58 recurring slice, dev branch):** the ▶ NOW queue still
+  holds no ready non-recurring item (N2/N4b/N5a/N5b shipped, N4a ⛔ on Kevin, grooming parked on
+  the `hold` PR #623), so 🔁 N7 again — and this slice closed the terminology track at its source.
+  Checks 16 (v877, the tours) and 17 (v878, Help) held the DOCUMENTS to the pane's rendered name;
+  nothing held the BUILDER to it, and it turned out to be the worst offender of the three.
+  `app/index.html`'s markup was updated at STUDIO-PANELS — header, collapsed rail, tooltips, the
+  empty canvas's "Open data panel" button all read **Data** — but every string the builder renders
+  AT RUNTIME was missed. **14 sites**, across `app/studio.js` + `app/studio-render.js`: the phone
+  drawer's tab bar (`setupMobileTabs`) was labelled **Library**; Simple mode's getting-started
+  checklist opened on "Library ready" with an "Open library" action; the preview iframe's own empty
+  canvas said "drag a query from the **Query Library**" — the exact id-flavoured name check 17 had
+  just deleted from Help, still on screen in the app; plus the two inspector empty-state hints, the
+  no-query guided-setup line, the `addFromCurrentOrPrompt` toast, the ⌘/Ctrl+F shortcut row, the
+  What's-next card, the Simple-mode welcome card, the K8 tip, the data-source delete confirmation,
+  the custom-query Group placeholder, and Settings' "sample query library" (retired at LF65 — the
+  toggle now names what it actually gates: sample dashboards, demo packs, the New ▾ starter sets).
+  The one legitimate library — "Save to View library" — is untouched, and the note beside it that
+  said "a reusable View in the library" now says View library so the exemption is exact.
+  **THE DEFECT THE COPY AUDIT SURFACED, and the reason this slice is not docs-only:** `#cesLib`
+  (the empty canvas's primary CTA) and the checklist's step-2 action each carried their own copy of
+  a phone branch that clicked `document.getElementById("tabLib")` — **an id that has never existed
+  anywhere in the repo**; `setupMobileTabs` builds its buttons with a `data-mob-tab` attribute and
+  no id. So at ≤640px, on the two screens a brand-new user meets first, the button that says "open
+  the Data panel" did nothing at all. Both now call one `openDataPane()`: drawer on phone via
+  `activateMobTab`, and on desktop it expands the pane FIRST (panes ship collapsed by default since
+  STUDIO-PANELS, so the old code focused `#libSearch` inside a 34px rail) — silently, so a one-off
+  nudge never rewrites the reader's persisted `studio-collapse-library` preference.
+  **doc-truth check 18** is the ratchet, one document over again and this time the one the others
+  read FROM: string literals in the builder's two rendering modules (a small comments-and-strings
+  lexer in one left-to-right pass, so a `//` inside a URL cannot eat its string and this file's own
+  prose can neither fail nor satisfy the check) plus `index.html`'s TEXT NODES with tags stripped —
+  which is what puts `id="library"`/`data-pane="library"` structurally out of reach instead of on an
+  exemption list. Identifiers are exempt BY SHAPE (no whitespace, lowercase start), so
+  `studio-collapse-library` and the `which === "library"` switch value pass while `"Library"` the
+  tab label does not; the sole content exemption is check 14's derived saved-chart noun. Negative-
+  tested: reinstating the old tab label and the old shortcut row fails it on exactly those two.
+  Verified: `tools/doc-truth.mjs` (24/24), `tools/validate.mjs`, `tools/changelog-check.js`, and the
+  full `tests/run.js` — 4 new checks walking a real page at **390×780 then 1280×900** (the tab label
+  derived from the pane's own header, the phone drawer actually opening, the desktop expand+focus
+  with the stored preference proved untouched, and a zero-pageerror gate of its own since the
+  suite's session-wide error assertion runs far earlier than this block). **est 1pt, took 1.**
 - **N7 — the Help page describes the builder's Data panel you actually have (v878, NO sw bump —
   docs/index.html is deliberately not precached, 2026-08-08, steward; LF58 recurring slice, dev
   branch):** the ▶ NOW queue still holds no ready non-recurring item (N2/N4b/N5a/N5b shipped,
@@ -10317,18 +10359,44 @@
     group, and two controls the builder no longer has ("＋ New source", "⧈ Join in the library").
     Doc-truth check 17 now holds Help to check 16's derived pane name, group list and button
     label — the check-14→15 move, one document over.
+  * *The APP's own copy vs that same panel — v879, sw v508 (see DONE), 2026-08-08.* The
+    document every check above was correcting the others TO, and it was the worst offender of
+    the three: `app/index.html`'s MARKUP was updated at STUDIO-PANELS (header, collapsed rail,
+    tooltips, the empty canvas's "Open data panel" button), but every string the builder
+    RENDERS AT RUNTIME was missed — the phone drawer tab said **Library**, Simple mode's
+    getting-started checklist opened on "Library ready", the preview's own empty canvas said
+    "the **Query Library**" (the exact id-flavoured name check 17 had just deleted from Help),
+    and the inspector hints, the ⌘/Ctrl+F shortcut row, the data-source delete confirmation,
+    the What's-next card and Settings' "sample query library" said library too. 14 sites.
+    Doc-truth check 18 now holds `studio.js` + `studio-render.js` string literals and
+    `index.html`'s text nodes to check 16's derived pane name, with identifiers exempt BY
+    SHAPE (lowercase, no whitespace) so `#library` keeps its id without an exemption list.
+    **It also carried a real mobile defect the copy audit surfaced:** `#cesLib` and the
+    checklist's step-2 action both opened the pane on a phone by clicking `#tabLib`, an id
+    that has never existed (`setupMobileTabs` builds its buttons with `data-mob-tab` and no
+    id) — so at ≤640px the primary CTA of both empty states did nothing. Both now share one
+    `openDataPane()`, which also expands a collapsed pane on desktop (silently) before
+    focusing its search. 4 new suite checks at 390×780 + 1280×900.
   * **Not yet audited (candidates for the next N7 slice):** the marketing page's hero carousel
     captions + screenshots, which the v871 slice deliberately left alone (the copy pass
     stayed textual — regenerating shots is its own slice); and the two remaining per-feature
     tours' BODY copy (Prep data (Jobs) / Connections &amp; Datasets / the pack tour) — the
-    Quick analysis tour's body is done (v875), Build a dashboard's is done (v877).
+    Quick analysis tour's body is done (v875), Build a dashboard's is done (v877). The v879
+    pass spot-checked the Jobs and Connections tours' TARGETS and search-field claims against
+    `jobs.js`/`connections.js`/`datasets.js` and found them accurate; what those two tours have
+    not caught up with is what the catalogs GAINED (the list⇆tile toggle, the sort select, the
+    Select/bulk toolbar, per-row private toggles), which is an additive-copy slice, not a
+    correction.
     **One BEHAVIOURAL candidate the v877 slice found and deliberately did not take** (it is a
     tour-engine change, not copy, so it wants its own slice): STUDIO-PANELS made the builder
     open with the Data and Inspector panes COLLAPSED by default, so the build tour's steps 1
     and 3 now spotlight a ~34px collapsed rail and describe contents the reader cannot see.
     The fix is a `before()` hook that opens the pane silently (`collapsePane(which, false,
     true)` — silent, so it never overwrites the user's persisted preference), plus a decision
-    about the ≤640px path where the panes are drawers and `collapsePane` early-returns. **Struck from this list:** Help's remaining
+    about the ≤640px path where the panes are drawers and `collapsePane` early-returns. **v879
+    settled the ≤640px half of that decision** — `openDataPane()` is now the one way anything
+    opens that pane at any width (drawer on phone, silent expand on desktop), so the tour hook
+    can just call it. **Struck from this list:** Help's remaining
     `analysis`/`analyses` prose (§602-627 and friends), which was the biggest known one and
     shipped as v876 above — it overlapped AUD-11's tail (§2.4's wording sweep), and that
     overlap is why v875 had scoped itself to the tours; and the ⌘K palette's section

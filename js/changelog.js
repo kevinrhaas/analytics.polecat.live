@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 879,
+    title: 'The builder calls its own left panel Data, and the button that opens it works on a phone',
+    kind: 'fix',
+    ts: '2026-08-08T03:46:44.000Z',
+    items: [
+      'The tours said Data, the Help page said Data, the panel\'s own header said Data — and the builder itself still said "the library" in a dozen places you actually read. On a phone the drawer tab under the canvas was labelled Library. In Simple mode the getting-started checklist opened on "Library ready". The empty canvas inside the preview told you to drag a query from the "Query Library". The hints in the inspector, the keyboard-shortcut list, the delete confirmation for a data source and the What\'s next card all used the old name too. They all say Data panel now.',
+      'One of those was not just wording. The "Open the Data panel" button on an empty canvas — and the same action in the getting-started checklist — did nothing at all on a phone: it reached for a tab button that has not existed since the drawer tab bar was rebuilt. On a narrow screen that was the main way in, and it was silently dead. Both now open the drawer for real.',
+      'The desktop half of the same button had a quieter hole: the panels open collapsed by default, so it was putting your cursor in a search box hidden inside a 34-pixel edge. It expands the panel first now, and it does not overwrite whether you like that panel open or closed.',
+      'The Sample content switch in Settings described a "sample query library" that was retired when sample content moved to demo packs; it now names what it actually turns on.',
+      'The check that runs on every change now holds the app\'s own wording to the panel\'s rendered name, the same way it already holds the tours and the Help page — so this cannot drift back. Three new tests cover the phone drawer, the phone button and the desktop button.',
+    ],
+  },
+  {
     v: 878,
     title: 'The Help page describes the builder\'s Data panel you actually have',
     kind: 'fix',

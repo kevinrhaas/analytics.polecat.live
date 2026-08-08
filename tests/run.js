@@ -27904,7 +27904,7 @@ function serve() {
         return { ok: firstDone && !secondDone, firstDone: firstDone, secondDone: secondDone };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("K7: first step is gs-done (library ready), second step is not done (add panel)", k7Step1Done.ok, JSON.stringify(k7Step1Done));
+    ok("K7: first step is gs-done (Data panel ready), second step is not done (add panel)", k7Step1Done.ok, JSON.stringify(k7Step1Done));
 
     // K7-4: Checklist absent in Advanced mode even when spec is empty
     await page.evaluate(function () {
@@ -31305,10 +31305,12 @@ function serve() {
     await page.waitForTimeout(200);
     const h104Shortcut = await page.evaluate(function () {
       var rows = Array.from(document.querySelectorAll(".modal-ov table tr"));
-      var hasCtrlF = rows.some(function (r) { return r.textContent.indexOf("Ctrl") >= 0 && r.textContent.indexOf("F") >= 0 && r.textContent.indexOf("library") >= 0; });
+      // N7 (Data-panel copy): the row names the pane the way the pane's own header does.
+      // It said "library" until the app's copy caught up with STUDIO-PANELS.
+      var hasCtrlF = rows.some(function (r) { return r.textContent.indexOf("Ctrl") >= 0 && r.textContent.indexOf("F") >= 0 && r.textContent.indexOf("Data panel") >= 0; });
       return { ok: hasCtrlF, rowCount: rows.length };
     });
-    ok("H104: shortcuts modal lists Ctrl/⌘+F library search shortcut", h104Shortcut.ok, JSON.stringify(h104Shortcut));
+    ok("H104: shortcuts modal lists the Ctrl/⌘+F Data-panel search shortcut", h104Shortcut.ok, JSON.stringify(h104Shortcut));
     // Close the modal
     await page.keyboard.press("Escape");
     await page.waitForTimeout(100);
@@ -43264,6 +43266,87 @@ function serve() {
       anonQ.gateViews === 1 && anonQ.gvUserNull && anonQ.gvStamped && anonQ.gvHasRoute && anonQ.sessionEnds === 1 && anonQ.seUserNull,
       JSON.stringify(anonQ));
     await anonPage.close();
+
+    // ---- N7 (Data panel): the builder names its own left pane the way that pane names
+    //      itself — and "open the Data panel" actually opens it, on a phone too ----
+    // STUDIO-PANELS renamed #library's rendered label to "Data" and app/index.html followed it
+    // (pane header, collapsed rail, tooltips, the empty canvas's "Open data panel" button).
+    // Every string the builder renders AT RUNTIME was missed, and one of them was load-bearing:
+    // the empty canvas's #cesLib handler and Simple mode's getting-started checklist each
+    // opened the pane on a phone by clicking `#tabLib` — an id that has never existed
+    // (setupMobileTabs builds its buttons with a data-mob-tab attribute and no id), so at
+    // ≤640px the primary CTA of BOTH empty states did nothing at all. They now share one
+    // openDataPane(), which also expands the pane on desktop before focusing its search —
+    // panes ship collapsed by default since STUDIO-PANELS, so the old code was putting the
+    // caret inside a 34px rail. tools/doc-truth.mjs check 18 is the copy half of this.
+    console.log("\n• N7: the builder's Data pane — its label, and its open button on a phone");
+    const dpCtx = await browser.newContext({
+      storageState: await page.context().storageState(), viewport: { width: 390, height: 780 } });
+    const dpPage = await dpCtx.newPage();
+    // Own error bucket: the suite's "no uncaught JS errors during session" gate runs far
+    // earlier than this block, so anything this page throws needs its own assertion.
+    const dpErrors = [];
+    dpPage.on("pageerror", (e) => { dpErrors.push(e.message); errors.push("N7 data-pane page: " + e.message); });
+    await dpPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); } catch (e) {} });
+    await dpPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await dpPage.waitForTimeout(400);
+    await dpPage.evaluate(function () { try { window.__studioShellSetSection("studio"); } catch (e) {} });
+    await dpPage.waitForTimeout(250);
+
+    // (a) THE LABEL — derived from the pane's own header, so this can never be satisfied by a
+    // hard-coded string that drifts with it.
+    const dpTab = await dpPage.evaluate(function () {
+      var tabs = [].map.call(document.querySelectorAll(".mob-tab"), function (b) {
+        return { id: b.getAttribute("data-mob-tab"), label: (b.textContent || "").trim(), aria: b.getAttribute("aria-label") };
+      });
+      var hdr = document.querySelector("#library .pane-h span");
+      return { tabs: tabs, paneName: hdr ? hdr.textContent.trim() : null };
+    });
+    const dpLibTab = dpTab.tabs.filter(function (t) { return t.id === "library"; })[0] || {};
+    ok("N7: the phone drawer's #library tab carries the pane's own header name (label + aria-label), not its internal id",
+      dpTab.tabs.length === 3 && !!dpTab.paneName && dpLibTab.label === dpTab.paneName && dpLibTab.aria === dpTab.paneName,
+      JSON.stringify({ paneName: dpTab.paneName, libTab: dpLibTab, tabCount: dpTab.tabs.length }));
+
+    // (b) THE PHONE CTA — the regression that shipped: this returned drawer-open false before.
+    const dpPhone = await dpPage.evaluate(function () {
+      var lib = document.getElementById("library"), scrim = document.getElementById("mobile-scrim");
+      lib.classList.remove("drawer-open");
+      var btn = document.getElementById("cesLib");
+      var before = lib.classList.contains("drawer-open");
+      if (btn) btn.click();
+      return {
+        hasBtn: !!btn, before: before, after: lib.classList.contains("drawer-open"),
+        tabActive: !!document.querySelector('.mob-tab.active[data-mob-tab="library"]'),
+        scrimOn: !!(scrim && scrim.classList.contains("active"))
+      };
+    });
+    ok("N7: at 390px the empty canvas's Open-data-panel button really opens the Data drawer (tab activated, scrim raised) — it used to click a #tabLib that does not exist",
+      dpPhone.hasBtn && !dpPhone.before && dpPhone.after && dpPhone.tabActive && dpPhone.scrimOn,
+      JSON.stringify(dpPhone));
+
+    // (c) THE DESKTOP CTA — expands a collapsed pane, focuses its search, and leaves the
+    // reader's persisted collapse preference exactly as it found it (silent collapsePane).
+    await dpPage.setViewportSize({ width: 1280, height: 900 });
+    await dpPage.waitForTimeout(250);
+    const dpDesktop = await dpPage.evaluate(function () {
+      var lib = document.getElementById("library");
+      lib.classList.remove("drawer-open");
+      lib.classList.add("collapsed");
+      try { localStorage.setItem("studio-collapse-library", "1"); } catch (e) {}
+      var wasCollapsed = lib.classList.contains("collapsed");
+      var btn = document.getElementById("cesLib"); if (btn) btn.click();
+      var pref; try { pref = localStorage.getItem("studio-collapse-library"); } catch (e) {}
+      return {
+        wasCollapsed: wasCollapsed, nowCollapsed: lib.classList.contains("collapsed"),
+        focused: !!(document.activeElement && document.activeElement.id === "libSearch"),
+        pref: pref
+      };
+    });
+    ok("N7: on desktop the same button expands a COLLAPSED Data pane and focuses its search, without rewriting the reader's persisted collapse preference",
+      dpDesktop.wasCollapsed && !dpDesktop.nowCollapsed && dpDesktop.focused && dpDesktop.pref === "1",
+      JSON.stringify(dpDesktop));
+    ok("N7: the Data-pane walk (390×780 → 1280×900) raised zero pageerrors", dpErrors.length === 0, dpErrors.slice(0, 3).join(" | "));
+    await dpCtx.close();
 
   } catch (e) {
     failed++; console.error("FATAL", e);

@@ -1585,7 +1585,7 @@
       chip.onclick = function (e) { e.stopPropagation(); addFromDA(stem, d.id, chip.getAttribute("data-t")); };
     });
     c.querySelector('[data-a="edit"]').onclick = function (e) { e.stopPropagation(); dataSourceBuilder({ stem: stem, da: d }); };
-    c.querySelector('[data-a="del"]').onclick = function (e) { e.stopPropagation(); if (confirm("Delete data source “" + d.id + "” from the library?")) deleteDataSource(stem, d.id); };
+    c.querySelector('[data-a="del"]').onclick = function (e) { e.stopPropagation(); if (confirm("Delete data source “" + d.id + "” from the Data panel?")) deleteDataSource(stem, d.id); };
     c.addEventListener("dragstart", function (e) {
       e.dataTransfer.setData("text/plain", JSON.stringify({ stem: stem, da: d.id }));
       e.dataTransfer.effectAllowed = "copy";
@@ -1688,7 +1688,7 @@
       // 2 — identity row
       var row = el("div", "field row");
       var idF = field("Query id", input(draft.id, function (v) { draft.id = v.trim().replace(/[^a-zA-Z0-9_]+/g, ""); }, "e.g. salesByRegion"));
-      var grpF = field("Group", input(draft.stem, function (v) { draft.stem = v.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-") || "custom"; }, "library section"));
+      var grpF = field("Group", input(draft.stem, function (v) { draft.stem = v.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-") || "custom"; }, "Data panel section"));
       row.appendChild(idF); row.appendChild(grpF); wrap.appendChild(row);
 
       // 3 — query editor (type-aware; rebuilt on kind change)
@@ -2573,7 +2573,7 @@
       var swB = el("div", "simple-welcome-body");
       var swT = el("div", "simple-welcome-title"); swT.textContent = "Simple mode is active";
       var swD = el("div", "simple-welcome-desc");
-      swD.textContent = "Advanced options — annotations, drill-through, cross-filtering, and specialist chart types — are hidden. Drag a query from the library to add your first chart.";
+      swD.textContent = "Advanced options — annotations, drill-through, cross-filtering, and specialist chart types — are hidden. Drag a query from the Data panel to add your first chart.";
       var swBtn = el("button", "simple-welcome-btn"); swBtn.type = "button"; swBtn.textContent = "Switch to Advanced mode →";
       swBtn.onclick = function () { toggleSimpleMode(); };
       swB.appendChild(swT); swB.appendChild(swD); swB.appendChild(swBtn);
@@ -2581,8 +2581,8 @@
     }
     // K7: Getting started checklist — shown in Simple mode when the dashboard is empty
     // (0 panels and 0 KPIs). Gives newcomers a clear 3-step path:
-    //   1. Library ready (auto-checked — catalog is always available)
-    //   2. Add a panel (the key CTA — drag or drop from the library)
+    //   1. Data panel ready (auto-checked — the catalog is always available)
+    //   2. Add a panel (the key CTA — drag or drop from the Data panel)
     //   3. Export your dashboard (the end goal)
     // Disappears the moment the first panel or KPI is added.
     if (S.simpleMode && !sp.panels.length && !(sp.kpis && sp.kpis.length)) {
@@ -2601,16 +2601,12 @@
         }
         row.appendChild(bd); return row;
       }
-      // Step 1 is always done — the catalog library is ready the moment the app loads.
-      cl.appendChild(clStep(true, "Library ready", "Your catalog queries are in the left panel — browse or search for your data."));
-      // Step 2 is the primary CTA; the action button focuses the library on desktop
-      // or opens the library drawer on phone so the user knows exactly where to go.
-      cl.appendChild(clStep(false, "Add a View to the canvas", "Drag any query from the library onto the canvas to create your first chart.", "Open library", function () {
-        if (window.innerWidth <= 640) {
-          var t = document.getElementById("tabLib"); if (t) t.click();
-        } else {
-          var ls = document.getElementById("libSearch"); if (ls) { ls.focus(); ls.select(); }
-        }
+      // Step 1 is always done — the Data panel's catalog is ready the moment the app loads.
+      cl.appendChild(clStep(true, "Data panel ready", "Your queries and datasets are in the Data panel on the left — browse or search for your data."));
+      // Step 2 is the primary CTA; the action button focuses the Data panel's search on
+      // desktop or opens its drawer on phone so the user knows exactly where to go.
+      cl.appendChild(clStep(false, "Add a View to the canvas", "Drag any query from the Data panel onto the canvas to create your first chart.", "Open the Data panel", function () {
+        openDataPane();
       }));
       // Step 3 is the end goal — shown as upcoming to frame the overall journey.
       cl.appendChild(clStep(false, "Export your dashboard", "Use Export ▾ to download a self-contained HTML file you can host anywhere static pages live."));
@@ -2654,7 +2650,7 @@
       k8.appendChild(k8Tip("gear", "Configure your chart",
         "Click a View on the canvas to select it, then choose a chart type and bind your data columns in the inspector."));
       k8.appendChild(k8Tip("plus", "Add more panels or KPIs",
-        "Drag more queries from the library onto the canvas to expand your dashboard."));
+        "Drag more queries from the Data panel onto the canvas to expand your dashboard."));
       k8.appendChild(k8Tip("download", "Export when ready",
         "Use Export ▾ in the toolbar to download a self-contained HTML file you can host anywhere.",
         "Open Export ▾", function () {
@@ -3109,7 +3105,7 @@
 
     // KPIs
     var ks = section(body, "KPI tiles", function () { addFromCurrentOrPrompt("kpi"); }, null, "builder", "grid");
-    if (!sp.kpis.length) ks.appendChild(hint("No KPI tiles. Add one from a query in the library, or click ＋."));
+    if (!sp.kpis.length) ks.appendChild(hint("No KPI tiles. Add one from a query in the Data panel, or click ＋."));
     sp.kpis.forEach(function (k, i) {
       ks.appendChild(rowItem("◧", k.label || "(metric)", k.da + " · " + k.valueCol,
         function () { select({ kind: "kpi", index: i }); },
@@ -3207,7 +3203,7 @@
       });
       ps.appendChild(tfBar);
     }
-    if (!sp.panels.length) ps.appendChild(hint("Drag a query onto the canvas, or use a ＋ chip in the library."));
+    if (!sp.panels.length) ps.appendChild(hint("Drag a query onto the canvas, or use a ＋ chip in the Data panel."));
     sp.panels.forEach(function (p, i) {
       var ic = (Studio.CHARTS[p.chart.type] || {}).icon || "▭";
       var pTags = p.tags || [];
@@ -3342,7 +3338,7 @@
       var libRow = el("div"); libRow.style.cssText = "display:flex;gap:8px;margin-top:6px";
       var libBtn = el("button", "btn-wide"); setIconBtn(libBtn, "save", "Save to View library"); libBtn.onclick = function () { saveWidgetToLibrary(p); };
       libRow.appendChild(libBtn); sec.appendChild(libRow);
-      sec.appendChild(noteEl("info", "Saves a self-contained snapshot of this View as a reusable View in the library — drag it into any dashboard from the rail's Views group, or open it from Quick Views."));
+      sec.appendChild(noteEl("info", "Saves a self-contained snapshot of this View as a reusable View in the View library — drag it into any dashboard from the rail's Views group, or open it from Quick Views."));
     }
 
     // chart type picker — grouped by c.group for scannability (Content group = richtext/annotation)
@@ -4369,7 +4365,7 @@
         // No query bound yet — direct the user to the picker above
         var gNone = el("div", "guided-setup");
         var gNoneIc = el("span", "gs-ic"); gNoneIc.appendChild(Studio.icon("info", 14)); gNone.appendChild(gNoneIc);
-        var gNoneTxt = el("span"); gNoneTxt.textContent = "Drag a query from the library, or pick one in 'Dataset' above, to see your chart."; gNone.appendChild(gNoneTxt);
+        var gNoneTxt = el("span"); gNoneTxt.textContent = "Drag a query from the Data panel, or pick one in 'Dataset' above, to see your chart."; gNone.appendChild(gNoneTxt);
         sec.appendChild(gNone);
       } else if (missingRequiredCols(p)) {
         if (!cols.length) {
@@ -5402,7 +5398,7 @@
   }
   function addFromCurrentOrPrompt(kind) {
     var das = S.spec.cda.dataAccesses;
-    if (!das.length) { toast("Add a query from the library first.", true); return; }
+    if (!das.length) { toast("Add a query from the Data panel first.", true); return; }
     if (kind === "kpi") { var k = Studio.newKpi(das[0]); k.fmt = Studio.guessFmt(k.valueCol); S.spec.kpis.push(k); select({ kind: "kpi", index: S.spec.kpis.length - 1 }); refreshPreview(); }
   }
 
@@ -9156,7 +9152,7 @@
       ic: function () { return S.theme === "dark" ? "moon" : "sun"; },
       on: function () { return S.theme === "dark"; },
       set: function () { setTheme(S.theme === "dark" ? "light" : "dark"); } },
-    { grp: "Mode", id: "samples", t: "Sample content", d: "Show the built-in demo suite — sample dashboards and the sample query library, all running on the internal demo database. Turn off to start from an empty workspace; nothing is deleted, flip it back anytime.",
+    { grp: "Mode", id: "samples", t: "Sample content", d: "Show the built-in demo suite — sample dashboards, demo packs and the New ▾ starter sets, all running on the internal demo database. Turn off to start from an empty workspace; nothing is deleted, flip it back anytime.",
       ic: function () { return "layers"; },
       on: function () { return showSamples(); },
       set: function () { setShowSamples(!showSamples()); toast(showSamples() ? "Sample content shown" : "Sample content hidden — flip this back anytime"); } },
@@ -10531,7 +10527,7 @@
   // shipped story belongs in What's new, not What's next.
   var WHATS_NEXT = [
     { title: "Faster preview updates", note: "The dashboard preview re-renders only what changed instead of rebuilding the whole board on every edit.", status: "next" },
-    { title: "The same search everywhere", note: "The library, the inspector and the chart gallery pick up the catalog panels' search rules, so one query behaves the same everywhere.", status: "next" },
+    { title: "The same search everywhere", note: "The Data panel, the inspector and the chart gallery pick up the catalog panels' search rules, so one query behaves the same everywhere.", status: "next" },
     { title: "One delete confirmation", note: "Every delete asks the same way, names what else goes with it, and offers Undo.", status: "planned" },
     { title: "Charts that answer the keyboard", note: "Keyboard focus on a bar, slice or tile shows the same tooltip a mouse hover does — inside exported dashboards too.", status: "planned" },
     { title: "Dashboards that follow your theme", note: "An optional third render mode so a dashboard can open in the reader's light or dark theme instead of the author's fixed choice.", status: "exploring" },
@@ -11170,7 +11166,7 @@
         ["Ctrl / ⌘  +  Shift+Z", "Redo"],
         ["Ctrl / ⌘  +  D", "Duplicate selected View or KPI"],
         ["Ctrl / ⌘  +  S", "Save to your Dashboards catalog"],
-        ["Ctrl / ⌘  +  F", "Focus library search (filter queries)"],
+        ["Ctrl / ⌘  +  F", "Focus the Data panel's search (filter queries)"],
         ["/", "Focus chart-type gallery search (View selected)"],
         ["↑ / ↓   (View selected)", "Reorder View up / down"],
         ["Shift + ← / →   (View selected)", "Decrease / increase View span"],
@@ -12021,13 +12017,33 @@
     nudgePreview();
   }
   function nudgePreview() { var ifr = $("#preview"); try { ifr.contentWindow.dispatchEvent(new Event("resize")); } catch (e) {} }
+  /* The ONE way anything in the builder opens the Data pane, at any width.
+     Both callers (the empty canvas's #cesLib button and the Simple-mode
+     getting-started checklist's step-2 action) used to clone the same phone
+     branch — `document.getElementById("tabLib").click()` — against an id that
+     has never existed: setupMobileTabs() builds its buttons with a
+     `data-mob-tab` attribute and no id at all, so on a phone the primary CTA
+     of both empty states silently did nothing. The desktop branch had its own
+     hole: STUDIO-PANELS made "panes collapsed" the default entry state
+     (applyStudioPanelsDefault), so focusing #libSearch inside a collapsed
+     34px rail put the caret somewhere the reader cannot see. Expand first —
+     silently, because this is a one-off nudge and must not rewrite the
+     reader's persisted collapse preference. */
+  function openDataPane() {
+    if (window.matchMedia && window.matchMedia("(max-width:640px)").matches) { activateMobTab("library"); return; }
+    var pane = $("#library");
+    if (pane && pane.classList.contains("collapsed")) collapsePane("library", false, true);
+    var ls = $("#libSearch"); if (ls) { ls.focus(); ls.select(); }
+  }
 
   /* ---------- mobile drawer tab bar (M2) ---------- */
   function setupMobileTabs() {
     var tabsEl = $("#mobile-tabs"), scrim = $("#mobile-scrim");
     if (!tabsEl) return;
     var TABS = [
-      { id: "library",   label: "Library",   icon: "db" },
+      // The pane's id stays `library` (it is #library in the markup); the LABEL is the
+      // one the pane's own header renders — "Data" since STUDIO-PANELS. doc-truth 18.
+      { id: "library",   label: "Data",      icon: "db" },
       { id: "canvas",    label: "Canvas",    icon: "eye" },
       { id: "inspector", label: "Inspector", icon: "gear" }
     ];
@@ -12777,7 +12793,7 @@
      across selection changes within the same session. */
   var QUICK_HELP = {
     dashboard: [
-      "Drag a query from the library onto the canvas to add a chart View.",
+      "Drag a query from the Data panel onto the canvas to add a chart View.",
       "Use New ▾ → Auto-build to scaffold a full starter dashboard instantly.",
       "Export ▾ → Dashboard (.html) gives a standalone file you can open in any browser."
     ],
@@ -13498,14 +13514,7 @@
     var cesIc = $("#cesIc");
     if (cesIc) cesIc.appendChild(Studio.icon("plus", 30));
     var cesBtn = $("#cesLib");
-    if (cesBtn) cesBtn.addEventListener("click", function () {
-      // On phone, open the library drawer; on desktop, focus the library search field
-      if (window.innerWidth <= 640) {
-        var t = document.getElementById("tabLib"); if (t) t.click();
-      } else {
-        var ls = document.getElementById("libSearch"); if (ls) { ls.focus(); ls.select(); }
-      }
-    });
+    if (cesBtn) cesBtn.addEventListener("click", openDataPane);
     // ¶ Text moved here from the Data-panel header (it creates a PANEL, so it
     // belongs with the canvas) — also reachable via the empty canvas itself.
     var cesTextBtn = $("#cesText");
