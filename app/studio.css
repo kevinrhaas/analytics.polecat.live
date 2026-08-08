@@ -1750,8 +1750,16 @@ body.lib-dragging #preview{pointer-events:none}
 #menuExamples.phone-pos{position:fixed;top:64px;left:8px;right:8px;max-width:none;z-index:60}
 /* phone-only More menu items: hidden by default, revealed at ≤640px below.
    IMPORTANT: this global rule must appear BEFORE the @media block so the media
-   query's display:block can override it (later = wins in same-specificity cascade). */
-.more-phone-only{display:none}
+   query's display:block can override it (later = wins in same-specificity cascade).
+   N7 (2026-08-08): the BUTTON half of that never actually worked. `.menu button` above sets
+   display:block at (0,1,1) and a bare `.more-phone-only` is (0,1,0), so it lost the cascade
+   outright — order was never the deciding factor for these. Every phone-only entry has
+   therefore ALWAYS rendered on desktop, where the ⋯ menu duplicated the eight toolbar buttons
+   sitting inches away (Undo/Redo/Open…/Save/Save as…/Duplicate/Close/Export…) plus the two
+   topbar icons (What's new, Send feedback). Matching `.menu button`'s specificity fixes it in
+   both directions. The bare selector stays for the `<div class="sep more-phone-only">`
+   separators, which were correctly hidden all along (`.menu .sep` sets no display). */
+.menu button.more-phone-only,.more-phone-only{display:none}
 /* Phone ≤640px: further collapse — hide the dash-id entirely; set mob-tabs-h for banner offset */
 @media(max-width:640px){
   :root{--mob-tabs-h:52px}
@@ -1770,7 +1778,7 @@ body.lib-dragging #preview{pointer-events:none}
      so they join the same phone hide-behind-More convention rather than crowding that row on
      a 390px screen (moreUndo/moreRedo/moreSaveAsSpec/moreDupDash/moreExport below). */
   #btnExamples,#btnImport,#btnSaveSpec,#btnSaveAsSpec,#btnDupDash,#btnCloseStudio,#btnUndo,#btnRedo,#btnExport{display:none!important}
-  .more-phone-only{display:block}
+  .menu button.more-phone-only,.more-phone-only{display:block}
   /* Slice A: on phones the global topbar keeps only its essentials — the section name, a
      compact icon-only search, the waffle, +New and ⋯More — so the section name has room to
      read instead of ellipsising to a letter. The three lowest-priority icon buttons hide:

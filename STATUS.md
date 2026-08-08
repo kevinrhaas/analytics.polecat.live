@@ -135,6 +135,50 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — Help says where the buttons are on a phone, and the ⋯ menu stops repeating your toolbar
+  (v882, sw v511, 2026-08-08, steward; LF58 recurring slice, dev branch):** the ▶ NOW queue is
+  unchanged (N2/N4b/N5a/N5b shipped, N4a ⛔ on Kevin, grooming still parked on the `hold` PR
+  #623), so 🔁 N7 again — and this is the candidate that list called the strongest remaining one:
+  Help's own version of the export route v881 had just fixed in the tour, the check-16→17 move one
+  document over.
+  **The defect was bigger than the note anticipated.** It was not "Export documented in the
+  desktop's terms" — it was **all ten** controls the phone hides, with the ⋯ More route named
+  nowhere: "Click **Export ▾** in the topbar", "the ↶/↷ buttons in the topbar", Save, Save as…,
+  Open, Duplicate, Close, and the two topbar icons (What's new, Send feedback). Help's single nod
+  to the convention was Send feedback's paragraph, written when TOPBAR-TITLE moved that ONE icon;
+  the eight M10 Slice B/C had already moved got nothing. The reader this hurts is precisely the
+  one who opened Help *because* the button was not where the app implied — and was told to click
+  it again. Every route is now named at its own site, plus a new "On a phone, the toolbar lives in
+  ⋯ More" section that lists the set once and is linked from the Exporting text.
+  **Doc-truth check 21** is the ratchet, every fact derived: the hidden set off `app/studio.css`'s
+  own phone media bands (shared with check 20), each id paired to its `#more*` twin by the M10
+  naming convention itself, and three rules — Help must NAME every such route, every "⋯ More → X"
+  Help writes must resolve in `#menuMore` (check 13's rule, which had explicitly scoped
+  docs/index.html OUT on a concern that turned out to be unfounded — its resolver consumes a label
+  and stops, so "⋯ More → Simple mode off" resolves fine), and the counterparts must be
+  `.more-phone-only`. Run against the pre-fix file it flagged all ten.
+  **It carried a real defect the verification surfaced, in the direction nobody was looking:**
+  `.more-phone-only` never hid anything. `.menu button` sets `display:block` at specificity
+  (0,1,1); the bare class is (0,1,0), so it lost the cascade outright — the M7 comment reasoned
+  carefully about rule ORDER while specificity was the deciding factor the whole time. Measured at
+  1280×900 before the fix: all ten phone-only entries rendering on desktop, i.e. the ⋯ menu
+  repeating the eight toolbar buttons sitting inches away, plus What's new and Send feedback from
+  the top bar. Fixed by matching `.menu button`'s specificity in both directions; the bare selector
+  stays for the `<div class="sep more-phone-only">` twins, which `.menu .sep` never gave a display
+  and so were correctly hidden all along. Check 21's third rule also holds the hide band and the
+  reveal band to be the SAME band — a 640/400 split would put a control in neither place on a
+  mid-size phone — and the stale "≤400px" comments in `app/index.html` and `app/studio.js` (both
+  predating M10's move to 640) were corrected in the same pass.
+  **Verification:** the full dev gate green in the foreground — `tools/validate.mjs` (207 files),
+  `tools/changelog-check.js` (859 entries, top v882, manager-parse OK), `tools/doc-truth.mjs`
+  (all checks incl. 21's five), `tools/dev-smoke.mjs` (marketing + app + docs, desktop + 390px,
+  zero pageerrors). The 7 new `tests/run.js` checks were proven green by running that exact block
+  standalone against the same static server at 390×780 → 1280×900 (7/7, zero pageerrors); the full
+  `tests/run.js` runs at stage-promotion time per the pipeline's own design.
+  **Deliberately NOT fixed, filed as N8:** those ⋯ More rows measure 37px at 390×780, under UX7's
+  44px touch bar — that rule landed on `.btn` and a menu row is a bare `.menu button`, so it is
+  every menu in the app rather than these ten, and it needs a per-menu overflow measurement pass.
+  est 1pt, took 1.
 - **N7 — the Build a dashboard tour's Export step works on a phone (v881, sw v510, 2026-08-08,
   steward; LF58 recurring slice, dev branch):** the ▶ NOW queue is unchanged (N2/N4b/N5a/N5b
   shipped, N4a ⛔ on Kevin, grooming still parked on the `hold` PR #623), so 🔁 N7 again — and
@@ -10371,6 +10415,21 @@
     `data-theme`; it honors `prefers-color-scheme` standalone (Playwright `emulateMedia`);
     it follows the host inside the Viewer; and the Inspector offers exactly three options
     with Light still the default for a new dashboard. Docs + Help updated in the same slice.
+- **N8 ★ [1pt] — Every dropdown-menu row is under the 44px touch bar on a phone.** Born in NOW
+  from N7/v882's verification (2026-08-08, steward) — measured, not suspected: at 390×780 every
+  `.menu button` renders **37px** tall (`padding:10px 12px`, no `min-height`). UX7 set a 44px
+  minimum "across the whole ≤640px band" but the rule landed on `.btn`, and a menu row is a bare
+  `.menu button` — so it never applied. That is now the PRIMARY phone route for ten builder
+  controls (v882 documented it in Help: ⋯ More → Export…/Save/Open…/Undo/Redo/Save as…/
+  Duplicate/Close, plus What's new and Send feedback), and it is 7px short on all of them.
+  **Why it is its own slice, not v882's:** the fix is one rule in the ≤640px band
+  (`.menu button{min-height:44px}`), but it lands on EVERY menu in the app, not these ten —
+  #menuMore is already 540px tall at 390×780 and gains ~90px; #menuExport, #menuNew,
+  #dashMoreMenu and the rest each need measuring for viewport overflow before it ships. So:
+  measure every `.menu` at 390×780, apply the rule, and assert no menu's box leaves the
+  viewport. Verify with the full suite + a new check per menu at 390×780 and 1280×900.
+  **Position is the loop's placement, not Kevin's** — it sits above the 🔁 so it is taken next;
+  move or re-star it freely.
 - 🔁 **N7 — Recurring, when the queue is thin: keep the docs, tours, Help and marketing page
   current with the app (LF58).** One coherent slice per run, never a big-bang at the end.
   The app has changed a lot this week; the in-app Help and the tour copy are the parts most
@@ -10479,9 +10538,29 @@
     "⋯ More → X" against `#menuMore`, so the step now carries a `phone:` form (merged per render
     by `resolveStep`) that rings ⋯ More and names the route the phone has. Desktop unchanged,
     asserted. Doc-truth check 20 derives the hidden-at-≤640px id set from `app/studio.css` itself.
-  * **Not yet audited (candidates for the next N7 slice):** Help's own version of that same export
-    route — `docs/index.html` documents Export in the desktop's terms, the check-16→17 move one
-    document over, and the strongest remaining candidate. Also: the marketing page's hero carousel
+  * *Help's own version of that same export route — v882, sw v511 (see DONE), 2026-08-08.* The
+    candidate this list called the strongest, and it was bigger than "Export": `docs/index.html`
+    documented the builder entirely in the desktop's terms for **all ten** controls M10 hides
+    below 640px — "Click **Export ▾** in the topbar", "the ↶/↷ buttons in the topbar", Save,
+    Save as…, Open, Duplicate, Close, and the two topbar icons — with the ⋯ More route named
+    nowhere. Help's one nod to the convention was Send feedback's paragraph (TOPBAR-TITLE, one
+    icon); the eight Slice B/C had already moved got nothing. Every route is now named, with a
+    new "On a phone, the toolbar lives in ⋯ More" section the Exporting text links to. Doc-truth
+    check 21 derives the hidden set from `app/studio.css`, pairs each id with its `#more*` twin
+    by the M10 naming convention, and requires Help to name every route — the check-16→17 move,
+    one document over, and it flagged all ten on the pre-fix file.
+    **It also carried a real defect the verification surfaced, in the direction nobody was
+    looking:** `.more-phone-only` never hid anything. `.menu button` sets `display:block` at
+    (0,1,1) and the bare class is (0,1,0), so it lost the cascade outright — the M7 comment
+    reasoned carefully about rule ORDER and specificity was the deciding factor all along.
+    Measured at 1280×900: all ten phone-only entries rendering on desktop, the ⋯ menu repeating
+    the eight toolbar buttons beside it plus What's new/Send feedback. Fixed by matching
+    `.menu button`'s specificity in both directions (the bare selector stays for the `.sep`
+    twins, which `.menu .sep` never gave a display and so were correctly hidden). Check 21 also
+    asserts the hide and reveal bands are the SAME band — the stale "≤400px" comments in
+    `app/index.html` and `app/studio.js` were fixed in the same pass. 7 new suite checks at
+    390×780 + 1280×900.
+  * **Not yet audited (candidates for the next N7 slice):** the marketing page's hero carousel
     captions + screenshots, which the v871 slice deliberately left alone (the copy pass
     stayed textual — regenerating shots is its own slice); and the two remaining per-feature
     tours' BODY copy (Prep data (Jobs) / Connections &amp; Datasets / the pack tour) — the

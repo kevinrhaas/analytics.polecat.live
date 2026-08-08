@@ -787,6 +787,102 @@ ok("app/tutorial.js: resolveStep — the merger those phone: forms depend on —
   /function resolveStep\s*\(/.test(tutorialSrc) && /var step = resolveStep\(/.test(tutorialSrc),
   "without it a phone: form is inert data: the ring goes back to being measured on a display:none box");
 
+// 21. Check 20 asked whether the TOUR can see the controls it walks. This asks the same of
+//     HELP — the check-16→17 move, one document over, and the same answer: it could not.
+//     docs/index.html documented the builder entirely in the desktop's terms. "Click Export ▾
+//     in the topbar", "Save (Ctrl S)", "Open — picks a dashboard", "the ↶/↷ buttons in the
+//     topbar" — nine sentences pointing at nine buttons that M10 hides outright below 640px,
+//     with the phone's actual route (⋯ More) named nowhere. Help's ONE nod to the convention
+//     was Send feedback's paragraph, written when TOPBAR-TITLE moved that single icon; the
+//     eight controls Slice B/C had already moved got nothing. A reader on a phone was told to
+//     click something their screen does not have, by the document they opened BECAUSE they
+//     could not find it.
+//     Check 13 deliberately left docs/index.html out of scope ("its prose takes deliberate
+//     liberties an exact label match would false-positive on") — that turned out to be
+//     unfounded: its resolver consumes a label and stops, so "⋯ More → Simple mode off"
+//     resolves on "Simple mode" and the trailing word is simply not part of the route. So Help
+//     comes into scope here, with the same resolver. Three rules, every fact derived:
+//       (a) COVERAGE — every control the phone hides that has a ⋯ More counterpart must have
+//           its route NAMED in Help, by the counterpart's own menu label. Move the next button
+//           behind ⋯ More and Help is required to say so.
+//       (b) THE ROUTE RESOLVES — every "⋯ More → X" Help writes must be an entry #menuMore
+//           really has (check 13's rule, one document over).
+//       (c) THE CONVENTION IS INTACT — each counterpart must be a `more-phone-only` button, and
+//           the stylesheet must reveal that class in THE SAME media band that hides the topbar
+//           button. Hide at ≤640px but reveal at ≤400px and every route above is a lie for
+//           400-640px phones, while (a) and (b) both still pass.
+const moreById = (() => {
+  const start = appHtml.indexOf('<div class="menu" id="menuMore">');
+  if (start < 0) throw new Error("doc-truth: #menuMore not found in app/index.html");
+  const nextWrap = appHtml.indexOf('<div class="menu-wrap"', start + 1);
+  const block = appHtml.slice(start, nextWrap > -1 ? nextWrap : appHtml.length)
+    .replace(/<!--[\s\S]*?-->/g, "");
+  const out = new Map();
+  for (const m of block.matchAll(/<button([^>]*)\bid="(\w+)"([^>]*)>([^<]+)<\/button>/g)) {
+    out.set(m[2], { label: m[4], phoneOnly: /more-phone-only/.test(m[1] + m[3]) });
+  }
+  return out;
+})();
+// The pairing is the M10 naming convention itself: the topbar's #btnExport / #tbFeedback is
+// mirrored by ⋯ More's #moreExport / #moreFeedback. Derived, so a control that joins the
+// convention is picked up the moment it is named that way — and one that does NOT have a
+// counterpart (#tbTheme, whose answer is the rail drawer, not the menu) is simply not in scope.
+const morePairs = [...phoneHiddenIds]
+  .map((id) => ({ id, more: "more" + id.replace(/^(btn|tb)/, "") }))
+  .filter((p) => moreById.has(p.more));
+ok("app/index.html: the topbar→⋯More pairings parsed for check 21 are non-empty",
+  morePairs.length >= 6,
+  `paired: ${morePairs.map((p) => `#${p.id}→#${p.more}`).join(" · ") || "(none)"}`);
+const helpRouteText = norm(read("docs/index.html")
+  .replace(/<!--[\s\S]*?-->/g, "")
+  .replace(/<[^>]+>/g, " ")
+  .replace(/&nbsp;/g, " ").replace(/&(?:rsquo|#8217);/g, "'"));
+const undocumentedRoutes = morePairs
+  .filter((p) => !helpRouteText.includes(norm(`⋯ More → ${moreById.get(p.more).label}`)))
+  .map((p) => `#${p.id} is display:none at ≤640px; its route is "⋯ More → ` +
+    `${moreById.get(p.more).label.trim()}", which docs/index.html never names`);
+ok(`docs/index.html: every control the phone hides behind ⋯ More (${morePairs.map((p) => p.id).join(", ")}) ` +
+  `has its phone route documented`,
+  !undocumentedRoutes.length,
+  `${undocumentedRoutes.join("\n      ")}\n      Help is what a reader opens BECAUSE the button is not where it says — it must name the route they have`);
+const badHelpRoutes = unresolvedRoutes(helpRouteText, norm("⋯ More"), MORE_L, "entry in #menuMore", "docs/index.html");
+ok("docs/index.html: every ⋯ More route Help names is an entry #menuMore really has",
+  !badHelpRoutes.length, badHelpRoutes.join("\n      "));
+const notPhoneOnly = morePairs.filter((p) => !moreById.get(p.more).phoneOnly)
+  .map((p) => `#${p.more} is not .more-phone-only, so it does not appear when #${p.id} disappears`);
+ok("app/index.html: every ⋯ More counterpart is a .more-phone-only entry",
+  !notPhoneOnly.length, notPhoneOnly.join("\n      "));
+// The bands must be the same one. app/index.html's own comment claimed the reveal happens at
+// ≤400px while M10 moved the hide to ≤640px — had the stylesheet ever matched that comment,
+// every route documented above would have been wrong for a 480px phone, silently.
+const bands = (() => {
+  const css = read("app/studio.css");
+  const at = /@media([^{]*)\{/g;
+  let m, hides = new Map(), reveals = null;
+  while ((m = at.exec(css))) {
+    const cond = m[1].replace(/\s+/g, "");
+    let depth = 1, i = at.lastIndex;
+    for (; i < css.length && depth; i++) {
+      if (css[i] === "{") depth++;
+      else if (css[i] === "}") depth--;
+    }
+    const block = css.slice(at.lastIndex, i - 1).replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const rule of block.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const sels = rule[1].split(",").map((s) => s.trim());
+      if (/display\s*:\s*none/.test(rule[2])) {
+        for (const s of sels) { const id = /^#([\w-]+)$/.exec(s); if (id) hides.set(id[1], cond); }
+      }
+      if (sels.includes(".more-phone-only") && /display\s*:\s*(block|flex)/.test(rule[2])) reveals = cond;
+    }
+  }
+  return { hides, reveals };
+})();
+const bandMismatch = morePairs.filter((p) => bands.hides.get(p.id) !== bands.reveals)
+  .map((p) => `#${p.id} hides at "${bands.hides.get(p.id)}" but .more-phone-only is revealed at "${bands.reveals}"`);
+ok(`app/studio.css: ⋯ More reveals its phone-only entries in the same band that hides the topbar buttons (${bands.reveals || "(never revealed)"})`,
+  !!bands.reveals && !bandMismatch.length,
+  `${bandMismatch.join("\n      ")}\n      a gap between the two bands is a width where the control is in neither place and Help's route is a lie`);
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

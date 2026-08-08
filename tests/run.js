@@ -43565,6 +43565,155 @@ function serve() {
       btErrors.length === 0, btErrors.slice(0, 3).join(" | "));
     await btCtx.close();
 
+    // ---- N7: the ⋯ More routes Help documents are routes the phone really has ----
+    // The previous slice taught the TOUR the phone's route to Export; docs/index.html still
+    // documented the whole builder in the desktop's terms — "Click Export ▾ in the topbar",
+    // "the ↶/↷ buttons in the topbar" — for ten controls M10 hides below 640px. Help now names
+    // ⋯ More → … for each, and tools/doc-truth.mjs check 21 keeps it named. That is the static
+    // half, and it can only prove the two DOCUMENTS agree. This is the half that proves the
+    // documented route is TRUE OF THE APP: at the mobile gate width, with the builder open,
+    // every entry Help sends a reader to is on the screen, thumb-sized, and wired.
+    // The pair list is read off app/index.html's own markup — a control that joins (or leaves)
+    // the ⋯ More convention changes this test's subject matter without anyone editing it.
+    console.log("\n• N7: Help's ⋯ More phone routes, walked at the 390×780 gate");
+    const morePhoneEntries = (() => {
+      const src = fs.readFileSync(path.join(ROOT, "app/index.html"), "utf8");
+      const start = src.indexOf('<div class="menu" id="menuMore">');
+      const nextWrap = src.indexOf('<div class="menu-wrap"', start + 1);
+      const block = src.slice(start, nextWrap > -1 ? nextWrap : src.length).replace(/<!--[\s\S]*?-->/g, "");
+      return [...block.matchAll(/<button[^>]*\bid="(more\w+)"[^>]*\bclass="[^"]*more-phone-only[^"]*"[^>]*>([^<]+)<\/button>/g)]
+        .map((m) => ({ more: m[1], label: m[2].trim(), bare: m[1].slice(4) }));
+    })();
+    ok("N7: app/index.html's ⋯ More phone-only entries parsed for the route walk are non-empty",
+      morePhoneEntries.length >= 6, morePhoneEntries.map((e) => `#${e.more}`).join(" · ") || "(none)");
+
+    const hrCtx = await browser.newContext({
+      storageState: await page.context().storageState(), viewport: { width: 390, height: 780 } });
+    const hrPage = await hrCtx.newPage();
+    const hrErrors = [];
+    hrPage.on("pageerror", (e) => { hrErrors.push(e.message); errors.push("N7 help-routes page: " + e.message); });
+    await hrPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); } catch (e) {} });
+    await hrPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await hrPage.waitForTimeout(400);
+    // Into the builder — Help's claims are about the builder's toolbar, and #btnExport et al.
+    // only render while Studio is the open section. The rail is a drawer at this width, so the
+    // rail item is clicked directly; getting there is setup, not what is under test.
+    await hrPage.evaluate(function () {
+      var b = document.querySelector('#railNav .rail-item[data-sec="studio"]');
+      if (b) b.click();
+    });
+    await hrPage.waitForTimeout(500);
+    const hrWalk = await hrPage.evaluate(async function (entries) {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      var W = window.innerWidth, H = window.innerHeight;
+      function box(el) {
+        if (!el) return null;
+        var r = el.getBoundingClientRect();
+        return { w: Math.round(r.width), h: Math.round(r.height),
+          onscreen: r.width > 0 && r.height > 0 && r.left >= 0 && r.right <= W + 1 && r.top < H && r.bottom > 0 };
+      }
+      var out = { inStudio: !!document.querySelector('#railNav .rail-item[data-sec="studio"].active'), rows: [] };
+      // The premise first, with the menu SHUT: the topbar partner really is gone at this width.
+      // If it were merely narrow, Help would be over-claiming and the routes below redundant.
+      for (var i = 0; i < entries.length; i++) {
+        var e = entries[i];
+        var partner = document.getElementById("btn" + e.bare) || document.getElementById("tb" + e.bare);
+        var pb = box(partner);
+        out.rows.push({ more: e.more, label: e.label, partner: partner ? partner.id : null,
+          partnerHidden: !!partner && (!pb || (pb.w === 0 && pb.h === 0)) });
+      }
+      document.getElementById("btnMore").click();
+      await sleep(320);
+      out.menuOpen = document.getElementById("menuMore").classList.contains("open");
+      for (var j = 0; j < out.rows.length; j++) {
+        var el = document.getElementById(out.rows[j].more);
+        var b = box(el);
+        out.rows[j].shown = !!el && !!b && b.w > 0 && b.h > 0;
+        out.rows[j].onscreen = !!b && b.onscreen;
+        out.rows[j].h = b ? b.h : 0;
+        out.rows[j].wired = !!el && typeof el.onclick === "function";
+      }
+      return out;
+    }, morePhoneEntries);
+    ok("N7: at 390×780 every topbar control Help says lives behind ⋯ More really is off the screen there (the premise Help now states)",
+      hrWalk.inStudio && hrWalk.rows.length === morePhoneEntries.length &&
+      hrWalk.rows.every((r) => r.partner && r.partnerHidden),
+      JSON.stringify({ inStudio: hrWalk.inStudio, notHidden: hrWalk.rows.filter((r) => !r.partner || !r.partnerHidden) }));
+    // NOT asserted here, deliberately, because this slice does not fix it: these rows measure
+    // 37px, under the 44px touch-target bar UX7 set for the ≤640px band — that rule landed on
+    // `.btn`, and a ⋯ More entry is a bare `.menu button`. It is every menu in the app, not
+    // these ten, so it is filed as its own NOW item (N8) with the measurement rather than
+    // widened into this PR.
+    ok("N7: and every route Help names in its place — ⋯ More → " +
+      morePhoneEntries.map((e) => e.label).join(" / ") + " — is on that screen and wired",
+      hrWalk.menuOpen && hrWalk.rows.every((r) => r.shown && r.onscreen && r.wired),
+      JSON.stringify({ menuOpen: hrWalk.menuOpen, bad: hrWalk.rows.filter((r) => !(r.shown && r.onscreen && r.wired)) }));
+
+    // Two routes walked for real, both non-destructive, both named verbatim in Help: the export
+    // menu Help's Exporting section now sends a phone to, and the dashboard picker its
+    // "Saving and loading your work" list does.
+    const hrExport = await hrPage.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      document.getElementById("moreExport").click();
+      await sleep(300);
+      var menu = document.getElementById("menuExport");
+      var r = menu ? menu.getBoundingClientRect() : null;
+      var out = { open: !!menu && menu.classList.contains("open"),
+        onscreen: !!r && r.width > 0 && r.height > 0 && r.left >= -1 && r.right <= window.innerWidth + 1,
+        items: menu ? menu.querySelectorAll("button").length : 0,
+        moreClosed: !document.getElementById("menuMore").classList.contains("open") };
+      document.body.click();
+      await sleep(200);
+      return out;
+    });
+    ok("N7: ⋯ More → Export… opens the same export menu Help's Exporting section describes — on screen at 390px, with its formats, and the ⋯ menu steps out of the way",
+      hrExport.open && hrExport.onscreen && hrExport.items >= 3 && hrExport.moreClosed,
+      JSON.stringify(hrExport));
+    const hrOpen = await hrPage.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      document.getElementById("btnMore").click();
+      await sleep(280);
+      document.getElementById("moreImport").click();
+      await sleep(420);
+      var modal = document.querySelector(".modal-backdrop, .modal, #dashPicker");
+      var out = { picker: !!modal };
+      if (modal) {
+        var r = modal.getBoundingClientRect();
+        out.onscreen = r.width > 0 && r.height > 0;
+      }
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      await sleep(250);
+      return out;
+    });
+    ok("N7: ⋯ More → Open… really opens the dashboard picker Help's 'Saving and loading your work' list points a phone at",
+      hrOpen.picker && hrOpen.onscreen !== false, JSON.stringify(hrOpen));
+
+    // The other half of the convention, and the reason Help says "on a phone" rather than
+    // "in ⋯ More": on a laptop those entries stay OUT of the menu, because the toolbar has them.
+    await hrPage.setViewportSize({ width: 1280, height: 900 });
+    await hrPage.waitForTimeout(300);
+    const hrDesk = await hrPage.evaluate(async function (entries) {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      document.getElementById("btnMore").click();
+      await sleep(300);
+      var out = { menuOpen: document.getElementById("menuMore").classList.contains("open"), leaked: [], missingPartner: [] };
+      for (var i = 0; i < entries.length; i++) {
+        var el = document.getElementById(entries[i].more);
+        if (el && getComputedStyle(el).display !== "none") out.leaked.push(entries[i].more);
+        var partner = document.getElementById("btn" + entries[i].bare) || document.getElementById("tb" + entries[i].bare);
+        var pr = partner && partner.getBoundingClientRect();
+        if (!pr || pr.width === 0) out.missingPartner.push(entries[i].more);
+      }
+      document.getElementById("btnMore").click();
+      await sleep(150);
+      return out;
+    }, morePhoneEntries);
+    ok("N7: at 1280×900 the same entries stay out of ⋯ More and the toolbar carries them instead — which is why Help scopes every one of those routes to a phone",
+      hrDesk.menuOpen && !hrDesk.leaked.length && !hrDesk.missingPartner.length, JSON.stringify(hrDesk));
+    ok("N7: the ⋯ More route walk (390×780 → 1280×900) raised zero pageerrors",
+      hrErrors.length === 0, hrErrors.slice(0, 3).join(" | "));
+    await hrCtx.close();
+
   } catch (e) {
     failed++; console.error("FATAL", e);
   } finally {

@@ -11837,7 +11837,9 @@
     // StudioTutorial.open()/window.__studioOpenJsonEditor stay public, and all four
     // (plus Tour) are one ⌘K search away in the command palette (app/palette.js).
 
-    // M7: phone-only More menu items — exposed at ≤400px when topbar hides these buttons
+    // M7: phone-only More menu items — exposed in the SAME ≤640px band that hides these buttons
+    // (M10 moved both; this comment said ≤400px until N7, 2026-08-08 — doc-truth check 21
+    // now measures the two bands against each other in app/studio.css).
     // Slice B: Undo/Redo/Export joined this convention once they moved into the shared
     // topbar's #tbSectionActions (see the phone hide rule in studio.css) — same reasoning
     // as Open/Save/Close/Examples: direct on THIS one-off dashbar-scoped row before, but
