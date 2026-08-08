@@ -135,6 +135,59 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N19 — how to STAND UP a Supabase project, not just how to populate one (v902, sw v525
+  unchanged, 2026-08-08, steward; dev branch; est 1pt, took 1 — on estimate):** every Supabase
+  topic in the repo started one step too late — at "paste this SQL" — so the person creating a
+  project (Kevin, live, on `polecat_dev`) had to ask which create-project **Security** boxes the
+  app needs. Written now in three places, each aimed at where the reader actually is:
+  - **`docs/index.html` → Admin & backend setup → "Standing up a Supabase project"** (new `<h3
+    id="supabase-create-project">`, placed before "How syncing works" so it reads in the order the
+    work happens). The three Security toggles WITH their reasons, all derived from the shipped SQL:
+    **Data API ON** (the adapter is a PostgREST client — no Data API, no door); **automatically
+    expose new tables ON**, the counter-intuitive one, because `tools/supabase-deploy.sql` carries
+    **zero `GRANT` statements** and leans entirely on the project's default privileges, so OFF
+    yields tables with RLS and policies but no table-level grant to `anon`/`authenticated` and
+    PostgREST refuses everything; **automatic RLS ON** as belt-and-braces, noting that under the
+    newer publishable keys a policy-less table returns zero rows rather than erroring, so RLS-on is
+    the working state. Then the two irreversible answers — **save the database password** (shown
+    once, resettable but not recoverable; `tests/rls.mjs` needs it as `SUPABASE_PASSWORD` and
+    **SKIPs silently with exit 0** without it) and **region `ca-central-1`**, a fleet standard
+    because `tests/rls.mjs` defaults to the `aws-0-ca-central-1` pooler host and Supabase cannot
+    move a project after creation — a mismatch there reads green from every direction at once.
+    Plus **which of the three SQL files to run** (deploy = the one; rls-real = posture-only subset;
+    bootstrap = legacy allow-all, not for new environments), Kevin's standing decision that **dev
+    and stage run the same posture as prod**, the two per-environment steps the script can't do
+    (§ 7 first admin, § 8 verify → all zeros for anon), free-tier idle **pause = unreachable, not a
+    refusal** (the N2-slice-3 / N11 / N14 distinction), one project hosting several fleet apps via
+    the `polecat_meta` app marker, and the **environment topology** as actually wired today: prod
+    (posture verified before every prod ship), `polecat_dev` (where `tests/rls.mjs` runs — nightly
+    `rls-dev.yml`, and again inside every stage promotion), and the `polecat_stage` slot that does
+    not exist yet.
+  - **`tools/supabase-deploy.sql` § 0** — the canonical short form next to the SQL that depends on
+    it, because a reader in the Supabase SQL editor never sees Help. It also names the obligation:
+    whoever adds GRANTs there flips the toggle answer to OFF in the same change.
+  - **`tools/supabase-bootstrap.sql`'s header, de-staled** — it still warned that the real RLS
+    posture was not yet safe to run (true until M7 slices 2/3 shipped GoTrue sign-in + the
+    owner-field migration; the real posture went live 2026-07-30) and it **misled an interactive
+    session on 2026-08-08**. It now says plainly that it is the legacy allow-all file, and points
+    to the deploy script.
+  **Verification — `tools/doc-truth.mjs` check 26** (6 new checks, dev gate, browser-free): the
+  derived claims are re-measured rather than trusted. The load-bearing one binds the toggle answer
+  to the GRANT count in `supabase-deploy.sql` — 0 grants → Help must say ON; the moment someone
+  adds grants (a wanted change — **N20**) it goes red until Help and § 0 flip to OFF. Rare and
+  deliberate: a doc-truth check that fires on an *improvement*, which is exactly when a doc gets
+  forgotten. The rest: Help must state the REASON for that answer; must name the region
+  `tests/rls.mjs` actually defaults to (parsed from its pooler host, never hand-typed); must name
+  all three SQL files, so none can be chosen by omission; deploy.sql must carry § 0; and
+  bootstrap.sql must no longer carry the sentence that misled. **Negative-controlled** — a GRANT
+  appended to deploy.sql flips check 26 red exactly as designed, then restored. Dev gate run in
+  full: validate + changelog-check + doc-truth + dev-smoke. **No `sw.js` bump**: `docs/index.html`
+  is explicitly NOT precached (sw.js:20 — the runtime network-first handler caches it after a first
+  visit) and the precache list is unchanged, the same reading #630 used. **Not done, deliberately:**
+  the spec's "stand up a scratch project from the written steps alone" needs a real Supabase
+  account, so it is Kevin's to confirm; doc-truth 26 is what stands in for it inside the repo.
+  (docs/index.html, tools/supabase-deploy.sql, tools/supabase-bootstrap.sql, tools/doc-truth.mjs,
+  js/changelog.js, js/changelog-head.js, STATUS.md)
 - **N18 — `docs/COMPAT.md`: the backend-compatibility contract, with teeth (v901, sw v525
   unchanged, 2026-08-08, steward; dev branch):** N16 and N17 built the guarantees a mixed fleet of
   app versions depends on. This writes them down and makes forgetting them a red gate. **Est 1pt,
@@ -11384,8 +11437,13 @@
   workspace DDL? read docs/COMPAT.md first — the bump checklist is mandatory") and a validate/
   doc-truth check that fails when SCHEMA_VERSION changes without a same-commit COMPAT.md history
   entry — the process teeth, so this outlives any one agent's memory.
-- **N19 ★ [1pt] — Document how to STAND UP a Supabase project, not just how to populate one
-  (Kevin, 2026-08-08: "these should be in the documentation also").** He hit it live creating
+- ~~**N19 ★ [1pt] — Document how to STAND UP a Supabase project, not just how to populate one
+  (Kevin, 2026-08-08: "these should be in the documentation also").**~~ ✓ **SHIPPED v902
+  (2026-08-08, steward — see DONE; est 1pt, took 1). Every part of the spec below landed except
+  the "stand up a scratch project from the written steps alone" verification, which needs a real
+  Supabase account and is Kevin's to do; the written claims are instead held to the shipped SQL
+  and tests by doc-truth check 26, which fails the dev gate the moment either moves.** The
+  original spec stays until the next grooming pass archives it. He hit it live creating
   `polecat_dev` and had to ask which of the create-project **Security** checkboxes the app
   needs — nothing in the repo answers that. Every shipped doc starts one step too late, at
   "paste this SQL": `tools/supabase-bootstrap.sql` explains its own grants beautifully but

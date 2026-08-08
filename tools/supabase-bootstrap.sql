@@ -8,14 +8,24 @@
 -- All other row fields ride in the `data` JSON blob, so the schema never has to
 -- migrate when a row grows a new attribute. See app/sources/schema.js.
 --
+-- ⚠ NOT THE FILE FOR A NEW ENVIRONMENT. Use tools/supabase-deploy.sql — "THE
+-- one file to run", the superset (tables + the real RLS posture + the activity
+-- log tables + first-admin + verify), and the only one whose header covers
+-- creating the project itself (its § 0). tools/supabase-rls-real.sql is the
+-- posture-only subset, for re-tightening an environment whose tables already
+-- exist. THIS file is the legacy allow-all demo posture, kept for reference.
+--
 -- NOTE ON SECURITY (RLS): this bootstrap deliberately does NOT add Row-Level
--- Security policies — the app currently connects anonymously with the publishable
--- (anon) key, so real per-user enforcement waits for the M7 slice (GoTrue auth +
--- RLS). Until then the publishable key has full access to these tables; keep only
--- demo / non-sensitive data here. See tools/supabase-rls-real.sql for the real
--- per-user policy set — proven against an isolated test schema but NOT yet safe
--- to run here (needs GoTrue sign-in + an owner-field data migration first; see
--- that file's header).
+-- Security policies, so the publishable (anon) key has full access to every
+-- table it creates — keep only demo / non-sensitive data in a database
+-- provisioned this way.
+--
+-- The prerequisites this header used to cite as unmet — GoTrue sign-in and the
+-- owner-field data migration — SHIPPED with M7 slices 2/3, and the real
+-- authenticated-only posture went live 2026-07-30. The paragraph warning
+-- against running it outlived that by a week and misled a session on 2026-08-08
+-- (N19). That posture is safe, it is canonical, and it is what dev, stage and
+-- prod all run.
 
 CREATE TABLE IF NOT EXISTS "polecat_meta" (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS "connections" (id TEXT PRIMARY KEY, "name" TEXT, "adapter" TEXT, "updatedAt" BIGINT, data TEXT);

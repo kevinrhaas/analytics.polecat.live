@@ -15,6 +15,52 @@
 -- After running: create the first admin (Authentication → Add user in the
 -- dashboard, then INSERT their public.users row as postgres — see § 7), and
 -- verify with § 8 (expect zeros for anon everywhere).
+--
+-- ---------------------------------------------------------------------------
+-- § 0) BEFORE THIS FILE: CREATING THE PROJECT (N19)
+--
+-- This script assumes a project already exists, and for a long time nothing in
+-- the repo said how to create one — Kevin hit exactly that standing up
+-- polecat_dev (2026-08-08) and had to ask which create-project Security boxes
+-- the app needs. The user-facing copy is docs/index.html → Admin & backend
+-- setup → "Standing up a Supabase project"; this is the canonical short form,
+-- kept next to the SQL that depends on it. tools/doc-truth.mjs check 26 holds
+-- the two accountable to each other and to this file.
+--
+-- The three Security toggles on the create-project screen:
+--   * Enable Data API — ON, REQUIRED. The adapter is a PostgREST client; with
+--     the Data API off there is no door to knock on.
+--   * Automatically expose new tables — ON, for now. It looks like it should be
+--     OFF (Supabase recommends OFF, and tools/supabase-bootstrap.sql grants
+--     explicitly) — but THIS file contains ZERO `GRANT` statements and relies
+--     entirely on the project's default privileges. Turn it off today and this
+--     script yields tables with RLS and policies but no table-level grant to
+--     anon/authenticated: PostgREST refuses and the app cannot connect.
+--     WHOEVER ADDS GRANTS HERE flips that answer to OFF in the same change —
+--     doc-truth check 26 goes red until they do.
+--   * Enable automatic RLS — ON. § 2 already enables RLS + policies per table,
+--     so this only covers anything created outside this file. With the newer
+--     publishable keys a table with RLS and NO policy returns zero rows rather
+--     than erroring, so RLS-on is the working state, not the locked one.
+--
+-- Decided once, at creation, unrecoverable afterwards:
+--   * SAVE THE DATABASE PASSWORD. It is shown once and can only be reset, not
+--     recovered — and tests/rls.mjs needs it as SUPABASE_PASSWORD, SKIPPING
+--     SILENTLY (exit 0) without it.
+--   * REGION = ca-central-1, Canada (Central) — a fleet STANDARD, not a
+--     preference (Kevin, 2026-08-08). tests/rls.mjs defaults to the pooler host
+--     aws-0-ca-central-1.pooler.supabase.com, so a same-region project needs no
+--     extra config while any other needs SUPABASE_DB_HOST on every run — which,
+--     with that silent skip, reads GREEN while testing nothing. Supabase cannot
+--     change a project's region after creation; ignore the "Recommended" badge
+--     on us-east-1 (generic geography advice, not advice about this fleet).
+--
+-- And: dev and stage run the SAME posture as prod — the real one (Kevin,
+-- 2026-08-08); a free-tier project pauses after ~1 week idle, which the app must
+-- read as UNREACHABLE, not as a refusal (the N2-slice-3 / N11 / N14
+-- distinction); and one project can host several fleet apps, since
+-- polecat_meta's app marker (app/sources/schema.js WS.APP_ID) is what tells
+-- "analytics" from manager/relay — which is why a shared polecat_dev is sound.
 
 -- ---------------------------------------------------------------------------
 -- 1) Workspace tables (mirrors app/sources/schema.js WS.WORKSPACE_TABLES —

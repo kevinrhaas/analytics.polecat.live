@@ -1198,6 +1198,74 @@ ok("CLAUDE.md sends anyone touching WS.SCHEMA_VERSION or the workspace DDL to do
   /docs\/COMPAT\.md/.test(read("CLAUDE.md")),
   "the pointer is how the contract gets read at all — it is part of the contract");
 
+/* ── 26. the create-project instructions vs the SQL that depends on them ────
+   N19. Help now documents the step before every other Supabase topic — creating the
+   project — and two of its answers are derived from the shipped SQL rather than from
+   preference. Derived claims rot when the SQL moves, and this pair rots INVISIBLY: the
+   reader follows the page, the app refuses to connect, and nothing in the repo has
+   changed colour.
+
+   The load-bearing one is the "Automatically expose new tables" toggle. The answer is ON
+   only BECAUSE tools/supabase-deploy.sql has no GRANTs of its own and leans on the
+   project's default privileges. The moment someone adds grants there — which is a known,
+   wanted change — the honest answer flips to OFF, and this check goes red until the page
+   flips with it. It is the rare doc-truth check that fires on an IMPROVEMENT, which is
+   exactly when a doc is likeliest to be forgotten.
+
+   The region is the same shape of claim: tests/rls.mjs hardcodes a pooler host whose
+   region the page names, and that test exits 0 when unconfigured, so a drift here reads
+   green from every direction at once. */
+const createDocs = (() => {
+  const html = read("docs/index.html");
+  const start = html.indexOf('id="supabase-create-project"');
+  if (start < 0) return "";
+  const end = html.indexOf("<h3", start);
+  return html.slice(start, end < 0 ? html.length : end);
+})();
+const deploySql = read("tools/supabase-deploy.sql");
+const grantsIn = (rel) => (read(rel).match(/^\s*GRANT\b/gim) || []).length;
+const rlsPoolerRegion = (/aws-\d+-([a-z0-9-]+)\.pooler\.supabase\.com/.exec(read("tests/rls.mjs")) || [])[1] || "";
+
+ok("tools/doc-truth.mjs: the create-project section, the deploy SQL and rls.mjs's pooler host parsed for check 26 are non-empty",
+  createDocs.length > 500 && deploySql.length > 500 && !!rlsPoolerRegion,
+  `Help section: ${createDocs.length} chars · supabase-deploy.sql GRANTs: ${grantsIn("tools/supabase-deploy.sql")} · ` +
+  `rls.mjs pooler region: ${rlsPoolerRegion || "(unparsed)"}`);
+
+// The toggle answer and the reason for it must BOTH match the file. "ON while the deploy
+// script has no grants of its own" is one claim, not two.
+const deployGrants = grantsIn("tools/supabase-deploy.sql");
+const docsSayExposeOn = /Automatically expose new tables[\s\S]{0,400}?<strong>ON<\/strong>/.test(createDocs);
+ok(`Help's "Automatically expose new tables" answer matches tools/supabase-deploy.sql (${deployGrants} GRANT statement(s))`,
+  deployGrants === 0 ? docsSayExposeOn : !docsSayExposeOn,
+  deployGrants === 0
+    ? "the deploy script still has no GRANTs, so the toggle must stay documented as ON — off, and PostgREST refuses every request"
+    : "the deploy script now carries its own GRANTs, so the toggle no longer has to be ON: flip Help (and the § 0 header " +
+      "in tools/supabase-deploy.sql) to OFF — this check exists to make that flip impossible to forget");
+ok("Help says WHY that toggle is ON — that the deploy script carries no GRANTs of its own",
+  /\bno\b[\s\S]{0,40}?<code>GRANT<\/code>\s+statements/.test(createDocs),
+  "an answer with no reason is one the next reader will 'tidy up' — the reason IS the check");
+
+ok(`Help names the region tests/rls.mjs actually defaults to (${rlsPoolerRegion})`,
+  new RegExp(rlsPoolerRegion.replace(/[-]/g, "\\-")).test(createDocs),
+  `tests/rls.mjs's pooler host is aws-0-${rlsPoolerRegion}.pooler.supabase.com; the Help page names a different region\n      ` +
+  "that test SKIPs silently without SUPABASE_DB_HOST, so a region mismatch reads green while checking nothing");
+
+// "Which file" is the miss that started N19: three SQL files, one right answer, and a
+// header that recommended against itself. Each file must be named, and the deploy script
+// must be the one carrying the create-project preamble the Help page mirrors.
+const namesAllThree = ["tools/supabase-deploy.sql", "tools/supabase-rls-real.sql", "tools/supabase-bootstrap.sql"]
+  .filter((f) => createDocs.includes(f));
+ok("Help names all three shipped Supabase SQL files, so the reader cannot pick the wrong one by omission",
+  namesAllThree.length === 3,
+  `named: ${namesAllThree.join(", ") || "(none)"}`);
+ok("tools/supabase-deploy.sql carries the create-project preamble (§ 0) the Help page mirrors",
+  /§ 0\)/.test(deploySql) && /ca-central-1/.test(deploySql),
+  "the canonical copy lives next to the SQL that depends on it — a reader in the SQL editor never sees Help");
+ok("tools/supabase-bootstrap.sql no longer claims the real RLS posture is unsafe to run",
+  !/NOT yet safe to run here/.test(read("tools/supabase-bootstrap.sql")),
+  "that claim stopped being true when M7 slices 2/3 shipped GoTrue sign-in and the owner-field migration " +
+  "(the real posture went live 2026-07-30) — it is the exact sentence that misled a session on 2026-08-08");
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
