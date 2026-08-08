@@ -135,6 +135,44 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the Build a dashboard tour opens the panes it points at (v880, sw v509, 2026-08-08,
+  steward; LF58 recurring slice, dev branch):** the ▶ NOW queue is unchanged (N2/N4b/N5a/N5b
+  shipped, N4a ⛔ on Kevin, grooming still parked on the `hold` PR #623), so 🔁 N7 again — this
+  time the **behavioural** candidate the v877 slice found and deliberately left, which v879
+  unblocked by making `openDataPane()` the one way anything opens that pane at any width.
+  **The defect:** STUDIO-PANELS made the builder open with its Data and Inspector panes CLOSED
+  (`applyStudioPanelsDefault`), and the tour never learned. Measured, not assumed: at 1280×900
+  steps 1 and 3 ringed a **34px** collapsed rail while the copy enumerated four groups the reader
+  could not see; at 390×780 those panes are fixed drawers parked at `translateX(±105%)`, so the
+  ring was drawn at **left −336px** and **left 406px** — off-screen on both sides of a 390px
+  viewport. Two of six steps were a dimmed screen with nothing lit.
+  **The fix, in two parts.** (1) `app/studio.js` splits the width-agnostic half of
+  `openDataPane()` out as `openBuilderPane(which, silent)` — drawer on a phone, silent expand on
+  desktop, `"canvas"` meaning "neither" — exposed as `window.__studioOpenPane`; a builder tour step
+  declares its `pane:` and `app/tutorial.js`'s renderer opens it (and waits out the .28s drawer
+  transition) before it measures the spotlight. Silent throughout: neither the persisted collapse
+  preference nor the persisted drawer tab is written, asserted both ways.
+  (2) A second defect the verification surfaced and this slice also closes: preparing a step is
+  asynchronous (`before()` → `openPane()` → `waitFor`'s 2.5s poll) while the OUTGOING card stayed
+  live, so a double tap advanced twice — and enough of them walked past the last step into
+  `steps[idx].before` on `undefined`, an **uncaught TypeError**, which is a release gate. The
+  outgoing card's nav buttons now go inert while the next step is prepared (**Skip stays live** —
+  nobody is trapped in a tour) and an out-of-range index finishes instead of throwing.
+  **Verified:** the six new `tests/run.js` checks walk the tour for real at 390×780 AND 1280×900,
+  measuring ring-vs-target overlap and on-screen-ness rather than trusting the DOM; run against
+  the pre-fix files they fail 4/6 with exactly the numbers above (including the reproduced
+  `Cannot read properties of undefined (reading 'before')`), and 6/6 green after. Plus the full
+  dev gate (validate · changelog-check · doc-truth · dev-smoke). doc-truth **check 19** is the
+  static half — every fact derived, none listed: a build-tour step targeting one of
+  `app/index.html`'s collapsible `<aside class="pane">` ids must declare that same pane, every
+  declared pane must be one `setupMobileTabs`' own tab ids can open, and `__studioOpenPane` must
+  still exist (without it the opener is a silent no-op and the coverage rule passes while every
+  spotlight goes back to ringing a closed pane). est 1pt, took 1.
+  **Left for the next slice, deliberately:** at ≤640px `#btnExport` is `display:none` (M10 moved
+  Export behind ⋯ More), so step 4 still spotlights a hidden control on a phone — same defect
+  class, different mechanism (a control that MOVES, not a pane that is closed), and it needs a
+  copy decision the panes did not: the step says "Click **Export ▾**" and on a phone that button
+  is not there. The suite measures that step on desktop only and says so.
 - **N7 — the builder calls its own left panel Data, and the button that opens it works on a phone
   (v879, sw v508, 2026-08-08, steward; LF58 recurring slice, dev branch):** the ▶ NOW queue still
   holds no ready non-recurring item (N2/N4b/N5a/N5b shipped, N4a ⛔ on Kevin, grooming parked on
@@ -10377,7 +10415,21 @@
     id) — so at ≤640px the primary CTA of both empty states did nothing. Both now share one
     `openDataPane()`, which also expands a collapsed pane on desktop (silently) before
     focusing its search. 4 new suite checks at 390×780 + 1280×900.
-  * **Not yet audited (candidates for the next N7 slice):** the marketing page's hero carousel
+  * *The Build a dashboard tour vs the panes it walks — v880, sw v509, 2026-08-08 (see DONE).*
+    The BEHAVIOURAL candidate this list had been carrying, unblocked by v879. Not copy: the
+    builder opens with Data and Inspector CLOSED, so at 1280×900 steps 1 and 3 ringed a 34px
+    collapsed rail, and at 390×780 those drawers sit at `translateX(±105%)` — the ring was drawn
+    at left −336px / left 406px, off-screen, for two of six steps. A builder step now declares
+    its `pane:` and the renderer opens it silently (`window.__studioOpenPane`) before measuring.
+    The verification surfaced a second defect this slice also closed: the outgoing card stayed
+    live while the next step was prepared, so a double tap advanced twice and could walk past the
+    last step into an uncaught TypeError — nav goes inert while preparing (Skip stays live) and an
+    out-of-range index finishes. Doc-truth check 19 + 6 suite checks at both gate widths.
+  * **Not yet audited (candidates for the next N7 slice):** the phone form of that same build
+    tour's EXPORT step — at ≤640px `#btnExport` is `display:none` (M10 put Export behind ⋯ More),
+    so step 4 spotlights a hidden control on a phone; unlike the panes it needs a copy decision
+    ("Click **Export ▾**" names a button that is not on screen there), which is why v880 left it
+    and measures that step on desktop only. Also: the marketing page's hero carousel
     captions + screenshots, which the v871 slice deliberately left alone (the copy pass
     stayed textual — regenerating shots is its own slice); and the two remaining per-feature
     tours' BODY copy (Prep data (Jobs) / Connections &amp; Datasets / the pack tour) — the
@@ -10387,16 +10439,17 @@
     not caught up with is what the catalogs GAINED (the list⇆tile toggle, the sort select, the
     Select/bulk toolbar, per-row private toggles), which is an additive-copy slice, not a
     correction.
-    **One BEHAVIOURAL candidate the v877 slice found and deliberately did not take** (it is a
-    tour-engine change, not copy, so it wants its own slice): STUDIO-PANELS made the builder
-    open with the Data and Inspector panes COLLAPSED by default, so the build tour's steps 1
-    and 3 now spotlight a ~34px collapsed rail and describe contents the reader cannot see.
-    The fix is a `before()` hook that opens the pane silently (`collapsePane(which, false,
-    true)` — silent, so it never overwrites the user's persisted preference), plus a decision
-    about the ≤640px path where the panes are drawers and `collapsePane` early-returns. **v879
-    settled the ≤640px half of that decision** — `openDataPane()` is now the one way anything
-    opens that pane at any width (drawer on phone, silent expand on desktop), so the tour hook
-    can just call it. **Struck from this list:** Help's remaining
+    ~~**One BEHAVIOURAL candidate the v877 slice found and deliberately did not take**~~
+    ✓ **SHIPPED v880, sw v509 (2026-08-08 — see the v880 line above and DONE).** It went further
+    than the note anticipated: the ≤640px half was not just "a decision", it was the worse half
+    (an off-screen ring, not a small one), and the verification turned up a second defect in the
+    same code path — the double-tap that walked the tour off its own end. Original: STUDIO-PANELS
+    made the builder open with the Data and Inspector panes COLLAPSED by default, so the build
+    tour's steps 1 and 3 spotlight a ~34px collapsed rail and describe contents the reader cannot
+    see. The fix is a `before()` hook that opens the pane silently, plus a decision about the
+    ≤640px path where the panes are drawers and `collapsePane` early-returns; **v879 settled the
+    ≤640px half** by making `openDataPane()` the one way anything opens that pane at any width.
+    **Struck from this list:** Help's remaining
     `analysis`/`analyses` prose (§602-627 and friends), which was the biggest known one and
     shipped as v876 above — it overlapped AUD-11's tail (§2.4's wording sweep), and that
     overlap is why v875 had scoped itself to the tours; and the ⌘K palette's section

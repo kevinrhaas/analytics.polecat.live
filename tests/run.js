@@ -43348,6 +43348,186 @@ function serve() {
     ok("N7: the Data-pane walk (390×780 → 1280×900) raised zero pageerrors", dpErrors.length === 0, dpErrors.slice(0, 3).join(" | "));
     await dpCtx.close();
 
+    // ---- N7 (build tour): the tour OPENS the panes it points at ----
+    // The other half of the STUDIO-PANELS fallout the block above found. That change also made
+    // the builder open with its Data and Inspector panes CLOSED, and the "Build a dashboard"
+    // tour kept ringing them regardless: on desktop steps 1 and 3 spotlit a 34px collapsed rail
+    // while the copy described four groups the reader could not see, and at ≤640px those panes
+    // are fixed drawers parked at translateX(±105%), so the ring was measured OUTSIDE the
+    // viewport — a dimmed screen with nothing lit, for two of the tour's six steps. A builder
+    // step now declares its `pane:` and the renderer opens it silently first
+    // (window.__studioOpenPane). tools/doc-truth.mjs check 19 is the static half; this walks it
+    // for real at both gate widths, and asserts the silence too — the walk must not rewrite the
+    // reader's persisted collapse preference or drawer tab.
+    console.log("\n• N7: the Build a dashboard tour opens the panes it spotlights");
+    const btCtx = await browser.newContext({
+      storageState: await page.context().storageState(), viewport: { width: 390, height: 780 } });
+    const btPage = await btCtx.newPage();
+    const btErrors = [];
+    btPage.on("pageerror", (e) => { btErrors.push(e.message); errors.push("N7 build-tour page: " + e.message); });
+    await btPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); } catch (e) {} });
+    await btPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await btPage.waitForTimeout(400);
+    // The spotlight ring must land ON the pane's VISIBLE box: overlapping the target by most of
+    // its area AND inside the viewport. Both failure modes the fix addresses are caught by that
+    // one measurement — a 34px collapsed rail is a real box but a tiny one (the ring would cover
+    // it, so area is compared against the pane's OPEN width too), and an off-canvas drawer's
+    // rect sits at a negative left.
+    const walkBuildTour = (pg, measure) => pg.evaluate(async function (measure) {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      function ringOn(sel) {
+        var ring = document.getElementById("st-ring"), tgt = document.querySelector(sel);
+        if (!ring || !tgt) return { ringed: false, onscreen: false, why: "no ring or target" };
+        var rr = ring.getBoundingClientRect(), tr = tgt.getBoundingClientRect();
+        var W = window.innerWidth, H = window.innerHeight;
+        var ovX = Math.max(0, Math.min(rr.right, tr.right) - Math.max(rr.left, tr.left));
+        var ovY = Math.max(0, Math.min(rr.bottom, tr.bottom) - Math.max(rr.top, tr.top));
+        var visX = Math.max(0, Math.min(tr.right, W) - Math.max(tr.left, 0));
+        return {
+          // ringed: the ring really is around THIS element (>60% of its box, PAD included)
+          ringed: tr.width > 0 && tr.height > 0 && ovX * ovY > 0.6 * tr.width * tr.height,
+          // onscreen: the reader can SEE what was lit — nearly all of the target's box is
+          // inside the viewport. An off-canvas drawer sits at translateX(-105%): a real box,
+          // ringed correctly, and completely invisible. That is the whole bug.
+          onscreen: visX > 0.9 * tr.width && tr.top < H && tr.bottom > 0,
+          w: Math.round(tr.width), left: Math.round(tr.left)
+        };
+      }
+      // Advance one card, the way a reader can: wait for the primary button to be live (the
+      // outgoing card's nav goes inert while the next step is prepared), click, then wait for
+      // a DIFFERENT live card to be in place. Never a fixed sleep — preparing a step can take
+      // as long as waitFor's 2.5s poll, and a fixed sleep here would either flake or hide the
+      // stale-click bug this hardening closed.
+      async function advance() {
+        var t0 = Date.now(), btn = null;
+        while (Date.now() - t0 < 9000) {
+          btn = document.querySelector("#st-tip button.pri");
+          if (btn && !btn.disabled) break;
+          await sleep(80);
+        }
+        if (!btn) return "";
+        var label = btn.textContent || "";
+        btn.click();
+        var t1 = Date.now();
+        while (Date.now() - t1 < 9000) {
+          var b2 = document.querySelector("#st-tip button.pri");
+          if (!b2 || (b2 !== btn && !b2.disabled)) break;   // new card, or the tour ended
+          await sleep(80);
+        }
+        await sleep(150);   // let the ring paint where the card says it is
+        return label;
+      }
+      var out = { steps: [], labels: [] };
+      StudioTutorial.openTour("build");
+      await sleep(400);                          // step 0 (intro, centered card)
+      // The build tour in order after the intro; null = the closing card, no spotlight.
+      var SEQ = ["#library", "#canvas", "#inspector", "#btnExport", null];
+      for (var i = 0; i < SEQ.length; i++) {
+        out.labels.push(await advance());
+        if (SEQ[i] && measure.indexOf(SEQ[i]) >= 0) out.steps.push({ sel: SEQ[i], r: ringOn(SEQ[i]) });
+      }
+      out.lastLabel = (document.querySelector("#st-tip button.pri") || {}).textContent || "";
+      await advance();                           // Done!
+      var wskip = document.querySelector("#studio-welcome .sw-skip");
+      if (wskip) wskip.click();
+      out.closed = !document.getElementById("st-tip") && !window.__studioTutorialActive();
+      out.done = StudioTutorial.isDone();
+      try {
+        out.collapsePref = localStorage.getItem("studio-collapse-library");
+        out.inspPref = localStorage.getItem("studio-collapse-inspector");
+        out.mobTab = localStorage.getItem("studio-mob-tab");
+      } catch (e) {}
+      return out;
+    }, measure);
+    // At ≤640px #btnExport is display:none (M10 moved it behind ⋯ More), so the export step is
+    // measured on DESKTOP only and its phone form is the next N7 slice — see STATUS.md. The
+    // three pane steps are the ones this fix is about, and they are measured at both widths.
+    const PANE_STEPS = ["#library", "#canvas", "#inspector"];
+    const btPhone = await walkBuildTour(btPage, PANE_STEPS);
+    ok("N7: at 390×780 the Build tour's pane spotlights all land on something the reader can actually see — the Data and Inspector drawers slide IN first (they used to be ringed off-canvas at translateX(-105%)/(105%))",
+      btPhone.steps.length === 3 && btPhone.steps.every((s) => s.r.ringed && s.r.onscreen) &&
+      /Done/.test(btPhone.lastLabel) && btPhone.closed && btPhone.done,
+      JSON.stringify(btPhone));
+    ok("N7: the phone walk leaves no trace — it never writes the persisted drawer tab",
+      btPhone.mobTab === null || btPhone.mobTab === undefined, JSON.stringify({ mobTab: btPhone.mobTab }));
+
+    // The impatient reader — deliberately run at 390px, where a step really does take time to
+    // prepare: #btnExport is display:none here (M10 moved it behind ⋯ More), so waitFor polls
+    // its full 2.5s. Throughout that window the OUTGOING card stayed live, so a second tap
+    // advanced a second time — off the end of the tour and into steps[idx].before on undefined,
+    // an uncaught TypeError, which is a release gate. (At desktop widths every target resolves
+    // in a frame and the race simply never opens, which is why this check lives on the phone.)
+    // Hammer the primary button with no waiting at all: the tour must end cleanly and throw
+    // nothing, and Skip must stay reachable throughout — nobody gets trapped in a tour.
+    const btErrsBeforeSpam = btErrors.length;
+    const btSpam = await btPage.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      StudioTutorial.openTour("build");
+      var t0 = Date.now();                       // the first card is async too (openPane)
+      while (Date.now() - t0 < 5000 && !document.querySelector("#st-tip button.pri")) await sleep(80);
+      var skipAlwaysLive = true, taps = 0;
+      for (var i = 0; i < 24; i++) {
+        var btn = document.querySelector("#st-tip button.pri");
+        if (!btn) break;
+        var skip = document.querySelector("#st-tip .st-skip");
+        if (!skip || skip.disabled) skipAlwaysLive = false;
+        // The DOUBLE TAP is the reproduction: the second click lands on the same card while
+        // the next step is still being prepared. Unguarded, that card's handler read the LIVE
+        // _cur and advanced from it a second time — two steps per tap-pair, straight past the
+        // end of the tour. Guarded, the second tap hits an inert button and is absorbed.
+        btn.click(); btn.click(); taps += 2;
+        await sleep(40);            // far shorter than that step takes to prepare
+      }
+      await sleep(3200);            // outlast waitFor's 2.5s poll before judging the outcome
+      // Whatever the hammering did, the tour must be in a state a reader can act on: a card
+      // with a title, its Next live again, and Skip still able to end it. (The extra taps are
+      // absorbed rather than queued, so the tour is typically mid-walk here — that is the fix.)
+      var tip = document.getElementById("st-tip");
+      var nxt = tip && tip.querySelector("button.pri");
+      var out = {
+        skipAlwaysLive: skipAlwaysLive, taps: taps,
+        recovered: !!(tip && nxt && !nxt.disabled && (tip.querySelector("h3") || {}).textContent),
+        title: tip ? ((tip.querySelector("h3") || {}).textContent || "") : ""
+      };
+      var skip = tip && tip.querySelector(".st-skip");
+      if (skip) skip.click();
+      await sleep(200);
+      out.closedBySkip = !document.getElementById("st-tip") && !document.getElementById("st-ring") &&
+        !window.__studioTutorialActive();
+      return out;
+    });
+    ok("N7: at 390×780, hammering Next through the Build tour throws nothing — the extra taps are absorbed instead of walking the tour off the end (steps[idx] undefined → uncaught TypeError) — and Skip stays live throughout, so nobody is trapped",
+      btErrors.length === btErrsBeforeSpam && btSpam.taps === 48 && btSpam.skipAlwaysLive &&
+      btSpam.recovered && btSpam.closedBySkip,
+      JSON.stringify({ spam: btSpam, newErrors: btErrors.slice(btErrsBeforeSpam, btErrsBeforeSpam + 3) }));
+
+    await btPage.setViewportSize({ width: 1280, height: 900 });
+    await btPage.waitForTimeout(250);
+    // Desktop starts from the WORST case the reader can be in: both panes collapsed, with that
+    // preference persisted — exactly what applyStudioPanelsDefault() produces on every entry.
+    await btPage.evaluate(function () {
+      ["library", "inspector"].forEach(function (id) {
+        var p = document.getElementById(id);
+        if (p) { p.classList.add("collapsed"); p.classList.remove("drawer-open"); }
+        try { localStorage.setItem("studio-collapse-" + id, "1"); } catch (e) {}
+      });
+    });
+    const btDesk = await walkBuildTour(btPage, PANE_STEPS.concat(["#btnExport"]));
+    const btOpenWidths = await btPage.evaluate(function () {
+      return { lib: Math.round(document.getElementById("library").getBoundingClientRect().width),
+        insp: Math.round(document.getElementById("inspector").getBoundingClientRect().width) };
+    });
+    ok("N7: at 1280×900 the Build tour EXPANDS the collapsed Data and Inspector panes before ringing them — the spotlight used to fall on a 34px rail",
+      btDesk.steps.length === 4 && btDesk.steps.every((s) => s.r.ringed && s.r.onscreen) &&
+      btDesk.steps[0].r.w > 100 && btDesk.steps[2].r.w > 100 && btOpenWidths.lib > 100 && btOpenWidths.insp > 100,
+      JSON.stringify({ steps: btDesk.steps, widths: btOpenWidths }));
+    ok("N7: the desktop walk is silent — the reader's persisted 'panes collapsed' preference survives the tour",
+      btDesk.collapsePref === "1" && btDesk.inspPref === "1",
+      JSON.stringify({ library: btDesk.collapsePref, inspector: btDesk.inspPref }));
+    ok("N7: the Build-tour walk (390×780 → 1280×900, including the double-tap hammer) raised zero pageerrors",
+      btErrors.length === 0, btErrors.slice(0, 3).join(" | "));
+    await btCtx.close();
+
   } catch (e) {
     failed++; console.error("FATAL", e);
   } finally {
