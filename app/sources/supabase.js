@@ -92,7 +92,22 @@
       err.unreachable = true;
       throw err;
     }).then(function (res) {
-      return res.json().catch(function () { return {}; }).then(function (data) {
+      // N11: reading the BODY can fail on its own — the headers arrived, then the
+      // connection dropped (a flaky network, a tab navigating away mid-flight) and
+      // res.json() rejects on a truncated payload. That used to be swallowed into
+      // `{}`, which then read as "a 200 with no access_token" and was reported as
+      // `HTTP 200` — a REFUSAL. It is not one: we never got an answer, so it is
+      // UNREACHABLE, exactly like the fetch failure above. The distinction is not
+      // cosmetic — ensureSession DELETES the stored refresh token on a refusal, so
+      // one truncated response used to sign a user out of their workspace.
+      return res.json().then(function (data) { return { data: data || {}, read: true }; },
+        function () { return { data: {}, read: false }; }).then(function (r) {
+        if (!r.read) {
+          var err = new Error("Could not reach Supabase Auth (the connection dropped before its answer finished arriving).");
+          err.unreachable = true;
+          throw err;
+        }
+        var data = r.data;
         if (!res.ok || !data.access_token) throw new Error("Supabase Auth sign-in failed: " + (data.error_description || data.msg || data.error || ("HTTP " + res.status)));
         return data;
       });
