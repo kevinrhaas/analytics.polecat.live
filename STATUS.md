@@ -11412,15 +11412,24 @@
 >   diverge; the same basket compared. *BLS CPI, public domain.*
 > - **SP-5 [3pt] — Campaign Finance.** Donor geography, industry concentration, small-dollar vs
 >   max-out, out-of-state share. *FEC bulk individual contributions, public domain.*
->   **⚠ SCOPE DECISION PENDING KEVIN — read before starting.** Kevin's call was "this is not for
->   commercial use so we should be ok with having donor names." Two separate issues: (1) the FEC
->   bars using contributor names/addresses "for commercial purposes", and Analytics IS a
->   commercial product — arguable, not clearly permitted; (2) independently, these are real
->   private individuals with home addresses, which is a privacy question the licence does not
->   answer. **Proposed middle, pending confirmation:** ship committee/PAC/organisation names in
->   full (entities, not individuals — the interesting half of "follow the money" anyway) plus
->   individual giving aggregated to county/industry/size-band with no personal names. The
->   dashboard reads identically. **Never ship addresses under any option.**
+>   **✅ SCOPE DECIDED — Kevin, 2026-08-08. Do not re-ask; do not re-open it on his behalf.**
+>   The concern was put to him in full — that the FEC bars using contributor names for
+>   "commercial purposes" and Analytics is a commercial product (arguable, not clearly
+>   permitted), and separately that these are real private individuals — together with a middle
+>   option that aggregated individuals away. Having seen it he chose **individual donor names**:
+>   *"still rather have individual names after seeing that."* His call, recorded, and the pack
+>   ships them.
+>   **What that permits, exactly** (so the implementing run doesn't have to re-derive it): the
+>   contributor's **name, city, state, ZIP, employer, occupation, amount, date and recipient
+>   committee** — all FEC-reported fields, and employer/occupation is what carries the industry-
+>   concentration story. ZIP is in because the app maps ZCTA natively; city/state drive the
+>   out-of-state share.
+>   **The one hard line, unchanged and not Kevin's to waive by omission: NEVER ship street
+>   addresses.** It was never asked for, it adds nothing any View needs, and it is the only
+>   field that turns a donation record into a home address. If the extract script's source
+>   columns include it, the script drops it at extraction — not at render — so it never reaches
+>   the repo. State that in the script's own header so a later change can't quietly re-add it,
+>   and assert it in the pack's test.
 > - **SP-6 [3pt] — Federal Contract Awards.** Who wins federal work, by agency, vendor, NAICS
 >   and district; small-business share. *USASpending.gov, public domain.*
 > - **SP-7 [3pt] — Food Safety Inspections.** A multi-site operations scorecard: violation rates
