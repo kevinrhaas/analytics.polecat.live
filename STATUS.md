@@ -135,6 +135,16 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N4a — `delete_branch_on_merge` is ON; the merged-branch pile stays (no app version — repo
+  setting + docs, 2026-08-08, Kevin + interactive session):** the queue's last ⛔ closed the
+  same day it was put to Kevin. He flipped Settings → General → "Automatically delete head
+  branches" himself (the 403 that made this ⛔ was real — `STEWARD_PAT` has repo scope, not
+  administration — so the human path was the right call, not a workaround). The ~269 merged
+  `steward/*` branches: **"leave them"**, a deliberate WONTFIX per the written recommendation
+  (merged refs, zero risk kept vs. real mis-delete risk in a 269-ref sweep). Every merge from
+  now on deletes its own branch, so branch hygiene needs no further agent time — this also
+  moots the session-side cleanup failures noted on PRs #654/#656. est 1pt (the agent half
+  shipped 08-07 as the ⛔ raise); Kevin's half took one settings click, as predicted.
 - **SP-0 slice 2 of 2 — the convention for shipping REAL pack data, and SP-0 closed (v896, sw
   v521, 2026-08-08, steward; dev branch):** blocker (b), the one SP-1 was actually waiting on.
   **The problem, stated plainly:** the rule for pack data was "synthetic, deterministic,
@@ -11108,7 +11118,254 @@
   workspace DDL? read docs/COMPAT.md first — the bump checklist is mandatory") and a validate/
   doc-truth check that fails when SCHEMA_VERSION changes without a same-commit COMPAT.md history
   entry — the process teeth, so this outlives any one agent's memory.
-- **SP-1 ★★ [3pt] — "Market Coverage" — the new DEFAULT sample pack (Kevin, 2026-08-07).**
+- **N19 ★ [1pt] — Document how to STAND UP a Supabase project, not just how to populate one
+  (Kevin, 2026-08-08: "these should be in the documentation also").** He hit it live creating
+  `polecat_dev` and had to ask which of the create-project **Security** checkboxes the app
+  needs — nothing in the repo answers that. Every shipped doc starts one step too late, at
+  "paste this SQL": `tools/supabase-bootstrap.sql` explains its own grants beautifully but
+  assumes the project exists, and `docs/index.html`'s backend comparison never mentions project
+  creation. **Write the missing first step** (in the in-app Admin docs, with the canonical copy
+  next to the SQL that depends on it), covering the three Security toggles and WHY each — all
+  three answers derived from the shipped SQL, not from vibes:
+  - **Enable Data API — ON, required.** The adapter is PostgREST; without it nothing connects.
+  - **Automatically expose new tables — ON, until N20 lands.** This looks like it should be OFF
+    (it is Supabase's own recommendation, and `supabase-bootstrap.sql:51-53` grants explicitly)
+    — but the file a fresh environment actually runs is **`tools/supabase-deploy.sql`, which
+    contains ZERO `GRANT` statements** (measured: 0 in deploy.sql, 0 in rls-real.sql, 3 in
+    bootstrap.sql). It relies entirely on the project's default privileges. Turn the toggle off
+    today and the canonical deploy script yields tables with RLS and policies but **no
+    table-level grant to `anon`/`authenticated`** — PostgREST refuses and the app cannot
+    connect. So: ON now; **N20 adds the grants to deploy.sql and flips this doc to OFF.**
+  - **Enable automatic RLS — ON.** The bootstrap already `ENABLE ROW LEVEL SECURITY` + policies
+    per table (`:64-72`), so this is belt-and-braces for anything created outside it — and with
+    the new `sb_publishable_…` keys a table with NO policy returns **zero rows** over the Data
+    API, so RLS-on is the working state, not the locked-down one.
+  Also document the things that only bite later: **save the DB password at creation** (it is
+  unrecoverable, only resettable — and `tests/rls.mjs` needs it as `SUPABASE_PASSWORD`, which
+  it SKIPs silently without); **the region is `ca-central-1` — Canada (Central) — as a STANDARD,
+  not a preference** (Kevin, 2026-08-08, deciding it for `polecat_dev`): `tests/rls.mjs:148`
+  hardcodes the fallback `aws-0-ca-central-1.pooler.supabase.com`, so a same-region dev project
+  needs zero extra config while any other region needs `SUPABASE_DB_HOST` set on every run — and
+  since that test SKIPs silently with exit 0 when unconfigured, a mismatched region is the kind
+  of thing that reads GREEN while testing nothing. Supabase cannot change a project's region
+  after creation (the only path is create-new + restore), so this is decided once, at the
+  create-project screen. Ignore the dashboard's "Recommended" badge on `us-east-1` — it is
+  generic geography advice, not advice about this fleet; **free-tier projects pause after ~1
+  week idle**, which a dev backend will hit and which the app should read as "unreachable", not
+  as a refusal (the exact N2-slice-3/N11/N14 distinction — worth a cross-reference); and which
+  **WHICH FILE — say it once, unambiguously, because the repo currently misleads on exactly
+  this** (it misled an interactive session on 2026-08-08): a FRESH environment runs
+  **`tools/supabase-deploy.sql`** — its own header calls itself "THE one file to run" and it is
+  the SUPERSET (tables + the verified authenticated-only RLS posture + the ACTIVITY-1 log
+  tables + first-admin + verify). `supabase-rls-real.sql` is the POSTURE-ONLY subset for
+  re-tightening an environment whose tables already exist (its header says so). And
+  `supabase-bootstrap.sql` is the legacy allow-all demo posture whose header is **STALE** —
+  it still claims real RLS is "NOT yet safe to run here (needs GoTrue sign-in + an owner-field
+  data migration first)", which stopped being true when M7 slices 2/3 shipped those exact
+  prerequisites and the real posture went live 2026-07-30. **Kevin's standing decision
+  (2026-08-08): dev and stage run the SAME posture as prod — the real one.** A dev environment
+  whose security posture differs from prod cannot test the thing most likely to break.
+  Document the two per-environment steps deploy.sql needs and nothing else does: **§7 first
+  admin** (Authentication → Add user, then INSERT their `public.users` row as postgres — once
+  per environment) and **§8 verify** (expect all zeros for anon).
+  Note too that ONE project can host several fleet
+  apps: `polecat_meta.app` (`schema.js:76`) is what tells "analytics" from manager/relay, which
+  is why a shared `polecat_dev` is a sound choice. **Record the environment topology** Kevin is
+  standing up — a `polecat_dev` and a `polecat_stage` database beside prod, matching the
+  dev → stage → main branch pipeline, each with its own `SUPABASE_URL`/`SUPABASE_PASSWORD` — and
+  say which one `tests/rls.mjs` should point at per pipeline stage. **Verify** by doing it: stand
+  up a scratch project from the written steps alone and confirm the app connects with no
+  undocumented click.
+- **N20 ★★ [1pt] — `supabase-deploy.sql` cannot stand up a locked-down project: it has no
+  GRANTs.** Found while answering Kevin's create-project question (2026-08-08), and it is a
+  latent defect in the artifact the repo calls "THE one file to run" for a new environment.
+  **Measured:** `grep -c GRANT` → **0 in `tools/supabase-deploy.sql`, 0 in
+  `tools/supabase-rls-real.sql`, 3 in `tools/supabase-bootstrap.sql`**. Only the legacy demo
+  file grants; the canonical deploy path relies silently on the project's default privileges.
+  **Why that bites now:** Supabase's create-project screen offers "Automatically expose new
+  tables" and **recommends turning it OFF**. Follow that recommendation, run deploy.sql, and you
+  get tables with RLS enabled and a correct policy set but **no table-level privilege for
+  `anon`/`authenticated`** — PostgREST refuses and the app cannot connect, with a failure that
+  looks like an RLS problem and is not one. The posture is right; the plumbing under it is
+  missing. **Fix:** lift the three statements from `supabase-bootstrap.sql:51-53` (`GRANT
+  USAGE ON SCHEMA public`, `GRANT SELECT/INSERT/UPDATE/DELETE ON ALL TABLES`, `ALTER DEFAULT
+  PRIVILEGES …`) into deploy.sql — they are safe under the real posture, because RLS is what
+  actually restricts rows; a grant without a policy still returns nothing. Add them to
+  `supabase-rls-real.sql` too so re-tightening never strands an environment, and mirror into
+  `supabase/functions/polecat-admin/sql.ts` (the N2-slice-2 drift class: sql.ts and the
+  canonical file must stay section-for-section identical). Then flip N19's guidance to
+  **"Automatically expose new tables — OFF"** and correct `supabase-bootstrap.sql`'s stale
+  header, which still warns real RLS is unsafe to run. **Verify with `tests/rls.mjs`**, which
+  already applies both shipped files into throwaway `steward_test_rls_*` schemas — extend it to
+  assert the grants exist, so a future edit cannot drop them silently.
+- **N21 ★★ [2pt] — Adopting a blank Supabase database from the UI installs the WRONG (legacy,
+  unprotected) posture.** Found answering Kevin, 2026-08-08: *"isn't it handled from the UI
+  now?… I thought we could adopt a blank database."* Both true — and that is the problem.
+  **What the UI really does.** The connect wizard branches on `probe.state === "empty"`
+  (`app/studio.js:8638`): adapters with `browserProvision:true` (Turso, Firebase) get a one-click
+  "Set up & connect"; **Supabase is `browserProvision:false`** (`app/sources/supabase.js:525`),
+  so it renders the generated script in a textarea with "I've run it — connect". That flow works
+  and is genuinely UI-driven. **But the script it generates** (`supabase.js:735-742`) is
+  `provisionDDL()` + meta rows + the atomic-save function, closing with a COMMENT: *"Then enable
+  Row-Level Security policies appropriate to your project"*. **No RLS. No policies. No grants.**
+  So the supported way to adopt a blank database hands the user the pre-M7 posture and a homework
+  assignment — while `tools/supabase-deploy.sql` (the file the repo calls "THE one file to run")
+  has installed the real posture since 2026-07-30. The two paths have silently diverged.
+  **And the other UI half cannot cover it on a fresh project:** Admin → "Enable per-user security
+  / Go live" (`studio.js:10042`) does install the real posture — but its own card says it
+  "requires `supabase/functions/polecat-admin` already deployed", which a brand-new project does
+  not have. Chicken-and-egg: the button that would fix the posture needs an Edge Function that
+  needs a deploy step the UI never mentions.
+  **Fix, in preference order:** (a) make `provision()` emit the CANONICAL fresh-environment
+  script — i.e. what `supabase-deploy.sql` contains, generated from the same source of truth so
+  it cannot drift again (this is the N2-slice-2 lesson applied a third time); or at minimum
+  (b) have the wizard say plainly "for a production-shaped environment run tools/
+  supabase-deploy.sql instead" with the file inline, and state the first-admin (§7) and verify
+  (§8) steps. Either way the wizard must stop implying the job is done when the database is
+  still wide open. **Verify:** a suite check that the wizard's generated SQL, applied to a
+  throwaway schema, leaves anon reading ZERO rows — the same assertion `tests/rls.mjs` already
+  makes about the shipped files, pointed at the path a real user actually takes.
+  **Interim guidance for Kevin's dev/stage build-out** (already given live, worth keeping):
+  skip the wizard's script — paste `tools/supabase-deploy.sql` into the SQL editor FIRST, do §7,
+  then connect; the wizard then probes `state === "polecat"` and simply adopts it, which is
+  exactly how prod behaves.
+- **N22 ★★ [3pt — SPLIT BEFORE STARTING] — Provision a Supabase backend entirely FROM THE APP.
+  Kevin's stated end state (2026-08-08):** *"I want things to provision from the app with the
+  right credentials, not have to go to supabase other than setting up the blank database
+  manually."* Treat that as the acceptance criterion: create a blank project in the Supabase
+  dashboard, then do **everything else** — tables, RLS, activity tables, first admin, and later
+  schema upgrades — from Analytics, with no SQL editor and no CLI.
+  **Where we actually are, so nobody re-derives it.** Most of this is BUILT. `supabase/functions/
+  polecat-admin` (M7 slice 7, Kevin's "Option A") already holds the service-role key, opens a
+  direct Postgres connection — *"PostgREST can't DDL even with the service key, but this can,
+  which is the whole reason it exists"* — and exposes four fixed named actions (`provision` /
+  `go-live` / `create-user` / `reset-data`, **never raw SQL**), CORS-scoped to `APP_ORIGIN`. The
+  app calls it via `cfg.adminFnUrl` (`app/sources/supabase.js:220-235`, `adminGoLive` at :681),
+  and the runbook's Path C ends with *"No SQL editor, ever."* **The gap is exactly one step:
+  deploying that function** needs the Supabase CLI (`functions deploy` + three `secrets set`).
+  So today the manual surface is *worse* than Kevin thinks — not one SQL paste but a CLI session
+  — and Path A (the paste) exists only as the fallback for when the function isn't deployed.
+  **The question to settle FIRST, because it decides the whole design — the Supabase Management
+  API.** `POST https://api.supabase.com/v1/projects/{ref}/database/query` with a Personal Access
+  Token runs arbitrary SQL (it is what the dashboard's own SQL editor uses), and the same API can
+  create projects and deploy functions. If a browser can call it, Analytics can provision a
+  project end-to-end with zero Supabase UI. **Verify CORS before designing anything on top of
+  it** — a static Pages app has no server to proxy through, so if `api.supabase.com` does not
+  send usable CORS headers to an arbitrary origin, this option is dead and the fallback below is
+  the answer. Do not assume either way; measure it with a real preflight.
+  **Two credentials, two very different risk profiles — say this out loud in the UI.** A PAT is
+  an ACCOUNT-WIDE credential across every project in the org, far more powerful than the anon
+  key. It must be enter-run-**discard**, in memory only, never localStorage, never in a cfg blob
+  that `saveConn()` serialises — the exact hazard N2 slice 4 just spent a slice removing for the
+  workspace password. The existing `PROVISION_SECRET` flow is already enter-run-discard and is
+  the pattern to copy.
+  **Fallback if CORS blocks the Management API (and the better long-game either way): ONE paste,
+  then never again.** Make the wizard's single manual step install named migration RPCs
+  (`SECURITY DEFINER`, admin-gated, **fixed DDL baked in — never an `exec(sql text)` escape
+  hatch**, mirroring the Edge Function's own security contract). After that one paste the app
+  owns the database forever: provisioning, RLS, and — the reason this matters beyond
+  convenience — **N16's "backend is older, upgrade it" becomes a real in-app button on Supabase
+  instead of a copy-paste SQL box.** N16 and N22 should be designed together for that reason.
+  **Split suggestion:** N22a the CORS/Management-API spike (a measurement, half a slice, and it
+  decides the rest); N22b the provisioning flow the spike selects; N22c the upgrade path wired
+  into N16. **Verify:** stand up a brand-new project and reach a working, RLS-correct, admin-
+  seeded workspace touching the Supabase dashboard exactly once — to click "New project".
+- **N23 ★★ [1pt] — The connection form calls the Auth fields "(optional)". Under the real RLS
+  posture they are MANDATORY, and getting it wrong looks like an empty database.** Kevin,
+  2026-08-08, reading the form while standing up `polecat_dev`: *"how optional are all of these
+  settings? should i really set them?"* — a fair question the UI answers wrongly.
+  **The facts.** `cfg.authEmail`/`authPassword` are labelled "(optional)" at
+  `app/sources/supabase.js:531-533`, and the adapter's own contract comment (`:33-39`) says
+  omitting them "keeps the exact pre-existing anon-key-only behavior". That was TRUE under the
+  legacy allow-all posture. It is FALSE under the posture every new environment now gets:
+  `supabase-rls-real.sql`'s header records that after it runs, the anon verify returns **ZERO
+  rows on all six workspace tables** while a signed-in admin sees everything, and
+  `supabase-deploy.sql` §8 tells you to expect "ALL ZEROS for anon". So on a correctly-secured
+  backend, a connection without the Auth fields authenticates as anon, `auth.uid()` is NULL,
+  every policy declines, and the user sees **an empty workspace** — indistinguishable, in the
+  UI, from a database that was never provisioned.
+  **Fix.** (a) Make the labels posture-aware rather than statically "(optional)": the adapter can
+  already tell the difference — tables present in `probe()` + zero readable rows as anon means
+  RLS is enforced, so the fields are required. Say that in the field help and on the connection
+  card. (b) Make the failure legible: an anon connection to an RLS-enforced workspace must
+  report "this workspace enforces per-user security — add the Supabase Auth email/password",
+  never render as empty. **Check first whether `Sync.needsSignIn()` (N2 slice 4) already covers
+  part of this** and extend rather than duplicate. (c) Say in the same help text what N2 slice 4
+  made true, because it surprises people: the PASSWORD is never persisted — GoTrue's refresh
+  token is kept in sessionStorage instead — so it is re-entered once per browser session BY
+  DESIGN, not because something failed. (d) `adminFnUrl` genuinely IS optional; keep it so, but
+  say what it costs to leave blank (go-live and admin user-creation fall back to the SQL editor)
+  and warn that a URL pointing at an undeployed function fails confusingly.
+  **Verify:** a suite check that a connection with no Auth fields against an RLS-enforced
+  workspace surfaces the sign-in-required state and NOT an empty catalog.
+- **N24 ★★ [2pt — bug + the management Kevin asked for] — Connecting a workspace from the gate
+  leaves you unable to sign in to it.** Kevin, 2026-08-08: *"I went to connect to a custom
+  workspace, filled out all the credentials and seem to have connected but there is no way to
+  actually log in with that one… it needs to be on a list somewhere… there should be some more
+  management of your workspaces there so that you can define one and connect to it from there."*
+  **Slice 1 — the bug, and it is four lines.** The gate's "Connect a workspace backend" handler
+  (`app/gate.js:663-668`) does exactly three things on success: set the hint to "Connected. Sign
+  in with an account from that workspace below.", clear the error, `clearCue()`. It **never calls
+  `renderWorkspaceSelect()`** and never records the workspace. So the `<select>` still shows the
+  pre-connect list. `currentWorkspaceId()` (`:519`) WOULD now return `"__connected"` and
+  `renderWorkspaceSelect()` (`:527`) WOULD append a "Connected workspace (this browser)" option —
+  but nothing triggers the re-render, so that option never appears and the hint tells the user to
+  do something the UI gives them no way to do. **The IMPORT path two blocks up does it right**
+  (`:597-601`): `saveCustomWorkspace(entry)` → `renderWorkspaceSelect()` → select it →
+  `connectWorkspace(entry)`. The wizard path should do the same, and the helpers it needs
+  (`customWorkspaces()`, `saveCustomWorkspace()`, `:507-517`) already exist and already sort
+  customs FIRST in `workspaceList()`. Prompt for (or derive) a LABEL so the entry is named —
+  "Connected workspace (this browser)" is not something a person can pick between two of.
+  Consider Kevin's own suggestion — if the wizard captured Auth email/password, offer to sign in
+  as that account immediately rather than making them retype it.
+  **Slice 2 — the management, including EXPORT FROM THE SETUP SCREEN** (Kevin, same session:
+  *"can you export an access file from the setup screens so that i can define one and then export
+  the access file so its easy enough to just give someone a file"*). One anonymous "connected"
+  slot is not workspace management. A saved list, editable from the gate AND from Settings:
+  rename, remove, set default, a clear "connected" marker, and **Export access file per entry**.
+  **That export already exists and must be REUSED, not rebuilt** — `#wsAccessFileBtn`
+  (`app/studio.js:8439`, handler `:8491-8495`) downloads exactly the shape the gate's import path
+  reads, and `app/studio.js:500` records that it **STRIPS `authEmail`/`authPassword`**, which is
+  the correct posture and the line to repeat in the UI: the file carries the workspace's
+  publishable key so the recipient can REACH it, never anyone's credentials — they sign in with
+  their own account. The only real gap is REACHABILITY: today it lives in Settings → Workspace
+  backend, i.e. behind a successful sign-in, so you cannot define a workspace and hand someone a
+  file without first getting inside it yourself. Surface it wherever a workspace is defined —
+  the gate's picker and the connect wizard's success step. Note the same public-repo caution
+  `app/workspaces.js` already carries: only hand out a file for a workspace whose RLS is the
+  authenticated-only posture, since possession of the key must not be possession of the data.
+  This is also what makes `polecat_dev` / `polecat_stage` / prod usable side by side — the exact
+  topology Kevin is building — so it is a prerequisite for testing the pipeline against real
+  environments, not a nicety.
+  **Verify:** a suite check driving `__studioGateWorkspaces` (the test hook at `:606` already
+  exposes list/addCustom/render/connect) that a wizard connection leaves a NAMED, selectable
+  entry in the picker and that signing in against it works — the assertion that would have
+  caught this.
+- **N25 ★★ [2pt] — The `/dev/` and `/stage/` previews sign you into PRODUCTION data.** Found
+  2026-08-08 while answering Kevin's *"I am concerned… that you will break prod on main"* — his
+  instinct was right, just about a different mechanism than secrets. **Measured:**
+  `app/workspaces.js` ships exactly one catalog entry (`id: "polecat"`) carrying the LIVE project
+  URL + publishable key, `app/index.html:45` loads it unconditionally, and `tools/stage-
+  preview.mjs` — which rewrites paths, stubs the SW and paints the banners — **does nothing to
+  that file**. So the dev preview's Workspace picker offers "Polecat workspace" and it is prod.
+  Every test sign-in, every sample-pack install, every push from `/dev/` lands in the production
+  workspace. That is the actual prod-safety hole, and it exists today, before any secret is added.
+  **Fix, once `polecat_dev` and `polecat_stage` exist:** make the shipped catalog stage-aware —
+  the preview builder rewrites (or the catalog declares) which entry belongs to which stage, so
+  `/dev/` offers the dev workspace, `/stage/` the stage one, and only `/` offers prod. Belt and
+  braces: label them unmistakably in the picker ("Polecat workspace (DEV)") since the banner
+  alone has already proven easy to dismiss, and consider refusing a prod-workspace connection
+  outright from a preview origin rather than relying on the reader noticing.
+  **Then the test topology follows the branch topology** — the point of Kevin's three databases:
+  mutating checks (`tests/rls.mjs`, which today CREATEs and DROPs `steward_test_rls_*` schemas on
+  the **production** project) move to `polecat_dev` at the dev gate; stage promotion runs them
+  against stage; and prod keeps only the **read-only** anon-verify (`supabase-deploy.sql` §8 —
+  expect all zeros) at promote-to-prod or on a schedule. Prod stays covered while stopping being
+  the thing we experiment on — strictly safer than the status quo, not a coverage trade.
+  **Note on the secrets themselves (the part that is NOT a risk):** `SUPABASE_DEV_*` are NEW
+  names. `SUPABASE_ANON_KEY` and `SUPABASE_PASSWORD` — read by `supabase-provision.yml:40,63` —
+  are untouched, so nothing pointing at prod changes behaviour. Adding is additive; the only way
+  to break prod here would be to REPLACE those two, which nothing in N19–N25 does.
   Industry density and whitespace by county: where a chain is under-represented versus the
   population and the businesses already there. **Replaces `datamanagement` in
   `DEFAULT_INSTALLED`** (`demopacks.js:78`) — Data Management stays installable, just not the
@@ -11176,19 +11433,15 @@
   database work; never CREATE/DROP/ALTER against live `public`. Note for any run touching an
   already-live workspace: `actionGoLive` TRUNCATEs the workspace tables, so "just re-run Go live"
   is never the way to pick up a posture fix — re-paste `tools/supabase-rls-real.sql` instead.
-- ⛔ **N4a ★ [1pt] — KEVIN DECISION/ACTION: turn on `delete_branch_on_merge`.** Tech sweep
-  #370, item (a): the setting is `false`, so every merged PR leaves its branch behind — 251
-  stale `steward/*` branches at sweep time and it has grown since — `git ls-remote --heads`
-  counts **265 `steward/*` branches of 273 total** on 2026-08-07. **Raised, not assumed, exactly as the item asked:** the steward
-  attempted the flip on 2026-08-07 with `gh api -X PATCH repos/kevinrhaas/analytics.polecat.live
-  -f delete_branch_on_merge=true` and got `403 Resource not accessible by personal access
-  token` — `STEWARD_PAT` has repo scope but not repo *administration*, so no agent can do
-  this. **The exact ask for Kevin:** flip Settings → General → "Automatically delete head
-  branches" ON (it only affects future merges; it never deletes an unmerged branch), and say
-  whether the ~250 already-merged `steward/*` branches should be bulk-deleted — the loop will
-  NOT mass-delete branches on its own guess. Alternative if the flip is unwanted: grant the
-  PAT admin scope, or say "leave them" and this item closes as WONTFIX. Nothing else here is
-  agent-actionable; N4b (the other half) is shipped.
+- ~~**N4a ★ [1pt] — turn on `delete_branch_on_merge`.**~~ ✓ CLOSED by Kevin, 2026-08-08 —
+  both halves answered on the same day the ⛔ was put to him: **the setting is ON** (Kevin
+  flipped Settings → General → "Automatically delete head branches" himself; the PAT never
+  needed admin scope) and the ~269 already-merged `steward/*` branches are **"leave them"** —
+  a deliberate WONTFIX on the bulk delete, per the recommendation: they are merged, they cost
+  nothing but dropdown noise, and a 269-ref mass delete risks more than it buys. With the
+  setting on, the pile is now a fixed historical artifact — every future merge cleans up after
+  itself. The last ⛔ in the queue is gone; nothing in ▶ NOW waits on Kevin. (History below
+  kept until grooming archives it; N4b shipped separately, v866.)
 - ~~**N4b ★ [1pt] — Repo hygiene from tech sweep #370: vendored shell drift.**~~ ✓ SHIPPED
   v866, sw v498 (2026-08-07, steward — see DONE). The re-check found the copy FIVE releases
   behind (v0.5.4 vs the hub's v0.6.2), not the 2 patches the July sweep recorded, and it is
