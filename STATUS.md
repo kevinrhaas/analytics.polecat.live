@@ -135,6 +135,48 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **SP-0 slice 2 of 2 — the convention for shipping REAL pack data, and SP-0 closed (v896, sw
+  v521, 2026-08-08, steward; dev branch):** blocker (b), the one SP-1 was actually waiting on.
+  **The problem, stated plainly:** the rule for pack data was "synthetic, deterministic,
+  generated in JS, never fetched" — unwritten, absolute, and about to be broken by the first
+  pack built on Census data. Nothing said where real data may come from, how anyone reproduces
+  it, how big it may be, or who gets credited. **What shipped, in four parts.** (1) **The
+  contract** — `docs/PACKS.md`, in the style of `docs/BACKLOG.md`: the two kinds of pack data,
+  the four rules for real data (embedded never fetched; extracted by a committed re-runnable
+  script that IS the provenance record; ≤150 KB CSV per pack; credited where it is read), the
+  registry-entry shape, a table of what is enforced where, and the add-a-pack checklist.
+  (2) **The machinery** — `tools/pack-extract/lib.mjs`: `writePack({pack, source, files, notes})`
+  writes deterministic CSV (LF, minimal quoting, stable bytes so a no-change re-run is an empty
+  diff) plus `SOURCE.json`, and REFUSES rather than truncates — bad source shape, over budget, a
+  stale file left by an earlier extract, a non-CSV name. (3) **The provenance itself** —
+  `app/demopacks.js` entries gained `source` (`synthetic` | `public` | `licensed`) with
+  `Studio.packSourceIssues()` as the shape rule in code, `demoPackSourceLine()` as the one line
+  every surface reads, and `packNeedsAttribution()`; the Settings card renders that line for
+  every pack, and `reconcilePackDashboards()` backfills it into the subtitle of a non-synthetic
+  pack's dashboards (idempotent on the line's own text, so it can never accumulate, and healing
+  an existing install without a reinstall). Both shipped packs declare themselves synthetic, so
+  the honesty that lived only in hand-written blurbs is now a field the app renders.
+  (4) **The teeth** — `tools/validate.mjs` gained the pack-data gate (brace-walking the registry
+  the way `doc-truth.mjs` does): every entry declares a well-formed source; data with no extract
+  script, a script or directory naming an unregistered pack, a non-CSV file in a pack directory,
+  and >150 KB of CSV all fail the DEV GATE; `kind:"licensed"` with no `THIRD-PARTY-NOTICES.md`
+  mention fails too. Plus the CLAUDE.md bullet and a Help paragraph. **A note on scope:** no
+  extract script ships, because no real-data pack ships — that is SP-1, and the item said so
+  ("No user-visible pack ships in this item"). **Which is exactly why the checks are driven by
+  fixtures rather than by the two synthetic packs:** 4 new checks (9 assertions' worth) — the
+  live registry conforms and the shape rule rejects each way a real source goes wrong (absent,
+  unknown kind, plain-http url, no licence, unparseable date, a synthetic entry carrying a
+  licence); both Settings cards render their source line; and a **stand-in public-data pack**
+  registered in-page proves attribution appends to authored subtitle text, stands alone when
+  there is none, survives a second reconcile unchanged, and never touches the conservation
+  pack's dashboards. `writePack()` was separately exercised end to end against a temp root —
+  quoting, byte-stable re-run, and all three refusals. **Verification run, stated precisely:**
+  the dev gate is fully green (`validate` — now also reporting 2 packs declaring a source,
+  `changelog-check` 873 entries manager-parse OK, `doc-truth`, `dev-smoke` desktop + 390px, zero
+  pageerrors), and `tests/run.js` was run in the foreground THROUGH the new block — 347 checks
+  passed, 0 failed, including all four new ones. As in both N15 slices, the suite in full
+  exceeds this runner's 10-minute foreground command cap; the stage promotion runs it whole.
+  **est 2pt for the item, took 1 per slice — 2 total, on estimate.**
 - **N15 slice 2 of 2 — a chart's PNG/CSV download works on a phone (v895, sw v520, 2026-08-08,
   steward; dev branch):** cause (b) of Kevin's phone report, and the close of N15. **Confirmed
   before fixing, exactly as the item demanded** — a throwaway Playwright probe on the PRE-change
@@ -10969,8 +11011,12 @@
   as it did in the View Builder. Claiming that frame is the same six lines — but Explore's `xp1`
   viewport-persist branch (LF28) lives in the dashboard handler today and would have to move with
   it, so it is its own small item rather than a rider on this one.
-- **SP-0 ★★ [2pt est — slice 1 of 2 SHIPPED v893, sw v518 (2026-08-08, steward — see DONE);
-  blocker (b) REMAINS] — Make the sample-pack system carry twelve packs instead of one.** Kevin
+- ~~**SP-0 ★★ [2pt est, 2 slices shipped] — Make the sample-pack system carry twelve packs
+  instead of one.**~~ ✓ **SHIPPED — slice 1 (blocker (a), the registry dispatch) v893, sw v518;
+  slice 2 (blocker (b), the real-data convention) v896, sw v521 (both 2026-08-08, steward — see
+  DONE). BOTH blockers are closed and the item is CLOSED; SP-1 is unblocked and `docs/PACKS.md`
+  is the contract it follows.** The history below stays until the next grooming pass archives it.
+  Kevin
   chose ELEVEN new packs (2026-08-07); the current machinery does not survive that. Two hard
   blockers: ~~(a) `Studio.installDemoPack` dispatches with a literal `if (id === "conservation")`,
   and demo login + per-user provisioning are hardcoded the same way — move the install function
@@ -10981,7 +11027,16 @@
   packs, the admin user editor's Conservation-only checkbox became a registry-driven picker, and
   the tests/run.js pack block gained the SP-0 conformance LOOP over every registered entry plus a
   source guard that fails the build if a module outside the registry branches on a pack id again.
-  **(b) IS THE REMAINING SLICE and is what SP-1 is actually blocked on:** there is NO convention
+  ~~**(b) IS THE REMAINING SLICE and is what SP-1 is actually blocked on:**~~ **(b) is DONE
+  (v896)** — the convention is written down in **`docs/PACKS.md`** and enforced by
+  `tools/validate.mjs` in the dev gate rather than by anyone's memory: every registry entry
+  declares a `source` (`synthetic` | `public` | `licensed`), a real source ships committed CSV
+  under `data/packs/<id>/` written by `tools/pack-extract/<id>.mjs` through the shared
+  `writePack()` (which is where the ≤150 KB budget and the shape rules bite first), and the
+  source line renders on the Settings card AND in the subtitle of every dashboard the pack
+  seeds. `THIRD-PARTY-NOTICES.md` gained the sample-pack section and the licensed-data rule.
+  The original spec, kept because it is what was built:
+  there is NO convention
   for shipping REAL public
   data — today's rule is "synthetic, deterministic, generated in JS, never fetched". Establish
   it: `tools/pack-extract/<pack>.mjs` (a committed, re-runnable script that fetches the public
@@ -11071,7 +11126,9 @@
   interesting half of the whitespace story anyway.
   Match Conservation Insight's weight: ≈2 connections, ≈5 datasets, ≥1 job, ≈4 pinned Views,
   ≈3 dashboards. Ships as ~3 PRs — (a) extract script + connections/datasets/job,
-  (b) dashboards, (c) Views + tour + docs/changelog. Blocked on SP-0.
+  (b) dashboards, (c) Views + tour + docs/changelog. **UNBLOCKED 2026-08-08** — SP-0 is closed;
+  its (a) extract script follows `docs/PACKS.md` (`tools/pack-extract/marketcoverage.mjs` →
+  `data/packs/marketcoverage/`, ≤150 KB, `source: { kind: "public", … }` on the registry entry).
 
 - ~~**N2 ★★ [2pt est, 4 slices shipped] — M7: real Row-Level Security enforcement.**~~
   ✓ SHIPPED v865 (2026-08-07, steward — see DONE). All four slices are in; M7 is closed. The

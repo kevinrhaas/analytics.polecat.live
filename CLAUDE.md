@@ -72,6 +72,13 @@ they branch from dev and PR into dev per the pipeline rules below.
   download/PDF path are unchanged and still assert byte-identity.
 - `provisioning/` and `reference/` stay untouched unless a task explicitly
   requires them.
+- **Sample-pack data has a contract: `docs/PACKS.md`.** `app/demopacks.js`'s
+  registry is the only place a pack is named, and every entry declares a
+  `source`. A pack shipping REAL data ships it as committed CSV under
+  `data/packs/<id>/`, written by a re-runnable `tools/pack-extract/<id>.mjs`
+  (the provenance record), ≤150 KB per pack, credited on the Settings card and
+  in its dashboards' subtitles — never fetched at runtime. `tools/validate.mjs`
+  enforces all of it in the dev gate.
 - **Local-first**: workspace data lives in localStorage with additive
   migrations — never wipe or break existing user data.
 - **Bump the `sw.js` CACHE name** in the same commit as any change to
