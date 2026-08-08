@@ -294,7 +294,7 @@
   cards are the tours:</p>
   <ul>
     <li><strong>Take the guided tour</strong> — spotlighted walkthroughs of the real app. It opens
-      a picker of topics (getting started, quick analyses, building dashboards, prepping and
+      a picker of topics (getting started, quick analysis, building a dashboard, prepping and
       connecting your data — plus one for your installed sample pack), each a couple of minutes,
       with a Back button if you change your mind. <strong>Getting started</strong> walks the left
       rail from the top down, group by group — Workspace, then Build, then Manage — so the tour
@@ -585,7 +585,7 @@
   so the download is complete on its own; a dashboard backed by a real data source keeps querying
   that source live, in the viewer and in the exported file alike.</p>
 
-  <h2>Quick Views (Explore) — dataset-first analyses</h2>
+  <h2>Quick Views (Explore) — dataset-first Views</h2>
   <p><strong>Quick Views</strong> (left rail, Build group — the section previously named Explore)
   is the fastest path from data to chart, built for non-experts:</p>
   <ol>
@@ -599,20 +599,20 @@
   own), and every branch collapses with a click. Searching flattens the tree to plain matching
   rows — finding something by name never depends on knowing where it's filed.</p>
   <ul>
-    <li><strong>Analyses are reusable.</strong> Saved analyses appear in the left list here, in
+    <li><strong>Views are reusable.</strong> Saved Views appear in the left list here, in
     the Studio library under <strong>Views</strong> (click <em>+ Add to dashboard</em> or drag
     one onto the canvas), and — when pinned with the ★ — as cards on <strong>Home</strong>.</li>
     <li><strong>Adding a result to a dashboard is unambiguous.</strong> The result panel's
     <strong>+ New dashboard</strong> button drops your chart into a brand-new dashboard;
     <strong>Existing dashboard…</strong> opens a picker of your saved dashboards and adds it to
-    whichever one you choose. Either way it's saved as an analysis first if you haven't already.</li>
-    <li><strong>Self-contained.</strong> An analysis embeds its data access, so it keeps working
+    whichever one you choose. Either way it's saved as a View first if you haven't already.</li>
+    <li><strong>Self-contained.</strong> A View embeds its data access, so it keeps working
     (with sample rows) even if the original workspace dataset is later deleted.</li>
     <li><strong>Every scale of chart.</strong> The chart chips include the everyday types plus
     the US choropleth map (county / state / USDA district / watershed / congressional district / ZIP code) and the Ensemble
     common-estimate chart with its reference-series option. A map's <strong>Renderer</strong>
     picker (Built-in vs Interactive GL — pan &amp; zoom at any polygon count) is right there too,
-    and the choice is saved with the analysis. On the Interactive GL renderer, a
+    and the choice is saved with the View. On the Interactive GL renderer, a
     <strong>Zoom/pan controls</strong> option shrinks the on-map cluster to a compact size or
     hides it entirely (Show / Compact / Hidden) — handy when the controls compete with a dense
     dashboard layout; dragging and scroll-to-zoom keep working even when the cluster is hidden.
@@ -624,7 +624,7 @@
     <strong>Rollup</strong> control lets you aggregate the value column with <em>Sum, Mean,
     Median, Min, Max</em> or <em>Count</em>, grouped by <strong>one or two</strong> dimensions
     (Group by / Then by) — so a detail dataset becomes a chart of totals or averages without
-    building a Job first. The rollup is saved onto the analysis, so it re-aggregates the same way
+    building a Job first. The rollup is saved onto the View, so it re-aggregates the same way
     on Home, in any dashboard, and in the exported HTML. (Geo and Ensemble charts carry their own
     aggregation, so the control is hidden for those.)</li>
     <li>In <strong>Simple mode</strong>, Explore is the default section on first open.</li>
@@ -1205,7 +1205,7 @@
     <div class="tip-body">
       <p><strong>Worked example:</strong> install the <strong>Conservation Insight</strong> sample pack (Settings, or
       the Studio library's Sample packs group) for a complete, ready-made illustration of everything on this
-      page — four pinned Ensemble analyses (one per conservation practice) and a featured dashboard pairing
+      page — four pinned Ensemble Views (one per conservation practice) and a featured dashboard pairing
       them with a provider-aware county choropleth, all built from synthetic, clearly-labeled sample data.</p>
     </div>
   </div>
@@ -1323,7 +1323,7 @@
   by default once one gets long, so the panel leads with an overview instead of a wall of cards — click a
   group's header to expand or collapse it any time, and your choice is remembered from then on. Each group
   also carries its own small glyph next to its name (a cube for this dashboard's own datasets, a database for
-  the shared workspace catalog, a trend line for saved Analyses, stacked layers for Sample packs, and a code
+  the shared workspace catalog, a trend line for saved Views, stacked layers for Sample packs, and a code
   bracket for your own authored queries), so the panel is scannable by "what kind of thing is this" at a glance.</p>
 
   <h3>Using catalog queries</h3>
@@ -1646,7 +1646,7 @@
   open), and <strong>Remove</strong> on a sample pack. The restore is workspace-backend safe: an undone
   delete propagates as a re-creation, so the items come back on your other devices too.</p>
 
-  <h3>Filing a dataset, connection, job or analysis into a Folder</h3>
+  <h3>Filing a dataset, connection, job or View into a Folder</h3>
   <p>Datasets, connections, jobs, saved Views, and (via Repository quick-edit) dashboards all have a
   <strong>Folder</strong> field — one home for the item (e.g. "Finance"), distinct from Tags (which
   can be many). Three ways to fill it:</p>
@@ -1698,7 +1698,7 @@
        folder (e.g. Finance/2024), and a row's hover pencil quick-edit button. -->
   <figure class="fig-slot has-img"><img src="img/repository.png" alt="Repository: the kind chip strip and the nested folder tree over every workspace object" loading="lazy"/><figcaption>Repository: every object, one tree</figcaption></figure>
   <p>The <strong>Repository</strong> section is one searchable view of <em>every</em> object in your
-  workspace — dashboards, datasets, connections, analyses, and jobs — with a chip strip to narrow to
+  workspace — dashboards, datasets, connections, Views, and jobs — with a chip strip to narrow to
   one kind (each with a running count). It's the fastest way to find one specific thing once a
   workspace has grown past a glance.</p>
   <h4>Browse — a real folder tree</h4>
@@ -1713,7 +1713,7 @@
   <h4>Act — open, edit, file, create</h4>
   <ul>
     <li><strong>Open a row</strong> and you land in that object's own editor — a dataset or
-      connection opens its modal, a job its editor, a dashboard or analysis switches you into the
+      connection opens its modal, a job its editor, a dashboard or View switches you into the
       right builder with it loaded.</li>
     <li><strong>Quick edit</strong> — hover a row for the ✎ pencil: rename it (dashboards keep their
       title in the builder, so that one is folder-only) or change its folder in place, with an
@@ -1730,8 +1730,8 @@
   <h3>Saved views</h3>
   <p>Once a search and/or adapter/connection/type/tag pill selection narrows the <strong>Datasets</strong> or <strong>Connections</strong> list to something worth returning to, a <strong>"+ Save view"</strong> box appears next to the filter chips — name it and it becomes a chip of its own. Click that chip later to instantly restore the exact same search text and filters; hover it for a small trash button to delete it. Saved views live in the same workspace-settings store as <strong>Dashboards</strong>' workbooks, so they sync across devices along with the rest of your workspace.</p>
 
-  <h3>Marking a dashboard, connection, dataset, analysis, or job private</h3>
-  <p>A lock toggle on every <strong>Dashboards</strong>, <strong>Connections</strong>, <strong>Datasets</strong>, and <strong>Jobs</strong> row, and every saved analysis in <strong>Explore</strong>'s list marks that item private — it stays visible to you and to admin accounts, but disappears from every other signed-in account's catalogs (and, for connections, from the connection picker other people see when authoring a dataset, and for datasets, from the source/join/union dataset pickers when authoring a job). This is UX-level gating, the same honesty as the rest of sign-in — an admin account (or local/no-auth mode with no sign-in configured) always sees everything. All five saved-object types now have the toggle.</p>
+  <h3>Marking a dashboard, connection, dataset, View, or job private</h3>
+  <p>A lock toggle on every <strong>Dashboards</strong>, <strong>Connections</strong>, <strong>Datasets</strong>, and <strong>Jobs</strong> row, and every saved View in <strong>Quick Views</strong>' list marks that item private — it stays visible to you and to admin accounts, but disappears from every other signed-in account's catalogs (and, for connections, from the connection picker other people see when authoring a dataset, and for datasets, from the source/join/union dataset pickers when authoring a job). This is UX-level gating, the same honesty as the rest of sign-in — an admin account (or local/no-auth mode with no sign-in configured) always sees everything. All five saved-object types now have the toggle.</p>
 </section>
 
 <!-- ── Admin & backend setup ───────────────── -->
@@ -1740,7 +1740,7 @@
   <p>These topics are for the person who <strong>administers</strong> a shared workspace — wiring up a real backend, provisioning teammates, and turning on database-enforced per-user security. Everyday building never needs any of it; a local workspace works with no setup at all.</p>
 
   <h3>Choosing a workspace backend</h3>
-  <p>A <strong>workspace backend</strong> is where your whole workspace — dashboards, datasets, connections, jobs, saved analyses and settings — lives, and whether it travels to other devices and teammates. All four options query the same way and carry the same objects; they differ in <strong>where the data lives</strong>, <strong>whether it syncs</strong>, and <strong>how strongly per-user privacy is enforced</strong>. Set or switch it under <strong>Settings → Workspace backend</strong>.</p>
+  <p>A <strong>workspace backend</strong> is where your whole workspace — dashboards, datasets, connections, jobs, saved Views and settings — lives, and whether it travels to other devices and teammates. All four options query the same way and carry the same objects; they differ in <strong>where the data lives</strong>, <strong>whether it syncs</strong>, and <strong>how strongly per-user privacy is enforced</strong>. Set or switch it under <strong>Settings → Workspace backend</strong>.</p>
   <div class="table-scroll">
   <table class="backend-table">
     <thead><tr><th>Backend</th><th>Where data lives</th><th>Syncs across devices</th><th>Per-user accounts &amp; privacy</th><th>Setup</th></tr></thead>
@@ -1792,7 +1792,7 @@
   <strong>Settings → Workspace backend</strong> card, with a <strong>Retry now</strong> button.</p>
   <p><strong>One error worth knowing:</strong> a Supabase workspace provisioned before newer app
   versions can be missing the <code>analyses</code>/<code>jobs</code>/<code>users</code> tables —
-  saving a View then fails with "HTTP 404 writing analyses". The Settings card shows the one-time
+  saving a View then fails with <code>HTTP 404 writing analyses</code>. The Settings card shows the one-time
   upgrade SQL in a copyable block: paste it into <strong>Supabase → SQL editor</strong>, run it
   once, then hit <strong>Retry now</strong> and the pending changes push up.</p>
   <p><strong>Atomic saves (Supabase).</strong> A Supabase workspace normally saves one table at a
@@ -2119,7 +2119,7 @@
   published dashboard.</p>
 
   <h3>Saving a View to the library</h3>
-  <p>Select any View with a bound query and click <strong>Save to View library</strong> in its inspector to snapshot it as a reusable analysis — the same library Explore saves into. Give it a name and it shows up in the builder's left rail under <strong>Views</strong> (drag it onto the canvas, or use its "+ Add to dashboard" chip) and in Explore's own saved-analysis list, exactly like an analysis built there. It's a self-contained copy — editing or deleting the original View's dashboard afterward doesn't affect it. Not available for Richtext/annotation Views, which have no query to snapshot.</p>
+  <p>Select any View with a bound query and click <strong>Save to View library</strong> in its inspector to snapshot it as a reusable View — the same library Quick Views saves into. Give it a name and it shows up in the builder's left rail under <strong>Views</strong> (drag it onto the canvas, or use its "+ Add to dashboard" chip) and in Quick Views' own saved list, exactly like a View built there. It's a self-contained copy — editing or deleting the original View's dashboard afterward doesn't affect it. Not available for Richtext/annotation Views, which have no query to snapshot.</p>
 </section>
 
 <!-- ── Keyboard shortcuts ─────────────────────────────────────── -->

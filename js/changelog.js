@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 876,
+    title: 'The Help page calls a saved chart a View, like the rest of the app',
+    kind: 'fix',
+    ts: '2026-08-08T00:35:02.000Z',
+    items: [
+      'The tours were fixed last release; the Help page was the other half. Its bolded labels were already right — it told you to look in the library under Views — but the sentences around them still described the thing as an "analysis": "saved analyses appear in the left list", "an analysis embeds its data access", "a dashboard or analysis switches you into the right builder". Twenty places, including three headings and the Repository and Workspace-backend sections\' lists of what a workspace holds.',
+      'Help now says View everywhere it means the object you saved. Where it quotes something you will genuinely see on screen — the database table name, and the "HTTP 404 writing analyses" error the workspace-upgrade note is about — the old word stays, because that is the text you will actually be reading when you go looking for it.',
+      'The check that runs on every change now holds the Help page to a stricter rule than the tours: outside a code snippet, the internal name may not appear at all. The tours are allowed the word when they describe the work you are doing; a reference page someone searches when they are stuck is not.',
+    ],
+  },
+  {
     v: 875,
     title: 'The tours call a saved chart what the app calls it',
     kind: 'fix',

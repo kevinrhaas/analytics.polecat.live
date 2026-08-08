@@ -135,6 +135,56 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the Help page calls a saved chart a View (v876, NO sw bump — see below, 2026-08-08, steward; LF58
+  recurring slice, dev branch):** the ▶ NOW queue still holds no ready non-recurring item
+  (N2/N4b/N5a/N5b shipped, N4a ⛔ on Kevin, grooming parked for him on `hold` PR #623), so the
+  recurring N7 came up again and took the candidate its own list called "the biggest known
+  one": Help's remaining `analysis`/`analyses` prose.
+  - **The drift, and why v875 did not catch it.** v875 fixed the *tours*; `docs/index.html` was
+    the other half of the same LF57 rename. Its pattern is the instructive part — the **labels
+    were already right** ("the Studio library under **Views**", "**Save View**"), so doc-truth
+    check 14's bolded-label rule would have passed every one of the twenty occurrences. What
+    had rotted was the PROSE wrapped around those labels: "Saved analyses appear in the left
+    list here", "An analysis embeds its data access", "the choice is saved with the analysis",
+    "a dashboard or analysis switches you into the right builder", plus three headings
+    (Quick Views' `<h2>`, "Filing a … or analysis into a Folder", "Marking a … analysis … as
+    private") and the Repository + Workspace-backend sections' enumerations of what a workspace
+    holds. Two spots were outright wrong-label, not just wrong-noun: the Data panel's group
+    glyph list said "a trend line for saved **Analyses**" (the group renders **Views**), and two
+    sentences still routed the reader to **Explore**, renamed **Quick Views**.
+  - **What shipped.** 17 prose sites in `docs/index.html`. The two strings a reader will
+    genuinely see on screen are deliberately UNCHANGED and now wrapped in `<code>`: the storage
+    table name and the literal `HTTP 404 writing analyses` error the workspace-upgrade note is
+    about — that note is only findable if it quotes the error verbatim. The tour-picker line
+    now names the tour topics as `app/tutorial.js` actually registers them ("quick analysis",
+    "building a dashboard"), which is both the fix and the guard's one exemption.
+  - **The ratchet — doc-truth check 15**, and it is deliberately STRICTER than check 14: outside
+    an HTML comment or a `<code>` span, the internal noun may not appear in Help at all. The
+    reasoning is written into the check — the tours may use the word for the ACTIVITY (the tour
+    is still called "Quick analysis"), but a reference page someone searches while stuck is held
+    to the object's real name. Its one exemption is the same DERIVED set check 14 uses (the tour
+    chooser labels parsed out of `tutorial.js`), not a hardcoded list, and it reports the
+    offending sentence fragment rather than a line number so the reword is obvious. Confirmed
+    non-vacuous: restoring "Analyses are reusable / Saved analyses appear…" fails it with both
+    fragments named, and reverting goes green again.
+  - **No `sw.js` cache bump, deliberately — and it turned up something.** The habit on a release
+    slice is to bump `CACHE_NAME`, and the first attempt did (v507→v508). That bump ALONE made
+    two N2-slice-4 checks fail, deterministically (2/2 runs red with it, 2/2 green without, and
+    `origin/dev` green): the reload that must re-mint a session from the stored refresh token
+    instead came back with the token GONE from sessionStorage and `needsSignIn` true — i.e. the
+    refresh was treated as REFUSED and cleared, which is the disposal path meant for a revoked
+    token. **Nothing was weakened to get green:** the bump is not required here by the repo's own
+    rule (`sw.js`'s header: bump "whenever the precache list below changes" — the LIST is
+    unchanged; only `js/changelog-head.js`'s CONTENT moved, and the fetch handler is
+    network-first, so an online reader is never served a stale copy and no removed asset is left
+    behind). Nothing in `validate.mjs` or `ci.yml` enforces a bump either. The failure is NOT
+    root-caused and is NOT this slice's to fix — it is auth code, and it smells like the exact
+    hazard N2 slice 3 named (telling "no" apart from "we never asked"), landing on the one
+    reload every user makes right after a deploy. Filed as its own issue with the repro; a
+    future slice owns it.
+  - **Verified:** full `tests/run.js` 3120/3120 green; `tools/dev-smoke.mjs` green (desktop +
+    390×780, zero pageerrors); `tools/validate.mjs` 207 files clean; `changelog-check`
+    manager-parse OK; doc-truth 21/21 and confirmed non-vacuous. est 1pt (recurring), took 1.
 - **N7 — the tours call a saved chart what the app calls it (v875, sw v507, 2026-08-07,
   steward; LF58 recurring slice, dev branch):** same pick as the last slice — the ▶ NOW queue
   still holds no ready non-recurring item (N2/N4b/N5a/N5b shipped, N4a ⛔ on Kevin, grooming
@@ -10159,14 +10209,24 @@
     the internal one. The activity/label line is written into `tutorial.js`'s header.
   * **Audited and found CURRENT in this pass, no change needed:** Help's builder-library
     reference (`docs/index.html` already says "the Studio library under **Views**").
+  * *Help's own prose vs that same rename — v876, 2026-08-08 (see DONE).* The other
+    half of v875, and the reason it needed its own slice: Help's LABELS were already right, so
+    check 14's bolded-label rule passed all twenty occurrences while the sentences around them
+    still said "analysis" — plus two genuinely stale labels (the Data panel's "saved
+    **Analyses**" group glyph, where the group renders **Views**, and two routes naming
+    **Explore** rather than **Quick Views**). 17 prose sites fixed; the storage table name and
+    the literal `HTTP 404 writing analyses` error string kept verbatim, inside `<code>`.
+    Doc-truth check 15 now forbids the internal noun anywhere in Help outside `<code>` and
+    comments — stricter than check 14 on purpose, and it reports the offending sentence
+    fragment rather than a line number.
   * **Not yet audited (candidates for the next N7 slice):** the marketing page's hero
     carousel captions + screenshots, which the v871 slice deliberately left alone (the copy
     pass stayed textual — regenerating shots is its own slice); and the per-feature tours'
     remaining BODY copy (Build a dashboard / Prep & connect / the pack tour) — the Quick
-    analysis tour's own body is now done (v875). **Help's remaining `analysis`/`analyses`
-    prose** (§602-627 and friends) is the biggest known one: its labels are right, its prose
-    still uses the old noun, and it overlaps AUD-11's tail (§2.4's wording sweep) — that
-    overlap is why v875 scoped itself to the tours. **Struck from this list:** the ⌘K palette's section
+    analysis tour's own body is now done (v875). **Struck from this list:** Help's remaining
+    `analysis`/`analyses` prose (§602-627 and friends), which was the biggest known one and
+    shipped as v876 above — it overlapped AUD-11's tail (§2.4's wording sweep), and that
+    overlap is why v875 had scoped itself to the tours; and the ⌘K palette's section
     coverage, which this pass found was NOT stale — AUD-12 (v854) already made the palette
     derive from the rail and added the guard, so the note above was itself out of date.
 
