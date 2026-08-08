@@ -11298,6 +11298,49 @@
   and warn that a URL pointing at an undeployed function fails confusingly.
   **Verify:** a suite check that a connection with no Auth fields against an RLS-enforced
   workspace surfaces the sign-in-required state and NOT an empty catalog.
+- **N24 ★★ [2pt — bug + the management Kevin asked for] — Connecting a workspace from the gate
+  leaves you unable to sign in to it.** Kevin, 2026-08-08: *"I went to connect to a custom
+  workspace, filled out all the credentials and seem to have connected but there is no way to
+  actually log in with that one… it needs to be on a list somewhere… there should be some more
+  management of your workspaces there so that you can define one and connect to it from there."*
+  **Slice 1 — the bug, and it is four lines.** The gate's "Connect a workspace backend" handler
+  (`app/gate.js:663-668`) does exactly three things on success: set the hint to "Connected. Sign
+  in with an account from that workspace below.", clear the error, `clearCue()`. It **never calls
+  `renderWorkspaceSelect()`** and never records the workspace. So the `<select>` still shows the
+  pre-connect list. `currentWorkspaceId()` (`:519`) WOULD now return `"__connected"` and
+  `renderWorkspaceSelect()` (`:527`) WOULD append a "Connected workspace (this browser)" option —
+  but nothing triggers the re-render, so that option never appears and the hint tells the user to
+  do something the UI gives them no way to do. **The IMPORT path two blocks up does it right**
+  (`:597-601`): `saveCustomWorkspace(entry)` → `renderWorkspaceSelect()` → select it →
+  `connectWorkspace(entry)`. The wizard path should do the same, and the helpers it needs
+  (`customWorkspaces()`, `saveCustomWorkspace()`, `:507-517`) already exist and already sort
+  customs FIRST in `workspaceList()`. Prompt for (or derive) a LABEL so the entry is named —
+  "Connected workspace (this browser)" is not something a person can pick between two of.
+  Consider Kevin's own suggestion — if the wizard captured Auth email/password, offer to sign in
+  as that account immediately rather than making them retype it.
+  **Slice 2 — the management, including EXPORT FROM THE SETUP SCREEN** (Kevin, same session:
+  *"can you export an access file from the setup screens so that i can define one and then export
+  the access file so its easy enough to just give someone a file"*). One anonymous "connected"
+  slot is not workspace management. A saved list, editable from the gate AND from Settings:
+  rename, remove, set default, a clear "connected" marker, and **Export access file per entry**.
+  **That export already exists and must be REUSED, not rebuilt** — `#wsAccessFileBtn`
+  (`app/studio.js:8439`, handler `:8491-8495`) downloads exactly the shape the gate's import path
+  reads, and `app/studio.js:500` records that it **STRIPS `authEmail`/`authPassword`**, which is
+  the correct posture and the line to repeat in the UI: the file carries the workspace's
+  publishable key so the recipient can REACH it, never anyone's credentials — they sign in with
+  their own account. The only real gap is REACHABILITY: today it lives in Settings → Workspace
+  backend, i.e. behind a successful sign-in, so you cannot define a workspace and hand someone a
+  file without first getting inside it yourself. Surface it wherever a workspace is defined —
+  the gate's picker and the connect wizard's success step. Note the same public-repo caution
+  `app/workspaces.js` already carries: only hand out a file for a workspace whose RLS is the
+  authenticated-only posture, since possession of the key must not be possession of the data.
+  This is also what makes `polecat_dev` / `polecat_stage` / prod usable side by side — the exact
+  topology Kevin is building — so it is a prerequisite for testing the pipeline against real
+  environments, not a nicety.
+  **Verify:** a suite check driving `__studioGateWorkspaces` (the test hook at `:606` already
+  exposes list/addCustom/render/connect) that a wizard connection leaves a NAMED, selectable
+  entry in the picker and that signing in against it works — the assertion that would have
+  caught this.
   Industry density and whitespace by county: where a chain is under-represented versus the
   population and the businesses already there. **Replaces `datamanagement` in
   `DEFAULT_INSTALLED`** (`demopacks.js:78`) — Data Management stays installable, just not the
