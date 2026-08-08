@@ -135,6 +135,39 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N15 slice 1 of 2 — the View Builder's "Export as standalone HTML" works, and one preview can
+  no longer edit the other builder's dashboard (v894, sw v519, 2026-08-08, steward; dev branch):**
+  Kevin reported both symptoms from a phone; this slice closes cause (a) plus the whole
+  message-routing half. **Confirmed before fixing, not assumed** — a throwaway Playwright probe on
+  the PRE-change tree reproduced it exactly: clicking the menu item opened no modal and produced no
+  file (`modalTitle: ""`), and messages posted from inside the View Builder's preview frame
+  hijacked the open dashboard on all four counts (header hidden, title rewritten to "HIJACKED",
+  the KPI deleted, panel order reversed). **The fix.** `app/studio.js`'s single preview-message
+  listener answered every frame as if it were the dashboard builder's `#preview`. It now routes by
+  the posting frame: a module may claim its own preview (`Studio.claimPreviewFrame(getFrame,
+  handle)`) and then owns its messages exclusively, and the four branches that rewrite `S.spec`
+  with no id to miss on (`reorder`, `kpi-delete`, `header-edit`, `header-delete`) are accepted only
+  from `#preview` or from this document itself — the same `e.source === window` reasoning
+  `trustedMsg` already uses. `app/build.js` claims its `bd-ifr` frame (lazily, on first paint: it
+  loads BEFORE studio.js) and remembers the exact one-panel spec + computed rows it is showing, so
+  `panel-export-embed` exports what the user is looking at. `exportPanelEmbed(p, srcSpec, mock)`
+  gained the two optional arguments and nothing else — called with neither it is the historical
+  dashboard-panel export, same clone, same 3-arg `exportDashboardHtml`, byte-identical file. A
+  pared-down View drops the source's `hideHeader`, or the exported file would have no title.
+  **Verified:** 5 new checks in `tests/run.js` (13c-N15) driving the REAL click path inside the
+  preview frame — the file is a doctype+`STUDIO_SPEC` document carrying this View's bars panel,
+  its title and its real `SUM amount` rows; a message from the View Builder's preview leaves the
+  other builder's header, title, KPI and panel order intact; and the dashboard's own canvas edits
+  still apply, since the guard decides WHO spoke rather than disabling the acts. A new
+  `window.__lastBundle` test hook exposes the exported file, which the modal (name + byte count
+  only) never did — precisely the gap that let a dead export ship green. **Verification run, stated
+  precisely:** the dev gate is fully green (`validate` 207 files, `changelog-check` 871 entries
+  manager-parse OK, `doc-truth`, `dev-smoke` desktop + 390px, zero pageerrors); `tests/run.js`
+  reached **3108 checks, zero real failures**, including all five new ones, but was cut off at ~98%
+  by this runner's 10-minute foreground command cap, twice (the suite needs a little over 10 min
+  here). The untested tail runs no preview-message tests — every `postMessage` case in the suite
+  sits well before the cut — and the stage promotion runs the whole thing. **est 2pt, took 1 for
+  this slice** (cause (b), the mobile download path, is the second).
 - **SP-0 slice 1 of 2 — the sample-pack registry stops being two hard-coded names (v893, sw
   v518, 2026-08-08, steward; dev branch):** blocker (a) of SP-0, the precondition for Kevin's
   eleven new packs. **What was actually there:** `Studio.installDemoPack` dispatched on
@@ -10838,19 +10871,25 @@
 > struck entries and propose the next batch to Kevin on a `hold` PR — never graze the
 > reservoir directly.
 
-- **N15 ★★ [2pt] — Kevin, 2026-08-08: the View Builder's panel menu offers PNG and standalone
+- **N15 ★★ [2pt est — slice 1 of 2 SHIPPED v894, sw v519 (2026-08-08, steward — see DONE); cause
+  (b) REMAINS] — Kevin, 2026-08-08: the View Builder's panel menu offers PNG and standalone
   HTML, and neither works.** Reported live from a phone, with a screenshot of the open menu.
-  **Cause (a) — "Export as standalone HTML" is a silent no-op. Read from the code, not
-  suspected.** The panel chrome lives in `app/studio-render.js` so the preview and the export
-  stay byte-identical, and the HTML item does nothing locally: it posts
-  `{type:"panel-export-embed", id}` to the parent (`studio-render.js:936`). The ONLY handler is
-  the DASHBOARD builder's (`app/studio.js:10691`), which resolves the id with `panelById()`
-  (`studio.js:13475`) — a filter over `S.spec.panels`, i.e. the open dashboard. The View
-  Builder's preview panel is minted fresh by `bdPanelFor()` → `Studio.newPanel()`
-  (`app/build.js:1148`) into a private one-panel spec that is never in `S.spec`, so the lookup
-  misses and the branch falls through. No error, no toast: the menu closes and nothing happens,
-  exactly as reported.
-  **Cause (b) — the PNG downloads from inside the iframe.** `downloadPanelPng()`
+  ~~**Cause (a) — "Export as standalone HTML" is a silent no-op.**~~ **(a) is DONE** — messages
+  from a preview now route by the FRAME that posted them: `Studio.claimPreviewFrame(getFrame,
+  handle)` lets a module own its own preview's acts, `app/build.js` claims its `bd-ifr` and
+  exports the one-panel spec + computed rows it is actually showing through
+  `exportPanelEmbed(p, srcSpec, mock)`, and the four branches that rewrote `S.spec`
+  unconditionally (`reorder`, `kpi-delete`, `header-edit`, `header-delete`) are accepted only
+  from the dashboard builder's own `#preview`. The uglier half described below is closed with it.
+  The original reading of the code, kept because it is the map of the seam: the panel chrome
+  lives in `app/studio-render.js` so the preview and the export stay byte-identical, and the HTML
+  item does nothing locally — it posts `{type:"panel-export-embed", id}` to the parent
+  (`studio-render.js:936`). The ONLY handler was the DASHBOARD builder's, which resolves the id
+  with `panelById()` — a filter over `S.spec.panels`, i.e. the open dashboard. The View Builder's
+  preview panel is minted fresh by `bdPanelFor()` → `Studio.newPanel()` into a private one-panel
+  spec that is never in `S.spec`, so the lookup missed and the branch fell through. No error, no
+  toast, exactly as reported.
+  **THE REMAINING SLICE IS CAUSE (b) — the PNG downloads from inside the iframe.** `downloadPanelPng()`
   (`studio-render.js:780`) appends an `<a download>` to the IFRAME's document and clicks it.
   That works in desktop Chrome, and it is why the suite has always been green — the tests drive
   the rasterizer through the `onDataUrl` hook and never perform a real click. A download
@@ -10858,26 +10897,32 @@
   phone. `downloadPanelData()` (:832) has the identical shape, so CSV is in the same boat.
   **Confirm before fixing** — the rasterizer itself is almost certainly fine; prove WHERE it
   fails (is a data URL produced? is the anchor click swallowed?) rather than assuming.
-  **Fix shape.** (a) The View Builder should own its own preview's panel acts instead of leaking
-  them into the dashboard builder's handler: route by the posting frame, and give the Build
-  preview an export that pares its one-panel spec down the way `exportPanelEmbed()`
-  (`studio.js:10767`) already does for a dashboard panel. (b) When the chrome is running inside
-  a preview iframe, delegate the actual download to the TOP window — both functions already
-  take an `onDataUrl`/`onRows` callback, so the parent can perform the anchor click in the top
-  document. Keep the in-document path as the fallback: the exported standalone HTML has no
-  parent, and the export==preview invariant means this one file ships in both places.
-  **The same seam has a second, uglier half — close it in the same slice.** All 12 message
-  types the preview posts reach `studio.js:10661` from ANY iframe (`isOwnFrame()`, :174, accepts
-  every frame in the document). Most miss on `panelById` and no-op, but `reorder`, `kpi-delete`
-  and `header-delete` act on `S.spec` UNCONDITIONALLY — so chrome inside the View Builder's
-  preview can mutate whatever dashboard happens to be open in the other builder. Fixing the
-  routing closes all of it. Related question worth answering while there: should the Build
-  preview paint dashboard-builder chrome (resize handles, drag-to-reorder, ✕ delete) at all? A
-  one-panel View has nothing to reorder.
-  **Verify:** a check per builder that the HTML export really produces a document, a check that
-  a preview-originated message cannot mutate an unrelated open dashboard spec, and — since the
-  in-iframe click is the suspected mobile failure — a check that exercises the delegated path
-  rather than only the `onDataUrl` hook that hid this. 390×780 is the gate that found it.
+  **Fix shape for (b):** when the chrome is running inside a preview iframe, delegate the actual
+  download to the TOP window — both functions already take an `onDataUrl`/`onRows` callback, so
+  the parent can perform the anchor click in the top document. Keep the in-document path as the
+  fallback: the exported standalone HTML has no parent, and the export==preview invariant means
+  this one file ships in both places. The delegation now has a home — the View Builder's preview
+  is already claimed (`Studio.claimPreviewFrame`), so a `panel-download` message routes to
+  whichever builder owns the frame, and the dashboard builder's `#preview` needs the same handler
+  on its own side.
+  **Verify (b):** a check that exercises the DELEGATED path rather than only the `onDataUrl` hook
+  that hid this. 390×780 is the gate that found it.
+  ~~**The same seam has a second, uglier half — close it in the same slice.**~~ **Closed in slice
+  1** — every message the preview posts reached the dashboard handler from ANY iframe
+  (`isOwnFrame()` accepts every frame in the document); most missed on `panelById` and no-op'd,
+  but `reorder`, `kpi-delete`, `header-edit` and `header-delete` acted on `S.spec`
+  unconditionally. Reproduced on the pre-change tree (all four hijacked from the View Builder's
+  frame), now guarded and covered by a check.
+  **Two follow-ups slice 1 deliberately did NOT take (neither is a regression — both predate it):**
+  (i) *Should the Build preview paint dashboard-builder chrome at all?* Its resize handles,
+  drag-to-reorder and ✕ delete are now definitively inert (the Build claim drops them instead of
+  leaking them). A one-panel View has nothing to reorder, so the honest answer is probably "don't
+  paint them" — that needs a signal from `buildHtml` down into `studio-render.js`'s chrome, which
+  is a slice of its own. (ii) *Explore's preview has the identical dead export.* Its panel is the
+  fixed id `xp1`, also absent from `S.spec`, so "Export as standalone HTML" no-ops there exactly
+  as it did in the View Builder. Claiming that frame is the same six lines — but Explore's `xp1`
+  viewport-persist branch (LF28) lives in the dashboard handler today and would have to move with
+  it, so it is its own small item rather than a rider on this one.
 - **SP-0 ★★ [2pt est — slice 1 of 2 SHIPPED v893, sw v518 (2026-08-08, steward — see DONE);
   blocker (b) REMAINS] — Make the sample-pack system carry twelve packs instead of one.** Kevin
   chose ELEVEN new packs (2026-08-07); the current machinery does not survive that. Two hard

@@ -14410,6 +14410,115 @@ function serve() {
     ok("VB-4 (3): saving with Scatter picked stamps the same labelCol/xCol/yCol mapping on the analyses row",
       vb4c.savedType === "scatter" && vb4c.savedMap === JSON.stringify({ labelCol: "region", xCol: "SUM cost", yCol: "SUM acres" }), JSON.stringify(vb4c));
 
+    // 13c-N15. Kevin, 2026-08-08, reported from a phone: the View Builder's panel menu
+    // offers "Export as standalone HTML" and NOTHING HAPPENS. The panel chrome is one
+    // shared file (app/studio-render.js) so the preview and the export stay byte-identical,
+    // and the HTML item only posts `panel-export-embed` up to the top window. The single
+    // handler for it was the DASHBOARD builder's, which resolves the id with panelById() —
+    // a filter over the open dashboard's panels. The View Builder's preview panel is minted
+    // fresh (bdPanelFor → Studio.newPanel) into a private one-panel spec that is never in
+    // S.spec, so the lookup missed and the branch fell through silently. Messages now route
+    // by the FRAME that posted them: the View Builder claims its own preview and exports
+    // exactly what it is showing, including the real computed rows it previewed.
+    const vbN15 = await page.evaluate(async () => {
+      const W = window.Studio.Workspace;
+      const B = window.__studioBuild;
+      const out = {};
+      const ds = W.put("datasets", { name: "bd-n15-ds", kind: "sql", sql: "select region, quarter, amount from t", columns: ["region", "quarter", "amount"] });
+      await B.selectDataset("ws", ds.id);
+      await new Promise((r) => setTimeout(r, 120));
+      B.state.shelfCols = []; B.state.shelfRows = []; B.state.filters = []; B.state.shelfColor = [];
+      B.addField("region", "cols");
+      B.addField("amount", "cols");
+      B.state.chartType = "bars";
+      B.state.panelTitle = "N15 Export Probe";
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 500));
+
+      const ifr = document.querySelector("#buildResult iframe.bd-ifr");
+      const doc = ifr && ifr.contentDocument;
+      const card = doc && doc.querySelector("[data-panel-id]");
+      out.hasPreviewPanel = !!card;
+      out.previewPanelId = card && card.getAttribute("data-panel-id");
+      // the id really is private to this builder — proof the dashboard handler could
+      // never have resolved it
+      out.notInDashboardSpec = !(window.__STUDIO_STATE.spec.panels || [])
+        .some((p) => p.id === out.previewPanelId);
+
+      // (1) the real click path: open the Export menu and press the standalone-HTML item
+      window.__lastBundle = null;
+      const item = card && [].slice.call(card.querySelectorAll(".dk-dl-act"))
+        .filter((b) => /standalone HTML/.test(b.title))[0];
+      out.hasHtmlItem = !!item;
+      if (item) item.click();
+      await new Promise((r) => setTimeout(r, 400));
+      const bundle = window.__lastBundle;
+      out.modalTitle = document.querySelector(".modal-h") ? document.querySelector(".modal-h").textContent : "";
+      out.fileName = bundle && bundle.files[0] && bundle.files[0].name;
+      const body = (bundle && bundle.files[0] && bundle.files[0].body) || "";
+      out.bodyLen = body.length;
+      out.isDocument = /<!doctype html/i.test(body) && body.indexOf("window.STUDIO_SPEC") >= 0;
+      out.carriesThisView = body.indexOf('"type":"bars"') >= 0 && body.indexOf("N15 Export Probe") >= 0;
+      // the export is the file a reader opens on their own — not a preview, and not the
+      // fabricated sample data: it carries the REAL rows this builder just computed
+      out.isStandalone = body.indexOf("DASHKIT_MOCK") >= 0 && body.indexOf('"SUM amount"') >= 0;
+      document.querySelectorAll(".modal-ov").forEach((m) => m.remove());
+
+      // (2) the other half of the same seam: chrome inside THIS preview must not be able
+      // to rewrite whatever dashboard is open in the dashboard builder. reorder /
+      // kpi-delete / header-edit / header-delete acted on S.spec unconditionally — no id
+      // to miss on — so they reached straight across.
+      const orig = window.Studio.clone(window.__STUDIO_STATE.spec);
+      const canary = window.Studio.clone(orig);
+      const cda0 = (canary.cda.dataAccesses || [])[0] || {};
+      canary.title = "N15 canary dashboard";
+      canary.hideHeader = false;
+      canary.kpis = [{ id: "n15kpi", label: "N15 canary KPI", da: cda0.id, valueCol: (cda0.columns || [])[1], agg: "sum" }];
+      if (canary.panels.length === 1) {
+        const dup = window.Studio.clone(canary.panels[0]);
+        dup.id = "n15dup"; dup.title = "N15 canary panel 2";
+        canary.panels.push(dup);
+      }
+      window.__studioLoad(canary);
+      await new Promise((r) => setTimeout(r, 250));
+      const orderBefore = window.__STUDIO_STATE.spec.panels.map((p) => p.id);
+      const reversed = orderBefore.slice().reverse();
+      ifr.contentWindow.eval(
+        "parent.postMessage({studio:1,type:'header-delete'},'*');" +
+        "parent.postMessage({studio:1,type:'header-edit',field:'title',value:'HIJACKED'},'*');" +
+        "parent.postMessage({studio:1,type:'kpi-delete',index:0},'*');" +
+        "parent.postMessage({studio:1,type:'reorder',order:" + JSON.stringify(reversed) + "},'*');"
+      );
+      await new Promise((r) => setTimeout(r, 350));
+      const after = window.__STUDIO_STATE.spec;
+      out.headerSurvived = after.hideHeader !== true;
+      out.titleSurvived = after.title === "N15 canary dashboard";
+      out.kpiSurvived = (after.kpis || []).length === 1;
+      out.orderSurvived = after.panels.map((p) => p.id).join(",") === orderBefore.join(",");
+
+      // the dashboard builder's OWN preview still drives its dashboard — the guard is about
+      // which frame spoke, not about disabling the acts
+      window.postMessage({ studio: 1, type: "header-edit", field: "title", value: "Renamed from the builder" }, "*");
+      await new Promise((r) => setTimeout(r, 300));
+      out.ownEditStillWorks = window.__STUDIO_STATE.spec.title === "Renamed from the builder";
+
+      window.__studioLoad(orig);
+      W.remove("datasets", ds.id);
+      await new Promise((r) => setTimeout(r, 150));
+      return out;
+    });
+    ok("N15: the View Builder's preview panel is private to that builder — its id is not in the open dashboard's spec, which is why the shared handler could never resolve it",
+      vbN15.hasPreviewPanel && vbN15.notInDashboardSpec, JSON.stringify(vbN15));
+    ok("N15: clicking \"Export as standalone HTML\" in the View Builder's preview really opens the Embed View modal with a file (it was a silent no-op)",
+      vbN15.hasHtmlItem && /Embed View/.test(vbN15.modalTitle) && vbN15.fileName === "n15-export-probe-embed.html" && vbN15.bodyLen > 1000,
+      JSON.stringify(vbN15));
+    ok("N15: the exported file is a real standalone document carrying THIS View — doctype + STUDIO_SPEC, the bars panel, its title, and the real computed rows",
+      vbN15.isDocument && vbN15.carriesThisView && vbN15.isStandalone, JSON.stringify(vbN15));
+    ok("N15: a message from the View Builder's preview cannot rewrite the dashboard open in the other builder — header, title, KPI and panel order all survive",
+      vbN15.headerSurvived && vbN15.titleSurvived && vbN15.kpiSurvived && vbN15.orderSurvived, JSON.stringify(vbN15));
+    ok("N15: the dashboard builder's own canvas edits still apply — the routing decides WHO spoke, it does not disable the acts",
+      vbN15.ownEditStillWorks, JSON.stringify(vbN15));
+
     // 13d. VB-4 remaining major (Kevin overnight queue, "hit major ones first"): KPI.
     // Structurally different from every other chart type here — a KPI tile lives in
     // spec.kpis, not spec.panels, so STATUS.md called it out as its own slice: it needs

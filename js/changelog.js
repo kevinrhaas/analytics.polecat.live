@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 894,
+    title: 'The View Builder can export a View as a standalone HTML file again',
+    kind: 'fix',
+    ts: '2026-08-08T15:03:52.000Z',
+    items: [
+      'Reported from a phone, with a screenshot of the open menu: every chart in the View Builder offers "Export as standalone HTML" from its Export menu, and choosing it did nothing at all. No file, no error, no message — the menu simply closed.',
+      'The reason is worth stating plainly, because it explains the second half of this fix. The chrome drawn around a chart — its title bar, its Export menu — is written once and used everywhere: in the dashboard builder\'s preview, in the View Builder\'s preview, and in every dashboard you export. That is deliberate; it is what makes an exported file look exactly like what you were just looking at. The cost is that all of those places ask the app for the same things in the same words, and the app was answering all of them as if the request had come from the dashboard builder.',
+      'So the View Builder asked to export its chart, the app went looking for that chart among the panels of whatever dashboard happened to be open, did not find it — a View Builder chart is not part of any dashboard — and quietly stopped.',
+      'Each preview now answers for itself. The View Builder exports the View it is actually showing, complete with the numbers it just computed for you, as a single self-contained HTML file you can mail to someone or drop on a web server. The file is the same kind of document the dashboard export produces, and it opens with no app, no account and no connection.',
+      'The same confusion had a sharper edge. A few actions — reordering panels, deleting a KPI, editing or hiding a dashboard header — did not need to find anything first, so they went straight through to the open dashboard no matter which preview they came from. In principle, chrome inside the View Builder\'s preview could rearrange or edit a dashboard open in the other builder. Those actions are now accepted only from the dashboard\'s own canvas, and the dashboard canvas keeps working exactly as it did.',
+      'Three new checks cover it: the export really produces a document, that document carries this View and its real rows, and a message from one builder\'s preview cannot touch the other builder\'s dashboard.',
+    ],
+  },
+  {
     v: 893,
     title: 'Sample packs stop being two hard-coded names in the source',
     kind: 'polish',
