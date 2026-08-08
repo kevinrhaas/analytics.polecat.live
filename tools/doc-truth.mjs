@@ -883,6 +883,119 @@ ok(`app/studio.css: ⋯ More reveals its phone-only entries in the same band tha
   !!bands.reveals && !bandMismatch.length,
   `${bandMismatch.join("\n      ")}\n      a gap between the two bands is a width where the control is in neither place and Help's route is a lie`);
 
+// 22. Checks 16–21 held the tours and Help accountable to the BUILDER's controls. This asks
+//     the same question of the CATALOGS, and got the same answer. Every catalog section grew a
+//     three-control toolbar beside its search box — a sort <select> (AUD-06's shared
+//     Studio.catalogSort), a tile ⇆ list toggle (Studio.catalogView, remembered per device),
+//     and a Select button that turns the rows into checkboxes with a bulk Select all / Clear /
+//     Move to folder… / Delete bar (LIVE-d slices 1–5). The two tours that WALK those sections
+//     never caught up: both still described a search box and folder chips and stopped there, so
+//     a reader could finish the Jobs tour without ever learning the app can bulk-delete, or that
+//     the list they are looking at has a tile form.
+//     Every fact is derived. WHICH sections carry the toolbar comes from app/index.html's own
+//     `.repo-io` rows; WHICH tours are in scope comes from the goSection() calls those tours
+//     actually make (so a tour that starts walking a catalog is picked up the day it does, and
+//     the builder/Home tours are simply not in scope); and the word each control must be named
+//     by comes from the control itself — the <select>'s aria-label, the pair of labels
+//     catalogView.wire() sets at runtime, and the button's own text. Add a fourth control to
+//     `.repo-io` and this check says nothing; add one the tours must explain and it does.
+//     Deliberately scoped to the TOOLBAR: the per-row controls (the `private` toggle, the row
+//     actions) are a different component with a different blast radius and are not derived here.
+const REPO_IO_SUFFIXES = ["SortSel", "ViewToggle", "SelectBtn"];
+const CONTROL_WHAT = {
+  SortSel: "the sort dropdown",
+  ViewToggle: "the tile ⇆ list toggle",
+  SelectBtn: "the Select / bulk-actions toggle",
+};
+const suffixOf = (id) => REPO_IO_SUFFIXES.find((s) => id.endsWith(s));
+// section slug (the goSection() name) → the toolbar control ids it carries.
+const repoIoControls = (() => {
+  const out = new Map();
+  const secRe = /<section id="sec([A-Za-z]+)"/g;
+  let m;
+  while ((m = secRe.exec(appHtml))) {
+    const next = appHtml.indexOf('<section id="sec', m.index + 1);
+    const block = appHtml.slice(m.index, next > -1 ? next : appHtml.length).replace(/<!--[\s\S]*?-->/g, "");
+    if (!block.includes('<div class="repo-io">')) continue;
+    const ids = [...block.matchAll(/\bid="(\w+)"/g)].map((x) => x[1]).filter(suffixOf);
+    if (ids.length) out.set(m[1].toLowerCase(), ids);
+  }
+  return out;
+})();
+ok("app/index.html: the catalog toolbars parsed for check 22 are non-empty",
+  repoIoControls.size >= 4,
+  [...repoIoControls].map(([s, ids]) => `${s}: ${ids.join(", ")}`).join(" · ") || "(none)");
+// The toggle's label is assigned at runtime, so it is read from the kit that assigns it —
+// "List view" while you are reading a list, "Tile view" while you are looking at tiles.
+const viewToggleWords = (() => {
+  const m = studioJs.match(/tiles \? "([^"]*view)" : "([^"]*view)"/i);
+  if (!m) throw new Error("doc-truth: Studio.catalogView.wire no longer sets a List/Tile view label pair");
+  return [m[1], m[2]].map((l) => l.split(/\s+/)[0].toLowerCase());
+})();
+ok("app/studio.js: the tile ⇆ list toggle's own labels, parsed for check 22, are non-empty",
+  viewToggleWords.length === 2 && viewToggleWords.every(Boolean), viewToggleWords.join(" / "));
+function controlWords(id) {
+  const suffix = suffixOf(id);
+  if (suffix === "ViewToggle") return viewToggleWords;
+  const tag = suffix === "SortSel" ? "select" : "button";
+  const el = appHtml.match(new RegExp(`<${tag}[^>]*\\bid="${id}"[^>]*>`));
+  if (!el) return [];
+  // A <select> is populated by catalogSort.wire(), so it names itself in aria-label; a
+  // <button> carries its own text.
+  const src = suffix === "SortSel"
+    ? (el[0].match(/aria-label="([^"]+)"/) || [])[1]
+    : (appHtml.match(new RegExp(`<button[^>]*\\bid="${id}"[^>]*>([^<]*)</button>`)) || [])[1];
+  return src ? [src.trim().split(/\s+/)[0].toLowerCase()] : [];
+}
+// Every tour definition, brace-matched — the same idiom check 19 uses for the build tour.
+const tourBlocks = (() => {
+  const out = new Map();
+  const re = /^ {4}(\w+): \{$/gm;
+  let m;
+  while ((m = re.exec(tutorialSrc))) {
+    let depth = 0, open = tutorialSrc.indexOf("{", m.index), i = open;
+    for (; i < tutorialSrc.length; i++) {
+      if (tutorialSrc[i] === "{") depth++;
+      else if (tutorialSrc[i] === "}" && --depth === 0) break;
+    }
+    const block = tutorialSrc.slice(open, i + 1);
+    if (/\blabel:\s*"/.test(block) && /\bsteps:\s*\[/.test(block)) out.set(m[1], block);
+  }
+  return out;
+})();
+ok("app/tutorial.js: the tour definitions parsed for check 22 are non-empty",
+  tourBlocks.size >= 5, `parsed: ${[...tourBlocks.keys()].join(" · ") || "(none)"}`);
+// Only the COPY — a step's t/h/sub and the tour's blurb. Comments are stripped (check 12's
+// lesson) and selectors are excluded on purpose: `target: "#connSelectBtn"` must not be able to
+// satisfy a requirement to explain what Select does.
+const tourCopy = (src) => [...src
+  .replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1")
+  .matchAll(/\b(?:t|h|sub|blurb):\s*("(?:[^"\\]|\\.)*"(?:\s*\+\s*"(?:[^"\\]|\\.)*")*)/g)]
+  .map((m) => m[1]).join(" ").replace(/<[^>]+>/g, " ");
+const catalogTourGaps = [];
+const catalogTours = [];
+for (const [key, src] of tourBlocks) {
+  const walks = [...new Set([...src.matchAll(/goSection\("(\w+)"\)/g)].map((m) => m[1]))]
+    .filter((s) => repoIoControls.has(s));
+  if (!walks.length) continue;
+  catalogTours.push(`${key} → ${walks.join(" + ")}`);
+  const copy = tourCopy(src);
+  const need = new Map();
+  for (const sec of walks)
+    for (const id of repoIoControls.get(sec))
+      for (const w of controlWords(id))
+        if (!need.has(w)) need.set(w, `${CONTROL_WHAT[suffixOf(id)]} (#${id}, in ${sec})`);
+  for (const [w, whence] of need)
+    if (!new RegExp(`\\b${w}\\b`, "i").test(copy))
+      catalogTourGaps.push(`the "${key}" tour walks ${walks.join(" + ")} but its copy never says ` +
+        `"${w}" — ${whence}`);
+}
+ok("app/tutorial.js: the catalog-walking tours parsed for check 22 are non-empty",
+  catalogTours.length >= 2, `in scope: ${catalogTours.join(" · ") || "(none)"}`);
+ok(`app/tutorial.js: every tour that walks a catalog names that catalog's whole toolbar (${catalogTours.join(", ")})`,
+  !catalogTourGaps.length,
+  `${catalogTourGaps.join("\n      ")}\n      a tour is the one place a reader is TOLD what the section can do — an unnamed control is one they will never find`);
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
