@@ -238,9 +238,14 @@ CREATE TABLE "users"       (id TEXT PRIMARY KEY, "name" TEXT, "role" TEXT, "upda
  *  The grants matter: WITHOUT them a refused read would be a plain privilege
  *  error and would prove nothing about RLS. With them, anon is fully entitled to
  *  these tables and only the policies stand between it and the rows — which is
- *  exactly the posture being tested. (Live, the public schema already carries
- *  them: supabase-bootstrap.sql grants them explicitly, and Supabase's SQL
- *  editor applies them by default, which is why supabase-deploy.sql omits them.) */
+ *  exactly the posture being tested.
+ *
+ *  Since N20 every shipped file grants for itself, so these two lines are now
+ *  belt-and-braces rather than the only source of the privileges. They are kept
+ *  deliberately: they make the ROW checks below independent of the PRIVILEGE
+ *  checks above, so a regression in one cannot disguise itself as the other.
+ *  `grantsSql` runs before this and is what actually holds the shipped files to
+ *  granting. */
 const fixtureSql = (schema) => `
 SET search_path TO ${schema};
 
@@ -323,6 +328,46 @@ END
 $chk$;`)(lit(rawName));
 
 const WORKSPACE_TABLES = ["dashboards", "connections", "datasets", "analyses", "jobs", "users", "polecat_meta"];
+
+/** N20: the posture's OWN table privileges, measured before the fixture adds any.
+ *
+ *  Privileges and policies answer different questions and this suite only ever
+ *  asked the second. `tools/supabase-deploy.sql` carried zero GRANTs and leaned
+ *  on the project's default privileges, so following Supabase's own
+ *  recommendation — "Automatically expose new tables: OFF" — produced tables
+ *  with RLS and the right policies that PostgREST then refused for lack of
+ *  privilege, with an error that reads like an RLS problem and is not one. The
+ *  posture was right and unreachable.
+ *
+ *  This has to run BEFORE `fixtureSql`, which grants unconditionally so that a
+ *  refused read proves something about policies rather than about privileges.
+ *  That fixture grant is exactly what hid the gap: every posture looked equally
+ *  entitled by the time any check ran. Ask the question while the schema still
+ *  carries only what the shipped file put there. */
+const grantsSql = (schema) => {
+  const say = (name, cond) => `
+DO $chk$
+BEGIN
+  IF ${cond} THEN RAISE NOTICE 'PASS|${lit(name)}';
+  ELSE RAISE NOTICE 'FAIL|${lit(name)}|the shipped file granted nothing|PostgREST would refuse every request';
+  END IF;
+END
+$chk$;`;
+  return [
+    ...["anon", "authenticated", "service_role"].map((role) =>
+      say(`${role} may USE the schema`, `has_schema_privilege('${role}', '${schema}', 'USAGE')`)),
+    ...WORKSPACE_TABLES.map((t) =>
+      say(`authenticated holds table privileges on ${t} (the app's own reads and writes)`,
+        `has_table_privilege('authenticated', '${schema}.${JSON.stringify(t).slice(1, -1)}', 'SELECT, INSERT, UPDATE, DELETE')`)),
+    // anon needs the PRIVILEGE too, and is still held to zero ROWS by the
+    // policies — the two facts together are the whole point of granting here.
+    // Asserted side by side with the anon-reads-nothing checks below, so nobody
+    // can "fix" one by quietly weakening the other.
+    ...WORKSPACE_TABLES.map((t) =>
+      say(`anon holds the SELECT privilege on ${t} (RLS, not privilege, is what returns it nothing)`,
+        `has_table_privilege('anon', '${schema}.${JSON.stringify(t).slice(1, -1)}', 'SELECT')`)),
+  ].join("\n");
+};
 
 const checksSql = (schema) => [
   // 1) The headline assertion: anonymous is refused on every table. The anon key
@@ -412,6 +457,14 @@ function checkPosture({ label, source, load, needsTables }) {
       return { passed: 0, failed: 1 };
     }
 
+    // N20: measure the file's OWN grants first — fixtureSql grants
+    // unconditionally, so after it runs every posture looks equally entitled.
+    const grants = psql(grantsSql(schema));
+    if (grants.code !== 0) {
+      console.error(`rls: FATAL — the privilege probe did not run:\n${grants.out.trim()}`);
+      return { passed: 0, failed: 1 };
+    }
+
     const seeded = psql(fixtureSql(schema));
     if (seeded.code !== 0) {
       console.error(`rls: FATAL — could not seed the fixture:\n${seeded.out.trim()}`);
@@ -421,7 +474,7 @@ function checkPosture({ label, source, load, needsTables }) {
     const run = psql(checksSql(schema));
     // psql prefixes every notice with its own `psql:<stdin>:<line>: NOTICE:  `,
     // so pull the reports out of the stream rather than matching line starts.
-    const results = [...run.out.matchAll(/(?:PASS|FAIL)\|[^\n]*/g)].map((m) => m[0].trim());
+    const results = [...grants.out.matchAll(/(?:PASS|FAIL)\|[^\n]*/g), ...run.out.matchAll(/(?:PASS|FAIL)\|[^\n]*/g)].map((m) => m[0].trim());
     results.forEach((l) => {
       const [state, checkName, ...rest] = l.split("|");
       const detail = rest.length ? `  (${rest.join(", ")})` : "";

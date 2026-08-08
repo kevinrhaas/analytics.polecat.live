@@ -111,14 +111,22 @@ shipped version's meaning is fixed the moment a workspace carries it.
 Retired: nothing yet. When something is retired, it gets a row here saying at which
 version writing stopped — and it stays in the DDL.
 
-**One known gap, deliberately not fixed here:** `tools/supabase-deploy.sql` creates the
-full v4 shape but never stamps `polecat_meta.schema_version` (the other three artifacts
-do). An environment stood up from it therefore reports `unknown` until the app's first
-save stamps it — benign, because `unknown` is treated as `same`, but it means the
-canonical file is the one artifact that does not declare what it built. It is a rider on
-**N20**, which is already opening that file to add the missing GRANTs; the doc-truth
-check in §4 covers the artifacts that *do* stamp, so the day deploy.sql starts stamping
-it is covered too, automatically.
+**That gap is now closed (N20, 2026-08-08).** `tools/supabase-deploy.sql` used to create
+the full v4 shape and never stamp `polecat_meta.schema_version`, so an environment stood
+up from it reported `unknown` until the app's first save — benign, because `unknown` is
+treated as `same`, but it left the canonical file as the one artifact that did not
+declare what it built, in exactly the window a second client is likeliest to arrive in.
+Its § 1b now stamps both markers with `ON CONFLICT … DO NOTHING`, so the file declares
+what it built and an existing environment's own answer always wins: re-running an OLDER
+copy of the script against an upgraded workspace can never rewind the marker. That is the
+SQL half of the monotonicity N17 gave `WS.metaRows()`. All four artifacts now stamp, and
+the doc-truth check in §4 holds every one of them to the current version.
+
+**Still using `DO UPDATE`:** `tools/supabase-bootstrap.sql` and
+`supabase/functions/polecat-admin/sql.ts` overwrite the marker with the version they
+carry, so an OLDER copy of either *can* rewind it. Tracked as **N28** — it wants a
+raise-only guard rather than a plain `DO NOTHING`, because those two are the provisioning
+path that legitimately stamps an upgrade.
 
 ## 4. What enforces this
 

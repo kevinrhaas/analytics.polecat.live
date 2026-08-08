@@ -20594,13 +20594,40 @@ function serve() {
     // The deploy SQL carries the matching posture: anon INSERT-only policies
     // (gotrue_id must stay NULL — no identity spoofing) + the server-side
     // ip/ua stamping trigger, and NO anon read anywhere.
+    //
+    // N20 sharpened the last clause. § 6c now GRANTs anon the SELECT PRIVILEGE
+    // on every table in the schema, these two included — and that is not a read.
+    // A privilege says which tables a role may address; a POLICY says which rows
+    // it gets back, and with RLS on and no SELECT policy for anon the answer
+    // stays zero rows (measured, and asserted per-table by tests/rls.mjs). So
+    // the thing to assert here is the absence of an anon SELECT *policy*, which
+    // is what was always meant; "never grants anon SELECT" was true only while
+    // the file granted nothing at all, and would now read as a licence to delete
+    // § 6c to make the words fit again.
     const anonSql = fs.readFileSync(path.join(ROOT, "tools/supabase-deploy.sql"), "utf8");
-    ok("ACTIVITY-ANON: supabase-deploy.sql § 6b grants anon INSERT-ONLY on both log tables (WITH CHECK gotrue_id IS NULL), stamps ip/ua server-side via trigger, and never grants anon SELECT",
+    ok("ACTIVITY-ANON: supabase-deploy.sql § 6b gives anon an INSERT-ONLY policy on both log tables (WITH CHECK gotrue_id IS NULL), stamps ip/ua server-side via trigger, and gives anon no SELECT policy anywhere — so § 6c's table privilege still returns it nothing",
       /polecat_activity_insert_anon/.test(anonSql) && /polecat_feedback_insert_anon/.test(anonSql) &&
       /FOR INSERT TO anon\s*\n\s*WITH CHECK \(gotrue_id IS NULL\)/.test(anonSql) &&
       /polecat_stamp_request_meta/.test(anonSql) && /x-forwarded-for/.test(anonSql) &&
       !/FOR SELECT TO anon/.test(anonSql) && !/FOR ALL TO anon/.test(anonSql),
       "policy/trigger markers in tools/supabase-deploy.sql");
+    // N20: the privileges themselves, held in the file that is "THE one file to
+    // run". tests/rls.mjs proves them against a real Postgres, but it SKIPS
+    // silently without a database password — so the suite that always runs keeps
+    // its own copy of the invariant. Without these three statements a project
+    // created with Supabase's recommended "expose new tables: OFF" gets a
+    // correct posture PostgREST then refuses for lack of privilege.
+    ok("N20: supabase-deploy.sql § 6c grants the API roles schema USAGE + table privileges and sets default privileges for tables added later, so the recommended create-project setting is also the working one",
+      /GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;/.test(anonSql) &&
+      /GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;/.test(anonSql) &&
+      /ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO anon, authenticated, service_role;/.test(anonSql) &&
+      // and it must declare what it built — the N16 handshake reads `unknown` until something
+      // stamps. DO NOTHING, not DO UPDATE: an older copy of this script must never rewind the
+      // marker. The version NUMBER is deliberately not pinned here — doc-truth check 25 already
+      // holds every stamping artifact to app/sources/schema.js, and duplicating it would turn a
+      // legitimate bump into a false failure in two files instead of one.
+      /VALUES \('schema_version', '\d+'\)\s*\n\s*ON CONFLICT \(key\) DO NOTHING;/.test(anonSql),
+      "GRANT/ALTER DEFAULT PRIVILEGES + schema_version markers in tools/supabase-deploy.sql");
     // C) the topbar button (right of What's-next) opens the tiny dialog; Send routes
     //    through Studio.Activity.feedback and closes
     const fbUi = await page.evaluate(async function () {

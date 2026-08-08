@@ -1826,16 +1826,16 @@
       </tr>
       <tr>
         <td><strong>Automatically expose new tables to the Data API</strong></td>
-        <td><strong>ON</strong> — for now.</td>
-        <td><strong>This is the counter-intuitive one.</strong> It looks like it should be off (it is
-        Supabase's own recommendation, and it sounds like the tighter choice) — but the file a fresh
-        environment runs, <code>tools/supabase-deploy.sql</code>, contains <strong>no
-        <code>GRANT</code> statements at all</strong>. It relies entirely on the project's default
-        privileges. Turn this off today and the script leaves you tables with row-level security and
-        the right policies but <em>no table-level grant</em> to <code>anon</code>/
-        <code>authenticated</code> — PostgREST refuses every request and the app cannot connect,
-        with an error that looks nothing like its cause. When the deploy script grows its own grants
-        this answer flips to <strong>OFF</strong>, and this page flips with it.</td>
+        <td><strong>OFF</strong> — as Supabase recommends.</td>
+        <td>This one used to be the counter-intuitive answer on this page, and it no longer is.
+        <code>tools/supabase-deploy.sql</code> now carries its own privileges (its <em>§ 6c</em>),
+        so the recommended, tighter setting is finally the correct one too. Until 2026-08-08 that
+        file contained <em>no</em> <code>GRANT</code> statements and leaned entirely on the
+        project's default privileges — so turning this toggle off left you tables with row-level
+        security and the right policies but <em>no table-level grant</em> to <code>anon</code>/
+        <code>authenticated</code>, and PostgREST refused every request with an error that looked
+        nothing like its cause. If <em>§ 6c</em> is ever removed, this answer goes back to being the
+        looser one, and this page has to change with it.</td>
       </tr>
       <tr>
         <td><strong>Enable automatic Row Level Security on new tables</strong></td>

@@ -161,5 +161,14 @@ DROP POLICY IF EXISTS polecat_meta_auth ON public.polecat_meta;
 CREATE POLICY polecat_meta_auth ON public.polecat_meta
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
+-- 4) Table privileges (N20). Mirrors § 4 of /tools/supabase-rls-real.sql.
+--    BOOTSTRAP_DDL above already grants, and \`go-live\` always runs it first —
+--    but this constant is also the canonical posture, and the two files must
+--    stay section-for-section identical (the N2-slice-2 drift class). Safe: RLS
+--    is what restricts ROWS, so a grant without a policy still returns nothing.
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO anon, authenticated, service_role;
+
 NOTIFY pgrst, 'reload schema';
 `;

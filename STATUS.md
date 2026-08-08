@@ -135,6 +135,57 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N20 — `supabase-deploy.sql` grants its own privileges, and says what it built (v903, sw v525
+  unchanged, 2026-08-08, steward; dev branch; est 1pt, took 1 — on estimate):** the canonical
+  fresh-environment artifact carried **zero `GRANT` statements** and leaned entirely on the
+  project's default privileges, so it only worked on a project created with Supabase's
+  "Automatically expose new tables" toggle **ON** — the opposite of Supabase's own recommendation.
+  Follow the recommendation and the script produced RLS + the correct policy set with **no
+  table-level privilege for `anon`/`authenticated`**: PostgREST refuses everything, with a failure
+  that reads like an RLS problem and is not one. The posture was right; the plumbing under it was
+  missing.
+  - **The three statements, lifted verbatim from `tools/supabase-bootstrap.sql`** (shipping since
+    the first environment, so nothing here is new SQL): schema `USAGE`, table
+    `SELECT/INSERT/UPDATE/DELETE`, and `ALTER DEFAULT PRIVILEGES` for tables added later by a
+    schema-version upgrade. They land in **`supabase-deploy.sql` § 6c**, **`supabase-rls-real.sql`
+    § 4** (re-tightening must never strand an environment) and **`polecat-admin/sql.ts`
+    `RLS_REAL_SQL`** (the N2-slice-2 drift class — the two must stay section-for-section
+    identical). § 6c is placed **last**, after § 6/6b's log tables: `ON ALL TABLES` is a snapshot
+    of what exists when it runs, so granting after § 1's seven would have missed the other two.
+  - **This loosens nothing, and that is the load-bearing claim.** Privileges say which TABLES a
+    role may address; policies say which ROWS come back. Verified empirically against a throwaway
+    PostgreSQL 16 cluster: with § 6c applied, the § 8 anon verify still reads **all zeros on all
+    nine tables** (the two log tables included — anon has an INSERT policy and no SELECT policy),
+    a signed-in user reads its own rows, and **revoking the same grants turns that read into
+    `permission denied for table dashboards`** — the exact failure the item describes, reproduced
+    and then fixed.
+  - **Rider (N18's find) — the file now declares what it built.** New **§ 1b** stamps
+    `polecat_meta` `app` + `schema_version` with `ON CONFLICT … DO NOTHING`, so the N16 handshake
+    stops reading `unknown` until the app's first save. `DO NOTHING`, never `DO UPDATE`: an
+    existing environment's own answer always wins, so re-running an OLDER copy of this script
+    against an upgraded workspace can never rewind the marker (the SQL half of the monotonicity
+    N17 gave `WS.metaRows()`), and running the analytics deploy against a project another fleet
+    app already claimed cannot relabel it. `docs/COMPAT.md` § 3's recorded gap is struck.
+  - **Verification, in the layer that can actually run it.** `tests/rls.mjs` gained a
+    `grantsSql()` probe that measures each posture's OWN privileges **before** `fixtureSql` grants
+    unconditionally — that fixture grant is precisely what hid the gap, since by the time any
+    check ran every posture looked equally entitled. 22 new checks per posture, so the suite goes
+    **66 → 132**. Proved capable of failing: with § 6c neutered, exactly **17** go red and nothing
+    else does. Run green end-to-end (132/132, all three postures) against a local PostgreSQL 16
+    cluster with `anon`/`authenticated`/`service_role` and an `auth.uid()`/`auth.jwt()` shim —
+    `tests/rls.mjs` **skips silently without `SUPABASE_PASSWORD`**, so `tests/run.js` also keeps
+    its own static copy of the invariant, and doc-truth check 26 now asserts the § 0 header, the
+    Help page and the file's GRANT count agree **in both directions**.
+  - **The doc flip N19 predicted, executed.** Help's "Automatically expose new tables" answer and
+    § 0's are now **OFF**, each naming § 6c as the reason. The ACTIVITY-ANON check's wording was
+    sharpened in the same pass: "never grants anon SELECT" was true only while the file granted
+    nothing at all, and left as-is it would have read as a licence to delete § 6c to make the
+    words fit — it now asserts the absence of an anon SELECT *policy*, which is what was meant.
+  - **Deliberately NOT in this slice, and now its own item:** the two artifacts that still stamp
+    with `DO UPDATE` (`supabase-bootstrap.sql`, `polecat-admin/sql.ts` `BOOTSTRAP_DDL`) can still
+    rewind the marker. They want a raise-only guard rather than a plain `DO NOTHING`, because they
+    are the provisioning path that legitimately stamps an upgrade — novel SQL, and this run had no
+    way to exercise it against the live posture. Filed as **N28**, recorded in `docs/COMPAT.md` § 3.
 - **N19 — how to STAND UP a Supabase project, not just how to populate one (v902, sw v525
   unchanged, 2026-08-08, steward; dev branch; est 1pt, took 1 — on estimate):** every Supabase
   topic in the repo started one step too late — at "paste this SQL" — so the person creating a
@@ -11500,8 +11551,11 @@
   say which one `tests/rls.mjs` should point at per pipeline stage. **Verify** by doing it: stand
   up a scratch project from the written steps alone and confirm the app connects with no
   undocumented click.
-- **N20 ★★ [1pt] — `supabase-deploy.sql` cannot stand up a locked-down project: it has no
-  GRANTs.** Found while answering Kevin's create-project question (2026-08-08), and it is a
+- ~~**N20 ★★ [1pt] — `supabase-deploy.sql` cannot stand up a locked-down project: it has no
+  GRANTs.**~~ ✓ **SHIPPED v903, sw v525 unchanged (2026-08-08, steward — see DONE). Est 1pt,
+  took 1. The item is CLOSED, rider included; the one piece it deliberately did not take is
+  N28 below.** The history below stays until the next grooming pass archives it.
+  Found while answering Kevin's create-project question (2026-08-08), and it is a
   latent defect in the artifact the repo calls "THE one file to run" for a new environment.
   **Measured:** `grep -c GRANT` → **0 in `tools/supabase-deploy.sql`, 0 in
   `tools/supabase-rls-real.sql`, 3 in `tools/supabase-bootstrap.sql`**. Only the legacy demo
@@ -11675,6 +11729,26 @@
   identity is optional, and its absence downgrades tables to "inconclusive" rather than failing.
   Until then the wording should not say "no table is readable"; it should say "no table returned
   rows to an anonymous caller", which is what was measured.
+- **N28 ★ [1pt] — The two provisioning artifacts that stamp `schema_version` can still REWIND
+  it.** Split out of N20 (2026-08-08), which fixed the half it could verify. `tools/supabase-
+  bootstrap.sql` and `supabase/functions/polecat-admin/sql.ts` `BOOTSTRAP_DDL` both stamp with
+  `ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, so running an OLDER copy of either
+  against an upgraded workspace **re-labels it as the older shape** — after which every client,
+  including the newer app that performed the upgrade, reads it as older and re-offers the
+  upgrade. That is exactly the clobber N17 found in `WS.metaRows()` and fixed on the app side;
+  the SQL side still has it. N20 gave the two files it *added* stamps to (`supabase-deploy.sql`
+  § 1b, and nothing in `rls-real.sql`) the `DO NOTHING` form, which cannot rewind.
+  **Why `DO NOTHING` is the wrong fix for these two:** they are the provisioning path, and an
+  upgrade run through `provision`/`go-live` legitimately needs to RAISE the marker. So they want
+  a **raise-only guard** — update only when the stored value is absent, non-numeric, or lower —
+  rather than either extreme. Sketch: `ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+  WHERE polecat_meta.value !~ '^[0-9]+$' OR polecat_meta.value::int < EXCLUDED.value::int`.
+  **Why it was not taken in N20:** that is novel SQL in the two files the app's own provisioning
+  runs, and the run that found it had no way to exercise it against the live posture —
+  `tests/rls.mjs` skips silently without `SUPABASE_PASSWORD`. **Verify** by extending
+  `tests/rls.mjs` with a marker probe: pre-seed `polecat_meta.schema_version` above and below the
+  artifact's own version, apply the posture, and assert the value only ever moves up. doc-truth
+  check 25 already holds both files to the CURRENT version, so this is purely about direction.
 - **N24 ★★ [2pt — bug + the management Kevin asked for] — Connecting a workspace from the gate
   leaves you unable to sign in to it.** Kevin, 2026-08-08: *"I went to connect to a custom
   workspace, filled out all the credentials and seem to have connected but there is no way to

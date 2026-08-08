@@ -1238,12 +1238,25 @@ const docsSayExposeOn = /Automatically expose new tables[\s\S]{0,400}?<strong>ON
 ok(`Help's "Automatically expose new tables" answer matches tools/supabase-deploy.sql (${deployGrants} GRANT statement(s))`,
   deployGrants === 0 ? docsSayExposeOn : !docsSayExposeOn,
   deployGrants === 0
-    ? "the deploy script still has no GRANTs, so the toggle must stay documented as ON — off, and PostgREST refuses every request"
-    : "the deploy script now carries its own GRANTs, so the toggle no longer has to be ON: flip Help (and the § 0 header " +
-      "in tools/supabase-deploy.sql) to OFF — this check exists to make that flip impossible to forget");
-ok("Help says WHY that toggle is ON — that the deploy script carries no GRANTs of its own",
-  /\bno\b[\s\S]{0,40}?<code>GRANT<\/code>\s+statements/.test(createDocs),
-  "an answer with no reason is one the next reader will 'tidy up' — the reason IS the check");
+    ? "the deploy script has no GRANTs, so the toggle must be documented as ON — off, and PostgREST refuses every request"
+    : "the deploy script carries its own GRANTs (N20), so the toggle must be documented as OFF: flip Help (and the § 0 " +
+      "header in tools/supabase-deploy.sql) — this check exists to make that flip impossible to forget, in either direction");
+// The REASON has to move with the answer, or the page keeps a true answer next to
+// a stale justification — which is the pair a later reader "tidies up" back into
+// the bug. Both directions are asserted, so removing § 6c is as covered as adding
+// it was. The § 6c pointer is what makes the claim checkable from the SQL side.
+ok(`Help says WHY that toggle has the answer it has, in terms of the deploy script's GRANTs (${deployGrants} found)`,
+  deployGrants === 0
+    ? /\bno\b[\s\S]{0,40}?<code>GRANT<\/code>\s+statements/.test(createDocs)
+    : /<code>GRANT<\/code>/.test(createDocs) && /§ 6c/.test(createDocs),
+  deployGrants === 0
+    ? "an answer with no reason is one the next reader will 'tidy up' — the reason IS the check"
+    : "the answer is OFF only BECAUSE tools/supabase-deploy.sql § 6c grants for itself; Help must say so and name § 6c");
+ok("tools/supabase-deploy.sql's § 0 header agrees with its own GRANT count",
+  deployGrants === 0
+    ? /Automatically expose new tables — ON/.test(deploySql)
+    : /Automatically expose new tables — OFF/.test(deploySql),
+  "§ 0 is the copy a reader in the SQL editor actually sees — it drifts from Help the moment only one of them is updated");
 
 ok(`Help names the region tests/rls.mjs actually defaults to (${rlsPoolerRegion})`,
   new RegExp(rlsPoolerRegion.replace(/[-]/g, "\\-")).test(createDocs),
