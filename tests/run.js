@@ -4637,6 +4637,33 @@ function serve() {
       m2c.countyRows === 720 && m2c.allFips && !m2c.countyErr, JSON.stringify(m2c));
     ok("M2c: the seeded job is a county→state acreage-weighted-mean rollup wired source→output (the jobs-engine wmean pattern, its output a state-level dataset)",
       m2c.wmean && m2c.jobWired && m2c.stateGeo, JSON.stringify(m2c));
+    // ---- N7: the pack tour's new "your pinned Views" stop is only honest if the pack really
+    // does pin one View per practice to Home. Measure the DOM the tour spotlights (.home-analyses,
+    // the pinnedAnalyses Home section) rather than the seed rows, so a Home section that stops
+    // rendering them fails here too — the copy says "just below it", and that is the claim.
+    console.log("\n• N7: the pack pins one live View per practice to Home (the tour's new stop)");
+    await page.evaluate(function () { window.__studioShellSetSection("home"); });
+    await page.waitForTimeout(400);
+    const n7PinnedViews = await page.evaluate(function () {
+      var W = Studio.Workspace;
+      var mine = W.all("analyses").filter(function (a) { return a.demoPackId === "conservation"; });
+      var strip = document.querySelector(".home-analyses");
+      var cards = [].slice.call(document.querySelectorAll(".home-analyses .home-analysis"));
+      return {
+        seeded: mine.length, allPinned: mine.length > 0 && mine.every(function (a) { return !!a.pinned; }),
+        strip: !!strip, cards: cards.length,
+        names: cards.map(function (c) { return (c.querySelector("b") || {}).textContent || ""; }),
+        alt: cards.map(function (c) { var b = c.querySelector(".home-a-alt"); return b ? b.textContent : ""; })
+      };
+    });
+    const N7_PRACTICES = ["Cover crops", "No-till", "Reduced tillage", "Conventional"];
+    ok("N7: the conservation pack pins a live View per practice (Cover crops / No-till / Reduced tillage / Conventional) and Home renders each as its own card — what the tour's pinned-Views stop points at",
+      n7PinnedViews.allPinned && n7PinnedViews.strip && n7PinnedViews.cards === N7_PRACTICES.length &&
+      N7_PRACTICES.every(function (p) { return n7PinnedViews.names.some(function (n) { return n.indexOf(p) >= 0; }); }),
+      JSON.stringify(n7PinnedViews));
+    ok("N7: those cards are builder-made Views, so the card opens the View Builder and its small button offers Quick View — exactly the two routes the tour's copy names",
+      n7PinnedViews.alt.length === N7_PRACTICES.length && n7PinnedViews.alt.every(function (t) { return t === "Quick View"; }),
+      JSON.stringify(n7PinnedViews));
     // ---- QA-03 (2026-07-24 frontend QA report): Explore's default choropleth mapping —
     // the county demo used to auto-map Value to the text `statecode` column instead of the
     // numeric `pct` column (a second id-shaped column silently beat the real value column),
@@ -29564,13 +29591,13 @@ function serve() {
         return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build,jobs,connect,conservation" &&
           StudioTutorial.stepCount("overview") === 13 + installedPackCount && StudioTutorial.stepCount("quick") === 8 &&
           StudioTutorial.stepCount("build") === 6 && StudioTutorial.stepCount("jobs") === 6 &&
-          StudioTutorial.stepCount("connect") === 9 && StudioTutorial.stepCount("conservation") === 6,
+          StudioTutorial.stepCount("connect") === 9 && StudioTutorial.stepCount("conservation") === 7,
           keys: StudioTutorial.tourKeys().join(","), o: StudioTutorial.stepCount("overview"), installedPackCount: installedPackCount,
           q: StudioTutorial.stepCount("quick"), b: StudioTutorial.stepCount("build"),
           j: StudioTutorial.stepCount("jobs"), c: StudioTutorial.stepCount("connect"), cv: StudioTutorial.stepCount("conservation") };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("J6: six tours registered — Overview (13-step base incl. the #23 glossary + TOUR-WOW's View Builder stop + N7's Views-catalog stop + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (6 — LF18(b) + N7's catalog-toolbar stop), Connections & Datasets (9 — LF18(b) + N7's catalog-toolbar stop), Conservation Insight pack (6 — LF40, pack-gated)", j6Shape.ok, JSON.stringify(j6Shape));
+    ok("J6: six tours registered — Overview (13-step base incl. the #23 glossary + TOUR-WOW's View Builder stop + N7's Views-catalog stop + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (6 — LF18(b) + N7's catalog-toolbar stop), Connections & Datasets (9 — LF18(b) + N7's catalog-toolbar stop), Conservation Insight pack (7 — LF40, pack-gated; N7 added the pinned-Views stop)", j6Shape.ok, JSON.stringify(j6Shape));
 
     // #23 (Kevin): the overview tour defines EVERY domain term — a glossary step
     // covers the full list one line each, and the terms missing from the walk
@@ -29871,6 +29898,9 @@ function serve() {
       var out = { tour: window.__studioTutorialTour(), homeSection: false, studioSection: false, hits: 0 };
       var targets = [
         { sel: ".home-featured", inPreview: false },
+        // N7: the pack pins one View per practice right below the featured card — the
+        // stop that copy gap added, so the walk has to hold it accountable too.
+        { sel: ".home-analyses", inPreview: false },
         { sel: '[data-panel-id="p_county"]', inPreview: true },
         { sel: '[data-panel-id="p_huc8"]', inPreview: true },
         { sel: '[data-panel-id="p_state"]', inPreview: true }
@@ -29878,7 +29908,8 @@ function serve() {
       for (var i = 0; i < targets.length; i++) {
         document.querySelector("#st-tip button.pri").click();
         if (i === 0) out.homeSection = !document.getElementById("secHome").hidden;
-        if (i === 1) { await sleep(300); out.studioSection = !document.getElementById("appMain").hidden; }
+        // index 2 is the first IN-PREVIEW stop (county) — the one that leaves Home for Studio.
+        if (i === 2) { await sleep(300); out.studioSection = !document.getElementById("appMain").hidden; }
         if (await ringFor(targets[i].sel, targets[i].inPreview, 6000)) out.hits++;
         await sleep(100);
       }
@@ -29899,8 +29930,8 @@ function serve() {
       try { out.doneConservation = localStorage.getItem("studio-tutorial-done-conservation") === "1"; } catch (e) {}
       return out;
     });
-    ok("J6: the Conservation Insight tour walks the real featured dashboard — Home's live card, then Studio's county/watershed(HUC8)/state choropleth panels in order, Done! completes and records",
-      j6Conservation.tour === "conservation" && j6Conservation.homeSection && j6Conservation.studioSection && j6Conservation.hits === 4 &&
+    ok("J6/N7: the Conservation Insight tour walks everything the pack seeded — Home's live featured card, the pinned Views beside it, then Studio's county/watershed(HUC8)/state choropleth panels in order, Done! completes and records",
+      j6Conservation.tour === "conservation" && j6Conservation.homeSection && j6Conservation.studioSection && j6Conservation.hits === 5 &&
       /Done/.test(j6Conservation.lastLabel) && j6Conservation.closed && j6Conservation.done && j6Conservation.doneConservation,
       JSON.stringify(j6Conservation));
 

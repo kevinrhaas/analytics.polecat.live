@@ -135,6 +135,48 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the Conservation Insight tour tells you everything the pack actually gave you (v891,
+  sw v516, 2026-08-08, steward; LF58 recurring slice, dev branch):** the ▶ NOW queue again held
+  no ready non-recurring item (N4a is ⛔ on Kevin, grooming pass 2 is parked on `hold` PR #623,
+  every other entry is struck), so the 🔁 N7 slice was the pick — and the candidate its own list
+  named as the last per-feature tour whose BODY had never been audited.
+  - **The measurement, from `installConservationWorkspace()` itself.** The tour's opening step
+    said installing the pack "seeded a whole workspace — connections, datasets, a prep job, and
+    one FEATURED dashboard", then walked that dashboard's three map scales and closed. The
+    installer seeds **2 connections, 9 datasets, 1 prep job, 4 pinned Views (one per practice:
+    Cover crops, No-till, Reduced tillage, Conventional) and 6 dashboards** filed in a
+    `Conservation Insight` folder — CONS-1/2/3 added five dashboards and CONS-4 pinned the Views
+    long after the tour copy was written. So the reader was told they had ONE dashboard, and the
+    four live charts that render on Home **directly below the card the tour spotlights in step 1**
+    were never mentioned at all.
+  - **What shipped.** The intro names every kind seeded; a new stop (step 2, `.home-analyses`)
+    points at the pinned Views, names the four practices, and says which editor each route opens
+    (the card → the View Builder that made it; the small button → Quick View — both derived from
+    `homeAlt` in `app/studio.js`, not guessed); the remaining stops renumber 3–5; and the close
+    names the rest of the folder (watershed map, system-metrics wheel, OpTIS / CRD /
+    provider-ensemble). The tour is 6 → **7 steps**. No section-walk was added on purpose: a
+    `goSection("dashboards")` would put this tour in doc-truth check 22's scope and oblige it to
+    document the Dashboards toolbar, which is a catalog tour's job, not a pack tour's.
+  - **Audited and found CURRENT, no change needed:** the geography close. All six built-in map
+    scales (county, state, USDA CRD, HUC8 watersheds, congressional districts, ZCTA) and the
+    Custom regions / county→region CSV import still match `app/model.js`'s choropleth `opts`
+    verbatim, so it is untouched.
+  - **The guard: doc-truth check 23.** Derives the pack's inventory from `app/demopacks.js` — the
+    tables its `W.put` calls write, the distinct dashboard names, `PRACTICES`' labels and
+    `PACK_FOLDER` — and fails if the tour copy stops naming any seeded kind, describes a
+    multi-dashboard set in the singular, or drops a practice or the folder. It also fails loudly
+    on a table with no user-facing noun mapped, so a new seeded KIND cannot slip through silently.
+    **Proved capable of failing:** run against the pre-fix copy it reports **all six** gaps (the
+    unnamed Views, the singular "dashboard" against 6 seeded, and each of the four practices).
+    "View" is matched case-SENSITIVELY on purpose — case-insensitively, the old copy's "the hero
+    view" satisfied a requirement to name the pinned Views.
+  - **Verification (all foreground).** Full `NODE_PATH=… node tests/run.js` on the finished tree;
+    dev gate in the same pass (`tools/validate.mjs`, `tools/changelog-check.js`,
+    `tools/doc-truth.mjs`, `tools/dev-smoke.mjs`). Two new suite checks measure the DOM the new
+    stop points at (Home renders one `.home-analysis` card per practice, each offering the
+    Quick View route) rather than the seed rows, so a Home section that stopped rendering them
+    would fail here too; the J6 walk check now rings 5 targets and the tour-shape check expects 7
+    steps. est 1pt, took 1.
 - **N14 — a busy workspace backend no longer signs you out of it (v890, no sw bump,
   2026-08-08, steward; dev branch):** taken from **Kevin's own comment on issue #631**, not from
   the ▶ NOW queue, which held no ready non-recurring item (N4a is ⛔ on Kevin, grooming pass 2 is
@@ -11209,12 +11251,24 @@
     can bulk-delete. Both tours gained a toolbar stop; the two list stops gained the per-row
     `private` toggle. Doc-truth check 22 derives the toolbar from `.repo-io` and the tours in
     scope from their own `goSection()` calls, and flagged all 8 gaps on the pre-fix tree.
+  * *The pack tour vs what the pack actually SEEDS — v891, sw v516, 2026-08-08 (see DONE).* The
+    last per-feature tour whose body had never been audited, and the measurement was the whole
+    story: the tour said the pack seeded "connections, datasets, a prep job, and one FEATURED
+    dashboard" while `installConservationWorkspace()` seeds 2 connections, 9 datasets, a job,
+    **4 pinned Views** and **6 dashboards** in a `Conservation Insight` folder — so a reader
+    finished it believing they had one dashboard and never learned the four live charts sitting
+    directly below the card they were just shown were theirs. Intro rewritten, a pinned-Views
+    stop added on Home (7 steps now), the close names the rest of the folder. Doc-truth check 23
+    derives the inventory from the installer and flagged all 6 gaps on the pre-fix copy.
+    **Audited and found CURRENT in the same pass, no change needed:** the geography close — all
+    six built-in map scales and the custom-regions import still match `app/model.js`'s
+    choropleth `opts`.
   * **Not yet audited (candidates for the next N7 slice):** the marketing page's hero carousel
     captions + screenshots, which the v871 slice deliberately left alone (the copy pass
-    stayed textual — regenerating shots is its own slice); the **pack tour's** BODY copy
-    (Conservation Insight), the last per-feature tour whose body has never been audited — the
-    Quick analysis tour's body is done (v875), Build a dashboard's is done (v877/v880/v881), and
-    Jobs / Connections &amp; Datasets are done (v889); and the catalogs' **per-row** controls,
+    stayed textual — regenerating shots is its own slice) — with every per-feature tour body
+    now done (Quick analysis v875, Build a dashboard v877/v880/v881, Jobs / Connections &amp;
+    Datasets v889, Conservation Insight pack v891), it is the strongest remaining candidate;
+    and the catalogs' **per-row** controls,
     the one surface v889 left half-covered (it named the `private` toggle in the two list stops;
     the row's ★ pin, quick-rename and folder chip are still tour-silent).
     **Audited and found CURRENT in the v889 pass, no change needed:** `docs/index.html` on this

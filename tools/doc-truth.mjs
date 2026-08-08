@@ -996,6 +996,51 @@ ok(`app/tutorial.js: every tour that walks a catalog names that catalog's whole 
   !catalogTourGaps.length,
   `${catalogTourGaps.join("\n      ")}\n      a tour is the one place a reader is TOLD what the section can do — an unnamed control is one they will never find`);
 
+/* ── 23. the sample-pack tour vs what the pack actually seeds ───────────────
+   A per-feature tour is the one place a reader is TOLD what they were given, and the
+   Conservation Insight pack has grown a lot since its tour was written (CONS-1/2/3 added
+   five more dashboards, and CONS-4 pinned a View per practice to Home) while the copy
+   still described "connections, datasets, a prep job, and one FEATURED dashboard". The
+   source of truth is `installConservationWorkspace()` in app/demopacks.js: every
+   `W.put("<table>", …)` it makes is something the reader now owns. Same move as check 22,
+   one document over — the tour must name every KIND it seeded, must not describe a set of
+   dashboards in the singular, and must name the practices and the folder it filed them in. */
+const packSrc = read("app/demopacks.js");
+// The user-facing noun for each workspace table (LF57: an "analysis" row renders as a View).
+const PACK_TABLE_NOUN = { connections: "connection", datasets: "dataset", jobs: "job",
+  analyses: "View", dashboards: "dashboard" };
+const packTables = [...new Set([...packSrc.matchAll(/W\.put\("(\w+)"/g)].map((m) => m[1]))].sort();
+const packDashboardNames = [...new Set([...packSrc.matchAll(/name:\s*"(conservation-[\w-]+)"/g)].map((m) => m[1]))];
+const packPractices = (() => {
+  const m = packSrc.match(/var PRACTICES = \[([\s\S]*?)\];/);
+  return m ? [...m[1].matchAll(/label:\s*"([^"]+)"/g)].map((x) => x[1]) : [];
+})();
+const packFolder = (packSrc.match(/var PACK_FOLDER = "([^"]+)"/) || [])[1];
+const packTourCopy = tourCopy(tourBlocks.get("conservation") || "");
+ok("app/demopacks.js: the conservation pack's seeded inventory parsed for check 23 is non-empty",
+  packTables.length >= 4 && packDashboardNames.length > 1 && packPractices.length >= 2 && !!packFolder &&
+    packTables.every((t) => PACK_TABLE_NOUN[t]) && !!packTourCopy,
+  `tables: ${packTables.join(", ") || "(none)"} · dashboards: ${packDashboardNames.length} · ` +
+  `practices: ${packPractices.join(", ") || "(none)"} · folder: ${packFolder || "(none)"}` +
+  `\n      an unmapped table means the pack seeds a KIND nobody has given a user-facing noun — add it to PACK_TABLE_NOUN`);
+const packTourGaps = [];
+for (const t of packTables)
+  // "View" is a proper noun (LF57) and must be matched as one — case-insensitively, the
+  // pre-fix copy's "the hero view" satisfied a requirement to name the pinned Views.
+  if (!new RegExp(`\\b${PACK_TABLE_NOUN[t]}s?\\b`, /^[A-Z]/.test(PACK_TABLE_NOUN[t]) ? "" : "i").test(packTourCopy))
+    packTourGaps.push(`the pack seeds ${t} but the tour copy never says "${PACK_TABLE_NOUN[t]}"`);
+if (packDashboardNames.length > 1 && !/\bdashboards\b/i.test(packTourCopy))
+  packTourGaps.push(`the pack seeds ${packDashboardNames.length} dashboards (${packDashboardNames.join(", ")}) ` +
+    `but the tour copy only ever says "dashboard" in the singular — a reader is told they got one`);
+for (const p of packPractices)
+  if (!new RegExp(`\\b${p.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}\\b`, "i").test(packTourCopy))
+    packTourGaps.push(`the pack pins a View for "${p}" but the tour copy never names it`);
+if (packFolder && !packTourCopy.includes(packFolder))
+  packTourGaps.push(`the pack files its dashboards in the "${packFolder}" folder but the tour copy never names it`);
+ok("app/tutorial.js: the Conservation Insight tour names everything the pack actually seeds (kinds, practices, folder)",
+  !packTourGaps.length,
+  `${packTourGaps.join("\n      ")}\n      the pack tour is the only place a reader is told what installing it gave them`);
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
