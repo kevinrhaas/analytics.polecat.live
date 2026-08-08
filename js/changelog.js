@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 902,
+    title: 'The Help page now covers the step before every other Supabase topic: creating the project',
+    kind: 'polish',
+    ts: '2026-08-08T19:20:12.000Z',
+    items: [
+      'Connecting Analytics to a Supabase workspace has always been documented from the moment you paste the setup script onward. Everything before that — the create-project screen itself, and the handful of questions it asks that cannot be answered later — was not written down anywhere, so the person standing up a new database had to guess or ask.',
+      'It is written down now, in Help under Admin & backend setup. The three Security toggles, with the reason for each: the Data API has to be on because the app talks to it and nothing else; automatic row-level security should be on; and — the one nobody guesses — the "automatically expose new tables" switch also has to be on, even though it reads like the safer answer to turn off, because the setup script relies on the project\'s default privileges rather than granting access itself. Turn it off and you get a database that looks correctly configured and refuses every request.',
+      'Then the two answers you cannot revise afterwards. The database password is shown once and can only be reset, never recovered. And the region is a standard rather than a preference — the security tests reach the database through a Canada-Central pooler address, so a project created anywhere else needs extra configuration on every single run, and Supabase cannot move a project once it exists.',
+      'The page also settles which of the three SQL files in the repository a new environment should actually run, because the files themselves disagreed: the one to use is the complete deploy script, and the older demo-posture file now says so in its own header instead of warning readers away from the security posture that has been live since July.',
+      'A guard in the build keeps this honest. The instructions are checked against the SQL and the tests they describe, so the day the setup script starts granting access itself — a change that flips the toggle answer to off — the build goes red until the page is updated to match. Documentation that is derived from code should fail like code when the code moves.',
+    ],
+  },
+  {
     v: 901,
     title: 'The rules that keep your workspace readable by every version of the app are now written down, and enforced',
     kind: 'polish',

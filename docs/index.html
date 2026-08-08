@@ -1805,6 +1805,145 @@
   </div>
   <p>Short version: stay on <strong>Local</strong> for a private, single-device workspace; pick <strong>Turso</strong> for the simplest shared workspace across your own devices or a trusted team; pick <strong>Supabase</strong> when you need real accounts and database-enforced per-user privacy; pick <strong>Firebase</strong> if you already run Firestore and manage access through its security rules. The rest of this section covers the Supabase-specific admin flow in detail.</p>
 
+  <h3 id="supabase-create-project">Standing up a Supabase project (the step before any SQL)</h3>
+  <p>Every other Supabase topic below starts one step too late — at <em>“paste this script”</em>. This
+  is the step before it: <strong>creating the project</strong>. Supabase's create-project screen asks
+  three <strong>Security</strong> questions and two <strong>permanent</strong> ones, and the answers
+  are not obvious — one of them is the opposite of Supabase's own recommendation. Each answer below is
+  derived from the SQL this app actually ships, and is named so you can check it yourself.</p>
+
+  <h4>The three Security toggles</h4>
+  <div class="table-scroll">
+  <table class="backend-table">
+    <thead><tr><th>Toggle</th><th>Answer</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Enable Data API</strong></td>
+        <td><strong>ON</strong> — required.</td>
+        <td>The Supabase adapter <em>is</em> a PostgREST client — the Data API is the only door it
+        knocks on. With it off, the project has no HTTP surface and the connect wizard cannot reach
+        it at all, whatever else you set.</td>
+      </tr>
+      <tr>
+        <td><strong>Automatically expose new tables to the Data API</strong></td>
+        <td><strong>ON</strong> — for now.</td>
+        <td><strong>This is the counter-intuitive one.</strong> It looks like it should be off (it is
+        Supabase's own recommendation, and it sounds like the tighter choice) — but the file a fresh
+        environment runs, <code>tools/supabase-deploy.sql</code>, contains <strong>no
+        <code>GRANT</code> statements at all</strong>. It relies entirely on the project's default
+        privileges. Turn this off today and the script leaves you tables with row-level security and
+        the right policies but <em>no table-level grant</em> to <code>anon</code>/
+        <code>authenticated</code> — PostgREST refuses every request and the app cannot connect,
+        with an error that looks nothing like its cause. When the deploy script grows its own grants
+        this answer flips to <strong>OFF</strong>, and this page flips with it.</td>
+      </tr>
+      <tr>
+        <td><strong>Enable automatic Row Level Security on new tables</strong></td>
+        <td><strong>ON</strong>.</td>
+        <td>Belt and braces. The deploy script already enables RLS and installs a policy on every
+        workspace table itself, so this changes nothing for the tables it creates — it protects
+        anything created <em>outside</em> it later. Note that with Supabase's newer publishable
+        keys a table with RLS on and <em>no</em> policy returns <strong>zero rows</strong> over the
+        Data API rather than erroring, so RLS-on is the app's normal working state, not a
+        locked-down mode you switch out of.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>The two answers you can only get right at creation</h4>
+  <ul>
+    <li><strong>Save the database password when it is shown.</strong> Supabase shows it once and it
+    is <em>unrecoverable</em> — resetting it is the only other path. Beyond ordinary admin use, the
+    security-posture test (<code>tests/rls.mjs</code>) needs it as <code>SUPABASE_PASSWORD</code>,
+    and without it that test <strong>skips silently and exits successfully</strong> — a green run
+    that checked nothing.</li>
+    <li><strong>The region is <code>ca-central-1</code> — Canada (Central).</strong> A standard, not
+    a preference, and <strong>Supabase cannot change a project's region after creation</strong> (the
+    only path is create-new-and-restore). Ignore the dashboard's “Recommended” badge on
+    <code>us-east-1</code>: that is generic geography advice, not advice about this fleet. The
+    reason is concrete — <code>tests/rls.mjs</code> defaults to the pooler host
+    <code>aws-0-ca-central-1.pooler.supabase.com</code>, so a same-region project needs no extra
+    configuration, while any other region needs <code>SUPABASE_DB_HOST</code> set on
+    <em>every</em> run. Combined with that silent skip above, a region mismatch is exactly the kind
+    of mistake that reads green for weeks.</li>
+  </ul>
+
+  <h4>Then: which SQL file to run</h4>
+  <p>The repository ships three Supabase SQL files and they are not interchangeable. For a brand-new
+  project there is <strong>one</strong> answer:</p>
+  <div class="table-scroll">
+  <table class="backend-table">
+    <thead><tr><th>File</th><th>When</th><th>What it is</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong><code>tools/supabase-deploy.sql</code></strong></td>
+        <td><strong>A fresh environment — this is the one.</strong></td>
+        <td>The superset, run top-to-bottom and bare (no <code>begin</code>/<code>rollback</code>
+        wrapper): workspace tables, the verified authenticated-only RLS posture, the activity and
+        feedback log tables, the first-admin step and a verify block. Idempotent — safe to re-run.</td>
+      </tr>
+      <tr>
+        <td><code>tools/supabase-rls-real.sql</code></td>
+        <td>Re-tightening a project whose tables already exist.</td>
+        <td>The security posture <em>alone</em> — the subset of the file above. Nothing to run on a
+        fresh project that has already had the deploy script.</td>
+      </tr>
+      <tr>
+        <td><code>tools/supabase-bootstrap.sql</code></td>
+        <td>Historical.</td>
+        <td>The original allow-all demo posture, kept for reference. <strong>Not</strong> for new
+        environments — it deliberately installs no policies.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p><strong>Dev and stage run the same posture as production — the real one.</strong> An
+  environment whose security posture differs from prod cannot test the thing most likely to break,
+  so “it's only dev” is never a reason to reach for the allow-all file.</p>
+
+  <h4>The two steps the script cannot do for you</h4>
+  <p>Both are once per environment, and both are spelled out in the script's own numbered
+  sections:</p>
+  <ul>
+    <li><strong>§ 7 — the first admin.</strong> Create the account under
+    <strong>Authentication → Add user</strong>, then insert its <code>public.users</code> row while
+    connected as <code>postgres</code> (which bypasses RLS — the policies that will guard that table
+    need an admin to already exist). After this one bootstrap, admins are added from inside the app.</li>
+    <li><strong>§ 8 — verify.</strong> Run it separately, as the <code>anon</code> role. The expected
+    result is <strong>all zeros</strong>: an unauthenticated reader sees nothing on any workspace
+    table. Anything else means a legacy open policy survived, and it is worth stopping for —
+    permissive policies OR together, so a single leftover defeats every tighter policy beside it.</li>
+  </ul>
+
+  <h4>Things that only bite later</h4>
+  <ul>
+    <li><strong>Free-tier projects pause after about a week idle</strong> — which a dev backend will
+    reach. A paused project is <em>unreachable</em>, not refusing, and the app draws that distinction
+    deliberately: it never signs you out or latches a workspace read-only because it couldn't reach
+    the backend, only because the backend answered “no”. Resume it from the Supabase dashboard.</li>
+    <li><strong>One project can host several fleet apps.</strong> Each workspace records which app
+    owns it in its <code>polecat_meta</code> marker table, so Analytics can tell its own workspace
+    from another Polecat app's in the same database, and from a foreign database entirely. Sharing
+    one <code>polecat_dev</code> project across the fleet is a sound choice, not a shortcut.</li>
+  </ul>
+
+  <h4>The environment topology</h4>
+  <p>The databases mirror the app's own <code>dev → stage → main</code> delivery pipeline — a
+  separate project per stage, each with its own project URL and database password, so an experiment
+  can never be run against the workspace that real people use:</p>
+  <ul>
+    <li><strong>Production</strong> — the live workspace. Its posture is verified read-only before
+    anything ships to it, and it is never the target of a test that writes.</li>
+    <li><strong><code>polecat_dev</code></strong> — where the security-posture test actually runs
+    today: nightly, and again as part of every promotion to stage. It was created in
+    <code>ca-central-1</code> to match production, for the pooler-host reason above.</li>
+    <li><strong><code>polecat_stage</code></strong> — the matching slot beside stage. Until it
+    exists, stage promotions exercise the dev database.</li>
+  </ul>
+  <p>The posture test only ever builds throwaway schemas of its own and never touches
+  <code>public</code>, whichever project it is pointed at.</p>
+
   <h3>How syncing works (and what the rail indicator means)</h3>
   <p>With a backend connected there is <strong>nothing to "sync" by hand</strong> — every change
   (saving a View, editing a dashboard, adding a dataset…) mirrors up automatically a moment later.
