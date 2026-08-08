@@ -55,6 +55,24 @@ jobs:
             exit 1
           fi
 
+      # N25 — verify PRODUCTION's live security posture BEFORE shipping to it.
+      # Read-only by construction (anon GETs over the REST surface) and needs no
+      # database password — only the publishable key, which app/workspaces.js
+      # already ships publicly. This is the ONLY posture check that should ever
+      # point at production: tests/rls.mjs creates and drops schemas and belongs
+      # on dev, never here.
+      #
+      # It runs BEFORE the merge on purpose. If production has drifted off the
+      # authenticated-only posture — a policy dropped by hand, a half-applied
+      # go-live, a legacy allow-all policy re-created — the right move is to stop
+      # and fix the database, not to ship more code on top of it.
+      - name: "Posture: production is not readable by an anonymous caller"
+        env:
+          SUPABASE_URL: https://lnngiprrrcxtsawamqei.supabase.co
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          VERIFY_LABEL: production
+        run: node tests/rls-verify.mjs
+
       - name: Merge stage into main and tag the release
         run: |
           set -e
