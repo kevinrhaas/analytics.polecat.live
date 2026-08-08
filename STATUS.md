@@ -10772,6 +10772,38 @@
 > struck entries and propose the next batch to Kevin on a `hold` PR — never graze the
 > reservoir directly.
 
+- **SP-0 ★★ [2pt] — Make the sample-pack system carry twelve packs instead of one.** Kevin
+  chose ELEVEN new packs (2026-08-07); the current machinery does not survive that. Two hard
+  blockers: (a) `Studio.installDemoPack` (`app/demopacks.js:424`) dispatches with a literal
+  `if (id === "conservation")`, and demo login (`studio.js:8628`) + per-user provisioning
+  (`studio.js:8646`) are hardcoded the same way — move the install function ONTO the registry
+  entry and reduce the dispatch to `if (p.install) p.install()`; fold `PACK_FOLDERS`
+  (`studio.js:897`) into the registry too. (b) There is NO convention for shipping REAL public
+  data — today's rule is "synthetic, deterministic, generated in JS, never fetched". Establish
+  it: `tools/pack-extract/<pack>.mjs` (a committed, re-runnable script that fetches the public
+  source, subsets/aggregates, and writes `data/packs/<pack>/*.csv` — the script IS the
+  provenance record: source URL, retrieval date, filters applied); a **≤150 KB CSV per pack**
+  budget enforced in `tools/validate.mjs` (the same mechanism that already holds sw.js to a
+  byte budget — the whole workspace is ONE localStorage blob and twelve packs must coexist); a
+  `source` field on each registry entry (name + URL + licence) rendered on the Settings card
+  and in dashboard subtitles; and a `THIRD-PARTY-NOTICES.md` line for anything not public
+  domain. Data stays EMBEDDED (committed CSV, inlined at install) — never fetched at runtime,
+  so offline/local-first is preserved. Finally, turn the pack test block in `tests/run.js` into
+  a LOOP over every registered pack (install → expected counts → every row tagged `demoPackId`
+  → uninstall leaves zero rows), so each new pack is covered by construction rather than by
+  someone remembering. No user-visible pack ships in this item.
+- **SP-1 ★★ [3pt] — "Market Coverage" — the new DEFAULT sample pack (Kevin, 2026-08-07).**
+  Industry density and whitespace by county: where a chain is under-represented versus the
+  population and the businesses already there. **Replaces `datamanagement` in
+  `DEFAULT_INSTALLED`** (`demopacks.js:78`) — Data Management stays installable, just not the
+  first thing a new visitor sees. It earns the slot: county choropleth on the app's strongest
+  geography, a REAL join job (establishments ÷ population → saturation index) that shows the
+  data-prep story, and a whitespace question every commercial audience recognises in five
+  seconds. **Data:** US Census County Business Patterns (public domain), extracted per SP-0.
+  Match Conservation Insight's weight: ≈2 connections, ≈5 datasets, ≥1 job, ≈4 pinned Views,
+  ≈3 dashboards. Ships as ~3 PRs — (a) extract script + connections/datasets/job,
+  (b) dashboards, (c) Views + tour + docs/changelog. Blocked on SP-0.
+
 - ~~**N2 ★★ [2pt est, 4 slices shipped] — M7: real Row-Level Security enforcement.**~~
   ✓ SHIPPED v865 (2026-08-07, steward — see DONE). All four slices are in; M7 is closed. The
   history below stays until the next grooming pass archives it.
@@ -11293,6 +11325,60 @@
     overlap is why v875 had scoped itself to the tours; and the ⌘K palette's section
     coverage, which this pass found was NOT stale — AUD-12 (v854) already made the palette
     derive from the rail and added the guard, so the note above was itself out of date.
+
+
+### 📦 SAMPLE-PACK PROGRAM (Kevin, 2026-08-07) — the other ten packs
+
+> Kevin picked eleven packs from a researched shortlist of twenty, all at "match the existing
+> packs" weight (≈2 connections · ≈5 datasets · ≥1 job · ≈4 Views · ≈3 dashboards each).
+> **SP-0 and SP-1 are in ▶ NOW**; these ten wait here and are promoted a few at a time at
+> grooming — do NOT start one straight from the reservoir. Each is **3pt** (≈3 PRs: extract →
+> workspace content → dashboards/Views/docs) and follows the SP-0 real-data convention.
+>
+> Names are deliberately plain and business-credible — Kevin called the first drafts corny.
+>
+> **Feature coverage is a design goal across the set**, so the program showcases the whole app
+> rather than one chart: SP-11 and SP-5 drive the **ensembleSeries + linked choropleth channel**
+> (the app's signature move); SP-3 and SP-4 drive long monthly time series + `calHeatmap`;
+> SP-9 drives boxplot/violin spread; SP-6 drives sankey/marimekko; SP-1 and SP-8 drive
+> per-capita choropleths off a real join job; SP-7 uses point-level data and league tables.
+>
+> - **SP-2 [3pt] — Customer & Revenue Analytics.** RFM segmentation, cohort retention, market
+>   basket. *UCI Online Retail II — 1,067,371 real transactions, Dec 2009–Dec 2011, CC BY 4.0*
+>   (attribution required). The most universally recognised commercial-analytics demo, and it
+>   exercises jobs hardest — the strongest standalone business proof after SP-1.
+> - **SP-3 [3pt] — Park Visitation & Capacity.** Seasonality, crowding, and the parks whose
+>   shoulder seasons vanished. *NPS Visitor Use Statistics, monthly 1979–2024, public domain.*
+> - **SP-4 [3pt] — Consumer Price Trends.** Inflation by metro and category; which cities
+>   diverge; the same basket compared. *BLS CPI, public domain.*
+> - **SP-5 [3pt] — Campaign Finance.** Donor geography, industry concentration, small-dollar vs
+>   max-out, out-of-state share. *FEC bulk individual contributions, public domain.*
+>   **⚠ SCOPE DECISION PENDING KEVIN — read before starting.** Kevin's call was "this is not for
+>   commercial use so we should be ok with having donor names." Two separate issues: (1) the FEC
+>   bars using contributor names/addresses "for commercial purposes", and Analytics IS a
+>   commercial product — arguable, not clearly permitted; (2) independently, these are real
+>   private individuals with home addresses, which is a privacy question the licence does not
+>   answer. **Proposed middle, pending confirmation:** ship committee/PAC/organisation names in
+>   full (entities, not individuals — the interesting half of "follow the money" anyway) plus
+>   individual giving aggregated to county/industry/size-band with no personal names. The
+>   dashboard reads identically. **Never ship addresses under any option.**
+> - **SP-6 [3pt] — Federal Contract Awards.** Who wins federal work, by agency, vendor, NAICS
+>   and district; small-business share. *USASpending.gov, public domain.*
+> - **SP-7 [3pt] — Food Safety Inspections.** A multi-site operations scorecard: violation rates
+>   by chain and neighbourhood, repeat offenders, inspector variance. *City of Chicago open data
+>   — Kevin picked Chicago over NYC.*
+> - **SP-8 [3pt] — Hospital Capacity.** Beds and staffing versus the population served; deserts
+>   and duplication. *CMS Provider of Services, public domain.*
+> - **SP-9 [3pt] — Healthcare Pricing.** The same procedure at wildly different prices, by
+>   hospital and payer. *CMS Hospital Price Transparency, public domain.*
+> - **SP-10 [3pt] — Payroll & Performance.** Spend per win, the efficiency frontier, the
+>   small-market outperformers. *Lahman Baseball Database, **CC BY-SA 3.0** — ShareAlike, so
+>   attribution is required and the shipped extract stays under the same licence. The least
+>   clean licence of the eleven; confirm before starting.*
+> - **SP-11 [3pt] — Water Quality Monitoring.** Where independent monitoring providers disagree
+>   about the same watershed — median estimate plus spread. *USGS/EPA Water Quality Portal,
+>   HUC8-coded, public domain.* **Cheapest of the ten**: reuses the HUC8 geography and the
+>   ensemble machinery the app already has; a natural sibling to Conservation Insight.
 
 ### 🗂 Reservoir index (added 2026-08-07, N1) — what is below, and whether it is alive
 
