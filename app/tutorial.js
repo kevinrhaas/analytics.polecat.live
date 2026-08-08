@@ -62,6 +62,19 @@
    tools/doc-truth.mjs check 13 resolves every "⋯ More → X" against the real
    #menuMore markup and every "⌘K → X" against app/palette.js's command list.
 
+   The same trap caught the BUILDER's own panel. N7 (2026-08-08) found the
+   "Build a dashboard" tour still calling the left panel "the Library" — it is
+   `#library` in the markup but has rendered <b>Data</b> since STUDIO-PANELS, in
+   its header, its collapsed rail, the Settings toggle and Help — and still
+   promising it holds "the sample queries", a group LF65 deleted. Its last step
+   also routed Auto-build through the Data panel's "＋ New ▾" (dataset /
+   connection / dashboard-only query), never the topbar "New ▾" that actually
+   has it. tools/doc-truth.mjs check 16 now derives the panel's rendered name
+   from app/index.html and its group list from buildLibrary's OWN call graph —
+   so a group whose builder still exists but is no longer called (Sample packs,
+   unwired by DECLUTTER-1) cannot get back into this copy — and fails any copy
+   here that reaches Auto-build through the wrong New menu.
+
    window.StudioTutorial.open()        — tour chooser (or restart)
    window.StudioTutorial.openTour(key) — start a specific tour ("overview"|"quick"|"build"|"jobs"|"connect")
    window.StudioTutorial.isDone()      — true once any tour was completed.
@@ -262,7 +275,7 @@
         },
         {
           t: "6 · It follows you",
-          h: "Your saved Views live in the left list here, under <b>Views</b> in the Dashboard Builder's library, and (when pinned) as live cards on <b>Home</b> — the app opens on your charts, not on machinery.",
+          h: "Your saved Views live in the left list here, under <b>Views</b> in the Dashboard Builder's <b>Data</b> panel, and (when pinned) as live cards on <b>Home</b> — the app opens on your charts, not on machinery.",
           sub: "Need to prep data first (rename, filter, roll up)? The <b>Jobs</b> section does that and lands the result back in Datasets.",
           target: ".xp-saved",
           pos: "right"
@@ -288,15 +301,15 @@
           before: function () { goSection("studio"); }
         },
         {
-          t: "1 · The Library",
-          h: "The <b>Library</b> (left pane) holds everything chartable: your saved <b>Views</b>, your workspace <b>Datasets</b>, this dashboard's own datasets, and the sample queries. Search filters by name, column, or table.",
+          t: "1 · The Data panel",
+          h: "The <b>Data</b> panel (left) holds everything chartable, top to bottom: <b>This dashboard's datasets</b>, your workspace <b>Datasets</b>, your saved <b>Views</b>, and — once you author your own queries — <b>My queries</b>. Search filters by name, column, or table.",
           sub: "Click a chart chip on any card — or drag the card straight onto the canvas.",
           target: "#library",
           pos: "right"
         },
         {
           t: "2 · Canvas — live preview",
-          h: "The centre pane is the <b>real rendered dashboard</b>, not a mock-up. Drop data here to add a panel; drag the header grip to reorder; drag the right edge to resize.",
+          h: "The centre pane is the <b>real rendered dashboard</b>, not a mock-up. Drop data here to add a panel; drag the header grip to reorder; drag a panel's right edge to change its width, its bottom edge to change its height.",
           sub: "Every change updates instantly.",
           target: "#canvas",
           pos: "right"
@@ -310,14 +323,14 @@
         {
           t: "4 · Export — it runs anywhere",
           h: "Click <b>Export ▾</b> to download a <b>self-contained .html file</b> — no server, no dependencies; email it, host it, open it from disk. It's byte-identical to the preview you've been looking at.",
-          sub: "Save keeps the editable .studio.json spec so you can reopen and keep working.",
+          sub: "The same menu also hands out Excel, Word, PowerPoint and PDF versions, or the editable .studio.json spec — and <b>Save</b> keeps the dashboard in your Dashboards catalog so you can reopen it and keep working.",
           target: "#btnExport",
           pos: "bottom"
         },
         {
           t: "You're ready to build!",
           h: "That's the loop: <b>pick data → arrange panels → configure → export</b>. Feature a dashboard on <b>Home</b> (the little house on its card) to see it live when you open the app, and use <b>Jobs</b> to prep or roll up data before charting.",
-          sub: "Hit ＋ New ▾ → Auto-build to scaffold a starter dashboard automatically from a query set.",
+          sub: "In a hurry? <b>New ▾</b> in the topbar → <b>Auto-build a starter</b> scaffolds a whole dashboard from one dataset.",
           target: null,
           last: true
         }

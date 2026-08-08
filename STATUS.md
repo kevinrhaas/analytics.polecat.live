@@ -135,6 +135,61 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the Build a dashboard tour describes the builder you actually have (v877, NO sw bump —
+  see below, 2026-08-08, steward; LF58 recurring slice, dev branch):** the ▶ NOW queue still
+  holds no ready non-recurring item (N2/N4b/N5a/N5b shipped, N4a ⛔ on Kevin, grooming parked
+  for him on `hold` PR #623), so the recurring N7 came up again and took the first candidate
+  its own list named: the per-feature tours' remaining BODY copy, starting with
+  "Build a dashboard" — the tour that walks the Dashboard Builder end to end.
+  - **The drift, in three parts.** (a) THE PANEL'S NAME. The step is titled "1 · The Library"
+    and opens "The **Library** (left pane) holds everything chartable". That panel is
+    `#library` in the markup but has RENDERED **Data** since STUDIO-PANELS — its `.pane-h`
+    header, its collapsed rail label, the Settings toggle ("the Data and Inspector panels
+    already open") and Help's own §"Every chart View is bound to…" all say Data. Same
+    internal-name-vs-rendered-label split that LF57's `analyses`/**Views** rename left behind
+    (checks 14/15), one layer up. `welcome.js`'s Dashboard Builder card and the quick tour's
+    step 6 said "Library" too. (b) THE GROUPS IT PROMISED. The step listed "your saved Views,
+    your workspace Datasets, this dashboard's own datasets, **and the sample queries**" — but
+    LF65 DELETED the sample-query group (sample content arrives only via Sample packs now) and
+    DECLUTTER-1 unwired the Sample-packs group from the builder panel, while the group that
+    replaced them, **My queries** (your own authored queries), was never named. The panel
+    renders exactly four groups today: This dashboard's datasets · Datasets · Views ·
+    My queries. (c) THE AUTO-BUILD ROUTE — the same defect class as v874's dead menu entry.
+    The closing step said "Hit **＋ New ▾** → Auto-build": `＋ New ▾` is the DATA PANEL's add
+    button (`#btnNewDS` → Dataset (workspace)… / Connection… / Dashboard-only query…) and has
+    never had Auto-build. It lives in the TOPBAR `New ▾` (`#btnNew` → buildNewMenu's
+    "Auto-build a starter" group). `welcome.js` had the right menu but rendered it as
+    "New ▸ Auto-build", a glyph and a label the topbar does not use.
+  - **What shipped.** Six copy sites across `app/tutorial.js` + `app/welcome.js`: the build
+    tour's panel step (title, panel name, the real group list), the quick tour's step 6 and
+    the welcome carousel's builder card (both "library" → **Data** panel), and the Auto-build
+    route in both files. Two catch-ups in the same walk while the tour was open: panels have
+    been resizable by their BOTTOM edge as well as the right one since PANEL-H (`sr-resize-h`)
+    and the tour only mentioned width; and the export step's sub-line still said "Save keeps
+    the editable .studio.json spec", which conflates two different affordances — Save
+    (`#btnSaveSpec`) writes to your Dashboards catalog, and the `.studio.json` file is an
+    Export-menu entry alongside the Excel / Word / PowerPoint / PDF exports the tour never
+    mentioned at all.
+  - **The ratchet — doc-truth check 16**, three assertions, all DERIVED: the panel's rendered
+    name comes from `<aside id="library">`'s own header, so the copy is held to it and the
+    internal id is forbidden in tour copy (the check-14/15 idiom, one level up from the noun);
+    the group list is read off **buildLibrary's own call graph**, which is the part that
+    matters — a builder that still exists but is no longer CALLED (`buildDemoPacksLib`) cannot
+    sneak back into the copy's promise, which is exactly the mistake Help still makes; and any
+    copy string mentioning Auto-build must name the topbar button's label and not the panel's.
+    Scoped to the tours' visible copy fields (`t`/`h`/`sub`/`s`/`blurb`/`label`) so a step's
+    `target: "#library"` selector — markup, not something a reader is told — cannot trip it.
+    Confirmed non-vacuous: with the two app files reverted to their pre-slice state the check
+    fails on all three counts and names each offending fragment; restored, green.
+  - **No `sw.js` cache bump — same call as v876, same reason, now with an issue number.**
+    Bumping `CACHE_NAME` alone deterministically reds two N2-slice-4 auth checks (issue #631,
+    not root-caused, not this slice's to fix). The repo's own rule in `sw.js`'s header is to
+    bump "whenever the precache LIST below changes" — it is unchanged here; only the CONTENT
+    of two already-precached modules moved, and the fetch handler is network-first, so an
+    online reader is never served the stale tour. Nothing was weakened to get green.
+  - **Verified:** `tools/doc-truth.mjs` 24/24 (three new) and confirmed non-vacuous;
+    `tools/validate.mjs` clean; `changelog-check` manager-parse OK; `tools/dev-smoke.mjs`
+    green (desktop + 390×780, both themes, zero pageerrors). est 1pt (recurring), took 1.
 - **N7 — the Help page calls a saved chart a View (v876, NO sw bump — see below, 2026-08-08, steward; LF58
   recurring slice, dev branch):** the ▶ NOW queue still holds no ready non-recurring item
   (N2/N4b/N5a/N5b shipped, N4a ⛔ on Kevin, grooming parked for him on `hold` PR #623), so the
@@ -10219,11 +10274,32 @@
     Doc-truth check 15 now forbids the internal noun anywhere in Help outside `<code>` and
     comments — stricter than check 14 on purpose, and it reports the offending sentence
     fragment rather than a line number.
-  * **Not yet audited (candidates for the next N7 slice):** the marketing page's hero
-    carousel captions + screenshots, which the v871 slice deliberately left alone (the copy
-    pass stayed textual — regenerating shots is its own slice); and the per-feature tours'
-    remaining BODY copy (Build a dashboard / Prep & connect / the pack tour) — the Quick
-    analysis tour's own body is now done (v875). **Struck from this list:** Help's remaining
+  * *The Build a dashboard tour vs the builder it walks — v877, NO sw bump (see DONE),
+    2026-08-08.* Three drifts in one tour: it called the builder's left panel "the Library"
+    (it renders **Data**, and `welcome.js` + the quick tour said Library too), promised a
+    "sample queries" group LF65 deleted while never naming **My queries** which replaced it,
+    and routed Auto-build through the Data panel's `＋ New ▾` rather than the topbar `New ▾`
+    that has it. Doc-truth check 16 now derives the panel's name from its own header and its
+    group list from **buildLibrary's call graph** — so an unwired builder (Sample packs)
+    cannot be promised — and fails any copy reaching Auto-build through the wrong menu.
+  * **Not yet audited (candidates for the next N7 slice):** **Help's own version of the same
+    panel drift is the strongest one** — `docs/index.html` says "Query Library" in three
+    places, still lists **Sample packs** as one of the Data panel's groups (DECLUTTER-1
+    unwired it), and names two controls the builder no longer has ("＋ New source" in the
+    library header, "⧈ Join in the library" — the compound-DA entry was removed); check 16's
+    derived group list is the ready-made guard to extend over it, exactly as check 15
+    extended check 14 from the tours to Help. Then: the marketing page's hero carousel
+    captions + screenshots, which the v871 slice deliberately left alone (the copy pass
+    stayed textual — regenerating shots is its own slice); and the two remaining per-feature
+    tours' BODY copy (Prep data (Jobs) / Connections &amp; Datasets / the pack tour) — the
+    Quick analysis tour's body is done (v875), Build a dashboard's is done (v877).
+    **One BEHAVIOURAL candidate the v877 slice found and deliberately did not take** (it is a
+    tour-engine change, not copy, so it wants its own slice): STUDIO-PANELS made the builder
+    open with the Data and Inspector panes COLLAPSED by default, so the build tour's steps 1
+    and 3 now spotlight a ~34px collapsed rail and describe contents the reader cannot see.
+    The fix is a `before()` hook that opens the pane silently (`collapsePane(which, false,
+    true)` — silent, so it never overwrites the user's persisted preference), plus a decision
+    about the ≤640px path where the panes are drawers and `collapsePane` early-returns. **Struck from this list:** Help's remaining
     `analysis`/`analyses` prose (§602-627 and friends), which was the biggest known one and
     shipped as v876 above — it overlapped AUD-11's tail (§2.4's wording sweep), and that
     overlap is why v875 had scoped itself to the tours; and the ⌘K palette's section

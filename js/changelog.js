@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 877,
+    title: 'The Build a dashboard tour describes the builder you actually have',
+    kind: 'fix',
+    ts: '2026-08-08T02:26:27.000Z',
+    items: [
+      'The tour called the builder\'s left panel "the Library" and promised it held "the sample queries". The panel has been called Data for a while now — its header, its collapsed edge, the Settings toggle and the Help page all say Data — and the sample-query group was removed when sample content moved to Sample packs. The step now names the panel the way the app names it and lists the groups it really shows: this dashboard\'s datasets, your workspace Datasets, your saved Views, and My queries once you have authored some.',
+      'It also sent you to the wrong menu for Auto-build: the ＋ New ▾ button it named is the Data panel\'s, which adds a dataset, a connection or a dashboard-only query, and has never offered Auto-build. That lives in the New ▾ menu in the topbar, and both the tour and the welcome carousel now say so.',
+      'Two smaller catch-ups in the same walk: panels can be dragged taller or shorter by their bottom edge, not only wider by their right edge; and the export step now mentions that the same menu hands out Excel, Word, PowerPoint and PDF versions, while Save keeps the dashboard in your Dashboards catalog.',
+      'The check that runs on every change now derives the panel\'s name and its group list from the code that renders them, so a group that stops being shown can no longer keep being promised — and it fails any copy that reaches Auto-build through the wrong New menu.',
+    ],
+  },
+  {
     v: 876,
     title: 'The Help page calls a saved chart a View, like the rest of the app',
     kind: 'fix',
