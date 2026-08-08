@@ -1226,6 +1226,54 @@ function serve() {
       await mp.close();
     }
 
+    /* ---- N9a: the catalog toolbars themselves fit the phone ----
+       N8 fixed the MENUS; this is the rows they hang off, and it was the bigger half.
+       Measured at 390×780 before the fix, the Dashboards `.repo-io` row laid its controls
+       out to x=651 against a 390px screen — `Compare dashboards…`, the ⋯ menu-wrap and
+       `+ New dashboard` ALL started off the right edge — and Datasets' and Connections'
+       `+ New …` crossed it too. The row is `display:flex` with no wrap and no scroll
+       affordance; the only reason those controls were reachable is that clicking a
+       neighbour scroll-into-views them. `.repo-io` now wraps at ≤640px. This asserts the
+       property that matters — every control's box inside the viewport — one level up from
+       N8's menu assertion, and at desktop too so the wrap can't leak upward into a row
+       that has room for one line. */
+    console.log("\n• N9a: catalog toolbars — every control inside the viewport on a phone");
+    const N9_SECS = ["dashboards", "views", "datasets", "connections", "jobs", "repository"];
+    for (const vp of [{ width: 390, height: 780 }, { width: 1280, height: 900 }]) {
+      const phone = vp.width === 390;
+      const mp = await browser.newPage({ viewport: vp });
+      await mp.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-shell-section", "home"); } catch (e) {} });
+      await mp.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+      await mp.waitForSelector("#btnMore", { timeout: 8000 });
+      const bad = [];
+      for (const sec of N9_SECS) {
+        await mp.evaluate(function (s) { var el = document.querySelector('[data-sec="' + s + '"]'); if (el) el.click(); }, sec);
+        await mp.waitForTimeout(350);
+        const r = await mp.evaluate(function () {
+          var section = Array.prototype.slice.call(document.querySelectorAll(".app-sec")).filter(function (s) { return !s.hidden; })[0];
+          var row = section && section.querySelector(".repo-io");
+          if (!row) return { missing: true };
+          // the row's own children ARE the controls (select / .btn / .menu-wrap); an open
+          // menu is what N8 covers, so measure the closed row only
+          var out = Array.prototype.slice.call(row.children).filter(function (c) {
+            var cs = getComputedStyle(c); return cs.display !== "none" && cs.visibility !== "hidden";
+          }).map(function (c) {
+            var b = c.getBoundingClientRect();
+            return { id: c.id || c.className, left: Math.round(b.left), right: Math.round(b.right) };
+          }).filter(function (c) { return c.left < 0 || c.right > window.innerWidth; });
+          return { missing: false, wrap: getComputedStyle(row).flexWrap, out: out };
+        });
+        if (r.missing) { bad.push(sec + ": no .repo-io row"); continue; }
+        if (r.out.length) bad.push(sec + ": " + r.out.map(function (c) { return c.id + " at " + c.left + "–" + c.right; }).join(", "));
+        // one line is the desktop design; wrapping there would mean the ≤640px rule leaked
+        if (!phone && r.wrap !== "nowrap") bad.push(sec + ": wraps on desktop");
+      }
+      ok(`N9a ${vp.width}px: every control in all ${N9_SECS.length} catalog toolbars is inside the viewport` +
+        (phone ? " (the row wraps instead of running off the edge)" : ", and the rows stay a single unwrapped line"),
+        bad.length === 0, bad.join(" | "));
+      await mp.close();
+    }
+
     // ---- WS: adapter infrastructure (app/sources/) ----
     // The manager-pattern source layer: schema/contract, registry, workspace
     // store, secrets crypto, and the Turso adapter exercised END-TO-END against

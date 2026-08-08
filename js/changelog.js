@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 884,
+    title: 'The buttons above your dashboards, datasets and connections stop running off the edge of a phone',
+    kind: 'fix',
+    ts: '2026-08-08T07:16:25.000Z',
+    items: [
+      'The row of controls that sits above every catalog — the sort box, the tile/list toggle, Select, and the New button — was laid out as one line that never wrapped. On a 390-pixel phone that line is wider than the screen. Measured on Dashboards, it ran out to 651 pixels: Compare dashboards, the ⋯ menu and + New dashboard ALL began past the right edge, entirely out of sight. Datasets and Connections had their + New button crossing the edge too.',
+      'Nothing on screen said the row could scroll — no fade, no wrap, no scrollbar. The only reason those buttons could be reached at all is a side effect: tapping one of the controls you COULD see slides the row along, which is also what made an open menu drift after you tapped it.',
+      'On screens up to 640 pixels wide the row now wraps onto as many lines as it needs. Every control keeps its full label, sits inside the screen, and stays at the 44-pixel tap size. The row grows downward, where there is room. On a laptop nothing changes: the row is still a single line, and the tests assert that too so the phone rule cannot leak upward.',
+      'Also removed a styling rule for a menu that was deleted some weeks ago and no longer exists anywhere in the app.',
+      'Two new checks, one per screen size, walk all six catalogs — Dashboards, Views, Datasets, Connections, Jobs and Repository — and require every control in each toolbar to be inside the screen.',
+    ],
+  },
+  {
     v: 883,
     title: 'Menu rows are big enough to tap, and a menu can no longer open half off the screen',
     kind: 'fix',

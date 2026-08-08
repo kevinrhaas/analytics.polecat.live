@@ -135,6 +135,45 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N9a — the catalog toolbars fit a phone instead of running off its edge (v884, sw v512,
+  2026-08-08, steward; dev branch):** the first ready item in ▶ NOW (N4a is ⛔ on Kevin, N7 is
+  🔁, grooming still parked on `hold` PR #623). **N9 was est 2pt; this slice is 1, and the
+  remainder is re-filed as N9b at 1pt** — so the pair lands on the estimate, but not the way it
+  was split.
+  - **The defect, measured before touching anything.** `.repo-io` — the control row above every
+    catalog (Dashboards, Views, Datasets, Connections, Jobs, Repository) — is `display:flex` with
+    no wrap. At 390×780 the Dashboards row laid its children out to **x=651 against a 390px
+    screen**: `Compare dashboards…` (309→473), the ⋯ `.menu-wrap` (481→525) and `+ New dashboard`
+    (533→651) ALL began past the right edge. Datasets' `+ New dataset` crossed by 9px and
+    Connections' `+ New connection` by 14px. Nothing said the row scrolled — no fade, no wrap, no
+    scrollbar — and the only reason those controls were reachable is the scroll-into-view a tap on
+    a neighbour triggers, which is the same behaviour that forced N8's re-clamp-on-scroll.
+  - **Worse than the item recorded, and narrower.** The N8 note put the run-out at 525px; it is
+    651px. It also expected Views and Repository to share the problem — **measured, they do not**:
+    Views, Jobs and Repository all fit 390px today. The item is corrected in place rather than
+    quietly shipped against, and the new check covers all six either way so a control added to a
+    currently-clean row cannot regress silently.
+  - **The fix.** One rule in the existing ≤640px band: `.repo-io{flex-wrap:wrap;align-items:center}`.
+    Every control keeps its full label, lands inside the viewport, and stays at the 44px tap size
+    UX7 gave it; the row grows downward (Dashboards/Datasets/Connections go 44px→96px) where there
+    is room. `align-items:center` keeps the shorter `.cx-sort` select centred against the 44px
+    buttons sharing its line. Desktop is untouched — the rows stay one unwrapped line, asserted so
+    the phone rule cannot leak upward.
+  - **Dead code the item flagged, removed.** `#menuExamples.phone-pos` in `app/studio.css` had no
+    element to match: LF43 slice 2 deleted `#menuExamples` and the suite asserts both it and
+    `#btnExamples` are gone. `closeMenus()` still strips the class defensively and is left alone —
+    nothing adds it.
+  - **Verified.** Full `NODE_PATH=$(npm root -g) node tests/run.js`, green. 2 new checks (N9a at
+    390×780 and 1280×900) walk all six catalogs and require every control's box to be inside the
+    viewport, plus `flex-wrap:nowrap` on desktop. `sw.js` bumped v511→v512 (`app/studio.css` is
+    precached). No user-facing copy changed, so Help and the tours are untouched.
+  - **What the same pass learned about N9's other half** (now N9b, spec rewritten from it): the
+    Data pane DOES have a working phone route — the `mob-tabs` **Data** tab, on-screen at 0–130px,
+    opens the drawer, and `#menuNewData` then opens fully inside the viewport with all three rows
+    at 44px. The "no phone route at all" worry came from clicking the `.pane-rail` expand button,
+    which is the desktop affordance and is legitimately off-canvas at 390px. The real finding is
+    one size down: `#btnNewDS` measures **24px** tall, because it is not a `.btn` and no rule
+    reaches it.
 - **N8 — dropdown rows clear the 44px touch bar, and no menu opens off-screen (v883, sw v511
   unchanged, 2026-08-08, steward; dev branch):** the first ready item in ▶ NOW (N4a is ⛔ on
   Kevin, N7 is 🔁, grooming still parked on `hold` PR #623). **est 1pt, took 1.**
@@ -10487,7 +10526,12 @@
   viewport. Verify with the full suite + a new check per menu at 390×780 and 1280×900.
   **Position is the loop's placement, not Kevin's** — it sits above the 🔁 so it is taken next;
   move or re-star it freely.
-- **N9 ★ [2pt] — The section toolbars themselves do not fit a phone.** Born in NOW from N8/v883's
+- ~~**N9a ★ [1pt] — The catalog toolbars themselves do not fit a phone.**~~ ✓ SHIPPED v884,
+  sw v512 (2026-08-08, steward — see DONE). The `.repo-io` half of the original N9, split out
+  because the Data-pane half turned out to be a different (and much smaller) defect once
+  measured — see N9b. est 2pt for the pair, N9a took 1. The spec below stays until grooming
+  archives it.
+  Born in NOW from N8/v883's
   measurement (2026-08-08, steward) — measured, not suspected. N8 fixed the MENUS; this is the
   rows they hang off, and it is the bigger half:
   * At 390×780 the Dashboards `.repo-io` row lays out **16px→525px against a 390px screen**, so
@@ -10496,18 +10540,67 @@
     saying the row scrolls, no fade, no wrap. Views and Repository use the same `.repo-io` row and
     have the same problem. (This is also why N8 needed a re-clamp on scroll at all: that
     scroll-into-view is what moves the menu after it opens.)
-  * The Studio Data pane's `＋ New ▾` (`#menuNewData`) is worse — the pane is off-canvas at 390px
-    and its `.pane-rail` expand button sits **outside the viewport**, so a Playwright click on it
-    times out. Dataset (workspace)…, Connection… and Dashboard-only query… appear to have **no
-    phone route at all**. Confirm that against the mobile tab bar before assuming it (the
-    `mob-tabs` Data/Canvas/Inspector switcher may be the intended route) — if it is genuinely
-    unreachable, that is a phone-gate defect, not a polish item.
+    **What the fix measured (2026-08-08):** the run-out is 16px→**651px**, not 525 — worse than
+    the N8 note recorded, because the note measured before the row's own controls were all
+    counted. Three controls fully off-screen on Dashboards; `+ New dataset` and
+    `+ New connection` crossing the edge by 9px and 14px. **Views, Jobs and Repository were
+    measured CLEAN** — their rows fit 390px today, so the note's "same problem" was true of the
+    markup, not (yet) of those three sections. They are covered by the new check regardless, so
+    a control added to any of them cannot regress silently.
   * Likely shape: let `.repo-io` wrap at ≤640px instead of overflowing (it is already a flex row;
     the buttons are already 44px tall after UX7), and treat the pane rail separately. Verify with
     the full suite + a check that asserts every `.repo-io` control's box is inside the viewport at
-    390×780 — the same assertion N8 added for menus, one level up.
+    390×780 — the same assertion N8 added for menus, one level up. **Shipped exactly this.**
   * `#menuExamples.phone-pos` in `app/studio.css` is dead while you are in there (LF43 slice 2
-    deleted `#menuExamples`; the suite asserts it is gone).
+    deleted `#menuExamples`; the suite asserts it is gone). **Deleted.**
+  **Position is the loop's placement, not Kevin's** — move or re-star it freely.
+- **N10 ★★ [1pt] — `dev` is RED on the full suite, and nothing has noticed yet.** Found by the
+  N9a slice's verification (2026-08-08, steward), NOT caused by it — proven by running the exact
+  repro against an untouched `origin/dev` worktree and getting the identical result. **Take this
+  before N9b: it is the gate that stands between `dev` and stage.**
+  * The failing check is `tests/run.js:23295`, "tablet viewport: ⋯ More menu items are actually
+    reachable (not clipped by #topbar overflow)" (the Z9 check, 800×1024). At the dev tip it
+    reports `{"wasOpen":true,"reachable":false,"itemRect":{...all zeros}}`. Everything else is
+    green: **3144 passed, 1 failed.**
+  * **Root cause is the check, not the app.** `menuItemReachable()` takes
+    `menu.querySelector("button")` — the FIRST button in `#menuMore` — and hit-tests its centre.
+    That first button is `#moreWhatsNew`, a `.more-phone-only` entry. v882/N7 fixed
+    `.more-phone-only` so it finally hides above 640px (it never had, the whole time this check
+    was written and passing), so at 800px the element the check measures is now `display:none`
+    with a zero rect, and `elementFromPoint` at (0,0) can never return it. The check was reading
+    a phone-only row as if it were a tablet row.
+  * **Why nobody caught it:** the dev gate (`ci.yml`) is the LIGHT one — validate +
+    changelog-check + doc-truth + dev-smoke — and all four are green, so PRs into dev pass. The
+    full suite only runs at promotion, and every `promote-to-stage.yml` run since has exited at
+    the schedule gate ("stage already contains dev — nothing to promote"), so its `success`
+    conclusions are quiet no-ops, not passes. The next real promotion is the first thing that
+    will actually run this, and it rolls stage back on red.
+  * **The fix is to the check:** hit-test the first VISIBLE row (skip `display:none` children)
+    rather than the first child, so it measures what a tablet user actually sees. Do NOT weaken
+    it to pass — the clipping it guards (Z9) is real and the assertion should survive. While
+    there, check whether `newReach`/`exportReach` have the same latent staleness (they pass
+    today, but `#menuNew`/`#menuExport` could grow a phone-only first row at any time) and make
+    the helper robust once for all three.
+  **Position is the loop's placement, not Kevin's** — move or re-star it freely.
+- **N9b ★ [1pt] — The Studio Data pane's own controls are under the 44px touch bar.** The
+  second half of the original N9, rewritten from measurement in the N9a slice (2026-08-08,
+  steward) — the worry it was filed with turned out to be unfounded, and what is actually there
+  is smaller and precise:
+  * **There IS a phone route, and it works.** The `mob-tabs` Data/Canvas/Inspector switcher is
+    the intended way in, exactly as the note suspected: at 390×780 its **Data** tab is on-screen
+    (0–130px) and opens the drawer. The N9 note's "`＋ New ▾` appears to have no phone route at
+    all" came from clicking the `.pane-rail` expand button, which is genuinely off-canvas at
+    390px (`#library` sits at left −336px until the drawer opens) — but that rail is the DESKTOP
+    affordance, not the phone one. **Not a phone-gate defect.** Once the drawer is open,
+    `#menuNewData` opens fully inside the viewport with all three rows (Dataset (workspace)…,
+    Connection…, Dashboard-only query…) at the 44px minimum — N8's rule already covers it.
+  * **What IS wrong:** the trigger. `#btnNewDS` ("New", inside the Data pane header) measures
+    **24px tall** at 390×780 — it is not a `.btn`, so neither UX7's 44px minimum nor N8's
+    `.menu button` rule reaches it. Sweep the Data pane's other bare-`<button>` controls at the
+    same time rather than patching this one id.
+  * Verify with the full suite + a check that opens the Data drawer via `[data-mob-tab="library"]`
+    and asserts every visible control in the pane header clears 44px at 390×780, desktop
+    unchanged — the N9a/N8 shape, one pane over.
   **Position is the loop's placement, not Kevin's** — move or re-star it freely.
 - 🔁 **N7 — Recurring, when the queue is thin: keep the docs, tours, Help and marketing page
   current with the app (LF58).** One coherent slice per run, never a big-bang at the end.

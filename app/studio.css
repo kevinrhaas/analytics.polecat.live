@@ -1753,8 +1753,10 @@ body.lib-dragging #preview{pointer-events:none}
   .topbar-search{width:min(220px,34vw);padding:var(--sp-6) var(--sp-10)}
   .top-app{gap:6px;flex-shrink:0}
 }
-/* phone-pos: examples menu opened from the More menu gets fixed position below the topbar */
-#menuExamples.phone-pos{position:fixed;top:64px;left:8px;right:8px;max-width:none;z-index:60}
+/* N9: the `#menuExamples.phone-pos` rule that sat here is deleted — LF43 slice 2 removed
+   `#menuExamples` itself (the suite asserts both it and `#btnExamples` are gone), so the
+   rule had no element to match. `closeMenus()` still strips the `phone-pos` class defensively;
+   nothing adds it. */
 /* phone-only More menu items: hidden by default, revealed at ≤640px below.
    IMPORTANT: this global rule must appear BEFORE the @media block so the media
    query's display:block can override it (later = wins in same-specificity cascade).
@@ -1784,6 +1786,17 @@ body.lib-dragging #preview{pointer-events:none}
      flex + align-items:center keeps the label vertically centred in the taller row while
      the default flex-start preserves the left alignment `.menu button` sets above. */
   .menu button{min-height:44px;display:flex;align-items:center}
+  /* N9: the catalog toolbars (`.repo-io` — Dashboards, Views, Datasets, Connections, Jobs,
+     Repository) are a nowrap flex row, so on a phone they simply ran off the right edge:
+     measured at 390×780, Dashboards laid its controls out to x=651 against a 390px screen —
+     `Compare dashboards…`, the ⋯ menu and `+ New dashboard` ALL started off-screen, with
+     Datasets' and Connections' `+ New …` crossing the edge too. Nothing said the row scrolled
+     (no fade, no wrap, no scrollbar); the only reason they were reachable at all is that
+     clicking a neighbour scroll-into-views them — which is also what forced N8's re-clamp on
+     scroll. Wrapping is the honest fix at this width: every control keeps its full label and
+     lands inside the viewport, and the row grows downward where there IS room. `align-items`
+     keeps the shorter `.cx-sort` select centred against the 44px buttons on its line. */
+  .repo-io{flex-wrap:wrap;align-items:center}
   /* M10: hide secondary topbar buttons at ALL phone widths; they are accessible via ⋯ More.
      Previously only hidden at ≤400px, leaving mid-size phones (400-640px) with a clipped topbar.
      Slice B/C: Undo/Redo/Open/Save/Save-as/Duplicate/Export moved from #dashbar (or, for
