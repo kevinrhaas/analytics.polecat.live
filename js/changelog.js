@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 878,
+    title: 'The Help page describes the builder\'s Data panel you actually have',
+    kind: 'fix',
+    ts: '2026-08-08T03:21:44.000Z',
+    items: [
+      'The tour caught up last release; the Help page had not. It still called the builder\'s left panel the "Query Library" — a name the app has never shown on screen — in the three-pane walkthrough, the first build step and the Simple mode list. It is called Data, so Help says Data.',
+      'It also listed Sample packs as one of the panel\'s groups. That group stopped being shown when sample content moved to packs you install from Settings, so the panel section now names the four groups you really get: this dashboard\'s datasets, your workspace Datasets, your saved Views, and My queries once you have authored one. The group glyph list and the note about which group collapses when it gets long were corrected the same way.',
+      'Two controls Help told you to click are gone. "＋ New source" in the panel header is now ＋ New ▾ → Dashboard-only query, which is what opens the data-source builder, and the ⧈ Join entry has moved out of the builder entirely — joins and unions are built in Jobs now. A dashboard that already has a join or union still renders and still edits it.',
+      'Eight more sentences elsewhere in Help called the panel "the Studio library" while describing it correctly otherwise; they name it Data now. The one real library — the View library your Save button writes to — is untouched.',
+      'The check that runs on every change now holds Help to the same derived facts it already holds the tours to: the panel\'s name, its group list read from the code that renders them, and the label on its add button.',
+    ],
+  },
+  {
     v: 877,
     title: 'The Build a dashboard tour describes the builder you actually have',
     kind: 'fix',

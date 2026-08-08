@@ -135,6 +135,35 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the Help page describes the builder's Data panel you actually have (v878, NO sw bump —
+  docs/index.html is deliberately not precached, 2026-08-08, steward; LF58 recurring slice, dev
+  branch):** the ▶ NOW queue still holds no ready non-recurring item (N2/N4b/N5a/N5b shipped,
+  N4a ⛔ on Kevin, grooming already parked on the `hold` PR #623), so 🔁 N7 again — and its own
+  candidate list named this as the strongest remaining one: **Help's version of the exact drift
+  v877 fixed in the tours.** It had rotted further than the tours had. (1) THE NAME: three places
+  called the pane the "Query Library" — an id-flavoured name the app has never rendered — and
+  eight more sentences across Help called it "the Studio library" while describing it correctly
+  otherwise. The pane renders **Data**. (2) THE GROUPS: the data-sources section listed **Sample
+  packs** among the panel's groups, and repeated it in the glyph list and the which-group-
+  collapses note; `buildDemoPacksLib` has been unwired from the panel since DECLUTTER-1, so the
+  real list is This dashboard's datasets · Datasets · Views · My queries, and the group that
+  auto-collapses past six cards is This dashboard's datasets. (3) THE CONTROLS: Help told you to
+  click **＋ New source** in the panel header (the header's button is `＋ New ▾`; the data-source
+  builder is behind its Dashboard-only query… entry) and **⧈ Join in the library** to author a
+  compound DA — an entry the builder no longer has at all, because joins and unions moved to
+  **Jobs**. Help now says so and notes that an existing compound DA still renders and still edits.
+  Two smaller catch-ups fell out of the same read: the freshness badge's "library's My Data
+  Sources" (a group name that no longer exists) and a saved View showing up "in the builder's
+  left rail" (it is the Data panel; the rail is the app's nav).
+  **doc-truth check 17** extends check 16 over Help exactly as check 15 extended check 14 — same
+  derived facts, so the two documents cannot drift from each other either: the pane's name and its
+  group list off `buildLibrary`'s own call graph, and the add button's label off `#btnNewDS`. Its
+  library rule cannot be a blanket ban the way the tours' is (Help has one legitimate library —
+  the **View library** the Save button really writes to), so the allowed qualifier is derived from
+  check 14's saved-chart noun rather than listed. All three rules were negative-tested against the
+  original wording and each fails on exactly its own drift. Verified: `tools/doc-truth.mjs` +
+  `tools/validate.mjs` + `tools/changelog-check.js` + `tools/dev-smoke.mjs` (the dev gate) and the
+  FULL `tests/run.js` suite green. Docs-only + the guard, so no `sw.js` bump. est 1pt, took 1.
 - **N7 — the Build a dashboard tour describes the builder you actually have (v877, NO sw bump —
   see below, 2026-08-08, steward; LF58 recurring slice, dev branch):** the ▶ NOW queue still
   holds no ready non-recurring item (N2/N4b/N5a/N5b shipped, N4a ⛔ on Kevin, grooming parked
@@ -10282,13 +10311,13 @@
     that has it. Doc-truth check 16 now derives the panel's name from its own header and its
     group list from **buildLibrary's call graph** — so an unwired builder (Sample packs)
     cannot be promised — and fails any copy reaching Auto-build through the wrong menu.
-  * **Not yet audited (candidates for the next N7 slice):** **Help's own version of the same
-    panel drift is the strongest one** — `docs/index.html` says "Query Library" in three
-    places, still lists **Sample packs** as one of the Data panel's groups (DECLUTTER-1
-    unwired it), and names two controls the builder no longer has ("＋ New source" in the
-    library header, "⧈ Join in the library" — the compound-DA entry was removed); check 16's
-    derived group list is the ready-made guard to extend over it, exactly as check 15
-    extended check 14 from the tours to Help. Then: the marketing page's hero carousel
+  * *Help's own version of that same panel drift — v878, NO sw bump (see DONE), 2026-08-08.*
+    The candidate this list called the strongest, and it was: "Query Library" in three places
+    plus eight more "the Studio library" sentences, **Sample packs** still listed as a Data-panel
+    group, and two controls the builder no longer has ("＋ New source", "⧈ Join in the library").
+    Doc-truth check 17 now holds Help to check 16's derived pane name, group list and button
+    label — the check-14→15 move, one document over.
+  * **Not yet audited (candidates for the next N7 slice):** the marketing page's hero carousel
     captions + screenshots, which the v871 slice deliberately left alone (the copy pass
     stayed textual — regenerating shots is its own slice); and the two remaining per-feature
     tours' BODY copy (Prep data (Jobs) / Connections &amp; Datasets / the pack tour) — the
