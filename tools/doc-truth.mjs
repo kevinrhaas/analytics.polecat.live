@@ -1137,6 +1137,67 @@ ok(`app/tutorial.js: every tour that walks a catalog names that catalog ROW's ow
   !rowTourGaps.length,
   `${rowTourGaps.join("\n      ")}\n      the row is where the work happens — an unnamed row control is one the reader will never find`);
 
+/* ── 25. the workspace schema version vs docs/COMPAT.md's history ───────────
+   N18. `WS.SCHEMA_VERSION` is the one number that says what shape a workspace has, and
+   the same database gets opened by builds on either side of a bump — so the rules for
+   moving it (docs/COMPAT.md) only work if moving it without writing them down is
+   IMPOSSIBLE, not merely discouraged. That is what this check is: the bump checklist's
+   step 5 with teeth.
+
+   It is deliberately NOT a git-diff ("did this commit touch both files?") — a rebase, a
+   squash or a revert would each defeat that. It is a standing invariant instead: the
+   history table must describe the version the code is at, right now, in any checkout.
+   Bump the constant and the gate goes red until the row exists; the failure names both
+   numbers, so the fix is never a puzzle.
+
+   The table-name half catches the subtler miss — a bump whose row exists but says
+   nothing about what it added, which is the row a future reader needs most. */
+const compat = read("docs/COMPAT.md");
+const schemaSrc = read("app/sources/schema.js");
+const schemaVersion = Number((/WS\.SCHEMA_VERSION\s*=\s*(\d+)/.exec(schemaSrc) || [])[1]);
+// The table registry, brace-free: the array literal's own `name: "…"` entries.
+const wsTablesBlock = schemaSrc.slice(schemaSrc.indexOf("WS.WORKSPACE_TABLES = ["),
+  schemaSrc.indexOf("];", schemaSrc.indexOf("WS.WORKSPACE_TABLES = [")));
+const wsTables = [...wsTablesBlock.matchAll(/name:\s*"(\w+)"/g)].map((m) => m[1]);
+// History rows are the `| **vN** | …` lines of §3 — the file's one machine-read shape.
+const compatRows = [...compat.matchAll(/^\| \*\*v(\d+)\*\* \|(.*)$/gm)]
+  .map((m) => ({ v: Number(m[1]), text: m[2] }));
+
+ok("tools/doc-truth.mjs: the schema constant, the table registry and docs/COMPAT.md's history parsed for check 25 are non-empty",
+  schemaVersion > 0 && wsTables.length >= 3 && compatRows.length > 0,
+  `WS.SCHEMA_VERSION=${schemaVersion || "(unparsed)"} · tables: ${wsTables.join(", ") || "(none)"} · ` +
+  `history rows: ${compatRows.map((r) => "v" + r.v).join(", ") || "(none)"}`);
+
+const expectedRows = Array.from({ length: schemaVersion }, (_, i) => i + 1);
+ok(`docs/COMPAT.md: the history has a row for every workspace version 1…${schemaVersion}, and none beyond it`,
+  compatRows.map((r) => r.v).join(",") === expectedRows.join(","),
+  `app/sources/schema.js says WS.SCHEMA_VERSION = ${schemaVersion}; COMPAT.md documents ` +
+  `${compatRows.map((r) => "v" + r.v).join(", ") || "nothing"}\n      ` +
+  "bumping the version is a same-PR ritual — add the history line (docs/COMPAT.md § 2, step 5)");
+
+const undocumentedTables = wsTables.filter((t) =>
+  !compatRows.some((r) => new RegExp("`" + t + "`").test(r.text)));
+ok("docs/COMPAT.md: every workspace table is named by the history row of the version that added it",
+  !undocumentedTables.length,
+  `never named in a history row: ${undocumentedTables.join(", ")}\n      ` +
+  "a version line that does not say what it added is the line a future reader needs and cannot use");
+
+// The hand-written SQL artifacts don't derive from schema.js, so they drift (the N2
+// slice-2 class). Any of them that stamps the marker must stamp THIS version. One that
+// doesn't stamp at all is out of scope here and recorded in COMPAT.md § 3.
+const sqlStamps = [
+  "tools/supabase-deploy.sql", "tools/supabase-rls-real.sql",
+  "tools/supabase-bootstrap.sql", "supabase/functions/polecat-admin/sql.ts",
+].map((rel) => ({ rel, v: Number((/VALUES \('schema_version', '(\d+)'\)/.exec(read(rel)) || [])[1]) }))
+  .filter((s) => s.v);
+ok(`the hand-written provision SQL stamps schema v${schemaVersion}, the version app/sources/schema.js is at`,
+  sqlStamps.length > 0 && sqlStamps.every((s) => s.v === schemaVersion),
+  sqlStamps.map((s) => `${s.rel} stamps v${s.v}`).join(" · ") || "no artifact stamps the marker at all");
+
+ok("CLAUDE.md sends anyone touching WS.SCHEMA_VERSION or the workspace DDL to docs/COMPAT.md",
+  /docs\/COMPAT\.md/.test(read("CLAUDE.md")),
+  "the pointer is how the contract gets read at all — it is part of the contract");
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

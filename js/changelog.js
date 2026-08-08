@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 901,
+    title: 'The rules that keep your workspace readable by every version of the app are now written down, and enforced',
+    kind: 'polish',
+    ts: '2026-08-08T19:03:10.000Z',
+    items: [
+      'Your workspace outlives the copy of Analytics that made it. The same database gets opened by a phone still running last month\'s cached app, a laptop on today\'s, and a preview build of next week\'s — at the same time, with no coordination between them. The last several releases built the protections that make that safe: an older copy can no longer destroy anything it is too old to understand, a copy older than the workspace goes read-only rather than writing over it, and a workspace older than the app is offered an upgrade with a backup taken first.',
+      'Those protections were real but undocumented — the reasoning lived in release notes and in the heads of whoever built them, which is no use at all to whoever changes the workspace next. It is now one page in the repository: what may change and what may never change, the guarantees each version of the app makes to every other one, and a checklist that has to be completed in the same change that alters the workspace shape.',
+      'And it is checked rather than trusted. Changing the workspace version without recording what changed now fails the build, in under a second, before anyone reviews it — the same treatment the service worker\'s cache name already gets, for the same reason: a rule only survives if forgetting it is impossible rather than merely discouraged.',
+      'Nothing about the app changes for you. This is the release that makes the previous three durable.',
+    ],
+  },
+  {
     v: 900,
     title: 'A tab that has been asleep now checks the workspace version before it saves anything',
     kind: 'fix',

@@ -81,6 +81,12 @@ they branch from dev and PR into dev per the pipeline rules below.
   enforces all of it in the dev gate.
 - **Local-first**: workspace data lives in localStorage with additive
   migrations — never wipe or break existing user data.
+- **Touching `WS.SCHEMA_VERSION` or any workspace DDL? Read `docs/COMPAT.md`
+  first** — it is the backend-compatibility contract (additive-only changes, the
+  four guarantees a mixed fleet of app versions relies on, and the **mandatory
+  same-PR bump checklist**). The same database is opened by builds on both sides
+  of a bump, so this is a data-durability rule, not a style one.
+  `tools/doc-truth.mjs` fails the dev gate on a bump with no history line.
 - **Bump the `sw.js` CACHE name** in the same commit as any change to
   precached files (and any shell adoption).
 - **`vendor/polecat-shell/` is READ-ONLY** — a verbatim copy of
