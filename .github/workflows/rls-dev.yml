@@ -1,0 +1,103 @@
+name: RLS (dev database)
+
+# N25 — run the REAL security-posture integration test (tests/rls.mjs) against
+# the DEV Supabase project, not production.
+#
+# WHY THIS EXISTS. tests/rls.mjs applies the three shipped postures
+# (tools/supabase-rls-real.sql, tools/supabase-deploy.sql and the Edge
+# Function's inlined BOOTSTRAP_DDL + RLS_REAL_SQL) into throwaway
+# `steward_test_rls_*` schemas and asserts an unauthorized read is refused. It
+# is careful — it never touches `public`, and that is enforced in the script
+# rather than promised — but until now the only project it could run against
+# was PRODUCTION. Kevin stood up `polecat_dev` on 2026-08-08 precisely so the
+# experiments stop happening there.
+#
+# SECRETS. Reads the SUPABASE_DEV_* repo secrets and maps them onto the generic
+# env names the script already understands, so tests/rls.mjs itself needs no
+# change. The production secrets (SUPABASE_PASSWORD / SUPABASE_ANON_KEY, used by
+# supabase-provision.yml) are deliberately NOT referenced here — nothing in this
+# workflow can reach the production database.
+#
+# NOT A GATE (yet). Dispatch + nightly only. It talks to a live third party, so
+# a Supabase blip must never be able to redden a PR — the same reasoning that
+# keeps deploy ungated (STATUS.md "CI / deploy": a hard needs: gate once froze
+# the live site ~21 hours). Promote it to the dev gate only once its
+# flake-profile is known.
+#
+# Network note: GitHub-hosted runners are IPv4-only and Supabase's direct db
+# host is IPv6-only, so this goes through the session-mode pooler — which is
+# also what tests/rls.mjs defaults to (aws-0-ca-central-1.pooler.supabase.com).
+# That default is why the dev project was deliberately created in ca-central-1,
+# matching prod: any other region needs SUPABASE_DB_HOST set explicitly.
+
+on:
+  workflow_dispatch:
+    inputs:
+      db_host:
+        description: 'Override the pooler host (blank = aws-0-ca-central-1.pooler.supabase.com, the ca-central-1 default)'
+        required: false
+        default: ''
+  schedule:
+    - cron: '40 6 * * *' # nightly, ahead of the 07:00Z stage promotion
+
+permissions:
+  contents: read
+
+jobs:
+  rls:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install psql client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+
+      - name: Guard — dev secrets present, and NOT the production project
+        env:
+          DEV_URL: ${{ secrets.SUPABASE_DEV_URL }}
+          DEV_PASSWORD: ${{ secrets.SUPABASE_DEV_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DEV_URL:-}" ] || [ -z "${DEV_PASSWORD:-}" ]; then
+            echo "::error::SUPABASE_DEV_URL and SUPABASE_DEV_PASSWORD must both be set."
+            echo "Add them under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          # The production ref, as shipped in app/workspaces.js. Belt-and-braces:
+          # this workflow must never be pointed at prod, even by a mis-pasted secret.
+          PROD_REF="lnngiprrrcxtsawamqei"
+          if printf '%s' "$DEV_URL" | grep -q "$PROD_REF"; then
+            echo "::error::SUPABASE_DEV_URL points at the PRODUCTION project ($PROD_REF). Refusing to run."
+            exit 1
+          fi
+          case "$DEV_URL" in
+            https://*.supabase.co) ;;
+            *) echo "::error::SUPABASE_DEV_URL must be the full https://<ref>.supabase.co URL, not a bare project ref."; exit 1 ;;
+          esac
+          echo "Dev project URL shape OK, and it is not production."
+
+      - name: Run the RLS posture suite against the dev database
+        env:
+          # tests/rls.mjs reads these generic names; the DEV secrets are mapped in here
+          # so the script stays environment-agnostic.
+          SUPABASE_URL: ${{ secrets.SUPABASE_DEV_URL }}
+          SUPABASE_PASSWORD: ${{ secrets.SUPABASE_DEV_PASSWORD }}
+          SUPABASE_DB_HOST: ${{ github.event.inputs.db_host }}
+        run: |
+          set -euo pipefail
+          # An empty SUPABASE_DB_HOST would override the script's own default with "",
+          # so unset it rather than passing a blank through.
+          if [ -z "${SUPABASE_DB_HOST:-}" ]; then unset SUPABASE_DB_HOST; fi
+          node tests/rls.mjs
+
+      - name: Note on failure
+        if: failure()
+        run: |
+          echo "::notice::If this is the dev project's FIRST run, check in order:"
+          echo "  1. tools/supabase-deploy.sql has been run in the project's SQL editor"
+          echo "  2. the project is in ca-central-1 (or pass db_host on dispatch)"
+          echo "  3. SUPABASE_DEV_PASSWORD is the database password, not an API key"
