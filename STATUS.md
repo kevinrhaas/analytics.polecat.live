@@ -11669,19 +11669,25 @@
 > N18 (the COMPAT.md contract + process teeth) in ▶ NOW are the core and cover the concern as
 > stated. What waits here is the deeper tail — promote at grooming, split before entering NOW:
 >
-> - **DUR-2 [3pt] — The cross-version compatibility suite.** Today's tests only exercise the
+> *(Numbering note, 2026-08-08: these three were first minted as DUR-2/3/4 — an unregistered
+> series that also shadowed the legacy `DURABLE-n` items from July. Corrected to DUR-1/2/3 the
+> same day, before anything referenced the old IDs; the DUR series is now registered in
+> docs/BACKLOG.md and is unrelated to `DURABLE-n`. The one permitted kind of renumber: fixing a
+> mint that violated the registry, immediately, while the IDs are unreferenced.)*
+>
+> - **DUR-1 [3pt] — The cross-version compatibility suite.** Today's tests only exercise the
 >   CURRENT schema. Build the matrix the guarantees need: seed a v2- and a v3-shaped workspace
 >   (from `provisionDeltaSQL`'s own history), run each through upgrade → full app boot → edit →
 >   save → reload, and assert every row survives; plus the reverse simulation (patch
 >   `WS.SCHEMA_VERSION` down in-page to impersonate an older app against a current backend) to
 >   hold N17's never-destroy guarantee red-green. This is the ratchet that keeps N16/N17 true on
 >   every future bump, not just the ones shipped while people remembered.
-> - **DUR-3 [2pt] — Backup & restore as a first-class feature, not an upgrade side-effect.**
+> - **DUR-2 [2pt] — Backup & restore as a first-class feature, not an upgrade side-effect.**
 >   N16 snapshots before upgrading; finish the thought: a visible workspace-backup card
 >   (download / restore / auto-keep-last-N in localStorage with size caps), so "something went
 >   wrong with the backend" always has a one-click way back. Reuses the existing export/import
 >   plumbing; mostly UI + retention policy.
-> - **DUR-4 [2pt] — Skew telemetry into ACTIVITY-1's log.** Record every handshake outcome
+> - **DUR-3 [2pt] — Skew telemetry into ACTIVITY-1's log.** Record every handshake outcome
 >   (versions seen, branch taken, upgrade run, read-only latched) in the backend activity log,
 >   so "why is this tab read-only" and "when did this workspace upgrade" are answerable from
 >   Admin instead of from memory. Depends on N16 landing first; folds naturally into the
