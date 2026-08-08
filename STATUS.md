@@ -168,7 +168,10 @@
   - **Verified.** The repro: **10/10 green after the fix, versus 8 failures in 20 trials before**;
     the two new suite checks were then run against the PRE-fix adapter and both go red (a guard
     that cannot fail is not a guard). Then the full `NODE_PATH=$(npm root -g) node tests/run.js`
-    suite. New mock fixture `__armtokentruncate` arms one genuinely truncated 200 (headers, then
+    suite **THREE consecutive times — 3149/0, 3149/0, 3149/0** — which is what the item asked for
+    (three green runs, not one, precisely because one green run is what let this survive). The
+    dev gate (validate + changelog-check + doc-truth + dev-smoke at desktop and 390px, zero
+    pageerrors) was run in the same pass. New mock fixture `__armtokentruncate` arms one genuinely truncated 200 (headers, then
     the connection ends mid-JSON — not a stubbed rejection), and two checks ride it: the token
     SURVIVES an unreadable answer and the session stays resumable, and the two answers stay
     distinguishable (unreadable keeps, refused drops). est 1pt, took 1. Files:
