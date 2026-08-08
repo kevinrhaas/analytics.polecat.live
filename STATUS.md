@@ -11118,7 +11118,37 @@
   workspace DDL? read docs/COMPAT.md first — the bump checklist is mandatory") and a validate/
   doc-truth check that fails when SCHEMA_VERSION changes without a same-commit COMPAT.md history
   entry — the process teeth, so this outlives any one agent's memory.
-- **SP-1 ★★ [3pt] — "Market Coverage" — the new DEFAULT sample pack (Kevin, 2026-08-07).**
+- **N19 ★ [1pt] — Document how to STAND UP a Supabase project, not just how to populate one
+  (Kevin, 2026-08-08: "these should be in the documentation also").** He hit it live creating
+  `polecat_dev` and had to ask which of the create-project **Security** checkboxes the app
+  needs — nothing in the repo answers that. Every shipped doc starts one step too late, at
+  "paste this SQL": `tools/supabase-bootstrap.sql` explains its own grants beautifully but
+  assumes the project exists, and `docs/index.html`'s backend comparison never mentions project
+  creation. **Write the missing first step** (in the in-app Admin docs, with the canonical copy
+  next to the SQL that depends on it), covering the three Security toggles and WHY each — all
+  three answers derived from the shipped SQL, not from vibes:
+  - **Enable Data API — ON, required.** The adapter is PostgREST; without it nothing connects.
+  - **Automatically expose new tables — OFF** (Supabase's own recommendation, and the app
+    genuinely does not need it): `supabase-bootstrap.sql:51-53` issues `GRANT USAGE`, `GRANT
+    SELECT/INSERT/UPDATE/DELETE ON ALL TABLES` **and** `ALTER DEFAULT PRIVILEGES`, and its
+    header says exactly why — tables made over a direct connection do not inherit the auto
+    privileges, so the file was always self-sufficient.
+  - **Enable automatic RLS — ON.** The bootstrap already `ENABLE ROW LEVEL SECURITY` + policies
+    per table (`:64-72`), so this is belt-and-braces for anything created outside it — and with
+    the new `sb_publishable_…` keys a table with NO policy returns **zero rows** over the Data
+    API, so RLS-on is the working state, not the locked-down one.
+  Also document the things that only bite later: **save the DB password at creation** (it is
+  unrecoverable, only resettable — and `tests/rls.mjs` needs it as `SUPABASE_PASSWORD`, which
+  it SKIPs silently without); **the region must match `SUPABASE_DB_HOST`** or the RLS test aims
+  at the wrong pooler (`tests/rls.mjs:148` defaults to `aws-0-ca-central-1.pooler.supabase.com`
+  — a project created elsewhere needs the env var set); **free-tier projects pause after ~1
+  week idle**, which a dev backend will hit and which the app should read as "unreachable", not
+  as a refusal (the exact N2-slice-3/N11/N14 distinction — worth a cross-reference); and which
+  posture file to run — `supabase-bootstrap.sql` (allow-all, demo/dev) versus
+  `supabase-rls-real.sql` (real per-user RLS). Note too that ONE project can host several fleet
+  apps: `polecat_meta.app` (`schema.js:76`) is what tells "analytics" from manager/relay, which
+  is why a shared `polecat_dev` is a sound choice. **Verify** by doing it: stand up a scratch
+  project from the written steps alone and confirm the app connects with no undocumented click.
   Industry density and whitespace by county: where a chain is under-represented versus the
   population and the businesses already there. **Replaces `datamanagement` in
   `DEFAULT_INSTALLED`** (`demopacks.js:78`) — Data Management stays installable, just not the
