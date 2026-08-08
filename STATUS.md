@@ -135,6 +135,57 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N10 — the tablet reachability probe measures a row a tablet user can actually see
+  (2026-08-08, steward; dev branch; no version/sw bump — test-only):** the **STAGE gate was red
+  on `dev`** — `3144 passed, 1 failed` — and every dev→stage promotion would have rolled back on
+  it, taking unrelated work with it. Found during N9a's verification and filed separately rather
+  than bundled, so each stayed one revertible unit; confirmed NOT caused by N9a by running the
+  repro against an untouched `origin/dev` tree and getting the identical result.
+  - **The failing check was right; the row it measured was not.** `menuItemReachable()`
+    (the Z9 tablet probe, 800×1024) hit-tested `menu.querySelector("button")` — the FIRST
+    DOM row of `#menuMore`, which is `#moreWhatsNew`, a `.more-phone-only` entry. v882/N7
+    fixed `.more-phone-only` so it finally honors its own ≤640px breakpoint (it never had,
+    the entire time this check was written and passing), so at 800px that row became
+    `display:none` with a zero rect and `elementFromPoint(0,0)` could never return it. The
+    probe was reading a phone-only row as if it were a tablet row.
+  - **Fixed by pointing the probe at the first VISIBLE row, not by weakening it.** The
+    clipping Z9 guards (`#topbar`/`.top-actions` `overflow:hidden` at ≤900px silently
+    swallowing every dropdown) is real, and the assertion is still the same strict
+    `elementFromPoint` identity test — it simply hit-tests a row that is on screen.
+    Measured before/after at 800×1024: `#menuMore` goes `reachable:false` (probing
+    `moreWhatsNew`, rect all zeros) → `reachable:true` (probing `modeSwitchFocus`, the first
+    of its 5 visible rows out of 15). `#menuNew` and `#menuExport` are **unchanged** —
+    their first DOM row is already visible, so they probe the same element as before.
+  - **The latent half the item asked about is closed too.** `#menuNew`/`#menuExport` pass
+    today only because neither has grown a phone-only first row yet; the scan lives in the
+    shared helper, so all three are robust at once rather than only the one that happened to rot.
+  - **Two new checks hold the probe accountable, so this class cannot recur silently:** one
+    asserts all three probes measured a genuinely visible row (non-zero box, ≥1 visible row),
+    the other pins the specific relationship that broke — `#menuMore`'s first DOM row IS
+    phone-only and IS hidden at 800px, and the probe skipped past it. A menu that hides every
+    row, or grows a phone-only first row, now fails loudly here instead of quietly measuring a
+    zero-size box forever.
+  - **Why nobody caught it:** the dev gate (`ci.yml`) is the LIGHT one — validate +
+    changelog-check + doc-truth + dev-smoke — and all four were green, so PRs into dev passed.
+    The full suite only runs at promotion, and every `promote-to-stage.yml` run since had
+    exited at the schedule gate ("stage already contains dev — nothing to promote"), so those
+    `success` conclusions were quiet no-ops, not passes.
+  - **No changelog entry and no `sw.js` bump, deliberately** — nothing user-visible changed and
+    no precached file moved. Same precedent as the AUD-11 tail (#607/#608), QA-09/QA-10 and
+    LF69(b)'s verify-only closes.
+  - **Verified in the foreground:** the full dev gate (`validate.mjs` + `changelog-check.js` +
+    `doc-truth.mjs` + `dev-smoke.mjs` at 390×780 and desktop, zero pageerrors), then the **FULL
+    `tests/run.js` suite THREE times**. All six Z9 tablet checks — the four existing ones and
+    the two new ones — are green in **all three** runs, so N10's cause is fixed and stable.
+    est 1pt, took 1. Files: tests/run.js, STATUS.md.
+  - **⚠ `dev` is still not reliably green, for a SECOND and unrelated reason — filed as N11.**
+    The three runs came back `3147/0`, `3145/2` and `3145/2`; the two failures are the same
+    pair every time, and they are **not** in this slice's area: `N2 slice 4`'s refresh-token
+    re-mint checks (`tests/run.js:18525` and `:18529`). They are flaky, not deterministically
+    red — one run in three passes them. Filing rather than fixing keeps this PR one revertible
+    unit, and N11 carries the measured evidence so the next run starts from a diagnosis instead
+    of a re-discovery. **N10's premise — "the full suite is red and nothing has noticed" —
+    was right about more than it knew.**
 - **N9a — the catalog toolbars fit a phone instead of running off its edge (v884, sw v512,
   2026-08-08, steward; dev branch):** the first ready item in ▶ NOW (N4a is ⛔ on Kevin, N7 is
   🔁, grooming still parked on `hold` PR #623). **N9 was est 2pt; this slice is 1, and the
@@ -10554,7 +10605,13 @@
   * `#menuExamples.phone-pos` in `app/studio.css` is dead while you are in there (LF43 slice 2
     deleted `#menuExamples`; the suite asserts it is gone). **Deleted.**
   **Position is the loop's placement, not Kevin's** — move or re-star it freely.
-- **N10 ★★ [1pt] — `dev` is RED on the full suite, and nothing has noticed yet.** Found by the
+- ~~**N10 ★★ [1pt] — `dev` is RED on the full suite, and nothing has noticed yet.**~~ ✓ SHIPPED
+  2026-08-08, steward (no version/sw bump — test-only; see DONE). Root cause was exactly as
+  diagnosed below; the helper now scans for the first VISIBLE row, which fixes `#menuNew`/
+  `#menuExport`'s latent staleness in the same stroke, and two new checks hold the probe itself
+  accountable so it cannot silently rot again. est 1pt, took 1. The spec below stays until
+  grooming archives it.
+  Found by the
   N9a slice's verification (2026-08-08, steward), NOT caused by it — proven by running the exact
   repro against an untouched `origin/dev` worktree and getting the identical result. **Take this
   before N9b: it is the gate that stands between `dev` and stage.**
@@ -10581,6 +10638,37 @@
     there, check whether `newReach`/`exportReach` have the same latent staleness (they pass
     today, but `#menuNew`/`#menuExport` could grow a phone-only first row at any time) and make
     the helper robust once for all three.
+  **Position is the loop's placement, not Kevin's** — move or re-star it freely.
+- **N11 ★★ [1pt] — `dev` is STILL red on the full suite: N2 slice 4's refresh-token re-mint is
+  flaky.** Born in NOW from N10's verification (2026-08-08, steward) — measured, not suspected,
+  and NOT caused by N10 (its own six Z9 checks are green in all three runs). N10 fixed one of
+  **two** causes; this is the other. **Take it before N9b for the same reason N10 came first:
+  it is the gate between `dev` and stage, and a flaky gate rolls stage back on unrelated work.**
+  * **The two failing checks** are `tests/run.js:18525` ("a reload with NO password anywhere
+    re-mints the session from the refresh token…") and `:18529` ("the refresh grant's ROTATED
+    token replaces the one it was spent…"), both from N2 slice 4 (v865).
+  * **It is FLAKY, not deterministic** — three consecutive full runs on the same tree gave
+    `3147 passed / 0 failed`, then `3145 / 2`, then `3145 / 2`. So roughly one run in three is
+    green, which is exactly why it has survived: a single green run reads as proof.
+  * **The observed failure state**, verbatim from the run: `{"gateGone":false,
+    "needsSignIn":true,"status":"connected","preAuth":true,"userId":"","signInOk":true,
+    "token":""}` and `{"before":"mock-refresh","after":""}`. The interesting part is
+    `token:""` — after the reload, `sessionStorage["analytics.supabase.refresh.v1"]` is EMPTY,
+    so there was nothing to re-mint FROM; `needsSignIn:true`/`preAuth:true` are the app
+    correctly reacting to that, not separate bugs. `signInOk:true` with `userId:""` says the
+    mock resolved without a session.
+  * **Prime suspect is the test's boot race, not the app** (verify before fixing — the whole
+    point of N2 slice 4 is a real security posture, so do NOT weaken these assertions):
+    `gpPw.reload({ waitUntil: "domcontentloaded" })` at `:18504` is followed by a
+    `waitForFunction` on `Studio.Sync.syncState()` whose timeout is swallowed by
+    `.catch(() => {})` (`:18509`). If the app has not finished restoring the token store when
+    that resolves — or if boot transiently clears it before re-minting — the `evaluate` at
+    `:18510` samples a half-established state and reads an empty store. Confirm by logging the
+    store across boot; if it IS a race, wait on the real post-condition (a non-empty store /
+    `needsSignIn()===false`) instead of a swallowed timeout. **If instead the token genuinely
+    does not survive a reload, that is an APP bug in the AUD-03 posture and much more serious
+    than a flake — escalate it rather than stabilising the test.**
+  * Verify with three consecutive full-suite runs green, not one.
   **Position is the loop's placement, not Kevin's** — move or re-star it freely.
 - **N9b ★ [1pt] — The Studio Data pane's own controls are under the 44px touch bar.** The
   second half of the original N9, rewritten from measurement in the N9a slice (2026-08-08,

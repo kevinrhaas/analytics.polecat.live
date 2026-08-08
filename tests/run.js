@@ -23276,18 +23276,41 @@ function serve() {
     await tabletPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     await tabletPage.waitForTimeout(500);
 
+    // N10: probe the first VISIBLE row, not the first DOM child. #menuMore leads with
+    // `.more-phone-only` rows (What's new / Send feedback) that are display:none above
+    // 640px — v882/N7 fixed that class to finally honor its own breakpoint, and this
+    // probe had been measuring one of those rows all along. At 800px it became a
+    // zero-size box, so elementFromPoint(0,0) could never return it and the check
+    // reported a #topbar clipping regression that does not exist. The clipping it
+    // guards (Z9) is real and the assertion stays exactly as strict — it just has to
+    // hit-test a row a tablet user can actually see. Scanning for the first visible
+    // row fixes #menuNew/#menuExport latently too: either could grow a phone-only
+    // first row at any time and silently rot the same way.
     async function menuItemReachable(page, btnId, menuId) {
       return page.evaluate(function (ids) {
         var btn = document.getElementById(ids.btnId);
         var menu = document.getElementById(ids.menuId);
         btn.click();
-        var item = menu.querySelector("button");
+        var wasOpen = menu.classList.contains("open");
+        var rows = [].slice.call(menu.querySelectorAll("button"));
+        var visible = rows.filter(function (b) {
+          var br = b.getBoundingClientRect();
+          return br.width > 0 && br.height > 0;
+        });
+        var item = visible[0] || null;
+        if (!item) {
+          btn.click(); // close again
+          return { wasOpen: wasOpen, reachable: false, itemId: null, visibleRows: 0, totalRows: rows.length, itemRect: null };
+        }
         var r = item.getBoundingClientRect();
         var underPointer = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
         var reachable = item === underPointer || item.contains(underPointer);
-        var wasOpen = menu.classList.contains("open");
         btn.click(); // close again
-        return { wasOpen: wasOpen, reachable: reachable, itemRect: r };
+        return {
+          wasOpen: wasOpen, reachable: reachable,
+          itemId: item.id || (item.textContent || "").trim(),
+          visibleRows: visible.length, totalRows: rows.length, itemRect: r,
+        };
       }, { btnId: btnId, menuId: menuId });
     }
     const moreReach = await menuItemReachable(tabletPage, "btnMore", "menuMore");
@@ -23297,6 +23320,27 @@ function serve() {
     ok("tablet viewport: New ▾ menu opens and its items are reachable", newReach.wasOpen && newReach.reachable, JSON.stringify(newReach));
     const exportReach = await menuItemReachable(tabletPage, "btnExport", "menuExport");
     ok("tablet viewport: Export ▾ menu opens and its items are reachable", exportReach.wasOpen && exportReach.reachable, JSON.stringify(exportReach));
+    // N10: the probe above is only meaningful if it hit-tested a row that a tablet user
+    // can actually SEE. Guard the probe itself, so a menu that grows a phone-only first
+    // row (or hides every row at this width) fails loudly here instead of quietly
+    // measuring a zero-size box forever.
+    const reachProbes = [
+      { name: "⋯ More", r: moreReach }, { name: "New ▾", r: newReach }, { name: "Export ▾", r: exportReach },
+    ];
+    const probedVisible = reachProbes.filter((p) => p.r.visibleRows > 0 && p.r.itemRect && p.r.itemRect.height > 0);
+    ok("tablet viewport: each reachability probe measures a genuinely visible menu row (not a display:none one)",
+      probedVisible.length === reachProbes.length,
+      JSON.stringify(reachProbes.map((p) => ({ menu: p.name, itemId: p.r.itemId, visibleRows: p.r.visibleRows, totalRows: p.r.totalRows }))));
+    // #menuMore is the one that actually rotted: its first DOM row is .more-phone-only,
+    // so at 800px the probed row MUST be a later one. Pin that relationship.
+    const moreFirstRowHidden = await tabletPage.evaluate(() => {
+      var m = document.getElementById("menuMore");
+      var first = m ? m.querySelector("button") : null;
+      return first ? { id: first.id, phoneOnly: first.classList.contains("more-phone-only"), hidden: getComputedStyle(first).display === "none" } : null;
+    });
+    ok("tablet viewport: ⋯ More's phone-only first row is hidden at 800px, and the probe skipped past it",
+      !!moreFirstRowHidden && moreFirstRowHidden.phoneOnly && moreFirstRowHidden.hidden && moreReach.itemId !== moreFirstRowHidden.id,
+      JSON.stringify({ firstRow: moreFirstRowHidden, probed: moreReach.itemId }));
     // Track H: the Connect & present divider must hide alongside the .btn-secondary
     // cluster it separates (Tour/Theme) — otherwise it'd dangle at the end of the row
     // with nothing after it. Slice B moved Undo/Redo out of #dashbar (into the topbar),
