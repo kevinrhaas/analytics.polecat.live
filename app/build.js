@@ -1261,6 +1261,31 @@
   window.__bdSyncPreviewSize = bdSyncPreviewSize;
 
   var _bdPvTimer = null;
+  // N15: the live preview frame + the exact one-panel spec/rows it is painting. The View
+  // Builder's panel is minted fresh into a private spec (bdPanelFor → Studio.newPanel) that
+  // never enters the dashboard builder's `S.spec`, so nothing up there could ever resolve it
+  // — "Export as standalone HTML" closed the menu and did nothing. This builder claims its
+  // own frame below and exports from what it is actually showing.
+  var _bdPv = null;
+  function bdPreviewFrame() { return _bdPv && _bdPv.frame && _bdPv.frame.isConnected ? _bdPv.frame : null; }
+  function bdPreviewMsg(d) {
+    // The Build preview owns exactly ONE panel act today: export it as a standalone file.
+    // Everything else the shared chrome can post (reorder, resize, delete, header edits) is
+    // meaningless for a single unsaved View and is deliberately dropped here rather than
+    // falling through to the dashboard builder.
+    if (d.type !== "panel-export-embed" || !_bdPv) return;
+    var p = (_bdPv.spec.panels || []).filter(function (x) { return x.id === d.id; })[0];
+    if (p) Studio.exportPanelEmbed(p, _bdPv.spec, _bdPv.mock);
+  }
+  // Claimed lazily on the first paint: this file loads BEFORE app/studio.js, so
+  // Studio.claimPreviewFrame does not exist yet at evaluation time — and there is no frame
+  // to answer for until the first preview renders anyway.
+  var _bdPvClaimed = false;
+  function bdClaimPreview() {
+    if (_bdPvClaimed || !Studio.claimPreviewFrame) return;
+    _bdPvClaimed = true;
+    Studio.claimPreviewFrame(bdPreviewFrame, bdPreviewMsg);
+  }
   function renderChartPreview(result) {
     var basis = chartBasis(BD.chartType);
     if (!basis) { result.innerHTML = '<div class="bd-cta">' + esc(chartUnavailable(BD.chartType) || "Nothing to chart yet.") + "</div>"; return; }
@@ -1294,6 +1319,11 @@
         }
         D.postThemeOnLoad(ifr);
         ifr.srcdoc = html;
+        // N15: the preview's own panel chrome posts back to the top window. Remember the
+        // frame and exactly what it is showing, so this builder can answer for it instead
+        // of the acts landing on whatever dashboard the other builder happens to have open.
+        _bdPv = { frame: ifr, spec: spec, mock: mock };
+        bdClaimPreview();
         bdWirePreviewResize(result, ifr); // VB-12: fill-to-bottom + drag handles
       }
       // VB-4: a choropleth panel needs its geometry inlined before buildHtml can

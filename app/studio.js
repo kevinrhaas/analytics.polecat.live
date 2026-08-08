@@ -10404,6 +10404,41 @@
   function updateHistButtons() { var u = $("#btnUndo"), r = $("#btnRedo"); if (u) u.disabled = !_undo.length; if (r) r.disabled = !_redo.length; }
   window.__studioUndo = undoAct; window.__studioRedo = redoAct;   // exposed for tests
   function postToPreview(msg) { try { $("#preview").contentWindow.postMessage(Object.assign({ studio: 1 }, msg), msgOrigin()); } catch (e) {} }
+  // ---------- N15: WHICH frame sent it decides who answers it ----------
+  // The panel chrome lives in ONE file (app/studio-render.js) on purpose — the same
+  // code paints the dashboard builder's preview, the View Builder's preview, and
+  // every export, which is what keeps export ≡ preview true. The consequence is that
+  // all of those frames post the SAME message types up to this window, and the
+  // listener below used to answer every one of them against the OPEN DASHBOARD
+  // (`S.spec`). Most missed on panelById() and silently no-op'd — that is exactly why
+  // the View Builder's "Export as standalone HTML" did nothing at all — but `reorder`,
+  // `kpi-delete`, `header-edit` and `header-delete` rewrote `S.spec` unconditionally,
+  // so chrome inside one builder's preview could mutate the dashboard open in the
+  // other one.
+  // Two rules close both halves:
+  //   1. A frame may CLAIM its own preview (`Studio.claimPreviewFrame`) and then owns
+  //      its messages exclusively — the View Builder does this and exports its own
+  //      one-panel spec instead of leaking the act into the dashboard handler.
+  //   2. The branches that rewrite the dashboard with no id to miss on are accepted
+  //      only from the dashboard builder's own `#preview` frame (or from this document
+  //      itself, which already has full DOM access — no new surface, same reasoning as
+  //      trustedMsg's own `e.source === window` arm).
+  var _previewClaims = [];
+  Studio.claimPreviewFrame = function (getFrame, handle) { _previewClaims.push({ get: getFrame, handle: handle }); };
+  function previewClaimFor(src) {
+    for (var i = 0; i < _previewClaims.length; i++) {
+      var f = null;
+      try { f = _previewClaims[i].get(); } catch (e) { f = null; }
+      if (f && f.contentWindow === src) return _previewClaims[i];
+    }
+    return null;
+  }
+  var SPEC_WIDE_MSGS = { reorder: 1, "kpi-delete": 1, "header-edit": 1, "header-delete": 1 };
+  function mayEditOpenSpec(src) {
+    if (src === window) return true;
+    var f = $("#preview");
+    return !!(f && f.contentWindow === src);
+  }
   // ---------- SETTINGS-ROAM slice 1 (Kevin, 2026-07-31): per-user prefs ----------
   // "sign in later from another browser and get my entire environment." A signed-in
   // REMOTE account's personal look-and-feel rides its own users row (row.prefs),
@@ -10679,6 +10714,9 @@
   window.addEventListener("message", function (e) {
     var d = e.data || {}; if (d.studio !== 1) return;
     if (!trustedMsg(e)) return; // AUD-05: only our own origin + our own frames drive the spec
+    var claim = previewClaimFor(e.source);          // N15 rule 1: a frame that owns its preview answers for it
+    if (claim) { claim.handle(d, e); return; }
+    if (SPEC_WIDE_MSGS[d.type] && !mayEditOpenSpec(e.source)) return; // N15 rule 2
     if (d.type === "select") {
       if (d.kind === "kpi") select({ kind: "kpi", index: d.index });
       else if (d.kind === "header") select({ kind: "header" });
@@ -10782,19 +10820,32 @@
     var pend = Studio.Build && Studio.Build.ensureSpecMocks ? Studio.Build.ensureSpecMocks(sp) : null;
     if (pend && pend.then) pend.then(fn, fn); else fn();
   }
-  function exportPanelEmbed(p) {
-    var single = Studio.clone(S.spec);
+  // N15: `srcSpec`/`mock` are the View Builder's entry point — its preview panel is minted
+  // into a private one-panel spec that is NOT in `S.spec`, and its rows are the computed
+  // basis it just previewed, so it hands both in rather than being looked up here. Called
+  // with neither (every historical call site) this is the dashboard-panel export, unchanged:
+  // same clone of the open spec, same `Studio.exportDashboardHtml` 3-arg call, same file.
+  function exportPanelEmbed(p, srcSpec, mock) {
+    var base = srcSpec || S.spec;
+    var single = Studio.clone(base);
     single.panels = [Studio.clone(p)];
     single.kpis = []; single.filters = [];
-    single.title = p.title || S.spec.title; single.description = "";
+    single.title = p.title || base.title; single.description = "";
+    // A pared-down View stands on its own — the source's "hide the header" choice would
+    // leave the exported file with no title at all.
+    if (srcSpec) delete single.hideHeader;
     var stem = (p.title || "view").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "view";
     single.name = stem;
     celebrateFirstExport();
     bumpExportMilestone();
     withSpecMocks(single, function () {
-      bundleModal("Embed View", [{ name: stem + "-embed.html", body: Studio.exportDashboardHtml(single, S.assets, S.settings.deployPath), mime: "text/html" }]);
+      var html = mock
+        ? Studio.exportDashboardHtml(single, S.assets, S.settings.deployPath, { mock: mock })
+        : Studio.exportDashboardHtml(single, S.assets, S.settings.deployPath);
+      bundleModal("Embed View", [{ name: stem + "-embed.html", body: html, mime: "text/html" }]);
     });
   }
+  Studio.exportPanelEmbed = exportPanelEmbed; // N15: the View Builder exports through this one path
   // LF57 follow-up: the Views catalog's own "Export" action — the last of the three items
   // LF57 slice 1's own DONE note flagged as "genuinely still open" (Duplicate and the
   // per-chart-type row icons both shipped separately). A saved View has no open dashboard to
@@ -12778,6 +12829,10 @@
   }
 
   function bundleModal(title, files) {
+    // Test hook (N15): the modal shows a name + a byte count, so the FILE ITSELF is
+    // otherwise unobservable — a headless click can prove the dialog opened but not that
+    // it carries a real document. That is exactly the gap that let a dead export ship.
+    window.__lastBundle = { title: title, files: files };
     modal(title, function (b) {
       files.forEach(function (f) {
         var row = el("div", "dl-row");
