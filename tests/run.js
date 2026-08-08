@@ -45738,6 +45738,36 @@ function serve() {
       hrErrors.length === 0, hrErrors.slice(0, 3).join(" | "));
     await hrCtx.close();
 
+    // N27: the live-posture verify classifies its own answers, and that classifier gets a
+    // vote on whether production is safe to ship to (promote-to-prod runs it BEFORE the
+    // merge). It needs no browser and no database — `--self-test` drives it over a stubbed
+    // PostgREST — so it rides along here rather than depending on anyone remembering it.
+    // Browser-free and last on purpose: it must never be able to disturb the page above it.
+    console.log("\n• N27: tests/rls-verify.mjs classifies protected / empty / leaking (its own --self-test)");
+    let rlsSelf = { code: 0, out: "" };
+    try {
+      rlsSelf.out = require("child_process").execFileSync(
+        process.execPath, [path.join(ROOT, "tests", "rls-verify.mjs"), "--self-test"],
+        { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    } catch (e) {
+      rlsSelf = { code: e.status == null ? -1 : e.status, out: String(e.stdout || "") + String(e.stderr || "") };
+    }
+    const rlsSelfCount = (/(\d+) passed, (\d+) failed/.exec(rlsSelf.out) || [])[1] || "0";
+    ok(`N27: the anon-read verify's own classifier matrix is green (${rlsSelfCount} checks)`,
+      rlsSelf.code === 0 && /--self-test: PASS/.test(rlsSelf.out) && Number(rlsSelfCount) >= 30,
+      rlsSelf.out.split("\n").filter((l) => /✗|FAIL/.test(l)).slice(0, 4).join(" | ") || `exit ${rlsSelf.code}`);
+    // And the one property that must hold whatever the classifier says: with nothing
+    // configured, the check FAILS rather than reporting a database it never asked about.
+    let rlsBare = 0;
+    try {
+      const env = { ...process.env };
+      delete env.SUPABASE_URL; delete env.SUPABASE_ANON_KEY;
+      require("child_process").execFileSync(process.execPath, [path.join(ROOT, "tests", "rls-verify.mjs")],
+        { encoding: "utf8", env, stdio: ["ignore", "pipe", "pipe"] });
+    } catch (e) { rlsBare = e.status; }
+    ok("N27: unconfigured, the verify still exits non-zero rather than reading green forever",
+      rlsBare === 1, `exit ${rlsBare}`);
+
   } catch (e) {
     failed++; console.error("FATAL", e);
   } finally {
