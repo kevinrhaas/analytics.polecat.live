@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 883,
+    title: 'Menu rows are big enough to tap, and a menu can no longer open half off the screen',
+    kind: 'fix',
+    ts: '2026-08-08T06:28:47.000Z',
+    items: [
+      'Every row in every dropdown menu was 37 pixels tall on a phone. The app has a 44-pixel minimum for anything you tap, and it had been applied to buttons — but a menu row is not a button in the sense that rule was written for, so it never reached one. That mattered more than it sounds: on a narrow screen the builder\'s toolbar folds into the ⋯ More menu, so those rows are the ONLY way to reach Export, Save, Open, Undo, Redo, Save as, Duplicate, Close, What\'s new and Send feedback. The ten controls hardest to hit were the ten you had no alternative for. All menu rows are now 44 pixels on screens up to 640 pixels wide, with the label still centred in the taller row. Laptops are unchanged.',
+      'Measuring all seven menus for that turned up something worse. Two of them opened partly off the screen at 390 pixels: the ＋ New menu on Views hung 135 pixels past the right edge — more than half the menu, including part of both choices — and the ⋯ menu on Dashboards lost 13. The toolbars those live in are wider than a phone, and their menus were anchored to a button that had itself slid off the edge.',
+      'A menu now measures itself as it opens and slides back until it fits, from whichever edge it crossed, and it keeps checking while whatever it is anchored to is still moving — tapping a control in one of those wide toolbars scrolls the row, and the scroll glides for about a second after the tap. If a menu is taller than the space beneath it, it now scrolls inside its own box instead of running off the bottom. This works the same way for every menu in the app, including any added later, rather than being patched toolbar by toolbar.',
+      'Two new checks, one per screen size, walk all seven menus: on a 390-pixel phone each one opens fully inside the screen with every row at the 44-pixel minimum, and on a laptop each one opens fully inside the screen with the new sliding left alone, because there is room.',
+    ],
+  },
+  {
     v: 882,
     title: 'Help says where the buttons are on a phone, and the ⋯ menu stops repeating your toolbar',
     kind: 'fix',

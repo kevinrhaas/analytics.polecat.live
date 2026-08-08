@@ -1150,6 +1150,82 @@ function serve() {
     ok("390px: the fleet grid opens fully on-screen", wafflePhonePop.present && wafflePhonePop.fits, JSON.stringify(wafflePhonePop));
     await wafflePhone.close();
 
+    /* ---- N8: every dropdown row clears the touch bar, and no menu opens off-screen ----
+       UX7 set a 44px minimum "across the whole ≤640px band" but the rule landed on `.btn`,
+       and a menu row is a bare `.menu button` — so every row measured 37px at 390×780, on
+       the ten builder controls v882 made ⋯ More the primary phone route for. Measuring all
+       seven menus for that also turned up two that opened partly OFF-SCREEN: #viewsNewMenu
+       lost 135px off the right edge and #dashMoreMenu 13px, because `.repo-io .menu` is
+       left-anchored inside a toolbar row that overflows a 390px screen. Both are asserted
+       here at phone AND desktop so neither can come back. */
+    console.log("\n• N8: dropdown menus — 44px rows on phone, always inside the viewport");
+    const N8_MENUS = [
+      { id: "menuNew", sec: "home", trigger: "#btnNew" },
+      { id: "menuMore", sec: "home", trigger: "#btnMore" },
+      { id: "dashMoreMenu", sec: "dashboards", trigger: "#dashMoreBtn" },
+      { id: "viewsNewMenu", sec: "views", trigger: "#viewsNewBtn" },
+      { id: "repoNewMenu", sec: "repository", trigger: "#repoNewBtn" },
+      // Export's own topbar button is hidden at ≤640px (M10) — on a phone the real route
+      // is ⋯ More → Export…, which is exactly what v882 documented in Help.
+      { id: "menuExport", sec: "studio", trigger: "#btnExport", viaMore: "#moreExport" },
+    ];
+    // Clicking a control inside a horizontally overflowing toolbar scroll-into-views it
+    // SMOOTHLY, so the menu keeps moving for ~1s after the click and the clamp re-runs on
+    // each scroll frame. Poll until the box stops changing instead of guessing a timeout.
+    async function n8Settled(pg, id) {
+      let last = null;
+      for (let i = 0; i < 40; i++) {
+        const now = await pg.evaluate(function (mid) {
+          var m = document.getElementById(mid); if (!m) return "gone";
+          var r = m.getBoundingClientRect();
+          return [Math.round(r.left), Math.round(r.right), Math.round(r.top), Math.round(r.bottom)].join(",");
+        }, id);
+        if (now === last) return;
+        last = now; await pg.waitForTimeout(50);
+      }
+    }
+    for (const vp of [{ width: 390, height: 780 }, { width: 1280, height: 900 }]) {
+      const phone = vp.width === 390;
+      const mp = await browser.newPage({ viewport: vp });
+      await mp.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-shell-section", "home"); } catch (e) {} });
+      await mp.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+      await mp.waitForSelector("#btnMore", { timeout: 8000 });
+      const bad = [];
+      for (const m of N8_MENUS) {
+        // navigate by the rail's own button; a JS click reaches it even when the rail is
+        // the off-canvas drawer it becomes on a phone
+        await mp.evaluate(function (s) { var el = document.querySelector('[data-sec="' + s + '"]'); if (el) el.click(); }, m.sec);
+        await mp.waitForTimeout(350);
+        const direct = await mp.$(m.trigger);
+        if (direct && await direct.isVisible()) await direct.click();
+        else if (m.viaMore) { await mp.click("#btnMore"); await mp.waitForTimeout(200); await mp.click(m.viaMore); }
+        else { bad.push(m.id + ": no reachable trigger"); continue; }
+        await n8Settled(mp, m.id);
+        const r = await mp.evaluate(function (mid) {
+          var m2 = document.getElementById(mid), box = m2.getBoundingClientRect();
+          var rows = Array.prototype.slice.call(m2.querySelectorAll("button")).filter(function (b) {
+            var cs = getComputedStyle(b); return cs.display !== "none" && cs.visibility !== "hidden";
+          });
+          return {
+            open: m2.classList.contains("open"), rows: rows.length,
+            minRow: rows.length ? Math.min.apply(Math, rows.map(function (b) { return Math.round(b.getBoundingClientRect().height); })) : 0,
+            inView: box.left >= 0 && box.top >= 0 && box.right <= innerWidth && box.bottom <= innerHeight,
+            box: [Math.round(box.left), Math.round(box.top), Math.round(box.right), Math.round(box.bottom)].join(","),
+            shift: m2.style.getPropertyValue("--menu-shift") || "",
+          };
+        }, m.id);
+        if (!r.open || !r.rows) bad.push(m.id + ": did not open (" + JSON.stringify(r) + ")");
+        else if (!r.inView) bad.push(m.id + ": outside the viewport at " + r.box);
+        else if (phone && r.minRow < 44) bad.push(m.id + ": " + r.minRow + "px row (needs 44)");
+        // desktop has room for every one of them, so the clamp must stay out of the way
+        else if (!phone && r.shift) bad.push(m.id + ": clamped on desktop (" + r.shift + ")");
+      }
+      ok(`N8 ${vp.width}px: all ${N8_MENUS.length} dropdown menus open fully inside the viewport` +
+        (phone ? " with every row at the 44px touch minimum" : ", and the clamp leaves them alone when there is room"),
+        bad.length === 0, bad.join(" | "));
+      await mp.close();
+    }
+
     // ---- WS: adapter infrastructure (app/sources/) ----
     // The manager-pattern source layer: schema/contract, registry, workspace
     // store, secrets crypto, and the Turso adapter exercised END-TO-END against

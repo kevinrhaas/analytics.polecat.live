@@ -135,6 +135,59 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N8 — dropdown rows clear the 44px touch bar, and no menu opens off-screen (v883, sw v511
+  unchanged, 2026-08-08, steward; dev branch):** the first ready item in ▶ NOW (N4a is ⛔ on
+  Kevin, N7 is 🔁, grooming still parked on `hold` PR #623). **est 1pt, took 1.**
+  - **The touch-target half, as filed.** UX7's "44px across the whole ≤640px band" landed on
+    `.btn`; a dropdown row is a bare `.menu button`, so it never applied and every row measured
+    **37px** at 390×780 — on the ten builder controls v882 had just made ⋯ More the primary phone
+    route for. Fixed with one rule in the ≤640px band, `min-height:44px` plus `display:flex;
+    align-items:center` so the label stays centred in the taller row. The
+    `.menu button.more-phone-only` rule below it had to move `block`→`flex` too: it outranks the
+    new rule (0,2,1 vs 0,1,1) and would have pulled the phone-only rows back out of the centred
+    layout. Desktop rows are untouched at 37px — asserted, not assumed.
+  - **What the measurement the item asked for actually found.** All seven menus were measured in
+    their own section with their real trigger, at 390×780 and 1280×900. Row heights were the small
+    half. **Two menus opened partly OUTSIDE the viewport at 390px: `#viewsNewMenu` by 135px — more
+    than half of a 230px menu — and `#dashMoreMenu` by 13px.** Cause: `.repo-io .menu` is
+    `left:0;right:auto` inside a toolbar row that lays out well past a 390px screen.
+  - **Why the fix is a clamp in `menuToggle` and not CSS.** All seven menus open through that one
+    helper, so one clamp covers them and any future menu instead of a per-toolbar special case.
+    Three things it has to get right, each of which failed a first attempt:
+    * **Anchoring.** The topbar menus are `right:0`, `.repo-io .menu` is `left:0;right:auto`.
+      Nudging `right` moved the first group and was silently ignored by the second (over-constrained
+      → `left` wins in LTR). The shift therefore rides a `--menu-shift` custom property folded
+      INTO the existing transform, which moves a box under either anchoring and leaves the
+      open/close animation — which drives `transform` — intact.
+    * **Measuring mid-animation.** `getBoundingClientRect()` reports the TRANSFORMED box, and the
+      clamp runs while `.menu` is still at `translateY(-4px) scale(.98)`. `settledRect()` recovers
+      the layout box from `offsetWidth/Height` centred on the measured centre minus the
+      translation (valid because transform-origin is the default centre and the transform is only
+      translate+scale).
+    * **The anchor keeps moving.** Clicking a control in one of those overflowing toolbars
+      scroll-into-views it, and that scroll is SMOOTH — traced on Dashboards at 390px, `.repo-io`
+      slid from x=173 to x=220 over ~40 scroll events after the click, so a single clamp at open
+      time left the menu flush against the edge. It now re-clamps on scroll (capture, so an inner
+      scroller counts) and on resize, guarded by an `_openMenu` reference so the listener is a
+      null check on the common path, with idempotent writes so a no-op frame does not dirty style.
+    Also clamps `max-height` to the room actually below the trigger — the CSS cap is a constant,
+    the space under a menu opened halfway down the page is not.
+  - **Verified in the foreground:** full `tests/run.js`, Chromium headless, zero pageerrors. Two
+    new checks walk all seven menus end-to-end: at 390×780 every menu opens fully inside the
+    viewport with every row ≥44px; at 1280×900 every menu opens fully inside the viewport AND
+    carries no `--menu-shift`, which pins the clamp as a no-op when there is room. They poll for a
+    stable box rather than sleeping (AUD-10's no-unconditional-waits direction).
+  - **No `sw.js` bump, deliberately.** The precache LIST is unchanged — this edits the contents of
+    two files already on it, and the fetch handler is network-first, which is `sw.js`'s own stated
+    rule for when the ritual applies. Same escape #630 took, and it avoids issue **#631** (a bare
+    `CACHE_NAME` bump deterministically reds two N2-slice-4 refresh-token checks; still open, not
+    root-caused, and emphatically not something to bundle into a CSS slice).
+  - **Spawned N9 ★ [2pt]** (now in NOW): the measurement showed the section TOOLBARS are the
+    bigger defect — `.repo-io` lays out 16→525px against a 390px screen on Dashboards/Views/
+    Repository with no visible scroll affordance, and the Studio Data pane's `＋ New ▾` looks to
+    have no phone route at all (its `.pane-rail` expand button is itself outside the viewport).
+    Filed with the measurements rather than folded in here: it is a layout change to four
+    surfaces, not a menu fix, and bundling it would have made this PR unrevertible as one unit.
 - **N7 — Help says where the buttons are on a phone, and the ⋯ menu stops repeating your toolbar
   (v882, sw v511, 2026-08-08, steward; LF58 recurring slice, dev branch):** the ▶ NOW queue is
   unchanged (N2/N4b/N5a/N5b shipped, N4a ⛔ on Kevin, grooming still parked on the `hold` PR
@@ -10415,7 +10468,11 @@
     `data-theme`; it honors `prefers-color-scheme` standalone (Playwright `emulateMedia`);
     it follows the host inside the Viewer; and the Inspector offers exactly three options
     with Light still the default for a new dashboard. Docs + Help updated in the same slice.
-- **N8 ★ [1pt] — Every dropdown-menu row is under the 44px touch bar on a phone.** Born in NOW
+- ~~**N8 ★ [1pt] — Every dropdown-menu row is under the 44px touch bar on a phone.**~~ ✓ SHIPPED
+  v883 (2026-08-08, steward — see DONE). The measurement it asked for found two menus that ALSO
+  opened partly off-screen, so the slice shipped both halves; est 1pt, took 1. The spec below
+  stays until grooming archives it.
+  Born in NOW
   from N7/v882's verification (2026-08-08, steward) — measured, not suspected: at 390×780 every
   `.menu button` renders **37px** tall (`padding:10px 12px`, no `min-height`). UX7 set a 44px
   minimum "across the whole ≤640px band" but the rule landed on `.btn`, and a menu row is a bare
@@ -10430,6 +10487,28 @@
   viewport. Verify with the full suite + a new check per menu at 390×780 and 1280×900.
   **Position is the loop's placement, not Kevin's** — it sits above the 🔁 so it is taken next;
   move or re-star it freely.
+- **N9 ★ [2pt] — The section toolbars themselves do not fit a phone.** Born in NOW from N8/v883's
+  measurement (2026-08-08, steward) — measured, not suspected. N8 fixed the MENUS; this is the
+  rows they hang off, and it is the bigger half:
+  * At 390×780 the Dashboards `.repo-io` row lays out **16px→525px against a 390px screen**, so
+    `Select`, `Compare dashboards…`, `⋯` and `+ New dashboard` all start off the right edge. They
+    are reachable only because clicking one scroll-into-views it — there is no visible affordance
+    saying the row scrolls, no fade, no wrap. Views and Repository use the same `.repo-io` row and
+    have the same problem. (This is also why N8 needed a re-clamp on scroll at all: that
+    scroll-into-view is what moves the menu after it opens.)
+  * The Studio Data pane's `＋ New ▾` (`#menuNewData`) is worse — the pane is off-canvas at 390px
+    and its `.pane-rail` expand button sits **outside the viewport**, so a Playwright click on it
+    times out. Dataset (workspace)…, Connection… and Dashboard-only query… appear to have **no
+    phone route at all**. Confirm that against the mobile tab bar before assuming it (the
+    `mob-tabs` Data/Canvas/Inspector switcher may be the intended route) — if it is genuinely
+    unreachable, that is a phone-gate defect, not a polish item.
+  * Likely shape: let `.repo-io` wrap at ≤640px instead of overflowing (it is already a flex row;
+    the buttons are already 44px tall after UX7), and treat the pane rail separately. Verify with
+    the full suite + a check that asserts every `.repo-io` control's box is inside the viewport at
+    390×780 — the same assertion N8 added for menus, one level up.
+  * `#menuExamples.phone-pos` in `app/studio.css` is dead while you are in there (LF43 slice 2
+    deleted `#menuExamples`; the suite asserts it is gone).
+  **Position is the loop's placement, not Kevin's** — move or re-star it freely.
 - 🔁 **N7 — Recurring, when the queue is thin: keep the docs, tours, Help and marketing page
   current with the app (LF58).** One coherent slice per run, never a big-bang at the end.
   The app has changed a lot this week; the in-app Help and the tour copy are the parts most
