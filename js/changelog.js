@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 907,
+    title: 'A secured Supabase workspace no longer looks like an empty one',
+    kind: 'fix',
+    ts: '2026-08-08T22:53:37.000Z',
+    items: [
+      'The connection form called the Supabase Auth email and password "(optional)". On any workspace this app sets up, they are not: every security policy in the database is granted to signed-in callers, so a connection without them arrives anonymously and every table politely answers with nothing at all. The workspace then reads as empty — which is indistinguishable, on screen, from a database nobody ever set up. The labels now say the fields are required, and say what happens if you skip them.',
+      'More to the point, the app can tell the difference, so it now says so. Connect without those credentials and the wizard reports that the workspace enforces per-user security and offers a step straight back to the credentials, with everything you already typed still in the fields — instead of the old message, which blamed the database for belonging to some other app.',
+      'The same recognition guards your work. A saved connection in that state used to pull the emptiness in and adopt it over this browser\'s copy of the workspace. It now refuses the read, says why on the Settings backend card, and keeps working from the local copy until the credentials are there.',
+      'Two smaller honesty fixes in the same form: the password field says it is never stored — signing in keeps a short-lived token for this browser session instead, which is why it is asked for once per session by design — and the admin function URL, which genuinely is optional, now says what leaving it blank costs and warns that a URL pointing at a function you never deployed is worse than no URL at all.',
+    ],
+  },
+  {
     v: 906,
     title: 'Upgrade workspace now really does upgrade a Supabase workspace, from inside the app',
     kind: 'feature',

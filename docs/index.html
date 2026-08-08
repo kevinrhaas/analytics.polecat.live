@@ -1914,6 +1914,28 @@
   asks for this connection's <strong>Supabase Auth email and password</strong> before it will
   connect — the anonymous key alone can no longer read or write the workspace.</p>
 
+  <h4>The Auth fields are required, not optional</h4>
+  <p>On a workspace set up by that script, <strong>Supabase Auth email</strong> and
+  <strong>password</strong> are what make the connection work at all. Every policy is granted to
+  <em>authenticated</em> callers, so a connection without them signs in as <code>anon</code>,
+  <code>auth.uid()</code> is NULL, and each policy declines by returning <strong>no rows</strong> —
+  the workspace reads as <strong>empty</strong> rather than refused, which looks exactly like a
+  database that was never provisioned. Since v907 the app names that state instead of leaving you
+  to guess: the connect wizard says the workspace enforces per-user security and offers a step back
+  to the credentials, and an already-saved connection in that state reports it on the Settings
+  backend card and keeps working from this browser's local copy — it will never adopt the emptiness
+  over your own work. Only a legacy allow-all database still works on the anon key alone.</p>
+  <p>Two things about those fields that surprise people, and neither is a fault:</p>
+  <ul>
+    <li><strong>The password is never stored.</strong> Signing in mints a short-lived refresh token
+    that lives in <code>sessionStorage</code>, so you re-enter the password once per browser
+    session <em>by design</em> — nothing failed, and nothing is left behind when the tab closes.</li>
+    <li><strong>The admin function URL genuinely is optional.</strong> Leave it blank and everything
+    works; only <strong>Go live</strong> and admin user-creation fall back to running SQL in the
+    Supabase dashboard. A URL pointing at a function that was never deployed is worse than a blank
+    one — it fails confusingly at the moment you need it.</li>
+  </ul>
+
   <h4>The two steps the script cannot do for you</h4>
   <p>Both are once per environment, and both are spelled out in the script's own numbered
   sections:</p>
