@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 890,
+    title: 'A busy workspace backend no longer signs you out of it',
+    kind: 'fix',
+    ts: '2026-08-08T12:45:21.000Z',
+    items: [
+      'When you sign in to a shared workspace, the app keeps a short-lived token so it can renew your session quietly for the rest of the browser session — that is what lets a page reload put you straight back where you were instead of asking for the workspace password again.',
+      'The rule for throwing that token away was too broad. It was discarded whenever the renewal did not come back with a new session, and "did not come back" was being read as "the workspace said no" no matter what actually happened. If the backend was rate-limiting, restarting, or briefly overloaded — a 429 or a 500-class answer, none of which say anything about your credentials — the app treated it as a refusal and dropped the token. The next thing you saw was the password prompt, for an outage you had nothing to do with, and it lasted your whole session rather than the few seconds the blip did.',
+      'Now only an actual verdict from the workspace can discard it: a token that has been revoked, rotated out, or invalidated by a password change. Anything that means we could not get an answer — the request failing outright, the answer arriving truncated, or the backend reporting it cannot serve the request right now — leaves the token alone, so the renewal simply happens on the next attempt.',
+      'This is the third and last shape of that distinction. The other two were closed earlier: a request that never reached the backend, and an answer whose body stopped arriving mid-flight. A status code that arrived intact but carried no verdict was the one still being mistaken for a rejection.',
+      'Three new checks pin it, each against a backend armed to answer exactly that way, including the one that proves the line has not simply been erased — a genuinely refused token is still dropped on the spot.',
+    ],
+  },
+  {
     v: 889,
     title: 'The guided tours finally mention the toolbar every catalog has',
     kind: 'polish',

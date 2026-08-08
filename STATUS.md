@@ -135,6 +135,63 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N14 — a busy workspace backend no longer signs you out of it (v890, no sw bump,
+  2026-08-08, steward; dev branch):** taken from **Kevin's own comment on issue #631**, not from
+  the ▶ NOW queue, which held no ready non-recurring item (N4a is ⛔ on Kevin, grooming pass 2 is
+  parked on `hold` PR #623, every other entry is struck). A Kevin-filed defect outranks the
+  recurring N7 slice, and this one is in the same seam N2 slice 3 / N11 / N12 have been closing
+  all week.
+  **The gap, in Kevin's words:** "`ensureSession()`'s refresh path disposes of the stored token
+  on **any** non-`unreachable` error, and `unreachable` is only set when the `fetch()` itself
+  rejects. A 5xx, a 429, or any non-JSON error response therefore reads as the workspace's
+  authoritative 'no' and clears the token."
+  - **The third and last shape of "we never got an answer."** N2 slice 3 established the
+    distinction the whole auth path turns on — "the workspace refused you" (final: drop the
+    token, ask for the password) versus "we never reached the workspace" (keep everything, carry
+    on) — and closed the case where `fetch` rejects. N11 closed the case where the headers
+    arrive and the body stops mid-flight. **A status code that arrived intact and parsed cleanly
+    was the one still being mistaken for a verdict**, whatever the number was: `if (!res.ok ||
+    !data.access_token) throw new Error(…)`, no classification at all. So an overloaded project
+    answering 429, a restarting one answering 503 behind its platform, a proxy giving up with
+    408 — none of which say anything about the credential — all landed on the branch that
+    DELETES it.
+  - **Why it is serious and not cosmetic.** It is the same user-visible failure N11 measured and
+    fixed, from a third cause: the workspace password prompt in front of a user who never left
+    their session. And because the refresh token lives in sessionStorage and is the ONLY
+    credential the app still holds after N2 slice 4 stopped persisting the password, dropping it
+    is not recoverable by waiting — the blip lasts seconds, the sign-out lasts the whole browser
+    session.
+  - **The fix, in `gotrueToken` only** (`app/sources/supabase.js`): a `transportStatus()`
+    predicate — 408, 429, or ≥500 — marks the error `unreachable` instead of letting it through
+    as a refusal. `ensureSession` already rethrows `unreachable` without touching the stored
+    token (N2 slice 3 built that path, N11 reused it), so nothing else had to change. **The
+    refusal path is untouched and NOT weakened:** 400 `invalid_grant`, 401, 403 and 422 remain
+    authoritative and still drop the credential on the spot.
+  - **No new exposure.** `unreachable` also routes `authenticate()` to the offline local-hash
+    fallback (`app/gate.js:333`), so it is worth stating why widening it is safe: an attacker who
+    can inject a 503 into the response can already just drop the connection, which has been
+    `unreachable` since N2 slice 3. The set of reachable states is unchanged; only the honest
+    classification of them is.
+  - **Verified.** Full `NODE_PATH=… node tests/run.js` **green — 3161 passed, 0 failed** on the
+    finished tree, plus the dev gate (`tools/validate.mjs` + `tools/changelog-check.js` +
+    `tools/dev-smoke.mjs`). New mock fixture `__armtokenstatus?code=NNN` arms ONE real answer at
+    that status with a plausible GoTrue error body (so it reaches the adapter's status check
+    rather than N11's unreadable-body path), and three checks ride it: 503 keeps the token and
+    the session stays resumable, 429 likewise, and — the guard against simply erasing the line —
+    a 400 `invalid_grant` still clears it in the same run. Each status is probed on its own
+    connection so neither can inherit the other's state. est 1pt, took 1. Files:
+    app/sources/supabase.js, tests/run.js, js/changelog.js (+head), STATUS.md.
+  - **`sw.js` deliberately NOT bumped**, following #630's precedent that issue #631 itself
+    endorses: the precache LIST is unchanged (`app/sources/supabase.js` is already on it), and
+    the fetch handler is network-first, which is `sw.js`'s own stated rule for when a bump is
+    required. It also keeps this unit clear of the very bump #631 says goes red.
+  - **Issue #631 stays OPEN, and this slice does not claim to close it.** Its headline symptom —
+    bumping `CACHE_NAME` alone turns the two N2-slice-4 checks red — is a separate,
+    timing-sensitive question, and Kevin's own follow-up comment records that it did not
+    reproduce on another runner. It did not reproduce here either (the suite is green with the
+    checks in place). What shipped is the gap that comment recorded as real and independent of
+    whatever triggers it; the issue's points 2 (double-spend single-flighting — already shipped
+    as N12) and 3 (a check with an SW update actually in flight) are untouched.
 - **N7 — the catalog tours name the toolbar their catalog actually has (v889, sw v515,
   2026-08-08, steward; dev branch):** the recurring keep-the-docs-current item, taken because
   ▶ NOW had no unstruck ready entry above it (N4a is ⛔ on Kevin, everything else is shipped),
@@ -10983,6 +11040,32 @@
     row-action control clears 44px at 390×780 with the row's own height and N9a's
     inside-the-viewport property both still holding, desktop unchanged.
   **Position is the loop's placement, not Kevin's** — move or re-star it freely.
+- ~~**N14 ★★ [1pt] — A backend that is merely BUSY still reads as the backend refusing you, so a
+  blip drops the refresh token.**~~ ✓ SHIPPED v890, no sw bump (2026-08-08, steward — see DONE).
+  Taken from **Kevin's own comment on issue #631**, which recorded the gap while assessing an
+  unrelated risk: "`ensureSession()`'s refresh path disposes of the stored token on **any**
+  non-`unreachable` error, and `unreachable` is only set when the `fetch()` itself rejects. A
+  5xx, a 429, or any non-JSON error response therefore reads as the workspace's authoritative
+  'no' and clears the token." Picked because the ▶ NOW queue held no ready non-recurring item
+  (N4a is ⛔ on Kevin, grooming pass 2 is parked on `hold` PR #623, everything else struck) and a
+  Kevin-filed defect outranks the recurring N7 slice.
+  * **The third shape of "we never got an answer."** N2 slice 3 closed the first (the `fetch`
+    rejects); N11 closed the second (the body never finishes arriving). A status code that
+    ARRIVED and PARSED was still read as GoTrue's verdict whatever the number was — so 429
+    (rate-limited), 500/502/503/504 (restarting, overloaded, wedged behind its platform) and
+    408 all landed on the refusal branch, which DELETES the credential.
+  * **The user-visible failure** is the one N2 slice 3 and N11 each closed one door on: the
+    password prompt in front of someone who never left their session, for the whole browser
+    session, over a blip that lasted seconds and said nothing about their credentials.
+  * **The fix, in `gotrueToken` only:** a `transportStatus()` predicate (408 / 429 / ≥500) marks
+    those errors `unreachable`. `ensureSession` already rethrows `unreachable` without touching
+    the stored token, so nothing else changed. **The refusal path is untouched and NOT
+    weakened** — 400 `invalid_grant`, 401, 403 and 422 stay authoritative and still drop it.
+  * **NOT root-caused here, on purpose:** #631's headline symptom (bumping `sw.js`'s
+    `CACHE_NAME` alone turns the two N2-slice-4 checks red) is a separate, timing-sensitive
+    question that Kevin's own follow-up comment showed does not reproduce on every runner. This
+    slice closes the gap he recorded, which is real and independent of whatever triggers it. The
+    issue stays OPEN for its points 2 and 3.
 - 🔁 **N7 — Recurring, when the queue is thin: keep the docs, tours, Help and marketing page
   current with the app (LF58).** One coherent slice per run, never a big-bang at the end.
   The app has changed a lot this week; the in-app Help and the tour copy are the parts most
