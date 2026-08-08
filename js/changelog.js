@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 891,
+    title: 'The Conservation Insight tour finally tells you everything the pack gave you',
+    kind: 'polish',
+    ts: '2026-08-08T13:33:11.000Z',
+    items: [
+      'Installing the Conservation Insight sample pack seeds a whole workspace, and it has grown a lot since its guided tour was written. The tour had not: it still described "connections, datasets, a prep job, and one featured dashboard", walked that one dashboard\'s three maps, and stopped.',
+      'What the pack actually seeds today, measured from its own installer: two connections, nine datasets, a prep job, one pinned View per practice, and six dashboards filed in a Conservation Insight folder. So a reader could finish the tour still believing the pack brought a single dashboard, and never learn that the four live charts sitting directly below the one they were just shown are theirs.',
+      'The tour now names all of it. The opening step lists what was seeded, a new stop points at the pinned Views on Home — Cover crops, No-till, Reduced tillage and Conventional, each a live chart of adoption over time with one line per provider — and says which editor each card opens, and the closing step names the rest of the pack\'s dashboard folder: the watershed map, the system-metrics wheel, and the OpTIS, CRD and provider-ensemble reference dashboards.',
+      'The geography copy was audited in the same pass and found correct — the six built-in map scales and the custom-regions import all still match the app, so it is unchanged.',
+      'A new guard derives the pack\'s inventory from the installer itself and fails the build if the tour stops naming any kind it seeds, describes a set of dashboards in the singular, or drops a practice or the folder name. It reports all six of the gaps above against the copy as it stood.',
+    ],
+  },
+  {
     v: 890,
     title: 'A busy workspace backend no longer signs you out of it',
     kind: 'fix',

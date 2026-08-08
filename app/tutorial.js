@@ -21,8 +21,12 @@
        built on top of it, LF18(b)'s last per-feature tour.
      · "Conservation Insight pack" (LF40 NEXT slice) — SAMPLE-PACK-AWARE: only
        offered once the Conservation demo pack is installed (see TOUR_GATES).
-       Walks the pack's featured dashboard's three choropleth scales (county →
-       watershed/HUC8 → state) and closes on the custom-geo story. The
+       Walks what the pack actually seeded — Home's live featured card, the
+       pinned View it drops beside it (one per practice), then the featured
+       dashboard's three choropleth scales (county → watershed/HUC8 → state) —
+       and closes on the custom-geo story plus the rest of the pack's
+       dashboard folder. doc-truth check 23 derives that inventory from
+       app/demopacks.js, so the copy cannot silently fall behind the pack. The
        TOUR_GATES mechanism generalizes to any future pack's tour — add a
        TOURS.<key> entry + a gate fn, no chooser/engine changes needed.
      · The "overview" tour itself is ALSO pack-aware (LF40, mirrors welcome.js's
@@ -544,11 +548,11 @@
     },
     conservation: {
       label: "Conservation Insight pack", ic: "globe", tint: "--brand",
-      blurb: "A guided look at the sample pack's featured dashboard — three choropleth scales, and the geography story behind them.",
+      blurb: "A guided look at the sample pack's featured dashboard — three choropleth scales, the Views it pins beside them, and the geography story behind them.",
       steps: [
         {
           t: "Your Conservation Insight pack, guided",
-          h: "Installing the <b>Conservation Insight</b> sample pack seeded a whole workspace — connections, datasets, a prep job, and one FEATURED dashboard built as a best-practice conservation story. This short tour walks that dashboard's three map scales, then the geography behind them.",
+          h: "Installing the <b>Conservation Insight</b> sample pack seeded a whole workspace — connections, datasets, a prep job, one pinned <b>View</b> per practice, and a <b>Conservation Insight</b> folder of dashboards led by a FEATURED best-practice conservation story. This short tour walks that dashboard's three map scales and the Views beside it, then the geography behind them.",
           sub: "You can reopen this tour any time from ⌘K → Interactive tutorial.",
           target: null,
           before: function () { goSection("home"); }
@@ -562,7 +566,15 @@
           before: function () { goSection("home"); }
         },
         {
-          t: "2 · County — the hero view",
+          t: "2 · Your pinned Views, live too",
+          h: "Just below it, the pack pins one <b>View</b> per practice — <b>Cover crops</b>, <b>No-till</b>, <b>Reduced tillage</b> and <b>Conventional</b> — each a live chart of adoption over time, one line per provider. Same renderer, same sample data, no thumbnails.",
+          sub: "Click a card to open it in the View Builder that made it, or its small Quick View button for the one-chart editor.",
+          target: ".home-analyses",
+          pos: "bottom",
+          before: function () { goSection("home"); }
+        },
+        {
+          t: "3 · County — the hero view",
           h: "The finest-grain read: cover-crop adoption by <b>county</b>, a common estimate blended across five providers. Maps lead the dashboard on purpose, trend charts follow.",
           target: '[data-panel-id="p_county"]',
           pos: "bottom",
@@ -570,14 +582,14 @@
           before: openConservationDashboard
         },
         {
-          t: "3 · The same data, by watershed",
+          t: "4 · The same data, by watershed",
           h: "Right beside it: the identical adoption data rolled up to <b>watersheds (HUC8)</b> instead of political boundaries — conservation outcomes follow water, not county lines.",
           target: '[data-panel-id="p_huc8"]',
           pos: "top",
           inPreview: true
         },
         {
-          t: "4 · ...and a state rollup",
+          t: "5 · ...and a state rollup",
           h: "A third scale, <b>state</b>, acreage-weighted so the average is honest rather than a flat mean across counties of very different size.",
           target: '[data-panel-id="p_state"]',
           pos: "top",
@@ -585,7 +597,7 @@
         },
         {
           t: "That's the geography story",
-          h: "County, watershed, and state are three of the choropleth's built-in scales — it also ships USDA crop-reporting districts, congressional districts, and 5-digit ZIP codes, plus your own <b>custom regions</b> (Inspector → Region scale → Custom regions, import a CSV mapping county → your own boundary). Same geometry engine underneath every scale, no shapefiles to source.",
+          h: "County, watershed, and state are three of the choropleth's built-in scales — it also ships USDA crop-reporting districts, congressional districts, and 5-digit ZIP codes, plus your own <b>custom regions</b> (Inspector → Region scale → Custom regions, import a CSV mapping county → your own boundary). Same geometry engine underneath every scale, no shapefiles to source.<br><br>And the featured story is not all the pack brought: its <b>Conservation Insight</b> folder under Dashboards also holds the watershed map, the system-metrics wheel, and the OpTIS, CRD and provider-ensemble reference dashboards.",
           sub: "⌘K → Interactive tutorial brings you back here any time.",
           target: null,
           last: true
