@@ -135,6 +135,56 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N27 — the live-posture verify says what it actually proved: protected vs empty vs leaking
+  (no version/sw bump — test tooling only, 2026-08-08, steward; dev branch; est 1pt, took 1 — on
+  estimate, item CLOSED):** the check's absolute half was already right (a row reaching an
+  anonymous caller is a failure, full stop); its other half did not follow. A table answering
+  `HTTP 200, []` proves nothing on its own, because **a table with no rows in it answers exactly
+  the same way as a table whose policies are working perfectly** — and the old summary line, "no
+  table is readable by an anonymous caller", read as though those policies had been tested. N26's
+  run is the proof: `connections`, `analyses`, `jobs` and `users` all reported `ok — zero rows`
+  on a database that was leaking `dashboards` and `datasets` beside them.
+  **Each table is now classified, not just counted.** `protected` (rows exist and anon got none —
+  or anon was refused / not exposed at all, which is conclusive whatever the table holds),
+  `empty` (nobody has rows there — inconclusive, and said out loud), `leaking` (failure). The
+  summary is the sentence the item asked for — "5 protected, 3 empty (inconclusive), 1 leaking" —
+  and a pass now says *"no table returned rows to an anonymous caller"*, which is what was
+  measured, followed by which tables that sentence did NOT cover and how to cover them.
+  **The evidence is optional and the anon path stays credential-free**, which is the property that
+  makes this safe to aim at production: `SUPABASE_SERVICE_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`) is
+  a privileged read of the same shape — `?select=id&limit=1`, GET only, never printed, only ever
+  counted to one — and `VERIFY_EXPECT_ROWS=dashboards,datasets,…` is a declaration that costs no
+  secret. Measured evidence beats declared. With NEITHER set, every `200/[]` is inconclusive and
+  the run still exits 0: a missing optional identity must never redden a secure database, and must
+  never be quietly upgraded into a pass it did not earn. A rejected or broken privileged read
+  answers "we did not find out", never "no rows". A typo'd table name in `VERIFY_EXPECT_ROWS` is
+  fatal rather than a silently empty declaration.
+  **Exit codes are unchanged** (0 clean / 1 leak / 2 no usable answer) so `rls-verify.yml`,
+  `promote-to-stage.yml` and `promote-to-prod.yml` keep their meaning with no workflow edit, and
+  the `SUPABASE_URL` + `SUPABASE_ANON_KEY` FATAL-if-unconfigured rule is untouched.
+  **Verified**, all in the foreground: `node tests/rls-verify.mjs --self-test` — a new offline
+  mode, **34 checks**, covering the whole classification matrix (leak beats every other signal;
+  `200/[]` is inconclusive bare, protected when corroborated, still inconclusive when the table is
+  measurably empty; 401/403/404 conclusive without corroboration; an unknown state falls to "no
+  answer" rather than passing by default) and the read wrapper over a stubbed PostgREST (each
+  status shape, the network throw, the non-array 200, and the read-only-by-construction claim —
+  asserted now, not just promised in a comment: no method, no body, `select=id&limit=1`).
+  Then the real CLI end-to-end against a scripted database through an injected `fetch`: N26's exact
+  leak shape → exit 1; all-empty → exit 0 with the inconclusive wording; privileged corroboration →
+  the 5/3 split; declared list → 8 protected; an unreachable table → exit 2; a typo'd declaration
+  and both unconfigured cases → FATAL. Plus the dev gate (`validate`, `changelog-check`,
+  `doc-truth`, `dev-smoke` at desktop + 390×780, zero pageerrors). No changelog entry and no
+  version bump: nothing user-visible ships here, matching the `ci:` precedent (#665/#666).
+  **Two new `tests/run.js` checks** (`N27:` …) run the self-test as a subprocess and assert the
+  unconfigured run still exits non-zero, so the matrix travels with the suite rather than with
+  whoever remembers it; both were executed standalone against the block extracted verbatim from
+  `run.js`, since the full suite belongs to stage promotion.
+  **What this measured, which is the part worth acting on:** run against the live PRODUCTION
+  database (read-only anon GETs, the same request the daily job makes), the new output reports
+  **8 of 8 tables inconclusive** — every table answers anon with nothing, and nothing corroborates
+  that any of them holds a row. Production's daily green has therefore been proving considerably
+  less than it appeared to. Nothing is leaking; that much is real. Closing the gap is the one
+  follow-up this slice did not take, because it is Kevin's call — see the N27 entry in NOW.
 - **N23 — the Auth fields are required, and "secured" is no longer rendered as "empty"
   (v907, sw v529, 2026-08-08, steward; dev branch; est 1pt, took 1 — on estimate, item CLOSED):**
   Kevin's question about the connection form (*"how optional are all of these settings?"*) had a
@@ -12029,8 +12079,19 @@
   and warn that a URL pointing at an undeployed function fails confusingly.
   **Verify:** a suite check that a connection with no Auth fields against an RLS-enforced
   workspace surfaces the sign-in-required state and NOT an empty catalog.
-- **N26 ★★ [1pt] — `polecat_dev` is leaking to anonymous callers, and the new verify caught it on
-  its first run (2026-08-08).** Measured, not suspected — `tests/rls-verify.mjs` against the dev
+- ⛔ **N26 ★★ [1pt] — `polecat_dev` is leaking to anonymous callers, and the new verify caught it on
+  its first run (2026-08-08).** ⛔ **BLOCKED ON KEVIN, and it is an action rather than a decision
+  (marked 2026-08-08 by the steward run that took N27 instead).** The fix as written is a paste
+  into the `polecat_dev` SQL editor, and no automated run in this repo can perform it: the dev
+  database password lives in the `SUPABASE_DEV_*` repo secrets, which only `rls-dev.yml` and the
+  promotion workflows can read, and the one dispatchable provisioning workflow
+  (`supabase-provision.yml`) applies `supabase-bootstrap.sql` — the allow-all posture this item
+  blames — against PRODUCTION by default. **The ask: run `tools/supabase-deploy.sql` top-to-bottom
+  in the `polecat_dev` SQL editor, then § 7 for the first admin, then re-dispatch
+  `rls-verify.yml` with `target: dev`.** (If you would rather the fleet be able to do this itself,
+  say so and "a dispatchable workflow that applies `supabase-deploy.sql` to the DEV project only"
+  becomes its own item — it is a new workflow with a production guard, not a paste.)
+  Measured, not suspected — `tests/rls-verify.mjs` against the dev
   project:
   ```
   LEAK dashboards         HTTP 200, 1 row(s) readable by anon
@@ -12053,7 +12114,17 @@
   **Note the two checks are NOT in conflict**, which is the point of having split them:
   `tests/rls.mjs` went 81/81 green in the same hour. The FILES are sound; the live dev DATABASE
   was not built from them. Neither check alone would have told you that.
-- **N27 ★ [1pt] — `rls-verify.mjs` cannot tell "protected" from "empty", and should say so.**
+- ~~**N27 ★ [1pt] — `rls-verify.mjs` cannot tell "protected" from "empty", and should say so.**~~
+  ✓ **SHIPPED — no version/sw bump (test tooling only; 2026-08-08, steward — see DONE). Item
+  CLOSED.** One follow-up it deliberately did NOT take, because it is Kevin's call and not a code
+  change: **the corroborating identity is not wired into either workflow yet, so the daily verify
+  still reports production as 8/8 inconclusive** (measured during this slice — see the DONE entry).
+  Wiring it needs one of two decisions: add a `SUPABASE_SERVICE_KEY` / `SUPABASE_DEV_SERVICE_KEY`
+  repo secret (measured evidence, at the cost of a privileged key in CI), or set
+  `VERIFY_EXPECT_ROWS=<tables>` on the rls-verify / promote-to-stage / promote-to-prod steps
+  (no secret, worth what the declaration is worth). Either way, only Kevin can say which tables
+  prod and dev actually hold rows in. The history below stays until the next grooming pass
+  archives it.
   Found by reading tonight's own output honestly: `connections`, `analyses`, `jobs` and `users`
   reported `ok — zero rows` on a database that was demonstrably NOT on the authenticated-only
   posture (N26). They were clean only because they held no rows. **The check detects leaks; it
