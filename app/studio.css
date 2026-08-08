@@ -1786,6 +1786,32 @@ body.lib-dragging #preview{pointer-events:none}
      flex + align-items:center keeps the label vertically centred in the taller row while
      the default flex-start preserves the left alignment `.menu button` sets above. */
   .menu button{min-height:44px;display:flex;align-items:center}
+  /* N9b: N8 fixed the dropdown ROWS, N9a the catalog toolbars they hang off — this is the
+     third surface a thumb lands on and the one that opens N8's work: the Studio's own PANE
+     headers. Measured at 390×780 with the Data drawer open (`.mob-tab[data-mob-tab=library]`):
+     the `＋ New ▾` trigger `#btnNewDS` rendered **24px**, the pane's search field **33px**, and
+     the Inspector's `?` help link **16px**. None is a `.btn` and none is a `.menu button`, so
+     neither UX7's rule nor N8's ever reached them — which meant `#menuNewData`'s three rows sat
+     at a compliant 44px behind a 24px trigger that was the only way to open them.
+     Scoped to the header's OWN controls: `.pane-h>.menu-wrap>button` is the trigger, one level
+     above `.pane-h>.menu-wrap>.menu>button`, so the rule cannot reach into an open menu and
+     re-centre the rows N8 deliberately left flex-start-aligned. `:not([hidden])` is load-bearing,
+     not defensive: an author `display` beats the `hidden` attribute's UA `display:none`, so
+     without it this rule REVEALS `#inspBack` (the Inspector's hidden back link) on every phone. */
+  .pane-h>button:not([hidden]),.pane-h>.menu-wrap>button:not([hidden]){min-height:44px;display:inline-flex;align-items:center;justify-content:center}
+  .pane .search{min-height:44px}
+  /* The `?` is a 16px PAINTED disc, so growing the element would drop a 44px circle into the
+     header. The anchor becomes the invisible 44px touch box instead and a ::before paints the
+     same 16px disc inside it — hit area 44×44, visual byte-for-byte what it was. */
+  .pane-h>.insp-help-link{width:44px;height:44px;min-height:44px;border-radius:0;background:none;font-size:0}
+  .pane-h>.insp-help-link::before{content:"?";font-size:var(--fs-10);font-weight:800;
+    width:16px;height:16px;border-radius:50%;background:var(--line);color:var(--faint);
+    display:inline-flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
+  .pane-h>.insp-help-link:hover,.pane-h>.insp-help-link:focus{background:none}
+  .pane-h>.insp-help-link:hover::before,.pane-h>.insp-help-link:focus::before{background:var(--brand);color:#fff}
+  /* 12px of vertical padding around a 44px control would make a 68px header inside a drawer
+     that only has 642px; 4px keeps the bar at 52px and gives the list back the difference. */
+  .pane-h{padding:var(--sp-4) var(--sp-12)}
   /* N9: the catalog toolbars (`.repo-io` — Dashboards, Views, Datasets, Connections, Jobs,
      Repository) are a nowrap flex row, so on a phone they simply ran off the right edge:
      measured at 390×780, Dashboards laid its controls out to x=651 against a 390px screen —
