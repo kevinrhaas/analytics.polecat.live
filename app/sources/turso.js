@@ -148,6 +148,25 @@
         .catch(function (e) { return { ok: false, error: e.message }; });
     },
 
+    // N16 slice 2: bring an older workspace up to this app's schema. Turso can
+    // DDL from the browser, so this is a real one-click upgrade — the same
+    // idempotent CREATE TABLE IF NOT EXISTS batch provision() runs, followed by
+    // the marker stamp (without which the workspace would keep reporting the
+    // old version and the app would keep offering the upgrade). No data is
+    // read, moved or deleted: every schema bump this app has ever made is
+    // additive, so an upgrade only adds empty tables.
+    upgradeWorkspace: function (cfg) {
+      return pipeline(cfg, WS.provisionDDL().map(function (sql) { return { sql: sql }; }))
+        .then(function () {
+          return pipeline(cfg, [{
+            sql: 'INSERT OR REPLACE INTO "' + WS.META_TABLE + '"(key,value) VALUES(?,?)',
+            args: [arg("schema_version"), arg(String(WS.SCHEMA_VERSION))]
+          }]);
+        })
+        .then(function () { return { ok: true, applied: "browser" }; })
+        .catch(function (e) { return { ok: false, error: e.message }; });
+    },
+
     summarize: function (cfg) { return this.probe(cfg); },
 
     drop: function (cfg) {

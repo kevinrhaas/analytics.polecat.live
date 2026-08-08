@@ -286,7 +286,10 @@
   //             an old-shaped view of a new workspace. Reading is safe.
   //   'older'   the workspace predates this build. Safe today (every bump is
   //             additive); it wants the provision delta before it can hold
-  //             everything this build writes — N16 slice 2 owns that flow.
+  //             everything this build writes. N16 slice 2 made that an OFFER,
+  //             not a latch: Sync.upgradeWorkspace() backs the workspace up and
+  //             then applies the delta (in the browser where the adapter can
+  //             DDL, as paste-me SQL where it can't).
   //   'same'    proceed, zero friction.
   //   'unknown' no readable marker. Callers treat it as 'same': a pre-marker or
   //             partially-read backend is not evidence of newness, and latching

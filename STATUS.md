@@ -135,6 +135,52 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N16 slice 2 of 2 — the OLDER direction: an in-app "Upgrade workspace" step, backup first
+  (v898, sw v523, 2026-08-08, steward; dev branch):** branch (a) of the item. N16 is CLOSED.
+  **The problem:** slice 1 closed the direction that eats data (newer workspace ⇒ read-only). The
+  other direction was silent in a slower way — an older workspace works fine (every bump is
+  additive) right up until a save lands on a table that isn't there, and the ONLY place the remedy
+  ever appeared was glued onto that failed save's error string (`supabase.js:511`). The comparison
+  already existed (`Sync.schemaState().relation === "older"`); nothing acted on it.
+  **What shipped, in three parts.** (1) **`Sync.upgradeWorkspace(opts)`** — the orchestrator:
+  guard (remote + `older`, refusing `newer` and `same` with distinct messages) → read the BACKEND
+  snapshot and hand it to `opts.backup` → delegate to the adapter → **re-read the version from the
+  backend** (never assume the upgrade moved it; a backend still reporting the old version comes
+  back as a failure with that number in the message) → `flushPush(true)` if edits were pending.
+  The backup is a REQUIRED FUNCTION PARAMETER, not a flag: "no opt-out" is enforced by the API
+  shape rather than by a checkbox any caller could forget, and a writer that throws aborts with the
+  backend untouched. The backup is of the BACKEND (the copy at risk), not of this browser.
+  (2) **Adapters opt in with `upgradeWorkspace(cfg)`** — turso runs the idempotent `provisionDDL`
+  batch + stamps the marker (the stamp matters: without it the workspace reports the old version
+  forever and the app keeps offering); firebase has no DDL to run, but its `save()` never
+  re-stamped the `app` doc, so re-stamping IS the upgrade there; supabase returns
+  `{manual:true, sql}` = `provisionDeltaSQL()` + the `schema_version` upsert + `NOTIFY pgrst`.
+  An adapter with no method at all falls back to the same manual shape rather than claiming
+  success. (3) **The UI** — the Settings backend card gains a first-class *Upgrade workspace*
+  block when the relation is `older` (status line says it too), and the manual path renders the
+  script with Copy + "I've run it — re-check". `.ws-upgrade` CSS gives the paragraph a 260px floor
+  so the button wraps below it instead of crushing it; 390px was checked.
+  **The deliberate deviation from the item's spec, and why.** The item said to run the delta
+  "through the polecat-admin Edge Function where bound". It is NOT wired that way. That function's
+  only schema action is `provision`, whose `BOOTSTRAP_DDL` ends by re-creating the demo-posture
+  `polecat_anon_all` policy on every table — and Postgres ORs permissive policies together, so
+  calling it on a gone-live workspace would silently re-open it to anon reads. A one-click upgrade
+  that quietly undoes the security posture is worse than a paste, so Supabase stays on the paste
+  and the reason is written into `supabase.js`. The fix (an additive, posture-preserving `upgrade`
+  action) is minted as **N26** at the end of NOW.
+  **Verified:** full `tests/run.js` green + the dev gate (validate + changelog-check + doc-truth +
+  dev-smoke). 6 new checks: the offer appears and never latches read-only; both refusal paths (no
+  writer / failing writer) leave the backend untouched; the happy path asserts the ORDER
+  (`backup>upgrade`), that the backup carries the pre-upgrade BACKEND snapshot, that the relation
+  is re-read as `same`, and that the pending edit finally pushes; the offer disappears and a repeat
+  ask is refused without a second backup; the no-method adapter returns the delta with the backup
+  still taken; a real turso workspace wound back (table dropped, marker to v1) is restored on both
+  counts; and the supabase script is asserted to add the tables, stamp the version, and carry no
+  `CREATE POLICY`/`ROW LEVEL SECURITY` and no blanket privilege change (`GRANT … ON ALL TABLES` /
+  `ALTER DEFAULT PRIVILEGES`) — its single `GRANT` is EXECUTE on the SECURITY INVOKER atomic-save
+  function it installs, which still runs under the caller's own policies. The deviation above,
+  pinned as a test.
+  **est 2pt, took 2 slices — estimate exact.**
 - **N16 slice 1 of 2 — the backend version handshake: a workspace NEWER than the app is read-only
   (v897, sw v522, 2026-08-08, steward; dev branch):** branch (b) + (c) of the item; branch (a)
   (offer the upgrade for an OLDER workspace) is slice 2 and stays in NOW.
@@ -11107,9 +11153,14 @@
   someone remembering.~~ (the test loop shipped with slice 1 — a new pack's `seeds` block is
   checked against its own installer, so slice (b) only has to add `source`/CSV-budget coverage
   on top of it.) No user-visible pack ships in this item.
-- **N16 ★★ [2pt est, 1 slice shipped — SLICE 2 (branch (a), the in-app upgrade) IS WHAT REMAINS]
-  — Backend version handshake (Kevin, 2026-08-08 — "future versions of the app will break previous
-  versions of the database back end… it should ask to upgrade").**
+- ~~**N16 ★★ [2pt est, 2 slices shipped] — Backend version handshake (Kevin, 2026-08-08 — "future
+  versions of the app will break previous versions of the database back end… it should ask to
+  upgrade").**~~ ✓ **SHIPPED — slice 1 (branches (b)+(c), the read-only latch) v897, sw v522;
+  slice 2 (branch (a), the in-app "Upgrade workspace" step) v898, sw v523 (both 2026-08-08,
+  steward — see DONE). The item is CLOSED.** One deviation is recorded in the DONE entry and is
+  now **N26**: the upgrade deliberately does NOT route through the polecat-admin Edge Function,
+  because its only schema action would re-open a gone-live workspace to anon. The history below
+  stays until the next grooming pass archives it.
   ~~The marker exists end to end and is consumed NOWHERE: `WS.SCHEMA_VERSION = 4`
   (`app/sources/schema.js`) is stamped into `polecat_meta` at provision, every adapter's `probe()`
   returns it (supabase.js, turso.js, firebase.js, local.js) — and no caller in sync.js /
@@ -11128,7 +11179,11 @@
   `WS.SCHEMA_VERSION`~~ **DONE**, plus a drift guard over the two hand-written SQL artifacts
   (`tools/supabase-bootstrap.sql`, `supabase/functions/polecat-admin/sql.ts`) against the constant
   in `schema.js` — the drift class N2 slice 2 caught between sql.ts and the canonical RLS file.
-  **SLICE 2 — the remaining half, unchanged from the original spec:**
+  ~~**SLICE 2 — the remaining half, unchanged from the original spec:**~~ **SLICE 2 is DONE
+  (v898)** — `Sync.upgradeWorkspace({backup})` (backup is a required parameter, so there is no
+  opt-out to forget), `upgradeWorkspace(cfg)` on turso/firebase/supabase, and the first-class
+  *Upgrade workspace* block on the Settings backend card. The one deviation — Supabase is NOT
+  upgraded through the polecat-admin Edge Function — is N26. The original spec, kept:
   (a) **backend OLDER** → say so and offer the upgrade IN-APP: run `WS.provisionDeltaSQL()`
   (already cumulative + idempotent, safe from any older version) through the adapter where
   browser DDL is possible (Turso; Supabase via the polecat-admin Edge Function where bound), and
@@ -12005,6 +12060,32 @@
     overlap is why v875 had scoped itself to the tours; and the ⌘K palette's section
     coverage, which this pass found was NOT stale — AUD-12 (v854) already made the palette
     derive from the rail and added the guard, so the note above was itself out of date.
+- **N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**
+  Found building N16 slice 2 (2026-08-08, steward), which is why that slice does NOT use it —
+  the item's own spec said to upgrade Supabase "via the polecat-admin Edge Function where
+  bound", and it can't be done safely today. **Measured:** the function exposes four fixed
+  actions, and the only one that runs DDL is `provision` → `sql.ts`'s `BOOTSTRAP_DDL`, whose
+  closing `DO $$` block loops every table doing `ENABLE ROW LEVEL SECURITY` + `DROP POLICY IF
+  EXISTS polecat_anon_all` + **`CREATE POLICY polecat_anon_all … USING (true) WITH CHECK
+  (true)`**. That is the legacy demo posture, and Postgres ORs permissive policies together —
+  so calling `provision` on a workspace that has been through **go-live** does not replace the
+  real per-user policies, it adds an allow-all one BESIDE them and the whole workspace becomes
+  anon-readable again. Nothing in the UI would say a thing. `go-live` immediately overwrites the
+  demo posture with `RLS_REAL_SQL`, which is why this has never bitten: `provision` is only ever
+  called on fresh projects today. **Fix:** an additive, posture-PRESERVING action —
+  `upgrade` — that runs the workspace DDL (`CREATE TABLE IF NOT EXISTS` for every table in
+  `WS.WORKSPACE_TABLES`, the `updatedAt` BIGINT widenings, the grants for any new table, the
+  `schema_version` stamp, `NOTIFY pgrst`) and touches **no policy at all**; `provision` keeps its
+  demo posture for the fresh-project path it is actually for. Then wire
+  `supabaseSource.upgradeWorkspace()` to call it when `cfg.adminFnUrl` is bound, keeping the
+  paste as the fallback for the (common) case where the function isn't deployed — and N16's
+  in-app upgrade becomes one click on Supabase too, which was the original intent.
+  **Verify with `tests/rls.mjs`**, which already applies the shipped SQL into throwaway
+  schemas: assert that running the new action AFTER `RLS_REAL_SQL` leaves anon reading ZERO
+  rows on all six workspace tables — the assertion that would fail today if `provision` were
+  used instead. Consider asserting the same about `provision` itself, as a documented tombstone
+  rather than a fix, so nobody re-points an upgrade at it. Related: N20/N21/N22 all touch the
+  same provisioning surface; whoever takes N22 should read this first.
 
 
 ### 📦 SAMPLE-PACK PROGRAM (Kevin, 2026-08-07) — the reservoir

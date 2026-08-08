@@ -172,7 +172,17 @@
   // from a stale tab republishes a v4-shaped view of a v5 workspace. Reading a
   // newer workspace is safe (replaceAll preserves tables it doesn't know —
   // AUD-04), so the app stays fully usable, just read-only, and says so out
-  // loud. The OLDER direction (offer the in-app upgrade) is N16 slice 2.
+  // loud.
+  //
+  // N16 slice 2 — the OLDER direction. A workspace that predates this build
+  // still works (every bump is additive), so this direction is an OFFER, not a
+  // latch: `upgradeWorkspace()` below is the first-class in-app step that used
+  // to surface only as a FAILED SAVE's error string. Two properties are
+  // load-bearing and are enforced by the API shape rather than by a checkbox:
+  // the backend snapshot is BACKED UP before anything is written (no caller can
+  // skip it — there is no opt-out parameter, only a required writer), and an
+  // adapter that cannot DDL from the browser returns the paste-me SQL instead
+  // of pretending it upgraded anything.
   var _backendVersion = null, _readOnly = false;
   var listeners = [];
 
@@ -461,6 +471,89 @@
     schemaState: function () {
       return { app: WS().SCHEMA_VERSION, backend: _backendVersion,
         relation: WS().compareSchema(_backendVersion), readOnly: _readOnly };
+    },
+
+    // N16 slice 2 — UPGRADE an older workspace, from inside the app.
+    //
+    // The trigger is schemaState().relation === "older": the connected
+    // workspace predates this build, so the tables/columns later versions added
+    // are not there yet. Today that only ever surfaced as a failed save's error
+    // string with SQL glued onto the end of it; this is the same remedy as a
+    // deliberate step you can take BEFORE anything breaks.
+    //
+    // `opts.backup` is REQUIRED and is called with the pre-upgrade backend
+    // snapshot before a single statement runs. It is a parameter, not a flag,
+    // precisely so "skip the backup" is not an option any caller can express —
+    // an upgrade touches the one copy of the workspace that isn't in this
+    // browser, and the whole point of the step is that it is safe. A writer
+    // that throws (or rejects) aborts the upgrade with the backend untouched.
+    //
+    // Adapters opt in with `upgradeWorkspace(cfg)`; one that can't DDL from the
+    // browser returns { manual:true, sql } and the caller shows the SQL. Either
+    // way the handshake is re-run from the BACKEND afterwards — the version is
+    // never assumed to have moved just because a call returned ok — and any
+    // edits that were waiting are pushed once it agrees.
+    upgradeWorkspace: function (opts) {
+      opts = opts || {};
+      var src = Studio.sourceById(state.sourceId);
+      if (!src || src.local) return Promise.resolve({ ok: false, error: "No remote workspace is connected." });
+      var rel = WS().compareSchema(_backendVersion);
+      if (rel !== "older") {
+        return Promise.resolve({ ok: false, error: rel === "newer"
+          ? "This workspace was built by a NEWER version of the app — it can't be upgraded from here."
+          : "This workspace is already at v" + WS().SCHEMA_VERSION + " — nothing to upgrade." });
+      }
+      if (typeof opts.backup !== "function") {
+        return Promise.resolve({ ok: false, error: "An upgrade always downloads a backup first — no backup writer was supplied." });
+      }
+      var from = _backendVersion;
+      return src.load(state.cfg).then(decTransform).then(function (snap) {
+        return Promise.resolve(opts.backup({
+          _type: "studio-workspace-backup", _v: 1,
+          source: state.sourceId, label: src.label,
+          backendSchemaVersion: from, appSchemaVersion: WS().SCHEMA_VERSION,
+          snapshot: snap
+        })).then(function () { return true; });
+      }).catch(function (e) {
+        // Reading the backend or writing the backup failed — say which, and
+        // stop. Nothing has been written to the workspace at this point.
+        throw new Error("Couldn't back the workspace up, so nothing was upgraded: " + ((e && e.message) || e));
+      }).then(function () {
+        if (typeof src.upgradeWorkspace !== "function") {
+          return { ok: false, manual: true, sql: WS().provisionDeltaSQL() };
+        }
+        return src.upgradeWorkspace(state.cfg);
+      }).then(function (r) {
+        r = r || { ok: false, error: "The backend gave no answer." };
+        if (!r.ok) {
+          if (r.manual) logSync("upgrade", false, "manual step required — run the upgrade SQL on the backend");
+          else logSync("upgrade", false, r.error || "upgrade failed");
+          return Object.assign({ from: from, to: WS().SCHEMA_VERSION }, r);
+        }
+        // Re-run the handshake against the backend itself, then release anything
+        // that was waiting (an upgrade can't clear the read-only latch — that is
+        // the other direction — but a push may have been failing for the very
+        // reason this upgrade just fixed).
+        return src.load(state.cfg).then(decTransform).then(function (snap) {
+          adoptSchemaVersion(snap);
+          var now = WS().compareSchema(_backendVersion);
+          logSync("upgrade", now !== "older", now === "older"
+            ? "the backend still reports v" + _backendVersion : "");
+          emit();
+          if (now === "older") {
+            return { ok: false, from: from, to: WS().SCHEMA_VERSION, backend: _backendVersion,
+              error: "The upgrade ran but the workspace still reports schema v" + _backendVersion + "." };
+          }
+          return (_dirty ? flushPush(true) : Promise.resolve()).then(function () {
+            return { ok: true, from: from, to: WS().SCHEMA_VERSION, backend: _backendVersion };
+          });
+        });
+      }).catch(function (e) {
+        var msg = (e && e.message) || String(e);
+        logSync("upgrade", false, msg);
+        emit();
+        return { ok: false, from: from, error: msg };
+      });
     },
 
     // Pull the remote's contents and adopt them (the one thing automation can't

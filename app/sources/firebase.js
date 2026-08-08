@@ -134,6 +134,19 @@
         .catch(function (e) { return { ok: false, error: e.message }; });
     },
 
+    // N16 slice 2: upgrade an older workspace. Firestore has no schema to
+    // migrate — a collection springs into existence when its first document is
+    // written, so save() has always been able to write a table this workspace
+    // was provisioned before. What it never did was re-stamp the marker, so an
+    // older Firebase workspace reported its provisioning version forever and
+    // the app had no way to stop asking. Re-stamping the `app` doc IS the
+    // upgrade here, and it is the whole of it.
+    upgradeWorkspace: function (cfg) {
+      return writeDoc(cfg, WS.META_TABLE, "app", toDoc({ id: "app", app: WS.APP_ID, schemaVersion: WS.SCHEMA_VERSION }))
+        .then(function () { return { ok: true, applied: "browser" }; })
+        .catch(function (e) { return { ok: false, error: e.message }; });
+    },
+
     summarize: function (cfg) { return this.probe(cfg); },
 
     drop: function (cfg) {

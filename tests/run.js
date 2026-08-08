@@ -9229,6 +9229,165 @@ function serve() {
       n16Latch.savesAfter > 0 && n16Latch.schemaAfterDisconnect.backend === null && n16Latch.schemaAfterDisconnect.readOnly === false,
       JSON.stringify({ after: n16Latch.readOnlyAfter, rail: n16Latch.railAfter, saves: n16Latch.savesAfter, off: n16Latch.schemaAfterDisconnect }));
 
+    // ---- N16 slice 2: the OLDER direction — upgrade, from inside the app ----
+    // The other half of the handshake. An older workspace is not dangerous (every
+    // schema bump has been additive), so this is an OFFER rather than a latch —
+    // and the two properties that make it safe are enforced by the API shape:
+    // the backup is a required parameter (there is no "skip it" to forget), and
+    // the version is re-read from the BACKEND afterwards rather than assumed.
+    console.log("\n• N16 slice 2: an older workspace can be upgraded from the app (backup first)");
+    const n16Up = await page.evaluate(async function () {
+      var WS = Studio.WS, out = {}, order = [];
+      var before = Studio.Workspace.snapshot();
+      window.__n16up = { version: WS.SCHEMA_VERSION - 1, saves: 0, upgrades: 0, snap: null };
+      Studio.registerSource({
+        id: "n16up", label: "N16Up", icon: "db", caps: { meta: true }, fields: [],
+        load: function () {
+          var s = window.__n16up.snap ? JSON.parse(JSON.stringify(window.__n16up.snap)) : WS.emptySnapshot();
+          s.schemaVersion = window.__n16up.version;
+          return Promise.resolve(s);
+        },
+        save: function (cfg, snap) {
+          window.__n16up.saves++; window.__n16up.snap = JSON.parse(JSON.stringify(snap));
+          return Promise.resolve({ ok: true });
+        },
+        upgradeWorkspace: function () {
+          order.push("upgrade"); window.__n16up.upgrades++;
+          window.__n16up.version = WS.SCHEMA_VERSION;
+          return Promise.resolve({ ok: true, applied: "browser" });
+        }
+      });
+      await Studio.Sync.connectAdopt("n16up", {});
+      out.relation = Studio.Sync.schemaState().relation;
+      out.readOnly = Studio.Sync.syncState().readOnly; // older must NEVER latch read-only
+      // the Settings card offers the step and says what it costs
+      window.__studioShellSetSection("settings"); window.__studioRenderWorkspaceBackendCard();
+      var card = document.getElementById("wsBackendCard");
+      out.cardOffers = !!card.querySelector("#wsUpgradeBtn");
+      out.cardSaysBackup = /backup of the workspace downloads first/.test(card.textContent);
+      out.cardNamesVersions = /earlier version of Analytics/.test(card.textContent) &&
+        card.textContent.indexOf("schema v" + (WS.SCHEMA_VERSION - 1)) >= 0;
+      // 1. no backup writer → refused outright, backend untouched
+      var noBackup = await Studio.Sync.upgradeWorkspace({});
+      out.refusedNoBackup = noBackup.ok === false && /backup/i.test(noBackup.error || "");
+      // 2. a backup writer that FAILS aborts before anything is written
+      var threw = await Studio.Sync.upgradeWorkspace({ backup: function () { throw new Error("disk full"); } });
+      out.refusedBadBackup = threw.ok === false && /back the workspace up/.test(threw.error || "");
+      out.upgradesAfterRefusals = window.__n16up.upgrades; // must still be 0
+      // 3. the real thing, with a local edit waiting to go up
+      Studio.Workspace.put("analyses", { id: "a-n16up", name: "Pending", chartType: "bars" });
+      out.savesBefore = window.__n16up.saves;
+      var captured = null;
+      var r = await Studio.Sync.upgradeWorkspace({ backup: function (p) { order.push("backup"); captured = p; } });
+      out.ok = r.ok === true; out.from = r.from; out.to = r.to;
+      out.order = order.join(">"); // the backup is written BEFORE the upgrade runs
+      out.backupType = captured && captured._type;
+      out.backupVersion = captured && captured.backendSchemaVersion;
+      out.backupApp = captured && captured.appSchemaVersion;
+      // the backup is of the BACKEND — the thing at risk — not of this browser's copy
+      out.backupIsBackend = !!(captured && captured.snapshot && captured.snapshot.tables &&
+        captured.snapshot.tables.analyses && captured.snapshot.tables.analyses.length === 0);
+      out.relationAfter = Studio.Sync.schemaState().relation;
+      out.savesAfter = window.__n16up.saves; // the pending edit went up once the shape could hold it
+      out.logged = Studio.Sync.syncLog().some(function (row) { return row.kind === "upgrade" && row.ok; });
+      window.__studioRenderWorkspaceBackendCard();
+      out.cardOfferGone = !document.getElementById("wsUpgradeBtn");
+      // 4. already current → nothing to do, and it says so
+      var again = await Studio.Sync.upgradeWorkspace({ backup: function () { order.push("backup2"); } });
+      out.refusedWhenCurrent = again.ok === false && /already at v/.test(again.error || "");
+      out.orderFinal = order.join(">");
+      Studio.Sync.disconnect();
+      Studio.Workspace.replaceAll(before);
+      return out;
+    });
+    ok("N16: an older workspace stays fully writable and is OFFERED an upgrade on the Settings card (never latched read-only)",
+      n16Up.relation === "older" && n16Up.readOnly === false && n16Up.cardOffers && n16Up.cardSaysBackup && n16Up.cardNamesVersions,
+      JSON.stringify({ relation: n16Up.relation, readOnly: n16Up.readOnly, offers: n16Up.cardOffers, backup: n16Up.cardSaysBackup }));
+    ok("N16: the upgrade refuses to run without a working backup — no writer, or a writer that fails, leaves the backend untouched",
+      n16Up.refusedNoBackup && n16Up.refusedBadBackup && n16Up.upgradesAfterRefusals === 0,
+      JSON.stringify({ noWriter: n16Up.refusedNoBackup, failedWriter: n16Up.refusedBadBackup, upgrades: n16Up.upgradesAfterRefusals }));
+    ok("N16: the upgrade writes the pre-upgrade BACKEND snapshot first, then upgrades, then re-reads the version and pushes what was pending",
+      n16Up.ok && n16Up.order === "backup>upgrade" && n16Up.backupType === "studio-workspace-backup" &&
+      n16Up.backupVersion === n16Up.from && n16Up.backupApp === n16Up.to && n16Up.backupIsBackend &&
+      n16Up.relationAfter === "same" && n16Up.savesAfter > n16Up.savesBefore && n16Up.logged,
+      JSON.stringify(n16Up));
+    ok("N16: once upgraded the offer disappears, and asking again is refused instead of re-running (no second backup)",
+      n16Up.cardOfferGone && n16Up.refusedWhenCurrent && n16Up.orderFinal === "backup>upgrade",
+      JSON.stringify({ gone: n16Up.cardOfferGone, refused: n16Up.refusedWhenCurrent, order: n16Up.orderFinal }));
+
+    // An adapter that does NOT implement upgradeWorkspace must not silently
+    // "succeed" — the caller gets the paste-me delta instead.
+    const n16UpManual = await page.evaluate(async function () {
+      var WS = Studio.WS, out = {};
+      var before = Studio.Workspace.snapshot();
+      Studio.registerSource({
+        id: "n16upman", label: "N16UpManual", icon: "db", caps: { meta: true }, fields: [],
+        load: function () { var s = WS.emptySnapshot(); s.schemaVersion = 1; return Promise.resolve(s); },
+        save: function () { return Promise.resolve({ ok: true }); }
+      });
+      await Studio.Sync.connectAdopt("n16upman", {});
+      var backups = 0;
+      var r = await Studio.Sync.upgradeWorkspace({ backup: function () { backups++; } });
+      out.manual = r.manual === true; out.ok = r.ok === false; out.backups = backups;
+      out.hasDelta = /CREATE TABLE IF NOT EXISTS "users"/.test(r.sql || "");
+      out.stillOlder = Studio.Sync.schemaState().relation === "older";
+      Studio.Sync.disconnect();
+      Studio.Workspace.replaceAll(before);
+      return out;
+    });
+    ok("N16: a backend that can't change its own structure from the browser returns the paste-me SQL — backup still taken, nothing claimed as upgraded",
+      n16UpManual.manual && n16UpManual.ok && n16UpManual.backups === 1 && n16UpManual.hasDelta && n16UpManual.stillOlder,
+      JSON.stringify(n16UpManual));
+
+    // Turso really can DDL from the browser: stand a workspace up, wind it back
+    // to an older shape (a table a later version added, gone; the marker back to
+    // v1) and prove the upgrade restores BOTH.
+    const n16UpTurso = await page.evaluate(async function (port) {
+      var WS = Studio.WS, t = Studio.tursoSource, out = { app: WS.SCHEMA_VERSION };
+      var cfg = { url: "http://localhost:" + port + "/__turso", token: "tok-n16up" };
+      await t.provision(cfg, WS.emptySnapshot());
+      await t.queryData(cfg, { kind: "sql", sql: 'DROP TABLE IF EXISTS "users"' });
+      await t.queryData(cfg, { kind: "sql", sql: "INSERT OR REPLACE INTO \"polecat_meta\"(key,value) VALUES('schema_version','1')" });
+      out.beforeVer = (await t.load(cfg)).schemaVersion;
+      out.beforeRel = WS.compareSchema(out.beforeVer);
+      out.beforeHasUsers = ((await t.probe(cfg)).tables || []).some(function (x) { return x.name === "users"; });
+      var r = await t.upgradeWorkspace(cfg);
+      out.ok = r.ok === true;
+      out.afterVer = (await t.load(cfg)).schemaVersion;
+      out.afterHasUsers = ((await t.probe(cfg)).tables || []).some(function (x) { return x.name === "users"; });
+      await t.drop(cfg);
+      return out;
+    }, PORT);
+    ok("N16: the turso adapter upgrades an older workspace in place — the missing table is created and the marker moves to this app's version",
+      n16UpTurso.beforeRel === "older" && n16UpTurso.beforeHasUsers === false && n16UpTurso.ok &&
+      n16UpTurso.afterHasUsers === true && n16UpTurso.afterVer === n16UpTurso.app, JSON.stringify(n16UpTurso));
+
+    // Supabase deliberately stays on the paste path even with the admin Edge
+    // Function bound: that function's only schema action re-creates the demo
+    // allow-all policy, so a one-click "upgrade" there would silently re-open a
+    // gone-live workspace to anon (STATUS.md N26). The script it hands back must
+    // also STAMP the marker — without that the app would keep offering the
+    // upgrade after it had been run.
+    const n16UpSb = await page.evaluate(async function () {
+      var WS = Studio.WS;
+      var r = await Studio.supabaseSource.upgradeWorkspace({ url: "https://x.supabase.co", key: "k", adminFnUrl: "https://example.invalid/admin" });
+      var sql = r.sql || "";
+      return { manual: r.manual === true, ok: r.ok === false,
+        hasDelta: /CREATE TABLE IF NOT EXISTS "users"/.test(sql),
+        stamps: new RegExp("VALUES\\('schema_version', '" + WS.SCHEMA_VERSION + "'\\)").test(sql),
+        // No policy, no RLS toggle, and no BLANKET privilege change. The one
+        // GRANT it does carry is EXECUTE on the atomic-save function it creates
+        // — that function is SECURITY INVOKER, so it still runs under the
+        // caller's own policies and grants nobody a row they couldn't read.
+        noPolicy: !/CREATE POLICY/i.test(sql) && !/ROW LEVEL SECURITY/i.test(sql),
+        noBlanketGrant: !/GRANT[^;]*ON ALL TABLES/i.test(sql) && !/ALTER DEFAULT PRIVILEGES/i.test(sql),
+        onlyFnGrant: (sql.match(/GRANT /gi) || []).length === 1 && /GRANT EXECUTE ON FUNCTION/i.test(sql) };
+    });
+    ok("N16: the supabase upgrade hands back a script that adds the tables and stamps the version — and changes no RLS policy or table privilege (it never routes through the admin function's provision action)",
+      n16UpSb.manual && n16UpSb.ok && n16UpSb.hasDelta && n16UpSb.stamps && n16UpSb.noPolicy &&
+      n16UpSb.noBlanketGrant && n16UpSb.onlyFnGrant,
+      JSON.stringify(n16UpSb));
+
     const wsSupabase = await page.evaluate(async function () {
       var res = await Studio.supabaseSource.provision({}, Studio.WS.emptySnapshot());
       return { manual: !!res.manual, hasDDL: /CREATE TABLE IF NOT EXISTS "connections"/.test(res.sql || ""), hasApp: /'app', 'analytics'/.test((res.sql || "").replace(/\s+/g, " ")) };

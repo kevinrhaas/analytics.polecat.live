@@ -8408,6 +8408,10 @@
       // N16: never claim "changes mirror automatically" while the version
       // handshake has writes latched off.
       : st.readOnly ? "Read-only — this workspace (schema v" + st.backendSchemaVersion + ") was created by a newer version of Analytics than this one (v" + st.appSchemaVersion + "). Changes stay in this browser until the app updates."
+      // N16 slice 2: an OLDER workspace is not broken — every change to the
+      // workspace shape has only ever added to it — so this reads as an offer,
+      // not an alarm, and the step itself is right below.
+      : st.status === "connected" && st.schemaRelation === "older" ? "Connected — changes mirror automatically. This workspace was made by an earlier version of Analytics (schema v" + st.backendSchemaVersion + ", this app writes v" + st.appSchemaVersion + ") — you can upgrade it below."
       : st.status === "connected" ? "Connected — changes mirror automatically" + (st.lastPushAt ? " · last sync " + new Date(st.lastPushAt).toLocaleTimeString() : "")
       : st.status === "syncing" ? "Syncing…"
       : st.status === "connecting" ? "Connecting…"
@@ -8481,6 +8485,35 @@
           '</div>';
       }
     }
+    // N16 slice 2 — the "Upgrade workspace" step, first-class instead of a
+    // string glued onto a failed save. An older workspace is not an error (the
+    // shape has only ever grown), so this is an offer sitting quietly on the
+    // card, with the two things that make it safe stated up front: nothing
+    // stored is touched, and a backup downloads before anything is written.
+    // Backends that can't change their own structure from a browser (Supabase)
+    // come back with the script instead — same step, one paste in the middle.
+    var upgradeHtml = "";
+    if (st.isRemote && st.schemaRelation === "older") {
+      var upgSql = renderWorkspaceBackendCard._upgradeSql || "";
+      var sqlWhere = st.sourceId === "supabase" ? "Supabase → SQL editor" : "your database's SQL console";
+      upgradeHtml = '<div class="ws-secrets ws-upgrade">' +
+        '<span class="cx-name"><b>Upgrade this workspace</b><small>' +
+          'It was made by an earlier version of Analytics (schema v' + esc(String(st.backendSchemaVersion)) +
+          '); this app writes v' + esc(String(st.appSchemaVersion)) + '. Everything works today — newer versions have only ever ' +
+          'ADDED to a workspace — but the parts they added have nowhere to be stored until it is upgraded. ' +
+          'Upgrading adds them and changes nothing you have saved. A full backup of the workspace downloads first, every time.' +
+        '</small></span>' +
+        '<span class="cx-actions ws-actions"><button type="button" class="btn primary" id="wsUpgradeBtn">Upgrade workspace</button></span>' +
+        (upgSql ? '<small class="ws-upgrade-note">Your backup has downloaded. This backend can’t change its own structure from a browser, so the upgrade is one paste: run this once in ' + esc(sqlWhere) + ', then re-check. It is safe to run twice.</small>' +
+          '<pre class="ws-sync-err-sql"><code>' + esc(upgSql) + '</code></pre>' +
+          '<span class="cx-actions ws-actions">' +
+            '<button type="button" class="btn" id="wsUpgradeCopyBtn">Copy SQL</button>' +
+            '<button type="button" class="btn" id="wsUpgradeRecheckBtn">I’ve run it — re-check</button>' +
+          '</span>' : "") +
+        '</div>';
+    } else if (renderWorkspaceBackendCard._upgradeSql) {
+      renderWorkspaceBackendCard._upgradeSql = ""; // the workspace moved on
+    }
     card.innerHTML = '<h2>Workspace backend</h2>' +
       '<p class="ws-card-intro">Where this workspace\'s catalog lives — dashboards, datasets and connections. Local by default; connect a database to reach the same workspace from any browser. <b>' + esc(credLine) + '</b></p>' +
       '<div class="ws-current">' +
@@ -8506,6 +8539,7 @@
               ? (sec.locked ? '<button type="button" class="btn primary" id="wsUnlockBtn">Unlock…</button>' : '<button type="button" class="btn" id="wsSecretsOffBtn">Turn off</button>')
               : '<button type="button" class="btn" id="wsSecretsOnBtn"' + (sec.available ? "" : " disabled title=\"WebCrypto unavailable\"") + '>Encrypt secrets…</button>') +
           '</span></div>' : "") +
+      upgradeHtml +
       atomicHtml +
       syncLogHtml;
     var refreshBtn = $("#wsRefreshBtn", card);
@@ -8528,6 +8562,47 @@
       (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(sql) : Promise.reject())
         .then(function () { toast("SQL copied — paste it into Supabase → SQL editor, then hit Retry now"); },
               function () { window.prompt("Copy this SQL:", sql); });
+    };
+    // N16 slice 2 — run the upgrade. The backup writer is passed IN (Sync has
+    // no DOM and refuses to upgrade without one), so the download is not a
+    // courtesy the UI can forget: no writer, no upgrade.
+    var upgradeBtn = $("#wsUpgradeBtn", card);
+    if (upgradeBtn) upgradeBtn.onclick = function () {
+      upgradeBtn.disabled = true;
+      Studio.Sync.upgradeWorkspace({
+        backup: function (payload) {
+          download("analytics-workspace-backup-v" + payload.backendSchemaVersion + "-" +
+            new Date().toISOString().slice(0, 10) + ".json", JSON.stringify(payload, null, 2), "application/json");
+        }
+      }).then(function (r) {
+        if (r && r.ok) {
+          renderWorkspaceBackendCard._upgradeSql = "";
+          toast("Workspace upgraded to v" + r.to + " — the backup downloaded first.");
+        } else if (r && r.manual) {
+          renderWorkspaceBackendCard._upgradeSql = r.sql || "";
+          toast("Backup downloaded. This backend needs the upgrade run in its SQL editor — the script is on the card.");
+        } else {
+          toast("Upgrade didn't run: " + ((r && r.error) || "unknown error"), true);
+        }
+        renderWorkspaceBackendCard();
+      });
+    };
+    var upgradeCopyBtn = $("#wsUpgradeCopyBtn", card);
+    if (upgradeCopyBtn) upgradeCopyBtn.onclick = function () {
+      var sql = renderWorkspaceBackendCard._upgradeSql || "";
+      (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(sql) : Promise.reject())
+        .then(function () { toast("SQL copied — run it once, then hit “I’ve run it — re-check”"); },
+              function () { window.prompt("Copy this SQL:", sql); });
+    };
+    var upgradeRecheckBtn = $("#wsUpgradeRecheckBtn", card);
+    if (upgradeRecheckBtn) upgradeRecheckBtn.onclick = function () {
+      upgradeRecheckBtn.disabled = true;
+      Studio.Sync.pullNow().then(function () {
+        var s = Studio.Sync.syncState();
+        if (s.schemaRelation === "older") toast("The workspace still reports schema v" + s.backendSchemaVersion + " — has the script run yet?", true);
+        else { renderWorkspaceBackendCard._upgradeSql = ""; toast("Upgraded — this workspace is now at v" + s.appSchemaVersion + "."); }
+        renderWorkspaceBackendCard();
+      });
     };
     var atomicSqlBtn = $("#wsAtomicSqlBtn", card);
     if (atomicSqlBtn) atomicSqlBtn.onclick = function () {
