@@ -135,6 +135,41 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N12 — one renewal at a time: concurrent sign-ins stop spending the same refresh token
+  (v886, sw v514, 2026-08-08, steward; dev branch):** the first ready item in ▶ NOW, and the
+  defect N11's investigation measured on its way past (filed separately on purpose — different
+  cause, own revertible unit).
+  - **The defect.** `ensureSession()` shared a CACHED session but had no guard on a cache MISS:
+    every miss started its own grant. The post-sign-in boot misses twice, ~55ms apart, and both
+    flows read `refreshTokenFor(cfg)` before either wrote the rotated token back — so both spent
+    the IDENTICAL refresh token. The suite's mock forgave that (it kept every token it ever
+    minted valid); a real GoTrue **rotates**, and outside its reuse-detection grace window the
+    second spend is REFUSED. A refusal is final by design (N2 slice 3, unchanged by N11): the
+    token is dropped and the user is asked for the workspace password mid-session — the same
+    user-visible symptom N11 had just closed, from a different cause.
+  - **The fix** is the shape the item predicted: a `singleFlight(key, start)` helper keyed by
+    `sessionKey(cfg)` (`app/sources/supabase.js`). A second caller that arrives while a grant is
+    in flight AWAITS that grant instead of starting its own, so the credential is spent once and
+    both callers resolve from the same session. The entry is cleared the moment the grant settles
+    — **in both directions**, so a FAILED grant is never left behind as the shared answer and the
+    next call asks again honestly. `force` still bypasses the CACHE (admin calls re-mint); what
+    it may now join is a grant being minted at that very moment, which is what it asked for — and
+    joining is precisely what stops a privileged call from becoming the second spender of a token
+    a boot pull is already using.
+  - **The mock grew a real posture** so the check cannot pass vacuously: `strict` mode deletes a
+    refresh token once spent (rotate-and-refuse, like the real thing), and a counted token CHAIN
+    follows one token through its rotations, so the count is exactly "how many grants this
+    connection's credential paid for" — immune to any other traffic in the run, unlike a global
+    request counter. Armed/disarmed through `__armrefreshstrict` / `__armgrantcount` /
+    `__grantcount` REST probes, alongside the existing `__armtokentruncate` family.
+  - **Verified in the foreground: the FULL `NODE_PATH=… node tests/run.js` suite, 3152/3152
+    green, exit 0** (10m20s), plus `tools/validate.mjs`, `tools/changelog-check.js` and
+    `tools/dev-smoke.mjs` (the dev gate) run separately green. Three new checks: two concurrent
+    sign-ins spend the token EXACTLY ONCE and both resolve as the same user; the session stays
+    resumable because it was spent once (no mid-session password prompt); and — the anti-vacuity
+    check — with rotation armed, spending one token twice IN SEQUENCE is honoured then refused.
+    The old shape fails the first check by construction (it issues two grants, so the count is 2);
+    that was not separately re-run against a pre-fix build. est 1pt, took 1.
 - **N11 — a dropped connection can no longer sign you out of your workspace (v885, sw v513,
   2026-08-08, steward; dev branch):** the first ready item in ▶ NOW, and the second of the two
   reasons `dev` was red on the full suite. **The spec's prime suspect was the test's boot race; it
@@ -10722,8 +10757,12 @@
     than a flake — escalate it rather than stabilising the test.**
   * Verify with three consecutive full-suite runs green, not one.
   **Position is the loop's placement, not Kevin's** — move or re-star it freely.
-- **N12 ★ [1pt] — Two concurrent renewals spend the SAME refresh token, and a real GoTrue
-  refuses the second.** Born in NOW from N11's investigation (2026-08-08, steward) — measured,
+- ~~**N12 ★ [1pt] — Two concurrent renewals spend the SAME refresh token, and a real GoTrue
+  refuses the second.**~~ ✓ SHIPPED v886, sw v514 (2026-08-08, steward — see DONE). Shipped as the
+  "likely shape" below predicted: a single-flight promise per `sessionKey(cfg)`, `force` still
+  bypassing the cache, a failed grant never left behind as the shared answer. est 1pt, took 1.
+  The spec below stays until grooming archives it.
+  Born in NOW from N11's investigation (2026-08-08, steward) — measured,
   not suspected, and deliberately NOT bundled into N11 (different defect, own revertible unit).
   * **The measurement.** In the N11 repro's own traces, the post-sign-in boot issues TWO
     `grant_type=refresh_token` requests ~55ms apart carrying the **identical** token

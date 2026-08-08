@@ -132,37 +132,64 @@
     return session;
   }
 
+  // ---- N12: one grant at a time, per connection ------------------------------
+  // A cached session was always shared, but a cache MISS used to start a fresh
+  // grant every time it was asked. The post-sign-in boot asks twice, ~55ms
+  // apart: both flows read `refreshTokenFor(cfg)` before either wrote the
+  // rotated one back, so both spent the SAME refresh token. GoTrue ROTATES
+  // refresh tokens — outside its reuse-detection grace window the second spend
+  // is REFUSED, and a refusal is final (N2 slice 3): the token is dropped and
+  // the user is asked for the workspace password mid-session. So a second
+  // caller now awaits the grant already in flight instead of starting its own.
+  // The entry is dropped the moment that grant settles, in both directions — a
+  // FAILED grant is never left behind as the shared answer, so the next call
+  // asks again honestly rather than inheriting a stale rejection.
+  var _inflight = {}; // sessionKey -> the grant Promise currently in flight
+  function singleFlight(key, start) {
+    if (_inflight[key]) return _inflight[key];
+    var p = start();
+    _inflight[key] = p;
+    var clear = function () { if (_inflight[key] === p) delete _inflight[key]; };
+    p.then(clear, clear);
+    return p;
+  }
+
   // force=true bypasses the cached token and re-mints a brand-new JWT. Admin
   // actions (callAdminFn / seedAdmin) pass it so a token that expired
   // server-side earlier than our cached expiresAt can't surface as the relay's
   // misleading "That sign-in session is no longer valid" — every privileged call
-  // mints a fresh session first.
+  // mints a fresh session first. It still bypasses the CACHE; what it joins (if
+  // one is already running) is a grant that is being minted right now anyway,
+  // which is exactly what it asked for — and joining is what keeps a privileged
+  // call from being the second spender of a token a boot pull is already using.
   function ensureSession(cfg, force) {
     if (!cfg || !cfg.authEmail) return Promise.resolve(null);
     var key = sessionKey(cfg);
     var cached = _sessions[key];
     if (!force && cached && cached.expiresAt > Date.now() + 5000) return Promise.resolve(cached);
-    var token = refreshTokenFor(cfg);
-    var grant;
-    if (token) {
-      // Prefer the refresh token: after a reload it is the ONLY credential we
-      // still hold. A REFUSED refresh (revoked, rotated out, password changed in
-      // the workspace) is final — unless a password happens to be in hand this
-      // turn, in which case fall through to the password grant. An UNREACHABLE
-      // project stays unreachable so callers keep telling the two apart.
-      grant = gotrueRefresh(cfg, token).catch(function (e) {
-        if (e && e.unreachable) throw e;
-        delete _sessions[key];
-        rememberRefresh(cfg, "");
-        if (!cfg.authPassword) throw e;
-        return gotrueSignIn(cfg);
-      });
-    } else if (cfg.authPassword) {
-      grant = gotrueSignIn(cfg);
-    } else {
-      return Promise.resolve(null); // anon-key-only connection — unchanged
-    }
-    return grant.then(function (data) { return adoptSession(cfg, data); });
+    return singleFlight(key, function () {
+      var token = refreshTokenFor(cfg);
+      var grant;
+      if (token) {
+        // Prefer the refresh token: after a reload it is the ONLY credential we
+        // still hold. A REFUSED refresh (revoked, rotated out, password changed in
+        // the workspace) is final — unless a password happens to be in hand this
+        // turn, in which case fall through to the password grant. An UNREACHABLE
+        // project stays unreachable so callers keep telling the two apart.
+        grant = gotrueRefresh(cfg, token).catch(function (e) {
+          if (e && e.unreachable) throw e;
+          delete _sessions[key];
+          rememberRefresh(cfg, "");
+          if (!cfg.authPassword) throw e;
+          return gotrueSignIn(cfg);
+        });
+      } else if (cfg.authPassword) {
+        grant = gotrueSignIn(cfg);
+      } else {
+        return Promise.resolve(null); // anon-key-only connection — unchanged
+      }
+      return grant.then(function (data) { return adoptSession(cfg, data); });
+    });
   }
 
   // ---- polecat-admin Edge Function relay (M7 slice 7) ------------------------
