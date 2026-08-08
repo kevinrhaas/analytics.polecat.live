@@ -29,6 +29,17 @@ and are not redistributed.)*
 | US Census Bureau TIGERweb (119th Congressional Districts, `Legislative/MapServer`) | `vendor/geo/us-cd-albers.json` — nationwide congressional districts (all 50 states + DC), generalized + reprojected by `tools/build-geo.mjs` | US government work, public domain |
 | US Census Bureau TIGERweb (2020 ZIP Code Tabulation Areas, `tigerWMS_Current/MapServer` layer 2) | `vendor/geo/us-zcta-albers.json` — nationwide 5-digit ZCTAs (all 50 states + DC), generalized + reprojected by `tools/build-geo.mjs` | US government work, public domain |
 
+### Sample-pack data
+
+Sample packs (`app/demopacks.js`) may ship real outside data as committed CSV under
+`data/packs/<id>/` — the contract is **`docs/PACKS.md`**. Every pack declares a `source` on its
+registry entry, and anything that is **not** public domain (`kind: "licensed"`) gets a row in the
+table above in the same PR that adds it; `tools/validate.mjs` fails the dev gate if it doesn't.
+
+*As of 2026-08-08 no pack ships outside data: both shipped packs (Conservation Insight, Data
+Management & Governance) are entirely synthetic — generated in JS at install time, as their own
+copy says — so there is nothing to credit here yet.*
+
 ## Fonts
 
 No third-party fonts are bundled; the UI uses system font stacks.

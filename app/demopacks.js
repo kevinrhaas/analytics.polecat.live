@@ -52,6 +52,9 @@
   //   afterInstall()— post-flag steps, for anything that reads demoPackInstalled().
   //   demoLogin     — install this pack for the demo account at sign-in.
   //   catalogSamples— this pack owns the raw demo-DB catalog tables (app/build.js).
+  //   source        — WHERE THE DATA CAME FROM. Required on every entry; the contract
+  //                   is docs/PACKS.md and the shape is checked by packSourceIssues()
+  //                   below (plus tools/validate.mjs, which reads this file).
   Studio.DEMO_PACKS = {
     conservation: {
       id: "conservation",
@@ -66,6 +69,7 @@
         "to Home, 8 datasets, and a county→state rollup job. All data is synthetic and embedded — " +
         "nothing to connect.",
       seeds: { connections: 2, datasets: 8, jobs: 1, analyses: 4, dashboards: 6 },
+      source: { kind: "synthetic", label: "synthetic — generated in the app, not real observations" },
       demoLogin: true,
       install: function () { installConservationWorkspace(); },
       // These two read demoPackInstalled("conservation"), so they can only run once the
@@ -98,6 +102,7 @@
         "and their sample data is embedded. Installed by default.",
       // Its dashboards are materialized asynchronously from data/examples by studio.js's
       // ensurePackExamplesMaterialized, so there is nothing for `seeds` to declare here.
+      source: { kind: "synthetic", label: "synthetic — generated in the app, not real observations" },
       catalogSamples: true
     }
   };
@@ -112,6 +117,65 @@
   Studio.demoPackFolder = function (id) {
     var p = Studio.DEMO_PACKS[id];
     return (p && p.folder) || "";
+  };
+
+  // ---- SP-0 (b): DATA PROVENANCE. The contract is docs/PACKS.md. ------------------
+  // Both packs shipped today generate their numbers in JS, and the copy says so
+  // everywhere. The moment a pack carries REAL data (SP-1 is the first) that stops
+  // being enough: the reader has to be told whose data it is and under what terms,
+  // and a maintainer has to be able to REPRODUCE the extract. So every entry declares
+  // a `source`, and the three kinds carry different obligations:
+  //   synthetic — generated here, no outside source. Needs a plain-words `label`.
+  //   public    — a real source in the public domain (a US government work, say).
+  //   licensed  — a real source under someone else's terms. ALSO needs a
+  //               THIRD-PARTY-NOTICES.md line (tools/validate.mjs enforces that).
+  // A real source (public|licensed) ships its data as COMMITTED CSV under
+  // data/packs/<id>/, written by the re-runnable tools/pack-extract/<id>.mjs whose
+  // SOURCE.json is the provenance record — never fetched at runtime, so the app stays
+  // offline-first and a pack can never break because a government site moved a URL.
+  Studio.PACK_SOURCE_KINDS = ["synthetic", "public", "licensed"];
+
+  Studio.demoPackSource = function (id) {
+    var p = Studio.DEMO_PACKS[id];
+    return (p && p.source) || null;
+  };
+  // The one human line the Settings card shows, and the line an attributed pack's
+  // dashboards carry in their subtitle. "" when the entry declares no source — a
+  // shape packSourceIssues() rejects, so it only ever happens mid-edit.
+  Studio.demoPackSourceLine = function (id) {
+    var s = Studio.demoPackSource(id);
+    if (!s) return "";
+    if (s.kind === "synthetic") return "Data: " + (s.label || "synthetic, generated in the app");
+    return "Data: " + s.name + (s.licence ? " (" + s.licence + ")" : "") +
+      (s.retrieved ? ", retrieved " + s.retrieved : "");
+  };
+  // Somebody else's data has to be credited where the work is READ, not only in
+  // Settings — so a non-synthetic pack's dashboards carry the line in their subtitle
+  // (app/studio.js reconcilePackDashboards backfills it, idempotently).
+  Studio.packNeedsAttribution = function (id) {
+    var s = Studio.demoPackSource(id);
+    return !!s && s.kind !== "synthetic";
+  };
+  // The pure shape validator — no DOM, no workspace, so the suite can drive it with
+  // fixtures and tools/validate.mjs enforces the same rules over the file itself.
+  // Returns [] for a conforming entry, otherwise one plain sentence per problem.
+  Studio.packSourceIssues = function (entry) {
+    var out = [], s = entry && entry.source;
+    if (!s) return ["declares no source — every pack states where its data came from (docs/PACKS.md)"];
+    if (Studio.PACK_SOURCE_KINDS.indexOf(s.kind) < 0) {
+      out.push("unknown source kind " + JSON.stringify(s.kind) + " — one of " + Studio.PACK_SOURCE_KINDS.join("/"));
+      return out; // the rest of the rules are per-kind; nothing else is knowable
+    }
+    if (s.kind === "synthetic") {
+      if (!s.label) out.push("a synthetic source needs a label saying so in plain words");
+      if (s.url || s.licence) out.push("a synthetic source has no url or licence — drop them");
+    } else {
+      if (!s.name) out.push("a real source needs a name");
+      if (!/^https:\/\//.test(s.url || "")) out.push("a real source needs an https url");
+      if (!s.licence) out.push("a real source needs a licence");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(s.retrieved || "")) out.push("a real source needs an ISO retrieval date (YYYY-MM-DD)");
+    }
+    return out;
   };
 
   var INSTALLED_KEY = "studio-demopacks-installed";

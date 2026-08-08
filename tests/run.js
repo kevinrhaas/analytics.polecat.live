@@ -5558,6 +5558,129 @@ function serve() {
         (code(dp).match(/id === "[a-z]+"/g) || []).join(",") || "clean");
     })();
 
+    // ---- SP-0 (b): the DATA-PROVENANCE contract (docs/PACKS.md) -------------------
+    // Slice 1 made the registry the only place a pack is named. This is the other
+    // blocker on twelve packs: there was no convention for shipping REAL data, so the
+    // unwritten "synthetic, generated in JS" rule was the only thing standing between
+    // the app and an uncredited, unreproducible CSV. The rules are code now
+    // (Studio.packSourceIssues + tools/validate.mjs), and code can be driven with
+    // fixtures — which is what keeps these checks honest while both shipped packs are
+    // still synthetic: the negative cases below are real data shapes, not hypotheticals.
+    const packSource = await page.evaluate(function () {
+      var ids = Object.keys(Studio.DEMO_PACKS), out = { ids: ids, live: {}, lines: {} };
+      ids.forEach(function (id) {
+        out.live[id] = Studio.packSourceIssues(Studio.DEMO_PACKS[id]);
+        out.lines[id] = Studio.demoPackSourceLine(id);
+        out.attribution = out.attribution || {};
+        out.attribution[id] = Studio.packNeedsAttribution(id);
+      });
+      // the shape rule, exercised on entries the registry does not (yet) contain
+      var real = { kind: "public", name: "US Census CBP", url: "https://www.census.gov/x",
+        licence: "Public domain (U.S. Government work)", retrieved: "2026-08-08" };
+      function issues(src) { return Studio.packSourceIssues({ source: src }); }
+      out.fixtures = {
+        goodReal: issues(real),
+        goodSynthetic: issues({ kind: "synthetic", label: "synthetic — generated in the app" }),
+        none: issues(undefined),
+        unknownKind: issues({ kind: "scraped", name: "x" }),
+        httpUrl: issues(Object.assign({}, real, { url: "http://www.census.gov/x" })),
+        noLicence: issues(Object.assign({}, real, { licence: "" })),
+        badDate: issues(Object.assign({}, real, { retrieved: "Aug 2026" })),
+        syntheticWithLicence: issues({ kind: "synthetic", label: "x", licence: "CC-BY" }),
+        realLine: Studio.demoPackSourceLine("__not_a_pack__") === "" ? "empty-for-unknown" : "leaked"
+      };
+      return out;
+    });
+    ok("SP-0(b): every registered pack declares a well-formed source, and the shape rule rejects the ways a real one goes wrong (no source, unknown kind, http url, no licence, unparseable date, a synthetic entry carrying a licence)",
+      packSource.ids.length >= 2 &&
+      packSource.ids.every(function (id) { return packSource.live[id].length === 0 && /^Data: /.test(packSource.lines[id]); }) &&
+      packSource.fixtures.goodReal.length === 0 && packSource.fixtures.goodSynthetic.length === 0 &&
+      packSource.fixtures.none.length === 1 && packSource.fixtures.unknownKind.length === 1 &&
+      packSource.fixtures.httpUrl.length === 1 && packSource.fixtures.noLicence.length === 1 &&
+      packSource.fixtures.badDate.length === 1 && packSource.fixtures.syntheticWithLicence.length === 1 &&
+      packSource.fixtures.realLine === "empty-for-unknown",
+      JSON.stringify(packSource));
+
+    // Both packs shipped today are synthetic, and the app SAYS so on the card you
+    // install them from — the honesty that used to live only in hand-written blurbs
+    // is now the registry's own line, rendered from one place.
+    await page.evaluate(function () { window.__studioShellSetSection("settings"); });
+    const packCardSrc = await page.evaluate(function () {
+      var out = {};
+      [].slice.call(document.querySelectorAll("#secSettings [data-demopack]")).forEach(function (btn) {
+        var id = btn.getAttribute("data-demopack");
+        var line = btn.closest(".set-row").querySelector(".set-pack-src");
+        out[id] = line ? line.textContent : null;
+      });
+      return out;
+    });
+    ok("SP-0(b): each pack's Settings card renders its source line, and both shipped packs say plainly that their data is synthetic",
+      Object.keys(packCardSrc).length >= 2 &&
+      Object.keys(packCardSrc).every(function (id) { return /^Data: synthetic — generated in the app/.test(packCardSrc[id] || ""); }),
+      JSON.stringify(packCardSrc));
+
+    // A pack carrying somebody else's data has to be credited where the numbers are
+    // READ, not only where they are installed. Driven with a fixture pack because no
+    // real-data pack exists yet — the machinery is what SP-1 is blocked on, so it is
+    // what gets proven here: attribution lands in the subtitle, is idempotent, leaves
+    // authored text alone, and never touches a synthetic pack's dashboards.
+    const attrib = await page.evaluate(async function () {
+      var W = Studio.Workspace, PACK = "__srctest", out = {};
+      Studio.DEMO_PACKS[PACK] = { id: PACK, kind: "workspace", folder: "Src Test", name: "Src Test",
+        tagline: "t", blurb: "b",
+        source: { kind: "public", name: "US Census CBP", url: "https://www.census.gov/x",
+          licence: "Public domain (U.S. Government work)", retrieved: "2026-08-08" } };
+      var line = Studio.demoPackSourceLine(PACK);
+      out.line = line;
+      out.needsAttribution = Studio.packNeedsAttribution(PACK);
+      var authored = W.put("dashboards", { name: "srctest-authored", title: "Authored",
+        demoPackId: PACK, folder: "Src Test", spec: { name: "srctest-authored", subtitle: "County saturation, 2023" } });
+      var bare = W.put("dashboards", { name: "srctest-bare", title: "Bare",
+        demoPackId: PACK, folder: "Src Test", spec: { name: "srctest-bare", subtitle: "" } });
+      // a synthetic pack's dashboard, untouched by all of this
+      var syn = W.all("dashboards").filter(function (r) { return r.demoPackId === "conservation"; })[0];
+      var synBefore = syn && String(syn.spec.subtitle || "");
+      window.__studioReconcilePackDashboards();
+      function sub(id) { var r = W.all("dashboards").filter(function (x) { return x.id === id; })[0]; return r && String(r.spec.subtitle || ""); }
+      out.authored = sub(authored.id);
+      out.bare = sub(bare.id);
+      window.__studioReconcilePackDashboards();      // idempotent — the line can't accumulate
+      out.authoredTwice = sub(authored.id);
+      out.bareTwice = sub(bare.id);
+      var synAfter = syn && String((W.all("dashboards").filter(function (x) { return x.id === syn.id; })[0] || {}).spec.subtitle || "");
+      out.syntheticUntouched = synBefore === synAfter;
+      W.remove("dashboards", authored.id); W.remove("dashboards", bare.id);
+      delete Studio.DEMO_PACKS[PACK];
+      out.cleanedUp = W.all("dashboards").filter(function (r) { return r.demoPackId === PACK; }).length === 0 && !Studio.DEMO_PACKS[PACK];
+      return out;
+    });
+    ok("SP-0(b): a real-data pack's source is credited in the subtitle of every dashboard it seeds — appended to authored text, standing alone when there is none, idempotent across reconciles, and never applied to a synthetic pack",
+      attrib.needsAttribution && attrib.line === "Data: US Census CBP (Public domain (U.S. Government work)), retrieved 2026-08-08" &&
+      attrib.authored === "County saturation, 2023 · " + attrib.line && attrib.bare === attrib.line &&
+      attrib.authoredTwice === attrib.authored && attrib.bareTwice === attrib.bare &&
+      attrib.syntheticUntouched && attrib.cleanedUp, JSON.stringify(attrib));
+
+    // The filesystem half of the same contract, checked where it lives: real data is
+    // committed CSV with a re-runnable extract script beside it, under a byte budget.
+    // (The gate itself is tools/validate.mjs — this asserts the rules exist and are
+    // wired, so nobody quietly drops them while no pack exercises them yet.)
+    (function () {
+      const val = fs.readFileSync(path.join(ROOT, "tools/validate.mjs"), "utf8");
+      const lib = fs.readFileSync(path.join(ROOT, "tools/pack-extract/lib.mjs"), "utf8");
+      const docs = fs.existsSync(path.join(ROOT, "docs/PACKS.md")) && fs.readFileSync(path.join(ROOT, "docs/PACKS.md"), "utf8");
+      const packsDir = path.join(ROOT, "data/packs");
+      const dirs = fs.existsSync(packsDir) ? fs.readdirSync(packsDir).filter((d) => fs.statSync(path.join(packsDir, d)).isDirectory()) : [];
+      const overBudget = dirs.filter((d) => fs.readdirSync(path.join(packsDir, d))
+        .filter((f) => f.endsWith(".csv"))
+        .reduce((n, f) => n + fs.statSync(path.join(packsDir, d, f)).size, 0) > 150 * 1024);
+      ok("SP-0(b): the pack-data gate is wired — validate.mjs enforces the registry source, the extract script, the CSV-only directory and the 150KB per-pack budget; writePack applies the same source rules before writing; docs/PACKS.md is the contract",
+        /PACK_CSV_BUDGET = 150 \* 1024/.test(val) && /declares no source/.test(val) &&
+        /has no extract script/.test(val) && /THIRD-PARTY-NOTICES\.md does not mention/.test(val) &&
+        /PACK_CSV_BUDGET = 150 \* 1024/.test(lib) && /export function writePack/.test(lib) &&
+        !!docs && /≤150 KB of CSV per pack/.test(docs) && overBudget.length === 0,
+        "over budget: " + (overBudget.join(", ") || "none"));
+    })();
+
     // CONS-1: the three CTIC/OpTIS reference dashboards — spec shapes match the
     // reference visuals (diverging change map, real provider colors, real CRD
     // scale, blue banner, curated builder-blob DAs feeding real rows).

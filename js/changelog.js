@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 896,
+    title: 'Every sample pack now says where its data came from',
+    kind: 'polish',
+    ts: '2026-08-08T16:14:00.000Z',
+    items: [
+      'Each sample pack in Settings gains a line naming its data source. Both packs shipped today read "Data: synthetic — generated in the app, not real observations", which is what they have always been — the difference is that the app now states it as a fact it keeps, rather than as a sentence somebody remembered to write into a description.',
+      'That matters because packs built on REAL public data are coming. Such a pack names the dataset, its licence and the date it was retrieved, and repeats that line in the subtitle of every dashboard it installs — so if you export one of those dashboards and mail it to someone, the attribution travels with it. Nothing is credited twice, and a pack that generates its own numbers never claims a source it does not have.',
+      'Behind that line is a contract for how real data is allowed into the app at all, written down in docs/PACKS.md. Data ships as a file committed alongside the code, produced by a script that is committed with it — the script records the source URL, the retrieval date and every filter applied, and running it again re-derives exactly the same file. So "where did this number come from?" has an answer you can read, and "is it still right?" has one you can run.',
+      'The app never fetches pack data over the network. It stays local-first and works offline, and installing a pack cannot fail because a government website reorganised its URLs.',
+      'There is a size budget too — 150 KB of data per pack — because every installed pack shares one browser storage area, and twelve packs have to fit in it alongside your own work. The build refuses to exceed it rather than letting the app get slowly heavier.',
+      'Nine checks, four of them driving a stand-in pack built on real public data, since no such pack ships yet. They prove the source line reaches the Settings card and dashboard subtitles, that it cannot pile up on repeat, that it never touches a synthetic pack, and that the build rejects a source with no licence, a plain-http URL, an unreadable date or no attribution notice.',
+    ],
+  },
+  {
     v: 895,
     title: 'Downloading a chart as an image or a CSV works on a phone',
     kind: 'fix',

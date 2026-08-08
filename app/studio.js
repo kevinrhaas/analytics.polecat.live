@@ -1097,6 +1097,25 @@
       if (upd) { Studio.Workspace.put("dashboards", r, { silent: true }); changed = true; }
     });
     if (changed) Studio.Workspace.notify("dashboards");
+    // SP-0(b): a pack carrying somebody else's data credits it where the work is READ.
+    // The Settings card is where you install a pack; the dashboard is where you (and
+    // whoever you hand the export to) actually look at the numbers, so the source line
+    // rides in the subtitle too. Backfilled here rather than only at seed time so an
+    // install that predates the pack's source declaration heals without a reinstall,
+    // and idempotent on the line's own text so it can never accumulate. Every pack
+    // shipped today is synthetic, so this is inert until the first real-data pack.
+    var attrChanged = false;
+    Studio.Workspace.all("dashboards").forEach(function (r) {
+      if (!r.demoPackId || !r.spec) return;
+      if (!Studio.packNeedsAttribution || !Studio.packNeedsAttribution(r.demoPackId)) return;
+      var line = Studio.demoPackSourceLine(r.demoPackId);
+      if (!line || String(r.spec.subtitle || "").indexOf(line) >= 0) return;
+      var sub = String(r.spec.subtitle || "").replace(/\s+$/, "");
+      r.spec.subtitle = sub ? sub + " · " + line : line;
+      Studio.Workspace.put("dashboards", r, { silent: true });
+      attrChanged = true;
+    });
+    if (attrChanged) Studio.Workspace.notify("dashboards");
     // SAMPLE-DATA-1 (Kevin live, 2026-07-30): one folder per pack across ALL object
     // types — heal workspaces installed before pack seeds carried a folder, without a
     // reinstall (the same backfill installDemoPack now does up front).
@@ -9695,7 +9714,10 @@
           Object.keys(Studio.DEMO_PACKS).map(function (id) {
             var p = Studio.DEMO_PACKS[id], on = Studio.demoPackInstalled(id);
             return '<div class="set-row"><span class="set-row-ic" data-ic="globe"></span>' +
-              '<div class="set-row-txt"><b>' + esc(p.name) + '</b><small>' + esc(p.blurb) + '</small></div>' +
+              // SP-0(b): where this pack's data came from, in the reader's own words —
+              // the registry line, never copy retyped here (see docs/PACKS.md).
+              '<div class="set-row-txt"><b>' + esc(p.name) + '</b><small>' + esc(p.blurb) + '</small>' +
+                '<small class="set-pack-src">' + esc(Studio.demoPackSourceLine(id)) + '</small></div>' +
               '<button type="button" class="btn' + (on ? "" : " primary") + '" data-demopack="' + esc(id) + '">' + (on ? "Remove" : "Install") + '</button></div>';
           }).join("") +
         '</div>' : "") +
