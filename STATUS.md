@@ -135,6 +135,54 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N17 slice 2 of 2 — the runtime tripwire: making the stale tab NOTICE (v900, sw v525,
+  2026-08-08, steward; dev branch):** slice 1 made an old app's save non-destructive. This is the
+  other half — the app finding out at all. **N17 is CLOSED.**
+  **The hole, stated precisely.** N16 runs the handshake at five seams (boot pull, connect-adopt,
+  Refresh, the backoff retry, the quiet freshness pull) and every one of them is a moment the app
+  is already ADOPTING a snapshot. That is the flaw, not an accident of implementation: the two
+  guards that make adoption safe — `quietPull` refuses while `_dirty` (adopting would `replaceAll`
+  over the pending edits) and refuses unless the mirror is `connected` — disqualify exactly the tab
+  this exists for. A tab asleep for a week, holding unpushed work, on a workspace another device
+  upgraded meanwhile, would wake up, run its debounce, and push a v4-shaped view of a v5 workspace.
+  The first new check asserts that hole rather than describing it: with an edit pending,
+  `quietPull(true)` returns false and the mock backend records ZERO reads.
+  **What shipped.** `Sync.recheckSchema()` — the version gets its own check, decoupled from
+  adoption, wired to `visibilitychange`→visible and `online`. It adopts nothing, so `_dirty` is not
+  a reason to skip it; it is the reason to run it. Adapters opt in with **`schemaVersion(cfg)`**, a
+  single-row read on all three remotes (turso `SELECT value … WHERE key=?`, supabase
+  `?select=value&key=eq.schema_version`, firebase the `app` doc); an adapter without it falls back
+  to a full `load()`, which is what the N16 seams already do, so the method is an optimisation and
+  never a correctness dependency.
+  **The part that is easy to get wrong, and the reason a listener alone would have been theatre:**
+  waking a tab is precisely what arms a debounced push, so the check and the push race and the push
+  usually wins — the tripwire would report the truth a moment after the damage. `flushPush` now
+  waits on a check in flight and re-enters after it lands, so the read-only guard is evaluated
+  against the version the backend actually has. There is a check that drives exactly that ordering:
+  `pushNow()` is called WITHOUT awaiting the resume, and the mock records zero saves.
+  **Two properties held deliberately.** Silence changes NOTHING in either direction — an
+  unreachable backend or one with no marker returns null and the latch is left exactly as it was
+  (it must not latch a workspace off, and must not release one that already is; there is a check).
+  And a re-check whose answer arrives after the workspace was disconnected or re-bound is dropped
+  on the floor rather than applied to a backend we are no longer on. The burst floor is 2s, short
+  on purpose: this is the safety check, not a freshness poll, and alt-tab flurries are the only
+  thing it is coalescing.
+  **The rider: firebase's absence-delete, the one gap slice 1 measured and left.** Its `save()`
+  upserted the snapshot's rows, read every collection BACK, and deleted any document the snapshot
+  didn't carry — so a mirror that had never downloaded a dashboard created on another device
+  removed it. The DURABLE-2 class, fixed in supabase at v787 and in turso in slice 1; firebase was
+  the last adapter carrying it. Deletes are now tombstone-driven only and `users` is upsert-only
+  forever, matching the other two. The read-back is gone with it, so a firebase save is now a
+  bounded number of writes instead of a write burst plus a full re-read per table.
+  **Verified.** 8 new checks; **the FULL suite at 3205 passed / 0 failed**, plus the dev gate
+  (validate + changelog-check + dev-smoke, desktop and 390×780). The tripwire checks drive a real
+  mock workspace upgraded behind a sleeping tab that is holding an unsaved edit. The firebase
+  checks stub `fetch` and read the REQUEST LOG — the only DELETE is the tombstoned id, no `users`
+  DELETE appears, and there are zero collection GETs, which is the honest way to assert a
+  read-back is gone (a save that never asks what is there cannot delete what it didn't ask for).
+  Help's read-only section was corrected in the same slice: it listed connect/refresh/quiet-re-read
+  as the moments the version is checked, which is now incomplete.
+  **Est 2pt for the whole item, took 2 — on estimate.**
 - **N17 slice 1 of 2 — the storage guarantee: an older app's save cannot destroy what it can't
   see (v899, sw v524, 2026-08-08, steward; dev branch):** the half of compatibility N16's banner
   cannot cover. N16 latches a newer workspace read-only at the seams it can SEE (open, connect,
@@ -11234,10 +11282,12 @@
   first**: export the pre-upgrade snapshot (the existing workspace-export path) before touching
   the backend, every time, no opt-out. The seam is ready: `Sync.schemaState().relation === "older"`
   is the trigger, and `syncState()` carries `backendSchemaVersion`/`appSchemaVersion` for the copy.
-- **N17 ★★ [2pt est, slice 1 shipped — slice 2 REMAINS] — An older app must not clobber a newer
-  workspace: prove it, then fix it.** ✓ **SLICE 1 SHIPPED (the storage guarantee) v899, sw v524
-  (2026-08-08, steward — see DONE).** The measurement it demanded, per adapter, saving a v4-shaped
-  snapshot into a v5-shaped workspace:
+- ~~**N17 ★★ [2pt est, 2 slices shipped] — An older app must not clobber a newer
+  workspace: prove it, then fix it.**~~ ✓ **SHIPPED — slice 1 (the storage guarantee) v899, sw
+  v524; slice 2 (the runtime tripwire + firebase's absence-delete) v900, sw v525 (both 2026-08-08,
+  steward — see DONE). The item is CLOSED; est 2pt, took 2 — on estimate.** The history below stays
+  until the next grooming pass archives it. The measurement it demanded, per adapter, saving a
+  v4-shaped snapshot into a v5-shaped workspace:
 
   | | unknown TABLE | unknown promoted COLUMN | unknown `data` field | row this mirror never saw |
   |---|---|---|---|---|
@@ -11253,14 +11303,20 @@
   naming only known columns; deletes tombstone-driven only) and made the marker monotonic, and
   added three checks driving a real edit-and-save against a future-shaped mock workspace
   carrying all four cases at once.
-  **Slice 2 (what remains) — the runtime tripwire:** sync re-checks the version on
+  ~~**Slice 2 (what remains) — the runtime tripwire:**~~ **SLICE 2 IS DONE (v900, sw v525)** —
+  `Sync.recheckSchema()` reads the marker ALONE (adapters opt in with `schemaVersion(cfg)`; a
+  full `load()` is the fallback) on `visibilitychange`→visible and `online`, and `flushPush`
+  waits on a check in flight so the wake-up's own armed push can't beat it. The original spec:
+  sync re-checks the version on
   resume/reconnect (`visibilitychange`/online, not just the N16 seams), so a tab that slept
-  through an upgrade latches read-only instead of pushing. **Also fold in the one gap slice 1
-  measured but deliberately did not take:** firebase's `save()` still reads the collection back
-  and deletes any doc absent from the snapshot — the DURABLE-2 "absence is not deletion" class,
+  through an upgrade latches read-only instead of pushing. ~~**Also fold in the one gap slice 1
+  measured but deliberately did not take:**~~ **also DONE** — firebase's `save()` used to read
+  the collection back
+  and delete any doc absent from the snapshot — the DURABLE-2 "absence is not deletion" class,
   the last adapter still carrying it (supabase and now turso are tombstone-driven). It is a
   row-level durability bug rather than a version-compat one, which is why it is a rider here and
-  not a silent extra in slice 1.
+  not a silent extra in slice 1. The firebase row of the table above now reads ✅ tombstone-only,
+  and the read-back is gone with it.
 - **N18 ★ [1pt] — `docs/COMPAT.md`: the backend-compatibility contract, wired into the process
   (Kevin: "make this process durable… in the development approach and processes now and going
   forward").** One page, enforced, in the style of docs/BACKLOG.md: **(1) the rules** — every

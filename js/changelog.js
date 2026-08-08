@@ -6,6 +6,21 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 900,
+    title: 'A tab that has been asleep now checks the workspace version before it saves anything',
+    kind: 'fix',
+    ts: '2026-08-08T18:40:11.000Z',
+    items: [
+      'The app refuses to write to a workspace that a newer version of Analytics has upgraded, and the previous release made that refusal harmless even when it came too late. This closes the remaining gap: making the older copy notice in the first place.',
+      'The check used to run only when the app was reading the whole workspace anyway — opening it, connecting to it, pressing Refresh, or the quiet background refresh. That last one is deliberately skipped whenever you have unsaved changes waiting, because adopting the backend copy at that moment would overwrite them. Which means the tab most likely to be out of date — one left open for days, with work in it, on a workspace someone else has since upgraded — was the one tab that never looked. It woke up and saved.',
+      'The version now gets its own check, separate from any reading of your data: when a tab becomes visible again, and when a device comes back online, the app reads the single line that records the workspace version and compares it. It downloads nothing else, so having unsaved work is no longer a reason to skip it — it is the reason to run it.',
+      'The save that waking a tab sets off waits for that check rather than racing it. If the workspace turns out to be newer, the app goes read-only and says so before the first write leaves, and your unsaved work stays exactly where it is until the versions line up again.',
+      'A backend that cannot be reached, or one too old to record a version at all, changes nothing in either direction: silence never switches a workspace to read-only and never releases one that already is.',
+      'Separately, Firebase workspaces stop treating a missing row as a deleted one. Saving used to read each collection back and delete anything the saving device was not carrying, so a device that had simply never downloaded a dashboard created elsewhere would remove it. Deletions are now only ever real deletions — something you deleted, recorded as such — which is how Supabase and Turso already worked. Accounts are never deleted by syncing at all. The read-back is gone with it, so saving to Firebase is meaningfully less work.',
+      'Eight checks cover it: a stand-in workspace upgraded behind a sleeping tab that is holding an unsaved edit, proving the background refresh declines to look, that waking reads the version marker on its own without loading the workspace, that the save waits and never goes out, that a silent backend changes nothing either way, and that coming back online clears the lock and releases the held edit once the versions agree — plus a real Firebase save, watched request by request, deleting only what was genuinely deleted and never reading a collection back.',
+    ],
+  },
+  {
     v: 899,
     title: 'An older copy of the app can no longer damage a workspace a newer one has upgraded',
     kind: 'fix',

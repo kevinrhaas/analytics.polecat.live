@@ -770,6 +770,20 @@
       return Promise.resolve({ ok: false, manual: true, sql: sql });
     },
 
+    // N17 slice 2 — the runtime tripwire's cheap read. sync.js re-checks the
+    // backend's schema marker on resume/reconnect, which is a moment where a
+    // whole-workspace load() would be wasteful (and, with local edits pending,
+    // is not something we may adopt anyway). One row, no rows adopted.
+    schemaVersion: function (cfg) {
+      return rest(cfg, "/" + WS.META_TABLE + "?select=value&key=eq.schema_version").then(function (r) {
+        if (!r.ok) return null;
+        return r.json().then(function (rows) {
+          var v = rows && rows[0] && rows[0].value;
+          return v == null ? null : (Number(v) || null);
+        });
+      });
+    },
+
     summarize: function (cfg) { return this.probe(cfg); },
 
     drop: function (cfg) {

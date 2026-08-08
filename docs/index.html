@@ -1819,7 +1819,13 @@
   </ul>
   <p><strong>“Read-only — created by a newer version”.</strong> Every workspace records the schema
   version it was built at, and the app checks it whenever it connects, refreshes, or quietly
-  re-reads the backend. If the workspace is newer than the app, the app <strong>stops writing to
+  re-reads the backend — <em>and</em> whenever a tab you left open becomes visible again, or a
+  device comes back online. Those last two matter because the quiet re-read deliberately skips
+  itself while you have unsaved changes waiting (adopting the backend copy at that moment would
+  overwrite them), so the tab most likely to be out of date was the one that never looked. The
+  resume check reads only the single line that records the version, downloads nothing else, and the
+  save that waking a tab sets off waits for it rather than racing it. If the workspace is newer than
+  the app, the app <strong>stops writing to
   it</strong> and says so with a banner: an older build saves a whole snapshot of the tables it
   knows about, so one push from a stale tab could quietly drop whatever the newer version added.
   Reading is unaffected — the workspace opens and works normally, and anything you change stays in

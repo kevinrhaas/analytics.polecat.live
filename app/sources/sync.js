@@ -204,6 +204,64 @@
   // A workspace this app just provisioned/pushed IS this app's version.
   function claimSchemaVersion() { _backendVersion = WS().SCHEMA_VERSION; _readOnly = false; }
 
+  // N17 slice 2 — THE RUNTIME TRIPWIRE.
+  //
+  // N16 runs the handshake wherever a snapshot is ADOPTED: boot pull, connect,
+  // Refresh, the backoff retry, the quiet freshness pull. Every one of those is
+  // a moment where this tab is already reading the whole workspace — and that
+  // is exactly why they miss the case this exists for. `quietPull` refuses to
+  // run when `_dirty` is set (correctly: an adoption would replaceAll over the
+  // pending edits) and when the mirror is in `error`, so the tab most likely to
+  // be stale — one that has been asleep for a week AND has unpushed work, or
+  // one whose connection dropped — is the one that never re-checks. It wakes
+  // up, the debounce fires, and it pushes a v4-shaped view of a v5 workspace.
+  //
+  // So the version gets its own check, decoupled from adoption: on resume
+  // (`visibilitychange` → visible) and reconnect (`online`), read ONE row — the
+  // schema marker — and re-run the comparison. It adopts nothing, so `_dirty`
+  // is not a reason to skip it; it is the reason to run it.
+  //
+  // Adapters opt in with `schemaVersion(cfg)` (a single-row read on all three
+  // remotes); one that doesn't have it falls back to a full `load()`, which is
+  // what the N16 seams already do. A backend that is unreachable, or that
+  // carries no marker at all, returns null and changes NOTHING — silence must
+  // never latch a workspace off, and it must never clear a latch either.
+  var CHECK_MIN_GAP_MS = 2000;
+  var _lastCheckAt = 0, _checkPending = null;
+  function readBackendVersion(src) {
+    if (typeof src.schemaVersion === "function") {
+      return Promise.resolve(src.schemaVersion(state.cfg));
+    }
+    return Promise.resolve(src.load(state.cfg)).then(decTransform).then(function (snap) {
+      return snap && snap.schemaVersion;
+    });
+  }
+  function recheckSchema(force) {
+    if (state.sourceId === "local") return Promise.resolve(null);
+    if (_preAuth) return Promise.resolve(null); // SYNC-PREAUTH: nobody has signed in — don't ask as anon
+    var src = Studio.sourceById(state.sourceId);
+    if (!src || src.local) return Promise.resolve(null);
+    // alt-tab flurries fire visibilitychange in bursts; coalesce them. The floor
+    // is deliberately short — this is the safety check, not a freshness poll.
+    if (force !== true && Date.now() - _lastCheckAt < CHECK_MIN_GAP_MS) return Promise.resolve(null);
+    _lastCheckAt = Date.now();
+    var forId = state.sourceId;
+    var p = readBackendVersion(src).then(function (v) {
+      var n = (v == null ? null : Number(v)) || null;
+      if (n == null) return null; // unreachable or unmarked — leave the latch exactly as it was
+      // the workspace was disconnected or re-bound while we were asking — that
+      // answer is about a backend we are no longer on
+      if (state.sourceId !== forId) return null;
+      adoptSchemaVersion({ schemaVersion: n });
+      return n;
+    }).catch(function () { return null; }).then(function (v) {
+      if (_checkPending === p) _checkPending = null;
+      return v;
+    });
+    _checkPending = p;
+    return p;
+  }
+
   function publicState() {
     var src = Studio.sourceById(state.sourceId) || Studio.localSource;
     return { sourceId: state.sourceId, label: src.label, source: src,
@@ -357,6 +415,13 @@
     // touch, the backoff retry, pagehide) funnels through here, so one guard
     // closes them all.
     if (_readOnly) return Promise.resolve();
+    // N17 slice 2: a version re-check is in flight (the tab just woke up or the
+    // network just came back). Waking a tab is precisely what arms a debounced
+    // push, so without this the push and the check race and the push usually
+    // wins — the tripwire would report the truth a moment after the damage. Let
+    // the check land, then re-enter: if it latched read-only the guard above
+    // stops the write, and if it didn't, nothing is lost but a round trip.
+    if (_checkPending) return _checkPending.then(function () { return flushPush(force); });
     if (force !== true) {
       var wait = MIN_PUSH_GAP_MS - (Date.now() - _lastPushEnd);
       if (wait > 0) { clearTimeout(_timer); _timer = setTimeout(flushPush, wait); return Promise.resolve(); }
@@ -438,7 +503,15 @@
     if (_freshTimer || typeof window === "undefined") return;
     _freshTimer = setInterval(quietPull, FRESH_EVERY_MS);
     window.addEventListener("focus", function () { quietPull(); });
-    document.addEventListener("visibilitychange", function () { if (!document.hidden) quietPull(); });
+    // N17 slice 2: the tripwire runs BEFORE the freshness pull and independently
+    // of it — quietPull declines whenever there are pending edits or the mirror
+    // is in error, which is the exact state a woken stale tab is in.
+    document.addEventListener("visibilitychange", function () {
+      if (document.hidden) return;
+      recheckSchema();
+      quietPull();
+    });
+    window.addEventListener("online", function () { recheckSchema(); });
   }
 
   var Sync = {
@@ -465,6 +538,17 @@
     retryNow: retryNow,
     // recent sync attempts (newest first) — the Settings card renders these
     syncLog: function () { return _log.slice(); },
+
+    // N17 slice 2 — re-run the version handshake against the backend WITHOUT
+    // adopting anything. Wired to resume/reconnect above; exported so the
+    // Settings card's re-check and the suite can drive the same path. Resolves
+    // the backend version it read, or null when nothing was learned (local,
+    // pre-auth, unreachable, unmarked, or coalesced by the burst floor — none
+    // of which change the latch).
+    recheckSchema: recheckSchema,
+    // Whatever re-check is currently in flight, so a caller can wait for the
+    // tripwire to settle before reading schemaState().
+    schemaCheckPending: function () { return _checkPending || Promise.resolve(null); },
 
     // N16: the version handshake, for anything that needs more than the
     // `readOnly` flag on syncState() (the banner's copy names both versions).
