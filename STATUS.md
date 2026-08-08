@@ -11473,9 +11473,24 @@
 > - **SP-9 [3pt] — Healthcare Pricing.** The same procedure at wildly different prices, by
 >   hospital and payer. *CMS Hospital Price Transparency, public domain.*
 > - **SP-10 [3pt] — Payroll & Performance.** Spend per win, the efficiency frontier, the
->   small-market outperformers. *Lahman Baseball Database, **CC BY-SA 3.0** — ShareAlike, so
->   attribution is required and the shipped extract stays under the same licence. The least
->   clean licence of the eleven; confirm before starting.*
+>   small-market outperformers. *Lahman Baseball Database, **CC BY-SA 3.0**.*
+>   **✅ CONFIRMED — Kevin, 2026-08-08.** It was flagged as the least clean licence of the eleven
+>   and he cleared it. What ShareAlike actually obliges here, so nobody has to re-reason it:
+>   - **Attribution** — "Lahman Baseball Database, Sean Lahman, CC BY-SA 3.0" with a link, in the
+>     pack's `source` field (SP-0), which renders on the Settings card AND in the dashboard
+>     subtitle.
+>   - **The shipped extract carries CC BY-SA 3.0** — a `LICENCE` note beside
+>     `data/packs/payroll/`, plus the `THIRD-PARTY-NOTICES.md` line SP-0 already requires for
+>     anything not public domain.
+>   - **ShareAlike does NOT reach the app.** The extract is an adapted database; `app/` is not a
+>     derivative of it. Worth writing down because the scary reading — "CC BY-SA infects the
+>     repo" — is wrong and would otherwise get re-litigated by every run that reads this line.
+>   - **The one real wrinkle: the export inlines the data.** A user who exports a dashboard from
+>     this pack and republishes it is redistributing a CC BY-SA database, so the attribution has
+>     to TRAVEL with it. That is exactly what putting the credit in the dashboard subtitle buys —
+>     it is inlined into the standalone HTML like everything else, so it cannot be left behind.
+>     Make sure it survives `hideHeader` (the subtitle is the header's, and LF21 lets a user turn
+>     the header off) — if it does not, the credit belongs somewhere the export always keeps.
 > - **SP-11 [3pt] — Water Quality Monitoring.** Where independent monitoring providers disagree
 >   about the same watershed — median estimate plus spread. *USGS/EPA Water Quality Portal,
 >   HUC8-coded, public domain.* **Cheapest of the ten**: reuses the HUC8 geography and the
