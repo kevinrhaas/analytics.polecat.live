@@ -11229,6 +11229,47 @@
   skip the wizard's script — paste `tools/supabase-deploy.sql` into the SQL editor FIRST, do §7,
   then connect; the wizard then probes `state === "polecat"` and simply adopts it, which is
   exactly how prod behaves.
+- **N22 ★★ [3pt — SPLIT BEFORE STARTING] — Provision a Supabase backend entirely FROM THE APP.
+  Kevin's stated end state (2026-08-08):** *"I want things to provision from the app with the
+  right credentials, not have to go to supabase other than setting up the blank database
+  manually."* Treat that as the acceptance criterion: create a blank project in the Supabase
+  dashboard, then do **everything else** — tables, RLS, activity tables, first admin, and later
+  schema upgrades — from Analytics, with no SQL editor and no CLI.
+  **Where we actually are, so nobody re-derives it.** Most of this is BUILT. `supabase/functions/
+  polecat-admin` (M7 slice 7, Kevin's "Option A") already holds the service-role key, opens a
+  direct Postgres connection — *"PostgREST can't DDL even with the service key, but this can,
+  which is the whole reason it exists"* — and exposes four fixed named actions (`provision` /
+  `go-live` / `create-user` / `reset-data`, **never raw SQL**), CORS-scoped to `APP_ORIGIN`. The
+  app calls it via `cfg.adminFnUrl` (`app/sources/supabase.js:220-235`, `adminGoLive` at :681),
+  and the runbook's Path C ends with *"No SQL editor, ever."* **The gap is exactly one step:
+  deploying that function** needs the Supabase CLI (`functions deploy` + three `secrets set`).
+  So today the manual surface is *worse* than Kevin thinks — not one SQL paste but a CLI session
+  — and Path A (the paste) exists only as the fallback for when the function isn't deployed.
+  **The question to settle FIRST, because it decides the whole design — the Supabase Management
+  API.** `POST https://api.supabase.com/v1/projects/{ref}/database/query` with a Personal Access
+  Token runs arbitrary SQL (it is what the dashboard's own SQL editor uses), and the same API can
+  create projects and deploy functions. If a browser can call it, Analytics can provision a
+  project end-to-end with zero Supabase UI. **Verify CORS before designing anything on top of
+  it** — a static Pages app has no server to proxy through, so if `api.supabase.com` does not
+  send usable CORS headers to an arbitrary origin, this option is dead and the fallback below is
+  the answer. Do not assume either way; measure it with a real preflight.
+  **Two credentials, two very different risk profiles — say this out loud in the UI.** A PAT is
+  an ACCOUNT-WIDE credential across every project in the org, far more powerful than the anon
+  key. It must be enter-run-**discard**, in memory only, never localStorage, never in a cfg blob
+  that `saveConn()` serialises — the exact hazard N2 slice 4 just spent a slice removing for the
+  workspace password. The existing `PROVISION_SECRET` flow is already enter-run-discard and is
+  the pattern to copy.
+  **Fallback if CORS blocks the Management API (and the better long-game either way): ONE paste,
+  then never again.** Make the wizard's single manual step install named migration RPCs
+  (`SECURITY DEFINER`, admin-gated, **fixed DDL baked in — never an `exec(sql text)` escape
+  hatch**, mirroring the Edge Function's own security contract). After that one paste the app
+  owns the database forever: provisioning, RLS, and — the reason this matters beyond
+  convenience — **N16's "backend is older, upgrade it" becomes a real in-app button on Supabase
+  instead of a copy-paste SQL box.** N16 and N22 should be designed together for that reason.
+  **Split suggestion:** N22a the CORS/Management-API spike (a measurement, half a slice, and it
+  decides the rest); N22b the provisioning flow the spike selects; N22c the upgrade path wired
+  into N16. **Verify:** stand up a brand-new project and reach a working, RLS-correct, admin-
+  seeded workspace touching the Supabase dashboard exactly once — to click "New project".
   Industry density and whitespace by county: where a chain is under-represented versus the
   population and the businesses already there. **Replaces `datamanagement` in
   `DEFAULT_INSTALLED`** (`demopacks.js:78`) — Data Management stays installable, just not the
