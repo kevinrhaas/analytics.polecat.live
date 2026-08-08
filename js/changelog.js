@@ -6,6 +6,21 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 898,
+    title: 'A workspace made by an older version of the app can be upgraded from inside the app',
+    kind: 'feature',
+    ts: '2026-08-08T17:30:48.000Z',
+    items: [
+      'The other half of the version check that shipped alongside this. A workspace built by an OLDER version of Analytics is not in danger — every change to the workspace shape has only ever added to it, so it keeps working exactly as it always has. What it cannot do is hold the parts newer versions added, and until now the only way you ever found that out was much later, when saving something failed on a table that was not there.',
+      'Settings → Workspace backend now says so up front when the versions differ that way, naming both, and offers an Upgrade workspace button. The upgrade only adds; nothing you have saved is read, moved or deleted, and running it twice is harmless.',
+      'A full backup downloads first, every single time. It is not a checkbox and there is no way to skip it — the app refuses to upgrade at all if the backup cannot be written. The file is a plain, readable copy of everything the backend holds, taken in the moment before anything changes, so the state you started from is on your own disk before the first instruction reaches the database.',
+      'Turso and Firebase workspaces upgrade in one click, because those backends let the app create what it needs directly. Supabase cannot be restructured from a browser, so the card hands over the script instead: the backup still downloads, then copy it, run it once in the SQL editor, and press "I\'ve run it — re-check". The script adds the missing tables and records the new version.',
+      'That script deliberately leaves your security settings alone. Analytics does have a way to run database changes on Supabase on your behalf, and it was not used here: the only such command it offers would also reinstall an old, permissive access rule alongside your current ones, which would quietly widen who can read the workspace. An upgrade that loosens security while claiming to be routine is worse than one that asks for a paste, so it asks for the paste. Fixing that command so the one-click path becomes available too is written down as its own piece of work.',
+      'Afterwards the app re-reads the version from the backend rather than assuming the upgrade worked, and anything you had waiting to save goes up as soon as the workspace can hold it.',
+      'Six checks cover it, including a stand-in backend that reports a version from the past: the offer appears without ever switching the workspace to read-only, the backup is written before the first change and holds what the backend contained, an upgrade with no backup — or with a backup that fails — leaves the backend untouched, a real Turso workspace wound back to an older shape gets its missing table and its version marker restored, and the Supabase script is checked for adding the tables, recording the version, and changing no security rule — the single permission it grants is the right to call the small save function it installs, which still runs under your own rules.',
+    ],
+  },
+  {
     v: 897,
     title: 'A workspace made by a newer version of the app opens read-only instead of being overwritten',
     kind: 'fix',

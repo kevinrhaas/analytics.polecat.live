@@ -742,6 +742,34 @@
       return Promise.resolve({ ok: false, manual: true, sql: sql });
     },
 
+    // N16 slice 2: upgrade an older workspace. PostgREST cannot DDL even with
+    // the service key, so this returns the paste-me script rather than
+    // pretending — the caller renders it as a first-class "Upgrade workspace"
+    // step with a Copy button and an "I've run it" re-check, which is the same
+    // remedy the failed-save error string carries today, offered BEFORE the
+    // save fails instead of after.
+    //
+    // DELIBERATELY NOT routed through the polecat-admin Edge Function, even
+    // when `cfg.adminFnUrl` is bound. That function CAN run DDL — but its only
+    // schema action is `provision`, whose BOOTSTRAP_DDL ends by (re-)creating
+    // the demo-posture `polecat_anon_all` policy on every table. Postgres ORs
+    // permissive policies together, so calling it on a workspace that has been
+    // through go-live would silently re-open it to anon reads: a one-click
+    // "upgrade" that quietly undoes the security posture is worse than a
+    // paste. The fix is an additive, posture-preserving `upgrade` action on the
+    // function (STATUS.md N26); until that ships and is deployed, this path
+    // stays honest about needing the SQL editor.
+    upgradeWorkspace: function (cfg) {
+      var sql = WS.provisionDeltaSQL() +
+        "\n\n-- Record that this workspace now carries the v" + WS.SCHEMA_VERSION + " shape, so the app\n" +
+        "-- stops offering the upgrade. (Nothing else here touches your data, your\n" +
+        "-- Row-Level Security policies or your grants.)\n" +
+        'INSERT INTO "' + WS.META_TABLE + '"(key,value) VALUES(' + sqlLit("schema_version") + ", " + sqlLit(String(WS.SCHEMA_VERSION)) + ")\n" +
+        "  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;\n" +
+        "NOTIFY pgrst, 'reload schema';\n";
+      return Promise.resolve({ ok: false, manual: true, sql: sql });
+    },
+
     summarize: function (cfg) { return this.probe(cfg); },
 
     drop: function (cfg) {

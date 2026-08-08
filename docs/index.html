@@ -1825,8 +1825,26 @@
   Reading is unaffected — the workspace opens and works normally, and anything you change stays in
   this browser. Reload the page to pick up the newer app (and if the banner keeps coming back, use
   <strong>Settings → hard reset</strong> to clear a stuck offline copy); once the versions line up,
-  the changes you made in the meantime push up on the next <strong>Refresh</strong>. Workspaces
-  <em>older</em> than the app keep working as they always have — every schema change is additive.</p>
+  the changes you made in the meantime push up on the next <strong>Refresh</strong>.</p>
+  <p><strong>Upgrading an older workspace.</strong> The opposite case — a workspace made by an
+  <em>earlier</em> version of Analytics — is not a problem: every change to the workspace shape has
+  only ever <em>added</em> to it, so an older workspace keeps working exactly as it always has. It
+  just has nowhere to put the parts newer versions added, which is what turns up much later as a
+  save failing on a table that isn't there. You can settle it in advance: when the versions differ
+  that way, the <strong>Settings → Workspace backend</strong> card names both of them and offers an
+  <strong>Upgrade workspace</strong> button. Two things are worth knowing before you press it.
+  First, <strong>a full backup of the workspace downloads first, every time</strong> — it is not a
+  checkbox you can turn off, and if the backup can't be written the upgrade doesn't run at all. The
+  file is a plain JSON copy of everything the backend holds, taken immediately before anything is
+  changed. Second, the upgrade only <em>adds</em> — nothing you have saved is read, moved or
+  deleted, and it is safe to run twice.</p>
+  <p>Turso and Firebase workspaces upgrade in one click, because those backends let the app create
+  what it needs directly. A Supabase workspace can't be restructured from a browser, so the card
+  hands you the script instead: your backup still downloads, then <strong>Copy SQL</strong>, run it
+  once in <strong>Supabase → SQL editor</strong>, and press <strong>I've run it — re-check</strong>.
+  That script adds the missing tables and records the new version; it does not touch your
+  Row-Level Security policies or your grants, so an upgrade can never loosen who can see the
+  workspace.</p>
   <p>A failed write also raises a one-time notification and puts the full error on the
   <strong>Settings → Workspace backend</strong> card, with a <strong>Retry now</strong> button.</p>
   <p><strong>One error worth knowing:</strong> a Supabase workspace provisioned before newer app
