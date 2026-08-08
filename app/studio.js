@@ -8775,12 +8775,22 @@
                 });
               });
             } else {
-              // manual provisioning (Supabase): show the paste-me script, then re-probe
+              // manual provisioning (Supabase): show the paste-me script, then re-probe.
+              // N21: that script is the CANONICAL fresh-environment deploy — tables AND
+              // the real Row-Level Security posture AND the first admin — so say what it
+              // installs and what it still needs from the person running it. It used to
+              // say only "run this once", and the script it showed left the database wide
+              // open with a comment where the security should have been.
               src.provision(cfg, Studio.Workspace.snapshot()).then(function (r) {
-                result.textContent = "This backend can't create tables from the browser — run this once in its SQL editor, then continue:";
+                result.textContent = "This backend can't create tables from the browser. Run this once in its SQL editor — " +
+                  "it builds the workspace tables AND turns on the real per-user security, so read § 7 (the first admin) before you continue:";
                 var pre = el("textarea", "dsx-sql ws-provision-sql"); pre.readOnly = true; pre.value = r.sql || "";
                 b.insertBefore(pre, foot);
                 act("I've run it — connect", true, function () {
+                  // The script ends with the database locked to authenticated callers,
+                  // so connecting on the anon key alone can only 403 on the first push.
+                  var blocked = typeof src.provisionBlocker === "function" && src.provisionBlocker(cfg);
+                  if (blocked) return Promise.reject(new Error(blocked));
                   if (!confirmPlaintextSync(src.label)) return Promise.reject(new Error("cancelled"));
                   return src.probe(cfg).then(function (p2) {
                     if (p2.state !== "polecat") throw new Error("Still can't see the workspace tables — did the script run?");

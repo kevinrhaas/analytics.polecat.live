@@ -135,6 +135,51 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N21 — the connect wizard's blank-database script IS the canonical deploy (v904, sw v526,
+  2026-08-08, steward; dev branch; est 2pt, took 1 — under estimate, because fix (a) turned out
+  to be a *move*, not a rewrite: the posture already existed as text, it just lived only in
+  `tools/`):** the supported UI route to adopting a blank Supabase database generated
+  `provisionDDL()` + meta rows + the atomic-save function and closed with a COMMENT — *"Then
+  enable Row-Level Security policies appropriate to your project"*. So the path the app actually
+  offers handed the user the pre-M7 posture (RLS off, anon key wide open) and a homework
+  assignment, while `tools/supabase-deploy.sql` — the file the docs call "THE one file to run" —
+  has installed the real posture since 2026-07-30. Two supported paths, silently diverged.
+  - **Fix (a), the item's first preference, in full.** `app/sources/schema.js` gained
+    `WS.RLS_REAL_SQL` — sections § 2–6c of `tools/supabase-deploy.sql`, **verbatim** (prose
+    comments stripped; every statement byte-identical) — plus `WS.firstAdminSQL(admin)` (§ 7),
+    `WS.ANON_VERIFY_SQL` (§ 8) and `WS.freshDeploySQL(snapshot, admin)`, which assembles the
+    whole thing in the file's own order: tables → the two markers → atomic saves → the posture →
+    the first admin → the verify. `supabaseSource.provision()` returns THAT.
+  - **§ 7 arrives ready to run when it can.** A fresh environment's `users` INSERT is admin-only,
+    so the first admin can only be created by a superuser in the SQL editor. When the connection
+    carries Auth credentials, `provision()` resolves the caller's own `auth.uid()` first and
+    emits the executable `INSERT` for the account they are signed in as; otherwise it emits the
+    runbook's commented `<AUTH-UID>` template with the username/display name already filled in.
+  - **The wizard stops before it can only fail.** The script ends with the database closed to
+    `anon`, so connecting on the anonymous key alone could do nothing but 403 on the first push —
+    and the generic remedy for that 403 is `WS.rlsPolicySQL()`, the allow-all script that would
+    reopen exactly what was just closed. `supabaseSource.provisionBlocker(cfg)` (consulted by the
+    wizard's manual-provision branch) refuses with the reason and asks for the Auth fields.
+  - **The two paths cannot drift again — two mechanisms, deliberately different.**
+    `tools/validate.mjs` (dev gate, browser-free) compares `WS.RLS_REAL_SQL` against the deploy
+    file's own § 2–6c statement-for-statement and fails on any difference, and separately refuses
+    an allow-all policy in it. `tests/rls.mjs` gained a **FOURTH posture** — the wizard's
+    generated script, loaded by evaluating `app/sources/schema.js` in a `node:vm` context whose
+    global IS `window` (the exact bytes that ship, no paraphrase) — installed into its own
+    throwaway schema and put through the SAME checks as the other three. That is the item's stated
+    verify clause: *the wizard's SQL, applied to a throwaway schema, leaves anon reading ZERO
+    rows*, at the path a real user actually takes.
+  - **Verified:** `node tests/rls.mjs` against the dev project — **176/176 checks across all four
+    postures**, the new one green on every anon-reads-zero, privacy and admin-only assertion.
+    Dev gate green (`validate` — including the new posture comparison, negative-tested by
+    perturbing one policy — `changelog-check`, `doc-truth`, `dev-smoke` at desktop + 390×780,
+    zero pageerrors). Full `tests/run.js` green, including four new N21 checks (the script's
+    shape; the never-rewinding markers plus § 7/§ 8; the blocker and the ready-to-run first
+    admin; a source guard that the wizard's branch still consults `provisionBlocker`).
+  - **What this does NOT do**, so nobody re-derives it: it does not make the Auth fields' labels
+    honest — they still read "(optional)" while the posture makes them mandatory, which is
+    **N23**, still open and now the more visible for this. And it does not remove the SQL editor
+    from the flow; that is **N22**.
 - **N20 — `supabase-deploy.sql` grants its own privileges, and says what it built (v903, sw v525
   unchanged, 2026-08-08, steward; dev branch; est 1pt, took 1 — on estimate):** the canonical
   fresh-environment artifact carried **zero `GRANT` statements** and leaned entirely on the
@@ -11591,8 +11636,17 @@
   same treatment while you are in there). `tools/doc-truth.mjs` check 25 already asserts that any
   artifact which stamps stamps the CURRENT version, so the new line is covered the moment it
   lands; docs/COMPAT.md § 3 records the gap until then.
-- **N21 ★★ [2pt] — Adopting a blank Supabase database from the UI installs the WRONG (legacy,
-  unprotected) posture.** Found answering Kevin, 2026-08-08: *"isn't it handled from the UI
+- ~~**N21 ★★ [2pt est, 1 slice shipped] — Adopting a blank Supabase database from the UI installs
+  the WRONG (legacy, unprotected) posture.**~~ ✓ **SHIPPED v904, sw v526 (2026-08-08, steward —
+  see DONE). Fix (a) — the item's first preference — in full: `WS.freshDeploySQL()` generates the
+  canonical script from `WS.RLS_REAL_SQL`, § 2–6c of `tools/supabase-deploy.sql` verbatim; the
+  two are compared statement-for-statement in the dev gate and the wizard's script is now
+  `tests/rls.mjs`'s FOURTH posture, proving anon reads zero at the path a real user takes. The
+  wizard also refuses to connect on the anon key alone, which after the lockdown could only 403.
+  The item is CLOSED; the "other UI half" note below is now N22's problem, and the "(optional)"
+  Auth labels it makes mandatory are N23.** The history below stays until the next grooming pass
+  archives it.
+  Found answering Kevin, 2026-08-08: *"isn't it handled from the UI
   now?… I thought we could adopt a blank database."* Both true — and that is the problem.
   **What the UI really does.** The connect wizard branches on `probe.state === "empty"`
   (`app/studio.js:8638`): adapters with `browserProvision:true` (Turso, Firebase) get a one-click

@@ -9648,6 +9648,88 @@ function serve() {
     ok("WS: supabase provision hands back a paste-me SQL bootstrap (no browser DDL pretence)",
       wsSupabase.manual && wsSupabase.hasDDL && wsSupabase.hasApp, JSON.stringify(wsSupabase));
 
+    // ---- N21: that bootstrap is the CANONICAL posture, not tables + homework --
+    // The connect wizard's script is the supported way to adopt a blank
+    // Supabase database, and it used to generate provisionDDL() + meta + the
+    // atomic-save function and close with a COMMENT — "then enable Row-Level
+    // Security policies appropriate to your project". So the UI path handed the
+    // user the pre-M7 posture (RLS off, anon key wide open) while
+    // tools/supabase-deploy.sql had installed the real posture since
+    // 2026-07-30. tools/validate.mjs proves the two are textually the same
+    // posture and tests/rls.mjs applies this exact script to a throwaway schema
+    // and proves anon reads zero; these checks hold the SHAPE of what the user
+    // is handed — every section present, and no allow-all policy anywhere in it.
+    const n21 = await page.evaluate(async function () {
+      var res = await Studio.supabaseSource.provision({ url: "https://x.supabase.co", key: "k" }, Studio.WS.emptySnapshot());
+      var sql = res.sql || "";
+      var flat = sql.replace(/\s+/g, " ");
+      return {
+        manual: !!res.manual,
+        tables: /CREATE TABLE IF NOT EXISTS "connections"/.test(sql),
+        atomicSave: sql.indexOf("polecat_workspace_save") >= 0,
+        rlsOn: /ENABLE ROW LEVEL SECURITY/.test(sql),
+        adminHelper: /CREATE OR REPLACE FUNCTION public\.polecat_is_admin\(\)/.test(sql),
+        authenticatedOnly: /FOR SELECT TO authenticated/.test(sql) && /FOR INSERT TO authenticated/.test(sql),
+        metaPolicy: /CREATE POLICY polecat_meta_auth/.test(sql),
+        retiresLegacy: /DROP POLICY IF EXISTS polecat_open_rw/.test(sql) && /DROP POLICY IF EXISTS polecat_anon_all/.test(sql),
+        logTables: /CREATE TABLE IF NOT EXISTS public\.polecat_activity/.test(sql) && /CREATE TABLE IF NOT EXISTS public\.polecat_feedback/.test(sql),
+        anonLogsInsertOnly: /polecat_activity_insert_anon[^;]*FOR INSERT TO anon/.test(sql) &&
+          /polecat_feedback_insert_anon[^;]*FOR INSERT TO anon/.test(sql) &&
+          !/FOR SELECT TO anon/.test(sql) && !/FOR ALL TO anon/.test(sql),
+        grants: /GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role/.test(flat),
+        // the two ways the old script's posture could come back
+        noAllowAll: !/CREATE POLICY\s+"?polecat_(open_rw|anon_all)"?/.test(sql),
+        noHomework: !/enable Row-Level Security policies appropriate to your project/.test(sql),
+        // the marker rows never rewind (N17/N20), and the runbook's two manual steps ride along
+        markersDoNothing: /VALUES\('app', 'analytics'\) ON CONFLICT \(key\) DO NOTHING;/.test(sql) &&
+          /VALUES\('schema_version', '4'\) ON CONFLICT \(key\) DO NOTHING;/.test(sql),
+        firstAdmin: /7\) FIRST ADMIN/.test(sql),
+        verifyBlock: /set local role anon/.test(sql)
+      };
+    });
+    ok("N21: the connect wizard's blank-database script IS the canonical deploy — tables, atomic saves, RLS on with authenticated-only policies, the admin helper, the activity logs, the grants — and never the allow-all posture or the old 'sort the security out yourself' comment",
+      n21.manual && n21.tables && n21.atomicSave && n21.rlsOn && n21.adminHelper && n21.authenticatedOnly &&
+      n21.metaPolicy && n21.retiresLegacy && n21.logTables && n21.anonLogsInsertOnly && n21.grants &&
+      n21.noAllowAll && n21.noHomework, JSON.stringify(n21));
+    ok("N21: it declares the workspace without ever rewinding an existing marker, and carries the two steps a human still has to take — § 7 the first admin, § 8 the anon verify",
+      n21.markersDoNothing && n21.firstAdmin && n21.verifyBlock, JSON.stringify(n21));
+
+    // The script leaves the database reachable only by an authenticated caller,
+    // so § 7 ships READY TO RUN when the browser can resolve the caller's own
+    // Supabase Auth uid — and the wizard refuses to connect on the anon key
+    // alone, whose only possible outcome is a 403 on the first push (whose
+    // generic remedy is the open-policy SQL that would reopen what was just
+    // closed).
+    const n21Admin = await page.evaluate(async function () {
+      var sb = Studio.supabaseSource;
+      var cfg = { url: location.origin + "/__supabase", key: "k", authEmail: "owner@example.com", authPassword: "pw" };
+      var blockedAnon = sb.provisionBlocker({ url: cfg.url, key: "k" });
+      var blockedAuthed = sb.provisionBlocker(cfg);
+      var withAdmin = Studio.WS.firstAdminSQL({ username: "ana", name: "Ana", gotrueId: "11111111-1111-4111-8111-111111111111" });
+      var withoutAdmin = Studio.WS.firstAdminSQL(null);
+      return {
+        blocksAnon: typeof blockedAnon === "string" && /Row-Level Security/.test(blockedAnon) && /Auth email/.test(blockedAnon),
+        allowsAuthed: blockedAuthed === null,
+        readyToRun: /^INSERT INTO public\.users/m.test(withAdmin) && withAdmin.indexOf("11111111-1111-4111-8111-111111111111") >= 0,
+        templateWhenUnknown: !/^INSERT INTO public\.users/m.test(withoutAdmin) && withoutAdmin.indexOf("<AUTH-UID>") >= 0,
+        adminRole: /'admin'/.test(withAdmin)
+      };
+    });
+    ok("N21: the wizard will not connect on the anon key alone after locking the database down, and § 7 ships ready-to-run once the caller's Supabase Auth uid is known (a fill-in template until then)",
+      n21Admin.blocksAnon && n21Admin.allowsAuthed && n21Admin.readyToRun &&
+      n21Admin.templateWhenUnknown && n21Admin.adminRole, JSON.stringify(n21Admin));
+
+    // Source guard: the wizard's manual-provision branch must actually ASK.
+    // A behavioral check would have to drive the whole modal; this is the cheap
+    // way to keep the call from being dropped in a later refactor.
+    const n21Wired = await page.evaluate(async function () {
+      var src = await (await fetch("/app/studio.js")).text();
+      var branch = src.slice(src.indexOf("// manual provisioning (Supabase)"), src.indexOf("// manual provisioning (Supabase)") + 2000);
+      return { found: branch.length > 100, asks: branch.indexOf("provisionBlocker") >= 0 };
+    });
+    ok("N21: the connect wizard's manual-provision branch consults the adapter's provisionBlocker before it pushes",
+      n21Wired.found && n21Wired.asks, JSON.stringify(n21Wired));
+
     // ---- Supabase testData: survives the 2026 new-key-format REST-root lockdown ----
     // Supabase's new publishable/secret key split made the REST root (OpenAPI
     // introspection) answer 401 "Secret API key required" even for a fully valid

@@ -56,6 +56,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { randomBytes } from "node:crypto";
+import { createContext, runInContext } from "node:vm";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const tool = (f) => resolve(__dirname, "..", "tools", f);
@@ -100,6 +101,43 @@ function edgeConst(name) {
   process.exit(1);
 }
 
+/** N21: the script the CONNECT WIZARD generates — the path a real user actually
+ *  takes to adopt a blank Supabase database. It is produced in the browser by
+ *  `Studio.WS.freshDeploySQL()` (app/sources/schema.js), so load that file the
+ *  way the page does: a context whose global object IS `window`, which is all
+ *  the module touches. No import, no paraphrase — the exact bytes that ship.
+ *
+ *  Until N21 this path installed pre-M7 tables and a comment reading "then
+ *  enable Row-Level Security policies appropriate to your project": the
+ *  SUPPORTED way to adopt a blank database left it wide open while
+ *  tools/supabase-deploy.sql had installed the real posture since 2026-07-30.
+ *  Now it is the same posture, and this is the check that keeps it that way
+ *  from the database's own point of view (tools/validate.mjs compares the two
+ *  textually; this one proves what they actually DO).
+ *
+ *  The polecat_meta seed rows are dropped from the script before it runs: they
+ *  are workspace DATA, not posture, and `fixtureSql` seeds its own two rows
+ *  that the row-count checks below are calibrated to. Every other statement —
+ *  the DDL, the atomic-save function, the whole posture, the grants — runs
+ *  exactly as pasted. */
+function wizardDeploySQL() {
+  const sandbox = {};
+  sandbox.window = sandbox;
+  sandbox.globalThis = sandbox;
+  createContext(sandbox);
+  const file = resolve(__dirname, "..", "app", "sources", "schema.js");
+  runInContext(readFileSync(file, "utf8"), sandbox, { filename: "app/sources/schema.js" });
+  const WS = sandbox.Studio && sandbox.Studio.WS;
+  if (!WS || typeof WS.freshDeploySQL !== "function") {
+    console.error("rls: FATAL — app/sources/schema.js no longer exposes Studio.WS.freshDeploySQL().");
+    process.exit(1);
+  }
+  return WS.freshDeploySQL(WS.emptySnapshot(), null)
+    .split("\n")
+    .filter((l) => !/^INSERT INTO "polecat_meta"/.test(l))
+    .join("\n");
+}
+
 const POSTURES = [
   {
     label: "tools/supabase-rls-real.sql (re-tighten an existing environment)",
@@ -120,6 +158,12 @@ const POSTURES = [
     label: "the Edge Function's inlined go-live SQL (Admin → Go live)",
     source: "supabase/functions/polecat-admin/sql.ts",
     load: () => `${edgeConst("BOOTSTRAP_DDL")}\n${edgeConst("RLS_REAL_SQL")}`,
+    needsTables: false,
+  },
+  {
+    label: "the connect wizard's generated script (adopt a blank database from the UI)",
+    source: "app/sources/schema.js WS.freshDeploySQL()",
+    load: wizardDeploySQL,
     needsTables: false,
   },
 ];
@@ -185,7 +229,11 @@ function sqlForTestSchema(raw, source, schema) {
   const rewritten = code
     .replace(/\bpublic\./g, `${schema}.`)
     .replace(/\bschema\s+public\b/gi, `SCHEMA ${schema}`)
-    .replace(/search_path\s*=\s*public\b/gi, `search_path = ${schema}`);
+    .replace(/search_path\s*=\s*public\b/gi, `search_path = ${schema}`)
+    // The wizard's script (N21) also ships the atomic-save function, whose
+    // column lookup names the schema as a catalog STRING rather than as an
+    // identifier — same rewrite, different syntax.
+    .replace(/table_schema\s*=\s*'public'/gi, `table_schema = '${schema}'`);
   assertTestSchemaOnly(rewritten, source);
   return rewritten;
 }

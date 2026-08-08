@@ -3,6 +3,6 @@
    the version label and the What's-new unseen dot, so the ~680KB of full history is
    fetched lazily (Studio.loadChangelog) the first time someone opens the feed.
    Regenerated from js/changelog.js on every normalize run — never hand-edit. */
-window.STUDIO_LATEST_VERSION = 903;
-window.STUDIO_LATEST = {"v":903,"title":"The Supabase setup script now grants its own database access, so the recommended security setting is finally the correct one","kind":"fix","ts":"2026-08-08T20:07:59.000Z"};
+window.STUDIO_LATEST_VERSION = 904;
+window.STUDIO_LATEST = {"v":904,"title":"Setting up a new database from inside the app now installs the real security, instead of leaving it as homework","kind":"fix","ts":"2026-08-08T20:48:24.000Z"};
 window.STUDIO_BUILD = "__BUILD_TS__";
