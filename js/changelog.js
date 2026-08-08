@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 904,
+    title: 'Setting up a new database from inside the app now installs the real security, instead of leaving it as homework',
+    kind: 'fix',
+    ts: '2026-08-08T20:48:24.000Z',
+    items: [
+      'Analytics can adopt a blank Supabase database from the Connect wizard: it hands you a script, you paste it into the SQL editor, and you press "I\'ve run it". That is the supported route, and the one most people take. The script it handed over created the workspace tables, installed the atomic-save function — and then finished with a comment suggesting you enable security policies appropriate to your project.',
+      'So the route the app offers left the database wide open, with the actual work described in a sentence and left to the reader. Meanwhile the deploy file in the repository — the one the documentation calls "the one file to run" — has installed the real, verified security posture since the end of July. Two supported paths to the same destination, quietly disagreeing about whether the destination included any security.',
+      'The wizard now generates that deploy file. Same tables, same authenticated-only policies, same owner-and-admin rules, same activity logs, same grants, and the same two numbered steps a person still has to perform — creating the first admin, and the verification query that should come back all zeros. When the app can work out which Supabase account you are signing in as, the first-admin step arrives already filled in rather than as a fill-in-the-blank template.',
+      'Because that script ends with the database closed to anonymous callers, the wizard now asks for the connection\'s Supabase Auth email and password before it will connect. Connecting without them could only fail on the first save — and the standard remedy for that failure is the open-policy script that would have reopened everything the setup just closed.',
+      'The two paths cannot drift apart again. The security posture the wizard writes is held to the deploy file\'s own text on every build, and the script the wizard generates is now installed into a throwaway database and put through the same checks as the three other shipped setup paths: anonymous callers read zero rows from every table, a person cannot see a colleague\'s private work, and only an admin can create an account. Keeping files in sync by remembering to is how they came apart in the first place.',
+    ],
+  },
+  {
     v: 903,
     title: 'The Supabase setup script now grants its own database access, so the recommended security setting is finally the correct one',
     kind: 'fix',

@@ -1902,6 +1902,18 @@
   environment whose security posture differs from prod cannot test the thing most likely to break,
   so “it's only dev” is never a reason to reach for the allow-all file.</p>
 
+  <p><strong>You can also get that same script without leaving the app.</strong> Point
+  <strong>Settings → Workspace backend → Connect</strong> at a blank Supabase project and the
+  wizard hands you a script to paste into the SQL editor — and since v904 that script <em>is</em>
+  the deploy file above: the same tables, the same authenticated-only RLS posture, the same grants,
+  with § 7 pre-filled for the account you are signed in as whenever the app can resolve its Supabase
+  Auth uid. (Before v904 the wizard generated tables and a comment reading “then enable Row-Level
+  Security policies appropriate to your project”, so the one path the UI actually offered left the
+  database wide open. Both paths now install the same thing, and a dev-gate check compares them on
+  every run.) Because that script ends with the database closed to anonymous callers, the wizard
+  asks for this connection's <strong>Supabase Auth email and password</strong> before it will
+  connect — the anonymous key alone can no longer read or write the workspace.</p>
+
   <h4>The two steps the script cannot do for you</h4>
   <p>Both are once per environment, and both are spelled out in the script's own numbered
   sections:</p>

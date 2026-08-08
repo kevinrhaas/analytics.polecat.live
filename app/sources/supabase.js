@@ -729,17 +729,45 @@
 
     // Can't DDL from the browser — hand back a ready-to-paste bootstrap. The
     // caller shows it with an "I've run it" button that re-probes.
+    //
+    // N21: what it hands back is now the CANONICAL fresh-environment script
+    // (WS.freshDeploySQL — the same content as tools/supabase-deploy.sql),
+    // not tables-plus-a-homework-comment. The old script installed the pre-M7
+    // posture — RLS off, the anon key wide open — and closed with "then enable
+    // Row-Level Security policies appropriate to your project", so the
+    // SUPPORTED way to adopt a blank database left it unprotected while the
+    // repo's own deploy file had installed the real posture since 2026-07-30.
+    //
+    // When this connection carries Auth credentials we resolve the caller's
+    // Supabase Auth uid first, so § 7 (the first admin) ships ready to run
+    // instead of as a fill-in-the-blank template. Resolving it is best-effort:
+    // a project with no such account yet is the normal case on a brand-new
+    // database, and the template covers it.
     provision: function (cfg, snapshot) {
-      var meta = WS.metaRows(snapshot);
-      var sql = ["-- Polecat workspace bootstrap — run once in Supabase → SQL editor."]
-        .concat(WS.provisionDDL().map(function (s) { return s + ";"; }))
-        .concat(meta.map(function (m) {
-          return 'INSERT INTO "' + WS.META_TABLE + '"(key,value) VALUES(' + sqlLit(m.key) + ", " + sqlLit(m.value) + ") ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value;";
-        }))
-        .concat(["", WS.atomicSaveSQL()]) // AUD-01: atomic from day one
-        .concat(["", "-- Then enable Row-Level Security policies appropriate to your project", "-- before exposing the anon key beyond your own use."])
-        .join("\n");
-      return Promise.resolve({ ok: false, manual: true, sql: sql });
+      var Auth = window.PolecatAuth, me = Auth && Auth.current && Auth.current();
+      var admin = me ? { username: me.u, name: me.name || me.u } : null;
+      var uid = hasAuthSession(cfg)
+        ? ensureSession(cfg).then(function (s) { return s && s.userId; }).catch(function () { return null; })
+        : Promise.resolve(null);
+      return uid.then(function (id) {
+        if (admin && id) admin.gotrueId = id;
+        return { ok: false, manual: true, sql: WS.freshDeploySQL(snapshot, admin) };
+      });
+    },
+
+    // N21: the script above ENDS with the database locked down — every policy
+    // is `TO authenticated`, so the anon key can no longer read or write the
+    // workspace. Connecting on the anon key alone would therefore 403 on the
+    // very first push, and the generic remedy for a 403 is the open-policy SQL
+    // that would reopen what was just closed. The connect wizard asks this
+    // before it lets the manual-provision path proceed; null means "go ahead".
+    provisionBlocker: function (cfg) {
+      if (!hasAuthSession(cfg)) {
+        return "That script turns Row-Level Security ON, so the anonymous key can no longer read or write this workspace. " +
+          "Go back and fill in this connection's Supabase Auth email and password, and make sure § 7 of the script (the first admin) " +
+          "has run for that account — then connect.";
+      }
+      return null;
     },
 
     // N16 slice 2: upgrade an older workspace. PostgREST cannot DDL even with

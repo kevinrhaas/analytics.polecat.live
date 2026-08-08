@@ -133,6 +133,46 @@ for (const e of readDirSafe("data/packs")) {
   }
 }
 
+// ---- N21: the connect wizard's SQL IS the canonical posture ----------------
+// The wizard's "run this once in the SQL editor" script and
+// tools/supabase-deploy.sql are the two supported ways to stand up a workspace
+// database, and they had silently diverged: the file installed the real
+// Row-Level Security posture, the wizard installed pre-M7 tables and a comment
+// saying to sort the security out yourself. app/sources/schema.js now carries
+// that posture (WS.RLS_REAL_SQL) VERBATIM from the file's own § 2–6c, so the
+// two cannot disagree — this check is what makes "verbatim" true rather than
+// aspirational. Comment lines are ignored on both sides (the constant is
+// stripped of the file's prose); every statement must match exactly.
+const sqlCode = (s) =>
+  s.split("\n").filter((l) => !/^\s*--/.test(l)).join("\n").replace(/\s+/g, " ").trim();
+
+const deploySql = readFileSync("tools/supabase-deploy.sql", "utf8").split("\n");
+const postureStart = deploySql.findIndex((l) => /^-- 2\) RLS ON/.test(l));
+const postureEnd = deploySql.findIndex((l) => /^NOTIFY pgrst/.test(l));
+const embedded = (/WS\.RLS_REAL_SQL = `([\s\S]*?)`;/.exec(readFileSync("app/sources/schema.js", "utf8")) || [])[1];
+const postureFail = (msg) => { failed++; console.error(`POSTURE FAIL: ${msg}`); };
+
+if (postureStart < 0 || postureEnd < postureStart) {
+  postureFail("tools/supabase-deploy.sql: could not find § 2 … NOTIFY pgrst — the section markers this check reads moved");
+} else if (embedded == null) {
+  postureFail("app/sources/schema.js no longer defines WS.RLS_REAL_SQL as a template literal — the wizard's script is where the posture reaches real users");
+} else {
+  const fromFile = sqlCode(deploySql.slice(postureStart, postureEnd + 1).join("\n"));
+  if (sqlCode(embedded) !== fromFile) {
+    postureFail("app/sources/schema.js WS.RLS_REAL_SQL has drifted from tools/supabase-deploy.sql § 2–6c — " +
+      "the connect wizard would install a DIFFERENT posture than the deploy file. Copy the file's § 2–6c over the constant " +
+      "(prose comments stripped) in the same commit as any posture change.");
+  }
+  // Whatever the two agree on, it must still be the LOCKED posture: one
+  // leftover allow-all policy ORs itself over every tighter policy beside it
+  // (the 2026-07-30 live incident), so the wizard must never create one.
+  if (/CREATE POLICY\s+"?polecat_(open_rw|anon_all)"?/i.test(embedded)) {
+    postureFail("app/sources/schema.js WS.RLS_REAL_SQL creates an allow-all policy (polecat_open_rw / polecat_anon_all) — " +
+      "permissive policies OR together, so that one line reopens the whole workspace to the anon key");
+  }
+}
+
 if (failed) { console.error(`validate: ${failed} file(s) failed`); process.exit(1); }
 console.log(`validate: ${files.length} files parse clean; boot-path files within budget; ` +
-  `${packIds.length} sample pack(s) declare a source, ${scriptIds.length} extract script(s) registered`);
+  `${packIds.length} sample pack(s) declare a source, ${scriptIds.length} extract script(s) registered; ` +
+  `the connect wizard's posture matches tools/supabase-deploy.sql § 2–6c`);
