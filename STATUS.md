@@ -135,6 +135,47 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N22b slice 2 — the app CALLS the migration RPC, so a Supabase workspace upgrades itself
+  (v906, sw v528, 2026-08-08, steward; dev branch; est 2pt, took 2 — on estimate, item CLOSED):**
+  slice 1 installed `polecat_migrate(mode text)` in both setup paths and proved it from the
+  database's own side, and was deliberately called by nothing. This is the browser half, all
+  three parts of the item as written.
+  (a) `app/sources/supabase.js` learned the RPC in the exact shape it already learned the atomic
+  save — `probeMigrate()` posts `{mode:'probe'}` (side-effect free, answerable by any signed-in
+  account, one shared in-flight request per project), `migrateState(cfg)` reports
+  yes/no/unknown, `checkMigrate(cfg)` is the public ask. `atomicKey()` became `projectKey()`
+  since both probes memo by the same project URL.
+  (b) `upgradeWorkspace(cfg)` routes through the RPC when the probe says yes: `{mode:'apply'}`,
+  and on 200 it returns `{ok:true, rpc:true}` — no SQL at all. `Sync.upgradeWorkspace({backup})`
+  needed no change, so the backup-first rule and the re-read-the-marker-from-the-backend rule
+  both stand untouched; only the comment there learned that "can this be done in the browser" is
+  now a property of the DATABASE, not the adapter.
+  The FALLBACK is deliberately wide: absent (404), refused (403 — the admin gate lives in the
+  database), or wedged (5xx/CORS) all hand back the same `{manual:true, sql}` the item has
+  returned since N16 slice 2, because the SQL editor is still the remedy for every one of them.
+  Only the 404 is memoized — a refusal is about who is signed in right now, not about what the
+  database has, and latching a browser onto the paste path over a blip is exactly the bug this
+  shape avoids.
+  (c) The Settings card names which kind of database this is BEFORE the button is pressed (one
+  probe per page, re-rendering when it answers, mirroring the atomic row), and when the RPC
+  refuses, the card and the toast quote the database's own words instead of the generic "this
+  backend can't change its own structure" — which would now be a lie about that database.
+  `docs/index.html` and `docs/COMPAT.md` §1.4 say the same thing.
+  **Verified:** 4 new checks in `tests/run.js` (`N22b:` …) over a stubbed PostgREST across four
+  projects — modern (probe→apply, no SQL, capability remembered, second press is one call),
+  legacy (byte-identical paste-me delta, stamped, 404 remembered, no re-ask), refused + blip
+  (same fallback, reason quoted, never memoized), and the probe itself (asked once for two
+  concurrent callers, `mode:'probe'` only). The pre-existing N16 supabase-upgrade check was
+  given a fetch stub so it exercises the legacy path deliberately instead of by network
+  accident, and its no-policy/no-blanket-grant assertions still hold.
+  **Deliberately NOT taken:** the paste-me upgrade script still does NOT install
+  `polecat_migrate` itself. It would make an old database self-upgrading after one more paste —
+  but `migrationRpcSQL()` embeds `RLS_REAL_SQL` in the function body, so the upgrade script
+  would stop satisfying N16's "changes no RLS policy" invariant, and re-posturing a legacy
+  workspace is a decision, not a rider. That is its own item when someone wants it.
+  The route was NOT re-run against a real database this run (`tests/rls.mjs` needs live
+  credentials the CI runner doesn't carry); slice 1 already proved the database half of it, and
+  what changed here is entirely browser-side.
 - **N22b slice 1 — the migration RPC: the one paste now leaves behind the door the app upgrades
   through (v905, sw v527, 2026-08-08, steward; dev branch; est 2pt, 1 slice spent, 1 remains —
   on estimate):** N22a closed the alternative (`api.supabase.com` refuses a preflight from our
@@ -11846,8 +11887,12 @@
   into the app either. That makes the migration-RPC route strictly better than the Edge Function
   for this purpose, not merely an equal fallback: RPCs arrive with the one paste and need no CLI,
   no service-role key in a deployed function, and no second deployment surface to keep current.
-- **N22b ★★ [2pt est, 1 slice shipped — SLICE 2 REMAINS] — ONE paste, then never again: the app
-  owns the database after a single manual step.** ~~Slice 1: the RPC itself.~~ ✓ **SHIPPED v905,
+- ~~**N22b ★★ [2pt est, 2 slices shipped] — ONE paste, then never again: the app
+  owns the database after a single manual step.**~~ ✓ **SHIPPED — slice 1 (the RPC itself) v905,
+  sw v527; slice 2 (the app calls it) v906, sw v528 (both 2026-08-08, steward — see DONE). The
+  item is CLOSED; est 2pt, took 2. N22c is unblocked.** The history below stays until the next
+  grooming pass archives it.
+  ~~Slice 1: the RPC itself.~~ ✓ **SHIPPED v905,
   sw v527 (2026-08-08, steward — see DONE).** `polecat_migrate(mode text)` is installed by BOTH
   setup paths (§ 6d of `tools/supabase-deploy.sql` and the connect wizard's generated script):
   admin-gated, `SECURITY DEFINER`, fixed DDL, no `exec(sql text)` hatch, raise-only version
@@ -11859,7 +11904,10 @@
   paste is a second dashboard touch Supabase makes unavoidable, so this item now treats one
   paste as the floor. Kevin's own words allow it (*"other than setting up the blank database
   manually"*) — say so if they do not.
-  **SLICE 2 — what remains: the app has to CALL it.** The SQL exists and is proven; nothing in
+  ~~**SLICE 2 — what remains: the app has to CALL it.**~~ **SLICE 2 is DONE (v906, sw v528)** —
+  all three parts shipped as written; the one deviation and the one thing it deliberately did not
+  take are in the DONE entry.
+  The SQL exists and is proven; nothing in
   the browser uses it yet.
   (a) `app/sources/supabase.js` learns the RPC the way it already learned the atomic save — a
   capability probe (`polecat_migrate('probe')`, deliberately answerable by any signed-in account

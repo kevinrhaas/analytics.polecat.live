@@ -1996,10 +1996,15 @@
   changed. Second, the upgrade only <em>adds</em> — nothing you have saved is read, moved or
   deleted, and it is safe to run twice.</p>
   <p>Turso and Firebase workspaces upgrade in one click, because those backends let the app create
-  what it needs directly. A Supabase workspace can't be restructured from a browser, so the card
-  hands you the script instead: your backup still downloads, then <strong>Copy SQL</strong>, run it
-  once in <strong>Supabase → SQL editor</strong>, and press <strong>I've run it — re-check</strong>.
-  That script adds the missing tables and records the new version; it does not touch your
+  what it needs directly. <strong>Supabase workspaces set up with the current script upgrade in one
+  click too</strong>: that script installs a small, admin-only database function whose job is
+  exactly this, so pressing <strong>Upgrade workspace</strong> runs the upgrade from inside the app.
+  The card tells you which kind of database you have before you press anything. Only an
+  administrator can run it — that check lives in the database itself, not in the browser.</p>
+  <p>A Supabase workspace created before that function existed still needs one manual run, and the
+  card says so: your backup downloads, then <strong>Copy SQL</strong>, run it once in
+  <strong>Supabase → SQL editor</strong>, and press <strong>I've run it — re-check</strong>. Either
+  way the upgrade adds the missing tables and records the new version; it does not touch your
   Row-Level Security policies or your grants, so an upgrade can never loosen who can see the
   workspace.</p>
   <p>A failed write also raises a one-time notification and puts the full error on the

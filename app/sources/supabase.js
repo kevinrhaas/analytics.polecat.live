@@ -386,8 +386,82 @@
   function atomicRpc() { return "/rpc/" + WS.ATOMIC_SAVE_FN; }
   var _atomic = {};        // project URL -> true (function present) | false (absent)
   var _atomicPending = {}; // project URL -> the one in-flight capability probe
-  function atomicKey(cfg) {
+  // One project, one memo key — shared by both capability probes in this file
+  // (the atomic save above, and N22b's migration RPC below).
+  function projectKey(cfg) {
     try { return projectBase(cfg); } catch (e) { return String((cfg && cfg.url) || ""); }
+  }
+
+  // ---- N22b slice 2: upgrading the database FROM the app ----------------------
+  // Slice 1 installed `polecat_migrate(mode text)` in both setup paths (§ 6d of
+  // tools/supabase-deploy.sql and the connect wizard's generated script) and
+  // proved it from the database's own side (tests/rls.mjs' fifth posture). It
+  // was, deliberately, called by nothing. This is the browser half.
+  //
+  // The shape is the AUD-01 capability probe, verbatim, because the question is
+  // the same one: does THIS project carry the function? A workspace stood up
+  // before the RPC existed has to keep working exactly as it does today, so
+  // "absent" is not an error — it is the paste path, unchanged.
+  //
+  // `mode:'probe'` writes nothing and is answerable by any signed-in account:
+  // the app needs to know whether the button exists before it knows who is
+  // looking, and knowing a button exists is not permission to press it (the
+  // admin gate lives in the `apply` branch, inside the database).
+  function migrateRpc() { return "/rpc/" + WS.MIGRATE_FN; }
+  var _migrate = {};        // project URL -> true (installed) | false (absent)
+  var _migratePending = {}; // project URL -> the one in-flight probe
+  function probeMigrate(cfg) {
+    var key = projectKey(cfg);
+    if (_migrate[key] !== undefined) return Promise.resolve(_migrate[key]);
+    if (_migratePending[key]) return _migratePending[key];
+    _migratePending[key] = rest(cfg, migrateRpc(), { method: "POST", body: JSON.stringify({ mode: "probe" }) })
+      .then(function (r) {
+        // Only a DEFINITIVE answer is remembered: 200 = installed, 404 =
+        // PostgREST's "could not find the function" = absent. Anything else —
+        // a refusal, a 5xx, a CORS fault — is "don't know yet". Memoizing one
+        // of those would latch this browser onto the paste path for the rest
+        // of the session over a transient; leaving it unknown just means the
+        // next caller asks again (upgradeWorkspace re-probes on its way in).
+        if (r.ok) _migrate[key] = true;
+        else if (r.status === 404) _migrate[key] = false;
+      }, function () {})
+      .then(function () { delete _migratePending[key]; return _migrate[key]; });
+    return _migratePending[key];
+  }
+  // What the user is told when the RPC is there but would not run. The database
+  // raises these itself ("administrators only", "this database has no users
+  // table yet"), so quote it rather than paraphrase — and the SQL editor stays
+  // offered underneath, because it is still the remedy for every one of these.
+  //
+  // The input is an Error, not a response: rest() turns a final 401/403 into a
+  // throw that already carries PostgREST's own message ("Supabase rejected the
+  // request (HTTP 403): …"), which is the shape the admin gate arrives in. Pull
+  // the status and the database's sentence back out of it, drop the function
+  // name the user has no use for, and leave everything else — a network fault,
+  // a 5xx — recognisable as itself.
+  function migrateRefusal(e) {
+    var raw = String((e && e.message) || e || "").trim();
+    var m = /\(HTTP (\d+)\)\s*:?\s*([\s\S]*)$/.exec(raw);
+    var status = m ? Number(m[1]) : 0;
+    var msg = (m ? m[2] : "").replace(/^polecat_migrate:\s*/, "").trim().slice(0, 180);
+    if (status === 401 || status === 403) {
+      return "This database refused the in-app upgrade for the account you're signed in as" +
+        (msg ? " — " + msg : " (administrators only)") + ".";
+    }
+    if (status) return "The in-app upgrade didn't run" + (msg ? " — " + msg : "") + " (HTTP " + status + ").";
+    return "The in-app upgrade couldn't be reached — " + (raw || "no answer") + ".";
+  }
+  // The paste-me upgrade, for a database with no migration RPC. Unchanged from
+  // N16 slice 2 — it adds the missing tables and stamps the marker, and touches
+  // no policy and no grant (the N16 checks hold that shape).
+  function upgradeSQL() {
+    return WS.provisionDeltaSQL() +
+      "\n\n-- Record that this workspace now carries the v" + WS.SCHEMA_VERSION + " shape, so the app\n" +
+      "-- stops offering the upgrade. (Nothing else here touches your data, your\n" +
+      "-- Row-Level Security policies or your grants.)\n" +
+      'INSERT INTO "' + WS.META_TABLE + '"(key,value) VALUES(' + sqlLit("schema_version") + ", " + sqlLit(String(WS.SCHEMA_VERSION)) + ")\n" +
+      "  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;\n" +
+      "NOTIFY pgrst, 'reload schema';\n";
   }
   // The snapshot in the shape the function expects: rows per table, the
   // explicitly-tombstoned ids per table (never users — sync is upsert-only
@@ -770,33 +844,71 @@
       return null;
     },
 
-    // N16 slice 2: upgrade an older workspace. PostgREST cannot DDL even with
-    // the service key, so this returns the paste-me script rather than
-    // pretending — the caller renders it as a first-class "Upgrade workspace"
-    // step with a Copy button and an "I've run it" re-check, which is the same
-    // remedy the failed-save error string carries today, offered BEFORE the
-    // save fails instead of after.
+    // Upgrade an older workspace (N16 slice 2, made real by N22b slice 2).
     //
-    // DELIBERATELY NOT routed through the polecat-admin Edge Function, even
-    // when `cfg.adminFnUrl` is bound. That function CAN run DDL — but its only
-    // schema action is `provision`, whose BOOTSTRAP_DDL ends by (re-)creating
-    // the demo-posture `polecat_anon_all` policy on every table. Postgres ORs
-    // permissive policies together, so calling it on a workspace that has been
-    // through go-live would silently re-open it to anon reads: a one-click
-    // "upgrade" that quietly undoes the security posture is worse than a
-    // paste. The fix is an additive, posture-preserving `upgrade` action on the
-    // function (STATUS.md N26); until that ships and is deployed, this path
-    // stays honest about needing the SQL editor.
+    // Two routes, one promise shape. A database stood up by either modern setup
+    // path carries `polecat_migrate()`, and one admin-gated call does the whole
+    // upgrade from here — no SQL editor, which is the entire point of N22b. A
+    // database that predates the function is unchanged: it comes back
+    // { manual:true, sql } and the caller renders the same paste-me step it has
+    // rendered since N16, with the backup already downloaded.
+    //
+    // The fallback is deliberately WIDE. Absent, refused, wedged — whatever the
+    // RPC's answer, the SQL editor still does the job, so every non-success
+    // hands the script back rather than dead-ending on an error toast. Only the
+    // 404 is remembered (see probeMigrate): a refusal is about who is signed in
+    // right now, not about what the database has.
+    //
+    // Still DELIBERATELY NOT routed through the polecat-admin Edge Function,
+    // even when `cfg.adminFnUrl` is bound. That function CAN run DDL — but its
+    // only schema action is `provision`, whose BOOTSTRAP_DDL ends by
+    // (re-)creating the demo-posture `polecat_anon_all` policy on every table.
+    // Postgres ORs permissive policies together, so calling it on a workspace
+    // that has been through go-live would silently re-open it to anon reads: a
+    // one-click "upgrade" that quietly undoes the security posture is worse
+    // than a paste. `polecat_migrate` has neither problem — it is admin-gated,
+    // its DDL is fixed, and it re-applies the authenticated-only posture rather
+    // than loosening it (tests/rls.mjs' fifth posture proves that from the
+    // database's own side).
     upgradeWorkspace: function (cfg) {
-      var sql = WS.provisionDeltaSQL() +
-        "\n\n-- Record that this workspace now carries the v" + WS.SCHEMA_VERSION + " shape, so the app\n" +
-        "-- stops offering the upgrade. (Nothing else here touches your data, your\n" +
-        "-- Row-Level Security policies or your grants.)\n" +
-        'INSERT INTO "' + WS.META_TABLE + '"(key,value) VALUES(' + sqlLit("schema_version") + ", " + sqlLit(String(WS.SCHEMA_VERSION)) + ")\n" +
-        "  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;\n" +
-        "NOTIFY pgrst, 'reload schema';\n";
-      return Promise.resolve({ ok: false, manual: true, sql: sql });
+      var manual = { ok: false, manual: true, sql: upgradeSQL() };
+      var key = projectKey(cfg);
+      return probeMigrate(cfg).then(function (has) {
+        if (has !== true) return manual;
+        return rest(cfg, migrateRpc(), { method: "POST", body: JSON.stringify({ mode: "apply" }) })
+          .then(function (r) {
+            // The function went away between the probe and the call (a restored
+            // database, a dropped function) — forget it and take the paste.
+            if (r.status === 404) { _migrate[key] = false; return manual; }
+            if (!r.ok) {
+              // Anything rest() didn't already turn into a throw (a 5xx it
+              // retried and gave up on, a 4xx that isn't an auth refusal) —
+              // normalise it into the same Error shape so ONE catch below
+              // renders every failure the same way.
+              return r.text().then(function (b) {
+                var msg = ""; try { msg = (JSON.parse(b) || {}).message || ""; } catch (e2) { msg = String(b || "").slice(0, 160); }
+                throw new Error("(HTTP " + r.status + ")" + (msg ? ": " + msg : ""));
+              });
+            }
+            return { ok: true, rpc: true };
+          });
+      }).catch(function (e) {
+        return { ok: false, manual: true, sql: manual.sql, rpcError: migrateRefusal(e) };
+      });
     },
+
+    // Can this project upgrade itself from the app? "yes" | "no" | "unknown"
+    // (nothing has asked yet). Drives the wording on the Settings card, which
+    // must not promise a button the database can't honour.
+    migrateState: function (cfg) {
+      var v = _migrate[projectKey(cfg)];
+      return v === true ? "yes" : v === false ? "no" : "unknown";
+    },
+
+    // One cheap, side-effect-free round-trip that answers the same question
+    // before any upgrade is attempted. Concurrent callers share the one
+    // in-flight request; a fault answers nothing rather than guessing.
+    checkMigrate: function (cfg) { return probeMigrate(cfg); },
 
     // N17 slice 2 — the runtime tripwire's cheap read. sync.js re-checks the
     // backend's schema marker on resume/reconnect, which is a moment where a
@@ -872,7 +984,7 @@
     save: function (cfg, snapshot) {
       var byTable;
       try { byTable = WS.snapshotToRows(snapshot); } catch (e) { return Promise.resolve({ ok: false, error: e.message }); }
-      var key = atomicKey(cfg);
+      var key = projectKey(cfg);
       var sequential = _atomic[key] === false;
       var run = sequential
         ? saveSequential(cfg, snapshot, byTable)
@@ -892,7 +1004,7 @@
     // Does this project carry the atomic-save function? "yes" | "no" |
     // "unknown" (nothing has asked yet). Drives the Settings card row.
     atomicState: function (cfg) {
-      var v = _atomic[atomicKey(cfg)];
+      var v = _atomic[projectKey(cfg)];
       return v === true ? "yes" : v === false ? "no" : "unknown";
     },
 
@@ -901,7 +1013,7 @@
     // Concurrent callers share the one in-flight request; a network/auth
     // fault answers nothing rather than guessing.
     checkAtomic: function (cfg) {
-      var key = atomicKey(cfg);
+      var key = projectKey(cfg);
       if (_atomic[key] !== undefined) return Promise.resolve(_atomic[key]);
       if (_atomicPending[key]) return _atomicPending[key];
       _atomicPending[key] = rest(cfg, atomicRpc(), { method: "POST", body: JSON.stringify({ probe: true }) })
