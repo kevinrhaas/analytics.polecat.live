@@ -134,6 +134,11 @@ function mockTursoExec(stmt) {
     const t = T.get(m[1]); if (!t) throw new Error("no such table: " + m[1]);
     return result(["data"], [...t.values()].map((row) => [row.data]));
   }
+  // N17 slice 2: the tripwire's single-row marker read (adapter.schemaVersion).
+  if ((m = sql.match(/^SELECT value FROM "([^"]+)" WHERE key = \?$/i))) {
+    const t = T.get(m[1]); if (!t) throw new Error("no such table: " + m[1]);
+    return result(["value"], t.has(args[0]) ? [[t.get(args[0])]] : []);
+  }
   if ((m = sql.match(/^SELECT key, ?value FROM "([^"]+)"(?: WHERE key IN \('app','schema_version'\))?$/i))) {
     const t = T.get(m[1]); if (!t) throw new Error("no such table: " + m[1]);
     const wantIdent = / WHERE /i.test(sql);
@@ -9187,7 +9192,138 @@ function serve() {
     ok("N17: an older app's save never rewinds the schema_version marker it found",
       n17.loadedVersion === n17AppVer + 1 && n17After.marker === String(n17AppVer + 1),
       JSON.stringify({ appVer: n17AppVer, loaded: n17.loadedVersion, marker: n17After.marker }));
+
+    // Turso's cheap marker read — what the runtime tripwire below calls instead
+    // of loading the whole workspace.
+    const n17TursoVer = await page.evaluate(async function (port) {
+      return await Studio.tursoSource.schemaVersion({ url: "http://localhost:" + port + "/__turso", token: "tok-n17" });
+    }, PORT);
+    ok("N17: the turso adapter can report the backend's schema marker on its own, without reading the workspace",
+      n17TursoVer === n17AppVer + 1, JSON.stringify({ read: n17TursoVer, expected: n17AppVer + 1 }));
     mockTurso.tables.clear();   // leave the mock clean for the N16 block below
+
+    // ---- N17 slice 2: the RUNTIME tripwire ----------------------------------
+    // Slice 1 made a stale app's save non-destructive. This is the other half:
+    // making the stale app notice at all. Every N16 seam runs the handshake
+    // while ADOPTING a snapshot, and the two guards that make adoption safe —
+    // "never adopt over pending edits", "only when the mirror is connected" —
+    // are exactly what disqualifies the tab this is for. So: a tab connects at
+    // the matching version, sleeps while another device upgrades the workspace,
+    // and wakes with an unpushed edit. quietPull() will not look (it is _dirty).
+    // The tripwire must, and the armed push must not beat it to the wire.
+    const n17Trip = await page.evaluate(async function () {
+      var WS = Studio.WS, out = {};
+      var before = Studio.Workspace.snapshot();
+      window.__n17R = { version: WS.SCHEMA_VERSION, saves: 0, loads: 0, verReads: 0 };
+      Studio.registerSource({
+        id: "n17trip", label: "N17Trip", icon: "db", caps: { meta: true }, fields: [],
+        load: function () {
+          window.__n17R.loads++;
+          var s = WS.emptySnapshot(); s.schemaVersion = window.__n17R.version;
+          return Promise.resolve(s);
+        },
+        schemaVersion: function () { window.__n17R.verReads++; return Promise.resolve(window.__n17R.version); },
+        save: function () { window.__n17R.saves++; return Promise.resolve({ ok: true }); }
+      });
+      await Studio.Sync.connectAdopt("n17trip", {});
+      out.readOnlyAtConnect = Studio.Sync.syncState().readOnly === true;
+      window.__n17R.loads = 0;   // the connect's own adopting read isn't what's under test
+
+      // --- the tab sleeps; another device upgrades the workspace -------------
+      window.__n17R.version = WS.SCHEMA_VERSION + 1;
+      // ...and this tab has work it never pushed.
+      Studio.Workspace.put("analyses", { id: "a-n17t", name: "Edited While Asleep", chartType: "bars" });
+      out.pending = Studio.Sync.syncState().pendingEdits === true;
+      // the freshness pull is disqualified by exactly that pending edit, so it
+      // learns nothing — this is the hole slice 2 exists to close
+      out.quietPullRefused = (await Studio.Sync.quietPull(true)) === false;
+      out.loadsAfterQuietPull = window.__n17R.loads;
+      out.readOnlyBeforeResume = Studio.Sync.syncState().readOnly === true;
+
+      // --- resume: visibilitychange fires the tripwire, and the push that the
+      //     same wake-up arms must wait for it rather than race it ------------
+      var loadsBefore = window.__n17R.loads;
+      document.dispatchEvent(new Event("visibilitychange"));
+      var pushed = Studio.Sync.pushNow();          // deliberately NOT awaited first
+      await Studio.Sync.schemaCheckPending();
+      await pushed;
+      out.verReads = window.__n17R.verReads;
+      out.loadedWholeWorkspace = window.__n17R.loads > loadsBefore;
+      out.readOnlyAfterResume = Studio.Sync.syncState().readOnly === true;
+      out.relation = Studio.Sync.schemaState().relation;
+      out.savesAfterResume = window.__n17R.saves;
+      out.stillPending = Studio.Sync.syncState().pendingEdits === true;
+      out.editStillLocal = !!Studio.Workspace.all("analyses").filter(function (r) { return r.id === "a-n17t"; })[0];
+
+      // --- the same wake-up on a backend that says nothing must change nothing
+      window.__n17R.version = null;
+      await Studio.Sync.recheckSchema(true);
+      out.readOnlyAfterSilence = Studio.Sync.syncState().readOnly === true;
+      out.backendAfterSilence = Studio.Sync.schemaState().backend;
+
+      // --- reconnect: the workspace is downgraded/caught up, `online` clears it
+      window.__n17R.version = WS.SCHEMA_VERSION;
+      await new Promise(function (r) { setTimeout(r, 2400); });  // past the burst floor
+      var readsBeforeOnline = window.__n17R.verReads;
+      window.dispatchEvent(new Event("online"));
+      await Studio.Sync.schemaCheckPending();
+      out.onlineChecked = window.__n17R.verReads > readsBeforeOnline;
+      out.readOnlyAfterOnline = Studio.Sync.syncState().readOnly === true;
+      await Studio.Sync.pushNow();
+      out.savesAfterOnline = window.__n17R.saves;
+
+      Studio.Sync.disconnect();
+      Studio.Workspace.replaceAll(before);
+      return out;
+    });
+    ok("N17: the freshness pull cannot be the tripwire — with an edit pending it declines and never looks at the version",
+      n17Trip.readOnlyAtConnect === false && n17Trip.pending && n17Trip.quietPullRefused &&
+      n17Trip.loadsAfterQuietPull === 0 && n17Trip.readOnlyBeforeResume === false, JSON.stringify(n17Trip));
+    ok("N17: resuming a slept tab re-reads the backend's schema marker alone (one row, no workspace load) and latches read-only",
+      n17Trip.verReads > 0 && n17Trip.loadedWholeWorkspace === false &&
+      n17Trip.readOnlyAfterResume && n17Trip.relation === "newer", JSON.stringify(n17Trip));
+    ok("N17: the push the same wake-up armed waits for the tripwire — the stale save never reaches a newer workspace, the edit stays pending and local",
+      n17Trip.savesAfterResume === 0 && n17Trip.stillPending && n17Trip.editStillLocal, JSON.stringify(n17Trip));
+    ok("N17: a backend that reports no version changes nothing — silence never latches a workspace off and never clears a latch",
+      n17Trip.readOnlyAfterSilence === true && n17Trip.backendAfterSilence === n17AppVer + 1, JSON.stringify(n17Trip));
+    ok("N17: coming back online re-runs the check too — once the versions agree the latch clears and the held edit finally pushes",
+      n17Trip.onlineChecked && n17Trip.readOnlyAfterOnline === false && n17Trip.savesAfterOnline > 0, JSON.stringify(n17Trip));
+
+    // ---- N17 slice 2: firebase's absence-delete (the gap slice 1 measured) ---
+    // The last adapter where a save said "this row is not in my snapshot, so
+    // delete it from the backend". Drive a real save() through a stubbed fetch
+    // and read the request log: the only DELETEs may be tombstoned ids, `users`
+    // is never deleted from, and the collection read-back is gone entirely (a
+    // save that never asks what is there cannot delete what it didn't ask for).
+    const n17fb = await page.evaluate(async function () {
+      var WS = Studio.WS, calls = [];
+      var realFetch = window.fetch;
+      window.fetch = function (url, opts) {
+        var method = (opts && opts.method) || "GET";
+        var path = String(url).split("/documents")[1] || String(url);
+        calls.push(method + " " + path.split("?")[0]);
+        return Promise.resolve(new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } }));
+      };
+      var out = {};
+      try {
+        var snap = WS.emptySnapshot();
+        snap.tables.dashboards = [{ id: "db-1", name: "ops" }];
+        snap.tables.users = [{ id: "u-1", username: "kevin" }];
+        // one real deletion, plus a users row a stale mirror thinks is gone
+        snap.meta = { tombstones: { "dashboards|db-gone": 1, "users|u-old": 1 } };
+        out.res = await Studio.firebaseSource.save({ projectId: "p", apiKey: "k" }, snap);
+      } finally { window.fetch = realFetch; }
+      out.deletes = calls.filter(function (c) { return c.indexOf("DELETE ") === 0; });
+      out.collectionReads = calls.filter(function (c) { return /^GET \/[a-z_]+$/.test(c); });
+      out.wrotePanels = calls.indexOf("PATCH /dashboards/db-1") >= 0 && calls.indexOf("PATCH /users/u-1") >= 0;
+      return out;
+    });
+    ok("N17: firebase save deletes ONLY tombstoned rows — absence is not deletion, and it no longer reads collections back to find out",
+      n17fb.res.ok && n17fb.wrotePanels && n17fb.collectionReads.length === 0 &&
+      n17fb.deletes.length === 1 && n17fb.deletes[0] === "DELETE /dashboards/db-gone",
+      JSON.stringify(n17fb));
+    ok("N17: firebase never deletes an account row, tombstone or not (users stays upsert-only, v787)",
+      n17fb.deletes.every(function (d) { return d.indexOf("DELETE /users/") !== 0; }), JSON.stringify(n17fb.deletes));
 
     // ---- N16 slice 1: the backend version handshake -------------------------
     // The marker existed end to end (WS.SCHEMA_VERSION → polecat_meta →
