@@ -252,6 +252,16 @@ let mockRefreshSeq = 0;
 // resolves, res.json() rejects. Distinct from a refusal, and the adapter has to
 // keep telling the two apart (see the N11 check).
 let mockTokenTruncate = 0;
+// N12: the mock's default posture keeps every token it has ever minted valid,
+// which is friendly but not what a real GoTrue does — it ROTATES, and a SPENT
+// token is refused outside its reuse-detection grace window. `strict` mode turns
+// that on (a used token is deleted), and the counted CHAIN follows one token
+// through its rotations so a check can say exactly how many grants a single
+// connection's credential paid for — immune to any other traffic in the run,
+// unlike a global request counter.
+let mockRefreshStrict = false;
+let mockCountedChain = new Set();
+let mockCountedGrants = 0;
 function mintMockRefresh() { const t = "mock-refresh-" + ++mockRefreshSeq; mockRefreshTokens.add(t); return t; }
 function handleMockSupabase(req, rep, p) {
   const send = (code, body) => {
@@ -276,8 +286,15 @@ function handleMockSupabase(req, rep, p) {
       let creds = {};
       try { creds = JSON.parse(body || "{}"); } catch (e) {}
       if (grant === "refresh_token") {
+        // N12: a spend of a counted token counts whether it is honoured or
+        // refused — a double-spend is a double-spend either way.
+        const counted = mockCountedChain.has(creds.refresh_token);
+        if (counted) mockCountedGrants++;
         if (!mockRefreshTokens.has(creds.refresh_token)) return send(400, { error: "invalid_grant", error_description: "Invalid Refresh Token" });
-        return send(200, { access_token: MOCK_GOTRUE_TOKEN, token_type: "bearer", expires_in: 3600, refresh_token: mintMockRefresh(), user: { id: MOCK_GOTRUE_USER_ID, email: MOCK_GOTRUE_EMAIL } });
+        if (mockRefreshStrict) mockRefreshTokens.delete(creds.refresh_token);
+        const rotated = mintMockRefresh();
+        if (counted) mockCountedChain.add(rotated);
+        return send(200, { access_token: MOCK_GOTRUE_TOKEN, token_type: "bearer", expires_in: 3600, refresh_token: rotated, user: { id: MOCK_GOTRUE_USER_ID, email: MOCK_GOTRUE_EMAIL } });
       }
       if (creds.email === MOCK_GOTRUE_EMAIL && creds.password === MOCK_GOTRUE_PASSWORD) {
         if (mockTokenFlaps > 0) { mockTokenFlaps--; return send(400, { error: "invalid_grant", error_description: "boot flap (test)" }); }
@@ -319,6 +336,17 @@ function handleMockSupabase(req, rep, p) {
   // inherit a leftover invalid_grant from #111's arm (the LF39 direct-auth flake).
   if (rel === "rest/v1/__cleartokenflap") { mockTokenFlaps = 0; return send(200, []); }
   if (rel === "rest/v1/__armtokentruncate") { mockTokenTruncate = 1; return send(200, []); }
+  // N12 probes: turn the rotate-and-refuse posture on/off, and start a counted
+  // token chain (the answer IS the token to seed the connection with).
+  if (rel === "rest/v1/__armrefreshstrict") { mockRefreshStrict = true; return send(200, []); }
+  if (rel === "rest/v1/__disarmrefreshstrict") { mockRefreshStrict = false; return send(200, []); }
+  if (rel === "rest/v1/__armgrantcount") {
+    const t = mintMockRefresh();
+    mockCountedChain = new Set([t]);
+    mockCountedGrants = 0;
+    return send(200, [{ token: t }]);
+  }
+  if (rel === "rest/v1/__grantcount") { return send(200, [{ count: mockCountedGrants }]); }
   if (rel === "rest/v1/__flaky_reset") { mockFlakyServed = 0; return send(200, []); }
   if (rel === "rest/v1/__flaky") {
     mockFlakyServed++;
@@ -18577,6 +18605,51 @@ function serve() {
         resumable: Studio.supabaseSource.hasResumableSession(cfg)
       };
     }, PORT);
+
+    // N12: two flows that both miss the session cache must not each spend the
+    // SAME refresh token. Run the mock in its REAL posture — rotate and refuse a
+    // spent token — and fire two sign-ins concurrently on one connection: with
+    // the single-flight guard the second awaits the first, so the credential is
+    // spent ONCE and both callers get the same live session. Without it the
+    // second grant presents a token the first has already burned, GoTrue refuses
+    // it, and (correctly, per N2 slice 3) the refusal is final: the token is
+    // dropped and the user is asked for the workspace password mid-session.
+    const n12 = await gpPw.evaluate(async (port) => {
+      var base = "http://localhost:" + port + "/__supabase";
+      var api = { headers: { apikey: "sb_publishable_valid" } };
+      var KEY = "analytics.supabase.refresh.v1";
+      var grant = function (token) {
+        return fetch(base + "/auth/v1/token?grant_type=refresh_token", {
+          method: "POST",
+          headers: { apikey: "sb_publishable_valid", "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: token })
+        });
+      };
+      await fetch(base + "/rest/v1/__armrefreshstrict", api);
+      var armed = (await (await fetch(base + "/rest/v1/__armgrantcount", api)).json())[0];
+      var cfg = { url: base, key: "sb_publishable_valid", authEmail: "concurrent@example.com" };
+      var store = JSON.parse(sessionStorage.getItem(KEY) || "{}");
+      store[cfg.url + "|" + cfg.authEmail] = armed.token;
+      sessionStorage.setItem(KEY, JSON.stringify(store));
+      // Both calls start before either can await — exactly the boot's shape.
+      var pair = await Promise.all([Studio.supabaseSource.signIn(cfg), Studio.supabaseSource.signIn(cfg)]);
+      var grants = (await (await fetch(base + "/rest/v1/__grantcount", api)).json())[0].count;
+      var after = JSON.parse(sessionStorage.getItem(KEY) || "{}");
+      // ...and prove the posture under test is real, not a mock that forgives
+      // everything: spending one token twice IN SEQUENCE is refused the second time.
+      var replay = (await (await fetch(base + "/rest/v1/__armgrantcount", api)).json())[0];
+      var first = await grant(replay.token);
+      var second = await grant(replay.token);
+      await fetch(base + "/rest/v1/__disarmrefreshstrict", api);
+      return {
+        ok0: pair[0].ok, ok1: pair[1].ok, id0: pair[0].userId || "", id1: pair[1].userId || "",
+        err: pair[0].error || pair[1].error || "",
+        grants: grants,
+        stillResumable: !!after[cfg.url + "|" + cfg.authEmail] && Studio.supabaseSource.hasResumableSession(cfg),
+        replayFirst: first.status, replaySecond: second.status
+      };
+    }, PORT);
+
     await gpPw.close();
     ok("N2 slice 4: a REVOKED refresh token is refused outright (no silent fall-back to an anon session) and is dropped rather than retried forever",
       pwRevoked.ok === false && pwRevoked.cleared === true, JSON.stringify(pwRevoked));
@@ -18586,6 +18659,13 @@ function serve() {
     ok("N11: the two answers stay distinguishable — an unreadable answer keeps the token, a genuine refusal still drops it (the N2 slice 3 posture is not weakened to fix the flake)",
       pwTruncated.kept === "mock-refresh" && pwRevoked.cleared === true &&
       !/connection dropped/.test(pwRevoked.err), JSON.stringify({ truncated: pwTruncated.err, revoked: pwRevoked.err }));
+    ok("N12: two concurrent sign-ins on one connection spend the refresh token EXACTLY ONCE — the second awaits the grant already in flight and both resolve from it, as the same user",
+      n12.grants === 1 && n12.ok0 === true && n12.ok1 === true &&
+      n12.id0 === MOCK_GOTRUE_USER_ID && n12.id1 === MOCK_GOTRUE_USER_ID, JSON.stringify(n12));
+    ok("N12: and because it is spent once, a rotating GoTrue never refuses the second grant — the session stays resumable instead of the user being asked for the workspace password mid-session",
+      n12.stillResumable === true && n12.err === "", JSON.stringify(n12));
+    ok("N12: the posture proving it is real — with rotation armed, spending ONE token twice in sequence is honoured then refused (so the check above cannot pass vacuously)",
+      n12.replayFirst === 200 && n12.replaySecond === 400, JSON.stringify(n12));
 
     // Upgrade path: a browser that already has a password at rest from an earlier
     // version must lose the at-rest copy WITHOUT being signed out mid-session.

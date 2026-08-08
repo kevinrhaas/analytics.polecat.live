@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 886,
+    title: 'Signing in no longer spends your renewal token twice',
+    kind: 'fix',
+    ts: '2026-08-08T10:12:10.000Z',
+    items: [
+      'When you sign in to a workspace, the app keeps a short-lived renewal token for the rest of the browser session and uses it to quietly renew your access, so your password never has to be written down anywhere. The workspace hands back a NEW renewal token every time one is used, and the old one stops working — that rotation is what makes the token safe to keep.',
+      'The moment you signed in, the app asked for two renewals at almost the same instant — about 55 milliseconds apart — and both asked using the same token, because neither had finished writing the replacement back before the other started. A workspace that rotates strictly answers the second one with a refusal, and a refusal is treated as final on purpose: the token is thrown away and you are asked for your workspace password again, in a session you never left.',
+      'The app now runs one renewal at a time per workspace. A second request that arrives while one is already in flight waits for it and shares its answer instead of starting its own, so the token is spent exactly once. Nothing else changes: a renewal that genuinely fails is not remembered as the shared answer, so the next attempt asks again properly, and privileged actions that deliberately mint a fresh session still do.',
+      'Three new checks, including a test workspace that rotates and refuses a spent token the way a real one does — so the old behaviour could not pass unnoticed.',
+    ],
+  },
+  {
     v: 885,
     title: 'A dropped connection can no longer sign you out of your workspace',
     kind: 'fix',
