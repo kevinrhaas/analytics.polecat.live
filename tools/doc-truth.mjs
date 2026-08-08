@@ -447,6 +447,31 @@ const staleLabels = ["app/tutorial.js", "app/welcome.js"].flatMap((f) => {
 ok(`app/tutorial.js + app/welcome.js: no bolded label calls a saved chart by its internal name ("${savedChart.table}") — the app renders "${savedChart.group}"`,
   !staleLabels.length, staleLabels.join("\n      "));
 
+// 15. The Help page uses that same noun — and here the rule is stricter than check 14's.
+//     Check 14 covered the tours; the same LF57 rename left docs/index.html's PROSE behind in
+//     twenty places, and in the telling pattern: its LABELS were already right ("the Studio
+//     library under <strong>Views</strong>") while the sentences wrapped around them still said
+//     "saved analyses appear in the left list", "an analysis embeds its data access", "a
+//     dashboard or analysis switches you into the right builder". A bolded-label rule would have
+//     passed every one of them. Help is what a stuck reader searches, and it outlives any tour
+//     step, so: outside an HTML comment or a <code> span, the internal noun must not appear at
+//     all. <code> IS the sanctioned way to write it — the storage table and the literal
+//     "HTTP 404 writing analyses" error string are real strings a reader will genuinely see, and
+//     they stay verbatim. The one exemption is the same derived one check 14 uses: a tour's own
+//     chooser label ("Quick analysis"), which Help names when it describes the tour picker.
+const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const helpProse = read("docs/index.html")
+  .replace(/<!--[\s\S]*?-->/g, " ")
+  .replace(/<code>[\s\S]*?<\/code>/g, " ");
+const helpBare = [...tourChooserLabels].filter((l) => staleNoun.test(l))
+  .reduce((s, l) => s.replace(new RegExp(esc(l), "gi"), " "), helpProse);
+// Report the offending phrase, not just a line number: the fix is always a rewording, and
+// seeing the sentence fragment is what makes it obvious which wording was meant.
+const staleHelp = [...helpBare.matchAll(new RegExp(`[^.<>]*${staleNoun.source}[^.<>]*`, "gi"))]
+  .map((m) => `docs/index.html: "…${m[0].trim().replace(/\s+/g, " ").slice(0, 96)}…"`);
+ok(`docs/index.html: Help calls a saved chart a "${savedNoun}" — the internal noun ("${savedChart.table}") only inside <code>`,
+  !staleHelp.length, staleHelp.join("\n      "));
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
