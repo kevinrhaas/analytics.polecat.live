@@ -1812,6 +1812,37 @@ body.lib-dragging #preview{pointer-events:none}
   /* 12px of vertical padding around a 44px control would make a 68px header inside a drawer
      that only has 642px; 4px keeps the bar at 52px and gives the list back the difference. */
   .pane-h{padding:var(--sp-4) var(--sp-12)}
+  /* N13: N9b fixed the pane HEADERS; this is the LIST ROWS underneath them — the last surface
+     in the N8 → N9a → N9b sweep, and the one carrying the destructive actions. Measured at
+     390×780 with each drawer open: the Data pane's per-dataset duplicate/delete `.icobtn` pair
+     renders 17px tall (`padding:2px 4px`, `font-size:13`, no min-height), the "This dashboard's
+     datasets" group's `.mine-add` 20px (an explicit 20×20), and the Inspector's row actions
+     22px — a delete sitting 21px from a duplicate, every one of them under half the touch bar.
+     Scoped to `.pane` — ONLY `#library` and `#inspector` carry that class — rather than to
+     `.icobtn`, which the Home section-reorder controls (`.home-sub-move`) also use: a blanket
+     rule would re-flow surfaces this slice never measured.
+     The glyph never changes size: these are transparent icon buttons with an SVG child, so
+     growing the box only grows the hover chip. Overlapping hit boxes were NOT an option — at
+     21px apart, two 44px targets overlap by 23px and the delete swallows half the duplicate,
+     which is worse than the small buttons. So they grow for real and the rows are given the
+     room to hold them. */
+  .pane .icobtn{min-width:44px;min-height:44px}
+  /* `.ri-txt` may shrink to nothing (`min-width:0`), so a 3-button Inspector row would crush its
+     title to ~80px rather than wrap. A phone-only floor makes the flex line genuinely unable to
+     hold both, so `.ri-btns` takes its own line and right-aligns there; 1-button (44px) and
+     2-button (88px) rows still fit inline and keep today's single-line layout. */
+  .pane .row-item{flex-wrap:wrap}
+  .pane .row-item .ri-txt{min-width:120px}
+  .pane .row-item .ri-btns{margin-left:auto}
+  /* `.mine-add` is a PAINTED 20px brand square, so growing the element would drop a 44px brand
+     block into the group header. Same treatment N9b gave the `?`: the button becomes the
+     invisible 44px touch box and a ::before paints the same 20×20 square behind the centred
+     glyph — hit area 44×44, visual byte-for-byte what it was. The header's own padding drops to
+     match, so the group bar grows to 48px instead of 60px. */
+  .lib-mine>.h{padding:var(--sp-2) var(--sp-10)}
+  .lib-mine>.h .mine-add{width:44px;height:44px;background:none;border-radius:0;position:relative}
+  .lib-mine>.h .mine-add::before{content:"";position:absolute;width:20px;height:20px;border-radius:6px;background:var(--brand)}
+  .lib-mine>.h .mine-add>*{position:relative;z-index:1}
   /* N9: the catalog toolbars (`.repo-io` — Dashboards, Views, Datasets, Connections, Jobs,
      Repository) are a nowrap flex row, so on a phone they simply ran off the right edge:
      measured at 390×780, Dashboards laid its controls out to x=651 against a 390px screen —

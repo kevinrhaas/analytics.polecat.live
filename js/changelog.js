@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 888,
+    title: 'The duplicate and delete buttons on a phone are finally big enough to aim at',
+    kind: 'polish',
+    ts: '2026-08-08T11:16:32.000Z',
+    items: [
+      'The last surface in this week\'s sweep for thumb-sized controls. The menus, the catalog toolbars and the panel headers all came up to the 44-pixel minimum a finger actually needs; this is the rows inside the builder\'s Data and Inspector panels — the ones carrying Duplicate, Delete and the move-up/move-down arrows.',
+      'Measured on a 390-pixel phone with each drawer open, they were the smallest controls left in the app: the per-dataset Duplicate and Delete pair rendered 17 pixels tall, the "＋" on the "This dashboard\'s datasets" group 20, and the Inspector\'s move/delete trio 22 — every one of them under half the touch bar, and the Delete sitting just 21 pixels from the Duplicate it neighbours. Aiming for one and hitting the other was a real possibility, on the two actions where it matters most.',
+      'All of them are now a full 44 by 44 pixels on a phone. The icons themselves are unchanged — only the invisible area your thumb has to land on grew — and the "＋" keeps its neat 20-pixel square exactly as it looked. Where three buttons no longer fit beside a row\'s title, they take their own line underneath it rather than squeezing the name into nothing or running off the right edge.',
+      'Nothing changes on a desktop, where the compact rows are the design; the new checks assert that in both directions at 390 and 1280 pixels wide, and also that the buttons stay on screen — growing them without giving the row somewhere to put them would have traded one phone problem for another.',
+    ],
+  },
+  {
     v: 887,
     title: 'The builder\'s Data and Inspector panel headers are thumb-sized on a phone',
     kind: 'polish',
