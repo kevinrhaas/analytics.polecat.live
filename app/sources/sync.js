@@ -573,7 +573,12 @@
     // that throws (or rejects) aborts the upgrade with the backend untouched.
     //
     // Adapters opt in with `upgradeWorkspace(cfg)`; one that can't DDL from the
-    // browser returns { manual:true, sql } and the caller shows the SQL. Either
+    // browser returns { manual:true, sql } and the caller shows the SQL. Since
+    // N22b slice 2 that is no longer a property of the ADAPTER but of the
+    // DATABASE: Supabase upgrades itself here when the project carries the
+    // admin-gated `polecat_migrate()` function, and only falls back to the
+    // paste when it doesn't (or won't). Nothing in this file has to know which
+    // — both routes answer in the same shape. Either
     // way the handshake is re-run from the BACKEND afterwards — the version is
     // never assumed to have moved just because a call returned ok — and any
     // edits that were waiting are pushed once it agrees.

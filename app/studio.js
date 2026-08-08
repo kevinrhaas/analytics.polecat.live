@@ -8496,15 +8496,45 @@
     if (st.isRemote && st.schemaRelation === "older") {
       var upgSql = renderWorkspaceBackendCard._upgradeSql || "";
       var sqlWhere = st.sourceId === "supabase" ? "Supabase → SQL editor" : "your database's SQL console";
+      // N22b slice 2 — Supabase is no longer "always a paste". A database stood
+      // up by either modern setup path carries the migration function, and the
+      // button really does the upgrade; one that predates it still needs the
+      // single run in the SQL editor. Say which of the two THIS database is,
+      // before the button is pressed — the card must never promise a step the
+      // backend can't honour. The state comes from the adapter's own memo, and
+      // when nothing has asked yet one side-effect-free probe answers it and
+      // re-renders (asked at most once per page, exactly like the atomic one).
+      var upgWhere = "";
+      if (st.sourceId === "supabase" && Studio.supabaseSource.migrateState) {
+        var migCfg = Studio.Sync.currentConfig() || {};
+        var migState = Studio.supabaseSource.migrateState(migCfg);
+        if (migState === "unknown") {
+          if (!renderWorkspaceBackendCard._migrateAsked) {
+            renderWorkspaceBackendCard._migrateAsked = true;
+            Studio.supabaseSource.checkMigrate(migCfg).then(function (v) {
+              if (v !== undefined) renderWorkspaceBackendCard();
+            });
+          }
+        } else if (migState === "yes") {
+          upgWhere = ' This database can upgrade itself, so the button does the whole thing from here.';
+        } else {
+          upgWhere = ' This database was set up before in-app upgrades existed, so it needs one run in ' +
+            esc(sqlWhere) + ' — the script appears here when you press the button.';
+        }
+      }
       upgradeHtml = '<div class="ws-secrets ws-upgrade">' +
         '<span class="cx-name"><b>Upgrade this workspace</b><small>' +
           'It was made by an earlier version of Analytics (schema v' + esc(String(st.backendSchemaVersion)) +
           '); this app writes v' + esc(String(st.appSchemaVersion)) + '. Everything works today — newer versions have only ever ' +
           'ADDED to a workspace — but the parts they added have nowhere to be stored until it is upgraded. ' +
           'Upgrading adds them and changes nothing you have saved. A full backup of the workspace downloads first, every time.' +
+          upgWhere +
         '</small></span>' +
         '<span class="cx-actions ws-actions"><button type="button" class="btn primary" id="wsUpgradeBtn">Upgrade workspace</button></span>' +
-        (upgSql ? '<small class="ws-upgrade-note">Your backup has downloaded. This backend can’t change its own structure from a browser, so the upgrade is one paste: run this once in ' + esc(sqlWhere) + ', then re-check. It is safe to run twice.</small>' +
+        (upgSql ? '<small class="ws-upgrade-note">Your backup has downloaded. ' +
+          esc(renderWorkspaceBackendCard._upgradeNote ||
+            "This backend can’t change its own structure from a browser, so the upgrade is one paste:") +
+          ' run this once in ' + esc(sqlWhere) + ', then re-check. It is safe to run twice.</small>' +
           '<pre class="ws-sync-err-sql"><code>' + esc(upgSql) + '</code></pre>' +
           '<span class="cx-actions ws-actions">' +
             '<button type="button" class="btn" id="wsUpgradeCopyBtn">Copy SQL</button>' +
@@ -8513,6 +8543,7 @@
         '</div>';
     } else if (renderWorkspaceBackendCard._upgradeSql) {
       renderWorkspaceBackendCard._upgradeSql = ""; // the workspace moved on
+      renderWorkspaceBackendCard._upgradeNote = "";
     }
     card.innerHTML = '<h2>Workspace backend</h2>' +
       '<p class="ws-card-intro">Where this workspace\'s catalog lives — dashboards, datasets and connections. Local by default; connect a database to reach the same workspace from any browser. <b>' + esc(credLine) + '</b></p>' +
@@ -8577,10 +8608,16 @@
       }).then(function (r) {
         if (r && r.ok) {
           renderWorkspaceBackendCard._upgradeSql = "";
+          renderWorkspaceBackendCard._upgradeNote = "";
           toast("Workspace upgraded to v" + r.to + " — the backup downloaded first.");
         } else if (r && r.manual) {
           renderWorkspaceBackendCard._upgradeSql = r.sql || "";
-          toast("Backup downloaded. This backend needs the upgrade run in its SQL editor — the script is on the card.");
+          // N22b slice 2: when the database HAS the migration function and still
+          // wouldn't run it (wrong account, no users table yet), the refusal it
+          // raised is what the user needs to read — not the generic "this
+          // backend can't do it", which would be a lie about this database.
+          renderWorkspaceBackendCard._upgradeNote = r.rpcError || "";
+          toast(r.rpcError || "Backup downloaded. This backend needs the upgrade run in its SQL editor — the script is on the card.", !!r.rpcError);
         } else {
           toast("Upgrade didn't run: " + ((r && r.error) || "unknown error"), true);
         }

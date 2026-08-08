@@ -63,7 +63,12 @@ writes costs nothing; a table an old build expects and cannot find costs a works
    `Sync.upgradeWorkspace({backup})` — where `backup` is a required parameter, so there
    is no opt-out to forget — exports the pre-upgrade snapshot first, then applies the
    delta in the browser where the adapter can DDL and hands over paste-me SQL where it
-   cannot.
+   cannot. Since N22b slice 2 that is a property of the DATABASE, not the adapter:
+   Supabase upgrades in place when the project carries the admin-gated
+   `polecat_migrate()` function (installed by both setup paths), and falls back to the
+   paste only when the function is absent or refuses. Both routes answer in the same
+   `{ok}` / `{manual, sql}` shape, and the handshake is always re-read from the backend
+   afterwards — a version is never assumed to have moved because a call returned ok.
 
 `unknown` (no readable marker) is deliberately treated as `same`. A pre-marker or
 partially-read backend is not evidence of newness, and latching a workspace off on a

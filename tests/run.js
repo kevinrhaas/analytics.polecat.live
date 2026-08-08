@@ -9622,8 +9622,15 @@ function serve() {
     // also STAMP the marker — without that the app would keep offering the
     // upgrade after it had been run.
     const n16UpSb = await page.evaluate(async function () {
-      var WS = Studio.WS;
-      var r = await Studio.supabaseSource.upgradeWorkspace({ url: "https://x.supabase.co", key: "k", adminFnUrl: "https://example.invalid/admin" });
+      var WS = Studio.WS, fetch0 = window.fetch;
+      // N22b slice 2: this project has NO migration function (404 on the probe),
+      // which is the case this check has always been about — the paste path.
+      window.fetch = function (url) {
+        if (/\/rpc\//.test(String(url))) return Promise.resolve(new Response(JSON.stringify({ code: "PGRST202" }), { status: 404, headers: { "Content-Type": "application/json" } }));
+        return Promise.resolve(new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }));
+      };
+      var r = await Studio.supabaseSource.upgradeWorkspace({ url: "https://n16-legacy.supabase.co", key: "k", adminFnUrl: "https://example.invalid/admin" });
+      window.fetch = fetch0;
       var sql = r.sql || "";
       return { manual: r.manual === true, ok: r.ok === false,
         hasDelta: /CREATE TABLE IF NOT EXISTS "users"/.test(sql),
@@ -9640,6 +9647,122 @@ function serve() {
       n16UpSb.manual && n16UpSb.ok && n16UpSb.hasDelta && n16UpSb.stamps && n16UpSb.noPolicy &&
       n16UpSb.noBlanketGrant && n16UpSb.onlyFnGrant,
       JSON.stringify(n16UpSb));
+
+    // ---- N22b slice 2: the app CALLS the migration RPC -----------------------
+    // Slice 1 installed polecat_migrate() in both setup paths and proved it
+    // against a real database (tests/rls.mjs' fifth posture). Nothing in the
+    // browser used it. These checks are the browser half, and they are shaped
+    // like AUD-01's — one stubbed PostgREST, four projects, each answering the
+    // RPC differently, because the whole risk here is the FALLBACK: a workspace
+    // that predates the function must keep behaving exactly as it did.
+    const n22bApp = await page.evaluate(async function () {
+      var sb = Studio.supabaseSource, fetch0 = window.fetch, out = {};
+      var calls = [], bodies = [];
+      function stub(answer) {
+        window.fetch = function (url, opts) {
+          var u = String(url), method = (opts && opts.method) || "GET";
+          if (/\/rpc\//.test(u)) {
+            calls.push(method + " " + u.split("/rest/v1")[1]);
+            try { bodies.push(JSON.parse((opts && opts.body) || "{}")); } catch (e) { bodies.push(null); }
+            return answer(bodies[bodies.length - 1]);
+          }
+          return Promise.resolve(new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }));
+        };
+      }
+      function json(body, status) {
+        return Promise.resolve(new Response(JSON.stringify(body), { status: status, headers: { "Content-Type": "application/json" } }));
+      }
+
+      // (a) the function is there → the upgrade happens HERE. One probe, one
+      // apply, no SQL handed back at all.
+      calls = []; bodies = [];
+      stub(function (b) {
+        return b && b.mode === "probe"
+          ? json({ ok: true, probe: true, schemaVersion: Studio.WS.SCHEMA_VERSION }, 200)
+          : json({ ok: true, from: "1", to: Studio.WS.SCHEMA_VERSION }, 200);
+      });
+      var cfgA = { url: "https://n22b-modern.supabase.co", key: "k" };
+      out.stateUnknownFirst = sb.migrateState(cfgA) === "unknown";
+      var resA = await sb.upgradeWorkspace(cfgA);
+      out.rpcOk = !!(resA && resA.ok === true && resA.rpc === true);
+      out.rpcNoSql = !resA.sql && !resA.manual;
+      out.rpcProbedThenApplied = calls.length === 2 &&
+        /^POST \/rpc\/polecat_migrate$/.test(calls[0]) && /^POST \/rpc\/polecat_migrate$/.test(calls[1]) &&
+        bodies[0].mode === "probe" && bodies[1].mode === "apply";
+      out.stateYes = sb.migrateState(cfgA) === "yes";
+      // …and the capability is REMEMBERED: a second upgrade is one call.
+      calls = []; bodies = [];
+      await sb.upgradeWorkspace(cfgA);
+      out.remembersYes = calls.length === 1 && bodies[0].mode === "apply";
+
+      // (b) the function is absent (a workspace stood up before it existed) →
+      // byte-for-byte the pre-N22b behaviour: the paste-me script, and the 404
+      // is remembered so later presses don't re-ask.
+      calls = []; bodies = [];
+      stub(function () { return json({ code: "PGRST202", message: "Could not find the function" }, 404); });
+      var cfgB = { url: "https://n22b-legacy.supabase.co", key: "k" };
+      var resB = await sb.upgradeWorkspace(cfgB);
+      out.legacyManual = !!(resB && resB.ok === false && resB.manual === true);
+      out.legacyHasDelta = /CREATE TABLE IF NOT EXISTS "users"/.test(resB.sql || "");
+      out.legacyStamps = new RegExp("VALUES\\('schema_version', '" + Studio.WS.SCHEMA_VERSION + "'\\)").test(resB.sql || "");
+      out.legacyNoRpcError = !resB.rpcError;
+      out.stateNo = sb.migrateState(cfgB) === "no";
+      calls = [];
+      await sb.upgradeWorkspace(cfgB);
+      out.remembersNo = calls.length === 0;
+
+      // (c) the function is there and REFUSES (signed in as a non-admin — the
+      // gate lives in the database). The script is still offered, because the
+      // SQL editor is still the remedy — but the database's own words are
+      // carried up so the card can stop claiming this backend "can't" do it.
+      calls = []; bodies = [];
+      stub(function (b) {
+        return b && b.mode === "probe"
+          ? json({ ok: true, probe: true }, 200)
+          : json({ message: "polecat_migrate: administrators only", code: "42501" }, 403);
+      });
+      var cfgC = { url: "https://n22b-refused.supabase.co", key: "k" };
+      var resC = await sb.upgradeWorkspace(cfgC);
+      out.refusedManual = !!(resC && resC.ok === false && resC.manual === true && (resC.sql || "").length > 0);
+      out.refusedQuotes = /administrators only/.test(resC.rpcError || "") && !/polecat_migrate:/.test(resC.rpcError || "");
+      // a refusal is about WHO is signed in, not about what the database has —
+      // it must never be memoized as "this project has no function"
+      out.refusedNotMemoized = sb.migrateState(cfgC) !== "no";
+
+      // (d) the probe answers nothing at all (5xx / CORS / offline). Same
+      // fallback, and again nothing is remembered — the next attempt re-asks
+      // rather than latching this browser onto the paste path over a blip.
+      calls = []; bodies = [];
+      stub(function () { return json({ message: "upstream unavailable" }, 503); });
+      var cfgD = { url: "https://n22b-blip.supabase.co", key: "k" };
+      var resD = await sb.upgradeWorkspace(cfgD);
+      out.blipManual = !!(resD && resD.ok === false && resD.manual === true && (resD.sql || "").length > 0);
+      out.blipNotMemoized = sb.migrateState(cfgD) === "unknown";
+
+      // (e) the probe itself: side-effect free, and concurrent callers share
+      // the one in-flight request.
+      calls = []; bodies = [];
+      stub(function () { return json({ ok: true, probe: true }, 200); });
+      var cfgE = { url: "https://n22b-probe.supabase.co", key: "k" };
+      var pair = await Promise.all([sb.checkMigrate(cfgE), sb.checkMigrate(cfgE)]);
+      out.probeAnswers = pair[0] === true && pair[1] === true && sb.migrateState(cfgE) === "yes";
+      out.probeAskedOnce = calls.length === 1;
+      out.probeIsProbeOnly = !!(bodies[0] && bodies[0].mode === "probe");
+
+      window.fetch = fetch0;
+      return out;
+    });
+    ok("N22b: with polecat_migrate installed, the app upgrades the workspace ITSELF — one probe, one admin-gated apply, no SQL editor — and remembers the capability",
+      n22bApp.stateUnknownFirst && n22bApp.rpcOk && n22bApp.rpcNoSql && n22bApp.rpcProbedThenApplied &&
+      n22bApp.stateYes && n22bApp.remembersYes, JSON.stringify(n22bApp));
+    ok("N22b: a workspace whose database predates the function is UNCHANGED — the paste-me delta, stamped, no error, and the 404 remembered",
+      n22bApp.legacyManual && n22bApp.legacyHasDelta && n22bApp.legacyStamps && n22bApp.legacyNoRpcError &&
+      n22bApp.stateNo && n22bApp.remembersNo, JSON.stringify(n22bApp));
+    ok("N22b: a refusal or a blip falls back to the same paste — quoting the database's own reason where there is one — and is never memoized as 'no function'",
+      n22bApp.refusedManual && n22bApp.refusedQuotes && n22bApp.refusedNotMemoized &&
+      n22bApp.blipManual && n22bApp.blipNotMemoized, JSON.stringify(n22bApp));
+    ok("N22b: the capability probe writes nothing and is asked once, however many callers ask",
+      n22bApp.probeAnswers && n22bApp.probeAskedOnce && n22bApp.probeIsProbeOnly, JSON.stringify(n22bApp));
 
     const wsSupabase = await page.evaluate(async function () {
       var res = await Studio.supabaseSource.provision({}, Studio.WS.emptySnapshot());

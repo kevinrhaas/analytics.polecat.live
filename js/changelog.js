@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 906,
+    title: 'Upgrade workspace now really does upgrade a Supabase workspace, from inside the app',
+    kind: 'feature',
+    ts: '2026-08-08T21:58:16.000Z',
+    items: [
+      'Last release installed a named upgrade function in your database and said the button that calls it was the next piece of work. This is that button — or rather, it is the button you already had, finally doing what its label says.',
+      'When a workspace was made by an older version of Analytics, the Settings → Workspace backend card offers to upgrade it. Turso and Firebase workspaces have always upgraded in one press. Supabase handed you a script instead, because a web page cannot create tables in a Postgres database. Now it asks your database whether it carries the upgrade function, and if it does, presses on: a full backup of the workspace downloads first, exactly as before, and then the upgrade runs where it belongs — in the database, under an administrator check the database itself enforces.',
+      'The card says which kind of database you have before you press anything, so it never promises a step your backend cannot take. A workspace created before the function existed behaves exactly as it did yesterday: the same backup, the same script, the same "I\'ve run it — re-check". Nothing about that path changed, which is the part worth being careful about.',
+      'When the function is there but declines — you are signed in as an editor rather than an administrator, say — the card stops claiming your backend "can\'t" do it and quotes the reason the database gave, with the script still underneath, because the SQL editor remains a perfectly good way through.',
+      'One more piece of restraint: a refusal, a timeout or a network blip is never remembered as "this database has no upgrade function". Only a database that answers "no such function" is filed away that way. Sign in as an administrator and press again, and it works.',
+    ],
+  },
+  {
     v: 905,
     title: 'The database setup you paste once now leaves behind the button that upgrades it later',
     kind: 'feature',
