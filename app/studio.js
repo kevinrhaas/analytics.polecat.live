@@ -1056,7 +1056,9 @@
   // Kevin (2026-07-30): pack dashboards install INTO a folder named for their
   // pack, and their own titles lead (the shared "Conservation Insight — " prefix
   // made every card in the grid read identical).
-  var PACK_FOLDERS = { conservation: "Conservation Insight", datamanagement: "Data Management" };
+  // SP-0: the folder names moved ONTO the registry entries (app/demopacks.js `folder`),
+  // so this file no longer keeps a parallel literal map in sync with them.
+  function packFolder(id) { return (Studio.demoPackFolder && Studio.demoPackFolder(id)) || ""; }
   function ensurePackExamplesMaterialized(id) {
     if (!Studio.demoPackInstalled(id)) return Promise.resolve();
     var entries = (S.examples || []).filter(function (e) { return e.demoPackId === id; });
@@ -1072,7 +1074,7 @@
         Studio.Workspace.put("dashboards", {
           name: norm.name || e.title, title: norm.title || e.title,
           ts: new Date().toISOString(), spec: norm, demoPackId: e.demoPackId, sourceFile: e.file,
-          folder: PACK_FOLDERS[e.demoPackId] || ""
+          folder: packFolder(e.demoPackId)
         });
       }).catch(function () { /* a missing/broken example shouldn't block materializing the rest */ });
     }));
@@ -1090,7 +1092,7 @@
       var upd = false;
       if (typeof r.title === "string" && LEGACY.test(r.title)) { r.title = r.title.replace(LEGACY, ""); upd = true; }
       if (r.spec && typeof r.spec.title === "string" && LEGACY.test(r.spec.title)) { r.spec.title = r.spec.title.replace(LEGACY, ""); upd = true; }
-      var fld = PACK_FOLDERS[r.demoPackId];
+      var fld = packFolder(r.demoPackId);
       if (fld && !r.folder) { r.folder = fld; upd = true; }
       if (upd) { Studio.Workspace.put("dashboards", r, { silent: true }); changed = true; }
     });
@@ -1101,7 +1103,7 @@
     ["datasets", "jobs", "analyses", "connections"].forEach(function (t) {
       var tChanged = false;
       Studio.Workspace.all(t).forEach(function (r) {
-        var fld = r.demoPackId && PACK_FOLDERS[r.demoPackId];
+        var fld = r.demoPackId && packFolder(r.demoPackId);
         if (fld && !r.folder) { r.folder = fld; Studio.Workspace.put(t, r, { silent: true }); tChanged = true; }
       });
       if (tChanged) Studio.Workspace.notify(t);
@@ -9485,9 +9487,11 @@
       if (mine) mirrorUserRow(mine);
     } catch (e) {}
     try {
-      if (Auth.isDemo() && Studio.DEMO_PACKS && Studio.DEMO_PACKS.conservation &&
-          !Studio.demoPackInstalled("conservation")) {
-        Studio.installDemoPack("conservation");
+      // SP-0: whichever registered packs are flagged `demoLogin`, not a named one.
+      if (Auth.isDemo() && Studio.demoPacksWith) {
+        Studio.demoPacksWith("demoLogin").forEach(function (pid) {
+          if (!Studio.demoPackInstalled(pid)) Studio.installDemoPack(pid);
+        });
       }
     } catch (e) {}
     // LF41 slice 1: admin-set provisioning defaults (theme + sample pack), applied
@@ -9502,10 +9506,14 @@
         // the same once-only way theme/pack apply — see openUserEditor's "Copy my current
         // Dashboard defaults" button.
         if (mine.provisioning.dashboardDefaults && Studio.Defaults) Studio.Defaults.applyDashboardDefaultsBlob(mine.provisioning.dashboardDefaults);
-        if (mine.provisioning.pack === "conservation" && Studio.DEMO_PACKS && Studio.DEMO_PACKS.conservation &&
-            !Studio.demoPackInstalled("conservation")) {
-          Studio.installDemoPack("conservation");
-          ensurePackExamplesMaterialized("conservation");
+        // SP-0: any REGISTERED pack, not just Conservation Insight — the admin picks it
+        // from the registry in the user editor, and an id whose pack has since been
+        // unregistered is ignored rather than throwing.
+        var provPackId = mine.provisioning.pack;
+        if (provPackId && Studio.DEMO_PACKS && Studio.DEMO_PACKS[provPackId] &&
+            !Studio.demoPackInstalled(provPackId)) {
+          Studio.installDemoPack(provPackId);
+          ensurePackExamplesMaterialized(provPackId);
         }
         buildLibrary(); renderHome();
         Auth.upsert(me.u, { provisioned: true }).then(function (saved) { mirrorUserRow(saved); });
@@ -10174,12 +10182,22 @@
       });
       if (existing && existing.provisioning && existing.provisioning.theme) tSel.value = existing.provisioning.theme;
       tRow.appendChild(tSel); form.appendChild(tRow);
-      var packLab = el("label", "check"); packLab.style.cssText = "gap:6px;font-size:12px;margin-top:2px";
-      var packChk = el("input"); packChk.type = "checkbox"; packChk.id = "usrEditPack";
-      packChk.checked = !!(existing && existing.provisioning && existing.provisioning.pack === "conservation");
-      packLab.appendChild(packChk);
-      packLab.appendChild(document.createTextNode(" Install the Conservation Insight sample pack on first sign-in"));
-      form.appendChild(packLab);
+      // SP-0: this was a checkbox that could only ever mean Conservation Insight. With
+      // more than one pack registered it has to be a CHOICE, listed from the registry —
+      // so a new pack is assignable the moment it exists, with no edit here. The stored
+      // value is still the pack id, so accounts provisioned by the old checkbox keep
+      // their assignment.
+      var pRow = el("label", "cx-field"); pRow.innerHTML = "<span>Sample pack (installed at first sign-in)</span>";
+      var pSel = el("select"); pSel.id = "usrEditPack";
+      var pNone = el("option"); pNone.value = ""; pNone.textContent = "Don't install one";
+      pSel.appendChild(pNone);
+      Object.keys(Studio.DEMO_PACKS || {}).forEach(function (pid) {
+        var o = el("option"); o.value = pid; o.textContent = (Studio.DEMO_PACKS[pid].name || pid);
+        pSel.appendChild(o);
+      });
+      var provPack0 = existing && existing.provisioning && existing.provisioning.pack;
+      if (provPack0 && Studio.DEMO_PACKS && Studio.DEMO_PACKS[provPack0]) pSel.value = provPack0;
+      pRow.appendChild(pSel); form.appendChild(pRow);
       // TOUR-FORCE (Kevin live, 2026-07-31): a ONE-SHOT "show the welcome tour at their
       // next sign-in" flag — unlike the once-only provisioning above it's re-settable any
       // time (e.g. after invalidating the tour for a test login) and auto-resets once the
@@ -10253,7 +10271,7 @@
         var opts = { name: nInp.value.trim() || u, role: rSel.value };
         opts.forceTour = tourChk.checked; // TOUR-FORCE: one-shot welcome-at-next-sign-in
         if (pInp.value) opts.pass = pInp.value;
-        var provTheme = tSel.value, provPack = packChk.checked ? "conservation" : "";
+        var provTheme = tSel.value, provPack = pSel.value;
         // bSel is only rendered when at least one backend is registered (see
         // above) — when absent, keep whatever assignment already existed rather
         // than silently clearing it just because this editor session had

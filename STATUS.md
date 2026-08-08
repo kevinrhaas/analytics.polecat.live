@@ -135,6 +135,37 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **SP-0 slice 1 of 2 — the sample-pack registry stops being two hard-coded names (v893, sw
+  v518, 2026-08-08, steward; dev branch):** blocker (a) of SP-0, the precondition for Kevin's
+  eleven new packs. **What was actually there:** `Studio.installDemoPack` dispatched on
+  `if (id === "conservation")` twice (once before the installed flag, once after); the pack
+  folder was a literal in TWO files — `PACK_FOLDER` in `app/demopacks.js` and a `PACK_FOLDERS`
+  map in `app/studio.js` — kept in step by a comment saying "keep the two names in sync"; demo
+  login named `"conservation"`; per-user provisioning compared `provisioning.pack ===
+  "conservation"` and its admin control was a CHECKBOX that could not express any other pack;
+  and `app/build.js` gated the raw catalog samples on a literal `"datamanagement"`. **Eight
+  dispatch sites across three files** — measured, not estimated (the new source guard flags
+  exactly those eight on the pre-change tree and zero after). **What shipped:** the registry
+  entry is now the only place a pack is named — it carries `folder`, `seeds` (declared row
+  counts per table), `install()` (pre-flag) / `afterInstall()` (post-flag, for steps that read
+  `demoPackInstalled`), and the `demoLogin` / `catalogSamples` flags. `installDemoPack` is
+  literally `if (p.install) p.install(); setInstalledIds(...); if (p.afterInstall)
+  p.afterInstall();` and knows no pack. `Studio.demoPacksWith(flag)` and
+  `Studio.demoPackFolder(id)` are how every other module selects packs. **One user-visible
+  change:** the admin user editor's "Install the Conservation Insight sample pack on first
+  sign-in" checkbox became a picker over every registered pack; the stored value was always the
+  pack id, so existing assignments carry over untouched. **Verification:** the new SP-0
+  conformance LOOP in `tests/run.js` walks `Studio.DEMO_PACKS` and puts every registered entry
+  through one contract — well-formed entry, install sets the flag, every seeded row tagged and
+  filed in that entry's own `folder`, declared `seeds` match what the installer wrote, remove
+  leaves zero rows — then restores each pack to the state it found it in (re-materializing an
+  examples pack's dashboards), so pack twelve is covered the day it is registered. A second,
+  static guard fails the build if any module outside the registry branches on a pack id again;
+  it was proven non-vacuous against the pre-change tree. Three LF41 provisioning checks updated
+  from checkbox to picker. Full `tests/run.js` green plus the dev gate (validate,
+  changelog-check, doc-truth, dev-smoke). **est 2pt for the whole item, this slice took 1** —
+  blocker (b), the real-public-data convention (extract scripts, the ≤150 KB CSV budget,
+  `source` on the entry, notices), remains as slice 2 and is what SP-1 is blocked on.
 - **N7 — the catalog tours name what a ROW can do, not just what it is (v892, sw v517,
   2026-08-08, steward; LF58 recurring slice, dev branch):** the ▶ NOW queue again held no ready
   non-recurring item (N4a is still ⛔ on Kevin, grooming pass 2 is still parked on `hold` PR
@@ -10847,13 +10878,20 @@
   a preview-originated message cannot mutate an unrelated open dashboard spec, and — since the
   in-iframe click is the suspected mobile failure — a check that exercises the delegated path
   rather than only the `onDataUrl` hook that hid this. 390×780 is the gate that found it.
-- **SP-0 ★★ [2pt] — Make the sample-pack system carry twelve packs instead of one.** Kevin
+- **SP-0 ★★ [2pt est — slice 1 of 2 SHIPPED v893, sw v518 (2026-08-08, steward — see DONE);
+  blocker (b) REMAINS] — Make the sample-pack system carry twelve packs instead of one.** Kevin
   chose ELEVEN new packs (2026-08-07); the current machinery does not survive that. Two hard
-  blockers: (a) `Studio.installDemoPack` (`app/demopacks.js:424`) dispatches with a literal
-  `if (id === "conservation")`, and demo login (`studio.js:8628`) + per-user provisioning
-  (`studio.js:8646`) are hardcoded the same way — move the install function ONTO the registry
-  entry and reduce the dispatch to `if (p.install) p.install()`; fold `PACK_FOLDERS`
-  (`studio.js:897`) into the registry too. (b) There is NO convention for shipping REAL public
+  blockers: ~~(a) `Studio.installDemoPack` dispatches with a literal `if (id === "conservation")`,
+  and demo login + per-user provisioning are hardcoded the same way — move the install function
+  ONTO the registry entry and reduce the dispatch to `if (p.install) p.install()`; fold
+  `PACK_FOLDERS` into the registry too.~~ **(a) is DONE** — the registry entry now carries
+  `folder`/`seeds`/`install`/`afterInstall` and the `demoLogin`/`catalogSamples` flags,
+  `Studio.demoPacksWith(flag)` + `Studio.demoPackFolder(id)` are how every other module selects
+  packs, the admin user editor's Conservation-only checkbox became a registry-driven picker, and
+  the tests/run.js pack block gained the SP-0 conformance LOOP over every registered entry plus a
+  source guard that fails the build if a module outside the registry branches on a pack id again.
+  **(b) IS THE REMAINING SLICE and is what SP-1 is actually blocked on:** there is NO convention
+  for shipping REAL public
   data — today's rule is "synthetic, deterministic, generated in JS, never fetched". Establish
   it: `tools/pack-extract/<pack>.mjs` (a committed, re-runnable script that fetches the public
   source, subsets/aggregates, and writes `data/packs/<pack>/*.csv` — the script IS the
@@ -10863,10 +10901,12 @@
   `source` field on each registry entry (name + URL + licence) rendered on the Settings card
   and in dashboard subtitles; and a `THIRD-PARTY-NOTICES.md` line for anything not public
   domain. Data stays EMBEDDED (committed CSV, inlined at install) — never fetched at runtime,
-  so offline/local-first is preserved. Finally, turn the pack test block in `tests/run.js` into
+  so offline/local-first is preserved. ~~Finally, turn the pack test block in `tests/run.js` into
   a LOOP over every registered pack (install → expected counts → every row tagged `demoPackId`
   → uninstall leaves zero rows), so each new pack is covered by construction rather than by
-  someone remembering. No user-visible pack ships in this item.
+  someone remembering.~~ (the test loop shipped with slice 1 — a new pack's `seeds` block is
+  checked against its own installer, so slice (b) only has to add `source`/CSV-budget coverage
+  on top of it.) No user-visible pack ships in this item.
 - **N16 ★★ [2pt] — Backend version handshake: the app finally READS the schema version every
   adapter already reports (Kevin, 2026-08-08 — "future versions of the app will break previous
   versions of the database back end… it should ask to upgrade").** The marker exists end to end

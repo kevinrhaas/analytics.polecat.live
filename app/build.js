@@ -350,7 +350,9 @@
     // SAMPLE-DATA-1 (Kevin live, 2026-07-30): the raw demo-DB catalog tables are the Data
     // Management pack's data — they only appear when that pack is actually installed
     // (uninstalled pack = zero presence), not as an always-there SAMPLE DATA dump.
-    if (D.showSamples() && Studio.demoPackInstalled && Studio.demoPackInstalled("datamanagement")) {
+    // SP-0: ask the registry which pack owns them (`catalogSamples`) rather than naming one.
+    if (D.showSamples() && Studio.demoPacksWith &&
+        Studio.demoPacksWith("catalogSamples").some(function (pid) { return Studio.demoPackInstalled(pid); })) {
       var cat = D.getCatalog();
       Object.keys(cat).forEach(function (stem) {
         (cat[stem].dataAccesses || []).forEach(function (d) {

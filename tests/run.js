@@ -5476,6 +5476,88 @@ function serve() {
       dpInstall.panelTypes.filter(function (t) { return t === "choropleth"; }).length === 3,
       JSON.stringify(dpInstall));
 
+    // ---- SP-0: the pack CONFORMANCE loop -----------------------------------------
+    // Every check above names "conservation". This block names no pack at all: it walks
+    // Studio.DEMO_PACKS and puts each registered entry through the same install → tagged
+    // → foldered → declared-counts → uninstall-leaves-zero contract, so pack number
+    // twelve is covered the moment it is registered rather than when someone remembers
+    // to write it a test. It restores each pack to the state it found it in (including
+    // re-materializing an examples pack's dashboards) so the rest of the suite is
+    // unaffected by the round-trip.
+    const packConform = await page.evaluate(async function () {
+      var W = Studio.Workspace, dm = window.__studioDemoPacks;
+      var TABLES = ["jobs", "connections", "datasets", "analyses", "dashboards"];
+      function rowsOf(id) {
+        var out = [];
+        TABLES.forEach(function (t) {
+          W.all(t).forEach(function (r) { if (r.demoPackId === id) out.push({ t: t, folder: r.folder, name: r.name || r.id }); });
+        });
+        return out;
+      }
+      function countsOf(id) {
+        var c = {};
+        TABLES.forEach(function (t) { c[t] = W.all(t).filter(function (r) { return r.demoPackId === id; }).length; });
+        return c;
+      }
+      var ids = Object.keys(Studio.DEMO_PACKS), out = { ids: ids, packs: {} };
+      for (var i = 0; i < ids.length; i++) {
+        var id = ids[i], p = Studio.DEMO_PACKS[id], was = dm.installed(id), res = { kind: p.kind };
+        // the entry's own shape — id matches its key, and the Settings card copy exists
+        res.shape = p.id === id && !!p.kind && !!p.name && !!p.tagline && !!p.blurb && typeof p.folder === "string" && !!p.folder;
+        if (was) dm.remove(id);
+        res.cleanBefore = rowsOf(id).length === 0 && !dm.installed(id);
+        dm.install(id);
+        res.installedFlag = dm.installed(id);
+        var rows = rowsOf(id);
+        // SAMPLE-DATA-1: one folder per pack, across every type — read from the registry
+        res.allFoldered = rows.every(function (r) { return r.folder === p.folder; });
+        res.strayFolders = rows.filter(function (r) { return r.folder !== p.folder; }).map(function (r) { return r.t + ":" + r.name; });
+        // an entry that declares `seeds` must have an installer that actually writes them
+        var counts = countsOf(id);
+        res.counts = counts;
+        res.seedsMatch = !p.seeds || Object.keys(p.seeds).every(function (t) { return counts[t] === p.seeds[t]; });
+        dm.remove(id);
+        res.removedClean = rowsOf(id).length === 0 && !dm.installed(id);
+        if (was) {
+          dm.install(id);
+          // examples packs materialize their dashboards asynchronously — put them back
+          try { await window.__studioEnsurePackExamplesMaterialized(id); } catch (e) {}
+        }
+        res.restored = dm.installed(id) === was;
+        out.packs[id] = res;
+      }
+      return out;
+    });
+    ok("SP-0: every REGISTERED demo pack conforms — well-formed entry, install sets the flag, every seeded row is tagged and filed in the entry's own folder, declared seed counts match the installer, and remove leaves zero rows",
+      packConform.ids.length >= 2 && packConform.ids.every(function (id) {
+        var r = packConform.packs[id];
+        return r.shape && r.cleanBefore && r.installedFlag && r.allFoldered && r.seedsMatch && r.removedClean && r.restored;
+      }), JSON.stringify(packConform));
+
+    // SP-0: and no surface outside the registry may branch on a pack id — that literal
+    // dispatch is exactly what made a twelfth pack a code change in five files.
+    (function () {
+      const dp = fs.readFileSync(path.join(ROOT, "app/demopacks.js"), "utf8");
+      const st = fs.readFileSync(path.join(ROOT, "app/studio.js"), "utf8");
+      const bd = fs.readFileSync(path.join(ROOT, "app/build.js"), "utf8");
+      // strip comments so prose naming a pack doesn't count as a branch on it
+      const code = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+      const idLiteral = /["'](conservation|datamanagement)["']/;
+      const offenders = [];
+      [["app/studio.js", st], ["app/build.js", bd]].forEach(function (pair) {
+        code(pair[1]).split("\n").forEach(function (line, n) {
+          // dashboardTheme/app-theme keys legitimately share the "conservation" name
+          if (/dashboardTheme|APP_THEME|DASHBOARD_THEMES|THEME_|Theme/.test(line)) return;
+          if (idLiteral.test(line) && /demoPack|DEMO_PACKS|installDemoPack|PACK/i.test(line)) offenders.push(pair[0] + ":" + (n + 1) + " " + line.trim());
+        });
+      });
+      ok("SP-0: outside the registry, no module dispatches on a demo-pack id — studio.js and build.js ask DEMO_PACKS/demoPacksWith instead",
+        offenders.length === 0, offenders.join(" | "));
+      ok("SP-0: installDemoPack itself is registry-driven (`if (p.install) p.install()`), with no `id === \"...\"` branch left",
+        /if \(p\.install\) p\.install\(\)/.test(dp) && !/id === "conservation"/.test(code(dp)),
+        (code(dp).match(/id === "[a-z]+"/g) || []).join(",") || "clean");
+    })();
+
     // CONS-1: the three CTIC/OpTIS reference dashboards — spec shapes match the
     // reference visuals (diverging change map, real provider colors, real CRD
     // scale, blue banner, curated builder-blob DAs feeding real rows).
@@ -19998,15 +20080,21 @@ function serve() {
       window.__studioShellSetSection("admin"); window.__studioRenderAdmin();
       window.__studioOpenUserEditor();
       var tSel = document.getElementById("usrEditTheme");
-      var pChk = document.getElementById("usrEditPack");
+      var pSel = document.getElementById("usrEditPack");
       var themeOpts = tSel ? [].slice.call(tSel.options).map(function (o) { return o.value; }) : [];
-      var r = { hasTheme: !!tSel, hasPack: !!pChk, themeUnset: tSel && tSel.value === "", packUnchecked: pChk && !pChk.checked, themeOpts: themeOpts };
+      // SP-0: the pack control is a registry-driven picker, not a Conservation checkbox —
+      // its options must be exactly "" (don't install) plus every registered pack id.
+      var packOpts = pSel ? [].slice.call(pSel.options).map(function (o) { return o.value; }) : [];
+      var r = { hasTheme: !!tSel, hasPack: !!pSel, themeUnset: tSel && tSel.value === "", packUnset: pSel && pSel.value === "",
+        themeOpts: themeOpts, packOpts: packOpts, registered: Object.keys(Studio.DEMO_PACKS || {}) };
       document.querySelector(".modal-ov .x").click();
       return r;
     });
-    ok("LF41: Add user offers a Default theme picker and a Conservation-pack checkbox, both unset by default",
-      lf41Fields.hasTheme && lf41Fields.hasPack && lf41Fields.themeUnset && lf41Fields.packUnchecked &&
-      lf41Fields.themeOpts.indexOf("conservation") >= 0, JSON.stringify(lf41Fields));
+    ok("LF41/SP-0: Add user offers a Default theme picker and a sample-pack picker listing EVERY registered pack, both unset by default",
+      lf41Fields.hasTheme && lf41Fields.hasPack && lf41Fields.themeUnset && lf41Fields.packUnset &&
+      lf41Fields.themeOpts.indexOf("conservation") >= 0 &&
+      lf41Fields.packOpts.length === lf41Fields.registered.length + 1 && lf41Fields.packOpts[0] === "" &&
+      lf41Fields.registered.every(function (id) { return lf41Fields.packOpts.indexOf(id) > 0; }), JSON.stringify(lf41Fields));
 
     // Adding a user through the real form with both fields set stores them as
     // provisioning on the account row, not-yet-provisioned.
@@ -20016,7 +20104,7 @@ function serve() {
       document.getElementById("usrEditName").value = "LF41 Test";
       document.getElementById("usrEditPass").value = "pw123456";
       document.getElementById("usrEditTheme").value = "conservation";
-      document.getElementById("usrEditPack").checked = true;
+      document.getElementById("usrEditPack").value = "conservation";
       document.querySelector(".cx-wiz-foot .btn.primary").click();
       return true;
     });
@@ -20031,13 +20119,13 @@ function serve() {
     const lf41Cleared = await gp41.evaluate(function () {
       window.__studioOpenUserEditor(window.PolecatAuth.find("lf41user"));
       document.getElementById("usrEditTheme").value = "";
-      document.getElementById("usrEditPack").checked = false;
+      document.getElementById("usrEditPack").value = "";
       document.querySelector(".cx-wiz-foot .btn.primary").click();
       return true;
     });
     await gp41.waitForFunction(() => !document.querySelector(".modal-ov"), { timeout: 8000 });
     const lf41AfterClear = await gp41.evaluate(function () { return window.PolecatAuth.find("lf41user").provisioning; });
-    ok("LF41: editing a user back to 'Don't set' + unchecked clears provisioning to null",
+    ok("LF41: editing a user back to 'Don't set' + 'Don't install one' clears provisioning to null",
       lf41Cleared && lf41AfterClear === null, JSON.stringify(lf41AfterClear));
 
     // Re-set provisioning (this time via a direct upsert, exercising the same opts.provisioning
@@ -20716,7 +20804,7 @@ function serve() {
       document.getElementById("usrEditPass").value = "davepw12345";
       document.getElementById("usrEditRole").value = "admin";
       document.getElementById("usrEditTheme").value = "conservation";
-      document.getElementById("usrEditPack").checked = true;
+      document.getElementById("usrEditPack").value = "conservation";
       document.getElementById("usrEditBackend").value = "bk-dave";
       document.getElementById("usrEditForceTour").checked = true;
       document.getElementById("usrEditDDCopyBtn").click();   // "Copy my current Dashboard defaults"

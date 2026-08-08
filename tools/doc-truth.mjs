@@ -1016,7 +1016,12 @@ const packPractices = (() => {
   const m = packSrc.match(/var PRACTICES = \[([\s\S]*?)\];/);
   return m ? [...m[1].matchAll(/label:\s*"([^"]+)"/g)].map((x) => x[1]) : [];
 })();
-const packFolder = (packSrc.match(/var PACK_FOLDER = "([^"]+)"/) || [])[1];
+// SP-0: the folder moved onto the registry entry (it used to be a `var PACK_FOLDER`
+// literal here AND a second one in studio.js). Parse it out of the conservation entry.
+const packFolder = (() => {
+  const entry = packSrc.match(/conservation:\s*\{([\s\S]*?)\n    \},/);
+  return entry ? (entry[1].match(/folder:\s*"([^"]+)"/) || [])[1] : undefined;
+})();
 const packTourCopy = tourCopy(tourBlocks.get("conservation") || "");
 ok("app/demopacks.js: the conservation pack's seeded inventory parsed for check 23 is non-empty",
   packTables.length >= 4 && packDashboardNames.length > 1 && packPractices.length >= 2 && !!packFolder &&
