@@ -11347,6 +11347,44 @@
   and warn that a URL pointing at an undeployed function fails confusingly.
   **Verify:** a suite check that a connection with no Auth fields against an RLS-enforced
   workspace surfaces the sign-in-required state and NOT an empty catalog.
+- **N26 ★★ [1pt] — `polecat_dev` is leaking to anonymous callers, and the new verify caught it on
+  its first run (2026-08-08).** Measured, not suspected — `tests/rls-verify.mjs` against the dev
+  project:
+  ```
+  LEAK dashboards         HTTP 200, 1 row(s) readable by anon
+  LEAK datasets           HTTP 200, 1 row(s) readable by anon
+  ok   polecat_activity   HTTP 404 — not exposed or does not exist
+  ok   polecat_feedback   HTTP 404 — not exposed or does not exist
+  ```
+  Production passed the same check in the same run, so this is dev-specific.
+  **The two 404s are the diagnosis.** `polecat_activity` / `polecat_feedback` are §6 of
+  `tools/supabase-deploy.sql`; their absence means dev was NOT provisioned from that file. It was
+  stood up either from `supabase-bootstrap.sql` — whose entire posture is the `polecat_anon_all`
+  allow-all policy, exactly the shape observed — or from the connect wizard's generated script,
+  **which is N21 demonstrated on a live database instead of argued from source.** Cross-reference
+  the two: N21 is the product fix, this is the environment fix.
+  **The fix is one paste:** `tools/supabase-deploy.sql` top-to-bottom in the `polecat_dev` SQL
+  editor. Idempotent; it drops the legacy `polecat_anon_all` and `polecat_open_rw` policies BY
+  NAME (PERMISSIVE policies OR together, so one leftover defeats everything tighter beside it),
+  installs the authenticated-only set, and creates the two missing log tables. Then §7 for the
+  first admin. Re-dispatch `rls-verify.yml` to confirm green.
+  **Note the two checks are NOT in conflict**, which is the point of having split them:
+  `tests/rls.mjs` went 81/81 green in the same hour. The FILES are sound; the live dev DATABASE
+  was not built from them. Neither check alone would have told you that.
+- **N27 ★ [1pt] — `rls-verify.mjs` cannot tell "protected" from "empty", and should say so.**
+  Found by reading tonight's own output honestly: `connections`, `analyses`, `jobs` and `users`
+  reported `ok — zero rows` on a database that was demonstrably NOT on the authenticated-only
+  posture (N26). They were clean only because they held no rows. **The check detects leaks; it
+  cannot certify a table.** That is a real limit on a security check and it must not be silently
+  implied away by the word "PASSED".
+  **Fix:** teach it the difference. Ask the same tables with a service-role or authenticated
+  identity (or accept a declared expected-non-empty list), then classify each table as
+  *protected* (rows exist, anon sees none — a genuine pass), *empty* (no rows exist — inconclusive,
+  say so), or *leaking*. Summarise as e.g. "4 protected, 3 empty (inconclusive), 1 leaking" so a
+  green run states what it actually proved. Keep the anon path credential-free — the extra
+  identity is optional, and its absence downgrades tables to "inconclusive" rather than failing.
+  Until then the wording should not say "no table is readable"; it should say "no table returned
+  rows to an anonymous caller", which is what was measured.
 - **N24 ★★ [2pt — bug + the management Kevin asked for] — Connecting a workspace from the gate
   leaves you unable to sign in to it.** Kevin, 2026-08-08: *"I went to connect to a custom
   workspace, filled out all the credentials and seem to have connected but there is no way to
