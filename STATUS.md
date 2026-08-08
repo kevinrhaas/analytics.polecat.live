@@ -135,6 +135,67 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N13 — the pane list rows' Duplicate/Delete actions clear the 44px touch bar (v888, NO sw
+  bump, 2026-08-08, steward; dev branch):** the first ready item in ▶ NOW, and the fourth and
+  last surface in the N8 → N9a → N9b → N13 phone-reach sweep. N8 fixed the dropdown ROWS, N9a
+  the catalog toolbars they hang off, N9b the pane HEADERS — this is the list rows underneath
+  those headers, and the only one of the four carrying the destructive actions.
+  **Measured at 390×780 with each drawer open** (the `.mob-tab` phone route), and the numbers
+  N9b filed this item with reproduced exactly: the Data pane's per-dataset duplicate/delete
+  `.icobtn` pair renders **17px** tall (`padding:2px 4px`, `font-size:13`, no min-height), the
+  "This dashboard's datasets" group's `.mine-add` **20px** (an explicit `width:20px;height:20px`),
+  and the Inspector's move-up/move-down/delete trio **22px** — 43 controls across the two panes,
+  every one under half the touch bar, with the Delete sitting **21px** from the Duplicate it
+  neighbours. That gap is the real hazard: mis-aiming between those two is a destroyed dataset.
+  **Why a blanket rule was wrong**, which is why N9b filed this separately rather than bundling
+  it: `.icobtn` is an app-wide class, also worn by the Home section-reorder controls
+  (`.home-sub-move`). The scope that turned out to be exactly right is **`.pane`** — a class ONLY
+  `#library` and `#inspector` carry (verified against `app/index.html`: two elements, no others),
+  so the rule reaches both N13 surfaces and nothing else. `.row-item` needed the same care and
+  got it for free: `rowItem()` is a single helper and the Inspector is its only caller, so the
+  catalog rows N9a measured clean are untouched because they are not `.row-item` at all.
+  **The fix** (`app/studio.css`, ≤640px band only, 4 rules):
+  * `.pane .icobtn{min-width:44px;min-height:44px}` — and **width matters as much as height
+    here**, because these are square icon buttons and the failure mode is a mis-tapped Delete,
+    not a missed one. The glyph does not move: they are transparent buttons with an SVG child,
+    so growing the box only grows the hover chip.
+  * **Overlapping hit boxes were considered and rejected.** Painting a 44px hit area over a 17px
+    button (an `::after` overlay) keeps the layout, but at 21px apart two 44px targets overlap by
+    23px and the Delete swallows half the Duplicate — strictly worse than the small buttons on
+    the exact pair that matters. They grow for real, and the rows are given room to hold them.
+  * The room: `.pane .row-item{flex-wrap:wrap}` + `.ri-txt{min-width:120px}` +
+    `.ri-btns{margin-left:auto}`. `.ri-txt` may shrink to nothing (`min-width:0`), so without the
+    floor a 3-button row would have crushed its title to ~80px rather than wrap. With it, the
+    flex line genuinely cannot hold both and the trio takes its own line, right-aligned — while
+    1-button (44px) and 2-button (88px) rows still fit inline and keep today's single-line
+    layout. Measured effect: the Inspector's row title goes 144px → **223px**, i.e. the wrap
+    gives the name MORE room than it had before the buttons grew.
+  * `.mine-add` is a PAINTED 20px brand square, so growing the element would have dropped a 44px
+    brand block into the group header. Same treatment N9b gave the `?`: the button becomes the
+    invisible 44×44 touch box, a `::before` paints the same 20×20 square behind the centred
+    glyph, and `.lib-mine>.h`'s padding drops 8px→2px so the group bar lands at 48px instead of
+    60px. Hit area 44×44, visual byte-for-byte what it was.
+  **Verification:** 2 new checks (390×780 + 1280×900) asserting four properties, because the fix
+  had four ways to pass while being wrong — every visible row action ≥44×44 on a phone; none of
+  them outside the viewport (N9a's property one level down: 132px of buttons where 66px used to
+  be, so a rule that only grew them would push the trio off the right edge instead of wrapping);
+  `.mine-add`'s painted `::before` square still exactly 20px with a 13px glyph, and the row title
+  not crushed (≥180px); and desktop asserting the inverse (row actions still under 44px,
+  `.mine-add` still exactly 20px) so the ≤640px band cannot leak upward. The probe also holds
+  ITSELF accountable — an empty list would pass every assertion above, so a pane reporting zero
+  visible row actions fails. Confirmed the ratchet can FAIL: replayed against the unfixed
+  `app/studio.css` it reports 43 controls under 44px, `.mine-add` painted square `-1px` (no
+  `::before` at all) and `.ri-txt` crushed to 144px, while desktop stays green in both trees.
+  **Verified in the foreground: the FULL `NODE_PATH=… node tests/run.js` suite, 3156/3156 green,
+  exit 0** — exactly the dev tip's 3154 plus this slice's 2 — with `tools/validate.mjs`,
+  `tools/changelog-check.js`, `tools/doc-truth.mjs` and `tools/dev-smoke.mjs` (the dev gate) all
+  run separately green. **No `sw.js` bump**, for the reasons N9b's entry below records: the
+  precache LIST is unchanged (only a precached file's contents), that is the ritual `sw.js`'s own
+  header states, and the fetch handler is network-first so an online user gets the new CSS
+  regardless. **est 1pt, took 1.** (app/studio.css, tests/run.js, js/changelog.js, STATUS.md)
+  **No follow-up spun off** — with N13 shipped the N8→N13 sweep is closed: menus, catalog
+  toolbars, pane headers and pane list rows all clear the bar, and each is now pinned by a check
+  that fails if it regresses.
 - **N9b — the Studio's pane headers clear the 44px touch bar (v887, NO sw bump, 2026-08-08,
   steward; dev branch):** the first ready item in ▶ NOW, and the third and last surface in the
   N8 → N9a → N9b phone-reach sweep. N8 brought the dropdown ROWS to 44px and N9a the catalog
@@ -10849,7 +10910,16 @@
     and asserts every visible control in the pane header clears 44px at 390×780, desktop
     unchanged — the N9a/N8 shape, one pane over.
   **Position is the loop's placement, not Kevin's** — move or re-star it freely.
-- **N13 ★ [1pt] — The list rows inside those panes carry 17px action buttons.** Born in NOW
+- ~~**N13 ★ [1pt] — The list rows inside those panes carry 17px action buttons.**~~ ✓ SHIPPED
+  v888, NO sw bump (2026-08-08, steward — see DONE). The blast-radius worry the item was filed
+  with resolved cleanly: `.pane` is a class only `#library` and `#inspector` carry, so the rule
+  reaches both N13 surfaces and no other `.icobtn` in the app. The overlay option the spec left
+  open was measured and rejected — at 21px apart two 44px hit boxes overlap by 23px and the
+  Delete swallows half the Duplicate — so the buttons grew for real and the Inspector rows wrap
+  their actions onto their own line, which gives the row title MORE room (144px → 223px) than it
+  had before. est 1pt, took 1. **This closes the N8 → N9a → N9b → N13 phone-reach sweep.** The
+  spec below stays until grooming archives it.
+  Born in NOW
   from N9b's measurement (2026-08-08, steward) — measured, not suspected, and deliberately NOT
   bundled into N9b: N9b's rules land on `.pane-h`, a component with four controls in two
   headers, while this lands on `.icobtn`, a class the WHOLE app shares. Different blast

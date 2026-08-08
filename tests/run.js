@@ -1403,6 +1403,116 @@ function serve() {
       await mp.close();
     }
 
+    /* ---- N13: the pane LIST ROWS' own actions are touchable ----
+       N9b fixed the pane HEADERS; this is the rows underneath them, and the surface that
+       carries the destructive actions. Measured at 390×780 with each drawer open: the Data
+       pane's per-dataset duplicate/delete `.icobtn` pair 17px tall, the "This dashboard's
+       datasets" group's `.mine-add` 20px, the Inspector's move-up/move-down/delete trio 22px
+       — the delete sitting 21px from the duplicate.
+       Four properties, because the fix had four ways to go wrong:
+       (1) every visible row action in both panes clears 44×44 on a phone — WIDTH matters as
+           much as height here, since these are square icon buttons and the hazard is a
+           mis-tapped delete, not a missed one;
+       (2) none of them leaves the viewport — N9a's property, one level down: three 44px
+           buttons are 132px of row where 66px used to be, so a rule that only grew them
+           would push the trio off the right edge instead of wrapping;
+       (3) `.mine-add`'s PAINTED square stays 20px (the anchor's hit box grows and a ::before
+           paints the disc — a 44px brand block in the group header would be a regression
+           dressed as a pass), and the Inspector's row title keeps a readable width rather
+           than being crushed to make room;
+       (4) desktop is unchanged — the ≤640px band must not leak upward, and the compact
+           17/20/22px sizing IS the design there. */
+    console.log("\n• N13: Studio pane list rows — the row actions clear the 44px touch bar on a phone");
+    for (const vp of [{ width: 390, height: 780 }, { width: 1280, height: 900 }]) {
+      const phone = vp.width === 390;
+      const mp = await browser.newPage({ viewport: vp });
+      const n13Errs = [];
+      mp.on("pageerror", (e) => n13Errs.push(String(e && e.message ? e.message : e)));
+      await mp.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-shell-section", "studio"); } catch (e) {} });
+      await mp.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+      await mp.waitForSelector("#btnMore", { timeout: 8000 });
+      await mp.evaluate(function () { var el = document.querySelector('[data-sec="studio"]'); if (el) el.click(); });
+      await mp.waitForTimeout(500);
+      // same routes N9b uses: the mob-tab drawer on a phone, the pane rails on desktop
+      if (!phone) {
+        await mp.evaluate(function () { [].forEach.call(document.querySelectorAll(".pane-rail .rail-btn"), function (b) { b.click(); }); });
+        await mp.waitForTimeout(400);
+      }
+      const measureRows = function (paneId) {
+        return mp.evaluate(function (id) {
+          var root = document.querySelector("#" + id);
+          if (!root) return { missing: true };
+          var vw = window.innerWidth;
+          var acts = [].filter.call(root.querySelectorAll(".icobtn,.mine-add"), function (el) {
+            // an OPEN dropdown's rows are N8's assertion, the header's controls are N9b's
+            if (el.closest(".menu") || el.closest(".pane-h")) return false;
+            var cs = getComputedStyle(el);
+            return cs.display !== "none" && cs.visibility !== "hidden" && el.getBoundingClientRect().height > 0;
+          });
+          var name = function (el) { return el.title || el.getAttribute("aria-label") || el.className; };
+          var add = root.querySelector(".mine-add");
+          var addDisc = add ? getComputedStyle(add, "::before").width : "";
+          var addGlyph = add ? add.querySelector("svg,span") : null;
+          var txt = root.querySelector(".row-item .ri-txt");
+          return {
+            missing: false, count: acts.length,
+            short: acts.filter(function (el) {
+              var b = el.getBoundingClientRect();
+              return b.height < 44 || b.width < 44;
+            }).map(function (el) {
+              var b = el.getBoundingClientRect();
+              return name(el) + " " + Math.round(b.width) + "×" + Math.round(b.height);
+            }),
+            outside: acts.filter(function (el) {
+              var b = el.getBoundingClientRect();
+              return b.left < -0.5 || b.right > vw + 0.5;
+            }).map(function (el) {
+              var b = el.getBoundingClientRect();
+              return name(el) + " x" + Math.round(b.left) + "–" + Math.round(b.right);
+            }),
+            // the smallest action box, so desktop can assert it did NOT grow
+            minH: acts.length ? Math.min.apply(null, acts.map(function (el) { return Math.round(el.getBoundingClientRect().height); })) : -1,
+            addBox: add ? Math.round(add.getBoundingClientRect().height) : -1,
+            // "" when no ::before is generated — the desktop case, where the element IS the square
+            addDisc: addDisc === "auto" || addDisc === "" ? -1 : Math.round(parseFloat(addDisc)),
+            addGlyph: addGlyph ? Math.round(addGlyph.getBoundingClientRect().width) : -1,
+            txtW: txt ? Math.round(txt.getBoundingClientRect().width) : -1,
+          };
+        }, paneId);
+      };
+      const bad = [];
+      let libR = null, inspR = null;
+      for (const pane of ["library", "inspector"]) {
+        if (phone) { await mp.click(`.mob-tab[data-mob-tab="${pane}"]`); await mp.waitForTimeout(400); }
+        const r = await measureRows(pane);
+        if (r.missing) { bad.push(pane + ": no #" + pane); continue; }
+        // the probe holds itself accountable: an empty list would pass every assertion below
+        if (!r.count) bad.push(pane + ": reports no visible row actions (the probe found nothing to measure)");
+        if (pane === "library") libR = r; else inspR = r;
+        if (phone) {
+          if (r.short.length) bad.push(pane + " under 44px: " + r.short.join(", "));
+          if (r.outside.length) bad.push(pane + " outside the viewport: " + r.outside.join(", "));
+        }
+      }
+      if (phone) {
+        if (libR && libR.addBox < 44) bad.push(".mine-add box " + libR.addBox + "px (needs 44)");
+        if (libR && libR.addDisc !== 20) bad.push(".mine-add painted square " + libR.addDisc + "px (must stay 20 — the hit box grows, the visual does not)");
+        if (libR && libR.addGlyph !== 13) bad.push(".mine-add glyph " + libR.addGlyph + "px (must stay 13)");
+        // the row title must not pay for the buttons: the actions wrap to their own line instead
+        if (inspR && inspR.txtW < 180) bad.push(".row-item .ri-txt crushed to " + inspR.txtW + "px (the actions must wrap, not squeeze the title)");
+      } else {
+        // desktop must be untouched: the compact row IS the design there
+        if (libR && libR.minH >= 44) bad.push("library row actions grew to " + libR.minH + "px on desktop");
+        if (inspR && inspR.minH >= 44) bad.push("inspector row actions grew to " + inspR.minH + "px on desktop");
+        if (libR && libR.addBox !== 20) bad.push(".mine-add is " + libR.addBox + "px on desktop (was 20)");
+      }
+      if (n13Errs.length) bad.push("pageerrors: " + n13Errs.join(" / "));
+      ok(`N13 ${vp.width}px: both panes' list-row actions` +
+        (phone ? " clear the 44px touch minimum and stay inside the viewport, the ＋ keeps its 20px square, and the row title is not crushed" : " keep their compact desktop sizing — the ≤640px rule does not leak upward"),
+        bad.length === 0, bad.join(" | "));
+      await mp.close();
+    }
+
     // ---- WS: adapter infrastructure (app/sources/) ----
     // The manager-pattern source layer: schema/contract, registry, workspace
     // store, secrets crypto, and the Turso adapter exercised END-TO-END against
