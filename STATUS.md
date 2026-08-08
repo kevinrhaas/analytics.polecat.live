@@ -10807,6 +10807,46 @@
 > struck entries and propose the next batch to Kevin on a `hold` PR — never graze the
 > reservoir directly.
 
+- **N15 ★★ [2pt] — Kevin, 2026-08-08: the View Builder's panel menu offers PNG and standalone
+  HTML, and neither works.** Reported live from a phone, with a screenshot of the open menu.
+  **Cause (a) — "Export as standalone HTML" is a silent no-op. Read from the code, not
+  suspected.** The panel chrome lives in `app/studio-render.js` so the preview and the export
+  stay byte-identical, and the HTML item does nothing locally: it posts
+  `{type:"panel-export-embed", id}` to the parent (`studio-render.js:936`). The ONLY handler is
+  the DASHBOARD builder's (`app/studio.js:10691`), which resolves the id with `panelById()`
+  (`studio.js:13475`) — a filter over `S.spec.panels`, i.e. the open dashboard. The View
+  Builder's preview panel is minted fresh by `bdPanelFor()` → `Studio.newPanel()`
+  (`app/build.js:1148`) into a private one-panel spec that is never in `S.spec`, so the lookup
+  misses and the branch falls through. No error, no toast: the menu closes and nothing happens,
+  exactly as reported.
+  **Cause (b) — the PNG downloads from inside the iframe.** `downloadPanelPng()`
+  (`studio-render.js:780`) appends an `<a download>` to the IFRAME's document and clicks it.
+  That works in desktop Chrome, and it is why the suite has always been green — the tests drive
+  the rasterizer through the `onDataUrl` hook and never perform a real click. A download
+  initiated from a nested browsing context is what iOS Safari blocks, and this report is from a
+  phone. `downloadPanelData()` (:832) has the identical shape, so CSV is in the same boat.
+  **Confirm before fixing** — the rasterizer itself is almost certainly fine; prove WHERE it
+  fails (is a data URL produced? is the anchor click swallowed?) rather than assuming.
+  **Fix shape.** (a) The View Builder should own its own preview's panel acts instead of leaking
+  them into the dashboard builder's handler: route by the posting frame, and give the Build
+  preview an export that pares its one-panel spec down the way `exportPanelEmbed()`
+  (`studio.js:10767`) already does for a dashboard panel. (b) When the chrome is running inside
+  a preview iframe, delegate the actual download to the TOP window — both functions already
+  take an `onDataUrl`/`onRows` callback, so the parent can perform the anchor click in the top
+  document. Keep the in-document path as the fallback: the exported standalone HTML has no
+  parent, and the export==preview invariant means this one file ships in both places.
+  **The same seam has a second, uglier half — close it in the same slice.** All 12 message
+  types the preview posts reach `studio.js:10661` from ANY iframe (`isOwnFrame()`, :174, accepts
+  every frame in the document). Most miss on `panelById` and no-op, but `reorder`, `kpi-delete`
+  and `header-delete` act on `S.spec` UNCONDITIONALLY — so chrome inside the View Builder's
+  preview can mutate whatever dashboard happens to be open in the other builder. Fixing the
+  routing closes all of it. Related question worth answering while there: should the Build
+  preview paint dashboard-builder chrome (resize handles, drag-to-reorder, ✕ delete) at all? A
+  one-panel View has nothing to reorder.
+  **Verify:** a check per builder that the HTML export really produces a document, a check that
+  a preview-originated message cannot mutate an unrelated open dashboard spec, and — since the
+  in-iframe click is the suspected mobile failure — a check that exercises the delegated path
+  rather than only the `onDataUrl` hook that hid this. 390×780 is the gate that found it.
 - **SP-0 ★★ [2pt] — Make the sample-pack system carry twelve packs instead of one.** Kevin
   chose ELEVEN new packs (2026-08-07); the current machinery does not survive that. Two hard
   blockers: (a) `Studio.installDemoPack` (`app/demopacks.js:424`) dispatches with a literal
@@ -10835,6 +10875,14 @@
   geography, a REAL join job (establishments ÷ population → saturation index) that shows the
   data-prep story, and a whitespace question every commercial audience recognises in five
   seconds. **Data:** US Census County Business Patterns (public domain), extracted per SP-0.
+  **Kevin, 2026-08-08 — lean into the demographics** ("I like demographics and census type data,
+  I think people find that interesting"). So the denominator is not just headcount: join **ACS
+  5-year** county demographics (population, median age, median household income, education,
+  households) and make at least one View demographic rather than purely commercial — e.g. the
+  counties whose income and age profile say they should support a category they do not have.
+  Same source family, same extract script, no extra licence question; it turns the pack from
+  "business counts" into "who lives there versus what serves them", which is the more
+  interesting half of the whitespace story anyway.
   Match Conservation Insight's weight: ≈2 connections, ≈5 datasets, ≥1 job, ≈4 pinned Views,
   ≈3 dashboards. Ships as ~3 PRs — (a) extract script + connections/datasets/job,
   (b) dashboards, (c) Views + tour + docs/changelog. Blocked on SP-0.
@@ -11376,13 +11424,24 @@
     derive from the rail and added the guard, so the note above was itself out of date.
 
 
-### 📦 SAMPLE-PACK PROGRAM (Kevin, 2026-08-07) — the other ten packs
+### 📦 SAMPLE-PACK PROGRAM (Kevin, 2026-08-07) — the reservoir
 
 > Kevin picked eleven packs from a researched shortlist of twenty, all at "match the existing
 > packs" weight (≈2 connections · ≈5 datasets · ≥1 job · ≈4 Views · ≈3 dashboards each).
-> **SP-0 and SP-1 are in ▶ NOW**; these ten wait here and are promoted a few at a time at
+> **SP-0 and SP-1 are in ▶ NOW**; the rest wait here and are promoted a few at a time at
 > grooming — do NOT start one straight from the reservoir. Each is **3pt** (≈3 PRs: extract →
 > workspace content → dashboards/Views/docs) and follows the SP-0 real-data convention.
+>
+> **Kevin's steer, 2026-08-08 — read this before choosing the next promotion batch.** Two
+> things: (1) *"I like demographics and census type data, I think people find that
+> interesting"* — so the demographics-shaped packs (**SP-12 · SP-13 · SP-14**, added below)
+> outrank the rest of this list for promotion, and SP-1 already gained an explicit ACS join.
+> (2) *"Or it can be a database you build which is interesting and differentiating"* — a pack no
+> longer has to be somebody else's published table. **SP-16 is that pack**, and it is the most
+> differentiating thing in the whole program: the asset is the INTEGRATION, which is precisely
+> what this app does. He also asked for *"your best ideas of things I don't know about"* —
+> SP-13, SP-14 and SP-15 are that half of the answer; each is real, free, public-domain, and
+> essentially never used in a BI demo.
 >
 > Names are deliberately plain and business-credible — Kevin called the first drafts corny.
 >
@@ -11402,15 +11461,57 @@
 >   diverge; the same basket compared. *BLS CPI, public domain.*
 > - **SP-5 [3pt] — Campaign Finance.** Donor geography, industry concentration, small-dollar vs
 >   max-out, out-of-state share. *FEC bulk individual contributions, public domain.*
->   **⚠ SCOPE DECISION PENDING KEVIN — read before starting.** Kevin's call was "this is not for
->   commercial use so we should be ok with having donor names." Two separate issues: (1) the FEC
->   bars using contributor names/addresses "for commercial purposes", and Analytics IS a
->   commercial product — arguable, not clearly permitted; (2) independently, these are real
->   private individuals with home addresses, which is a privacy question the licence does not
->   answer. **Proposed middle, pending confirmation:** ship committee/PAC/organisation names in
->   full (entities, not individuals — the interesting half of "follow the money" anyway) plus
->   individual giving aggregated to county/industry/size-band with no personal names. The
->   dashboard reads identically. **Never ship addresses under any option.**
+>   **✅ SCOPE DECIDED — Kevin, 2026-08-08. Do not re-ask; do not re-open it on his behalf.**
+>   The concern was put to him in full — that the FEC bars using contributor names for
+>   "commercial purposes" and Analytics is a commercial product (arguable, not clearly
+>   permitted), and separately that these are real private individuals — together with a middle
+>   option that aggregated individuals away. Having seen it he chose **individual donor names**:
+>   *"still rather have individual names after seeing that."* His call, recorded, and the pack
+>   ships them.
+>   **What that permits, exactly** (so the implementing run doesn't have to re-derive it): the
+>   contributor's **name, city, state, ZIP, employer, occupation, amount, date and recipient
+>   committee** — all FEC-reported fields, and employer/occupation is what carries the industry-
+>   concentration story. ZIP is in because the app maps ZCTA natively; city/state drive the
+>   out-of-state share.
+>   **The one hard line: NEVER ship street addresses.** Kevin asked for them on 2026-08-08 and
+>   they are still out; this is the one place the pack does not follow the request, so the
+>   reasoning is written down rather than left as a silent omission. Two specific reasons, not a
+>   general squeamishness about the topic: (1) the FEC restriction names *"names and addresses"*
+>   and *"commercial purposes"* almost verbatim, and a bundled extract inside a commercial
+>   product is the closest thing to the prohibited use there is — the rest of the fields are not;
+>   (2) a redistributable file linking a named private individual to their home address AND their
+>   politics is a combination that has been used to harass donors, and this pack would ship it as
+>   a default asset that installs into localStorage and inlines into every exported HTML.
+>   **And it buys nothing.** Every View in the spec — donor geography, industry concentration,
+>   small-dollar vs max-out, out-of-state share — resolves at ZIP or coarser. The street line is
+>   the only field in the extract with zero analytical use.
+>   **✅ Kevin, 2026-08-08 — the addresses ARE used, for map resolution, then dropped.** He was
+>   offered exactly this and took it ("yes want addresses for map resolution"). So the extract
+>   READS the street address, resolves it to geography, and writes only the geography. Nobody
+>   loses resolution and no address is redistributed. **How, concretely:**
+>   - **Census Geocoder, `geographies/addressbatch`** (`geocoding.geo.census.gov`) — free, no
+>     API key, 10,000 records per request, returns state/county/**tract**/block FIPS for each
+>     matched address. **Pin `benchmark` AND `vintage`** in the script; unpinned, a re-run
+>     silently returns different geography and the "re-run the extract, get byte-identical
+>     output" rule quietly breaks.
+>   - **Output columns:** state FIPS, county FIPS, tract (+ ZCTA). **NOT** the address, and not
+>     lat/long either — a rooftop coordinate is a street address wearing a hat.
+>   - **Unmatched rows fall back to the ZIP centroid → ZCTA** and carry a `geo_precision` column
+>     saying which they got. Never silently mix a rooftop-derived tract with a ZIP-derived one
+>     in the same map without the reader being able to see it — that is the kind of quiet
+>     precision inflation the app's own honesty badges exist to prevent.
+>   - The address column is dropped **at extraction, not at render**, so it never reaches the
+>     repo. State it in the script's header and assert it in the pack's test (the assertion is
+>     the thing that stops a later change re-adding it).
+>   **This couples SP-5 to SP-14.** Both now want a **census-tract map scale**, which the
+>   geography library does not have (`app/model.js` ships county/state/CRD/HUC8/CD/ZCTA). Land it
+>   once and it serves both. Until it exists SP-5 renders at ZCTA/county and the tract column
+>   rides along unused — so this is NOT a blocker, just the reason SP-5 is now **[3pt, +1 if the
+>   tract scale lands in this pack rather than SP-14's]**.
+>   **Separately, if the goal was ever to demo address-shaped/PII-shaped records as such**, that
+>   belongs in **SP-16**, where the rows are constructed and the addresses are fabricated — and
+>   it is the better demo anyway, since it can plant the messy cases (apartment lines,
+>   non-standard formats, missing components) on purpose instead of by luck.
 > - **SP-6 [3pt] — Federal Contract Awards.** Who wins federal work, by agency, vendor, NAICS
 >   and district; small-business share. *USASpending.gov, public domain.*
 > - **SP-7 [3pt] — Food Safety Inspections.** A multi-site operations scorecard: violation rates
@@ -11421,13 +11522,88 @@
 > - **SP-9 [3pt] — Healthcare Pricing.** The same procedure at wildly different prices, by
 >   hospital and payer. *CMS Hospital Price Transparency, public domain.*
 > - **SP-10 [3pt] — Payroll & Performance.** Spend per win, the efficiency frontier, the
->   small-market outperformers. *Lahman Baseball Database, **CC BY-SA 3.0** — ShareAlike, so
->   attribution is required and the shipped extract stays under the same licence. The least
->   clean licence of the eleven; confirm before starting.*
+>   small-market outperformers. *Lahman Baseball Database, **CC BY-SA 3.0**.*
+>   **✅ CONFIRMED — Kevin, 2026-08-08.** It was flagged as the least clean licence of the eleven
+>   and he cleared it. What ShareAlike actually obliges here, so nobody has to re-reason it:
+>   - **Attribution** — "Lahman Baseball Database, Sean Lahman, CC BY-SA 3.0" with a link, in the
+>     pack's `source` field (SP-0), which renders on the Settings card AND in the dashboard
+>     subtitle.
+>   - **The shipped extract carries CC BY-SA 3.0** — a `LICENCE` note beside
+>     `data/packs/payroll/`, plus the `THIRD-PARTY-NOTICES.md` line SP-0 already requires for
+>     anything not public domain.
+>   - **ShareAlike does NOT reach the app.** The extract is an adapted database; `app/` is not a
+>     derivative of it. Worth writing down because the scary reading — "CC BY-SA infects the
+>     repo" — is wrong and would otherwise get re-litigated by every run that reads this line.
+>   - **The one real wrinkle: the export inlines the data.** A user who exports a dashboard from
+>     this pack and republishes it is redistributing a CC BY-SA database, so the attribution has
+>     to TRAVEL with it. That is exactly what putting the credit in the dashboard subtitle buys —
+>     it is inlined into the standalone HTML like everything else, so it cannot be left behind.
+>     Make sure it survives `hideHeader` (the subtitle is the header's, and LF21 lets a user turn
+>     the header off) — if it does not, the credit belongs somewhere the export always keeps.
 > - **SP-11 [3pt] — Water Quality Monitoring.** Where independent monitoring providers disagree
 >   about the same watershed — median estimate plus spread. *USGS/EPA Water Quality Portal,
 >   HUC8-coded, public domain.* **Cheapest of the ten**: reuses the HUC8 geography and the
 >   ensemble machinery the app already has; a natural sibling to Conservation Insight.
+>
+> **Added 2026-08-08 from Kevin's steer above — the demographics group and the built database.**
+> These five are candidates, not commitments: they go to Kevin in the next grooming batch like
+> everything else here. All five are county-FIPS-keyed, so they share SP-1's geography and
+> extract plumbing and are cheaper than their 3pt says once SP-1 has landed.
+>
+> - **SP-12 ★ [3pt] — Neighborhood Change.** The straight demographics pack Kevin asked for:
+>   ACS 5-year by county (and tract for one metro) — population, median age, household income,
+>   education, tenure, household size, and how each moved over ~10 years. The business question
+>   is site selection and channel mix: *where is the customer base actually forming, and where
+>   is it aging out?* Long time series + county choropleth + a small-multiples "who changed
+>   most" board. *US Census ACS, public domain.* The most obviously interesting of the group to
+>   a general audience, and the cheapest — same API family as SP-1's extract.
+> - **SP-13 ★ [3pt] — Where America Moved.** IRS Statistics of Income **county-to-county
+>   migration**: for every county pair, how many households moved, how many people, and the
+>   **aggregate income that moved with them**. Almost nobody demos this and everybody finds it
+>   fascinating — it answers "who is winning and losing population, and are the leavers richer
+>   or poorer than the stayers", which no single-county table can. It is also the best sankey /
+>   chord / flow-map material in the entire program (an origin→destination table is exactly what
+>   those chart types want and the other packs never supply). *IRS SOI, public domain.* Size is
+>   the one risk — the full pair matrix is large, so the extract must subset to net flows plus
+>   the top-N pairs per state.
+> - **SP-14 [3pt] — Local Health & Risk.** CDC **PLACES**: model-based estimates of ~30 health
+>   measures at CENSUS-TRACT resolution for the whole country — the finest-grained population
+>   data that exists for free. Business use is real and non-obvious: pharmacy, clinic, insurer
+>   and health-retail siting, and risk-adjusting any per-capita number. Pairs naturally with
+>   SP-12 (health outcome versus income and age) and would be the app's first tract-scale
+>   geography. *CDC, public domain.* **Check first:** the geography library has no tract scale
+>   (`app/model.js` choropleth `opts` ships county/state/CRD/HUC8/CD/ZCTA) — either scope this
+>   to county roll-ups, or accept adding one metro's tracts as part of the pack.
+> - **SP-15 [3pt] — Business Formation & Wages.** Two under-used federal series that make a
+>   genuine leading-vs-lagging story: Census **Business Formation Statistics** (new business
+>   applications, published WEEKLY — a real-time economic indicator most people do not know
+>   exists) against BLS **QCEW** wages and employment by county × industry. *Both public
+>   domain.* The high-frequency series is the hook: a weekly line that visibly turns before the
+>   quarterly one does.
+> - **SP-16 ★★ [3pt+, needs splitting] — "County Fundamentals": the database we BUILD.** Kevin's
+>   *"or it can be a database you build which is interesting and differentiating"*, and the
+>   strongest idea in the program. **No one publishes this table.** One row per county per year,
+>   assembled from sources that do not talk to each other: ACS demographics (SP-12) + CBP
+>   establishments (SP-1) + QCEW wages (SP-15) + business formations (SP-15) + building permits
+>   + broadband availability + PLACES health (SP-14), joined on FIPS. The differentiator is not
+>   the data — every part is free and public — it is that **the integration IS the product
+>   demo**: ship the joins as REAL jobs in the pack, so installing it shows the assembly rather
+>   than handing over a pre-baked CSV. Then the payoff: a **composite index built in the app**
+>   from that panel, with the weights exposed as dashboard filters, so a viewer re-weights it
+>   and watches the county map re-rank live. That is a demo nothing else in the program can do,
+>   and it is the app's own jobs engine + choropleth + filters doing all of it.
+>   **Two honest problems to settle before this is startable, which is why it is not ≤3pt yet.**
+>   (a) **Size versus the SP-0 budget.** 3,144 counties × ~20 columns × one year is ~300 KB of
+>   CSV — twice SP-0's ≤150 KB. Options: keep the 150 KB ceiling PER FILE and split the panel
+>   across several source datasets (which the "assembly is the demo" framing wants anyway), or
+>   grant SP-16 a stated pack-level exception with a measured number. Decide with a measurement,
+>   do not quietly bust the budget. (b) **Provenance is heavier than a single-source pack** —
+>   seven upstreams, seven retrieval dates, seven vintages that do not align. The extract script
+>   must record each, and the dashboard has to say plainly which year each column is from. A
+>   built dataset that cannot show its work is worse than no dataset.
+>   **Split it before it enters NOW**, e.g. SP-16a the panel + extract + join jobs, SP-16b the
+>   index + re-weighting dashboard. It should also land AFTER SP-12/SP-13/SP-15, since it
+>   consumes their extracts.
 
 ### 🗂 Reservoir index (added 2026-08-07, N1) — what is below, and whether it is alive
 
