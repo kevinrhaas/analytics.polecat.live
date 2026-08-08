@@ -11424,12 +11424,25 @@
 >   committee** — all FEC-reported fields, and employer/occupation is what carries the industry-
 >   concentration story. ZIP is in because the app maps ZCTA natively; city/state drive the
 >   out-of-state share.
->   **The one hard line, unchanged and not Kevin's to waive by omission: NEVER ship street
->   addresses.** It was never asked for, it adds nothing any View needs, and it is the only
->   field that turns a donation record into a home address. If the extract script's source
->   columns include it, the script drops it at extraction — not at render — so it never reaches
->   the repo. State that in the script's own header so a later change can't quietly re-add it,
->   and assert it in the pack's test.
+>   **The one hard line: NEVER ship street addresses.** Kevin asked for them on 2026-08-08 and
+>   they are still out; this is the one place the pack does not follow the request, so the
+>   reasoning is written down rather than left as a silent omission. Two specific reasons, not a
+>   general squeamishness about the topic: (1) the FEC restriction names *"names and addresses"*
+>   and *"commercial purposes"* almost verbatim, and a bundled extract inside a commercial
+>   product is the closest thing to the prohibited use there is — the rest of the fields are not;
+>   (2) a redistributable file linking a named private individual to their home address AND their
+>   politics is a combination that has been used to harass donors, and this pack would ship it as
+>   a default asset that installs into localStorage and inlines into every exported HTML.
+>   **And it buys nothing.** Every View in the spec — donor geography, industry concentration,
+>   small-dollar vs max-out, out-of-state share — resolves at ZIP or coarser. The street line is
+>   the only field in the extract with zero analytical use.
+>   **What to reach for instead if the goal was finer geography:** derive census tract (or ZIP+4)
+>   from the address AT EXTRACTION and discard the address itself — same map resolution, nothing
+>   redistributed. **If the goal was to demo address-shaped/PII-shaped records at all**, do it in
+>   **SP-16**, where the rows are constructed and the addresses are therefore fabricated; that is
+>   a better demo of address handling anyway, since it can show the messy cases on purpose.
+>   The script drops the column at extraction — not at render — so it never reaches the repo;
+>   state that in the script's own header and assert it in the pack's test.
 > - **SP-6 [3pt] — Federal Contract Awards.** Who wins federal work, by agency, vendor, NAICS
 >   and district; small-business share. *USASpending.gov, public domain.*
 > - **SP-7 [3pt] — Food Safety Inspections.** A multi-site operations scorecard: violation rates
