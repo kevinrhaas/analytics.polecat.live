@@ -9379,6 +9379,30 @@ function serve() {
       n16SchemaConst > 0 && n16SqlVersions.every(function (r) { return r.v === n16SchemaConst; }),
       JSON.stringify({ constant: n16SchemaConst, files: n16SqlVersions }));
 
+    // ---- N18: the compatibility contract is written down AND enforced --------
+    // N16 and N17 built the guarantees; N18 makes them survive the people who
+    // arrive after. The gate itself is tools/doc-truth.mjs check 25 in the dev
+    // gate — this asserts the contract exists and stays wired, the SP-0(b)
+    // precedent, so nobody quietly drops it while no bump is exercising it.
+    (function () {
+      const compatPath = path.join(ROOT, "docs/COMPAT.md");
+      const compat = fs.existsSync(compatPath) && fs.readFileSync(compatPath, "utf8");
+      const truth = fs.readFileSync(path.join(ROOT, "tools/doc-truth.mjs"), "utf8");
+      const claude = fs.readFileSync(path.join(ROOT, "CLAUDE.md"), "utf8");
+      const ci = fs.readFileSync(path.join(ROOT, ".github/workflows/ci.yml"), "utf8");
+      // The history must describe the version the code is at, here too — the same
+      // invariant doc-truth holds, restated where the schema tests live.
+      const compatRows = compat ? [...compat.matchAll(/^\| \*\*v(\d+)\*\* \|/gm)].map(function (m) { return Number(m[1]); }) : [];
+      const wanted = Array.from({ length: n16SchemaConst }, function (_, i) { return i + 1; });
+      ok("N18: the backend-compatibility contract is written down and enforced — docs/COMPAT.md carries the additive rules, " +
+        "the same-PR bump checklist and a history row for every shipped version; doc-truth check 25 fails the dev gate without one; CLAUDE.md points there",
+        !!compat && /ADDITIVE/.test(compat) && /bump checklist/i.test(compat) &&
+        compatRows.join(",") === wanted.join(",") &&
+        /docs\/COMPAT\.md/.test(truth) && /WS\.WORKSPACE_TABLES = \[/.test(truth) &&
+        /docs\/COMPAT\.md/.test(claude) && /doc-truth\.mjs/.test(ci),
+        JSON.stringify({ constant: n16SchemaConst, history: compatRows, hasDoc: !!compat }));
+    })();
+
     // load() must report what the BACKEND says, not this app's own constant —
     // the whole handshake rests on it. Stand a mock workspace up at v+1.
     const n16Load = await page.evaluate(async function (port) {

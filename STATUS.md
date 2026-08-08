@@ -135,6 +135,49 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N18 — `docs/COMPAT.md`: the backend-compatibility contract, with teeth (v901, sw v525
+  unchanged, 2026-08-08, steward; dev branch):** N16 and N17 built the guarantees a mixed fleet of
+  app versions depends on. This writes them down and makes forgetting them a red gate. **Est 1pt,
+  took 1 — on estimate.**
+  **Why a document was the work.** The same Supabase/Turso/Firebase workspace is opened by a phone
+  on last month's cached build, a laptop on today's, and `/dev/` on next week's, simultaneously and
+  with no coordination. Every rule that keeps that safe lived in three places at once — a comment
+  block in `schema.js`, the reasoning inside the N16/N17 DONE entries, and the heads of whoever
+  shipped them. None of those is readable by the person who bumps `WS.SCHEMA_VERSION` next.
+  **What shipped.** `docs/COMPAT.md`, in the style of docs/BACKLOG.md: **(1) the rules** — the
+  three additive moves (new table, new promoted column, new `data` field — the last needing no
+  bump at all) and the three forbidden ones (never rename, never repurpose, never change what a
+  value MEANS), plus retirement-by-tombstone, since removal is not a move; **the four guarantees**
+  those rules buy, each named to the item that built it — reads back to v1, writes never destroy
+  what this build cannot see (N17), backend-newer ⇒ read-only (N16), backend-older ⇒ an offer with
+  a mandatory backup, never a latch (N16 slice 2) — including why `unknown` is deliberately treated
+  as `same`; **(2) the bump checklist**, six mandatory same-PR steps modelled on the sw.js CACHE
+  ritual, which works precisely because it is mechanical; **(3) the history**, v1→v4 reconstructed
+  from `schema.js`'s comment block and the commits that moved the constant (v1 2026-07-13 the
+  adapter port · v2 analyses, V5 #18 · v3 jobs, V8 #21 · v4 users, M3.1 #76).
+  **The teeth, which are the actual deliverable.** `tools/doc-truth.mjs` **check 25**, in the dev
+  gate, fails when: the history lacks a row for any version 1…`WS.SCHEMA_VERSION` (or carries one
+  beyond it); any table in `WS.WORKSPACE_TABLES` is never named in a history row; any hand-written
+  SQL artifact stamps a version other than the constant; or CLAUDE.md stops pointing at the file.
+  Deliberately **not** a git-diff of "did this commit touch both files" — a rebase, a squash or a
+  revert each defeat that. It is a standing invariant instead: the history must describe the
+  version the code is at, in any checkout, so the gate is red until the row exists. Verified by
+  faking the bump three ways on a scratch tree (constant → 5; a sixth workspace table; both) and
+  watching each specific claim go red with both numbers named, then restoring. `tests/run.js`
+  gained the wiring assertion (the SP-0(b) precedent) so the gate cannot be quietly dropped while
+  no bump is exercising it, and CLAUDE.md gained the pointer bullet under the Studio invariants.
+  **What it found on the way.** `tools/supabase-deploy.sql` — the file the repo calls "THE one
+  file to run" — is the only provisioning artifact that never stamps `polecat_meta.schema_version`,
+  so a freshly deployed environment reads as `unknown` until the app's first save stamps it.
+  Benign (unknown is treated as same) but it is the canonical artifact declining to say what it
+  built. Not fixed here: that file is already being opened by **N20** for its missing GRANTs, and
+  a two-line rider on an open item beats a second PR into the same file. Written into N20 with the
+  exact statement and the reason it must be `ON CONFLICT DO NOTHING` rather than the `DO UPDATE`
+  its siblings use (an old copy of the script must never rewind the marker — the SQL half of the
+  monotonicity N17 gave `WS.metaRows()`), and recorded in COMPAT.md § 3 until it lands.
+  **Verified:** the full dev gate green in the foreground — `tools/validate.mjs`,
+  `tools/changelog-check.js`, `tools/doc-truth.mjs` (all 25 checks), `tools/dev-smoke.mjs` at
+  390×780 and desktop with zero pageerrors. No precached file changed, so `sw.js` stays v525.
 - **N17 slice 2 of 2 — the runtime tripwire: making the stale tab NOTICE (v900, sw v525,
   2026-08-08, steward; dev branch):** slice 1 made an old app's save non-destructive. This is the
   other half — the app finding out at all. **N17 is CLOSED.**
@@ -11317,9 +11360,17 @@
   row-level durability bug rather than a version-compat one, which is why it is a rider here and
   not a silent extra in slice 1. The firebase row of the table above now reads ✅ tombstone-only,
   and the read-back is gone with it.
-- **N18 ★ [1pt] — `docs/COMPAT.md`: the backend-compatibility contract, wired into the process
+- ~~**N18 ★ [1pt] — `docs/COMPAT.md`: the backend-compatibility contract, wired into the
+  process.**~~ ✓ **SHIPPED v901 (2026-08-08, steward — see DONE). The item is CLOSED; est 1pt,
+  took 1 — on estimate.** All three parts plus both sets of teeth shipped: `docs/COMPAT.md`
+  (rules, the four guarantees, the mandatory same-PR bump checklist, the v1→v4 history), the
+  CLAUDE.md bullet, `tools/doc-truth.mjs` check 25 in the dev gate, and a `tests/run.js` check
+  that the contract stays wired. The check is a standing invariant (the history must describe the
+  version the code is AT) rather than a git-diff, so a rebase, a squash or a revert can't defeat
+  it. One thing it found and deliberately did not fix is written into N20 below. The original
+  spec, kept until the next grooming pass archives it:
   (Kevin: "make this process durable… in the development approach and processes now and going
-  forward").** One page, enforced, in the style of docs/BACKLOG.md: **(1) the rules** — every
+  forward"). One page, enforced, in the style of docs/BACKLOG.md: **(1) the rules** — every
   schema change is ADDITIVE (new tables / new promoted columns / new `data` fields; never
   rename, never repurpose, never change meaning; removal = stop writing, keep reading,
   tombstone in COMPAT.md); the version guarantee stated plainly (app reads workspaces back to
@@ -11413,6 +11464,21 @@
   header, which still warns real RLS is unsafe to run. **Verify with `tests/rls.mjs`**, which
   already applies both shipped files into throwaway `steward_test_rls_*` schemas — extend it to
   assert the grants exist, so a future edit cannot drop them silently.
+  **Rider found by N18 (2026-08-08) — take it in the same pass, it is two lines.**
+  `supabase-deploy.sql` is also the ONE provisioning artifact that never stamps
+  `polecat_meta.schema_version` (measured: bootstrap.sql and `polecat-admin/sql.ts` both do,
+  deploy.sql and rls-real.sql do not). So the file the repo calls "THE one file to run" builds the
+  full v4 shape and then declines to say what it built: the N16 handshake reads `unknown` until
+  the app's first save stamps it. Benign today — `unknown` is deliberately treated as `same` — but
+  it means a fresh environment is invisible to the version handshake for exactly as long as
+  nobody has saved, which is the window a second client is most likely to arrive in. Add
+  `INSERT INTO public.polecat_meta(key, value) VALUES ('schema_version', '<N>') ON CONFLICT (key)
+  DO NOTHING;` — `DO NOTHING`, **not** the `DO UPDATE` the other two artifacts use, so re-running
+  an older copy of the script against an upgraded workspace can never rewind the marker (the SQL
+  half of the monotonicity N17 gave `WS.metaRows()`; the two `DO UPDATE` artifacts are worth the
+  same treatment while you are in there). `tools/doc-truth.mjs` check 25 already asserts that any
+  artifact which stamps stamps the CURRENT version, so the new line is covered the moment it
+  lands; docs/COMPAT.md § 3 records the gap until then.
 - **N21 ★★ [2pt] — Adopting a blank Supabase database from the UI installs the WRONG (legacy,
   unprotected) posture.** Found answering Kevin, 2026-08-08: *"isn't it handled from the UI
   now?… I thought we could adopt a blank database."* Both true — and that is the problem.
