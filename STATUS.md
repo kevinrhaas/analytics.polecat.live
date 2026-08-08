@@ -11436,13 +11436,33 @@
 >   **And it buys nothing.** Every View in the spec — donor geography, industry concentration,
 >   small-dollar vs max-out, out-of-state share — resolves at ZIP or coarser. The street line is
 >   the only field in the extract with zero analytical use.
->   **What to reach for instead if the goal was finer geography:** derive census tract (or ZIP+4)
->   from the address AT EXTRACTION and discard the address itself — same map resolution, nothing
->   redistributed. **If the goal was to demo address-shaped/PII-shaped records at all**, do it in
->   **SP-16**, where the rows are constructed and the addresses are therefore fabricated; that is
->   a better demo of address handling anyway, since it can show the messy cases on purpose.
->   The script drops the column at extraction — not at render — so it never reaches the repo;
->   state that in the script's own header and assert it in the pack's test.
+>   **✅ Kevin, 2026-08-08 — the addresses ARE used, for map resolution, then dropped.** He was
+>   offered exactly this and took it ("yes want addresses for map resolution"). So the extract
+>   READS the street address, resolves it to geography, and writes only the geography. Nobody
+>   loses resolution and no address is redistributed. **How, concretely:**
+>   - **Census Geocoder, `geographies/addressbatch`** (`geocoding.geo.census.gov`) — free, no
+>     API key, 10,000 records per request, returns state/county/**tract**/block FIPS for each
+>     matched address. **Pin `benchmark` AND `vintage`** in the script; unpinned, a re-run
+>     silently returns different geography and the "re-run the extract, get byte-identical
+>     output" rule quietly breaks.
+>   - **Output columns:** state FIPS, county FIPS, tract (+ ZCTA). **NOT** the address, and not
+>     lat/long either — a rooftop coordinate is a street address wearing a hat.
+>   - **Unmatched rows fall back to the ZIP centroid → ZCTA** and carry a `geo_precision` column
+>     saying which they got. Never silently mix a rooftop-derived tract with a ZIP-derived one
+>     in the same map without the reader being able to see it — that is the kind of quiet
+>     precision inflation the app's own honesty badges exist to prevent.
+>   - The address column is dropped **at extraction, not at render**, so it never reaches the
+>     repo. State it in the script's header and assert it in the pack's test (the assertion is
+>     the thing that stops a later change re-adding it).
+>   **This couples SP-5 to SP-14.** Both now want a **census-tract map scale**, which the
+>   geography library does not have (`app/model.js` ships county/state/CRD/HUC8/CD/ZCTA). Land it
+>   once and it serves both. Until it exists SP-5 renders at ZCTA/county and the tract column
+>   rides along unused — so this is NOT a blocker, just the reason SP-5 is now **[3pt, +1 if the
+>   tract scale lands in this pack rather than SP-14's]**.
+>   **Separately, if the goal was ever to demo address-shaped/PII-shaped records as such**, that
+>   belongs in **SP-16**, where the rows are constructed and the addresses are fabricated — and
+>   it is the better demo anyway, since it can plant the messy cases (apartment lines,
+>   non-standard formats, missing components) on purpose instead of by luck.
 > - **SP-6 [3pt] — Federal Contract Awards.** Who wins federal work, by agency, vendor, NAICS
 >   and district; small-business share. *USASpending.gov, public domain.*
 > - **SP-7 [3pt] — Food Safety Inspections.** A multi-site operations scorecard: violation rates
