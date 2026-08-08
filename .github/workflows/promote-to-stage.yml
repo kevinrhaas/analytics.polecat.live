@@ -121,6 +121,35 @@ jobs:
         if: steps.merge.outputs.promoted == 'true'
         run: NODE_PATH=$(npm root -g) node tests/run.js
 
+      # N25 — the database posture is part of the stage gate. Two DIFFERENT
+      # questions, both asked here:
+      #   1. tests/rls.mjs  — "do our SQL FILES produce a secure database?" It
+      #      installs the three shipped postures into throwaway
+      #      steward_test_rls_<random> schemas and asserts an unauthorized read
+      #      is refused. It is a test of the FILES, so it runs against the DEV
+      #      project for every stage/prod promotion — there is no stage database
+      #      and it does not need one. Random schema names + a finally-block
+      #      DROP mean concurrent runs cannot collide and a failure cannot leak
+      #      schemas; it never touches `public`, enforced in the script.
+      #   2. tests/rls-verify.mjs — "is a live database secure RIGHT NOW?"
+      #      Read-only, over the anon REST surface, no database password.
+      #      Pointed at the dev project here; promote-to-prod points it at
+      #      production, which is the only check that should ever aim there.
+      - name: "Posture: the shipped SQL files still produce a secure database"
+        if: steps.merge.outputs.promoted == 'true'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_DEV_URL }}
+          SUPABASE_PASSWORD: ${{ secrets.SUPABASE_DEV_PASSWORD }}
+        run: node tests/rls.mjs
+
+      - name: "Posture: the dev database is not readable by an anonymous caller"
+        if: steps.merge.outputs.promoted == 'true'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_DEV_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_DEV_ANON_KEY }}
+          VERIFY_LABEL: dev
+        run: node tests/rls-verify.mjs
+
       - name: Staged /stage/ form boots clean (stage assembly + boot smoke)
         if: steps.merge.outputs.promoted == 'true'
         run: |
