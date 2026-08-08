@@ -135,6 +135,45 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N9b — the Studio's pane headers clear the 44px touch bar (v887, NO sw bump, 2026-08-08,
+  steward; dev branch):** the first ready item in ▶ NOW, and the third and last surface in the
+  N8 → N9a → N9b phone-reach sweep. N8 brought the dropdown ROWS to 44px and N9a the catalog
+  toolbars they hang off; this is the bar those panes are topped with — and the one that OPENS
+  N8's work. **Measured at 390×780 with the Data drawer open** (`.mob-tab[data-mob-tab=library]`,
+  the phone route N9b's own spec had already confirmed works): `#btnNewDS`, the `＋ New ▾`
+  trigger that is the ONLY way to reach `#menuNewData`, rendered **24px** — so N8's three
+  compliant 44px rows sat behind a 24px opener. The pane's `.search` field was **33px**.
+  **Scope went one pane wider than the spec asked**, and the reason is in the numbers: `.pane-h`
+  is one component shared by `#library` and `#inspector`, and the Inspector's `?` help link
+  (`#inspHelpLink`) measured **16px** — the worst of the three, and an `<a>`, so no
+  bare-`<button>` rule would ever have reached it. None of the three is a `.btn` or a
+  `.menu button`, which is exactly why UX7's and N8's rules both missed them.
+  **The fix** (`app/studio.css`, ≤640px band only): `.pane-h>button:not([hidden])` and
+  `.pane-h>.menu-wrap>button:not([hidden])` take the 44px minimum — deliberately one level
+  above `.pane-h>.menu-wrap>.menu>button` so it cannot reach into an open menu and re-centre
+  the rows N8 left flex-start-aligned — plus `.pane .search`. The `?` is a 16px PAINTED disc,
+  so growing the element would have dropped a 44px circle into the header: the anchor becomes
+  the invisible 44px touch box and a `::before` paints the same 16px disc inside it, hit area
+  44×44 and the visual unchanged. `.pane-h`'s vertical padding drops 12px→4px at phone so the
+  bar lands at 52px rather than 68px inside a drawer that only has 642px, giving the list back
+  the difference.
+  **A regression the work caught on itself:** the first cut of the rule set `display:inline-flex`
+  unconditionally, and an author `display` beats the `hidden` attribute's UA `display:none` — it
+  REVEALED `#inspBack` (the Inspector's hidden back link) on every phone. `:not([hidden])` is
+  load-bearing, not defensive, and the new check pins it.
+  **Verification:** 2 new checks (390×780 + 1280×900) asserting three properties, because the fix
+  had three ways to pass while being wrong — every visible header control ≥44px on a phone; the
+  `?`'s painted `::before` disc still exactly 16px; and `#inspBack` still hidden. Desktop asserts
+  the inverse (`#btnNewDS` under 44, `#inspHelpLink` exactly 16) so the ≤640px band cannot leak
+  upward. Confirmed the ratchet can FAIL: replayed against the unfixed `app/studio.css` it reports
+  `btnNewDS 24px | inspHelpLink 16px | #libSearch 33px`, and desktop stays green in both trees.
+  Full `tests/run.js` green. **No `sw.js` bump:** the precache LIST is unchanged (only a
+  precached file's contents), which is the ritual sw.js's own header states, the fetch handler is
+  network-first so an online user gets the new CSS regardless, and issue #631 makes a gratuitous
+  bump actively costly. **est 1pt, took 1.** (app/studio.css, tests/run.js, js/changelog.js,
+  STATUS.md) **Spun off N13** — the same measurement found the pane LIST-ROW actions at 17–22px
+  (`.icobtn`, `.mine-add`), which is an app-wide class with a much larger blast radius than
+  `.pane-h`; filed in ▶ NOW rather than bundled.
 - **N12 — one renewal at a time: concurrent sign-ins stop spending the same refresh token
   (v886, sw v514, 2026-08-08, steward; dev branch):** the first ready item in ▶ NOW, and the
   defect N11's investigation measured on its way past (filed separately on purpose — different
@@ -10783,7 +10822,14 @@
     exactly ONE token request and both resolve from it, plus a mock posture where a spent refresh
     token is refused (proving the fix, and that today's code fails it).
   **Position is the loop's placement, not Kevin's** — move or re-star it freely.
-- **N9b ★ [1pt] — The Studio Data pane's own controls are under the 44px touch bar.** The
+- ~~**N9b ★ [1pt] — The Studio Data pane's own controls are under the 44px touch bar.**~~
+  ✓ SHIPPED v887, no sw bump (2026-08-08, steward — see DONE). Shipped one pane header wider
+  than the spec asked: the Inspector's `.pane-h` is the same component and its `?` help link
+  measured **16px**, the worst offender of the three. The measurement also turned up the
+  library/inspector LIST-ROW actions at 17–22px, which are a different component on an
+  app-wide class — filed as N13 below rather than bundled. est 1pt, took 1. The spec below
+  stays until grooming archives it.
+  The
   second half of the original N9, rewritten from measurement in the N9a slice (2026-08-08,
   steward) — the worry it was filed with turned out to be unfounded, and what is actually there
   is smaller and precise:
@@ -10802,6 +10848,27 @@
   * Verify with the full suite + a check that opens the Data drawer via `[data-mob-tab="library"]`
     and asserts every visible control in the pane header clears 44px at 390×780, desktop
     unchanged — the N9a/N8 shape, one pane over.
+  **Position is the loop's placement, not Kevin's** — move or re-star it freely.
+- **N13 ★ [1pt] — The list rows inside those panes carry 17px action buttons.** Born in NOW
+  from N9b's measurement (2026-08-08, steward) — measured, not suspected, and deliberately NOT
+  bundled into N9b: N9b's rules land on `.pane-h`, a component with four controls in two
+  headers, while this lands on `.icobtn`, a class the WHOLE app shares. Different blast
+  radius, own revertible unit.
+  * **The measurement**, at 390×780 with each drawer open. Data pane list rows: the per-dataset
+    duplicate/delete `.icobtn` pair renders **17px** tall (`padding:2px 4px`, `font-size:13`,
+    no min-height) and the "This dashboard's datasets" group's `.mine-add` **20px** (an
+    explicit `width:20px;height:20px`). Inspector list rows: three `.icobtn` per row at
+    **22px**. Every one of them is a destructive-or-near-destructive action sized at under half
+    the touch bar, sitting 21px apart from its neighbour — the delete is 21px from the
+    duplicate.
+  * **Why it is not a one-line rule.** `.icobtn` is used by `.home-sub-move`, `.row-item
+    .ri-btns` and the pane lists, each with its own padding override; a blanket
+    `min-height:44px` at ≤640px would re-flow the catalog `.row-item` rows N9a just measured
+    clean. It needs the same treatment N9b gave the `?`: grow the HIT box, keep the glyph — or
+    a phone-only row layout that gives the actions their own line.
+  * Verify with the full suite + a check that opens each drawer and asserts every visible
+    row-action control clears 44px at 390×780 with the row's own height and N9a's
+    inside-the-viewport property both still holding, desktop unchanged.
   **Position is the loop's placement, not Kevin's** — move or re-star it freely.
 - 🔁 **N7 — Recurring, when the queue is thin: keep the docs, tours, Help and marketing page
   current with the app (LF58).** One coherent slice per run, never a big-bang at the end.

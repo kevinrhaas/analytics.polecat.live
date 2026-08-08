@@ -1315,6 +1315,94 @@ function serve() {
       await mp.close();
     }
 
+    /* ---- N9b: the Studio's own pane headers are touchable ----
+       The third surface in the N8 → N9a → N9b sweep, and the one that OPENS N8's work:
+       `#menuNewData`'s rows sat at a compliant 44px behind a 24px `＋ New ▾` trigger that
+       is the only way to reach them. Measured at 390×780 with the Data drawer open:
+       `#btnNewDS` 24px, `.search` 33px, `#inspHelpLink` 16px — none of them a `.btn` or a
+       `.menu button`, so neither UX7's rule nor N8's ever applied.
+       Three properties, because the fix had three ways to go wrong:
+       (1) every visible header control clears 44px on a phone;
+       (2) the `?` help link's PAINTED disc stays 16px (the fix grows the anchor's hit box
+           and paints the disc with ::before — a 44px disc in the header would be a
+           regression dressed as a pass);
+       (3) `#inspBack` stays HIDDEN — the first cut of the rule set `display:inline-flex`,
+           which beats the `hidden` attribute's UA `display:none` and revealed it on every
+           phone. Desktop is asserted unchanged so the ≤640px band cannot leak upward. */
+    console.log("\n• N9b: Studio pane headers — every control clears the 44px touch bar on a phone");
+    for (const vp of [{ width: 390, height: 780 }, { width: 1280, height: 900 }]) {
+      const phone = vp.width === 390;
+      const mp = await browser.newPage({ viewport: vp });
+      await mp.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-shell-section", "studio"); } catch (e) {} });
+      await mp.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+      await mp.waitForSelector("#btnMore", { timeout: 8000 });
+      await mp.evaluate(function () { var el = document.querySelector('[data-sec="studio"]'); if (el) el.click(); });
+      await mp.waitForTimeout(500);
+      // the mob-tab drawer is the phone route into these panes (N9b confirmed it works);
+      // on desktop they boot collapsed to their rails, so expand both to expose the headers
+      if (!phone) {
+        await mp.evaluate(function () { [].forEach.call(document.querySelectorAll(".pane-rail .rail-btn"), function (b) { b.click(); }); });
+        await mp.waitForTimeout(400);
+      }
+      const measure = function (paneId) {
+        return mp.evaluate(function (id) {
+          var hdr = document.querySelector("#" + id + " .pane-h");
+          if (!hdr) return { missing: true };
+          var out = [].filter.call(hdr.querySelectorAll("button,input,select,a"), function (el) {
+            // an OPEN dropdown's rows are N8's assertion, not this one
+            if (el.closest(".menu")) return false;
+            var cs = getComputedStyle(el);
+            return cs.display !== "none" && cs.visibility !== "hidden";
+          }).map(function (el) {
+            var b = el.getBoundingClientRect();
+            return { id: el.id || el.className, h: Math.round(b.height), w: Math.round(b.width) };
+          });
+          var help = document.getElementById("inspHelpLink");
+          var disc = help ? getComputedStyle(help, "::before").width : "";
+          return {
+            missing: false, out: out,
+            helpBox: help ? Math.round(help.getBoundingClientRect().height) : -1,
+            // "" when no ::before is generated — the desktop case, where the element IS the disc
+            helpDisc: disc === "auto" || disc === "" ? -1 : Math.round(parseFloat(disc)),
+            backHidden: !!(document.getElementById("inspBack") || {}).hidden,
+          };
+        }, paneId);
+      };
+      const bad = [];
+      let inspR = null;
+      for (const pane of ["library", "inspector"]) {
+        if (phone) { await mp.click(`.mob-tab[data-mob-tab="${pane}"]`); await mp.waitForTimeout(400); }
+        const r = await measure(pane);
+        if (r.missing) { bad.push(pane + ": no .pane-h"); continue; }
+        if (!r.out.length) bad.push(pane + ": header reports no visible controls");
+        if (pane === "inspector") inspR = r;
+        if (phone) {
+          const short = r.out.filter(function (c) { return c.h < 44; });
+          if (short.length) bad.push(pane + ": " + short.map(function (c) { return c.id + " " + c.h + "px"; }).join(", "));
+        }
+      }
+      // the pane's own search field sits just under the header and is the same class of miss
+      const searchH = await mp.evaluate(function () {
+        var s = document.querySelector("#library .search");
+        return s ? Math.round(s.getBoundingClientRect().height) : -1;
+      });
+      if (phone && searchH < 44) bad.push("#libSearch " + searchH + "px (needs 44)");
+      if (phone) {
+        if (inspR && inspR.helpBox < 44) bad.push("#inspHelpLink box " + inspR.helpBox + "px");
+        if (inspR && inspR.helpDisc !== 16) bad.push("#inspHelpLink painted disc " + inspR.helpDisc + "px (must stay 16 — the hit box grows, the visual does not)");
+        if (inspR && !inspR.backHidden) bad.push("#inspBack was revealed (an author display beats the hidden attribute)");
+      } else {
+        // desktop must be untouched: the compact header is the design there
+        const newBtn = await mp.evaluate(function () { var b = document.getElementById("btnNewDS"); return b ? Math.round(b.getBoundingClientRect().height) : -1; });
+        if (newBtn >= 44) bad.push("#btnNewDS grew to " + newBtn + "px on desktop");
+        if (inspR && inspR.helpBox !== 16) bad.push("#inspHelpLink is " + inspR.helpBox + "px on desktop (was 16)");
+      }
+      ok(`N9b ${vp.width}px: both Studio pane headers` +
+        (phone ? " clear the 44px touch minimum, the ? keeps its 16px disc, and #inspBack stays hidden" : " keep their compact desktop sizing — the ≤640px rule does not leak upward"),
+        bad.length === 0, bad.join(" | "));
+      await mp.close();
+    }
+
     // ---- WS: adapter infrastructure (app/sources/) ----
     // The manager-pattern source layer: schema/contract, registry, workspace
     // store, secrets crypto, and the Turso adapter exercised END-TO-END against

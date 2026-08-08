@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 887,
+    title: 'The builder\'s Data and Inspector panel headers are thumb-sized on a phone',
+    kind: 'polish',
+    ts: '2026-08-08T10:45:42.000Z',
+    items: [
+      'Recent releases brought the builder\'s dropdown menus and the catalog toolbars up to the 44-pixel minimum a finger actually needs. This is the surface those sit on: the header bars at the top of the builder\'s Data and Inspector panels.',
+      'Measured on a 390-pixel phone with the Data drawer open, the "＋ New ▾" button that is the ONLY way to reach the Add-dataset menu was 24 pixels tall — so the menu it opens was comfortably tappable and the thing that opens it was not. The panel\'s search field was 33 pixels, and the Inspector\'s small "?" help link was 16.',
+      'All three now clear 44 pixels on a phone. The "?" keeps its neat 16-pixel disc — only the invisible area your thumb has to land on grew — and the header bar itself was tightened so the taller controls give the list below them the space back rather than taking it.',
+      'Nothing changes on a desktop, where the compact header is the design; the new checks assert that in both directions at 390 and 1280 pixels wide.',
+    ],
+  },
+  {
     v: 886,
     title: 'Signing in no longer spends your renewal token twice',
     kind: 'fix',
