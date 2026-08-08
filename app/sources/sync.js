@@ -20,6 +20,7 @@
   "use strict";
   var W = function () { return Studio.Workspace; };
   var C = function () { return Studio.SecretsCrypto; };
+  var WS = function () { return Studio.WS; };
 
   var CONN_KEY = "analytics.datasource.v1";
   var SECRET_KEY = "analytics.datasource.secret.v1"; // cached passphrase (this browser SESSION)
@@ -159,7 +160,39 @@
   // (pullNow, post-sign-in) or explicit connect (connectAdopt/connectPush)
   // clears it.
   var _preAuth = false;
+  // N16 slice 1 — THE VERSION HANDSHAKE (Kevin, 2026-08-08: "future versions of
+  // the app will break previous versions of the database back end"). Every
+  // provisioned workspace has always stamped `polecat_meta.schema_version` and
+  // every adapter has always reported it; nothing ever compared it, so BOTH
+  // mismatch directions proceeded silently. `_backendVersion` is what the last
+  // snapshot we read reported, and `_readOnly` is the latch that closes the
+  // direction that eats data: a workspace NEWER than this build. It costs one
+  // integer comparison, and it is not paranoia — every adapter's save() is a
+  // whole-snapshot REPLACE over the tables THIS build knows about, so one push
+  // from a stale tab republishes a v4-shaped view of a v5 workspace. Reading a
+  // newer workspace is safe (replaceAll preserves tables it doesn't know —
+  // AUD-04), so the app stays fully usable, just read-only, and says so out
+  // loud. The OLDER direction (offer the in-app upgrade) is N16 slice 2.
+  var _backendVersion = null, _readOnly = false;
   var listeners = [];
+
+  // Called wherever a freshly-read snapshot is adopted. Returns the latch.
+  function adoptSchemaVersion(snap) {
+    var v = snap && snap.schemaVersion;
+    _backendVersion = (v == null ? null : Number(v)) || null;
+    var wasReadOnly = _readOnly;
+    _readOnly = WS().compareSchema(_backendVersion) === "newer";
+    if (_readOnly && !wasReadOnly) {
+      logSync("read-only", false, "workspace schema v" + _backendVersion +
+        " is newer than this app (v" + WS().SCHEMA_VERSION + ") — writes are off");
+    }
+    // A quiet background pull can flip the latch without any status change, and
+    // the banner must not wait for the next unrelated event to appear/clear.
+    if (_readOnly !== wasReadOnly) emit();
+    return _readOnly;
+  }
+  // A workspace this app just provisioned/pushed IS this app's version.
+  function claimSchemaVersion() { _backendVersion = WS().SCHEMA_VERSION; _readOnly = false; }
 
   function publicState() {
     var src = Studio.sourceById(state.sourceId) || Studio.localSource;
@@ -171,7 +204,12 @@
       pendingEdits: _dirty, pushFails: state.pushFails || 0,
       // SYNC-PREAUTH: true while the connection is gate-bound but nobody has
       // signed in through it yet (automatic pulls are latched off)
-      preAuth: _preAuth };
+      preAuth: _preAuth,
+      // N16: the version handshake. `readOnly` means the connected workspace was
+      // built by a NEWER app than this one, so writes are latched off (the rail
+      // and the banner both read this).
+      appSchemaVersion: WS().SCHEMA_VERSION, backendSchemaVersion: _backendVersion,
+      schemaRelation: WS().compareSchema(_backendVersion), readOnly: _readOnly };
   }
   // DURABLE-1 (Kevin live, 2026-07-30 — vanished + duplicated dashboards): a pull
   // ADOPTION replaces the whole workspace with the remote snapshot. When that
@@ -238,6 +276,7 @@
     if (!src) return Promise.resolve();
     _suspend = true;
     return src.load(state.cfg).then(decTransform).then(function (snap) {
+      adoptSchemaVersion(snap); // N16
       W().replaceAll(snap);
       logSync("pull", true);
       setStatus("connected");
@@ -295,11 +334,19 @@
   function schedulePush() {
     if (state.sourceId === "local") return; // local needs no mirror
     _dirty = true;
+    // N16(b): the workspace is newer than this build — the edit stays local
+    // (and `pendingEdits` stays true, so the state is honest) but no timer is
+    // armed, because there is nothing this build is allowed to write.
+    if (_readOnly) return;
     clearTimeout(_timer);
     _timer = setTimeout(flushPush, DEBOUNCE_MS);
   }
   function flushPush(force) {
     if (state.sourceId === "local" || _inflight || !_dirty) return Promise.resolve();
+    // N16(b): the hard stop. Every other write path (schedulePush, pushNow,
+    // touch, the backoff retry, pagehide) funnels through here, so one guard
+    // closes them all.
+    if (_readOnly) return Promise.resolve();
     if (force !== true) {
       var wait = MIN_PUSH_GAP_MS - (Date.now() - _lastPushEnd);
       if (wait > 0) { clearTimeout(_timer); _timer = setTimeout(flushPush, wait); return Promise.resolve(); }
@@ -362,6 +409,10 @@
     // NOTE: _suspend is NOT held across the async load — a user edit landing
     // mid-load must still schedule its push. It wraps only the replaceAll.
     return src.load(state.cfg).then(decTransform).then(function (snap) {
+      // N16: the version is fresh information whether or not we adopt the rows —
+      // a background pull is exactly how a tab that slept through a backend
+      // upgrade finds out it must stop writing.
+      adoptSchemaVersion(snap);
       if (_dirty || _inflight) return false; // edits arrived during the load — local wins
       if (snapRowCount(snap) === 0 && snapRowCount(W().snapshot()) > 0) return false; // empty-remote guard
       if (snapCanon(snap) === snapCanon(W().snapshot())) return false; // nothing new
@@ -405,6 +456,13 @@
     // recent sync attempts (newest first) — the Settings card renders these
     syncLog: function () { return _log.slice(); },
 
+    // N16: the version handshake, for anything that needs more than the
+    // `readOnly` flag on syncState() (the banner's copy names both versions).
+    schemaState: function () {
+      return { app: WS().SCHEMA_VERSION, backend: _backendVersion,
+        relation: WS().compareSchema(_backendVersion), readOnly: _readOnly };
+    },
+
     // Pull the remote's contents and adopt them (the one thing automation can't
     // do — there's no live subscription). Flushes pending local writes first.
     pullNow: function () {
@@ -418,10 +476,23 @@
         // → hit Refresh → the View silently vanishes and the card reads
         // "Connected"). Keep local as-is and keep the honest error instead;
         // the backoff retry (or a fixed backend) pushes the edits later.
+        // N16: read-only is the one case where _dirty can NEVER clear on its own
+        // (the pushNow above is a deliberate no-op), and bailing here would leave
+        // a read-only tab with local edits unable to ever re-check the version.
+        // So load — to re-run the HANDSHAKE only, never to adopt over those
+        // edits — and push them the moment the latch clears.
+        if (_dirty && _readOnly) {
+          return src.load(state.cfg).then(decTransform).then(function (snap) {
+            adoptSchemaVersion(snap);
+            if (!_readOnly) return flushPush(true);
+          }).catch(function (e) { logSync("pull", false, e.message || "refresh failed"); })
+            .then(function () { return publicState(); });
+        }
         if (_dirty) return publicState();
         setStatus("connecting");
         _suspend = true;
         return src.load(state.cfg).then(decTransform).then(function (snap) {
+          adoptSchemaVersion(snap); // N16
           W().replaceAll(snap);
           logSync("pull", true);
           if (_preAuth) { _preAuth = false; saveConn(); } // SYNC-PREAUTH: an explicit adopting pull unlatches
@@ -450,6 +521,7 @@
       setStatus("connecting");
       _suspend = true;
       return src.load(cfg).then(decTransform).then(function (snap) {
+        adoptSchemaVersion(snap); // N16
         if (opts && opts.skipIfEmpty && snapRowCount(snap) === 0 && snapRowCount(W().snapshot()) > 0) {
           _suspend = false;
           setStatus(state.sourceId === "local" ? "local" : "connected");
@@ -480,6 +552,7 @@
       if (!src) return Promise.reject(new Error("unknown source"));
       setStatus("connecting");
       state.sourceId = sourceId; state.cfg = cfg;
+      claimSchemaVersion(); // N16: a freshly provisioned remote is OUR version
       return encTransform(W().snapshot()).then(function (snap) {
         return src.save(cfg, snap);
       }).then(function (res) {
@@ -550,6 +623,7 @@
       _connGen++; // fence any in-flight boot connect so a late pull can't re-adopt/re-persist
       state.sourceId = "local"; state.cfg = null;
       _preAuth = false; // SYNC-PREAUTH: nothing bound, nothing latched
+      _backendVersion = null; _readOnly = false; // N16: nothing connected, nothing to compare
       saveConn();
       try { clearTimeout(_timer); } catch (e) {}
       state.lastError = ""; state.lastPushAt = 0;
@@ -667,6 +741,7 @@
         if (myGen !== _connGen) return Promise.resolve();
         return src.load(state.cfg).then(decTransform).then(function (snap) {
           if (myGen !== _connGen) return; // user disconnected during the load — don't adopt/persist
+          adoptSchemaVersion(snap); // N16: the boot seam — decided before the first push can be scheduled
           W().replaceAll(snap);
           logSync("boot pull", true);
           setStatus("connected");

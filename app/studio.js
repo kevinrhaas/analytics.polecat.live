@@ -461,6 +461,32 @@
         };
       }
       window.__studioPersistFailBanner = renderPersistFailBanner; // test hook
+      // N16: the backend-version banner. A workspace built by a NEWER release of
+      // Analytics is safe to READ but must never be written by this build, so
+      // sync latches writes off — and the user has to be told, or the app looks
+      // like it is saving when nothing is leaving the browser. Same episode
+      // semantics as its two siblings: a dismissal holds while the condition
+      // lasts and clears the moment the versions line up again.
+      var _verDismissed = false;
+      function renderVersionBanner(st) {
+        var b = document.getElementById("schemaVersionBanner");
+        if (!st || !st.readOnly) { _verDismissed = false; if (b) b.remove(); return; }
+        if (_verDismissed) { if (b) b.remove(); return; }
+        if (!b) {
+          b = el("div"); b.id = "schemaVersionBanner"; b.className = "sync-loss-banner";
+          document.body.appendChild(b);
+        }
+        b.innerHTML = "<span>" +
+          "<b>This workspace was created by a newer version of Analytics — it’s open read-only.</b> " +
+          "Saving to the backend is turned off so this older build can’t overwrite what it can’t see" +
+          " (workspace schema v" + Studio.escapeHtml(String(st.backendSchemaVersion)) +
+          ", this app reads v" + Studio.escapeHtml(String(st.appSchemaVersion)) + ")." +
+          " Edits you make stay in this browser. Reload the page to pick up the update — if it keeps" +
+          " coming back, use Settings → hard reset to clear a stuck offline copy of the app.</span>" +
+          "<button type=\"button\" class=\"sync-loss-x\" title=\"Dismiss until the versions line up\" aria-label=\"Dismiss\">✕</button>";
+        b.querySelector(".sync-loss-x").onclick = function () { _verDismissed = true; b.remove(); };
+      }
+      window.__studioVersionBanner = renderVersionBanner; // test hook
       Studio.Workspace.on("persistfail", renderPersistFailBanner);
       // late boot: if persists were already failing before this listener wired
       if (Studio.Workspace.persistFailed) {
@@ -473,10 +499,15 @@
         // Kevin's ask: say what the STATE is, not which backend — "Local" with no
         // workspace, "Connected" while the mirror is working (syncing IS working),
         // and an honest "Reconnecting…" while the backoff self-heal is retrying.
+        // N16: "Connected" would be a lie while writes are latched off — a
+        // read-only workspace says so in the one place that is always on screen.
         if (lbl) lbl.textContent = st.sourceId === "local" ? "Local"
+          : st.readOnly ? "Read-only"
           : st.status === "connected" || st.status === "syncing" ? "Connected"
           : st.status === "error" ? "Reconnecting…" : "Connecting…";
-        if (rs) rs.title = "Workspace backend — " + st.label + (st.lastError ? " · " + st.lastError : "");
+        if (rs) rs.title = "Workspace backend — " + st.label +
+          (st.readOnly ? " · read-only: the workspace (schema v" + st.backendSchemaVersion + ") is newer than this app (v" + st.appSchemaVersion + ")" : "") +
+          (st.lastError ? " · " + st.lastError : "");
         // A push failure used to be invisible (just this rail dot): say it once,
         // loudly, so a broken mirror can't masquerade as "everything saved".
         if (st.status === "error" && st.lastError && st.lastError !== _lastSyncErrToasted) {
@@ -488,6 +519,7 @@
         // by the remote (how Kevin's dashboards vanished). Keep a persistent banner
         // up until a push actually lands.
         renderSyncLossBanner(st);
+        renderVersionBanner(st); // N16
         renderWorkspaceBackendCard();
         renderConnections(); // QA-02: credential-storage note tracks live sync state
       });
@@ -8373,6 +8405,9 @@
     var sec = Studio.Sync.secretsState();
     var dot = st.status === "connected" ? "ok" : (st.status === "error" ? "bad" : (st.status === "local" ? "" : "busy"));
     var statusLine = st.status === "local" ? "Changes stay in this browser only"
+      // N16: never claim "changes mirror automatically" while the version
+      // handshake has writes latched off.
+      : st.readOnly ? "Read-only — this workspace (schema v" + st.backendSchemaVersion + ") was created by a newer version of Analytics than this one (v" + st.appSchemaVersion + "). Changes stay in this browser until the app updates."
       : st.status === "connected" ? "Connected — changes mirror automatically" + (st.lastPushAt ? " · last sync " + new Date(st.lastPushAt).toLocaleTimeString() : "")
       : st.status === "syncing" ? "Syncing…"
       : st.status === "connecting" ? "Connecting…"

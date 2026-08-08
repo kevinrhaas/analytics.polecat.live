@@ -1814,7 +1814,19 @@
     <li><strong>Connected</strong> (green) — the mirror is working; every change writes through.</li>
     <li><strong>Reconnecting…</strong> (red) — the last write failed and the app is retrying with
       backoff. Your work stays safe in this browser and pushes the moment the backend accepts it.</li>
+    <li><strong>Read-only</strong> — the workspace was created by a <em>newer</em> version of
+      Analytics than the one this browser is running. See below.</li>
   </ul>
+  <p><strong>“Read-only — created by a newer version”.</strong> Every workspace records the schema
+  version it was built at, and the app checks it whenever it connects, refreshes, or quietly
+  re-reads the backend. If the workspace is newer than the app, the app <strong>stops writing to
+  it</strong> and says so with a banner: an older build saves a whole snapshot of the tables it
+  knows about, so one push from a stale tab could quietly drop whatever the newer version added.
+  Reading is unaffected — the workspace opens and works normally, and anything you change stays in
+  this browser. Reload the page to pick up the newer app (and if the banner keeps coming back, use
+  <strong>Settings → hard reset</strong> to clear a stuck offline copy); once the versions line up,
+  the changes you made in the meantime push up on the next <strong>Refresh</strong>. Workspaces
+  <em>older</em> than the app keep working as they always have — every schema change is additive.</p>
   <p>A failed write also raises a one-time notification and puts the full error on the
   <strong>Settings → Workspace backend</strong> card, with a <strong>Retry now</strong> button.</p>
   <p><strong>One error worth knowing:</strong> a Supabase workspace provisioned before newer app
