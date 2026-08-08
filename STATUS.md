@@ -11128,11 +11128,14 @@
   next to the SQL that depends on it), covering the three Security toggles and WHY each — all
   three answers derived from the shipped SQL, not from vibes:
   - **Enable Data API — ON, required.** The adapter is PostgREST; without it nothing connects.
-  - **Automatically expose new tables — OFF** (Supabase's own recommendation, and the app
-    genuinely does not need it): `supabase-bootstrap.sql:51-53` issues `GRANT USAGE`, `GRANT
-    SELECT/INSERT/UPDATE/DELETE ON ALL TABLES` **and** `ALTER DEFAULT PRIVILEGES`, and its
-    header says exactly why — tables made over a direct connection do not inherit the auto
-    privileges, so the file was always self-sufficient.
+  - **Automatically expose new tables — ON, until N20 lands.** This looks like it should be OFF
+    (it is Supabase's own recommendation, and `supabase-bootstrap.sql:51-53` grants explicitly)
+    — but the file a fresh environment actually runs is **`tools/supabase-deploy.sql`, which
+    contains ZERO `GRANT` statements** (measured: 0 in deploy.sql, 0 in rls-real.sql, 3 in
+    bootstrap.sql). It relies entirely on the project's default privileges. Turn the toggle off
+    today and the canonical deploy script yields tables with RLS and policies but **no
+    table-level grant to `anon`/`authenticated`** — PostgREST refuses and the app cannot
+    connect. So: ON now; **N20 adds the grants to deploy.sql and flips this doc to OFF.**
   - **Enable automatic RLS — ON.** The bootstrap already `ENABLE ROW LEVEL SECURITY` + policies
     per table (`:64-72`), so this is belt-and-braces for anything created outside it — and with
     the new `sb_publishable_…` keys a table with NO policy returns **zero rows** over the Data
@@ -11150,11 +11153,82 @@
   generic geography advice, not advice about this fleet; **free-tier projects pause after ~1
   week idle**, which a dev backend will hit and which the app should read as "unreachable", not
   as a refusal (the exact N2-slice-3/N11/N14 distinction — worth a cross-reference); and which
-  posture file to run — `supabase-bootstrap.sql` (allow-all, demo/dev) versus
-  `supabase-rls-real.sql` (real per-user RLS). Note too that ONE project can host several fleet
+  **WHICH FILE — say it once, unambiguously, because the repo currently misleads on exactly
+  this** (it misled an interactive session on 2026-08-08): a FRESH environment runs
+  **`tools/supabase-deploy.sql`** — its own header calls itself "THE one file to run" and it is
+  the SUPERSET (tables + the verified authenticated-only RLS posture + the ACTIVITY-1 log
+  tables + first-admin + verify). `supabase-rls-real.sql` is the POSTURE-ONLY subset for
+  re-tightening an environment whose tables already exist (its header says so). And
+  `supabase-bootstrap.sql` is the legacy allow-all demo posture whose header is **STALE** —
+  it still claims real RLS is "NOT yet safe to run here (needs GoTrue sign-in + an owner-field
+  data migration first)", which stopped being true when M7 slices 2/3 shipped those exact
+  prerequisites and the real posture went live 2026-07-30. **Kevin's standing decision
+  (2026-08-08): dev and stage run the SAME posture as prod — the real one.** A dev environment
+  whose security posture differs from prod cannot test the thing most likely to break.
+  Document the two per-environment steps deploy.sql needs and nothing else does: **§7 first
+  admin** (Authentication → Add user, then INSERT their `public.users` row as postgres — once
+  per environment) and **§8 verify** (expect all zeros for anon).
+  Note too that ONE project can host several fleet
   apps: `polecat_meta.app` (`schema.js:76`) is what tells "analytics" from manager/relay, which
-  is why a shared `polecat_dev` is a sound choice. **Verify** by doing it: stand up a scratch
-  project from the written steps alone and confirm the app connects with no undocumented click.
+  is why a shared `polecat_dev` is a sound choice. **Record the environment topology** Kevin is
+  standing up — a `polecat_dev` and a `polecat_stage` database beside prod, matching the
+  dev → stage → main branch pipeline, each with its own `SUPABASE_URL`/`SUPABASE_PASSWORD` — and
+  say which one `tests/rls.mjs` should point at per pipeline stage. **Verify** by doing it: stand
+  up a scratch project from the written steps alone and confirm the app connects with no
+  undocumented click.
+- **N20 ★★ [1pt] — `supabase-deploy.sql` cannot stand up a locked-down project: it has no
+  GRANTs.** Found while answering Kevin's create-project question (2026-08-08), and it is a
+  latent defect in the artifact the repo calls "THE one file to run" for a new environment.
+  **Measured:** `grep -c GRANT` → **0 in `tools/supabase-deploy.sql`, 0 in
+  `tools/supabase-rls-real.sql`, 3 in `tools/supabase-bootstrap.sql`**. Only the legacy demo
+  file grants; the canonical deploy path relies silently on the project's default privileges.
+  **Why that bites now:** Supabase's create-project screen offers "Automatically expose new
+  tables" and **recommends turning it OFF**. Follow that recommendation, run deploy.sql, and you
+  get tables with RLS enabled and a correct policy set but **no table-level privilege for
+  `anon`/`authenticated`** — PostgREST refuses and the app cannot connect, with a failure that
+  looks like an RLS problem and is not one. The posture is right; the plumbing under it is
+  missing. **Fix:** lift the three statements from `supabase-bootstrap.sql:51-53` (`GRANT
+  USAGE ON SCHEMA public`, `GRANT SELECT/INSERT/UPDATE/DELETE ON ALL TABLES`, `ALTER DEFAULT
+  PRIVILEGES …`) into deploy.sql — they are safe under the real posture, because RLS is what
+  actually restricts rows; a grant without a policy still returns nothing. Add them to
+  `supabase-rls-real.sql` too so re-tightening never strands an environment, and mirror into
+  `supabase/functions/polecat-admin/sql.ts` (the N2-slice-2 drift class: sql.ts and the
+  canonical file must stay section-for-section identical). Then flip N19's guidance to
+  **"Automatically expose new tables — OFF"** and correct `supabase-bootstrap.sql`'s stale
+  header, which still warns real RLS is unsafe to run. **Verify with `tests/rls.mjs`**, which
+  already applies both shipped files into throwaway `steward_test_rls_*` schemas — extend it to
+  assert the grants exist, so a future edit cannot drop them silently.
+- **N21 ★★ [2pt] — Adopting a blank Supabase database from the UI installs the WRONG (legacy,
+  unprotected) posture.** Found answering Kevin, 2026-08-08: *"isn't it handled from the UI
+  now?… I thought we could adopt a blank database."* Both true — and that is the problem.
+  **What the UI really does.** The connect wizard branches on `probe.state === "empty"`
+  (`app/studio.js:8638`): adapters with `browserProvision:true` (Turso, Firebase) get a one-click
+  "Set up & connect"; **Supabase is `browserProvision:false`** (`app/sources/supabase.js:525`),
+  so it renders the generated script in a textarea with "I've run it — connect". That flow works
+  and is genuinely UI-driven. **But the script it generates** (`supabase.js:735-742`) is
+  `provisionDDL()` + meta rows + the atomic-save function, closing with a COMMENT: *"Then enable
+  Row-Level Security policies appropriate to your project"*. **No RLS. No policies. No grants.**
+  So the supported way to adopt a blank database hands the user the pre-M7 posture and a homework
+  assignment — while `tools/supabase-deploy.sql` (the file the repo calls "THE one file to run")
+  has installed the real posture since 2026-07-30. The two paths have silently diverged.
+  **And the other UI half cannot cover it on a fresh project:** Admin → "Enable per-user security
+  / Go live" (`studio.js:10042`) does install the real posture — but its own card says it
+  "requires `supabase/functions/polecat-admin` already deployed", which a brand-new project does
+  not have. Chicken-and-egg: the button that would fix the posture needs an Edge Function that
+  needs a deploy step the UI never mentions.
+  **Fix, in preference order:** (a) make `provision()` emit the CANONICAL fresh-environment
+  script — i.e. what `supabase-deploy.sql` contains, generated from the same source of truth so
+  it cannot drift again (this is the N2-slice-2 lesson applied a third time); or at minimum
+  (b) have the wizard say plainly "for a production-shaped environment run tools/
+  supabase-deploy.sql instead" with the file inline, and state the first-admin (§7) and verify
+  (§8) steps. Either way the wizard must stop implying the job is done when the database is
+  still wide open. **Verify:** a suite check that the wizard's generated SQL, applied to a
+  throwaway schema, leaves anon reading ZERO rows — the same assertion `tests/rls.mjs` already
+  makes about the shipped files, pointed at the path a real user actually takes.
+  **Interim guidance for Kevin's dev/stage build-out** (already given live, worth keeping):
+  skip the wizard's script — paste `tools/supabase-deploy.sql` into the SQL editor FIRST, do §7,
+  then connect; the wizard then probes `state === "polecat"` and simply adopts it, which is
+  exactly how prod behaves.
   Industry density and whitespace by county: where a chain is under-represented versus the
   population and the businesses already there. **Replaces `datamanagement` in
   `DEFAULT_INSTALLED`** (`demopacks.js:78`) — Data Management stays installable, just not the
