@@ -399,6 +399,13 @@ html[data-app-theme='neon'] #mobileNavBtn{background:#000000;border-color:rgba(2
   #railNav.mobile-open{transform:translateX(0)}
   /* always full-width labels in the drawer (override the collapsed icon-only clip) */
   #railNav .rail-lbl{position:static!important;width:auto!important;height:auto!important;clip:auto!important}
+  /* KH-024 (Kevin live phone, 2026-08-07): the WORKSPACE/BUILD/MANAGE group headers
+     carry BOTH .rail-group-lbl and .rail-lbl, so the collapsed-rail hide trick
+     (height:1px + overflow:hidden) also applied to them in the drawer. The line
+     above restores height, but NOT overflow — leaving a ~2px content box that
+     clipped the top of every glyph, so only the bottom sliver of the headers
+     showed. Restore the overflow (and give the line room) too. */
+  #railNav .rail-group-lbl{overflow:visible!important;line-height:1.5}
   /* LF33: the drawer always shows labels regardless of the desktop .expanded state,
      so it needs the same mark-centers-on-the-whole-lockup fix as #railNav.expanded
      (see the base rules above) — the drawer just isn't a `.expanded` rail. */
@@ -572,11 +579,16 @@ html[data-app-theme='neon'] #mobileNavBtn{background:#000000;border-color:rgba(2
   padding:var(--sp-2) var(--sp-18);margin-bottom:16px}
 .settings-card h2{margin:14px 0 2px;font-size:var(--fs-11);font-weight:700;color:var(--muted);
   text-transform:uppercase;letter-spacing:.05em}
-.set-row{display:flex;align-items:center;gap:12px;padding:var(--sp-14) 0;border-top:1px solid color-mix(in srgb, var(--ink) 8%, transparent)}
+/* KH-024 (Kevin live phone, 2026-08-07): same flex-collapse family as KH-023.
+   `.set-txt` goes width:100% at <=640px (meant to be full-width) but `.set-row`
+   never wrapped and the input is flex:0 0 auto — so it ate the whole line,
+   crushed .set-row-txt to nothing (the description wrapped one WORD per line)
+   and, unable to shrink, overflowed off the right edge. The row wraps now. */
+.set-row{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:var(--sp-14) 0;border-top:1px solid color-mix(in srgb, var(--ink) 8%, transparent)}
 .settings-card h2+.set-row{border-top:0}
 .set-row-ic{flex:0 0 auto;width:32px;height:32px;border-radius:9px;display:flex;align-items:center;
   justify-content:center;background:color-mix(in srgb, var(--ink) 10%, var(--pane));color:var(--brand)}
-.set-row-txt{flex:1;min-width:0;color:var(--ink)}
+.set-row-txt{flex:1 1 180px;min-width:180px;color:var(--ink)}
 /* Kevin (2026-07-31): the block rule is for the row TITLE only — an unscoped
    `b` also blockified inline emphasis INSIDE the description small ("A /
    square / PNG…" each landed on its own line on the branding card). */
@@ -599,7 +611,7 @@ html[data-app-theme='neon'] #mobileNavBtn{background:#000000;border-color:rgba(2
 .set-txt{flex:0 0 auto;width:160px;padding:var(--sp-6) var(--sp-10);border-radius:8px;border:1px solid color-mix(in srgb, var(--ink) 20%, transparent);
   background:color-mix(in srgb, var(--ink) 10%, var(--pane));color:var(--ink);font-size:var(--fs-13);font-family:var(--mono,monospace)}
 .set-txt:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-@media(max-width:640px){.set-txt{width:100%}}
+@media(max-width:640px){.set-txt{width:100%;flex-basis:100%}}
 /* Z6 follow-up: named style-preset collection */
 .set-row-col{flex-wrap:wrap}
 /* LF34: flex-basis was 100% of the row's full width PLUS a 44px margin-left (to
@@ -877,13 +889,20 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
    (not animatable). A short fade + slight rise/scale reads as more modern and "alive" — matches
    the Z9 ask for tasteful drawer/menu motion. pointer-events:none while closed keeps the (still
    display:block, just invisible) box from intercepting clicks/hover on whatever's behind it. */
+/* N8: --menu-shift is the horizontal nudge clampMenuIntoView() (app/studio.js) applies to
+   keep an open menu on screen. It rides INSIDE the transform rather than adjusting left or
+   right because the two anchoring conventions disagree — the topbar menus are right:0 and
+   `.repo-io .menu` below is left:0;right:auto, so neither offset property moves both. A
+   transform moves any of them, and folding it into the existing translate keeps the
+   open/close animation intact instead of overwriting it. */
 .menu{position:absolute;top:calc(100% + 6px);right:0;background:var(--pane);border:1px solid var(--line);
   border-radius:10px;box-shadow:var(--shadow-lg);padding:var(--sp-6);min-width:230px;z-index:50;
-  opacity:0;visibility:hidden;transform:translateY(-4px) scale(.98);pointer-events:none;
+  opacity:0;visibility:hidden;transform:translate(var(--menu-shift,0px),-4px) scale(.98);pointer-events:none;
   transition:opacity .14s ease,transform .14s ease,visibility 0s linear .14s}
-.menu.open{opacity:1;visibility:visible;transform:translateY(0) scale(1);pointer-events:auto;transition:opacity .14s ease,transform .14s ease}
+.menu.open{opacity:1;visibility:visible;transform:translate(var(--menu-shift,0px),0) scale(1);pointer-events:auto;transition:opacity .14s ease,transform .14s ease}
 .menu{max-height:min(72vh,540px);overflow:auto}
-@media(prefers-reduced-motion:reduce){.menu{transition:none;transform:none}}
+/* the shift is placement, not motion — it has to survive reduced-motion's transform reset */
+@media(prefers-reduced-motion:reduce){.menu{transition:none;transform:translateX(var(--menu-shift,0px))}}
 .menu button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--ink);font-size:var(--fs-13);
   padding:var(--sp-10) var(--sp-12);border-radius:7px;cursor:pointer;font-weight:500}
 .menu button:hover{background:var(--field);color:var(--brand)}
@@ -1734,12 +1753,22 @@ body.lib-dragging #preview{pointer-events:none}
   .topbar-search{width:min(220px,34vw);padding:var(--sp-6) var(--sp-10)}
   .top-app{gap:6px;flex-shrink:0}
 }
-/* phone-pos: examples menu opened from the More menu gets fixed position below the topbar */
-#menuExamples.phone-pos{position:fixed;top:64px;left:8px;right:8px;max-width:none;z-index:60}
+/* N9: the `#menuExamples.phone-pos` rule that sat here is deleted — LF43 slice 2 removed
+   `#menuExamples` itself (the suite asserts both it and `#btnExamples` are gone), so the
+   rule had no element to match. `closeMenus()` still strips the `phone-pos` class defensively;
+   nothing adds it. */
 /* phone-only More menu items: hidden by default, revealed at ≤640px below.
    IMPORTANT: this global rule must appear BEFORE the @media block so the media
-   query's display:block can override it (later = wins in same-specificity cascade). */
-.more-phone-only{display:none}
+   query's display:block can override it (later = wins in same-specificity cascade).
+   N7 (2026-08-08): the BUTTON half of that never actually worked. `.menu button` above sets
+   display:block at (0,1,1) and a bare `.more-phone-only` is (0,1,0), so it lost the cascade
+   outright — order was never the deciding factor for these. Every phone-only entry has
+   therefore ALWAYS rendered on desktop, where the ⋯ menu duplicated the eight toolbar buttons
+   sitting inches away (Undo/Redo/Open…/Save/Save as…/Duplicate/Close/Export…) plus the two
+   topbar icons (What's new, Send feedback). Matching `.menu button`'s specificity fixes it in
+   both directions. The bare selector stays for the `<div class="sep more-phone-only">`
+   separators, which were correctly hidden all along (`.menu .sep` sets no display). */
+.menu button.more-phone-only,.more-phone-only{display:none}
 /* Phone ≤640px: further collapse — hide the dash-id entirely; set mob-tabs-h for banner offset */
 @media(max-width:640px){
   :root{--mob-tabs-h:52px}
@@ -1750,6 +1779,24 @@ body.lib-dragging #preview{pointer-events:none}
      release-gate minimum; inline-flex centering matches the existing rb-acts .btn convention below. */
   .btn{font-size:var(--fs-12);padding:var(--sp-8) var(--sp-10);min-height:44px;display:inline-flex;align-items:center;justify-content:center}
   .btn.icon{padding:var(--sp-8) var(--sp-10);min-width:44px}
+  /* N8: UX7's 44px minimum above landed on `.btn`, but a dropdown row is a bare
+     `.menu button` — so it never applied, and every menu row measured 37px at 390×780
+     (padding 10/12, no min-height). That is now the PRIMARY phone route for ten builder
+     controls (v882 moved them behind ⋯ More), so the whole ⋯ menu was 7px under the bar.
+     flex + align-items:center keeps the label vertically centred in the taller row while
+     the default flex-start preserves the left alignment `.menu button` sets above. */
+  .menu button{min-height:44px;display:flex;align-items:center}
+  /* N9: the catalog toolbars (`.repo-io` — Dashboards, Views, Datasets, Connections, Jobs,
+     Repository) are a nowrap flex row, so on a phone they simply ran off the right edge:
+     measured at 390×780, Dashboards laid its controls out to x=651 against a 390px screen —
+     `Compare dashboards…`, the ⋯ menu and `+ New dashboard` ALL started off-screen, with
+     Datasets' and Connections' `+ New …` crossing the edge too. Nothing said the row scrolled
+     (no fade, no wrap, no scrollbar); the only reason they were reachable at all is that
+     clicking a neighbour scroll-into-views them — which is also what forced N8's re-clamp on
+     scroll. Wrapping is the honest fix at this width: every control keeps its full label and
+     lands inside the viewport, and the row grows downward where there IS room. `align-items`
+     keeps the shorter `.cx-sort` select centred against the 44px buttons on its line. */
+  .repo-io{flex-wrap:wrap;align-items:center}
   /* M10: hide secondary topbar buttons at ALL phone widths; they are accessible via ⋯ More.
      Previously only hidden at ≤400px, leaving mid-size phones (400-640px) with a clipped topbar.
      Slice B/C: Undo/Redo/Open/Save/Save-as/Duplicate/Export moved from #dashbar (or, for
@@ -1758,6 +1805,10 @@ body.lib-dragging #preview{pointer-events:none}
      so they join the same phone hide-behind-More convention rather than crowding that row on
      a 390px screen (moreUndo/moreRedo/moreSaveAsSpec/moreDupDash/moreExport below). */
   #btnExamples,#btnImport,#btnSaveSpec,#btnSaveAsSpec,#btnDupDash,#btnCloseStudio,#btnUndo,#btnRedo,#btnExport{display:none!important}
+  /* N8: `flex`, not `block` — this selector outranks the `.menu button` rule above, so
+     `block` here would have taken the phone-only rows back out of the centred layout the
+     44px minimum needs. The bare `.more-phone-only` half still means the separators. */
+  .menu button.more-phone-only{display:flex}
   .more-phone-only{display:block}
   /* Slice A: on phones the global topbar keeps only its essentials — the section name, a
      compact icon-only search, the waffle, +New and ⋯More — so the section name has room to
@@ -2423,7 +2474,14 @@ body.simple-mode .da-acts{display:none!important}
 .cx-group-del:hover{border-color:#f55036;color:#f55036}
 @media(pointer:coarse){.cx-group-del{opacity:1}}
 @media(prefers-reduced-motion:reduce){.cx-group-del{transition:none}}
-.cx-row{display:flex;align-items:center;gap:12px;background:var(--field);border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+/* KH-023 (Kevin live phone, 2026-08-07): the THIRD sighting of one bug — a row's
+   un-shrinkable badges + action buttons crush .cx-name (the row's only shrinkable
+   item) to a letter-per-line sliver: the connected-backend row (fixed for
+   .ws-current/.ws-secrets), the Views tile foot (fixed for .dsx-tile-foot), and now
+   the Admin users list ("A/d/m/i/n/i/s/t/r/a/t/o/r" down the card). Fixed HERE, on
+   the shared row, so no fourth instance can appear: the row wraps at ANY width, and
+   .cx-name carries a readable floor instead of collapsing to nothing. */
+.cx-row{display:flex;align-items:center;flex-wrap:wrap;gap:12px;background:var(--field);border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);
   border-radius:12px;padding:var(--sp-12) var(--sp-16);cursor:pointer;transition:transform .12s ease,border-color .12s ease,opacity .12s ease}
 /* QA-07 (FRONTEND_QA_REPORT_2026-07-24.md): the row itself is a plain, non-interactive
    container now (no role="button"/tabindex) — its primary action lives on the real
@@ -2473,7 +2531,7 @@ body.simple-mode .da-acts{display:none!important}
 .cx-dot.ok{background:#4cde8c;box-shadow:0 0 6px rgba(76,222,140,.5)}
 .cx-dot.bad{background:#ff5c7a;box-shadow:0 0 6px rgba(255,92,122,.5)}
 .cx-ic{display:flex;align-items:center;flex:0 0 auto}
-.cx-name{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}
+.cx-name{flex:1 1 auto;min-width:140px;display:flex;flex-direction:column;gap:1px}
 /* QA-07: the primary action is a real <button> wrapping the title <b> — reset it to
    read as plain text (no button chrome) while staying a proper focusable control. */
 .cx-title-btn{display:block;width:100%;background:none;border:none;padding:0;margin:0;font:inherit;text-align:left;cursor:pointer}
@@ -2600,7 +2658,9 @@ body.simple-mode .da-acts{display:none!important}
 .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
 .btn.primary:hover{background:color-mix(in srgb,var(--brand) 88%,#000);border-color:color-mix(in srgb,var(--brand) 88%,#000)}
 .cx-wiz-foot .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
-@media(max-width:640px){.cx-when{display:none}.cx-actions{opacity:1}.cx-pin{opacity:1}.cx-private{opacity:1}}
+@media(max-width:640px){.cx-when{display:none}.cx-actions{opacity:1}.cx-pin{opacity:1}.cx-private{opacity:1}
+  /* KH-023: on a phone the buttons get their own line rather than competing with the name */
+  .cx-row>.cx-actions{flex:1 1 100%;justify-content:flex-start}}
 
 /* ── Connection schema browser (post-overhaul backlog item 5) ── */
 .cx-schema{margin-top:12px;border-top:1px solid var(--line);padding-top:var(--sp-12)}

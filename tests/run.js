@@ -239,6 +239,20 @@ let mockFlakyServed = 0;
 // then succeed — simulates the boot race where the first read(s) 401 until a
 // retry, which initSync now does automatically instead of staying red.
 let mockTokenFlaps = 0;
+// N2 slice 4: the REFRESH-token grant. The password grant already handed one
+// out; the refresh grant swaps it for a fresh session and ROTATES it (as a real
+// GoTrue does), so the adapter's "keep the newest token" path runs for real. An
+// unknown/revoked token is refused like a real one — that is what proves a
+// refused refresh is treated as final rather than silently falling back.
+const mockRefreshTokens = new Set(["mock-refresh"]);
+let mockRefreshSeq = 0;
+// N11: arm the NEXT token answer to be TRUNCATED — a real 200 with headers, then
+// the connection ends mid-body. That is what a dropped network (or a tab
+// navigating away mid-flight) actually looks like to fetch: the response
+// resolves, res.json() rejects. Distinct from a refusal, and the adapter has to
+// keep telling the two apart (see the N11 check).
+let mockTokenTruncate = 0;
+function mintMockRefresh() { const t = "mock-refresh-" + ++mockRefreshSeq; mockRefreshTokens.add(t); return t; }
 function handleMockSupabase(req, rep, p) {
   const send = (code, body) => {
     rep.writeHead(code, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*" });
@@ -249,11 +263,22 @@ function handleMockSupabase(req, rep, p) {
   if (rel === "auth/v1/token") {
     const key = req.headers.apikey || "";
     if (key !== "sb_publishable_valid") return send(401, { error: "invalid api key" });
+    if (mockTokenTruncate > 0) {
+      mockTokenTruncate--;
+      req.resume(); // drain the request body; we answer without reading it
+      rep.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+      return rep.end('{"access_token":"mock-gotr'); // cut off mid-JSON
+    }
+    const grant = (req.url.split("grant_type=")[1] || "password").split("&")[0];
     let body = "";
     req.on("data", (c) => (body += c));
     return req.on("end", () => {
       let creds = {};
       try { creds = JSON.parse(body || "{}"); } catch (e) {}
+      if (grant === "refresh_token") {
+        if (!mockRefreshTokens.has(creds.refresh_token)) return send(400, { error: "invalid_grant", error_description: "Invalid Refresh Token" });
+        return send(200, { access_token: MOCK_GOTRUE_TOKEN, token_type: "bearer", expires_in: 3600, refresh_token: mintMockRefresh(), user: { id: MOCK_GOTRUE_USER_ID, email: MOCK_GOTRUE_EMAIL } });
+      }
       if (creds.email === MOCK_GOTRUE_EMAIL && creds.password === MOCK_GOTRUE_PASSWORD) {
         if (mockTokenFlaps > 0) { mockTokenFlaps--; return send(400, { error: "invalid_grant", error_description: "boot flap (test)" }); }
         return send(200, { access_token: MOCK_GOTRUE_TOKEN, token_type: "bearer", expires_in: 3600, refresh_token: "mock-refresh", user: { id: MOCK_GOTRUE_USER_ID, email: creds.email } });
@@ -293,6 +318,7 @@ function handleMockSupabase(req, rep, p) {
   // Drain any un-consumed flaps — a later test that signs in for real must never
   // inherit a leftover invalid_grant from #111's arm (the LF39 direct-auth flake).
   if (rel === "rest/v1/__cleartokenflap") { mockTokenFlaps = 0; return send(200, []); }
+  if (rel === "rest/v1/__armtokentruncate") { mockTokenTruncate = 1; return send(200, []); }
   if (rel === "rest/v1/__flaky_reset") { mockFlakyServed = 0; return send(200, []); }
   if (rel === "rest/v1/__flaky") {
     mockFlakyServed++;
@@ -941,6 +967,16 @@ function serve() {
       ok("AUD-08: sw.js precaches js/changelog-head.js and no longer precaches the full history",
         /"js\/changelog-head\.js"/.test(shellList) && !/"js\/changelog\.js"/.test(shellList),
         "SHELL_FILES slice " + shellList.length + " chars");
+      // The worker itself was the other half of the boot payload: 2,454 lines of per-bump
+      // release notes ahead of the code, re-fetched on every SW update check. They live in
+      // docs/sw-history.md now. tools/validate.mjs holds the byte budget in the dev gate;
+      // these two checks pin the SHAPE — no version-note block, and the archive still there.
+      ok("AUD-08: sw.js carries no release-note history block (it is in docs/sw-history.md)",
+        swSrc.length < 16 * 1024 && (swSrc.match(/^\/\* v\d+:/gm) || []).length === 0,
+        swSrc.length + " bytes");
+      ok("AUD-08: docs/sw-history.md holds the archived notes",
+        fs.existsSync(path.join(ROOT, "docs/sw-history.md")) &&
+        /## v19\b/.test(fs.readFileSync(path.join(ROOT, "docs/sw-history.md"), "utf8")));
       const idxSrc = fs.readFileSync(path.join(ROOT, "app/index.html"), "utf8");
       ok("AUD-08: app/index.html boots the head file only",
         /<script src="js\/changelog-head\.js"><\/script>/.test(idxSrc) && !/src="js\/changelog\.js"/.test(idxSrc), "");
@@ -1126,6 +1162,130 @@ function serve() {
     });
     ok("390px: the fleet grid opens fully on-screen", wafflePhonePop.present && wafflePhonePop.fits, JSON.stringify(wafflePhonePop));
     await wafflePhone.close();
+
+    /* ---- N8: every dropdown row clears the touch bar, and no menu opens off-screen ----
+       UX7 set a 44px minimum "across the whole ≤640px band" but the rule landed on `.btn`,
+       and a menu row is a bare `.menu button` — so every row measured 37px at 390×780, on
+       the ten builder controls v882 made ⋯ More the primary phone route for. Measuring all
+       seven menus for that also turned up two that opened partly OFF-SCREEN: #viewsNewMenu
+       lost 135px off the right edge and #dashMoreMenu 13px, because `.repo-io .menu` is
+       left-anchored inside a toolbar row that overflows a 390px screen. Both are asserted
+       here at phone AND desktop so neither can come back. */
+    console.log("\n• N8: dropdown menus — 44px rows on phone, always inside the viewport");
+    const N8_MENUS = [
+      { id: "menuNew", sec: "home", trigger: "#btnNew" },
+      { id: "menuMore", sec: "home", trigger: "#btnMore" },
+      { id: "dashMoreMenu", sec: "dashboards", trigger: "#dashMoreBtn" },
+      { id: "viewsNewMenu", sec: "views", trigger: "#viewsNewBtn" },
+      { id: "repoNewMenu", sec: "repository", trigger: "#repoNewBtn" },
+      // Export's own topbar button is hidden at ≤640px (M10) — on a phone the real route
+      // is ⋯ More → Export…, which is exactly what v882 documented in Help.
+      { id: "menuExport", sec: "studio", trigger: "#btnExport", viaMore: "#moreExport" },
+    ];
+    // Clicking a control inside a horizontally overflowing toolbar scroll-into-views it
+    // SMOOTHLY, so the menu keeps moving for ~1s after the click and the clamp re-runs on
+    // each scroll frame. Poll until the box stops changing instead of guessing a timeout.
+    async function n8Settled(pg, id) {
+      let last = null;
+      for (let i = 0; i < 40; i++) {
+        const now = await pg.evaluate(function (mid) {
+          var m = document.getElementById(mid); if (!m) return "gone";
+          var r = m.getBoundingClientRect();
+          return [Math.round(r.left), Math.round(r.right), Math.round(r.top), Math.round(r.bottom)].join(",");
+        }, id);
+        if (now === last) return;
+        last = now; await pg.waitForTimeout(50);
+      }
+    }
+    for (const vp of [{ width: 390, height: 780 }, { width: 1280, height: 900 }]) {
+      const phone = vp.width === 390;
+      const mp = await browser.newPage({ viewport: vp });
+      await mp.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-shell-section", "home"); } catch (e) {} });
+      await mp.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+      await mp.waitForSelector("#btnMore", { timeout: 8000 });
+      const bad = [];
+      for (const m of N8_MENUS) {
+        // navigate by the rail's own button; a JS click reaches it even when the rail is
+        // the off-canvas drawer it becomes on a phone
+        await mp.evaluate(function (s) { var el = document.querySelector('[data-sec="' + s + '"]'); if (el) el.click(); }, m.sec);
+        await mp.waitForTimeout(350);
+        const direct = await mp.$(m.trigger);
+        if (direct && await direct.isVisible()) await direct.click();
+        else if (m.viaMore) { await mp.click("#btnMore"); await mp.waitForTimeout(200); await mp.click(m.viaMore); }
+        else { bad.push(m.id + ": no reachable trigger"); continue; }
+        await n8Settled(mp, m.id);
+        const r = await mp.evaluate(function (mid) {
+          var m2 = document.getElementById(mid), box = m2.getBoundingClientRect();
+          var rows = Array.prototype.slice.call(m2.querySelectorAll("button")).filter(function (b) {
+            var cs = getComputedStyle(b); return cs.display !== "none" && cs.visibility !== "hidden";
+          });
+          return {
+            open: m2.classList.contains("open"), rows: rows.length,
+            minRow: rows.length ? Math.min.apply(Math, rows.map(function (b) { return Math.round(b.getBoundingClientRect().height); })) : 0,
+            inView: box.left >= 0 && box.top >= 0 && box.right <= innerWidth && box.bottom <= innerHeight,
+            box: [Math.round(box.left), Math.round(box.top), Math.round(box.right), Math.round(box.bottom)].join(","),
+            shift: m2.style.getPropertyValue("--menu-shift") || "",
+          };
+        }, m.id);
+        if (!r.open || !r.rows) bad.push(m.id + ": did not open (" + JSON.stringify(r) + ")");
+        else if (!r.inView) bad.push(m.id + ": outside the viewport at " + r.box);
+        else if (phone && r.minRow < 44) bad.push(m.id + ": " + r.minRow + "px row (needs 44)");
+        // desktop has room for every one of them, so the clamp must stay out of the way
+        else if (!phone && r.shift) bad.push(m.id + ": clamped on desktop (" + r.shift + ")");
+      }
+      ok(`N8 ${vp.width}px: all ${N8_MENUS.length} dropdown menus open fully inside the viewport` +
+        (phone ? " with every row at the 44px touch minimum" : ", and the clamp leaves them alone when there is room"),
+        bad.length === 0, bad.join(" | "));
+      await mp.close();
+    }
+
+    /* ---- N9a: the catalog toolbars themselves fit the phone ----
+       N8 fixed the MENUS; this is the rows they hang off, and it was the bigger half.
+       Measured at 390×780 before the fix, the Dashboards `.repo-io` row laid its controls
+       out to x=651 against a 390px screen — `Compare dashboards…`, the ⋯ menu-wrap and
+       `+ New dashboard` ALL started off the right edge — and Datasets' and Connections'
+       `+ New …` crossed it too. The row is `display:flex` with no wrap and no scroll
+       affordance; the only reason those controls were reachable is that clicking a
+       neighbour scroll-into-views them. `.repo-io` now wraps at ≤640px. This asserts the
+       property that matters — every control's box inside the viewport — one level up from
+       N8's menu assertion, and at desktop too so the wrap can't leak upward into a row
+       that has room for one line. */
+    console.log("\n• N9a: catalog toolbars — every control inside the viewport on a phone");
+    const N9_SECS = ["dashboards", "views", "datasets", "connections", "jobs", "repository"];
+    for (const vp of [{ width: 390, height: 780 }, { width: 1280, height: 900 }]) {
+      const phone = vp.width === 390;
+      const mp = await browser.newPage({ viewport: vp });
+      await mp.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-shell-section", "home"); } catch (e) {} });
+      await mp.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+      await mp.waitForSelector("#btnMore", { timeout: 8000 });
+      const bad = [];
+      for (const sec of N9_SECS) {
+        await mp.evaluate(function (s) { var el = document.querySelector('[data-sec="' + s + '"]'); if (el) el.click(); }, sec);
+        await mp.waitForTimeout(350);
+        const r = await mp.evaluate(function () {
+          var section = Array.prototype.slice.call(document.querySelectorAll(".app-sec")).filter(function (s) { return !s.hidden; })[0];
+          var row = section && section.querySelector(".repo-io");
+          if (!row) return { missing: true };
+          // the row's own children ARE the controls (select / .btn / .menu-wrap); an open
+          // menu is what N8 covers, so measure the closed row only
+          var out = Array.prototype.slice.call(row.children).filter(function (c) {
+            var cs = getComputedStyle(c); return cs.display !== "none" && cs.visibility !== "hidden";
+          }).map(function (c) {
+            var b = c.getBoundingClientRect();
+            return { id: c.id || c.className, left: Math.round(b.left), right: Math.round(b.right) };
+          }).filter(function (c) { return c.left < 0 || c.right > window.innerWidth; });
+          return { missing: false, wrap: getComputedStyle(row).flexWrap, out: out };
+        });
+        if (r.missing) { bad.push(sec + ": no .repo-io row"); continue; }
+        if (r.out.length) bad.push(sec + ": " + r.out.map(function (c) { return c.id + " at " + c.left + "–" + c.right; }).join(", "));
+        // one line is the desktop design; wrapping there would mean the ≤640px rule leaked
+        if (!phone && r.wrap !== "nowrap") bad.push(sec + ": wraps on desktop");
+      }
+      ok(`N9a ${vp.width}px: every control in all ${N9_SECS.length} catalog toolbars is inside the viewport` +
+        (phone ? " (the row wraps instead of running off the edge)" : ", and the rows stay a single unwrapped line"),
+        bad.length === 0, bad.join(" | "));
+      await mp.close();
+    }
 
     // ---- WS: adapter infrastructure (app/sources/) ----
     // The manager-pattern source layer: schema/contract, registry, workspace
@@ -6665,9 +6825,58 @@ function serve() {
         matchesDaOps: opts.every(function (o, i) { return o.t === Studio.DA_OPS[i].label; })
       };
     });
-    ok("AUD-06(3): the job Filter step's operator dropdown is the shared vocabulary — 8 ops, DA labels, job spelling, no raw ids",
-      jobCmpDrop.count === 8 && jobCmpDrop.values === "eq,ne,gt,gte,lt,lte,contains,startsWith"
+    ok("AUD-06(3/5): the job Filter step's operator dropdown is the shared vocabulary — 9 ops (slice 5 added the date range), DA labels, job spelling, no raw ids",
+      jobCmpDrop.count === 9 && jobCmpDrop.values === "eq,ne,gt,gte,lt,lte,contains,startsWith,inRange"
       && jobCmpDrop.selected === "eq" && jobCmpDrop.noRawIds && jobCmpDrop.matchesDaOps, JSON.stringify(jobCmpDrop));
+
+    // AUD-06 slice 5: picking "in date range" turns the value box into the
+    // relative-range dropdown (a rule, not a typed value) — and switching back
+    // to a comparison drops the range token instead of leaving "last30d"
+    // sitting in a text box where it would silently match nothing.
+    const jobRangeCtl = await page.evaluate(function () {
+      function cmpSelect() {
+        var card = document.querySelectorAll(".jobs-step-card")[0];
+        // the operator select is the one whose value is a known operator (the
+        // column select holds a column name; a range select holds a range token)
+        return Array.prototype.slice.call(card.querySelectorAll(".jobs-step-fields select")).filter(function (s) {
+          return !!Studio.filterOps.normalize(s.value);
+        })[0];
+      }
+      function fields() { return document.querySelectorAll(".jobs-step-card")[0].querySelector(".jobs-step-fields"); }
+      var sel = cmpSelect();
+      sel.value = "inRange"; sel.dispatchEvent(new Event("change"));
+      var f = fields();
+      var selects = Array.prototype.slice.call(f.querySelectorAll("select"));
+      var rangeSel = selects[selects.length - 1];
+      var after = {
+        rangeIsSelect: rangeSel && rangeSel.tagName === "SELECT",
+        rangeCount: rangeSel ? rangeSel.options.length : 0,
+        rangeOffersAll: rangeSel ? rangeSel.options.length === Studio.filterOps.RANGES.length : false,
+        rangeValue: rangeSel ? rangeSel.value : "",
+        // same rule as the registry check: a range token never renders as its
+        // own label unless the token already reads as English
+        rangeLabelled: rangeSel ? Array.prototype.slice.call(rangeSel.options).every(function (o) {
+          return !!o.textContent && (o.textContent !== o.value || /^[a-z]+$/.test(o.value));
+        }) : false,
+        noTextBox: f.querySelectorAll('input[type="text"]').length === 0
+      };
+      var sel2 = cmpSelect();
+      sel2.value = "gte"; sel2.dispatchEvent(new Event("change"));
+      var f2 = fields();
+      var txt = f2.querySelector('input[type="text"]');
+      after.backToText = !!txt;
+      after.backEmpty = txt ? txt.value === "" : false;
+      after.rangeGone = Array.prototype.slice.call(f2.querySelectorAll("select")).every(function (s) {
+        return !Studio.filterOps.rangeBounds(s.value);
+      });
+      // leave the step the way the earlier checks found it
+      var sel3 = cmpSelect(); sel3.value = "eq"; sel3.dispatchEvent(new Event("change"));
+      return after;
+    });
+    ok("AUD-06(5): the job Filter step's value box becomes the relative-range dropdown for 'in date range', and switching back to a comparison clears the range token",
+      jobRangeCtl.rangeIsSelect && jobRangeCtl.rangeOffersAll && jobRangeCtl.rangeValue === "last30d"
+      && jobRangeCtl.rangeLabelled && jobRangeCtl.noTextBox && jobRangeCtl.backToText
+      && jobRangeCtl.backEmpty && jobRangeCtl.rangeGone, JSON.stringify(jobRangeCtl));
     await page.evaluate(function () {
       document.querySelector(".modal-ov .x").click();
       Studio.Workspace.all("jobs").filter(function (j) { return j.name === "coldrop-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
@@ -7879,6 +8088,63 @@ function serve() {
     ok("AUD-06: Datasets' 'Clear' chip appears for a search-only filter and empties the search box",
       dsxSearchClear.shownWhileSearching === 1 && dsxSearchClear.hasClear && dsxSearchClear.q === "",
       JSON.stringify(dsxSearchClear));
+
+    // ── AUD-06 slice 6 (audit §2.1, "the 11 other search affordances") ───────────────
+    // The kit stopped being catalog-only. Every other search box — the Studio library, the
+    // inspector, the chart gallery, ⌘K, the What's-new feed, the folder picker, the Explore
+    // and View Builder panes, the connection schema browser, the value filter — matches
+    // through Studio.catalogSearch now, so one query means one thing app-wide. Two small
+    // additions carry the surfaces the catalog panels never needed: textMatcher, for a "row"
+    // that IS a plain string (a folder path, a card's text), and markRe, for the one surface
+    // that highlights its hits and would otherwise mark nothing on a multi-word match.
+    const searchKit6 = await page.evaluate(function () {
+      var CS = Studio.catalogSearch;
+      var tm = CS.textMatcher("crops 2024");
+      function marked(text, q) {
+        var re = CS.markRe(q);
+        return re ? text.replace(re, function (m) { return "[" + m + "]"; }) : text;
+      }
+      return {
+        textAnyOrder: tm("Cover crops filed under 2024"),
+        textMissing: tm("Cover crops filed under 2025"),
+        textEmptyAll: CS.textMatcher("   ")("anything"),
+        // A two-word query has no literal "export panel" to mark, so mark both terms.
+        marks: marked("Panel export failed", "export panel"),
+        markNoQuery: CS.markRe("   ") === null,
+        // Longest-first, or "filter" eats the head of "filtering" and the mark reads wrong.
+        markLongest: marked("filtering", "filter filtering")
+      };
+    });
+    ok("AUD-06: catalogSearch.textMatcher applies the same term rules to a plain-string haystack (any order, all terms required, empty matches all)",
+      searchKit6.textAnyOrder && !searchKit6.textMissing && searchKit6.textEmptyAll, JSON.stringify(searchKit6));
+    ok("AUD-06: catalogSearch.markRe highlights every TERM (longest first) and is null for an empty query",
+      searchKit6.marks === "[Panel] [export] failed" && searchKit6.markNoQuery &&
+      searchKit6.markLongest === "[filtering]", JSON.stringify(searchKit6));
+
+    // The What's-new feed is the surface where matching and marking meet: it now finds an
+    // entry whose terms live in different fields (the version label vs the body), and marks
+    // both of them.
+    const clSearchTerms = await page.evaluate(async function () {
+      if (Studio.loadChangelog) await Studio.loadChangelog();
+      var log = window.STUDIO_CHANGELOG || [];
+      var target = log.filter(function (e) { return typeof e.v === "number" && (e.items || []).length; })[0];
+      if (!target) return { skipped: true };
+      // A word from the entry's BODY plus the entry's own version label — two fields, and
+      // deliberately in the order the old literal-substring match could never have found.
+      var word = (target.items.join(" ").match(/[A-Za-z]{6,}/) || ["changelog"])[0].toLowerCase();
+      var q = word + " v" + target.v;
+      var hits = log.filter(Studio.catalogSearch.matcher(q, function (e) {
+        return [typeof e.v === "number" ? "v" + e.v : e.v, e.title, e.ts || e.date, e.items];
+      }));
+      var flat = ("v" + target.v + " " + target.title + " " + target.items.join(" ")).toLowerCase();
+      return {
+        q: q, hitCount: hits.length, foundTarget: hits.indexOf(target) >= 0,
+        noLiteralRun: flat.indexOf(q) < 0,
+        marks: (target.items[0] || "").replace(Studio.catalogSearch.markRe(q), function (m) { return "[" + m + "]"; })
+      };
+    });
+    ok("AUD-06: the What's-new feed matches terms across an entry's version label and its body — a query with no literal run in the entry still finds it",
+      clSearchTerms.skipped || (clSearchTerms.foundTarget && clSearchTerms.noLiteralRun), JSON.stringify(clSearchTerms));
 
     // ── AUD-06 slice 2 (audit §2.1, family D): ONE shared catalog FACET kit ───────────
     // Studio.catalogFacets is the third and last axis (SORT-1 did sorting, slice 1 search):
@@ -15770,7 +16036,10 @@ function serve() {
     ok("Z13: marketing-growth covers all 10 target chart types", wantMktTypes.every((t) => mktShow.types.includes(t)), mktShow.types.join(","));
     ok("Z13: every marketing-growth panel renders visual content", Object.values(mktShow.perType).every((n) => n > 0), JSON.stringify(mktShow.perType));
 
-    // ---- Z13: "reliability-distributions" showcase covers the last 4 chart types (boxplot/violin/beeswarm/ridgeline) — gallery now 51/51 ----
+    // ---- Z13: "reliability-distributions" showcase covers the last 4 chart types (boxplot/violin/beeswarm/ridgeline) ----
+    // (this closed the gallery's last coverage gap at 51 types; the registry has grown since, and
+    //  "every chart type has a sample" is now measured from the registry by tools/doc-truth.mjs
+    //  rather than asserted here against a frozen number)
     console.log("\n• Z13: reliability-distributions showcase (boxplot/violin/beeswarm/ridgeline) — gallery coverage complete");
     const relShow = await page.evaluate(async () => {
       const spec = await fetch("data/examples/reliability-distributions.studio.json").then((r) => r.json());
@@ -15802,7 +16071,7 @@ function serve() {
     });
     const wantRelTypes = ["boxplot", "violin", "beeswarm", "ridgeline"];
     ok("Z13: reliability-distributions is listed among the bundled examples", relShow.inIndex);
-    ok("Z13: reliability-distributions covers all 4 remaining chart types (51/51 gallery coverage)",
+    ok("Z13: reliability-distributions covers boxplot/violin/beeswarm/ridgeline",
       wantRelTypes.every((t) => relShow.types.includes(t)), relShow.types.join(","));
     ok("Z13: every reliability-distributions panel renders visual content", Object.values(relShow.perType).every((n) => n > 0), JSON.stringify(relShow.perType));
     ok("Z13 multi-row sample data: distribution DAs get >8 rows with real per-row spread (not one point per label)",
@@ -17224,7 +17493,9 @@ function serve() {
     ok("AUD-09: app/gate-config.js is gone", !fs.existsSync(path.join(ROOT, "app", "gate-config.js")));
     ok("AUD-09: tools/gen-code.js (its hash generator) is gone", !fs.existsSync(path.join(ROOT, "tools", "gen-code.js")));
     // Match the ways it could actually LOAD -- a <script src> or a precache-list entry --
-    // rather than any mention, so sw.js's historical release-notes block stays untouched.
+    // rather than any mention. (Written when sw.js still carried its release-notes block,
+    // which mentioned the file; AUD-08 has since archived those notes to docs/sw-history.md,
+    // but matching the load shape rather than the name is still the right test.)
     const gateRefFiles = ["app/index.html", "app/viewer.html", "sw.js"];
     const gateRefs = gateRefFiles.filter((f) => /["'][^"']*gate-config\.js["']/.test(fs.readFileSync(path.join(ROOT, f), "utf8")));
     ok("AUD-09: nothing loads or precaches gate-config.js", gateRefs.length === 0, gateRefs.join(","));
@@ -17342,8 +17613,45 @@ function serve() {
         allNamesPresent: installed.every(function (id) { return titles.indexOf(packs[id].name) >= 0; })
       };
     });
-    ok("LF40: the welcome carousel adds one curated-content step per installed sample pack (6-step base incl. TOUR-WOW's View Builder step + N packs)",
-      packAware.allNamesPresent && packAware.titleCount === 6 + packAware.installedCount, JSON.stringify(packAware));
+    ok("LF40: the welcome carousel adds one curated-content step per installed sample pack (7-step base incl. TOUR-WOW's View Builder step + N7's workspace-catalogs step + N packs)",
+      packAware.allNamesPresent && packAware.titleCount === 7 + packAware.installedCount, JSON.stringify(packAware));
+    // N7 (2026-08-07): the quick tour never named the rail's Workspace group — the Views
+    // catalog (LF57), the Dashboards catalog and Repository were all absent, so "what each
+    // part of the app is for" skipped a whole third of the rail. tools/doc-truth.mjs check 12
+    // holds BASE_STEPS accountable to the rail's section list; this asserts the step a visitor
+    // actually SEES, rendered, with the labels the rail uses.
+    //
+    // Walk the RENDERED carousel rather than indexing computeStepTitles(): the live array is
+    // whatever open() computed, and a pack that finishes installing after that point makes a
+    // freshly-computed index disagree with the deck on screen.
+    const wsWalk = await gp.evaluate(async () => {
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      var guard = 0, seen = [];
+      while (guard++ < 14) {
+        var t = ((document.querySelector("#studio-welcome .sw-hd h1") || {}).textContent || "");
+        seen.push(t);
+        if (/Your workspace/i.test(t)) return { found: true, steps: seen.length - 1, seen: seen };
+        var nx = document.querySelector('#studio-welcome [data-act="next"]');
+        if (!nx || /Finish/.test(nx.textContent)) break;
+        nx.click(); await sleep(90);
+      }
+      return { found: false, steps: seen.length - 1, seen: seen };
+    });
+    ok("N7: the welcome quick tour has a workspace-catalogs card", wsWalk.found, JSON.stringify(wsWalk.seen));
+    const wsCopy = await gp.evaluate(() => {
+      var bd = document.querySelector("#studio-welcome .sw-bd");
+      var hd = document.querySelector("#studio-welcome .sw-hd h1");
+      var bolds = [].map.call(bd.querySelectorAll("b"), (b) => b.textContent);
+      return { title: hd ? hd.textContent : "", bolds: bolds };
+    });
+    ok("N7: that step names Views, Dashboards, Repository and Home by their rail labels",
+      ["Views", "Dashboards", "Repository", "Home"].every((l) => wsCopy.bolds.indexOf(l) >= 0),
+      JSON.stringify(wsCopy));
+    // Back to step 0, so the icon checks below still start where they always did.
+    for (let s = 0; s < wsWalk.steps; s++) { await gp.click('#studio-welcome [data-act="back"]'); await gp.waitForTimeout(80); }
+    ok("N7: paging back from the workspace card lands on the carousel's first step again",
+      await gp.evaluate(() => !!document.querySelector('#studio-welcome [data-act="next"]') &&
+        !document.querySelector('#studio-welcome [data-act="quicktour"]')));
     // UX6 (icon migration): each step tile used to bake a raw Unicode letter glyph
     // (P/◈/▥/⤓/⚙, a full-color-font miss) into the header -- now a themed Studio.icon SVG,
     // and it swaps per step (not the same icon stuck on every tile).
@@ -18053,6 +18361,307 @@ function serve() {
     await gpFix2.close();
     ok("GATE-FIX-2: a users row missing its gotrueId stamp still adopts by the verified sign-in EMAIL, and the uid gets stamped onto the account (self-healing the link)",
       fix2.gateGone && fix2.who === "owner@example.com" && fix2.stampedUid === MOCK_GOTRUE_USER_ID, JSON.stringify(fix2));
+
+    // ---- N2 slice 3 (M7): THE CLIENT FLIP — on a bound Supabase workspace the
+    // DATABASE decides who gets in, not the mirrored local password hash. Before
+    // this, Auth.verify() ran FIRST and a matching local row signed you straight
+    // in without the workspace ever being asked; GoTrue was only the fallback.
+    // These checks pin the new precedence AND the two things it must not break:
+    // a rejection is final (no local second vote), but an UNREACHABLE backend
+    // still falls back locally so going offline can't lock anyone out. ----
+    console.log("\n• N2 slice 3: the client flip (the workspace decides)");
+    await fetch(`http://localhost:${PORT}/__supabase/rest/v1/__cleartokenflap`, { headers: { apikey: "sb_publishable_valid" } });
+    const gpFlip = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpFlip.on("pageerror", (e) => errors.push("N2 client-flip page: " + e.message));
+    await gpFlip.addInitScript((port) => {
+      try { localStorage.setItem("analytics.datasource.v1", JSON.stringify({ sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid" }, at: 1 })); } catch (e) {}
+    }, PORT);
+    await gpFlip.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpFlip.waitForFunction(() => {
+      if (!window.Studio || !Studio.Sync) return false;
+      var s = Studio.Sync.syncState();
+      return s.sourceId === "supabase" && s.status !== "connecting";
+    }, { timeout: 20000 }).catch(() => {});
+    await gpFlip.waitForSelector("#g-form", { timeout: 4000 });
+
+    // A) the adapter reports WHY it failed — the distinction the flip rests on.
+    const flipAdapter = await gpFlip.evaluate(async (port) => {
+      const good = { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid" };
+      const rejected = await Studio.supabaseSource.authenticate(good, { email: "owner@example.com", password: "definitely-wrong" });
+      // a port nothing is listening on = a genuine network failure, not a "no"
+      const offline = await Studio.supabaseSource.authenticate({ url: "http://127.0.0.1:39123/__supabase", key: "sb_publishable_valid" }, { email: "owner@example.com", password: "secret123" });
+      return { rejectedOk: rejected.ok, rejectedUnreachable: !!rejected.unreachable,
+               offlineOk: offline.ok, offlineUnreachable: !!offline.unreachable };
+    }, PORT);
+    ok("N2 FLIP: supabaseSource.authenticate() distinguishes a GoTrue REJECTION (unreachable:false) from never reaching GoTrue at all (unreachable:true) — the signal the gate needs to know whether a 'no' is authoritative",
+      flipAdapter.rejectedOk === false && flipAdapter.rejectedUnreachable === false &&
+      flipAdapter.offlineOk === false && flipAdapter.offlineUnreachable === true, JSON.stringify(flipAdapter));
+
+    // B) THE FLIP ITSELF: a local row whose password hash DOES match is no longer
+    // enough. Seed one, type its real local password, and watch the workspace
+    // refuse it — pre-flip this signed straight in.
+    await gpFlip.evaluate(() => {
+      Studio.Sync.pullNow = function () { return Promise.resolve(); };
+      return window.PolecatAuth.upsert("owner@example.com", { name: "Local Owner", role: "admin", demo: false, pass: "localonly123" });
+    });
+    await gpFlip.fill("#g-user", "owner@example.com");
+    await gpFlip.fill("#g-pass", "localonly123");
+    await gpFlip.click("#g-form button[type=submit]");
+    await gpFlip.waitForFunction(() => /match/.test((document.getElementById("g-err") || {}).textContent || ""), { timeout: 8000 }).catch(() => {});
+    const flipRefused = await gpFlip.evaluate(async () => ({
+      gateStillUp: !!document.querySelector("#studio-gate"),
+      signedIn: !!window.PolecatAuth.current(),
+      // the whole point: the LOCAL hash really does match — and it still didn't get in
+      localHashMatches: await window.PolecatAuth.verify("owner@example.com", "localonly123"),
+      gateErr: (document.getElementById("g-err") || {}).textContent || ""
+    }));
+    ok("N2 FLIP: on a bound Supabase workspace a MATCHING local password hash no longer signs an email account in — the workspace's own rejection is final, and the message says sign-in is decided by the workspace",
+      flipRefused.gateStillUp && !flipRefused.signedIn && flipRefused.localHashMatches === true &&
+      /decided by the workspace/.test(flipRefused.gateErr), JSON.stringify(flipRefused));
+
+    // C) NO LOCKOUT: when the workspace can't be REACHED (offline/CORS) the same
+    // account signs in on its local hash exactly as before. "We never asked" must
+    // never be treated as "the database said no".
+    await gpFlip.evaluate(() => {
+      Studio.supabaseSource.authenticate = function () {
+        return Promise.resolve({ ok: false, unreachable: true, error: "Could not reach Supabase Auth (network or CORS): test" });
+      };
+    });
+    await gpFlip.fill("#g-pass", "localonly123");
+    await gpFlip.click("#g-form button[type=submit]");
+    await gpFlip.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 8000 }).catch(() => {});
+    const flipOffline = await gpFlip.evaluate(() => ({
+      gateGone: !document.querySelector("#studio-gate"),
+      who: (window.PolecatAuth.current() || {}).u,
+      gateErr: (document.getElementById("g-err") || {}).textContent || ""
+    }));
+    await gpFlip.close();
+    ok("N2 FLIP: an UNREACHABLE workspace falls back to the local sign-in path — going offline never locks a user out of their own device",
+      flipOffline.gateGone && flipOffline.who === "owner@example.com", JSON.stringify(flipOffline));
+
+    // ---- N2 slice 4 (M7, the last of it): the workspace password stops being
+    // stored. It used to ride the connection cfg into localStorage so the
+    // adapter could re-mint an expired JWT from it; now the adapter keeps the
+    // REFRESH TOKEN GoTrue already returns, in sessionStorage (the AUD-03
+    // posture). These checks pin all four halves: nothing at rest, a reload
+    // re-mints from the token, an already-stored password is migrated away
+    // without signing anyone out, and a browser with no resumable session is
+    // asked for the password instead of silently reading the workspace as
+    // anon (which authenticated-only RLS answers with an EMPTY workspace). ----
+    console.log("\n• N2 slice 4: the password stops being persisted");
+    await fetch(`http://localhost:${PORT}/__supabase/rest/v1/__cleartokenflap`, { headers: { apikey: "sb_publishable_valid" } });
+    const gpPw = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpPw.on("pageerror", (e) => errors.push("N2 slice4 page: " + e.message));
+    // Guarded, because this page RELOADS below and the reload must inherit what
+    // the sign-in wrote, not the pristine seed.
+    await gpPw.addInitScript((port) => {
+      try {
+        if (!localStorage.getItem("analytics.datasource.v1")) {
+          localStorage.setItem("analytics.datasource.v1", JSON.stringify({ sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid" }, at: 1 }));
+        }
+      } catch (e) {}
+    }, PORT);
+    await gpPw.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpPw.waitForFunction(() => {
+      if (!window.Studio || !Studio.Sync) return false;
+      var s = Studio.Sync.syncState();
+      return s.sourceId === "supabase" && s.status !== "connecting";
+    }, { timeout: 20000 }).catch(() => {});
+    await gpPw.waitForSelector("#g-form", { timeout: 8000 });
+    // The gate adopts the local identity carrying the verified auth uid out of
+    // Studio.Workspace's users table (gate.js findUserByGotrue) — same seed shape
+    // the LF39 direct-auth check uses, planted after the boot pull has settled so
+    // a late replaceAll can't wipe it.
+    await gpPw.evaluate(() => {
+      // The mock GoTrue hands every sign-in the SAME uid, and the mock backend
+      // carries earlier tests' users rows — so the LF39 fixture ("gtmate", planted
+      // with this very uid) is still in the table and gate.js findUserByGotrue
+      // adopts IT rather than the owner row seeded below (first match wins). That
+      // is a fixture collision, not app behavior: two accounts can never share a
+      // real auth uid. Drop any other row carrying this uid so the check tests
+      // what it says it tests — where the PASSWORD ends up, not which fixture
+      // happened to be planted first.
+      Studio.Workspace.all("users").forEach(function (u) {
+        if (u.gotrueId === "11111111-1111-1111-1111-111111111111" && u.u !== "owner@example.com") {
+          Studio.Workspace.remove("users", u.id, { silent: true });
+        }
+      });
+      Studio.Workspace.put("users", { id: "user_owner", u: "owner@example.com", name: "Owner", role: "admin", demo: false, gotrueId: "11111111-1111-1111-1111-111111111111" }, { silent: true });
+      Studio.Sync.pullNow = function () { return Promise.resolve(); }; // sync detail, not what's under test
+    });
+    await gpPw.fill("#g-user", "owner@example.com");
+    await gpPw.fill("#g-pass", "secret123"); // the workspace's real GoTrue password
+    await gpPw.click("#g-form button[type=submit]");
+    await gpPw.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 10000 }).catch(() => {});
+    const pwAtRest = await gpPw.evaluate(() => {
+      var everything = Object.keys(localStorage).map(function (k) { return k + "=" + localStorage.getItem(k); }).join("\n");
+      var conn = JSON.parse(localStorage.getItem("analytics.datasource.v1") || "null") || {};
+      var store = JSON.parse(sessionStorage.getItem("analytics.supabase.refresh.v1") || "{}");
+      var keys = Object.keys(store);
+      return {
+        signedIn: (window.PolecatAuth.current() || {}).u,
+        email: (conn.cfg || {}).authEmail || "",
+        passwordField: (conn.cfg || {}).authPassword,
+        anywhereInLocalStorage: /secret123/.test(everything),
+        tokenKeys: keys.length, token: keys.length ? store[keys[0]] : ""
+      };
+    });
+    ok("N2 slice 4: after signing in, the workspace password is NOWHERE in localStorage — the connection record keeps the email (not a secret) and drops authPassword entirely",
+      pwAtRest.signedIn === "owner@example.com" && pwAtRest.email === "owner@example.com" &&
+      pwAtRest.passwordField === undefined && pwAtRest.anywhereInLocalStorage === false, JSON.stringify(pwAtRest));
+    ok("N2 slice 4: what IS kept is GoTrue's refresh token, in sessionStorage (the AUD-03 posture — gone when the tab closes)",
+      pwAtRest.tokenKeys === 1 && /^mock-refresh/.test(pwAtRest.token), JSON.stringify(pwAtRest));
+
+    // The whole point of keeping the token: a RELOAD (no password anywhere) must
+    // still reach the workspace as this user, by re-minting from the token.
+    await gpPw.reload({ waitUntil: "domcontentloaded" });
+    await gpPw.waitForFunction(() => {
+      if (!window.Studio || !Studio.Sync) return false;
+      var s = Studio.Sync.syncState();
+      return s.sourceId === "supabase" && s.status !== "connecting";
+    }, { timeout: 20000 }).catch(() => {});
+    const pwRemint = await gpPw.evaluate(async () => {
+      var st = Studio.Sync.syncState();
+      var cfg = Studio.Sync.currentConfig() || {};
+      var signIn = await Studio.supabaseSource.signIn(cfg);
+      var store = JSON.parse(sessionStorage.getItem("analytics.supabase.refresh.v1") || "{}");
+      var keys = Object.keys(store);
+      return {
+        gateGone: !document.querySelector("#studio-gate"),
+        needsSignIn: Studio.Sync.needsSignIn(),
+        status: st.status, preAuth: !!st.preAuth,
+        passwordInMemory: cfg.authPassword,
+        userId: signIn.userId || "", signInOk: signIn.ok,
+        token: keys.length ? store[keys[0]] : ""
+      };
+    });
+    ok("N2 slice 4: a reload with NO password anywhere re-mints the session from the refresh token — the workspace connects as the real user, the gate stays out of the way, and pulls are never latched off",
+      pwRemint.gateGone && pwRemint.needsSignIn === false && pwRemint.status === "connected" &&
+      pwRemint.preAuth === false && pwRemint.passwordInMemory === undefined &&
+      pwRemint.signInOk && pwRemint.userId === "11111111-1111-1111-1111-111111111111", JSON.stringify(pwRemint));
+    ok("N2 slice 4: the refresh grant's ROTATED token replaces the one it was spent — the stored token is no longer the original password grant's",
+      /^mock-refresh-/.test(pwRemint.token) && pwRemint.token !== pwAtRest.token, JSON.stringify({ before: pwAtRest.token, after: pwRemint.token }));
+
+    // A refused refresh (revoked, rotated out, password changed in the workspace)
+    // is FINAL — it must not silently degrade to an anon session, and the dead
+    // token must not be retried on every later request.
+    const pwRevoked = await gpPw.evaluate(async (port) => {
+      var KEY = "analytics.supabase.refresh.v1";
+      var cfg = { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid", authEmail: "revoked@example.com" };
+      var store = JSON.parse(sessionStorage.getItem(KEY) || "{}");
+      store[cfg.url + "|" + cfg.authEmail] = "definitely-not-a-real-token";
+      sessionStorage.setItem(KEY, JSON.stringify(store));
+      var r = await Studio.supabaseSource.signIn(cfg);
+      var after = JSON.parse(sessionStorage.getItem(KEY) || "{}");
+      return { ok: r.ok, err: r.error || "", cleared: !after[cfg.url + "|" + cfg.authEmail] };
+    }, PORT);
+    // N11: the OTHER half of that distinction, and the cause of the flaky pair
+    // above. A refresh whose BODY never finished arriving is not a refusal — we
+    // never got an answer at all. It used to be swallowed into `{}` and reported
+    // as "HTTP 200", which ensureSession treats as final: it DELETED the stored
+    // refresh token. One truncated response therefore signed a user out of their
+    // workspace, and the reload under test truncates an in-flight refresh often
+    // enough to fail this section roughly one run in three.
+    const pwTruncated = await gpPw.evaluate(async (port) => {
+      var KEY = "analytics.supabase.refresh.v1";
+      var cfg = { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid", authEmail: "truncated@example.com" };
+      var store = JSON.parse(sessionStorage.getItem(KEY) || "{}");
+      store[cfg.url + "|" + cfg.authEmail] = "mock-refresh";
+      sessionStorage.setItem(KEY, JSON.stringify(store));
+      await fetch("http://localhost:" + port + "/__supabase/rest/v1/__armtokentruncate", { headers: { apikey: "sb_publishable_valid" } });
+      var r = await Studio.supabaseSource.signIn(cfg);
+      var after = JSON.parse(sessionStorage.getItem(KEY) || "{}");
+      return {
+        ok: r.ok, err: r.error || "",
+        kept: after[cfg.url + "|" + cfg.authEmail] || "",
+        resumable: Studio.supabaseSource.hasResumableSession(cfg)
+      };
+    }, PORT);
+    await gpPw.close();
+    ok("N2 slice 4: a REVOKED refresh token is refused outright (no silent fall-back to an anon session) and is dropped rather than retried forever",
+      pwRevoked.ok === false && pwRevoked.cleared === true, JSON.stringify(pwRevoked));
+    ok("N11: a refresh answer whose body never finished arriving reads as UNREACHABLE, not as the workspace refusing — the stored token SURVIVES (the session is still resumable) so a dropped connection can never silently sign a user out",
+      pwTruncated.ok === false && /connection dropped/.test(pwTruncated.err) &&
+      pwTruncated.kept === "mock-refresh" && pwTruncated.resumable === true, JSON.stringify(pwTruncated));
+    ok("N11: the two answers stay distinguishable — an unreadable answer keeps the token, a genuine refusal still drops it (the N2 slice 3 posture is not weakened to fix the flake)",
+      pwTruncated.kept === "mock-refresh" && pwRevoked.cleared === true &&
+      !/connection dropped/.test(pwRevoked.err), JSON.stringify({ truncated: pwTruncated.err, revoked: pwRevoked.err }));
+
+    // Upgrade path: a browser that already has a password at rest from an earlier
+    // version must lose the at-rest copy WITHOUT being signed out mid-session.
+    const gpMig = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpMig.on("pageerror", (e) => errors.push("N2 slice4 migration page: " + e.message));
+    // TOP FRAME ONLY: init scripts run in every same-origin frame, and the app
+    // boots offscreen preview iframes — an unguarded seed would re-plant the
+    // password AFTER sync.js migrated it away, and this check would read the
+    // iframe's re-seed as "the migration didn't run".
+    await gpMig.addInitScript((port) => {
+      try {
+        if (window.top !== window) return;
+        localStorage.setItem("analytics.datasource.v1", JSON.stringify({ sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid", authEmail: "owner@example.com", authPassword: "secret123" }, at: 1 }));
+      } catch (e) {}
+    }, PORT);
+    await gpMig.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpMig.waitForFunction(() => {
+      if (!window.Studio || !Studio.Sync) return false;
+      var s = Studio.Sync.syncState();
+      return s.sourceId === "supabase" && s.status !== "connecting";
+    }, { timeout: 20000 }).catch(() => {});
+    const migrated = await gpMig.evaluate(() => {
+      var everything = Object.keys(localStorage).map(function (k) { return k + "=" + localStorage.getItem(k); }).join("\n");
+      var conn = JSON.parse(localStorage.getItem("analytics.datasource.v1") || "null") || {};
+      var store = JSON.parse(sessionStorage.getItem("analytics.supabase.refresh.v1") || "{}");
+      return {
+        passwordField: (conn.cfg || {}).authPassword,
+        anywhereInLocalStorage: /secret123/.test(everything),
+        email: (conn.cfg || {}).authEmail || "",
+        status: Studio.Sync.syncState().status,
+        preAuth: !!Studio.Sync.syncState().preAuth,
+        tokens: Object.keys(store).length
+      };
+    });
+    ok("N2 slice 4 (upgrade): a pre-slice-4 record with the password at rest is migrated on load — the stored copy is gone, yet the connection still reaches 'connected' this session (nobody is signed out by upgrading)",
+      migrated.passwordField === undefined && migrated.anywhereInLocalStorage === false &&
+      migrated.email === "owner@example.com" && migrated.status === "connected" &&
+      migrated.preAuth === false && migrated.tokens === 1, JSON.stringify(migrated));
+    const signedOutForget = await gpMig.evaluate(() => {
+      window.PolecatAuth.logout();
+      var store = JSON.parse(sessionStorage.getItem("analytics.supabase.refresh.v1") || "{}");
+      return { tokens: Object.keys(store).length };
+    });
+    await gpMig.close();
+    ok("N2 slice 4: signing out drops the workspace session too — the next person at this browser can't inherit the previous user's database access",
+      signedOutForget.tokens === 0, JSON.stringify(signedOutForget));
+
+    // A NEW browser session: a signed-in local identity (that lives in
+    // localStorage) but no resumable workspace session. Revealing straight
+    // through would run every read as anon; ask for the password instead.
+    const gpReauth = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpReauth.on("pageerror", (e) => errors.push("N2 slice4 reauth page: " + e.message));
+    await gpReauth.addInitScript((port) => {
+      try {
+        if (window.top !== window) return; // top frame only — see the migration seed above
+        localStorage.setItem("analytics.datasource.v1", JSON.stringify({ sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid", authEmail: "owner@example.com" }, at: 1 }));
+        localStorage.setItem("analytics.users.v1", JSON.stringify([{ id: "user_owner", u: "owner@example.com", name: "Owner", role: "admin", demo: false, hash: "" }]));
+        localStorage.setItem("analytics.session.v1", JSON.stringify({ u: "owner@example.com" }));
+      } catch (e) {}
+    }, PORT);
+    await gpReauth.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpReauth.waitForSelector("#g-form", { timeout: 8000 }).catch(() => {});
+    const reauth = await gpReauth.evaluate(() => ({
+      gateUp: !!document.querySelector("#studio-gate"),
+      stillAuthedLocally: !!window.PolecatAuth.current(),
+      needsSignIn: !!(window.Studio && Studio.Sync && Studio.Sync.needsSignIn()),
+      preAuth: !!(window.Studio && Studio.Sync && Studio.Sync.syncState().preAuth),
+      prefilled: (document.getElementById("g-user") || {}).value || "",
+      msg: (document.getElementById("g-err") || {}).textContent || ""
+    }));
+    await gpReauth.close();
+    ok("N2 slice 4: a new browser session with a signed-in local identity but no resumable workspace session is asked for the password again instead of booting into an anon (RLS-empty) workspace",
+      reauth.gateUp && reauth.stillAuthedLocally && reauth.needsSignIn === true &&
+      /session ended/.test(reauth.msg), JSON.stringify(reauth));
+    ok("N2 slice 4: that boot never pulls as anon (pulls stay latched off, so an empty RLS read can't replace this device's local mirror), and the known email is prefilled so re-signing in is one field",
+      reauth.preAuth === true && reauth.prefilled === "owner@example.com", JSON.stringify(reauth));
 
     // ---- ADMIN-LOCAL (Kevin, 2026-07-31): admin/admin joins demo/demo as the
     // two strictly-LOCAL demo accounts — signing into either forces the
@@ -18802,6 +19411,72 @@ function serve() {
     });
     ok("M4: PolecatAuth.remove refuses to drop the last admin, and the Admin page disables that row's ✕",
       lastAdminGuard.refused && lastAdminGuard.stillListed && lastAdminGuard.delDisabled, JSON.stringify(lastAdminGuard));
+
+    // ---- KH-023 (Kevin live phone, 2026-08-07): the shared .cx-row must never crush
+    // .cx-name to a letter-per-line sliver. The Admin users row is the worst case in
+    // the app (icon + name + up to 4 badges + 3 action buttons), so assert it here at
+    // the 390px mobile gate: the name keeps a readable width and stays a couple of
+    // lines tall, instead of one character per line down the card. ----
+    const khPhone = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    khPhone.on("pageerror", (e) => errors.push("KH-023/024 page: " + e.message));
+    await khPhone.addInitScript(() => {
+      try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {}
+    });
+    await khPhone.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await khPhone.waitForFunction(() => window.Studio && window.PolecatAuth && window.__studioRenderAdmin, { timeout: 10000 });
+    const khRow = await khPhone.evaluate(async function () {
+      // a long display name is the case that broke — "Administrator" wrapped per letter
+      await window.PolecatAuth.upsert("kh023", { name: "Administrator Longname", role: "admin", pass: "kh023pass" });
+      window.__studioShellSetSection("admin");
+      window.__studioRenderAdmin();          // the same explicit re-render the M4 tests use
+      var row = document.querySelector('.cx-row[data-usr-id="kh023"]');
+      if (!row) return { missing: true };
+      var name = row.querySelector(".cx-name"), b = name.querySelector("b");
+      var rr = row.getBoundingClientRect();
+      return {
+        nameW: Math.round(name.getBoundingClientRect().width),
+        nameH: Math.round(b.getBoundingClientRect().height),
+        rightEdge: Math.round(rr.right)
+      };
+    });
+    ok("KH-023 (Kevin phone): the Admin user row keeps its NAME readable at 390px — badges/buttons wrap instead of crushing it to a letter-per-line sliver",
+      !khRow.missing && khRow.nameW >= 120 && khRow.nameH <= 60, JSON.stringify(khRow));
+    ok("KH-023: the wrapped row still fits inside the 390px viewport (no horizontal spill)",
+      !khRow.missing && khRow.rightEdge <= 390, JSON.stringify(khRow));
+
+    // ---- KH-024 (Kevin live phone, 2026-08-07), two more of the same shape ----
+    // (a) the rail's WORKSPACE/BUILD/MANAGE group headers carry BOTH .rail-group-lbl
+    //     and .rail-lbl, so the collapsed-rail hide trick (height:1px + overflow:hidden)
+    //     clipped them in the drawer — only the bottom sliver of each glyph showed.
+    // (b) Settings rows never wrapped, so the <=640px full-width .set-txt ate the whole
+    //     line: the description collapsed to one word per line AND the input overflowed.
+    const khRail = await khPhone.evaluate(function () {
+      var l = document.querySelector("#railNav .rail-group-lbl");
+      if (!l) return { missing: true };
+      var r = l.getBoundingClientRect(), cs = getComputedStyle(l);
+      return { text: (l.textContent || "").trim(), overflow: cs.overflow,
+        // the box the glyphs actually get, padding removed — must fit the font
+        contentH: Math.round(r.height - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)),
+        fontPx: Math.round(parseFloat(cs.fontSize)) };
+    });
+    ok("KH-024a (Kevin phone): the rail's group headers (WORKSPACE/BUILD/MANAGE) are not clipped in the mobile drawer — the glyphs get a box at least as tall as their font",
+      !khRail.missing && khRail.contentH >= khRail.fontPx, JSON.stringify(khRail));
+
+    const khSet = await khPhone.evaluate(function () {
+      window.__studioShellSetSection("settings");
+      var inp = document.getElementById("setDefaultSubtitleInp");
+      if (!inp) return { missing: true };
+      var row = inp.closest(".set-row"), txt = row.querySelector(".set-row-txt");
+      return { txtW: Math.round(txt.getBoundingClientRect().width),
+        inputRight: Math.round(inp.getBoundingClientRect().right),
+        rowRight: Math.round(row.getBoundingClientRect().right) };
+    });
+    await khPhone.close();
+    ok("KH-024b (Kevin phone): a Settings row with a full-width text input keeps its description readable at 390px (the input wraps to its own line instead of crushing the label)",
+      !khSet.missing && khSet.txtW >= 180, JSON.stringify(khSet));
+    ok("KH-024b: that Settings input no longer overflows past the row's right edge",
+      !khSet.missing && khSet.inputRight <= khSet.rowRight + 1, JSON.stringify(khSet));
+
 
     // A signed-in viewer never sees the Admin rail item. Simulate the real trigger
     // path (gate.js's afterLogin re-runs role gating post-login) while already
@@ -19573,6 +20248,172 @@ function serve() {
       JSON.stringify(a103Guard));
 
     await gp42.close();
+
+    // ---- N6: the "Dave" north-star acceptance test -------------------------
+    // STATUS.md's ONBOARDING & PROVISIONING EPIC is ONE story, not five
+    // separate features: an admin provisions a user ONCE, and that user signs
+    // in on a FRESH device to a workspace that is already fully configured —
+    // role, theme, sample pack, dashboard defaults, the assigned backend, and
+    // the welcome tour. Every piece has its own checks above (LF39 cross-device
+    // sign-in, LF41 provisioning defaults, LF42/#103 assigned backend, LF40 the
+    // welcome/tour), but nothing asserted they still ADD UP: each could stay
+    // green while the story quietly broke at a seam. This is that acceptance
+    // test — two browser contexts, the REAL Add-user form, the REAL gate form,
+    // and no stubbed app internals in the sign-in path.
+    //
+    // Dave's device is a PHONE (390x780): "signs in from any device" is the
+    // whole point of the story, and mobile is a release gate.
+    console.log("\n• N6: the “Dave” north-star — provision once, sign in on a fresh device, land ready");
+    const daveCfg = { url: `http://localhost:${PORT}/__turso`, token: "davetok" };
+
+    // (a) The admin's device. Register the workspace backend, set the house
+    // Dashboard defaults, then provision Dave through the real Add-user form —
+    // one pass, every field, exactly what an admin actually does.
+    const daveAdmin = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    daveAdmin.on("pageerror", (e) => errors.push("N6 admin page: " + e.message));
+    await daveAdmin.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    await daveAdmin.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await daveAdmin.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
+    await daveAdmin.waitForTimeout(300);
+    await daveAdmin.evaluate(function (cfg) {
+      localStorage.setItem("studio-admin-backends", JSON.stringify([
+        { id: "bk-dave", name: "CTIC Conservation workspace", adapter: "turso", cfg: cfg }
+      ]));
+      // the house style this admin wants every new account to start from
+      Studio.Defaults.setSubtitle("Prepared by CTIC");
+      Studio.Defaults.setAccentColor("#2f7d5b");
+      Studio.Defaults.setCardSkin("flat");
+      window.__studioShellSetSection("admin");
+      window.__studioRenderAdmin();
+      window.__studioOpenUserEditor();
+      document.getElementById("usrEditUser").value = "dgustafson";
+      document.getElementById("usrEditName").value = "Dave Gustafson";
+      document.getElementById("usrEditPass").value = "davepw12345";
+      document.getElementById("usrEditRole").value = "admin";
+      document.getElementById("usrEditTheme").value = "conservation";
+      document.getElementById("usrEditPack").checked = true;
+      document.getElementById("usrEditBackend").value = "bk-dave";
+      document.getElementById("usrEditForceTour").checked = true;
+      document.getElementById("usrEditDDCopyBtn").click();   // "Copy my current Dashboard defaults"
+      document.querySelector(".cx-wiz-foot .btn.primary").click();
+    }, daveCfg);
+    await daveAdmin.waitForFunction(() => !document.querySelector(".modal-ov"), { timeout: 8000 });
+    const daveProfile = await daveAdmin.evaluate(function () {
+      var row = window.PolecatAuth.find("dgustafson") || {};
+      var mirrored = Studio.Workspace.all("users").filter(function (u) { return u.u === "dgustafson"; })[0] || null;
+      return {
+        role: row.role, forceTour: row.forceTour, provisioned: row.provisioned, prov: row.provisioning || null,
+        mirroredRole: mirrored && mirrored.role, mirroredHasHash: !!(mirrored && mirrored.hash)
+      };
+    });
+    ok("N6 (provision): one pass of the real Add-user form stores Dave's WHOLE starting profile on the account — admin role, Conservation theme + pack, the copied Dashboard defaults, the assigned backend's full snapshot and the one-shot tour flag — and marks it not-yet-applied",
+      daveProfile.role === "admin" && daveProfile.provisioned === false && daveProfile.forceTour === true &&
+      daveProfile.prov && daveProfile.prov.theme === "conservation" && daveProfile.prov.pack === "conservation" &&
+      daveProfile.prov.backend && daveProfile.prov.backend.adapter === "turso" && daveProfile.prov.backend.cfg.url === daveCfg.url &&
+      daveProfile.prov.dashboardDefaults && daveProfile.prov.dashboardDefaults.subtitle === "Prepared by CTIC" &&
+      daveProfile.prov.dashboardDefaults.accentColor === "#2f7d5b" && daveProfile.prov.dashboardDefaults.cardSkin === "flat",
+      JSON.stringify(daveProfile));
+    ok("N6 (provision): the new account is mirrored into the workspace users table WITH its password digest, so the profile can actually travel to a device that has never seen it",
+      daveProfile.mirroredRole === "admin" && daveProfile.mirroredHasHash, JSON.stringify(daveProfile));
+
+    // The admin's device syncs the workspace (Dave's account row rides along).
+    await daveAdmin.evaluate(async function (cfg) {
+      await Studio.tursoSource.provision(cfg, Studio.Workspace.snapshot());
+      await Studio.Sync.connectPush("turso", cfg);
+    }, daveCfg);
+    await daveAdmin.close();
+
+    // (b) Dave's phone. The ONLY thing on it is the workspace binding (what the
+    // gate's workspace picker / an access link leaves behind) — no account, no
+    // theme, no pack, no dashboard defaults, no welcome-seen flag.
+    const davePhone = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    davePhone.on("pageerror", (e) => errors.push("N6 Dave phone: " + e.message));
+    await davePhone.addInitScript((cfg) => {
+      try { localStorage.setItem("analytics.datasource.v1", JSON.stringify({ sourceId: "turso", cfg: cfg, at: 1 })); } catch (e) {}
+    }, daveCfg);
+    await davePhone.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await davePhone.waitForSelector("#g-form", { timeout: 10000 });
+    // The gate can only adopt an account it has never seen once the boot pull
+    // has landed (the LF39 mechanism) — wait for it to SETTLE rather than race it.
+    const daveSyncReady = await davePhone.waitForFunction(() => {
+      if (!window.Studio || !Studio.Sync) return false;
+      var s = Studio.Sync.syncState();
+      return s.sourceId === "turso" && s.status !== "connecting";
+    }, { timeout: 20000 }).then(() => true).catch(() => false);
+    const daveBefore = await davePhone.evaluate(() => ({
+      knowsDave: !!window.PolecatAuth.find("dgustafson"),
+      theme: window.__studioAppTheme.get(),
+      packInstalled: !!(window.Studio && Studio.demoPackInstalled("conservation")),
+      subtitle: Studio.Defaults.subtitle()
+    }));
+    ok("N6 (fresh device): before Dave signs in his phone is genuinely blank — it has never heard of his account, wears no Conservation theme, has no sample pack and none of the house Dashboard defaults (so everything asserted after sign-in was really delivered by provisioning)",
+      !daveBefore.knowsDave && daveBefore.theme !== "conservation" && !daveBefore.packInstalled &&
+      daveBefore.subtitle !== "Prepared by CTIC", JSON.stringify(daveBefore));
+
+    // The one action Dave takes: type his username + password into the gate.
+    await davePhone.fill("#g-user", "dgustafson");
+    await davePhone.fill("#g-pass", "davepw12345");
+    await davePhone.click("#g-form button[type=submit]");
+    await davePhone.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 15000 }).catch(() => {});
+    await davePhone.waitForTimeout(500);
+    const daveLanded = await davePhone.evaluate(function () {
+      var me = window.PolecatAuth.current() || {};
+      var row = window.PolecatAuth.find("dgustafson") || {};
+      var st = Studio.Sync.syncState();
+      var wel = document.getElementById("studio-welcome");
+      return {
+        gateGone: !document.querySelector("#studio-gate"), who: me.u, role: row.role,
+        theme: window.__studioAppTheme.get(), htmlTheme: document.documentElement.getAttribute("data-app-theme"),
+        packInstalled: Studio.demoPackInstalled("conservation"),
+        packDashboards: Studio.Workspace.all("dashboards").filter(function (d) { return d.demoPackId === "conservation"; }).length,
+        subtitle: Studio.Defaults.subtitle(), accent: Studio.Defaults.accentColor(), skin: Studio.Defaults.cardSkin(),
+        provisioned: row.provisioned, forceTour: row.forceTour,
+        remote: !!st.isRemote, sourceId: st.sourceId, cfgUrl: (Studio.Sync.currentConfig() || {}).url,
+        adoptDialog: !!document.getElementById("adoptGoBtn"),
+        declined: localStorage.getItem("studio-backend-decline:bk-dave"),
+        welcomeOpen: !!wel, welcomeGreetsDave: !!wel && /Dave/.test(wel.textContent),
+        gateErr: (document.getElementById("g-err") || {}).textContent || ""
+      };
+    });
+    daveLanded.syncReadyBeforeSubmit = daveSyncReady;
+    ok("N6 (identity): Dave signs in on a device that never held his account — the gate adopts it from the workspace backend and he lands as himself, with the admin role the provisioning gave him",
+      daveLanded.gateGone && daveLanded.who === "dgustafson" && daveLanded.role === "admin", JSON.stringify(daveLanded));
+    ok("N6 (look): the provisioned Conservation theme is applied to the app at that first sign-in, stamped on the document so the whole chrome comes up in it",
+      daveLanded.theme === "conservation" && daveLanded.htmlTheme === "conservation", JSON.stringify(daveLanded));
+    ok("N6 (content): the provisioned Conservation Insight pack is installed AND its example dashboards are materialized — Dave lands on real content, not an empty workspace",
+      daveLanded.packInstalled === true && daveLanded.packDashboards > 0, JSON.stringify(daveLanded));
+    ok("N6 (settings): the admin's copied Dashboard defaults are replayed onto Dave's device — subtitle, accent and card style all match the house style he was provisioned with",
+      daveLanded.subtitle === "Prepared by CTIC" && daveLanded.accent === "#2f7d5b" && daveLanded.skin === "flat",
+      JSON.stringify(daveLanded));
+    ok("N6 (backend): Dave lands connected to the workspace his account was assigned, with no adopt prompt and no decline recorded — the assignment resolved to the workspace he is already in instead of churning the connection",
+      daveLanded.remote && daveLanded.sourceId === "turso" && daveLanded.cfgUrl === daveCfg.url &&
+      !daveLanded.adoptDialog && daveLanded.declined !== "1", JSON.stringify(daveLanded));
+    ok("N6 (tour): the one-shot welcome fires on Dave's first sign-in, greets him BY NAME, and the flag is consumed in the same breath so his next sign-in is a normal one",
+      daveLanded.welcomeOpen && daveLanded.welcomeGreetsDave && daveLanded.forceTour === false, JSON.stringify(daveLanded));
+    ok("N6 (once-only): the account is stamped provisioned, so this whole starting profile is delivered exactly once and never fights Dave's own later choices",
+      daveLanded.provisioned === true, JSON.stringify(daveLanded));
+
+    // The pack Dave was provisioned with is what unlocks its guided tour — the
+    // last seam of the story (LF40 slice 2 gated the tour on pack installation).
+    await davePhone.keyboard.press("Escape");
+    await davePhone.waitForTimeout(150);
+    const daveTour = await davePhone.evaluate(function () {
+      var out = { welcomeDismissed: !document.getElementById("studio-welcome") };
+      window.StudioTutorial.open();
+      var chooser = document.getElementById("st-tip");
+      out.keys = [].slice.call(chooser ? chooser.querySelectorAll("[data-tour]") : []).map(function (b) { return b.getAttribute("data-tour"); });
+      out.steps = window.StudioTutorial.tourSteps("conservation").length;
+      return out;
+    });
+    ok("N6 (tour): installing the provisioned pack unlocks its walkthrough — the Conservation Insight tour is offered in the chooser on Dave's phone, with real steps behind it",
+      daveTour.welcomeDismissed && daveTour.keys.indexOf("conservation") >= 0 && daveTour.steps > 0, JSON.stringify(daveTour));
+
+    // cleanup: drop the mock backend's tables so a later reuse of /__turso starts empty
+    await davePhone.evaluate(async function (cfg) {
+      Studio.Sync.disconnect();
+      await Studio.tursoSource.drop(cfg);
+    }, daveCfg);
+    await davePhone.close();
 
     // ---- M7 slice 6: in-app account provisioning (browser self-signup) ----
     // A separate page/context so connecting it to a (mocked) Supabase backend
@@ -20993,9 +21834,10 @@ function serve() {
     // Studio.DA_OPS includes all 8 operator entries
     const opsOk = await page.evaluate(() => {
       var ops = Studio.DA_OPS;
-      return Array.isArray(ops) && ops.length === 8 && ops.some(function (o) { return o.id === "="; }) && ops.some(function (o) { return o.id === "contains"; });
+      return Array.isArray(ops) && ops.length === 9 && ops.some(function (o) { return o.id === "="; }) && ops.some(function (o) { return o.id === "contains"; })
+        && ops.some(function (o) { return o.id === "inRange"; });
     });
-    ok("Studio.DA_OPS has 8 operators including = and contains", opsOk);
+    ok("Studio.DA_OPS has 9 operators including =, contains and inRange", opsOk);
 
     // ---- AUD-06 slice 3: ONE filter-operator vocabulary ----
     // Studio.filterOps is the single registry behind both the DA output rules
@@ -21011,8 +21853,8 @@ function serve() {
         api: ["normalize", "get", "label", "test", "pairs"].every(function (k) { return typeof F[k] === "function"; })
       };
     });
-    ok("Studio.filterOps is the shared registry: 8 ops, both spellings, human labels",
-      foShape.len === 8 && foShape.wellFormed && foShape.api, JSON.stringify(foShape));
+    ok("Studio.filterOps is the shared registry: 9 ops, both spellings, human labels",
+      foShape.len === 9 && foShape.wellFormed && foShape.api, JSON.stringify(foShape));
 
     // normalize() accepts EITHER on-disk spelling and yields one meaning.
     const foNorm = await page.evaluate(() => {
@@ -21116,6 +21958,143 @@ function serve() {
     ok("AUD-06(4): a DA output rule filters and sorts a date column chronologically (the year-only tie is gone)",
       foDateSort.order.join() === "2024-02-01,2024-03-09,2024-06-01", JSON.stringify(foDateSort));
 
+    // ---- AUD-06 slice 5: a REAL date filter (relative ranges + a date picker) ----
+    // The bounds are the whole feature: every range is half-open [start, end),
+    // anchored on the viewer's LOCAL calendar day expressed as a UTC day — the
+    // same space a stored plain `YYYY-MM-DD` lives in. nowMs is injectable so
+    // these assert exact instants instead of "whatever today is".
+    const foRanges = await page.evaluate(() => {
+      var F = Studio.filterOps;
+      // Wednesday 2024-06-12, mid-afternoon local — a day inside Q2, month 06.
+      var now = new Date(2024, 5, 12, 15, 30).getTime();
+      function b(id) { var r = F.rangeBounds(id, now); return r ? [new Date(r.start).toISOString().slice(0, 10), new Date(r.end).toISOString().slice(0, 10)] : null; }
+      return {
+        // every advertised range resolves (the dropdown can't offer a dead token)
+        allResolve: F.RANGES.every(function (r) { return !!F.rangeBounds(r.id, now); }),
+        // no token is rendered as its own label — unless the token already IS
+        // an ordinary English word (today, yesterday)
+        labelled: F.RANGES.every(function (r) { return !!r.label && (r.label !== r.id || /^[a-z]+$/.test(r.id)); }),
+        today: b("today").join(), yesterday: b("yesterday").join(),
+        // "the last 7 days" = today plus the 6 before it, not 7 days ago to now
+        last7d: b("last7d").join(), last30d: b("last30d").join(),
+        // weeks start Monday (ISO) — the 12th is a Wednesday
+        thisWeek: b("thisWeek").join(), lastWeek: b("lastWeek").join(),
+        thisMonth: b("thisMonth").join(), lastMonth: b("lastMonth").join(),
+        thisQuarter: b("thisQuarter").join(), lastQuarter: b("lastQuarter").join(),
+        thisYear: b("thisYear").join(), lastYear: b("lastYear").join(), ytd: b("ytd").join(),
+        // year/quarter/month arithmetic rolls correctly across the boundary
+        janLastMonth: (function () { var n = new Date(2024, 0, 5, 9, 0).getTime(); var r = F.rangeBounds("lastMonth", n); return new Date(r.start).toISOString().slice(0, 10) + "," + new Date(r.end).toISOString().slice(0, 10); })(),
+        q1LastQuarter: (function () { var n = new Date(2024, 1, 5, 9, 0).getTime(); var r = F.rangeBounds("lastQuarter", n); return new Date(r.start).toISOString().slice(0, 10) + "," + new Date(r.end).toISOString().slice(0, 10); })(),
+        // the local calendar day decides, so a late-evening viewer west of UTC
+        // still gets their OWN today rather than tomorrow's
+        localDay: new Date(F.rangeBounds("today", new Date(2024, 5, 12, 23, 30).getTime()).start).toISOString().slice(0, 10),
+        unknown: F.rangeBounds("someFutureRange", now) === null,
+        defaultOffered: F.RANGES.some(function (r) { return r.id === F.RANGE_DEFAULT; })
+      };
+    });
+    ok("AUD-06(5): rangeBounds resolves every offered range to exact half-open day bounds — last-N includes today, weeks start Monday, month/quarter/year arithmetic rolls, and the LOCAL calendar day anchors it",
+      foRanges.allResolve && foRanges.labelled && foRanges.defaultOffered && foRanges.unknown
+      && foRanges.today === "2024-06-12,2024-06-13"
+      && foRanges.yesterday === "2024-06-11,2024-06-12"
+      && foRanges.last7d === "2024-06-06,2024-06-13"
+      && foRanges.last30d === "2024-05-14,2024-06-13"
+      && foRanges.thisWeek === "2024-06-10,2024-06-17"
+      && foRanges.lastWeek === "2024-06-03,2024-06-10"
+      && foRanges.thisMonth === "2024-06-01,2024-07-01"
+      && foRanges.lastMonth === "2024-05-01,2024-06-01"
+      && foRanges.thisQuarter === "2024-04-01,2024-07-01"
+      && foRanges.lastQuarter === "2024-01-01,2024-04-01"
+      && foRanges.thisYear === "2024-01-01,2025-01-01"
+      && foRanges.lastYear === "2023-01-01,2024-01-01"
+      && foRanges.ytd === "2024-01-01,2024-06-13"
+      && foRanges.janLastMonth === "2023-12-01,2024-01-01"
+      && foRanges.q1LastQuarter === "2023-10-01,2024-01-01"
+      && foRanges.localDay === "2024-06-12", JSON.stringify(foRanges));
+
+    // The `inRange` predicate itself, and what it does to rows that aren't dates.
+    const foInRange = await page.evaluate(() => {
+      var F = Studio.filterOps, t = F.test, DAY = 86400000;
+      var today = new Date(); today.setHours(12, 0, 0, 0);
+      function iso(offsetDays) {
+        var d = new Date(today.getTime() + offsetDays * DAY);
+        return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+      }
+      return {
+        today: t(iso(0), "inRange", "today") === true && t(iso(-1), "inRange", "today") === false,
+        last7: t(iso(0), "inRange", "last7d") === true && t(iso(-6), "inRange", "last7d") === true
+          && t(iso(-7), "inRange", "last7d") === false,
+        // tomorrow is not in "the last 30 days" — the window ends with today
+        future: t(iso(1), "inRange", "last30d") === false,
+        // a timestamp inside the day counts, at either end of it
+        timestamps: t(iso(0) + "T23:59:59Z", "inRange", "today") === true
+          && t(iso(0) + "T00:00:00Z", "inRange", "today") === true,
+        // a cell that isn't a date can't be in a date range (unlike the
+        // comparisons, which fall back to text)
+        nonDates: t("banana", "inRange", "last30d") === false && t("2024", "inRange", "last30d") === false
+          && t("", "inRange", "last30d") === false && t(null, "inRange", "last30d") === false,
+        // a range token this build doesn't know passes the row through, the
+        // same forward-compatible choice an unknown OPERATOR makes
+        unknownToken: t(iso(0), "inRange", "someFutureRange") === true,
+        // and the operator reaches by either spelling (it has only one)
+        spelling: F.normalize("inRange") === "inRange" && F.get("inRange").alias === "inRange",
+        rangeLabel: F.rangeLabel("last30d") === "the last 30 days" && F.rangeLabel("nope") === "nope"
+      };
+    });
+    ok("AUD-06(5): the inRange predicate — a relative window that ends with today, timestamps inside the day count, non-dates drop out, an unknown token passes through",
+      foInRange.today && foInRange.last7 && foInRange.future && foInRange.timestamps
+      && foInRange.nonDates && foInRange.unknownToken && foInRange.spelling && foInRange.rangeLabel,
+      JSON.stringify(foInRange));
+
+    // End to end through a DA output rule: the rule is saved as a RANGE, so it
+    // still means "the last 30 days" tomorrow — which is the whole point.
+    const foRangeRule = await page.evaluate(() => {
+      var DAY = 86400000, base = new Date(); base.setHours(12, 0, 0, 0);
+      function iso(off) {
+        var d = new Date(base.getTime() + off * DAY);
+        return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+      }
+      var da = { outputOptions: { filters: [{ col: "when", op: "inRange", val: "last7d" }] } };
+      var out = Studio.applyOutputOptions(da, { cols: ["when", "n"], rows: [
+        [iso(0), "now"], [iso(-3), "recent"], [iso(-30), "old"], [iso(2), "future"], ["not a date", "junk"]
+      ]});
+      return { kept: out.rows.map(function (r) { return r[1]; }).join(",") };
+    });
+    ok("AUD-06(5): a saved 'in the last 7 days' output rule keeps only the rows in that moving window",
+      foRangeRule.kept === "now,recent", JSON.stringify(foRangeRule));
+
+    // Which value control a rule earns — the decision both surfaces share, so
+    // the DA inspector and the job step can't drift into different answers.
+    const foValueKind = await page.evaluate(() => {
+      var F = Studio.filterOps;
+      return {
+        range: F.valueKind("inRange", "region", null, "last30d") === "range"
+          && F.valueKind("inRange", "signed_at", ["2024-01-01"], "") === "range",
+        // SAMPLES decide when we have them
+        samplesSayDate: F.valueKind(">=", "whatever", ["2024-01-01", "2024-06-30"], "") === "date",
+        samplesSayNo: F.valueKind(">=", "signed_at", ["1", "2", "3"], "") === "text",
+        // no samples → a deliberately narrow NAME test
+        nameDate: F.valueKind(">=", "signed_at", null, "") === "date"
+          && F.valueKind(">=", "order_date", null, "") === "date"
+          && F.valueKind(">=", "timestamp", null, "") === "date",
+        // …narrower than the display-side guess: month/year/quarter columns are
+        // usually numbers, and a calendar there would be a downgrade
+        nameNotDate: F.valueKind(">=", "year", null, "") === "text"
+          && F.valueKind(">=", "month", null, "") === "text"
+          && F.valueKind(">=", "region", null, "") === "text"
+          && F.valueKind(">=", "update", null, "") === "text",
+        // a picker is offered only for a value it can round-trip — an already
+        // typed timestamp keeps its text box rather than being truncated
+        roundTrip: F.valueKind(">=", "signed_at", null, "2024-06-01") === "date"
+          && F.valueKind(">=", "signed_at", null, "2024-06-01T09:30:00Z") === "text"
+          && F.valueKind(">=", "signed_at", null, "{{start}}") === "text",
+        isPlainDate: F.isPlainDate("2024-06-01") === true && F.isPlainDate("2024-02-31") === false
+          && F.isPlainDate("2024-06-01T09:30:00Z") === false && F.isPlainDate("") === false
+      };
+    });
+    ok("AUD-06(5): filterOps.valueKind is the shared decision — range for inRange, a date picker when the DATA (or a narrow name test) says date, and free text whenever a picker would lose something",
+      foValueKind.range && foValueKind.samplesSayDate && foValueKind.samplesSayNo && foValueKind.nameDate
+      && foValueKind.nameNotDate && foValueKind.roundTrip && foValueKind.isPlainDate, JSON.stringify(foValueKind));
+
     // DA_OPS is derived from the shared list (labels can't drift apart again).
     const foDerived = await page.evaluate(() => {
       var F = Studio.filterOps;
@@ -21130,8 +22109,9 @@ function serve() {
       var F = Studio.filterOps;
       var byId = F.pairs("id"), byAlias = F.pairs("alias");
       return {
-        ids: byId.length === 8 && byId[0][0] === "=" && byId[3][0] === ">=",
-        aliases: byAlias.length === 8 && byAlias[0][0] === "eq" && byAlias[3][0] === "gte",
+        // slice 5 appended inRange LAST, so every older op keeps its position
+        ids: byId.length === 9 && byId[0][0] === "=" && byId[3][0] === ">=" && byId[8][0] === "inRange",
+        aliases: byAlias.length === 9 && byAlias[0][0] === "eq" && byAlias[3][0] === "gte" && byAlias[8][0] === "inRange",
         sharedLabels: byId.every(function (p, i) { return p[1] === byAlias[i][1]; }),
         // the job dropdown no longer renders raw ids as its labels
         notRawIds: byAlias.every(function (p) { return p[1] !== p[0]; })
@@ -22337,18 +23317,41 @@ function serve() {
     await tabletPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     await tabletPage.waitForTimeout(500);
 
+    // N10: probe the first VISIBLE row, not the first DOM child. #menuMore leads with
+    // `.more-phone-only` rows (What's new / Send feedback) that are display:none above
+    // 640px — v882/N7 fixed that class to finally honor its own breakpoint, and this
+    // probe had been measuring one of those rows all along. At 800px it became a
+    // zero-size box, so elementFromPoint(0,0) could never return it and the check
+    // reported a #topbar clipping regression that does not exist. The clipping it
+    // guards (Z9) is real and the assertion stays exactly as strict — it just has to
+    // hit-test a row a tablet user can actually see. Scanning for the first visible
+    // row fixes #menuNew/#menuExport latently too: either could grow a phone-only
+    // first row at any time and silently rot the same way.
     async function menuItemReachable(page, btnId, menuId) {
       return page.evaluate(function (ids) {
         var btn = document.getElementById(ids.btnId);
         var menu = document.getElementById(ids.menuId);
         btn.click();
-        var item = menu.querySelector("button");
+        var wasOpen = menu.classList.contains("open");
+        var rows = [].slice.call(menu.querySelectorAll("button"));
+        var visible = rows.filter(function (b) {
+          var br = b.getBoundingClientRect();
+          return br.width > 0 && br.height > 0;
+        });
+        var item = visible[0] || null;
+        if (!item) {
+          btn.click(); // close again
+          return { wasOpen: wasOpen, reachable: false, itemId: null, visibleRows: 0, totalRows: rows.length, itemRect: null };
+        }
         var r = item.getBoundingClientRect();
         var underPointer = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
         var reachable = item === underPointer || item.contains(underPointer);
-        var wasOpen = menu.classList.contains("open");
         btn.click(); // close again
-        return { wasOpen: wasOpen, reachable: reachable, itemRect: r };
+        return {
+          wasOpen: wasOpen, reachable: reachable,
+          itemId: item.id || (item.textContent || "").trim(),
+          visibleRows: visible.length, totalRows: rows.length, itemRect: r,
+        };
       }, { btnId: btnId, menuId: menuId });
     }
     const moreReach = await menuItemReachable(tabletPage, "btnMore", "menuMore");
@@ -22358,6 +23361,27 @@ function serve() {
     ok("tablet viewport: New ▾ menu opens and its items are reachable", newReach.wasOpen && newReach.reachable, JSON.stringify(newReach));
     const exportReach = await menuItemReachable(tabletPage, "btnExport", "menuExport");
     ok("tablet viewport: Export ▾ menu opens and its items are reachable", exportReach.wasOpen && exportReach.reachable, JSON.stringify(exportReach));
+    // N10: the probe above is only meaningful if it hit-tested a row that a tablet user
+    // can actually SEE. Guard the probe itself, so a menu that grows a phone-only first
+    // row (or hides every row at this width) fails loudly here instead of quietly
+    // measuring a zero-size box forever.
+    const reachProbes = [
+      { name: "⋯ More", r: moreReach }, { name: "New ▾", r: newReach }, { name: "Export ▾", r: exportReach },
+    ];
+    const probedVisible = reachProbes.filter((p) => p.r.visibleRows > 0 && p.r.itemRect && p.r.itemRect.height > 0);
+    ok("tablet viewport: each reachability probe measures a genuinely visible menu row (not a display:none one)",
+      probedVisible.length === reachProbes.length,
+      JSON.stringify(reachProbes.map((p) => ({ menu: p.name, itemId: p.r.itemId, visibleRows: p.r.visibleRows, totalRows: p.r.totalRows }))));
+    // #menuMore is the one that actually rotted: its first DOM row is .more-phone-only,
+    // so at 800px the probed row MUST be a later one. Pin that relationship.
+    const moreFirstRowHidden = await tabletPage.evaluate(() => {
+      var m = document.getElementById("menuMore");
+      var first = m ? m.querySelector("button") : null;
+      return first ? { id: first.id, phoneOnly: first.classList.contains("more-phone-only"), hidden: getComputedStyle(first).display === "none" } : null;
+    });
+    ok("tablet viewport: ⋯ More's phone-only first row is hidden at 800px, and the probe skipped past it",
+      !!moreFirstRowHidden && moreFirstRowHidden.phoneOnly && moreFirstRowHidden.hidden && moreReach.itemId !== moreFirstRowHidden.id,
+      JSON.stringify({ firstRow: moreFirstRowHidden, probed: moreReach.itemId }));
     // Track H: the Connect & present divider must hide alongside the .btn-secondary
     // cluster it separates (Tour/Theme) — otherwise it'd dangle at the end of the row
     // with nothing after it. Slice B moved Undo/Redo out of #dashbar (into the topbar),
@@ -27089,7 +28113,7 @@ function serve() {
         return { ok: firstDone && !secondDone, firstDone: firstDone, secondDone: secondDone };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("K7: first step is gs-done (library ready), second step is not done (add panel)", k7Step1Done.ok, JSON.stringify(k7Step1Done));
+    ok("K7: first step is gs-done (Data panel ready), second step is not done (add panel)", k7Step1Done.ok, JSON.stringify(k7Step1Done));
 
     // K7-4: Checklist absent in Advanced mode even when spec is empty
     await page.evaluate(function () {
@@ -28130,7 +29154,7 @@ function serve() {
     ok("J6: Escape closes the tutorial (tip, ring, and active flag all cleared)", j6Closed.ok, JSON.stringify(j6Closed));
 
     // J6-5: tour shapes — six tours (overview leads), quick has 8 steps, build has 6, jobs has 5,
-    // connect has 8, conservation (LF40, pack-gated) has 6. Overview's own base is 10, but (LF40)
+    // connect has 8, conservation (LF40, pack-gated) has 6. Overview's own base is 13, but (LF40)
     // it's ALSO pack-aware, same engine as welcome.js — one step splices in per installed sample
     // pack (datamanagement ships installed by default), so assert against that ambient count
     // rather than a fixed number, same pattern as welcome.js's own packAware check.
@@ -28139,7 +29163,7 @@ function serve() {
         var packs = Studio.DEMO_PACKS || {};
         var installedPackCount = Object.keys(packs).filter(function (id) { return Studio.demoPackInstalled(id); }).length;
         return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build,jobs,connect,conservation" &&
-          StudioTutorial.stepCount("overview") === 12 + installedPackCount && StudioTutorial.stepCount("quick") === 8 &&
+          StudioTutorial.stepCount("overview") === 13 + installedPackCount && StudioTutorial.stepCount("quick") === 8 &&
           StudioTutorial.stepCount("build") === 6 && StudioTutorial.stepCount("jobs") === 5 &&
           StudioTutorial.stepCount("connect") === 8 && StudioTutorial.stepCount("conservation") === 6,
           keys: StudioTutorial.tourKeys().join(","), o: StudioTutorial.stepCount("overview"), installedPackCount: installedPackCount,
@@ -28147,7 +29171,7 @@ function serve() {
           j: StudioTutorial.stepCount("jobs"), c: StudioTutorial.stepCount("connect"), cv: StudioTutorial.stepCount("conservation") };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("J6: six tours registered — Overview (12-step base incl. the #23 glossary + TOUR-WOW's View Builder stop + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (5 — LF18(b)), Connections & Datasets (8 — LF18(b)), Conservation Insight pack (6 — LF40, pack-gated)", j6Shape.ok, JSON.stringify(j6Shape));
+    ok("J6: six tours registered — Overview (13-step base incl. the #23 glossary + TOUR-WOW's View Builder stop + N7's Views-catalog stop + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (5 — LF18(b)), Connections & Datasets (8 — LF18(b)), Conservation Insight pack (6 — LF40, pack-gated)", j6Shape.ok, JSON.stringify(j6Shape));
 
     // #23 (Kevin): the overview tour defines EVERY domain term — a glossary step
     // covers the full list one line each, and the terms missing from the walk
@@ -28241,7 +29265,12 @@ function serve() {
       var packs = Studio.DEMO_PACKS || {};
       var packCount = Object.keys(packs).filter(function (id) { return Studio.demoPackInstalled(id); }).length;
       for (var p = 0; p < packCount; p++) { document.querySelector("#st-tip button.pri").click(); await sleep(150); }
-      var railSecs = ["home", "explore", "build", "dashboards", "datasets", "connections", "jobs", "repository", "studio"];
+      // N7 (2026-08-07): the walk is now the RAIL's own top-to-bottom order, by its own
+      // groups — Workspace, then Build, then Manage — with the Views catalog no longer
+      // skipped. tools/doc-truth.mjs check 11 derives this same list from app/index.html
+      // and fails if the tour and the rail ever disagree again; this walks it for real.
+      var railSecs = ["home", "views", "dashboards", "datasets", "connections", "repository",
+        "explore", "build", "studio", "jobs"];
       var hits = 0;
       for (var i = 0; i < railSecs.length; i++) {
         document.querySelector("#st-tip button.pri").click();
@@ -28265,8 +29294,8 @@ function serve() {
       return { tour: "overview", railHits: hits, onHome: onHome, lastLabel: lastLabel, backAtStart: backAtStart,
         closed: !document.getElementById("st-tip") && !window.__studioTutorialActive() };
     });
-    ok("J6: the Overview tour spotlights all 9 rail sections in order (View Builder included — TOUR-WOW) and ENDS on Home (getting-started), then completes",
-      j6Overview.railHits === 9 && j6Overview.onHome && /Done/.test(j6Overview.lastLabel) && j6Overview.closed,
+    ok("J6/N7: the Overview tour spotlights all 10 rail sections IN THE RAIL'S OWN ORDER (Workspace → Build → Manage, Views catalog included) and ENDS on Home (getting-started), then completes",
+      j6Overview.railHits === 10 && j6Overview.onHome && /Done/.test(j6Overview.lastLabel) && j6Overview.closed,
       JSON.stringify(j6Overview));
 
     // J6-8 (LF18b): the JOBS tour walks the real Jobs section — the list, the
@@ -28393,8 +29422,8 @@ function serve() {
     // J6-10b (LF40): the OVERVIEW tour is pack-aware too (not just a dedicated pack tour) —
     // installing a pack splices one acknowledgment step in right after the intro, naming
     // the pack; removing it collapses the overview back to its (ambient) base step count.
-    // datamanagement ships installed by default, so assert against 11 + installed count
-    // (the 11-step base includes the #23 glossary step; same pattern as J6-5's shape
+    // datamanagement ships installed by default, so assert against 12 + installed count
+    // (the 12-step base includes the #23 glossary step; same pattern as J6-5's shape
     // check) rather than a number that assumes conservation is the only installed pack.
     const j6OverviewPackAware = await page.evaluate(function () {
       var packs = Studio.DEMO_PACKS || {};
@@ -28402,7 +29431,7 @@ function serve() {
       return { withPack: StudioTutorial.stepCount("overview"), installedCount: installedCount, titles: StudioTutorial.computeOverviewStepTitles() };
     });
     ok("J6: overview tour gains one spliced step (right after the intro) naming the installed Conservation Insight pack",
-      j6OverviewPackAware.withPack === 12 + j6OverviewPackAware.installedCount &&
+      j6OverviewPackAware.withPack === 13 + j6OverviewPackAware.installedCount &&
       j6OverviewPackAware.titles[1] === "Conservation Insight — cover crop & tillage adoption",
       JSON.stringify(j6OverviewPackAware));
 
@@ -28484,7 +29513,7 @@ function serve() {
       return ok2;
     });
     ok("J6: Conservation Insight tour disappears from the chooser again once the pack is removed, and the overview tour's pack step goes with it",
-      j6ConservationCleanup.count === 5 && !j6ConservationCleanup.installed && j6ConservationCleanup.overviewSteps === 12 + j6ConservationCleanup.installedCount,
+      j6ConservationCleanup.count === 5 && !j6ConservationCleanup.installed && j6ConservationCleanup.overviewSteps === 13 + j6ConservationCleanup.installedCount,
       JSON.stringify(j6ConservationCleanup));
 
     // ---- TOUR-FRONT (Kevin live, 2026-07-31): the chooser matches the welcome
@@ -28590,6 +29619,39 @@ function serve() {
       } catch (e) { return { ok: false, err: e.message }; }
     });
     ok("H102: clicking 'Trend' tab filters gallery to only Trend charts", h102Filter.ok, JSON.stringify(h102Filter));
+
+    // AUD-06 slice 6: the gallery search runs on Studio.catalogSearch now. Rather than
+    // hard-code a chart name, take two words from a REAL card — one from its label, one
+    // from its description — and ask for them in the order the old literal-substring match
+    // could never satisfy. Restores the Trend tab afterwards so the state the next checks
+    // inherit is the one h102Filter left.
+    const galleryTerms = await page.evaluate(function () {
+      try {
+        var card = Array.from(document.querySelectorAll("#inspBody .chart-opt")).find(function (c) {
+          var lb = c.querySelector(".lb"), d = c.querySelector(".lb-desc");
+          return lb && d && (lb.textContent.match(/[A-Za-z]{4,}/) || [])[0] && (d.textContent.match(/[A-Za-z]{5,}/g) || []).length;
+        });
+        if (!card) return { skipped: true };
+        var labelWord = card.querySelector(".lb").textContent.match(/[A-Za-z]{4,}/)[0].toLowerCase();
+        var descWords = card.querySelector(".lb-desc").textContent.match(/[A-Za-z]{5,}/g).map(function (w) { return w.toLowerCase(); });
+        var descWord = descWords.filter(function (w) { return w !== labelWord; }).pop();
+        if (!descWord) return { skipped: true };
+        var q = descWord + " " + labelWord; // description word FIRST — reversed on purpose
+        var text = (card.querySelector(".lb").textContent + " " + card.querySelector(".lb-desc").textContent).toLowerCase();
+        var inp = document.querySelector(".cg-search");
+        inp.value = q; inp.dispatchEvent(new Event("input", { bubbles: true }));
+        var visible = card.style.display !== "none";
+        var shown = Array.from(document.querySelectorAll("#inspBody .chart-opt")).filter(function (c) { return c.style.display !== "none"; }).length;
+        // restore
+        inp.value = ""; inp.dispatchEvent(new Event("input", { bubbles: true }));
+        var trendTab = Array.from(document.querySelectorAll(".cg-tab")).find(function (b) { return b.textContent === "Trend"; });
+        if (trendTab) trendTab.click();
+        return { q: q, visible: visible, shown: shown, noLiteralRun: text.indexOf(q) < 0, restored: inp.value === "" };
+      } catch (e) { return { err: e.message }; }
+    });
+    ok("AUD-06: the chart gallery search matches terms in any order across a card's name AND description (a query with no literal run in the card still finds it)",
+      galleryTerms.skipped || (galleryTerms.visible && galleryTerms.noLiteralRun && galleryTerms.shown > 0 && galleryTerms.restored),
+      JSON.stringify(galleryTerms));
 
     // ── F17: Violin plot (v103) ────────────────────────────────────────────────
     console.log("\n• F17: Violin plot");
@@ -30452,10 +31514,12 @@ function serve() {
     await page.waitForTimeout(200);
     const h104Shortcut = await page.evaluate(function () {
       var rows = Array.from(document.querySelectorAll(".modal-ov table tr"));
-      var hasCtrlF = rows.some(function (r) { return r.textContent.indexOf("Ctrl") >= 0 && r.textContent.indexOf("F") >= 0 && r.textContent.indexOf("library") >= 0; });
+      // N7 (Data-panel copy): the row names the pane the way the pane's own header does.
+      // It said "library" until the app's copy caught up with STUDIO-PANELS.
+      var hasCtrlF = rows.some(function (r) { return r.textContent.indexOf("Ctrl") >= 0 && r.textContent.indexOf("F") >= 0 && r.textContent.indexOf("Data panel") >= 0; });
       return { ok: hasCtrlF, rowCount: rows.length };
     });
-    ok("H104: shortcuts modal lists Ctrl/⌘+F library search shortcut", h104Shortcut.ok, JSON.stringify(h104Shortcut));
+    ok("H104: shortcuts modal lists the Ctrl/⌘+F Data-panel search shortcut", h104Shortcut.ok, JSON.stringify(h104Shortcut));
     // Close the modal
     await page.keyboard.press("Escape");
     await page.waitForTimeout(100);
@@ -33200,7 +34264,23 @@ function serve() {
       return { present: !!sel, value: sel && sel.value, optionCount: sel ? sel.options.length : 0 };
     });
     ok("LF20: Inspector renders the #dashRenderMode Appearance select, defaulting to Light ('')",
-      renderModeRowOk.present && renderModeRowOk.value === "" && renderModeRowOk.optionCount === 2, JSON.stringify(renderModeRowOk));
+      renderModeRowOk.present && renderModeRowOk.value === "" && renderModeRowOk.optionCount === 3, JSON.stringify(renderModeRowOk));
+
+    // N5b: "auto" is the opt-in THIRD choice — Kevin's explicit call is that a chameleon export is
+    // something an author turns on, never something a new dashboard inherits. (What the value
+    // actually DOES is proven end-to-end in the N5b block near the end of this file.)
+    var n5bInspectorOk = await page.evaluate(function () {
+      var sel = document.getElementById("dashRenderMode");
+      var blank = Studio.emptySpec ? Studio.emptySpec() : null;
+      return {
+        values: sel ? Array.prototype.map.call(sel.options, function (o) { return o.value; }) : [],
+        labels: sel ? Array.prototype.map.call(sel.options, function (o) { return o.textContent; }) : [],
+        newSpecMode: blank ? blank.renderMode : null
+      };
+    });
+    ok("N5b: Appearance offers exactly three options (Light / Dark / Auto) and a brand-new dashboard still starts on Light",
+      n5bInspectorOk.values.join(",") === ",dark,auto" && n5bInspectorOk.newSpecMode === "" &&
+      /auto/i.test(n5bInspectorOk.labels[2] || ""), JSON.stringify(n5bInspectorOk));
 
     await page.evaluate(function () {
       var sel = document.getElementById("dashRenderMode");
@@ -34288,19 +35368,22 @@ function serve() {
     });
     ok("F38: quadrant gallery thumbnail is an SVG with circle elements", f38Thumb.ok, JSON.stringify(f38Thumb));
 
-    // F38-5: docs/index.html has ct-quadrant anchor and the current type count
-    // (51 at F38; CONS-3's Metrics wheel made it 52)
+    // F38-5: docs/index.html documents the quadrant chart (its own anchor).
+    // This check used to ALSO pin the published chart-type count by literal string ("51 types"
+    // at F38, then "52 types" after CONS-3's Metrics wheel) — a hand-retyped number that went
+    // stale the moment the registry grew, and did: AUD-11 (v856) resolved the count to 54
+    // everywhere and this assertion kept failing on a number that was no longer the truth,
+    // reddening the STAGE gate for unrelated work. The count is now pinned FROM ITS SOURCE by
+    // tools/doc-truth.mjs ("docs/index.html: chart-type counts all read N", measured off the
+    // Studio.CHARTS registry, run in the dev gate), so re-typing 54 here would only re-arm the
+    // trap for the next renumber. Anchor coverage stays — doc-truth checks that too, per type.
     const f38Docs = await page.evaluate(async function () {
       try {
         var html = await fetch("docs/index.html").then(function (r) { return r.text(); });
-        return {
-          ok: html.indexOf('id="ct-quadrant"') >= 0 && html.indexOf("52 types") >= 0,
-          hasAnchor: html.indexOf('id="ct-quadrant"') >= 0,
-          has52: html.indexOf("52 types") >= 0
-        };
+        return { ok: html.indexOf('id="ct-quadrant"') >= 0, hasAnchor: html.indexOf('id="ct-quadrant"') >= 0 };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("F38/J: docs/index.html includes ct-quadrant anchor and the current '52 types' count", f38Docs.ok, JSON.stringify(f38Docs));
+    ok("F38/J: docs/index.html includes the ct-quadrant anchor", f38Docs.ok, JSON.stringify(f38Docs));
 
     // ── Z1: App shell — collapsible left rail (Home · Repository · Studio · Settings) ──
     console.log("\n• Z1: App shell left rail");
@@ -36508,6 +37591,25 @@ function serve() {
     ok("N-DEV: ⋯ More → Edit JSON spec… button is retired; the ⌘K palette's 'Edit JSON spec…' command opens the editor modal instead",
       jsonEdMenu.moreEditJSONGone && /edit json spec/i.test(jsonEdMenu.paletteRowLabel) && jsonEdMenu.modalOpened, JSON.stringify(jsonEdMenu));
 
+    // AUD-06 slice 6: the same command, words REVERSED. ⌘K matches through
+    // Studio.catalogSearch now, so word order stopped being part of the query — while the
+    // palette keeps its own ranking (a prefix hit on the visible label still wins).
+    const paletteTerms = await page.evaluate(function () {
+      window.StudioPalette.open();
+      var inp = document.getElementById("cmdkInput");
+      inp.value = "spec json edit";
+      inp.dispatchEvent(new Event("input", { bubbles: true }));
+      var labels = Array.from(document.querySelectorAll("#cmdkList .cmdk-row .cmdk-lbl")).map(function (n) { return n.textContent; });
+      // and a prefix query still ranks its command first
+      inp.value = "edit json";
+      inp.dispatchEvent(new Event("input", { bubbles: true }));
+      var topForPrefix = (document.querySelector("#cmdkList .cmdk-row .cmdk-lbl") || {}).textContent || "";
+      window.StudioPalette.close();
+      return { labels: labels, reversedFinds: labels.some(function (l) { return /edit json spec/i.test(l); }), topForPrefix: topForPrefix };
+    });
+    ok("AUD-06: ⌘K finds 'Edit JSON spec…' from the reversed query 'spec json edit', and a prefix query still ranks that command first",
+      paletteTerms.reversedFinds && /edit json spec/i.test(paletteTerms.topForPrefix), JSON.stringify(paletteTerms));
+
     const jsonEd = await page.evaluate(function (id) {
       var r = {};
       window.__studioLoad({ id: id, name: id, title: "JSON Editor Test", panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] } });
@@ -37930,9 +39032,23 @@ function serve() {
           pagedText = (first() || {}).textContent;
           paged.changed = pagedText !== before;
         }
+        // SWEEP574-3b tail: the mark helper opens the hover tooltip on keyboard focus too. A row
+        // is deliberately out of that — it has no tooltip, because its own cells already carry
+        // every value one would repeat — so focusing a row must stay silent, not pop an empty card.
+        var rowFocus = null;
+        var fr = first();
+        if (fr) {
+          fr.focus();
+          await new Promise((r) => setTimeout(r, 150));
+          var t = d.querySelector("body > div.tip");
+          rowFocus = { tipShown: !!(t && (t.style.opacity === "1" || +t.style.opacity === 1)), focused: d.activeElement === fr };
+          fr.blur();
+        }
+
         ifr.remove();
         return { snap: snap, entPrev: entPrev, entTitle: entTitle, spPrev: spPrev, spTitle: spTitle,
           stray: stray, bound: bound, unbound: unbound, roleOverrides: roleOverrides, paged: paged,
+          rowFocus: rowFocus,
           hasFocusRing: /\[tabindex\]:focus-visible\{[^}]*outline:\s*2px/.test(html) };
       } catch (e) { return { err: e.message }; }
     });
@@ -37963,6 +39079,9 @@ function serve() {
       rowKeyboard.paged.focusable === rowKeyboard.paged.clickable, JSON.stringify(rowKeyboard));
     ok("SWEEP574-3b (table): the exported bundle still carries the [tabindex]:focus-visible ring, so a focused row is visible",
       rowKeyboard.hasFocusRing === true, JSON.stringify(rowKeyboard));
+    ok("SWEEP574-3b (table): focusing a row opens no tooltip — unlike a chart mark, a row's cells already ARE its values",
+      !!rowKeyboard.rowFocus && rowKeyboard.rowFocus.focused === true && rowKeyboard.rowFocus.tipShown === false,
+      JSON.stringify(rowKeyboard.rowFocus));
 
     // Same reasoning as the KPI tile and the SVG marks: on the builder canvas a click is an
     // EDITING gesture, so table rows must stay out of that surface's tab order too.
@@ -37986,6 +39105,154 @@ function serve() {
     });
     ok("SWEEP574-3b (table): in the Studio builder's preview no table row is promoted (click-to-select is untouched)",
       rowPreviewInert.rows > 0 && rowPreviewInert.promoted === 0, JSON.stringify(rowPreviewInert));
+
+    // ── SWEEP574-3b TAIL (UX sweep #574, a11y): the tooltip opens on FOCUS, not just hover ──
+    // The one gap both mark slices left open. A mark's numbers live in two places — the aria-label
+    // markActivatable() writes, and the hover tooltip — and only a pointer could summon the
+    // tooltip, so a keyboard user got the screen-reader fact but never the SIGHTED one (the
+    // percentage, the share, a chart's custom cfg.tip markup). tipOnFocus() in studio-charts.js
+    // closes it, and ships inside every exported dashboard the way markActivatable() does.
+    //
+    // The frame is rendered ON SCREEN here, unlike the sibling blocks above, because the pointer
+    // half of this behaviour cannot be faked: Chromium's :focus-visible heuristic keys off REAL
+    // input, and a synthesised mousedown leaves it untouched (verified — it still reports
+    // focus-visible). So the mouse case is driven with an actual page.mouse.click() into the
+    // frame, and the keyboard case with a programmatic .focus(), which with no preceding pointer
+    // input is exactly what Tab looks like to the heuristic.
+    console.log("\n• SWEEP574-3b (tail): chart tooltips open on keyboard focus, not just hover");
+
+    const tipKeyboard = await page.evaluate(async () => {
+      try {
+        var spec = await fetch("data/examples/feature-showcase.studio.json").then((r) => r.json());
+        var det = { da: "cost_detail", param: "label", noun: "invoice lines" };
+        spec.panels.forEach(function (p) {
+          if (["bars", "donut", "treemap"].indexOf(p.chart.type) >= 0) { p.detail = det; delete p.drill; }
+        });
+        var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: false, mock: Studio.genMock(spec) });
+        var ifr = document.createElement("iframe");
+        // Top-left of the viewport with no border, so a coordinate inside the frame's document is
+        // the same coordinate page.mouse.click() takes. The z-index is deliberately absurd: the
+        // sign-in gate sits at 100000 and would otherwise swallow the real click.
+        ifr.style.cssText = "position:fixed;left:0;top:0;width:1200px;height:1000px;border:0;z-index:2147483000;background:#fff";
+        document.body.appendChild(ifr);
+        await new Promise((res) => { ifr.onload = res; ifr.srcdoc = html; });
+        await new Promise((r) => setTimeout(r, 1200));
+        window.__tipFrame = ifr;
+        var d = ifr.contentDocument, w = ifr.contentWindow;
+        // Parked on window so the pointer half below (a separate evaluate, because a real click
+        // has to happen between the two) reads the tooltip exactly the same way.
+        window.__tipHelpers = {
+          state: function () {
+            var t = d.querySelector("body > div.tip");
+            return t ? { shown: t.style.opacity === "1" || +t.style.opacity === 1, html: t.innerHTML,
+              left: parseFloat(t.style.left), top: parseFloat(t.style.top) } : { shown: false, html: null };
+          },
+          hide: function () { var t = d.querySelector("body > div.tip"); if (t) t.style.opacity = 0; }
+        };
+        var st = window.__tipHelpers.state;
+        var bar = d.querySelector('[data-panel-id="p_region"] svg rect.bar');
+        if (!bar) return { err: "no bar mark" };
+
+        // 1. The keyboard case: focus it the way Tab would, and the tooltip appears — anchored to
+        //    the mark, because there is no cursor for it to follow.
+        bar.focus();
+        await new Promise((r) => setTimeout(r, 120));
+        var box = bar.getBoundingClientRect();
+        var onFocus = st();
+        onFocus.focusVisible = bar.matches(":focus-visible");
+        onFocus.matchesHover = onFocus.html === bar.__dkTip;     // the SAME card hover shows
+        onFocus.anchored = Math.abs(onFocus.top - (box.top + box.height / 2 - 8)) < 2;
+
+        // 2. Escape dismisses it WITHOUT moving focus (WCAG 1.4.13 "Content on Hover or Focus").
+        bar.dispatchEvent(new w.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+        await new Promise((r) => setTimeout(r, 60));
+        var afterEsc = st();
+        afterEsc.stillFocused = d.activeElement === bar;
+
+        // 3. Moving focus off the mark takes the tooltip with it. (Escape left focus in place, so
+        //    re-showing needs a real focus CHANGE, not a second .focus() on the already-focused node.)
+        bar.blur();
+        await new Promise((r) => setTimeout(r, 40));
+        bar.focus();
+        await new Promise((r) => setTimeout(r, 80));
+        var reshown = st().shown;
+        bar.blur();
+        await new Promise((r) => setTimeout(r, 60));
+        var afterBlur = st();
+
+        // 4. Coverage, not samples: every mark promoted for the keyboard also carries tooltip text,
+        //    so no chart type ends up named-but-silent on focus.
+        var promoted = [].slice.call(d.querySelectorAll('svg [role="button"][tabindex="0"]'));
+        var withTip = promoted.filter(function (el) { return typeof el.__dkTip === "string" && el.__dkTip.length > 0; });
+
+        // Hand back a click target for the pointer half. A <rect> mark, never a donut slice: an
+        // SVG <path> only hit-tests where it is actually painted, so the centre of an arc's
+        // bounding box is empty space, while a rect fills its box. The TALLEST promoted rect that
+        // is fully on screen, clicked near its top EDGE, so the pointer's y and the shape's
+        // centre y are far enough apart to tell the two anchors apart.
+        window.__tipHelpers.hide();
+        var rects = promoted.filter(function (el) {
+          var b = el.getBoundingClientRect();
+          return el.tagName === "rect" && b.height > 14 && b.width > 8 && b.top > 0 && b.bottom < w.innerHeight;
+        }).sort(function (a, b) { return b.getBoundingClientRect().height - a.getBoundingClientRect().height; });
+        var target = null;
+        if (rects.length) {
+          var cb = rects[0].getBoundingClientRect();
+          target = { sel: rects[0].getAttribute("aria-label"),
+            x: Math.round(cb.left + cb.width / 2), y: Math.round(cb.top + 3), centerY: cb.top + cb.height / 2 };
+        }
+        return { onFocus: onFocus, afterEsc: afterEsc, reshown: reshown, afterBlur: afterBlur,
+          promoted: promoted.length, withTip: withTip.length, target: target };
+      } catch (e) { return { err: e.message }; }
+    });
+
+    // The pointer half, driven for real: a click inside the frame both focuses the mark AND leaves
+    // the cursor on it, so the tooltip must keep following the POINTER — focus must not yank it to
+    // the shape's centre under the mouse user's hand. What is asserted afterwards is WHERE the
+    // tooltip was last placed, not whether it is still up: the drawer this click opens slides in
+    // over the cursor, and the resulting mouseout hides the tooltip. That is the pre-existing
+    // hover behaviour and this slice does not touch it.
+    let tipMouse = { skipped: true };
+    if (tipKeyboard.target) {
+      await page.mouse.move(tipKeyboard.target.x, tipKeyboard.target.y);
+      await page.mouse.click(tipKeyboard.target.x, tipKeyboard.target.y);
+      await page.waitForTimeout(200);
+      tipMouse = await page.evaluate((t) => {
+        var d = window.__tipFrame.contentDocument;
+        var mark = [].slice.call(d.querySelectorAll('svg [role="button"][tabindex="0"]'))
+          .filter(function (el) { return el.getAttribute("aria-label") === t.sel; })[0];
+        var s = window.__tipHelpers.state();
+        // Whether a click focuses an SVG mark at all is the browser's business; what matters is
+        // that the mark is NOT focus-visible, so the focus path stays out of the pointer's way.
+        s.focusVisible = mark ? mark.matches(":focus-visible") : null;
+        s.focused = d.activeElement === mark;
+        s.atPointer = Math.abs(s.top - (t.y - 8)) < 3;             // still under the cursor…
+        s.notAtShapeCentre = Math.abs(s.top - (t.centerY - 8)) > 4; // …not re-anchored to the shape
+        return s;
+      }, tipKeyboard.target);
+    }
+    await page.evaluate(() => {
+      var dr = window.__tipFrame.contentDocument.getElementById("dk-dt"); if (dr) dr.remove();
+      window.__tipFrame.remove(); delete window.__tipFrame; delete window.__tipHelpers;
+    });
+
+    ok("SWEEP574-3b (tail): tabbing to an exported chart mark opens the same tooltip a mouse user hovers for",
+      !!tipKeyboard.onFocus && tipKeyboard.onFocus.shown === true && tipKeyboard.onFocus.matchesHover === true,
+      JSON.stringify(tipKeyboard));
+    ok("SWEEP574-3b (tail): with no cursor to follow, the tooltip anchors to the mark's own box",
+      !!tipKeyboard.onFocus && tipKeyboard.onFocus.anchored === true, JSON.stringify(tipKeyboard.onFocus));
+    ok("SWEEP574-3b (tail): Escape dismisses the tooltip without moving focus off the mark (WCAG 1.4.13)",
+      !!tipKeyboard.afterEsc && tipKeyboard.afterEsc.shown === false && tipKeyboard.afterEsc.stillFocused === true,
+      JSON.stringify(tipKeyboard.afterEsc));
+    ok("SWEEP574-3b (tail): moving focus off the mark takes the tooltip with it",
+      tipKeyboard.reshown === true && !!tipKeyboard.afterBlur && tipKeyboard.afterBlur.shown === false,
+      JSON.stringify(tipKeyboard.afterBlur));
+    ok("SWEEP574-3b (tail): EVERY keyboard-promoted mark in the export carries its tooltip text — none is named but silent",
+      tipKeyboard.promoted > 0 && tipKeyboard.withTip === tipKeyboard.promoted, JSON.stringify(tipKeyboard));
+    ok("SWEEP574-3b (tail): a real MOUSE click leaves the tooltip where the POINTER put it — focus never re-anchors it to the shape",
+      !tipMouse.skipped && tipMouse.focusVisible === false &&
+      tipMouse.atPointer === true && tipMouse.notAtShapeCentre === true,
+      JSON.stringify(tipMouse));
 
     // ── Z8 slice 13: Stacked area gets its own type-specific options (smooth + legend) ──
     console.log("\n• Z8 areaStacked: smooth curve + legend toggle");
@@ -41817,6 +43084,189 @@ function serve() {
       window.__studioShellSetSection("studio");
     });
 
+    // ---- N5a: inside the app the READER's theme wins — the Viewer's frame follows the app ----
+    // Kevin's call (2026-08-07, UX sweep #574 finding 1): a dark app framing a light dashboard
+    // reads as broken. The Viewer's srcdoc now opts into buildHtml's `frameTheme` and follows the
+    // app's live data-theme whatever spec.renderMode says. The scope is exactly that one surface:
+    // DOWNLOADS are deliverables and stay byte-for-byte as authored, and the Studio builder
+    // preview keeps showing the authored mode (the author has to see what they are making).
+    console.log("\n• N5a: the Viewer frame follows the reader's theme; downloads stay as authored");
+    await page.evaluate(function () {
+      function dash(id, renderMode) {
+        var spec = {
+          schema: 1, id: id, name: id, title: "N5a " + id, subtitle: "", group: "", description: "",
+          renderMode: renderMode,
+          cda: { connections: [], dataAccesses: [
+            { id: "n5a-da", name: "n5a sample", kind: "sql", columns: ["month", "value"], authored: true }
+          ] },
+          filters: [], kpis: [], gridCols: 1,
+          panels: [{ id: "p1", title: "Adoption", span: 1, chart: { type: "bar", da: "n5a-da", map: { x: "month", y: "value" } } }]
+        };
+        Studio.Workspace.put("dashboards", { id: id, ts: new Date().toISOString(), spec: spec, title: spec.title, name: spec.name });
+      }
+      dash("n5a-light", "");   // authored Light
+      dash("n5a-dark", "dark"); // authored Dark
+    });
+
+    // Read the pair (frame bytes + download bytes) out of a viewer page running under a given app
+    // theme. Both builds happen in the SAME tick from the SAME assets, so any difference between
+    // them is the frame-theme override and nothing else.
+    async function n5aRead(appTheme, dashId) {
+      const ctx = await browser.newContext({ storageState: await page.context().storageState() });
+      const p = await ctx.newPage();
+      p.on("pageerror", (e) => errors.push("N5a viewer page: " + e.message));
+      await p.addInitScript((t) => {
+        try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-theme", t); } catch (e) {}
+      }, appTheme);
+      await p.goto(`http://localhost:${PORT}/app/viewer.html?dash=${dashId}`, { waitUntil: "networkidle" });
+      await p.waitForFunction(function () { return !!window.__viewerFrameHtml; }, { timeout: 8000 }).catch(function () {});
+      await p.waitForTimeout(250);
+      const out = await p.evaluate(function () {
+        var ifr = document.querySelector("#viewerFrame");
+        var doc = ifr && ifr.contentDocument;
+        return {
+          appTheme: document.documentElement.getAttribute("data-theme") || "light",
+          // what the reader actually SEES: the live attribute on the rendered dashboard document
+          renderedTheme: doc ? (doc.documentElement.getAttribute("data-theme") || "light") : null,
+          frameHtml: window.__viewerFrameHtml ? window.__viewerFrameHtml() : "",
+          downloadHtml: window.__viewerBuildHtml ? window.__viewerBuildHtml() : ""
+        };
+      });
+      await ctx.close();
+      return out;
+    }
+
+    const n5aLightInDark = await n5aRead("dark", "n5a-light");
+    ok("N5a: an explicit-LIGHT dashboard opened in a DARK app renders DARK in the viewer — inside the app the reader's theme wins over spec.renderMode",
+      n5aLightInDark.appTheme === "dark" && n5aLightInDark.renderedTheme === "dark" &&
+      /<html lang="en" data-theme="dark">/.test(n5aLightInDark.frameHtml), JSON.stringify({
+        appTheme: n5aLightInDark.appTheme, renderedTheme: n5aLightInDark.renderedTheme,
+        frameTag: (n5aLightInDark.frameHtml.match(/<html[^>]*>/) || [""])[0]
+      }));
+    ok("N5a: that same dashboard's DOWNLOAD build is untouched by the reader's theme — no data-theme baked in, and it differs from the framed srcdoc by that one attribute and nothing else",
+      n5aLightInDark.downloadHtml.length > 0 &&
+      !/data-theme="dark"/.test((n5aLightInDark.downloadHtml.match(/<html[^>]*>/) || [""])[0]) &&
+      n5aLightInDark.frameHtml.replace(' data-theme="dark"', "") === n5aLightInDark.downloadHtml,
+      JSON.stringify({
+        downloadTag: (n5aLightInDark.downloadHtml.match(/<html[^>]*>/) || [""])[0],
+        strippedMatchesDownload: n5aLightInDark.frameHtml.replace(' data-theme="dark"', "") === n5aLightInDark.downloadHtml,
+        frameLen: n5aLightInDark.frameHtml.length, downloadLen: n5aLightInDark.downloadHtml.length
+      }));
+
+    // The reverse direction, so the override is proven to be a real follow rather than a
+    // one-way "always dark": an authored-DARK dashboard read in a LIGHT app renders light.
+    const n5aDarkInLight = await n5aRead("light", "n5a-dark");
+    const n5aDarkInDark = await n5aRead("dark", "n5a-dark");
+    ok("N5a: an explicit-DARK dashboard opened in a LIGHT app renders LIGHT in the viewer (the frame follows the reader both directions, not just into dark)",
+      n5aDarkInLight.appTheme === "light" && n5aDarkInLight.renderedTheme === "light" &&
+      !/data-theme="dark"/.test((n5aDarkInLight.frameHtml.match(/<html[^>]*>/) || [""])[0]), JSON.stringify({
+        appTheme: n5aDarkInLight.appTheme, renderedTheme: n5aDarkInLight.renderedTheme,
+        frameTag: (n5aDarkInLight.frameHtml.match(/<html[^>]*>/) || [""])[0]
+      }));
+    ok("N5a: the DOWNLOAD of an authored-Dark dashboard is byte-identical whether the reader's app is light or dark — a handed-out file is a deliverable and never adapts",
+      n5aDarkInLight.downloadHtml.length > 0 && n5aDarkInLight.downloadHtml === n5aDarkInDark.downloadHtml &&
+      /<html lang="en" data-theme="dark">/.test(n5aDarkInLight.downloadHtml), JSON.stringify({
+        equal: n5aDarkInLight.downloadHtml === n5aDarkInDark.downloadHtml,
+        lightAppLen: n5aDarkInLight.downloadHtml.length, darkAppLen: n5aDarkInDark.downloadHtml.length,
+        downloadTag: (n5aDarkInLight.downloadHtml.match(/<html[^>]*>/) || [""])[0]
+      }));
+    ok("N5a: when the reader's theme already matches the authored mode the frame and the download are the same bytes — the override adds nothing when it has nothing to change",
+      n5aDarkInDark.frameHtml === n5aDarkInDark.downloadHtml,
+      JSON.stringify({ frameLen: n5aDarkInDark.frameHtml.length, downloadLen: n5aDarkInDark.downloadHtml.length }));
+
+    // The Studio builder preview is a DIFFERENT surface and must keep showing the authored mode —
+    // the author is composing the appearance there. buildHtml only honors frameTheme when a caller
+    // passes it, and the builder never does; flipping the app's own theme must change nothing.
+    const n5aBuilder = await page.evaluate(function () {
+      var root = document.documentElement, was = root.getAttribute("data-theme");
+      root.setAttribute("data-theme", "dark");
+      var spec = window.__STUDIO_STATE.spec, assets = window.__STUDIO_STATE.assets;
+      var wasMode = spec.renderMode;
+      spec.renderMode = "";
+      var lightPreview = window.Studio.buildHtml(spec, assets, { deployPath: "/x", preview: true });
+      spec.renderMode = "dark";
+      var darkPreview = window.Studio.buildHtml(spec, assets, { deployPath: "/x", preview: true });
+      spec.renderMode = wasMode;
+      if (was) root.setAttribute("data-theme", was); else root.removeAttribute("data-theme");
+      return {
+        lightTag: (lightPreview.match(/<html[^>]*>/) || [""])[0],
+        darkTag: (darkPreview.match(/<html[^>]*>/) || [""])[0],
+        restoredMode: spec.renderMode
+      };
+    });
+    ok("N5a: the Studio builder preview still shows the AUTHORED mode regardless of the app's theme — only the read-only Viewer follows the reader",
+      n5aBuilder.lightTag === '<html lang="en">' && n5aBuilder.darkTag === '<html lang="en" data-theme="dark">',
+      JSON.stringify(n5aBuilder));
+
+    // ---- N5b: `auto` — the opt-in third Appearance that matches the reader ----
+    // The companion to N5a, and the deliberately different mechanism: N5a is a build-time
+    // override the Viewer passes, scoped to that one surface. `auto` is the AUTHOR asking the
+    // file itself to adapt, so it has to work in places we don't control (a standalone download,
+    // a cross-origin embed). It therefore bakes NO data-theme and carries a runtime resolver —
+    // ONE byte stream, framed or not. Light ("") and Dark ("dark") are untouched by all of this.
+    console.log("\n• N5b: Appearance 'auto' — no baked theme, one byte stream, resolved at runtime");
+    await page.evaluate(function () {
+      var spec = {
+        schema: 1, id: "n5b-auto", name: "n5b-auto", title: "N5b auto", subtitle: "", group: "", description: "",
+        renderMode: "auto",
+        cda: { connections: [], dataAccesses: [
+          { id: "n5b-da", name: "n5b sample", kind: "sql", columns: ["month", "value"], authored: true }
+        ] },
+        filters: [], kpis: [], gridCols: 1,
+        panels: [{ id: "p1", title: "Adoption", span: 1, chart: { type: "bar", da: "n5b-da", map: { x: "month", y: "value" } } }]
+      };
+      Studio.Workspace.put("dashboards", { id: spec.id, ts: new Date().toISOString(), spec: spec, title: spec.title, name: spec.name });
+    });
+
+    const n5bInDark = await n5aRead("dark", "n5b-auto");
+    const n5bInLight = await n5aRead("light", "n5b-auto");
+    ok("N5b: an 'auto' export bakes NO data-theme onto <html> and carries the runtime resolver instead",
+      n5bInDark.downloadHtml.length > 0 &&
+      (n5bInDark.downloadHtml.match(/<html[^>]*>/) || [""])[0] === '<html lang="en">' &&
+      n5bInDark.downloadHtml.indexOf("prefers-color-scheme: dark") !== -1, JSON.stringify({
+        tag: (n5bInDark.downloadHtml.match(/<html[^>]*>/) || [""])[0],
+        hasResolver: n5bInDark.downloadHtml.indexOf("prefers-color-scheme: dark") !== -1
+      }));
+    ok("N5b: an 'auto' dashboard's Viewer srcdoc and its DOWNLOAD are the SAME BYTES — the adaptation is runtime, never a per-context build (frameTheme is ignored for 'auto')",
+      n5bInDark.frameHtml.length > 0 && n5bInDark.frameHtml === n5bInDark.downloadHtml &&
+      n5bInLight.downloadHtml === n5bInDark.downloadHtml, JSON.stringify({
+        frameEqualsDownload: n5bInDark.frameHtml === n5bInDark.downloadHtml,
+        stableAcrossAppThemes: n5bInLight.downloadHtml === n5bInDark.downloadHtml,
+        frameLen: n5bInDark.frameHtml.length, downloadLen: n5bInDark.downloadHtml.length
+      }));
+    ok("N5b: framed in the Viewer, those identical bytes follow the HOST app both directions — dark app renders dark, light app renders light",
+      n5bInDark.renderedTheme === "dark" && n5bInLight.renderedTheme === "light",
+      JSON.stringify({ inDarkApp: n5bInDark.renderedTheme, inLightApp: n5bInLight.renderedTheme }));
+
+    // Standalone: no readable host document, so the resolver falls through to the reader's OS
+    // setting. domcontentloaded is enough — the resolver is inline in <head> and runs at parse.
+    // This throwaway `about:blank` host is deliberately NOT wired into the suite's pageerror gate:
+    // it is not one of the app's surfaces, and an export loaded via setContent has no real base
+    // URL for its own asset plumbing to resolve against. The resolver is all we read here; the
+    // real rendered-dashboard surfaces are gated everywhere else in this file.
+    async function n5bStandalone(colorScheme) {
+      const ctx = await browser.newContext({ colorScheme: colorScheme });
+      const p = await ctx.newPage();
+      await p.setContent(n5bInDark.downloadHtml, { waitUntil: "domcontentloaded" });
+      const theme = await p.evaluate(function () {
+        return document.documentElement.getAttribute("data-theme") || "light";
+      });
+      await ctx.close();
+      return theme;
+    }
+    const n5bPrefersDark = await n5bStandalone("dark");
+    const n5bPrefersLight = await n5bStandalone("light");
+    ok("N5b: opened standalone (no host to read), the same file honors the reader's prefers-color-scheme",
+      n5bPrefersDark === "dark" && n5bPrefersLight === "light",
+      JSON.stringify({ prefersDark: n5bPrefersDark, prefersLight: n5bPrefersLight }));
+
+    await page.evaluate(function () {
+      Studio.Workspace.remove("dashboards", "n5a-light");
+      Studio.Workspace.remove("dashboards", "n5a-dark");
+      Studio.Workspace.remove("dashboards", "n5b-auto");
+      window.__studioShellSetSection("studio");
+    });
+
     // ---- SYNC-PREAUTH: a gate-bound (never signed-in) connection must never ----
     // auto-pull. bindConnection latches automatic pulls off; the latch rides the
     // saved connection so a RELOAD can't boot-pull as anon and replaceAll local
@@ -42025,6 +43475,453 @@ function serve() {
       anonQ.gateViews === 1 && anonQ.gvUserNull && anonQ.gvStamped && anonQ.gvHasRoute && anonQ.sessionEnds === 1 && anonQ.seUserNull,
       JSON.stringify(anonQ));
     await anonPage.close();
+
+    // ---- N7 (Data panel): the builder names its own left pane the way that pane names
+    //      itself — and "open the Data panel" actually opens it, on a phone too ----
+    // STUDIO-PANELS renamed #library's rendered label to "Data" and app/index.html followed it
+    // (pane header, collapsed rail, tooltips, the empty canvas's "Open data panel" button).
+    // Every string the builder renders AT RUNTIME was missed, and one of them was load-bearing:
+    // the empty canvas's #cesLib handler and Simple mode's getting-started checklist each
+    // opened the pane on a phone by clicking `#tabLib` — an id that has never existed
+    // (setupMobileTabs builds its buttons with a data-mob-tab attribute and no id), so at
+    // ≤640px the primary CTA of BOTH empty states did nothing at all. They now share one
+    // openDataPane(), which also expands the pane on desktop before focusing its search —
+    // panes ship collapsed by default since STUDIO-PANELS, so the old code was putting the
+    // caret inside a 34px rail. tools/doc-truth.mjs check 18 is the copy half of this.
+    console.log("\n• N7: the builder's Data pane — its label, and its open button on a phone");
+    const dpCtx = await browser.newContext({
+      storageState: await page.context().storageState(), viewport: { width: 390, height: 780 } });
+    const dpPage = await dpCtx.newPage();
+    // Own error bucket: the suite's "no uncaught JS errors during session" gate runs far
+    // earlier than this block, so anything this page throws needs its own assertion.
+    const dpErrors = [];
+    dpPage.on("pageerror", (e) => { dpErrors.push(e.message); errors.push("N7 data-pane page: " + e.message); });
+    await dpPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); } catch (e) {} });
+    await dpPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await dpPage.waitForTimeout(400);
+    await dpPage.evaluate(function () { try { window.__studioShellSetSection("studio"); } catch (e) {} });
+    await dpPage.waitForTimeout(250);
+
+    // (a) THE LABEL — derived from the pane's own header, so this can never be satisfied by a
+    // hard-coded string that drifts with it.
+    const dpTab = await dpPage.evaluate(function () {
+      var tabs = [].map.call(document.querySelectorAll(".mob-tab"), function (b) {
+        return { id: b.getAttribute("data-mob-tab"), label: (b.textContent || "").trim(), aria: b.getAttribute("aria-label") };
+      });
+      var hdr = document.querySelector("#library .pane-h span");
+      return { tabs: tabs, paneName: hdr ? hdr.textContent.trim() : null };
+    });
+    const dpLibTab = dpTab.tabs.filter(function (t) { return t.id === "library"; })[0] || {};
+    ok("N7: the phone drawer's #library tab carries the pane's own header name (label + aria-label), not its internal id",
+      dpTab.tabs.length === 3 && !!dpTab.paneName && dpLibTab.label === dpTab.paneName && dpLibTab.aria === dpTab.paneName,
+      JSON.stringify({ paneName: dpTab.paneName, libTab: dpLibTab, tabCount: dpTab.tabs.length }));
+
+    // (b) THE PHONE CTA — the regression that shipped: this returned drawer-open false before.
+    const dpPhone = await dpPage.evaluate(function () {
+      var lib = document.getElementById("library"), scrim = document.getElementById("mobile-scrim");
+      lib.classList.remove("drawer-open");
+      var btn = document.getElementById("cesLib");
+      var before = lib.classList.contains("drawer-open");
+      if (btn) btn.click();
+      return {
+        hasBtn: !!btn, before: before, after: lib.classList.contains("drawer-open"),
+        tabActive: !!document.querySelector('.mob-tab.active[data-mob-tab="library"]'),
+        scrimOn: !!(scrim && scrim.classList.contains("active"))
+      };
+    });
+    ok("N7: at 390px the empty canvas's Open-data-panel button really opens the Data drawer (tab activated, scrim raised) — it used to click a #tabLib that does not exist",
+      dpPhone.hasBtn && !dpPhone.before && dpPhone.after && dpPhone.tabActive && dpPhone.scrimOn,
+      JSON.stringify(dpPhone));
+
+    // (c) THE DESKTOP CTA — expands a collapsed pane, focuses its search, and leaves the
+    // reader's persisted collapse preference exactly as it found it (silent collapsePane).
+    await dpPage.setViewportSize({ width: 1280, height: 900 });
+    await dpPage.waitForTimeout(250);
+    const dpDesktop = await dpPage.evaluate(function () {
+      var lib = document.getElementById("library");
+      lib.classList.remove("drawer-open");
+      lib.classList.add("collapsed");
+      try { localStorage.setItem("studio-collapse-library", "1"); } catch (e) {}
+      var wasCollapsed = lib.classList.contains("collapsed");
+      var btn = document.getElementById("cesLib"); if (btn) btn.click();
+      var pref; try { pref = localStorage.getItem("studio-collapse-library"); } catch (e) {}
+      return {
+        wasCollapsed: wasCollapsed, nowCollapsed: lib.classList.contains("collapsed"),
+        focused: !!(document.activeElement && document.activeElement.id === "libSearch"),
+        pref: pref
+      };
+    });
+    ok("N7: on desktop the same button expands a COLLAPSED Data pane and focuses its search, without rewriting the reader's persisted collapse preference",
+      dpDesktop.wasCollapsed && !dpDesktop.nowCollapsed && dpDesktop.focused && dpDesktop.pref === "1",
+      JSON.stringify(dpDesktop));
+    ok("N7: the Data-pane walk (390×780 → 1280×900) raised zero pageerrors", dpErrors.length === 0, dpErrors.slice(0, 3).join(" | "));
+    await dpCtx.close();
+
+    // ---- N7 (build tour): the tour OPENS the panes it points at ----
+    // The other half of the STUDIO-PANELS fallout the block above found. That change also made
+    // the builder open with its Data and Inspector panes CLOSED, and the "Build a dashboard"
+    // tour kept ringing them regardless: on desktop steps 1 and 3 spotlit a 34px collapsed rail
+    // while the copy described four groups the reader could not see, and at ≤640px those panes
+    // are fixed drawers parked at translateX(±105%), so the ring was measured OUTSIDE the
+    // viewport — a dimmed screen with nothing lit, for two of the tour's six steps. A builder
+    // step now declares its `pane:` and the renderer opens it silently first
+    // (window.__studioOpenPane). tools/doc-truth.mjs check 19 is the static half; this walks it
+    // for real at both gate widths, and asserts the silence too — the walk must not rewrite the
+    // reader's persisted collapse preference or drawer tab.
+    console.log("\n• N7: the Build a dashboard tour opens the panes it spotlights");
+    const btCtx = await browser.newContext({
+      storageState: await page.context().storageState(), viewport: { width: 390, height: 780 } });
+    const btPage = await btCtx.newPage();
+    const btErrors = [];
+    btPage.on("pageerror", (e) => { btErrors.push(e.message); errors.push("N7 build-tour page: " + e.message); });
+    await btPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); } catch (e) {} });
+    await btPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await btPage.waitForTimeout(400);
+    // The spotlight ring must land ON the pane's VISIBLE box: overlapping the target by most of
+    // its area AND inside the viewport. Both failure modes the fix addresses are caught by that
+    // one measurement — a 34px collapsed rail is a real box but a tiny one (the ring would cover
+    // it, so area is compared against the pane's OPEN width too), and an off-canvas drawer's
+    // rect sits at a negative left.
+    const walkBuildTour = (pg, measure) => pg.evaluate(async function (measure) {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      function ringOn(sel) {
+        var ring = document.getElementById("st-ring"), tgt = document.querySelector(sel);
+        if (!ring || !tgt) return { ringed: false, onscreen: false, why: "no ring or target" };
+        var rr = ring.getBoundingClientRect(), tr = tgt.getBoundingClientRect();
+        var W = window.innerWidth, H = window.innerHeight;
+        var ovX = Math.max(0, Math.min(rr.right, tr.right) - Math.max(rr.left, tr.left));
+        var ovY = Math.max(0, Math.min(rr.bottom, tr.bottom) - Math.max(rr.top, tr.top));
+        var visX = Math.max(0, Math.min(tr.right, W) - Math.max(tr.left, 0));
+        return {
+          // ringed: the ring really is around THIS element (>60% of its box, PAD included)
+          ringed: tr.width > 0 && tr.height > 0 && ovX * ovY > 0.6 * tr.width * tr.height,
+          // onscreen: the reader can SEE what was lit — nearly all of the target's box is
+          // inside the viewport. An off-canvas drawer sits at translateX(-105%): a real box,
+          // ringed correctly, and completely invisible. That is the whole bug.
+          onscreen: visX > 0.9 * tr.width && tr.top < H && tr.bottom > 0,
+          w: Math.round(tr.width), left: Math.round(tr.left)
+        };
+      }
+      // Advance one card, the way a reader can: wait for the primary button to be live (the
+      // outgoing card's nav goes inert while the next step is prepared), click, then wait for
+      // a DIFFERENT live card to be in place. Never a fixed sleep — preparing a step can take
+      // as long as waitFor's 2.5s poll, and a fixed sleep here would either flake or hide the
+      // stale-click bug this hardening closed.
+      async function advance() {
+        var t0 = Date.now(), btn = null;
+        while (Date.now() - t0 < 9000) {
+          btn = document.querySelector("#st-tip button.pri");
+          if (btn && !btn.disabled) break;
+          await sleep(80);
+        }
+        if (!btn) return "";
+        var label = btn.textContent || "";
+        btn.click();
+        var t1 = Date.now();
+        while (Date.now() - t1 < 9000) {
+          var b2 = document.querySelector("#st-tip button.pri");
+          if (!b2 || (b2 !== btn && !b2.disabled)) break;   // new card, or the tour ended
+          await sleep(80);
+        }
+        await sleep(150);   // let the ring paint where the card says it is
+        return label;
+      }
+      var out = { steps: [], labels: [], phone: window.matchMedia("(max-width:640px)").matches };
+      StudioTutorial.openTour("build");
+      await sleep(400);                          // step 0 (intro, centered card)
+      // The build tour in order after the intro; null = the closing card, no spotlight.
+      // The export stop is the one step that changes target with the viewport: at ≤640px
+      // M10 hides #btnExport outright, so the step's `phone:` form rings ⋯ More instead.
+      var SEQ = ["#library", "#canvas", "#inspector", out.phone ? "#btnMore" : "#btnExport", null];
+      for (var i = 0; i < SEQ.length; i++) {
+        var t0 = Date.now();
+        out.labels.push(await advance());
+        var ms = Date.now() - t0;
+        if (SEQ[i] && measure.indexOf(SEQ[i]) >= 0) {
+          // The COPY is measured with the ring: a step that points somewhere real while
+          // still naming the control the other width has is only half fixed.
+          var tipEl = document.getElementById("st-tip");
+          out.steps.push({ sel: SEQ[i], r: ringOn(SEQ[i]), ms: ms,
+            h: tipEl ? ((tipEl.querySelector(".st-h") || {}).innerHTML || "") : "",
+            sub: tipEl ? ((tipEl.querySelector(".st-sub") || {}).innerHTML || "") : "" });
+        }
+      }
+      out.lastLabel = (document.querySelector("#st-tip button.pri") || {}).textContent || "";
+      await advance();                           // Done!
+      var wskip = document.querySelector("#studio-welcome .sw-skip");
+      if (wskip) wskip.click();
+      out.closed = !document.getElementById("st-tip") && !window.__studioTutorialActive();
+      out.done = StudioTutorial.isDone();
+      try {
+        out.collapsePref = localStorage.getItem("studio-collapse-library");
+        out.inspPref = localStorage.getItem("studio-collapse-inspector");
+        out.mobTab = localStorage.getItem("studio-mob-tab");
+      } catch (e) {}
+      return out;
+    }, measure);
+    // All four spotlit steps are measured at BOTH widths now. The three pane steps are what the
+    // v880 fix was about; the fourth is the export stop, whose phone form this slice added — at
+    // ≤640px #btnExport is display:none (M10 moved it behind ⋯ More), so the step used to have
+    // no box at all: waitFor polled it for its full 2.5s, then rendered a spotlight-less card
+    // still telling the reader to click a control that screen does not have.
+    const PANE_STEPS = ["#library", "#canvas", "#inspector"];
+    const btPhone = await walkBuildTour(btPage, PANE_STEPS.concat(["#btnMore"]));
+    ok("N7: at 390×780 the Build tour's pane spotlights all land on something the reader can actually see — the Data and Inspector drawers slide IN first (they used to be ringed off-canvas at translateX(-105%)/(105%))",
+      btPhone.steps.length === 4 && btPhone.steps.slice(0, 3).every((s) => s.r.ringed && s.r.onscreen) &&
+      /Done/.test(btPhone.lastLabel) && btPhone.closed && btPhone.done,
+      JSON.stringify(btPhone));
+    ok("N7: the phone walk leaves no trace — it never writes the persisted drawer tab",
+      btPhone.mobTab === null || btPhone.mobTab === undefined, JSON.stringify({ mobTab: btPhone.mobTab }));
+    // The export stop, at the width where its desktop form was a dead end.
+    const btPhoneExport = btPhone.steps[3] || {};
+    ok("N7: at 390×780 the Build tour's export step rings a control that is ON the screen — ⋯ More, where M10 put Export — instead of measuring a display:none #btnExport and lighting nothing",
+      !!btPhoneExport.r && btPhoneExport.r.ringed && btPhoneExport.r.onscreen,
+      JSON.stringify(btPhoneExport));
+    ok("N7: and it names the route that phone actually has (⋯ More → Export…, ⋯ More → Save), never the hidden topbar buttons",
+      /⋯ More → Export/.test(btPhoneExport.h || "") && /⋯ More → Save/.test(btPhoneExport.sub || "") &&
+      !/Export ▾/.test(btPhoneExport.h || "") && !/<b>Save<\/b>/.test(btPhoneExport.sub || ""),
+      JSON.stringify({ h: btPhoneExport.h, sub: btPhoneExport.sub }));
+    ok("N7: and it no longer stalls the walk — the step resolves at once instead of burning waitFor's full 2.5s poll on an element with no box",
+      typeof btPhoneExport.ms === "number" && btPhoneExport.ms < 2000, JSON.stringify({ ms: btPhoneExport.ms }));
+
+    // The impatient reader — deliberately run at 390px, where a step really does take time to
+    // prepare: the builder's panes are drawers that SLIDE in, so openPane() waits out their
+    // .28s transition before the spotlight is measured. Throughout that window the OUTGOING
+    // card stayed live, so a second tap advanced a second time — off the end of the tour and
+    // into steps[idx].before on undefined, an uncaught TypeError, which is a release gate. (At
+    // desktop widths the panes expand instantly and the race simply never opens, which is why
+    // this check lives on the phone.) The window used to be far wider here — the export step's
+    // display:none target burned waitFor's full 2.5s — and this slice closed that; the drawer
+    // transitions keep it open enough to reproduce, and the guard is what is under test either
+    // way, not the size of the window.
+    // Hammer the primary button with no waiting at all: the tour must end cleanly and throw
+    // nothing, and Skip must stay reachable throughout — nobody gets trapped in a tour.
+    const btErrsBeforeSpam = btErrors.length;
+    const btSpam = await btPage.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      StudioTutorial.openTour("build");
+      var t0 = Date.now();                       // the first card is async too (openPane)
+      while (Date.now() - t0 < 5000 && !document.querySelector("#st-tip button.pri")) await sleep(80);
+      var skipAlwaysLive = true, taps = 0;
+      for (var i = 0; i < 24; i++) {
+        var btn = document.querySelector("#st-tip button.pri");
+        if (!btn) break;
+        var skip = document.querySelector("#st-tip .st-skip");
+        if (!skip || skip.disabled) skipAlwaysLive = false;
+        // The DOUBLE TAP is the reproduction: the second click lands on the same card while
+        // the next step is still being prepared. Unguarded, that card's handler read the LIVE
+        // _cur and advanced from it a second time — two steps per tap-pair, straight past the
+        // end of the tour. Guarded, the second tap hits an inert button and is absorbed.
+        btn.click(); btn.click(); taps += 2;
+        await sleep(40);            // far shorter than that step takes to prepare
+      }
+      await sleep(3200);            // outlast waitFor's 2.5s poll before judging the outcome
+      // Whatever the hammering did, the tour must be in a state a reader can act on: a card
+      // with a title, its Next live again, and Skip still able to end it. (The extra taps are
+      // absorbed rather than queued, so the tour is typically mid-walk here — that is the fix.)
+      var tip = document.getElementById("st-tip");
+      var nxt = tip && tip.querySelector("button.pri");
+      var out = {
+        skipAlwaysLive: skipAlwaysLive, taps: taps,
+        recovered: !!(tip && nxt && !nxt.disabled && (tip.querySelector("h3") || {}).textContent),
+        title: tip ? ((tip.querySelector("h3") || {}).textContent || "") : ""
+      };
+      var skip = tip && tip.querySelector(".st-skip");
+      if (skip) skip.click();
+      await sleep(200);
+      out.closedBySkip = !document.getElementById("st-tip") && !document.getElementById("st-ring") &&
+        !window.__studioTutorialActive();
+      return out;
+    });
+    ok("N7: at 390×780, hammering Next through the Build tour throws nothing — the extra taps are absorbed instead of walking the tour off the end (steps[idx] undefined → uncaught TypeError) — and Skip stays live throughout, so nobody is trapped",
+      btErrors.length === btErrsBeforeSpam && btSpam.taps === 48 && btSpam.skipAlwaysLive &&
+      btSpam.recovered && btSpam.closedBySkip,
+      JSON.stringify({ spam: btSpam, newErrors: btErrors.slice(btErrsBeforeSpam, btErrsBeforeSpam + 3) }));
+
+    await btPage.setViewportSize({ width: 1280, height: 900 });
+    await btPage.waitForTimeout(250);
+    // Desktop starts from the WORST case the reader can be in: both panes collapsed, with that
+    // preference persisted — exactly what applyStudioPanelsDefault() produces on every entry.
+    await btPage.evaluate(function () {
+      ["library", "inspector"].forEach(function (id) {
+        var p = document.getElementById(id);
+        if (p) { p.classList.add("collapsed"); p.classList.remove("drawer-open"); }
+        try { localStorage.setItem("studio-collapse-" + id, "1"); } catch (e) {}
+      });
+    });
+    const btDesk = await walkBuildTour(btPage, PANE_STEPS.concat(["#btnExport"]));
+    const btOpenWidths = await btPage.evaluate(function () {
+      return { lib: Math.round(document.getElementById("library").getBoundingClientRect().width),
+        insp: Math.round(document.getElementById("inspector").getBoundingClientRect().width) };
+    });
+    ok("N7: at 1280×900 the Build tour EXPANDS the collapsed Data and Inspector panes before ringing them — the spotlight used to fall on a 34px rail",
+      btDesk.steps.length === 4 && btDesk.steps.every((s) => s.r.ringed && s.r.onscreen) &&
+      btDesk.steps[0].r.w > 100 && btDesk.steps[2].r.w > 100 && btOpenWidths.lib > 100 && btOpenWidths.insp > 100,
+      JSON.stringify({ steps: btDesk.steps, widths: btOpenWidths }));
+    // The other half of the phone form: the desktop step is UNCHANGED by it. Where the topbar
+    // really carries Export ▾ and Save, that is still what the card rings and what it names —
+    // the ⋯ More detour is the phone's answer only.
+    const btDeskExport = btDesk.steps[3] || {};
+    ok("N7: the desktop export step is untouched by the phone form — it still rings #btnExport and still says Click Export ▾ / Save, with no ⋯ More detour",
+      btDeskExport.sel === "#btnExport" && !!btDeskExport.r && btDeskExport.r.ringed && btDeskExport.r.onscreen &&
+      /Export ▾/.test(btDeskExport.h || "") && /<b>Save<\/b>/.test(btDeskExport.sub || "") &&
+      !/⋯ More/.test((btDeskExport.h || "") + (btDeskExport.sub || "")),
+      JSON.stringify({ sel: btDeskExport.sel, h: btDeskExport.h, sub: btDeskExport.sub }));
+    ok("N7: the desktop walk is silent — the reader's persisted 'panes collapsed' preference survives the tour",
+      btDesk.collapsePref === "1" && btDesk.inspPref === "1",
+      JSON.stringify({ library: btDesk.collapsePref, inspector: btDesk.inspPref }));
+    ok("N7: the Build-tour walk (390×780 → 1280×900, including the double-tap hammer) raised zero pageerrors",
+      btErrors.length === 0, btErrors.slice(0, 3).join(" | "));
+    await btCtx.close();
+
+    // ---- N7: the ⋯ More routes Help documents are routes the phone really has ----
+    // The previous slice taught the TOUR the phone's route to Export; docs/index.html still
+    // documented the whole builder in the desktop's terms — "Click Export ▾ in the topbar",
+    // "the ↶/↷ buttons in the topbar" — for ten controls M10 hides below 640px. Help now names
+    // ⋯ More → … for each, and tools/doc-truth.mjs check 21 keeps it named. That is the static
+    // half, and it can only prove the two DOCUMENTS agree. This is the half that proves the
+    // documented route is TRUE OF THE APP: at the mobile gate width, with the builder open,
+    // every entry Help sends a reader to is on the screen, thumb-sized, and wired.
+    // The pair list is read off app/index.html's own markup — a control that joins (or leaves)
+    // the ⋯ More convention changes this test's subject matter without anyone editing it.
+    console.log("\n• N7: Help's ⋯ More phone routes, walked at the 390×780 gate");
+    const morePhoneEntries = (() => {
+      const src = fs.readFileSync(path.join(ROOT, "app/index.html"), "utf8");
+      const start = src.indexOf('<div class="menu" id="menuMore">');
+      const nextWrap = src.indexOf('<div class="menu-wrap"', start + 1);
+      const block = src.slice(start, nextWrap > -1 ? nextWrap : src.length).replace(/<!--[\s\S]*?-->/g, "");
+      return [...block.matchAll(/<button[^>]*\bid="(more\w+)"[^>]*\bclass="[^"]*more-phone-only[^"]*"[^>]*>([^<]+)<\/button>/g)]
+        .map((m) => ({ more: m[1], label: m[2].trim(), bare: m[1].slice(4) }));
+    })();
+    ok("N7: app/index.html's ⋯ More phone-only entries parsed for the route walk are non-empty",
+      morePhoneEntries.length >= 6, morePhoneEntries.map((e) => `#${e.more}`).join(" · ") || "(none)");
+
+    const hrCtx = await browser.newContext({
+      storageState: await page.context().storageState(), viewport: { width: 390, height: 780 } });
+    const hrPage = await hrCtx.newPage();
+    const hrErrors = [];
+    hrPage.on("pageerror", (e) => { hrErrors.push(e.message); errors.push("N7 help-routes page: " + e.message); });
+    await hrPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); } catch (e) {} });
+    await hrPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await hrPage.waitForTimeout(400);
+    // Into the builder — Help's claims are about the builder's toolbar, and #btnExport et al.
+    // only render while Studio is the open section. The rail is a drawer at this width, so the
+    // rail item is clicked directly; getting there is setup, not what is under test.
+    await hrPage.evaluate(function () {
+      var b = document.querySelector('#railNav .rail-item[data-sec="studio"]');
+      if (b) b.click();
+    });
+    await hrPage.waitForTimeout(500);
+    const hrWalk = await hrPage.evaluate(async function (entries) {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      var W = window.innerWidth, H = window.innerHeight;
+      function box(el) {
+        if (!el) return null;
+        var r = el.getBoundingClientRect();
+        return { w: Math.round(r.width), h: Math.round(r.height),
+          onscreen: r.width > 0 && r.height > 0 && r.left >= 0 && r.right <= W + 1 && r.top < H && r.bottom > 0 };
+      }
+      var out = { inStudio: !!document.querySelector('#railNav .rail-item[data-sec="studio"].active'), rows: [] };
+      // The premise first, with the menu SHUT: the topbar partner really is gone at this width.
+      // If it were merely narrow, Help would be over-claiming and the routes below redundant.
+      for (var i = 0; i < entries.length; i++) {
+        var e = entries[i];
+        var partner = document.getElementById("btn" + e.bare) || document.getElementById("tb" + e.bare);
+        var pb = box(partner);
+        out.rows.push({ more: e.more, label: e.label, partner: partner ? partner.id : null,
+          partnerHidden: !!partner && (!pb || (pb.w === 0 && pb.h === 0)) });
+      }
+      document.getElementById("btnMore").click();
+      await sleep(320);
+      out.menuOpen = document.getElementById("menuMore").classList.contains("open");
+      for (var j = 0; j < out.rows.length; j++) {
+        var el = document.getElementById(out.rows[j].more);
+        var b = box(el);
+        out.rows[j].shown = !!el && !!b && b.w > 0 && b.h > 0;
+        out.rows[j].onscreen = !!b && b.onscreen;
+        out.rows[j].h = b ? b.h : 0;
+        out.rows[j].wired = !!el && typeof el.onclick === "function";
+      }
+      return out;
+    }, morePhoneEntries);
+    ok("N7: at 390×780 every topbar control Help says lives behind ⋯ More really is off the screen there (the premise Help now states)",
+      hrWalk.inStudio && hrWalk.rows.length === morePhoneEntries.length &&
+      hrWalk.rows.every((r) => r.partner && r.partnerHidden),
+      JSON.stringify({ inStudio: hrWalk.inStudio, notHidden: hrWalk.rows.filter((r) => !r.partner || !r.partnerHidden) }));
+    // NOT asserted here, deliberately, because this slice does not fix it: these rows measure
+    // 37px, under the 44px touch-target bar UX7 set for the ≤640px band — that rule landed on
+    // `.btn`, and a ⋯ More entry is a bare `.menu button`. It is every menu in the app, not
+    // these ten, so it is filed as its own NOW item (N8) with the measurement rather than
+    // widened into this PR.
+    ok("N7: and every route Help names in its place — ⋯ More → " +
+      morePhoneEntries.map((e) => e.label).join(" / ") + " — is on that screen and wired",
+      hrWalk.menuOpen && hrWalk.rows.every((r) => r.shown && r.onscreen && r.wired),
+      JSON.stringify({ menuOpen: hrWalk.menuOpen, bad: hrWalk.rows.filter((r) => !(r.shown && r.onscreen && r.wired)) }));
+
+    // Two routes walked for real, both non-destructive, both named verbatim in Help: the export
+    // menu Help's Exporting section now sends a phone to, and the dashboard picker its
+    // "Saving and loading your work" list does.
+    const hrExport = await hrPage.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      document.getElementById("moreExport").click();
+      await sleep(300);
+      var menu = document.getElementById("menuExport");
+      var r = menu ? menu.getBoundingClientRect() : null;
+      var out = { open: !!menu && menu.classList.contains("open"),
+        onscreen: !!r && r.width > 0 && r.height > 0 && r.left >= -1 && r.right <= window.innerWidth + 1,
+        items: menu ? menu.querySelectorAll("button").length : 0,
+        moreClosed: !document.getElementById("menuMore").classList.contains("open") };
+      document.body.click();
+      await sleep(200);
+      return out;
+    });
+    ok("N7: ⋯ More → Export… opens the same export menu Help's Exporting section describes — on screen at 390px, with its formats, and the ⋯ menu steps out of the way",
+      hrExport.open && hrExport.onscreen && hrExport.items >= 3 && hrExport.moreClosed,
+      JSON.stringify(hrExport));
+    const hrOpen = await hrPage.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      document.getElementById("btnMore").click();
+      await sleep(280);
+      document.getElementById("moreImport").click();
+      await sleep(420);
+      var modal = document.querySelector(".modal-backdrop, .modal, #dashPicker");
+      var out = { picker: !!modal };
+      if (modal) {
+        var r = modal.getBoundingClientRect();
+        out.onscreen = r.width > 0 && r.height > 0;
+      }
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      await sleep(250);
+      return out;
+    });
+    ok("N7: ⋯ More → Open… really opens the dashboard picker Help's 'Saving and loading your work' list points a phone at",
+      hrOpen.picker && hrOpen.onscreen !== false, JSON.stringify(hrOpen));
+
+    // The other half of the convention, and the reason Help says "on a phone" rather than
+    // "in ⋯ More": on a laptop those entries stay OUT of the menu, because the toolbar has them.
+    await hrPage.setViewportSize({ width: 1280, height: 900 });
+    await hrPage.waitForTimeout(300);
+    const hrDesk = await hrPage.evaluate(async function (entries) {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      document.getElementById("btnMore").click();
+      await sleep(300);
+      var out = { menuOpen: document.getElementById("menuMore").classList.contains("open"), leaked: [], missingPartner: [] };
+      for (var i = 0; i < entries.length; i++) {
+        var el = document.getElementById(entries[i].more);
+        if (el && getComputedStyle(el).display !== "none") out.leaked.push(entries[i].more);
+        var partner = document.getElementById("btn" + entries[i].bare) || document.getElementById("tb" + entries[i].bare);
+        var pr = partner && partner.getBoundingClientRect();
+        if (!pr || pr.width === 0) out.missingPartner.push(entries[i].more);
+      }
+      document.getElementById("btnMore").click();
+      await sleep(150);
+      return out;
+    }, morePhoneEntries);
+    ok("N7: at 1280×900 the same entries stay out of ⋯ More and the toolbar carries them instead — which is why Help scopes every one of those routes to a phone",
+      hrDesk.menuOpen && !hrDesk.leaked.length && !hrDesk.missingPartner.length, JSON.stringify(hrDesk));
+    ok("N7: the ⋯ More route walk (390×780 → 1280×900) raised zero pageerrors",
+      hrErrors.length === 0, hrErrors.slice(0, 3).join(" | "));
+    await hrCtx.close();
 
   } catch (e) {
     failed++; console.error("FATAL", e);

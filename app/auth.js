@@ -197,6 +197,12 @@
   function logout() {
     try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
     try { sessionStorage.removeItem(GATE_OK); } catch (e) {}
+    // N2 slice 4 (M7): signing out must also drop the workspace session — the
+    // cached GoTrue JWT and this browser session's refresh token — or the next
+    // person at this browser would inherit the previous user's database access
+    // just by signing in as a local account. Soft-referenced: auth.js loads long
+    // before sync.js and runs fine (gate, tests) with no Studio at all.
+    try { if (window.Studio && Studio.Sync && Studio.Sync.forgetAuthSession) Studio.Sync.forgetAuthSession(); } catch (e) {}
   }
 
   // Replaces the local user list wholesale with rows pulled from a connected

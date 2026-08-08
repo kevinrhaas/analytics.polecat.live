@@ -21,12 +21,28 @@
     return Studio.exportMock ? Studio.exportMock(spec) : {};
   }
   // The one place the viewer turns a spec+assets into standalone HTML — the live iframe AND every
-  // export funnel through here, so what you download is byte-identical to what you're looking at.
+  // export funnel through here, so what you download is the author's dashboard exactly as authored.
   // preview:false keeps live engines live; the sample mock backfills the DAs that have none.
+  // N5a: the ONE deliberate difference between the two is the frame theme — see readerTheme().
   function buildViewerHtml(spec, assets, extraOpts) {
     var opts = { preview: false, launcher: false, mock: sampleMock(spec) };
     if (extraOpts) Object.keys(extraOpts).forEach(function (k) { opts[k] = extraOpts[k]; });
     return Studio.buildHtml(spec, assets, opts);
+  }
+  // N5a (Kevin's call, 2026-08-07): INSIDE the app the reader's theme wins. A dark app frame
+  // around a light dashboard reads as broken, so the srcdoc we render here follows the app's live
+  // `data-theme` whatever the author picked in Appearance. This is the viewer's read-only frame
+  // only: the download and the PDF pass no frameTheme, so a handed-out file stays exactly as
+  // authored — it's a deliverable, and deterministic appearance is worth more there. (The Studio
+  // builder preview is a different surface entirely and is untouched: an author composing the
+  // appearance has to see what they are making.) The attribute is stamped pre-paint by
+  // app/viewer.html from the `studio-theme` key and never changes on this page, so reading it at
+  // build time IS reading the live value; absence means light, matching studio.js's default.
+  // N5b: an `auto` dashboard reaches the same outcome by a different road — buildHtml ignores
+  // frameTheme for it and emits a runtime resolver instead, so its srcdoc and its download stay
+  // the same bytes. Nothing to special-case here; we pass frameTheme unconditionally either way.
+  function readerTheme() {
+    return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
   }
   function fileStem(spec) {
     return (spec.name || spec.title || "dashboard").toString().trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "dashboard";
@@ -204,12 +220,16 @@
       };
       return ensureGeoAssets(spec, assets).then(function () { return assets; });
     }).then(function (assets) {
-      var html = buildViewerHtml(spec, assets);
+      // N5a: the srcdoc — and ONLY the srcdoc — carries the reader's theme.
+      var html = buildViewerHtml(spec, assets, { frameTheme: readerTheme() });
       var ifr = $("#viewerFrame"); if (ifr) ifr.srcdoc = html;
       wireExport(spec, assets);
       // test hooks: let the suite inspect the exact bytes each format would produce (and the
       // sample mock baked in) without triggering a real file download in headless Chromium.
+      // __viewerBuildHtml is deliberately the DOWNLOAD build (no frameTheme) — that's the byte
+      // stream the suite guards; __viewerFrameHtml is the reader-themed srcdoc beside it.
       window.__viewerBuildHtml = function () { return buildViewerHtml(spec, assets); };
+      window.__viewerFrameHtml = function () { return buildViewerHtml(spec, assets, { frameTheme: readerTheme() }); };
       window.__viewerSampleMock = function () { return sampleMock(spec); };
       window.__viewerRunExport = function (kind) { return runExport(kind, spec, assets); };
       // BOOT-FLASH follow-up: theme + the dashboard frame are both in — release the

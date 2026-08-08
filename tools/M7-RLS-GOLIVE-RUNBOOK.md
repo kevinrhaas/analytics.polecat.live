@@ -14,7 +14,9 @@ designed + proven against an isolated `steward_test` schema).
 
 - **Who runs it:** an admin with Supabase dashboard (SQL editor) access. The
   autonomous lane cannot and will not run this — it changes live production
-  security posture.
+  security posture. What the lane CAN do, and does: `node tests/rls.mjs` installs
+  both posture files into throwaway `steward_test_rls_*` schemas and asserts the
+  refusals below automatically, so the SQL is proven before anyone pastes it.
 - **Rollback:** one command, instant (see the end).
 
 > Do every step in the **Supabase SQL editor**. Paste back only the
@@ -55,7 +57,14 @@ Three paths:
    deploy bundle only includes the module graph, so a runtime
    `Deno.readTextFile("./bootstrap.sql")` fails with `path not found:
    /var/tmp/sb-compile-edge-runtime/…/bootstrap.sql`. Keep `sql.ts` in sync with
-   the canonical annotated versions in `/tools`. It
+   the canonical annotated versions in `/tools` — `tests/rls.mjs` now enforces
+   that: it installs `BOOTSTRAP_DDL` + `RLS_REAL_SQL` into a throwaway schema and
+   runs the SAME 27 checks it runs against the two `/tools` files, so a drift
+   goes red instead of shipping. It had drifted once (N2 slice 2, 2026-08-07):
+   the inlined copy was missing the admin arm, the explicit `TO authenticated`,
+   the `users` email-claim arm, the `polecat_meta` policy and the legacy-policy
+   drop loop, so an in-app go-live left anon able to read every non-private row
+   and all of `polecat_meta`. It
    holds the service-role key, opens a direct Postgres connection to run the
    DDL/RLS PostgREST can't, exposes only four fixed named actions — `provision` /
    `go-live` / `create-user` / `reset-data`, never raw SQL — and sets CORS for

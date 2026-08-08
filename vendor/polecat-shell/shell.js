@@ -92,10 +92,14 @@ export function initShell({
   // The boot rule must also hold mid-session: when the viewport crosses INTO
   // drawer range (window shrink / phone rotation), a desktop "open" rail
   // would otherwise pop the drawer over the content. Close it without
-  // persisting, so the desktop preference survives the round trip.
+  // persisting, so the desktop preference survives the round trip — and when
+  // the viewport crosses back OUT of drawer range, re-apply that preference
+  // (same rule as the open0 boot check) instead of leaving the rail stuck
+  // closed until a full page reload.
   // (Found by relay's shell migration — its smoke suite shrinks to 390px.)
   window.matchMedia(MOBILE).addEventListener?.('change', (e)=>{
-    if(e.matches && rail.classList.contains('open')) setOpen(false, false);
+    if(e.matches){ if(rail.classList.contains('open')) setOpen(false, false); }
+    else setOpen(localStorage.getItem(K+'.open') !== '0', false);
   });
   // Navigating from the mobile drawer closes it — without persisting, so the
   // desktop rail state survives a phone session.
@@ -132,6 +136,13 @@ export function initShell({
       rel:'noopener', text:'polecat.live', title:'Back to polecat.live'}),
   );
   rail.append(railBrand);
+  // Mobile-only close affordance, top-right of the drawer. Once the drawer is
+  // open it sits (in stacking order) above both the topbar's hamburger and
+  // the backdrop, so it's the one control that's always reachable to close
+  // it — see the .ps-rail-close comment in shell.css for why the hamburger
+  // itself can't be reused for this.
+  rail.append(h('button',{class:'ps-rail-close', 'aria-label':'Close navigation',
+    html:GLYPH.close, onclick:()=>setOpen(false, false)}));
 
   const scroll = h('div',{class:'ps-rail-scroll'});
   let pendingGroup = null;   // group labels append lazily — an all-filtered group leaves no orphan header

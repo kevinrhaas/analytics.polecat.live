@@ -120,11 +120,11 @@
   net instead of a gate: on every push to main it runs a fast browser-free validation (syntax across
   first-party JS + the manager's exact changelog parser via `tools/changelog-check.js`) and, if main is
   broken, auto-reverts the offending commit and redeploys — self-healing beats gating.
-- **License.** The Studio is proprietary — see `LICENSE` (© 2026 Polecat.live; all rights reserved).
-  Keep the notice intact; don't add OSS license headers that contradict it. New first-party source
-  files may carry a one-line header (`/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */`).
-  Do NOT relicense or add notices to vendored third-party toolkit files.
-  (Note: `LICENSE` is now GPL-3.0 since LICENSE-1 — this proprietary line is stale, tracked as AUD-11.)
+- **License.** Analytics is free software under the **GNU GPL v3** — see `LICENSE` (© 2026
+  Polecat.live). Keep the notice intact; don't add headers that contradict it. New first-party
+  source files may carry a one-line header (`/* Analytics Dashboard Studio — © 2026 Polecat.live.
+  GPL-3.0, see LICENSE. */`). Do NOT relicense or add notices to vendored third-party toolkit
+  files — they keep their own upstream license text (see `THIRD-PARTY-NOTICES.md`).
 - **KH-### — Kevin-reported items (fleet series, 2026-08).** Anything Kevin reports (live session,
   issue, PR comment) gets the next number from the fleet register at `kevinrhaas/polecat-platform` →
   `docs/KH-REGISTER.md` — a single fleet-wide counter (appending a row is a sanctioned direct commit,
@@ -135,6 +135,1295 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N11 — a dropped connection can no longer sign you out of your workspace (v885, sw v513,
+  2026-08-08, steward; dev branch):** the first ready item in ▶ NOW, and the second of the two
+  reasons `dev` was red on the full suite. **The spec's prime suspect was the test's boot race; it
+  was wrong, and the spec's own escalation clause was right** — "if the token genuinely does not
+  survive a reload, that is an APP bug in the AUD-03 posture and much more serious than a flake."
+  It does not survive, and the bug is one line of classification.
+  - **How it was found, since a 1-in-3 flake in a ~10-minute suite is not a debuggable loop.**
+    Built a standalone repro of just this path (mock GoTrue + the real app, ~15s per trial) and
+    instrumented every mutation of the refresh store into `localStorage` — so the trace SURVIVES
+    the reload under test, which is exactly why console logging had shown nothing: the messages
+    were emitted into a document that was already being torn down. **8 failures in 20 pre-fix
+    trials (40%)**, matching the ~1-in-3 seen in the full suite.
+  - **The trace named the culprit outright:** the store went to `{}` from
+    `app/sources/supabase.js:141` — `rememberRefresh(cfg, "")` inside `ensureSession`'s
+    refresh-REFUSED branch — and the rejection it reacted to read **`Supabase Auth sign-in
+    failed: HTTP 200`**. A 200 that fails. `gotrueToken` did `res.json().catch(() => ({}))`, so a
+    body that could not be READ became an empty object, which then failed the `!data.access_token`
+    test and was reported with the fallback `"HTTP " + res.status`. The reload aborts an in-flight
+    refresh mid-body: headers arrive, `fetch` resolves, `res.json()` rejects.
+  - **Why that is serious and not a test artefact.** N2 slice 3 established that the caller MUST
+    tell "the workspace refused you" (final — drop the token, ask for the password) apart from
+    "we never reached the workspace" (keep everything, carry on). A truncated answer is the
+    second, and it was being filed as the first. Any connection that drops mid-response — a phone
+    changing towers, a proxy timing out, a tab navigating away — therefore threw away the renewal
+    token and put the sign-in screen in front of a user who never left their session.
+  - **The fix, in `gotrueToken` only:** a body that cannot be read now throws an `unreachable`
+    error ("the connection dropped before its answer finished arriving") instead of being
+    laundered into a fake refusal. `ensureSession` already rethrows `unreachable` without touching
+    the stored token, so nothing else had to change. **The refusal path is untouched and NOT
+    weakened** — a revoked/unknown token is still refused outright and still dropped.
+  - **Verified.** The repro: **10/10 green after the fix, versus 8 failures in 20 trials before**;
+    the two new suite checks were then run against the PRE-fix adapter and both go red (a guard
+    that cannot fail is not a guard). Then the full `NODE_PATH=$(npm root -g) node tests/run.js`
+    suite **THREE consecutive times — 3149/0, 3149/0, 3149/0** — which is what the item asked for
+    (three green runs, not one, precisely because one green run is what let this survive). The
+    dev gate (validate + changelog-check + doc-truth + dev-smoke at desktop and 390px, zero
+    pageerrors) was run in the same pass. New mock fixture `__armtokentruncate` arms one genuinely truncated 200 (headers, then
+    the connection ends mid-JSON — not a stubbed rejection), and two checks ride it: the token
+    SURVIVES an unreadable answer and the session stays resumable, and the two answers stay
+    distinguishable (unreadable keeps, refused drops). est 1pt, took 1. Files:
+    app/sources/supabase.js, tests/run.js, js/changelog.js (+head), sw.js, STATUS.md.
+  - **Filed, not bundled — N12.** The same traces show the post-sign-in boot spending the SAME
+    refresh token on two concurrent grants ~55ms apart, because `ensureSession` has no
+    in-flight guard. The suite's mock keeps spent tokens valid so it passes there; a real GoTrue
+    rotates and refuses the second, which lands on the same (correct, unchanged) refusal path and
+    signs the user out. Different defect, own unit — see N12 in ▶ NOW.
+- **N10 — the tablet reachability probe measures a row a tablet user can actually see
+  (2026-08-08, steward; dev branch; no version/sw bump — test-only):** the **STAGE gate was red
+  on `dev`** — `3144 passed, 1 failed` — and every dev→stage promotion would have rolled back on
+  it, taking unrelated work with it. Found during N9a's verification and filed separately rather
+  than bundled, so each stayed one revertible unit; confirmed NOT caused by N9a by running the
+  repro against an untouched `origin/dev` tree and getting the identical result.
+  - **The failing check was right; the row it measured was not.** `menuItemReachable()`
+    (the Z9 tablet probe, 800×1024) hit-tested `menu.querySelector("button")` — the FIRST
+    DOM row of `#menuMore`, which is `#moreWhatsNew`, a `.more-phone-only` entry. v882/N7
+    fixed `.more-phone-only` so it finally honors its own ≤640px breakpoint (it never had,
+    the entire time this check was written and passing), so at 800px that row became
+    `display:none` with a zero rect and `elementFromPoint(0,0)` could never return it. The
+    probe was reading a phone-only row as if it were a tablet row.
+  - **Fixed by pointing the probe at the first VISIBLE row, not by weakening it.** The
+    clipping Z9 guards (`#topbar`/`.top-actions` `overflow:hidden` at ≤900px silently
+    swallowing every dropdown) is real, and the assertion is still the same strict
+    `elementFromPoint` identity test — it simply hit-tests a row that is on screen.
+    Measured before/after at 800×1024: `#menuMore` goes `reachable:false` (probing
+    `moreWhatsNew`, rect all zeros) → `reachable:true` (probing `modeSwitchFocus`, the first
+    of its 5 visible rows out of 15). `#menuNew` and `#menuExport` are **unchanged** —
+    their first DOM row is already visible, so they probe the same element as before.
+  - **The latent half the item asked about is closed too.** `#menuNew`/`#menuExport` pass
+    today only because neither has grown a phone-only first row yet; the scan lives in the
+    shared helper, so all three are robust at once rather than only the one that happened to rot.
+  - **Two new checks hold the probe accountable, so this class cannot recur silently:** one
+    asserts all three probes measured a genuinely visible row (non-zero box, ≥1 visible row),
+    the other pins the specific relationship that broke — `#menuMore`'s first DOM row IS
+    phone-only and IS hidden at 800px, and the probe skipped past it. A menu that hides every
+    row, or grows a phone-only first row, now fails loudly here instead of quietly measuring a
+    zero-size box forever.
+  - **Why nobody caught it:** the dev gate (`ci.yml`) is the LIGHT one — validate +
+    changelog-check + doc-truth + dev-smoke — and all four were green, so PRs into dev passed.
+    The full suite only runs at promotion, and every `promote-to-stage.yml` run since had
+    exited at the schedule gate ("stage already contains dev — nothing to promote"), so those
+    `success` conclusions were quiet no-ops, not passes.
+  - **No changelog entry and no `sw.js` bump, deliberately** — nothing user-visible changed and
+    no precached file moved. Same precedent as the AUD-11 tail (#607/#608), QA-09/QA-10 and
+    LF69(b)'s verify-only closes.
+  - **Verified in the foreground:** the full dev gate (`validate.mjs` + `changelog-check.js` +
+    `doc-truth.mjs` + `dev-smoke.mjs` at 390×780 and desktop, zero pageerrors), then the **FULL
+    `tests/run.js` suite THREE times**. All six Z9 tablet checks — the four existing ones and
+    the two new ones — are green in **all three** runs, so N10's cause is fixed and stable.
+    est 1pt, took 1. Files: tests/run.js, STATUS.md.
+  - **⚠ `dev` is still not reliably green, for a SECOND and unrelated reason — filed as N11.**
+    The three runs came back `3147/0`, `3145/2` and `3145/2`; the two failures are the same
+    pair every time, and they are **not** in this slice's area: `N2 slice 4`'s refresh-token
+    re-mint checks (`tests/run.js:18525` and `:18529`). They are flaky, not deterministically
+    red — one run in three passes them. Filing rather than fixing keeps this PR one revertible
+    unit, and N11 carries the measured evidence so the next run starts from a diagnosis instead
+    of a re-discovery. **N10's premise — "the full suite is red and nothing has noticed" —
+    was right about more than it knew.**
+- **N9a — the catalog toolbars fit a phone instead of running off its edge (v884, sw v512,
+  2026-08-08, steward; dev branch):** the first ready item in ▶ NOW (N4a is ⛔ on Kevin, N7 is
+  🔁, grooming still parked on `hold` PR #623). **N9 was est 2pt; this slice is 1, and the
+  remainder is re-filed as N9b at 1pt** — so the pair lands on the estimate, but not the way it
+  was split.
+  - **The defect, measured before touching anything.** `.repo-io` — the control row above every
+    catalog (Dashboards, Views, Datasets, Connections, Jobs, Repository) — is `display:flex` with
+    no wrap. At 390×780 the Dashboards row laid its children out to **x=651 against a 390px
+    screen**: `Compare dashboards…` (309→473), the ⋯ `.menu-wrap` (481→525) and `+ New dashboard`
+    (533→651) ALL began past the right edge. Datasets' `+ New dataset` crossed by 9px and
+    Connections' `+ New connection` by 14px. Nothing said the row scrolled — no fade, no wrap, no
+    scrollbar — and the only reason those controls were reachable is the scroll-into-view a tap on
+    a neighbour triggers, which is the same behaviour that forced N8's re-clamp-on-scroll.
+  - **Worse than the item recorded, and narrower.** The N8 note put the run-out at 525px; it is
+    651px. It also expected Views and Repository to share the problem — **measured, they do not**:
+    Views, Jobs and Repository all fit 390px today. The item is corrected in place rather than
+    quietly shipped against, and the new check covers all six either way so a control added to a
+    currently-clean row cannot regress silently.
+  - **The fix.** One rule in the existing ≤640px band: `.repo-io{flex-wrap:wrap;align-items:center}`.
+    Every control keeps its full label, lands inside the viewport, and stays at the 44px tap size
+    UX7 gave it; the row grows downward (Dashboards/Datasets/Connections go 44px→96px) where there
+    is room. `align-items:center` keeps the shorter `.cx-sort` select centred against the 44px
+    buttons sharing its line. Desktop is untouched — the rows stay one unwrapped line, asserted so
+    the phone rule cannot leak upward.
+  - **Dead code the item flagged, removed.** `#menuExamples.phone-pos` in `app/studio.css` had no
+    element to match: LF43 slice 2 deleted `#menuExamples` and the suite asserts both it and
+    `#btnExamples` are gone. `closeMenus()` still strips the class defensively and is left alone —
+    nothing adds it.
+  - **Verified.** Full `NODE_PATH=$(npm root -g) node tests/run.js`, green. 2 new checks (N9a at
+    390×780 and 1280×900) walk all six catalogs and require every control's box to be inside the
+    viewport, plus `flex-wrap:nowrap` on desktop. `sw.js` bumped v511→v512 (`app/studio.css` is
+    precached). No user-facing copy changed, so Help and the tours are untouched.
+  - **What the same pass learned about N9's other half** (now N9b, spec rewritten from it): the
+    Data pane DOES have a working phone route — the `mob-tabs` **Data** tab, on-screen at 0–130px,
+    opens the drawer, and `#menuNewData` then opens fully inside the viewport with all three rows
+    at 44px. The "no phone route at all" worry came from clicking the `.pane-rail` expand button,
+    which is the desktop affordance and is legitimately off-canvas at 390px. The real finding is
+    one size down: `#btnNewDS` measures **24px** tall, because it is not a `.btn` and no rule
+    reaches it.
+- **N8 — dropdown rows clear the 44px touch bar, and no menu opens off-screen (v883, sw v511
+  unchanged, 2026-08-08, steward; dev branch):** the first ready item in ▶ NOW (N4a is ⛔ on
+  Kevin, N7 is 🔁, grooming still parked on `hold` PR #623). **est 1pt, took 1.**
+  - **The touch-target half, as filed.** UX7's "44px across the whole ≤640px band" landed on
+    `.btn`; a dropdown row is a bare `.menu button`, so it never applied and every row measured
+    **37px** at 390×780 — on the ten builder controls v882 had just made ⋯ More the primary phone
+    route for. Fixed with one rule in the ≤640px band, `min-height:44px` plus `display:flex;
+    align-items:center` so the label stays centred in the taller row. The
+    `.menu button.more-phone-only` rule below it had to move `block`→`flex` too: it outranks the
+    new rule (0,2,1 vs 0,1,1) and would have pulled the phone-only rows back out of the centred
+    layout. Desktop rows are untouched at 37px — asserted, not assumed.
+  - **What the measurement the item asked for actually found.** All seven menus were measured in
+    their own section with their real trigger, at 390×780 and 1280×900. Row heights were the small
+    half. **Two menus opened partly OUTSIDE the viewport at 390px: `#viewsNewMenu` by 135px — more
+    than half of a 230px menu — and `#dashMoreMenu` by 13px.** Cause: `.repo-io .menu` is
+    `left:0;right:auto` inside a toolbar row that lays out well past a 390px screen.
+  - **Why the fix is a clamp in `menuToggle` and not CSS.** All seven menus open through that one
+    helper, so one clamp covers them and any future menu instead of a per-toolbar special case.
+    Three things it has to get right, each of which failed a first attempt:
+    * **Anchoring.** The topbar menus are `right:0`, `.repo-io .menu` is `left:0;right:auto`.
+      Nudging `right` moved the first group and was silently ignored by the second (over-constrained
+      → `left` wins in LTR). The shift therefore rides a `--menu-shift` custom property folded
+      INTO the existing transform, which moves a box under either anchoring and leaves the
+      open/close animation — which drives `transform` — intact.
+    * **Measuring mid-animation.** `getBoundingClientRect()` reports the TRANSFORMED box, and the
+      clamp runs while `.menu` is still at `translateY(-4px) scale(.98)`. `settledRect()` recovers
+      the layout box from `offsetWidth/Height` centred on the measured centre minus the
+      translation (valid because transform-origin is the default centre and the transform is only
+      translate+scale).
+    * **The anchor keeps moving.** Clicking a control in one of those overflowing toolbars
+      scroll-into-views it, and that scroll is SMOOTH — traced on Dashboards at 390px, `.repo-io`
+      slid from x=173 to x=220 over ~40 scroll events after the click, so a single clamp at open
+      time left the menu flush against the edge. It now re-clamps on scroll (capture, so an inner
+      scroller counts) and on resize, guarded by an `_openMenu` reference so the listener is a
+      null check on the common path, with idempotent writes so a no-op frame does not dirty style.
+    Also clamps `max-height` to the room actually below the trigger — the CSS cap is a constant,
+    the space under a menu opened halfway down the page is not.
+  - **Verified in the foreground:** full `tests/run.js`, Chromium headless, zero pageerrors. Two
+    new checks walk all seven menus end-to-end: at 390×780 every menu opens fully inside the
+    viewport with every row ≥44px; at 1280×900 every menu opens fully inside the viewport AND
+    carries no `--menu-shift`, which pins the clamp as a no-op when there is room. They poll for a
+    stable box rather than sleeping (AUD-10's no-unconditional-waits direction).
+  - **No `sw.js` bump, deliberately.** The precache LIST is unchanged — this edits the contents of
+    two files already on it, and the fetch handler is network-first, which is `sw.js`'s own stated
+    rule for when the ritual applies. Same escape #630 took, and it avoids issue **#631** (a bare
+    `CACHE_NAME` bump deterministically reds two N2-slice-4 refresh-token checks; still open, not
+    root-caused, and emphatically not something to bundle into a CSS slice).
+  - **Spawned N9 ★ [2pt]** (now in NOW): the measurement showed the section TOOLBARS are the
+    bigger defect — `.repo-io` lays out 16→525px against a 390px screen on Dashboards/Views/
+    Repository with no visible scroll affordance, and the Studio Data pane's `＋ New ▾` looks to
+    have no phone route at all (its `.pane-rail` expand button is itself outside the viewport).
+    Filed with the measurements rather than folded in here: it is a layout change to four
+    surfaces, not a menu fix, and bundling it would have made this PR unrevertible as one unit.
+- **N7 — Help says where the buttons are on a phone, and the ⋯ menu stops repeating your toolbar
+  (v882, sw v511, 2026-08-08, steward; LF58 recurring slice, dev branch):** the ▶ NOW queue is
+  unchanged (N2/N4b/N5a/N5b shipped, N4a ⛔ on Kevin, grooming still parked on the `hold` PR
+  #623), so 🔁 N7 again — and this is the candidate that list called the strongest remaining one:
+  Help's own version of the export route v881 had just fixed in the tour, the check-16→17 move one
+  document over.
+  **The defect was bigger than the note anticipated.** It was not "Export documented in the
+  desktop's terms" — it was **all ten** controls the phone hides, with the ⋯ More route named
+  nowhere: "Click **Export ▾** in the topbar", "the ↶/↷ buttons in the topbar", Save, Save as…,
+  Open, Duplicate, Close, and the two topbar icons (What's new, Send feedback). Help's single nod
+  to the convention was Send feedback's paragraph, written when TOPBAR-TITLE moved that ONE icon;
+  the eight M10 Slice B/C had already moved got nothing. The reader this hurts is precisely the
+  one who opened Help *because* the button was not where the app implied — and was told to click
+  it again. Every route is now named at its own site, plus a new "On a phone, the toolbar lives in
+  ⋯ More" section that lists the set once and is linked from the Exporting text.
+  **Doc-truth check 21** is the ratchet, every fact derived: the hidden set off `app/studio.css`'s
+  own phone media bands (shared with check 20), each id paired to its `#more*` twin by the M10
+  naming convention itself, and three rules — Help must NAME every such route, every "⋯ More → X"
+  Help writes must resolve in `#menuMore` (check 13's rule, which had explicitly scoped
+  docs/index.html OUT on a concern that turned out to be unfounded — its resolver consumes a label
+  and stops, so "⋯ More → Simple mode off" resolves fine), and the counterparts must be
+  `.more-phone-only`. Run against the pre-fix file it flagged all ten.
+  **It carried a real defect the verification surfaced, in the direction nobody was looking:**
+  `.more-phone-only` never hid anything. `.menu button` sets `display:block` at specificity
+  (0,1,1); the bare class is (0,1,0), so it lost the cascade outright — the M7 comment reasoned
+  carefully about rule ORDER while specificity was the deciding factor the whole time. Measured at
+  1280×900 before the fix: all ten phone-only entries rendering on desktop, i.e. the ⋯ menu
+  repeating the eight toolbar buttons sitting inches away, plus What's new and Send feedback from
+  the top bar. Fixed by matching `.menu button`'s specificity in both directions; the bare selector
+  stays for the `<div class="sep more-phone-only">` twins, which `.menu .sep` never gave a display
+  and so were correctly hidden all along. Check 21's third rule also holds the hide band and the
+  reveal band to be the SAME band — a 640/400 split would put a control in neither place on a
+  mid-size phone — and the stale "≤400px" comments in `app/index.html` and `app/studio.js` (both
+  predating M10's move to 640) were corrected in the same pass.
+  **Verification:** the full dev gate green in the foreground — `tools/validate.mjs` (207 files),
+  `tools/changelog-check.js` (859 entries, top v882, manager-parse OK), `tools/doc-truth.mjs`
+  (all checks incl. 21's five), `tools/dev-smoke.mjs` (marketing + app + docs, desktop + 390px,
+  zero pageerrors). The 7 new `tests/run.js` checks were proven green by running that exact block
+  standalone against the same static server at 390×780 → 1280×900 (7/7, zero pageerrors); the full
+  `tests/run.js` runs at stage-promotion time per the pipeline's own design.
+  **Deliberately NOT fixed, filed as N8:** those ⋯ More rows measure 37px at 390×780, under UX7's
+  44px touch bar — that rule landed on `.btn` and a menu row is a bare `.menu button`, so it is
+  every menu in the app rather than these ten, and it needs a per-menu overflow measurement pass.
+  est 1pt, took 1.
+- **N7 — the Build a dashboard tour's Export step works on a phone (v881, sw v510, 2026-08-08,
+  steward; LF58 recurring slice, dev branch):** the ▶ NOW queue is unchanged (N2/N4b/N5a/N5b
+  shipped, N4a ⛔ on Kevin, grooming still parked on the `hold` PR #623), so 🔁 N7 again — and
+  this is the item v880 named as its own leftover, the LAST spotlight in that tour that did not
+  land on anything.
+  **The defect, measured at 390×780:** M10 moved Undo/Redo/Open/Save/Save-as/Duplicate/Export off
+  the phone topbar into ⋯ More and hides their buttons with `display:none!important`, so step 4's
+  `target: "#btnExport"` had **no box at all** — not a 34px sliver like v880's panes, nothing.
+  `waitFor()` polled it for its full 2.5s (the walk measured **3039 ms** on that one step), gave
+  up, and rendered a spotlight-less centered card whose copy still said "Click **Export ▾**" and
+  "**Save**" — two controls that screen does not have. A dead end at the end of the tour, on the
+  release-gate width.
+  **The copy decision v880 said this needed, taken and derived rather than invented:** the phone
+  route is the one the app really ships (`#moreExport` → the same `#menuExport`, `#moreSaveSpec` →
+  the same save), and doc-truth **check 13** already resolves every "⋯ More → X" the tour copy
+  names against `#menuMore`'s real markup — so naming the route is a checkable fact, not a product
+  call. Kevin's authority was never engaged.
+  **The fix:** a step may carry a `phone:` form that `app/tutorial.js`'s new `resolveStep()` merges
+  at ≤640px — at RENDER time, so a resize or a rotation mid-walk is always honoured and
+  `tourSteps()`/`stepCount()` still report one step per stop at any width. The export stop's phone
+  form rings `#btnMore` and says "Tap **⋯ More → Export…**" / "**⋯ More → Save**". Desktop is
+  untouched, asserted as its own check. This is v880's `pane:` mechanism one class further out:
+  that one opened a control that was merely CLOSED, this one retargets a control that is not there.
+  **Verified:** the FULL suite, **3134/3134 green**, plus the whole dev gate (validate ·
+  changelog-check · doc-truth · dev-smoke). Four new `tests/run.js` checks, all at 390×780 plus
+  the desktop counterpart, and every one of them fails against the pre-fix file with the numbers
+  above (ring `ringed:false`, the "Click Export ▾" copy, 3039 ms). doc-truth **check 20** is the
+  static half and derives the hidden-control
+  set from `app/studio.css`'s own phone media blocks rather than a list kept in the checker — a
+  build-tour step targeting one of them must carry a `phone:` form, that form's target must not
+  itself be hidden (and must exist in `app/index.html`), and `resolveStep` must still be applied
+  per render, or the overrides are inert data while the ring goes back to a `display:none` box.
+  All four rules were negative-tested. est 1pt, took 1.
+  **Flake noted for the next run, so it is not re-investigated from scratch:** two N2-slice-4
+  checks ("a reload with NO password anywhere re-mints the session from the refresh token" and
+  the rotated-token check that follows it) failed in 3 of 4 local suite runs — and they fail on
+  a PRISTINE `origin/dev` worktree exactly the same way, so it is not a regression from this
+  slice. The reload boots with an empty `analytics.supabase.refresh.v1` (`token:""`,
+  `gateGone:false`), i.e. the re-mint is racing the boot rather than being wrong. Every
+  promote-to-stage run is green, so CI does not see it. Worth a hardening slice of its own —
+  do NOT weaken the assertion; the race is the thing to find.
+  **Left for the next slice, deliberately:** Help (`docs/index.html`) documents the same export
+  route in the desktop's terms; it is the check-16→17 move again, one document over, and it is the
+  strongest remaining N7 candidate. Also still open: the marketing page's hero carousel captions +
+  screenshots, and the additive-copy pass on the Jobs / Connections & Datasets tours.
+- **N7 — the Build a dashboard tour opens the panes it points at (v880, sw v509, 2026-08-08,
+  steward; LF58 recurring slice, dev branch):** the ▶ NOW queue is unchanged (N2/N4b/N5a/N5b
+  shipped, N4a ⛔ on Kevin, grooming still parked on the `hold` PR #623), so 🔁 N7 again — this
+  time the **behavioural** candidate the v877 slice found and deliberately left, which v879
+  unblocked by making `openDataPane()` the one way anything opens that pane at any width.
+  **The defect:** STUDIO-PANELS made the builder open with its Data and Inspector panes CLOSED
+  (`applyStudioPanelsDefault`), and the tour never learned. Measured, not assumed: at 1280×900
+  steps 1 and 3 ringed a **34px** collapsed rail while the copy enumerated four groups the reader
+  could not see; at 390×780 those panes are fixed drawers parked at `translateX(±105%)`, so the
+  ring was drawn at **left −336px** and **left 406px** — off-screen on both sides of a 390px
+  viewport. Two of six steps were a dimmed screen with nothing lit.
+  **The fix, in two parts.** (1) `app/studio.js` splits the width-agnostic half of
+  `openDataPane()` out as `openBuilderPane(which, silent)` — drawer on a phone, silent expand on
+  desktop, `"canvas"` meaning "neither" — exposed as `window.__studioOpenPane`; a builder tour step
+  declares its `pane:` and `app/tutorial.js`'s renderer opens it (and waits out the .28s drawer
+  transition) before it measures the spotlight. Silent throughout: neither the persisted collapse
+  preference nor the persisted drawer tab is written, asserted both ways.
+  (2) A second defect the verification surfaced and this slice also closes: preparing a step is
+  asynchronous (`before()` → `openPane()` → `waitFor`'s 2.5s poll) while the OUTGOING card stayed
+  live, so a double tap advanced twice — and enough of them walked past the last step into
+  `steps[idx].before` on `undefined`, an **uncaught TypeError**, which is a release gate. The
+  outgoing card's nav buttons now go inert while the next step is prepared (**Skip stays live** —
+  nobody is trapped in a tour) and an out-of-range index finishes instead of throwing.
+  **Verified:** the six new `tests/run.js` checks walk the tour for real at 390×780 AND 1280×900,
+  measuring ring-vs-target overlap and on-screen-ness rather than trusting the DOM; run against
+  the pre-fix files they fail 4/6 with exactly the numbers above (including the reproduced
+  `Cannot read properties of undefined (reading 'before')`), and 6/6 green after. Plus the full
+  dev gate (validate · changelog-check · doc-truth · dev-smoke). doc-truth **check 19** is the
+  static half — every fact derived, none listed: a build-tour step targeting one of
+  `app/index.html`'s collapsible `<aside class="pane">` ids must declare that same pane, every
+  declared pane must be one `setupMobileTabs`' own tab ids can open, and `__studioOpenPane` must
+  still exist (without it the opener is a silent no-op and the coverage rule passes while every
+  spotlight goes back to ringing a closed pane). est 1pt, took 1.
+  **Left for the next slice, deliberately:** at ≤640px `#btnExport` is `display:none` (M10 moved
+  Export behind ⋯ More), so step 4 still spotlights a hidden control on a phone — same defect
+  class, different mechanism (a control that MOVES, not a pane that is closed), and it needs a
+  copy decision the panes did not: the step says "Click **Export ▾**" and on a phone that button
+  is not there. The suite measures that step on desktop only and says so.
+- **N7 — the builder calls its own left panel Data, and the button that opens it works on a phone
+  (v879, sw v508, 2026-08-08, steward; LF58 recurring slice, dev branch):** the ▶ NOW queue still
+  holds no ready non-recurring item (N2/N4b/N5a/N5b shipped, N4a ⛔ on Kevin, grooming parked on
+  the `hold` PR #623), so 🔁 N7 again — and this slice closed the terminology track at its source.
+  Checks 16 (v877, the tours) and 17 (v878, Help) held the DOCUMENTS to the pane's rendered name;
+  nothing held the BUILDER to it, and it turned out to be the worst offender of the three.
+  `app/index.html`'s markup was updated at STUDIO-PANELS — header, collapsed rail, tooltips, the
+  empty canvas's "Open data panel" button all read **Data** — but every string the builder renders
+  AT RUNTIME was missed. **14 sites**, across `app/studio.js` + `app/studio-render.js`: the phone
+  drawer's tab bar (`setupMobileTabs`) was labelled **Library**; Simple mode's getting-started
+  checklist opened on "Library ready" with an "Open library" action; the preview iframe's own empty
+  canvas said "drag a query from the **Query Library**" — the exact id-flavoured name check 17 had
+  just deleted from Help, still on screen in the app; plus the two inspector empty-state hints, the
+  no-query guided-setup line, the `addFromCurrentOrPrompt` toast, the ⌘/Ctrl+F shortcut row, the
+  What's-next card, the Simple-mode welcome card, the K8 tip, the data-source delete confirmation,
+  the custom-query Group placeholder, and Settings' "sample query library" (retired at LF65 — the
+  toggle now names what it actually gates: sample dashboards, demo packs, the New ▾ starter sets).
+  The one legitimate library — "Save to View library" — is untouched, and the note beside it that
+  said "a reusable View in the library" now says View library so the exemption is exact.
+  **THE DEFECT THE COPY AUDIT SURFACED, and the reason this slice is not docs-only:** `#cesLib`
+  (the empty canvas's primary CTA) and the checklist's step-2 action each carried their own copy of
+  a phone branch that clicked `document.getElementById("tabLib")` — **an id that has never existed
+  anywhere in the repo**; `setupMobileTabs` builds its buttons with a `data-mob-tab` attribute and
+  no id. So at ≤640px, on the two screens a brand-new user meets first, the button that says "open
+  the Data panel" did nothing at all. Both now call one `openDataPane()`: drawer on phone via
+  `activateMobTab`, and on desktop it expands the pane FIRST (panes ship collapsed by default since
+  STUDIO-PANELS, so the old code focused `#libSearch` inside a 34px rail) — silently, so a one-off
+  nudge never rewrites the reader's persisted `studio-collapse-library` preference.
+  **doc-truth check 18** is the ratchet, one document over again and this time the one the others
+  read FROM: string literals in the builder's two rendering modules (a small comments-and-strings
+  lexer in one left-to-right pass, so a `//` inside a URL cannot eat its string and this file's own
+  prose can neither fail nor satisfy the check) plus `index.html`'s TEXT NODES with tags stripped —
+  which is what puts `id="library"`/`data-pane="library"` structurally out of reach instead of on an
+  exemption list. Identifiers are exempt BY SHAPE (no whitespace, lowercase start), so
+  `studio-collapse-library` and the `which === "library"` switch value pass while `"Library"` the
+  tab label does not; the sole content exemption is check 14's derived saved-chart noun. Negative-
+  tested: reinstating the old tab label and the old shortcut row fails it on exactly those two.
+  Verified: `tools/doc-truth.mjs` (24/24), `tools/validate.mjs`, `tools/changelog-check.js`, and the
+  full `tests/run.js` — 4 new checks walking a real page at **390×780 then 1280×900** (the tab label
+  derived from the pane's own header, the phone drawer actually opening, the desktop expand+focus
+  with the stored preference proved untouched, and a zero-pageerror gate of its own since the
+  suite's session-wide error assertion runs far earlier than this block). **est 1pt, took 1.**
+- **N7 — the Help page describes the builder's Data panel you actually have (v878, NO sw bump —
+  docs/index.html is deliberately not precached, 2026-08-08, steward; LF58 recurring slice, dev
+  branch):** the ▶ NOW queue still holds no ready non-recurring item (N2/N4b/N5a/N5b shipped,
+  N4a ⛔ on Kevin, grooming already parked on the `hold` PR #623), so 🔁 N7 again — and its own
+  candidate list named this as the strongest remaining one: **Help's version of the exact drift
+  v877 fixed in the tours.** It had rotted further than the tours had. (1) THE NAME: three places
+  called the pane the "Query Library" — an id-flavoured name the app has never rendered — and
+  eight more sentences across Help called it "the Studio library" while describing it correctly
+  otherwise. The pane renders **Data**. (2) THE GROUPS: the data-sources section listed **Sample
+  packs** among the panel's groups, and repeated it in the glyph list and the which-group-
+  collapses note; `buildDemoPacksLib` has been unwired from the panel since DECLUTTER-1, so the
+  real list is This dashboard's datasets · Datasets · Views · My queries, and the group that
+  auto-collapses past six cards is This dashboard's datasets. (3) THE CONTROLS: Help told you to
+  click **＋ New source** in the panel header (the header's button is `＋ New ▾`; the data-source
+  builder is behind its Dashboard-only query… entry) and **⧈ Join in the library** to author a
+  compound DA — an entry the builder no longer has at all, because joins and unions moved to
+  **Jobs**. Help now says so and notes that an existing compound DA still renders and still edits.
+  Two smaller catch-ups fell out of the same read: the freshness badge's "library's My Data
+  Sources" (a group name that no longer exists) and a saved View showing up "in the builder's
+  left rail" (it is the Data panel; the rail is the app's nav).
+  **doc-truth check 17** extends check 16 over Help exactly as check 15 extended check 14 — same
+  derived facts, so the two documents cannot drift from each other either: the pane's name and its
+  group list off `buildLibrary`'s own call graph, and the add button's label off `#btnNewDS`. Its
+  library rule cannot be a blanket ban the way the tours' is (Help has one legitimate library —
+  the **View library** the Save button really writes to), so the allowed qualifier is derived from
+  check 14's saved-chart noun rather than listed. All three rules were negative-tested against the
+  original wording and each fails on exactly its own drift. Verified: `tools/doc-truth.mjs` +
+  `tools/validate.mjs` + `tools/changelog-check.js` + `tools/dev-smoke.mjs` (the dev gate) and the
+  FULL `tests/run.js` suite green. Docs-only + the guard, so no `sw.js` bump. est 1pt, took 1.
+- **N7 — the Build a dashboard tour describes the builder you actually have (v877, NO sw bump —
+  see below, 2026-08-08, steward; LF58 recurring slice, dev branch):** the ▶ NOW queue still
+  holds no ready non-recurring item (N2/N4b/N5a/N5b shipped, N4a ⛔ on Kevin, grooming parked
+  for him on `hold` PR #623), so the recurring N7 came up again and took the first candidate
+  its own list named: the per-feature tours' remaining BODY copy, starting with
+  "Build a dashboard" — the tour that walks the Dashboard Builder end to end.
+  - **The drift, in three parts.** (a) THE PANEL'S NAME. The step is titled "1 · The Library"
+    and opens "The **Library** (left pane) holds everything chartable". That panel is
+    `#library` in the markup but has RENDERED **Data** since STUDIO-PANELS — its `.pane-h`
+    header, its collapsed rail label, the Settings toggle ("the Data and Inspector panels
+    already open") and Help's own §"Every chart View is bound to…" all say Data. Same
+    internal-name-vs-rendered-label split that LF57's `analyses`/**Views** rename left behind
+    (checks 14/15), one layer up. `welcome.js`'s Dashboard Builder card and the quick tour's
+    step 6 said "Library" too. (b) THE GROUPS IT PROMISED. The step listed "your saved Views,
+    your workspace Datasets, this dashboard's own datasets, **and the sample queries**" — but
+    LF65 DELETED the sample-query group (sample content arrives only via Sample packs now) and
+    DECLUTTER-1 unwired the Sample-packs group from the builder panel, while the group that
+    replaced them, **My queries** (your own authored queries), was never named. The panel
+    renders exactly four groups today: This dashboard's datasets · Datasets · Views ·
+    My queries. (c) THE AUTO-BUILD ROUTE — the same defect class as v874's dead menu entry.
+    The closing step said "Hit **＋ New ▾** → Auto-build": `＋ New ▾` is the DATA PANEL's add
+    button (`#btnNewDS` → Dataset (workspace)… / Connection… / Dashboard-only query…) and has
+    never had Auto-build. It lives in the TOPBAR `New ▾` (`#btnNew` → buildNewMenu's
+    "Auto-build a starter" group). `welcome.js` had the right menu but rendered it as
+    "New ▸ Auto-build", a glyph and a label the topbar does not use.
+  - **What shipped.** Six copy sites across `app/tutorial.js` + `app/welcome.js`: the build
+    tour's panel step (title, panel name, the real group list), the quick tour's step 6 and
+    the welcome carousel's builder card (both "library" → **Data** panel), and the Auto-build
+    route in both files. Two catch-ups in the same walk while the tour was open: panels have
+    been resizable by their BOTTOM edge as well as the right one since PANEL-H (`sr-resize-h`)
+    and the tour only mentioned width; and the export step's sub-line still said "Save keeps
+    the editable .studio.json spec", which conflates two different affordances — Save
+    (`#btnSaveSpec`) writes to your Dashboards catalog, and the `.studio.json` file is an
+    Export-menu entry alongside the Excel / Word / PowerPoint / PDF exports the tour never
+    mentioned at all.
+  - **The ratchet — doc-truth check 16**, three assertions, all DERIVED: the panel's rendered
+    name comes from `<aside id="library">`'s own header, so the copy is held to it and the
+    internal id is forbidden in tour copy (the check-14/15 idiom, one level up from the noun);
+    the group list is read off **buildLibrary's own call graph**, which is the part that
+    matters — a builder that still exists but is no longer CALLED (`buildDemoPacksLib`) cannot
+    sneak back into the copy's promise, which is exactly the mistake Help still makes; and any
+    copy string mentioning Auto-build must name the topbar button's label and not the panel's.
+    Scoped to the tours' visible copy fields (`t`/`h`/`sub`/`s`/`blurb`/`label`) so a step's
+    `target: "#library"` selector — markup, not something a reader is told — cannot trip it.
+    Confirmed non-vacuous: with the two app files reverted to their pre-slice state the check
+    fails on all three counts and names each offending fragment; restored, green.
+  - **No `sw.js` cache bump — same call as v876, same reason, now with an issue number.**
+    Bumping `CACHE_NAME` alone deterministically reds two N2-slice-4 auth checks (issue #631,
+    not root-caused, not this slice's to fix). The repo's own rule in `sw.js`'s header is to
+    bump "whenever the precache LIST below changes" — it is unchanged here; only the CONTENT
+    of two already-precached modules moved, and the fetch handler is network-first, so an
+    online reader is never served the stale tour. Nothing was weakened to get green.
+  - **Verified:** `tools/doc-truth.mjs` 24/24 (three new) and confirmed non-vacuous;
+    `tools/validate.mjs` clean; `changelog-check` manager-parse OK; `tools/dev-smoke.mjs`
+    green (desktop + 390×780, both themes, zero pageerrors). est 1pt (recurring), took 1.
+- **N7 — the Help page calls a saved chart a View (v876, NO sw bump — see below, 2026-08-08, steward; LF58
+  recurring slice, dev branch):** the ▶ NOW queue still holds no ready non-recurring item
+  (N2/N4b/N5a/N5b shipped, N4a ⛔ on Kevin, grooming parked for him on `hold` PR #623), so the
+  recurring N7 came up again and took the candidate its own list called "the biggest known
+  one": Help's remaining `analysis`/`analyses` prose.
+  - **The drift, and why v875 did not catch it.** v875 fixed the *tours*; `docs/index.html` was
+    the other half of the same LF57 rename. Its pattern is the instructive part — the **labels
+    were already right** ("the Studio library under **Views**", "**Save View**"), so doc-truth
+    check 14's bolded-label rule would have passed every one of the twenty occurrences. What
+    had rotted was the PROSE wrapped around those labels: "Saved analyses appear in the left
+    list here", "An analysis embeds its data access", "the choice is saved with the analysis",
+    "a dashboard or analysis switches you into the right builder", plus three headings
+    (Quick Views' `<h2>`, "Filing a … or analysis into a Folder", "Marking a … analysis … as
+    private") and the Repository + Workspace-backend sections' enumerations of what a workspace
+    holds. Two spots were outright wrong-label, not just wrong-noun: the Data panel's group
+    glyph list said "a trend line for saved **Analyses**" (the group renders **Views**), and two
+    sentences still routed the reader to **Explore**, renamed **Quick Views**.
+  - **What shipped.** 17 prose sites in `docs/index.html`. The two strings a reader will
+    genuinely see on screen are deliberately UNCHANGED and now wrapped in `<code>`: the storage
+    table name and the literal `HTTP 404 writing analyses` error the workspace-upgrade note is
+    about — that note is only findable if it quotes the error verbatim. The tour-picker line
+    now names the tour topics as `app/tutorial.js` actually registers them ("quick analysis",
+    "building a dashboard"), which is both the fix and the guard's one exemption.
+  - **The ratchet — doc-truth check 15**, and it is deliberately STRICTER than check 14: outside
+    an HTML comment or a `<code>` span, the internal noun may not appear in Help at all. The
+    reasoning is written into the check — the tours may use the word for the ACTIVITY (the tour
+    is still called "Quick analysis"), but a reference page someone searches while stuck is held
+    to the object's real name. Its one exemption is the same DERIVED set check 14 uses (the tour
+    chooser labels parsed out of `tutorial.js`), not a hardcoded list, and it reports the
+    offending sentence fragment rather than a line number so the reword is obvious. Confirmed
+    non-vacuous: restoring "Analyses are reusable / Saved analyses appear…" fails it with both
+    fragments named, and reverting goes green again.
+  - **No `sw.js` cache bump, deliberately — and it turned up something.** The habit on a release
+    slice is to bump `CACHE_NAME`, and the first attempt did (v507→v508). That bump ALONE made
+    two N2-slice-4 checks fail, deterministically (2/2 runs red with it, 2/2 green without, and
+    `origin/dev` green): the reload that must re-mint a session from the stored refresh token
+    instead came back with the token GONE from sessionStorage and `needsSignIn` true — i.e. the
+    refresh was treated as REFUSED and cleared, which is the disposal path meant for a revoked
+    token. **Nothing was weakened to get green:** the bump is not required here by the repo's own
+    rule (`sw.js`'s header: bump "whenever the precache list below changes" — the LIST is
+    unchanged; only `js/changelog-head.js`'s CONTENT moved, and the fetch handler is
+    network-first, so an online reader is never served a stale copy and no removed asset is left
+    behind). Nothing in `validate.mjs` or `ci.yml` enforces a bump either. The failure is NOT
+    root-caused and is NOT this slice's to fix — it is auth code, and it smells like the exact
+    hazard N2 slice 3 named (telling "no" apart from "we never asked"), landing on the one
+    reload every user makes right after a deploy. Filed as its own issue with the repro; a
+    future slice owns it.
+  - **Verified:** full `tests/run.js` 3120/3120 green; `tools/dev-smoke.mjs` green (desktop +
+    390×780, zero pageerrors); `tools/validate.mjs` 207 files clean; `changelog-check`
+    manager-parse OK; doc-truth 21/21 and confirmed non-vacuous. est 1pt (recurring), took 1.
+- **N7 — the tours call a saved chart what the app calls it (v875, sw v507, 2026-08-07,
+  steward; LF58 recurring slice, dev branch):** same pick as the last slice — the ▶ NOW queue
+  still holds no ready non-recurring item (N2/N4b/N5a/N5b shipped, N4a ⛔ on Kevin, grooming
+  parked for him on `hold` PR #623), so the recurring N7 came up again. The item named this
+  candidate itself: *"the 'analysis' vs 'View' wording in the Quick analysis tour is the
+  strongest candidate there."*
+  - **The drift.** LF57 made **View** the user-facing name of a saved chart, and every render
+    site says so — Explore's button (`Save View`), the Dashboard Builder library's group header
+    (`app/explore.js` → `Views`), Home's section label (`Pinned Views`). The tours never caught
+    up. Two steps sent the reader to a builder-library group called **Analyses** that renders
+    **Views** (`tutorial.js` quick step 6 and build step 1) — the same defect class as v874's
+    dead menu route: copy naming a control that does not exist. Worse, the Quick analysis tour
+    contradicted **itself** inside one walk: step 0 "save the result as a reusable *analysis*"
+    vs step 5 "press **Save View**". Nine copy sites across `app/tutorial.js` +
+    `app/welcome.js`, including the welcome hero and the quick tour's finish toast.
+  - **The line drawn** (written into `tutorial.js`'s header so the next slice applies it):
+    where the copy points at something the reader can **click** — a rail section, a button, a
+    library group, a Home section — it uses the label the app RENDERS. Where it describes the
+    **activity**, ordinary English stays: the tour is still called **Quick analysis**, because
+    that is still what you are doing. The object's storage table is still `analyses` and its
+    ids still `analysisId` — LF53 deferred that internal rename deliberately, and this slice
+    does not disturb it.
+  - **The ratchet — doc-truth check 14.** Derives the internal noun (`Workspace.all("analyses")`)
+    AND the rendered label (`<span class="nm">Views</span>`) from *the same function that renders
+    that group*, asserts the app's three surfaces agree with each other, then fails if any
+    **bolded** label in the tour copy uses the internal noun. Comments stripped first (check 12's
+    lesson — this file's own prose discusses the retired noun at length). The one exemption, a
+    tour's own chooser label ("Quick analysis"), is *derived* from the labels `tutorial.js`
+    registers, not hardcoded. Verified non-vacuous: restoring `<b>Analyses</b>` fails it.
+  - **The guard caught the author.** The first draft also exempted the welcome hero's "quick
+    analyses" as activity phrasing "shared verbatim with the marketing hero" — and the
+    exemption's own verification (does `index.html` actually say it?) disproved that
+    immediately: the hero says no such thing. The hero now names the rail's own **Quick Views**
+    section and the exemption is gone entirely, leaving check 14 stricter than drafted. That is
+    the SKIP_IN_WELCOME idiom earning its keep — an exemption that must prove itself.
+  - **Verified:** `tools/doc-truth.mjs` 20/20 · `tools/validate.mjs` 207 files clean ·
+    `tools/changelog-check.js` manager-parse OK · full `tests/run.js` green ·
+    `tools/dev-smoke.mjs` green (desktop + 390px, zero pageerrors). est —, took 1 slice.
+  - **Deliberately out of scope:** Help's own `analysis`/`analyses` prose (`docs/index.html`
+    §602-627 etc.). Help's *label* is already right ("the Studio library under **Views**"); the
+    remaining prose is the broader wording sweep N7 already flags as overlapping AUD-11 §2.4's
+    tail — its own slice, not this one.
+- **N7 — every tour told you to reopen it from a menu that no longer has it (v874, sw v506,
+  2026-08-07, steward; LF58 recurring slice, dev branch):** the ▶ NOW queue again held no ready
+  non-recurring item (N2/N4b/N5a/N5b shipped, N4a is ⛔ on Kevin, grooming still parked for him
+  on `hold` PR #623), so the recurring N7 came up. Checks 9/11/12 had made the rail the one list
+  of SECTIONS for Help, the guided tour and the welcome carousel; this slice takes the next
+  question — the AFFORDANCES the tours tell you to click.
+  - **The drift.** All six tours closed on some form of *"you can reopen these tours any time
+    from ⋯ More → Interactive tutorial"* — **11 references**. LF46 (⋯ teardown, slice 2) deleted
+    that entry: the ⋯ menu's whole "Help & power tools" group went to the ⌘K palette, and
+    `app/index.html`'s own comment says so. So every tour ended by naming a menu item that had
+    not existed for weeks — and the tours are precisely what a first-time user reads. The
+    suite's existing freshness ratchet (`J6: … NO retired product terms`) could never catch it:
+    it greps for retired NOUNS (CDF/CDA/Pentaho/Dashboard Studio), not for routes.
+  - **Shipped.** The copy names the routes that exist: `⌘K → Interactive tutorial` (universal —
+    the palette is the canonical home for this now), keeping `Home → Take the tour` on the two
+    lines that already carried it. The module header records why, so the next reader does not
+    re-derive it.
+  - **The guard — doc-truth check 13.** Every affordance the tour copy names is resolved against
+    the real UI: a `⋯ More → A → B` chain against `#menuMore`'s actual markup (its buttons AND
+    its `.grp` headings, so `⋯ More → Present → Slideshow` resolves), a `⌘K → X` against
+    `app/palette.js`'s command labels. Routes resolve by consuming `→ <label>` steps longest-
+    label-first, so trailing prose is not mistaken for part of the route. It reads only the COPY
+    (string literals, comments stripped) — check 12's lesson: this file's own prose describes
+    the drift it guards, and a comment must neither fail the check nor satisfy it.
+  - **Verified both ways, which is the point of a guard:** green on the fix; re-introducing the
+    old copy fails it with all 11 references named, and renaming the palette's `Interactive
+    tutorial` command fails it too. Dev gate green (validate + changelog-check + doc-truth +
+    dev-smoke, 390×780 + desktop, zero pageerrors).
+  - **Also audited, no change needed:** all 23 tour spotlight selectors still resolve;
+    `app/welcome.js` never carried the stale route; Help's two ⋯ More references both resolve.
+    And the N7 candidate list's claim that the ⌘K palette still reached only 7 of 13 rail
+    sections was itself stale — AUD-12 (v854) fixed that and added the guard; the note is struck.
+  - **est 1pt, took 1.**
+- **N7 — the welcome quick tour stops skipping the rail's Workspace group (v873, sw v505,
+  2026-08-07, steward; LF58 recurring slice, dev branch):** the ▶ NOW queue again held no ready
+  non-recurring item (N2/N4b/N5a/N5b shipped, N4a is ⛔ on Kevin, and the grooming pass is
+  already parked for him on `hold` PR #623), so the recurring N7 came up again — this is the
+  third first-run surface to be measured against the rail, after Help (v870, check 9) and the
+  guided overview tour (v872, check 11). `app/welcome.js`'s `BASE_STEPS` — the carousel behind
+  the hero's "what each part of the app is for" card — went Welcome → Quick Views → View
+  Builder → Dashboard Builder → Export → Bring your data, so it named the three builders and
+  the two data sections and **never mentioned where anything you build ends up**: `Views` (the
+  catalog LF57 added), `Dashboards` and `Repository` were absent, i.e. the whole Workspace
+  group. Nothing noticed, for the same reason nothing noticed on the tour: nothing was
+  measuring. Shipped: a workspace-catalogs card ("Your workspace — find it all again") between
+  Dashboard Builder and Export naming Views / Dashboards / Repository / Home with the rail's
+  own labels and the Repository description docs/index.html already uses (all five object
+  kinds, folders, chip filters, rename in place); the Quick Views card now says
+  `(left rail: Build)` the way the View Builder card already did; and the Help page's "Take a
+  quick tour" bullet, which said only that the carousel exists and is pack-aware, now says
+  what it covers.
+  **doc-truth check 12** holds it there: it extracts `BASE_STEPS`' `t`/`h`/`s` STRING LITERALS
+  (not the raw source block — a source comment ABOUT the drift would otherwise satisfy the
+  check, which is exactly what the first draft of it did) and requires every rail section's
+  `SECTION_LABELS` label to appear, consuming longest-label-first so "Quick Views" can never
+  be the reason "Views" looks covered. Deliberate skips are declared with reasons (`admin`
+  role-gated, `settings`/`docs` pinned below the groups). Unlike check 11 it asserts
+  COVERAGE, not order — the carousel is a value narrative (make it → find it → hand it out →
+  feed it), not a rail walk. Proved non-vacuous by deleting the new card: it then fails naming
+  exactly `Views, Dashboards, Repository`. Suite: the LF40 pack-aware count moves 6→7 base
+  steps, plus two checks that walk the RENDERED deck to the new card and assert its bold
+  labels — walking the rendered titles rather than indexing `computeStepTitles()`, because a
+  sample pack that finishes installing after `open()` makes a freshly-computed index disagree
+  with the deck on screen (it did: 9 computed titles vs 8 rendered dots — the first draft of
+  the check landed on the Export card because of it).
+  **Verified:** the full dev gate green (`validate` 207 files, `changelog-check` 850 entries,
+  `doc-truth` 23/23, `dev-smoke` desktop + 390px, zero pageerrors) plus a scratch Playwright
+  driver running the slice's own new suite checks verbatim against a signed-in app at
+  1200×900 AND 390×780 — the new card fits the mobile gate viewport without overflow, and the
+  existing icon-swap / back-to-hero / finish-loops-to-hero checks still pass around the
+  insertion. The FULL `tests/run.js` runs at stage-promotion time, per the pipeline. est 1pt,
+  took 1.
+- **N7 — the Getting started tour walks the rail in the order the rail is in, and can no
+  longer drift from it (v872, sw v504, 2026-08-07, steward; LF58 recurring slice):** the ▶ NOW
+  queue again held no ready non-recurring item (N2/N4b/N5a/N5b shipped, N4a is ⛔ on Kevin,
+  grooming is still claimed by held PR #623), so this run took the 🔁 item and worked the
+  FIRST of the two candidates the previous slice left named on it: the overview tour against
+  the rail.
+  - **The drift.** `TOURS.overview` opens by promising "this tour walks the parts down the
+    left rail" and then did not: **Home → Quick Views → View Builder → Dashboards → Datasets
+    → Connections → Jobs → Repository → Dashboard Builder**, which crosses between the rail's
+    three groups (Workspace / Build / Manage) **five times**. Anyone following along on the
+    real rail was jumping up and down it. Worse, the **Views catalog** (`data-sec="views"`,
+    added by LF57 slice 1) was not in the tour at all — the walk went Home straight to
+    Dashboards, past a section it never named.
+  - **The fix.** The walk is now the rail's own DOM order, group by group and labelled as it
+    goes: **Workspace** (Home · Views · Dashboards · Datasets · Connections · Repository) →
+    **Build** (Quick Views · View Builder · Dashboard Builder) → **Manage** (Jobs). A new
+    Views step defines a View as the unit dashboards are made of and explains why two rail
+    items are both called "Views" (the group label is the disambiguator — the rail's own IA
+    comment says so). Copy that assumed the old sequence was rewritten rather than
+    re-ordered: Dashboards no longer re-defines "View" now that Views precedes it, View
+    Builder points at the catalog above it, Jobs notes that Settings and Help sit pinned at
+    the bottom, and the closer says outright that the rail runs top-to-bottom while the WORK
+    runs the other way (Connections → Datasets → Jobs → build → Home) — which previously read
+    as a contradiction of the tour that had just happened.
+  - **The guard is the point, not the copy fix.** `tools/doc-truth.mjs` **check 11** parses
+    the rail's `data-sec` order out of `app/index.html`'s `<nav id="railNav">` block, brace-
+    walks `TOURS.overview` out of `app/tutorial.js`, and requires the tour's spotlight targets
+    to equal the rail sequence — same sections, same order — modulo a `SKIP_IN_TOUR` map that
+    states a REASON per exclusion (`admin` role-gated; `settings`/`docs` pinned below the
+    groups). A second check fails if `SKIP_IN_TOUR` names a section the rail no longer has.
+    Adding a rail section now forces a decision: give it a tour step, or record why not.
+    **Proved by stashing the tutorial.js change and re-running: exit 1, printing both walks
+    side by side** ("tour: Home → Quick Views → View Builder → …" vs "rail: Home → Views →
+    Dashboards → …") — then exit 0 restored. Same shape as checks 9 and 10.
+  - **Verified in the foreground:** the full DEV GATE — `tools/validate.mjs` (207 files),
+    `tools/changelog-check.js`, `tools/doc-truth.mjs` (21 checks) and `tools/dev-smoke.mjs`
+    at 390×780 AND desktop, zero pageerrors — **plus the FULL suite, `tests/run.js`
+    3117/3117 green**, since this changes tour behaviour the suite walks. The suite's own
+    J6-7 now clicks through all **10** rail sections in the new order and still lands on
+    Home; three stale `12 + installedPackCount` step-count constants (J6-5, J6-10b and the
+    pack-removal cleanup) became 13 — the first full-suite run caught the third one, which
+    the dev gate alone would not have. `sw.js` → v504 (precached `app/tutorial.js`,
+    `docs/index.html` and the stamped `js/changelog-head.js` all changed). No estimate to
+    compare (🔁 items carry no points); took 1 slice. Files: app/tutorial.js,
+    tools/doc-truth.mjs, tests/run.js, docs/index.html, js/changelog.js, js/changelog-head.js,
+    sw.js, STATUS.md.
+- **N7 — the marketing landing page says what the app actually does now, and can no longer
+  drift from the adapter registry (v871, sw v503, 2026-08-07, steward; LF58 recurring slice):**
+  the ▶ NOW queue again held no ready non-recurring item (N2/N4b/N5a/N5b shipped, N4a is ⛔ on
+  Kevin, grooming is still claimed by held PR #623), so this run took the 🔁 item and worked
+  the FIRST of the two candidates the previous slice left named on it: the marketing page
+  against this week's features.
+  - **The drift, measured against the app.** `app/sources/` registers 14 adapters; 13 of them
+    are things you connect TO (`local` is the no-backend workspace). The `#sources` strip
+    listed only 12 — **Amazon Redshift** shipped as an adapter and the strip never learned
+    about it — and it still said "CSV / JSON files" although `.xlsx` import shipped with
+    LF24-XLSX (2026-07-31, first worksheet → CSV, wired into the dataset drop zone, Quick
+    import and the View Builder). Both are named now, so the strip is exactly the connectable
+    set and the features card's "Connect 13 kinds of sources" count is a measurable claim.
+  - **Two claims weaker than the week's work.** "Bring your team" advertised "per-user
+    security", written when the model was honest UX-gating; after N2 closed M7 it is roles
+    plus **row-level security enforced by the database itself**, with the workspace password
+    never written to disk — it says that now. The theming section still claimed each
+    dashboard "carries its own theme too, so an embedded or exported dashboard matches
+    wherever it lands", which was never true of a baked theme; after N5a/N5b it reads as
+    shipped: Appearance is **Light, Dark or Auto**, inside the app the reader's theme wins,
+    and a handed-out file always looks the way its author made it.
+  - **The guard, again the point.** `tools/doc-truth.mjs` check 10 parses every adapter
+    id/label out of `app/sources/*.js` and holds the landing page to it three ways: every
+    connectable adapter must have a landing-page name in the script's `SOURCE_CHIP` map (a
+    NEW adapter fails until someone decides how the page says it), every mapped name must
+    appear in the `<div class="chips">` strip, and the "Connect N kinds of sources" number
+    must equal the count. **Proved by deleting the Redshift chip and setting the count to 12
+    and re-running: exit 1 naming both — "missing from the strip: Redshift (redshift)" and
+    "index.html says 12, the registry has 13" — then exit 0 restored.** Measured from the
+    source, never re-typed into the test.
+  - **Verified in the foreground:** the full DEV GATE — `tools/validate.mjs`,
+    `tools/changelog-check.js`, `tools/doc-truth.mjs` (19 checks) and `tools/dev-smoke.mjs`
+    at 390×780 AND desktop with zero pageerrors. `sw.js` → v503 (the precached `index.html`
+    and the stamped `js/changelog-head.js` both changed). No estimate to compare (🔁 items
+    carry no points); took 1 slice. Files: index.html, tools/doc-truth.mjs, js/changelog.js,
+    js/changelog-head.js, sw.js, STATUS.md.
+- **N7 — the Help page describes the left rail the app actually has, and can no longer drift
+  from it (v870, sw v502, 2026-08-07, steward; LF58 recurring slice):** the ▶ NOW queue held
+  no ready non-recurring item (N2/N4b/N5a/N5b shipped, N4a is ⛔ on Kevin, and the grooming
+  pass is already claimed by held PR #623), so this run took the 🔁 item — one coherent
+  slice, per its own instruction.
+  - **The drift.** Help's `<h3>The left rail — three groups</h3>` block named two sections by
+    the labels of two OTHER sections: under **Build** it called `build` (rail label "View
+    Builder") *"Views"* and `studio` (rail label "Dashboard Builder") *"Dashboards"* — and
+    "Views" and "Dashboards" are real, different sections listed in the **Workspace** group
+    three lines above. A reader matching the Help to the rail was matching the wrong names to
+    the wrong places. Separately, `settings` and `docs` — the two items pinned below the
+    groups — were never listed at all, so the Help page did not mention its own rail entry.
+    Both builders now carry their rail label plus one line on how each relates to the catalog
+    section that lists its output, and a fourth bullet describes the pinned pair.
+  - **The guard is the point, not the copy fix.** AUD-12 made the rail the ONE list of
+    sections; nothing made the Help answerable to it, which is why this went stale silently.
+    `tools/doc-truth.mjs` check 9 now reads `data-sec` from `app/index.html` and
+    `SECTION_LABELS` from `app/shell.js`, scopes to the Help's rail block alone (Home and
+    Repository are also named in the prose below it, which would otherwise pass for the wrong
+    reason), and fails naming any section the block stops mentioning. It runs in the DEV
+    gate, so it is early and cheap. **Proved by reverting the copy fix and re-running:
+    exit 1, "not named in the Help's rail block: View Builder, Dashboard Builder, Settings,
+    Help" — the exact four, then exit 0 restored.** Same shape as AUD-11's other checks:
+    measure from the source, never re-type the answer into the test.
+  - **Audited and found already CURRENT** (recorded on the N7 item so no future slice
+    re-treads it): the Appearance Light/Dark/Auto Help copy, the "your workspace password is
+    never written to disk" / renewal-token security copy, and the section labels in
+    `app/welcome.js` + `app/tutorial.js` — the tours were right; only Help had drifted.
+  - **Verified in the foreground:** the full DEV GATE — `tools/validate.mjs`,
+    `tools/changelog-check.js`, `tools/doc-truth.mjs`, and `tools/dev-smoke.mjs` at 390×780
+    AND desktop with zero pageerrors. `sw.js` → v502 because the stamped changelog rolled the
+    precached `js/changelog-head.js`. No estimate to compare (🔁 items carry no points); took
+    1 slice. Files: docs/index.html, tools/doc-truth.mjs, js/changelog.js,
+    js/changelog-head.js, sw.js, STATUS.md.
+- **KH-024 ★ [1pt] — two more mobile layout crushes, and the red dev hiding behind
+  them (v867, sw v499, 2026-08-07, Kevin live phone):** (a) the rail's
+  WORKSPACE/BUILD/MANAGE group headers carry BOTH `.rail-group-lbl` and `.rail-lbl`,
+  so the collapsed-icon-rail hide trick (`height:1px` + `overflow:hidden`) applied to
+  them in the mobile drawer. The drawer override restores height/width/position/clip
+  but NOT overflow, leaving a **2.3px content box for 10px text** — the top of every
+  glyph clipped, only the bottom sliver visible. Restoring overflow gives them 15px.
+  (b) `.set-row` was the KH-023 flex-collapse family again: `.set-txt` goes
+  `width:100%` at ≤640px (meant to be full-width) but the row never wrapped and the
+  input is `flex:0 0 auto`, so it ate the whole line, crushed the description to one
+  word per line, and overflowed the right edge. The row wraps now, `.set-row-txt`
+  carries a 180px floor, the input takes its own line. Measured at 390px: label
+  276px, input right edge 355px == row right edge.
+  **Also unblocked the pipeline:** a clean `origin/dev` run ALONE failed `N2 slice 4`,
+  so dev was red and tonight's promotion would have rolled stage back. Root cause was
+  a test-fixture collision, not a security regression — three of the assertion's four
+  parts already held (password nowhere in localStorage, only the email kept,
+  authPassword gone); the failing part was WHICH account signed in, because the mock
+  GoTrue hands every sign-in the same uid and the mock backend carries earlier tests'
+  users rows, so LF39's `gtmate` fixture (planted with that uid) won
+  `findUserByGotrue` over the row this test seeds. Two accounts can never share a real
+  auth uid. The seed step now drops any other row carrying that uid; no assertion
+  weakened, no app code touched. Suite: 3,106 passed, 0 failed. Est 1pt, took 1 (plus
+  an unplanned pipeline unblock).
+- **KH-023 ★ [1pt] — list rows no longer crush long names to a letter-per-line
+  sliver (v869, sw v501, 2026-08-07, Kevin live phone):** Kevin's Admin screenshot
+  showed "A/d/m/i/n/i/s/t/r/a/t/o/r" running down the card. `.cx-row` is a nowrap
+  flex row whose ONLY shrinkable item is `.cx-name` (`min-width:0`); the badges and
+  the three action buttons are `flex:0 0 auto`, so at 390px they consumed the whole
+  line and the name box collapsed to **0px** wide, wrapping per character via
+  `overflow-wrap:anywhere`. This was the THIRD sighting of one bug — `.ws-current`/
+  `.ws-secrets` (2026-07-29 phone) and `.dsx-tile-foot` (2026-07-30 Views tiles) each
+  got their own local patch. Fixed at the FAMILY this time so a fourth instance
+  cannot appear: `.cx-row` wraps at any width, `.cx-name` carries a 140px readable
+  floor, and ≤640px the `.cx-actions` group takes its own full-width line under the
+  name. `.dsx-tile-head .cx-name{min-width:0}` still overrides, so Datasets tiles are
+  untouched. Measured on the real row markup at 390px: name width **0px → 177px**.
+  Suite: 2 new KH-023 checks at the 390px gate (name ≥120px wide and ≤60px tall; the
+  wrapped row stays inside the viewport). Est 1pt, took 1.
+- **N5b — `auto`, the opt-in third Appearance: a dashboard that matches whoever opens it
+  (v868, sw v500, 2026-08-07, steward; Kevin's decision as written in the NOW item):**
+  `spec.renderMode` gains a third value, `"auto"`, offered in the Dashboard inspector's
+  Appearance select as "Auto (match the reader)" beside Light and Dark. An `auto` export bakes
+  NO `data-theme` onto `<html>` and instead carries a ~380-byte resolver as the first thing in
+  `<head>` (so the attribute lands before the stylesheet paints — no light-then-dark flash):
+  read the parent document's `data-theme` when there IS a readable parent (our Viewer's srcdoc,
+  the builder preview, any same-origin embed), otherwise fall through to the reader's
+  `prefers-color-scheme`. Every step is wrapped — a cross-origin parent throws on `.document`
+  and the script runs inside pages we do not control, so it must never throw.
+  **The N5a interaction is the interesting part:** N5a's `frameTheme` is a BUILD-time override,
+  which would have forked an `auto` dashboard's srcdoc away from its download. So `buildHtml`
+  deliberately ignores `frameTheme` when the mode is `auto` — the resolver already does that job
+  at runtime, and the requirement that an `auto` dashboard be ONE byte stream (asserted in the
+  suite: srcdoc === download, and stable across app themes) outranks the override. `""` and
+  `"dark"` are untouched in every path, and a NEW dashboard still starts on `""` — Kevin's
+  explicit call that a chameleon export is chosen, never inherited. Docs: a new
+  `#dashboard-appearance` block in the in-app Help plus corrections to the two places that said
+  "Light or Dark"; the tours needed nothing (no retired terms). 5 new suite checks (no baked
+  theme + resolver present; srcdoc === download; framed follow in both directions through the
+  real Viewer; standalone `prefers-color-scheme` in both directions via a colorScheme context;
+  the three-option Inspector with Light still the new-dashboard default), and the LF20
+  option-count assertion moved 2 → 3. est 1pt, took 1.
+- **N5a — inside the app, the reader's theme wins; a handed-out file never adapts
+  (v867, sw v499, 2026-08-07, steward — NOW item N5a):** UX sweep #574 finding 1 —
+  a dark app frame around a light dashboard doesn't read as a design choice, it reads as
+  something that failed to load. Kevin's decision (recorded in the item) shipped exactly as
+  written, and the whole thing is ONE opt-in flag rather than a mode: `Studio.buildHtml` gained
+  `opts.frameTheme` (honoring only `"light"`/`"dark"`, otherwise falling through to
+  `spec.renderMode`), and `app/viewer.js` passes its own live `data-theme` on the ONE call that
+  builds the srcdoc. Every other caller — the viewer's `.html` download, its PDF build, the
+  Studio builder preview, Home's live cards — passes nothing and is provably unchanged, because
+  a caller that doesn't set the flag takes the identical code path it took before.
+  **Why downloads are excluded on purpose:** an exported dashboard is a deliverable that goes on
+  ctic.org and into stakeholders' inboxes, and a file whose appearance depends on where it is
+  opened is worse than one that simply looks the way it was authored. **Why the builder preview
+  is excluded:** the author is composing the appearance there and has to see what they are making.
+  **The invariant was amended, not quietly broken:** CLAUDE.md's "export stays byte-identical to
+  the live preview" now names the Viewer srcdoc as its one scoped exception (differing by that
+  single `<html>` attribute and nothing else) — the builder preview ≡ export identity it was
+  written to protect is untouched and still asserted.
+  **Verified** — 6 new checks in `tests/run.js`, full suite green at **3107/3107**: an authored-Light dashboard
+  read in a dark app renders dark (asserted on the iframe's live `documentElement`, not just the
+  bytes); its download carries no `data-theme` and equals the framed srcdoc with that one
+  attribute stripped — byte-for-byte, same tick, same assets; the reverse direction holds too
+  (authored-Dark read in a light app renders light), so this is a real follow and not a
+  one-way "always dark"; an authored-Dark dashboard's download is byte-identical whether the
+  reader's app is light or dark; and the builder preview still emits the authored mode with the
+  app flipped to dark. Help + changelog updated in the same slice. **est 2pt, took 1** — the
+  decision text did the expensive half of the work by naming the seam (`extraOpts`) up front.
+  **Found on the way past, NOT fixed (needs Kevin — it is a default-behavior call, so out of
+  scope for this slice):** (a) `docs/index.html` claimed Home's live dashboard cards follow your
+  light/dark theme; they never have — `homeLiveFrame` builds with `preview:true` and no frame
+  theme, so they show each dashboard's authored Appearance. The doc line is corrected to match
+  reality here; whether Home's cards should ALSO follow the reader (the same #574 argument
+  applies to them — they are app-framed too) is Kevin's call and would be its own item. (b) PR
+  #602 committed a full 915-file snapshot of the `/dev/` preview build into the repo root
+  (`dev/`, on both `main` and `dev`) — `tools/stage-preview.mjs` output that deploy.yml
+  assembles at deploy time anyway. Untouched here; worth a hygiene item.
+- **N4b — the vendored Polecat Shell catches up to v0.6.2, and N4a is raised for Kevin
+  (v866, sw v498, 2026-08-07, steward — NOW item N4, split per `docs/BACKLOG.md`):** tech
+  sweep #370 recorded the vendored copy as "2 patches behind in July". **The re-check found
+  it five releases behind: `vendor/polecat-shell/VERSION` said `0.5.4` against the hub's
+  `0.6.2`.** Ten files moved (8 changed, `fonts.css` + `fonts/` newly part of the shell), and
+  the copy is now a verbatim `rsync -a --exclude demo/` of `kevinrhaas/polecat-platform`
+  `lib/` @ `6a09750` — the same operation `sync-shell.yml` performs, so provenance is the
+  platform repo and nothing was hand-edited in `vendor/` (the read-only rule holds).
+  **Why this was done here rather than by a `sync-shell` dispatch:** that workflow clones the
+  app's DEFAULT branch and opens its PR into `main`, which is wrong for a pipeline repo —
+  feature-shaped work has to enter at `dev`. Filed as a platform-side note; until the
+  workflow is pipeline-aware, an analytics shell catch-up rides a `dev` PR like this one.
+  **What actually changes for a user of this app: nothing, and the changelog entry says so
+  plainly.** `app/fleet.js` imports only `appSwitcher`/`rightPanel` from `shell.js`, so the
+  v0.6.x rail work (a mobile drawer close button; the rail re-applying the desktop preference
+  when the viewport grows back out of drawer range) lives in `initShell`, which this app does
+  not call. `views.js` (popover toggle-shut) and `site-chrome.css` are not imported here at
+  all. The one linked file, `tokens.css`, changed only its `--font` default (Inter → Hanken
+  Grotesk) and `app/studio.css`'s bridge already declares Hanken Grotesk over it from this
+  repo's own `assets/fonts/`, so the computed face is identical before and after — measured,
+  not assumed: `--font` and `body`'s computed `font-family` both still resolve to the Studio
+  bridge's Hanken Grotesk stack in a real browser on this branch. The value
+  is that the foundation stops drifting: the next shell surface this app adopts is the fixed
+  version. **Verified:** the suite's own vendor-integrity assertions reproduced standalone
+  before commit — 29/29 files sha256-match `MANIFEST.json`, zero strays, `VERSION` agrees
+  with the manifest — plus the suite's "polecat-shell token bridge" section reproduced
+  standalone in Chromium (6/6, zero pageerrors), plus the full dev gate green in the
+  foreground (`tools/validate.mjs`, `tools/changelog-check.js`, `tools/doc-truth.mjs`,
+  `tools/dev-smoke.mjs`). The FULL `tests/run.js` runs at stage promotion, as designed. `sw.js`
+  `CACHE_NAME` bumped v497 → v498 because two precached files (`tokens.css`, `shell.js`)
+  changed. **N4a, the other half, is NOT shippable by any agent and is now ⛔ on Kevin:**
+  `gh api -X PATCH … -f delete_branch_on_merge=true` returns `403 Resource not accessible by
+  personal access token` — `STEWARD_PAT` carries repo scope, not repo administration. Raised
+  rather than assumed, which is what the item asked for; the 265 already-merged `steward/*`
+  branches were deliberately left alone pending his answer. **Est 1pt, took 1** — but only
+  half the item shipped, so the estimate was right for the work an agent can actually do and
+  wrong about N4a being agent work at all. Calibration note for future "repo hygiene" items:
+  split the settings-change half out as ⛔ at grooming time instead of estimating it.
+- **N2 slice 4 — the workspace password stops being persisted; the refresh token takes its place
+  (v865, sw v497, 2026-08-07, steward — NOW item N2, the LAST of M7):** the standing security debt
+  the item named in one line — "the client still keeps the signed-in user's plaintext Supabase
+  password on disk". **The defect, precisely:** `Sync.setAuthCredentials()` stamped
+  `authEmail`/`authPassword` onto the live cfg and `saveConn()` serialised that cfg straight into
+  `analytics.datasource.v1`, so the password sat in localStorage in plaintext forever — for one
+  reason only: `ensureSession()` needed something to re-mint an expired JWT from. It never needed
+  the password for that. GoTrue returns a `refresh_token` on every grant and the adapter threw it
+  away. **The fix, in four parts:** (1) `app/sources/supabase.js` keeps the refresh token instead,
+  in `sessionStorage` under `analytics.supabase.refresh.v1` (the AUD-03 posture — one sign-in per
+  browser session, silent re-minting in between, nothing at rest when the tab closes);
+  `gotrueSignIn`/`gotrueRefresh` are now one `gotrueToken(cfg, grant, body)` and `ensureSession`
+  prefers the refresh grant, storing GoTrue's ROTATED token each time. A refused refresh is FINAL
+  (the token is dropped, not retried) unless a password happens to be in hand that turn; an
+  UNREACHABLE project still throws `unreachable` so slice 3's offline fallback is untouched.
+  (2) `saveConn()` strips `authPassword` on the way to disk (the live cfg still carries it in
+  memory), and a load-time migration deletes any copy an earlier version left at rest — carrying it
+  into memory for that page first, so upgrading never signs anyone out mid-session. (3) The hazard
+  this opens is handled explicitly: a browser with no resumable session would have boot-pulled as
+  ANON, which authenticated-only RLS answers with an EMPTY workspace, and adopting that would wipe
+  the device's local mirror. `Sync.needsSignIn()` detects exactly that shape and `initSync` latches
+  pulls off through the existing SYNC-PREAUTH mechanism, while `app/gate.js` asks for the password
+  once instead of revealing an app that reads as empty — the same "the workspace decides who signs
+  in" rule slice 3 established, with the known email prefilled so it is one field. (4) Sign-out
+  (`PolecatAuth.logout`) and `Sync.disconnect()` both call the new `Sync.forgetAuthSession()`, so
+  the next person at this browser cannot inherit the previous user's database access.
+  **Deliberately unchanged:** anon-key-only Supabase connections, Turso/Firebase/local workspaces,
+  and the `admin`/`demo` pair all behave exactly as before (`needsSignIn()` is false for every one
+  of those shapes). **Verified:** the full `tests/run.js` suite, 3101/3101 green, with 9 new checks
+  — the password is nowhere in localStorage after a real gate sign-in (scanning EVERY key, not just
+  the connection record); the refresh token is what is kept; a RELOAD with no password anywhere
+  re-mints the session and connects as the real user; the rotated token replaces the spent one; a
+  revoked token is refused and dropped; a pre-slice-4 record is migrated away without signing
+  anyone out; sign-out clears the session; and a new browser session is asked for the password with
+  pulls latched off and the email prefilled. The test harness's mock GoTrue gained the
+  `refresh_token` grant (with real rotation) so all of it runs without the live project.
+  **est 1pt, took 1** — and that closes M7.
+- **N2 slice 3 — THE CLIENT FLIP: on a bound Supabase workspace the DATABASE decides who signs in,
+  not the mirrored local hash (v864, sw v496, 2026-08-07, steward — NOW item N2):** slices 1 and 2
+  proved the database's posture; this is the first slice that changes the CLIENT, and it closes the
+  gap the N2 item names in one line — "the app still treats the shared local store as the source of
+  truth". **The defect, precisely:** `app/gate.js`'s submit handler ran `Auth.verify(u, p)` FIRST,
+  and a matching row in `analytics.users.v1` signed you straight in — the workspace was never
+  asked. GoTrue direct-auth (LF39 item 2 / M7) existed only as the FALLBACK for when the local hash
+  missed. So the mirrored `users` hash was the real credential at the front door: anyone able to
+  edit this browser's localStorage could mint a row and be signed in as anybody, and a password
+  CHANGED or REVOKED in the workspace kept opening every browser whose mirror hadn't caught up.
+  RLS still protected the DATA the whole time (every request carries the user's own token — that
+  is what slices 1/2 proved), but the door in front of it was decided locally. **The flip:** when a
+  Supabase workspace is bound AND the typed username is an email — exactly the accounts that
+  workspace's GoTrue owns — the gate asks the database FIRST (`submitSignIn` →
+  `tryGotrueDirectAuth`) and honours its answer; a rejection is final and the local hash gets no
+  second vote. **The two things it deliberately does NOT break:** (a) an UNREACHABLE backend
+  (offline, CORS) still falls back to the local path in full, so losing your connection never locks
+  you out of your own device — which required teaching the adapter to distinguish the two, so
+  `supabaseSource.authenticate()` now returns `unreachable:true` for a network/CORS failure and
+  `false` for a genuine "no" (`gotrueSignIn` tags the error); (b) local accounts are untouched —
+  plain usernames, the `admin`/`demo` seed pair (never emails, so the new branch cannot see them),
+  custom local-auth workspaces (Turso/M3.2) and a plain local workspace all keep the local-first
+  path byte for byte, and the Workspace picker's "Local only (this browser)" is the one-click
+  escape hatch. The "no" message now also says the workspace is what decided it. **Verified:** the
+  full `tests/run.js` suite plus the dev gate (`tools/validate.mjs`, `tools/changelog-check.js`,
+  `tools/dev-smoke.mjs`), with 3 new checks — the adapter's reject-vs-unreachable distinction; a
+  local hash that PROVABLY matches (`PolecatAuth.verify` re-asserted true in the payload) no longer
+  signing an email account in; and an unreachable workspace still signing that same account in.
+  The existing GATE-ERR / GATE-FIX / GATE-FIX-2 / LF39-direct-auth / ADMIN-LOCAL checks all still
+  pass unchanged, which is what pins "local accounts are untouched". (Files: app/gate.js,
+  app/sources/supabase.js, tests/run.js, docs/index.html, js/changelog.js, sw.js, STATUS.md.)
+  **est 2pt, took 1** — the remaining piece (the Admin-side surfacing of which posture a workspace
+  is actually running under) is genuinely separate and is re-scoped on the N2 item as 1pt.
+- **N2 slice 2 — the one-click go-live installed a WEAKER posture than the manual paste; the two
+  are now identical and a test holds them there (v863, sw v495, 2026-08-07, steward — NOW item
+  N2):** slice 1 proved the two `/tools` postures, but the path most workspaces actually take is
+  neither of them — it is **Admin → Go live**, which runs the Edge Function's *inlined* copy
+  (`supabase/functions/polecat-admin/sql.ts`, inlined because the Edge Runtime bundles only the
+  module graph and cannot read a sibling `.sql` at runtime). That copy had drifted from the
+  canonical posture it calls itself a condensed mirror of: **no admin arm** on the five
+  owner/private tables, **no explicit `TO authenticated`** (so its policies still applied to
+  `anon`), **no `users` email-claim arm** (GATE-FIX-2), **no `polecat_meta` policy** and **no
+  RLS-enable / legacy-policy drop loop** — so it never retired the demo `polecat_anon_all`
+  policies its own `BOOTSTRAP_DDL` had just created a few lines earlier. **What that meant
+  live:** a workspace taken live with the button left a signed-out visitor able to read every
+  non-private row and the whole of `polecat_meta`, and left admins unable to push a workspace
+  snapshot containing rows they do not own. **SERVER-SIDE ONLY, as scoped — no client change.**
+  `RLS_REAL_SQL` is now a section-for-section mirror of `tools/supabase-rls-real.sql` (§ 0 enable
+  + drop legacy, § 0.5 the `polecat_is_admin()` helper hoisted above its callers, § 1 the five
+  owner/private tables, § 2 `users`, § 3 `polecat_meta`), and **`tests/rls.mjs` gained it as a
+  THIRD posture** — the real go-live sequence, `BOOTSTRAP_DDL` then `RLS_REAL_SQL`, into its own
+  throwaway schema, put through the identical 27 checks. The constants are pulled out of the
+  `.ts` textually (Node cannot import TypeScript, and the point is to test the exact bytes that
+  deploy). Running BOOTSTRAP first is deliberate: it puts the demo allow-all policies in place,
+  so the drop loop that has to retire them is under test rather than assumed. **Verification:
+  81/81 checks green across the three postures (25.6s) against the live project; negative
+  control — reverting `sql.ts` alone turns exactly 4 red (`anon reads 0 rows from dashboards`,
+  `… datasets`, `… polecat_meta`, `an admin sees every dashboard`), which is the drift itself,
+  observed.** Dev gate green (`validate.mjs`, `changelog-check.js`, `doc-truth.mjs`,
+  `dev-smoke.mjs`). Runbook § Path C now states the enforcement. **Note for an already-live
+  workspace:** do NOT "just re-run Go live" to pick the fix up — `actionGoLive` TRUNCATEs the
+  workspace tables first; re-paste `tools/supabase-rls-real.sql`, which tightens in place. **Est
+  1pt, took 1.**
+- **N2 slice 1 — the live security posture gets an integration test, and it found a fresh-install
+  bug on its first run (v862, sw v494, 2026-08-07, steward — NOW item N2):**
+  `tools/supabase-rls-real.sql` has been the canonical Row-Level Security posture for every
+  Polecat analytics workspace database since it went live 2026-07-30, but it was only ever
+  proven **by hand** — a July steward run pasted it into a throwaway schema, read the counts and
+  dropped the schema (M7 slices 1 and 4). Nothing in the repo re-checked it afterwards, so an
+  edit that quietly reopened anonymous reads would have shipped unnoticed — which is precisely
+  the 2026-07-30 incident (one leftover `polecat_anon_all` policy ORs itself past every tighter
+  policy beside it). **New `tests/rls.mjs`** closes that: it creates a throwaway
+  `steward_test_rls_<random>` schema on the live project **for each of the two shipped
+  postures** — `supabase-rls-real.sql` (re-tighten existing tables) and `supabase-deploy.sql`
+  (the fresh one-file deploy, which calls itself the superset) — so "keep the two in sync",
+  until now an honour-system comment, is now something a run compares. Each schema carries
+  **the same anon/authenticated GRANTs live has** (so a refused read proves RLS, not a missing
+  privilege) and gets **the real file** — not a paraphrase, just re-pointed at the test schema
+  by rewriting its `public` references — and then impersonates anon,
+  two signed-in users and an admin via `request.jwt.claims`, which is what Supabase's
+  `auth.uid()`/`auth.jwt()` read. **27 checks per posture, 54 in all:** anon reads zero rows from all seven tables and
+  cannot write; a signed-in user sees public rows plus only their own private ones (including
+  the `datasets` `acctOwner` branch) and none of a co-worker's; an admin sees everything; the
+  `users` table shows a plain account only its own row; and updates, deletes, spoofed inserts
+  and non-admin `users` writes against someone else's rows are all rejected or filtered to zero.
+  **Safety is mechanical, not a promise:** `assertTestSchemaOnly()` refuses to send any statement
+  that still names `public`, `search_path` is pinned to the test schema, and the schema is
+  dropped in a `finally`. Without `SUPABASE_PASSWORD` the script SKIPs with exit 0, so it never
+  breaks a local run or the dev gate. **The bug it caught immediately:** the policy file created
+  policies calling `public.polecat_is_admin()` before defining it (§ 1 vs § 2 in the posture
+  file, § 3 vs § 4 in the deploy file), so the documented "run it top-to-bottom on a FRESH
+  project" path died on the first `CREATE POLICY`; it had survived only because a 2026-07-24
+  run left the function behind on this project. The helper is hoisted to a new § 0.5 / § 2.5 in
+  both files — a pure move, no policy logic touched, and the live posture is byte-for-byte the
+  same one. Verified: 54/54 green against the live project, plus TWO negative controls —
+  re-adding a single allow-all policy turns 8 checks red, and restoring the pre-fix deploy file
+  fails it outright — so the test and both fixes are load-bearing. **Est 2pt, this slice took 1**; the remaining point (the Edge Function's inlined
+  `RLS_REAL_SQL` has drifted weaker than the canonical posture) is written up on N2.
+- **N6: the "Dave" north-star becomes an automated acceptance test — and it immediately caught a
+  real one (v861, sw v493, 2026-08-07, steward — NOW item N6):** the ONBOARDING & PROVISIONING
+  EPIC is one story, not five features, but it was only ever tested as five: LF39 (cross-device
+  sign-in), LF41 (provisioning defaults), LF42/#103 (assigned backend) and LF40 (welcome/tour)
+  each had green checks while nothing asserted they still ADD UP. `tests/run.js` now runs the
+  story end to end in two browser contexts, through the REAL UI, with nothing stubbed in the
+  sign-in path: an admin registers a workspace backend, sets the house Dashboard defaults and
+  provisions `dgustafson` in ONE pass of the actual Add-user form (admin role, Conservation
+  theme + pack, copied Dashboard defaults, assigned backend, one-shot tour flag); the workspace
+  syncs; then a **fresh phone at 390×780** — carrying nothing but the workspace binding — types
+  Dave's username and password into the actual gate form. 11 checks assert he lands ready:
+  identity + admin role adopted from the backend, Conservation theme stamped on the document,
+  the pack installed with its 14 example dashboards materialized, the house Dashboard defaults
+  replayed, connected to his assigned workspace with no adopt prompt and no decline recorded,
+  the welcome fired and its one-shot flag consumed, the account stamped provisioned, and the
+  pack-gated Conservation tour unlocked in the chooser. A "before" assertion proves the phone
+  was genuinely blank first, so nothing passes by accident.
+  **What it caught (GREET-AFTER-SIGNIN, the fix in this same slice):** the app boots BEHIND the
+  sign-in gate, so `StudioWelcome.maybeShow()` painted the hero ~300ms into boot while no
+  identity existed — an un-personalized "Welcome to Analytics" — and the post-sign-in
+  `open()` from the TOUR-FORCE one-shot then hit `if (document.getElementById("studio-welcome"))
+  return;` and no-oped on that stale hero. Net effect: a freshly provisioned user burned their
+  one-time welcome on a greeting that did not know who they were, and the pack-aware
+  `computeSteps()` recompute never ran either, so the tour skipped the pack they had just been
+  given. Exactly the boot-behind-the-gate ordering bug **#108** fixed for Home's greeting, in a
+  module #108 never touched. `app/welcome.js` now tracks which screen the overlay is on and, on
+  a re-`open()`, re-renders the hero in place when it is still the hero (a visitor who has paged
+  into the carousel keeps their place). Files: tests/run.js, app/welcome.js, sw.js,
+  js/changelog.js, STATUS.md. Full suite green (3089 passed, 0 failed) — run in full, not just
+  the dev gate, because the fix is on the boot path.
+  **NEXT in N6:** this covers the story's happy path on a device already bound to the workspace.
+  The other half of "from any device" — a phone with NO binding at all, using the gate's
+  WORKSPACE-LOGIN picker to choose the workspace first — is a natural second slice, as is the
+  same walk for a `viewer`-role provisioning (role gating is asserted here only as the stored
+  role, not as what Dave can actually reach).
+- **N1: STATUS.md splits — the drained tracks move to `docs/BACKLOG-ARCHIVE.md` (v860, sw v492,
+  2026-08-07, steward):** the NOW queue's own precondition, and the last half of AUD-11's
+  tail. The file had reached 15,869 lines with NEXT alone at ~6,300 across 32 subsections,
+  and the failure mode was specific: you could not answer "what is actually left?" by reading
+  or grepping, because DONE cross-references matched nearly every open item. Seven DRAINED
+  tracks — AUDIT-2026-08 (AUD-01…12 all shipped), the expired 2026-07-31 SESSION HANDOFF,
+  the 2026-07-27 LOCKED BUILD ORDER, Conservation Insight M1/M2/M2b/M2c, the VIRIDIS VIEW /
+  GEO-ANALYTICS track (V1→V9), the POST-OVERHAUL BACKLOG and the MOBILE track — moved
+  VERBATIM into a new `docs/BACKLOG-ARCHIVE.md`, each under its original heading so old links
+  and greps still land on it. Nothing was deleted; 1,055 lines moved, not dropped.
+  The part that took the care: a drained track is not always drained all the way through, so
+  each pointer stub left behind in NEXT **enumerates the live tails** rather than letting them
+  ride into the archive — AUD-01's cross-device conflict resolution, AUD-06's Help-page
+  search, AUD-07's ~23 hand-rolled delete confirms, AUD-08's incremental `refreshPreview()`,
+  AUD-11's wording sweep, LF43 slice 2, Viridis' four questions parked for Kevin, and the
+  mobile track's outstanding real-device check. Conservation is the sharpest case: only its
+  M1–M2 slices moved, because M4.2/M5/M6 are open and M7 is NOW item **N2** — and the
+  REVIEW-FIXES block under M2c has its own still-queued items, so it stayed too. Also added:
+  a **🗂 Reservoir index** directly beneath the NOW block that lists every remaining section
+  with its status, so a track is findable and its liveness readable without scrolling ~5,000
+  lines. Docs-only — no app file, test or exported artifact is touched — so the dev gate
+  (`tools/validate.mjs` + `tools/changelog-check.js` + `tools/dev-smoke.mjs`) is the whole
+  gate, exactly as N1 specified. STATUS.md 15,869 → 14,947 lines.
+- **SWEEP574-3b tail — chart tooltips open on keyboard FOCUS, not just hover (v859, sw v491,
+  2026-08-07, steward):** the last a11y gap either mark slice named, and the last actionable
+  finding in UX sweep #574. A mark's numbers live in two places — the `aria-label`
+  `markActivatable()` writes, and the hover tooltip — and only a pointer could summon the
+  second, so a keyboard user heard "Snowflake: $84.2K" but never saw the card a mouse user
+  gets (the percentage, the share of total, a chart's custom `cfg.tip` markup).
+  - **`tipOnFocus()` in `app/studio-charts.js`**, called at the end of `markActivatable()`, so
+    it covers exactly the marks the keyboard can already reach and ships byte-identically in
+    the live preview and every exported dashboard (the export invariant is untouched — the
+    fix is in the toolkit source, not a post-process). `_tip()` now parks its html on the node
+    (`__dkTip`) because `markActivatable()` runs after it and has no other way to learn what
+    this mark's tooltip says.
+  - **Gated on `:focus-visible`, not `focus`.** It is the browser's own answer to "did this
+    focus come from the keyboard?", and it is what `vendor/dashkit.css` already paints the
+    focus ring on — so the card and the ring appear and leave together, and a mouse click
+    (which already has the tooltip under the cursor) never yanks it to the shape's centre.
+  - **Anchored to the mark, not a cursor.** `DashKit.showTip()` reads only `clientX`/`clientY`
+    off the event it is handed, so a plain object carrying the shape's centre reuses the
+    vendor's exact tooltip element, styling and viewport clamping — **`vendor/dashkit.js`
+    stays pristine** and there is no second tooltip implementation to keep in sync.
+  - **Escape dismisses it without moving focus** (WCAG 1.4.13 "Content on Hover or Focus"): a
+    card pinned over the next bar has to be closeable while you keep your place.
+  - **Table rows deliberately get nothing** — `rowActivatable()` never calls it and a row has
+    no `__dkTip`, because a row's own cells already ARE the values a tooltip would repeat.
+    Pinned by a check in the existing table block rather than left to the reader.
+  - **7 new checks** (6 in a new `SWEEP574-3b (tail)` block + 1 in the table block). The block
+    renders its export frame ON SCREEN, unlike its siblings, because the pointer half cannot
+    be faked: Chromium's `:focus-visible` heuristic keys off REAL input and a synthesised
+    `mousedown` leaves it untouched (verified). So the mouse case is driven with an actual
+    `page.mouse.click()` into the frame — at z-index 2147483000, since the sign-in gate sits
+    at 100000 and would otherwise swallow it — and the keyboard case with a programmatic
+    `.focus()`, which with no preceding pointer input is what Tab looks like to the heuristic.
+    The click target is picked as the tallest fully-visible promoted `<rect>`: an SVG `<path>`
+    only hit-tests where it is painted, so the centre of a donut arc's bounding box is empty
+    space. What the mouse check asserts is WHERE the tooltip was last placed, not whether it
+    is still up — the drawer the click opens slides in over the cursor and the resulting
+    `mouseout` hides it, which is pre-existing hover behaviour this slice does not touch.
+  - Help gained a paragraph under "Reading a dashboard without a mouse". Not covered
+    (deliberate): KPI tiles, which have no tooltip because their own text is the value, and
+    the hover-tooltip behaviour itself, which is unchanged in every respect.
+- **AUD-11 tail — the suite stops hand-typing a number doc-truth measures (issue #607,
+  2026-08-07, steward; no version/sw bump — test-only, see below):** the **STAGE gate was
+  red on `dev`** and would have auto-rolled-back every promotion, including unrelated work.
+  One assertion, `F38/J` (`tests/run.js`), fetched `docs/index.html` and required the
+  literal string `"52 types"`. AUD-11 (v856) had resolved the chart-type count to **54**
+  everywhere, so the claim the suite was defending was the one number that is no longer
+  true. Kevin found it while verifying #606 and filed it separately rather than bundling it,
+  so each stayed one revertible unit.
+  - **The fix is a deletion, not a retype.** `54` typed into the suite would only re-arm the
+    same trap for the next chart type. `tools/doc-truth.mjs` (AUD-11's whole point) already
+    pins that count **from its source** — it reads the `Studio.CHARTS` registry and asserts
+    "docs/index.html: chart-type counts all read N" — and it runs in the dev gate, i.e.
+    earlier and more often than the suite. So F38/J keeps only the half doc-truth does not
+    duplicate at *that* granularity: the `ct-quadrant` anchor. The comment above it now
+    records why the count left, so nobody restores it as a "missing" assertion.
+  - **Swept for siblings, as the issue asked.** Every other numeric literal asserted against
+    a doc/marketing page in `tests/run.js` was checked: F36/J and F37/J assert anchors only,
+    and the chart-count comparisons at LF53-CODE and the ⌘K "Add panel:" check measure
+    `Object.keys(Studio.CHARTS).length` live rather than freezing it. **F38/J was the only
+    hard-coded countable claim.** One stale *label* was retired alongside it — the Z13
+    reliability-distributions check announced "(51/51 gallery coverage)" on every run, a
+    completeness claim about a registry that has since grown to 54; its assertion (four named
+    types are present) was already correct and is unchanged.
+  - **No changelog entry and no `sw.js` bump, deliberately** — nothing user-visible changed
+    and no precached file moved. Same precedent as QA-09/QA-10 and LF69(b)'s verify-only
+    closes. `ok()` count is unchanged, so doc-truth's "~3,000 checks" claim still holds.
+  - **Verified in the foreground:** the full dev gate (`validate.mjs` + `changelog-check.js`
+    + `doc-truth.mjs` + `dev-smoke.mjs` at 390×780 and desktop, zero pageerrors) and the
+    **FULL `tests/run.js` suite** — the gate that was red — now green. Files: tests/run.js,
+    STATUS.md.
+- **AUD-06 slice 6 — the search kit stops being catalog-only (v858, sw v490, 2026-08-07,
+  steward; AUDIT-2026-08 §2.1, ux):** §2.1's closing sentence — "add the 11 other search
+  affordances (library, inspector, chart gallery, ⌘K, docs, folder-picker…) and the pattern
+  is: every surface reinvented its own filtering" — is now false everywhere the shared kit
+  can reach. Slices 1–5 unified the six CATALOG panels; this one takes the other thirteen
+  boxes off `hay.toLowerCase().indexOf(q) >= 0`.
+  - **The thirteen:** the Studio library's workspace-datasets group and its sample-query
+    (DA) groups (`studio.js`), the panel inspector's section search, the chart-type gallery,
+    the ⌘K palette (`palette.js`), the What's-new feed, the folder picker, the auto-build
+    "set" filter, the Studio open-dashboard picker, Explore's add-to-dashboard picker, its
+    datasets pane and its analyses library (`explore.js`), the View Builder's datasets pane
+    and its filter-value list (`build.js`), and a connection's schema browser
+    (`connections.js`). After this slice `grep 'toLowerCase().indexOf(q'` over `app/` returns
+    ONLY the comment in the kit that quotes the old idiom.
+  - **Two additions to the kit, both earned by a surface the catalog panels never had.**
+    `catalogSearch.textMatcher(q)` for the rows that ARE strings (a folder path, a distinct
+    column value, a card's text, an inspector section's `textContent`) — otherwise six call
+    sites would each fake a one-element array. `catalogSearch.markRe(q)` for the one surface
+    that HIGHLIGHTS: the What's-new feed's `hlq()` marked the raw query string, so a
+    two-word match across two fields marked nothing and the hit read as a false positive.
+    It now marks each term, **longest term first**, or `filter` eats the head of
+    `filtering`.
+  - **⌘K keeps its ranking.** Only the *inclusion* test moved to the shared rule; the
+    palette still buckets a prefix hit on the visible label above an interior hit (scored on
+    the first term) and still adds the usage tiebreak. The matcher and the terms are parsed
+    once per keystroke instead of once per command.
+  - **Deliberately NOT adopted — `docs/index.html`'s own search** (the audit's "docs"). That
+    page is standalone: three inline `<script>` blocks, zero app modules, and its search is a
+    different shape anyway (title-ranked-before-body, with a snippet + `<mark>` window).
+    Adopting the kit would mean either pulling `app/studio.js` into the Help page or copying
+    the rules into it — the exact duplication this program exists to remove. Recorded in NEXT
+    rather than quietly skipped.
+  - **No behaviour lost.** Empty query still matches everything; quoted phrases still match
+    adjacently; the truthiness of `q` still drives the surrounding UI that keys off "is the
+    user searching" (the View Builder tree flattens, the folder picker hides its crumbs, the
+    gallery hides its group labels). Verified in the foreground: the dev gate (validate +
+    changelog-check + doc-truth + dev-smoke at 390×780 and desktop) and the FULL
+    `tests/run.js` suite, zero pageerrors. New checks: the two kit additions, the What's-new
+    cross-field match, a gallery search built from a real card's own words in reversed order,
+    and ⌘K finding "Edit JSON spec…" from "spec json edit" while a prefix query still ranks
+    it first.
+- **AUD-08 slice 2 — the service worker stops shipping its own history (v857, sw v489,
+  2026-08-07, steward; AUDIT-2026-08 §1.4, perf):** `sw.js` was **194,734 bytes** to deliver
+  about 5KB of worker. The other 185KB was 2,454 lines of `/* vNNN: … */` release notes —
+  one per cache bump since v19 — sitting between `"use strict"` and `SHELL_FILES`. The
+  browser re-fetches the service-worker script on every update check, so every visitor paid
+  for that prose repeatedly, and nothing read it at runtime.
+  - **Archived, not deleted.** All 433 notes (v19 → v488) are in **`docs/sw-history.md`**,
+    one `## vNNN` section each, text verbatim. The extraction was mechanical (parse the
+    comment blocks, split on version markers, assert the numbering is strictly decreasing —
+    433 sections, no duplicates, no dropped marker) rather than hand-copied, because a
+    hand-copied archive of 2,454 lines is an archive with holes in it.
+  - **The worker code is byte-identical.** `sw.js` is now **6,773 bytes**; everything from
+    `var SHELL_FILES = [` down diffs clean against the previous revision. What changed above
+    it: the header explains the new ritual (bump the number, that is all), and the durable
+    facts that were buried in those notes — *why* `app/viewer.*`, `docs/index.html`,
+    `vendor/maplibre/*` and `site/shots/*.png` are deliberately not precached, and that
+    `js/changelog.js` left the precache in slice 1 — are restated as a short conventions
+    comment above the list, where someone editing the list will actually read them.
+  - **The ritual is retired.** No per-bump note is expected any more: what shipped is
+    `js/changelog.js` (the changelog users read), and which precached files rolled is visible
+    in the commit that bumped the cache. That is what stops the file regrowing by habit.
+  - **The pin: a boot-path byte budget in `tools/validate.mjs`** — sw.js 16KB,
+    `js/changelog-head.js` 4KB — so a regression fails the **dev gate** (and Guard main, and
+    stage promotion; all three run validate) instead of accumulating quietly over another 400
+    releases. Generous headroom on purpose: it is a creep alarm, not a golf score. The suite
+    additionally pins the shape (no version-note block in sw.js, the archive still present),
+    and `tests/run.js`'s AUD-09 comment — which cited the now-absent notes block — was
+    corrected.
+  - CLAUDE.md's LOC figure moved ~56K → ~54K, since 2,454 lines left the first-party tree
+    that `tools/doc-truth.mjs` measures.
+  - **Deliberately NOT in this slice** (AUD-08's remaining, still in NEXT): incremental
+    `refreshPreview()` — the substantial half — plus the 52 render-blocking `<script src>`
+    tags in `app/index.html` and the ~20 boot-time `S.assets` fetches.
+- **AUD-11 — the copy/doc TRUTH pass (v856, sw v488, 2026-08-07, steward;
+  AUDIT-2026-08 §3 + §2.4, docs):** the audit's last docs workstream. Every countable claim
+  the app publishes about itself was re-measured against the thing it claims to count, and
+  the ones that had drifted were corrected — then pinned so they cannot drift again silently.
+  - **One chart-type number: 54.** The four disagreeing numbers (marketing "25+" in one
+    place and "50+" in two others, Help "52" in four places, reality 54) are now one number
+    everywhere, read from `Studio.CHARTS`. Help's card grid was already complete (all 54,
+    plus the KPI tile, which is a panel kind rather than a registry entry). The generated
+    marketing gallery (`site/chart-gallery.js`) was already truthful — it is regenerated
+    from the registry — which is exactly why it was the only surface that had not drifted.
+  - **Simple mode says 15**, the size of `SIMPLE_CHART_TYPES`, in both places Help quoted 13.
+  - **The "What's next" modal stopped advertising shipped work.** Five of its six items had
+    shipped weeks earlier (topbar actions, sample-data separation, the Views language, PDF
+    export, duplicate-name labels). The list now carries the real near-term backlog — AUD-08's
+    incremental preview, AUD-06's search tail, AUD-07's shared delete confirmation, the
+    keyboard-tooltip gap SWEEP574-3b left open, SWEEP574-1's reader-themed dashboards — and
+    the code comment above it now states the contract: shipping an item DELETES its row in
+    the same slice, because a roadmap that lists finished work is a lie with a nice font.
+  - **The license copy caught up with `LICENSE`** (GPL-3.0 since LICENSE-1): THIRD-PARTY-
+    NOTICES.md and STATUS.md's own Conventions block both still called the app proprietary
+    software. STATUS's DONE history is deliberately NOT rewritten — it records what the
+    license used to be, which was true when written.
+  - **The size figures were measured, not guessed:** ~56K LOC of first-party source (the
+    recipe is now written down next to the number), not ~22.6K; ~3,000 suite checks, not
+    ~1,400 (CLAUDE.md and README.md).
+  - **The mobile gate is one viewport again.** Documented 390×780, tested ~half at 844 —
+    resolved toward the fleet standard AND toward the stricter (shorter) viewport:
+    `tools/dev-smoke.mjs` now runs 390×780, and CLAUDE.md says plainly that 780 is the gate
+    while the full suite additionally exercises 844 as a taller phone.
+  - **The pin: `tools/doc-truth.mjs`, wired into the dev gate** (`ci.yml`, beside validate +
+    changelog-check; browser-free, sub-second). It re-derives every claim above from its
+    source and fails on drift: chart counts exact (a "50+" hedge fails too), Help documents
+    every registry type, the generated gallery matches the registry, Simple-mode size, the
+    bundled samples really do cover all 54 (examples + demo packs — `radarSectors` lives only
+    in the Conservation pack), license wording vs `LICENSE`, the LOC/check figures within
+    tolerance, and dev-smoke's viewport vs the documented gate. Verified in both directions:
+    green on this tree, red when a count is edited away from the registry.
+  - **Deliberately NOT in this slice** (AUD-11's remaining tail, still in NEXT): splitting
+    STATUS.md's DONE into a dated archive (§4 — a big mechanical move that deserves its own
+    unit), and the "Studio" vs "Dashboard Builder" / "demo" vs "sample" wording sweep across
+    toasts and empty states (§2.4's third bullet — a copy refactor across every section, not
+    a countable claim, so the guard cannot hold it honest either way).
+  - **AUDIT-2026-08 is now down to AUD-06's tail, AUD-08's tail, AUD-10, and AUD-11's own
+    two deferred pieces above.** Every P1 (AUD-01…AUD-05) is shipped.
+- **AUD-06 ★ slice 5 — a REAL date filter (v855, sw v487, 2026-08-07, steward;
+  AUDIT-2026-08 §2.1, ux/feature):** slice 4 taught the *comparison* to think in dates;
+  *choosing* a date was still raw text typed into a value box, so "the last 30 days" could
+  only be written as a fixed date that goes stale the next morning. This is the honest
+  replacement for the dead `DashKit.TIME_RANGE` picker AUD-09 deleted rather than implemented.
+  - **A range is a RULE, not a typed value.** One new operator, `inRange`
+    ("in date range (relative)"), whose value is a token from `filterOps.RANGES`:
+    today · yesterday · the last 7/30/90/365 days · this/last week · month · quarter ·
+    year · year to date (15 in all). Both filter surfaces offer it — a dataset's output
+    rules and a job's "Filter rows" step — because both read the one shared registry.
+  - **`filterOps.rangeBounds(id, nowMs)`** returns HALF-OPEN `{start, end}` day bounds.
+    `nowMs` is injectable, so the suite asserts exact instants instead of "whatever today
+    is". "The last N days" **includes today** and ends with it (tomorrow is out). Weeks
+    start **Monday** (ISO), and the dropdown's tooltip says so.
+  - **Anchored to the reader's LOCAL calendar day, expressed as a UTC day** — the same
+    space `dateKey()` puts a plain `YYYY-MM-DD` in. Someone in Chicago at 11:30pm gets
+    their own today, not UTC's tomorrow; a stored plain date still means the whole of its
+    own day. That reconciles the range feature with slice 4's zoneless-reads-as-UTC rule
+    instead of contradicting it.
+  - **A native date picker on date columns.** `filterOps.valueKind(op, col, samples, val)`
+    is the shared DECISION behind the value box — `range` / `date` / `text` — so the DA
+    inspector (`filterValueControl` in app/studio.js) and the job step (app/jobs.js, which
+    builds its own DOM) can't drift into different answers. SAMPLES decide when we have
+    them (every non-empty sample must be a real date); with none, a **deliberately narrow**
+    name test (`date`/`datetime`/`timestamp` as a word, or an `_at` suffix) — narrower than
+    the display-side `guessFieldKind`, which also claims month/year/quarter/week, where a
+    calendar would be a downgrade. And only when the saved value is one a picker can
+    round-trip, so an already-typed timestamp or a `{{param}}` keeps its text box.
+  - **Switching operators doesn't leave nonsense behind:** moving to `inRange` seeds the
+    default (`last30d`); moving away from it clears the range token instead of leaving
+    "last30d" sitting in a text box where it would silently match nothing.
+  - **The AUD-04 constraint is honoured without a migration.** A range rule is a NEW
+    operator id, so a build that predates this slice reads it as unrecognised and
+    `test()`'s `default` passes the row through — an older client sharing the workspace (or
+    a `/dev/`-`/stage/` preview on the same origin) shows the rows UNFILTERED rather than
+    misreading the rule as some other operator. Slice 3 wrote that contract down; here it
+    is load-bearing. Nothing on disk changed spelling.
+  - **A non-date row is not "in" a date range** — unlike the ordering comparisons, which
+    fall back to text. An unknown range token passes through, same as an unknown operator.
+  - **9 new/updated checks**: every offered range resolves to exact bounds (all 15, plus
+    the month/quarter/year rollovers and the local-day anchor); the predicate's window,
+    timestamp handling, non-date exclusion and forward-compat pass-through; an end-to-end
+    output rule keeping only the moving window; `valueKind`'s three answers including the
+    round-trip guard; and the job step's value box really becoming the range dropdown and
+    really clearing it on the way back. The four "8 operators" assertions became 9, with
+    `inRange` named and pinned LAST so every older op keeps its position.
+  - **Full suite green: 3064 passed, 0 failed**; dev gate (validate + changelog-check +
+    dev-smoke) green. Merged to `dev`; the pipeline stages it.
+  - **AUD-06's family D is now down to its opportunistic tail** (the 11 non-catalog search
+    affordances). Remaining audit backlog: AUD-08's tail, AUD-10, AUD-11.
 - **AUD-12 — the rail is the one list of sections (v854, sw v486, 2026-08-07, steward;
   AUDIT-2026-08 §2.3, ux/gating):** two hand-kept copies of "what sections exist" had both
   drifted away from the rail, in different directions.
@@ -9190,10 +10479,484 @@
 
 ## NEXT (top = do first)
 
+### ▶ NOW — the working queue (Kevin-directed). START HERE.
+
+> **Operated per `docs/BACKLOG.md` — read it first; it is the contract** (stable IDs,
+> the item grammar `**ID stars [pts] — title**`, states ⏳/⛔/🔁, one slice per PR,
+> same-PR bookkeeping, grooming, and who decides what). The short form: this block is
+> the ONLY priority order, worked strictly top-down — everything below it is the
+> RESERVOIR (context, never a queue; its old "TOP PRIORITY" headers are expired).
+> Take the first ready item. When fewer than 3 ready items remain, GROOM: archive the
+> struck entries and propose the next batch to Kevin on a `hold` PR — never graze the
+> reservoir directly.
+
+- ~~**N2 ★★ [2pt est, 4 slices shipped] — M7: real Row-Level Security enforcement.**~~
+  ✓ SHIPPED v865 (2026-08-07, steward — see DONE). All four slices are in; M7 is closed. The
+  history below stays until the next grooming pass archives it.
+  **The debt it closed:** `app/auth.js` was explicit that the model was honest UX-gating over a shared
+  local store, not isolation between users, and AUD-03 hardened the password digests
+  without changing that posture. **Slice 1 is SHIPPED (v862, 2026-08-07, steward — see DONE):
+  `tests/rls.mjs` installs BOTH shipped postures — `tools/supabase-rls-real.sql` and
+  `tools/supabase-deploy.sql` — each into its own throwaway `steward_test_rls_*` schema on the
+  live project, and proves in 27 checks apiece (54 total) that an unauthorized read is refused
+  (anon reads zero rows from all seven tables; a signed-in user sees public + only their own
+  private rows; writes against another user's rows are rejected or filtered to zero). It
+  caught a real fresh-install bug on its first run — BOTH files created policies calling
+  `polecat_is_admin()` a section before defining the function, so the documented
+  top-to-bottom run on a FRESH project died on its first CREATE POLICY. Fixed by hoisting the
+  helper in both.**
+  **Slice 2 is SHIPPED (v863, 2026-08-07, steward — see DONE): the Edge Function's inlined
+  `RLS_REAL_SQL` (`supabase/functions/polecat-admin/sql.ts`) had DRIFTED, so an in-app Admin →
+  Go live installed a WEAKER posture than a manual `supabase-rls-real.sql` paste — anon could
+  read every non-private row and all of `polecat_meta`, and admins could not push a snapshot
+  containing rows they do not own. `sql.ts` is now a section-for-section mirror of the canonical
+  file, and `tests/rls.mjs` runs the go-live sequence (`BOOTSTRAP_DDL` + `RLS_REAL_SQL`) as a
+  THIRD posture through the identical 27 checks — 81/81 green — so they cannot drift again.**
+  **Slice 3 is SHIPPED (v864, sw v496, 2026-08-07, steward — see DONE): THE CLIENT FLIP.**
+  `app/gate.js` ran `Auth.verify()` FIRST, so a matching row in the mirrored local `users` store
+  signed you in without the workspace ever being asked — GoTrue was only the fallback. The
+  mirrored hash was therefore the real credential at the front door, and a password changed or
+  revoked in the workspace kept opening every browser whose mirror was stale. Now: a bound
+  Supabase workspace + an email username asks the DATABASE first and its rejection is final. An
+  unreachable backend still falls back locally (offline never locks anyone out — the adapter's
+  `authenticate()` gained an `unreachable` flag to tell "no" apart from "we never asked"), and
+  local accounts, the `admin`/`demo` seed pair, custom local-auth workspaces and "Local only
+  (this browser)" are all untouched. 3 new checks; est 2pt, took 1.
+  **Slice 4 is SHIPPED (v865, sw v497, 2026-08-07, steward — see DONE): THE PASSWORD STOPS BEING
+  PERSISTED.** `Sync.setAuthCredentials()` stamped `authEmail`/`authPassword` onto the live cfg and
+  `saveConn()` serialised that cfg straight into `analytics.datasource.v1`, so a plaintext
+  workspace password sat in localStorage forever — purely so `ensureSession()` could re-mint an
+  expired JWT from it. It now keeps GoTrue's `refresh_token` instead, in sessionStorage (the AUD-03
+  posture), and re-mints from that; any password an earlier version stored is migrated away on load
+  without signing anyone out. The hazard that opens — a browser with no resumable session
+  boot-pulling as ANON and adopting an RLS-empty workspace over real local data — is closed by
+  `Sync.needsSignIn()`: pulls latch off and the gate asks for the password once, email prefilled.
+  Sign-out and disconnect both drop the session. 9 new checks, 3101/3101 green; est 1pt, took 1.
+  Notes for future database work: use a throwaway `steward_test*` schema for any
+  database work; never CREATE/DROP/ALTER against live `public`. Note for any run touching an
+  already-live workspace: `actionGoLive` TRUNCATEs the workspace tables, so "just re-run Go live"
+  is never the way to pick up a posture fix — re-paste `tools/supabase-rls-real.sql` instead.
+- ⛔ **N4a ★ [1pt] — KEVIN DECISION/ACTION: turn on `delete_branch_on_merge`.** Tech sweep
+  #370, item (a): the setting is `false`, so every merged PR leaves its branch behind — 251
+  stale `steward/*` branches at sweep time and it has grown since — `git ls-remote --heads`
+  counts **265 `steward/*` branches of 273 total** on 2026-08-07. **Raised, not assumed, exactly as the item asked:** the steward
+  attempted the flip on 2026-08-07 with `gh api -X PATCH repos/kevinrhaas/analytics.polecat.live
+  -f delete_branch_on_merge=true` and got `403 Resource not accessible by personal access
+  token` — `STEWARD_PAT` has repo scope but not repo *administration*, so no agent can do
+  this. **The exact ask for Kevin:** flip Settings → General → "Automatically delete head
+  branches" ON (it only affects future merges; it never deletes an unmerged branch), and say
+  whether the ~250 already-merged `steward/*` branches should be bulk-deleted — the loop will
+  NOT mass-delete branches on its own guess. Alternative if the flip is unwanted: grant the
+  PAT admin scope, or say "leave them" and this item closes as WONTFIX. Nothing else here is
+  agent-actionable; N4b (the other half) is shipped.
+- ~~**N4b ★ [1pt] — Repo hygiene from tech sweep #370: vendored shell drift.**~~ ✓ SHIPPED
+  v866, sw v498 (2026-08-07, steward — see DONE). The re-check found the copy FIVE releases
+  behind (v0.5.4 vs the hub's v0.6.2), not the 2 patches the July sweep recorded, and it is
+  now current — a verbatim `lib/` copy from the platform repo, 29/29 files sha256-clean
+  against `MANIFEST.json`, no strays.
+- ~~**N5a ★★ [2pt] — DECIDED (Kevin, 2026-08-07): inside the app, the READER's theme wins.**~~
+  ✓ SHIPPED v867, sw v499 (2026-08-07, steward — see DONE). Shipped as written: one opt-in
+  `frameTheme` flag on `Studio.buildHtml`, passed by the Viewer's srcdoc call and by nothing
+  else; downloads, PDFs and the builder preview provably unchanged; the CLAUDE.md invariant
+  amended to name the exception. est 2pt, took 1. The spec below stays until grooming archives it.
+  UX
+  sweep #574 finding 1 — a dark app frames a light dashboard and reads as broken. The
+  Viewer's iframe now follows the app's live `data-theme`, whatever `spec.renderMode` says.
+  **Downloads and embeds are NOT touched** — a handed-out file stays exactly as authored,
+  because an exported dashboard is a deliverable (it goes on ctic.org and into stakeholders'
+  inboxes) and deterministic appearance is worth more there than adaptivity.
+  **Implementation, precisely:**
+  * `buildViewerHtml(spec, assets, extraOpts)` already emits BOTH the srcdoc and the
+    download from one call, so the override rides an explicit **opt-in `extraOpts` flag**
+    (e.g. `{ frameTheme: "dark" }`) that ONLY the Viewer's srcdoc call passes. The download
+    path passes nothing and is provably unchanged — same shape as the existing
+    `{ pdfPageSize… }` options.
+  * **The Studio builder preview is NOT the Viewer — leave it alone.** The author is
+    composing the appearance there, so the preview must keep showing `spec.renderMode` or
+    they cannot see what they are making. Only READ mode follows the app.
+  * **Amended invariant** (CLAUDE.md says the export stays byte-identical to the live
+    preview): builder preview ≡ export, still true and still asserted. The VIEWER srcdoc may
+    now differ from the download by the theme attribute alone — that is the deliberate,
+    scoped exception. Update the invariant's wording in the same PR so the next reader is
+    not misled.
+  * Full `tests/run.js`. New checks: an explicit-light dashboard opened in a dark app renders
+    dark IN THE VIEWER; the same dashboard's DOWNLOAD is byte-unchanged; the builder preview
+    still shows the authored mode.
+- ~~**N5b ★ [1pt] — DECIDED: `auto` ships as an OPT-IN third Appearance choice, never the default.**~~
+  ✓ SHIPPED v868, sw v500 (2026-08-07, steward — see DONE). Shipped exactly as specified: one
+  runtime resolver, one byte stream, Light still the default for a new dashboard. est 1pt, took 1.
+  The spec below stays until grooming archives it.
+  A second, separate slice after N5a (own PR — it is additive and independently revertible).
+  `spec.renderMode` gains `"auto"`; the Inspector's Appearance select becomes
+  Light / Dark / Auto ("match the reader"). **New dashboards keep `""` (Light)** — Kevin's
+  explicit call: a chameleon export is something an author opts into, not something that
+  happens to them.
+  * When `auto`, the export bakes NO `data-theme` and instead carries a tiny inline resolver:
+    standalone → `prefers-color-scheme`; framed → follow the host document when it is
+    readable, else fall back to `prefers-color-scheme`. Same-origin (our Viewer) can read the
+    host; a third-party cross-origin embed cannot, so the resolver must **never throw** —
+    wrap the parent read and fall through silently.
+  * ONE byte stream that branches at RUNTIME. Never a per-context build-time branch: the
+    srcdoc and the download must remain the same bytes for an `auto` dashboard.
+  * `""` and `"dark"` exports stay byte-for-byte what they are today — this adds a value, it
+    changes no existing one.
+  * Full suite. New checks: an `auto` export contains the resolver and no baked
+    `data-theme`; it honors `prefers-color-scheme` standalone (Playwright `emulateMedia`);
+    it follows the host inside the Viewer; and the Inspector offers exactly three options
+    with Light still the default for a new dashboard. Docs + Help updated in the same slice.
+- ~~**N8 ★ [1pt] — Every dropdown-menu row is under the 44px touch bar on a phone.**~~ ✓ SHIPPED
+  v883 (2026-08-08, steward — see DONE). The measurement it asked for found two menus that ALSO
+  opened partly off-screen, so the slice shipped both halves; est 1pt, took 1. The spec below
+  stays until grooming archives it.
+  Born in NOW
+  from N7/v882's verification (2026-08-08, steward) — measured, not suspected: at 390×780 every
+  `.menu button` renders **37px** tall (`padding:10px 12px`, no `min-height`). UX7 set a 44px
+  minimum "across the whole ≤640px band" but the rule landed on `.btn`, and a menu row is a bare
+  `.menu button` — so it never applied. That is now the PRIMARY phone route for ten builder
+  controls (v882 documented it in Help: ⋯ More → Export…/Save/Open…/Undo/Redo/Save as…/
+  Duplicate/Close, plus What's new and Send feedback), and it is 7px short on all of them.
+  **Why it is its own slice, not v882's:** the fix is one rule in the ≤640px band
+  (`.menu button{min-height:44px}`), but it lands on EVERY menu in the app, not these ten —
+  #menuMore is already 540px tall at 390×780 and gains ~90px; #menuExport, #menuNew,
+  #dashMoreMenu and the rest each need measuring for viewport overflow before it ships. So:
+  measure every `.menu` at 390×780, apply the rule, and assert no menu's box leaves the
+  viewport. Verify with the full suite + a new check per menu at 390×780 and 1280×900.
+  **Position is the loop's placement, not Kevin's** — it sits above the 🔁 so it is taken next;
+  move or re-star it freely.
+- ~~**N9a ★ [1pt] — The catalog toolbars themselves do not fit a phone.**~~ ✓ SHIPPED v884,
+  sw v512 (2026-08-08, steward — see DONE). The `.repo-io` half of the original N9, split out
+  because the Data-pane half turned out to be a different (and much smaller) defect once
+  measured — see N9b. est 2pt for the pair, N9a took 1. The spec below stays until grooming
+  archives it.
+  Born in NOW from N8/v883's
+  measurement (2026-08-08, steward) — measured, not suspected. N8 fixed the MENUS; this is the
+  rows they hang off, and it is the bigger half:
+  * At 390×780 the Dashboards `.repo-io` row lays out **16px→525px against a 390px screen**, so
+    `Select`, `Compare dashboards…`, `⋯` and `+ New dashboard` all start off the right edge. They
+    are reachable only because clicking one scroll-into-views it — there is no visible affordance
+    saying the row scrolls, no fade, no wrap. Views and Repository use the same `.repo-io` row and
+    have the same problem. (This is also why N8 needed a re-clamp on scroll at all: that
+    scroll-into-view is what moves the menu after it opens.)
+    **What the fix measured (2026-08-08):** the run-out is 16px→**651px**, not 525 — worse than
+    the N8 note recorded, because the note measured before the row's own controls were all
+    counted. Three controls fully off-screen on Dashboards; `+ New dataset` and
+    `+ New connection` crossing the edge by 9px and 14px. **Views, Jobs and Repository were
+    measured CLEAN** — their rows fit 390px today, so the note's "same problem" was true of the
+    markup, not (yet) of those three sections. They are covered by the new check regardless, so
+    a control added to any of them cannot regress silently.
+  * Likely shape: let `.repo-io` wrap at ≤640px instead of overflowing (it is already a flex row;
+    the buttons are already 44px tall after UX7), and treat the pane rail separately. Verify with
+    the full suite + a check that asserts every `.repo-io` control's box is inside the viewport at
+    390×780 — the same assertion N8 added for menus, one level up. **Shipped exactly this.**
+  * `#menuExamples.phone-pos` in `app/studio.css` is dead while you are in there (LF43 slice 2
+    deleted `#menuExamples`; the suite asserts it is gone). **Deleted.**
+  **Position is the loop's placement, not Kevin's** — move or re-star it freely.
+- ~~**N10 ★★ [1pt] — `dev` is RED on the full suite, and nothing has noticed yet.**~~ ✓ SHIPPED
+  2026-08-08, steward (no version/sw bump — test-only; see DONE). Root cause was exactly as
+  diagnosed below; the helper now scans for the first VISIBLE row, which fixes `#menuNew`/
+  `#menuExport`'s latent staleness in the same stroke, and two new checks hold the probe itself
+  accountable so it cannot silently rot again. est 1pt, took 1. The spec below stays until
+  grooming archives it.
+  Found by the
+  N9a slice's verification (2026-08-08, steward), NOT caused by it — proven by running the exact
+  repro against an untouched `origin/dev` worktree and getting the identical result. **Take this
+  before N9b: it is the gate that stands between `dev` and stage.**
+  * The failing check is `tests/run.js:23295`, "tablet viewport: ⋯ More menu items are actually
+    reachable (not clipped by #topbar overflow)" (the Z9 check, 800×1024). At the dev tip it
+    reports `{"wasOpen":true,"reachable":false,"itemRect":{...all zeros}}`. Everything else is
+    green: **3144 passed, 1 failed.**
+  * **Root cause is the check, not the app.** `menuItemReachable()` takes
+    `menu.querySelector("button")` — the FIRST button in `#menuMore` — and hit-tests its centre.
+    That first button is `#moreWhatsNew`, a `.more-phone-only` entry. v882/N7 fixed
+    `.more-phone-only` so it finally hides above 640px (it never had, the whole time this check
+    was written and passing), so at 800px the element the check measures is now `display:none`
+    with a zero rect, and `elementFromPoint` at (0,0) can never return it. The check was reading
+    a phone-only row as if it were a tablet row.
+  * **Why nobody caught it:** the dev gate (`ci.yml`) is the LIGHT one — validate +
+    changelog-check + doc-truth + dev-smoke — and all four are green, so PRs into dev pass. The
+    full suite only runs at promotion, and every `promote-to-stage.yml` run since has exited at
+    the schedule gate ("stage already contains dev — nothing to promote"), so its `success`
+    conclusions are quiet no-ops, not passes. The next real promotion is the first thing that
+    will actually run this, and it rolls stage back on red.
+  * **The fix is to the check:** hit-test the first VISIBLE row (skip `display:none` children)
+    rather than the first child, so it measures what a tablet user actually sees. Do NOT weaken
+    it to pass — the clipping it guards (Z9) is real and the assertion should survive. While
+    there, check whether `newReach`/`exportReach` have the same latent staleness (they pass
+    today, but `#menuNew`/`#menuExport` could grow a phone-only first row at any time) and make
+    the helper robust once for all three.
+  **Position is the loop's placement, not Kevin's** — move or re-star it freely.
+- ~~**N11 ★★ [1pt] — `dev` is STILL red on the full suite: N2 slice 4's refresh-token re-mint is
+  flaky.**~~ ✓ SHIPPED v885, sw v513 (2026-08-08, steward — see DONE). **It was NOT the test's boot
+  race the spec suspected — it was the APP, in the direction the spec said to escalate:** a refresh
+  answer whose BODY never finished arriving was classified as a REFUSAL, and a refusal deletes the
+  stored refresh token. Fixed in `gotrueToken` (an unreadable answer is `unreachable`, not a "no"),
+  which is a real sign-you-out bug on any flaky connection, not just under a reloading test. est
+  1pt, took 1. The spec below stays until grooming archives it.
+  Born in NOW from N10's verification (2026-08-08, steward) — measured, not suspected,
+  and NOT caused by N10 (its own six Z9 checks are green in all three runs). N10 fixed one of
+  **two** causes; this is the other. **Take it before N9b for the same reason N10 came first:
+  it is the gate between `dev` and stage, and a flaky gate rolls stage back on unrelated work.**
+  * **The two failing checks** are `tests/run.js:18525` ("a reload with NO password anywhere
+    re-mints the session from the refresh token…") and `:18529` ("the refresh grant's ROTATED
+    token replaces the one it was spent…"), both from N2 slice 4 (v865).
+  * **It is FLAKY, not deterministic** — three consecutive full runs on the same tree gave
+    `3147 passed / 0 failed`, then `3145 / 2`, then `3145 / 2`. So roughly one run in three is
+    green, which is exactly why it has survived: a single green run reads as proof.
+  * **The observed failure state**, verbatim from the run: `{"gateGone":false,
+    "needsSignIn":true,"status":"connected","preAuth":true,"userId":"","signInOk":true,
+    "token":""}` and `{"before":"mock-refresh","after":""}`. The interesting part is
+    `token:""` — after the reload, `sessionStorage["analytics.supabase.refresh.v1"]` is EMPTY,
+    so there was nothing to re-mint FROM; `needsSignIn:true`/`preAuth:true` are the app
+    correctly reacting to that, not separate bugs. `signInOk:true` with `userId:""` says the
+    mock resolved without a session.
+  * **Prime suspect is the test's boot race, not the app** (verify before fixing — the whole
+    point of N2 slice 4 is a real security posture, so do NOT weaken these assertions):
+    `gpPw.reload({ waitUntil: "domcontentloaded" })` at `:18504` is followed by a
+    `waitForFunction` on `Studio.Sync.syncState()` whose timeout is swallowed by
+    `.catch(() => {})` (`:18509`). If the app has not finished restoring the token store when
+    that resolves — or if boot transiently clears it before re-minting — the `evaluate` at
+    `:18510` samples a half-established state and reads an empty store. Confirm by logging the
+    store across boot; if it IS a race, wait on the real post-condition (a non-empty store /
+    `needsSignIn()===false`) instead of a swallowed timeout. **If instead the token genuinely
+    does not survive a reload, that is an APP bug in the AUD-03 posture and much more serious
+    than a flake — escalate it rather than stabilising the test.**
+  * Verify with three consecutive full-suite runs green, not one.
+  **Position is the loop's placement, not Kevin's** — move or re-star it freely.
+- **N12 ★ [1pt] — Two concurrent renewals spend the SAME refresh token, and a real GoTrue
+  refuses the second.** Born in NOW from N11's investigation (2026-08-08, steward) — measured,
+  not suspected, and deliberately NOT bundled into N11 (different defect, own revertible unit).
+  * **The measurement.** In the N11 repro's own traces, the post-sign-in boot issues TWO
+    `grant_type=refresh_token` requests ~55ms apart carrying the **identical** token
+    (`{"refresh_token":"mock-refresh"}` both times): two `ensureSession()` flows each read
+    `refreshTokenFor(cfg)` before either wrote the rotated one back. `ensureSession` has no
+    in-flight guard — a cached session is reused, but a MISS starts a fresh grant every time.
+  * **Why it is a real hazard and not just chatter.** The suite's mock keeps every token it has
+    ever minted valid, so the second grant succeeds there. A real GoTrue **rotates** and, outside
+    its reuse-detection grace window, refuses a spent token — and a refusal is (correctly, per
+    N2 slice 3 and unchanged by N11) FINAL: the token is dropped and the user is asked for the
+    workspace password mid-session. The same class of user-visible symptom N11 just closed, from
+    a different cause.
+  * **Likely shape:** a single-flight promise per `sessionKey(cfg)` in `ensureSession` — a second
+    caller awaits the first grant instead of starting its own. Keep `force` (admin calls
+    deliberately re-mint) working, and keep a failed grant from being cached as the shared
+    result.
+  * Verify with the full suite + a check that two concurrent `ensureSession`/`signIn` calls issue
+    exactly ONE token request and both resolve from it, plus a mock posture where a spent refresh
+    token is refused (proving the fix, and that today's code fails it).
+  **Position is the loop's placement, not Kevin's** — move or re-star it freely.
+- **N9b ★ [1pt] — The Studio Data pane's own controls are under the 44px touch bar.** The
+  second half of the original N9, rewritten from measurement in the N9a slice (2026-08-08,
+  steward) — the worry it was filed with turned out to be unfounded, and what is actually there
+  is smaller and precise:
+  * **There IS a phone route, and it works.** The `mob-tabs` Data/Canvas/Inspector switcher is
+    the intended way in, exactly as the note suspected: at 390×780 its **Data** tab is on-screen
+    (0–130px) and opens the drawer. The N9 note's "`＋ New ▾` appears to have no phone route at
+    all" came from clicking the `.pane-rail` expand button, which is genuinely off-canvas at
+    390px (`#library` sits at left −336px until the drawer opens) — but that rail is the DESKTOP
+    affordance, not the phone one. **Not a phone-gate defect.** Once the drawer is open,
+    `#menuNewData` opens fully inside the viewport with all three rows (Dataset (workspace)…,
+    Connection…, Dashboard-only query…) at the 44px minimum — N8's rule already covers it.
+  * **What IS wrong:** the trigger. `#btnNewDS` ("New", inside the Data pane header) measures
+    **24px tall** at 390×780 — it is not a `.btn`, so neither UX7's 44px minimum nor N8's
+    `.menu button` rule reaches it. Sweep the Data pane's other bare-`<button>` controls at the
+    same time rather than patching this one id.
+  * Verify with the full suite + a check that opens the Data drawer via `[data-mob-tab="library"]`
+    and asserts every visible control in the pane header clears 44px at 390×780, desktop
+    unchanged — the N9a/N8 shape, one pane over.
+  **Position is the loop's placement, not Kevin's** — move or re-star it freely.
+- 🔁 **N7 — Recurring, when the queue is thin: keep the docs, tours, Help and marketing page
+  current with the app (LF58).** One coherent slice per run, never a big-bang at the end.
+  The app has changed a lot this week; the in-app Help and the tour copy are the parts most
+  likely to have drifted.
+  **Slices worked so far (so the next run does not repeat one):**
+  * *Help § "The left rail" — v870, 2026-08-07 (see DONE).* Also added doc-truth check 9,
+    which now holds that block accountable to the rail's own section list.
+  * **Audited and found CURRENT in the same pass, no change needed:** the Appearance
+    Light/Dark/Auto copy in Help (N5a/N5b shipped it), the renewal-token / "password is
+    never written to disk" security copy (N2 slice 4 shipped it), and the section labels
+    used throughout `app/welcome.js` + `app/tutorial.js` — the tours already say "View
+    Builder" and "Dashboard Builder" correctly; only the Help page had drifted.
+  * *The marketing landing page vs the app — v871, 2026-08-07 (see DONE).* The `#sources`
+    strip was missing Amazon Redshift and `.xlsx` import; "per-user security" and the
+    dashboard-theme bullet predated N2/N5a/N5b. Doc-truth check 10 now holds the page's
+    source count and per-source names accountable to `app/sources/`'s adapter registry.
+  * *The overview tour vs the rail — v872, sw v504, 2026-08-07 (see DONE).* It did NOT walk
+    the rail in the rail's order (five group crossings) and skipped the Views catalog
+    entirely. Reordered to Workspace → Build → Manage with a Views stop added; doc-truth
+    check 11 now derives the expected walk from `app/index.html`'s rail DOM order.
+  * *The welcome quick tour vs the rail — v873, sw v505, 2026-08-07 (see DONE).* The
+    carousel went from the builders straight to Export and never named the rail's whole
+    Workspace group — Views (LF57), Dashboards and Repository were absent. A
+    workspace-catalogs card was added between Dashboard Builder and Export; doc-truth
+    check 12 now holds `BASE_STEPS`' copy accountable to the rail's section list
+    (coverage, not order — the carousel is a value narrative, not a rail walk).
+  * *The tours' own "how to get back here" — v874, sw v506, 2026-08-07 (see DONE).* Every
+    one of the six tours closed on "reopen these tours from ⋯ More → Interactive tutorial",
+    an entry LF46 (⋯ teardown, slice 2) had DELETED — 11 stale references, pointing at a
+    menu that had not carried the tour for weeks. Now ⌘K → Interactive tutorial (plus Home →
+    Take the tour where the line already said so). Doc-truth check 13 now resolves every
+    affordance the tour copy names — "⋯ More → X" against `#menuMore`'s real markup, "⌘K → X"
+    against `app/palette.js`'s command labels.
+  * **Audited and found CURRENT in this pass, no change needed:** all 23 spotlight target
+    selectors across the six tours still resolve in `app/`; `app/welcome.js` never carried
+    the stale route; and Help's two ⋯ More references (`Present → Slideshow`,
+    `Simple mode off`) both resolve against the live menu.
+  * *The tours' noun for a saved chart — v875, sw v507, 2026-08-07 (see DONE).* The candidate
+    this list named last time. LF57 made **View** the user-facing name and every render site
+    says so, but two tour steps still sent the reader to a builder-library group called
+    "Analyses" that renders "Views", and the Quick analysis tour contradicted itself in one
+    walk ("save it as a reusable analysis" → "press Save View"). Nine copy sites fixed across
+    `tutorial.js` + `welcome.js`; doc-truth check 14 now derives the internal noun and the
+    rendered label from the same render function and fails any bolded tour label that uses
+    the internal one. The activity/label line is written into `tutorial.js`'s header.
+  * **Audited and found CURRENT in this pass, no change needed:** Help's builder-library
+    reference (`docs/index.html` already says "the Studio library under **Views**").
+  * *Help's own prose vs that same rename — v876, 2026-08-08 (see DONE).* The other
+    half of v875, and the reason it needed its own slice: Help's LABELS were already right, so
+    check 14's bolded-label rule passed all twenty occurrences while the sentences around them
+    still said "analysis" — plus two genuinely stale labels (the Data panel's "saved
+    **Analyses**" group glyph, where the group renders **Views**, and two routes naming
+    **Explore** rather than **Quick Views**). 17 prose sites fixed; the storage table name and
+    the literal `HTTP 404 writing analyses` error string kept verbatim, inside `<code>`.
+    Doc-truth check 15 now forbids the internal noun anywhere in Help outside `<code>` and
+    comments — stricter than check 14 on purpose, and it reports the offending sentence
+    fragment rather than a line number.
+  * *The Build a dashboard tour vs the builder it walks — v877, NO sw bump (see DONE),
+    2026-08-08.* Three drifts in one tour: it called the builder's left panel "the Library"
+    (it renders **Data**, and `welcome.js` + the quick tour said Library too), promised a
+    "sample queries" group LF65 deleted while never naming **My queries** which replaced it,
+    and routed Auto-build through the Data panel's `＋ New ▾` rather than the topbar `New ▾`
+    that has it. Doc-truth check 16 now derives the panel's name from its own header and its
+    group list from **buildLibrary's call graph** — so an unwired builder (Sample packs)
+    cannot be promised — and fails any copy reaching Auto-build through the wrong menu.
+  * *Help's own version of that same panel drift — v878, NO sw bump (see DONE), 2026-08-08.*
+    The candidate this list called the strongest, and it was: "Query Library" in three places
+    plus eight more "the Studio library" sentences, **Sample packs** still listed as a Data-panel
+    group, and two controls the builder no longer has ("＋ New source", "⧈ Join in the library").
+    Doc-truth check 17 now holds Help to check 16's derived pane name, group list and button
+    label — the check-14→15 move, one document over.
+  * *The APP's own copy vs that same panel — v879, sw v508 (see DONE), 2026-08-08.* The
+    document every check above was correcting the others TO, and it was the worst offender of
+    the three: `app/index.html`'s MARKUP was updated at STUDIO-PANELS (header, collapsed rail,
+    tooltips, the empty canvas's "Open data panel" button), but every string the builder
+    RENDERS AT RUNTIME was missed — the phone drawer tab said **Library**, Simple mode's
+    getting-started checklist opened on "Library ready", the preview's own empty canvas said
+    "the **Query Library**" (the exact id-flavoured name check 17 had just deleted from Help),
+    and the inspector hints, the ⌘/Ctrl+F shortcut row, the data-source delete confirmation,
+    the What's-next card and Settings' "sample query library" said library too. 14 sites.
+    Doc-truth check 18 now holds `studio.js` + `studio-render.js` string literals and
+    `index.html`'s text nodes to check 16's derived pane name, with identifiers exempt BY
+    SHAPE (lowercase, no whitespace) so `#library` keeps its id without an exemption list.
+    **It also carried a real mobile defect the copy audit surfaced:** `#cesLib` and the
+    checklist's step-2 action both opened the pane on a phone by clicking `#tabLib`, an id
+    that has never existed (`setupMobileTabs` builds its buttons with `data-mob-tab` and no
+    id) — so at ≤640px the primary CTA of both empty states did nothing. Both now share one
+    `openDataPane()`, which also expands a collapsed pane on desktop (silently) before
+    focusing its search. 4 new suite checks at 390×780 + 1280×900.
+  * *The Build a dashboard tour vs the panes it walks — v880, sw v509, 2026-08-08 (see DONE).*
+    The BEHAVIOURAL candidate this list had been carrying, unblocked by v879. Not copy: the
+    builder opens with Data and Inspector CLOSED, so at 1280×900 steps 1 and 3 ringed a 34px
+    collapsed rail, and at 390×780 those drawers sit at `translateX(±105%)` — the ring was drawn
+    at left −336px / left 406px, off-screen, for two of six steps. A builder step now declares
+    its `pane:` and the renderer opens it silently (`window.__studioOpenPane`) before measuring.
+    The verification surfaced a second defect this slice also closed: the outgoing card stayed
+    live while the next step was prepared, so a double tap advanced twice and could walk past the
+    last step into an uncaught TypeError — nav goes inert while preparing (Skip stays live) and an
+    out-of-range index finishes. Doc-truth check 19 + 6 suite checks at both gate widths.
+  * *The build tour's EXPORT step on a phone — v881, sw v510, 2026-08-08 (see DONE).* The
+    candidate this list named last time, and the last spotlight in that tour that landed on
+    nothing: at ≤640px `#btnExport` is `display:none` (M10 put Export behind ⋯ More), so step 4
+    had no box to ring — `waitFor` burned its full 2.5s (3039 ms measured) and then rendered a
+    spotlight-less card still saying "Click **Export ▾**" and "**Save**". The copy decision the
+    note called for turned out to be derivable, not a product call: check 13 already resolves
+    "⋯ More → X" against `#menuMore`, so the step now carries a `phone:` form (merged per render
+    by `resolveStep`) that rings ⋯ More and names the route the phone has. Desktop unchanged,
+    asserted. Doc-truth check 20 derives the hidden-at-≤640px id set from `app/studio.css` itself.
+  * *Help's own version of that same export route — v882, sw v511 (see DONE), 2026-08-08.* The
+    candidate this list called the strongest, and it was bigger than "Export": `docs/index.html`
+    documented the builder entirely in the desktop's terms for **all ten** controls M10 hides
+    below 640px — "Click **Export ▾** in the topbar", "the ↶/↷ buttons in the topbar", Save,
+    Save as…, Open, Duplicate, Close, and the two topbar icons — with the ⋯ More route named
+    nowhere. Help's one nod to the convention was Send feedback's paragraph (TOPBAR-TITLE, one
+    icon); the eight Slice B/C had already moved got nothing. Every route is now named, with a
+    new "On a phone, the toolbar lives in ⋯ More" section the Exporting text links to. Doc-truth
+    check 21 derives the hidden set from `app/studio.css`, pairs each id with its `#more*` twin
+    by the M10 naming convention, and requires Help to name every route — the check-16→17 move,
+    one document over, and it flagged all ten on the pre-fix file.
+    **It also carried a real defect the verification surfaced, in the direction nobody was
+    looking:** `.more-phone-only` never hid anything. `.menu button` sets `display:block` at
+    (0,1,1) and the bare class is (0,1,0), so it lost the cascade outright — the M7 comment
+    reasoned carefully about rule ORDER and specificity was the deciding factor all along.
+    Measured at 1280×900: all ten phone-only entries rendering on desktop, the ⋯ menu repeating
+    the eight toolbar buttons beside it plus What's new/Send feedback. Fixed by matching
+    `.menu button`'s specificity in both directions (the bare selector stays for the `.sep`
+    twins, which `.menu .sep` never gave a display and so were correctly hidden). Check 21 also
+    asserts the hide and reveal bands are the SAME band — the stale "≤400px" comments in
+    `app/index.html` and `app/studio.js` were fixed in the same pass. 7 new suite checks at
+    390×780 + 1280×900.
+  * **Not yet audited (candidates for the next N7 slice):** the marketing page's hero carousel
+    captions + screenshots, which the v871 slice deliberately left alone (the copy pass
+    stayed textual — regenerating shots is its own slice); and the two remaining per-feature
+    tours' BODY copy (Prep data (Jobs) / Connections &amp; Datasets / the pack tour) — the
+    Quick analysis tour's body is done (v875), Build a dashboard's is done (v877). The v879
+    pass spot-checked the Jobs and Connections tours' TARGETS and search-field claims against
+    `jobs.js`/`connections.js`/`datasets.js` and found them accurate; what those two tours have
+    not caught up with is what the catalogs GAINED (the list⇆tile toggle, the sort select, the
+    Select/bulk toolbar, per-row private toggles), which is an additive-copy slice, not a
+    correction.
+    ~~**One BEHAVIOURAL candidate the v877 slice found and deliberately did not take**~~
+    ✓ **SHIPPED v880, sw v509 (2026-08-08 — see the v880 line above and DONE).** It went further
+    than the note anticipated: the ≤640px half was not just "a decision", it was the worse half
+    (an off-screen ring, not a small one), and the verification turned up a second defect in the
+    same code path — the double-tap that walked the tour off its own end. Original: STUDIO-PANELS
+    made the builder open with the Data and Inspector panes COLLAPSED by default, so the build
+    tour's steps 1 and 3 spotlight a ~34px collapsed rail and describe contents the reader cannot
+    see. The fix is a `before()` hook that opens the pane silently, plus a decision about the
+    ≤640px path where the panes are drawers and `collapsePane` early-returns; **v879 settled the
+    ≤640px half** by making `openDataPane()` the one way anything opens that pane at any width.
+    **Struck from this list:** Help's remaining
+    `analysis`/`analyses` prose (§602-627 and friends), which was the biggest known one and
+    shipped as v876 above — it overlapped AUD-11's tail (§2.4's wording sweep), and that
+    overlap is why v875 had scoped itself to the tours; and the ⌘K palette's section
+    coverage, which this pass found was NOT stale — AUD-12 (v854) already made the palette
+    derive from the rail and added the guard, so the note above was itself out of date.
+
+### 🗂 Reservoir index (added 2026-08-07, N1) — what is below, and whether it is alive
+
+> Everything after this line is the RESERVOIR, not a queue: source material, prior art and
+> citations. Work comes from the ▶ NOW block above. This index exists so you can find a track
+> without scrolling ~5,000 lines, and so "is this still open?" is answerable at a glance.
+>
+> **Drained — pointer only; the text lives in [`docs/BACKLOG-ARCHIVE.md`](docs/BACKLOG-ARCHIVE.md).**
+> Each pointer names any live tail the track left behind, so nothing was lost in the move:
+> AUDIT-2026-08 · SESSION HANDOFF (07-31) · LOCKED BUILD ORDER (07-27) · VIRIDIS VIEW /
+> GEO-ANALYTICS (07-16) · POST-OVERHAUL BACKLOG (07-13) · MOBILE TRACK (07-02) ·
+> CONSERVATION INSIGHT M1–M2 (07-21, the drained slices only — the rest of that track is live).
+>
+> **Live reservoir — real open items, but NOT a priority order.** Several of these still carry
+> expired "TOP PRIORITY" headers from July and contradict each other; ignore the headers:
+> - **UX sweep #574** — worked out; only SWEEP574-1 remains and it is Kevin's product call.
+> - **VIEW BUILDER OVERNIGHT QUEUE** (07-30) — the largest live block.
+> - **FRONTEND QA REPORT** (07-24) · **LIVE-QA QUEUE** (07-27) · **LIVE-FEEDBACK QUEUE**
+>   (07-22, holds LF43 slice 2) — Kevin-captured item queues.
+> - **ONBOARDING & PROVISIONING EPIC** (07-27) — the "Dave" north-star; NOW item **N6** is its
+>   acceptance test.
+> - **CONSERVATION INSIGHT PRODUCT PLATFORM** (07-21) — M4.2 · M5 · M6 · M7 open; **M7 is NOW
+>   item N2**.
+> - **QUALITY TRACKS** (07-21) and the lettered recurring tracks **A · B · C · D · E · F · G ·
+>   H · I · J · K · L · N** — interleave material, plus **Z** (the platform north star).
+> - **PLATFORM MIGRATION** (07-15) and **◇ LATER — shell v2** — both explicitly "do not jump
+>   the queue".
+> - **DECISIONS LOCKED WITH KEVIN** (07-21) and **Visual refresh** (07-02) — decision records
+>   the lane executes rather than re-asks.
+
 ### 🔎 UX sweep #574 (2026-08-01) — remaining findings
 > The platform's daily read-only UX walk. Protocol says sweep findings come before the
 > feature backlog. Finding 2 (mobile topbar title clipped to "H…") is **SHIPPED v840 —
-> see DONE (TOPBAR-TITLE)**. Still open:
+> see DONE (TOPBAR-TITLE)**. Finding 3 and its 3b/tail follow-ups are all **SHIPPED
+> (v841/v843/v844/v859)**. The ONLY thing still open in this sweep is SWEEP574-1, and it
+> is a **product decision for Kevin, not agent work** — so the lane should treat this
+> sweep as worked out and move to the AUDIT block below.
 >
 > - **SWEEP574-1 (High → but it is a PRODUCT DECISION, not a bug — read this before
 >   starting) [ux] The Viewer renders every dashboard in the author's fixed mode, so a
@@ -9229,8 +10992,13 @@
 >   steward — see DONE)** via a separate `rowActivatable()`: a clickable row gets
 >   `tabindex="0"` + Enter/Space + `aria-haspopup="dialog"` but deliberately NO
 >   `role="button"` (it would dissolve the table's grid semantics) and NO `aria-label`
->   (the row's own cells are its name). Only remaining a11y gap noted by either slice:
->   showing the hover tooltip on keyboard focus.
+>   (the row's own cells are its name). ~~Only remaining a11y gap noted by either slice:
+>   showing the hover tooltip on keyboard focus.~~ ✓ **TAIL SHIPPED v859, sw v491
+>   (2026-08-07, steward — see DONE):** `tipOnFocus()` opens the same tooltip card on
+>   `:focus-visible`, anchored to the mark, Escape-dismissible without moving focus;
+>   the mouse path and `vendor/dashkit.js` are both untouched. **With this, every
+>   actionable finding in UX sweep #574 is closed** — the only thing left in the sweep
+>   is SWEEP574-1, which is a product decision for Kevin, not agent work.
 >   Original (table half): the enhanced `DashKit.table` override
 >   binds `<tbody> <tr>` rows DIRECTLY (studio-charts.js, the "Row-click detail" block),
 >   not through bindDrill/bindDetail, so `markActivatable` doesn't reach them; and a row
@@ -9245,269 +11013,36 @@
 >   would have hidden the number). One slice per mark family; same full-suite caution, since
 >   these ship inside every exported dashboard.
 
-### 🔬 AUDIT-2026-08 — comprehensive audit findings (see `AUDIT-2026-08.md`)
-> A four-sweep audit (2026-08-06, v833) filed these as coherent workstreams,
-> not micro-items — the QA-01…QA-10 precedent. `★★` = P1. Each cites its audit
-> section. Any Kevin follow-up spawned here ships under the fleet KH-### series
-> (see Conventions + `kevinrhaas/polecat-platform` docs/KH-REGISTER.md).
-> Interleave with the feature backlog; the four P1s first when a slot is free.
-> AUD-04 (now SHIPPED v834) was ALSO the precondition for analytics joining the dev→stage→prod
-> promotion pipeline (rollout #2 after the jobtracker pilot).
->
-> - ~~AUD-01 ★★ [data] Supabase atomic save~~ ✓ **SHIPPED v842, sw v474
->   (2026-08-07, steward — see DONE). ALL FOUR AUDIT P1s ARE NOW CLOSED.**
->   The batched-RPC option: `polecat_workspace_save(jsonb)`, one PL/pgSQL
->   transaction carrying the whole snapshot, tried first and falling back to
->   the per-table push ONLY on a 404. The mid-save-failure-window check the
->   suite lacked is in. The failed-read half was already closed by AUD-04
->   (v834). **Still open, deliberately deferred to its own slice: cross-device
->   CONFLICT RESOLUTION** — two devices editing concurrently is still
->   last-writer-wins over the whole snapshot. That's a merge-semantics design
->   question (per-row updatedAt wins? per-table? a real 3-way merge?), not a
->   durability hole, and it wants its own decision before code.
-> - ~~AUD-02 ★★ [security] Escape the confirmed XSS sinks~~ ✓ **SHIPPED v837, sw v469
->   (2026-08-07, steward — see DONE).**
-> - ~~AUD-03 ★★ [security] Secrets hygiene~~ ✓ **SHIPPED v838, sw v470
->   (2026-08-07, steward — see DONE).** All three parts: session-only vault
->   passphrase (with a delete-on-boot migration of the on-disk copy), PBKDF2
->   password digests with upgrade-on-sign-in, honest Settings/Connections/docs
->   copy. NOT covered (deliberate, stated in the copy rather than fixed): the
->   backend key/token and Supabase authEmail/authPassword still sit in
->   localStorage, and auth still fails open by design.
->   Original: (§1.3) stop persisting the
->   secrets-vault passphrase (`analytics.datasource.secret.v1`) — make it
->   session-only; migrate password hashing off unsalted single-round SHA-256
->   (`app/auth.js:30-33`) to a salted/iterated KDF; make the Settings/credential
->   copy honest about what's plaintext-local vs synced.
-> - ~~AUD-04 ★★ [data] Data-loss cluster~~ ✓ **SHIPPED v834, sw v466
->   (2026-08-06, dedicated session — see DONE). The pipeline precondition is
->   MET: analytics is clear to adopt the dev→stage→prod pipeline (rollout #2).**
->   Original: (§1.2) `replaceAll()` must PRESERVE tables it doesn't know about
->   (`app/sources/workspace.js:124-151` currently drops them — a v5→v4→push
->   loses the v5 table); `persist()` must surface quota failure instead of
->   silently going memory-only (`workspace.js:28-29`); a failed table read must
->   be distinguishable from a genuinely empty one before `replaceAll` adopts it.
-> - ~~AUD-05 ★ [security] Harden the preview channel~~ ✓ **SHIPPED v845, sw v477
->   (2026-08-07, steward — see DONE).** The origin/source checks are in, on all
->   THREE receivers (builder, renderer-inside-every-export, Help). The other two
->   halves were investigated and **deliberately not shipped, with the evidence in
->   DONE**: `sandbox` on the preview iframe is infeasible while builder↔preview
->   runs on same-origin DOM reach-in (`allow-same-origin` would make the attribute
->   decorative), and a `<meta>` CSP is unreachable in a no-build-step app whose
->   exports are inline script inside srcdoc. **Spun out as their own items:**
->   - **AUD-05a [arch] Move builder↔preview fully onto postMessage** — retire
->     `#preview.contentDocument` reach-in (the builder's reads, panel-zoom's
->     `#pz-fill` style + Escape listener injection, the Viewer frame reads) so the
->     frame can take a real `sandbox`. Large, architectural; wants its own design
->     pass and the FULL suite (it touches the export invariant).
->   - **AUD-05b [security] Revisit CSP if the app ever gains a build step** —
->     blocked on that, not on effort.
->   Original: (§1.1) validate `e.origin`/`e.source` in both postMessage receivers
->   (`app/studio.js:10179`, `app/studio-render.js:2493` — today only
->   `d.studio===1`), and add a `sandbox` attribute to the srcdoc preview iframe
->   (carefully — must not break the builder↔preview protocol or exports). Add a
->   CSP `<meta>` where feasible.
-> - **AUD-06 ★ [ux] Filter consolidation program** (§2.1): 19 mechanisms, minimal
->   shared code. Multi-slice. **Slice 1 — the shared SEARCH matcher — SHIPPED
->   v847, sw v479 (2026-08-07, steward — see DONE):** `Studio.catalogSearch` now
->   owns the matching rules for all six catalog panels (AND-ed terms across every
->   field, quoted phrases, one haystack convention), Dashboards' haystack gained
->   `folder`, and the "Clear" chip counts the search box as a filter and finally
->   exists on Jobs. **Slice 2 — the FACET layer — SHIPPED v848, sw v480
->   (2026-08-07, steward — see DONE):** `Studio.catalogFacets` (tally / prune /
->   pick / pills / folderStrip / matchMulti / matchOne / clearChip) replaced the
->   six hand-built count-map + pill-markup blocks; pills now sort by their
->   visible label (natural, case-insensitive), every folder strip is labelled
->   "Folders", and Dashboards gained the Clear chip.
->   ~~The default view mode still differs~~ ✓ **SHIPPED v849, sw v481 (2026-08-07,
->   steward — see DONE):** `Studio.catalogView` is the fourth shared axis (the toggle
->   itself, not just its default) — one default for all six panels (**`list`**), the
->   grid/list icon on every panel instead of only Dashboards, and one meaning for
->   `aria-pressed` (pressed = showing tiles). Historical storage keys unchanged.
->   **Slice 3 — the OPERATOR vocabulary — SHIPPED v850, sw v482 (2026-08-07,
->   steward — see DONE):** `Studio.filterOps` is the single registry (one op
->   list, one label set, ONE predicate) behind both the DA output rules and the
->   job "Filter rows" step. **No workspace migration was needed and none was
->   done** — each surface keeps WRITING its own on-disk spelling (`>=` vs
->   `gte`) and `normalize()` maps either onto one meaning at read time, so an
->   older client sharing the workspace (or a `/dev/`-`/stage/` preview on the
->   same origin — AUD-04) still reads every saved rule correctly. The job step
->   gained `startsWith`, real labels instead of raw ids, numeric-aware equality
->   and text-capable ordering.
->   **Slice 4 — DATES COMPARE AS DATES — SHIPPED v853, sw v485 (2026-08-07,
->   steward — see DONE):** slice 3's concrete sub-finding is closed.
->   `filterOps.dateKey`/`dateCmp` give both surfaces (and the DA sort rule, which
->   had the same flaw) real chronological comparison — strictly for ISO-8601
->   shapes, day-granularity when either side is a plain date, UTC for a zoneless
->   value. The job engine's standby copy of the predicate was deleted rather than
->   taught the new trick. This one DID re-filter saved dashboards, deliberately
->   and loudly in the changelog: the rows an author asked for are the rows they
->   now get.
->   **Still open, in rough order:**
->   - **Build a real date FILTER** — the remaining half. Comparison is fixed;
->     *choosing* a date is still raw text typed into a value box. Wanted: a date
->     input on a date-typed column, and relative ranges ("last 30 days", "this
->     year") as first-class rules rather than `{{today-30}}` SQL tokens — the
->     honest replacement for the dead `DashKit.TIME_RANGE` picker AUD-09 removed.
->     `filterOps.dateKey` is the primitive to build it on.
->   - Out of family D but named in §2.1: the 11 other search affordances
->     (library, inspector, chart gallery, ⌘K, docs, folder picker) could adopt
->     `Studio.catalogSearch` opportunistically — none is a catalog panel, so
->     none blocks the slices above.
-> - ~~AUD-07 ★ [ux] Finish delete-undo coverage~~ ✓ **SHIPPED v846, sw v478
->   (2026-08-07, steward — see DONE).** All three paths carry Undo, each
->   restoring what it uniquely owns beyond the row (the View Builder draft +
->   selection, Explore's open-View pointer, the pack's installed flag).
->   **Still open from §2.2, deliberately its own item — the OTHER half of
->   "unify delete confirmation":** the ~23 delete sites still each hand-roll a
->   `window.confirm` string, so the wording, the consequence sentence and the
->   lineage warning are per-site rather than one shared confirm helper. That is
->   a copy/consistency refactor across every section, not a durability gap, and
->   it also wants a decision on whether the fleet's `confirmDialog` replaces
->   native `confirm()` here (it did in manager/relay). The DURABLE-2 trash model
->   is the other natural home for it.
->   Original: (§2.2): the 3 bare-confirm
->   deletes with no undo — `app/build.js:389`, `app/explore.js:938`,
->   `app/studio.js:890` — get `Studio.undoToast` like the DURABLE-2b per-row
->   deletes; folds into the DURABLE-2 trash model.
-> - **AUD-08 [perf] Boot + preview cost** (§1.4): ~~get `js/changelog.js` (~660KB)
->   off the render-blocking boot + precache path~~ ✓ **SLICE 1 SHIPPED v851, sw v483
->   (2026-08-07, steward — see DONE):** boot loads a generated ~650-byte
->   `js/changelog-head.js`; `Studio.loadChangelog()` fetches the history on demand
->   (prefetched on hover/focus of either What's-new trigger); the big file is no longer
->   precached. **Still open:** trim the sw.js comment block (~2,450 lines of release
->   notes sitting ahead of `SHELL_FILES`); and the substantial half —
->   make `refreshPreview()` incremental instead of a full ~570KB–4.4MB srcdoc
->   re-parse from 208 call sites on a 130ms debounce. Also untouched and named in
->   §1.4: the 52 render-blocking `<script src>` tags in `app/index.html` and the ~20
->   boot-time asset fetches into `S.assets` — the next-largest boot win after the
->   preview work.
-> - ~~AUD-09 [code] Dead code~~ ✓ **SHIPPED v852, sw v484 (2026-08-07, steward —
->   see DONE).** Both halves: `app/gate-config.js` (+ `tools/gen-code.js` + the
->   stale suite check that pinned it) deleted with its index.html/viewer.html/sw.js
->   references; `DashKit.TIME_RANGE`/`fromkey` **deleted** rather than implemented —
->   the implement side IS AUD-06's real date filter, and the dead picker made the
->   gap look half-answered. PUBLISH.md + README.md now describe the sign-in gate
->   instead of the retired passcode.
->   Original: (§1.5): delete `app/gate-config.js` (ships +
->   precached, contains two live access-code hashes, ZERO readers) and its
->   index.html/viewer.html/sw.js references; implement-or-delete
->   `DashKit.TIME_RANGE` (zero app callers — deleting it makes the "no date
->   filter" gap explicit for AUD-06).
-> - **AUD-10 [code] Test-harness hardening** (§1.6): per-section `try` isolation
->   so one throw can't FATAL-abort the run; cut the ~3m23s of unconditional
->   `waitForTimeout`; close the coverage gaps (Firebase adapter, sync-conflict,
->   Supabase mid-save, escaping, postMessage origin).
-> - **AUD-11 [docs] Copy/doc truth pass** (§3, §2.4): `LICENSE` is now GPL-3.0
->   but Conventions still says "proprietary"; CLAUDE.md's "~22.6K LOC / ~1,400
->   checks" is ~4×/2× stale; marketing "25+"/"50+" vs docs "52" vs real 55 chart
->   types; the in-app What's-next modal shows 5 shipped items as upcoming; the
->   mobile gate is documented 390×780 but tested ~half at 844 — pick one.
->   Consider splitting STATUS.md DONE into a dated archive (§4).
-> - ~~AUD-12 [ux] Discoverability coverage~~ ✓ **SHIPPED v854, sw v486 (2026-08-07,
->   steward — see DONE).** Both halves, and both from ONE new primitive
->   (`__studioRailSections()` in `app/shell.js`) rather than two corrected copies:
->   ⌘K now offers every rail section — and **only** the ones the signed-in account
->   may open, which also closed the gating hole where clicking a hidden rail button
->   still switched section; Section access derives its rows the same way, gaining
->   views/build/docs, correcting "Explore"→Quick Views, and dropping the no-op
->   Studio row. Carve-outs (documented, deliberate): Home and Settings.
->   Original: (§2.3): ⌘K (`app/palette.js`) reaches
->   only 7 of 13 sections — add Views/Quick Views/View Builder/Repository/Jobs/
->   Admin; `CONFIGURABLE_SECTIONS` (`app/studio.js:8740`) must cover
->   views/build/docs so viewer-hiding matches what the rights UI implies.
+### ✅ AUDIT-2026-08 — comprehensive audit findings — **ARCHIVED (2026-08-07, N1)**
+> AUD-01…AUD-12 are ALL shipped (2026-08-06→07). The whole block — every finding, its
+> reasoning and its audit citations — moved verbatim to
+> [`docs/BACKLOG-ARCHIVE.md`](docs/BACKLOG-ARCHIVE.md#audit-2026-08). Nothing deleted.
+> **The live tails it left behind** — each its own future unit, listed HERE so they stay
+> visible in NEXT instead of being buried in the archive:
+> - **AUD-01 tail — cross-device conflict resolution.** Two devices editing concurrently is
+>   still last-writer-wins over the whole snapshot. A merge-semantics DESIGN question
+>   (per-row updatedAt? per-table? a real 3-way merge?), not a durability hole — it wants a
+>   decision before code.
+> - **AUD-06 tail — the Help page's own search (`docs/index.html`).** The one search
+>   affordance not on the shared kit, because the page is standalone (inline scripts, no app
+>   modules). Wants a decision first: extract the kit into a tiny standalone file both can
+>   load, or leave Help's search as its own thing and say so in the docs.
+> - **AUD-07 tail — the other half of "unify delete confirmation".** ~23 delete sites still
+>   hand-roll a `window.confirm` string, so wording/consequence/lineage warnings are
+>   per-site. A copy/consistency refactor, and it wants a call on whether the fleet's
+>   `confirmDialog` replaces native `confirm()` here (it did in manager/relay).
+> - **AUD-08 tail — the substantial half of the boot/perf work.** Make `refreshPreview()`
+>   incremental instead of a full srcdoc re-parse from 208 call sites, plus §1.4's 52
+>   render-blocking `<script src>` tags and the ~20 boot-time asset fetches into `S.assets`.
+> - **AUD-11 tail — the wording sweep (§2.4).** "Studio" vs "Dashboard Builder" and "demo" vs
+>   "sample" across toasts and empty states; a copy refactor `tools/doc-truth.mjs` cannot
+>   hold honest. (AUD-11's other tail — splitting this file — is what N1 is doing.)
 
-> SORT-1. ✓ **SHIPPED v812 (2026-07-31, interactive session — see DONE). Lane: skip.**
->       Original: **Standard sorting on every catalog panel (Kevin live, 2026-07-31).** "On all of the panels
->       like dashboards, datasets, connections, etc you should be able to sort by
->       name, last used date, workbook, things like that. Standard sorting things
->       so you can find things easier." Add a compact sort control (dropdown or
->       toggle-chips beside the list/tile toggle) to Dashboards, Views, Datasets,
->       Connections, Jobs and Repository: Name A–Z/Z–A, Last updated (newest/
->       oldest — the current default order stays the default), plus per-section
->       extras where they exist (Dashboards: workbook, folder; Datasets:
->       adapter/connection; Jobs: last run). Persist the choice per section per
->       device (localStorage, same convention as the list/tile toggles). Pinned
->       items should stay pinned-first within any sort. One shared sort helper +
->       per-section wiring, same adopt-per-section pattern LIVE-d proved.
-
-### ⚠ SESSION HANDOFF — live steward session active (written 2026-07-31 ~04:20Z)
-> Kevin is enabling the continuous manager lane while an interactive steward
-> session is still working. Coordination rules for ANY automated run:
->
-> **CLAIMED by the live session — do NOT start these** unless the claim expires
-> (no commit referencing the item lands on main within ~6 hours of the
-> timestamp above; then take over using the context given):
-> 0. ~~USER-ADD-DURABLE ★ + SYNC-FRESH ★★~~ **SHIPPED v792 (this session,
->    2026-07-31 ~05:00Z — see DONE).** Kevin-side verify: re-add test2 via
->    Admin → +Add user (watch for the "synced to the workspace backend" toast),
->    sign out/in, confirm the row persists in Supabase public.users.
-> 1. ~~FILTERS-1 ★~~ **SHIPPED v794 (this session, 2026-07-31 ~05:15Z — see
->    DONE).** Root cause was three-fold (undeclared params on 6/8 panels +
->    sinceYear/year name mismatch + real engines ignoring params), not just
->    the file-engine path. Recurring no-decorative-filters sweep now in the
->    suite. Kevin-side verify: open Cover Crop & Tillage Adoption, flip
->    Since year (trends narrow) and Practice (maps/KPIs respond).
-> 2. ~~VB-13~~ **SHIPPED v795 (this session, 2026-07-31 ~05:40Z — see DONE).**
->    Note for SETTINGS-ROAM slice 2: lift studio-bd-lw / studio-bd-collapse
->    into the roamed per-user prefs blob with the other VB sizes.
-> 3. ~~SETTINGS-ROAM slice 2~~ **SHIPPED v798 (this session, 2026-07-31
->    ~06:40Z — see DONE).** #164 closes. Not covered (small follow-ups if
->    wanted): shell rail open/width keys (shell-owned storage), per-user
->    dashboard defaults (Defaults module has its own store), VB draft-map
->    roaming (growth risk — deliberate skip).
-> 4. ~~DURABLE-2 ★~~ **SHIPPED v799 (this session, 2026-07-31 ~06:50Z — see
->    DONE). ALL session claims (0–6) are now shipped** — the automated lane
->    may treat the whole NEXT backlog as open (the DO-NOT-TOUCH list below
->    still stands, now including the tombstone semantics: absence is never
->    deletion, users has no sync deletes).
-> 5. ~~VB-14~~ **SHIPPED v796 (this session, 2026-07-31 ~05:55Z — see DONE).**
-> 6. ~~VB-DROP~~ **SHIPPED v797 (this session, 2026-07-31 ~06:25Z — see DONE).**
->    Excel (.xlsx) deferred — needs a vendored parser; a future slice if
->    Kevin still wants it.
->
-> **LANE STEER (Kevin, 2026-07-31 ~12:15Z — while the interactive session is
-> ACTIVE on the feature backlog):** to keep both lanes fast, scheduled runs
-> should prefer the SELF-DIRECTED tracks over feature-backlog items while
-> this steer stands: Track H/L/N quality sweeps and LF58 docs/tour/marketing
-> currency. Those touch few contested files; the feature backlog is being
-> worked live and every same-day collision on js/changelog.js + sw.js costs
-> a rebase + a full re-gate (three today: v793, v804, v808). The interactive
-> session claims its items in DONE ("lane: skip …") as always. When the
-> interactive session goes quiet (no main commit from it for ~6 hours), this
-> steer expires and the whole NEXT backlog is open again.
->
-> **OPEN FOR THE AUTOMATED LANE (independent, minimal overlap with the above):**
-> ~~LF21 (title header as first-class widget)~~ **SHIPPED v793 (automated lane,
-> 2026-07-31 ~05:10Z — see DONE):** the remaining alignment ask, done.
-> ~~LF40 (animated welcome/tour overhaul)~~ **SHIPPED v800 (automated lane,
-> 2026-07-31 ~06:51Z — see DONE):** its last open item (the overview tour's own
-> pack-aware treatment) is done — LF40 as a whole is now fully shipped.
-> ~~marketing-site refresh~~ **SHIPPED v801 (automated lane, 2026-07-31
-> ~07:35Z — see DONE):** the carousel screenshots + chart gallery were stale
-> against the current app (pre-rename "Explore"/"analysis" UI baked into the
-> PNGs, a missing chart type). Confirmed LF24, LF59 and LF53's user-facing
-> scope read as already fully shipped elsewhere in this file (their own DONE
-> entries) — LF53's remaining piece is a deliberately-deferred internal-only
-> identifier rename (`Studio.exportCDF` etc.), not user-facing, so not picked
-> up here. Still open: #23 (tour defines every domain term — a real gap, not
-> yet built). One coherent item per run,
-> `steward/<topic>` branch off latest main, rebase if the live session shipped
-> meanwhile. The live session works on
-> `claude/lucid-keller-nff4pb`.
->
-> **DO NOT touch:** tools/supabase-*.sql posture files, app/workspaces.js
-> packaged keys, and the users-table sync semantics (upsert-only, v787) — these
-> encode tonight's live-incident fixes.
->
-> **Kevin-side pending (not agent work):** re-add fntest via Admin → +Add user
-> (safe since v787) → incognito sign-in → M7 steps 3-4 close out; two CTIC
-> admins after that.
->
-> Shipped tonight (context): v778–v791 — WORKSPACE-LOGIN, RLS posture + canonical
-> deploy script, ACTIVITY-1, GATE-FIX/2, DEMO/ADMIN-LOCAL, USERS-DURABLE 1+2
-> (users wipe class eliminated), SETTINGS-ROAM slice 1, EXPORT-1, XP-UPDATE,
-> VB-12, PANEL-H, PACK-FEATURED, HOME-LAND, HOTLINK-1, DECLUTTER-1.
+### ✅ SESSION HANDOFF (2026-07-31) — **ARCHIVED (2026-08-07, N1)**
+> Expired, historical only: the session ended long ago, every claim in it shipped, and its
+> coordination rules do NOT apply to current runs. Moved verbatim to
+> [`docs/BACKLOG-ARCHIVE.md`](docs/BACKLOG-ARCHIVE.md#session-handoff-2026-07-31).
+> Nothing open, nothing claimed.
 
 ### ★★★ VIEW BUILDER OVERNIGHT QUEUE (Kevin live, 2026-07-30 — "i like the new view builder")
 > Kevin's overnight worklist for #117's View Builder. Work top-down as separate steward
@@ -10274,46 +11809,12 @@
 >    hiding in M4 NOW (honest "not cryptographic isolation" until the DB enforces it), then real
 >    RLS enforcement lands in M7. Do not gate the M4 flag on the backend being ready.
 
-### ★★ LOCKED BUILD ORDER (Kevin approved, 2026-07-27) — work the queue in THIS sequence
-> Kevin locked the sequence. Do these in order (each still sliced; quick bug-class items first so the
-> "Dave" demo's ingredients become real before the flashy tour and the chrome work):
-> 1. **Fast bug/cleanup wins:** LF44 ✓ (role gating — hide Admin+Studio from viewers) · LF43 (sample-pack
->    dashboards show in Dashboards ✓ slice 1 / drop Examples — slice 2 still open, budgeted as its own
->    dedicated slice) · LF50 (remove stray builder Creativity control, shipped) ·
->    LF38 ✓ (password eyeball toggle) · LF39 ✓ (cross-device sign-in fix, 2026-07-27). Step 1 is
->    otherwise fully done — only LF43 slice 2 remains, deliberately deferred.
-> 2. **"Dave"-demo ingredients:** LF41 (per-user provisioning defaults — theme + sample pack ✓ slice 1,
->    "copy my current Dashboard defaults" ✓ slice 2, both 2026-07-27 — **LF41 is now fully done**,
->    the optional impersonate-to-set alternative left open per LF41's own DONE note) → LF42
->    (multi-backend admin — admin manages a backend list ✓ slice 1, per-user backend assignment
->    ✓ slice 2, consolidated Switch-backend picker ✓ slice 3, all 2026-07-27 — **LF42 is now fully
->    done**). **Step 2 is now fully done.**
-> 3. **Flashy:** LF40 (animated welcome + home tour, sample-pack-aware) — **slice 1 ✓ (hero
->    screen: confetti + greet-by-name + quick tour/guided tour menu + quick actions, 2026-07-27,
->    steward)**, **slice 2 ✓ (Conservation-pack choropleth/watershed guided tour, pack-gated,
->    2026-07-28, steward)**, see DONE. Still open: folding sample-pack-aware segments into the
->    hero/overview carousel itself (a bigger engine change — see slice 2's own NEXT note).
-> 4. **Studio chrome:** LF46 (⋯ teardown — ✓ slice 1 Demo mode 2026-07-24, ✓ slice 2 View/
->    Help & power tools groups 2026-07-28, **LF46 is now fully done**) · LF47 (ops → top rail,
->    w/ #30 — ✓ slices A/B/C, 2026-07-27, **LF47 is now fully done** except Examples removal,
->    which is LF43 slice 2's remit, not duplicated here) · LF48 (✓ slice 1 uniform exit,
->    2026-07-28, ✓ slice 2 the role-aware mode-switcher ENTRY point, 2026-07-28 — **LF48 is now
->    fully done**) · LF45 (✓ richer Open dialog, 2026-07-28 — Save-as's own half already shipped
->    with LF47) · LF52 (✓ widget→View, 2026-07-28) · LF53 (✓ drop CDF/CDE, 2026-07-28). **Step 4 is
->    now fully done** except LF43 slice 2 (Examples removal), which stays its own explicitly
->    deferred, separately-budgeted slice (see Step 1).
-> 5. **Exports + navigation/layout:** LF49 (XLSX ✓ · DOCX ✓ · PPTX ✓, 2026-07-28 — **LF49 is now
->    fully done**) · LF54 (both slices ✓ — 2026-07-28/29, left-align + kill left-gutter whitespace,
->    then the per-catalog vertical-gap density pass — **LF54 is now fully done**; any further
->    per-widget density is opportunistic polish, not a named slice) · LF51 (sophisticated nav IA —
->    ✓ (a) full row names, ✓ (b) right-aligned pills, ✓ (c) date-time, ✓ (d) list/tile toggle now
->    shipped on Dashboards/Datasets/Connections/Jobs/Repository (2026-07-28/29, see DONE) — **all
->    four SPECIFICS are done.** Still open (not step-5-blocking, opportunistic): the Explore dataset
->    navigator's own folder-tree upgrade, and the bigger CORE PRINCIPLE convergence (one truly
->    shared nav component + Repository's "robust cross-object command center" richness)). **Step 5
->    is now fully done** for its named SPECIFICS; the LOCKED BUILD ORDER queue has no more open
->    items — remaining work interleaves as ordinary backlog (LIVE-QA QUEUE, quality tracks).
-> The recurring quality tracks (UX polish, Track H/L/N sweeps) continue to interleave as usual.
+### ✅ LOCKED BUILD ORDER (Kevin approved, 2026-07-27) — **ARCHIVED (2026-08-07, N1)**
+> Superseded by the ▶ NOW queue, and its own closing line says so: steps 1–5 are all done and
+> the remaining work interleaves as ordinary backlog. Moved verbatim to
+> [`docs/BACKLOG-ARCHIVE.md`](docs/BACKLOG-ARCHIVE.md#locked-build-order-2026-07-27).
+> **One live tail:** LF43 slice 2 (drop Examples), deliberately deferred as its own
+> separately-budgeted slice — it stays open in the LIVE-FEEDBACK QUEUE below.
 
 ### ★★ LIVE-QA QUEUE (Kevin, 2026-07-27 second session) — captured during live QA
 > Fresh items from a live QA burst. Slot into the LOCKED BUILD ORDER by class (bug/cleanup wins
@@ -12019,6 +13520,8 @@
 >      → Datasets) is now fully done.**
 
 ### ★★★★★ CONSERVATION INSIGHT PRODUCT PLATFORM (2026-07-21, user-directed — NOW THE TOP PRIORITY)
+
+> ⚠ **Priority header SUPERSEDED by the ▶ NOW queue at the top of NEXT (2026-08-07).**
 > Kevin's big charter: turn Analytics into a multi-user, permissioned product. Decisions locked
 > with Kevin (2026-07-21): product/demo name = **Conservation Insight** (CTIC / conservation-ag —
 > Viridis is retired from the app); auth = **phased** (UX-level multi-user login now, real
@@ -12028,33 +13531,14 @@
 > beautiful, non-expert-first). One coherent slice per PR, suite-gated, self-merge on green.
 >
 > **The slices, in order:**
-> M1. ✓ **Quick wins (shipped 2026-07-21):** demo pack renamed Viridis→Conservation Insight
->     (app/demopacks.js, ids + all display strings; coupled tests updated); geo sample data now
->     spans 100+ REAL Corn Belt county FIPS + real HUC8/CRD/state codes (extracted from the
->     vendored geometry so every code colors) with geo-aware row counts, so a dragged choropleth
->     colors the whole Corn Belt (144 counties end-to-end, was 8); bundled examples get a
->     first-class Home section with live thumbnails (exLayoutSvg hoisted to module scope).
-> M2. ✓ **Overview tour (shipped 2026-07-21):** an Overview tour as
->     the FIRST/recommended tour that walks the rail parts (Home · Explore · Dashboards · Datasets ·
->     Connections · Jobs · Studio), explains the object model, and ENDS ON HOME for getting-started
->     (Kevin). Keep Quick analysis + Build a dashboard as the deeper task tours in the chooser.
->     Introduces "widget" as the forward term for the thing inside a dashboard.
-> M2b. ✓ **panel → widget terminology (shipped 2026-07-21):** rename the USER-FACING word "panel"→"widget" (Inspector
->     title, add/text-widget buttons, hints, empty states, tours, docs, help) for the thing inside
->     a dashboard that shows a chart/KPI/map/text. CAREFUL: leave the layout PANES (Data/Inspector
->     library) alone — those are "panes", not widgets — and keep internal identifiers (spec.panels,
->     data-panel-id, kind:"panel", newPanel, .panel-* CSS) unchanged; UI text only. Update the tour
->     ratchet to also assert no stale "panel" wording for dashboard items.
-> M2c. ✓ **Richer demo workspace (shipped 2026-07-21):** the Conservation Insight demo pack now
->     seeds a whole workspace — TWO connections (a demo file store + an illustrative Supabase repo
->     backend), FOUR datasets (raw provider export + a real county-FIPS adoption set + a HUC8
->     watershed set + a state-rollup output, all in-geometry so their choropleths color live), and a
->     county→state acreage-weighted-mean JOB (the jobs-engine wmean pattern, wired source→output and
->     pre-materialized so the state map renders before Run) — alongside the four pinned analyses +
->     featured dashboard. sampledata exposes Studio.SAMPLE_GEO for reuse. Same install/remove-by-
->     demoPackId machinery (remove now also sweeps jobs); 4 M2c ratchet tests. NEXT in M3: wire the
->     demo-login to auto-install this set, a Settings toggle to turn it off, and suppression once you
->     log in with REAL creds against a real backend repo (real workspace = no demo clutter).
+> **M1 · M2 · M2b · M2c — all shipped 2026-07-21 — ARCHIVED (2026-08-07, N1).** The four
+>     drained early slices (demo-pack rename + real Corn Belt geo · the Overview tour ·
+>     panel→widget terminology · the richer demo workspace) moved verbatim to
+>     [`docs/BACKLOG-ARCHIVE.md`](docs/BACKLOG-ARCHIVE.md#conservation-insight-m1-m2).
+>     Only the DRAINED slices moved — M3 onward stays right here, because M4.2, M5, M6 and
+>     M7 are still open (M7 is NOW item **N2**), as does the REVIEW-FIXES block below with
+>     its own still-queued items.
+
 > REVIEW-FIXES (Kevin live review, 2026-07-21, shipped):
 >   • Primary CTAs (Datasets/Jobs "+ New", Explore "Save analysis") were white-on-transparent on the
 >     light screens — invisible. `.btn.primary` is now a solid brand fill globally (regression guard).
@@ -12533,682 +14017,31 @@
 > suite's cross-app reporting substrate, and Supabase (the planned main backend) is Postgres this
 > app already speaks. Keep logging concrete cross-app reporting opportunities here as they appear.
 
-### ★★★★ VIRIDIS VIEW / GEO-ANALYTICS TRACK (2026-07-16, user-directed — TOP priority)
-> **The case:** CTIC's Viridis View RFP (bid due 7/31, $35–45K, launch Nov 18–19 at SAS) — a public
-> tool showing county-level cover-crop + conservation-tillage adoption (2015–2025, annual updates
-> to 2030) from FIVE providers (DTN, Indigo/Terion, Iowa State, Regrow, Terra Diagnostics), maps
-> colored by the MEDIAN of user-selected providers, linked time-series charts with AgCensus
-> reference points, at county/State/CRD/HUC8 scales, Corn Belt focus, embedded free on ctic.org.
-> KEY FRAMING (per the office-hours prep): this is an ENSEMBLE — the median is the estimate, the
-> provider spread is uncertainty information to show honestly, not noise to hide. Provenance,
-> no-data handling and simplicity beat slick visuals for this audience. Static/client-side is the
-> winning architecture (data is single-digit MB gzipped; geometry is the heavy asset).
-> **Charter (user, 2026-07-16):** extend Analytics to support this case — non-expert-easy (Simple
-> mode hides machinery; Home features live dashboards; pins/favorites/recents), a simpler
-> dataset-first "Explore" designer feeding Studio, BOTH MapLibre GL JS and D3+TopoJSON attempted
-> behind one geo API, multi-connection + file-type import with mapping, a Viridis demo/sample
-> pack (a SECOND sample library, distinct from the legacy sample catalog), light data-management (jobs:
-> mapping/aggregation/rollup/join/union → materialized datasets, repeatable loads), and a public
-> marketing site at the root with the app at /app/ (fleet pattern).
->
-> **The slices (one steward PR each, tests green, in order):**
-> V1. ✓ **Marketing site + app moves to /app/ (shipped 2026-07-16).** Root = marketing page
->     (index.html + css/landing.css, warm-Polecat light/dark, hero + features + sources strip,
->     CTAs → /app/, NO shell per fleet convention). The app index moved INTO app/ with
->     `<base href="/">` so every historical relative path resolves unchanged (module imports
->     resolve against module URLs and were never affected). Legacy root #share=/#view hashes
->     forward to /app/ automatically; manifest start_url → /app/; SW precaches both pages
->     (cache → v11); test server learned directory-index resolution; docs back-link fixed;
->     THIRD-PARTY-NOTICES.md seeded (footer-linked) for the geo libraries to come.
-> V2. ✓ **Geo foundation (shipped 2026-07-16) — lighter than planned:** us-atlas ships
->     PRE-PROJECTED AlbersUsa TopoJSON, so the ONLY runtime lib is topojson-client (~7KB, ISC);
->     d3-geo/d3-array are BUILD-TIME only (tools/build-geo.mjs, reproducible, commits outputs).
->     vendor/geo/: counties+states (us-atlas, ISC), county→CRD mapping (NASS, PD; CRD polygons
->     derived at runtime via topojson.merge), HUC8 Corn Belt (571 subbasins, USGS WBD via the
->     National Map REST w/ server-side generalization, reprojected onto the same 975×610 plane,
->     173KB gz). ALL FOUR SCALES SHIPPED (county/state/CRD/HUC8 — Kevin: CRD+HUC8 needed for the
->     demo). `choropleth` chart type: median-default duplicate aggregation, auto-zoom to data,
->     hatched no-data + legend, state-border overlay, hover tooltips, id normalization (4/5-digit
->     FIPS, postal/name/FIPS states, 7/8-digit HUCs), theme-aware computed ramp (license-free).
->     Exports inline topojson-client (ISC banner intact) + only the geometry the spec needs —
->     mapless dashboards carry zero geometry; CLI export (tools/lib.js) has parity. Sample engine
->     emits real Corn Belt FIPS for fips-ish columns so fresh map panels render colored. SW → v12.
->     Licensing: THIRD-PARTY-NOTICES.md updated (suite-asserted). Marketing site: one modest
->     clause added per Kevin ("also" feature, not a takeover).
->     ✚ RENAMED (Kevin, 2026-07-16, shipped same day): the product name is just **"Analytics"**
->     — "Dashboard Studio" dropped from the public site, app chrome (topbar/rail/gate/welcome/
->     status bar), site.webmanifest, docs, exported-dashboard titles, and file banners. The
->     shared-shell catalog tagline updated via platform PR #39 (shell v0.1.1; vendored copy
->     synced here in the same slice); carousel screenshots re-captured with the new name.
->     Internal module names (Studio.* API, studio-*.js, storage keys) deliberately unchanged.
->     ✚ V1 follow-up (Kevin, 2026-07-16, shipped same day): the landing page's single static
->     screenshot became an auto-playing hero CAROUSEL of six REAL app screens (JobTracker-style:
->     fade slides, captions, dots, arrows, hover/focus pause, reduced-motion + offscreen aware).
->     Screens: builder light (flagship) / builder dark (finance), exported flagship in dark, the
->     marketing-growth chart showcase, a Corn Belt county choropleth, the ensemble chart —
->     captured from the REAL app + real Studio.buildHtml exports by tools/gen-shots.mjs
->     (committed baselines in site/shots/, regenerate whenever showcased features change; the
->     Viridis screens keep "also"-feature billing: slides 4-5 of 6, general product first).
->     SW → v13 (shots deliberately NOT precached — runtime cache covers them).
-> V3. **Ensemble views — THE MEDIAN IS THE PRODUCT (user, 2026-07-16):** the goal is a SINGLE
->     BEST COMMON ESTIMATE, not a comparison of providers — that's the whole point of the
->     collaborative ("gain a common view"). Design consequences, non-negotiable:
->     · Visual hierarchy: the median renders BOLD and first-class everywhere; provider series
->       are thin, muted supporting evidence (toggleable, but never co-equal stars).
->     · The choropleth ALWAYS colors from the median of the selected providers — never from a
->       single provider. Tooltips/KPIs report the median as THE value; providers appear as
->       provenance beneath it.
->     · The agreement band expresses CONFIDENCE IN the common estimate (tight band = high
->       confidence), not a compare-the-vendors affordance. Wording throughout: "common
->       estimate" / "consensus", never "compare providers". Neutrality is the brand.
->     ✓ SHIPPED 2026-07-16: `ensembleSeries` chart (bold 3px median line + dots; provider
->     series at 1.3px/50% opacity with hollow dots; translucent agreement band with a
->     confidence tooltip; refSeries (AgCensus) as hollow red squares NEVER in the median;
->     legend leads with "Common estimate"; provider on/off chips owned by the chart, exactly
->     the mock-ups' toggle column). Linkage via PDC.ensembleBus — a per-document pub-sub that
->     ships inside preview iframes AND exports (no filter-system surgery): toggles publish the
->     selected set on a channel (default "providers"); the choropleth's new seriesCol binding
->     joins the channel and re-aggregates via the SAME PDC.aggValues the chart uses (proven in
->     tests: legend domain shifts to the exact 4-provider median when a provider drops).
->     Empty-ensemble is prevented (last provider can't toggle off). NOTE: the dashboard-level
->     filter system was deliberately left untouched — V5's Explore can layer a filter-control
->     surface over the same bus later.
-> V4. ✓ **MapLibre renderer (shipped 2026-07-16):** MapLibre GL JS v5.24.0 vendored
->     (vendor/maplibre/, BSD-3-Clause, LICENSE + notices row; NOT precached — runtime cache)
->     behind the SAME PDC.choropleth API via a per-panel `renderer` opt (svg default | gl).
->     KEY TRICK: no second geometry set — the pre-projected 975×610 plane maps into MapLibre's
->     mercator space exactly (x linear in lng, y linear in mercator-y, lat=gd(m)), so GL
->     re-projects onto the identical planar shape the SVG renderer draws. No basemap tiles ON
->     PURPOSE (tiles would phone external servers; exports stay self-contained/offline). GL
->     panels inline maplibre js+css into preview/export (~1MB, opt-in weight only; CLI parity);
->     ensureGeoAssets pulls it lazily; WebGL-less environments fall back to the SVG renderer
->     automatically (never a blank panel); ensemble-bus recolors preserve the user's camera.
->     VERDICT (side-by-side): keep BOTH. SVG = default (tiny exports, hatched no-data,
->     print-clean, zero GL contexts); GL = the demo/exploration mode (buttery pan/zoom on 3k+
->     counties even under SwiftShader, zoom buttons, hover highlight). Recommend GL for the
->     Viridis live demo dashboards, SVG for everything shipped wide. Suite exercises REAL GL
->     boot in CI (SwiftShader) + the fallback path + lean/inline export splits.
-> V5. ✓ **Explore designer (shipped 2026-07-16):** dataset-first flow in a new rail section —
->     pick dataset (workspace first, samples below; live rows w/ typed-sample fallback) → table
->     preview → chart chips (everyday set + choropleth + ensembleSeries w/ scale + refSeries
->     options) → guessed column mappings (editable) → LIVE preview via the REAL Studio.buildHtml
->     in an iframe → SAVE as an "Analysis" (workspace `analyses` table; SCHEMA_VERSION 1→2,
->     additive: local store tolerates, Turso save() self-heals via ensure-DDL — tested — and
->     Supabase gets provisionDeltaSQL in its error hint; its save() also learned to FAIL LOUDLY
->     on non-ok writes instead of silently skipping). Analyses embed their da (self-contained,
->     survive dataset deletion), appear in the Studio library ("Analyses" group, click-add +
->     drag-to-canvas), pin to Home (★ → card → click-through re-opens in Explore), and
->     "Add to dashboard" pushes a panel + da into the current spec. Simple mode with no saved
->     section boots into Explore (Kevin-confirmed direction). Explore param/filter authoring
->     deferred to the V8 jobs layer (analyses inherit dataset {{params}} defaults).
->
-> ── ★ HANDOFF (Kevin, 2026-07-16): the REST OF THIS TRACK (V6→V9, in order) is now the ──
-> ── TOP PRIORITY for the HOURLY FOCUS RUNS. Complete the Viridis requirements FIRST,   ──
-> ── before any other backlog: V6 Home-as-instant-analytics, V7 the demo pack (the RFP  ──
-> ── demo itself), V8 prep/load jobs (the base DATA-MANAGEMENT INFRASTRUCTURE — jobs,   ──
-> ── mappings, aggregation/rollups incl. acreage-weighted mean, joins/unions,           ──
-> ── materialized datasets, repeatable loads), V9 scientific-honesty polish. Satisfy    ──
-> ── ALL RFP requirements (bid due 7/31; see the GOAL block above). One slice per run,  ──
-> ── same PR discipline; coordinate via open steward/* PRs.                             ──
-> ── PENTAHO PURGE (UI) shipped 2026-07-20 (Kevin): color pickers show friendly labels ──
-> ── (Accent/Series/Good...) — raw tokens never surface (ratcheted). The "--pentaho"    ──
-> ── STRING remains as the stored/export accent variable (compat identifier, like       ──
-> ── Studio.exportCDF) — renaming storage would need a spec migration; UI never shows it.──
-> ── SAMPLES CURATION shipped 2026-07-20 (Kevin): catalog 67 stems/428 DAs → 13/~115,   ──
-> ── geo-first ("field-and-geo" leads: county/state/CRD/HUC8 + provider trends), stems  ──
-> ── renamed (no cde-/cdf-/pdc- anywhere), retired CDF/CDE wording swept from app/Help  ──
-> ── (suite-ratcheted), Explore repaints on hide-samples, geo datasets open as MAPS.    ──
-> ── KEEP THE CATALOG CURATED: new samples must earn their place (distinct + demoable). ──
-> ── DESIGN BAR (Kevin, 2026-07-16): every Viridis slice (and supporting work) must     ──
-> ── ALSO make the app USEFUL, EASY TO USE, ELEGANT, SIMPLE, and BEAUTIFUL — delight    ──
-> ── is a requirement, not decoration (the platform design bar). Non-expert first:      ──
-> ── plain-English labels, sensible defaults, empty states that teach, both themes,     ──
-> ── mobile as a release gate. Prefer REMOVING complexity over adding controls; polish  ──
-> ── ships IN the slice, never "later". If a slice works but feels clumsy, it isn't    ──
-> ── done.                                                                              ──
-> V6. ✓ **Home = instant analytics (shipped 2026-07-16):** per-dashboard "Feature on Home" flag
->     (house button on every card; rides the dashboards row like pinned). Home renders featured
->     dashboards LIVE — the REAL renderer (buildHtml + genMock) in scaled view-only iframes,
->     theme-following (same postMessage the builder preview uses), click-through opens in Studio.
->     Pinned analyses render as live chart widgets (banner cropped, chart-first) that reopen in
->     Explore. Hydration is LAZY via IntersectionObserver — fixes the hidden-section scale(0-width)
->     bug AND spares offscreen work. Simple-mode boot: featured content → Home, none → Explore,
->     user's own last section always wins (reconciles V5/V6 boot directions). Suite guards the
->     scale factor explicitly (never the hidden-section scale bug again).
-> V7. ✓ **Viridis demo pack + sample-pack framework (shipped 2026-07-16):** a SECOND sample
->     library ("Demo packs", `app/demopacks.js`) separate from the CDA catalog — Settings and
->     the Studio library both gain a hide-samples-aware "Demo packs" group nested under the same
->     `showSamples()` toggle as the built-in Samples catalog. One-click **Install** writes ordinary,
->     tagged (`demoPackId`) workspace rows — a raw-column-named provider CSV (`kind:'file'`, the
->     file-connection + mapping demo: real live rows through the file adapter, raw headers like
->     `Provider_Name`/`Adoption_Pct` a user maps onto chart roles), 4 pinned Ensemble analyses (one
->     per practice: cover crops/no-till/reduced tillage/conventional), and 1 featured "Viridis
->     View" dashboard (4 Ensemble panels + 1 provider-colored county choropleth) — so it appears
->     live on Home the moment it's installed, via the EXACT V5/V6 pinned-analysis/featured-dashboard
->     machinery (zero new Home code). **Remove** deletes every row it wrote and clears the install
->     flag; nothing else touches workspace state. Synthetic content is labeled illustrative
->     throughout (Settings blurb, docs, dashboard subtitle) — it's a sales-demo fixture, not real
->     provider/AgCensus data.
->     ✚ **Sample-engine upgrade (shared, not pack-specific):** `classify()`/`valueFor()` learned
->     `provider`/`practice`/`year` columns (real names, not placeholder numbers/categories) — the
->     same precedent as V2's `geoid` heuristic. New `Studio.crossedRows(da, seriesCol)` crosses a
->     label domain (year or geoid) against the series domain instead of the flat engine's one row
->     per index, wired into `Studio.genMock` for any `ensembleSeries`/`choropleth` panel that sets
->     `map.seriesCol` — so ANY Ensemble or provider-colored map (ours or a user's own) renders a
->     believable multi-provider ensemble in every offline preview (Explore, the Studio canvas, Home
->     tiles), not a single point per label. AgCensus reference rows land sparsely on real release
->     years (2017, 2022) rather than every label. Backward compatible: only activates when
->     `map.seriesCol` is set, so existing single-series choropleth panels (V2's common case) are
->     unaffected. SW cache → v18. Test suite gains a "DEMO PACKS" block (unit tests for the sample-
->     engine heuristics/crossing + full install → verify-everywhere → remove flow).
-> V8. ✓ **Prep / load processes (data-management-lite, feature-complete 2026-07-17):** new
->     workspace `jobs` table — a job =
->     ordered steps over datasets: field mapping/rename/cast/derive, filter, AGGREGATE/ROLLUP
->     (group-by + sum/avg/count/median/**acreage-weighted mean** — required for honest State/CRD/
->     HUC8 roll-ups of percent metrics), JOIN/UNION across datasets (the 5-provider normalize-and-
->     stack case), output → materialized workspace dataset; execute on demand, re-run for annual
->     updates; optional custom-SQL step via the existing engines. Client-side executor first.
->     ✓ **Slice 1 shipped (2026-07-17):** the single-dataset prep pipeline — `app/sources/
->     jobs-engine.js` (pure, unit-tested) runs ordered rename/cast/derive/filter/aggregate steps
->     over one source dataset's live rows; derive takes two explicit `{col}`/`{value}` operands
->     (no string-sniffing ambiguity); aggregate's `wmean` metric is the acreage-weighted mean
->     (skips rows missing either half of the value/weight pair rather than treating them as zero).
->     New **Jobs** rail section (list + editor: name, source dataset, reorderable step cards,
->     live Preview) mirrors the Datasets section's UX. Running a job materializes the result as an
->     ordinary `kind:'file'` dataset (tagged `job-output`, same shape localfile.js already speaks —
->     zero new dataset-kind code) and re-running the SAME job updates that dataset in place via
->     `job.outputDatasetId` (the annual-refresh case). Schema v2→v3 (additive: Turso self-heals via
->     the existing `WS.TABLE_NAMES` loop; `provisionDeltaSQL` now covers analyses+jobs together for
->     Supabase's paste-me path). SW cache → v19; docs gain a Jobs section.
->     ✓ **Slice 2 shipped (2026-07-17):** JOIN and UNION across datasets. The engine stays pure/
->     synchronous (`Studio.runJobSteps(input, steps, ctx)` now takes an optional `ctx.datasets`
->     map); `studio.js`'s new `resolveJobCtx` runs every dataset a job's join/union steps
->     reference through the real adapters BEFORE calling the engine, so join/union work against
->     live rows from any connection type. **join** (`{op:'join', datasetId, leftCol, rightCol,
->     type:'inner'|'left', prefix?}`) adds the right dataset's non-key columns onto matching left
->     rows (inner drops unmatched, left keeps them with blank added columns); a name collision with
->     an existing column gets an automatic `_2` suffix so a join can never silently overwrite data.
->     **union** (`{op:'union', datasetId, columnMap:[{to,from}]}`) is the normalize-and-stack case:
->     it reshapes the right dataset's rows onto the pipeline's EXISTING schema via an explicit
->     per-column mapping (falls back to a same-name match, else blank) — run once per additional
->     provider dataset, this is exactly the 5-provider case the Viridis rollups need. Job editor
->     gained dataset-picker + key/type fields for join and a column-mapping editor for union.
->     SW cache → v20; docs updated.
->     ✓ **Slice 3 shipped (2026-07-17): the Custom SQL step.** New `sql` op runs an arbitrary
->     query against the pipeline's CURRENT rows, table-aliased `t`, via DuckDB-Wasm (the same
->     engine Z14 slice 1 already vendors for remote-file querying) — `app/duckdb.js` gains
->     `queryRows(columns, rows, sql)`, which registers the rows as in-memory CSV text via
->     `registerFileText()` (no network) instead of `registerFileURL()`, so the query never
->     leaves the browser. The pure engine in `jobs-engine.js` stays synchronous and
->     DOM/engine-free — `Studio.runJobStepsAsync(input, steps, ctx, sqlRunner)` is the new
->     orchestrator that splits a job's steps at `sql` boundaries, runs each pipe segment
->     through the existing `runJobSteps`, and awaits `sqlRunner` (DuckDB in the app, a fake
->     function in tests) for each `sql` segment; a job with no `sql` step never touches the
->     engine, so the WASM load stays fully lazy. `runJob()` and the job editor's Preview both
->     switched from `runJobSteps` to `runJobStepsAsync`. Job editor gained a SQL textarea step
->     (monospace, table `t` hinted). V8 is now **feature-complete**. SW cache → v21; docs
->     updated.
-> V9. **Scientific-honesty polish:** first-class no-data/coverage rendering, provenance popover
->     (which providers, coverage, last updated), CSV download of the current selection (the
->     RFP's deferred download question), docs + a "make the ensemble legible" help page.
->     ✓ **Slice 1 shipped (2026-07-17): CSV download of the current selection.** Both the
->     ensembleSeries and choropleth chart legends gain a "⬇ Download CSV" control,
->     self-contained inside `app/studio-charts.js` (no dependency on the app shell's own
->     download() helper, since this module ships standalone in every preview/export iframe).
->     Ensemble exports long-format label/series/value rows for EXACTLY the providers left
->     toggled on plus the computed common estimate and any reference series — a re-download
->     after a provider toggle reflects the new selection live (same `PDC.ensembleBus`-driven
->     re-render V3 already wired). Choropleth exports region id/name/value for what's
->     currently shown post-aggregation (works for both the plain single-series path and the
->     ensemble-channel-linked path; both the SVG and GL renderers call the same shared
->     `geoLegend`). Suite gains 3 checks driving the export end-to-end inside a real exported
->     iframe (intercepting the anchor's `click()` to read the Blob instead of triggering an
->     OS download). SW cache → v22.
->     ✓ **Slice 2 shipped (2026-07-17): the "ⓘ Sources" provenance popover** — which providers,
->     how much coverage — on both charts, next to the CSV button (`provenanceBtn()` in
->     `app/studio-charts.js`, a click-to-open popover that persists while read, unlike the
->     hover-only `_tip`; closes on outside click, Escape, or its own re-click, and only one stays
->     open across the dashboard at a time). Choropleth: "N of M counties/states/CRDs/HUC8
->     subbasins have data (P%)" plus, when a provider/series column is mapped, each provider's
->     own region count (struck through when toggled off elsewhere — computed from the FULL
->     `rowsSV`, not just the channel-filtered rows, so an excluded provider's coverage stays
->     visible instead of disappearing). Ensemble: "N of M providers currently selected" + "N of M
->     points have every selected provider reporting" (the full-coverage count — an honest signal
->     distinct from the agreement band) + a per-provider point count + the reference series'
->     point count with its "never part of the common estimate" reminder. Both popovers are pure
->     functions of data already in the render config — no new dataset-metadata plumbing, so this
->     slice stays self-contained. Suite gains 6 checks (open/content, only-one-open-at-a-time,
->     outside-click, Escape, and a live update when a provider toggle changes the selection).
->     SW cache → v23. "Last updated" (needs dataset/job timestamp plumbed through to the render
->     config — bigger lift than a single slice) and the docs/help page are next.
->     ✓ **Slice 3 shipped (2026-07-17): the "make the ensemble legible" help page.** New
->     `docs/index.html#ensembles` section ("Ensembles & scientific honesty") spells out the
->     design rules the Ensemble chart and choropleth map already implement — median renders
->     bold as the common estimate while providers stay thin supporting evidence, the agreement
->     band is a literal (not decorative) confidence signal, a reference series is context that
->     never joins the estimate, no-data is shown (hatched) rather than guessed — and documents
->     the ⓘ Sources popover + Download CSV controls from slices 1–2, with a pointer to the
->     Viridis View demo pack as a worked example. Linked from the docs nav bar. "Last updated"
->     (needs dataset/job timestamp plumbed through to the render config) remains, tracked
->     separately as it's a bigger lift than a doc slice.
->     ✓ **Slice 4 shipped (2026-07-17): "Last updated" in the Sources popover.** `Studio.buildHtml`
->     (`app/exporters.js`, the one place the live builder preview AND every static export funnel
->     through) resolves each data access's linked workspace dataset and stamps its `updatedAt`
->     into a sibling global, `window.STUDIO_DA_META` — kept OUT of `spec.cda.dataAccesses` itself
->     so this derived, point-in-time value never gets saved back into a dashboard's persisted
->     spec. A job run already bumps its materialized output dataset's `updatedAt` on every
->     mutation (existing `Workspace.put` behavior — no new plumbing there), so this is exactly
->     "when this panel's data was last (re)loaded," matching the annual-refresh model V8 built.
->     `studio-render.js`'s `renderPanel` reads it per panel (`daLastUpdated(ch.da)`) and passes
->     `lastUpdated` into both the choropleth and ensemble render configs; `studio-charts.js`
->     appends a shared "Last updated <date>" line to both Sources popover bodies, omitted
->     entirely when the DA has no linked dataset (samples, direct connectors, synthetic specs) —
->     same "omit rather than guess" convention as the no-data hatching. Docs updated
->     (`docs/index.html#ensembles`) to mention the line. **V9 is now feature-complete — the
->     Viridis View track (V6→V9) Kevin handed off on 2026-07-16 is DONE.**
->
-> Open questions parked for Kevin: (a) confirm /app/ move + redirect posture; (b) MapLibre vendor
-> size (~850KB) is fine as vendored no-build code?; (c) HUC8/CRD geometry sourcing priority;
-> (d) whether Explore replaces "New dashboard" as the Simple-mode default entry.
+### ✅ VIRIDIS VIEW / GEO-ANALYTICS TRACK (2026-07-16) — **ARCHIVED (2026-08-07, N1)**
+> V1→V9 all shipped; the track's own closing line calls it DONE (V9 feature-complete
+> 2026-07-17). Moved verbatim to
+> [`docs/BACKLOG-ARCHIVE.md`](docs/BACKLOG-ARCHIVE.md#viridis-view-geo-analytics-track),
+> including the RFP framing worth re-reading before any geo work (the median IS the product;
+> the provider spread is uncertainty to show honestly, not noise to hide).
+> **The only non-shipped thing in it** is four questions parked for Kevin — /app/ redirect
+> posture · MapLibre's ~850KB vendor size · HUC8/CRD geometry sourcing priority · whether
+> Explore replaces "New dashboard" as the Simple-mode default entry. His call, not the lane's.
 
-### ★★★ POST-OVERHAUL BACKLOG (2026-07-13, user-directed — do these FIRST when the loop resumes)
-> The adapters → connections → datasets overhaul (see GOAL block) landed its baseline in one long
-> interactive session (Polecat default look · app/sources/ adapter layer · Connections/Datasets/
-> Dashboards sections · manager-style rail · workspace-backend sync w/ secrets · full Pentaho removal).
-> These are the follow-ons, in priority order:
-> 1. ✓ **Dashboards into the workspace store (shipped 2026-07-15, steward PR).** The catalog now
->    lives in the Workspace `dashboards` table (rows keep the recents-entry shape {id, ts, spec,
->    workbookId?} + pinned/pinnedAt flags + promoted title/name columns); pins ride ON the row and
->    workbooks moved into workspace SETTINGS, so the remote backend mirrors the whole catalog.
->    One-time boot migration (meta-stamped so an emptied catalog is never re-imported; legacy
->    studio-recents/pins/workbooks kept untouched as a frozen local backup). Home/Dashboards
->    repaint on remote pulls via Workspace 'replaced'. Fixed alongside (recurring clear-data gap):
->    "Clear local data" never wiped `analytics.workspace.v1` (connections/datasets survived a
->    "full" reset since the overhaul!) nor `studio-whatsnew-seen` — both added + tested.
-> 2. **More data adapters** (user: "we will add many more"): ✓ **PostgreSQL via PostgREST (shipped
->    2026-07-15** — `app/sources/postgrest.js`, data-only, url/token/Accept-Profile fields,
->    kind:'table' datasets like Supabase since it IS the same protocol; mock-served end-to-end
->    tests incl. the full connection→dataset→{{params}} run path). ✓ **CSV/JSON file-drop
->    (shipped 2026-07-16** — `app/sources/localfile.js`, kind:'file' datasets whose content
->    rides INSIDE the row (offline + mirrors with the workspace; ~2MB cap pointing bigger data
->    at DuckDB remote-file), drop-zone editor branch, RFC4180 CSV w/ delimiter sniff + typed
->    numbers, JSON array-of-objects w/ key-union columns; NOTE: went inline-content instead of
->    File System Access API handles — handles can't persist in localStorage, are Chromium-only,
->    and re-prompt permissions; an FSA "link live file" variant can layer on later). ✓ **Google
->    Sheets (shipped 2026-07-16** — `app/sources/gsheets.js` via the gviz endpoint for
->    link-shared sheets: kind:'sheet' datasets (tab + optional tq query, {{params}} flow into
->    where-clauses), formatted dates, friendly access_denied hint; mock-gviz end-to-end tests.
->    ✓ **FOLLOW-UP shipped (v610, sw v247, 2026-07-27, steward): private-sheet OAuth via Sheets
->    API v4 + bearer token, the BigQuery pattern — see DONE for the full writeup. A tab reads as a
->    plain values range on the token path (no tq query language in v4); the exported-runtime
->    redaction gap this closed too (gsheets had no secret field at all until now) is documented
->    in the same DONE entry.**)
->    ✓ **Amazon Redshift via the Data API (shipped 2026-07-18, steward PR)** — `app/redshift.js`
->    (ExecuteStatement → poll DescribeStatement → paginated GetStatementResult, cluster or
->    Serverless workgroup target, optional VPC-PrivateLink `endpoint` override) plus a new reusable
->    `app/sources/sigv4.js` AWS SigV4 request signer (pure WebCrypto, no dependencies) — unlike
->    Snowflake/Databricks/BigQuery's bearer tokens, every Redshift Data API call must be
->    individually signed with an access key/secret (+ optional STS session token), so this adapter
->    needed its own signing primitive first. Tested against a real mock Data API server (async
->    poll + NextToken pagination exercised end-to-end) plus dedicated crypto-vector tests (RFC 4231
->    HMAC-SHA256 test case 1, the well-known SHA-256('') digest) verifying the signer itself is
->    correct — a mock server can't validate a signature is genuinely right, only that some
->    signature-shaped header showed up. New `redshift` icon (spectral lines spreading — the
->    astronomical redshift the name references). SW cache → v37. 11 new tests, suite 1584/1584.
->    Still to do: Azure SQL / Fabric, MotherDuck (MotherDuck in particular needs a proprietary WASM
->    client, not a plain REST endpoint like the others — a vendoring-size/license question for
->    Kevin before attempting it, same class of question as the MapLibre one still open on the
->    Viridis track above). Each = one file implementing the contract in app/sources/schema.js +
->    registerSource + wizard fields + tests against a mock.
-> 3. ✓ **Exported-runtime support for the four credential-based direct connectors shipped
->    (2026-07-19, steward PR).** Snowflake/Databricks/BigQuery/Generic SQL join DuckDB/SQLite's
->    existing exported-runtime path (v318): `exporters.js` redacts each DA's secret field before
->    it's ever embedded in the exported HTML (stamping `needsSecret` with the field name), and
->    `studio-render.js`'s `PDC.cda` dispatch prompts for it once at open — in-memory only, never
->    saved — exactly the "credentials prompted at open (never embedded)" design this item called
->    for. `app/model.js`'s now-obsolete "no live query path" warning for these four kinds is
->    retired. SW cache → v45. 13 new tests. This item's other half (bundling connection-bound
->    *dataset* adapters — Turso, Redshift, etc. — for a shipped .html to run live against,
->    distinct from the legacy direct-DA-with-embedded-cfg style this slice covered) started
->    2026-07-26 (v589, steward PR): `redactSecrets` now also resolves `da.connectionId` against
->    the Workspace connection at export time (only available in the builder) and stamps
->    `da.connAdapter`/a redacted `da.connCfg`; `PDC.cda` gained a parallel `CONN_ENGINES` dispatch.
->    ✓ **PostgreSQL/PostgREST done too (shipped 2026-07-26, v590, sw v227, steward — second
->    connection-bound adapter).** Same treatment as Turso, with two adapter-shape wrinkles worth
->    noting for whoever does the next one: (1) PostgREST's token is OPTIONAL (anonymous access is
->    a supported, common config), so `redactSecrets` only stamps `needsSecret` when a connection
->    actually has one set — an anonymous connection's exported dashboard never pops a pointless
->    credential prompt. (2) `dsToDA` (app/studio.js) always sets a connection-bound DA's
->    `da.kind:"sql"` and clobbers `da.sql`/`da.query` to the SQL-editor shape regardless of the
->    underlying dataset's real kind — so for a `kind:"table"` PostgREST dataset, the real
->    `{table,query}` pair only survives on `da.dataset` (the original dataset def, JSON-cloned
->    along for free by `redactSecrets`). `CONN_ENGINES` gained a `dataset(da)` shaper per adapter
->    (Turso's reads `da.sql`/`da.query`, unchanged; PostgREST's reads `da.dataset.table`/
->    `da.dataset.query`) so the dispatch call passes the right shape to each adapter's own
->    `queryData(cfg, dataset)` contract. `app/sources/postgrest.js`'s top-level
->    `Studio.registerSource(...)` call is now guarded (it would throw in the exported bundle,
->    which never loads `registry.js`) and always sets `Studio.postgrestSource` too, mirroring
->    `Studio.tursoSource`'s convention — in-app registration behavior is unchanged. 9 new tests
->    (redact-with-token, redact-anonymous — the optional-token case Turso doesn't have, lean
->    bundling both ways, and a full dispatch round-trip proving the query goes out with
->    `da.dataset`'s table/query, not `da.sql`/`da.query`). (app/sources/postgrest.js,
->    app/exporters.js, app/studio-render.js, app/studio.js, app/viewer.js, docs/index.html,
->    js/changelog.js, sw.js, tests/run.js) ✓ **Supabase done too (shipped 2026-07-26, v592, sw
->    v229, steward — third connection-bound adapter).** Same `{table,query}` dataset shape as
->    PostgREST (Supabase's data plane IS PostgREST); its secret field is the anon/publishable
->    `key`, effectively always required (no supported anonymous-key mode, unlike PostgREST's
->    optional token). `app/sources/supabase.js`'s `queryData` carried the identical
->    `Studio.WS.postgrestQueryData` latent bug the v591 regression fix above had just found and
->    fixed for `postgrest.js` — closed it up front with its own self-contained copy rather than
->    shipping the throw. See STATUS.md's DONE entry for the full writeup. ✓ **STALE NOTE
->    CORRECTED (2026-07-27, steward): this used to read "Redshift, Google Sheets, and local files
->    still have no exported-runtime path," but that was already out of date — Google Sheets
->    (v593), local files (v594), and Redshift (#307) each shipped the same one-adapter-at-a-time
->    CONN_ENGINES treatment earlier and this file was never updated to say so. All six
->    connection-bound adapters (Turso/PostgREST/Supabase/Google Sheets/local files/Redshift) have
->    had exported-runtime support since 2026-07-26 — backlog item 3 is fully closed, nothing left
->    here.**
-> 4. **Terminology sweep**: ✓ "My Data Sources" → "This dashboard's datasets" (already shipped, landed
->    silently in the 2026-07-14 UX sprint's dataset-first Data panel work) and ✓ sample catalog groups
->    labeled "Samples" (already shipped, same era) — both confirmed still live in `app/studio.js` as of
->    2026-07-17. Still open: data-source builder → dataset editor naming (cosmetic, code-comment-only
->    today — low value). Still open, but **NOT as simple as it looks**: rename the internal `--pentaho`
->    CSS var → `--brand`. Investigated 2026-07-17 — `--pentaho` is actually TWO independent variables
->    that happen to share a name: (A) the Studio builder-chrome's own accent in `app/studio.css`
->    (~40 refs), already bridged to the shell's `--brand` token one line down (`--brand:var(--pentaho)`)
->    — safe, mechanical to fold together; (B) the exported-dashboard/preview content's own theming
->    primitive (`vendor/pdc-ui.js`/`.css` — PRISTINE, cannot rename — plus `exporters.js`,
->    `studio-charts.js`, `studio-render.js`, every static exported `.html`, and the `spec.themeColor`
->    → `:root --pentaho` contract tests around H103) which has nothing to do with the shell bridge and
->    must stay `--pentaho` forever (or get its own, much bigger, separately-scoped rename). Only (A)
->    (~40 of the ~252 total refs) is safe to fold into `--brand`; (B) is NOT "zero user impact" busywork,
->    it's product-critical export theming under RFP deadline pressure — do not attempt without care to
->    keep the two contexts separate, and ideally with a screenshot-diff of exported dashboards before/after.
->    ✓ **Chrome call-sites migrated (2026-07-18, steward PR).** Re-investigated (A): it's bigger than the
->    ~40-ref estimate (`app/studio.css` alone now carries 150 `--pentaho` occurrences) AND `app/studio.js`
->    interleaves genuine chrome uses (connection-wizard card accents, the visual SQL builder's ON/AS
->    labels + Generate-SQL button) with (B) export/dashboard-theme uses (`resolveThemeTokens`'s
->    `tk["--pentaho"]`, the example-thumbnail `exAccent`, the per-dashboard accent override) in the SAME
->    file — a blind rename of the CSS definitions would silently break whichever context wasn't touched.
->    Shipped the fully safe slice instead: every unambiguous chrome-only call site (`app/tutorial.js`,
->    `app/welcome.js`, `app/gate.js`, `app/palette.js`, `app/sources/local.js`'s local-adapter accent,
->    and the confirmed-chrome lines in `app/studio.js` — connection wizard/card accents + the SQL builder
->    labels/button) now reads `var(--brand, …)` instead of `var(--pentaho, …)`. Zero risk: `studio.css`
->    still defines `--pentaho` in every theme block and still bridges `--brand:var(--pentaho)`, so every
->    touched element resolves to the exact same computed color as before — confirmed via screenshot
->    (Connections + New-connection wizard, light + dark) and the full suite (1568/1568, unchanged).
->    `studio.css`'s own ~150 `--pentaho` definitions/usages and the true (B) export-context refs are
->    UNTOUCHED and stay exactly as scoped above.
->    ✓ **`studio.css`'s definitions folded to `--brand` directly (2026-07-18, steward PR).** All six
->    theme blocks (Classic/Polecat/Fleet Modern × light/dark) now define `--brand` instead of
->    `--pentaho`, and every `var(--pentaho…)` usage inside `studio.css` (chrome-only, confirmed —
->    exports never load this stylesheet, only `vendor/pdc-ui.css`) reads `var(--brand…)` too. The
->    shell-token-bridge's `--brand:var(--pentaho)` alias is gone — `--brand` IS the shell's canonical
->    name now, converged with the Studio's own chrome accent, no indirection left. `--pentaho` no
->    longer exists anywhere in `studio.css`; the true (B) export-context variable (`vendor/pdc-ui.css`/
->    `.js`, `app/exporters.js`, `app/studio-charts.js`, `app/studio-render.js`, the 5 export-token refs
->    in `app/studio.js`, `app/model.js`'s `DASHBOARD_THEMES`) is entirely untouched and keeps the
->    `--pentaho` name forever, exactly as scoped. Updated the handful of test assertions that read the
->    chrome `--pentaho` custom property directly (the shell-bridge check + the Z10 app-theme-switching
->    checks) to read `--brand` instead — same computed-color rigor, new name. SW cache → v35. This
->    closes out post-overhaul backlog item 4's terminology sweep entirely (both the JS call-site slice
->    and this CSS-definition slice are now shipped). Test suite 1569/1569 (1 new check).
-> 5. **Dataset delight**: schema browser per connection (list tables/columns via adapter), scheduled
->    refresh hints. ✓ **Result caching with TTL shipped (2026-07-18, steward PR):** the DA
->    inspector's "Cache" section (Enabled checkbox + Duration seconds) dated back to the Pentaho
->    CDA model and was read by nothing — toggling it had zero effect anywhere. Wired it up in
->    `app/studio.js`: reopening a DA's inspector within its cache duration now shows the last
->    successful "Run live" result instantly (labeled "cached", in-memory/page-lifetime only — no
->    new localStorage key, so no "Clear local data" gap) instead of falling back to sample data;
->    an explicit "Run live" click always queries fresh and refreshes the cache. Cache key = DA id +
->    resolved params (dataset defaults ← dashboard template vars ← inspector param inputs), shared
->    via a new `resolveDsParams()` helper so all 7 live-query branches (connection-bound + duckdb/
->    sqlite/snowflake/databricks/bigquery/http) write the same cache their mount-time check reads.
->    Disabling Cache still falls back to sample on reopen. SW cache → v32. 2 new tests, suite
->    1562/1562. ✓ **Dataset lineage chips
->    shipped (2026-07-17, steward PR):** each row in
->    the Datasets catalog now carries a "↪ N dashboards" badge (`dsxLineage()` in `app/studio.js`,
->    scans every saved workspace dashboard's `spec.cda.dataAccesses` for a matching `datasetId` —
->    the same link `dsToDA` stamps when a dataset is dropped onto the canvas) whose hover title
->    names the referencing dashboards — the "blast-radius view" the backlog asked for. Deleting a
->    dataset that's in use now says so in the confirm prompt (which dashboards, and that they fall
->    back to their own frozen self-contained copy rather than silently going stale — the real
->    behavior per `runData`'s `da.datasetId`-first resolution). 3 new tests. Test suite 1549/1549.
->    ✓ **Scheduled refresh hints shipped (2026-07-18, steward PR):** a job (Jobs section, Viridis V8)
->    can now opt into a **Refresh reminder** (weekly/monthly/quarterly/yearly, optional select in the
->    job editor) — the Jobs list flags it with an amber "⏰ Refresh due" badge once `Date.now()` passes
->    `lastRun.at + refreshEveryDays` (a job with a reminder that's never been run counts as due too,
->    same as an overdue one), or a quiet "Refreshes in N days" note otherwise. Deliberately a HINT, not
->    real scheduling — the app is static/client-side with no server to run a cron, so it only
->    (re)computes while the Jobs list happens to be open, matching the annual-refresh model V8 was
->    built for. `jobRefreshBadge()` in `app/studio.js`, no schema bump (`refreshEveryDays` rides the
->    existing `jobs` row's free-form `data` blob, same as every other job field). SW cache → v36. 4 new
->    tests, suite 1573/1573. This closes out the "scheduled refresh hints" half of item 5.
->    ✓ **Schema browser shipped for the warehouse adapters (2026-07-18, steward PR):** a new,
->    optional `adapter.listSchema(cfg)` contract method (`app/sources/schema.js`) runs an ANSI
->    `information_schema.columns` SELECT through the SAME `engine.query()` bridge `queryData`
->    already uses, grouped client-side into a `{tables:[{schema,name,columns:[{name,type}]}]}`
->    tree — no new capability surface, just a second query shape (`app/sources/data-adapters.js`).
->    Wired for the three warehouse adapters where an unqualified-or-database/catalog-qualified
->    query is reliable with no extra input beyond what the connection form already collects:
->    Snowflake (`"<database>".information_schema.columns` when a database is set),
->    Databricks (`` `<catalog>`.information_schema.columns `` when a catalog is set), Redshift
->    (unqualified, `pg_catalog`/`information_schema` excluded). The Connections wizard
->    (`app/studio.js`) gains a "Browse schema" button next to Test connection whenever
->    `adapter.listSchema` exists, opening a filterable, per-table `<details>` tree of columns +
->    types (`app/studio.css`). BigQuery (its `INFORMATION_SCHEMA` is dataset-qualified — a
->    different query shape) and the remaining adapters (generic SQL/HTTP, DuckDB single-file,
->    SQLite, PostgREST — each with its own introspection story, PostgREST's OpenAPI root doc vs.
->    a raw SQL dialect) are follow-ups; adapters without the capability simply don't show the
->    button. SW cache → v38. 9 new tests (a real end-to-end pass against the Redshift mock Data
->    API's new information_schema.columns response, monkey-patched query()-capture checks proving
->    the exact Snowflake/Databricks SQL text and case-insensitive grouping, and a full wizard UI
->    pass — button visibility, rendered tree, filter), suite 1593/1593. This closes out
->    post-overhaul backlog item 5 entirely.
->    ✓ **PostgREST follow-up shipped (2026-07-19, steward PR):** the "Browse schema" button now
->    also appears for PostgreSQL (PostgREST) connections — `listSchema()` (`app/sources/
->    postgrest.js`) needed no `information_schema` query at all: PostgREST already answers `GET /`
->    with a full OpenAPI document (the same 200 `testData()` already checks for), and each table's
->    columns live right there at `definitions.<table>.properties.<column>` (a Postgres type name
->    riding `format`, falling back to the plainer JSON-Schema `type`). The wizard panel
->    (`renderSchemaPanel` in `app/studio.js`) is fully adapter-agnostic already, so this was a
->    one-file change. 4 new tests (a real end-to-end pass against a mock PostgREST's OpenAPI doc,
->    a rejected-request in-band-error case, and a full wizard UI pass proving the same "Browse
->    schema" panel renders PostgREST's tables too), suite 1599/1599. SW cache → v40. Genuinely
->    still open: BigQuery and the three remaining adapters (generic SQL/HTTP, DuckDB, SQLite).
->    ✓ **BigQuery follow-up shipped (2026-07-19, steward PR):** BigQuery's `INFORMATION_SCHEMA.COLUMNS`
->    is dataset-qualified, unlike the three ANSI-SQL warehouses above, so `bigquerySchemaSql()`
->    (`app/sources/data-adapters.js`) queries it unqualified when the connection has a default
->    dataset set (the same `defaultDataset` the live-query path already sends BigQuery, per
->    `app/bigquery.js`'s `runQuery`), or falls back to the project-and-region-qualified view
->    (`` `project`.`region-<location>`.INFORMATION_SCHEMA.COLUMNS ``, defaulting to `region-us`)
->    listing every dataset in that region when no default dataset is configured. 2 new tests
->    (query() monkey-patched the same way the Snowflake/Databricks checks already do, since
->    BigQuery has no configurable endpoint field for a mock HTTP server), suite 1601/1601. SW
->    cache → v41. Genuinely still open: the three remaining adapters (generic SQL/HTTP, DuckDB,
->    SQLite), each with its own introspection story.
->    ✓ **DuckDB + SQLite follow-up shipped (2026-07-19, steward PR):** neither adapter speaks
->    `information_schema`, so each grew its OWN `listSchema()` instead of an ANSI SQL string.
->    DuckDB (`app/duckdb.js`) — a connection is always exactly one registered file, so the "tree"
->    is a single table, named after the file (not the internal `t` view alias), described via the
->    same `DESCRIBE SELECT * FROM t` query `testConnection()` already runs. SQLite
->    (`app/sqlitehttp.js`) — a `.sqlite` file can hold many tables, so it lists ALL of them via
->    `sqlite_master` (not just the one `cfg.tableName` a dataset happens to be bound to), then
->    `PRAGMA table_info` per table. Both go through their adapter's own `query()` (not the private
->    `withView`/`withDb` connection helpers) so tests can monkey-patch them the same way the rest
->    of each connector's suite already does. `app/sources/data-adapters.js`'s `dataAdapter()`
->    learned to wire an engine's own `listSchema` in directly when no ANSI `schemaSql` is given,
->    so the two new adapters needed no wizard/render changes — `renderSchemaPanel`/the "Browse
->    schema" button are adapter-agnostic already. 2 new tests, suite 1603/1603. SW cache → v42.
->    **This closes out post-overhaul backlog item 5's schema browser entirely** — the only
->    connector left without the button is Generic SQL/HTTP, which genuinely has no reliable
->    dialect or catalog to introspect (an arbitrary JSON API, not necessarily even SQL).
-> 6. **Workspace polish**: ✓ **Saved views for the Datasets list shipped (2026-07-18, steward
->    PR).** A search + adapter/tag pill combination can be named and kept as a chip
->    (`dsxLoadViews`/`dsxSaveViews`/`dsxApplyView` in `app/studio.js`) — click the chip later to
->    restore the exact same search text + filters; each chip carries a small trash button
->    (mirrors the Dashboards section's `.wb-chip-wrap`/`.wb-chip-del` workbook-chip pattern
->    exactly, including its already mobile-tested CSS — no new styles needed). Storage rides in
->    Workspace SETTINGS (`datasetViews`, the same schemaless bag `workbooks` already uses), so
->    views sync with the rest of the workspace and need no new localStorage key or "Clear local
->    data" entry — sidesteps the exact "new key, forgot Clear local data" gap the Track L sweep
->    notes above found repeatedly. ✓ **Same treatment for the Connections list shipped
->    (2026-07-18, steward PR):** `connLoadViews`/`connSaveViews`/`connApplyView` in
->    `app/studio.js`, identical chip UX, one axis narrower (adapter pill only — connections
->    aren't tagged); own `connectionViews` key in the same Workspace SETTINGS bag. 5 new
->    regression checks; suite 1560/1560. ✓ **Drag a dataset card straight onto Home to start a
->    dashboard shipped (2026-07-18, steward PR):** a Datasets-catalog row is now `draggable`,
->    carrying the same `{wsDataset}` payload the Studio canvas drop already accepts; dropping it
->    on Home's "Blank dashboard" tile opens a fresh dashboard seeded with a bar chart bound to
->    that dataset (reuses `addFromWorkspaceDataset` — same linked/self-contained-DA behavior as
->    the canvas and library-chip paths). Dashed drag-over highlight matches the canvas drop zone.
->    SW cache → v33. 2 new regression checks. (Palette entries for the new sections landed with
->    the 2026-07-14 UX sprint.)
-> 7. **Organization at scale (user, 2026-07-14):** dashboards/datasets/connections "will start to
->    become very long lists" — needs favorites/pinning everywhere, grouping (maybe folders, maybe
->    tags — user unsure a tree is right), and cross-cutting views: see datasets by connection, by
->    adapter, by type; dashboards by group/workbook. Design one organizing model shared by all three
->    catalogs (the jobtracker pill/multiselect pattern is the seed) rather than three ad-hoc ones.
->    ✓ **Favorites/pinning shipped for Datasets + Connections (2026-07-18, steward PR):** the piece
->    of this item that needed no grouping-model decision yet — a `pinned`/`pinnedAt` flag on each
->    row, the exact shape the Dashboards catalog already uses, so pinned rows sort to the top of
->    their list ahead of the usual most-recently-updated order. A star toggle (`.cx-pin` in
->    `app/studio.css`, `toggleConnPin`/`toggleDsxPin` in `app/studio.js`) sits beside each row's
->    other actions and — unlike those hover-only actions — stays visible once a row is pinned, so
->    pinned status reads at a glance in a long list without hovering every row. 4 new tests. Test
->    suite 1568/1568. SW cache → v34. Still open (at the time): folders/tags grouping and the
->    cross-cutting by-connection/by-adapter/by-type views.
->    ✓ **Cross-cutting views confirmed/completed (2026-07-19, steward PR).** By-adapter pills
->    (Datasets + Connections) and dashboards-by-workbook (Home + Repository chip strips) were
->    already shipped in earlier slices — confirmed still live. Added the one missing piece:
->    Datasets gained a **by-connection** filter pill strip (same `wb-chip`/`cx-pill` pattern,
->    saved-view aware) so two connections sharing one adapter (e.g. two Postgres DBs) can be
->    narrowed to just one — previously only reachable via search. SW cache → v46; 4 new tests;
->    suite 1642/1642. Still open (at the time): folders/tags grouping (the design-ambiguous part
->    Kevin flagged as unsure about — a tree vs. tags vs. folders call) and an optional "by type"
->    (kind: sql/table/file/collection/sheet) facet if wanted later.
->    ✓ **Folders/tags grouping resolved via the 2026-07-21 DECISIONS LOCKED note (hybrid
->    folders + tags, see that section) and shipped across every object kind — see that note's own
->    slice history.** ✓ **The optional "by type" facet shipped (v586, sw v223, 2026-07-26,
->    steward — post-overhaul backlog item 7 is now fully done):** see DONE for the full writeup —
->    a fourth Datasets pill strip (SQL query/Table/Collection/File/Sheet), same multi-select/
->    saved-view shape as the other three.
->
-> **2026-07-14 UX sprint (interactive session, all landed, v349):** split topbar → slim app bar +
-> dashboard toolbar above the preview; inline title rename (no phantom "Observability" group);
-> Save/Open target the Dashboards catalog with .studio.json under Export; Data panel dataset-first
-> (＋New menu: dataset/connection/dashboard-only query; ¶Text → canvas empty state; samples fold
-> into one collapsible group); Settings toggle hides/reinstates ALL sample content (never deletes);
-> Tour → Settings + ⋯More; renderer info popup lists Datasets; +Workbook empty-name feedback;
-> command palette updated for the new sections.
+### ✅ POST-OVERHAUL BACKLOG (2026-07-13) — **ARCHIVED (2026-08-07, N1)**
+> Items 1–7 are all shipped — the last of them, the Datasets "by type" facet, landed v586 on
+> 2026-07-26. Moved verbatim to
+> [`docs/BACKLOG-ARCHIVE.md`](docs/BACKLOG-ARCHIVE.md#post-overhaul-backlog), together with
+> the 2026-07-14 UX sprint log at its foot. Nothing open.
 
-### ★★★ TOP PRIORITY — MOBILE IS BROKEN, FIX IT FIRST (user-requested 2026-07-02, with screenshots)
-> **Spend the next several consecutive runs on mobile — ahead of ALL Z-platform work — until the app is
-> genuinely usable on a real iPhone.** The user reports (and a 390×844 probe confirms) that mobile is
-> "wildly inoperable": no navigation, unreachable buttons, hidden panels, hidden footer. This is not a
-> polish item; core flows are dead on a phone. Supersedes/expands **Z9**.
->
-> **⚠️ WHY THIS STAYED BROKEN (process fix — read this):** the Playwright harness runs **headless Chromium,
-> which has NO browser toolbar**, so bottom-fixed bars render fine in tests while being **hidden behind iOS
-> Safari's bottom toolbar on a real phone**. DOM assertions passed; the app was still dead. So: (1) every
-> mobile slice MUST **save a screenshot at 390×844 and actually VIEW it** (Read the PNG) — do not trust
-> `display`/`classList` checks alone; (2) implement the standard iOS-safe patterns proactively (you can't
-> see the Safari toolbar in-sandbox, so code defensively); (3) **final sign-off needs the USER on a real
-> device** — after a coherent batch, ask them to re-check. Add a `tests/mobile-shot.js` helper that boots
-> at 390×844 (unlock the gate via `sessionStorage["studio-gate-ok"]="1"` in an init script) and dumps a
-> screenshot the loop reviews each run.
->
-> **CONFIRMED ROOT CAUSES (from the 390×844 probe — start here, don't re-diagnose from scratch):**
-> 1. **Left-rail section nav is `display:none` ≤900px** (Z1 scoped it desktop-only) → Home/Repository/
->    Studio/Settings are **unreachable on mobile**. FIX: make the rail a **slide-in left drawer** exactly
->    like the reference **relay.polecat.live** screenshot (brand at top; grouped section list; active item
->    highlighted; scrim over dimmed content; open via a hamburger button in the top bar AND edge-swipe;
->    close on scrim tap / Esc / section pick). This is the centerpiece the user explicitly asked for.
-> 2. **Top-action buttons overflow the 390px bar** — `Examples/Open/Save` and even the `⋯ More` escape
->    hatch (`#btnMore`) render **off-screen to the right** (`onScreen:false`), so New/Examples/etc. "don't
->    work" because they can't be reached. FIX: on phones, keep the bar to a few essentials and move the
->    rest into the drawer and/or a **bottom action bar**; guarantee every action is reachable from an
->    on-screen control. (The M7 phone-More items exist but the button itself is off-canvas — fix that.)
-> 3. **`#mobile-tabs` (Library·Canvas·Inspector bottom nav) AND `#statusbar` (footer/changelog) are
->    bottom-`fixed` and get hidden behind iOS Safari's toolbar** — they render on-screen in headless
->    Chromium but the user sees NEITHER on device. This is the killer bug behind "panels don't show" (the
->    Library/Inspector are off-canvas drawers reachable ONLY via those hidden tabs) and "can't see the
->    footer." FIX: use `100dvh` (not `100vh`), add `padding-bottom: env(safe-area-inset-bottom)` and
->    `bottom: env(safe-area-inset-bottom)` to the fixed bars, consider `-webkit-fill-available`, and make
->    sure the tab bar and status bar don't overlap each other (both currently sit at bottom:0).
-> 4. **Surface the update footer/changelog on mobile** — per the user, if the left drawer is working, put
->    the "What's new"/changelog access there (see the reference relay/app.polecat.live "What's new" panel:
->    a clean full-screen sheet with search + Close). Fold the footer's changelog into the drawer or a
->    reachable sheet rather than the bottom-fixed strip that Safari hides.
->
-> **TARGET UX (match the polecat family, per the attached screenshots):** a slide-in left drawer for
-> section nav (Relay-style), a persistent reachable bottom bar (or drawer) for Library/Canvas/Inspector,
-> every top action reachable, and a full-screen "What's new"/help sheet. Sequence it one shippable,
-> screenshot-verified slice per run:
-> **(m-a) ✓ DONE (v181):** rail → mobile slide-in drawer + hamburger + scrim, and sections
-> now switch full-screen on mobile (shell.js no longer force-pins Studio). `app/shell.js` injects
-> `#mobileNavBtn`; `app/studio.css` turns `#railNav` into a fixed off-canvas drawer ≤900px (Relay-style,
-> full labels, safe-area padding); scrim / Esc / section-pick close it. Verified visually at 390×844
-> (drawer open + Repository full-screen) + 6 tests. **NOTE for m-c:** the Repository section's data-source
-> cards overflow horizontally on a phone — fix in the panel-ergonomics slice.
-> **(m-b) ✓ DONE (v182):** root cause was `#app{height:100vh}` — iOS Safari's 100vh is the LAYOUT viewport
-> (as if the toolbar were hidden), taller than the real visible area while the toolbar shows; with
-> `body`/`html` overflow clipped and nothing to scroll, that gap silently stranded `#mobile-tabs` +
-> `#statusbar` (the last two flex children of `#appMain`) below the fold. Fixed: `#app{height:100vh;
-> height:100dvh}` (100dvh tracks the real visible area live as the toolbar shows/hides; 100vh stays as the
-> no-dvh-support fallback), `viewport-fit=cover` added to `<meta viewport>` (required for
-> `env(safe-area-inset-*)` to resolve), and `#statusbar` (the true bottom-most element) padded with
-> `env(safe-area-inset-bottom)` at phone width. New `tests/mobile-shot.js` screenshot helper (390×844, iPhone
-> UA) for future slices to actually view, not just DOM-assert. 3 new regression checks guard the fix's
-> source (headless Chromium has no toolbar, so it can't reproduce the bug itself). **Still needs a real-device
-> check from the user to fully close out.** Test suite 898/898.
-> **(m-c) ✓ DONE (v183):** found and fixed the SAME "later same-selector media rule silently wins"
-> pattern from m-b in three more places: (1) `#topbar{padding-left:52px}` (hamburger clearance) was
-> clobbered back to `12px` by a later, unrelated `#topbar{padding:0 12px}` rule — the brand wordmark
-> rendered UNDER the hamburger; fixed by folding the 52px clearance into that later rule instead of a
-> separate earlier one (single source of truth). (2) Even after hiding secondary buttons, the remaining
-> essentials still overflowed a 390px bar and `#btnMore` (escape hatch to every other action, including
-> the phone-only Examples/Open/Save/Sign out/Clear-data items) scrolled fully off-canvas with zero
-> on-screen cue — pinned it `position:fixed` top-right (mirrors `#mobileNavBtn`'s treatment) so it's
-> ALWAYS reachable regardless of scroll position, with an opaque background so it doesn't go
-> illegible over whatever's scrolled beneath it. (3) The SAME padding-top clobber hit `.home-wrap`,
-> `.repo-wrap`, and `.settings-wrap` too — their `≤640px` rules reset `padding-top` back to `28px`,
-> so **all three** section headings rendered under the hamburger on phones (not just tablets); fixed
-> by keeping `padding-top:60px` in those phone rules. Also fixed **Repository data-source card
-> horizontal overflow** (17px past the viewport edge) — a flex row with no `min-width:0` blocked
-> `text-overflow:ellipsis` from ever kicking in on a long data-source id, forcing the whole
-> 100%-wide card wider than its column. 11 new regression checks. Test suite 906/906.
-> **(m-d) ✓ DONE (v184):** `#mobile-tabs` (Library·Canvas·Inspector) was styled `z-index:25` with
-> no explicit `position` set — z-index is a no-op on statically positioned elements, so it never
-> actually applied. `#mobile-scrim` (z-index:35, covers the full viewport whenever a drawer is
-> open) sat on top and intercepted every tap on the tab bar, silently turning a one-tap
-> Library→Inspector switch into two (dismiss, then re-tap) even though the tab-switch JS already
-> supported jumping directly between drawers. Fixed with `position:relative;z-index:37`. Panel
-> touch ergonomics (always-visible ⧉/×/zoom actions, 36-40px targets under `@media(pointer:coarse)`)
-> were already handled by prior M3 work and shared by the live preview — verified still correct,
-> no changes needed there. 3 new regression checks. Test suite 909/909.
-> **(m-e) ✓ DONE (v185):** audited "What's new"/changelog + Help reachability on mobile — both were
-> already largely working once m-b's `100dvh` fix landed (the footer/Changelog button is on-screen
-> at 390px; Help is present and reachable in the m-a drawer). The one real gap against the reference
-> "What's new" sheet design: the changelog popup had no explicit dismiss control (only tap-outside /
-> Escape, awkward on a full-width phone sheet with no obvious "outside"). Added a visible ✕ Close
-> button (36px tap target at ≤640px) wired to the same close path as tap-outside/Escape. 5 new
-> regression checks (✕ present + closes it on desktop, footer button on-screen, ✕ on-screen + phone
-> tap-target size, Help on-screen in the drawer — all at 390px). Test suite 914/914.
-> **(m-e follow-up) ✓ DONE (v186):** went further on the same gap — the popup now stretches into a
-> true near-full-screen sheet on phones (clears the topbar above and the tab bar/status bar below,
-> instead of a small floating box that read as empty space) and the outside-tap dismiss now also
-> binds `touchstart` (it previously only bound `mousedown`, which mobile Safari doesn't reliably
-> synthesize from a touch tap — headless Chromium always looked fine, masking the gap). 2 new
-> regression checks (sheet fills most of the viewport; ✕ actually dismisses it).
-> **All of m-a through m-e are now shipped and code-level verified.** Per the process note above,
-> headless Chromium cannot reproduce the original iOS-toolbar bug, so **the mobile track needs a
-> real-device check from the user next** — ask them to reload analytics.polecat.live on an actual
-> iPhone and confirm: the hamburger drawer, all bottom bars/footer visible without scrolling, every
-> topbar action reachable, and the changelog/Help sheets. Only pick up further mobile polish (or a
-> new m-f) once that confirms the fix actually lands on-device, or if the user reports something
-> still broken.
-> Keep the desktop experience untouched (scope changes to `≤900px` / touch). Update `docs` + STATUS each slice.
+### ✅ MOBILE TRACK (2026-07-02) — **ARCHIVED (2026-08-07, N1)**
+> m-a through m-e are all shipped and code-level verified. Moved verbatim to
+> [`docs/BACKLOG-ARCHIVE.md`](docs/BACKLOG-ARCHIVE.md#mobile-track).
+> **Still required reading before ANY mobile slice** (kept in the archive, flagged here):
+> the Playwright harness runs headless Chromium, which has NO browser toolbar, so a
+> bottom-fixed bar passes every DOM assertion while sitting under iOS Safari's bottom
+> toolbar on a real phone. Save a screenshot at 390×844 and actually LOOK at it.
+> **The one live tail:** the track wants a real-device check from Kevin before any further
+> mobile polish is picked up.
 
 ### ★★ HIGH PRIORITY — Visual refresh to the fleet's modern look + dashboard version history (user-requested 2026-07-02)
 > Do this **right after the mobile track**, ahead of the general Z platform backlog. Two user asks:

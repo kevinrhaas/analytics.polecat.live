@@ -613,11 +613,15 @@
   // loads this file at all, so a plain <a target="_blank"> is enough; no JS
   // routing needed.
   function viewerUrl(id) { return "app/viewer.html?dash=" + encodeURIComponent(id); }
+  // AUD-06 slice 6: mark every TERM, not the raw query string. The feed matches through
+  // Studio.catalogSearch now (terms ANDed in any order), so a hit for "panel export" has
+  // no literal "panel export" in it to mark — highlighting the whole query would leave
+  // the matched entry looking like a false positive.
   function hlq(text, q) {
     var s = esc(String(text == null ? "" : text));
-    if (!q) return s;
-    return s.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"),
-      function (m) { return '<mark class="hl">' + m + "</mark>"; });
+    var re = Studio.catalogSearch.markRe(q);
+    if (!re) return s;
+    return s.replace(re, function (m) { return '<mark class="hl">' + m + "</mark>"; });
   }
   // Changelog entry times are authored in UTC ("HH:MM UTC"); display them in US Central (CT)
   // so future UTC-authored entries convert automatically (handles CST/CDT via the IANA zone).
@@ -694,10 +698,11 @@
     function renderClEntries(q) {
       if (!log.length && !_clLoaded) { clEntries.innerHTML = '<div class="cl-empty">Loading…</div>'; return; }
       var needle = (q || "").trim().toLowerCase();
-      var matched = log.filter(function (e) {
-        if (!needle) return true;
-        return (vLabel(e) + " " + (e.title || "") + " " + (e.ts || e.date || "") + " " + (e.items || []).join(" ")).toLowerCase().indexOf(needle) >= 0;
-      });
+      // AUD-06 slice 6: the shared matcher — "v850 filter" finds the entry even though the
+      // version and the word live in different fields.
+      var matched = log.filter(Studio.catalogSearch.matcher(needle, function (e) {
+        return [vLabel(e), e.title, e.ts || e.date, e.items];
+      }));
       clEntries.innerHTML = matched.length ? matched.map(function (e) {
         var items = (e.items || []).map(function (x) { return "<li>" + hlq(x, needle) + "</li>"; }).join("");
         return '<div class="cl-entry' + (e === log[0] ? " cl-latest" : "") + '">' +
@@ -909,12 +914,14 @@
     var shownDA = 0;
     var stems = Object.keys(S.catalog);
     var stemWraps = [];
+    // AUD-06 slice 6: the shared matcher, built once for the whole library sweep.
+    var daMatch = Studio.catalogSearch.matcher(q, function (x) {
+      return [x.stem, x.d.id, x.d.columns, x.d.sql];
+    });
     stems.forEach(function (stem) {
       var entry = S.catalog[stem];
       var das = (entry.dataAccesses || []).filter(function (d) {
-        if (!d.authored) return false;
-        if (!q) return true;
-        return (stem + " " + d.id + " " + (d.columns || []).join(" ") + " " + (d.sql || "")).toLowerCase().indexOf(q) >= 0;
+        return d.authored && daMatch({ stem: stem, d: d });
       });
       if (!das.length) return;
       shownDA += das.length;
@@ -1158,10 +1165,10 @@
   function buildWorkspaceDatasets(list, q) {
     var all = (window.Studio.Workspace ? Studio.Workspace.all("datasets") : []);
     if (!all.length) return;
-    var dss = all.filter(function (d) {
-      if (!q) return true;
-      return (d.name + " " + (d.sql || d.table || d.collection || "") + " " + (d.columns || []).join(" ") + " " + (d.tags || []).join(" ")).toLowerCase().indexOf(q) >= 0;
-    }).sort(function (a, b) { return (a.name || "").localeCompare(b.name || ""); });
+    // AUD-06 slice 6: the shared matcher — same rules as the Datasets section's own search.
+    var dss = all.filter(Studio.catalogSearch.matcher(q, function (d) {
+      return [d.name, d.sql || d.table || d.collection, d.columns, d.tags];
+    })).sort(function (a, b) { return (a.name || "").localeCompare(b.name || ""); });
     if (!dss.length) return;
     var wrap = el("div", "lib-mine lib-wsds open");
     var h = el("div", "h");
@@ -1578,7 +1585,7 @@
       chip.onclick = function (e) { e.stopPropagation(); addFromDA(stem, d.id, chip.getAttribute("data-t")); };
     });
     c.querySelector('[data-a="edit"]').onclick = function (e) { e.stopPropagation(); dataSourceBuilder({ stem: stem, da: d }); };
-    c.querySelector('[data-a="del"]').onclick = function (e) { e.stopPropagation(); if (confirm("Delete data source “" + d.id + "” from the library?")) deleteDataSource(stem, d.id); };
+    c.querySelector('[data-a="del"]').onclick = function (e) { e.stopPropagation(); if (confirm("Delete data source “" + d.id + "” from the Data panel?")) deleteDataSource(stem, d.id); };
     c.addEventListener("dragstart", function (e) {
       e.dataTransfer.setData("text/plain", JSON.stringify({ stem: stem, da: d.id }));
       e.dataTransfer.effectAllowed = "copy";
@@ -1681,7 +1688,7 @@
       // 2 — identity row
       var row = el("div", "field row");
       var idF = field("Query id", input(draft.id, function (v) { draft.id = v.trim().replace(/[^a-zA-Z0-9_]+/g, ""); }, "e.g. salesByRegion"));
-      var grpF = field("Group", input(draft.stem, function (v) { draft.stem = v.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-") || "custom"; }, "library section"));
+      var grpF = field("Group", input(draft.stem, function (v) { draft.stem = v.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-") || "custom"; }, "Data panel section"));
       row.appendChild(idF); row.appendChild(grpF); wrap.appendChild(row);
 
       // 3 — query editor (type-aware; rebuilt on kind change)
@@ -2545,9 +2552,12 @@
   // Hide sections whose visible text doesn't contain the search query.
   function applyInspSearch(body) {
     var q = (_inspSearch || "").trim().toLowerCase();
+    // AUD-06 slice 6: the shared matcher over the section's visible text, so "axis label"
+    // reaches a section that says "Label on the axis".
+    var match = Studio.catalogSearch.textMatcher(q);
     var secs = body.querySelectorAll(".insp-sec");
     secs.forEach(function (sec) {
-      sec.style.display = (!q || sec.textContent.toLowerCase().indexOf(q) >= 0) ? "" : "none";
+      sec.style.display = match(sec.textContent) ? "" : "none";
     });
   }
 
@@ -2563,7 +2573,7 @@
       var swB = el("div", "simple-welcome-body");
       var swT = el("div", "simple-welcome-title"); swT.textContent = "Simple mode is active";
       var swD = el("div", "simple-welcome-desc");
-      swD.textContent = "Advanced options — annotations, drill-through, cross-filtering, and specialist chart types — are hidden. Drag a query from the library to add your first chart.";
+      swD.textContent = "Advanced options — annotations, drill-through, cross-filtering, and specialist chart types — are hidden. Drag a query from the Data panel to add your first chart.";
       var swBtn = el("button", "simple-welcome-btn"); swBtn.type = "button"; swBtn.textContent = "Switch to Advanced mode →";
       swBtn.onclick = function () { toggleSimpleMode(); };
       swB.appendChild(swT); swB.appendChild(swD); swB.appendChild(swBtn);
@@ -2571,8 +2581,8 @@
     }
     // K7: Getting started checklist — shown in Simple mode when the dashboard is empty
     // (0 panels and 0 KPIs). Gives newcomers a clear 3-step path:
-    //   1. Library ready (auto-checked — catalog is always available)
-    //   2. Add a panel (the key CTA — drag or drop from the library)
+    //   1. Data panel ready (auto-checked — the catalog is always available)
+    //   2. Add a panel (the key CTA — drag or drop from the Data panel)
     //   3. Export your dashboard (the end goal)
     // Disappears the moment the first panel or KPI is added.
     if (S.simpleMode && !sp.panels.length && !(sp.kpis && sp.kpis.length)) {
@@ -2591,16 +2601,12 @@
         }
         row.appendChild(bd); return row;
       }
-      // Step 1 is always done — the catalog library is ready the moment the app loads.
-      cl.appendChild(clStep(true, "Library ready", "Your catalog queries are in the left panel — browse or search for your data."));
-      // Step 2 is the primary CTA; the action button focuses the library on desktop
-      // or opens the library drawer on phone so the user knows exactly where to go.
-      cl.appendChild(clStep(false, "Add a View to the canvas", "Drag any query from the library onto the canvas to create your first chart.", "Open library", function () {
-        if (window.innerWidth <= 640) {
-          var t = document.getElementById("tabLib"); if (t) t.click();
-        } else {
-          var ls = document.getElementById("libSearch"); if (ls) { ls.focus(); ls.select(); }
-        }
+      // Step 1 is always done — the Data panel's catalog is ready the moment the app loads.
+      cl.appendChild(clStep(true, "Data panel ready", "Your queries and datasets are in the Data panel on the left — browse or search for your data."));
+      // Step 2 is the primary CTA; the action button focuses the Data panel's search on
+      // desktop or opens its drawer on phone so the user knows exactly where to go.
+      cl.appendChild(clStep(false, "Add a View to the canvas", "Drag any query from the Data panel onto the canvas to create your first chart.", "Open the Data panel", function () {
+        openDataPane();
       }));
       // Step 3 is the end goal — shown as upcoming to frame the overall journey.
       cl.appendChild(clStep(false, "Export your dashboard", "Use Export ▾ to download a self-contained HTML file you can host anywhere static pages live."));
@@ -2644,7 +2650,7 @@
       k8.appendChild(k8Tip("gear", "Configure your chart",
         "Click a View on the canvas to select it, then choose a chart type and bind your data columns in the inspector."));
       k8.appendChild(k8Tip("plus", "Add more panels or KPIs",
-        "Drag more queries from the library onto the canvas to expand your dashboard."));
+        "Drag more queries from the Data panel onto the canvas to expand your dashboard."));
       k8.appendChild(k8Tip("download", "Export when ready",
         "Use Export ▾ in the toolbar to download a self-contained HTML file you can host anywhere.",
         "Open Export ▾", function () {
@@ -2882,12 +2888,16 @@
     // button INSIDE the exported/preview header — confusing next to the app-level light/dark
     // control in the canvas-bar. Now a persisted per-dashboard option instead: "" (Light) is the
     // historical default; picking Dark bakes data-theme="dark" onto every export (see exporters.js).
-    var renderModeSel = select2pairs([["", "Light"], ["dark", "Dark"]], sp.renderMode || "", function (v) {
+    // N5b (Kevin's call, 2026-08-07): "Auto" joins them as an opt-in THIRD choice — the export
+    // carries no baked theme and matches whoever opens it (the surrounding page when it can read
+    // it, otherwise their OS light/dark). New dashboards still default to Light: a chameleon
+    // export is something an author chooses, not something that happens to them.
+    var renderModeSel = select2pairs([["", "Light"], ["dark", "Dark"], ["auto", "Auto (match the reader)"]], sp.renderMode || "", function (v) {
       sp.renderMode = v; refreshPreview();
     });
     renderModeSel.id = "dashRenderMode";
     sec.appendChild(field("Appearance", renderModeSel,
-      "Light or dark render for this dashboard's exported HTML — fixed per dashboard, replacing the old in-header toggle button."));
+      "Light or dark render for this dashboard's exported HTML — fixed per dashboard, replacing the old in-header toggle button. Auto bakes no theme at all: the dashboard follows whoever opens it (the page it's embedded in, or their system light/dark)."));
 
     var grpSel = select2(["Observability", "Governance & Privacy", "Storage & Cost", "Usage & People", "Data Integration", "Executive"], sp.group, function (v) { sp.group = v; syncHeader(); });
     sec.appendChild(field("Group", grpSel));
@@ -3095,7 +3105,7 @@
 
     // KPIs
     var ks = section(body, "KPI tiles", function () { addFromCurrentOrPrompt("kpi"); }, null, "builder", "grid");
-    if (!sp.kpis.length) ks.appendChild(hint("No KPI tiles. Add one from a query in the library, or click ＋."));
+    if (!sp.kpis.length) ks.appendChild(hint("No KPI tiles. Add one from a query in the Data panel, or click ＋."));
     sp.kpis.forEach(function (k, i) {
       ks.appendChild(rowItem("◧", k.label || "(metric)", k.da + " · " + k.valueCol,
         function () { select({ kind: "kpi", index: i }); },
@@ -3193,7 +3203,7 @@
       });
       ps.appendChild(tfBar);
     }
-    if (!sp.panels.length) ps.appendChild(hint("Drag a query onto the canvas, or use a ＋ chip in the library."));
+    if (!sp.panels.length) ps.appendChild(hint("Drag a query onto the canvas, or use a ＋ chip in the Data panel."));
     sp.panels.forEach(function (p, i) {
       var ic = (Studio.CHARTS[p.chart.type] || {}).icon || "▭";
       var pTags = p.tags || [];
@@ -3328,7 +3338,7 @@
       var libRow = el("div"); libRow.style.cssText = "display:flex;gap:8px;margin-top:6px";
       var libBtn = el("button", "btn-wide"); setIconBtn(libBtn, "save", "Save to View library"); libBtn.onclick = function () { saveWidgetToLibrary(p); };
       libRow.appendChild(libBtn); sec.appendChild(libRow);
-      sec.appendChild(noteEl("info", "Saves a self-contained snapshot of this View as a reusable View in the library — drag it into any dashboard from the rail's Views group, or open it from Quick Views."));
+      sec.appendChild(noteEl("info", "Saves a self-contained snapshot of this View as a reusable View in the View library — drag it into any dashboard from the rail's Views group, or open it from Quick Views."));
     }
 
     // chart type picker — grouped by c.group for scannability (Content group = richtext/annotation)
@@ -3406,6 +3416,8 @@
     function applyGalleryState() {
       var q = searchInp.value.trim().toLowerCase();
       var isSearch = q.length > 0;
+      // AUD-06 slice 6: the shared matcher — "stacked bar" now finds "Bar chart (stacked)".
+      var match = Studio.catalogSearch.textMatcher(q);
       clearBtn.style.display = isSearch ? "" : "none";
       grid.querySelectorAll(".cg-label").forEach(function (lbl) {
         if (isSearch) { lbl.style.display = "none"; return; }
@@ -3416,7 +3428,7 @@
           // Search mode: match label or description text inside the card
           var text = (card.querySelector(".lb") ? card.querySelector(".lb").textContent : "") +
                      " " + (card.querySelector(".lb-desc") ? card.querySelector(".lb-desc").textContent : "");
-          card.style.display = text.toLowerCase().indexOf(q) >= 0 ? "" : "none";
+          card.style.display = match(text) ? "" : "none";
         } else {
           card.style.display = (_activeGroup === "All" || card.dataset.grp === _activeGroup) ? "" : "none";
         }
@@ -4353,7 +4365,7 @@
         // No query bound yet — direct the user to the picker above
         var gNone = el("div", "guided-setup");
         var gNoneIc = el("span", "gs-ic"); gNoneIc.appendChild(Studio.icon("info", 14)); gNone.appendChild(gNoneIc);
-        var gNoneTxt = el("span"); gNoneTxt.textContent = "Drag a query from the library, or pick one in 'Dataset' above, to see your chart."; gNone.appendChild(gNoneTxt);
+        var gNoneTxt = el("span"); gNoneTxt.textContent = "Drag a query from the Data panel, or pick one in 'Dataset' above, to see your chart."; gNone.appendChild(gNoneTxt);
         sec.appendChild(gNone);
       } else if (missingRequiredCols(p)) {
         if (!cols.length) {
@@ -4917,10 +4929,22 @@
         ? daCols.map(function (c) { return [c, c]; })
         : [["", "(columns not yet defined)"]];
       var opPairs = Studio.DA_OPS.map(function (o) { return [o.id, o.label]; });
-      var cs = select2pairs(colPairs, f.col || (daCols[0] || ""), function (v) { f.col = v; refreshPreview(); }); cs.style.flex = "1";
-      var os = select2pairs(opPairs, f.op || "=", function (v) { f.op = v; refreshPreview(); }); os.style.flex = "1";
-      var vs = input(String(f.val || ""), function (v) { f.val = v; refreshPreview(); }); vs.placeholder = "value"; vs.style.flex = "1";
-      vs.title = Studio.filterOps.VALUE_HINT;   // AUD-06 slice 4 — same sentence on the job step's value box
+      // AUD-06 slice 5: the column and the operator both decide what the VALUE
+      // control is, so changing either re-renders the row (a date column earns a
+      // calendar; "in date range" earns the range list).
+      var cs = select2pairs(colPairs, f.col || (daCols[0] || ""), function (v) { f.col = v; renderInspector(); refreshPreview(); }); cs.style.flex = "1";
+      var os = select2pairs(opPairs, f.op || "=", function (v) {
+        var wasRange = Studio.filterOps.normalize(f.op) === "inRange";
+        f.op = v;
+        var isRange = Studio.filterOps.normalize(v) === "inRange";
+        // Carry the value across the switch only when it still means something:
+        // a range token is nonsense to `>=`, and a typed date is nonsense to a
+        // range dropdown.
+        if (isRange && !Studio.filterOps.rangeBounds(f.val)) f.val = Studio.filterOps.RANGE_DEFAULT;
+        else if (!isRange && wasRange) f.val = "";
+        renderInspector(); refreshPreview();
+      }); os.style.flex = "1";
+      var vs = filterValueControl(f, daCols, function () { refreshPreview(); }); vs.style.flex = "1";
       var rm = delBtn(function () { oo.filters.splice(fi, 1); renderInspector(); refreshPreview(); }, "filter rule on " + (f.col || "(no column)"));
       r.appendChild(cs); r.appendChild(os); r.appendChild(vs); r.appendChild(rm);
       fSec.appendChild(r);
@@ -5374,7 +5398,7 @@
   }
   function addFromCurrentOrPrompt(kind) {
     var das = S.spec.cda.dataAccesses;
-    if (!das.length) { toast("Add a query from the library first.", true); return; }
+    if (!das.length) { toast("Add a query from the Data panel first.", true); return; }
     if (kind === "kpi") { var k = Studio.newKpi(das[0]); k.fmt = Studio.guessFmt(k.valueCol); S.spec.kpis.push(k); select({ kind: "kpi", index: S.spec.kpis.length - 1 }); refreshPreview(); }
   }
 
@@ -7902,6 +7926,11 @@
   //   • "a quoted phrase" matches adjacently, for when you do mean the literal string;
   //   • matching is case-insensitive, and an empty query matches everything (callers
   //     no longer need their own `if (!q) return true` short-circuit).
+  // AUD-06 slice 6 finished the job: the kit is no longer catalog-only. Every OTHER search
+  // box in the app (audit §2.1's "11 other search affordances" — the Studio library, the
+  // inspector, the chart gallery, ⌘K, the What's-new feed, the folder picker, the Explore
+  // and View Builder panes, the connection schema browser, the value filter) now matches
+  // through it too, so "cover crops" means the same thing wherever you type it.
   Studio.catalogSearch = {
     // terms('cover crop "no till"') → ["cover", "crop", "no till"], deduped.
     terms: function (q) {
@@ -7930,6 +7959,22 @@
         var h = Studio.catalogSearch.hay(hayOf(row));
         return terms.every(function (t) { return h.indexOf(t) >= 0; });
       };
+    },
+    // AUD-06 slice 6: the same rules for the surfaces whose "row" IS a string — a chart
+    // gallery card's text, an inspector section's textContent, a folder path, a distinct
+    // column value. They don't have haystack FIELDS to declare, so they'd otherwise have
+    // to fake an array at every call site.
+    textMatcher: function (q) {
+      return Studio.catalogSearch.matcher(q, function (s) { return [s]; });
+    },
+    // AUD-06 slice 6: one escaped alternation over the parsed terms, for the surfaces that
+    // MARK their hits (the What's-new feed). A single-string needle would highlight nothing
+    // for a two-word query that matched across fields, which reads as a broken search.
+    // Longest term first so a short term can't swallow the head of a longer one.
+    markRe: function (q) {
+      var terms = Studio.catalogSearch.terms(q).slice().sort(function (a, b) { return b.length - a.length; });
+      if (!terms.length) return null;
+      return new RegExp(terms.map(function (t) { return t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }).join("|"), "gi");
     },
     // Every section's "Clear" chip means SHOW EVERYTHING — which includes the search
     // box, not just the facet pills. Blanks the input (if it exists) and reports whether
@@ -8148,7 +8193,8 @@
         list.innerHTML = "";
         if (q) {
           // Flat search across every filed path; click picks it directly.
-          var hits = paths.filter(function (p) { return p.toLowerCase().indexOf(q) >= 0; }).slice(0, 60);
+          // AUD-06 slice 6: the shared matcher — "2024 crops" finds "Crops/2024".
+          var hits = paths.filter(Studio.catalogSearch.textMatcher(q)).slice(0, 60);
           if (!hits.length) { var e = el("div", "fp-empty"); e.textContent = "No folders match."; list.appendChild(e); }
           hits.forEach(function (p) {
             var r = el("button", "fp-row fp-hit"); r.type = "button";
@@ -9106,7 +9152,7 @@
       ic: function () { return S.theme === "dark" ? "moon" : "sun"; },
       on: function () { return S.theme === "dark"; },
       set: function () { setTheme(S.theme === "dark" ? "light" : "dark"); } },
-    { grp: "Mode", id: "samples", t: "Sample content", d: "Show the built-in demo suite — sample dashboards and the sample query library, all running on the internal demo database. Turn off to start from an empty workspace; nothing is deleted, flip it back anytime.",
+    { grp: "Mode", id: "samples", t: "Sample content", d: "Show the built-in demo suite — sample dashboards, demo packs and the New ▾ starter sets, all running on the internal demo database. Turn off to start from an empty workspace; nothing is deleted, flip it back anytime.",
       ic: function () { return "layers"; },
       on: function () { return showSamples(); },
       set: function () { setShowSamples(!showSamples()); toast(showSamples() ? "Sample content shown" : "Sample content hidden — flip this back anytime"); } },
@@ -10475,12 +10521,16 @@
   // Slice A: the global topbar "What's next" (#tbWhatsNext) opens a compact roadmap modal —
   // a peek at near-term, user-facing work (seeded from STATUS.md's NEXT list), grouped by
   // how firm it is. Deliberately not a commitment; kept short and honest.
+  // AUD-11: this list is a PROMISE — an item that has shipped must come out of it the moment
+  // it ships, or the modal advertises finished work as upcoming (the audit found five such
+  // items here). When you ship something named below, delete its row in the same slice; the
+  // shipped story belongs in What's new, not What's next.
   var WHATS_NEXT = [
-    { title: "Studio actions in the topbar", note: "The dashboard builder's Save, Export and Open move into the topbar's new per-section action slot.", status: "next" },
-    { title: "Cleaner sample-data separation", note: "Keep the built-in demo packs clearly distinct from your own datasets across the workspace.", status: "next" },
-    { title: "Unified “Views” language", note: "One consistent name for Explore analyses and the charts you pin, so the workspace reads the same everywhere.", status: "planned" },
-    { title: "Polished print-to-PDF export", note: "A tidier PDF path for sharing a dashboard as a document.", status: "planned" },
-    { title: "Duplicate-name disambiguation everywhere", note: "Stable, distinguishing labels for same-named objects across every picker and the Repository.", status: "exploring" },
+    { title: "Faster preview updates", note: "The dashboard preview re-renders only what changed instead of rebuilding the whole board on every edit.", status: "next" },
+    { title: "The same search everywhere", note: "The Data panel, the inspector and the chart gallery pick up the catalog panels' search rules, so one query behaves the same everywhere.", status: "next" },
+    { title: "One delete confirmation", note: "Every delete asks the same way, names what else goes with it, and offers Undo.", status: "planned" },
+    { title: "Charts that answer the keyboard", note: "Keyboard focus on a bar, slice or tile shows the same tooltip a mouse hover does — inside exported dashboards too.", status: "planned" },
+    { title: "Dashboards that follow your theme", note: "An optional third render mode so a dashboard can open in the reader's light or dark theme instead of the author's fixed choice.", status: "exploring" },
     { title: "Cross-filtering in exported dashboards", note: "Carry interactive filter and cross-filter state into the standalone .html export.", status: "exploring" },
   ];
   function openWhatsNext() {
@@ -11116,7 +11166,7 @@
         ["Ctrl / ⌘  +  Shift+Z", "Redo"],
         ["Ctrl / ⌘  +  D", "Duplicate selected View or KPI"],
         ["Ctrl / ⌘  +  S", "Save to your Dashboards catalog"],
-        ["Ctrl / ⌘  +  F", "Focus library search (filter queries)"],
+        ["Ctrl / ⌘  +  F", "Focus the Data panel's search (filter queries)"],
         ["/", "Focus chart-type gallery search (View selected)"],
         ["↑ / ↓   (View selected)", "Reorder View up / down"],
         ["Shift + ← / →   (View selected)", "Decrease / increase View span"],
@@ -11348,7 +11398,9 @@
     var stemSets = !showSamples() ? [] : Object.keys(S.catalog).filter(function (st) {
       return (S.catalog[st].dataAccesses || []).some(function (d) { return (d.columns || []).length >= 2; });
     }).sort().map(function (st) { return { kind: "stem", key: st, label: st }; });
-    var sets = dsSets.concat(stemSets).filter(function (x) { return !flt || x.label.toLowerCase().indexOf(flt) >= 0; });
+    // AUD-06 slice 6: the shared matcher, same as every other filter box.
+    var setMatch = Studio.catalogSearch.textMatcher(flt);
+    var sets = dsSets.concat(stemSets).filter(function (x) { return setMatch(x.label); });
     var CAP = 10, total = sets.length, needsFilter = total > CAP || flt;
     var shown = sets.slice(0, CAP);
     nm.innerHTML = '<button data-new="blank">＋ Blank dashboard</button>' +
@@ -11785,7 +11837,9 @@
     // StudioTutorial.open()/window.__studioOpenJsonEditor stay public, and all four
     // (plus Tour) are one ⌘K search away in the command palette (app/palette.js).
 
-    // M7: phone-only More menu items — exposed at ≤400px when topbar hides these buttons
+    // M7: phone-only More menu items — exposed in the SAME ≤640px band that hides these buttons
+    // (M10 moved both; this comment said ≤400px until N7, 2026-08-08 — doc-truth check 21
+    // now measures the two bands against each other in app/studio.css).
     // Slice B: Undo/Redo/Export joined this convention once they moved into the shared
     // topbar's #tbSectionActions (see the phone hide rule in studio.css) — same reasoning
     // as Open/Save/Close/Examples: direct on THIS one-off dashbar-scoped row before, but
@@ -11965,13 +12019,50 @@
     nudgePreview();
   }
   function nudgePreview() { var ifr = $("#preview"); try { ifr.contentWindow.dispatchEvent(new Event("resize")); } catch (e) {} }
+  /* The ONE way anything in the builder opens the Data pane, at any width.
+     Both callers (the empty canvas's #cesLib button and the Simple-mode
+     getting-started checklist's step-2 action) used to clone the same phone
+     branch — `document.getElementById("tabLib").click()` — against an id that
+     has never existed: setupMobileTabs() builds its buttons with a
+     `data-mob-tab` attribute and no id at all, so on a phone the primary CTA
+     of both empty states silently did nothing. The desktop branch had its own
+     hole: STUDIO-PANELS made "panes collapsed" the default entry state
+     (applyStudioPanelsDefault), so focusing #libSearch inside a collapsed
+     34px rail put the caret somewhere the reader cannot see. Expand first —
+     silently, because this is a one-off nudge and must not rewrite the
+     reader's persisted collapse preference. */
+  function openDataPane() {
+    openBuilderPane("library");
+    if (window.matchMedia && window.matchMedia("(max-width:640px)").matches) return;
+    var ls = $("#libSearch"); if (ls) { ls.focus(); ls.select(); }
+  }
+  /* The width-agnostic half of openDataPane, for EITHER side pane — "library",
+     "inspector", or "canvas" (which means neither: on a phone it dismisses
+     whichever drawer is open, on desktop there is nothing to do because the
+     canvas is never covered). Splitting it out is what lets a guided tour point
+     at a pane it did not open: a spotlight on #library while the pane sits
+     collapsed rings a 34px rail on desktop, and on a phone rings a rect parked
+     at translateX(-105%) — entirely outside the viewport.
+     `silent` (the tour's mode) makes the nudge leave no trace: neither the
+     persisted collapse preference nor the persisted drawer tab is rewritten, so
+     the reader's builder looks exactly as they left it once the walk is over. */
+  function openBuilderPane(which, silent) {
+    if (window.matchMedia && window.matchMedia("(max-width:640px)").matches) { activateMobTab(which, silent); return; }
+    if (which === "canvas") return;
+    var pane = $("#" + which);
+    if (pane && pane.classList.contains("collapsed")) collapsePane(which, false, true);
+  }
+  // Test hook + the tour's opener (app/tutorial.js) — always silent, see above.
+  window.__studioOpenPane = function (which) { openBuilderPane(which, true); };
 
   /* ---------- mobile drawer tab bar (M2) ---------- */
   function setupMobileTabs() {
     var tabsEl = $("#mobile-tabs"), scrim = $("#mobile-scrim");
     if (!tabsEl) return;
     var TABS = [
-      { id: "library",   label: "Library",   icon: "db" },
+      // The pane's id stays `library` (it is #library in the markup); the LABEL is the
+      // one the pane's own header renders — "Data" since STUDIO-PANELS. doc-truth 18.
+      { id: "library",   label: "Data",      icon: "db" },
       { id: "canvas",    label: "Canvas",    icon: "eye" },
       { id: "inspector", label: "Inspector", icon: "gear" }
     ];
@@ -12020,8 +12111,76 @@
     nudgePreview();
   }
 
-  function menuToggle(btn, menu) { btn.onclick = function (e) { e.stopPropagation(); var open = menu.classList.contains("open"); closeMenus(); if (!open) menu.classList.add("open"); }; }
-  function closeMenus() { $$(".menu").forEach(function (m) { m.classList.remove("open", "phone-pos"); }); }
+  /* ---------- N8: an open dropdown always fits on screen ----------
+     Every menu in the app opens through menuToggle, so one clamp here covers all seven
+     (and any future one) instead of a per-toolbar CSS special case. It is needed because
+     `.menu` is `right:0` against its `.menu-wrap`: when the wrap's own toolbar row runs
+     past a 390px screen, the menu goes with it. Measured at 390×780 on 2026-08-08 —
+     #viewsNewMenu lost 135px off the right edge (more than half of it) and #dashMoreMenu
+     13px. The nudge goes through the --menu-shift custom property (see app/studio.css)
+     rather than `left`/`right`, because the app anchors menus BOTH ways — the topbar's are
+     right:0, `.repo-io .menu` is left:0;right:auto — and an offset property only moves the
+     side it anchors. closeMenus() clears it again. */
+  var MENU_EDGE = 8; // px of breathing room to keep between a menu and the viewport edge
+
+  /* getBoundingClientRect() reports the TRANSFORMED box, and we measure mid-animation while
+     `.menu` is still at translateY(-4px) scale(.98) — so a raw rect would under-correct by a
+     few px. transform-origin is the default centre and the transform is only translate+scale,
+     which means the settled layout box is simply the offset size centred on the measured
+     centre minus the translation. */
+  function settledRect(el) {
+    var r = el.getBoundingClientRect();
+    var m = new DOMMatrixReadOnly(getComputedStyle(el).transform);
+    var w = el.offsetWidth, h = el.offsetHeight;
+    var cx = r.left + r.width / 2 - m.m41, cy = r.top + r.height / 2 - m.m42;
+    return { left: cx - w / 2, right: cx + w / 2, top: cy - h / 2, bottom: cy + h / 2, width: w, height: h };
+  }
+
+  function resetMenuClamp(menu) {
+    menu.style.removeProperty("--menu-shift"); menu.style.maxWidth = ""; menu.style.maxHeight = "";
+  }
+
+  /* Re-clamping runs on every scroll frame (see reclampOpenMenu), so each property is
+     written only when its value actually changes — a no-op frame must not keep dirtying
+     style. The size caps still have to come OFF before measuring, since they are what the
+     measurement decides; --menu-shift does not, because settledRect() factors it out. */
+  function setMenuStyle(menu, prop, value) {
+    if (prop === "--menu-shift") {
+      if (menu.style.getPropertyValue(prop) === value) return;
+      if (value) menu.style.setProperty(prop, value); else menu.style.removeProperty(prop);
+    } else if (menu.style[prop] !== value) menu.style[prop] = value;
+  }
+
+  function clampMenuIntoView(menu) {
+    var vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
+    setMenuStyle(menu, "maxWidth", ""); setMenuStyle(menu, "maxHeight", "");
+    // a menu wider than the screen has to shrink before positioning it can mean anything
+    if (settledRect(menu).width > vw - MENU_EDGE * 2) setMenuStyle(menu, "maxWidth", (vw - MENU_EDGE * 2) + "px");
+    var r = settledRect(menu);
+    // pull it in from whichever edge it crosses (a negative shift moves it left)
+    var shift = r.right > vw - MENU_EDGE ? (vw - MENU_EDGE) - r.right
+      : r.left < MENU_EDGE ? MENU_EDGE - r.left : 0;
+    setMenuStyle(menu, "--menu-shift", shift ? Math.round(shift) + "px" : "");
+    // and never off the bottom: the CSS max-height is a constant, the room below the
+    // trigger is not (a menu opened from halfway down the page has much less of it)
+    if (r.bottom > vh - MENU_EDGE) setMenuStyle(menu, "maxHeight", Math.max(120, Math.floor(vh - r.top - MENU_EDGE)) + "px");
+  }
+
+  var _openMenu = null; // at most one menu is ever open — closeMenus() runs first on every open
+
+  function menuToggle(btn, menu) { btn.onclick = function (e) { e.stopPropagation(); var open = menu.classList.contains("open"); closeMenus(); if (!open) { menu.classList.add("open"); _openMenu = menu; clampMenuIntoView(menu); } }; }
+  function closeMenus() { $$(".menu").forEach(function (m) { m.classList.remove("open", "phone-pos"); resetMenuClamp(m); }); _openMenu = null; }
+
+  /* The anchor can keep MOVING after the menu opens, so one clamp at open time is not
+     enough. Clicking a control in a horizontally overflowing toolbar scrolls it into view
+     and that scroll is smooth: measured on Dashboards at 390px, `.repo-io` was still
+     sliding when the click handler ran, so the clamp used a position 8px stale and left
+     #dashMoreMenu flush against the edge. Re-clamp on scroll (capture, so an inner
+     scroller counts) and on resize — the two ways an anchor moves out from under a menu.
+     The `_openMenu` guard keeps this a null check on the overwhelmingly common path. */
+  function reclampOpenMenu() { if (_openMenu && _openMenu.classList.contains("open")) clampMenuIntoView(_openMenu); }
+  document.addEventListener("scroll", reclampOpenMenu, { capture: true, passive: true });
+  window.addEventListener("resize", reclampOpenMenu);
 
   function syncHeader() {
     var tb = $("#dashTitle");
@@ -12167,11 +12326,11 @@
       }
       function paint() {
         var q = (search.value || "").toLowerCase();
-        var list = loadRecents().filter(isVisibleToMe).filter(function (r) {
-          if (!q) return true;
+        // AUD-06 slice 6: the shared matcher, same rules as the Dashboards panel's search.
+        var list = loadRecents().filter(isVisibleToMe).filter(Studio.catalogSearch.matcher(q, function (r) {
           var sp = r.spec || {};
-          return ((sp.title || "") + " " + (sp.name || "")).toLowerCase().indexOf(q) >= 0;
-        });
+          return [sp.title, sp.name];
+        }));
         listWrap.innerHTML = list.length ? "" : '<div class="odp-empty">' + (q ? "No dashboards match." : "Nothing saved yet — Save adds the current dashboard here.") + '</div>';
         var titleOf = function (r) { var sp = r.spec || {}; return sp.title || sp.name || "Untitled"; };
         var labels = disambiguateLabels(list, titleOf);
@@ -12721,7 +12880,7 @@
      across selection changes within the same session. */
   var QUICK_HELP = {
     dashboard: [
-      "Drag a query from the library onto the canvas to add a chart View.",
+      "Drag a query from the Data panel onto the canvas to add a chart View.",
       "Use New ▾ → Auto-build to scaffold a full starter dashboard instantly.",
       "Export ▾ → Dashboard (.html) gives a standalone file you can open in any browser."
     ],
@@ -12868,6 +13027,40 @@
   function select2pairs(pairs, val, onChange) {
     var s = el("select"); pairs.forEach(function (p) { var o = el("option"); o.value = p[0]; o.textContent = p[1]; if (String(p[0]) === String(val)) o.selected = true; s.appendChild(o); });
     s.addEventListener("change", function () { onChange(s.value); }); return s;
+  }
+  /* AUD-06 slice 5 — the value box of a filter rule, chosen by what the rule
+     actually asks for. Three shapes, one place, so the DA inspector and the Job
+     "Filter rows" step (app/jobs.js, which builds its own DOM but follows the
+     same three-way rule) can never drift apart again:
+       "in date range" → the relative-range dropdown (a rule, not a typed value)
+       a date column    → a native date picker, when the saved value is one a
+                          picker can round-trip (empty, or plain YYYY-MM-DD)
+       anything else    → the free-text box it has always been
+     `samples` is optional: with real sample values the date test is decided by
+     the DATA; without them (the inspector knows column names long before it has
+     run a query) filterOps.looksDate falls back to the column name. */
+  function filterValueControl(f, cols, onChange) {
+    var F = Studio.filterOps, v = String(f.val || "");
+    var col = f.col || (cols || [])[0] || "";
+    switch (F.valueKind(f.op, col, null, v)) {
+      case "range": {
+        if (!F.rangeBounds(v)) { f.val = v = F.RANGE_DEFAULT; }
+        var rs = select2pairs(F.RANGES.map(function (r) { return [r.id, r.label]; }), v,
+          function (nv) { f.val = nv; onChange(); });
+        rs.title = F.RANGE_HINT;
+        return rs;
+      }
+      case "date": {
+        var di = el("input"); di.type = "date"; di.value = v; di.title = F.VALUE_HINT;
+        di.addEventListener("input", function () { f.val = di.value; onChange(); });
+        return di;
+      }
+      default: {
+        var ti = input(v, function (nv) { f.val = nv; onChange(); });
+        ti.placeholder = "value"; ti.title = F.VALUE_HINT;
+        return ti;
+      }
+    }
   }
   function colPicker(cols, val, onChange, allowEmpty) {
     var pairs = (allowEmpty ? [["", "(none)"]] : []).concat((cols || []).map(function (c) { return [c, c]; }));
@@ -13408,14 +13601,7 @@
     var cesIc = $("#cesIc");
     if (cesIc) cesIc.appendChild(Studio.icon("plus", 30));
     var cesBtn = $("#cesLib");
-    if (cesBtn) cesBtn.addEventListener("click", function () {
-      // On phone, open the library drawer; on desktop, focus the library search field
-      if (window.innerWidth <= 640) {
-        var t = document.getElementById("tabLib"); if (t) t.click();
-      } else {
-        var ls = document.getElementById("libSearch"); if (ls) { ls.focus(); ls.select(); }
-      }
-    });
+    if (cesBtn) cesBtn.addEventListener("click", openDataPane);
     // ¶ Text moved here from the Data-panel header (it creates a PANEL, so it
     // belongs with the canvas) — also reachable via the empty canvas itself.
     var cesTextBtn = $("#cesText");

@@ -85,12 +85,14 @@
         Excel file.</p></div>
       <div class="card"><span class="ic">▦</span><b>Two builders, one canvas</b>
         <p>The View Builder drags columns onto shelves and renders the chart live, spreadsheet-style;
-        the Dashboard Builder composes Views, KPIs and filters on a three-pane canvas — 50+ chart
+        the Dashboard Builder composes Views, KPIs and filters on a three-pane canvas — 54 chart
         types from KPIs to heatmaps to forecasts, including US choropleth maps down to county,
         district, and watershed scale.</p></div>
       <div class="card"><span class="ic">☍</span><b>Bring your team</b>
         <p>Sign in and share one workspace on your own Supabase, Turso or Firebase — admin, editor
-        and viewer roles, per-user security, and read-only viewer links for everyone else.</p></div>
+        and viewer roles, row-level security enforced by the database itself rather than by the
+        interface, and read-only viewer links for everyone else. Your workspace password is never
+        written to disk.</p></div>
       <div class="card"><span class="ic">⬡</span><b>Parameterized datasets</b>
         <p>Define a query once with {{parameters}}; dashboard template variables fill them at run
         time — one dataset powers many views, filters cascade, everything stays linked.</p></div>
@@ -109,7 +111,7 @@
   </section>
 
   <section id="charts" class="gallery-sec">
-    <h2>25+ chart types, built in</h2>
+    <h2>54 chart types, built in</h2>
     <p class="gallery-sub">Every chart Analytics can draw — click a category to filter, click a tile for details.</p>
     <div class="gallery-chips" id="galChips" role="tablist" aria-label="Chart categories"></div>
     <div class="gallery-grid" id="galGrid"></div>
@@ -157,8 +159,9 @@
       <li><b>Your brand, not ours.</b> Admins set a custom logo, workspace name and link — applied
       at sign-in and across the whole app for every member, straight from Admin → Branding.</li>
       <li><b>Chrome and content theme separately.</b> The app chrome has its palettes; each
-      dashboard carries its own theme too, so an embedded or exported dashboard matches wherever
-      it lands.</li>
+      dashboard carries its own Appearance — Light, Dark, or Auto, which matches whoever opens it.
+      Inside the app a dashboard follows the theme you are reading in; a file you hand out always
+      looks the way its author made it.</li>
       <li><b>Adaptable by design.</b> Domain packs, custom geographies, your own sample content —
       the same workspace reshapes itself for conservation science, data-platform ops, or whatever
       your team does.</li>
@@ -172,8 +175,9 @@
     in-band-error dialect when something's misconfigured.</p>
     <div class="chips">
       <span>PostgreSQL</span><span>Supabase</span><span>Turso</span><span>Firebase</span>
-      <span>Snowflake</span><span>Databricks</span><span>BigQuery</span><span>DuckDB</span>
-      <span>SQLite</span><span>Google Sheets</span><span>CSV / JSON files</span><span>Any SQL/HTTP API</span>
+      <span>Snowflake</span><span>Databricks</span><span>BigQuery</span><span>Amazon Redshift</span>
+      <span>DuckDB</span><span>SQLite</span><span>Google Sheets</span>
+      <span>CSV / JSON / Excel files</span><span>Any SQL/HTTP API</span>
     </div>
   </section>
 
@@ -202,7 +206,7 @@
     "<b>A library, not a pile.</b> Every dashboard you save becomes a searchable tile, organized into folders — with starter packs of ready-made examples you can open and remix.",
     "<b>Build a View in seconds.</b> Quick Views: start from a dataset, see it as a table, pick a chart, map the fields, and save it as a reusable View.",
     "<b>A real data workspace.</b> Connections and reusable, tagged datasets — the building blocks every dashboard is made of, all in your browser.",
-    "<b>50+ chart types.</b> Flowing ribbons, before/after slopes, treemaps, Marimekkos, packed bubbles — a full visual vocabulary, not just bars and lines.",
+    "<b>54 chart types.</b> Flowing ribbons, before/after slopes, treemaps, Marimekkos, packed bubbles — a full visual vocabulary, not just bars and lines.",
     "<b>Special charts, built in.</b> Custom chart types you won’t find in a spreadsheet — like the Ensemble chart, which blends many sources into one common estimate with the evidence still visible.",
     "<b>The Dashboard Builder — light or dark.</b> Drag datasets onto the canvas, tune every chart in the inspector, and watch it render live. Warm themes, a keyboard palette, guided tours and version history. (Shown in Polecat dark; a light mode ships too.)"
   ];
@@ -242,7 +246,7 @@
 // type Studio supports, sourced from site/chart-gallery.js (built by
 // tools/gen-chart-gallery.mjs from the app's own Studio.CHARTS/CHART_SVG registry —
 // this page never loads the app itself, so the data has to be dumped ahead of time).
-// Bounded by default (a capped grid, "Show all" expands) so 50+ tiles don't run the
+// Bounded by default (a capped grid, "Show all" expands) so 54 tiles don't run the
 // page long; a category filter always shows its full set since no category is large.
 (function () {
   var DATA = window.CHART_GALLERY || [];

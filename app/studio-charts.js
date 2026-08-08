@@ -49,9 +49,42 @@
   function reg(el, fn) { DashKit._reg.push(fn); fn(); }
   // Track L sweep: the "show a fixed tooltip HTML string on hover, hide it on mouseout"
   // pair was hand-wired verbatim at ~36 call sites across the chart renderers below.
+  // The html is also parked on the node itself, because the KEYBOARD path needs to read it back
+  // later: markActivatable() runs after _tip() at every call site and has no other way to learn
+  // what this mark's tooltip says (see tipOnFocus below).
   function _tip(node, html) {
+    node.__dkTip = html;
     node.addEventListener("mousemove", function (e) { DashKit.showTip(e, html); });
     node.addEventListener("mouseout", DashKit.hideTip);
+  }
+  // SWEEP574-3b tail (UX sweep #574, a11y): the one gap both mark slices left open. A mark's
+  // numbers live in TWO places — the aria-label markActivatable() writes, and the hover tooltip —
+  // and the tooltip was summonable only by a pointer. So a keyboard user tabbing a bar could hear
+  // "Snowflake: $84.2K" but never see the richer card a mouse user gets (the percentage, the
+  // share, a chart's custom cfg.tip markup). This gives focus the same door hover has.
+  //
+  // Three deliberate choices:
+  //  1. focus-visible, NOT focus. It is the browser's own answer to "did this focus come from the
+  //     keyboard?", and it is exactly what vendor/dashkit.css already paints the focus ring on —
+  //     so the tooltip and the ring appear together and leave together. After a mouse click the
+  //     pointer is already showing the tooltip; re-anchoring it to the shape would fight it.
+  //  2. Anchored to the MARK, not to a cursor. DashKit.showTip() reads only clientX/clientY off
+  //     the event it is handed, so a plain object carrying the shape's centre reuses the vendor's
+  //     exact tooltip element, styling and viewport clamping — vendor/dashkit.js stays pristine
+  //     and there is no second tooltip implementation to keep in sync.
+  //  3. Escape DISMISSES it without moving focus (WCAG 1.4.13, "Content on Hover or Focus"):
+  //     a tooltip pinned over the next bar must be closeable while you keep your place.
+  // Table rows deliberately get nothing here: they have no tooltip — a row's own cells already
+  // carry every value the tooltip would repeat.
+  function tipOnFocus(node) {
+    if (!node || !node.__dkTip) return;                          // nothing to show — e.g. a table row
+    node.addEventListener("focus", function () {
+      try { if (!node.matches(":focus-visible")) return; } catch (e) { return; }
+      var r = node.getBoundingClientRect();
+      DashKit.showTip({ clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }, node.__dkTip);
+    });
+    node.addEventListener("blur", DashKit.hideTip);
+    node.addEventListener("keydown", function (e) { if (e.key === "Escape" || e.key === "Esc") DashKit.hideTip(); });
   }
   // SWEEP574-3b (UX sweep #574, a11y): the keyboard door for CHART MARKS — the bar, slice and
   // treemap tile a drill or detail is bound to. Same gap SWEEP574-3 closed for KPI tiles
@@ -65,8 +98,9 @@
   // accessible name, so it deliberately got NO aria-label. An SVG <rect>/<path> has no text
   // content at all — the label and value live in sibling <text> nodes or only in the hover
   // tooltip — so a mark MUST carry an explicit name, and the honest one is what a sighted user
-  // reads off the chart: "<label>: <value>". (Hover tooltips stay mouse-only; the aria-label is
-  // the keyboard/screen-reader path to the same fact.)
+  // reads off the chart: "<label>: <value>". (The aria-label is the screen-reader path to that
+  // fact; the tail slice adds tipOnFocus so the keyboard also gets the SIGHTED path — the same
+  // hover tooltip, anchored to the mark, whenever the focus ring is showing.)
   //
   // Lives in the toolkit source, not a post-process, so it ships byte-identically in the live
   // preview and in every exported dashboard — which is where these marks mostly get used.
@@ -89,6 +123,7 @@
       if (typeof node.click === "function") node.click();
       else node.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
     });
+    tipOnFocus(node); // …and the tooltip a mouse user would have hovered for
   }
   // SWEEP574-3b (table family) — the same keyboard door for a clickable table ROW.
   //

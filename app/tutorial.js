@@ -1,10 +1,16 @@
 /* tutorial.js — Analytics interactive tutorials.
    J6 (rebuilt) / LF18(b): guided, spotlighted walkthroughs behind a chooser —
-     · "Take the tour" (overview) — walks the whole app down the rail
-       (Home · Quick Views · Dashboards · Datasets · Connections · Jobs ·
-       Repository · Dashboard Builder) and ends on Home. The first-run / recommended tour.
+     · "Getting started" (overview) — walks the whole app DOWN THE RAIL, in the
+       rail's own top-to-bottom order and by its own groups: Workspace (Home ·
+       Views · Dashboards · Datasets · Connections · Repository) → Build (Quick
+       Views · View Builder · Dashboard Builder) → Manage (Jobs), then ends on
+       Home. The first-run / recommended tour. **The order is not free-form:**
+       tools/doc-truth.mjs check 11 compares this tour's rail targets against
+       the rail's actual DOM order and fails if they diverge, so a new rail
+       section forces a decision here (add a step, or add it to that check's
+       documented skip set).
      · "Quick analysis"  — the Quick Views flow: dataset → table → chart →
-       saved analysis → pin/add. The fastest data-to-chart path.
+       saved View → pin/add. The fastest data-to-chart path.
      · "Build a dashboard" — the Dashboard Builder loop: library → canvas →
        inspector → export a self-contained .html.
      · "Prep data (Jobs)" — the Jobs section: list → new job → search/folders,
@@ -25,12 +31,78 @@
    Distinct from the welcome tour (welcome.js), which is informational.
    Steps may carry a `before()` hook (switch section, seed Explore) and the
    renderer WAITS for the step's target to exist, so tours can walk UI that
-   builds asynchronously.
+   builds asynchronously. A builder step may also declare the `pane:` its
+   target lives in, which the renderer OPENS before it measures the spotlight —
+   existing is not the same as visible (see openPane below). A step whose control
+   the ≤640px layout HIDES outright (M10's ⋯ More convention) carries a `phone:`
+   form the renderer merges per render — reachable is not the same as on screen
+   (see resolveStep below).
 
    KEEP THESE TOURS CURRENT: any slice that changes a user-facing flow this
    tutorial walks (Quick Views, Dashboard Builder panes, export, Jobs,
    Connections, Datasets) updates the copy here in the SAME slice — the suite
    greps this file for retired product terms.
+   NAME THINGS THE WAY THE APP NAMES THEM: where this copy points at something
+   the reader can click — a rail section, a button, a library group, a Home
+   section — it must use the label the app actually RENDERS. The saved-chart
+   object is the standing trap: its storage table is still `analyses` and its
+   internal ids are still analysisId (LF53 deliberately deferred that rename),
+   but every surface a user sees has said "View" since LF57 — "Save View", the
+   builder library's "Views" group, Home's "Pinned Views". N7 (2026-08-07)
+   found the tours had kept the OLD noun in their labels: two steps sent the
+   reader to a builder-library group called "Analyses" that renders "Views",
+   and the quick tour contradicted itself inside one walk (step 0 "save it as
+   an analysis" vs step 5 "Save View"). tools/doc-truth.mjs check 14 now holds
+   every bolded label in this file and welcome.js accountable to the app's own
+   render sites. Describing the ACTIVITY is untouched — this tour is still
+   called "Quick analysis" and still opens on "Your first analysis, fast",
+   because that is still what the reader is doing.
+
+   That ratchet only catches retired NOUNS, though. N7 (2026-08-07) found every
+   tour still closing on "reopen these tours from ⋯ More → Interactive tutorial"
+   — an entry LF46 (⋯ teardown, slice 2) had DELETED, so all six tours sent the
+   reader to a menu that no longer has it. The route is the ⌘K palette now (and
+   Home → Take the tour / Settings → Presentation → Take the tour). So any
+   AFFORDANCE named in this file's copy is now held accountable too:
+   tools/doc-truth.mjs check 13 resolves every "⋯ More → X" against the real
+   #menuMore markup and every "⌘K → X" against app/palette.js's command list.
+
+   The same trap caught the BUILDER's own panel. N7 (2026-08-08) found the
+   "Build a dashboard" tour still calling the left panel "the Library" — it is
+   `#library` in the markup but has rendered <b>Data</b> since STUDIO-PANELS, in
+   its header, its collapsed rail, the Settings toggle and Help — and still
+   promising it holds "the sample queries", a group LF65 deleted. Its last step
+   also routed Auto-build through the Data panel's "＋ New ▾" (dataset /
+   connection / dashboard-only query), never the topbar "New ▾" that actually
+   has it. tools/doc-truth.mjs check 16 now derives the panel's rendered name
+   from app/index.html and its group list from buildLibrary's OWN call graph —
+   so a group whose builder still exists but is no longer called (Sample packs,
+   unwired by DECLUTTER-1) cannot get back into this copy — and fails any copy
+   here that reaches Auto-build through the wrong New menu.
+
+   Copy was only half of it. That same STUDIO-PANELS change also made the panes
+   this tour walks start CLOSED, and the tour never noticed: step 1 ringed a
+   34px collapsed rail while describing four groups the reader could not see,
+   step 3 did the same to the Inspector, and at ≤640px both panes are drawers
+   parked off-canvas, so the ring landed outside the viewport and the walk went
+   dark for two of its six steps. N7 (2026-08-08): a builder step now declares
+   its `pane:` and the renderer opens it (window.__studioOpenPane, silent).
+   doc-truth check 19 holds the two halves together — a step targeting a
+   collapsible pane must declare it, the declared names must be panes the
+   builder can actually open, and the opener must still exist.
+
+   Closed was not the only way a phone hides a target. N7 (2026-08-08) took the
+   last of that walk: M10 moved Undo/Redo/Open/Save/Save-as/Duplicate/Export off
+   the ≤640px topbar into ⋯ More and hides their buttons with
+   `display:none!important`, so the build tour's export step had nothing to ring
+   at 390px at all — waitFor() polled #btnExport for its full 2.5s, gave up, and
+   rendered an unringed centered card whose copy told the reader to "Click
+   <b>Export ▾</b>" and to press <b>Save</b>, two controls that screen does not
+   have. A step now carries a `phone:` form (see resolveStep) that the renderer
+   merges at ≤640px: the export stop rings ⋯ More and names the route the phone
+   really has. doc-truth check 20 derives the hidden-at-≤640px id set from
+   app/studio.css itself, so a control that joins the ⋯ More convention later
+   cannot silently leave a tour ringing thin air.
 
    window.StudioTutorial.open()        — tour chooser (or restart)
    window.StudioTutorial.openTour(key) — start a specific tour ("overview"|"quick"|"build"|"jobs"|"connect")
@@ -58,6 +130,46 @@
       if (btn) btn.click();
     } catch (e) {}
   }
+  /* A builder step that spotlights one of the Dashboard Builder's side panes has
+     to OPEN it first. STUDIO-PANELS made "panes closed" the builder's entry
+     state, so on desktop a ring around #library or #inspector fell on a 34px
+     collapsed rail, and at ≤640px those panes are drawers parked off-canvas
+     (translateX(±105%) — app/studio.css), so the ring landed outside the
+     viewport entirely and the reader saw a dimmed screen with nothing lit.
+     A step declares which pane its target lives in (`pane:`), and this asks the
+     builder's own opener — silently, so the walk never rewrites the reader's
+     persisted panel preference or drawer tab. */
+  function isPhone() {
+    return !!(window.matchMedia && window.matchMedia("(max-width:640px)").matches);
+  }
+  function openPane(which) {
+    var phone = isPhone();
+    try { if (window.__studioOpenPane) window.__studioOpenPane(which); } catch (e) {}
+    // The phone drawers SLIDE in (transform .28s). Measuring before they land
+    // would ring where the drawer was, not where it is; desktop is instant.
+    return phone ? new Promise(function (r) { setTimeout(r, 340); }) : null;
+  }
+  /* A step may carry a `phone:` variant — the same stop, told for the ≤640px app.
+     openPane above fixed the panes that were merely CLOSED on a phone; this fixes
+     the controls that are not there at all. M10 moved Undo/Redo/Open/Save/Save-as/
+     Duplicate/Export off the phone topbar into ⋯ More and hides their buttons with
+     `display:none!important` (app/studio.css), so the build tour's export step had
+     no box to ring at 390px: waitFor() polled #btnExport for its full 2.5s, gave up,
+     and rendered a centered card whose copy still said "Click Export ▾" — a control
+     that is not on that screen, after a two-and-a-half-second stall. The phone form
+     rings the ⋯ More button that IS there and names the route the reader has.
+     Merged at RENDER time, never at definition time, so a tour opened after a resize
+     (or a phone rotated mid-walk) always tells the truth about the app in front of
+     it — and tourSteps()/stepCount() keep reporting one step per stop at any width.
+     tools/doc-truth.mjs check 20 derives the hidden-at-≤640px id set from the
+     stylesheet itself and fails any step that spotlights one without a phone form. */
+  function resolveStep(step) {
+    if (!step || !step.phone || !isPhone()) return step;
+    var out = {}, k;
+    for (k in step) if (Object.prototype.hasOwnProperty.call(step, k)) out[k] = step[k];
+    for (k in step.phone) if (Object.prototype.hasOwnProperty.call(step.phone, k)) out[k] = step.phone[k];
+    return out;
+  }
   // Conservation tour: land in Studio on the pack's own featured dashboard.
   // Its row id is workspace-generated at install time (only spec.id/panel ids
   // are the pack's own literal strings — see demopacks.js dashboardSpec()), so
@@ -74,6 +186,14 @@
      target: CSS selector (null → centered card, no spotlight)
      pos:    preferred tooltip position ("right"/"left"/"top"/"bottom")
      before: optional fn run before the step renders (section switch / seeding)
+     pane:   builder steps only — the Dashboard Builder pane the target lives in
+             ("library" | "inspector" | "canvas"); opened silently before the
+             spotlight is measured (see openPane above). doc-truth check 19
+             requires one on any step targeting a collapsible pane.
+     phone:  optional overrides merged over the step at ≤640px (see resolveStep
+             above) — for a stop whose control the phone layout hides behind ⋯ More
+             rather than merely collapses. doc-truth check 20 requires one on any
+             step targeting an id the phone stylesheet hides.
      last:   true on the final step — shows "Done!" instead of "Next" */
   var TOURS = {
     overview: {
@@ -85,36 +205,30 @@
       steps: [
         {
           t: "Welcome — here's the whole app",
-          h: "Analytics turns your data into quick analyses and full dashboards, right in your browser. This two-minute tour walks the parts down the left rail, then leaves you on Home, ready to start.",
-          sub: "You can reopen any tour from ⋯ More → Interactive tutorial, or Home → Take the tour.",
+          h: "Analytics turns your data into Quick Views and full dashboards, right in your browser. This two-minute tour walks the left rail from the top down — <b>Workspace</b> (the things you have), <b>Build</b> (where you make them), <b>Manage</b> (keeping them fed) — then leaves you on Home, ready to start.",
+          sub: "You can reopen any tour from ⌘K → Interactive tutorial, or Home → Take the tour.",
           target: null,
           before: function () { goSection("home"); }
         },
+        /* ── Workspace — the things you HAVE (rail group 1, in rail order) ── */
         {
           t: "Home — where you land",
-          h: "Every time you open Analytics you arrive here: your featured dashboards render live, pinned analyses greet you, examples are one click away, and getting-started shortcuts sit up top.",
+          h: "First in the rail's <b>Workspace</b> group, and where every visit starts: your featured dashboards render live, pinned Views greet you, examples are one click away, and getting-started shortcuts sit up top.",
           target: '.rail-item[data-sec="home"]',
           pos: "right"
         },
+        // N7 (2026-08-07): the Views CATALOG (LF57 slice 1) was missing from the
+        // walk entirely — the tour jumped from Home straight to Dashboards.
         {
-          t: "Quick Views — the fast path to a chart",
-          h: "Start from a dataset, see it as a table, pick a chart, and save the result as a reusable <b>analysis</b>. The quickest way from data to insight — there's a dedicated tour for it.",
-          target: '.rail-item[data-sec="explore"]',
-          pos: "right"
-        },
-        // TOUR-WOW (Kevin live, 2026-07-31): the flagship View Builder was
-        // missing from the app walk entirely.
-        {
-          t: "View Builder — drag-and-drop charts",
-          h: "The flagship chart canvas: drag a dataset's columns onto <b>Columns / Rows / Filters / Color</b> shelves and the result renders live as you go — tables, bars, lines, donuts, heatmaps, and full US maps. Every save is a <b>View</b>.",
-          sub: "You can even drop a CSV file straight onto the canvas — it becomes a dataset and an instant View.",
-          target: '.rail-item[data-sec="build"]',
+          t: "Views — every chart you've saved",
+          h: "A <b>View</b> is one saved chart, KPI, map, or block of text — the unit dashboards are made of. This is the catalog of all of them, wherever you built them: search, rename, ★ pin one to Home, or drop it into a dashboard.",
+          sub: "Two rail items are called Views: this catalog under <b>Workspace</b>, and the builder under <b>Build</b> further down. The group label is what tells them apart.",
+          target: '.rail-item[data-sec="views"]',
           pos: "right"
         },
         {
           t: "Dashboards — the finished thing",
-          h: "A dashboard is built from <b>Views</b> — each View shows one chart, KPI, map, or block of text. Arrange several into a page, feature it on Home, and export it as a self-contained file.",
-          sub: "A saved analysis from Quick Views drops straight in as a View — and dashboards group into named <b>workbooks</b> you can filter by.",
+          h: "Arrange several Views into a page, feature it on Home, and export it as a self-contained file. This is the catalog of the ones you've made — and they group into named <b>workbooks</b> you can filter by.",
           target: '.rail-item[data-sec="dashboards"]',
           pos: "right"
         },
@@ -131,21 +245,39 @@
           pos: "right"
         },
         {
-          t: "Jobs — prep &amp; roll up",
-          h: "Clean and reshape data before it's charted: rename, filter, and aggregate (including an acreage-weighted mean for honest state / district / watershed roll-ups). A job's output lands back in Datasets — there's a dedicated tour for it too.",
-          target: '.rail-item[data-sec="jobs"]',
+          t: "Repository — find anything",
+          h: "Last in <b>Workspace</b>: a searchable, folder-grouped view of every dashboard, View, dataset, connection and job at once. Pick a kind or search by name — a row opens straight into that object's own editor.",
+          target: '.rail-item[data-sec="repository"]',
           pos: "right"
         },
+        /* ── Build — where you MAKE them (rail group 2, in rail order) ── */
         {
-          t: "Repository — find anything",
-          h: "A searchable, folder-grouped view of every dashboard, dataset, connection, analysis and job in your workspace. Pick a kind or search by name — a row opens straight into that object's own editor.",
-          target: '.rail-item[data-sec="repository"]',
+          t: "Quick Views — the fast path to a chart",
+          h: "Now the rail's <b>Build</b> group, the places you make all of that. First and fastest: start from a dataset, see it as a table, pick a chart, and save the result as a reusable <b>View</b>. There's a dedicated tour for it.",
+          target: '.rail-item[data-sec="explore"]',
+          pos: "right"
+        },
+        // TOUR-WOW (Kevin live, 2026-07-31): the flagship View Builder was
+        // missing from the app walk entirely.
+        {
+          t: "View Builder — drag-and-drop charts",
+          h: "The flagship chart canvas: drag a dataset's columns onto <b>Columns / Rows / Filters / Color</b> shelves and the result renders live as you go — tables, bars, lines, donuts, heatmaps, and full US maps. Every save lands in the Views catalog up top.",
+          sub: "You can even drop a CSV file straight onto the canvas — it becomes a dataset and an instant View.",
+          target: '.rail-item[data-sec="build"]',
           pos: "right"
         },
         {
           t: "Dashboard Builder — assemble & export",
-          h: "Where you assemble a dashboard: drag data in, tune each View in the inspector, add interactive <b>filters</b> that narrow every View at once, and watch the real dashboard render live. Export a file that runs anywhere when you're done.",
+          h: "Where you assemble a dashboard: drag Views in, tune each one in the inspector, add interactive <b>filters</b> that narrow every View at once, and watch the real dashboard render live. Export a file that runs anywhere when you're done.",
           target: '.rail-item[data-sec="studio"]',
+          pos: "right"
+        },
+        /* ── Manage — keeping the data fed (rail group 3) ── */
+        {
+          t: "Jobs — prep &amp; roll up",
+          h: "The rail's <b>Manage</b> group. A job cleans and reshapes data before it's charted: rename, filter, and aggregate (including an acreage-weighted mean for honest state / district / watershed roll-ups). Its output lands back in Datasets — there's a dedicated tour for it too.",
+          sub: "Settings and Help sit pinned at the very bottom of the rail, always one click away.",
+          target: '.rail-item[data-sec="jobs"]',
           pos: "right"
         },
         {
@@ -166,7 +298,7 @@
         },
         {
           t: "You're set — start on Home",
-          h: "That's the whole app: <b>Connections</b> → <b>Datasets</b> → (Jobs to prep) → <b>Quick Views</b> or the <b>Dashboard Builder</b> to build → <b>Home</b> to see it all. Take the <b>Quick analysis</b> tour next for a hands-on run, or open an example below.",
+          h: "That's the rail, top to bottom. The <i>work</i> runs the other way: <b>Connections</b> → <b>Datasets</b> → (Jobs to prep) → <b>Quick Views</b> or a builder → <b>Home</b> to see it all. Take the <b>Quick analysis</b> tour next for a hands-on run, or open an example below.",
           sub: "You'll always land here on Home — pick up a recent dashboard, or start something new.",
           target: null,
           last: true,
@@ -180,8 +312,8 @@
       steps: [
         {
           t: "Your first analysis, fast",
-          h: "This is the quickest path from data to insight: pick a dataset, see it as a table, choose a chart, and save the result as a reusable <b>analysis</b>. Six quick steps.",
-          sub: "You can reopen these tours any time from ⋯ More → Interactive tutorial, or Home → Take the tour.",
+          h: "This is the quickest path from data to insight: pick a dataset, see it as a table, choose a chart, and save the result as a reusable <b>View</b>. Six quick steps.",
+          sub: "You can reopen these tours any time from ⌘K → Interactive tutorial, or Home → Take the tour.",
           target: null,
           before: function () { goSection("explore"); }
         },
@@ -220,15 +352,15 @@
         },
         {
           t: "6 · It follows you",
-          h: "Your saved analyses live in the left list here, in the Dashboard Builder's library under <b>Analyses</b>, and (when pinned) as live cards on <b>Home</b> — the app opens on your charts, not on machinery.",
+          h: "Your saved Views live in the left list here, under <b>Views</b> in the Dashboard Builder's <b>Data</b> panel, and (when pinned) as live cards on <b>Home</b> — the app opens on your charts, not on machinery.",
           sub: "Need to prep data first (rename, filter, roll up)? The <b>Jobs</b> section does that and lands the result back in Datasets.",
           target: ".xp-saved",
           pos: "right"
         },
         {
           t: "That's the fast path!",
-          h: "<b>Dataset → table → chart → saved analysis.</b> When you want full dashboards — many panels, KPIs, filters, export — take the <b>Build a dashboard</b> tour next.",
-          sub: "⋯ More → Interactive tutorial brings you back here any time.",
+          h: "<b>Dataset → table → chart → saved View.</b> When you want full dashboards — many panels, KPIs, filters, export — take the <b>Build a dashboard</b> tour next.",
+          sub: "⌘K → Interactive tutorial brings you back here any time.",
           target: null,
           last: true
         }
@@ -241,42 +373,56 @@
         {
           t: "Build a full dashboard",
           h: "This walkthrough shows the Dashboard Builder loop — from picking data to exporting a live, self-contained dashboard file. Press <b>Next</b> to begin.",
-          sub: "You can reopen these tours any time from ⋯ More → Interactive tutorial.",
+          sub: "You can reopen these tours any time from ⌘K → Interactive tutorial.",
           target: null,
+          pane: "canvas",
           before: function () { goSection("studio"); }
         },
         {
-          t: "1 · The Library",
-          h: "The <b>Library</b> (left pane) holds everything chartable: your saved <b>Analyses</b>, your <b>workspace datasets</b>, this dashboard's own datasets, and the sample queries. Search filters by name, column, or table.",
+          t: "1 · The Data panel",
+          h: "The <b>Data</b> panel (left) holds everything chartable, top to bottom: <b>This dashboard's datasets</b>, your workspace <b>Datasets</b>, your saved <b>Views</b>, and — once you author your own queries — <b>My queries</b>. Search filters by name, column, or table.",
           sub: "Click a chart chip on any card — or drag the card straight onto the canvas.",
           target: "#library",
+          pane: "library",
           pos: "right"
         },
         {
           t: "2 · Canvas — live preview",
-          h: "The centre pane is the <b>real rendered dashboard</b>, not a mock-up. Drop data here to add a panel; drag the header grip to reorder; drag the right edge to resize.",
+          h: "The centre pane is the <b>real rendered dashboard</b>, not a mock-up. Drop data here to add a panel; drag the header grip to reorder; drag a panel's right edge to change its width, its bottom edge to change its height.",
           sub: "Every change updates instantly.",
           target: "#canvas",
+          pane: "canvas",
           pos: "right"
         },
         {
           t: "3 · Inspector",
           h: "Click any panel to select it. The <b>Inspector</b> (right pane) renames it, changes the chart type, binds columns, and tunes visual options — the same pane also configures KPI tiles, filters, and datasets.",
           target: "#inspector",
+          pane: "inspector",
           pos: "left"
         },
         {
           t: "4 · Export — it runs anywhere",
           h: "Click <b>Export ▾</b> to download a <b>self-contained .html file</b> — no server, no dependencies; email it, host it, open it from disk. It's byte-identical to the preview you've been looking at.",
-          sub: "Save keeps the editable .studio.json spec so you can reopen and keep working.",
+          sub: "The same menu also hands out Excel, Word, PowerPoint and PDF versions, or the editable .studio.json spec — and <b>Save</b> keeps the dashboard in your Dashboards catalog so you can reopen it and keep working.",
           target: "#btnExport",
-          pos: "bottom"
+          pane: "canvas",
+          pos: "bottom",
+          // ≤640px: M10 hides #btnExport and #btnSaveSpec outright and hands both to
+          // ⋯ More, so the desktop copy names two controls the reader cannot see and
+          // the desktop target has no box to ring. Same stop, the phone's own route.
+          phone: {
+            h: "Tap <b>⋯ More → Export…</b> to download a <b>self-contained .html file</b> — no server, no dependencies; email it, host it, open it from disk. It's byte-identical to the preview you've been looking at.",
+            sub: "The same menu also hands out Excel, Word, PowerPoint and PDF versions, or the editable .studio.json spec — and <b>⋯ More → Save</b> keeps the dashboard in your Dashboards catalog so you can reopen it and keep working.",
+            target: "#btnMore"
+          }
         },
         {
           t: "You're ready to build!",
           h: "That's the loop: <b>pick data → arrange panels → configure → export</b>. Feature a dashboard on <b>Home</b> (the little house on its card) to see it live when you open the app, and use <b>Jobs</b> to prep or roll up data before charting.",
-          sub: "Hit ＋ New ▾ → Auto-build to scaffold a starter dashboard automatically from a query set.",
+          sub: "In a hurry? <b>New ▾</b> in the topbar → <b>Auto-build a starter</b> scaffolds a whole dashboard from one dataset.",
           target: null,
+          pane: "canvas",
           last: true
         }
       ]
@@ -288,7 +434,7 @@
         {
           t: "Prep &amp; roll up your data",
           h: "A <b>job</b> reshapes one dataset before it's charted — rename columns, filter rows, roll up with sum/mean/count/median (or an acreage-weighted mean for honest regional roll-ups), or join/union in another dataset. The result lands back in <b>Datasets</b>, ready to chart like any other.",
-          sub: "You can reopen these tours any time from ⋯ More → Interactive tutorial.",
+          sub: "You can reopen these tours any time from ⌘K → Interactive tutorial.",
           target: null,
           before: function () { goSection("jobs"); }
         },
@@ -313,7 +459,7 @@
         {
           t: "That's Jobs!",
           h: "<b>Source dataset → steps → new dataset.</b> Prep data here, then chart it in <b>Quick Views</b> or the <b>Dashboard Builder</b> exactly like anything else in Datasets.",
-          sub: "⋯ More → Interactive tutorial brings you back here any time.",
+          sub: "⌘K → Interactive tutorial brings you back here any time.",
           target: null,
           last: true
         }
@@ -326,7 +472,7 @@
         {
           t: "Connect your data, then query it",
           h: "A <b>connection</b> points at where your data lives; a <b>dataset</b> is a named, reusable query on top of one — the building block every chart and dashboard draws from. This tour walks both.",
-          sub: "You can reopen these tours any time from ⋯ More → Interactive tutorial.",
+          sub: "You can reopen these tours any time from ⌘K → Interactive tutorial.",
           target: null,
           before: function () { goSection("connections"); }
         },
@@ -370,7 +516,7 @@
         {
           t: "That's Connections &amp; Datasets!",
           h: "<b>Connection → dataset → chart it.</b> Head to <b>Quick Views</b> for the fast path to a chart, or <b>Jobs</b> first if the data needs prep.",
-          sub: "⋯ More → Interactive tutorial brings you back here any time.",
+          sub: "⌘K → Interactive tutorial brings you back here any time.",
           target: null,
           last: true
         }
@@ -383,7 +529,7 @@
         {
           t: "Your Conservation Insight pack, guided",
           h: "Installing the <b>Conservation Insight</b> sample pack seeded a whole workspace — connections, datasets, a prep job, and one FEATURED dashboard built as a best-practice conservation story. This short tour walks that dashboard's three map scales, then the geography behind them.",
-          sub: "You can reopen this tour any time from ⋯ More → Interactive tutorial.",
+          sub: "You can reopen this tour any time from ⌘K → Interactive tutorial.",
           target: null,
           before: function () { goSection("home"); }
         },
@@ -420,7 +566,7 @@
         {
           t: "That's the geography story",
           h: "County, watershed, and state are three of the choropleth's built-in scales — it also ships USDA crop-reporting districts, congressional districts, and 5-digit ZIP codes, plus your own <b>custom regions</b> (Inspector → Region scale → Custom regions, import a CSV mapping county → your own boundary). Same geometry engine underneath every scale, no shapefiles to source.",
-          sub: "⋯ More → Interactive tutorial brings you back here any time.",
+          sub: "⌘K → Interactive tutorial brings you back here any time.",
           target: null,
           last: true
         }
@@ -446,7 +592,7 @@
       h: "Your workspace comes with the <b>" + esc(p.name || "sample pack") + "</b> sample pack — " +
         esc(p.tagline || p.blurb || "curated dashboards and datasets, ready to explore") + ".",
       sub: TOUR_GATES[entry.id]
-        ? "There's a dedicated tour for it too — pick it from the chooser (⋯ More → Interactive tutorial)."
+        ? "There's a dedicated tour for it too — pick it from the chooser (⌘K → Interactive tutorial)."
         : "Find its dashboards on Home and in Dashboards.",
       target: null
     };
@@ -606,10 +752,27 @@
 
   /* --- Core renderer --- */
   function render(idx) {
-    _cur = idx;
     var steps = tourSteps(_tour);
-    var step = steps[idx];
+    // Resolved per render, so the step describes the app the reader is looking at
+    // right now — a phone-hidden control gets its ⋯ More form (see resolveStep).
+    var step = resolveStep(steps[idx]);
+    // A step can take a moment to become renderable — before() switches section,
+    // openPane() waits out a drawer transition, waitFor() polls the target for up
+    // to 2.5s (6s in the preview iframe). Throughout that window the PREVIOUS
+    // step's card is still on screen with a live Next, so a reader who taps twice
+    // (or taps while the app is busy) used to advance twice, walk off the end of
+    // the tour, and land here with steps[idx] undefined — an uncaught TypeError,
+    // which is a release gate. Both halves are closed: the navigation buttons of
+    // the outgoing card go inert while the next one is being prepared (Skip stays
+    // live — nobody should ever be trapped in a tour), and an out-of-range index
+    // simply finishes rather than throwing.
+    if (!step) return finish();
+    _cur = idx;
+    var live = document.getElementById("st-tip");
+    if (live) [].forEach.call(live.querySelectorAll("[data-act]"), function (b) { b.disabled = true; });
     Promise.resolve(step.before ? step.before() : null).then(function () {
+      return step.pane ? openPane(step.pane) : null;
+    }).then(function () {
       return waitFor(step.target, step.inPreview ? 6000 : 2500, step.inPreview);
     }).then(function (tEl) {
       if (!_active || _cur !== idx) return; // user moved on / closed while waiting
@@ -709,7 +872,7 @@
   }
 
   var FINISH_TOASTS = {
-    quick: "Tour complete! Save an analysis and pin it to Home.",
+    quick: "Tour complete! Save a View and pin it to Home.",
     jobs: "Tour complete! Try a job on one of your own datasets.",
     connect: "Tour complete! Add a connection, or explore a sample dataset.",
     conservation: "Tour complete! Try a different Region scale on any map in the Dashboard Builder's Inspector."

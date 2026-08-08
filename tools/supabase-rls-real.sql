@@ -76,6 +76,34 @@ BEGIN
 END $$;
 
 -- ---------------------------------------------------------------------------
+-- 0.5) The admin helper — DEFINED FIRST, because every policy below calls it.
+--
+-- Ordering matters and used not to (fixed 2026-08-07, caught by tests/rls.mjs
+-- on its first run against a fresh schema): this function used to live down in
+-- § 2 with the `users` policies, so on a database that had never had it, § 1's
+-- very first CREATE POLICY failed with "function public.polecat_is_admin() does
+-- not exist" — the documented "run it top-to-bottom on a FRESH project" path
+-- was broken, and only survived on THIS project because a 2026-07-24 run had
+-- already left the function behind. Keep it above § 1.
+--
+-- Naive self-referencing admin check ("EXISTS (SELECT … FROM users …)" inside
+-- the policy itself) hits Postgres' "infinite recursion detected in policy" —
+-- the subquery's scan re-applies the same policy. Standard fix: a SECURITY
+-- DEFINER helper owned by `postgres` (the table owner); Postgres does not
+-- apply RLS to the table's owner unless FORCE ROW LEVEL SECURITY is set (it
+-- isn't), so the helper's internal SELECT bypasses RLS and never recurses.
+-- Row matching uses `gotrueId` (in the data jsonb blob) rather than the row
+-- `id` column, which stays "user_<username>" — never a GoTrue uuid.
+
+CREATE OR REPLACE FUNCTION public.polecat_is_admin() RETURNS boolean
+LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.users
+    WHERE (data::jsonb->>'gotrueId') = auth.uid()::text AND "role" = 'admin'
+  );
+$$;
+
+-- ---------------------------------------------------------------------------
 -- 1) The five owner/private workspace tables.
 DO $$
 DECLARE
@@ -106,24 +134,8 @@ END $$;
 
 -- ---------------------------------------------------------------------------
 -- 2) `users` — its own stricter shape (self-row + admin), because it holds
---    every account's SHA-256 password hash (app/auth.js).
---
--- Naive self-referencing admin check ("EXISTS (SELECT … FROM users …)" inside
--- the policy itself) hits Postgres' "infinite recursion detected in policy" —
--- the subquery's scan re-applies the same policy. Standard fix: a SECURITY
--- DEFINER helper owned by `postgres` (the table owner); Postgres does not
--- apply RLS to the table's owner unless FORCE ROW LEVEL SECURITY is set (it
--- isn't), so the helper's internal SELECT bypasses RLS and never recurses.
--- Row matching uses `gotrueId` (in the data jsonb blob) rather than the row
--- `id` column, which stays "user_<username>" — never a GoTrue uuid.
-
-CREATE OR REPLACE FUNCTION public.polecat_is_admin() RETURNS boolean
-LANGUAGE sql SECURITY DEFINER STABLE AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.users
-    WHERE (data::jsonb->>'gotrueId') = auth.uid()::text AND "role" = 'admin'
-  );
-$$;
+--    every account's SHA-256 password hash (app/auth.js). The
+--    `polecat_is_admin()` helper these policies lean on is defined in § 0.5.
 
 DROP POLICY IF EXISTS polecat_select ON public.users;
 DROP POLICY IF EXISTS polecat_insert ON public.users;

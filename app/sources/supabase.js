@@ -37,39 +37,132 @@
   // auth.uid() resolves to a real user for RLS. Omitting them keeps the exact
   // pre-existing anon-key-only behavior — nothing else about this adapter, or
   // any other backend (Turso/Firebase), changes.
-  var _sessions = {}; // "url|email" -> { accessToken, userId, expiresAt }
+  var _sessions = {}; // "url|email" -> { accessToken, userId, expiresAt, refreshToken }
   function sessionKey(cfg) { return (cfg.url || "") + "|" + (cfg.authEmail || ""); }
-  function gotrueSignIn(cfg) {
+
+  // ---- N2 slice 4 (M7, the last of it): the refresh token, not the password --
+  // The password used to be the thing we kept, because `ensureSession` re-minted
+  // an expired JWT from it — which meant `cfg.authPassword` rode the connection
+  // record into localStorage and sat there at rest forever. It never had to:
+  // GoTrue hands back a REFRESH TOKEN with every grant, so THAT is what we keep,
+  // in sessionStorage — the same posture AUD-03 gave the secrets-vault
+  // passphrase. One sign-in per browser session, silent re-minting in between,
+  // nothing left behind when the tab closes. A refresh token is also strictly
+  // weaker than a password: it is scoped to this project + account and can be
+  // revoked server-side without changing anyone's password.
+  var REFRESH_KEY = "analytics.supabase.refresh.v1"; // sessionStorage: { "url|email": token }
+  function refreshStore() {
+    try { return JSON.parse(sessionStorage.getItem(REFRESH_KEY) || "{}") || {}; } catch (e) { return {}; }
+  }
+  function rememberRefresh(cfg, token) {
+    try {
+      var all = refreshStore();
+      if (token) all[sessionKey(cfg)] = token; else delete all[sessionKey(cfg)];
+      sessionStorage.setItem(REFRESH_KEY, JSON.stringify(all));
+    } catch (e) {}
+  }
+  function refreshTokenFor(cfg) {
+    var cached = _sessions[sessionKey(cfg)];
+    if (cached && cached.refreshToken) return cached.refreshToken;
+    return refreshStore()[sessionKey(cfg)] || "";
+  }
+  // "Can this connection still sign its requests in?" — a password in hand for
+  // this turn, OR a refresh token from earlier in this browser session. Every
+  // place that used to test `cfg.authEmail && cfg.authPassword` asks this
+  // instead, so a reloaded page with no stored password still counts as an
+  // authenticated workspace rather than silently falling back to anon.
+  function hasAuthSession(cfg) {
+    return !!(cfg && cfg.authEmail && (cfg.authPassword || refreshTokenFor(cfg)));
+  }
+
+  // One request shape, two grants (`password` and `refresh_token`) — both hit
+  // /auth/v1/token and both answer with the same session envelope.
+  function gotrueToken(cfg, grant, body) {
     var base;
     try { base = projectBase(cfg); } catch (e) { return Promise.reject(e); }
-    return fetch(base + "/auth/v1/token?grant_type=password", {
+    return fetch(base + "/auth/v1/token?grant_type=" + grant, {
       method: "POST",
       headers: { apikey: (cfg.key || "").trim(), "Content-Type": "application/json" },
-      body: JSON.stringify({ email: cfg.authEmail, password: cfg.authPassword })
+      body: JSON.stringify(body)
     }).catch(function (e) {
-      throw new Error("Could not reach Supabase Auth (network or CORS): " + e.message);
+      // N2 slice 3: the caller has to tell "the database refused you" apart from
+      // "we never reached the database" — the first must never fall back to a
+      // locally-stored password hash, the second must (an offline device).
+      var err = new Error("Could not reach Supabase Auth (network or CORS): " + e.message);
+      err.unreachable = true;
+      throw err;
     }).then(function (res) {
-      return res.json().catch(function () { return {}; }).then(function (data) {
+      // N11: reading the BODY can fail on its own — the headers arrived, then the
+      // connection dropped (a flaky network, a tab navigating away mid-flight) and
+      // res.json() rejects on a truncated payload. That used to be swallowed into
+      // `{}`, which then read as "a 200 with no access_token" and was reported as
+      // `HTTP 200` — a REFUSAL. It is not one: we never got an answer, so it is
+      // UNREACHABLE, exactly like the fetch failure above. The distinction is not
+      // cosmetic — ensureSession DELETES the stored refresh token on a refusal, so
+      // one truncated response used to sign a user out of their workspace.
+      return res.json().then(function (data) { return { data: data || {}, read: true }; },
+        function () { return { data: {}, read: false }; }).then(function (r) {
+        if (!r.read) {
+          var err = new Error("Could not reach Supabase Auth (the connection dropped before its answer finished arriving).");
+          err.unreachable = true;
+          throw err;
+        }
+        var data = r.data;
         if (!res.ok || !data.access_token) throw new Error("Supabase Auth sign-in failed: " + (data.error_description || data.msg || data.error || ("HTTP " + res.status)));
         return data;
       });
     });
   }
-  // force=true bypasses the cached token and re-exchanges email/password for a
-  // brand-new JWT. Admin actions (callAdminFn / seedAdmin) pass it so a token
-  // that expired server-side earlier than our cached expiresAt can't surface as
-  // the relay's misleading "That sign-in session is no longer valid" — every
-  // privileged call mints a fresh session first.
+  function gotrueSignIn(cfg) { return gotrueToken(cfg, "password", { email: cfg.authEmail, password: cfg.authPassword }); }
+  function gotrueRefresh(cfg, token) { return gotrueToken(cfg, "refresh_token", { refresh_token: token }); }
+
+  // Cache a fresh grant and keep its refresh token for the rest of the session.
+  // GoTrue ROTATES refresh tokens, so a grant that issues a new one replaces the
+  // old; a grant that doesn't (some configurations) keeps what we came in with.
+  function adoptSession(cfg, data) {
+    var carried = refreshTokenFor(cfg);
+    var session = {
+      accessToken: data.access_token,
+      userId: (data.user && data.user.id) || null,
+      expiresAt: Date.now() + ((data.expires_in || 3600) * 1000),
+      refreshToken: data.refresh_token || carried
+    };
+    _sessions[sessionKey(cfg)] = session;
+    rememberRefresh(cfg, session.refreshToken);
+    return session;
+  }
+
+  // force=true bypasses the cached token and re-mints a brand-new JWT. Admin
+  // actions (callAdminFn / seedAdmin) pass it so a token that expired
+  // server-side earlier than our cached expiresAt can't surface as the relay's
+  // misleading "That sign-in session is no longer valid" — every privileged call
+  // mints a fresh session first.
   function ensureSession(cfg, force) {
-    if (!cfg.authEmail || !cfg.authPassword) return Promise.resolve(null);
+    if (!cfg || !cfg.authEmail) return Promise.resolve(null);
     var key = sessionKey(cfg);
     var cached = _sessions[key];
     if (!force && cached && cached.expiresAt > Date.now() + 5000) return Promise.resolve(cached);
-    return gotrueSignIn(cfg).then(function (data) {
-      var session = { accessToken: data.access_token, userId: (data.user && data.user.id) || null, expiresAt: Date.now() + ((data.expires_in || 3600) * 1000) };
-      _sessions[key] = session;
-      return session;
-    });
+    var token = refreshTokenFor(cfg);
+    var grant;
+    if (token) {
+      // Prefer the refresh token: after a reload it is the ONLY credential we
+      // still hold. A REFUSED refresh (revoked, rotated out, password changed in
+      // the workspace) is final — unless a password happens to be in hand this
+      // turn, in which case fall through to the password grant. An UNREACHABLE
+      // project stays unreachable so callers keep telling the two apart.
+      grant = gotrueRefresh(cfg, token).catch(function (e) {
+        if (e && e.unreachable) throw e;
+        delete _sessions[key];
+        rememberRefresh(cfg, "");
+        if (!cfg.authPassword) throw e;
+        return gotrueSignIn(cfg);
+      });
+    } else if (cfg.authPassword) {
+      grant = gotrueSignIn(cfg);
+    } else {
+      return Promise.resolve(null); // anon-key-only connection — unchanged
+    }
+    return grant.then(function (data) { return adoptSession(cfg, data); });
   }
 
   // ---- polecat-admin Edge Function relay (M7 slice 7) ------------------------
@@ -120,7 +213,7 @@
     // and retry the request ONCE. Anon-only connections (no authEmail/Password)
     // keep the old behavior exactly — a 401 there is a real key problem, not a
     // stale token, so there's nothing to refresh.
-    var hasAuth = !!(cfg.authEmail && cfg.authPassword);
+    var hasAuth = hasAuthSession(cfg);
     function attempt(session, isRetry) {
       return fetch(base + path, {
         method: opts.method || "GET",
@@ -403,6 +496,21 @@
         .catch(function (e) { return { ok: false, error: e.message }; });
     },
 
+    // ---- N2 slice 4: session resumability, read + forget -------------------
+    // hasResumableSession answers "could this connection sign in again WITHOUT
+    // a password?" — i.e. is there a refresh token from earlier in this browser
+    // session. Sync.needsSignIn() asks this to decide whether the gate must
+    // re-prompt after a browser restart (app/sources/sync.js, app/gate.js).
+    hasResumableSession: function (cfg) { return !!(cfg && cfg.authEmail && refreshTokenFor(cfg)); },
+    // Drop everything that could re-authenticate this connection — signing out
+    // and disconnecting both call it, so the next visitor to this browser has to
+    // present the workspace's own credentials again.
+    forgetSession: function (cfg) {
+      if (!cfg) return;
+      try { delete _sessions[sessionKey(cfg)]; } catch (e) {}
+      rememberRefresh(cfg, "");
+    },
+
     // ---- one-step direct sign-in (LF39 item 2 / M7) ------------------------
     // Verify FORM-supplied email + password straight against GoTrue's password
     // grant and hand back the resulting auth.uid — WITHOUT touching the
@@ -418,12 +526,23 @@
       if (!creds || !creds.email || !creds.password) return Promise.resolve({ ok: false, error: "Enter your email and password." });
       // Reuse gotrueSignIn with a synthetic cfg so the connection's _sessions
       // cache (keyed on cfg.authEmail) is left untouched by a sign-in attempt.
-      return gotrueSignIn({ url: cfg.url, key: cfg.key, authEmail: creds.email, authPassword: creds.password }).then(function (data) {
+      var synth = { url: cfg.url, key: cfg.key, authEmail: creds.email, authPassword: creds.password };
+      return gotrueSignIn(synth).then(function (data) {
         var uid = (data && data.user && data.user.id) || null;
         if (!uid) return { ok: false, error: "Sign-in failed." };
+        // N2 slice 4: keep this grant's refresh token (session-scoped). It is
+        // keyed on the same "url|email" the connection will use once the gate
+        // stamps the credentials, so every later JWT can be re-minted from it
+        // and the password never has to be written down. The _sessions cache
+        // itself is still left untouched — only the token is remembered.
+        rememberRefresh(synth, (data && data.refresh_token) || "");
         return { ok: true, userId: uid };
       }, function (e) {
-        return { ok: false, error: (e && e.message) || "Sign-in failed." };
+        // `unreachable` distinguishes a network/CORS failure from a genuine
+        // rejection (N2 slice 3) — a REJECTION is the database's authoritative
+        // "no" and callers must honour it; UNREACHABLE means we simply never
+        // asked, so an offline caller may still fall back to its local path.
+        return { ok: false, unreachable: !!(e && e.unreachable), error: (e && e.message) || "Sign-in failed." };
       });
     },
 
@@ -510,7 +629,7 @@
     // one-time PROVISION_SECRET — pass it straight through, never store it.
     adminGoLive: function (cfg, secret) {
       var Auth = window.PolecatAuth, me = Auth && Auth.current();
-      if (!cfg.authEmail || !cfg.authPassword) {
+      if (!hasAuthSession(cfg)) {
         return Promise.resolve({ ok: false, error: "Sign in as the admin's Supabase Auth account first (this connection's Auth email/password fields above) — Go live needs to know who becomes the first admin." });
       }
       if (!me) return Promise.resolve({ ok: false, error: "No signed-in local account to seed as the workspace admin." });

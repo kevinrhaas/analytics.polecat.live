@@ -1,10 +1,10 @@
 # Third-party notices — Analytics Dashboard Studio
 
-The Studio is proprietary software (see `LICENSE`, © 2026 Polecat.live). It vendors and
-redistributes the third-party and public-domain components listed here, each under its own
-license. Vendored files keep their upstream license text alongside the code (never our
-proprietary header), and anything the Studio **inlines into exported dashboards** carries the
-required notice inside the export too.
+Analytics is free software under the **GNU GPL v3** (see `LICENSE`, © 2026 Polecat.live). It
+vendors and redistributes the third-party and public-domain components listed here, each under
+its own license. Vendored files keep their upstream license text alongside the code (never our
+own header), and anything the app **inlines into exported dashboards** carries the required
+notice inside the export too.
 
 ## Vendored libraries
 

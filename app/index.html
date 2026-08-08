@@ -193,7 +193,11 @@ html[data-reduce-motion="1"] #app{transition:none}
                rail's Help link, "?" still opens shortcuts, and all four (plus the tour) are
                one ⌘K search away in the command palette (app/palette.js), which is the
                canonical home for this kind of power-tool discoverability now. -->
-          <!-- M7: phone-only items — revealed via CSS at ≤400px when topbar hides these buttons -->
+          <!-- M7: phone-only items — revealed via CSS in the SAME ≤640px band that hides the
+               topbar buttons (M10 moved both from ≤400px; this comment said 400 until N7,
+               2026-08-08). The two bands must stay equal or there is a width where the control
+               is in neither place — tools/doc-truth.mjs check 21 measures that against the
+               stylesheet, and check 21 also requires docs/index.html to name each route. -->
           <div class="sep more-phone-only"></div>
           <button id="moreUndo" class="more-phone-only">Undo</button>
           <button id="moreRedo" class="more-phone-only">Redo</button>

@@ -283,13 +283,16 @@
     built = true;
   }
 
-  function score(cmd, q) {
+  // AUD-06 slice 6: WHETHER a command matches is now the fleet-shared rule
+  // (Studio.catalogSearch — terms ANDed in any order, quoted phrases literal), so
+  // "export panel" reaches "Export the current panel" like it does in every other search
+  // box. HOW the survivors are ORDERED stays the palette's own business, and it still
+  // ranks on the first term: a prefix hit on the visible label wins, then earlier hits.
+  function score(cmd, q, match, first) {
     if (!q) return 0;
     var hay = (cmd.label + " " + cmd.hint + " " + cmd.kw).toLowerCase();
-    var i = hay.indexOf(q);
-    if (i < 0) return -1;
-    // prefer matches at the start of the visible label
-    return cmd.label.toLowerCase().indexOf(q) === 0 ? 1000 : (500 - i);
+    if (!match(hay)) return -1;
+    return cmd.label.toLowerCase().indexOf(first) === 0 ? 1000 : (500 - Math.max(0, hay.indexOf(first)));
   }
 
   function refresh() {
@@ -303,8 +306,13 @@
       used.sort(function (a, b) { return usage[b.label].last - usage[a.label].last; });
       filtered = used.concat(rest);
     } else {
+      // Parsed once for the whole sweep, not per command. (app/index.html loads
+      // app/studio.js before this file, so the kit is a hard, ordered dependency —
+      // unlike the optional Studio.icon/Studio.CHARTS reads elsewhere here.)
+      var match = Studio.catalogSearch.textMatcher(q);
+      var first = Studio.catalogSearch.terms(q)[0] || q;
       filtered = allCommands.map(function (c) {
-        var s = score(c, q);
+        var s = score(c, q, match, first);
         if (s >= 0 && usage[c.label]) s += Math.min(usage[c.label].count, 10); // tiebreak, never outranks relevance buckets
         return { c: c, s: s };
       })

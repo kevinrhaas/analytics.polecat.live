@@ -2076,7 +2076,7 @@
     if (!(spec.panels || []).length) {
       content.innerHTML = isPreview()
         ? '<div class="sr-empty"><div class="sr-empty-ic">▤</div><div class="sr-empty-t">Your dashboard is empty</div>' +
-          '<div class="sr-empty-s">Drag a query from the <b>Query Library</b> onto this canvas — or use a <b>＋ chart</b> chip — to add your first panel.</div></div>'
+          '<div class="sr-empty-s">Drag a query from the <b>Data</b> panel onto this canvas — or use a <b>＋ chart</b> chip — to add your first panel.</div></div>'
         : '<div class="loading">No panels configured yet.</div>';
       return;
     }

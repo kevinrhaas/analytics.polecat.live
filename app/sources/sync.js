@@ -52,6 +52,37 @@
   }
   migrateSecretCache();
 
+  // N2 slice 4 (M7): the signed-in user's Supabase Auth PASSWORD used to ride the
+  // connection cfg straight into localStorage — `setAuthCredentials` stamped it
+  // on and `saveConn` serialised it — purely so the adapter could re-mint an
+  // expired JWT from it. It never had to: GoTrue returns a refresh token with
+  // every grant and the adapter now keeps THAT, session-scoped
+  // (app/sources/supabase.js). So the password stays in memory for as long as the
+  // page lives and is stripped on the way to disk, and this migration deletes any
+  // copy an earlier version left at rest — carrying it into memory for THIS page
+  // first, so upgrading never signs anyone out mid-session.
+  var _bootPass = null; // { url, email, password } recovered from a pre-slice-4 record
+  function stripSecret(cfg) {
+    if (!cfg || cfg.authPassword === undefined) return cfg;
+    var out = JSON.parse(JSON.stringify(cfg));
+    delete out.authPassword;
+    return out;
+  }
+  function migrateConnSecret() {
+    try {
+      var conn = JSON.parse(localStorage.getItem(CONN_KEY) || "null");
+      if (!conn || !conn.cfg || !conn.cfg.authPassword) return;
+      _bootPass = { url: conn.cfg.url || "", email: conn.cfg.authEmail || "", password: conn.cfg.authPassword };
+      conn.cfg = stripSecret(conn.cfg);
+      localStorage.setItem(CONN_KEY, JSON.stringify(conn));
+    } catch (e) {}
+  }
+  migrateConnSecret();
+  // Does the recovered pre-slice-4 password belong to this exact connection?
+  function bootPassFor(cfg) {
+    return !!(_bootPass && cfg && _bootPass.url === (cfg.url || "") && _bootPass.email === (cfg.authEmail || ""));
+  }
+
   // Which cfg keys on a connection row are secret = its adapter's password fields.
   function secretKeysFor(row) {
     var src = Studio.sourceById(row.adapter);
@@ -219,10 +250,31 @@
   function saveConn() {
     try {
       if (state.sourceId === "local") localStorage.removeItem(CONN_KEY);
-      else localStorage.setItem(CONN_KEY, JSON.stringify({ sourceId: state.sourceId, cfg: state.cfg, at: Date.now(), preAuth: _preAuth || undefined }));
+      // N2 slice 4: stripSecret keeps the workspace password out of localStorage
+      // — the live cfg still carries it in memory, the persisted record never does.
+      else localStorage.setItem(CONN_KEY, JSON.stringify({ sourceId: state.sourceId, cfg: stripSecret(state.cfg), at: Date.now(), preAuth: _preAuth || undefined }));
     } catch (e) {}
   }
   function loadConn() { try { return JSON.parse(localStorage.getItem(CONN_KEY) || "null"); } catch (e) { return null; } }
+
+  // N2 slice 4: does this browser have to ask for the workspace password again?
+  // True only when a Supabase-Auth-bound workspace is persisted and NOTHING can
+  // sign its requests in — no password in memory, no refresh token from this
+  // session. The gate calls it to decide whether an already-signed-in local
+  // identity may boot straight through (app/gate.js), and initSync uses it to
+  // keep an anon boot-pull from adopting an RLS-empty workspace over real local
+  // data. Adapters without a session model (Turso/Firebase/local) never match.
+  function needsSignIn() {
+    try {
+      if (state.cfg && state.cfg.authPassword) return false;
+      var conn = loadConn();
+      if (!conn || !conn.cfg || !conn.cfg.authEmail) return false;
+      if (bootPassFor(conn.cfg)) return false;
+      var src = Studio.sourceById(conn.sourceId);
+      if (!src || !src.hasResumableSession) return false;
+      return !src.hasResumableSession(conn.cfg);
+    } catch (e) { return false; }
+  }
 
   // Rolling sync-activity log (newest first, capped): the rail dot alone can't
   // explain a flaky backend — the Settings card renders this so the actual
@@ -456,6 +508,7 @@
       return publicState();
     },
     _carryAuthCredentials: carryAuthCredentials, // KEVIN-LIVE-2 test seam
+    needsSignIn: needsSignIn, // N2 slice 4 — see the function's note
 
     // WORKSPACE-LOGIN: bind a connection WITHOUT pulling. The sign-in screen
     // uses this — under authenticated-only RLS an unauthenticated pull reads
@@ -473,12 +526,27 @@
       return Promise.resolve(publicState());
     },
 
+    // N2 slice 4: drop whatever could re-authenticate the bound workspace —
+    // the cached JWT and this session's refresh token. Sign-out calls it
+    // (app/auth.js logout) so the next person at this browser has to present the
+    // workspace's own credentials, and disconnect calls it below.
+    forgetAuthSession: function () {
+      try {
+        var src = Studio.sourceById(state.sourceId);
+        if (src && src.forgetSession) src.forgetSession(state.cfg);
+      } catch (e) {}
+      _bootPass = null;
+      if (state.cfg) delete state.cfg.authPassword;
+      return publicState();
+    },
+
     // Detach and go back to local-only; the working copy stays as-is.
     disconnect: function () {
       // Persist the local state FIRST — before clearTimeout/_sec teardown, which
       // must never be able to throw and leave the remote connection persisted
       // (the DEMO-LOCAL symptom: in-memory sourceId=local but CONN_KEY still
       // pointing at the backend, so a reload silently reconnects).
+      Sync.forgetAuthSession(); // N2 slice 4: nothing left that could sign back in
       _connGen++; // fence any in-flight boot connect so a late pull can't re-adopt/re-persist
       state.sourceId = "local"; state.cfg = null;
       _preAuth = false; // SYNC-PREAUTH: nothing bound, nothing latched
@@ -566,10 +634,23 @@
       var src = Studio.sourceById(conn.sourceId);
       if (!src) { setStatus("local"); return Promise.resolve(publicState()); }
       state.sourceId = conn.sourceId; state.cfg = conn.cfg;
+      // N2 slice 4: a password recovered from a pre-slice-4 record goes back onto
+      // the live cfg (memory only) so an upgrading browser stays signed in for
+      // this session — the adapter mints a refresh token on its first grant and
+      // carries it from there.
+      if (bootPassFor(state.cfg)) state.cfg.authPassword = _bootPass.password;
       // SYNC-PREAUTH: a connection bound at the gate but never signed in through
       // must NOT boot-pull — that load would run as anon and replaceAll local
       // data before anyone authenticates. Re-bind and wait for the sign-in.
       if (conn.preAuth) { _preAuth = true; setStatus("connected"); return Promise.resolve(publicState()); }
+      // N2 slice 4, the same hazard from the other direction: an auth-bound
+      // workspace with no way to sign in (a fresh browser session — the password
+      // is no longer kept at rest) would boot-pull as ANON, which
+      // authenticated-only RLS answers with an EMPTY workspace, and adopting that
+      // would wipe this device's local mirror. Latch pulls off exactly as a
+      // gate-bound connection does; the gate asks for the password and the
+      // post-sign-in pull adopts with a real session.
+      if (needsSignIn()) { _preAuth = true; setStatus("connected"); return Promise.resolve(publicState()); }
       setStatus("connecting");
       _suspend = true;
       var myGen = ++_connGen; // fence this boot connect against a mid-flight disconnect
