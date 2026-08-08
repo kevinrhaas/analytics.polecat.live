@@ -579,6 +579,55 @@ const autoRoutes = ["app/tutorial.js", "app/welcome.js"].flatMap((f) => {
 ok(`app/tutorial.js + app/welcome.js: Auto-build is reached from the topbar "${topbarNew}", not the panel's "${paneNew}"`,
   !autoRoutes.length, autoRoutes.join("\n      "));
 
+// 17. Help's own version of check 16 — the same drift, one document over, and the reason it
+//     needs its own rule is the same reason check 15 needed one after check 14: check 16 reads
+//     the TOURS, and Help had rotted independently and further. It called the pane the "Query
+//     Library" (an id-flavoured name the app has never rendered), listed "Sample packs" among
+//     the panel's groups (DECLUTTER-1 unwired that builder — check 16's call-graph derivation
+//     is exactly what proves it), and routed authoring through "＋ New source", a control the
+//     header does not have. Three rules, all off the same derived facts check 16 already
+//     computed above, so the two documents can never drift apart from each other either:
+//     (a) NAME — outside a <code> span, every "… library" phrase in Help must be one the APP
+//         itself renders. Help legitimately has one ("Save to View library", a real button), so
+//         unlike the tours it cannot be a blanket ban; the allowed phrases are read out of
+//         app/*.js's own string literals rather than listed here.
+//     (b) GROUPS — a bolded group name in Help's Data-panel prose must be a group buildLibrary
+//         actually renders, the same `dataGroups` set check 16 holds the tour to.
+//     (c) CONTROLS — Help may not name a "＋ New …" control for the panel other than the label
+//         the header's own button carries.
+const helpDoc = read("docs/index.html")
+  .replace(/<!--[\s\S]*?-->/g, " ")
+  .replace(/<code>[\s\S]*?<\/code>/g, " ");
+// (a) Help has exactly ONE legitimate library: the saved-chart one, whose button really does
+// read "Save to View library" — so the allowed qualifier is check 14's derived saved-chart
+// noun, not a hand-kept list. Every other "<word> library" is Help naming the left pane.
+const libQualifiers = [...helpDoc.matchAll(/([A-Za-z’']+)\s+librar(?:y|ies)/gi)];
+const strayLib = libQualifiers
+  .filter((m) => m[1].toLowerCase() !== savedNoun.toLowerCase())
+  .map((m) => `docs/index.html: "…${m[0].replace(/\s+/g, " ").trim()}…"`);
+ok(`docs/index.html: the builder's left pane is called "${dataPaneName}" — the only library Help may name is the "${savedNoun} library"`,
+  !strayLib.length, strayLib.join("\n      "));
+// (b) The Data-panel section's bolded names, held to the panel's real group list. Scoped to the
+// paragraph that enumerates them so Help's many other bolded words aren't dragged in.
+const dataPanelProse = (() => {
+  const at = helpDoc.indexOf("The Data panel (left pane) lists everything you can build from");
+  if (at < 0) throw new Error('doc-truth: Help no longer has the "Data panel lists everything" paragraph');
+  return helpDoc.slice(at, helpDoc.indexOf("</p>", helpDoc.indexOf("</p>", at) + 4));
+})();
+const helpAllowed = new Set([dataPaneName, ...dataGroups].map(apos));
+const helpStrayGroups = [...dataPanelProse.matchAll(/<strong>([^<]+)<\/strong>/g)]
+  .map((m) => m[1].trim())
+  .filter((l) => !helpAllowed.has(apos(l)));
+ok("docs/index.html: the Data panel's documented groups are groups the panel renders",
+  !helpStrayGroups.length,
+  `named but not rendered: ${helpStrayGroups.join(", ")}\n      the panel renders: ${[...dataGroups].join(" · ")}`);
+// (c) The panel's add control, by the label the button actually carries.
+const helpPaneNew = [...helpDoc.matchAll(/＋\s*New\s+([a-z]\w*)/g)]
+  .filter((m) => !paneNew.toLowerCase().includes(m[1].toLowerCase()))
+  .map((m) => `docs/index.html: "${m[0].replace(/\s+/g, " ").trim()}" — the panel's button reads "${paneNew}"`);
+ok(`docs/index.html: Help names the Data panel's add control "${paneNew}", not a control it lacks`,
+  !helpPaneNew.length, [...new Set(helpPaneNew)].join("\n      "));
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

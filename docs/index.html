@@ -363,8 +363,8 @@
     <li><strong>Repository</strong> — every data source and dashboard in one searchable page. The
       search also matches a dashboard by its <em>columns</em> (the card shows which column hit), so a
       schema change is one search from every affected dashboard. A <strong>Group</strong> chip strip
-      narrows the grid; hovering a card reveals ✎ edit / 🗑 delete — the same editors the Studio
-      library uses, so the two views always agree.</li>
+      narrows the grid; hovering a card reveals ✎ edit / 🗑 delete — the same editors the builder's Data
+      panel uses, so the two views always agree.</li>
   </ul>
 
   <h3>The top bar</h3>
@@ -482,7 +482,7 @@
     <div class="step">
       <div class="step-num">Step 1</div>
       <div class="step-title">Pick your data</div>
-      <div class="step-desc">Browse the <strong>Query Library</strong> on the left. Search by name, table, or column. Drag a query onto the canvas to create a new chart View.</div>
+      <div class="step-desc">Browse the <strong>Data</strong> panel on the left. Search by name, table, or column. Drag a query onto the canvas to create a new chart View.</div>
     </div>
     <div class="step">
       <div class="step-num">Step 2</div>
@@ -600,7 +600,7 @@
   rows — finding something by name never depends on knowing where it's filed.</p>
   <ul>
     <li><strong>Views are reusable.</strong> Saved Views appear in the left list here, in
-    the Studio library under <strong>Views</strong> (click <em>+ Add to dashboard</em> or drag
+    the builder's Data panel under <strong>Views</strong> (click <em>+ Add to dashboard</em> or drag
     one onto the canvas), and — when pinned with the ★ — as cards on <strong>Home</strong>.</li>
     <li><strong>Adding a result to a dashboard is unambiguous.</strong> The result panel's
     <strong>+ New dashboard</strong> button drops your chart into a brand-new dashboard;
@@ -770,14 +770,14 @@
   sample rows.</p>
 
   <h2>Sample packs</h2>
-  <p><strong>Sample packs</strong> (Settings, and the Studio library's left View) are ready-made
+  <p><strong>Sample packs</strong> (installed from Settings) are ready-made
   demo content you can install or remove. A pack can add dashboards, datasets, connections and jobs —
   all with synthetic (made-up) sample data, never your real data — and <strong>Remove</strong> takes
   back exactly what Install added. Everything a pack adds is <strong>filed in the pack's own
   folder</strong> (Conservation Insight, Data Management) across every section, and its raw sample
   tables only appear in the dataset pickers while the pack is installed — an uninstalled pack leaves
   no trace. Like the built-in catalog, sample packs live under the same <strong>Sample content</strong>
-  switch in Settings — turn that off and both disappear from the library, with nothing deleted.</p>
+  switch in Settings — turn that off and both disappear from the Data panel, with nothing deleted.</p>
   <p><strong>Removed the wrong pack? Undo.</strong> Remove shows its toast with an <strong>Undo</strong>
   button for a few seconds. One click restores every dataset, View, dashboard, connection and job the
   pack owned — under the same ids, with any edits you'd made to them intact — and marks the pack
@@ -813,7 +813,7 @@
   <p><strong>Jobs</strong> (left rail) prep one dataset before it's charted: rename or cast a
   column, derive a new one from arithmetic on two others, filter rows, roll everything up with a
   group-by aggregate, and join or union in a second dataset. Run a job and the result is saved
-  back as an ordinary dataset — ready for Explore, the Studio library, or any dashboard — and
+  back as an ordinary dataset — ready for Quick Views, the builder's Data panel, or any dashboard — and
   re-running the same job updates that dataset in place, so an annual data refresh is a single
   click.</p>
   <ul>
@@ -915,7 +915,7 @@
 
   <h3>Three panes</h3>
   <ul>
-    <li><strong>Query Library (left)</strong> — All data accesses organized by group. Search by name, table, or column keyword. Drag any card onto the canvas to create a View. In Advanced mode, use <strong>＋ New source</strong> to author your own query.</li>
+    <li><strong>Data (left)</strong> — All data accesses organized by group. Search by name, table, or column keyword. Drag any card onto the canvas to create a View. In Advanced mode the header's <strong>＋ New ▾</strong> adds a workspace dataset, a connection, or a dashboard-only query of your own.</li>
     <li><strong>Live preview (center)</strong> — The real dashboard rendered in an iframe. This is byte-identical to what the export produces — no approximation. Click a View to select it; drag the title bar to reorder; drag the right edge to make it wider, or the bottom edge to make it taller — as tall as the whole screen if you like. The height sticks and carries into the viewer and every export.</li>
     <li><strong>Inspector (right)</strong> — Contextual editor for whatever is selected. When nothing is selected, shows the dashboard-level controls. Click a View → View inspector. Click a KPI tile → KPI inspector. Click a filter → filter inspector. Click the title banner itself → Header inspector.</li>
   </ul>
@@ -1049,7 +1049,7 @@
 
   <h3>Drag and drop</h3>
   <ul>
-    <li>Drag a DA card from the library → drop on the canvas to add a chart View.</li>
+    <li>Drag a DA card from the Data panel → drop on the canvas to add a chart View.</li>
     <li>Drag a View's header grip → drop between any other Views to reorder (across rows).</li>
     <li>Drag the right edge of a View → resize its column span (1–4 columns).</li>
     <li>Double-click a View title on the canvas to rename it inline.</li>
@@ -1203,8 +1203,8 @@
   <div class="tip">
     <div class="tip-ic">🌾</div>
     <div class="tip-body">
-      <p><strong>Worked example:</strong> install the <strong>Conservation Insight</strong> sample pack (Settings, or
-      the Studio library's Sample packs group) for a complete, ready-made illustration of everything on this
+      <p><strong>Worked example:</strong> install the <strong>Conservation Insight</strong> sample pack
+      (Settings → Sample packs) for a complete, ready-made illustration of everything on this
       page — four pinned Ensemble Views (one per conservation practice) and a featured dashboard pairing
       them with a provider-aware county choropleth, all built from synthetic, clearly-labeled sample data.</p>
     </div>
@@ -1318,12 +1318,12 @@
 <!-- ── Data sources ───────────────────────────────────────────── -->
 <section id="data-sources">
   <h2>Data sources &amp; data accesses</h2>
-  <p>Every chart View is bound to a <strong>data access (DA)</strong> — a named query. The Data panel (left pane) lists everything you can build from: this dashboard's own datasets, the workspace's shared Datasets, saved Views, and Sample packs. In Advanced mode you can also author your own queries — they appear in a <strong>My queries</strong> group at the bottom of the panel. (The old "Samples" group of built-in demo queries is gone: sample content comes only via Sample packs now, so there's one source of truth.)</p>
-  <p>The library's <strong>This dashboard's datasets</strong> and <strong>Sample packs</strong> groups collapse
-  by default once one gets long, so the panel leads with an overview instead of a wall of cards — click a
+  <p>Every chart View is bound to a <strong>data access (DA)</strong> — a named query. The Data panel (left pane) lists everything you can build from, in four groups: <strong>This dashboard's datasets</strong> (the queries the spec owns), <strong>Datasets</strong> (the workspace's shared catalog), <strong>Views</strong> (your saved charts), and — in Advanced mode, once you've authored one — <strong>My queries</strong> at the bottom. (The old "Samples" group of built-in demo queries is gone: sample content comes only via sample packs now, installed from Settings, so there's one source of truth.)</p>
+  <p>The <strong>This dashboard's datasets</strong> group collapses by default once it gets long (more than
+  six cards), so the panel leads with an overview instead of a wall of cards — click a
   group's header to expand or collapse it any time, and your choice is remembered from then on. Each group
   also carries its own small glyph next to its name (a cube for this dashboard's own datasets, a database for
-  the shared workspace catalog, a trend line for saved Views, stacked layers for Sample packs, and a code
+  the shared workspace catalog, a trend line for saved Views, and a code
   bracket for your own authored queries), so the panel is scannable by "what kind of thing is this" at a glance.</p>
 
   <h3>Using catalog queries</h3>
@@ -1335,7 +1335,7 @@
   </ul>
 
   <h3>Authoring new data sources (Advanced)</h3>
-  <p>Click <strong>＋ New source</strong> in the library header to open the data-source builder. Supported types:</p>
+  <p>In the Data panel's header, click <strong>＋ New ▾ → Dashboard-only query…</strong> to open the data-source builder. (The ＋ on the <strong>This dashboard's datasets</strong> group header is the quick path: it drops a blank query straight into the Inspector's editor instead.) Supported types:</p>
   <ul>
     <li><strong>SQL</strong> — Write a SELECT query against the built-in sample engine (or use the visual SQL Builder: FROM / JOIN / WHERE / GROUP BY / ORDER BY / LIMIT). Columns come from your <code>AS</code> aliases ("Detect from query" pulls them automatically), and deterministic demo rows are generated from them so every dashboard stays fully demoable offline.</li>
     <li><strong>DuckDB (remote file)</strong> — query a Parquet/CSV file directly over HTTP, no backend (see below).</li>
@@ -1478,7 +1478,7 @@
       with no reliable catalog to introspect.</li>
   </ul>
   <p>The same panel is one click away while <strong>building a dataset</strong>, not just when editing the connection: the Dataset editor's "Browse schema" button (shown for the same set of connections, once one is picked) opens the identical table/column tree — but here every table and column is clickable. Picking a table fills the <strong>Table</strong> field on a PostgreSQL/PostgREST-shaped dataset; picking a table or column drops its name straight into the <strong>SQL</strong> query at the cursor for every other kind. No more copying names back and forth from a separate tab.</p>
-  <p>Studio's own <strong>New data source</strong> builder (the query editor behind ＋ New → Dashboard query) has the same button under its Query field for the credentialed kinds — Snowflake, Databricks, BigQuery, DuckDB (remote file) and SQLite (remote .sqlite). Fill in the credentials (or the file URL), click <strong>Browse schema</strong>, and click any table or column to insert its name into the SQL at the cursor. The built-in sample-engine SQL kind and the Generic SQL/HTTP kind have no catalog to introspect, so they don't show the button.</p>
+  <p>Studio's own <strong>New data source</strong> builder (the query editor behind the Data panel's ＋ New ▾ → Dashboard-only query…) has the same button under its Query field for the credentialed kinds — Snowflake, Databricks, BigQuery, DuckDB (remote file) and SQLite (remote .sqlite). Fill in the credentials (or the file URL), click <strong>Browse schema</strong>, and click any table or column to insert its name into the SQL at the cursor. The built-in sample-engine SQL kind and the Generic SQL/HTTP kind have no catalog to introspect, so they don't show the button.</p>
   <p>The same builder also runs a <strong>live sanity check</strong> over the SQL as you type: an unclosed string literal or quoted identifier, unbalanced parentheses, a statement that doesn't start with SELECT/WITH, or a declared column chip the query never mentions each surface a small warning under the query field (and clear the moment you fix them). It's a lightweight shape check across all the supported engines, not a full SQL parser — the <strong>Preview</strong> and <strong>Test connection</strong> buttons remain the way to prove a query actually runs.</p>
 
   <h3>Workspace connections: Google Sheets</h3>
@@ -1554,13 +1554,13 @@
       endpoint doesn't stay silently trusted just because it worked once.</li>
     <li>A successful <strong>Test connection &amp; detect columns</strong> counts too — no full
       query needed just to refresh the badge.</li>
-    <li>The same badge appears on the source's card in <strong>Dashboards</strong> and the
-      library's My Data Sources — only for live-capable kinds; a sample-engine SQL source stays
+    <li>The same badge appears on the source's card in <strong>Dashboards</strong> and in the
+      builder's <strong>Data</strong> panel — only for live-capable kinds; a sample-engine SQL source stays
       badge-free rather than showing "Never verified live" everywhere.</li>
   </ul>
 
   <h3>Joins and compound DAs</h3>
-  <p>Click <strong>⧈ Join</strong> in the library to create a <strong>Compound data access</strong> — either a join (left/right DA + key columns) or a union (stack rows from N DAs). The result is computed in the builder over the member DAs' rows.</p>
+  <p>A <strong>Compound data access</strong> — either a join (left/right DA + key columns) or a union (stack rows from N DAs) — is computed in the builder over the member DAs' rows. <strong>The builder no longer authors new ones:</strong> joins and unions belong in <strong>Jobs</strong> (left rail), so the Data panel's old <strong>⧈ Join</strong> entry is gone. Any dashboard that already has a compound DA still renders it and still edits it in the Inspector.</p>
 
   <h3>Dataset lineage</h3>
   <p>The <strong>Datasets</strong> catalog badges each row with <strong>"↪ N dashboards"</strong> when one or more saved dashboards reference it — hover the badge for the list of names. It's a blast-radius view: before deleting a dataset, you can see what depends on it. Deleting one that's in use warns you which dashboards reference it — they don't break, but they fall back to the self-contained copy of the query that was saved into them the last time they linked to it, rather than continuing to follow live edits to the dataset.</p>
@@ -1620,7 +1620,7 @@
   everything: it drops the facet pills <em>and</em> empties the search box, and it appears whenever
   either one is narrowing the list. Every catalog page has one, Dashboards included.</p>
   <p><strong>…and every other search box too.</strong> The same rules run behind every search field in
-  the app, not just the catalog pages: the Studio library (your datasets and the sample queries), the
+  the app, not just the catalog pages: the builder's Data panel (your datasets and your own queries), the
   panel inspector's search, the chart-type gallery, the command palette (<kbd>⌘K</kbd>), the What's-new
   feed, the folder picker, the Explore pane, the View Builder's datasets pane and its value filter, the
   auto-build set list, the "add to dashboard" picker and a connection's schema browser. Words in any
@@ -2118,8 +2118,8 @@
   <strong>Downloads</strong> section — useful for a View you don't want viewers exporting from a
   published dashboard.</p>
 
-  <h3>Saving a View to the library</h3>
-  <p>Select any View with a bound query and click <strong>Save to View library</strong> in its inspector to snapshot it as a reusable View — the same library Quick Views saves into. Give it a name and it shows up in the builder's left rail under <strong>Views</strong> (drag it onto the canvas, or use its "+ Add to dashboard" chip) and in Quick Views' own saved list, exactly like a View built there. It's a self-contained copy — editing or deleting the original View's dashboard afterward doesn't affect it. Not available for Richtext/annotation Views, which have no query to snapshot.</p>
+  <h3>Saving a View to the View library</h3>
+  <p>Select any View with a bound query and click <strong>Save to View library</strong> in its inspector to snapshot it as a reusable View — the same View library Quick Views saves into. Give it a name and it shows up in the builder's Data panel under <strong>Views</strong> (drag it onto the canvas, or use its "+ Add to dashboard" chip) and in Quick Views' own saved list, exactly like a View built there. It's a self-contained copy — editing or deleting the original View's dashboard afterward doesn't affect it. Not available for Richtext/annotation Views, which have no query to snapshot.</p>
 </section>
 
 <!-- ── Keyboard shortcuts ─────────────────────────────────────── -->
@@ -2180,7 +2180,7 @@
   <ul>
     <li>15 chart types shown in the gallery (the most universally understood).</li>
     <li>Advanced inspector sections hidden (Drill-through, Cross-filter, Conditional formatting, Callout arrow, Color scale, Period highlight, Event markers, etc.).</li>
-    <li>Query Library is read-only browse + drag — no data-source authoring controls.</li>
+    <li>The <strong>Data</strong> panel is read-only browse + drag — no data-source authoring controls.</li>
     <li>Guided <strong>Getting started</strong> checklist and <strong>What's next?</strong> tips appear in the dashboard inspector to help newcomers.</li>
     <li>KPI and View data sections show an <strong>Auto-pick</strong> button to assign columns automatically.</li>
   </ul>
