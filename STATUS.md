@@ -11139,9 +11139,15 @@
     API, so RLS-on is the working state, not the locked-down one.
   Also document the things that only bite later: **save the DB password at creation** (it is
   unrecoverable, only resettable — and `tests/rls.mjs` needs it as `SUPABASE_PASSWORD`, which
-  it SKIPs silently without); **the region must match `SUPABASE_DB_HOST`** or the RLS test aims
-  at the wrong pooler (`tests/rls.mjs:148` defaults to `aws-0-ca-central-1.pooler.supabase.com`
-  — a project created elsewhere needs the env var set); **free-tier projects pause after ~1
+  it SKIPs silently without); **the region is `ca-central-1` — Canada (Central) — as a STANDARD,
+  not a preference** (Kevin, 2026-08-08, deciding it for `polecat_dev`): `tests/rls.mjs:148`
+  hardcodes the fallback `aws-0-ca-central-1.pooler.supabase.com`, so a same-region dev project
+  needs zero extra config while any other region needs `SUPABASE_DB_HOST` set on every run — and
+  since that test SKIPs silently with exit 0 when unconfigured, a mismatched region is the kind
+  of thing that reads GREEN while testing nothing. Supabase cannot change a project's region
+  after creation (the only path is create-new + restore), so this is decided once, at the
+  create-project screen. Ignore the dashboard's "Recommended" badge on `us-east-1` — it is
+  generic geography advice, not advice about this fleet; **free-tier projects pause after ~1
   week idle**, which a dev backend will hit and which the app should read as "unreachable", not
   as a refusal (the exact N2-slice-3/N11/N14 distinction — worth a cross-reference); and which
   posture file to run — `supabase-bootstrap.sql` (allow-all, demo/dev) versus
