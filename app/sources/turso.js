@@ -197,26 +197,54 @@
       }).then(function () { return snap; });
     },
 
-    // Full write-through: replace every table's contents with the snapshot in
-    // one batched pipeline. Simple + robust for a metadata-sized workspace —
-    // no per-row diffing to get subtly wrong across backends. DELETE-then-
-    // INSERT inside the same batch is atomic on Turso.
+    // Write-through in ONE batched pipeline (atomic on Turso).
+    //
+    // N17 — this used to be DELETE-ALL then INSERT, and that shape destroys two
+    // things this build cannot see:
+    //   • an unknown promoted COLUMN. A workspace upgraded by a NEWER app may
+    //     have grown a real column on a table this build already knows. Deleting
+    //     the row and re-inserting only the columns in WS.WORKSPACE_TABLES wrote
+    //     NULL over it. The upsert below names only the columns it actually
+    //     carries, so a column this build has never heard of is left alone —
+    //     the same shape supabase.js's merge-duplicates upsert and the atomic
+    //     save function already had.
+    //   • a row this mirror never saw. DELETE-ALL made absence mean deletion,
+    //     so a stale tab pushed away another device's rows. Deletes are now
+    //     tombstone-driven only (DURABLE-2), matching supabase.js.
+    // Unknown TABLES were always safe here (the loop is over TABLE_NAMES) and
+    // still are. `users` stays upsert-only, forever (v787).
     save: function (cfg, snapshot) {
       var byTable, stmts = [];
       try { byTable = WS.snapshotToRows(snapshot); } catch (e) { return Promise.resolve({ ok: false, error: e.message }); }
+      var tombs = (snapshot.meta && snapshot.meta.tombstones) || {};
       WS.TABLE_NAMES.forEach(function (t) {
         // additive-schema self-heal: a workspace provisioned before a table
         // existed (e.g. v1 → v2 added analyses) gets it created on the next
         // save — idempotent DDL, no manual step for Turso users.
         stmts.push({ sql: WS.tableDDL(t) });
-        stmts.push({ sql: 'DELETE FROM "' + t + '"' });
         byTable[t].forEach(function (rec) {
           var keys = Object.keys(rec.cols);
           var colList = ["id"].concat(keys.map(function (k) { return '"' + k + '"'; })).concat(["data"]).join(",");
           var ph = ["?"].concat(keys.map(function () { return "?"; })).concat(["?"]).join(",");
           var args = [arg(rec.id)].concat(keys.map(function (k) { return arg(rec.cols[k]); })).concat([arg(rec.data)]);
-          stmts.push({ sql: 'INSERT INTO "' + t + '"(' + colList + ") VALUES(" + ph + ")", args: args });
+          // ON CONFLICT names ONLY the columns this build knows — an unknown
+          // column keeps whatever the newer app put there.
+          var upd = keys.concat(["data"]).map(function (k) { return '"' + k + '" = excluded."' + k + '"'; }).join(", ");
+          stmts.push({ sql: 'INSERT INTO "' + t + '"(' + colList + ") VALUES(" + ph + ") ON CONFLICT(id) DO UPDATE SET " + upd, args: args });
         });
+        if (t === "users") return;   // account rows are never deleted by sync
+        var prefix = t + "|";
+        var dead = Object.keys(tombs)
+          .filter(function (k) { return k.indexOf(prefix) === 0; })
+          .map(function (k) { return k.slice(prefix.length); });
+        for (var i = 0; i < dead.length; i += 40) {
+          (function (chunk) {
+            stmts.push({
+              sql: 'DELETE FROM "' + t + '" WHERE id IN (' + chunk.map(function () { return "?"; }).join(",") + ")",
+              args: chunk.map(arg)
+            });
+          })(dead.slice(i, i + 40));
+        }
       });
       WS.metaRows(snapshot).forEach(function (m) {
         stmts.push({ sql: 'INSERT OR REPLACE INTO "' + WS.META_TABLE + '"(key,value) VALUES(?,?)', args: [arg(m.key), arg(m.value)] });

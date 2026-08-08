@@ -250,10 +250,19 @@
   // The rows written into polecat_meta at provision time — workspace identity
   // plus the app-level singletons (settings/meta) so the whole workspace is
   // captured relationally without a bespoke table each.
+  // N17: the version marker only ever moves FORWARD. Every adapter's save()
+  // writes these rows, so stamping a literal WS.SCHEMA_VERSION let an older
+  // build re-label a newer workspace as its own version — after which every
+  // client (including the newer app that built it) reads the workspace as
+  // older than it is and offers to "upgrade" what is already upgraded. The
+  // snapshot carries what the BACKEND reported (load() overwrites
+  // schemaVersion, N16), so keep the higher of the two.
   WS.metaRows = function (snapshot) {
+    var seen = Number(snapshot && snapshot.schemaVersion);
+    var stamp = (!isNaN(seen) && seen > WS.SCHEMA_VERSION) ? seen : WS.SCHEMA_VERSION;
     return [
       { key: "app",            value: WS.APP_ID },
-      { key: "schema_version", value: String(WS.SCHEMA_VERSION) },
+      { key: "schema_version", value: String(stamp) },
       { key: "settings",       value: JSON.stringify((snapshot && snapshot.settings) || {}) },
       { key: "meta",           value: JSON.stringify((snapshot && snapshot.meta) || {}) }
     ];

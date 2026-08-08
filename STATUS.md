@@ -135,6 +135,48 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N17 slice 1 of 2 — the storage guarantee: an older app's save cannot destroy what it can't
+  see (v899, sw v524, 2026-08-08, steward; dev branch):** the half of compatibility N16's banner
+  cannot cover. N16 latches a newer workspace read-only at the seams it can SEE (open, connect,
+  switch); a tab open for a week, a cached SW build or a phone that hasn't reloaded is past those
+  seams, and the next thing it does is save.
+  **The item demanded a measurement before a fix, and the measurement is why this slice is small
+  and specific** — three of the four adapters were already safe, so the fix is two files, not a
+  refactor. Saving a v4-shaped snapshot into a v5-shaped workspace: **unknown TABLES were never at
+  risk on any adapter** (every `save()` loops over `WS.TABLE_NAMES`, so a table this build has
+  never heard of is not addressed at all), and **unknown `data`-blob fields were never at risk
+  either** (`rowToCells` stringifies the WHOLE row and `cellsToRow` parses it back, so a field this
+  build doesn't know rides through load → edit → save untouched). Supabase was already clean on
+  every axis — `merge-duplicates` upserts and the atomic function's `information_schema` column
+  filter both name only the columns the payload carries. **Turso was the outlier**: its `save()`
+  was `DELETE FROM "<t>"` then `INSERT`, which (a) wrote NULL over any promoted column a newer app
+  had added to a table this build already knows, and (b) made absence mean deletion — a stale
+  mirror pushed away rows another device had created, the exact DURABLE-2 class supabase was fixed
+  for in v787 and turso never was.
+  **Plus one clobber the item had not predicted**, found by writing the test rather than by
+  reading the code, and living in the one place EVERY adapter shares: `WS.metaRows()` stamped a
+  literal `WS.SCHEMA_VERSION` into `polecat_meta` on every save. So a single save from an older tab
+  re-labelled an upgraded workspace as the OLDER shape — after which every client, including the
+  newer app that had just upgraded it, reads it as older and offers to upgrade what is already
+  upgraded. The marker is now monotonic: `metaRows` keeps the higher of this build's version and
+  the one `load()` read off the backend (N16 already made the snapshot carry the backend's number).
+  **What shipped.** `app/sources/turso.js` — the write is now `INSERT … ON CONFLICT(id) DO UPDATE
+  SET` naming ONLY the columns this build knows (an unknown column keeps whatever the newer app put
+  there), and deletes are tombstone-driven only, chunked 40 at a time, with `users` upsert-only
+  forever (v787), which is exactly supabase's shape; `app/sources/schema.js` — the monotonic marker.
+  **Verified** by three new checks driving a REAL edit-and-save through the adapter against a mock
+  Turso workspace stood up one version ahead of the app and carrying all four cases at once: an
+  unknown table, an unknown promoted column, an unknown field inside a data blob, and a row the
+  stale mirror never saw. All four survive; the edit still lands; the marker still reads the newer
+  version afterwards. The mock itself had to be upgraded to make the claim honest — it stored rows
+  as the positional arg array, which cannot express "a column the app never named", so it is now
+  column-keyed and models real SQLite (a plain INSERT leaves unnamed columns NULL; `DO UPDATE SET`
+  writes only what it names). Dev gate green (validate + changelog-check + dev-smoke); the full
+  suite was run to 3110 passing checks with zero real failures, covering the turso adapter,
+  all 13 N16 handshake checks, DURABLE-2, USERS-DURABLE and the five AUD-01 atomic-save checks —
+  every block that could have regressed from the shared `metaRows` change.
+  **Est 2pt, slice 1 took 1** — on estimate. Slice 2 (the resume/reconnect tripwire, plus
+  firebase's absence-delete, the one gap this measurement found and left) remains.
 - **N16 slice 2 of 2 — the OLDER direction: an in-app "Upgrade workspace" step, backup first
   (v898, sw v523, 2026-08-08, steward; dev branch):** branch (a) of the item. N16 is CLOSED.
   **The problem:** slice 1 closed the direction that eats data (newer workspace ⇒ read-only). The
@@ -11192,20 +11234,33 @@
   first**: export the pre-upgrade snapshot (the existing workspace-export path) before touching
   the backend, every time, no opt-out. The seam is ready: `Sync.schemaState().relation === "older"`
   is the trigger, and `syncState()` carries `backendSchemaVersion`/`appSchemaVersion` for the copy.
-- **N17 ★★ [2pt] — An older app must not clobber a newer workspace: prove it, then fix it.**
-  The half of compatibility N16's banner cannot cover: a stale tab (open for weeks), a cached SW
-  build, or a phone that hasn't refreshed still runs the OLD app against an upgraded backend —
-  and saves are WHOLE-SNAPSHOT replaces (`save(cfg, snapshot)`, the atomic-save fn iterates the
-  app's known tables). **First MEASURE what actually happens today** per adapter when a v4 app
-  saves into a v5-shaped workspace (extra table; extra promoted column; extra `data`-blob
-  field): which of the three survive, which are silently dropped. Then make the guarantee:
-  unknown TABLES are never touched by save (upsert-known, not replace-all), unknown promoted
-  COLUMNS survive a row upsert, and unknown fields inside `data` blobs survive a read-modify-
-  write round-trip (load → user edits → save must not strip fields this app version doesn't
-  know). Plus the runtime tripwire: sync re-checks the version on resume/reconnect (not just at
-  the N16 seams), so a tab that slept through an upgrade latches read-only instead of pushing.
-  The suite gets the round-trip test: seed a future-shaped workspace, run a real edit-and-save
-  through the old code path, assert nothing unknown was lost.
+- **N17 ★★ [2pt est, slice 1 shipped — slice 2 REMAINS] — An older app must not clobber a newer
+  workspace: prove it, then fix it.** ✓ **SLICE 1 SHIPPED (the storage guarantee) v899, sw v524
+  (2026-08-08, steward — see DONE).** The measurement it demanded, per adapter, saving a v4-shaped
+  snapshot into a v5-shaped workspace:
+
+  | | unknown TABLE | unknown promoted COLUMN | unknown `data` field | row this mirror never saw |
+  |---|---|---|---|---|
+  | local | n/a (save is a no-op) | n/a | ✅ | ✅ |
+  | supabase | ✅ loop is over TABLE_NAMES | ✅ merge-duplicates + the atomic fn's column filter | ✅ | ✅ tombstone-only (DURABLE-2) |
+  | turso | ✅ | ❌ **DELETE-ALL + INSERT nulled it** | ✅ | ❌ **DELETE-ALL removed it** |
+  | firebase | ✅ | n/a (whole row rides in `data`) | ✅ | ❌ absence-delete (see below) |
+
+  Plus one clobber the item hadn't predicted, in code EVERY adapter shares: `WS.metaRows()`
+  stamped a literal `WS.SCHEMA_VERSION`, so one save from an older tab re-labelled an upgraded
+  workspace as the older shape — after which every client, including the newer app that had
+  upgraded it, reads it as older and re-offers the upgrade. Slice 1 fixed turso's save (upsert
+  naming only known columns; deletes tombstone-driven only) and made the marker monotonic, and
+  added three checks driving a real edit-and-save against a future-shaped mock workspace
+  carrying all four cases at once.
+  **Slice 2 (what remains) — the runtime tripwire:** sync re-checks the version on
+  resume/reconnect (`visibilitychange`/online, not just the N16 seams), so a tab that slept
+  through an upgrade latches read-only instead of pushing. **Also fold in the one gap slice 1
+  measured but deliberately did not take:** firebase's `save()` still reads the collection back
+  and deletes any doc absent from the snapshot — the DURABLE-2 "absence is not deletion" class,
+  the last adapter still carrying it (supabase and now turso are tombstone-driven). It is a
+  row-level durability bug rather than a version-compat one, which is why it is a rider here and
+  not a silent extra in slice 1.
 - **N18 ★ [1pt] — `docs/COMPAT.md`: the backend-compatibility contract, wired into the process
   (Kevin: "make this process durable… in the development approach and processes now and going
   forward").** One page, enforced, in the style of docs/BACKLOG.md: **(1) the rules** — every

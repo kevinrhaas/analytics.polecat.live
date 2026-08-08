@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 899,
+    title: 'An older copy of the app can no longer damage a workspace a newer one has upgraded',
+    kind: 'fix',
+    ts: '2026-08-08T18:07:50.000Z',
+    items: [
+      'The app already refuses to write to a workspace built by a newer version of itself, but that check only runs at the moments it can see: opening the workspace, connecting, switching. A tab left open for a week, a phone that has not reloaded, or a cached copy of an older build can still be running with that check long behind it — and saving is what happens next.',
+      'So the save itself was measured, on every backend, against the three things an older copy cannot see: a table it has never heard of, a column added to a table it does know, and a field added inside a saved item. Supabase already left all three alone. Turso did not: it emptied each table and wrote its rows back, which meant any column added by a newer version was blanked, and any dashboard or dataset added on another device — one this copy had simply never downloaded — was deleted for having been absent.',
+      'Turso now updates the rows it is actually carrying and names only the columns it knows, so anything newer sitting beside them is untouched. Deletions are only ever real deletions: something you deleted, recorded as such and carried with the workspace. A row that is merely missing from one device is no longer treated as a row you removed.',
+      'The version marker stopped travelling backwards too. Every save stamped the version of whichever copy was doing the saving, so one save from an older tab re-labelled an upgraded workspace as the older shape — after which every app, including the newer one that had upgraded it, offered to upgrade it again.',
+      'Three checks cover it, against a stand-in Turso workspace built one version ahead of this app and carrying all four cases at once. An unknown table, an unknown column, an unknown field and a never-seen row all survive a genuine edit-and-save through the older path, and the marker still reads the newer version afterwards.',
+    ],
+  },
+  {
     v: 898,
     title: 'A workspace made by an older version of the app can be upgraded from inside the app',
     kind: 'feature',
