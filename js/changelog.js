@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 882,
+    title: 'Help says where the buttons are on a phone, and the ⋯ menu stops repeating your toolbar',
+    kind: 'fix',
+    ts: '2026-08-08T05:53:46.000Z',
+    items: [
+      'A narrow screen has no room for the builder\'s toolbar, so the app tucks it into the ⋯ More menu. The Help page never mentioned that. It said "click Export ▾ in the topbar", "the ↶/↷ buttons in the topbar", "Save", "Open" — ten buttons, described entirely as a laptop sees them. If you were on a phone, the page you opened because you could not find a button told you to click that button.',
+      'Help now names the route your phone actually has, next to every one of them: ⋯ More → Export…, ⋯ More → Save, ⋯ More → Open…, ⋯ More → Undo and Redo, Save as…, Duplicate, Close, and the two top-bar icons a phone drops (What\'s new, Send feedback). A new short section, "On a phone, the toolbar lives in ⋯ More", lists the whole set in one place, and the export instructions link to it.',
+      'Writing that down turned up a real defect on the other side. Those ten entries were meant to appear only on phones, in place of the toolbar buttons — but the rule meant to hide them on wider screens never took effect, so on a laptop the ⋯ menu had been quietly repeating Undo, Redo, Open…, Save, Save as…, Duplicate, Close and Export… back to you, inches from the toolbar buttons that already do exactly that, plus What\'s new and Send feedback from the top bar. The menu is now what it always intended to be: on a laptop it shows only what the toolbar does not.',
+      'The check that runs on every change now works out for itself which buttons the phone layout hides and which ⋯ More entry replaces each one, and fails if Help stops naming the route. It also holds the two to the same screen width: hiding a button below 640 pixels while revealing its menu entry only below 400 would leave mid-size phones with the button in neither place, and that now fails loudly instead of silently. Seven new tests walk every one of those routes on a 390-pixel screen — each entry on screen and working — and confirm they stay out of the menu on a laptop.',
+    ],
+  },
+  {
     v: 881,
     title: 'The Build a dashboard tour\'s Export step works on a phone',
     kind: 'fix',

@@ -381,7 +381,28 @@
       fleet app switcher, and <strong>New</strong>.</li>
   </ul>
   <p>On phones the bar keeps the essentials — section name, search, app switcher, New — with the
-  rest tucked into the rail drawer and the ⋯ menu.</p>
+  rest tucked into the rail drawer and the <strong>⋯ More</strong> menu.</p>
+
+  <h3 id="phone-more">On a phone, the toolbar lives in ⋯ More</h3>
+  <p>Narrow screens don't have room for the full button row, so the app hides it rather than
+  crushing it — and that includes <em>the builder's own toolbar</em>, which on a laptop sits
+  along the top of Studio. Nothing is lost: every one of those buttons has an entry in
+  <strong>⋯ More</strong> that does exactly the same thing. Wherever this page tells you to
+  click a toolbar button, this is the route your phone has instead:</p>
+  <ul>
+    <li><strong>⋯ More → Undo</strong> and <strong>⋯ More → Redo</strong> — the ↶/↷ buttons.</li>
+    <li><strong>⋯ More → Open…</strong> — the dashboard picker (its footer still offers
+      <strong>Open file…</strong> and <strong>Import from URL…</strong>).</li>
+    <li><strong>⋯ More → Save</strong> and <strong>⋯ More → Save as…</strong>.</li>
+    <li><strong>⋯ More → Duplicate</strong> — copy the dashboard you have open.</li>
+    <li><strong>⋯ More → Export…</strong> — opens the very same export menu described under
+      <a href="#exporting">Exporting dashboards</a>, with every format.</li>
+    <li><strong>⋯ More → Close</strong> — leave the builder and go back where you came from.</li>
+    <li><strong>⋯ More → What's new</strong> and <strong>⋯ More → Send feedback</strong> — the two
+      top-bar icons a phone drops.</li>
+  </ul>
+  <p>Keyboard shortcuts are unaffected — if your phone or tablet has a keyboard,
+  <kbd>⌘ S</kbd> / <kbd>Ctrl S</kbd> and friends still work.</p>
 
   <h3>Quick import — file to dashboard in one drop</h3>
   <!-- IMAGE-SLOT: a CSV file being dragged onto Home's Quick import card, plus the
@@ -492,7 +513,7 @@
     <div class="step">
       <div class="step-num">Step 3</div>
       <div class="step-title">Export and deploy</div>
-      <div class="step-desc">Use <strong>Export ▾</strong> to download a self-contained dashboard <code>.html</code>, or a full bundle (<code>.html</code> + the editable <code>.studio.json</code> spec) — host it anywhere static pages live.</div>
+      <div class="step-desc">Use <strong>Export ▾</strong> — <strong>⋯ More → Export…</strong> on a phone — to download a self-contained dashboard <code>.html</code>, or a full bundle (<code>.html</code> + the editable <code>.studio.json</code> spec) — host it anywhere static pages live.</div>
     </div>
   </div>
 
@@ -966,7 +987,7 @@
   </ul>
 
   <h3>Version history</h3>
-  <p>Every <strong>Save</strong> (topbar button or Ctrl/⌘+S) keeps a timestamped checkpoint of the
+  <p>Every <strong>Save</strong> (topbar button, <strong>⋯ More → Save</strong> on a phone, or Ctrl/⌘+S) keeps a timestamped checkpoint of the
   whole dashboard — up to the last 10 per dashboard, stored locally on this device:</p>
   <ul>
     <li><strong>Restore</strong> any entry (after a confirm) — the restore itself becomes a new
@@ -1057,7 +1078,7 @@
   <p><strong>Auto-arrange:</strong> the <strong>Layout</strong> field in the Dashboard inspector (next to Grid columns) has an <strong>Auto-arrange</strong> button that reflows the existing Views for you — chart types with a lot of horizontal detail (Table, Text/annotation, Sankey, Chord, Calendar heatmap) get a full-width row of their own, everything else defaults to a single column, and Views sharing a tag are grouped together. A quick starting point for a first draft; drag-resize still works normally afterward.</p>
 
   <h3>Undo / Redo</h3>
-  <p>Every structural edit (add, remove, reorder, resize, rename) is snapshotted. Use <kbd>Ctrl Z</kbd> / <kbd>⌘ Z</kbd> to undo and <kbd>Shift Z</kbd> to redo. The ↶/↷ buttons in the topbar work too (they only show while Studio is open). Text-field edits are not tracked individually (to avoid flooding the history).</p>
+  <p>Every structural edit (add, remove, reorder, resize, rename) is snapshotted. Use <kbd>Ctrl Z</kbd> / <kbd>⌘ Z</kbd> to undo and <kbd>Shift Z</kbd> to redo. The ↶/↷ buttons in the topbar work too (they only show while Studio is open; on a phone they are <strong>⋯ More → Undo</strong> and <strong>⋯ More → Redo</strong>). Text-field edits are not tracked individually (to avoid flooding the history).</p>
 
   <h3>Sample dashboards</h3>
   <p>The bundled sample dashboards — a curated, most-spectacular-first gallery spanning operations, engineering delivery, finance, marketing & growth, reliability, governance, compliance, quality, pipelines, storage, and cost, together covering all 54 chart types at least once (the newest — the Metrics wheel — in the Conservation pack’s own System Metrics dashboard) — live in two places: <strong>Home's sample gallery</strong> (click a tile to open it in the builder) and the <strong>Dashboards</strong> section under the <strong>Sample packs</strong> chip. A great way to explore what's possible before building your own. (The old Studio "Examples ▾" toolbar menu is gone — same dashboards, better homes.)</p>
@@ -2027,7 +2048,7 @@
 <!-- ── Exporting ──────────────────────────────────────────────── -->
 <section id="exporting">
   <h2>Exporting dashboards</h2>
-  <p>Click <strong>Export ▾</strong> in the topbar to open the export menu (it only shows while Studio is open). Every option opens an export modal with file size, a copy-to-clipboard button, and a download button.</p>
+  <p>Click <strong>Export ▾</strong> in the topbar to open the export menu (it only shows while Studio is open). Every option opens an export modal with file size, a copy-to-clipboard button, and a download button. On a phone the topbar has no room for that button — take <strong>⋯ More → Export…</strong> instead, which opens the same menu (<a href="#phone-more">the whole toolbar moves there</a>).</p>
   <p><strong>What data travels with an export.</strong> A source with no engine behind it —
   sample-pack content, authored datasets, View Builder results — can't be re-queried from a
   standalone file, so the export always bakes in a <strong>data snapshot</strong> taken at export
@@ -2089,9 +2110,9 @@
 
   <h3>Saving and loading your work</h3>
   <ul>
-    <li><strong>Save</strong> (<kbd>Ctrl S</kbd> / <kbd>⌘ S</kbd>) — saves the dashboard to your <strong>Dashboards</strong> catalog (and cuts a version-history checkpoint). To get a file instead, use <strong>Export ▾ → Editable spec (.studio.json)</strong> — that file is all a dashboard needs.</li>
-    <li><strong>Save as…</strong> — saves the current dashboard as a brand-new one (you name it) instead of overwriting the one you opened. Sample/demo content is always read-only: hitting plain <strong>Save</strong> on a sample dashboard automatically opens the Save-as prompt instead of silently overwriting it, so removing or reinstalling a sample pack never clobbers your edits — they live on in your own copy.</li>
-    <li><strong>Open</strong> — picks a dashboard from your catalog; its footer also offers <strong>Open file…</strong> (accepts <code>.studio.json</code> or a previously exported <code>.html</code> — Studio embeds the spec in exported files) and <strong>Import from URL…</strong>.</li>
+    <li><strong>Save</strong> (<kbd>Ctrl S</kbd> / <kbd>⌘ S</kbd>; <strong>⋯ More → Save</strong> on a phone) — saves the dashboard to your <strong>Dashboards</strong> catalog (and cuts a version-history checkpoint). To get a file instead, use <strong>Export ▾ → Editable spec (.studio.json)</strong> — that file is all a dashboard needs.</li>
+    <li><strong>Save as…</strong> (<strong>⋯ More → Save as…</strong> on a phone) — saves the current dashboard as a brand-new one (you name it) instead of overwriting the one you opened. Sample/demo content is always read-only: hitting plain <strong>Save</strong> on a sample dashboard automatically opens the Save-as prompt instead of silently overwriting it, so removing or reinstalling a sample pack never clobbers your edits — they live on in your own copy.</li>
+    <li><strong>Open</strong> (<strong>⋯ More → Open…</strong> on a phone) — picks a dashboard from your catalog; its footer also offers <strong>Open file…</strong> (accepts <code>.studio.json</code> or a previously exported <code>.html</code> — Studio embeds the spec in exported files) and <strong>Import from URL…</strong>.</li>
     <li><strong>Auto-save</strong> — the Studio quietly saves your work to browser localStorage after each edit. Turn on <strong>Restore unsaved work</strong> in Settings (off by default) and, if you accidentally close the tab, a banner offers to restore that draft on your next visit.</li>
     <li><strong>Workspace backend</strong> — your Dashboards catalog lives in the same local-first workspace store as your Connections and Datasets, so if you've connected a workspace backend in <strong>Settings</strong> (Turso, Supabase, or Firebase), saved dashboards — including their pins and workbook filing — mirror to it automatically and follow you to another browser via <strong>Refresh</strong>. Nothing changes if you haven't: everything keeps working purely on this device.</li>
   </ul>
