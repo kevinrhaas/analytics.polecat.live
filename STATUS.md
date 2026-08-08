@@ -10867,6 +10867,61 @@
   a LOOP over every registered pack (install → expected counts → every row tagged `demoPackId`
   → uninstall leaves zero rows), so each new pack is covered by construction rather than by
   someone remembering. No user-visible pack ships in this item.
+- **N16 ★★ [2pt] — Backend version handshake: the app finally READS the schema version every
+  adapter already reports (Kevin, 2026-08-08 — "future versions of the app will break previous
+  versions of the database back end… it should ask to upgrade").** The marker exists end to end
+  and is consumed NOWHERE: `WS.SCHEMA_VERSION = 4` (`app/sources/schema.js:72`) is stamped into
+  `polecat_meta` at provision, every adapter's `probe()` returns it (supabase.js:715,
+  turso.js:119, firebase.js:111, local.js:51) — and no caller in sync.js / workspaces.js /
+  studio.js / gate.js ever compares it to the app's. Both mismatch directions proceed silently.
+  **Ship the handshake at the two seams that matter** — connect (workspace picker / Admin) and
+  the boot pull — with three branches:
+  (a) **backend OLDER** → say so and offer the upgrade IN-APP: run `WS.provisionDeltaSQL()`
+  (already cumulative + idempotent, safe from any older version) through the adapter where
+  browser DDL is possible (Turso; Supabase via the polecat-admin Edge Function where bound), and
+  show the copy-paste SQL where it is not — the flow that today only surfaces as a FAILED SAVE's
+  error string (supabase.js:511) becomes a first-class "Upgrade workspace" step. **Take a backup
+  first**: export the pre-upgrade snapshot (the existing workspace-export path) before touching
+  the backend, every time, no opt-out.
+  (b) **backend NEWER than the app** → NEVER write. Read-only mode with a banner: "this
+  workspace was created by a newer version of Analytics — refresh/update the app" (the app is a
+  PWA; the Settings hard-reset already exists for a stuck SW). This is the direction that eats
+  data today and it costs one integer comparison to close.
+  (c) equal → proceed, zero friction.
+  Manual-provision paths (`tools/supabase-bootstrap.sql`, sql.ts) already stamp the version;
+  assert in the suite that a freshly provisioned backend of EVERY adapter reports exactly
+  `WS.SCHEMA_VERSION`, so the marker can never drift from the DDL again (same drift class N2
+  slice 2 caught between sql.ts and the canonical RLS file).
+- **N17 ★★ [2pt] — An older app must not clobber a newer workspace: prove it, then fix it.**
+  The half of compatibility N16's banner cannot cover: a stale tab (open for weeks), a cached SW
+  build, or a phone that hasn't refreshed still runs the OLD app against an upgraded backend —
+  and saves are WHOLE-SNAPSHOT replaces (`save(cfg, snapshot)`, the atomic-save fn iterates the
+  app's known tables). **First MEASURE what actually happens today** per adapter when a v4 app
+  saves into a v5-shaped workspace (extra table; extra promoted column; extra `data`-blob
+  field): which of the three survive, which are silently dropped. Then make the guarantee:
+  unknown TABLES are never touched by save (upsert-known, not replace-all), unknown promoted
+  COLUMNS survive a row upsert, and unknown fields inside `data` blobs survive a read-modify-
+  write round-trip (load → user edits → save must not strip fields this app version doesn't
+  know). Plus the runtime tripwire: sync re-checks the version on resume/reconnect (not just at
+  the N16 seams), so a tab that slept through an upgrade latches read-only instead of pushing.
+  The suite gets the round-trip test: seed a future-shaped workspace, run a real edit-and-save
+  through the old code path, assert nothing unknown was lost.
+- **N18 ★ [1pt] — `docs/COMPAT.md`: the backend-compatibility contract, wired into the process
+  (Kevin: "make this process durable… in the development approach and processes now and going
+  forward").** One page, enforced, in the style of docs/BACKLOG.md: **(1) the rules** — every
+  schema change is ADDITIVE (new tables / new promoted columns / new `data` fields; never
+  rename, never repurpose, never change meaning; removal = stop writing, keep reading,
+  tombstone in COMPAT.md); the version guarantee stated plainly (app reads workspaces back to
+  v1; app N writes only what app N knows but never destroys what it doesn't — N17's guarantee;
+  backend newer than app = read-only — N16's); **(2) the bump checklist** — any PR that bumps
+  `WS.SCHEMA_VERSION` must in the SAME PR extend `provisionDeltaSQL()`, update bootstrap SQL +
+  sql.ts + the RLS files, extend the N16 handshake test and the N17 round-trip test to the new
+  version, and add the COMPAT.md history line (mirror of the sw.js CACHE-bump ritual, which
+  works because it is a ritual); **(3) the history** — v1→v4 reconstructed from schema.js's own
+  comment block. Then wire it in: a CLAUDE.md bullet ("touching WS.SCHEMA_VERSION or any
+  workspace DDL? read docs/COMPAT.md first — the bump checklist is mandatory") and a validate/
+  doc-truth check that fails when SCHEMA_VERSION changes without a same-commit COMPAT.md history
+  entry — the process teeth, so this outlives any one agent's memory.
 - **SP-1 ★★ [3pt] — "Market Coverage" — the new DEFAULT sample pack (Kevin, 2026-08-07).**
   Industry density and whitespace by county: where a chain is under-represented versus the
   population and the businesses already there. **Replaces `datamanagement` in
@@ -11604,6 +11659,38 @@
 >   **Split it before it enters NOW**, e.g. SP-16a the panel + extract + join jobs, SP-16b the
 >   index + re-weighting dashboard. It should also land AFTER SP-12/SP-13/SP-15, since it
 >   consumes their extracts.
+
+### 🛡 BACKEND DURABILITY (Kevin, 2026-08-08) — the epic behind N16/N17/N18
+
+> Kevin's concern, verbatim intent: he WILL keep improving the backend schema (Supabase / Turso
+> / Firebase), and app↔backend version skew must never break or eat a workspace — newer app on
+> older backend asks to upgrade; older app on newer backend must not write; ideally both
+> directions stay compatible. N16 (handshake + in-app upgrade), N17 (older-app write safety) and
+> N18 (the COMPAT.md contract + process teeth) in ▶ NOW are the core and cover the concern as
+> stated. What waits here is the deeper tail — promote at grooming, split before entering NOW:
+>
+> - **DUR-2 [3pt] — The cross-version compatibility suite.** Today's tests only exercise the
+>   CURRENT schema. Build the matrix the guarantees need: seed a v2- and a v3-shaped workspace
+>   (from `provisionDeltaSQL`'s own history), run each through upgrade → full app boot → edit →
+>   save → reload, and assert every row survives; plus the reverse simulation (patch
+>   `WS.SCHEMA_VERSION` down in-page to impersonate an older app against a current backend) to
+>   hold N17's never-destroy guarantee red-green. This is the ratchet that keeps N16/N17 true on
+>   every future bump, not just the ones shipped while people remembered.
+> - **DUR-3 [2pt] — Backup & restore as a first-class feature, not an upgrade side-effect.**
+>   N16 snapshots before upgrading; finish the thought: a visible workspace-backup card
+>   (download / restore / auto-keep-last-N in localStorage with size caps), so "something went
+>   wrong with the backend" always has a one-click way back. Reuses the existing export/import
+>   plumbing; mostly UI + retention policy.
+> - **DUR-4 [2pt] — Skew telemetry into ACTIVITY-1's log.** Record every handshake outcome
+>   (versions seen, branch taken, upgrade run, read-only latched) in the backend activity log,
+>   so "why is this tab read-only" and "when did this workspace upgrade" are answerable from
+>   Admin instead of from memory. Depends on N16 landing first; folds naturally into the
+>   ACTIVITY-1 work already in flight.
+> - **Deliberately NOT planned:** per-table version numbers, a general migration DSL, or
+>   automatic DOWN-grades. The additive-only rule (N18) makes them unnecessary, and a downgrade
+>   path is exactly the kind of rarely-exercised machinery that itself eats data. If a future
+>   change genuinely cannot be additive, that is a Kevin decision at the COMPAT.md level, not a
+>   framework to build in advance.
 
 ### 🗂 Reservoir index (added 2026-08-07, N1) — what is below, and whether it is alive
 
