@@ -900,7 +900,8 @@ ok(`app/studio.css: ⋯ More reveals its phone-only entries in the same band tha
 //     catalogView.wire() sets at runtime, and the button's own text. Add a fourth control to
 //     `.repo-io` and this check says nothing; add one the tours must explain and it does.
 //     Deliberately scoped to the TOOLBAR: the per-row controls (the `private` toggle, the row
-//     actions) are a different component with a different blast radius and are not derived here.
+//     actions) are a different component with a different blast radius, and are derived by
+//     check 24 below instead.
 const REPO_IO_SUFFIXES = ["SortSel", "ViewToggle", "SelectBtn"];
 const CONTROL_WHAT = {
   SortSel: "the sort dropdown",
@@ -1040,6 +1041,96 @@ if (packFolder && !packTourCopy.includes(packFolder))
 ok("app/tutorial.js: the Conservation Insight tour names everything the pack actually seeds (kinds, practices, folder)",
   !packTourGaps.length,
   `${packTourGaps.join("\n      ")}\n      the pack tour is the only place a reader is told what installing it gave them`);
+
+/* ── 24. the catalog tours vs each catalog ROW's own controls ───────────────
+   Check 22's other half. That check derives the catalog TOOLBAR and says in its own header
+   that the per-row controls are a different component, not derived there — this is that
+   component. The row is where the work actually happens: you Test a connection, Run a job,
+   pin the dataset you open twenty times a day. The v889 pass named exactly ONE of those
+   controls (`private`) in each of its two list stops and left the rest tour-silent, so a
+   reader could finish the Jobs tour without ever learning that a job runs from its own row.
+
+   Every fact is derived, the same way check 22 derives its own. WHICH sections have a row
+   renderer worth explaining is the map below (one catalog module each); WHAT that row
+   carries comes from the module's own `var actions = '<span class="cx-actions">'` block —
+   each button's visible text, or its aria-label when the button is a glyph like ✕ — plus
+   whichever of the `cx-pin` / `cx-private` toggles it renders beside them (Jobs has no pin;
+   the check notices that rather than being told); and WHICH tours are in scope comes from
+   the goSection() calls those tours actually make.
+
+   The requirement is deliberately STRICTER than check 22's bare word: the tour must name
+   the control the way this file names controls everywhere else — in BOLD, `<b>Run</b>` —
+   which is the check-14 idiom. A bare-word rule is not good enough here, because the Jobs
+   tour already says "a status dot for their last run": that is prose ABOUT runs, and it
+   would satisfy a requirement to explain a Run button the reader has still never been told
+   exists. */
+const CATALOG_ROW_MODULES = {
+  jobs: "app/jobs.js", connections: "app/connections.js", datasets: "app/datasets.js",
+};
+// The two toggles that ride beside the action buttons, and the word each is named by. A
+// module gets a requirement only if it actually renders that class.
+const ROW_TOGGLE_WORD = { "cx-pin": "Pin", "cx-private": "private" };
+function rowControls(file) {
+  const src = read(file);
+  const marker = "var actions = '<span class=\"cx-actions\">'";
+  const start = src.indexOf(marker);
+  if (start < 0) throw new Error(`doc-truth: ${file} no longer builds its row actions as ` +
+    `\`${marker}\` — check 24 cannot derive what the row carries`);
+  const block = src.slice(start, src.indexOf("</span>'", start));
+  const actions = block.split("\n").filter((l) => l.includes("<button")).map((line) => {
+    // A button that says "Run" names itself; the delete ✕ is a glyph, so it is named by the
+    // aria-label it already carries for exactly the same reason (a screen reader needs a word).
+    const text = ((line.match(/">([^<']*)<\/button>/) || [])[1] || "").trim();
+    if (/^[A-Za-z]+$/.test(text)) return text;
+    const aria = (line.match(/aria-label="([A-Za-z]+)/) || [])[1];
+    if (!aria) throw new Error(`doc-truth: a row action button in ${file} has neither word text ` +
+      `nor an aria-label to name it — ${line.trim()}`);
+    return aria;
+  });
+  const toggles = Object.entries(ROW_TOGGLE_WORD)
+    .filter(([cls]) => src.includes(`class="${cls}`)).map(([, w]) => w);
+  return { actions, toggles };
+}
+const rowControlsBySection = new Map(
+  Object.entries(CATALOG_ROW_MODULES).map(([sec, f]) => [sec, { file: f, ...rowControls(f) }]));
+ok("the catalog modules' per-row controls parsed for check 24 are non-empty",
+  [...rowControlsBySection.values()].every((r) => r.actions.length >= 2) &&
+    [...rowControlsBySection.values()].some((r) => r.toggles.length === 2),
+  [...rowControlsBySection].map(([s, r]) =>
+    `${s}: ${[...r.actions, ...r.toggles].join(", ") || "(none)"}`).join(" · "));
+// Check 22's tourCopy strips markup, because a bare word was all it asked for. This one asks
+// for the bolded control name, so the markup is what it must keep — concatenated string
+// literals are joined first so a <b> split across a `+` still reads as one tag.
+const tourCopyMarkup = (src) => [...src
+  .replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1")
+  .matchAll(/\b(?:t|h|sub|blurb):\s*("(?:[^"\\]|\\.)*"(?:\s*\+\s*"(?:[^"\\]|\\.)*")*)/g)]
+  .map((m) => m[1]).join(" ").replace(/"\s*\+\s*"/g, "");
+const rowTourGaps = [];
+const rowTours = [];
+for (const [key, src] of tourBlocks) {
+  const walks = [...new Set([...src.matchAll(/goSection\("(\w+)"\)/g)].map((m) => m[1]))]
+    .filter((s) => rowControlsBySection.has(s));
+  if (!walks.length) continue;
+  rowTours.push(`${key} → ${walks.join(" + ")}`);
+  const copy = tourCopyMarkup(src);
+  const need = new Map();
+  for (const sec of walks) {
+    const r = rowControlsBySection.get(sec);
+    for (const w of r.actions)
+      if (!need.has(w.toLowerCase())) need.set(w.toLowerCase(), `the row's ${w} button (${r.file}, in ${sec})`);
+    for (const w of r.toggles)
+      if (!need.has(w.toLowerCase())) need.set(w.toLowerCase(), `the row's ${w} toggle (${r.file}, in ${sec})`);
+  }
+  for (const [w, whence] of need)
+    if (!new RegExp(`<b>\\s*${w}\\b[^<]*</b>`, "i").test(copy))
+      rowTourGaps.push(`the "${key}" tour walks ${walks.join(" + ")} but its copy never names ` +
+        `<b>${w}</b> — ${whence}`);
+}
+ok("app/tutorial.js: the catalog-walking tours parsed for check 24 are non-empty",
+  rowTours.length >= 2, `in scope: ${rowTours.join(" · ") || "(none)"}`);
+ok(`app/tutorial.js: every tour that walks a catalog names that catalog ROW's own controls (${rowTours.join(", ")})`,
+  !rowTourGaps.length,
+  `${rowTourGaps.join("\n      ")}\n      the row is where the work happens — an unnamed row control is one the reader will never find`);
 
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");

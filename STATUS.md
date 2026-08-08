@@ -135,6 +135,41 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the catalog tours name what a ROW can do, not just what it is (v892, sw v517,
+  2026-08-08, steward; LF58 recurring slice, dev branch):** the ▶ NOW queue again held no ready
+  non-recurring item (N4a is still ⛔ on Kevin, grooming pass 2 is still parked on `hold` PR
+  #623), so the recurring N7 took the next slice. **The candidate this list left
+  half-covered:** v889 gave the Jobs and Connections &amp; Datasets tours a toolbar stop, and
+  doc-truth check 22 says in its own header that the per-row controls are a different
+  component it does not derive. Nothing derived them, and the measurement showed why that
+  mattered — both tours said only that each row "carries its own actions", named `private`,
+  and stopped. Derived from the three catalog modules' own row renderers, the rows carry
+  Run/Edit/✕ + private (Jobs), Test/Edit/✕ + Pin + private (Connections) and Run/Edit/✕ +
+  Pin + private (Datasets): **six controls no tour named**, including Run on Jobs (a reader
+  finished that tour never learning a job runs from its row), Test on Connections (the
+  fastest way to find an expired credential) and Pin on both catalogs, which appeared in no
+  tour at all. Three steps rewritten in `app/tutorial.js` — Jobs step 1, and the connect
+  tour's connections (step 1) and datasets (step 5) stops, so both halves of that walk
+  describe the same row anatomy. **The copy was verified against the handlers rather than
+  assumed:** `data-job-run` re-renders the row so the status dot answers in place,
+  `data-dsx-run` toasts a row count without opening the editor (the first draft said "see
+  real rows" and was corrected), and `catalogSort` really does sort `pinned` first. **New
+  doc-truth check 24** — check 22's move, one component in: it parses each module's
+  `var actions = '<span class="cx-actions">'` block for the buttons (by their own text, or
+  their aria-label where the control is a glyph like ✕) and adds whichever of `cx-pin` /
+  `cx-private` that module renders, so Jobs having no pin is noticed rather than configured.
+  It is deliberately STRICTER than check 22's bare word: the control must be named in **bold**,
+  the check-14 idiom, because the Jobs tour's existing "a status dot for their last run" is
+  prose about runs that a bare-word rule would accept as explaining a Run button. It flagged
+  all six gaps on the pre-fix copy and passes on the fixed one. **Verified in the foreground**
+  on the full dev gate — `tools/validate.mjs`, `tools/changelog-check.js`, `tools/doc-truth.mjs`
+  and `tools/dev-smoke.mjs` (marketing + app-past-gate + docs at 1280×900 and 390×780, zero
+  pageerrors). N7 is recurring and carries no point estimate; this was one slice, as every
+  N7 slice has been. **Audited and found CURRENT in the same pass, no change needed:** nothing
+  else in the two tours drifted. **The gap this pass found and deliberately did not take:**
+  `docs/index.html` documents Test, Run and `private` in their own sections but never the
+  per-row **Pin**, on either catalog — that is the check-16→17 move, one document over, and
+  it is written into N7's candidate list as the next slice rather than folded into this one.
 - **N7 — the Conservation Insight tour tells you everything the pack actually gave you (v891,
   sw v516, 2026-08-08, steward; LF58 recurring slice, dev branch):** the ▶ NOW queue again held
   no ready non-recurring item (N4a is ⛔ on Kevin, grooming pass 2 is parked on `hold` PR #623,
@@ -11263,14 +11298,28 @@
     **Audited and found CURRENT in the same pass, no change needed:** the geography close — all
     six built-in map scales and the custom-regions import still match `app/model.js`'s
     choropleth `opts`.
-  * **Not yet audited (candidates for the next N7 slice):** the marketing page's hero carousel
+  * *The catalog tours vs each ROW's own controls — v892, sw v517, 2026-08-08 (see DONE).* The
+    half-covered surface this list named last time, and check 22's own header had already
+    conceded it: the per-row controls are a different component and nothing derived them. Both
+    tours said each row "carries its own actions", named `private`, and stopped — leaving Run
+    (Jobs), Test (Connections), Pin (both) and Edit/✕ tour-silent, six controls in all. Three
+    steps rewritten; doc-truth check 24 derives each row's controls from the module that renders
+    it and requires the tour to name them in **bold** — stricter than check 22 on purpose, since
+    "a status dot for their last run" would satisfy a bare-word rule for a Run button.
+  * **Not yet audited (candidates for the next N7 slice):** Help's own version of that same row
+    — `docs/index.html` documents Test, Run and `private` in their own sections but never the
+    per-row **Pin** on Connections or Datasets (measured in the v892 pass); that is the
+    check-16→17 move one document over, the pattern that has followed every tour slice, and it
+    is the strongest remaining candidate. Then the marketing page's hero carousel
     captions + screenshots, which the v871 slice deliberately left alone (the copy pass
     stayed textual — regenerating shots is its own slice) — with every per-feature tour body
     now done (Quick analysis v875, Build a dashboard v877/v880/v881, Jobs / Connections &amp;
-    Datasets v889, Conservation Insight pack v891), it is the strongest remaining candidate;
-    and the catalogs' **per-row** controls,
-    the one surface v889 left half-covered (it named the `private` toggle in the two list stops;
-    the row's ★ pin, quick-rename and folder chip are still tour-silent).
+    Datasets v889, Conservation Insight pack v891). **The v892 pass measured that one rather
+    than guessing at it:** `site/shots/*.png` were last generated 2026-07-31, and N8, N9a/b,
+    N13 and STUDIO-PANELS have all changed the surfaces they show since (the catalog toolbars
+    grew, the builder now opens with both panes collapsed), so the images ARE stale — it was
+    passed over here only because regenerating sixteen 2160×1350 captures and visually
+    auditing them is a poor fit for one run, not because it is current. It stays on this list.
     **Audited and found CURRENT in the v889 pass, no change needed:** `docs/index.html` on this
     same toolbar — Help already documents Sorting ("Every catalog page — Dashboards, Views,
     Datasets, Connections, Jobs…"), the **Tile view** button and a whole "Select multiple / bulk
