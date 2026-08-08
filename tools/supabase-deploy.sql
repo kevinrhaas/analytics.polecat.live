@@ -30,14 +30,16 @@
 -- The three Security toggles on the create-project screen:
 --   * Enable Data API — ON, REQUIRED. The adapter is a PostgREST client; with
 --     the Data API off there is no door to knock on.
---   * Automatically expose new tables — ON, for now. It looks like it should be
---     OFF (Supabase recommends OFF, and tools/supabase-bootstrap.sql grants
---     explicitly) — but THIS file contains ZERO `GRANT` statements and relies
---     entirely on the project's default privileges. Turn it off today and this
---     script yields tables with RLS and policies but no table-level grant to
---     anon/authenticated: PostgREST refuses and the app cannot connect.
---     WHOEVER ADDS GRANTS HERE flips that answer to OFF in the same change —
---     doc-truth check 26 goes red until they do.
+--   * Automatically expose new tables — OFF, as Supabase recommends (N20,
+--     2026-08-08). It used to have to be ON, because this file contained ZERO
+--     `GRANT` statements and leaned entirely on the project's default
+--     privileges — turn the toggle off back then and the script yielded tables
+--     with RLS and the right policies but no table-level grant to
+--     anon/authenticated, so PostgREST refused and the app could not connect,
+--     with a failure that looked like an RLS problem and was not one. § 6c now
+--     grants explicitly, so the recommended answer is finally the correct one.
+--     WHOEVER REMOVES § 6c flips this back to ON in the same change — doc-truth
+--     check 26 reads the GRANT count out of this file and goes red either way.
 --   * Enable automatic RLS — ON. § 2 already enables RLS + policies per table,
 --     so this only covers anything created outside this file. With the newer
 --     publishable keys a table with RLS and NO policy returns zero rows rather
@@ -73,6 +75,21 @@ CREATE TABLE IF NOT EXISTS public.dashboards  (id TEXT PRIMARY KEY, "name" TEXT,
 CREATE TABLE IF NOT EXISTS public.analyses    (id TEXT PRIMARY KEY, "name" TEXT, "datasetId" TEXT, "chartType" TEXT, "updatedAt" BIGINT, data TEXT);
 CREATE TABLE IF NOT EXISTS public.jobs        (id TEXT PRIMARY KEY, "name" TEXT, "sourceDatasetId" TEXT, "updatedAt" BIGINT, data TEXT);
 CREATE TABLE IF NOT EXISTS public.users       (id TEXT PRIMARY KEY, "name" TEXT, "role" TEXT, "updatedAt" BIGINT, data TEXT);
+
+-- 1b) Say what was just built (N20 rider, 2026-08-08). This file built the full
+--     v4 shape and then declined to declare it: the N16 version handshake read
+--     `unknown` until the app's first save stamped the marker, which is exactly
+--     the window a second client is most likely to arrive in. Both markers are
+--     DO NOTHING, never DO UPDATE — an existing environment's own answer always
+--     wins, so re-running an OLDER copy of this script against an upgraded
+--     workspace can never rewind `schema_version` (the SQL half of the
+--     monotonicity N17 gave WS.metaRows()), and running the analytics deploy
+--     against a project another fleet app already claimed cannot relabel it.
+--     doc-truth check 25 holds the version below to app/sources/schema.js.
+INSERT INTO public.polecat_meta(key, value) VALUES ('app', 'analytics')
+  ON CONFLICT (key) DO NOTHING;
+INSERT INTO public.polecat_meta(key, value) VALUES ('schema_version', '4')
+  ON CONFLICT (key) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
 -- 2) RLS ON + retire every legacy open policy on all seven workspace tables.
@@ -260,6 +277,32 @@ DROP POLICY IF EXISTS polecat_feedback_insert_anon ON public.polecat_feedback;
 CREATE POLICY polecat_feedback_insert_anon ON public.polecat_feedback
   FOR INSERT TO anon
   WITH CHECK (gotrue_id IS NULL);
+
+-- ---------------------------------------------------------------------------
+-- 6c) TABLE PRIVILEGES (N20, 2026-08-08). Until now this file had no GRANT of
+--     its own and leaned on the project's default privileges, which meant it
+--     only worked on a project created with "Automatically expose new tables"
+--     ON — the opposite of what Supabase recommends. Follow the recommendation
+--     and you got RLS + the right policies and STILL could not connect: no
+--     table-level privilege for anon/authenticated, so PostgREST refuses. The
+--     posture was right; the plumbing under it was missing.
+--
+--     These are safe under the real posture, and that is the whole point:
+--     privileges say WHICH TABLES a role may address, policies say WHICH ROWS
+--     it may see. Everything above has RLS on with authenticated-only policies,
+--     so a grant without a matching policy still returns nothing — the § 8
+--     anon verify below reads ALL ZEROS with these grants in place, exactly as
+--     it did without them.
+--
+--     Placed LAST on purpose: `ON ALL TABLES` is a snapshot of what exists when
+--     it runs, so it has to sit after § 6/6b's log tables, not after § 1's
+--     seven. The ALTER DEFAULT PRIVILEGES line then covers tables added later
+--     (a schema-version upgrade), so the next table is not a fresh outage.
+--     Lifted verbatim from tools/supabase-bootstrap.sql, which has shipped
+--     these three statements since the first environment.
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO anon, authenticated, service_role;
 
 NOTIFY pgrst, 'reload schema';
 

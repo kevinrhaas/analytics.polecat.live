@@ -173,6 +173,25 @@ DROP POLICY IF EXISTS polecat_meta_auth ON public.polecat_meta;
 CREATE POLICY polecat_meta_auth ON public.polecat_meta
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
+-- ---------------------------------------------------------------------------
+-- 4) TABLE PRIVILEGES (N20, 2026-08-08). Re-tightening must never STRAND an
+--    environment. Privileges and policies answer different questions —
+--    privileges say which TABLES a role may address, policies say which ROWS it
+--    may see — and this file only ever set the second. On a project whose
+--    tables were created without the API roles being granted (a direct psql
+--    connection, or a project created with "Automatically expose new tables"
+--    OFF), running this script left a correct posture the app could not reach:
+--    PostgREST refuses for lack of privilege, with an error that reads like an
+--    RLS problem and is not one.
+--
+--    Granting here does not loosen anything. Every table above has RLS on with
+--    authenticated-only policies, so a grant without a matching policy still
+--    returns nothing — the VERIFY block below reads ALL ZEROS for anon with
+--    these in place, which is what tests/rls.mjs asserts on every run.
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO anon, authenticated, service_role;
+
 NOTIFY pgrst, 'reload schema';
 
 -- ---------------------------------------------------------------------------

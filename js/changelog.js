@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 903,
+    title: 'The Supabase setup script now grants its own database access, so the recommended security setting is finally the correct one',
+    kind: 'fix',
+    ts: '2026-08-08T20:07:59.000Z',
+    items: [
+      'The file the repository calls "the one file to run" when standing up a new Analytics database built everything correctly and then left out the plumbing underneath: it never granted the database roles permission to reach the tables it had just created. It worked anyway, but only by accident — on a project created with Supabase\'s "automatically expose new tables" switch left on, which quietly grants that permission for you.',
+      'Supabase recommends turning that switch off. Follow the recommendation and, until today, you got a database with correct security rules, correct policies, and no way in: every request refused, with an error message that pointed at the security rules rather than at the missing permission. The posture was right; the plumbing under it was missing, and the failure looked like the opposite of its cause.',
+      'The setup script now grants those permissions itself, and the Help page has flipped its advice to "off" to match. This changes nothing about who can see what. Permissions decide which tables a role may address; the security policies decide which rows come back — and with the policies unchanged, an unauthenticated reader still gets exactly nothing from every table, which the security tests now confirm one table at a time rather than assuming.',
+      'The re-tightening script and the in-app Go-live path got the same treatment, so no route to a locked-down database can strand it. And the setup script now records which workspace version it built, instead of leaving the app to work it out from the first save — with the record written so that re-running an older copy of the script can never wind that version backwards.',
+      'Standing up a new environment is the moment when a mistake is most expensive and least visible. This removes one that had been waiting there for anyone who followed the safer-looking advice.',
+    ],
+  },
+  {
     v: 902,
     title: 'The Help page now covers the step before every other Supabase topic: creating the project',
     kind: 'polish',
