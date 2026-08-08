@@ -135,6 +135,51 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the Build a dashboard tour's Export step works on a phone (v881, sw v510, 2026-08-08,
+  steward; LF58 recurring slice, dev branch):** the ▶ NOW queue is unchanged (N2/N4b/N5a/N5b
+  shipped, N4a ⛔ on Kevin, grooming still parked on the `hold` PR #623), so 🔁 N7 again — and
+  this is the item v880 named as its own leftover, the LAST spotlight in that tour that did not
+  land on anything.
+  **The defect, measured at 390×780:** M10 moved Undo/Redo/Open/Save/Save-as/Duplicate/Export off
+  the phone topbar into ⋯ More and hides their buttons with `display:none!important`, so step 4's
+  `target: "#btnExport"` had **no box at all** — not a 34px sliver like v880's panes, nothing.
+  `waitFor()` polled it for its full 2.5s (the walk measured **3039 ms** on that one step), gave
+  up, and rendered a spotlight-less centered card whose copy still said "Click **Export ▾**" and
+  "**Save**" — two controls that screen does not have. A dead end at the end of the tour, on the
+  release-gate width.
+  **The copy decision v880 said this needed, taken and derived rather than invented:** the phone
+  route is the one the app really ships (`#moreExport` → the same `#menuExport`, `#moreSaveSpec` →
+  the same save), and doc-truth **check 13** already resolves every "⋯ More → X" the tour copy
+  names against `#menuMore`'s real markup — so naming the route is a checkable fact, not a product
+  call. Kevin's authority was never engaged.
+  **The fix:** a step may carry a `phone:` form that `app/tutorial.js`'s new `resolveStep()` merges
+  at ≤640px — at RENDER time, so a resize or a rotation mid-walk is always honoured and
+  `tourSteps()`/`stepCount()` still report one step per stop at any width. The export stop's phone
+  form rings `#btnMore` and says "Tap **⋯ More → Export…**" / "**⋯ More → Save**". Desktop is
+  untouched, asserted as its own check. This is v880's `pane:` mechanism one class further out:
+  that one opened a control that was merely CLOSED, this one retargets a control that is not there.
+  **Verified:** the FULL suite, **3134/3134 green**, plus the whole dev gate (validate ·
+  changelog-check · doc-truth · dev-smoke). Four new `tests/run.js` checks, all at 390×780 plus
+  the desktop counterpart, and every one of them fails against the pre-fix file with the numbers
+  above (ring `ringed:false`, the "Click Export ▾" copy, 3039 ms). doc-truth **check 20** is the
+  static half and derives the hidden-control
+  set from `app/studio.css`'s own phone media blocks rather than a list kept in the checker — a
+  build-tour step targeting one of them must carry a `phone:` form, that form's target must not
+  itself be hidden (and must exist in `app/index.html`), and `resolveStep` must still be applied
+  per render, or the overrides are inert data while the ring goes back to a `display:none` box.
+  All four rules were negative-tested. est 1pt, took 1.
+  **Flake noted for the next run, so it is not re-investigated from scratch:** two N2-slice-4
+  checks ("a reload with NO password anywhere re-mints the session from the refresh token" and
+  the rotated-token check that follows it) failed in 3 of 4 local suite runs — and they fail on
+  a PRISTINE `origin/dev` worktree exactly the same way, so it is not a regression from this
+  slice. The reload boots with an empty `analytics.supabase.refresh.v1` (`token:""`,
+  `gateGone:false`), i.e. the re-mint is racing the boot rather than being wrong. Every
+  promote-to-stage run is green, so CI does not see it. Worth a hardening slice of its own —
+  do NOT weaken the assertion; the race is the thing to find.
+  **Left for the next slice, deliberately:** Help (`docs/index.html`) documents the same export
+  route in the desktop's terms; it is the check-16→17 move again, one document over, and it is the
+  strongest remaining N7 candidate. Also still open: the marketing page's hero carousel captions +
+  screenshots, and the additive-copy pass on the Jobs / Connections & Datasets tours.
 - **N7 — the Build a dashboard tour opens the panes it points at (v880, sw v509, 2026-08-08,
   steward; LF58 recurring slice, dev branch):** the ▶ NOW queue is unchanged (N2/N4b/N5a/N5b
   shipped, N4a ⛔ on Kevin, grooming still parked on the `hold` PR #623), so 🔁 N7 again — this
@@ -10425,11 +10470,18 @@
     live while the next step was prepared, so a double tap advanced twice and could walk past the
     last step into an uncaught TypeError — nav goes inert while preparing (Skip stays live) and an
     out-of-range index finishes. Doc-truth check 19 + 6 suite checks at both gate widths.
-  * **Not yet audited (candidates for the next N7 slice):** the phone form of that same build
-    tour's EXPORT step — at ≤640px `#btnExport` is `display:none` (M10 put Export behind ⋯ More),
-    so step 4 spotlights a hidden control on a phone; unlike the panes it needs a copy decision
-    ("Click **Export ▾**" names a button that is not on screen there), which is why v880 left it
-    and measures that step on desktop only. Also: the marketing page's hero carousel
+  * *The build tour's EXPORT step on a phone — v881, sw v510, 2026-08-08 (see DONE).* The
+    candidate this list named last time, and the last spotlight in that tour that landed on
+    nothing: at ≤640px `#btnExport` is `display:none` (M10 put Export behind ⋯ More), so step 4
+    had no box to ring — `waitFor` burned its full 2.5s (3039 ms measured) and then rendered a
+    spotlight-less card still saying "Click **Export ▾**" and "**Save**". The copy decision the
+    note called for turned out to be derivable, not a product call: check 13 already resolves
+    "⋯ More → X" against `#menuMore`, so the step now carries a `phone:` form (merged per render
+    by `resolveStep`) that rings ⋯ More and names the route the phone has. Desktop unchanged,
+    asserted. Doc-truth check 20 derives the hidden-at-≤640px id set from `app/studio.css` itself.
+  * **Not yet audited (candidates for the next N7 slice):** Help's own version of that same export
+    route — `docs/index.html` documents Export in the desktop's terms, the check-16→17 move one
+    document over, and the strongest remaining candidate. Also: the marketing page's hero carousel
     captions + screenshots, which the v871 slice deliberately left alone (the copy pass
     stayed textual — regenerating shots is its own slice); and the two remaining per-feature
     tours' BODY copy (Prep data (Jobs) / Connections &amp; Datasets / the pack tour) — the

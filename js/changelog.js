@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 881,
+    title: 'The Build a dashboard tour\'s Export step works on a phone',
+    kind: 'fix',
+    ts: '2026-08-08T04:43:10.000Z',
+    items: [
+      'On a phone, the last real step of the tour was a dead end. It told you to "Click Export ▾" and to press "Save" — two buttons a narrow screen does not show, because they live behind the ⋯ More menu there. The step also had nothing to spotlight, so after a two-and-a-half second pause you got a plain card in the middle of a dimmed screen, pointing at nothing.',
+      'That step now shows you the ⋯ More button you really have, highlights it, and names the route you really take: ⋯ More → Export…, and ⋯ More → Save to keep the dashboard in your Dashboards catalog. The pause is gone with it — the step appears straight away.',
+      'On a laptop nothing changed. Where the toolbar genuinely carries Export ▾ and Save, that is still what the tour highlights and still what it says.',
+      'A tour step can now tell its phone version of a stop, and the check that runs on every change works out for itself which buttons the phone layout hides — so the next control to move behind ⋯ More cannot quietly leave a tour pointing at thin air. Four new tests measure this step at phone and laptop size.',
+    ],
+  },
+  {
     v: 880,
     title: 'The Build a dashboard tour opens the panels it points at',
     kind: 'fix',
