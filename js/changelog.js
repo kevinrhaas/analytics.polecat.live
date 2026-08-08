@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 889,
+    title: 'The guided tours finally mention the toolbar every catalog has',
+    kind: 'polish',
+    ts: '2026-08-08T11:42:36.000Z',
+    items: [
+      'The Jobs tour and the Connections & Datasets tour walk you through the real sections — the list of what you have, the button that makes a new one, the search box. That is where they stopped, and the sections have grown since: every catalog now carries a sort dropdown, a switch between tile and list layout that is remembered per device, and a Select button that turns the rows into checkboxes with a bulk bar for moving or deleting many at once.',
+      'None of it was mentioned. You could finish either tour without ever learning the app can bulk-delete, or that the list you are looking at has a tile form. Both tours now have a stop for that toolbar, spotlighting the real row and naming each control and what it does.',
+      'The rows themselves also got their due: each one carries a private toggle, which keeps that job or connection yours alone when the workspace is shared — the tours now say so.',
+      'To stop this particular drift happening again, a new documentation check reads the toolbar out of the app itself and works out which tours walk a catalog from the sections those tours actually visit. A control added to the toolbar the tours never explain now fails the build rather than quietly going unmentioned.',
+    ],
+  },
+  {
     v: 888,
     title: 'The duplicate and delete buttons on a phone are finally big enough to aim at',
     kind: 'polish',

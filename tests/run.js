@@ -1315,6 +1315,68 @@ function serve() {
       await mp.close();
     }
 
+    /* ---- N7 (catalog toolbar tours): the tour STOP that explains that row ----
+       N9a made the toolbar fit the phone; nothing told the reader it was there. The Jobs and
+       Connections & Datasets tours described a search box and folder chips and stopped, so a
+       reader could finish either one without learning the catalog can sort, switch to tiles,
+       or bulk-delete. Both tours now carry a toolbar stop. tools/doc-truth.mjs check 22 holds
+       the SOURCE accountable (derived from `.repo-io` + the goSection() calls); this asserts
+       the runtime property that check cannot see — that the stop rings the real row, inside
+       the viewport, at both gate widths, and that its card names each control by the word the
+       LIVE DOM gives that control. */
+    console.log("\n• N7: the catalog tours' toolbar stop rings the real row and names its controls");
+    for (const vp of [{ width: 390, height: 780 }, { width: 1280, height: 900 }]) {
+      const tp = await browser.newPage({ viewport: vp });
+      await tp.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-shell-section", "home"); } catch (e) {} });
+      await tp.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+      await tp.waitForSelector("#btnMore", { timeout: 8000 });
+      const tour = await tp.evaluate(async function () {
+        function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+        var steps = window.StudioTutorial.tourSteps("jobs");
+        // the stop is found by the row it targets, never by its index — renumbering the tour
+        // must not silently retarget this check at a different step
+        var idx = -1, sel = "";
+        for (var i = 0; i < steps.length; i++) {
+          if (String(steps[i].target || "").indexOf(".repo-io") > -1) { idx = i; sel = steps[i].target; }
+        }
+        if (idx < 0) return { found: false };
+        window.StudioTutorial.openTour("jobs");
+        await sleep(300);
+        for (var n = 0; n < idx; n++) {
+          var next = document.querySelector("#st-tip button.pri");
+          if (next) next.click();
+          await sleep(320);
+        }
+        await sleep(500); // the spotlight scrolls its target into view with `smooth` — let it settle
+        var row = document.querySelector(sel), ring = document.getElementById("st-ring"),
+            tip = document.getElementById("st-tip");
+        if (!row || !ring || !tip) return { found: true, ring: !!ring, tip: !!tip, row: !!row };
+        var rr = ring.getBoundingClientRect(), br = row.getBoundingClientRect();
+        // every control names itself; the toggle's label flips at runtime, so its TITLE
+        // ("Switch between tile and list layout") is what carries both modes
+        var need = [], q = function (s) { return document.querySelector(s); };
+        if (q("#jobsSortSel")) need.push((q("#jobsSortSel").getAttribute("aria-label") || "").split(/\s+/)[0]);
+        if (q("#jobsViewToggle")) need = need.concat((q("#jobsViewToggle").getAttribute("title") || "").match(/tile|list/gi) || []);
+        if (q("#jobsSelectBtn")) need.push((q("#jobsSelectBtn").textContent || "").trim().split(/\s+/)[0]);
+        var copy = tip.textContent || "";
+        var missing = need.filter(function (w) { return !w || !new RegExp("\\b" + w + "\\b", "i").test(copy); });
+        var out = {
+          found: true, idx: idx, sel: sel, need: need, missing: missing,
+          ringIn: rr.left >= -1 && rr.top >= -1 && rr.right <= window.innerWidth + 1 && rr.bottom <= window.innerHeight + 1,
+          onRow: rr.right > br.left && rr.left < br.right && rr.bottom > br.top && rr.top < br.bottom,
+          ring: true, tip: true, row: true
+        };
+        var skip = document.querySelector("#st-tip .st-skip");
+        if (skip) skip.click();
+        return out;
+      });
+      ok(`N7 ${vp.width}px: the Jobs tour's toolbar stop rings the real .repo-io row, inside the viewport, and names sort / tile ⇆ list / Select`,
+        tour.found && tour.ring && tour.tip && tour.row && tour.ringIn && tour.onRow &&
+        tour.need && tour.need.length >= 4 && tour.missing && !tour.missing.length,
+        JSON.stringify(tour));
+      await tp.close();
+    }
+
     /* ---- N9b: the Studio's own pane headers are touchable ----
        The third surface in the N8 → N9a → N9b sweep, and the one that OPENS N8's work:
        `#menuNewData`'s rows sat at a compliant 44px behind a 24px `＋ New ▾` trigger that
@@ -29431,8 +29493,9 @@ function serve() {
     });
     ok("J6: Escape closes the tutorial (tip, ring, and active flag all cleared)", j6Closed.ok, JSON.stringify(j6Closed));
 
-    // J6-5: tour shapes — six tours (overview leads), quick has 8 steps, build has 6, jobs has 5,
-    // connect has 8, conservation (LF40, pack-gated) has 6. Overview's own base is 13, but (LF40)
+    // J6-5: tour shapes — six tours (overview leads), quick has 8 steps, build has 6, jobs has 6,
+    // connect has 9, conservation (LF40, pack-gated) has 6. N7 (2026-08-08) added the
+    // catalog-toolbar stop to the two catalog tours (jobs 5→6, connect 8→9). Overview's own base is 13, but (LF40)
     // it's ALSO pack-aware, same engine as welcome.js — one step splices in per installed sample
     // pack (datamanagement ships installed by default), so assert against that ambient count
     // rather than a fixed number, same pattern as welcome.js's own packAware check.
@@ -29442,14 +29505,14 @@ function serve() {
         var installedPackCount = Object.keys(packs).filter(function (id) { return Studio.demoPackInstalled(id); }).length;
         return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build,jobs,connect,conservation" &&
           StudioTutorial.stepCount("overview") === 13 + installedPackCount && StudioTutorial.stepCount("quick") === 8 &&
-          StudioTutorial.stepCount("build") === 6 && StudioTutorial.stepCount("jobs") === 5 &&
-          StudioTutorial.stepCount("connect") === 8 && StudioTutorial.stepCount("conservation") === 6,
+          StudioTutorial.stepCount("build") === 6 && StudioTutorial.stepCount("jobs") === 6 &&
+          StudioTutorial.stepCount("connect") === 9 && StudioTutorial.stepCount("conservation") === 6,
           keys: StudioTutorial.tourKeys().join(","), o: StudioTutorial.stepCount("overview"), installedPackCount: installedPackCount,
           q: StudioTutorial.stepCount("quick"), b: StudioTutorial.stepCount("build"),
           j: StudioTutorial.stepCount("jobs"), c: StudioTutorial.stepCount("connect"), cv: StudioTutorial.stepCount("conservation") };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("J6: six tours registered — Overview (13-step base incl. the #23 glossary + TOUR-WOW's View Builder stop + N7's Views-catalog stop + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (5 — LF18(b)), Connections & Datasets (8 — LF18(b)), Conservation Insight pack (6 — LF40, pack-gated)", j6Shape.ok, JSON.stringify(j6Shape));
+    ok("J6: six tours registered — Overview (13-step base incl. the #23 glossary + TOUR-WOW's View Builder stop + N7's Views-catalog stop + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (6 — LF18(b) + N7's catalog-toolbar stop), Connections & Datasets (9 — LF18(b) + N7's catalog-toolbar stop), Conservation Insight pack (6 — LF40, pack-gated)", j6Shape.ok, JSON.stringify(j6Shape));
 
     // #23 (Kevin): the overview tour defines EVERY domain term — a glossary step
     // covers the full list one line each, and the terms missing from the walk
@@ -29596,7 +29659,8 @@ function serve() {
         return false;
       }
       var out = { tour: window.__studioTutorialTour(), jobsSection: false, hits: 0 };
-      var targets = ["#jobsResults", "#jobsNewBtn", "#jobsSearch"];
+      // N7 (2026-08-08): the catalog toolbar stop — sort / tile ⇆ list / Select.
+      var targets = ["#jobsResults", "#jobsNewBtn", "#jobsSearch", "#secJobs .repo-io"];
       for (var i = 0; i < targets.length; i++) {
         document.querySelector("#st-tip button.pri").click();
         if (i === 0) out.jobsSection = !document.getElementById("secJobs").hidden;
@@ -29620,8 +29684,8 @@ function serve() {
       try { out.doneJobs = localStorage.getItem("studio-tutorial-done-jobs") === "1"; } catch (e) {}
       return out;
     });
-    ok("J6: the Prep data (Jobs) tour walks the REAL Jobs section — section switched, list/+New job/search all spotlighted, Done! completes and records",
-      j6Jobs.tour === "jobs" && j6Jobs.jobsSection && j6Jobs.hits === 3 && /Done/.test(j6Jobs.lastLabel) && j6Jobs.closed && j6Jobs.done && j6Jobs.doneJobs,
+    ok("J6/N7: the Prep data (Jobs) tour walks the REAL Jobs section — section switched, list/+New job/search/toolbar all spotlighted, Done! completes and records",
+      j6Jobs.tour === "jobs" && j6Jobs.jobsSection && j6Jobs.hits === 4 && /Done/.test(j6Jobs.lastLabel) && j6Jobs.closed && j6Jobs.done && j6Jobs.doneJobs,
       JSON.stringify(j6Jobs));
 
     // J6-9 (LF18b): the CONNECT tour walks the real Connections section, THEN
@@ -29645,11 +29709,13 @@ function serve() {
         return false;
       }
       var out = { tour: window.__studioTutorialTour(), connSection: false, dsxSection: false, hits: 0 };
-      var targets = ["#connResults", "#connNewBtn", "#connSearch", "#dsxResults", "#dsxNewBtn", "#dsxSearch"];
+      // N7 (2026-08-08): the catalog toolbar stop, told once on the Connections half.
+      var targets = ["#connResults", "#connNewBtn", "#connSearch", "#secConnections .repo-io",
+        "#dsxResults", "#dsxNewBtn", "#dsxSearch"];
       for (var i = 0; i < targets.length; i++) {
         document.querySelector("#st-tip button.pri").click();
         if (i === 0) out.connSection = !document.getElementById("secConnections").hidden;
-        if (i === 3) out.dsxSection = !document.getElementById("secDatasets").hidden;
+        if (i === 4) out.dsxSection = !document.getElementById("secDatasets").hidden;
         if (await ringFor(targets[i], 4000)) out.hits++;
         await sleep(100);
       }
@@ -29670,8 +29736,8 @@ function serve() {
       try { out.doneConnect = localStorage.getItem("studio-tutorial-done-connect") === "1"; } catch (e) {}
       return out;
     });
-    ok("J6: the Connections & Datasets tour walks BOTH real sections — Connections list/+New/search, then Datasets list/+New/search, Done! completes and records",
-      j6Connect.tour === "connect" && j6Connect.connSection && j6Connect.dsxSection && j6Connect.hits === 6 &&
+    ok("J6/N7: the Connections & Datasets tour walks BOTH real sections — Connections list/+New/search/toolbar, then Datasets list/+New/search, Done! completes and records",
+      j6Connect.tour === "connect" && j6Connect.connSection && j6Connect.dsxSection && j6Connect.hits === 7 &&
       /Done/.test(j6Connect.lastLabel) && j6Connect.closed && j6Connect.done && j6Connect.doneConnect,
       JSON.stringify(j6Connect));
 

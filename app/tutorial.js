@@ -440,7 +440,7 @@
         },
         {
           t: "1 · Every job you've built",
-          h: "Jobs land here with a status dot for their last run (never run / OK / failed), a step count, and — once the source data updates — a reminder badge if you set one.",
+          h: "Jobs land here with a status dot for their last run (never run / OK / failed), a step count, and — once the source data updates — a reminder badge if you set one. Each row carries its own actions, including a <b>private</b> toggle: a private job stays yours alone when the workspace is shared.",
           target: "#jobsResults",
           pos: "bottom"
         },
@@ -454,6 +454,17 @@
           t: "3 · Find one fast",
           h: "Search by name, source, output, or folder — the same folder chips Datasets and Connections use once you start filing jobs into one.",
           target: "#jobsSearch",
+          pos: "bottom"
+        },
+        // N7 (2026-08-08): the catalogs GAINED a toolbar — a sort <select>, a
+        // tile⇆list toggle and a Select/bulk mode — and no tour had caught up.
+        // doc-truth check 22 derives that toolbar from app/index.html and holds
+        // every catalog-walking tour to naming it.
+        {
+          t: "4 · Sort it, reshape it, act on many at once",
+          h: "The toolbar beside the search box: <b>Sort</b> by newest, oldest, name, or last run; switch between <b>Tile view</b> and <b>List view</b> (remembered per device); and <b>Select</b> turns every row into a checkbox with a bulk bar — <b>Select all</b>, <b>Clear</b>, <b>Move … to folder…</b>, <b>Delete</b>.",
+          sub: "Every catalog in the app — Connections, Datasets, Views, Dashboards — carries the same three controls.",
+          target: "#secJobs .repo-io",
           pos: "bottom"
         },
         {
@@ -478,7 +489,7 @@
         },
         {
           t: "1 · Every connection you've made",
-          h: "Point at Postgres, Supabase, Snowflake, BigQuery, Google Sheets, a dropped CSV, and more — or work entirely on the built-in sample data. Connections land here with folder chips once you start filing them.",
+          h: "Point at Postgres, Supabase, Snowflake, BigQuery, Google Sheets, a dropped CSV, and more — or work entirely on the built-in sample data. Connections land here with folder chips once you start filing them, and each row has a <b>private</b> toggle for the ones that stay yours alone when the workspace is shared.",
           target: "#connResults",
           pos: "bottom"
         },
@@ -494,22 +505,31 @@
           target: "#connSearch",
           pos: "bottom"
         },
+        // N7 (2026-08-08): the catalog toolbar, same stop the Jobs tour gained —
+        // told once here and referred back to at the Datasets half, because all
+        // six catalogs carry the identical three controls (doc-truth check 22).
         {
-          t: "4 · From connection to dataset",
+          t: "4 · Sort it, reshape it, act on many at once",
+          h: "The toolbar beside the search box: <b>Sort</b> by newest, oldest, name, or adapter; switch between <b>Tile view</b> and <b>List view</b> (remembered per device); and <b>Select</b> turns every row into a checkbox with a bulk bar — <b>Select all</b>, <b>Clear</b>, <b>Move … to folder…</b>, <b>Delete</b>.",
+          target: "#secConnections .repo-io",
+          pos: "bottom"
+        },
+        {
+          t: "5 · From connection to dataset",
           h: "A <b>dataset</b> is a named, <code>{{param}}</code>-substitutable query on top of a connection — define it once, chart it everywhere in Quick Views or the Dashboard Builder.",
           target: "#dsxResults",
           pos: "bottom",
           before: function () { goSection("datasets"); }
         },
         {
-          t: "5 · Add a new dataset",
+          t: "6 · Add a new dataset",
           h: "<b>+ New dataset</b> opens the editor: pick a connection, write the query (or pick a table), preview real rows, save.",
           target: "#dsxNewBtn",
           pos: "bottom"
         },
         {
-          t: "6 · Find one fast",
-          h: "Search by name, connection, table, or folder — the same convention as Connections and every other catalog.",
+          t: "7 · Find one fast",
+          h: "Search by name, connection, table, or folder — the same convention as Connections and every other catalog, and the same toolbar beside it: sort, tile ⇆ list, and Select for bulk moves and deletes.",
           target: "#dsxSearch",
           pos: "bottom"
         },

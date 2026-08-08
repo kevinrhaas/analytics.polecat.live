@@ -135,6 +135,49 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the catalog tours name the toolbar their catalog actually has (v889, sw v515,
+  2026-08-08, steward; dev branch):** the recurring keep-the-docs-current item, taken because
+  ▶ NOW had no unstruck ready entry above it (N4a is ⛔ on Kevin, everything else is shipped),
+  and the slice was the strongest of the two candidates the N7 list was carrying.
+  **The drift, measured not suspected.** Checks 16–21 had held the tours and Help accountable to
+  the BUILDER's controls; nobody had asked the same question of the CATALOGS. Every catalog
+  section grew a three-control toolbar beside its search box — the sort `<select>` (AUD-06's
+  shared `Studio.catalogSort`), the tile ⇆ list toggle (`Studio.catalogView`, remembered per
+  device under `studio-<sec>-view`) and the `Select` button that turns the rows into checkboxes
+  with a bulk **Select all / Clear / Move … to folder… / Delete** bar (LIVE-d slices 1–5) — and
+  the two tours that WALK those sections had caught none of it. Both still described the list,
+  the `+ New` button and the search box, in that order, and stopped. **A reader could finish the
+  Jobs tour without ever learning the app can bulk-delete**, or that the list in front of them
+  has a tile form. The per-row `private` toggle (`.cx-private`, on every jobs/connections/
+  datasets row) was unmentioned in the same way.
+  **What shipped** (`app/tutorial.js`): a toolbar stop in each tour — Jobs gains step 4
+  (`#secJobs .repo-io`), Connections & Datasets gains step 4 (`#secConnections .repo-io`) and its
+  remaining stops renumber 5–7, with the Datasets search stop referring back rather than
+  repeating the whole thing (all six catalogs carry the identical row, so telling it twice in one
+  walk is padding). Each stop names the sort options that section really offers — Jobs by last
+  run, Connections by adapter — plus both layout labels and the bulk bar's four buttons. The two
+  list stops gained the `private` toggle in one clause each.
+  **Doc-truth check 22** is the ratchet, and every fact in it is derived: WHICH sections carry a
+  toolbar comes from `app/index.html`'s own `.repo-io` rows; WHICH tours are in scope comes from
+  the `goSection()` calls those tours actually make (so the Home/builder tours are simply not in
+  scope, and a tour that starts walking a catalog is picked up the day it does); and the word
+  each control must be named by comes from the control itself — the `<select>`'s `aria-label`,
+  the label pair `catalogView.wire()` sets at runtime, and the button's own text. Scoped to the
+  copy fields (`t`/`h`/`sub`/`blurb`) on purpose: `target: "#connSelectBtn"` must not be able to
+  satisfy a requirement to EXPLAIN Select. **Run against the pre-fix tree it flagged all 8 gaps**
+  (4 words × 2 tours); it passes on the shipped one.
+  **Help was audited in the same pass and is CURRENT** — `docs/index.html` already carries a
+  "Sorting" paragraph naming every catalog page, the **Tile view** button and a full "Select
+  multiple / bulk actions" section — so the usual check-16→17 move (same rule, one document
+  over) had nothing to correct, and check 22's scope is `app/tutorial.js` by measurement rather
+  than by oversight. The tours were the only stale surface.
+  **Verified**: full `tests/run.js` green. The two existing J6 tour walks were updated to the new
+  target lists (jobs 3 → 4 spotlights, connect 6 → 7) rather than loosened, and a new N7 check at
+  **390×780 and 1280×900** asserts the runtime property doc-truth cannot see — the stop rings the
+  REAL `.repo-io` row (ring box overlapping the row's box, inside the viewport), and its card
+  names each control by the word the LIVE DOM gives it, the step located by the row it targets
+  rather than by index so renumbering the tour cannot silently retarget the check.
+  est 1pt (🔁 recurring, one slice), took 1.
 - **N13 — the pane list rows' Duplicate/Delete actions clear the 44px touch bar (v888, NO sw
   bump, 2026-08-08, steward; dev branch):** the first ready item in ▶ NOW, and the fourth and
   last surface in the N8 → N9a → N9b → N13 phone-reach sweep. N8 fixed the dropdown ROWS, N9a
@@ -11070,16 +11113,28 @@
     asserts the hide and reveal bands are the SAME band — the stale "≤400px" comments in
     `app/index.html` and `app/studio.js` were fixed in the same pass. 7 new suite checks at
     390×780 + 1280×900.
+  * *The two per-feature tours vs what the catalogs GAINED — v889, sw v515, 2026-08-08 (see
+    DONE).* The additive-copy candidate this list named last time, and the measurement confirmed
+    it whole: the Jobs and Connections &amp; Datasets tours described the list, `+ New` and the
+    search box and stopped, while every catalog had grown a sort select, a tile ⇆ list toggle
+    and a Select/bulk toolbar — so a reader could finish the Jobs tour without learning the app
+    can bulk-delete. Both tours gained a toolbar stop; the two list stops gained the per-row
+    `private` toggle. Doc-truth check 22 derives the toolbar from `.repo-io` and the tours in
+    scope from their own `goSection()` calls, and flagged all 8 gaps on the pre-fix tree.
   * **Not yet audited (candidates for the next N7 slice):** the marketing page's hero carousel
     captions + screenshots, which the v871 slice deliberately left alone (the copy pass
-    stayed textual — regenerating shots is its own slice); and the two remaining per-feature
-    tours' BODY copy (Prep data (Jobs) / Connections &amp; Datasets / the pack tour) — the
-    Quick analysis tour's body is done (v875), Build a dashboard's is done (v877). The v879
-    pass spot-checked the Jobs and Connections tours' TARGETS and search-field claims against
-    `jobs.js`/`connections.js`/`datasets.js` and found them accurate; what those two tours have
-    not caught up with is what the catalogs GAINED (the list⇆tile toggle, the sort select, the
-    Select/bulk toolbar, per-row private toggles), which is an additive-copy slice, not a
-    correction.
+    stayed textual — regenerating shots is its own slice); the **pack tour's** BODY copy
+    (Conservation Insight), the last per-feature tour whose body has never been audited — the
+    Quick analysis tour's body is done (v875), Build a dashboard's is done (v877/v880/v881), and
+    Jobs / Connections &amp; Datasets are done (v889); and the catalogs' **per-row** controls,
+    the one surface v889 left half-covered (it named the `private` toggle in the two list stops;
+    the row's ★ pin, quick-rename and folder chip are still tour-silent).
+    **Audited and found CURRENT in the v889 pass, no change needed:** `docs/index.html` on this
+    same toolbar — Help already documents Sorting ("Every catalog page — Dashboards, Views,
+    Datasets, Connections, Jobs…"), the **Tile view** button and a whole "Select multiple / bulk
+    actions" section, so the check-16→17 move has nothing to correct here and check 22 is
+    scoped to `app/tutorial.js` for that reason, not by oversight. The tours were the ONLY stale
+    surface.
     ~~**One BEHAVIOURAL candidate the v877 slice found and deliberately did not take**~~
     ✓ **SHIPPED v880, sw v509 (2026-08-08 — see the v880 line above and DONE).** It went further
     than the note anticipated: the ≤640px half was not just "a decision", it was the worse half
