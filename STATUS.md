@@ -135,6 +135,51 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N22a — the Management-API spike: a browser at our origin cannot call it (docs + tooling
+  only; no app change, so no version bump, 2026-08-08, steward; dev branch; est 1pt, took 1 —
+  on estimate, though the item guessed "half a slice" and the half it did not count was the
+  control, which is what turned a header reading into proof):** N22 is a 3pt item whose own
+  text says to SPLIT it and that one measurement "decides the whole design" — whether
+  `api.supabase.com` sends usable CORS headers to a third-party origin. It does not.
+  - **The measurement, committed as `tools/supabase-mgmt-cors.mjs` so nobody has to take this
+    entry's word for it.** Re-runnable, dependency-free by default, and **credential-free by
+    construction** — a CORS preflight carries no `Authorization` header, so the probe needs no
+    Personal Access Token and cannot leak one; it never sends the real request, so it creates
+    nothing and changes nothing. All four endpoints N22 would need — `POST /v1/projects`,
+    `…/database/query`, `…/functions/deploy`, `…/secrets` — answer a preflight from
+    `https://analytics.polecat.live` with **HTTP 204 and no `Access-Control-Allow-Origin`**.
+  - **The control is the finding.** Without it, a missing header could mean "this API does no
+    CORS" (a fact about the API) or "it allowlists origins and we are not on it" (a fact about
+    us), and only the second closes the option for every third-party browser app. The same four
+    preflights from `https://supabase.com` — the dashboard's own origin, whose SQL editor is
+    built on this endpoint — all return `Access-Control-Allow-Origin: https://supabase.com`.
+  - **Confirmed in a real browser, because header reading is not enforcement.** `--browser`
+    loads each origin in Chromium and makes the identical `POST …/database/query` with a
+    deliberately invalid token: from analytics.polecat.live it throws `Failed to fetch` before
+    any response; from supabase.com it returns **HTTP 401** — the browser let it through and
+    only the credential was refused. Same browser, same host, same request; the only variable
+    is which origin asked. The control also rules out plain unreachability, which a bare
+    `Failed to fetch` cannot distinguish itself.
+  - **What it changes.** N22's fallback ("ONE paste, then never again" — migration RPCs,
+    `SECURITY DEFINER`, admin-gated, fixed DDL, no `exec(sql text)`) is no longer a fallback,
+    it is the design; N22 is split in place into **N22a** (this, shipped), **N22b** (that flow,
+    2pt) and **N22c** (N16's upgrade path wired to those RPCs, 1pt), exactly the split the item
+    proposed. One conclusion was NOT in the original spec: `functions/deploy` and `secrets` are
+    blocked on the same terms, so the Supabase CLI step for the polecat-admin Edge Function —
+    the manual gap N22 is really about — can never move into the app either. That makes the RPC
+    route strictly better than the Edge Function here, not merely an equal second choice.
+  - **Verified:** the probe run both ways (header-only and `--browser`) with the results above,
+    plus the full dev gate — `validate`, `changelog-check`, `doc-truth`, and `dev-smoke` at
+    desktop + 390×780 with zero pageerrors. No changelog entry: nothing user-visible ships here
+    (same shape as the docs-only backlog PRs #659 and #667).
+  - **What this slice found but did not fix — ⚠ an ID collision, and it is a contract
+    violation.** `docs/BACKLOG.md` says an ID is never reused; **two different items in ▶ NOW
+    both carry `N26`** — *"`polecat_dev` is leaking to anonymous callers"* and *"The admin
+    function's only schema action re-opens a gone-live workspace"*. N16's DONE entry and its
+    NOW text both say their deviation "is now N26" and point at the second. Deciding which one
+    keeps the number has bookkeeping consequences in entries this slice does not own, and
+    grooming is already claimed by the open `hold` PR #623 — so this is flagged, not resolved,
+    and N22c cites that item by title instead of by ID until it is.
 - **N21 — the connect wizard's blank-database script IS the canonical deploy (v904, sw v526,
   2026-08-08, steward; dev branch; est 2pt, took 1 — under estimate, because fix (a) turned out
   to be a *move*, not a rewrite: the posture already existed as text, it just lived only in
@@ -11676,8 +11721,14 @@
   skip the wizard's script — paste `tools/supabase-deploy.sql` into the SQL editor FIRST, do §7,
   then connect; the wizard then probes `state === "polecat"` and simply adopts it, which is
   exactly how prod behaves.
-- **N22 ★★ [3pt — SPLIT BEFORE STARTING] — Provision a Supabase backend entirely FROM THE APP.
-  Kevin's stated end state (2026-08-08):** *"I want things to provision from the app with the
+- ~~**N22 ★★ [3pt — SPLIT BEFORE STARTING] — Provision a Supabase backend entirely FROM THE
+  APP.**~~ ✓ **SPLIT (2026-08-08, steward) into N22a / N22b / N22c, exactly as the item proposed.
+  N22a — the spike the item says "decides the whole design" — is SHIPPED, and it came back a hard
+  NO: the Supabase Management API is browser-BLOCKED to every third-party origin (measured, not
+  argued; see N22a below and the DONE entry). So the item's own fallback is not a fallback any
+  more, it is the design, and N22b/N22c below are written against it. The parent text stays here
+  until the next grooming pass archives it, because it remains the spec those two execute.**
+  **Kevin's stated end state (2026-08-08):** *"I want things to provision from the app with the
   right credentials, not have to go to supabase other than setting up the blank database
   manually."* Treat that as the acceptance criterion: create a blank project in the Supabase
   dashboard, then do **everything else** — tables, RLS, activity tables, first admin, and later
@@ -11692,14 +11743,18 @@
   deploying that function** needs the Supabase CLI (`functions deploy` + three `secrets set`).
   So today the manual surface is *worse* than Kevin thinks — not one SQL paste but a CLI session
   — and Path A (the paste) exists only as the fallback for when the function isn't deployed.
-  **The question to settle FIRST, because it decides the whole design — the Supabase Management
-  API.** `POST https://api.supabase.com/v1/projects/{ref}/database/query` with a Personal Access
-  Token runs arbitrary SQL (it is what the dashboard's own SQL editor uses), and the same API can
-  create projects and deploy functions. If a browser can call it, Analytics can provision a
-  project end-to-end with zero Supabase UI. **Verify CORS before designing anything on top of
-  it** — a static Pages app has no server to proxy through, so if `api.supabase.com` does not
-  send usable CORS headers to an arbitrary origin, this option is dead and the fallback below is
-  the answer. Do not assume either way; measure it with a real preflight.
+  ~~**The question to settle FIRST, because it decides the whole design — the Supabase Management
+  API.**~~ **SETTLED by N22a (2026-08-08): the browser cannot call it, so the option is dead and
+  the fallback below is the answer.** The original framing is kept verbatim because it is still
+  the reason the answer matters, and because the PAT risk analysis in it applies to any future
+  credential of that class:
+  > `POST https://api.supabase.com/v1/projects/{ref}/database/query` with a Personal Access
+  > Token runs arbitrary SQL (it is what the dashboard's own SQL editor uses), and the same API can
+  > create projects and deploy functions. If a browser can call it, Analytics can provision a
+  > project end-to-end with zero Supabase UI. **Verify CORS before designing anything on top of
+  > it** — a static Pages app has no server to proxy through, so if `api.supabase.com` does not
+  > send usable CORS headers to an arbitrary origin, this option is dead and the fallback below is
+  > the answer. Do not assume either way; measure it with a real preflight.
   **Two credentials, two very different risk profiles — say this out loud in the UI.** A PAT is
   an ACCOUNT-WIDE credential across every project in the org, far more powerful than the anon
   key. It must be enter-run-**discard**, in memory only, never localStorage, never in a cfg blob
@@ -11713,10 +11768,66 @@
   owns the database forever: provisioning, RLS, and — the reason this matters beyond
   convenience — **N16's "backend is older, upgrade it" becomes a real in-app button on Supabase
   instead of a copy-paste SQL box.** N16 and N22 should be designed together for that reason.
-  **Split suggestion:** N22a the CORS/Management-API spike (a measurement, half a slice, and it
+  ~~**Split suggestion:** N22a the CORS/Management-API spike (a measurement, half a slice, and it
   decides the rest); N22b the provisioning flow the spike selects; N22c the upgrade path wired
-  into N16. **Verify:** stand up a brand-new project and reach a working, RLS-correct, admin-
-  seeded workspace touching the Supabase dashboard exactly once — to click "New project".
+  into N16.~~ **Done — that is exactly the split, below.** **Verify (still the parent's
+  acceptance criterion, inherited by N22b+N22c):** stand up a brand-new project and reach a
+  working, RLS-correct, admin-seeded workspace touching the Supabase dashboard exactly once — to
+  click "New project".
+- ~~**N22a ★★ [1pt est, 1 slice shipped] — The spike: can a browser at our origin call the
+  Supabase Management API?**~~ ✓ **SHIPPED (2026-08-08, steward — see DONE). The answer is NO,
+  and it is not close.** `tools/supabase-mgmt-cors.mjs` is the committed, re-runnable
+  measurement; run it before anyone re-litigates this. What it found, on all four endpoints N22
+  would need (`POST /v1/projects`, `…/database/query`, `…/functions/deploy`, `…/secrets`):
+  `api.supabase.com` answers a preflight from `https://analytics.polecat.live` with **HTTP 204
+  and no `Access-Control-Allow-Origin` header at all**, and the browser therefore refuses the
+  request before it is ever sent.
+  **The control is what makes it conclusive**, and it is why the probe carries one: the SAME
+  preflight from `https://supabase.com` — the origin of Supabase's own dashboard, whose SQL
+  editor is built on this endpoint — comes back with `Access-Control-Allow-Origin:
+  https://supabase.com`. Confirmed a second way, in a real Chromium: the identical
+  `POST …/database/query` (invalid token on purpose) **throws `Failed to fetch` before any
+  response** from a page at analytics.polecat.live, and returns **HTTP 401** from a page at
+  supabase.com. Same browser, same host, same request — the only variable is which origin asked.
+  So this is not "the API has no CORS"; it is an origin ALLOWLIST that no third-party browser app
+  is on, and nothing client-side can change that. (A proxy could, but Analytics is a static Pages
+  app with nothing to proxy through — that is the constraint N22 starts from.)
+  **The finding that reshapes N22b, and was not in the original spec:** `functions/deploy` and
+  `secrets` are blocked on the same terms. So the Supabase CLI step for the polecat-admin Edge
+  Function — which N22 correctly identifies as *the* remaining manual gap — can NEVER be moved
+  into the app either. That makes the migration-RPC route strictly better than the Edge Function
+  for this purpose, not merely an equal fallback: RPCs arrive with the one paste and need no CLI,
+  no service-role key in a deployed function, and no second deployment surface to keep current.
+- **N22b ★★ [2pt] — ONE paste, then never again: the app owns the database after a single
+  manual step.** The design is no longer a choice — N22a closed the alternative. Make the connect
+  wizard's single manual step install named **migration RPCs**: `SECURITY DEFINER`, admin-gated,
+  **fixed DDL baked in — never an `exec(sql text)` escape hatch**, mirroring the security contract
+  `supabase/functions/polecat-admin` already holds itself to (four fixed named actions, never raw
+  SQL). After that one paste, provisioning and RLS belong to the app.
+  **Build it on what N21 just shipped, do not start over:** `WS.freshDeploySQL(snapshot, admin)`
+  already assembles the whole canonical deploy in `tools/supabase-deploy.sql`'s own order, and
+  `tools/validate.mjs` already holds it statement-for-statement against that file. The RPC
+  bodies are that same SQL, wrapped — so extend the existing drift guard to cover them rather
+  than minting a second one.
+  **Open question for Kevin, and the reason this is 2pt not 1:** the acceptance criterion says
+  "touching the Supabase dashboard exactly once — to click New project", but a paste into the SQL
+  editor is a second touch. N22a proves that second touch is unavoidable on Supabase. Kevin's own
+  words allow it (*"other than setting up the blank database manually"*) — flag it in the PR,
+  do not silently redefine the criterion.
+  **Verify:** stand up a throwaway project, paste once, then reach a working RLS-correct
+  admin-seeded workspace from the app alone; `tests/rls.mjs` gains the RPC route as a posture
+  alongside the four it now covers.
+- **N22c ★ [1pt] — Wire N16's "backend is older, upgrade it" to the RPCs from N22b.** Blocked on
+  N22b by construction; do not start it first. N16 slice 2 shipped `Sync.upgradeWorkspace({backup})`
+  with `upgradeWorkspace(cfg)` on turso/firebase/supabase, and the Supabase arm deliberately does
+  NOT route through the polecat-admin Edge Function — because that function's only DDL action,
+  `provision`, re-creates the allow-all `polecat_anon_all` policy and would re-open a gone-live
+  workspace to anon (the item titled *"The admin function's only schema action re-opens a
+  gone-live workspace"*, filed from N16 slice 2 — cited by TITLE, not ID, because two different
+  items in NOW currently both carry the ID N26; see "what this slice found but did not fix" in
+  the N22a DONE entry). A migration RPC has neither problem — it is admin-gated and its DDL is
+  fixed — so this is the piece that turns Supabase's upgrade path from a copy-paste SQL box into
+  the real in-app button the rest of the adapters already have.
 - **N23 ★★ [1pt] — The connection form calls the Auth fields "(optional)". Under the real RLS
   posture they are MANDATORY, and getting it wrong looks like an empty database.** Kevin,
   2026-08-08, reading the form while standing up `polecat_dev`: *"how optional are all of these
