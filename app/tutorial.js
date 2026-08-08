@@ -10,7 +10,7 @@
        section forces a decision here (add a step, or add it to that check's
        documented skip set).
      · "Quick analysis"  — the Quick Views flow: dataset → table → chart →
-       saved analysis → pin/add. The fastest data-to-chart path.
+       saved View → pin/add. The fastest data-to-chart path.
      · "Build a dashboard" — the Dashboard Builder loop: library → canvas →
        inspector → export a self-contained .html.
      · "Prep data (Jobs)" — the Jobs section: list → new job → search/folders,
@@ -37,6 +37,22 @@
    tutorial walks (Quick Views, Dashboard Builder panes, export, Jobs,
    Connections, Datasets) updates the copy here in the SAME slice — the suite
    greps this file for retired product terms.
+   NAME THINGS THE WAY THE APP NAMES THEM: where this copy points at something
+   the reader can click — a rail section, a button, a library group, a Home
+   section — it must use the label the app actually RENDERS. The saved-chart
+   object is the standing trap: its storage table is still `analyses` and its
+   internal ids are still analysisId (LF53 deliberately deferred that rename),
+   but every surface a user sees has said "View" since LF57 — "Save View", the
+   builder library's "Views" group, Home's "Pinned Views". N7 (2026-08-07)
+   found the tours had kept the OLD noun in their labels: two steps sent the
+   reader to a builder-library group called "Analyses" that renders "Views",
+   and the quick tour contradicted itself inside one walk (step 0 "save it as
+   an analysis" vs step 5 "Save View"). tools/doc-truth.mjs check 14 now holds
+   every bolded label in this file and welcome.js accountable to the app's own
+   render sites. Describing the ACTIVITY is untouched — this tour is still
+   called "Quick analysis" and still opens on "Your first analysis, fast",
+   because that is still what the reader is doing.
+
    That ratchet only catches retired NOUNS, though. N7 (2026-08-07) found every
    tour still closing on "reopen these tours from ⋯ More → Interactive tutorial"
    — an entry LF46 (⋯ teardown, slice 2) had DELETED, so all six tours sent the
@@ -99,7 +115,7 @@
       steps: [
         {
           t: "Welcome — here's the whole app",
-          h: "Analytics turns your data into quick analyses and full dashboards, right in your browser. This two-minute tour walks the left rail from the top down — <b>Workspace</b> (the things you have), <b>Build</b> (where you make them), <b>Manage</b> (keeping them fed) — then leaves you on Home, ready to start.",
+          h: "Analytics turns your data into Quick Views and full dashboards, right in your browser. This two-minute tour walks the left rail from the top down — <b>Workspace</b> (the things you have), <b>Build</b> (where you make them), <b>Manage</b> (keeping them fed) — then leaves you on Home, ready to start.",
           sub: "You can reopen any tour from ⌘K → Interactive tutorial, or Home → Take the tour.",
           target: null,
           before: function () { goSection("home"); }
@@ -107,7 +123,7 @@
         /* ── Workspace — the things you HAVE (rail group 1, in rail order) ── */
         {
           t: "Home — where you land",
-          h: "First in the rail's <b>Workspace</b> group, and where every visit starts: your featured dashboards render live, pinned analyses greet you, examples are one click away, and getting-started shortcuts sit up top.",
+          h: "First in the rail's <b>Workspace</b> group, and where every visit starts: your featured dashboards render live, pinned Views greet you, examples are one click away, and getting-started shortcuts sit up top.",
           target: '.rail-item[data-sec="home"]',
           pos: "right"
         },
@@ -206,7 +222,7 @@
       steps: [
         {
           t: "Your first analysis, fast",
-          h: "This is the quickest path from data to insight: pick a dataset, see it as a table, choose a chart, and save the result as a reusable <b>analysis</b>. Six quick steps.",
+          h: "This is the quickest path from data to insight: pick a dataset, see it as a table, choose a chart, and save the result as a reusable <b>View</b>. Six quick steps.",
           sub: "You can reopen these tours any time from ⌘K → Interactive tutorial, or Home → Take the tour.",
           target: null,
           before: function () { goSection("explore"); }
@@ -246,14 +262,14 @@
         },
         {
           t: "6 · It follows you",
-          h: "Your saved analyses live in the left list here, in the Dashboard Builder's library under <b>Analyses</b>, and (when pinned) as live cards on <b>Home</b> — the app opens on your charts, not on machinery.",
+          h: "Your saved Views live in the left list here, under <b>Views</b> in the Dashboard Builder's library, and (when pinned) as live cards on <b>Home</b> — the app opens on your charts, not on machinery.",
           sub: "Need to prep data first (rename, filter, roll up)? The <b>Jobs</b> section does that and lands the result back in Datasets.",
           target: ".xp-saved",
           pos: "right"
         },
         {
           t: "That's the fast path!",
-          h: "<b>Dataset → table → chart → saved analysis.</b> When you want full dashboards — many panels, KPIs, filters, export — take the <b>Build a dashboard</b> tour next.",
+          h: "<b>Dataset → table → chart → saved View.</b> When you want full dashboards — many panels, KPIs, filters, export — take the <b>Build a dashboard</b> tour next.",
           sub: "⌘K → Interactive tutorial brings you back here any time.",
           target: null,
           last: true
@@ -273,7 +289,7 @@
         },
         {
           t: "1 · The Library",
-          h: "The <b>Library</b> (left pane) holds everything chartable: your saved <b>Analyses</b>, your <b>workspace datasets</b>, this dashboard's own datasets, and the sample queries. Search filters by name, column, or table.",
+          h: "The <b>Library</b> (left pane) holds everything chartable: your saved <b>Views</b>, your workspace <b>Datasets</b>, this dashboard's own datasets, and the sample queries. Search filters by name, column, or table.",
           sub: "Click a chart chip on any card — or drag the card straight onto the canvas.",
           target: "#library",
           pos: "right"
@@ -735,7 +751,7 @@
   }
 
   var FINISH_TOASTS = {
-    quick: "Tour complete! Save an analysis and pin it to Home.",
+    quick: "Tour complete! Save a View and pin it to Home.",
     jobs: "Tour complete! Try a job on one of your own datasets.",
     connect: "Tour complete! Add a connection, or explore a sample dataset.",
     conservation: "Tour complete! Try a different Region scale on any map in the Dashboard Builder's Inspector."

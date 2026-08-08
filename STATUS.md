@@ -135,6 +135,48 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the tours call a saved chart what the app calls it (v875, sw v507, 2026-08-07,
+  steward; LF58 recurring slice, dev branch):** same pick as the last slice — the ▶ NOW queue
+  still holds no ready non-recurring item (N2/N4b/N5a/N5b shipped, N4a ⛔ on Kevin, grooming
+  parked for him on `hold` PR #623), so the recurring N7 came up again. The item named this
+  candidate itself: *"the 'analysis' vs 'View' wording in the Quick analysis tour is the
+  strongest candidate there."*
+  - **The drift.** LF57 made **View** the user-facing name of a saved chart, and every render
+    site says so — Explore's button (`Save View`), the Dashboard Builder library's group header
+    (`app/explore.js` → `Views`), Home's section label (`Pinned Views`). The tours never caught
+    up. Two steps sent the reader to a builder-library group called **Analyses** that renders
+    **Views** (`tutorial.js` quick step 6 and build step 1) — the same defect class as v874's
+    dead menu route: copy naming a control that does not exist. Worse, the Quick analysis tour
+    contradicted **itself** inside one walk: step 0 "save the result as a reusable *analysis*"
+    vs step 5 "press **Save View**". Nine copy sites across `app/tutorial.js` +
+    `app/welcome.js`, including the welcome hero and the quick tour's finish toast.
+  - **The line drawn** (written into `tutorial.js`'s header so the next slice applies it):
+    where the copy points at something the reader can **click** — a rail section, a button, a
+    library group, a Home section — it uses the label the app RENDERS. Where it describes the
+    **activity**, ordinary English stays: the tour is still called **Quick analysis**, because
+    that is still what you are doing. The object's storage table is still `analyses` and its
+    ids still `analysisId` — LF53 deferred that internal rename deliberately, and this slice
+    does not disturb it.
+  - **The ratchet — doc-truth check 14.** Derives the internal noun (`Workspace.all("analyses")`)
+    AND the rendered label (`<span class="nm">Views</span>`) from *the same function that renders
+    that group*, asserts the app's three surfaces agree with each other, then fails if any
+    **bolded** label in the tour copy uses the internal noun. Comments stripped first (check 12's
+    lesson — this file's own prose discusses the retired noun at length). The one exemption, a
+    tour's own chooser label ("Quick analysis"), is *derived* from the labels `tutorial.js`
+    registers, not hardcoded. Verified non-vacuous: restoring `<b>Analyses</b>` fails it.
+  - **The guard caught the author.** The first draft also exempted the welcome hero's "quick
+    analyses" as activity phrasing "shared verbatim with the marketing hero" — and the
+    exemption's own verification (does `index.html` actually say it?) disproved that
+    immediately: the hero says no such thing. The hero now names the rail's own **Quick Views**
+    section and the exemption is gone entirely, leaving check 14 stricter than drafted. That is
+    the SKIP_IN_WELCOME idiom earning its keep — an exemption that must prove itself.
+  - **Verified:** `tools/doc-truth.mjs` 20/20 · `tools/validate.mjs` 207 files clean ·
+    `tools/changelog-check.js` manager-parse OK · full `tests/run.js` green ·
+    `tools/dev-smoke.mjs` green (desktop + 390px, zero pageerrors). est —, took 1 slice.
+  - **Deliberately out of scope:** Help's own `analysis`/`analyses` prose (`docs/index.html`
+    §602-627 etc.). Help's *label* is already right ("the Studio library under **Views**"); the
+    remaining prose is the broader wording sweep N7 already flags as overlapping AUD-11 §2.4's
+    tail — its own slice, not this one.
 - **N7 — every tour told you to reopen it from a menu that no longer has it (v874, sw v506,
   2026-08-07, steward; LF58 recurring slice, dev branch):** the ▶ NOW queue again held no ready
   non-recurring item (N2/N4b/N5a/N5b shipped, N4a is ⛔ on Kevin, grooming still parked for him
@@ -10107,13 +10149,24 @@
     selectors across the six tours still resolve in `app/`; `app/welcome.js` never carried
     the stale route; and Help's two ⋯ More references (`Present → Slideshow`,
     `Simple mode off`) both resolve against the live menu.
+  * *The tours' noun for a saved chart — v875, sw v507, 2026-08-07 (see DONE).* The candidate
+    this list named last time. LF57 made **View** the user-facing name and every render site
+    says so, but two tour steps still sent the reader to a builder-library group called
+    "Analyses" that renders "Views", and the Quick analysis tour contradicted itself in one
+    walk ("save it as a reusable analysis" → "press Save View"). Nine copy sites fixed across
+    `tutorial.js` + `welcome.js`; doc-truth check 14 now derives the internal noun and the
+    rendered label from the same render function and fails any bolded tour label that uses
+    the internal one. The activity/label line is written into `tutorial.js`'s header.
+  * **Audited and found CURRENT in this pass, no change needed:** Help's builder-library
+    reference (`docs/index.html` already says "the Studio library under **Views**").
   * **Not yet audited (candidates for the next N7 slice):** the marketing page's hero
     carousel captions + screenshots, which the v871 slice deliberately left alone (the copy
     pass stayed textual — regenerating shots is its own slice); and the per-feature tours'
-    remaining BODY copy (Quick analysis / Build a dashboard / Prep & connect / the pack
-    tour), which the v874 slice only touched at the closing lines — the "analysis" vs "View"
-    wording in the Quick analysis tour is the strongest candidate there, and it overlaps
-    AUD-11's tail (§2.4's wording sweep). **Struck from this list:** the ⌘K palette's section
+    remaining BODY copy (Build a dashboard / Prep & connect / the pack tour) — the Quick
+    analysis tour's own body is now done (v875). **Help's remaining `analysis`/`analyses`
+    prose** (§602-627 and friends) is the biggest known one: its labels are right, its prose
+    still uses the old noun, and it overlaps AUD-11's tail (§2.4's wording sweep) — that
+    overlap is why v875 scoped itself to the tours. **Struck from this list:** the ⌘K palette's section
     coverage, which this pass found was NOT stale — AUD-12 (v854) already made the palette
     derive from the rail and added the guard, so the note above was itself out of date.
 

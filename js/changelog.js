@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 875,
+    title: 'The tours call a saved chart what the app calls it',
+    kind: 'fix',
+    ts: '2026-08-07T23:59:17.000Z',
+    items: [
+      'A saved chart has been called a View everywhere you can see one since the Views catalog arrived — the button says Save View, the Dashboard Builder\'s library groups them under Views, Home calls them Pinned Views. The tours had never caught up: two steps sent you to a library group called "Analyses" that does not exist, and the Quick analysis tour contradicted itself inside a single walk, opening with "save it as a reusable analysis" and then telling you to press Save View four steps later.',
+      'Every place the tours and the welcome cards point at something you can click now uses the name that thing actually has. Describing the work you are doing is untouched — the tour is still called Quick analysis, because that is still what you are doing.',
+      'The checks that run on every change now read the app\'s own Save button, library group header and Home section label, confirm those three agree with each other, and fail if a tour bolds a control by a name the control does not have. The internal storage name for a saved chart is still the old one on purpose; this check is what keeps it from leaking back into what you read.',
+    ],
+  },
+  {
     v: 874,
     title: 'Every tour told you to reopen it from a menu that no longer has it',
     kind: 'fix',

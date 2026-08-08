@@ -33,18 +33,18 @@
   // been closing elsewhere. `ic` now names a Studio.icon() registry icon instead.
   var BASE_STEPS = [
     { t: "Welcome to Analytics", ic: "home",
-      h: "A modern, visual way to turn your data into <b>quick analyses</b> and <b>interactive dashboards</b> — entirely in your browser, local-first, nothing to install.",
+      h: "A modern, visual way to turn your data into <b>Quick Views</b> and <b>interactive dashboards</b> — entirely in your browser, local-first, nothing to install.",
       s: "Your work saves to this device and can mirror to your own backend. Everything also works offline on sample data." },
     { t: "Quick Views — answers in a minute", ic: "search",
-      h: "<b>Quick Views</b> (left rail: Build) is the fastest path in: pick a dataset, see it as a table, choose a chart — including the <b>US county map</b> and the <b>Ensemble common-estimate</b> chart — and save it as a reusable <b>analysis</b>.",
-      s: "Pin an analysis ★ to Home and it greets you live when you open the app; drop it into any dashboard with one click." },
+      h: "<b>Quick Views</b> (left rail: Build) is the fastest path in: pick a dataset, see it as a table, choose a chart — including the <b>US county map</b> and the <b>Ensemble common-estimate</b> chart — and save it as a reusable <b>View</b>.",
+      s: "Pin a View ★ to Home and it greets you live when you open the app; drop it into any dashboard with one click." },
     // TOUR-WOW (Kevin live, 2026-07-31): the flagship View Builder was absent
     // from the whole welcome flow — new users never learned it existed.
     { t: "View Builder — drag, drop, chart", ic: "sliders",
       h: "<b>View Builder</b> (left rail: Build) is the drag-and-drop canvas: pull a dataset's columns onto the <b>Columns / Rows / Filters / Color</b> shelves and the result renders live — tables, bars, lines, donuts, heatmaps, and full <b>US maps</b>, one click apart.",
       s: "Drop a CSV straight onto the canvas and it becomes a dataset — charted instantly. Every save is a View you can reuse on any dashboard." },
     { t: "Dashboard Builder — full dashboards", ic: "grid",
-      h: "<b>Library</b> (left) lists your analyses, datasets and samples · <b>Live preview</b> (center) is the real dashboard · <b>Inspector</b> (right) edits whatever you select. Drag to reorder, resize, rename; Ctrl/Cmd-Z undoes.",
+      h: "<b>Library</b> (left) lists your saved <b>Views</b>, your <b>Datasets</b> and the samples · <b>Live preview</b> (center) is the real dashboard · <b>Inspector</b> (right) edits whatever you select. Drag to reorder, resize, rename; Ctrl/Cmd-Z undoes.",
       s: "Or hit <b>New ▸ Auto-build</b> to scaffold a whole dashboard from a query set in one click." },
     // N7 (2026-08-07): the quick tour walked straight from the builders to Export, so it
     // never said where anything you build ends up. The rail's whole Workspace group —
@@ -53,7 +53,7 @@
     // 12 now holds this array accountable to the rail's own section list.
     { t: "Your workspace — find it all again", ic: "folder",
       h: "The rail's <b>Workspace</b> group is everything you have: <b>Views</b> is the catalog of every chart you've saved, <b>Dashboards</b> lists the ones you've assembled, and <b>Repository</b> searches across all five kinds of object at once — with folders, chip filters and rename-in-place.",
-      s: "<b>Home</b> is the front door: your featured dashboards render live there and pinned analyses greet you the moment you open the app." },
+      s: "<b>Home</b> is the front door: your featured dashboards render live there and pinned Views greet you the moment you open the app." },
     { t: "Export — it runs anywhere", ic: "download",
       h: "Export a self-contained, interactive <b>.html</b> dashboard you can open or host anywhere — no server, no dependencies. The editable source is the <b>.studio.json</b> (Save / Open).",
       s: "The live preview is byte-identical to the exported dashboard." },
@@ -215,7 +215,7 @@
     // them, and a skip that reads like a real choice instead of a whisper.
     ov.querySelector(".sw").innerHTML =
       '<div class="sw-hd"><div class="sw-ic" data-ic="sparkle"></div><h1>' + Studio.escapeHtml(greeting()) + "</h1></div>" +
-      '<div class="sw-bd"><p class="sw-hero-sub">A modern, visual way to turn your data into quick analyses and interactive dashboards — entirely in your browser, local-first, nothing to install.</p>' +
+      '<div class="sw-bd"><p class="sw-hero-sub">A modern, visual way to turn your data into Quick Views and interactive dashboards — entirely in your browser, local-first, nothing to install.</p>' +
       '<div class="sw-tour-row">' +
       '<button class="sw-tour pri" data-act="guidedtour"><span class="sw-tour-ic" data-ic="sparkle"></span><b>Take the guided tour</b>' +
       "<small>Spotlights on the real app — pick a topic: getting started, quick analyses, building dashboards, prepping and connecting your data. A couple of minutes each.</small></button>" +

@@ -390,6 +390,63 @@ const badRoutes = ["app/tutorial.js", "app/welcome.js"].flatMap((f) => {
 ok("app/tutorial.js + app/welcome.js: every affordance the tour copy names actually exists",
   !badRoutes.length, badRoutes.join("\n      "));
 
+// 14. The tours name the saved-chart object by the label the app RENDERS for it. Check 13
+//     covers routes ("⌘K → X"); nothing covered the plain NOUN a step bolds, and that is
+//     where LF57's rename rotted: the object's storage table is still `analyses` and its ids
+//     are still analysisId (a deliberately deferred internal rename), but every user-visible
+//     surface has said "View" since — Explore's Save button, the builder library's group
+//     header, Home's pinned section. N7 (2026-08-07) found the tours still on the old noun:
+//     two steps sent the reader to a builder-library group called "Analyses" that renders
+//     "Views", and the quick tour disagreed with ITSELF inside one walk (step 0 "save it as a
+//     reusable analysis" vs step 5 "Save View"). So: derive the internal noun and the rendered
+//     label from the SAME function that renders that group, confirm the app's three surfaces
+//     agree with each other, then require that no BOLDED label in the tour copy uses the
+//     internal noun. Deliberately scoped to <b>…</b> — the copy is free to describe the
+//     ACTIVITY in ordinary English ("quick analyses", and the tour is named "Quick analysis");
+//     what it may not do is point at a control by a name that control does not have.
+const savedChart = (() => {
+  const src = read("app/explore.js");
+  const start = src.indexOf("function buildAnalysesLib(");
+  if (start < 0) throw new Error("doc-truth: buildAnalysesLib not found in app/explore.js");
+  const body = src.slice(start, src.indexOf("\n  }", start));
+  const table = body.match(/Workspace\.all\("(\w+)"\)/);
+  const group = body.match(/<span class="nm">([^<]+)<\/span>/);
+  if (!table || !group) throw new Error("doc-truth: buildAnalysesLib no longer exposes a table name + group label");
+  const save = src.match(/"(Save [A-Z]\w*)"/);
+  const home = read("app/studio.js").match(/HOME_SECTION_LABELS = \{[^}]*?pinnedAnalyses: "([^"]+)"/);
+  if (!save || !home) throw new Error("doc-truth: the Save button / Home section label are no longer parseable");
+  return { table: table[1], group: group[1], save: save[1], home: home[1] };
+})();
+// "Views" → "View": the singular the other two surfaces should be built from.
+const savedNoun = savedChart.group.replace(/s$/, "");
+ok("the app agrees with itself on what a saved chart is called (library group, Save button, Home section)",
+  savedChart.save.includes(savedNoun) && savedChart.home.includes(savedNoun),
+  `library group "${savedChart.group}" · button "${savedChart.save}" · Home "${savedChart.home}"`);
+// "analyses" → /analys/i: the internal noun, singular or plural. Comments stripped first —
+// this file's own prose and tutorial.js's header both discuss the retired noun at length, and
+// (check 12's lesson) a comment must be able neither to fail the check nor to satisfy it.
+const staleNoun = new RegExp(savedChart.table.replace(/(es|s)$/, ""), "i");
+// ONE thing legitimately keeps the old word, and it is derived rather than trusted (the
+// SKIP_IN_WELCOME idiom above): a tour's own chooser label. "Quick analysis" is a real row the
+// user clicks, so it is exempt only for as long as tutorial.js actually registers it. Nothing
+// else is exempt — the first draft of this check also waved through the welcome hero's "quick
+// analyses" as activity phrasing "shared with the marketing hero", and the guard immediately
+// disproved that: index.html's hero says no such thing. The hero now names the rail's own
+// Quick Views section, so no exemption is needed at all.
+const tourChooserLabels = new Set(
+  [...read("app/tutorial.js").matchAll(/\blabel:\s*"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1].toLowerCase()));
+ok("app/tutorial.js: the tour chooser labels parsed for check 14 are non-empty",
+  tourChooserLabels.size >= 5, `parsed ${tourChooserLabels.size} tour labels`);
+const staleLabels = ["app/tutorial.js", "app/welcome.js"].flatMap((f) => {
+  const bare = read(f).replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+  return [...bare.matchAll(/<b>([^<]+)<\/b>/g)].map((m) => m[1])
+    .filter((l) => staleNoun.test(l))
+    .filter((l) => !tourChooserLabels.has(l.toLowerCase()))
+    .map((l) => `${f}: <b>${l}</b>`);
+});
+ok(`app/tutorial.js + app/welcome.js: no bolded label calls a saved chart by its internal name ("${savedChart.table}") — the app renders "${savedChart.group}"`,
+  !staleLabels.length, staleLabels.join("\n      "));
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
