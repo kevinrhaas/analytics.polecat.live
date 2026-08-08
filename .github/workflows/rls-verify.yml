@@ -1,0 +1,91 @@
+name: RLS verify (live databases)
+
+# N25 — "is a LIVE database readable by an anonymous caller, right now?"
+#
+# Distinct from the RLS (dev database) workflow, and the difference matters:
+#   rls-dev.yml     runs tests/rls.mjs — "do our SQL FILES produce a secure
+#                   database?" It creates and drops throwaway schemas, needs the
+#                   database password, and must NEVER point at production.
+#   this workflow   runs tests/rls-verify.mjs — read-only anon GETs over the REST
+#                   surface. No database password; only the publishable key,
+#                   which app/workspaces.js already ships publicly. That is what
+#                   makes it safe to aim at production.
+#
+# WHY A SCHEDULE AND NOT ONLY THE PROMOTION GATE. promote-to-prod already runs
+# this before shipping (see promote-to-prod.yml), but promotions are occasional
+# and drift is not: a policy dropped during a debugging session, a half-applied
+# go-live, or a legacy allow-all policy re-created by someone following an old
+# runbook can sit undetected between releases. This asks the question daily.
+#
+# WHY IT LIVES ON MAIN. GitHub registers workflow_dispatch/schedule triggers only
+# from the default branch. The script it runs is fetched from the ref below, so
+# the workflow definition and the code under test are versioned independently on
+# purpose — see rls-dev.yml, where getting this wrong cost a red run.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Which live database to verify'
+        required: true
+        default: 'production'
+        type: choice
+        options: [production, dev, both]
+      ref:
+        description: 'Branch to take tests/rls-verify.mjs from (default: dev)'
+        required: false
+        default: 'dev'
+  schedule:
+    - cron: '20 6 * * *' # daily, before rls-dev (06:40Z) and the stage promotion (07:00Z)
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || 'dev' }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Verify PRODUCTION (read-only)
+        if: github.event_name == 'schedule' || github.event.inputs.target == 'production' || github.event.inputs.target == 'both'
+        env:
+          # The production project ref, as shipped in app/workspaces.js. Not a
+          # secret — the publishable key beside it is public by design, because
+          # the database's policies are built to distrust that role.
+          SUPABASE_URL: https://lnngiprrrcxtsawamqei.supabase.co
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          VERIFY_LABEL: production
+        run: node tests/rls-verify.mjs
+
+      - name: Verify DEV (read-only)
+        if: github.event_name == 'schedule' || github.event.inputs.target == 'dev' || github.event.inputs.target == 'both'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_DEV_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_DEV_ANON_KEY }}
+          VERIFY_LABEL: dev
+        run: node tests/rls-verify.mjs
+
+      - name: "Red: open an issue — a live database is leaking"
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "RLS verify FAILED — a live database is readable by an anonymous caller" \
+            --body "The daily anonymous-read verify failed. A live database is either off the authenticated-only posture, or unreachable.
+
+          Look for a leftover allow-all policy first — PERMISSIVE policies OR together, so one leftover defeats every tighter policy beside it:
+
+              select tablename, policyname, roles, cmd from pg_policies
+              where schemaname = 'public' order by tablename;
+
+          Then re-apply \`tools/supabase-rls-real.sql\`. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" || true
+          echo "::error::RLS verify failed — see the run log for which database and which tables."
