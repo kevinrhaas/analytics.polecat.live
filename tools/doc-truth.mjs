@@ -628,6 +628,54 @@ const helpPaneNew = [...helpDoc.matchAll(/＋\s*New\s+([a-z]\w*)/g)]
 ok(`docs/index.html: Help names the Data panel's add control "${paneNew}", not a control it lacks`,
   !helpPaneNew.length, [...new Set(helpPaneNew)].join("\n      "));
 
+// 18. THE APP'S OWN COPY — the last document in this family, and the one every other check has
+//     been correcting the others TO. Checks 16 and 17 held the tours and Help to the pane's
+//     rendered name; nothing held the BUILDER to it, and it turned out to be the worst offender
+//     of the three. app/index.html's markup had been updated at STUDIO-PANELS (header, collapsed
+//     rail, tooltips, the empty canvas's "Open data panel" button all read Data) — but every
+//     string the builder RENDERS AT RUNTIME was missed: the phone drawer's tab bar said
+//     "Library", Simple mode's getting-started checklist opened on "Library ready", the
+//     inspector's empty-state hints, the ⌘/Ctrl+F shortcut row, the What's-next card and the
+//     canvas empty state inside the preview iframe ("the <b>Query Library</b>" — the exact
+//     id-flavoured name check 17 had just deleted from Help) all said library too. So the rule
+//     that finished Help finishes the app, one document over again, and this time in the
+//     direction the other checks read FROM: outside an identifier, the word must not appear.
+//       · Scope is the copy a reader can see: string literals in the builder's two rendering
+//         modules (comments skipped by the lexer, so this file's own prose and studio.js's
+//         historical notes can neither fail nor satisfy it), plus index.html's TEXT NODES —
+//         tags stripped, so `id="library"`/`data-pane="library"` are structurally out of reach
+//         and the markup keeps its id without an exemption list.
+//       · Identifiers are exempt by SHAPE, not by name: a literal with no whitespace that
+//         starts lowercase is a selector, storage key or switch value ("#library",
+//         "studio-collapse-library", the `which === "library"` argument). "Library" the tab
+//         label does not qualify — copy is capitalised or spaced, which is the whole point.
+//       · The one legitimate library is check 14's derived saved-chart one ("Save to View
+//         library" is a real button), exempted the same derived way check 17 does it.
+const APP_COPY_JS = ["app/studio.js", "app/studio-render.js"];
+// A small lexer rather than a comment-strip + literal-grep: matching comments and strings in the
+// SAME left-to-right pass is what keeps a "//" inside a URL from eating the rest of its string,
+// and a quote inside a comment from opening a phantom one.
+const jsLiterals = (f) => [...read(f).matchAll(
+  /\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g)]
+  .map((m) => m[0]).filter((s) => s[0] === '"' || s[0] === "'").map((s) => s.slice(1, -1));
+const IDENTIFIERISH = /^[#.]?[a-z][\w.:>[\]="-]*$/;   // no whitespace, lowercase start
+const dropSavedLib = (s) => s.replace(new RegExp(`${esc(savedNoun)}\\s+librar(?:y|ies)`, "gi"), " ");
+const strayAppCopy = [
+  ...APP_COPY_JS.flatMap((f) => jsLiterals(f)
+    .filter((s) => !IDENTIFIERISH.test(s))
+    .filter((s) => /librar(?:y|ies)/i.test(dropSavedLib(s)))
+    .map((s) => `${f}: "…${s.replace(/\s+/g, " ").trim().slice(0, 96)}…"`)),
+  ...[...dropSavedLib(appHtml.replace(/<!--[\s\S]*?-->/g, " ").replace(/<[^>]*>/g, " "))
+    .matchAll(/[^.]*librar(?:y|ies)[^.]*/gi)]
+    .map((m) => `app/index.html: "…${m[0].replace(/\s+/g, " ").trim().slice(0, 96)}…"`),
+];
+ok(`app/studio.js + app/studio-render.js + app/index.html: the builder's own copy calls the left ` +
+  `pane "${dataPaneName}" — the only library the app may name is the "${savedNoun} library"`,
+  !strayAppCopy.length, strayAppCopy.join("\n      "));
+ok("tools/doc-truth.mjs: the builder copy parsed for check 18 is non-empty",
+  APP_COPY_JS.every((f) => jsLiterals(f).filter((s) => !IDENTIFIERISH.test(s)).length > 50),
+  APP_COPY_JS.map((f) => `${f}: ${jsLiterals(f).filter((s) => !IDENTIFIERISH.test(s)).length} copy literals`).join(" · "));
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

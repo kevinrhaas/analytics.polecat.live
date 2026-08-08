@@ -3,6 +3,6 @@
    the version label and the What's-new unseen dot, so the ~680KB of full history is
    fetched lazily (Studio.loadChangelog) the first time someone opens the feed.
    Regenerated from js/changelog.js on every normalize run — never hand-edit. */
-window.STUDIO_LATEST_VERSION = 878;
-window.STUDIO_LATEST = {"v":878,"title":"The Help page describes the builder's Data panel you actually have","kind":"fix","ts":"2026-08-08T03:21:44.000Z"};
+window.STUDIO_LATEST_VERSION = 879;
+window.STUDIO_LATEST = {"v":879,"title":"The builder calls its own left panel Data, and the button that opens it works on a phone","kind":"fix","ts":"2026-08-08T03:46:44.000Z"};
 window.STUDIO_BUILD = "__BUILD_TS__";
