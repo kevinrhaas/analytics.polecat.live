@@ -2127,6 +2127,163 @@ ok('app/demopacks.js: no pack that seeds connections tells the reader there is "
   'the copy means "no credentials to enter" — say that, because the literal reading is false ' +
   "the moment Install writes a connection row");
 
+/* ── 36. Help's Keyboard shortcuts table vs the shortcuts the app really has ─
+   N7, and the same one-document-over move as 15→14, 17→16, 28→24 and 35→34 — except the
+   document being moved FROM is the app itself. `showShortcuts()` in app/studio.js renders
+   the panel `?` opens; docs/index.html has a <table class="kbd-table"> that is supposed to
+   be the same list for a reader who never presses `?`. Nothing compared them, and the
+   suite only ever asserted two individual rows of the panel ("/" and Ctrl/⌘+K).
+
+   Measured 2026-08-09, before the fix — the panel published 15 keyboard rows, the table 10:
+   · **Redo was documented as a key that has never worked.** Help said `Shift Z` / `Shift ⌘ Z`.
+     The handler is one block guarded by `if (!(e.metaKey || e.ctrlKey)) return;`, so bare
+     Shift+Z falls straight through it. Rule (c) is that early return, stated as a rule.
+   · **Ctrl/⌘+Y is a real redo alias that appeared in neither document** — `k === "y"` sits in
+     the same branch as Shift+Z. It is the one drift running the OTHER way (the app doing more
+     than it says), which is why rule (a) reads the handler and not just the two copies.
+   · **Four keys the panel published were missing from Help**: Ctrl/⌘+F (the Data panel search
+     — shipped at v879 and never documented here), `/` (the chart-gallery search), Escape's
+     leave-Focus-mode meaning, and Tab.
+   · **The section's opening sentence was wrong about all of them**: "All shortcuts work when
+     the builder pane has keyboard focus (click anywhere on the canvas or inspector first)."
+     Every handler is on `document` and bails only inside a text field — and the table's own
+     ⌘K row said "works from anywhere, any section" three lines below.
+
+   Four rules:
+   (a) the panel names every Ctrl/⌘ letter chord the modifier keydown block acts on;
+   (b) every KEY row the panel publishes has a row in Help's table (gesture rows — a row whose
+       key cell holds something that is not a key, like "Double-click View title" — are excluded
+       BY SHAPE, check 18's idiom, and counted in the parse assertion so a shape change shows up);
+   (c) Help documents no letter shortcut without Ctrl/⌘, because that block returns without one;
+   (d) Help documents no Ctrl/⌘ letter the panel does not publish.
+   Scoped to the TABLE, not the whole section: the prose below it covers the Viewer's ↵/Space/Tab
+   reading keys, which are not builder chords and have their own paragraphs. */
+
+// The app's own published reference — the rows literal inside showShortcuts(), bracket-matched
+// the way check 19 brace-matches the build tour.
+function shortcutPanelRows() {
+  const src = read("app/studio.js");
+  const fn = src.indexOf("function showShortcuts()");
+  if (fn < 0) throw new Error("doc-truth: showShortcuts() not found in app/studio.js");
+  const open = src.indexOf("var rows = [", fn);
+  if (open < 0) throw new Error("doc-truth: showShortcuts()'s rows literal not found");
+  let depth = 0, i = src.indexOf("[", open);
+  for (; i < src.length; i++) {
+    if (src[i] === "[") depth++;
+    else if (src[i] === "]" && --depth === 0) break;
+  }
+  return [...src.slice(open, i + 1).matchAll(/\["([^"]+)",\s*"([^"]+)"\]/g)].map((m) => ({ keys: m[1], action: m[2] }));
+}
+
+// The one keydown block that requires a modifier — undo/redo/duplicate/save live here, and so
+// does the undocumented Y. Each `else if` branch is a disjunction; a disjunct is one chord.
+function modifierChordHandler() {
+  const src = read("app/studio.js");
+  const at = src.indexOf('if (!(e.metaKey || e.ctrlKey)) return;');
+  if (at < 0) throw new Error("doc-truth: the Ctrl/⌘ keydown block not found in app/studio.js");
+  let depth = 1, i = at;
+  for (; i < src.length; i++) {
+    if (src[i] === "{") depth++;
+    else if (src[i] === "}" && --depth === 0) break;
+  }
+  const body = src.slice(at, i);
+  const out = new Set();
+  for (const branch of body.split(/\belse if\b|\bif\b/).slice(1))
+    for (const disjunct of (branch.split("{")[0] || "").split("||")) {
+      const letter = disjunct.match(/k === "([a-z])"/);
+      if (!letter) continue;
+      // `!e.shiftKey` is the absence of the modifier, not its presence.
+      const shift = /(?<!!)e\.shiftKey/.test(disjunct);
+      // Canonicalised exactly like a copy cell is, so the two sides are comparable.
+      out.add(canon([...(shift ? ["mod", "shift"] : ["mod"]), letter[1]]));
+    }
+  return out;
+}
+
+// One key cell → the set of chords it expresses, canonicalised so "Ctrl / ⌘  +  Shift+Z" and
+// "<kbd>Shift ⌘ Z</kbd>" become the same token. Returns null when the cell names a gesture
+// rather than a key (an unrecognised word), which is how rule (b) excludes those rows.
+const KEY_ALIASES = {
+  ctrl: "mod", "⌘": "mod", cmd: "mod", command: "mod", meta: "mod", shift: "shift",
+  del: "delete", delete: "delete", backspace: "backspace", esc: "escape", escape: "escape",
+  tab: "tab", enter: "enter", "↵": "enter", space: "space",
+  "↑": "↑", "↓": "↓", "←": "←", "→": "→", "?": "?", "/": "/",
+};
+function chordsOf(cell) {
+  const text = cell.replace(/\([^)]*\)/g, " ").trim();
+  if (text === "/") return [["/"]];                          // the one place "/" is a key, not a separator
+  const parts = text.replace(/Ctrl\s*\/\s*⌘/gi, "Ctrl").split("/").map((s) => s.trim()).filter(Boolean);
+  const chords = [], mods = [];
+  for (const [n, alt] of parts.entries()) {
+    const tokens = [];
+    for (const raw of alt.split(/[+\s]+/).filter(Boolean)) {
+      const t = KEY_ALIASES[raw.toLowerCase()] || (/^[A-Za-z]$/.test(raw) ? raw.toLowerCase() : null);
+      if (!t) return null;                                   // a word that is not a key ⇒ a gesture row
+      tokens.push(t);
+    }
+    // "Shift + ← / →" writes the modifier once and means it for both alternatives.
+    if (n === 0) mods.push(...tokens.filter((t) => t === "mod" || t === "shift"));
+    else if (!tokens.some((t) => t === "mod" || t === "shift")) tokens.unshift(...mods);
+    chords.push([...new Set(tokens)].sort());
+  }
+  return chords;
+}
+// Canonical form is sorted (so two spellings of one chord compare equal); `pretty` puts the
+// modifiers back in front for the failure messages, which humans read.
+const canon = (chord) => [...chord].sort().join("+");
+const chordSet = (cells) => new Set(cells.flatMap((c) => (chordsOf(c) || []).map(canon)));
+const pretty = (c) => { const t = c.split("+"); const m = (x) => x === "mod" || x === "shift"; return [...t.filter((x) => x === "mod"), ...t.filter((x) => x === "shift"), ...t.filter((x) => !m(x))].join("+"); };
+const prettyList = (cs) => [...cs].map(pretty).sort().join(", ");
+
+const panelRows = shortcutPanelRows();
+const handlerChords = modifierChordHandler();
+const panelKeyCells = panelRows.map((r) => r.keys).filter((k) => chordsOf(k));
+const panelGestures = panelRows.map((r) => r.keys).filter((k) => !chordsOf(k));
+ok(`app/studio.js: the "?" panel parsed for check 36 (${panelKeyCells.length} key row(s), ` +
+   `${panelGestures.length} gesture row(s), ${handlerChords.size} Ctrl/⌘ chord(s) in the handler)`,
+  panelRows.length > 0 && panelKeyCells.length > 0 && handlerChords.size > 0,
+  "every rule below reads showShortcuts()'s rows literal and the modifier keydown block — " +
+  "an empty parse would pass all four while measuring nothing");
+
+const helpKbdTable = (read("docs/index.html").match(/<table class="kbd-table">([\s\S]*?)<\/table>/) || [, ""])[1];
+const helpCells = [...helpKbdTable.matchAll(/<kbd>([^<]+)<\/kbd>/g)].map((m) => m[1].trim());
+ok(`docs/index.html: the Keyboard shortcuts table parsed for check 36 (${helpCells.length} <kbd> cell(s))`,
+  !!helpKbdTable && helpCells.length > 0,
+  'the <table class="kbd-table"> block was not found, or holds no <kbd> — the three rules below read it');
+
+// (a) the panel names every Ctrl/⌘ letter the handler acts on
+const panelChords = chordSet(panelKeyCells);
+const unpublished = [...handlerChords].filter((c) => !panelChords.has(c));
+ok(`app/studio.js: the "?" panel names every Ctrl/⌘ shortcut the builder implements (${prettyList(handlerChords)})`,
+  !unpublished.length,
+  `handled but absent from the panel: ${prettyList(unpublished)}\n      ` +
+  "a shortcut nobody documents is one nobody uses — and the reader who presses it by accident " +
+  "has no way to find out what just happened");
+
+// (b) Help's table carries every key row the panel publishes
+const helpChords = chordSet(helpCells);
+const missingFromHelp = [...panelChords].filter((c) => !helpChords.has(c));
+ok(`docs/index.html: the Keyboard shortcuts table lists every key the app's "?" panel does (${panelChords.size} chord(s))`,
+  !missingFromHelp.length,
+  `in the app's panel, missing from Help: ${prettyList(missingFromHelp)}\n      ` +
+  "Help is where a reader who never presses ? learns these — check 24's premise, one surface over");
+
+// (c) a letter shortcut without Ctrl/⌘ does not exist: the block returns before reading the key
+const LETTER = /^[a-z]$/;
+const modless = [...helpChords].filter((c) => c.split("+").some((t) => LETTER.test(t)) && !c.split("+").includes("mod"));
+ok("docs/index.html: every letter shortcut it documents names Ctrl/⌘",
+  !modless.length,
+  `documented without a modifier: ${prettyList(modless)}\n      ` +
+  "app/studio.js's chord handler opens with `if (!(e.metaKey || e.ctrlKey)) return;`, so a bare " +
+  "letter (or Shift+letter) reaches nothing — this is how the Redo row was wrong for months");
+
+// (d) and it invents no Ctrl/⌘ letter the panel does not publish
+const invented = [...helpChords].filter((c) => c.includes("mod") && c.split("+").some((t) => LETTER.test(t)) && !panelChords.has(c));
+ok("docs/index.html: it documents no Ctrl/⌘ shortcut the app does not have",
+  !invented.length,
+  `in Help, not in the app's panel: ${prettyList(invented)}\n      ` +
+  "the negative half — rule (b) alone would let a retired shortcut sit in the table forever");
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

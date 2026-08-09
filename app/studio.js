@@ -11486,6 +11486,10 @@
         ["Ctrl / ⌘  +  K", "Open the command palette"],
         ["Ctrl / ⌘  +  Z", "Undo"],
         ["Ctrl / ⌘  +  Shift+Z", "Redo"],
+        // The keydown block below treats Ctrl/⌘+Y as redo too (the Windows convention), and
+        // it worked for months while appearing on neither this panel nor the Help page —
+        // doc-truth check 36 now derives this list's Ctrl/⌘ letters from that handler.
+        ["Ctrl / ⌘  +  Y", "Redo (the Windows alias — same action)"],
         ["Ctrl / ⌘  +  D", "Duplicate selected View or KPI"],
         ["Ctrl / ⌘  +  S", "Save to your Dashboards catalog"],
         ["Ctrl / ⌘  +  F", "Focus the Data panel's search (filter queries)"],
