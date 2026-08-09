@@ -135,6 +135,59 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **SP-1 slice (a) — "Market Coverage": the first sample pack built from REAL data (v912, sw v534,
+  2026-08-09, steward; dev branch; est 3pt for the whole pack, this slice took 1 — on estimate for
+  (a) of ~3):** the data foundation Kevin's ★★ pack needs, shipped as the pack's own connection,
+  its two Census datasets and the join job that turns them into a saturation index. Dashboards are
+  slice (b); Views + tour + docs are slice (c).
+  - **The extract** — `tools/pack-extract/marketcoverage.mjs`, the provenance record `docs/PACKS.md`
+    demands: County Business Patterns 2023 (establishments — all industries, food services 722,
+    grocers 445), the ACS 2023 5-year table-based Summary File (B01003 population, B11001
+    households, B01002 median age, B19013 median household income, B15003 education), and the 2023
+    Gazetteer for county names. **All three are keyless bulk files on `www2.census.gov` on purpose:
+    `api.census.gov` now 302s to a "Missing Key" page**, and an extract nobody else can re-run is
+    not a provenance record. 1,813 counties, 111.1KB of the 150KB budget.
+  - **Two filters, both stated in the output rather than buried.** Counties under 20,000 people are
+    dropped — a per-10,000-residents rate over a village is noise, and a chain's site-selection
+    universe starts at a floor anyway. Territories (state FIPS > 56) are dropped because the
+    app's county choropleth draws the AlbersUsa plane and has no geometry for them; shipping rows
+    the map cannot draw is data that silently disappears. Both are in `SOURCE.json` notes and in
+    the changelog entry.
+  - **The pack is two datasets and a JOB, not one pre-joined table** — deliberately. The two halves
+    come from two different Census programmes, so the join (on county FIPS) and the three derives
+    that follow it (`residents_per_10k` → `restaurants_per_10k`, `grocers_per_10k`) ARE the
+    data-prep story the pack exists to show.
+  - **New machinery, because a real-data pack cannot finish inside `install()`.** Its rows live in
+    committed CSV that has to be read, so `Studio.ensurePackDataMaterialized(id)` (registry-driven,
+    idempotent, quiet on failure) does the async half, `ensureAllPackDataMaterialized()` heals at
+    boot, and the CSVs joined `sw.js`'s precache list (v533 → v534) because docs/PACKS.md rule 1
+    says installing a pack must not depend on the network. Written up in PACKS.md § "How the CSV
+    reaches the app" for the packs after this one.
+  - **The seeded job output is the job's own work, checked as such.** It is pre-computed by running
+    the job's `steps` through `Studio.runJobSteps` — not a second copy of the arithmetic — so a Run
+    cannot silently correct the numbers the pack shipped with. Verifying that surfaced a real trap:
+    the file adapter types numeric-looking cells (`localfile.js typeCell`), so the pre-compute has
+    to type them the same way or `fips` is `"01001"` at seed time and `1001` after a Run. Fixed in
+    the parser; the choropleth is unbothered either way (`geoNormalizeId` re-pads a 4-digit id).
+  - **The extract's own near-miss, kept as a guard.** CBP pads a 3-digit subsector with SLASHES
+    (`722///`), not dashes; the first run wrote an all-zero `food_services` column and reported
+    success. The script now fails loudly when a kept NAICS code matches under a quarter of counties.
+  - **Copy that this made false was fixed with it:** Settings' Sample-packs intro said every pack's
+    data is synthetic, and the suite asserted every pack card says so. Both now say what is true —
+    each card renders its OWN source line, and at least one of each kind is on the shelf.
+  - **NOT done here, on purpose:** the `DEFAULT_INSTALLED` swap Kevin asked for. A pack that
+    installs by default and shows a new visitor no dashboards is worse than the `datamanagement`
+    one it would replace, so the swap rides with slice (c).
+  - **Verified** (foreground, before merge): `tools/validate.mjs` (210 files, 3 packs declare a
+    source, 1 extract script registered), `tools/changelog-check.js` (889 entries, top v912,
+    manager-parse OK) and `tools/dev-smoke.mjs` — the repo's DEV GATE, green at 1400×950 and
+    390×780 with zero pageerrors. Plus a foreground harness driving the exact evaluate blocks this
+    slice added to `tests/run.js` against the booted app: install → materialize → 1 connection,
+    3 datasets, 1 job all foldered; the FIPS join matched (demographics and establishment columns
+    in one row); 1,813 output rows; the index is real arithmetic; re-running the job through the
+    live adapter + async engine reproduces the pre-materialized output BYTE FOR BYTE; a second
+    ensure changes nothing; Remove sweeps the async rows; zero pageerrors throughout. The full
+    `tests/run.js` runs at stage promotion.
 - **Grooming pass 3 — the ▶ NOW queue is a queue again (no version/sw bump; docs-only;
   2026-08-09, steward; dev branch; est 1pt, took 1 — on estimate):** `docs/BACKLOG.md` triggers a
   grooming pass at "fewer than 3 ready items **or** ≥5 struck entries lingering". Both halves had
@@ -11880,7 +11933,22 @@
   names. `SUPABASE_ANON_KEY` and `SUPABASE_PASSWORD` — read by `supabase-provision.yml:40,63` —
   are untouched, so nothing pointing at prod changes behaviour. Adding is additive; the only way
   to break prod here would be to REPLACE those two, which nothing in N19–N25 does.
-- **SP-1 ★★ [3pt] — "Market Coverage" — the new DEFAULT sample pack (Kevin, 2026-08-07).**
+- **SP-1 ★★ [3pt est, 1 slice shipped] — "Market Coverage" — the new DEFAULT sample pack (Kevin,
+  2026-08-07).** ✓ **SLICE (a) IS SHIPPED — the data foundation: v912, sw v534 (2026-08-09,
+  steward — see DONE).** The extract script, both Census datasets (1,813 counties, 111.1KB of the
+  150KB budget), the pack's connection, and the join job that derives the saturation index, plus
+  the async materialization path a committed-CSV pack needs (`Studio.ensurePackDataMaterialized`,
+  sw precache, `docs/PACKS.md` § "How the CSV reaches the app").
+  **WHAT REMAINS — (b) then (c), in that order:**
+  **(b) the dashboards** (≈3): the county choropleth over `restaurants_per_10k` is the hero — the
+  data is already keyed for it and `geoNormalizeId` re-pads the 4-digit FIPS the file adapter
+  produces, so no data change is needed. The demographic View Kevin asked for belongs here too:
+  the counties whose income and age profile say they should support a category they do not have.
+  **(c) Views + tour + docs/changelog, AND the `DEFAULT_INSTALLED` swap** — `demopacks.js`
+  `DEFAULT_INSTALLED = ["datamanagement"]` becomes `["marketcoverage"]`. Deliberately NOT done in
+  (a): a pack that installs by default and shows a new visitor no dashboards is worse than the one
+  it replaces. Data Management stays installable either way.
+  The original spec, unchanged, follows.**
   Industry density and whitespace by county: where a chain is under-represented versus the
   population and the businesses already there. **Replaces `datamanagement` in
   `DEFAULT_INSTALLED`** (`demopacks.js:78`) — Data Management stays installable, just not the

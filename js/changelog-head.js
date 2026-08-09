@@ -3,6 +3,6 @@
    the version label and the What's-new unseen dot, so the ~680KB of full history is
    fetched lazily (Studio.loadChangelog) the first time someone opens the feed.
    Regenerated from js/changelog.js on every normalize run — never hand-edit. */
-window.STUDIO_LATEST_VERSION = 911;
-window.STUDIO_LATEST = {"v":911,"title":"A preview build can no longer sign you into the live workspace","kind":"fix","ts":"2026-08-09T02:11:32.000Z"};
+window.STUDIO_LATEST_VERSION = 912;
+window.STUDIO_LATEST = {"v":912,"title":"A new sample pack, built from real US Census data","kind":"feature","ts":"2026-08-09T03:47:36.000Z"};
 window.STUDIO_BUILD = "__BUILD_TS__";

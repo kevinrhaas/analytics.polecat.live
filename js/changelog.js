@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 912,
+    title: 'A new sample pack, built from real US Census data',
+    kind: 'feature',
+    ts: '2026-08-09T03:47:36.000Z',
+    items: [
+      'Every sample pack so far has been made up — plausible numbers generated in the app to show what the tools do. The new "Market Coverage" pack is the first one built from real, public data: the US Census Bureau\'s County Business Patterns and American Community Survey, covering 1,813 counties.',
+      'It answers a question most commercial audiences recognise on sight: where is a category under-served? One dataset holds who lives in each county — population, households, median age, median household income, and how many adults hold a degree. The other holds the businesses already trading there — every industry, restaurants and bars, and grocers.',
+      'The two arrive from different Census programmes, which is exactly why they are two datasets and not one. A prep job joins them on the county code and works out the rates: restaurants and grocers per ten thousand residents. That join IS the point of the pack — it is the data-preparation story, done on real data, rather than a table that arrived pre-answered.',
+      'The pack is installed from Settings → Sample packs, like the others, and it is not installed by default yet — its dashboards and saved Views are still being built. The job\'s results are already there to look at, so nothing has to be run before there is something to see.',
+      'Because the data is somebody else\'s, the app now says whose it is. Each pack card names its source, its licence and the date it was retrieved, and packs that carry real data will carry that line onto their dashboards too. The numbers themselves ship with the app — nothing is fetched while you use it, and the pack works offline like everything else.',
+      'The extract that produced the data is committed alongside it: it names every source file, every filter and the date it ran, so the numbers can be re-derived rather than taken on trust. Two filters are worth knowing about — counties under 20,000 people are left out, because a "per ten thousand residents" rate over a village is noise rather than a finding, and Puerto Rico and the island areas are left out because the county map has no shape to draw them on.',
+    ],
+  },
+  {
     v: 911,
     title: 'A preview build can no longer sign you into the live workspace',
     kind: 'fix',
