@@ -11498,6 +11498,86 @@ function serve() {
       lf57Basic.toggleExists && lf57Basic.toggleLabel === "Tile view" && lf57Basic.tilesAfterClick &&
       lf57Basic.tilePersisted === "tiles" && lf57Basic.backToList, JSON.stringify(lf57Basic));
 
+    /* N37 (Kevin live, 2026-08-09 — "so much white space for those buttons"): the row's six
+       text buttons wrapped onto a second line, and .cx-actions is opacity-hidden rather than
+       display:none, so EVERY row reserved that line's height whether or not it showed it.
+       Measured before the fix on this exact shape (a long name + a folder badge + a date):
+       108px at 1440/1280/1150/1024/900px wide. The row now ends with Open + a ⋯ menu.
+       Assert the outcome, not the styling: two visible controls, one line, and every action
+       the old row had still present and still reachable — a compression that quietly dropped
+       Export or Delete would pass a height check and fail the user. */
+    const n37Row = await page.evaluate(async function () {
+      window.__studioShellSetSection("views");
+      // A saved View always carries a `chart` blob — Export builds its spec from it
+      // (analysisSpec → a.chart.type), so a fixture without one throws inside the app and
+      // the session-wide pageerror check catches it. Shaped like LF57's export fixture.
+      var a = Studio.Workspace.put("analyses", {
+        name: "N37 — a realistically long saved View name", chartType: "bars",
+        chart: { type: "bars", map: {}, opts: {} },
+        folder: "Market Coverage", da: { id: "daN37", columns: [] } });
+      window.__studioRenderViews();
+      await new Promise(function (r) { setTimeout(r, 120); });
+      var results = document.getElementById("viewsResults");
+      var row = results.querySelector('.cx-row[data-vw-id="' + a.id + '"]');
+      var acts = row && row.querySelector(".cx-actions");
+      var rowBox = row.getBoundingClientRect(), actBox = acts.getBoundingClientRect();
+      var out = {
+        visibleControls: acts.children.length,
+        // the actions sit on the row's own line, not wrapped under it
+        onOneLine: actBox.top < rowBox.top + rowBox.height / 2 && actBox.bottom > rowBox.top + rowBox.height / 2,
+        height: Math.round(rowBox.height),
+        // nothing was dropped in the compression
+        keptOpen: !!row.querySelector('[data-vw-open="' + a.id + '"]'),
+        keptAlt: !!row.querySelector("[data-vw-open-in]"),
+        keptDash: !!row.querySelector('[data-vw-dash="' + a.id + '"]'),
+        keptDup: !!row.querySelector('[data-vw-dup="' + a.id + '"]'),
+        keptExport: !!row.querySelector('[data-vw-export="' + a.id + '"]'),
+        keptDel: !!row.querySelector('[data-vw-del="' + a.id + '"]'),
+        // and the tail lives in the menu, not loose in the row
+        tailInMenu: !!row.querySelector('.cx-row-menu [data-vw-export="' + a.id + '"]')
+      };
+      var more = row.querySelector("[data-vw-more]");
+      out.hasMore = !!more;
+      out.ariaBefore = more.getAttribute("aria-expanded");
+      more.click();
+      await new Promise(function (r) { setTimeout(r, 260); });
+      var menu = row.querySelector(".cx-row-menu");
+      out.opens = menu.classList.contains("open");
+      out.ariaAfter = more.getAttribute("aria-expanded");
+      // an open menu keeps its row's actions visible even with the pointer elsewhere
+      out.actionsHeldVisible = getComputedStyle(acts).opacity === "1";
+      // And choosing an item closes it again (item handlers stopPropagation, so the
+      // document-level outside-click closer never sees the click — a capture-phase
+      // listener does the closing). Export is the item that re-renders nothing, which is
+      // what makes the close observable — but it is NOT side-effect free: it stamps
+      // studio-first-export-done and increments studio-export-count, which is exactly the
+      // state N-FUN's "a second export does NOT repeat the celebration" check reads. So
+      // snapshot both and put them back, and leave this test with no footprint.
+      var celebKeys = ["studio-first-export-done", "studio-export-count"];
+      var celebBefore = celebKeys.map(function (k) { return localStorage.getItem(k); });
+      menu.querySelector("[data-vw-export]").click();
+      await new Promise(function (r) { setTimeout(r, 200); });
+      out.closesOnChoice = !document.querySelector(".cx-row-menu.open");
+      celebKeys.forEach(function (k, i) {
+        if (celebBefore[i] === null) localStorage.removeItem(k);
+        else localStorage.setItem(k, celebBefore[i]);
+      });
+      // Export opens the bundle modal — close it so it can't overlay a later test
+      var ov = document.querySelector(".modal-ov"); if (ov) ov.remove();
+      Studio.Workspace.remove("analyses", a.id, { silent: true });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+      return out;
+    });
+    ok("N37: a Views row shows two controls on one line, not six wrapped onto a second",
+      n37Row.visibleControls === 2 && n37Row.onOneLine && n37Row.height < 90, JSON.stringify(n37Row));
+    ok("N37: every action the row used to show is still there, with the tail inside the ⋯ menu",
+      n37Row.keptOpen && n37Row.keptAlt && n37Row.keptDash && n37Row.keptDup &&
+      n37Row.keptExport && n37Row.keptDel && n37Row.tailInMenu, JSON.stringify(n37Row));
+    ok("N37: the ⋯ menu opens, reports aria-expanded, holds the row visible, and closes on a choice",
+      n37Row.hasMore && n37Row.ariaBefore === "false" && n37Row.opens && n37Row.ariaAfter === "true" &&
+      n37Row.actionsHeldVisible && n37Row.closesOnChoice, JSON.stringify(n37Row));
+
     const lf57Facets = await page.evaluate(function () {
       window.__studioShellSetSection("views");
       var a1 = Studio.Workspace.put("analyses", { name: "lf57f-bars", chartType: "bars", folder: "Finance", da: { id: "da1", columns: [] } });
@@ -16331,8 +16411,14 @@ function serve() {
       out.noticeGone = document.getElementById("buildNotice").hidden;
       return out;
     });
-    ok("VB-5: a Views-catalog row offers BOTH editors — owner Open plus an explicit other-editor button (a Quick View's is 'View Builder')",
-      !vb5a.err && vb5a.hasOwnerOpen && vb5a.altTarget === "build" && vb5a.altLabel === "View Builder", JSON.stringify(vb5a));
+    // N37 moved the catalog row's tail actions into a ⋯ menu, where a bare "View Builder"
+    // would read as a noun among verbs ("Add to dashboard", "Duplicate"), so the item now
+    // says "Open in View Builder". Still asserted EXACTLY, and still asserting the same
+    // thing VB-5 cares about: the row names the OTHER editor explicitly rather than
+    // leaving you to guess which one Open goes to. The Home card below is a different
+    // surface (data-home-analysis-alt) that N37 did not touch — its label is unchanged.
+    ok("VB-5: a Views-catalog row offers BOTH editors — owner Open plus an explicit other-editor item (a Quick View's is 'Open in View Builder')",
+      !vb5a.err && vb5a.hasOwnerOpen && vb5a.altTarget === "build" && vb5a.altLabel === "Open in View Builder", JSON.stringify(vb5a));
     ok("VB-5: opening a Quick-Views-made View in the View Builder reconstructs its mapping onto the shelves best-effort (label → dimension, value → measure with the saved rollup's fn, mean → AVG) and keeps its chart type",
       vb5a.section === "build" && vb5a.analysisId === vb5a.qvId && vb5a.chartType === "bars" &&
       vb5a.dims === "region" && vb5a.measures === "amount:avg", JSON.stringify(vb5a));

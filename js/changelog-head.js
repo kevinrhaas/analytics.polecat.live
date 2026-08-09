@@ -3,6 +3,6 @@
    the version label and the What's-new unseen dot, so the ~680KB of full history is
    fetched lazily (Studio.loadChangelog) the first time someone opens the feed.
    Regenerated from js/changelog.js on every normalize run — never hand-edit. */
-window.STUDIO_LATEST_VERSION = 947;
-window.STUDIO_LATEST = {"v":947,"title":"Dragging the View Builder canvas taller left the chart its old size, with an empty band underneath","kind":"fix","ts":"2026-08-09T19:55:20.000Z"};
+window.STUDIO_LATEST_VERSION = 948;
+window.STUDIO_LATEST = {"v":948,"title":"Views rows carried six buttons you could not see, and paid for them in height","kind":"fix","ts":"2026-08-09T20:46:11.000Z"};
 window.STUDIO_BUILD = "__BUILD_TS__";

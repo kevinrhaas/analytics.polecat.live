@@ -2628,6 +2628,19 @@ body.simple-mode .da-acts{display:none!important}
 .cx-when{color:var(--faint);font-size:var(--fs-12);flex:0 0 auto}
 .cx-actions{display:flex;gap:6px;flex:0 0 auto;opacity:0;transition:opacity .12s ease}
 .cx-row:hover .cx-actions,.cx-row:focus-within .cx-actions{opacity:1}
+/* N37 (Kevin live, 2026-08-09 — "so much white space for those buttons"): .cx-actions is
+   opacity-hidden, NOT display:none, so anything it wraps onto a second line reserves that
+   height in every row whether or not you can see it. The Views row carried six text buttons
+   and wrapped; the rows below it were just as tall, showing nothing. The fix is to make the
+   set fit on one line — Open plus a ⋯ menu — so keep it compact rather than re-growing it.
+   A row's menu must survive the pointer leaving the row. :focus-within above covers mouse and
+   keyboard (both focus the trigger), but a TAP does not reliably focus a button on iOS Safari —
+   and mobile is a release gate — so an open menu holds its row's actions visible on its own. */
+.cx-row:has(.menu.open) .cx-actions,.dsx-tile:has(.menu.open) .cx-actions{opacity:1}
+.cx-more{display:inline-flex;align-items:center;justify-content:center;width:32px;padding:0 !important;flex:0 0 auto}
+.cx-row-menu{min-width:200px}
+.menu button.menu-danger{color:var(--bad)}
+.menu button.menu-danger:hover{background:color-mix(in srgb, var(--bad) 12%, transparent);color:var(--bad)}
 /* Favorite/pin toggle (post-overhaul backlog item 7, "organization at scale") —
    same visual language as .recent-pin (star, --brand accent when on) but a
    normal flex-row member of .cx-row (a sibling of .cx-actions, not nested
