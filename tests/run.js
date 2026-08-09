@@ -22808,6 +22808,20 @@ function serve() {
     await gp42.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
     await gp42.waitForTimeout(300);
 
+    // N36 slice 1: Admin's list IS the saved-workspace store now, so a test that
+    // wants "these backends are registered" seeds it through the same door the
+    // card uses. (Seeding the retired `studio-admin-backends` key still works —
+    // that is the migration, and it has its own block below — but only ONCE per
+    // browser, so a mid-run reseed has to speak the current store.)
+    await gp42.evaluate(function () {
+      window.__seedBackends = function (rows) {
+        localStorage.setItem("studio-workspaces-custom", "[]");
+        localStorage.removeItem("studio-admin-backend-tests");
+        localStorage.setItem("studio-admin-backends-merged", JSON.stringify("v1"));
+        rows.forEach(function (r) { window.__studioAdminBackends.save(r); });
+      };
+    });
+
     // empty by default
     const lf42Empty = await gp42.evaluate(function () {
       window.__studioShellSetSection("admin"); window.__studioRenderAdmin();
@@ -22840,7 +22854,7 @@ function serve() {
       var saveBtn = [].slice.call(document.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /Add backend/.test(b.textContent); })[0];
       saveBtn.click();
       await new Promise(function (r) { setTimeout(r, 80); });
-      return { testOk: testOk, stored: JSON.parse(localStorage.getItem("studio-admin-backends") || "[]"), modalGone: !document.querySelector(".modal-ov") };
+      return { testOk: testOk, stored: window.__studioAdminBackends.list(), modalGone: !document.querySelector(".modal-ov") };
     }, PORT);
     ok("LF42: Add-backend wizard tests the connection inline and saves a named row to the local backend list",
       lf42Added.testOk && lf42Added.modalGone && lf42Added.stored.length === 1 &&
@@ -22871,7 +22885,7 @@ function serve() {
       var saveBtn = [].slice.call(document.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /Save changes/.test(b.textContent); })[0];
       saveBtn.click();
       await new Promise(function (r) { setTimeout(r, 80); });
-      return JSON.parse(localStorage.getItem("studio-admin-backends") || "[]");
+      return window.__studioAdminBackends.list();
     });
     ok("LF42: Edit opens the same row preset and Save changes renames it in place (still one row)",
       lf42Edited.length === 1 && lf42Edited[0].name === "Renamed Turso", JSON.stringify(lf42Edited));
@@ -22885,11 +22899,21 @@ function serve() {
         dot = document.querySelector("[data-bk-id] .cx-dot");
         if (dot && dot.className.indexOf("cx-dot ") === 0 && dot.className !== "cx-dot") break;
       }
-      return { cls: dot && dot.className, stored: JSON.parse(localStorage.getItem("studio-admin-backends") || "[]") };
+      return { cls: dot && dot.className, stored: window.__studioAdminBackends.list(),
+        // N36 slice 1: lastTest is this card's scratch metadata and must NOT be
+        // written onto the converged workspace entry — an entry carrying it
+        // would, on a packaged workspace, mint a local override that shadows the
+        // shipped one.
+        wsEntry: JSON.parse(localStorage.getItem("studio-workspaces-custom") || "[]")[0],
+        tests: JSON.parse(localStorage.getItem("studio-admin-backend-tests") || "{}") };
     });
     ok("LF42: the row's Test button runs the adapter check and persists lastTest (status dot turns ok)",
       /\bok\b/.test(lf42RowTest.cls || "") && lf42RowTest.stored[0].lastTest && lf42RowTest.stored[0].lastTest.ok === true,
       JSON.stringify(lf42RowTest));
+    ok("N36: lastTest is kept in the card's own map, never written onto the shared workspace entry",
+      !!lf42RowTest.wsEntry && !("lastTest" in lf42RowTest.wsEntry) &&
+      lf42RowTest.tests[lf42RowTest.wsEntry.id] && lf42RowTest.tests[lf42RowTest.wsEntry.id].ok === true,
+      JSON.stringify({ wsEntry: lf42RowTest.wsEntry, tests: lf42RowTest.tests }));
 
     // Connect opens the SAME connect wizard as Settings → Workspace backend, preset with this row's adapter+creds
     const lf42ConnectOpens = await gp42.evaluate(async function () {
@@ -22931,9 +22955,112 @@ function serve() {
     const lf42Deleted = await gp42.evaluate(function () {
       window.confirm = function () { return true; };
       document.querySelector("[data-bk-del]").click();
-      return JSON.parse(localStorage.getItem("studio-admin-backends") || "[]");
+      return window.__studioAdminBackends.list();
     });
     ok("LF42: deleting a registered backend (after confirm) removes it from the list", lf42Deleted.length === 0, JSON.stringify(lf42Deleted));
+
+    /* ---- N36 slice 1: Admin's Backends list and the sign-in screen's Workspace
+       picker are ONE store (Kevin, 2026-08-09: "converge on the workspace store")
+       ----------------------------------------------------------------------
+       Its own page, because the whole point is what a browser that has never run
+       this build does on FIRST read: the migration is one-shot, so it cannot be
+       observed on a page that has already taken it. */
+    console.log("\n• N36 slice 1: one converged store for Admin backends + sign-in workspaces");
+    const gpN36 = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpN36.on("pageerror", (e) => errors.push("N36 page: " + e.message));
+    await gpN36.addInitScript((port) => {
+      try {
+        // TOP FRAME ONLY: init scripts run in every same-origin frame and the app
+        // boots offscreen preview iframes, so an unguarded seed re-plants the
+        // pre-migration state AFTER the migration ran and reads as "it didn't".
+        if (window.top !== window) return;
+        sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1");
+        // A browser as it stands the moment before this build lands: four rows in
+        // the retired Admin store, and one workspace already saved at the gate.
+        localStorage.setItem("studio-admin-backends", JSON.stringify([
+          { id: "n36-sb", name: "Legacy Supabase", adapter: "supabase", cfg: { url: "https://n36.example.co", key: "pub-n36" }, lastTest: { ok: true, error: "", at: 1 } },
+          // No cfg.url AT ALL — Firebase is addressed by projectId, and reading
+          // only cfg.url would have dropped this row on the floor.
+          { id: "n36-fb", name: "Legacy Firebase", adapter: "firebase", cfg: { projectId: "n36-proj", apiKey: "AIza-n36" } },
+          // Registered but never configured: the Add-backend wizard asks only for
+          // a name, so this is a shape a real browser can hold. Kept, not offered.
+          { id: "n36-bare", name: "Half-registered", adapter: "turso", cfg: {} },
+          // Same id as a workspace the gate already saved — the workspace entry
+          // is the one being signed into, so it must NOT be overwritten.
+          { id: "n36-clash", name: "Admin's name for it", adapter: "turso", cfg: { url: "http://localhost:" + port + "/__stale" } }
+        ]));
+        localStorage.setItem("studio-workspaces-custom", JSON.stringify([
+          { id: "n36-clash", label: "Saved at the gate", sourceId: "turso", cfg: { url: "http://localhost:" + port + "/__turso", token: "tok-n36" } }
+        ]));
+      } catch (e) {}
+    }, PORT);
+    await gpN36.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await gpN36.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
+    await gpN36.waitForTimeout(300);
+
+    const n36Migrated = await gpN36.evaluate(function () {
+      window.__studioShellSetSection("admin"); window.__studioRenderAdmin();
+      var rows = window.__studioAdminBackends.list();
+      return {
+        names: rows.map(function (r) { return r.name; }).sort(),
+        ids: rows.map(function (r) { return r.id; }).sort(),
+        fb: rows.filter(function (r) { return r.id === "n36-fb"; })[0],
+        bare: rows.filter(function (r) { return r.id === "n36-bare"; })[0],
+        clash: rows.filter(function (r) { return r.id === "n36-clash"; })[0],
+        lastTest: (rows.filter(function (r) { return r.id === "n36-sb"; })[0] || {}).lastTest,
+        // the retired key is left exactly as it was — nothing is wiped
+        legacyStillThere: JSON.parse(localStorage.getItem("studio-admin-backends") || "[]").length,
+        marker: JSON.parse(localStorage.getItem("studio-admin-backends-merged") || "null"),  // lsSet JSON-encodes
+        cardRows: document.querySelectorAll("[data-bk-id]").length
+      };
+    });
+    ok("N36: the retired Admin backend list migrates into the workspace store — every row, including a Firebase entry with no cfg.url and a name-only row the wizard allows",
+      n36Migrated.ids.join() === "n36-bare,n36-clash,n36-fb,n36-sb" && n36Migrated.cardRows === 4 &&
+      n36Migrated.fb.cfg.projectId === "n36-proj" && n36Migrated.bare.adapter === "turso" &&
+      n36Migrated.lastTest && n36Migrated.lastTest.ok === true,
+      JSON.stringify(n36Migrated));
+    ok("N36: the migration is additive — an id the workspace store already holds keeps ITS entry, and the retired key is left on disk untouched",
+      n36Migrated.clash && n36Migrated.clash.name === "Saved at the gate" &&
+      /__turso/.test(n36Migrated.clash.cfg.url || "") &&
+      n36Migrated.legacyStillThere === 4 && n36Migrated.marker === "v1",
+      JSON.stringify({ clash: n36Migrated.clash, legacy: n36Migrated.legacyStillThere, marker: n36Migrated.marker }));
+
+    // The convergence itself, in both directions.
+    const n36OneList = await gpN36.evaluate(function () {
+      var offered = window.STUDIO_WS_STORE.list().map(function (w) { return w.id; });
+      // saved at the gate AFTER the migration: Admin sees it with no further ceremony
+      window.STUDIO_WS_STORE.save({ id: "n36-late", label: "Imported access file", sourceId: "supabase", cfg: { url: "https://late.example.co", key: "pub-late" } });
+      window.__studioRenderAdmin();
+      return {
+        offered: offered,
+        adminSeesLate: window.__studioAdminBackends.list().filter(function (r) { return r.id === "n36-late"; })[0],
+        lateOnCard: !!document.querySelector('[data-bk-id="n36-late"]')
+      };
+    });
+    ok("N36: a backend registered in Admin is now offered by the sign-in picker — and a half-configured row still is not, because it cannot say where it points",
+      n36OneList.offered.indexOf("n36-sb") >= 0 && n36OneList.offered.indexOf("n36-fb") >= 0 &&
+      n36OneList.offered.indexOf("n36-clash") >= 0 && n36OneList.offered.indexOf("n36-bare") < 0,
+      JSON.stringify(n36OneList.offered));
+    ok("N36: and the other direction — a workspace saved at the gate appears in Admin, where it can be assigned to a user",
+      !!n36OneList.adminSeesLate && n36OneList.adminSeesLate.name === "Imported access file" && n36OneList.lateOnCard,
+      JSON.stringify(n36OneList.adminSeesLate));
+
+    // Removal has to STICK: the migration marker is the difference between
+    // "removed" and "back on the next read".
+    const n36Removed = await gpN36.evaluate(function () {
+      window.__studioAdminBackends.remove("n36-sb");
+      window.__studioAdminBackends.migrate();          // the one-shot must be a no-op now
+      window.__studioRenderAdmin();
+      return {
+        ids: window.__studioAdminBackends.list().map(function (r) { return r.id; }).sort(),
+        offered: window.STUDIO_WS_STORE.list().map(function (w) { return w.id; }),
+        onCard: !!document.querySelector('[data-bk-id="n36-sb"]')
+      };
+    });
+    ok("N36: removing a migrated backend sticks — the one-shot migration never resurrects it from the retired key",
+      n36Removed.ids.indexOf("n36-sb") < 0 && n36Removed.offered.indexOf("n36-sb") < 0 && !n36Removed.onCard,
+      JSON.stringify(n36Removed));
+    await gpN36.close();
 
     // ---- LF42 slice 2: per-user backend assignment ----
     // No backends registered right now (the block above just deleted its one row)
@@ -22951,10 +23078,10 @@ function serve() {
     // Register two backends directly (the wizard path is already covered above)
     // so the picker has real options.
     await gp42.evaluate(function () {
-      localStorage.setItem("studio-admin-backends", JSON.stringify([
+      window.__seedBackends([
         { id: "bk1", name: "Prod Supabase", adapter: "supabase", cfg: {} },
         { id: "bk2", name: "Dev Turso", adapter: "turso", cfg: {} },
-      ]));
+      ]);
     });
     const lf42s2Fields = await gp42.evaluate(function () {
       window.__studioRenderAdmin();
@@ -23021,7 +23148,7 @@ function serve() {
     await gp42.evaluate(function () {
       return window.PolecatAuth.upsert("lf42user", { provisioning: { theme: "", pack: "", backendId: "bk2" } });
     });
-    await gp42.evaluate(function () { localStorage.setItem("studio-admin-backends", "[]"); });
+    await gp42.evaluate(function () { window.__seedBackends([]); });
     const lf42s2Preserved = await gp42.evaluate(function () {
       window.__studioRenderAdmin();
       window.__studioOpenUserEditor(window.PolecatAuth.find("lf42user"));
@@ -23052,10 +23179,10 @@ function serve() {
 
     // Register two backends — Switch backend should now offer them first.
     await gp42.evaluate(function (port) {
-      localStorage.setItem("studio-admin-backends", JSON.stringify([
+      window.__seedBackends([
         { id: "bk3", name: "Prod Turso", adapter: "turso", cfg: { url: "http://localhost:" + port + "/__turso", token: "tok-lf42s3" } },
         { id: "bk4", name: "Dev Supabase", adapter: "supabase", cfg: {} },
-      ]));
+      ]);
     }, PORT);
     const lf42s3Picker = await gp42.evaluate(function () {
       window.__studioRenderWorkspaceBackendCard();
@@ -23113,9 +23240,9 @@ function serve() {
     // provisioning.backend — the admin backends list is device-local, so a bare
     // backendId could never resolve on a fresh device.
     await gp42.evaluate(function () {
-      localStorage.setItem("studio-admin-backends", JSON.stringify([
+      window.__seedBackends([
         { id: "bk5", name: "CTIC Supabase", adapter: "supabase", cfg: { url: "https://bk5.example.co", key: "pub-k5" } }
-      ]));
+      ]);
       window.__studioRenderAdmin();
       window.__studioOpenUserEditor(window.PolecatAuth.find("lf42user"));
       document.getElementById("usrEditBackend").value = "bk5";

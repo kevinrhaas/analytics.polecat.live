@@ -135,6 +135,71 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N36 slice 1 — Admin's backend list and the sign-in screen's workspace list are ONE store
+  (v952, sw v543, 2026-08-09, steward; dev branch; est 2pt for the whole item, slice 1 took 1):**
+  the convergence Kevin decided (*"converge on the workspace store so it's better, yes? that's
+  sensible"*), done as the item's own suggested slicing said — the store first, both surfaces
+  still named as they are today, and the rename left to slice 2 because there is only now one
+  list to name. `STUDIO_WS_STORE` (`studio-workspaces-custom`) is the single list; Admin's
+  Backends card is a view over its saved entries; `provisioning.backendId` resolves against it
+  unchanged, because ids are preserved verbatim through the migration. The two shapes were the
+  same fields under different names, so the mapping is total: `{id,name,adapter,cfg}` ↔
+  `{id,label,sourceId,cfg}`.
+  **Two things the item did not anticipate, both found by measuring rather than by assuming the
+  shapes matched:**
+  (1) **The workspace store would have SILENTLY DROPPED entries on the way in.** Its `valid()`
+  required `cfg.url`, and Firebase — one of the three adapters Admin's own card advertises — has
+  no URL at all (`projectId` + `apiKey`, `app/sources/firebase.js:92`). A straight convergence
+  would have deleted every Firebase backend anyone had registered. The store now separates the
+  two questions it was conflating: `storable()` ("may be KEPT" — id + adapter + a cfg object) from
+  `valid()` ("may be OFFERED at sign-in" — plus an address, now read via `addr()` as `cfg.url` OR
+  `cfg.projectId`). `list()` still filters on `valid()`, so the gate's picker is exactly as strict
+  as it was; `customs()` and `save()` moved to `storable()`, so nothing is dropped on the user's
+  behalf — the local-first rule. `connectedId()` and `host()` follow `addr()` too, so a Firebase
+  workspace can now be recognised as the connected one at all.
+  (2) **The Add-backend wizard requires only a NAME** (`openBackendConfigWizard`'s save path
+  validates the name and nothing else), so "registered but not yet configured" is a shape real
+  browsers hold. Those rows are kept and stay editable in Admin, and are simply never offered as
+  somewhere to sign in — which is the whole point of splitting storable from valid.
+  **The migration is additive and one-shot.** Legacy `studio-admin-backends` rows are copied
+  across on first read; an id the workspace store already holds keeps ITS entry (that is the one
+  the gate has been signing into); the retired key is left on disk untouched rather than cleared;
+  and a `studio-admin-backends-merged` marker makes a later Remove stick instead of the row rising
+  from the dead on the next read. The marker is stamped only when the legacy list was NON-EMPTY —
+  stamping it on an empty read would arm the one-shot against a list that had not arrived yet, and
+  that is not hypothetical: it is what made the N6 "Dave" block fail on the first suite run, because
+  the app calls `getAdminBackends()` during boot, before a test (or a restored backup) plants the
+  rows.
+  `lastTest` deliberately does NOT travel into the converged entry — it is the card's own scratch
+  metadata, and writing it onto an entry would eventually mean writing it onto a PACKAGED
+  workspace, minting a local override that shadows the shipped one. It lives in its own map keyed
+  by entry id, and a check holds that the shared entry never grows the field.
+  User-visible: the card says which list it is (registering a credentialed database no longer
+  quietly makes it selectable at sign-in without saying so), and the remove confirmation names all
+  three places the entry disappears from. Help's "Managing multiple backends" section gained the
+  one-list paragraph.
+  **Verified:** six new checks (four in the N36 block on its own page — the whole point is what a
+  browser does on FIRST read, which cannot be observed on a page that already migrated — plus the
+  `lastTest` isolation check and the reworked LF42 assertions, which now read the converged store
+  through `window.__studioAdminBackends`). Dev gate green in full: `tools/validate.mjs` (211 files),
+  `tools/changelog-check.js`, `tools/doc-truth.mjs`, `tools/dev-smoke.mjs` desktop + 390×780, zero
+  pageerrors. Full suite in the foreground: 3,096+ checks green, cut off at ~95% by the runner's own
+  10-minute per-command cap (exit 124), the same ceiling N32 and N33a hit — the stage gate runs it
+  whole at 45 min.
+  **Two seeding conventions this slice had to learn the hard way, recorded so the next run does
+  not:** an `addInitScript` seed must be guarded to the TOP FRAME (the app boots offscreen preview
+  iframes, which re-run the script and re-plant the pre-migration state after the migration ran —
+  the suite already documents this at N2 slice 4), and `lsSet` JSON-ENCODES, so a raw
+  `localStorage.getItem` of a marker reads `"\"v1\""`, not `v1`.
+  **What remains — N36 slice 2:** the rename itself ("Backends" → workspace, everywhere the noun
+  means the saved, credentialed destination), now safe because there is one list to name. Two
+  things it should decide rather than inherit: whether Admin should also list the PACKAGED
+  workspaces (`STUDIO_WS_STORE.packaged()` — this slice deliberately kept Admin to the browser's
+  SAVED entries, so Admin's visible behaviour is unchanged and "empty by default" still holds), and
+  whether Settings' manager panel should show the half-configured rows Admin can now hold (it
+  renders `list()`, so it does not). The item's own note stands: the rail's *"Workspace backend —
+  Local (this browser)"* names a STATE, not a list entry, and must not become "workspace
+  workspace".
 - **N32 — retired the Settings → MODE "Sample content" toggle; the packs own this now (v951,
   sw v542, 2026-08-09, steward; dev branch; est 1pt, took 1):** the item's diagnosis held — one
   coarse global mask (`studio-show-samples`) sitting above the per-pack registry that models the
@@ -13976,8 +14041,20 @@
   **Ship it as ONE component adopted everywhere**, not per-surface variants; the nine sites above
   are the acceptance list, and mobile keyboards must still work at 390×780.
 
-- **N36 ★ [2pt] — Admin says "Backends" for the same thing the rest of the app calls a
-  workspace — and keeps a SECOND, separate list of them.** Kevin, 2026-08-09, on the Admin card:
+- **N36 ★ [2pt est, 1 slice shipped] — Admin says "Backends" for the same thing the rest of the
+  app calls a workspace — and keeps a SECOND, separate list of them.** ✓ **SLICE 1 IS SHIPPED —
+  the convergence: v952, sw v543 (2026-08-09, steward — see DONE).** There is ONE list now
+  (`STUDIO_WS_STORE`); Admin's card is a view over it; the legacy `studio-admin-backends` rows
+  migrated additively with nothing dropped (including Firebase entries, which have no `cfg.url`
+  and which the workspace store's old validity rule would have deleted). Both surfaces are still
+  named as they were, which was the plan.
+  **SLICE 2 — what remains: the RENAME**, now safe because there is one list to name. Its two
+  open decisions are written into the DONE entry: whether Admin should also list the PACKAGED
+  workspaces (slice 1 kept Admin to the browser's SAVED entries, so its visible behaviour is
+  unchanged), and whether Settings' manager panel should show the half-configured rows Admin can
+  now hold. The "where backend still earns its keep" paragraph at the foot of this item is the
+  constraint the rename must respect.
+  *(Original text kept until the next grooming pass archives it.)* Kevin, 2026-08-09, on the Admin card:
   *"I wonder if in Admin you should be referring to this as workspace not backend also."*
   **He is right about the word, and the word is the smaller half of it.** Measured:
   - Admin → **Backends** (`backendsCardHtml`, `app/studio.js:9045-9071`) keeps its rows in

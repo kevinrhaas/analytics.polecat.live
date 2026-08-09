@@ -9037,8 +9037,88 @@
      (decline remembered) when this device already carries user-made data,
      and NEVER over-adopting an empty unauthenticated read (connectAdopt's
      skipIfEmpty guard). */
-  function getAdminBackends() { return lsGet("studio-admin-backends", []); }
-  function setAdminBackends(list) { lsSet("studio-admin-backends", list); }
+  /* ---- N36 slice 1 — ONE list (Kevin, 2026-08-09: "converge on the workspace
+     store so it's better, yes? that's sensible") ----------------------------
+     Admin's Backends card and the sign-in screen's Workspace picker describe the
+     SAME object — a named, credentialed database this app can sync to — and each
+     kept its own store. Register a backend here and it never reached the picker;
+     save a workspace at the gate and Admin could not see it to assign it to
+     anyone. `STUDIO_WS_STORE` (`studio-workspaces-custom`) is now the one list,
+     because it is the richer one and the one the sign-in screen actually reads;
+     this card is a VIEW over its saved entries. The two shapes are the same
+     fields under different names, so the mapping is total and lossless:
+     {id, name, adapter, cfg} ↔ {id, label, sourceId, cfg}.
+
+     THE MIGRATION IS ADDITIVE, per the local-first rule. Legacy
+     `studio-admin-backends` rows are COPIED across once; an id the workspace
+     store already knows is never overwritten (the workspace entry is the one the
+     gate has been signing into, so it wins); and the legacy key is left on disk
+     untouched, so a build from before this change still finds its rows. The
+     one-shot marker is what makes a later Remove stick instead of the entry
+     rising from the dead on the next read.
+
+     `lastTest` deliberately does NOT travel into the converged entry. It is this
+     card's own scratch metadata — "did Test pass, and when" — and writing it onto
+     an entry would eventually mean writing it onto a PACKAGED workspace, which
+     mints a local override that shadows the shipped one. It lives in its own
+     small map keyed by entry id.
+
+     Slice 2 is the RENAME (this card still says "Backends", both surfaces named
+     as they were), which is only safe now that there is one list to name. */
+  var ADMIN_BK_LEGACY_KEY = "studio-admin-backends",     // pre-N36; kept, never wiped
+      ADMIN_BK_MERGED_KEY = "studio-admin-backends-merged",
+      ADMIN_BK_TESTS_KEY  = "studio-admin-backend-tests";
+  function wsStore() { return window.STUDIO_WS_STORE || null; }
+  function bkEntry(r) { return { id: r.id, label: r.name, sourceId: r.adapter, cfg: r.cfg || {} }; }
+  function bkRow(w, tests) {
+    return { id: w.id, label: w.label, name: w.label, adapter: w.sourceId, cfg: w.cfg || {},
+      lastTest: (tests && tests[w.id]) || null };
+  }
+  function migrateAdminBackends() {
+    var S = wsStore();
+    if (!S || lsGet(ADMIN_BK_MERGED_KEY, "") === "v1") return;
+    var legacy = lsGet(ADMIN_BK_LEGACY_KEY, []), tests = lsGet(ADMIN_BK_TESTS_KEY, {}) || {};
+    // Nothing to merge is not "merged". Stamping the marker on an EMPTY legacy
+    // list would arm the one-shot against a list that had not arrived yet, and
+    // then a browser whose Admin rows show up later (an older build writing the
+    // retired key while this one is installed, or a restored backup) would never
+    // migrate them at all. Re-reading an absent key costs one lsGet.
+    if (!Array.isArray(legacy) || !legacy.length) return;
+    legacy.forEach(function (r) {
+      if (!r || !r.id) return;
+      var taken = S.byId(r.id) || S.customs().some(function (w) { return w.id === r.id; });
+      if (taken) return;                       // never overwrite a workspace entry
+      if (S.save(bkEntry(r)) && r.lastTest) tests[r.id] = r.lastTest;
+    });
+    lsSet(ADMIN_BK_TESTS_KEY, tests);
+    lsSet(ADMIN_BK_MERGED_KEY, "v1");
+  }
+  function getAdminBackends() {
+    var S = wsStore();
+    if (!S) return lsGet(ADMIN_BK_LEGACY_KEY, []);   // workspaces.js absent: the old store still answers
+    migrateAdminBackends();
+    var tests = lsGet(ADMIN_BK_TESTS_KEY, {}) || {};
+    return S.customs().map(function (w) { return bkRow(w, tests); });
+  }
+  function saveAdminBackend(row) {
+    var S = wsStore(); if (!S) return;
+    migrateAdminBackends();
+    S.save(bkEntry(row));
+  }
+  function removeAdminBackend(id) {
+    var S = wsStore(); if (!S) return;
+    migrateAdminBackends();
+    S.remove(id);
+    var tests = lsGet(ADMIN_BK_TESTS_KEY, {}) || {};
+    if (tests[id]) { delete tests[id]; lsSet(ADMIN_BK_TESTS_KEY, tests); }
+  }
+  function setAdminBackendTest(id, res) {
+    var tests = lsGet(ADMIN_BK_TESTS_KEY, {}) || {};
+    tests[id] = res; lsSet(ADMIN_BK_TESTS_KEY, tests);
+  }
+  window.__studioAdminBackends = { list: getAdminBackends, save: saveAdminBackend,
+    remove: removeAdminBackend, migrate: migrateAdminBackends,
+    keys: { legacy: ADMIN_BK_LEGACY_KEY, merged: ADMIN_BK_MERGED_KEY, tests: ADMIN_BK_TESTS_KEY } }; // test hooks
   function backendRowActive(r, st, curCfg) {
     return !!(st.isRemote && st.sourceId === r.adapter && JSON.stringify(curCfg) === JSON.stringify(r.cfg || {}));
   }
@@ -9074,7 +9154,12 @@
         '</span></div>';
     }).join("");
     return '<div class="settings-card"><h2>Backends</h2>' +
-      '<p class="ws-card-intro">Pre-register the databases this workspace can connect to — Turso, Supabase, or Firebase — so switching later is a click, not re-typed credentials. Registering a backend here does not connect it: use <b>Connect</b> below (or Settings → Workspace backend) to make one active.</p>' +
+      '<p class="ws-card-intro">Pre-register the databases this workspace can connect to — Turso, Supabase, or Firebase — so switching later is a click, not re-typed credentials. Registering a backend here does not connect it: use <b>Connect</b> below (or Settings → Workspace backend) to make one active. ' +
+        // N36 slice 1: say the convergence out loud — this list and the sign-in
+        // screen's Workspace picker are now the same saved list, in both
+        // directions, and someone registering a credentialed database should
+        // know it becomes selectable at sign-in.
+        'This is the same saved list the sign-in screen’s <b>Workspace</b> picker offers and Settings → Workspace backend manages, so anything registered here can be signed into, and a workspace saved there can be assigned to a user here.</p>' +
       (rows ? '<div class="cx-list">' + rows + '</div>' : '<div class="cx-empty">No backends registered yet.</div>') +
       '<div class="repo-io"><button type="button" class="btn primary" id="bkNewBtn">+ Add backend</button></div>' +
     '</div>';
@@ -9100,8 +9185,10 @@
         var list = getAdminBackends();
         var r = list.filter(function (x) { return x.id === id; })[0];
         if (!r) return;
-        if (!window.confirm('Remove backend "' + r.name + '"? This only forgets it here — it does not touch the database itself.')) return;
-        setAdminBackends(list.filter(function (x) { return x.id !== id; }));
+        // N36 slice 1: one list means one removal. Say where else it disappears
+        // from, because it is now also the sign-in screen's picker entry.
+        if (!window.confirm('Remove backend "' + r.name + '"? It is forgotten here, in Settings → Workspace backend, and in the sign-in screen\'s Workspace picker — the database itself is untouched.')) return;
+        removeAdminBackend(id);
         toast("Removed " + r.name);
         renderAdmin();
       };
@@ -9113,8 +9200,7 @@
         if (!r || !src) return;
         btn.disabled = true; btn.textContent = "Testing…";
         src.test(r.cfg || {}).then(function (res) {
-          r.lastTest = { ok: !!res.ok, error: res.ok ? "" : (res.error || "failed"), at: Date.now() };
-          setAdminBackends(getAdminBackends().map(function (x) { return x.id === r.id ? r : x; }));
+          setAdminBackendTest(r.id, { ok: !!res.ok, error: res.ok ? "" : (res.error || "failed"), at: Date.now() });
           toast(res.ok ? "Connection OK" : "Test failed: " + (res.error || ""), !res.ok);
           renderAdmin();
         });
@@ -9190,12 +9276,10 @@
           if (!name) { nameInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Give the backend a name first."; return; }
           var row = existing || { id: Studio.Workspace.uid("bk") };
           row.name = name; row.adapter = adapter.id; row.cfg = cfg();
-          if (lastInlineTest) row.lastTest = lastInlineTest;
-          var list = getAdminBackends();
-          var replaced = false;
-          list = list.map(function (x) { if (x.id === row.id) { replaced = true; return row; } return x; });
-          if (!replaced) list.push(row);
-          setAdminBackends(list);
+          // N36 slice 1: save() replaces by id, so add and edit are the same call
+          // — the list plumbing this used to do is the store's job now.
+          saveAdminBackend(row);
+          if (lastInlineTest) setAdminBackendTest(row.id, lastInlineTest);
           toast(existing ? "Saved " + name : "Added " + name);
           document.querySelector(".modal-ov .x").click();
         };
