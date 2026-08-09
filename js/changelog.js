@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 937,
+    title: 'The Help page shelved three charts where the app does not keep them',
+    kind: 'fix',
+    ts: '2026-08-09T15:30:15.000Z',
+    items: [
+      'When you pick a chart type in the View inspector, the gallery sorts all 54 of them into nine tabs — Comparison, Trend, Maps and so on — so you can find one without reading the whole list. The Help page prints the same gallery, under the same headings, and it is how most people learn where a chart lives before they go looking for it in the app. Its shelves had drifted from the app\'s tabs, and nothing had ever compared the two.',
+      'Three charts were filed in the wrong place. The Ensemble chart, which draws one best estimate from several sources, sat under Maps — it is next to the map in the app\'s honesty story, but the gallery keeps it under Trend, so anyone who opened the Maps tab looking for the card Help showed them there found only the map. The Text / annotation card sat under Detail beside the table; the app keeps it in a tab of its own.',
+      'That tab, Content, was named nowhere on the Help page. It holds a single chart and it is the one tab you are least likely to guess at, which made it the worst one to leave out.',
+      'Comparison was printed twice — fifteen charts under a heading near the top, then the Quadrant chart alone under a second heading of the same name at the bottom of the page, below Distribution. The app has one Comparison tab with all sixteen in it. Everything was on the page and the totals all added up, which is exactly why this went unnoticed for so long.',
+      'The gallery on the Help page is now re-derived from the app on every change: every card has to sit under the heading the app files it under, every tab the app offers has to appear, no heading may name a tab that does not exist, and no tab may be printed twice.',
+    ],
+  },
+  {
     v: 936,
     title: 'The Help page sent you to a button we removed, and left one app out of the switcher',
     kind: 'fix',
