@@ -8572,7 +8572,21 @@
           '</span></div>' : "") +
       upgradeHtml +
       atomicHtml +
+      // N24 slice 2: the saved-workspace list, the same one the sign-in screen's
+      // picker offers, managed from the same shared panel (app/workspaces.js) —
+      // rename, set the default, export an access file, remove. It is listed even
+      // on a local-only workspace: that is exactly when you want to hand someone
+      // the file for a workspace you defined and are not currently inside.
+      '<div class="ws-saved"><h3>Saved workspaces</h3>' +
+        '<p class="ws-saved-intro">The workspaces this browser can pick on the sign-in screen. The default is the one it opens on; an access file lets someone else reach a workspace — they still sign in with their own account, so only share one for a workspace whose security posture expects it.</p>' +
+        '<div id="wsSavedList"></div></div>' +
       syncLogHtml;
+    if (window.STUDIO_WS_STORE) {
+      window.STUDIO_WS_STORE.renderManager($("#wsSavedList", card), {
+        onChange: renderWorkspaceBackendCard,   // keep the Connected/Default markers true
+        write: function (name, text) { download(name, text, "application/json"); }
+      });
+    }
     var refreshBtn = $("#wsRefreshBtn", card);
     if (refreshBtn) refreshBtn.onclick = function () {
       refreshBtn.disabled = true;
@@ -8658,8 +8672,12 @@
     if (accessFileBtn) accessFileBtn.onclick = function () {
       var entry = Studio.exportAccessFileEntry();
       if (!entry) { toast("No remote workspace connected.", true); return; }
-      if (!window.confirm("The access file contains this workspace's connection key. Share it only with people who should be able to sign in. Download?")) return;
-      download((entry.id || "workspace") + "-access.json", JSON.stringify(entry, null, 2), "application/json");
+      // N24 slice 2: one writer for every access file in the app — this button,
+      // the Saved-workspaces rows below and the sign-in screen's manager all call
+      // it, so the warning, the filename and the file's shape can't drift apart.
+      window.STUDIO_WS_STORE.exportFile(entry, {
+        write: function (name, text) { download(name, text, "application/json"); }
+      });
     };
     var disconnectBtn = $("#wsDisconnectBtn", card);
     if (disconnectBtn) disconnectBtn.onclick = function () {

@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 910,
+    title: 'Your saved workspaces are a list you can actually manage — and hand out',
+    kind: 'feature',
+    ts: '2026-08-09T01:34:49.000Z',
+    items: [
+      'The Workspace list on the sign-in screen has a new "Manage workspaces…" entry, and it opens the list itself: every workspace this browser knows, with the address it points at, and which one you are connected to right now.',
+      'Each one can be renamed — useful when the name you typed on the way in was a placeholder — or removed from this device. Removing forgets it here and nothing else: the workspace, and everything in it, is untouched, and you can import its access file again any time.',
+      'One of them can be the default: the workspace this browser opens on. A machine that always works against the same database now arrives ready instead of asking every time. A workspace you are already connected to always wins over the default, so it can never pull you somewhere you did not ask to go.',
+      'And the part that was really missing: you can export an access file for any saved workspace straight from the sign-in screen. Defining a workspace and handing someone the file used to mean signing into it yourself first, because the export lived only in Settings. Now the list is wherever the workspace is defined — the manager opens by itself as soon as the connect wizard finishes.',
+      'The same list, with the same actions, is in Settings → Workspace backend under "Saved workspaces". It is one list: rename in either place and both agree.',
+      'The file itself is unchanged and still carries only what is needed to REACH a workspace — the person you give it to signs in with their own account, and the workspace decides what they can see.',
+    ],
+  },
+  {
     v: 909,
     title: 'A workspace you connect from the sign-in screen is now one you can sign in to',
     kind: 'fix',

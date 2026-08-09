@@ -2160,13 +2160,26 @@
       the password. The saved entry keeps the connection details only; the sign-in you typed
       into the wizard is never stored in it. Connecting to a workspace that's already in the
       list just re-selects it rather than adding a second copy.</li>
+    <li><strong>Manage workspaces…</strong> — opens the list itself, right on the sign-in
+      screen (it also opens by itself the moment the wizard finishes, so a workspace you have
+      just defined can be handed on straight away). Each entry can be <strong>renamed</strong>,
+      <strong>set as the default</strong> — the workspace this browser opens on, so a device
+      that always works against the same one arrives ready — <strong>exported as an access
+      file</strong>, or <strong>removed</strong> from this device. Removing an entry only
+      forgets it here; the workspace itself, and everything in it, is untouched. Workspaces
+      that shipped with the app can be defaulted and exported but not renamed or removed —
+      they come back on the next load. The same list is in <strong>Settings → Workspace
+      backend → Saved workspaces</strong> once you're signed in, and it is the same list: a
+      rename in one place is a rename in both.</li>
   </ul>
   <p>Picking a workspace only <em>points</em> the app at it — nothing is read or written until you
   actually sign in, so an unauthenticated device can't disturb (or be disturbed by) the workspace's
   data. Admins create the access file from <strong>Settings → Workspace backend → Export access
-  file</strong> on any connected device: it contains the workspace's connection key (share it only
-  with people who should be able to sign in), and it deliberately strips the connection's own
-  service sign-in — each teammate authenticates as themselves.</p>
+  file</strong> on any connected device, or from any entry in the saved-workspace list — including
+  on the sign-in screen, so you can define a workspace and hand someone the file without signing
+  into it first. It contains the workspace's connection key (share it only with people who should
+  be able to sign in), and it deliberately strips the connection's own service sign-in — each
+  teammate authenticates as themselves.</p>
 
   <h3>What follows you between browsers</h3>
   <p>On a connected workspace, your content has always roamed — dashboards, Views, datasets,
