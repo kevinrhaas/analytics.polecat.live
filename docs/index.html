@@ -2486,6 +2486,14 @@
     <li>Once one is registered, <strong>Switch backend</strong> in Settings offers this list first
       — one-click connect, or "Enter connection details manually" for something new.</li>
   </ul>
+  <p><strong>It is one list.</strong> The backends registered here, the workspaces you save at the
+  sign-in screen, and the entries Settings → Workspace backend manages are all the same saved list —
+  so a backend registered in Admin can be signed into from the <strong>Workspace</strong> picker, and a
+  workspace someone saved (or imported from an access file) at sign-in can be assigned to a user
+  here without re-typing its credentials. Removing an entry in either place removes it in both; the
+  database itself is never touched. A backend you registered but never finished configuring is kept
+  and still editable here — it simply is not offered at sign-in, since it cannot yet say where it
+  points.</p>
   <p>Once at least one backend is registered, the Add/Edit user form (same "Per-user provisioning defaults" area above) also gains an <strong>Assigned backend</strong> picker naming which registered backend that account belongs to — shown back on their row in the Users list too (<code>→ Backend name</code>).</p>
   <p><strong>The assignment is real: it connects at sign-in.</strong> Assigning a backend stores its
   connection details <em>with the account</em>, so they travel wherever the account signs in. On a

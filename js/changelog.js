@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 952,
+    title: 'Registered backends and saved workspaces are one list, not two',
+    kind: 'fix',
+    ts: '2026-08-09T23:01:01.000Z',
+    items: [
+      'Admin’s <b>Backends</b> card and the sign-in screen’s <b>Workspace</b> picker were describing the same thing — a named, credentialed database this app can sync to — and each kept its own private list. Register a backend in Admin and it never appeared at sign-in; save a workspace at the sign-in screen and Admin could not see it to assign it to anyone. There is now one saved list behind all three surfaces, including Settings → Workspace backend.',
+      'So a backend you register in Admin can be signed into straight away, and a workspace someone saved — or imported from an access file — at the sign-in screen can be assigned to a user in Admin without re-typing its credentials. Removing an entry in one place removes it everywhere, which the confirmation now says out loud; the database itself is still never touched.',
+      'Anything already registered in Admin moves across on first load, and nothing is dropped on the way: a Firebase backend, which is addressed by project ID and has no URL at all, survives the trip, and so does a backend you named but never finished filling in — it stays listed and editable in Admin, and is simply not offered as somewhere to sign in until it can say where it points. An entry whose name clashes with a workspace already saved at the sign-in screen leaves that workspace alone, since that is the one being signed into. The old list is left on disk untouched rather than cleared.',
+      'The card now says which list it is, so registering a credentialed database no longer quietly makes it selectable at sign-in without telling you.',
+      'Five checks hold it: that every shape of the old list migrates — including the two that a URL-only reading would have lost — that the migration never overwrites a workspace saved at the gate and never wipes the old key, that registration reaches the sign-in picker while a half-configured row does not, that a workspace saved at the gate reaches Admin, and that removing a migrated entry stays removed instead of coming back on the next read.',
+    ],
+  },
+  {
     v: 951,
     title: 'Sample content is the sample packs now — the Settings switch that hid them all at once is gone',
     kind: 'polish',
