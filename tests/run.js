@@ -19997,6 +19997,72 @@ function serve() {
       wsAccess.hasBtn && wsAccess.entryOk && wsAccess.stripped && wsAccess.liveKeepsCreds && wsAccess.importable, JSON.stringify(wsAccess));
     await gpWs.close();
 
+    // ---- N24 slice 1 (Kevin, 2026-08-08): "I went to connect to a custom
+    // workspace… and there is no way to actually log in with that one." The
+    // connect wizard's success step set a hint and stopped — it never recorded
+    // the workspace and never re-rendered the picker, so the list still showed
+    // the pre-connect entries. The wizard itself is stubbed at exactly the point
+    // it hands control back (a REAL bound connection, then the callback), so the
+    // gate's own success path is what's under test. Runs at 390×780 because this
+    // was reported from a phone. ----
+    console.log("\n• N24: a workspace connected from the gate lands in the picker, named");
+    await fetch(`http://localhost:${PORT}/__supabase/rest/v1/__cleartokenflap`, { headers: { apikey: "sb_publishable_valid" } });
+    const gpN24 = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    gpN24.on("pageerror", (e) => errors.push("N24 page: " + e.message));
+    await gpN24.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpN24.waitForSelector("#g-form", { timeout: 8000 });
+    const n24 = await gpN24.evaluate(async (port) => {
+      var url = "http://localhost:" + port + "/__supabase";
+      var asked = null;
+      window.prompt = function (msg, def) { asked = { msg: msg, def: def }; return "Kevin’s dev workspace"; };
+      window.__studioOpenBackendWizard = function (a, b, onConnected) {
+        Studio.Sync.bindConnection("supabase", { url: url, key: "sb_publishable_valid", authEmail: "owner@example.com", authPassword: "secret123" })
+          .then(function () { onConnected(); });
+      };
+      document.getElementById("g-connect").click();
+      await new Promise(function (r) { setTimeout(r, 500); });
+      var sel = document.getElementById("g-workspace");
+      var opts = Array.from(sel.options).map(function (o) { return { v: o.value, t: o.textContent }; });
+      var picked = opts.filter(function (o) { return o.v === sel.value; })[0] || {};
+      var saved = [];
+      try { saved = JSON.parse(localStorage.getItem("studio-workspaces-custom") || "[]"); } catch (e) {}
+      var one = saved[0] || { cfg: {} };
+      return {
+        askedForName: !!asked && /Name this workspace/.test(asked.msg) && /localhost/.test(asked.def || ""),
+        listedNamed: opts.some(function (o) { return o.t === "Kevin’s dev workspace"; }),
+        selectedIsIt: picked.t === "Kevin’s dev workspace",
+        // the anonymous "Connected workspace (this browser)" slot is what a named
+        // entry replaces — two of those are indistinguishable
+        noAnonSlot: !opts.some(function (o) { return o.v === "__connected"; }),
+        persisted: saved.length === 1 && saved[0].label === "Kevin’s dev workspace" && /__supabase/.test(one.cfg.url || ""),
+        credsStripped: !("authEmail" in one.cfg) && !("authPassword" in one.cfg),
+        lastWs: localStorage.getItem("studio-workspace-last") === saved[0].id,
+        hint: (document.getElementById("g-hint") || {}).textContent || "",
+        userPrefilled: document.getElementById("g-user").value
+      };
+    }, PORT);
+    ok("N24: connecting a workspace from the sign-in screen saves it as a NAMED, selected picker entry (persisted without the connection's own credentials) and prefills the email the wizard already took",
+      n24.askedForName && n24.listedNamed && n24.selectedIsIt && n24.noAnonSlot && n24.persisted && n24.credsStripped &&
+      n24.lastWs && /Kevin’s dev workspace/.test(n24.hint) && n24.userPrefilled === "owner@example.com", JSON.stringify(n24));
+    // …and the whole point: you can now sign in to the thing you just connected.
+    await gpN24.evaluate(() => {
+      Studio.Workspace.put("users", { id: "user_n24", u: "n24owner", name: "N24 Owner", role: "admin", demo: false, gotrueId: "11111111-1111-1111-1111-111111111111" }, { silent: true });
+      Studio.Sync.pullNow = function () { return Promise.resolve(); }; // sync detail, not auth — keep the seed
+    });
+    await gpN24.fill("#g-pass", "secret123");
+    await gpN24.click("#g-form button[type=submit]");
+    await gpN24.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 6000 }).catch(() => {});
+    await gpN24.waitForTimeout(100);
+    const n24SignIn = await gpN24.evaluate(() => ({
+      gateGone: !document.querySelector("#studio-gate"),
+      who: (window.PolecatAuth.current() || {}).u,
+      gateErr: (document.getElementById("g-err") || {}).textContent || "",
+      stillBound: Studio.Sync.syncState().sourceId === "supabase"
+    }));
+    await gpN24.close();
+    ok("N24: signing in straight after that connect works — the password is the only field left to fill, and the session lands on the workspace that was just connected",
+      n24SignIn.gateGone && n24SignIn.who === "n24owner" && n24SignIn.stillBound, JSON.stringify(n24SignIn));
+
     // ---- GATE-FIX + GATE-ERR (Kevin live, 2026-07-31): his curl proved the
     // password RIGHT while the gate still said "isn't in your connected
     // workspace" — two defects: (a) a GoTrue rejection shared the unknown-account

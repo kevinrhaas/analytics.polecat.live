@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 909,
+    title: 'A workspace you connect from the sign-in screen is now one you can sign in to',
+    kind: 'fix',
+    ts: '2026-08-09T00:30:54.000Z',
+    items: [
+      'Connecting a workspace database from the sign-in screen appeared to work — the wizard ran, the credentials were accepted, the screen said "Connected. Sign in with an account from that workspace below." — and then there was no way to do that. The Workspace list above the username field still showed exactly what it showed before, so the workspace you had just set up was nowhere you could pick it. The instruction on screen described something the screen gave you no way to do.',
+      'Importing an access file had always done this properly, and the connect wizard now does the same thing: when it finishes, the app asks you to name the workspace, adds it to the Workspace list, and selects it. Naming it is the point — this is for people running a development, a staging and a live workspace side by side, and three entries all called "Connected workspace" would be worse than none. Cancelling the naming question keeps the workspace anyway, under the database\'s own address.',
+      'Connect to a workspace that is already in the list — one that shipped with the app, or one you connected last week — and it is simply re-selected instead of added a second time.',
+      'The saved entry carries what is needed to reach the workspace and nothing else: the workspace sign-in you typed into the wizard is deliberately not kept in it, exactly as an exported access file has always behaved. What it does do is save you retyping — the email goes into the sign-in form and the cursor lands on the password, so connecting and signing in is now one continuous move.',
+      'This is the first half of what was asked for. Managing that list — renaming, removing, choosing a default, and handing someone an access file straight from the setup screen — is the next piece of work.',
+    ],
+  },
+  {
     v: 908,
     title: 'Setting up a workspace database can move it forward, never backwards',
     kind: 'fix',

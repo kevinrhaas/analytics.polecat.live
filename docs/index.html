@@ -2154,7 +2154,12 @@
       account password. An imported entry with the same id as a packaged one overrides it — the
       escape hatch if a database moves before a re-release.</li>
     <li><strong>Custom workspace…</strong> — opens the full connection wizard for anything
-      else.</li>
+      else. When the wizard finishes, the app asks you to <strong>name</strong> that workspace
+      and adds it to this picker (already selected), so it's there the next time you sign in —
+      and if you gave the wizard a workspace email, that's filled in for you too, leaving just
+      the password. The saved entry keeps the connection details only; the sign-in you typed
+      into the wizard is never stored in it. Connecting to a workspace that's already in the
+      list just re-selects it rather than adding a second copy.</li>
   </ul>
   <p>Picking a workspace only <em>points</em> the app at it — nothing is read or written until you
   actually sign in, so an unauthenticated device can't disturb (or be disturbed by) the workspace's

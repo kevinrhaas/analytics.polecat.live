@@ -553,6 +553,47 @@
         renderWorkspaceSelect();
       });
     }
+    // N24 slice 1 (Kevin, 2026-08-08): "I went to connect to a custom workspace,
+    // filled out all the credentials and seem to have connected but there is no
+    // way to actually log in with that one… it needs to be on a list somewhere."
+    // The connect wizard's success step used to set a hint and stop — it never
+    // recorded the workspace and never re-rendered the picker, so the list still
+    // showed the pre-connect entries and the hint pointed at a workspace the UI
+    // gave no way to choose. Do what the IMPORT path two blocks down already
+    // does: save it as a NAMED custom entry, re-render, select it. Naming is the
+    // point — "Connected workspace (this browser)" cannot be told apart from a
+    // second one, and Kevin is running polecat_dev / polecat_stage / prod side
+    // by side. Returns the entry that is now selected, or null if the connection
+    // couldn't be read back (in which case the picker is still refreshed).
+    function rememberConnectedWorkspace() {
+      var entry = null;
+      // Studio.exportAccessFileEntry is the SAME shape the access-file import
+      // reads, with the connection's own authEmail/authPassword stripped — a
+      // saved picker entry should grant "reach this workspace", never "sign in
+      // as whoever set it up".
+      try { entry = window.Studio && Studio.exportAccessFileEntry && Studio.exportAccessFileEntry(); } catch (e) {}
+      if (!entry || !entry.cfg || !entry.cfg.url) { renderWorkspaceSelect(); return null; }
+      // Already in the list (a packaged workspace, or one connected/imported
+      // earlier)? Re-select that one rather than minting a near-duplicate that
+      // differs only by name.
+      var known = workspaceList().filter(function (w) { return w.cfg && w.cfg.url === entry.cfg.url; })[0];
+      if (!known) {
+        var host = String(entry.cfg.url).replace(/^https?:\/\//, "").replace(/[\/?#].*$/, "");
+        var suggested = host || entry.label || "Connected workspace";
+        var typed = null;
+        try { typed = window.prompt("Name this workspace so you can pick it on the sign-in screen:", suggested); } catch (e) {}
+        // Cancelling the naming prompt must not throw the connection away — the
+        // suggestion is a fine name, and an unnamed entry is the bug we're fixing.
+        entry.label = String(typed == null || !typed.trim() ? suggested : typed).trim().slice(0, 60);
+        saveCustomWorkspace(entry);
+        known = entry;
+      }
+      renderWorkspaceSelect();
+      var sel = document.getElementById("g-workspace");
+      if (sel) { sel.value = known.id; sel.dataset.prev = known.id; }
+      try { localStorage.setItem(LAST_WS_KEY, known.id); } catch (e) {}
+      return known;
+    }
     var wsSel = document.getElementById("g-workspace");
     var wsFile = document.getElementById("g-ws-file");
     if (wsSel) {
@@ -604,7 +645,8 @@
     });
     // test hooks — drive the picker without a real <input type=file> dialog
     window.__studioGateWorkspaces = { list: workspaceList, addCustom: saveCustomWorkspace,
-      render: renderWorkspaceSelect, connect: connectWorkspace };
+      render: renderWorkspaceSelect, connect: connectWorkspace,
+      remember: rememberConnectedWorkspace /* N24 */ };
 
     // HOTLINK-1: apply a captured hot link now that the picker + fields exist.
     // The fragment was already scrubbed at load (top of this file).
@@ -661,10 +703,25 @@
       // real accounts, not an empty users table.
       try { if (window.__studioAuthBoot) window.__studioAuthBoot(); } catch (e) {}
       window.__studioOpenBackendWizard(null, null, function () {
+        var saved = rememberConnectedWorkspace(); // N24: put it in the picker, named
         var hint = document.getElementById("g-hint");
-        if (hint) hint.innerHTML = "Connected. Sign in with an account from that workspace below.";
+        // textContent, not innerHTML: the label is typed by the person connecting.
+        if (hint) hint.textContent = saved
+          ? "Connected to " + saved.label + " — it's now in the Workspace list above. Sign in with an account from that workspace below."
+          : "Connected. Sign in with an account from that workspace below.";
         document.getElementById("g-err").textContent = "";
         clearCue(); // LF39: the cue's job is done once they've connected
+        // N24 (Kevin: "…rather than making them retype it"): the wizard already
+        // took a workspace sign-in email — carry it into the form and put the
+        // cursor on the password, exactly as the expired-session path does above.
+        try {
+          var live = window.Studio && Studio.Sync && Studio.Sync.currentConfig && Studio.Sync.currentConfig();
+          var uEl = document.getElementById("g-user"), pEl = document.getElementById("g-pass");
+          if (live && live.authEmail && uEl && !uEl.value) {
+            uEl.value = live.authEmail;
+            if (pEl) pEl.focus();
+          }
+        } catch (e) { /* no live connection to read — leave the form alone */ }
       });
     });
   }
