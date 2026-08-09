@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 950,
+    title: 'Opening a View in the View Builder no longer strips the chart settings it cannot edit',
+    kind: 'fix',
+    ts: '2026-08-09T21:56:02.000Z',
+    items: [
+      'A View can carry chart settings the View Builder has no editor for — a scatter\'s trend line, a map\'s colour-class count, a table\'s page size. Opening such a View here used to drop every one of them on the way in, and updating it wrote the stripped version back over the original. The sample packs are where this bit hardest: the Market Coverage "income versus restaurant supply" View is authored with its dashed regression line switched on, and the builder drew no line at all — then quietly turned the setting off for good the moment you pressed Update.',
+      'Those settings now travel with the View. They are applied to the preview, so what you see here is what the View actually is, and they are written back unchanged when you update, so the builder can no longer flatten a chart it was only ever showing you a simplified edit of.',
+      'A notice at the top of the builder names them — "authored with chart settings the View Builder doesn\'t edit yet (the trend line)" — so a simplified edit announces itself instead of looking like the whole picture. It is the same dismissible banner that already explains a View made in Quick Views, rather than a second thing to learn.',
+      'Only settings the author actually changed are carried and named. A value left at its type\'s default is not an authored setting, and the map\'s Region scale is a real control in this builder, so neither is reported — the notice stays quiet unless there is genuinely something it cannot edit. Changing the chart type still drops them, because a quadrant\'s thresholds mean nothing on a table, and the notice says so.',
+      'Five checks in the suite hold the round-trip closed: that the authored trend line is captured and named, that the preview really draws the dashed line, that Update writes the options back byte-identically, that defaults and builder-owned settings stay out of the carried set, and that switching datasets drops it so an unrelated draft can never inherit another View\'s settings.',
+    ],
+  },
+  {
     v: 949,
     title: 'A calculated column in the View Builder had no way back to its formula, and "＋ calc…" handed you the last one',
     kind: 'fix',

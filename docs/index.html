@@ -1921,6 +1921,14 @@
       filters, and calculated columns stay editable only in the View Builder), and a Quick View's
       settings are mapped onto the View Builder shelves as a starting point. The same pair of
       targets appears on Home's pinned-View cards and in Repository's quick-edit panel.</li>
+    <li><strong>Chart settings the View Builder can't edit are carried, not dropped.</strong> A
+      View may be authored with per-chart options the View Builder has no control for — a
+      scatter's trend line, a map's colour-class count, a table's page size (the sample packs use
+      several). They're applied to the preview, so what you see is what the View really is, and
+      they're written back unchanged when you update, so the builder never flattens a chart it's
+      only showing you a simplified edit of. A notice names the ones being carried. Changing the
+      chart type does drop them — a quadrant's thresholds mean nothing on a table — and the notice
+      says so.</li>
     <li><strong>Add to dashboard</strong> — the same picker the builders use.</li>
     <li><strong>Duplicate</strong> — clones chart, folder, and private setting; starts unpinned
       with a uniquified "(copy)" name.</li>

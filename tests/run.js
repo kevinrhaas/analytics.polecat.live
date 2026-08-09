@@ -6068,6 +6068,84 @@ function serve() {
       mcTour.visible && mcTour.label === "Market Coverage pack" && mcTour.steps === 6 &&
       mcTour.targets.length === 4 && mcTour.panelTargetsResolve, JSON.stringify(mcTour));
 
+    // ---- N33 slice 1 (Kevin, 2026-08-09): the View Builder round-trip is lossless ----
+    // "I think there is a trend line on the view but I can't see it turn it on/off in
+    // the View Builder yet". Measured on dev before the fix: the pack authors the
+    // income-vs-supply View with `trend: true` (the dashed OLS line, studio-charts.js
+    // `line.trend-line`), the builder's preview drew ZERO trend lines, and Update wrote
+    // `trend: false` straight over the pack's authored value. The builder mints its
+    // chart from Studio.newPanel DEFAULTS, so every authored opt it has no editor for
+    // was silently dropped on the way in AND on the way out.
+    // These checks are the ones that stop it coming back: the premise (the View really
+    // is authored non-default), the capture, the notice, the drawn line, and the
+    // byte-identical write-back.
+    console.log("\n• N33: authored chart options survive the View Builder round-trip");
+    const n33 = await page.evaluate(async function () {
+      var W = Studio.Workspace;
+      var rows = W.all("analyses").filter(function (a) { return a.demoPackId === "marketcoverage"; });
+      var byName = {}; rows.forEach(function (r) { byName[r.name] = r; });
+      var both = byName["Market Coverage — income versus restaurant supply"];
+      var supply = byName["Market Coverage — restaurants & bars per 10,000 residents"];
+      if (!both || !supply) return { err: "views missing" };
+      var out = { authoredTrend: both.chart.opts.trend, authoredHeight: supply.chart.opts.height };
+      window.__studioRenderBuild();
+      await new Promise(function (r) { setTimeout(r, 60); });
+      window.__studioBuild.load(both.id);
+      await new Promise(function (r) { setTimeout(r, 900); });
+      var B = window.__studioBuild.state;
+      out.carried = B.carried && { type: B.carried.type, keys: Object.keys(B.carried.opts).sort().join(",") };
+      out.notice = B.notice || "";
+      // The line is DRAWN, not merely configured — poll the preview frame rather than
+      // sleeping a fixed amount (the srcdoc swap is async and debounced).
+      var ifr = document.querySelector("#secBuild iframe.bd-ifr"), doc = null;
+      for (var i = 0; i < 120; i++) {
+        try { doc = ifr && ifr.contentDocument; } catch (e) { doc = null; }
+        if (doc && doc.querySelector("line.trend-line")) break;
+        await new Promise(function (r) { setTimeout(r, 50); });
+      }
+      out.previewTrendLines = doc ? doc.querySelectorAll("line.trend-line").length : -1;
+      // ...and Update writes them back unchanged instead of flattening to the defaults.
+      var before = JSON.stringify(both.chart.opts);
+      window.__studioBuild.save();
+      await new Promise(function (r) { setTimeout(r, 250); });
+      var m = document.querySelector(".modal-ov .bd-save");
+      if (!m) return Object.assign(out, { err: "save modal missing" });
+      [].slice.call(m.querySelectorAll("button")).filter(function (b) { return /^(Save|Update)$/.test(b.textContent); })[0].click();
+      await new Promise(function (r) { setTimeout(r, 350); });
+      var after = W.get("analyses", both.id);
+      out.savedOptsUnchanged = !!after && JSON.stringify(after.chart.opts) === before;
+      out.savedType = after && after.chart.type;
+      // The choropleth's carried set proves the two exclusions: `scale` is a builder
+      // control (VB-10) so it is never carried, and `agg: "median"` equals the declared
+      // default so it is not reported as an authored setting — only the two that really
+      // differ are, plus the quiet authored height.
+      window.__studioBuild.load(supply.id);
+      await new Promise(function (r) { setTimeout(r, 900); });
+      var B2 = window.__studioBuild.state;
+      out.mapCarried = B2.carried && Object.keys(B2.carried.opts).sort().join(",");
+      out.mapNotice = B2.notice || "";
+      // Switching datasets drops the carried set — a draft must never inherit another
+      // View's settings.
+      await window.__studioBuild.selectDataset(B2.dsKind, B2.dsId);
+      out.carriedAfterSelect = window.__studioBuild.state.carried;
+      Studio.Build.newView(); // leave the builder clean for the later flow tests
+      return out;
+    });
+    ok("N33: opening a pack View in the View Builder captures exactly the AUTHORED chart options — the scatter's trend line, not newPanel's untouched xLabel/yLabel/fmt defaults — and names them in a notice",
+      !n33.err && n33.authoredTrend === true && n33.carried && n33.carried.type === "scatter" &&
+      n33.carried.keys === "trend" && /trend line/.test(n33.notice) && /kept when you update/.test(n33.notice),
+      JSON.stringify(n33));
+    ok("N33: the builder's preview DRAWS the authored dashed regression line (it drew none before — the round-trip dropped it silently)",
+      n33.previewTrendLines === 1, JSON.stringify(n33));
+    ok("N33: Update writes the authored options back byte-identically instead of flattening them to the type defaults (trend: true survived; it used to be overwritten with false)",
+      n33.savedOptsUnchanged === true && n33.savedType === "scatter", JSON.stringify(n33));
+    ok("N33: the carried set excludes what the builder itself owns (the map's Region `scale`) and what merely equals its declared default (`agg: median`), keeping the authored format, class count and height",
+      n33.mapCarried === "classes,fmt,height" && n33.authoredHeight === 300 &&
+      /the value format/.test(n33.mapNotice) && /the map classes/.test(n33.mapNotice) &&
+      !/height/.test(n33.mapNotice), JSON.stringify(n33));
+    ok("N33: switching datasets drops the carried set, so an unrelated draft can never inherit another View's chart options",
+      n33.carriedAfterSelect === null, JSON.stringify(n33));
+
     // hand the workspace back exactly as the SP-1(b) checks found it
     if (!mcDash.wasInstalled) await page.evaluate(function () { Studio.removeDemoPack("marketcoverage"); });
 
