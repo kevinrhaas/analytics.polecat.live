@@ -19525,7 +19525,16 @@ function serve() {
       k.sparkCol = window.__STUDIO_STATE.spec.cda.dataAccesses.find((d) => d.id === k.da).columns[0];
       window.__studioLoad(window.__STUDIO_STATE.spec);
     });
-    await page.waitForTimeout(350);
+    // N38: wait for the REPAINT, not for the clock. A fixed 350ms sleep here failed on
+    // 2026-08-09 while the third assertion in this same block passed — i.e. the iframe had
+    // KPIs from the FIRST load, and the second (which adds deltaText/sparkCol) had not
+    // landed yet. Polling the condition keeps the assertion exactly as strict: the timeout
+    // still expires and the check still fails if the delta/spark never render.
+    await page.waitForFunction(() => {
+      const d = document.querySelector("#preview") && document.querySelector("#preview").contentDocument;
+      const t = d && d.querySelector("#kpis .kpi");
+      return !!(t && t.querySelector(".d") && t.querySelector(".spark"));
+    }, { timeout: 8000 }).catch(() => {});
     const kx = await page.evaluate(() => {
       const d = document.querySelector("#preview").contentDocument;
       var t = d.querySelector("#kpis .kpi");
@@ -25746,7 +25755,8 @@ function serve() {
       const fakeSpec = { name: "opt-in-test", title: "Opt-in Test", panels: [{ id: "p1" }], kpis: [], filters: [] };
       try { localStorage.setItem("studio-autosave", JSON.stringify(fakeSpec)); localStorage.removeItem("studio-restore-unsaved"); } catch (e) {}
     });
-    await page.reload({ waitUntil: "networkidle" });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 15000 });
     await page.waitForTimeout(1200);
     const r114Off = await page.evaluate(() => ({ banner: !!document.querySelector(".restore-banner"), autosaveKept: !!localStorage.getItem("studio-autosave") }));
     ok("#114: with the toggle off, no restore banner appears on reload — and the autosave is left intact for when it's turned on",
@@ -25778,7 +25788,8 @@ function serve() {
     ok("E1: restore banner data has correct panel count", e1bannerResult.panels === 2, JSON.stringify(e1bannerResult));
     ok("E1: restore banner data has correct KPI count", e1bannerResult.kpis === 1, JSON.stringify(e1bannerResult));
     // Reload so the banner renders from the injected autosave
-    await page.reload({ waitUntil: "networkidle" });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 15000 });
     await page.waitForTimeout(1200); // debounce + banner timeout
     const e1banner = await page.evaluate(() => {
       const b = document.querySelector(".restore-banner");
@@ -25829,7 +25840,8 @@ function serve() {
     console.log("\n• Export history (E2 / v49)");
     // Clear history BEFORE reload so boot doesn't load stale items into memory
     await page.evaluate(() => { try { localStorage.removeItem("studio-export-history"); } catch(e) {} });
-    await page.reload({ waitUntil: "networkidle" });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 15000 });
     await page.waitForTimeout(600);
     // Trigger a CDF export to record it
     await page.evaluate(() => {
@@ -38483,7 +38495,7 @@ function serve() {
     // Z1-5: active section persists across reloads
     await page.click('#railNav .rail-item[data-sec="dashboards"]');
     await page.waitForTimeout(80);
-    await page.reload({ waitUntil: "networkidle" });
+    await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
     await page.waitForTimeout(300);
     const z1Persisted = await page.evaluate(function () {
@@ -45523,7 +45535,7 @@ function serve() {
     // (b) the migration is ONE-TIME: emptying the catalog and rebooting must NOT
     // resurrect the legacy backup (the meta stamp guards it).
     await wsDashPage.evaluate(function () { window.__studioSeedDashboards([]); });
-    await wsDashPage.reload({ waitUntil: "networkidle" });
+    await wsDashPage.reload({ waitUntil: "domcontentloaded" });
     await wsDashPage.waitForFunction(() => window.Studio && Studio.Workspace, { timeout: 10000 });
     const wsDashNoResurrect = await wsDashPage.evaluate(function () {
       // filter to the seeded legacy ids — the boot spec may legitimately self-register
@@ -45998,7 +46010,8 @@ function serve() {
     await lf23s2DevPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); } catch (e) {} });
     await lf23s2DevPage.goto(`http://localhost:${PORT}/app/viewer.html?dash=lf23s2-dash`, { waitUntil: "networkidle" });
     await lf23s2DevPage.evaluate(function () { window.PolecatAuth.login("lf23s2dev"); });
-    await lf23s2DevPage.reload({ waitUntil: "networkidle" });
+    await lf23s2DevPage.reload({ waitUntil: "domcontentloaded" });
+    await lf23s2DevPage.waitForFunction(function () { return !!window.__viewerBuildHtml; }, { timeout: 10000 });
     await lf23s2DevPage.waitForTimeout(300);
     const editLinkAsDev = await lf23s2DevPage.evaluate(function () {
       var editEl = document.getElementById("viewerEditLink");
@@ -46106,7 +46119,7 @@ function serve() {
     // buttons stay tappable. Sign in as admin first so the extra "Edit in Dashboard Builder" button is present
     // too (the busiest possible bar).
     await vxPage.evaluate(function () { window.PolecatAuth.login("admin"); });
-    await vxPage.reload({ waitUntil: "networkidle" });
+    await vxPage.reload({ waitUntil: "domcontentloaded" });
     await vxPage.waitForFunction(function () { return !!window.__viewerBuildHtml; }, { timeout: 8000 }).catch(function () {});
     await vxPage.setViewportSize({ width: 390, height: 780 });
     await vxPage.waitForTimeout(150);
