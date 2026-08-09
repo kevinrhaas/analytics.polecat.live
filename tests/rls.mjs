@@ -697,10 +697,118 @@ function checkPosture({ label, source, load, needsTables, extra }) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// N28: marker DIRECTION — the two PROVISIONING artifacts
+//
+// The postures above prove WHAT gets installed. This proves which way the
+// workspace's own version marker can MOVE when one of them is run again, which
+// is a different question and the one N17 answered on the app side: an older
+// build must never re-label a newer workspace as its own shape, or every client
+// — including the newer app that performed the upgrade — reads the workspace as
+// older and offers the upgrade again, forever.
+//
+// Only these two are provisioning paths that may legitimately RAISE the marker
+// (an upgrade run through provision/go-live). tools/supabase-deploy.sql and the
+// wizard's script are DO NOTHING by design — they only declare what they just
+// built — and doc-truth check 27 holds all four to one shape or the other in the
+// dev gate, where this file cannot run (it needs a real database).
+const MARKER_ARTIFACTS = [
+  {
+    label: "tools/supabase-bootstrap.sql — marker direction (N28)",
+    source: "tools/supabase-bootstrap.sql",
+    load: () => readFileSync(tool("supabase-bootstrap.sql"), "utf8"),
+  },
+  {
+    label: "the Edge Function's BOOTSTRAP_DDL (provision / go live) — marker direction (N28)",
+    source: "supabase/functions/polecat-admin/sql.ts BOOTSTRAP_DDL",
+    load: () => edgeConst("BOOTSTRAP_DDL"),
+  },
+];
+
+/** Read one marker back and report it, in the harness's PASS|/FAIL| shape. */
+const markerIs = (schema, rawName, key, want) => ((name) => `
+DO $mk$
+DECLARE v text;
+BEGIN
+  PERFORM set_config('search_path', '${schema}', true);
+  SELECT value INTO v FROM "polecat_meta" WHERE key = '${key}';
+  IF v = '${want}' THEN RAISE NOTICE 'PASS|${name}';
+  ELSE RAISE NOTICE 'FAIL|${name}|${key} is now %|want ${want}', coalesce(v, '(absent)');
+  END IF;
+END
+$mk$;`)(lit(rawName));
+
+/** Install the artifact into a throwaway schema, then re-run it over a marker
+ *  seeded above / below / beside its own version and assert which way it moved.
+ *  Re-running is the real-world case: `go-live` runs BOOTSTRAP_DDL on every
+ *  call, and both files call themselves safe to run repeatedly. */
+function checkMarkerDirection({ label, source, load }) {
+  const schema = newSchema();
+  console.log(`\nrls: ${label}`);
+  try {
+    const raw = load();
+    const version = Number((/VALUES \('schema_version', '(\d+)'\)/.exec(raw) || [])[1]);
+    if (!version) {
+      console.error(`rls: FATAL — ${source} no longer stamps schema_version at all.`);
+      return { passed: 0, failed: 1 };
+    }
+    const sql = sqlForTestSchema(raw, source, schema);
+
+    const setup = psql(schemaSql(schema, false));
+    if (setup.code !== 0) {
+      console.error(`rls: FATAL — could not create ${schema}:\n${setup.out.trim()}`);
+      return { passed: 0, failed: 1 };
+    }
+
+    const scenarios = [
+      { seed: "", key: "schema_version", want: String(version),
+        name: `a fresh install stamps schema_version = ${version}` },
+      { seed: `UPDATE "polecat_meta" SET value = '99' WHERE key = 'schema_version';`,
+        key: "schema_version", want: "99",
+        name: "an OLDER copy of the artifact never REWINDS a newer workspace's marker" },
+      { seed: `UPDATE "polecat_meta" SET value = '1' WHERE key = 'schema_version';`,
+        key: "schema_version", want: String(version),
+        name: `provisioning still RAISES an older marker to ${version} (an upgrade must work)` },
+      { seed: `UPDATE "polecat_meta" SET value = 'corrupt' WHERE key = 'schema_version';`,
+        key: "schema_version", want: String(version),
+        name: `a non-numeric marker heals to ${version} rather than blocking the upgrade` },
+      { seed: `UPDATE "polecat_meta" SET value = 'manager' WHERE key = 'app';`,
+        key: "app", want: "manager",
+        name: "the `app` marker of a project another fleet app already claimed is never relabelled" },
+    ];
+
+    const results = [];
+    for (const s of scenarios) {
+      const run = psql(`SET search_path TO ${schema};\n${s.seed}\n${sql}\n${markerIs(schema, s.name, s.key, s.want)}`);
+      if (run.code !== 0) {
+        console.error(`rls: FATAL — ${source} did not re-apply cleanly:\n${run.out.trim()}`);
+        return { passed: 0, failed: 1 };
+      }
+      results.push(...[...run.out.matchAll(/(?:PASS|FAIL)\|[^\n]*/g)].map((m) => m[0].trim()));
+    }
+    results.forEach((l) => {
+      const [state, checkName, ...rest] = l.split("|");
+      console.log(`  ${state === "PASS" ? "ok  " : "FAIL"} ${checkName}${rest.length ? `  (${rest.join(", ")})` : ""}`);
+    });
+    const passed = results.filter((l) => l.startsWith("PASS|")).length;
+    let failed = results.filter((l) => l.startsWith("FAIL|")).length;
+    if (results.length !== scenarios.length) {
+      console.error(`rls: FATAL — ${source}: expected ${scenarios.length} marker probes, saw ${results.length}.`);
+      failed = failed || 1;
+    }
+    return { passed, failed };
+  } finally {
+    const cleanup = psql(`DROP SCHEMA IF EXISTS ${schema} CASCADE;`);
+    if (cleanup.code !== 0) {
+      console.error(`rls: WARNING — could not drop ${schema}; drop it by hand.\n${cleanup.out.trim()}`);
+    }
+  }
+}
+
 const t0 = Date.now();
 console.log(`rls: ${HOST}:${PORT} as ${USER}`);
 
-const totals = POSTURES.map(checkPosture).reduce(
+const totals = [...POSTURES.map(checkPosture), ...MARKER_ARTIFACTS.map(checkMarkerDirection)].reduce(
   (a, r) => ({ passed: a.passed + r.passed, failed: a.failed + r.failed }),
   { passed: 0, failed: 0 },
 );
@@ -710,5 +818,6 @@ if (totals.failed) {
   console.error(`\nrls: ${totals.failed} of ${totals.passed + totals.failed} checks FAILED in ${secs}s — the shipped SQL does not install the posture it claims.`);
   process.exit(1);
 }
-console.log(`\nrls: ${totals.passed}/${totals.passed} checks passed in ${secs}s across ${POSTURES.length} postures.`);
+console.log(`\nrls: ${totals.passed}/${totals.passed} checks passed in ${secs}s across ${POSTURES.length} postures ` +
+  `and ${MARKER_ARTIFACTS.length} marker-direction probes.`);
 process.exit(0);

@@ -135,6 +135,37 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N28 — the provisioning SQL can raise a workspace's version marker, never rewind it (v908,
+  sw v530, 2026-08-09, steward; dev branch; est 1pt, took 1 — on estimate, item CLOSED):**
+  the SQL half of the monotonicity N17 gave `WS.metaRows()`, split out of N20 because that run
+  had no way to exercise it. `tools/supabase-bootstrap.sql` and
+  `supabase/functions/polecat-admin/sql.ts` `BOOTSTRAP_DDL` both stamped `schema_version` with a
+  bare `ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, so running an OLDER copy of
+  either against an upgraded workspace re-labelled it as the older shape — after which every
+  client, including the newer app that performed the upgrade, reads it as older and re-offers the
+  upgrade, forever. Both now carry the **raise-only** guard the migration RPC already used
+  (`… DO UPDATE SET value = EXCLUDED.value WHERE polecat_meta.value !~ '^[0-9]+$' OR
+  polecat_meta.value::int < EXCLUDED.value::int`) rather than the `DO NOTHING` deploy.sql uses:
+  these two ARE the provisioning path, so an upgrade run through `provision`/`go-live`
+  legitimately needs to move the marker UP, and the guard also heals a marker that is absent or
+  non-numeric.
+  **Rider taken in the same pass (same clobber, different key):** both files also stamped the
+  `app` marker with `DO UPDATE`, so running the analytics script against a project manager or
+  relay already claimed relabelled it. `app` is ownership, not state — both are now `DO NOTHING`,
+  the rule `supabase-deploy.sql` § 1b already followed. All four shipped artifacts now agree.
+  **Verified two ways, and both were shown to FAIL on the pre-change bytes first.** (1) The item's
+  own prescribed check: `tests/rls.mjs` gained a marker-direction probe per provisioning artifact
+  — install it into a throwaway schema, then seed the marker above (99), below (1), beside
+  (`corrupt`) and the `app` key beside (`manager`), re-apply the real artifact each time, and
+  assert which way it moved. It ran GREEN against the live project's database, 236/236 across 5
+  postures + 2 marker probes in 23s; reverting bootstrap.sql to its old bytes turned exactly the
+  two predicted probes red ("marker is now 4, want 99" / "app is now analytics, want manager").
+  (2) Because `tests/rls.mjs` SKIPs silently without `SUPABASE_PASSWORD` and therefore cannot be
+  the gate, `tools/doc-truth.mjs` gained **check 27**, which runs in the dev gate over the shipped
+  bytes of all four artifacts: a `schema_version` upsert must be `DO NOTHING` or raise-only, and
+  no artifact may `DO UPDATE` the `app` marker. It too was proven red on the old bytes.
+  `docs/COMPAT.md` § 3 records the closure and states the rule for any artifact added later; § 4
+  lists both new teeth. Nothing in the app changed — this is provisioning SQL and its guards.
 - **N27 — the live-posture verify says what it actually proved: protected vs empty vs leaking
   (no version/sw bump — test tooling only, 2026-08-08, steward; dev branch; est 1pt, took 1 — on
   estimate, item CLOSED):** the check's absolute half was already right (a row reaching an
@@ -12138,8 +12169,14 @@
   identity is optional, and its absence downgrades tables to "inconclusive" rather than failing.
   Until then the wording should not say "no table is readable"; it should say "no table returned
   rows to an anonymous caller", which is what was measured.
-- **N28 ★ [1pt] — The two provisioning artifacts that stamp `schema_version` can still REWIND
-  it.** Split out of N20 (2026-08-08), which fixed the half it could verify. `tools/supabase-
+- ~~**N28 ★ [1pt] — The two provisioning artifacts that stamp `schema_version` can still REWIND
+  it.**~~ ✓ **SHIPPED v908, sw v530 (2026-08-09, steward — see DONE). Est 1pt, took 1. The item is
+  CLOSED: both files carry the raise-only guard, the `app` marker went `DO NOTHING` in the same
+  pass (same clobber, different key), the prescribed `tests/rls.mjs` marker probe exists and ran
+  GREEN against the live database, and `tools/doc-truth.mjs` check 27 holds the direction in the
+  dev gate where rls.mjs cannot run. Both checks were proven red on the pre-change bytes.** The
+  history below stays until the next grooming pass archives it.
+  Split out of N20 (2026-08-08), which fixed the half it could verify. `tools/supabase-
   bootstrap.sql` and `supabase/functions/polecat-admin/sql.ts` `BOOTSTRAP_DDL` both stamp with
   `ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, so running an OLDER copy of either
   against an upgraded workspace **re-labels it as the older shape** — after which every client,

@@ -42,10 +42,16 @@ ALTER TABLE "analyses"    ALTER COLUMN "updatedAt" TYPE BIGINT;
 ALTER TABLE "jobs"        ALTER COLUMN "updatedAt" TYPE BIGINT;
 ALTER TABLE "users"       ALTER COLUMN "updatedAt" TYPE BIGINT;
 
+-- Workspace markers, written so an OLDER copy of this function can never take a
+-- workspace BACKWARDS (N28): \`app\` is DO NOTHING (an existing environment's own
+-- claim wins), \`schema_version\` is RAISE-ONLY — provisioning may move it UP,
+-- never DOWN, and the guard heals an absent or non-numeric marker. Mirrors
+-- tools/supabase-bootstrap.sql § markers and deploy.sql's polecat_migrate().
 INSERT INTO "polecat_meta"(key, value) VALUES ('app', 'analytics')
-  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+  ON CONFLICT (key) DO NOTHING;
 INSERT INTO "polecat_meta"(key, value) VALUES ('schema_version', '4')
-  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+  WHERE polecat_meta.value !~ '^[0-9]+$' OR polecat_meta.value::int < EXCLUDED.value::int;
 
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;

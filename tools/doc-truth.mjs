@@ -1279,6 +1279,59 @@ ok("tools/supabase-bootstrap.sql no longer claims the real RLS posture is unsafe
   "that claim stopped being true when M7 slices 2/3 shipped GoTrue sign-in and the owner-field migration " +
   "(the real posture went live 2026-07-30) — it is the exact sentence that misled a session on 2026-08-08");
 
+/* ── 27. the workspace markers only ever move FORWARD ───────────────────────
+   N28. Check 25 holds every stamping artifact to the CURRENT version; this one holds
+   the DIRECTION. A bare `ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value` on
+   `schema_version` means running an OLDER copy of that artifact against an upgraded
+   workspace re-labels it as the older shape — after which every client, including the
+   newer app that performed the upgrade, reads it as older and offers the upgrade again,
+   forever. That is exactly the clobber N17 found in `WS.metaRows()` and fixed on the app
+   side; until now the SQL side still had it in two of the four artifacts.
+
+   Two shapes are acceptable, and which one is right depends on the artifact:
+     • DO NOTHING          — deploy paths that only ever DECLARE what they just built
+                             (an existing environment's own answer wins).
+     • the raise-only WHERE — provisioning paths that legitimately need to RAISE the
+                             marker during an upgrade, and heal an absent/non-numeric one.
+   A bare DO UPDATE is neither, and it is the only thing this check rejects.
+
+   `app` is the same class of clobber in a different key: relabelling a project another
+   fleet app already claimed. Only DO NOTHING is right there — nothing about running the
+   analytics script should ever take a project away from manager or relay.
+
+   Deliberately textual, over the shipped bytes of each artifact, because that is what a
+   user pastes and what the Edge Function deploys — neither derives from schema.js, which
+   is the whole reason they drift (the N2 slice-2 class). tests/rls.mjs proves the same
+   property against a real Postgres; this is the half that runs in the dev gate. */
+const MARKER_ARTIFACTS = [
+  "tools/supabase-deploy.sql", "tools/supabase-rls-real.sql",
+  "tools/supabase-bootstrap.sql", "supabase/functions/polecat-admin/sql.ts",
+];
+// One upsert statement per match: from INSERT to the `;` that ends it. `[^;]*` cannot
+// run past the statement, so a file's statements never merge into one another.
+const markerUpserts = MARKER_ARTIFACTS.flatMap((rel) =>
+  [...read(rel).matchAll(/INSERT INTO[^;]*?VALUES\s*\(\s*'(app|schema_version)'[^;]*;/g)]
+    .map((m) => ({ rel, key: m[1], sql: m[0].replace(/\s+/g, " ") })));
+const RAISE_ONLY = /DO UPDATE SET value = EXCLUDED\.value\s+WHERE [\w".]*value !~ '\^\[0-9\]\+\$' OR [\w".]*value::int < EXCLUDED\.value::int/;
+const bareUpdate = (s) => /DO UPDATE/.test(s) && !RAISE_ONLY.test(s);
+
+ok(`tools/doc-truth.mjs: the provisioning artifacts' polecat_meta upserts parsed for check 27 are non-empty (${markerUpserts.length} found)`,
+  markerUpserts.length >= 4 && markerUpserts.some((u) => u.key === "app"),
+  markerUpserts.map((u) => `${u.rel}:${u.key}`).join(" · ") || "(none)");
+
+const rewindable = markerUpserts.filter((u) => u.key === "schema_version" && bareUpdate(u.sql));
+ok("every artifact that stamps schema_version does so DO NOTHING or raise-only — none can REWIND a workspace",
+  !rewindable.length,
+  rewindable.map((u) => `${u.rel} — ${u.sql}`).join("\n      ") + "\n      " +
+  "add the guard: ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value " +
+  "WHERE polecat_meta.value !~ '^[0-9]+$' OR polecat_meta.value::int < EXCLUDED.value::int (docs/COMPAT.md § 3)");
+
+const relabels = markerUpserts.filter((u) => u.key === "app" && /DO UPDATE/.test(u.sql));
+ok("no artifact can RELABEL the `app` marker of a project another fleet app already claimed",
+  !relabels.length,
+  relabels.map((u) => `${u.rel} — ${u.sql}`).join("\n      ") + "\n      " +
+  "the `app` marker is ownership, not state: ON CONFLICT (key) DO NOTHING");
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

@@ -9403,6 +9403,40 @@ function serve() {
         JSON.stringify({ constant: n16SchemaConst, history: compatRows, hasDoc: !!compat }));
     })();
 
+    // ---- N28: the marker's DIRECTION, not just its value ---------------------
+    // N16 checks WHICH version the artifacts stamp; this checks which way that
+    // stamp can MOVE. A bare `ON CONFLICT (key) DO UPDATE SET value =
+    // EXCLUDED.value` on schema_version means an OLDER copy of a provisioning
+    // artifact re-labels an upgraded workspace as the older shape — the clobber
+    // N17 fixed in WS.metaRows(), which the SQL side still had in two of four
+    // files. Two shapes are legitimate and which one is right depends on the
+    // artifact: DO NOTHING for declare-only deploy paths, raise-only for the
+    // provisioning paths that legitimately RAISE the marker during an upgrade.
+    // `app` is ownership rather than state, so only DO NOTHING is right there.
+    // The gate is doc-truth check 27 and the live proof is tests/rls.mjs's
+    // marker probes; this is the stays-wired half (the N18/SP-0(b) precedent).
+    (function () {
+      const artifacts = ["tools/supabase-deploy.sql", "tools/supabase-rls-real.sql",
+        "tools/supabase-bootstrap.sql", "supabase/functions/polecat-admin/sql.ts"];
+      const upserts = artifacts.reduce(function (acc, rel) {
+        const src = fs.readFileSync(path.join(ROOT, rel), "utf8");
+        return acc.concat([...src.matchAll(/INSERT INTO[^;]*?VALUES\s*\(\s*'(app|schema_version)'[^;]*;/g)]
+          .map(function (m) { return { rel: rel, key: m[1], sql: m[0].replace(/\s+/g, " ") }; }));
+      }, []);
+      const raiseOnly = /DO UPDATE SET value = EXCLUDED\.value\s+WHERE [\w".]*value !~ '\^\[0-9\]\+\$' OR [\w".]*value::int < EXCLUDED\.value::int/;
+      const bad = upserts.filter(function (u) {
+        return /DO UPDATE/.test(u.sql) && (u.key === "app" || !raiseOnly.test(u.sql));
+      });
+      const truth = fs.readFileSync(path.join(ROOT, "tools/doc-truth.mjs"), "utf8");
+      const rls = fs.readFileSync(path.join(ROOT, "tests/rls.mjs"), "utf8");
+      ok("N28: no shipped provisioning artifact can REWIND schema_version or RELABEL the app marker — " +
+        "every upsert is DO NOTHING or raise-only, doc-truth check 27 gates it and tests/rls.mjs probes it against a real database",
+        upserts.length >= 4 && !bad.length &&
+        /every artifact that stamps schema_version/.test(truth) &&
+        /MARKER_ARTIFACTS/.test(rls) && /checkMarkerDirection/.test(rls),
+        JSON.stringify({ upserts: upserts.length, offenders: bad.map(function (u) { return u.rel + ":" + u.key; }) }));
+    })();
+
     // load() must report what the BACKEND says, not this app's own constant —
     // the whole handshake rests on it. Stand a mock workspace up at v+1.
     const n16Load = await page.evaluate(async function (port) {

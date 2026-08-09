@@ -127,11 +127,28 @@ copy of the script against an upgraded workspace can never rewind the marker. Th
 SQL half of the monotonicity N17 gave `WS.metaRows()`. All four artifacts now stamp, and
 the doc-truth check in §4 holds every one of them to the current version.
 
-**Still using `DO UPDATE`:** `tools/supabase-bootstrap.sql` and
-`supabase/functions/polecat-admin/sql.ts` overwrite the marker with the version they
-carry, so an OLDER copy of either *can* rewind it. Tracked as **N28** — it wants a
-raise-only guard rather than a plain `DO NOTHING`, because those two are the provisioning
-path that legitimately stamps an upgrade.
+**And the last two are closed too (N28, 2026-08-09).** `tools/supabase-bootstrap.sql` and
+`supabase/functions/polecat-admin/sql.ts` used to overwrite the marker with the version
+they carry, so an OLDER copy of either could rewind it. They are the provisioning path, so
+a plain `DO NOTHING` would have been wrong — an upgrade run through `provision`/`go-live`
+legitimately needs to RAISE the marker. Both now carry the **raise-only** guard the
+migration RPC already used:
+
+```sql
+INSERT INTO polecat_meta(key, value) VALUES ('schema_version', '<N>')
+  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+  WHERE polecat_meta.value !~ '^[0-9]+$' OR polecat_meta.value::int < EXCLUDED.value::int;
+```
+
+which also heals a marker that is absent or non-numeric. Their `app` marker moved to
+`DO NOTHING` in the same pass: `app` is ownership, not state, so running the analytics
+script against a project manager or relay already claimed must not relabel it — the rule
+`supabase-deploy.sql` § 1b already followed.
+
+**The rule, for any artifact added later:** a `schema_version` upsert is either
+`DO NOTHING` (declare-only paths — deploy scripts, the connect wizard's generated script)
+or raise-only (provisioning paths that perform upgrades). A bare
+`DO UPDATE SET value = EXCLUDED.value` is neither, and doc-truth check 27 rejects it.
 
 ## 4. What enforces this
 
@@ -143,6 +160,14 @@ Process teeth, not memory — this file has to outlive whoever wrote it:
   `WS.WORKSPACE_TABLES` is never named in the history; any hand-written SQL artifact
   stamps a version other than the constant; or `CLAUDE.md` stops pointing here. So a bump
   without a history line is a **red gate**, in under a second, before review.
+- **`tools/doc-truth.mjs` (check 27)** runs in the same gate and holds the marker's
+  DIRECTION: every `schema_version` upsert in the four shipped SQL artifacts must be
+  `DO NOTHING` or raise-only, and no artifact may `DO UPDATE` the `app` marker. Check 25
+  is *which version*; check 27 is *which way it can move* (N28).
+- **`tests/rls.mjs`** proves the same property against a real Postgres — it seeds the
+  marker above, below and beside each provisioning artifact's own version, re-applies the
+  artifact, and asserts which way it moved. It SKIPs without `SUPABASE_PASSWORD`, which is
+  why check 27 exists as the gate-side half.
 - **`tests/run.js`** asserts the same wiring exists (the SP-0(b) precedent), so the gate
   cannot be quietly removed while no bump is exercising it.
 - **`CLAUDE.md`** carries the pointer: touching `WS.SCHEMA_VERSION` or any workspace DDL

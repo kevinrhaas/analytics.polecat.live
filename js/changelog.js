@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 908,
+    title: 'Setting up a workspace database can move it forward, never backwards',
+    kind: 'fix',
+    ts: '2026-08-09T00:07:40.000Z',
+    items: [
+      'Every workspace database carries a small marker saying which shape it has, so an app that opens it knows whether it is looking at something older or newer than itself. Two of the scripts that set a database up wrote that marker by simply overwriting it with their own number. Run an older copy of either one against a database that had already been upgraded — an older browser tab pressing Go live, a script saved months ago and pasted again — and the database would start describing itself as the older shape it no longer had.',
+      'Nothing was lost when that happened, but nothing recovered from it either: every app that opened the workspace afterwards, including the newer one that had just upgraded it, would read it as out of date and offer to upgrade it again. And again.',
+      'Both scripts now only ever raise that marker. An upgrade still moves it up, which is the whole point of running them; an older copy leaves a newer database exactly as it found it. A marker that is missing or unreadable is repaired rather than treated as a reason to stop.',
+      'The same two scripts also used to stamp their own app name over whatever was already there. A single database can host several Polecat apps, and the name records which one claimed it — so it is now written once and never overwritten, and running the Analytics setup against a database that belongs to another app cannot quietly take it over.',
+      'Both directions are now proven against a real database on every security run — the marker is seeded above, below and beside each script\'s own version and the script re-run over it — and a check in the build gate refuses any future script that would overwrite the marker outright.',
+    ],
+  },
+  {
     v: 907,
     title: 'A secured Supabase workspace no longer looks like an empty one',
     kind: 'fix',

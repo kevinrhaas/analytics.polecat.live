@@ -47,10 +47,27 @@ ALTER TABLE "analyses"    ALTER COLUMN "updatedAt" TYPE BIGINT;
 ALTER TABLE "jobs"        ALTER COLUMN "updatedAt" TYPE BIGINT;
 ALTER TABLE "users"       ALTER COLUMN "updatedAt" TYPE BIGINT;
 
+-- The workspace markers, written so re-running an OLDER copy of this file can
+-- never take a workspace BACKWARDS (N28, 2026-08-09 — the SQL half of the
+-- monotonicity N17 gave WS.metaRows()).
+--   `app`            — DO NOTHING. An existing environment's own answer wins, so
+--                      running the analytics script against a project another
+--                      fleet app already claimed cannot relabel it.
+--   `schema_version` — RAISE-ONLY. This file is a provisioning path, so an
+--                      upgrade legitimately needs to move the marker UP; what it
+--                      must never do is move it DOWN. Without the WHERE clause,
+--                      an older copy re-labels an upgraded workspace as the older
+--                      shape, after which every client — including the newer app
+--                      that performed the upgrade — reads it as older and offers
+--                      the upgrade again, forever. The guard also heals a marker
+--                      that is absent or non-numeric.
+-- Same form as tools/supabase-deploy.sql's polecat_migrate(); doc-truth checks
+-- 25 and 27 hold the version and this direction, respectively.
 INSERT INTO "polecat_meta"(key, value) VALUES ('app', 'analytics')
-  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+  ON CONFLICT (key) DO NOTHING;
 INSERT INTO "polecat_meta"(key, value) VALUES ('schema_version', '4')
-  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+  WHERE polecat_meta.value !~ '^[0-9]+$' OR polecat_meta.value::int < EXCLUDED.value::int;
 
 -- Grants: tables created over a DIRECT psql connection do NOT inherit the
 -- anon/authenticated privileges that Supabase's SQL-editor path auto-applies,
