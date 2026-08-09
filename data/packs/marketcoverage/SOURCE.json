@@ -1,0 +1,30 @@
+{
+  "pack": "marketcoverage",
+  "source": {
+    "kind": "public",
+    "name": "US Census Bureau — County Business Patterns and American Community Survey",
+    "url": "https://www.census.gov/programs-surveys/cbp.html",
+    "licence": "Public domain (U.S. Government work)",
+    "retrieved": "2026-08-09"
+  },
+  "notes": [
+    "County Business Patterns 2023 county file — establishment counts for all industries (NAICS ------), food services and drinking places (722), and food and beverage retailers (445)",
+    "American Community Survey 2023 5-year table-based Summary File — B01003 population, B11001 households, B01002 median age, B19013 median household income, B15003 educational attainment (bachelor's degree or higher, share of the 25-and-over population)",
+    "County names and postal states from the 2023 Census Gazetteer county file; the type word (County/Parish/Borough/Census Area/Municipio) is dropped",
+    "Counties under 20,000 people are excluded — a saturation index over a few thousand residents is noise, not a finding",
+    "Puerto Rico and the island areas (state FIPS above 56) are excluded: the app's county choropleth has no geometry for them"
+  ],
+  "files": [
+    {
+      "name": "county-demographics.csv",
+      "bytes": 82303,
+      "rows": 1813
+    },
+    {
+      "name": "county-establishments.csv",
+      "bytes": 31474,
+      "rows": 1813
+    }
+  ],
+  "script": "tools/pack-extract/marketcoverage.mjs"
+}

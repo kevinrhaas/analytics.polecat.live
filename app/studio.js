@@ -551,6 +551,10 @@
       window.addEventListener("pagehide", function () { try { Studio.Sync.pushNow(); } catch (e) {} });
       // heal pack dashboards materialized before the 2026-07-30 rename/folder change
       reconcilePackDashboards();
+      // SP-1: and finish materializing any installed pack whose data is committed CSV —
+      // idempotent, registry-driven (app/demopacks.js), and quiet when there is nothing
+      // to do, so a pack whose first install raced a cold cache heals on the next load.
+      if (Studio.ensureAllPackDataMaterialized) Studio.ensureAllPackDataMaterialized();
       renderSettings();
       renderAdmin();
       if (window.StudioWelcome) { var ab = $("#btnAbout"); if (ab) ab.onclick = function () { StudioWelcome.open(); }; setTimeout(function () { StudioWelcome.maybeShow(); }, 300); }
@@ -9903,7 +9907,7 @@
         // it says so, and Install turns it back on (installing a pack means you
         // want to see it).
         '<div class="settings-card"><h2>Sample packs</h2>' +
-          '<p class="ws-card-intro">Ready-made demo content you can install or remove. A pack can add dashboards, datasets, connections and jobs — all with synthetic (made-up) sample data, never your real data. Remove takes back exactly what Install added.</p>' +
+          '<p class="ws-card-intro">Ready-made demo content you can install or remove. A pack can add dashboards, datasets, connections and jobs — with synthetic (made-up) or public-domain sample data, never your real data. Each card says which. Remove takes back exactly what Install added.</p>' +
           (!showSamples() ? '<p class="ws-card-intro set-packs-hidden-note">Sample content is currently hidden (the toggle above) — installed packs aren’t shown anywhere. Installing a pack turns sample content back on.</p>' : "") +
           Object.keys(Studio.DEMO_PACKS).map(function (id) {
             var p = Studio.DEMO_PACKS[id], on = Studio.demoPackInstalled(id);

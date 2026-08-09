@@ -40,6 +40,45 @@ declares `source: { kind: "synthetic", label: "…" }` and the app shows that li
    reinstall). Anything **not** public domain is `kind: "licensed"` and must also
    have a `THIRD-PARTY-NOTICES.md` line.
 
+## How the CSV reaches the app (SP-1)
+
+A synthetic pack computes its rows inside `install()` and is finished when that
+function returns. A real-data pack cannot be: its bytes are in `data/packs/<id>/`
+and have to be READ. So an entry that ships data opts into a second, asynchronous
+half:
+
+```js
+install: function () { seedTheConnection(); },        // what can be done synchronously
+data: {
+  files: ["county-demographics.csv", "county-establishments.csv"],
+  seed: function (csv) { /* csv[name] is the file's text */ }
+},
+afterInstall: function () { Studio.ensurePackDataMaterialized("<id>"); }
+```
+
+`Studio.ensurePackDataMaterialized(id)` (app/demopacks.js) fetches the entry's
+files and calls its `seed`. It is idempotent, so calling it again is free; it
+re-checks the installed flag AFTER the fetch resolves, so a pack installed and
+removed in one turn cannot leave orphan rows behind; and it fails quietly, so a
+cold cache leaves the pack dataless rather than throwing at whoever clicked
+Install. `Studio.ensureAllPackDataMaterialized()` runs at boot and heals that case.
+
+Two consequences worth knowing:
+
+- **Precache the files in `sw.js`.** Rule 1 says installing a pack must not depend
+  on the network; a same-origin fetch only honours that if the service worker has
+  the file. Add each CSV to `SHELL_FILES` and bump `CACHE_NAME` in the same commit.
+- **Don't declare `seeds` for rows the ensure-function writes.** `seeds` is checked
+  against what `install()` produced in its own turn (the SP-0 conformance loop), so
+  counting async rows there would be a false claim rather than a stricter test.
+
+Anything the pack pre-computes from its own CSV — a job's output dataset, say —
+must be produced by running the app's own machinery over it (`Studio.runJobSteps`),
+never by a second hand-written copy of the arithmetic. Otherwise the first Run
+silently rewrites the numbers the pack shipped with. Note that the file adapter
+types numeric-looking cells (`localfile.js typeCell`), so a pre-compute has to type
+them the same way or the two forms disagree on columns like a zero-padded FIPS.
+
 ## The registry entry
 
 ```js

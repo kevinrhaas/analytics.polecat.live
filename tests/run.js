@@ -5641,9 +5641,11 @@ function serve() {
       packSource.fixtures.realLine === "empty-for-unknown",
       JSON.stringify(packSource));
 
-    // Both packs shipped today are synthetic, and the app SAYS so on the card you
-    // install them from — the honesty that used to live only in hand-written blurbs
-    // is now the registry's own line, rendered from one place.
+    // Every pack SAYS on the card you install it from where its data came from — the
+    // honesty that used to live only in hand-written blurbs is now the registry's own
+    // line, rendered from one place. SP-1 made this more than a formality: the packs are
+    // no longer all synthetic, so the check is that each card renders ITS OWN source
+    // line (and that at least one of each kind is actually on the shelf).
     await page.evaluate(function () { window.__studioShellSetSection("settings"); });
     const packCardSrc = await page.evaluate(function () {
       var out = {};
@@ -5654,9 +5656,11 @@ function serve() {
       });
       return out;
     });
-    ok("SP-0(b): each pack's Settings card renders its source line, and both shipped packs say plainly that their data is synthetic",
-      Object.keys(packCardSrc).length >= 2 &&
-      Object.keys(packCardSrc).every(function (id) { return /^Data: synthetic — generated in the app/.test(packCardSrc[id] || ""); }),
+    ok("SP-0(b): each pack's Settings card renders its own source line — the synthetic packs say plainly that their data is made up, and the real-data pack names its source, licence and retrieval date",
+      Object.keys(packCardSrc).length >= 3 &&
+      Object.keys(packCardSrc).every(function (id) { return packCardSrc[id] === packSource.lines[id] && /^Data: /.test(packCardSrc[id] || ""); }) &&
+      Object.keys(packCardSrc).some(function (id) { return /^Data: synthetic — generated in the app/.test(packCardSrc[id] || ""); }) &&
+      Object.keys(packCardSrc).some(function (id) { return /^Data: US Census Bureau .* \(Public domain \(U\.S\. Government work\)\), retrieved \d{4}-\d{2}-\d{2}$/.test(packCardSrc[id] || ""); }),
       JSON.stringify(packCardSrc));
 
     // A pack carrying somebody else's data has to be credited where the numbers are
@@ -5720,6 +5724,80 @@ function serve() {
         !!docs && /≤150 KB of CSV per pack/.test(docs) && overBudget.length === 0,
         "over budget: " + (overBudget.join(", ") || "none"));
     })();
+
+    // ---- SP-1 (a): the first REAL-data pack, end to end -------------------------
+    // The SP-0 conformance loop above already covers the registry shape, the folder
+    // and the uninstall sweep for every pack. What is new here is the path SP-1 had to
+    // build: install() can only seed the connection, because the rows live in committed
+    // CSV that has to be READ — so the datasets, the job and the job's pre-materialized
+    // output arrive from an async ensure-function. This drives that path and checks the
+    // things a synthetic pack never had to prove: the CSV reaches the workspace, the
+    // JOIN actually matched (the pack's whole point is two Census programs meeting on
+    // county FIPS), the derived index is arithmetic and not nulls, the pre-materialized
+    // output equals what re-running the job's own steps produces, and Remove takes the
+    // async rows back with everything else.
+    const mc = await page.evaluate(async function () {
+      var W = Studio.Workspace, ID = "marketcoverage", was = Studio.demoPackInstalled(ID);
+      if (was) Studio.removeDemoPack(ID);
+      var out = { cleanBefore: W.all("datasets").filter(function (r) { return r.demoPackId === ID; }).length === 0 };
+      Studio.installDemoPack(ID);
+      out.afterInstallSync = {
+        connections: W.all("connections").filter(function (r) { return r.demoPackId === ID; }).length,
+        datasets: W.all("datasets").filter(function (r) { return r.demoPackId === ID; }).length
+      };
+      await Studio.ensurePackDataMaterialized(ID);
+      function rows(t) { return W.all(t).filter(function (r) { return r.demoPackId === ID; }); }
+      var dsets = rows("datasets"), jobs = rows("jobs");
+      out.counts = { connections: rows("connections").length, datasets: dsets.length, jobs: jobs.length };
+      out.allFoldered = rows("connections").concat(dsets, jobs).every(function (r) { return r.folder === "Market Coverage"; });
+      // idempotent: a second ensure must not duplicate a thing
+      await Studio.ensurePackDataMaterialized(ID);
+      out.stillOne = rows("datasets").length === dsets.length && rows("jobs").length === jobs.length;
+
+      var job = jobs[0];
+      var outputDs = dsets.filter(function (d) { return d.id === job.outputDatasetId; })[0];
+      out.hasOutput = !!outputDs && (outputDs.tags || []).indexOf("job-output") >= 0;
+      var lines = String((outputDs || {}).content || "").trim().split("\n");
+      out.outputCols = lines[0];
+      out.outputRows = lines.length - 1;
+      // the join matched: every output row carries a demographics column AND an
+      // establishments column, and the derived rate is a finite number
+      var head = lines[0].split(",");
+      var first = (lines[1] || "").split(",");
+      function val(col) { var i = head.indexOf(col); return i < 0 ? null : first[i]; }
+      out.joined = head.indexOf("population") >= 0 && head.indexOf("food_services") >= 0 && head.indexOf("county") >= 0;
+      out.derived = ["residents_per_10k", "restaurants_per_10k", "grocers_per_10k"].every(function (c) { return head.indexOf(c) >= 0; });
+      var rate = Number(val("restaurants_per_10k"));
+      out.rateIsANumber = isFinite(rate) && rate > 0;
+      out.rateChecks = Math.abs(rate - (Number(val("food_services")) / (Number(val("population")) / 10000))) < 1e-9;
+      // no null column: a mis-keyed join would still "work" and produce a column of nulls
+      out.nullFreeSample = lines.slice(1, 200).every(function (l) { var f = l.split(","); return f[head.indexOf("population")] !== "" && f[head.indexOf("restaurants_per_10k")] !== ""; });
+
+      // The seeded output is a PROMISE about what a Run will produce. Kept honest by
+      // reproducing the live path here — the file adapter parses the same two datasets
+      // out of the workspace, the async engine runs the job's own steps over them, and
+      // the CSV that falls out has to be the bytes already sitting in the output row.
+      var srcRes = await Studio.fileSource.queryData({}, W.get("datasets", job.sourceDatasetId));
+      var joinStep = (job.steps || []).filter(function (s) { return s.op === "join"; })[0];
+      var rightRes = await Studio.fileSource.queryData({}, W.get("datasets", joinStep.datasetId));
+      var ctx = { datasets: {} };
+      ctx.datasets[joinStep.datasetId] = { columns: rightRes.columns, rows: rightRes.rows };
+      var live = await Studio.runJobStepsAsync({ columns: srcRes.columns, rows: srcRes.rows }, job.steps, ctx);
+      out.rerunError = live.error || "";
+      out.rerunReproduces = !live.error && Studio.rowsToCsv(live.columns, live.rows) === outputDs.content;
+
+      Studio.removeDemoPack(ID);
+      out.removedClean = ["connections", "datasets", "jobs"].every(function (t) { return rows(t).length === 0; }) && !Studio.demoPackInstalled(ID);
+      if (was) { Studio.installDemoPack(ID); await Studio.ensurePackDataMaterialized(ID); }
+      out.restored = Studio.demoPackInstalled(ID) === was;
+      return out;
+    });
+    ok("SP-1(a): the Market Coverage pack materializes its committed Census CSV — install seeds the connection, the ensure-function adds both datasets plus the join job and its pre-materialized output, the FIPS join matched (demographics and establishment columns in one row), the saturation index is real arithmetic, re-running the job through the live adapter+engine path reproduces the pre-materialized output byte for byte, a second ensure changes nothing, and Remove sweeps the async rows too",
+      mc.cleanBefore && mc.afterInstallSync.connections === 1 && mc.afterInstallSync.datasets === 0 &&
+      mc.counts.connections === 1 && mc.counts.datasets === 3 && mc.counts.jobs === 1 &&
+      mc.allFoldered && mc.stillOne && mc.hasOutput && mc.outputRows > 1500 &&
+      mc.joined && mc.derived && mc.rateIsANumber && mc.rateChecks && mc.nullFreeSample &&
+      mc.rerunReproduces && mc.removedClean && mc.restored, JSON.stringify(mc));
 
     // CONS-1: the three CTIC/OpTIS reference dashboards — spec shapes match the
     // reference visuals (diverging change map, real provider colors, real CRD

@@ -79,6 +79,42 @@
         Studio.featureConservationGeo();
       }
     },
+    // SP-1: the first pack that carries REAL data — US Census, public domain, committed
+    // as CSV under data/packs/marketcoverage/ by tools/pack-extract/marketcoverage.mjs
+    // (docs/PACKS.md is the contract). Slice (a) ships the data foundation: the
+    // connection, the two datasets, and the join job that turns them into a saturation
+    // index. Its dashboards and Views are slices (b) and (c) — and the swap into
+    // DEFAULT_INSTALLED waits for them, because a pack that installs by default and
+    // shows a new visitor no dashboards is worse than the one it would replace.
+    marketcoverage: {
+      id: "marketcoverage",
+      kind: "workspace",
+      folder: "Market Coverage",
+      name: "Market Coverage — where a category is under-served",
+      tagline: "2 Census datasets · 1,813 counties · a saturation-index join job — real public data, embedded",
+      blurb: "2 US Census datasets covering 1,813 counties — who lives there (population, households, " +
+        "median age, median household income, education) and the businesses already trading there " +
+        "(all industries, restaurants and bars, grocers) — plus the prep job that joins them into a " +
+        "per-10,000-residents saturation index. The data is real and embedded: nothing to connect.",
+      source: {
+        kind: "public",
+        name: "US Census Bureau — County Business Patterns and American Community Survey",
+        url: "https://www.census.gov/programs-surveys/cbp.html",
+        licence: "Public domain (U.S. Government work)",
+        retrieved: "2026-08-09"
+      },
+      // No `seeds`: install() writes the connection synchronously, and the datasets and
+      // job land from the CSV a moment later (see Studio.ensurePackDataMaterialized) —
+      // the same reason datamanagement declares none. The SP-0 conformance loop checks
+      // declared counts against the installer, so declaring what install() cannot write
+      // in its own turn would be a false claim, not a stricter test.
+      install: function () { installMarketCoverageConnection(); },
+      data: {
+        files: ["county-demographics.csv", "county-establishments.csv"],
+        seed: function (csv) { seedMarketCoverageData(csv); }
+      },
+      afterInstall: function () { Studio.ensurePackDataMaterialized("marketcoverage"); }
+    },
     // LF2(c)/LF16: the pre-existing generic showcase gallery (governance, platform ops,
     // delivery, finance, marketing, reliability, compliance, feature tour) folded into a
     // toggleable pack the same way Conservation Insight is one — kind:"examples" (below)
@@ -706,6 +742,136 @@
     return rows.join("\n");
   }
 
+  /* ---- SP-1 "Market Coverage" -------------------------------------------------------
+     The pack's question: where is a category under-represented versus the people who
+     live there and the businesses already trading there? The two halves come from two
+     different Census programs (ACS demographics, CBP establishment counts), which is
+     precisely why they ship as two datasets joined by a JOB rather than one pre-joined
+     table — the join and the index derived from it ARE the data-prep story.
+
+     The rows are read from committed CSV, so everything below the connection is written
+     by seedMarketCoverageData once Studio.ensurePackDataMaterialized has the bytes. */
+  var MC_FOLDER = "Market Coverage";
+  var MC_DEMOGRAPHICS = "county-demographics.csv";
+  var MC_ESTABLISHMENTS = "county-establishments.csv";
+
+  function installMarketCoverageConnection() {
+    Studio.Workspace.put("connections", {
+      name: "US Census — embedded extracts", adapter: "file", cfg: {},
+      desc: "County Business Patterns and the American Community Survey, extracted by " +
+        "tools/pack-extract/marketcoverage.mjs and read from files in your browser.",
+      folder: MC_FOLDER, demoPackId: "marketcoverage"
+    });
+  }
+  // The pack's own connection, however install left it (the row is looked up rather than
+  // threaded through, because install() and the seed run in different turns).
+  function marketCoverageConnection() {
+    return Studio.Workspace.all("connections").filter(function (r) { return r.demoPackId === "marketcoverage"; })[0] ||
+      Studio.Workspace.put("connections", { name: "US Census — embedded extracts", adapter: "file", cfg: {}, folder: MC_FOLDER, demoPackId: "marketcoverage" });
+  }
+
+  // The job's four steps, as a fresh array each call — the same definition seeds the job
+  // row AND pre-computes its output below, so the two can never describe different work.
+  function marketCoverageSteps(demographicsDatasetId) {
+    return [
+      // 1. the join the pack exists to show: establishments ⋈ demographics, on county FIPS
+      { op: "join", datasetId: demographicsDatasetId, leftCol: "fips", rightCol: "fips", type: "inner" },
+      // 2-4. the saturation index. Population is divided down to ten-thousands FIRST so the
+      // two rates that follow are plain divisions and every intermediate column is a
+      // number a reader can name, rather than a scratch value with no meaning.
+      { op: "derive", outCol: "residents_per_10k", a: { col: "population" }, operator: "/", b: { value: 10000 } },
+      { op: "derive", outCol: "restaurants_per_10k", a: { col: "food_services" }, operator: "/", b: { col: "residents_per_10k" } },
+      { op: "derive", outCol: "grocers_per_10k", a: { col: "grocery" }, operator: "/", b: { col: "residents_per_10k" } }
+    ];
+  }
+
+  // The pack's CSVs are written by writePack()'s toCsv, which quotes only when a value
+  // needs it — but "only when needed" is still sometimes, so this parses quotes properly
+  // rather than assuming an extract will never produce one.
+  //
+  // It also has to coerce numeric-looking cells exactly the way the file adapter does
+  // (app/sources/localfile.js typeCell), because these rows are used to PRE-COMPUTE what
+  // running the job will later produce from those same files. Without the coercion the
+  // two disagree on the one column where it shows: `fips` is "01001" as text and 1001 as
+  // a number, so a Run would silently rewrite every Alabama county's key and the seeded
+  // output would stop matching the job that owns it. (The choropleth is unbothered
+  // either way — geoNormalizeId zero-pads a 4-digit county id back to five.)
+  function typePackCell(s) {
+    if (s === "") return "";
+    return /^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(s) ? Number(s) : s;
+  }
+  function parsePackCsv(text) {
+    var rows = [], row = [], cell = "", quoted = false, i = 0, s = String(text || "").replace(/\r\n?/g, "\n");
+    function endCell() { row.push(cell); cell = ""; }
+    function endRow() { endCell(); rows.push(row); row = []; }
+    for (; i < s.length; i++) {
+      var c = s[i];
+      if (quoted) {
+        if (c === '"') { if (s[i + 1] === '"') { cell += '"'; i++; } else quoted = false; }
+        else cell += c;
+      } else if (c === '"') quoted = true;
+      else if (c === ",") endCell();
+      else if (c === "\n") endRow();
+      else cell += c;
+    }
+    if (cell.length || row.length) endRow();
+    var columns = rows.shift() || [];
+    return {
+      columns: columns,
+      rows: rows.filter(function (r) { return r.length === columns.length; })
+        .map(function (r) { return r.map(typePackCell); })
+    };
+  }
+
+  function seedMarketCoverageData(csv) {
+    var id = "marketcoverage", W = Studio.Workspace;
+    var conn = marketCoverageConnection();
+    var tags = ["demo", "census", "geo"];
+
+    var demographicsDs = W.put("datasets", {
+      name: "County demographics — ACS 5-year (2023)", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: MC_DEMOGRAPHICS,
+      content: csv[MC_DEMOGRAPHICS],
+      columns: ["fips", "county", "state", "population", "households", "median_age", "median_income", "bachelors_pct"],
+      folder: MC_FOLDER, demoPackId: id, tags: tags
+    });
+    var establishmentsDs = W.put("datasets", {
+      name: "County establishments — CBP (2023)", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: MC_ESTABLISHMENTS,
+      content: csv[MC_ESTABLISHMENTS],
+      columns: ["fips", "establishments", "food_services", "grocery"],
+      folder: MC_FOLDER, demoPackId: id, tags: tags
+    });
+
+    var steps = marketCoverageSteps(demographicsDs.id);
+    // Pre-materialized so the index is there to chart before anyone clicks Run — and
+    // computed by running the job's OWN steps through the engine rather than a hand-kept
+    // second copy of the arithmetic, so a Run rewrites this dataset with identical
+    // numbers instead of quietly correcting it. Seeded as a pack-tagged, foldered row
+    // (rather than left to the job runner's untagged auto-create) so Remove sweeps it.
+    var left = parsePackCsv(csv[MC_ESTABLISHMENTS]);
+    var right = parsePackCsv(csv[MC_DEMOGRAPHICS]);
+    var ctx = { datasets: {} };
+    ctx.datasets[demographicsDs.id] = right;
+    var out = Studio.runJobSteps(left, steps, ctx);
+    var outputName = "County market coverage — saturation index (job output)";
+    var outputDs = W.put("datasets", {
+      name: outputName, connectionId: conn.id,
+      kind: "file", format: "csv", fileName: "county_market_coverage_saturation_index.csv",
+      content: out.error ? "" : Studio.rowsToCsv(out.columns, out.rows),
+      columns: (out.columns || []).slice(),
+      folder: MC_FOLDER, demoPackId: id, tags: tags.concat(["job-output"])
+    });
+
+    W.put("jobs", {
+      name: "Join demographics and derive the saturation index",
+      sourceDatasetId: establishmentsDs.id,
+      outputDatasetId: outputDs.id, outputName: outputName,
+      steps: steps,
+      folder: MC_FOLDER, demoPackId: id
+    });
+  }
+
   // SP-0: registry-driven. This function knows about no pack in particular — an entry
   // that seeds a workspace supplies `install`; one that only gates gallery visibility
   // ("examples" kind, e.g. datamanagement) supplies neither hook and just records the
@@ -716,6 +882,57 @@
     if (p.install) p.install();
     setInstalledIds(installedIds().concat([id]));
     if (p.afterInstall) p.afterInstall();
+  };
+
+  // ---- SP-1: real-data packs materialize their CSV asynchronously ------------------
+  // A synthetic pack computes its rows in `install()` and is finished before the
+  // function returns. A pack whose data is COMMITTED CSV (docs/PACKS.md) cannot be:
+  // the bytes live in `data/packs/<id>/` and have to be read. So the shape mirrors the
+  // one `datamanagement` already uses for its example dashboards — `install()` seeds
+  // what it can synchronously, and the rest lands a moment later through an idempotent
+  // ensure-function that any surface may call again.
+  //
+  // Registry-driven, per SP-0: an entry opts in with `data: { files: [...], seed: fn }`
+  // and this function knows nothing else about it. `seed` receives the file texts keyed
+  // by name and writes the workspace rows.
+  //
+  // Three properties it has to hold, all learned from ensurePackExamplesMaterialized:
+  //   * IDEMPOTENT — re-running never duplicates rows (it no-ops once the pack owns
+  //     datasets), so boot, install and a manual retry are all safe.
+  //   * RACE-SAFE — the installed flag is re-checked AFTER the fetch resolves. Without
+  //     that, a pack installed and removed inside one turn (which the SP-0 conformance
+  //     loop does to every registered pack) would have its rows land after the removal
+  //     swept, leaving orphans tagged to an uninstalled pack.
+  //   * QUIET ON FAILURE — a missing file leaves the pack installed but dataless rather
+  //     than throwing into whatever clicked install; the next call heals it. The CSVs
+  //     are in sw.js's precache list, so this survives offline after the first visit.
+  Studio.ensurePackDataMaterialized = function (id) {
+    var p = Studio.DEMO_PACKS[id];
+    if (!p || !p.data || !p.data.seed) return Promise.resolve(false);
+    if (!Studio.demoPackInstalled(id)) return Promise.resolve(false);
+    if (Studio.Workspace.all("datasets").some(function (r) { return r.demoPackId === id; })) return Promise.resolve(false);
+    var files = p.data.files || [];
+    return Promise.all(files.map(function (name) {
+      return fetch("data/packs/" + id + "/" + name).then(function (r) {
+        if (!r.ok) throw new Error("data/packs/" + id + "/" + name + " — HTTP " + r.status);
+        return r.text();
+      });
+    })).then(function (texts) {
+      // Re-checked post-fetch: install state can have changed while we were reading.
+      if (!Studio.demoPackInstalled(id)) return false;
+      if (Studio.Workspace.all("datasets").some(function (r) { return r.demoPackId === id; })) return false;
+      var byName = {};
+      files.forEach(function (name, i) { byName[name] = texts[i]; });
+      p.data.seed(byName);
+      return true;
+    }).catch(function () { return false; });
+  };
+  // The boot heal: every installed pack that ships data gets one chance per load to
+  // finish materializing. Registry-driven — no module outside this file names a pack.
+  Studio.ensureAllPackDataMaterialized = function () {
+    return Promise.all(Object.keys(Studio.DEMO_PACKS).map(function (id) {
+      return Studio.ensurePackDataMaterialized(id);
+    }));
   };
 
   // PACK-FEATURED (Kevin, 2026-07-31): "this should be automatically made
