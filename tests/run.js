@@ -7301,12 +7301,22 @@ function serve() {
       await window.__studioSeedDefaultPackExamples();
       var afterDelete = W.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; }).length;
       var resurrected = W.all("dashboards").some(function (r) { return r.sourceFile === victimFile; });
-      return { before: before, after: after, stamped: stamped, afterDelete: afterDelete, resurrected: resurrected };
+      // Put the workspace back the way this check found it: the deletion above is the
+      // POINT of the second assertion, but leaving it behind would hand every later check a
+      // pack that is quietly one dashboard short — which is exactly what LF16's own count
+      // reads a few hundred checks downstream.
+      W.setMeta("packExamplesSeeded_datamanagement", "");
+      await window.__studioSeedDefaultPackExamples();
+      var restored = W.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; }).length;
+      return { before: before, after: after, stamped: stamped, afterDelete: afterDelete,
+               resurrected: resurrected, restored: restored };
     });
     ok("N39: a default-installed examples pack materializes its dashboards with no install click — the case a fresh workspace is always in",
       n39.before === 0 && n39.after === 12 && n39.stamped, JSON.stringify(n39));
     ok("N39: seeded ONCE — a showcase dashboard you delete stays deleted instead of returning on the next boot",
       n39.afterDelete === 11 && !n39.resurrected, JSON.stringify(n39));
+    ok("N39: and this check leaves the pack whole again, so nothing downstream inherits its deletion",
+      n39.restored === 12, JSON.stringify(n39));
 
     // Kevin (2026-07-30): pack dashboards lead with their OWN name and install into
     // a pack folder — a grid of "Conservation Insight — …" cards read as identical rows.
