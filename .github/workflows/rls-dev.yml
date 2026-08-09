@@ -18,6 +18,9 @@ name: RLS (dev database)
 # supabase-provision.yml) are deliberately NOT referenced here — nothing in this
 # workflow can reach the production database.
 #
+# WHICH REF. The workflow file must live on main to be dispatchable at all, but
+# it checks out `dev` for the code under test — see the checkout step's comment.
+#
 # NOT A GATE (yet). Dispatch + nightly only. It talks to a live third party, so
 # a Supabase blip must never be able to redden a PR — the same reasoning that
 # keeps deploy ungated (STATUS.md "CI / deploy": a hard needs: gate once froze
@@ -33,6 +36,10 @@ name: RLS (dev database)
 on:
   workflow_dispatch:
     inputs:
+      ref:
+        description: 'Branch whose files to test (default: dev)'
+        required: false
+        default: 'dev'
       db_host:
         description: 'Override the pooler host (blank = aws-0-ca-central-1.pooler.supabase.com, the ca-central-1 default)'
         required: false
@@ -47,7 +54,24 @@ jobs:
   rls:
     runs-on: ubuntu-latest
     steps:
+      # Check out DEV, not the branch this workflow is registered from. GitHub
+      # only registers workflow_dispatch/schedule triggers on the DEFAULT branch
+      # (main), but main lags dev by design under the promotion pipeline — it did
+      # not even carry tests/rls.mjs when this first ran, which is exactly how
+      # this was found. The files under test (tests/rls.mjs, tools/*.sql,
+      # supabase/functions/polecat-admin/sql.ts) must come from the branch whose
+      # database this is: dev.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || 'dev' }}
+
+      - name: Report what is actually being tested
+        run: |
+          echo "Testing ref: ${{ github.event.inputs.ref || 'dev' }} @ $(git rev-parse --short HEAD)"
+          if [ ! -f tests/rls.mjs ]; then
+            echo "::error::tests/rls.mjs is missing on this ref — nothing to run."
+            exit 1
+          fi
 
       - uses: actions/setup-node@v4
         with:
