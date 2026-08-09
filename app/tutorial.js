@@ -185,6 +185,20 @@
       if (row && window.__studioOpenRecent) window.__studioOpenRecent(row.id);
     } catch (e) {}
   }
+  // SP-1(c): the same lookup for Market Coverage, but BY SPEC NAME rather than "the
+  // pack's first dashboard" — this pack seeds three and the tour walks a particular one
+  // (the whitespace hero). Row ids are workspace-generated at install time; only the
+  // spec's own name is the pack's literal string (see demopacks.js MC_DASHBOARDS).
+  function openMarketCoverageDashboard() {
+    try {
+      var ws = Studio.Workspace;
+      var row = ws && ws.all("dashboards").filter(function (r) {
+        return r.demoPackId === "marketcoverage" && (r.name === "marketcoverage-whitespace" ||
+          (r.spec && r.spec.name) === "marketcoverage-whitespace");
+      })[0];
+      if (row && window.__studioOpenRecent) window.__studioOpenRecent(row.id);
+    } catch (e) {}
+  }
 
   /* ---------- tour definitions ----------
      target: CSS selector (null → centered card, no spotlight)
@@ -603,6 +617,57 @@
           last: true
         }
       ]
+    },
+    marketcoverage: {
+      label: "Market Coverage pack", ic: "globe", tint: "--brand",
+      blurb: "A guided look at the pack built from real US Census data — the whitespace maps, the Views pinned beside them, and what the numbers do and do not prove.",
+      steps: [
+        {
+          t: "Your Market Coverage pack, guided",
+          h: "This is the first pack whose numbers are <b>real</b>: 1,813 US counties of US Census data, embedded in the app rather than fetched. Installing it seeded a connection, two datasets, a prep job that joins them into a per-10,000-residents saturation index, three dashboards, and four <b>Views</b> pinned to Home. This short tour walks the question they all ask.",
+          sub: "You can reopen this tour any time from ⌘K → Interactive tutorial.",
+          target: null,
+          before: function () { goSection("home"); }
+        },
+        {
+          t: "1 · Four Views, live on Home",
+          h: "The pack pins four <b>Views</b> — restaurants and bars per 10,000 residents, median household income on the same geography, the two plotted against each other, and the shortlist that falls out of them. Each is a live chart over the pack's own job output, not a thumbnail.",
+          sub: "Click a card to open it in the View Builder that made it — the shelves, the filters and the map scale are all still there to change.",
+          target: ".home-analyses",
+          pos: "bottom",
+          before: function () { goSection("home"); }
+        },
+        {
+          t: "2 · Where the restaurants already are",
+          h: "The hero map: County Business Patterns establishments in NAICS 722, divided by the American Community Survey's population in ten-thousands. Darker means more places to eat for the people who actually live there.",
+          sub: "Counties under 20,000 residents are not in the extract — a per-10,000 rate over a village is noise.",
+          target: '[data-panel-id="pmw_map"]',
+          pos: "bottom",
+          inPreview: true,
+          before: openMarketCoverageDashboard
+        },
+        {
+          t: "3 · The two halves, in one picture",
+          h: "A rate on its own does not carry the story, so the quadrant pairs it with income: counties of 250,000+ residents, crosshairs on the national county medians. Bottom right is the whitespace — households that can afford to eat out, without the restaurants to do it in.",
+          target: '[data-panel-id="pmw_quad"]',
+          pos: "top",
+          inPreview: true
+        },
+        {
+          t: "4 · What it does NOT prove",
+          h: "Every pack that ships real data ships this panel too. A low rate can mean an under-served market — or a county whose residents eat in the next county over, or one restaurant covering a lot of ground. The method note says so on the dashboard itself, next to the numbers, rather than in a footnote nobody opens.",
+          target: '[data-panel-id="pmw_note"]',
+          pos: "top",
+          inPreview: true
+        },
+        {
+          t: "That's the whitespace question",
+          h: "Two more dashboards sit in the <b>Market Coverage</b> folder under Dashboards: <b>Who Lives There</b> (income, age and education across the same 1,813 counties, plus the scatter asking whether income predicts supply at all) and <b>The Whitespace Shortlist</b> (the counties clearing both bars, as a list you could hand to someone).<br><br>The shortlist's two rules are not a stored answer — they are filters on its View, re-run over the job's output every time it loads. Open it and move them.",
+          sub: "⌘K → Interactive tutorial brings you back here any time.",
+          target: null,
+          last: true
+        }
+      ]
     }
   };
   // LF40 (overview tour, pack-aware engine): mirrors welcome.js's computeSteps() — the
@@ -639,12 +704,13 @@
   function tourSteps(key) { return key === "overview" ? computeOverviewSteps() : TOURS[key].steps; }
   T.computeOverviewStepTitles = function () { return computeOverviewSteps().map(function (s) { return s.t; }); };
 
-  var TOUR_ORDER = ["overview", "quick", "build", "jobs", "connect", "conservation"];
+  var TOUR_ORDER = ["overview", "quick", "build", "jobs", "connect", "conservation", "marketcoverage"];
   // Some tours only make sense once a sample pack is installed — gate their
   // CHOOSER visibility here (openTour(key) still works directly regardless,
   // e.g. a future "take this pack's tour" link from Settings' pack card).
   var TOUR_GATES = {
-    conservation: function () { return !!(window.Studio && Studio.demoPackInstalled && Studio.demoPackInstalled("conservation")); }
+    conservation: function () { return !!(window.Studio && Studio.demoPackInstalled && Studio.demoPackInstalled("conservation")); },
+    marketcoverage: function () { return !!(window.Studio && Studio.demoPackInstalled && Studio.demoPackInstalled("marketcoverage")); }
   };
   function visibleTourKeys() {
     return TOUR_ORDER.filter(function (k) { return !TOUR_GATES[k] || TOUR_GATES[k](); });
@@ -907,7 +973,8 @@
     quick: "Tour complete! Save a View and pin it to Home.",
     jobs: "Tour complete! Try a job on one of your own datasets.",
     connect: "Tour complete! Add a connection, or explore a sample dataset.",
-    conservation: "Tour complete! Try a different Region scale on any map in the Dashboard Builder's Inspector."
+    conservation: "Tour complete! Try a different Region scale on any map in the Dashboard Builder's Inspector.",
+    marketcoverage: "Tour complete! Open the shortlist View and move one of its two rules."
   };
   function finish() {
     try {

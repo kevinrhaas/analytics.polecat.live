@@ -135,6 +135,49 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **SP-1 slice (c1) — the Market Coverage pack pins four Views and gets its own tour (v914, sw v536,
+  2026-08-09, steward; dev branch; est 3pt for the whole pack, (a) 1 + (b) 1 + this 1 = 3 on
+  estimate, with (c2) still to come — so the pack will finish at 4, one over):** the pack had three
+  dashboards and nothing on Home. It now pins four Views there and can walk you through them.
+  - **Four builder-native Views**, in the order Home shows them: restaurants and bars per 10,000
+    residents by county, median household income on the same geography, the two plotted against
+    each other for counties of 250,000+ residents, and the whitespace shortlist as a table. Seeded
+    in REVERSE so the supply map is the newest row and leads Home's newest-first shelf (the
+    CONS-2/CONS-3 convention).
+  - **They are Views, not pictures — which is the whole point of shipping them beside the
+    dashboards.** Each is a real View Builder blob over the pack's own job output, authored the way
+    `bdSave` does it (compute the basis with the pure `Studio.Build.compute`, then
+    `Studio.newPanel` over the resulting columns), so a seeded View and a hand-saved one are the
+    same shape and open in the same editor. Only the basis HEAD is authored: the rows come from
+    `Studio.Build.runBlob` at render time, so the shortlist's two rules are three live filters you
+    can move rather than a stored copy of the answer.
+  - **The choropleths are mapped POSITIONALLY off their basis**, not name-guessed — `bdPanelFor`'s
+    own reason, and it bites here: the measure column is a synthesized `AVG restaurants_per_10k`
+    label and `guessChoroplethCols` can misjudge one. Same for the shortlist table's columns:
+    `newPanel`'s default marks every column after the first numeric, which is wrong for `state`.
+  - **The pack's own 6-stop tour**, gated on install exactly like the Conservation one: the Views on
+    Home → the whitespace map → the income-versus-supply quadrant → the panel that says what the
+    numbers do NOT prove → the two dashboards it did not walk. It ends on the method note on
+    purpose; a pack carrying real Census data should close on its limits, not its claims.
+  - **A boot heal**, paired with slice (b)'s: `Studio.ensureMarketCoverageViews()` runs from
+    `reconcilePackDashboards()`, so a workspace that installed the pack at (a) or (b) picks the
+    Views up on the next boot — no reinstall, nothing saved is touched.
+  - **`docs/PACKS.md` gained the rule this slice discovered twice**: everything downstream of a
+    real-data pack's CSV (dashboards, Views) is authored in the async half and paired with an
+    exported ensure-function, which is what lets a pack grow across slices at all. Plus how to
+    author a pack's Views, and why the basis head is the only part that is seeded.
+  - **Verified:** the full `tests/run.js` in the foreground — **3245 passed, 0 failed** — including
+    four new SP-1(c) checks (the four Views' shape and Home order; `runBlob` returning 1,500+
+    counties per map, past the editor's 200-row display cap, with every shortlist county clearing
+    all three of the View's own filters and the list a real subset; the heal's re-seed +
+    idempotence; the tour registered, chooser-gated, 6 stops, every panel it spotlights one the
+    pack really seeds). Plus the dev gate: `validate.mjs`, `changelog-check.js`, `doc-truth.mjs`
+    and `dev-smoke.mjs` (desktop + 390px, zero pageerrors).
+  - **(c) was SPLIT rather than shipped whole** — the reasoning and the exact remainder are written
+    into the NOW item, not summarised here. Short form: the `DEFAULT_INSTALLED` swap changes what
+    every fresh workspace CONTAINS (a `kind:"workspace"` pack seeds a connection, three datasets, a
+    job, three dashboards and four Views into every workspace the suite boots), and per-PR
+    auto-revert wants that as its own revertible unit.
 - **SP-1 slice (b) — the Market Coverage pack gets its three dashboards (v913, sw v535, 2026-08-09,
   steward; dev branch; est 3pt for the whole pack, (a) took 1 and this took 1 — on estimate):** the
   pack shipped its Census data and its join job last slice with nothing built on top of them. It now
@@ -12005,13 +12048,37 @@
   seed time; every panel reads the job output through the builder's live re-run. It also carried a
   real defect the verification surfaced: a saved View's basis was capped at the EDITOR's 200-row
   display limit on its way into a dashboard, so a 1,813-county map drew 200 counties. See DONE.
-  **WHAT REMAINS — (c), the last slice:**
+  ~~**WHAT REMAINS — (c), the last slice:**
   **(c) Views + tour + docs/changelog, AND the `DEFAULT_INSTALLED` swap** — `demopacks.js`
   `DEFAULT_INSTALLED = ["datamanagement"]` becomes `["marketcoverage"]`. Deliberately NOT done in
   (a) or (b): a pack that installs by default and shows a new visitor no dashboards is worse than
   the one it replaces — (b) has now closed that objection, so (c) can make the swap. Data
   Management stays installable either way. **Consider also whether the whitespace dashboard should
-  be `featured` on Home when the pack becomes the default (nothing in (b) touches featuring).**
+  be `featured` on Home when the pack becomes the default (nothing in (b) touches featuring).**~~
+  ✓ **SLICE (c1) IS SHIPPED — the Views, the tour and the docs: v914, sw v536 (2026-08-09,
+  steward — see DONE).** Four pinned builder-native Views over the pack's own job output (the
+  supply map, the income map, the two plotted against each other, the shortlist), the pack's own
+  6-stop guided tour gated on install, a boot heal so an install predating them picks them up,
+  and `docs/PACKS.md`'s rule for how a real-data pack authors everything downstream of its CSV.
+  **(c) WAS SPLIT, and here is the reason — it is not scope-shaving.** `docs/BACKLOG.md` §
+  "The cycle every run follows" allows a slice to be split when what remains is stated exactly.
+  The Views/tour/docs half adds behaviour the pack OFFERS; the `DEFAULT_INSTALLED` half changes
+  what every fresh workspace CONTAINS, and those are different blast radii in one PR. Measured
+  before splitting, not assumed: `marketcoverage` is a `kind:"workspace"` pack, so defaulting it
+  seeds a connection, three datasets, a job, three dashboards and four Views into every workspace
+  the suite boots — the ambient counts a good many checks assert against — on top of the four
+  sites that name Data Management as the default outright (`LF16`'s "installed by default",
+  `LF18(d)`'s Home Examples hint, `LF37`'s 8-gated-examples premise, and the Settings card's
+  Remove/Install state). Guard-main auto-revert and the janitor both operate per-PR, so the
+  default swap is worth its own revertible unit rather than a rider on this one.
+  **(c2) — WHAT REMAINS, and it is the whole of it:** `demopacks.js`
+  `DEFAULT_INSTALLED = ["datamanagement"]` becomes `["marketcoverage"]`, plus the suite fallout
+  above, plus the featuring question — **should `marketcoverage-whitespace` be `featured` on Home
+  when the pack becomes the default?** Nothing in (a), (b) or (c1) touches featuring, so today a
+  defaulted pack would give a new visitor four live Views and no hero. The conservation pattern to
+  copy is `Studio.featureConservationGeo()` (features only when the user has featured nothing
+  themselves — an explicit choice always wins). Data Management stays installable either way.
+  Est 1pt.
   The original spec, unchanged, follows.**
   Industry density and whitespace by county: where a chain is under-represented versus the
   population and the businesses already there. **Replaces `datamanagement` in

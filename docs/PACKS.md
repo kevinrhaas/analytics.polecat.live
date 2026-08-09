@@ -71,6 +71,24 @@ Two consequences worth knowing:
 - **Don't declare `seeds` for rows the ensure-function writes.** `seeds` is checked
   against what `install()` produced in its own turn (the SP-0 conformance loop), so
   counting async rows there would be a false claim rather than a stricter test.
+- **Everything downstream of the data is authored in the async half too, and gets a
+  boot heal.** A pack's dashboards and its pinned Views are blobs over its own
+  datasets, so they cannot be written a turn earlier than the data they read: seed
+  them from the same `seed(csv)` call, idempotently BY NAME, and pair each with an
+  exported `Studio.ensure<Pack><Thing>()` that `reconcilePackDashboards()`
+  (app/studio.js) calls at boot. That pairing is what lets a pack grow across
+  slices — a workspace that installed it at slice (a) picks up slice (b)'s
+  dashboards and slice (c)'s Views on the next boot, with no reinstall and no data
+  loss. Return `false` when there is nothing to do, including while the CSV has not
+  materialized yet (the materialize path seeds them itself).
+
+A pack's **Views** are not its dashboards' panels again: a dashboard is read, a View
+is opened and changed. Author them the way `bdSave` does — compute the basis with the
+pure `Studio.Build.compute`, then `Studio.newPanel` over the resulting columns — so a
+seeded View and a hand-saved one are the same shape and open in the same editor. Only
+the basis HEAD is authored; the rows come from `Studio.Build.runBlob` at render time,
+which is what makes a filtered View (a shortlist, say) a live rule you can move rather
+than a stored copy of an answer.
 
 Anything the pack pre-computes from its own CSV — a job's output dataset, say —
 must be produced by running the app's own machinery over it (`Studio.runJobSteps`),

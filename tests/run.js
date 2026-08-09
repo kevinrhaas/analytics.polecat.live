@@ -5950,6 +5950,124 @@ function serve() {
       mcRender.quadSvg > 0 && mcRender.note && !mcRender.err &&
       mcRender.kpiValues.length === 4 && mcRender.kpiValues.every(function (v) { return v && v !== "—" && v !== "0"; }),
       JSON.stringify(mcRender));
+    // ---- SP-1 (c): the four pinned Views, and the pack's own tour ---------------
+    // A dashboard is READ; a View is OPENED and changed. So these checks are about
+    // exactly that difference: the four are hand-saveable View Builder blobs over the
+    // pack's own job output (not Quick-Views snapshots, not blobs pointing somewhere
+    // else), the basis runBlob hands their cards is the WHOLE live one, and the
+    // shortlist's two rules are filters on the View rather than a stored answer.
+    const mcViews = await page.evaluate(async function () {
+      var W = Studio.Workspace;
+      var rows = W.all("analyses").filter(function (a) { return a.demoPackId === "marketcoverage"; });
+      var byName = {}; rows.forEach(function (r) { byName[r.name] = r; });
+      var supply = byName["Market Coverage — restaurants & bars per 10,000 residents"];
+      var demand = byName["Market Coverage — median household income by county"];
+      var both = byName["Market Coverage — income versus restaurant supply"];
+      var list = byName["Market Coverage — the whitespace shortlist"];
+      var outDs = W.all("datasets").filter(function (d) {
+        return d.demoPackId === "marketcoverage" && (d.tags || []).indexOf("job-output") >= 0;
+      })[0];
+      var four = [supply, demand, both, list];
+      var out = {
+        count: rows.length,
+        allFound: four.every(Boolean),
+        allPinned: rows.every(function (r) { return r.pinned === true; }),
+        allFoldered: rows.every(function (r) { return r.folder === "Market Coverage"; }),
+        allBuilderNative: rows.every(function (r) {
+          return !!(r.builder && r.da && r.da.builder && r.chart) &&
+            r.builder.dsKind === "ws" && r.builder.dsId === (outDs || {}).id;
+        }),
+        types: four.map(function (r) { return r && r.chartType; }).join(","),
+        // mapped POSITIONALLY off the basis (the "AVG x" measure label defeats
+        // guessChoroplethCols), and stamped with a real Region scale
+        supplyMap: supply && [supply.chart.map.idCol, supply.chart.map.valueCol].join(">"),
+        supplyHead: supply && supply.da.columns.join(">"),
+        supplyScale: supply && supply.chart.opts.scale,
+        demandFmt: demand && demand.chart.opts.fmt,
+        // newPanel's table default would mark `state` numeric; the declared columns win
+        stateNotNumeric: !!list && !list.chart.map.cols.filter(function (c) { return c.col === "state"; })[0].num,
+        // Home sorts pinned Views newest-first, so the supply map has to lead the shelf
+        firstOnHome: W.all("analyses").filter(function (a) { return a.pinned; })
+          .sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); })
+          .filter(function (a) { return a.demoPackId === "marketcoverage"; })
+          .map(function (a) { return a.name; })[0]
+      };
+      if (!out.allFound) return out;
+      var res = await Promise.all(four.map(function (r) { return Studio.Build.runBlob(r.builder); }));
+      out.rowCounts = res.map(function (x) { return x ? x.rows.length : -1; });
+      var li = res[3], f = {};
+      (list.builder.filters || []).forEach(function (x) { f[x.col] = x; });
+      out.listRule = Object.keys(f).sort().join(",");
+      out.listCols = li ? li.cols.join(",") : "";
+      if (li) {
+        var ci = {}; li.cols.forEach(function (c, i) { ci[c] = i; });
+        out.listObeysBothRules = li.rows.length > 0 && li.rows.every(function (r) {
+          return Number(r[ci.median_income]) >= Number(f.median_income.min) &&
+            Number(r[ci.restaurants_per_10k]) <= Number(f.restaurants_per_10k.max) &&
+            Number(r[ci.population]) >= Number(f.population.min);
+        });
+        // and it really is a SUBSET — the filters do work, they are not decoration
+        out.listIsASubset = li.rows.length < out.rowCounts[0];
+      }
+      return out;
+    });
+    ok("SP-1(c): the pack pins four builder-native Views over its own job output — the supply map, the income map, the two plotted against each other and the shortlist, all pinned and foldered, the choropleths mapped positionally off their basis (not name-guessed) with a real county Region scale, the shortlist's `state` column left non-numeric, and the supply map seeded last so it leads Home's newest-first shelf",
+      mcViews.count === 4 && mcViews.allFound && mcViews.allPinned && mcViews.allFoldered &&
+      mcViews.allBuilderNative && mcViews.types === "choropleth,choropleth,scatter,table" &&
+      mcViews.supplyMap === mcViews.supplyHead && mcViews.supplyScale === "county" &&
+      mcViews.demandFmt === "money" && mcViews.stateNotNumeric &&
+      mcViews.firstOnHome === "Market Coverage — restaurants & bars per 10,000 residents",
+      JSON.stringify(mcViews));
+    ok("SP-1(c): running the four saved blobs returns the LIVE basis, not a stored copy — 1,500+ counties on each map (past the editor's 200-row display cap), a dot per large county on the scatter, and a shortlist that is a real subset in which every county clears all three of the View's own filters",
+      mcViews.rowCounts && mcViews.rowCounts[0] > 1500 && mcViews.rowCounts[1] > 1500 &&
+      mcViews.rowCounts[2] > 100 && mcViews.rowCounts[3] > 0 &&
+      mcViews.listRule === "median_income,population,restaurants_per_10k" &&
+      mcViews.listCols === "county,state,population,median_income,restaurants_per_10k" &&
+      mcViews.listObeysBothRules && mcViews.listIsASubset, JSON.stringify(mcViews));
+
+    // The heal, same shape as the dashboards' one slice earlier: an install that
+    // predates the Views gets them on boot reconcile, and a second run is a no-op.
+    const mcViewHeal = await page.evaluate(function () {
+      var W = Studio.Workspace;
+      W.all("analyses").filter(function (a) { return a.demoPackId === "marketcoverage"; })
+        .forEach(function (a) { W.remove("analyses", a.id, { silent: true }); });
+      W.notify("analyses");
+      var healed = Studio.ensureMarketCoverageViews();
+      var back = W.all("analyses").filter(function (a) { return a.demoPackId === "marketcoverage"; }).length;
+      var again = Studio.ensureMarketCoverageViews();
+      return { healed: healed, back: back, idempotent: again === false };
+    });
+    ok("SP-1(c): the boot heal re-seeds the four Market Coverage Views into an install that predates them and is idempotent on a healthy one",
+      mcViewHeal.healed && mcViewHeal.back === 4 && mcViewHeal.idempotent, JSON.stringify(mcViewHeal));
+
+    // The pack's own tour — gated on the pack the same way the Conservation one is
+    // (J6-10 checks the OFF half, with this pack uninstalled, further down).
+    const mcTour = await page.evaluate(function () {
+      StudioTutorial.open();
+      var choice = document.querySelector('#st-tip .st-choice[data-tour="marketcoverage"]');
+      var out = {
+        visible: !!choice,
+        label: ((choice && choice.querySelector("b")) || {}).textContent,
+        steps: StudioTutorial.stepCount("marketcoverage"),
+        // every spotlight the tour aims at a dashboard panel must be a panel the pack
+        // actually seeds — a tour naming a panel id that no longer exists stalls on a
+        // dead waitFor, which is exactly the class of drift N7's doc-truth checks hunt
+        targets: StudioTutorial.tourSteps("marketcoverage")
+          .map(function (s) { return s.target; }).filter(Boolean)
+      };
+      var hero = Studio.Workspace.all("dashboards").filter(function (r) {
+        return (r.spec && r.spec.name) === "marketcoverage-whitespace";
+      })[0];
+      var ids = ((hero && hero.spec.panels) || []).map(function (p) { return p.id; });
+      out.panelTargetsResolve = out.targets.filter(function (t) { return /data-panel-id/.test(t); })
+        .every(function (t) { return ids.indexOf(t.replace(/^\[data-panel-id="|"\]$/g, "")) >= 0; });
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      return out;
+    });
+    ok("SP-1(c): the Market Coverage tour is registered, appears in the chooser once the pack is installed, walks 6 stops, and every panel it spotlights is a panel the pack really seeds",
+      mcTour.visible && mcTour.label === "Market Coverage pack" && mcTour.steps === 6 &&
+      mcTour.targets.length === 4 && mcTour.panelTargetsResolve, JSON.stringify(mcTour));
+
     // hand the workspace back exactly as the SP-1(b) checks found it
     if (!mcDash.wasInstalled) await page.evaluate(function () { Studio.removeDemoPack("marketcoverage"); });
 
@@ -31596,8 +31714,11 @@ function serve() {
     });
     ok("J6: Escape closes the tutorial (tip, ring, and active flag all cleared)", j6Closed.ok, JSON.stringify(j6Closed));
 
-    // J6-5: tour shapes — six tours (overview leads), quick has 8 steps, build has 6, jobs has 6,
-    // connect has 9, conservation (LF40, pack-gated) has 6. N7 (2026-08-08) added the
+    // J6-5: tour shapes — seven tours (overview leads), quick has 8 steps, build has 6, jobs has 6,
+    // connect has 9, conservation (LF40, pack-gated) has 7, marketcoverage (SP-1(c), pack-gated
+    // the same way) has 6. tourKeys() is the DECLARED order, not the visible one — both pack
+    // tours are in it whether or not their pack is installed; the chooser-gating checks are
+    // J6-10 below. N7 (2026-08-08) added the
     // catalog-toolbar stop to the two catalog tours (jobs 5→6, connect 8→9). Overview's own base is 13, but (LF40)
     // it's ALSO pack-aware, same engine as welcome.js — one step splices in per installed sample
     // pack (datamanagement ships installed by default), so assert against that ambient count
@@ -31606,16 +31727,18 @@ function serve() {
       try {
         var packs = Studio.DEMO_PACKS || {};
         var installedPackCount = Object.keys(packs).filter(function (id) { return Studio.demoPackInstalled(id); }).length;
-        return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build,jobs,connect,conservation" &&
+        return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build,jobs,connect,conservation,marketcoverage" &&
           StudioTutorial.stepCount("overview") === 13 + installedPackCount && StudioTutorial.stepCount("quick") === 8 &&
           StudioTutorial.stepCount("build") === 6 && StudioTutorial.stepCount("jobs") === 6 &&
-          StudioTutorial.stepCount("connect") === 9 && StudioTutorial.stepCount("conservation") === 7,
+          StudioTutorial.stepCount("connect") === 9 && StudioTutorial.stepCount("conservation") === 7 &&
+          StudioTutorial.stepCount("marketcoverage") === 6,
           keys: StudioTutorial.tourKeys().join(","), o: StudioTutorial.stepCount("overview"), installedPackCount: installedPackCount,
           q: StudioTutorial.stepCount("quick"), b: StudioTutorial.stepCount("build"),
-          j: StudioTutorial.stepCount("jobs"), c: StudioTutorial.stepCount("connect"), cv: StudioTutorial.stepCount("conservation") };
+          j: StudioTutorial.stepCount("jobs"), c: StudioTutorial.stepCount("connect"), cv: StudioTutorial.stepCount("conservation"),
+          mc: StudioTutorial.stepCount("marketcoverage") };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("J6: six tours registered — Overview (13-step base incl. the #23 glossary + TOUR-WOW's View Builder stop + N7's Views-catalog stop + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (6 — LF18(b) + N7's catalog-toolbar stop), Connections & Datasets (9 — LF18(b) + N7's catalog-toolbar stop), Conservation Insight pack (7 — LF40, pack-gated; N7 added the pinned-Views stop)", j6Shape.ok, JSON.stringify(j6Shape));
+    ok("J6: seven tours registered — Overview (13-step base incl. the #23 glossary + TOUR-WOW's View Builder stop + N7's Views-catalog stop + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (6 — LF18(b) + N7's catalog-toolbar stop), Connections & Datasets (9 — LF18(b) + N7's catalog-toolbar stop), Conservation Insight pack (7 — LF40, pack-gated; N7 added the pinned-Views stop), Market Coverage pack (6 — SP-1(c), pack-gated the same way)", j6Shape.ok, JSON.stringify(j6Shape));
 
     // #23 (Kevin): the overview tour defines EVERY domain term — a glossary step
     // covers the full list one line each, and the terms missing from the walk
