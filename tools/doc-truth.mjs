@@ -1463,7 +1463,8 @@ ok(`index.html: the #geo list names all ${scaleChoices.length} region scales the
 
 // (b) counts
 const WORD_NUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8,
-  nine: 9, ten: 10, eleven: 11, twelve: 12 };
+  nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+  sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20 };
 const asNumber = (w) => (/^\d+$/.test(w) ? Number(w) : WORD_NUM[w.toLowerCase()]);
 const SCALE_COUNT_CLAIMS = [
   [/(\S+)\s+region scales?\b/gi, scaleChoices.length, "region scales (built-in plus Custom regions)"],
@@ -1795,6 +1796,193 @@ ok(`index.html: the builder copy names what the panel holds ("${mineNoun}")`,
   builderCopy.some((unit) => new RegExp("\\b" + mineNoun + "\\b", "i").test(unit)),
   "the rules above are all satisfiable by saying nothing about the panel — the slide whose " +
   "own alt text promises \"the data and inspector panels\" has to name what is in them");
+
+/* ── 34. Help's "Sample packs" section vs what the packs actually seed ──────
+   N7, and the check-23→Help move — the same one check 15 made after 14, 17 after 16 and
+   28 after 24. Check 23 holds the pack TOUR to the installer; a reader who never takes a
+   tour learns what a pack gave them here, and this section had drifted further than the
+   tour ever did.
+
+   Measured 2026-08-09, before the fix:
+   · **Market Coverage had no entry at all.** The section's own opening sentence names
+     three pack folders, and the list below it had two — the pack SP-1 built over three
+     slices was a loose paragraph above the list rather than an item in it.
+   · **Conservation Insight's dashboard count was wrong in both directions.** It named the
+     featured dashboard and the Watershed Map, said "eight extra showcase dashboards", and
+     closed on "removing the pack takes all NINE dashboards back out" — while the pack
+     seeds SIX into the workspace and materializes EIGHT more from the gated gallery. So
+     the arithmetic in the sentence did not even match the two numbers beside it, and
+     neither matched the app: the CRD map, the OpTIS trends, the provider ensemble and the
+     Metrics wheel were named nowhere on the page.
+   · **It never said what else came with them.** Two connections, eight datasets and the
+     county-to-state rollup job are seeded by the same click, and the section named none
+     of those kinds — a reader was told about charts and not about the data under them.
+
+   Three rules, each off a source that moves with the app:
+   (a) every registered pack has its own item in the list, titled with the FOLDER name the
+       app files its content under (`folder` on the registry entry — the string the reader
+       sees in every catalog);
+   (b) an item must name every KIND its pack's installer seeds. The kinds are derived by
+       walking the call graph from the entry's own `install`/`data.seed` hooks and
+       collecting the workspace tables they write, so a pack that grows a new kind makes
+       this fail rather than going quietly undocumented;
+   (c) every dashboard COUNT the item claims must be one of that pack's real numbers — the
+       dashboards it seeds, the gated gallery examples it materializes, or their sum. A
+       count rule that allowed only the total would forbid the true sentence "eight extra
+       showcase dashboards"; this allows each real number and nothing else.
+   Plus (d): "installed by default" is a claim about `DEFAULT_INSTALLED`, not a description,
+   so it must sit on that pack's item and no other. That one is here for the pack swap
+   SP-1 (c2) is holding — the moment the default moves, this says so. */
+const examplesIndex = (() => {
+  try { return JSON.parse(read("data/examples/index.json")); } catch (e) { return []; }
+})();
+const exampleList = Array.isArray(examplesIndex) ? examplesIndex : (examplesIndex.examples || []);
+
+// The registry entries, brace-walked out of `Studio.DEMO_PACKS` the way chartRegistryKeys()
+// walks Studio.CHARTS — a nested `foo: {` inside an entry can never be read as a pack.
+function braceBlockAt(src, openIdx) {
+  let depth = 0, i = openIdx;
+  for (; i < src.length; i++) {
+    if (src[i] === "{") depth++;
+    else if (src[i] === "}" && --depth === 0) break;
+  }
+  return src.slice(openIdx, i + 1);
+}
+// Every `function name(...) {…}` in demopacks.js, so the call-graph walk below can tell a
+// local helper from a method call on something else.
+const packFnBodies = new Map();
+for (const m of packSrc.matchAll(/\bfunction\s+(\w+)\s*\(/g))
+  packFnBodies.set(m[1], braceBlockAt(packSrc, packSrc.indexOf("{", m.index)));
+// The workspace tables a pack writes, transitively from its own registry hooks. Counts are
+// NOT derivable this way (a single `W.put` inside a forEach seeds four rows), which is why
+// rule (c) counts dashboards by their NAMES instead.
+function seededTables(roots) {
+  const seen = new Set(), tables = new Set(), queue = [...roots];
+  while (queue.length) {
+    const fn = queue.shift();
+    if (seen.has(fn) || !packFnBodies.has(fn)) continue;
+    seen.add(fn);
+    const body = packFnBodies.get(fn);
+    for (const m of body.matchAll(/(?:W|Studio\.Workspace)\.put\("(\w+)"/g)) tables.add(m[1]);
+    for (const m of body.matchAll(/\b(\w+)\s*\(/g)) if (packFnBodies.has(m[1])) queue.push(m[1]);
+  }
+  return [...tables].sort();
+}
+const registryBlock = braceBlockAt(packSrc, packSrc.indexOf("{", packSrc.indexOf("Studio.DEMO_PACKS = {")));
+const packRegistry = [...registryBlock.matchAll(/\n {4}(\w+): \{/g)].map((m) => {
+  const body = braceBlockAt(registryBlock, registryBlock.indexOf("{", m.index + m[0].length - 1));
+  const hooks = [...body.matchAll(/(?:install|seed):\s*function\s*\([^)]*\)\s*\{\s*(\w+)\(/g)].map((x) => x[1]);
+  const declared = +(((body.match(/seeds:\s*\{([^}]*)\}/) || [, ""])[1].match(/dashboards:\s*(\d+)/) || [])[1] || 0);
+  return {
+    id: m[1],
+    folder: (body.match(/folder:\s*"([^"]+)"/) || [, ""])[1],
+    tables: seededTables(hooks),
+    // A seeded dashboard is named `<packId>-<something>` by every installer in the file —
+    // the same convention check 23 already reads for the conservation pack.
+    seeded: new Set([...packSrc.matchAll(new RegExp(`name:\\s*"(${m[1]}-[\\w-]+)"`, "g"))].map((x) => x[1])).size,
+    declared,
+    examples: exampleList.filter((e) => e.demoPackId === m[1]).length,
+  };
+});
+const defaultInstalled = [...((packSrc.match(/DEFAULT_INSTALLED = \[([^\]]*)\]/) || [, ""])[1])
+  .matchAll(/"(\w+)"/g)].map((m) => m[1]);
+ok(`app/demopacks.js: the pack registry parsed for check 34 (${
+  packRegistry.map((p) => `${p.id}: ${p.seeded}+${p.examples} dashboards, seeds ${p.tables.join("/") || "nothing"}`).join(" · ") || "none"})`,
+  packRegistry.length >= 2 && packRegistry.every((p) => p.folder) &&
+    packRegistry.some((p) => p.tables.length) && defaultInstalled.length > 0 &&
+    packRegistry.every((p) => p.tables.every((t) => PACK_TABLE_NOUN[t])),
+  `default-installed: ${defaultInstalled.join(", ") || "(none)"}\n      ` +
+  "an unmapped table means a pack seeds a KIND nobody has given a user-facing noun — add it " +
+  "to PACK_TABLE_NOUN (check 23 shares this vocabulary)");
+// Cross-check the two dashboard derivations wherever a pack declares `seeds` — the count
+// this check spends and the count the SP-0 conformance loop already holds to the installer.
+const declaredGaps = packRegistry.filter((p) => p.declared && p.declared !== p.seeded)
+  .map((p) => `${p.id}: registry declares ${p.declared}, ${p.seeded} dashboard name(s) in the file`);
+ok("app/demopacks.js: every declared `seeds.dashboards` matches the dashboards the file actually names",
+  !declaredGaps.length,
+  `${declaredGaps.join("\n      ")}\n      ` +
+  "these are two independent readings of the same fact — when they disagree, one of them is what Help was told");
+
+const helpPacksSection = (help.match(/<h2>Sample packs<\/h2>([\s\S]*?)<h2>/) || [, ""])[1];
+const helpPackItems = [...helpPacksSection.matchAll(/<li>([\s\S]*?)<\/li>/g)].map((m) => m[1]);
+const strongTitles = (item) => [...item.matchAll(/<strong>([^<]*)<\/strong>/g)].map((m) => m[1]);
+const itemFor = (pack) => helpPackItems.filter((item) =>
+  strongTitles(item).some((t) => t.includes(pack.folder)));
+// Rules (b)–(d) read PROSE, so the markup goes and the wrapping with it — "installed\n by
+// default" is the same sentence as "installed by default", and `six <strong>dashboards`
+// is the same claim as `six dashboards`.
+const itemProse = (item) => item.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+ok(`docs/index.html: the Sample packs list parsed for check 34 (${helpPackItems.length} item(s))`,
+  !!helpPacksSection && helpPackItems.length > 0,
+  "the <h2>Sample packs</h2> section and its <ul> are what every rule below reads");
+
+// (a) one item per pack, titled with the folder the reader sees
+const missingItems = packRegistry.filter((p) => itemFor(p).length !== 1)
+  .map((p) => `${p.id} ("${p.folder}"): ${itemFor(p).length} item(s) in the list`);
+ok(`docs/index.html: every sample pack has its own entry in Help (${packRegistry.map((p) => p.folder).join(", ")})`,
+  !missingItems.length,
+  `${missingItems.join("\n      ")}\n      ` +
+  "a pack the app offers and Help does not list is a pack a reader installs blind — title the " +
+  "entry with the pack's `folder`, the name they will see in every catalog");
+
+// (b) an entry names every KIND its installer seeds
+const kindGaps = [];
+for (const p of packRegistry) {
+  const item = itemFor(p)[0] && itemProse(itemFor(p)[0]);
+  if (!item) continue;
+  for (const t of p.tables) {
+    const noun = PACK_TABLE_NOUN[t];
+    // "View" is a proper noun (LF57) and is matched as one — check 23's rule.
+    if (!new RegExp(`\\b${noun}s?\\b`, /^[A-Z]/.test(noun) ? "" : "i").test(item))
+      kindGaps.push(`"${p.folder}" seeds ${t} but its Help entry never says "${noun}"`);
+  }
+}
+ok("docs/index.html: every pack entry names every kind of thing its installer seeds",
+  !kindGaps.length,
+  `${kindGaps.join("\n      ")}\n      ` +
+  "the entry is where a reader learns what one click gave them — a pack that seeds connections, " +
+  "datasets and a job while Help talks only about dashboards under-sells its own data story");
+
+// (c) every dashboard count is one of the pack's real numbers
+const countClaimGaps = [];
+let packCountClaims = 0;
+for (const p of packRegistry) {
+  const item = itemFor(p)[0] && itemProse(itemFor(p)[0]);
+  if (!item) continue;
+  const real = [...new Set([p.seeded, p.examples, p.seeded + p.examples].filter(Boolean))];
+  // The number belongs to the noun, not to a fixed slot before it: "six dashboards",
+  // "eight extra showcase dashboards" and "all fourteen dashboards" are the three shapes
+  // this section actually uses, so take any number in the three words leading up to it.
+  for (const m of item.matchAll(/((?:[\w-]+ ){1,3})dashboards\b/gi)) {
+    const n = m[1].trim().split(" ").map(asNumber).find((x) => x !== undefined);
+    if (n === undefined) continue;
+    packCountClaims++;
+    if (!real.includes(n))
+      countClaimGaps.push(`"${p.folder}": "…${m[0].trim()}" — the pack seeds ` +
+        `${p.seeded} and materializes ${p.examples} from the gallery (${real.join(" / ")})`);
+  }
+}
+ok(`docs/index.html: every pack's dashboard count is a number the pack actually produces (${packCountClaims} claim(s))`,
+  packCountClaims > 0 && !countClaimGaps.length,
+  (packCountClaims ? countClaimGaps.join("\n      ")
+    : "no entry states a dashboard count at all — a pack sold on its dashboards should say how many") +
+  "\n      seeded, materialized, or the sum: any of the three is true, anything else is arithmetic nobody re-did");
+
+// (d) "installed by default" is a fact about DEFAULT_INSTALLED
+const defaultGaps = [];
+for (const p of packRegistry) {
+  const item = itemFor(p)[0] && itemProse(itemFor(p)[0]);
+  if (!item) continue;
+  const claims = /installed by default/i.test(item);
+  if (claims && !defaultInstalled.includes(p.id))
+    defaultGaps.push(`"${p.folder}" says it is installed by default, but DEFAULT_INSTALLED is [${defaultInstalled.join(", ")}]`);
+  if (!claims && defaultInstalled.includes(p.id))
+    defaultGaps.push(`"${p.folder}" IS in DEFAULT_INSTALLED, but its Help entry never says so`);
+}
+ok(`docs/index.html: the pack Help calls "installed by default" is the one in DEFAULT_INSTALLED (${defaultInstalled.join(", ")})`,
+  !defaultGaps.length,
+  `${defaultGaps.join("\n      ")}\n      ` +
+  "what a fresh workspace contains is the first thing a new reader sees — when the default moves, this sentence has to move with it");
 
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");

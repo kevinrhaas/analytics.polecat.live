@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 921,
+    title: 'Help now tells you what a sample pack actually gives you',
+    kind: 'fix',
+    ts: '2026-08-09T08:29:36.000Z',
+    items: [
+      'The Help page has a Sample packs section that describes each pack you can install. Market Coverage — the pack built on real US Census data, three dashboards and four pinned Views over 1,813 counties — was not in the list at all, even though the sentence at the top of that same section named its folder alongside the other two.',
+      'The Conservation Insight entry was describing a pack smaller than the one you get. It named two of the six dashboards the pack files into your workspace; the CRD map, the OpTIS trends, the provider ensemble and the system metrics wheel appeared nowhere on the page. All six are named now.',
+      'It also counted wrong. The entry closed on "removing the pack takes all nine dashboards back out" — the real number is fourteen, and the sentence did not even agree with the two figures printed beside it. Fixed.',
+      'And it only ever talked about charts. Installing that pack also seeds two connections, eight datasets and a county-to-state rollup job, and Help mentioned none of them — so a reader learned about the dashboards and nothing about the data underneath. Both entries now say what one click gives you: connections, datasets, the job, the pinned Views and the dashboards.',
+      'The dev gate now derives all of this from the packs themselves — the kinds of thing each installer seeds, every dashboard it names, and which pack a fresh workspace starts with — so a pack that grows, shrinks or becomes the new default can no longer leave this page behind.',
+    ],
+  },
+  {
     v: 920,
     title: 'The Dashboard Builder picture on the home page had nothing to drag',
     kind: 'fix',
