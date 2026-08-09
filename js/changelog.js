@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 928,
+    title: 'The README described a third of the connectors and two of the seven exports',
+    kind: 'fix',
+    ts: '2026-08-09T11:42:04.000Z',
+    items: [
+      'README.md is the first thing anyone reading the source sees, and nothing had checked it since the app was much smaller. Its adapter list named 9 of the 13 connectors the Connections wizard offers — PostgreSQL (PostgREST), CSV / JSON file, Google Sheets and Amazon Redshift were missing — and three of the nine it did name were written as strings the picker has never printed.',
+      'Its export table listed 2 formats where Export ▾ offers 7: the Excel workbook, the Word document, the PowerPoint deck, the PDF print path and the editable spec were all undocumented on the page a reader lands on first. All seven are now there, with the viewer\'s own smaller menu named beside them.',
+      'The architecture diagram still called the builder\'s left pane the "Query Library" — the internal name that was removed from the tours, the Help page and the app\'s own strings weeks ago; it renders "Data". The left-rail list named five sections, one of which ("Studio") does not exist — the rail has thirteen. The Roadmap still promised adapters that had already shipped. And the instructions for reopening the welcome tour pointed at an "ⓘ Tour" control the app has never had; the route is the ⌘K palette\'s Interactive tutorial command.',
+      'The dev gate now reads the README against the same sources the Help page already answers to — the adapter registry, both export menus, the pane\'s own header, the rail, and the command palette — so the front page cannot quietly fall behind the app again.',
+    ],
+  },
+  {
     v: 927,
     title: 'The Dashboard theme picker offers seven looks; Help listed six of them',
     kind: 'fix',
