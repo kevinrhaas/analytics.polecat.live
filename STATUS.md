@@ -135,6 +135,48 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — Settings offered six places to keep your workspace and Help explained four of them
+  (v926, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** check 38's move one
+  picker over — and the point of the slice is that there IS a second picker. Check 38 (v925,
+  the run before this one) held Help to the **Connections** wizard's adapter list. The app has
+  another: `openBackendWizard` (`app/studio.js:8767`, reached from Settings → Workspace backend
+  → Connect) renders `Studio.remoteMetaSources()` — every `caps.meta` adapter except the local
+  one — and then, under the `BACKEND-FUTURE` comment, three **greyed, unselectable cards badged
+  Future**: PostgreSQL, Cloudflare D1, MongoDB Atlas.
+  - **Measured, not suspected.** `Cloudflare`, `MongoDB`, `Atlas` and `D1` each had **zero**
+    occurrences in `docs/index.html`. Help's "Choosing a workspace backend" table documented the
+    four backends you can actually be on (Local, Turso, Supabase, Firebase) and the roadmap trio
+    nowhere — so a reader who opened the picker met three greyed cards the page had not prepared
+    them for, with nothing to distinguish "planned" from "broken".
+  - **The first of the three was worse than an omission.** The card says **PostgreSQL**, and
+    Help's own Connections inventory three sections above — check 38's subject, shipped the same
+    day — lists **PostgreSQL (PostgREST)** as a connector you can use today. The page appeared to
+    contradict itself, and the fact that resolves it was stated nowhere on it: a PostgREST
+    *connection* answers dataset queries, hosting the workspace (the catalog, its migrations, the
+    sync protocol) is a separate capability, and `postgrest`'s `caps.meta` is `false`. Two
+    paragraphs now sit under the table — one naming the roadmap trio with what each would be and
+    that they cannot be selected, one resolving the PostgreSQL split and tying it back to the
+    `workspace-capable` badge the same reader just saw on three of thirteen connectors.
+  - **Doc-truth check 39** derives both halves from the app: the shipped roster from `caps.meta`
+    (which is `remoteMetaSources()` **plus** the local adapter — the wizard never offers Local
+    because it is where you already are, but it is the default and the table's first row; the
+    parse gained a `local` flag for the distinction registry.js makes) and the roadmap from the
+    `BACKEND-FUTURE` array literal. Five rules: (a) every workspace-capable adapter has a row,
+    (b) no row names one the registry lacks, (c) the table is in the registry's load order,
+    (d) the intro's count word matches the derivation ("All four options"), (e) the roadmap
+    paragraph names **exactly** the Future set. A row label may drop the adapter label's
+    parenthetical ("Local (this browser)" → "Local"), which is what the table and the rail do.
+  - **All five measured failing**, since that is the part that matters: rule (e) on the REAL
+    pre-fix tree (all three cards unnamed), and on mutated trees (d) with the count changed to
+    "five", (a)+(b)+(c) together with one row renamed, (c) alone with two rows swapped, and both
+    of (e)'s directions — a shipped backend advertised as Future, and a NEW Future card added to
+    `studio.js` that Help does not know about. That last one is the rule that keeps this page
+    honest the day D1 ships.
+  - **No `sw.js` bump:** the precache LIST is unchanged, `docs/index.html` is deliberately not
+    precached (sw.js's own conventions block) and `tools/` never was. Same reasoning and same
+    precedent as v915/v916/v918–v925. Verified in the foreground on the branch: the full dev gate
+    — `tools/validate.mjs`, `tools/changelog-check.js`, `tools/doc-truth.mjs` (now 39 checks) and
+    `tools/dev-smoke.mjs` at desktop + 390×780 with zero pageerrors.
 - **N7 — The Help page documented four of the thirteen connectors the Connections wizard offers
   (v925, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** check 37's move one
   catalog over. `app/connections.js`'s wizard builds its step-1 picker by iterating
@@ -12971,6 +13013,34 @@
     holds the LABELS, and holding 13 blurbs to 13 Help sentences is its own derivation. Also
     measured and NOT N7's: `Local (this browser)` is `caps.data:false` and so correctly absent
     from the picker, which the new check's negative half now states rather than leaves implied.
+  * *Help's workspace-backend chooser vs the SECOND picker — v926, NO sw bump (2026-08-09 —
+    see DONE).* Taken INSTEAD of the blurb candidate named directly above, and the reason is
+    that the candidate was measured first and found CLEAN: v925 wrote Help's thirteen entries
+    from the thirteen blurbs, so a blurb⇄sentence derivation would have been a check with no
+    drift to fix — worth building the day a blurb changes, not worth a slice today. What the
+    same measurement DID surface is that check 38 held one of the app's **two** adapter
+    pickers. Settings → Workspace backend → Connect renders `remoteMetaSources()` and then
+    three greyed, unselectable **Future** cards (PostgreSQL, Cloudflare D1, MongoDB Atlas),
+    and `Cloudflare`, `MongoDB`, `Atlas` and `D1` each had **zero** occurrences in
+    `docs/index.html` — Help's comparison table documented the four you can pick and left the
+    other three to read as broken rather than as the roadmap. The first of them made the page
+    look self-contradicting: the card says **PostgreSQL** while check 38's own inventory three
+    sections above offers **PostgreSQL (PostgREST)** today, and the thing that resolves it —
+    answering dataset queries and hosting the catalog are different capabilities,
+    `postgrest`'s `caps.meta` is false — was stated nowhere. Two paragraphs added under the
+    table; doc-truth check 39 derives the shipped roster from `caps.meta` (which is
+    `remoteMetaSources()` PLUS the local adapter — the wizard never offers Local, but it is
+    the default and the table's first row) and the roadmap from the `BACKEND-FUTURE` literal.
+    Five rules: table coverage, the negative half, the picker's order, the intro's count word,
+    and the roadmap paragraph naming EXACTLY the Future set. All measured failing — rule (e)
+    on the real pre-fix tree, the other four plus both of (e)'s directions on mutated trees.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    blurb⇄sentence derivation above is still the named candidate, still clean today, and now
+    covers **two** pickers rather than one (the backend wizard prints `src.blurb` too, at
+    `app/studio.js:8975`) — so whoever builds it should hold both. Also measured and NOT
+    N7's: the three Future entries are a hard-coded literal inside `openBackendWizard`, not a
+    registry, which is a code question (`app/sources/` is where every other adapter fact
+    lives) rather than a copy one.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before

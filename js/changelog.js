@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 926,
+    title: 'Settings offered six places to keep your workspace; Help explained four of them',
+    kind: 'fix',
+    ts: '2026-08-09T10:54:16.000Z',
+    items: [
+      'Settings → Workspace backend → Connect shows six cards: Turso, Supabase and Firebase, which you can pick, and three greyed ones badged Future — PostgreSQL, Cloudflare D1 and MongoDB Atlas. Help had a comparison table for the backends you can pick and said nothing at all about the other three, so the greyed cards read as something broken rather than as the roadmap.',
+      'Help now names all three, says what each would be, and says plainly that they cannot be selected yet because no adapter has shipped for them.',
+      'One of them needed more than a mention. The greyed card says PostgreSQL, while the connector list further up the same page offers PostgreSQL (PostgREST) as something you can use today — the page looked like it contradicted itself. Both are right, and Help now explains why: a PostgREST connection answers dataset queries, and hosting the workspace itself is a separate capability that only Turso, Supabase and Firebase have. That is the same split the workspace-capable badge marks.',
+      'The dev gate now derives the whole backend roster from the app — every adapter that can host a workspace, plus the roadmap list the picker renders — and holds Help to it: every backend needs a row, no row may name one that is not registered, the order has to match, the count in the opening sentence has to be right, and the roadmap paragraph has to name exactly the greyed cards. The last rule works in both directions, so the day one of them ships, the page can no longer keep calling it unavailable.',
+    ],
+  },
+  {
     v: 925,
     title: 'The Help page documented four of the thirteen connectors you can save a connection to',
     kind: 'fix',
