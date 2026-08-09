@@ -837,24 +837,26 @@
   }
 
   /* ---------- query library ---------- */
-  // Sample-content visibility (user ask: "I might want to start with an empty
-  // repository"): one pref hides the built-in demo content everywhere it
-  // surfaces — the Sample packs library group, New ▾ auto-build sets, and
-  // Home's example gallery. Nothing is deleted; flip it back and the full demo
-  // suite (which shows the app's feature breadth against the internal sample
-  // database) reinstates itself. (LF65: the legacy "Samples" library group is
-  // gone — packs are the one source of sample content in the Data panel.)
-  function showSamples() {
-    var v; try { v = localStorage.getItem("studio-show-samples"); } catch (e) {}
-    return v !== "0";
+  // N32 (Kevin, 2026-08-09: "I don't think this mode should be here any more… that should
+  // all be fully handled by the sample packs"): the global "Sample content" mask — one pref
+  // (`studio-show-samples`) that hid the demo suite everywhere at once — is RETIRED. It was a
+  // second system governing what the pack registry already models per pack, and the two could
+  // contradict each other (a pack installed, and hidden). Sample content is now exactly what
+  // the installed packs contain, which is the empty workspace the pref was asked for: remove
+  // the packs and there is nothing sample-shaped left. Nothing is uninstalled on anyone's
+  // behalf — the mask is gone, pack state is untouched — and `studio-show-samples` stays on
+  // CLEAR_DATA_KEYS so an old copy of the retired pref is still swept off disk.
+  // Where the mask used to gate, real pack state does now: Home's sample-dashboard card and
+  // gallery read visibleExamples() (every gallery entry declares its demoPackId — LF2), and
+  // the raw demo-DB catalog tables follow the pack that OWNS them, in all three places they
+  // surface (Explore's picker, the View Builder outline, and the New ▾ starter sets).
+  // SP-0: ask the registry WHICH pack owns them (`catalogSamples`) rather than naming one.
+  function catalogSamplesInstalled() {
+    return !!(Studio.demoPacksWith && Studio.demoPacksWith("catalogSamples").some(function (id) {
+      return Studio.demoPackInstalled(id);
+    }));
   }
-  function setShowSamples(on) {
-    try { localStorage.setItem("studio-show-samples", on ? "1" : "0"); } catch (e) {}
-    // Viridis V7: the Demo packs Settings card is also gated on showSamples(),
-    // so it needs the same re-render the other three sample-gated surfaces get.
-    buildLibrary(); renderHome(); buildNewMenu(); renderSettings(); renderExplore();
-  }
-  window.__studioShowSamples = { get: showSamples, set: setShowSamples }; // test hook
+  window.__studioCatalogSamplesInstalled = catalogSamplesInstalled; // test hook
   // #114: the "Restore unsaved work" banner is opt-in — off by default (Kevin found it
   // distracting). Autosave still runs in the background, so turning this on makes the most
   // recent unsaved edit recoverable on the next visit; off means the banner never appears.
@@ -987,15 +989,8 @@
       sWrap.appendChild(sBox);
       list.appendChild(sWrap);
     }
-    if (!showSamples()) {
-      // Sample packs are hidden along with the rest of the sample content (see
-      // buildDemoPacksLib's early return) — leave a way back.
-      var off = el("div", "lib-samples-off");
-      off.innerHTML = 'Sample content is hidden. <button type="button" class="lib-samples-show" id="libSamplesShow">Show samples</button>';
-      list.appendChild(off);
-      var showBtn = $("#libSamplesShow", list);
-      if (showBtn) showBtn.onclick = function () { setShowSamples(true); toast("Sample content restored"); };
-    }
+    // N32: the "Sample content is hidden — show samples" strip is gone with the mask that
+    // produced it. There is no hidden state to offer a way back from any more.
     // "Analyses" (saved Quick Views results), then "Workspace datasets" (the shared
     // connections → datasets catalog), then "This dashboard's datasets" — all
     // pinned over the authored queries (each insertBefore stacks above the previous).
@@ -1012,10 +1007,10 @@
 
   // ---------- Demo packs (Viridis V7) — a SECOND sample library, separate
   // from the CDA catalog, of one-click install/remove pitch-specific content
-  // (see app/demopacks.js). Hide-samples aware: nests under the same
-  // showSamples() toggle as the CDA "Samples" group above it. ----------
+  // (see app/demopacks.js). Unwired since DECLUTTER-1 (Settings' pack cards are
+  // the one install/remove surface); N32 removed its showSamples() gate along
+  // with the mask itself. ----------
   function buildDemoPacksLib(list) {
-    if (!showSamples()) return;
     var packs = (Studio.DEMO_PACKS || {});
     var keys = Object.keys(packs);
     if (!keys.length) return;
@@ -1069,14 +1064,18 @@
       var snap = Studio.removeDemoPack(id);
       Studio.undoToast("Sample pack removed.", function () {
         if (Studio.restoreDemoPack(snap) < 1) toast("Sample pack restored");
-        buildLibrary(); renderSettings(); renderHome();
+        buildLibrary(); renderSettings(); renderHome(); buildNewMenu(); renderExplore();
       });
     } else {
       Studio.installDemoPack(id);
       ensurePackExamplesMaterialized(id);
       toast("Sample pack installed — see its dashboards in Dashboards");
     }
-    buildLibrary(); renderSettings(); renderHome();
+    // N32: the New ▾ auto-build starter sets and Explore's dataset picker both follow the
+    // pack that owns the demo-DB catalog tables now, so they repaint with the other three
+    // pack-state surfaces. Explore's immediate repaint is the property the retired
+    // setShowSamples() used to provide (and the suite still holds it).
+    buildLibrary(); renderSettings(); renderHome(); buildNewMenu(); renderExplore();
   }
   window.__studioToggleDemoPack = toggleDemoPack; // test hook
 
@@ -1383,7 +1382,7 @@
     defaultDashboardTheme: function () { return defaultDashboardTheme(); },
     postThemeOnLoad: function (ifr) { postThemeOnLoad(ifr); },
     ensureGeoAssets: function (spec) { return ensureGeoAssets(spec); },
-    showSamples: function () { return showSamples(); },
+    catalogSamplesInstalled: function () { return catalogSamplesInstalled(); },
     currentUserId: function () { return currentUserId(); },
     themedChartSvg: function (svg, type) { return themedChartSvg(svg, type); },
     hlq: function (text, q) { return hlq(text, q); },
@@ -6241,7 +6240,11 @@
       { act: "connection", ic: "link", t: "New connection", d: "Create a connection to your own data" },
       { act: "dataset", ic: "db", t: "New dataset", d: "Build datasets from an existing connection" },
       { act: "quickimport", ic: "upload", t: "Quick import", d: "Drop a CSV or JSON file to build a dashboard instantly" }
-    ].concat(showSamples() ? [{ act: "examples", ic: "grid", t: "Sample dashboards", d: "Curated dashboards from your installed sample packs" }] : [])
+      // N32: offered when there is something to open — i.e. when an installed pack actually
+      // contributes gallery cards (the card's own copy already says "from your installed
+      // sample packs"). It used to ride the global Sample-content mask, which meant a
+      // workspace with every pack removed still advertised a section with nothing in it.
+    ].concat(visibleExamples().length ? [{ act: "examples", ic: "grid", t: "Sample dashboards", d: "Curated dashboards from your installed sample packs" }] : [])
       .concat([{ act: "tour", ic: "play", t: "Take the tour", d: "Guided walkthrough of the builder" }])
       // LF44: "blank"/"quickimport"/"examples"/"tour" all route through enterStudio()
       // (Quick import via quickBuildDashboard) — a viewer-role account can't ever enter
@@ -6350,7 +6353,8 @@
         // quick-action cards above.
         if (!currentUserCanDevelop()) return "";
         var vis = visibleExamples();
-        if (!showSamples() || !vis.length) return "";
+        // N32: pack state is the only gate now — no cards, no section.
+        if (!vis.length) return "";
         function exCardHtml(e) {
           var types = (e.types || []).slice(0, 3).map(function (t) { return '<span class="ex-chip">' + esc(t) + '</span>'; }).join("");
           return '<button type="button" class="home-ex-card" data-home-example="' + esc(e.file) + '">' +
@@ -7385,7 +7389,7 @@
     // VB-1: the outline's ＋ New / ✎ edit reuse THE shared dataset editor
     openDatasetEditor: function (existing, onSaved) { return openDatasetEditor(existing, onSaved); },
     getCatalog: function () { return S.catalog; },
-    showSamples: function () { return showSamples(); },
+    catalogSamplesInstalled: function () { return catalogSamplesInstalled(); },
     guessFieldKind: function (colName, vals) { return guessFieldKind(colName, vals); },
     // slice 2 (chart the result): the same real-renderer preview plumbing Explore uses
     getAssets: function () { return S.assets; },
@@ -9384,10 +9388,9 @@
       ic: function () { return S.theme === "dark" ? "moon" : "sun"; },
       on: function () { return S.theme === "dark"; },
       set: function () { setTheme(S.theme === "dark" ? "light" : "dark"); } },
-    { grp: "Mode", id: "samples", t: "Sample content", d: "Show the built-in demo suite — sample dashboards, demo packs and the New ▾ starter sets, all running on the internal demo database. Turn off to start from an empty workspace; nothing is deleted, flip it back anytime.",
-      ic: function () { return "layers"; },
-      on: function () { return showSamples(); },
-      set: function () { setShowSamples(!showSamples()); toast(showSamples() ? "Sample content shown" : "Sample content hidden — flip this back anytime"); } },
+    // N32: the "Sample content" switch that used to sit here is retired — the Sample packs
+    // card below is the one surface that governs sample content, and it always did the
+    // finer-grained version of the same job (see catalogSamplesInstalled()).
     { grp: "Mode", id: "simple", t: "Simple mode", d: "Hide advanced inspector sections and narrow the chart gallery to the most common types.",
       ic: function () { return "layers"; },
       on: function () { return !!S.simpleMode; },
@@ -9913,15 +9916,13 @@
         '</div>' +
       '</div>' +
       (Object.keys(Studio.DEMO_PACKS || {}).length ?
-        // KEVIN-LIVE (2026-07-30): this card used to be gated on showSamples() —
-        // with Sample content toggled off, the packs' ONLY install/remove surface
-        // vanished with it ("i cant see the sample packs… being able to be
-        // activated"). The card now always shows; when sample content is hidden
-        // it says so, and Install turns it back on (installing a pack means you
-        // want to see it).
+        // KEVIN-LIVE (2026-07-30): this card used to be gated on showSamples() — with
+        // Sample content toggled off, the packs' ONLY install/remove surface vanished with
+        // it ("i cant see the sample packs… being able to be activated"). N32 retired that
+        // mask outright, so the card is simply always here: it is now the ONE place sample
+        // content is turned on and off, one pack at a time.
         '<div class="settings-card"><h2>Sample packs</h2>' +
           '<p class="ws-card-intro">Ready-made demo content you can install or remove. A pack can add dashboards, datasets, connections and jobs — with synthetic (made-up) or public-domain sample data, never your real data. Each card says which. Remove takes back exactly what Install added.</p>' +
-          (!showSamples() ? '<p class="ws-card-intro set-packs-hidden-note">Sample content is currently hidden (the toggle above) — installed packs aren’t shown anywhere. Installing a pack turns sample content back on.</p>' : "") +
           Object.keys(Studio.DEMO_PACKS).map(function (id) {
             var p = Studio.DEMO_PACKS[id], on = Studio.demoPackInstalled(id);
             return '<div class="set-row"><span class="set-row-ic" data-ic="globe"></span>' +
@@ -10022,9 +10023,7 @@
     $$("[data-demopack]", sec).forEach(function (btn) {
       btn.onclick = function () {
         var id = btn.getAttribute("data-demopack");
-        // Installing a pack while sample content is hidden means you want to SEE
-        // it — flip the toggle back on first, so the install lands somewhere visible.
-        if (!Studio.demoPackInstalled(id) && !showSamples()) setShowSamples(true);
+        // N32: no global mask left to un-hide first — installing a pack is the whole act.
         toggleDemoPack(id, Studio.DEMO_PACKS[id]);
       };
     });
@@ -10737,7 +10736,10 @@
   // and the VB draft map (can grow large; still browser-local).
   var ROAM_LS_KEYS = [
     "studio-simple-mode", "studio-restore-unsaved", "studio-panels-default",
-    "studio-show-samples", "studio-lib-samples-open",
+    // N32: "studio-show-samples" left this list with the pref it named — roaming a key
+    // nothing reads would carry a dead preference between devices forever. It stays on
+    // CLEAR_DATA_KEYS below, which is about sweeping what is already on disk.
+    "studio-lib-samples-open",
     "studio-lw", "studio-rw",
     "studio-bd-lw", "studio-bd-collapse", "studio-bd-preview-size",
     "studio-dash-view", "studio-repo-view"
@@ -11660,6 +11662,8 @@
     // passphrase is cached in sessionStorage instead; the localStorage key stays on this list
     // so any pre-AUD-03 copy still on disk is swept too (the handler also clears the session
     // copy directly).
+    // ("studio-show-samples" is RETIRED as of N32 — nothing reads or writes it any more, but
+    // it stays on this list so a copy left on disk by an older build is still swept.)
     "studio-show-samples", "studio-lib-samples-open", "studio-dash-view", "studio-dsx-view",
     "studio-conn-view", "studio-jobs-view",
     // LF51 (d) extended to Repository, the last of the four workspace catalogs to gain the
@@ -11717,16 +11721,22 @@
 
   // New ▾ menu: blank, duplicate, then auto-build starters. Auto-build now
   // draws from BOTH planes — your workspace datasets first, then the sample
-  // query sets (only while samples are shown) — and stays usable at scale:
+  // query sets (only while the pack that owns them is installed) — and stays usable at scale:
   // beyond a handful of entries it gets a type-to-filter box instead of an
   // endless list (there could be thousands of datasets eventually).
   function buildNewMenu(filterText) {
     var nm = $("#menuNew"); if (!nm) return;
+    // (window.__studioBuildNewMenu below is the test hook — N32 covers the starter sets.)
     var flt = (filterText || "").toLowerCase();
     var dsSets = Studio.Workspace.all("datasets").filter(function (d) { return (d.columns || []).length >= 2; })
       .sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); })
       .map(function (d) { return { kind: "dataset", key: d.id, label: d.name }; });
-    var stemSets = !showSamples() ? [] : Object.keys(S.catalog).filter(function (st) {
+    // N32/SAMPLE-DATA-1: the starter sets come from the raw demo-DB catalog tables, which
+    // belong to the pack that declares `catalogSamples` — so they appear only while that
+    // pack is installed, the same rule Explore's picker and the View Builder outline already
+    // followed. Before N32 this was the one catalog surface still riding the global mask,
+    // which is why an uninstalled pack could still fill New ▾ with sample sets.
+    var stemSets = !catalogSamplesInstalled() ? [] : Object.keys(S.catalog).filter(function (st) {
       return (S.catalog[st].dataAccesses || []).some(function (d) { return (d.columns || []).length >= 2; });
     }).sort().map(function (st) { return { kind: "stem", key: st, label: st }; });
     // AUD-06 slice 6: the shared matcher, same as every other filter box.
@@ -11767,6 +11777,7 @@
       });
     }
   }
+  window.__studioBuildNewMenu = buildNewMenu; // test hook (N32)
   // LF47 slice C: "Duplicate" moved out of the New ▾ menu into its own topbar ops
   // button (#btnDupDash, alongside Undo/Redo/Open/Save/Save-as/Export) — same clone
   // logic as before, just its own dedicated affordance instead of a New-menu entry.

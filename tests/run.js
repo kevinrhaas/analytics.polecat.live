@@ -4485,20 +4485,39 @@ function serve() {
     });
     ok("SAMPLES: picking the county cover-crop sample opens Explore as a CHOROPLETH rendering 3k+ counties — geo data leads with a map, not bars",
       smpGeoDefault.type === "choropleth" && smpGeoDefault.paths > 3000, JSON.stringify(smpGeoDefault));
-    // hide-samples now repaints Explore immediately (the reported gap)
-    const smpToggle = await page.evaluate(function () {
-      window.__studioShowSamples.set(false);
-      var withOff = [].filter.call(document.querySelectorAll(".xp-ds"), function (b) {
-        return b.getAttribute("data-xp-ds").indexOf("sample") === 0;
-      }).length;
-      window.__studioShowSamples.set(true);
-      var withOn = [].filter.call(document.querySelectorAll(".xp-ds"), function (b) {
-        return b.getAttribute("data-xp-ds").indexOf("sample") === 0;
-      }).length;
-      return { withOff: withOff, withOn: withOn };
+    // Sample visibility repaints Explore IMMEDIATELY — the originally reported gap. N32
+    // retired the global "hide sample content" mask that used to drive this, so the thing
+    // being flipped is now the pack that OWNS the demo-DB catalog tables (SP-0: asked for
+    // by registry flag, never by id) — the same repaint, from the one surface that remains.
+    const smpToggle = await page.evaluate(async function () {
+      var owner = Studio.demoPacksWith("catalogSamples")[0];
+      var confirmWas = window.confirm;
+      window.confirm = function () { return true; }; // the remove path asks
+      function sampleRows() {
+        return [].filter.call(document.querySelectorAll(".xp-ds"), function (b) {
+          return b.getAttribute("data-xp-ds").indexOf("sample") === 0;
+        }).length;
+      }
+      // N38: wait on the condition, never the clock — and the condition here is the
+      // install flag, which toggleDemoPack sets synchronously along with the repaint. The
+      // row counts are read straight after it, so "immediately" is still what is measured.
+      async function settle(want) {
+        var t0 = Date.now();
+        while (Studio.demoPackInstalled(owner) !== want && Date.now() - t0 < 8000) {
+          await new Promise(function (r) { setTimeout(r, 40); });
+        }
+      }
+      window.__studioToggleDemoPack(owner, Studio.DEMO_PACKS[owner]);
+      await settle(false);
+      var withOff = sampleRows();
+      window.__studioToggleDemoPack(owner, Studio.DEMO_PACKS[owner]);
+      await settle(true);
+      var withOn = sampleRows();
+      window.confirm = confirmWas;
+      return { owner: owner, withOff: withOff, withOn: withOn, installed: Studio.demoPackInstalled(owner) };
     });
-    ok("SAMPLES: 'Hide sample content' now empties Explore's sample list immediately (and restores on re-enable)",
-      smpToggle.withOff === 0 && smpToggle.withOn > 50, JSON.stringify(smpToggle));
+    ok("SAMPLES/N32: removing the pack that owns the demo-DB catalog tables empties Explore's sample list immediately (and reinstalling restores it)",
+      smpToggle.withOff === 0 && smpToggle.withOn > 50 && smpToggle.installed, JSON.stringify(smpToggle));
     // ---- color pickers show friendly labels — raw tokens (and the retired
     // "pentaho" name) never surface in the interface (Kevin, 2026-07-20) ----
     const tokLabels = await page.evaluate(function () {
@@ -7133,25 +7152,26 @@ function serve() {
     const dpLibGone = await page.evaluate(function () { return !document.querySelector(".lib-demopacks"); });
     ok("DECLUTTER-1: the Sample-packs group no longer renders in the builder's Data panel — Settings' pack cards are the one install/remove surface",
       dpLibGone, String(dpLibGone));
-    await page.evaluate(function () { window.__studioShowSamples.set(false); });
-    await page.waitForTimeout(150);
-    const dpHidden = await page.evaluate(function () {
-      return {
+    // KEVIN-LIVE (2026-07-30) made the packs card unconditional — hiding it with the
+    // sample content was the "i cant see the sample packs" report — and N32 finished the
+    // job by retiring the mask itself. So there is no hidden state left to test: the card
+    // is always here, its explanatory note is gone with the mode it explained, and the
+    // retired pref cannot bring either back.
+    const dpNoMask = await page.evaluate(function () {
+      localStorage.setItem("studio-show-samples", "0"); // the value that used to hide it all
+      window.__studioRenderSettings();
+      var out = {
         settingsCard: !!document.querySelector('[data-demopack="conservation"]'),
         settingsNote: !!document.querySelector("#secSettings .set-packs-hidden-note"),
         libGroup: !!document.querySelector(".lib-demopacks")
       };
+      localStorage.removeItem("studio-show-samples");
+      window.__studioRenderSettings();
+      return out;
     });
-    await page.evaluate(function () { window.__studioShowSamples.set(true); });
-    await page.waitForTimeout(150);
-    // KEVIN-LIVE (2026-07-30) changed the Settings half of this contract: the
-    // packs card STAYS visible with samples off (it's the packs' only install/
-    // remove surface — hiding it was the "i cant see the sample packs" report),
-    // showing an explanatory note instead. The Library group still hides with
-    // the rest of the sample content.
-    ok("DP: with samples hidden the Settings packs card STAYS (with a hidden-content note) while the Library group hides with the sample content",
-      dpSettingsOn.hasCard && dpHidden.settingsCard && dpHidden.settingsNote && !dpHidden.libGroup,
-      JSON.stringify({ on: dpSettingsOn, off: dpHidden }));
+    ok("DP/N32: the Settings packs card is unconditional and the retired sample-content pref changes nothing (no hidden-state note, no Library group)",
+      dpSettingsOn.hasCard && dpNoMask.settingsCard && !dpNoMask.settingsNote && !dpNoMask.libGroup,
+      JSON.stringify({ on: dpSettingsOn, off: dpNoMask }));
     // remove cleans up every tagged row + the install flag
     const dpRemove = await page.evaluate(function () {
       window.__studioDemoPacks.remove("conservation");
@@ -14144,46 +14164,102 @@ function serve() {
     ok("SB-PULL-GUARD: once the backend accepts writes again, the retry pushes the guarded edit up and the mirror goes green",
       sbPullGuard.healed === "connected" && sbPullGuard.remoteGotIt, JSON.stringify(sbPullGuard));
 
-    // ---- PACKS-VIS (Kevin live, 2026-07-30: "i cant see the sample packs"):
-    // the Settings Sample-packs card was gated on showSamples(), so hiding
-    // sample content removed the packs' only install/remove surface with it.
-    // The card now always shows; hidden mode gets a note, and Install turns
-    // sample content back on.
-    const packsVis = await page.evaluate(async () => {
+    // ---- N32 (Kevin, 2026-08-09: "I don't think this mode should be here any more…
+    // that should all be fully handled by the sample packs"): the global "Sample content"
+    // mask is retired. PACKS-VIS's original subject — the Settings Sample-packs card
+    // disappearing when the mask was off ("i cant see the sample packs") — cannot recur
+    // because there is no mask; what these checks hold is the replacement contract:
+    // the packs card is the ONE install/remove surface, and every surface the mask used
+    // to gate now follows real pack state instead. The retired pref is inert: writing
+    // "0" to studio-show-samples must change nothing.
+    console.log("\n• N32: sample content follows the packs — the global mask is retired");
+    const n32 = await page.evaluate(async () => {
       const out = {};
-      const prev = localStorage.getItem("studio-show-samples");
-      localStorage.setItem("studio-show-samples", "0");
       window.__studioShellSetSection("settings");
       window.__studioRenderSettings();
       await new Promise((r) => setTimeout(r, 100));
-      const btns = [].slice.call(document.querySelectorAll("#secSettings [data-demopack]"));
-      out.cardShownWhileHidden = btns.length >= 2;
-      out.hiddenNote = !!document.querySelector("#secSettings .set-packs-hidden-note");
-      // make datamanagement uninstalled first (it's installed by default), then
-      // Install it while sample content is hidden — the toggle must flip back on
-      const dm = document.querySelector('#secSettings [data-demopack="datamanagement"]');
-      if (dm && dm.textContent === "Remove") {
-        dm.click();
-        await new Promise((r) => setTimeout(r, 600));
-        window.__studioRenderSettings();
-        await new Promise((r) => setTimeout(r, 100));
-      }
+      out.switchIds = [].slice.call(document.querySelectorAll("#secSettings input[data-set]"))
+        .map((cb) => cb.getAttribute("data-set")).join(",");
+      out.noSamplesSwitch = !document.querySelector('#secSettings input[data-set="samples"]');
+      out.noHiddenNote = !document.querySelector("#secSettings .set-packs-hidden-note");
+      out.packsCard = [].slice.call(document.querySelectorAll("#secSettings [data-demopack]")).length >= 2;
+      // the retired pref is inert — set it to the value that used to hide everything
       localStorage.setItem("studio-show-samples", "0");
-      const dm2 = document.querySelector('#secSettings [data-demopack="datamanagement"]');
-      out.installOffered = dm2 && dm2.textContent === "Install";
-      if (dm2) dm2.click();
-      await new Promise((r) => setTimeout(r, 800));
-      out.samplesBackOn = localStorage.getItem("studio-show-samples") !== "0";
-      out.installed = Studio.demoPackInstalled("datamanagement");
-      // restore: samples visible is the suite's default state; the pack ends installed (its default)
-      if (prev === null) localStorage.removeItem("studio-show-samples"); else localStorage.setItem("studio-show-samples", prev === "0" ? "1" : prev);
+      window.__studioRenderSettings();
+      window.__studioRenderHome();
+      await new Promise((r) => setTimeout(r, 100));
+      out.maskInertPacksCard = [].slice.call(document.querySelectorAll("#secSettings [data-demopack]")).length >= 2;
+      out.maskInertHomeCard = !!document.querySelector('.home-card[data-home="examples"]');
+      out.maskInertGallery = !!document.querySelector(".home-ex-card");
+      localStorage.removeItem("studio-show-samples");
+      // SP-0: never name a pack — ask the registry which one owns the catalog tables.
+      const owner = Studio.demoPacksWith("catalogSamples")[0];
+      out.owner = owner;
+      // The New ▾ list caps at 10 shown entries, so read the TOTAL it reports (the filter
+      // placeholder / "+N more" tail) rather than counting buttons; the rendered stem count
+      // is still meaningful when it must be zero.
+      function autoBuild() {
+        window.__studioBuildNewMenu();
+        const nm = document.getElementById("menuNew");
+        const shown = nm.querySelectorAll("[data-set-kind]").length;
+        const stems = nm.querySelectorAll('[data-set-kind="stem"]').length;
+        const ph = (nm.querySelector("#newMenuFilter") || {}).placeholder || "";
+        const more = (nm.querySelector(".new-menu-more") || {}).textContent || "";
+        const m = /Filter (\d+) sets/.exec(ph) || /\+ (\d+) more/.exec(more);
+        return { total: m ? (/Filter/.test(m[0]) ? +m[1] : shown + +m[1]) : shown, stems: stems };
+      }
+      function home() {
+        window.__studioRenderHome();
+        return {
+          card: !!document.querySelector('.home-card[data-home="examples"]'),
+          gallery: document.querySelectorAll(".home-ex-card").length
+        };
+      }
+      const confirmWas = window.confirm;
+      window.confirm = function () { return true; }; // the remove path asks
+      // N38: wait on the install flag, not a sleep — toggleDemoPack sets it (and repaints)
+      // synchronously, so the surfaces are read immediately after it settles.
+      const settle = async (want) => {
+        const t0 = Date.now();
+        while (Studio.demoPackInstalled(owner) !== want && Date.now() - t0 < 8000) {
+          await new Promise((r) => setTimeout(r, 40));
+        }
+      };
+      out.installedFirst = Studio.demoPackInstalled(owner);
+      out.onSets = autoBuild();
+      out.onHome = home();
+      // remove it: the raw demo-DB catalog tables and its gallery cards go with it
+      window.__studioToggleDemoPack(owner, Studio.DEMO_PACKS[owner]);
+      await settle(false);
+      out.offSets = autoBuild();
+      out.offHome = home();
+      out.catalogHelperOff = window.__studioCatalogSamplesInstalled();
+      // put it back (installed is its default) — the starter sets come back with it
+      window.__studioToggleDemoPack(owner, Studio.DEMO_PACKS[owner]);
+      await settle(true);
+      out.backSets = autoBuild();
+      out.catalogHelperOn = window.__studioCatalogSamplesInstalled();
+      out.installedAtEnd = Studio.demoPackInstalled(owner);
+      out.prefNeverWritten = localStorage.getItem("studio-show-samples") === null;
+      window.confirm = confirmWas;
       window.__studioShellSetSection("studio");
       return out;
     });
-    ok("PACKS-VIS: the Sample-packs card shows even with sample content hidden — with a note explaining the hidden state",
-      packsVis.cardShownWhileHidden && packsVis.hiddenNote, JSON.stringify(packsVis));
-    ok("PACKS-VIS: installing a pack while sample content is hidden turns sample content back on and installs the pack",
-      packsVis.installOffered && packsVis.samplesBackOn && packsVis.installed, JSON.stringify(packsVis));
+    ok("N32: Settings has no 'Sample content' mode switch, and the Sample-packs card stands alone as the install/remove surface",
+      n32.noSamplesSwitch && n32.noHiddenNote && n32.packsCard
+        && n32.switchIds === "dark,simple,restore,panels,demo", JSON.stringify(n32));
+    ok("N32: the retired studio-show-samples pref is inert — setting it to '0' hides nothing",
+      n32.maskInertPacksCard && n32.maskInertHomeCard && n32.maskInertGallery, JSON.stringify(n32));
+    ok("N32: the New ▾ auto-build starter sets follow the pack that owns the demo-DB catalog tables (catalogSamples), not a global toggle",
+      n32.installedFirst && n32.onSets.total > n32.offSets.total && n32.offSets.stems === 0
+        && n32.backSets.total === n32.onSets.total, JSON.stringify(n32));
+    ok("N32: Home's 'Sample dashboards' quick action is offered exactly when installed packs actually contribute gallery cards",
+      n32.onHome.card === (n32.onHome.gallery > 0) && n32.offHome.card === (n32.offHome.gallery > 0)
+        && n32.offHome.gallery < n32.onHome.gallery, JSON.stringify(n32));
+    ok("N32: the catalog-samples gate reads the registry flag, not a pack id — off with the pack removed, on with it installed",
+      !n32.catalogHelperOff && n32.catalogHelperOn && n32.installedAtEnd, JSON.stringify(n32));
+    ok("N32: nothing writes the retired pref back — a full install/remove cycle leaves studio-show-samples unset",
+      n32.prefNeverWritten, JSON.stringify(n32));
 
     // ---- Rail IA (Kevin 2026-07): Workspace = catalogs, Build = builders, Manage = ops ----
     console.log("\n• Rail IA: Workspace/Build/Manage grouping + builder labels + Views New menu");
@@ -40760,8 +40836,7 @@ function serve() {
         darkChecked: sec.querySelector('input[data-set="dark"]').checked,
         simpleChecked: sec.querySelector('input[data-set="simple"]').checked,
         restoreChecked: sec.querySelector('input[data-set="restore"]').checked,
-        demoChecked: sec.querySelector('input[data-set="demo"]').checked,
-        samplesChecked: sec.querySelector('input[data-set="samples"]').checked
+        demoChecked: sec.querySelector('input[data-set="demo"]').checked
       };
     });
     // LF48: Focus mode's own Settings toggle is retired (it moved to being the ⋯ More →
@@ -40769,9 +40844,11 @@ function serve() {
     // with side panels" switch (its checked state reflects the per-device preference —
     // this suite seeds "open", and the STUDIO-PANELS block covers both states — so only
     // its presence is asserted here).
-    ok("Z5: Settings section renders 7 cards with 6 mode switches — modes (incl. #114 Restore unsaved work) off by default, Sample content ON by default",
-      z5Boot.visible && z5Boot.hasCards && z5Boot.switchIds === "dark,samples,simple,restore,panels,demo"
-        && !z5Boot.darkChecked && !z5Boot.simpleChecked && !z5Boot.restoreChecked && !z5Boot.demoChecked && z5Boot.samplesChecked,
+    // N32 retired the "Sample content" switch — the Sample packs card governs sample
+    // content now — so the Mode group is one switch shorter; the card count is unchanged.
+    ok("Z5: Settings section renders 8 cards with 5 mode switches — modes (incl. #114 Restore unsaved work) off by default",
+      z5Boot.visible && z5Boot.hasCards && z5Boot.switchIds === "dark,simple,restore,panels,demo"
+        && !z5Boot.darkChecked && !z5Boot.simpleChecked && !z5Boot.restoreChecked && !z5Boot.demoChecked,
       JSON.stringify(z5Boot));
 
     // Z5-2: Dark mode switch drives the same S.theme + data-theme as the topbar toggle
@@ -45838,7 +45915,6 @@ function serve() {
       ["explore", "connection", "dataset"].every(function (a) { return homeCardsAsViewer.indexOf(a) >= 0; }),
       JSON.stringify(homeCardsAsViewer));
     const homeCardsAsDeveloper = await page.evaluate(function () {
-      localStorage.setItem("studio-show-samples", "1"); // isolate from any prior sample-toggle test
       window.PolecatAuth.login("lf23s2dev"); // seeded developer account
       window.__studioShellApplyRoleGating();
       window.__studioRenderHome();
