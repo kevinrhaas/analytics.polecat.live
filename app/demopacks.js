@@ -83,16 +83,20 @@
     // as CSV under data/packs/marketcoverage/ by tools/pack-extract/marketcoverage.mjs
     // (docs/PACKS.md is the contract). Slice (a) shipped the data foundation: the
     // connection, the two datasets, and the join job that turns them into a saturation
-    // index. Slice (b) adds the three dashboards that read it. Its pinned Views and the
-    // swap into DEFAULT_INSTALLED are slice (c).
+    // index. Slice (b) added the three dashboards that read it, and slice (c1) the four
+    // pinned Views beside them plus the pack's own guided tour. What remains is (c2):
+    // the swap into DEFAULT_INSTALLED (and whether the hero dashboard is featured with
+    // it) — its own slice because making a workspace pack the out-of-the-box default
+    // changes what every fresh workspace contains, not just what this pack offers.
     marketcoverage: {
       id: "marketcoverage",
       kind: "workspace",
       folder: "Market Coverage",
       name: "Market Coverage — where a category is under-served",
-      tagline: "3 dashboards · 2 Census datasets · 1,813 counties · a saturation-index join job — real public data, embedded",
+      tagline: "3 dashboards · 4 Views pinned to Home · 2 Census datasets · 1,813 counties · a saturation-index join job — real public data, embedded",
       blurb: "3 dashboards — the county restaurant-whitespace maps, the demographics behind them, " +
-        "and the shortlist of counties with the income but not the restaurants — over 2 US Census " +
+        "and the shortlist of counties with the income but not the restaurants — with 4 Views " +
+        "pinned to Home (supply, demand, the two together, and the shortlist itself), over 2 US Census " +
         "datasets covering 1,813 counties: who lives there (population, households, median age, " +
         "median household income, education) and the businesses already trading there (all " +
         "industries, restaurants and bars, grocers), plus the prep job that joins them into a " +
@@ -881,6 +885,9 @@
     // moment that dataset exists — rather than in install(), which runs a turn earlier
     // with nothing to chart yet.
     seedMarketCoverageDashboards(W, id, outputDs, out, new Date().toISOString());
+    // SP-1 (c): and the four pinned Views, for the same reason and at the same moment —
+    // they are blobs over that dataset, so they cannot be authored a turn earlier either.
+    seedMarketCoverageViews(W, id, outputDs, out);
   }
 
   /* ---- SP-1 (b): the pack's three dashboards ----------------------------------------
@@ -1169,6 +1176,140 @@
     })[0];
     if (!outputDs) return false;
     return seedMarketCoverageDashboards(W, id, outputDs, parsePackCsv(outputDs.content), new Date().toISOString()) > 0;
+  };
+
+  /* ---- SP-1 (c): the pack's four pinned Views ----------------------------------------
+     Kevin's SP-1 brief asks for ≈4 pinned Views beside the dashboards, and the reason
+     they are not simply the dashboards' panels again is CONS-4's: a dashboard is a thing
+     you READ, a View is a thing you OPEN and change. Each of the four below is a real
+     View Builder blob over the pack's own job output, so a click on Home lands you in the
+     shelves, the filters and the map scale that made it — the whitespace question stays
+     arguable rather than merely presented.
+
+     The four are the pack's argument, one card each, in the order Home shows them:
+       1. SUPPLY  — restaurants and bars per 10,000 residents, by county
+       2. DEMAND  — median household income, the same geography, the same scale
+       3. BOTH    — income against supply, one dot per county of 250,000+ residents
+       4. ANSWER  — the shortlist, as a table whose two rules are filters you can move
+
+     Authored exactly the way bdSave does it — compute the basis with the pure
+     Studio.Build.compute (the same engine #118's live re-run uses at render time), then
+     Studio.newPanel over the resulting columns — so a seeded View and one saved by hand
+     in the builder are the same shape and open in the same editor. Only the basis HEAD is
+     read here: the rows a card draws come from Studio.Build.runBlob against the live
+     dataset every time it renders, which is why the shortlist's filters are the View's
+     own rather than a pre-cut second dataset. */
+  function mcViewDefs(t) {
+    return [
+      {
+        key: "supply", name: "Market Coverage — restaurants & bars per 10,000 residents",
+        chartType: "choropleth", mapScale: "county",
+        shelfCols: [{ col: "fips", agg: null }, { col: "restaurants_per_10k", agg: "avg" }],
+        opts: { scale: "county", fmt: "abbr", agg: "median", classes: 6, height: 300 }
+      },
+      {
+        key: "demand", name: "Market Coverage — median household income by county",
+        chartType: "choropleth", mapScale: "county",
+        shelfCols: [{ col: "fips", agg: null }, { col: "median_income", agg: "avg" }],
+        opts: { scale: "county", fmt: "money", agg: "median", classes: 6, height: 300 }
+      },
+      {
+        key: "income_vs_supply", name: "Market Coverage — income versus restaurant supply",
+        chartType: "scatter",
+        // The population floor is READABILITY, not significance — the same MC_BIG_COUNTY
+        // the dashboards' quadrant and scatter use, for the same reason (1,813 dots is a
+        // cloud). It rides the View's own filter shelf, so it is one drag from gone.
+        shelfCols: [{ col: "county", agg: null }, { col: "median_income", agg: "avg" },
+          { col: "restaurants_per_10k", agg: "avg" }],
+        filters: [mcPopFilter(MC_BIG_COUNTY)],
+        opts: { trend: true, fmt: "abbr", height: 300 }
+      },
+      {
+        key: "shortlist", name: "Market Coverage — the whitespace shortlist",
+        chartType: "table",
+        shelfCols: ["county", "state", "population", "median_income", "restaurants_per_10k"]
+          .map(function (c) { return { col: c, agg: null }; }),
+        // The same two rules the shortlist dashboard states in prose, from the same
+        // helper — three filters over the pack's own medians, not a stored answer.
+        filters: mcShortlistFilters(t, MC_BIG_COUNTY),
+        tableCols: [
+          { col: "county", label: "County" },
+          { col: "state", label: "State" },
+          { col: "population", label: "Residents", num: true, fmt: "abbr" },
+          { col: "median_income", label: "Median income", num: true, fmt: "money" },
+          { col: "restaurants_per_10k", label: "Restaurants / 10k", num: true, fmt: "abbr" }
+        ],
+        opts: { pageSize: 10, freezeHeader: true, density: "comfortable" }
+      }
+    ];
+  }
+  function marketCoverageViewRow(def, outDsId, table) {
+    var blob = {
+      dsKind: "ws", dsId: outDsId, chartType: def.chartType,
+      shelfCols: Studio.clone(def.shelfCols), shelfRows: [],
+      filters: Studio.clone(def.filters || []), calcs: [],
+      shelfColor: [], paletteKey: "", mapScale: def.mapScale || ""
+    };
+    // Computed over the UNFILTERED table on purpose: a filter changes which rows come
+    // back, never which columns do, and only the head is wanted here (the rows are
+    // runBlob's job). Doing it over the whole table also means the head is right even
+    // for a filter that happens to match nothing in a re-extracted CSV.
+    var basis = Studio.Build.compute(table.columns, table.rows, blob.shelfCols, blob.shelfRows);
+    if (!basis || !basis.head.length) return null;
+    var da = { id: "mcv_" + def.key, name: def.name, kind: "sql", sql: "", query: "",
+      columns: basis.head.slice(), params: [], authored: true };
+    da.builder = Studio.clone(blob);
+    var p = Studio.newPanel(def.chartType, da);
+    if (def.chartType === "choropleth") {
+      // bdPanelFor's reason, verbatim: the measure column here is a synthesized "AVG x"
+      // label and Studio.guessChoroplethCols can misjudge one, so the basis is mapped
+      // back POSITIONALLY the same way chartBasis built it — [id, value], no guessing.
+      p.chart.map = { idCol: basis.head[0], valueCol: basis.head[1] };
+    }
+    // newPanel's table default marks every column after the first numeric and titleizes
+    // its label — right for an ad-hoc pivot, wrong for `state`. Declared columns win.
+    if (def.tableCols) p.chart.map.cols = Studio.clone(def.tableCols);
+    if (def.opts) Object.keys(def.opts).forEach(function (k) { p.chart.opts[k] = def.opts[k]; });
+    return {
+      name: def.name, folder: MC_FOLDER, demoPackId: "marketcoverage",
+      pinned: true, panelTitle: "", chartType: def.chartType, paletteKey: "",
+      da: da, builder: Studio.clone(blob), chart: p.chart
+    };
+  }
+  // Idempotent by View name, the same convention seedMarketCoverageDashboards uses, so
+  // this is safe from the seed, from the boot heal, and in a workspace where someone
+  // deleted one of the four.
+  function seedMarketCoverageViews(W, id, outputDs, table) {
+    if (!outputDs) return 0;
+    var t = marketCoverageThresholds(table);
+    if (!t.counties) return 0; // no rows to threshold against — nothing honest to filter
+    var have = {};
+    W.all("analyses").forEach(function (r) { if (r.demoPackId === id) have[r.name] = true; });
+    var added = 0;
+    // Seeded in REVERSE of the reading order above: Home sorts pinned Views newest-first,
+    // so the supply map has to be the last row written to lead the shelf (the CONS-2/
+    // CONS-3 convention the dashboards are seeded by too).
+    mcViewDefs(t).slice().reverse().forEach(function (def) {
+      if (have[def.name]) return;
+      var row = marketCoverageViewRow(def, outputDs.id, table);
+      if (!row) return;
+      W.put("analyses", row);
+      added++;
+    });
+    return added;
+  }
+  // The boot heal, paired with ensureMarketCoverageDashboards above and for the same
+  // reason: a workspace that installed the pack at slice (a) or (b) gets the Views
+  // without a reinstall. False when there is nothing to do.
+  Studio.ensureMarketCoverageViews = function () {
+    var id = "marketcoverage";
+    if (!Studio.demoPackInstalled(id)) return false;
+    var W = Studio.Workspace;
+    var outputDs = W.all("datasets").filter(function (d) {
+      return d.demoPackId === id && (d.tags || []).indexOf("job-output") >= 0 && d.content;
+    })[0];
+    if (!outputDs) return false;
+    return seedMarketCoverageViews(W, id, outputDs, parsePackCsv(outputDs.content)) > 0;
   };
 
   // SP-0: registry-driven. This function knows about no pack in particular — an entry

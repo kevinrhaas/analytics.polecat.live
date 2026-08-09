@@ -6,6 +6,21 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 914,
+    title: 'The Census pack pins four charts to Home, and walks you through them',
+    kind: 'feature',
+    ts: '2026-08-09T04:47:31.000Z',
+    items: [
+      'The "Market Coverage" pack shipped its dashboards last time. It now also pins four saved Views to Home, so the pack has something to show the moment it installs rather than only inside a dashboard you have to open.',
+      'The four are the pack\'s argument, one card each: restaurants and bars per ten thousand residents by county, median household income on the same map, the two plotted against each other for every county of a quarter of a million people or more, and the shortlist that falls out of them.',
+      'They are saved Views, not pictures. Click one and it opens in the View Builder that made it, with the fields, the filters and the map scale all still there — change the measure, drop the population floor, or move the shortlist\'s two rules and watch the list change. Each card draws live from the pack\'s own prep job every time you open Home, so re-running the job updates them.',
+      'The shortlist View is worth opening for that reason specifically: its rules — income at or above the national county median, restaurants at or below it — are three ordinary filters rather than a stored answer, and every one of the 1,813 counties is available behind them.',
+      'The pack also gets its own guided tour, alongside the Conservation Insight one: six stops from the Views on Home through the whitespace map and the income-versus-supply quadrant, ending on the panel that says what the numbers do NOT prove. Find it at ⌘K → Interactive tutorial once the pack is installed.',
+      'If you installed the pack earlier, its four Views appear on their own the next time you open the app — no reinstall, and nothing you have saved is touched.',
+      'Still to come: making Market Coverage the pack a brand-new workspace starts with, instead of the Data Management gallery.',
+    ],
+  },
+  {
     v: 913,
     title: 'The Census pack now has dashboards: where a category is under-served',
     kind: 'feature',

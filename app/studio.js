@@ -1220,6 +1220,9 @@
     // boot, without a reinstall. A no-op once they exist, and a no-op while the pack's
     // CSV is still materializing (that path seeds them itself).
     try { if (Studio.ensureMarketCoverageDashboards) Studio.ensureMarketCoverageDashboards(); } catch (e) {}
+    // SP-1(c) heal, the same shape one slice later: an install that predates the pack's
+    // pinned Views gets them on boot rather than at a reinstall.
+    try { if (Studio.ensureMarketCoverageViews) Studio.ensureMarketCoverageViews(); } catch (e) {}
   }
   window.__studioReconcilePackDashboards = reconcilePackDashboards; // test hook
 
