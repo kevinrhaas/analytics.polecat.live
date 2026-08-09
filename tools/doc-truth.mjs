@@ -5819,6 +5819,213 @@ if (kitLive) {
   }
 }
 
+/* ── 58. How the strips COMPOSE — OR inside a facet, AND across them ────────────────────
+   N7, and the slice check 57 named as the one it was deliberately not taking: "the *Which
+   pills take more than one* paragraph's claim that ticking two pills of one facet shows
+   'anything matching either' — `matchMulti` really does OR within a facet while the facets
+   AND against each other, and the AND half is unpublished on a page that has now taught the
+   reader to expect the composition rules to be stated. Same probing idiom, one method down
+   (`matchMulti`/`matchOne` rather than `tally`)."
+
+   So this is the fourth derivation over the same paragraph family, and the last axis of it:
+   check 53 holds WHICH page filters by what, 56 the WORDS on a pill, 57 the NUMBER, and this
+   one holds what happens when you pick more than one. Like 55 and 57 it EVALUATES
+   `Studio.catalogFacets` and PROBES it rather than reading its comments — but only half the
+   claim lives in the kit. `matchMulti`/`matchOne` decide what ONE strip does; the AND is not
+   in the kit at all, it is the `&&` each panel writes when it composes its matchers, so that
+   half is derived from the six panels' own predicates.
+
+   Measured 2026-08-09, before the fix. The OR half was published and the AND half was not:
+   · **"tick two pills and the list shows anything matching either" is the whole of what the
+     catalog-wide copy said.** Every panel then ANDs: `dsxAdapterMatch(d) && dsxConnMatch(d)
+     && dsxTagMatch(d) && dsxKindMatch(d) && dsxFolderMatch(d) && dsxMatch(d)` on Datasets,
+     the same shape on Connections/Views/Jobs, and a `return false` guard per axis on the two
+     hand-rolled strips (Dashboards' workbook chips, the Repository's types) — so picking in
+     a second strip does the OPPOSITE of picking a second pill in the first one, and the page
+     stated one of those two and not the other.
+   · **The search box is one more conjunct and was never counted as one.** Five panels put
+     their `catalogSearch` matcher inside the same predicate; Dashboards runs it as a later
+     stage over the facet-filtered list (it has the column fallback the others do not). Same
+     semantics, and the copy named neither.
+   · **A row with several values of one facet only needs one of them ticked** — `matchMulti`
+     `.some()`s over an array key — which is the reading a reader has to have to make sense
+     of the tag pills. Check 57 published the COUNTING side of the same array (a two-tag
+     dataset is counted twice); the matching side was unpublished.
+   · The one thing that was published, in the pills paragraph, is that an empty strip means
+     all of them — and it is what makes the AND safe to state, since a strip you never
+     touched cannot be the reason a combination came back empty.
+   The narrower jargon line under *Filtering datasets and connections* ("Pills in the same
+   strip are OR'd; different strips are AND'd") has said it correctly all along, for those
+   two pages, in words the rest of the page deliberately avoids. This slice states it once,
+   catalog-wide, in the page's own voice, and holds it.
+
+   Six rules, every kit-side one a probe that RUNS the kit:
+   (a) the premise — the kit evaluates with both matchers and all six panel predicates are
+       readable (a rule that cannot measure must fail rather than pass over nothing). It
+       deliberately does NOT require the new paragraph: a missing paragraph is the drift the
+       other rules report, so gating them on it would have let the pre-fix tree pass;
+   (b) OR inside a strip, probed from both ends (two keys ticked accept both rows and reject
+       a third; an array-valued row matches on ANY one of its own values), and published;
+   (c) the AND across strips, derived from every panel's predicate: each facet the panel
+       built appears in it, no `||` joins them, and every `return` is either `false` or a
+       chain of `&&`-ed calls — so a panel that started OR-ing its facets lands here rather
+       than quietly making the copy false. Plus published;
+   (d) the search box as one more conjunct, per panel, in whichever of the two shapes that
+       panel uses, and published;
+   (e) an untouched strip narrows nothing, probed on both matchers, and published in both
+       paragraphs — this is the sentence that makes (c) safe to state;
+   (f) the negative half: a single-select strip cannot OR. `matchOne` takes one value and
+       rejects the rest (UNFILED matching only the unfiled rows), and the facet paragraph
+       still says which strips are one-at-a-time.
+   Deliberately NOT held: which page has which axis (check 53), the pill faces (56), the
+   numbers (57), and the jargon line above — holding two copies of one rule in two voices
+   would make the narrower one impossible to reword. */
+{
+  // The source of truth, evaluated rather than regexed: the two matchers as the app runs them.
+  const cpKit = (() => {
+    const src = read("app/studio.js");
+    const at = src.indexOf("Studio.catalogFacets = {");
+    if (at < 0) return null;
+    const block = searchBlockAt(src, src.indexOf("{", at), "{", "}");
+    try {
+      const Studio = {};
+      // eslint-disable-next-line no-new-func
+      new Function("Studio", "esc", "Studio.catalogFacets = " + block + ";")(Studio, (s) => String(s));
+      const F = Studio.catalogFacets;
+      return ["matchMulti", "matchOne"].every((k) => typeof F[k] === "function") ? F : null;
+    } catch { return null; }
+  })();
+  const cpBody = (file, fn) => {
+    const src = read(file);
+    const at = src.indexOf("function " + fn + "(");
+    return at < 0 ? "" : searchBlockAt(src, src.indexOf("{", at), "{", "}");
+  };
+  // A whole `var x = …;` statement — the search stage ends in a `.filter(function () { … })`
+  // carrying `;` of its own, so this walks to the semicolon at depth 0 (check 57's idiom).
+  const cpStmt = (src, at) => {
+    let d = 0;
+    for (let i = at; i < src.length; i++) {
+      const c = src[i];
+      if ("([{".includes(c)) d++;
+      else if (")]}".includes(c)) d--;
+      else if (c === ";" && d === 0) return src.slice(at, i + 1);
+    }
+    return src.slice(at);
+  };
+  const cpFlat = (s) => String(s).replace(/\s+/g, " ").trim();
+  const cpPara = cpFlat(htmlText((help.match(/<p><strong>How the strips combine\.<\/strong>[\s\S]*?<\/p>/) || [""])[0]));
+  const cpPills = cpFlat(htmlText((help.match(/<p><strong>Filtering with pills\.<\/strong>[\s\S]*?<\/p>/) || [""])[0]));
+
+  // Each panel, read the way check 57 reads its counts: the predicate that turns the raw
+  // list into the rows you see, the facets it has to honour, and where the search box joins.
+  const cpPanels = facetPanels.map((p) => {
+    const body = cpBody(p.file, p.fn);
+    const at = body.search(/\bvar (?:shown|filtered) = \w+\.filter\(function \(\w+\) \{/);
+    const visible = at < 0 ? "" : /\bvar (\w+) =/.exec(body.slice(at))[1];
+    const pred = at < 0 ? "" : searchBlockAt(body, body.indexOf("{", body.indexOf("function", at)), "{", "}");
+    return {
+      ...p, body, pred, visible,
+      // the kit's matchers, however they are declared (Datasets chains five off one `var`)
+      matchers: [...body.matchAll(/(\w+) = (?:F|Studio\.catalogFacets)\.match(?:Multi|One)\(/g)].map((m) => m[1]),
+      // …and the two hand-rolled strips' scalars, which check 53 already identifies as axes
+      scalars: p.axes.filter((a) => a.expr.startsWith("_")).map((a) => a.expr),
+      search: (/var (\w+) = Studio\.catalogSearch\.(?:matcher|terms)\(q/.exec(body) || [])[1] || "",
+    };
+  });
+
+  // (a) the premise. Everything below dereferences cpKit or a panel predicate.
+  const cpNoPred = cpPanels.filter((p) => !p.pred).map((p) => p.fn);
+  // The premise is deliberately the CODE side plus the pre-existing pills paragraph, and not
+  // the composition paragraph this slice added: a missing paragraph is exactly the drift the
+  // rules below exist to report, so gating them on it would have made the pre-fix tree pass.
+  const cpLive = ok(`app/studio.js: both facet matchers evaluate and all ${cpPanels.length} panel predicates are readable — ` +
+     "the premise the rules below measure against",
+    !!cpKit && !cpNoPred.length && cpPanels.length === Object.keys(CATALOG_PAGES).length && !!cpPills,
+    `kit evaluated: ${!!cpKit} · predicates unread: ${cpNoPred.join(", ") || "(none)"}\n      ` +
+    `the pills paragraph found: ${!!cpPills}\n      ` +
+    "these rules PROBE the kit; if it cannot be run they must fail rather than pass over nothing");
+
+  if (cpLive) {
+    const cpKeyOf = (r) => r.k, cpTagsOf = (r) => r.t;
+
+    // (b) OR inside one strip — the kit's `!!state[k]`, and `.some()` when the row's own key
+    //     is an array. Both directions, so a matcher that started AND-ing lands here.
+    const cpTwo = cpKit.matchMulti({ a: true, b: true }, cpKeyOf);
+    const cpOrKeys = cpTwo({ k: "a" }) && cpTwo({ k: "b" }) && !cpTwo({ k: "c" });
+    const cpTag = cpKit.matchMulti({ eu: true }, cpTagsOf);
+    const cpOrValues = cpTag({ t: ["finance", "eu"] }) && !cpTag({ t: ["finance"] });
+    const cpOrPublished = /need only match one of them/i.test(cpPara) && /either tag/i.test(cpPara) &&
+      /only one of its own values ticked/i.test(cpPara);
+    ok("docs/index.html: two pills on one strip are alternatives, and a row with several values needs only one of them ticked",
+      cpOrKeys && cpOrValues && cpOrPublished,
+      `measured — {a,b} ticked accepts a and b, rejects c: ${cpOrKeys} · {eu} ticked accepts a #finance #eu row, rejects #finance: ${cpOrValues}\n      ` +
+      `published: ${cpOrPublished}\n      ` +
+      "matchMulti ORs within a facet and .some()s over an array key — the reading the tag pills only make sense under");
+
+    // (c) the AND across strips. Not in the kit: it is the `&&` (or the `return false` guard)
+    //     each panel writes, so it is derived from all six predicates.
+    const cpAndWrong = [];
+    cpPanels.forEach((p) => {
+      const want = p.matchers.concat(p.scalars);
+      if (!want.length) { cpAndWrong.push(`${p.page}: no facet reaches this page's predicate any more`); return; }
+      const missing = want.filter((id) => !new RegExp(`\\b${id}\\b`).test(p.pred));
+      if (missing.length) cpAndWrong.push(`${p.page}: ${missing.join(", ")} never reach the predicate — the strip would stop narrowing`);
+      if (p.pred.includes("||"))
+        cpAndWrong.push(`${p.page}: its predicate ORs somewhere — the published rule is that every picked strip has to be satisfied at once`);
+      [...p.pred.matchAll(/return ([^;]*);/g)].map((m) => cpFlat(m[1])).forEach((r) => {
+        if (r !== "false" && !/^[\w.]+\([\w.]+\)(\s*&&\s*[\w.]+\([\w.]+\))*$/.test(r))
+          cpAndWrong.push(`${p.page}: \`return ${r}\` is neither a rejection nor a chain of ANDed matchers`);
+      });
+    });
+    const cpAndPublished = /every strip you have picked from has to be satisfied at once/i.test(cpPara);
+    ok(`app/ + docs/index.html: the strips AND against each other on all ${cpPanels.length} catalog pages, and Help says so`,
+      !cpAndWrong.length && cpAndPublished,
+      `${cpAndWrong.join("\n      ") || "(every panel ANDs its facets)"}\n      ` +
+      `published: ${cpAndPublished}\n      ` +
+      `predicates: ${cpPanels.map((p) => `${p.page} [${p.matchers.concat(p.scalars).join(", ")}]`).join(" · ")}\n      ` +
+      "picking in a second strip does the opposite of picking a second pill in the first one — a reader cannot infer that from the OR half");
+
+    // (d) the search box is one more conjunct, in whichever of the two shapes the panel uses.
+    const cpSearchOf = (p) => {
+      if (!p.search) return { how: "", ok: false };
+      if (new RegExp(`\\b${p.search}\\b`).test(p.pred)) return { how: "in the predicate", ok: true };
+      // Dashboards searches AFTER its facets, because its column fallback needs the terms
+      // the row's own text missed — same conjunction, one stage later.
+      const at = p.body.search(new RegExp(`\\bvar \\w+ = ${p.visible}\\.(?:map|filter)\\(`));
+      if (at < 0) return { how: "", ok: false };
+      const stmt = cpStmt(p.body, at);
+      return { how: `over \`${p.visible}\``, ok: new RegExp(`\\b${p.search}\\b`).test(stmt) && /\.filter\(/.test(stmt) };
+    };
+    const cpSearch = cpPanels.map((p) => ({ page: p.page, ...cpSearchOf(p) }));
+    const cpSearchPublished = /search box counts as one more/i.test(cpPara);
+    ok(`app/ + docs/index.html: the search box narrows alongside the pills on every catalog page (${cpSearch.filter((s) => s.ok).length} of ${cpSearch.length})`,
+      cpSearch.every((s) => s.ok) && cpSearchPublished,
+      `${cpSearch.map((s) => `${s.page}: ${s.ok ? s.how : "no search stage found over its filtered rows"}`).join(" · ")}\n      ` +
+      `published: ${cpSearchPublished}\n      ` +
+      "a reader who has just been told the strips AND has to be told whether the box they typed in is one of them");
+
+    // (e) an untouched strip narrows nothing — what makes (c) safe to state.
+    const cpEmpty = cpKit.matchMulti({}, cpKeyOf)({ k: "anything" }) === true &&
+      cpKit.matchOne("", cpKeyOf)({ k: "anything" }) === true;
+    const cpEmptyPublished = /narrows nothing/i.test(cpPara) &&
+      /picking none of a facet's pills means all of them/i.test(cpPills);
+    ok("docs/index.html: a strip you have picked nothing in narrows nothing — probed on both matchers, published in both paragraphs",
+      cpEmpty && cpEmptyPublished,
+      `measured — empty multi-select and empty single-select both accept every row: ${cpEmpty} · published: ${cpEmptyPublished}\n      ` +
+      "without this the AND rule reads as though six untouched strips had to agree before anything showed at all");
+
+    // (f) the negative half: a single-select strip cannot OR.
+    const cpOne = cpKit.matchOne("a", cpKeyOf);
+    const cpUnfiled = cpKit.matchOne(cpKit.UNFILED, cpKeyOf);
+    const cpOnly = cpOne({ k: "a" }) && !cpOne({ k: "b" }) && cpUnfiled({}) && !cpUnfiled({ k: "a" });
+    const cpOnePublished = /one pill at a time/i.test(facetPara);
+    ok("docs/index.html: a single-select strip holds exactly one value — matchOne rejects every other row, and Help still names those strips",
+      cpOnly && cpOnePublished,
+      `measured — matchOne("a") accepts only a, and the unfiled value only the unfiled rows: ${cpOnly} · published: ${cpOnePublished}\n      ` +
+      "the OR sentence is scoped to the multi-select strips, so the page has to keep saying which ones those are");
+  }
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

@@ -1798,6 +1798,15 @@
   the <strong>Folders</strong> strip, on each page that has one; <strong>Dashboards</strong> by workbook,
   the strip that also offers <em>Sample packs</em> and <em>Unfiled</em>; and the <strong>Repository</strong>
   by type, one pill per kind of row it lists.</p>
+  <p><strong>How the strips combine.</strong> Within one strip the pills are alternatives: tick a second
+  pill on a multi-select strip and the list grows, because a row need only match one of them — and a row
+  carrying several values of that facet needs only one of its own values ticked, so a dataset tagged
+  <em>#finance</em> and <em>#eu</em> survives a pick of either tag. Between strips it is the other way
+  round: every strip you have picked from has to be satisfied at once, and the search box counts as one
+  more of them — adapter <em>Postgres</em>, tag <em>#eu</em> and the word <em>revenue</em> together show
+  only the rows that answer all three. A strip you have picked nothing in narrows nothing, which is what
+  keeps the pills a narrowing tool rather than a mode; it is also why a combination can legitimately come
+  back empty while every pill above it still carries its own full count.</p>
   <p><strong>What a pill says.</strong> Each pill is labelled with the app's own name for the thing it
   narrows to, so the strip reads the way the list under it does. <strong>Adapter</strong> pills (Datasets
   and Connections) carry the adapter's name and its colour dot — the same names the
