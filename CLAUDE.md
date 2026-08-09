@@ -20,10 +20,11 @@ they branch from dev and PR into dev per the pipeline rules below.
   jobtracker pilot; that repo's docs/PIPELINE.md is the canonical runbook).
   Branch `steward/<topic>` off latest **dev** → ONE coherent unit of work →
   PR **into dev** → merge when the dev gate is green (`ci.yml`: validate +
-  changelog-check + `tools/dev-smoke.mjs`). **Merge-to-dev is STAGE, not
+  changelog-check + doc-truth + `tools/dev-smoke.mjs`). **Merge-to-dev is STAGE, not
   ship** — it publishes only the `/dev/` preview. `promote-to-stage.yml` (on
   command, or nightly at 07:00Z per `.github/pipeline.json`) moves dev→stage
-  under the FULL `tests/run.js` suite + a staged-form boot smoke, rolling stage
+  under the FULL `tests/run.js` suite + both posture checks (`tests/rls.mjs`,
+  `tests/rls-verify.mjs`) + a staged-form boot smoke, rolling stage
   back on red; `promote-to-prod.yml` (dispatch-only) ships stage→main with a
   `release-vNNN` tag. **Hotfix exception:** a production emergency still PRs
   straight into main — deploy stays ungated, Guard main watches, and the next
@@ -39,12 +40,25 @@ they branch from dev and PR into dev per the pipeline rules below.
   to stamp + canonicalize it YOURSELF before merging — nothing stamps after
   merge. `node tools/changelog-check.js` verifies with the manager's exact
   parser without writing (Guard main runs it).
-- **The database posture has its own test**: `node tests/rls.mjs` applies both
-  shipped RLS files (`tools/supabase-rls-real.sql`, `tools/supabase-deploy.sql`)
-  into throwaway `steward_test_rls_*` schemas on the live project and asserts an
-  unauthorized read is refused. Run it after ANY change to those files. It SKIPs
-  with exit 0 without `SUPABASE_PASSWORD`, and it never touches `public` — that
-  is enforced in the script, not just promised.
+- **The database posture has TWO tests, and the difference is the point.**
+  *Do our SQL FILES produce a secure database?* — `node tests/rls.mjs` applies
+  all seven shipped provisioning postures, drawn from five artifacts
+  (`tools/supabase-rls-real.sql`, `tools/supabase-deploy.sql`,
+  `tools/supabase-bootstrap.sql`, the Edge Function's inlined SQL in
+  `supabase/functions/polecat-admin/sql.ts`, and the in-app generators
+  `WS.freshDeploySQL()` / `WS.migrationRpcSQL()` in `app/sources/schema.js`),
+  into throwaway `steward_test_rls_*` schemas and asserts an unauthorized read
+  is refused. Run it after ANY change to those files. It SKIPs with exit 0 without
+  `SUPABASE_PASSWORD`, and it never touches `public` — that is enforced in the
+  script, not just promised. It runs against the **DEV** project, never
+  production (`rls-dev.yml`, dispatch + nightly, deliberately NOT the dev gate:
+  it talks to a live third party and a Supabase blip must never redden a PR).
+  *Is a LIVE database readable by an anonymous caller RIGHT NOW?* —
+  `node tests/rls-verify.mjs`, read-only anon GETs with only the publishable
+  key, which is what makes it safe to aim at production (`rls-verify.yml`,
+  dispatch + daily; `promote-to-prod.yml` runs it before shipping). Neither
+  check subsumes the other: the files can be sound while the live database was
+  never built from them.
 - **Tests green before merge**: `NODE_PATH=$(npm root -g) node tests/run.js`
   (Playwright; global install, Chromium under `/opt/pw-browsers/`). Add a
   check per feature; **never weaken assertions to pass.** Zero pageerrors at
@@ -110,13 +124,17 @@ app/                Studio modules: model.js → studio-render.js ↔ studio.js
                     is the contract); studio-charts.js = chart extensions
 js/changelog.js     Fleet-format changelog (see contract above)
 vendor/             dashkit.js toolkit mirror (pristine) + polecat-shell/ (read-only)
-tests/run.js        The Playwright suite (~3,000 checks) — the stage gate
+tests/run.js        The Playwright suite (~3,200 checks) — the stage gate
+tests/rls.mjs       The SQL files' posture, in throwaway schemas (dev project)
+tests/rls-verify.mjs  A live database's posture, read-only (prod-safe)
 tools/              changelog-normalize/check, validate + dev-smoke + doc-truth
-                    (the dev gate), export.js CLI, lib.js
+                    (the dev gate), export.js CLI, lib.js, pack-extract/
+data/packs/         Committed pack CSVs (docs/PACKS.md) — never fetched at runtime
 docs/index.html     User-facing Help (update in the same slice as features)
 provisioning/ reference/   Frozen inputs — do not touch
 .github/workflows/  ci (the dev gate), promote-to-stage / promote-to-prod /
                     rollback-prod / pipeline-setup (the promotion pipeline),
                     deploy (soft test, never gated), auto-revert (Guard main),
+                    rls-dev / rls-verify (the two posture checks above),
                     supabase-provision, claude (@claude mentions)
 ```

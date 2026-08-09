@@ -2978,6 +2978,207 @@ ok(`README.md: the tour-reopen route names the palette's own "${paletteTutorial}
   "README said \"reopen via ⓘ Tour\", a control the app has never had — the same class of dead " +
   "route check 13 found eleven times across the tours themselves");
 
+/* ── 42. CLAUDE.md + the pipeline runbook vs the gates the workflows really run ──
+   N7, and check 41's own closing note named it: check 7 holds CLAUDE.md's SIZE figures
+   (~LOC, ~checks) and nothing else, so the document that tells every agent WHAT MUST BE
+   GREEN before merging answered to no derivation at all. Three documents publish that
+   list — CLAUDE.md, docs/PIPELINE.md and `.github/pipeline.json`'s documentary `gates`
+   block — and the source of truth is the workflow YAML, which is why one derivation can
+   hold all three.
+
+   Measured 2026-08-09, before the fix:
+   · **All three published a dev gate of three steps where `ci.yml` runs four.**
+     `tools/doc-truth.mjs` — this file, a hard step since the doc-truth family began —
+     was in none of them. CLAUDE.md contradicted ITSELF about it: its Layout block calls
+     doc-truth part of "the dev gate" while its pipeline bullet, the sentence an agent
+     actually reads before merging, listed the other three. The v927 shape exactly:
+     neither half was wrong alone and together they were.
+   · **The stage gate was under-reported the same way.** `promote-to-stage.yml` runs the
+     full suite, then `tests/rls.mjs`, then `tests/rls-verify.mjs`, then the staged boot
+     smoke; PIPELINE.md and pipeline.json both named the suite and the smoke and skipped
+     the two posture checks between them.
+   · **The workflow roster named 9 of the 11 files** in `.github/workflows/`. The two
+     missing ones are `rls-dev.yml` and `rls-verify.yml` — the whole database-posture CI
+     surface, and the pair the open ⛔ N29 tells its reader to re-dispatch by name.
+   · **The database-posture bullet described one test where the repo has two**, said
+     `tests/rls.mjs` applies "both shipped RLS files" when the script applies THREE
+     postures (its own POSTURES table: the two .sql files plus the Edge Function's
+     inlined SQL), and said it runs "on the live project" — the opposite of what N25
+     shipped, which was moving it to `polecat_dev` precisely so production stops being
+     the thing we experiment on. `tests/rls-verify.mjs`, the read-only check that gates
+     promote-to-prod and runs daily, appeared nowhere in the document.
+
+   Five rules, all derived from the workflows and the test script themselves — no new
+   hand-maintained list:
+   (a) each of the three documents' dev-gate sentence names every `tools/` script
+       `ci.yml` runs;
+   (b) the negative half — none of them names a `tools/` script the gate does NOT run
+       (a step deleted from ci.yml must not linger in the prose as a promise);
+   (c) the stage-gate sentence in PIPELINE.md and pipeline.json names every `tests/`
+       script `promote-to-stage.yml` runs;
+   (d) CLAUDE.md's Layout block names every file in `.github/workflows/`, and names no
+       workflow that does not exist;
+   (e) CLAUDE.md's database bullet names both posture scripts, every posture source
+       `tests/rls.mjs` applies, and counts them in words. */
+
+const wfDir = ".github/workflows";
+const workflowFiles = fs.readdirSync(path.join(ROOT, wfDir)).filter((f) => f.endsWith(".yml")).sort();
+
+// What a workflow RUNS: the `node <path>` invocations in its `run:` bodies. Reading the YAML as
+// text rather than parsing it keeps this dependency-free (the file's own rule), and a gate step
+// is a `node tools/x.mjs` / `node tests/x.js` line in every workflow this repo has.
+const nodeScriptsIn = (wf, dir) =>
+  [...read(`${wfDir}/${wf}`).matchAll(new RegExp(`node\\s+(${dir}/[\\w.-]+\\.(?:mjs|js))`, "g"))]
+    .map((m) => m[1]).filter((v, i, a) => a.indexOf(v) === i);
+
+const devGateScripts = nodeScriptsIn("ci.yml", "tools");
+const stageGateTests = nodeScriptsIn("promote-to-stage.yml", "tests");
+const stem = (p) => path.basename(p).replace(/\.(mjs|js)$/, "");
+// Every tools/ script that COULD be named as a gate step — rule (b) compares against this so a
+// prose mention of `export.js` (a CLI, not a gate) is only flagged inside a gate sentence.
+const toolScripts = fs.readdirSync(path.join(ROOT, "tools"))
+  .filter((f) => /\.(mjs|js)$/.test(f)).map(stem);
+
+const claudeGateSentence = (claude.match(/the dev gate is green \(([^)]*)\)/) || ["", ""])[1];
+const claudePipelineBullet = (() => {
+  const at = claude.indexOf("- **This repo is on the dev → stage → main pipeline**");
+  if (at < 0) return "";
+  const end = claude.indexOf("\n- **", at + 5);
+  return claude.slice(at, end < 0 ? claude.length : end);
+})();
+const pipelineMd = read("docs/PIPELINE.md");
+const pipelineBulletIn = (label) => {
+  const at = pipelineMd.indexOf(`- *${label}*`);
+  if (at < 0) return "";
+  const end = pipelineMd.indexOf("\n  - *", at + 5);
+  const stop = end < 0 ? pipelineMd.indexOf("\n- **", at + 5) : end;
+  return pipelineMd.slice(at, stop < 0 ? pipelineMd.length : stop);
+};
+const pipelineJson = JSON.parse(read(".github/pipeline.json"));
+
+ok(`ci.yml + promote-to-stage.yml parsed for check 42 (${devGateScripts.length} dev-gate script(s), ` +
+   `${stageGateTests.length} stage-gate test(s))`,
+  devGateScripts.length >= 3 && stageGateTests.length >= 2,
+  `dev gate: ${devGateScripts.join(", ") || "(none found)"}\n      ` +
+  `stage gate: ${stageGateTests.join(", ") || "(none found)"}\n      ` +
+  "every rule below reads these two lists, and an empty parse would pass all of them");
+
+// (a) + (b) the dev gate, in all three documents that publish it
+const DEV_GATE_SURFACES = [
+  ["CLAUDE.md", claudeGateSentence, "the sentence an agent reads before merging"],
+  ["docs/PIPELINE.md", pipelineBulletIn("Dev gate"), "the canonical runbook's own gate list"],
+  [".github/pipeline.json", pipelineJson.gates?.devGate || "", "the documentary gates block"],
+];
+for (const [where, text, why] of DEV_GATE_SURFACES) {
+  const missing = devGateScripts.filter((s) => !text.includes(stem(s)));
+  ok(`${where}: the dev-gate list names all ${devGateScripts.length} steps ci.yml runs`,
+    !!text && !missing.length,
+    `ci.yml runs: ${devGateScripts.join(", ")}\n      ` +
+    `missing from ${where}: ${missing.join(", ") || "(the gate sentence itself was not found)"}\n      ` +
+    `this is ${why} — doc-truth.mjs was absent from all three while being a hard step`);
+  // the negative half: a tools/ script named here that the gate does not run
+  const gateStems = new Set(devGateScripts.map(stem));
+  const stray = toolScripts.filter((t) => !gateStems.has(t) && new RegExp(`\\b${t}\\b`).test(text));
+  ok(`${where}: the dev-gate list names no step ci.yml does not run`,
+    !stray.length,
+    `named as a gate step but not run by ci.yml: ${stray.join(", ")}\n      ` +
+    "a step deleted from the workflow must not linger in the prose as a promise");
+}
+
+// (c) the stage gate — the same shape, one workflow over. CLAUDE.md's pipeline bullet
+// summarises it too, so it is held to the same list.
+const STAGE_SURFACES = [
+  ["CLAUDE.md", claudePipelineBullet],
+  ["docs/PIPELINE.md", pipelineBulletIn("Stage gate")],
+  [".github/pipeline.json", pipelineJson.gates?.stageSuite || ""],
+];
+for (const [where, text] of STAGE_SURFACES) {
+  const missing = stageGateTests.filter((s) => !text.includes(stem(s)));
+  ok(`${where}: the stage-gate list names all ${stageGateTests.length} tests promote-to-stage.yml runs`,
+    !!text && !missing.length,
+    `promote-to-stage.yml runs: ${stageGateTests.join(", ")}\n      ` +
+    `missing from ${where}: ${missing.join(", ") || "(the stage-gate text itself was not found)"}\n      ` +
+    "both posture checks sit BETWEEN the suite and the boot smoke, and all three surfaces skipped them");
+}
+
+// (d) the workflow roster in CLAUDE.md's Layout block. Names are basenames without .yml; the
+// parentheticals are commentary, so they are stripped before the roster is read (check 18's
+// by-shape idiom — a token outside a parenthetical, in the file's own naming shape, is a claim).
+const claudeWfBlock = (() => {
+  const at = claude.indexOf(`${wfDir}/`);
+  if (at < 0) return "";
+  const end = claude.indexOf("```", at);
+  return claude.slice(at + wfDir.length + 1, end < 0 ? claude.length : end);
+})();
+const claimedWorkflows = claudeWfBlock.replace(/\([^)]*\)/g, " ").split(/[\s,/]+/)
+  .filter((t) => /^[a-z][a-z0-9-]*$/.test(t)).filter((v, i, a) => a.indexOf(v) === i);
+const realWorkflows = workflowFiles.map((f) => f.replace(/\.yml$/, ""));
+const wfMissing = realWorkflows.filter((w) => !claimedWorkflows.includes(w));
+const wfStray = claimedWorkflows.filter((w) => !realWorkflows.includes(w));
+ok(`CLAUDE.md: the Layout block names all ${realWorkflows.length} workflows, and none it lacks`,
+  !!claudeWfBlock && !wfMissing.length && !wfStray.length,
+  `in ${wfDir}/, unnamed in CLAUDE.md: ${wfMissing.join(", ") || "(none)"}\n      ` +
+  `named in CLAUDE.md, not a workflow: ${wfStray.join(", ") || "(none)"}\n      ` +
+  "rls-dev and rls-verify were the missing pair — the whole database-posture CI surface, and " +
+  "the two the open N29 tells its reader to re-dispatch by name");
+
+// (e) the database-posture bullet vs the script it describes. tests/rls.mjs's POSTURES table
+// declares its own `source:` for each posture it applies — that IS the list, and the bullet
+// said "both shipped RLS files" while the table has had three entries since the Edge Function
+// grew its inlined copy.
+// Scoped to the POSTURES array itself — rls.mjs declares `source:` in other tables too
+// (MARKER_ARTIFACTS is a different question), and counting those would inflate the claim.
+const posturesBlock = (() => {
+  const src = read("tests/rls.mjs");
+  const at = src.indexOf("const POSTURES = [");
+  if (at < 0) return "";
+  const end = src.indexOf("\n];", at);
+  return src.slice(at, end < 0 ? src.length : end);
+})();
+const postureSources = [...posturesBlock.matchAll(/^\s*source:\s*"([^"]+)"/gm)].map((m) => m[1]);
+// The ARTIFACTS under test — what "run it after ANY change to those files" actually points at.
+// One posture can combine two files ("a + b") and two postures can share one file, so the
+// artifact list is neither the posture count nor a de-duped source list.
+const postureArtifacts = [...new Set(postureSources.flatMap((s) => s.split(" + ")))]
+  .map((s) => s.split(" ")[0]).filter((v, i, a) => a.indexOf(v) === i);
+const claudeDbBullet = (() => {
+  const at = claude.indexOf("- **The database posture");
+  if (at < 0) return "";
+  const end = claude.indexOf("\n- **", at + 5);
+  return claude.slice(at, end < 0 ? claude.length : end);
+})();
+ok(`tests/rls.mjs's POSTURES table parsed for check 42 (${postureSources.length} posture(s), ` +
+   `${postureArtifacts.length} artifact(s))`,
+  postureSources.length >= 2 && postureArtifacts.length >= 2,
+  `sources found: ${postureSources.join(", ") || "(none)"}`);
+const postureMissing = postureArtifacts.filter((s) => !claudeDbBullet.includes(path.basename(s)));
+const postureWord = NUMBER_WORD[postureSources.length] || String(postureSources.length);
+ok(`CLAUDE.md: the posture bullet names all ${postureArtifacts.length} artifacts rls.mjs applies, ` +
+   `and counts the postures as "${postureWord}"`,
+  !!claudeDbBullet && !postureMissing.length &&
+    new RegExp(`\\b${postureWord}\\b|\\b${postureSources.length}\\b`, "i").test(claudeDbBullet),
+  `rls.mjs applies ${postureSources.length} postures across: ${postureArtifacts.join(", ")}\n      ` +
+  `missing from the bullet: ${postureMissing.join(", ") || "(none)"}\n      ` +
+  `the bullet should count ${postureSources.length}; it said "both shipped RLS files" and named two`);
+// The same claim, in the workflow that runs the script — its header said "three shipped
+// postures", the number this table had when N25 wrote it, and the table has grown twice since.
+const rlsDevHeader = read(`${wfDir}/rls-dev.yml`).split("\non:")[0];
+const rlsDevCount = (rlsDevHeader.match(/applies the (\w+)/) || ["", ""])[1];
+ok(`rls-dev.yml: its header counts the postures rls.mjs applies as "${postureWord}"`,
+  rlsDevCount.toLowerCase() === postureWord,
+  `the header says "applies the ${rlsDevCount || "(no count found)"} shipped postures", ` +
+  `the POSTURES table has ${postureSources.length}\n      ` +
+  "this comment is the first thing anyone debugging a red posture run reads");
+const postureTests = ["tests/rls.mjs", "tests/rls-verify.mjs"]
+  .filter((t) => fs.existsSync(path.join(ROOT, t)));
+const testsMissing = postureTests.filter((t) => !claudeDbBullet.includes(path.basename(t)));
+ok(`CLAUDE.md: the posture bullet names both posture scripts (${postureTests.length})`,
+  !testsMissing.length,
+  `in tests/, unnamed in the bullet: ${testsMissing.join(", ")}\n      ` +
+  "they answer different questions — \"do our SQL FILES produce a secure database?\" vs \"is a " +
+  "LIVE database readable RIGHT NOW?\" — and neither subsumes the other, which is exactly why " +
+  "N29 exists: rls.mjs went 81/81 green in the same hour rls-verify found dev wide open");
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
