@@ -174,6 +174,42 @@
   real failures, cut off in the trailing mobile block by the runner's own 10-minute command cap
   (the one reported "failure" is that kill — `page.waitForTimeout: Target page … has been closed`);
   every block touching this change (SP-1, CONS-4, VB-5, #117) ran green. Dev gate green in full.
+- **N38 — the suite failed three different ways on one unchanged tree, and none of them were the
+  code (no version/sw bump — test-only, 2026-08-09, steward; dev branch; Kevin-directed directly;
+  est 1pt, took 1):** Kevin, after watching N37 take six full runs to land: *"if you need to do
+  something to the suite's flakiness to improve it please do."*
+  **Measured, not impressionistic.** Six runs of `tests/run.js` across the N37 work, on trees that
+  differed only in test code, produced **three unrelated failure modes** — a fatal
+  `page.reload` timeout, a KPI delta/sparkline pair, and (twice) real defects in the new test.
+  The two non-defects share one cause: **the suite waits on the clock where it should wait on the
+  condition.** Run 5 then passed 3255/0 on the identical commit that had just failed, which is
+  what makes "flake" a measurement rather than an excuse. This matters beyond lost minutes: a
+  suite that fails differently each run trains you to discount its failures, and this session
+  already produced one near-miss where dev was almost reported red on that basis.
+  **Fixed, both observed modes:**
+  - **`page.reload({waitUntil:"networkidle"})` → `"domcontentloaded"` + a real ready wait (7
+    sites).** `networkidle` resolves only after 500ms of network silence, which a service-worker
+    app can simply never reach — that is the 30s hang. Four of the seven already had a proper
+    `waitForFunction` after the reload and only needed the wrong `waitUntil` removed; three had
+    nothing but a `waitForTimeout`, and now wait on `__STUDIO_STATE.assets.js.length > 0`
+    (the app-ready idiom already used at 8 other sites). The viewer-page reload waits on its own
+    `__viewerBuildHtml` marker instead, since the studio state never exists there.
+  - **The KPI delta/sparkline race.** The block loads a spec, mutates `kpis[0]` to add
+    `deltaText`/`sparkCol`, reloads the model and slept 350ms before reading the preview iframe.
+    The tell that it was a race and not a defect: the THIRD assertion in the same block
+    (`dels === kpis && kpis === 4`) passed on the failing run — the iframe had KPIs from the
+    first load, and the second repaint had not landed. It now polls for the delta and spark to
+    exist, bounded at 8s. **The assertions are unchanged and no weaker:** the wait swallows only
+    its own timeout, so if the markup never renders the `ok()` still fails, now with its payload
+    intact instead of aborting the run.
+  **Scope, honestly stated.** `tests/run.js` still has **1,018** `waitForTimeout` calls and **52**
+  `goto(..., "networkidle")` initial loads (re-counted after the edits; `reload` + `networkidle`
+  is now zero). This slice did NOT convert them — a blanket rewrite of
+  a thousand waits is how you introduce ten new races while fixing two, and none of those sites
+  has been observed failing. What it fixes is the two modes that actually fired, plus every site
+  sharing the exact `reload`+`networkidle` shape of one of them. The `goto` loads are the obvious
+  next candidate if one is ever seen hanging; until then they stay.
+  Files: tests/run.js.
 - **N35 — a calculated column had no way back to its formula, and "＋ calc…" handed you the last
   one (v949, sw v540, 2026-08-09, steward; dev branch; est 1pt, took 1):** the item's diagnosis was
   right on both counts and cost nothing to confirm — `openCalcEditor()` already listed every calc
