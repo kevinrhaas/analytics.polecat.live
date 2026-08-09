@@ -2392,6 +2392,158 @@ ok("docs/index.html: the Viewer paragraph claims parity with Export ▾ only whe
   `${studioExports.filter((l) => !new Set(viewerExports.map(labelKey)).has(labelKey(l))).join(", ")} ` +
   "are builder-only\n      the drift that runs the other way — copy promising more app than ships");
 
+/* ── 38. Help's Connections inventory vs the picker the wizard really renders ───
+   N7, and check 37's move one catalog over: the Connections wizard's step 1 is a
+   picker, and app/connections.js builds it by iterating `Studio.dataSources()` —
+   every registered adapter whose `caps.data` is true, in registry order. Nothing
+   compared that list to Help.
+
+   Measured 2026-08-09, before the fix — the picker offered 13 connectors and Help
+   documented four of them:
+   · Help's only enumeration of what a Connection can BE was a parenthetical inside
+     the live-after-export paragraph: "(Turso, PostgreSQL/PostgREST, Supabase, Google
+     Sheets, local files, Amazon Redshift)" — six of the thirteen, and the sentence
+     around it described a contract that applies to all of them.
+   · `Workspace connections:` sections existed for PostgREST, Redshift, Google Sheets
+     and CSV/JSON files. **Firebase had none anywhere on the page**, and six more —
+     Snowflake, Databricks, BigQuery, DuckDB, SQLite and Generic SQL / HTTP — were
+     documented ONLY as dashboard-only source types in the data-source builder. Those
+     six are the same adapters the Connections wizard offers, so a reader who wanted
+     one Snowflake connection shared by every dataset had no page that said they could
+     have one; Help's own text pointed them at a per-dashboard query instead.
+   · `workspace-capable` — the badge the picker prints on the three adapters that can
+     also host the workspace — appeared nowhere in Help or on the landing page.
+
+   Five rules:
+   (a) every connector the picker offers is named in Help's inventory, by the label the
+       picker itself prints;
+   (b) the inventory names no connector the registry does not have (the negative half —
+       (a) alone would let a retired or renamed adapter sit in the list forever, which is
+       how the six-name parenthetical stayed plausible while the picker grew to thirteen);
+   (c) the inventory is in the picker's order, so the page can be read beside the screen;
+   (d) the `workspace-capable` badge marks exactly the connectors whose `caps.meta` is
+       true — the claim is about which ones can host a workspace, not a decoration;
+   (e) the "used either way" set is the one the data-source builder really shares with
+       the registry (DS_TYPES ∩ the adapters), counted in words in the same paragraph.
+
+   The picker order is REPRODUCED rather than hand-kept: registry.js seeds four adapters
+   and every other file appends itself via Studio.registerSource as it loads, so
+   app/index.html's <script> order IS the registry order. Rule (0) below asserts the seed
+   array still agrees with its own load order, so a reordered registry.js fails here
+   rather than silently making rule (c) test the wrong sequence. */
+
+// Every adapter each app/sources/*.js file declares, in the order app/index.html loads them.
+// caps come from the adapter's own literal where it has one, else from a file-level
+// assignment (data-adapters.js sets `def.caps` once for all seven warehouse adapters).
+const sourceFiles = [...read("app/index.html")
+  .matchAll(/<script src="app\/sources\/([\w-]+\.js)"><\/script>/g)].map((m) => m[1]);
+const pickerRegistry = [];
+for (const f of sourceFiles) {
+  const src = read("app/sources/" + f);
+  const fileCaps = (src.match(/\.caps\s*=\s*\{([^}]*)\}/) || [, ""])[1];
+  const decls = [...src.matchAll(/\bid:\s*"([\w-]+)",\s*(?:\/\/[^\n]*)?\s*label:\s*"([^"]+)"/g)];
+  decls.forEach((m, i) => {
+    const window = src.slice(m.index, i + 1 < decls.length ? decls[i + 1].index : src.length);
+    const caps = (window.match(/caps:\s*\{([^}]*)\}/) || [, fileCaps])[1];
+    pickerRegistry.push({ id: m[1], label: m[2], meta: /meta:\s*true/.test(caps), data: /data:\s*true/.test(caps) });
+  });
+}
+const connectors = pickerRegistry.filter((a) => a.data);
+ok(`app/sources/: the adapter registry parsed for check 38 (${pickerRegistry.length} adapter(s), ` +
+   `${connectors.length} data-capable)`,
+  pickerRegistry.length >= 10 && connectors.length >= 8,
+  `parsed: ${pickerRegistry.map((a) => a.id).join(", ") || "(none)"}\n      ` +
+  "all five rules below read this list — an empty parse would pass every one of them");
+
+// (0) the seed array in registry.js still matches the order its four files load in
+const seedIds = [...(read("app/sources/registry.js").match(/Studio\.SOURCES\s*=\s*\[([\s\S]*?)\]/) || [, ""])[1]
+  .matchAll(/Studio\.(\w+?)Source/g)].map((m) => m[1].toLowerCase());
+ok("app/sources/registry.js: the seeded adapters are in the order app/index.html loads them",
+  seedIds.every((id, i) => pickerRegistry[i] && pickerRegistry[i].id === id),
+  `registry.js seeds: ${seedIds.join(", ")}\n      ` +
+  `the first ${seedIds.length} adapter(s) by load order: ${pickerRegistry.slice(0, seedIds.length).map((a) => a.id).join(", ")}\n      ` +
+  "rule (c) below compares Help against the load order, so these two must agree or it tests " +
+  "the wrong sequence");
+
+// Help's inventory: the <ul> in the #connection-types section, one <li> per connector, each
+// led by its label in <strong>.
+const connSection = (read("docs/index.html")
+  .match(/<h3 id="connection-types">([\s\S]*?)(?=<h3[ >])/) || [, ""])[1];
+const connIntro = connSection.replace(/<ul>[\s\S]*/, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+const connItems = [...((connSection.match(/<ul>([\s\S]*?)<\/ul>/) || [, ""])[1])
+  .matchAll(/<li>\s*<strong>([\s\S]*?)<\/strong>([\s\S]*?)<\/li>/g)]
+  .map((m) => ({ label: m[1].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim(), rest: m[2] }));
+ok(`docs/index.html: the Connections inventory parsed for check 38 (${connItems.length} entry/entries)`,
+  !!connSection && connItems.length > 0,
+  'the <h3 id="connection-types"> section, or the <ul> inside it, was not found — rules (a)–(e) read it');
+
+// (a) every connector the picker offers is on the page
+const listed = new Set(connItems.map((e) => labelKey(e.label)));
+const undocumentedConnectors = connectors.filter((a) => !listed.has(labelKey(a.label)));
+ok(`docs/index.html: the Connections inventory names every connector the wizard offers (${connectors.length})`,
+  !undocumentedConnectors.length,
+  `in the picker, missing from Help: ${undocumentedConnectors.map((a) => `${a.label} (${a.id})`).join(", ")}\n      ` +
+  "this list is where a reader learns a backend can be a saved, reusable connection at all — " +
+  "an adapter with no entry is one they will only find by opening the wizard");
+
+// (b) and none the registry does not have
+const registryKeys = new Set(connectors.map((a) => labelKey(a.label)));
+const strayConnectors = connItems.filter((e) => !registryKeys.has(labelKey(e.label)));
+ok("docs/index.html: the Connections inventory names no connector the registry does not have",
+  !strayConnectors.length,
+  `in Help, not in the picker: ${strayConnectors.map((e) => e.label).join(", ")}\n      ` +
+  `the picker's own labels are: ${connectors.map((a) => a.label).join(", ")}\n      ` +
+  "the negative half — including `Local (this browser)`, which is caps.data:false on purpose " +
+  "(a workspace store is not somewhere a dataset connects out to)");
+
+// (c) in the picker's order
+ok("docs/index.html: the Connections inventory is in the picker's own order",
+  connItems.length === connectors.length &&
+    connItems.every((e, i) => labelKey(e.label) === labelKey(connectors[i].label)),
+  `Help: ${connItems.map((e) => e.label).join(" · ")}\n      ` +
+  `picker: ${connectors.map((a) => a.label).join(" · ")}\n      ` +
+  "the page is read beside the wizard, so the two sequences have to match");
+
+// (d) the workspace-capable badge marks exactly the adapters that can host a workspace
+const badged = new Set(connItems.filter((e) => /workspace-capable/.test(e.rest)).map((e) => labelKey(e.label)));
+const shouldBeBadged = connectors.filter((a) => a.meta);
+const badgeWrong = [
+  ...shouldBeBadged.filter((a) => !badged.has(labelKey(a.label))).map((a) => `${a.label} hosts a workspace but is not badged`),
+  ...connItems.filter((e) => badged.has(labelKey(e.label)) &&
+    !shouldBeBadged.some((a) => labelKey(a.label) === labelKey(e.label)))
+    .map((e) => `${e.label} is badged but its caps.meta is false`),
+];
+ok(`docs/index.html: the workspace-capable badge marks exactly the ${shouldBeBadged.length} adapter(s) ` +
+   "that can host a workspace",
+  !badgeWrong.length,
+  badgeWrong.join("\n      ") + "\n      " +
+  "the picker prints this badge from caps.meta — Help repeating it is a claim about which " +
+  "backends a whole workspace can live in, which is a data-durability decision for the reader");
+
+// (e) the "usable either way" set — the data-source builder's own types that are ALSO registered
+// adapters. DS_TYPES names its kinds; two differ from the adapter id they map to, and an
+// unmapped kind fails here rather than quietly shrinking the set.
+const DS_KIND_ADAPTER = { sql: null, duckdb: "duckdb", httpvfs: "sqlite", snowflake: "snowflake",
+  databricks: "databricks", bigquery: "bigquery", http: "httpsql" };
+const dsKinds = [...((read("app/studio.js").match(/var DS_TYPES = \[([\s\S]*?)\n {2}\];/) || [, ""])[1])
+  .matchAll(/\{\s*kind:\s*"([\w-]+)"/g)].map((m) => m[1]);
+ok(`app/studio.js: DS_TYPES parsed for check 38 (${dsKinds.length} type(s)), and every kind is mapped`,
+  dsKinds.length > 0 && dsKinds.every((k) => k in DS_KIND_ADAPTER),
+  `unmapped kind(s): ${dsKinds.filter((k) => !(k in DS_KIND_ADAPTER)).join(", ") || "(none)"} — add them to ` +
+  "DS_KIND_ADAPTER in tools/doc-truth.mjs so adding a builder source type forces a decision " +
+  "about whether Help's \"either way\" sentence still holds");
+const bothWays = connectors.filter((a) => dsKinds.some((k) => DS_KIND_ADAPTER[k] === a.id));
+const NUMBER_WORD = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+const bothWaysNamed = bothWays.filter((a) => labelKey(connIntro).includes(labelKey(a.label)));
+ok(`docs/index.html: the "used either way" paragraph names all ${bothWays.length} shared connector(s), ` +
+   `and counts them as "${NUMBER_WORD[bothWays.length] || bothWays.length}"`,
+  bothWaysNamed.length === bothWays.length &&
+    new RegExp(`\\b${NUMBER_WORD[bothWays.length] || bothWays.length}\\b`, "i").test(connIntro),
+  `shared by the builder and the wizard: ${bothWays.map((a) => a.label).join(", ")}\n      ` +
+  `unnamed in the paragraph: ${bothWays.filter((a) => !bothWaysNamed.includes(a)).map((a) => a.label).join(", ") || "(none)"}\n      ` +
+  "this sentence is the one that tells a reader the Snowflake section above and this list are " +
+  "the same backend — a wrong count here sends them looking for a seventh");
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
