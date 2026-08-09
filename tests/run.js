@@ -11508,8 +11508,12 @@ function serve() {
        Export or Delete would pass a height check and fail the user. */
     const n37Row = await page.evaluate(async function () {
       window.__studioShellSetSection("views");
+      // A saved View always carries a `chart` blob — Export builds its spec from it
+      // (analysisSpec → a.chart.type), so a fixture without one throws inside the app and
+      // the session-wide pageerror check catches it. Shaped like LF57's export fixture.
       var a = Studio.Workspace.put("analyses", {
         name: "N37 — a realistically long saved View name", chartType: "bars",
+        chart: { type: "bars", map: {}, opts: {} },
         folder: "Market Coverage", da: { id: "daN37", columns: [] } });
       window.__studioRenderViews();
       await new Promise(function (r) { setTimeout(r, 120); });
@@ -11547,6 +11551,8 @@ function serve() {
       menu.querySelector("[data-vw-export]").click();
       await new Promise(function (r) { setTimeout(r, 200); });
       out.closesOnChoice = !document.querySelector(".cx-row-menu.open");
+      // Export opens the bundle modal — close it so it can't overlay a later test
+      var ov = document.querySelector(".modal-ov"); if (ov) ov.remove();
       Studio.Workspace.remove("analyses", a.id, { silent: true });
       Studio.Workspace.notify("*");
       window.__studioShellSetSection("studio");
