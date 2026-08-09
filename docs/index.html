@@ -732,6 +732,14 @@
   shorter, or the bar on its right edge to make it narrower or wider. The size you set sticks
   across visits; <strong>double-click</strong> a bar to snap that direction back to automatic
   (fill to the bottom / full width). On a phone the canvas just fills the width — no drag bars.</p>
+  <p><strong>The chart fills the canvas.</strong> Drag the canvas taller and the chart is redrawn
+  at the new height rather than leaving an empty band underneath — it redraws when you let go of
+  the bar, not on every pixel of the drag. The canvas is a <em>preview viewport</em>, though, not
+  part of the View: it is one setting for this browser, shared by every View you open here, so
+  <strong>saving a View keeps that View's own height</strong> and never picks up the size you last
+  dragged. To change the height a View is stored and exported at, set it where every panel's
+  height lives — <strong>Height (px)</strong> in the dashboard builder's Inspector, or by dragging
+  the panel's bottom edge there.</p>
   <p>The <strong>Datasets panel</strong> resizes the same way: drag its right edge anywhere from
   200 to 480px when long dataset names get cut off — the width sticks across visits. The chevron
   in its header collapses the whole panel to a slim vertical strip (more room for the canvas);

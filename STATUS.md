@@ -135,6 +135,42 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N34 — dragging the View Builder canvas taller left the chart its old size, with an empty band
+  underneath (v947, sw v538, 2026-08-09, steward; dev branch; est 1pt, took 1):** the item's
+  diagnosis held exactly. VB-12's handles set `ifr.style` width/height and nothing else, while the
+  chart inside is drawn to an explicit pixel height stamped at build time — so the box grew and the
+  chart did not. **Reused the existing knob rather than inventing one**, as the item asked:
+  `chart.opts.height`, "the exact knob charts already draw to" (studio.js's PANEL-H `resizeH`
+  handler), written against the View Builder's own preview spec. `bdCanvasH()` is now the single
+  source of truth for the canvas height — `bdSyncPreviewSize` sizes the iframe from it and
+  `bdChartH()` derives the chart height from the same number — so the two can never disagree again.
+  **Both open questions in the item were decided, not dodged.** (1) *Debounce:* the repaint lands on
+  RELEASE, not per mousemove — a repaint is a full `buildHtml` + `srcdoc` swap, and release is the
+  convention PANEL-H already set in the sibling builder ("the real chart redraw happens on
+  release"); the canvas still grows live under the pointer, so nothing feels frozen. Also wired to
+  the fill-to-bottom double-click and to window resize, both of which change the canvas height in
+  auto mode and owed the chart the same repaint. (2) *Persistence:* the dragged height does **NOT**
+  round-trip into the saved View — **the canvas is a VIEWPORT.** The height is stamped onto the
+  PREVIEW panel only; `bdSave` mints its stored chart from its own `bdPanelFor()` call, so the
+  authored height survives untouched. The reason is that the canvas size lives in ONE browser-local
+  key (`studio-bd-preview-size`) shared by *every* View you open, so persisting it would let the
+  last drag in this browser silently overwrite a pack-authored height on the next save — the same
+  quiet, lossy round-trip N33 is about. The item warned that "silently doing one while implying the
+  other is not" defensible, so it is **stated in both places a user meets it**: the drag handle's
+  tooltip ("Preview only: the saved View keeps its own height") and a new Help paragraph that also
+  points at where panel height really lives (the Inspector's Height (px)).
+  **Chrome is measured, not assumed.** The height owed to panel header + padding is read back off
+  the live frame after every repaint (`bdMeasureChrome`, `documentElement.scrollHeight` minus the
+  card body), with a 56px fallback for the first paint only — a CSS change to the card cannot
+  silently restore the dead band. Verified: full suite green, and the three new checks drive a REAL
+  pointer drag (the same way VB-12's do) and assert the painted chart grows with the canvas within
+  24px, that content fills the canvas at both a 340px and a 700px size, and that
+  `Studio.newPanel` still returns the authored height after all the dragging — i.e. the save path
+  is provably untouched. Files: app/build.js, docs/index.html, sw.js, js/changelog.js (+ head),
+  tests/run.js, STATUS.md. **Also marked N31 ⛔** in the same pass: its own text says "Kevin's call
+  between them" but it carried no state marker, so the queue read a blocked item as the ready top
+  of NOW — the marker now names the exact three-way question. **NEXT in NOW:** N33 (a pack View
+  authored as a QUADRANT degrades to a plain scatter), then N32, then the SP-6/SP-5/SP-13 packs.
 - **N7 — Help listed seven of the fifteen sections Simple mode hides, then listed a different seven
   (v946, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** the first slice in this
   family to hold a MODE rather than a control, and the reason it was worth taking is that the page
@@ -13458,8 +13494,16 @@
 > struck entries and propose the next batch to Kevin on a `hold` PR — never graze the
 > reservoir directly.
 
-- **N31 ★★ [1pt] — the sample packs' maps ship with no pan/zoom controls, and a flagship pack
-  is where Kevin hit it.** Live on `/dev/`, 2026-08-09: *"when I open it… there are no controls
+- ⛔ **N31 ★★ [1pt] — the sample packs' maps ship with no pan/zoom controls, and a flagship pack
+  is where Kevin hit it.** **⛔ BLOCKED ON KEVIN, marked 2026-08-09 (steward).** The item's own text
+  already says *"Kevin's call between them"* — it was just never given the marker, so the queue read
+  it as ready. **The exact question: which of (a) hero pack maps opt into `renderer:"gl"`,
+  (b) the app-wide default becomes GL, or (c) the built-in SVG renderer grows a minimal zoom/pan
+  cluster?** All three are defensible and they have very different blast radii — (a) inlines
+  ~1MB of MapLibre into every export of those dashboards, (b) touches the export==preview
+  invariant, (c) is new renderer capability. Per `docs/BACKLOG.md` ("never resolve a ⛔ on Kevin's
+  behalf") the loop must not pick. **This is why the 2026-08-09 N34 slice took the item below it
+  rather than this one.** Live on `/dev/`, 2026-08-09: *"when I open it… there are no controls
   on the map."* **Measured, not guessed.** `mcChoropleth` (`app/demopacks.js:966-970`) sets
   `scale/fmt/agg/classes/height` and **omits `renderer`**, so it takes the default at
   `app/model.js:1077` — `renderer: "svg"`, the built-in renderer. That field's own sibling then
@@ -13503,8 +13547,12 @@
 > Not promoted, deliberately: SP-12 (Neighborhood Change) and SP-14/SP-15 stay in the reservoir
 > for the next batch — Kevin asked for the money ones, and three 3pt packs is already ~9 PRs.
 
-- **N34 ★★ [1pt] — dragging the View Builder canvas taller does not make the chart taller; it
-  just adds empty space below it.** Kevin, 2026-08-09: *"when I drag the canvas open the view
+- ~~**N34 ★★ [1pt] — dragging the View Builder canvas taller does not make the chart taller; it
+  just adds empty space below it.**~~ ✓ **SHIPPED v947, sw v538 (2026-08-09, steward — see DONE).**
+  Both open questions were decided in the slice: the repaint happens on RELEASE (PANEL-H's own
+  convention), and the dragged height does NOT persist into the saved View — the canvas is a
+  viewport, said in the tooltip and in Help rather than implied.
+  *(Original text kept until the next grooming pass archives it.)* Kevin, 2026-08-09: *"when I drag the canvas open the view
   would resize? like the chart object is the same."* His screenshot shows the canvas dragged to
   roughly double height with the scatter still occupying the top half and a large dead band
   underneath — the container grew, the chart did not.

@@ -1215,27 +1215,99 @@
     try { return JSON.parse(localStorage.getItem(BD_SIZE_KEY) || "{}") || {}; } catch (e) { return {}; }
   }
   function bdPrevSaveSize(s) { try { localStorage.setItem(BD_SIZE_KEY, JSON.stringify(s)); } catch (e) {} }
+  // The canvas height in px — ONE source of truth, because N34 made two callers
+  // need the same number: the iframe's own style height, and the height the chart
+  // inside it is drawn to. `ifr` may be absent on the very first paint (the frame
+  // is created below), in which case the container stands in for it — they share
+  // a top edge, which is all the auto formula reads.
+  function bdCanvasH(result, ifr) {
+    var s = bdPrevSize();
+    if (s.h) return Math.max(260, s.h);
+    // auto: fill to the bottom of the viewport (like .bd-left), never < 260px
+    var top = (ifr || result).getBoundingClientRect().top;
+    return Math.max(260, Math.round(window.innerHeight - top - 18));
+  }
   function bdSyncPreviewSize(result, ifr) {
     var s = bdPrevSize();
     var maxW = Math.round(result.getBoundingClientRect().width) || 0;
     if (s.w && maxW) ifr.style.width = Math.max(320, Math.min(maxW, s.w)) + "px";
     else ifr.style.width = "";
-    if (s.h) {
-      ifr.style.height = Math.max(260, s.h) + "px";
-    } else {
-      // auto: fill to the bottom of the viewport (like .bd-left), never < 260px
-      var top = ifr.getBoundingClientRect().top;
-      ifr.style.height = Math.max(260, window.innerHeight - top - 18) + "px";
-    }
+    ifr.style.height = bdCanvasH(result, ifr) + "px";
     // keep the width handle riding the canvas's live right edge
     var wBar = result.querySelector(".bd-rs-w");
     if (wBar) wBar.style.left = (ifr.offsetLeft + ifr.offsetWidth - 5) + "px";
+  }
+  // ---------- N34: the chart fills the canvas it was given ----------
+  // Kevin, 2026-08-09: "when I drag the canvas open the view would resize? like the
+  // chart object is the same." VB-12's handles resize the IFRAME and nothing else,
+  // so a chart authored at (say) 360px kept that size inside a doubled box and left
+  // a dead band underneath. The chart is drawn to an EXPLICIT pixel height, so the
+  // only honest fix is to recompute that height from the canvas and repaint.
+  //
+  // Reuses the dashboard builder's existing knob rather than inventing one:
+  // `chart.opts.height` is "the exact knob charts already draw to" (studio.js's
+  // PANEL-H `resizeH` handler), written here against this builder's own preview spec.
+  //
+  // DECISION — the canvas is a VIEWPORT, not part of the View, and the UI says so
+  // instead of implying it (see the handle's tooltip + Help). The height is stamped
+  // onto the PREVIEW panel only; bdSaveView mints its stored chart from its own
+  // bdPanelFor() call, so a saved View keeps its authored height and dragging never
+  // rewrites it. Deliberate: the canvas size lives in ONE browser-local key shared
+  // by every View you open (BD_SIZE_KEY), so persisting it into the spec would let
+  // the last drag in this browser silently overwrite a pack-authored height on the
+  // next save — the same class of quiet, lossy round-trip N33 is about.
+  // The height handed to the chart is NOT the height the frame ends up occupying —
+  // the panel adds its own furniture (header, card padding, grid padding), and some
+  // renderers draw a little taller than the box they were given (a choropleth fits
+  // geography to its box; measured overshoot ~54px). Rather than model those two
+  // separately and hope the model stays true, measure the ONE number that matters:
+  //
+  //     overhead = what the frame occupied − what we asked the chart to be
+  //
+  // Read back after every paint, it is a direct solve rather than a running
+  // correction — so it converges in a single step and can never accumulate. A CSS
+  // change to the card or a renderer that sizes differently is absorbed silently.
+  var BD_OVERHEAD_FALLBACK = 178; // first paint only, before a real measurement exists
+  var _bdOverhead = null, _bdReqH = 0, _bdFitAt = null;
+  function bdChartH(canvasH) {
+    var over = _bdOverhead == null ? BD_OVERHEAD_FALLBACK : _bdOverhead;
+    return Math.max(160, Math.round(canvasH - over));
+  }
+  function bdMeasureChrome(ifr, result) {
+    try {
+      var doc = ifr.contentDocument; if (!doc) return;
+      var content = doc.documentElement.scrollHeight;
+      if (!content || !_bdReqH) return;
+      var o = content - _bdReqH;
+      if (isFinite(o) && o >= 0 && o < 500) _bdOverhead = o;
+      if (!result) return;
+      // Safety net for the first paint at a size the learned overhead did not yet
+      // cover: one corrective repaint per canvas height. The guard is what stops a
+      // renderer whose height depends on its own height from ping-ponging.
+      var canvasH = bdCanvasH(result, ifr);
+      if (_bdFitAt === canvasH || Math.abs(content - canvasH) <= 8) return;
+      _bdFitAt = canvasH;
+      bdRepaintForCanvas(result, ifr);
+    } catch (e) {} // never let a measurement break the paint
+  }
+  // A repaint is a full buildHtml + srcdoc swap, so it is debounced and happens on
+  // RELEASE, not per mousemove — the same convention PANEL-H already uses in the
+  // dashboard builder ("the real chart redraw happens on release"). The canvas
+  // itself still grows live under the pointer, so the drag never feels frozen.
+  var _bdSizeRepaintT = null;
+  function bdRepaintForCanvas(result, ifr) {
+    clearTimeout(_bdSizeRepaintT);
+    _bdSizeRepaintT = setTimeout(function () {
+      if (ifr && ifr.isConnected && BD.chartType && BD.chartType !== "table") renderChartPreview(result);
+    }, 120);
   }
   function bdWirePreviewResize(result, ifr) {
     if (result.querySelector(".bd-rs-h")) { bdSyncPreviewSize(result, ifr); return; }
     var hBar = document.createElement("div");
     hBar.className = "bd-rs-h";
-    hBar.title = "Drag to make the canvas taller or shorter — double-click to fill to the bottom again";
+    // N34: the second sentence is the decision, stated rather than implied — the
+    // chart follows the canvas here, and the saved View keeps its authored height.
+    hBar.title = "Drag to make the canvas taller or shorter — the chart resizes to fill it — double-click to fill to the bottom again. Preview only: the saved View keeps its own height.";
     hBar.setAttribute("aria-label", "Resize canvas height");
     var wBar = document.createElement("div");
     wBar.className = "bd-rs-w";
@@ -1258,6 +1330,7 @@
           ifr.style.pointerEvents = ""; bar.classList.remove("drag");
           document.removeEventListener("pointermove", move);
           document.removeEventListener("pointerup", up);
+          if (axis === "h") bdRepaintForCanvas(result, ifr); // N34: redraw the chart at the new canvas height
         }
         document.addEventListener("pointermove", move);
         document.addEventListener("pointerup", up);
@@ -1265,14 +1338,19 @@
     }
     hBar.addEventListener("pointerdown", startDrag("h", hBar));
     wBar.addEventListener("pointerdown", startDrag("w", wBar));
-    hBar.addEventListener("dblclick", function () { var s = bdPrevSize(); delete s.h; bdPrevSaveSize(s); bdSyncPreviewSize(result, ifr); });
+    // N34: fill-to-bottom and a window resize both change the canvas height in auto
+    // mode, so both owe the chart the same repaint the drag does.
+    hBar.addEventListener("dblclick", function () { var s = bdPrevSize(); delete s.h; bdPrevSaveSize(s); bdSyncPreviewSize(result, ifr); bdRepaintForCanvas(result, ifr); });
     wBar.addEventListener("dblclick", function () { var s = bdPrevSize(); delete s.w; bdPrevSaveSize(s); bdSyncPreviewSize(result, ifr); });
-    window.addEventListener("resize", function () { if (ifr.isConnected) bdSyncPreviewSize(result, ifr); });
+    window.addEventListener("resize", function () { if (ifr.isConnected) { bdSyncPreviewSize(result, ifr); bdRepaintForCanvas(result, ifr); } });
     bdSyncPreviewSize(result, ifr);
   }
   // test hooks
   window.__bdPreviewSize = bdPrevSize;
   window.__bdSyncPreviewSize = bdSyncPreviewSize;
+  window.__bdCanvasH = bdCanvasH;             // N34
+  window.__bdChartH = bdChartH;               // N34
+  window.__bdLastChartH = function () { return _bdReqH; }; // N34: height actually stamped on the last paint
 
   var _bdPvTimer = null;
   // N15: the live preview frame + the exact one-panel spec/rows it is painting. The View
@@ -1319,6 +1397,11 @@
       } else {
         var p = bdPanelFor(BD.chartType, da, basis);
         p.title = title; p.span = "full";
+        // N34: PREVIEW-ONLY height — the chart fills the canvas it was given. The
+        // save path calls bdPanelFor() itself, so this never reaches a stored View
+        // (see the decision note above bdChartH).
+        p.chart.opts = p.chart.opts || {};
+        p.chart.opts.height = _bdReqH = bdChartH(bdCanvasH(result, result.querySelector("iframe.bd-ifr")));
         spec.panels = [p];
       }
       var mock = { build_result: { cols: basis.head, rows: basis.rows } };
@@ -1329,6 +1412,9 @@
           result.innerHTML = "";
           ifr = document.createElement("iframe");
           ifr.className = "bd-ifr"; ifr.title = "Chart preview"; ifr.setAttribute("aria-label", "Chart preview");
+          // N34: re-measure the frame's non-chart chrome on every srcdoc swap, so the
+          // next canvas-height computation is based on this card, not on a constant.
+          ifr.addEventListener("load", function () { bdMeasureChrome(ifr, result); });
           result.appendChild(ifr);
         }
         D.postThemeOnLoad(ifr);

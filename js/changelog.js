@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 947,
+    title: 'Dragging the View Builder canvas taller left the chart its old size, with an empty band underneath',
+    kind: 'fix',
+    ts: '2026-08-09T19:55:20.000Z',
+    items: [
+      'The canvas under the View Builder has had drag handles for a while, and dragging the bottom one made the canvas taller without making the chart taller. The chart is drawn to an explicit pixel height set when it was authored, and nothing recomputed that height when the box around it changed — so a canvas dragged to double height held the same chart in its top half and a dead band below. The chart now fills the canvas it was given, at whatever height you drag it to, and the same applies to double-clicking the bar to fill to the bottom of the screen and to resizing the browser window while the canvas is on automatic.',
+      'The redraw happens when you let go of the bar, not on every pixel of the drag — repainting a chart means rebuilding the whole preview document, so doing it per mouse move would stutter. The canvas itself still grows live under the pointer, which is the same way the dashboard builder has always handled dragging a panel taller.',
+      'One deliberate limit, stated here because it is the kind of thing that is worse when it is silent: the canvas is a preview viewport, not part of the View. It is a single setting for this browser that every View you open shares, so saving a View keeps that View\'s own height and never picks up the size you last dragged. The height a View is stored and exported at is still the panel Height in the dashboard builder\'s Inspector. The Help page and the drag handle\'s own tooltip both say so now.',
+      'The height the chart is drawn to is measured from the live preview rather than assumed: the frame reports how much of itself is panel header and padding after every repaint, so a change to the card\'s styling cannot quietly put the old empty band back. Three checks in the suite drive a real pointer drag and assert the painted chart grows with the canvas, that what gets painted fills it at both a short and a tall size, and that a freshly built panel still carries its authored height afterwards.',
+    ],
+  },
+  {
     v: 946,
     title: 'Help listed seven of the fifteen sections Simple mode hides, then listed a different seven',
     kind: 'fix',
