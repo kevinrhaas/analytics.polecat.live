@@ -135,6 +135,48 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — The Help page's export-format table was missing a format, and named another by a name
+  the app never shows (v924, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):**
+  check 36's move one table over, taken because the same reasoning applies — v923 had just shown
+  what an unchecked published TABLE does, and `docs/index.html` had a second one. Four drifts,
+  all in the answer to "which export do I pick?":
+  **(1) The editable spec had no row.** `#menuExport` publishes seven buttons; the
+  `<table class="export-table">` had six. The absentee is **Editable spec (.studio.json)**, and
+  the reason it matters is that Help names it TWICE elsewhere — "use **Export ▾ → Editable spec
+  (.studio.json)** — that file is all a dashboard needs" — so the page assumed a description it
+  had never written. It now has a row saying what travels in the file (layout, Views, KPIs,
+  filters, dataset references) and what does not (no toolkit, no baked rows), plus the two ways
+  back in (Open file… / Import from URL…).
+  **(2) Row 1 named a format the app has never shown a user.** `Dashboard Framework` is the
+  INTERNAL artifact name — `app/studio.js`'s text-panel inspector note uses it, and so does the
+  header-logo paragraph. Every user-facing surface says **`Dashboard (.html)`**, including Help's
+  OWN Viewer paragraph 1,700 lines earlier. Five rows matched the button you press and one did
+  not, which is the worst arrangement: it reads as precision. The row now leads with the button's
+  label and keeps the internal name only where a reader would actually meet it.
+  **(3) The bundle row's label was inside out** — `Bundle (all artifacts)` for a button reading
+  `All artifacts (bundle)`.
+  **(4) And the Viewer paragraph claimed a parity that does not exist:** "an **Export** button …
+  with the same formats Studio offers". `app/viewer.html`'s menu has **three** of the seven
+  (.html, PDF, editable spec). That is the drift running the OTHER way — copy promising more app
+  than ships — and it is the one a reader can't catch, since a viewer-role account never sees the
+  builder's menu to compare. It now says three, and says the office formats and the bundle are the
+  builder's Export ▾ only.
+  **Verified:** doc-truth check 37 reads BOTH menus from their own markup rather than from
+  `studio.js`/`viewer.js` — the buttons ARE the list; both files wire whatever `data-exp` they
+  find, so the markup is the narrower and truer source. Four rules: (a) every builder format has
+  a row; (b) the table names no format the menu lacks — the negative half, and the half that
+  actually catches a RENAME, which is how "Dashboard Framework" outlived every user-facing use of
+  it; (c) the Viewer paragraph names every format the viewer's own menu offers; (d) it claims
+  parity with the builder only while the two label sets really match — derived from the menus,
+  not a banned phrase, so it goes quiet by itself the day the viewer catches up. All four measured
+  failing: (a) and (b) on the REAL pre-fix tree (`git show HEAD:docs/index.html`), (c) and (d) on
+  mutated ones. The paragraph gained `id="viewer-export"` as the anchor, following `id="filters-how"`
+  a few paragraphs above. Labels compare case-insensitively, because Help writes "editable spec
+  (.json)" mid-sentence where the button capitalises it — a sentence, not a drift. Full dev gate
+  green on the branch: `tools/validate.mjs`, `tools/changelog-check.js`, `tools/doc-truth.mjs`
+  (now 37 checks) and `tools/dev-smoke.mjs` at desktop + 390×780, zero pageerrors. No `sw.js`
+  bump — `docs/index.html` is runtime-cached, not precached (the file says so at line 20), same
+  as v921–v923.
 - **N7 — Help documented a Redo shortcut the builder has never had, and left four real ones out
   (v923, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** the one-document-over
   move again — 15 after 14, 17 after 16, 28 after 24, 35 after 34 — except the document moved
@@ -12837,6 +12879,32 @@
     `Double-click View title`); check 36 excludes them BY SHAPE (check 18's idiom) rather than
     by an exemption list, and Help now names both in prose beneath the table. The two v922
     candidates above are still open and still Kevin's calls.
+  * *Help's export-format table vs the Export ▾ menu it describes — v924, NO sw bump
+    (2026-08-09 — see DONE).* Check 36's move one table over, and the second unchecked
+    published TABLE in two slices: Help's `<table class="export-table">` listed **6** formats
+    where `#menuExport` offers **7**. The missing one is **Editable spec (.studio.json)** — and
+    Help names it twice ELSEWHERE ("use Export ▾ → Editable spec (.studio.json) — that file is
+    all a dashboard needs") while the table a reader consults to choose a format omitted it, so
+    the one export most needing a "what travels in it" description had none. Row 1 was
+    **`Dashboard Framework`**, the INTERNAL artifact name (a text panel's inspector note uses
+    it); the button — and Help's own Viewer paragraph 1,700 lines above — says
+    **`Dashboard (.html)`**, so five rows matched the button you press and one sent the reader
+    hunting. The bundle row's label was inverted (`Bundle (all artifacts)` vs the button's
+    `All artifacts (bundle)`). And the Viewer paragraph claimed the viewer's Export button has
+    "the same formats Studio offers" when `app/viewer.html`'s own menu has **3 of the 7** — the
+    drift running the other way, copy promising more app than ships. Doc-truth check 37 reads
+    BOTH menus from their markup (the buttons ARE the list; studio.js/viewer.js wire whatever
+    `data-exp` they find); its four rules (menu→table, the negative half, viewer-menu→paragraph,
+    and parity-only-when-true) were all measured failing — two on the real pre-fix tree, two on
+    mutated ones. The paragraph gained `id="viewer-export"` as the check's anchor, the idiom
+    `id="filters-how"` already set in the same document.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    marketing page's Exports card (`index.html`) names four formats — ".html … Also PDF, Excel,
+    PowerPoint and Word" — and omits the spec and the bundle. That is a SUMMARY on a sales page,
+    not an inventory, so "is it incomplete or is it edited" is a product call rather than a
+    derivation, and `docs/BACKLOG.md` says a run does not make those for Kevin. Check 37 is
+    deliberately scoped to Help for that reason, not by oversight. The two v922 candidates above
+    are still open and still Kevin's calls.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before
