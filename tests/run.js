@@ -18470,7 +18470,15 @@ function serve() {
       ifr.remove();
       return result;
     });
-    ok("Z13 showcase: both dashboard filters render as selects (Data Source / Run Status)", showcase.filterSelects === 2, JSON.stringify(showcase));
+    /* N39: this dashboard shipped TWO filters and now ships one. "Run Status" was answered by
+       nothing — its options DA was used by no panel, and no panel-used DA declared a `status`
+       param — so moving it changed nothing on screen. FILTERS-1's sweep caught it the moment
+       N39 made these dashboards real. The count is updated because the CONTENT deliberately
+       changed, not to make a check pass: "Data Source" is genuinely wired to two panel DAs, so
+       the showcase still demonstrates filtering. If the second filter should come back, it needs
+       WIRING (a panel DA that declares `status` over data that has one) — restoring the JSON
+       alone would just re-add a dead control and re-break the sweep. */
+    ok("Z13 showcase: the dashboard's one wired filter (Data Source) renders as a select", showcase.filterSelects === 1, JSON.stringify(showcase));
     ok("Z13 showcase: target line overlay renders on the Revenue Trend panel", showcase.targetLine >= 1, JSON.stringify(showcase));
     ok("Z13 showcase: reference band overlay renders on the Quarterly Budget panel", showcase.refBand >= 1, JSON.stringify(showcase));
     ok("Z13 showcase: period highlight overlay renders on the Revenue Trend panel", showcase.periodHighlight >= 1, JSON.stringify(showcase));

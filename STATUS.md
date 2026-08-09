@@ -278,6 +278,14 @@
   ("Data Source") filter is genuinely wired to two panel DAs and stays, so the showcase still
   demonstrates filtering. **This belongs in this slice, not a follow-up:** N39 is what makes
   these dashboards real, so their content being correct is part of shipping it.
+  **Two shipped checks disagreed about this dashboard, and that is worth naming.** Z13 asserted
+  *"both dashboard filters render as selects (Data Source / Run Status)"* — i.e. it held the
+  dead control in place — while FILTERS-1 says a filter no panel can answer must not exist on a
+  pack dashboard. FILTERS-1 encodes the newer, Kevin-driven rule and wins; Z13 now expects the
+  one wired filter, updated because the CONTENT changed rather than to make a check pass.
+  **⚠ Kevin's to reverse if he wants two filters demoed on the showcase** — but the way back is
+  to WIRE `status` (a panel DA that declares it, over data that has one), not to restore the
+  JSON, which would only re-add a dead control and re-break the sweep.
   **Two suite assertions were silently green because of the bug and are re-measured, not
   weakened** — LF43's "installing one pack doesn't materialize another" (now a before/after
   comparison rather than an absolute 0) and LF16's "removing datamanagement deletes no rows"
