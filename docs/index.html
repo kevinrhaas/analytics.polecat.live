@@ -793,23 +793,34 @@
   <h2>Sample packs</h2>
   <p><strong>Sample packs</strong> (installed from Settings) are ready-made
   demo content you can install or remove. A pack can add dashboards, datasets, connections and jobs —
-  all with synthetic (made-up) sample data, never your real data — and <strong>Remove</strong> takes
+  sample content, never your real data — and <strong>Remove</strong> takes
   back exactly what Install added. Everything a pack adds is <strong>filed in the pack's own
-  folder</strong> (Conservation Insight, Data Management) across every section, and its raw sample
+  folder</strong> (Conservation Insight, Data Management, Market Coverage) across every section, and its raw sample
   tables only appear in the dataset pickers while the pack is installed — an uninstalled pack leaves
   no trace. Like the built-in catalog, sample packs live under the same <strong>Sample content</strong>
   switch in Settings — turn that off and both disappear from the Data panel, with nothing deleted.</p>
+  <p><strong>Where a pack's data comes from is on its card.</strong> Every pack states its source in
+  one line under its description. Conservation Insight and Data Management read <em>"Data: synthetic —
+  generated in the app, not real observations"</em>, because that is exactly what they are. A pack built
+  on a real public dataset names the dataset, its licence and the date it was retrieved instead, and
+  repeats that line in the subtitle of every dashboard it installs, so the attribution travels with the
+  work even after you export it.</p>
   <p><strong>Removed the wrong pack? Undo.</strong> Remove shows its toast with an <strong>Undo</strong>
   button for a few seconds. One click restores every dataset, View, dashboard, connection and job the
   pack owned — under the same ids, with any edits you'd made to them intact — and marks the pack
   installed again.</p>
   <ul>
     <li><strong>Conservation Insight</strong> is an illustrative sample for a county-level cover-crop
-    and conservation-tillage ensemble use case: a raw provider CSV to try a mapping workflow on, four
-    pinned per-practice Views built in the <strong>View Builder</strong> (open one from the Views
-    list and it lands on the shelves — adoption by year, split by provider, filtered to its
-    practice), a featured multi-View dashboard pairing the practices
-    with a county choropleth, and a dedicated Watershed Map dashboard (a full-width HUC8 choropleth) — all live on Home the moment you install it. All of its data is
+    and conservation-tillage ensemble use case. Installing it seeds two <strong>connections</strong>
+    (a demo file source and a demo Supabase repo), eight <strong>datasets</strong> — one of them a raw
+    provider CSV to try a mapping workflow on — a county-to-state rollup <strong>job</strong>, four
+    pinned per-practice <strong>Views</strong> built in the <strong>View Builder</strong> (open one
+    from the Views list and it lands on the shelves — adoption by year, split by provider, filtered
+    to its practice), and six <strong>dashboards</strong> in a <strong>Conservation Insight</strong>
+    folder: a featured multi-View dashboard pairing the practices
+    with a county choropleth, a Watershed Map (a full-width HUC8 choropleth), CRD Cover Crop Data,
+    OpTIS Cover Crop Trends, a Provider Ensemble reference, and the Conservation System Metrics
+    wheel — all live on Home the moment you install it. All of its data is
     synthetic and labeled as illustrative. The featured dashboard also demonstrates two different
     filtering styles: a plain filter bar (Practice, Since year) that narrows individual Views, and
     a linked cross-filter — click a provider on any adoption-trend chart's legend and every choropleth
@@ -818,8 +829,20 @@
     program cost-share ROI view, a provider-agreement-over-time view, a county-level
     outlier-detection view, a year-over-year practice-switching view, and a richtext-led narrative
     overview rolling all of it up, each with their own filter bar too, save the overview) to both
-    your Dashboards screen and Home's sample gallery — removing the pack takes all nine dashboards
+    your Dashboards screen and Home's sample gallery — removing the pack takes all fourteen dashboards
     back out again, so the workspace doesn't get cluttered for everyone else.</li>
+    <li><strong>Market Coverage</strong> is the pack built on real data: US Census county business
+    counts and demographics, embedded in the app rather than fetched. It seeds one
+    <strong>connection</strong> over three <strong>datasets</strong> — the two committed Census
+    extracts covering 1,813 counties (who lives there; the businesses already trading there) and the
+    output of the prep <strong>job</strong> that joins them into a
+    restaurants-and-grocers-per-10,000-residents rate — plus four pinned <strong>Views</strong>
+    (supply, demand, the two plotted against each other, and the shortlist itself) and three
+    <strong>dashboards</strong> in a <strong>Market Coverage</strong> folder: the whitespace maps
+    (restaurant supply by county, its grocery twin, and income plotted against supply), the
+    demographics behind them (income, age, education), and a shortlist of counties with the income
+    but not the restaurants. The shortlist's two rules are ordinary filters on the View — open it in
+    the builder and you can move them.</li>
     <li><strong>Data Management &amp; Governance</strong> is the built-in generic showcase gallery
     (Data Governance, Data Platform Operations, Product Delivery, Finance, Marketing, Incident
     Response, Compliance, Data Quality, Pipeline Observability, Storage Footprint, Cost &amp;
@@ -1683,6 +1706,38 @@
   chip strip (All folders / each folder / Unfiled) above their other filters, and each row wears a
   small folder badge.</p>
 
+  <h3 id="catalog-rows">Every Datasets, Connections and Jobs row carries its own controls</h3>
+  <p>The catalog pages aren't only lists to scan — most of the day's work happens on the row
+  itself, without opening anything. Each row ends in its own cluster of controls; clicking
+  anywhere <em>else</em> on the row opens the item in its editor, so the controls never fire by
+  accident. They're the same on the compact list and on a <strong>Tile view</strong> card.</p>
+  <ul>
+    <li data-help-rows="datasets"><strong>Datasets</strong> — <strong>Run</strong> re-runs that
+      dataset's query against its connection right there and reports the row count (or the error)
+      in a toast, so you can check something still returns data without leaving the list.
+      <strong>Edit</strong> opens the dataset editor. <strong>Delete</strong> (the ✕) asks first,
+      naming any dashboards that depend on it, and its toast carries <strong>Undo</strong>.
+      Beside them sit two toggles: <strong>Pin</strong> (the ★) keeps the dataset at the top of
+      the list whatever the sort — most recently pinned first — and <strong>private</strong> (the
+      padlock) hides it from everyone but you (see <a href="#privacy">marking something
+      private</a>).</li>
+    <li data-help-rows="connections"><strong>Connections</strong> — <strong>Test</strong> tries the
+      connection with its saved credentials and updates the row's own status dot right where
+      you're looking, which is the fastest way to tell a broken credential from a broken query.
+      <strong>Edit</strong> reopens the connection wizard on that connection, and
+      <strong>Delete</strong> (the ✕) asks first and offers <strong>Undo</strong> — it also counts
+      the datasets pointing at it. The same <strong>Pin</strong> and <strong>private</strong>
+      toggles ride alongside.</li>
+    <li data-help-rows="jobs"><strong>Jobs</strong> — <strong>Run</strong> runs the whole pipeline
+      and writes its output dataset in place, which is the one-click annual refresh the Jobs
+      section describes; the row's status dot then goes green or red — hover it for the time and
+      the row count. <strong>Edit</strong> opens the
+      job editor, and <strong>Delete</strong> (the ✕) removes the job while <em>keeping</em> its
+      output dataset (with <strong>Undo</strong>). A <strong>private</strong> toggle is here too.
+      Jobs are the one of the three with no pin — a job is something you run, not something you
+      keep at the top of a list — so reach for the section's "Last run" sort instead.</li>
+  </ul>
+
   <h3>Views — browse your saved charts</h3>
   <!-- IMAGE-SLOT: the Views section in list mode showing chart-type icons, folder
        badges, and one row's hover action cluster (pin / private / add / delete). -->
@@ -1751,7 +1806,7 @@
   <h3>Saved views</h3>
   <p>Once a search and/or adapter/connection/type/tag pill selection narrows the <strong>Datasets</strong> or <strong>Connections</strong> list to something worth returning to, a <strong>"+ Save view"</strong> box appears next to the filter chips — name it and it becomes a chip of its own. Click that chip later to instantly restore the exact same search text and filters; hover it for a small trash button to delete it. Saved views live in the same workspace-settings store as <strong>Dashboards</strong>' workbooks, so they sync across devices along with the rest of your workspace.</p>
 
-  <h3>Marking a dashboard, connection, dataset, View, or job private</h3>
+  <h3 id="privacy">Marking a dashboard, connection, dataset, View, or job private</h3>
   <p>A lock toggle on every <strong>Dashboards</strong>, <strong>Connections</strong>, <strong>Datasets</strong>, and <strong>Jobs</strong> row, and every saved View in <strong>Quick Views</strong>' list marks that item private — it stays visible to you and to admin accounts, but disappears from every other signed-in account's catalogs (and, for connections, from the connection picker other people see when authoring a dataset, and for datasets, from the source/join/union dataset pickers when authoring a job). This is UX-level gating, the same honesty as the rest of sign-in — an admin account (or local/no-auth mode with no sign-in configured) always sees everything. All five saved-object types now have the toggle.</p>
 </section>
 
@@ -1799,6 +1854,179 @@
   </div>
   <p>Short version: stay on <strong>Local</strong> for a private, single-device workspace; pick <strong>Turso</strong> for the simplest shared workspace across your own devices or a trusted team; pick <strong>Supabase</strong> when you need real accounts and database-enforced per-user privacy; pick <strong>Firebase</strong> if you already run Firestore and manage access through its security rules. The rest of this section covers the Supabase-specific admin flow in detail.</p>
 
+  <h3 id="supabase-create-project">Standing up a Supabase project (the step before any SQL)</h3>
+  <p>Every other Supabase topic below starts one step too late — at <em>“paste this script”</em>. This
+  is the step before it: <strong>creating the project</strong>. Supabase's create-project screen asks
+  three <strong>Security</strong> questions and two <strong>permanent</strong> ones, and the answers
+  are not obvious — one of them is the opposite of Supabase's own recommendation. Each answer below is
+  derived from the SQL this app actually ships, and is named so you can check it yourself.</p>
+
+  <h4>The three Security toggles</h4>
+  <div class="table-scroll">
+  <table class="backend-table">
+    <thead><tr><th>Toggle</th><th>Answer</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Enable Data API</strong></td>
+        <td><strong>ON</strong> — required.</td>
+        <td>The Supabase adapter <em>is</em> a PostgREST client — the Data API is the only door it
+        knocks on. With it off, the project has no HTTP surface and the connect wizard cannot reach
+        it at all, whatever else you set.</td>
+      </tr>
+      <tr>
+        <td><strong>Automatically expose new tables to the Data API</strong></td>
+        <td><strong>OFF</strong> — as Supabase recommends.</td>
+        <td>This one used to be the counter-intuitive answer on this page, and it no longer is.
+        <code>tools/supabase-deploy.sql</code> now carries its own privileges (its <em>§ 6c</em>),
+        so the recommended, tighter setting is finally the correct one too. Until 2026-08-08 that
+        file contained <em>no</em> <code>GRANT</code> statements and leaned entirely on the
+        project's default privileges — so turning this toggle off left you tables with row-level
+        security and the right policies but <em>no table-level grant</em> to <code>anon</code>/
+        <code>authenticated</code>, and PostgREST refused every request with an error that looked
+        nothing like its cause. If <em>§ 6c</em> is ever removed, this answer goes back to being the
+        looser one, and this page has to change with it.</td>
+      </tr>
+      <tr>
+        <td><strong>Enable automatic Row Level Security on new tables</strong></td>
+        <td><strong>ON</strong>.</td>
+        <td>Belt and braces. The deploy script already enables RLS and installs a policy on every
+        workspace table itself, so this changes nothing for the tables it creates — it protects
+        anything created <em>outside</em> it later. Note that with Supabase's newer publishable
+        keys a table with RLS on and <em>no</em> policy returns <strong>zero rows</strong> over the
+        Data API rather than erroring, so RLS-on is the app's normal working state, not a
+        locked-down mode you switch out of.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>The two answers you can only get right at creation</h4>
+  <ul>
+    <li><strong>Save the database password when it is shown.</strong> Supabase shows it once and it
+    is <em>unrecoverable</em> — resetting it is the only other path. Beyond ordinary admin use, the
+    security-posture test (<code>tests/rls.mjs</code>) needs it as <code>SUPABASE_PASSWORD</code>,
+    and without it that test <strong>skips silently and exits successfully</strong> — a green run
+    that checked nothing.</li>
+    <li><strong>The region is <code>ca-central-1</code> — Canada (Central).</strong> A standard, not
+    a preference, and <strong>Supabase cannot change a project's region after creation</strong> (the
+    only path is create-new-and-restore). Ignore the dashboard's “Recommended” badge on
+    <code>us-east-1</code>: that is generic geography advice, not advice about this fleet. The
+    reason is concrete — <code>tests/rls.mjs</code> defaults to the pooler host
+    <code>aws-0-ca-central-1.pooler.supabase.com</code>, so a same-region project needs no extra
+    configuration, while any other region needs <code>SUPABASE_DB_HOST</code> set on
+    <em>every</em> run. Combined with that silent skip above, a region mismatch is exactly the kind
+    of mistake that reads green for weeks.</li>
+  </ul>
+
+  <h4>Then: which SQL file to run</h4>
+  <p>The repository ships three Supabase SQL files and they are not interchangeable. For a brand-new
+  project there is <strong>one</strong> answer:</p>
+  <div class="table-scroll">
+  <table class="backend-table">
+    <thead><tr><th>File</th><th>When</th><th>What it is</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong><code>tools/supabase-deploy.sql</code></strong></td>
+        <td><strong>A fresh environment — this is the one.</strong></td>
+        <td>The superset, run top-to-bottom and bare (no <code>begin</code>/<code>rollback</code>
+        wrapper): workspace tables, the verified authenticated-only RLS posture, the activity and
+        feedback log tables, the first-admin step and a verify block. Idempotent — safe to re-run.</td>
+      </tr>
+      <tr>
+        <td><code>tools/supabase-rls-real.sql</code></td>
+        <td>Re-tightening a project whose tables already exist.</td>
+        <td>The security posture <em>alone</em> — the subset of the file above. Nothing to run on a
+        fresh project that has already had the deploy script.</td>
+      </tr>
+      <tr>
+        <td><code>tools/supabase-bootstrap.sql</code></td>
+        <td>Historical.</td>
+        <td>The original allow-all demo posture, kept for reference. <strong>Not</strong> for new
+        environments — it deliberately installs no policies.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p><strong>Dev and stage run the same posture as production — the real one.</strong> An
+  environment whose security posture differs from prod cannot test the thing most likely to break,
+  so “it's only dev” is never a reason to reach for the allow-all file.</p>
+
+  <p><strong>You can also get that same script without leaving the app.</strong> Point
+  <strong>Settings → Workspace backend → Connect</strong> at a blank Supabase project and the
+  wizard hands you a script to paste into the SQL editor — and since v904 that script <em>is</em>
+  the deploy file above: the same tables, the same authenticated-only RLS posture, the same grants,
+  with § 7 pre-filled for the account you are signed in as whenever the app can resolve its Supabase
+  Auth uid. (Before v904 the wizard generated tables and a comment reading “then enable Row-Level
+  Security policies appropriate to your project”, so the one path the UI actually offered left the
+  database wide open. Both paths now install the same thing, and a dev-gate check compares them on
+  every run.) Because that script ends with the database closed to anonymous callers, the wizard
+  asks for this connection's <strong>Supabase Auth email and password</strong> before it will
+  connect — the anonymous key alone can no longer read or write the workspace.</p>
+
+  <h4>The Auth fields are required, not optional</h4>
+  <p>On a workspace set up by that script, <strong>Supabase Auth email</strong> and
+  <strong>password</strong> are what make the connection work at all. Every policy is granted to
+  <em>authenticated</em> callers, so a connection without them signs in as <code>anon</code>,
+  <code>auth.uid()</code> is NULL, and each policy declines by returning <strong>no rows</strong> —
+  the workspace reads as <strong>empty</strong> rather than refused, which looks exactly like a
+  database that was never provisioned. Since v907 the app names that state instead of leaving you
+  to guess: the connect wizard says the workspace enforces per-user security and offers a step back
+  to the credentials, and an already-saved connection in that state reports it on the Settings
+  backend card and keeps working from this browser's local copy — it will never adopt the emptiness
+  over your own work. Only a legacy allow-all database still works on the anon key alone.</p>
+  <p>Two things about those fields that surprise people, and neither is a fault:</p>
+  <ul>
+    <li><strong>The password is never stored.</strong> Signing in mints a short-lived refresh token
+    that lives in <code>sessionStorage</code>, so you re-enter the password once per browser
+    session <em>by design</em> — nothing failed, and nothing is left behind when the tab closes.</li>
+    <li><strong>The admin function URL genuinely is optional.</strong> Leave it blank and everything
+    works; only <strong>Go live</strong> and admin user-creation fall back to running SQL in the
+    Supabase dashboard. A URL pointing at a function that was never deployed is worse than a blank
+    one — it fails confusingly at the moment you need it.</li>
+  </ul>
+
+  <h4>The two steps the script cannot do for you</h4>
+  <p>Both are once per environment, and both are spelled out in the script's own numbered
+  sections:</p>
+  <ul>
+    <li><strong>§ 7 — the first admin.</strong> Create the account under
+    <strong>Authentication → Add user</strong>, then insert its <code>public.users</code> row while
+    connected as <code>postgres</code> (which bypasses RLS — the policies that will guard that table
+    need an admin to already exist). After this one bootstrap, admins are added from inside the app.</li>
+    <li><strong>§ 8 — verify.</strong> Run it separately, as the <code>anon</code> role. The expected
+    result is <strong>all zeros</strong>: an unauthenticated reader sees nothing on any workspace
+    table. Anything else means a legacy open policy survived, and it is worth stopping for —
+    permissive policies OR together, so a single leftover defeats every tighter policy beside it.</li>
+  </ul>
+
+  <h4>Things that only bite later</h4>
+  <ul>
+    <li><strong>Free-tier projects pause after about a week idle</strong> — which a dev backend will
+    reach. A paused project is <em>unreachable</em>, not refusing, and the app draws that distinction
+    deliberately: it never signs you out or latches a workspace read-only because it couldn't reach
+    the backend, only because the backend answered “no”. Resume it from the Supabase dashboard.</li>
+    <li><strong>One project can host several fleet apps.</strong> Each workspace records which app
+    owns it in its <code>polecat_meta</code> marker table, so Analytics can tell its own workspace
+    from another Polecat app's in the same database, and from a foreign database entirely. Sharing
+    one <code>polecat_dev</code> project across the fleet is a sound choice, not a shortcut.</li>
+  </ul>
+
+  <h4>The environment topology</h4>
+  <p>The databases mirror the app's own <code>dev → stage → main</code> delivery pipeline — a
+  separate project per stage, each with its own project URL and database password, so an experiment
+  can never be run against the workspace that real people use:</p>
+  <ul>
+    <li><strong>Production</strong> — the live workspace. Its posture is verified read-only before
+    anything ships to it, and it is never the target of a test that writes.</li>
+    <li><strong><code>polecat_dev</code></strong> — where the security-posture test actually runs
+    today: nightly, and again as part of every promotion to stage. It was created in
+    <code>ca-central-1</code> to match production, for the pooler-host reason above.</li>
+    <li><strong><code>polecat_stage</code></strong> — the matching slot beside stage. Until it
+    exists, stage promotions exercise the dev database.</li>
+  </ul>
+  <p>The posture test only ever builds throwaway schemas of its own and never touches
+  <code>public</code>, whichever project it is pointed at.</p>
+
   <h3>How syncing works (and what the rail indicator means)</h3>
   <p>With a backend connected there is <strong>nothing to "sync" by hand</strong> — every change
   (saving a View, editing a dashboard, adding a dataset…) mirrors up automatically a moment later.
@@ -1808,7 +2036,48 @@
     <li><strong>Connected</strong> (green) — the mirror is working; every change writes through.</li>
     <li><strong>Reconnecting…</strong> (red) — the last write failed and the app is retrying with
       backoff. Your work stays safe in this browser and pushes the moment the backend accepts it.</li>
+    <li><strong>Read-only</strong> — the workspace was created by a <em>newer</em> version of
+      Analytics than the one this browser is running. See below.</li>
   </ul>
+  <p><strong>“Read-only — created by a newer version”.</strong> Every workspace records the schema
+  version it was built at, and the app checks it whenever it connects, refreshes, or quietly
+  re-reads the backend — <em>and</em> whenever a tab you left open becomes visible again, or a
+  device comes back online. Those last two matter because the quiet re-read deliberately skips
+  itself while you have unsaved changes waiting (adopting the backend copy at that moment would
+  overwrite them), so the tab most likely to be out of date was the one that never looked. The
+  resume check reads only the single line that records the version, downloads nothing else, and the
+  save that waking a tab sets off waits for it rather than racing it. If the workspace is newer than
+  the app, the app <strong>stops writing to
+  it</strong> and says so with a banner: an older build saves a whole snapshot of the tables it
+  knows about, so one push from a stale tab could quietly drop whatever the newer version added.
+  Reading is unaffected — the workspace opens and works normally, and anything you change stays in
+  this browser. Reload the page to pick up the newer app (and if the banner keeps coming back, use
+  <strong>Settings → hard reset</strong> to clear a stuck offline copy); once the versions line up,
+  the changes you made in the meantime push up on the next <strong>Refresh</strong>.</p>
+  <p><strong>Upgrading an older workspace.</strong> The opposite case — a workspace made by an
+  <em>earlier</em> version of Analytics — is not a problem: every change to the workspace shape has
+  only ever <em>added</em> to it, so an older workspace keeps working exactly as it always has. It
+  just has nowhere to put the parts newer versions added, which is what turns up much later as a
+  save failing on a table that isn't there. You can settle it in advance: when the versions differ
+  that way, the <strong>Settings → Workspace backend</strong> card names both of them and offers an
+  <strong>Upgrade workspace</strong> button. Two things are worth knowing before you press it.
+  First, <strong>a full backup of the workspace downloads first, every time</strong> — it is not a
+  checkbox you can turn off, and if the backup can't be written the upgrade doesn't run at all. The
+  file is a plain JSON copy of everything the backend holds, taken immediately before anything is
+  changed. Second, the upgrade only <em>adds</em> — nothing you have saved is read, moved or
+  deleted, and it is safe to run twice.</p>
+  <p>Turso and Firebase workspaces upgrade in one click, because those backends let the app create
+  what it needs directly. <strong>Supabase workspaces set up with the current script upgrade in one
+  click too</strong>: that script installs a small, admin-only database function whose job is
+  exactly this, so pressing <strong>Upgrade workspace</strong> runs the upgrade from inside the app.
+  The card tells you which kind of database you have before you press anything. Only an
+  administrator can run it — that check lives in the database itself, not in the browser.</p>
+  <p>A Supabase workspace created before that function existed still needs one manual run, and the
+  card says so: your backup downloads, then <strong>Copy SQL</strong>, run it once in
+  <strong>Supabase → SQL editor</strong>, and press <strong>I've run it — re-check</strong>. Either
+  way the upgrade adds the missing tables and records the new version; it does not touch your
+  Row-Level Security policies or your grants, so an upgrade can never loosen who can see the
+  workspace.</p>
   <p>A failed write also raises a one-time notification and puts the full error on the
   <strong>Settings → Workspace backend</strong> card, with a <strong>Retry now</strong> button.</p>
   <p><strong>One error worth knowing:</strong> a Supabase workspace provisioned before newer app
@@ -1934,14 +2203,32 @@
       account password. An imported entry with the same id as a packaged one overrides it — the
       escape hatch if a database moves before a re-release.</li>
     <li><strong>Custom workspace…</strong> — opens the full connection wizard for anything
-      else.</li>
+      else. When the wizard finishes, the app asks you to <strong>name</strong> that workspace
+      and adds it to this picker (already selected), so it's there the next time you sign in —
+      and if you gave the wizard a workspace email, that's filled in for you too, leaving just
+      the password. The saved entry keeps the connection details only; the sign-in you typed
+      into the wizard is never stored in it. Connecting to a workspace that's already in the
+      list just re-selects it rather than adding a second copy.</li>
+    <li><strong>Manage workspaces…</strong> — opens the list itself, right on the sign-in
+      screen (it also opens by itself the moment the wizard finishes, so a workspace you have
+      just defined can be handed on straight away). Each entry can be <strong>renamed</strong>,
+      <strong>set as the default</strong> — the workspace this browser opens on, so a device
+      that always works against the same one arrives ready — <strong>exported as an access
+      file</strong>, or <strong>removed</strong> from this device. Removing an entry only
+      forgets it here; the workspace itself, and everything in it, is untouched. Workspaces
+      that shipped with the app can be defaulted and exported but not renamed or removed —
+      they come back on the next load. The same list is in <strong>Settings → Workspace
+      backend → Saved workspaces</strong> once you're signed in, and it is the same list: a
+      rename in one place is a rename in both.</li>
   </ul>
   <p>Picking a workspace only <em>points</em> the app at it — nothing is read or written until you
   actually sign in, so an unauthenticated device can't disturb (or be disturbed by) the workspace's
   data. Admins create the access file from <strong>Settings → Workspace backend → Export access
-  file</strong> on any connected device: it contains the workspace's connection key (share it only
-  with people who should be able to sign in), and it deliberately strips the connection's own
-  service sign-in — each teammate authenticates as themselves.</p>
+  file</strong> on any connected device, or from any entry in the saved-workspace list — including
+  on the sign-in screen, so you can define a workspace and hand someone the file without signing
+  into it first. It contains the workspace's connection key (share it only with people who should
+  be able to sign in), and it deliberately strips the connection's own service sign-in — each
+  teammate authenticates as themselves.</p>
 
   <h3>What follows you between browsers</h3>
   <p>On a connected workspace, your content has always roamed — dashboards, Views, datasets,
@@ -2131,9 +2418,10 @@
       (not Table/Richtext).</li>
     <li><strong>Download data (CSV)</strong> — the View's own query result, header row included;
       shows for any View with a bound query.</li>
-    <li><strong>Export as standalone HTML</strong> (builder only) — the same self-contained
-      single-View file as the inspector's "Export this View…", one click away. It never appears in
-      a published dashboard.</li>
+    <li><strong>Export as standalone HTML</strong> (while you're building — never in a published
+      dashboard) — the same self-contained single-View file as the inspector's "Export this
+      View…", one click away. It works from the <strong>View Builder</strong>'s live preview too,
+      where it exports the View you're building, carrying the numbers on screen.</li>
   </ul>
   <p>Each is on by default and can be turned off independently per View under the inspector's
   <strong>Downloads</strong> section — useful for a View you don't want viewers exporting from a

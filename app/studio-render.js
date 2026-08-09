@@ -775,6 +775,24 @@
     for (var i = 0; i < srcEl.children.length; i++) inlineSvgComputedStyle(srcEl.children[i], destEl.children[i], win);
   }
   function slug(s) { return (s || "chart").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "chart"; }
+  // N15 slice 2 (Kevin, 2026-08-08, reported from a phone): the PNG and CSV items did nothing
+  // on a phone. The bytes were never the problem — the rasterizer produces a real
+  // `data:image/png;base64,…` and the CSV a real blob. Both then appended an `<a download>` to
+  // THIS document and clicked it, and this document is the preview IFRAME's — a download
+  // started from a nested browsing context, which iOS Safari refuses. Desktop Chrome allows it,
+  // and the suite only ever drove the `onDataUrl`/`onRows` hooks, so nothing ever caught it.
+  // So: when we are painting a builder preview, hand the finished bytes UP and let the top
+  // window click in the top document (app/studio.js answers `panel-download`). Everywhere else
+  // — above all the exported standalone HTML, which is THIS SAME FILE by the export==preview
+  // invariant and may have no parent at all — click here exactly as before.
+  function inPreviewFrame() {
+    try { return isPreview() && !!window.parent && window.parent !== window; } catch (e) { return false; }
+  }
+  function deliverDownload(name, payload) {
+    if (!inPreviewFrame()) return false;
+    post(Object.assign({ type: "panel-download", name: name }, payload));
+    return true;
+  }
   // `onDataUrl` is test-only (Playwright drives the rasterization path directly since a real
   // click/download isn't observable headlessly); the real UI click path never passes it.
   function downloadPanelPng(card, p, onDataUrl) {
@@ -789,6 +807,7 @@
       if (glCanvas) { try { glDataUrl = glCanvas.toDataURL("image/png"); } catch (e) { glDataUrl = null; } }
       if (onDataUrl) { onDataUrl(glDataUrl); return; }
       if (glDataUrl) {
+        if (deliverDownload(slug(p.title) + ".png", { dataUrl: glDataUrl })) return;
         var glA = document.createElement("a");
         glA.download = slug(p.title) + ".png"; glA.href = glDataUrl;
         document.body.appendChild(glA); glA.click(); glA.remove();
@@ -817,6 +836,7 @@
       URL.revokeObjectURL(blobUrl);
       var dataUrl = canvas.toDataURL("image/png");
       if (onDataUrl) { onDataUrl(dataUrl); return; }
+      if (deliverDownload(slug(p.title) + ".png", { dataUrl: dataUrl })) return;
       var a = document.createElement("a");
       a.download = slug(p.title) + ".png"; a.href = dataUrl;
       document.body.appendChild(a); a.click(); a.remove();
@@ -839,6 +859,10 @@
     if (!rows) { if (onRows) onRows(null); return; }
     if (onRows) { onRows(rows); return; }
     var csv = rows.map(function (r) { return r.map(csvCell).join(","); }).join("\r\n");
+    // The CSV crosses as TEXT, not as a blob: URL. A blob minted in this frame is revoked the
+    // moment the preview re-renders (which the click itself can trigger), and the top window
+    // can mint its own from the same string with no lifetime shared across the seam.
+    if (deliverDownload(slug(p.title) + ".csv", { text: csv, mime: "text/csv;charset=utf-8" })) return;
     var a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     a.download = slug(p.title) + ".csv"; a.style.display = "none";

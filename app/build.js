@@ -350,7 +350,9 @@
     // SAMPLE-DATA-1 (Kevin live, 2026-07-30): the raw demo-DB catalog tables are the Data
     // Management pack's data — they only appear when that pack is actually installed
     // (uninstalled pack = zero presence), not as an always-there SAMPLE DATA dump.
-    if (D.showSamples() && Studio.demoPackInstalled && Studio.demoPackInstalled("datamanagement")) {
+    // SP-0: ask the registry which pack owns them (`catalogSamples`) rather than naming one.
+    if (D.showSamples() && Studio.demoPacksWith &&
+        Studio.demoPacksWith("catalogSamples").some(function (pid) { return Studio.demoPackInstalled(pid); })) {
       var cat = D.getCatalog();
       Object.keys(cat).forEach(function (stem) {
         (cat[stem].dataAccesses || []).forEach(function (d) {
@@ -483,9 +485,11 @@
         shelfColor: blob.shelfColor || [], chartType: blob.chartType || "table",
         mapScale: blob.mapScale || "" // VB-10 — bdGeoDim/bdMapScale read st, not BD
       };
+      // MAX_VIEW_ROWS, not the editor's display cap: this result is what a dashboard
+      // panel draws, so truncating it to 200 would silently redraw the picture.
       var basis = st.chartType === "table"
-        ? compute(bdEff(st).cols, bdFilteredRows(st), st.shelfCols, st.shelfRows)
-        : chartBasis(st.chartType, st);
+        ? compute(bdEff(st).cols, bdFilteredRows(st), st.shelfCols, st.shelfRows, MAX_VIEW_ROWS)
+        : chartBasis(st.chartType, st, MAX_VIEW_ROWS);
       if (!basis || !basis.head.length) return null;
       return { cols: basis.head.slice(), rows: basis.rows, live: !!run.live };
     });
@@ -812,7 +816,15 @@
     return null;
   }
   function aggLabel(f) { return f.agg.toUpperCase() + " " + f.col; }
-  var MAX_BODY_ROWS = 200, MAX_XTAB_COLS = 30;
+  // MAX_BODY_ROWS is a DISPLAY cap: the editor's result grid is a preview pane, and
+  // painting 2,000 <tr>s into it on every keystroke is what it protects against.
+  // SP-1(b): it must not follow a SAVED View out into a dashboard. A blob run through
+  // bdRunBlob feeds CHARTS — a 1,813-county choropleth that quietly drew its first 200
+  // counties is a wrong picture, not a truncated list, and nothing surfaces the
+  // truncation once the basis leaves the editor. So the run path passes MAX_VIEW_ROWS,
+  // which is the ceiling that was really in force all along: bdLoadRowsFor already caps
+  // a workspace dataset at 2,000 rows before any of this runs.
+  var MAX_BODY_ROWS = 200, MAX_VIEW_ROWS = 2000, MAX_XTAB_COLS = 30;
 
   // compute(cols, rows, shelfCols, shelfRows) → null (nothing on the shelves) or
   //   { head:[labels], rows:[[cells]], headGroups?, truncatedRows?, truncatedCols? }
@@ -822,8 +834,9 @@
   // - Rows fields present → crosstab: Rows fields nest down the side, the FIRST
   //   non-aggregated Columns field pivots across the top, measures fill the
   //   cells (COUNT of rows when no measure is picked), plus a Total column.
-  function compute(cols, rows, shelfCols, shelfRows) {
+  function compute(cols, rows, shelfCols, shelfRows, limit) {
     shelfCols = shelfCols || []; shelfRows = shelfRows || [];
+    var cap = limit || MAX_BODY_ROWS;
     if (!shelfCols.length && !shelfRows.length) return null;
     var idx = {};
     cols.forEach(function (c, i) { idx[c] = i; });
@@ -835,10 +848,10 @@
       if (!measures.length) {
         // plain SELECT of the picked columns
         var head = dims.map(function (f) { return f.col; });
-        var body = rows.slice(0, MAX_BODY_ROWS).map(function (r) {
+        var body = rows.slice(0, cap).map(function (r) {
           return dims.map(function (f) { return r[idx[f.col]]; });
         });
-        return { head: head, rows: body, truncatedRows: rows.length > MAX_BODY_ROWS ? rows.length - MAX_BODY_ROWS : 0 };
+        return { head: head, rows: body, truncatedRows: rows.length > cap ? rows.length - cap : 0 };
       }
       // grouped rollup
       var groups = {}, order = [];
@@ -848,11 +861,11 @@
         measures.forEach(function (f, mi) { aggAdd(groups[key].aggs[mi], r[idx[f.col]]); });
       });
       var head2 = dims.map(function (f) { return f.col; }).concat(measures.map(aggLabel));
-      var body2 = order.slice(0, MAX_BODY_ROWS).map(function (key) {
+      var body2 = order.slice(0, cap).map(function (key) {
         var g = groups[key];
         return g.dims.concat(measures.map(function (f, mi) { return aggOut(g.aggs[mi], f.agg); }));
       });
-      return { head: head2, rows: body2, truncatedRows: order.length > MAX_BODY_ROWS ? order.length - MAX_BODY_ROWS : 0 };
+      return { head: head2, rows: body2, truncatedRows: order.length > cap ? order.length - cap : 0 };
     }
 
     // crosstab
@@ -899,7 +912,7 @@
     } else {
       head3 = head3.concat(mLabels);
     }
-    var body3 = order3.slice(0, MAX_BODY_ROWS).map(function (key) {
+    var body3 = order3.slice(0, cap).map(function (key) {
       var g = groups3[key], out = g.dims.slice();
       if (colDim) {
         colVals.forEach(function (v) {
@@ -911,7 +924,7 @@
     });
     return {
       head: head3, rows: body3, headGroups: headGroups,
-      truncatedRows: order3.length > MAX_BODY_ROWS ? order3.length - MAX_BODY_ROWS : 0,
+      truncatedRows: order3.length > cap ? order3.length - cap : 0,
       truncatedCols: truncatedCols
     };
   }
@@ -1023,7 +1036,10 @@
     if (!bdFirstDim(st)) return "Needs at least one non-aggregated field on a shelf";
     return "";
   }
-  function chartBasis(type, st) {
+  // `limit` (SP-1(b)) is the row ceiling for the basis — omitted in the editor, where
+  // MAX_BODY_ROWS keeps the preview grid cheap; MAX_VIEW_ROWS when a SAVED View is being
+  // run for a dashboard panel, where the rows ARE the picture (see bdRunBlob).
+  function chartBasis(type, st, limit) {
     st = st || BD;
     if (!st.run || chartUnavailable(type, st)) return null;
     var m = bdFirstMeasure(st), rows = bdFilteredRows(st);
@@ -1032,14 +1048,14 @@
       // dims" path already collapses to a single grand-total row (the exact
       // shape Studio.newKpi's valueCol expects), so this rides the same pivot
       // engine as every other basis with zero new logic.
-      return compute(bdEff(st).cols, rows, [m], []);
+      return compute(bdEff(st).cols, rows, [m], [], limit);
     }
     if (type === "heatmap") {
       return compute(bdEff(st).cols, rows,
-        [{ col: st.shelfRows[0].col, agg: null }, { col: bdColsDim(st).col, agg: null }, m], []);
+        [{ col: st.shelfRows[0].col, agg: null }, { col: bdColsDim(st).col, agg: null }, m], [], limit);
     }
     if (LINE_SHAPED_TYPES.indexOf(type) >= 0) {
-      var series = bdLineSeriesBasis(rows, st);
+      var series = bdLineSeriesBasis(rows, st, limit);
       if (series) return series;
     }
     var dim = bdFirstDim(st);
@@ -1049,7 +1065,7 @@
       // = labelCol, cols[1] = xCol, cols[2] = yCol), so no bdPanelFor wiring
       // is needed beyond the default Studio.newPanel(type, da) call below.
       var ms2 = bdMeasures(st).slice(0, 2);
-      return compute(bdEff(st).cols, rows, [{ col: dim.col, agg: null }].concat(ms2), []);
+      return compute(bdEff(st).cols, rows, [{ col: dim.col, agg: null }].concat(ms2), [], limit);
     }
     if (type === "choropleth") {
       // VB-4: a map is a single-dimension chart too (idCol/valueCol, same shape
@@ -1061,10 +1077,10 @@
       // (State_FIPS on Columns must beat a year on Rows for the map's id role).
       var mapDim = bdGeoDim(st) || dim;
       var mapCf = bdColorField(st);
-      if (mapCf) return compute(bdEff(st).cols, rows, [{ col: mapDim.col, agg: null }, { col: mapCf.col, agg: null }, m], []);
-      return compute(bdEff(st).cols, rows, [{ col: mapDim.col, agg: null }, m], []);
+      if (mapCf) return compute(bdEff(st).cols, rows, [{ col: mapDim.col, agg: null }, { col: mapCf.col, agg: null }, m], [], limit);
+      return compute(bdEff(st).cols, rows, [{ col: mapDim.col, agg: null }, m], [], limit);
     }
-    var basis = compute(bdEff(st).cols, rows, [{ col: dim.col, agg: null }, m], []);
+    var basis = compute(bdEff(st).cols, rows, [{ col: dim.col, agg: null }, m], [], limit);
     // VB-3: bars/donut are single-dimension charts, so "color by" only ever needs
     // ONE value per already-charted category — when the Color field IS that
     // dimension it's a no-op tag (colorCol = the column already there); when it's
@@ -1113,7 +1129,7 @@
   // Anything richer (2+ Rows dims, a crosstab with 2+ measures) falls back
   // to the plain single-series basis below — same honesty convention as the
   // pivot's own truncation notes; charting those shapes is later work.
-  function bdLineSeriesBasis(rows, st) {
+  function bdLineSeriesBasis(rows, st, limit) {
     st = st || BD;
     var dims = st.shelfCols.filter(function (f) { return !f.agg; });
     var measures = bdMeasures(st);
@@ -1125,7 +1141,7 @@
     var cf = !colsDim ? bdColorField(st) : null;
     if (st.shelfRows.length === 1 && (colsDim || cf) && measures.length <= 1) {
       var pivotCols = cf ? st.shelfCols.concat([{ col: cf.col, agg: null }]) : st.shelfCols;
-      var xtab = compute(bdEff(st).cols, rows, pivotCols, st.shelfRows);
+      var xtab = compute(bdEff(st).cols, rows, pivotCols, st.shelfRows, limit);
       if (xtab && !xtab.headGroups) {
         return {
           head: xtab.head.slice(0, -1), // drop the trailing crosstab "Total" column
@@ -1135,7 +1151,7 @@
       }
     }
     if (!st.shelfRows.length && dims.length === 1 && measures.length >= 2) {
-      return compute(bdEff(st).cols, rows, st.shelfCols, []);
+      return compute(bdEff(st).cols, rows, st.shelfCols, [], limit);
     }
     return null;
   }
@@ -1259,6 +1275,31 @@
   window.__bdSyncPreviewSize = bdSyncPreviewSize;
 
   var _bdPvTimer = null;
+  // N15: the live preview frame + the exact one-panel spec/rows it is painting. The View
+  // Builder's panel is minted fresh into a private spec (bdPanelFor → Studio.newPanel) that
+  // never enters the dashboard builder's `S.spec`, so nothing up there could ever resolve it
+  // — "Export as standalone HTML" closed the menu and did nothing. This builder claims its
+  // own frame below and exports from what it is actually showing.
+  var _bdPv = null;
+  function bdPreviewFrame() { return _bdPv && _bdPv.frame && _bdPv.frame.isConnected ? _bdPv.frame : null; }
+  function bdPreviewMsg(d) {
+    // The Build preview owns exactly ONE panel act today: export it as a standalone file.
+    // Everything else the shared chrome can post (reorder, resize, delete, header edits) is
+    // meaningless for a single unsaved View and is deliberately dropped here rather than
+    // falling through to the dashboard builder.
+    if (d.type !== "panel-export-embed" || !_bdPv) return;
+    var p = (_bdPv.spec.panels || []).filter(function (x) { return x.id === d.id; })[0];
+    if (p) Studio.exportPanelEmbed(p, _bdPv.spec, _bdPv.mock);
+  }
+  // Claimed lazily on the first paint: this file loads BEFORE app/studio.js, so
+  // Studio.claimPreviewFrame does not exist yet at evaluation time — and there is no frame
+  // to answer for until the first preview renders anyway.
+  var _bdPvClaimed = false;
+  function bdClaimPreview() {
+    if (_bdPvClaimed || !Studio.claimPreviewFrame) return;
+    _bdPvClaimed = true;
+    Studio.claimPreviewFrame(bdPreviewFrame, bdPreviewMsg);
+  }
   function renderChartPreview(result) {
     var basis = chartBasis(BD.chartType);
     if (!basis) { result.innerHTML = '<div class="bd-cta">' + esc(chartUnavailable(BD.chartType) || "Nothing to chart yet.") + "</div>"; return; }
@@ -1292,6 +1333,11 @@
         }
         D.postThemeOnLoad(ifr);
         ifr.srcdoc = html;
+        // N15: the preview's own panel chrome posts back to the top window. Remember the
+        // frame and exactly what it is showing, so this builder can answer for it instead
+        // of the acts landing on whatever dashboard the other builder happens to have open.
+        _bdPv = { frame: ifr, spec: spec, mock: mock };
+        bdClaimPreview();
         bdWirePreviewResize(result, ifr); // VB-12: fill-to-bottom + drag handles
       }
       // VB-4: a choropleth panel needs its geometry inlined before buildHtml can

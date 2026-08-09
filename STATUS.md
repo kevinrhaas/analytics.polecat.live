@@ -135,6 +135,1716 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — Help's "Sample packs" section described a smaller app than the one that ships (v921, NO
+  sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** the check-23→Help move — the same
+  one check 15 made after 14, 17 after 16 and 28 after 24. Check 23 holds the pack TOUR to the
+  installer; this section is where a reader who never takes a tour learns what a pack gave them,
+  and it had drifted further than the tour ever did. Three defects, all measured before the fix:
+  - **Market Coverage had no entry at all.** SP-1 built that pack over three slices (a/b/c1) and
+    its Help coverage was a loose paragraph ABOVE the list, not an item IN it — while the
+    section's own opening sentence names three pack folders and the list below it had two.
+  - **Conservation Insight's dashboard count was wrong in both directions, and internally
+    inconsistent.** It named the featured dashboard and the Watershed Map, said "eight extra
+    showcase dashboards", and closed on "removing the pack takes all **nine** dashboards back
+    out". The pack seeds **6** into the workspace and materializes **8** more from the gated
+    gallery — 14 — so the closing sentence did not even agree with the two figures printed beside
+    it. The CRD map, the OpTIS trends, the provider ensemble and the Metrics wheel were named
+    nowhere on the page; all six are named now.
+  - **Neither entry said what else arrives with the same click.** Conservation Insight seeds 2
+    connections, 8 datasets and a county-to-state rollup job, and Help named none of those kinds —
+    a reader was told about charts and nothing about the data under them. Both entries now walk
+    connections → datasets → job → pinned Views → dashboards.
+  **Doc-truth check 34 is the guard, and every fact in it is derived so it survives either side
+  moving.** (a) every registry entry has its own list item, titled with the `folder` name the
+  reader sees in every catalog; (b) an item must name every KIND its pack seeds — the kinds come
+  from walking the call graph out of that entry's OWN `install`/`data.seed` hooks and collecting
+  the workspace tables they write, which is why it holds `marketcoverage` too even though that
+  entry deliberately declares no `seeds`; (c) every dashboard COUNT must be one of the pack's real
+  numbers — seeded, materialized, or the sum — because a rule that allowed only the total would
+  forbid the true sentence "eight extra showcase dashboards"; (d) "installed by default" is a
+  claim about `DEFAULT_INSTALLED`, so it must sit on that pack's item and no other.
+  **Counts are NOT taken from the call graph, and that is a measurement, not a shortcut:** a
+  single `W.put("analyses", …)` inside `PRACTICES.forEach` seeds four rows, so call sites counted
+  1 where the pack seeds 4. Dashboards are counted by the `<packId>-<name>` literals the file
+  gives them (check 23's own convention) and cross-checked against the declared `seeds.dashboards`
+  — two independent readings of one fact, which is a real assertion in its own right.
+  **(d) is here for a queue item, not for today's copy:** SP-1 (c2) swaps `DEFAULT_INSTALLED` to
+  `marketcoverage`, and this page says Data Management is the default. That PR will now go red
+  here until it moves the sentence — which is the fallout (c2)'s own item asks a future run to
+  remember, made mechanical.
+  **Verified:** the full dev gate as `ci.yml` runs it — `node tools/validate.mjs`,
+  `node tools/changelog-check.js`, `node tools/doc-truth.mjs` (34 checks), `node tools/dev-smoke.mjs`
+  (1280×900 + 390×780, zero pageerrors). All five of check 34's assertions were measured on mutated
+  trees: on the pre-fix tree rules (a)/(b)/(c) flagged exactly the three defects above (marketcoverage
+  absent · three unnamed kinds · "all nine"); swapping `DEFAULT_INSTALLED` to `marketcoverage` flagged
+  (d) in both directions at once; and declaring `seeds.dashboards: 7` flagged the cross-check.
+  Docs-only plus the guard, so no `sw.js` bump — `docs/index.html` is not precached (sw.js says so
+  in its own header). **Est 1pt, took 1.**
+- **N30 — the pipeline was stuck on a main→dev back-merge nothing could resolve automatically
+  (no version/sw bump; merge-only; 2026-08-09, steward; dev branch; est 1pt, took 1):**
+  `promote-to-stage.yml` back-merges main into dev before it promotes — dev must stay a superset
+  of main so a hotfix is never lost at the next promotion — and it aborts, files an issue and
+  exits when that merge conflicts. It conflicted on 2026-08-09 (**issue #696**), so **no
+  promotion could run at all**: not the nightly 07:00Z sweep, not a dispatch. This slice is the
+  human half the workflow asked for, and nothing else.
+  - **Why git could not resolve it.** Both conflicts were **add/add** — the same two files
+    created independently on each branch, so there was no common ancestor to three-way merge
+    against. `.github/workflows/rls-dev.yml` and `tests/rls-verify.mjs` exist on dev via #661/
+    #665/#679 and on main via #662/#663/#666, which were hotfixed straight to main because
+    GitHub registers `workflow_dispatch`/`schedule` triggers **only** from the default branch.
+    That asymmetry is by design, and it is exactly the shape that produces add/add: the same
+    file has to land on both branches by different routes.
+  - **`.github/workflows/rls-dev.yml` → main's copy.** Measured, not assumed: the diff dev→main
+    is additions only (zero content removals), so main's is dev's plus #662/#663 — the `ref`
+    input, the checkout-`dev` step, and the "report what is actually being tested" guard that
+    fails loudly when `tests/rls.mjs` is missing from the ref. Nothing of dev's is dropped.
+  - **`tests/rls-verify.mjs` → dev's copy.** main's is **byte-identical** to dev's at b2899b5
+    (#665) — #666 lifted it verbatim so the daily workflow could ship on main — and dev then
+    evolved it in #679 (N27: protected / empty / leaking). Main's is that same file one revision
+    behind, so taking dev's loses nothing and keeps N27.
+  - **The two halves agree by construction**, which is what makes this resolution safe rather
+    than merely plausible: main's `rls-verify.yml` defaults to `ref: dev`, so the daily verify
+    was *already* fetching dev's script — the merge just makes the repo say what was already
+    happening. N27 also kept the exit contract that workflow depends on: **1** on a leak, **2**
+    on an unanswerable read, **0** otherwise, with `empty` reported as inconclusive in the
+    summary rather than promoted to a failure. So the workflow runs the newer classifier
+    unchanged, and no green run silently becomes red.
+  - **Not fixed here, deliberately:** ⛔ N29 (the `polecat_dev` leak that verify found) is still
+    blocked on Kevin — this slice restores the pipeline's ability to promote, it does not touch
+    what the verify reports. Issues #641/#643 (suite red, stage rolled back) predate the N10
+    repair already on dev; the next promotion is what will actually retest that.
+  - **Verified:** the full dev gate as `ci.yml` runs it — `node tools/validate.mjs`,
+    `node tools/changelog-check.js`, `node tools/doc-truth.mjs`, `node tools/dev-smoke.mjs`
+    (390×780 + desktop, zero pageerrors) — plus `node tests/rls-verify.mjs --self-test` on the
+    merged tree, since the resolution's whole claim is about which copy of that file survives.
+    No changelog entry: nothing user-visible ships here (same shape as #659/#667 and the CI
+    commits being merged, none of which carried one). **Merged with a real merge commit, not a
+    squash** — a squash would give dev the *content* without making main an *ancestor*, and the
+    next back-merge would rebuild the identical conflict.
+- **N7 — the Dashboard Builder hero shot photographed an empty Data panel (v920, NO sw bump,
+  2026-08-09, steward; dev branch; est 1pt, took 1):** the candidate v919 named for the next pass,
+  and it was filed as a legibility nicety ("the Data panel is open but shows one collapsed group;
+  expanding it would read better"). It was not. The panel was EMPTY, under a caption whose verb is
+  **"Drag datasets onto the canvas"** and alt text promising **"the data and inspector panels"** —
+  the slide asks the reader to do the one thing the picture proves the app has nothing for.
+  **The cause, derived rather than guessed, and it is one item wide.** LF19 gave the Data panel's
+  `This dashboard's datasets` group progressive disclosure: `libGroupOpen` collapses it once it
+  holds more than `LIB_GROUP_MANY` (6), unless the reader has toggled it themselves, which it
+  remembers in `studio-lib-mine-open`. The two builder shots straddle that threshold by ONE
+  dataset — `studio-cost.studio.json` binds 6 data accesses and `finance-command.studio.json`
+  binds 9 — so the same function, on the same code path, produced a light shot rendering all six
+  of its dataset cards and a dark shot rendering a single collapsed header over ~1000px of black.
+  The dark one is the shot the carousel publishes (`data-i="10"`); the light one is referenced
+  nowhere. v918 had just fixed this slide's OTHER half (it was photographing Home), which is why
+  the empty panel was the next thing visible rather than the second thing.
+  **The fix is the reader's own path, not a new one.** `loadExample` seeds the same
+  `studio-lib-mine-open` key the group's header writes when you click it, then rebuilds the
+  library — so nothing in the app is special-cased for the camera. The picture now carries eight
+  dataset cards, each with its name, backend badge and columns.
+  **The mechanism earned itself on its first run.** `datasetsShown` follows v919's `framedSteps`
+  exactly — declare what the frame shows, the shooter measures it before saving, and a mismatch
+  fails the capture. Declared 9; the 900px frame holds 8 (the ninth is below the fold, and the
+  copy claims no count, so 8 satisfies it). The number shipped is the measured one because the
+  tool refused the asserted one.
+  **Verified:** `node tools/gen-shots.mjs studio-dark` green after the correction and the PNG read
+  back by eye; the full dev gate — `tools/validate.mjs`, `tools/changelog-check.js`,
+  `tools/doc-truth.mjs` (33 checks), `tools/dev-smoke.mjs` at 1280×900 + 390×780, zero pageerrors.
+  Doc-truth check 33 derives the threshold and the key from `app/studio.js`, each shot's bound
+  count from the example spec it names, and holds the copy beside the image to the framed count
+  and to naming the panel at all; all four of its failure modes were measured on mutated trees
+  (seed removed, over-declared count, caption claiming "twelve datasets", caption dropping the
+  noun). **Est 1pt, took 1.**
+  **Not taken, and stated so the next run does not re-derive it:** `site/shots/studio.png` is
+  generated on every full pass and referenced nowhere — orphan to retire, or a slide the page is
+  missing. That is a product question. Its `datasetsShown: 6` was verified by a real capture and
+  the committed PNG restored unchanged, per gen-shots' own no-churn rule, so this PR's binary diff
+  is the one image it is about.
+- **N7 — the Quick Views hero shot photographed Quick Views' own limitation (v919, NO sw bump,
+  2026-08-09, steward; dev branch; est 1pt, took 1):** the candidate v918 named for the next pass,
+  and the measurement moved the fix somewhere the note did not expect.
+  **The note's proposed fix does not exist.** It read: the Quick Views slide's prep picks a saved
+  View by NAME (`/no-?till|tillage|cover/i`) and the pack's Views are builder-native now, so
+  "preferring a NON-builder View, as the View Builder shot already prefers a builder one, is the
+  fix". There is no non-builder View to prefer. `snapSection` installs the `conservation` pack and
+  nothing else, and every saved View that pack seeds goes through `builderViewRow` — measured, all
+  four `builder: true` — so `A.filter(a => !a.builder)` is EMPTY in the shot's workspace. The fix
+  is not a better pick; it is not picking a saved View at all.
+  **What the slide actually showed.** `xpLoadAnalysis` answers a builder-made View with the VB-5
+  cross-editor banner, so the flagship Quick Views slide opened with 53px of notice reading
+  "Quick Views shows it best-effort and can't edit its shelves, filters, or calculated columns",
+  above everything the caption promises — the section selling itself with its own carve-out. The
+  prep now clicks a DATASET in the picker, which is the section's own front door ("Start from a
+  dataset, see it as a table, pick a chart…" is its intro line, and the caption beside the image
+  has always said the same). Real depth follows for free: 500 rows instead of a 3-row saved blob,
+  and the app's own mapping guess filled in.
+  **The alt text was over-promising, and by how much is measurable.** It said "a dataset table, a
+  chart-type picker and **a live result**"; the editor is a four-step walk and the 1440×900 frame
+  holds three (steps at 156/484/694/880px in an 842px scroll viewport — no scroll position shows
+  the table and the result together, so this is the frame, not the composition). Rewritten to what
+  the picture contains. The visible carousel caption was already right — it describes the
+  dataset-first walk — which is the sharper version of the defect: the shot had drifted away from
+  a caption that never moved.
+  **Two guards, because a picture cannot be parsed.** `snapSection` takes a `framedSteps` count and
+  MEASURES it before saving (a step counts when ≥100px of it is in frame); declare 4 and the
+  capture fails rather than shipping. doc-truth check 32 reads that same number and holds the alt
+  + the caption at the image's own `data-i` to it — may name the framed steps, must not name a
+  later one, must not go vague to dodge the rule — and separately forbids this shot going back to
+  a saved View, deriving the premise from `builderViewRow`'s `builder:` rather than trusting the
+  note. All four failure modes measured on mutated trees (pre-fix alt, pre-fix prep, overstated
+  `framedSteps`, vague copy), plus the shooter's own assertion.
+  **Also:** `node tools/gen-shots.mjs explore-dark` now shoots only what it names. Every capture is
+  live rendering, so re-shooting an untouched view still writes a byte-different PNG — a one-shot
+  fix was otherwise a ~6MB binary diff with the actual change buried in it.
+  **Not taken, so the next run does not re-derive it:** the builder shot's Data panel shows one
+  collapsed group (v918's second note) — untouched, still the candidate.
+  Verified: `node tools/doc-truth.mjs` (32 checks incl. the 6 new), `node tools/validate.mjs`,
+  `node tools/changelog-check.js`, `node tools/dev-smoke.mjs` at 390×780 + desktop.
+- **N7 — the hero carousel's SCREENSHOTS, and the three that were wrong (v918, NO sw bump,
+  2026-08-09, steward; dev branch; est 1pt, took 1):** the recurring doc/copy item's last named
+  candidate, deferred across several passes as "regenerating sixteen 2160×1350 captures and
+  visually auditing them is a poor fit for one run". The audit is what made it a slice: the
+  regeneration was one command, and looking at the output found three defects, two of them
+  already live in the committed baseline.
+  **What was wrong.** (1) `studio-dark.png` — carousel slide 11, captioned "The Dashboard Builder
+  in dark theme with the data and inspector panels" — was a screenshot of **Home**, with the lint
+  pass's "All clear — this dashboard has zero warnings" toast sitting across the middle of it.
+  `__studioLoad()` loads a spec INTO the builder without navigating there, so the capture never
+  left the page it booted on; and `DECLUTTER` ran at 1.4s while the toast lands around 2s, so the
+  one line that exists to remove toasts removed nothing. Both are in the 2026-07-31 baseline, so
+  the live site has been showing Home under that caption for at least ten days. (2)
+  `watershed.png`'s own subtitle read "A custom geography — HUC8 subbasins…" — the exact claim
+  v916 deleted from the caption printed directly beneath the image the day before, which means
+  correcting the caption alone had turned a stale claim into a visible self-contradiction. (3)
+  `dashboards-dark.png` had become a LIST under a caption promising "every saved dashboard as
+  searchable tiles": AUD-06 made `list` the single default for every catalog, and the shot
+  silently followed the app instead of the copy.
+  **The fixes are in the generator, not the pixels**, so they survive the next regeneration:
+  `loadExample()` now asks the shell for the `studio` section by name, opens both side panes with
+  the tour's silent opener (STUDIO-PANELS made the builder open collapsed, so "the data and
+  inspector panels" would otherwise be two 34px rails), and declutters LAST; `huc8Spec()`'s
+  subtitle names the built-in scale; and `snapSection()` gained a `prefs` seed that writes
+  localStorage before first paint, used to pin `studio-dash-view: tiles`. Pinning beats clicking —
+  the catalog renders in the advertised shape from the first frame, and a later default flip
+  cannot re-stale the shot.
+  **Doc-truth check 31** is the guard, and it is the usual one-document-over move: check 29 holds
+  the carousel's CAPTIONS to `Studio.CHARTS.choropleth`'s own `scale` list, and could not see the
+  other half of the same slide. The generator's source is the only derivable proxy for pixels (a
+  PNG cannot be parsed) and the right one — the literal in the spec IS the string in the image, so
+  no regeneration can bake copy in without passing through it. Same two rules as 29's (b) and (c).
+  **Verified:** the check fails on the real pre-fix tree (it flags the "A custom geography"
+  subtitle as naming the BUILT-IN Watersheds (HUC8)), and its count half fails on a mutated tree
+  claiming five scales; both pass after. All 16 captures succeeded, 0 failed. The images were read
+  and compared against the committed baselines one by one — `watershed`, `dashboards-dark`,
+  `studio-dark`, `viewbuilder-dark`, `datasets-dark`, `home-dark` and `explore-dark` — which is
+  how (1) and (3) were found and how the two carried-forward candidates below were separated from
+  regressions. NO `sw.js` CACHE bump: `site/shots/*.png` are explicitly NOT precached (sw.js says
+  so at line 21) and nothing else in the precache list moved. Est 1pt, took 1.
+- **N26 — provisioning no longer re-opens a workspace that has gone live (v917, sw v537,
+  2026-08-09, steward; dev branch; est 1pt, took 1):** the ★★ item this queue had been carrying
+  since N16 slice 2 found it. Both provisioning artifacts end with a DO block that installs the
+  demo `polecat_anon_all` policy on all seven tables, and both did it unconditionally. Postgres
+  ORs PERMISSIVE policies together, so on a workspace that had been through go-live that CREATE
+  did not REPLACE the per-user policies — it added an allow-all one BESIDE them, handing the anon
+  key every row back while the real policies sat there still looking correct, with nothing in the
+  UI to say so.
+  **Scope grew on measurement, and that is the substance of this slice.** The item blamed the Edge
+  Function's `provision`, which is true and is the narrower half: `tools/supabase-bootstrap.sql`
+  carries the same block, it is the documented way to add a table or repair grants on an existing
+  project, and `supabase-provision.yml` applies it unattended. The spec's remedy — a new
+  posture-preserving `upgrade` action beside `provision` — would have fixed the function and left
+  the pasted file leaking, so the guard went into the block itself in BOTH artifacts instead: it
+  asks `pg_policies` whether the real posture's own policy names are already installed (the same
+  names `supabase-rls-real.sql` drops by name, for the same OR-ing reason) and installs the demo
+  policy only when they are not. The DROP stays UNCONDITIONAL on purpose — a stray allow-all
+  beside a live posture IS the leak, so finding one is a reason to remove it, never a reason to
+  leave it. A fresh project is completely unaffected, which is the other half of the contract.
+  **Verified against a real Postgres before shipping, both directions.** A throwaway harness ran
+  the shipped bytes of both artifacts against a local PostgreSQL 16 with a Supabase-shaped shim
+  (`anon`/`authenticated`/`service_role` + `auth.uid()`/`auth.jwt()` over `request.jwt.claims`),
+  through the real sequence — provision, go-live, provision again. On `dev` HEAD: 25 real policies
+  present, **7 allow-all policies added beside them, anon reading every row of dashboards and
+  users**, from both the Edge Function's BOOTSTRAP_DDL and the pasted file. After the fix: 25 real
+  policies, 0 allow-all, anon reading 0/0 — from both — while a FRESH provision still installs all
+  7 and still reads. The runbook's § Rollback was run verbatim from the document in the same
+  harness (7 allow-all restored, 0 real policies), because a guard that cannot be undone would be
+  the next defect.
+  **What is now wired to hold it:** doc-truth **check 30** (dev gate) holds both artifacts to the
+  guarded shape — the CREATE conditional, liveness derived from the real policy NAMES rather than
+  a marker a rollback would forget to clear, and the DROP outside the guard — plus a third
+  assertion that the two files carry the SAME block, since they are one posture written twice
+  (the N2-slice-2 drift class). It flags all four gaps on the pre-fix tree, checked by reverting
+  the two files and re-running. `tests/rls.mjs` gains two postures that run the FULL 27-check
+  battery over provision-after-go-live, one per artifact — the whole battery rather than an
+  anon-reads-zero spot check, because the property is "the live posture is exactly what it was".
+  `tests/run.js` keeps the stays-wired assertion (the N28 precedent, one item over).
+  **Two documents were made true in the same slice, both of which this change falsified:** the
+  runbook's "(Or just re-run `tools/supabase-bootstrap.sql`, which is idempotent and does the
+  same)" is no longer a rollback shortcut, and its § Rollback now also drops `polecat_meta_auth` —
+  the one real-posture policy the block used to leave behind, which would have made a rolled-back
+  workspace still look live to the new guard. The comment at `upgradeWorkspace()` explaining why
+  it avoids the Edge Function was written entirely around this hazard; it now records that the
+  hazard is fixed and that the reason to keep using `polecat_migrate()` is a different one.
+  **NOT a fix for ⛔ N29, and nobody should read it as one.** `polecat_dev` leaks because it was
+  provisioned from the allow-all posture and never went live — the guard sees a non-live workspace
+  and correctly installs the demo policy. That still needs Kevin's paste of
+  `tools/supabase-deploy.sql`.
+- **N7 slice — the marketing hero's MAP captions vs the scales the app ships (v916, NO sw bump,
+  2026-08-09, steward; dev branch; est 1pt, took 1):** the last unaudited candidate on the N7 list
+  that fits one run — its textual half. The carousel is the first copy a visitor reads, and it had
+  drifted further than any surface audited so far. **Measured against `Studio.CHARTS.choropleth`'s
+  own `scale` opt (`app/model.js` — county, state, crd, huc8, cd, zcta, custom):** slide 3 said
+  "state, county and USDA-district scales built in" — three of six, with watersheds, congressional
+  districts and ZIP codes unmentioned — and slide 4 then introduced one of the three it had
+  omitted as *"bring your own boundaries, like these USGS HUC8 watersheds"*, with the `alt` text
+  calling the same screenshot "a custom geography". HUC8 is a shipped choice in the Region-scale
+  select. So the two slides undersold the app in both directions at once: a built-in scale was
+  described as the reader's to source, and the feature that IS user-supplied (the `customMap`
+  county-FIPS→region CSV sitting beside `scale`) went unnamed in the carousel entirely.
+  **Fixed:** slide 3 counts the built-in scales and names all six; slide 4 keeps the watershed
+  screenshot, says it is one of the six, and introduces the CSV import as the separate thing it
+  is; both `alt` strings follow. 3 sites, copy only — no map behaviour touched.
+  **Doc-truth check 29** now derives all of it from that same `scale` opt: the `#geo` list must
+  name every choice (it already did — this pins it against a seventh scale shipping unlisted),
+  every "N region scales" / "N built-in scales" / "N scales built in" claim must equal the
+  measurement, and a scale that ships may not appear in the same sentence as the two phrasings
+  that assert the reader must supply it. **All three sites failed on the pre-fix tree**, the count
+  half flagging the enumeration precisely because it named scales instead of counting them —
+  which is how it went stale silently in the first place.
+  **Also in this PR, because this PR caused it:** check 29's own ~110 lines pushed first-party LOC
+  to 60,103 and tipped `CLAUDE.md`'s "~54K" past doc-truth's 10% band, so that line now reads
+  ~60K. **Audited and found CURRENT in the same pass, no change needed:** `docs/index.html` —
+  `ct-choropleth` already distinguishes the six built-in scales from "your own **custom regions**"
+  and documents the CSV's two columns, so the usual check-16→17 move one document over has
+  nothing to correct here, and check 29 is scoped to `index.html` for that reason rather than by
+  oversight. **NO sw bump:** the precache list is unchanged and the fetch handler is network-first
+  (sw.js's own stated rule, same reasoning as v915 and N14).
+- **N7 slice — Help's own version of the catalog ROW (v915, NO sw bump, 2026-08-09, steward; dev
+  branch; est 1pt, took 1):** the candidate the N7 list called "the strongest remaining", and the
+  measurement matched what the v892 pass had recorded. `docs/index.html` documented the per-row
+  controls of the **Views** catalog in full ("Every row offers:" — Open, Duplicate, Export, pin,
+  private, delete) and the other three catalogs not at all. `Test` appeared twice, both times about
+  the connection wizard or the admin backends list rather than the row; `Run` never appeared in
+  bold anywhere; and the ★ **Pin** that Datasets and Connections rows carry was named nowhere on
+  the page — while the Sorting paragraph already told the reader "pinned items always stay at the
+  top" without ever saying how something gets pinned.
+  - **One new Help section**, filed with the other catalog-wide topics (search, sort, filter, bulk,
+    folders) and directly above the Views one it mirrors: what each of Datasets / Connections /
+    Jobs carries on its row, what each delete's confirmation counts before it asks, that every
+    single-row delete offers Undo, and what Pin actually does (top of that list whatever the sort,
+    most recently pinned first — NOT "to Home", which is the Views pin's behaviour and would have
+    been the easy thing to copy wrongly). Every claim was read off the handler, not the button:
+    Connections' delete counts the datasets that reference it, Jobs' keeps the output dataset,
+    Datasets' names the dashboards that will fall back to their saved copy.
+  - **Doc-truth check 28** — the check-16→17 move one document over, the pattern every tour slice
+    has followed. It reuses check 24's OWN `rowControlsBySection`, so a single derivation off
+    `app/jobs.js` / `app/connections.js` / `app/datasets.js` now holds the tours AND Help, and a
+    control added to a row reddens the dev gate until both documents name it. Help's list tags each
+    item `data-help-rows="<section>"`, which is what scopes the check without guessing at a heading.
+  - **The negative half is the half worth having**, and all three failure modes were measured
+    rather than assumed: on the pre-fix tree the check fails 2/2 (no blocks at all, then every
+    control missing); bolding **Pin** inside the Jobs block fails with "promises Pin, but
+    app/jobs.js renders no such toggle"; and making `app/jobs.js` render a `cx-pin` fails twice —
+    once because Help does not name it, once because Help still carries the sentence saying Jobs
+    has no pin. That second one is the rot a positive-only rule would have left behind.
+  - **Verified:** the full dev gate in the foreground — `tools/validate.mjs`,
+    `tools/changelog-check.js`, `tools/doc-truth.mjs` (now 28 checks) and `tools/dev-smoke.mjs`
+    (marketing + app + docs at 1280×900 and 390×780, zero pageerrors). **No `sw.js` bump:**
+    `docs/index.html` is deliberately NOT precached (sw.js's own precache-conventions note — it is
+    runtime-cached on first visit), so the precache list is unchanged, which is that file's stated
+    bump rule.
+- **SP-1 slice (c1) — the Market Coverage pack pins four Views and gets its own tour (v914, sw v536,
+  2026-08-09, steward; dev branch; est 3pt for the whole pack, (a) 1 + (b) 1 + this 1 = 3 on
+  estimate, with (c2) still to come — so the pack will finish at 4, one over):** the pack had three
+  dashboards and nothing on Home. It now pins four Views there and can walk you through them.
+  - **Four builder-native Views**, in the order Home shows them: restaurants and bars per 10,000
+    residents by county, median household income on the same geography, the two plotted against
+    each other for counties of 250,000+ residents, and the whitespace shortlist as a table. Seeded
+    in REVERSE so the supply map is the newest row and leads Home's newest-first shelf (the
+    CONS-2/CONS-3 convention).
+  - **They are Views, not pictures — which is the whole point of shipping them beside the
+    dashboards.** Each is a real View Builder blob over the pack's own job output, authored the way
+    `bdSave` does it (compute the basis with the pure `Studio.Build.compute`, then
+    `Studio.newPanel` over the resulting columns), so a seeded View and a hand-saved one are the
+    same shape and open in the same editor. Only the basis HEAD is authored: the rows come from
+    `Studio.Build.runBlob` at render time, so the shortlist's two rules are three live filters you
+    can move rather than a stored copy of the answer.
+  - **The choropleths are mapped POSITIONALLY off their basis**, not name-guessed — `bdPanelFor`'s
+    own reason, and it bites here: the measure column is a synthesized `AVG restaurants_per_10k`
+    label and `guessChoroplethCols` can misjudge one. Same for the shortlist table's columns:
+    `newPanel`'s default marks every column after the first numeric, which is wrong for `state`.
+  - **The pack's own 6-stop tour**, gated on install exactly like the Conservation one: the Views on
+    Home → the whitespace map → the income-versus-supply quadrant → the panel that says what the
+    numbers do NOT prove → the two dashboards it did not walk. It ends on the method note on
+    purpose; a pack carrying real Census data should close on its limits, not its claims.
+  - **A boot heal**, paired with slice (b)'s: `Studio.ensureMarketCoverageViews()` runs from
+    `reconcilePackDashboards()`, so a workspace that installed the pack at (a) or (b) picks the
+    Views up on the next boot — no reinstall, nothing saved is touched.
+  - **`docs/PACKS.md` gained the rule this slice discovered twice**: everything downstream of a
+    real-data pack's CSV (dashboards, Views) is authored in the async half and paired with an
+    exported ensure-function, which is what lets a pack grow across slices at all. Plus how to
+    author a pack's Views, and why the basis head is the only part that is seeded.
+  - **Verified:** the full `tests/run.js` in the foreground — **3245 passed, 0 failed** — including
+    four new SP-1(c) checks (the four Views' shape and Home order; `runBlob` returning 1,500+
+    counties per map, past the editor's 200-row display cap, with every shortlist county clearing
+    all three of the View's own filters and the list a real subset; the heal's re-seed +
+    idempotence; the tour registered, chooser-gated, 6 stops, every panel it spotlights one the
+    pack really seeds). Plus the dev gate: `validate.mjs`, `changelog-check.js`, `doc-truth.mjs`
+    and `dev-smoke.mjs` (desktop + 390px, zero pageerrors).
+  - **(c) was SPLIT rather than shipped whole** — the reasoning and the exact remainder are written
+    into the NOW item, not summarised here. Short form: the `DEFAULT_INSTALLED` swap changes what
+    every fresh workspace CONTAINS (a `kind:"workspace"` pack seeds a connection, three datasets, a
+    job, three dashboards and four Views into every workspace the suite boots), and per-PR
+    auto-revert wants that as its own revertible unit.
+- **SP-1 slice (b) — the Market Coverage pack gets its three dashboards (v913, sw v535, 2026-08-09,
+  steward; dev branch; est 3pt for the whole pack, (a) took 1 and this took 1 — on estimate):** the
+  pack shipped its Census data and its join job last slice with nothing built on top of them. It now
+  installs three dashboards, all reading that job's output live.
+  - **The hero, `marketcoverage-whitespace`** — the county choropleth of `restaurants_per_10k` the
+    item named, its grocery twin beside it, and the panel that turns two maps into one question: a
+    quadrant of median household income against restaurant supply for every county of 250,000+
+    residents, with the crosshairs on the national county medians. Plus a method note, because the
+    honest reading of a low rate is "a question, not a finding" and the dashboard should say so.
+  - **`marketcoverage-demographics`** — the demand side on its own terms (Kevin, 2026-08-08: "I like
+    demographics and census type data"): income, median age and bachelor's-or-higher as three county
+    maps, and the income-vs-supply scatter with its trend line.
+  - **`marketcoverage-shortlist`** — the answer as a list: counties at or above the median income AND
+    at or below the median restaurant rate, over a 250,000-resident floor, as a paginated table plus
+    the 500,000+ markets among them as a sorted bar chart, with the rule stated in plain words above.
+  - **The thresholds are the DATA's own medians**, computed from the shipped rows at seed time —
+    $67,092 and 18.8 per 10,000 — never typed in, so a re-extract that moves the distribution
+    re-seeds thresholds that still mean "the median county". The suite recomputes both from the CSV
+    and fails the spec if they disagree.
+  - **Nothing here is a second copy of the answer.** Every panel is bound to a table-shaped builder
+    blob over the pack's own job output (the CONS-3 convention, so #118's live re-run feeds real
+    rows), and a panel that shows a SUBSET narrows it with the BUILDER's own filter grammar
+    (`curatedDA` gained an optional `filters` argument) — open the View and the three filters that
+    made the shortlist are right there to move. Verified by running the saved blob: all 52 rows it
+    returns really do clear both rules.
+  - **A real defect the verification surfaced, and it was not in this pack.** `MAX_BODY_ROWS = 200`
+    is the EDITOR's result-grid display cap, but `bdRunBlob` — the path a SAVED View takes into a
+    dashboard panel — went through the same `compute()` and inherited it. So the 1,813-county map
+    drew its first 200 counties (Alabama through Arkansas) and every KPI median was computed over
+    them, with nothing surfacing the truncation once the basis left the editor. `compute()`/
+    `chartBasis()` now take an optional row limit; the editor keeps 200 and the saved-View run path
+    passes `MAX_VIEW_ROWS = 2000`, which is the ceiling that was already in force (`bdLoadRowsFor`
+    caps a workspace dataset at 2,000 rows). Every existing caller passes no limit and is unchanged.
+    This was invisible until a pack shipped a dataset bigger than a demo: the map looked fine.
+  - **The heal, so slice (a)'s installs are not stranded** — `Studio.ensureMarketCoverageDashboards()`
+    runs from `reconcilePackDashboards` at boot: a workspace that installed the pack last week gets
+    the three dashboards without a reinstall, a deleted one comes back, and it is a no-op otherwise
+    (including while the CSV is still materializing — that path seeds them itself).
+  - **Verified** (foreground, before merge): the repo's DEV GATE — `tools/validate.mjs` (211 files,
+    3 packs declare a source), `tools/changelog-check.js` (890 entries, top v913, manager-parse OK),
+    `tools/doc-truth.mjs` and `tools/dev-smoke.mjs`, green. Plus a foreground harness driving the
+    exact evaluate blocks this slice added to `tests/run.js` against the booted app at **1500×1040
+    AND 390×780**: the three dashboards seeded, foldered and credited to the Census in their
+    subtitles; every panel and KPI bound to a blob over the pack's own output; the quadrant
+    crosshairs and shortlist filters equal to medians recomputed from the CSV; the saved blobs
+    returning the whole 1,813-row basis; all 52 shortlist rows obeying both rules; the heal
+    re-seeding and then no-opping; and all three dashboards RENDERING — 1,500+ counties **coloured**
+    (not merely outlined, which is what the truncated basis had been doing), 284 quadrant dots, KPIs
+    reading 18.8 / 4.1 / $67.1K / 319.6M, zero pageerrors or console errors at either width. The
+    full `tests/run.js` runs at stage promotion.
+  - **Found, not fixed (a different pack, so a different unit):** the Conservation CRD dashboard's
+    "Map Legend" panel passes `opts.html`, but `studio-render.js`'s richtext case reads
+    `opts.content` — that panel has been rendering its "Add content in the inspector…" placeholder.
+    One-line fix, unrelated to this slice; left for whoever takes it as its own item.
+- **SP-1 slice (a) — "Market Coverage": the first sample pack built from REAL data (v912, sw v534,
+  2026-08-09, steward; dev branch; est 3pt for the whole pack, this slice took 1 — on estimate for
+  (a) of ~3):** the data foundation Kevin's ★★ pack needs, shipped as the pack's own connection,
+  its two Census datasets and the join job that turns them into a saturation index. Dashboards are
+  slice (b); Views + tour + docs are slice (c).
+  - **The extract** — `tools/pack-extract/marketcoverage.mjs`, the provenance record `docs/PACKS.md`
+    demands: County Business Patterns 2023 (establishments — all industries, food services 722,
+    grocers 445), the ACS 2023 5-year table-based Summary File (B01003 population, B11001
+    households, B01002 median age, B19013 median household income, B15003 education), and the 2023
+    Gazetteer for county names. **All three are keyless bulk files on `www2.census.gov` on purpose:
+    `api.census.gov` now 302s to a "Missing Key" page**, and an extract nobody else can re-run is
+    not a provenance record. 1,813 counties, 111.1KB of the 150KB budget.
+  - **Two filters, both stated in the output rather than buried.** Counties under 20,000 people are
+    dropped — a per-10,000-residents rate over a village is noise, and a chain's site-selection
+    universe starts at a floor anyway. Territories (state FIPS > 56) are dropped because the
+    app's county choropleth draws the AlbersUsa plane and has no geometry for them; shipping rows
+    the map cannot draw is data that silently disappears. Both are in `SOURCE.json` notes and in
+    the changelog entry.
+  - **The pack is two datasets and a JOB, not one pre-joined table** — deliberately. The two halves
+    come from two different Census programmes, so the join (on county FIPS) and the three derives
+    that follow it (`residents_per_10k` → `restaurants_per_10k`, `grocers_per_10k`) ARE the
+    data-prep story the pack exists to show.
+  - **New machinery, because a real-data pack cannot finish inside `install()`.** Its rows live in
+    committed CSV that has to be read, so `Studio.ensurePackDataMaterialized(id)` (registry-driven,
+    idempotent, quiet on failure) does the async half, `ensureAllPackDataMaterialized()` heals at
+    boot, and the CSVs joined `sw.js`'s precache list (v533 → v534) because docs/PACKS.md rule 1
+    says installing a pack must not depend on the network. Written up in PACKS.md § "How the CSV
+    reaches the app" for the packs after this one.
+  - **The seeded job output is the job's own work, checked as such.** It is pre-computed by running
+    the job's `steps` through `Studio.runJobSteps` — not a second copy of the arithmetic — so a Run
+    cannot silently correct the numbers the pack shipped with. Verifying that surfaced a real trap:
+    the file adapter types numeric-looking cells (`localfile.js typeCell`), so the pre-compute has
+    to type them the same way or `fips` is `"01001"` at seed time and `1001` after a Run. Fixed in
+    the parser; the choropleth is unbothered either way (`geoNormalizeId` re-pads a 4-digit id).
+  - **The extract's own near-miss, kept as a guard.** CBP pads a 3-digit subsector with SLASHES
+    (`722///`), not dashes; the first run wrote an all-zero `food_services` column and reported
+    success. The script now fails loudly when a kept NAICS code matches under a quarter of counties.
+  - **Copy that this made false was fixed with it:** Settings' Sample-packs intro said every pack's
+    data is synthetic, and the suite asserted every pack card says so. Both now say what is true —
+    each card renders its OWN source line, and at least one of each kind is on the shelf.
+  - **NOT done here, on purpose:** the `DEFAULT_INSTALLED` swap Kevin asked for. A pack that
+    installs by default and shows a new visitor no dashboards is worse than the `datamanagement`
+    one it would replace, so the swap rides with slice (c).
+  - **Verified** (foreground, before merge): `tools/validate.mjs` (210 files, 3 packs declare a
+    source, 1 extract script registered), `tools/changelog-check.js` (889 entries, top v912,
+    manager-parse OK) and `tools/dev-smoke.mjs` — the repo's DEV GATE, green at 1400×950 and
+    390×780 with zero pageerrors. Plus a foreground harness driving the exact evaluate blocks this
+    slice added to `tests/run.js` against the booted app: install → materialize → 1 connection,
+    3 datasets, 1 job all foldered; the FIPS join matched (demographics and establishment columns
+    in one row); 1,813 output rows; the index is real arithmetic; re-running the job through the
+    live adapter + async engine reproduces the pre-materialized output BYTE FOR BYTE; a second
+    ensure changes nothing; Remove sweeps the async rows; zero pageerrors throughout. The full
+    `tests/run.js` runs at stage promotion.
+- **Grooming pass 3 — the ▶ NOW queue is a queue again (no version/sw bump; docs-only;
+  2026-08-09, steward; dev branch; est 1pt, took 1 — on estimate):** `docs/BACKLOG.md` triggers a
+  grooming pass at "fewer than 3 ready items **or** ≥5 struck entries lingering". Both halves had
+  fired hard: NOW held **33 items of which 29 were struck carcasses**, ~1,300 lines, and reading
+  it top-down to find the first ready item meant scrolling past 963 lines of shipped history.
+  Three of the four survivors were wrong in ways that made the queue unusable, and this pass
+  measured each rather than tidying around it.
+  - **Drained.** All 29 struck entries moved **verbatim** into `docs/BACKLOG-ARCHIVE.md` under a
+    new "grooming pass 3" section (N15, SP-0, N16–N24, N22a/b/c, N27, N28, N2, N4a, N4b, N5a,
+    N5b, N8, N9a, N9b, N10–N14). Nothing deleted, nothing renumbered, NOW's order untouched.
+    The drain itself took STATUS.md 18,652 → 17,689 lines; this pass's own bookkeeping (this
+    entry and the four repairs below) puts it back to 17,758. The archive's Contents list also
+    gained the two NOW-queue sections it never learned about, with anchors.
+  - **The ID collision is resolved.** N22c's slice measured it and deliberately left it flagged
+    ("grooming is already claimed by the open `hold` PR #623"): two live items both carried
+    `N26`, which `docs/BACKLOG.md` calls a contract violation. N16's DONE entry and its NOW text
+    both bind `N26` to the admin-function item, so that one keeps the number and the
+    `polecat_dev` leak became **N29** (highest existing was N28). Both items now carry a line
+    saying which is which; DONE is append-only, so its historical `N26` references were left
+    verbatim and the N29 item states the mapping instead.
+  - **SP-1 was invisible, and that is the find of this pass.** The item Kevin picked as the new
+    DEFAULT sample pack (★★, 3pt, explicitly UNBLOCKED when SP-0 closed) had lost its item LINE
+    in #659 — its body survived as an unattached paragraph inside N25, so `grep 'SP-1'` returned
+    nothing that looked like an item and any run working the queue top-down would have walked
+    straight past it, while the reservoir header still claimed it was in NOW. The header line was
+    restored verbatim from `9549a58:STATUS.md` and the body left untouched beneath it. N25's own
+    grooming note had called this "stray text"; it was a deleted item.
+  - **N25's slice-2 (b) was already satisfied.** The item said `tests/rls.mjs` "still CREATEs and
+    DROPs `steward_test_rls_*` schemas on the PRODUCTION project". Measured on `dev`: the only
+    two callers are `rls-dev.yml` and `promote-to-stage.yml` and both pass the `SUPABASE_DEV_*`
+    secrets; `promote-to-prod.yml` runs only the read-only `tests/rls-verify.mjs`. That half is
+    struck with the measurement, leaving (a) — blocked on ⛔ N29 — as the item's only remainder.
+  - **No batch proposed, deliberately.** Grooming normally ends on a `hold` PR proposing the next
+    items, but pass 2's proposal (**PR #623**) is still open and unanswered; a second unanswered
+    proposal would be noise. This PR promotes nothing into NOW and decides nothing, so it merges
+    on the dev gate instead of parking. NOW ends the pass with 5 honest items: ⛔ N29, N25
+    (blocked on it), **SP-1 and N26 both ready**, and 🔁 N7.
+  - **Verified:** `node tools/validate.mjs`, `node tools/changelog-check.js`,
+    `node tools/doc-truth.mjs` and `node tools/dev-smoke.mjs` (390×780 + desktop, zero
+    pageerrors). No changelog entry: nothing user-visible ships here — the same shape as the
+    docs-only backlog PRs #659 and #667.
+- **N25 slice 1 — a preview build can no longer reach the production workspace (v911, sw v533,
+  2026-08-09, steward; dev branch; est 2pt, slice 1 of 2 — on estimate so far):** the hole Kevin's
+  *"I am concerned… that you will break prod on main"* was actually about. `/dev/` and `/stage/`
+  are the same build served from a SUBDIRECTORY of the production origin, which means they share
+  production's `localStorage` — so a preview opened straight into the live workspace with nobody
+  picking anything, and every test sign-in, sample-pack install and push from a preview was
+  written to real data.
+  **What shipped.**
+  - **Every packaged catalog entry declares its stage** (`app/workspaces.js`): `stage: "prod"` on
+    the one shipped entry, and absent means production (the entry shipped un-tagged for weeks and
+    it was prod's, so an old locally-imported copy is still treated as production's).
+    `window.STUDIO_STAGE_FOR(path)` is the pure mapping — only a `/dev/` or `/stage/` PATH PREFIX
+    is a preview, so `/development/`, `/staged/` and a nested `/app/dev/` are production — and
+    `window.STUDIO_STAGE` is this build's answer. `STUDIO_WS_STORE.list()` offers only the entries
+    belonging to this stage, and labels a non-production one with it in the picker itself
+    ("Polecat workspace (DEV)"): which database you are working in must not depend on noticing a
+    banner, which has already proven dismissable.
+  - **The refusal lives at the CONNECTION, not only in the picker** (`STUDIO_WS_STORE.blockReason`
+    → `app/sources/sync.js`): `bindConnection`, `connectAdopt` and `connectPush` all reject a
+    production address from a preview, so an access file, the connect wizard and a hand-typed URL
+    are refused exactly as the picker is. Addresses are compared normalized, so a different id, a
+    different name, a trailing slash or a different case cannot slip past.
+  - **And the path nobody had to click:** `initSync`'s boot restore declines production's saved
+    connection and stays local, saying why. It deliberately does NOT rewrite the record — the
+    production site is still using it — and latches `saveConn`'s local branch so a disconnect
+    click inside a preview cannot delete production's connection out of the shared storage.
+  - **The anonymous activity/feedback log follows the same rule** (`app/activity.js`): its
+    packaged-workspace fallback resolves the entry for THIS stage, so a preview with no entry of
+    its own logs nowhere (the row re-queues, capped, exactly as before § 6b is applied) rather
+    than writing preview traffic into production's tables.
+  - **No `dev`/`stage` catalog entry ships**, deliberately: publishing a key in this public repo
+    requires that workspace's anon-reads-nothing posture to be VERIFIED first (the rule at the top
+    of `app/workspaces.js`), and `polecat_dev`'s is the open ⛔ **N26**. A preview therefore offers
+    Local only today, which is the safe end of the trade.
+  **How it was verified.** Four checks in `tests/run.js`, run at a REAL `/dev/` URL rather than by
+  poking a flag: the test server now serves the live tree under a stage prefix, the way
+  `tools/stage-preview.mjs` assembles a preview (deliberately not the repo's committed `dev/`
+  snapshot — that is an older build's artifact, and reading it would go green on code that is not
+  the code under test). They cover the path mapping including its near-misses; a preview booted
+  with production's own saved connection staying local, making ZERO requests to the production
+  host (asserted on the request stream), keeping the record intact, dropping the packaged entry
+  and disabling the reader's own copy with the reason; all three connect entry points refusing,
+  address-compared, while a non-production address is untouched; and the stage label + the
+  activity-log fallback. Full suite **3236 passed, 0 failed**; dev gate green (validate,
+  changelog-check, dev-smoke at 390×780 + desktop).
+  **What slice 2 is** is rewritten into the NOW item: the dev/stage entries themselves (blocked on
+  N26), and moving the mutating `tests/rls.mjs` off the production project.
+- **N24 slice 2 — the saved workspaces became a list you can manage, and hand out (v910, sw v532,
+  2026-08-09, steward; dev branch; est 2pt for the whole item, 2 slices shipped — on estimate;
+  the item is now CLOSED):** slice 1 made a connected workspace a NAMED, persisted picker entry.
+  What it left was one list with no way to fix a name, drop an entry, say which workspace this
+  browser opens on, or give someone an access file for a workspace you had just defined — the
+  export lived only in Settings → Workspace backend, i.e. behind a successful sign-in, which is
+  exactly the reachability gap the item called out ("you cannot define a workspace and hand
+  someone a file without first getting inside it yourself").
+  **What shipped.** The saved list, its rules and its UI moved into `app/workspaces.js` as
+  `window.STUDIO_WS_STORE` — the module both screens already load first (gate.js runs before the
+  app exists, so a shared store is the only way the two can be the same list rather than two
+  implementations that agree until they don't). It carries `list/save/rename/remove/defaultId/
+  setDefault/connectedId/exportFile/renderManager`; `app/gate.js` now delegates its
+  `customWorkspaces`/`saveCustomWorkspace`/`workspaceList`/`currentWorkspaceId` to it and keeps
+  only what is genuinely the sign-in screen's business.
+  - **The manager panel** mounts in two places from one renderer: the picker's new
+    "Manage workspaces…" option (a screen, not a workspace — it never moves the picker's
+    selection) and a new **Saved workspaces** section on the Settings backend card. Per row:
+    rename, set/clear default, export access file, remove — with **Connected** / **Default** /
+    **Built in** markers. A packaged entry offers only default + export: it returns on the next
+    load, so offering to rename or remove it would be a lie. Rows clear the 44px touch bar
+    (N8/N9/N13), in both themes, at 390×780.
+  - **The default** is the workspace the sign-in screen opens on: selected AND bound on load,
+    through the same bind-don't-pull path that picking it by hand takes, and applied ONLY when
+    nothing is connected — a live connection always wins. Removing an entry clears a default
+    that pointed at it, because a dangling default is a sign-in screen that opens on nothing.
+  - **The export was reused, not rebuilt**, as the item required: `exportFile()` is now the ONE
+    access-file writer in the app — the existing `#wsAccessFileBtn` handler calls it (passing the
+    app's own `download()` so the toast still fires), the manager rows call it, and it strips
+    `authEmail`/`authPassword` from the FILE while leaving the saved entry untouched. The warning
+    text, the filename and the file's shape can no longer drift apart.
+  - **`app/viewer.html` now loads `app/workspaces.js`** before gate.js, as `app/index.html`
+    always has. It was the one page loading the gate without the catalog module; the gate's new
+    dependency made that latent inconsistency load-bearing.
+  **Verified** by six new checks at 390×780 (the viewport the whole item came from), driving the
+  real panel on both mounts: the picker opens the manager without moving its selection and a
+  packaged row offers only default/export; a rename lands in storage; setting a default is
+  reflected in the picker immediately; the export is warned, named, importable, key-carrying and
+  login-free with the saved entry untouched; removal drops the entry from the picker and clears
+  the default it held; the default binds on load but never overrides a live connection; and the
+  Settings mount is the same list — a rename there is a rename everywhere. Zero pageerrors.
+  Full gate results are on the PR.
+- **N24 slice 1 — a workspace connected from the gate is now IN the picker, named (v909, sw v531,
+  2026-08-09, steward; dev branch; est 2pt for the whole item, slice 1 took 1 — on estimate; the
+  item stays open for slice 2, the management + export-from-setup half):** Kevin's report was
+  exact — connect a custom workspace from the sign-in screen and there is no way to log in to it.
+  The wizard's success callback (`app/gate.js`) set a hint, cleared the error and called
+  `clearCue()`; it never recorded the workspace and never re-rendered the `<select>`, so the
+  picker still showed the pre-connect list while the hint told the reader to pick something that
+  was not there. `currentWorkspaceId()` would by then have returned `"__connected"` and
+  `renderWorkspaceSelect()` would have appended an anonymous "Connected workspace (this browser)"
+  option — but nothing triggered the re-render, and an anonymous slot is not a fix anyway: Kevin
+  is running `polecat_dev` / `polecat_stage` / prod side by side, and two of those options are
+  indistinguishable.
+  **What shipped:** `rememberConnectedWorkspace()` does what the IMPORT path two blocks up always
+  did — takes the connection as an entry, saves it, re-renders, selects it — with three decisions
+  worth recording. (1) The entry comes from `Studio.exportAccessFileEntry()`, so a saved picker
+  entry carries exactly what an access file carries and the wizard's own `authEmail`/
+  `authPassword` are stripped from it: an entry grants *reach this workspace*, never *sign in as
+  whoever set it up*. (2) It is NAMED — a prompt seeded with the database's host, and cancelling
+  keeps the workspace under that suggestion rather than throwing the connection away. (3)
+  Connecting to a URL already in `workspaceList()` (a packaged workspace, or one connected
+  earlier) re-selects that entry instead of minting a near-duplicate that differs only by name.
+  The hint now names the workspace and moved from `innerHTML` to `textContent`, since the label
+  is typed by a person. Kevin's own follow-on suggestion ("rather than making them retype it") is
+  in: the live config's `authEmail` prefills `#g-user` and the cursor lands on the password —
+  the same prefill the N2-slice-4 expired-session path already performs a few lines up.
+  **Verified** by the two checks the item asked for, both at 390×780 because the report was from a
+  phone: the wizard is stubbed at the one point that matters (a REAL `bindConnection` against the
+  suite's Supabase mock, then the callback), so the gate's own success path is what runs — the
+  picker gains a named, selected entry, it persists to `studio-workspaces-custom` without
+  credentials, `studio-workspace-last` follows it, the hint names it and the email is prefilled;
+  then the second check signs in through it end to end (password only) and lands still bound to
+  that workspace. Dev gate green locally (`tools/validate.mjs`, `tools/changelog-check.js`,
+  `tools/doc-truth.mjs`, `tools/dev-smoke.mjs`). The full `tests/run.js` reached 3,052 passing
+  checks including both new ones; the runner's own 570s cap cut the last mobile block short (a
+  "target page has been closed" FATAL at run.js:43011, in code this slice does not touch) — the
+  stage gate runs it under its 45-minute budget.
+  **Docs:** the Help page's "Custom workspace…" bullet now describes the naming step, the prefill
+  and the no-duplicate rule.
+- **N28 — the provisioning SQL can raise a workspace's version marker, never rewind it (v908,
+  sw v530, 2026-08-09, steward; dev branch; est 1pt, took 1 — on estimate, item CLOSED):**
+  the SQL half of the monotonicity N17 gave `WS.metaRows()`, split out of N20 because that run
+  had no way to exercise it. `tools/supabase-bootstrap.sql` and
+  `supabase/functions/polecat-admin/sql.ts` `BOOTSTRAP_DDL` both stamped `schema_version` with a
+  bare `ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, so running an OLDER copy of
+  either against an upgraded workspace re-labelled it as the older shape — after which every
+  client, including the newer app that performed the upgrade, reads it as older and re-offers the
+  upgrade, forever. Both now carry the **raise-only** guard the migration RPC already used
+  (`… DO UPDATE SET value = EXCLUDED.value WHERE polecat_meta.value !~ '^[0-9]+$' OR
+  polecat_meta.value::int < EXCLUDED.value::int`) rather than the `DO NOTHING` deploy.sql uses:
+  these two ARE the provisioning path, so an upgrade run through `provision`/`go-live`
+  legitimately needs to move the marker UP, and the guard also heals a marker that is absent or
+  non-numeric.
+  **Rider taken in the same pass (same clobber, different key):** both files also stamped the
+  `app` marker with `DO UPDATE`, so running the analytics script against a project manager or
+  relay already claimed relabelled it. `app` is ownership, not state — both are now `DO NOTHING`,
+  the rule `supabase-deploy.sql` § 1b already followed. All four shipped artifacts now agree.
+  **Verified two ways, and both were shown to FAIL on the pre-change bytes first.** (1) The item's
+  own prescribed check: `tests/rls.mjs` gained a marker-direction probe per provisioning artifact
+  — install it into a throwaway schema, then seed the marker above (99), below (1), beside
+  (`corrupt`) and the `app` key beside (`manager`), re-apply the real artifact each time, and
+  assert which way it moved. It ran GREEN against the live project's database, 236/236 across 5
+  postures + 2 marker probes in 23s; reverting bootstrap.sql to its old bytes turned exactly the
+  two predicted probes red ("marker is now 4, want 99" / "app is now analytics, want manager").
+  (2) Because `tests/rls.mjs` SKIPs silently without `SUPABASE_PASSWORD` and therefore cannot be
+  the gate, `tools/doc-truth.mjs` gained **check 27**, which runs in the dev gate over the shipped
+  bytes of all four artifacts: a `schema_version` upsert must be `DO NOTHING` or raise-only, and
+  no artifact may `DO UPDATE` the `app` marker. It too was proven red on the old bytes.
+  `docs/COMPAT.md` § 3 records the closure and states the rule for any artifact added later; § 4
+  lists both new teeth. Nothing in the app changed — this is provisioning SQL and its guards.
+- **N27 — the live-posture verify says what it actually proved: protected vs empty vs leaking
+  (no version/sw bump — test tooling only, 2026-08-08, steward; dev branch; est 1pt, took 1 — on
+  estimate, item CLOSED):** the check's absolute half was already right (a row reaching an
+  anonymous caller is a failure, full stop); its other half did not follow. A table answering
+  `HTTP 200, []` proves nothing on its own, because **a table with no rows in it answers exactly
+  the same way as a table whose policies are working perfectly** — and the old summary line, "no
+  table is readable by an anonymous caller", read as though those policies had been tested. N26's
+  run is the proof: `connections`, `analyses`, `jobs` and `users` all reported `ok — zero rows`
+  on a database that was leaking `dashboards` and `datasets` beside them.
+  **Each table is now classified, not just counted.** `protected` (rows exist and anon got none —
+  or anon was refused / not exposed at all, which is conclusive whatever the table holds),
+  `empty` (nobody has rows there — inconclusive, and said out loud), `leaking` (failure). The
+  summary is the sentence the item asked for — "5 protected, 3 empty (inconclusive), 1 leaking" —
+  and a pass now says *"no table returned rows to an anonymous caller"*, which is what was
+  measured, followed by which tables that sentence did NOT cover and how to cover them.
+  **The evidence is optional and the anon path stays credential-free**, which is the property that
+  makes this safe to aim at production: `SUPABASE_SERVICE_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`) is
+  a privileged read of the same shape — `?select=id&limit=1`, GET only, never printed, only ever
+  counted to one — and `VERIFY_EXPECT_ROWS=dashboards,datasets,…` is a declaration that costs no
+  secret. Measured evidence beats declared. With NEITHER set, every `200/[]` is inconclusive and
+  the run still exits 0: a missing optional identity must never redden a secure database, and must
+  never be quietly upgraded into a pass it did not earn. A rejected or broken privileged read
+  answers "we did not find out", never "no rows". A typo'd table name in `VERIFY_EXPECT_ROWS` is
+  fatal rather than a silently empty declaration.
+  **Exit codes are unchanged** (0 clean / 1 leak / 2 no usable answer) so `rls-verify.yml`,
+  `promote-to-stage.yml` and `promote-to-prod.yml` keep their meaning with no workflow edit, and
+  the `SUPABASE_URL` + `SUPABASE_ANON_KEY` FATAL-if-unconfigured rule is untouched.
+  **Verified**, all in the foreground: `node tests/rls-verify.mjs --self-test` — a new offline
+  mode, **34 checks**, covering the whole classification matrix (leak beats every other signal;
+  `200/[]` is inconclusive bare, protected when corroborated, still inconclusive when the table is
+  measurably empty; 401/403/404 conclusive without corroboration; an unknown state falls to "no
+  answer" rather than passing by default) and the read wrapper over a stubbed PostgREST (each
+  status shape, the network throw, the non-array 200, and the read-only-by-construction claim —
+  asserted now, not just promised in a comment: no method, no body, `select=id&limit=1`).
+  Then the real CLI end-to-end against a scripted database through an injected `fetch`: N26's exact
+  leak shape → exit 1; all-empty → exit 0 with the inconclusive wording; privileged corroboration →
+  the 5/3 split; declared list → 8 protected; an unreachable table → exit 2; a typo'd declaration
+  and both unconfigured cases → FATAL. Plus the dev gate (`validate`, `changelog-check`,
+  `doc-truth`, `dev-smoke` at desktop + 390×780, zero pageerrors). No changelog entry and no
+  version bump: nothing user-visible ships here, matching the `ci:` precedent (#665/#666).
+  **Two new `tests/run.js` checks** (`N27:` …) run the self-test as a subprocess and assert the
+  unconfigured run still exits non-zero, so the matrix travels with the suite rather than with
+  whoever remembers it; both were executed standalone against the block extracted verbatim from
+  `run.js`, since the full suite belongs to stage promotion.
+  **What this measured, which is the part worth acting on:** run against the live PRODUCTION
+  database (read-only anon GETs, the same request the daily job makes), the new output reports
+  **8 of 8 tables inconclusive** — every table answers anon with nothing, and nothing corroborates
+  that any of them holds a row. Production's daily green has therefore been proving considerably
+  less than it appeared to. Nothing is leaking; that much is real. Closing the gap is the one
+  follow-up this slice did not take, because it is Kevin's call — see the N27 entry in NOW.
+- **N23 — the Auth fields are required, and "secured" is no longer rendered as "empty"
+  (v907, sw v529, 2026-08-08, steward; dev branch; est 1pt, took 1 — on estimate, item CLOSED):**
+  Kevin's question about the connection form (*"how optional are all of these settings?"*) had a
+  worse answer than the labels implied: under the posture every environment now gets, a connection
+  without the Auth fields is not degraded, it is BLIND — `auth.uid()` is NULL, every policy
+  declines by returning nothing, and the workspace renders as empty rather than refused.
+  **The discriminator, which is what makes the rest possible.** Every provisioning path this repo
+  ships stamps `polecat_meta` with `app` + `schema_version`, and the anon role keeps its table
+  GRANT — so a marker read answers exactly three ways: 404/400 (blank database), 200 with rows
+  (readable marker: legacy allow-all, or we are signed in), and 200 with NO rows, which on a
+  provisioned workspace can only be RLS filtering every row from a caller who never signed in.
+  `lockedOut()` (`app/sources/supabase.js`) claims that third case ONLY when the connection carries
+  no auth session at all — with credentials in hand an empty marker read is a different problem and
+  must not be blamed on the user's fields.
+  (a) **`probe()` returns `state:"authRequired"`**, and the connect wizard has a branch for it: the
+  workspace enforces per-user security, plus a **← Back to credentials** step that re-opens the
+  form with everything already typed (`credsStep(src, seedCfg)`). It previously fell through the
+  `app === null` path to *"that database belongs to another Polecat app (“unknown”) — pick a
+  different one"*, i.e. it blamed the database for a blank field.
+  (b) **`load()` REJECTS instead of returning the empty snapshot** — the durability half, and the
+  reason this is more than copy. `initSync`'s `replaceAll(snap)` would have adopted that emptiness
+  over the device's local mirror; SYNC-PREAUTH and `needsSignIn()` (N2 slice 4) already guard the
+  auth-BOUND shape, but an anon-only connection (no `cfg.authEmail` at all) slips past both because
+  there is no email to re-prompt for — so the guard belongs at the read. Extended rather than
+  duplicated, exactly as the item asked. Sync's existing error path then keeps the local mirror and
+  renders the sentence on the Settings backend card ("What went wrong" + Retry).
+  (c)+(d) **Form copy made true:** the password hint says it is NEVER stored (N2 slice 4's
+  session-scoped refresh token is what is kept, so the once-per-session prompt is BY DESIGN, not a
+  failure), and `adminFnUrl` — which genuinely is optional — says what blank costs (go-live and
+  admin user-creation fall back to the SQL editor) and warns that a URL pointing at an undeployed
+  function fails confusingly. The adapter's own contract comment (which still said omitting the
+  fields "keeps the exact pre-existing anon-key-only behavior") was rewritten to say when that was
+  true and why it no longer is. `docs/index.html` gained "The Auth fields are required, not
+  optional".
+  **Verified:** 4 new `tests/run.js` checks (`N23:` …) over a stubbed PostgREST, shaped like the
+  N22b block — the secured+anon read classifies as `authRequired` and rejects in `load()`; the SAME
+  database with credentials classifies as it always did and loads; a blank database is still
+  `empty` (the paste-me provisioning path is untouched) and a legacy allow-all workspace still
+  `polecat` + own-app (anon-key-only keeps working); and the form's own labels/hints assert (c)+(d).
+  Plus the FULL suite (3221/0) and the dev gate: `validate`, `changelog-check`, `doc-truth`,
+  `dev-smoke` at desktop + 390×780 with zero pageerrors.
+  **Two existing fixtures the guard caught, and what was done about them** — worth recording,
+  because in both cases the FIXTURE was impersonating a secured workspace, not the guard
+  misfiring. AUD-04's 404-tolerance case reads rows from `datasets` while its stub answers the
+  marker read with `[]`; that is what added the third condition (a caller who can still read ROWS
+  is manifestly not locked out), which made the guard strictly more precise and left that check
+  untouched. SYNC-FRESH's `quietPull` fixture reads empty everywhere INCLUDING the marker, which
+  is exactly the shape this item now names — so the stub was corrected to answer the marker read
+  the way every real workspace does (`app` + `schema_version`), leaving what it actually tests
+  alone. No assertion was weakened in either.
+  **Deliberately NOT taken:** the same "200 with no rows" shape is theoretically reachable with
+  credentials in hand (signed in as an account no policy grants anything to). That is a different
+  diagnosis — the account, not the fields — and inventing a message for a state nobody has reported
+  would be guessing; the honest empty read still surfaces as it does today.
+- **N22b slice 2 — the app CALLS the migration RPC, so a Supabase workspace upgrades itself
+  (v906, sw v528, 2026-08-08, steward; dev branch; est 2pt, took 2 — on estimate, item CLOSED):**
+  slice 1 installed `polecat_migrate(mode text)` in both setup paths and proved it from the
+  database's own side, and was deliberately called by nothing. This is the browser half, all
+  three parts of the item as written.
+  (a) `app/sources/supabase.js` learned the RPC in the exact shape it already learned the atomic
+  save — `probeMigrate()` posts `{mode:'probe'}` (side-effect free, answerable by any signed-in
+  account, one shared in-flight request per project), `migrateState(cfg)` reports
+  yes/no/unknown, `checkMigrate(cfg)` is the public ask. `atomicKey()` became `projectKey()`
+  since both probes memo by the same project URL.
+  (b) `upgradeWorkspace(cfg)` routes through the RPC when the probe says yes: `{mode:'apply'}`,
+  and on 200 it returns `{ok:true, rpc:true}` — no SQL at all. `Sync.upgradeWorkspace({backup})`
+  needed no change, so the backup-first rule and the re-read-the-marker-from-the-backend rule
+  both stand untouched; only the comment there learned that "can this be done in the browser" is
+  now a property of the DATABASE, not the adapter.
+  The FALLBACK is deliberately wide: absent (404), refused (403 — the admin gate lives in the
+  database), or wedged (5xx/CORS) all hand back the same `{manual:true, sql}` the item has
+  returned since N16 slice 2, because the SQL editor is still the remedy for every one of them.
+  Only the 404 is memoized — a refusal is about who is signed in right now, not about what the
+  database has, and latching a browser onto the paste path over a blip is exactly the bug this
+  shape avoids.
+  (c) The Settings card names which kind of database this is BEFORE the button is pressed (one
+  probe per page, re-rendering when it answers, mirroring the atomic row), and when the RPC
+  refuses, the card and the toast quote the database's own words instead of the generic "this
+  backend can't change its own structure" — which would now be a lie about that database.
+  `docs/index.html` and `docs/COMPAT.md` §1.4 say the same thing.
+  **Verified:** 4 new checks in `tests/run.js` (`N22b:` …) over a stubbed PostgREST across four
+  projects — modern (probe→apply, no SQL, capability remembered, second press is one call),
+  legacy (byte-identical paste-me delta, stamped, 404 remembered, no re-ask), refused + blip
+  (same fallback, reason quoted, never memoized), and the probe itself (asked once for two
+  concurrent callers, `mode:'probe'` only). The pre-existing N16 supabase-upgrade check was
+  given a fetch stub so it exercises the legacy path deliberately instead of by network
+  accident, and its no-policy/no-blanket-grant assertions still hold.
+  **Deliberately NOT taken:** the paste-me upgrade script still does NOT install
+  `polecat_migrate` itself. It would make an old database self-upgrading after one more paste —
+  but `migrationRpcSQL()` embeds `RLS_REAL_SQL` in the function body, so the upgrade script
+  would stop satisfying N16's "changes no RLS policy" invariant, and re-posturing a legacy
+  workspace is a decision, not a rider. That is its own item when someone wants it.
+  The route was NOT re-run against a real database this run (`tests/rls.mjs` needs live
+  credentials the CI runner doesn't carry); slice 1 already proved the database half of it, and
+  what changed here is entirely browser-side.
+- **N22b slice 1 — the migration RPC: the one paste now leaves behind the door the app upgrades
+  through (v905, sw v527, 2026-08-08, steward; dev branch; est 2pt, 1 slice spent, 1 remains —
+  on estimate):** N22a closed the alternative (`api.supabase.com` refuses a preflight from our
+  origin on every DDL-capable endpoint), so "the app owns its database" can only mean "the app
+  calls something the one manual paste left behind". This slice builds that something; wiring the
+  app to call it is slice 2 (rewritten in NOW).
+  - **`WS.migrationRpcSQL()` (`app/sources/schema.js`) installs `polecat_migrate(mode text)`** —
+    admin-gated, `SECURITY DEFINER`, fixed DDL. It creates any workspace table this build
+    declares, re-applies the WHOLE posture (so a table a future version adds arrives with
+    policies rather than as a hole), and raises `schema_version`. It ships in BOTH supported
+    setup paths: § 6d of `tools/supabase-deploy.sql` and the connect wizard's generated script.
+  - **The body is the same SQL, wrapped, not paraphrased** — `provisionDDL()` then
+    `WS.RLS_REAL_SQL` verbatim, which is what the item asked for and what keeps the existing
+    drift guard sufficient. `tools/validate.mjs` (extended, not duplicated) now holds § 6d
+    statement-for-statement against the generator, asserts the posture constant is embedded
+    verbatim, and asserts the security shape itself: SECURITY DEFINER, an admin gate, EXECUTE
+    revoked from anon, no `exec(sql text)` escape hatch, and installed by the wizard too.
+  - **Four deliberate security properties.** SECURITY DEFINER is required here (DDL and
+    CREATE POLICY are owner-only) which makes the gate the whole boundary, so it runs FIRST and
+    inlines its admin lookup instead of calling `polecat_is_admin()` — a workspace old enough to
+    need migrating may predate that helper, and a gate that fails with "function does not exist"
+    is a gate that never runs. `mode` selects apply-or-probe and nothing else. EXECUTE is granted
+    to `authenticated` and revoked from PUBLIC and anon. The marker is RAISE-ONLY (N17/N28): an
+    older build cannot re-label a newer workspace.
+  - **Verified from the database's own side, not by reading it.** `tests/rls.mjs` gained the RPC
+    ROUTE as a fifth posture: `tools/supabase-bootstrap.sql` (the legacy allow-all demo posture —
+    the worst database we can still reach) + the RPC + ONE call as an admin, with nobody in the
+    SQL editor, then the same anon-reads-zero checks the four pasted postures face. **226/226
+    across 5 postures**, plus six route-specific checks (anon refused, a signed-in non-admin
+    refused, the probe answers a non-admin and writes nothing, an admin can re-run it, the
+    workspace stays locked afterwards, the marker never rewinds). **Negative control run:**
+    delete the single migrate call and 19 checks fail — so the green run is measuring the RPC,
+    not the fixture.
+  - **Also verified:** the full dev gate — `validate`, `changelog-check`, `doc-truth`, and
+    `dev-smoke` at desktop + 390×780 with zero pageerrors. `tests/run.js` gained one browser-side
+    check (the wizard's script still carries the RPC; its security shape is intact); the suite
+    itself runs at stage promotion, and that check's evaluate block was exercised standalone
+    against the real app before merge.
+  - **Kevin, the acceptance criterion needs your ruling, and it is flagged not redefined.** N22
+    says "touching the Supabase dashboard exactly once — to click New project". A paste into the
+    SQL editor is a second touch, and N22a proves that second touch is unavoidable on Supabase.
+    Your own words allow it (*"other than setting up the blank database manually"*), so this
+    slice treats one paste as the floor rather than a failure.
+  - **docs/index.html deliberately NOT updated yet:** nothing user-facing changed in the UI, and
+    the Help page must not promise an in-app upgrade button before slice 2 wires one. It updates
+    in the same slice as that button.
+  (app/sources/schema.js, tools/supabase-deploy.sql, tools/validate.mjs, tests/rls.mjs,
+  tests/run.js, js/changelog.js, sw.js, STATUS.md)
+- **N22a — the Management-API spike: a browser at our origin cannot call it (docs + tooling
+  only; no app change, so no version bump, 2026-08-08, steward; dev branch; est 1pt, took 1 —
+  on estimate, though the item guessed "half a slice" and the half it did not count was the
+  control, which is what turned a header reading into proof):** N22 is a 3pt item whose own
+  text says to SPLIT it and that one measurement "decides the whole design" — whether
+  `api.supabase.com` sends usable CORS headers to a third-party origin. It does not.
+  - **The measurement, committed as `tools/supabase-mgmt-cors.mjs` so nobody has to take this
+    entry's word for it.** Re-runnable, dependency-free by default, and **credential-free by
+    construction** — a CORS preflight carries no `Authorization` header, so the probe needs no
+    Personal Access Token and cannot leak one; it never sends the real request, so it creates
+    nothing and changes nothing. All four endpoints N22 would need — `POST /v1/projects`,
+    `…/database/query`, `…/functions/deploy`, `…/secrets` — answer a preflight from
+    `https://analytics.polecat.live` with **HTTP 204 and no `Access-Control-Allow-Origin`**.
+  - **The control is the finding.** Without it, a missing header could mean "this API does no
+    CORS" (a fact about the API) or "it allowlists origins and we are not on it" (a fact about
+    us), and only the second closes the option for every third-party browser app. The same four
+    preflights from `https://supabase.com` — the dashboard's own origin, whose SQL editor is
+    built on this endpoint — all return `Access-Control-Allow-Origin: https://supabase.com`.
+  - **Confirmed in a real browser, because header reading is not enforcement.** `--browser`
+    loads each origin in Chromium and makes the identical `POST …/database/query` with a
+    deliberately invalid token: from analytics.polecat.live it throws `Failed to fetch` before
+    any response; from supabase.com it returns **HTTP 401** — the browser let it through and
+    only the credential was refused. Same browser, same host, same request; the only variable
+    is which origin asked. The control also rules out plain unreachability, which a bare
+    `Failed to fetch` cannot distinguish itself.
+  - **What it changes.** N22's fallback ("ONE paste, then never again" — migration RPCs,
+    `SECURITY DEFINER`, admin-gated, fixed DDL, no `exec(sql text)`) is no longer a fallback,
+    it is the design; N22 is split in place into **N22a** (this, shipped), **N22b** (that flow,
+    2pt) and **N22c** (N16's upgrade path wired to those RPCs, 1pt), exactly the split the item
+    proposed. One conclusion was NOT in the original spec: `functions/deploy` and `secrets` are
+    blocked on the same terms, so the Supabase CLI step for the polecat-admin Edge Function —
+    the manual gap N22 is really about — can never move into the app either. That makes the RPC
+    route strictly better than the Edge Function here, not merely an equal second choice.
+  - **Verified:** the probe run both ways (header-only and `--browser`) with the results above,
+    plus the full dev gate — `validate`, `changelog-check`, `doc-truth`, and `dev-smoke` at
+    desktop + 390×780 with zero pageerrors. No changelog entry: nothing user-visible ships here
+    (same shape as the docs-only backlog PRs #659 and #667).
+  - **What this slice found but did not fix — ⚠ an ID collision, and it is a contract
+    violation.** `docs/BACKLOG.md` says an ID is never reused; **two different items in ▶ NOW
+    both carry `N26`** — *"`polecat_dev` is leaking to anonymous callers"* and *"The admin
+    function's only schema action re-opens a gone-live workspace"*. N16's DONE entry and its
+    NOW text both say their deviation "is now N26" and point at the second. Deciding which one
+    keeps the number has bookkeeping consequences in entries this slice does not own, and
+    grooming is already claimed by the open `hold` PR #623 — so this is flagged, not resolved,
+    and N22c cites that item by title instead of by ID until it is.
+- **N21 — the connect wizard's blank-database script IS the canonical deploy (v904, sw v526,
+  2026-08-08, steward; dev branch; est 2pt, took 1 — under estimate, because fix (a) turned out
+  to be a *move*, not a rewrite: the posture already existed as text, it just lived only in
+  `tools/`):** the supported UI route to adopting a blank Supabase database generated
+  `provisionDDL()` + meta rows + the atomic-save function and closed with a COMMENT — *"Then
+  enable Row-Level Security policies appropriate to your project"*. So the path the app actually
+  offers handed the user the pre-M7 posture (RLS off, anon key wide open) and a homework
+  assignment, while `tools/supabase-deploy.sql` — the file the docs call "THE one file to run" —
+  has installed the real posture since 2026-07-30. Two supported paths, silently diverged.
+  - **Fix (a), the item's first preference, in full.** `app/sources/schema.js` gained
+    `WS.RLS_REAL_SQL` — sections § 2–6c of `tools/supabase-deploy.sql`, **verbatim** (prose
+    comments stripped; every statement byte-identical) — plus `WS.firstAdminSQL(admin)` (§ 7),
+    `WS.ANON_VERIFY_SQL` (§ 8) and `WS.freshDeploySQL(snapshot, admin)`, which assembles the
+    whole thing in the file's own order: tables → the two markers → atomic saves → the posture →
+    the first admin → the verify. `supabaseSource.provision()` returns THAT.
+  - **§ 7 arrives ready to run when it can.** A fresh environment's `users` INSERT is admin-only,
+    so the first admin can only be created by a superuser in the SQL editor. When the connection
+    carries Auth credentials, `provision()` resolves the caller's own `auth.uid()` first and
+    emits the executable `INSERT` for the account they are signed in as; otherwise it emits the
+    runbook's commented `<AUTH-UID>` template with the username/display name already filled in.
+  - **The wizard stops before it can only fail.** The script ends with the database closed to
+    `anon`, so connecting on the anonymous key alone could do nothing but 403 on the first push —
+    and the generic remedy for that 403 is `WS.rlsPolicySQL()`, the allow-all script that would
+    reopen exactly what was just closed. `supabaseSource.provisionBlocker(cfg)` (consulted by the
+    wizard's manual-provision branch) refuses with the reason and asks for the Auth fields.
+  - **The two paths cannot drift again — two mechanisms, deliberately different.**
+    `tools/validate.mjs` (dev gate, browser-free) compares `WS.RLS_REAL_SQL` against the deploy
+    file's own § 2–6c statement-for-statement and fails on any difference, and separately refuses
+    an allow-all policy in it. `tests/rls.mjs` gained a **FOURTH posture** — the wizard's
+    generated script, loaded by evaluating `app/sources/schema.js` in a `node:vm` context whose
+    global IS `window` (the exact bytes that ship, no paraphrase) — installed into its own
+    throwaway schema and put through the SAME checks as the other three. That is the item's stated
+    verify clause: *the wizard's SQL, applied to a throwaway schema, leaves anon reading ZERO
+    rows*, at the path a real user actually takes.
+  - **Verified:** `node tests/rls.mjs` against the dev project — **176/176 checks across all four
+    postures**, the new one green on every anon-reads-zero, privacy and admin-only assertion.
+    Dev gate green (`validate` — including the new posture comparison, negative-tested by
+    perturbing one policy — `changelog-check`, `doc-truth`, `dev-smoke` at desktop + 390×780,
+    zero pageerrors). Full `tests/run.js` green, including four new N21 checks (the script's
+    shape; the never-rewinding markers plus § 7/§ 8; the blocker and the ready-to-run first
+    admin; a source guard that the wizard's branch still consults `provisionBlocker`).
+  - **What this does NOT do**, so nobody re-derives it: it does not make the Auth fields' labels
+    honest — they still read "(optional)" while the posture makes them mandatory, which is
+    **N23**, still open and now the more visible for this. And it does not remove the SQL editor
+    from the flow; that is **N22**.
+- **N20 — `supabase-deploy.sql` grants its own privileges, and says what it built (v903, sw v525
+  unchanged, 2026-08-08, steward; dev branch; est 1pt, took 1 — on estimate):** the canonical
+  fresh-environment artifact carried **zero `GRANT` statements** and leaned entirely on the
+  project's default privileges, so it only worked on a project created with Supabase's
+  "Automatically expose new tables" toggle **ON** — the opposite of Supabase's own recommendation.
+  Follow the recommendation and the script produced RLS + the correct policy set with **no
+  table-level privilege for `anon`/`authenticated`**: PostgREST refuses everything, with a failure
+  that reads like an RLS problem and is not one. The posture was right; the plumbing under it was
+  missing.
+  - **The three statements, lifted verbatim from `tools/supabase-bootstrap.sql`** (shipping since
+    the first environment, so nothing here is new SQL): schema `USAGE`, table
+    `SELECT/INSERT/UPDATE/DELETE`, and `ALTER DEFAULT PRIVILEGES` for tables added later by a
+    schema-version upgrade. They land in **`supabase-deploy.sql` § 6c**, **`supabase-rls-real.sql`
+    § 4** (re-tightening must never strand an environment) and **`polecat-admin/sql.ts`
+    `RLS_REAL_SQL`** (the N2-slice-2 drift class — the two must stay section-for-section
+    identical). § 6c is placed **last**, after § 6/6b's log tables: `ON ALL TABLES` is a snapshot
+    of what exists when it runs, so granting after § 1's seven would have missed the other two.
+  - **This loosens nothing, and that is the load-bearing claim.** Privileges say which TABLES a
+    role may address; policies say which ROWS come back. Verified empirically against a throwaway
+    PostgreSQL 16 cluster: with § 6c applied, the § 8 anon verify still reads **all zeros on all
+    nine tables** (the two log tables included — anon has an INSERT policy and no SELECT policy),
+    a signed-in user reads its own rows, and **revoking the same grants turns that read into
+    `permission denied for table dashboards`** — the exact failure the item describes, reproduced
+    and then fixed.
+  - **Rider (N18's find) — the file now declares what it built.** New **§ 1b** stamps
+    `polecat_meta` `app` + `schema_version` with `ON CONFLICT … DO NOTHING`, so the N16 handshake
+    stops reading `unknown` until the app's first save. `DO NOTHING`, never `DO UPDATE`: an
+    existing environment's own answer always wins, so re-running an OLDER copy of this script
+    against an upgraded workspace can never rewind the marker (the SQL half of the monotonicity
+    N17 gave `WS.metaRows()`), and running the analytics deploy against a project another fleet
+    app already claimed cannot relabel it. `docs/COMPAT.md` § 3's recorded gap is struck.
+  - **Verification, in the layer that can actually run it.** `tests/rls.mjs` gained a
+    `grantsSql()` probe that measures each posture's OWN privileges **before** `fixtureSql` grants
+    unconditionally — that fixture grant is precisely what hid the gap, since by the time any
+    check ran every posture looked equally entitled. 22 new checks per posture, so the suite goes
+    **66 → 132**. Proved capable of failing: with § 6c neutered, exactly **17** go red and nothing
+    else does. Run green end-to-end (132/132, all three postures) against a local PostgreSQL 16
+    cluster with `anon`/`authenticated`/`service_role` and an `auth.uid()`/`auth.jwt()` shim —
+    `tests/rls.mjs` **skips silently without `SUPABASE_PASSWORD`**, so `tests/run.js` also keeps
+    its own static copy of the invariant, and doc-truth check 26 now asserts the § 0 header, the
+    Help page and the file's GRANT count agree **in both directions**.
+  - **The doc flip N19 predicted, executed.** Help's "Automatically expose new tables" answer and
+    § 0's are now **OFF**, each naming § 6c as the reason. The ACTIVITY-ANON check's wording was
+    sharpened in the same pass: "never grants anon SELECT" was true only while the file granted
+    nothing at all, and left as-is it would have read as a licence to delete § 6c to make the
+    words fit — it now asserts the absence of an anon SELECT *policy*, which is what was meant.
+  - **Deliberately NOT in this slice, and now its own item:** the two artifacts that still stamp
+    with `DO UPDATE` (`supabase-bootstrap.sql`, `polecat-admin/sql.ts` `BOOTSTRAP_DDL`) can still
+    rewind the marker. They want a raise-only guard rather than a plain `DO NOTHING`, because they
+    are the provisioning path that legitimately stamps an upgrade — novel SQL, and this run had no
+    way to exercise it against the live posture. Filed as **N28**, recorded in `docs/COMPAT.md` § 3.
+- **N19 — how to STAND UP a Supabase project, not just how to populate one (v902, sw v525
+  unchanged, 2026-08-08, steward; dev branch; est 1pt, took 1 — on estimate):** every Supabase
+  topic in the repo started one step too late — at "paste this SQL" — so the person creating a
+  project (Kevin, live, on `polecat_dev`) had to ask which create-project **Security** boxes the
+  app needs. Written now in three places, each aimed at where the reader actually is:
+  - **`docs/index.html` → Admin & backend setup → "Standing up a Supabase project"** (new `<h3
+    id="supabase-create-project">`, placed before "How syncing works" so it reads in the order the
+    work happens). The three Security toggles WITH their reasons, all derived from the shipped SQL:
+    **Data API ON** (the adapter is a PostgREST client — no Data API, no door); **automatically
+    expose new tables ON**, the counter-intuitive one, because `tools/supabase-deploy.sql` carries
+    **zero `GRANT` statements** and leans entirely on the project's default privileges, so OFF
+    yields tables with RLS and policies but no table-level grant to `anon`/`authenticated` and
+    PostgREST refuses everything; **automatic RLS ON** as belt-and-braces, noting that under the
+    newer publishable keys a policy-less table returns zero rows rather than erroring, so RLS-on is
+    the working state. Then the two irreversible answers — **save the database password** (shown
+    once, resettable but not recoverable; `tests/rls.mjs` needs it as `SUPABASE_PASSWORD` and
+    **SKIPs silently with exit 0** without it) and **region `ca-central-1`**, a fleet standard
+    because `tests/rls.mjs` defaults to the `aws-0-ca-central-1` pooler host and Supabase cannot
+    move a project after creation — a mismatch there reads green from every direction at once.
+    Plus **which of the three SQL files to run** (deploy = the one; rls-real = posture-only subset;
+    bootstrap = legacy allow-all, not for new environments), Kevin's standing decision that **dev
+    and stage run the same posture as prod**, the two per-environment steps the script can't do
+    (§ 7 first admin, § 8 verify → all zeros for anon), free-tier idle **pause = unreachable, not a
+    refusal** (the N2-slice-3 / N11 / N14 distinction), one project hosting several fleet apps via
+    the `polecat_meta` app marker, and the **environment topology** as actually wired today: prod
+    (posture verified before every prod ship), `polecat_dev` (where `tests/rls.mjs` runs — nightly
+    `rls-dev.yml`, and again inside every stage promotion), and the `polecat_stage` slot that does
+    not exist yet.
+  - **`tools/supabase-deploy.sql` § 0** — the canonical short form next to the SQL that depends on
+    it, because a reader in the Supabase SQL editor never sees Help. It also names the obligation:
+    whoever adds GRANTs there flips the toggle answer to OFF in the same change.
+  - **`tools/supabase-bootstrap.sql`'s header, de-staled** — it still warned that the real RLS
+    posture was not yet safe to run (true until M7 slices 2/3 shipped GoTrue sign-in + the
+    owner-field migration; the real posture went live 2026-07-30) and it **misled an interactive
+    session on 2026-08-08**. It now says plainly that it is the legacy allow-all file, and points
+    to the deploy script.
+  **Verification — `tools/doc-truth.mjs` check 26** (6 new checks, dev gate, browser-free): the
+  derived claims are re-measured rather than trusted. The load-bearing one binds the toggle answer
+  to the GRANT count in `supabase-deploy.sql` — 0 grants → Help must say ON; the moment someone
+  adds grants (a wanted change — **N20**) it goes red until Help and § 0 flip to OFF. Rare and
+  deliberate: a doc-truth check that fires on an *improvement*, which is exactly when a doc gets
+  forgotten. The rest: Help must state the REASON for that answer; must name the region
+  `tests/rls.mjs` actually defaults to (parsed from its pooler host, never hand-typed); must name
+  all three SQL files, so none can be chosen by omission; deploy.sql must carry § 0; and
+  bootstrap.sql must no longer carry the sentence that misled. **Negative-controlled** — a GRANT
+  appended to deploy.sql flips check 26 red exactly as designed, then restored. Dev gate run in
+  full: validate + changelog-check + doc-truth + dev-smoke. **No `sw.js` bump**: `docs/index.html`
+  is explicitly NOT precached (sw.js:20 — the runtime network-first handler caches it after a first
+  visit) and the precache list is unchanged, the same reading #630 used. **Not done, deliberately:**
+  the spec's "stand up a scratch project from the written steps alone" needs a real Supabase
+  account, so it is Kevin's to confirm; doc-truth 26 is what stands in for it inside the repo.
+  (docs/index.html, tools/supabase-deploy.sql, tools/supabase-bootstrap.sql, tools/doc-truth.mjs,
+  js/changelog.js, js/changelog-head.js, STATUS.md)
+- **N18 — `docs/COMPAT.md`: the backend-compatibility contract, with teeth (v901, sw v525
+  unchanged, 2026-08-08, steward; dev branch):** N16 and N17 built the guarantees a mixed fleet of
+  app versions depends on. This writes them down and makes forgetting them a red gate. **Est 1pt,
+  took 1 — on estimate.**
+  **Why a document was the work.** The same Supabase/Turso/Firebase workspace is opened by a phone
+  on last month's cached build, a laptop on today's, and `/dev/` on next week's, simultaneously and
+  with no coordination. Every rule that keeps that safe lived in three places at once — a comment
+  block in `schema.js`, the reasoning inside the N16/N17 DONE entries, and the heads of whoever
+  shipped them. None of those is readable by the person who bumps `WS.SCHEMA_VERSION` next.
+  **What shipped.** `docs/COMPAT.md`, in the style of docs/BACKLOG.md: **(1) the rules** — the
+  three additive moves (new table, new promoted column, new `data` field — the last needing no
+  bump at all) and the three forbidden ones (never rename, never repurpose, never change what a
+  value MEANS), plus retirement-by-tombstone, since removal is not a move; **the four guarantees**
+  those rules buy, each named to the item that built it — reads back to v1, writes never destroy
+  what this build cannot see (N17), backend-newer ⇒ read-only (N16), backend-older ⇒ an offer with
+  a mandatory backup, never a latch (N16 slice 2) — including why `unknown` is deliberately treated
+  as `same`; **(2) the bump checklist**, six mandatory same-PR steps modelled on the sw.js CACHE
+  ritual, which works precisely because it is mechanical; **(3) the history**, v1→v4 reconstructed
+  from `schema.js`'s comment block and the commits that moved the constant (v1 2026-07-13 the
+  adapter port · v2 analyses, V5 #18 · v3 jobs, V8 #21 · v4 users, M3.1 #76).
+  **The teeth, which are the actual deliverable.** `tools/doc-truth.mjs` **check 25**, in the dev
+  gate, fails when: the history lacks a row for any version 1…`WS.SCHEMA_VERSION` (or carries one
+  beyond it); any table in `WS.WORKSPACE_TABLES` is never named in a history row; any hand-written
+  SQL artifact stamps a version other than the constant; or CLAUDE.md stops pointing at the file.
+  Deliberately **not** a git-diff of "did this commit touch both files" — a rebase, a squash or a
+  revert each defeat that. It is a standing invariant instead: the history must describe the
+  version the code is at, in any checkout, so the gate is red until the row exists. Verified by
+  faking the bump three ways on a scratch tree (constant → 5; a sixth workspace table; both) and
+  watching each specific claim go red with both numbers named, then restoring. `tests/run.js`
+  gained the wiring assertion (the SP-0(b) precedent) so the gate cannot be quietly dropped while
+  no bump is exercising it, and CLAUDE.md gained the pointer bullet under the Studio invariants.
+  **What it found on the way.** `tools/supabase-deploy.sql` — the file the repo calls "THE one
+  file to run" — is the only provisioning artifact that never stamps `polecat_meta.schema_version`,
+  so a freshly deployed environment reads as `unknown` until the app's first save stamps it.
+  Benign (unknown is treated as same) but it is the canonical artifact declining to say what it
+  built. Not fixed here: that file is already being opened by **N20** for its missing GRANTs, and
+  a two-line rider on an open item beats a second PR into the same file. Written into N20 with the
+  exact statement and the reason it must be `ON CONFLICT DO NOTHING` rather than the `DO UPDATE`
+  its siblings use (an old copy of the script must never rewind the marker — the SQL half of the
+  monotonicity N17 gave `WS.metaRows()`), and recorded in COMPAT.md § 3 until it lands.
+  **Verified:** the full dev gate green in the foreground — `tools/validate.mjs`,
+  `tools/changelog-check.js`, `tools/doc-truth.mjs` (all 25 checks), `tools/dev-smoke.mjs` at
+  390×780 and desktop with zero pageerrors. No precached file changed, so `sw.js` stays v525.
+- **N17 slice 2 of 2 — the runtime tripwire: making the stale tab NOTICE (v900, sw v525,
+  2026-08-08, steward; dev branch):** slice 1 made an old app's save non-destructive. This is the
+  other half — the app finding out at all. **N17 is CLOSED.**
+  **The hole, stated precisely.** N16 runs the handshake at five seams (boot pull, connect-adopt,
+  Refresh, the backoff retry, the quiet freshness pull) and every one of them is a moment the app
+  is already ADOPTING a snapshot. That is the flaw, not an accident of implementation: the two
+  guards that make adoption safe — `quietPull` refuses while `_dirty` (adopting would `replaceAll`
+  over the pending edits) and refuses unless the mirror is `connected` — disqualify exactly the tab
+  this exists for. A tab asleep for a week, holding unpushed work, on a workspace another device
+  upgraded meanwhile, would wake up, run its debounce, and push a v4-shaped view of a v5 workspace.
+  The first new check asserts that hole rather than describing it: with an edit pending,
+  `quietPull(true)` returns false and the mock backend records ZERO reads.
+  **What shipped.** `Sync.recheckSchema()` — the version gets its own check, decoupled from
+  adoption, wired to `visibilitychange`→visible and `online`. It adopts nothing, so `_dirty` is not
+  a reason to skip it; it is the reason to run it. Adapters opt in with **`schemaVersion(cfg)`**, a
+  single-row read on all three remotes (turso `SELECT value … WHERE key=?`, supabase
+  `?select=value&key=eq.schema_version`, firebase the `app` doc); an adapter without it falls back
+  to a full `load()`, which is what the N16 seams already do, so the method is an optimisation and
+  never a correctness dependency.
+  **The part that is easy to get wrong, and the reason a listener alone would have been theatre:**
+  waking a tab is precisely what arms a debounced push, so the check and the push race and the push
+  usually wins — the tripwire would report the truth a moment after the damage. `flushPush` now
+  waits on a check in flight and re-enters after it lands, so the read-only guard is evaluated
+  against the version the backend actually has. There is a check that drives exactly that ordering:
+  `pushNow()` is called WITHOUT awaiting the resume, and the mock records zero saves.
+  **Two properties held deliberately.** Silence changes NOTHING in either direction — an
+  unreachable backend or one with no marker returns null and the latch is left exactly as it was
+  (it must not latch a workspace off, and must not release one that already is; there is a check).
+  And a re-check whose answer arrives after the workspace was disconnected or re-bound is dropped
+  on the floor rather than applied to a backend we are no longer on. The burst floor is 2s, short
+  on purpose: this is the safety check, not a freshness poll, and alt-tab flurries are the only
+  thing it is coalescing.
+  **The rider: firebase's absence-delete, the one gap slice 1 measured and left.** Its `save()`
+  upserted the snapshot's rows, read every collection BACK, and deleted any document the snapshot
+  didn't carry — so a mirror that had never downloaded a dashboard created on another device
+  removed it. The DURABLE-2 class, fixed in supabase at v787 and in turso in slice 1; firebase was
+  the last adapter carrying it. Deletes are now tombstone-driven only and `users` is upsert-only
+  forever, matching the other two. The read-back is gone with it, so a firebase save is now a
+  bounded number of writes instead of a write burst plus a full re-read per table.
+  **Verified.** 8 new checks; **the FULL suite at 3205 passed / 0 failed**, plus the dev gate
+  (validate + changelog-check + dev-smoke, desktop and 390×780). The tripwire checks drive a real
+  mock workspace upgraded behind a sleeping tab that is holding an unsaved edit. The firebase
+  checks stub `fetch` and read the REQUEST LOG — the only DELETE is the tombstoned id, no `users`
+  DELETE appears, and there are zero collection GETs, which is the honest way to assert a
+  read-back is gone (a save that never asks what is there cannot delete what it didn't ask for).
+  Help's read-only section was corrected in the same slice: it listed connect/refresh/quiet-re-read
+  as the moments the version is checked, which is now incomplete.
+  **Est 2pt for the whole item, took 2 — on estimate.**
+- **N17 slice 1 of 2 — the storage guarantee: an older app's save cannot destroy what it can't
+  see (v899, sw v524, 2026-08-08, steward; dev branch):** the half of compatibility N16's banner
+  cannot cover. N16 latches a newer workspace read-only at the seams it can SEE (open, connect,
+  switch); a tab open for a week, a cached SW build or a phone that hasn't reloaded is past those
+  seams, and the next thing it does is save.
+  **The item demanded a measurement before a fix, and the measurement is why this slice is small
+  and specific** — three of the four adapters were already safe, so the fix is two files, not a
+  refactor. Saving a v4-shaped snapshot into a v5-shaped workspace: **unknown TABLES were never at
+  risk on any adapter** (every `save()` loops over `WS.TABLE_NAMES`, so a table this build has
+  never heard of is not addressed at all), and **unknown `data`-blob fields were never at risk
+  either** (`rowToCells` stringifies the WHOLE row and `cellsToRow` parses it back, so a field this
+  build doesn't know rides through load → edit → save untouched). Supabase was already clean on
+  every axis — `merge-duplicates` upserts and the atomic function's `information_schema` column
+  filter both name only the columns the payload carries. **Turso was the outlier**: its `save()`
+  was `DELETE FROM "<t>"` then `INSERT`, which (a) wrote NULL over any promoted column a newer app
+  had added to a table this build already knows, and (b) made absence mean deletion — a stale
+  mirror pushed away rows another device had created, the exact DURABLE-2 class supabase was fixed
+  for in v787 and turso never was.
+  **Plus one clobber the item had not predicted**, found by writing the test rather than by
+  reading the code, and living in the one place EVERY adapter shares: `WS.metaRows()` stamped a
+  literal `WS.SCHEMA_VERSION` into `polecat_meta` on every save. So a single save from an older tab
+  re-labelled an upgraded workspace as the OLDER shape — after which every client, including the
+  newer app that had just upgraded it, reads it as older and offers to upgrade what is already
+  upgraded. The marker is now monotonic: `metaRows` keeps the higher of this build's version and
+  the one `load()` read off the backend (N16 already made the snapshot carry the backend's number).
+  **What shipped.** `app/sources/turso.js` — the write is now `INSERT … ON CONFLICT(id) DO UPDATE
+  SET` naming ONLY the columns this build knows (an unknown column keeps whatever the newer app put
+  there), and deletes are tombstone-driven only, chunked 40 at a time, with `users` upsert-only
+  forever (v787), which is exactly supabase's shape; `app/sources/schema.js` — the monotonic marker.
+  **Verified** by three new checks driving a REAL edit-and-save through the adapter against a mock
+  Turso workspace stood up one version ahead of the app and carrying all four cases at once: an
+  unknown table, an unknown promoted column, an unknown field inside a data blob, and a row the
+  stale mirror never saw. All four survive; the edit still lands; the marker still reads the newer
+  version afterwards. The mock itself had to be upgraded to make the claim honest — it stored rows
+  as the positional arg array, which cannot express "a column the app never named", so it is now
+  column-keyed and models real SQLite (a plain INSERT leaves unnamed columns NULL; `DO UPDATE SET`
+  writes only what it names). Dev gate green (validate + changelog-check + dev-smoke); the full
+  suite was run to 3110 passing checks with zero real failures, covering the turso adapter,
+  all 13 N16 handshake checks, DURABLE-2, USERS-DURABLE and the five AUD-01 atomic-save checks —
+  every block that could have regressed from the shared `metaRows` change.
+  **Est 2pt, slice 1 took 1** — on estimate. Slice 2 (the resume/reconnect tripwire, plus
+  firebase's absence-delete, the one gap this measurement found and left) remains.
+- **N16 slice 2 of 2 — the OLDER direction: an in-app "Upgrade workspace" step, backup first
+  (v898, sw v523, 2026-08-08, steward; dev branch):** branch (a) of the item. N16 is CLOSED.
+  **The problem:** slice 1 closed the direction that eats data (newer workspace ⇒ read-only). The
+  other direction was silent in a slower way — an older workspace works fine (every bump is
+  additive) right up until a save lands on a table that isn't there, and the ONLY place the remedy
+  ever appeared was glued onto that failed save's error string (`supabase.js:511`). The comparison
+  already existed (`Sync.schemaState().relation === "older"`); nothing acted on it.
+  **What shipped, in three parts.** (1) **`Sync.upgradeWorkspace(opts)`** — the orchestrator:
+  guard (remote + `older`, refusing `newer` and `same` with distinct messages) → read the BACKEND
+  snapshot and hand it to `opts.backup` → delegate to the adapter → **re-read the version from the
+  backend** (never assume the upgrade moved it; a backend still reporting the old version comes
+  back as a failure with that number in the message) → `flushPush(true)` if edits were pending.
+  The backup is a REQUIRED FUNCTION PARAMETER, not a flag: "no opt-out" is enforced by the API
+  shape rather than by a checkbox any caller could forget, and a writer that throws aborts with the
+  backend untouched. The backup is of the BACKEND (the copy at risk), not of this browser.
+  (2) **Adapters opt in with `upgradeWorkspace(cfg)`** — turso runs the idempotent `provisionDDL`
+  batch + stamps the marker (the stamp matters: without it the workspace reports the old version
+  forever and the app keeps offering); firebase has no DDL to run, but its `save()` never
+  re-stamped the `app` doc, so re-stamping IS the upgrade there; supabase returns
+  `{manual:true, sql}` = `provisionDeltaSQL()` + the `schema_version` upsert + `NOTIFY pgrst`.
+  An adapter with no method at all falls back to the same manual shape rather than claiming
+  success. (3) **The UI** — the Settings backend card gains a first-class *Upgrade workspace*
+  block when the relation is `older` (status line says it too), and the manual path renders the
+  script with Copy + "I've run it — re-check". `.ws-upgrade` CSS gives the paragraph a 260px floor
+  so the button wraps below it instead of crushing it; 390px was checked.
+  **The deliberate deviation from the item's spec, and why.** The item said to run the delta
+  "through the polecat-admin Edge Function where bound". It is NOT wired that way. That function's
+  only schema action is `provision`, whose `BOOTSTRAP_DDL` ends by re-creating the demo-posture
+  `polecat_anon_all` policy on every table — and Postgres ORs permissive policies together, so
+  calling it on a gone-live workspace would silently re-open it to anon reads. A one-click upgrade
+  that quietly undoes the security posture is worse than a paste, so Supabase stays on the paste
+  and the reason is written into `supabase.js`. The fix (an additive, posture-preserving `upgrade`
+  action) is minted as **N26** at the end of NOW.
+  **Verified:** full `tests/run.js` green + the dev gate (validate + changelog-check + doc-truth +
+  dev-smoke). 6 new checks: the offer appears and never latches read-only; both refusal paths (no
+  writer / failing writer) leave the backend untouched; the happy path asserts the ORDER
+  (`backup>upgrade`), that the backup carries the pre-upgrade BACKEND snapshot, that the relation
+  is re-read as `same`, and that the pending edit finally pushes; the offer disappears and a repeat
+  ask is refused without a second backup; the no-method adapter returns the delta with the backup
+  still taken; a real turso workspace wound back (table dropped, marker to v1) is restored on both
+  counts; and the supabase script is asserted to add the tables, stamp the version, and carry no
+  `CREATE POLICY`/`ROW LEVEL SECURITY` and no blanket privilege change (`GRANT … ON ALL TABLES` /
+  `ALTER DEFAULT PRIVILEGES`) — its single `GRANT` is EXECUTE on the SECURITY INVOKER atomic-save
+  function it installs, which still runs under the caller's own policies. The deviation above,
+  pinned as a test.
+  **est 2pt, took 2 slices — estimate exact.**
+- **N16 slice 1 of 2 — the backend version handshake: a workspace NEWER than the app is read-only
+  (v897, sw v522, 2026-08-08, steward; dev branch):** branch (b) + (c) of the item; branch (a)
+  (offer the upgrade for an OLDER workspace) is slice 2 and stays in NOW.
+  **The problem, stated plainly:** the marker existed end to end and was compared NOWHERE.
+  `WS.SCHEMA_VERSION` is stamped into `polecat_meta` at provision and every adapter's `probe()`
+  has always returned it — but no caller in sync.js / workspaces.js / studio.js / gate.js ever
+  looked at it, so both mismatch directions proceeded in silence. The dangerous one is a stale
+  tab, a cached PWA build or an unrefreshed phone running an OLD app against a NEWER workspace:
+  every adapter's `save()` is a whole-snapshot replace over the tables THAT BUILD knows, so one
+  push republishes a v4-shaped view of a v5 workspace and whatever v5 added is simply not in it.
+  **What shipped, in four parts.** (1) **The comparison, once** — `WS.compareSchema(v)` in
+  `app/sources/schema.js` returns `newer|older|same|unknown`; `unknown` (no readable marker) is
+  deliberately classified as proceed, because a pre-marker or partially-read backend is not
+  evidence of newness and latching on a missing row would be its own outage. (2) **Adapters
+  report the BACKEND, not themselves** — `load()` starts from `emptySnapshot()` (this app's
+  version) and now overwrites `schemaVersion` with the marker it actually read: supabase + turso
+  from the `polecat_meta` rows they were already fetching (free), firebase from the `app` doc
+  (one extra read). Local is this app's own store and needs nothing. (3) **The latch** —
+  `app/sources/sync.js` runs the handshake at ALL FIVE adoption points (boot pull, connectAdopt,
+  `pullNow`, the backoff `retryNow`, and the quiet freshness pull — the last one is how a slept-
+  through upgrade is discovered), and a `newer` verdict latches `_readOnly`. One guard in
+  `flushPush` closes every write path, because `schedulePush`/`pushNow`/`touch`/the retry/
+  `pagehide` all funnel through it. Edits are still made and still counted as pending — they
+  simply stay in this browser. `connectPush` claims our own version (we just provisioned it);
+  `disconnect` clears the latch. One wrinkle found while building: `pullNow`'s DURABLE-1 guard
+  bails when `_dirty`, and under the latch `_dirty` can never clear — a read-only tab with local
+  edits could never re-check the version. So read-only `pullNow` loads to re-run the HANDSHAKE
+  ONLY (never adopting over those edits) and flushes them the moment the latch clears.
+  (4) **Saying it** — the rail reads **Read-only** instead of the lie "Connected", its tooltip and
+  the Settings backend card's status line name both versions, and a banner (the third in the
+  `sync-loss-banner` family, same episode-dismiss semantics as its siblings) explains what to do:
+  reload, and hard-reset if a stuck service worker keeps serving the old build.
+  **Verified:** full `tests/run.js` green, plus the dev gate (validate + changelog-check +
+  dev-smoke). 6 new checks: `compareSchema`'s classification including the four unknown-marker
+  shapes; a freshly provisioned workspace reporting exactly `WS.SCHEMA_VERSION` on every adapter;
+  a drift guard comparing the version literal in `tools/supabase-bootstrap.sql` and
+  `supabase/functions/polecat-admin/sql.ts` against the constant in `schema.js` (the class N2
+  slice 2 caught); `load()` reporting a bumped backend marker rather than the app's constant
+  (driven through the turso mock, which gained a literal-values `INSERT OR REPLACE` branch); and
+  three behavioural checks over a stand-in adapter that reports a version from the future —
+  latch + log + zero saves + edit still pending, the rail/banner copy, and the clean unlatch that
+  finally pushes. The existing turso end-to-end check stopped hardcoding `4`.
+  **est 2pt, took 1 slice for half the item** — branch (a) is the other slice, so the estimate
+  holds.
+- **N4a — `delete_branch_on_merge` is ON; the merged-branch pile stays (no app version — repo
+  setting + docs, 2026-08-08, Kevin + interactive session):** the queue's last ⛔ closed the
+  same day it was put to Kevin. He flipped Settings → General → "Automatically delete head
+  branches" himself (the 403 that made this ⛔ was real — `STEWARD_PAT` has repo scope, not
+  administration — so the human path was the right call, not a workaround). The ~269 merged
+  `steward/*` branches: **"leave them"**, a deliberate WONTFIX per the written recommendation
+  (merged refs, zero risk kept vs. real mis-delete risk in a 269-ref sweep). Every merge from
+  now on deletes its own branch, so branch hygiene needs no further agent time — this also
+  moots the session-side cleanup failures noted on PRs #654/#656. est 1pt (the agent half
+  shipped 08-07 as the ⛔ raise); Kevin's half took one settings click, as predicted.
+- **SP-0 slice 2 of 2 — the convention for shipping REAL pack data, and SP-0 closed (v896, sw
+  v521, 2026-08-08, steward; dev branch):** blocker (b), the one SP-1 was actually waiting on.
+  **The problem, stated plainly:** the rule for pack data was "synthetic, deterministic,
+  generated in JS, never fetched" — unwritten, absolute, and about to be broken by the first
+  pack built on Census data. Nothing said where real data may come from, how anyone reproduces
+  it, how big it may be, or who gets credited. **What shipped, in four parts.** (1) **The
+  contract** — `docs/PACKS.md`, in the style of `docs/BACKLOG.md`: the two kinds of pack data,
+  the four rules for real data (embedded never fetched; extracted by a committed re-runnable
+  script that IS the provenance record; ≤150 KB CSV per pack; credited where it is read), the
+  registry-entry shape, a table of what is enforced where, and the add-a-pack checklist.
+  (2) **The machinery** — `tools/pack-extract/lib.mjs`: `writePack({pack, source, files, notes})`
+  writes deterministic CSV (LF, minimal quoting, stable bytes so a no-change re-run is an empty
+  diff) plus `SOURCE.json`, and REFUSES rather than truncates — bad source shape, over budget, a
+  stale file left by an earlier extract, a non-CSV name. (3) **The provenance itself** —
+  `app/demopacks.js` entries gained `source` (`synthetic` | `public` | `licensed`) with
+  `Studio.packSourceIssues()` as the shape rule in code, `demoPackSourceLine()` as the one line
+  every surface reads, and `packNeedsAttribution()`; the Settings card renders that line for
+  every pack, and `reconcilePackDashboards()` backfills it into the subtitle of a non-synthetic
+  pack's dashboards (idempotent on the line's own text, so it can never accumulate, and healing
+  an existing install without a reinstall). Both shipped packs declare themselves synthetic, so
+  the honesty that lived only in hand-written blurbs is now a field the app renders.
+  (4) **The teeth** — `tools/validate.mjs` gained the pack-data gate (brace-walking the registry
+  the way `doc-truth.mjs` does): every entry declares a well-formed source; data with no extract
+  script, a script or directory naming an unregistered pack, a non-CSV file in a pack directory,
+  and >150 KB of CSV all fail the DEV GATE; `kind:"licensed"` with no `THIRD-PARTY-NOTICES.md`
+  mention fails too. Plus the CLAUDE.md bullet and a Help paragraph. **A note on scope:** no
+  extract script ships, because no real-data pack ships — that is SP-1, and the item said so
+  ("No user-visible pack ships in this item"). **Which is exactly why the checks are driven by
+  fixtures rather than by the two synthetic packs:** 4 new checks (9 assertions' worth) — the
+  live registry conforms and the shape rule rejects each way a real source goes wrong (absent,
+  unknown kind, plain-http url, no licence, unparseable date, a synthetic entry carrying a
+  licence); both Settings cards render their source line; and a **stand-in public-data pack**
+  registered in-page proves attribution appends to authored subtitle text, stands alone when
+  there is none, survives a second reconcile unchanged, and never touches the conservation
+  pack's dashboards. `writePack()` was separately exercised end to end against a temp root —
+  quoting, byte-stable re-run, and all three refusals. **Verification run, stated precisely:**
+  the dev gate is fully green (`validate` — now also reporting 2 packs declaring a source,
+  `changelog-check` 873 entries manager-parse OK, `doc-truth`, `dev-smoke` desktop + 390px, zero
+  pageerrors), and `tests/run.js` was run in the foreground THROUGH the new block — 347 checks
+  passed, 0 failed, including all four new ones. As in both N15 slices, the suite in full
+  exceeds this runner's 10-minute foreground command cap; the stage promotion runs it whole.
+  **est 2pt for the item, took 1 per slice — 2 total, on estimate.**
+- **N15 slice 2 of 2 — a chart's PNG/CSV download works on a phone (v895, sw v520, 2026-08-08,
+  steward; dev branch):** cause (b) of Kevin's phone report, and the close of N15. **Confirmed
+  before fixing, exactly as the item demanded** — a throwaway Playwright probe on the PRE-change
+  tree instrumented `HTMLAnchorElement.prototype.click` in BOTH documents and clicked the real menu
+  items: the bytes were never in doubt (a real `data:image/png;base64,…`, a real
+  `blob:` CSV) and both anchors were clicked in the **iframe's** document — a download started
+  from a nested browsing context, which is what iOS Safari refuses. So the rasterizer was
+  innocent and the delivery was the whole defect. **The fix.** `app/studio-render.js` gained
+  `inPreviewFrame()` + `deliverDownload(name, payload)`: when the shared chrome is painting a
+  builder preview it posts `{type:"panel-download", name, dataUrl}` (PNG, both the SVG and the
+  GL-canvas branch) or `{…, text, mime}` (CSV) up instead of clicking locally, and
+  `app/studio.js` performs the click in the top document. The CSV crosses as TEXT, not as a
+  `blob:` URL: a blob minted in the frame is revoked the moment the preview re-renders, and the
+  top window can mint its own with no lifetime shared across the seam. The receiver accepts only
+  those two shapes — a `data:image/` URL, or text it blobs itself — and never adopts an arbitrary
+  URL out of a message; the name is filename-sanitised. **One deliberate deviation from the item's
+  written fix shape:** it proposed routing `panel-download` through the `Studio.claimPreviewFrame`
+  claims added in slice 1, with a copy of the handler per builder. It is answered BEFORE the claim
+  routing instead, because unlike an export or a canvas edit nothing about a download depends on
+  which spec owns the frame — the message carries its own bytes and its own filename — so ONE
+  handler serves every preview in the app (dashboard builder, View Builder, Explore, panel zoom,
+  slideshow, version compare) rather than six copies of the same six lines. The non-preview path
+  is untouched, which is what keeps the exported file working with no app around it. **Verified:**
+  5 new checks in `tests/run.js` (13c-N15 slice 2) that drive the REAL menu click — the
+  test-only `onDataUrl`/`onRows` hooks are precisely what hid this — and assert WHERE the anchor
+  lands: two clicks, both in the top document, none in the iframe; the PNG carrying the real image
+  and the panel's own filename; the CSV crossing as text with the top window minting the blob; and
+  the REAL exported standalone file, embedded in an iframe so it demonstrably HAS a parent, still
+  clicking its own anchor and delegating nothing. **The checks were proven non-vacuous**: run
+  against the pre-change tree, 4 of the 5 fail (the fifth is the export path, which correctly does
+  not change). **Verification run, stated precisely:** the dev gate is fully green (`validate`,
+  `changelog-check` 872 entries manager-parse OK, `doc-truth`, `dev-smoke` desktop + 390px, zero
+  pageerrors), and the 5 new checks were run standalone against a live server in BOTH gates —
+  390×780 and 1280×900, zero pageerrors both times. `tests/run.js` in full again exceeds this
+  runner's 10-minute foreground command cap (same as slice 1); the stage promotion runs it whole.
+  **est 2pt for the item, took 1 per slice — 2 total, on estimate.**
+- **N15 slice 1 of 2 — the View Builder's "Export as standalone HTML" works, and one preview can
+  no longer edit the other builder's dashboard (v894, sw v519, 2026-08-08, steward; dev branch):**
+  Kevin reported both symptoms from a phone; this slice closes cause (a) plus the whole
+  message-routing half. **Confirmed before fixing, not assumed** — a throwaway Playwright probe on
+  the PRE-change tree reproduced it exactly: clicking the menu item opened no modal and produced no
+  file (`modalTitle: ""`), and messages posted from inside the View Builder's preview frame
+  hijacked the open dashboard on all four counts (header hidden, title rewritten to "HIJACKED",
+  the KPI deleted, panel order reversed). **The fix.** `app/studio.js`'s single preview-message
+  listener answered every frame as if it were the dashboard builder's `#preview`. It now routes by
+  the posting frame: a module may claim its own preview (`Studio.claimPreviewFrame(getFrame,
+  handle)`) and then owns its messages exclusively, and the four branches that rewrite `S.spec`
+  with no id to miss on (`reorder`, `kpi-delete`, `header-edit`, `header-delete`) are accepted only
+  from `#preview` or from this document itself — the same `e.source === window` reasoning
+  `trustedMsg` already uses. `app/build.js` claims its `bd-ifr` frame (lazily, on first paint: it
+  loads BEFORE studio.js) and remembers the exact one-panel spec + computed rows it is showing, so
+  `panel-export-embed` exports what the user is looking at. `exportPanelEmbed(p, srcSpec, mock)`
+  gained the two optional arguments and nothing else — called with neither it is the historical
+  dashboard-panel export, same clone, same 3-arg `exportDashboardHtml`, byte-identical file. A
+  pared-down View drops the source's `hideHeader`, or the exported file would have no title.
+  **Verified:** 5 new checks in `tests/run.js` (13c-N15) driving the REAL click path inside the
+  preview frame — the file is a doctype+`STUDIO_SPEC` document carrying this View's bars panel,
+  its title and its real `SUM amount` rows; a message from the View Builder's preview leaves the
+  other builder's header, title, KPI and panel order intact; and the dashboard's own canvas edits
+  still apply, since the guard decides WHO spoke rather than disabling the acts. A new
+  `window.__lastBundle` test hook exposes the exported file, which the modal (name + byte count
+  only) never did — precisely the gap that let a dead export ship green. **Verification run, stated
+  precisely:** the dev gate is fully green (`validate` 207 files, `changelog-check` 871 entries
+  manager-parse OK, `doc-truth`, `dev-smoke` desktop + 390px, zero pageerrors); `tests/run.js`
+  reached **3108 checks, zero real failures**, including all five new ones, but was cut off at ~98%
+  by this runner's 10-minute foreground command cap, twice (the suite needs a little over 10 min
+  here). The untested tail runs no preview-message tests — every `postMessage` case in the suite
+  sits well before the cut — and the stage promotion runs the whole thing. **est 2pt, took 1 for
+  this slice** (cause (b), the mobile download path, is the second).
+- **SP-0 slice 1 of 2 — the sample-pack registry stops being two hard-coded names (v893, sw
+  v518, 2026-08-08, steward; dev branch):** blocker (a) of SP-0, the precondition for Kevin's
+  eleven new packs. **What was actually there:** `Studio.installDemoPack` dispatched on
+  `if (id === "conservation")` twice (once before the installed flag, once after); the pack
+  folder was a literal in TWO files — `PACK_FOLDER` in `app/demopacks.js` and a `PACK_FOLDERS`
+  map in `app/studio.js` — kept in step by a comment saying "keep the two names in sync"; demo
+  login named `"conservation"`; per-user provisioning compared `provisioning.pack ===
+  "conservation"` and its admin control was a CHECKBOX that could not express any other pack;
+  and `app/build.js` gated the raw catalog samples on a literal `"datamanagement"`. **Eight
+  dispatch sites across three files** — measured, not estimated (the new source guard flags
+  exactly those eight on the pre-change tree and zero after). **What shipped:** the registry
+  entry is now the only place a pack is named — it carries `folder`, `seeds` (declared row
+  counts per table), `install()` (pre-flag) / `afterInstall()` (post-flag, for steps that read
+  `demoPackInstalled`), and the `demoLogin` / `catalogSamples` flags. `installDemoPack` is
+  literally `if (p.install) p.install(); setInstalledIds(...); if (p.afterInstall)
+  p.afterInstall();` and knows no pack. `Studio.demoPacksWith(flag)` and
+  `Studio.demoPackFolder(id)` are how every other module selects packs. **One user-visible
+  change:** the admin user editor's "Install the Conservation Insight sample pack on first
+  sign-in" checkbox became a picker over every registered pack; the stored value was always the
+  pack id, so existing assignments carry over untouched. **Verification:** the new SP-0
+  conformance LOOP in `tests/run.js` walks `Studio.DEMO_PACKS` and puts every registered entry
+  through one contract — well-formed entry, install sets the flag, every seeded row tagged and
+  filed in that entry's own `folder`, declared `seeds` match what the installer wrote, remove
+  leaves zero rows — then restores each pack to the state it found it in (re-materializing an
+  examples pack's dashboards), so pack twelve is covered the day it is registered. A second,
+  static guard fails the build if any module outside the registry branches on a pack id again;
+  it was proven non-vacuous against the pre-change tree. Three LF41 provisioning checks updated
+  from checkbox to picker. Full `tests/run.js` green plus the dev gate (validate,
+  changelog-check, doc-truth, dev-smoke). **est 2pt for the whole item, this slice took 1** —
+  blocker (b), the real-public-data convention (extract scripts, the ≤150 KB CSV budget,
+  `source` on the entry, notices), remains as slice 2 and is what SP-1 is blocked on.
+- **N7 — the catalog tours name what a ROW can do, not just what it is (v892, sw v517,
+  2026-08-08, steward; LF58 recurring slice, dev branch):** the ▶ NOW queue again held no ready
+  non-recurring item (N4a is still ⛔ on Kevin, grooming pass 2 is still parked on `hold` PR
+  #623), so the recurring N7 took the next slice. **The candidate this list left
+  half-covered:** v889 gave the Jobs and Connections &amp; Datasets tours a toolbar stop, and
+  doc-truth check 22 says in its own header that the per-row controls are a different
+  component it does not derive. Nothing derived them, and the measurement showed why that
+  mattered — both tours said only that each row "carries its own actions", named `private`,
+  and stopped. Derived from the three catalog modules' own row renderers, the rows carry
+  Run/Edit/✕ + private (Jobs), Test/Edit/✕ + Pin + private (Connections) and Run/Edit/✕ +
+  Pin + private (Datasets): **six controls no tour named**, including Run on Jobs (a reader
+  finished that tour never learning a job runs from its row), Test on Connections (the
+  fastest way to find an expired credential) and Pin on both catalogs, which appeared in no
+  tour at all. Three steps rewritten in `app/tutorial.js` — Jobs step 1, and the connect
+  tour's connections (step 1) and datasets (step 5) stops, so both halves of that walk
+  describe the same row anatomy. **The copy was verified against the handlers rather than
+  assumed:** `data-job-run` re-renders the row so the status dot answers in place,
+  `data-dsx-run` toasts a row count without opening the editor (the first draft said "see
+  real rows" and was corrected), and `catalogSort` really does sort `pinned` first. **New
+  doc-truth check 24** — check 22's move, one component in: it parses each module's
+  `var actions = '<span class="cx-actions">'` block for the buttons (by their own text, or
+  their aria-label where the control is a glyph like ✕) and adds whichever of `cx-pin` /
+  `cx-private` that module renders, so Jobs having no pin is noticed rather than configured.
+  It is deliberately STRICTER than check 22's bare word: the control must be named in **bold**,
+  the check-14 idiom, because the Jobs tour's existing "a status dot for their last run" is
+  prose about runs that a bare-word rule would accept as explaining a Run button. It flagged
+  all six gaps on the pre-fix copy and passes on the fixed one. **Verified in the foreground**
+  on the full dev gate — `tools/validate.mjs`, `tools/changelog-check.js`, `tools/doc-truth.mjs`
+  and `tools/dev-smoke.mjs` (marketing + app-past-gate + docs at 1280×900 and 390×780, zero
+  pageerrors). N7 is recurring and carries no point estimate; this was one slice, as every
+  N7 slice has been. **Audited and found CURRENT in the same pass, no change needed:** nothing
+  else in the two tours drifted. **The gap this pass found and deliberately did not take:**
+  `docs/index.html` documents Test, Run and `private` in their own sections but never the
+  per-row **Pin**, on either catalog — that is the check-16→17 move, one document over, and
+  it is written into N7's candidate list as the next slice rather than folded into this one.
+- **N7 — the Conservation Insight tour tells you everything the pack actually gave you (v891,
+  sw v516, 2026-08-08, steward; LF58 recurring slice, dev branch):** the ▶ NOW queue again held
+  no ready non-recurring item (N4a is ⛔ on Kevin, grooming pass 2 is parked on `hold` PR #623,
+  every other entry is struck), so the 🔁 N7 slice was the pick — and the candidate its own list
+  named as the last per-feature tour whose BODY had never been audited.
+  - **The measurement, from `installConservationWorkspace()` itself.** The tour's opening step
+    said installing the pack "seeded a whole workspace — connections, datasets, a prep job, and
+    one FEATURED dashboard", then walked that dashboard's three map scales and closed. The
+    installer seeds **2 connections, 9 datasets, 1 prep job, 4 pinned Views (one per practice:
+    Cover crops, No-till, Reduced tillage, Conventional) and 6 dashboards** filed in a
+    `Conservation Insight` folder — CONS-1/2/3 added five dashboards and CONS-4 pinned the Views
+    long after the tour copy was written. So the reader was told they had ONE dashboard, and the
+    four live charts that render on Home **directly below the card the tour spotlights in step 1**
+    were never mentioned at all.
+  - **What shipped.** The intro names every kind seeded; a new stop (step 2, `.home-analyses`)
+    points at the pinned Views, names the four practices, and says which editor each route opens
+    (the card → the View Builder that made it; the small button → Quick View — both derived from
+    `homeAlt` in `app/studio.js`, not guessed); the remaining stops renumber 3–5; and the close
+    names the rest of the folder (watershed map, system-metrics wheel, OpTIS / CRD /
+    provider-ensemble). The tour is 6 → **7 steps**. No section-walk was added on purpose: a
+    `goSection("dashboards")` would put this tour in doc-truth check 22's scope and oblige it to
+    document the Dashboards toolbar, which is a catalog tour's job, not a pack tour's.
+  - **Audited and found CURRENT, no change needed:** the geography close. All six built-in map
+    scales (county, state, USDA CRD, HUC8 watersheds, congressional districts, ZCTA) and the
+    Custom regions / county→region CSV import still match `app/model.js`'s choropleth `opts`
+    verbatim, so it is untouched.
+  - **The guard: doc-truth check 23.** Derives the pack's inventory from `app/demopacks.js` — the
+    tables its `W.put` calls write, the distinct dashboard names, `PRACTICES`' labels and
+    `PACK_FOLDER` — and fails if the tour copy stops naming any seeded kind, describes a
+    multi-dashboard set in the singular, or drops a practice or the folder. It also fails loudly
+    on a table with no user-facing noun mapped, so a new seeded KIND cannot slip through silently.
+    **Proved capable of failing:** run against the pre-fix copy it reports **all six** gaps (the
+    unnamed Views, the singular "dashboard" against 6 seeded, and each of the four practices).
+    "View" is matched case-SENSITIVELY on purpose — case-insensitively, the old copy's "the hero
+    view" satisfied a requirement to name the pinned Views.
+  - **Verification (all foreground).** Full `NODE_PATH=… node tests/run.js` on the finished tree;
+    dev gate in the same pass (`tools/validate.mjs`, `tools/changelog-check.js`,
+    `tools/doc-truth.mjs`, `tools/dev-smoke.mjs`). Two new suite checks measure the DOM the new
+    stop points at (Home renders one `.home-analysis` card per practice, each offering the
+    Quick View route) rather than the seed rows, so a Home section that stopped rendering them
+    would fail here too; the J6 walk check now rings 5 targets and the tour-shape check expects 7
+    steps. est 1pt, took 1.
+- **N14 — a busy workspace backend no longer signs you out of it (v890, no sw bump,
+  2026-08-08, steward; dev branch):** taken from **Kevin's own comment on issue #631**, not from
+  the ▶ NOW queue, which held no ready non-recurring item (N4a is ⛔ on Kevin, grooming pass 2 is
+  parked on `hold` PR #623, every other entry is struck). A Kevin-filed defect outranks the
+  recurring N7 slice, and this one is in the same seam N2 slice 3 / N11 / N12 have been closing
+  all week.
+  **The gap, in Kevin's words:** "`ensureSession()`'s refresh path disposes of the stored token
+  on **any** non-`unreachable` error, and `unreachable` is only set when the `fetch()` itself
+  rejects. A 5xx, a 429, or any non-JSON error response therefore reads as the workspace's
+  authoritative 'no' and clears the token."
+  - **The third and last shape of "we never got an answer."** N2 slice 3 established the
+    distinction the whole auth path turns on — "the workspace refused you" (final: drop the
+    token, ask for the password) versus "we never reached the workspace" (keep everything, carry
+    on) — and closed the case where `fetch` rejects. N11 closed the case where the headers
+    arrive and the body stops mid-flight. **A status code that arrived intact and parsed cleanly
+    was the one still being mistaken for a verdict**, whatever the number was: `if (!res.ok ||
+    !data.access_token) throw new Error(…)`, no classification at all. So an overloaded project
+    answering 429, a restarting one answering 503 behind its platform, a proxy giving up with
+    408 — none of which say anything about the credential — all landed on the branch that
+    DELETES it.
+  - **Why it is serious and not cosmetic.** It is the same user-visible failure N11 measured and
+    fixed, from a third cause: the workspace password prompt in front of a user who never left
+    their session. And because the refresh token lives in sessionStorage and is the ONLY
+    credential the app still holds after N2 slice 4 stopped persisting the password, dropping it
+    is not recoverable by waiting — the blip lasts seconds, the sign-out lasts the whole browser
+    session.
+  - **The fix, in `gotrueToken` only** (`app/sources/supabase.js`): a `transportStatus()`
+    predicate — 408, 429, or ≥500 — marks the error `unreachable` instead of letting it through
+    as a refusal. `ensureSession` already rethrows `unreachable` without touching the stored
+    token (N2 slice 3 built that path, N11 reused it), so nothing else had to change. **The
+    refusal path is untouched and NOT weakened:** 400 `invalid_grant`, 401, 403 and 422 remain
+    authoritative and still drop the credential on the spot.
+  - **No new exposure.** `unreachable` also routes `authenticate()` to the offline local-hash
+    fallback (`app/gate.js:333`), so it is worth stating why widening it is safe: an attacker who
+    can inject a 503 into the response can already just drop the connection, which has been
+    `unreachable` since N2 slice 3. The set of reachable states is unchanged; only the honest
+    classification of them is.
+  - **Verified.** Full `NODE_PATH=… node tests/run.js` **green — 3161 passed, 0 failed** on the
+    finished tree, plus the dev gate (`tools/validate.mjs` + `tools/changelog-check.js` +
+    `tools/dev-smoke.mjs`). New mock fixture `__armtokenstatus?code=NNN` arms ONE real answer at
+    that status with a plausible GoTrue error body (so it reaches the adapter's status check
+    rather than N11's unreadable-body path), and three checks ride it: 503 keeps the token and
+    the session stays resumable, 429 likewise, and — the guard against simply erasing the line —
+    a 400 `invalid_grant` still clears it in the same run. Each status is probed on its own
+    connection so neither can inherit the other's state.
+    **And the guard was proved capable of failing** (a guard that cannot fail is not a guard, per
+    N11): the suite was run a second time with `transportStatus()` neutered to `return false` —
+    i.e. the pre-fix classification — and **exactly those three checks go red and nothing else**
+    (3158/3), each with the predicted payload `{"kept":"","resumable":false}`: the token really
+    was being deleted by a 503 and by a 429. est 1pt, took 1. Files:
+    app/sources/supabase.js, tests/run.js, js/changelog.js (+head), STATUS.md.
+  - **`sw.js` deliberately NOT bumped**, following #630's precedent that issue #631 itself
+    endorses: the precache LIST is unchanged (`app/sources/supabase.js` is already on it), and
+    the fetch handler is network-first, which is `sw.js`'s own stated rule for when a bump is
+    required. It also keeps this unit clear of the very bump #631 says goes red.
+  - **Issue #631 stays OPEN, and this slice does not claim to close it.** Its headline symptom —
+    bumping `CACHE_NAME` alone turns the two N2-slice-4 checks red — is a separate,
+    timing-sensitive question, and Kevin's own follow-up comment records that it did not
+    reproduce on another runner. It did not reproduce here either (the suite is green with the
+    checks in place). What shipped is the gap that comment recorded as real and independent of
+    whatever triggers it; the issue's points 2 (double-spend single-flighting — already shipped
+    as N12) and 3 (a check with an SW update actually in flight) are untouched.
+- **N7 — the catalog tours name the toolbar their catalog actually has (v889, sw v515,
+  2026-08-08, steward; dev branch):** the recurring keep-the-docs-current item, taken because
+  ▶ NOW had no unstruck ready entry above it (N4a is ⛔ on Kevin, everything else is shipped),
+  and the slice was the strongest of the two candidates the N7 list was carrying.
+  **The drift, measured not suspected.** Checks 16–21 had held the tours and Help accountable to
+  the BUILDER's controls; nobody had asked the same question of the CATALOGS. Every catalog
+  section grew a three-control toolbar beside its search box — the sort `<select>` (AUD-06's
+  shared `Studio.catalogSort`), the tile ⇆ list toggle (`Studio.catalogView`, remembered per
+  device under `studio-<sec>-view`) and the `Select` button that turns the rows into checkboxes
+  with a bulk **Select all / Clear / Move … to folder… / Delete** bar (LIVE-d slices 1–5) — and
+  the two tours that WALK those sections had caught none of it. Both still described the list,
+  the `+ New` button and the search box, in that order, and stopped. **A reader could finish the
+  Jobs tour without ever learning the app can bulk-delete**, or that the list in front of them
+  has a tile form. The per-row `private` toggle (`.cx-private`, on every jobs/connections/
+  datasets row) was unmentioned in the same way.
+  **What shipped** (`app/tutorial.js`): a toolbar stop in each tour — Jobs gains step 4
+  (`#secJobs .repo-io`), Connections & Datasets gains step 4 (`#secConnections .repo-io`) and its
+  remaining stops renumber 5–7, with the Datasets search stop referring back rather than
+  repeating the whole thing (all six catalogs carry the identical row, so telling it twice in one
+  walk is padding). Each stop names the sort options that section really offers — Jobs by last
+  run, Connections by adapter — plus both layout labels and the bulk bar's four buttons. The two
+  list stops gained the `private` toggle in one clause each.
+  **Doc-truth check 22** is the ratchet, and every fact in it is derived: WHICH sections carry a
+  toolbar comes from `app/index.html`'s own `.repo-io` rows; WHICH tours are in scope comes from
+  the `goSection()` calls those tours actually make (so the Home/builder tours are simply not in
+  scope, and a tour that starts walking a catalog is picked up the day it does); and the word
+  each control must be named by comes from the control itself — the `<select>`'s `aria-label`,
+  the label pair `catalogView.wire()` sets at runtime, and the button's own text. Scoped to the
+  copy fields (`t`/`h`/`sub`/`blurb`) on purpose: `target: "#connSelectBtn"` must not be able to
+  satisfy a requirement to EXPLAIN Select. **Run against the pre-fix tree it flagged all 8 gaps**
+  (4 words × 2 tours); it passes on the shipped one.
+  **Help was audited in the same pass and is CURRENT** — `docs/index.html` already carries a
+  "Sorting" paragraph naming every catalog page, the **Tile view** button and a full "Select
+  multiple / bulk actions" section — so the usual check-16→17 move (same rule, one document
+  over) had nothing to correct, and check 22's scope is `app/tutorial.js` by measurement rather
+  than by oversight. The tours were the only stale surface.
+  **Verified**: full `tests/run.js` green. The two existing J6 tour walks were updated to the new
+  target lists (jobs 3 → 4 spotlights, connect 6 → 7) rather than loosened, and a new N7 check at
+  **390×780 and 1280×900** asserts the runtime property doc-truth cannot see — the stop rings the
+  REAL `.repo-io` row (ring box overlapping the row's box, inside the viewport), and its card
+  names each control by the word the LIVE DOM gives it, the step located by the row it targets
+  rather than by index so renumbering the tour cannot silently retarget the check.
+  est 1pt (🔁 recurring, one slice), took 1.
+- **N13 — the pane list rows' Duplicate/Delete actions clear the 44px touch bar (v888, NO sw
+  bump, 2026-08-08, steward; dev branch):** the first ready item in ▶ NOW, and the fourth and
+  last surface in the N8 → N9a → N9b → N13 phone-reach sweep. N8 fixed the dropdown ROWS, N9a
+  the catalog toolbars they hang off, N9b the pane HEADERS — this is the list rows underneath
+  those headers, and the only one of the four carrying the destructive actions.
+  **Measured at 390×780 with each drawer open** (the `.mob-tab` phone route), and the numbers
+  N9b filed this item with reproduced exactly: the Data pane's per-dataset duplicate/delete
+  `.icobtn` pair renders **17px** tall (`padding:2px 4px`, `font-size:13`, no min-height), the
+  "This dashboard's datasets" group's `.mine-add` **20px** (an explicit `width:20px;height:20px`),
+  and the Inspector's move-up/move-down/delete trio **22px** — 43 controls across the two panes,
+  every one under half the touch bar, with the Delete sitting **21px** from the Duplicate it
+  neighbours. That gap is the real hazard: mis-aiming between those two is a destroyed dataset.
+  **Why a blanket rule was wrong**, which is why N9b filed this separately rather than bundling
+  it: `.icobtn` is an app-wide class, also worn by the Home section-reorder controls
+  (`.home-sub-move`). The scope that turned out to be exactly right is **`.pane`** — a class ONLY
+  `#library` and `#inspector` carry (verified against `app/index.html`: two elements, no others),
+  so the rule reaches both N13 surfaces and nothing else. `.row-item` needed the same care and
+  got it for free: `rowItem()` is a single helper and the Inspector is its only caller, so the
+  catalog rows N9a measured clean are untouched because they are not `.row-item` at all.
+  **The fix** (`app/studio.css`, ≤640px band only, 4 rules):
+  * `.pane .icobtn{min-width:44px;min-height:44px}` — and **width matters as much as height
+    here**, because these are square icon buttons and the failure mode is a mis-tapped Delete,
+    not a missed one. The glyph does not move: they are transparent buttons with an SVG child,
+    so growing the box only grows the hover chip.
+  * **Overlapping hit boxes were considered and rejected.** Painting a 44px hit area over a 17px
+    button (an `::after` overlay) keeps the layout, but at 21px apart two 44px targets overlap by
+    23px and the Delete swallows half the Duplicate — strictly worse than the small buttons on
+    the exact pair that matters. They grow for real, and the rows are given room to hold them.
+  * The room: `.pane .row-item{flex-wrap:wrap}` + `.ri-txt{min-width:120px}` +
+    `.ri-btns{margin-left:auto}`. `.ri-txt` may shrink to nothing (`min-width:0`), so without the
+    floor a 3-button row would have crushed its title to ~80px rather than wrap. With it, the
+    flex line genuinely cannot hold both and the trio takes its own line, right-aligned — while
+    1-button (44px) and 2-button (88px) rows still fit inline and keep today's single-line
+    layout. Measured effect: the Inspector's row title goes 144px → **223px**, i.e. the wrap
+    gives the name MORE room than it had before the buttons grew.
+  * `.mine-add` is a PAINTED 20px brand square, so growing the element would have dropped a 44px
+    brand block into the group header. Same treatment N9b gave the `?`: the button becomes the
+    invisible 44×44 touch box, a `::before` paints the same 20×20 square behind the centred
+    glyph, and `.lib-mine>.h`'s padding drops 8px→2px so the group bar lands at 48px instead of
+    60px. Hit area 44×44, visual byte-for-byte what it was.
+  **Verification:** 2 new checks (390×780 + 1280×900) asserting four properties, because the fix
+  had four ways to pass while being wrong — every visible row action ≥44×44 on a phone; none of
+  them outside the viewport (N9a's property one level down: 132px of buttons where 66px used to
+  be, so a rule that only grew them would push the trio off the right edge instead of wrapping);
+  `.mine-add`'s painted `::before` square still exactly 20px with a 13px glyph, and the row title
+  not crushed (≥180px); and desktop asserting the inverse (row actions still under 44px,
+  `.mine-add` still exactly 20px) so the ≤640px band cannot leak upward. The probe also holds
+  ITSELF accountable — an empty list would pass every assertion above, so a pane reporting zero
+  visible row actions fails. Confirmed the ratchet can FAIL: replayed against the unfixed
+  `app/studio.css` it reports 43 controls under 44px, `.mine-add` painted square `-1px` (no
+  `::before` at all) and `.ri-txt` crushed to 144px, while desktop stays green in both trees.
+  **Verified in the foreground: the FULL `NODE_PATH=… node tests/run.js` suite, 3156/3156 green,
+  exit 0** — exactly the dev tip's 3154 plus this slice's 2 — with `tools/validate.mjs`,
+  `tools/changelog-check.js`, `tools/doc-truth.mjs` and `tools/dev-smoke.mjs` (the dev gate) all
+  run separately green. **No `sw.js` bump**, for the reasons N9b's entry below records: the
+  precache LIST is unchanged (only a precached file's contents), that is the ritual `sw.js`'s own
+  header states, and the fetch handler is network-first so an online user gets the new CSS
+  regardless. **est 1pt, took 1.** (app/studio.css, tests/run.js, js/changelog.js, STATUS.md)
+  **No follow-up spun off** — with N13 shipped the N8→N13 sweep is closed: menus, catalog
+  toolbars, pane headers and pane list rows all clear the bar, and each is now pinned by a check
+  that fails if it regresses.
+- **N9b — the Studio's pane headers clear the 44px touch bar (v887, NO sw bump, 2026-08-08,
+  steward; dev branch):** the first ready item in ▶ NOW, and the third and last surface in the
+  N8 → N9a → N9b phone-reach sweep. N8 brought the dropdown ROWS to 44px and N9a the catalog
+  toolbars they hang off; this is the bar those panes are topped with — and the one that OPENS
+  N8's work. **Measured at 390×780 with the Data drawer open** (`.mob-tab[data-mob-tab=library]`,
+  the phone route N9b's own spec had already confirmed works): `#btnNewDS`, the `＋ New ▾`
+  trigger that is the ONLY way to reach `#menuNewData`, rendered **24px** — so N8's three
+  compliant 44px rows sat behind a 24px opener. The pane's `.search` field was **33px**.
+  **Scope went one pane wider than the spec asked**, and the reason is in the numbers: `.pane-h`
+  is one component shared by `#library` and `#inspector`, and the Inspector's `?` help link
+  (`#inspHelpLink`) measured **16px** — the worst of the three, and an `<a>`, so no
+  bare-`<button>` rule would ever have reached it. None of the three is a `.btn` or a
+  `.menu button`, which is exactly why UX7's and N8's rules both missed them.
+  **The fix** (`app/studio.css`, ≤640px band only): `.pane-h>button:not([hidden])` and
+  `.pane-h>.menu-wrap>button:not([hidden])` take the 44px minimum — deliberately one level
+  above `.pane-h>.menu-wrap>.menu>button` so it cannot reach into an open menu and re-centre
+  the rows N8 left flex-start-aligned — plus `.pane .search`. The `?` is a 16px PAINTED disc,
+  so growing the element would have dropped a 44px circle into the header: the anchor becomes
+  the invisible 44px touch box and a `::before` paints the same 16px disc inside it, hit area
+  44×44 and the visual unchanged. `.pane-h`'s vertical padding drops 12px→4px at phone so the
+  bar lands at 52px rather than 68px inside a drawer that only has 642px, giving the list back
+  the difference.
+  **A regression the work caught on itself:** the first cut of the rule set `display:inline-flex`
+  unconditionally, and an author `display` beats the `hidden` attribute's UA `display:none` — it
+  REVEALED `#inspBack` (the Inspector's hidden back link) on every phone. `:not([hidden])` is
+  load-bearing, not defensive, and the new check pins it.
+  **Verification:** 2 new checks (390×780 + 1280×900) asserting three properties, because the fix
+  had three ways to pass while being wrong — every visible header control ≥44px on a phone; the
+  `?`'s painted `::before` disc still exactly 16px; and `#inspBack` still hidden. Desktop asserts
+  the inverse (`#btnNewDS` under 44, `#inspHelpLink` exactly 16) so the ≤640px band cannot leak
+  upward. Confirmed the ratchet can FAIL: replayed against the unfixed `app/studio.css` it reports
+  `btnNewDS 24px | inspHelpLink 16px | #libSearch 33px`, and desktop stays green in both trees.
+  Full `tests/run.js` green. **No `sw.js` bump:** the precache LIST is unchanged (only a
+  precached file's contents), which is the ritual sw.js's own header states, the fetch handler is
+  network-first so an online user gets the new CSS regardless, and issue #631 makes a gratuitous
+  bump actively costly. **est 1pt, took 1.** (app/studio.css, tests/run.js, js/changelog.js,
+  STATUS.md) **Spun off N13** — the same measurement found the pane LIST-ROW actions at 17–22px
+  (`.icobtn`, `.mine-add`), which is an app-wide class with a much larger blast radius than
+  `.pane-h`; filed in ▶ NOW rather than bundled.
 - **N12 — one renewal at a time: concurrent sign-ins stop spending the same refresh token
   (v886, sw v514, 2026-08-08, steward; dev branch):** the first ready item in ▶ NOW, and the
   defect N11's investigation measured on its way past (filed separately on purpose — different
@@ -10525,284 +12235,189 @@
 > struck entries and propose the next batch to Kevin on a `hold` PR — never graze the
 > reservoir directly.
 
-- ~~**N2 ★★ [2pt est, 4 slices shipped] — M7: real Row-Level Security enforcement.**~~
-  ✓ SHIPPED v865 (2026-08-07, steward — see DONE). All four slices are in; M7 is closed. The
-  history below stays until the next grooming pass archives it.
-  **The debt it closed:** `app/auth.js` was explicit that the model was honest UX-gating over a shared
-  local store, not isolation between users, and AUD-03 hardened the password digests
-  without changing that posture. **Slice 1 is SHIPPED (v862, 2026-08-07, steward — see DONE):
-  `tests/rls.mjs` installs BOTH shipped postures — `tools/supabase-rls-real.sql` and
-  `tools/supabase-deploy.sql` — each into its own throwaway `steward_test_rls_*` schema on the
-  live project, and proves in 27 checks apiece (54 total) that an unauthorized read is refused
-  (anon reads zero rows from all seven tables; a signed-in user sees public + only their own
-  private rows; writes against another user's rows are rejected or filtered to zero). It
-  caught a real fresh-install bug on its first run — BOTH files created policies calling
-  `polecat_is_admin()` a section before defining the function, so the documented
-  top-to-bottom run on a FRESH project died on its first CREATE POLICY. Fixed by hoisting the
-  helper in both.**
-  **Slice 2 is SHIPPED (v863, 2026-08-07, steward — see DONE): the Edge Function's inlined
-  `RLS_REAL_SQL` (`supabase/functions/polecat-admin/sql.ts`) had DRIFTED, so an in-app Admin →
-  Go live installed a WEAKER posture than a manual `supabase-rls-real.sql` paste — anon could
-  read every non-private row and all of `polecat_meta`, and admins could not push a snapshot
-  containing rows they do not own. `sql.ts` is now a section-for-section mirror of the canonical
-  file, and `tests/rls.mjs` runs the go-live sequence (`BOOTSTRAP_DDL` + `RLS_REAL_SQL`) as a
-  THIRD posture through the identical 27 checks — 81/81 green — so they cannot drift again.**
-  **Slice 3 is SHIPPED (v864, sw v496, 2026-08-07, steward — see DONE): THE CLIENT FLIP.**
-  `app/gate.js` ran `Auth.verify()` FIRST, so a matching row in the mirrored local `users` store
-  signed you in without the workspace ever being asked — GoTrue was only the fallback. The
-  mirrored hash was therefore the real credential at the front door, and a password changed or
-  revoked in the workspace kept opening every browser whose mirror was stale. Now: a bound
-  Supabase workspace + an email username asks the DATABASE first and its rejection is final. An
-  unreachable backend still falls back locally (offline never locks anyone out — the adapter's
-  `authenticate()` gained an `unreachable` flag to tell "no" apart from "we never asked"), and
-  local accounts, the `admin`/`demo` seed pair, custom local-auth workspaces and "Local only
-  (this browser)" are all untouched. 3 new checks; est 2pt, took 1.
-  **Slice 4 is SHIPPED (v865, sw v497, 2026-08-07, steward — see DONE): THE PASSWORD STOPS BEING
-  PERSISTED.** `Sync.setAuthCredentials()` stamped `authEmail`/`authPassword` onto the live cfg and
-  `saveConn()` serialised that cfg straight into `analytics.datasource.v1`, so a plaintext
-  workspace password sat in localStorage forever — purely so `ensureSession()` could re-mint an
-  expired JWT from it. It now keeps GoTrue's `refresh_token` instead, in sessionStorage (the AUD-03
-  posture), and re-mints from that; any password an earlier version stored is migrated away on load
-  without signing anyone out. The hazard that opens — a browser with no resumable session
-  boot-pulling as ANON and adopting an RLS-empty workspace over real local data — is closed by
-  `Sync.needsSignIn()`: pulls latch off and the gate asks for the password once, email prefilled.
-  Sign-out and disconnect both drop the session. 9 new checks, 3101/3101 green; est 1pt, took 1.
-  Notes for future database work: use a throwaway `steward_test*` schema for any
-  database work; never CREATE/DROP/ALTER against live `public`. Note for any run touching an
-  already-live workspace: `actionGoLive` TRUNCATEs the workspace tables, so "just re-run Go live"
-  is never the way to pick up a posture fix — re-paste `tools/supabase-rls-real.sql` instead.
-- ⛔ **N4a ★ [1pt] — KEVIN DECISION/ACTION: turn on `delete_branch_on_merge`.** Tech sweep
-  #370, item (a): the setting is `false`, so every merged PR leaves its branch behind — 251
-  stale `steward/*` branches at sweep time and it has grown since — `git ls-remote --heads`
-  counts **265 `steward/*` branches of 273 total** on 2026-08-07. **Raised, not assumed, exactly as the item asked:** the steward
-  attempted the flip on 2026-08-07 with `gh api -X PATCH repos/kevinrhaas/analytics.polecat.live
-  -f delete_branch_on_merge=true` and got `403 Resource not accessible by personal access
-  token` — `STEWARD_PAT` has repo scope but not repo *administration*, so no agent can do
-  this. **The exact ask for Kevin:** flip Settings → General → "Automatically delete head
-  branches" ON (it only affects future merges; it never deletes an unmerged branch), and say
-  whether the ~250 already-merged `steward/*` branches should be bulk-deleted — the loop will
-  NOT mass-delete branches on its own guess. Alternative if the flip is unwanted: grant the
-  PAT admin scope, or say "leave them" and this item closes as WONTFIX. Nothing else here is
-  agent-actionable; N4b (the other half) is shipped.
-- ~~**N4b ★ [1pt] — Repo hygiene from tech sweep #370: vendored shell drift.**~~ ✓ SHIPPED
-  v866, sw v498 (2026-08-07, steward — see DONE). The re-check found the copy FIVE releases
-  behind (v0.5.4 vs the hub's v0.6.2), not the 2 patches the July sweep recorded, and it is
-  now current — a verbatim `lib/` copy from the platform repo, 29/29 files sha256-clean
-  against `MANIFEST.json`, no strays.
-- ~~**N5a ★★ [2pt] — DECIDED (Kevin, 2026-08-07): inside the app, the READER's theme wins.**~~
-  ✓ SHIPPED v867, sw v499 (2026-08-07, steward — see DONE). Shipped as written: one opt-in
-  `frameTheme` flag on `Studio.buildHtml`, passed by the Viewer's srcdoc call and by nothing
-  else; downloads, PDFs and the builder preview provably unchanged; the CLAUDE.md invariant
-  amended to name the exception. est 2pt, took 1. The spec below stays until grooming archives it.
-  UX
-  sweep #574 finding 1 — a dark app frames a light dashboard and reads as broken. The
-  Viewer's iframe now follows the app's live `data-theme`, whatever `spec.renderMode` says.
-  **Downloads and embeds are NOT touched** — a handed-out file stays exactly as authored,
-  because an exported dashboard is a deliverable (it goes on ctic.org and into stakeholders'
-  inboxes) and deterministic appearance is worth more there than adaptivity.
-  **Implementation, precisely:**
-  * `buildViewerHtml(spec, assets, extraOpts)` already emits BOTH the srcdoc and the
-    download from one call, so the override rides an explicit **opt-in `extraOpts` flag**
-    (e.g. `{ frameTheme: "dark" }`) that ONLY the Viewer's srcdoc call passes. The download
-    path passes nothing and is provably unchanged — same shape as the existing
-    `{ pdfPageSize… }` options.
-  * **The Studio builder preview is NOT the Viewer — leave it alone.** The author is
-    composing the appearance there, so the preview must keep showing `spec.renderMode` or
-    they cannot see what they are making. Only READ mode follows the app.
-  * **Amended invariant** (CLAUDE.md says the export stays byte-identical to the live
-    preview): builder preview ≡ export, still true and still asserted. The VIEWER srcdoc may
-    now differ from the download by the theme attribute alone — that is the deliberate,
-    scoped exception. Update the invariant's wording in the same PR so the next reader is
-    not misled.
-  * Full `tests/run.js`. New checks: an explicit-light dashboard opened in a dark app renders
-    dark IN THE VIEWER; the same dashboard's DOWNLOAD is byte-unchanged; the builder preview
-    still shows the authored mode.
-- ~~**N5b ★ [1pt] — DECIDED: `auto` ships as an OPT-IN third Appearance choice, never the default.**~~
-  ✓ SHIPPED v868, sw v500 (2026-08-07, steward — see DONE). Shipped exactly as specified: one
-  runtime resolver, one byte stream, Light still the default for a new dashboard. est 1pt, took 1.
-  The spec below stays until grooming archives it.
-  A second, separate slice after N5a (own PR — it is additive and independently revertible).
-  `spec.renderMode` gains `"auto"`; the Inspector's Appearance select becomes
-  Light / Dark / Auto ("match the reader"). **New dashboards keep `""` (Light)** — Kevin's
-  explicit call: a chameleon export is something an author opts into, not something that
-  happens to them.
-  * When `auto`, the export bakes NO `data-theme` and instead carries a tiny inline resolver:
-    standalone → `prefers-color-scheme`; framed → follow the host document when it is
-    readable, else fall back to `prefers-color-scheme`. Same-origin (our Viewer) can read the
-    host; a third-party cross-origin embed cannot, so the resolver must **never throw** —
-    wrap the parent read and fall through silently.
-  * ONE byte stream that branches at RUNTIME. Never a per-context build-time branch: the
-    srcdoc and the download must remain the same bytes for an `auto` dashboard.
-  * `""` and `"dark"` exports stay byte-for-byte what they are today — this adds a value, it
-    changes no existing one.
-  * Full suite. New checks: an `auto` export contains the resolver and no baked
-    `data-theme`; it honors `prefers-color-scheme` standalone (Playwright `emulateMedia`);
-    it follows the host inside the Viewer; and the Inspector offers exactly three options
-    with Light still the default for a new dashboard. Docs + Help updated in the same slice.
-- ~~**N8 ★ [1pt] — Every dropdown-menu row is under the 44px touch bar on a phone.**~~ ✓ SHIPPED
-  v883 (2026-08-08, steward — see DONE). The measurement it asked for found two menus that ALSO
-  opened partly off-screen, so the slice shipped both halves; est 1pt, took 1. The spec below
-  stays until grooming archives it.
-  Born in NOW
-  from N7/v882's verification (2026-08-08, steward) — measured, not suspected: at 390×780 every
-  `.menu button` renders **37px** tall (`padding:10px 12px`, no `min-height`). UX7 set a 44px
-  minimum "across the whole ≤640px band" but the rule landed on `.btn`, and a menu row is a bare
-  `.menu button` — so it never applied. That is now the PRIMARY phone route for ten builder
-  controls (v882 documented it in Help: ⋯ More → Export…/Save/Open…/Undo/Redo/Save as…/
-  Duplicate/Close, plus What's new and Send feedback), and it is 7px short on all of them.
-  **Why it is its own slice, not v882's:** the fix is one rule in the ≤640px band
-  (`.menu button{min-height:44px}`), but it lands on EVERY menu in the app, not these ten —
-  #menuMore is already 540px tall at 390×780 and gains ~90px; #menuExport, #menuNew,
-  #dashMoreMenu and the rest each need measuring for viewport overflow before it ships. So:
-  measure every `.menu` at 390×780, apply the rule, and assert no menu's box leaves the
-  viewport. Verify with the full suite + a new check per menu at 390×780 and 1280×900.
-  **Position is the loop's placement, not Kevin's** — it sits above the 🔁 so it is taken next;
-  move or re-star it freely.
-- ~~**N9a ★ [1pt] — The catalog toolbars themselves do not fit a phone.**~~ ✓ SHIPPED v884,
-  sw v512 (2026-08-08, steward — see DONE). The `.repo-io` half of the original N9, split out
-  because the Data-pane half turned out to be a different (and much smaller) defect once
-  measured — see N9b. est 2pt for the pair, N9a took 1. The spec below stays until grooming
-  archives it.
-  Born in NOW from N8/v883's
-  measurement (2026-08-08, steward) — measured, not suspected. N8 fixed the MENUS; this is the
-  rows they hang off, and it is the bigger half:
-  * At 390×780 the Dashboards `.repo-io` row lays out **16px→525px against a 390px screen**, so
-    `Select`, `Compare dashboards…`, `⋯` and `+ New dashboard` all start off the right edge. They
-    are reachable only because clicking one scroll-into-views it — there is no visible affordance
-    saying the row scrolls, no fade, no wrap. Views and Repository use the same `.repo-io` row and
-    have the same problem. (This is also why N8 needed a re-clamp on scroll at all: that
-    scroll-into-view is what moves the menu after it opens.)
-    **What the fix measured (2026-08-08):** the run-out is 16px→**651px**, not 525 — worse than
-    the N8 note recorded, because the note measured before the row's own controls were all
-    counted. Three controls fully off-screen on Dashboards; `+ New dataset` and
-    `+ New connection` crossing the edge by 9px and 14px. **Views, Jobs and Repository were
-    measured CLEAN** — their rows fit 390px today, so the note's "same problem" was true of the
-    markup, not (yet) of those three sections. They are covered by the new check regardless, so
-    a control added to any of them cannot regress silently.
-  * Likely shape: let `.repo-io` wrap at ≤640px instead of overflowing (it is already a flex row;
-    the buttons are already 44px tall after UX7), and treat the pane rail separately. Verify with
-    the full suite + a check that asserts every `.repo-io` control's box is inside the viewport at
-    390×780 — the same assertion N8 added for menus, one level up. **Shipped exactly this.**
-  * `#menuExamples.phone-pos` in `app/studio.css` is dead while you are in there (LF43 slice 2
-    deleted `#menuExamples`; the suite asserts it is gone). **Deleted.**
-  **Position is the loop's placement, not Kevin's** — move or re-star it freely.
-- ~~**N10 ★★ [1pt] — `dev` is RED on the full suite, and nothing has noticed yet.**~~ ✓ SHIPPED
-  2026-08-08, steward (no version/sw bump — test-only; see DONE). Root cause was exactly as
-  diagnosed below; the helper now scans for the first VISIBLE row, which fixes `#menuNew`/
-  `#menuExport`'s latent staleness in the same stroke, and two new checks hold the probe itself
-  accountable so it cannot silently rot again. est 1pt, took 1. The spec below stays until
-  grooming archives it.
-  Found by the
-  N9a slice's verification (2026-08-08, steward), NOT caused by it — proven by running the exact
-  repro against an untouched `origin/dev` worktree and getting the identical result. **Take this
-  before N9b: it is the gate that stands between `dev` and stage.**
-  * The failing check is `tests/run.js:23295`, "tablet viewport: ⋯ More menu items are actually
-    reachable (not clipped by #topbar overflow)" (the Z9 check, 800×1024). At the dev tip it
-    reports `{"wasOpen":true,"reachable":false,"itemRect":{...all zeros}}`. Everything else is
-    green: **3144 passed, 1 failed.**
-  * **Root cause is the check, not the app.** `menuItemReachable()` takes
-    `menu.querySelector("button")` — the FIRST button in `#menuMore` — and hit-tests its centre.
-    That first button is `#moreWhatsNew`, a `.more-phone-only` entry. v882/N7 fixed
-    `.more-phone-only` so it finally hides above 640px (it never had, the whole time this check
-    was written and passing), so at 800px the element the check measures is now `display:none`
-    with a zero rect, and `elementFromPoint` at (0,0) can never return it. The check was reading
-    a phone-only row as if it were a tablet row.
-  * **Why nobody caught it:** the dev gate (`ci.yml`) is the LIGHT one — validate +
-    changelog-check + doc-truth + dev-smoke — and all four are green, so PRs into dev pass. The
-    full suite only runs at promotion, and every `promote-to-stage.yml` run since has exited at
-    the schedule gate ("stage already contains dev — nothing to promote"), so its `success`
-    conclusions are quiet no-ops, not passes. The next real promotion is the first thing that
-    will actually run this, and it rolls stage back on red.
-  * **The fix is to the check:** hit-test the first VISIBLE row (skip `display:none` children)
-    rather than the first child, so it measures what a tablet user actually sees. Do NOT weaken
-    it to pass — the clipping it guards (Z9) is real and the assertion should survive. While
-    there, check whether `newReach`/`exportReach` have the same latent staleness (they pass
-    today, but `#menuNew`/`#menuExport` could grow a phone-only first row at any time) and make
-    the helper robust once for all three.
-  **Position is the loop's placement, not Kevin's** — move or re-star it freely.
-- ~~**N11 ★★ [1pt] — `dev` is STILL red on the full suite: N2 slice 4's refresh-token re-mint is
-  flaky.**~~ ✓ SHIPPED v885, sw v513 (2026-08-08, steward — see DONE). **It was NOT the test's boot
-  race the spec suspected — it was the APP, in the direction the spec said to escalate:** a refresh
-  answer whose BODY never finished arriving was classified as a REFUSAL, and a refusal deletes the
-  stored refresh token. Fixed in `gotrueToken` (an unreadable answer is `unreachable`, not a "no"),
-  which is a real sign-you-out bug on any flaky connection, not just under a reloading test. est
-  1pt, took 1. The spec below stays until grooming archives it.
-  Born in NOW from N10's verification (2026-08-08, steward) — measured, not suspected,
-  and NOT caused by N10 (its own six Z9 checks are green in all three runs). N10 fixed one of
-  **two** causes; this is the other. **Take it before N9b for the same reason N10 came first:
-  it is the gate between `dev` and stage, and a flaky gate rolls stage back on unrelated work.**
-  * **The two failing checks** are `tests/run.js:18525` ("a reload with NO password anywhere
-    re-mints the session from the refresh token…") and `:18529` ("the refresh grant's ROTATED
-    token replaces the one it was spent…"), both from N2 slice 4 (v865).
-  * **It is FLAKY, not deterministic** — three consecutive full runs on the same tree gave
-    `3147 passed / 0 failed`, then `3145 / 2`, then `3145 / 2`. So roughly one run in three is
-    green, which is exactly why it has survived: a single green run reads as proof.
-  * **The observed failure state**, verbatim from the run: `{"gateGone":false,
-    "needsSignIn":true,"status":"connected","preAuth":true,"userId":"","signInOk":true,
-    "token":""}` and `{"before":"mock-refresh","after":""}`. The interesting part is
-    `token:""` — after the reload, `sessionStorage["analytics.supabase.refresh.v1"]` is EMPTY,
-    so there was nothing to re-mint FROM; `needsSignIn:true`/`preAuth:true` are the app
-    correctly reacting to that, not separate bugs. `signInOk:true` with `userId:""` says the
-    mock resolved without a session.
-  * **Prime suspect is the test's boot race, not the app** (verify before fixing — the whole
-    point of N2 slice 4 is a real security posture, so do NOT weaken these assertions):
-    `gpPw.reload({ waitUntil: "domcontentloaded" })` at `:18504` is followed by a
-    `waitForFunction` on `Studio.Sync.syncState()` whose timeout is swallowed by
-    `.catch(() => {})` (`:18509`). If the app has not finished restoring the token store when
-    that resolves — or if boot transiently clears it before re-minting — the `evaluate` at
-    `:18510` samples a half-established state and reads an empty store. Confirm by logging the
-    store across boot; if it IS a race, wait on the real post-condition (a non-empty store /
-    `needsSignIn()===false`) instead of a swallowed timeout. **If instead the token genuinely
-    does not survive a reload, that is an APP bug in the AUD-03 posture and much more serious
-    than a flake — escalate it rather than stabilising the test.**
-  * Verify with three consecutive full-suite runs green, not one.
-  **Position is the loop's placement, not Kevin's** — move or re-star it freely.
-- ~~**N12 ★ [1pt] — Two concurrent renewals spend the SAME refresh token, and a real GoTrue
-  refuses the second.**~~ ✓ SHIPPED v886, sw v514 (2026-08-08, steward — see DONE). Shipped as the
-  "likely shape" below predicted: a single-flight promise per `sessionKey(cfg)`, `force` still
-  bypassing the cache, a failed grant never left behind as the shared answer. est 1pt, took 1.
-  The spec below stays until grooming archives it.
-  Born in NOW from N11's investigation (2026-08-08, steward) — measured,
-  not suspected, and deliberately NOT bundled into N11 (different defect, own revertible unit).
-  * **The measurement.** In the N11 repro's own traces, the post-sign-in boot issues TWO
-    `grant_type=refresh_token` requests ~55ms apart carrying the **identical** token
-    (`{"refresh_token":"mock-refresh"}` both times): two `ensureSession()` flows each read
-    `refreshTokenFor(cfg)` before either wrote the rotated one back. `ensureSession` has no
-    in-flight guard — a cached session is reused, but a MISS starts a fresh grant every time.
-  * **Why it is a real hazard and not just chatter.** The suite's mock keeps every token it has
-    ever minted valid, so the second grant succeeds there. A real GoTrue **rotates** and, outside
-    its reuse-detection grace window, refuses a spent token — and a refusal is (correctly, per
-    N2 slice 3 and unchanged by N11) FINAL: the token is dropped and the user is asked for the
-    workspace password mid-session. The same class of user-visible symptom N11 just closed, from
-    a different cause.
-  * **Likely shape:** a single-flight promise per `sessionKey(cfg)` in `ensureSession` — a second
-    caller awaits the first grant instead of starting its own. Keep `force` (admin calls
-    deliberately re-mint) working, and keep a failed grant from being cached as the shared
-    result.
-  * Verify with the full suite + a check that two concurrent `ensureSession`/`signIn` calls issue
-    exactly ONE token request and both resolve from it, plus a mock posture where a spent refresh
-    token is refused (proving the fix, and that today's code fails it).
-  **Position is the loop's placement, not Kevin's** — move or re-star it freely.
-- **N9b ★ [1pt] — The Studio Data pane's own controls are under the 44px touch bar.** The
-  second half of the original N9, rewritten from measurement in the N9a slice (2026-08-08,
-  steward) — the worry it was filed with turned out to be unfounded, and what is actually there
-  is smaller and precise:
-  * **There IS a phone route, and it works.** The `mob-tabs` Data/Canvas/Inspector switcher is
-    the intended way in, exactly as the note suspected: at 390×780 its **Data** tab is on-screen
-    (0–130px) and opens the drawer. The N9 note's "`＋ New ▾` appears to have no phone route at
-    all" came from clicking the `.pane-rail` expand button, which is genuinely off-canvas at
-    390px (`#library` sits at left −336px until the drawer opens) — but that rail is the DESKTOP
-    affordance, not the phone one. **Not a phone-gate defect.** Once the drawer is open,
-    `#menuNewData` opens fully inside the viewport with all three rows (Dataset (workspace)…,
-    Connection…, Dashboard-only query…) at the 44px minimum — N8's rule already covers it.
-  * **What IS wrong:** the trigger. `#btnNewDS` ("New", inside the Data pane header) measures
-    **24px tall** at 390×780 — it is not a `.btn`, so neither UX7's 44px minimum nor N8's
-    `.menu button` rule reaches it. Sweep the Data pane's other bare-`<button>` controls at the
-    same time rather than patching this one id.
-  * Verify with the full suite + a check that opens the Data drawer via `[data-mob-tab="library"]`
-    and asserts every visible control in the pane header clears 44px at 390×780, desktop
-    unchanged — the N9a/N8 shape, one pane over.
-  **Position is the loop's placement, not Kevin's** — move or re-star it freely.
+- ⛔ **N29 ★★ [1pt] — `polecat_dev` is leaking to anonymous callers, and the new verify caught it on
+  its first run (2026-08-08).** ⛔ **BLOCKED ON KEVIN, and it is an action rather than a decision
+  (marked 2026-08-08 by the steward run that took N27 instead).**
+  **⚠ ID CORRECTED at grooming pass 3 (2026-08-09): this item was minted as a SECOND `N26`.**
+  `docs/BACKLOG.md` says an ID is never reused, and the N22c slice that measured the collision
+  (see DONE) left it flagged rather than resolved. N16's DONE entry and its NOW text both bind
+  `N26` to *"The admin function's only schema action re-opens a gone-live workspace"*, so THAT
+  item keeps the number and this one takes the next free one (highest existing was N28).
+  **Anything written before 2026-08-09 that says `N26` and means the `polecat_dev` leak means
+  N29** — DONE is append-only, so those entries were left verbatim rather than rewritten. The fix as written is a paste
+  into the `polecat_dev` SQL editor, and no automated run in this repo can perform it: the dev
+  database password lives in the `SUPABASE_DEV_*` repo secrets, which only `rls-dev.yml` and the
+  promotion workflows can read, and the one dispatchable provisioning workflow
+  (`supabase-provision.yml`) applies `supabase-bootstrap.sql` — the allow-all posture this item
+  blames — against PRODUCTION by default. **The ask: run `tools/supabase-deploy.sql` top-to-bottom
+  in the `polecat_dev` SQL editor, then § 7 for the first admin, then re-dispatch
+  `rls-verify.yml` with `target: dev`.** (If you would rather the fleet be able to do this itself,
+  say so and "a dispatchable workflow that applies `supabase-deploy.sql` to the DEV project only"
+  becomes its own item — it is a new workflow with a production guard, not a paste.)
+  Measured, not suspected — `tests/rls-verify.mjs` against the dev
+  project:
+  ```
+  LEAK dashboards         HTTP 200, 1 row(s) readable by anon
+  LEAK datasets           HTTP 200, 1 row(s) readable by anon
+  ok   polecat_activity   HTTP 404 — not exposed or does not exist
+  ok   polecat_feedback   HTTP 404 — not exposed or does not exist
+  ```
+  Production passed the same check in the same run, so this is dev-specific.
+  **The two 404s are the diagnosis.** `polecat_activity` / `polecat_feedback` are §6 of
+  `tools/supabase-deploy.sql`; their absence means dev was NOT provisioned from that file. It was
+  stood up either from `supabase-bootstrap.sql` — whose entire posture is the `polecat_anon_all`
+  allow-all policy, exactly the shape observed — or from the connect wizard's generated script,
+  **which is N21 demonstrated on a live database instead of argued from source.** Cross-reference
+  the two: N21 is the product fix, this is the environment fix.
+  **The fix is one paste:** `tools/supabase-deploy.sql` top-to-bottom in the `polecat_dev` SQL
+  editor. Idempotent; it drops the legacy `polecat_anon_all` and `polecat_open_rw` policies BY
+  NAME (PERMISSIVE policies OR together, so one leftover defeats everything tighter beside it),
+  installs the authenticated-only set, and creates the two missing log tables. Then §7 for the
+  first admin. Re-dispatch `rls-verify.yml` to confirm green.
+  **Note the two checks are NOT in conflict**, which is the point of having split them:
+  `tests/rls.mjs` went 81/81 green in the same hour. The FILES are sound; the live dev DATABASE
+  was not built from them. Neither check alone would have told you that.
+- **N25 ★★ [2pt est, 1 slice shipped] — The `/dev/` and `/stage/` previews sign you into
+  PRODUCTION data.** ✓ **SLICE 1 IS SHIPPED — the guard: v911, sw v533 (2026-08-09, steward — see
+  DONE).** A preview no longer offers, restores or accepts the production workspace by ANY route
+  (packaged catalog, saved connection inherited from production's shared localStorage, access
+  file, hand-typed URL, or the anonymous activity log), packaged entries declare their stage and
+  a non-production one is labelled with it in the picker, and a refused preview never rewrites the
+  connection record production is still using.
+  ~~**SLICE 2 — what remains, and why it could not ship together:**~~ **(a) the dev/stage catalog
+  entries themselves.** Slice 1 makes a preview offer *Local only*, which is the safe end of the
+  trade but not the end state Kevin asked for ("`/dev/` offers the dev workspace"). Shipping a key
+  here needs that workspace's anon-reads-nothing posture VERIFIED first — the rule at the top of
+  `app/workspaces.js` — and `polecat_dev`'s is the open ⛔ **N29** (written here as N26 until the
+  2026-08-09 grooming pass resolved the duplicate ID), so this slice is BLOCKED ON N29 and must
+  not jump it. When it lands: add the `stage: "dev"` / `stage: "stage"` entries; the
+  labels, the filtering, the picker and the activity-log fallback are already built and covered.
+  `polecat_stage` does not exist yet either. **(a) is therefore the ONLY thing left in this item.**
+  ~~**(b) the test topology follows the branch topology**
+  — `tests/rls.mjs` still CREATEs and DROPs `steward_test_rls_*` schemas on the PRODUCTION
+  project; move it to `polecat_dev` at the dev gate, to stage at promotion, and leave prod only
+  the read-only anon-verify (`supabase-deploy.sql` §8 / `tests/rls-verify.mjs`). Strictly safer
+  than the status quo, not a coverage trade.~~ **(b) IS ALREADY SATISFIED — corrected at grooming
+  pass 3, 2026-08-09, measured rather than assumed.** The claim above was written from the item's
+  original spec and was already false when slice 1 restated it: `grep -rn 'rls\.mjs' .github/`
+  finds exactly two callers on `dev`, `rls-dev.yml` (dispatch + nightly) and
+  `promote-to-stage.yml`, and BOTH pass `SUPABASE_DEV_URL`/`SUPABASE_DEV_PASSWORD`. Nothing runs
+  the mutating suite against production any more; `promote-to-prod.yml` runs only the read-only
+  `tests/rls-verify.mjs` and says so in a comment. The one piece not taken is deliberate, not
+  outstanding: `rls-dev.yml`'s own header explains why it is dispatch + nightly and NOT the dev
+  gate — it talks to a live third party, and a Supabase blip must never redden a PR, the same
+  reasoning that keeps deploy ungated. Promote it to the gate only once its flake profile is
+  known; that is a new decision, not this item's remainder.
+  **One thing slice 1 measured and deliberately did NOT take:** previews share production's whole
+  `localStorage`, not just its connection record — the entire local workspace (datasets,
+  dashboards, preferences) is one store across `/`, `/dev/` and `/stage/`. `tools/stage-preview.mjs`
+  says so in a comment and calls it safe on AUD-04 grounds (an older build can no longer delete a
+  newer one's tables). That is a real, separate question — whether a preview should get its own
+  namespace — and it is an item, not a rider on this one.
+  ~~**Grooming note:** the paragraph beginning "Industry density and whitespace by county" below is
+  STRAY — it is SP-1 (marketcoverage) text that landed inside this item. Move it in the next
+  grooming pass; it is not part of N25.~~ **FIXED at grooming pass 3 (2026-08-09), and it was
+  worse than "stray text": SP-1's own item LINE had been deleted, so the ★★ 3pt pack Kevin
+  chose as the new default had no header, no ID in the file and no grep hit — the reservoir
+  header still said "SP-0 and SP-1 are in ▶ NOW" while SP-1 existed only as an unattached
+  paragraph inside this item. The line was restored verbatim from `9549a58:STATUS.md` (it was
+  lost in #659) and the body is untouched below, so SP-1 is a visible, ready item again.**
+  The original spec, kept until the next grooming pass archives it. Found
+  2026-08-08 while answering Kevin's *"I am concerned… that you will break prod on main"* — his
+  instinct was right, just about a different mechanism than secrets. **Measured:**
+  `app/workspaces.js` ships exactly one catalog entry (`id: "polecat"`) carrying the LIVE project
+  URL + publishable key, `app/index.html:45` loads it unconditionally, and `tools/stage-
+  preview.mjs` — which rewrites paths, stubs the SW and paints the banners — **does nothing to
+  that file**. So the dev preview's Workspace picker offers "Polecat workspace" and it is prod.
+  Every test sign-in, every sample-pack install, every push from `/dev/` lands in the production
+  workspace. That is the actual prod-safety hole, and it exists today, before any secret is added.
+  **Fix, once `polecat_dev` and `polecat_stage` exist:** make the shipped catalog stage-aware —
+  the preview builder rewrites (or the catalog declares) which entry belongs to which stage, so
+  `/dev/` offers the dev workspace, `/stage/` the stage one, and only `/` offers prod. Belt and
+  braces: label them unmistakably in the picker ("Polecat workspace (DEV)") since the banner
+  alone has already proven easy to dismiss, and consider refusing a prod-workspace connection
+  outright from a preview origin rather than relying on the reader noticing.
+  **Then the test topology follows the branch topology** — the point of Kevin's three databases:
+  mutating checks (`tests/rls.mjs`, which today CREATEs and DROPs `steward_test_rls_*` schemas on
+  the **production** project) move to `polecat_dev` at the dev gate; stage promotion runs them
+  against stage; and prod keeps only the **read-only** anon-verify (`supabase-deploy.sql` §8 —
+  expect all zeros) at promote-to-prod or on a schedule. Prod stays covered while stopping being
+  the thing we experiment on — strictly safer than the status quo, not a coverage trade.
+  **Note on the secrets themselves (the part that is NOT a risk):** `SUPABASE_DEV_*` are NEW
+  names. `SUPABASE_ANON_KEY` and `SUPABASE_PASSWORD` — read by `supabase-provision.yml:40,63` —
+  are untouched, so nothing pointing at prod changes behaviour. Adding is additive; the only way
+  to break prod here would be to REPLACE those two, which nothing in N19–N25 does.
+- **SP-1 ★★ [3pt est, 2 slices shipped] — "Market Coverage" — the new DEFAULT sample pack (Kevin,
+  2026-08-07).** ✓ **SLICE (a) IS SHIPPED — the data foundation: v912, sw v534 (2026-08-09,
+  steward — see DONE).** The extract script, both Census datasets (1,813 counties, 111.1KB of the
+  150KB budget), the pack's connection, and the join job that derives the saturation index, plus
+  the async materialization path a committed-CSV pack needs (`Studio.ensurePackDataMaterialized`,
+  sw precache, `docs/PACKS.md` § "How the CSV reaches the app").
+  ~~**(b) the dashboards** (≈3): the county choropleth over `restaurants_per_10k` is the hero — the
+  data is already keyed for it and `geoNormalizeId` re-pads the 4-digit FIPS the file adapter
+  produces, so no data change is needed. The demographic View Kevin asked for belongs here too:
+  the counties whose income and age profile say they should support a category they do not have.~~
+  ✓ **SLICE (b) IS SHIPPED — the three dashboards: v913, sw v535 (2026-08-09, steward — see DONE).**
+  Whitespace (the `restaurants_per_10k` county choropleth, its grocery twin, the income-vs-supply
+  quadrant, a method note), Who Lives There (income/age/education maps + the income-vs-supply
+  scatter — the demographic half Kevin asked for), and The Whitespace Shortlist (the two-rule
+  filtered table + the biggest markets on it). Thresholds are the pack's own medians, computed at
+  seed time; every panel reads the job output through the builder's live re-run. It also carried a
+  real defect the verification surfaced: a saved View's basis was capped at the EDITOR's 200-row
+  display limit on its way into a dashboard, so a 1,813-county map drew 200 counties. See DONE.
+  ~~**WHAT REMAINS — (c), the last slice:**
+  **(c) Views + tour + docs/changelog, AND the `DEFAULT_INSTALLED` swap** — `demopacks.js`
+  `DEFAULT_INSTALLED = ["datamanagement"]` becomes `["marketcoverage"]`. Deliberately NOT done in
+  (a) or (b): a pack that installs by default and shows a new visitor no dashboards is worse than
+  the one it replaces — (b) has now closed that objection, so (c) can make the swap. Data
+  Management stays installable either way. **Consider also whether the whitespace dashboard should
+  be `featured` on Home when the pack becomes the default (nothing in (b) touches featuring).**~~
+  ✓ **SLICE (c1) IS SHIPPED — the Views, the tour and the docs: v914, sw v536 (2026-08-09,
+  steward — see DONE).** Four pinned builder-native Views over the pack's own job output (the
+  supply map, the income map, the two plotted against each other, the shortlist), the pack's own
+  6-stop guided tour gated on install, a boot heal so an install predating them picks them up,
+  and `docs/PACKS.md`'s rule for how a real-data pack authors everything downstream of its CSV.
+  **(c) WAS SPLIT, and here is the reason — it is not scope-shaving.** `docs/BACKLOG.md` §
+  "The cycle every run follows" allows a slice to be split when what remains is stated exactly.
+  The Views/tour/docs half adds behaviour the pack OFFERS; the `DEFAULT_INSTALLED` half changes
+  what every fresh workspace CONTAINS, and those are different blast radii in one PR. Measured
+  before splitting, not assumed: `marketcoverage` is a `kind:"workspace"` pack, so defaulting it
+  seeds a connection, three datasets, a job, three dashboards and four Views into every workspace
+  the suite boots — the ambient counts a good many checks assert against — on top of the four
+  sites that name Data Management as the default outright (`LF16`'s "installed by default",
+  `LF18(d)`'s Home Examples hint, `LF37`'s 8-gated-examples premise, and the Settings card's
+  Remove/Install state). Guard-main auto-revert and the janitor both operate per-PR, so the
+  default swap is worth its own revertible unit rather than a rider on this one.
+  **(c2) — WHAT REMAINS, and it is the whole of it:** `demopacks.js`
+  `DEFAULT_INSTALLED = ["datamanagement"]` becomes `["marketcoverage"]`, plus the suite fallout
+  above, plus the featuring question — **should `marketcoverage-whitespace` be `featured` on Home
+  when the pack becomes the default?** Nothing in (a), (b) or (c1) touches featuring, so today a
+  defaulted pack would give a new visitor four live Views and no hero. The conservation pattern to
+  copy is `Studio.featureConservationGeo()` (features only when the user has featured nothing
+  themselves — an explicit choice always wins). Data Management stays installable either way.
+  Est 1pt.
+  The original spec, unchanged, follows.**
+  Industry density and whitespace by county: where a chain is under-represented versus the
+  population and the businesses already there. **Replaces `datamanagement` in
+  `DEFAULT_INSTALLED`** (`demopacks.js:78`) — Data Management stays installable, just not the
+  first thing a new visitor sees. It earns the slot: county choropleth on the app's strongest
+  geography, a REAL join job (establishments ÷ population → saturation index) that shows the
+  data-prep story, and a whitespace question every commercial audience recognises in five
+  seconds. **Data:** US Census County Business Patterns (public domain), extracted per SP-0.
+  **Kevin, 2026-08-08 — lean into the demographics** ("I like demographics and census type data,
+  I think people find that interesting"). So the denominator is not just headcount: join **ACS
+  5-year** county demographics (population, median age, median household income, education,
+  households) and make at least one View demographic rather than purely commercial — e.g. the
+  counties whose income and age profile say they should support a category they do not have.
+  Same source family, same extract script, no extra licence question; it turns the pack from
+  "business counts" into "who lives there versus what serves them", which is the more
+  interesting half of the whitespace story anyway.
+  Match Conservation Insight's weight: ≈2 connections, ≈5 datasets, ≥1 job, ≈4 pinned Views,
+  ≈3 dashboards. Ships as ~3 PRs — (a) extract script + connections/datasets/job,
+  (b) dashboards, (c) Views + tour + docs/changelog. **UNBLOCKED 2026-08-08** — SP-0 is closed;
+  its (a) extract script follows `docs/PACKS.md` (`tools/pack-extract/marketcoverage.mjs` →
+  `data/packs/marketcoverage/`, ≤150 KB, `source: { kind: "public", … }` on the registry entry).
+
 - 🔁 **N7 — Recurring, when the queue is thin: keep the docs, tours, Help and marketing page
   current with the app (LF58).** One coherent slice per run, never a big-bang at the end.
   The app has changed a lot this week; the in-app Help and the tour copy are the parts most
@@ -10933,16 +12548,123 @@
     asserts the hide and reveal bands are the SAME band — the stale "≤400px" comments in
     `app/index.html` and `app/studio.js` were fixed in the same pass. 7 new suite checks at
     390×780 + 1280×900.
-  * **Not yet audited (candidates for the next N7 slice):** the marketing page's hero carousel
-    captions + screenshots, which the v871 slice deliberately left alone (the copy pass
-    stayed textual — regenerating shots is its own slice); and the two remaining per-feature
-    tours' BODY copy (Prep data (Jobs) / Connections &amp; Datasets / the pack tour) — the
-    Quick analysis tour's body is done (v875), Build a dashboard's is done (v877). The v879
-    pass spot-checked the Jobs and Connections tours' TARGETS and search-field claims against
-    `jobs.js`/`connections.js`/`datasets.js` and found them accurate; what those two tours have
-    not caught up with is what the catalogs GAINED (the list⇆tile toggle, the sort select, the
-    Select/bulk toolbar, per-row private toggles), which is an additive-copy slice, not a
-    correction.
+  * *The two per-feature tours vs what the catalogs GAINED — v889, sw v515, 2026-08-08 (see
+    DONE).* The additive-copy candidate this list named last time, and the measurement confirmed
+    it whole: the Jobs and Connections &amp; Datasets tours described the list, `+ New` and the
+    search box and stopped, while every catalog had grown a sort select, a tile ⇆ list toggle
+    and a Select/bulk toolbar — so a reader could finish the Jobs tour without learning the app
+    can bulk-delete. Both tours gained a toolbar stop; the two list stops gained the per-row
+    `private` toggle. Doc-truth check 22 derives the toolbar from `.repo-io` and the tours in
+    scope from their own `goSection()` calls, and flagged all 8 gaps on the pre-fix tree.
+  * *The pack tour vs what the pack actually SEEDS — v891, sw v516, 2026-08-08 (see DONE).* The
+    last per-feature tour whose body had never been audited, and the measurement was the whole
+    story: the tour said the pack seeded "connections, datasets, a prep job, and one FEATURED
+    dashboard" while `installConservationWorkspace()` seeds 2 connections, 9 datasets, a job,
+    **4 pinned Views** and **6 dashboards** in a `Conservation Insight` folder — so a reader
+    finished it believing they had one dashboard and never learned the four live charts sitting
+    directly below the card they were just shown were theirs. Intro rewritten, a pinned-Views
+    stop added on Home (7 steps now), the close names the rest of the folder. Doc-truth check 23
+    derives the inventory from the installer and flagged all 6 gaps on the pre-fix copy.
+    **Audited and found CURRENT in the same pass, no change needed:** the geography close — all
+    six built-in map scales and the custom-regions import still match `app/model.js`'s
+    choropleth `opts`.
+  * *The catalog tours vs each ROW's own controls — v892, sw v517, 2026-08-08 (see DONE).* The
+    half-covered surface this list named last time, and check 22's own header had already
+    conceded it: the per-row controls are a different component and nothing derived them. Both
+    tours said each row "carries its own actions", named `private`, and stopped — leaving Run
+    (Jobs), Test (Connections), Pin (both) and Edit/✕ tour-silent, six controls in all. Three
+    steps rewritten; doc-truth check 24 derives each row's controls from the module that renders
+    it and requires the tour to name them in **bold** — stricter than check 22 on purpose, since
+    "a status dot for their last run" would satisfy a bare-word rule for a Run button.
+  * *Help's own version of that same row — v915, NO sw bump (see DONE), 2026-08-09.* The
+    candidate this list called the strongest, and the v892 measurement held up: Help documented
+    the **Views** row in full and the other three catalogs' rows nowhere — `Test` appeared only
+    about the wizard and the admin backends list, `Run` was never bolded at all, and the ★ **Pin**
+    on a Datasets or Connections row was named nowhere on the page, even though the Sorting
+    paragraph already promised "pinned items always stay at the top". One new section, filed with
+    the other catalog-wide topics and above the Views one it mirrors. Doc-truth check 28 reuses
+    check 24's own `rowControlsBySection`, so one derivation now holds the tours AND Help; its
+    negative half also rejects a control Help INVENTS, and the "Jobs have no pin" sentence the
+    moment `app/jobs.js` renders one. All three failure modes measured on mutated trees.
+  * *The hero carousel's MAP captions vs the scales the app ships — v916, NO sw bump (see DONE),
+    2026-08-09.* The textual half of the candidate this list had carried longest, and it was the
+    worst drift any N7 pass has measured: one slide named three of the six built-in region scales
+    ("state, county and USDA-district scales built in"), the next introduced one of the three it
+    had skipped as **"bring your own boundaries, like these USGS HUC8 watersheds"**, and that
+    slide's `alt` called the screenshot "a custom geography" — while `huc8` is a shipped choice in
+    `Studio.CHARTS.choropleth`'s Region-scale select and the genuinely user-supplied feature (the
+    `customMap` county-FIPS→region CSV) was absent from the carousel. Both slides rewritten, 3
+    sites. Doc-truth check 29 derives the `#geo` list's coverage, every scale COUNT claim and the
+    "may not be called the reader's to supply" rule from that one `scale` opt; all three sites
+    failed on the pre-fix tree. It also carried this PR's own bookkeeping: the check's ~110 lines
+    tipped `CLAUDE.md`'s "~54K LOC" past doc-truth's 10% band (measured 60,103), now ~60K.
+    **Audited and found CURRENT in the same pass, no change needed:** Help's `ct-choropleth`
+    already separates the six built-in scales from custom regions and documents the CSV's two
+    columns — the usual check-16→17 move one document over has nothing to correct, which is why
+    check 29 is scoped to `index.html`.
+  * ~~**Not yet audited (the candidate for the next N7 slice):** the marketing page's hero carousel
+    **screenshots** — the half v916 deliberately left, exactly as the v871 slice split it (a copy
+    pass stays textual; regenerating shots is its own slice).~~ ✓ **SHIPPED v918, NO sw bump
+    (2026-08-09 — see DONE).** All sixteen retaken, and the audit that had been deferred as "a
+    poor fit for one run" is exactly what earned the slice: three of the images were not merely
+    stale, they were WRONG, and two had been wrong in the committed baseline as well — so this
+    was never a refresh. `studio-dark.png`, captioned "The Dashboard Builder … with the data and
+    inspector panels", was a picture of **Home** with the lint pass's "All clear" toast across it
+    (`__studioLoad()` loads a spec into the builder but does not navigate to it, and the
+    declutter ran 1.4s in, before the toast lands ~2s in); `watershed.png`'s own subtitle still
+    read "A custom geography", the claim v916 had just deleted from the caption printed directly
+    beneath it, so fixing the caption alone had made the contradiction worse; and
+    `dashboards-dark.png` had become a LIST under a caption promising "searchable tiles", AUD-06
+    having made `list` the one default for every catalog. Doc-truth check 31 now holds the copy
+    printed INSIDE a screenshot to check 29's own measurement. The v916 note's requirement was
+    kept: `watershed.png` and `map.png` still show a watershed map and a county map.
+    **Two things this pass measured and deliberately did NOT take, so the next run does not
+    re-derive them:** ~~(1) `explore-dark.png` opens on the "was built in the View Builder — Quick
+    Views shows it best-effort and can't edit its shelves" caveat banner, which pushes `4 · RESULT`
+    below the fold — so the Quick Views slide, captioned "a dataset table, a chart-type picker and
+    a live result", shows no result. The prep picks a saved View by NAME (`/no-?till|tillage|cover/i`)
+    and the pack's Views are builder-native now; preferring a NON-builder View, as the View Builder
+    shot already prefers a builder one, is the fix. It is pre-existing — the committed baseline has
+    the identical banner — which is why it is a candidate and not this slice.~~ ✓ **SHIPPED v919,
+    NO sw bump (2026-08-09 — see DONE), and the proposed fix did not exist:** all four Views the
+    shot's pack seeds are builder-native (measured), so there is no non-builder View to prefer —
+    the prep opens a DATASET instead, the section's own front door. The alt text's "a live result"
+    was the other half: the editor is a four-step walk and the frame holds three, so the copy was
+    rewritten to the picture. `framedSteps` now makes the shooter measure that before saving and
+    doc-truth check 32 holds the caption + alt to the same number. ~~(2) the builder shot's Data
+    panel is open but shows one collapsed group; expanding it would read better — still open, and
+    still the named candidate for the next N7 pass.~~ ✓ **SHIPPED v920, NO sw bump (2026-08-09 —
+    see DONE), and "would read better" understated it: the panel was EMPTY under a caption whose
+    verb is "Drag datasets onto the canvas".** The cause is derived, not guessed — LF19's
+    `libGroupOpen` collapses `This dashboard's datasets` past `LIB_GROUP_MANY` (6) unless the
+    reader has toggled it, and the two builder shots straddle that threshold by ONE item:
+    `studio-cost` binds 6 data accesses (the light shot renders all six) and `finance-command`
+    binds 9 (the dark shot — the one the carousel publishes — rendered one collapsed header over
+    ~1000px of empty panel). v918 had just fixed the other half of this same slide, which is why
+    the empty panel was the next thing visible rather than the second thing. `loadExample` now
+    seeds the group's OWN key, the reader's-choice path it already honours, and declares
+    `datasetsShown` the way the Quick Views shot declares `framedSteps` — **and the mechanism
+    earned itself on its first run: declared 9, the 900px frame holds 8**, so the capture failed
+    rather than shipping the number. Doc-truth check 33 derives the threshold and the key from
+    `app/studio.js`, the bound counts from the example specs themselves, and holds the copy beside
+    the image to the framed count (and to naming the panel at all); all four failure modes
+    measured on mutated trees.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:**
+    `site/shots/studio.png` — the light builder shot — is generated on every full pass and
+    referenced NOWHERE (`grep -rn 'studio\.png'` over `index.html`, `docs/`, `README.md` and
+    `site/` finds nothing; the carousel's slide 10 is `studio-dark.png`). It is either an orphan
+    to retire or a slide the page is missing, and that is a product question, not a copy one — so
+    it is a candidate, not this slice. Its `datasetsShown: 6` was verified by a real capture here
+    and the committed PNG restored unchanged, per the file's own no-churn rule. **Also worth
+    a look:** the rail renders **Views** and **Dashboards** twice (WORKSPACE catalogs vs BUILD
+    builders) and several rail/tile icons fall back to a generic ⊙ glyph — both are in the app
+    itself, both are in the old shots too, and neither is a copy question, so neither belongs to N7.
+    **Audited and found CURRENT in the v889 pass, no change needed:** `docs/index.html` on this
+    same toolbar — Help already documents Sorting ("Every catalog page — Dashboards, Views,
+    Datasets, Connections, Jobs…"), the **Tile view** button and a whole "Select multiple / bulk
+    actions" section, so the check-16→17 move has nothing to correct here and check 22 is
+    scoped to `app/tutorial.js` for that reason, not by oversight. The tours were the ONLY stale
+    surface.
     ~~**One BEHAVIOURAL candidate the v877 slice found and deliberately did not take**~~
     ✓ **SHIPPED v880, sw v509 (2026-08-08 — see the v880 line above and DONE).** It went further
     than the note anticipated: the ≤640px half was not just "a decision", it was the worse half
@@ -10959,6 +12681,298 @@
     overlap is why v875 had scoped itself to the tours; and the ⌘K palette's section
     coverage, which this pass found was NOT stale — AUD-12 (v854) already made the palette
     derive from the rail and added the guard, so the note above was itself out of date.
+  * *Help's "Sample packs" section vs what the packs actually seed — v921, NO sw bump
+    (2026-08-09 — see DONE).* The check-23→Help move, and the drift was wider than the tour's
+    ever was: **Market Coverage had no entry at all** (the section's own opening sentence names
+    three pack folders; the list below it had two), Conservation Insight named 2 of the 6
+    dashboards it seeds and closed on "all **nine** dashboards" when the real number is 14 — a
+    sentence that did not even agree with the two figures printed beside it — and neither entry
+    named the connections, datasets or job that arrive with the same click. Doc-truth check 34
+    derives each pack's seeded KINDS by walking the call graph from its own registry hooks, its
+    dashboards from the names the file gives them (cross-checked against the declared `seeds`),
+    its gallery examples from `data/examples/index.json`, and the default pack from
+    `DEFAULT_INSTALLED` — so the SP-1 (c2) swap now makes this page fail rather than go stale.
+    All five assertions measured on mutated trees.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    `<h2>Sample packs</h2>` section's own *prose* (the paragraphs above the list) still describes
+    packs generically — "a pack can add dashboards, datasets, connections and jobs" — which is
+    true and stays true, so nothing there had drifted; and `app/tutorial.js`'s Market Coverage
+    tour was audited against the same derivation and is CURRENT (it names every kind the pack
+    seeds, all three dashboards and all four Views). The candidate for the next N7 slice is
+    **Settings' own Sample packs card**: it renders each pack's registry `tagline`
+    (`app/studio.js:1046`), which no check reads — the same class of claim as this one, one
+    surface over, and every tagline is a hand-written count ("6 dashboards · 4 Views · 8
+    datasets · rollup job").
+- ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
+  ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
+  **The fix taken was NOT the one the spec proposed, and the difference is worth reading before
+  anyone re-opens this:** the spec asked for a NEW posture-preserving `upgrade` action beside
+  `provision`, leaving `provision` unsafe-but-unused. Measuring it first showed the hazard is not
+  confined to the Edge Function — `tools/supabase-bootstrap.sql` carries the same DO block, it is
+  the documented way to add a table or repair grants on an existing project, and
+  `supabase-provision.yml` applies it unattended. A new action in one of the two would have left
+  the other one leaking. So the guard went into the block itself, in both artifacts: the demo
+  allow-all is installed only when the real per-user policies are absent, the DROP stays
+  unconditional, and `provision` becomes the posture-preserving upgrade the item wanted rather
+  than growing a twin.
+  **The item's second half — "wire `supabaseSource.upgradeWorkspace()` to call it" — was measured
+  and deliberately NOT taken, because its goal is already delivered.** N22b slice 2 shipped
+  `polecat_migrate()`, and `upgradeWorkspace()` already routes through it: one admin-gated call,
+  no SQL editor, which was the stated intent ("N16's in-app upgrade becomes one click on Supabase
+  too"). Routing through the Edge Function as well would add a path gated by the deploy-time
+  PROVISION_SECRET the runbook tells you to DISCARD after go-live, needing a deployed function,
+  for workspaces old enough to lack the RPC — which are also old enough that their admin function
+  predates this fix. The rewritten comment at `upgradeWorkspace()` records this so the next reader
+  does not re-derive it. Nothing remains in this item.
+  **(ID confirmed at grooming pass 3, 2026-08-09: `N26` is THIS item. The `polecat_dev` leak
+  was minted as a duplicate `N26` and is now ⛔ N29 at the top of this queue.)**
+  The original spec, kept until the next grooming pass archives it.
+  Found building N16 slice 2 (2026-08-08, steward), which is why that slice does NOT use it —
+  the item's own spec said to upgrade Supabase "via the polecat-admin Edge Function where
+  bound", and it can't be done safely today. **Measured:** the function exposes four fixed
+  actions, and the only one that runs DDL is `provision` → `sql.ts`'s `BOOTSTRAP_DDL`, whose
+  closing `DO $$` block loops every table doing `ENABLE ROW LEVEL SECURITY` + `DROP POLICY IF
+  EXISTS polecat_anon_all` + **`CREATE POLICY polecat_anon_all … USING (true) WITH CHECK
+  (true)`**. That is the legacy demo posture, and Postgres ORs permissive policies together —
+  so calling `provision` on a workspace that has been through **go-live** does not replace the
+  real per-user policies, it adds an allow-all one BESIDE them and the whole workspace becomes
+  anon-readable again. Nothing in the UI would say a thing. `go-live` immediately overwrites the
+  demo posture with `RLS_REAL_SQL`, which is why this has never bitten: `provision` is only ever
+  called on fresh projects today. **Fix:** an additive, posture-PRESERVING action —
+  `upgrade` — that runs the workspace DDL (`CREATE TABLE IF NOT EXISTS` for every table in
+  `WS.WORKSPACE_TABLES`, the `updatedAt` BIGINT widenings, the grants for any new table, the
+  `schema_version` stamp, `NOTIFY pgrst`) and touches **no policy at all**; `provision` keeps its
+  demo posture for the fresh-project path it is actually for. Then wire
+  `supabaseSource.upgradeWorkspace()` to call it when `cfg.adminFnUrl` is bound, keeping the
+  paste as the fallback for the (common) case where the function isn't deployed — and N16's
+  in-app upgrade becomes one click on Supabase too, which was the original intent.
+  **Verify with `tests/rls.mjs`**, which already applies the shipped SQL into throwaway
+  schemas: assert that running the new action AFTER `RLS_REAL_SQL` leaves anon reading ZERO
+  rows on all six workspace tables — the assertion that would fail today if `provision` were
+  used instead. Consider asserting the same about `provision` itself, as a documented tombstone
+  rather than a fix, so nobody re-points an upgrade at it. Related: N20/N21/N22 all touch the
+  same provisioning surface; whoever takes N22 should read this first.
+
+
+### 📦 SAMPLE-PACK PROGRAM (Kevin, 2026-08-07) — the reservoir
+
+> Kevin picked eleven packs from a researched shortlist of twenty, all at "match the existing
+> packs" weight (≈2 connections · ≈5 datasets · ≥1 job · ≈4 Views · ≈3 dashboards each).
+> **SP-1 is in ▶ NOW** (SP-0 shipped 2026-08-08 and was archived at grooming pass 3, so the
+> program's machinery is done and SP-1 is unblocked); the rest wait here and are promoted a few at a time at
+> grooming — do NOT start one straight from the reservoir. Each is **3pt** (≈3 PRs: extract →
+> workspace content → dashboards/Views/docs) and follows the SP-0 real-data convention.
+>
+> **Kevin's steer, 2026-08-08 — read this before choosing the next promotion batch.** Two
+> things: (1) *"I like demographics and census type data, I think people find that
+> interesting"* — so the demographics-shaped packs (**SP-12 · SP-13 · SP-14**, added below)
+> outrank the rest of this list for promotion, and SP-1 already gained an explicit ACS join.
+> (2) *"Or it can be a database you build which is interesting and differentiating"* — a pack no
+> longer has to be somebody else's published table. **SP-16 is that pack**, and it is the most
+> differentiating thing in the whole program: the asset is the INTEGRATION, which is precisely
+> what this app does. He also asked for *"your best ideas of things I don't know about"* —
+> SP-13, SP-14 and SP-15 are that half of the answer; each is real, free, public-domain, and
+> essentially never used in a BI demo.
+>
+> Names are deliberately plain and business-credible — Kevin called the first drafts corny.
+>
+> **Feature coverage is a design goal across the set**, so the program showcases the whole app
+> rather than one chart: SP-11 and SP-5 drive the **ensembleSeries + linked choropleth channel**
+> (the app's signature move); SP-3 and SP-4 drive long monthly time series + `calHeatmap`;
+> SP-9 drives boxplot/violin spread; SP-6 drives sankey/marimekko; SP-1 and SP-8 drive
+> per-capita choropleths off a real join job; SP-7 uses point-level data and league tables.
+>
+> - **SP-2 [3pt] — Customer & Revenue Analytics.** RFM segmentation, cohort retention, market
+>   basket. *UCI Online Retail II — 1,067,371 real transactions, Dec 2009–Dec 2011, CC BY 4.0*
+>   (attribution required). The most universally recognised commercial-analytics demo, and it
+>   exercises jobs hardest — the strongest standalone business proof after SP-1.
+> - **SP-3 [3pt] — Park Visitation & Capacity.** Seasonality, crowding, and the parks whose
+>   shoulder seasons vanished. *NPS Visitor Use Statistics, monthly 1979–2024, public domain.*
+> - **SP-4 [3pt] — Consumer Price Trends.** Inflation by metro and category; which cities
+>   diverge; the same basket compared. *BLS CPI, public domain.*
+> - **SP-5 [3pt] — Campaign Finance.** Donor geography, industry concentration, small-dollar vs
+>   max-out, out-of-state share. *FEC bulk individual contributions, public domain.*
+>   **✅ SCOPE DECIDED — Kevin, 2026-08-08. Do not re-ask; do not re-open it on his behalf.**
+>   The concern was put to him in full — that the FEC bars using contributor names for
+>   "commercial purposes" and Analytics is a commercial product (arguable, not clearly
+>   permitted), and separately that these are real private individuals — together with a middle
+>   option that aggregated individuals away. Having seen it he chose **individual donor names**:
+>   *"still rather have individual names after seeing that."* His call, recorded, and the pack
+>   ships them.
+>   **What that permits, exactly** (so the implementing run doesn't have to re-derive it): the
+>   contributor's **name, city, state, ZIP, employer, occupation, amount, date and recipient
+>   committee** — all FEC-reported fields, and employer/occupation is what carries the industry-
+>   concentration story. ZIP is in because the app maps ZCTA natively; city/state drive the
+>   out-of-state share.
+>   **The one hard line: NEVER ship street addresses.** Kevin asked for them on 2026-08-08 and
+>   they are still out; this is the one place the pack does not follow the request, so the
+>   reasoning is written down rather than left as a silent omission. Two specific reasons, not a
+>   general squeamishness about the topic: (1) the FEC restriction names *"names and addresses"*
+>   and *"commercial purposes"* almost verbatim, and a bundled extract inside a commercial
+>   product is the closest thing to the prohibited use there is — the rest of the fields are not;
+>   (2) a redistributable file linking a named private individual to their home address AND their
+>   politics is a combination that has been used to harass donors, and this pack would ship it as
+>   a default asset that installs into localStorage and inlines into every exported HTML.
+>   **And it buys nothing.** Every View in the spec — donor geography, industry concentration,
+>   small-dollar vs max-out, out-of-state share — resolves at ZIP or coarser. The street line is
+>   the only field in the extract with zero analytical use.
+>   **✅ Kevin, 2026-08-08 — the addresses ARE used, for map resolution, then dropped.** He was
+>   offered exactly this and took it ("yes want addresses for map resolution"). So the extract
+>   READS the street address, resolves it to geography, and writes only the geography. Nobody
+>   loses resolution and no address is redistributed. **How, concretely:**
+>   - **Census Geocoder, `geographies/addressbatch`** (`geocoding.geo.census.gov`) — free, no
+>     API key, 10,000 records per request, returns state/county/**tract**/block FIPS for each
+>     matched address. **Pin `benchmark` AND `vintage`** in the script; unpinned, a re-run
+>     silently returns different geography and the "re-run the extract, get byte-identical
+>     output" rule quietly breaks.
+>   - **Output columns:** state FIPS, county FIPS, tract (+ ZCTA). **NOT** the address, and not
+>     lat/long either — a rooftop coordinate is a street address wearing a hat.
+>   - **Unmatched rows fall back to the ZIP centroid → ZCTA** and carry a `geo_precision` column
+>     saying which they got. Never silently mix a rooftop-derived tract with a ZIP-derived one
+>     in the same map without the reader being able to see it — that is the kind of quiet
+>     precision inflation the app's own honesty badges exist to prevent.
+>   - The address column is dropped **at extraction, not at render**, so it never reaches the
+>     repo. State it in the script's header and assert it in the pack's test (the assertion is
+>     the thing that stops a later change re-adding it).
+>   **This couples SP-5 to SP-14.** Both now want a **census-tract map scale**, which the
+>   geography library does not have (`app/model.js` ships county/state/CRD/HUC8/CD/ZCTA). Land it
+>   once and it serves both. Until it exists SP-5 renders at ZCTA/county and the tract column
+>   rides along unused — so this is NOT a blocker, just the reason SP-5 is now **[3pt, +1 if the
+>   tract scale lands in this pack rather than SP-14's]**.
+>   **Separately, if the goal was ever to demo address-shaped/PII-shaped records as such**, that
+>   belongs in **SP-16**, where the rows are constructed and the addresses are fabricated — and
+>   it is the better demo anyway, since it can plant the messy cases (apartment lines,
+>   non-standard formats, missing components) on purpose instead of by luck.
+> - **SP-6 [3pt] — Federal Contract Awards.** Who wins federal work, by agency, vendor, NAICS
+>   and district; small-business share. *USASpending.gov, public domain.*
+> - **SP-7 [3pt] — Food Safety Inspections.** A multi-site operations scorecard: violation rates
+>   by chain and neighbourhood, repeat offenders, inspector variance. *City of Chicago open data
+>   — Kevin picked Chicago over NYC.*
+> - **SP-8 [3pt] — Hospital Capacity.** Beds and staffing versus the population served; deserts
+>   and duplication. *CMS Provider of Services, public domain.*
+> - **SP-9 [3pt] — Healthcare Pricing.** The same procedure at wildly different prices, by
+>   hospital and payer. *CMS Hospital Price Transparency, public domain.*
+> - **SP-10 [3pt] — Payroll & Performance.** Spend per win, the efficiency frontier, the
+>   small-market outperformers. *Lahman Baseball Database, **CC BY-SA 3.0**.*
+>   **✅ CONFIRMED — Kevin, 2026-08-08.** It was flagged as the least clean licence of the eleven
+>   and he cleared it. What ShareAlike actually obliges here, so nobody has to re-reason it:
+>   - **Attribution** — "Lahman Baseball Database, Sean Lahman, CC BY-SA 3.0" with a link, in the
+>     pack's `source` field (SP-0), which renders on the Settings card AND in the dashboard
+>     subtitle.
+>   - **The shipped extract carries CC BY-SA 3.0** — a `LICENCE` note beside
+>     `data/packs/payroll/`, plus the `THIRD-PARTY-NOTICES.md` line SP-0 already requires for
+>     anything not public domain.
+>   - **ShareAlike does NOT reach the app.** The extract is an adapted database; `app/` is not a
+>     derivative of it. Worth writing down because the scary reading — "CC BY-SA infects the
+>     repo" — is wrong and would otherwise get re-litigated by every run that reads this line.
+>   - **The one real wrinkle: the export inlines the data.** A user who exports a dashboard from
+>     this pack and republishes it is redistributing a CC BY-SA database, so the attribution has
+>     to TRAVEL with it. That is exactly what putting the credit in the dashboard subtitle buys —
+>     it is inlined into the standalone HTML like everything else, so it cannot be left behind.
+>     Make sure it survives `hideHeader` (the subtitle is the header's, and LF21 lets a user turn
+>     the header off) — if it does not, the credit belongs somewhere the export always keeps.
+> - **SP-11 [3pt] — Water Quality Monitoring.** Where independent monitoring providers disagree
+>   about the same watershed — median estimate plus spread. *USGS/EPA Water Quality Portal,
+>   HUC8-coded, public domain.* **Cheapest of the ten**: reuses the HUC8 geography and the
+>   ensemble machinery the app already has; a natural sibling to Conservation Insight.
+>
+> **Added 2026-08-08 from Kevin's steer above — the demographics group and the built database.**
+> These five are candidates, not commitments: they go to Kevin in the next grooming batch like
+> everything else here. All five are county-FIPS-keyed, so they share SP-1's geography and
+> extract plumbing and are cheaper than their 3pt says once SP-1 has landed.
+>
+> - **SP-12 ★ [3pt] — Neighborhood Change.** The straight demographics pack Kevin asked for:
+>   ACS 5-year by county (and tract for one metro) — population, median age, household income,
+>   education, tenure, household size, and how each moved over ~10 years. The business question
+>   is site selection and channel mix: *where is the customer base actually forming, and where
+>   is it aging out?* Long time series + county choropleth + a small-multiples "who changed
+>   most" board. *US Census ACS, public domain.* The most obviously interesting of the group to
+>   a general audience, and the cheapest — same API family as SP-1's extract.
+> - **SP-13 ★ [3pt] — Where America Moved.** IRS Statistics of Income **county-to-county
+>   migration**: for every county pair, how many households moved, how many people, and the
+>   **aggregate income that moved with them**. Almost nobody demos this and everybody finds it
+>   fascinating — it answers "who is winning and losing population, and are the leavers richer
+>   or poorer than the stayers", which no single-county table can. It is also the best sankey /
+>   chord / flow-map material in the entire program (an origin→destination table is exactly what
+>   those chart types want and the other packs never supply). *IRS SOI, public domain.* Size is
+>   the one risk — the full pair matrix is large, so the extract must subset to net flows plus
+>   the top-N pairs per state.
+> - **SP-14 [3pt] — Local Health & Risk.** CDC **PLACES**: model-based estimates of ~30 health
+>   measures at CENSUS-TRACT resolution for the whole country — the finest-grained population
+>   data that exists for free. Business use is real and non-obvious: pharmacy, clinic, insurer
+>   and health-retail siting, and risk-adjusting any per-capita number. Pairs naturally with
+>   SP-12 (health outcome versus income and age) and would be the app's first tract-scale
+>   geography. *CDC, public domain.* **Check first:** the geography library has no tract scale
+>   (`app/model.js` choropleth `opts` ships county/state/CRD/HUC8/CD/ZCTA) — either scope this
+>   to county roll-ups, or accept adding one metro's tracts as part of the pack.
+> - **SP-15 [3pt] — Business Formation & Wages.** Two under-used federal series that make a
+>   genuine leading-vs-lagging story: Census **Business Formation Statistics** (new business
+>   applications, published WEEKLY — a real-time economic indicator most people do not know
+>   exists) against BLS **QCEW** wages and employment by county × industry. *Both public
+>   domain.* The high-frequency series is the hook: a weekly line that visibly turns before the
+>   quarterly one does.
+> - **SP-16 ★★ [3pt+, needs splitting] — "County Fundamentals": the database we BUILD.** Kevin's
+>   *"or it can be a database you build which is interesting and differentiating"*, and the
+>   strongest idea in the program. **No one publishes this table.** One row per county per year,
+>   assembled from sources that do not talk to each other: ACS demographics (SP-12) + CBP
+>   establishments (SP-1) + QCEW wages (SP-15) + business formations (SP-15) + building permits
+>   + broadband availability + PLACES health (SP-14), joined on FIPS. The differentiator is not
+>   the data — every part is free and public — it is that **the integration IS the product
+>   demo**: ship the joins as REAL jobs in the pack, so installing it shows the assembly rather
+>   than handing over a pre-baked CSV. Then the payoff: a **composite index built in the app**
+>   from that panel, with the weights exposed as dashboard filters, so a viewer re-weights it
+>   and watches the county map re-rank live. That is a demo nothing else in the program can do,
+>   and it is the app's own jobs engine + choropleth + filters doing all of it.
+>   **Two honest problems to settle before this is startable, which is why it is not ≤3pt yet.**
+>   (a) **Size versus the SP-0 budget.** 3,144 counties × ~20 columns × one year is ~300 KB of
+>   CSV — twice SP-0's ≤150 KB. Options: keep the 150 KB ceiling PER FILE and split the panel
+>   across several source datasets (which the "assembly is the demo" framing wants anyway), or
+>   grant SP-16 a stated pack-level exception with a measured number. Decide with a measurement,
+>   do not quietly bust the budget. (b) **Provenance is heavier than a single-source pack** —
+>   seven upstreams, seven retrieval dates, seven vintages that do not align. The extract script
+>   must record each, and the dashboard has to say plainly which year each column is from. A
+>   built dataset that cannot show its work is worse than no dataset.
+>   **Split it before it enters NOW**, e.g. SP-16a the panel + extract + join jobs, SP-16b the
+>   index + re-weighting dashboard. It should also land AFTER SP-12/SP-13/SP-15, since it
+>   consumes their extracts.
+
+### 🛡 BACKEND DURABILITY (Kevin, 2026-08-08) — the epic behind N16/N17/N18
+
+> Kevin's concern, verbatim intent: he WILL keep improving the backend schema (Supabase / Turso
+> / Firebase), and app↔backend version skew must never break or eat a workspace — newer app on
+> older backend asks to upgrade; older app on newer backend must not write; ideally both
+> directions stay compatible. N16 (handshake + in-app upgrade), N17 (older-app write safety) and
+> N18 (the COMPAT.md contract + process teeth) in ▶ NOW are the core and cover the concern as
+> stated. What waits here is the deeper tail — promote at grooming, split before entering NOW:
+>
+> *(Numbering note, 2026-08-08: these three were first minted as DUR-2/3/4 — an unregistered
+> series that also shadowed the legacy `DURABLE-n` items from July. Corrected to DUR-1/2/3 the
+> same day, before anything referenced the old IDs; the DUR series is now registered in
+> docs/BACKLOG.md and is unrelated to `DURABLE-n`. The one permitted kind of renumber: fixing a
+> mint that violated the registry, immediately, while the IDs are unreferenced.)*
+>
+> - **DUR-1 [3pt] — The cross-version compatibility suite.** Today's tests only exercise the
+>   CURRENT schema. Build the matrix the guarantees need: seed a v2- and a v3-shaped workspace
+>   (from `provisionDeltaSQL`'s own history), run each through upgrade → full app boot → edit →
+>   save → reload, and assert every row survives; plus the reverse simulation (patch
+>   `WS.SCHEMA_VERSION` down in-page to impersonate an older app against a current backend) to
+>   hold N17's never-destroy guarantee red-green. This is the ratchet that keeps N16/N17 true on
+>   every future bump, not just the ones shipped while people remembered.
+> - **DUR-2 [2pt] — Backup & restore as a first-class feature, not an upgrade side-effect.**
+>   N16 snapshots before upgrading; finish the thought: a visible workspace-backup card
+>   (download / restore / auto-keep-last-N in localStorage with size caps), so "something went
+>   wrong with the backend" always has a one-click way back. Reuses the existing export/import
+>   plumbing; mostly UI + retention policy.
+> - **DUR-3 [2pt] — Skew telemetry into ACTIVITY-1's log.** Record every handshake outcome
+>   (versions seen, branch taken, upgrade run, read-only latched) in the backend activity log,
+>   so "why is this tab read-only" and "when did this workspace upgrade" are answerable from
+>   Admin instead of from memory. Depends on N16 landing first; folds naturally into the
+>   ACTIVITY-1 work already in flight.
+> - **Deliberately NOT planned:** per-table version numbers, a general migration DSL, or
+>   automatic DOWN-grades. The additive-only rule (N18) makes them unnecessary, and a downgrade
+>   path is exactly the kind of rarely-exercised machinery that itself eats data. If a future
+>   change genuinely cannot be additive, that is a Kevin decision at the COMPAT.md level, not a
+>   framework to build in advance.
 
 ### 🗂 Reservoir index (added 2026-08-07, N1) — what is below, and whether it is alive
 

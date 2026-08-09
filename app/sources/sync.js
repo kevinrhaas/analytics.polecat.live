@@ -20,6 +20,7 @@
   "use strict";
   var W = function () { return Studio.Workspace; };
   var C = function () { return Studio.SecretsCrypto; };
+  var WS = function () { return Studio.WS; };
 
   var CONN_KEY = "analytics.datasource.v1";
   var SECRET_KEY = "analytics.datasource.secret.v1"; // cached passphrase (this browser SESSION)
@@ -159,7 +160,107 @@
   // (pullNow, post-sign-in) or explicit connect (connectAdopt/connectPush)
   // clears it.
   var _preAuth = false;
+  // N16 slice 1 — THE VERSION HANDSHAKE (Kevin, 2026-08-08: "future versions of
+  // the app will break previous versions of the database back end"). Every
+  // provisioned workspace has always stamped `polecat_meta.schema_version` and
+  // every adapter has always reported it; nothing ever compared it, so BOTH
+  // mismatch directions proceeded silently. `_backendVersion` is what the last
+  // snapshot we read reported, and `_readOnly` is the latch that closes the
+  // direction that eats data: a workspace NEWER than this build. It costs one
+  // integer comparison, and it is not paranoia — every adapter's save() is a
+  // whole-snapshot REPLACE over the tables THIS build knows about, so one push
+  // from a stale tab republishes a v4-shaped view of a v5 workspace. Reading a
+  // newer workspace is safe (replaceAll preserves tables it doesn't know —
+  // AUD-04), so the app stays fully usable, just read-only, and says so out
+  // loud.
+  //
+  // N16 slice 2 — the OLDER direction. A workspace that predates this build
+  // still works (every bump is additive), so this direction is an OFFER, not a
+  // latch: `upgradeWorkspace()` below is the first-class in-app step that used
+  // to surface only as a FAILED SAVE's error string. Two properties are
+  // load-bearing and are enforced by the API shape rather than by a checkbox:
+  // the backend snapshot is BACKED UP before anything is written (no caller can
+  // skip it — there is no opt-out parameter, only a required writer), and an
+  // adapter that cannot DDL from the browser returns the paste-me SQL instead
+  // of pretending it upgraded anything.
+  var _backendVersion = null, _readOnly = false;
   var listeners = [];
+
+  // Called wherever a freshly-read snapshot is adopted. Returns the latch.
+  function adoptSchemaVersion(snap) {
+    var v = snap && snap.schemaVersion;
+    _backendVersion = (v == null ? null : Number(v)) || null;
+    var wasReadOnly = _readOnly;
+    _readOnly = WS().compareSchema(_backendVersion) === "newer";
+    if (_readOnly && !wasReadOnly) {
+      logSync("read-only", false, "workspace schema v" + _backendVersion +
+        " is newer than this app (v" + WS().SCHEMA_VERSION + ") — writes are off");
+    }
+    // A quiet background pull can flip the latch without any status change, and
+    // the banner must not wait for the next unrelated event to appear/clear.
+    if (_readOnly !== wasReadOnly) emit();
+    return _readOnly;
+  }
+  // A workspace this app just provisioned/pushed IS this app's version.
+  function claimSchemaVersion() { _backendVersion = WS().SCHEMA_VERSION; _readOnly = false; }
+
+  // N17 slice 2 — THE RUNTIME TRIPWIRE.
+  //
+  // N16 runs the handshake wherever a snapshot is ADOPTED: boot pull, connect,
+  // Refresh, the backoff retry, the quiet freshness pull. Every one of those is
+  // a moment where this tab is already reading the whole workspace — and that
+  // is exactly why they miss the case this exists for. `quietPull` refuses to
+  // run when `_dirty` is set (correctly: an adoption would replaceAll over the
+  // pending edits) and when the mirror is in `error`, so the tab most likely to
+  // be stale — one that has been asleep for a week AND has unpushed work, or
+  // one whose connection dropped — is the one that never re-checks. It wakes
+  // up, the debounce fires, and it pushes a v4-shaped view of a v5 workspace.
+  //
+  // So the version gets its own check, decoupled from adoption: on resume
+  // (`visibilitychange` → visible) and reconnect (`online`), read ONE row — the
+  // schema marker — and re-run the comparison. It adopts nothing, so `_dirty`
+  // is not a reason to skip it; it is the reason to run it.
+  //
+  // Adapters opt in with `schemaVersion(cfg)` (a single-row read on all three
+  // remotes); one that doesn't have it falls back to a full `load()`, which is
+  // what the N16 seams already do. A backend that is unreachable, or that
+  // carries no marker at all, returns null and changes NOTHING — silence must
+  // never latch a workspace off, and it must never clear a latch either.
+  var CHECK_MIN_GAP_MS = 2000;
+  var _lastCheckAt = 0, _checkPending = null;
+  function readBackendVersion(src) {
+    if (typeof src.schemaVersion === "function") {
+      return Promise.resolve(src.schemaVersion(state.cfg));
+    }
+    return Promise.resolve(src.load(state.cfg)).then(decTransform).then(function (snap) {
+      return snap && snap.schemaVersion;
+    });
+  }
+  function recheckSchema(force) {
+    if (state.sourceId === "local") return Promise.resolve(null);
+    if (_preAuth) return Promise.resolve(null); // SYNC-PREAUTH: nobody has signed in — don't ask as anon
+    var src = Studio.sourceById(state.sourceId);
+    if (!src || src.local) return Promise.resolve(null);
+    // alt-tab flurries fire visibilitychange in bursts; coalesce them. The floor
+    // is deliberately short — this is the safety check, not a freshness poll.
+    if (force !== true && Date.now() - _lastCheckAt < CHECK_MIN_GAP_MS) return Promise.resolve(null);
+    _lastCheckAt = Date.now();
+    var forId = state.sourceId;
+    var p = readBackendVersion(src).then(function (v) {
+      var n = (v == null ? null : Number(v)) || null;
+      if (n == null) return null; // unreachable or unmarked — leave the latch exactly as it was
+      // the workspace was disconnected or re-bound while we were asking — that
+      // answer is about a backend we are no longer on
+      if (state.sourceId !== forId) return null;
+      adoptSchemaVersion({ schemaVersion: n });
+      return n;
+    }).catch(function () { return null; }).then(function (v) {
+      if (_checkPending === p) _checkPending = null;
+      return v;
+    });
+    _checkPending = p;
+    return p;
+  }
 
   function publicState() {
     var src = Studio.sourceById(state.sourceId) || Studio.localSource;
@@ -171,7 +272,12 @@
       pendingEdits: _dirty, pushFails: state.pushFails || 0,
       // SYNC-PREAUTH: true while the connection is gate-bound but nobody has
       // signed in through it yet (automatic pulls are latched off)
-      preAuth: _preAuth };
+      preAuth: _preAuth,
+      // N16: the version handshake. `readOnly` means the connected workspace was
+      // built by a NEWER app than this one, so writes are latched off (the rail
+      // and the banner both read this).
+      appSchemaVersion: WS().SCHEMA_VERSION, backendSchemaVersion: _backendVersion,
+      schemaRelation: WS().compareSchema(_backendVersion), readOnly: _readOnly };
   }
   // DURABLE-1 (Kevin live, 2026-07-30 — vanished + duplicated dashboards): a pull
   // ADOPTION replaces the whole workspace with the remote snapshot. When that
@@ -238,6 +344,7 @@
     if (!src) return Promise.resolve();
     _suspend = true;
     return src.load(state.cfg).then(decTransform).then(function (snap) {
+      adoptSchemaVersion(snap); // N16
       W().replaceAll(snap);
       logSync("pull", true);
       setStatus("connected");
@@ -247,8 +354,30 @@
     }).then(function () { _suspend = false; healAfterAdopt(); });
   }
 
+  /* N25 — a /dev/ or /stage/ preview must not reach the PRODUCTION workspace.
+     The rule itself lives in app/workspaces.js (which stage this build serves
+     from, and which addresses are production's); this is the enforcement point,
+     because every route into a remote — the gate's picker, an access file, the
+     connect wizard, and the saved connection a preview inherits from
+     production's own localStorage — ends in one of the four functions below.
+     Read defensively: sync.js is also loaded by tools and by the viewer, where
+     the catalog may not be present, and "no rule available" means "no block". */
+  function stageBlock(cfg) {
+    try {
+      var WS = window.STUDIO_WS_STORE;
+      return (WS && WS.blockReason) ? WS.blockReason(cfg) : "";
+    } catch (e) { return ""; }
+  }
+  // Set when a boot restore was REFUSED for the reason above. The preview and
+  // production share one localStorage record, so a refused preview must be
+  // read-only about it: staying local here must never delete the connection
+  // the production site is still using (saveConn's local branch does exactly
+  // that, and something as ordinary as a disconnect click would trigger it).
+  var _stageDeclined = false;
+
   function saveConn() {
     try {
+      if (_stageDeclined && state.sourceId === "local") return; // N25: not ours to erase
       if (state.sourceId === "local") localStorage.removeItem(CONN_KEY);
       // N2 slice 4: stripSecret keeps the workspace password out of localStorage
       // — the live cfg still carries it in memory, the persisted record never does.
@@ -295,11 +424,26 @@
   function schedulePush() {
     if (state.sourceId === "local") return; // local needs no mirror
     _dirty = true;
+    // N16(b): the workspace is newer than this build — the edit stays local
+    // (and `pendingEdits` stays true, so the state is honest) but no timer is
+    // armed, because there is nothing this build is allowed to write.
+    if (_readOnly) return;
     clearTimeout(_timer);
     _timer = setTimeout(flushPush, DEBOUNCE_MS);
   }
   function flushPush(force) {
     if (state.sourceId === "local" || _inflight || !_dirty) return Promise.resolve();
+    // N16(b): the hard stop. Every other write path (schedulePush, pushNow,
+    // touch, the backoff retry, pagehide) funnels through here, so one guard
+    // closes them all.
+    if (_readOnly) return Promise.resolve();
+    // N17 slice 2: a version re-check is in flight (the tab just woke up or the
+    // network just came back). Waking a tab is precisely what arms a debounced
+    // push, so without this the push and the check race and the push usually
+    // wins — the tripwire would report the truth a moment after the damage. Let
+    // the check land, then re-enter: if it latched read-only the guard above
+    // stops the write, and if it didn't, nothing is lost but a round trip.
+    if (_checkPending) return _checkPending.then(function () { return flushPush(force); });
     if (force !== true) {
       var wait = MIN_PUSH_GAP_MS - (Date.now() - _lastPushEnd);
       if (wait > 0) { clearTimeout(_timer); _timer = setTimeout(flushPush, wait); return Promise.resolve(); }
@@ -362,6 +506,10 @@
     // NOTE: _suspend is NOT held across the async load — a user edit landing
     // mid-load must still schedule its push. It wraps only the replaceAll.
     return src.load(state.cfg).then(decTransform).then(function (snap) {
+      // N16: the version is fresh information whether or not we adopt the rows —
+      // a background pull is exactly how a tab that slept through a backend
+      // upgrade finds out it must stop writing.
+      adoptSchemaVersion(snap);
       if (_dirty || _inflight) return false; // edits arrived during the load — local wins
       if (snapRowCount(snap) === 0 && snapRowCount(W().snapshot()) > 0) return false; // empty-remote guard
       if (snapCanon(snap) === snapCanon(W().snapshot())) return false; // nothing new
@@ -377,7 +525,15 @@
     if (_freshTimer || typeof window === "undefined") return;
     _freshTimer = setInterval(quietPull, FRESH_EVERY_MS);
     window.addEventListener("focus", function () { quietPull(); });
-    document.addEventListener("visibilitychange", function () { if (!document.hidden) quietPull(); });
+    // N17 slice 2: the tripwire runs BEFORE the freshness pull and independently
+    // of it — quietPull declines whenever there are pending edits or the mirror
+    // is in error, which is the exact state a woken stale tab is in.
+    document.addEventListener("visibilitychange", function () {
+      if (document.hidden) return;
+      recheckSchema();
+      quietPull();
+    });
+    window.addEventListener("online", function () { recheckSchema(); });
   }
 
   var Sync = {
@@ -405,6 +561,112 @@
     // recent sync attempts (newest first) — the Settings card renders these
     syncLog: function () { return _log.slice(); },
 
+    // N17 slice 2 — re-run the version handshake against the backend WITHOUT
+    // adopting anything. Wired to resume/reconnect above; exported so the
+    // Settings card's re-check and the suite can drive the same path. Resolves
+    // the backend version it read, or null when nothing was learned (local,
+    // pre-auth, unreachable, unmarked, or coalesced by the burst floor — none
+    // of which change the latch).
+    recheckSchema: recheckSchema,
+    // Whatever re-check is currently in flight, so a caller can wait for the
+    // tripwire to settle before reading schemaState().
+    schemaCheckPending: function () { return _checkPending || Promise.resolve(null); },
+
+    // N16: the version handshake, for anything that needs more than the
+    // `readOnly` flag on syncState() (the banner's copy names both versions).
+    schemaState: function () {
+      return { app: WS().SCHEMA_VERSION, backend: _backendVersion,
+        relation: WS().compareSchema(_backendVersion), readOnly: _readOnly };
+    },
+
+    // N16 slice 2 — UPGRADE an older workspace, from inside the app.
+    //
+    // The trigger is schemaState().relation === "older": the connected
+    // workspace predates this build, so the tables/columns later versions added
+    // are not there yet. Today that only ever surfaced as a failed save's error
+    // string with SQL glued onto the end of it; this is the same remedy as a
+    // deliberate step you can take BEFORE anything breaks.
+    //
+    // `opts.backup` is REQUIRED and is called with the pre-upgrade backend
+    // snapshot before a single statement runs. It is a parameter, not a flag,
+    // precisely so "skip the backup" is not an option any caller can express —
+    // an upgrade touches the one copy of the workspace that isn't in this
+    // browser, and the whole point of the step is that it is safe. A writer
+    // that throws (or rejects) aborts the upgrade with the backend untouched.
+    //
+    // Adapters opt in with `upgradeWorkspace(cfg)`; one that can't DDL from the
+    // browser returns { manual:true, sql } and the caller shows the SQL. Since
+    // N22b slice 2 that is no longer a property of the ADAPTER but of the
+    // DATABASE: Supabase upgrades itself here when the project carries the
+    // admin-gated `polecat_migrate()` function, and only falls back to the
+    // paste when it doesn't (or won't). Nothing in this file has to know which
+    // — both routes answer in the same shape. Either
+    // way the handshake is re-run from the BACKEND afterwards — the version is
+    // never assumed to have moved just because a call returned ok — and any
+    // edits that were waiting are pushed once it agrees.
+    upgradeWorkspace: function (opts) {
+      opts = opts || {};
+      var src = Studio.sourceById(state.sourceId);
+      if (!src || src.local) return Promise.resolve({ ok: false, error: "No remote workspace is connected." });
+      var rel = WS().compareSchema(_backendVersion);
+      if (rel !== "older") {
+        return Promise.resolve({ ok: false, error: rel === "newer"
+          ? "This workspace was built by a NEWER version of the app — it can't be upgraded from here."
+          : "This workspace is already at v" + WS().SCHEMA_VERSION + " — nothing to upgrade." });
+      }
+      if (typeof opts.backup !== "function") {
+        return Promise.resolve({ ok: false, error: "An upgrade always downloads a backup first — no backup writer was supplied." });
+      }
+      var from = _backendVersion;
+      return src.load(state.cfg).then(decTransform).then(function (snap) {
+        return Promise.resolve(opts.backup({
+          _type: "studio-workspace-backup", _v: 1,
+          source: state.sourceId, label: src.label,
+          backendSchemaVersion: from, appSchemaVersion: WS().SCHEMA_VERSION,
+          snapshot: snap
+        })).then(function () { return true; });
+      }).catch(function (e) {
+        // Reading the backend or writing the backup failed — say which, and
+        // stop. Nothing has been written to the workspace at this point.
+        throw new Error("Couldn't back the workspace up, so nothing was upgraded: " + ((e && e.message) || e));
+      }).then(function () {
+        if (typeof src.upgradeWorkspace !== "function") {
+          return { ok: false, manual: true, sql: WS().provisionDeltaSQL() };
+        }
+        return src.upgradeWorkspace(state.cfg);
+      }).then(function (r) {
+        r = r || { ok: false, error: "The backend gave no answer." };
+        if (!r.ok) {
+          if (r.manual) logSync("upgrade", false, "manual step required — run the upgrade SQL on the backend");
+          else logSync("upgrade", false, r.error || "upgrade failed");
+          return Object.assign({ from: from, to: WS().SCHEMA_VERSION }, r);
+        }
+        // Re-run the handshake against the backend itself, then release anything
+        // that was waiting (an upgrade can't clear the read-only latch — that is
+        // the other direction — but a push may have been failing for the very
+        // reason this upgrade just fixed).
+        return src.load(state.cfg).then(decTransform).then(function (snap) {
+          adoptSchemaVersion(snap);
+          var now = WS().compareSchema(_backendVersion);
+          logSync("upgrade", now !== "older", now === "older"
+            ? "the backend still reports v" + _backendVersion : "");
+          emit();
+          if (now === "older") {
+            return { ok: false, from: from, to: WS().SCHEMA_VERSION, backend: _backendVersion,
+              error: "The upgrade ran but the workspace still reports schema v" + _backendVersion + "." };
+          }
+          return (_dirty ? flushPush(true) : Promise.resolve()).then(function () {
+            return { ok: true, from: from, to: WS().SCHEMA_VERSION, backend: _backendVersion };
+          });
+        });
+      }).catch(function (e) {
+        var msg = (e && e.message) || String(e);
+        logSync("upgrade", false, msg);
+        emit();
+        return { ok: false, from: from, error: msg };
+      });
+    },
+
     // Pull the remote's contents and adopt them (the one thing automation can't
     // do — there's no live subscription). Flushes pending local writes first.
     pullNow: function () {
@@ -418,10 +680,23 @@
         // → hit Refresh → the View silently vanishes and the card reads
         // "Connected"). Keep local as-is and keep the honest error instead;
         // the backoff retry (or a fixed backend) pushes the edits later.
+        // N16: read-only is the one case where _dirty can NEVER clear on its own
+        // (the pushNow above is a deliberate no-op), and bailing here would leave
+        // a read-only tab with local edits unable to ever re-check the version.
+        // So load — to re-run the HANDSHAKE only, never to adopt over those
+        // edits — and push them the moment the latch clears.
+        if (_dirty && _readOnly) {
+          return src.load(state.cfg).then(decTransform).then(function (snap) {
+            adoptSchemaVersion(snap);
+            if (!_readOnly) return flushPush(true);
+          }).catch(function (e) { logSync("pull", false, e.message || "refresh failed"); })
+            .then(function () { return publicState(); });
+        }
         if (_dirty) return publicState();
         setStatus("connecting");
         _suspend = true;
         return src.load(state.cfg).then(decTransform).then(function (snap) {
+          adoptSchemaVersion(snap); // N16
           W().replaceAll(snap);
           logSync("pull", true);
           if (_preAuth) { _preAuth = false; saveConn(); } // SYNC-PREAUTH: an explicit adopting pull unlatches
@@ -446,10 +721,14 @@
     connectAdopt: function (sourceId, cfg, opts) {
       var src = Studio.sourceById(sourceId);
       if (!src) return Promise.reject(new Error("unknown source"));
+      var blockedA = stageBlock(cfg);                     // N25
+      if (blockedA) return Promise.reject(new Error(blockedA));
+      _stageDeclined = false;
       cfg = carryAuthCredentials(sourceId, cfg);
       setStatus("connecting");
       _suspend = true;
       return src.load(cfg).then(decTransform).then(function (snap) {
+        adoptSchemaVersion(snap); // N16
         if (opts && opts.skipIfEmpty && snapRowCount(snap) === 0 && snapRowCount(W().snapshot()) > 0) {
           _suspend = false;
           setStatus(state.sourceId === "local" ? "local" : "connected");
@@ -478,8 +757,12 @@
     connectPush: function (sourceId, cfg) {
       var src = Studio.sourceById(sourceId);
       if (!src) return Promise.reject(new Error("unknown source"));
+      var blockedP = stageBlock(cfg);                     // N25
+      if (blockedP) return Promise.reject(new Error(blockedP));
+      _stageDeclined = false;
       setStatus("connecting");
       state.sourceId = sourceId; state.cfg = cfg;
+      claimSchemaVersion(); // N16: a freshly provisioned remote is OUR version
       return encTransform(W().snapshot()).then(function (snap) {
         return src.save(cfg, snap);
       }).then(function (res) {
@@ -518,6 +801,9 @@
     bindConnection: function (sourceId, cfg) {
       var src = Studio.sourceById(sourceId);
       if (!src) return Promise.reject(new Error("unknown source"));
+      var blocked = stageBlock(cfg);                      // N25
+      if (blocked) return Promise.reject(new Error(blocked));
+      _stageDeclined = false;                             // a deliberate connect owns the record again
       cfg = carryAuthCredentials(sourceId, cfg);
       state.sourceId = sourceId; state.cfg = cfg ? JSON.parse(JSON.stringify(cfg)) : null;
       _preAuth = true; // SYNC-PREAUTH: latch automatic pulls off until a signed-in pull adopts
@@ -550,6 +836,7 @@
       _connGen++; // fence any in-flight boot connect so a late pull can't re-adopt/re-persist
       state.sourceId = "local"; state.cfg = null;
       _preAuth = false; // SYNC-PREAUTH: nothing bound, nothing latched
+      _backendVersion = null; _readOnly = false; // N16: nothing connected, nothing to compare
       saveConn();
       try { clearTimeout(_timer); } catch (e) {}
       state.lastError = ""; state.lastPushAt = 0;
@@ -633,6 +920,20 @@
       if (!conn || !conn.sourceId || conn.sourceId === "local") { setStatus("local"); return Promise.resolve(publicState()); }
       var src = Studio.sourceById(conn.sourceId);
       if (!src) { setStatus("local"); return Promise.resolve(publicState()); }
+      // N25 — THE PATH NOBODY HAD TO CLICK. A preview is served from a
+      // subdirectory of the production ORIGIN, so it opens on production's own
+      // localStorage and this saved connection is production's. Left alone, the
+      // preview boots straight into the live workspace and every edit made
+      // while "just looking at /dev/" is written there. Decline the restore and
+      // stay local; the record itself is left exactly as production wrote it.
+      var bootBlocked = stageBlock(conn.cfg);
+      if (bootBlocked) {
+        _stageDeclined = true;
+        state.sourceId = "local"; state.cfg = null;
+        logSync("preview guard", false, bootBlocked);
+        setStatus("local", bootBlocked);
+        return Promise.resolve(publicState());
+      }
       state.sourceId = conn.sourceId; state.cfg = conn.cfg;
       // N2 slice 4: a password recovered from a pre-slice-4 record goes back onto
       // the live cfg (memory only) so an upgrading browser stays signed in for
@@ -667,6 +968,7 @@
         if (myGen !== _connGen) return Promise.resolve();
         return src.load(state.cfg).then(decTransform).then(function (snap) {
           if (myGen !== _connGen) return; // user disconnected during the load — don't adopt/persist
+          adoptSchemaVersion(snap); // N16: the boot seam — decided before the first push can be scheduled
           W().replaceAll(snap);
           logSync("boot pull", true);
           setStatus("connected");

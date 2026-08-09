@@ -29,14 +29,23 @@
     return h;
   }
 
-  // ---- optional Supabase Auth (GoTrue) sign-in (M7 slice 2) ------------------
-  // cfg.authEmail/authPassword are OPTIONAL fields on this adapter only — when
-  // both are set, every REST call below exchanges them for a real GoTrue JWT
-  // (via /auth/v1/token, a sibling of /rest/v1 under the same project URL) and
-  // sends it as the Bearer token instead of the plain anon key, so Postgres'
-  // auth.uid() resolves to a real user for RLS. Omitting them keeps the exact
-  // pre-existing anon-key-only behavior — nothing else about this adapter, or
-  // any other backend (Turso/Firebase), changes.
+  // ---- Supabase Auth (GoTrue) sign-in (M7 slice 2) ---------------------------
+  // When cfg.authEmail/authPassword are set, every REST call below exchanges
+  // them for a real GoTrue JWT (via /auth/v1/token, a sibling of /rest/v1 under
+  // the same project URL) and sends it as the Bearer token instead of the plain
+  // anon key, so Postgres' auth.uid() resolves to a real user for RLS.
+  //
+  // N23 (Kevin, 2026-08-08 — "how optional are all of these settings?"): they
+  // are NOT optional any more, and the old comment here said the opposite.
+  // Omitting them keeps the pre-existing anon-key-only behavior, which was
+  // fully functional under the LEGACY allow-all posture — and is functionally
+  // dead under the posture every new environment now gets (supabase-deploy.sql
+  // / supabase-rls-real.sql: every policy is `TO authenticated`, so an anon
+  // caller reads ZERO rows from all six workspace tables AND from polecat_meta).
+  // On such a workspace an anon connection doesn't fail, it reads EMPTY — which
+  // is indistinguishable, in the UI, from a database that was never provisioned.
+  // So the adapter detects that state by name (see AUTH_REQUIRED / lockedOut
+  // below) instead of leaving the caller to guess.
   var _sessions = {}; // "url|email" -> { accessToken, userId, expiresAt, refreshToken }
   function sessionKey(cfg) { return (cfg.url || "") + "|" + (cfg.authEmail || ""); }
 
@@ -75,6 +84,47 @@
     return !!(cfg && cfg.authEmail && (cfg.authPassword || refreshTokenFor(cfg)));
   }
 
+  // ---- N23: "secured, and you are anonymous" is a STATE, not an empty read ----
+  // The discriminator is exact, and it is the workspace's own marker row. Every
+  // provisioning path this repo ships stamps `polecat_meta` with `app` and
+  // `schema_version` (§ 1 of tools/supabase-deploy.sql, the wizard's generated
+  // script, the migration RPC), and the anon role keeps its table GRANT — so
+  // PostgREST answers a marker read three distinguishable ways:
+  //   • 404/400          → the relation isn't there: a blank database.
+  //   • 200 with rows    → we can read the marker: legacy allow-all, or we are
+  //                        signed in. Nothing to report.
+  //   • 200 with NO rows → the relation IS there and RLS filtered every row
+  //                        away. A provisioned workspace always has a marker,
+  //                        so this can only be the authenticated-only posture
+  //                        seen by a caller who never signed in.
+  // Two further conditions keep the claim honest, and both are necessary:
+  // the connection must carry NO auth session at all (with credentials in hand
+  // an empty marker read is a different problem and must not be blamed on the
+  // user's fields), and no workspace table may have returned a single row —
+  // a caller who can read rows is manifestly not locked out, so an emptied
+  // marker table on an otherwise readable workspace stays the odd case it
+  // always was rather than becoming a sign-in prompt.
+  var AUTH_REQUIRED =
+    "This workspace enforces per-user security (Row-Level Security), so an anonymous " +
+    "connection reads it as EMPTY rather than being refused. Add this connection's " +
+    "Supabase Auth email and password — they are required on a secured workspace, not optional.";
+  function lockedOut(cfg, metaRelationExists, metaRowCount, tableRowsSeen) {
+    return !!(metaRelationExists && metaRowCount === 0 && !tableRowsSeen && !hasAuthSession(cfg));
+  }
+  function authRequiredError() {
+    var e = new Error(AUTH_REQUIRED);
+    e.authRequired = true;
+    return e;
+  }
+
+  // N14: "did the project ANSWER, or did the infrastructure in front of it give
+  // up?" — the status codes that carry no verdict about the credential. 408 is a
+  // proxy timing the request out, 429 is rate limiting (the caller is asked to
+  // come back, not turned away), and every 5xx is the server saying it could not
+  // handle the request at all. Everything else — including 400 invalid_grant,
+  // 401, 403 and 422 — is GoTrue speaking for itself and stays authoritative.
+  function transportStatus(status) { return status === 408 || status === 429 || status >= 500; }
+
   // One request shape, two grants (`password` and `refresh_token`) — both hit
   // /auth/v1/token and both answer with the same session envelope.
   function gotrueToken(cfg, grant, body) {
@@ -108,7 +158,23 @@
           throw err;
         }
         var data = r.data;
-        if (!res.ok || !data.access_token) throw new Error("Supabase Auth sign-in failed: " + (data.error_description || data.msg || data.error || ("HTTP " + res.status)));
+        if (!res.ok || !data.access_token) {
+          var refusal = new Error("Supabase Auth sign-in failed: " + (data.error_description || data.msg || data.error || ("HTTP " + res.status)));
+          // N14: the third and last way this call can come back without being an
+          // ANSWER. N2 slice 3 covered the fetch rejecting, N11 covered the body
+          // never finishing — but a status that arrived and parsed was still read
+          // as GoTrue's authoritative "no", whatever the number was. It isn't: an
+          // overloaded project answers 429, a restarting or wedged one answers
+          // 500/502/503/504, a proxy gives up with 408. None of those are the
+          // workspace refusing this credential; they are the workspace being
+          // unable to say. Since ensureSession DELETES the stored refresh token on
+          // a refusal, treating them as one signs the user out for the duration of
+          // a blip they had nothing to do with — the very failure N2 slice 3 and
+          // N11 each closed one door on. Only a real verdict (400 invalid_grant,
+          // 401/403, 422) may dispose of a credential.
+          if (transportStatus(res.status)) refusal.unreachable = true;
+          throw refusal;
+        }
         return data;
       });
     });
@@ -362,8 +428,83 @@
   function atomicRpc() { return "/rpc/" + WS.ATOMIC_SAVE_FN; }
   var _atomic = {};        // project URL -> true (function present) | false (absent)
   var _atomicPending = {}; // project URL -> the one in-flight capability probe
-  function atomicKey(cfg) {
+  // One project, one memo key — shared by both capability probes in this file
+  // (the atomic save above, and N22b's migration RPC below).
+  function projectKey(cfg) {
     try { return projectBase(cfg); } catch (e) { return String((cfg && cfg.url) || ""); }
+  }
+
+  // ---- N22b slice 2: upgrading the database FROM the app ----------------------
+  // Slice 1 installed `polecat_migrate(mode text)` in both setup paths (§ 6d of
+  // tools/supabase-deploy.sql and the connect wizard's generated script) and
+  // proved it from the database's own side (tests/rls.mjs' migration-RPC-route
+  // posture — named rather than numbered, since N26 inserted two ahead of it). It
+  // was, deliberately, called by nothing. This is the browser half.
+  //
+  // The shape is the AUD-01 capability probe, verbatim, because the question is
+  // the same one: does THIS project carry the function? A workspace stood up
+  // before the RPC existed has to keep working exactly as it does today, so
+  // "absent" is not an error — it is the paste path, unchanged.
+  //
+  // `mode:'probe'` writes nothing and is answerable by any signed-in account:
+  // the app needs to know whether the button exists before it knows who is
+  // looking, and knowing a button exists is not permission to press it (the
+  // admin gate lives in the `apply` branch, inside the database).
+  function migrateRpc() { return "/rpc/" + WS.MIGRATE_FN; }
+  var _migrate = {};        // project URL -> true (installed) | false (absent)
+  var _migratePending = {}; // project URL -> the one in-flight probe
+  function probeMigrate(cfg) {
+    var key = projectKey(cfg);
+    if (_migrate[key] !== undefined) return Promise.resolve(_migrate[key]);
+    if (_migratePending[key]) return _migratePending[key];
+    _migratePending[key] = rest(cfg, migrateRpc(), { method: "POST", body: JSON.stringify({ mode: "probe" }) })
+      .then(function (r) {
+        // Only a DEFINITIVE answer is remembered: 200 = installed, 404 =
+        // PostgREST's "could not find the function" = absent. Anything else —
+        // a refusal, a 5xx, a CORS fault — is "don't know yet". Memoizing one
+        // of those would latch this browser onto the paste path for the rest
+        // of the session over a transient; leaving it unknown just means the
+        // next caller asks again (upgradeWorkspace re-probes on its way in).
+        if (r.ok) _migrate[key] = true;
+        else if (r.status === 404) _migrate[key] = false;
+      }, function () {})
+      .then(function () { delete _migratePending[key]; return _migrate[key]; });
+    return _migratePending[key];
+  }
+  // What the user is told when the RPC is there but would not run. The database
+  // raises these itself ("administrators only", "this database has no users
+  // table yet"), so quote it rather than paraphrase — and the SQL editor stays
+  // offered underneath, because it is still the remedy for every one of these.
+  //
+  // The input is an Error, not a response: rest() turns a final 401/403 into a
+  // throw that already carries PostgREST's own message ("Supabase rejected the
+  // request (HTTP 403): …"), which is the shape the admin gate arrives in. Pull
+  // the status and the database's sentence back out of it, drop the function
+  // name the user has no use for, and leave everything else — a network fault,
+  // a 5xx — recognisable as itself.
+  function migrateRefusal(e) {
+    var raw = String((e && e.message) || e || "").trim();
+    var m = /\(HTTP (\d+)\)\s*:?\s*([\s\S]*)$/.exec(raw);
+    var status = m ? Number(m[1]) : 0;
+    var msg = (m ? m[2] : "").replace(/^polecat_migrate:\s*/, "").trim().slice(0, 180);
+    if (status === 401 || status === 403) {
+      return "This database refused the in-app upgrade for the account you're signed in as" +
+        (msg ? " — " + msg : " (administrators only)") + ".";
+    }
+    if (status) return "The in-app upgrade didn't run" + (msg ? " — " + msg : "") + " (HTTP " + status + ").";
+    return "The in-app upgrade couldn't be reached — " + (raw || "no answer") + ".";
+  }
+  // The paste-me upgrade, for a database with no migration RPC. Unchanged from
+  // N16 slice 2 — it adds the missing tables and stamps the marker, and touches
+  // no policy and no grant (the N16 checks hold that shape).
+  function upgradeSQL() {
+    return WS.provisionDeltaSQL() +
+      "\n\n-- Record that this workspace now carries the v" + WS.SCHEMA_VERSION + " shape, so the app\n" +
+      "-- stops offering the upgrade. (Nothing else here touches your data, your\n" +
+      "-- Row-Level Security policies or your grants.)\n" +
+      'INSERT INTO "' + WS.META_TABLE + '"(key,value) VALUES(' + sqlLit("schema_version") + ", " + sqlLit(String(WS.SCHEMA_VERSION)) + ")\n" +
+      "  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;\n" +
+      "NOTIFY pgrst, 'reload schema';\n";
   }
   // The snapshot in the shape the function expects: rows per table, the
   // explicitly-tombstoned ids per table (never users — sync is upsert-only
@@ -504,12 +645,17 @@
         hint: "Settings → API → Project URL." },
       { key: "key", label: "anon / publishable key", placeholder: "sb_publishable_… or eyJ… (anon)", type: "password",
         hint: "Settings → API → Project API keys → publishable key (new projects) or anon public (legacy JWT format). Row-Level Security governs what it can touch." },
-      { key: "authEmail", label: "Supabase Auth email (optional)", placeholder: "you@example.com", type: "text",
-        hint: "Sign in with a real Supabase Auth (GoTrue) account so requests carry your identity — Postgres' auth.uid() resolves to a real user instead of NULL. Only needed for enforced per-user privacy (Row-Level Security); leave blank to keep using the shared anon key as before." },
-      { key: "authPassword", label: "Supabase Auth password (optional)", placeholder: "", type: "password",
-        hint: "Paired with the email above. Only ever sent to this project's own /auth/v1/token endpoint." },
+      // N23: these two said "(optional)" for as long as the legacy allow-all
+      // posture was the only one that existed. On every workspace this repo
+      // now stands up they are REQUIRED, and getting them wrong looks exactly
+      // like an empty database — so the label says so, and the hint says what
+      // actually happens if you leave them blank.
+      { key: "authEmail", label: "Supabase Auth email", placeholder: "you@example.com", type: "text",
+        hint: "REQUIRED on a secured workspace (any database set up by this app's script): every policy is granted to authenticated callers only, so a connection without these fields reads as an EMPTY workspace instead of being refused. Sign in with a real Supabase Auth (GoTrue) account and Postgres' auth.uid() resolves to a real user. Only a legacy allow-all database still works on the anon key alone." },
+      { key: "authPassword", label: "Supabase Auth password", placeholder: "", type: "password",
+        hint: "Paired with the email above, and only ever sent to this project's own /auth/v1/token endpoint. It is NEVER stored: the app keeps the short-lived refresh token in sessionStorage instead, so you re-enter this once per browser session BY DESIGN — that prompt is not a failure." },
       { key: "adminFnUrl", label: "Admin function URL (optional)", placeholder: "https://YOUR-REF.functions.supabase.co/polecat-admin", type: "text",
-        hint: "Only needed to run Go live / admin actions from the app instead of the SQL editor — deploy supabase/functions/polecat-admin once (tools/M7-RLS-GOLIVE-RUNBOOK.md Path C), then paste its URL here." }
+        hint: "Genuinely optional — leave it blank and Go live plus admin user-creation fall back to running SQL in the Supabase dashboard; everything else works. To run them from the app, deploy supabase/functions/polecat-admin once (tools/M7-RLS-GOLIVE-RUNBOOK.md Path C) and paste its URL here. A URL pointing at a function that was never deployed fails confusingly — blank is better than wrong." }
     ],
     docsUrl: "https://supabase.com/docs/guides/api",
 
@@ -697,6 +843,15 @@
                 return { name: t, count: cr ? Number(cr.split("/")[1]) || 0 : 0 };
               }).catch(function () { return { name: t, count: 0 }; });
           })).then(function (tables) {
+            // N23: the marker table is there, and neither it nor a single
+            // workspace table answered this caller with a row. Say "sign in",
+            // not "that database belongs to another Polecat app (unknown)" —
+            // which is what the app/null fall-through used to tell someone
+            // whose only mistake was leaving the Auth fields blank.
+            var rowsSeen = tables.some(function (t) { return t.count > 0; });
+            if (lockedOut(cfg, true, (meta || []).length, rowsSeen)) {
+              return { state: "authRequired", app: null, schemaVersion: null, tables: tables, note: AUTH_REQUIRED };
+            }
             return { state: "polecat", app: app, schemaVersion: schemaVersion, tables: tables };
           });
         });
@@ -705,17 +860,134 @@
 
     // Can't DDL from the browser — hand back a ready-to-paste bootstrap. The
     // caller shows it with an "I've run it" button that re-probes.
+    //
+    // N21: what it hands back is now the CANONICAL fresh-environment script
+    // (WS.freshDeploySQL — the same content as tools/supabase-deploy.sql),
+    // not tables-plus-a-homework-comment. The old script installed the pre-M7
+    // posture — RLS off, the anon key wide open — and closed with "then enable
+    // Row-Level Security policies appropriate to your project", so the
+    // SUPPORTED way to adopt a blank database left it unprotected while the
+    // repo's own deploy file had installed the real posture since 2026-07-30.
+    //
+    // When this connection carries Auth credentials we resolve the caller's
+    // Supabase Auth uid first, so § 7 (the first admin) ships ready to run
+    // instead of as a fill-in-the-blank template. Resolving it is best-effort:
+    // a project with no such account yet is the normal case on a brand-new
+    // database, and the template covers it.
     provision: function (cfg, snapshot) {
-      var meta = WS.metaRows(snapshot);
-      var sql = ["-- Polecat workspace bootstrap — run once in Supabase → SQL editor."]
-        .concat(WS.provisionDDL().map(function (s) { return s + ";"; }))
-        .concat(meta.map(function (m) {
-          return 'INSERT INTO "' + WS.META_TABLE + '"(key,value) VALUES(' + sqlLit(m.key) + ", " + sqlLit(m.value) + ") ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value;";
-        }))
-        .concat(["", WS.atomicSaveSQL()]) // AUD-01: atomic from day one
-        .concat(["", "-- Then enable Row-Level Security policies appropriate to your project", "-- before exposing the anon key beyond your own use."])
-        .join("\n");
-      return Promise.resolve({ ok: false, manual: true, sql: sql });
+      var Auth = window.PolecatAuth, me = Auth && Auth.current && Auth.current();
+      var admin = me ? { username: me.u, name: me.name || me.u } : null;
+      var uid = hasAuthSession(cfg)
+        ? ensureSession(cfg).then(function (s) { return s && s.userId; }).catch(function () { return null; })
+        : Promise.resolve(null);
+      return uid.then(function (id) {
+        if (admin && id) admin.gotrueId = id;
+        return { ok: false, manual: true, sql: WS.freshDeploySQL(snapshot, admin) };
+      });
+    },
+
+    // N21: the script above ENDS with the database locked down — every policy
+    // is `TO authenticated`, so the anon key can no longer read or write the
+    // workspace. Connecting on the anon key alone would therefore 403 on the
+    // very first push, and the generic remedy for a 403 is the open-policy SQL
+    // that would reopen what was just closed. The connect wizard asks this
+    // before it lets the manual-provision path proceed; null means "go ahead".
+    provisionBlocker: function (cfg) {
+      if (!hasAuthSession(cfg)) {
+        return "That script turns Row-Level Security ON, so the anonymous key can no longer read or write this workspace. " +
+          "Go back and fill in this connection's Supabase Auth email and password, and make sure § 7 of the script (the first admin) " +
+          "has run for that account — then connect.";
+      }
+      return null;
+    },
+
+    // Upgrade an older workspace (N16 slice 2, made real by N22b slice 2).
+    //
+    // Two routes, one promise shape. A database stood up by either modern setup
+    // path carries `polecat_migrate()`, and one admin-gated call does the whole
+    // upgrade from here — no SQL editor, which is the entire point of N22b. A
+    // database that predates the function is unchanged: it comes back
+    // { manual:true, sql } and the caller renders the same paste-me step it has
+    // rendered since N16, with the backup already downloaded.
+    //
+    // The fallback is deliberately WIDE. Absent, refused, wedged — whatever the
+    // RPC's answer, the SQL editor still does the job, so every non-success
+    // hands the script back rather than dead-ending on an error toast. Only the
+    // 404 is remembered (see probeMigrate): a refusal is about who is signed in
+    // right now, not about what the database has.
+    //
+    // Still DELIBERATELY NOT routed through the polecat-admin Edge Function,
+    // even when `cfg.adminFnUrl` is bound — but the reason CHANGED with N26 and
+    // it is worth being exact about which one still holds. The old reason was
+    // that routing here was unsafe: the function's only schema action is
+    // `provision`, whose BOOTSTRAP_DDL re-created the demo-posture
+    // `polecat_anon_all` policy on every table, and Postgres ORs permissive
+    // policies together, so one call on a gone-live workspace silently re-opened
+    // it to anon reads. That is fixed at the source (the block now installs the
+    // demo posture only on a workspace that has NOT gone live), so `provision`
+    // is no longer the trap it was.
+    //
+    // What remains is simply that it would buy nothing. `polecat_migrate` is the
+    // better route on every axis: it is admin-gated by the database itself
+    // rather than by the deploy-time PROVISION_SECRET the runbook tells you to
+    // DISCARD after go-live, it needs no Edge Function deployed, and it is what
+    // both modern setup paths install. A workspace old enough to lack the RPC is
+    // also old enough that its admin function, if any, predates this fix.
+    // tests/rls.mjs proves both halves from the database's own side: the
+    // migration-RPC route, and `provision` re-run on a workspace that has gone
+    // live (N26).
+    upgradeWorkspace: function (cfg) {
+      var manual = { ok: false, manual: true, sql: upgradeSQL() };
+      var key = projectKey(cfg);
+      return probeMigrate(cfg).then(function (has) {
+        if (has !== true) return manual;
+        return rest(cfg, migrateRpc(), { method: "POST", body: JSON.stringify({ mode: "apply" }) })
+          .then(function (r) {
+            // The function went away between the probe and the call (a restored
+            // database, a dropped function) — forget it and take the paste.
+            if (r.status === 404) { _migrate[key] = false; return manual; }
+            if (!r.ok) {
+              // Anything rest() didn't already turn into a throw (a 5xx it
+              // retried and gave up on, a 4xx that isn't an auth refusal) —
+              // normalise it into the same Error shape so ONE catch below
+              // renders every failure the same way.
+              return r.text().then(function (b) {
+                var msg = ""; try { msg = (JSON.parse(b) || {}).message || ""; } catch (e2) { msg = String(b || "").slice(0, 160); }
+                throw new Error("(HTTP " + r.status + ")" + (msg ? ": " + msg : ""));
+              });
+            }
+            return { ok: true, rpc: true };
+          });
+      }).catch(function (e) {
+        return { ok: false, manual: true, sql: manual.sql, rpcError: migrateRefusal(e) };
+      });
+    },
+
+    // Can this project upgrade itself from the app? "yes" | "no" | "unknown"
+    // (nothing has asked yet). Drives the wording on the Settings card, which
+    // must not promise a button the database can't honour.
+    migrateState: function (cfg) {
+      var v = _migrate[projectKey(cfg)];
+      return v === true ? "yes" : v === false ? "no" : "unknown";
+    },
+
+    // One cheap, side-effect-free round-trip that answers the same question
+    // before any upgrade is attempted. Concurrent callers share the one
+    // in-flight request; a fault answers nothing rather than guessing.
+    checkMigrate: function (cfg) { return probeMigrate(cfg); },
+
+    // N17 slice 2 — the runtime tripwire's cheap read. sync.js re-checks the
+    // backend's schema marker on resume/reconnect, which is a moment where a
+    // whole-workspace load() would be wasteful (and, with local edits pending,
+    // is not something we may adopt anyway). One row, no rows adopted.
+    schemaVersion: function (cfg) {
+      return rest(cfg, "/" + WS.META_TABLE + "?select=value&key=eq.schema_version").then(function (r) {
+        if (!r.ok) return null;
+        return r.json().then(function (rows) {
+          var v = rows && rows[0] && rows[0].value;
+          return v == null ? null : (Number(v) || null);
+        });
+      });
     },
 
     summarize: function (cfg) { return this.probe(cfg); },
@@ -742,11 +1014,13 @@
       // the honest red "working from the local mirror" state instead.
       var snap = WS.emptySnapshot();
       var failed = [];
+      var metaRelationExists = false, metaRowCount = 0, tableRowsSeen = false;
       function readFail(what, why) { failed.push(what + " (" + why + ")"); }
       var reads = WS.TABLE_NAMES.map(function (t) {
         return rest(cfg, "/" + t + "?select=data").then(function (r) {
           if (!r.ok) { if (r.status !== 404) readFail(t, "HTTP " + r.status); return; }
           return r.json().then(function (rows) {
+            if (rows && rows.length) tableRowsSeen = true;
             snap.tables[t] = rows.map(function (x) {
               return WS.cellsToRow(typeof x.data === "string" ? x.data : JSON.stringify(x.data));
             }).filter(Boolean);
@@ -756,15 +1030,30 @@
       return Promise.all(reads).then(function () {
         return rest(cfg, "/" + WS.META_TABLE + "?select=key,value").then(function (r) {
           if (!r.ok) { if (r.status !== 404) readFail(WS.META_TABLE, "HTTP " + r.status); return; }
+          metaRelationExists = true;
           return r.json().then(function (meta) {
+            metaRowCount = (meta || []).length;
             meta.forEach(function (m) {
               if (m.key === "settings") { try { snap.settings = JSON.parse(m.value); } catch (e) {} }
               if (m.key === "meta") { try { snap.meta = JSON.parse(m.value); } catch (e) {} }
+              // N16: report what the BACKEND is, not what this app is — the
+              // handshake in sync.js compares it against WS.SCHEMA_VERSION.
+              if (m.key === "schema_version") snap.schemaVersion = Number(m.value) || snap.schemaVersion;
             });
           });
         }).catch(function (e) { readFail(WS.META_TABLE, (e && e.message) || "read failed"); });
       }).then(function () {
         if (failed.length) throw new Error("workspace read incomplete — " + failed.join(", "));
+        // N23, and the same class of hazard AUD-04 closed: this read SUCCEEDED
+        // and came back empty, so nothing above it can tell that the emptiness
+        // is a security posture rather than an empty database. Returning it
+        // would let initSync's replaceAll adopt "nothing" over this device's
+        // real local mirror — the very wipe SYNC-PREAUTH and needsSignIn()
+        // guard for auth-BOUND connections, which an anon-only connection
+        // (no cfg.authEmail at all) slips past because there is no email to
+        // re-prompt for. Reject instead: sync keeps the local mirror and shows
+        // this sentence.
+        if (lockedOut(cfg, metaRelationExists, metaRowCount, tableRowsSeen)) throw authRequiredError();
         return snap;
       });
     },
@@ -775,7 +1064,7 @@
     save: function (cfg, snapshot) {
       var byTable;
       try { byTable = WS.snapshotToRows(snapshot); } catch (e) { return Promise.resolve({ ok: false, error: e.message }); }
-      var key = atomicKey(cfg);
+      var key = projectKey(cfg);
       var sequential = _atomic[key] === false;
       var run = sequential
         ? saveSequential(cfg, snapshot, byTable)
@@ -795,7 +1084,7 @@
     // Does this project carry the atomic-save function? "yes" | "no" |
     // "unknown" (nothing has asked yet). Drives the Settings card row.
     atomicState: function (cfg) {
-      var v = _atomic[atomicKey(cfg)];
+      var v = _atomic[projectKey(cfg)];
       return v === true ? "yes" : v === false ? "no" : "unknown";
     },
 
@@ -804,7 +1093,7 @@
     // Concurrent callers share the one in-flight request; a network/auth
     // fault answers nothing rather than guessing.
     checkAtomic: function (cfg) {
-      var key = atomicKey(cfg);
+      var key = projectKey(cfg);
       if (_atomic[key] !== undefined) return Promise.resolve(_atomic[key]);
       if (_atomicPending[key]) return _atomicPending[key];
       _atomicPending[key] = rest(cfg, atomicRpc(), { method: "POST", body: JSON.stringify({ probe: true }) })

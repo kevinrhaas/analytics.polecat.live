@@ -247,13 +247,403 @@
       }).join("\n");
   };
 
+  // ---- N21: the CANONICAL fresh-environment posture -------------------------
+  // The Row-Level Security posture every Polecat analytics workspace database
+  // runs — sections 2 through 6c of `tools/supabase-deploy.sql`, VERBATIM
+  // (prose comments stripped; the SQL itself is byte-for-byte the file's).
+  //
+  // WHY IT LIVES HERE. The connect wizard's "run this once in the SQL editor"
+  // script is the supported way to adopt a blank Supabase database, and until
+  // N21 it generated `provisionDDL()` + meta + the atomic-save function and
+  // then CLOSED WITH A COMMENT — "then enable Row-Level Security policies
+  // appropriate to your project". So the UI path handed the user the pre-M7
+  // posture (RLS off, anon key wide open) and a homework assignment, while
+  // `tools/supabase-deploy.sql` had installed the real posture since
+  // 2026-07-30. The two supported paths had silently diverged.
+  //
+  // They cannot diverge again: `tools/validate.mjs` compares this constant
+  // against that file's own § 2–6c on every dev-gate run, and `tests/rls.mjs`
+  // installs freshDeploySQL() into a throwaway schema and puts it through the
+  // SAME anon-reads-zero checks as the three other shipped postures (the
+  // N2-slice-2 lesson: "keep them in sync" is an honour-system comment until
+  // something compares them).
+  WS.RLS_REAL_SQL = `DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['dashboards','connections','datasets','analyses','jobs','users','polecat_meta'] LOOP
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('DROP POLICY IF EXISTS polecat_open_rw ON public.%I', t);
+    EXECUTE format('DROP POLICY IF EXISTS polecat_anon_all ON public.%I', t);
+  END LOOP;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.polecat_is_admin() RETURNS boolean
+LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.users
+    WHERE (data::jsonb->>'gotrueId') = auth.uid()::text AND "role" = 'admin'
+  );
+$$;
+
+DO $$
+DECLARE
+  t text;
+  owner_field text;
+  spec jsonb := '{"connections":"owner","dashboards":"owner","analyses":"owner","jobs":"owner","datasets":"acctOwner"}'::jsonb;
+BEGIN
+  FOR t IN SELECT jsonb_object_keys(spec) LOOP
+    owner_field := spec->>t;
+    EXECUTE format('DROP POLICY IF EXISTS polecat_select ON %I', t);
+    EXECUTE format('DROP POLICY IF EXISTS polecat_insert ON %I', t);
+    EXECUTE format('DROP POLICY IF EXISTS polecat_update ON %I', t);
+    EXECUTE format('DROP POLICY IF EXISTS polecat_delete ON %I', t);
+    EXECUTE format(
+      'CREATE POLICY polecat_select ON %I FOR SELECT TO authenticated USING (coalesce((data::jsonb->>%L)::boolean, false) = false OR (data::jsonb->>%L) = auth.uid()::text OR public.polecat_is_admin())',
+      t, 'private', owner_field);
+    EXECUTE format(
+      'CREATE POLICY polecat_insert ON %I FOR INSERT TO authenticated WITH CHECK ((data::jsonb->>%L) = auth.uid()::text OR public.polecat_is_admin())',
+      t, owner_field);
+    EXECUTE format(
+      'CREATE POLICY polecat_update ON %I FOR UPDATE TO authenticated USING ((data::jsonb->>%L) = auth.uid()::text OR public.polecat_is_admin()) WITH CHECK ((data::jsonb->>%L) = auth.uid()::text OR public.polecat_is_admin())',
+      t, owner_field, owner_field);
+    EXECUTE format(
+      'CREATE POLICY polecat_delete ON %I FOR DELETE TO authenticated USING ((data::jsonb->>%L) = auth.uid()::text OR public.polecat_is_admin())',
+      t, owner_field);
+  END LOOP;
+END $$;
+
+DROP POLICY IF EXISTS polecat_select ON public.users;
+DROP POLICY IF EXISTS polecat_insert ON public.users;
+DROP POLICY IF EXISTS polecat_update ON public.users;
+DROP POLICY IF EXISTS polecat_delete ON public.users;
+CREATE POLICY polecat_select ON public.users FOR SELECT TO authenticated USING (
+  (data::jsonb->>'gotrueId') = auth.uid()::text
+  OR lower(data::jsonb->>'u') = lower(coalesce(auth.jwt()->>'email',''))
+  OR public.polecat_is_admin()
+);
+CREATE POLICY polecat_update ON public.users FOR UPDATE TO authenticated USING (
+  (data::jsonb->>'gotrueId') = auth.uid()::text
+  OR lower(data::jsonb->>'u') = lower(coalesce(auth.jwt()->>'email',''))
+  OR public.polecat_is_admin()
+) WITH CHECK (
+  (data::jsonb->>'gotrueId') = auth.uid()::text
+  OR lower(data::jsonb->>'u') = lower(coalesce(auth.jwt()->>'email',''))
+  OR public.polecat_is_admin()
+);
+CREATE POLICY polecat_insert ON public.users FOR INSERT TO authenticated WITH CHECK (public.polecat_is_admin());
+CREATE POLICY polecat_delete ON public.users FOR DELETE TO authenticated USING (public.polecat_is_admin());
+
+DROP POLICY IF EXISTS polecat_meta_auth ON public.polecat_meta;
+CREATE POLICY polecat_meta_auth ON public.polecat_meta
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+CREATE TABLE IF NOT EXISTS public.polecat_activity (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  at timestamptz NOT NULL DEFAULT now(),
+  gotrue_id text,
+  username text,
+  action text NOT NULL,
+  detail jsonb
+);
+ALTER TABLE public.polecat_activity ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS polecat_activity_insert ON public.polecat_activity;
+CREATE POLICY polecat_activity_insert ON public.polecat_activity
+  FOR INSERT TO authenticated
+  WITH CHECK (gotrue_id IS NULL OR gotrue_id = auth.uid()::text OR public.polecat_is_admin());
+DROP POLICY IF EXISTS polecat_activity_select ON public.polecat_activity;
+CREATE POLICY polecat_activity_select ON public.polecat_activity
+  FOR SELECT TO authenticated USING (public.polecat_is_admin());
+
+CREATE TABLE IF NOT EXISTS public.polecat_feedback (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  at timestamptz NOT NULL DEFAULT now(),
+  gotrue_id text,
+  username text,
+  kind text NOT NULL,
+  message text,
+  context jsonb
+);
+ALTER TABLE public.polecat_feedback ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS polecat_feedback_insert ON public.polecat_feedback;
+CREATE POLICY polecat_feedback_insert ON public.polecat_feedback
+  FOR INSERT TO authenticated
+  WITH CHECK (gotrue_id IS NULL OR gotrue_id = auth.uid()::text OR public.polecat_is_admin());
+DROP POLICY IF EXISTS polecat_feedback_select ON public.polecat_feedback;
+CREATE POLICY polecat_feedback_select ON public.polecat_feedback
+  FOR SELECT TO authenticated USING (public.polecat_is_admin());
+
+ALTER TABLE public.polecat_activity ADD COLUMN IF NOT EXISTS ip text;
+ALTER TABLE public.polecat_activity ADD COLUMN IF NOT EXISTS ua text;
+ALTER TABLE public.polecat_feedback ADD COLUMN IF NOT EXISTS ip text;
+ALTER TABLE public.polecat_feedback ADD COLUMN IF NOT EXISTS ua text;
+
+CREATE OR REPLACE FUNCTION public.polecat_stamp_request_meta() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  BEGIN
+    NEW.ip := split_part(coalesce(current_setting('request.headers', true)::json->>'x-forwarded-for', ''), ',', 1);
+    NEW.ua := left(coalesce(current_setting('request.headers', true)::json->>'user-agent', ''), 200);
+  EXCEPTION WHEN others THEN
+    NULL; -- header stamping is best-effort; never block the insert
+  END;
+  RETURN NEW;
+END $$;
+
+DROP TRIGGER IF EXISTS polecat_activity_stamp ON public.polecat_activity;
+CREATE TRIGGER polecat_activity_stamp BEFORE INSERT ON public.polecat_activity
+  FOR EACH ROW EXECUTE FUNCTION public.polecat_stamp_request_meta();
+DROP TRIGGER IF EXISTS polecat_feedback_stamp ON public.polecat_feedback;
+CREATE TRIGGER polecat_feedback_stamp BEFORE INSERT ON public.polecat_feedback
+  FOR EACH ROW EXECUTE FUNCTION public.polecat_stamp_request_meta();
+
+DROP POLICY IF EXISTS polecat_activity_insert_anon ON public.polecat_activity;
+CREATE POLICY polecat_activity_insert_anon ON public.polecat_activity
+  FOR INSERT TO anon
+  WITH CHECK (gotrue_id IS NULL);
+DROP POLICY IF EXISTS polecat_feedback_insert_anon ON public.polecat_feedback;
+CREATE POLICY polecat_feedback_insert_anon ON public.polecat_feedback
+  FOR INSERT TO anon
+  WITH CHECK (gotrue_id IS NULL);
+
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO anon, authenticated, service_role;
+
+NOTIFY pgrst, 'reload schema';`;
+
+  // ---- N22b: ONE paste, then never again ------------------------------------
+  // The named migration RPC. After the single manual paste that stands a
+  // database up, an ADMIN signed into the app can bring that database to this
+  // build's shape — missing tables, the full security posture, the version
+  // marker — with one call, and nobody opens the SQL editor again.
+  //
+  // WHY AN RPC AND NOT THE MANAGEMENT API. N22a measured it:
+  // `api.supabase.com` answers a preflight from https://analytics.polecat.live
+  // with HTTP 204 and NO `Access-Control-Allow-Origin` header, on every endpoint
+  // this would need (create project, run SQL, deploy a function, set secrets) —
+  // while the same preflight from https://supabase.com comes back allowed. It is
+  // an origin allowlist no third-party browser app is on, so nothing
+  // client-side can reach it. The RPC route needs no CLI, no service-role key
+  // in a deployed function and no second deployment surface: it arrives with the
+  // paste the user already has to make.
+  //
+  // THE SECURITY CONTRACT, mirroring supabase/functions/polecat-admin (fixed
+  // named actions, never raw SQL):
+  //   • FIXED DDL, baked in when this string is generated. `mode` chooses
+  //     apply-or-probe and NOTHING else — there is deliberately no
+  //     `exec(sql text)` escape hatch, because a SECURITY DEFINER function that
+  //     runs caller-supplied SQL is a superuser shell with extra steps.
+  //   • SECURITY DEFINER is required here, unlike the atomic save above which is
+  //     deliberately INVOKER: DDL and CREATE POLICY are owner-only and the
+  //     caller is `authenticated`. That makes the admin gate the WHOLE security
+  //     boundary, so it runs first, before anything is read or written.
+  //   • The gate inlines the admin lookup instead of calling
+  //     `polecat_is_admin()`: a workspace old enough to need migrating may
+  //     predate that helper, and a gate that fails with "function does not
+  //     exist" is a gate that never runs. SECURITY DEFINER already bypasses RLS
+  //     on that read — the same reason polecat_is_admin() is DEFINER itself.
+  //   • EXECUTE is granted to `authenticated` only, and revoked from PUBLIC and
+  //     anon: the anon key ships inside a public repo.
+  //   • The version marker is RAISE-ONLY (N17/N28). An older build's migrate can
+  //     never re-label a newer workspace as its own shape — the clobber N17
+  //     found in WS.metaRows() and fixed on the app side.
+  //
+  // The body is the SAME SQL the canonical paste runs — provisionDDL() then
+  // WS.RLS_REAL_SQL, verbatim — WRAPPED, not paraphrased. So tools/validate.mjs's
+  // existing drift guard covers the RPC by construction, and tests/rls.mjs puts
+  // the RPC ROUTE (a legacy allow-all workspace, migrated by an admin call
+  // alone) through the same anon-reads-zero checks as the pasted postures.
+  WS.MIGRATE_FN = "polecat_migrate";
+
+  WS.migrationRpcSQL = function () {
+    var fn = "public." + WS.MIGRATE_FN;
+    var ddl = WS.provisionDDL().map(function (s) { return s + ";"; }).join("\n");
+    return [
+      "-- Analytics workspace — the migration RPC. Installs " + WS.MIGRATE_FN + "(mode text): an",
+      "-- ADMIN-ONLY call that creates any missing workspace table, re-applies the full",
+      "-- authenticated-only security posture and raises the schema marker, so upgrading this",
+      "-- database never needs the SQL editor again. Fixed DDL — the only parameter chooses",
+      "-- apply or probe, never SQL. Safe to run twice.",
+      "CREATE OR REPLACE FUNCTION " + fn + "(mode text DEFAULT 'apply') RETURNS jsonb",
+      "LANGUAGE plpgsql",
+      "SECURITY DEFINER",
+      "SET search_path = public",
+      "AS $polecat_migrate$",
+      "DECLARE",
+      "  was text;",
+      "BEGIN",
+      "  -- capability probe: the app asks 'can I upgrade you from here?' and writes nothing.",
+      "  -- Deliberately answerable by any signed-in account — knowing the button exists is not",
+      "  -- permission to press it, and the gate below is what refuses a non-admin.",
+      "  IF mode = 'probe' THEN",
+      "    RETURN jsonb_build_object('ok', true, 'probe', true, 'schemaVersion', " + WS.SCHEMA_VERSION + ");",
+      "  END IF;",
+      "  IF mode <> 'apply' THEN",
+      "    RAISE EXCEPTION 'polecat_migrate: unknown mode %; expected apply or probe', mode USING ERRCODE = '22023';",
+      "  END IF;",
+      "  IF to_regclass('public.users') IS NULL THEN",
+      "    RAISE EXCEPTION 'polecat_migrate: this database has no users table, so it has no administrators yet — run the setup script once first' USING ERRCODE = '42501';",
+      "  END IF;",
+      "  IF NOT EXISTS (",
+      "    SELECT 1 FROM public.users",
+      "    WHERE (data::jsonb->>'gotrueId') = auth.uid()::text AND \"role\" = 'admin'",
+      "  ) THEN",
+      "    RAISE EXCEPTION 'polecat_migrate: administrators only' USING ERRCODE = '42501';",
+      "  END IF;",
+      "  SELECT value INTO was FROM public." + WS.META_TABLE + " WHERE key = 'schema_version';",
+      "  EXECUTE $polecat_ddl$",
+      ddl,
+      "$polecat_ddl$;",
+      "  EXECUTE $polecat_posture$",
+      WS.RLS_REAL_SQL,
+      "$polecat_posture$;",
+      "  INSERT INTO public." + WS.META_TABLE + "(key, value) VALUES ('app', " + sqlText(WS.APP_ID) + ")",
+      "    ON CONFLICT (key) DO NOTHING;",
+      "  INSERT INTO public." + WS.META_TABLE + "(key, value) VALUES ('schema_version', '" + WS.SCHEMA_VERSION + "')",
+      "    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+      "    WHERE " + WS.META_TABLE + ".value !~ '^[0-9]+$' OR " + WS.META_TABLE + ".value::int < EXCLUDED.value::int;",
+      "  RETURN jsonb_build_object('ok', true, 'from', was, 'to', " + WS.SCHEMA_VERSION + ");",
+      "END",
+      "$polecat_migrate$;",
+      "REVOKE ALL ON FUNCTION " + fn + "(text) FROM PUBLIC;",
+      "REVOKE ALL ON FUNCTION " + fn + "(text) FROM anon;",
+      "GRANT EXECUTE ON FUNCTION " + fn + "(text) TO authenticated;"
+    ].join("\n");
+  };
+
+  // SQL string literal — the one quoting rule the generated script needs.
+  function sqlText(v) { return "'" + String(v == null ? "" : v).replace(/'/g, "''") + "'"; }
+
+  // § 7 of the deploy script: the FIRST ADMIN row. A fresh environment has no
+  // admin, and `users` INSERT is admin-only under the posture above, so this
+  // row can only be created by a superuser — i.e. in the SQL editor, as part of
+  // the same paste. When the browser already knows who is standing the
+  // workspace up (the signed-in local account) and can resolve their Supabase
+  // Auth uid, the statement ships READY TO RUN; otherwise it ships as the
+  // commented template the runbook has always carried, with whatever we do know
+  // filled in.
+  WS.firstAdminSQL = function (admin) {
+    var username = (admin && admin.username) || "<username>";
+    var name = (admin && admin.name) || "<Display Name>";
+    var uid = (admin && admin.gotrueId) || "";
+    var blob = JSON.stringify({
+      id: "user_" + username, u: username, name: name,
+      role: "admin", demo: false, hash: "", gotrueId: uid || "<AUTH-UID>"
+    });
+    var stmt =
+      'INSERT INTO public.users (id, "name", "role", "updatedAt", data) VALUES\n' +
+      "  (" + sqlText("user_" + username) + ", " + sqlText(name) + ", 'admin',\n" +
+      "   (extract(epoch from now())*1000)::bigint,\n" +
+      "   " + sqlText(blob) + ")\n" +
+      '  ON CONFLICT (id) DO UPDATE SET "role" = EXCLUDED."role", data = EXCLUDED.data;';
+    var head =
+      "-- ---------------------------------------------------------------------------\n" +
+      "-- 7) FIRST ADMIN (run once per environment, as postgres — bypasses RLS, which\n" +
+      "--    is required: users INSERT is admin-only and a fresh environment has none).\n";
+    if (uid) {
+      return head +
+        "--    Ready to run: this is the account you are signed in as, with the\n" +
+        "--    Supabase Auth uid this connection just resolved.\n" + stmt;
+    }
+    return head +
+      "--    First create the Auth account (Authentication → Add user), copy its UID,\n" +
+      "--    then uncomment this and fill in <AUTH-UID>:\n" +
+      stmt.split("\n").map(function (l) { return "--   " + l; }).join("\n");
+  };
+
+  // § 8 of the deploy script: the anon verify, as the runbook's comment block —
+  // it is a separate, deliberately manual step (it wraps itself in a
+  // transaction it then rolls back).
+  WS.ANON_VERIFY_SQL =
+    "-- ---------------------------------------------------------------------------\n" +
+    "-- 8) VERIFY (run separately; expect ALL ZEROS for anon — the log tables have\n" +
+    "--    no anon SELECT policy, so they are zero by construction):\n" +
+    "--   begin;\n" +
+    "--     set local role anon;\n" +
+    "--     select\n" +
+    "--       (select count(*) from public.dashboards)  dashboards_anon,\n" +
+    "--       (select count(*) from public.connections) connections_anon,\n" +
+    "--       (select count(*) from public.datasets)    datasets_anon,\n" +
+    "--       (select count(*) from public.analyses)    analyses_anon,\n" +
+    "--       (select count(*) from public.jobs)        jobs_anon,\n" +
+    "--       (select count(*) from public.users)       users_anon,\n" +
+    "--       (select count(*) from public.polecat_activity) activity_anon,\n" +
+    "--       (select count(*) from public.polecat_feedback) feedback_anon;\n" +
+    "--   rollback;\n" +
+    "-- Then sign in as the admin above and confirm a test edit pushes cleanly.";
+
+  // The COMPLETE fresh-environment script the connect wizard hands over for a
+  // backend that cannot DDL from the browser (Supabase): tables, the workspace
+  // markers, atomic saves, the real posture, the first admin, the verify. Same
+  // content and same order as tools/supabase-deploy.sql, so a user who pastes
+  // this ends up exactly where tools/supabase-deploy.sql would have put them.
+  //
+  // The two marker rows are ON CONFLICT DO NOTHING, never DO UPDATE (N17/N20
+  // monotonicity): re-running an older copy of this script against an upgraded
+  // workspace must not rewind schema_version, and running the analytics script
+  // against a project another fleet app already claimed must not relabel it.
+  // settings/meta are this browser's own app-level singletons and do update.
+  WS.freshDeploySQL = function (snapshot, admin) {
+    var out = [
+      '-- Polecat "' + WS.APP_ID + '" workspace — COMPLETE fresh-environment deploy script.',
+      "--",
+      "-- Run it top-to-bottom, bare (no begin/rollback wrapper), in Supabase → SQL",
+      "-- editor. Idempotent throughout — safe to re-run on an existing environment.",
+      "-- This is the SAME posture as tools/supabase-deploy.sql in the repo: tables,",
+      "-- the verified authenticated-only Row-Level Security, the activity/feedback",
+      "-- logs and the table grants. After running it, § 7 creates the first admin —",
+      "-- without that row nobody can write, because writes are authenticated-only.",
+      "--",
+      "-- ---------------------------------------------------------------------------",
+      "-- 1) Workspace tables (id + promoted columns + the full-row data blob)."
+    ];
+    WS.provisionDDL().forEach(function (s) { out.push(s + ";"); });
+    out.push("");
+    out.push("-- 1b) Say what was just built, without ever rewinding an existing marker.");
+    WS.metaRows(snapshot).forEach(function (m) {
+      var fixed = (m.key === "app" || m.key === "schema_version");
+      out.push('INSERT INTO "' + WS.META_TABLE + '"(key, value) VALUES(' + sqlText(m.key) + ", " + sqlText(m.value) + ")" +
+        (fixed ? " ON CONFLICT (key) DO NOTHING;" : " ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value;"));
+    });
+    out.push("");
+    out.push("-- ---------------------------------------------------------------------------");
+    out.push("-- 1c) Atomic saves (AUD-01) — the whole snapshot in ONE transaction.");
+    out.push(WS.atomicSaveSQL());
+    out.push("");
+    out.push("-- ---------------------------------------------------------------------------");
+    out.push("-- 2-6c) The REAL security posture: RLS on with authenticated-only policies,");
+    out.push("--    owner/private rows, an admin arm, the activity logs and the grants");
+    out.push("--    PostgREST needs. Anonymous callers read ZERO rows after this.");
+    out.push(WS.RLS_REAL_SQL);
+    out.push("");
+    out.push("-- ---------------------------------------------------------------------------");
+    out.push("-- 6d) The migration RPC (N22b) — the reason this is the LAST paste. With it");
+    out.push("--    installed, an admin signed into the app can bring this database up to a");
+    out.push("--    newer build's shape from inside the app, instead of coming back here.");
+    out.push(WS.migrationRpcSQL());
+    out.push("");
+    out.push(WS.firstAdminSQL(admin));
+    out.push("");
+    out.push(WS.ANON_VERIFY_SQL);
+    return out.join("\n");
+  };
+
   // The rows written into polecat_meta at provision time — workspace identity
   // plus the app-level singletons (settings/meta) so the whole workspace is
   // captured relationally without a bespoke table each.
+  // N17: the version marker only ever moves FORWARD. Every adapter's save()
+  // writes these rows, so stamping a literal WS.SCHEMA_VERSION let an older
+  // build re-label a newer workspace as its own version — after which every
+  // client (including the newer app that built it) reads the workspace as
+  // older than it is and offers to "upgrade" what is already upgraded. The
+  // snapshot carries what the BACKEND reported (load() overwrites
+  // schemaVersion, N16), so keep the higher of the two.
   WS.metaRows = function (snapshot) {
+    var seen = Number(snapshot && snapshot.schemaVersion);
+    var stamp = (!isNaN(seen) && seen > WS.SCHEMA_VERSION) ? seen : WS.SCHEMA_VERSION;
     return [
       { key: "app",            value: WS.APP_ID },
-      { key: "schema_version", value: String(WS.SCHEMA_VERSION) },
+      { key: "schema_version", value: String(stamp) },
       { key: "settings",       value: JSON.stringify((snapshot && snapshot.settings) || {}) },
       { key: "meta",           value: JSON.stringify((snapshot && snapshot.meta) || {}) }
     ];
@@ -261,6 +651,10 @@
 
   // A snapshot is the portable, adapter-neutral form of a whole workspace:
   //   { app, schemaVersion, tables:{ connections:[…rows], … }, settings, meta }
+  // `schemaVersion` starts as THIS app's version and every adapter's load()
+  // overwrites it with the version the backend actually reports (N16) — so a
+  // loaded snapshot always says what the BACKEND is, and a backend with no
+  // readable marker reads as "no evidence of a difference".
   WS.emptySnapshot = function () {
     var tables = {};
     WS.TABLE_NAMES.forEach(function (t) { tables[t] = []; });
@@ -268,6 +662,35 @@
   };
 
   WS.isOwnApp = function (app) { return app === WS.APP_ID; };
+
+  // ---- N16: the version handshake -----------------------------------------
+  // Every provisioned workspace stamps the schema version it was built at
+  // (metaRows → polecat_meta.schema_version) and every adapter's probe() has
+  // always reported it — but until N16 nothing COMPARED it, so both mismatch
+  // directions proceeded in silence. This is that comparison, in one place, so
+  // the seams that use it (sync's adoption points, the workspace picker) can't
+  // drift apart:
+  //   'newer'   the workspace was built by a NEWER app than this one. This
+  //             build must never WRITE to it — save() is a whole-snapshot
+  //             replace over the tables this build knows, so writing publishes
+  //             an old-shaped view of a new workspace. Reading is safe.
+  //   'older'   the workspace predates this build. Safe today (every bump is
+  //             additive); it wants the provision delta before it can hold
+  //             everything this build writes. N16 slice 2 made that an OFFER,
+  //             not a latch: Sync.upgradeWorkspace() backs the workspace up and
+  //             then applies the delta (in the browser where the adapter can
+  //             DDL, as paste-me SQL where it can't).
+  //   'same'    proceed, zero friction.
+  //   'unknown' no readable marker. Callers treat it as 'same': a pre-marker or
+  //             partially-read backend is not evidence of newness, and latching
+  //             a workspace read-only on a missing row would be its own outage.
+  WS.compareSchema = function (backendVersion) {
+    var v = Number(backendVersion);
+    if (backendVersion == null || isNaN(v) || v <= 0) return "unknown";
+    if (v > WS.SCHEMA_VERSION) return "newer";
+    if (v < WS.SCHEMA_VERSION) return "older";
+    return "same";
+  };
 
   // ---- SQL-shaped adapter helpers (from the fleet base.js) ----------------
   // Split a row into { cols:{promoted→cell}, data:JSON-of-the-whole-row }.

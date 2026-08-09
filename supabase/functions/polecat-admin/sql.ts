@@ -42,10 +42,16 @@ ALTER TABLE "analyses"    ALTER COLUMN "updatedAt" TYPE BIGINT;
 ALTER TABLE "jobs"        ALTER COLUMN "updatedAt" TYPE BIGINT;
 ALTER TABLE "users"       ALTER COLUMN "updatedAt" TYPE BIGINT;
 
+-- Workspace markers, written so an OLDER copy of this function can never take a
+-- workspace BACKWARDS (N28): \`app\` is DO NOTHING (an existing environment's own
+-- claim wins), \`schema_version\` is RAISE-ONLY — provisioning may move it UP,
+-- never DOWN, and the guard heals an absent or non-numeric marker. Mirrors
+-- tools/supabase-bootstrap.sql § markers and deploy.sql's polecat_migrate().
 INSERT INTO "polecat_meta"(key, value) VALUES ('app', 'analytics')
-  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+  ON CONFLICT (key) DO NOTHING;
 INSERT INTO "polecat_meta"(key, value) VALUES ('schema_version', '4')
-  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+  WHERE polecat_meta.value !~ '^[0-9]+$' OR polecat_meta.value::int < EXCLUDED.value::int;
 
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
@@ -54,14 +60,43 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE O
 -- Demo "allow all" posture — \`go-live\` immediately replaces this with the
 -- per-user policies in RLS_REAL_SQL; \`provision\` alone (no go-live yet) leaves
 -- it in place so the app keeps working pre-go-live, same as today.
+--
+-- POSTURE-PRESERVING (N26). This block used to create \`polecat_anon_all\`
+-- unconditionally, and \`provision\` is the only schema action this function has.
+-- Postgres ORs PERMISSIVE policies together, so running it against a workspace
+-- that has already been through go-live did not REPLACE the per-user policies —
+-- it added an allow-all one BESIDE them and handed the anon key every row again,
+-- with nothing in the UI to say so. So the demo posture is now installed only on
+-- a workspace that has NOT gone live; the evidence is the real posture's own
+-- policy names, which is the same thing RLS_REAL_SQL drops by name for the same
+-- OR-ing reason. The drop stays UNCONDITIONAL — a stray allow-all beside a live
+-- posture is exactly the leak, so finding one is a reason to remove it, never a
+-- reason to keep it. A rollback to the demo posture is still available and still
+-- one paste: drop the per-user policies first (tools/M7-RLS-GOLIVE-RUNBOOK.md
+-- § Rollback), which is what makes this block install them again.
 DO $$
-DECLARE t text;
+DECLARE
+  t text;
+  live boolean;
 BEGIN
+  SELECT EXISTS (
+    SELECT 1 FROM pg_policies
+     WHERE schemaname = current_schema()
+       AND tablename = ANY (ARRAY['polecat_meta','connections','datasets','dashboards','analyses','jobs','users'])
+       AND policyname IN ('polecat_select','polecat_insert','polecat_update','polecat_delete','polecat_meta_auth')
+  ) INTO live;
+
   FOREACH t IN ARRAY ARRAY['polecat_meta','connections','datasets','dashboards','analyses','jobs','users'] LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format('DROP POLICY IF EXISTS polecat_anon_all ON %I', t);
-    EXECUTE format('CREATE POLICY polecat_anon_all ON %I FOR ALL TO anon, authenticated USING (true) WITH CHECK (true)', t);
+    IF NOT live THEN
+      EXECUTE format('CREATE POLICY polecat_anon_all ON %I FOR ALL TO anon, authenticated USING (true) WITH CHECK (true)', t);
+    END IF;
   END LOOP;
+
+  IF live THEN
+    RAISE NOTICE 'polecat: this workspace has been through go-live — leaving its per-user policies alone and installing no demo allow-all.';
+  END IF;
 END $$;
 
 NOTIFY pgrst, 'reload schema';
@@ -160,6 +195,15 @@ CREATE POLICY polecat_delete ON public.users FOR DELETE TO authenticated USING (
 DROP POLICY IF EXISTS polecat_meta_auth ON public.polecat_meta;
 CREATE POLICY polecat_meta_auth ON public.polecat_meta
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- 4) Table privileges (N20). Mirrors § 4 of /tools/supabase-rls-real.sql.
+--    BOOTSTRAP_DDL above already grants, and \`go-live\` always runs it first —
+--    but this constant is also the canonical posture, and the two files must
+--    stay section-for-section identical (the N2-slice-2 drift class). Safe: RLS
+--    is what restricts ROWS, so a grant without a policy still returns nothing.
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO anon, authenticated, service_role;
 
 NOTIFY pgrst, 'reload schema';
 `;

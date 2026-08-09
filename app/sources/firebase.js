@@ -134,6 +134,33 @@
         .catch(function (e) { return { ok: false, error: e.message }; });
     },
 
+    // N16 slice 2: upgrade an older workspace. Firestore has no schema to
+    // migrate — a collection springs into existence when its first document is
+    // written, so save() has always been able to write a table this workspace
+    // was provisioned before. What it never did was re-stamp the marker, so an
+    // older Firebase workspace reported its provisioning version forever and
+    // the app had no way to stop asking. Re-stamping the `app` doc IS the
+    // upgrade here, and it is the whole of it.
+    upgradeWorkspace: function (cfg) {
+      return writeDoc(cfg, WS.META_TABLE, "app", toDoc({ id: "app", app: WS.APP_ID, schemaVersion: WS.SCHEMA_VERSION }))
+        .then(function () { return { ok: true, applied: "browser" }; })
+        .catch(function (e) { return { ok: false, error: e.message }; });
+    },
+
+    // N17 slice 2 — the runtime tripwire's cheap read. sync.js re-checks the
+    // backend's schema marker on resume/reconnect, which is a moment where a
+    // whole-workspace load() would be wasteful (and, with local edits pending,
+    // is not something we may adopt anyway). One document, no rows adopted.
+    schemaVersion: function (cfg) {
+      return fsReq(cfg, "/" + WS.META_TABLE + "/app").then(function (res) {
+        if (!res.ok) return null;
+        return res.json().then(function (d) {
+          var r = fromDoc(d);
+          return (r && r.schemaVersion != null) ? (Number(r.schemaVersion) || null) : null;
+        });
+      });
+    },
+
     summarize: function (cfg) { return this.probe(cfg); },
 
     drop: function (cfg) {
@@ -173,25 +200,54 @@
           if (!res.ok) return;
           return res.json().then(function (d) { var r = fromDoc(d); if (r && r.meta) snap.meta = r.meta; });
         }).catch(function () {});
+      }).then(function () {
+        // N16: the version marker lives on the `app` doc here (probe reads the
+        // same one). Report what the BACKEND is, not what this app is — the
+        // handshake in sync.js compares it against WS.SCHEMA_VERSION.
+        return fsReq(cfg, "/" + WS.META_TABLE + "/app").then(function (res) {
+          if (!res.ok) return;
+          return res.json().then(function (d) {
+            var r = fromDoc(d);
+            if (r && r.schemaVersion) snap.schemaVersion = Number(r.schemaVersion) || snap.schemaVersion;
+          });
+        }).catch(function () {});
       }).then(function () { return snap; });
     },
 
+    // N17 slice 2 — deletes are TOMBSTONE-DRIVEN, never absence-driven.
+    //
+    // This used to upsert the snapshot's rows, then read the whole collection
+    // back and DELETE every document the snapshot didn't carry. That makes
+    // absence mean deletion, which is the DURABLE-2 class: a mirror that has
+    // never seen another device's row (a stale tab, a phone that hasn't
+    // reloaded, a build that predates the row's table being synced) pushes it
+    // away. Supabase was fixed for this in v787 and turso in N17 slice 1;
+    // firebase was the last adapter still carrying it. A row is now removed
+    // only when `meta.tombstones` says a user actually deleted it — the same
+    // shape as the other two — and `users` is upsert-only forever (v787), so
+    // account rows are never deleted by sync at all.
+    //
+    // The read-back is gone with it, so a save is now a bounded number of
+    // writes instead of a write burst plus a full re-read per table.
     save: function (cfg, snapshot) {
       var chain = Promise.resolve();
+      var tombs = (snapshot.meta && snapshot.meta.tombstones) || {};
       WS.TABLE_NAMES.forEach(function (t) {
         chain = chain.then(function () {
           var rows = snapshot.tables[t] || [];
-          var keep = {};
           var up = Promise.resolve();
           rows.forEach(function (r) {
-            keep[r.id] = 1;
             up = up.then(function () { return writeDoc(cfg, t, r.id, toDoc(r)); });
           });
-          // upsert current rows; then delete any doc no longer present
-          return up.then(function () { return readCollection(cfg, t); }).then(function (existing) {
+          if (t === "users") return up;   // account rows are never deleted by sync
+          var prefix = t + "|";
+          var dead = Object.keys(tombs)
+            .filter(function (k) { return k.indexOf(prefix) === 0; })
+            .map(function (k) { return k.slice(prefix.length); });
+          return up.then(function () {
             var del = Promise.resolve();
-            existing.forEach(function (r) {
-              if (!keep[r.id]) del = del.then(function () { return fsReq(cfg, "/" + t + "/" + encodeURIComponent(r.id), { method: "DELETE" }); });
+            dead.forEach(function (id) {
+              del = del.then(function () { return fsReq(cfg, "/" + t + "/" + encodeURIComponent(id), { method: "DELETE" }); });
             });
             return del;
           });

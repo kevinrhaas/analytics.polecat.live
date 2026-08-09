@@ -39,6 +39,10 @@ html[data-reduce-motion="1"] #app{transition:none}
 <link rel="stylesheet" href="vendor/polecat-shell/tokens.css"/>
 <link rel="stylesheet" href="app/studio.css"/>
 <script src="app/auth.js"></script>
+<!-- workspaces.js carries the packaged workspace catalog AND (N24) the saved-
+     workspace store the gate's picker is built on — it must load before gate.js,
+     exactly as it does in app/index.html. -->
+<script src="app/workspaces.js"></script>
 <script src="app/gate.js"></script>
 </head>
 <body class="viewer-body">

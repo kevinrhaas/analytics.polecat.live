@@ -102,12 +102,42 @@ function mockTursoExec(stmt) {
   if ((m = sql.match(/^CREATE TABLE IF NOT EXISTS "([^"]+)"/i))) { if (!T.has(m[1])) T.set(m[1], new Map()); return result([], []); }
   if ((m = sql.match(/^DROP TABLE IF EXISTS "([^"]+)"/i))) { T.delete(m[1]); return result([], []); }
   if ((m = sql.match(/^DELETE FROM "([^"]+)"$/i))) { if (T.has(m[1])) T.get(m[1]).clear(); return result([], []); }
+  // N16: the same statement with LITERAL values — how a test stands a mock
+  // workspace up at a schema version this build doesn't know about.
+  if ((m = sql.match(/^INSERT OR REPLACE INTO "([^"]+)"\(key,value\) VALUES\('([^']*)','([^']*)'\)$/i))) {
+    if (!T.has(m[1])) T.set(m[1], new Map());
+    T.get(m[1]).set(m[2], m[3]); return result([], []);
+  }
   if ((m = sql.match(/^INSERT OR REPLACE INTO "([^"]+)"\(key,value\)/i))) { T.get(m[1]).set(args[0], args[1]); return result([], []); }
-  if ((m = sql.match(/^INSERT INTO "([^"]+)"\(/i))) { T.get(m[1]).set(args[0], args); return result([], []); }
+  // N17: entity rows are stored COLUMN-KEYED (id -> {col:value}), not as the
+  // positional arg array they used to be, because the guarantee under test is
+  // per-COLUMN: a column the app never names must keep its value. Real SQLite
+  // semantics are modelled exactly — a plain INSERT leaves unnamed columns
+  // NULL (absent), and ON CONFLICT DO UPDATE SET writes only the columns it
+  // names, so anything else on the existing row survives.
+  if ((m = sql.match(/^INSERT INTO "([^"]+)"\(([^)]*)\)\s*VALUES/i))) {
+    const t = T.get(m[1]); if (!t) throw new Error("no such table: " + m[1]);
+    const cols = m[2].split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+    const incoming = {};
+    cols.forEach((c, i) => { incoming[c] = args[i]; });
+    const prev = t.get(incoming.id);
+    if (prev && !/ON CONFLICT/i.test(sql)) throw new Error("UNIQUE constraint failed: " + m[1] + ".id");
+    t.set(incoming.id, Object.assign({}, prev || {}, incoming));
+    return result([], []);
+  }
+  if ((m = sql.match(/^DELETE FROM "([^"]+)" WHERE id IN \(/i))) {
+    const t = T.get(m[1]); if (t) args.forEach((id) => t.delete(id));
+    return result([], []);
+  }
   if ((m = sql.match(/^SELECT COUNT\(\*\) FROM "([^"]+)"$/i))) { const t = T.get(m[1]); return result(["c"], [[t ? t.size : 0]]); }
   if ((m = sql.match(/^SELECT data FROM "([^"]+)"$/i))) {
     const t = T.get(m[1]); if (!t) throw new Error("no such table: " + m[1]);
-    return result(["data"], [...t.values()].map((args2) => [args2[args2.length - 1]]));
+    return result(["data"], [...t.values()].map((row) => [row.data]));
+  }
+  // N17 slice 2: the tripwire's single-row marker read (adapter.schemaVersion).
+  if ((m = sql.match(/^SELECT value FROM "([^"]+)" WHERE key = \?$/i))) {
+    const t = T.get(m[1]); if (!t) throw new Error("no such table: " + m[1]);
+    return result(["value"], t.has(args[0]) ? [[t.get(args[0])]] : []);
   }
   if ((m = sql.match(/^SELECT key, ?value FROM "([^"]+)"(?: WHERE key IN \('app','schema_version'\))?$/i))) {
     const t = T.get(m[1]); if (!t) throw new Error("no such table: " + m[1]);
@@ -252,6 +282,12 @@ let mockRefreshSeq = 0;
 // resolves, res.json() rejects. Distinct from a refusal, and the adapter has to
 // keep telling the two apart (see the N11 check).
 let mockTokenTruncate = 0;
+// N14: arm the NEXT token answer to be a given STATUS with a plausible error body
+// — a project that is rate-limiting (429) or restarting/overloaded (5xx). The
+// answer arrives and parses, so neither the fetch-rejection path nor N11's
+// truncated-body path catches it; it is the third shape of "no answer", and the
+// adapter must not read it as GoTrue refusing the credential.
+let mockTokenStatus = 0;
 // N12: the mock's default posture keeps every token it has ever minted valid,
 // which is friendly but not what a real GoTrue does — it ROTATES, and a SPENT
 // token is refused outside its reuse-detection grace window. `strict` mode turns
@@ -278,6 +314,17 @@ function handleMockSupabase(req, rep, p) {
       req.resume(); // drain the request body; we answer without reading it
       rep.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
       return rep.end('{"access_token":"mock-gotr'); // cut off mid-JSON
+    }
+    if (mockTokenStatus > 0) {
+      const code = mockTokenStatus;
+      mockTokenStatus = 0;
+      req.resume(); // drain the request body; we answer without reading it
+      // Shaped like the real thing: a 429 from GoTrue's rate limiter, a 503 from
+      // the platform in front of a restarting project. Valid JSON, so it reaches
+      // the adapter's status check rather than N11's unreadable-body path.
+      return send(code, code === 429
+        ? { error: "over_request_rate_limit", error_description: "Request rate limit reached" }
+        : { error: "service_unavailable", error_description: "The project is not accepting requests right now" });
     }
     const grant = (req.url.split("grant_type=")[1] || "password").split("&")[0];
     let body = "";
@@ -336,6 +383,11 @@ function handleMockSupabase(req, rep, p) {
   // inherit a leftover invalid_grant from #111's arm (the LF39 direct-auth flake).
   if (rel === "rest/v1/__cleartokenflap") { mockTokenFlaps = 0; return send(200, []); }
   if (rel === "rest/v1/__armtokentruncate") { mockTokenTruncate = 1; return send(200, []); }
+  // N14: ?code=503 / ?code=429 — arm the next token answer to be that status.
+  if (rel === "rest/v1/__armtokenstatus") {
+    mockTokenStatus = parseInt((req.url.split("code=")[1] || "503").split("&")[0], 10) || 503;
+    return send(200, []);
+  }
   // N12 probes: turn the rotate-and-refuse posture on/off, and start a counted
   // token chain (the answer IS the token to seed the connection with).
   if (rel === "rest/v1/__armrefreshstrict") { mockRefreshStrict = true; return send(200, []); }
@@ -550,7 +602,17 @@ function handleMockRedshiftData(req, rep) {
 function serve() {
   return new Promise((res) => {
     const srv = http.createServer((req, rep) => {
-      let p = decodeURIComponent(req.url.split("?")[0]); if (p === "/") p = "/index.html";
+      let p = decodeURIComponent(req.url.split("?")[0]);
+      // N25: the /dev/ and /stage/ previews are THIS tree served under a stage
+      // path prefix — tools/stage-preview.mjs copies the build there and
+      // re-points <base> — so serving the live tree at that prefix is the
+      // faithful way to exercise the stage guard from a real URL. Deliberately
+      // NOT the repo's committed dev/ snapshot: that is an older build's
+      // artifact, and a check that read it would go green on code that is not
+      // the code under test.
+      const stagePreview = /^\/(dev|stage)(\/.*)?$/.exec(p);
+      if (stagePreview) p = stagePreview[2] || "/";
+      if (p === "/") p = "/index.html";
       if (p === "/favicon.ico") { rep.writeHead(204); return rep.end(); }
       if (p === "/__turso/v2/pipeline") return handleMockTurso(req, rep);
       if (p === "/__postgrest401/" || p.indexOf("/__postgrest401/") === 0) {
@@ -1311,6 +1373,266 @@ function serve() {
       }
       ok(`N9a ${vp.width}px: every control in all ${N9_SECS.length} catalog toolbars is inside the viewport` +
         (phone ? " (the row wraps instead of running off the edge)" : ", and the rows stay a single unwrapped line"),
+        bad.length === 0, bad.join(" | "));
+      await mp.close();
+    }
+
+    /* ---- N7 (catalog toolbar tours): the tour STOP that explains that row ----
+       N9a made the toolbar fit the phone; nothing told the reader it was there. The Jobs and
+       Connections & Datasets tours described a search box and folder chips and stopped, so a
+       reader could finish either one without learning the catalog can sort, switch to tiles,
+       or bulk-delete. Both tours now carry a toolbar stop. tools/doc-truth.mjs check 22 holds
+       the SOURCE accountable (derived from `.repo-io` + the goSection() calls); this asserts
+       the runtime property that check cannot see — that the stop rings the real row, inside
+       the viewport, at both gate widths, and that its card names each control by the word the
+       LIVE DOM gives that control. */
+    console.log("\n• N7: the catalog tours' toolbar stop rings the real row and names its controls");
+    for (const vp of [{ width: 390, height: 780 }, { width: 1280, height: 900 }]) {
+      const tp = await browser.newPage({ viewport: vp });
+      await tp.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-shell-section", "home"); } catch (e) {} });
+      await tp.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+      await tp.waitForSelector("#btnMore", { timeout: 8000 });
+      const tour = await tp.evaluate(async function () {
+        function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+        var steps = window.StudioTutorial.tourSteps("jobs");
+        // the stop is found by the row it targets, never by its index — renumbering the tour
+        // must not silently retarget this check at a different step
+        var idx = -1, sel = "";
+        for (var i = 0; i < steps.length; i++) {
+          if (String(steps[i].target || "").indexOf(".repo-io") > -1) { idx = i; sel = steps[i].target; }
+        }
+        if (idx < 0) return { found: false };
+        window.StudioTutorial.openTour("jobs");
+        await sleep(300);
+        for (var n = 0; n < idx; n++) {
+          var next = document.querySelector("#st-tip button.pri");
+          if (next) next.click();
+          await sleep(320);
+        }
+        await sleep(500); // the spotlight scrolls its target into view with `smooth` — let it settle
+        var row = document.querySelector(sel), ring = document.getElementById("st-ring"),
+            tip = document.getElementById("st-tip");
+        if (!row || !ring || !tip) return { found: true, ring: !!ring, tip: !!tip, row: !!row };
+        var rr = ring.getBoundingClientRect(), br = row.getBoundingClientRect();
+        // every control names itself; the toggle's label flips at runtime, so its TITLE
+        // ("Switch between tile and list layout") is what carries both modes
+        var need = [], q = function (s) { return document.querySelector(s); };
+        if (q("#jobsSortSel")) need.push((q("#jobsSortSel").getAttribute("aria-label") || "").split(/\s+/)[0]);
+        if (q("#jobsViewToggle")) need = need.concat((q("#jobsViewToggle").getAttribute("title") || "").match(/tile|list/gi) || []);
+        if (q("#jobsSelectBtn")) need.push((q("#jobsSelectBtn").textContent || "").trim().split(/\s+/)[0]);
+        var copy = tip.textContent || "";
+        var missing = need.filter(function (w) { return !w || !new RegExp("\\b" + w + "\\b", "i").test(copy); });
+        var out = {
+          found: true, idx: idx, sel: sel, need: need, missing: missing,
+          ringIn: rr.left >= -1 && rr.top >= -1 && rr.right <= window.innerWidth + 1 && rr.bottom <= window.innerHeight + 1,
+          onRow: rr.right > br.left && rr.left < br.right && rr.bottom > br.top && rr.top < br.bottom,
+          ring: true, tip: true, row: true
+        };
+        var skip = document.querySelector("#st-tip .st-skip");
+        if (skip) skip.click();
+        return out;
+      });
+      ok(`N7 ${vp.width}px: the Jobs tour's toolbar stop rings the real .repo-io row, inside the viewport, and names sort / tile ⇆ list / Select`,
+        tour.found && tour.ring && tour.tip && tour.row && tour.ringIn && tour.onRow &&
+        tour.need && tour.need.length >= 4 && tour.missing && !tour.missing.length,
+        JSON.stringify(tour));
+      await tp.close();
+    }
+
+    /* ---- N9b: the Studio's own pane headers are touchable ----
+       The third surface in the N8 → N9a → N9b sweep, and the one that OPENS N8's work:
+       `#menuNewData`'s rows sat at a compliant 44px behind a 24px `＋ New ▾` trigger that
+       is the only way to reach them. Measured at 390×780 with the Data drawer open:
+       `#btnNewDS` 24px, `.search` 33px, `#inspHelpLink` 16px — none of them a `.btn` or a
+       `.menu button`, so neither UX7's rule nor N8's ever applied.
+       Three properties, because the fix had three ways to go wrong:
+       (1) every visible header control clears 44px on a phone;
+       (2) the `?` help link's PAINTED disc stays 16px (the fix grows the anchor's hit box
+           and paints the disc with ::before — a 44px disc in the header would be a
+           regression dressed as a pass);
+       (3) `#inspBack` stays HIDDEN — the first cut of the rule set `display:inline-flex`,
+           which beats the `hidden` attribute's UA `display:none` and revealed it on every
+           phone. Desktop is asserted unchanged so the ≤640px band cannot leak upward. */
+    console.log("\n• N9b: Studio pane headers — every control clears the 44px touch bar on a phone");
+    for (const vp of [{ width: 390, height: 780 }, { width: 1280, height: 900 }]) {
+      const phone = vp.width === 390;
+      const mp = await browser.newPage({ viewport: vp });
+      await mp.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-shell-section", "studio"); } catch (e) {} });
+      await mp.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+      await mp.waitForSelector("#btnMore", { timeout: 8000 });
+      await mp.evaluate(function () { var el = document.querySelector('[data-sec="studio"]'); if (el) el.click(); });
+      await mp.waitForTimeout(500);
+      // the mob-tab drawer is the phone route into these panes (N9b confirmed it works);
+      // on desktop they boot collapsed to their rails, so expand both to expose the headers
+      if (!phone) {
+        await mp.evaluate(function () { [].forEach.call(document.querySelectorAll(".pane-rail .rail-btn"), function (b) { b.click(); }); });
+        await mp.waitForTimeout(400);
+      }
+      const measure = function (paneId) {
+        return mp.evaluate(function (id) {
+          var hdr = document.querySelector("#" + id + " .pane-h");
+          if (!hdr) return { missing: true };
+          var out = [].filter.call(hdr.querySelectorAll("button,input,select,a"), function (el) {
+            // an OPEN dropdown's rows are N8's assertion, not this one
+            if (el.closest(".menu")) return false;
+            var cs = getComputedStyle(el);
+            return cs.display !== "none" && cs.visibility !== "hidden";
+          }).map(function (el) {
+            var b = el.getBoundingClientRect();
+            return { id: el.id || el.className, h: Math.round(b.height), w: Math.round(b.width) };
+          });
+          var help = document.getElementById("inspHelpLink");
+          var disc = help ? getComputedStyle(help, "::before").width : "";
+          return {
+            missing: false, out: out,
+            helpBox: help ? Math.round(help.getBoundingClientRect().height) : -1,
+            // "" when no ::before is generated — the desktop case, where the element IS the disc
+            helpDisc: disc === "auto" || disc === "" ? -1 : Math.round(parseFloat(disc)),
+            backHidden: !!(document.getElementById("inspBack") || {}).hidden,
+          };
+        }, paneId);
+      };
+      const bad = [];
+      let inspR = null;
+      for (const pane of ["library", "inspector"]) {
+        if (phone) { await mp.click(`.mob-tab[data-mob-tab="${pane}"]`); await mp.waitForTimeout(400); }
+        const r = await measure(pane);
+        if (r.missing) { bad.push(pane + ": no .pane-h"); continue; }
+        if (!r.out.length) bad.push(pane + ": header reports no visible controls");
+        if (pane === "inspector") inspR = r;
+        if (phone) {
+          const short = r.out.filter(function (c) { return c.h < 44; });
+          if (short.length) bad.push(pane + ": " + short.map(function (c) { return c.id + " " + c.h + "px"; }).join(", "));
+        }
+      }
+      // the pane's own search field sits just under the header and is the same class of miss
+      const searchH = await mp.evaluate(function () {
+        var s = document.querySelector("#library .search");
+        return s ? Math.round(s.getBoundingClientRect().height) : -1;
+      });
+      if (phone && searchH < 44) bad.push("#libSearch " + searchH + "px (needs 44)");
+      if (phone) {
+        if (inspR && inspR.helpBox < 44) bad.push("#inspHelpLink box " + inspR.helpBox + "px");
+        if (inspR && inspR.helpDisc !== 16) bad.push("#inspHelpLink painted disc " + inspR.helpDisc + "px (must stay 16 — the hit box grows, the visual does not)");
+        if (inspR && !inspR.backHidden) bad.push("#inspBack was revealed (an author display beats the hidden attribute)");
+      } else {
+        // desktop must be untouched: the compact header is the design there
+        const newBtn = await mp.evaluate(function () { var b = document.getElementById("btnNewDS"); return b ? Math.round(b.getBoundingClientRect().height) : -1; });
+        if (newBtn >= 44) bad.push("#btnNewDS grew to " + newBtn + "px on desktop");
+        if (inspR && inspR.helpBox !== 16) bad.push("#inspHelpLink is " + inspR.helpBox + "px on desktop (was 16)");
+      }
+      ok(`N9b ${vp.width}px: both Studio pane headers` +
+        (phone ? " clear the 44px touch minimum, the ? keeps its 16px disc, and #inspBack stays hidden" : " keep their compact desktop sizing — the ≤640px rule does not leak upward"),
+        bad.length === 0, bad.join(" | "));
+      await mp.close();
+    }
+
+    /* ---- N13: the pane LIST ROWS' own actions are touchable ----
+       N9b fixed the pane HEADERS; this is the rows underneath them, and the surface that
+       carries the destructive actions. Measured at 390×780 with each drawer open: the Data
+       pane's per-dataset duplicate/delete `.icobtn` pair 17px tall, the "This dashboard's
+       datasets" group's `.mine-add` 20px, the Inspector's move-up/move-down/delete trio 22px
+       — the delete sitting 21px from the duplicate.
+       Four properties, because the fix had four ways to go wrong:
+       (1) every visible row action in both panes clears 44×44 on a phone — WIDTH matters as
+           much as height here, since these are square icon buttons and the hazard is a
+           mis-tapped delete, not a missed one;
+       (2) none of them leaves the viewport — N9a's property, one level down: three 44px
+           buttons are 132px of row where 66px used to be, so a rule that only grew them
+           would push the trio off the right edge instead of wrapping;
+       (3) `.mine-add`'s PAINTED square stays 20px (the anchor's hit box grows and a ::before
+           paints the disc — a 44px brand block in the group header would be a regression
+           dressed as a pass), and the Inspector's row title keeps a readable width rather
+           than being crushed to make room;
+       (4) desktop is unchanged — the ≤640px band must not leak upward, and the compact
+           17/20/22px sizing IS the design there. */
+    console.log("\n• N13: Studio pane list rows — the row actions clear the 44px touch bar on a phone");
+    for (const vp of [{ width: 390, height: 780 }, { width: 1280, height: 900 }]) {
+      const phone = vp.width === 390;
+      const mp = await browser.newPage({ viewport: vp });
+      const n13Errs = [];
+      mp.on("pageerror", (e) => n13Errs.push(String(e && e.message ? e.message : e)));
+      await mp.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-shell-section", "studio"); } catch (e) {} });
+      await mp.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+      await mp.waitForSelector("#btnMore", { timeout: 8000 });
+      await mp.evaluate(function () { var el = document.querySelector('[data-sec="studio"]'); if (el) el.click(); });
+      await mp.waitForTimeout(500);
+      // same routes N9b uses: the mob-tab drawer on a phone, the pane rails on desktop
+      if (!phone) {
+        await mp.evaluate(function () { [].forEach.call(document.querySelectorAll(".pane-rail .rail-btn"), function (b) { b.click(); }); });
+        await mp.waitForTimeout(400);
+      }
+      const measureRows = function (paneId) {
+        return mp.evaluate(function (id) {
+          var root = document.querySelector("#" + id);
+          if (!root) return { missing: true };
+          var vw = window.innerWidth;
+          var acts = [].filter.call(root.querySelectorAll(".icobtn,.mine-add"), function (el) {
+            // an OPEN dropdown's rows are N8's assertion, the header's controls are N9b's
+            if (el.closest(".menu") || el.closest(".pane-h")) return false;
+            var cs = getComputedStyle(el);
+            return cs.display !== "none" && cs.visibility !== "hidden" && el.getBoundingClientRect().height > 0;
+          });
+          var name = function (el) { return el.title || el.getAttribute("aria-label") || el.className; };
+          var add = root.querySelector(".mine-add");
+          var addDisc = add ? getComputedStyle(add, "::before").width : "";
+          var addGlyph = add ? add.querySelector("svg,span") : null;
+          var txt = root.querySelector(".row-item .ri-txt");
+          return {
+            missing: false, count: acts.length,
+            short: acts.filter(function (el) {
+              var b = el.getBoundingClientRect();
+              return b.height < 44 || b.width < 44;
+            }).map(function (el) {
+              var b = el.getBoundingClientRect();
+              return name(el) + " " + Math.round(b.width) + "×" + Math.round(b.height);
+            }),
+            outside: acts.filter(function (el) {
+              var b = el.getBoundingClientRect();
+              return b.left < -0.5 || b.right > vw + 0.5;
+            }).map(function (el) {
+              var b = el.getBoundingClientRect();
+              return name(el) + " x" + Math.round(b.left) + "–" + Math.round(b.right);
+            }),
+            // the smallest action box, so desktop can assert it did NOT grow
+            minH: acts.length ? Math.min.apply(null, acts.map(function (el) { return Math.round(el.getBoundingClientRect().height); })) : -1,
+            addBox: add ? Math.round(add.getBoundingClientRect().height) : -1,
+            // "" when no ::before is generated — the desktop case, where the element IS the square
+            addDisc: addDisc === "auto" || addDisc === "" ? -1 : Math.round(parseFloat(addDisc)),
+            addGlyph: addGlyph ? Math.round(addGlyph.getBoundingClientRect().width) : -1,
+            txtW: txt ? Math.round(txt.getBoundingClientRect().width) : -1,
+          };
+        }, paneId);
+      };
+      const bad = [];
+      let libR = null, inspR = null;
+      for (const pane of ["library", "inspector"]) {
+        if (phone) { await mp.click(`.mob-tab[data-mob-tab="${pane}"]`); await mp.waitForTimeout(400); }
+        const r = await measureRows(pane);
+        if (r.missing) { bad.push(pane + ": no #" + pane); continue; }
+        // the probe holds itself accountable: an empty list would pass every assertion below
+        if (!r.count) bad.push(pane + ": reports no visible row actions (the probe found nothing to measure)");
+        if (pane === "library") libR = r; else inspR = r;
+        if (phone) {
+          if (r.short.length) bad.push(pane + " under 44px: " + r.short.join(", "));
+          if (r.outside.length) bad.push(pane + " outside the viewport: " + r.outside.join(", "));
+        }
+      }
+      if (phone) {
+        if (libR && libR.addBox < 44) bad.push(".mine-add box " + libR.addBox + "px (needs 44)");
+        if (libR && libR.addDisc !== 20) bad.push(".mine-add painted square " + libR.addDisc + "px (must stay 20 — the hit box grows, the visual does not)");
+        if (libR && libR.addGlyph !== 13) bad.push(".mine-add glyph " + libR.addGlyph + "px (must stay 13)");
+        // the row title must not pay for the buttons: the actions wrap to their own line instead
+        if (inspR && inspR.txtW < 180) bad.push(".row-item .ri-txt crushed to " + inspR.txtW + "px (the actions must wrap, not squeeze the title)");
+      } else {
+        // desktop must be untouched: the compact row IS the design there
+        if (libR && libR.minH >= 44) bad.push("library row actions grew to " + libR.minH + "px on desktop");
+        if (inspR && inspR.minH >= 44) bad.push("inspector row actions grew to " + inspR.minH + "px on desktop");
+        if (libR && libR.addBox !== 20) bad.push(".mine-add is " + libR.addBox + "px on desktop (was 20)");
+      }
+      if (n13Errs.length) bad.push("pageerrors: " + n13Errs.join(" / "));
+      ok(`N13 ${vp.width}px: both panes' list-row actions` +
+        (phone ? " clear the 44px touch minimum and stay inside the viewport, the ＋ keeps its 20px square, and the row title is not crushed" : " keep their compact desktop sizing — the ≤640px rule does not leak upward"),
         bad.length === 0, bad.join(" | "));
       await mp.close();
     }
@@ -4355,6 +4677,33 @@ function serve() {
       m2c.countyRows === 720 && m2c.allFips && !m2c.countyErr, JSON.stringify(m2c));
     ok("M2c: the seeded job is a county→state acreage-weighted-mean rollup wired source→output (the jobs-engine wmean pattern, its output a state-level dataset)",
       m2c.wmean && m2c.jobWired && m2c.stateGeo, JSON.stringify(m2c));
+    // ---- N7: the pack tour's new "your pinned Views" stop is only honest if the pack really
+    // does pin one View per practice to Home. Measure the DOM the tour spotlights (.home-analyses,
+    // the pinnedAnalyses Home section) rather than the seed rows, so a Home section that stops
+    // rendering them fails here too — the copy says "just below it", and that is the claim.
+    console.log("\n• N7: the pack pins one live View per practice to Home (the tour's new stop)");
+    await page.evaluate(function () { window.__studioShellSetSection("home"); });
+    await page.waitForTimeout(400);
+    const n7PinnedViews = await page.evaluate(function () {
+      var W = Studio.Workspace;
+      var mine = W.all("analyses").filter(function (a) { return a.demoPackId === "conservation"; });
+      var strip = document.querySelector(".home-analyses");
+      var cards = [].slice.call(document.querySelectorAll(".home-analyses .home-analysis"));
+      return {
+        seeded: mine.length, allPinned: mine.length > 0 && mine.every(function (a) { return !!a.pinned; }),
+        strip: !!strip, cards: cards.length,
+        names: cards.map(function (c) { return (c.querySelector("b") || {}).textContent || ""; }),
+        alt: cards.map(function (c) { var b = c.querySelector(".home-a-alt"); return b ? b.textContent : ""; })
+      };
+    });
+    const N7_PRACTICES = ["Cover crops", "No-till", "Reduced tillage", "Conventional"];
+    ok("N7: the conservation pack pins a live View per practice (Cover crops / No-till / Reduced tillage / Conventional) and Home renders each as its own card — what the tour's pinned-Views stop points at",
+      n7PinnedViews.allPinned && n7PinnedViews.strip && n7PinnedViews.cards === N7_PRACTICES.length &&
+      N7_PRACTICES.every(function (p) { return n7PinnedViews.names.some(function (n) { return n.indexOf(p) >= 0; }); }),
+      JSON.stringify(n7PinnedViews));
+    ok("N7: those cards are builder-made Views, so the card opens the View Builder and its small button offers Quick View — exactly the two routes the tour's copy names",
+      n7PinnedViews.alt.length === N7_PRACTICES.length && n7PinnedViews.alt.every(function (t) { return t === "Quick View"; }),
+      JSON.stringify(n7PinnedViews));
     // ---- QA-03 (2026-07-24 frontend QA report): Explore's default choropleth mapping —
     // the county demo used to auto-map Value to the text `statecode` column instead of the
     // numeric `pct` column (a second id-shaped column silently beat the real value column),
@@ -5166,6 +5515,561 @@ function serve() {
       dpInstall.panelTypes.filter(function (t) { return t === "ensembleSeries"; }).length === 4 &&
       dpInstall.panelTypes.filter(function (t) { return t === "choropleth"; }).length === 3,
       JSON.stringify(dpInstall));
+
+    // ---- SP-0: the pack CONFORMANCE loop -----------------------------------------
+    // Every check above names "conservation". This block names no pack at all: it walks
+    // Studio.DEMO_PACKS and puts each registered entry through the same install → tagged
+    // → foldered → declared-counts → uninstall-leaves-zero contract, so pack number
+    // twelve is covered the moment it is registered rather than when someone remembers
+    // to write it a test. It restores each pack to the state it found it in (including
+    // re-materializing an examples pack's dashboards) so the rest of the suite is
+    // unaffected by the round-trip.
+    const packConform = await page.evaluate(async function () {
+      var W = Studio.Workspace, dm = window.__studioDemoPacks;
+      var TABLES = ["jobs", "connections", "datasets", "analyses", "dashboards"];
+      function rowsOf(id) {
+        var out = [];
+        TABLES.forEach(function (t) {
+          W.all(t).forEach(function (r) { if (r.demoPackId === id) out.push({ t: t, folder: r.folder, name: r.name || r.id }); });
+        });
+        return out;
+      }
+      function countsOf(id) {
+        var c = {};
+        TABLES.forEach(function (t) { c[t] = W.all(t).filter(function (r) { return r.demoPackId === id; }).length; });
+        return c;
+      }
+      var ids = Object.keys(Studio.DEMO_PACKS), out = { ids: ids, packs: {} };
+      for (var i = 0; i < ids.length; i++) {
+        var id = ids[i], p = Studio.DEMO_PACKS[id], was = dm.installed(id), res = { kind: p.kind };
+        // the entry's own shape — id matches its key, and the Settings card copy exists
+        res.shape = p.id === id && !!p.kind && !!p.name && !!p.tagline && !!p.blurb && typeof p.folder === "string" && !!p.folder;
+        if (was) dm.remove(id);
+        res.cleanBefore = rowsOf(id).length === 0 && !dm.installed(id);
+        dm.install(id);
+        res.installedFlag = dm.installed(id);
+        var rows = rowsOf(id);
+        // SAMPLE-DATA-1: one folder per pack, across every type — read from the registry
+        res.allFoldered = rows.every(function (r) { return r.folder === p.folder; });
+        res.strayFolders = rows.filter(function (r) { return r.folder !== p.folder; }).map(function (r) { return r.t + ":" + r.name; });
+        // an entry that declares `seeds` must have an installer that actually writes them
+        var counts = countsOf(id);
+        res.counts = counts;
+        res.seedsMatch = !p.seeds || Object.keys(p.seeds).every(function (t) { return counts[t] === p.seeds[t]; });
+        dm.remove(id);
+        res.removedClean = rowsOf(id).length === 0 && !dm.installed(id);
+        if (was) {
+          dm.install(id);
+          // examples packs materialize their dashboards asynchronously — put them back
+          try { await window.__studioEnsurePackExamplesMaterialized(id); } catch (e) {}
+        }
+        res.restored = dm.installed(id) === was;
+        out.packs[id] = res;
+      }
+      return out;
+    });
+    ok("SP-0: every REGISTERED demo pack conforms — well-formed entry, install sets the flag, every seeded row is tagged and filed in the entry's own folder, declared seed counts match the installer, and remove leaves zero rows",
+      packConform.ids.length >= 2 && packConform.ids.every(function (id) {
+        var r = packConform.packs[id];
+        return r.shape && r.cleanBefore && r.installedFlag && r.allFoldered && r.seedsMatch && r.removedClean && r.restored;
+      }), JSON.stringify(packConform));
+
+    // SP-0: and no surface outside the registry may branch on a pack id — that literal
+    // dispatch is exactly what made a twelfth pack a code change in five files.
+    (function () {
+      const dp = fs.readFileSync(path.join(ROOT, "app/demopacks.js"), "utf8");
+      const st = fs.readFileSync(path.join(ROOT, "app/studio.js"), "utf8");
+      const bd = fs.readFileSync(path.join(ROOT, "app/build.js"), "utf8");
+      // strip comments so prose naming a pack doesn't count as a branch on it
+      const code = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+      const idLiteral = /["'](conservation|datamanagement)["']/;
+      const offenders = [];
+      [["app/studio.js", st], ["app/build.js", bd]].forEach(function (pair) {
+        code(pair[1]).split("\n").forEach(function (line, n) {
+          // dashboardTheme/app-theme keys legitimately share the "conservation" name
+          if (/dashboardTheme|APP_THEME|DASHBOARD_THEMES|THEME_|Theme/.test(line)) return;
+          if (idLiteral.test(line) && /demoPack|DEMO_PACKS|installDemoPack|PACK/i.test(line)) offenders.push(pair[0] + ":" + (n + 1) + " " + line.trim());
+        });
+      });
+      ok("SP-0: outside the registry, no module dispatches on a demo-pack id — studio.js and build.js ask DEMO_PACKS/demoPacksWith instead",
+        offenders.length === 0, offenders.join(" | "));
+      ok("SP-0: installDemoPack itself is registry-driven (`if (p.install) p.install()`), with no `id === \"...\"` branch left",
+        /if \(p\.install\) p\.install\(\)/.test(dp) && !/id === "conservation"/.test(code(dp)),
+        (code(dp).match(/id === "[a-z]+"/g) || []).join(",") || "clean");
+    })();
+
+    // ---- SP-0 (b): the DATA-PROVENANCE contract (docs/PACKS.md) -------------------
+    // Slice 1 made the registry the only place a pack is named. This is the other
+    // blocker on twelve packs: there was no convention for shipping REAL data, so the
+    // unwritten "synthetic, generated in JS" rule was the only thing standing between
+    // the app and an uncredited, unreproducible CSV. The rules are code now
+    // (Studio.packSourceIssues + tools/validate.mjs), and code can be driven with
+    // fixtures — which is what keeps these checks honest while both shipped packs are
+    // still synthetic: the negative cases below are real data shapes, not hypotheticals.
+    const packSource = await page.evaluate(function () {
+      var ids = Object.keys(Studio.DEMO_PACKS), out = { ids: ids, live: {}, lines: {} };
+      ids.forEach(function (id) {
+        out.live[id] = Studio.packSourceIssues(Studio.DEMO_PACKS[id]);
+        out.lines[id] = Studio.demoPackSourceLine(id);
+        out.attribution = out.attribution || {};
+        out.attribution[id] = Studio.packNeedsAttribution(id);
+      });
+      // the shape rule, exercised on entries the registry does not (yet) contain
+      var real = { kind: "public", name: "US Census CBP", url: "https://www.census.gov/x",
+        licence: "Public domain (U.S. Government work)", retrieved: "2026-08-08" };
+      function issues(src) { return Studio.packSourceIssues({ source: src }); }
+      out.fixtures = {
+        goodReal: issues(real),
+        goodSynthetic: issues({ kind: "synthetic", label: "synthetic — generated in the app" }),
+        none: issues(undefined),
+        unknownKind: issues({ kind: "scraped", name: "x" }),
+        httpUrl: issues(Object.assign({}, real, { url: "http://www.census.gov/x" })),
+        noLicence: issues(Object.assign({}, real, { licence: "" })),
+        badDate: issues(Object.assign({}, real, { retrieved: "Aug 2026" })),
+        syntheticWithLicence: issues({ kind: "synthetic", label: "x", licence: "CC-BY" }),
+        realLine: Studio.demoPackSourceLine("__not_a_pack__") === "" ? "empty-for-unknown" : "leaked"
+      };
+      return out;
+    });
+    ok("SP-0(b): every registered pack declares a well-formed source, and the shape rule rejects the ways a real one goes wrong (no source, unknown kind, http url, no licence, unparseable date, a synthetic entry carrying a licence)",
+      packSource.ids.length >= 2 &&
+      packSource.ids.every(function (id) { return packSource.live[id].length === 0 && /^Data: /.test(packSource.lines[id]); }) &&
+      packSource.fixtures.goodReal.length === 0 && packSource.fixtures.goodSynthetic.length === 0 &&
+      packSource.fixtures.none.length === 1 && packSource.fixtures.unknownKind.length === 1 &&
+      packSource.fixtures.httpUrl.length === 1 && packSource.fixtures.noLicence.length === 1 &&
+      packSource.fixtures.badDate.length === 1 && packSource.fixtures.syntheticWithLicence.length === 1 &&
+      packSource.fixtures.realLine === "empty-for-unknown",
+      JSON.stringify(packSource));
+
+    // Every pack SAYS on the card you install it from where its data came from — the
+    // honesty that used to live only in hand-written blurbs is now the registry's own
+    // line, rendered from one place. SP-1 made this more than a formality: the packs are
+    // no longer all synthetic, so the check is that each card renders ITS OWN source
+    // line (and that at least one of each kind is actually on the shelf).
+    await page.evaluate(function () { window.__studioShellSetSection("settings"); });
+    const packCardSrc = await page.evaluate(function () {
+      var out = {};
+      [].slice.call(document.querySelectorAll("#secSettings [data-demopack]")).forEach(function (btn) {
+        var id = btn.getAttribute("data-demopack");
+        var line = btn.closest(".set-row").querySelector(".set-pack-src");
+        out[id] = line ? line.textContent : null;
+      });
+      return out;
+    });
+    ok("SP-0(b): each pack's Settings card renders its own source line — the synthetic packs say plainly that their data is made up, and the real-data pack names its source, licence and retrieval date",
+      Object.keys(packCardSrc).length >= 3 &&
+      Object.keys(packCardSrc).every(function (id) { return packCardSrc[id] === packSource.lines[id] && /^Data: /.test(packCardSrc[id] || ""); }) &&
+      Object.keys(packCardSrc).some(function (id) { return /^Data: synthetic — generated in the app/.test(packCardSrc[id] || ""); }) &&
+      Object.keys(packCardSrc).some(function (id) { return /^Data: US Census Bureau .* \(Public domain \(U\.S\. Government work\)\), retrieved \d{4}-\d{2}-\d{2}$/.test(packCardSrc[id] || ""); }),
+      JSON.stringify(packCardSrc));
+
+    // A pack carrying somebody else's data has to be credited where the numbers are
+    // READ, not only where they are installed. Driven with a fixture pack because no
+    // real-data pack exists yet — the machinery is what SP-1 is blocked on, so it is
+    // what gets proven here: attribution lands in the subtitle, is idempotent, leaves
+    // authored text alone, and never touches a synthetic pack's dashboards.
+    const attrib = await page.evaluate(async function () {
+      var W = Studio.Workspace, PACK = "__srctest", out = {};
+      Studio.DEMO_PACKS[PACK] = { id: PACK, kind: "workspace", folder: "Src Test", name: "Src Test",
+        tagline: "t", blurb: "b",
+        source: { kind: "public", name: "US Census CBP", url: "https://www.census.gov/x",
+          licence: "Public domain (U.S. Government work)", retrieved: "2026-08-08" } };
+      var line = Studio.demoPackSourceLine(PACK);
+      out.line = line;
+      out.needsAttribution = Studio.packNeedsAttribution(PACK);
+      var authored = W.put("dashboards", { name: "srctest-authored", title: "Authored",
+        demoPackId: PACK, folder: "Src Test", spec: { name: "srctest-authored", subtitle: "County saturation, 2023" } });
+      var bare = W.put("dashboards", { name: "srctest-bare", title: "Bare",
+        demoPackId: PACK, folder: "Src Test", spec: { name: "srctest-bare", subtitle: "" } });
+      // a synthetic pack's dashboard, untouched by all of this
+      var syn = W.all("dashboards").filter(function (r) { return r.demoPackId === "conservation"; })[0];
+      var synBefore = syn && String(syn.spec.subtitle || "");
+      window.__studioReconcilePackDashboards();
+      function sub(id) { var r = W.all("dashboards").filter(function (x) { return x.id === id; })[0]; return r && String(r.spec.subtitle || ""); }
+      out.authored = sub(authored.id);
+      out.bare = sub(bare.id);
+      window.__studioReconcilePackDashboards();      // idempotent — the line can't accumulate
+      out.authoredTwice = sub(authored.id);
+      out.bareTwice = sub(bare.id);
+      var synAfter = syn && String((W.all("dashboards").filter(function (x) { return x.id === syn.id; })[0] || {}).spec.subtitle || "");
+      out.syntheticUntouched = synBefore === synAfter;
+      W.remove("dashboards", authored.id); W.remove("dashboards", bare.id);
+      delete Studio.DEMO_PACKS[PACK];
+      out.cleanedUp = W.all("dashboards").filter(function (r) { return r.demoPackId === PACK; }).length === 0 && !Studio.DEMO_PACKS[PACK];
+      return out;
+    });
+    ok("SP-0(b): a real-data pack's source is credited in the subtitle of every dashboard it seeds — appended to authored text, standing alone when there is none, idempotent across reconciles, and never applied to a synthetic pack",
+      attrib.needsAttribution && attrib.line === "Data: US Census CBP (Public domain (U.S. Government work)), retrieved 2026-08-08" &&
+      attrib.authored === "County saturation, 2023 · " + attrib.line && attrib.bare === attrib.line &&
+      attrib.authoredTwice === attrib.authored && attrib.bareTwice === attrib.bare &&
+      attrib.syntheticUntouched && attrib.cleanedUp, JSON.stringify(attrib));
+
+    // The filesystem half of the same contract, checked where it lives: real data is
+    // committed CSV with a re-runnable extract script beside it, under a byte budget.
+    // (The gate itself is tools/validate.mjs — this asserts the rules exist and are
+    // wired, so nobody quietly drops them while no pack exercises them yet.)
+    (function () {
+      const val = fs.readFileSync(path.join(ROOT, "tools/validate.mjs"), "utf8");
+      const lib = fs.readFileSync(path.join(ROOT, "tools/pack-extract/lib.mjs"), "utf8");
+      const docs = fs.existsSync(path.join(ROOT, "docs/PACKS.md")) && fs.readFileSync(path.join(ROOT, "docs/PACKS.md"), "utf8");
+      const packsDir = path.join(ROOT, "data/packs");
+      const dirs = fs.existsSync(packsDir) ? fs.readdirSync(packsDir).filter((d) => fs.statSync(path.join(packsDir, d)).isDirectory()) : [];
+      const overBudget = dirs.filter((d) => fs.readdirSync(path.join(packsDir, d))
+        .filter((f) => f.endsWith(".csv"))
+        .reduce((n, f) => n + fs.statSync(path.join(packsDir, d, f)).size, 0) > 150 * 1024);
+      ok("SP-0(b): the pack-data gate is wired — validate.mjs enforces the registry source, the extract script, the CSV-only directory and the 150KB per-pack budget; writePack applies the same source rules before writing; docs/PACKS.md is the contract",
+        /PACK_CSV_BUDGET = 150 \* 1024/.test(val) && /declares no source/.test(val) &&
+        /has no extract script/.test(val) && /THIRD-PARTY-NOTICES\.md does not mention/.test(val) &&
+        /PACK_CSV_BUDGET = 150 \* 1024/.test(lib) && /export function writePack/.test(lib) &&
+        !!docs && /≤150 KB of CSV per pack/.test(docs) && overBudget.length === 0,
+        "over budget: " + (overBudget.join(", ") || "none"));
+    })();
+
+    // ---- SP-1 (a): the first REAL-data pack, end to end -------------------------
+    // The SP-0 conformance loop above already covers the registry shape, the folder
+    // and the uninstall sweep for every pack. What is new here is the path SP-1 had to
+    // build: install() can only seed the connection, because the rows live in committed
+    // CSV that has to be READ — so the datasets, the job and the job's pre-materialized
+    // output arrive from an async ensure-function. This drives that path and checks the
+    // things a synthetic pack never had to prove: the CSV reaches the workspace, the
+    // JOIN actually matched (the pack's whole point is two Census programs meeting on
+    // county FIPS), the derived index is arithmetic and not nulls, the pre-materialized
+    // output equals what re-running the job's own steps produces, and Remove takes the
+    // async rows back with everything else.
+    const mc = await page.evaluate(async function () {
+      var W = Studio.Workspace, ID = "marketcoverage", was = Studio.demoPackInstalled(ID);
+      if (was) Studio.removeDemoPack(ID);
+      var out = { cleanBefore: W.all("datasets").filter(function (r) { return r.demoPackId === ID; }).length === 0 };
+      Studio.installDemoPack(ID);
+      out.afterInstallSync = {
+        connections: W.all("connections").filter(function (r) { return r.demoPackId === ID; }).length,
+        datasets: W.all("datasets").filter(function (r) { return r.demoPackId === ID; }).length
+      };
+      await Studio.ensurePackDataMaterialized(ID);
+      function rows(t) { return W.all(t).filter(function (r) { return r.demoPackId === ID; }); }
+      var dsets = rows("datasets"), jobs = rows("jobs");
+      out.counts = { connections: rows("connections").length, datasets: dsets.length, jobs: jobs.length };
+      out.allFoldered = rows("connections").concat(dsets, jobs).every(function (r) { return r.folder === "Market Coverage"; });
+      // idempotent: a second ensure must not duplicate a thing
+      await Studio.ensurePackDataMaterialized(ID);
+      out.stillOne = rows("datasets").length === dsets.length && rows("jobs").length === jobs.length;
+
+      var job = jobs[0];
+      var outputDs = dsets.filter(function (d) { return d.id === job.outputDatasetId; })[0];
+      out.hasOutput = !!outputDs && (outputDs.tags || []).indexOf("job-output") >= 0;
+      var lines = String((outputDs || {}).content || "").trim().split("\n");
+      out.outputCols = lines[0];
+      out.outputRows = lines.length - 1;
+      // the join matched: every output row carries a demographics column AND an
+      // establishments column, and the derived rate is a finite number
+      var head = lines[0].split(",");
+      var first = (lines[1] || "").split(",");
+      function val(col) { var i = head.indexOf(col); return i < 0 ? null : first[i]; }
+      out.joined = head.indexOf("population") >= 0 && head.indexOf("food_services") >= 0 && head.indexOf("county") >= 0;
+      out.derived = ["residents_per_10k", "restaurants_per_10k", "grocers_per_10k"].every(function (c) { return head.indexOf(c) >= 0; });
+      var rate = Number(val("restaurants_per_10k"));
+      out.rateIsANumber = isFinite(rate) && rate > 0;
+      out.rateChecks = Math.abs(rate - (Number(val("food_services")) / (Number(val("population")) / 10000))) < 1e-9;
+      // no null column: a mis-keyed join would still "work" and produce a column of nulls
+      out.nullFreeSample = lines.slice(1, 200).every(function (l) { var f = l.split(","); return f[head.indexOf("population")] !== "" && f[head.indexOf("restaurants_per_10k")] !== ""; });
+
+      // The seeded output is a PROMISE about what a Run will produce. Kept honest by
+      // reproducing the live path here — the file adapter parses the same two datasets
+      // out of the workspace, the async engine runs the job's own steps over them, and
+      // the CSV that falls out has to be the bytes already sitting in the output row.
+      var srcRes = await Studio.fileSource.queryData({}, W.get("datasets", job.sourceDatasetId));
+      var joinStep = (job.steps || []).filter(function (s) { return s.op === "join"; })[0];
+      var rightRes = await Studio.fileSource.queryData({}, W.get("datasets", joinStep.datasetId));
+      var ctx = { datasets: {} };
+      ctx.datasets[joinStep.datasetId] = { columns: rightRes.columns, rows: rightRes.rows };
+      var live = await Studio.runJobStepsAsync({ columns: srcRes.columns, rows: srcRes.rows }, job.steps, ctx);
+      out.rerunError = live.error || "";
+      out.rerunReproduces = !live.error && Studio.rowsToCsv(live.columns, live.rows) === outputDs.content;
+
+      Studio.removeDemoPack(ID);
+      // SP-1(b) added dashboards to the same async seed, so the sweep has to take those too
+      out.removedClean = ["connections", "datasets", "jobs", "dashboards"].every(function (t) { return rows(t).length === 0; }) && !Studio.demoPackInstalled(ID);
+      if (was) { Studio.installDemoPack(ID); await Studio.ensurePackDataMaterialized(ID); }
+      out.restored = Studio.demoPackInstalled(ID) === was;
+      return out;
+    });
+    ok("SP-1(a): the Market Coverage pack materializes its committed Census CSV — install seeds the connection, the ensure-function adds both datasets plus the join job and its pre-materialized output, the FIPS join matched (demographics and establishment columns in one row), the saturation index is real arithmetic, re-running the job through the live adapter+engine path reproduces the pre-materialized output byte for byte, a second ensure changes nothing, and Remove sweeps the async rows too",
+      mc.cleanBefore && mc.afterInstallSync.connections === 1 && mc.afterInstallSync.datasets === 0 &&
+      mc.counts.connections === 1 && mc.counts.datasets === 3 && mc.counts.jobs === 1 &&
+      mc.allFoldered && mc.stillOne && mc.hasOutput && mc.outputRows > 1500 &&
+      mc.joined && mc.derived && mc.rateIsANumber && mc.rateChecks && mc.nullFreeSample &&
+      mc.rerunReproduces && mc.removedClean && mc.restored, JSON.stringify(mc));
+
+    // ---- SP-1 (b): the pack's three dashboards ---------------------------------
+    // The claim this slice makes is not "three specs exist" — it is that what a reader
+    // sees is the pack's OWN Census rows, narrowed by filters they can open and move.
+    // So the checks below compute the medians independently from the shipped CSV and
+    // demand the specs agree with them, then RUN the saved builder blobs through
+    // Studio.Build.runBlob (the same #118 path the panels use) and assert every row the
+    // shortlist returns actually obeys both rules it advertises.
+    const mcDash = await page.evaluate(async function () {
+      var W = Studio.Workspace, ID = "marketcoverage";
+      // the (a) block above leaves the pack however it found it — install it for these
+      // checks and remember to hand the workspace back the same way (see the cleanup below)
+      var wasInstalled = Studio.demoPackInstalled(ID);
+      if (!wasInstalled) Studio.installDemoPack(ID);
+      await Studio.ensurePackDataMaterialized(ID);
+      function dash(name) {
+        return W.all("dashboards").filter(function (r) { return r.demoPackId === ID && (r.spec && r.spec.name) === name; })[0];
+      }
+      var hero = dash("marketcoverage-whitespace"), demog = dash("marketcoverage-demographics"), list = dash("marketcoverage-shortlist");
+      var out = { wasInstalled: wasInstalled, all3: !!(hero && demog && list) };
+      if (!out.all3) return out;
+      var all = [hero, demog, list];
+      out.foldered = all.every(function (r) { return r.folder === "Market Coverage"; });
+      // SP-0(b): somebody else's data is credited where the work is READ
+      window.__studioReconcilePackDashboards();
+      var line = Studio.demoPackSourceLine(ID);
+      out.attributed = all.every(function (r) {
+        return String((W.get("dashboards", r.id).spec || {}).subtitle || "").indexOf(line) >= 0;
+      });
+      // every charted panel and KPI is bound to a builder-blob DA over the pack's OWN
+      // job output — nothing here is sample-engine noise
+      var outputDs = W.all("datasets").filter(function (d) { return d.demoPackId === ID && (d.tags || []).indexOf("job-output") >= 0; })[0];
+      out.bound = true; out.onPackOutput = true;
+      all.forEach(function (r) {
+        var byId = {};
+        ((r.spec.cda || {}).dataAccesses || []).forEach(function (d) { byId[d.id] = d; });
+        (r.spec.panels || []).forEach(function (p) {
+          if (p.chart.type === "richtext") return;
+          var d = byId[p.chart.da];
+          if (!d || !d.builder || !d.builder.dsId) { out.bound = false; return; }
+          if (d.builder.dsId !== outputDs.id) out.onPackOutput = false;
+        });
+        (r.spec.kpis || []).forEach(function (k) { if (!byId[k.da]) out.bound = false; });
+      });
+      // the hero's two maps and the quadrant that turns them into a question
+      function panel(r, id) { return (r.spec.panels || []).filter(function (p) { return p.id === id; })[0]; }
+      var map = panel(hero, "pmw_map"), groc = panel(hero, "pmw_groc"), quad = panel(hero, "pmw_quad");
+      out.heroMap = !!map && map.chart.type === "choropleth" && map.chart.opts.scale === "county" &&
+        map.chart.map.idCol === "fips" && map.chart.map.valueCol === "restaurants_per_10k";
+      out.grocMap = !!groc && groc.chart.map.valueCol === "grocers_per_10k";
+      out.quad = !!quad && quad.chart.type === "quadrant" &&
+        quad.chart.map.xCol === "median_income" && quad.chart.map.yCol === "restaurants_per_10k";
+      // the demographics dashboard maps the three ACS measures Kevin asked to lean into
+      out.demogMaps = ["median_income", "median_age", "bachelors_pct"].every(function (c) {
+        return (demog.spec.panels || []).some(function (p) { return p.chart.type === "choropleth" && p.chart.map.valueCol === c; });
+      });
+      out.demogScatter = (demog.spec.panels || []).some(function (p) { return p.chart.type === "scatter" && p.chart.opts.trend === true; });
+
+      // the thresholds, recomputed here from the shipped rows — a constant typed into
+      // the spec would fail this
+      var lines = String(outputDs.content || "").trim().split("\n"), head = lines.shift().split(",");
+      function colVals(c) {
+        var i = head.indexOf(c);
+        return lines.map(function (l) { return Number(l.split(",")[i]); }).filter(function (n) { return isFinite(n); }).sort(function (a, b) { return a - b; });
+      }
+      function med(v) { var m = (v.length - 1) / 2; return v.length % 2 ? v[m] : (v[Math.floor(m)] + v[Math.ceil(m)]) / 2; }
+      var incMed = Math.round(med(colVals("median_income")));
+      var rateMed = Math.round(med(colVals("restaurants_per_10k")) * 10) / 10;
+      out.medians = { income: incMed, rate: rateMed, rows: lines.length };
+      out.quadThresholds = !!quad && quad.chart.opts.xThreshold === incMed && quad.chart.opts.yThreshold === rateMed;
+      var listDa = ((list.spec.cda || {}).dataAccesses || []).filter(function (d) { return d.id === "vms_list"; })[0];
+      var f = {}; ((listDa && listDa.builder.filters) || []).forEach(function (x) { f[x.col] = x; });
+      out.listRule = !!(f.median_income && Number(f.median_income.min) === incMed &&
+        f.restaurants_per_10k && Number(f.restaurants_per_10k.max) === rateMed && f.population);
+
+      // RUN the saved blobs — the #118 path the panels themselves use
+      var heroDa = ((hero.spec.cda || {}).dataAccesses || []).filter(function (d) { return d.id === "vmw_all"; })[0];
+      var heroRun = await Studio.Build.runBlob(heroDa.builder);
+      out.heroRows = heroRun ? heroRun.rows.length : 0;
+      out.heroLive = !!(heroRun && heroRun.live);
+      var listRun = await Studio.Build.runBlob(listDa.builder);
+      out.listRows = listRun ? listRun.rows.length : 0;
+      if (listRun) {
+        var ci = listRun.cols.indexOf("median_income"), cr = listRun.cols.indexOf("restaurants_per_10k"), cp = listRun.cols.indexOf("population");
+        out.listObeysBothRules = ci >= 0 && cr >= 0 && cp >= 0 && listRun.rows.every(function (r) {
+          return Number(r[ci]) >= incMed && Number(r[cr]) <= rateMed && Number(r[cp]) >= 250000;
+        });
+      }
+      out.listIsARealSubset = out.listRows > 0 && out.listRows < out.heroRows;
+      return out;
+    });
+    ok("SP-1(b): the Market Coverage pack seeds its three dashboards — the whitespace hero (restaurants-per-10k county map, its grocery twin, the income-vs-supply quadrant), the ACS demographics maps plus the income/supply scatter, and the shortlist — all foldered, all credited to the Census in their subtitles, every panel and KPI bound to a builder blob over the pack's own job output",
+      mcDash.all3 && mcDash.foldered && mcDash.attributed && mcDash.bound && mcDash.onPackOutput &&
+      mcDash.heroMap && mcDash.grocMap && mcDash.quad && mcDash.demogMaps && mcDash.demogScatter, JSON.stringify(mcDash));
+    ok("SP-1(b): the whitespace question is asked against the DATA's own medians — the quadrant crosshairs and the shortlist's filters both equal the median income and median restaurant rate recomputed here from the shipped CSV; running the saved blobs returns the WHOLE live basis (1,500+ rows, past the editor's 200-row display cap, which used to follow a saved View out into its dashboard and silently redraw the map) and every county the shortlist yields really is at or above the income median, at or below the rate median, and over the population floor",
+      mcDash.quadThresholds && mcDash.listRule && mcDash.heroLive && mcDash.heroRows > 1500 &&
+      mcDash.listObeysBothRules && mcDash.listIsARealSubset, JSON.stringify(mcDash));
+
+    // The heal: a workspace that installed the pack at slice (a) — Census data, no
+    // dashboards — gets them on boot reconcile without a reinstall; a second run is a no-op.
+    const mcHeal = await page.evaluate(function () {
+      var W = Studio.Workspace, names = ["marketcoverage-whitespace", "marketcoverage-demographics", "marketcoverage-shortlist"];
+      names.forEach(function (n) {
+        W.all("dashboards").filter(function (r) { return (r.spec && r.spec.name) === n; })
+          .forEach(function (r) { W.remove("dashboards", r.id, { silent: true }); });
+      });
+      W.notify("dashboards");
+      var healed = Studio.ensureMarketCoverageDashboards();
+      var back = names.every(function (n) { return W.all("dashboards").some(function (r) { return (r.spec && r.spec.name) === n; }); });
+      var again = Studio.ensureMarketCoverageDashboards();
+      return { healed: healed, back: back, idempotent: again === false };
+    });
+    ok("SP-1(b): the boot heal re-seeds the three Market Coverage dashboards into a slice-(a) install and is idempotent on a healthy one",
+      mcHeal.healed && mcHeal.back && mcHeal.idempotent, JSON.stringify(mcHeal));
+
+    // And it RENDERS: the hero loaded into the builder draws its KPIs, its county
+    // geometry and every panel — the thing a spec-shape check cannot tell you.
+    await page.evaluate(function () {
+      var W = Studio.Workspace;
+      var hero = W.all("dashboards").filter(function (r) { return (r.spec && r.spec.name) === "marketcoverage-whitespace"; })[0];
+      window.__studioLoad(Studio.clone(hero.spec));
+    });
+    await page.waitForTimeout(3000);
+    const mcRender = await page.evaluate(function () {
+      var d = document.querySelector("#preview").contentDocument;
+      function panelOf(id) {
+        return Array.prototype.filter.call(d.querySelectorAll("[data-panel-id]"), function (n) { return n.getAttribute("data-panel-id") === id; })[0];
+      }
+      function panelPaths(id) { var p = panelOf(id); return p ? p.querySelectorAll("svg path").length : 0; }
+      // COLORED counties, not just drawn ones: the map is the whole claim, and a basis
+      // truncated to its first 200 rows would still paint every county's outline.
+      function painted(id) {
+        var p = panelOf(id); if (!p) return 0;
+        return Array.prototype.filter.call(p.querySelectorAll("svg path"), function (n) {
+          return /^rgb\(/.test(n.getAttribute("fill") || "");
+        }).length;
+      }
+      return { kpis: d.querySelectorAll("#kpis .kpi").length, cards: d.querySelectorAll("#content .card").length,
+        mapPaths: panelPaths("pmw_map"), grocPaths: panelPaths("pmw_groc"), quadSvg: panelPaths("pmw_quad"),
+        mapPainted: painted("pmw_map"), grocPainted: painted("pmw_groc"),
+        quadDots: (panelOf("pmw_quad") || d.createElement("i")).querySelectorAll("circle").length,
+        note: !!d.querySelector(".sr-richtext"),
+        kpiValues: Array.prototype.map.call(d.querySelectorAll("#kpis .kpi .v"), function (n) { return n.textContent.trim(); }),
+        err: /Could not load|Render error|No query bound/.test((d.querySelector("#content") || {}).textContent || "") };
+    });
+    ok("SP-1(b): the whitespace dashboard actually draws — 4 KPIs with real values, 4 panels, 1,500+ counties COLORED on both maps (not merely outlined — the proof the panels get the whole basis, not a truncated one), the quadrant plotted with a dot per large county and the method note rendered, with no panel-level error",
+      mcRender.kpis === 4 && mcRender.cards === 4 && mcRender.mapPaths > 500 && mcRender.grocPaths > 500 &&
+      mcRender.mapPainted > 1500 && mcRender.grocPainted > 1500 && mcRender.quadDots > 100 &&
+      mcRender.quadSvg > 0 && mcRender.note && !mcRender.err &&
+      mcRender.kpiValues.length === 4 && mcRender.kpiValues.every(function (v) { return v && v !== "—" && v !== "0"; }),
+      JSON.stringify(mcRender));
+    // ---- SP-1 (c): the four pinned Views, and the pack's own tour ---------------
+    // A dashboard is READ; a View is OPENED and changed. So these checks are about
+    // exactly that difference: the four are hand-saveable View Builder blobs over the
+    // pack's own job output (not Quick-Views snapshots, not blobs pointing somewhere
+    // else), the basis runBlob hands their cards is the WHOLE live one, and the
+    // shortlist's two rules are filters on the View rather than a stored answer.
+    const mcViews = await page.evaluate(async function () {
+      var W = Studio.Workspace;
+      var rows = W.all("analyses").filter(function (a) { return a.demoPackId === "marketcoverage"; });
+      var byName = {}; rows.forEach(function (r) { byName[r.name] = r; });
+      var supply = byName["Market Coverage — restaurants & bars per 10,000 residents"];
+      var demand = byName["Market Coverage — median household income by county"];
+      var both = byName["Market Coverage — income versus restaurant supply"];
+      var list = byName["Market Coverage — the whitespace shortlist"];
+      var outDs = W.all("datasets").filter(function (d) {
+        return d.demoPackId === "marketcoverage" && (d.tags || []).indexOf("job-output") >= 0;
+      })[0];
+      var four = [supply, demand, both, list];
+      var out = {
+        count: rows.length,
+        allFound: four.every(Boolean),
+        allPinned: rows.every(function (r) { return r.pinned === true; }),
+        allFoldered: rows.every(function (r) { return r.folder === "Market Coverage"; }),
+        allBuilderNative: rows.every(function (r) {
+          return !!(r.builder && r.da && r.da.builder && r.chart) &&
+            r.builder.dsKind === "ws" && r.builder.dsId === (outDs || {}).id;
+        }),
+        types: four.map(function (r) { return r && r.chartType; }).join(","),
+        // mapped POSITIONALLY off the basis (the "AVG x" measure label defeats
+        // guessChoroplethCols), and stamped with a real Region scale
+        supplyMap: supply && [supply.chart.map.idCol, supply.chart.map.valueCol].join(">"),
+        supplyHead: supply && supply.da.columns.join(">"),
+        supplyScale: supply && supply.chart.opts.scale,
+        demandFmt: demand && demand.chart.opts.fmt,
+        // newPanel's table default would mark `state` numeric; the declared columns win
+        stateNotNumeric: !!list && !list.chart.map.cols.filter(function (c) { return c.col === "state"; })[0].num,
+        // Home sorts pinned Views newest-first, so the supply map has to lead the shelf
+        firstOnHome: W.all("analyses").filter(function (a) { return a.pinned; })
+          .sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); })
+          .filter(function (a) { return a.demoPackId === "marketcoverage"; })
+          .map(function (a) { return a.name; })[0]
+      };
+      if (!out.allFound) return out;
+      var res = await Promise.all(four.map(function (r) { return Studio.Build.runBlob(r.builder); }));
+      out.rowCounts = res.map(function (x) { return x ? x.rows.length : -1; });
+      var li = res[3], f = {};
+      (list.builder.filters || []).forEach(function (x) { f[x.col] = x; });
+      out.listRule = Object.keys(f).sort().join(",");
+      out.listCols = li ? li.cols.join(",") : "";
+      if (li) {
+        var ci = {}; li.cols.forEach(function (c, i) { ci[c] = i; });
+        out.listObeysBothRules = li.rows.length > 0 && li.rows.every(function (r) {
+          return Number(r[ci.median_income]) >= Number(f.median_income.min) &&
+            Number(r[ci.restaurants_per_10k]) <= Number(f.restaurants_per_10k.max) &&
+            Number(r[ci.population]) >= Number(f.population.min);
+        });
+        // and it really is a SUBSET — the filters do work, they are not decoration
+        out.listIsASubset = li.rows.length < out.rowCounts[0];
+      }
+      return out;
+    });
+    ok("SP-1(c): the pack pins four builder-native Views over its own job output — the supply map, the income map, the two plotted against each other and the shortlist, all pinned and foldered, the choropleths mapped positionally off their basis (not name-guessed) with a real county Region scale, the shortlist's `state` column left non-numeric, and the supply map seeded last so it leads Home's newest-first shelf",
+      mcViews.count === 4 && mcViews.allFound && mcViews.allPinned && mcViews.allFoldered &&
+      mcViews.allBuilderNative && mcViews.types === "choropleth,choropleth,scatter,table" &&
+      mcViews.supplyMap === mcViews.supplyHead && mcViews.supplyScale === "county" &&
+      mcViews.demandFmt === "money" && mcViews.stateNotNumeric &&
+      mcViews.firstOnHome === "Market Coverage — restaurants & bars per 10,000 residents",
+      JSON.stringify(mcViews));
+    ok("SP-1(c): running the four saved blobs returns the LIVE basis, not a stored copy — 1,500+ counties on each map (past the editor's 200-row display cap), a dot per large county on the scatter, and a shortlist that is a real subset in which every county clears all three of the View's own filters",
+      mcViews.rowCounts && mcViews.rowCounts[0] > 1500 && mcViews.rowCounts[1] > 1500 &&
+      mcViews.rowCounts[2] > 100 && mcViews.rowCounts[3] > 0 &&
+      mcViews.listRule === "median_income,population,restaurants_per_10k" &&
+      mcViews.listCols === "county,state,population,median_income,restaurants_per_10k" &&
+      mcViews.listObeysBothRules && mcViews.listIsASubset, JSON.stringify(mcViews));
+
+    // The heal, same shape as the dashboards' one slice earlier: an install that
+    // predates the Views gets them on boot reconcile, and a second run is a no-op.
+    const mcViewHeal = await page.evaluate(function () {
+      var W = Studio.Workspace;
+      W.all("analyses").filter(function (a) { return a.demoPackId === "marketcoverage"; })
+        .forEach(function (a) { W.remove("analyses", a.id, { silent: true }); });
+      W.notify("analyses");
+      var healed = Studio.ensureMarketCoverageViews();
+      var back = W.all("analyses").filter(function (a) { return a.demoPackId === "marketcoverage"; }).length;
+      var again = Studio.ensureMarketCoverageViews();
+      return { healed: healed, back: back, idempotent: again === false };
+    });
+    ok("SP-1(c): the boot heal re-seeds the four Market Coverage Views into an install that predates them and is idempotent on a healthy one",
+      mcViewHeal.healed && mcViewHeal.back === 4 && mcViewHeal.idempotent, JSON.stringify(mcViewHeal));
+
+    // The pack's own tour — gated on the pack the same way the Conservation one is
+    // (J6-10 checks the OFF half, with this pack uninstalled, further down).
+    const mcTour = await page.evaluate(function () {
+      StudioTutorial.open();
+      var choice = document.querySelector('#st-tip .st-choice[data-tour="marketcoverage"]');
+      var out = {
+        visible: !!choice,
+        label: ((choice && choice.querySelector("b")) || {}).textContent,
+        steps: StudioTutorial.stepCount("marketcoverage"),
+        // every spotlight the tour aims at a dashboard panel must be a panel the pack
+        // actually seeds — a tour naming a panel id that no longer exists stalls on a
+        // dead waitFor, which is exactly the class of drift N7's doc-truth checks hunt
+        targets: StudioTutorial.tourSteps("marketcoverage")
+          .map(function (s) { return s.target; }).filter(Boolean)
+      };
+      var hero = Studio.Workspace.all("dashboards").filter(function (r) {
+        return (r.spec && r.spec.name) === "marketcoverage-whitespace";
+      })[0];
+      var ids = ((hero && hero.spec.panels) || []).map(function (p) { return p.id; });
+      out.panelTargetsResolve = out.targets.filter(function (t) { return /data-panel-id/.test(t); })
+        .every(function (t) { return ids.indexOf(t.replace(/^\[data-panel-id="|"\]$/g, "")) >= 0; });
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      return out;
+    });
+    ok("SP-1(c): the Market Coverage tour is registered, appears in the chooser once the pack is installed, walks 6 stops, and every panel it spotlights is a panel the pack really seeds",
+      mcTour.visible && mcTour.label === "Market Coverage pack" && mcTour.steps === 6 &&
+      mcTour.targets.length === 4 && mcTour.panelTargetsResolve, JSON.stringify(mcTour));
+
+    // hand the workspace back exactly as the SP-1(b) checks found it
+    if (!mcDash.wasInstalled) await page.evaluate(function () { Studio.removeDemoPack("marketcoverage"); });
 
     // CONS-1: the three CTIC/OpTIS reference dashboards — spec shapes match the
     // reference visuals (diverging change map, real provider colors, real CRD
@@ -8565,15 +9469,846 @@ function serve() {
       out.query = await t.queryData(cfg, { kind: "sql", sql: "SELECT 1" });
       out.drop = await t.drop(cfg);
       out.probeAfterDrop = (await t.probe(cfg)).state;
+      out.appVer = Studio.WS.SCHEMA_VERSION; // N16: compare, never hardcode
       return out;
     }, PORT);
     ok("WS: turso adapter end-to-end — probe(empty)→provision→probe(ours, app=analytics)",
       wsTurso.test.ok && wsTurso.probeEmpty === "empty" && wsTurso.provision.ok &&
-      wsTurso.probeState === "polecat" && wsTurso.probeApp === "analytics" && wsTurso.probeVer === 4, JSON.stringify(wsTurso));
+      wsTurso.probeState === "polecat" && wsTurso.probeApp === "analytics" && wsTurso.probeVer === wsTurso.appVer, JSON.stringify(wsTurso));
     ok("WS: turso adapter round-trips a full workspace snapshot (save → load)",
       wsTurso.save.ok && wsTurso.loadedConn === "warehouse" && wsTurso.loadedDs === "SELECT * FROM orders" && wsTurso.loadedSetting === "polecat", JSON.stringify(wsTurso));
     ok("WS: turso data plane answers queryData and drop() resets to empty",
       wsTurso.query.columns.length === 1 && wsTurso.query.rows.length === 1 && wsTurso.drop.ok && wsTurso.probeAfterDrop === "empty", JSON.stringify(wsTurso.query));
+
+    // ---- N17: an older app must not clobber a newer workspace ---------------
+    // N16 latches a NEWER workspace read-only at the seams it can see. This is
+    // the half that covers the tab that got past it — a stale tab, a cached SW
+    // build, a phone that hasn't refreshed — still writing through the OLD code
+    // path. Stand a FUTURE-shaped (v+1) Turso workspace up directly in the mock,
+    // carrying all four things this build cannot see, then run a REAL
+    // edit-and-save through the adapter and assert nothing unknown was lost.
+    console.log("\n• N17: an older app must not clobber a newer workspace");
+    const n17AppVer = await page.evaluate(function () { return Studio.WS.SCHEMA_VERSION; });
+    {
+      const T = mockTurso.tables;
+      T.clear();
+      const mk = (name) => { const m = new Map(); T.set(name, m); return m; };
+      ["connections", "datasets", "dashboards", "analyses", "jobs", "users"].forEach(mk);
+      // (1) a TABLE this build has never heard of
+      mk("forecasts").set("f-1", { id: "f-1", data: JSON.stringify({ id: "f-1", horizon: 30 }) });
+      // (2) an unknown promoted COLUMN (`owner`) on a table it DOES know, and
+      // (3) an unknown FIELD (`retention`) inside that row's data blob
+      mk("datasets").set("d-1", {
+        id: "d-1", name: "orders", connectionId: "c-1", kind: "sql", updatedAt: 1, owner: "kevin",
+        data: JSON.stringify({ id: "d-1", name: "orders", connectionId: "c-1", kind: "sql", updatedAt: 1, sql: "SELECT 1", retention: "90d" })
+      });
+      // (4) a row this stale mirror has never seen (no tombstone ⇒ not a delete)
+      const dash = mk("dashboards");
+      dash.set("db-1", { id: "db-1", name: "ops", title: "Ops", updatedAt: 1, data: JSON.stringify({ id: "db-1", name: "ops", title: "Ops", updatedAt: 1 }) });
+      dash.set("db-unseen", { id: "db-unseen", name: "from-newer-device", title: "New", updatedAt: 9, data: JSON.stringify({ id: "db-unseen", name: "from-newer-device", title: "New", updatedAt: 9 }) });
+      const meta = mk("polecat_meta");
+      meta.set("app", "analytics");
+      meta.set("schema_version", String(n17AppVer + 1));
+    }
+    const n17 = await page.evaluate(async function (port) {
+      var t = Studio.tursoSource;
+      var cfg = { url: "http://localhost:" + port + "/__turso", token: "tok-n17" };
+      var out = {};
+      var snap = await t.load(cfg);
+      // load() reports what the BACKEND is (N16) and only ever reads the tables
+      // this build knows — the unknown one is never even in the snapshot.
+      out.loadedVersion = snap.schemaVersion;
+      out.loadedTables = Object.keys(snap.tables).sort().join(",");
+      var ds = (snap.tables.datasets || [])[0] || {};
+      out.blobFieldSurvivedLoad = ds.retention;
+      // A real user edit through the old code path…
+      ds.name = "orders (edited)";
+      // …from a mirror that never saw the other device's dashboard.
+      snap.tables.dashboards = (snap.tables.dashboards || []).filter(function (r) { return r.id !== "db-unseen"; });
+      out.save = await t.save(cfg, snap);
+      return out;
+    }, PORT);
+    const n17After = (() => {
+      const T = mockTurso.tables;
+      const ds = (T.get("datasets") || new Map()).get("d-1") || {};
+      let blob = {};
+      try { blob = JSON.parse(ds.data || "{}"); } catch (e) {}
+      return {
+        unknownTableKept: T.has("forecasts") && T.get("forecasts").size === 1,
+        unknownColumnKept: ds.owner,
+        unknownBlobFieldKept: blob.retention,
+        editLanded: blob.name,
+        unseenRowKept: (T.get("dashboards") || new Map()).has("db-unseen"),
+        marker: (T.get("polecat_meta") || new Map()).get("schema_version")
+      };
+    })();
+    ok("N17: an unknown TABLE, an unknown promoted COLUMN and an unknown data-blob FIELD all survive an older app's save",
+      n17.save.ok && n17.loadedTables === "analyses,connections,dashboards,datasets,jobs,users" &&
+      n17.blobFieldSurvivedLoad === "90d" && n17After.unknownTableKept &&
+      n17After.unknownColumnKept === "kevin" && n17After.unknownBlobFieldKept === "90d" &&
+      n17After.editLanded === "orders (edited)", JSON.stringify({ n17: n17, after: n17After }));
+    ok("N17: absence is not deletion — a row the stale mirror never saw survives its save (no tombstone, no delete)",
+      n17After.unseenRowKept, JSON.stringify(n17After));
+    ok("N17: an older app's save never rewinds the schema_version marker it found",
+      n17.loadedVersion === n17AppVer + 1 && n17After.marker === String(n17AppVer + 1),
+      JSON.stringify({ appVer: n17AppVer, loaded: n17.loadedVersion, marker: n17After.marker }));
+
+    // Turso's cheap marker read — what the runtime tripwire below calls instead
+    // of loading the whole workspace.
+    const n17TursoVer = await page.evaluate(async function (port) {
+      return await Studio.tursoSource.schemaVersion({ url: "http://localhost:" + port + "/__turso", token: "tok-n17" });
+    }, PORT);
+    ok("N17: the turso adapter can report the backend's schema marker on its own, without reading the workspace",
+      n17TursoVer === n17AppVer + 1, JSON.stringify({ read: n17TursoVer, expected: n17AppVer + 1 }));
+    mockTurso.tables.clear();   // leave the mock clean for the N16 block below
+
+    // ---- N17 slice 2: the RUNTIME tripwire ----------------------------------
+    // Slice 1 made a stale app's save non-destructive. This is the other half:
+    // making the stale app notice at all. Every N16 seam runs the handshake
+    // while ADOPTING a snapshot, and the two guards that make adoption safe —
+    // "never adopt over pending edits", "only when the mirror is connected" —
+    // are exactly what disqualifies the tab this is for. So: a tab connects at
+    // the matching version, sleeps while another device upgrades the workspace,
+    // and wakes with an unpushed edit. quietPull() will not look (it is _dirty).
+    // The tripwire must, and the armed push must not beat it to the wire.
+    const n17Trip = await page.evaluate(async function () {
+      var WS = Studio.WS, out = {};
+      var before = Studio.Workspace.snapshot();
+      window.__n17R = { version: WS.SCHEMA_VERSION, saves: 0, loads: 0, verReads: 0 };
+      Studio.registerSource({
+        id: "n17trip", label: "N17Trip", icon: "db", caps: { meta: true }, fields: [],
+        load: function () {
+          window.__n17R.loads++;
+          var s = WS.emptySnapshot(); s.schemaVersion = window.__n17R.version;
+          return Promise.resolve(s);
+        },
+        schemaVersion: function () { window.__n17R.verReads++; return Promise.resolve(window.__n17R.version); },
+        save: function () { window.__n17R.saves++; return Promise.resolve({ ok: true }); }
+      });
+      await Studio.Sync.connectAdopt("n17trip", {});
+      out.readOnlyAtConnect = Studio.Sync.syncState().readOnly === true;
+      window.__n17R.loads = 0;   // the connect's own adopting read isn't what's under test
+
+      // --- the tab sleeps; another device upgrades the workspace -------------
+      window.__n17R.version = WS.SCHEMA_VERSION + 1;
+      // ...and this tab has work it never pushed.
+      Studio.Workspace.put("analyses", { id: "a-n17t", name: "Edited While Asleep", chartType: "bars" });
+      out.pending = Studio.Sync.syncState().pendingEdits === true;
+      // the freshness pull is disqualified by exactly that pending edit, so it
+      // learns nothing — this is the hole slice 2 exists to close
+      out.quietPullRefused = (await Studio.Sync.quietPull(true)) === false;
+      out.loadsAfterQuietPull = window.__n17R.loads;
+      out.readOnlyBeforeResume = Studio.Sync.syncState().readOnly === true;
+
+      // --- resume: visibilitychange fires the tripwire, and the push that the
+      //     same wake-up arms must wait for it rather than race it ------------
+      var loadsBefore = window.__n17R.loads;
+      document.dispatchEvent(new Event("visibilitychange"));
+      var pushed = Studio.Sync.pushNow();          // deliberately NOT awaited first
+      await Studio.Sync.schemaCheckPending();
+      await pushed;
+      out.verReads = window.__n17R.verReads;
+      out.loadedWholeWorkspace = window.__n17R.loads > loadsBefore;
+      out.readOnlyAfterResume = Studio.Sync.syncState().readOnly === true;
+      out.relation = Studio.Sync.schemaState().relation;
+      out.savesAfterResume = window.__n17R.saves;
+      out.stillPending = Studio.Sync.syncState().pendingEdits === true;
+      out.editStillLocal = !!Studio.Workspace.all("analyses").filter(function (r) { return r.id === "a-n17t"; })[0];
+
+      // --- the same wake-up on a backend that says nothing must change nothing
+      window.__n17R.version = null;
+      await Studio.Sync.recheckSchema(true);
+      out.readOnlyAfterSilence = Studio.Sync.syncState().readOnly === true;
+      out.backendAfterSilence = Studio.Sync.schemaState().backend;
+
+      // --- reconnect: the workspace is downgraded/caught up, `online` clears it
+      window.__n17R.version = WS.SCHEMA_VERSION;
+      await new Promise(function (r) { setTimeout(r, 2400); });  // past the burst floor
+      var readsBeforeOnline = window.__n17R.verReads;
+      window.dispatchEvent(new Event("online"));
+      await Studio.Sync.schemaCheckPending();
+      out.onlineChecked = window.__n17R.verReads > readsBeforeOnline;
+      out.readOnlyAfterOnline = Studio.Sync.syncState().readOnly === true;
+      await Studio.Sync.pushNow();
+      out.savesAfterOnline = window.__n17R.saves;
+
+      Studio.Sync.disconnect();
+      Studio.Workspace.replaceAll(before);
+      return out;
+    });
+    ok("N17: the freshness pull cannot be the tripwire — with an edit pending it declines and never looks at the version",
+      n17Trip.readOnlyAtConnect === false && n17Trip.pending && n17Trip.quietPullRefused &&
+      n17Trip.loadsAfterQuietPull === 0 && n17Trip.readOnlyBeforeResume === false, JSON.stringify(n17Trip));
+    ok("N17: resuming a slept tab re-reads the backend's schema marker alone (one row, no workspace load) and latches read-only",
+      n17Trip.verReads > 0 && n17Trip.loadedWholeWorkspace === false &&
+      n17Trip.readOnlyAfterResume && n17Trip.relation === "newer", JSON.stringify(n17Trip));
+    ok("N17: the push the same wake-up armed waits for the tripwire — the stale save never reaches a newer workspace, the edit stays pending and local",
+      n17Trip.savesAfterResume === 0 && n17Trip.stillPending && n17Trip.editStillLocal, JSON.stringify(n17Trip));
+    ok("N17: a backend that reports no version changes nothing — silence never latches a workspace off and never clears a latch",
+      n17Trip.readOnlyAfterSilence === true && n17Trip.backendAfterSilence === n17AppVer + 1, JSON.stringify(n17Trip));
+    ok("N17: coming back online re-runs the check too — once the versions agree the latch clears and the held edit finally pushes",
+      n17Trip.onlineChecked && n17Trip.readOnlyAfterOnline === false && n17Trip.savesAfterOnline > 0, JSON.stringify(n17Trip));
+
+    // ---- N17 slice 2: firebase's absence-delete (the gap slice 1 measured) ---
+    // The last adapter where a save said "this row is not in my snapshot, so
+    // delete it from the backend". Drive a real save() through a stubbed fetch
+    // and read the request log: the only DELETEs may be tombstoned ids, `users`
+    // is never deleted from, and the collection read-back is gone entirely (a
+    // save that never asks what is there cannot delete what it didn't ask for).
+    const n17fb = await page.evaluate(async function () {
+      var WS = Studio.WS, calls = [];
+      var realFetch = window.fetch;
+      window.fetch = function (url, opts) {
+        var method = (opts && opts.method) || "GET";
+        var path = String(url).split("/documents")[1] || String(url);
+        calls.push(method + " " + path.split("?")[0]);
+        return Promise.resolve(new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } }));
+      };
+      var out = {};
+      try {
+        var snap = WS.emptySnapshot();
+        snap.tables.dashboards = [{ id: "db-1", name: "ops" }];
+        snap.tables.users = [{ id: "u-1", username: "kevin" }];
+        // one real deletion, plus a users row a stale mirror thinks is gone
+        snap.meta = { tombstones: { "dashboards|db-gone": 1, "users|u-old": 1 } };
+        out.res = await Studio.firebaseSource.save({ projectId: "p", apiKey: "k" }, snap);
+      } finally { window.fetch = realFetch; }
+      out.deletes = calls.filter(function (c) { return c.indexOf("DELETE ") === 0; });
+      out.collectionReads = calls.filter(function (c) { return /^GET \/[a-z_]+$/.test(c); });
+      out.wrotePanels = calls.indexOf("PATCH /dashboards/db-1") >= 0 && calls.indexOf("PATCH /users/u-1") >= 0;
+      return out;
+    });
+    ok("N17: firebase save deletes ONLY tombstoned rows — absence is not deletion, and it no longer reads collections back to find out",
+      n17fb.res.ok && n17fb.wrotePanels && n17fb.collectionReads.length === 0 &&
+      n17fb.deletes.length === 1 && n17fb.deletes[0] === "DELETE /dashboards/db-gone",
+      JSON.stringify(n17fb));
+    ok("N17: firebase never deletes an account row, tombstone or not (users stays upsert-only, v787)",
+      n17fb.deletes.every(function (d) { return d.indexOf("DELETE /users/") !== 0; }), JSON.stringify(n17fb.deletes));
+
+    // ---- N16 slice 1: the backend version handshake -------------------------
+    // The marker existed end to end (WS.SCHEMA_VERSION → polecat_meta →
+    // every probe()) and was consumed NOWHERE, so both mismatch directions
+    // proceeded silently. Slice 1 closes the direction that eats data: a
+    // workspace built by a NEWER app is read-only, because every adapter's
+    // save() is a whole-snapshot replace over the tables THIS build knows.
+    console.log("\n• N16: the backend version handshake (newer workspace ⇒ read-only)");
+    const n16Compare = await page.evaluate(function () {
+      var WS = Studio.WS, V = WS.SCHEMA_VERSION;
+      return {
+        newer: WS.compareSchema(V + 1), older: WS.compareSchema(V - 1), same: WS.compareSchema(V),
+        nullish: WS.compareSchema(null), undef: WS.compareSchema(undefined),
+        junk: WS.compareSchema("nope"), zero: WS.compareSchema(0),
+        strSame: WS.compareSchema(String(V)) // meta rows come back as TEXT
+      };
+    });
+    ok("N16: WS.compareSchema classifies newer/older/same and never mistakes a missing marker for newness",
+      n16Compare.newer === "newer" && n16Compare.older === "older" && n16Compare.same === "same" &&
+      n16Compare.strSame === "same" && n16Compare.nullish === "unknown" && n16Compare.undef === "unknown" &&
+      n16Compare.junk === "unknown" && n16Compare.zero === "unknown", JSON.stringify(n16Compare));
+
+    // A freshly provisioned backend of EVERY adapter must report exactly
+    // WS.SCHEMA_VERSION — the marker can never drift from the DDL again.
+    const n16Provision = await page.evaluate(async function (port) {
+      var WS = Studio.WS, out = { app: WS.SCHEMA_VERSION };
+      var cfg = { url: "http://localhost:" + port + "/__turso", token: "tok-n16" };
+      await Studio.tursoSource.provision(cfg, WS.emptySnapshot());
+      out.turso = (await Studio.tursoSource.probe(cfg)).schemaVersion;
+      out.local = (await Studio.localSource.probe()).schemaVersion;
+      // supabase provisions by paste-me SQL; firebase writes the marker onto the
+      // `app` doc. Read the version each one would actually stamp.
+      var sb = await Studio.supabaseSource.provision({}, WS.emptySnapshot());
+      var mSb = /'schema_version', '(\d+)'/.exec((sb.sql || "").replace(/\s+/g, " "));
+      out.supabase = mSb ? Number(mSb[1]) : null;
+      out.metaRow = Number((WS.metaRows(WS.emptySnapshot()).filter(function (r) { return r.key === "schema_version"; })[0] || {}).value);
+      await Studio.tursoSource.drop(cfg);
+      return out;
+    }, PORT);
+    ok("N16: a freshly provisioned workspace reports exactly WS.SCHEMA_VERSION on every adapter (no DDL drift)",
+      n16Provision.app > 0 && n16Provision.turso === n16Provision.app && n16Provision.local === n16Provision.app &&
+      n16Provision.supabase === n16Provision.app && n16Provision.metaRow === n16Provision.app, JSON.stringify(n16Provision));
+
+    // The same guard for the two hand-maintained SQL artifacts (the manual
+    // bootstrap and the Edge Function's inlined copy) — N2 slice 2 caught this
+    // exact drift class between sql.ts and the canonical RLS file.
+    const n16SchemaConst = Number((/WS\.SCHEMA_VERSION\s*=\s*(\d+)/.exec(fs.readFileSync(path.join(ROOT, "app/sources/schema.js"), "utf8")) || [])[1]);
+    const n16SqlVersions = ["tools/supabase-bootstrap.sql", "supabase/functions/polecat-admin/sql.ts"].map(function (rel) {
+      const m = /VALUES \('schema_version', '(\d+)'\)/.exec(fs.readFileSync(path.join(ROOT, rel), "utf8"));
+      return { rel: rel, v: m ? Number(m[1]) : null };
+    });
+    ok("N16: the hand-written provision SQL stamps the same schema version as app/sources/schema.js",
+      n16SchemaConst > 0 && n16SqlVersions.every(function (r) { return r.v === n16SchemaConst; }),
+      JSON.stringify({ constant: n16SchemaConst, files: n16SqlVersions }));
+
+    // ---- N18: the compatibility contract is written down AND enforced --------
+    // N16 and N17 built the guarantees; N18 makes them survive the people who
+    // arrive after. The gate itself is tools/doc-truth.mjs check 25 in the dev
+    // gate — this asserts the contract exists and stays wired, the SP-0(b)
+    // precedent, so nobody quietly drops it while no bump is exercising it.
+    (function () {
+      const compatPath = path.join(ROOT, "docs/COMPAT.md");
+      const compat = fs.existsSync(compatPath) && fs.readFileSync(compatPath, "utf8");
+      const truth = fs.readFileSync(path.join(ROOT, "tools/doc-truth.mjs"), "utf8");
+      const claude = fs.readFileSync(path.join(ROOT, "CLAUDE.md"), "utf8");
+      const ci = fs.readFileSync(path.join(ROOT, ".github/workflows/ci.yml"), "utf8");
+      // The history must describe the version the code is at, here too — the same
+      // invariant doc-truth holds, restated where the schema tests live.
+      const compatRows = compat ? [...compat.matchAll(/^\| \*\*v(\d+)\*\* \|/gm)].map(function (m) { return Number(m[1]); }) : [];
+      const wanted = Array.from({ length: n16SchemaConst }, function (_, i) { return i + 1; });
+      ok("N18: the backend-compatibility contract is written down and enforced — docs/COMPAT.md carries the additive rules, " +
+        "the same-PR bump checklist and a history row for every shipped version; doc-truth check 25 fails the dev gate without one; CLAUDE.md points there",
+        !!compat && /ADDITIVE/.test(compat) && /bump checklist/i.test(compat) &&
+        compatRows.join(",") === wanted.join(",") &&
+        /docs\/COMPAT\.md/.test(truth) && /WS\.WORKSPACE_TABLES = \[/.test(truth) &&
+        /docs\/COMPAT\.md/.test(claude) && /doc-truth\.mjs/.test(ci),
+        JSON.stringify({ constant: n16SchemaConst, history: compatRows, hasDoc: !!compat }));
+    })();
+
+    // ---- N28: the marker's DIRECTION, not just its value ---------------------
+    // N16 checks WHICH version the artifacts stamp; this checks which way that
+    // stamp can MOVE. A bare `ON CONFLICT (key) DO UPDATE SET value =
+    // EXCLUDED.value` on schema_version means an OLDER copy of a provisioning
+    // artifact re-labels an upgraded workspace as the older shape — the clobber
+    // N17 fixed in WS.metaRows(), which the SQL side still had in two of four
+    // files. Two shapes are legitimate and which one is right depends on the
+    // artifact: DO NOTHING for declare-only deploy paths, raise-only for the
+    // provisioning paths that legitimately RAISE the marker during an upgrade.
+    // `app` is ownership rather than state, so only DO NOTHING is right there.
+    // The gate is doc-truth check 27 and the live proof is tests/rls.mjs's
+    // marker probes; this is the stays-wired half (the N18/SP-0(b) precedent).
+    (function () {
+      const artifacts = ["tools/supabase-deploy.sql", "tools/supabase-rls-real.sql",
+        "tools/supabase-bootstrap.sql", "supabase/functions/polecat-admin/sql.ts"];
+      const upserts = artifacts.reduce(function (acc, rel) {
+        const src = fs.readFileSync(path.join(ROOT, rel), "utf8");
+        return acc.concat([...src.matchAll(/INSERT INTO[^;]*?VALUES\s*\(\s*'(app|schema_version)'[^;]*;/g)]
+          .map(function (m) { return { rel: rel, key: m[1], sql: m[0].replace(/\s+/g, " ") }; }));
+      }, []);
+      const raiseOnly = /DO UPDATE SET value = EXCLUDED\.value\s+WHERE [\w".]*value !~ '\^\[0-9\]\+\$' OR [\w".]*value::int < EXCLUDED\.value::int/;
+      const bad = upserts.filter(function (u) {
+        return /DO UPDATE/.test(u.sql) && (u.key === "app" || !raiseOnly.test(u.sql));
+      });
+      const truth = fs.readFileSync(path.join(ROOT, "tools/doc-truth.mjs"), "utf8");
+      const rls = fs.readFileSync(path.join(ROOT, "tests/rls.mjs"), "utf8");
+      ok("N28: no shipped provisioning artifact can REWIND schema_version or RELABEL the app marker — " +
+        "every upsert is DO NOTHING or raise-only, doc-truth check 27 gates it and tests/rls.mjs probes it against a real database",
+        upserts.length >= 4 && !bad.length &&
+        /every artifact that stamps schema_version/.test(truth) &&
+        /MARKER_ARTIFACTS/.test(rls) && /checkMarkerDirection/.test(rls),
+        JSON.stringify({ upserts: upserts.length, offenders: bad.map(function (u) { return u.rel + ":" + u.key; }) }));
+    })();
+
+    // N26: provisioning must never RE-OPEN a workspace that has gone live. The
+    // same shape of bug as N28 one layer down — both provisioning artifacts end
+    // with a DO block that installs the demo `polecat_anon_all` policy, and
+    // Postgres ORs PERMISSIVE policies together, so an unconditional CREATE did
+    // not replace a live workspace's per-user policies, it added an allow-all
+    // one beside them and handed the anon key every row back. `provision` is the
+    // Edge Function's only schema action and supabase-provision.yml applies the
+    // .sql file unattended, so this was reachable, not theoretical.
+    // The gate is doc-truth check 30 and the live proof is tests/rls.mjs's two
+    // "re-run on a workspace that has gone live" postures; this is the
+    // stays-wired half (the N28 precedent, one item over).
+    (function () {
+      const artifacts = ["tools/supabase-bootstrap.sql", "supabase/functions/polecat-admin/sql.ts"];
+      const unguarded = artifacts.filter(function (rel) {
+        const src = fs.readFileSync(path.join(ROOT, rel), "utf8");
+        const create = src.indexOf("CREATE POLICY polecat_anon_all");
+        if (create < 0) return false; // stopped installing the demo posture at all
+        const block = src.slice(src.lastIndexOf("DO $$", create), src.indexOf("END $$;", create));
+        return !/FROM pg_policies/.test(block) ||
+          !/IF NOT live THEN\s*\n\s*EXECUTE format\('CREATE POLICY polecat_anon_all/.test(block);
+      });
+      const truth = fs.readFileSync(path.join(ROOT, "tools/doc-truth.mjs"), "utf8");
+      const rls = fs.readFileSync(path.join(ROOT, "tests/rls.mjs"), "utf8");
+      ok("N26: neither provisioning artifact re-opens a gone-live workspace — the demo allow-all is installed only " +
+        "when the real per-user policies are absent, doc-truth check 30 gates it and tests/rls.mjs proves it against a real database",
+        !unguarded.length &&
+        /provisioning re-run on a gone-live workspace preserves its posture/.test(truth) &&
+        /provision` re-run on a workspace that has gone live/.test(rls) &&
+        /bootstrap\.sql re-run on a workspace that has gone live/.test(rls),
+        JSON.stringify({ unguarded: unguarded }));
+    })();
+
+    // load() must report what the BACKEND says, not this app's own constant —
+    // the whole handshake rests on it. Stand a mock workspace up at v+1.
+    const n16Load = await page.evaluate(async function (port) {
+      var WS = Studio.WS, t = Studio.tursoSource, out = { app: WS.SCHEMA_VERSION };
+      var cfg = { url: "http://localhost:" + port + "/__turso", token: "tok-n16b" };
+      await t.provision(cfg, WS.emptySnapshot());
+      out.atProvision = (await t.load(cfg)).schemaVersion;
+      await t.queryData(cfg, { kind: "sql", sql: "INSERT OR REPLACE INTO \"polecat_meta\"(key,value) VALUES('schema_version','" + (WS.SCHEMA_VERSION + 1) + "')" });
+      out.afterBump = (await t.load(cfg)).schemaVersion;
+      out.relation = WS.compareSchema(out.afterBump);
+      await t.drop(cfg);
+      return out;
+    }, PORT);
+    ok("N16: an adapter's load() reports the version the BACKEND carries, not the app's constant",
+      n16Load.atProvision === n16Load.app && n16Load.afterBump === n16Load.app + 1 && n16Load.relation === "newer",
+      JSON.stringify(n16Load));
+
+    // The behaviour that matters: connect to a newer workspace → writes latch
+    // off, edits stay local, the rail + banner say so; line the versions back up
+    // → the latch clears and the pending edit finally pushes.
+    const n16Latch = await page.evaluate(async function () {
+      var WS = Studio.WS, out = {};
+      var before = Studio.Workspace.snapshot();
+      window.__n16Remote = { version: WS.SCHEMA_VERSION + 1, saves: 0, snap: null };
+      Studio.registerSource({
+        id: "n16test", label: "N16Test", icon: "db", caps: { meta: true }, fields: [],
+        load: function () {
+          var s = window.__n16Remote.snap ? JSON.parse(JSON.stringify(window.__n16Remote.snap)) : WS.emptySnapshot();
+          s.schemaVersion = window.__n16Remote.version;
+          return Promise.resolve(s);
+        },
+        save: function (cfg, snap) {
+          window.__n16Remote.saves++;
+          window.__n16Remote.snap = JSON.parse(JSON.stringify(snap));
+          return Promise.resolve({ ok: true });
+        }
+      });
+      function rail() { return { lbl: document.getElementById("railSourceLbl").textContent, title: document.getElementById("railSource").title }; }
+
+      await Studio.Sync.connectAdopt("n16test", {});
+      out.schema = Studio.Sync.schemaState();
+      out.readOnly = Studio.Sync.syncState().readOnly === true;
+      out.rail = rail();
+      out.banner = (document.getElementById("schemaVersionBanner") || {}).textContent || "";
+      out.logged = Studio.Sync.syncLog().some(function (r) { return r.kind === "read-only" && /newer than this app/.test(r.error); });
+      // an edit while latched: kept locally + reported pending, never written
+      Studio.Workspace.put("analyses", { id: "a-n16", name: "Stays Local", chartType: "bars" });
+      await Studio.Sync.pushNow();
+      out.savesWhileNewer = window.__n16Remote.saves;
+      out.pendingWhileNewer = Studio.Sync.syncState().pendingEdits === true;
+      out.stillLocal = !!Studio.Workspace.all("analyses").filter(function (r) { return r.id === "a-n16"; })[0];
+      // the app catches up (or the workspace is downgraded): the latch clears on
+      // the next read and the pending edit is written for the first time
+      window.__n16Remote.version = WS.SCHEMA_VERSION;
+      await Studio.Sync.pullNow();
+      out.readOnlyAfter = Studio.Sync.syncState().readOnly === true;
+      out.railAfter = rail();
+      out.bannerAfter = !!document.getElementById("schemaVersionBanner");
+      await Studio.Sync.pushNow();
+      out.savesAfter = window.__n16Remote.saves;
+
+      Studio.Sync.disconnect();
+      out.schemaAfterDisconnect = Studio.Sync.schemaState();
+      Studio.Workspace.replaceAll(before);
+      return out;
+    });
+    ok("N16: a workspace newer than the app latches READ-ONLY — connect logs it, nothing is ever saved, the edit stays pending",
+      n16Latch.readOnly && n16Latch.schema.relation === "newer" && n16Latch.schema.backend === n16Latch.schema.app + 1 &&
+      n16Latch.savesWhileNewer === 0 && n16Latch.pendingWhileNewer && n16Latch.stillLocal && n16Latch.logged,
+      JSON.stringify(n16Latch));
+    ok("N16: the rail says Read-only and a banner names both versions instead of claiming everything synced",
+      n16Latch.rail.lbl === "Read-only" && /newer than this app/.test(n16Latch.rail.title) &&
+      /newer version of Analytics/.test(n16Latch.banner) && /schema v/.test(n16Latch.banner),
+      JSON.stringify({ rail: n16Latch.rail, banner: n16Latch.banner.slice(0, 120) }));
+    ok("N16: once the versions line up the latch clears — banner gone, rail Connected, the pending edit finally pushes",
+      n16Latch.readOnlyAfter === false && n16Latch.bannerAfter === false && n16Latch.railAfter.lbl === "Connected" &&
+      n16Latch.savesAfter > 0 && n16Latch.schemaAfterDisconnect.backend === null && n16Latch.schemaAfterDisconnect.readOnly === false,
+      JSON.stringify({ after: n16Latch.readOnlyAfter, rail: n16Latch.railAfter, saves: n16Latch.savesAfter, off: n16Latch.schemaAfterDisconnect }));
+
+    // ---- N16 slice 2: the OLDER direction — upgrade, from inside the app ----
+    // The other half of the handshake. An older workspace is not dangerous (every
+    // schema bump has been additive), so this is an OFFER rather than a latch —
+    // and the two properties that make it safe are enforced by the API shape:
+    // the backup is a required parameter (there is no "skip it" to forget), and
+    // the version is re-read from the BACKEND afterwards rather than assumed.
+    console.log("\n• N16 slice 2: an older workspace can be upgraded from the app (backup first)");
+    const n16Up = await page.evaluate(async function () {
+      var WS = Studio.WS, out = {}, order = [];
+      var before = Studio.Workspace.snapshot();
+      window.__n16up = { version: WS.SCHEMA_VERSION - 1, saves: 0, upgrades: 0, snap: null };
+      Studio.registerSource({
+        id: "n16up", label: "N16Up", icon: "db", caps: { meta: true }, fields: [],
+        load: function () {
+          var s = window.__n16up.snap ? JSON.parse(JSON.stringify(window.__n16up.snap)) : WS.emptySnapshot();
+          s.schemaVersion = window.__n16up.version;
+          return Promise.resolve(s);
+        },
+        save: function (cfg, snap) {
+          window.__n16up.saves++; window.__n16up.snap = JSON.parse(JSON.stringify(snap));
+          return Promise.resolve({ ok: true });
+        },
+        upgradeWorkspace: function () {
+          order.push("upgrade"); window.__n16up.upgrades++;
+          window.__n16up.version = WS.SCHEMA_VERSION;
+          return Promise.resolve({ ok: true, applied: "browser" });
+        }
+      });
+      await Studio.Sync.connectAdopt("n16up", {});
+      out.relation = Studio.Sync.schemaState().relation;
+      out.readOnly = Studio.Sync.syncState().readOnly; // older must NEVER latch read-only
+      // the Settings card offers the step and says what it costs
+      window.__studioShellSetSection("settings"); window.__studioRenderWorkspaceBackendCard();
+      var card = document.getElementById("wsBackendCard");
+      out.cardOffers = !!card.querySelector("#wsUpgradeBtn");
+      out.cardSaysBackup = /backup of the workspace downloads first/.test(card.textContent);
+      out.cardNamesVersions = /earlier version of Analytics/.test(card.textContent) &&
+        card.textContent.indexOf("schema v" + (WS.SCHEMA_VERSION - 1)) >= 0;
+      // 1. no backup writer → refused outright, backend untouched
+      var noBackup = await Studio.Sync.upgradeWorkspace({});
+      out.refusedNoBackup = noBackup.ok === false && /backup/i.test(noBackup.error || "");
+      // 2. a backup writer that FAILS aborts before anything is written
+      var threw = await Studio.Sync.upgradeWorkspace({ backup: function () { throw new Error("disk full"); } });
+      out.refusedBadBackup = threw.ok === false && /back the workspace up/.test(threw.error || "");
+      out.upgradesAfterRefusals = window.__n16up.upgrades; // must still be 0
+      // 3. the real thing, with a local edit waiting to go up
+      Studio.Workspace.put("analyses", { id: "a-n16up", name: "Pending", chartType: "bars" });
+      out.savesBefore = window.__n16up.saves;
+      var captured = null;
+      var r = await Studio.Sync.upgradeWorkspace({ backup: function (p) { order.push("backup"); captured = p; } });
+      out.ok = r.ok === true; out.from = r.from; out.to = r.to;
+      out.order = order.join(">"); // the backup is written BEFORE the upgrade runs
+      out.backupType = captured && captured._type;
+      out.backupVersion = captured && captured.backendSchemaVersion;
+      out.backupApp = captured && captured.appSchemaVersion;
+      // the backup is of the BACKEND — the thing at risk — not of this browser's copy
+      out.backupIsBackend = !!(captured && captured.snapshot && captured.snapshot.tables &&
+        captured.snapshot.tables.analyses && captured.snapshot.tables.analyses.length === 0);
+      out.relationAfter = Studio.Sync.schemaState().relation;
+      out.savesAfter = window.__n16up.saves; // the pending edit went up once the shape could hold it
+      out.logged = Studio.Sync.syncLog().some(function (row) { return row.kind === "upgrade" && row.ok; });
+      window.__studioRenderWorkspaceBackendCard();
+      out.cardOfferGone = !document.getElementById("wsUpgradeBtn");
+      // 4. already current → nothing to do, and it says so
+      var again = await Studio.Sync.upgradeWorkspace({ backup: function () { order.push("backup2"); } });
+      out.refusedWhenCurrent = again.ok === false && /already at v/.test(again.error || "");
+      out.orderFinal = order.join(">");
+      Studio.Sync.disconnect();
+      Studio.Workspace.replaceAll(before);
+      return out;
+    });
+    ok("N16: an older workspace stays fully writable and is OFFERED an upgrade on the Settings card (never latched read-only)",
+      n16Up.relation === "older" && n16Up.readOnly === false && n16Up.cardOffers && n16Up.cardSaysBackup && n16Up.cardNamesVersions,
+      JSON.stringify({ relation: n16Up.relation, readOnly: n16Up.readOnly, offers: n16Up.cardOffers, backup: n16Up.cardSaysBackup }));
+    ok("N16: the upgrade refuses to run without a working backup — no writer, or a writer that fails, leaves the backend untouched",
+      n16Up.refusedNoBackup && n16Up.refusedBadBackup && n16Up.upgradesAfterRefusals === 0,
+      JSON.stringify({ noWriter: n16Up.refusedNoBackup, failedWriter: n16Up.refusedBadBackup, upgrades: n16Up.upgradesAfterRefusals }));
+    ok("N16: the upgrade writes the pre-upgrade BACKEND snapshot first, then upgrades, then re-reads the version and pushes what was pending",
+      n16Up.ok && n16Up.order === "backup>upgrade" && n16Up.backupType === "studio-workspace-backup" &&
+      n16Up.backupVersion === n16Up.from && n16Up.backupApp === n16Up.to && n16Up.backupIsBackend &&
+      n16Up.relationAfter === "same" && n16Up.savesAfter > n16Up.savesBefore && n16Up.logged,
+      JSON.stringify(n16Up));
+    ok("N16: once upgraded the offer disappears, and asking again is refused instead of re-running (no second backup)",
+      n16Up.cardOfferGone && n16Up.refusedWhenCurrent && n16Up.orderFinal === "backup>upgrade",
+      JSON.stringify({ gone: n16Up.cardOfferGone, refused: n16Up.refusedWhenCurrent, order: n16Up.orderFinal }));
+
+    // An adapter that does NOT implement upgradeWorkspace must not silently
+    // "succeed" — the caller gets the paste-me delta instead.
+    const n16UpManual = await page.evaluate(async function () {
+      var WS = Studio.WS, out = {};
+      var before = Studio.Workspace.snapshot();
+      Studio.registerSource({
+        id: "n16upman", label: "N16UpManual", icon: "db", caps: { meta: true }, fields: [],
+        load: function () { var s = WS.emptySnapshot(); s.schemaVersion = 1; return Promise.resolve(s); },
+        save: function () { return Promise.resolve({ ok: true }); }
+      });
+      await Studio.Sync.connectAdopt("n16upman", {});
+      var backups = 0;
+      var r = await Studio.Sync.upgradeWorkspace({ backup: function () { backups++; } });
+      out.manual = r.manual === true; out.ok = r.ok === false; out.backups = backups;
+      out.hasDelta = /CREATE TABLE IF NOT EXISTS "users"/.test(r.sql || "");
+      out.stillOlder = Studio.Sync.schemaState().relation === "older";
+      Studio.Sync.disconnect();
+      Studio.Workspace.replaceAll(before);
+      return out;
+    });
+    ok("N16: a backend that can't change its own structure from the browser returns the paste-me SQL — backup still taken, nothing claimed as upgraded",
+      n16UpManual.manual && n16UpManual.ok && n16UpManual.backups === 1 && n16UpManual.hasDelta && n16UpManual.stillOlder,
+      JSON.stringify(n16UpManual));
+
+    // Turso really can DDL from the browser: stand a workspace up, wind it back
+    // to an older shape (a table a later version added, gone; the marker back to
+    // v1) and prove the upgrade restores BOTH.
+    const n16UpTurso = await page.evaluate(async function (port) {
+      var WS = Studio.WS, t = Studio.tursoSource, out = { app: WS.SCHEMA_VERSION };
+      var cfg = { url: "http://localhost:" + port + "/__turso", token: "tok-n16up" };
+      await t.provision(cfg, WS.emptySnapshot());
+      await t.queryData(cfg, { kind: "sql", sql: 'DROP TABLE IF EXISTS "users"' });
+      await t.queryData(cfg, { kind: "sql", sql: "INSERT OR REPLACE INTO \"polecat_meta\"(key,value) VALUES('schema_version','1')" });
+      out.beforeVer = (await t.load(cfg)).schemaVersion;
+      out.beforeRel = WS.compareSchema(out.beforeVer);
+      out.beforeHasUsers = ((await t.probe(cfg)).tables || []).some(function (x) { return x.name === "users"; });
+      var r = await t.upgradeWorkspace(cfg);
+      out.ok = r.ok === true;
+      out.afterVer = (await t.load(cfg)).schemaVersion;
+      out.afterHasUsers = ((await t.probe(cfg)).tables || []).some(function (x) { return x.name === "users"; });
+      await t.drop(cfg);
+      return out;
+    }, PORT);
+    ok("N16: the turso adapter upgrades an older workspace in place — the missing table is created and the marker moves to this app's version",
+      n16UpTurso.beforeRel === "older" && n16UpTurso.beforeHasUsers === false && n16UpTurso.ok &&
+      n16UpTurso.afterHasUsers === true && n16UpTurso.afterVer === n16UpTurso.app, JSON.stringify(n16UpTurso));
+
+    // Supabase deliberately stays on the paste path even with the admin Edge
+    // Function bound: that function's only schema action re-creates the demo
+    // allow-all policy, so a one-click "upgrade" there would silently re-open a
+    // gone-live workspace to anon (STATUS.md N26). The script it hands back must
+    // also STAMP the marker — without that the app would keep offering the
+    // upgrade after it had been run.
+    const n16UpSb = await page.evaluate(async function () {
+      var WS = Studio.WS, fetch0 = window.fetch;
+      // N22b slice 2: this project has NO migration function (404 on the probe),
+      // which is the case this check has always been about — the paste path.
+      window.fetch = function (url) {
+        if (/\/rpc\//.test(String(url))) return Promise.resolve(new Response(JSON.stringify({ code: "PGRST202" }), { status: 404, headers: { "Content-Type": "application/json" } }));
+        return Promise.resolve(new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }));
+      };
+      var r = await Studio.supabaseSource.upgradeWorkspace({ url: "https://n16-legacy.supabase.co", key: "k", adminFnUrl: "https://example.invalid/admin" });
+      window.fetch = fetch0;
+      var sql = r.sql || "";
+      return { manual: r.manual === true, ok: r.ok === false,
+        hasDelta: /CREATE TABLE IF NOT EXISTS "users"/.test(sql),
+        stamps: new RegExp("VALUES\\('schema_version', '" + WS.SCHEMA_VERSION + "'\\)").test(sql),
+        // No policy, no RLS toggle, and no BLANKET privilege change. The one
+        // GRANT it does carry is EXECUTE on the atomic-save function it creates
+        // — that function is SECURITY INVOKER, so it still runs under the
+        // caller's own policies and grants nobody a row they couldn't read.
+        noPolicy: !/CREATE POLICY/i.test(sql) && !/ROW LEVEL SECURITY/i.test(sql),
+        noBlanketGrant: !/GRANT[^;]*ON ALL TABLES/i.test(sql) && !/ALTER DEFAULT PRIVILEGES/i.test(sql),
+        onlyFnGrant: (sql.match(/GRANT /gi) || []).length === 1 && /GRANT EXECUTE ON FUNCTION/i.test(sql) };
+    });
+    ok("N16: the supabase upgrade hands back a script that adds the tables and stamps the version — and changes no RLS policy or table privilege (it never routes through the admin function's provision action)",
+      n16UpSb.manual && n16UpSb.ok && n16UpSb.hasDelta && n16UpSb.stamps && n16UpSb.noPolicy &&
+      n16UpSb.noBlanketGrant && n16UpSb.onlyFnGrant,
+      JSON.stringify(n16UpSb));
+
+    // ---- N22b slice 2: the app CALLS the migration RPC -----------------------
+    // Slice 1 installed polecat_migrate() in both setup paths and proved it
+    // against a real database (tests/rls.mjs' migration-RPC-route posture —
+    // named rather than numbered since N26 inserted two postures ahead of it).
+    // Nothing in the
+    // browser used it. These checks are the browser half, and they are shaped
+    // like AUD-01's — one stubbed PostgREST, four projects, each answering the
+    // RPC differently, because the whole risk here is the FALLBACK: a workspace
+    // that predates the function must keep behaving exactly as it did.
+    const n22bApp = await page.evaluate(async function () {
+      var sb = Studio.supabaseSource, fetch0 = window.fetch, out = {};
+      var calls = [], bodies = [];
+      function stub(answer) {
+        window.fetch = function (url, opts) {
+          var u = String(url), method = (opts && opts.method) || "GET";
+          if (/\/rpc\//.test(u)) {
+            calls.push(method + " " + u.split("/rest/v1")[1]);
+            try { bodies.push(JSON.parse((opts && opts.body) || "{}")); } catch (e) { bodies.push(null); }
+            return answer(bodies[bodies.length - 1]);
+          }
+          return Promise.resolve(new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }));
+        };
+      }
+      function json(body, status) {
+        return Promise.resolve(new Response(JSON.stringify(body), { status: status, headers: { "Content-Type": "application/json" } }));
+      }
+
+      // (a) the function is there → the upgrade happens HERE. One probe, one
+      // apply, no SQL handed back at all.
+      calls = []; bodies = [];
+      stub(function (b) {
+        return b && b.mode === "probe"
+          ? json({ ok: true, probe: true, schemaVersion: Studio.WS.SCHEMA_VERSION }, 200)
+          : json({ ok: true, from: "1", to: Studio.WS.SCHEMA_VERSION }, 200);
+      });
+      var cfgA = { url: "https://n22b-modern.supabase.co", key: "k" };
+      out.stateUnknownFirst = sb.migrateState(cfgA) === "unknown";
+      var resA = await sb.upgradeWorkspace(cfgA);
+      out.rpcOk = !!(resA && resA.ok === true && resA.rpc === true);
+      out.rpcNoSql = !resA.sql && !resA.manual;
+      out.rpcProbedThenApplied = calls.length === 2 &&
+        /^POST \/rpc\/polecat_migrate$/.test(calls[0]) && /^POST \/rpc\/polecat_migrate$/.test(calls[1]) &&
+        bodies[0].mode === "probe" && bodies[1].mode === "apply";
+      out.stateYes = sb.migrateState(cfgA) === "yes";
+      // …and the capability is REMEMBERED: a second upgrade is one call.
+      calls = []; bodies = [];
+      await sb.upgradeWorkspace(cfgA);
+      out.remembersYes = calls.length === 1 && bodies[0].mode === "apply";
+
+      // (b) the function is absent (a workspace stood up before it existed) →
+      // byte-for-byte the pre-N22b behaviour: the paste-me script, and the 404
+      // is remembered so later presses don't re-ask.
+      calls = []; bodies = [];
+      stub(function () { return json({ code: "PGRST202", message: "Could not find the function" }, 404); });
+      var cfgB = { url: "https://n22b-legacy.supabase.co", key: "k" };
+      var resB = await sb.upgradeWorkspace(cfgB);
+      out.legacyManual = !!(resB && resB.ok === false && resB.manual === true);
+      out.legacyHasDelta = /CREATE TABLE IF NOT EXISTS "users"/.test(resB.sql || "");
+      out.legacyStamps = new RegExp("VALUES\\('schema_version', '" + Studio.WS.SCHEMA_VERSION + "'\\)").test(resB.sql || "");
+      out.legacyNoRpcError = !resB.rpcError;
+      out.stateNo = sb.migrateState(cfgB) === "no";
+      calls = [];
+      await sb.upgradeWorkspace(cfgB);
+      out.remembersNo = calls.length === 0;
+
+      // (c) the function is there and REFUSES (signed in as a non-admin — the
+      // gate lives in the database). The script is still offered, because the
+      // SQL editor is still the remedy — but the database's own words are
+      // carried up so the card can stop claiming this backend "can't" do it.
+      calls = []; bodies = [];
+      stub(function (b) {
+        return b && b.mode === "probe"
+          ? json({ ok: true, probe: true }, 200)
+          : json({ message: "polecat_migrate: administrators only", code: "42501" }, 403);
+      });
+      var cfgC = { url: "https://n22b-refused.supabase.co", key: "k" };
+      var resC = await sb.upgradeWorkspace(cfgC);
+      out.refusedManual = !!(resC && resC.ok === false && resC.manual === true && (resC.sql || "").length > 0);
+      out.refusedQuotes = /administrators only/.test(resC.rpcError || "") && !/polecat_migrate:/.test(resC.rpcError || "");
+      // a refusal is about WHO is signed in, not about what the database has —
+      // it must never be memoized as "this project has no function"
+      out.refusedNotMemoized = sb.migrateState(cfgC) !== "no";
+
+      // (d) the probe answers nothing at all (5xx / CORS / offline). Same
+      // fallback, and again nothing is remembered — the next attempt re-asks
+      // rather than latching this browser onto the paste path over a blip.
+      calls = []; bodies = [];
+      stub(function () { return json({ message: "upstream unavailable" }, 503); });
+      var cfgD = { url: "https://n22b-blip.supabase.co", key: "k" };
+      var resD = await sb.upgradeWorkspace(cfgD);
+      out.blipManual = !!(resD && resD.ok === false && resD.manual === true && (resD.sql || "").length > 0);
+      out.blipNotMemoized = sb.migrateState(cfgD) === "unknown";
+
+      // (e) the probe itself: side-effect free, and concurrent callers share
+      // the one in-flight request.
+      calls = []; bodies = [];
+      stub(function () { return json({ ok: true, probe: true }, 200); });
+      var cfgE = { url: "https://n22b-probe.supabase.co", key: "k" };
+      var pair = await Promise.all([sb.checkMigrate(cfgE), sb.checkMigrate(cfgE)]);
+      out.probeAnswers = pair[0] === true && pair[1] === true && sb.migrateState(cfgE) === "yes";
+      out.probeAskedOnce = calls.length === 1;
+      out.probeIsProbeOnly = !!(bodies[0] && bodies[0].mode === "probe");
+
+      window.fetch = fetch0;
+      return out;
+    });
+    ok("N22b: with polecat_migrate installed, the app upgrades the workspace ITSELF — one probe, one admin-gated apply, no SQL editor — and remembers the capability",
+      n22bApp.stateUnknownFirst && n22bApp.rpcOk && n22bApp.rpcNoSql && n22bApp.rpcProbedThenApplied &&
+      n22bApp.stateYes && n22bApp.remembersYes, JSON.stringify(n22bApp));
+    ok("N22b: a workspace whose database predates the function is UNCHANGED — the paste-me delta, stamped, no error, and the 404 remembered",
+      n22bApp.legacyManual && n22bApp.legacyHasDelta && n22bApp.legacyStamps && n22bApp.legacyNoRpcError &&
+      n22bApp.stateNo && n22bApp.remembersNo, JSON.stringify(n22bApp));
+    ok("N22b: a refusal or a blip falls back to the same paste — quoting the database's own reason where there is one — and is never memoized as 'no function'",
+      n22bApp.refusedManual && n22bApp.refusedQuotes && n22bApp.refusedNotMemoized &&
+      n22bApp.blipManual && n22bApp.blipNotMemoized, JSON.stringify(n22bApp));
+    ok("N22b: the capability probe writes nothing and is asked once, however many callers ask",
+      n22bApp.probeAnswers && n22bApp.probeAskedOnce && n22bApp.probeIsProbeOnly, JSON.stringify(n22bApp));
+
+    // ---- N23: the Auth fields are not optional, and "secured" is not "empty" --
+    // Kevin, 2026-08-08, reading the connection form while standing up
+    // polecat_dev: "how optional are all of these settings?". Under the posture
+    // every new environment gets (every policy TO authenticated), a connection
+    // with no Auth fields authenticates as anon, auth.uid() is NULL, and every
+    // policy declines by returning NOTHING — so the workspace reads EMPTY. The
+    // checks below stub PostgREST the way the N22b block above does and pin the
+    // three answers a marker read can give, because the whole risk is the false
+    // positive: a genuinely blank database and a legacy allow-all one must keep
+    // classifying exactly as they did.
+    const n23 = await page.evaluate(async function () {
+      var sb = Studio.supabaseSource, fetch0 = window.fetch, out = {};
+      function json(body, status, headers) {
+        var h = { "Content-Type": "application/json" };
+        Object.keys(headers || {}).forEach(function (k) { h[k] = headers[k]; });
+        return Promise.resolve(new Response(JSON.stringify(body), { status: status, headers: h }));
+      }
+      // meta: "empty" (relation there, RLS filtered every row away) | "rows"
+      // (readable marker) | "missing" (blank database). Workspace tables answer
+      // 200 with no rows — what an RLS-filtered read looks like — unless
+      // tableRows says otherwise (content-range is how probe() counts).
+      function stub(meta, tableRows) {
+        window.fetch = function (url) {
+          var u = String(url);
+          if (/\/auth\/v1\/token/.test(u)) return json({ access_token: "jwt", refresh_token: "rt", expires_in: 3600, user: { id: "uid-1" } }, 200);
+          var path = u.split("/rest/v1")[1] || "";
+          if (path.indexOf("/" + Studio.WS.META_TABLE) === 0) {
+            if (meta === "missing") return json({ message: 'relation "polecat_meta" does not exist' }, 404);
+            if (meta === "rows") return json([{ key: "app", value: Studio.WS.APP_ID },
+              { key: "schema_version", value: String(Studio.WS.SCHEMA_VERSION) }], 200);
+            return json([], 200);
+          }
+          if (tableRows && /^\/datasets/.test(path)) {
+            return json([{ id: "d1", data: JSON.stringify({ id: "d1", name: "n", updatedAt: 1 }) }], 200, { "content-range": "0-0/1" });
+          }
+          return json([], 200);
+        };
+      }
+
+      // (a) secured workspace + no Auth fields → named, not mistaken for
+      // another app's database (the pre-N23 fall-through said the marker read
+      // "unknown", so the wizard told the user to pick a different database).
+      stub("empty");
+      var anon = { url: "https://n23-secured.supabase.co", key: "k" };
+      var pAnon = await sb.probe(anon);
+      out.anonState = pAnon.state;
+      out.anonSaysAuth = /Row-Level Security/i.test(pAnon.note || "") && /email and password/i.test(pAnon.note || "");
+      out.anonNotOwnApp = !Studio.WS.isOwnApp(pAnon.app);
+
+      // …and the LOAD path refuses rather than handing back an empty snapshot.
+      // This is the durability half: initSync's replaceAll would adopt that
+      // emptiness over the local mirror, and needsSignIn() cannot catch it
+      // because there is no cfg.authEmail to re-prompt for.
+      var loadErr = null, loaded = null;
+      try { loaded = await sb.load(anon); } catch (e) { loadErr = e; }
+      out.loadRejected = !!loadErr && loaded === null;
+      out.loadSaysAuth = !!(loadErr && loadErr.authRequired === true && /required on a secured workspace/i.test(loadErr.message || ""));
+
+      // (b) the SAME database, with credentials → not the user's fault, so the
+      // adapter must not blame the fields. Classifies as it always did.
+      var authed = { url: "https://n23-authed.supabase.co", key: "k", authEmail: "a@b.co", authPassword: "pw" };
+      var pAuthed = await sb.probe(authed);
+      out.authedNotFlagged = pAuthed.state !== "authRequired";
+      var authedLoad = await sb.load(authed);
+      out.authedLoads = !!(authedLoad && authedLoad.tables);
+
+      // (c) a blank database is still "empty" — the paste-me provisioning path
+      // must not be replaced by a sign-in prompt.
+      stub("missing");
+      var pBlank = await sb.probe({ url: "https://n23-blank.supabase.co", key: "k" });
+      out.blankState = pBlank.state;
+
+      // (d) a legacy allow-all workspace is untouched: the marker is readable,
+      // so anon-key-only keeps working exactly as it does today.
+      stub("rows");
+      var legacy = { url: "https://n23-legacy.supabase.co", key: "k" };
+      var pLegacy = await sb.probe(legacy);
+      out.legacyState = pLegacy.state;
+      out.legacyIsOwn = Studio.WS.isOwnApp(pLegacy.app);
+      var legacyLoad = await sb.load(legacy);
+      out.legacyLoads = !!(legacyLoad && legacyLoad.tables);
+
+      // (e) the guard's precision: a caller who can READ ROWS is manifestly not
+      // locked out, so an emptied marker table on an otherwise readable
+      // workspace stays the odd case it always was (AUD-04's 404-tolerance
+      // fixture is exactly this shape) rather than becoming a sign-in prompt.
+      stub("empty", true);
+      var oddball = { url: "https://n23-readable.supabase.co", key: "k" };
+      var pOdd = await sb.probe(oddball);
+      out.rowsSeenNotFlagged = pOdd.state !== "authRequired";
+      var oddLoad = await sb.load(oddball);
+      out.rowsSeenLoads = !!(oddLoad && (oddLoad.tables.datasets || []).length === 1);
+
+      // (f) the form itself: the two Auth fields no longer claim to be
+      // optional, they say what happens if you skip them, the password says it
+      // is never stored, and adminFnUrl — which genuinely IS optional — still
+      // says so and says what it costs.
+      var f = {};
+      (sb.fields || []).forEach(function (x) { f[x.key] = x; });
+      out.emailNotOptional = !/optional/i.test(f.authEmail.label) && /REQUIRED/.test(f.authEmail.hint) && /EMPTY workspace/.test(f.authEmail.hint);
+      out.pwNotOptional = !/optional/i.test(f.authPassword.label) && /NEVER stored/i.test(f.authPassword.hint) && /once per browser session/i.test(f.authPassword.hint);
+      out.adminStillOptional = /optional/i.test(f.adminFnUrl.label) && /SQL/.test(f.adminFnUrl.hint) && /never deployed/i.test(f.adminFnUrl.hint);
+
+      window.fetch = fetch0;
+      return out;
+    });
+    ok("N23: a secured workspace read by an anonymous connection is reported as sign-in-required — not as an empty catalog, and not as another app's database",
+      n23.anonState === "authRequired" && n23.anonSaysAuth && n23.anonNotOwnApp, JSON.stringify(n23));
+    ok("N23: that same read REJECTS in load(), so an anon boot pull can never adopt the emptiness over this device's local workspace",
+      n23.loadRejected && n23.loadSaysAuth, JSON.stringify(n23));
+    ok("N23: with Auth credentials in hand the adapter never blames the fields, and a blank or legacy allow-all database classifies exactly as before",
+      n23.authedNotFlagged && n23.authedLoads && n23.blankState === "empty" &&
+      n23.legacyState === "polecat" && n23.legacyIsOwn && n23.legacyLoads, JSON.stringify(n23));
+    ok("N23: the claim needs a workspace that answered with NOTHING — a caller who can still read rows is never told to sign in",
+      n23.rowsSeenNotFlagged && n23.rowsSeenLoads, JSON.stringify(n23));
+    ok("N23: the connection form says the Auth fields are required, that the password is never stored, and that only the admin function URL is optional",
+      n23.emailNotOptional && n23.pwNotOptional && n23.adminStillOptional, JSON.stringify(n23));
 
     const wsSupabase = await page.evaluate(async function () {
       var res = await Studio.supabaseSource.provision({}, Studio.WS.emptySnapshot());
@@ -8581,6 +10316,88 @@ function serve() {
     });
     ok("WS: supabase provision hands back a paste-me SQL bootstrap (no browser DDL pretence)",
       wsSupabase.manual && wsSupabase.hasDDL && wsSupabase.hasApp, JSON.stringify(wsSupabase));
+
+    // ---- N21: that bootstrap is the CANONICAL posture, not tables + homework --
+    // The connect wizard's script is the supported way to adopt a blank
+    // Supabase database, and it used to generate provisionDDL() + meta + the
+    // atomic-save function and close with a COMMENT — "then enable Row-Level
+    // Security policies appropriate to your project". So the UI path handed the
+    // user the pre-M7 posture (RLS off, anon key wide open) while
+    // tools/supabase-deploy.sql had installed the real posture since
+    // 2026-07-30. tools/validate.mjs proves the two are textually the same
+    // posture and tests/rls.mjs applies this exact script to a throwaway schema
+    // and proves anon reads zero; these checks hold the SHAPE of what the user
+    // is handed — every section present, and no allow-all policy anywhere in it.
+    const n21 = await page.evaluate(async function () {
+      var res = await Studio.supabaseSource.provision({ url: "https://x.supabase.co", key: "k" }, Studio.WS.emptySnapshot());
+      var sql = res.sql || "";
+      var flat = sql.replace(/\s+/g, " ");
+      return {
+        manual: !!res.manual,
+        tables: /CREATE TABLE IF NOT EXISTS "connections"/.test(sql),
+        atomicSave: sql.indexOf("polecat_workspace_save") >= 0,
+        rlsOn: /ENABLE ROW LEVEL SECURITY/.test(sql),
+        adminHelper: /CREATE OR REPLACE FUNCTION public\.polecat_is_admin\(\)/.test(sql),
+        authenticatedOnly: /FOR SELECT TO authenticated/.test(sql) && /FOR INSERT TO authenticated/.test(sql),
+        metaPolicy: /CREATE POLICY polecat_meta_auth/.test(sql),
+        retiresLegacy: /DROP POLICY IF EXISTS polecat_open_rw/.test(sql) && /DROP POLICY IF EXISTS polecat_anon_all/.test(sql),
+        logTables: /CREATE TABLE IF NOT EXISTS public\.polecat_activity/.test(sql) && /CREATE TABLE IF NOT EXISTS public\.polecat_feedback/.test(sql),
+        anonLogsInsertOnly: /polecat_activity_insert_anon[^;]*FOR INSERT TO anon/.test(sql) &&
+          /polecat_feedback_insert_anon[^;]*FOR INSERT TO anon/.test(sql) &&
+          !/FOR SELECT TO anon/.test(sql) && !/FOR ALL TO anon/.test(sql),
+        grants: /GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role/.test(flat),
+        // the two ways the old script's posture could come back
+        noAllowAll: !/CREATE POLICY\s+"?polecat_(open_rw|anon_all)"?/.test(sql),
+        noHomework: !/enable Row-Level Security policies appropriate to your project/.test(sql),
+        // the marker rows never rewind (N17/N20), and the runbook's two manual steps ride along
+        markersDoNothing: /VALUES\('app', 'analytics'\) ON CONFLICT \(key\) DO NOTHING;/.test(sql) &&
+          /VALUES\('schema_version', '4'\) ON CONFLICT \(key\) DO NOTHING;/.test(sql),
+        firstAdmin: /7\) FIRST ADMIN/.test(sql),
+        verifyBlock: /set local role anon/.test(sql)
+      };
+    });
+    ok("N21: the connect wizard's blank-database script IS the canonical deploy — tables, atomic saves, RLS on with authenticated-only policies, the admin helper, the activity logs, the grants — and never the allow-all posture or the old 'sort the security out yourself' comment",
+      n21.manual && n21.tables && n21.atomicSave && n21.rlsOn && n21.adminHelper && n21.authenticatedOnly &&
+      n21.metaPolicy && n21.retiresLegacy && n21.logTables && n21.anonLogsInsertOnly && n21.grants &&
+      n21.noAllowAll && n21.noHomework, JSON.stringify(n21));
+    ok("N21: it declares the workspace without ever rewinding an existing marker, and carries the two steps a human still has to take — § 7 the first admin, § 8 the anon verify",
+      n21.markersDoNothing && n21.firstAdmin && n21.verifyBlock, JSON.stringify(n21));
+
+    // The script leaves the database reachable only by an authenticated caller,
+    // so § 7 ships READY TO RUN when the browser can resolve the caller's own
+    // Supabase Auth uid — and the wizard refuses to connect on the anon key
+    // alone, whose only possible outcome is a 403 on the first push (whose
+    // generic remedy is the open-policy SQL that would reopen what was just
+    // closed).
+    const n21Admin = await page.evaluate(async function () {
+      var sb = Studio.supabaseSource;
+      var cfg = { url: location.origin + "/__supabase", key: "k", authEmail: "owner@example.com", authPassword: "pw" };
+      var blockedAnon = sb.provisionBlocker({ url: cfg.url, key: "k" });
+      var blockedAuthed = sb.provisionBlocker(cfg);
+      var withAdmin = Studio.WS.firstAdminSQL({ username: "ana", name: "Ana", gotrueId: "11111111-1111-4111-8111-111111111111" });
+      var withoutAdmin = Studio.WS.firstAdminSQL(null);
+      return {
+        blocksAnon: typeof blockedAnon === "string" && /Row-Level Security/.test(blockedAnon) && /Auth email/.test(blockedAnon),
+        allowsAuthed: blockedAuthed === null,
+        readyToRun: /^INSERT INTO public\.users/m.test(withAdmin) && withAdmin.indexOf("11111111-1111-4111-8111-111111111111") >= 0,
+        templateWhenUnknown: !/^INSERT INTO public\.users/m.test(withoutAdmin) && withoutAdmin.indexOf("<AUTH-UID>") >= 0,
+        adminRole: /'admin'/.test(withAdmin)
+      };
+    });
+    ok("N21: the wizard will not connect on the anon key alone after locking the database down, and § 7 ships ready-to-run once the caller's Supabase Auth uid is known (a fill-in template until then)",
+      n21Admin.blocksAnon && n21Admin.allowsAuthed && n21Admin.readyToRun &&
+      n21Admin.templateWhenUnknown && n21Admin.adminRole, JSON.stringify(n21Admin));
+
+    // Source guard: the wizard's manual-provision branch must actually ASK.
+    // A behavioral check would have to drive the whole modal; this is the cheap
+    // way to keep the call from being dropped in a later refactor.
+    const n21Wired = await page.evaluate(async function () {
+      var src = await (await fetch("/app/studio.js")).text();
+      var branch = src.slice(src.indexOf("// manual provisioning (Supabase)"), src.indexOf("// manual provisioning (Supabase)") + 2000);
+      return { found: branch.length > 100, asks: branch.indexOf("provisionBlocker") >= 0 };
+    });
+    ok("N21: the connect wizard's manual-provision branch consults the adapter's provisionBlocker before it pushes",
+      n21Wired.found && n21Wired.asks, JSON.stringify(n21Wired));
 
     // ---- Supabase testData: survives the 2026 new-key-format REST-root lockdown ----
     // Supabase's new publishable/secret key split made the REST root (OpenAPI
@@ -11643,6 +13460,38 @@ function serve() {
       aud01.sqlCreatesFn && aud01.sqlInvoker && aud01.sqlPlpgsql && aud01.sqlCoversTables &&
       aud01.sqlUsersNeverDeleted && aud01.sqlWritesMeta && aud01.sqlGrants && aud01.inBootstrap && aud01.inDelta, JSON.stringify(aud01));
 
+    // ---- N22b: the migration RPC ships in the one paste, and it is a locked
+    // door rather than a raw-SQL hatch. What it DOES to a database is proven
+    // from the database's own side in tests/rls.mjs (the "migration RPC route"
+    // posture: a legacy allow-all workspace, one admin call, anon reads zero).
+    // What is checked HERE is the browser-side half nothing else covers: that
+    // the script the connect wizard hands a user still contains it, and that
+    // its security shape has not been edited away. ----
+    const n22b = await page.evaluate(() => {
+      const sql = Studio.WS.migrationRpcSQL();
+      const wizard = Studio.WS.freshDeploySQL(Studio.WS.emptySnapshot(), null);
+      return {
+        creates: /CREATE OR REPLACE FUNCTION public\.polecat_migrate\(mode text DEFAULT 'apply'\)/.test(sql),
+        definer: /SECURITY DEFINER/.test(sql),
+        adminGated: /administrators only/.test(sql),
+        // The gate is the whole boundary under SECURITY DEFINER, so it must come
+        // before anything is created — not after the DDL has already run.
+        gateFirst: sql.indexOf("administrators only") < sql.indexOf("EXECUTE $polecat_ddl$"),
+        anonRevoked: /REVOKE ALL ON FUNCTION public\.polecat_migrate\(text\) FROM anon/.test(sql),
+        authGranted: /GRANT EXECUTE ON FUNCTION public\.polecat_migrate\(text\) TO authenticated/.test(sql),
+        // Fixed DDL: the posture is embedded verbatim, and no parameter is ever executed.
+        embedsPosture: sql.indexOf(Studio.WS.RLS_REAL_SQL) >= 0,
+        noExecHatch: !/EXECUTE\s+(mode|sql|stmt|query)\b/.test(sql),
+        // Raise-only marker (N17/N28): an older build cannot re-label a newer workspace.
+        markerRaiseOnly: /value::int < EXCLUDED\.value::int/.test(sql),
+        inWizardScript: wizard.indexOf("FUNCTION public.polecat_migrate") >= 0,
+      };
+    });
+    ok("N22b: the one paste installs an ADMIN-ONLY migration RPC — fixed DDL with the real posture embedded verbatim, no exec-SQL parameter, anon revoked, gate before any DDL, and the version marker raise-only",
+      n22b.creates && n22b.definer && n22b.adminGated && n22b.gateFirst && n22b.anonRevoked &&
+      n22b.authGranted && n22b.embedsPosture && n22b.noExecHatch && n22b.markerRaiseOnly &&
+      n22b.inWizardScript, JSON.stringify(n22b));
+
     // the Settings card names the durability property and hands over the fix
     const aud01Card = await page.evaluate(async () => {
       const fetch0 = window.fetch;
@@ -11912,7 +13761,16 @@ function serve() {
         if (method === "POST" || method === "PATCH")
           return Promise.resolve(new Response("[]", { status: 201, headers: { "Content-Type": "application/json" } }));
         const t = (u.match(/rest\/v1\/([a-z_]+)\?/) || [])[1];
-        const body = t === "users" ? usersRemote : [];
+        // N23: every provisioning path stamps the marker rows, and the adapter
+        // now reads a marker table that answers an anonymous caller with
+        // NOTHING as "this workspace is secured and you never signed in" —
+        // which is what this stub was accidentally impersonating. Answer the
+        // marker read the way a real Supabase workspace does, so the checks
+        // below keep testing quietPull rather than the connection's posture.
+        const body = t === "users" ? usersRemote
+          : t === Studio.WS.META_TABLE ? [{ key: "app", value: Studio.WS.APP_ID },
+            { key: "schema_version", value: String(Studio.WS.SCHEMA_VERSION) }]
+          : [];
         return Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } }));
       };
       const keep = Studio.Workspace.snapshot(); // quietPull adoption below replaces the store — restore at the end
@@ -14018,6 +15876,234 @@ function serve() {
       vb4c.iframeType && vb4c.iframeMap, JSON.stringify(vb4c));
     ok("VB-4 (3): saving with Scatter picked stamps the same labelCol/xCol/yCol mapping on the analyses row",
       vb4c.savedType === "scatter" && vb4c.savedMap === JSON.stringify({ labelCol: "region", xCol: "SUM cost", yCol: "SUM acres" }), JSON.stringify(vb4c));
+
+    // 13c-N15. Kevin, 2026-08-08, reported from a phone: the View Builder's panel menu
+    // offers "Export as standalone HTML" and NOTHING HAPPENS. The panel chrome is one
+    // shared file (app/studio-render.js) so the preview and the export stay byte-identical,
+    // and the HTML item only posts `panel-export-embed` up to the top window. The single
+    // handler for it was the DASHBOARD builder's, which resolves the id with panelById() —
+    // a filter over the open dashboard's panels. The View Builder's preview panel is minted
+    // fresh (bdPanelFor → Studio.newPanel) into a private one-panel spec that is never in
+    // S.spec, so the lookup missed and the branch fell through silently. Messages now route
+    // by the FRAME that posted them: the View Builder claims its own preview and exports
+    // exactly what it is showing, including the real computed rows it previewed.
+    const vbN15 = await page.evaluate(async () => {
+      const W = window.Studio.Workspace;
+      const B = window.__studioBuild;
+      const out = {};
+      const ds = W.put("datasets", { name: "bd-n15-ds", kind: "sql", sql: "select region, quarter, amount from t", columns: ["region", "quarter", "amount"] });
+      await B.selectDataset("ws", ds.id);
+      await new Promise((r) => setTimeout(r, 120));
+      B.state.shelfCols = []; B.state.shelfRows = []; B.state.filters = []; B.state.shelfColor = [];
+      B.addField("region", "cols");
+      B.addField("amount", "cols");
+      B.state.chartType = "bars";
+      B.state.panelTitle = "N15 Export Probe";
+      B.rerender();
+      await new Promise((r) => setTimeout(r, 500));
+
+      const ifr = document.querySelector("#buildResult iframe.bd-ifr");
+      const doc = ifr && ifr.contentDocument;
+      const card = doc && doc.querySelector("[data-panel-id]");
+      out.hasPreviewPanel = !!card;
+      out.previewPanelId = card && card.getAttribute("data-panel-id");
+      // the id really is private to this builder — proof the dashboard handler could
+      // never have resolved it
+      out.notInDashboardSpec = !(window.__STUDIO_STATE.spec.panels || [])
+        .some((p) => p.id === out.previewPanelId);
+
+      // (1) the real click path: open the Export menu and press the standalone-HTML item
+      window.__lastBundle = null;
+      const item = card && [].slice.call(card.querySelectorAll(".dk-dl-act"))
+        .filter((b) => /standalone HTML/.test(b.title))[0];
+      out.hasHtmlItem = !!item;
+      if (item) item.click();
+      await new Promise((r) => setTimeout(r, 400));
+      const bundle = window.__lastBundle;
+      out.modalTitle = document.querySelector(".modal-h") ? document.querySelector(".modal-h").textContent : "";
+      out.fileName = bundle && bundle.files[0] && bundle.files[0].name;
+      const body = (bundle && bundle.files[0] && bundle.files[0].body) || "";
+      out.bodyLen = body.length;
+      out.isDocument = /<!doctype html/i.test(body) && body.indexOf("window.STUDIO_SPEC") >= 0;
+      out.carriesThisView = body.indexOf('"type":"bars"') >= 0 && body.indexOf("N15 Export Probe") >= 0;
+      // the export is the file a reader opens on their own — not a preview, and not the
+      // fabricated sample data: it carries the REAL rows this builder just computed
+      out.isStandalone = body.indexOf("DASHKIT_MOCK") >= 0 && body.indexOf('"SUM amount"') >= 0;
+      document.querySelectorAll(".modal-ov").forEach((m) => m.remove());
+
+      // (2) the other half of the same seam: chrome inside THIS preview must not be able
+      // to rewrite whatever dashboard is open in the dashboard builder. reorder /
+      // kpi-delete / header-edit / header-delete acted on S.spec unconditionally — no id
+      // to miss on — so they reached straight across.
+      const orig = window.Studio.clone(window.__STUDIO_STATE.spec);
+      const canary = window.Studio.clone(orig);
+      const cda0 = (canary.cda.dataAccesses || [])[0] || {};
+      canary.title = "N15 canary dashboard";
+      canary.hideHeader = false;
+      canary.kpis = [{ id: "n15kpi", label: "N15 canary KPI", da: cda0.id, valueCol: (cda0.columns || [])[1], agg: "sum" }];
+      if (canary.panels.length === 1) {
+        const dup = window.Studio.clone(canary.panels[0]);
+        dup.id = "n15dup"; dup.title = "N15 canary panel 2";
+        canary.panels.push(dup);
+      }
+      window.__studioLoad(canary);
+      await new Promise((r) => setTimeout(r, 250));
+      const orderBefore = window.__STUDIO_STATE.spec.panels.map((p) => p.id);
+      const reversed = orderBefore.slice().reverse();
+      ifr.contentWindow.eval(
+        "parent.postMessage({studio:1,type:'header-delete'},'*');" +
+        "parent.postMessage({studio:1,type:'header-edit',field:'title',value:'HIJACKED'},'*');" +
+        "parent.postMessage({studio:1,type:'kpi-delete',index:0},'*');" +
+        "parent.postMessage({studio:1,type:'reorder',order:" + JSON.stringify(reversed) + "},'*');"
+      );
+      await new Promise((r) => setTimeout(r, 350));
+      const after = window.__STUDIO_STATE.spec;
+      out.headerSurvived = after.hideHeader !== true;
+      out.titleSurvived = after.title === "N15 canary dashboard";
+      out.kpiSurvived = (after.kpis || []).length === 1;
+      out.orderSurvived = after.panels.map((p) => p.id).join(",") === orderBefore.join(",");
+
+      // the dashboard builder's OWN preview still drives its dashboard — the guard is about
+      // which frame spoke, not about disabling the acts
+      window.postMessage({ studio: 1, type: "header-edit", field: "title", value: "Renamed from the builder" }, "*");
+      await new Promise((r) => setTimeout(r, 300));
+      out.ownEditStillWorks = window.__STUDIO_STATE.spec.title === "Renamed from the builder";
+
+      window.__studioLoad(orig);
+      W.remove("datasets", ds.id);
+      await new Promise((r) => setTimeout(r, 150));
+      return out;
+    });
+    ok("N15: the View Builder's preview panel is private to that builder — its id is not in the open dashboard's spec, which is why the shared handler could never resolve it",
+      vbN15.hasPreviewPanel && vbN15.notInDashboardSpec, JSON.stringify(vbN15));
+    ok("N15: clicking \"Export as standalone HTML\" in the View Builder's preview really opens the Embed View modal with a file (it was a silent no-op)",
+      vbN15.hasHtmlItem && /Embed View/.test(vbN15.modalTitle) && vbN15.fileName === "n15-export-probe-embed.html" && vbN15.bodyLen > 1000,
+      JSON.stringify(vbN15));
+    ok("N15: the exported file is a real standalone document carrying THIS View — doctype + STUDIO_SPEC, the bars panel, its title, and the real computed rows",
+      vbN15.isDocument && vbN15.carriesThisView && vbN15.isStandalone, JSON.stringify(vbN15));
+    ok("N15: a message from the View Builder's preview cannot rewrite the dashboard open in the other builder — header, title, KPI and panel order all survive",
+      vbN15.headerSurvived && vbN15.titleSurvived && vbN15.kpiSurvived && vbN15.orderSurvived, JSON.stringify(vbN15));
+    ok("N15: the dashboard builder's own canvas edits still apply — the routing decides WHO spoke, it does not disable the acts",
+      vbN15.ownEditStillWorks, JSON.stringify(vbN15));
+
+    // 13c-N15 slice 2 — the OTHER half of the same phone report: the panel menu's PNG and CSV
+    // items also did nothing. The bytes were never the problem (a probe on the pre-change tree
+    // showed a real `data:image/png;base64,…` and a real CSV blob both being produced) — the
+    // download was STARTED FROM THE PREVIEW IFRAME's document, a nested browsing context, which
+    // iOS Safari refuses. It works in desktop Chrome, and every existing check here drives the
+    // `onDataUrl`/`onRows` hooks instead of the click path, which is exactly why the suite was
+    // always green on a defect a phone hits immediately. So these checks exercise the CLICK
+    // path and assert WHERE the anchor ends up: the finished bytes are handed to the top window
+    // and clicked in the TOP document, while the exported standalone file — the same shared
+    // chrome, by the export==preview invariant — must keep clicking in its own.
+    const vbDl = await page.evaluate(async () => {
+      const W = window.Studio.Workspace;
+      const B = window.__studioBuild;
+      const out = {};
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const ds = W.put("datasets", { name: "bd-n15b-ds", kind: "sql", sql: "select region, quarter, amount from t", columns: ["region", "quarter", "amount"] });
+      await B.selectDataset("ws", ds.id);
+      await wait(120);
+      B.state.shelfCols = []; B.state.shelfRows = []; B.state.filters = []; B.state.shelfColor = [];
+      B.addField("region", "cols");
+      B.addField("amount", "cols");
+      B.state.chartType = "bars";
+      B.state.panelTitle = "N15 Download Probe";
+      B.rerender();
+      await wait(500);
+
+      const ifr = document.querySelector("#buildResult iframe.bd-ifr");
+      const doc = ifr && ifr.contentDocument;
+      const card = doc && doc.querySelector("[data-panel-id]");
+      out.hasCard = !!card;
+      if (!card) return out;
+
+      // Watch BOTH documents' anchor clicks — a download is only observable here by where the
+      // <a download> is clicked, which is precisely the thing that was wrong.
+      const clicks = [];
+      const IW = ifr.contentWindow;
+      const inOrig = IW.HTMLAnchorElement.prototype.click;
+      IW.HTMLAnchorElement.prototype.click = function () {
+        clicks.push({ doc: "iframe", name: this.download, href: (this.href || "").slice(0, 22) });
+      };
+      const topOrig = HTMLAnchorElement.prototype.click;
+      HTMLAnchorElement.prototype.click = function () {
+        clicks.push({ doc: "top", name: this.download, href: (this.href || "").slice(0, 22) });
+      };
+      try {
+        const acts = [].slice.call(card.querySelectorAll(".dk-dl-act"));
+        const png = acts.filter((b) => /PNG/i.test(b.title))[0];
+        const csv = acts.filter((b) => /CSV/i.test(b.title))[0];
+        out.hasPng = !!png; out.hasCsv = !!csv;
+        window.__lastPreviewDownload = null;
+        if (png) png.click();
+        await wait(700);
+        out.pngDelivered = window.__lastPreviewDownload;
+        window.__lastPreviewDownload = null;
+        if (csv) csv.click();
+        await wait(400);
+        out.csvDelivered = window.__lastPreviewDownload;
+        out.clicks = clicks.slice();
+
+        // The export is the same chrome running with no top window to lean on. Embed the REAL
+        // exported file in an iframe — so it demonstrably HAS a parent — and prove it still
+        // downloads in its own document rather than depending on a host answering it.
+        window.__lastBundle = null;
+        const embed = acts.filter((b) => /standalone HTML/.test(b.title))[0];
+        if (embed) embed.click();
+        await wait(400);
+        const body = (window.__lastBundle && window.__lastBundle.files[0] && window.__lastBundle.files[0].body) || "";
+        document.querySelectorAll(".modal-ov").forEach((m) => m.remove());
+        out.gotExport = body.length > 1000;
+        if (out.gotExport) {
+          const ex = document.createElement("iframe");
+          ex.style.cssText = "position:fixed;left:-9999px;width:900px;height:600px";
+          ex.srcdoc = body;
+          document.body.appendChild(ex);
+          await new Promise((r) => { ex.onload = r; setTimeout(r, 3000); });
+          await wait(700);
+          const exDoc = ex.contentDocument;
+          const exCard = exDoc && exDoc.querySelector("[data-panel-id]");
+          out.exportHasCard = !!exCard;
+          out.exportIsNotPreview = !ex.contentWindow.STUDIO_PREVIEW;
+          const exClicks = [];
+          ex.contentWindow.HTMLAnchorElement.prototype.click = function () {
+            exClicks.push({ name: this.download, href: (this.href || "").slice(0, 22) });
+          };
+          window.__lastPreviewDownload = null;
+          const exPng = exCard && [].slice.call(exCard.querySelectorAll(".dk-dl-act")).filter((b) => /PNG/i.test(b.title))[0];
+          out.exportHasPng = !!exPng;
+          if (exPng) exPng.click();
+          await wait(700);
+          out.exportClicks = exClicks;
+          out.exportDidNotDelegate = !window.__lastPreviewDownload;
+          ex.remove();
+        }
+      } finally {
+        IW.HTMLAnchorElement.prototype.click = inOrig;
+        HTMLAnchorElement.prototype.click = topOrig;
+      }
+      W.remove("datasets", ds.id);
+      await wait(150);
+      return out;
+    });
+    const vbDlTop = (vbDl.clicks || []).filter((c) => c.doc === "top");
+    ok("N15 (b): the View Builder's panel menu really offers PNG and CSV, and clicking them downloads — the click path, not the test-only onDataUrl/onRows hooks that hid this",
+      vbDl.hasCard && vbDl.hasPng && vbDl.hasCsv && vbDlTop.length === 2, JSON.stringify({ hasCard: vbDl.hasCard, hasPng: vbDl.hasPng, hasCsv: vbDl.hasCsv, clicks: vbDl.clicks }));
+    ok("N15 (b): NOTHING downloads from inside the preview iframe any more — both anchors are clicked in the TOP document, the fix for the nested-browsing-context download iOS Safari blocks",
+      (vbDl.clicks || []).length === 2 && !(vbDl.clicks || []).some((c) => c.doc === "iframe"), JSON.stringify(vbDl.clicks));
+    ok("N15 (b): the delegated PNG carries the real rasterized image and the panel's own filename",
+      !!vbDl.pngDelivered && vbDl.pngDelivered.name === "n15-download-probe.png" && vbDl.pngDelivered.bytes > 100 &&
+      vbDlTop.some((c) => c.name === "n15-download-probe.png" && c.href.indexOf("data:image/png") === 0),
+      JSON.stringify({ delivered: vbDl.pngDelivered, clicks: vbDlTop }));
+    ok("N15 (b): the delegated CSV carries the rows as TEXT and the top window mints the blob, so nothing depends on a URL the preview may revoke as it re-renders",
+      !!vbDl.csvDelivered && vbDl.csvDelivered.name === "n15-download-probe.csv" && vbDl.csvDelivered.bytes > 10 &&
+      vbDlTop.some((c) => c.name === "n15-download-probe.csv" && c.href.indexOf("blob:") === 0),
+      JSON.stringify({ delivered: vbDl.csvDelivered, clicks: vbDlTop }));
+    ok("N15 (b): the exported standalone file is the same shared chrome and keeps the in-document path — embedded in an iframe it still clicks its OWN anchor and delegates nothing",
+      vbDl.gotExport && vbDl.exportHasCard && vbDl.exportIsNotPreview && vbDl.exportHasPng &&
+      (vbDl.exportClicks || []).length === 1 && vbDl.exportClicks[0].href.indexOf("data:image/png") === 0 && vbDl.exportDidNotDelegate,
+      JSON.stringify(vbDl));
 
     // 13d. VB-4 remaining major (Kevin overnight queue, "hit major ones first"): KPI.
     // Structurally different from every other chart type here — a KPI tile lives in
@@ -18305,6 +20391,366 @@ function serve() {
       wsAccess.hasBtn && wsAccess.entryOk && wsAccess.stripped && wsAccess.liveKeepsCreds && wsAccess.importable, JSON.stringify(wsAccess));
     await gpWs.close();
 
+    // ---- N24 slice 1 (Kevin, 2026-08-08): "I went to connect to a custom
+    // workspace… and there is no way to actually log in with that one." The
+    // connect wizard's success step set a hint and stopped — it never recorded
+    // the workspace and never re-rendered the picker, so the list still showed
+    // the pre-connect entries. The wizard itself is stubbed at exactly the point
+    // it hands control back (a REAL bound connection, then the callback), so the
+    // gate's own success path is what's under test. Runs at 390×780 because this
+    // was reported from a phone. ----
+    console.log("\n• N24: a workspace connected from the gate lands in the picker, named");
+    await fetch(`http://localhost:${PORT}/__supabase/rest/v1/__cleartokenflap`, { headers: { apikey: "sb_publishable_valid" } });
+    const gpN24 = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    gpN24.on("pageerror", (e) => errors.push("N24 page: " + e.message));
+    await gpN24.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpN24.waitForSelector("#g-form", { timeout: 8000 });
+    const n24 = await gpN24.evaluate(async (port) => {
+      var url = "http://localhost:" + port + "/__supabase";
+      var asked = null;
+      window.prompt = function (msg, def) { asked = { msg: msg, def: def }; return "Kevin’s dev workspace"; };
+      window.__studioOpenBackendWizard = function (a, b, onConnected) {
+        Studio.Sync.bindConnection("supabase", { url: url, key: "sb_publishable_valid", authEmail: "owner@example.com", authPassword: "secret123" })
+          .then(function () { onConnected(); });
+      };
+      document.getElementById("g-connect").click();
+      await new Promise(function (r) { setTimeout(r, 500); });
+      var sel = document.getElementById("g-workspace");
+      var opts = Array.from(sel.options).map(function (o) { return { v: o.value, t: o.textContent }; });
+      var picked = opts.filter(function (o) { return o.v === sel.value; })[0] || {};
+      var saved = [];
+      try { saved = JSON.parse(localStorage.getItem("studio-workspaces-custom") || "[]"); } catch (e) {}
+      var one = saved[0] || { cfg: {} };
+      return {
+        askedForName: !!asked && /Name this workspace/.test(asked.msg) && /localhost/.test(asked.def || ""),
+        listedNamed: opts.some(function (o) { return o.t === "Kevin’s dev workspace"; }),
+        selectedIsIt: picked.t === "Kevin’s dev workspace",
+        // the anonymous "Connected workspace (this browser)" slot is what a named
+        // entry replaces — two of those are indistinguishable
+        noAnonSlot: !opts.some(function (o) { return o.v === "__connected"; }),
+        persisted: saved.length === 1 && saved[0].label === "Kevin’s dev workspace" && /__supabase/.test(one.cfg.url || ""),
+        credsStripped: !("authEmail" in one.cfg) && !("authPassword" in one.cfg),
+        lastWs: localStorage.getItem("studio-workspace-last") === saved[0].id,
+        hint: (document.getElementById("g-hint") || {}).textContent || "",
+        userPrefilled: document.getElementById("g-user").value
+      };
+    }, PORT);
+    ok("N24: connecting a workspace from the sign-in screen saves it as a NAMED, selected picker entry (persisted without the connection's own credentials) and prefills the email the wizard already took",
+      n24.askedForName && n24.listedNamed && n24.selectedIsIt && n24.noAnonSlot && n24.persisted && n24.credsStripped &&
+      n24.lastWs && /Kevin’s dev workspace/.test(n24.hint) && n24.userPrefilled === "owner@example.com", JSON.stringify(n24));
+    // …and the whole point: you can now sign in to the thing you just connected.
+    await gpN24.evaluate(() => {
+      Studio.Workspace.put("users", { id: "user_n24", u: "n24owner", name: "N24 Owner", role: "admin", demo: false, gotrueId: "11111111-1111-1111-1111-111111111111" }, { silent: true });
+      Studio.Sync.pullNow = function () { return Promise.resolve(); }; // sync detail, not auth — keep the seed
+    });
+    await gpN24.fill("#g-pass", "secret123");
+    await gpN24.click("#g-form button[type=submit]");
+    await gpN24.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 6000 }).catch(() => {});
+    await gpN24.waitForTimeout(100);
+    const n24SignIn = await gpN24.evaluate(() => ({
+      gateGone: !document.querySelector("#studio-gate"),
+      who: (window.PolecatAuth.current() || {}).u,
+      gateErr: (document.getElementById("g-err") || {}).textContent || "",
+      stillBound: Studio.Sync.syncState().sourceId === "supabase"
+    }));
+    await gpN24.close();
+    ok("N24: signing in straight after that connect works — the password is the only field left to fill, and the session lands on the workspace that was just connected",
+      n24SignIn.gateGone && n24SignIn.who === "n24owner" && n24SignIn.stillBound, JSON.stringify(n24SignIn));
+
+    // ---- N24 slice 2 (Kevin, same session): "there should be some more
+    // management of your workspaces there so that you can define one and connect
+    // to it from there… can you export an access file from the setup screens so
+    // that i can define one and then export the access file". Slice 1 left ONE
+    // anonymous list with no way to fix a name, drop an entry, say which one this
+    // browser opens on, or hand one to a teammate without first signing in
+    // somewhere. The saved list, its rules and its panel now live in the shared
+    // store (app/workspaces.js) so the sign-in screen and Settings → Workspace
+    // backend operate the SAME list — that shared-ness is what these checks are
+    // really guarding. 390×780, like slice 1: this is phone work. ----
+    console.log("\n• N24 slice 2: managing the saved workspace list, from the sign-in screen and from Settings");
+    const gpN24b = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    gpN24b.on("pageerror", (e) => errors.push("N24b page: " + e.message));
+    await gpN24b.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpN24b.evaluate((port) => {
+      localStorage.setItem("studio-workspaces-custom", JSON.stringify([
+        // the second entry carries a service login on purpose: a hand-edited or
+        // pre-slice-1 saved entry can, and an exported file must not.
+        { id: "ws-dev", label: "Dev workspace", sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid" } },
+        { id: "ws-stage", label: "Stage workspce", sourceId: "supabase", cfg: { url: "https://stage.example.co", key: "k-stage", authEmail: "owner@example.com", authPassword: "secret123" } }
+      ]));
+      localStorage.removeItem("studio-workspace-default");
+      localStorage.setItem("studio-welcome-seen", "1");   // the tour modal is not what this block is testing
+    }, PORT);
+    await gpN24b.reload({ waitUntil: "domcontentloaded" });
+    await gpN24b.waitForSelector("#g-form", { timeout: 8000 });
+    const n24Manage = await gpN24b.evaluate(() => {
+      var G = "#g-ws-manage ";
+      var sel = document.getElementById("g-workspace");
+      var hiddenBefore = document.getElementById("g-ws-manage").hidden;
+      sel.value = "__manage"; sel.dispatchEvent(new Event("change"));
+      var out = {
+        hiddenBefore: hiddenBefore,
+        opened: !document.getElementById("g-ws-manage").hidden,
+        // "Manage workspaces…" is a screen, not a workspace: picking it must not
+        // change (or disconnect) the workspace the picker was sitting on.
+        pickerUnmoved: sel.value === "local",
+        rows: Array.prototype.map.call(document.querySelectorAll(G + ".wsm-row .wsm-name"), function (n) { return n.textContent; })
+      };
+      // a packaged workspace can be defaulted and exported, never renamed or
+      // removed — it comes back on the next load, so offering it would be a lie
+      var packagedRow = Array.prototype.filter.call(document.querySelectorAll(G + ".wsm-row"), function (r) {
+        return r.querySelector(".wsm-name").textContent === "Polecat workspace";
+      })[0];
+      out.packagedActions = Array.prototype.map.call(packagedRow.querySelectorAll(".wsm-b"), function (b) { return b.getAttribute("data-a"); });
+      // rename the typo'd entry
+      window.prompt = function () { return "Stage workspace"; };
+      document.querySelector(G + '.wsm-row[data-i="1"] [data-a="rename"]').click();
+      out.renamed = JSON.parse(localStorage.getItem("studio-workspaces-custom") || "[]").map(function (w) { return w.label; });
+      // make it the default — and the picker, which is what a default is FOR,
+      // has to say so without a reload
+      document.querySelector(G + '.wsm-row[data-i="1"] [data-a="default"]').click();
+      out.defaultStored = localStorage.getItem("studio-workspace-default");
+      out.pickerSaysDefault = Array.prototype.some.call(document.getElementById("g-workspace").options, function (o) {
+        return o.textContent === "Stage workspace (default)";
+      });
+      out.defaultBadge = Array.prototype.map.call(document.querySelectorAll(G + '.wsm-row[data-i="1"] .wsm-badge'), function (b) { return b.textContent; });
+      return out;
+    });
+    ok("N24 slice 2: the sign-in screen's picker opens a workspace manager — a packaged entry offers only default/export, a saved one renames in place, and setting the default is reflected in the picker immediately",
+      n24Manage.hiddenBefore && n24Manage.opened && n24Manage.pickerUnmoved &&
+      n24Manage.rows.join("|") === "Dev workspace|Stage workspce|Polecat workspace" &&
+      n24Manage.packagedActions.join(",") === "default,export" &&
+      n24Manage.renamed.join("|") === "Dev workspace|Stage workspace" &&
+      n24Manage.defaultStored === "ws-stage" && n24Manage.pickerSaysDefault &&
+      n24Manage.defaultBadge.indexOf("Default") >= 0, JSON.stringify(n24Manage));
+    // The export Kevin asked for, from the screen where a workspace is DEFINED —
+    // no sign-in first. It must carry the key (that is the point) and never the
+    // definer's own login (that is the posture app/studio.js:500 records).
+    const n24Export = await gpN24b.evaluate(async () => {
+      var G = "#g-ws-manage ";
+      var asked = "", blob = null, name = "";
+      window.confirm = function (m) { asked = m; return true; };
+      var realCreate = URL.createObjectURL, realRevoke = URL.revokeObjectURL;
+      URL.createObjectURL = function (b) { blob = b; return "blob:n24"; };
+      URL.revokeObjectURL = function () {};
+      var realClick = HTMLAnchorElement.prototype.click;
+      HTMLAnchorElement.prototype.click = function () { name = this.download; };
+      document.querySelector(G + '.wsm-row[data-i="1"] [data-a="export"]').click();
+      URL.createObjectURL = realCreate; URL.revokeObjectURL = realRevoke;
+      HTMLAnchorElement.prototype.click = realClick;
+      var text = blob ? await blob.text() : "";
+      var file = null; try { file = JSON.parse(text); } catch (e) {}
+      var stored = JSON.parse(localStorage.getItem("studio-workspaces-custom") || "[]")[1] || { cfg: {} };
+      return {
+        warned: /connection key/.test(asked) && /own account/.test(asked),
+        name: name,
+        shape: !!(file && file.id === "ws-stage" && file.label === "Stage workspace" && file.sourceId === "supabase" && file.cfg && file.cfg.url && file.cfg.key),
+        stripped: !!file && !("authEmail" in file.cfg) && !("authPassword" in file.cfg),
+        // stripping is for the FILE — the saved entry keeps whatever it had, so
+        // the export can never quietly break the workspace it copied from
+        savedUntouched: stored.cfg.authEmail === "owner@example.com",
+        // and it round-trips through the gate importer's own validation shape
+        importable: !!(file && file.sourceId && file.cfg && file.cfg.url && file.cfg.key)
+      };
+    });
+    ok("N24 slice 2: any saved workspace exports an access file straight from the sign-in screen — warned, named, importable, carrying the key but never the definer's login (and the saved entry is untouched)",
+      n24Export.warned && n24Export.name === "ws-stage-access.json" && n24Export.shape &&
+      n24Export.stripped && n24Export.savedUntouched && n24Export.importable, JSON.stringify(n24Export));
+    // Remove, then the default workspace's actual job: the one this browser opens
+    // on. It BINDS on load exactly as picking it by hand does (bind, don't pull).
+    const n24Removed = await gpN24b.evaluate(() => {
+      var G = "#g-ws-manage ";
+      window.confirm = function () { return true; };
+      document.querySelector(G + '.wsm-row[data-i="1"] [data-a="remove"]').click();
+      var kept = JSON.parse(localStorage.getItem("studio-workspaces-custom") || "[]").map(function (w) { return w.id; });
+      return {
+        kept: kept,
+        // the removed entry WAS the default — a dangling default is a picker that
+        // opens on nothing, so removal clears it
+        defaultCleared: !localStorage.getItem("studio-workspace-default"),
+        pickerDropped: !Array.prototype.some.call(document.getElementById("g-workspace").options, function (o) { return o.value === "ws-stage"; })
+      };
+    });
+    ok("N24 slice 2: removing a saved workspace drops it from the picker and clears the default it held (a dangling default is a sign-in screen that opens on nothing)",
+      n24Removed.kept.join(",") === "ws-dev" && n24Removed.defaultCleared && n24Removed.pickerDropped, JSON.stringify(n24Removed));
+    await gpN24b.evaluate(() => {
+      localStorage.setItem("studio-workspace-default", "ws-dev");
+      localStorage.removeItem("analytics.datasource.v1");   // nothing connected yet
+    });
+    await gpN24b.reload({ waitUntil: "domcontentloaded" });
+    await gpN24b.waitForSelector("#g-form", { timeout: 8000 });
+    await gpN24b.waitForTimeout(500);
+    const n24Default = await gpN24b.evaluate(() => ({
+      selected: document.getElementById("g-workspace").value,
+      bound: Studio.Sync.syncState().sourceId,
+      note: (document.getElementById("g-ws-note") || {}).textContent || ""
+    }));
+    ok("N24 slice 2: the default workspace is the one the sign-in screen opens on — it is selected and BOUND on load, the same bind-don't-pull path picking it by hand takes",
+      n24Default.selected === "ws-dev" && n24Default.bound === "supabase" && /Dev workspace/.test(n24Default.note), JSON.stringify(n24Default));
+    // …and it must never speak over a workspace you are already connected to.
+    await gpN24b.evaluate((port) => {
+      localStorage.setItem("studio-workspaces-custom", JSON.stringify([
+        { id: "ws-dev", label: "Dev workspace", sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid" } },
+        { id: "ws-other", label: "Other workspace", sourceId: "supabase", cfg: { url: "https://other.example.co", key: "k-other" } }
+      ]));
+      localStorage.setItem("studio-workspace-default", "ws-other");
+    }, PORT);
+    await gpN24b.reload({ waitUntil: "domcontentloaded" });
+    await gpN24b.waitForSelector("#g-form", { timeout: 8000 });
+    await gpN24b.waitForTimeout(500);
+    const n24DefaultHeld = await gpN24b.evaluate(() => ({
+      selected: document.getElementById("g-workspace").value,
+      url: ((Studio.Sync.currentConfig && Studio.Sync.currentConfig()) || {}).url || ""
+    }));
+    ok("N24 slice 2: a default never overrides the workspace this browser is already connected to — the live connection wins and the picker shows it",
+      n24DefaultHeld.selected === "ws-dev" && /__supabase/.test(n24DefaultHeld.url), JSON.stringify(n24DefaultHeld));
+    // The other half of "editable from the gate AND from Settings": the same
+    // panel, the same store, mounted on the backend card.
+    await gpN24b.evaluate(() => {
+      Studio.Workspace.put("users", { id: "user_n24b", u: "n24bowner", name: "N24b Owner", role: "admin", demo: false, gotrueId: "11111111-1111-1111-1111-111111111111" }, { silent: true });
+      Studio.Sync.pullNow = function () { return Promise.resolve(); };
+    });
+    await gpN24b.fill("#g-user", "owner@example.com");
+    await gpN24b.fill("#g-pass", "secret123");
+    await gpN24b.click("#g-form button[type=submit]");
+    await gpN24b.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 8000 }).catch(() => {});
+    await gpN24b.evaluate(() => { window.__studioShellSetSection("settings"); });
+    await gpN24b.waitForSelector("#wsSavedList .wsm-b", { state: "visible", timeout: 8000 });
+    // Driven through the page rather than one evaluate(): the backend card
+    // re-renders on every sync tick, so a node captured up front can be stale by
+    // the time it is measured — the locators always read what is on screen NOW.
+    await gpN24b.evaluate(() => { window.prompt = function () { return "Dev (renamed in Settings)"; }; });
+    // 44px is the fleet's touch bar (N8/N9/N13) and these rows are worked on a phone
+    const n24SetBox = await gpN24b.locator("#wsSavedList .wsm-b").first().boundingBox();
+    const n24SetRows = await gpN24b.locator("#wsSavedList .wsm-row .wsm-name").allTextContents();
+    const n24SetMarked = await gpN24b.locator('#wsSavedList .wsm-row[data-i="0"] .wsm-badge.on').count();
+    await gpN24b.locator('#wsSavedList .wsm-row[data-i="0"] [data-a="rename"]').click();
+    const n24Settings = {
+      rows: n24SetRows, touchOk: !!n24SetBox && n24SetBox.height >= 44, connectedMarked: n24SetMarked === 1,
+      renamedFromSettings: await gpN24b.evaluate(() => JSON.parse(localStorage.getItem("studio-workspaces-custom") || "[]")[0].label)
+    };
+    await gpN24b.close();
+    ok("N24 slice 2: Settings → Workspace backend carries the SAME saved-workspace panel — the connected entry is marked, the rows clear the 44px touch bar, and a rename there is a rename everywhere",
+      n24Settings.rows.join("|") === "Dev workspace|Other workspace|Polecat workspace" && n24Settings.touchOk &&
+      n24Settings.connectedMarked && n24Settings.renamedFromSettings === "Dev (renamed in Settings)", JSON.stringify(n24Settings));
+
+    // ---- N25 slice 1 (Kevin, 2026-08-08 — "I am concerned that you will break
+    // prod on main"): the /dev/ and /stage/ previews were signing you into
+    // PRODUCTION data. They are the same build served from a subdirectory of the
+    // production origin, so they inherited the packaged production catalog entry
+    // AND production's own saved connection out of the shared localStorage —
+    // every test sign-in, sample-pack install and push from /dev/ landed in the
+    // live workspace, with nobody having to pick anything. These checks run at a
+    // REAL /dev/ URL (the server serves this tree under the stage prefix, as the
+    // preview assembler does) rather than by poking a flag. ----
+    console.log("\n• N25 slice 1: a preview may not reach the production workspace");
+    // A) the mapping itself, in isolation: which paths ARE a preview.
+    const n25Map = await page.evaluate(() => {
+      var f = window.STUDIO_STAGE_FOR;
+      return {
+        root: f("/"), app: f("/app/"), viewer: f("/app/viewer.html"),
+        dev: f("/dev/app/"), devBare: f("/dev"), devRoot: f("/dev/"),
+        stage: f("/stage/app/index.html"),
+        // near-misses that must NOT read as a preview
+        lookalike: f("/development/app/"), nested: f("/app/dev/"), stagey: f("/staged/"),
+        live: window.STUDIO_STAGE
+      };
+    });
+    ok("N25: STUDIO_STAGE_FOR maps only a /dev/ or /stage/ path PREFIX to a preview stage — /development/, /staged/ and a nested /app/dev/ are production, and the production suite itself reads as prod",
+      n25Map.root === "prod" && n25Map.app === "prod" && n25Map.viewer === "prod" &&
+      n25Map.dev === "dev" && n25Map.devBare === "dev" && n25Map.devRoot === "dev" && n25Map.stage === "stage" &&
+      n25Map.lookalike === "prod" && n25Map.nested === "prod" && n25Map.stagey === "prod" &&
+      n25Map.live === "prod", JSON.stringify(n25Map));
+
+    // B) THE PATH NOBODY HAD TO CLICK: open /dev/ with production's saved
+    // connection already in localStorage (which is literally what happens — one
+    // origin, one localStorage) and prove the preview stays local, never asks
+    // the production host for anything, and leaves the saved record untouched
+    // for the production site that is still using it.
+    const PROD_URL = await page.evaluate(() => (window.STUDIO_WORKSPACES[0].cfg || {}).url);
+    const gpN25 = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    gpN25.on("pageerror", (e) => errors.push("N25 page: " + e.message));
+    const n25ProdHits = [];
+    gpN25.on("request", (r) => { if (r.url().indexOf(PROD_URL) === 0) n25ProdHits.push(r.url()); });
+    await gpN25.addInitScript((prodUrl) => {
+      try {
+        localStorage.setItem("analytics.datasource.v1", JSON.stringify({
+          sourceId: "supabase", cfg: { url: prodUrl, key: "sb_publishable_prod" }, at: 1
+        }));
+        localStorage.setItem("studio-welcome-seen", "1");
+        localStorage.setItem("studio-workspaces-custom", JSON.stringify([
+          // the reader's OWN saved copy of production, under a different id and
+          // name: the guard compares ADDRESSES, not ids
+          { id: "mine", label: "My live workspace", sourceId: "supabase", cfg: { url: prodUrl, key: "k-mine" } }
+        ]));
+      } catch (e) {}
+    }, PROD_URL);
+    await gpN25.goto(`http://localhost:${PORT}/dev/app/`, { waitUntil: "domcontentloaded" });
+    await gpN25.waitForSelector("#g-form", { timeout: 8000 });
+    await gpN25.waitForFunction(() => window.Studio && Studio.Sync && Studio.Sync.syncState().status !== "connecting", { timeout: 15000 }).catch(() => {});
+    const n25Boot = await gpN25.evaluate(() => {
+      var st = Studio.Sync.syncState();
+      var stored = JSON.parse(localStorage.getItem("analytics.datasource.v1") || "null");
+      var sel = document.getElementById("g-workspace");
+      return {
+        stage: window.STUDIO_STAGE, sourceId: st.sourceId, status: st.status, lastError: st.lastError || "",
+        recordKept: !!(stored && stored.cfg && stored.cfg.url),
+        // the packaged production entry is not offered here at all…
+        listIds: window.STUDIO_WS_STORE.list().map(function (w) { return w.id; }),
+        // …and the reader's own saved copy of it is listed, disabled, and says why
+        options: Array.prototype.map.call(sel.options, function (o) { return { v: o.value, t: o.textContent, d: o.disabled }; })
+      };
+    });
+    const n25Mine = n25Boot.options.filter((o) => o.v === "mine")[0] || {};
+    ok("N25: a /dev/ preview opened with production's own saved connection stays LOCAL, never contacts the production workspace, leaves the shared connection record intact, drops the packaged production entry from the picker, and disables the reader's own copy of it with the reason",
+      n25Boot.stage === "dev" && n25Boot.sourceId === "local" && n25ProdHits.length === 0 &&
+      n25Boot.recordKept && /DEV preview/.test(n25Boot.lastError) &&
+      n25Boot.listIds.indexOf("polecat") < 0 && n25Boot.listIds.join(",") === "local,mine" &&
+      n25Mine.d === true && /production, not from DEV/.test(n25Mine.t || ""),
+      JSON.stringify({ n25Boot, n25ProdHits }));
+
+    // C) every route into a remote is refused, not just the picker — an access
+    // file and a hand-typed URL arrive at connectAdopt/connectPush instead.
+    const n25Refuse = await gpN25.evaluate(async (prodUrl) => {
+      var out = {};
+      function why(p) { return p.then(function () { return "ALLOWED"; }, function (e) { return e.message || "rejected"; }); }
+      out.bind = await why(Studio.Sync.bindConnection("supabase", { url: prodUrl, key: "k" }));
+      out.adopt = await why(Studio.Sync.connectAdopt("supabase", { url: prodUrl, key: "k" }));
+      out.push = await why(Studio.Sync.connectPush("supabase", { url: prodUrl, key: "k" }));
+      // a trailing slash / different case is the same workspace
+      out.sloppy = await why(Studio.Sync.bindConnection("supabase", { url: prodUrl.toUpperCase() + "/", key: "k" }));
+      // …while a DIFFERENT workspace is none of the guard's business: a preview
+      // must still be able to connect to a dev database.
+      out.other = window.STUDIO_WS_STORE.blockReason({ url: location.origin + "/__supabase" });
+      out.stillLocal = Studio.Sync.syncState().sourceId;
+      out.recordKept = !!JSON.parse(localStorage.getItem("analytics.datasource.v1") || "null");
+      return out;
+    }, PROD_URL);
+    ok("N25: bindConnection, connectAdopt and connectPush all refuse the production workspace from a preview (address-compared, so a trailing slash or different case cannot slip past), a non-production address is untouched, and a refused preview never erases the connection record production is still using",
+      /DEV preview/.test(n25Refuse.bind) && /DEV preview/.test(n25Refuse.adopt) && /DEV preview/.test(n25Refuse.push) &&
+      /DEV preview/.test(n25Refuse.sloppy) && n25Refuse.other === "" &&
+      n25Refuse.stillLocal === "local" && n25Refuse.recordKept, JSON.stringify(n25Refuse));
+
+    // D) the other half of stage-awareness: an entry that DOES belong to this
+    // stage is offered, labelled so the reader cannot mistake which database
+    // they are in, and is what the anonymous activity log falls back to — the
+    // preview must not write its traffic into production's log either.
+    const n25Own = await gpN25.evaluate(() => {
+      var before = Studio.Activity._packagedLogCfg("analytics.polecat.live");
+      window.STUDIO_WORKSPACES.push({ id: "polecat-dev", label: "Polecat workspace", sourceId: "supabase", stage: "dev", cfg: { url: "https://devdb.example.co", key: "k-dev" } });
+      var after = Studio.Activity._packagedLogCfg("analytics.polecat.live");
+      return {
+        previewLogBefore: before,                       // no dev entry → nothing to log to
+        previewLogAfter: after && after.url,
+        labels: window.STUDIO_WS_STORE.list().map(function (w) { return w.label; }),
+        blocked: window.STUDIO_WS_STORE.blockReason({ url: "https://devdb.example.co" })
+      };
+    });
+    ok("N25: a packaged entry belonging to THIS stage is offered and labelled with it, and the anonymous activity log follows the same rule — a preview with no entry of its own logs nowhere rather than into production's tables",
+      n25Own.previewLogBefore === null && n25Own.previewLogAfter === "https://devdb.example.co" &&
+      n25Own.labels.indexOf("Polecat workspace (DEV)") >= 0 && n25Own.blocked === "", JSON.stringify(n25Own));
+    await gpN25.close();
+
     // ---- GATE-FIX + GATE-ERR (Kevin live, 2026-07-31): his curl proved the
     // password RIGHT while the gate still said "isn't in your connected
     // workspace" — two defects: (a) a GoTrue rejection shared the unknown-account
@@ -18606,6 +21052,33 @@ function serve() {
       };
     }, PORT);
 
+    // N14: the third shape of "we never got an answer" — a status that arrived
+    // and parsed cleanly, but carries no verdict about the credential. A project
+    // that is rate-limiting (429) or restarting behind its platform (5xx) used to
+    // read as GoTrue refusing this refresh token, so the token was DELETED and
+    // the user was asked for the workspace password — for the duration of a blip
+    // they had nothing to do with. Both statuses are probed on their own
+    // connection so neither can inherit the other's state.
+    const pwOutage = await gpPw.evaluate(async (port) => {
+      var KEY = "analytics.supabase.refresh.v1";
+      var base = "http://localhost:" + port + "/__supabase";
+      var probe = async function (email, code) {
+        var cfg = { url: base, key: "sb_publishable_valid", authEmail: email };
+        var store = JSON.parse(sessionStorage.getItem(KEY) || "{}");
+        store[cfg.url + "|" + cfg.authEmail] = "mock-refresh";
+        sessionStorage.setItem(KEY, JSON.stringify(store));
+        await fetch(base + "/rest/v1/__armtokenstatus?code=" + code, { headers: { apikey: "sb_publishable_valid" } });
+        var r = await Studio.supabaseSource.signIn(cfg);
+        var after = JSON.parse(sessionStorage.getItem(KEY) || "{}");
+        return {
+          ok: r.ok, err: r.error || "",
+          kept: after[cfg.url + "|" + cfg.authEmail] || "",
+          resumable: Studio.supabaseSource.hasResumableSession(cfg)
+        };
+      };
+      return { busy: await probe("busy@example.com", 503), limited: await probe("limited@example.com", 429) };
+    }, PORT);
+
     // N12: two flows that both miss the session cache must not each spend the
     // SAME refresh token. Run the mock in its REAL posture — rotate and refuse a
     // spent token — and fire two sign-ins concurrently on one connection: with
@@ -18659,6 +21132,15 @@ function serve() {
     ok("N11: the two answers stay distinguishable — an unreadable answer keeps the token, a genuine refusal still drops it (the N2 slice 3 posture is not weakened to fix the flake)",
       pwTruncated.kept === "mock-refresh" && pwRevoked.cleared === true &&
       !/connection dropped/.test(pwRevoked.err), JSON.stringify({ truncated: pwTruncated.err, revoked: pwRevoked.err }));
+    ok("N14: a project that is too busy to answer (503) is not the project refusing you — the stored refresh token SURVIVES, so the first reload during a backend blip no longer demands the workspace password",
+      pwOutage.busy.ok === false && pwOutage.busy.kept === "mock-refresh" && pwOutage.busy.resumable === true,
+      JSON.stringify(pwOutage.busy));
+    ok("N14: the same for a rate-limited project (429) — being asked to come back later is not being turned away, and the credential is kept for the retry",
+      pwOutage.limited.ok === false && pwOutage.limited.kept === "mock-refresh" && pwOutage.limited.resumable === true,
+      JSON.stringify(pwOutage.limited));
+    ok("N14: and the line still holds where it matters — a REAL verdict (400 invalid_grant) drops the token exactly as before, so only GoTrue may dispose of a credential",
+      pwRevoked.cleared === true && pwOutage.busy.kept === "mock-refresh",
+      JSON.stringify({ revoked: pwRevoked, busy: pwOutage.busy }));
     ok("N12: two concurrent sign-ins on one connection spend the refresh token EXACTLY ONCE — the second awaits the grant already in flight and both resolve from it, as the same user",
       n12.grants === 1 && n12.ok0 === true && n12.ok1 === true &&
       n12.id0 === MOCK_GOTRUE_USER_ID && n12.id1 === MOCK_GOTRUE_USER_ID, JSON.stringify(n12));
@@ -19264,13 +21746,40 @@ function serve() {
     // The deploy SQL carries the matching posture: anon INSERT-only policies
     // (gotrue_id must stay NULL — no identity spoofing) + the server-side
     // ip/ua stamping trigger, and NO anon read anywhere.
+    //
+    // N20 sharpened the last clause. § 6c now GRANTs anon the SELECT PRIVILEGE
+    // on every table in the schema, these two included — and that is not a read.
+    // A privilege says which tables a role may address; a POLICY says which rows
+    // it gets back, and with RLS on and no SELECT policy for anon the answer
+    // stays zero rows (measured, and asserted per-table by tests/rls.mjs). So
+    // the thing to assert here is the absence of an anon SELECT *policy*, which
+    // is what was always meant; "never grants anon SELECT" was true only while
+    // the file granted nothing at all, and would now read as a licence to delete
+    // § 6c to make the words fit again.
     const anonSql = fs.readFileSync(path.join(ROOT, "tools/supabase-deploy.sql"), "utf8");
-    ok("ACTIVITY-ANON: supabase-deploy.sql § 6b grants anon INSERT-ONLY on both log tables (WITH CHECK gotrue_id IS NULL), stamps ip/ua server-side via trigger, and never grants anon SELECT",
+    ok("ACTIVITY-ANON: supabase-deploy.sql § 6b gives anon an INSERT-ONLY policy on both log tables (WITH CHECK gotrue_id IS NULL), stamps ip/ua server-side via trigger, and gives anon no SELECT policy anywhere — so § 6c's table privilege still returns it nothing",
       /polecat_activity_insert_anon/.test(anonSql) && /polecat_feedback_insert_anon/.test(anonSql) &&
       /FOR INSERT TO anon\s*\n\s*WITH CHECK \(gotrue_id IS NULL\)/.test(anonSql) &&
       /polecat_stamp_request_meta/.test(anonSql) && /x-forwarded-for/.test(anonSql) &&
       !/FOR SELECT TO anon/.test(anonSql) && !/FOR ALL TO anon/.test(anonSql),
       "policy/trigger markers in tools/supabase-deploy.sql");
+    // N20: the privileges themselves, held in the file that is "THE one file to
+    // run". tests/rls.mjs proves them against a real Postgres, but it SKIPS
+    // silently without a database password — so the suite that always runs keeps
+    // its own copy of the invariant. Without these three statements a project
+    // created with Supabase's recommended "expose new tables: OFF" gets a
+    // correct posture PostgREST then refuses for lack of privilege.
+    ok("N20: supabase-deploy.sql § 6c grants the API roles schema USAGE + table privileges and sets default privileges for tables added later, so the recommended create-project setting is also the working one",
+      /GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;/.test(anonSql) &&
+      /GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;/.test(anonSql) &&
+      /ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO anon, authenticated, service_role;/.test(anonSql) &&
+      // and it must declare what it built — the N16 handshake reads `unknown` until something
+      // stamps. DO NOTHING, not DO UPDATE: an older copy of this script must never rewind the
+      // marker. The version NUMBER is deliberately not pinned here — doc-truth check 25 already
+      // holds every stamping artifact to app/sources/schema.js, and duplicating it would turn a
+      // legitimate bump into a false failure in two files instead of one.
+      /VALUES \('schema_version', '\d+'\)\s*\n\s*ON CONFLICT \(key\) DO NOTHING;/.test(anonSql),
+      "GRANT/ALTER DEFAULT PRIVILEGES + schema_version markers in tools/supabase-deploy.sql");
     // C) the topbar button (right of What's-next) opens the tiny dialog; Send routes
     //    through Studio.Activity.feedback and closes
     const fbUi = await page.evaluate(async function () {
@@ -19653,15 +22162,21 @@ function serve() {
       window.__studioShellSetSection("admin"); window.__studioRenderAdmin();
       window.__studioOpenUserEditor();
       var tSel = document.getElementById("usrEditTheme");
-      var pChk = document.getElementById("usrEditPack");
+      var pSel = document.getElementById("usrEditPack");
       var themeOpts = tSel ? [].slice.call(tSel.options).map(function (o) { return o.value; }) : [];
-      var r = { hasTheme: !!tSel, hasPack: !!pChk, themeUnset: tSel && tSel.value === "", packUnchecked: pChk && !pChk.checked, themeOpts: themeOpts };
+      // SP-0: the pack control is a registry-driven picker, not a Conservation checkbox —
+      // its options must be exactly "" (don't install) plus every registered pack id.
+      var packOpts = pSel ? [].slice.call(pSel.options).map(function (o) { return o.value; }) : [];
+      var r = { hasTheme: !!tSel, hasPack: !!pSel, themeUnset: tSel && tSel.value === "", packUnset: pSel && pSel.value === "",
+        themeOpts: themeOpts, packOpts: packOpts, registered: Object.keys(Studio.DEMO_PACKS || {}) };
       document.querySelector(".modal-ov .x").click();
       return r;
     });
-    ok("LF41: Add user offers a Default theme picker and a Conservation-pack checkbox, both unset by default",
-      lf41Fields.hasTheme && lf41Fields.hasPack && lf41Fields.themeUnset && lf41Fields.packUnchecked &&
-      lf41Fields.themeOpts.indexOf("conservation") >= 0, JSON.stringify(lf41Fields));
+    ok("LF41/SP-0: Add user offers a Default theme picker and a sample-pack picker listing EVERY registered pack, both unset by default",
+      lf41Fields.hasTheme && lf41Fields.hasPack && lf41Fields.themeUnset && lf41Fields.packUnset &&
+      lf41Fields.themeOpts.indexOf("conservation") >= 0 &&
+      lf41Fields.packOpts.length === lf41Fields.registered.length + 1 && lf41Fields.packOpts[0] === "" &&
+      lf41Fields.registered.every(function (id) { return lf41Fields.packOpts.indexOf(id) > 0; }), JSON.stringify(lf41Fields));
 
     // Adding a user through the real form with both fields set stores them as
     // provisioning on the account row, not-yet-provisioned.
@@ -19671,7 +22186,7 @@ function serve() {
       document.getElementById("usrEditName").value = "LF41 Test";
       document.getElementById("usrEditPass").value = "pw123456";
       document.getElementById("usrEditTheme").value = "conservation";
-      document.getElementById("usrEditPack").checked = true;
+      document.getElementById("usrEditPack").value = "conservation";
       document.querySelector(".cx-wiz-foot .btn.primary").click();
       return true;
     });
@@ -19686,13 +22201,13 @@ function serve() {
     const lf41Cleared = await gp41.evaluate(function () {
       window.__studioOpenUserEditor(window.PolecatAuth.find("lf41user"));
       document.getElementById("usrEditTheme").value = "";
-      document.getElementById("usrEditPack").checked = false;
+      document.getElementById("usrEditPack").value = "";
       document.querySelector(".cx-wiz-foot .btn.primary").click();
       return true;
     });
     await gp41.waitForFunction(() => !document.querySelector(".modal-ov"), { timeout: 8000 });
     const lf41AfterClear = await gp41.evaluate(function () { return window.PolecatAuth.find("lf41user").provisioning; });
-    ok("LF41: editing a user back to 'Don't set' + unchecked clears provisioning to null",
+    ok("LF41: editing a user back to 'Don't set' + 'Don't install one' clears provisioning to null",
       lf41Cleared && lf41AfterClear === null, JSON.stringify(lf41AfterClear));
 
     // Re-set provisioning (this time via a direct upsert, exercising the same opts.provisioning
@@ -20371,7 +22886,7 @@ function serve() {
       document.getElementById("usrEditPass").value = "davepw12345";
       document.getElementById("usrEditRole").value = "admin";
       document.getElementById("usrEditTheme").value = "conservation";
-      document.getElementById("usrEditPack").checked = true;
+      document.getElementById("usrEditPack").value = "conservation";
       document.getElementById("usrEditBackend").value = "bk-dave";
       document.getElementById("usrEditForceTour").checked = true;
       document.getElementById("usrEditDDCopyBtn").click();   // "Copy my current Dashboard defaults"
@@ -29233,8 +31748,12 @@ function serve() {
     });
     ok("J6: Escape closes the tutorial (tip, ring, and active flag all cleared)", j6Closed.ok, JSON.stringify(j6Closed));
 
-    // J6-5: tour shapes — six tours (overview leads), quick has 8 steps, build has 6, jobs has 5,
-    // connect has 8, conservation (LF40, pack-gated) has 6. Overview's own base is 13, but (LF40)
+    // J6-5: tour shapes — seven tours (overview leads), quick has 8 steps, build has 6, jobs has 6,
+    // connect has 9, conservation (LF40, pack-gated) has 7, marketcoverage (SP-1(c), pack-gated
+    // the same way) has 6. tourKeys() is the DECLARED order, not the visible one — both pack
+    // tours are in it whether or not their pack is installed; the chooser-gating checks are
+    // J6-10 below. N7 (2026-08-08) added the
+    // catalog-toolbar stop to the two catalog tours (jobs 5→6, connect 8→9). Overview's own base is 13, but (LF40)
     // it's ALSO pack-aware, same engine as welcome.js — one step splices in per installed sample
     // pack (datamanagement ships installed by default), so assert against that ambient count
     // rather than a fixed number, same pattern as welcome.js's own packAware check.
@@ -29242,16 +31761,18 @@ function serve() {
       try {
         var packs = Studio.DEMO_PACKS || {};
         var installedPackCount = Object.keys(packs).filter(function (id) { return Studio.demoPackInstalled(id); }).length;
-        return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build,jobs,connect,conservation" &&
+        return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build,jobs,connect,conservation,marketcoverage" &&
           StudioTutorial.stepCount("overview") === 13 + installedPackCount && StudioTutorial.stepCount("quick") === 8 &&
-          StudioTutorial.stepCount("build") === 6 && StudioTutorial.stepCount("jobs") === 5 &&
-          StudioTutorial.stepCount("connect") === 8 && StudioTutorial.stepCount("conservation") === 6,
+          StudioTutorial.stepCount("build") === 6 && StudioTutorial.stepCount("jobs") === 6 &&
+          StudioTutorial.stepCount("connect") === 9 && StudioTutorial.stepCount("conservation") === 7 &&
+          StudioTutorial.stepCount("marketcoverage") === 6,
           keys: StudioTutorial.tourKeys().join(","), o: StudioTutorial.stepCount("overview"), installedPackCount: installedPackCount,
           q: StudioTutorial.stepCount("quick"), b: StudioTutorial.stepCount("build"),
-          j: StudioTutorial.stepCount("jobs"), c: StudioTutorial.stepCount("connect"), cv: StudioTutorial.stepCount("conservation") };
+          j: StudioTutorial.stepCount("jobs"), c: StudioTutorial.stepCount("connect"), cv: StudioTutorial.stepCount("conservation"),
+          mc: StudioTutorial.stepCount("marketcoverage") };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("J6: six tours registered — Overview (13-step base incl. the #23 glossary + TOUR-WOW's View Builder stop + N7's Views-catalog stop + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (5 — LF18(b)), Connections & Datasets (8 — LF18(b)), Conservation Insight pack (6 — LF40, pack-gated)", j6Shape.ok, JSON.stringify(j6Shape));
+    ok("J6: seven tours registered — Overview (13-step base incl. the #23 glossary + TOUR-WOW's View Builder stop + N7's Views-catalog stop + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (6 — LF18(b) + N7's catalog-toolbar stop), Connections & Datasets (9 — LF18(b) + N7's catalog-toolbar stop), Conservation Insight pack (7 — LF40, pack-gated; N7 added the pinned-Views stop), Market Coverage pack (6 — SP-1(c), pack-gated the same way)", j6Shape.ok, JSON.stringify(j6Shape));
 
     // #23 (Kevin): the overview tour defines EVERY domain term — a glossary step
     // covers the full list one line each, and the terms missing from the walk
@@ -29398,7 +31919,8 @@ function serve() {
         return false;
       }
       var out = { tour: window.__studioTutorialTour(), jobsSection: false, hits: 0 };
-      var targets = ["#jobsResults", "#jobsNewBtn", "#jobsSearch"];
+      // N7 (2026-08-08): the catalog toolbar stop — sort / tile ⇆ list / Select.
+      var targets = ["#jobsResults", "#jobsNewBtn", "#jobsSearch", "#secJobs .repo-io"];
       for (var i = 0; i < targets.length; i++) {
         document.querySelector("#st-tip button.pri").click();
         if (i === 0) out.jobsSection = !document.getElementById("secJobs").hidden;
@@ -29422,8 +31944,8 @@ function serve() {
       try { out.doneJobs = localStorage.getItem("studio-tutorial-done-jobs") === "1"; } catch (e) {}
       return out;
     });
-    ok("J6: the Prep data (Jobs) tour walks the REAL Jobs section — section switched, list/+New job/search all spotlighted, Done! completes and records",
-      j6Jobs.tour === "jobs" && j6Jobs.jobsSection && j6Jobs.hits === 3 && /Done/.test(j6Jobs.lastLabel) && j6Jobs.closed && j6Jobs.done && j6Jobs.doneJobs,
+    ok("J6/N7: the Prep data (Jobs) tour walks the REAL Jobs section — section switched, list/+New job/search/toolbar all spotlighted, Done! completes and records",
+      j6Jobs.tour === "jobs" && j6Jobs.jobsSection && j6Jobs.hits === 4 && /Done/.test(j6Jobs.lastLabel) && j6Jobs.closed && j6Jobs.done && j6Jobs.doneJobs,
       JSON.stringify(j6Jobs));
 
     // J6-9 (LF18b): the CONNECT tour walks the real Connections section, THEN
@@ -29447,11 +31969,13 @@ function serve() {
         return false;
       }
       var out = { tour: window.__studioTutorialTour(), connSection: false, dsxSection: false, hits: 0 };
-      var targets = ["#connResults", "#connNewBtn", "#connSearch", "#dsxResults", "#dsxNewBtn", "#dsxSearch"];
+      // N7 (2026-08-08): the catalog toolbar stop, told once on the Connections half.
+      var targets = ["#connResults", "#connNewBtn", "#connSearch", "#secConnections .repo-io",
+        "#dsxResults", "#dsxNewBtn", "#dsxSearch"];
       for (var i = 0; i < targets.length; i++) {
         document.querySelector("#st-tip button.pri").click();
         if (i === 0) out.connSection = !document.getElementById("secConnections").hidden;
-        if (i === 3) out.dsxSection = !document.getElementById("secDatasets").hidden;
+        if (i === 4) out.dsxSection = !document.getElementById("secDatasets").hidden;
         if (await ringFor(targets[i], 4000)) out.hits++;
         await sleep(100);
       }
@@ -29472,8 +31996,8 @@ function serve() {
       try { out.doneConnect = localStorage.getItem("studio-tutorial-done-connect") === "1"; } catch (e) {}
       return out;
     });
-    ok("J6: the Connections & Datasets tour walks BOTH real sections — Connections list/+New/search, then Datasets list/+New/search, Done! completes and records",
-      j6Connect.tour === "connect" && j6Connect.connSection && j6Connect.dsxSection && j6Connect.hits === 6 &&
+    ok("J6/N7: the Connections & Datasets tour walks BOTH real sections — Connections list/+New/search/toolbar, then Datasets list/+New/search, Done! completes and records",
+      j6Connect.tour === "connect" && j6Connect.connSection && j6Connect.dsxSection && j6Connect.hits === 7 &&
       /Done/.test(j6Connect.lastLabel) && j6Connect.closed && j6Connect.done && j6Connect.doneConnect,
       JSON.stringify(j6Connect));
 
@@ -29549,6 +32073,9 @@ function serve() {
       var out = { tour: window.__studioTutorialTour(), homeSection: false, studioSection: false, hits: 0 };
       var targets = [
         { sel: ".home-featured", inPreview: false },
+        // N7: the pack pins one View per practice right below the featured card — the
+        // stop that copy gap added, so the walk has to hold it accountable too.
+        { sel: ".home-analyses", inPreview: false },
         { sel: '[data-panel-id="p_county"]', inPreview: true },
         { sel: '[data-panel-id="p_huc8"]', inPreview: true },
         { sel: '[data-panel-id="p_state"]', inPreview: true }
@@ -29556,7 +32083,8 @@ function serve() {
       for (var i = 0; i < targets.length; i++) {
         document.querySelector("#st-tip button.pri").click();
         if (i === 0) out.homeSection = !document.getElementById("secHome").hidden;
-        if (i === 1) { await sleep(300); out.studioSection = !document.getElementById("appMain").hidden; }
+        // index 2 is the first IN-PREVIEW stop (county) — the one that leaves Home for Studio.
+        if (i === 2) { await sleep(300); out.studioSection = !document.getElementById("appMain").hidden; }
         if (await ringFor(targets[i].sel, targets[i].inPreview, 6000)) out.hits++;
         await sleep(100);
       }
@@ -29577,8 +32105,8 @@ function serve() {
       try { out.doneConservation = localStorage.getItem("studio-tutorial-done-conservation") === "1"; } catch (e) {}
       return out;
     });
-    ok("J6: the Conservation Insight tour walks the real featured dashboard — Home's live card, then Studio's county/watershed(HUC8)/state choropleth panels in order, Done! completes and records",
-      j6Conservation.tour === "conservation" && j6Conservation.homeSection && j6Conservation.studioSection && j6Conservation.hits === 4 &&
+    ok("J6/N7: the Conservation Insight tour walks everything the pack seeded — Home's live featured card, the pinned Views beside it, then Studio's county/watershed(HUC8)/state choropleth panels in order, Done! completes and records",
+      j6Conservation.tour === "conservation" && j6Conservation.homeSection && j6Conservation.studioSection && j6Conservation.hits === 5 &&
       /Done/.test(j6Conservation.lastLabel) && j6Conservation.closed && j6Conservation.done && j6Conservation.doneConservation,
       JSON.stringify(j6Conservation));
 
@@ -44002,6 +46530,36 @@ function serve() {
     ok("N7: the ⋯ More route walk (390×780 → 1280×900) raised zero pageerrors",
       hrErrors.length === 0, hrErrors.slice(0, 3).join(" | "));
     await hrCtx.close();
+
+    // N27: the live-posture verify classifies its own answers, and that classifier gets a
+    // vote on whether production is safe to ship to (promote-to-prod runs it BEFORE the
+    // merge). It needs no browser and no database — `--self-test` drives it over a stubbed
+    // PostgREST — so it rides along here rather than depending on anyone remembering it.
+    // Browser-free and last on purpose: it must never be able to disturb the page above it.
+    console.log("\n• N27: tests/rls-verify.mjs classifies protected / empty / leaking (its own --self-test)");
+    let rlsSelf = { code: 0, out: "" };
+    try {
+      rlsSelf.out = require("child_process").execFileSync(
+        process.execPath, [path.join(ROOT, "tests", "rls-verify.mjs"), "--self-test"],
+        { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    } catch (e) {
+      rlsSelf = { code: e.status == null ? -1 : e.status, out: String(e.stdout || "") + String(e.stderr || "") };
+    }
+    const rlsSelfCount = (/(\d+) passed, (\d+) failed/.exec(rlsSelf.out) || [])[1] || "0";
+    ok(`N27: the anon-read verify's own classifier matrix is green (${rlsSelfCount} checks)`,
+      rlsSelf.code === 0 && /--self-test: PASS/.test(rlsSelf.out) && Number(rlsSelfCount) >= 30,
+      rlsSelf.out.split("\n").filter((l) => /✗|FAIL/.test(l)).slice(0, 4).join(" | ") || `exit ${rlsSelf.code}`);
+    // And the one property that must hold whatever the classifier says: with nothing
+    // configured, the check FAILS rather than reporting a database it never asked about.
+    let rlsBare = 0;
+    try {
+      const env = { ...process.env };
+      delete env.SUPABASE_URL; delete env.SUPABASE_ANON_KEY;
+      require("child_process").execFileSync(process.execPath, [path.join(ROOT, "tests", "rls-verify.mjs")],
+        { encoding: "utf8", env, stdio: ["ignore", "pipe", "pipe"] });
+    } catch (e) { rlsBare = e.status; }
+    ok("N27: unconfigured, the verify still exits non-zero rather than reading green forever",
+      rlsBare === 1, `exit ${rlsBare}`);
 
   } catch (e) {
     failed++; console.error("FATAL", e);

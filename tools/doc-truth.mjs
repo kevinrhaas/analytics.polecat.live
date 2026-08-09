@@ -883,6 +883,1107 @@ ok(`app/studio.css: ⋯ More reveals its phone-only entries in the same band tha
   !!bands.reveals && !bandMismatch.length,
   `${bandMismatch.join("\n      ")}\n      a gap between the two bands is a width where the control is in neither place and Help's route is a lie`);
 
+// 22. Checks 16–21 held the tours and Help accountable to the BUILDER's controls. This asks
+//     the same question of the CATALOGS, and got the same answer. Every catalog section grew a
+//     three-control toolbar beside its search box — a sort <select> (AUD-06's shared
+//     Studio.catalogSort), a tile ⇆ list toggle (Studio.catalogView, remembered per device),
+//     and a Select button that turns the rows into checkboxes with a bulk Select all / Clear /
+//     Move to folder… / Delete bar (LIVE-d slices 1–5). The two tours that WALK those sections
+//     never caught up: both still described a search box and folder chips and stopped there, so
+//     a reader could finish the Jobs tour without ever learning the app can bulk-delete, or that
+//     the list they are looking at has a tile form.
+//     Every fact is derived. WHICH sections carry the toolbar comes from app/index.html's own
+//     `.repo-io` rows; WHICH tours are in scope comes from the goSection() calls those tours
+//     actually make (so a tour that starts walking a catalog is picked up the day it does, and
+//     the builder/Home tours are simply not in scope); and the word each control must be named
+//     by comes from the control itself — the <select>'s aria-label, the pair of labels
+//     catalogView.wire() sets at runtime, and the button's own text. Add a fourth control to
+//     `.repo-io` and this check says nothing; add one the tours must explain and it does.
+//     Deliberately scoped to the TOOLBAR: the per-row controls (the `private` toggle, the row
+//     actions) are a different component with a different blast radius, and are derived by
+//     check 24 below instead.
+const REPO_IO_SUFFIXES = ["SortSel", "ViewToggle", "SelectBtn"];
+const CONTROL_WHAT = {
+  SortSel: "the sort dropdown",
+  ViewToggle: "the tile ⇆ list toggle",
+  SelectBtn: "the Select / bulk-actions toggle",
+};
+const suffixOf = (id) => REPO_IO_SUFFIXES.find((s) => id.endsWith(s));
+// section slug (the goSection() name) → the toolbar control ids it carries.
+const repoIoControls = (() => {
+  const out = new Map();
+  const secRe = /<section id="sec([A-Za-z]+)"/g;
+  let m;
+  while ((m = secRe.exec(appHtml))) {
+    const next = appHtml.indexOf('<section id="sec', m.index + 1);
+    const block = appHtml.slice(m.index, next > -1 ? next : appHtml.length).replace(/<!--[\s\S]*?-->/g, "");
+    if (!block.includes('<div class="repo-io">')) continue;
+    const ids = [...block.matchAll(/\bid="(\w+)"/g)].map((x) => x[1]).filter(suffixOf);
+    if (ids.length) out.set(m[1].toLowerCase(), ids);
+  }
+  return out;
+})();
+ok("app/index.html: the catalog toolbars parsed for check 22 are non-empty",
+  repoIoControls.size >= 4,
+  [...repoIoControls].map(([s, ids]) => `${s}: ${ids.join(", ")}`).join(" · ") || "(none)");
+// The toggle's label is assigned at runtime, so it is read from the kit that assigns it —
+// "List view" while you are reading a list, "Tile view" while you are looking at tiles.
+const viewToggleWords = (() => {
+  const m = studioJs.match(/tiles \? "([^"]*view)" : "([^"]*view)"/i);
+  if (!m) throw new Error("doc-truth: Studio.catalogView.wire no longer sets a List/Tile view label pair");
+  return [m[1], m[2]].map((l) => l.split(/\s+/)[0].toLowerCase());
+})();
+ok("app/studio.js: the tile ⇆ list toggle's own labels, parsed for check 22, are non-empty",
+  viewToggleWords.length === 2 && viewToggleWords.every(Boolean), viewToggleWords.join(" / "));
+function controlWords(id) {
+  const suffix = suffixOf(id);
+  if (suffix === "ViewToggle") return viewToggleWords;
+  const tag = suffix === "SortSel" ? "select" : "button";
+  const el = appHtml.match(new RegExp(`<${tag}[^>]*\\bid="${id}"[^>]*>`));
+  if (!el) return [];
+  // A <select> is populated by catalogSort.wire(), so it names itself in aria-label; a
+  // <button> carries its own text.
+  const src = suffix === "SortSel"
+    ? (el[0].match(/aria-label="([^"]+)"/) || [])[1]
+    : (appHtml.match(new RegExp(`<button[^>]*\\bid="${id}"[^>]*>([^<]*)</button>`)) || [])[1];
+  return src ? [src.trim().split(/\s+/)[0].toLowerCase()] : [];
+}
+// Every tour definition, brace-matched — the same idiom check 19 uses for the build tour.
+const tourBlocks = (() => {
+  const out = new Map();
+  const re = /^ {4}(\w+): \{$/gm;
+  let m;
+  while ((m = re.exec(tutorialSrc))) {
+    let depth = 0, open = tutorialSrc.indexOf("{", m.index), i = open;
+    for (; i < tutorialSrc.length; i++) {
+      if (tutorialSrc[i] === "{") depth++;
+      else if (tutorialSrc[i] === "}" && --depth === 0) break;
+    }
+    const block = tutorialSrc.slice(open, i + 1);
+    if (/\blabel:\s*"/.test(block) && /\bsteps:\s*\[/.test(block)) out.set(m[1], block);
+  }
+  return out;
+})();
+ok("app/tutorial.js: the tour definitions parsed for check 22 are non-empty",
+  tourBlocks.size >= 5, `parsed: ${[...tourBlocks.keys()].join(" · ") || "(none)"}`);
+// Only the COPY — a step's t/h/sub and the tour's blurb. Comments are stripped (check 12's
+// lesson) and selectors are excluded on purpose: `target: "#connSelectBtn"` must not be able to
+// satisfy a requirement to explain what Select does.
+const tourCopy = (src) => [...src
+  .replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1")
+  .matchAll(/\b(?:t|h|sub|blurb):\s*("(?:[^"\\]|\\.)*"(?:\s*\+\s*"(?:[^"\\]|\\.)*")*)/g)]
+  .map((m) => m[1]).join(" ").replace(/<[^>]+>/g, " ");
+const catalogTourGaps = [];
+const catalogTours = [];
+for (const [key, src] of tourBlocks) {
+  const walks = [...new Set([...src.matchAll(/goSection\("(\w+)"\)/g)].map((m) => m[1]))]
+    .filter((s) => repoIoControls.has(s));
+  if (!walks.length) continue;
+  catalogTours.push(`${key} → ${walks.join(" + ")}`);
+  const copy = tourCopy(src);
+  const need = new Map();
+  for (const sec of walks)
+    for (const id of repoIoControls.get(sec))
+      for (const w of controlWords(id))
+        if (!need.has(w)) need.set(w, `${CONTROL_WHAT[suffixOf(id)]} (#${id}, in ${sec})`);
+  for (const [w, whence] of need)
+    if (!new RegExp(`\\b${w}\\b`, "i").test(copy))
+      catalogTourGaps.push(`the "${key}" tour walks ${walks.join(" + ")} but its copy never says ` +
+        `"${w}" — ${whence}`);
+}
+ok("app/tutorial.js: the catalog-walking tours parsed for check 22 are non-empty",
+  catalogTours.length >= 2, `in scope: ${catalogTours.join(" · ") || "(none)"}`);
+ok(`app/tutorial.js: every tour that walks a catalog names that catalog's whole toolbar (${catalogTours.join(", ")})`,
+  !catalogTourGaps.length,
+  `${catalogTourGaps.join("\n      ")}\n      a tour is the one place a reader is TOLD what the section can do — an unnamed control is one they will never find`);
+
+/* ── 23. the sample-pack tour vs what the pack actually seeds ───────────────
+   A per-feature tour is the one place a reader is TOLD what they were given, and the
+   Conservation Insight pack has grown a lot since its tour was written (CONS-1/2/3 added
+   five more dashboards, and CONS-4 pinned a View per practice to Home) while the copy
+   still described "connections, datasets, a prep job, and one FEATURED dashboard". The
+   source of truth is `installConservationWorkspace()` in app/demopacks.js: every
+   `W.put("<table>", …)` it makes is something the reader now owns. Same move as check 22,
+   one document over — the tour must name every KIND it seeded, must not describe a set of
+   dashboards in the singular, and must name the practices and the folder it filed them in. */
+const packSrc = read("app/demopacks.js");
+// The user-facing noun for each workspace table (LF57: an "analysis" row renders as a View).
+const PACK_TABLE_NOUN = { connections: "connection", datasets: "dataset", jobs: "job",
+  analyses: "View", dashboards: "dashboard" };
+const packTables = [...new Set([...packSrc.matchAll(/W\.put\("(\w+)"/g)].map((m) => m[1]))].sort();
+const packDashboardNames = [...new Set([...packSrc.matchAll(/name:\s*"(conservation-[\w-]+)"/g)].map((m) => m[1]))];
+const packPractices = (() => {
+  const m = packSrc.match(/var PRACTICES = \[([\s\S]*?)\];/);
+  return m ? [...m[1].matchAll(/label:\s*"([^"]+)"/g)].map((x) => x[1]) : [];
+})();
+// SP-0: the folder moved onto the registry entry (it used to be a `var PACK_FOLDER`
+// literal here AND a second one in studio.js). Parse it out of the conservation entry.
+const packFolder = (() => {
+  const entry = packSrc.match(/conservation:\s*\{([\s\S]*?)\n    \},/);
+  return entry ? (entry[1].match(/folder:\s*"([^"]+)"/) || [])[1] : undefined;
+})();
+const packTourCopy = tourCopy(tourBlocks.get("conservation") || "");
+ok("app/demopacks.js: the conservation pack's seeded inventory parsed for check 23 is non-empty",
+  packTables.length >= 4 && packDashboardNames.length > 1 && packPractices.length >= 2 && !!packFolder &&
+    packTables.every((t) => PACK_TABLE_NOUN[t]) && !!packTourCopy,
+  `tables: ${packTables.join(", ") || "(none)"} · dashboards: ${packDashboardNames.length} · ` +
+  `practices: ${packPractices.join(", ") || "(none)"} · folder: ${packFolder || "(none)"}` +
+  `\n      an unmapped table means the pack seeds a KIND nobody has given a user-facing noun — add it to PACK_TABLE_NOUN`);
+const packTourGaps = [];
+for (const t of packTables)
+  // "View" is a proper noun (LF57) and must be matched as one — case-insensitively, the
+  // pre-fix copy's "the hero view" satisfied a requirement to name the pinned Views.
+  if (!new RegExp(`\\b${PACK_TABLE_NOUN[t]}s?\\b`, /^[A-Z]/.test(PACK_TABLE_NOUN[t]) ? "" : "i").test(packTourCopy))
+    packTourGaps.push(`the pack seeds ${t} but the tour copy never says "${PACK_TABLE_NOUN[t]}"`);
+if (packDashboardNames.length > 1 && !/\bdashboards\b/i.test(packTourCopy))
+  packTourGaps.push(`the pack seeds ${packDashboardNames.length} dashboards (${packDashboardNames.join(", ")}) ` +
+    `but the tour copy only ever says "dashboard" in the singular — a reader is told they got one`);
+for (const p of packPractices)
+  if (!new RegExp(`\\b${p.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}\\b`, "i").test(packTourCopy))
+    packTourGaps.push(`the pack pins a View for "${p}" but the tour copy never names it`);
+if (packFolder && !packTourCopy.includes(packFolder))
+  packTourGaps.push(`the pack files its dashboards in the "${packFolder}" folder but the tour copy never names it`);
+ok("app/tutorial.js: the Conservation Insight tour names everything the pack actually seeds (kinds, practices, folder)",
+  !packTourGaps.length,
+  `${packTourGaps.join("\n      ")}\n      the pack tour is the only place a reader is told what installing it gave them`);
+
+/* ── 24. the catalog tours vs each catalog ROW's own controls ───────────────
+   Check 22's other half. That check derives the catalog TOOLBAR and says in its own header
+   that the per-row controls are a different component, not derived there — this is that
+   component. The row is where the work actually happens: you Test a connection, Run a job,
+   pin the dataset you open twenty times a day. The v889 pass named exactly ONE of those
+   controls (`private`) in each of its two list stops and left the rest tour-silent, so a
+   reader could finish the Jobs tour without ever learning that a job runs from its own row.
+
+   Every fact is derived, the same way check 22 derives its own. WHICH sections have a row
+   renderer worth explaining is the map below (one catalog module each); WHAT that row
+   carries comes from the module's own `var actions = '<span class="cx-actions">'` block —
+   each button's visible text, or its aria-label when the button is a glyph like ✕ — plus
+   whichever of the `cx-pin` / `cx-private` toggles it renders beside them (Jobs has no pin;
+   the check notices that rather than being told); and WHICH tours are in scope comes from
+   the goSection() calls those tours actually make.
+
+   The requirement is deliberately STRICTER than check 22's bare word: the tour must name
+   the control the way this file names controls everywhere else — in BOLD, `<b>Run</b>` —
+   which is the check-14 idiom. A bare-word rule is not good enough here, because the Jobs
+   tour already says "a status dot for their last run": that is prose ABOUT runs, and it
+   would satisfy a requirement to explain a Run button the reader has still never been told
+   exists. */
+const CATALOG_ROW_MODULES = {
+  jobs: "app/jobs.js", connections: "app/connections.js", datasets: "app/datasets.js",
+};
+// The two toggles that ride beside the action buttons, and the word each is named by. A
+// module gets a requirement only if it actually renders that class.
+const ROW_TOGGLE_WORD = { "cx-pin": "Pin", "cx-private": "private" };
+function rowControls(file) {
+  const src = read(file);
+  const marker = "var actions = '<span class=\"cx-actions\">'";
+  const start = src.indexOf(marker);
+  if (start < 0) throw new Error(`doc-truth: ${file} no longer builds its row actions as ` +
+    `\`${marker}\` — check 24 cannot derive what the row carries`);
+  const block = src.slice(start, src.indexOf("</span>'", start));
+  const actions = block.split("\n").filter((l) => l.includes("<button")).map((line) => {
+    // A button that says "Run" names itself; the delete ✕ is a glyph, so it is named by the
+    // aria-label it already carries for exactly the same reason (a screen reader needs a word).
+    const text = ((line.match(/">([^<']*)<\/button>/) || [])[1] || "").trim();
+    if (/^[A-Za-z]+$/.test(text)) return text;
+    const aria = (line.match(/aria-label="([A-Za-z]+)/) || [])[1];
+    if (!aria) throw new Error(`doc-truth: a row action button in ${file} has neither word text ` +
+      `nor an aria-label to name it — ${line.trim()}`);
+    return aria;
+  });
+  const toggles = Object.entries(ROW_TOGGLE_WORD)
+    .filter(([cls]) => src.includes(`class="${cls}`)).map(([, w]) => w);
+  return { actions, toggles };
+}
+const rowControlsBySection = new Map(
+  Object.entries(CATALOG_ROW_MODULES).map(([sec, f]) => [sec, { file: f, ...rowControls(f) }]));
+ok("the catalog modules' per-row controls parsed for check 24 are non-empty",
+  [...rowControlsBySection.values()].every((r) => r.actions.length >= 2) &&
+    [...rowControlsBySection.values()].some((r) => r.toggles.length === 2),
+  [...rowControlsBySection].map(([s, r]) =>
+    `${s}: ${[...r.actions, ...r.toggles].join(", ") || "(none)"}`).join(" · "));
+// Check 22's tourCopy strips markup, because a bare word was all it asked for. This one asks
+// for the bolded control name, so the markup is what it must keep — concatenated string
+// literals are joined first so a <b> split across a `+` still reads as one tag.
+const tourCopyMarkup = (src) => [...src
+  .replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1")
+  .matchAll(/\b(?:t|h|sub|blurb):\s*("(?:[^"\\]|\\.)*"(?:\s*\+\s*"(?:[^"\\]|\\.)*")*)/g)]
+  .map((m) => m[1]).join(" ").replace(/"\s*\+\s*"/g, "");
+const rowTourGaps = [];
+const rowTours = [];
+for (const [key, src] of tourBlocks) {
+  const walks = [...new Set([...src.matchAll(/goSection\("(\w+)"\)/g)].map((m) => m[1]))]
+    .filter((s) => rowControlsBySection.has(s));
+  if (!walks.length) continue;
+  rowTours.push(`${key} → ${walks.join(" + ")}`);
+  const copy = tourCopyMarkup(src);
+  const need = new Map();
+  for (const sec of walks) {
+    const r = rowControlsBySection.get(sec);
+    for (const w of r.actions)
+      if (!need.has(w.toLowerCase())) need.set(w.toLowerCase(), `the row's ${w} button (${r.file}, in ${sec})`);
+    for (const w of r.toggles)
+      if (!need.has(w.toLowerCase())) need.set(w.toLowerCase(), `the row's ${w} toggle (${r.file}, in ${sec})`);
+  }
+  for (const [w, whence] of need)
+    if (!new RegExp(`<b>\\s*${w}\\b[^<]*</b>`, "i").test(copy))
+      rowTourGaps.push(`the "${key}" tour walks ${walks.join(" + ")} but its copy never names ` +
+        `<b>${w}</b> — ${whence}`);
+}
+ok("app/tutorial.js: the catalog-walking tours parsed for check 24 are non-empty",
+  rowTours.length >= 2, `in scope: ${rowTours.join(" · ") || "(none)"}`);
+ok(`app/tutorial.js: every tour that walks a catalog names that catalog ROW's own controls (${rowTours.join(", ")})`,
+  !rowTourGaps.length,
+  `${rowTourGaps.join("\n      ")}\n      the row is where the work happens — an unnamed row control is one the reader will never find`);
+
+/* ── 25. the workspace schema version vs docs/COMPAT.md's history ───────────
+   N18. `WS.SCHEMA_VERSION` is the one number that says what shape a workspace has, and
+   the same database gets opened by builds on either side of a bump — so the rules for
+   moving it (docs/COMPAT.md) only work if moving it without writing them down is
+   IMPOSSIBLE, not merely discouraged. That is what this check is: the bump checklist's
+   step 5 with teeth.
+
+   It is deliberately NOT a git-diff ("did this commit touch both files?") — a rebase, a
+   squash or a revert would each defeat that. It is a standing invariant instead: the
+   history table must describe the version the code is at, right now, in any checkout.
+   Bump the constant and the gate goes red until the row exists; the failure names both
+   numbers, so the fix is never a puzzle.
+
+   The table-name half catches the subtler miss — a bump whose row exists but says
+   nothing about what it added, which is the row a future reader needs most. */
+const compat = read("docs/COMPAT.md");
+const schemaSrc = read("app/sources/schema.js");
+const schemaVersion = Number((/WS\.SCHEMA_VERSION\s*=\s*(\d+)/.exec(schemaSrc) || [])[1]);
+// The table registry, brace-free: the array literal's own `name: "…"` entries.
+const wsTablesBlock = schemaSrc.slice(schemaSrc.indexOf("WS.WORKSPACE_TABLES = ["),
+  schemaSrc.indexOf("];", schemaSrc.indexOf("WS.WORKSPACE_TABLES = [")));
+const wsTables = [...wsTablesBlock.matchAll(/name:\s*"(\w+)"/g)].map((m) => m[1]);
+// History rows are the `| **vN** | …` lines of §3 — the file's one machine-read shape.
+const compatRows = [...compat.matchAll(/^\| \*\*v(\d+)\*\* \|(.*)$/gm)]
+  .map((m) => ({ v: Number(m[1]), text: m[2] }));
+
+ok("tools/doc-truth.mjs: the schema constant, the table registry and docs/COMPAT.md's history parsed for check 25 are non-empty",
+  schemaVersion > 0 && wsTables.length >= 3 && compatRows.length > 0,
+  `WS.SCHEMA_VERSION=${schemaVersion || "(unparsed)"} · tables: ${wsTables.join(", ") || "(none)"} · ` +
+  `history rows: ${compatRows.map((r) => "v" + r.v).join(", ") || "(none)"}`);
+
+const expectedRows = Array.from({ length: schemaVersion }, (_, i) => i + 1);
+ok(`docs/COMPAT.md: the history has a row for every workspace version 1…${schemaVersion}, and none beyond it`,
+  compatRows.map((r) => r.v).join(",") === expectedRows.join(","),
+  `app/sources/schema.js says WS.SCHEMA_VERSION = ${schemaVersion}; COMPAT.md documents ` +
+  `${compatRows.map((r) => "v" + r.v).join(", ") || "nothing"}\n      ` +
+  "bumping the version is a same-PR ritual — add the history line (docs/COMPAT.md § 2, step 5)");
+
+const undocumentedTables = wsTables.filter((t) =>
+  !compatRows.some((r) => new RegExp("`" + t + "`").test(r.text)));
+ok("docs/COMPAT.md: every workspace table is named by the history row of the version that added it",
+  !undocumentedTables.length,
+  `never named in a history row: ${undocumentedTables.join(", ")}\n      ` +
+  "a version line that does not say what it added is the line a future reader needs and cannot use");
+
+// The hand-written SQL artifacts don't derive from schema.js, so they drift (the N2
+// slice-2 class). Any of them that stamps the marker must stamp THIS version. One that
+// doesn't stamp at all is out of scope here and recorded in COMPAT.md § 3.
+const sqlStamps = [
+  "tools/supabase-deploy.sql", "tools/supabase-rls-real.sql",
+  "tools/supabase-bootstrap.sql", "supabase/functions/polecat-admin/sql.ts",
+].map((rel) => ({ rel, v: Number((/VALUES \('schema_version', '(\d+)'\)/.exec(read(rel)) || [])[1]) }))
+  .filter((s) => s.v);
+ok(`the hand-written provision SQL stamps schema v${schemaVersion}, the version app/sources/schema.js is at`,
+  sqlStamps.length > 0 && sqlStamps.every((s) => s.v === schemaVersion),
+  sqlStamps.map((s) => `${s.rel} stamps v${s.v}`).join(" · ") || "no artifact stamps the marker at all");
+
+ok("CLAUDE.md sends anyone touching WS.SCHEMA_VERSION or the workspace DDL to docs/COMPAT.md",
+  /docs\/COMPAT\.md/.test(read("CLAUDE.md")),
+  "the pointer is how the contract gets read at all — it is part of the contract");
+
+/* ── 26. the create-project instructions vs the SQL that depends on them ────
+   N19. Help now documents the step before every other Supabase topic — creating the
+   project — and two of its answers are derived from the shipped SQL rather than from
+   preference. Derived claims rot when the SQL moves, and this pair rots INVISIBLY: the
+   reader follows the page, the app refuses to connect, and nothing in the repo has
+   changed colour.
+
+   The load-bearing one is the "Automatically expose new tables" toggle. The answer is ON
+   only BECAUSE tools/supabase-deploy.sql has no GRANTs of its own and leans on the
+   project's default privileges. The moment someone adds grants there — which is a known,
+   wanted change — the honest answer flips to OFF, and this check goes red until the page
+   flips with it. It is the rare doc-truth check that fires on an IMPROVEMENT, which is
+   exactly when a doc is likeliest to be forgotten.
+
+   The region is the same shape of claim: tests/rls.mjs hardcodes a pooler host whose
+   region the page names, and that test exits 0 when unconfigured, so a drift here reads
+   green from every direction at once. */
+const createDocs = (() => {
+  const html = read("docs/index.html");
+  const start = html.indexOf('id="supabase-create-project"');
+  if (start < 0) return "";
+  const end = html.indexOf("<h3", start);
+  return html.slice(start, end < 0 ? html.length : end);
+})();
+const deploySql = read("tools/supabase-deploy.sql");
+const grantsIn = (rel) => (read(rel).match(/^\s*GRANT\b/gim) || []).length;
+const rlsPoolerRegion = (/aws-\d+-([a-z0-9-]+)\.pooler\.supabase\.com/.exec(read("tests/rls.mjs")) || [])[1] || "";
+
+ok("tools/doc-truth.mjs: the create-project section, the deploy SQL and rls.mjs's pooler host parsed for check 26 are non-empty",
+  createDocs.length > 500 && deploySql.length > 500 && !!rlsPoolerRegion,
+  `Help section: ${createDocs.length} chars · supabase-deploy.sql GRANTs: ${grantsIn("tools/supabase-deploy.sql")} · ` +
+  `rls.mjs pooler region: ${rlsPoolerRegion || "(unparsed)"}`);
+
+// The toggle answer and the reason for it must BOTH match the file. "ON while the deploy
+// script has no grants of its own" is one claim, not two.
+const deployGrants = grantsIn("tools/supabase-deploy.sql");
+const docsSayExposeOn = /Automatically expose new tables[\s\S]{0,400}?<strong>ON<\/strong>/.test(createDocs);
+ok(`Help's "Automatically expose new tables" answer matches tools/supabase-deploy.sql (${deployGrants} GRANT statement(s))`,
+  deployGrants === 0 ? docsSayExposeOn : !docsSayExposeOn,
+  deployGrants === 0
+    ? "the deploy script has no GRANTs, so the toggle must be documented as ON — off, and PostgREST refuses every request"
+    : "the deploy script carries its own GRANTs (N20), so the toggle must be documented as OFF: flip Help (and the § 0 " +
+      "header in tools/supabase-deploy.sql) — this check exists to make that flip impossible to forget, in either direction");
+// The REASON has to move with the answer, or the page keeps a true answer next to
+// a stale justification — which is the pair a later reader "tidies up" back into
+// the bug. Both directions are asserted, so removing § 6c is as covered as adding
+// it was. The § 6c pointer is what makes the claim checkable from the SQL side.
+ok(`Help says WHY that toggle has the answer it has, in terms of the deploy script's GRANTs (${deployGrants} found)`,
+  deployGrants === 0
+    ? /\bno\b[\s\S]{0,40}?<code>GRANT<\/code>\s+statements/.test(createDocs)
+    : /<code>GRANT<\/code>/.test(createDocs) && /§ 6c/.test(createDocs),
+  deployGrants === 0
+    ? "an answer with no reason is one the next reader will 'tidy up' — the reason IS the check"
+    : "the answer is OFF only BECAUSE tools/supabase-deploy.sql § 6c grants for itself; Help must say so and name § 6c");
+ok("tools/supabase-deploy.sql's § 0 header agrees with its own GRANT count",
+  deployGrants === 0
+    ? /Automatically expose new tables — ON/.test(deploySql)
+    : /Automatically expose new tables — OFF/.test(deploySql),
+  "§ 0 is the copy a reader in the SQL editor actually sees — it drifts from Help the moment only one of them is updated");
+
+ok(`Help names the region tests/rls.mjs actually defaults to (${rlsPoolerRegion})`,
+  new RegExp(rlsPoolerRegion.replace(/[-]/g, "\\-")).test(createDocs),
+  `tests/rls.mjs's pooler host is aws-0-${rlsPoolerRegion}.pooler.supabase.com; the Help page names a different region\n      ` +
+  "that test SKIPs silently without SUPABASE_DB_HOST, so a region mismatch reads green while checking nothing");
+
+// "Which file" is the miss that started N19: three SQL files, one right answer, and a
+// header that recommended against itself. Each file must be named, and the deploy script
+// must be the one carrying the create-project preamble the Help page mirrors.
+const namesAllThree = ["tools/supabase-deploy.sql", "tools/supabase-rls-real.sql", "tools/supabase-bootstrap.sql"]
+  .filter((f) => createDocs.includes(f));
+ok("Help names all three shipped Supabase SQL files, so the reader cannot pick the wrong one by omission",
+  namesAllThree.length === 3,
+  `named: ${namesAllThree.join(", ") || "(none)"}`);
+ok("tools/supabase-deploy.sql carries the create-project preamble (§ 0) the Help page mirrors",
+  /§ 0\)/.test(deploySql) && /ca-central-1/.test(deploySql),
+  "the canonical copy lives next to the SQL that depends on it — a reader in the SQL editor never sees Help");
+ok("tools/supabase-bootstrap.sql no longer claims the real RLS posture is unsafe to run",
+  !/NOT yet safe to run here/.test(read("tools/supabase-bootstrap.sql")),
+  "that claim stopped being true when M7 slices 2/3 shipped GoTrue sign-in and the owner-field migration " +
+  "(the real posture went live 2026-07-30) — it is the exact sentence that misled a session on 2026-08-08");
+
+/* ── 27. the workspace markers only ever move FORWARD ───────────────────────
+   N28. Check 25 holds every stamping artifact to the CURRENT version; this one holds
+   the DIRECTION. A bare `ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value` on
+   `schema_version` means running an OLDER copy of that artifact against an upgraded
+   workspace re-labels it as the older shape — after which every client, including the
+   newer app that performed the upgrade, reads it as older and offers the upgrade again,
+   forever. That is exactly the clobber N17 found in `WS.metaRows()` and fixed on the app
+   side; until now the SQL side still had it in two of the four artifacts.
+
+   Two shapes are acceptable, and which one is right depends on the artifact:
+     • DO NOTHING          — deploy paths that only ever DECLARE what they just built
+                             (an existing environment's own answer wins).
+     • the raise-only WHERE — provisioning paths that legitimately need to RAISE the
+                             marker during an upgrade, and heal an absent/non-numeric one.
+   A bare DO UPDATE is neither, and it is the only thing this check rejects.
+
+   `app` is the same class of clobber in a different key: relabelling a project another
+   fleet app already claimed. Only DO NOTHING is right there — nothing about running the
+   analytics script should ever take a project away from manager or relay.
+
+   Deliberately textual, over the shipped bytes of each artifact, because that is what a
+   user pastes and what the Edge Function deploys — neither derives from schema.js, which
+   is the whole reason they drift (the N2 slice-2 class). tests/rls.mjs proves the same
+   property against a real Postgres; this is the half that runs in the dev gate. */
+const MARKER_ARTIFACTS = [
+  "tools/supabase-deploy.sql", "tools/supabase-rls-real.sql",
+  "tools/supabase-bootstrap.sql", "supabase/functions/polecat-admin/sql.ts",
+];
+// One upsert statement per match: from INSERT to the `;` that ends it. `[^;]*` cannot
+// run past the statement, so a file's statements never merge into one another.
+const markerUpserts = MARKER_ARTIFACTS.flatMap((rel) =>
+  [...read(rel).matchAll(/INSERT INTO[^;]*?VALUES\s*\(\s*'(app|schema_version)'[^;]*;/g)]
+    .map((m) => ({ rel, key: m[1], sql: m[0].replace(/\s+/g, " ") })));
+const RAISE_ONLY = /DO UPDATE SET value = EXCLUDED\.value\s+WHERE [\w".]*value !~ '\^\[0-9\]\+\$' OR [\w".]*value::int < EXCLUDED\.value::int/;
+const bareUpdate = (s) => /DO UPDATE/.test(s) && !RAISE_ONLY.test(s);
+
+ok(`tools/doc-truth.mjs: the provisioning artifacts' polecat_meta upserts parsed for check 27 are non-empty (${markerUpserts.length} found)`,
+  markerUpserts.length >= 4 && markerUpserts.some((u) => u.key === "app"),
+  markerUpserts.map((u) => `${u.rel}:${u.key}`).join(" · ") || "(none)");
+
+const rewindable = markerUpserts.filter((u) => u.key === "schema_version" && bareUpdate(u.sql));
+ok("every artifact that stamps schema_version does so DO NOTHING or raise-only — none can REWIND a workspace",
+  !rewindable.length,
+  rewindable.map((u) => `${u.rel} — ${u.sql}`).join("\n      ") + "\n      " +
+  "add the guard: ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value " +
+  "WHERE polecat_meta.value !~ '^[0-9]+$' OR polecat_meta.value::int < EXCLUDED.value::int (docs/COMPAT.md § 3)");
+
+const relabels = markerUpserts.filter((u) => u.key === "app" && /DO UPDATE/.test(u.sql));
+ok("no artifact can RELABEL the `app` marker of a project another fleet app already claimed",
+  !relabels.length,
+  relabels.map((u) => `${u.rel} — ${u.sql}`).join("\n      ") + "\n      " +
+  "the `app` marker is ownership, not state: ON CONFLICT (key) DO NOTHING");
+
+/* ── 28. Help's own version of check 24's catalog ROW ───────────────────────
+   N7. The check-16→17 move, one document over, and the pattern every tour slice has
+   followed: check 24 made the TOURS name each catalog row's controls, and the v892 pass
+   that shipped it measured that Help had the same hole — `docs/index.html` documented
+   Test, Run and `private` in scattered sections of their own and never named the per-row
+   **Pin** on Connections or Datasets at all. A reader who learns the app from Help rather
+   than from a tour is the one who never finds the row.
+
+   Same source of truth, deliberately: `rowControlsBySection` above, parsed out of the
+   catalog modules themselves — so one derivation now holds two documents, and a control
+   added to a row reddens the gate until BOTH say so.
+
+   Scope comes from the markup, not from a heading this check would have to guess at:
+   Help's per-row list tags each item `data-help-rows="<section>"`, which is also what makes
+   the negative half possible. That half is the one worth having — Jobs render no `cx-pin`,
+   and a Help page that promises one sends the reader hunting for a control that does not
+   exist. So a section's block must name every control its module renders, must NOT name a
+   toggle it doesn't, and — once a module GAINS one — must not still be carrying the
+   sentence that says it hasn't. The bolded form is the requirement, as in check 24: this
+   page names controls in <strong>, and prose *about* pinning is not the same as telling
+   the reader the button is there. */
+const helpRows = new Map([...read("docs/index.html")
+  .matchAll(/<li data-help-rows="(\w+)">([\s\S]*?)<\/li>/g)].map((m) => [m[1], m[2]]));
+ok("docs/index.html: the per-row controls block parsed for check 28 covers the same catalogs as check 24",
+  [...rowControlsBySection.keys()].every((s) => helpRows.has(s)) &&
+    [...helpRows.keys()].every((s) => rowControlsBySection.has(s)),
+  `Help documents: ${[...helpRows.keys()].join(", ") || "(none)"} · the modules define: ` +
+  `${[...rowControlsBySection.keys()].join(", ")}\n      ` +
+  'each catalog gets one `<li data-help-rows="<section>">` — that tag is what scopes this check');
+
+const helpRowGaps = [];
+for (const [sec, r] of rowControlsBySection) {
+  // A missing block is the check above's failure, but recorded here too — a vacuous ✓ on
+  // the line that names the controls is exactly the reassurance nobody should get.
+  const block = helpRows.get(sec) ?? "";
+  const bolded = (w) => new RegExp(`<strong>\\s*${w}\\b[^<]*</strong>`, "i").test(block);
+  for (const w of r.actions)
+    if (!bolded(w)) helpRowGaps.push(`Help's ${sec} row never names <strong>${w}</strong> — ` +
+      `the row's ${w} button (${r.file})`);
+  for (const w of r.toggles)
+    if (!bolded(w)) helpRowGaps.push(`Help's ${sec} row never names <strong>${w}</strong> — ` +
+      `the row's ${w} toggle (${r.file})`);
+  // The other direction: a toggle the module does not render must not be promised, and the
+  // sentence explaining its absence must go the moment it starts rendering one.
+  for (const w of Object.values(ROW_TOGGLE_WORD)) {
+    if (r.toggles.includes(w)) continue;
+    if (bolded(w)) helpRowGaps.push(`Help's ${sec} row promises <strong>${w}</strong>, but ` +
+      `${r.file} renders no such toggle on that row`);
+  }
+  if (r.toggles.includes("Pin") && /\bno pin\b/i.test(block))
+    helpRowGaps.push(`Help's ${sec} row still says it has "no pin", but ${r.file} now renders one`);
+}
+ok(`docs/index.html: every catalog row's own controls are documented, and none are invented (${
+  [...rowControlsBySection].map(([s, r]) => `${s}: ${[...r.actions, ...r.toggles].join("/")}`).join(" · ")})`,
+  !helpRowGaps.length,
+  `${helpRowGaps.join("\n      ")}\n      ` +
+  "Help is where a reader who never takes a tour learns the row — check 24 holds the tours to the same source");
+
+/* ── 29. The marketing page's MAP claims vs the choropleth's own Region-scale list ──────
+   N7. Every check above holds a document to a source; nothing held the app's GEOGRAPHY
+   story to anything, and the hero carousel — the first thing a visitor reads — had drifted
+   the furthest of any copy on the site. Two slides described the map, and between them they
+   named three of the six built-in scales and then called one of the other three a geography
+   the reader has to supply: "bring your own boundaries, like these USGS HUC8 watersheds".
+   HUC8 is a `scale` choice shipped in the registry, one select away in the Inspector. So a
+   visitor was told the watershed map — the one on screen, the one the #geo section below
+   the fold lists as built in — was theirs to source, while the feature that IS user-supplied
+   (import a county FIPS → region-name CSV, the `customMap` opt beside `scale`) went unnamed
+   in the carousel entirely. Both halves undersold the app in the same breath.
+
+   The source of truth is `Studio.CHARTS.choropleth`'s own `scale` opt in app/model.js —
+   the one place the app decides which geographies it can draw. Three rules come off it:
+
+   (a) COVERAGE — the #geo section's list names every choice, custom regions included. That
+       one already passed; this pins it, so a seventh scale cannot ship unlisted.
+   (b) COUNTS — every "N region scales" / "N built-in scales" / "N scales built in" claim on
+       the page equals the measurement (7 with Custom regions, 6 without). A claim that names
+       no number fails too: "state, county and USDA-district scales built in" is how the
+       carousel went stale in the first place — an enumeration ages silently, a count cannot.
+   (c) THE MISLABEL — the vocabulary that means "you supply this geography" may not land in
+       the same sentence as a scale that ships. Deliberately narrow: two phrasings that make
+       the assertion outright, checked per alt attribute and per sentence, so prose that
+       legitimately explains the custom-regions import beside a built-in scale's name (the
+       #geo list does exactly that, and so does the corrected caption) is not caught by a
+       proximity rule that cannot tell the two apart. It is a guard, not a measurement — (b)
+       is the half that keeps the copy honest as the registry grows.
+
+   Scoped to index.html on purpose, not by oversight: Help was audited in the same pass and
+   is CURRENT — `ct-choropleth` already distinguishes the six from "your own custom regions"
+   and documents the CSV's two columns. The marketing page was the only stale surface. */
+function choroplethBlock() {
+  const src = read("app/model.js");
+  const start = src.indexOf("\n    choropleth: {");
+  if (start < 0) throw new Error("doc-truth: Studio.CHARTS.choropleth not found in app/model.js");
+  let depth = 0, open = src.indexOf("{", start), i = open;
+  for (; i < src.length; i++) {
+    if (src[i] === "{") depth++;
+    else if (src[i] === "}" && --depth === 0) break;
+  }
+  return src.slice(open, i + 1);
+}
+const scaleChoices = [...((choroplethBlock().match(/key: "scale",[\s\S]*?choices: \[([\s\S]*?)\] \}/) || [, ""])[1])
+  .matchAll(/\["(\w+)",\s*"([^"]+)"\]/g)].map((m) => ({ key: m[1], label: m[2] }));
+const builtInScales = scaleChoices.filter((s) => s.key !== "custom");
+ok(`app/model.js: the choropleth's Region-scale choices parsed for check 29 are non-empty (${
+    scaleChoices.map((s) => s.key).join(", ") || "none"})`,
+  scaleChoices.length > 1 && scaleChoices.some((s) => s.key === "custom"),
+  "the `scale` select's choices are what every claim below is measured against");
+
+// What a document may call a scale: its key, the code in its label's parentheses, and the
+// label's first word with and without its plural — all off the label itself, so a renamed
+// scale renames its own alias set. Two-letter keys ("cd") are dropped as too short to match
+// on safely; that scale is still covered by "Congressional".
+function scaleNamer(s) {
+  const paren = (s.label.match(/\(([^)]+)\)/) || [])[1];
+  const first = s.label.replace(/\s*\(.*$/, "").split(/\s+/)[0];
+  const aliases = [s.key.length >= 4 ? s.key : null, paren, first, first.replace(/s$/, "")]
+    .filter(Boolean).map((a) => a.replace(/[^\w]/g, ""));
+  return new RegExp(`\\b(?:${[...new Set(aliases)].join("|")})`, "i");
+}
+const namesScale = (text, s) => scaleNamer(s).test(text);
+
+// (a) coverage
+const geoList = (marketing.match(/<ul class="geo-scales">([\s\S]*?)<\/ul>/) || [, ""])[1];
+const geoMissing = scaleChoices.filter((s) => !namesScale(geoList, s));
+ok(`index.html: the #geo list names all ${scaleChoices.length} region scales the map can draw`,
+  !!geoList && !geoMissing.length,
+  `not named in <ul class="geo-scales">: ${geoMissing.map((s) => s.label).join(", ") || "(the list itself is missing)"}`);
+
+// (b) counts
+const WORD_NUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8,
+  nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+  sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20 };
+const asNumber = (w) => (/^\d+$/.test(w) ? Number(w) : WORD_NUM[w.toLowerCase()]);
+const SCALE_COUNT_CLAIMS = [
+  [/(\S+)\s+region scales?\b/gi, scaleChoices.length, "region scales (built-in plus Custom regions)"],
+  [/(\S+)\s+built-in scales?\b/gi, builtInScales.length, "built-in scales"],
+  [/(\S+)\s+scales?\s+built in\b/gi, builtInScales.length, "scales built in"],
+];
+const scaleCountGaps = [];
+let scaleCountClaims = 0;
+for (const [re, expect, what] of SCALE_COUNT_CLAIMS)
+  for (const m of marketing.matchAll(re)) {
+    scaleCountClaims++;
+    if (asNumber(m[1]) !== expect)
+      scaleCountGaps.push(`"…${m[0].replace(/\s+/g, " ").trim()}" — the map has ${expect} ${what}`);
+  }
+ok(`index.html: every region-scale count reads ${builtInScales.length} built in (${scaleChoices.length} with Custom regions)`,
+  scaleCountClaims > 0 && !scaleCountGaps.length,
+  (scaleCountClaims ? scaleCountGaps.join("\n      ")
+    : "the page makes no region-scale count claim at all — it is the app's geography story, say the number") +
+  "\n      a claim that lists scales instead of counting them goes stale silently; a count cannot");
+
+// (c) the mislabel
+const CUSTOM_GEO_VOCAB = /custom geograph|your own boundaries/i;
+const claimUnits = [
+  ...[...marketing.matchAll(/\balt="([^"]*)"/g)].map((m) => m[1]),
+  ...marketing.replace(/<[^>]+>/g, " ").split(/(?<=[.!?])\s+/),
+];
+const scaleMislabels = [];
+for (const unit of claimUnits) {
+  if (!CUSTOM_GEO_VOCAB.test(unit)) continue;
+  const named = builtInScales.filter((s) => namesScale(unit, s));
+  if (named.length) scaleMislabels.push(`"${unit.replace(/\s+/g, " ").trim().slice(0, 150)}"` +
+    `\n        → names the BUILT-IN ${named.map((s) => s.label).join(", ")}`);
+}
+ok("index.html: no built-in region scale is described as a geography the reader must supply",
+  !scaleMislabels.length,
+  `${scaleMislabels.join("\n      ")}\n      ` +
+  "the user-supplied geography is the `customMap` opt (a county FIPS → region-name CSV); " +
+  "these scales ship");
+
+/* ── 30. provisioning never re-opens a workspace that has gone live ────────
+   N26. Check 27 holds the marker DIRECTION; this one holds the POSTURE, and it is the
+   same shape of bug one layer down. Both provisioning artifacts end with a DO block that
+   installs the demo `polecat_anon_all` policy, and both used to do it unconditionally.
+   Postgres ORs PERMISSIVE policies together, so on a workspace that has been through
+   go-live that CREATE did not REPLACE the per-user policies — it added an allow-all one
+   BESIDE them and handed the anon key every row back, with the real policies still sitting
+   there looking correct. `provision` is the polecat-admin function's ONLY schema action and
+   `supabase-provision.yml` applies the .sql file unattended, so "safe to re-run" had to
+   start meaning safe on a LIVE workspace, not only on the demo one it was written for.
+
+   Three properties, and the third is the one a careless "fix" would lose:
+     • the CREATE is conditional on the workspace not being live;
+     • liveness is derived from the real posture's OWN policy names — the same names
+       supabase-rls-real.sql drops by name, for the same OR-ing reason — rather than from a
+       marker a rollback would forget to clear;
+     • the DROP stays UNCONDITIONAL. A stray allow-all beside a live posture IS the leak, so
+       finding one is a reason to remove it, never a reason to leave it alone.
+
+   Textual, over the shipped bytes of each artifact, for check 27's reason: neither file
+   derives from schema.js, which is exactly why they drift (the N2 slice-2 class). The live
+   proof against a real Postgres is tests/rls.mjs's two "re-run on a workspace that has gone
+   live" postures; this is the half that runs in the dev gate. */
+const PROVISIONING_ARTIFACTS = ["tools/supabase-bootstrap.sql", "supabase/functions/polecat-admin/sql.ts"];
+// The demo-posture block, from its DO to the END that closes it. Both artifacts have
+// exactly one block that creates the allow-all policy; the runbook's rollback (a document,
+// not an artifact) is deliberately out of scope — undoing go-live is what it is FOR.
+const demoBlocks = PROVISIONING_ARTIFACTS.map((rel) => {
+  const src = read(rel);
+  const create = src.indexOf("CREATE POLICY polecat_anon_all");
+  if (create < 0) return { rel, block: "" };
+  const start = src.lastIndexOf("DO $$", create);
+  const end = src.indexOf("END $$;", create);
+  return { rel, block: start < 0 || end < 0 ? "" : src.slice(start, end + 7) };
+});
+
+ok(`tools/doc-truth.mjs: the demo-posture block parsed for check 30 was found in both provisioning artifacts`,
+  demoBlocks.every((b) => b.block),
+  demoBlocks.filter((b) => !b.block).map((b) => `${b.rel} — no DO $$ … END $$; block creates polecat_anon_all`).join("\n      ") +
+  "\n      if an artifact stopped installing the demo posture at all, retire this check with it — do not let it pass vacuously");
+
+const LIVE_PROBE = /FROM pg_policies[\s\S]*?policyname IN \([^)]*'polecat_select'[^)]*'polecat_meta_auth'[^)]*\)/;
+const postureGaps = [];
+for (const { rel, block } of demoBlocks) {
+  if (!block) continue;
+  if (!LIVE_PROBE.test(block))
+    postureGaps.push(`${rel} — the block never asks pg_policies whether the real per-user policies ` +
+      `(polecat_select … polecat_meta_auth) are already installed`);
+  if (!/IF NOT live THEN\s*\n\s*EXECUTE format\('CREATE POLICY polecat_anon_all/.test(block))
+    postureGaps.push(`${rel} — CREATE POLICY polecat_anon_all is not guarded by IF NOT live`);
+  // The DROP has to sit OUTSIDE the guard: everything between the loop's ALTER TABLE and the
+  // IF is unconditional, so requiring the DROP to appear there is requiring exactly that.
+  const unconditional = block.slice(block.indexOf("ENABLE ROW LEVEL SECURITY"), block.indexOf("IF NOT live"));
+  if (!/DROP POLICY IF EXISTS polecat_anon_all/.test(unconditional))
+    postureGaps.push(`${rel} — DROP POLICY IF EXISTS polecat_anon_all moved inside the guard; ` +
+      `a stray allow-all beside a live posture is the leak itself and must always be removed`);
+}
+ok("provisioning re-run on a gone-live workspace preserves its posture (the demo allow-all is guarded, the drop is not)",
+  !postureGaps.length,
+  `${postureGaps.join("\n      ")}\n      ` +
+  "Postgres ORs PERMISSIVE policies together — one allow-all beside the per-user set defeats all of it (STATUS.md N26)");
+
+// The two artifacts are supposed to be the same posture written twice (the N2 slice-2 drift
+// class), so hold the guard itself to that: same block, modulo the .ts file's backtick
+// escaping and each file's own indentation.
+const normalise = (s) => s.replace(/\\`/g, "`").replace(/\s+/g, " ").trim();
+ok("both provisioning artifacts carry the SAME guarded demo-posture block (they are one posture written twice)",
+  demoBlocks.every((b) => b.block) && normalise(demoBlocks[0].block) === normalise(demoBlocks[1].block),
+  `${demoBlocks.map((b) => `${b.rel}: ${normalise(b.block).slice(0, 220)}…`).join("\n      ")}\n      ` +
+  "an edit to one is an edit to both — tests/rls.mjs installs each of them separately and runs the same checks");
+
+/* ── 31. the hero SCREENSHOTS' own copy vs check 29's same source ───────────
+   N7. Check 29 holds the carousel's CAPTIONS to `Studio.CHARTS.choropleth`'s `scale` list.
+   It could not see the other half of the same slide — the picture. The hero images are
+   generated by `tools/gen-shots.mjs`, which builds REAL dashboard exports from specs written
+   in that file, so their titles and subtitles are published copy, rendered at 2160×1350, that
+   no check had ever read. And it had drifted in exactly the direction check 29 exists to
+   catch: `huc8Spec()`'s subtitle said "A custom geography — HUC8 subbasins…", the claim v916
+   had just deleted from the caption printed directly beneath the image. A visitor read "one
+   of the six scales built in" under a screenshot whose own header said the opposite, and
+   fixing the caption alone had made the contradiction WORSE, not better.
+
+   The generator's source is the only derivable proxy for pixels — a PNG cannot be parsed —
+   and it is the right one: the literal in the spec IS the string in the image, and no
+   regeneration can bake copy in without passing through here first. Same two rules as check
+   29's (b) and (c), against the same measurement, one document over. The mislabel rule is the
+   load-bearing half; a count claim is not REQUIRED of a shot subtitle (it describes data, not
+   the feature list) but is measured wherever one appears. */
+const shotCopy = [...read("tools/gen-shots.mjs")
+  .matchAll(/\b(?:title|subtitle)\s*:\s*"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]);
+ok(`tools/gen-shots.mjs: the shot specs' rendered copy parsed for check 31 is non-empty (${shotCopy.length} string(s))`,
+  shotCopy.length > 0,
+  "the `title:` / `subtitle:` literals in the shot specs are what the rules below are measured against");
+
+const shotCountGaps = [];
+for (const [re, expect, what] of SCALE_COUNT_CLAIMS)
+  for (const unit of shotCopy)
+    for (const m of unit.matchAll(re))
+      if (asNumber(m[1]) !== expect)
+        shotCountGaps.push(`"…${m[0].replace(/\s+/g, " ").trim()}" — the map has ${expect} ${what}`);
+ok(`tools/gen-shots.mjs: every region-scale count baked into a screenshot reads ${builtInScales.length} built in`,
+  !shotCountGaps.length,
+  `${shotCountGaps.join("\n      ")}\n      ` +
+  "a stale number inside a PNG outlives every copy pass — the page can only be fixed by regenerating the shot");
+
+const shotMislabels = [];
+for (const unit of shotCopy) {
+  if (!CUSTOM_GEO_VOCAB.test(unit)) continue;
+  const named = builtInScales.filter((s) => namesScale(unit, s));
+  if (named.length) shotMislabels.push(`"${unit.replace(/\s+/g, " ").trim().slice(0, 150)}"` +
+    `\n        → names the BUILT-IN ${named.map((s) => s.label).join(", ")}`);
+}
+ok("tools/gen-shots.mjs: no screenshot describes a built-in region scale as a geography the reader must supply",
+  !shotMislabels.length,
+  `${shotMislabels.join("\n      ")}\n      ` +
+  "check 29 holds the caption beside the image to this same rule — the two must not contradict each other");
+
+/* ── 32. the Quick Views hero shot vs the editor it photographs ─────────────
+   N7. Check 31 read the copy BAKED INTO a screenshot. This reads the other side of the
+   same seam: what the shot's generator actually puts on screen, versus what the caption
+   and the alt text beside it promise. The Quick Views slide had drifted on both counts.
+
+   (a) The prep loaded a saved VIEW. CONS-4 later made every View the conservation pack
+   seeds View Builder-native, and `xpLoadAnalysis` answers a builder-made View with the
+   VB-5 cross-editor banner — so the flagship Quick Views slide led with a notice saying
+   Quick Views "can't edit its shelves, filters, or calculated columns". There is no
+   better saved View to prefer: all four the pack seeds go through `builderViewRow`, which
+   sets `builder:`. Both halves of that are derived below, so the rule survives the pack
+   changing its mind — seed one non-builder View and the premise check says so.
+
+   (b) The alt text promised "a live result". The editor is a FOUR-step walk and the
+   1440×900 frame holds three of them (measured by the shooter itself — `framedSteps`, in
+   tools/gen-shots.mjs), so `4 · Result` is below the fold in a picture whose alt text
+   said it was there. A step's own header noun is the vocabulary: copy beside the image
+   may name the framed steps and must not name a later one. The positive half matters as
+   much — a caption that names none of them is vague, not true. */
+const shotsSrc = read("tools/gen-shots.mjs");
+const explorePrep = (shotsSrc.match(/snapSection\(browser, "explore-dark",[\s\S]*?\n {4}\} \}\);/) || [""])[0];
+ok("tools/gen-shots.mjs: the explore-dark shot's options block parsed for check 32",
+  explorePrep.length > 0,
+  "the `snapSection(browser, \"explore-dark\", { … })` call is what rules (a) and (b) are measured against");
+
+const builderRowBody = (packSrc.match(/function builderViewRow\([\s\S]*?\n {2}\}/) || [""])[0];
+const conservationViewWrites = [...packSrc.matchAll(/W\.put\("analyses", ([A-Za-z_]\w*)/g)].map((m) => m[1]);
+ok("app/demopacks.js: every saved View the conservation pack seeds is View Builder-native",
+  /\bbuilder:/.test(builderRowBody) && conservationViewWrites.length > 0 &&
+  /builderViewRow\(/.test(packSrc),
+  "`builderViewRow` sets `builder:`, and it is the only shape the pack's PRACTICES loop writes — " +
+  "so a prep that picks from the saved Views cannot avoid the cross-editor banner");
+
+ok("tools/gen-shots.mjs: the Quick Views shot opens a DATASET, not a saved View",
+  !/\ball\("analyses"\)|__studioExplore\.load/.test(explorePrep) && /button\.xp-ds/.test(explorePrep),
+  "app/explore.js raises the VB-5 cross-editor notice for any View with a `builder` blob, and " +
+  "every View in the shot's workspace has one — so loading a saved View photographs Quick Views' " +
+  "own limitation instead of the walk the caption describes");
+
+// The editor's numbered steps, in the order app/explore.js renders them.
+const xpSteps = [...read("app/explore.js").matchAll(/class="xp-step-h">(\d+) · ([A-Za-z]+)/g)]
+  .map((m) => ({ n: +m[1], noun: m[2] }));
+const framedSteps = +((explorePrep.match(/framedSteps:\s*(\d+)/) || [])[1] || 0);
+ok(`app/explore.js: the Quick Views editor's numbered steps parsed for check 32 (${
+  xpSteps.map((s) => s.n + " · " + s.noun).join(", ") || "none"}), and the shot declares framedSteps: ${framedSteps}`,
+  xpSteps.length > 1 && framedSteps > 0 && framedSteps < xpSteps.length,
+  "the shooter fails the capture if `framedSteps` does not match what the 1440×900 frame holds; " +
+  "this check holds the copy to the same number");
+
+// The copy beside the image: its alt text, and the carousel caption at the same slide index.
+const exploreImg = (marketing.match(/<img[^>]*site\/shots\/explore-dark\.png[^>]*>/) || [""])[0];
+const exploreAlt = (exploreImg.match(/alt="([^"]*)"/) || [, ""])[1];
+const slideIdx = +((exploreImg.match(/data-i="(\d+)"/) || [])[1] ?? -1);
+const capsBlock = (marketing.match(/var CAPS = \[([\s\S]*?)\n {2}\];/) || [, ""])[1];
+const caps = [...capsBlock.matchAll(/^\s*"((?:[^"\\]|\\.)*)",?$/gm)].map((m) => m[1]);
+const exploreCopy = [exploreAlt, caps[slideIdx] || ""].filter(Boolean);
+const slideCount = (marketing.match(/class="hc-img[^"]*"/g) || []).length;
+ok(`index.html: the copy beside explore-dark.png parsed for check 32 (alt + caption ${slideIdx} of ${caps.length})`,
+  exploreAlt.length > 0 && slideIdx >= 0 && caps.length === slideCount && !!caps[slideIdx],
+  "the alt attribute and the CAPS entry at the image's own data-i are the two published strings — " +
+  `${slideCount} slide(s) vs ${caps.length} caption(s) means the pairing itself has drifted`);
+
+const beyond = xpSteps.filter((s) => s.n > framedSteps);
+const overPromises = [];
+for (const step of beyond)
+  for (const unit of exploreCopy)
+    if (new RegExp("\\b" + step.noun + "\\b", "i").test(unit))
+      overPromises.push(`"${unit.slice(0, 120)}…"\n        → names step ${step.n} · ${step.noun}, which the frame does not reach`);
+ok(`index.html: the Quick Views copy promises nothing past step ${framedSteps} of the editor`,
+  !overPromises.length,
+  `${overPromises.join("\n      ")}\n      ` +
+  "re-frame the shot (raise `framedSteps` in tools/gen-shots.mjs) or drop the claim — the picture decides");
+
+const framedNouns = xpSteps.filter((s) => s.n <= framedSteps).map((s) => s.noun);
+ok(`index.html: the Quick Views copy names at least one step the shot actually shows (${framedNouns.join("/")})`,
+  exploreCopy.some((unit) => framedNouns.some((noun) => new RegExp("\\b" + noun + "\\b", "i").test(unit))),
+  "the negative rule above is satisfiable by saying nothing — a caption for a numbered walk has to name the walk");
+
+/* ── 33. the Dashboard Builder hero shot vs the panel it photographs ────────
+   N7, and the check-32 move one slide over. Check 32 held the Quick Views shot to what
+   its 1440×900 frame REACHES. This holds the builder shot to what its frame SHOWS, which
+   is a different failure: the pane was open and empty.
+
+   Measured 2026-08-09. LF19 gave the Data panel's "This dashboard's datasets" group
+   progressive disclosure — `libGroupOpen` collapses it once it holds more than
+   LIB_GROUP_MANY items, unless the reader has toggled it themselves, which it remembers
+   in `studio-lib-mine-open`. The two builder shots straddle that threshold: `studio-cost`
+   binds 6 data accesses and `finance-command` binds 9. So the LIGHT shot rendered its six
+   dataset cards while the DARK one — the shot the marketing carousel actually publishes —
+   rendered one collapsed header over ~1000px of empty panel, under a caption reading
+   "Drag datasets onto the canvas" and alt text promising "the data and inspector panels".
+   Same generator, same function, one item apart. v918 had just fixed the other half of
+   this slide (it was photographing Home), which is why the empty panel was the next thing
+   visible rather than the second thing.
+
+   Three rules, all derived so they survive either side moving:
+   (a) if any builder shot's spec binds more than the threshold, the shooter must seed the
+       group's OWN open key — the reader's-choice path the group already honours;
+   (b) each shot's declared `datasetsShown` must be a real count: at least one card, and
+       never more than the spec actually binds (the shooter measures the rest — declare 9
+       for a frame that holds 8 and the capture fails there rather than here);
+   (c) the copy beside the image may not claim a count the frame does not hold, and must
+       name what the picture shows. The positive half matters as much: this slide's whole
+       job is the panel, and a caption that never mentions it is vague, not true. */
+const studioSrc = read("app/studio.js");
+const libGroupMany = +((studioSrc.match(/\bLIB_GROUP_MANY\s*=\s*(\d+)/) || [])[1] || 0);
+const mineBody = (studioSrc.match(/function buildMyDataSources\([\s\S]*?\n {2}\}/) || [""])[0];
+const mineOpenKey = (mineBody.match(/mineOpenKey\s*=\s*"([^"]+)"/) || [, ""])[1];
+const mineGroupName = ((mineBody.match(/class="nm">([^<]*)<\/span>/) || [, ""])[1] || "")
+  .replace(/\\u2019/g, "’");
+ok(`app/studio.js: the Data panel's dataset group parsed for check 33 ("${mineGroupName}", ` +
+  `collapses past ${libGroupMany} items, remembered in \`${mineOpenKey}\`)`,
+  libGroupMany > 0 && !!mineOpenKey && !!mineGroupName,
+  "`buildMyDataSources` + `libGroupOpen` are what the rules below are measured against — " +
+  "the threshold and the key both come from the app, not from the shooter");
+
+// Every builder shot: the example it loads, what that example binds, and what it declares.
+const builderShots = [...shotsSrc.matchAll(
+  /loadExample\((\w+)\.page, "([^"]+)"(?:, \{ datasetsShown: (\d+) \})?\)/g)]
+  .map((m) => {
+    let bound = -1;
+    try { bound = (JSON.parse(read("data/examples/" + m[2])).cda.dataAccesses || []).length; } catch (e) {}
+    return { page: m[1], file: m[2], declared: m[3] === undefined ? -1 : +m[3], bound };
+  });
+ok(`tools/gen-shots.mjs: both builder shots parsed for check 33 (${
+  builderShots.map((s) => `${s.file.replace(".studio.json", "")}: ${s.bound} bound, ${s.declared} shown`).join(" · ") || "none"})`,
+  builderShots.length >= 2 && builderShots.every((s) => s.bound > 0 && s.declared >= 0),
+  "each `loadExample(page, file, { datasetsShown })` call and the `cda.dataAccesses` of the " +
+  "example it names are the two halves of the measurement — an undeclared shot is unheld");
+
+const loadExampleBody = (shotsSrc.match(/async function loadExample\([\s\S]*?\n\}/) || [""])[0];
+const needsSeed = builderShots.filter((s) => s.bound > libGroupMany);
+ok(`tools/gen-shots.mjs: the shooter opens the "${mineGroupName}" group it photographs` +
+  (needsSeed.length ? ` (${needsSeed.map((s) => s.file.replace(".studio.json", "")).join(", ")} bound past ${libGroupMany})` : ""),
+  !needsSeed.length || new RegExp(`setItem\\("${mineOpenKey}"`).test(loadExampleBody),
+  `${needsSeed.map((s) => `${s.file} binds ${s.bound}`).join(", ")}\n      ` +
+  "past the threshold the group renders collapsed, so opening the PANE photographs an " +
+  "empty one — seed the group's own key, the way a reader toggling it would");
+
+const countGaps = builderShots.filter((s) => s.declared < 1 || s.declared > s.bound)
+  .map((s) => `${s.file}: declares ${s.declared}, binds ${s.bound}`);
+ok("tools/gen-shots.mjs: every builder shot declares a dataset count its example can actually produce",
+  !countGaps.length,
+  `${countGaps.join("\n      ")}\n      ` +
+  "zero means the panel is empty in a picture sold on it; more than the spec binds is not a frame " +
+  "measurement at all — the shooter enforces the exact framed number, this enforces the bounds");
+
+// The copy beside the DARK builder shot — the one the carousel publishes.
+const builderImg = (marketing.match(/<img[^>]*site\/shots\/studio-dark\.png[^>]*>/) || [""])[0];
+const builderAlt = (builderImg.match(/alt="([^"]*)"/) || [, ""])[1];
+const builderIdx = +((builderImg.match(/data-i="(\d+)"/) || [])[1] ?? -1);
+const builderCopy = [builderAlt, caps[builderIdx] || ""].filter(Boolean);
+const darkShot = builderShots.find((s) => /finance/.test(s.file)) || builderShots[builderShots.length - 1];
+ok(`index.html: the copy beside studio-dark.png parsed for check 33 (alt + caption ${builderIdx} of ${caps.length})`,
+  builderAlt.length > 0 && builderIdx >= 0 && !!caps[builderIdx],
+  "the alt attribute and the CAPS entry at the image's own data-i are the two published strings");
+
+const builderCountGaps = [];
+for (const unit of builderCopy)
+  for (const m of unit.matchAll(/(\S+)\s+datasets\b/gi)) {
+    const n = asNumber(m[1]);
+    if (n !== undefined && n > darkShot.declared)
+      builderCountGaps.push(`"…${m[0].trim()}" — the frame shows ${darkShot.declared}`);
+  }
+ok(`index.html: the builder copy claims no more datasets than the shot frames (${darkShot.declared})`,
+  !builderCountGaps.length,
+  `${builderCountGaps.join("\n      ")}\n      ` +
+  "re-frame the shot (raise `datasetsShown` in tools/gen-shots.mjs and let the shooter " +
+  "re-measure) or drop the claim — the picture decides");
+
+const mineNoun = (mineGroupName.match(/(\w+)$/) || [, "datasets"])[1];
+ok(`index.html: the builder copy names what the panel holds ("${mineNoun}")`,
+  builderCopy.some((unit) => new RegExp("\\b" + mineNoun + "\\b", "i").test(unit)),
+  "the rules above are all satisfiable by saying nothing about the panel — the slide whose " +
+  "own alt text promises \"the data and inspector panels\" has to name what is in them");
+
+/* ── 34. Help's "Sample packs" section vs what the packs actually seed ──────
+   N7, and the check-23→Help move — the same one check 15 made after 14, 17 after 16 and
+   28 after 24. Check 23 holds the pack TOUR to the installer; a reader who never takes a
+   tour learns what a pack gave them here, and this section had drifted further than the
+   tour ever did.
+
+   Measured 2026-08-09, before the fix:
+   · **Market Coverage had no entry at all.** The section's own opening sentence names
+     three pack folders, and the list below it had two — the pack SP-1 built over three
+     slices was a loose paragraph above the list rather than an item in it.
+   · **Conservation Insight's dashboard count was wrong in both directions.** It named the
+     featured dashboard and the Watershed Map, said "eight extra showcase dashboards", and
+     closed on "removing the pack takes all NINE dashboards back out" — while the pack
+     seeds SIX into the workspace and materializes EIGHT more from the gated gallery. So
+     the arithmetic in the sentence did not even match the two numbers beside it, and
+     neither matched the app: the CRD map, the OpTIS trends, the provider ensemble and the
+     Metrics wheel were named nowhere on the page.
+   · **It never said what else came with them.** Two connections, eight datasets and the
+     county-to-state rollup job are seeded by the same click, and the section named none
+     of those kinds — a reader was told about charts and not about the data under them.
+
+   Three rules, each off a source that moves with the app:
+   (a) every registered pack has its own item in the list, titled with the FOLDER name the
+       app files its content under (`folder` on the registry entry — the string the reader
+       sees in every catalog);
+   (b) an item must name every KIND its pack's installer seeds. The kinds are derived by
+       walking the call graph from the entry's own `install`/`data.seed` hooks and
+       collecting the workspace tables they write, so a pack that grows a new kind makes
+       this fail rather than going quietly undocumented;
+   (c) every dashboard COUNT the item claims must be one of that pack's real numbers — the
+       dashboards it seeds, the gated gallery examples it materializes, or their sum. A
+       count rule that allowed only the total would forbid the true sentence "eight extra
+       showcase dashboards"; this allows each real number and nothing else.
+   Plus (d): "installed by default" is a claim about `DEFAULT_INSTALLED`, not a description,
+   so it must sit on that pack's item and no other. That one is here for the pack swap
+   SP-1 (c2) is holding — the moment the default moves, this says so. */
+const examplesIndex = (() => {
+  try { return JSON.parse(read("data/examples/index.json")); } catch (e) { return []; }
+})();
+const exampleList = Array.isArray(examplesIndex) ? examplesIndex : (examplesIndex.examples || []);
+
+// The registry entries, brace-walked out of `Studio.DEMO_PACKS` the way chartRegistryKeys()
+// walks Studio.CHARTS — a nested `foo: {` inside an entry can never be read as a pack.
+function braceBlockAt(src, openIdx) {
+  let depth = 0, i = openIdx;
+  for (; i < src.length; i++) {
+    if (src[i] === "{") depth++;
+    else if (src[i] === "}" && --depth === 0) break;
+  }
+  return src.slice(openIdx, i + 1);
+}
+// Every `function name(...) {…}` in demopacks.js, so the call-graph walk below can tell a
+// local helper from a method call on something else.
+const packFnBodies = new Map();
+for (const m of packSrc.matchAll(/\bfunction\s+(\w+)\s*\(/g))
+  packFnBodies.set(m[1], braceBlockAt(packSrc, packSrc.indexOf("{", m.index)));
+// The workspace tables a pack writes, transitively from its own registry hooks. Counts are
+// NOT derivable this way (a single `W.put` inside a forEach seeds four rows), which is why
+// rule (c) counts dashboards by their NAMES instead.
+function seededTables(roots) {
+  const seen = new Set(), tables = new Set(), queue = [...roots];
+  while (queue.length) {
+    const fn = queue.shift();
+    if (seen.has(fn) || !packFnBodies.has(fn)) continue;
+    seen.add(fn);
+    const body = packFnBodies.get(fn);
+    for (const m of body.matchAll(/(?:W|Studio\.Workspace)\.put\("(\w+)"/g)) tables.add(m[1]);
+    for (const m of body.matchAll(/\b(\w+)\s*\(/g)) if (packFnBodies.has(m[1])) queue.push(m[1]);
+  }
+  return [...tables].sort();
+}
+const registryBlock = braceBlockAt(packSrc, packSrc.indexOf("{", packSrc.indexOf("Studio.DEMO_PACKS = {")));
+const packRegistry = [...registryBlock.matchAll(/\n {4}(\w+): \{/g)].map((m) => {
+  const body = braceBlockAt(registryBlock, registryBlock.indexOf("{", m.index + m[0].length - 1));
+  const hooks = [...body.matchAll(/(?:install|seed):\s*function\s*\([^)]*\)\s*\{\s*(\w+)\(/g)].map((x) => x[1]);
+  const declared = +(((body.match(/seeds:\s*\{([^}]*)\}/) || [, ""])[1].match(/dashboards:\s*(\d+)/) || [])[1] || 0);
+  return {
+    id: m[1],
+    folder: (body.match(/folder:\s*"([^"]+)"/) || [, ""])[1],
+    tables: seededTables(hooks),
+    // A seeded dashboard is named `<packId>-<something>` by every installer in the file —
+    // the same convention check 23 already reads for the conservation pack.
+    seeded: new Set([...packSrc.matchAll(new RegExp(`name:\\s*"(${m[1]}-[\\w-]+)"`, "g"))].map((x) => x[1])).size,
+    declared,
+    examples: exampleList.filter((e) => e.demoPackId === m[1]).length,
+  };
+});
+const defaultInstalled = [...((packSrc.match(/DEFAULT_INSTALLED = \[([^\]]*)\]/) || [, ""])[1])
+  .matchAll(/"(\w+)"/g)].map((m) => m[1]);
+ok(`app/demopacks.js: the pack registry parsed for check 34 (${
+  packRegistry.map((p) => `${p.id}: ${p.seeded}+${p.examples} dashboards, seeds ${p.tables.join("/") || "nothing"}`).join(" · ") || "none"})`,
+  packRegistry.length >= 2 && packRegistry.every((p) => p.folder) &&
+    packRegistry.some((p) => p.tables.length) && defaultInstalled.length > 0 &&
+    packRegistry.every((p) => p.tables.every((t) => PACK_TABLE_NOUN[t])),
+  `default-installed: ${defaultInstalled.join(", ") || "(none)"}\n      ` +
+  "an unmapped table means a pack seeds a KIND nobody has given a user-facing noun — add it " +
+  "to PACK_TABLE_NOUN (check 23 shares this vocabulary)");
+// Cross-check the two dashboard derivations wherever a pack declares `seeds` — the count
+// this check spends and the count the SP-0 conformance loop already holds to the installer.
+const declaredGaps = packRegistry.filter((p) => p.declared && p.declared !== p.seeded)
+  .map((p) => `${p.id}: registry declares ${p.declared}, ${p.seeded} dashboard name(s) in the file`);
+ok("app/demopacks.js: every declared `seeds.dashboards` matches the dashboards the file actually names",
+  !declaredGaps.length,
+  `${declaredGaps.join("\n      ")}\n      ` +
+  "these are two independent readings of the same fact — when they disagree, one of them is what Help was told");
+
+const helpPacksSection = (help.match(/<h2>Sample packs<\/h2>([\s\S]*?)<h2>/) || [, ""])[1];
+const helpPackItems = [...helpPacksSection.matchAll(/<li>([\s\S]*?)<\/li>/g)].map((m) => m[1]);
+const strongTitles = (item) => [...item.matchAll(/<strong>([^<]*)<\/strong>/g)].map((m) => m[1]);
+const itemFor = (pack) => helpPackItems.filter((item) =>
+  strongTitles(item).some((t) => t.includes(pack.folder)));
+// Rules (b)–(d) read PROSE, so the markup goes and the wrapping with it — "installed\n by
+// default" is the same sentence as "installed by default", and `six <strong>dashboards`
+// is the same claim as `six dashboards`.
+const itemProse = (item) => item.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+ok(`docs/index.html: the Sample packs list parsed for check 34 (${helpPackItems.length} item(s))`,
+  !!helpPacksSection && helpPackItems.length > 0,
+  "the <h2>Sample packs</h2> section and its <ul> are what every rule below reads");
+
+// (a) one item per pack, titled with the folder the reader sees
+const missingItems = packRegistry.filter((p) => itemFor(p).length !== 1)
+  .map((p) => `${p.id} ("${p.folder}"): ${itemFor(p).length} item(s) in the list`);
+ok(`docs/index.html: every sample pack has its own entry in Help (${packRegistry.map((p) => p.folder).join(", ")})`,
+  !missingItems.length,
+  `${missingItems.join("\n      ")}\n      ` +
+  "a pack the app offers and Help does not list is a pack a reader installs blind — title the " +
+  "entry with the pack's `folder`, the name they will see in every catalog");
+
+// (b) an entry names every KIND its installer seeds
+const kindGaps = [];
+for (const p of packRegistry) {
+  const item = itemFor(p)[0] && itemProse(itemFor(p)[0]);
+  if (!item) continue;
+  for (const t of p.tables) {
+    const noun = PACK_TABLE_NOUN[t];
+    // "View" is a proper noun (LF57) and is matched as one — check 23's rule.
+    if (!new RegExp(`\\b${noun}s?\\b`, /^[A-Z]/.test(noun) ? "" : "i").test(item))
+      kindGaps.push(`"${p.folder}" seeds ${t} but its Help entry never says "${noun}"`);
+  }
+}
+ok("docs/index.html: every pack entry names every kind of thing its installer seeds",
+  !kindGaps.length,
+  `${kindGaps.join("\n      ")}\n      ` +
+  "the entry is where a reader learns what one click gave them — a pack that seeds connections, " +
+  "datasets and a job while Help talks only about dashboards under-sells its own data story");
+
+// (c) every dashboard count is one of the pack's real numbers
+const countClaimGaps = [];
+let packCountClaims = 0;
+for (const p of packRegistry) {
+  const item = itemFor(p)[0] && itemProse(itemFor(p)[0]);
+  if (!item) continue;
+  const real = [...new Set([p.seeded, p.examples, p.seeded + p.examples].filter(Boolean))];
+  // The number belongs to the noun, not to a fixed slot before it: "six dashboards",
+  // "eight extra showcase dashboards" and "all fourteen dashboards" are the three shapes
+  // this section actually uses, so take any number in the three words leading up to it.
+  for (const m of item.matchAll(/((?:[\w-]+ ){1,3})dashboards\b/gi)) {
+    const n = m[1].trim().split(" ").map(asNumber).find((x) => x !== undefined);
+    if (n === undefined) continue;
+    packCountClaims++;
+    if (!real.includes(n))
+      countClaimGaps.push(`"${p.folder}": "…${m[0].trim()}" — the pack seeds ` +
+        `${p.seeded} and materializes ${p.examples} from the gallery (${real.join(" / ")})`);
+  }
+}
+ok(`docs/index.html: every pack's dashboard count is a number the pack actually produces (${packCountClaims} claim(s))`,
+  packCountClaims > 0 && !countClaimGaps.length,
+  (packCountClaims ? countClaimGaps.join("\n      ")
+    : "no entry states a dashboard count at all — a pack sold on its dashboards should say how many") +
+  "\n      seeded, materialized, or the sum: any of the three is true, anything else is arithmetic nobody re-did");
+
+// (d) "installed by default" is a fact about DEFAULT_INSTALLED
+const defaultGaps = [];
+for (const p of packRegistry) {
+  const item = itemFor(p)[0] && itemProse(itemFor(p)[0]);
+  if (!item) continue;
+  const claims = /installed by default/i.test(item);
+  if (claims && !defaultInstalled.includes(p.id))
+    defaultGaps.push(`"${p.folder}" says it is installed by default, but DEFAULT_INSTALLED is [${defaultInstalled.join(", ")}]`);
+  if (!claims && defaultInstalled.includes(p.id))
+    defaultGaps.push(`"${p.folder}" IS in DEFAULT_INSTALLED, but its Help entry never says so`);
+}
+ok(`docs/index.html: the pack Help calls "installed by default" is the one in DEFAULT_INSTALLED (${defaultInstalled.join(", ")})`,
+  !defaultGaps.length,
+  `${defaultGaps.join("\n      ")}\n      ` +
+  "what a fresh workspace contains is the first thing a new reader sees — when the default moves, this sentence has to move with it");
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

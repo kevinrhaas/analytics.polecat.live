@@ -14,14 +14,36 @@ moves — nothing is ever deleted.
 
 ## Item identity — stable IDs, never renumbered
 
-- Every item has a **stable ID** it keeps for life: the historical series keep
-  their meaning (`AUD-nn` audit, `LF-nn` live feedback, `VB-n` View Builder,
-  `QA-nn`, `SWEEP<issue>-n`, `M<n>` milestones, `KH-###` Kevin-reported
-  fleet-wide), and items born in the NOW queue mint the next **`N<n>`** — take
-  the highest existing N-number + 1, even if lower numbers have shipped.
+- Every item has a **stable ID** it keeps for life. This table is the FULL
+  registry of series — an ID not minted from it is a contract violation:
+
+  | Series | Meaning | Status |
+  |---|---|---|
+  | `N<n>` | born in the ▶ NOW queue — **the default for all new work** | open |
+  | `SP-<n>` | the sample-pack program (SP-0 machinery, SP-1.. packs) | open |
+  | `DUR-<n>` | backend durability (the 🛡 epic, 2026-08-08). **Distinct from the legacy `DURABLE-n` series (2026-07, closed)** — always write the full prefix to keep them apart | open |
+  | `AUD-nn` | audit findings | historical — closed to new mints |
+  | `LF-nn` | live feedback | historical — closed to new mints |
+  | `VB-n` | View Builder | historical — closed to new mints |
+  | `QA-nn` | QA report | historical — closed to new mints |
+  | `SWEEP<issue>-n` | UX sweeps | historical — closed to new mints |
+  | `M<n>` | milestones | historical — closed to new mints |
+  | `DURABLE-n`, `CONS-n`, `LIVE-x`, `USERS-*`, ad-hoc CAPS names | pre-contract legacy labels | historical — closed to new mints |
+  | `KH-###` | Kevin-reported fleet-wide (minted in kevinrhaas/custom) | open, minted OUTSIDE this repo only |
+
+  Items in an open series mint the next number — highest existing + 1, even if
+  lower numbers have shipped. "Historical" series keep their meaning forever
+  (never renumber, never reuse), but new items must NOT extend them: a new
+  Kevin report is an `N<n>` here, not a new LF.
+- **Minting a NEW series is a registry change, not a naming choice.** Default
+  to `N<n>` — a series prefix is only warranted for a named PROGRAM of ≥4
+  related items that Kevin has approved as a program (SP and DUR are the
+  models). Whoever mints one must add its row to the table above IN THE SAME
+  PR; an unregistered prefix appearing anywhere in STATUS.md is a grooming
+  defect to fix on sight.
 - **The number is identity, not rank.** Priority is the item's *position* in the
   NOW list. Reordering the list never touches an ID; an ID is never reused; a
-  split keeps the parent ID with suffixes (`N5a`, `N5b`).
+  split keeps the parent ID with suffixes (`N5a`, `N5b`, `SP-16a`).
 
 ## The item line — one grammar, so humans and tooling parse the same thing
 

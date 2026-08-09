@@ -14,7 +14,8 @@
 // to ship ~5KB of worker) until AUD-08 moved them to docs/sw-history.md. A
 // budget is the cheap way to make that regression loud instead of invisible.
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { createContext, runInContext } from "node:vm";
 
 const files = execFileSync("git", ["ls-files", "*.js", "*.mjs"], { encoding: "utf8" })
   .split("\n").filter(Boolean)
@@ -50,5 +51,191 @@ for (const { file, max, why } of BUDGETS) {
   }
 }
 
+// ---- SP-0 (b): the sample-pack DATA gate (docs/PACKS.md) --------------------------
+// A pack that ships REAL data ships it as committed CSV under data/packs/<id>/,
+// written by a re-runnable tools/pack-extract/<id>.mjs, declared by a `source` on its
+// app/demopacks.js registry entry. Four ways that decays silently, so all four are
+// checked here — in the dev gate, browser-free, in milliseconds:
+//   1. data with no extract script — unreproducible the day someone asks where a
+//      column came from, which is the whole reason the convention exists;
+//   2. a pack directory (or a script) nobody registered — dead weight in every clone;
+//   3. CSV creep — the workspace is ONE localStorage blob and twelve packs coexist in
+//      it, so the ≤150KB per pack is a budget, not an aspiration (same mechanism that
+//      holds sw.js above, and for the same reason: make the regression loud);
+//   4. somebody else's licensed data with no THIRD-PARTY-NOTICES.md line.
+const PACK_CSV_BUDGET = 150 * 1024;
+
+// Brace-walk to a top-level object literal's body, so a nested `{` inside an entry
+// can never end the block early (same technique as tools/doc-truth.mjs).
+function objectBlock(src, marker) {
+  const start = src.indexOf(marker);
+  if (start < 0) throw new Error(`validate: ${marker} not found`);
+  let depth = 0, open = src.indexOf("{", start), i = open;
+  for (; i < src.length; i++) {
+    if (src[i] === "{") depth++;
+    else if (src[i] === "}" && --depth === 0) break;
+  }
+  return src.slice(open, i + 1);
+}
+
+const packSrc = readFileSync("app/demopacks.js", "utf8");
+const registryBlock = objectBlock(packSrc, "Studio.DEMO_PACKS = {");
+// Entry keys are the block's 4-space-indented `<id>: {` lines — the file's one
+// consistent convention, and the same shape the SP-0 conformance loop relies on.
+const packEntries = {};
+for (const m of registryBlock.matchAll(/\n {4}([a-z][a-z0-9]*): \{/g)) {
+  packEntries[m[1]] = objectBlock(registryBlock.slice(m.index), `${m[1]}: {`);
+}
+const packIds = Object.keys(packEntries);
+const packFail = (msg) => { failed++; console.error(`PACK FAIL: ${msg}`); };
+if (!packIds.length) packFail("app/demopacks.js registers no packs — the registry regex or the file's shape moved");
+
+// Every registry entry declares a source, and a licensed one is credited.
+const notices = readFileSync("THIRD-PARTY-NOTICES.md", "utf8");
+for (const id of packIds) {
+  const entry = packEntries[id];
+  const kind = (entry.match(/source: \{[^}]*kind: "([a-z]+)"/) || [])[1];
+  if (!kind) { packFail(`app/demopacks.js: pack "${id}" declares no source — see docs/PACKS.md`); continue; }
+  if (!["synthetic", "public", "licensed"].includes(kind)) {
+    packFail(`app/demopacks.js: pack "${id}" has source kind "${kind}" — one of synthetic/public/licensed`);
+    continue;
+  }
+  const name = (entry.match(/source: \{[^}]*name: "([^"]+)"/) || [])[1];
+  if (kind === "licensed") {
+    if (!name) packFail(`app/demopacks.js: pack "${id}" ships licensed data with no source name`);
+    else if (!notices.includes(name)) {
+      packFail(`THIRD-PARTY-NOTICES.md does not mention "${name}" — pack "${id}" ships licensed data and must be credited there`);
+    }
+  }
+}
+
+// The data directories and the extract scripts, each way round.
+const readDirSafe = (d) => { try { return readdirSync(d, { withFileTypes: true }); } catch { return []; } };
+const scriptIds = readDirSafe("tools/pack-extract")
+  .filter((e) => e.isFile() && e.name.endsWith(".mjs") && e.name !== "lib.mjs")
+  .map((e) => e.name.replace(/\.mjs$/, ""));
+for (const id of scriptIds) {
+  if (!packIds.includes(id)) packFail(`tools/pack-extract/${id}.mjs has no pack "${id}" in app/demopacks.js`);
+}
+for (const e of readDirSafe("data/packs")) {
+  if (!e.isDirectory()) continue;
+  const id = e.name;
+  if (!packIds.includes(id)) { packFail(`data/packs/${id}/ has no pack "${id}" in app/demopacks.js`); continue; }
+  if (!scriptIds.includes(id)) packFail(`data/packs/${id}/ has no extract script — data ships with tools/pack-extract/${id}.mjs, its provenance record (docs/PACKS.md)`);
+  const entries = readDirSafe(`data/packs/${id}`).filter((f) => f.isFile());
+  if (!entries.some((f) => f.name === "SOURCE.json")) packFail(`data/packs/${id}/SOURCE.json is missing — writePack() emits it`);
+  const stray = entries.filter((f) => f.name !== "SOURCE.json" && !f.name.endsWith(".csv")).map((f) => f.name);
+  if (stray.length) packFail(`data/packs/${id}/ holds non-CSV data (${stray.join(", ")}) — pack data is CSV plus SOURCE.json`);
+  const bytes = entries.filter((f) => f.name.endsWith(".csv"))
+    .reduce((n, f) => n + readFileSync(`data/packs/${id}/${f.name}`).length, 0);
+  if (bytes > PACK_CSV_BUDGET) {
+    packFail(`data/packs/${id}/ is ${(bytes / 1024).toFixed(1)}KB of CSV, over the ${PACK_CSV_BUDGET / 1024}KB per-pack budget — ` +
+      "subset or aggregate harder in the extract; every installed pack shares one localStorage workspace");
+  }
+}
+
+// ---- N21: the connect wizard's SQL IS the canonical posture ----------------
+// The wizard's "run this once in the SQL editor" script and
+// tools/supabase-deploy.sql are the two supported ways to stand up a workspace
+// database, and they had silently diverged: the file installed the real
+// Row-Level Security posture, the wizard installed pre-M7 tables and a comment
+// saying to sort the security out yourself. app/sources/schema.js now carries
+// that posture (WS.RLS_REAL_SQL) VERBATIM from the file's own § 2–6c, so the
+// two cannot disagree — this check is what makes "verbatim" true rather than
+// aspirational. Comment lines are ignored on both sides (the constant is
+// stripped of the file's prose); every statement must match exactly.
+const sqlCode = (s) =>
+  s.split("\n").filter((l) => !/^\s*--/.test(l)).join("\n").replace(/\s+/g, " ").trim();
+
+const deploySql = readFileSync("tools/supabase-deploy.sql", "utf8").split("\n");
+const postureStart = deploySql.findIndex((l) => /^-- 2\) RLS ON/.test(l));
+const postureEnd = deploySql.findIndex((l) => /^NOTIFY pgrst/.test(l));
+const embedded = (/WS\.RLS_REAL_SQL = `([\s\S]*?)`;/.exec(readFileSync("app/sources/schema.js", "utf8")) || [])[1];
+const postureFail = (msg) => { failed++; console.error(`POSTURE FAIL: ${msg}`); };
+
+if (postureStart < 0 || postureEnd < postureStart) {
+  postureFail("tools/supabase-deploy.sql: could not find § 2 … NOTIFY pgrst — the section markers this check reads moved");
+} else if (embedded == null) {
+  postureFail("app/sources/schema.js no longer defines WS.RLS_REAL_SQL as a template literal — the wizard's script is where the posture reaches real users");
+} else {
+  const fromFile = sqlCode(deploySql.slice(postureStart, postureEnd + 1).join("\n"));
+  if (sqlCode(embedded) !== fromFile) {
+    postureFail("app/sources/schema.js WS.RLS_REAL_SQL has drifted from tools/supabase-deploy.sql § 2–6c — " +
+      "the connect wizard would install a DIFFERENT posture than the deploy file. Copy the file's § 2–6c over the constant " +
+      "(prose comments stripped) in the same commit as any posture change.");
+  }
+  // Whatever the two agree on, it must still be the LOCKED posture: one
+  // leftover allow-all policy ORs itself over every tighter policy beside it
+  // (the 2026-07-30 live incident), so the wizard must never create one.
+  if (/CREATE POLICY\s+"?polecat_(open_rw|anon_all)"?/i.test(embedded)) {
+    postureFail("app/sources/schema.js WS.RLS_REAL_SQL creates an allow-all policy (polecat_open_rw / polecat_anon_all) — " +
+      "permissive policies OR together, so that one line reopens the whole workspace to the anon key");
+  }
+}
+
+// ---- N22b: the migration RPC is the SAME SQL, wrapped ----------------------
+// § 6d of tools/supabase-deploy.sql installs `polecat_migrate()` — the
+// admin-gated function that lets the app upgrade a database it already owns,
+// so the one manual paste stays the ONLY one. Its body embeds the posture
+// above it, which means there are now three ways for it to rot silently: the
+// file's copy drifting from the generator, the embedded posture drifting from
+// § 2–6c, and somebody "helpfully" giving it a raw-SQL parameter. All three
+// are checked here, in the same gate and by the same means as the posture
+// check above — the item asked for the existing guard to be EXTENDED rather
+// than a second one minted.
+//
+// The generator is read the way the browser reads it (a context whose global
+// object IS `window`, exactly what tests/rls.mjs does) so this compares the
+// bytes that actually ship, not a paraphrase of them.
+const rpcFail = (msg) => { failed++; console.error(`RPC FAIL: ${msg}`); };
+let WS = null;
+try {
+  const sandbox = {};
+  sandbox.window = sandbox;
+  sandbox.globalThis = sandbox;
+  createContext(sandbox);
+  runInContext(readFileSync("app/sources/schema.js", "utf8"), sandbox, { filename: "app/sources/schema.js" });
+  WS = sandbox.Studio && sandbox.Studio.WS;
+} catch (e) {
+  rpcFail(`app/sources/schema.js did not load in a bare window context: ${e.message}`);
+}
+if (WS && typeof WS.migrationRpcSQL !== "function") {
+  rpcFail("app/sources/schema.js no longer exposes WS.migrationRpcSQL() — the migration RPC is how the app owns the database after the one paste (N22b)");
+} else if (WS) {
+  const rpc = WS.migrationRpcSQL();
+  const rpcStart = deploySql.findIndex((l) => /^-- 6d\) THE MIGRATION RPC/.test(l));
+  const adminStart = deploySql.findIndex((l) => /^-- 7\) FIRST ADMIN/.test(l));
+  if (rpcStart < 0 || adminStart < rpcStart) {
+    rpcFail("tools/supabase-deploy.sql: could not find § 6d … § 7 — the section markers this check reads moved");
+  } else if (sqlCode(deploySql.slice(rpcStart, adminStart).join("\n")) !== sqlCode(rpc)) {
+    rpcFail("tools/supabase-deploy.sql § 6d has drifted from app/sources/schema.js WS.migrationRpcSQL() — " +
+      "the pasted file would install a DIFFERENT migration function than the connect wizard. Regenerate § 6d from the function in the same commit.");
+  }
+  // The body must BE the posture, not a second opinion about it.
+  if (!sqlCode(rpc).includes(sqlCode(WS.RLS_REAL_SQL))) {
+    rpcFail("WS.migrationRpcSQL() no longer embeds WS.RLS_REAL_SQL verbatim — a migration that installs its own idea of the posture " +
+      "is how the go-live path drifted to a weaker one (N2 slice 2)");
+  }
+  // The security contract, stated as checks so it survives the next edit.
+  if (!/SECURITY DEFINER/.test(rpc)) rpcFail("WS.migrationRpcSQL(): the migration RPC must be SECURITY DEFINER — DDL and CREATE POLICY are owner-only");
+  if (!/administrators only/.test(rpc) || !/"role" = 'admin'/.test(rpc)) {
+    rpcFail("WS.migrationRpcSQL(): the admin gate is gone — SECURITY DEFINER makes that gate the whole security boundary");
+  }
+  if (!/REVOKE ALL ON FUNCTION public\.polecat_migrate\(text\) FROM anon/.test(rpc)) {
+    rpcFail("WS.migrationRpcSQL(): anon must not hold EXECUTE — the anon key ships inside a public repo");
+  }
+  // The escape hatch that must never appear: SQL arriving as an argument.
+  if (/EXECUTE\s+(mode|sql|stmt|query)\b/.test(rpc) || /\(\s*sql\s+text/.test(rpc)) {
+    rpcFail("WS.migrationRpcSQL(): the function executes a PARAMETER — a SECURITY DEFINER function that runs caller-supplied SQL is a superuser shell. The DDL is fixed, baked in at generation time.");
+  }
+  // Both supported paths install it, or the app only owns half its databases.
+  if (WS.freshDeploySQL(WS.emptySnapshot(), null).indexOf("FUNCTION public.polecat_migrate") < 0) {
+    rpcFail("the connect wizard's script (WS.freshDeploySQL) no longer installs the migration RPC — a database adopted from the UI would still need the SQL editor to upgrade");
+  }
+}
+
 if (failed) { console.error(`validate: ${failed} file(s) failed`); process.exit(1); }
-console.log(`validate: ${files.length} files parse clean; boot-path files within budget`);
+console.log(`validate: ${files.length} files parse clean; boot-path files within budget; ` +
+  `${packIds.length} sample pack(s) declare a source, ${scriptIds.length} extract script(s) registered; ` +
+  `the connect wizard's posture matches tools/supabase-deploy.sql § 2–6c, and its § 6d migration RPC ` +
+  `is that same posture wrapped in an admin-gated, fixed-DDL function`);

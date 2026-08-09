@@ -461,6 +461,32 @@
         };
       }
       window.__studioPersistFailBanner = renderPersistFailBanner; // test hook
+      // N16: the backend-version banner. A workspace built by a NEWER release of
+      // Analytics is safe to READ but must never be written by this build, so
+      // sync latches writes off — and the user has to be told, or the app looks
+      // like it is saving when nothing is leaving the browser. Same episode
+      // semantics as its two siblings: a dismissal holds while the condition
+      // lasts and clears the moment the versions line up again.
+      var _verDismissed = false;
+      function renderVersionBanner(st) {
+        var b = document.getElementById("schemaVersionBanner");
+        if (!st || !st.readOnly) { _verDismissed = false; if (b) b.remove(); return; }
+        if (_verDismissed) { if (b) b.remove(); return; }
+        if (!b) {
+          b = el("div"); b.id = "schemaVersionBanner"; b.className = "sync-loss-banner";
+          document.body.appendChild(b);
+        }
+        b.innerHTML = "<span>" +
+          "<b>This workspace was created by a newer version of Analytics — it’s open read-only.</b> " +
+          "Saving to the backend is turned off so this older build can’t overwrite what it can’t see" +
+          " (workspace schema v" + Studio.escapeHtml(String(st.backendSchemaVersion)) +
+          ", this app reads v" + Studio.escapeHtml(String(st.appSchemaVersion)) + ")." +
+          " Edits you make stay in this browser. Reload the page to pick up the update — if it keeps" +
+          " coming back, use Settings → hard reset to clear a stuck offline copy of the app.</span>" +
+          "<button type=\"button\" class=\"sync-loss-x\" title=\"Dismiss until the versions line up\" aria-label=\"Dismiss\">✕</button>";
+        b.querySelector(".sync-loss-x").onclick = function () { _verDismissed = true; b.remove(); };
+      }
+      window.__studioVersionBanner = renderVersionBanner; // test hook
       Studio.Workspace.on("persistfail", renderPersistFailBanner);
       // late boot: if persists were already failing before this listener wired
       if (Studio.Workspace.persistFailed) {
@@ -473,10 +499,15 @@
         // Kevin's ask: say what the STATE is, not which backend — "Local" with no
         // workspace, "Connected" while the mirror is working (syncing IS working),
         // and an honest "Reconnecting…" while the backoff self-heal is retrying.
+        // N16: "Connected" would be a lie while writes are latched off — a
+        // read-only workspace says so in the one place that is always on screen.
         if (lbl) lbl.textContent = st.sourceId === "local" ? "Local"
+          : st.readOnly ? "Read-only"
           : st.status === "connected" || st.status === "syncing" ? "Connected"
           : st.status === "error" ? "Reconnecting…" : "Connecting…";
-        if (rs) rs.title = "Workspace backend — " + st.label + (st.lastError ? " · " + st.lastError : "");
+        if (rs) rs.title = "Workspace backend — " + st.label +
+          (st.readOnly ? " · read-only: the workspace (schema v" + st.backendSchemaVersion + ") is newer than this app (v" + st.appSchemaVersion + ")" : "") +
+          (st.lastError ? " · " + st.lastError : "");
         // A push failure used to be invisible (just this rail dot): say it once,
         // loudly, so a broken mirror can't masquerade as "everything saved".
         if (st.status === "error" && st.lastError && st.lastError !== _lastSyncErrToasted) {
@@ -488,6 +519,7 @@
         // by the remote (how Kevin's dashboards vanished). Keep a persistent banner
         // up until a push actually lands.
         renderSyncLossBanner(st);
+        renderVersionBanner(st); // N16
         renderWorkspaceBackendCard();
         renderConnections(); // QA-02: credential-storage note tracks live sync state
       });
@@ -519,6 +551,10 @@
       window.addEventListener("pagehide", function () { try { Studio.Sync.pushNow(); } catch (e) {} });
       // heal pack dashboards materialized before the 2026-07-30 rename/folder change
       reconcilePackDashboards();
+      // SP-1: and finish materializing any installed pack whose data is committed CSV —
+      // idempotent, registry-driven (app/demopacks.js), and quiet when there is nothing
+      // to do, so a pack whose first install raced a cold cache heals on the next load.
+      if (Studio.ensureAllPackDataMaterialized) Studio.ensureAllPackDataMaterialized();
       renderSettings();
       renderAdmin();
       if (window.StudioWelcome) { var ab = $("#btnAbout"); if (ab) ab.onclick = function () { StudioWelcome.open(); }; setTimeout(function () { StudioWelcome.maybeShow(); }, 300); }
@@ -1056,7 +1092,9 @@
   // Kevin (2026-07-30): pack dashboards install INTO a folder named for their
   // pack, and their own titles lead (the shared "Conservation Insight — " prefix
   // made every card in the grid read identical).
-  var PACK_FOLDERS = { conservation: "Conservation Insight", datamanagement: "Data Management" };
+  // SP-0: the folder names moved ONTO the registry entries (app/demopacks.js `folder`),
+  // so this file no longer keeps a parallel literal map in sync with them.
+  function packFolder(id) { return (Studio.demoPackFolder && Studio.demoPackFolder(id)) || ""; }
   function ensurePackExamplesMaterialized(id) {
     if (!Studio.demoPackInstalled(id)) return Promise.resolve();
     var entries = (S.examples || []).filter(function (e) { return e.demoPackId === id; });
@@ -1072,7 +1110,7 @@
         Studio.Workspace.put("dashboards", {
           name: norm.name || e.title, title: norm.title || e.title,
           ts: new Date().toISOString(), spec: norm, demoPackId: e.demoPackId, sourceFile: e.file,
-          folder: PACK_FOLDERS[e.demoPackId] || ""
+          folder: packFolder(e.demoPackId)
         });
       }).catch(function () { /* a missing/broken example shouldn't block materializing the rest */ });
     }));
@@ -1090,18 +1128,37 @@
       var upd = false;
       if (typeof r.title === "string" && LEGACY.test(r.title)) { r.title = r.title.replace(LEGACY, ""); upd = true; }
       if (r.spec && typeof r.spec.title === "string" && LEGACY.test(r.spec.title)) { r.spec.title = r.spec.title.replace(LEGACY, ""); upd = true; }
-      var fld = PACK_FOLDERS[r.demoPackId];
+      var fld = packFolder(r.demoPackId);
       if (fld && !r.folder) { r.folder = fld; upd = true; }
       if (upd) { Studio.Workspace.put("dashboards", r, { silent: true }); changed = true; }
     });
     if (changed) Studio.Workspace.notify("dashboards");
+    // SP-0(b): a pack carrying somebody else's data credits it where the work is READ.
+    // The Settings card is where you install a pack; the dashboard is where you (and
+    // whoever you hand the export to) actually look at the numbers, so the source line
+    // rides in the subtitle too. Backfilled here rather than only at seed time so an
+    // install that predates the pack's source declaration heals without a reinstall,
+    // and idempotent on the line's own text so it can never accumulate. Every pack
+    // shipped today is synthetic, so this is inert until the first real-data pack.
+    var attrChanged = false;
+    Studio.Workspace.all("dashboards").forEach(function (r) {
+      if (!r.demoPackId || !r.spec) return;
+      if (!Studio.packNeedsAttribution || !Studio.packNeedsAttribution(r.demoPackId)) return;
+      var line = Studio.demoPackSourceLine(r.demoPackId);
+      if (!line || String(r.spec.subtitle || "").indexOf(line) >= 0) return;
+      var sub = String(r.spec.subtitle || "").replace(/\s+$/, "");
+      r.spec.subtitle = sub ? sub + " · " + line : line;
+      Studio.Workspace.put("dashboards", r, { silent: true });
+      attrChanged = true;
+    });
+    if (attrChanged) Studio.Workspace.notify("dashboards");
     // SAMPLE-DATA-1 (Kevin live, 2026-07-30): one folder per pack across ALL object
     // types — heal workspaces installed before pack seeds carried a folder, without a
     // reinstall (the same backfill installDemoPack now does up front).
     ["datasets", "jobs", "analyses", "connections"].forEach(function (t) {
       var tChanged = false;
       Studio.Workspace.all(t).forEach(function (r) {
-        var fld = r.demoPackId && PACK_FOLDERS[r.demoPackId];
+        var fld = r.demoPackId && packFolder(r.demoPackId);
         if (fld && !r.folder) { r.folder = fld; Studio.Workspace.put(t, r, { silent: true }); tChanged = true; }
       });
       if (tChanged) Studio.Workspace.notify(t);
@@ -1158,6 +1215,14 @@
     // FILTERS-1 heal: pre-existing installs get the practice/sinceYear param
     // declarations on the featured dashboard's geo/KPI/provider DAs.
     try { if (Studio.ensureConservationFilterParams) Studio.ensureConservationFilterParams(); } catch (e) {}
+    // SP-1(b) heal: a workspace that installed Market Coverage while it was slice (a)
+    // — the Census data and the join job, no dashboards — gets the three dashboards on
+    // boot, without a reinstall. A no-op once they exist, and a no-op while the pack's
+    // CSV is still materializing (that path seeds them itself).
+    try { if (Studio.ensureMarketCoverageDashboards) Studio.ensureMarketCoverageDashboards(); } catch (e) {}
+    // SP-1(c) heal, the same shape one slice later: an install that predates the pack's
+    // pinned Views gets them on boot rather than at a reinstall.
+    try { if (Studio.ensureMarketCoverageViews) Studio.ensureMarketCoverageViews(); } catch (e) {}
   }
   window.__studioReconcilePackDashboards = reconcilePackDashboards; // test hook
 
@@ -8352,6 +8417,13 @@
     var sec = Studio.Sync.secretsState();
     var dot = st.status === "connected" ? "ok" : (st.status === "error" ? "bad" : (st.status === "local" ? "" : "busy"));
     var statusLine = st.status === "local" ? "Changes stay in this browser only"
+      // N16: never claim "changes mirror automatically" while the version
+      // handshake has writes latched off.
+      : st.readOnly ? "Read-only — this workspace (schema v" + st.backendSchemaVersion + ") was created by a newer version of Analytics than this one (v" + st.appSchemaVersion + "). Changes stay in this browser until the app updates."
+      // N16 slice 2: an OLDER workspace is not broken — every change to the
+      // workspace shape has only ever added to it — so this reads as an offer,
+      // not an alarm, and the step itself is right below.
+      : st.status === "connected" && st.schemaRelation === "older" ? "Connected — changes mirror automatically. This workspace was made by an earlier version of Analytics (schema v" + st.backendSchemaVersion + ", this app writes v" + st.appSchemaVersion + ") — you can upgrade it below."
       : st.status === "connected" ? "Connected — changes mirror automatically" + (st.lastPushAt ? " · last sync " + new Date(st.lastPushAt).toLocaleTimeString() : "")
       : st.status === "syncing" ? "Syncing…"
       : st.status === "connecting" ? "Connecting…"
@@ -8425,6 +8497,66 @@
           '</div>';
       }
     }
+    // N16 slice 2 — the "Upgrade workspace" step, first-class instead of a
+    // string glued onto a failed save. An older workspace is not an error (the
+    // shape has only ever grown), so this is an offer sitting quietly on the
+    // card, with the two things that make it safe stated up front: nothing
+    // stored is touched, and a backup downloads before anything is written.
+    // Backends that can't change their own structure from a browser (Supabase)
+    // come back with the script instead — same step, one paste in the middle.
+    var upgradeHtml = "";
+    if (st.isRemote && st.schemaRelation === "older") {
+      var upgSql = renderWorkspaceBackendCard._upgradeSql || "";
+      var sqlWhere = st.sourceId === "supabase" ? "Supabase → SQL editor" : "your database's SQL console";
+      // N22b slice 2 — Supabase is no longer "always a paste". A database stood
+      // up by either modern setup path carries the migration function, and the
+      // button really does the upgrade; one that predates it still needs the
+      // single run in the SQL editor. Say which of the two THIS database is,
+      // before the button is pressed — the card must never promise a step the
+      // backend can't honour. The state comes from the adapter's own memo, and
+      // when nothing has asked yet one side-effect-free probe answers it and
+      // re-renders (asked at most once per page, exactly like the atomic one).
+      var upgWhere = "";
+      if (st.sourceId === "supabase" && Studio.supabaseSource.migrateState) {
+        var migCfg = Studio.Sync.currentConfig() || {};
+        var migState = Studio.supabaseSource.migrateState(migCfg);
+        if (migState === "unknown") {
+          if (!renderWorkspaceBackendCard._migrateAsked) {
+            renderWorkspaceBackendCard._migrateAsked = true;
+            Studio.supabaseSource.checkMigrate(migCfg).then(function (v) {
+              if (v !== undefined) renderWorkspaceBackendCard();
+            });
+          }
+        } else if (migState === "yes") {
+          upgWhere = ' This database can upgrade itself, so the button does the whole thing from here.';
+        } else {
+          upgWhere = ' This database was set up before in-app upgrades existed, so it needs one run in ' +
+            esc(sqlWhere) + ' — the script appears here when you press the button.';
+        }
+      }
+      upgradeHtml = '<div class="ws-secrets ws-upgrade">' +
+        '<span class="cx-name"><b>Upgrade this workspace</b><small>' +
+          'It was made by an earlier version of Analytics (schema v' + esc(String(st.backendSchemaVersion)) +
+          '); this app writes v' + esc(String(st.appSchemaVersion)) + '. Everything works today — newer versions have only ever ' +
+          'ADDED to a workspace — but the parts they added have nowhere to be stored until it is upgraded. ' +
+          'Upgrading adds them and changes nothing you have saved. A full backup of the workspace downloads first, every time.' +
+          upgWhere +
+        '</small></span>' +
+        '<span class="cx-actions ws-actions"><button type="button" class="btn primary" id="wsUpgradeBtn">Upgrade workspace</button></span>' +
+        (upgSql ? '<small class="ws-upgrade-note">Your backup has downloaded. ' +
+          esc(renderWorkspaceBackendCard._upgradeNote ||
+            "This backend can’t change its own structure from a browser, so the upgrade is one paste:") +
+          ' run this once in ' + esc(sqlWhere) + ', then re-check. It is safe to run twice.</small>' +
+          '<pre class="ws-sync-err-sql"><code>' + esc(upgSql) + '</code></pre>' +
+          '<span class="cx-actions ws-actions">' +
+            '<button type="button" class="btn" id="wsUpgradeCopyBtn">Copy SQL</button>' +
+            '<button type="button" class="btn" id="wsUpgradeRecheckBtn">I’ve run it — re-check</button>' +
+          '</span>' : "") +
+        '</div>';
+    } else if (renderWorkspaceBackendCard._upgradeSql) {
+      renderWorkspaceBackendCard._upgradeSql = ""; // the workspace moved on
+      renderWorkspaceBackendCard._upgradeNote = "";
+    }
     card.innerHTML = '<h2>Workspace backend</h2>' +
       '<p class="ws-card-intro">Where this workspace\'s catalog lives — dashboards, datasets and connections. Local by default; connect a database to reach the same workspace from any browser. <b>' + esc(credLine) + '</b></p>' +
       '<div class="ws-current">' +
@@ -8450,8 +8582,23 @@
               ? (sec.locked ? '<button type="button" class="btn primary" id="wsUnlockBtn">Unlock…</button>' : '<button type="button" class="btn" id="wsSecretsOffBtn">Turn off</button>')
               : '<button type="button" class="btn" id="wsSecretsOnBtn"' + (sec.available ? "" : " disabled title=\"WebCrypto unavailable\"") + '>Encrypt secrets…</button>') +
           '</span></div>' : "") +
+      upgradeHtml +
       atomicHtml +
+      // N24 slice 2: the saved-workspace list, the same one the sign-in screen's
+      // picker offers, managed from the same shared panel (app/workspaces.js) —
+      // rename, set the default, export an access file, remove. It is listed even
+      // on a local-only workspace: that is exactly when you want to hand someone
+      // the file for a workspace you defined and are not currently inside.
+      '<div class="ws-saved"><h3>Saved workspaces</h3>' +
+        '<p class="ws-saved-intro">The workspaces this browser can pick on the sign-in screen. The default is the one it opens on; an access file lets someone else reach a workspace — they still sign in with their own account, so only share one for a workspace whose security posture expects it.</p>' +
+        '<div id="wsSavedList"></div></div>' +
       syncLogHtml;
+    if (window.STUDIO_WS_STORE) {
+      window.STUDIO_WS_STORE.renderManager($("#wsSavedList", card), {
+        onChange: renderWorkspaceBackendCard,   // keep the Connected/Default markers true
+        write: function (name, text) { download(name, text, "application/json"); }
+      });
+    }
     var refreshBtn = $("#wsRefreshBtn", card);
     if (refreshBtn) refreshBtn.onclick = function () {
       refreshBtn.disabled = true;
@@ -8473,6 +8620,53 @@
         .then(function () { toast("SQL copied — paste it into Supabase → SQL editor, then hit Retry now"); },
               function () { window.prompt("Copy this SQL:", sql); });
     };
+    // N16 slice 2 — run the upgrade. The backup writer is passed IN (Sync has
+    // no DOM and refuses to upgrade without one), so the download is not a
+    // courtesy the UI can forget: no writer, no upgrade.
+    var upgradeBtn = $("#wsUpgradeBtn", card);
+    if (upgradeBtn) upgradeBtn.onclick = function () {
+      upgradeBtn.disabled = true;
+      Studio.Sync.upgradeWorkspace({
+        backup: function (payload) {
+          download("analytics-workspace-backup-v" + payload.backendSchemaVersion + "-" +
+            new Date().toISOString().slice(0, 10) + ".json", JSON.stringify(payload, null, 2), "application/json");
+        }
+      }).then(function (r) {
+        if (r && r.ok) {
+          renderWorkspaceBackendCard._upgradeSql = "";
+          renderWorkspaceBackendCard._upgradeNote = "";
+          toast("Workspace upgraded to v" + r.to + " — the backup downloaded first.");
+        } else if (r && r.manual) {
+          renderWorkspaceBackendCard._upgradeSql = r.sql || "";
+          // N22b slice 2: when the database HAS the migration function and still
+          // wouldn't run it (wrong account, no users table yet), the refusal it
+          // raised is what the user needs to read — not the generic "this
+          // backend can't do it", which would be a lie about this database.
+          renderWorkspaceBackendCard._upgradeNote = r.rpcError || "";
+          toast(r.rpcError || "Backup downloaded. This backend needs the upgrade run in its SQL editor — the script is on the card.", !!r.rpcError);
+        } else {
+          toast("Upgrade didn't run: " + ((r && r.error) || "unknown error"), true);
+        }
+        renderWorkspaceBackendCard();
+      });
+    };
+    var upgradeCopyBtn = $("#wsUpgradeCopyBtn", card);
+    if (upgradeCopyBtn) upgradeCopyBtn.onclick = function () {
+      var sql = renderWorkspaceBackendCard._upgradeSql || "";
+      (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(sql) : Promise.reject())
+        .then(function () { toast("SQL copied — run it once, then hit “I’ve run it — re-check”"); },
+              function () { window.prompt("Copy this SQL:", sql); });
+    };
+    var upgradeRecheckBtn = $("#wsUpgradeRecheckBtn", card);
+    if (upgradeRecheckBtn) upgradeRecheckBtn.onclick = function () {
+      upgradeRecheckBtn.disabled = true;
+      Studio.Sync.pullNow().then(function () {
+        var s = Studio.Sync.syncState();
+        if (s.schemaRelation === "older") toast("The workspace still reports schema v" + s.backendSchemaVersion + " — has the script run yet?", true);
+        else { renderWorkspaceBackendCard._upgradeSql = ""; toast("Upgraded — this workspace is now at v" + s.appSchemaVersion + "."); }
+        renderWorkspaceBackendCard();
+      });
+    };
     var atomicSqlBtn = $("#wsAtomicSqlBtn", card);
     if (atomicSqlBtn) atomicSqlBtn.onclick = function () {
       var sql = Studio.WS.atomicSaveSQL();
@@ -8490,8 +8684,12 @@
     if (accessFileBtn) accessFileBtn.onclick = function () {
       var entry = Studio.exportAccessFileEntry();
       if (!entry) { toast("No remote workspace connected.", true); return; }
-      if (!window.confirm("The access file contains this workspace's connection key. Share it only with people who should be able to sign in. Download?")) return;
-      download((entry.id || "workspace") + "-access.json", JSON.stringify(entry, null, 2), "application/json");
+      // N24 slice 2: one writer for every access file in the app — this button,
+      // the Saved-workspaces rows below and the sign-in screen's manager all call
+      // it, so the warning, the filename and the file's shape can't drift apart.
+      window.STUDIO_WS_STORE.exportFile(entry, {
+        write: function (name, text) { download(name, text, "application/json"); }
+      });
     };
     var disconnectBtn = $("#wsDisconnectBtn", card);
     if (disconnectBtn) disconnectBtn.onclick = function () {
@@ -8644,12 +8842,22 @@
                 });
               });
             } else {
-              // manual provisioning (Supabase): show the paste-me script, then re-probe
+              // manual provisioning (Supabase): show the paste-me script, then re-probe.
+              // N21: that script is the CANONICAL fresh-environment deploy — tables AND
+              // the real Row-Level Security posture AND the first admin — so say what it
+              // installs and what it still needs from the person running it. It used to
+              // say only "run this once", and the script it showed left the database wide
+              // open with a comment where the security should have been.
               src.provision(cfg, Studio.Workspace.snapshot()).then(function (r) {
-                result.textContent = "This backend can't create tables from the browser — run this once in its SQL editor, then continue:";
+                result.textContent = "This backend can't create tables from the browser. Run this once in its SQL editor — " +
+                  "it builds the workspace tables AND turns on the real per-user security, so read § 7 (the first admin) before you continue:";
                 var pre = el("textarea", "dsx-sql ws-provision-sql"); pre.readOnly = true; pre.value = r.sql || "";
                 b.insertBefore(pre, foot);
                 act("I've run it — connect", true, function () {
+                  // The script ends with the database locked to authenticated callers,
+                  // so connecting on the anon key alone can only 403 on the first push.
+                  var blocked = typeof src.provisionBlocker === "function" && src.provisionBlocker(cfg);
+                  if (blocked) return Promise.reject(new Error(blocked));
                   if (!confirmPlaintextSync(src.label)) return Promise.reject(new Error("cancelled"));
                   return src.probe(cfg).then(function (p2) {
                     if (p2.state !== "polecat") throw new Error("Still can't see the workspace tables — did the script run?");
@@ -8658,6 +8866,22 @@
                 });
               });
             }
+          } else if (probe.state === "authRequired") {
+            // N23 (Kevin, 2026-08-08): the marker table is THERE and answered
+            // with nothing, which on a secured workspace means only one thing —
+            // this connection never signed in. Before this branch existed the
+            // app/null fall-through landed on "that database belongs to another
+            // Polecat app (“unknown”) — pick a different one", i.e. it blamed
+            // the database for a blank field. Say what is actually wrong and
+            // put the fields one click away.
+            result.className = "cx-test-result bad";
+            result.textContent = "🔒 " + (probe.note || "This workspace enforces per-user security — add the Supabase Auth email and password.");
+            // Not act(): that helper is for calls that connect and then close
+            // the modal. This one only rewinds the wizard a step.
+            var backBtn = el("button", "btn primary"); backBtn.type = "button";
+            backBtn.textContent = "← Back to credentials";
+            backBtn.onclick = function () { credsStep(src, cfg); };
+            foot.appendChild(backBtn);
           } else if (probe.state === "polecat" && Studio.WS.isOwnApp(probe.app)) {
             result.textContent = "Found an existing Studio workspace (" + Studio.WS.describeContents(probe) + "). Adopt it as your working copy, or overwrite it with this browser's.";
             act("Adopt backend copy", true, function () { return Studio.Sync.connectAdopt(src.id, cfg); });
@@ -8694,7 +8918,10 @@
           b.innerHTML = '<div class="cx-test-result bad">✕ ' + esc((e && e.message) || String(e)) + '</div>';
         });
       }
-      function credsStep(src) {
+      // `seedCfg` (N23) re-opens this step with what was just typed, so the
+      // "back to credentials" escape from the classify step doesn't make
+      // someone re-key a project URL to add the two fields they were missing.
+      function credsStep(src, seedCfg) {
         b.innerHTML = "";
         var head = el("div", "cx-wiz-head");
         var ic = el("span", "cx-wiz-ic"); ic.style.color = src.accent || "var(--brand)"; ic.appendChild(Studio.icon(src.icon || "db", 22));
@@ -8705,7 +8932,7 @@
         (src.fields || []).forEach(function (f) {
           var row = el("label", "cx-field");
           row.innerHTML = "<span>" + esc(f.label) + "</span>";
-          var savedValue = presetCfg && presetCfg[f.key];
+          var savedValue = (seedCfg && seedCfg[f.key]) || (presetCfg && presetCfg[f.key]);
           var inp = credentialFieldInput("cx-backend-cred-" + src.id, f, savedValue, !presetCfg);
           row.appendChild(inp.__revealWrap || inp);
           if (f.hint) { var h = el("small", "cx-hint"); h.textContent = f.hint; row.appendChild(h); }
@@ -9485,9 +9712,11 @@
       if (mine) mirrorUserRow(mine);
     } catch (e) {}
     try {
-      if (Auth.isDemo() && Studio.DEMO_PACKS && Studio.DEMO_PACKS.conservation &&
-          !Studio.demoPackInstalled("conservation")) {
-        Studio.installDemoPack("conservation");
+      // SP-0: whichever registered packs are flagged `demoLogin`, not a named one.
+      if (Auth.isDemo() && Studio.demoPacksWith) {
+        Studio.demoPacksWith("demoLogin").forEach(function (pid) {
+          if (!Studio.demoPackInstalled(pid)) Studio.installDemoPack(pid);
+        });
       }
     } catch (e) {}
     // LF41 slice 1: admin-set provisioning defaults (theme + sample pack), applied
@@ -9502,10 +9731,14 @@
         // the same once-only way theme/pack apply — see openUserEditor's "Copy my current
         // Dashboard defaults" button.
         if (mine.provisioning.dashboardDefaults && Studio.Defaults) Studio.Defaults.applyDashboardDefaultsBlob(mine.provisioning.dashboardDefaults);
-        if (mine.provisioning.pack === "conservation" && Studio.DEMO_PACKS && Studio.DEMO_PACKS.conservation &&
-            !Studio.demoPackInstalled("conservation")) {
-          Studio.installDemoPack("conservation");
-          ensurePackExamplesMaterialized("conservation");
+        // SP-0: any REGISTERED pack, not just Conservation Insight — the admin picks it
+        // from the registry in the user editor, and an id whose pack has since been
+        // unregistered is ignored rather than throwing.
+        var provPackId = mine.provisioning.pack;
+        if (provPackId && Studio.DEMO_PACKS && Studio.DEMO_PACKS[provPackId] &&
+            !Studio.demoPackInstalled(provPackId)) {
+          Studio.installDemoPack(provPackId);
+          ensurePackExamplesMaterialized(provPackId);
         }
         buildLibrary(); renderHome();
         Auth.upsert(me.u, { provisioned: true }).then(function (saved) { mirrorUserRow(saved); });
@@ -9682,12 +9915,15 @@
         // it says so, and Install turns it back on (installing a pack means you
         // want to see it).
         '<div class="settings-card"><h2>Sample packs</h2>' +
-          '<p class="ws-card-intro">Ready-made demo content you can install or remove. A pack can add dashboards, datasets, connections and jobs — all with synthetic (made-up) sample data, never your real data. Remove takes back exactly what Install added.</p>' +
+          '<p class="ws-card-intro">Ready-made demo content you can install or remove. A pack can add dashboards, datasets, connections and jobs — with synthetic (made-up) or public-domain sample data, never your real data. Each card says which. Remove takes back exactly what Install added.</p>' +
           (!showSamples() ? '<p class="ws-card-intro set-packs-hidden-note">Sample content is currently hidden (the toggle above) — installed packs aren’t shown anywhere. Installing a pack turns sample content back on.</p>' : "") +
           Object.keys(Studio.DEMO_PACKS).map(function (id) {
             var p = Studio.DEMO_PACKS[id], on = Studio.demoPackInstalled(id);
             return '<div class="set-row"><span class="set-row-ic" data-ic="globe"></span>' +
-              '<div class="set-row-txt"><b>' + esc(p.name) + '</b><small>' + esc(p.blurb) + '</small></div>' +
+              // SP-0(b): where this pack's data came from, in the reader's own words —
+              // the registry line, never copy retyped here (see docs/PACKS.md).
+              '<div class="set-row-txt"><b>' + esc(p.name) + '</b><small>' + esc(p.blurb) + '</small>' +
+                '<small class="set-pack-src">' + esc(Studio.demoPackSourceLine(id)) + '</small></div>' +
               '<button type="button" class="btn' + (on ? "" : " primary") + '" data-demopack="' + esc(id) + '">' + (on ? "Remove" : "Install") + '</button></div>';
           }).join("") +
         '</div>' : "") +
@@ -10174,12 +10410,22 @@
       });
       if (existing && existing.provisioning && existing.provisioning.theme) tSel.value = existing.provisioning.theme;
       tRow.appendChild(tSel); form.appendChild(tRow);
-      var packLab = el("label", "check"); packLab.style.cssText = "gap:6px;font-size:12px;margin-top:2px";
-      var packChk = el("input"); packChk.type = "checkbox"; packChk.id = "usrEditPack";
-      packChk.checked = !!(existing && existing.provisioning && existing.provisioning.pack === "conservation");
-      packLab.appendChild(packChk);
-      packLab.appendChild(document.createTextNode(" Install the Conservation Insight sample pack on first sign-in"));
-      form.appendChild(packLab);
+      // SP-0: this was a checkbox that could only ever mean Conservation Insight. With
+      // more than one pack registered it has to be a CHOICE, listed from the registry —
+      // so a new pack is assignable the moment it exists, with no edit here. The stored
+      // value is still the pack id, so accounts provisioned by the old checkbox keep
+      // their assignment.
+      var pRow = el("label", "cx-field"); pRow.innerHTML = "<span>Sample pack (installed at first sign-in)</span>";
+      var pSel = el("select"); pSel.id = "usrEditPack";
+      var pNone = el("option"); pNone.value = ""; pNone.textContent = "Don't install one";
+      pSel.appendChild(pNone);
+      Object.keys(Studio.DEMO_PACKS || {}).forEach(function (pid) {
+        var o = el("option"); o.value = pid; o.textContent = (Studio.DEMO_PACKS[pid].name || pid);
+        pSel.appendChild(o);
+      });
+      var provPack0 = existing && existing.provisioning && existing.provisioning.pack;
+      if (provPack0 && Studio.DEMO_PACKS && Studio.DEMO_PACKS[provPack0]) pSel.value = provPack0;
+      pRow.appendChild(pSel); form.appendChild(pRow);
       // TOUR-FORCE (Kevin live, 2026-07-31): a ONE-SHOT "show the welcome tour at their
       // next sign-in" flag — unlike the once-only provisioning above it's re-settable any
       // time (e.g. after invalidating the tour for a test login) and auto-resets once the
@@ -10253,7 +10499,7 @@
         var opts = { name: nInp.value.trim() || u, role: rSel.value };
         opts.forceTour = tourChk.checked; // TOUR-FORCE: one-shot welcome-at-next-sign-in
         if (pInp.value) opts.pass = pInp.value;
-        var provTheme = tSel.value, provPack = packChk.checked ? "conservation" : "";
+        var provTheme = tSel.value, provPack = pSel.value;
         // bSel is only rendered when at least one backend is registered (see
         // above) — when absent, keep whatever assignment already existed rather
         // than silently clearing it just because this editor session had
@@ -10386,6 +10632,65 @@
   function updateHistButtons() { var u = $("#btnUndo"), r = $("#btnRedo"); if (u) u.disabled = !_undo.length; if (r) r.disabled = !_redo.length; }
   window.__studioUndo = undoAct; window.__studioRedo = redoAct;   // exposed for tests
   function postToPreview(msg) { try { $("#preview").contentWindow.postMessage(Object.assign({ studio: 1 }, msg), msgOrigin()); } catch (e) {} }
+  // ---------- N15: WHICH frame sent it decides who answers it ----------
+  // The panel chrome lives in ONE file (app/studio-render.js) on purpose — the same
+  // code paints the dashboard builder's preview, the View Builder's preview, and
+  // every export, which is what keeps export ≡ preview true. The consequence is that
+  // all of those frames post the SAME message types up to this window, and the
+  // listener below used to answer every one of them against the OPEN DASHBOARD
+  // (`S.spec`). Most missed on panelById() and silently no-op'd — that is exactly why
+  // the View Builder's "Export as standalone HTML" did nothing at all — but `reorder`,
+  // `kpi-delete`, `header-edit` and `header-delete` rewrote `S.spec` unconditionally,
+  // so chrome inside one builder's preview could mutate the dashboard open in the
+  // other one.
+  // Two rules close both halves:
+  //   1. A frame may CLAIM its own preview (`Studio.claimPreviewFrame`) and then owns
+  //      its messages exclusively — the View Builder does this and exports its own
+  //      one-panel spec instead of leaking the act into the dashboard handler.
+  //   2. The branches that rewrite the dashboard with no id to miss on are accepted
+  //      only from the dashboard builder's own `#preview` frame (or from this document
+  //      itself, which already has full DOM access — no new surface, same reasoning as
+  //      trustedMsg's own `e.source === window` arm).
+  var _previewClaims = [];
+  Studio.claimPreviewFrame = function (getFrame, handle) { _previewClaims.push({ get: getFrame, handle: handle }); };
+  function previewClaimFor(src) {
+    for (var i = 0; i < _previewClaims.length; i++) {
+      var f = null;
+      try { f = _previewClaims[i].get(); } catch (e) { f = null; }
+      if (f && f.contentWindow === src) return _previewClaims[i];
+    }
+    return null;
+  }
+  // N15 slice 2: the top-document half of the panel download. The preview chrome has already
+  // done all the work (rasterized the PNG, serialized the CSV) and hands the finished bytes up
+  // because a download started inside an iframe is what iOS Safari blocks — all this does is
+  // perform the click HERE, in the top document.
+  // Deliberately NOT routed through the frame claims above: unlike an export or a canvas edit,
+  // nothing about a download depends on which spec owns the frame — the message carries its own
+  // bytes and its own filename — so every preview in the app (dashboard builder, View Builder,
+  // Explore, panel zoom, slideshow, version compare) is served by this one handler instead of a
+  // copy per builder.
+  function deliverPreviewDownload(d) {
+    // A filename, never a path: the name rides in from the frame and only ever names a file.
+    var name = String(d.name || "download").replace(/[\\/]+/g, "-").slice(0, 120) || "download";
+    var href = null, blobUrl = null;
+    // Only the two shapes we send are honoured — an image data: URL, or text we blob up
+    // ourselves. The receiver never adopts an arbitrary URL out of a message.
+    if (typeof d.dataUrl === "string" && /^data:image\//i.test(d.dataUrl)) href = d.dataUrl;
+    else if (typeof d.text === "string") href = blobUrl = URL.createObjectURL(new Blob([d.text], { type: d.mime || "text/plain;charset=utf-8" }));
+    if (!href) return;
+    var a = document.createElement("a");
+    a.href = href; a.download = name; a.style.display = "none";
+    document.body.appendChild(a); a.click();
+    window.__lastPreviewDownload = { name: name, bytes: (d.text || d.dataUrl || "").length }; // test hook
+    setTimeout(function () { a.remove(); if (blobUrl) URL.revokeObjectURL(blobUrl); }, 0);
+  }
+  var SPEC_WIDE_MSGS = { reorder: 1, "kpi-delete": 1, "header-edit": 1, "header-delete": 1 };
+  function mayEditOpenSpec(src) {
+    if (src === window) return true;
+    var f = $("#preview");
+    return !!(f && f.contentWindow === src);
+  }
   // ---------- SETTINGS-ROAM slice 1 (Kevin, 2026-07-31): per-user prefs ----------
   // "sign in later from another browser and get my entire environment." A signed-in
   // REMOTE account's personal look-and-feel rides its own users row (row.prefs),
@@ -10661,6 +10966,10 @@
   window.addEventListener("message", function (e) {
     var d = e.data || {}; if (d.studio !== 1) return;
     if (!trustedMsg(e)) return; // AUD-05: only our own origin + our own frames drive the spec
+    if (d.type === "panel-download") { deliverPreviewDownload(d); return; } // N15 slice 2 — spec-independent, see above
+    var claim = previewClaimFor(e.source);          // N15 rule 1: a frame that owns its preview answers for it
+    if (claim) { claim.handle(d, e); return; }
+    if (SPEC_WIDE_MSGS[d.type] && !mayEditOpenSpec(e.source)) return; // N15 rule 2
     if (d.type === "select") {
       if (d.kind === "kpi") select({ kind: "kpi", index: d.index });
       else if (d.kind === "header") select({ kind: "header" });
@@ -10764,19 +11073,32 @@
     var pend = Studio.Build && Studio.Build.ensureSpecMocks ? Studio.Build.ensureSpecMocks(sp) : null;
     if (pend && pend.then) pend.then(fn, fn); else fn();
   }
-  function exportPanelEmbed(p) {
-    var single = Studio.clone(S.spec);
+  // N15: `srcSpec`/`mock` are the View Builder's entry point — its preview panel is minted
+  // into a private one-panel spec that is NOT in `S.spec`, and its rows are the computed
+  // basis it just previewed, so it hands both in rather than being looked up here. Called
+  // with neither (every historical call site) this is the dashboard-panel export, unchanged:
+  // same clone of the open spec, same `Studio.exportDashboardHtml` 3-arg call, same file.
+  function exportPanelEmbed(p, srcSpec, mock) {
+    var base = srcSpec || S.spec;
+    var single = Studio.clone(base);
     single.panels = [Studio.clone(p)];
     single.kpis = []; single.filters = [];
-    single.title = p.title || S.spec.title; single.description = "";
+    single.title = p.title || base.title; single.description = "";
+    // A pared-down View stands on its own — the source's "hide the header" choice would
+    // leave the exported file with no title at all.
+    if (srcSpec) delete single.hideHeader;
     var stem = (p.title || "view").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "view";
     single.name = stem;
     celebrateFirstExport();
     bumpExportMilestone();
     withSpecMocks(single, function () {
-      bundleModal("Embed View", [{ name: stem + "-embed.html", body: Studio.exportDashboardHtml(single, S.assets, S.settings.deployPath), mime: "text/html" }]);
+      var html = mock
+        ? Studio.exportDashboardHtml(single, S.assets, S.settings.deployPath, { mock: mock })
+        : Studio.exportDashboardHtml(single, S.assets, S.settings.deployPath);
+      bundleModal("Embed View", [{ name: stem + "-embed.html", body: html, mime: "text/html" }]);
     });
   }
+  Studio.exportPanelEmbed = exportPanelEmbed; // N15: the View Builder exports through this one path
   // LF57 follow-up: the Views catalog's own "Export" action — the last of the three items
   // LF57 slice 1's own DONE note flagged as "genuinely still open" (Duplicate and the
   // per-chart-type row icons both shipped separately). A saved View has no open dashboard to
@@ -12760,6 +13082,10 @@
   }
 
   function bundleModal(title, files) {
+    // Test hook (N15): the modal shows a name + a byte count, so the FILE ITSELF is
+    // otherwise unobservable — a headless click can prove the dialog opened but not that
+    // it carries a real document. That is exactly the gap that let a dead export ship.
+    window.__lastBundle = { title: title, files: files };
     modal(title, function (b) {
       files.forEach(function (f) {
         var row = el("div", "dl-row");

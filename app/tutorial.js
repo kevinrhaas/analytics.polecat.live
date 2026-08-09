@@ -21,8 +21,12 @@
        built on top of it, LF18(b)'s last per-feature tour.
      · "Conservation Insight pack" (LF40 NEXT slice) — SAMPLE-PACK-AWARE: only
        offered once the Conservation demo pack is installed (see TOUR_GATES).
-       Walks the pack's featured dashboard's three choropleth scales (county →
-       watershed/HUC8 → state) and closes on the custom-geo story. The
+       Walks what the pack actually seeded — Home's live featured card, the
+       pinned View it drops beside it (one per practice), then the featured
+       dashboard's three choropleth scales (county → watershed/HUC8 → state) —
+       and closes on the custom-geo story plus the rest of the pack's
+       dashboard folder. doc-truth check 23 derives that inventory from
+       app/demopacks.js, so the copy cannot silently fall behind the pack. The
        TOUR_GATES mechanism generalizes to any future pack's tour — add a
        TOURS.<key> entry + a gate fn, no chooser/engine changes needed.
      · The "overview" tour itself is ALSO pack-aware (LF40, mirrors welcome.js's
@@ -178,6 +182,20 @@
     try {
       var ws = Studio.Workspace;
       var row = ws && ws.all("dashboards").filter(function (r) { return r.demoPackId === "conservation"; })[0];
+      if (row && window.__studioOpenRecent) window.__studioOpenRecent(row.id);
+    } catch (e) {}
+  }
+  // SP-1(c): the same lookup for Market Coverage, but BY SPEC NAME rather than "the
+  // pack's first dashboard" — this pack seeds three and the tour walks a particular one
+  // (the whitespace hero). Row ids are workspace-generated at install time; only the
+  // spec's own name is the pack's literal string (see demopacks.js MC_DASHBOARDS).
+  function openMarketCoverageDashboard() {
+    try {
+      var ws = Studio.Workspace;
+      var row = ws && ws.all("dashboards").filter(function (r) {
+        return r.demoPackId === "marketcoverage" && (r.name === "marketcoverage-whitespace" ||
+          (r.spec && r.spec.name) === "marketcoverage-whitespace");
+      })[0];
       if (row && window.__studioOpenRecent) window.__studioOpenRecent(row.id);
     } catch (e) {}
   }
@@ -440,7 +458,7 @@
         },
         {
           t: "1 · Every job you've built",
-          h: "Jobs land here with a status dot for their last run (never run / OK / failed), a step count, and — once the source data updates — a reminder badge if you set one.",
+          h: "Jobs land here with a status dot for their last run (never run / OK / failed), a step count, and — once the source data updates — a reminder badge if you set one. Every row acts on its own: <b>Run</b> it right here and watch the status dot answer, <b>Edit</b> its steps, or <b>Delete</b> it with the ✕ — plus a <b>private</b> toggle, because a private job stays yours alone when the workspace is shared.",
           target: "#jobsResults",
           pos: "bottom"
         },
@@ -454,6 +472,17 @@
           t: "3 · Find one fast",
           h: "Search by name, source, output, or folder — the same folder chips Datasets and Connections use once you start filing jobs into one.",
           target: "#jobsSearch",
+          pos: "bottom"
+        },
+        // N7 (2026-08-08): the catalogs GAINED a toolbar — a sort <select>, a
+        // tile⇆list toggle and a Select/bulk mode — and no tour had caught up.
+        // doc-truth check 22 derives that toolbar from app/index.html and holds
+        // every catalog-walking tour to naming it.
+        {
+          t: "4 · Sort it, reshape it, act on many at once",
+          h: "The toolbar beside the search box: <b>Sort</b> by newest, oldest, name, or last run; switch between <b>Tile view</b> and <b>List view</b> (remembered per device); and <b>Select</b> turns every row into a checkbox with a bulk bar — <b>Select all</b>, <b>Clear</b>, <b>Move … to folder…</b>, <b>Delete</b>.",
+          sub: "Every catalog in the app — Connections, Datasets, Views, Dashboards — carries the same three controls.",
+          target: "#secJobs .repo-io",
           pos: "bottom"
         },
         {
@@ -478,7 +507,7 @@
         },
         {
           t: "1 · Every connection you've made",
-          h: "Point at Postgres, Supabase, Snowflake, BigQuery, Google Sheets, a dropped CSV, and more — or work entirely on the built-in sample data. Connections land here with folder chips once you start filing them.",
+          h: "Point at Postgres, Supabase, Snowflake, BigQuery, Google Sheets, a dropped CSV, and more — or work entirely on the built-in sample data. Connections land here with folder chips once you start filing them. Every row acts on its own: <b>Test</b> it without leaving the page (the fastest way to find a credential that expired), <b>Edit</b> its settings, or <b>Delete</b> it with the ✕ — plus <b>Pin</b>, which holds the ones you open every day at the top of the list, and a <b>private</b> toggle for the ones that stay yours alone when the workspace is shared.",
           target: "#connResults",
           pos: "bottom"
         },
@@ -494,22 +523,31 @@
           target: "#connSearch",
           pos: "bottom"
         },
+        // N7 (2026-08-08): the catalog toolbar, same stop the Jobs tour gained —
+        // told once here and referred back to at the Datasets half, because all
+        // six catalogs carry the identical three controls (doc-truth check 22).
         {
-          t: "4 · From connection to dataset",
-          h: "A <b>dataset</b> is a named, <code>{{param}}</code>-substitutable query on top of a connection — define it once, chart it everywhere in Quick Views or the Dashboard Builder.",
+          t: "4 · Sort it, reshape it, act on many at once",
+          h: "The toolbar beside the search box: <b>Sort</b> by newest, oldest, name, or adapter; switch between <b>Tile view</b> and <b>List view</b> (remembered per device); and <b>Select</b> turns every row into a checkbox with a bulk bar — <b>Select all</b>, <b>Clear</b>, <b>Move … to folder…</b>, <b>Delete</b>.",
+          target: "#secConnections .repo-io",
+          pos: "bottom"
+        },
+        {
+          t: "5 · From connection to dataset",
+          h: "A <b>dataset</b> is a named, <code>{{param}}</code>-substitutable query on top of a connection — define it once, chart it everywhere in Quick Views or the Dashboard Builder. Its rows carry the same controls Connections do: <b>Run</b> the query right there to check it still works — you get the row count back without opening the editor — <b>Edit</b> it, <b>Delete</b> it with the ✕, <b>Pin</b> the ones you build on most to the top, and mark a dataset <b>private</b> to keep it yours.",
           target: "#dsxResults",
           pos: "bottom",
           before: function () { goSection("datasets"); }
         },
         {
-          t: "5 · Add a new dataset",
+          t: "6 · Add a new dataset",
           h: "<b>+ New dataset</b> opens the editor: pick a connection, write the query (or pick a table), preview real rows, save.",
           target: "#dsxNewBtn",
           pos: "bottom"
         },
         {
-          t: "6 · Find one fast",
-          h: "Search by name, connection, table, or folder — the same convention as Connections and every other catalog.",
+          t: "7 · Find one fast",
+          h: "Search by name, connection, table, or folder — the same convention as Connections and every other catalog, and the same toolbar beside it: sort, tile ⇆ list, and Select for bulk moves and deletes.",
           target: "#dsxSearch",
           pos: "bottom"
         },
@@ -524,11 +562,11 @@
     },
     conservation: {
       label: "Conservation Insight pack", ic: "globe", tint: "--brand",
-      blurb: "A guided look at the sample pack's featured dashboard — three choropleth scales, and the geography story behind them.",
+      blurb: "A guided look at the sample pack's featured dashboard — three choropleth scales, the Views it pins beside them, and the geography story behind them.",
       steps: [
         {
           t: "Your Conservation Insight pack, guided",
-          h: "Installing the <b>Conservation Insight</b> sample pack seeded a whole workspace — connections, datasets, a prep job, and one FEATURED dashboard built as a best-practice conservation story. This short tour walks that dashboard's three map scales, then the geography behind them.",
+          h: "Installing the <b>Conservation Insight</b> sample pack seeded a whole workspace — connections, datasets, a prep job, one pinned <b>View</b> per practice, and a <b>Conservation Insight</b> folder of dashboards led by a FEATURED best-practice conservation story. This short tour walks that dashboard's three map scales and the Views beside it, then the geography behind them.",
           sub: "You can reopen this tour any time from ⌘K → Interactive tutorial.",
           target: null,
           before: function () { goSection("home"); }
@@ -542,7 +580,15 @@
           before: function () { goSection("home"); }
         },
         {
-          t: "2 · County — the hero view",
+          t: "2 · Your pinned Views, live too",
+          h: "Just below it, the pack pins one <b>View</b> per practice — <b>Cover crops</b>, <b>No-till</b>, <b>Reduced tillage</b> and <b>Conventional</b> — each a live chart of adoption over time, one line per provider. Same renderer, same sample data, no thumbnails.",
+          sub: "Click a card to open it in the View Builder that made it, or its small Quick View button for the one-chart editor.",
+          target: ".home-analyses",
+          pos: "bottom",
+          before: function () { goSection("home"); }
+        },
+        {
+          t: "3 · County — the hero view",
           h: "The finest-grain read: cover-crop adoption by <b>county</b>, a common estimate blended across five providers. Maps lead the dashboard on purpose, trend charts follow.",
           target: '[data-panel-id="p_county"]',
           pos: "bottom",
@@ -550,14 +596,14 @@
           before: openConservationDashboard
         },
         {
-          t: "3 · The same data, by watershed",
+          t: "4 · The same data, by watershed",
           h: "Right beside it: the identical adoption data rolled up to <b>watersheds (HUC8)</b> instead of political boundaries — conservation outcomes follow water, not county lines.",
           target: '[data-panel-id="p_huc8"]',
           pos: "top",
           inPreview: true
         },
         {
-          t: "4 · ...and a state rollup",
+          t: "5 · ...and a state rollup",
           h: "A third scale, <b>state</b>, acreage-weighted so the average is honest rather than a flat mean across counties of very different size.",
           target: '[data-panel-id="p_state"]',
           pos: "top",
@@ -565,7 +611,58 @@
         },
         {
           t: "That's the geography story",
-          h: "County, watershed, and state are three of the choropleth's built-in scales — it also ships USDA crop-reporting districts, congressional districts, and 5-digit ZIP codes, plus your own <b>custom regions</b> (Inspector → Region scale → Custom regions, import a CSV mapping county → your own boundary). Same geometry engine underneath every scale, no shapefiles to source.",
+          h: "County, watershed, and state are three of the choropleth's built-in scales — it also ships USDA crop-reporting districts, congressional districts, and 5-digit ZIP codes, plus your own <b>custom regions</b> (Inspector → Region scale → Custom regions, import a CSV mapping county → your own boundary). Same geometry engine underneath every scale, no shapefiles to source.<br><br>And the featured story is not all the pack brought: its <b>Conservation Insight</b> folder under Dashboards also holds the watershed map, the system-metrics wheel, and the OpTIS, CRD and provider-ensemble reference dashboards.",
+          sub: "⌘K → Interactive tutorial brings you back here any time.",
+          target: null,
+          last: true
+        }
+      ]
+    },
+    marketcoverage: {
+      label: "Market Coverage pack", ic: "globe", tint: "--brand",
+      blurb: "A guided look at the pack built from real US Census data — the whitespace maps, the Views pinned beside them, and what the numbers do and do not prove.",
+      steps: [
+        {
+          t: "Your Market Coverage pack, guided",
+          h: "This is the first pack whose numbers are <b>real</b>: 1,813 US counties of US Census data, embedded in the app rather than fetched. Installing it seeded a connection, two datasets, a prep job that joins them into a per-10,000-residents saturation index, three dashboards, and four <b>Views</b> pinned to Home. This short tour walks the question they all ask.",
+          sub: "You can reopen this tour any time from ⌘K → Interactive tutorial.",
+          target: null,
+          before: function () { goSection("home"); }
+        },
+        {
+          t: "1 · Four Views, live on Home",
+          h: "The pack pins four <b>Views</b> — restaurants and bars per 10,000 residents, median household income on the same geography, the two plotted against each other, and the shortlist that falls out of them. Each is a live chart over the pack's own job output, not a thumbnail.",
+          sub: "Click a card to open it in the View Builder that made it — the shelves, the filters and the map scale are all still there to change.",
+          target: ".home-analyses",
+          pos: "bottom",
+          before: function () { goSection("home"); }
+        },
+        {
+          t: "2 · Where the restaurants already are",
+          h: "The hero map: County Business Patterns establishments in NAICS 722, divided by the American Community Survey's population in ten-thousands. Darker means more places to eat for the people who actually live there.",
+          sub: "Counties under 20,000 residents are not in the extract — a per-10,000 rate over a village is noise.",
+          target: '[data-panel-id="pmw_map"]',
+          pos: "bottom",
+          inPreview: true,
+          before: openMarketCoverageDashboard
+        },
+        {
+          t: "3 · The two halves, in one picture",
+          h: "A rate on its own does not carry the story, so the quadrant pairs it with income: counties of 250,000+ residents, crosshairs on the national county medians. Bottom right is the whitespace — households that can afford to eat out, without the restaurants to do it in.",
+          target: '[data-panel-id="pmw_quad"]',
+          pos: "top",
+          inPreview: true
+        },
+        {
+          t: "4 · What it does NOT prove",
+          h: "Every pack that ships real data ships this panel too. A low rate can mean an under-served market — or a county whose residents eat in the next county over, or one restaurant covering a lot of ground. The method note says so on the dashboard itself, next to the numbers, rather than in a footnote nobody opens.",
+          target: '[data-panel-id="pmw_note"]',
+          pos: "top",
+          inPreview: true
+        },
+        {
+          t: "That's the whitespace question",
+          h: "Two more dashboards sit in the <b>Market Coverage</b> folder under Dashboards: <b>Who Lives There</b> (income, age and education across the same 1,813 counties, plus the scatter asking whether income predicts supply at all) and <b>The Whitespace Shortlist</b> (the counties clearing both bars, as a list you could hand to someone).<br><br>The shortlist's two rules are not a stored answer — they are filters on its View, re-run over the job's output every time it loads. Open it and move them.",
           sub: "⌘K → Interactive tutorial brings you back here any time.",
           target: null,
           last: true
@@ -607,12 +704,13 @@
   function tourSteps(key) { return key === "overview" ? computeOverviewSteps() : TOURS[key].steps; }
   T.computeOverviewStepTitles = function () { return computeOverviewSteps().map(function (s) { return s.t; }); };
 
-  var TOUR_ORDER = ["overview", "quick", "build", "jobs", "connect", "conservation"];
+  var TOUR_ORDER = ["overview", "quick", "build", "jobs", "connect", "conservation", "marketcoverage"];
   // Some tours only make sense once a sample pack is installed — gate their
   // CHOOSER visibility here (openTour(key) still works directly regardless,
   // e.g. a future "take this pack's tour" link from Settings' pack card).
   var TOUR_GATES = {
-    conservation: function () { return !!(window.Studio && Studio.demoPackInstalled && Studio.demoPackInstalled("conservation")); }
+    conservation: function () { return !!(window.Studio && Studio.demoPackInstalled && Studio.demoPackInstalled("conservation")); },
+    marketcoverage: function () { return !!(window.Studio && Studio.demoPackInstalled && Studio.demoPackInstalled("marketcoverage")); }
   };
   function visibleTourKeys() {
     return TOUR_ORDER.filter(function (k) { return !TOUR_GATES[k] || TOUR_GATES[k](); });
@@ -875,7 +973,8 @@
     quick: "Tour complete! Save a View and pin it to Home.",
     jobs: "Tour complete! Try a job on one of your own datasets.",
     connect: "Tour complete! Add a connection, or explore a sample dataset.",
-    conservation: "Tour complete! Try a different Region scale on any map in the Dashboard Builder's Inspector."
+    conservation: "Tour complete! Try a different Region scale on any map in the Dashboard Builder's Inspector.",
+    marketcoverage: "Tour complete! Open the shortlist View and move one of its two rules."
   };
   function finish() {
     try {
