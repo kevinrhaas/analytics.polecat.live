@@ -1921,6 +1921,19 @@ const packRegistry = [...registryBlock.matchAll(/\n {4}(\w+): \{/g)].map((m) => 
         sourceName: (block.match(/name:\s*"([^"]+)"/) || [, ""])[1],
       };
     })(),
+    // The pack's committed CSV — check 48's subject, and the same one-reading rule: a
+    // `data: { files: [...] }` entry is the pack opting into the asynchronous half
+    // (docs/PACKS.md § "How the CSV reaches the app"), so these are exactly the files
+    // that have to be in the tree AND in sw.js for "installing must not depend on the
+    // network" to hold. Brace-walked to the `data:` object so a `files:` belonging to
+    // anything else in the entry cannot be picked up instead.
+    dataFiles: (() => {
+      const at = body.search(/\n\s{6}data:\s*\{/);
+      if (at < 0) return [];
+      const block = braceBlockAt(body, body.indexOf("{", at));
+      return [...((block.match(/files:\s*\[([^\]]*)\]/) || [, ""])[1])
+        .matchAll(/"([^"]+)"/g)].map((x) => x[1]);
+    })(),
   };
 });
 const defaultInstalled = [...((packSrc.match(/DEFAULT_INSTALLED = \[([^\]]*)\]/) || [, ""])[1])
@@ -3898,6 +3911,150 @@ ok(`${tpnPath}: every third-party row cites licence text that is in the tree (${
   `rows with a missing or dangling licence citation:\n      ${tpnRowGaps.join("\n      ") || "(none)"}\n      ` +
   "the notices open by promising vendored files keep their upstream licence text alongside the " +
   "code — this is that promise, checked");
+
+/* ── 48. docs/PACKS.md vs the packs it governs ──────────────────────────────
+   N7, and the same gap check 47 found one document over: PACKS.md is the CONTRACT for
+   what a pack's data may be and how it gets here — the PUBLISH.md class, a document an
+   author executes rather than skims — and it answered to nothing. Checks 34/35/47 read
+   the registry it governs; none read the contract. Three things had drifted past it,
+   two of them measured on the pre-fix tree:
+   · **"generated in JS at install time, as both shipped packs do today"** — written when
+     both shipped packs were synthetic. Three ship now, and the third is the real-data
+     kind this whole document exists for, so the sentence defining "synthetic" claimed
+     the entire fleet of packs for it.
+   · **"Anything not public domain is `kind: "licensed"` and must also have a
+     `THIRD-PARTY-NOTICES.md` line"** — and its checklist step, `kind: "licensed"`? So an
+     author shipping PUBLIC-domain data was told, twice, that the notices did not concern
+     them. Check 47 (d) shipped hours earlier (v934) and holds every non-`synthetic` pack,
+     `public` included: following this document to the letter now REDS THE GATE. That is
+     the PUBLISH.md failure exactly — a runbook whose instructions break something.
+   · **"Four rules, all enforced"** — rule 1's offline half ("installing one must not
+     depend on the network") was enforced by nothing. It holds only if the service worker
+     carries the bytes, and the precache list in `sw.js` is hand-maintained: today's two
+     CSVs are in it because the SP-1 (a) author remembered. Rule (c) below is that
+     missing enforcement, which is what lets the sentence say "all".
+
+   Five rules, derived from the registry and the tree rather than from a list kept here:
+   (a) every "<n> shipped packs" claim equals the number of registered packs, and every
+       "<n> of the <m> shipped packs" claim equals the number declaring kind:"synthetic"
+       — the two halves of the one drifted sentence, held separately because a fourth
+       pack moves only one of them ("both" counts as two: it was the drifted word);
+   (b) the sentences requiring a `THIRD-PARTY-NOTICES.md` line name every non-synthetic
+       source kind in the VOCABULARY (not merely the kinds registered today), and never
+       name `synthetic`. The vocabulary is read from `tools/pack-extract/lib.mjs` and
+       cross-checked against `tools/validate.mjs`, so the two code copies drifting apart
+       fails here too;
+   (c) every file a pack's `data.files` declares exists under `data/packs/<id>/` AND is
+       precached in `sw.js`'s `SHELL_FILES` — rule 1, finally enforced;
+   (d) the author's checklist names `sw.js` whenever a registered pack ships committed
+       data, so the step (c) now fails on is one the checklist actually tells you to do;
+   (e) the negative half — every repo path and every `Studio.*` entry point the document
+       names resolves in the tree (the check-46 rule, one document over). */
+const packsDoc = read("docs/PACKS.md");
+const packsPath = "docs/PACKS.md";
+
+// (a) the count. `both` is not in WORD_NUM and is exactly the word that had drifted, so
+//     it is spelled out here rather than left to fall through as an unparseable claim.
+const packsClaimNum = (w) => (/^both$/i.test(w) ? 2 : asNumber(w.replace(/\W/g, "")));
+const packsSynthetic = packRegistry.filter((p) => p.sourceKind === "synthetic");
+const packsShippedClaims = [...packsDoc.matchAll(/(\S+)\s+(?:shipped|registered)\s+packs\b/gi)];
+const packsShippedGaps = packsShippedClaims
+  .filter((m) => packsClaimNum(m[1]) !== packRegistry.length)
+  .map((m) => `"…${m[0].replace(/\s+/g, " ").trim()}" — the registry has ${packRegistry.length}`);
+// The same sentence's other half: "two of the three shipped packs [are synthetic]". Held
+// separately because it is a different measurement — the drift being guarded against is a
+// fourth pack of EITHER kind, and only one of the two numbers moves in each case.
+const packsSubsetGaps = [...packsDoc.matchAll(/\b(\S+)\s+of\s+the\s+\S+\s+(?:shipped|registered)\s+packs\b/gi)]
+  .filter((m) => packsClaimNum(m[1]) !== packsSynthetic.length)
+  .map((m) => `"…${m[0].replace(/\s+/g, " ").trim()}" — ${packsSynthetic.length} of them declare kind:"synthetic"`);
+ok(`${packsPath}: every claim about how many packs ship matches the registry (${packRegistry.length}: ${packRegistry.map((p) => p.id).join(", ")}; ${packsSynthetic.length} synthetic)`,
+  packsShippedClaims.length > 0 && !packsShippedGaps.length && !packsSubsetGaps.length,
+  `${[...packsShippedGaps, ...packsSubsetGaps].join("\n      ") || "(no claim of this shape found — the sentence naming the shipped packs was removed or reworded)"}\n      ` +
+  "the paragraph DEFINING synthetic data said \"as both shipped packs do today\" while the " +
+  "third pack, the real-data one this document exists for, had already shipped");
+
+// (b) the notices trigger. The vocabulary, not the roster: a rule scoped to the kinds that
+//     happen to be registered today would go stale the moment someone adds a licensed pack.
+const kindVocab = (src) => [...((src.match(/\[\s*("synthetic"[^\]]*)\]/) || [, ""])[1])
+  .matchAll(/"([a-z]+)"/g)].map((m) => m[1]);
+const extractKinds = kindVocab(read("tools/pack-extract/lib.mjs"));
+const validateKinds = kindVocab(read("tools/validate.mjs"));
+const kindsAgree = extractKinds.length >= 2 && extractKinds.join(",") === validateKinds.join(",");
+const creditedKinds = extractKinds.filter((k) => k !== "synthetic");
+const noticeLines = packsDoc.split("\n")
+  .map((l, i) => [i, l])
+  .filter(([, l]) => l.includes("THIRD-PARTY-NOTICES.md"));
+// A kind counts as named only inside a code span — the prose says "public domain" about
+// licence status, which is a different claim from the `public` source kind.
+const noticeContext = noticeLines.map(([i]) => packsDoc.split("\n").slice(Math.max(0, i - 3), i + 2).join("\n")).join("\n");
+const noticeSpans = [...noticeContext.matchAll(/`([a-z]+)`|`kind:\s*"([a-z]+)"`|kind:\s*"([a-z]+)"/g)]
+  .map((m) => m[1] || m[2] || m[3]);
+const kindsUncovered = creditedKinds.filter((k) => !noticeSpans.includes(k));
+// The negative half is the reverse direction — a kind the DOCUMENT invents. Every
+// `kind: "x"` it writes has to be one the code accepts, or the contract is teaching a
+// value `packSourceIssues` will reject. (It deliberately does NOT forbid naming
+// `synthetic` beside the notices rule: the corrected sentence defines the requirement
+// as "not synthetic", which is the clearest way to say it.)
+const kindsInvented = [...new Set([...packsDoc.matchAll(/kind:\s*"([a-z]+)"/g)].map((m) => m[1]))]
+  .filter((k) => !extractKinds.includes(k));
+ok(`${packsPath}: the THIRD-PARTY-NOTICES.md rule names every non-synthetic source kind (${creditedKinds.join(", ") || "none"})`,
+  kindsAgree && noticeLines.length > 0 && !kindsUncovered.length && !kindsInvented.length,
+  `kinds in the vocabulary needing credit: ${creditedKinds.join(", ") || "(none parsed)"}; ` +
+  `named beside the notices rule: ${[...new Set(noticeSpans)].join(", ") || "(none)"}\n      ` +
+  `uncovered: ${kindsUncovered.join(", ") || "(none)"}; invented by the document: ${kindsInvented.join(", ") || "(none)"}; ` +
+  `extract/validate vocabularies agree: ${kindsAgree}\n      ` +
+  "check 47 (d) makes the gate red for a `public` pack with no notices line; this document " +
+  "told its reader that only `licensed` data needed one");
+
+// (c) rule 1's offline half, which nothing enforced. A declared file that is absent from
+//     the tree breaks install outright; one absent from SHELL_FILES breaks it only for the
+//     reader on a cold cache, which is why it survived — it never fails for the author.
+const swSrc = read("sw.js");
+const shellFiles = new Set([...((swSrc.match(/var SHELL_FILES = \[([\s\S]*?)\n\];/) || [, ""])[1])
+  .matchAll(/"([^"]+)"/g)].map((m) => m[1]));
+const packDataGaps = [];
+for (const p of packRegistry)
+  for (const f of p.dataFiles) {
+    const rel = `data/packs/${p.id}/${f}`;
+    if (!fs.existsSync(path.join(ROOT, rel))) packDataGaps.push(`${p.id}: declares ${f}, absent from the tree (${rel})`);
+    else if (!shellFiles.has(rel)) packDataGaps.push(`${p.id}: ${rel} is not in sw.js SHELL_FILES — installing it needs the network`);
+  }
+const packsWithData = packRegistry.filter((p) => p.dataFiles.length);
+ok(`sw.js: every file a pack declares in \`data.files\` ships and is precached (${
+  packsWithData.map((p) => `${p.id}: ${p.dataFiles.length}`).join(", ") || "no pack ships data today"})`,
+  !packDataGaps.length && shellFiles.size > 0,
+  `${packDataGaps.join("\n      ") || "(none)"}\n      ` +
+  `SHELL_FILES parsed: ${shellFiles.size} entr(ies)\n      ` +
+  "docs/PACKS.md rule 1 says installing a pack must not depend on the network; a same-origin " +
+  "fetch only honours that if the service worker has the file");
+
+// (d) and the checklist has to TELL you to do it — otherwise (c) fails an author who
+//     followed the document faithfully, which is the worst kind of gate.
+const packsChecklist = (packsDoc.match(/\n## Adding a real-data pack[^\n]*\n([\s\S]*)$/) || [, ""])[1];
+ok(`${packsPath}: the author's checklist names sw.js while a pack ships committed data`,
+  !packsWithData.length || (!!packsChecklist && /\bsw\.js\b/.test(packsChecklist) && /SHELL_FILES/.test(packsChecklist)),
+  `checklist found: ${!!packsChecklist}; names sw.js: ${/\bsw\.js\b/.test(packsChecklist)}; ` +
+  `names SHELL_FILES: ${/SHELL_FILES/.test(packsChecklist)}\n      ` +
+  "the precache step lived in the prose above and in no step of the list an author works through");
+
+// (e) the negative half. Same extractor shape as check 47 (b), and the Studio entry points
+//     this document promises are held the way check 41 holds README's.
+const packsCited = [...new Set([...packsDoc.matchAll(
+  /`((?:app|tools|data|tests|docs|js|supabase|vendor)\/[\w./-]*(?:\/|\.\w{2,5}))`/g)].map((m) => m[1]))]
+  .filter((p) => !/<id>/.test(p));
+const packsDangling = packsCited.filter((p) => !fs.existsSync(path.join(ROOT, p)));
+const appSrcAll = fs.readdirSync(path.join(ROOT, "app"))
+  .filter((f) => f.endsWith(".js")).map((f) => read(`app/${f}`)).join("\n");
+const packsApis = [...new Set([...packsDoc.matchAll(/`Studio\.(\w+(?:\.\w+)?)\(/g)].map((m) => m[1]))];
+const packsApiGaps = packsApis.filter((a) => !new RegExp(`Studio\\.${a.replace(".", "\\.")}\\s*=|\\b${a.split(".").pop()}\\s*:\\s*function`).test(appSrcAll));
+ok(`${packsPath}: every repo path and Studio entry point it names resolves (${packsCited.length} path(s), ${packsApis.length} api(s))`,
+  // The floors only assert the extractors found the document at all — set below what the
+  // pre-fix file carried (4 paths, 3 entry points) on purpose, so a legitimate rewording
+  // can never redden this rule. The real assertions are the two emptiness checks.
+  packsCited.length >= 3 && packsApis.length >= 2 && !packsDangling.length && !packsApiGaps.length,
+  `dangling paths: ${packsDangling.join(", ") || "(none)"}\n      ` +
+  `unresolved entry points: ${packsApiGaps.map((a) => `Studio.${a}()`).join(", ") || "(none)"}\n      ` +
+  "a contract that names a script or a function nobody can find is not executable");
 
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");

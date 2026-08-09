@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 935,
+    title: 'The rules for building a sample pack sent their reader past a gate that would stop them',
+    kind: 'fix',
+    ts: '2026-08-09T14:31:31.000Z',
+    items: [
+      'A sample pack is the workspace you can install in one click to see this app working on real content. The document that says what a pack may contain and how its data gets here is a contract other people follow, and it is one of the few here whose instructions are carried out rather than read. Nothing had ever checked it against the packs it governs.',
+      'The instruction that mattered was wrong in the direction that breaks things. It told an author that only data under a restrictive licence needs a line in the file crediting what we redistribute, so anyone shipping public-domain material — a government statistics extract, say — was told twice, in the rule and again in the checklist, that the step did not apply to them. As of the version immediately before this one it does: the credit is now required for any pack carrying outside data, public domain included, and following the old wording would have failed the checks before the work could merge.',
+      'The paragraph defining what synthetic data is claimed every pack we ship for itself — "as both shipped packs do today" — written when both of them were synthetic. Three ship now, and the third carries real US Census data, which is the exact case the rest of the document exists for.',
+      'The document also promised four rules "all enforced" while one of them was enforced by nobody. A pack has to install without a network connection, which is only true if its data files were added to the offline store by hand — and the checklist an author works through never mentioned that step. It now does, and the checks fail if a declared data file is missing from the repository or from the offline list, so the promise is kept by the gate rather than by whoever remembers.',
+      'The contract now answers to the same treatment it asks of everyone else: the number of packs it cites, the credit rule, the offline rule, its own checklist, and every file and function it names are all re-derived from the code on each change.',
+    ],
+  },
+  {
     v: 934,
     title: 'The third-party notices left out a library, a typeface and a data source we ship',
     kind: 'fix',
