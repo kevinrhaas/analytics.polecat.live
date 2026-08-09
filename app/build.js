@@ -103,6 +103,8 @@
     analysisId: null, name: "", folder: "",
     panelTitle: "",          // VB-7: the panel header's own title — "" tracks the View name
     notice: "",              // VB-5: dismissible cross-editor banner text ("" = hidden)
+    carried: null,           // N33: { type, opts } — authored chart opts this builder can't
+                             // edit, captured on load and re-applied on preview + save
     outlineOpen: {}          // which outline datasets are expanded
   };
   function bdReset() {
@@ -115,6 +117,7 @@
     BD.analysisId = null; BD.name = ""; BD.folder = "";
     BD.panelTitle = "";
     BD.notice = "";
+    BD.carried = null;
   }
 
   // ---------- VB-14: per-dataset drafts ----------
@@ -166,6 +169,7 @@
     BD.shelfCols = []; BD.shelfRows = []; BD.filters = []; BD.calcs = []; BD.shelfColor = [];
     BD.paletteKey = ""; BD.chartType = "table"; BD.mapScale = ""; BD._eff = null;
     BD.analysisId = null; BD.name = ""; BD.folder = ""; BD.panelTitle = "";
+    BD.carried = null; BD.notice = ""; // N33: a cleared canvas carries nothing
     delete bdDrafts()[BD.dsKind + BD_SEP + BD.dsId];
     bdPersistDrafts();
     D.toast("Canvas cleared — clean slate for this dataset");
@@ -468,6 +472,10 @@
     BD.chartType = draft.chartType || "table"; BD.mapScale = draft.mapScale || "";
     BD.analysisId = draft.analysisId || null; BD.name = draft.name || "";
     BD.folder = draft.folder || ""; BD.panelTitle = draft.panelTitle || "";
+    // N33: the carried opts belong to the View that was open, not to the canvas.
+    // Switching datasets drops them (bdLoad/bdLoadForeign re-capture after their
+    // own noDraft select), so a draft can never inherit another View's settings.
+    BD.carried = null;
     BD._eff = null;
     BD.run = null;
     var entry = bdDatasets().filter(function (d) { return d.kind === kind && d.id === id; })[0];
@@ -1197,6 +1205,97 @@
     }
     return null;
   }
+  // ---------- N33: don't lose what you can't edit ----------
+  // A View's chart carries per-type OPTIONS (`chart.opts`) — a scatter's trend
+  // line, a map's class count, a table's page size. The View Builder models the
+  // shelves, the type and the Region scale; it has no editor for the rest. Yet
+  // both the preview and Save mint a chart from `Studio.newPanel` DEFAULTS, so
+  // opening a pack-authored View here used to silently drop everything the
+  // author had set, and Update wrote the stripped version back over it. That is
+  // the quiet, lossy round-trip N33 is about (and the reason N34 refused to
+  // persist the canvas height — see the note above bdChartH).
+  //
+  // The fix carries them through instead: capture on load, re-apply on every
+  // bdPanelFor(), and say in the notice which ones are being carried rather than
+  // edited. Nothing is stored anywhere new — the opts round-trip through the
+  // saved `chart.opts` they came from, so there is no blob schema change and no
+  // migration.
+  //
+  // "Authored" means DIFFERENT FROM THE TYPE'S DECLARED DEFAULT (model.js's
+  // CHARTS[type].opts `def`). Diffing against the defaults rather than carrying
+  // the whole opts bag is what keeps this honest: newPanel stamps every key,
+  // so a blind copy would report a scatter's untouched `xLabel: ""` as an
+  // authored setting and the notice would cry wolf on every View.
+  var BD_BUILDER_OWNED_OPTS = { scale: 1 }; // VB-10: the Region scale IS a builder control
+  // Carried, but never NAMED in the notice: the builder doesn't claim to edit a
+  // stored height, and the drag-resize canvas is a viewport that says so itself
+  // (N34). Carrying it is still right — it stops Update from flattening an
+  // authored height back to the type default.
+  var BD_QUIET_CARRIED_OPTS = { height: 1 };
+  var BD_CARRIED_LABELS = {
+    trend: "the trend line", showTrend: "the trend line", trendMethod: "the trend line",
+    xThreshold: "the quadrant thresholds", yThreshold: "the quadrant thresholds",
+    q1: "the quadrant labels", q2: "the quadrant labels",
+    q3: "the quadrant labels", q4: "the quadrant labels",
+    xLabel: "the axis labels", yLabel: "the axis labels",
+    fmt: "the value format", agg: "the aggregate", classes: "the map classes",
+    maxRows: "the row limit", grandTotal: "the grand total row",
+    pageSize: "paging", freezeHeader: "the frozen header", density: "the row density",
+    legend: "the legend", stacked: "stacking"
+  };
+  // The saved opts that differ from their type's declared default, minus the ones
+  // this builder owns. Returns null when there is nothing to carry.
+  function bdCarryFrom(a) {
+    var chart = a && a.chart;
+    var type = chart && chart.type;
+    if (!type || !chart.opts) return null;
+    var defs = {}, spec = (Studio.CHARTS || {})[type];
+    (spec && spec.opts || []).forEach(function (o) { defs[o.key] = o.def; });
+    var out = {}, any = false;
+    Object.keys(chart.opts).forEach(function (k) {
+      if (BD_BUILDER_OWNED_OPTS[k]) return;
+      // JSON-compare so object/array-valued opts (choice lists, content blocks)
+      // are judged by value, not identity. A key the type doesn't declare at all
+      // has no default to match, so it counts as authored.
+      var has = Object.prototype.hasOwnProperty.call(defs, k);
+      if (has && JSON.stringify(defs[k]) === JSON.stringify(chart.opts[k])) return;
+      out[k] = Studio.clone(chart.opts[k]); any = true;
+    });
+    return any ? { type: type, opts: out } : null;
+  }
+  // Applied only while the chart type is still the one the opts were authored
+  // for — pasting a quadrant's thresholds onto a table would be worse than
+  // dropping them. Switching type away and back restores them, because the
+  // capture lives in BD, not in the panel.
+  function bdApplyCarried(p, type) {
+    if (!p || !p.chart || !BD.carried || BD.carried.type !== type) return p;
+    p.chart.opts = p.chart.opts || {};
+    Object.keys(BD.carried.opts).forEach(function (k) { p.chart.opts[k] = Studio.clone(BD.carried.opts[k]); });
+    return p;
+  }
+  // The human list for the notice — deduped (q1..q4 are all "the quadrant
+  // labels") and capped, so a rich chart doesn't produce a paragraph.
+  function bdCarriedNames() {
+    var seen = {}, names = [];
+    Object.keys((BD.carried || {}).opts || {}).forEach(function (k) {
+      if (BD_QUIET_CARRIED_OPTS[k]) return;
+      var label = BD_CARRIED_LABELS[k] || k;
+      if (seen[label]) return;
+      seen[label] = true; names.push(label);
+    });
+    if (names.length > 4) names = names.slice(0, 3).concat(["and " + (names.length - 3) + " more"]);
+    return names;
+  }
+  // "" when there is nothing worth telling the reader about. `subject` is the
+  // lead-in clause so the same sentence works on its own (bdLoad) and appended
+  // to the VB-5 cross-editor notice (bdLoadForeign).
+  function bdCarriedNotice(subject) {
+    var names = bdCarriedNames();
+    if (!names.length) return "";
+    return subject + " chart settings the View Builder doesn’t edit yet (" + names.join(", ") +
+      "). They’re shown in the preview and kept when you update — changing the chart type drops them.";
+  }
+
   // Both the live preview and Save build the panel the same way — when the
   // basis is wider than [label, value] for a line-shaped chart (bdLineSeriesBasis
   // above), map every extra column as its own series instead of newPanel's
@@ -1224,7 +1323,10 @@
       // "county", which silently no-data'd any state-FIPS/HUC8/district id column.
       if (p.chart.opts && "scale" in p.chart.opts) p.chart.opts.scale = bdMapScale();
     }
-    return p;
+    // N33: last, so the author's own settings win over newPanel's defaults —
+    // and after the choropleth branch, whose `scale` is builder-owned and so is
+    // never in the carried set to begin with.
+    return bdApplyCarried(p, type);
   }
   // VB-4 remaining major: KPI. Structurally different from every other chart
   // type here — a KPI tile lives in spec.kpis, not spec.panels, so it gets its
@@ -2167,7 +2269,14 @@
       var typeNote = supported ? "" :
         " Its chart type (" + ((Studio.CHARTS[t] || {}).label || t) + ") isn’t in the View Builder yet, so it opens as " +
         (FOREIGN_TYPE_FALLBACK[t] ? "the nearest type" : "a table") + ".";
-      BD.notice = "“" + (a.name || "This View") + "” was built in the simpler Quick Views editor — its settings were mapped onto the shelves as a starting point." + typeNote + " Updating from here saves it as a View Builder View.";
+      // N33: same carry-through as bdLoad. It only ever APPLIES when the type
+      // survived the trip (bdApplyCarried gates on that), so a quadrant that
+      // fell back to a table keeps its thresholds out of the table — the
+      // typeNote above is what tells the reader about that case.
+      BD.carried = bdCarryFrom(a);
+      var carriedNote = supported ? bdCarriedNotice("It also carries") : "";
+      BD.notice = "“" + (a.name || "This View") + "” was built in the simpler Quick Views editor — its settings were mapped onto the shelves as a starting point." + typeNote + " Updating from here saves it as a View Builder View." +
+        (carriedNote ? " " + carriedNote : "");
       render();
     });
   }
@@ -2192,6 +2301,11 @@
       BD.paletteKey = b.paletteKey || "";
       BD.chartType = b.chartType || "table";
       BD.mapScale = b.mapScale || ""; // VB-10
+      // N33: the authored chart settings this builder has no editor for, taken
+      // off the saved chart itself (the blob has never carried opts, and now
+      // doesn't need to — see bdCarryFrom).
+      BD.carried = bdCarryFrom(a);
+      BD.notice = bdCarriedNotice("“" + (openName || "This View") + "” was authored with");
       render();
     });
   }

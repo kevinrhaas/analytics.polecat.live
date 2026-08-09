@@ -135,6 +135,45 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N33a — the View Builder stripped the chart settings it has no editor for, coming and going
+  (v950, sw v541, 2026-08-09, steward; dev branch; est 2pt for all of N33, took 1 for this half —
+  N33b carries the rest):** the reported symptom reproduced immediately, but **the item's
+  diagnosis was wrong about which artifact, and measuring that is what made the fix general.**
+  N33 assumed Kevin's dashed line was the quadrant panel `pmw_quad`'s threshold crosshair. It is
+  not: `quadrant` occurs once in the whole repo (`demopacks.js:1007`) and only as a DASHBOARD
+  panel, which opens in the Studio and never in the View Builder. The View he opened is
+  `mcv_income_vs_supply` — a **scatter** authored `opts: { trend: true }` (`demopacks.js:1234`),
+  scatter's own OLS regression line, drawn as a dashed `line.trend-line` at
+  `studio-charts.js:3400`. His words were literal.
+  **Measured on clean dev before touching anything:** authored `trend: true`; the builder's
+  preview rendered **0** trend lines; and Update wrote `trend: false` back over the pack's value.
+  The loss was permanent and silent, exactly as the item argued — just from a different cause, and
+  a much broader one. `bdPanelFor()` mints every chart from `Studio.newPanel` DEFAULTS, so this hit
+  **all four** Market Coverage Views, not one panel: the choropleths' `classes: 6` / `fmt: "abbr"`
+  / authored `height: 300`, and the shortlist's `pageSize: 10` / `freezeHeader: true`.
+  **The fix is the item's own preferred option — carry through rather than model each type.** A
+  load captures the saved `chart.opts` into `BD.carried`, `bdPanelFor()` re-applies them (one choke
+  point, so preview and Save cannot drift), and the VB-5 notice names what is carried. **The one
+  judgement that makes it honest: "authored" means DIFFERENT FROM THE TYPE'S DECLARED DEFAULT**
+  (`CHARTS[type].opts` `def`). `newPanel` stamps every key, so a blind copy would have reported the
+  scatter's untouched `xLabel: ""` as an authored setting and the notice would have cried wolf on
+  every View; diffing against the defaults yields exactly `{trend: true}` there, and
+  `{classes, fmt, height}` on the supply map.
+  Three deliberate exclusions: the map's Region `scale` is a real builder control (VB-10) so it is
+  never carried; `height` is carried but never NAMED in the notice, since the builder doesn't claim
+  to edit a stored height and the drag canvas is a viewport that says so itself (N34) — carrying it
+  still stops Update flattening an authored 300 to the type's 380; and carry-through applies only
+  while the chart type is unchanged, so a quadrant that fell back to a table keeps its thresholds
+  off the table. **No schema change and no migration** — the opts round-trip through the saved
+  `chart.opts` they came from, so the builder blob is untouched and old rows need nothing.
+  **Verified:** five new suite checks in the SP-1(c) block drive the real controls — the capture
+  is exactly the authored key (not the defaults), the notice names it, the preview really DRAWS the
+  dashed line (polled, not slept), Update writes the opts back byte-identically, the choropleth's
+  carried set proves both exclusions, and switching datasets drops the carried set so a draft can
+  never inherit another View's settings. Full suite run in the foreground: 3077 checks green, zero
+  real failures, cut off in the trailing mobile block by the runner's own 10-minute command cap
+  (the one reported "failure" is that kill — `page.waitForTimeout: Target page … has been closed`);
+  every block touching this change (SP-1, CONS-4, VB-5, #117) ran green. Dev gate green in full.
 - **N35 — a calculated column had no way back to its formula, and "＋ calc…" handed you the last
   one (v949, sw v540, 2026-08-09, steward; dev branch; est 1pt, took 1):** the item's diagnosis was
   right on both counts and cost nothing to confirm — `openCalcEditor()` already listed every calc
@@ -13712,8 +13751,42 @@
   height PERSISTS into the saved View — if it does, it must round-trip like any other opt; if it
   does not, the canvas is a viewport and the saved chart keeps its authored height. Either is
   defensible; silently doing one while implying the other is not.
-- **N33 ★★ [2pt] — a pack View authored as a QUADRANT silently degrades to a plain scatter when
-  you open it, losing the crosshairs and the four labels that are its entire point.** Kevin,
+- ~~**N33a ★★ [1pt] — the View Builder drops the chart settings it has no editor for, on the way
+  in AND on the way out.**~~ ✓ **SHIPPED v950, sw v541 (2026-08-09, steward — see DONE).** The
+  builder now captures a View's authored, non-default `chart.opts`, applies them to the preview,
+  and writes them back unchanged on Update, with a notice naming what is being carried rather than
+  edited.
+  **⚠ THE DIAGNOSIS BELOW IS PARTLY WRONG — corrected by measurement in this slice, and the
+  correction is why the item split.** The item assumed Kevin's dashed line was `pmw_quad`'s
+  threshold crosshair. It is not. `pmw_quad` is a DASHBOARD panel, and dashboard panels open in the
+  Studio, never in the View Builder — `quadrant` appears exactly once in `app/demopacks.js` (:1007)
+  and never as a View. The View he opened is `mcv_income_vs_supply`, a **scatter** authored with
+  `opts: { trend: true }` (`demopacks.js:1234`) — `trend` is scatter's own OLS regression line
+  (`model.js` scatter opts; drawn as `line.trend-line`, dashed 6,4, in `studio-charts.js:3400`).
+  So his "trend line" was literally a trend line, and his instinct that it should be switchable was
+  about a control that already exists in the panel inspector but not in this builder.
+  **Measured before the fix, on dev:** the authored View carries `trend: true`; the builder's
+  preview rendered **0** `line.trend-line` elements; and pressing Update wrote `trend: false` back
+  over the pack's authored value — permanent, silent loss, exactly the class the item names. Root
+  cause was not the quadrant at all but `bdPanelFor()` minting every chart from `Studio.newPanel`
+  DEFAULTS, so ALL four Market Coverage Views were lossy (the choropleths' `classes: 6` /
+  `fmt: "abbr"` / authored `height: 300`, the shortlist's `pageSize` / `freezeHeader`), not just
+  one panel.
+  **N33b ★ [1pt] — what remains, and it is genuinely the smaller half now.** (1) **Quadrant is
+  still absent from the builder's chart-type row**, so a quadrant View *would* still downgrade —
+  there just isn't one today, which is why this is no longer ★★. Carry-through gates on the type
+  surviving the trip (`bdApplyCarried`), so a quadrant falling back to a table correctly keeps its
+  thresholds out of the table rather than pasting them on; adding Quadrant to the type row is what
+  would make it round-trip whole. (2) **Kevin's actual ask: a trend-line control in the builder.**
+  The item below calls this "new capability" on the grounds that `showTrend` is bars-only — that is
+  true of `showTrend`, but scatter has its own `trend` opt already, so for scatter this is a
+  toggle, not new maths. The real question the item raises IS still live and worth answering
+  deliberately: a STATISTICAL trend (OLS, what `trend` does) versus a REFERENCE line at a chosen
+  constant (what quadrant thresholds are) look identical and mean different things. (3) Not
+  carried, deliberately, and worth its own decision: `chart.map` extras — most visibly the
+  shortlist's declared `map.cols` labels — because a map key names a COLUMN and the shelves can
+  rename columns out from under it, so carrying it blindly would be a different lossy bug.
+  *(Original text kept until the next grooming pass archives it.)* Kevin,
   2026-08-09, with both screenshots: the pinned card renders a dashed reference line; opening the
   same View in the builder renders the scatter WITHOUT it — *"I think there is a trend line on
   the view but I can't see it turn it on/off in the View Builder yet, maybe I should?"*
