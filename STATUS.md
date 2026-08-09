@@ -135,6 +135,40 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 slice — Help's own version of the catalog ROW (v915, NO sw bump, 2026-08-09, steward; dev
+  branch; est 1pt, took 1):** the candidate the N7 list called "the strongest remaining", and the
+  measurement matched what the v892 pass had recorded. `docs/index.html` documented the per-row
+  controls of the **Views** catalog in full ("Every row offers:" — Open, Duplicate, Export, pin,
+  private, delete) and the other three catalogs not at all. `Test` appeared twice, both times about
+  the connection wizard or the admin backends list rather than the row; `Run` never appeared in
+  bold anywhere; and the ★ **Pin** that Datasets and Connections rows carry was named nowhere on
+  the page — while the Sorting paragraph already told the reader "pinned items always stay at the
+  top" without ever saying how something gets pinned.
+  - **One new Help section**, filed with the other catalog-wide topics (search, sort, filter, bulk,
+    folders) and directly above the Views one it mirrors: what each of Datasets / Connections /
+    Jobs carries on its row, what each delete's confirmation counts before it asks, that every
+    single-row delete offers Undo, and what Pin actually does (top of that list whatever the sort,
+    most recently pinned first — NOT "to Home", which is the Views pin's behaviour and would have
+    been the easy thing to copy wrongly). Every claim was read off the handler, not the button:
+    Connections' delete counts the datasets that reference it, Jobs' keeps the output dataset,
+    Datasets' names the dashboards that will fall back to their saved copy.
+  - **Doc-truth check 28** — the check-16→17 move one document over, the pattern every tour slice
+    has followed. It reuses check 24's OWN `rowControlsBySection`, so a single derivation off
+    `app/jobs.js` / `app/connections.js` / `app/datasets.js` now holds the tours AND Help, and a
+    control added to a row reddens the dev gate until both documents name it. Help's list tags each
+    item `data-help-rows="<section>"`, which is what scopes the check without guessing at a heading.
+  - **The negative half is the half worth having**, and all three failure modes were measured
+    rather than assumed: on the pre-fix tree the check fails 2/2 (no blocks at all, then every
+    control missing); bolding **Pin** inside the Jobs block fails with "promises Pin, but
+    app/jobs.js renders no such toggle"; and making `app/jobs.js` render a `cx-pin` fails twice —
+    once because Help does not name it, once because Help still carries the sentence saying Jobs
+    has no pin. That second one is the rot a positive-only rule would have left behind.
+  - **Verified:** the full dev gate in the foreground — `tools/validate.mjs`,
+    `tools/changelog-check.js`, `tools/doc-truth.mjs` (now 28 checks) and `tools/dev-smoke.mjs`
+    (marketing + app + docs at 1280×900 and 390×780, zero pageerrors). **No `sw.js` bump:**
+    `docs/index.html` is deliberately NOT precached (sw.js's own precache-conventions note — it is
+    runtime-cached on first visit), so the precache list is unchanged, which is that file's stated
+    bump rule.
 - **SP-1 slice (c1) — the Market Coverage pack pins four Views and gets its own tour (v914, sw v536,
   2026-08-09, steward; dev branch; est 3pt for the whole pack, (a) 1 + (b) 1 + this 1 = 3 on
   estimate, with (c2) still to come — so the pack will finish at 4, one over):** the pack had three
@@ -12259,11 +12293,17 @@
     steps rewritten; doc-truth check 24 derives each row's controls from the module that renders
     it and requires the tour to name them in **bold** — stricter than check 22 on purpose, since
     "a status dot for their last run" would satisfy a bare-word rule for a Run button.
-  * **Not yet audited (candidates for the next N7 slice):** Help's own version of that same row
-    — `docs/index.html` documents Test, Run and `private` in their own sections but never the
-    per-row **Pin** on Connections or Datasets (measured in the v892 pass); that is the
-    check-16→17 move one document over, the pattern that has followed every tour slice, and it
-    is the strongest remaining candidate. Then the marketing page's hero carousel
+  * *Help's own version of that same row — v915, NO sw bump (see DONE), 2026-08-09.* The
+    candidate this list called the strongest, and the v892 measurement held up: Help documented
+    the **Views** row in full and the other three catalogs' rows nowhere — `Test` appeared only
+    about the wizard and the admin backends list, `Run` was never bolded at all, and the ★ **Pin**
+    on a Datasets or Connections row was named nowhere on the page, even though the Sorting
+    paragraph already promised "pinned items always stay at the top". One new section, filed with
+    the other catalog-wide topics and above the Views one it mirrors. Doc-truth check 28 reuses
+    check 24's own `rowControlsBySection`, so one derivation now holds the tours AND Help; its
+    negative half also rejects a control Help INVENTS, and the "Jobs have no pin" sentence the
+    moment `app/jobs.js` renders one. All three failure modes measured on mutated trees.
+  * **Not yet audited (candidates for the next N7 slice):** the marketing page's hero carousel
     captions + screenshots, which the v871 slice deliberately left alone (the copy pass
     stayed textual — regenerating shots is its own slice) — with every per-feature tour body
     now done (Quick analysis v875, Build a dashboard v877/v880/v881, Jobs / Connections &amp;

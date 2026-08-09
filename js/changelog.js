@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 915,
+    title: 'Help now explains the buttons on a Datasets, Connections or Jobs row',
+    kind: 'polish',
+    ts: '2026-08-09T05:55:55.000Z',
+    items: [
+      'Every row in the Datasets, Connections and Jobs catalogs ends in its own small cluster of controls, and that is where most of the day\'s work actually happens — you test a connection, re-run a dataset, or run a job without opening anything. The Help page had never described that cluster. It documented Test, Run and the private padlock in scattered sections of their own, and the ★ pin on a dataset or a connection row appeared nowhere at all.',
+      'Help now has a section for it, next to the other catalog topics: what each button does on each of the three catalogs, what the confirmation asks before a delete, that every delete offers Undo, and what the pin actually does — it holds the item at the top of that list whatever sort you have chosen, most recently pinned first.',
+      'It also says the thing you would otherwise learn by hunting: Jobs are the one of the three with no pin, so the "Last run" sort is what you want there instead.',
+      'This is the same drift that had been fixed in the guided tours a run earlier, one document over. The tours and the Help page are now held to the same source — the catalog code itself — so a control added to a row cannot ship without both of them saying so.',
+    ],
+  },
+  {
     v: 914,
     title: 'The Census pack pins four charts to Home, and walks you through them',
     kind: 'feature',

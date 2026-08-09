@@ -1696,6 +1696,38 @@
   chip strip (All folders / each folder / Unfiled) above their other filters, and each row wears a
   small folder badge.</p>
 
+  <h3 id="catalog-rows">Every Datasets, Connections and Jobs row carries its own controls</h3>
+  <p>The catalog pages aren't only lists to scan — most of the day's work happens on the row
+  itself, without opening anything. Each row ends in its own cluster of controls; clicking
+  anywhere <em>else</em> on the row opens the item in its editor, so the controls never fire by
+  accident. They're the same on the compact list and on a <strong>Tile view</strong> card.</p>
+  <ul>
+    <li data-help-rows="datasets"><strong>Datasets</strong> — <strong>Run</strong> re-runs that
+      dataset's query against its connection right there and reports the row count (or the error)
+      in a toast, so you can check something still returns data without leaving the list.
+      <strong>Edit</strong> opens the dataset editor. <strong>Delete</strong> (the ✕) asks first,
+      naming any dashboards that depend on it, and its toast carries <strong>Undo</strong>.
+      Beside them sit two toggles: <strong>Pin</strong> (the ★) keeps the dataset at the top of
+      the list whatever the sort — most recently pinned first — and <strong>private</strong> (the
+      padlock) hides it from everyone but you (see <a href="#privacy">marking something
+      private</a>).</li>
+    <li data-help-rows="connections"><strong>Connections</strong> — <strong>Test</strong> tries the
+      connection with its saved credentials and updates the row's own status dot right where
+      you're looking, which is the fastest way to tell a broken credential from a broken query.
+      <strong>Edit</strong> reopens the connection wizard on that connection, and
+      <strong>Delete</strong> (the ✕) asks first and offers <strong>Undo</strong> — it also counts
+      the datasets pointing at it. The same <strong>Pin</strong> and <strong>private</strong>
+      toggles ride alongside.</li>
+    <li data-help-rows="jobs"><strong>Jobs</strong> — <strong>Run</strong> runs the whole pipeline
+      and writes its output dataset in place, which is the one-click annual refresh the Jobs
+      section describes; the row's status dot then goes green or red — hover it for the time and
+      the row count. <strong>Edit</strong> opens the
+      job editor, and <strong>Delete</strong> (the ✕) removes the job while <em>keeping</em> its
+      output dataset (with <strong>Undo</strong>). A <strong>private</strong> toggle is here too.
+      Jobs are the one of the three with no pin — a job is something you run, not something you
+      keep at the top of a list — so reach for the section's "Last run" sort instead.</li>
+  </ul>
+
   <h3>Views — browse your saved charts</h3>
   <!-- IMAGE-SLOT: the Views section in list mode showing chart-type icons, folder
        badges, and one row's hover action cluster (pin / private / add / delete). -->
@@ -1764,7 +1796,7 @@
   <h3>Saved views</h3>
   <p>Once a search and/or adapter/connection/type/tag pill selection narrows the <strong>Datasets</strong> or <strong>Connections</strong> list to something worth returning to, a <strong>"+ Save view"</strong> box appears next to the filter chips — name it and it becomes a chip of its own. Click that chip later to instantly restore the exact same search text and filters; hover it for a small trash button to delete it. Saved views live in the same workspace-settings store as <strong>Dashboards</strong>' workbooks, so they sync across devices along with the rest of your workspace.</p>
 
-  <h3>Marking a dashboard, connection, dataset, View, or job private</h3>
+  <h3 id="privacy">Marking a dashboard, connection, dataset, View, or job private</h3>
   <p>A lock toggle on every <strong>Dashboards</strong>, <strong>Connections</strong>, <strong>Datasets</strong>, and <strong>Jobs</strong> row, and every saved View in <strong>Quick Views</strong>' list marks that item private — it stays visible to you and to admin accounts, but disappears from every other signed-in account's catalogs (and, for connections, from the connection picker other people see when authoring a dataset, and for datasets, from the source/join/union dataset pickers when authoring a job). This is UX-level gating, the same honesty as the rest of sign-in — an admin account (or local/no-auth mode with no sign-in configured) always sees everything. All five saved-object types now have the toggle.</p>
 </section>
 
