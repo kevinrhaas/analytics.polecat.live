@@ -268,7 +268,22 @@
   `datamanagement rows === 0` after installing conservation — which silently depended on the
   bug. It now snapshots the count BEFORE the install and asserts it is UNCHANGED after, which is
   the property that always mattered and is strictly stronger.
-  Files: app/studio.js, sw.js, js/changelog.js, tests/run.js, STATUS.md.
+  **The fix exposed a real content defect, and it is fixed here too.** With the twelve
+  dashboards actually materialized, FILTERS-1's recurring sweep could see them for the first
+  time and found one: the **Interactive Feature Showcase** declared a *"Run Status"* filter whose
+  options DA (`status_filter`) no panel uses, so no panel-used DA declares a `status` param —
+  moving that control changed nothing on screen. That is exactly the decorative-filter class the
+  sweep exists to catch, invisible for as long as the dashboard never existed. The filter and its
+  orphaned options DA are removed from `data/examples/feature-showcase.studio.json`; the `src`
+  ("Data Source") filter is genuinely wired to two panel DAs and stays, so the showcase still
+  demonstrates filtering. **This belongs in this slice, not a follow-up:** N39 is what makes
+  these dashboards real, so their content being correct is part of shipping it.
+  **Two suite assertions were silently green because of the bug and are re-measured, not
+  weakened** — LF43's "installing one pack doesn't materialize another" (now a before/after
+  comparison rather than an absolute 0) and LF16's "removing datamanagement deletes no rows"
+  (now per-table: it owns dashboards and nothing else, and removal takes all of them).
+  Files: app/studio.js, data/examples/feature-showcase.studio.json, sw.js, js/changelog.js,
+  tests/run.js, STATUS.md.
 - **N32 — retired the Settings → MODE "Sample content" toggle; the packs own this now (v951,
   sw v542, 2026-08-09, steward; dev branch; est 1pt, took 1):** the item's diagnosis held — one
   coarse global mask (`studio-show-samples`) sitting above the per-pack registry that models the
