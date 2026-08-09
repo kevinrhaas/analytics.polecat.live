@@ -11,7 +11,8 @@ notice inside the export too.
 | Component | Path | License | Notes |
 |---|---|---|---|
 | Polecat Shell | `vendor/polecat-shell/` | © Polecat.live (first-party fleet library) | Synced read-only from kevinrhaas/polecat-platform; not third-party. |
-| DashKit dashboard toolkit | `vendor/dashkit.js` | © Polecat.live (first-party) | Inlined into exported dashboards. |
+| DashKit dashboard toolkit | `vendor/dashkit.js`, `vendor/dashkit.css` | © Polecat.live (first-party) | Inlined into exported dashboards. |
+| fflate v0.8.2 | `vendor/fflate.js` | MIT — © 2023 Arjun Barrett (`vendor/LICENSE-fflate`) | The UMD build, verbatim (banner comment intact). Unzips `.xlsx` workbooks for the spreadsheet importer (`app/xlsx.js` uses `unzipSync` only); loaded by the app and precached, never inlined into an export. |
 | topojson-client v3.1.0 | `vendor/geo/topojson-client.min.js` | ISC — © 2012–2019 Michael Bostock (`vendor/geo/LICENSE-topojson-client`) | Inlined (banner comment intact) into any exported dashboard that contains a map panel. |
 | us-atlas v3.0.1 | `vendor/geo/counties-albers-10m.json`, `vendor/geo/states-albers-10m.json` | ISC — © Michael Bostock (`vendor/geo/LICENSE-us-atlas`) | Pre-projected TopoJSON; underlying geometry is US Census Bureau cartographic boundary data (public domain). Inlined into exported map dashboards. |
 | MapLibre GL JS v5.24.0 | `vendor/maplibre/maplibre-gl.js`, `vendor/maplibre/maplibre-gl.css` | BSD-3-Clause — © 2023 MapLibre contributors (`vendor/maplibre/LICENSE-maplibre-gl`) | Powers the opt-in interactive ("GL") map renderer. Inlined (license banner intact) ONLY into exported dashboards whose map panels choose the GL renderer; SVG-renderer exports carry none of it. |
@@ -28,18 +29,35 @@ and are not redistributed.)*
 | US Census Bureau cartographic boundary files | county/state geometry underlying the us-atlas files above | US government work, public domain |
 | US Census Bureau TIGERweb (119th Congressional Districts, `Legislative/MapServer`) | `vendor/geo/us-cd-albers.json` — nationwide congressional districts (all 50 states + DC), generalized + reprojected by `tools/build-geo.mjs` | US government work, public domain |
 | US Census Bureau TIGERweb (2020 ZIP Code Tabulation Areas, `tigerWMS_Current/MapServer` layer 2) | `vendor/geo/us-zcta-albers.json` — nationwide 5-digit ZCTAs (all 50 states + DC), generalized + reprojected by `tools/build-geo.mjs` | US government work, public domain |
+| US Census Bureau — County Business Patterns and American Community Survey | `data/packs/marketcoverage/county-establishments.csv` and `county-demographics.csv` — 1,813 counties, extracted by `tools/pack-extract/marketcoverage.mjs`; the data behind the Market Coverage sample pack | US government work, public domain |
 
 ### Sample-pack data
 
 Sample packs (`app/demopacks.js`) may ship real outside data as committed CSV under
 `data/packs/<id>/` — the contract is **`docs/PACKS.md`**. Every pack declares a `source` on its
-registry entry, and anything that is **not** public domain (`kind: "licensed"`) gets a row in the
-table above in the same PR that adds it; `tools/validate.mjs` fails the dev gate if it doesn't.
+registry entry, and every source that is not `kind: "synthetic"` gets a row in the table above in
+the same PR that adds it — a `licensed` one because the licence demands it (`tools/validate.mjs`
+fails the dev gate without it), a `public` one because a public-domain source still deserves the
+credit this document exists to give. `tools/doc-truth.mjs` check 47 holds both.
 
-*As of 2026-08-08 no pack ships outside data: both shipped packs (Conservation Insight, Data
-Management & Governance) are entirely synthetic — generated in JS at install time, as their own
-copy says — so there is nothing to credit here yet.*
+*Of the three shipped packs, one ships outside data: **Market Coverage** (`marketcoverage`)
+commits the US Census extract credited in the table above. **Conservation Insight** and **Data
+Management & Governance** are entirely synthetic — generated in JS at install time, as their own
+copy says — so they need no credit.*
 
 ## Fonts
 
-No third-party fonts are bundled; the UI uses system font stacks.
+**Hanken Grotesk** — the Polecat brand face — is bundled and served from this repo, in two
+places: `assets/fonts/hanken-grotesk-{400,600,700,800}.woff2`, `@font-face`-declared by
+`css/landing.css` (the marketing page) and `docs/index.html` (the Help page); and
+`vendor/polecat-shell/fonts/HankenGrotesk-*.woff2`, which arrive with the read-only shell copy
+and are published with it (no page here links the shell's own `fonts.css` today, but the files
+are redistributed all the same, which is what this document is about).
+
+Licensed under the **SIL Open Font License, Version 1.1** — Copyright 2021 The Hanken Grotesk
+Project Authors (<https://github.com/marcologous/hanken-grotesk>). The licence text ships beside
+the fonts at `assets/fonts/LICENSE-hanken-grotesk` — the OFL requires the notice to travel with
+the font files, so it lives beside them rather than only here.
+
+No other fonts are bundled — everything else falls through to the system stack behind Hanken
+Grotesk in `--font`.

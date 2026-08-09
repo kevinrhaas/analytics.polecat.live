@@ -135,6 +135,65 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — THIRD-PARTY-NOTICES.md left out a library, a typeface and a data source we ship (v934,
+  NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):**
+  A class of document this repo had never held to anything. `THIRD-PARTY-NOTICES.md` is not copy
+  a reader skims — it is the GPL-adjacent legal notice whose entire job is to be a complete and
+  current list of what we redistribute that is not ours, and it answered to exactly one narrow
+  rule: `tools/validate.mjs` makes a pack whose `source.kind` is `"licensed"` appear in it.
+  Nothing checked it against the tree it describes. Taken over the two v922/v927 candidates for
+  the reason those notes give themselves (both are product calls, and `docs/BACKLOG.md` says a
+  run does not make those for Kevin); this one is pure derivation.
+  **Measured before the fix — three components ship uncredited:**
+  · **`vendor/fflate.js`** (fflate 0.8.2, MIT, © 2023 Arjun Barrett) had no row. LF24-XLSX
+    vendored it on 2026-07-31, `app/index.html:558` loads it, `sw.js` precaches it — and the
+    list of what we redistribute never learned it existed. `vendor/dashkit.css` was missing
+    beside it (the DashKit row named only the `.js`).
+  · **The typeface.** The Fonts section read *"No third-party fonts are bundled; the UI uses
+    system font stacks"* while **ten woff2 files** ship here: four in `assets/fonts/`,
+    `@font-face`-declared by `css/landing.css` (marketing) and `docs/index.html` (Help) since
+    DESIGN-1, and six more inside `vendor/polecat-shell/fonts/`. Hanken Grotesk is **SIL OFL
+    1.1** (Copyright 2021 The Hanken Grotesk Project Authors), whose central ask is that the
+    notice travels with the font — and neither copy carried one, which also broke this
+    document's own opening promise that "vendored files keep their upstream license text
+    alongside the code".
+  · **The Market Coverage data.** The italic line said *"As of 2026-08-08 no pack ships outside
+    data: both shipped packs … are entirely synthetic"*. SP-1 (a) shipped the third pack the
+    following day with 113KB of US Census CBP/ACS extract under `data/packs/marketcoverage/`.
+    `validate.mjs` did not catch it and was never meant to: its rule fires on `licensed` only,
+    so the public-domain half of the document's own promise ("the third-party **and
+    public-domain** components listed here") was the part with no check under it.
+  **Fixed:** an fflate row and a DashKit path correction in the Vendored libraries table; a
+  Census row in Data & geometry sources; the sample-pack paragraph rewritten to state which of
+  the three packs ships outside data and to say that `public` sources get a row too; the Fonts
+  section replaced with what is actually bundled, where, under which licence. The two upstream
+  licence texts now ship beside the code the repo's own rule asks for them next to —
+  `vendor/LICENSE-fflate` (fetched from the v0.8.2 tag, so the © year matches the vendored
+  build rather than upstream HEAD) and `assets/fonts/LICENSE-hanken-grotesk`. No `sw.js` bump:
+  nothing precached changed.
+  **The guard — doc-truth check 47**, derived from the tree rather than from a hand-kept list.
+  Five rules: (a) every redistributed file under `vendor/` is named in the notices
+  (`polecat-shell/` excluded — the table declares that directory first-party and read-only,
+  which is the honest description of a synced copy); (b) the negative half — every repo path
+  the notices cite exists, check 46's rule one document over; (c) if the tree ships font
+  binaries, the Fonts section credits every family the first-party `@font-face` blocks declare,
+  may not claim none are bundled, and must cite a licence file that is really there; (d) every
+  pack whose source is not `synthetic` is credited BY NAME, `public` included — the half
+  `validate.mjs` deliberately leaves alone; (e) every third-party row cites upstream licence
+  text that exists, the document's opening promise turned into a rule about itself. It reads
+  the pack registry through check 34's existing `packRegistry` (two new fields, brace-walked to
+  the `source: {…}` object so a nameless source cannot capture the next dashboard's `name:`) —
+  no second parse of `demopacks.js`.
+  **3 of the 6 assertions measured failing on the real pre-fix tree** (rules a, c, d — c on all
+  three of its conditions at once); rules (b) and (e) on mutated trees (a retired
+  `LICENSE-us-atlas` citation, a renamed extract script). Note the two are not redundant: (b)
+  matches by shape and so skips extension-less licence files, which is exactly what (e) reads.
+  **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the fonts
+  in `vendor/polecat-shell/fonts/` are published with the shell copy but **no page in this repo
+  links the shell's `fonts.css`** — dead weight in every clone and every deploy. Removing them
+  is not this repo's call (`vendor/polecat-shell/` is read-only and arrives whole by sync PR),
+  so it is a platform-repo question, not an N7 one; the notices say plainly that they ship and
+  why. The two v922 candidates are still open and still Kevin's calls.
 - **N7 — The go-live runbook counted three security postures where the tests prove seven (v933,
   NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):**
   `tools/M7-RLS-GOLIVE-RUNBOOK.md` is the `PUBLISH.md` class — the second document in this repo
@@ -13618,6 +13677,25 @@
     a per-posture total would need a derivation of both builders, which is worth doing the day a
     document needs the number and not before. The two v922 candidates are still open and still
     Kevin's calls.
+  * *`THIRD-PARTY-NOTICES.md` vs what the repo actually redistributes — v934, NO sw bump
+    (2026-08-09 — see DONE).* The last document class here answering to almost nothing, and the
+    one where being stale is a licence question rather than a confused reader: **three
+    components ship uncredited.** `vendor/fflate.js` (MIT, vendored by LF24-XLSX, loaded and
+    precached) had no row at all; the Fonts section said "no third-party fonts are bundled"
+    while ten woff2 files ship here and two pages `@font-face` them (Hanken Grotesk, OFL 1.1,
+    whose notice is supposed to travel with the font — neither copy carried one); and the italic
+    line still said no pack ships outside data, one day after SP-1 (a) committed 113KB of US
+    Census extract. `tools/validate.mjs` was right not to catch that last one — its rule fires
+    on `kind: "licensed"` and the Census is public domain — which is precisely the gap. Both
+    upstream licence texts now ship beside the code. Doc-truth **check 47** derives the whole
+    inventory from the tree: five rules (every vendor artifact named, every cited path real,
+    bundled fonts credited with a licence file that exists, non-synthetic pack sources credited
+    by name, third-party rows citing licence text that is there); 3 of 6 assertions measured
+    failing on the real pre-fix tree, the other two on mutated ones.
+    **Measured in the same pass and NOT taken:** `vendor/polecat-shell/fonts/` ships six woff2
+    files no page in this repo links — dead weight in every clone, but a platform-repo question
+    (the vendor copy is read-only and arrives whole by sync PR), not an N7 one. The two v922
+    candidates are still open and still Kevin's calls.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before

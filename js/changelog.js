@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 934,
+    title: 'The third-party notices left out a library, a typeface and a data source we ship',
+    kind: 'fix',
+    ts: '2026-08-09T14:12:08.000Z',
+    items: [
+      'This app is free software, and the file that lists what it redistributes from other people is the one document here whose only job is to be complete. It had fallen three components behind the repository it describes, and nothing had ever checked it against the tree.',
+      'Missing: fflate, the small MIT-licensed library that unzips the spreadsheets you import. It has been loaded by the app and stored for offline use since the Excel importer shipped, and the list of what we redistribute never learned it existed. It now has a row, and the upstream licence text now sits beside the code as this document promises for everything else.',
+      'Missing: the typeface. The Fonts section said no third-party fonts were bundled and the interface used the system stack, while ten font files ship in this repository and the marketing and Help pages ask your browser for them by name. Hanken Grotesk is published under the SIL Open Font License, whose central request is that its notice travels with the font, so the licence text now ships in the fonts folder and the section names the family, the licence and where each copy lives.',
+      'Missing: the data behind the Market Coverage sample pack. Its US Census county extract landed the day before and the notices still said no pack ships outside data. Public-domain material is still somebody\'s work and this document exists to credit it, so the Census now has its own row.',
+      'The dev gate now derives the whole list from the tree rather than from memory: every redistributed file under the vendor folder has to be named, every path the notices cite has to exist, every third-party row has to point at licence text that is really there, a bundled typeface has to be credited, and any sample pack shipping outside data has to be credited by name, whether it is licensed or public domain.',
+    ],
+  },
+  {
     v: 933,
     title: 'The go-live runbook counted three security postures where the tests prove seven',
     kind: 'fix',
