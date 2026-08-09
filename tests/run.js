@@ -11546,11 +11546,22 @@ function serve() {
       out.ariaAfter = more.getAttribute("aria-expanded");
       // an open menu keeps its row's actions visible even with the pointer elsewhere
       out.actionsHeldVisible = getComputedStyle(acts).opacity === "1";
-      // and choosing an item closes it again (item handlers stopPropagation, so the
-      // document-level outside-click closer never sees the click)
+      // And choosing an item closes it again (item handlers stopPropagation, so the
+      // document-level outside-click closer never sees the click — a capture-phase
+      // listener does the closing). Export is the item that re-renders nothing, which is
+      // what makes the close observable — but it is NOT side-effect free: it stamps
+      // studio-first-export-done and increments studio-export-count, which is exactly the
+      // state N-FUN's "a second export does NOT repeat the celebration" check reads. So
+      // snapshot both and put them back, and leave this test with no footprint.
+      var celebKeys = ["studio-first-export-done", "studio-export-count"];
+      var celebBefore = celebKeys.map(function (k) { return localStorage.getItem(k); });
       menu.querySelector("[data-vw-export]").click();
       await new Promise(function (r) { setTimeout(r, 200); });
       out.closesOnChoice = !document.querySelector(".cx-row-menu.open");
+      celebKeys.forEach(function (k, i) {
+        if (celebBefore[i] === null) localStorage.removeItem(k);
+        else localStorage.setItem(k, celebBefore[i]);
+      });
       // Export opens the bundle modal — close it so it can't overlay a later test
       var ov = document.querySelector(".modal-ov"); if (ov) ov.remove();
       Studio.Workspace.remove("analyses", a.id, { silent: true });
