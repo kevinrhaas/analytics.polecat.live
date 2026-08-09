@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 920,
+    title: 'The Dashboard Builder picture on the home page had nothing to drag',
+    kind: 'fix',
+    ts: '2026-08-09T07:48:38.000Z',
+    items: [
+      'The last slide in the carousel at the top of analytics.polecat.live invites you to "drag datasets onto the canvas", and its description promises "the data and inspector panels". The picture beside those words showed the data panel open, one closed folder at the top of it, and about a thousand pixels of empty space below. Nothing to drag, and no sign the app had anything to drag.',
+      'The panel keeps a long list of datasets folded up until you ask for it — a deliberate kindness, added because the panel used to open as an intimidating wall. It folds once a dashboard has more than six of them. The dashboard in the light-themed version of this shot has exactly six, so it photographed beautifully; the one in the dark version, the one actually on the page, has nine. One dataset either side of the line, and the same picture came out full in one theme and empty in the other.',
+      'The shot now opens that folder before it is taken, the way you would if you were looking at it, and it shows eight of the nine dataset cards — each with its name, where it comes from and the columns it carries. The ninth is below the bottom of the frame, and that is fine: the words beside the picture never promised a number.',
+      'Two things keep it that way. The tool that takes the screenshot now counts the cards its own frame holds and refuses to save a picture that disagrees with the number written down beside it — it caught this on its first run, when the number written down was nine. And the dev gate checks the words on the page against that same count, so a caption can never claim more datasets than the picture shows, or quietly stop mentioning the panel the slide exists to show.',
+    ],
+  },
+  {
     v: 919,
     title: 'The Quick Views slide on the home page was showing the one thing Quick Views cannot do',
     kind: 'fix',
