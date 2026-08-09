@@ -108,16 +108,44 @@ async function bootBuilder(browser, { theme, palette, prefs }) {
 //   • declutter LAST. The lint pass fires its "All clear — this dashboard has zero
 //     warnings" toast about two seconds in, so the old 1.4s-then-declutter order removed
 //     nothing and shot the toast — it is in the committed baseline too.
-async function loadExample(page, file) {
+//
+// Opening the PANE is not the same as showing its contents, and the two builder shots
+// landed on opposite sides of that (measured 2026-08-09). LF19 gives the Data panel's
+// "This dashboard's datasets" group progressive disclosure: `libGroupOpen` collapses it
+// by default once it holds more than LIB_GROUP_MANY (6) items, unless the reader has
+// toggled it themselves, which it remembers in `studio-lib-mine-open`. `studio-cost`
+// binds 6 data accesses and `finance-command` binds 9 — so the LIGHT shot renders its
+// six dataset cards and the DARK one, the one the marketing carousel actually publishes,
+// rendered a single collapsed header over ~1000px of empty panel, beneath a caption
+// reading "Drag datasets onto the canvas". Same function, same code path, one threshold
+// apart. Seeding that same key is the reader's-choice path the group already honours,
+// not a new mechanism — and `datasetsShown` then holds the picture to it the way
+// `framedSteps` holds the Quick Views shot: declare what the frame shows, the shooter
+// measures it, and doc-truth check 33 reads the same number.
+const MIN_CARD_PX = 24;
+async function loadExample(page, file, { datasetsShown = 0 } = {}) {
   await page.evaluate(async (f) => {
     const spec = await fetch("data/examples/" + f).then((r) => r.json());
     window.__studioLoad(spec);
     if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
     ["library", "inspector"].forEach((p) => { try { window.__studioOpenPane(p); } catch (e) {} });
+    try { localStorage.setItem("studio-lib-mine-open", "1"); } catch (e) {}
+    try { Studio.buildLibrary(); } catch (e) {}
   }, file);
   await page.waitForTimeout(2800); // preview iframe render + the lint toast both settle
   await page.evaluate(DECLUTTER);
   await page.waitForTimeout(160);
+  if (datasetsShown) {
+    const shown = await page.evaluate((minPx) => [].slice.call(
+      document.querySelectorAll("#libList .lib-mine .da")).filter((c) => {
+        const b = c.getBoundingClientRect();
+        if (!b.width) return false; // the group is collapsed — the box has no layout at all
+        return Math.min(b.bottom, window.innerHeight) - Math.max(b.top, 0) >= minPx;
+      }).length, MIN_CARD_PX);
+    if (shown !== datasetsShown)
+      throw new Error(`datasetsShown: declared ${datasetsShown}, the Data panel actually shows ${shown} — ` +
+        "re-measure and update BOTH this number and the copy beside the image (doc-truth check 33)");
+  }
 }
 
 // Snap a real app SECTION (Home tiles, Explore designer, Datasets catalog…) in
@@ -274,7 +302,7 @@ function countyValue(fips) {
     if (LIGHT_GROUP.some(want)) {
       const light = await bootBuilder(browser, { theme: "light" });
       if (want("studio")) try {
-        await loadExample(light.page, "studio-cost.studio.json");
+        await loadExample(light.page, "studio-cost.studio.json", { datasetsShown: 6 });
         await light.page.screenshot({ path: path.join(OUT, "studio.png") });
         done("studio");
       } catch (e) { oops("studio", e); }
@@ -329,7 +357,10 @@ function countyValue(fips) {
     if (want("studio-dark")) {
       const dark = await bootBuilder(browser, { theme: "dark" });
       try {
-        await loadExample(dark.page, "finance-command.studio.json");
+        // 9 bound, 8 framed: the ninth card sits below the 900px fold. The caption
+        // beside this slide claims no count, so 8 satisfies it — but the number has to
+        // be the measured one, not the spec's total (check 33 holds it to both).
+        await loadExample(dark.page, "finance-command.studio.json", { datasetsShown: 8 });
         await dark.page.screenshot({ path: path.join(OUT, "studio-dark.png") });
         done("studio-dark");
       } catch (e) { oops("studio-dark", e); }

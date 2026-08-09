@@ -1698,6 +1698,104 @@ ok(`index.html: the Quick Views copy names at least one step the shot actually s
   exploreCopy.some((unit) => framedNouns.some((noun) => new RegExp("\\b" + noun + "\\b", "i").test(unit))),
   "the negative rule above is satisfiable by saying nothing — a caption for a numbered walk has to name the walk");
 
+/* ── 33. the Dashboard Builder hero shot vs the panel it photographs ────────
+   N7, and the check-32 move one slide over. Check 32 held the Quick Views shot to what
+   its 1440×900 frame REACHES. This holds the builder shot to what its frame SHOWS, which
+   is a different failure: the pane was open and empty.
+
+   Measured 2026-08-09. LF19 gave the Data panel's "This dashboard's datasets" group
+   progressive disclosure — `libGroupOpen` collapses it once it holds more than
+   LIB_GROUP_MANY items, unless the reader has toggled it themselves, which it remembers
+   in `studio-lib-mine-open`. The two builder shots straddle that threshold: `studio-cost`
+   binds 6 data accesses and `finance-command` binds 9. So the LIGHT shot rendered its six
+   dataset cards while the DARK one — the shot the marketing carousel actually publishes —
+   rendered one collapsed header over ~1000px of empty panel, under a caption reading
+   "Drag datasets onto the canvas" and alt text promising "the data and inspector panels".
+   Same generator, same function, one item apart. v918 had just fixed the other half of
+   this slide (it was photographing Home), which is why the empty panel was the next thing
+   visible rather than the second thing.
+
+   Three rules, all derived so they survive either side moving:
+   (a) if any builder shot's spec binds more than the threshold, the shooter must seed the
+       group's OWN open key — the reader's-choice path the group already honours;
+   (b) each shot's declared `datasetsShown` must be a real count: at least one card, and
+       never more than the spec actually binds (the shooter measures the rest — declare 9
+       for a frame that holds 8 and the capture fails there rather than here);
+   (c) the copy beside the image may not claim a count the frame does not hold, and must
+       name what the picture shows. The positive half matters as much: this slide's whole
+       job is the panel, and a caption that never mentions it is vague, not true. */
+const studioSrc = read("app/studio.js");
+const libGroupMany = +((studioSrc.match(/\bLIB_GROUP_MANY\s*=\s*(\d+)/) || [])[1] || 0);
+const mineBody = (studioSrc.match(/function buildMyDataSources\([\s\S]*?\n {2}\}/) || [""])[0];
+const mineOpenKey = (mineBody.match(/mineOpenKey\s*=\s*"([^"]+)"/) || [, ""])[1];
+const mineGroupName = ((mineBody.match(/class="nm">([^<]*)<\/span>/) || [, ""])[1] || "")
+  .replace(/\\u2019/g, "’");
+ok(`app/studio.js: the Data panel's dataset group parsed for check 33 ("${mineGroupName}", ` +
+  `collapses past ${libGroupMany} items, remembered in \`${mineOpenKey}\`)`,
+  libGroupMany > 0 && !!mineOpenKey && !!mineGroupName,
+  "`buildMyDataSources` + `libGroupOpen` are what the rules below are measured against — " +
+  "the threshold and the key both come from the app, not from the shooter");
+
+// Every builder shot: the example it loads, what that example binds, and what it declares.
+const builderShots = [...shotsSrc.matchAll(
+  /loadExample\((\w+)\.page, "([^"]+)"(?:, \{ datasetsShown: (\d+) \})?\)/g)]
+  .map((m) => {
+    let bound = -1;
+    try { bound = (JSON.parse(read("data/examples/" + m[2])).cda.dataAccesses || []).length; } catch (e) {}
+    return { page: m[1], file: m[2], declared: m[3] === undefined ? -1 : +m[3], bound };
+  });
+ok(`tools/gen-shots.mjs: both builder shots parsed for check 33 (${
+  builderShots.map((s) => `${s.file.replace(".studio.json", "")}: ${s.bound} bound, ${s.declared} shown`).join(" · ") || "none"})`,
+  builderShots.length >= 2 && builderShots.every((s) => s.bound > 0 && s.declared >= 0),
+  "each `loadExample(page, file, { datasetsShown })` call and the `cda.dataAccesses` of the " +
+  "example it names are the two halves of the measurement — an undeclared shot is unheld");
+
+const loadExampleBody = (shotsSrc.match(/async function loadExample\([\s\S]*?\n\}/) || [""])[0];
+const needsSeed = builderShots.filter((s) => s.bound > libGroupMany);
+ok(`tools/gen-shots.mjs: the shooter opens the "${mineGroupName}" group it photographs` +
+  (needsSeed.length ? ` (${needsSeed.map((s) => s.file.replace(".studio.json", "")).join(", ")} bound past ${libGroupMany})` : ""),
+  !needsSeed.length || new RegExp(`setItem\\("${mineOpenKey}"`).test(loadExampleBody),
+  `${needsSeed.map((s) => `${s.file} binds ${s.bound}`).join(", ")}\n      ` +
+  "past the threshold the group renders collapsed, so opening the PANE photographs an " +
+  "empty one — seed the group's own key, the way a reader toggling it would");
+
+const countGaps = builderShots.filter((s) => s.declared < 1 || s.declared > s.bound)
+  .map((s) => `${s.file}: declares ${s.declared}, binds ${s.bound}`);
+ok("tools/gen-shots.mjs: every builder shot declares a dataset count its example can actually produce",
+  !countGaps.length,
+  `${countGaps.join("\n      ")}\n      ` +
+  "zero means the panel is empty in a picture sold on it; more than the spec binds is not a frame " +
+  "measurement at all — the shooter enforces the exact framed number, this enforces the bounds");
+
+// The copy beside the DARK builder shot — the one the carousel publishes.
+const builderImg = (marketing.match(/<img[^>]*site\/shots\/studio-dark\.png[^>]*>/) || [""])[0];
+const builderAlt = (builderImg.match(/alt="([^"]*)"/) || [, ""])[1];
+const builderIdx = +((builderImg.match(/data-i="(\d+)"/) || [])[1] ?? -1);
+const builderCopy = [builderAlt, caps[builderIdx] || ""].filter(Boolean);
+const darkShot = builderShots.find((s) => /finance/.test(s.file)) || builderShots[builderShots.length - 1];
+ok(`index.html: the copy beside studio-dark.png parsed for check 33 (alt + caption ${builderIdx} of ${caps.length})`,
+  builderAlt.length > 0 && builderIdx >= 0 && !!caps[builderIdx],
+  "the alt attribute and the CAPS entry at the image's own data-i are the two published strings");
+
+const builderCountGaps = [];
+for (const unit of builderCopy)
+  for (const m of unit.matchAll(/(\S+)\s+datasets\b/gi)) {
+    const n = asNumber(m[1]);
+    if (n !== undefined && n > darkShot.declared)
+      builderCountGaps.push(`"…${m[0].trim()}" — the frame shows ${darkShot.declared}`);
+  }
+ok(`index.html: the builder copy claims no more datasets than the shot frames (${darkShot.declared})`,
+  !builderCountGaps.length,
+  `${builderCountGaps.join("\n      ")}\n      ` +
+  "re-frame the shot (raise `datasetsShown` in tools/gen-shots.mjs and let the shooter " +
+  "re-measure) or drop the claim — the picture decides");
+
+const mineNoun = (mineGroupName.match(/(\w+)$/) || [, "datasets"])[1];
+ok(`index.html: the builder copy names what the panel holds ("${mineNoun}")`,
+  builderCopy.some((unit) => new RegExp("\\b" + mineNoun + "\\b", "i").test(unit)),
+  "the rules above are all satisfiable by saying nothing about the panel — the slide whose " +
+  "own alt text promises \"the data and inspector panels\" has to name what is in them");
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

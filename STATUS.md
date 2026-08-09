@@ -135,6 +135,44 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the Dashboard Builder hero shot photographed an empty Data panel (v920, NO sw bump,
+  2026-08-09, steward; dev branch; est 1pt, took 1):** the candidate v919 named for the next pass,
+  and it was filed as a legibility nicety ("the Data panel is open but shows one collapsed group;
+  expanding it would read better"). It was not. The panel was EMPTY, under a caption whose verb is
+  **"Drag datasets onto the canvas"** and alt text promising **"the data and inspector panels"** —
+  the slide asks the reader to do the one thing the picture proves the app has nothing for.
+  **The cause, derived rather than guessed, and it is one item wide.** LF19 gave the Data panel's
+  `This dashboard's datasets` group progressive disclosure: `libGroupOpen` collapses it once it
+  holds more than `LIB_GROUP_MANY` (6), unless the reader has toggled it themselves, which it
+  remembers in `studio-lib-mine-open`. The two builder shots straddle that threshold by ONE
+  dataset — `studio-cost.studio.json` binds 6 data accesses and `finance-command.studio.json`
+  binds 9 — so the same function, on the same code path, produced a light shot rendering all six
+  of its dataset cards and a dark shot rendering a single collapsed header over ~1000px of black.
+  The dark one is the shot the carousel publishes (`data-i="10"`); the light one is referenced
+  nowhere. v918 had just fixed this slide's OTHER half (it was photographing Home), which is why
+  the empty panel was the next thing visible rather than the second thing.
+  **The fix is the reader's own path, not a new one.** `loadExample` seeds the same
+  `studio-lib-mine-open` key the group's header writes when you click it, then rebuilds the
+  library — so nothing in the app is special-cased for the camera. The picture now carries eight
+  dataset cards, each with its name, backend badge and columns.
+  **The mechanism earned itself on its first run.** `datasetsShown` follows v919's `framedSteps`
+  exactly — declare what the frame shows, the shooter measures it before saving, and a mismatch
+  fails the capture. Declared 9; the 900px frame holds 8 (the ninth is below the fold, and the
+  copy claims no count, so 8 satisfies it). The number shipped is the measured one because the
+  tool refused the asserted one.
+  **Verified:** `node tools/gen-shots.mjs studio-dark` green after the correction and the PNG read
+  back by eye; the full dev gate — `tools/validate.mjs`, `tools/changelog-check.js`,
+  `tools/doc-truth.mjs` (33 checks), `tools/dev-smoke.mjs` at 1280×900 + 390×780, zero pageerrors.
+  Doc-truth check 33 derives the threshold and the key from `app/studio.js`, each shot's bound
+  count from the example spec it names, and holds the copy beside the image to the framed count
+  and to naming the panel at all; all four of its failure modes were measured on mutated trees
+  (seed removed, over-declared count, caption claiming "twelve datasets", caption dropping the
+  noun). **Est 1pt, took 1.**
+  **Not taken, and stated so the next run does not re-derive it:** `site/shots/studio.png` is
+  generated on every full pass and referenced nowhere — orphan to retire, or a slide the page is
+  missing. That is a product question. Its `datasetsShown: 6` was verified by a real capture and
+  the committed PNG restored unchanged, per gen-shots' own no-churn rule, so this PR's binary diff
+  is the one image it is about.
 - **N7 — the Quick Views hero shot photographed Quick Views' own limitation (v919, NO sw bump,
   2026-08-09, steward; dev branch; est 1pt, took 1):** the candidate v918 named for the next pass,
   and the measurement moved the fix somewhere the note did not expect.
@@ -12507,9 +12545,31 @@
     the prep opens a DATASET instead, the section's own front door. The alt text's "a live result"
     was the other half: the editor is a four-step walk and the frame holds three, so the copy was
     rewritten to the picture. `framedSteps` now makes the shooter measure that before saving and
-    doc-truth check 32 holds the caption + alt to the same number. (2) the builder shot's Data
+    doc-truth check 32 holds the caption + alt to the same number. ~~(2) the builder shot's Data
     panel is open but shows one collapsed group; expanding it would read better — still open, and
-    still the named candidate for the next N7 pass. **Also worth
+    still the named candidate for the next N7 pass.~~ ✓ **SHIPPED v920, NO sw bump (2026-08-09 —
+    see DONE), and "would read better" understated it: the panel was EMPTY under a caption whose
+    verb is "Drag datasets onto the canvas".** The cause is derived, not guessed — LF19's
+    `libGroupOpen` collapses `This dashboard's datasets` past `LIB_GROUP_MANY` (6) unless the
+    reader has toggled it, and the two builder shots straddle that threshold by ONE item:
+    `studio-cost` binds 6 data accesses (the light shot renders all six) and `finance-command`
+    binds 9 (the dark shot — the one the carousel publishes — rendered one collapsed header over
+    ~1000px of empty panel). v918 had just fixed the other half of this same slide, which is why
+    the empty panel was the next thing visible rather than the second thing. `loadExample` now
+    seeds the group's OWN key, the reader's-choice path it already honours, and declares
+    `datasetsShown` the way the Quick Views shot declares `framedSteps` — **and the mechanism
+    earned itself on its first run: declared 9, the 900px frame holds 8**, so the capture failed
+    rather than shipping the number. Doc-truth check 33 derives the threshold and the key from
+    `app/studio.js`, the bound counts from the example specs themselves, and holds the copy beside
+    the image to the framed count (and to naming the panel at all); all four failure modes
+    measured on mutated trees.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:**
+    `site/shots/studio.png` — the light builder shot — is generated on every full pass and
+    referenced NOWHERE (`grep -rn 'studio\.png'` over `index.html`, `docs/`, `README.md` and
+    `site/` finds nothing; the carousel's slide 10 is `studio-dark.png`). It is either an orphan
+    to retire or a slide the page is missing, and that is a product question, not a copy one — so
+    it is a candidate, not this slice. Its `datasetsShown: 6` was verified by a real capture here
+    and the committed PNG restored unchanged, per the file's own no-churn rule. **Also worth
     a look:** the rail renders **Views** and **Dashboards** twice (WORKSPACE catalogs vs BUILD
     builders) and several rail/tile icons fall back to a generic ⊙ glyph — both are in the app
     itself, both are in the old shots too, and neither is a copy question, so neither belongs to N7.
