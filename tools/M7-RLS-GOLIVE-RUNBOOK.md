@@ -215,14 +215,26 @@ begin
     execute format('drop policy if exists polecat_update on %I', t);
     execute format('drop policy if exists polecat_delete on %I', t);
     execute format('drop policy if exists polecat_anon_all on %I', t);
+  end loop;
+  -- polecat_meta carries its own policy name; dropping it is part of undoing
+  -- go-live, not a detail (N26 — the provisioning files read these names to
+  -- decide whether a workspace is live, so one survivor makes a rolled-back
+  -- workspace still look live to them).
+  drop policy if exists polecat_meta_auth on public.polecat_meta;
+  foreach t in array array['polecat_meta','connections','datasets','dashboards','analyses','jobs','users'] loop
     execute format('create policy polecat_anon_all on %I for all to anon, authenticated using (true) with check (true)', t);
   end loop;
 end $$;
 notify pgrst, 'reload schema';
 ```
 
-(Or just re-run `tools/supabase-bootstrap.sql`, which is idempotent and does the
-same. `public.polecat_is_admin()` can be left in place — harmless — or dropped.)
+Run the whole block: since N26 the provisioning files **preserve** a live posture
+rather than overwriting it, so re-running `tools/supabase-bootstrap.sql` is no
+longer a shortcut for this — on a gone-live workspace it deliberately installs no
+allow-all. Dropping the per-user policies first, as above, is what makes the demo
+posture installable again; re-running the bootstrap file afterwards is then
+idempotent as always. (`public.polecat_is_admin()` can be left in place —
+harmless — or dropped.)
 
 ---
 

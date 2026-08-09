@@ -437,7 +437,8 @@
   // ---- N22b slice 2: upgrading the database FROM the app ----------------------
   // Slice 1 installed `polecat_migrate(mode text)` in both setup paths (§ 6d of
   // tools/supabase-deploy.sql and the connect wizard's generated script) and
-  // proved it from the database's own side (tests/rls.mjs' fifth posture). It
+  // proved it from the database's own side (tests/rls.mjs' migration-RPC-route
+  // posture — named rather than numbered, since N26 inserted two ahead of it). It
   // was, deliberately, called by nothing. This is the browser half.
   //
   // The shape is the AUD-01 capability probe, verbatim, because the question is
@@ -916,16 +917,25 @@
     // right now, not about what the database has.
     //
     // Still DELIBERATELY NOT routed through the polecat-admin Edge Function,
-    // even when `cfg.adminFnUrl` is bound. That function CAN run DDL — but its
-    // only schema action is `provision`, whose BOOTSTRAP_DDL ends by
-    // (re-)creating the demo-posture `polecat_anon_all` policy on every table.
-    // Postgres ORs permissive policies together, so calling it on a workspace
-    // that has been through go-live would silently re-open it to anon reads: a
-    // one-click "upgrade" that quietly undoes the security posture is worse
-    // than a paste. `polecat_migrate` has neither problem — it is admin-gated,
-    // its DDL is fixed, and it re-applies the authenticated-only posture rather
-    // than loosening it (tests/rls.mjs' fifth posture proves that from the
-    // database's own side).
+    // even when `cfg.adminFnUrl` is bound — but the reason CHANGED with N26 and
+    // it is worth being exact about which one still holds. The old reason was
+    // that routing here was unsafe: the function's only schema action is
+    // `provision`, whose BOOTSTRAP_DDL re-created the demo-posture
+    // `polecat_anon_all` policy on every table, and Postgres ORs permissive
+    // policies together, so one call on a gone-live workspace silently re-opened
+    // it to anon reads. That is fixed at the source (the block now installs the
+    // demo posture only on a workspace that has NOT gone live), so `provision`
+    // is no longer the trap it was.
+    //
+    // What remains is simply that it would buy nothing. `polecat_migrate` is the
+    // better route on every axis: it is admin-gated by the database itself
+    // rather than by the deploy-time PROVISION_SECRET the runbook tells you to
+    // DISCARD after go-live, it needs no Edge Function deployed, and it is what
+    // both modern setup paths install. A workspace old enough to lack the RPC is
+    // also old enough that its admin function, if any, predates this fix.
+    // tests/rls.mjs proves both halves from the database's own side: the
+    // migration-RPC route, and `provision` re-run on a workspace that has gone
+    // live (N26).
     upgradeWorkspace: function (cfg) {
       var manual = { ok: false, manual: true, sql: upgradeSQL() };
       var key = projectKey(cfg);

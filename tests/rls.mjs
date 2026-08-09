@@ -166,6 +166,36 @@ const POSTURES = [
     needsTables: false,
   },
   {
+    // N26: `provision` AFTER go-live — the sequence nobody ran on purpose and
+    // every one of the checks below would have caught. `provision` is the only
+    // schema action the Edge Function has, its BOOTSTRAP_DDL used to create the
+    // demo allow-all policy unconditionally, and Postgres ORs PERMISSIVE
+    // policies together — so one provision call on a live workspace re-opened
+    // every table to the anon key while leaving the real per-user policies
+    // visibly in place. Running the WHOLE battery (not just an anon-reads-zero
+    // spot check) is deliberate: the property is "the live posture is exactly
+    // what it was", so the per-user, admin and write checks have to hold too.
+    label: "the Edge Function's `provision` re-run on a workspace that has gone live (N26)",
+    source: "supabase/functions/polecat-admin/sql.ts",
+    load: () => `${edgeConst("BOOTSTRAP_DDL")}\n${edgeConst("RLS_REAL_SQL")}\n${edgeConst("BOOTSTRAP_DDL")}`,
+    needsTables: false,
+  },
+  {
+    // The same question asked of the file a human pastes. tools/supabase-
+    // bootstrap.sql is the documented way to add a table or repair grants on an
+    // existing project, and supabase-provision.yml applies it unattended — so
+    // "safe to re-run" has to mean safe on a LIVE workspace, not only on the
+    // demo one it was written for.
+    label: "tools/supabase-bootstrap.sql re-run on a workspace that has gone live (N26)",
+    source: "tools/supabase-bootstrap.sql + tools/supabase-rls-real.sql",
+    load: () => [
+      readFileSync(tool("supabase-bootstrap.sql"), "utf8"),
+      readFileSync(tool("supabase-rls-real.sql"), "utf8"),
+      readFileSync(tool("supabase-bootstrap.sql"), "utf8"),
+    ].join("\n"),
+    needsTables: false,
+  },
+  {
     label: "the connect wizard's generated script (adopt a blank database from the UI)",
     source: "app/sources/schema.js WS.freshDeploySQL()",
     load: wizardDeploySQL,

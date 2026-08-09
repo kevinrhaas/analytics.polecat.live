@@ -1503,6 +1503,77 @@ ok("index.html: no built-in region scale is described as a geography the reader 
   "the user-supplied geography is the `customMap` opt (a county FIPS → region-name CSV); " +
   "these scales ship");
 
+/* ── 30. provisioning never re-opens a workspace that has gone live ────────
+   N26. Check 27 holds the marker DIRECTION; this one holds the POSTURE, and it is the
+   same shape of bug one layer down. Both provisioning artifacts end with a DO block that
+   installs the demo `polecat_anon_all` policy, and both used to do it unconditionally.
+   Postgres ORs PERMISSIVE policies together, so on a workspace that has been through
+   go-live that CREATE did not REPLACE the per-user policies — it added an allow-all one
+   BESIDE them and handed the anon key every row back, with the real policies still sitting
+   there looking correct. `provision` is the polecat-admin function's ONLY schema action and
+   `supabase-provision.yml` applies the .sql file unattended, so "safe to re-run" had to
+   start meaning safe on a LIVE workspace, not only on the demo one it was written for.
+
+   Three properties, and the third is the one a careless "fix" would lose:
+     • the CREATE is conditional on the workspace not being live;
+     • liveness is derived from the real posture's OWN policy names — the same names
+       supabase-rls-real.sql drops by name, for the same OR-ing reason — rather than from a
+       marker a rollback would forget to clear;
+     • the DROP stays UNCONDITIONAL. A stray allow-all beside a live posture IS the leak, so
+       finding one is a reason to remove it, never a reason to leave it alone.
+
+   Textual, over the shipped bytes of each artifact, for check 27's reason: neither file
+   derives from schema.js, which is exactly why they drift (the N2 slice-2 class). The live
+   proof against a real Postgres is tests/rls.mjs's two "re-run on a workspace that has gone
+   live" postures; this is the half that runs in the dev gate. */
+const PROVISIONING_ARTIFACTS = ["tools/supabase-bootstrap.sql", "supabase/functions/polecat-admin/sql.ts"];
+// The demo-posture block, from its DO to the END that closes it. Both artifacts have
+// exactly one block that creates the allow-all policy; the runbook's rollback (a document,
+// not an artifact) is deliberately out of scope — undoing go-live is what it is FOR.
+const demoBlocks = PROVISIONING_ARTIFACTS.map((rel) => {
+  const src = read(rel);
+  const create = src.indexOf("CREATE POLICY polecat_anon_all");
+  if (create < 0) return { rel, block: "" };
+  const start = src.lastIndexOf("DO $$", create);
+  const end = src.indexOf("END $$;", create);
+  return { rel, block: start < 0 || end < 0 ? "" : src.slice(start, end + 7) };
+});
+
+ok(`tools/doc-truth.mjs: the demo-posture block parsed for check 30 was found in both provisioning artifacts`,
+  demoBlocks.every((b) => b.block),
+  demoBlocks.filter((b) => !b.block).map((b) => `${b.rel} — no DO $$ … END $$; block creates polecat_anon_all`).join("\n      ") +
+  "\n      if an artifact stopped installing the demo posture at all, retire this check with it — do not let it pass vacuously");
+
+const LIVE_PROBE = /FROM pg_policies[\s\S]*?policyname IN \([^)]*'polecat_select'[^)]*'polecat_meta_auth'[^)]*\)/;
+const postureGaps = [];
+for (const { rel, block } of demoBlocks) {
+  if (!block) continue;
+  if (!LIVE_PROBE.test(block))
+    postureGaps.push(`${rel} — the block never asks pg_policies whether the real per-user policies ` +
+      `(polecat_select … polecat_meta_auth) are already installed`);
+  if (!/IF NOT live THEN\s*\n\s*EXECUTE format\('CREATE POLICY polecat_anon_all/.test(block))
+    postureGaps.push(`${rel} — CREATE POLICY polecat_anon_all is not guarded by IF NOT live`);
+  // The DROP has to sit OUTSIDE the guard: everything between the loop's ALTER TABLE and the
+  // IF is unconditional, so requiring the DROP to appear there is requiring exactly that.
+  const unconditional = block.slice(block.indexOf("ENABLE ROW LEVEL SECURITY"), block.indexOf("IF NOT live"));
+  if (!/DROP POLICY IF EXISTS polecat_anon_all/.test(unconditional))
+    postureGaps.push(`${rel} — DROP POLICY IF EXISTS polecat_anon_all moved inside the guard; ` +
+      `a stray allow-all beside a live posture is the leak itself and must always be removed`);
+}
+ok("provisioning re-run on a gone-live workspace preserves its posture (the demo allow-all is guarded, the drop is not)",
+  !postureGaps.length,
+  `${postureGaps.join("\n      ")}\n      ` +
+  "Postgres ORs PERMISSIVE policies together — one allow-all beside the per-user set defeats all of it (STATUS.md N26)");
+
+// The two artifacts are supposed to be the same posture written twice (the N2 slice-2 drift
+// class), so hold the guard itself to that: same block, modulo the .ts file's backtick
+// escaping and each file's own indentation.
+const normalise = (s) => s.replace(/\\`/g, "`").replace(/\s+/g, " ").trim();
+ok("both provisioning artifacts carry the SAME guarded demo-posture block (they are one posture written twice)",
+  demoBlocks.every((b) => b.block) && normalise(demoBlocks[0].block) === normalise(demoBlocks[1].block),
+  `${demoBlocks.map((b) => `${b.rel}: ${normalise(b.block).slice(0, 220)}…`).join("\n      ")}\n      ` +
+  "an edit to one is an edit to both — tests/rls.mjs installs each of them separately and runs the same checks");
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
