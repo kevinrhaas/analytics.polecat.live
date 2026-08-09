@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 951,
+    title: 'Sample content is the sample packs now — the Settings switch that hid them all at once is gone',
+    kind: 'polish',
+    ts: '2026-08-09T22:15:18.000Z',
+    items: [
+      'Settings had a "Sample content" mode switch that hid the whole demo suite in one flick, and a Sample packs card right beneath it that installs and removes that same content one pack at a time. Two systems governing one thing, and they could disagree: a pack could be installed and hidden at the same time, which is a workspace that says it has sample content and shows you none.',
+      'The switch is retired. The packs are the only sample-content control there is — remove the ones you do not want, or all of them, and you have the empty workspace the switch was asked for. Nothing is uninstalled on your behalf: whatever packs you had stay exactly as they were, and the retired preference is simply no longer read.',
+      'Everything the switch used to hide now follows real pack state instead. Home offers its "Sample dashboards" card only when an installed pack actually contributes dashboards to the gallery, rather than advertising a section that could be empty. The raw sample tables behave the same way in all three places they surface — Quick Views\' dataset picker, the View Builder\'s outline, and the New menu\'s auto-build starters — where before the New menu was the one that still followed the global switch, so it could offer sample starter sets belonging to a pack that had been removed.',
+      'The Data panel\'s "Sample content is hidden — show samples" strip goes with it, since there is no hidden state left to climb back out of, and Help now says the packs are the switch.',
+      'Five checks hold the replacement: that Settings has no such switch and the packs card stands alone, that writing the old preference hides nothing, that the starter sets appear and disappear with the pack that owns those tables, that the Home card is offered exactly when the gallery has cards in it, and that a full install-and-remove cycle never writes the retired preference back.',
+    ],
+  },
+  {
     v: 950,
     title: 'Opening a View in the View Builder no longer strips the chart settings it cannot edit',
     kind: 'fix',

@@ -135,6 +135,53 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N32 — retired the Settings → MODE "Sample content" toggle; the packs own this now (v951,
+  sw v542, 2026-08-09, steward; dev branch; est 1pt, took 1):** the item's diagnosis held — one
+  coarse global mask (`studio-show-samples`) sitting above the per-pack registry that models the
+  same concept, able to CONTRADICT it (a pack installed, and hidden). It is gone: the switch, the
+  `showSamples()`/`setShowSamples()` pair, the Data panel's "Sample content is hidden — show
+  samples" strip and its CSS, the packs card's hidden-state note, and the install handler's
+  "flip the mask back on first" special case. **Nothing is uninstalled on anyone's behalf** — the
+  item asked for exactly that, so pack state is untouched and only the mask went; an "empty
+  workspace" is now "remove the packs", which is a thing the UI already does one pack at a time.
+  **The item's real question was its "what to check before deleting" clause — what ELSE the switch
+  did — so that was measured rather than assumed, and the answer split three ways.** (1) Home's
+  sample gallery and its "Sample dashboards" quick card: already pack-derived, because every entry
+  in `data/examples/index.json` carries a `demoPackId` and `visibleExamples()` filters on it (LF2)
+  — all 20, checked. The mask was redundant there; the card now appears exactly when the gallery
+  has cards, which also fixes a smaller pre-existing lie (with every pack removed it still
+  advertised a section with nothing in it). (2) The library's hidden-state strip: it offered a way
+  back to `buildDemoPacksLib`, which DECLUTTER-1 unwired — a door to a room that is not rendered.
+  Deleted. (3) **The New ▾ auto-build starter sets were the genuine second job**, and the only
+  place the mask still governed something real: they are built from `S.catalog`, the raw demo-DB
+  tables, which the registry says belong to the pack flagged `catalogSamples` — yet this surface
+  alone gated on the mask, so a workspace with that pack REMOVED could still be offered its sample
+  starter sets. They now follow the owning pack, which is the rule Explore's picker and the View
+  Builder outline already used. So the answer to the item's question is "they were the packs by
+  another name", but only after the third one was fixed to actually be so.
+  **Two things this slice tidied because it was inside them anyway** (both one line, both in the
+  code being changed): `explore.js` asked for `demoPackInstalled("datamanagement")` by NAME, which
+  SP-0 forbids — it now shares the same registry-flag helper (`catalogSamplesInstalled()`) as
+  build.js and the New menu, so there is one gate, not three spellings of one; and toggling a pack
+  now repaints Explore and the New ▾ menu alongside the library/Settings/Home it already
+  repainted, which is the immediacy `setShowSamples()` used to provide and the suite still holds.
+  `studio-show-samples` LEAVES `ROAM_LS_KEYS` (roaming a pref nothing reads would carry a dead
+  setting between devices) and STAYS on `CLEAR_DATA_KEYS` (an old copy on disk should still be
+  swept) — the E8 key-list check covers the second half.
+  **Verified:** eight suite checks, five of them new — Settings has no such switch and the packs
+  card stands alone; writing the retired pref `"0"` hides nothing; the starter sets appear and
+  disappear with the owning pack (read off the menu's reported TOTAL, since it caps at 10 shown);
+  Home's card is offered exactly when the gallery is non-empty; a full install/remove cycle never
+  writes the pref back. Three existing checks were rewritten to their pack-based successors rather
+  than deleted (the Explore repaint, the packs-card visibility contract, and Z5's switch roster,
+  now 5 switches). Dev gate green in full (validate + changelog-check + doc-truth + dev-smoke,
+  desktop and 390×780, zero pageerrors). Full suite in the foreground: **3,102 checks green, zero
+  failing assertions** (re-run after rebasing onto N38), cut off at ~95% by the runner's own 10-minute per-command cap — the single
+  reported failure is that kill (exit 124, `page.waitForTimeout: Target page … has been closed`),
+  the same ceiling N33a hit. The one assertion in the unrun tail that touches this change (LF44's
+  "a developer still sees every Home quick action", which includes the examples card) was proved
+  separately against a fresh workspace at 1400×950 AND 390×780: card present, gallery 8, zero
+  pageerrors.
 - **N33a — the View Builder stripped the chart settings it has no editor for, coming and going
   (v950, sw v541, 2026-08-09, steward; dev branch; est 2pt for all of N33, took 1 for this half —
   N33b carries the rest):** the reported symptom reproduced immediately, but **the item's
@@ -13851,9 +13898,17 @@
      for the narrative sentences, so the math is there) and a REFERENCE line at a chosen constant
      (which is what the quadrant thresholds are). They look identical and mean different things;
      offering the wrong one on a whitespace chart would be actively misleading.
-- **N32 ★ [1pt] — retire the Settings → MODE "Sample content" toggle; the packs already own
-  this (Kevin, 2026-08-09: "I don't think this mode should be here any more… that should all be
-  fully handled by the sample packs").** Agreed, and the code already half-admits it: the toggle
+- ~~**N32 ★ [1pt] — retire the Settings → MODE "Sample content" toggle; the packs already own
+  this.**~~ ✓ **SHIPPED v951, sw v542 (2026-08-09, steward — see DONE).** The switch and its
+  `showSamples()` mask are gone with pack state untouched, as the item required. Its "what to check
+  before deleting" clause was the substance and the answer was measured: Home's gallery and quick
+  card were already pack-derived (every example declares its `demoPackId`), the library's
+  hidden-state strip led to a group DECLUTTER-1 had unwired, and **the New ▾ starter sets were the
+  one real second job** — built from the demo-DB catalog tables that the registry says belong to
+  the `catalogSamples` pack, yet gated on the mask alone, so a removed pack could still fill the
+  menu. They now follow the owning pack, which is the rule Explore and the View Builder already
+  used. "An empty workspace" is now "remove the packs".
+  *(Original text kept until the next grooming pass archives it.)* Agreed, and the code already half-admits it: the toggle
   at `app/studio.js:9382` is a single coarse switch over the same concept the pack registry
   models per-pack, and `studio.js:9912` carries the comment *"with Sample content toggled off,
   the packs' ONLY install/remove surface…"* — i.e. two systems governing one thing, with the

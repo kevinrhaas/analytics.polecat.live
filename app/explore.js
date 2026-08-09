@@ -57,7 +57,7 @@
   function defaultDashboardTheme() { return D.defaultDashboardTheme(); }
   function postThemeOnLoad(ifr) { return D.postThemeOnLoad(ifr); }
   function ensureGeoAssets(spec) { return D.ensureGeoAssets(spec); }
-  function showSamples() { return D.showSamples(); }
+  function catalogSamplesInstalled() { return D.catalogSamplesInstalled(); }
   function currentUserId() { return D.currentUserId(); }
   function themedChartSvg(svg, type) { return D.themedChartSvg(svg, type); }
   function hlq(text, q) { return D.hlq(text, q); }
@@ -172,8 +172,10 @@
       out.push({ kind: "ws", id: d.id, name: d.name || d.id, sub: conn ? conn.name : "no connection", cols: d.columns || [], folder: d.folder || "" });
     });
     // SAMPLE-DATA-1 (Kevin live, 2026-07-30): the raw demo-DB catalog tables belong to the
-    // Data Management pack — installed pack only; uninstalled = zero presence here.
-    if (showSamples() && Studio.demoPackInstalled && Studio.demoPackInstalled("datamanagement")) {
+    // pack that owns them — installed pack only; uninstalled = zero presence here.
+    // N32: the global Sample-content mask is gone, and the pack is now asked for by its
+    // registry FLAG (`catalogSamples`) rather than by id, per SP-0.
+    if (catalogSamplesInstalled()) {
       Object.keys(S.catalog).forEach(function (stem) {
         (S.catalog[stem].dataAccesses || []).forEach(function (d) {
           out.push({ kind: "sample", id: stem + XP_SEP + d.id, name: d.id, sub: stem + " · sample", cols: d.columns || [], stem: stem });

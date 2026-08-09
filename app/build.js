@@ -377,7 +377,7 @@
 
   // ---------- dataset outline (LEFT) ----------
   // Same sourcing rules as Explore's picker: visible workspace datasets first,
-  // then the sample catalog's authored/sample queries (showSamples-gated).
+  // then the sample catalog's authored/sample queries (gated on the owning pack).
   // Kept local rather than reaching into explore.js's private xpDatasets —
   // LF51's shared-nav convergence epic is where these unify.
   // VB-1: rows carry `folder` (ws) / `stem` (sample) so the outline can render
@@ -397,8 +397,8 @@
     // Management pack's data — they only appear when that pack is actually installed
     // (uninstalled pack = zero presence), not as an always-there SAMPLE DATA dump.
     // SP-0: ask the registry which pack owns them (`catalogSamples`) rather than naming one.
-    if (D.showSamples() && Studio.demoPacksWith &&
-        Studio.demoPacksWith("catalogSamples").some(function (pid) { return Studio.demoPackInstalled(pid); })) {
+    // N32: pack state is the whole gate now — the global Sample-content mask is retired.
+    if (D.catalogSamplesInstalled()) {
       var cat = D.getCatalog();
       Object.keys(cat).forEach(function (stem) {
         (cat[stem].dataAccesses || []).forEach(function (d) {
