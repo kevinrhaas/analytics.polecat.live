@@ -2445,7 +2445,10 @@ for (const f of sourceFiles) {
   decls.forEach((m, i) => {
     const window = src.slice(m.index, i + 1 < decls.length ? decls[i + 1].index : src.length);
     const caps = (window.match(/caps:\s*\{([^}]*)\}/) || [, fileCaps])[1];
-    pickerRegistry.push({ id: m[1], label: m[2], meta: /meta:\s*true/.test(caps), data: /data:\s*true/.test(caps) });
+    // `local` is the adapter's own "I am this browser, not a remote" flag — registry.js's
+    // remoteMetaSources() filters on it, and check 39 needs the same distinction.
+    pickerRegistry.push({ id: m[1], label: m[2], meta: /meta:\s*true/.test(caps),
+      data: /data:\s*true/.test(caps), local: /\blocal:\s*true/.test(window) });
   });
 }
 const connectors = pickerRegistry.filter((a) => a.data);
@@ -2543,6 +2546,117 @@ ok(`docs/index.html: the "used either way" paragraph names all ${bothWays.length
   `unnamed in the paragraph: ${bothWays.filter((a) => !bothWaysNamed.includes(a)).map((a) => a.label).join(", ") || "(none)"}\n      ` +
   "this sentence is the one that tells a reader the Snowflake section above and this list are " +
   "the same backend — a wrong count here sends them looking for a seventh");
+
+/* ── 39. Help's workspace-backend chooser vs the picker Settings really renders ──
+   N7, and check 38's move one picker over. There are TWO adapter pickers in the app and
+   check 38 only held the first. Settings → Workspace backend → Connect renders
+   `Studio.remoteMetaSources()` (every caps.meta adapter except the local one) and then a
+   hard-coded roadmap row of greyed, unselectable "Future" cards.
+
+   Measured 2026-08-09, before the fix — the picker rendered SIX cards and Help's
+   "Choosing a workspace backend" table documented four:
+   · The three Future cards — PostgreSQL, Cloudflare D1, MongoDB Atlas — were named NOWHERE
+     on the page. `Cloudflare`, `MongoDB`, `Atlas` and `D1` each had zero occurrences in
+     docs/index.html, so a reader who opened the picker met three greyed cards Help had not
+     prepared them for and no way to tell "planned" from "broken".
+   · The first of them makes that worse rather than merely incomplete: the card says
+     **PostgreSQL**, and Help's own Connections inventory three sections above — check 38's
+     subject, shipped the same day — lists **PostgreSQL (PostgREST)** as a connector you can
+     use today. The page appeared to contradict itself, and the thing that resolves it
+     (answering dataset queries and hosting the catalog are different capabilities;
+     postgrest's caps.meta is false) was stated nowhere.
+
+   Five rules:
+   (a) every backend the table has to document is there — the caps.meta adapters, which is
+       remoteMetaSources() PLUS the local one (the wizard never offers Local because it is
+       where you already are, but it is the default and the table's first row);
+   (b) the table names no backend the registry does not have (the negative half — a retired
+       adapter would otherwise sit in a comparison table forever);
+   (c) the table is in the registry's own order, so it reads beside the picker;
+   (d) the intro's count word matches the number of rows the derivation produces — the
+       sentence opens "All four options", the exact shape of claim check 38 rule (e) caught;
+   (e) the roadmap paragraph names EXACTLY the picker's Future set — every one of them, and
+       none that has since shipped. The second direction is the one that goes stale: the day
+       a D1 adapter lands, this paragraph is advertising it as unavailable.
+
+   The row label may be the adapter's label with its parenthetical dropped ("Local (this
+   browser)" → "Local"), which is what the table does and what the rail prints; anything
+   else is a mismatch. */
+
+const shortLabel = (s) => s.replace(/\s*\([^)]*\)\s*$/, "").trim();
+const backends = pickerRegistry.filter((a) => a.meta);
+const futureBlock = (read("app/studio.js")
+  .match(/\/\/ BACKEND-FUTURE[\s\S]*?\[([\s\S]*?)\]\.forEach/) || [, ""])[1];
+const futureBackends = [...futureBlock.matchAll(/\{\s*label:\s*"([^"]+)",\s*blurb:\s*"((?:[^"\\]|\\.)*)"\s*\}/g)]
+  .map((m) => m[1]);
+ok(`app/sources/ + app/studio.js: the workspace-backend roster parsed for check 39 ` +
+   `(${backends.length} shipped, ${futureBackends.length} on the roadmap)`,
+  backends.length >= 3 && backends.some((a) => a.local) && futureBackends.length > 0,
+  `shipped: ${backends.map((a) => a.label).join(", ") || "(none)"}\n      ` +
+  `roadmap: ${futureBackends.join(", ") || "(none)"}\n      ` +
+  "the roadmap list is the literal above `.forEach` under the BACKEND-FUTURE comment in " +
+  "openBackendWizard — all five rules below read these two lists, and an empty parse would " +
+  "pass every one of them");
+
+// Help's table: the first <tbody> inside the "Choosing a workspace backend" section, one <tr>
+// per backend, each led by its name in <strong>.
+const backendSection = (read("docs/index.html")
+  .match(/<h3 id="backend-choose">([\s\S]*?)(?=<h3[ >])/) || [, ""])[1];
+const backendIntro = backendSection.replace(/<div class="table-scroll">[\s\S]*/, "")
+  .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+const backendRows = [...((backendSection.match(/<tbody>([\s\S]*?)<\/tbody>/) || [, ""])[1])
+  .matchAll(/<tr>\s*<td>\s*<strong>([\s\S]*?)<\/strong>/g)]
+  .map((m) => labelKey(m[1].replace(/<[^>]+>/g, "")));
+ok(`docs/index.html: the workspace-backend table parsed for check 39 (${backendRows.length} row(s))`,
+  !!backendSection && backendRows.length > 0,
+  'the <h3 id="backend-choose"> section, or the <tbody> inside it, was not found — rules (a)–(d) read it');
+
+// (a) every backend the registry can host a workspace in has a row
+const rowSet = new Set(backendRows);
+const rowFor = (a) => rowSet.has(labelKey(a.label)) || rowSet.has(labelKey(shortLabel(a.label)));
+const undocumentedBackends = backends.filter((a) => !rowFor(a));
+ok(`docs/index.html: the workspace-backend table documents every backend that can host one (${backends.length})`,
+  !undocumentedBackends.length,
+  `hosts a workspace, missing from the table: ${undocumentedBackends.map((a) => `${a.label} (${a.id})`).join(", ")}\n      ` +
+  "this table is where a reader decides where their whole workspace is going to live — an " +
+  "adapter with no row is one they can only evaluate by connecting to it");
+
+// (b) and no row names a backend the registry does not have
+const backendKeys = new Set(backends.flatMap((a) => [labelKey(a.label), labelKey(shortLabel(a.label))]));
+const strayBackends = backendRows.filter((r) => !backendKeys.has(r));
+ok("docs/index.html: the workspace-backend table names no backend the registry does not have",
+  !strayBackends.length,
+  `in the table, not caps.meta in the registry: ${strayBackends.join(", ")}\n      ` +
+  `the registry's own workspace-capable adapters are: ${backends.map((a) => a.label).join(", ")}`);
+
+// (c) in the registry's order (which is app/index.html's <script> load order — see check 38 rule (0))
+ok("docs/index.html: the workspace-backend table is in the registry's own order",
+  backendRows.length === backends.length &&
+    backends.every((a, i) => backendRows[i] === labelKey(a.label) || backendRows[i] === labelKey(shortLabel(a.label))),
+  `Help: ${backendRows.join(" · ")}\n      ` +
+  `registry: ${backends.map((a) => shortLabel(a.label)).join(" · ")}`);
+
+// (d) the intro counts them
+ok(`docs/index.html: the workspace-backend intro counts the options as ` +
+   `"${NUMBER_WORD[backends.length] || backends.length}"`,
+  new RegExp(`\\b${NUMBER_WORD[backends.length] || backends.length}\\b`, "i").test(backendIntro),
+  `the intro reads: ${backendIntro.slice(0, 220)}…\n      ` +
+  `it should count ${backends.length} — a wrong number here is a reader hunting for a backend ` +
+  "that is not on the table, or missing one that is");
+
+// (e) the roadmap paragraph names exactly the picker's Future set — both directions
+const futurePara = (read("docs/index.html").match(/<p id="backend-future">([\s\S]*?)<\/p>/) || [, ""])[1]
+  .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+const futureKey = labelKey(futurePara);
+const futureMissing = futureBackends.filter((l) => !futureKey.includes(labelKey(l)));
+const futureShipped = backends.filter((a) =>
+  new RegExp(`\\b${shortLabel(a.label).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(futurePara));
+ok(`docs/index.html: the roadmap paragraph names exactly the ${futureBackends.length} "Future" card(s) the picker shows`,
+  !!futurePara && !futureMissing.length && !futureShipped.length,
+  `in the picker as Future, unnamed in Help: ${futureMissing.join(", ") || "(none)"}\n      ` +
+  `named as Future but already shipped: ${futureShipped.map((a) => shortLabel(a.label)).join(", ") || "(none)"}\n      ` +
+  'the paragraph is <p id="backend-future"> under the table — these cards are greyed and ' +
+  "unselectable, so a reader who is not told they are the roadmap reads them as broken");
 
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");

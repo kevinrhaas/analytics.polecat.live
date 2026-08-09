@@ -1845,7 +1845,7 @@
   <h2>Admin &amp; backend setup</h2>
   <p>These topics are for the person who <strong>administers</strong> a shared workspace — wiring up a real backend, provisioning teammates, and turning on database-enforced per-user security. Everyday building never needs any of it; a local workspace works with no setup at all.</p>
 
-  <h3>Choosing a workspace backend</h3>
+  <h3 id="backend-choose">Choosing a workspace backend</h3>
   <p>A <strong>workspace backend</strong> is where your whole workspace — dashboards, datasets, connections, jobs, saved Views and settings — lives, and whether it travels to other devices and teammates. All four options query the same way and carry the same objects; they differ in <strong>where the data lives</strong>, <strong>whether it syncs</strong>, and <strong>how strongly per-user privacy is enforced</strong>. Set or switch it under <strong>Settings → Workspace backend</strong>.</p>
   <div class="table-scroll">
   <table class="backend-table">
@@ -1882,6 +1882,21 @@
     </tbody>
   </table>
   </div>
+  <p id="backend-future">The picker shows three more cards, greyed out and badged
+  <span class="bt-tag">Future</span>: <strong>PostgreSQL</strong> — your own Postgres, exposed over
+  REST (PostgREST); <strong>Cloudflare D1</strong> — serverless SQLite at the edge, via a Worker API;
+  and <strong>MongoDB Atlas</strong> — hosted MongoDB through the Atlas Data API. Each one could host
+  the whole catalog over a REST surface, none has an adapter yet, and they are listed so you can see
+  where the roster is headed rather than wonder whether you missed a setting. They cannot be
+  selected.</p>
+  <p>The first of the three is worth a sentence, because the page can otherwise look like it
+  contradicts itself: <strong>PostgreSQL</strong> is greyed here while
+  <strong>PostgreSQL (PostgREST)</strong> sits in the connector list above as something you can use
+  today — and both are right. A PostgREST <em>connection</em> answers dataset queries. Hosting the
+  workspace itself — the app's own catalog, its schema migrations, the sync protocol — is a separate
+  capability, and only the backends in the table above have it. The same split explains the
+  <span class="bt-tag">workspace-capable</span> badge on three of the thirteen connectors.</p>
+
   <p>Short version: stay on <strong>Local</strong> for a private, single-device workspace; pick <strong>Turso</strong> for the simplest shared workspace across your own devices or a trusted team; pick <strong>Supabase</strong> when you need real accounts and database-enforced per-user privacy; pick <strong>Firebase</strong> if you already run Firestore and manage access through its security rules. The rest of this section covers the Supabase-specific admin flow in detail.</p>
 
   <h3 id="supabase-create-project">Standing up a Supabase project (the step before any SQL)</h3>
