@@ -135,6 +135,48 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — Help called the Dashboards workbook chips multi-select, and left the Repository out of
+  the filter pills entirely (v940, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):**
+  The candidate v939 named, and the check-52 move one paragraph down. The catalog block had two
+  paragraphs held to their sources (Searching, What each page searches) and a third — **Filtering
+  with pills** — held to nothing, though every panel declares its facets as plainly as it declares
+  its haystack: the shared kit's `matchMulti` (tick as many as you like) and `matchOne` (one at a
+  time) **name the mode outright** and take the field accessor as their second argument.
+  **Three drifts, and the v939 note had seen one of them.** (1) **The Repository was absent
+  entirely** — it filters by the KIND of row off the same `wb-chip` strip the Dashboards workbook
+  chips render, and it is the one catalog page whose rows are all of different kinds, so it is the
+  page where a type facet matters most. (2) **Dashboards-by-workbook was published as
+  multi-select, and is not.** The note had called all four multi-select entries right; that was
+  not measured, and `_repoWbFilter` is a scalar whose chip test is `_repoWbFilter === c.id`, so
+  picking a second workbook replaces the first. Help listed it beside three facets that really do
+  take many pills — copy promising more app than ships, the v924 shape, and the kind a reader
+  acts on by clicking for a combination the app will never give them. (3) **The Folders strip was
+  described as if every page had one.** Five render one; `renderRepository` calls
+  `catalogFacets` nowhere and groups its rows into a nested folder TREE instead — so the sentence
+  sent a reader to hunt for the one control the page they were on does not have.
+  **The block is now three paragraphs** — how the pills behave (the tail rules, unchanged), which
+  ones take more than one click, and the Folders strip on its own — which also gives the check two
+  halves it can parse by the paragraph's own punctuation rather than straddling them.
+  **Doc-truth check 53** reuses check 51's panel roster and adds no new source of truth beyond
+  each panel's own facet declarations. The two `wb-chip` strips predate the kit and filter inline,
+  but their markup still declares the mode — an active test comparing ONE scalar to the chip's id
+  is single-select by construction — so both chip facets are derived rather than asserted. Five
+  rules: (a) the premise + vocabulary + roster, **keyed by the panel's own accessor or filter
+  variable**, so a new or renamed facet falls out of its row and fails loudly rather than passing
+  green while Help omits it; (b) every multi-select facet published under its own page; (c) every
+  single-select facet outside the strip published under its own page; (d) the strip's roster, its
+  count word and the exception named as one; (e) the negative half, **segmented by page AND by
+  mode** — mode is the half the pre-fix paragraph failed, which is why "is it named somewhere" was
+  never a sufficient rule. The Datasets kind probe carries a `(?<!chart )` lookbehind so Views'
+  own "chart type" clause cannot read as claiming it.
+  **Verified:** four of the five rules measured failing on the real pre-fix tree — with the old
+  paragraph's own claims re-punctuated into the new shape, so the failures isolate the drift
+  rather than the missing paragraph — reporting exactly the three finds above; (b) and (a)'s
+  new-facet direction measured on mutated trees. Dev gate green (`tools/validate.mjs`,
+  `tools/changelog-check.js`, `tools/doc-truth.mjs`, `tools/dev-smoke.mjs` at 390×780 + desktop,
+  zero pageerrors). Docs-only on the app side, so no `sw.js` bump: `docs/index.html` is not
+  precached (sw.js caches it on first visit through the runtime fetch handler).
+  **Est 1pt, took 1.**
 - **N7 — Help listed what a search looks at on four of the six pages that have one (v939, NO sw
   bump, 2026-08-09, steward; dev branch; est 1pt, took 1):**
   The candidate v938 named, and the check-51 move one control to the left — the search box sits
@@ -14098,14 +14140,37 @@
     two, auto-build, "add to dashboard", a connection's schema browser) plus a stated exception for
     Help's own box. Its source of truth is a different set of files (`build.js`, `explore.js`,
     `palette.js`, `studio.js`'s inner panes) and its rule is coverage of the call sites, not
-    fields: a slice, not a rider. **A second candidate, measured in the same pass:** the
+    fields: a slice, not a rider. ~~**A second candidate, measured in the same pass:** the
     **Filtering with pills** paragraph two below it enumerates the multi-select facets — "Datasets
     by adapter, connection, type or tag; Connections by adapter or tag; Views by chart type;
     Dashboards by workbook" — and all four are right against the `catalogFacets.tally` calls, but
     the **Repository's type chips are named nowhere**, though they render the same `wb-chip` row
     the Dashboards workbook chips do (`chipDefs` in `renderRepository`). Same omission class as
     this slice, one paragraph further on, and a different source of truth again (the facet
-    declarations, not the haystacks).
+    declarations, not the haystacks).~~ ✓ **SHIPPED v940, NO sw bump (2026-08-09 — see DONE), and
+    the note was right about the omission and wrong about the rest:** "all four are right" was not
+    measured, and one of the four is not. `_repoWbFilter` is a SCALAR and the chip's active test is
+    `_repoWbFilter === c.id`, so Dashboards-by-workbook takes one pill at a time — Help had it
+    filed under "The other facets are multi-select", beside three that really do take many. A
+    third drift the note had not seen: the Folders strip was described as if all six pages had one,
+    and the Repository renders none (it groups into a nested folder tree instead), so the one page
+    without the control was the one page a reader was sent looking for it.
+  * *Help's filter pills vs the facets the panels declare — v940, NO sw bump (2026-08-09 — see
+    DONE).* The candidate above, and `tally` was the wrong source to have named: the mode is what
+    drifted, and the kit states it outright — `matchMulti` vs `matchOne`, with the field accessor
+    as the second argument. The two `wb-chip` strips predate the kit and filter inline, but their
+    markup declares the same thing by comparing ONE scalar to the chip's id, so single-select is
+    derivable there too rather than asserted. The block is three paragraphs now (behaviour, which
+    pills take more than one, the Folders strip); doc-truth check 53's five rules reuse check 51's
+    panel roster and add no new source of truth. Four measured failing on the real pre-fix tree
+    (the roster, both unpublished facets, the six-page folder claim, and the wrong-half one), (b)
+    and (a)'s new-facet direction on mutated trees.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** each
+    pill's own LABEL. The Datasets kind pills print sql/table/file/collection/sheet through
+    `dsxKindLabel`, the adapter pills print `Studio.sourceById(aid).label`, the tag pills prefix
+    `#`, and check 53 holds the axis's noun rather than its values — thirteen pill labels against
+    thirteen sentences is the v925/v926 shape, a different derivation and its own slice. The
+    "…and every other search box too" candidate above is still open and still the larger one.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before
