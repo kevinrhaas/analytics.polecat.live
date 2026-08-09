@@ -602,7 +602,17 @@ function handleMockRedshiftData(req, rep) {
 function serve() {
   return new Promise((res) => {
     const srv = http.createServer((req, rep) => {
-      let p = decodeURIComponent(req.url.split("?")[0]); if (p === "/") p = "/index.html";
+      let p = decodeURIComponent(req.url.split("?")[0]);
+      // N25: the /dev/ and /stage/ previews are THIS tree served under a stage
+      // path prefix — tools/stage-preview.mjs copies the build there and
+      // re-points <base> — so serving the live tree at that prefix is the
+      // faithful way to exercise the stage guard from a real URL. Deliberately
+      // NOT the repo's committed dev/ snapshot: that is an older build's
+      // artifact, and a check that read it would go green on code that is not
+      // the code under test.
+      const stagePreview = /^\/(dev|stage)(\/.*)?$/.exec(p);
+      if (stagePreview) p = stagePreview[2] || "/";
+      if (p === "/") p = "/index.html";
       if (p === "/favicon.ico") { rep.writeHead(204); return rep.end(); }
       if (p === "/__turso/v2/pipeline") return handleMockTurso(req, rep);
       if (p === "/__postgrest401/" || p.indexOf("/__postgrest401/") === 0) {
@@ -20239,6 +20249,123 @@ function serve() {
     ok("N24 slice 2: Settings → Workspace backend carries the SAME saved-workspace panel — the connected entry is marked, the rows clear the 44px touch bar, and a rename there is a rename everywhere",
       n24Settings.rows.join("|") === "Dev workspace|Other workspace|Polecat workspace" && n24Settings.touchOk &&
       n24Settings.connectedMarked && n24Settings.renamedFromSettings === "Dev (renamed in Settings)", JSON.stringify(n24Settings));
+
+    // ---- N25 slice 1 (Kevin, 2026-08-08 — "I am concerned that you will break
+    // prod on main"): the /dev/ and /stage/ previews were signing you into
+    // PRODUCTION data. They are the same build served from a subdirectory of the
+    // production origin, so they inherited the packaged production catalog entry
+    // AND production's own saved connection out of the shared localStorage —
+    // every test sign-in, sample-pack install and push from /dev/ landed in the
+    // live workspace, with nobody having to pick anything. These checks run at a
+    // REAL /dev/ URL (the server serves this tree under the stage prefix, as the
+    // preview assembler does) rather than by poking a flag. ----
+    console.log("\n• N25 slice 1: a preview may not reach the production workspace");
+    // A) the mapping itself, in isolation: which paths ARE a preview.
+    const n25Map = await page.evaluate(() => {
+      var f = window.STUDIO_STAGE_FOR;
+      return {
+        root: f("/"), app: f("/app/"), viewer: f("/app/viewer.html"),
+        dev: f("/dev/app/"), devBare: f("/dev"), devRoot: f("/dev/"),
+        stage: f("/stage/app/index.html"),
+        // near-misses that must NOT read as a preview
+        lookalike: f("/development/app/"), nested: f("/app/dev/"), stagey: f("/staged/"),
+        live: window.STUDIO_STAGE
+      };
+    });
+    ok("N25: STUDIO_STAGE_FOR maps only a /dev/ or /stage/ path PREFIX to a preview stage — /development/, /staged/ and a nested /app/dev/ are production, and the production suite itself reads as prod",
+      n25Map.root === "prod" && n25Map.app === "prod" && n25Map.viewer === "prod" &&
+      n25Map.dev === "dev" && n25Map.devBare === "dev" && n25Map.devRoot === "dev" && n25Map.stage === "stage" &&
+      n25Map.lookalike === "prod" && n25Map.nested === "prod" && n25Map.stagey === "prod" &&
+      n25Map.live === "prod", JSON.stringify(n25Map));
+
+    // B) THE PATH NOBODY HAD TO CLICK: open /dev/ with production's saved
+    // connection already in localStorage (which is literally what happens — one
+    // origin, one localStorage) and prove the preview stays local, never asks
+    // the production host for anything, and leaves the saved record untouched
+    // for the production site that is still using it.
+    const PROD_URL = await page.evaluate(() => (window.STUDIO_WORKSPACES[0].cfg || {}).url);
+    const gpN25 = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    gpN25.on("pageerror", (e) => errors.push("N25 page: " + e.message));
+    const n25ProdHits = [];
+    gpN25.on("request", (r) => { if (r.url().indexOf(PROD_URL) === 0) n25ProdHits.push(r.url()); });
+    await gpN25.addInitScript((prodUrl) => {
+      try {
+        localStorage.setItem("analytics.datasource.v1", JSON.stringify({
+          sourceId: "supabase", cfg: { url: prodUrl, key: "sb_publishable_prod" }, at: 1
+        }));
+        localStorage.setItem("studio-welcome-seen", "1");
+        localStorage.setItem("studio-workspaces-custom", JSON.stringify([
+          // the reader's OWN saved copy of production, under a different id and
+          // name: the guard compares ADDRESSES, not ids
+          { id: "mine", label: "My live workspace", sourceId: "supabase", cfg: { url: prodUrl, key: "k-mine" } }
+        ]));
+      } catch (e) {}
+    }, PROD_URL);
+    await gpN25.goto(`http://localhost:${PORT}/dev/app/`, { waitUntil: "domcontentloaded" });
+    await gpN25.waitForSelector("#g-form", { timeout: 8000 });
+    await gpN25.waitForFunction(() => window.Studio && Studio.Sync && Studio.Sync.syncState().status !== "connecting", { timeout: 15000 }).catch(() => {});
+    const n25Boot = await gpN25.evaluate(() => {
+      var st = Studio.Sync.syncState();
+      var stored = JSON.parse(localStorage.getItem("analytics.datasource.v1") || "null");
+      var sel = document.getElementById("g-workspace");
+      return {
+        stage: window.STUDIO_STAGE, sourceId: st.sourceId, status: st.status, lastError: st.lastError || "",
+        recordKept: !!(stored && stored.cfg && stored.cfg.url),
+        // the packaged production entry is not offered here at all…
+        listIds: window.STUDIO_WS_STORE.list().map(function (w) { return w.id; }),
+        // …and the reader's own saved copy of it is listed, disabled, and says why
+        options: Array.prototype.map.call(sel.options, function (o) { return { v: o.value, t: o.textContent, d: o.disabled }; })
+      };
+    });
+    const n25Mine = n25Boot.options.filter((o) => o.v === "mine")[0] || {};
+    ok("N25: a /dev/ preview opened with production's own saved connection stays LOCAL, never contacts the production workspace, leaves the shared connection record intact, drops the packaged production entry from the picker, and disables the reader's own copy of it with the reason",
+      n25Boot.stage === "dev" && n25Boot.sourceId === "local" && n25ProdHits.length === 0 &&
+      n25Boot.recordKept && /DEV preview/.test(n25Boot.lastError) &&
+      n25Boot.listIds.indexOf("polecat") < 0 && n25Boot.listIds.join(",") === "local,mine" &&
+      n25Mine.d === true && /production, not from DEV/.test(n25Mine.t || ""),
+      JSON.stringify({ n25Boot, n25ProdHits }));
+
+    // C) every route into a remote is refused, not just the picker — an access
+    // file and a hand-typed URL arrive at connectAdopt/connectPush instead.
+    const n25Refuse = await gpN25.evaluate(async (prodUrl) => {
+      var out = {};
+      function why(p) { return p.then(function () { return "ALLOWED"; }, function (e) { return e.message || "rejected"; }); }
+      out.bind = await why(Studio.Sync.bindConnection("supabase", { url: prodUrl, key: "k" }));
+      out.adopt = await why(Studio.Sync.connectAdopt("supabase", { url: prodUrl, key: "k" }));
+      out.push = await why(Studio.Sync.connectPush("supabase", { url: prodUrl, key: "k" }));
+      // a trailing slash / different case is the same workspace
+      out.sloppy = await why(Studio.Sync.bindConnection("supabase", { url: prodUrl.toUpperCase() + "/", key: "k" }));
+      // …while a DIFFERENT workspace is none of the guard's business: a preview
+      // must still be able to connect to a dev database.
+      out.other = window.STUDIO_WS_STORE.blockReason({ url: location.origin + "/__supabase" });
+      out.stillLocal = Studio.Sync.syncState().sourceId;
+      out.recordKept = !!JSON.parse(localStorage.getItem("analytics.datasource.v1") || "null");
+      return out;
+    }, PROD_URL);
+    ok("N25: bindConnection, connectAdopt and connectPush all refuse the production workspace from a preview (address-compared, so a trailing slash or different case cannot slip past), a non-production address is untouched, and a refused preview never erases the connection record production is still using",
+      /DEV preview/.test(n25Refuse.bind) && /DEV preview/.test(n25Refuse.adopt) && /DEV preview/.test(n25Refuse.push) &&
+      /DEV preview/.test(n25Refuse.sloppy) && n25Refuse.other === "" &&
+      n25Refuse.stillLocal === "local" && n25Refuse.recordKept, JSON.stringify(n25Refuse));
+
+    // D) the other half of stage-awareness: an entry that DOES belong to this
+    // stage is offered, labelled so the reader cannot mistake which database
+    // they are in, and is what the anonymous activity log falls back to — the
+    // preview must not write its traffic into production's log either.
+    const n25Own = await gpN25.evaluate(() => {
+      var before = Studio.Activity._packagedLogCfg("analytics.polecat.live");
+      window.STUDIO_WORKSPACES.push({ id: "polecat-dev", label: "Polecat workspace", sourceId: "supabase", stage: "dev", cfg: { url: "https://devdb.example.co", key: "k-dev" } });
+      var after = Studio.Activity._packagedLogCfg("analytics.polecat.live");
+      return {
+        previewLogBefore: before,                       // no dev entry → nothing to log to
+        previewLogAfter: after && after.url,
+        labels: window.STUDIO_WS_STORE.list().map(function (w) { return w.label; }),
+        blocked: window.STUDIO_WS_STORE.blockReason({ url: "https://devdb.example.co" })
+      };
+    });
+    ok("N25: a packaged entry belonging to THIS stage is offered and labelled with it, and the anonymous activity log follows the same rule — a preview with no entry of its own logs nowhere rather than into production's tables",
+      n25Own.previewLogBefore === null && n25Own.previewLogAfter === "https://devdb.example.co" &&
+      n25Own.labels.indexOf("Polecat workspace (DEV)") >= 0 && n25Own.blocked === "", JSON.stringify(n25Own));
+    await gpN25.close();
 
     // ---- GATE-FIX + GATE-ERR (Kevin live, 2026-07-31): his curl proved the
     // password RIGHT while the gate still said "isn't in your connected

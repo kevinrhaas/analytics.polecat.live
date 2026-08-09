@@ -43,11 +43,19 @@
   // the insert 401s and the row just re-queues (capped) — nothing breaks.
   // NEVER from localhost: dev pages and the test suite must not phone home
   // (deployed visits are the traffic Kevin wants recorded).
+  // N25: and never from a /dev/ or /stage/ PREVIEW either. The previews are
+  // served from the production origin, so this fallback resolved production's
+  // catalog entry and wrote preview traffic into the live activity log — the
+  // same "a push from /dev/ lands in prod" class as the workspace connection,
+  // just one table over. Resolve the entry for THIS stage instead; when there
+  // isn't one, the row re-queues (capped) exactly as it does before § 6b is
+  // applied, and nothing breaks.
   function packagedLogCfg(hostname) {
     var h = hostname != null ? hostname : location.hostname;
     if (/^(localhost|127\.|0\.0\.0\.0)/.test(String(h))) return null;
     try {
-      var w = (window.STUDIO_WORKSPACES || [])[0];
+      var WS = window.STUDIO_WS_STORE;
+      var w = (WS && WS.packaged ? WS.packaged() : (window.STUDIO_WORKSPACES || []))[0];
       if (w && w.sourceId === "supabase" && w.cfg && w.cfg.url && w.cfg.key) return { url: w.cfg.url, key: w.cfg.key };
     } catch (e) {}
     return null;

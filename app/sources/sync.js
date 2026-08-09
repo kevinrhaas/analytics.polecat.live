@@ -354,8 +354,30 @@
     }).then(function () { _suspend = false; healAfterAdopt(); });
   }
 
+  /* N25 — a /dev/ or /stage/ preview must not reach the PRODUCTION workspace.
+     The rule itself lives in app/workspaces.js (which stage this build serves
+     from, and which addresses are production's); this is the enforcement point,
+     because every route into a remote — the gate's picker, an access file, the
+     connect wizard, and the saved connection a preview inherits from
+     production's own localStorage — ends in one of the four functions below.
+     Read defensively: sync.js is also loaded by tools and by the viewer, where
+     the catalog may not be present, and "no rule available" means "no block". */
+  function stageBlock(cfg) {
+    try {
+      var WS = window.STUDIO_WS_STORE;
+      return (WS && WS.blockReason) ? WS.blockReason(cfg) : "";
+    } catch (e) { return ""; }
+  }
+  // Set when a boot restore was REFUSED for the reason above. The preview and
+  // production share one localStorage record, so a refused preview must be
+  // read-only about it: staying local here must never delete the connection
+  // the production site is still using (saveConn's local branch does exactly
+  // that, and something as ordinary as a disconnect click would trigger it).
+  var _stageDeclined = false;
+
   function saveConn() {
     try {
+      if (_stageDeclined && state.sourceId === "local") return; // N25: not ours to erase
       if (state.sourceId === "local") localStorage.removeItem(CONN_KEY);
       // N2 slice 4: stripSecret keeps the workspace password out of localStorage
       // — the live cfg still carries it in memory, the persisted record never does.
@@ -699,6 +721,9 @@
     connectAdopt: function (sourceId, cfg, opts) {
       var src = Studio.sourceById(sourceId);
       if (!src) return Promise.reject(new Error("unknown source"));
+      var blockedA = stageBlock(cfg);                     // N25
+      if (blockedA) return Promise.reject(new Error(blockedA));
+      _stageDeclined = false;
       cfg = carryAuthCredentials(sourceId, cfg);
       setStatus("connecting");
       _suspend = true;
@@ -732,6 +757,9 @@
     connectPush: function (sourceId, cfg) {
       var src = Studio.sourceById(sourceId);
       if (!src) return Promise.reject(new Error("unknown source"));
+      var blockedP = stageBlock(cfg);                     // N25
+      if (blockedP) return Promise.reject(new Error(blockedP));
+      _stageDeclined = false;
       setStatus("connecting");
       state.sourceId = sourceId; state.cfg = cfg;
       claimSchemaVersion(); // N16: a freshly provisioned remote is OUR version
@@ -773,6 +801,9 @@
     bindConnection: function (sourceId, cfg) {
       var src = Studio.sourceById(sourceId);
       if (!src) return Promise.reject(new Error("unknown source"));
+      var blocked = stageBlock(cfg);                      // N25
+      if (blocked) return Promise.reject(new Error(blocked));
+      _stageDeclined = false;                             // a deliberate connect owns the record again
       cfg = carryAuthCredentials(sourceId, cfg);
       state.sourceId = sourceId; state.cfg = cfg ? JSON.parse(JSON.stringify(cfg)) : null;
       _preAuth = true; // SYNC-PREAUTH: latch automatic pulls off until a signed-in pull adopts
@@ -889,6 +920,20 @@
       if (!conn || !conn.sourceId || conn.sourceId === "local") { setStatus("local"); return Promise.resolve(publicState()); }
       var src = Studio.sourceById(conn.sourceId);
       if (!src) { setStatus("local"); return Promise.resolve(publicState()); }
+      // N25 — THE PATH NOBODY HAD TO CLICK. A preview is served from a
+      // subdirectory of the production ORIGIN, so it opens on production's own
+      // localStorage and this saved connection is production's. Left alone, the
+      // preview boots straight into the live workspace and every edit made
+      // while "just looking at /dev/" is written there. Decline the restore and
+      // stay local; the record itself is left exactly as production wrote it.
+      var bootBlocked = stageBlock(conn.cfg);
+      if (bootBlocked) {
+        _stageDeclined = true;
+        state.sourceId = "local"; state.cfg = null;
+        logSync("preview guard", false, bootBlocked);
+        setStatus("local", bootBlocked);
+        return Promise.resolve(publicState());
+      }
       state.sourceId = conn.sourceId; state.cfg = conn.cfg;
       // N2 slice 4: a password recovered from a pre-slice-4 record goes back onto
       // the live cfg (memory only) so an upgrading browser stays signed in for
