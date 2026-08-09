@@ -6,6 +6,32 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 925,
+    title: 'The Help page documented four of the thirteen connectors you can save a connection to',
+    kind: 'fix',
+    ts: '2026-08-09T10:19:05.000Z',
+    items: [
+      'Add a connection and the picker offers thirteen connectors. Help had a section for four of them — PostgreSQL/PostgREST, Amazon Redshift, Google Sheets and CSV/JSON files — and its one list of what a Connection can be named six. There is now an inventory of all thirteen, in the order the picker shows them, at the top of the Connections part of the page.',
+      'Six of those connectors were on the page already, but only as dashboard-only queries: Snowflake, Databricks, BigQuery, DuckDB, SQLite and Generic SQL/HTTP. They are the same backends the Connections wizard offers, so if you wanted one Snowflake connection that every dataset reads through — rather than a copy of the query in each dashboard — nothing on the page told you that you could have one. It does now, and points at the existing section for each.',
+      'Firebase was missing from the connections side of Help altogether, even though it can host an entire workspace.',
+      'The picker prints a workspace-capable badge on the three connectors that can hold your whole workspace rather than just answer queries — Turso, Supabase and Firebase. Help now shows the same badge on the same three.',
+      'The dev gate now builds that list the way the app does — every registered adapter that can supply data, in load order — and holds the page to it: every connector needs an entry, no entry may name a connector that is not registered, the order has to match the picker, and the badge has to mark exactly the connectors that can host a workspace.',
+    ],
+  },
+  {
+    v: 924,
+    title: 'The Help page\'s table of export formats was missing one, and named another by a name the app never shows',
+    kind: 'fix',
+    ts: '2026-08-09T10:00:46.000Z',
+    items: [
+      'Export ▾ offers seven formats. The Help page\'s table describing them listed six. The one it left out is Editable spec (.studio.json) — the small JSON file that IS the dashboard, the one you version-control or hand to someone who will keep editing it. Help points you at it twice elsewhere ("that file is all a dashboard needs") while the table you read to choose a format never mentioned it. It has a row now, saying what travels in it and what does not.',
+      'The first row was called "Dashboard Framework". That is the internal name for the artifact; the button you actually press says Dashboard (.html), and so does every other page — including Help\'s own Viewer section. Five rows matched the menu and one sent you looking for a button that is not there. The row now uses the button\'s name and mentions the internal one only where you would meet it.',
+      'The bundle row had its label inside out — "Bundle (all artifacts)" for a button that reads "All artifacts (bundle)".',
+      'And the Viewer\'s Export button does not offer "the same formats Studio offers", which is what Help said. It offers three of the seven: the .html, the PDF, and the editable spec. The office formats and the bundle are the builder\'s menu only. Help now says three, and says which two things you go to the builder for.',
+      'The dev gate now reads both Export menus straight from their own markup and holds this table to them: every format the builder offers needs a row, no row may name a format the menu does not have, the Viewer paragraph has to name each format the viewer really offers, and it may only claim parity with the builder while the two menus genuinely agree.',
+    ],
+  },
+  {
     v: 923,
     title: 'The Help page listed a Redo shortcut that has never worked, and left four real ones out',
     kind: 'fix',

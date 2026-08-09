@@ -135,6 +135,90 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — The Help page documented four of the thirteen connectors the Connections wizard offers
+  (v925, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** check 37's move one
+  catalog over. `app/connections.js`'s wizard builds its step-1 picker by iterating
+  `Studio.dataSources()` — every registered adapter with `caps.data` — which is **13** connectors.
+  Nothing had ever compared that list to `docs/index.html`.
+  **What was measured before the fix:** Help carried four `Workspace connections:` sections
+  (PostgREST, Amazon Redshift, Google Sheets, CSV/JSON files). Its ONLY enumeration of what a
+  Connection can be was a parenthetical inside the live-after-export paragraph — "(Turso,
+  PostgreSQL/PostgREST, Supabase, Google Sheets, local files, Amazon Redshift)", six of thirteen —
+  attached to a sentence describing a contract that applies to all of them.
+  **The half that made it worth a slice, rather than a missing list:** six connectors —
+  Snowflake, Databricks, BigQuery, DuckDB, SQLite, Generic SQL / HTTP — were on the page only as
+  dashboard-only source types in the data-source builder. They are the SAME adapters the wizard
+  offers, so a reader who wanted one Snowflake connection every dataset reads through had no page
+  saying they could have one; Help's own text routed them to a per-dashboard query. **Firebase had
+  nothing on the connections side at all**, though it can host an entire workspace. And
+  `workspace-capable` — the badge the picker prints from `caps.meta` — appeared nowhere in Help or
+  on the landing page.
+  **Shipped:** a `<h3 id="connection-types">` inventory of all 13 at the head of the Connections
+  coverage, in the picker's order, each by the label the picker itself prints, with the badge on
+  the three that can host a workspace, a paragraph naming the six that work either way, and a
+  closing line on why `Local (this browser)` is deliberately not offered. The six-name
+  parenthetical now defers to the inventory instead of under-counting it.
+  **Verified:** doc-truth check 38 REPRODUCES the picker rather than keeping a list — registry.js's
+  seed array, `app/index.html`'s `<script>` load order (which IS the registration order) and each
+  adapter's own `caps`, with a guard (rule 0) that fails if the seed array and the load order stop
+  agreeing, so a reordered registry can never silently make the order rule test the wrong sequence.
+  Five rules: (a) every connector is named, (b) none is invented, (c) the order matches, (d) the
+  badge marks exactly the `caps.meta` set, (e) the "either way" set is `DS_TYPES` ∩ the registry,
+  named and counted in words. Every one measured failing in the direction it exists to catch —
+  (a)/(c)/(d)/(e) on the real pre-fix tree, (b) and the code-side direction of (a) (an adapter
+  relabelled in `app/sources/`) on mutated trees.
+  **Verification, stated exactly:** the DEV GATE — `tools/validate.mjs`, `tools/changelog-check.js`,
+  `tools/doc-truth.mjs` and `tools/dev-smoke.mjs` (Playwright, marketing + app + docs, desktop and
+  390px, zero pageerrors) — ran in the foreground and is GREEN, and that is the gate this PR merges
+  on. `tests/run.js` was also started and reached **3,072 checks passed, zero failures**, stopping
+  inside `m-d` (the penultimate mobile area, run.js:43707 of ~43760) only because the local runner
+  caps a single command at ten minutes; the `FATAL … browser has been closed` in that log is that
+  cap killing the browser, not a check. The full suite on a clean runner is the STAGE gate and
+  covers the remainder at promotion, per `.github/pipeline.json`.
+  No `sw.js` bump: `docs/index.html` and `js/changelog.js` are both deliberately un-precached
+  (sw.js's own header says so), same reasoning as v921–v924.
+- **N7 — The Help page's export-format table was missing a format, and named another by a name
+  the app never shows (v924, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):**
+  check 36's move one table over, taken because the same reasoning applies — v923 had just shown
+  what an unchecked published TABLE does, and `docs/index.html` had a second one. Four drifts,
+  all in the answer to "which export do I pick?":
+  **(1) The editable spec had no row.** `#menuExport` publishes seven buttons; the
+  `<table class="export-table">` had six. The absentee is **Editable spec (.studio.json)**, and
+  the reason it matters is that Help names it TWICE elsewhere — "use **Export ▾ → Editable spec
+  (.studio.json)** — that file is all a dashboard needs" — so the page assumed a description it
+  had never written. It now has a row saying what travels in the file (layout, Views, KPIs,
+  filters, dataset references) and what does not (no toolkit, no baked rows), plus the two ways
+  back in (Open file… / Import from URL…).
+  **(2) Row 1 named a format the app has never shown a user.** `Dashboard Framework` is the
+  INTERNAL artifact name — `app/studio.js`'s text-panel inspector note uses it, and so does the
+  header-logo paragraph. Every user-facing surface says **`Dashboard (.html)`**, including Help's
+  OWN Viewer paragraph 1,700 lines earlier. Five rows matched the button you press and one did
+  not, which is the worst arrangement: it reads as precision. The row now leads with the button's
+  label and keeps the internal name only where a reader would actually meet it.
+  **(3) The bundle row's label was inside out** — `Bundle (all artifacts)` for a button reading
+  `All artifacts (bundle)`.
+  **(4) And the Viewer paragraph claimed a parity that does not exist:** "an **Export** button …
+  with the same formats Studio offers". `app/viewer.html`'s menu has **three** of the seven
+  (.html, PDF, editable spec). That is the drift running the OTHER way — copy promising more app
+  than ships — and it is the one a reader can't catch, since a viewer-role account never sees the
+  builder's menu to compare. It now says three, and says the office formats and the bundle are the
+  builder's Export ▾ only.
+  **Verified:** doc-truth check 37 reads BOTH menus from their own markup rather than from
+  `studio.js`/`viewer.js` — the buttons ARE the list; both files wire whatever `data-exp` they
+  find, so the markup is the narrower and truer source. Four rules: (a) every builder format has
+  a row; (b) the table names no format the menu lacks — the negative half, and the half that
+  actually catches a RENAME, which is how "Dashboard Framework" outlived every user-facing use of
+  it; (c) the Viewer paragraph names every format the viewer's own menu offers; (d) it claims
+  parity with the builder only while the two label sets really match — derived from the menus,
+  not a banned phrase, so it goes quiet by itself the day the viewer catches up. All four measured
+  failing: (a) and (b) on the REAL pre-fix tree (`git show HEAD:docs/index.html`), (c) and (d) on
+  mutated ones. The paragraph gained `id="viewer-export"` as the anchor, following `id="filters-how"`
+  a few paragraphs above. Labels compare case-insensitively, because Help writes "editable spec
+  (.json)" mid-sentence where the button capitalises it — a sentence, not a drift. Full dev gate
+  green on the branch: `tools/validate.mjs`, `tools/changelog-check.js`, `tools/doc-truth.mjs`
+  (now 37 checks) and `tools/dev-smoke.mjs` at desktop + 390×780, zero pageerrors. No `sw.js`
+  bump — `docs/index.html` is runtime-cached, not precached (the file says so at line 20), same
+  as v921–v923.
 - **N7 — Help documented a Redo shortcut the builder has never had, and left four real ones out
   (v923, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** the one-document-over
   move again — 15 after 14, 17 after 16, 28 after 24, 35 after 34 — except the document moved
@@ -12441,8 +12525,9 @@
   names. `SUPABASE_ANON_KEY` and `SUPABASE_PASSWORD` — read by `supabase-provision.yml:40,63` —
   are untouched, so nothing pointing at prod changes behaviour. Adding is additive; the only way
   to break prod here would be to REPLACE those two, which nothing in N19–N25 does.
-- **SP-1 ★★ [3pt est, 2 slices shipped] — "Market Coverage" — the new DEFAULT sample pack (Kevin,
-  2026-08-07).** ✓ **SLICE (a) IS SHIPPED — the data foundation: v912, sw v534 (2026-08-09,
+- ⏳ **PR #689** — **SP-1 ★★ [3pt est, 2 slices shipped] — "Market Coverage" — the new DEFAULT
+  sample pack (Kevin, 2026-08-07).** *(Marker added 2026-08-09 by the run that took N7 instead:
+  (c2) is claimed by open PR #689, which is `hold`-labelled for Kevin — don't collide with it.)* ✓ **SLICE (a) IS SHIPPED — the data foundation: v912, sw v534 (2026-08-09,
   steward — see DONE).** The extract script, both Census datasets (1,813 counties, 111.1KB of the
   150KB budget), the pack's connection, and the join job that derives the saturation index, plus
   the async materialization path a committed-CSV pack needs (`Studio.ensurePackDataMaterialized`,
@@ -12837,6 +12922,55 @@
     `Double-click View title`); check 36 excludes them BY SHAPE (check 18's idiom) rather than
     by an exemption list, and Help now names both in prose beneath the table. The two v922
     candidates above are still open and still Kevin's calls.
+  * *Help's export-format table vs the Export ▾ menu it describes — v924, NO sw bump
+    (2026-08-09 — see DONE).* Check 36's move one table over, and the second unchecked
+    published TABLE in two slices: Help's `<table class="export-table">` listed **6** formats
+    where `#menuExport` offers **7**. The missing one is **Editable spec (.studio.json)** — and
+    Help names it twice ELSEWHERE ("use Export ▾ → Editable spec (.studio.json) — that file is
+    all a dashboard needs") while the table a reader consults to choose a format omitted it, so
+    the one export most needing a "what travels in it" description had none. Row 1 was
+    **`Dashboard Framework`**, the INTERNAL artifact name (a text panel's inspector note uses
+    it); the button — and Help's own Viewer paragraph 1,700 lines above — says
+    **`Dashboard (.html)`**, so five rows matched the button you press and one sent the reader
+    hunting. The bundle row's label was inverted (`Bundle (all artifacts)` vs the button's
+    `All artifacts (bundle)`). And the Viewer paragraph claimed the viewer's Export button has
+    "the same formats Studio offers" when `app/viewer.html`'s own menu has **3 of the 7** — the
+    drift running the other way, copy promising more app than ships. Doc-truth check 37 reads
+    BOTH menus from their markup (the buttons ARE the list; studio.js/viewer.js wire whatever
+    `data-exp` they find); its four rules (menu→table, the negative half, viewer-menu→paragraph,
+    and parity-only-when-true) were all measured failing — two on the real pre-fix tree, two on
+    mutated ones. The paragraph gained `id="viewer-export"` as the check's anchor, the idiom
+    `id="filters-how"` already set in the same document.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    marketing page's Exports card (`index.html`) names four formats — ".html … Also PDF, Excel,
+    PowerPoint and Word" — and omits the spec and the bundle. That is a SUMMARY on a sales page,
+    not an inventory, so "is it incomplete or is it edited" is a product call rather than a
+    derivation, and `docs/BACKLOG.md` says a run does not make those for Kevin. Check 37 is
+    deliberately scoped to Help for that reason, not by oversight. The two v922 candidates above
+    are still open and still Kevin's calls.
+  * *Help's Connections coverage vs the picker the wizard renders — v925, NO sw bump
+    (2026-08-09 — see DONE).* Check 37's move one catalog over, and the widest gap any N7 pass
+    has measured on this page: `app/connections.js` builds the wizard's step 1 from
+    `Studio.dataSources()` — **13** connectors — and Help documented **4** (`Workspace
+    connections:` sections for PostgREST, Redshift, Google Sheets and CSV/JSON files). Its only
+    enumeration of what a Connection can BE was a six-name parenthetical buried in the
+    live-after-export paragraph. **Firebase appeared nowhere on the connections side of the page**
+    despite hosting whole workspaces, and six more — Snowflake, Databricks, BigQuery, DuckDB,
+    SQLite, Generic SQL / HTTP — were documented ONLY as dashboard-only source types, so a reader
+    who wanted one Snowflake connection shared by every dataset was sent to a per-dashboard query
+    instead. `workspace-capable`, the badge the picker prints from `caps.meta`, was in neither
+    Help nor the landing page. Fixed with an inventory of all 13 in picker order at the head of
+    the Connections coverage; the parenthetical now defers to it. Doc-truth check 38 REPRODUCES
+    the picker (registry.js's seed order + `app/index.html`'s `<script>` load order + each
+    adapter's own `caps`) and holds Help to it — five rules plus a guard that fails if
+    registry.js's seed array stops matching its load order. All measured failing: rules (a)/(c)/
+    (d)/(e) on the real pre-fix tree, (b) and the code-side direction of (a) on mutated trees.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** each
+    connector's blurb in the picker (`app/sources/*.js`) is a second unchecked string per adapter
+    — the v922 shape, one surface over — and it is a candidate, not this slice; the inventory
+    holds the LABELS, and holding 13 blurbs to 13 Help sentences is its own derivation. Also
+    measured and NOT N7's: `Local (this browser)` is `caps.data:false` and so correctly absent
+    from the picker, which the new check's negative half now states rather than leaves implied.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before

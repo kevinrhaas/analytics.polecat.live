@@ -599,10 +599,11 @@
     <li>A <strong>developer</strong> or <strong>admin</strong> also gets an <strong>Edit in
       Studio</strong> button that jumps straight into the builder on that exact dashboard.</li>
   </ul>
-  <p>The viewer's top bar also has an <strong>Export</strong> button (available to everyone) with
-  the same formats Studio offers: <strong>Dashboard (.html)</strong> — a self-contained file you can
-  drop on any static host or open offline — <strong>PDF (print)</strong>, and the
-  <strong>editable spec (.json)</strong>. A sample or demo dashboard exports with its data baked in,
+  <p id="viewer-export">The viewer's top bar also has an <strong>Export</strong> button (available
+  to everyone) offering three of the formats Studio does: <strong>Dashboard (.html)</strong> — a
+  self-contained file you can drop on any static host or open offline — <strong>PDF (print)</strong>,
+  and the <strong>editable spec (.json)</strong>. The office formats and the bundle are the
+  builder's Export ▾ menu only (see "Exporting" below). A sample or demo dashboard exports with its data baked in,
   so the download is complete on its own; a dashboard backed by a real data source keeps querying
   that source live, in the viewer and in the exported file alike.</p>
 
@@ -1454,11 +1455,40 @@
       export.</li>
   </ul>
 
-  <h3>Workspace connections: PostgreSQL (PostgREST)</h3>
+  <h3 id="connection-types">Workspace connections: every connector the wizard offers</h3>
   <p>The <strong>Connections</strong> section manages saved, credentialed connections that workspace
   <strong>Datasets</strong> query through. (Every password-style field in the app — sign-in, here,
   the backend wizard, Admin's Add-user form, the provision-secret prompt — has an eye toggle to
   reveal what you typed before saving.)</p>
+  <p>A connection is <strong>reusable</strong>: save it once and any number of datasets read through
+  it — unlike the dashboard-only data accesses above, which belong to the one dashboard that
+  declares them. Six connectors can be used either way, so <strong>Snowflake</strong>,
+  <strong>Databricks</strong>, <strong>BigQuery</strong>, <strong>DuckDB (remote file)</strong>,
+  <strong>SQLite (remote .sqlite)</strong> and <strong>Generic SQL / HTTP</strong> are described in
+  their own sections above and are also on this list — same backend, saved for the whole workspace
+  instead of one dashboard.</p>
+  <p><strong>＋ New</strong> in the Connections section opens a picker with all of these, in this
+  order. Three carry a <span class="bt-tag">workspace-capable</span> badge: those can also host the
+  whole workspace, not just answer queries (see <em>Choosing a workspace backend</em> below).</p>
+  <ul>
+    <li><strong>Turso</strong> <span class="bt-tag">workspace-capable</span> — SQLite over HTTP. Creates every object it needs from the browser, and runs SQL datasets for dashboards.</li>
+    <li><strong>Supabase</strong> <span class="bt-tag">workspace-capable</span> — Postgres behind a REST API; reads and writes run from the browser, after the one-time SQL script.</li>
+    <li><strong>Firebase</strong> <span class="bt-tag">workspace-capable</span> — Cloud Firestore document store. Schemaless — collections appear on first write — and access is governed by your own security rules.</li>
+    <li><strong>PostgreSQL (PostgREST)</strong> — any Postgres exposed through PostgREST; table + query-string datasets, optional JWT auth. Detailed below.</li>
+    <li><strong>CSV / JSON file</strong> — drop a local file and chart it; the data rides inside the dataset, so it works offline and travels with your workspace. Detailed below.</li>
+    <li><strong>Google Sheets</strong> — a link-shared Sheet, straight from the browser: tabs plus an optional query language, no OAuth needed. Detailed below.</li>
+    <li><strong>Snowflake</strong> — a Snowflake warehouse via the SQL API v2; needs a programmatic access token and this origin CORS allow-listed on the account.</li>
+    <li><strong>Databricks</strong> — a Databricks SQL warehouse via the Statement Execution API; needs a token and this origin allowed on the workspace.</li>
+    <li><strong>BigQuery</strong> — a BigQuery dataset via the jobs.query REST API; needs a Google OAuth access token.</li>
+    <li><strong>Amazon Redshift</strong> — a cluster or Serverless workgroup via the Data API, SigV4-signed from the browser. Detailed below.</li>
+    <li><strong>DuckDB (remote file)</strong> — a Parquet/CSV file straight from S3/HTTP via DuckDB-Wasm; the file needs CORS + Range requests.</li>
+    <li><strong>SQLite (remote .sqlite)</strong> — a <code>.sqlite</code> file over HTTP Range Requests; indexed lookups without downloading the whole file.</li>
+    <li><strong>Generic SQL / HTTP</strong> — POST/GET a JSON API that runs SQL and returns rows: any in-house query service, or a provider without a dedicated adapter yet.</li>
+  </ul>
+  <p>The <strong>Local (this browser)</strong> store is deliberately <em>not</em> on that list: it is
+  where a workspace lives, not somewhere a dataset connects out to.</p>
+
+  <h3>Workspace connections: PostgreSQL (PostgREST)</h3>
   <p>The <strong>PostgreSQL (PostgREST)</strong> adapter connects to <em>any</em> Postgres exposed
   through a <a href="https://postgrest.org" target="_blank" rel="noopener noreferrer">PostgREST</a>
   deployment — self-hosted or managed — straight from the browser:</p>
@@ -1475,8 +1505,8 @@
   <code>{{parameters}}</code> allowed in both, so template variables flow into filters like
   <code>region=eq.{{region}}</code> at run time.</p>
   <h4>Connection-bound datasets are live-after-export too</h4>
-  <p>A dataset built on a saved <strong>Connection</strong> (Turso, PostgreSQL/PostgREST, Supabase,
-  Google Sheets, local files, Amazon Redshift) follows the same contract:</p>
+  <p>A dataset built on a saved <strong>Connection</strong> — any of the connectors listed above —
+  follows the same contract:</p>
   <ul>
     <li>Export resolves the connection at export time and carries its non-secret fields (database
       URL, PostgREST URL/schema, sheet URL, Redshift region/cluster/workgroup) into the file.</li>
@@ -2363,8 +2393,8 @@
     <thead><tr><th>Format</th><th>What you get</th><th>Use when</th></tr></thead>
     <tbody>
       <tr>
-        <td><strong>Dashboard Framework</strong></td>
-        <td>A fully self-contained <code>.html</code> file with all toolkit JS/CSS inlined. No server required — open in any browser.</td>
+        <td><strong>Dashboard (.html)</strong></td>
+        <td>A fully self-contained <code>.html</code> file with all toolkit JS/CSS inlined. No server required — open in any browser. (Internally this is the <em>Dashboard Framework</em> export — the name you'll see in a text panel's inspector note — but the button says <strong>Dashboard (.html)</strong>.)</td>
         <td>Sharing demos, embedding in portals, or hosting as a standalone dashboard on any static web host.</td>
       </tr>
       <tr>
@@ -2388,7 +2418,12 @@
         <td>A one-off PDF or hard copy of the current dashboard, sized for the paper you're printing to — no separate export step to manage.</td>
       </tr>
       <tr>
-        <td><strong>Bundle (all artifacts)</strong></td>
+        <td><strong>Editable spec (.studio.json)</strong></td>
+        <td>The dashboard's own source of truth — the JSON spec the builder reads and writes. It carries the layout, every View and KPI, the filters and the dataset references, and nothing else: no toolkit, no baked rows, so it stays small. Open it again with <strong>Open… → Open file…</strong>, or publish it anywhere public and hand out the link (<strong>Import from URL…</strong>).</td>
+        <td>Version-controlling a dashboard, handing it to someone who will keep editing it, or moving one between workspaces.</td>
+      </tr>
+      <tr>
+        <td><strong>All artifacts (bundle)</strong></td>
         <td>Both artifacts together — the <code>.html</code> and the editable <code>.studio.json</code> spec.</td>
         <td>Full delivery: the rendered dashboard plus its editable source of truth.</td>
       </tr>
