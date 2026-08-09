@@ -7,7 +7,7 @@
 // they answer different questions:
 //
 //   rls.mjs        "do our SQL FILES produce a secure database?" It installs
-//                  the three shipped postures into throwaway schemas and asserts
+//                  the seven shipped postures into throwaway schemas and asserts
 //                  an unauthorized read is refused. It is a test of the files,
 //                  so it can run against ANY project (we point it at dev) and it
 //                  needs the database password because it does DDL.

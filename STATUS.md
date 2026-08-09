@@ -135,6 +135,53 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — The go-live runbook counted three security postures where the tests prove seven (v933,
+  NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):**
+  `tools/M7-RLS-GOLIVE-RUNBOOK.md` is the `PUBLISH.md` class — the second document in this repo
+  whose instructions an operator EXECUTES rather than reads, and the only one executed against a
+  live database's security posture — and it answered to no check. Taken over the two candidates
+  the v922/v927 passes left open, for the reason both of those notes give themselves: each is
+  flagged in its own text as a product call, and `docs/BACKLOG.md` says a run does not make those
+  for Kevin. This one is pure derivation.
+  **Measured before the fix, on three surfaces, all against one table:** `tests/rls.mjs`'s
+  `POSTURES` array applies **7 postures across 5 artifacts** (check 42 already derives exactly
+  that and corrected `CLAUDE.md` and `rls-dev.yml`'s header from it). The runbook said `rls.mjs`
+  "installs **both posture files**" and "runs the SAME **27 checks** it runs against **the two
+  `/tools` files**". `tests/rls.mjs`'s OWN header said **"ALL THREE shipped postures"**, and
+  "The three shipped postures" a second time in the comment introducing the seven-entry array —
+  so the file that owns the list was the last document still wrong about it, two growth spurts
+  after the fact (N26 added two re-run postures, N22b two app-generated ones). And
+  `tests/rls-verify.mjs`, whose header exists *specifically* so the two scripts are not confused,
+  repeated "the three shipped postures".
+  **The half that is not a count, and is why this was worth a slice:** the runbook named
+  `tests/rls-verify.mjs` **nowhere**. Its § A4 Verify tells an operator to paste four SQL blocks
+  in the dashboard editor, while the repo's own answer to the first of them — read-only, needing
+  no database password, asking through PostgREST with the publishable key, which is what makes it
+  safe to aim at production — is one command or one `rls-verify.yml` dispatch. The open ⛔ **N29**
+  is exactly the gap between the two answers: `rls.mjs` went green on the files in the same hour
+  `rls-verify.mjs` found `polecat_dev` returning every `dashboards` and `datasets` row to an
+  anonymous caller. A file test cannot see that, and the runbook did not say so.
+  **Fixed:** the "Who runs it" bullet now describes both checks as the two different questions
+  they are, names all five artifacts `rls.mjs` applies (including the two the app itself
+  generates — `WS.freshDeploySQL()` and `WS.migrationRpcSQL()` — which were proven by the same
+  battery and mentioned in no document), and records that `rls.mjs` is pointed at the **dev**
+  project rather than production (N25). § A4 now leads with `tests/rls-verify.mjs` and says what
+  (b)–(d) add that an anonymous caller cannot see. Both script headers count seven, and
+  `rls.mjs`'s says where the count is held so the next growth spurt cannot go quiet.
+  **The guard — doc-truth check 46**, which adds no new source of truth: it reuses check 42's own
+  `postureSources`/`postureArtifacts` over three more surfaces. Five rules — (a) each surface
+  states a count at all; (b) every `<n> shipped postures` claim any of them publishes is the
+  table's number, both directions; (c) the runbook names every artifact under test; (d) it names
+  both posture scripts; (e) the negative half and the `PUBLISH.md` failure mode — every repo file
+  the runbook points an operator at exists. **4 of the 6 assertions measured failing on the real
+  pre-fix tree**; the rest on mutated trees: a dangling `tools/supabase-retired.sql` pointer for
+  (e), the runbook over-counting to "eight" for (b)'s other direction, and a posture deleted from
+  the table, which correctly reddens all three surfaces at once beside check 42's own two.
+  **Verification:** `node tools/doc-truth.mjs` (46 checks green), `node tools/validate.mjs`,
+  `node tools/changelog-check.js`, `node tools/dev-smoke.mjs` at 390×780 + desktop with zero
+  pageerrors — the full dev gate, run in the foreground before merge. No precached file changed,
+  so no `sw.js` bump (issue #631's territory stays untouched).
+  **Est 1pt, took 1.**
 - **N7 — The document that defines a dashboard file described a product we replaced (v932, NO sw
   bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** `SPEC.md` is the reference for
   `.studio.json` — the file a dashboard exports to and re-opens from — and `README.md` forwards
@@ -13526,6 +13573,51 @@
     in the exported html's asset paths — so changing it is a behaviour question and its own
     unit, and check 45 rule (d) deliberately holds only the artifacts these documents name. The
     two v922 candidates are still open and still Kevin's calls.
+  * *The RLS go-live runbook + both posture scripts' own headers vs the POSTURES table — v933,
+    NO sw bump (2026-08-09 — see DONE).* Check 42's move three surfaces over, and the pick was
+    made the way v928/v929 were: the two v922 candidates are still Kevin's calls, so this run
+    took the pure derivation instead. **`tools/M7-RLS-GOLIVE-RUNBOOK.md` is the PUBLISH.md
+    class** — the second document here whose instructions an operator EXECUTES, and this one
+    executes them against a live security posture — and it answered to no check.
+    **Measured: the runbook said `tests/rls.mjs` "installs both posture files" and "runs the
+    SAME 27 checks it runs against the two `/tools` files"; the table has applied SEVEN
+    postures across FIVE artifacts since N22b.** Worse, the two SCRIPTS miscounted themselves:
+    `tests/rls.mjs`'s own header said **"ALL THREE shipped postures"** — and "The three shipped
+    postures" again, in the comment directly above the seven-entry array it introduces — and
+    `tests/rls-verify.mjs`, whose header exists specifically to keep the two apart, repeated
+    the number. Check 42 had already corrected `CLAUDE.md` and `rls-dev.yml`'s header from the
+    same table, so the file that OWNS the list was the last one still wrong about it.
+    **The other half is a real gap in an executed document, not a count:** the runbook never
+    named `tests/rls-verify.mjs` at all, so § A4 told an operator to paste four SQL blocks
+    while the repo's prod-safe, password-free, one-command answer to the first of them went
+    unmentioned — and the open ⛔ **N29** is precisely the case only that check could see (81/81
+    green on the files in the same hour the live dev database was handing `dashboards` and
+    `datasets` to anon). A4 now leads with it and says what (b)–(d) add; the "Who runs it"
+    bullet describes both checks, their different questions, and that `rls.mjs` is pointed at
+    dev rather than production (N25). Doc-truth **check 46** reuses check 42's own
+    `postureSources`/`postureArtifacts` — no new source of truth — over three surfaces: every
+    `<n> shipped postures` claim any of them publishes must be the table's number (both
+    directions), each must publish one at all, and the runbook must name every artifact under
+    test and both scripts. **4 of the 6 assertions measured failing on the real pre-fix tree**;
+    rule (e), the negative half, on a mutated one (a dangling `tools/supabase-retired.sql`
+    pointer), and both directions of the count rule on mutated trees (the runbook over-counting
+    to "eight"; a posture removed from the table, which correctly reddens all three surfaces
+    at once alongside check 42's).
+    **Audited and found CURRENT in the same pass, no change needed:** the runbook's "four fixed
+    named actions" claim for the Edge Function — `index.ts` still gates exactly `provision` /
+    `go-live` / `create-user` / `reset-data`, and v917 deliberately did NOT add the `upgrade`
+    action N26's spec proposed — and the rollback block's table array, which still matches
+    `WORKSPACE_TABLES` exactly.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    runbook's § A5 still says "Update `STATUS.md` M7 → DONE with the go-live date", a step that
+    was completed on 2026-07-30 and cannot be completed twice — whether a shipped runbook should
+    keep its own bookkeeping step is editorial, not a derivation, so check 46 does not hold it.
+    Also measured and **NOT N7's** (it is a number, not copy): the "27 checks" figure was
+    accurate when written and is now low — N20 added `grantsSql`'s 17 privilege assertions on
+    top of `checksSql`'s 27 — so the fix removed the figure rather than restating it; publishing
+    a per-posture total would need a derivation of both builders, which is worth doing the day a
+    document needs the number and not before. The two v922 candidates are still open and still
+    Kevin's calls.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before

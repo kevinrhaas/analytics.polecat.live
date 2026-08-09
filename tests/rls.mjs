@@ -13,20 +13,31 @@
 // check: it applies THE REAL FILES (not a paraphrase of them) and asserts, from
 // the database's own point of view, that an unauthorized read is refused.
 //
-// It runs the same checks against ALL THREE shipped postures —
+// It runs the same checks against ALL SEVEN shipped postures — the POSTURES
+// table below is the list, and it is drawn from five artifacts:
 // `tools/supabase-rls-real.sql` (re-tighten an environment whose tables exist),
 // `tools/supabase-deploy.sql` (the fresh one-file deploy, which calls itself the
-// superset) and the Edge Function's inlined `BOOTSTRAP_DDL` + `RLS_REAL_SQL`
-// (what an in-app **Admin → Go live** actually installs) — because "keep them in
-// sync" was an honour-system comment until something compared them. Each one is
-// installed into its OWN empty schema, so "does this work on a genuinely fresh
-// database?" is tested every run. That is what caught the ordering bug the two
-// files carried on 2026-08-07: they created policies calling `polecat_is_admin()`
+// superset), `tools/supabase-bootstrap.sql` (re-run on a workspace that has gone
+// live), the Edge Function's inlined `BOOTSTRAP_DDL` + `RLS_REAL_SQL` in
+// `supabase/functions/polecat-admin/sql.ts` (what an in-app **Admin → Go live**
+// actually installs, and what a second `provision` call does afterwards), and the
+// in-app generators `WS.freshDeploySQL()` / `WS.migrationRpcSQL()` in
+// `app/sources/schema.js` (the connect wizard's script, and the migration RPC
+// route) — because "keep them in sync" was an honour-system comment until
+// something compared them. Each one is installed into its OWN empty schema, so
+// "does this work on a genuinely fresh database?" is tested every run. That is
+// what caught the ordering bug the two `/tools` files carried on 2026-08-07: they
+// created policies calling `polecat_is_admin()`
 // a section before defining it, so the documented top-to-bottom fresh install
 // died on its first CREATE POLICY and had only ever survived on a project where
-// an earlier run left the function behind. Adding the third posture (N2 slice 2)
-// caught the bigger one: the one-click go-live had drifted to a WEAKER posture
-// than the manual paste.
+// an earlier run left the function behind. Adding the Edge Function's posture
+// (N2 slice 2) caught the bigger one: the one-click go-live had drifted to a
+// WEAKER posture than the manual paste.
+//
+// Keep this count in step with the table: `tools/doc-truth.mjs` check 46 derives
+// it from POSTURES and holds this header, `tests/rls-verify.mjs`'s header and
+// `tools/M7-RLS-GOLIVE-RUNBOOK.md` to it (check 42 already holds CLAUDE.md and
+// `rls-dev.yml`). It said "ALL THREE" for two growth spurts before anyone looked.
 //
 // SAFETY — read before changing anything here. Every statement runs inside ONE
 // throwaway `steward_test_rls_<random>` schema that this script creates and
@@ -62,14 +73,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const tool = (f) => resolve(__dirname, "..", "tools", f);
 
 // ---------------------------------------------------------------------------
-// The three shipped postures, each installed into its own throwaway schema and
+// The seven shipped postures, each installed into its own throwaway schema and
 // then put through the SAME checks — because they are all supposed to BE the
 // same posture (supabase-deploy.sql's header calls itself the superset; the Edge
-// Function's sql.ts calls itself the condensed runtime copy). Testing all three
+// Function's sql.ts calls itself the condensed runtime copy). Testing all seven
 // is what keeps "keep them in sync" from being an honour-system comment.
 //
-// The third one matters most in practice: it is what an in-app **Admin → Go
-// live** actually installs. It HAD drifted (N2 slice 2, 2026-08-07) — missing
+// The Edge Function's go-live posture matters most in practice: it is what an
+// in-app **Admin → Go live** actually installs. It HAD drifted (N2 slice 2, 2026-08-07) — missing
 // the admin arm, the explicit `TO authenticated`, the `users` email-claim arm,
 // the `polecat_meta` policy and the legacy-policy drop loop — so the one-click
 // path installed a weaker posture than the documented manual paste. Nothing
