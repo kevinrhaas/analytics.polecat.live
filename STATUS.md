@@ -135,6 +135,68 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — Help promised that pinning an item floats it to the top of any list; three of the six
+  lists do that (v938, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):**
+  The check-49 move one paragraph over, and the first slice here to find a claim the page
+  CONTRADICTS ITSELF about sixty lines apart with the stale half printed beside the control.
+  Help's catalog-pages block describes the sort menu of all six catalog panels — Dashboards,
+  Views, Datasets, Connections, Jobs, Repository — in ONE sentence: the option list, the
+  default, the per-section extras and what a pin does to the order. Each panel declares that
+  control itself, as a literal option list handed to `Studio.catalogSort.wire(sel, sec,
+  "updated-desc", [[value, label], …], rerender)`, and sorts its own list a few lines below.
+  Six declarations, one summary, never compared. Taken over the two v922 candidates for the
+  reason those notes give themselves — both are flagged in their own text as product calls,
+  and `docs/BACKLOG.md` says a run does not make those for Kevin.
+  **The pin claim is the find, and it is the one a reader ACTS on.** "Pinned items always stay
+  at the top whatever the sort" is true of THREE panels: `datasets.js`, `connections.js` and
+  `views.js` each put `if (!!a.pinned !== !!b.pinned)` ahead of the sort key. The other three
+  do not. `renderDashboards` ends at `list.sort(dashSortCmp)` with no tiebreak — a dashboard's
+  pin means "pin to Home", which its own button title says outright — the Repository renders no
+  pin control at all, and the word `pinned` does not appear in `app/jobs.js`. **Help's own
+  catalog-rows section says so sixty lines below**: "Jobs are the one of the three with no pin
+  — a job is something you run, not something you keep at the top of a list — so reach for the
+  section's 'Last run' sort instead." So the page was simultaneously right and wrong about the
+  same control, the v929/v936 shape, and again the stale half was the one printed beside the
+  feature it describes.
+  **Two smaller drifts in the same sentence.** Five panels label the `updated-desc` default
+  **Newest first**; Dashboards labels it **Last updated**, so the page most readers open first
+  was the one page where the option Help named as the default is not in the menu. And
+  **Connections' `By adapter`** was named nowhere — the extras parenthetical credited extras to
+  four pages, and that was the only offered option across all six menus left out entirely.
+  **Doc-truth check 51** adds no new source of truth — the six `wire()` call sites and each
+  panel's own list sort: (a) the premise + the roster (exactly six panels wire a control, all
+  on the same `updated-desc` default, and the pages Help enumerates are exactly those six, so
+  the rest cannot pass green over a dead source), (b) the default's LABEL per panel, with the
+  odd one out named beside its own label — plus the negative half, that every bolded phrase in
+  the paragraph BE a label the panel before it really carries, so a rename in the app cannot
+  leave a stale exception reading as current (check 49 (d)'s lead-in lesson: the rule strips the
+  "Sorting." lead-in and reads only the body), (c) the options all six share, the name pair held
+  by its direction token because the copy collapses them to "Name A–Z / Z–A", (d) extras both
+  directions, **segmented by page name** so Datasets' and Connections' two `By adapter` entries
+  cannot cover for each other — which is exactly how the missing one hid, and (e) the
+  pinned-first claim naming exactly the panels whose sort does it.
+  **3 of the 5 measured failing on the real pre-fix tree** (b: Dashboards/Last updated by name;
+  d: Connections' adapter; e: all three pinned-first panels, since the old page-free "always"
+  names none of them). The other two and every negative direction on mutated trees: a
+  pinned-first tiebreak added to `jobs.js` (e reds), `By adapter` deleted from `connections.js`
+  (d reds in the opposite direction), Dashboards' label renamed to "Newest first" (b's bold rule
+  reds), the Views panel's `wire()` call removed (a reds at 5 panels), and "Oldest first"
+  renamed across all six (c reds). The option array is brace-walked rather than regex-matched —
+  the `[value, label]` pairs are themselves arrays, so a non-greedy match stops inside the first
+  option and silently reads zero of them, which it did on the first run.
+  **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the same
+  block's **Searching** paragraph lists what each page searches, and two of the six are missing
+  from it — Views (name, chart-type label, folder) and the Repository (title, meta, folder) —
+  while Datasets' list omits the connection's name, which `datasets.js` really does search. That
+  is the same class one paragraph over, with its own source of truth (each panel's
+  `catalogSearch.matcher` haystack), and it is a slice, not a rider. Also measured and found
+  CURRENT: the **Layout** paragraph (`Studio.catalogView.DEFAULT` is `"list"` and all six
+  sections wire the toggle) and the row-controls list checks 24/28 already hold.
+  Verified: `node tools/validate.mjs`, `node tools/changelog-check.js`, `node tools/doc-truth.mjs`
+  (the full dev gate) and `node tools/dev-smoke.mjs` at 390×780 + desktop, zero pageerrors.
+  No `sw.js` CACHE bump — `docs/index.html` is deliberately NOT precached (sw.js says so at the
+  head of its list) and `tools/` does not ship; same reasoning as v921–v937.
+  Est 1pt, took 1.
 - **N7 — Help's chart gallery shelved three charts where the picker does not keep them (v937,
   NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):**
   The oldest section on the page, and the first N7 slice to find drift *underneath* two checks
@@ -13918,6 +13980,26 @@
     failing on the real pre-fix tree**; (c) and (e) on mutated trees, and both directions of
     (a)/(b) on a registry renaming `Flow`→`Networks`. The parser was validated against a real
     evaluation of `app/model.js` (54 keys, zero mismatches) rather than trusted as a regex.
+  * *Help's sort control vs the six catalog panels that render one — v938, NO sw bump
+    (2026-08-09 — see DONE).* The check-49 move one paragraph over, and the first slice here
+    where the page CONTRADICTS ITSELF sixty lines apart. One sentence describes the sort menu of
+    all six catalog panels; each panel declares its own via `Studio.catalogSort.wire(...)`.
+    **"Pinned items always stay at the top whatever the sort" was true of three panels** —
+    Datasets, Connections and Views sort the pinned tiebreak first; a dashboard's pin means "pin
+    to Home", the Repository has no pin control, and `app/jobs.js` never mentions `pinned` at
+    all, which Help's own catalog-rows section states outright ("Jobs are the one of the three
+    with no pin"). Plus **Dashboards labels the default `Last updated`** where the other five say
+    "Newest first", and **Connections' `By adapter`** was the one offered option named nowhere.
+    Doc-truth check 50 → 51: five rules over the six `wire()` call sites and each panel's own
+    list sort, **3 measured failing on the real pre-fix tree**, the other two and every negative
+    direction on mutated trees.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the same
+    block's **Searching** paragraph names what each page searches and omits two of the six —
+    Views and the Repository — while Datasets' list leaves out the connection name that
+    `datasets.js` really searches. Same class, one paragraph over, its own source of truth (each
+    panel's `catalogSearch.matcher` haystack): a slice, not a rider. Also measured and found
+    CURRENT: the **Layout** paragraph, against `Studio.catalogView.DEFAULT` and the six toggle
+    wirings. The two v922 candidates are still open and still Kevin's calls.
     **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
     section's three general paragraphs ("54 chart types are available, grouped by purpose…", the
     Recommended-strip note, the toggle-glyph note) sit UNDER the `Maps` heading rather than under

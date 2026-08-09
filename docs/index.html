@@ -1715,10 +1715,13 @@
   from then on. Dashboards used to be the one page that opened as tiles; all six now start the same
   way, and Home still greets you with dashboard thumbnails either way.</p>
   <p><strong>Sorting.</strong> Every catalog page — Dashboards, Views, Datasets, Connections, Jobs
-  and the Repository — has a sort control beside the layout toggle: Newest first (the default),
-  Oldest first, Name A–Z / Z–A, plus per-section extras (Dashboards by workbook or folder, Datasets
-  by adapter or connection, Views by chart type, Jobs by last run). Your choice sticks per section
-  on this device, and pinned items always stay at the top whatever the sort.</p>
+  and the Repository — has a sort control beside the layout toggle: Newest first (the default;
+  Dashboards labels that same option <strong>Last updated</strong>), Oldest first, Name A–Z / Z–A,
+  plus per-section extras (Dashboards by workbook or folder, Datasets by adapter or connection,
+  Connections by adapter, Views by chart type, Jobs by last run — the Repository has none). Your
+  choice sticks per section on this device. On Datasets, Connections and Views a pinned item stays
+  at the top whatever the sort; a dashboard's pin sends it to Home rather than to the top of this
+  list, and <a href="#catalog-rows">Jobs</a> and the Repository have no pin at all.</p>
   <p><strong>Searching.</strong> Every catalog page searches the same way. Type as many words as you
   like: each one has to turn up <em>somewhere</em> on the item, in any order and across any field — so
   <code>crops 2024</code> finds a dataset named "Cover crops" filed in the "2024" folder, even though
