@@ -1620,6 +1620,84 @@ ok("tools/gen-shots.mjs: no screenshot describes a built-in region scale as a ge
   `${shotMislabels.join("\n      ")}\n      ` +
   "check 29 holds the caption beside the image to this same rule — the two must not contradict each other");
 
+/* ── 32. the Quick Views hero shot vs the editor it photographs ─────────────
+   N7. Check 31 read the copy BAKED INTO a screenshot. This reads the other side of the
+   same seam: what the shot's generator actually puts on screen, versus what the caption
+   and the alt text beside it promise. The Quick Views slide had drifted on both counts.
+
+   (a) The prep loaded a saved VIEW. CONS-4 later made every View the conservation pack
+   seeds View Builder-native, and `xpLoadAnalysis` answers a builder-made View with the
+   VB-5 cross-editor banner — so the flagship Quick Views slide led with a notice saying
+   Quick Views "can't edit its shelves, filters, or calculated columns". There is no
+   better saved View to prefer: all four the pack seeds go through `builderViewRow`, which
+   sets `builder:`. Both halves of that are derived below, so the rule survives the pack
+   changing its mind — seed one non-builder View and the premise check says so.
+
+   (b) The alt text promised "a live result". The editor is a FOUR-step walk and the
+   1440×900 frame holds three of them (measured by the shooter itself — `framedSteps`, in
+   tools/gen-shots.mjs), so `4 · Result` is below the fold in a picture whose alt text
+   said it was there. A step's own header noun is the vocabulary: copy beside the image
+   may name the framed steps and must not name a later one. The positive half matters as
+   much — a caption that names none of them is vague, not true. */
+const shotsSrc = read("tools/gen-shots.mjs");
+const explorePrep = (shotsSrc.match(/snapSection\(browser, "explore-dark",[\s\S]*?\n {4}\} \}\);/) || [""])[0];
+ok("tools/gen-shots.mjs: the explore-dark shot's options block parsed for check 32",
+  explorePrep.length > 0,
+  "the `snapSection(browser, \"explore-dark\", { … })` call is what rules (a) and (b) are measured against");
+
+const builderRowBody = (packSrc.match(/function builderViewRow\([\s\S]*?\n {2}\}/) || [""])[0];
+const conservationViewWrites = [...packSrc.matchAll(/W\.put\("analyses", ([A-Za-z_]\w*)/g)].map((m) => m[1]);
+ok("app/demopacks.js: every saved View the conservation pack seeds is View Builder-native",
+  /\bbuilder:/.test(builderRowBody) && conservationViewWrites.length > 0 &&
+  /builderViewRow\(/.test(packSrc),
+  "`builderViewRow` sets `builder:`, and it is the only shape the pack's PRACTICES loop writes — " +
+  "so a prep that picks from the saved Views cannot avoid the cross-editor banner");
+
+ok("tools/gen-shots.mjs: the Quick Views shot opens a DATASET, not a saved View",
+  !/\ball\("analyses"\)|__studioExplore\.load/.test(explorePrep) && /button\.xp-ds/.test(explorePrep),
+  "app/explore.js raises the VB-5 cross-editor notice for any View with a `builder` blob, and " +
+  "every View in the shot's workspace has one — so loading a saved View photographs Quick Views' " +
+  "own limitation instead of the walk the caption describes");
+
+// The editor's numbered steps, in the order app/explore.js renders them.
+const xpSteps = [...read("app/explore.js").matchAll(/class="xp-step-h">(\d+) · ([A-Za-z]+)/g)]
+  .map((m) => ({ n: +m[1], noun: m[2] }));
+const framedSteps = +((explorePrep.match(/framedSteps:\s*(\d+)/) || [])[1] || 0);
+ok(`app/explore.js: the Quick Views editor's numbered steps parsed for check 32 (${
+  xpSteps.map((s) => s.n + " · " + s.noun).join(", ") || "none"}), and the shot declares framedSteps: ${framedSteps}`,
+  xpSteps.length > 1 && framedSteps > 0 && framedSteps < xpSteps.length,
+  "the shooter fails the capture if `framedSteps` does not match what the 1440×900 frame holds; " +
+  "this check holds the copy to the same number");
+
+// The copy beside the image: its alt text, and the carousel caption at the same slide index.
+const exploreImg = (marketing.match(/<img[^>]*site\/shots\/explore-dark\.png[^>]*>/) || [""])[0];
+const exploreAlt = (exploreImg.match(/alt="([^"]*)"/) || [, ""])[1];
+const slideIdx = +((exploreImg.match(/data-i="(\d+)"/) || [])[1] ?? -1);
+const capsBlock = (marketing.match(/var CAPS = \[([\s\S]*?)\n {2}\];/) || [, ""])[1];
+const caps = [...capsBlock.matchAll(/^\s*"((?:[^"\\]|\\.)*)",?$/gm)].map((m) => m[1]);
+const exploreCopy = [exploreAlt, caps[slideIdx] || ""].filter(Boolean);
+const slideCount = (marketing.match(/class="hc-img[^"]*"/g) || []).length;
+ok(`index.html: the copy beside explore-dark.png parsed for check 32 (alt + caption ${slideIdx} of ${caps.length})`,
+  exploreAlt.length > 0 && slideIdx >= 0 && caps.length === slideCount && !!caps[slideIdx],
+  "the alt attribute and the CAPS entry at the image's own data-i are the two published strings — " +
+  `${slideCount} slide(s) vs ${caps.length} caption(s) means the pairing itself has drifted`);
+
+const beyond = xpSteps.filter((s) => s.n > framedSteps);
+const overPromises = [];
+for (const step of beyond)
+  for (const unit of exploreCopy)
+    if (new RegExp("\\b" + step.noun + "\\b", "i").test(unit))
+      overPromises.push(`"${unit.slice(0, 120)}…"\n        → names step ${step.n} · ${step.noun}, which the frame does not reach`);
+ok(`index.html: the Quick Views copy promises nothing past step ${framedSteps} of the editor`,
+  !overPromises.length,
+  `${overPromises.join("\n      ")}\n      ` +
+  "re-frame the shot (raise `framedSteps` in tools/gen-shots.mjs) or drop the claim — the picture decides");
+
+const framedNouns = xpSteps.filter((s) => s.n <= framedSteps).map((s) => s.noun);
+ok(`index.html: the Quick Views copy names at least one step the shot actually shows (${framedNouns.join("/")})`,
+  exploreCopy.some((unit) => framedNouns.some((noun) => new RegExp("\\b" + noun + "\\b", "i").test(unit))),
+  "the negative rule above is satisfiable by saying nothing — a caption for a numbered walk has to name the walk");
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

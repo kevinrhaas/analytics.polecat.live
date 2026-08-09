@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 919,
+    title: 'The Quick Views slide on the home page was showing the one thing Quick Views cannot do',
+    kind: 'fix',
+    ts: '2026-08-09T07:27:37.000Z',
+    items: [
+      'The screenshot beside "Build a View in seconds" was taken by opening a saved View. Every saved View the sample pack installs is made in the View Builder now, and Quick Views answers one of those with a notice across the top: this View was built elsewhere, and Quick Views cannot edit its shelves, filters or calculated columns. So the slide selling Quick Views led with Quick Views apologising for itself, and there was no better View to pick — all four in the pack are the same kind.',
+      'The shot now opens a dataset instead, which is what the caption beside it has always described and what the page itself invites you to do: start from a dataset, see it as a table, pick a chart, map the fields. The table is a real one at 500 rows rather than a three-row saved result, and the app fills in the mapping the way it would for you.',
+      'The words under the picture were promising a rendered chart as well. The designer is a four-step walk and the frame fits three of them, so the fourth was being described in a picture that stopped short of it. The description now matches the picture.',
+      'Two things keep it that way. The tool that takes the screenshot now measures how many steps its own frame holds and refuses to save a picture that disagrees with the number written down beside it. The dev gate reads that same number and checks the words on the page against it, and separately checks that this shot never goes back to opening a saved View.',
+      'Regenerating one screenshot no longer regenerates all sixteen — you can name the one you mean, which keeps a change like this reviewable instead of a six-megabyte pile of pictures nobody can compare.',
+    ],
+  },
+  {
     v: 918,
     title: 'The screenshots on the home page are real again — one of them was showing the wrong screen entirely',
     kind: 'fix',

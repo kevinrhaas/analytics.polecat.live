@@ -135,6 +135,46 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the Quick Views hero shot photographed Quick Views' own limitation (v919, NO sw bump,
+  2026-08-09, steward; dev branch; est 1pt, took 1):** the candidate v918 named for the next pass,
+  and the measurement moved the fix somewhere the note did not expect.
+  **The note's proposed fix does not exist.** It read: the Quick Views slide's prep picks a saved
+  View by NAME (`/no-?till|tillage|cover/i`) and the pack's Views are builder-native now, so
+  "preferring a NON-builder View, as the View Builder shot already prefers a builder one, is the
+  fix". There is no non-builder View to prefer. `snapSection` installs the `conservation` pack and
+  nothing else, and every saved View that pack seeds goes through `builderViewRow` — measured, all
+  four `builder: true` — so `A.filter(a => !a.builder)` is EMPTY in the shot's workspace. The fix
+  is not a better pick; it is not picking a saved View at all.
+  **What the slide actually showed.** `xpLoadAnalysis` answers a builder-made View with the VB-5
+  cross-editor banner, so the flagship Quick Views slide opened with 53px of notice reading
+  "Quick Views shows it best-effort and can't edit its shelves, filters, or calculated columns",
+  above everything the caption promises — the section selling itself with its own carve-out. The
+  prep now clicks a DATASET in the picker, which is the section's own front door ("Start from a
+  dataset, see it as a table, pick a chart…" is its intro line, and the caption beside the image
+  has always said the same). Real depth follows for free: 500 rows instead of a 3-row saved blob,
+  and the app's own mapping guess filled in.
+  **The alt text was over-promising, and by how much is measurable.** It said "a dataset table, a
+  chart-type picker and **a live result**"; the editor is a four-step walk and the 1440×900 frame
+  holds three (steps at 156/484/694/880px in an 842px scroll viewport — no scroll position shows
+  the table and the result together, so this is the frame, not the composition). Rewritten to what
+  the picture contains. The visible carousel caption was already right — it describes the
+  dataset-first walk — which is the sharper version of the defect: the shot had drifted away from
+  a caption that never moved.
+  **Two guards, because a picture cannot be parsed.** `snapSection` takes a `framedSteps` count and
+  MEASURES it before saving (a step counts when ≥100px of it is in frame); declare 4 and the
+  capture fails rather than shipping. doc-truth check 32 reads that same number and holds the alt
+  + the caption at the image's own `data-i` to it — may name the framed steps, must not name a
+  later one, must not go vague to dodge the rule — and separately forbids this shot going back to
+  a saved View, deriving the premise from `builderViewRow`'s `builder:` rather than trusting the
+  note. All four failure modes measured on mutated trees (pre-fix alt, pre-fix prep, overstated
+  `framedSteps`, vague copy), plus the shooter's own assertion.
+  **Also:** `node tools/gen-shots.mjs explore-dark` now shoots only what it names. Every capture is
+  live rendering, so re-shooting an untouched view still writes a byte-different PNG — a one-shot
+  fix was otherwise a ~6MB binary diff with the actual change buried in it.
+  **Not taken, so the next run does not re-derive it:** the builder shot's Data panel shows one
+  collapsed group (v918's second note) — untouched, still the candidate.
+  Verified: `node tools/doc-truth.mjs` (32 checks incl. the 6 new), `node tools/validate.mjs`,
+  `node tools/changelog-check.js`, `node tools/dev-smoke.mjs` at 390×780 + desktop.
 - **N7 — the hero carousel's SCREENSHOTS, and the three that were wrong (v918, NO sw bump,
   2026-08-09, steward; dev branch; est 1pt, took 1):** the recurring doc/copy item's last named
   candidate, deferred across several passes as "regenerating sixteen 2160×1350 captures and
@@ -12455,14 +12495,21 @@
     printed INSIDE a screenshot to check 29's own measurement. The v916 note's requirement was
     kept: `watershed.png` and `map.png` still show a watershed map and a county map.
     **Two things this pass measured and deliberately did NOT take, so the next run does not
-    re-derive them:** (1) `explore-dark.png` opens on the "was built in the View Builder — Quick
+    re-derive them:** ~~(1) `explore-dark.png` opens on the "was built in the View Builder — Quick
     Views shows it best-effort and can't edit its shelves" caveat banner, which pushes `4 · RESULT`
     below the fold — so the Quick Views slide, captioned "a dataset table, a chart-type picker and
     a live result", shows no result. The prep picks a saved View by NAME (`/no-?till|tillage|cover/i`)
     and the pack's Views are builder-native now; preferring a NON-builder View, as the View Builder
     shot already prefers a builder one, is the fix. It is pre-existing — the committed baseline has
-    the identical banner — which is why it is a candidate and not this slice. (2) the builder shot's
-    Data panel is open but shows one collapsed group; expanding it would read better. **Also worth
+    the identical banner — which is why it is a candidate and not this slice.~~ ✓ **SHIPPED v919,
+    NO sw bump (2026-08-09 — see DONE), and the proposed fix did not exist:** all four Views the
+    shot's pack seeds are builder-native (measured), so there is no non-builder View to prefer —
+    the prep opens a DATASET instead, the section's own front door. The alt text's "a live result"
+    was the other half: the editor is a four-step walk and the frame holds three, so the copy was
+    rewritten to the picture. `framedSteps` now makes the shooter measure that before saving and
+    doc-truth check 32 holds the caption + alt to the same number. (2) the builder shot's Data
+    panel is open but shows one collapsed group; expanding it would read better — still open, and
+    still the named candidate for the next N7 pass. **Also worth
     a look:** the rail renders **Views** and **Dashboards** twice (WORKSPACE catalogs vs BUILD
     builders) and several rail/tile icons fall back to a generic ⊙ glyph — both are in the app
     itself, both are in the old shots too, and neither is a copy question, so neither belongs to N7.

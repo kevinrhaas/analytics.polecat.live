@@ -6,11 +6,19 @@
 // captures every showcased view fresh. Run it whenever the marketing site or the
 // showcased features change, and commit the results:
 //
-//   node tools/gen-shots.mjs
+//   node tools/gen-shots.mjs                  every shot
+//   node tools/gen-shots.mjs explore-dark     just the named one(s)
 //
 // Writes site/shots/*.png (2160×1350, 16:10 @1.5x). Resilient: a view that fails
 // to capture is logged and skipped rather than aborting the run — the committed
 // baseline PNG stays as a fallback.
+//
+// The name filter exists because a slice that fixes ONE shot should not churn the
+// other fifteen: every capture is a fresh browser context over live rendering, so
+// re-shooting an untouched view still produces a byte-different PNG, and a ~6 MB
+// binary diff buries the one image the PR is actually about. Naming the shot keeps
+// the diff reviewable (and the run short). A full pass is still the right thing when
+// the app's chrome itself changes — that is what the no-argument form is for.
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -57,6 +65,11 @@ const DECLUTTER = `document.querySelectorAll('#toasts .toast,.tour-pop,.tour-bac
 let ok = 0, fail = 0;
 const done = (name) => { console.log("  ✓", name); ok++; };
 const oops = (name, e) => { console.log("  ✗", name, "—", (e && e.message) || e); fail++; };
+
+// `node tools/gen-shots.mjs explore-dark` shoots only what it names; no argument
+// shoots everything. Skipped shots are silent — the committed PNG stands.
+const ONLY = new Set(process.argv.slice(2).filter((a) => !a.startsWith("-")));
+const want = (name) => !ONLY.size || ONLY.has(name);
 
 // `prefs` seeds extra localStorage keys BEFORE first paint, for shots whose caption
 // promises a view the app does not open in by default. Pinning beats clicking: the
@@ -110,7 +123,18 @@ async function loadExample(page, file) {
 // Snap a real app SECTION (Home tiles, Explore designer, Datasets catalog…) in
 // DARK, with the Conservation sample pack installed so the workspace looks
 // populated — the marketing "survey the app" shots.
-async function snapSection(browser, name, { section, extraWait = 1500, prep = null, theme = "dark", palette = "", prefs = null } = {}) {
+//
+// `framedSteps` is for the sections that render a NUMBERED walk (Quick Views' 1 · Data
+// → 4 · Result). The 1440×900 frame cannot hold all of them, so the copy printed beside
+// the image may only name the ones it reaches — and "how many does it reach" is a
+// measurement, not an opinion. Declaring the count here makes the shooter check it
+// (a step counts as framed when at least MIN_STEP_PX of it is inside the viewport, so a
+// header peeking over the bottom edge does not count), and doc-truth check 32 reads the
+// same number to hold the caption and the alt text to it. Get it wrong in either
+// direction and the shot fails here rather than shipping a caption the picture disproves.
+const MIN_STEP_PX = 100;
+async function snapSection(browser, name, { section, extraWait = 1500, prep = null, theme = "dark", palette = "", prefs = null, framedSteps = 0 } = {}) {
+  if (!want(name)) return;
   const { ctx, page } = await bootBuilder(browser, { theme, palette, prefs });
   try {
     await page.evaluate(() => {
@@ -125,6 +149,16 @@ async function snapSection(browser, name, { section, extraWait = 1500, prep = nu
     await page.waitForTimeout(extraWait);
     await page.evaluate(DECLUTTER);
     await page.waitForTimeout(200);
+    if (framedSteps) {
+      const framed = await page.evaluate((minPx) => [].slice.call(document.querySelectorAll(".xp-step")).map((s) => {
+        const b = s.getBoundingClientRect();
+        const shown = Math.min(b.bottom, window.innerHeight) - Math.max(b.top, 0);
+        return { label: ((s.querySelector(".xp-step-h") || {}).textContent || "").trim().slice(0, 12), shown: Math.round(shown) };
+      }).filter((s) => s.shown >= minPx).length, MIN_STEP_PX);
+      if (framed !== framedSteps)
+        throw new Error(`framedSteps: declared ${framedSteps}, the frame actually holds ${framed} — ` +
+          "re-measure and update BOTH this number and the copy beside the image (doc-truth check 32)");
+    }
     await page.screenshot({ path: path.join(OUT, `${name}.png`) });
     done(name);
   } catch (e) { oops(name, e); }
@@ -142,6 +176,7 @@ async function buildExport(page, spec, mock) {
 }
 
 async function shootExport(browser, name, html, { theme = "light", waitSel = ".dk-grid svg", extraWait = 900, scrollY = 0 } = {}) {
+  if (!want(name)) return;
   const route = `/__shot/${name}.html`;
   dynamic.set(route, html);
   const ctx = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 1.5 });
@@ -232,67 +267,74 @@ function countyValue(fips) {
 
   try {
     // ---- 1+2: the builder, light (flagship) and dark (chart showcase) -------
-    const light = await bootBuilder(browser, { theme: "light" });
-    try {
-      await loadExample(light.page, "studio-cost.studio.json");
-      await light.page.screenshot({ path: path.join(OUT, "studio.png") });
-      done("studio");
-    } catch (e) { oops("studio", e); }
-
-    // ---- exports are generated from the (already booted) light page ---------
-    // 3: Corn Belt county choropleth — every county in 11 states gets a median value.
+    // Everything below the light page either IS the `studio` shot or is an export BUILT
+    // on that page, so the whole block is skipped when the name filter wants none of them.
     let mapHtml = null, ensHtml = null, flagshipHtml = null, showcaseHtml = null, huc8Html = null;
-    try {
-      const fipsList = await light.page.evaluate(async (states) => {
-        const topo = await fetch("vendor/geo/counties-albers-10m.json").then((r) => r.json());
-        return topo.objects.counties.geometries.map((g) => String(g.id)).filter((id) => states.includes(id.slice(0, 2)));
-      }, CORN_BELT_STATES);
-      const rows = fipsList.map((f) => [f, +countyValue(f).toFixed(1)]);
-      mapHtml = await buildExport(light.page, mapSpec(), { geo: { cols: ["fips", "pct"], rows } });
-    } catch (e) { oops("map (build)", e); }
+    const LIGHT_GROUP = ["studio", "map", "watershed", "ensemble", "dashboard-dark", "showcase"];
+    if (LIGHT_GROUP.some(want)) {
+      const light = await bootBuilder(browser, { theme: "light" });
+      if (want("studio")) try {
+        await loadExample(light.page, "studio-cost.studio.json");
+        await light.page.screenshot({ path: path.join(OUT, "studio.png") });
+        done("studio");
+      } catch (e) { oops("studio", e); }
 
-    // 3b: HUC8 watershed choropleth — a custom geography (USGS subbasins).
-    try {
-      const hucList = await light.page.evaluate(async () => {
-        const topo = await fetch("vendor/geo/us-huc8-albers.json").then((r) => r.json());
-        return topo.objects.huc8.geometries.map((g) => String(g.id));
-      });
-      const rows = hucList.map((h) => [h, +huc8Value(h).toFixed(1)]);
-      huc8Html = await buildExport(light.page, huc8Spec(), { geo: { cols: ["huc8", "pct"], rows } });
-    } catch (e) { oops("watershed (build)", e); }
+      // ---- exports are generated from the (already booted) light page ---------
+      // 3: Corn Belt county choropleth — every county in 11 states gets a median value.
+      if (want("map")) try {
+        const fipsList = await light.page.evaluate(async (states) => {
+          const topo = await fetch("vendor/geo/counties-albers-10m.json").then((r) => r.json());
+          return topo.objects.counties.geometries.map((g) => String(g.id)).filter((id) => states.includes(id.slice(0, 2)));
+        }, CORN_BELT_STATES);
+        const rows = fipsList.map((f) => [f, +countyValue(f).toFixed(1)]);
+        mapHtml = await buildExport(light.page, mapSpec(), { geo: { cols: ["fips", "pct"], rows } });
+      } catch (e) { oops("map (build)", e); }
 
-    // 4: the ensemble chart — five providers converging, AgCensus reference points.
-    try {
-      const providers = ["DTN", "Indigo", "Iowa State", "Regrow", "Terra"];
-      const years = ["2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025"];
-      const rows = [];
-      providers.forEach((pr, pi) => years.forEach((y, yi) => {
-        const spread = 3.2 * (1 - yi / (years.length + 3)); // sources agree more over time
-        rows.push([y, pr, +(11 + yi * 1.5 + Math.sin(pi * 2.3 + yi * 0.8) * spread).toFixed(2)]);
-      }));
-      rows.push(["2017", "AgCensus", 14.6]);
-      rows.push(["2022", "AgCensus", 22.1]);
-      ensHtml = await buildExport(light.page, ensembleSpec(), { ts: { cols: ["year", "provider", "pct"], rows } });
-    } catch (e) { oops("ensemble (build)", e); }
+      // 3b: HUC8 watershed choropleth — a custom geography (USGS subbasins).
+      if (want("watershed")) try {
+        const hucList = await light.page.evaluate(async () => {
+          const topo = await fetch("vendor/geo/us-huc8-albers.json").then((r) => r.json());
+          return topo.objects.huc8.geometries.map((g) => String(g.id));
+        });
+        const rows = hucList.map((h) => [h, +huc8Value(h).toFixed(1)]);
+        huc8Html = await buildExport(light.page, huc8Spec(), { geo: { cols: ["huc8", "pct"], rows } });
+      } catch (e) { oops("watershed (build)", e); }
 
-    // 5+6: two bundled example dashboards as full-bleed exports.
-    try {
-      const flagship = await light.page.evaluate(async () => await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()));
-      flagship.dashboardTheme = "polecat"; // marketing shots wear the Polecat brand look, not Classic Blue
-      flagshipHtml = await buildExport(light.page, flagship, null);
-      const showcase = await light.page.evaluate(async () => await fetch("data/examples/marketing-growth.studio.json").then((r) => r.json()));
-      showcase.dashboardTheme = "polecat";
-      showcaseHtml = await buildExport(light.page, showcase, null);
-    } catch (e) { oops("exports (build)", e); }
-    await light.ctx.close();
+      // 4: the ensemble chart — five providers converging, AgCensus reference points.
+      if (want("ensemble")) try {
+        const providers = ["DTN", "Indigo", "Iowa State", "Regrow", "Terra"];
+        const years = ["2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025"];
+        const rows = [];
+        providers.forEach((pr, pi) => years.forEach((y, yi) => {
+          const spread = 3.2 * (1 - yi / (years.length + 3)); // sources agree more over time
+          rows.push([y, pr, +(11 + yi * 1.5 + Math.sin(pi * 2.3 + yi * 0.8) * spread).toFixed(2)]);
+        }));
+        rows.push(["2017", "AgCensus", 14.6]);
+        rows.push(["2022", "AgCensus", 22.1]);
+        ensHtml = await buildExport(light.page, ensembleSpec(), { ts: { cols: ["year", "provider", "pct"], rows } });
+      } catch (e) { oops("ensemble (build)", e); }
 
-    const dark = await bootBuilder(browser, { theme: "dark" });
-    try {
-      await loadExample(dark.page, "finance-command.studio.json");
-      await dark.page.screenshot({ path: path.join(OUT, "studio-dark.png") });
-      done("studio-dark");
-    } catch (e) { oops("studio-dark", e); }
-    await dark.ctx.close();
+      // 5+6: two bundled example dashboards as full-bleed exports.
+      if (want("dashboard-dark") || want("showcase")) try {
+        const flagship = await light.page.evaluate(async () => await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()));
+        flagship.dashboardTheme = "polecat"; // marketing shots wear the Polecat brand look, not Classic Blue
+        flagshipHtml = await buildExport(light.page, flagship, null);
+        const showcase = await light.page.evaluate(async () => await fetch("data/examples/marketing-growth.studio.json").then((r) => r.json()));
+        showcase.dashboardTheme = "polecat";
+        showcaseHtml = await buildExport(light.page, showcase, null);
+      } catch (e) { oops("exports (build)", e); }
+      await light.ctx.close();
+    }
+
+    if (want("studio-dark")) {
+      const dark = await bootBuilder(browser, { theme: "dark" });
+      try {
+        await loadExample(dark.page, "finance-command.studio.json");
+        await dark.page.screenshot({ path: path.join(OUT, "studio-dark.png") });
+        done("studio-dark");
+      } catch (e) { oops("studio-dark", e); }
+      await dark.ctx.close();
+    }
 
     // Marketing carousel is Polecat-DARK forward: the finished dashboard leads,
     // the maps + special charts render dark, the builder trails. (Kevin, live.)
@@ -306,13 +348,23 @@ function countyValue(fips) {
     // dashboards + widget analyses + examples), the Explore designer, and the
     // Datasets/Connections workspace.
     await snapSection(browser, "home-dark", { section: "home", extraWait: 1900 });
-    // Explore: load a saved analysis so the designer shows a REAL chart on the
-    // right (not the empty "pick a dataset" placeholder).
-    await snapSection(browser, "explore-dark", { section: "explore", extraWait: 1800, prep: () => {
+    // Quick Views: open a DATASET, which is the section's own front door ("Start from a
+    // dataset, see it as a table, pick a chart…" is its intro line, and the caption beside
+    // this image says the same). It used to load a saved VIEW instead, and that quietly
+    // became the wrong picture: CONS-4 made every View the conservation pack seeds View
+    // Builder-native, and `xpLoadAnalysis` answers a builder-made View with the VB-5
+    // cross-editor banner — so the flagship Quick Views slide led with a notice saying
+    // Quick Views "can't edit its shelves, filters, or calculated columns", 53px of the
+    // editor's own limitation above everything the caption promises. There is no saved View
+    // to prefer instead: the pack seeds four and all four are builder-native (measured), so
+    // the fix is not a better pick, it is not picking a saved View at all. Opening a dataset
+    // also gives the table real depth (500 rows, not a 3-row saved blob) and lets the app
+    // guess the mapping, which is the walk the caption describes.
+    await snapSection(browser, "explore-dark", { section: "explore", extraWait: 1800, framedSteps: 3, prep: () => {
       try {
-        var A = (window.Studio && Studio.Workspace) ? Studio.Workspace.all("analyses") : [];
-        var pick = A.filter(function (a) { return /no-?till|tillage|cover/i.test(a.name || ""); })[0] || A[0];
-        if (pick && window.__studioExplore) window.__studioExplore.load(pick.id);
+        var rows = [].slice.call(document.querySelectorAll("button.xp-ds"));
+        var pick = rows.filter(function (b) { return /County cover-crop adoption/i.test(b.textContent || ""); })[0] || rows[0];
+        if (pick) pick.click();
       } catch (e) {}
     } });
     await snapSection(browser, "datasets-dark", { section: "datasets", extraWait: 1400 });
