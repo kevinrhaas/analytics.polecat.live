@@ -135,6 +135,47 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N30 — the pipeline was stuck on a main→dev back-merge nothing could resolve automatically
+  (no version/sw bump; merge-only; 2026-08-09, steward; dev branch; est 1pt, took 1):**
+  `promote-to-stage.yml` back-merges main into dev before it promotes — dev must stay a superset
+  of main so a hotfix is never lost at the next promotion — and it aborts, files an issue and
+  exits when that merge conflicts. It conflicted on 2026-08-09 (**issue #696**), so **no
+  promotion could run at all**: not the nightly 07:00Z sweep, not a dispatch. This slice is the
+  human half the workflow asked for, and nothing else.
+  - **Why git could not resolve it.** Both conflicts were **add/add** — the same two files
+    created independently on each branch, so there was no common ancestor to three-way merge
+    against. `.github/workflows/rls-dev.yml` and `tests/rls-verify.mjs` exist on dev via #661/
+    #665/#679 and on main via #662/#663/#666, which were hotfixed straight to main because
+    GitHub registers `workflow_dispatch`/`schedule` triggers **only** from the default branch.
+    That asymmetry is by design, and it is exactly the shape that produces add/add: the same
+    file has to land on both branches by different routes.
+  - **`.github/workflows/rls-dev.yml` → main's copy.** Measured, not assumed: the diff dev→main
+    is additions only (zero content removals), so main's is dev's plus #662/#663 — the `ref`
+    input, the checkout-`dev` step, and the "report what is actually being tested" guard that
+    fails loudly when `tests/rls.mjs` is missing from the ref. Nothing of dev's is dropped.
+  - **`tests/rls-verify.mjs` → dev's copy.** main's is **byte-identical** to dev's at b2899b5
+    (#665) — #666 lifted it verbatim so the daily workflow could ship on main — and dev then
+    evolved it in #679 (N27: protected / empty / leaking). Main's is that same file one revision
+    behind, so taking dev's loses nothing and keeps N27.
+  - **The two halves agree by construction**, which is what makes this resolution safe rather
+    than merely plausible: main's `rls-verify.yml` defaults to `ref: dev`, so the daily verify
+    was *already* fetching dev's script — the merge just makes the repo say what was already
+    happening. N27 also kept the exit contract that workflow depends on: **1** on a leak, **2**
+    on an unanswerable read, **0** otherwise, with `empty` reported as inconclusive in the
+    summary rather than promoted to a failure. So the workflow runs the newer classifier
+    unchanged, and no green run silently becomes red.
+  - **Not fixed here, deliberately:** ⛔ N29 (the `polecat_dev` leak that verify found) is still
+    blocked on Kevin — this slice restores the pipeline's ability to promote, it does not touch
+    what the verify reports. Issues #641/#643 (suite red, stage rolled back) predate the N10
+    repair already on dev; the next promotion is what will actually retest that.
+  - **Verified:** the full dev gate as `ci.yml` runs it — `node tools/validate.mjs`,
+    `node tools/changelog-check.js`, `node tools/doc-truth.mjs`, `node tools/dev-smoke.mjs`
+    (390×780 + desktop, zero pageerrors) — plus `node tests/rls-verify.mjs --self-test` on the
+    merged tree, since the resolution's whole claim is about which copy of that file survives.
+    No changelog entry: nothing user-visible ships here (same shape as #659/#667 and the CI
+    commits being merged, none of which carried one). **Merged with a real merge commit, not a
+    squash** — a squash would give dev the *content* without making main an *ancestor*, and the
+    next back-merge would rebuild the identical conflict.
 - **N7 — the Dashboard Builder hero shot photographed an empty Data panel (v920, NO sw bump,
   2026-08-09, steward; dev branch; est 1pt, took 1):** the candidate v919 named for the next pass,
   and it was filed as a legibility nicety ("the Data panel is open but shows one collapsed group;
