@@ -240,6 +240,35 @@
   renders `list()`, so it does not). The item's own note stands: the rail's *"Workspace backend —
   Local (this browser)"* names a STATE, not a list entry, and must not become "workspace
   workspace".
+- **N39 — a brand-new workspace promised twelve showcase dashboards and shipped none of them
+  (v952, sw v543, 2026-08-09, steward; dev branch; Kevin live, fresh incognito; est 1pt, took
+  1):** Kevin, from a clean incognito profile: *"I don't see all those dashboards or datasets or
+  views or connections, they are missing… maybe I can uninstall and reinstall the packs."*
+  **Reproduced on a fresh browser profile before touching anything**, because the report mixed a
+  real defect with a reasonable misreading and the two needed separating:
+  | | fresh boot | after reload | after uninstall+reinstall |
+  |---|---|---|---|
+  | datamanagement dashboards | **0 of 12** | **0 of 12** | 12 of 12 |
+  So the pack Kevin *did* have installed was materialising none of its content, ever, and his
+  guessed workaround was the only thing that worked. The one dashboard his screenshot showed
+  (`studio-cost`, "1 of 1") is the boot spec self-registering — not pack content.
+  **The cause.** `datamanagement` is in `DEFAULT_INSTALLED`, so a fresh workspace has it
+  INSTALLED without anyone ever clicking Install — and the only two callers of
+  `ensurePackExamplesMaterialized` were the install click (`toggleDemoPack`) and the provisioning
+  path. Nothing ran at boot. The function's own comment reasons carefully about why it must not
+  scan every installed pack *from an install click* (clicking pack A would materialise pack B);
+  that reasoning is right, and it left the default-installed pack with no trigger at all.
+  **The fix — seeded ONCE, not every boot.** `seedDefaultPackExamples()` runs at boot over
+  installed `kind:"examples"` packs and stamps `packExamplesSeeded_<id>` in workspace meta, the
+  same guard `migrateDashboardCatalog()` carries. Re-running every boot would resurrect a
+  showcase dashboard the user deliberately deleted, and **absence is not deletion** (N17/DUR) —
+  verified: deleting one leaves 11, and a reload leaves it at 11. Uninstall still sweeps all
+  twelve; reinstall still brings them back through the unchanged install path.
+  **One existing assertion had to be re-measured, not weakened.** LF43's guard read
+  `datamanagement rows === 0` after installing conservation — which silently depended on the
+  bug. It now snapshots the count BEFORE the install and asserts it is UNCHANGED after, which is
+  the property that always mattered and is strictly stronger.
+  Files: app/studio.js, sw.js, js/changelog.js, tests/run.js, STATUS.md.
 - **N32 — retired the Settings → MODE "Sample content" toggle; the packs own this now (v951,
   sw v542, 2026-08-09, steward; dev branch; est 1pt, took 1):** the item's diagnosis held — one
   coarse global mask (`studio-show-samples`) sitting above the per-pack registry that models the
@@ -14098,6 +14127,41 @@
   now hold. The "where backend still earns its keep" paragraph at the foot of this item is the
   constraint the rename must respect.
   *(Original text kept until the next grooming pass archives it.)* Kevin, 2026-08-09, on the Admin card:
+- **N40 ★ [1pt] — the sample-pack blurbs are paragraphs where two or three sentences would do.**
+  Kevin, 2026-08-09, as an aside to the N39 report: *"those descriptions should be 2-3 sentences
+  at most."* Measured: Conservation Insight's `blurb` is 4 lines of source and one 60-word
+  sentence; **Market Coverage's is a single 100-word sentence** with five em-dash clauses and
+  three nested lists, which is the one on screen when he said it. Data Management's is already
+  close (3 sentences).
+  **Careful — this copy is under test and under a contract.** #116's suite check keeps the
+  blurbs COUNT-LED and honest about embedded data, and `tools/validate.mjs` enforces the
+  `source` declaration per `docs/PACKS.md`. So this is a rewrite that must keep every count it
+  states true, keep the "no credentials to enter" promise, and keep the source credit — not a
+  trim to whatever reads nicely. The `tagline` is the one-line form and already exists; the
+  `blurb` should stop trying to be a second tagline plus an inventory.
+- **N41 ★ [1pt, but the decision is Kevin's] — should Conservation Insight and Market Coverage be
+  installed by default?** Kevin, 2026-08-09: *"I would think from an incognito browser they would
+  be installed if both of them are the default installed group now."* **They are not, and never
+  have been:** `DEFAULT_INSTALLED = ["datamanagement"]` (`app/demopacks.js:241`) — the cards he
+  saw read **Install**, not Remove. Nothing is broken here; the expectation and the code simply
+  disagree, and only Kevin can say which should move.
+  **This is already a planned slice, deliberately unshipped.** SP-1's own comment
+  (`demopacks.js:88-96`) names it: *"What remains is (c2): the swap into DEFAULT_INSTALLED (and
+  whether the hero dashboard is featured with it) — its own slice because making a workspace pack
+  the out-of-the-box default changes what every fresh workspace contains, not just what this pack
+  offers."*
+  **What changes if we do it**, so the call is informed: Conservation seeds 2 connections, 8
+  datasets, 1 job, 4 pinned Views and 6 dashboards; Market Coverage seeds a connection, 2 Census
+  datasets over 1,813 counties, a join job, 3 dashboards and 4 pinned Views — so a first-time
+  visitor lands on a workspace with ~9 dashboards, 10 datasets, 3 connections and 8 pinned Views
+  instead of an empty one. That is either "the app sells itself in five seconds" or "I can't find
+  my own work", and which one it is depends on whether these read as *samples you chose* or
+  *clutter you didn't*. **Recommendation:** default-install Market Coverage only (it is the real-
+  data pack, it is the strongest first impression, and it is one folder), and leave Conservation
+  opt-in. But this is Kevin's call, not a default to assume.
+
+- **N36 ★ [2pt] — Admin says "Backends" for the same thing the rest of the app calls a
+  workspace — and keeps a SECOND, separate list of them.** Kevin, 2026-08-09, on the Admin card:
   *"I wonder if in Admin you should be referring to this as workspace not backend also."*
   **He is right about the word, and the word is the smaller half of it.** Measured:
   - Admin → **Backends** (`backendsCardHtml`, `app/studio.js:9045-9071`) keeps its rows in

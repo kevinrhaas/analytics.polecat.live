@@ -7224,6 +7224,13 @@ function serve() {
 
     await page.evaluate(function () { window.__studioShellSetSection("settings"); });
     await page.waitForTimeout(150);
+    // N39: datamanagement is default-installed and is now materialized AT BOOT, so its
+    // dashboards legitimately exist before this install. Snapshot the count first — the
+    // regression guard below asserts installing conservation leaves it UNCHANGED, which is
+    // the property that always mattered and is strictly stronger than the old "=== 0".
+    const lf43DmBefore = await page.evaluate(function () {
+      return Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; }).length;
+    });
     await page.click('[data-demopack="conservation"]');
     await page.waitForFunction(function () {
       return Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "conservation" && r.sourceFile; }).length >= 8;
@@ -7252,7 +7259,7 @@ function serve() {
       return Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; }).length;
     });
     ok("LF43: installing one pack does NOT incidentally materialize a different, merely-default-installed pack's dashboards",
-      lf43NoSideEffect === 0, String(lf43NoSideEffect));
+      lf43NoSideEffect === lf43DmBefore, "after=" + lf43NoSideEffect + " before=" + lf43DmBefore);
     await page.evaluate(function () { window.__studioShellSetSection("dashboards"); });
     await page.waitForTimeout(200);
     const lf43InDashboards = await page.evaluate(function () {
@@ -7267,6 +7274,39 @@ function serve() {
     });
     ok("LF43: re-running materialization while already installed is idempotent (no duplicate rows)",
       lf43ReInstallNoDupe === 8, String(lf43ReInstallNoDupe));
+
+    /* N39 (Kevin live, 2026-08-09, fresh incognito): "i dont see all those dashboards or
+       datasets or views or connections, they are missing". `datamanagement` is in
+       DEFAULT_INSTALLED, so a brand-new workspace has it installed WITHOUT an install click —
+       and the only callers of ensurePackExamplesMaterialized were that click and the
+       provisioning path. Measured before the fix, on a fresh profile: 0 of 12 materialized on
+       first boot and still 0 after a reload, so the Settings card promised "12 showcase
+       dashboards" over a Dashboards list holding one self-registered boot spec.
+       Two properties, and the second is why this is seeded once rather than every boot. */
+    const n39 = await page.evaluate(async function () {
+      var W = Studio.Workspace;
+      // simulate a brand-new workspace for this pack: drop its rows AND its seed stamp
+      W.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; })
+        .forEach(function (r) { W.remove("dashboards", r.id, { silent: true }); });
+      W.setMeta("packExamplesSeeded_datamanagement", "");
+      W.notify("dashboards");
+      var before = W.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; }).length;
+      await window.__studioSeedDefaultPackExamples();
+      var after = W.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; }).length;
+      var stamped = !!W.meta().packExamplesSeeded_datamanagement;
+      // now delete one and re-run the seeder: the stamp must stop it coming back
+      var victim = W.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; })[0];
+      var victimFile = victim.sourceFile;
+      W.remove("dashboards", victim.id);
+      await window.__studioSeedDefaultPackExamples();
+      var afterDelete = W.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; }).length;
+      var resurrected = W.all("dashboards").some(function (r) { return r.sourceFile === victimFile; });
+      return { before: before, after: after, stamped: stamped, afterDelete: afterDelete, resurrected: resurrected };
+    });
+    ok("N39: a default-installed examples pack materializes its dashboards with no install click — the case a fresh workspace is always in",
+      n39.before === 0 && n39.after === 12 && n39.stamped, JSON.stringify(n39));
+    ok("N39: seeded ONCE — a showcase dashboard you delete stays deleted instead of returning on the next boot",
+      n39.afterDelete === 11 && !n39.resurrected, JSON.stringify(n39));
 
     // Kevin (2026-07-30): pack dashboards lead with their OWN name and install into
     // a pack folder — a grid of "Conservation Insight — …" cards read as identical rows.

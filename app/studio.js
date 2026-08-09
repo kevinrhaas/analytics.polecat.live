@@ -324,6 +324,10 @@
         sigv4: r[16], redshift: r[17], icons: r[18]
       };
       S.examples = r[19] || [];
+      // N39: a default-installed examples pack has no install click to hang its
+      // materialization off, so boot is where it has to happen. Fire-and-forget — the
+      // Workspace change hooks below repaint Home/Dashboards when the rows land.
+      try { seedDefaultPackExamples(); } catch (e) { /* never block boot on sample content */ }
       wireTopbar();
       try { renderFooter(); } catch (e) { /* footer is non-critical chrome */ }
       setupPanes();
@@ -1115,6 +1119,33 @@
     }));
   }
   window.__studioEnsurePackExamplesMaterialized = ensurePackExamplesMaterialized; // test hook
+
+  // N39 (Kevin live, 2026-08-09 — fresh incognito): `datamanagement` is in
+  // DEFAULT_INSTALLED, so a brand-new workspace has it INSTALLED without anyone ever
+  // clicking Install — and the only two callers of ensurePackExamplesMaterialized were the
+  // install click and the provisioning path. Nothing ran at boot, so a fresh workspace
+  // showed a pack that says "12 showcase dashboards" over a Dashboards list holding one
+  // self-registered boot spec. Measured before the fix: 0 of 12 materialized on first boot
+  // AND on every reload after it; an uninstall + reinstall was the only way to get them.
+  // Seeded ONCE per workspace, guarded by a meta stamp, for the same reason
+  // migrateDashboardCatalog() carries one: re-running it every boot would resurrect a
+  // showcase dashboard the user had deliberately deleted, and absence is not deletion
+  // (N17 / DUR). Uninstalling the pack still sweeps its rows; reinstalling still
+  // re-materializes them through the install path, which is unchanged.
+  function seedDefaultPackExamples() {
+    var W = Studio.Workspace;
+    var ids = Object.keys(Studio.DEMO_PACKS || {}).filter(function (id) {
+      return Studio.DEMO_PACKS[id].kind === "examples" && Studio.demoPackInstalled(id) &&
+        !W.meta()["packExamplesSeeded_" + id];
+    });
+    if (!ids.length) return Promise.resolve();
+    return Promise.all(ids.map(function (id) {
+      return ensurePackExamplesMaterialized(id).then(function () {
+        W.setMeta("packExamplesSeeded_" + id, new Date().toISOString());
+      });
+    }));
+  }
+  window.__studioSeedDefaultPackExamples = seedDefaultPackExamples; // test hook
 
   // One-pass boot reconcile for workspaces materialized BEFORE the rename:
   // strip the legacy shared prefix off pack rows and backfill the pack folder,
