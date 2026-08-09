@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 944,
+    title: 'Help described the number on a filter pill as the items you can see, and promised a pill vanishes with its last one',
+    kind: 'fix',
+    ts: '2026-08-09T18:43:34.000Z',
+    items: [
+      'Every filter pill carries a number, and the Help page said it showed "how many items it covers" without ever saying which items. It counts everything on that page behind the pill, and it is worked out before the search box and before every other pill — its own strip included — so it never moves as you filter. Narrow a list down to two rows and the pill above them can still read 40. That is the useful number, because it tells you what picking the pill would give you rather than what you already have, and the page now says so instead of leaving you to guess which of the two readings is right.',
+      'The numbers can also add up to more than the list they sit above: a dataset tagged both #finance and #eu is counted under both tag pills. And the pills that mean everything — All on Dashboards\' workbooks and the Repository\'s types, All folders on a Folders strip — carry the whole list\'s count rather than a count of their own.',
+      'The page also promised that "a pill disappears as soon as its last item does". On most strips it does. On three it deliberately does not, and every one of those is a pill you can empty out and still see: Unfiled stays at the end of a Folders strip, a workbook you made keeps its pill on Dashboards after the last dashboard leaves it — that pill is how you file one back in — and the Repository always shows all five of its type pills, so an empty workspace shows five zeros. Read against the old sentence, those zeros look like a bug rather than the affordance they are.',
+      'The reassurance built on that promise is still true, but for a different reason than the page gave: what goes away when the last item behind a ticked pill does is the filter, not the pill. The app drops the selection and puts the whole list back, on every strip, including the three that keep their empty pill.',
+      'All of it is re-measured on every change by running the app\'s own filtering code rather than reading it — the counting, the overlap, the pills that stay at zero and the filter that drops itself. A tally re-pointed at the filtered list, a strip that stops printing its count, or a Repository that starts hiding its empty pills now fails the documentation check until the page says so.',
+    ],
+  },
+  {
     v: 943,
     title: 'Help never said what a filter pill actually says, or which pill gets you back',
     kind: 'fix',

@@ -1767,13 +1767,31 @@
   <code>crops 2024</code> finds a row only where those two words sit side by side — because that table
   travels inside every exported dashboard and carries its own self-contained rules rather than the
   app's; and this Help page's own search box is part of the page you are reading rather than the app.</p>
-  <p><strong>Filtering with pills.</strong> Above each list sits a row of filter pills, each showing how many
-  items it covers. Picking none of a facet's pills means all of them, so the pills only ever narrow — and
+  <p><strong>Filtering with pills.</strong> Above each list sits a row of filter pills, each carrying a
+  count beside its label. Picking none of a facet's pills means all of them, so the pills only ever narrow — and
   pills are listed in the order you read them, alphabetically by their label and numerically where numbers
   appear (so "Q2" comes before "Q10"). Two strips keep an order of their own instead:
   <strong>Dashboards</strong>' workbook pills stay newest-first, and the <strong>Repository</strong>'s type
-  pills sit in the fixed order the app declares them in. A pill disappears as soon as its last item does,
-  so a filter can never keep narrowing the list from a chip you can no longer see.</p>
+  pills sit in the fixed order the app declares them in.</p>
+  <p><strong>What the number on a pill counts.</strong> Every pill has one, and it counts everything on the
+  page that the pill covers — not what you can currently see. The number is worked out before the search box
+  and before every other pill, its own strip included, so it never moves as you filter: narrow a list down to
+  two rows and a pill above them can still read 40. That is the useful number, because it tells you what
+  picking that pill would give you rather than what you already have. The counts also overlap wherever a
+  facet takes more than one value, so a strip's numbers can add up to more than the list itself — a dataset
+  tagged both <em>#finance</em> and <em>#eu</em> is counted under both tag pills. The pills that mean
+  everything — <em>All</em> on Dashboards' workbooks and on the Repository's types, <em>All folders</em> on a
+  Folders strip — carry the whole list's count, which is again what picking them gives you.</p>
+  <p><strong>When a pill goes away.</strong> On most strips a pill exists only while an item sits behind it —
+  the adapter, connection, tag, dataset-type, chart-type and folder pills are built from the items themselves,
+  so the last one to leave takes its pill with it, and a pill never reads zero. Three strips keep a pill you
+  can empty out, and each of them earns it: <em>Unfiled</em> stays at the end of a <strong>Folders</strong>
+  strip even when everything is filed; on <strong>Dashboards</strong>, a workbook you made keeps its pill
+  after the last dashboard leaves it — that pill is how you file one back in — and so does that strip's own
+  <em>Unfiled</em>; and the <strong>Repository</strong> always shows all five type pills, so an empty
+  workspace shows five zeros rather than an empty strip. Either way, a filter can never keep narrowing the list from something you can no longer
+  pick: when the last item behind a pill you had ticked goes away, the app drops that filter for you and puts
+  the list back.</p>
   <p><strong>Which pills take more than one.</strong> Some facets are multi-select — tick two pills and the
   list shows anything matching either: <strong>Datasets</strong> by adapter, connection, type or tag;
   <strong>Connections</strong> by adapter or tag; <strong>Views</strong> by chart type. One pill at a time:
