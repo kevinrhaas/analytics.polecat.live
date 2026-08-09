@@ -5258,6 +5258,308 @@ if (kitLive) {
     "terms() splits on \\S+, so `crops, 2024` looks for the literal `crops,` — the commonest way a correct-looking search returns nothing");
 }
 
+
+/* ── 56. Help's filter pills vs the labels they PRINT, and the pill that gets you back ──
+   N7, and the slice check 53 named as the one it was deliberately not taking: "each pill's
+   own LABEL … holding thirteen pill labels to thirteen sentences is a different derivation
+   and its own slice." Check 53 holds the AXES — which page filters by what, and with how many
+   clicks. This one holds the pill FACES: the words a reader actually sees on the strip, and
+   how a strip that cannot be un-ticked is un-picked.
+
+   The derivation sits one level deeper than check 53's and is keyed differently. Check 53
+   keys a facet by the accessor it READS; a pill's label has nothing to do with that accessor,
+   so this check keys each axis by the pill's own DATA ATTRIBUTE — its DOM identity, the one
+   thing a renamed accessor or a renamed label helper cannot move — and resolves the `label:`
+   option the panel hands `Studio.catalogFacets.pills`. Where that option delegates to a named
+   helper, the helper's own body is appended, so the authority is FOLLOWED rather than assumed
+   ("No connection" lives inside `dsxConnLabel`, not at the call site). The two chip strips
+   that predate the kit declare their faces as `chipDefs` literals instead, and the two closed
+   label SETS are read from the tables that own them — `DSX_KIND_LABEL` and `REPO_TYPES`.
+
+   Measured 2026-08-09, before the fix — the pills' faces were published nowhere on the page,
+   and two of the omissions cost a reader more than a word:
+   · **Both closed sets were unpublished.** Help said "Datasets … by type" and "the Repository
+     by type, one pill per kind of row it lists" — a roster claim with no roster. The pills
+     read *SQL query · Table · Collection · File · Sheet* and *Dashboards · Datasets ·
+     Connections · Views · Jobs*, and nothing on the page said which of those "type" meant.
+   · **The *All* pill was unpublished on both pre-kit strips**, and it is the way back: their
+     handlers ASSIGN the clicked value (`_repoWbFilter = btn.getAttribute(…)`), so clicking the
+     pill you are already on does not un-pick it. Help named *Sample packs* and *Unfiled* on
+     the workbook strip and skipped the one pill that undoes a pick — while the Folders
+     paragraph immediately below named *All folders*, so the same control was documented
+     twice, once with its escape hatch and once without.
+   · **"Every catalog page has one, Dashboards included" was false of the Clear chip.** Five
+     panels render `clearChip(…)`; the Repository renders none. The page promised the
+     universal way back on the one page that has neither route — no Clear chip AND no
+     un-ticking — leaving its *All* pill the only one, unpublished until this slice.
+   · **"pills are listed … alphabetically by their label" was false of those same two strips.**
+     The kit sorts on `cmpLabel`; the pre-kit `chipDefs` sort nothing, so workbook pills come out
+     newest-first (`addWorkbook` unshifts) and type pills in `REPO_TYPES`' declaration order.
+     Check 53 left order alone for want of a reason to look; this slice's derivation supplied one.
+   · The `#` a tag pill wears, the adapter's own name, the connection's name and the *KPI*
+     label the chart registry does not hold were all unpublished too.
+
+   Seven rules. (a) is the premise, and it is keyed so that a new facet, a renamed one, or a
+   label authority that moves lands HERE first rather than passing green while Help describes
+   a pill that no longer exists:
+   (a) the premise + the vocabulary + the roster — every kit pill strip resolves to a
+       vocabulary row whose label authority still matches, no row is stale, both pre-kit chip
+       strips are readable, and Help carries both paragraphs;
+   (b) the two CLOSED sets, held from both ends: every label the tables declare is published,
+       and the paragraph publishes no face the tables do not have (a renamed kind fails as an
+       omission, a retired one as a leftover);
+   (c) the OPEN axes publish their RULE rather than their values — the adapter's own name, the
+       connection's name, the "No connection" sentinel, the `#` on a tag, the gallery as the
+       chart pill's authority. Those values are the user's own words; a list would go stale by
+       design;
+   (d) the illustrative chart names the copy volunteers are real — every <em> value in the
+       chart-type sentence is a label the registry holds, or the one exception it does not
+       (check 45's idiom: examples measured, not trusted);
+   (e) the toggle asymmetry and the escape pill, both derived from the handlers and the pill
+       markup: every multi-select handler toggles, every single-select handler assigns, each
+       single-select strip renders a value-"" pill, and Help publishes both halves naming
+       those pills' own labels;
+   (f) the Clear chip's roster and the exception named as one — the claim that was false;
+   (g) the pill ORDER: the shared strips sort on the label a reader sees (digit-aware), the two
+       pre-kit strips sort nothing, and Help's flat alphabetical claim is scoped to the ones that
+       do, naming both exceptions.
+   Deliberately NOT held: each individual workbook, folder or tag VALUE (the user's words, not
+   the app's), the pill COUNTS and the disappear-when-empty rule in the same paragraph as (g)
+   — those are `tally()`/`prune()` behaviour and holding them means evaluating the kit, check
+   55's idiom one kit over, which is its own slice — and the adapter dot's colour. */
+{
+  const PL_FILES = ["app/datasets.js", "app/connections.js", "app/views.js", "app/jobs.js", "app/studio.js"];
+  // The label authority for one strip: the options object the panel hands pills(), plus — when
+  // `label:` delegates to a named helper — that helper's own body. Following the delegation is
+  // the whole point: the "No connection" sentinel is inside dsxConnLabel, not at the call site.
+  const plAuthority = (src, opts) => {
+    const m = opts.match(/label:\s*([A-Za-z_$][\w$]*)\s*[,}]/);
+    if (!m) return opts;
+    const at = src.indexOf("function " + m[1] + "(");
+    return at < 0 ? opts : opts + "\n" + searchBlockAt(src, src.indexOf("{", at), "{", "}");
+  };
+  // A whole statement, from `var x = …` to the `;` that ends it at depth 0 — the chip strips'
+  // chipDefs is an array literal followed by three .concat() calls, and one of those calls
+  // contains a `;` of its own, so neither a bracket walk nor "up to the first ;" reads it all.
+  const plStatementAt = (src, at) => {
+    let d = 0;
+    for (let i = at; i < src.length; i++) {
+      const c = src[i];
+      if ("([{".includes(c)) d++;
+      else if (")]}".includes(c)) d--;
+      else if (c === ";" && d === 0) return src.slice(at, i + 1);
+    }
+    return src.slice(at);
+  };
+  const plFnBody = (src, fn) => {
+    const at = src.indexOf("function " + fn + "(");
+    return at < 0 ? "" : searchBlockAt(src, src.indexOf("{", at), "{", "}");
+  };
+
+  // Every kit pill strip in the app, keyed by the attribute its buttons carry.
+  const plStrips = [];
+  for (const f of PL_FILES) {
+    const src = read(f);
+    for (const m of src.matchAll(/(?:F|Studio\.catalogFacets)\.pills\(\s*\w+,\s*\w+,\s*"([\w-]+)",\s*\{/g)) {
+      const opts = searchBlockAt(src, m.index + m[0].length - 1, "{", "}");
+      plStrips.push({ attr: m[1], file: f, authority: plAuthority(src, opts) });
+    }
+  }
+  // The vocabulary: what each pill's label is derived FROM (`sig`, asserted against the
+  // authority above) and what Help therefore owes the reader (`claim`). The two axes whose
+  // labels are a closed table carry no claim — (b) holds those by enumeration instead.
+  const PILL_FACES = {
+    "data-dsx-adapter": { sig: /Studio\.sourceById\(\w+\)[\s\S]*?label/, claim: /adapter's name/i,
+      note: "the adapter registry's own label" },
+    "data-dsx-conn": { sig: /conn \? conn\.name : "No connection"/, claim: /connection's own name/i,
+      note: "the connection's own name, or the No-connection sentinel" },
+    "data-dsx-tag": { sig: /"#" \+ \w+/, claim: /#finance/, note: "the tag, hash included" },
+    "data-dsx-kind": { sig: /label: dsxKindLabel/, note: "DSX_KIND_LABEL (a closed set — see (b))" },
+    "data-conn-adapter": { sig: /Studio\.sourceById\(\w+\)[\s\S]*?label/, claim: /adapter's name/i,
+      note: "the adapter registry's own label" },
+    "data-conn-tag": { sig: /"#" \+ \w+/, claim: /#finance/, note: "the tag, hash included" },
+    "data-vw-type": { sig: /label: vwChartLabel/, claim: /gallery/i,
+      note: "the chart registry's own label, KPI apart" },
+  };
+
+  // The two chip strips that predate the kit: their faces are `chipDefs` literals, and the
+  // mapped entries name the table they read (REPO_TYPES' label / a workbook's own name).
+  const plStudio = read("app/studio.js");
+  const plChipStrips = ["renderDashboards", "renderRepository"].map((fn) => {
+    const body = plFnBody(plStudio, fn);
+    const at = body.indexOf("var chipDefs = [");
+    const defs = at < 0 ? "" : plStatementAt(body, at);
+    return {
+      fn, defs,
+      literals: [...defs.matchAll(/name: "([^"]+)"/g)].map((m) => m[1]),
+      allLabel: (defs.match(/\{ id: "", name: "([^"]+)"/) || [, ""])[1],
+      mapped: [...defs.matchAll(/(\w+)\.map\(function[\s\S]*?name: ([\w.]+)/g)].map((m) => `${m[1]} → ${m[2]}`),
+    };
+  });
+  // The closed label tables, read where they are declared, and the folder strip's own escape
+  // pill, read from the kit that renders it.
+  const plKindLabels = [...(read("app/datasets.js").match(/var DSX_KIND_LABEL = \{[^}]*\}/) || [""])[0]
+    .matchAll(/: "([^"]+)"/g)].map((m) => m[1]);
+  const plRepoLabels = [...plStatementAt(plStudio, plStudio.indexOf("var REPO_TYPES = ["))
+    .matchAll(/label: "([^"]+)"/g)].map((m) => m[1]);
+  const plFolderAll = (plStudio.match(/F\.pill\(\{ attr: attr, value: "", label: "([^"]+)"/) || [, ""])[1];
+
+  // Help's two paragraphs, plus the Searching paragraph that carries the Clear-chip roster.
+  const plFacesHtml = (help.match(/<p><strong>What a pill says\.<\/strong>[\s\S]*?<\/p>/) || [""])[0];
+  const plFaces = htmlText(plFacesHtml).replace(/\s+/g, " ").trim();
+  const plUnpick = htmlText((help.match(/<p><strong>Un-picking a pill\.<\/strong>[\s\S]*?<\/p>/) || [""])[0])
+    .replace(/\s+/g, " ").trim();
+  const plSearch = htmlText((help.match(/<p><strong>Searching\.<\/strong>[\s\S]*?<\/p>/) || [""])[0])
+    .replace(/\s+/g, " ").trim();
+
+  // (a) the premise: the vocabulary is complete, every label authority still reads the way the
+  //     vocabulary says it does, both pre-kit strips are readable, and Help has both paragraphs.
+  const plWrong = [];
+  plStrips.forEach((s) => {
+    const row = PILL_FACES[s.attr];
+    if (!row) { plWrong.push(`${s.attr} (${s.file}) prints a pill label nothing in the vocabulary explains`); return; }
+    if (!row.sig.test(s.authority))
+      plWrong.push(`${s.attr}: its label no longer comes from ${row.note} — the authority moved (expected ${row.sig})`);
+  });
+  Object.keys(PILL_FACES).filter((a) => !plStrips.some((s) => s.attr === a))
+    .forEach((a) => plWrong.push(`the vocabulary still describes ${a} — no panel renders that pill strip any more`));
+  plChipStrips.filter((c) => !c.defs || !c.allLabel || !c.mapped.length)
+    .forEach((c) => plWrong.push(`${c.fn}: its chipDefs no longer read (all-pill "${c.allLabel}", mapped ${c.mapped.join(", ") || "none"})`));
+  ok(`app/ + docs/index.html: every pill strip's label authority is known, and Help carries the two paragraphs that publish them ` +
+     `(${plStrips.length} kit strip(s) + ${plChipStrips.length} pre-kit strip(s))`,
+    plStrips.length === Object.keys(PILL_FACES).length && !plWrong.length && !!plFaces && !!plUnpick &&
+      plKindLabels.length === 5 && plRepoLabels.length === 5 && !!plFolderAll,
+    `${plWrong.join("\n      ") || "(vocabulary complete)"}\n      ` +
+    `kit strips: ${plStrips.map((s) => s.attr).join(", ") || "(none)"}\n      ` +
+    `pre-kit strips: ${plChipStrips.map((c) => `${c.fn} [${c.literals.join(" · ")}] ${c.mapped.join(", ")}`).join(" | ")}\n      ` +
+    `closed sets: kind [${plKindLabels.join(", ")}] · row [${plRepoLabels.join(", ")}] · folder escape pill "${plFolderAll}"\n      ` +
+    `Help paragraphs found: faces ${!!plFaces}, un-picking ${!!plUnpick}\n      ` +
+    "keyed by the pill's data-attribute — a renamed accessor or label helper cannot move it, a deleted strip lands here");
+
+  // (b) the two closed sets, from both ends.
+  const plEms = [...plFacesHtml.matchAll(/<em>([^<]+)<\/em>/g)].map((m) => m[1].trim());
+  const plChartEms = [...(plFacesHtml.match(/by chart type[\s\S]*?(?=<strong>Repository)/) || [""])[0]
+    .matchAll(/<em>([^<]+)<\/em>/g)].map((m) => m[1].trim());
+  const plKindMissing = plKindLabels.filter((l) => !plEms.includes(l));
+  const plRepoMissing = plRepoLabels.filter((l) => !plEms.includes(l));
+  const plKnownFaces = [...plKindLabels, ...plRepoLabels, ...plChipStrips.flatMap((c) => c.literals),
+    plFolderAll, "#finance", "No connection"];
+  const plStale = plEms.filter((v) => !plKnownFaces.includes(v) && !plChartEms.includes(v));
+  ok(`docs/index.html: both closed pill sets are published exactly as their tables declare them ` +
+     `(${plKindLabels.length} dataset kind(s), ${plRepoLabels.length} row kind(s))`,
+    !plKindMissing.length && !plRepoMissing.length && !plStale.length,
+    `dataset kinds unpublished: ${plKindMissing.join(", ") || "(none)"}\n      ` +
+    `row kinds unpublished: ${plRepoMissing.join(", ") || "(none)"}\n      ` +
+    `published as a pill face but in no table: ${plStale.join(", ") || "(none)"}\n      ` +
+    `DSX_KIND_LABEL: ${plKindLabels.join(", ")} · REPO_TYPES: ${plRepoLabels.join(", ")}\n      ` +
+    "held from both ends — a renamed kind fails as an omission, a retired one as a leftover");
+
+  // (c) the open axes: the RULE, since the values are the user's own data.
+  const plUnpublished = [];
+  plStrips.filter((s) => PILL_FACES[s.attr].claim).forEach((s) => {
+    if (!PILL_FACES[s.attr].claim.test(plFaces))
+      plUnpublished.push(`${s.attr} prints ${PILL_FACES[s.attr].note} — the paragraph never says what that pill says`);
+  });
+  if (!/No connection/.test(plFaces)) plUnpublished.push("the No-connection sentinel pill is unpublished");
+  ok(`docs/index.html: every open-ended pill axis publishes where its label comes from, rather than a list that would go stale ` +
+     `(${plStrips.filter((s) => PILL_FACES[s.attr].claim).length} axis/axes + the sentinel)`,
+    !plUnpublished.length,
+    `${[...new Set(plUnpublished)].join("\n      ") || "(none)"}\n      ` +
+    `paragraph: ${plFaces.slice(0, 200) || "(not found)"}…\n      ` +
+    "an adapter, connection or tag pill wears words the user chose — the rule is the only stable thing to publish");
+
+  // (d) the chart names the copy volunteers as examples are ones a pill really prints.
+  const plModel = read("app/model.js");
+  const plChartLabels = chartRegistryKeys()
+    .map((k) => (plModel.match(new RegExp(`\\n {4}${k}: \\{\\s*label: "([^"]+)"`)) || [, ""])[1])
+    .filter(Boolean);
+  const plKpi = (read("app/views.js").match(/t === "kpi" \? "([^"]+)"/) || [, ""])[1];
+  const plBadChartEms = plChartEms.filter((v) => v !== plKpi && !plChartLabels.includes(v));
+  ok(`docs/index.html: every chart name the pill sentence volunteers is one the registry really prints ` +
+     `(${plChartEms.length} example(s) against ${plChartLabels.length} label(s) + "${plKpi}")`,
+    plChartEms.length >= 2 && !!plKpi && !plBadChartEms.length && plChartEms.includes(plKpi),
+    `examples: ${plChartEms.join(", ") || "(none)"} · not in the registry: ${plBadChartEms.join(", ") || "(none)"}\n      ` +
+    `the registry's one exception, read from vwChartLabel: "${plKpi}"\n      ` +
+    "vwChartLabel prints Studio.CHARTS[t].label, so an example that is not one is a face no pill ever shows");
+
+  // (e) the toggle asymmetry and the escape pill, derived from the handlers and the markup.
+  const plHandler = (attr) => {
+    for (const f of PL_FILES) {
+      const src = read(f);
+      const at = src.indexOf(`$$("[${attr}]"`);
+      if (at >= 0) return src.slice(at, at + 420);
+    }
+    return "";
+  };
+  const PL_SINGLE = ["data-wb-filter", "data-repo-type-filter", "data-dash-folder", "data-dsx-folder",
+    "data-conn-folder", "data-vw-folder", "data-jobs-folder"];
+  const plModeWrong = [];
+  plStrips.forEach((s) => {
+    if (!/if \(_\w+\[\w+\]\) delete _\w+\[\w+\]; else _\w+\[\w+\] = true;/.test(plHandler(s.attr)))
+      plModeWrong.push(`${s.attr}: a multi-select pill whose handler does not toggle`);
+  });
+  PL_SINGLE.forEach((a) => {
+    if (!new RegExp(`_\\w+ = btn\\.getAttribute\\("${a}"\\)`).test(plHandler(a)))
+      plModeWrong.push(`${a}: a single-select pill whose handler does not simply assign the clicked value`);
+  });
+  const plAllLabels = [...new Set(plChipStrips.map((c) => c.allLabel).concat(plFolderAll))].filter(Boolean);
+  const plAllUnpublished = plAllLabels
+    .filter((l) => !new RegExp(`\\b${l.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(plUnpick));
+  const plAsymmetry = /toggle/i.test(plUnpick) && /un-tick/i.test(plUnpick) &&
+    /single-select/i.test(plUnpick) && /(does not|do not)/i.test(plUnpick);
+  ok(`docs/index.html: multi-select pills toggle, single-select pills do not, and Help publishes both halves and every escape pill ` +
+     `(${plStrips.length} toggling, ${PL_SINGLE.length} assigning, ${plAllLabels.length} escape label(s))`,
+    !plModeWrong.length && !plAllUnpublished.length && plAsymmetry,
+    `${plModeWrong.join("\n      ") || "(every handler matches its mode)"}\n      ` +
+    `escape pills: ${plAllLabels.join(", ") || "(none)"} · unpublished: ${plAllUnpublished.join(", ") || "(none)"}\n      ` +
+    `asymmetry published: ${plAsymmetry}\n      ` +
+    `paragraph: ${plUnpick || "(not found)"}\n      ` +
+    "a single-select handler ASSIGNS, so the strip's own escape pill is the only way back — that is the sentence a reader needs");
+
+  // (f) the Clear chip's roster, and the page without one named as the exception.
+  const plClearPages = Object.keys(CATALOG_PAGES).filter((sec) => {
+    const p = facetPanels.find((x) => x.sec === sec);
+    return !!p && /clearChip\(/.test(plFnBody(read(p.file), p.fn));
+  }).map((sec) => CATALOG_PAGES[sec]);
+  const plNoClear = Object.values(CATALOG_PAGES).filter((pg) => !plClearPages.includes(pg));
+  const plClearRoster = (plSearch.match(/pages? have a Clear chip — ([^;.]+)[;.]/) || [, ""])[1]
+    .split(/,\s*|\s+and\s+/).map((s) => s.trim()).filter(Boolean);
+  const plClearCount = (plSearch.match(/(\w+) pages? have a Clear chip/) || [, ""])[1];
+  const plClearException = !!plNoClear.length &&
+    plNoClear.every((pg) => new RegExp(`\\b${pg}\\b[^.]*exception`, "i").test(plSearch));
+  ok(`docs/index.html: the Clear chip is claimed for exactly the pages that render one (${plClearPages.length} of ` +
+     `${Object.keys(CATALOG_PAGES).length}), counted in words, with the exception named`,
+    String([...plClearRoster].sort()) === String([...plClearPages].sort()) &&
+      asNumber(plClearCount || "") === plClearPages.length && plClearException,
+    `renders a Clear chip: ${plClearPages.join(", ") || "(none)"} · does not: ${plNoClear.join(", ") || "(none)"}\n      ` +
+    `Help lists: ${plClearRoster.join(", ") || "(nothing)"} · count word: ${plClearCount || "(none)"} · ` +
+    `exception named: ${plClearException}\n      ` +
+    "the Repository has no Clear chip AND cannot un-pick a type pill, so this was the page the universal claim stranded");
+
+  // (g) the pill ORDER, and the two strips that do not follow it. Check 53 left order alone
+  //     because it had no reason to look; this slice's own derivation supplies one — the same
+  //     two pre-kit strips that were missing their escape pill also sort nothing at all, so the
+  //     page's flat "alphabetically by their label" was false of exactly them.
+  const plKit = plFnBody(plStudio, "pills") || plStatementAt(plStudio, plStudio.indexOf("pills: function (t, state, attr, opts)"));
+  const plKitSorts = /\.sort\(function \(a, b\) \{ return F\.cmpLabel\(labelOf\(a\), labelOf\(b\)\); \}\)/.test(plKit);
+  const plFolderSorts = /t\.keys\.slice\(\)\.sort\(F\.cmpLabel\)/.test(plStudio);
+  const plNumericAware = /localeCompare\([\s\S]{0,80}numeric: true/.test(plStudio);
+  const plUnsorted = plChipStrips.filter((c) => !/\.sort\(/.test(c.defs)).map((c) => c.fn);
+  const plOrderPara = htmlText((help.match(/<p><strong>Filtering with pills\.<\/strong>[\s\S]*?<\/p>/) || [""])[0])
+    .replace(/\s+/g, " ").trim();
+  const plOrderPublished = /alphabetically by their label/i.test(plOrderPara) && /numerically/i.test(plOrderPara) &&
+    /newest-first/i.test(plOrderPara) && /\bRepository\b/.test(plOrderPara) && /order of their own/i.test(plOrderPara);
+  ok(`docs/index.html: the shared strips order their pills by label, the ${plUnsorted.length} pre-kit strip(s) do not, and Help scopes the claim to the ones that do`,
+    plKitSorts && plFolderSorts && plNumericAware && plUnsorted.length === 2 && plOrderPublished,
+    `kit pills() sorts on cmpLabel: ${plKitSorts} · folderStrip sorts on cmpLabel: ${plFolderSorts} · ` +
+    `cmpLabel is digit-aware: ${plNumericAware}\n      ` +
+    `sorts nothing: ${plUnsorted.join(", ") || "(none)"}\n      ` +
+    `Help scopes the claim: ${plOrderPublished}\n      ` +
+    `paragraph: ${plOrderPara || "(not found)"}\n      ` +
+    "workbook pills come out of loadWorkbooks() (addWorkbook unshifts, so newest-first) and the type pills out of " +
+    "REPO_TYPES' declaration order — neither is alphabetical, and the flat claim sent a reader hunting the wrong end of the strip");
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

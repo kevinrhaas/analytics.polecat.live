@@ -6,6 +6,21 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 943,
+    title: 'Help never said what a filter pill actually says, or which pill gets you back',
+    kind: 'fix',
+    ts: '2026-08-09T18:12:55.000Z',
+    items: [
+      'Every catalog page puts a row of filter pills above its list. The Help page explained which page filters by what, and how many pills each facet takes — and never what the pills themselves say. Two paragraphs now do, and everything in them is measured against the app rather than described from memory.',
+      'The two "type" strips are named in full at last. A dataset\'s type pill reads SQL query, Table, Collection, File or Sheet; the Repository\'s reads Dashboards, Datasets, Connections, Views or Jobs. Help called both of them "type" and stopped there, so the one word covered two completely different sets of pills.',
+      'The pill that gets you back was missing. On a single-select strip, clicking the pill you are already on does not un-pick it — that is what All on Dashboards\' workbooks, All on the Repository\'s types and All folders on a Folders strip are for. Help named Sample packs and Unfiled on the workbook strip and skipped the one pill that undoes a pick, while the paragraph directly below it named All folders. Both halves are now written down, including which facets do toggle.',
+      'It also promised that every catalog page has a Clear chip. Five do. The Repository has none — and it is also the page whose pills cannot be un-picked, so its All pill really is the only way back to the whole list. That is now stated instead of contradicted.',
+      'And the page said pills are listed alphabetically by their label. They are — on every strip the shared control renders. The two older chip strips sort nothing: Dashboards\' workbook pills come out newest-first and the Repository\'s type pills sit in a fixed order, so on exactly the two strips this entry is already correcting, the promised alphabet was not there. The claim is now scoped and both exceptions are named.',
+      'The smaller pill faces are published too: an adapter pill wears the adapter\'s own name and its colour dot, a connection pill the connection\'s name (with No connection for a dataset that has none), a tag pill keeps the hash you write a tag with, and a chart-type pill prints the chart\'s own gallery name — with KPI as the one label the gallery does not hold.',
+      'All of it is re-derived from the app on every change, the example chart names included. A renamed dataset kind, a retired row type, a strip that starts or stops toggling, or a Clear chip appearing on the Repository now fails the documentation check until Help says so.',
+    ],
+  },
+  {
     v: 942,
     title: 'Help explained how search works and left out the three rules that decide whether it finds nothing',
     kind: 'fix',
