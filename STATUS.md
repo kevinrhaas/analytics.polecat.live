@@ -135,6 +135,57 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — The document that defines a dashboard file described a product we replaced (v932, NO sw
+  bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** `SPEC.md` is the reference for
+  `.studio.json` — the file a dashboard exports to and re-opens from — and `README.md` forwards
+  to it three times ("the dashboard-spec schema", and again from the Editable-spec export row and
+  the repo tree). Nothing had ever read it against `app/model.js`. It was the last file in the
+  repo still titled **DashKit Dashboard Studio**, the vendored chart toolkit's name where
+  README's H1 and every `<title>` say *Analytics* — and the title was the smallest of it.
+  **Measured before the fix:** it published **"Every exporter (CDF html, CDE `.cdfde`/`.wcdf`,
+  `.cda`)"**, of which the app produces exactly one — `tools/lib.js`'s `buildArtifacts` returns a
+  single `.html` — while Export ▾'s **seven** formats appeared nowhere on the page; its
+  chart-type registry held **11 of the 54** types under a `CDE / CCC component` column naming a
+  component library this repo does not contain; its "Data resolution" section said the live path
+  hits `/pentaho/plugin/cda/api/doQuery`, which `app/exporters.js:115` records in a comment as
+  fetched by nothing ("legacy id namespace … nothing fetches it"); **13 of the 25 keys
+  `Studio.emptySpec()` writes were undocumented** — every appearance key (`dashboardTheme`,
+  `customTheme`, `paletteKey`, `headerLogo`/`headerLink`/`headerBg`, `titleSize`,
+  `subtitleStyle`, `headerAlign`, `cardSkin`, `renderMode`, `themeColor`) plus `templateVars`,
+  the `{{key}}` substitution a template author needs most; and the colour-token list elided eight
+  real tokens behind `--c1`…`--c10`, on the one page whose job is to be exhaustive. `deploy.sh`,
+  the CLI README tells you to feed a spec to, carried the same three dead artifacts in its own
+  header, so it was fixed in the same slice and is held by the same rule.
+  **Fixed:** the page now opens on what a spec IS and who reads it (canvas/preview, Export ▾, the
+  viewer's own three formats, and `./deploy.sh` → `tools/export.js` → one self-contained
+  `.html`), documents all 26 top-level keys the model and the shipped examples carry, prints the
+  whole 54-type registry with each type's label and `map` fields, states the `cda` block for what
+  it is (a historical key name; `cda.connection` is still written and read by nothing, since a
+  data access names its own `connectionId`), and replaces the retired-endpoint story with the
+  real one: engine-less data accesses travel as `window.DASHKIT_MOCK` rows inside the preview AND
+  inside every exported artifact, while a `connectionId`-bound one resolves its workspace Dataset
+  fresh (falling back to the copy embedded at import) and runs through that Connection's adapter
+  — the mock never shadowing a live engine, so one dashboard can mix both.
+  **Verified:** doc-truth **check 45**. Its registry rules EVALUATE `app/model.js` with one
+  `new Function("window", src)` rather than regexing it — the file is a pure data+helpers IIFE
+  with no DOM by its own header, so the labels, `fields`, `FORMATS`, `KPI_STATES` and
+  `COLOR_TOKENS` are exact where a regex across 54 entries would be approximate, and the script
+  stays browser-free, dependency-free and instant. Six rules: (a) the H1 names the product
+  README's H1 names; (b) every `emptySpec()` key is documented and no key is documented that
+  neither the model nor a shipped example carries; (c) every Export ▾ format is named (reusing
+  check 37's own menu derivation); (d) every standalone file extension in `SPEC.md` or
+  `deploy.sh` is one the app exports (the two export menus' labels) or accepts (the file inputs'
+  `accept` lists) — the rule that kills `.cdfde`/`.wcdf`/`.cda` in both documents at once;
+  (e) the chart table IS `Studio.CHARTS` — keys, labels and `map` fields, both directions;
+  (f) the `fmt`, colour and KPI-state vocabularies are their registries', both directions, which
+  is what forbids the `…` elision. **10 of the 13 assertions measured failing on the real pre-fix
+  tree**; the remaining three — (b)'s negative half, (e)'s label and field rules — on mutated
+  trees (a retired `jndi` row added to the key table, `bars` relabelled "Bars", `scatter` short
+  one `map` field). One implementation note worth keeping: the token extraction reads
+  fence-stripped prose, because a ``` fence desynchronises backtick pairing across everything
+  below it — the first version of rule (f) reported all 16 colour tokens missing from a page that
+  listed all 16. No `sw.js` bump: nothing precached changed (`SPEC.md`, `deploy.sh` and
+  `tools/doc-truth.mjs` are not in the precache list), same reasoning as v931.
 - **N7 — The runbook for publishing this site described a pipeline we replaced (v931, NO sw
   bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** `PUBLISH.md` is the page
   `README.md` forwards to for the full publishing runbook ("Full runbook: **PUBLISH.md**"),
@@ -13440,11 +13491,41 @@
     actionable half (a script that is not there) and the fix removed the name with it, but
     "no module the code calls retired may be named here" would have to derive the retired set
     from prose inside a comment (`app/model.js`: "Rescued from the retired Pentaho module") — a
-    rule that stops testing the day someone rewords the comment. Also measured: **`SPEC.md` is
+    rule that stops testing the day someone rewords the comment. ~~Also measured: **`SPEC.md` is
     the last document still titled "DashKit Dashboard Studio"** — the vendored chart toolkit's
     name where README's H1 and every `<title>` say *Analytics* — and it answers to no check at
-    all, the check-41 gap one document over. It is the named candidate for the next N7 slice.
+    all, the check-41 gap one document over. It is the named candidate for the next N7 slice.~~
+    ✓ **SHIPPED v932, NO sw bump (2026-08-09 — see the v932 line below and DONE).**
     The two v922 candidates are still open and still Kevin's calls.
+  * *`SPEC.md` vs the file format it defines — v932, NO sw bump (2026-08-09 — see DONE).* The
+    candidate the v931 note named, and the title was the smallest part of it. `README.md` sends
+    a reader here three times ("the dashboard-spec schema"), and the page described a product
+    this repo replaced: **"Every exporter (CDF html, CDE `.cdfde`/`.wcdf`, `.cda`)"** — of those
+    four artifacts the app produces exactly one (`tools/lib.js`'s `buildArtifacts` returns a
+    single `.html`), and Export ▾'s **seven** formats were named nowhere; a **chart registry of
+    11 of the 54 types**, each against a `CDE / CCC component` column naming a library this repo
+    does not contain; a "Data resolution" section pointing the live path at
+    `/pentaho/plugin/cda/api/doQuery`, which `app/exporters.js:115` records as fetched by
+    nothing; **13 of the 25 keys `Studio.emptySpec()` writes undocumented** (every appearance
+    key, plus `templateVars`, the `{{key}}` substitution a template author needs most); and a
+    colour list that elided eight real tokens behind `--c1`…`--c10`, on the page whose whole job
+    is to be the exhaustive one. `deploy.sh` — the CLI README tells you to feed a spec to —
+    carried the same dead artifact list in its header, so it was fixed and is held here too.
+    Doc-truth **check 45** EVALUATES `app/model.js` (a pure `window.Studio` IIFE, no DOM by its
+    own header) rather than regexing it, so the labels, `fields`, formats and defaults are exact
+    across all 54 types: six rules — the H1 vs README's, the key table vs `emptySpec()` both
+    directions, every Export ▾ format named (check 37's derivation), every standalone file
+    extension in either document being one the app exports or accepts, the chart table being
+    `Studio.CHARTS` (keys + labels + `map` fields, both directions), and the `fmt`/colour/KPI
+    vocabularies being their registries'. **10 of the 13 assertions measured failing on the real
+    pre-fix tree**; the other three (the key table's negative half, the label rule, the fields
+    rule) on mutated trees — a retired `jndi` row, `bars` relabelled, `scatter` short one field.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:**
+    `deploy.sh` and `tools/export.js` still default their deploy path to
+    `/public/pdc-iteration/v2`, a Pentaho-era location. That is a DEFAULT, not copy — it lands
+    in the exported html's asset paths — so changing it is a behaviour question and its own
+    unit, and check 45 rule (d) deliberately holds only the artifacts these documents name. The
+    two v922 candidates are still open and still Kevin's calls.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before

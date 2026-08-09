@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Generate deployable Pentaho artifacts (.cda/.html/.cdfde/.wcdf) from Studio specs.
+# Generate a deployable, self-contained dashboard .html from a Studio spec (SPEC.md).
+# One spec in, one .html out — it reuses app/exporters.js unchanged, so the file is
+# byte-for-byte what the builder's Export ▾ → Dashboard (.html) writes.
 #   ./deploy.sh <spec.studio.json> [outDir] [deployPath]
 #   ./deploy.sh --all            [outDir] [deployPath]   # export every example
 # Defaults: outDir=dist  deployPath=/public/pdc-iteration/v2
