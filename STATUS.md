@@ -135,6 +135,36 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N35 — a calculated column had no way back to its formula, and "＋ calc…" handed you the last
+  one (v949, sw v540, 2026-08-09, steward; dev branch; est 1pt, took 1):** the item's diagnosis was
+  right on both counts and cost nothing to confirm — `openCalcEditor()` already listed every calc
+  with an editable name + formula, and `#bdCalcBtn` was the only door to it. **Fixed the door, not
+  the room.** (1) A calc column renders a ✎ (`data-bd-calc-edit`) that opens the same editor with
+  that row's formula focused. It is a **sibling** of `.bd-col`, wrapped in a new `.bd-colwrap`
+  segmented pill — deliberate, because `.bd-col.used` is `opacity:.45;cursor:default`
+  (`studio.css:1525`) and the calc you most want to edit is the one already on a shelf; a child
+  would have inherited the dimming. It is visible at rest, not on hover, because the mobile gate is
+  a release gate and a hover pencil does not exist at 390×780. (2) `＋ calc…` keeps its plus and
+  opens with a blank row appended and focused (`openCalcEditor({addBlank:true})`) — the item said
+  Kevin's second sentence chose that over relabelling to "Calculated columns…", and it does. Both
+  paths share one editor, so there is still one place calcs are managed.
+  **Followed the app's existing pattern rather than inventing one**, as the item asked: this is the
+  filter chip's `bd-flt-edit` ("edit the thing it made") applied to the field list.
+  **One thing beyond the item's text, and it is load-bearing:** renaming a calc used to be a delete
+  plus an add, so `bdSetCalcs`'s prune dropped the column from every shelf, filter and colour
+  encoding that used it. Editing a *used* pill is the case the ✎ exists for, and renaming is the
+  commonest reason to open a formula — so the editor now stamps each draft row with `_orig` and
+  `bdSetCalcs` carries surviving renames across the chips before pruning. The marker is stripped
+  before it reaches `BD.calcs` (that object is serialized into the saved View's builder blob), and
+  callers that pass plain rows — the `setCalcs` test hook, any programmatic setter — keep the old
+  prune-only behaviour untouched.
+  **Verified**: three new suite checks drive the real controls (put the calc on a shelf, assert the
+  ✎ is present, is a sibling, and opens focused on the right formula *through* the dimming; rename
+  and assert the shelf chip followed and no `_orig` leaked; open ＋ and assert the appended row is
+  blank + focused and does not become a calc when closed without Apply), plus the full `tests/run.js`
+  suite green at 390×780 and desktop with zero pageerrors, `tools/validate.mjs`,
+  `tools/changelog-check.js`, `tools/doc-truth.mjs` and `tools/dev-smoke.mjs`. Help's Calculated
+  columns paragraph now names the ✎ and the blank-row behaviour. Est 1pt, took 1.
 - **N34 — dragging the View Builder canvas taller left the chart its old size, with an empty band
   underneath (v947, sw v538, 2026-08-09, steward; dev branch; est 1pt, took 1):** the item's
   diagnosis held exactly. VB-12's handles set `ifr.style` width/height and nothing else, while the
@@ -13560,8 +13590,15 @@
   controls. **Kevin's call between them.** Whichever wins, a US county choropleth with no way to
   zoom is the wrong default for the app's strongest geography.
 
-- **N35 ★★ [1pt] — a calculated column can't be edited from the View Builder, and "＋ calc…"
-  doesn't open a blank one.** Kevin, 2026-08-09, two reports with one root cause: *"in the View
+- ~~**N35 ★★ [1pt] — a calculated column can't be edited from the View Builder, and "＋ calc…"
+  doesn't open a blank one.**~~ ✓ **SHIPPED v949, sw v540 (2026-08-09, steward — see DONE).**
+  Both halves shipped exactly as the item framed them: a ✎ on the calc column itself, a SIBLING of
+  the pill so it survives `.used` and shown at rest so it exists on a phone; and ＋ kept its plus
+  and now opens a blank row appended + focused (Kevin's second sentence picked that over
+  relabelling). One thing the item implied but did not say: a rename made from that editor used to
+  drop the field off every shelf it was on, so the slice carries renames across — without it,
+  editing from a used pill still loses the column.
+  *(Original text kept until the next grooming pass archives it.)* Kevin, 2026-08-09, two reports with one root cause: *"in the View
   Builder once you make a calculation there is no way to edit it, I think, from the View Builder
   screen"* and *"I would think new calc on adding a calculated column would be a blank but it
   seems to leave the last one."*

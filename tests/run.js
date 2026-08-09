@@ -14956,6 +14956,69 @@ function serve() {
     ok("#117 (4): calcs persist on the builder blob and reopen still-applied",
       bdCalcSave.savedCalcs === "amount_x2" && bdCalcSave.restoredCalcs === "amount_x2" && bdCalcSave.effHasCalc,
       JSON.stringify(bdCalcSave));
+    // N35: the calc editor was never the problem — the way IN was. A calc column now
+    // carries its own ✎ (surviving `.used`), and ＋ means "new", not "last one again".
+    const bdCalcEdit = await page.evaluate(async () => {
+      const B = window.__studioBuild;
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      const out = {};
+      // the calc you most want to edit is the one already on a shelf — that is the
+      // pill that dims to opacity:.45, so test the edit path in exactly that state
+      B.addField("amount_x2", "cols");
+      await sleep(80);
+      const pill = document.querySelector('.bd-col.calc[data-bd-col="amount_x2"]');
+      const edit = document.querySelector('[data-bd-calc-edit="amount_x2"]');
+      out.pillUsed = !!(pill && pill.classList.contains("used"));
+      out.editPresent = !!edit;
+      out.editIsSibling = !!(edit && pill && edit.parentElement === pill.parentElement &&
+        pill.parentElement.classList.contains("bd-colwrap"));
+      out.editLabelled = !!(edit && /amount_x2/.test(edit.getAttribute("aria-label") || ""));
+      // ✎ opens the shared editor focused on THAT row's formula
+      edit.click();
+      await sleep(220);
+      let mod = document.querySelector(".modal-ov .bd-calc");
+      out.opened = !!mod;
+      const rows = mod ? [].slice.call(mod.querySelectorAll(".bd-calc-row")) : [];
+      out.rowCount = rows.length;
+      const af = document.activeElement;
+      out.focusedFormula = !!(af && af.classList.contains("bd-calc-formula") && af.value === "=[amount] * 2");
+      // renaming from here carries the shelf chip instead of dropping the field
+      const nm = rows[0].querySelector(".bd-calc-name");
+      nm.value = "amount_x2b";
+      nm.dispatchEvent(new Event("input", { bubbles: true }));
+      [].slice.call(mod.querySelectorAll("button")).filter((b) => b.textContent === "Apply")[0].click();
+      await sleep(150);
+      out.renamed = B.state.calcs.map((c) => c.name).join(",");
+      out.shelfCarried = B.state.shelfCols.some((f) => f.col === "amount_x2b");
+      out.noMarkerLeak = B.state.calcs.every((c) => !("_orig" in c));
+      // ＋ calc… opens a blank row, appended and focused, with the existing calcs still listed
+      document.getElementById("bdCalcBtn").click();
+      await sleep(220);
+      mod = document.querySelector(".modal-ov .bd-calc");
+      const rows2 = mod ? [].slice.call(mod.querySelectorAll(".bd-calc-row")) : [];
+      out.addRows = rows2.length;
+      const last = rows2[rows2.length - 1];
+      out.blankLast = !!(last && last.querySelector(".bd-calc-name").value === "" &&
+        last.querySelector(".bd-calc-formula").value === "");
+      out.focusedBlank = !!(last && document.activeElement === last.querySelector(".bd-calc-name"));
+      // closing without Apply must not turn the blank row into a calc
+      mod.closest(".modal-ov").querySelector(".modal-h .x").click();
+      await sleep(80);
+      out.afterCancel = B.state.calcs.map((c) => c.name).join(",");
+      B.setCalcs([{ name: "amount_x2", formula: "=[amount] * 2" }]); // restore for later checks
+      await sleep(80);
+      return out;
+    });
+    ok("N35: a calc column carries its own ✎ back to its formula, and it survives the .used dimming",
+      bdCalcEdit.pillUsed && bdCalcEdit.editPresent && bdCalcEdit.editIsSibling && bdCalcEdit.editLabelled &&
+      bdCalcEdit.opened && bdCalcEdit.rowCount === 1 && bdCalcEdit.focusedFormula,
+      JSON.stringify(bdCalcEdit));
+    ok("N35: renaming a calc from its own editor carries the shelf chip across (no silent drop)",
+      bdCalcEdit.renamed === "amount_x2b" && bdCalcEdit.shelfCarried && bdCalcEdit.noMarkerLeak,
+      JSON.stringify(bdCalcEdit));
+    ok("N35: ＋ calc… means NEW — a blank row appended and focused, existing calcs still listed, cancel keeps it out",
+      bdCalcEdit.addRows === 2 && bdCalcEdit.blankLast && bdCalcEdit.focusedBlank && bdCalcEdit.afterCancel === "amount_x2b",
+      JSON.stringify(bdCalcEdit));
     // 9. VB-1 (Kevin overnight queue): outline navigator parity — search, folder
     // tree, stacked readable labels + icons, and manage ops right on the pane
     const vb1 = await page.evaluate(async () => {

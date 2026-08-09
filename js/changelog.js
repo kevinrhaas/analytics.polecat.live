@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 949,
+    title: 'A calculated column in the View Builder had no way back to its formula, and "＋ calc…" handed you the last one',
+    kind: 'fix',
+    ts: '2026-08-09T21:08:28.000Z',
+    items: [
+      'The View Builder could make a calculated column and then never let you change it. There was exactly one door to the editor — the dashed "＋ calc…" chip at the foot of the column list — and it was doing two jobs at once: create a column, and manage every column you already have. It reads as create, so clicking it produced the previous formula sitting in the form, and there was no separate route to edit at all. Both halves are fixed: a calculated column now carries a ✎ of its own that opens the editor with that column\'s formula focused, and ＋ genuinely means new — it opens with a blank row appended and the cursor in it, with the existing columns still listed below.',
+      'The ✎ sits beside the column, not inside it, which matters more than it sounds: a column that is already on a shelf is drawn dimmed and unclickable, and that is precisely the column you are most likely to want to change. The edit button stays at full strength and stays clickable there. It is also visible at rest rather than on hover, because a hover-only pencil does not exist on a phone.',
+      'Renaming a calculated column from that editor now carries it along instead of dropping it. Previously a rename was treated as deleting one column and adding another, so the field quietly disappeared from every shelf, filter and colour encoding that used it — which is the worst moment for it to happen, since renaming is the most common reason to open a formula you already put to work. Deleting a column still cleans up after itself exactly as before.',
+      'Three checks in the suite drive the real controls: they put a calc on a shelf and assert the ✎ is still there and still opens on the right formula through the dimming, rename it and assert the shelf chip followed, and open ＋ to assert the new row is blank, focused, and does not become a column if you close without applying.',
+    ],
+  },
+  {
     v: 948,
     title: 'Views rows carried six buttons you could not see, and paid for them in height',
     kind: 'fix',
