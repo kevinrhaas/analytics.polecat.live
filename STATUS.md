@@ -13509,12 +13509,42 @@
   says which he expects from a ＋.
   **Mobile is a release gate:** a hover-only pencil does not exist on a phone, so whatever the
   affordance is, it has to be tappable at 390×780.
+
+- **N37 ★★ [1pt] — every catalog row reserves space for six text buttons it is not showing, so
+  the lists read as mostly empty.** Kevin, 2026-08-09, on the Views list: *"I don't love the look
+  of this, there is so much white space for those buttons — can you compress that and make those
+  icons or a drop menu so they are more digestible?"* His screenshot is the proof: the hovered
+  row shows Open · View Builder · Add to dashboard · Duplicate · Export · ✕ on a wrapped second
+  line, and the three rows below it — showing no buttons at all — are exactly as tall.
+  **Measured, and the cause is one CSS pair.** `.cx-row` is `flex-wrap:wrap` and `.cx-actions` is
+  `opacity:0` until row hover (`app/studio.css:2557`, `:2629-2630`). Opacity does not remove a box
+  from layout, so the wrapped button line occupies its full height in EVERY row, hovered or not.
+  That is the white space — it is not padding, it is six invisible buttons.
+  **This is not a Views problem.** `.cx-row` / `.cx-actions` is the shared catalog row used by
+  Views, Dashboards, Datasets, Connections, Jobs and Repository, so the structural half of the fix
+  lands everywhere at once — which is the point, and also why it needs a full-suite run.
+  **Do both halves:** (1) stop the hidden action block from reserving height (don't let it wrap
+  the row; the mobile rule at `:2734-2736` already treats it differently and shows it at rest —
+  keep that working); (2) demote the actions to a compact set: **Open** stays a real button,
+  frequent actions become icon buttons with tooltips + `aria-label`, and the tail (Duplicate,
+  Export, Delete, the alternate-editor open) goes behind a per-row **⋯ overflow menu**. Reuse the
+  existing `.menu-wrap` / `.menu` / `menuToggle` / `closeMenus` convention (`app/studio.css:903`,
+  `:914`; `app/studio.js:12250`) — the app already has one dropdown pattern, do not add a second,
+  and note `.menu` is `right:0` against its wrap so N8's fits-on-screen rule (`studio.js:12440`)
+  applies to a row-anchored menu too.
+  **Don't regress what the row already gets right:** pinned ★ and private state stay visible at
+  rest (that is deliberate — `studio.css:2631-2636` explains why they are siblings of
+  `.cx-actions`, not children), the tile view's own foot layout (`.dsx-tile-foot`) has its own
+  rules at `:2596-2601`, and delete must stay reachable in one gesture on mobile at 390×780.
+  Tests query these by `data-vw-*` attributes, so keep the attributes when the labels become
+  icons.
 > **▸ PROMOTED 2026-08-09 (Kevin, directly — not a grooming batch): three money-flow packs.**
 > *"when you get through the stabilization stuff can you prioritize some of the other sample
 > packs… we had some where the money is going and other ones on the list, I would like some more
-> of those."* They sit BELOW N31–N35 on purpose: those five are the stabilization he means, and
-> four of them are defects in the pack-and-builder experience itself, so shipping more packs on
-> top of a degrading View Builder would multiply the problem rather than showcase it. Take them in the
+> of those."* They sit BELOW the defect block above on purpose (N31–N35, N37 — the set grows as
+> Kevin reports more): those ARE the stabilization he means, and most of them are defects in the
+> pack-and-builder experience itself, so shipping more packs on top of a degrading View Builder
+> would multiply the problem rather than showcase it. Take them in the
 > order below — each is still 3pt / ~3 PRs and follows the SP-0 convention SP-1 proved.
 >
 > **SP-6 first** (Federal Contract Awards) — the cleanest of the three: USASpending.gov, public
@@ -13622,11 +13652,15 @@
   later with WORKSPACE-LOGIN and grew the richer feature set (default, export, stage guard).
   **So a pure rename makes it worse**, not better: two lists both labelled "Workspaces". Rename
   and converge together, or do neither.
-  **Recommended shape — Kevin's call to confirm:** `STUDIO_WS_STORE` becomes the one list (it is
-  already the richer one, and the one the sign-in screen actually reads), and Admin's card
-  becomes a management VIEW over it, keeping its Test / Connect / assign-to-user actions and
+  **✅ DECIDED (Kevin, 2026-08-09): converge onto the workspace store.** *"converge on the
+  workspace store so it's better, yes? that's sensible."* So: `STUDIO_WS_STORE` becomes the ONE
+  list (it is already the richer one, and the one the sign-in screen actually reads), and Admin's
+  card becomes a management VIEW over it, keeping its Test / Connect / assign-to-user actions and
   losing its private store. Existing `studio-admin-backends` entries migrate in additively —
   never wipe, per the local-first rule — and `provisioning.backendId` must keep resolving.
+  **Suggested slicing** (2pt, so two PRs): (1) converge the store — migrate + one read path,
+  both surfaces still named as they are today, tests proving no entry is lost either way; (2) the
+  rename, once there is only one list to name.
   **Where "backend" still earns its keep:** the rail tooltip and Settings say *"Workspace
   backend — Local (this browser)"*, which names a STATE (where is this workspace stored right
   now), not a list entry. That reading is fine and should not become "workspace workspace". The
@@ -15134,6 +15168,77 @@
 >   change genuinely cannot be additive, that is a Kevin decision at the COMPAT.md level, not a
 >   framework to build in advance.
 
+### 🗂 ORGANIZE (Kevin, 2026-08-09) — the epic: real file management across every list
+
+> **Kevin's ask, verbatim:** *"I would like those menus to have more organization to them all,
+> like new folder and you can nest folders, and that should be the case for all of the things
+> that have lists like this — Views, Dashboards, Datasets, Connections, etc. And I think you
+> should make sure that is part of the Polecat platform standard so that it improves the
+> organization. You should be able to drag and drop things into folders and new folder, etc. You
+> should use familiar file-management best practices, like from OSX Finder or other best-practice
+> utility of those screens."*
+>
+> **This is an EPIC and stays here until it is split** (`docs/BACKLOG.md`: epics never enter NOW
+> whole). It is written up now so the split is a grooming step, not a re-discovery.
+>
+> **⚠ Series mint pending Kevin's confirm.** This is a named program of ≥4 related items across
+> two repos, which is exactly what `docs/BACKLOG.md` says warrants a prefix — but minting one is
+> a registry change, so it needs his word. Proposed prefix **`ORG-<n>`**. Until he confirms, any
+> slice pulled from here mints as the next `N<n>` instead. Do not use `ORG-` anywhere before the
+> registry row exists.
+>
+> **Where we actually are — measured, because the gap is smaller than it looks.** Folders are NOT
+> missing; they are inconsistent:
+> - Every catalog object already carries a flat `"/"`-delimited `folder` string, and nesting is a
+>   path convention (`Finance/2024`), not a new data model.
+> - **Repository** already has the full shape: a real folder TREE with collapsible branches, an
+>   "+ New folder" input that accepts a nested path (`app/studio.js:7756-7758`, wired `:7864-7875`)
+>   and drag-to-file (`.cx-row[draggable]`, `app/studio.css:2570-2571`).
+> - **LF56 already shipped the shared picker** — `Studio.openFolderPicker(current, allPaths, cb)`
+>   (`studio.js:8234`, exported `:8319`) with a `folderPickerButton` helper (`:8321`), used by
+>   workbooks, dashboards and rows alike (`:7081`, `:7142`, `:7921`).
+> - **The View Builder's dataset pane** renders a collapsible folder tree (VB-1, `app/build.js`).
+> - **But Views, Dashboards, Datasets and Connections show folders as a FLAT CHIP FACET** —
+>   "FOLDERS · All folders 4 · Market Coverage 4 · Unfiled 0" (`studio.js:8143-8156`) — which is a
+>   filter, not a place. You cannot create a folder there, cannot nest visibly, cannot drag a row
+>   into one, and a nested path shows as one long chip.
+>
+> So the epic is mostly **converging four surfaces onto the one pattern Repository already
+> proves**, then promoting that pattern to the platform. That is a much better starting position
+> than "build folders", and any slice that reinvents the tree instead of lifting Repository's is
+> doing it wrong.
+>
+> **Proposed split (each ≤3pt; confirm before pulling):**
+> - **1 [3pt] — Lift the tree out of Repository into ONE shared catalog-tree component** in this
+>   repo, with the folder facet as a fallback view: create folder (nested paths), rename, delete
+>   (with a decision on what happens to contents), collapse state persisted, empty folders that
+>   survive a reload. Repository migrates to it in the same slice, so there is never a second
+>   implementation.
+> - **2 [2pt] — Drag and drop, done to Finder standards:** row → folder, row → "New folder…",
+>   multi-select drag (the sections already have select mode + bulk bars), a real drop indicator,
+>   ESC to cancel, and an **undo** for a misdrop. Keyboard and mobile equivalents are required,
+>   not optional — drag cannot be the only way to file something at 390×780.
+> - **3 [3pt] — Roll it across Views · Dashboards · Datasets · Connections · Jobs**, one section
+>   per PR if it runs long. Same tree, same actions, same wording everywhere.
+> - **4 [3pt] — Promote to the platform** (`kevinrhaas/polecat-platform` `lib/`): the component
+>   ships in the shell with a documented API in SHELL-API.md, `lib/VERSION` bumped +
+>   `scripts/gen-manifest.mjs` re-run, and it arrives back here via a `chore: polecat-shell` sync
+>   PR like every other shell change. **Sequencing matters:** prove it in this app across ≥3
+>   sections FIRST, then lift it — a fleet API is very hard to change once eight apps import it,
+>   and this repo is the only one with four real catalog sections to prove it against.
+>
+> **Finder conventions worth stealing explicitly** (so "best practices" is not left to taste):
+> a folder is a place you can be IN, with a breadcrumb back out; new-folder is available from the
+> toolbar AND the context menu; a drop target highlights before you release; renaming a folder
+> moves everything under it; and nothing is destroyed silently — deleting a folder asks what to
+> do with its contents.
+>
+> **One thing to decide early, not late:** whether `folder` stays a path STRING on each row
+> (cheap, additive, no migration, but renames are a rewrite across rows) or becomes real folder
+> ROWS with parent ids (proper tree, but a schema change under `docs/COMPAT.md`'s additive-only
+> contract and a mixed-version fleet). The string is almost certainly right — say so explicitly
+> in slice 1 rather than leaving it implied.
+
 ### 🗂 Reservoir index (added 2026-08-07, N1) — what is below, and whether it is alive
 
 > Everything after this line is the RESERVOIR, not a queue: source material, prior art and
@@ -15148,6 +15253,9 @@
 >
 > **Live reservoir — real open items, but NOT a priority order.** Several of these still carry
 > expired "TOP PRIORITY" headers from July and contradict each other; ignore the headers:
+> - **ORGANIZE** (08-09, immediately above) — the folder/file-management epic across every list
+>   section, ending in a polecat-platform shell component. Split proposed, not yet minted;
+>   `ORG-<n>` awaits Kevin's confirm.
 > - **UX sweep #574** — worked out; only SWEEP574-1 remains and it is Kevin's product call.
 > - **VIEW BUILDER OVERNIGHT QUEUE** (07-30) — the largest live block.
 > - **FRONTEND QA REPORT** (07-24) · **LIVE-QA QUEUE** (07-27) · **LIVE-FEEDBACK QUEUE**
