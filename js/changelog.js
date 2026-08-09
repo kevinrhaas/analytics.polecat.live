@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 930,
+    title: 'Help has a way to reach all of itself',
+    kind: 'fix',
+    ts: '2026-08-09T12:28:24.000Z',
+    items: [
+      'Six topics on the Help page — Home, Quick Views, View Builder, Sample packs, Jobs and the Glossary — were not in its navigation bar, and five of them had no address of their own: they were tucked inside the section above them. Each one is now its own section with its own link.',
+      'The nav link marked The builder used to land you on Home, several screens above the builder it names. It opens on the builder now — and so does the ? button in the inspector, which sends you to the same place.',
+      'Searching the Help page for a buried topic used to answer with the heading it was tucked under. Search Sample packs or Jobs and you get that topic, under its own name, and land on it.',
+      'The highlighted link in the nav bar now follows the topic you are actually reading rather than sticking on one for six topics at a stretch. On a phone the bar scrolls sideways to reach every link.',
+    ],
+  },
+  {
     v: 929,
     title: 'The documents that say what must pass before a change ships were missing a check each',
     kind: 'fix',

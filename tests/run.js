@@ -31306,6 +31306,117 @@ function serve() {
       jSearchEmpty.visible && jSearchEmpty.hasEmptyState && jSearchEmpty.hitCount === 0,
       JSON.stringify(jSearchEmpty));
 
+    // ── N7-NAV (2026-08-09): Help's own navigation vs the page it navigates ──────────
+    // Before this slice the page had 15 <h2> topics inside 10 sections and 9 nav links:
+    // Quick Views, View Builder, Sample packs, Jobs and THE BUILDER ITSELF were buried in
+    // one <section id="builder"> that opened on Home, so "#builder" landed ~400 lines above
+    // the builder, the LF60 search indexed those six topics as one entry titled "Home —
+    // instant analytics", and the scroll-spy lit one link for all of them. doc-truth check
+    // 43 holds the STRUCTURE; these hold the three behaviours that structure feeds.
+    const jNavPage = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await jNavPage.goto(`http://localhost:${PORT}/docs/index.html`, { waitUntil: "load" });
+
+    const jNavWiring = await jNavPage.evaluate(function () {
+      var secs = Array.from(document.querySelectorAll("main > section[id]"));
+      var links = Array.from(document.querySelectorAll("nav .nav-inner a[href^='#']"));
+      var IGNORE = ["the", "a", "an", "and", "&", "of", "in", "vs"];
+      var words = function (s) {
+        return s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/)
+          .filter(function (w) { return w && IGNORE.indexOf(w) < 0; });
+      };
+      var broken = [];
+      links.forEach(function (a) {
+        var id = a.getAttribute("href").slice(1);
+        var sec = document.getElementById(id);
+        var h2 = sec && sec.querySelector("h2");
+        if (!sec || secs.indexOf(sec) < 0 || !h2) { broken.push(id + ": no section"); return; }
+        var heading = words(h2.textContent);
+        var stray = words(a.textContent).filter(function (w) { return heading.indexOf(w) < 0; });
+        if (stray.length) broken.push(id + ': "' + a.textContent.trim() + '" vs "' + h2.textContent.trim() + '"');
+      });
+      // Every topic is its own section, so no section hides a second <h2>.
+      var multi = secs.filter(function (s) { return s.querySelectorAll("h2").length !== 1; })
+        .map(function (s) { return s.id; });
+      return { sections: secs.length, links: links.length, broken: broken, multi: multi };
+    });
+    ok("N7-NAV: every docs nav link resolves to its own top-level section whose heading says what the label says",
+      jNavWiring.sections === jNavWiring.links && jNavWiring.links >= 15 &&
+        !jNavWiring.broken.length && !jNavWiring.multi.length,
+      JSON.stringify(jNavWiring));
+
+    // The specific regression: #builder — where the app's own contextual `?` sends people
+    // (app/index.html #inspHelpLink, studio.js _hlAnchors fallback) — must open ON the builder.
+    const jNavBuilder = await jNavPage.evaluate(function () {
+      var pick = function (id) {
+        var s = document.getElementById(id), h = s && s.querySelector("h2");
+        return h ? h.textContent.trim() : null;
+      };
+      return {
+        builder: pick("builder"), home: pick("home"), jobs: pick("jobs"),
+        packs: pick("sample-packs"), quick: pick("quick-views"), build: pick("build"),
+        glossary: pick("glossary")
+      };
+    });
+    ok("N7-NAV: #builder opens on the builder (not on Home), and each split-out topic owns its own anchor",
+      /^The builder$/.test(jNavBuilder.builder || "") && /^Home/.test(jNavBuilder.home || "") &&
+        /^Jobs/.test(jNavBuilder.jobs || "") && /^Sample packs$/.test(jNavBuilder.packs || "") &&
+        /^Quick Views/.test(jNavBuilder.quick || "") && /^View Builder/.test(jNavBuilder.build || "") &&
+        /^Glossary/.test(jNavBuilder.glossary || ""),
+      JSON.stringify(jNavBuilder));
+
+    // The search index follows the sections, so a formerly-buried topic is findable by its
+    // own name and jumps to its own anchor (it used to answer "Home — instant analytics").
+    await jNavPage.fill("#docSearch", "sample packs");
+    await jNavPage.waitForTimeout(80);
+    const jNavSearchTitle = await jNavPage.evaluate(function () {
+      var hit = document.querySelector(".doc-search-hit .dsh-title");
+      return hit ? hit.textContent.trim() : "";
+    });
+    await jNavPage.click(".doc-search-hit");
+    await jNavPage.waitForTimeout(80);
+    const jNavSearchJump = await jNavPage.evaluate(function () { return location.hash; });
+    ok("N7-NAV: the docs search finds a formerly-buried topic under its own heading and jumps to its own anchor",
+      jNavSearchTitle === "Sample packs" && jNavSearchJump === "#sample-packs",
+      JSON.stringify({ title: jNavSearchTitle, hash: jNavSearchJump }));
+
+    // The scroll-spy follows too: reading Jobs lights the Jobs link, not one six topics away.
+    await jNavPage.evaluate(function () {
+      // Null-safe on purpose (AUD-10): if #jobs ever stops existing this reports as a failed
+      // check rather than throwing and aborting the whole section.
+      var jobs = document.getElementById("jobs");
+      if (jobs) jobs.scrollIntoView();
+      window.dispatchEvent(new Event("scroll"));
+    });
+    await jNavPage.waitForTimeout(120);
+    const jNavActive = await jNavPage.evaluate(function () {
+      return Array.from(document.querySelectorAll("nav a.active"))
+        .map(function (a) { return a.getAttribute("href"); });
+    });
+    ok("N7-NAV: the scroll-spy marks the topic actually on screen",
+      jNavActive.length === 1 && jNavActive[0] === "#jobs", JSON.stringify(jNavActive));
+    await jNavPage.close();
+
+    // Mobile is a release gate: 15 links live in a horizontally scrolling bar, so the bar
+    // may overflow ITSELF but the page must not, and the last link must stay reachable.
+    const jNavPhone = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    await jNavPhone.goto(`http://localhost:${PORT}/docs/index.html`, { waitUntil: "load" });
+    const jNavPhoneFit = await jNavPhone.evaluate(function () {
+      var bar = document.querySelector(".nav-inner");
+      var last = bar.querySelector("a:last-of-type");
+      bar.scrollLeft = bar.scrollWidth;
+      return {
+        noPageHScroll: document.documentElement.scrollWidth <= window.innerWidth + 1,
+        scrollable: getComputedStyle(bar).overflowX === "auto",
+        lastVisible: last.getBoundingClientRect().right <= bar.getBoundingClientRect().right + 1,
+        lastHref: last.getAttribute("href")
+      };
+    });
+    await jNavPhone.close();
+    ok("N7-NAV: at 390x780 the docs nav scrolls to its last link without overflowing the page",
+      jNavPhoneFit.noPageHScroll && jNavPhoneFit.scrollable && jNavPhoneFit.lastVisible &&
+        jNavPhoneFit.lastHref === "#admin-docs",
+      JSON.stringify(jNavPhoneFit));
+
     // ── J2: Contextual help links ─────────────────────────────────────────
     // Inspector-level help link (#inspHelpLink) + section-level .sec-help badges.
 

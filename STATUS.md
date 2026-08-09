@@ -135,6 +135,39 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — Help had no way to reach a third of itself (v930, NO sw bump, 2026-08-09, steward;
+  dev branch; est 1pt, took 1):** every check in this family holds what a document SAYS. This one
+  holds whether a reader can GET to it, and the Help page — the document checks 9, 14–21, 28 and
+  34–40 have been correcting for two weeks — turned out to be the surface they had all read
+  THROUGH. **Measured before the fix: 15 `<h2>` topics, 10 addressable sections, 9 nav links.**
+  Five topics (Quick Views, View Builder, Sample packs, Jobs and **the builder itself**) were
+  buried inside one `<section id="builder">` that opened on a sixth, Home; Glossary was a real
+  section with no link. Consequences, all measured rather than argued: **`#builder` — the link
+  labelled "The builder", and the destination of the app's own contextual `?`
+  (`app/index.html`'s `inspHelpLink`, `studio.js`'s `_hlAnchors` fallback) — opened on "Home —
+  instant analytics"**, ~400 lines above the builder; the LF60 docs search, which indexes
+  `main > section[id]` titled by each section's first `<h2>`, had ~40% of the page as ONE entry,
+  so searching "sample packs" returned *Getting started* and jumped there; and the scroll-spy lit
+  one `.active` link across six topics. Fixed structurally — each topic is now its own
+  `<section id>` (`home`, `quick-views`, `build`, `sample-packs`, `jobs`, and `builder` kept for
+  the builder itself, so every existing deep link now lands where it says) and all 15 are in the
+  nav bar, which was already an `overflow-x:auto` scroller. Both behaviours follow the sections,
+  so both were fixed by the same change rather than separately. **Doc-truth check 43** makes the
+  page answer to itself and adds no new source of truth: (a) every `<h2>` in `<main>` opens its
+  own section; (b) the nav covers every section; (c) every href resolves; (d) page order *within
+  each nav group* — grouped rather than globally strict because `#admin-docs` sits mid-page and
+  trails the bar by design, which is editorial and would read as drift under check 39's
+  strictness; (e) every word of a nav label appears in the heading it points at, so a label may
+  abbreviate ("Ensembles & honesty") but never contradict; (f) every literal
+  `docs/index.html#anchor` in `app/` resolves, with the concatenated `#ct-` + type prefix excluded
+  by shape since check 3 already holds that set. **Verified:** rules (a), (b) and (e) failed on
+  the real pre-fix tree — (e) caught the mis-pointed `#builder` on its own, from the label alone —
+  and (c), (d), (f) on mutated trees; 5 new suite checks (nav wiring, the `#builder` regression,
+  the search index, the scroll-spy, and the new 15-link bar's phone fit) run at 1280×800 AND
+  390×780 with zero pageerrors, 4 of the 5 measured failing on the pre-fix tree. Dev gate green
+  (validate + changelog-check + doc-truth + dev-smoke). No `sw.js` bump: `docs/index.html` is
+  deliberately not precached and the precache LIST is unchanged (`js/changelog-head.js` rolled its
+  contents, as in v928/v929, which sw.js's own bumping rule and network-first fetch both cover).
 - **N7 — The documents that say what must pass before a change ships were each missing a check
   (v929, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** the candidate v928 left
   named was "`CLAUDE.md`'s prose — check 7 holds only its SIZE figures". Measuring it first
@@ -13303,6 +13336,38 @@
     summary to a directory listing would fail on every legitimate new tool — a rule about which
     files DESERVE naming is editorial, not a derivation. The two v922 candidates are still open
     and still Kevin's calls.
+  * *Help's own NAVIGATION vs the page it navigates — v930, NO sw bump (2026-08-09 — see DONE).*
+    The surface this whole family had read THROUGH without ever reading: checks 9, 14–21, 28 and
+    34–40 hold what `docs/index.html` SAYS, and nothing held whether a reader can GET to it.
+    **Measured: 15 `<h2>` topics, 10 addressable sections, 9 nav links.** Five topics — Quick
+    Views, View Builder, Sample packs, Jobs and **the builder itself** — were buried inside one
+    `<section id="builder">` that opened on a sixth, Home, so they had no anchor at all; Glossary
+    was a real section with no link. `#builder` therefore landed ~400 lines ABOVE the builder,
+    which is also where the app's own contextual `?` sends people (`app/index.html`'s
+    `inspHelpLink`, `studio.js`'s `_hlAnchors` fallback). Two behaviours fed off the same
+    structure and had the same blind spot: LF60's docs search indexes `main > section[id]` titled
+    by each section's FIRST `<h2>`, so ~40% of the page was one entry and searching "sample packs"
+    answered *Getting started* (measured — it did not even rank the Home entry first); and the
+    scroll-spy lit one link across six topics. Each topic is now its own section, all 15 are in
+    the bar, and `#builder` opens on the builder. Doc-truth check 43 makes the page answer to
+    itself — six rules (every `<h2>` opens its own section; the nav covers every section; every
+    href resolves; page order **within each nav group**, since `#admin-docs` trailing the bar is
+    editorial; every word of a label appears in its heading, so a label may abbreviate but never
+    contradict; and every literal `docs/index.html#anchor` in `app/` resolves). Three failed on
+    the real pre-fix tree — including the label rule, which caught the mis-pointed `#builder`
+    on its own — and the other three on mutated ones. 5 suite checks at 1280×800 + 390×780
+    (nav wiring, the `#builder` regression, the search, the scroll-spy, and the 15-link bar's
+    phone fit); 4 of the 5 measured failing on the pre-fix tree.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    hidden `<h3>` anchors the app deep-links to (`#dashboard-filters`, `#dashboard-header`) all
+    resolve today, and check 43 rule (f) now guards them — but they are not in any navigation and
+    whether a reader should be able to reach a sub-topic from the bar is an information-
+    architecture call, not a derivation. Also measured and **NOT N7's** (it is repo hygiene, not
+    copy): `dev/` is a committed 915-file duplicate of the whole tree, added by #602, while
+    `deploy.yml` assembles the `/dev/` preview into the Pages artifact with
+    `tools/stage-preview.mjs` at deploy time — so the committed copy appears to be a local run of
+    that script that got committed, and it doubles every `grep` over the repo. Whether it is load-
+    bearing is a pipeline question for whoever owns N25.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before
