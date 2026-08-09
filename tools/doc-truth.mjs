@@ -3317,6 +3317,144 @@ ok(`docs/index.html: all ${appAnchors.length} help anchors the app links to reso
   `linked from app/, missing from docs/index.html: ${brokenAnchors.map((a) => "#" + a).join(", ") || "(none)"}\n      ` +
   `anchors found: ${appAnchors.join(", ") || "(none — the extraction itself broke)"}`);
 
+/* ── 44. PUBLISH.md vs the way the site really publishes ────────────────────
+   N7, and the document check 41 pointed at without reading: README's Publish section is
+   three sentences that end "Full runbook: **PUBLISH.md**", so v928 corrected the summary
+   and left the page it forwards to untouched. Nothing had ever read that page. It is the
+   one document in the repo whose instructions an operator EXECUTES against repo settings,
+   and it was describing a publishing pipeline this repo replaced.
+
+   Measured 2026-08-09, before the fix:
+   · **§ 1 instructed the wrong Pages source.** "Deploy from a branch → `main` / `/ (root)`",
+     while `deploy.yml`'s own header says the opposite in as many words — it *replaced* the
+     branch pipeline, and its NOTE reads "requires repo Settings → Pages → Source = GitHub
+     Actions". An operator who followed the runbook would have switched Pages back to the
+     branch source, taking the deploy workflow out of the path and, with it, both preview
+     stages. This is the only drift this family has measured that BREAKS something rather
+     than merely misinforming.
+   · **The artifact's other two trees were named nowhere.** `deploy.yml` assembles `/stage/`
+     and `/dev/` beside production on every deploy; the runbook still described one tree
+     ("GitHub Pages serves the repo root directly").
+   · **"push to the deploy branch and the live site updates"** named no branch, and is false
+     for two of the three the workflow triggers on: the deploy job is `if: github.ref ==
+     'refs/heads/main'` and the `github-pages` environment refuses any other ref.
+   · **It told you to run `tools/push.js`, which does not exist** — part of a Notes bullet
+     about "Live Pentaho features", a module `app/model.js` records as retired and which has
+     no adapter in `app/sources/`.
+   · **The tour-reopen route pointed at "ⓘ Tour"** — the identical dead control check 41
+     rule (g) had just deleted from README, in the document README forwards to.
+
+   Six rules. (a)–(c) derive from `deploy.yml` itself, (d)–(f) reuse derivations this file
+   already built:
+   (a) § 1 names the Pages source the workflow requires, and never the branch one;
+   (b) every stage tree the assembly step builds is described;
+   (c) the opening claim about what ships names the ref the deploy job actually guards on;
+   (d) every `tools/…` script the runbook tells you to run exists;
+   (e) the tour-reopen route resolves against the command palette (check 13's resolver, one
+       document over) and the reset key matches `app/welcome.js`'s own literal;
+   (f) the demo accounts are exactly `app/auth.js`'s first-run SEED, both directions.
+
+   Deliberately NOT held: the retired module's NAME. Rule (d) kills the bullet's actionable
+   half (a script that is not there), and the fix removed the name with it, but "no module
+   the code calls retired may be named here" would have to derive the retired set from prose
+   in a comment — a rule that stops testing the day someone rewords the comment. The next
+   runbook claim of that shape wants a real source, not a regex over English. */
+const publish = read("PUBLISH.md");
+const deployYml = read(".github/workflows/deploy.yml");
+
+// (a) the Pages SOURCE. A workflow is the publisher the moment it runs actions/deploy-pages,
+// and that action only ever publishes when Settings → Pages → Source is "GitHub Actions" —
+// under the branch source the workflow runs and its artifact is discarded.
+const actionsDeploy = /actions\/deploy-pages@/.test(deployYml);
+ok(".github/workflows/deploy.yml: the Pages deploy parsed for check 44 (actions/deploy-pages)",
+  actionsDeploy,
+  "no actions/deploy-pages step found — rules (a), (b) and (c) all read this workflow, and an " +
+  "unparsed file would pass (a) vacuously");
+ok('PUBLISH.md: § 1 names the Pages source the deploy requires ("GitHub Actions"), not the branch one',
+  !actionsDeploy || (/Source → `GitHub Actions`/.test(publish) && !/Deploy from a branch/i.test(publish)),
+  "the runbook must instruct Settings → Pages → Source → `GitHub Actions` and must not instruct " +
+  "the branch source\n      " +
+  "it said \"Deploy from a branch → `main` / `/ (root)`\" — following it would have unhooked " +
+  "deploy.yml and both previews with it");
+
+// (b) the artifact's other trees, from the assembly step's own loop.
+const stagePreviews = ((deployYml.match(/for stage in ([a-z ]+);/) || [, ""])[1] || "")
+  .trim().split(/\s+/).filter(Boolean);
+ok(`.github/workflows/deploy.yml: the stage-preview assembly loop parsed for check 44 ` +
+   `(${stagePreviews.join(", ") || "(none)"})`,
+  stagePreviews.length >= 2, "rule (b) reads the `for stage in …` loop in the assembly step");
+const undescribedStages = stagePreviews.filter((s) => !publish.includes(`/${s}/`));
+ok(`PUBLISH.md: describes every stage tree the deploy assembles (${stagePreviews.map((s) => "/" + s + "/").join(" ")})`,
+  !undescribedStages.length,
+  `assembled by deploy.yml, absent from the runbook: ${undescribedStages.map((s) => "/" + s + "/").join(", ")}\n      ` +
+  "the page said \"GitHub Pages serves the repo root directly\" — one tree, where the artifact " +
+  "has carried three since the promotion pipeline landed (docs/PIPELINE.md)");
+
+// (c) which ref actually publishes. The deploy job's own guard, quoted into the runbook's
+// opening claim — the sentence that tells you what shipping IS. The pre-fix intro said
+// "push to the deploy branch", which names nothing and is false for two of the three refs
+// deploy.yml triggers on.
+const prodRef = (deployYml.match(/github\.ref == 'refs\/heads\/([a-z]+)'/) || [, ""])[1];
+const publishIntro = publish.split(/\n## /)[0];
+ok(`.github/workflows/deploy.yml: the deploy job's branch guard parsed for check 44 ("${prodRef || "(none)"}")`,
+  !!prodRef, "rule (c) reads the `if: github.ref == 'refs/heads/…'` guard on the deploy job");
+ok(`PUBLISH.md: the opening claim about what ships names the branch that deploys (\`${prodRef}\`)`,
+  !prodRef || new RegExp("`" + prodRef + "`").test(publishIntro),
+  `the intro reads: ${publishIntro.replace(/\s+/g, " ").trim().slice(0, 220)}\n      ` +
+  `it said "push to the deploy branch and the live site updates" — the deploy job runs only on ` +
+  `\`${prodRef}\`, and the github-pages environment refuses every other ref outright`);
+
+// (d) a runbook may only tell you to run scripts that are here. The retired-Pentaho bullet
+// sent readers to `tools/push.js`, gone with the module it belonged to.
+const publishTools = [...publish.matchAll(/`(tools\/[A-Za-z0-9._-]+)`/g)].map((m) => m[1]);
+const missingPublishTools = publishTools.filter((t) => !fs.existsSync(path.join(ROOT, t)));
+ok(`PUBLISH.md: every tools/ script it names exists (${publishTools.length} named)`,
+  publishTools.length >= 1 && !missingPublishTools.length,
+  (publishTools.length ? `named in the runbook, missing from the repo: ${missingPublishTools.join(", ")}`
+    : "the runbook names no tools/ script at all — the extraction may have broken") +
+  "\n      it told you to \"run `tools/push.js` from a networked host\"");
+
+// (e) the way back into the tour, and the key that resets it — check 13's resolver and
+// app/welcome.js's own literal, one document over from check 41 rule (g).
+const publishNorm = norm(publish);
+const badPublishRoutes = [
+  ...unresolvedRoutes(publishNorm, norm("⌘K"), PAL_L, "command in app/palette.js", "PUBLISH.md"),
+  ...unresolvedRoutes(publishNorm, norm("⋯ More"), MORE_L, "entry in #menuMore", "PUBLISH.md"),
+];
+const tourCommands = [...PAL_L].filter((l) => /\btour\b|\btutorial\b/.test(l));
+const publishTourSentence = (publish.match(/[^.\n]*\bwelcome tour\b[\s\S]*?\./i) || [""])[0];
+ok(`PUBLISH.md: the tour-reopen route names a real palette command and resolves`,
+  !badPublishRoutes.length && tourCommands.length > 0 &&
+    tourCommands.some((l) => norm(publishTourSentence).includes(l)),
+  (badPublishRoutes.join("\n      ") ||
+    `the sentence reads: ${publishTourSentence.replace(/\s+/g, " ").trim() || "(none mentions the welcome tour)"}`) +
+  `\n      the palette's tour commands: ${tourCommands.join(", ") || "(none)"}\n      ` +
+  "it said \"reopen any time via **ⓘ Tour**\" — the same control check 41 rule (g) had just " +
+  "removed from README, still standing in the runbook README forwards to");
+const welcomeSeenKey = (read("app/welcome.js").match(/var SEEN = "([^"]+)"/) || [, ""])[1];
+ok(`PUBLISH.md: the tour-reset key matches app/welcome.js's own ("${welcomeSeenKey}")`,
+  !!welcomeSeenKey && publish.includes(`localStorage.removeItem('${welcomeSeenKey}')`),
+  `app/welcome.js stores the seen flag under "${welcomeSeenKey}"; the runbook must print that key ` +
+  "verbatim — a reset instruction that clears the wrong key silently does nothing");
+
+// (f) the accounts § 3 hands an operator, from the store's own first-run seed. Both
+// directions: an account the seed creates and the runbook omits leaves an operator unable
+// to sign in; one the runbook invents sends them to a login that fails.
+const seedBlock = (read("app/auth.js").match(/var SEED = \[([\s\S]*?)\];/) || [, ""])[1];
+const seedAccounts = [...seedBlock.matchAll(/u:\s*"([^"]+)"[^}]*?pass:\s*"([^"]+)"/g)]
+  .map((m) => `${m[1]}/${m[2]}`);
+ok(`app/auth.js: the first-run SEED parsed for check 44 (${seedAccounts.join(", ") || "(none)"})`,
+  seedAccounts.length >= 1, "rule (f) reads `var SEED = [ … ]`");
+const publishPairs = [...publish.matchAll(/`([A-Za-z0-9]+)`\/`([A-Za-z0-9]+)`/g)]
+  .map((m) => `${m[1]}/${m[2]}`);
+const missingSeed = seedAccounts.filter((a) => !publishPairs.includes(a));
+const straySeed = publishPairs.filter((a) => !seedAccounts.includes(a));
+ok(`PUBLISH.md: § 3's demo accounts are exactly the ${seedAccounts.length} the store seeds`,
+  !missingSeed.length && !straySeed.length,
+  `seeded, not in the runbook: ${missingSeed.join(", ") || "(none)"}\n      ` +
+  `in the runbook, not seeded: ${straySeed.join(", ") || "(none)"}\n      ` +
+  "app/auth.js's SEED is what a fresh browser gets — § 3 is where an operator reads it");
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
