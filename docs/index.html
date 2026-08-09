@@ -805,24 +805,22 @@
   on a real public dataset names the dataset, its licence and the date it was retrieved instead, and
   repeats that line in the subtitle of every dashboard it installs, so the attribution travels with the
   work even after you export it.</p>
-  <p><strong>Market Coverage</strong> is the pack built on real data: US Census county business counts
-  and demographics, embedded in the app rather than fetched, with the prep job that joins them into a
-  restaurants-and-grocers-per-10,000-residents rate. Its three dashboards are the whitespace maps
-  (restaurant supply by county, its grocery twin, and income plotted against supply), the demographics
-  behind them (income, age, education), and a shortlist of counties with the income but not the
-  restaurants. The shortlist's two rules are ordinary filters on the View — open it in the builder and
-  you can move them.</p>
   <p><strong>Removed the wrong pack? Undo.</strong> Remove shows its toast with an <strong>Undo</strong>
   button for a few seconds. One click restores every dataset, View, dashboard, connection and job the
   pack owned — under the same ids, with any edits you'd made to them intact — and marks the pack
   installed again.</p>
   <ul>
     <li><strong>Conservation Insight</strong> is an illustrative sample for a county-level cover-crop
-    and conservation-tillage ensemble use case: a raw provider CSV to try a mapping workflow on, four
-    pinned per-practice Views built in the <strong>View Builder</strong> (open one from the Views
-    list and it lands on the shelves — adoption by year, split by provider, filtered to its
-    practice), a featured multi-View dashboard pairing the practices
-    with a county choropleth, and a dedicated Watershed Map dashboard (a full-width HUC8 choropleth) — all live on Home the moment you install it. All of its data is
+    and conservation-tillage ensemble use case. Installing it seeds two <strong>connections</strong>
+    (a demo file source and a demo Supabase repo), eight <strong>datasets</strong> — one of them a raw
+    provider CSV to try a mapping workflow on — a county-to-state rollup <strong>job</strong>, four
+    pinned per-practice <strong>Views</strong> built in the <strong>View Builder</strong> (open one
+    from the Views list and it lands on the shelves — adoption by year, split by provider, filtered
+    to its practice), and six <strong>dashboards</strong> in a <strong>Conservation Insight</strong>
+    folder: a featured multi-View dashboard pairing the practices
+    with a county choropleth, a Watershed Map (a full-width HUC8 choropleth), CRD Cover Crop Data,
+    OpTIS Cover Crop Trends, a Provider Ensemble reference, and the Conservation System Metrics
+    wheel — all live on Home the moment you install it. All of its data is
     synthetic and labeled as illustrative. The featured dashboard also demonstrates two different
     filtering styles: a plain filter bar (Practice, Since year) that narrows individual Views, and
     a linked cross-filter — click a provider on any adoption-trend chart's legend and every choropleth
@@ -831,8 +829,20 @@
     program cost-share ROI view, a provider-agreement-over-time view, a county-level
     outlier-detection view, a year-over-year practice-switching view, and a richtext-led narrative
     overview rolling all of it up, each with their own filter bar too, save the overview) to both
-    your Dashboards screen and Home's sample gallery — removing the pack takes all nine dashboards
+    your Dashboards screen and Home's sample gallery — removing the pack takes all fourteen dashboards
     back out again, so the workspace doesn't get cluttered for everyone else.</li>
+    <li><strong>Market Coverage</strong> is the pack built on real data: US Census county business
+    counts and demographics, embedded in the app rather than fetched. It seeds one
+    <strong>connection</strong> over three <strong>datasets</strong> — the two committed Census
+    extracts covering 1,813 counties (who lives there; the businesses already trading there) and the
+    output of the prep <strong>job</strong> that joins them into a
+    restaurants-and-grocers-per-10,000-residents rate — plus four pinned <strong>Views</strong>
+    (supply, demand, the two plotted against each other, and the shortlist itself) and three
+    <strong>dashboards</strong> in a <strong>Market Coverage</strong> folder: the whitespace maps
+    (restaurant supply by county, its grocery twin, and income plotted against supply), the
+    demographics behind them (income, age, education), and a shortlist of counties with the income
+    but not the restaurants. The shortlist's two rules are ordinary filters on the View — open it in
+    the builder and you can move them.</li>
     <li><strong>Data Management &amp; Governance</strong> is the built-in generic showcase gallery
     (Data Governance, Data Platform Operations, Product Delivery, Finance, Marketing, Incident
     Response, Compliance, Data Quality, Pipeline Observability, Storage Footprint, Cost &amp;

@@ -135,6 +135,51 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — Help's "Sample packs" section described a smaller app than the one that ships (v921, NO
+  sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** the check-23→Help move — the same
+  one check 15 made after 14, 17 after 16 and 28 after 24. Check 23 holds the pack TOUR to the
+  installer; this section is where a reader who never takes a tour learns what a pack gave them,
+  and it had drifted further than the tour ever did. Three defects, all measured before the fix:
+  - **Market Coverage had no entry at all.** SP-1 built that pack over three slices (a/b/c1) and
+    its Help coverage was a loose paragraph ABOVE the list, not an item IN it — while the
+    section's own opening sentence names three pack folders and the list below it had two.
+  - **Conservation Insight's dashboard count was wrong in both directions, and internally
+    inconsistent.** It named the featured dashboard and the Watershed Map, said "eight extra
+    showcase dashboards", and closed on "removing the pack takes all **nine** dashboards back
+    out". The pack seeds **6** into the workspace and materializes **8** more from the gated
+    gallery — 14 — so the closing sentence did not even agree with the two figures printed beside
+    it. The CRD map, the OpTIS trends, the provider ensemble and the Metrics wheel were named
+    nowhere on the page; all six are named now.
+  - **Neither entry said what else arrives with the same click.** Conservation Insight seeds 2
+    connections, 8 datasets and a county-to-state rollup job, and Help named none of those kinds —
+    a reader was told about charts and nothing about the data under them. Both entries now walk
+    connections → datasets → job → pinned Views → dashboards.
+  **Doc-truth check 34 is the guard, and every fact in it is derived so it survives either side
+  moving.** (a) every registry entry has its own list item, titled with the `folder` name the
+  reader sees in every catalog; (b) an item must name every KIND its pack seeds — the kinds come
+  from walking the call graph out of that entry's OWN `install`/`data.seed` hooks and collecting
+  the workspace tables they write, which is why it holds `marketcoverage` too even though that
+  entry deliberately declares no `seeds`; (c) every dashboard COUNT must be one of the pack's real
+  numbers — seeded, materialized, or the sum — because a rule that allowed only the total would
+  forbid the true sentence "eight extra showcase dashboards"; (d) "installed by default" is a
+  claim about `DEFAULT_INSTALLED`, so it must sit on that pack's item and no other.
+  **Counts are NOT taken from the call graph, and that is a measurement, not a shortcut:** a
+  single `W.put("analyses", …)` inside `PRACTICES.forEach` seeds four rows, so call sites counted
+  1 where the pack seeds 4. Dashboards are counted by the `<packId>-<name>` literals the file
+  gives them (check 23's own convention) and cross-checked against the declared `seeds.dashboards`
+  — two independent readings of one fact, which is a real assertion in its own right.
+  **(d) is here for a queue item, not for today's copy:** SP-1 (c2) swaps `DEFAULT_INSTALLED` to
+  `marketcoverage`, and this page says Data Management is the default. That PR will now go red
+  here until it moves the sentence — which is the fallout (c2)'s own item asks a future run to
+  remember, made mechanical.
+  **Verified:** the full dev gate as `ci.yml` runs it — `node tools/validate.mjs`,
+  `node tools/changelog-check.js`, `node tools/doc-truth.mjs` (34 checks), `node tools/dev-smoke.mjs`
+  (1280×900 + 390×780, zero pageerrors). All five of check 34's assertions were measured on mutated
+  trees: on the pre-fix tree rules (a)/(b)/(c) flagged exactly the three defects above (marketcoverage
+  absent · three unnamed kinds · "all nine"); swapping `DEFAULT_INSTALLED` to `marketcoverage` flagged
+  (d) in both directions at once; and declaring `seeds.dashboards: 7` flagged the cross-check.
+  Docs-only plus the guard, so no `sw.js` bump — `docs/index.html` is not precached (sw.js says so
+  in its own header). **Est 1pt, took 1.**
 - **N30 — the pipeline was stuck on a main→dev back-merge nothing could resolve automatically
   (no version/sw bump; merge-only; 2026-08-09, steward; dev branch; est 1pt, took 1):**
   `promote-to-stage.yml` back-merges main into dev before it promotes — dev must stay a superset
@@ -12636,6 +12681,28 @@
     overlap is why v875 had scoped itself to the tours; and the ⌘K palette's section
     coverage, which this pass found was NOT stale — AUD-12 (v854) already made the palette
     derive from the rail and added the guard, so the note above was itself out of date.
+  * *Help's "Sample packs" section vs what the packs actually seed — v921, NO sw bump
+    (2026-08-09 — see DONE).* The check-23→Help move, and the drift was wider than the tour's
+    ever was: **Market Coverage had no entry at all** (the section's own opening sentence names
+    three pack folders; the list below it had two), Conservation Insight named 2 of the 6
+    dashboards it seeds and closed on "all **nine** dashboards" when the real number is 14 — a
+    sentence that did not even agree with the two figures printed beside it — and neither entry
+    named the connections, datasets or job that arrive with the same click. Doc-truth check 34
+    derives each pack's seeded KINDS by walking the call graph from its own registry hooks, its
+    dashboards from the names the file gives them (cross-checked against the declared `seeds`),
+    its gallery examples from `data/examples/index.json`, and the default pack from
+    `DEFAULT_INSTALLED` — so the SP-1 (c2) swap now makes this page fail rather than go stale.
+    All five assertions measured on mutated trees.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    `<h2>Sample packs</h2>` section's own *prose* (the paragraphs above the list) still describes
+    packs generically — "a pack can add dashboards, datasets, connections and jobs" — which is
+    true and stays true, so nothing there had drifted; and `app/tutorial.js`'s Market Coverage
+    tour was audited against the same derivation and is CURRENT (it names every kind the pack
+    seeds, all three dashboards and all four Views). The candidate for the next N7 slice is
+    **Settings' own Sample packs card**: it renders each pack's registry `tagline`
+    (`app/studio.js:1046`), which no check reads — the same class of claim as this one, one
+    surface over, and every tagline is a hand-written count ("6 dashboards · 4 Views · 8
+    datasets · rollup job").
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before
