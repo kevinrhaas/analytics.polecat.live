@@ -1908,6 +1908,19 @@ const packRegistry = [...registryBlock.matchAll(/\n {4}(\w+): \{/g)].map((m) => 
     // above so one reading of the registry serves both checks.
     tagline: stringProp(body, "tagline"),
     blurb: stringProp(body, "blurb"),
+    // The pack's declared provenance — check 47's subject. Same reading of the same
+    // registry rather than a second parse: `kind` is synthetic|public|licensed and
+    // `name` is what THIRD-PARTY-NOTICES.md has to credit when it is not synthetic.
+    // Brace-walked to the `source: {…}` object itself — a lazy regex for `name:` would
+    // happily wander into the next dashboard literal on a pack whose source has no name.
+    ...(() => {
+      const at = body.indexOf("source:");
+      const block = at < 0 ? "" : braceBlockAt(body, body.indexOf("{", at));
+      return {
+        sourceKind: (block.match(/kind:\s*"([a-z]+)"/) || [, ""])[1],
+        sourceName: (block.match(/name:\s*"([^"]+)"/) || [, ""])[1],
+      };
+    })(),
   };
 });
 const defaultInstalled = [...((packSrc.match(/DEFAULT_INSTALLED = \[([^\]]*)\]/) || [, ""])[1])
@@ -3748,6 +3761,143 @@ ok(`${rlsRunbookPath}: every repo file it points an operator at exists (${runboo
   runbookPaths.length >= 4 && !runbookDangling.length,
   `named in the runbook, absent from the tree: ${runbookDangling.join(", ") || "(none)"}\n      ` +
   `paths found: ${runbookPaths.join(", ") || "(none — the extractor matched nothing)"}`);
+
+/* ── 47. THIRD-PARTY-NOTICES.md vs what the repo actually redistributes ─────
+   N7, and the class of document this repo had not yet held to anything: not copy a
+   reader skims but a LEGAL notice, whose only job is to be a complete and current list
+   of what we ship that isn't ours. It answered to one narrow rule — `tools/validate.mjs`
+   makes a pack whose source is `kind: "licensed"` appear here — and to nothing at all
+   about the tree it describes. Three things had drifted past it, all three measured on
+   the pre-fix tree:
+   · **`vendor/fflate.js` (fflate 0.8.2, MIT) was not in the table.** LF24-XLSX vendored
+     it, `app/index.html` loads it, `sw.js` precaches it, and the document listing what we
+     redistribute never learned it existed. `vendor/dashkit.css` was missing beside it.
+   · **"No third-party fonts are bundled; the UI uses system font stacks."** DESIGN-1
+     bundled ten woff2 files — four in `assets/fonts/`, `@font-face`-declared by the
+     marketing page and Help, and six more inside the shell copy — and the section that
+     would have to credit them said there was nothing to credit. Hanken Grotesk is OFL
+     1.1, whose whole ask is that the notice travels with the font.
+   · **"no pack ships outside data: both shipped packs … are entirely synthetic".** SP-1
+     shipped a third pack the day before, and its 113KB of US Census CBP/ACS extract is
+     exactly the outside data that sentence denied. `validate.mjs` did not catch it
+     because the Census is public domain and its rule fires only on `licensed` — so the
+     document's own promise ("public-domain components listed here") was the part with no
+     check under it.
+
+   Five rules, all derived from the tree rather than from a list kept by hand:
+   (a) every redistributed artifact under `vendor/` is named somewhere in the notices —
+       `vendor/polecat-shell/` excluded because the table declares that whole directory
+       first-party and read-only, which is the honest description of a synced copy;
+   (b) the negative half — every repo path the notices cite exists, so a row can't outlive
+       the file it credits (the check-46 rule, one document over);
+   (c) the fonts: if the tree ships font binaries, the section must credit each family the
+       first-party `@font-face` blocks declare, must not claim none are bundled, and must
+       point at a licence file that is really there;
+   (d) every pack whose source is not `synthetic` is credited BY NAME — `public` included,
+       which is the half `validate.mjs` deliberately leaves alone;
+   (e) every third-party row cites its upstream licence text, and that file exists — the
+       document's own opening promise ("vendored files keep their upstream license text
+       alongside the code"), turned into a rule about itself. */
+const tpnPath = "THIRD-PARTY-NOTICES.md";
+const tpn = read(tpnPath);
+// What "redistributed" means here: a file under vendor/ that a browser could fetch. The
+// licence texts themselves are excluded (they are the credit, not the credited), as are
+// READMEs and anything without a shippable extension.
+const TPN_REDIST_EXT = new Set([".js", ".css", ".json", ".woff2"]);
+const tpnVendorFiles = [];
+(function walkVendor(dir) {
+  for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).sort((a, b) => a.name < b.name ? -1 : 1)) {
+    const rel = `${dir}/${e.name}`;
+    if (e.isDirectory()) { if (rel !== "vendor/polecat-shell") walkVendor(rel); continue; }
+    if (/^LICENSE/i.test(e.name)) continue;
+    if (TPN_REDIST_EXT.has(path.extname(e.name))) tpnVendorFiles.push(rel);
+  }
+})("vendor");
+ok(`${tpnPath}: the notices and the vendor tree parsed for check 47 (${tpnVendorFiles.length} redistributed file(s), ${tpn.split("\n").length} lines of notices)`,
+  tpnVendorFiles.length >= 8 && tpn.length > 500,
+  "every rule below reads one or the other — an empty read would pass all five vacuously");
+
+// (a) nothing ships uncredited. The document names paths in backticks; a plain
+//     `includes` is enough because a path is unique text.
+const tpnUncredited = tpnVendorFiles.filter((f) => !tpn.includes(f));
+ok(`${tpnPath}: every redistributed file under vendor/ is named in the notices (${tpnVendorFiles.length})`,
+  !tpnUncredited.length,
+  `shipped, uncredited: ${tpnUncredited.join(", ") || "(none)"}\n      ` +
+  "vendor/fflate.js and vendor/dashkit.css were the two — a component nobody wrote down is " +
+  "the one that ships under nobody's licence");
+
+// (b) every path the notices cite is real. Scoped by shape (a known top-level dir + a
+//     real extension, or a directory path) and skipping brace/glob forms like
+//     `assets/fonts/hanken-grotesk-{400,600,700,800}.woff2`, which name a set rather
+//     than a file — the set's members are checked by rule (c) from the tree instead.
+const tpnCited = [...new Set([...tpn.matchAll(
+  /`((?:vendor|data|app|tools|assets|css|docs|tests|js|supabase)\/[\w./-]*(?:\/|\.\w{2,5}))`/g)].map((m) => m[1]))];
+const tpnDangling = tpnCited.filter((p) => !fs.existsSync(path.join(ROOT, p)));
+ok(`${tpnPath}: every repo path it cites exists (${tpnCited.length} path(s))`,
+  tpnCited.length >= 8 && !tpnDangling.length,
+  `cited in the notices, absent from the tree: ${tpnDangling.join(", ") || "(none)"}\n      ` +
+  `paths found: ${tpnCited.join(", ") || "(none — the extractor matched nothing)"}`);
+
+// (c) the fonts. Families come from the first-party @font-face blocks that actually load
+//     a woff2, so the section is held to what the pages really ask the browser for; the
+//     binaries come from the tree, so a font nobody declares is still noticed.
+const tpnFontFiles = [];
+(function walkFonts(dir) {
+  for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+    const rel = dir === "." ? e.name : `${dir}/${e.name}`;
+    // The generated preview trees are copies of the same files, not extra components.
+    if (e.isDirectory()) { if (!["dev", "stage", ".git", "node_modules", "reference", "provisioning"].includes(rel)) walkFonts(rel); continue; }
+    if (path.extname(e.name) === ".woff2") tpnFontFiles.push(rel);
+  }
+})(".");
+const tpnFontFaceSrc = ["css/landing.css", "docs/index.html", "index.html", "app/index.html"]
+  .filter((p) => fs.existsSync(path.join(ROOT, p))).map(read).join("\n");
+const tpnFontFamilies = [...new Set([...tpnFontFaceSrc.matchAll(/@font-face\s*\{[^}]*\}/g)]
+  .filter((m) => /\.woff2/.test(m[0]))
+  .map((m) => (m[0].match(/font-family:\s*'([^']+)'|font-family:\s*"([^"]+)"/) || [])
+    .slice(1).find(Boolean))
+  .filter(Boolean))];
+const tpnFontsSection = (tpn.match(/\n## Fonts\n([\s\S]*)$/) || [, ""])[1];
+const tpnFontsMissing = tpnFontFamilies.filter((f) => !tpnFontsSection.includes(f));
+const tpnDeniesFonts = /no (?:third-party )?fonts are bundled/i.test(tpnFontsSection);
+const tpnFontLicences = [...tpnFontsSection.matchAll(/`([\w./-]*LICENSE[\w./-]*)`/gi)].map((m) => m[1]);
+ok(`${tpnPath}: the Fonts section credits every bundled face (${tpnFontFiles.length} woff2 file(s), declared: ${tpnFontFamilies.join(", ") || "none"})`,
+  !!tpnFontsSection &&
+  (tpnFontFiles.length === 0 ? true
+    : !tpnDeniesFonts && !tpnFontsMissing.length &&
+      tpnFontLicences.length > 0 && tpnFontLicences.every((p) => fs.existsSync(path.join(ROOT, p)))),
+  `bundled: ${tpnFontFiles.join(", ") || "(none)"}\n      ` +
+  `declared but uncredited: ${tpnFontsMissing.join(", ") || "(none)"}; ` +
+  `section denies bundling: ${tpnDeniesFonts}; licence file(s) cited: ${tpnFontLicences.join(", ") || "(none)"}\n      ` +
+  "DESIGN-1 self-hosted the brand face and this section still said the UI used system stacks — " +
+  "the OFL asks for the notice to travel with the font, so the licence file is part of the rule");
+
+// (d) the half validate.mjs leaves alone. `public` data is still somebody's work.
+const tpnPacksToCredit = packRegistry.filter((p) => p.sourceKind && p.sourceKind !== "synthetic");
+const tpnPackGaps = tpnPacksToCredit.filter((p) => !p.sourceName || !tpn.includes(p.sourceName))
+  .map((p) => `${p.id} (${p.sourceKind}): ${p.sourceName ? `"${p.sourceName}" is not in the notices` : "declares no source name"}`);
+ok(`${tpnPath}: every pack shipping outside data is credited by name (${tpnPacksToCredit.map((p) => p.id).join(", ") || "none today"})`,
+  !tpnPackGaps.length,
+  `${tpnPackGaps.join("\n      ") || "(none)"}\n      ` +
+  "validate.mjs fires only on kind:\"licensed\"; this rule covers kind:\"public\" too, which is " +
+  "how a US Census extract shipped while the notices still said no pack ships outside data");
+
+// (e) the document's own opening promise, applied to the document. First-party rows are
+//     exempt by their own License cell — that is the claim being made about them.
+const tpnLibTable = (tpn.match(/\n## Vendored libraries\n([\s\S]*?)\n\n/) || [, ""])[1];
+const tpnLibRows = tpnLibTable.split("\n").filter((l) => l.startsWith("|") && !/^\|\s*-|^\| Component/.test(l))
+  .map((l) => l.split("|").map((c) => c.trim()));
+const tpnRowGaps = tpnLibRows.filter((cells) => !/first-party/i.test(cells[3] || ""))
+  .filter((cells) => {
+    const cited = [...(cells[3] || "").matchAll(/`([\w./-]+)`/g)].map((m) => m[1]);
+    return !cited.length || cited.some((p) => !fs.existsSync(path.join(ROOT, p)));
+  })
+  .map((cells) => `${cells[1]}: ${(cells[3] || "").slice(0, 60)}`);
+ok(`${tpnPath}: every third-party row cites licence text that is in the tree (${tpnLibRows.length} row(s))`,
+  tpnLibRows.length >= 4 && !tpnRowGaps.length,
+  `rows with a missing or dangling licence citation:\n      ${tpnRowGaps.join("\n      ") || "(none)"}\n      ` +
+  "the notices open by promising vendored files keep their upstream licence text alongside the " +
+  "code — this is that promise, checked");
 
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
