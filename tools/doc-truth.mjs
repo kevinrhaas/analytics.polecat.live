@@ -1868,6 +1868,28 @@ function seededTables(roots) {
   }
   return [...tables].sort();
 }
+// A registry string property, following JS `"a" + "b"` concatenation — `blurb` is written as
+// several wrapped literals, so a single-literal regex reads only its first line and would let
+// every claim after the first wrap through unchecked. Used by checks 34 (nothing yet) and 35.
+function stringProp(body, key) {
+  const m = new RegExp(`\\b${key}:\\s*`).exec(body);
+  if (!m) return "";
+  let i = m.index + m[0].length, out = "";
+  for (;;) {
+    while (/\s/.test(body[i])) i++;
+    if (body[i] !== '"') break;
+    let j = i + 1;
+    for (; j < body.length && body[j] !== '"'; j++) {
+      if (body[j] === "\\") { out += body[++j]; continue; }
+      out += body[j];
+    }
+    i = j + 1;
+    while (/\s/.test(body[i])) i++;
+    if (body[i] !== "+") break;
+    i++;
+  }
+  return out;
+}
 const registryBlock = braceBlockAt(packSrc, packSrc.indexOf("{", packSrc.indexOf("Studio.DEMO_PACKS = {")));
 const packRegistry = [...registryBlock.matchAll(/\n {4}(\w+): \{/g)].map((m) => {
   const body = braceBlockAt(registryBlock, registryBlock.indexOf("{", m.index + m[0].length - 1));
@@ -1882,6 +1904,10 @@ const packRegistry = [...registryBlock.matchAll(/\n {4}(\w+): \{/g)].map((m) => 
     seeded: new Set([...packSrc.matchAll(new RegExp(`name:\\s*"(${m[1]}-[\\w-]+)"`, "g"))].map((x) => x[1])).size,
     declared,
     examples: exampleList.filter((e) => e.demoPackId === m[1]).length,
+    // The pack's OWN copy — check 35's subject. Kept on the same derivation as everything
+    // above so one reading of the registry serves both checks.
+    tagline: stringProp(body, "tagline"),
+    blurb: stringProp(body, "blurb"),
   };
 });
 const defaultInstalled = [...((packSrc.match(/DEFAULT_INSTALLED = \[([^\]]*)\]/) || [, ""])[1])
@@ -1983,6 +2009,280 @@ ok(`docs/index.html: the pack Help calls "installed by default" is the one in DE
   !defaultGaps.length,
   `${defaultGaps.join("\n      ")}\n      ` +
   "what a fresh workspace contains is the first thing a new reader sees — when the default moves, this sentence has to move with it");
+
+/* ── 35. the pack's OWN card copy vs what the pack seeds ────────────────────
+   N7, and the check-34→card move — the same one 15 made after 14, 17 after 16, 28 after 24
+   and 34 itself made after 23. Check 34 holds the Help PAGE accountable to the installer.
+   This holds the two strings the registry writes about itself, which reach a reader FIRST
+   and reach far more of them: `blurb` is the Settings → Sample packs card (app/studio.js
+   renders it under the pack name, beside demoPackSourceLine), and `tagline` is what the
+   pack tour and the welcome carousel drop into a sentence. Until now no check read either
+   one's claims — the suite's #116 reads their SHAPE (count-led, says "embedded") and
+   nothing read the counts.
+
+   The N7 note that pointed here said Settings renders the `tagline` at app/studio.js:1046.
+   Measured, that is two things wrong: Settings renders the `blurb` (studio.js:9925), and
+   1046 is `demoPackCard`, the builder's pack card, which DECLUTTER-1 unwired — its own
+   caller's comment says "buildDemoPacksLib stays (unused)". So the tagline's live surfaces
+   are app/tutorial.js and app/welcome.js. Both strings are checked here either way.
+
+   Measured 2026-08-09, before the fix — one drift, in both packs, in both strings:
+   · **Every workspace pack seeds `connections`, and no card said so.** Conservation
+     Insight seeds two (a demo file source and a demo Supabase repo) and Market Coverage
+     one; all four strings listed dashboards, Views, datasets and the job and stopped.
+   · **Worse than an omission: both closed on "nothing to connect"** — the only place the
+     word appeared, and it says the opposite of what Install does. It was reaching for "no
+     credentials to enter", which is true, but a reader who installs Conservation Insight
+     and then finds two new rows in Connections was told there would be none. Help had
+     already been corrected here (v921, check 34 rule (b)); the card had not.
+
+   Four rules, all off check 34's derivation:
+   (a) each string names every KIND its pack's installer seeds (check 34's rule (b), one
+       surface over, applied per-string because each is standalone copy a reader may meet
+       without the other);
+   (b) every dashboard COUNT either string claims is one of that pack's real numbers —
+       seeded, materialized from the gallery, or their sum (check 34's rule (c));
+   (c) "installed by default" ⇔ DEFAULT_INSTALLED, on the BLURB only: Settings is the
+       install surface, and the tagline is a count line inside someone else's sentence —
+       requiring it there would be asking the tour to narrate a workspace default;
+   (d) a pack that seeds connections may not tell the reader there is nothing to connect.
+       This is the defect above, stated as a rule.
+   No "invents a kind" rule, deliberately, and check 34 has none either: Data Management's
+   copy names connections, datasets and jobs IN THE NEGATIVE ("no connections, datasets or
+   jobs") and is exactly right to, so a rule that read the noun without its polarity would
+   fail true copy. */
+const cardStrings = (p) => [["tagline", p.tagline], ["blurb", p.blurb]].filter(([, s]) => s);
+ok(`app/demopacks.js: every pack's card copy parsed for check 35 (${
+  packRegistry.map((p) => `${p.id}: tagline ${p.tagline.length}ch, blurb ${p.blurb.length}ch`).join(" · ")})`,
+  packRegistry.length > 0 && packRegistry.every((p) => cardStrings(p).length === 2),
+  "a pack with no tagline or no blurb renders an empty card — the suite's shape check (#116) " +
+  "and every rule below read these two strings");
+
+// (a) each string names every kind its installer seeds
+const cardKindGaps = [];
+for (const p of packRegistry)
+  for (const [which, s] of cardStrings(p))
+    for (const t of p.tables) {
+      const noun = PACK_TABLE_NOUN[t];
+      // "View" is a proper noun (LF57) and is matched as one — checks 23 and 34's rule.
+      if (!new RegExp(`\\b${noun}s?\\b`, /^[A-Z]/.test(noun) ? "" : "i").test(s))
+        cardKindGaps.push(`"${p.folder}" seeds ${t} but its ${which} never says "${noun}"`);
+    }
+ok("app/demopacks.js: every pack's card copy names every kind of thing its installer seeds",
+  !cardKindGaps.length,
+  `${cardKindGaps.join("\n      ")}\n      ` +
+  "the card is where a reader decides whether to click Install — a pack that quietly seeds " +
+  "connections has changed a catalog they never agreed to change");
+
+// (b) every dashboard count is one of the pack's real numbers
+const cardCountGaps = [];
+let cardCountClaims = 0;
+for (const p of packRegistry) {
+  const real = [...new Set([p.seeded, p.examples, p.seeded + p.examples].filter(Boolean))];
+  for (const [which, s] of cardStrings(p))
+    // Same shape as check 34's rule (c): the number belongs to the noun, not to a fixed
+    // slot before it ("6 dashboards", "12 generic showcase dashboards").
+    for (const m of s.matchAll(/((?:[\w-]+ ){1,3})dashboards\b/gi)) {
+      const n = m[1].trim().split(" ").map(asNumber).find((x) => x !== undefined);
+      if (n === undefined) continue;
+      cardCountClaims++;
+      if (!real.includes(n))
+        cardCountGaps.push(`"${p.folder}" ${which}: "…${m[0].trim()}" — the pack seeds ` +
+          `${p.seeded} and materializes ${p.examples} from the gallery (${real.join(" / ")})`);
+    }
+}
+ok(`app/demopacks.js: every pack card's dashboard count is a number the pack actually produces (${cardCountClaims} claim(s))`,
+  cardCountClaims > 0 && !cardCountGaps.length,
+  (cardCountClaims ? cardCountGaps.join("\n      ")
+    : "no card states a dashboard count — #116 requires these strings be count-led, so this cannot be right") +
+  "\n      seeded, materialized, or the sum: any of the three is true, anything else is arithmetic nobody re-did");
+
+// (c) "installed by default" is a fact about DEFAULT_INSTALLED — on the blurb
+const cardDefaultGaps = [];
+for (const p of packRegistry) {
+  const claims = /installed by default/i.test(p.blurb);
+  if (claims && !defaultInstalled.includes(p.id))
+    cardDefaultGaps.push(`"${p.folder}" blurb says it is installed by default, but DEFAULT_INSTALLED is [${defaultInstalled.join(", ")}]`);
+  if (!claims && defaultInstalled.includes(p.id))
+    cardDefaultGaps.push(`"${p.folder}" IS in DEFAULT_INSTALLED, but its blurb never says so`);
+}
+ok(`app/demopacks.js: the pack whose blurb says "installed by default" is the one in DEFAULT_INSTALLED (${defaultInstalled.join(", ")})`,
+  !cardDefaultGaps.length,
+  `${cardDefaultGaps.join("\n      ")}\n      ` +
+  "the same sentence check 34 holds Help to, on the card Help is describing — when SP-1 (c2) " +
+  "moves the default, both fail together rather than one going quietly stale");
+
+// (d) a pack that seeds connections may not say there is nothing to connect
+const NOTHING_TO_CONNECT = /nothing to connect/i;
+const connectGaps = [];
+for (const p of packRegistry) {
+  if (!p.tables.includes("connections")) continue;
+  for (const [which, s] of cardStrings(p))
+    if (NOTHING_TO_CONNECT.test(s))
+      connectGaps.push(`"${p.folder}" ${which} says "nothing to connect" while its installer seeds connections`);
+}
+ok('app/demopacks.js: no pack that seeds connections tells the reader there is "nothing to connect"',
+  !connectGaps.length,
+  `${connectGaps.join("\n      ")}\n      ` +
+  'the copy means "no credentials to enter" — say that, because the literal reading is false ' +
+  "the moment Install writes a connection row");
+
+/* ── 36. Help's Keyboard shortcuts table vs the shortcuts the app really has ─
+   N7, and the same one-document-over move as 15→14, 17→16, 28→24 and 35→34 — except the
+   document being moved FROM is the app itself. `showShortcuts()` in app/studio.js renders
+   the panel `?` opens; docs/index.html has a <table class="kbd-table"> that is supposed to
+   be the same list for a reader who never presses `?`. Nothing compared them, and the
+   suite only ever asserted two individual rows of the panel ("/" and Ctrl/⌘+K).
+
+   Measured 2026-08-09, before the fix — the panel published 15 keyboard rows, the table 10:
+   · **Redo was documented as a key that has never worked.** Help said `Shift Z` / `Shift ⌘ Z`.
+     The handler is one block guarded by `if (!(e.metaKey || e.ctrlKey)) return;`, so bare
+     Shift+Z falls straight through it. Rule (c) is that early return, stated as a rule.
+   · **Ctrl/⌘+Y is a real redo alias that appeared in neither document** — `k === "y"` sits in
+     the same branch as Shift+Z. It is the one drift running the OTHER way (the app doing more
+     than it says), which is why rule (a) reads the handler and not just the two copies.
+   · **Four keys the panel published were missing from Help**: Ctrl/⌘+F (the Data panel search
+     — shipped at v879 and never documented here), `/` (the chart-gallery search), Escape's
+     leave-Focus-mode meaning, and Tab.
+   · **The section's opening sentence was wrong about all of them**: "All shortcuts work when
+     the builder pane has keyboard focus (click anywhere on the canvas or inspector first)."
+     Every handler is on `document` and bails only inside a text field — and the table's own
+     ⌘K row said "works from anywhere, any section" three lines below.
+
+   Four rules:
+   (a) the panel names every Ctrl/⌘ letter chord the modifier keydown block acts on;
+   (b) every KEY row the panel publishes has a row in Help's table (gesture rows — a row whose
+       key cell holds something that is not a key, like "Double-click View title" — are excluded
+       BY SHAPE, check 18's idiom, and counted in the parse assertion so a shape change shows up);
+   (c) Help documents no letter shortcut without Ctrl/⌘, because that block returns without one;
+   (d) Help documents no Ctrl/⌘ letter the panel does not publish.
+   Scoped to the TABLE, not the whole section: the prose below it covers the Viewer's ↵/Space/Tab
+   reading keys, which are not builder chords and have their own paragraphs. */
+
+// The app's own published reference — the rows literal inside showShortcuts(), bracket-matched
+// the way check 19 brace-matches the build tour.
+function shortcutPanelRows() {
+  const src = read("app/studio.js");
+  const fn = src.indexOf("function showShortcuts()");
+  if (fn < 0) throw new Error("doc-truth: showShortcuts() not found in app/studio.js");
+  const open = src.indexOf("var rows = [", fn);
+  if (open < 0) throw new Error("doc-truth: showShortcuts()'s rows literal not found");
+  let depth = 0, i = src.indexOf("[", open);
+  for (; i < src.length; i++) {
+    if (src[i] === "[") depth++;
+    else if (src[i] === "]" && --depth === 0) break;
+  }
+  return [...src.slice(open, i + 1).matchAll(/\["([^"]+)",\s*"([^"]+)"\]/g)].map((m) => ({ keys: m[1], action: m[2] }));
+}
+
+// The one keydown block that requires a modifier — undo/redo/duplicate/save live here, and so
+// does the undocumented Y. Each `else if` branch is a disjunction; a disjunct is one chord.
+function modifierChordHandler() {
+  const src = read("app/studio.js");
+  const at = src.indexOf('if (!(e.metaKey || e.ctrlKey)) return;');
+  if (at < 0) throw new Error("doc-truth: the Ctrl/⌘ keydown block not found in app/studio.js");
+  let depth = 1, i = at;
+  for (; i < src.length; i++) {
+    if (src[i] === "{") depth++;
+    else if (src[i] === "}" && --depth === 0) break;
+  }
+  const body = src.slice(at, i);
+  const out = new Set();
+  for (const branch of body.split(/\belse if\b|\bif\b/).slice(1))
+    for (const disjunct of (branch.split("{")[0] || "").split("||")) {
+      const letter = disjunct.match(/k === "([a-z])"/);
+      if (!letter) continue;
+      // `!e.shiftKey` is the absence of the modifier, not its presence.
+      const shift = /(?<!!)e\.shiftKey/.test(disjunct);
+      // Canonicalised exactly like a copy cell is, so the two sides are comparable.
+      out.add(canon([...(shift ? ["mod", "shift"] : ["mod"]), letter[1]]));
+    }
+  return out;
+}
+
+// One key cell → the set of chords it expresses, canonicalised so "Ctrl / ⌘  +  Shift+Z" and
+// "<kbd>Shift ⌘ Z</kbd>" become the same token. Returns null when the cell names a gesture
+// rather than a key (an unrecognised word), which is how rule (b) excludes those rows.
+const KEY_ALIASES = {
+  ctrl: "mod", "⌘": "mod", cmd: "mod", command: "mod", meta: "mod", shift: "shift",
+  del: "delete", delete: "delete", backspace: "backspace", esc: "escape", escape: "escape",
+  tab: "tab", enter: "enter", "↵": "enter", space: "space",
+  "↑": "↑", "↓": "↓", "←": "←", "→": "→", "?": "?", "/": "/",
+};
+function chordsOf(cell) {
+  const text = cell.replace(/\([^)]*\)/g, " ").trim();
+  if (text === "/") return [["/"]];                          // the one place "/" is a key, not a separator
+  const parts = text.replace(/Ctrl\s*\/\s*⌘/gi, "Ctrl").split("/").map((s) => s.trim()).filter(Boolean);
+  const chords = [], mods = [];
+  for (const [n, alt] of parts.entries()) {
+    const tokens = [];
+    for (const raw of alt.split(/[+\s]+/).filter(Boolean)) {
+      const t = KEY_ALIASES[raw.toLowerCase()] || (/^[A-Za-z]$/.test(raw) ? raw.toLowerCase() : null);
+      if (!t) return null;                                   // a word that is not a key ⇒ a gesture row
+      tokens.push(t);
+    }
+    // "Shift + ← / →" writes the modifier once and means it for both alternatives.
+    if (n === 0) mods.push(...tokens.filter((t) => t === "mod" || t === "shift"));
+    else if (!tokens.some((t) => t === "mod" || t === "shift")) tokens.unshift(...mods);
+    chords.push([...new Set(tokens)].sort());
+  }
+  return chords;
+}
+// Canonical form is sorted (so two spellings of one chord compare equal); `pretty` puts the
+// modifiers back in front for the failure messages, which humans read.
+const canon = (chord) => [...chord].sort().join("+");
+const chordSet = (cells) => new Set(cells.flatMap((c) => (chordsOf(c) || []).map(canon)));
+const pretty = (c) => { const t = c.split("+"); const m = (x) => x === "mod" || x === "shift"; return [...t.filter((x) => x === "mod"), ...t.filter((x) => x === "shift"), ...t.filter((x) => !m(x))].join("+"); };
+const prettyList = (cs) => [...cs].map(pretty).sort().join(", ");
+
+const panelRows = shortcutPanelRows();
+const handlerChords = modifierChordHandler();
+const panelKeyCells = panelRows.map((r) => r.keys).filter((k) => chordsOf(k));
+const panelGestures = panelRows.map((r) => r.keys).filter((k) => !chordsOf(k));
+ok(`app/studio.js: the "?" panel parsed for check 36 (${panelKeyCells.length} key row(s), ` +
+   `${panelGestures.length} gesture row(s), ${handlerChords.size} Ctrl/⌘ chord(s) in the handler)`,
+  panelRows.length > 0 && panelKeyCells.length > 0 && handlerChords.size > 0,
+  "every rule below reads showShortcuts()'s rows literal and the modifier keydown block — " +
+  "an empty parse would pass all four while measuring nothing");
+
+const helpKbdTable = (read("docs/index.html").match(/<table class="kbd-table">([\s\S]*?)<\/table>/) || [, ""])[1];
+const helpCells = [...helpKbdTable.matchAll(/<kbd>([^<]+)<\/kbd>/g)].map((m) => m[1].trim());
+ok(`docs/index.html: the Keyboard shortcuts table parsed for check 36 (${helpCells.length} <kbd> cell(s))`,
+  !!helpKbdTable && helpCells.length > 0,
+  'the <table class="kbd-table"> block was not found, or holds no <kbd> — the three rules below read it');
+
+// (a) the panel names every Ctrl/⌘ letter the handler acts on
+const panelChords = chordSet(panelKeyCells);
+const unpublished = [...handlerChords].filter((c) => !panelChords.has(c));
+ok(`app/studio.js: the "?" panel names every Ctrl/⌘ shortcut the builder implements (${prettyList(handlerChords)})`,
+  !unpublished.length,
+  `handled but absent from the panel: ${prettyList(unpublished)}\n      ` +
+  "a shortcut nobody documents is one nobody uses — and the reader who presses it by accident " +
+  "has no way to find out what just happened");
+
+// (b) Help's table carries every key row the panel publishes
+const helpChords = chordSet(helpCells);
+const missingFromHelp = [...panelChords].filter((c) => !helpChords.has(c));
+ok(`docs/index.html: the Keyboard shortcuts table lists every key the app's "?" panel does (${panelChords.size} chord(s))`,
+  !missingFromHelp.length,
+  `in the app's panel, missing from Help: ${prettyList(missingFromHelp)}\n      ` +
+  "Help is where a reader who never presses ? learns these — check 24's premise, one surface over");
+
+// (c) a letter shortcut without Ctrl/⌘ does not exist: the block returns before reading the key
+const LETTER = /^[a-z]$/;
+const modless = [...helpChords].filter((c) => c.split("+").some((t) => LETTER.test(t)) && !c.split("+").includes("mod"));
+ok("docs/index.html: every letter shortcut it documents names Ctrl/⌘",
+  !modless.length,
+  `documented without a modifier: ${prettyList(modless)}\n      ` +
+  "app/studio.js's chord handler opens with `if (!(e.metaKey || e.ctrlKey)) return;`, so a bare " +
+  "letter (or Shift+letter) reaches nothing — this is how the Redo row was wrong for months");
+
+// (d) and it invents no Ctrl/⌘ letter the panel does not publish
+const invented = [...helpChords].filter((c) => c.includes("mod") && c.split("+").some((t) => LETTER.test(t)) && !panelChords.has(c));
+ok("docs/index.html: it documents no Ctrl/⌘ shortcut the app does not have",
+  !invented.length,
+  `in Help, not in the app's panel: ${prettyList(invented)}\n      ` +
+  "the negative half — rule (b) alone would let a retired shortcut sit in the table forever");
 
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");

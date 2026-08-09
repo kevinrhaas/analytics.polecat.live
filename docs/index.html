@@ -2434,23 +2434,28 @@
 <!-- ── Keyboard shortcuts ─────────────────────────────────────── -->
 <section id="shortcuts">
   <h2>Keyboard shortcuts</h2>
-  <p>All shortcuts work when the builder pane has keyboard focus (click anywhere on the canvas or inspector first). Open the in-app reference with <kbd>?</kbd>.</p>
+  <p>These listen on the page, not on one pane, so they work anywhere in the app — with one exception that covers all of them: nothing fires while you are typing in a text field, a text area or a dropdown. The rows marked <em>View selected</em> act on whichever View is selected on the builder canvas, so select one first. Open the same reference in the app with <kbd>?</kbd>.</p>
 
   <table class="kbd-table">
     <thead><tr><th>Keys</th><th>Action</th></tr></thead>
     <tbody>
       <tr><td><kbd>Ctrl K</kbd> / <kbd>⌘ K</kbd></td><td>Open the command palette (works from anywhere, any section)</td></tr>
       <tr><td><kbd>Ctrl Z</kbd> / <kbd>⌘ Z</kbd></td><td>Undo the last structural edit</td></tr>
-      <tr><td><kbd>Shift Z</kbd> / <kbd>Shift ⌘ Z</kbd></td><td>Redo</td></tr>
+      <tr><td><kbd>Ctrl Shift Z</kbd> / <kbd>⌘ Shift Z</kbd></td><td>Redo</td></tr>
+      <tr><td><kbd>Ctrl Y</kbd> / <kbd>⌘ Y</kbd></td><td>Redo — the Windows alias, same action</td></tr>
       <tr><td><kbd>Ctrl S</kbd> / <kbd>⌘ S</kbd></td><td>Save to your Dashboards catalog</td></tr>
       <tr><td><kbd>Ctrl D</kbd> / <kbd>⌘ D</kbd></td><td>Duplicate the selected View or KPI</td></tr>
+      <tr><td><kbd>Ctrl F</kbd> / <kbd>⌘ F</kbd></td><td>Focus the builder's Data panel search — on a phone this opens the panel's drawer first</td></tr>
+      <tr><td><kbd>/</kbd></td><td>Focus the chart-type gallery's search box (<em>View selected</em>, gallery on screen)</td></tr>
       <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Reorder the selected View up / down</td></tr>
       <tr><td><kbd>Shift ←</kbd> / <kbd>Shift →</kbd></td><td>Resize selected View span narrower / wider</td></tr>
       <tr><td><kbd>Delete</kbd> / <kbd>Backspace</kbd></td><td>Delete the selected View or KPI</td></tr>
-      <tr><td><kbd>Escape</kbd></td><td>Deselect View; close any open modal or menu</td></tr>
+      <tr><td><kbd>Escape</kbd></td><td>Leave Focus mode; deselect the View; close any open modal or menu</td></tr>
+      <tr><td><kbd>Tab</kbd></td><td>Move through the interactive controls of whatever is on screen</td></tr>
       <tr><td><kbd>?</kbd></td><td>Open / close the keyboard shortcuts reference modal</td></tr>
     </tbody>
   </table>
+  <p>The in-app panel closes with two things that aren't keys, so they have no row above: <strong>double-click a View's title</strong> on the canvas to rename it inline, and the <strong>↗</strong> button on a View zooms it to full screen (<kbd>Escape</kbd> closes it again).</p>
 
   <h3>Reading a dashboard without a mouse</h3>
   <p>In the <strong>Viewer</strong> and in any dashboard you've exported as a self-contained file, KPI tiles are buttons: <kbd>Tab</kbd> moves through them, a focus ring shows which one you're on, and <kbd>↵</kbd> or <kbd>Space</kbd> opens that tile's detail — the same drawer of underlying records a click gives you. Inside the drawer, <kbd>Escape</kbd> closes it.</p>

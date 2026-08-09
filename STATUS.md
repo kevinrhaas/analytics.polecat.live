@@ -135,6 +135,100 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — Help documented a Redo shortcut the builder has never had, and left four real ones out
+  (v923, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** the one-document-over
+  move again — 15 after 14, 17 after 16, 28 after 24, 35 after 34 — except the document moved
+  FROM is the app itself. `showShortcuts()` renders the panel `?` opens; `docs/index.html`'s
+  `<table class="kbd-table">` is the same list for a reader who never presses `?`. Nothing had
+  ever compared them, and the suite only asserted two individual rows of the panel (`/` and
+  Ctrl/⌘+K, v47 / H-track / N-DEV).
+  - **Why this slice and not the two the v922 note named.** Both of those flagged themselves:
+    the Conservation card's dashboard count is "a product call, not a derivation" (6 seeded vs
+    14 in the workspace — which belongs on a 350-character card is Kevin's), and the
+    `demoPackCard`/`buildDemoPacksLib` dead code is explicitly "NOT N7's … its own unit".
+    `docs/BACKLOG.md` § "Blocked or ambiguous?" says a run does not settle those on his behalf,
+    so both stay open and this run took the largest DERIVABLE drift instead. Measured before
+    picking: the panel published **15** keyboard rows, the table **10**.
+  - **The Redo row documented a chord that has never worked.** Help said `Shift Z` /
+    `Shift ⌘ Z`. The builder's letter shortcuts all live in one handler that opens
+    `if (!(e.metaKey || e.ctrlKey)) return;` (`app/studio.js`, the undo/redo/duplicate/save
+    block), so bare `Shift+Z` falls straight through it and reaches nothing. Rule (c) of the new
+    check is that early return, stated as a rule.
+  - **`Ctrl/⌘+Y` redoes, and appeared in NEITHER document.** `k === "y"` sits in the same branch
+    as Shift+Z. It is the one drift running the other way — the app doing more than it says —
+    and it is why rule (a) reads the HANDLER rather than just diffing the two copies. Added to
+    the `?` panel and to Help.
+  - **Four keys the panel published were missing from Help**: `Ctrl/⌘+F` (the Data panel search,
+    shipped at v879 and never documented here — on ≤640px it opens that drawer first), `/` (the
+    chart-type gallery search), `Escape`'s leave-Focus-mode meaning, and `Tab`.
+  - **The section's opening sentence was wrong about all of them.** "All shortcuts work when the
+    builder pane has keyboard focus (click anywhere on the canvas or inspector first)" — every
+    handler is on `document` and bails only inside an input/textarea/select or a contenteditable,
+    and the table's own ⌘K row said "works from anywhere, any section" three lines below.
+    Rewritten to the real rule, with the *View selected* qualifier stated once.
+  - **The two panel rows that are not keys** (`↗ button on View`, `Double-click View title`) are
+    excluded from the check BY SHAPE — a key cell holding an unrecognised word is a gesture row,
+    check 18's idiom rather than an exemption list — and Help now names both in prose under the
+    table, so they stop being invisible to a reader who never presses `?`.
+  - **Verified.** Doc-truth **check 36**: two parse assertions plus four rules — (a) the panel
+    names every Ctrl/⌘ letter the handler acts on, (b) Help's table carries every KEY row the
+    panel publishes, (c) Help documents no letter shortcut without Ctrl/⌘, (d) Help documents no
+    Ctrl/⌘ letter the panel does not publish. Three of the four fail on the REAL pre-fix tree
+    (`mod+y` unpublished; `/`, `mod+f`, `tab` missing from Help; `shift+z` modifier-less); (d),
+    the negative half, was measured on a mutated tree (a fabricated `Ctrl P` Print row →
+    "in Help, not in the app's panel: mod+p"), and the gesture-shape exclusion on another (a
+    fabricated `Long-press a KPI` row → 3 gesture rows, no rule-(b) failure). Full dev gate green
+    locally: `validate.mjs`, `changelog-check.js`, `doc-truth.mjs`, `dev-smoke.mjs`.
+    **And the one new user-facing CLAIM was driven in a real browser rather than argued from the
+    handler** (Chromium 1280×900, throwaway harness): open the builder from the rail, load
+    `studio-cost`, select a panel, `Delete`, `Ctrl+Z` → Redo arms, `Ctrl+Y` → Redo consumed and
+    Undo re-armed. The `?` panel renders the new `Ctrl / ⌘ + Y` row, Help's table renders 14 rows
+    (was 10) with `Ctrl F` / `Ctrl Y` / `Ctrl Shift Z` / `Tab` / `/` present and no bare `Shift Z`,
+    zero pageerrors throughout.
+  - **No `sw.js` CACHE bump:** the precache list is unchanged and the fetch handler is
+    network-first — sw.js's own stated rule, and issue #631's reason for not bumping idly.
+- **N7 — a sample pack's own card said "nothing to connect" while installing it seeded connections
+  (v922, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** the check-34→card move,
+  the same one 15 made after 14, 17 after 16, 28 after 24 and 34 itself made after 23. v921 held
+  the Help PAGE to the installer; this holds the two strings the registry writes about ITSELF,
+  which reach a reader first and reach far more of them.
+  - **The note that sent this run here was wrong about both the file and the string, and the
+    correction is the reason the slice found anything.** It said Settings renders each pack's
+    `tagline` at `app/studio.js:1046`. Measured: Settings renders the **`blurb`**
+    (`studio.js:9925`, under the pack name beside `demoPackSourceLine`), and 1046 is
+    `demoPackCard` — the BUILDER's pack card, which DECLUTTER-1 unwired and whose own caller says
+    "buildDemoPacksLib stays (unused)". The tagline's live surfaces are `app/tutorial.js:690` and
+    `app/welcome.js:91`, where it is dropped into a sentence ("…comes with the X sample pack —
+    <tagline>."). So there were **two** unchecked strings per pack, not one, and the entry
+    contract's "name/tagline/blurb — the Settings card copy" comment — the line that produced the
+    wrong note — now says which string renders where.
+  - **One drift, in both workspace packs, in both strings: every one of them seeds `connections`
+    and no card said so.** Conservation Insight seeds two (a demo file source and a demo Supabase
+    repo), Market Coverage one; all four strings listed dashboards, Views, datasets and the job
+    and stopped. v921 had already fixed exactly this on the Help page (rule (b)); the cards were
+    describing the same packs and had not been.
+  - **Worse than an omission: both closed on "nothing to connect".** The only place the word
+    appeared, and it says the opposite of what Install does. It was reaching for "no credentials
+    to enter" — true, and still said — but a reader who installs Conservation Insight and then
+    finds two new rows in Connections was told there would be none.
+  - **Doc-truth check 35** reuses check 34's derivation whole (`packRegistry`, `PACK_TABLE_NOUN`,
+    `defaultInstalled`) over the registry's own copy, plus a `stringProp()` that follows JS
+    `"a" + "b"` concatenation — a single-literal regex reads only a blurb's first wrapped line and
+    would let every claim after the first wrap through unchecked. Four rules: (a) each string
+    names every KIND its installer seeds, per-string because each is standalone copy a reader may
+    meet without the other; (b) every dashboard COUNT is one of the pack's real numbers (seeded /
+    materialized / sum); (c) "installed by default" ⇔ `DEFAULT_INSTALLED`, on the **blurb** only —
+    Settings is the install surface and the tagline is a count line inside someone else's
+    sentence; (d) a pack that seeds connections may not say there is nothing to connect. **All
+    four failure modes measured on mutated trees** — the pre-fix copy flagged all 4 kind gaps and
+    all 3 "nothing to connect" sites, a mutated count and a moved `DEFAULT_INSTALLED` each flagged
+    theirs. **No "invents a kind" rule, deliberately** (check 34 has none either): Data
+    Management's copy names connections, datasets and jobs IN THE NEGATIVE and is right to, so a
+    rule reading the noun without its polarity would fail true copy.
+  - **When SP-1 (c2) moves the default, check 34 and check 35 now fail together** rather than one
+    page going quietly stale. No `sw.js` bump: the precache list is unchanged and the fetch
+    handler is network-first — sw.js's own stated rule, the same reading N29/#687 and N14 used,
+    and issue #631 makes a gratuitous bump actively costly.
 - **N7 — Help's "Sample packs" section described a smaller app than the one that ships (v921, NO
   sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** the check-23→Help move — the same
   one check 15 made after 14, 17 after 16 and 28 after 24. Check 23 holds the pack TOUR to the
@@ -12698,11 +12792,51 @@
     packs generically — "a pack can add dashboards, datasets, connections and jobs" — which is
     true and stays true, so nothing there had drifted; and `app/tutorial.js`'s Market Coverage
     tour was audited against the same derivation and is CURRENT (it names every kind the pack
-    seeds, all three dashboards and all four Views). The candidate for the next N7 slice is
+    seeds, all three dashboards and all four Views). ~~The candidate for the next N7 slice is
     **Settings' own Sample packs card**: it renders each pack's registry `tagline`
     (`app/studio.js:1046`), which no check reads — the same class of claim as this one, one
     surface over, and every tagline is a hand-written count ("6 dashboards · 4 Views · 8
-    datasets · rollup job").
+    datasets · rollup job").~~ ✓ **SHIPPED v922, NO sw bump (2026-08-09 — see DONE), and this
+    note was wrong in the two ways that made the slice worth taking:** Settings renders the
+    **`blurb`** (`studio.js:9925`), not the tagline, and 1046 is the BUILDER's card, unwired by
+    DECLUTTER-1 — the tagline's live surfaces are the pack tour and the welcome carousel. So each
+    pack had **two** unchecked strings, and both carried the same defect: every workspace pack
+    seeds `connections` and no card said so, while both closed on "nothing to connect" — the
+    opposite of what Install does. Doc-truth check 35 (four rules, all four failure modes
+    measured on mutated trees).
+  * **Measured in the v922 pass and NOT taken, so the next run does not re-derive them.** The
+    candidate for the next N7 slice is **the Conservation Insight card's dashboard count**:
+    the blurb says "6 dashboards" and the pack puts **14** in the workspace (6 seeded + 8
+    materialized from the gated gallery — Help says fourteen since v921). Check 35 rule (b)
+    allows 6, correctly, because it is a real number; but the card a reader decides on
+    under-sells the pack by eight dashboards while the Help page describing that same card says
+    fourteen, and which number belongs on a 350-character card is a product call, not a
+    derivation. **Also measured, and NOT N7's** (it is code, not copy): `demoPackCard` +
+    `buildDemoPacksLib` in `app/studio.js` (~35 lines) have been unwired since DECLUTTER-1 and
+    the caller's comment says so outright — CLAUDE.md's "no dead code" says retire them, the
+    comment says they were kept on purpose, and settling that is its own unit.
+  * *Help's Keyboard shortcuts table vs the shortcuts the app really has — v923, NO sw bump
+    (2026-08-09 — see DONE).* Taken INSTEAD of the two candidates above, and the note explains
+    why: both were flagged in their own text as product calls (which number belongs on a
+    350-character card) or as not-N7 (dead code), and `docs/BACKLOG.md` says a run does not
+    decide those on Kevin's behalf. This one is pure derivation, and it was the largest copy
+    drift left on the page: Help published **10** keyboard rows where the app's own `?` panel
+    published **15**, and the first row it got wrong was **Redo**, documented as `Shift Z` —
+    a chord the builder has never had, because every letter shortcut is read inside a block
+    that opens `if (!(e.metaKey || e.ctrlKey)) return;`. `Ctrl/⌘+Y` is a real redo alias
+    (`k === "y"`, same branch as Shift+Z) that appeared in **neither** document — the one drift
+    running the other way, which is why the new check reads the handler and not just the two
+    copies. Ctrl/⌘+F, `/`, Escape's leave-Focus-mode meaning and Tab were all missing, and the
+    section's opening sentence ("All shortcuts work when the builder pane has keyboard focus")
+    was contradicted by its own ⌘K row three lines below. Doc-truth check 36 derives the
+    inventory from `showShortcuts()`'s rows literal and that keydown block; its four rules
+    (panel-vs-handler, Help-vs-panel, no-modifier-less-letter, and the negative half) were all
+    measured failing — three on the real pre-fix tree, the fourth on a mutated one.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    `?` panel closes on two rows that are not keys at all (`↗ button on View`,
+    `Double-click View title`); check 36 excludes them BY SHAPE (check 18's idiom) rather than
+    by an exemption list, and Help now names both in prose beneath the table. The two v922
+    candidates above are still open and still Kevin's calls.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before
