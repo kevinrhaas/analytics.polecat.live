@@ -7425,20 +7425,32 @@ function serve() {
     ok("LF16: all 12 Data Management examples are visible in the gallery while the pack is installed (default)",
       dmGalleryOn.every(Boolean), JSON.stringify(dmGalleryOn));
 
+    /* N39 re-measure: this check used to assert datamanagement owned NO workspace rows at
+       all, before OR after removal — which was only ever true because a default-installed
+       pack never materialized its dashboards (the bug N39 fixes). What LF16 actually cares
+       about is that this is an EXAMPLES-kind pack: it owns dashboards and nothing else, no
+       connections/datasets/Views/jobs like a workspace-kind pack, and removing it takes its
+       dashboards and its flag with it. Asserted per-table now, which is stricter than the
+       old single total. */
     const dmRemove = await page.evaluate(function () {
-      function tagged(id) {
-        return ["connections", "datasets", "analyses", "dashboards", "jobs"].reduce(function (n, t) {
+      function tagged(id, tables) {
+        return tables.reduce(function (n, t) {
           return n + Studio.Workspace.all(t).filter(function (r) { return r.demoPackId === id; }).length;
         }, 0);
       }
-      var before = tagged("datamanagement");
+      var NON_DASH = ["connections", "datasets", "analyses", "jobs"];
+      var beforeDash = tagged("datamanagement", ["dashboards"]);
+      var beforeOther = tagged("datamanagement", NON_DASH);
       window.__studioDemoPacks.remove("datamanagement");
-      var after = tagged("datamanagement");
+      var afterDash = tagged("datamanagement", ["dashboards"]);
+      var afterOther = tagged("datamanagement", NON_DASH);
       window.__studioRenderHome();
-      return { before: before, after: after, installed: Studio.demoPackInstalled("datamanagement") };
+      return { beforeDash: beforeDash, beforeOther: beforeOther, afterDash: afterDash,
+               afterOther: afterOther, installed: Studio.demoPackInstalled("datamanagement") };
     });
-    ok("LF16: removing the datamanagement pack writes/deletes NO workspace rows (a pure gallery-visibility toggle) and clears the installed flag",
-      dmRemove.before === 0 && dmRemove.after === 0 && !dmRemove.installed, JSON.stringify(dmRemove));
+    ok("LF16: the datamanagement pack owns dashboards and nothing else — no connections/datasets/Views/jobs — and removing it takes all of them plus the installed flag",
+      dmRemove.beforeDash === 12 && dmRemove.beforeOther === 0 &&
+      dmRemove.afterDash === 0 && dmRemove.afterOther === 0 && !dmRemove.installed, JSON.stringify(dmRemove));
 
     const dmGalleryOff = await page.evaluate(function (files) {
       var have = window.__studioVisibleExampleFiles();
