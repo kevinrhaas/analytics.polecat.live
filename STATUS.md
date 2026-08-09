@@ -135,6 +135,58 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — Help documented a Redo shortcut the builder has never had, and left four real ones out
+  (v923, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** the one-document-over
+  move again — 15 after 14, 17 after 16, 28 after 24, 35 after 34 — except the document moved
+  FROM is the app itself. `showShortcuts()` renders the panel `?` opens; `docs/index.html`'s
+  `<table class="kbd-table">` is the same list for a reader who never presses `?`. Nothing had
+  ever compared them, and the suite only asserted two individual rows of the panel (`/` and
+  Ctrl/⌘+K, v47 / H-track / N-DEV).
+  - **Why this slice and not the two the v922 note named.** Both of those flagged themselves:
+    the Conservation card's dashboard count is "a product call, not a derivation" (6 seeded vs
+    14 in the workspace — which belongs on a 350-character card is Kevin's), and the
+    `demoPackCard`/`buildDemoPacksLib` dead code is explicitly "NOT N7's … its own unit".
+    `docs/BACKLOG.md` § "Blocked or ambiguous?" says a run does not settle those on his behalf,
+    so both stay open and this run took the largest DERIVABLE drift instead. Measured before
+    picking: the panel published **15** keyboard rows, the table **10**.
+  - **The Redo row documented a chord that has never worked.** Help said `Shift Z` /
+    `Shift ⌘ Z`. The builder's letter shortcuts all live in one handler that opens
+    `if (!(e.metaKey || e.ctrlKey)) return;` (`app/studio.js`, the undo/redo/duplicate/save
+    block), so bare `Shift+Z` falls straight through it and reaches nothing. Rule (c) of the new
+    check is that early return, stated as a rule.
+  - **`Ctrl/⌘+Y` redoes, and appeared in NEITHER document.** `k === "y"` sits in the same branch
+    as Shift+Z. It is the one drift running the other way — the app doing more than it says —
+    and it is why rule (a) reads the HANDLER rather than just diffing the two copies. Added to
+    the `?` panel and to Help.
+  - **Four keys the panel published were missing from Help**: `Ctrl/⌘+F` (the Data panel search,
+    shipped at v879 and never documented here — on ≤640px it opens that drawer first), `/` (the
+    chart-type gallery search), `Escape`'s leave-Focus-mode meaning, and `Tab`.
+  - **The section's opening sentence was wrong about all of them.** "All shortcuts work when the
+    builder pane has keyboard focus (click anywhere on the canvas or inspector first)" — every
+    handler is on `document` and bails only inside an input/textarea/select or a contenteditable,
+    and the table's own ⌘K row said "works from anywhere, any section" three lines below.
+    Rewritten to the real rule, with the *View selected* qualifier stated once.
+  - **The two panel rows that are not keys** (`↗ button on View`, `Double-click View title`) are
+    excluded from the check BY SHAPE — a key cell holding an unrecognised word is a gesture row,
+    check 18's idiom rather than an exemption list — and Help now names both in prose under the
+    table, so they stop being invisible to a reader who never presses `?`.
+  - **Verified.** Doc-truth **check 36**: two parse assertions plus four rules — (a) the panel
+    names every Ctrl/⌘ letter the handler acts on, (b) Help's table carries every KEY row the
+    panel publishes, (c) Help documents no letter shortcut without Ctrl/⌘, (d) Help documents no
+    Ctrl/⌘ letter the panel does not publish. Three of the four fail on the REAL pre-fix tree
+    (`mod+y` unpublished; `/`, `mod+f`, `tab` missing from Help; `shift+z` modifier-less); (d),
+    the negative half, was measured on a mutated tree (a fabricated `Ctrl P` Print row →
+    "in Help, not in the app's panel: mod+p"), and the gesture-shape exclusion on another (a
+    fabricated `Long-press a KPI` row → 3 gesture rows, no rule-(b) failure). Full dev gate green
+    locally: `validate.mjs`, `changelog-check.js`, `doc-truth.mjs`, `dev-smoke.mjs`.
+    **And the one new user-facing CLAIM was driven in a real browser rather than argued from the
+    handler** (Chromium 1280×900, throwaway harness): open the builder from the rail, load
+    `studio-cost`, select a panel, `Delete`, `Ctrl+Z` → Redo arms, `Ctrl+Y` → Redo consumed and
+    Undo re-armed. The `?` panel renders the new `Ctrl / ⌘ + Y` row, Help's table renders 14 rows
+    (was 10) with `Ctrl F` / `Ctrl Y` / `Ctrl Shift Z` / `Tab` / `/` present and no bare `Shift Z`,
+    zero pageerrors throughout.
+  - **No `sw.js` CACHE bump:** the precache list is unchanged and the fetch handler is
+    network-first — sw.js's own stated rule, and issue #631's reason for not bumping idly.
 - **N7 — a sample pack's own card said "nothing to connect" while installing it seeded connections
   (v922, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** the check-34→card move,
   the same one 15 made after 14, 17 after 16, 28 after 24 and 34 itself made after 23. v921 held
@@ -12763,6 +12815,28 @@
     `buildDemoPacksLib` in `app/studio.js` (~35 lines) have been unwired since DECLUTTER-1 and
     the caller's comment says so outright — CLAUDE.md's "no dead code" says retire them, the
     comment says they were kept on purpose, and settling that is its own unit.
+  * *Help's Keyboard shortcuts table vs the shortcuts the app really has — v923, NO sw bump
+    (2026-08-09 — see DONE).* Taken INSTEAD of the two candidates above, and the note explains
+    why: both were flagged in their own text as product calls (which number belongs on a
+    350-character card) or as not-N7 (dead code), and `docs/BACKLOG.md` says a run does not
+    decide those on Kevin's behalf. This one is pure derivation, and it was the largest copy
+    drift left on the page: Help published **10** keyboard rows where the app's own `?` panel
+    published **15**, and the first row it got wrong was **Redo**, documented as `Shift Z` —
+    a chord the builder has never had, because every letter shortcut is read inside a block
+    that opens `if (!(e.metaKey || e.ctrlKey)) return;`. `Ctrl/⌘+Y` is a real redo alias
+    (`k === "y"`, same branch as Shift+Z) that appeared in **neither** document — the one drift
+    running the other way, which is why the new check reads the handler and not just the two
+    copies. Ctrl/⌘+F, `/`, Escape's leave-Focus-mode meaning and Tab were all missing, and the
+    section's opening sentence ("All shortcuts work when the builder pane has keyboard focus")
+    was contradicted by its own ⌘K row three lines below. Doc-truth check 36 derives the
+    inventory from `showShortcuts()`'s rows literal and that keydown block; its four rules
+    (panel-vs-handler, Help-vs-panel, no-modifier-less-letter, and the negative half) were all
+    measured failing — three on the real pre-fix tree, the fourth on a mutated one.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    `?` panel closes on two rows that are not keys at all (`↗ button on View`,
+    `Double-click View title`); check 36 excludes them BY SHAPE (check 18's idiom) rather than
+    by an exemption list, and Help now names both in prose beneath the table. The two v922
+    candidates above are still open and still Kevin's calls.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before

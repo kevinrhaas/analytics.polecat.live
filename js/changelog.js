@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 923,
+    title: 'The Help page listed a Redo shortcut that has never worked, and left four real ones out',
+    kind: 'fix',
+    ts: '2026-08-09T09:24:58.000Z',
+    items: [
+      'Help\'s Keyboard shortcuts table said Redo was Shift Z. It is not, and never was — every one of the builder\'s letter shortcuts is read inside a block that gives up immediately unless Ctrl or ⌘ is held, so a bare Shift Z has always reached nothing. Redo is Ctrl Shift Z / ⌘ Shift Z.',
+      'Ctrl Y / ⌘ Y also redoes, and has since the shortcut was written. It appeared in neither the Help page nor the panel the ? key opens, so the only way to find it was to press it by accident. Both now list it.',
+      'Four more keys the app publishes were missing from Help: Ctrl F / ⌘ F to jump to the builder\'s Data panel search (on a phone it opens that drawer for you), / to search the chart-type gallery, Escape to leave Focus mode, and Tab to move through what is on screen.',
+      'And the sentence introducing all of them was wrong about where they work. It said shortcuts need the builder pane to have keyboard focus; they listen on the page, and the only thing that stops them is typing in a field. The two entries in the in-app panel that are not keys at all — double-clicking a View title to rename it, and the ↗ zoom button — are now named in Help as what they are.',
+      'The dev gate now reads the app\'s own ? panel and the keydown handler behind it, and holds this table to both: every key the app publishes has to appear here, no letter shortcut may be documented without its modifier, and the page cannot list a shortcut the app does not have.',
+    ],
+  },
+  {
     v: 922,
     title: 'A sample pack\'s own card said there was nothing to connect, while installing it added connections',
     kind: 'fix',
