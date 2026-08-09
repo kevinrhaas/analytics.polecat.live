@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 938,
+    title: 'Help said pinning an item floats it to the top of any list — three lists do that',
+    kind: 'fix',
+    ts: '2026-08-09T16:01:54.000Z',
+    items: [
+      'Six pages in this app are lists of things you have made — Dashboards, Views, Datasets, Connections, Jobs and the Repository. Each one has the same small sort menu above it, and the Help page describes all six of those menus in a single sentence. Nothing had ever compared that sentence to the menus themselves, and it had drifted in three places.',
+      'The sentence promised that a pinned item always stays at the top whatever the sort. That is true on Datasets, Connections and Views, and it is not true on the other three. Pinning a dashboard sends it to Home rather than to the top of the Dashboards list; the Repository has no pin at all; and Jobs has none either — which the Help page already said, plainly, sixty lines further down, where it explains that a job is something you run rather than something you keep at the top of a list. The page was telling you both things at once, and the wrong half was the one printed beside the sort menu.',
+      'The default sort is called Newest first on five of the six pages. On Dashboards the same option is called Last updated, so the one name Help gave was the one name missing from the menu a reader is most likely to open first. Help now names both.',
+      'Each page also offers its own extra ways to sort, and Help listed them for four pages out of five. Connections sorts by adapter, and that was the only option anywhere in the six menus the page left out entirely.',
+      'The whole paragraph is now re-derived from the app on every change: the options each page offers, the name each one carries, the extras belonging to each page, and which lists really do float a pinned item to the top.',
+    ],
+  },
+  {
     v: 937,
     title: 'The Help page shelved three charts where the app does not keep them',
     kind: 'fix',

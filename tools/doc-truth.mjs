@@ -4297,6 +4297,199 @@ ok("docs/index.html: no group is published twice",
   "the picker renders exactly one tab per group; a second heading of the same name splits it on the page only");
 
 
+/* ── 51. Help's sort control vs the six catalog panels that render one ──────
+   N7, and the check-49 move one paragraph over. Help's catalog-pages block describes
+   the whole sort control in a single sentence — the option list, the per-section
+   extras, the default, and what a pin does to the order — for all six panels at once.
+   Each panel declares that control itself, as a literal option list handed to
+   `Studio.catalogSort.wire(sel, sec, "updated-desc", [[value, label], …], rerender)`,
+   and each sorts its own list a few lines below. Nothing had compared the two.
+
+   Measured 2026-08-09, before the fix — three drifts, and the last is the one a reader
+   acts on:
+   · **Dashboards labels the default option `Last updated`.** The other five label the
+     same `updated-desc` key "Newest first", which was the only name the paragraph gave,
+     so the page most readers start on is the one page where the option Help names is
+     not in the menu.
+   · **Connections' `By adapter` was named nowhere.** The extras parenthetical attributed
+     extras to four pages; Connections has one too, and it was the only offered option on
+     any of the six panels the paragraph left out entirely.
+   · **"pinned items always stay at the top whatever the sort" was true of three panels
+     out of six.** Datasets, Connections and Views really do sort a pinned item first
+     (`if (!!a.pinned !== !!b.pinned)` ahead of the sort key). `renderDashboards` sorts
+     with `list.sort(dashSortCmp)` and no such tiebreak — a dashboard's pin means "pin to
+     Home", which its own button title says — `app/jobs.js` contains the word `pinned`
+     nowhere, and the Repository renders no pin control at all. Help's own catalog-rows
+     section sixty lines below says so outright ("Jobs are the one of the three with no
+     pin"), so the page was simultaneously right and wrong about the same control — the
+     v929/v936 shape, and the stale half was again the one printed beside the feature.
+
+   Five rules, no new source of truth — the six wire() call sites and each panel's own
+   list sort:
+   (a) the premise + the roster: exactly six panels wire a sort control, all six on the
+       same `updated-desc` default, and the pages Help enumerates are exactly those six.
+       If a panel stops wiring one, the other four rules would be comparing the paragraph
+       against nothing, so this fails loudly rather than passing green over a dead source;
+   (b) the default option's LABEL per panel — the shared name is published, and a panel
+       that labels it differently is named beside its own label;
+   (c) the non-default options every panel shares — "Oldest first" and both name directions;
+   (d) extras, both directions: every per-section extra is named under its own page, and no
+       page is given an extra it does not offer. The parenthetical is segmented by page
+       name, so Datasets' and Connections' two `By adapter` extras cannot cover for each
+       other — which is exactly how the missing one hid;
+   (e) the pinned-first claim names exactly the panels whose sort really does it.
+   Deliberately NOT held: the ORDER the options appear in, and any wording beyond the
+   label's own noun — check 12's rule again, a teaching document owes coverage, not a
+   transcript. */
+
+const CATALOG_PAGES = {
+  dashboards: "Dashboards", views: "Views", datasets: "Datasets",
+  connections: "Connections", jobs: "Jobs", repository: "Repository",
+};
+const BASE_SORT_KEYS = ["updated-desc", "updated-asc", "name-asc", "name-desc"];
+
+// Every panel that wires a sort control, with its literal option list and whether its own
+// list sort puts pinned items first. The pinned tiebreak, where a panel has one, is the
+// first thing inside the first `.sort(` after the wire call — that is the panel's list
+// sort in all six files, and (a) asserts every panel had one to read.
+function catalogSortPanels() {
+  const out = [];
+  const wire = /Studio\.catalogSort\.wire\(\s*\$\("#[\w-]+"\),\s*"([\w-]+)",\s*"([\w-]+)",\s*\[/g;
+  for (const f of fs.readdirSync(path.join(ROOT, "app")).filter((n) => n.endsWith(".js")).sort()) {
+    const src = read("app/" + f);
+    for (const m of src.matchAll(wire)) {
+      // brace-walk the option array — the [value, label] pairs are themselves arrays, so a
+      // non-greedy match to the first "]" would stop inside the first option.
+      const open = m.index + m[0].length - 1;
+      let depth = 0, i = open;
+      for (; i < src.length; i++) {
+        if (src[i] === "[") depth++;
+        else if (src[i] === "]" && --depth === 0) break;
+      }
+      const list = src.slice(open, i + 1);
+      const at = src.indexOf(".sort(", i);
+      const body = at < 0 ? "" : src.slice(at, at + 400);
+      out.push({
+        sec: m[1], def: m[2], file: "app/" + f, sorted: at >= 0,
+        options: [...list.matchAll(/\["([\w-]+)",\s*"([^"]+)"\]/g)].map((o) => ({ key: o[1], label: o[2] })),
+        pinnedFirst: /!!a\.pinned !== !!b\.pinned/.test(body),
+      });
+    }
+  }
+  return out;
+}
+
+const panels = catalogSortPanels();
+const sortPara = htmlText((help.match(/<p><strong>Sorting\.<\/strong>[\s\S]*?<\/p>/) || [""])[0])
+  .replace(/\s+/g, " ").trim();
+// The paragraph's own enumeration, between the em dashes that open the sentence.
+const sortRoster = (sortPara.match(/Every catalog page — ([^—]+) — has a sort control/) || [, ""])[1]
+  .split(/,\s*|\s+and\s+/).map((s) => s.replace(/^the\s+/, "").trim()).filter(Boolean);
+
+// (a) first: the premise and the roster together.
+const panelSecs = panels.map((p) => p.sec).sort();
+const expectedSecs = Object.keys(CATALOG_PAGES).sort();
+const rosterExpected = expectedSecs.map((s) => CATALOG_PAGES[s]).sort();
+ok(`app/ + docs/index.html: six catalog panels wire a sort control, and Help enumerates those six ` +
+   `(${panels.length} panel(s), ${sortRoster.length} page(s) named)`,
+  panels.length === 6 && String(panelSecs) === String(expectedSecs) &&
+    panels.every((p) => p.def === "updated-desc" && p.sorted && p.options.length >= BASE_SORT_KEYS.length) &&
+    String([...sortRoster].sort()) === String(rosterExpected),
+  `wired: ${panels.map((p) => `${p.sec} (${p.file}, ${p.options.length} option(s), default ${p.def}` +
+    `${p.sorted ? "" : ", NO list sort found"})`).join(" · ")}\n      ` +
+  `Help enumerates: ${sortRoster.join(", ") || "(nothing)"}\n      ` +
+  "one sentence describes all six controls — rules (b)-(e) are only meaningful while all six exist");
+
+// (b) the default option's label, per panel. Five panels say "Newest first" and Dashboards
+//     says "Last updated"; the shared name is required, and any panel that differs has to be
+//     named beside the label it really carries (within its own clause).
+const defLabels = panels.map((p) => ({ page: CATALOG_PAGES[p.sec], label: (p.options.find((o) => o.key === "updated-desc") || {}).label }));
+const labelTally = {};
+defLabels.forEach((d) => { labelTally[d.label] = (labelTally[d.label] || 0) + 1; });
+const sharedDefault = Object.keys(labelTally).sort((a, b) => labelTally[b] - labelTally[a])[0];
+const defaultUnnamed = defLabels.filter((d) => {
+  if (d.label === sharedDefault) return !sortPara.includes(sharedDefault);
+  const i = sortPara.indexOf(d.label);
+  return i < 0 || !sortPara.slice(Math.max(0, i - 80), i).includes(d.page);
+});
+// The negative half, and check 49 (d)'s lesson about lead-ins: the paragraph marks a panel's
+// odd-one-out label with <strong>, and nothing else in it is bolded but the "Sorting." lead-in.
+// So every remaining bold phrase has to BE a label some panel carries, credited to a panel
+// that carries it — otherwise a rename in the app leaves a stale exception reading as current.
+const sortParaHtml = (help.match(/<p><strong>Sorting\.<\/strong>[\s\S]*?<\/p>/) || [""])[0];
+const boldClaims = [...sortParaHtml.matchAll(/<strong>([\s\S]*?)<\/strong>/g)].slice(1).map((m) => {
+  const label = htmlText(m[1]).replace(/\s+/g, " ").trim();
+  const before = htmlText(sortParaHtml.slice(0, m.index)).replace(/\s+/g, " ");
+  const pages = [...before.matchAll(new RegExp(`\\b(${Object.values(CATALOG_PAGES).join("|")})\\b`, "g"))];
+  return { label, page: pages.length ? pages[pages.length - 1][1] : "(none)" };
+}).filter((b) => !defLabels.some((d) => d.page === b.page && d.label === b.label));
+ok(`docs/index.html: the default sort is published by the label each panel really carries ` +
+   `(${Object.keys(labelTally).length} distinct label(s))`,
+  !defaultUnnamed.length && !boldClaims.length,
+  `${defaultUnnamed.map((d) => `${d.page} labels updated-desc "${d.label}" — not named beside "${d.page}" in the paragraph`)
+    .concat(boldClaims.map((b) => `Help bolds "${b.label}" after "${b.page}" — that panel's default is not labelled that`))
+    .join("\n      ") || "(none)"}\n      ` +
+  `panels say: ${defLabels.map((d) => `${d.page}: ${d.label}`).join(" · ")}\n      ` +
+  "a reader on Dashboards looking for the option Help calls the default has to find it in that menu");
+
+// (c) the options every panel shares. The name pair is held by its direction token, because
+//     the paragraph collapses the two labels into "Name A–Z / Z–A".
+const sharedOther = ["updated-asc", "name-asc", "name-desc"].map((k) => {
+  const labels = [...new Set(panels.map((p) => (p.options.find((o) => o.key === k) || {}).label))];
+  return { key: k, label: labels.length === 1 ? labels[0] : null };
+});
+const sharedMissing = sharedOther.filter((s) => {
+  if (!s.label) return true;
+  const token = s.key.startsWith("name-") ? s.label.replace(/^Name\s+/, "") : s.label;
+  return !sortPara.includes(token);
+});
+ok("docs/index.html: every option all six panels share is published",
+  !sharedMissing.length,
+  `unpublished (or not shared by all six): ${sharedMissing.map((s) => s.label || s.key).join(", ") || "(none)"}\n      ` +
+  `shared: ${sharedOther.map((s) => `${s.key} → ${s.label || "(varies)"}`).join(" · ")}`);
+
+// (d) the extras, both directions. The parenthetical is segmented by PAGE NAME so an extra
+//     credited to the wrong page is a miss, not a pass: Datasets and Connections both offer
+//     "By adapter", and the paragraph naming it once was how Connections' went missing.
+const extrasPara = (sortPara.match(/per-section extras \(([^)]*)\)/) || [, ""])[1];
+const pageAt = [...extrasPara.matchAll(new RegExp(`\\b(${Object.values(CATALOG_PAGES).join("|")})\\b`, "g"))];
+const extrasSeg = {};
+pageAt.forEach((m, i) => {
+  extrasSeg[m[1]] = extrasPara.slice(m.index + m[1].length, i + 1 < pageAt.length ? pageAt[i + 1].index : extrasPara.length);
+});
+const nounOf = (label) => label.replace(/^By\s+/, "").toLowerCase();
+const allNouns = [...new Set(panels.flatMap((p) => p.options.filter((o) => !BASE_SORT_KEYS.includes(o.key)).map((o) => nounOf(o.label))))];
+const extrasWrong = [];
+panels.forEach((p) => {
+  const page = CATALOG_PAGES[p.sec], seg = extrasSeg[page] || "";
+  const mine = p.options.filter((o) => !BASE_SORT_KEYS.includes(o.key)).map((o) => nounOf(o.label));
+  mine.filter((n) => !seg.toLowerCase().includes(n)).forEach((n) => extrasWrong.push(`${page} offers "${n}" — not published under ${page}`));
+  allNouns.filter((n) => !mine.includes(n) && seg.toLowerCase().includes(n))
+    .forEach((n) => extrasWrong.push(`Help credits ${page} with "${n}" — that panel does not offer it`));
+});
+ok(`docs/index.html: every per-section sort extra is published under its own page ` +
+   `(${panels.reduce((n, p) => n + p.options.length - BASE_SORT_KEYS.length, 0)} extra(s))`,
+  !extrasWrong.length,
+  `${extrasWrong.join("\n      ") || "(none)"}\n      ` +
+  "segmented by page name — two panels offering the same extra cannot cover for each other");
+
+// (e) the pinned-first claim. Three panels sort a pinned item first; the sentence used to
+//     promise all six, contradicting Help's own catalog-rows section ("Jobs are the one of
+//     the three with no pin") sixty lines below it.
+const pinSentence = (sortPara.split(/(?<=\.)\s+/).find((s) => /\bpin/i.test(s)) || "");
+const pinWrong = panels.map((p) => ({ page: CATALOG_PAGES[p.sec], first: p.pinnedFirst }))
+  .filter((p) => p.first !== new RegExp(`\\b${p.page}\\b[^;]*stays at the top|stays at the top[^;]*\\b${p.page}\\b`)
+    .test(pinSentence.split(";")[0]));
+ok(`docs/index.html: the pinned-first claim names exactly the panels whose sort does it ` +
+   `(${panels.filter((p) => p.pinnedFirst).length} of ${panels.length})`,
+  !!pinSentence && !pinWrong.length,
+  `${pinWrong.map((p) => p.first ? `${p.page} sorts pinned items first — Help does not say so`
+    : `Help promises pinned-first on ${p.page}, whose list sort has no pinned tiebreak`).join("\n      ") || "(none)"}\n      ` +
+  `sorts pinned first: ${panels.filter((p) => p.pinnedFirst).map((p) => CATALOG_PAGES[p.sec]).join(", ") || "(none)"}\n      ` +
+  `pin sentence: ${pinSentence || "(none found)"}\n      ` +
+  "a promised ordering the page does not do is the half of a contradiction a reader acts on");
+
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
