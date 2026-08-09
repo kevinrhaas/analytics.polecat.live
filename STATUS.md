@@ -13477,12 +13477,44 @@
   built-in SVG renderer a minimal zoom/pan cluster so the default stops being the option with no
   controls. **Kevin's call between them.** Whichever wins, a US county choropleth with no way to
   zoom is the wrong default for the app's strongest geography.
+
+- **N35 ★★ [1pt] — a calculated column can't be edited from the View Builder, and "＋ calc…"
+  doesn't open a blank one.** Kevin, 2026-08-09, two reports with one root cause: *"in the View
+  Builder once you make a calculation there is no way to edit it, I think, from the View Builder
+  screen"* and *"I would think new calc on adding a calculated column would be a blank but it
+  seems to leave the last one."*
+  **Measured. The editor itself is fine — the way IN is the defect.** `openCalcEditor()`
+  (`app/build.js:293`) already lists every calc with an editable name + formula, a ✕ per row, an
+  "+ Add column" that pushes a genuinely blank `{name:"",formula:""}` (`:323`), and Apply →
+  `bdSetCalcs` (`:273`). But there is exactly ONE way to reach it: the dashed `#bdCalcBtn` at the
+  foot of the field list, labelled **"＋ calc…"**, title *"Define calculated columns"*
+  (`build.js:1420`, wired `:1815`). So a single control is both "create" and "manage them all",
+  and it reads as create — which produces both of Kevin's sentences at once: he clicks ＋
+  expecting a blank form and gets last time's calc pre-filled (report 2), and never finds a
+  separate edit path (report 1). Neither report is a misreading; the button misstates what it
+  opens.
+  **And the calc column itself is a dead end.** In the field list it renders as `.bd-col.calc`
+  with `=` as its kind glyph, and its only action is `bdAddField(col,"cols")` — add to a shelf
+  (`build.js:1416-1418`, wired `:1726`). Once it IS on a shelf it takes `.used`:
+  `opacity:.45;cursor:default` (`app/studio.css:1525`). So the column you just authored becomes a
+  dimmed, unclickable chip with no route back to its formula.
+  **The app already solved this one shelf over.** Filter chips carry an inline edit button —
+  `bd-flt-edit`, `title="Edit filter"` (`build.js:1523`, wired `:1806`) — so a filter is edited by
+  clicking the thing it made. Calcs should follow that pattern rather than invent a second one.
+  **Fix both halves, or neither reads right:** (1) put an edit affordance on the calc column
+  itself, opening the editor focused on that row — and it must survive `.used`, because the calc
+  you most want to edit is the one you already put on a shelf; (2) make the footer button honest
+  — either relabel it "Calculated columns…" so a pre-filled list is what you expect, or keep the
+  ＋ and have it open with a new blank row already appended and focused. Kevin's second sentence
+  says which he expects from a ＋.
+  **Mobile is a release gate:** a hover-only pencil does not exist on a phone, so whatever the
+  affordance is, it has to be tappable at 390×780.
 > **▸ PROMOTED 2026-08-09 (Kevin, directly — not a grooming batch): three money-flow packs.**
 > *"when you get through the stabilization stuff can you prioritize some of the other sample
 > packs… we had some where the money is going and other ones on the list, I would like some more
-> of those."* They sit BELOW N31–N34 on purpose: those four are the stabilization he means, and
-> three of them are defects in the pack experience itself, so shipping more packs on top of a
-> degrading View Builder would multiply the problem rather than showcase it. Take them in the
+> of those."* They sit BELOW N31–N35 on purpose: those five are the stabilization he means, and
+> four of them are defects in the pack-and-builder experience itself, so shipping more packs on
+> top of a degrading View Builder would multiply the problem rather than showcase it. Take them in the
 > order below — each is still 3pt / ~3 PRs and follows the SP-0 convention SP-1 proved.
 >
 > **SP-6 first** (Federal Contract Awards) — the cleanest of the three: USASpending.gov, public
@@ -13570,6 +13602,35 @@
   goes; if they are just the packs by another name, they go with it. Also decide what happens
   to a workspace where someone had it OFF: uninstalling their packs on their behalf would be a
   data surprise, so prefer leaving pack state alone and simply removing the global mask.
+- **N36 ★ [2pt] — Admin says "Backends" for the same thing the rest of the app calls a
+  workspace — and keeps a SECOND, separate list of them.** Kevin, 2026-08-09, on the Admin card:
+  *"I wonder if in Admin you should be referring to this as workspace not backend also."*
+  **He is right about the word, and the word is the smaller half of it.** Measured:
+  - Admin → **Backends** (`backendsCardHtml`, `app/studio.js:9045-9071`) keeps its rows in
+    `localStorage` under **`studio-admin-backends`** (`:9031-9032`), with Test / Connect / Edit /
+    ✕ per row and an "+ Add backend" wizard (`openBackendConfigWizard`, `:9127`). A user can be
+    assigned one (`provisioning.backendId`, `:10472-10486`).
+  - The gate's **Workspace** picker and Settings → Workspace backend read a DIFFERENT list —
+    `window.STUDIO_WS_STORE` over **`studio-workspaces-custom`** (`app/workspaces.js:93`), with
+    its own Manage panel, a default entry, per-entry access-file export and the production-block
+    rule (`app/gate.js:509-540`; N24 slice 2 / N25).
+  Both hold the same kind of object: a named, credentialed database this app can sync to
+  (adapter + URL + key). Two stores, two managers, two names, and no relationship between them —
+  register a backend in Admin and it never appears in the sign-in picker; save a workspace at the
+  gate and Admin cannot see it to assign it to anyone. **The history explains it and excuses
+  nothing:** Admin's card is LF42 slice 1 (2026-07-27); the workspace list arrived three days
+  later with WORKSPACE-LOGIN and grew the richer feature set (default, export, stage guard).
+  **So a pure rename makes it worse**, not better: two lists both labelled "Workspaces". Rename
+  and converge together, or do neither.
+  **Recommended shape — Kevin's call to confirm:** `STUDIO_WS_STORE` becomes the one list (it is
+  already the richer one, and the one the sign-in screen actually reads), and Admin's card
+  becomes a management VIEW over it, keeping its Test / Connect / assign-to-user actions and
+  losing its private store. Existing `studio-admin-backends` entries migrate in additively —
+  never wipe, per the local-first rule — and `provisioning.backendId` must keep resolving.
+  **Where "backend" still earns its keep:** the rail tooltip and Settings say *"Workspace
+  backend — Local (this browser)"*, which names a STATE (where is this workspace stored right
+  now), not a list entry. That reading is fine and should not become "workspace workspace". The
+  noun to rename is the saved, credentialed destination — that is a workspace.
 - ~~**N29 ★★ [1pt] — `polecat_dev` is leaking to anonymous callers.**~~ ✓ **CLOSED 2026-08-09,
   Kevin + interactive session.** He ran `tools/supabase-deploy.sql` + §7 on the dev project and
   the verify re-run went **PASSED — no table on dev is readable by an anonymous caller (8
