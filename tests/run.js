@@ -16394,8 +16394,14 @@ function serve() {
       out.noticeGone = document.getElementById("buildNotice").hidden;
       return out;
     });
-    ok("VB-5: a Views-catalog row offers BOTH editors — owner Open plus an explicit other-editor button (a Quick View's is 'View Builder')",
-      !vb5a.err && vb5a.hasOwnerOpen && vb5a.altTarget === "build" && vb5a.altLabel === "View Builder", JSON.stringify(vb5a));
+    // N37 moved the catalog row's tail actions into a ⋯ menu, where a bare "View Builder"
+    // would read as a noun among verbs ("Add to dashboard", "Duplicate"), so the item now
+    // says "Open in View Builder". Still asserted EXACTLY, and still asserting the same
+    // thing VB-5 cares about: the row names the OTHER editor explicitly rather than
+    // leaving you to guess which one Open goes to. The Home card below is a different
+    // surface (data-home-analysis-alt) that N37 did not touch — its label is unchanged.
+    ok("VB-5: a Views-catalog row offers BOTH editors — owner Open plus an explicit other-editor item (a Quick View's is 'Open in View Builder')",
+      !vb5a.err && vb5a.hasOwnerOpen && vb5a.altTarget === "build" && vb5a.altLabel === "Open in View Builder", JSON.stringify(vb5a));
     ok("VB-5: opening a Quick-Views-made View in the View Builder reconstructs its mapping onto the shelves best-effort (label → dimension, value → measure with the saved rollup's fn, mean → AVG) and keeps its chart type",
       vb5a.section === "build" && vb5a.analysisId === vb5a.qvId && vb5a.chartType === "bars" &&
       vb5a.dims === "region" && vb5a.measures === "amount:avg", JSON.stringify(vb5a));
