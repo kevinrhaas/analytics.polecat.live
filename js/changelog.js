@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 939,
+    title: 'Help listed what a search looks at on four of the six pages that have one',
+    kind: 'fix',
+    ts: '2026-08-09T16:29:09.000Z',
+    items: [
+      'Every catalog page — Dashboards, Views, Datasets, Connections, Jobs and the Repository — has a search box above it, and typing into it looks at more than the item\'s name. The Help page described what it looks at in a single clause covering four of those six pages, and nothing had ever compared that clause to the app.',
+      'Views and the Repository were missing from it altogether. Searching your saved Views looks at the chart type, so typing "choropleth" finds every map you have made — genuinely useful, and published nowhere. Searching the Repository looks at the one-line summary printed under each row\'s name.',
+      'On Datasets, a search also looks at the name of the connection the dataset reads, so typing a warehouse\'s name finds everything reading it. That was left out, and so were a connection\'s own tags.',
+      'The paragraph is now written around what every page has in common — a search always looks at the item\'s name and its folder — followed by what each page adds on top of that. It is also re-derived from the app on every change: a page that starts searching a new field, or stops searching one it used to, now fails the documentation check until Help says so.',
+      'The one promise it makes about secrets is held from both ends: a connection\'s password or token never enters a search, and neither the code that leaves it out nor the sentence saying so can change without the other.',
+    ],
+  },
+  {
     v: 938,
     title: 'Help said pinning an item floats it to the top of any list — three lists do that',
     kind: 'fix',
