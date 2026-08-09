@@ -58,7 +58,12 @@ let ok = 0, fail = 0;
 const done = (name) => { console.log("  ✓", name); ok++; };
 const oops = (name, e) => { console.log("  ✗", name, "—", (e && e.message) || e); fail++; };
 
-async function bootBuilder(browser, { theme, palette }) {
+// `prefs` seeds extra localStorage keys BEFORE first paint, for shots whose caption
+// promises a view the app does not open in by default. Pinning beats clicking: the
+// catalog then renders in the advertised shape from the first frame, and a later
+// default change (AUD-06 flipped Dashboards from tiles to list) re-skins the app
+// without silently re-shooting the marketing carousel to contradict its own caption.
+async function bootBuilder(browser, { theme, palette, prefs }) {
   const ctx = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 1.5 });
   const page = await ctx.newPage();
   await page.addInitScript((seed) => {
@@ -68,29 +73,45 @@ async function bootBuilder(browser, { theme, palette }) {
       localStorage.setItem("studio-tutorial-done", "1");
       localStorage.setItem("studio-theme", seed.t);
       if (seed.p) localStorage.setItem("studio-app-theme", seed.p);
+      Object.keys(seed.ls || {}).forEach((k) => localStorage.setItem(k, seed.ls[k]));
     } catch (e) {}
-  }, { t: theme, p: palette || "" });
+  }, { t: theme, p: palette || "", ls: prefs || {} });
   await page.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
   await page.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 15000 });
   await page.waitForTimeout(600);
   return { ctx, page };
 }
 
+// `__studioLoad()` loads a spec INTO the Dashboard Builder but does not navigate to it —
+// the shell stays where it was, which on a cold boot is Home. Both builder shots had been
+// capturing the Home screen ever since, under carousel copy naming "The Dashboard Builder
+// … with the data and inspector panels" (measured 2026-08-09; the committed baseline has
+// the same defect, so it predates the 2026-07-31 generation). Three things are needed for
+// the picture to be what the caption says it is:
+//   • ask the shell for the `studio` section by name, the way snapSection does;
+//   • open both side panes — STUDIO-PANELS made the builder open with them COLLAPSED, so
+//     the caption's "data and inspector panels" would be two 34px rails otherwise. The
+//     tour's silent opener is used, for the same reason the tour uses it;
+//   • declutter LAST. The lint pass fires its "All clear — this dashboard has zero
+//     warnings" toast about two seconds in, so the old 1.4s-then-declutter order removed
+//     nothing and shot the toast — it is in the committed baseline too.
 async function loadExample(page, file) {
   await page.evaluate(async (f) => {
     const spec = await fetch("data/examples/" + f).then((r) => r.json());
     window.__studioLoad(spec);
+    if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+    ["library", "inspector"].forEach((p) => { try { window.__studioOpenPane(p); } catch (e) {} });
   }, file);
-  await page.waitForTimeout(1400); // preview iframe render settles
+  await page.waitForTimeout(2800); // preview iframe render + the lint toast both settle
   await page.evaluate(DECLUTTER);
-  await page.waitForTimeout(120);
+  await page.waitForTimeout(160);
 }
 
 // Snap a real app SECTION (Home tiles, Explore designer, Datasets catalog…) in
 // DARK, with the Conservation sample pack installed so the workspace looks
 // populated — the marketing "survey the app" shots.
-async function snapSection(browser, name, { section, extraWait = 1500, prep = null, theme = "dark", palette = "" } = {}) {
-  const { ctx, page } = await bootBuilder(browser, { theme, palette });
+async function snapSection(browser, name, { section, extraWait = 1500, prep = null, theme = "dark", palette = "", prefs = null } = {}) {
+  const { ctx, page } = await bootBuilder(browser, { theme, palette, prefs });
   try {
     await page.evaluate(() => {
       try {
@@ -168,13 +189,17 @@ function ensembleSpec() {
   };
 }
 
-// HUC8 watershed choropleth — the "custom geography" story (USGS subbasins,
-// not a standard state/county cut), rendered in Polecat dark.
+// HUC8 watershed choropleth — the "hydrology, not administrative borders" story
+// (USGS subbasins, not a standard state/county cut), rendered in Polecat dark.
+// The subtitle is BURNED INTO the image the marketing carousel shows, so it is held
+// to the same source as the caption beside it: `huc8` is a shipped choice in
+// Studio.CHARTS.choropleth's `scale` select, so it may not be called a geography the
+// reader supplies (that is the `customMap` opt). doc-truth check 31 enforces it.
 function huc8Spec() {
   return {
     id: "shot-huc8", name: "shot-huc8", title: "Cover crop adoption by watershed",
     dashboardTheme: "polecat",
-    subtitle: "A custom geography — HUC8 subbasins from the USGS Watershed Boundary Dataset",
+    subtitle: "HUC8 subbasins from the USGS Watershed Boundary Dataset — one of six built-in scales",
     panels: [{ id: "w1", title: "Adoption by watershed (HUC8)", span: "full",
       chart: { type: "choropleth", da: "geo", map: { idCol: "huc8", valueCol: "pct" },
         opts: { scale: "huc8", fmt: "raw", height: 640, color: "--good" } } }],
@@ -291,11 +316,14 @@ function countyValue(fips) {
       } catch (e) {}
     } });
     await snapSection(browser, "datasets-dark", { section: "datasets", extraWait: 1400 });
-    // The Dashboards tile browser (LF27) — the "your library" survey shot.
+    // The Dashboards tile browser (LF27) — the "your library" survey shot, and the
+    // carousel caption beside it promises "searchable tiles". AUD-06 made `list` the
+    // one default for every catalog, so the tile grid has to be pinned here or the
+    // shot quietly becomes a list under a caption that says tiles.
     // Materialize the Data Management pack's showcase dashboards + run the
     // pack heals first so the grid reads like a real library, not 4 tiles;
     // thumbnails render asynchronously, so give them room.
-    await snapSection(browser, "dashboards-dark", { section: "dashboards", extraWait: 3400, prep: () => {
+    await snapSection(browser, "dashboards-dark", { section: "dashboards", extraWait: 3400, prefs: { "studio-dash-view": "tiles" }, prep: () => {
       try { if (window.__studioEnsurePackExamplesMaterialized) window.__studioEnsurePackExamplesMaterialized("datamanagement"); } catch (e) {}
       try { if (window.Studio && Studio.Sync && Studio.Sync.healAfterAdopt) Studio.Sync.healAfterAdopt(); } catch (e) {}
     } });
