@@ -3,9 +3,10 @@ name: RLS (dev database)
 # N25 — run the REAL security-posture integration test (tests/rls.mjs) against
 # the DEV Supabase project, not production.
 #
-# WHY THIS EXISTS. tests/rls.mjs applies the three shipped postures
-# (tools/supabase-rls-real.sql, tools/supabase-deploy.sql and the Edge
-# Function's inlined BOOTSTRAP_DDL + RLS_REAL_SQL) into throwaway
+# WHY THIS EXISTS. tests/rls.mjs applies the seven shipped postures
+# (tools/supabase-rls-real.sql, tools/supabase-deploy.sql,
+# tools/supabase-bootstrap.sql, the Edge Function's inlined BOOTSTRAP_DDL +
+# RLS_REAL_SQL, and app/sources/schema.js's two in-app generators) into throwaway
 # `steward_test_rls_*` schemas and asserts an unauthorized read is refused. It
 # is careful — it never touches `public`, and that is enforced in the script
 # rather than promised — but until now the only project it could run against

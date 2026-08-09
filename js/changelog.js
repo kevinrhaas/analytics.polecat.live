@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 929,
+    title: 'The documents that say what must pass before a change ships were missing a check each',
+    kind: 'fix',
+    ts: '2026-08-09T11:58:53.000Z',
+    items: [
+      'Three documents publish the list of checks a change has to clear before it can be merged — the contributor guide, the pipeline runbook and the pipeline config — and all three listed three steps where the gate actually runs four. The missing one was the doc-truth check itself: the guard that reads every published claim in the app against the code it describes had been a required step since it was written, and nothing said so.',
+      'The contributor guide contradicted itself about it — its layout section calls doc-truth part of the gate, while the sentence anyone actually reads before merging listed the other three.',
+      'The promotion gate was under-reported the same way: it runs the full suite, then both database-posture checks, then the staged boot smoke, and the two posture checks in the middle were named nowhere.',
+      'The guide\'s list of automated workflows named 9 of the 11 the repo has. The two it omitted are the pair that checks database security — including the one an open, blocked item tells its reader to re-run by name.',
+      'Its description of those posture checks was out of date in three ways at once: it described one test where there are two, said the file-level test applies "both shipped RLS files" when it applies seven provisioning postures drawn from five artifacts, and said it runs against the live project — the opposite of the change that moved it to the dev database so production stops being the thing we experiment on.',
+      'The dev gate now derives all of this from the workflows themselves: the gate\'s own step list, the promotion gate\'s test list, the workflow roster and the posture table. A check added to or removed from a gate now fails the build until every document that describes it says so.',
+    ],
+  },
+  {
     v: 928,
     title: 'The README described a third of the connectors and two of the seven exports',
     kind: 'fix',

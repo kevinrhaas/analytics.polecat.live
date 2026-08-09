@@ -135,6 +135,67 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — The documents that say what must pass before a change ships were each missing a check
+  (v929, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** the candidate v928 left
+  named was "`CLAUDE.md`'s prose — check 7 holds only its SIZE figures". Measuring it first
+  narrowed the target and made it worse: the part of `CLAUDE.md` that had drifted is **the part
+  that tells every agent what must be green before merging**, and it is not the only copy.
+  - **Measured, not suspected**, all of it against the workflow YAML that actually runs the gates:
+    - **The dev gate: 3 published steps, 4 real ones — in all three documents.** `ci.yml` runs
+      `validate` → `changelog-check` → **`doc-truth`** → `dev-smoke`. `CLAUDE.md`'s pipeline
+      bullet, `docs/PIPELINE.md`'s *Dev gate* bullet and `.github/pipeline.json`'s documentary
+      `gates.devGate` string each listed the other three. The missing step is this check family's
+      own guard — a hard gate step since it was written, published as one nowhere. `CLAUDE.md`
+      contradicted itself about it: its Layout block already calls doc-truth part of "the dev
+      gate", so the two halves of one document disagreed — the v927 shape (neither section wrong
+      alone, both wrong together), one document over.
+    - **The stage gate, the same way.** `promote-to-stage.yml` runs the full suite, then
+      `tests/rls.mjs`, then `tests/rls-verify.mjs`, then the staged `/stage/` boot smoke. All
+      three surfaces named the suite and the smoke and skipped the two posture checks between
+      them — the checks that exist precisely because a promotion can be functionally green and
+      leave a database wide open.
+    - **The workflow roster: 9 of 11.** `rls-dev.yml` and `rls-verify.yml` — the entire
+      database-posture CI surface, added since the block was last written — were unnamed in
+      `CLAUDE.md`'s Layout. They are also the two the open ⛔ **N29** instructs its reader to
+      re-dispatch by name, so the blocked item pointed at workflows the guide did not list.
+    - **The posture bullet, stale three ways at once.** It described **one** test where the repo
+      has two; said `tests/rls.mjs` applies "**both** shipped RLS files" when its own `POSTURES`
+      table applies **seven** postures drawn from **five** artifacts (the two `.sql` files plus
+      `supabase-bootstrap.sql`, the Edge Function's inlined SQL and `app/sources/schema.js`'s two
+      in-app generators); and said it runs "on the live project" — the exact opposite of what N25
+      shipped, which was moving it to `polecat_dev` so production stops being what we experiment
+      on. `tests/rls-verify.mjs` appeared nowhere in the document. `rls-dev.yml`'s own header
+      carried the same stale count ("the three shipped postures") and was fixed with it.
+  - **Fixed** in the four documents plus `rls-dev.yml`'s header, and `docs/PIPELINE.md`'s
+    "blocked on N26" cross-reference was corrected to **N29** in the same pass — grooming pass 3
+    resolved that duplicate ID in STATUS.md this morning and the runbook still sent a reader to a
+    shipped item. `.github/pipeline.json`'s `gates` block is documentary (nothing reads it —
+    `pipeline-schedule.mjs` and `promote-to-prod.yml` read only `promoteToStage` and
+    `requireGreenStageForProd`), so editing it on `dev` cannot change behaviour and travels by
+    promotion like everything else.
+  - **Doc-truth check 42** derives the whole thing from the workflows themselves — the `node
+    tools/…` and `node tests/…` invocations in `ci.yml` and `promote-to-stage.yml`, the
+    `.github/workflows/` directory listing, and `rls.mjs`'s `POSTURES` table — so it adds five
+    rules over six surfaces and **no new hand-maintained list**. A step added to or removed from
+    a gate now reddens the build until every document describing it says so.
+  - **Verified — the DEV GATE, all four steps, run locally before merge** (`ci.yml`'s own
+    commands, since a bot-opened PR does not fire the gate): `node tools/validate.mjs` (211 files
+    parse clean), `node tools/changelog-check.js` (906 entries, top v929, manager-parse OK),
+    `node tools/doc-truth.mjs` (green — and **10 of check 42's 12 assertions measured failing on
+    the real pre-fix tree**; all four negative directions — a `tools/` script named as a gate step
+    in each of the three documents that `ci.yml` does not run, and a workflow `CLAUDE.md` names
+    that does not exist — measured on mutated trees), and `node tools/dev-smoke.mjs` (marketing,
+    app past the gate, docs, and the app again at 390×780; zero pageerrors).
+    **The full `tests/run.js` suite was NOT run here** — it is the STAGE gate, and
+    `promote-to-stage.yml` runs it against the stage tree on the nightly sweep. Nothing in this
+    slice touches a file the suite exercises: the diff is four documents, one workflow COMMENT,
+    `tools/doc-truth.mjs` (a gate script the suite does not load) and the changelog, whose
+    contract is checked by the parser above.
+    Only `js/changelog-head.js` among precached files changed — the release-head regeneration
+    every slice makes — so no `sw.js` cache bump, matching the six preceding N7 slices and
+    leaving issue #631's territory untouched.
+  - **Est 1pt, took 1.** Docs-only in blast radius; the widening from one document to four came
+    out of the measurement, not out of scope creep — they publish the same list.
 - **N7 — The README described a third of the connectors and two of the seven exports
   (v928, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** the N7 family has
   spent two weeks holding the Help page, the six tours, the app's own runtime strings and the
@@ -13204,10 +13265,44 @@
     **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
     `## Roadmap` section now defers to `STATUS.md` rather than listing headline items, which is
     correct but means README no longer summarises where the app is going — whether it should is
-    editorial, not a derivation. Also measured and NOT N7's: `CLAUDE.md` is the other
+    editorial, not a derivation. ~~Also measured and NOT N7's: `CLAUDE.md` is the other
     front-matter document and check 7 holds only its SIZE figures (~LOC, ~file counts), not its
     prose — the same gap this slice just closed one document over, and worth a check the day
-    someone reads it. The two v922 candidates above are still open and still Kevin's calls.
+    someone reads it.~~ ✓ **TAKEN AS v929 — see the next bullet.** The two v922 candidates above
+    are still open and still Kevin's calls.
+  * *`CLAUDE.md` + the pipeline runbook vs the gates the workflows really run — v929, NO sw
+    bump (2026-08-09 — see DONE).* The candidate the v928 note named, and the measurement moved
+    it from "front-matter prose" to something narrower and worse: **the part of `CLAUDE.md` that
+    had drifted is the part that says WHAT MUST BE GREEN BEFORE YOU MERGE.** Three documents
+    publish that list — `CLAUDE.md`, `docs/PIPELINE.md` and `.github/pipeline.json`'s documentary
+    `gates` block — and **all three named three dev-gate steps where `ci.yml` runs four.** The
+    missing one is `tools/doc-truth.mjs`: this whole check family's own guard, a hard gate step
+    since it was written, named as a gate by none of them. `CLAUDE.md` contradicted ITSELF about
+    it — its Layout block calls doc-truth part of "the dev gate" while its pipeline bullet, the
+    sentence an agent actually reads before merging, listed the other three. The v927 shape
+    exactly: neither half wrong alone, both wrong together. The stage gate was under-reported the
+    same way (`promote-to-stage.yml` runs the suite, then `tests/rls.mjs`, then
+    `tests/rls-verify.mjs`, then the staged boot smoke; all three surfaces skipped the two posture
+    checks in the middle). The workflow roster named **9 of the 11** files in
+    `.github/workflows/` — the missing pair being `rls-dev` and `rls-verify`, the whole
+    database-posture CI surface, and the two the open ⛔ N29 tells its reader to re-dispatch BY
+    NAME. And the posture bullet was stale in three ways at once: one test where the repo has
+    two, "both shipped RLS files" where `rls.mjs`'s own POSTURES table applies **seven** postures
+    across **five** artifacts, and "on the live project" — the opposite of what N25 shipped.
+    Doc-truth check 42 derives all of it from the workflow YAML and that table: five rules over
+    six surfaces, **10 of its 12 assertions measured failing on the real pre-fix tree**, and all
+    four negative directions (a gate step, in each of the three documents, that `ci.yml` does not
+    run; a workflow `CLAUDE.md` names that does not exist) measured on mutated ones.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:**
+    `README.md`'s own `~3,000 checks` figure is 7% low against the suite's 3,227 `ok()` calls —
+    inside check 7's deliberate 15% band, so it is a tolerance question rather than a drift, and
+    widening the band or tightening the figure is a judgement call this slice had no reason to
+    make. Also measured and NOT N7's: `CLAUDE.md`'s Layout block still summarises `tools/` and the
+    top-level tree by hand (this slice added `pack-extract/` and `data/packs/`, both contract
+    surfaces the file's own Studio-invariants block already names), and holding a hand-written
+    summary to a directory listing would fail on every legitimate new tool — a rule about which
+    files DESERVE naming is editorial, not a derivation. The two v922 candidates are still open
+    and still Kevin's calls.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before
