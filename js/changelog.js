@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 927,
+    title: 'The Dashboard theme picker offers seven looks; Help listed six of them',
+    kind: 'fix',
+    ts: '2026-08-09T11:10:41.000Z',
+    items: [
+      'The Dashboard theme picker in the builder\'s style section offers seven curated looks plus Custom. Help\'s list of them was missing Conservation — the CTIC olive/field-green and deep-pine look — even though the picker renders it, the Settings "Default dashboard theme" dropdown offers it, and Help\'s own Color theme section four sections below describes it in full.',
+      'The page therefore disagreed with itself: the Color theme section says the app chrome "offers the same seven looks as the Dashboard theme picker", and pointed at a list of six.',
+      'Conservation now has its entry beside the other six, so a reader choosing a dashboard look can find it without clicking every swatch.',
+      'The dev gate now reads both theme rosters out of the app — the dashboard presets and the app-chrome Color themes — and holds Help to them: every preset needs an entry, neither list may name one that is not registered, and the "same seven looks" sentence has to carry the right number and is only allowed to claim the two pickers match while they really do. The order stays the writer\'s call, since both lists deliberately lead with Polecat, the default.',
+    ],
+  },
+  {
     v: 926,
     title: 'Settings offered six places to keep your workspace; Help explained four of them',
     kind: 'fix',
