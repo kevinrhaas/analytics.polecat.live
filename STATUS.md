@@ -13921,6 +13921,61 @@
   goes; if they are just the packs by another name, they go with it. Also decide what happens
   to a workspace where someone had it OFF: uninstalling their packs on their behalf would be a
   data surprise, so prefer leaving pack state alone and simply removing the global mask.
+- **N42 ★ [1pt] — select a panel in the dashboard builder and its dataset is not highlighted in
+  the Data pane on the left.** Kevin, 2026-08-09, in the builder with a panel selected: *"if you
+  select a panel you should see the dataset selected/highlighted on the left for the panel… so
+  you can [tell] which one from the list."*
+  **The mechanism already exists and is one condition short.** `buildWorkspaceDatasets`
+  highlights a dataset card when the SELECTION IS THE DATASET —
+  `if (S.selection && S.selection.kind === "da" && S.selection.id === da.id) c.classList.add("da-mine-sel")`
+  (`app/studio.js:1536`). Selecting a PANEL sets a different selection kind, so nothing lights up,
+  even though the panel names its dataset in `panel.da`. The fix is to also match when the
+  selection is a panel whose `da` is this card's dataset — same class, same styling, no new
+  visual language. `select()` (`:2576`) already re-renders the inspector and highlights the
+  preview; `buildLibrary()` needs to join that repaint.
+  **Two details:** a panel with no bound dataset (rich text) must highlight nothing rather than
+  the first card, and the Data pane scrolls — highlighting a card the user cannot see is only
+  half the answer, so scroll it into view.
+- **N43 ★ [2pt] — no way to preview a dataset, or fix its SQL, without leaving the dashboard
+  you are building.** Kevin, 2026-08-09: *"a quick preview of the dataset would be nice… people
+  might want to pop open a preview of it, edit the SQL and see the preview, or pop open the
+  preview and then make a quick change to the SQL, test it and preview it."*
+  **What exists today**, so this extends rather than duplicates: the panel inspector already has
+  a **Query preview** section (`app/studio.js:4303`) — the SQL truncated at 140 chars with a
+  "Show full SQL" expander, a 3-row sample table and a row count. That is Kevin's *"maybe you
+  have that on the right"*. It is READ-ONLY and small, which is exactly the gap: you can see the
+  query is wrong and have nowhere to fix it.
+  **The ask is a loop, not a bigger panel:** open a real preview over the builder → edit the SQL
+  → run it → see the rows → keep or discard, without losing the dashboard you were editing.
+  Reuse the shared dataset editor (`Studio.Datasets.openEditor`) rather than growing a second SQL
+  surface, and decide deliberately what "test" means for a dataset a panel is already bound to —
+  a failed edit must not leave the panel pointing at a broken query.
+  **Cheap first cut, if this needs splitting:** make the existing Query preview section's SQL
+  clickable, opening the dataset editor on that dataset. That alone closes "I can see it's wrong
+  and can't get to it" and is most of the value.
+- **N44 ★★ [3pt] — SQL is edited in plain textareas app-wide: no syntax checking, no column
+  autocomplete, no highlighting, anywhere.** Kevin, 2026-08-09: *"keep syntax checking and any SQL
+  help writing with fields or autocomplete in places where you can in the app throughout, please
+  do that."*
+  **Measured, and the answer is zero.** A grep for autocomplete/syntax/highlight machinery across
+  `app/` returns only `autocomplete="off"` on credential inputs. Every SQL surface is a bare
+  `<textarea>`: the seven per-adapter query boxes in the connection/dataset wizard
+  (`studio.js:2243, 2288, 2343, 2394, 2445, 2498, 2512`), the dataset editor's `.dsx-sql`
+  (`datasets.js:642`), and the Jobs SQL step (`jobs.js:924`).
+  **There IS prior art to build on, not to duplicate:** the Visual SQL Builder (G1,
+  `studio.js:1944`) already composes a SELECT interactively and writes it into the query
+  textarea, and every dataset carries a `columns` array — so the app already knows the field
+  names an autocomplete would offer. That is the whole reason this is 3pt rather than an epic.
+  **Constraints that shape it:** no build step and no runtime deps (CLAUDE.md), so this is a
+  hand-rolled editor, NOT CodeMirror/Monaco — highlight via a styled overlay behind a transparent
+  textarea, autocomplete via a small popup listing the current dataset's columns and the tables
+  the adapter reports, and "syntax checking" scoped to what can honestly be checked client-side
+  (balanced quotes/parens, a leading SELECT/WITH, unknown column names against the declared
+  columns). **Do not claim to validate dialect SQL we cannot parse** — a green tick that is
+  sometimes wrong is worse than no tick.
+  **Ship it as ONE component adopted everywhere**, not per-surface variants; the nine sites above
+  are the acceptance list, and mobile keyboards must still work at 390×780.
+
 - **N36 ★ [2pt] — Admin says "Backends" for the same thing the rest of the app calls a
   workspace — and keeps a SECOND, separate list of them.** Kevin, 2026-08-09, on the Admin card:
   *"I wonder if in Admin you should be referring to this as workspace not backend also."*
