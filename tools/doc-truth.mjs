@@ -3179,6 +3179,144 @@ ok(`CLAUDE.md: the posture bullet names both posture scripts (${postureTests.len
   "LIVE database readable RIGHT NOW?\" — and neither subsumes the other, which is exactly why " +
   "N29 exists: rls.mjs went 81/81 green in the same hour rls-verify found dev wide open");
 
+/* ── 43. Help's own NAVIGATION vs the page it navigates ─────────────────────
+   N7, and the surface every check in this family had read THROUGH without ever reading:
+   checks 9, 14–21, 28, 34–40 hold what docs/index.html SAYS. Nothing held whether a
+   reader can get to it. The page's own nav bar is a published claim like any other —
+   "these are the topics on this page" — and it is derivable from the page itself, so it
+   belongs here rather than in anyone's judgement.
+
+   Measured 2026-08-09, before the fix:
+   · **The page had 15 topics, 10 addressable sections and 9 nav links.** Five `<h2>`
+     topics — Quick Views, View Builder, Sample packs, Jobs and *the builder itself* —
+     were BURIED inside one `<section id="builder">` that opened on a sixth, Home. They
+     had no section of their own, so nothing could address them and nothing did.
+   · **`#builder` — the link labelled "The builder" — landed on "Home — instant
+     analytics"**, ~400 lines above the builder. That is also where the app's own
+     contextual `?` sends people: `app/index.html`'s `inspHelpLink` and `studio.js`'s
+     `_hlAnchors` fallback both point at `docs/index.html#builder`.
+   · **The docs search collapsed 40% of the page into one entry.** Its index is
+     `main > section[id]` titled by each section's first `<h2>` (LF60 slice 2), so a
+     search for "jobs" or "sample pack" returned a hit titled *Home — instant analytics*
+     and jumped to the top of Home. The scroll-spy above it had the same blind spot: one
+     `.active` link for six topics.
+   · **Glossary was a real `<section id>` with no link at all** — reachable only by
+     scrolling past everything.
+
+   Six rules, all derived from the page's own structure — the check adds no new source of
+   truth, it makes the document answer to itself:
+   (a) every `<h2>` in `<main>` opens its own `main > section[id]` — no topic buried
+       inside another's section, which is what makes (b)–(e) and the search index possible;
+   (b) the nav links every section (coverage — the negative direction of (a));
+   (c) every nav href resolves to a section that exists (the negative half);
+   (d) within each nav GROUP the links follow the page's own order — grouped rather than
+       globally strict on purpose: `#admin-docs` sits mid-page and trails in the bar by
+       design, which is editorial, and check 39's order-strictness would call it drift;
+   (e) every word of a nav label appears in the heading it points at, so a label may be
+       SHORTER than its heading ("Ensembles & honesty" for "Ensembles & scientific
+       honesty") but may never say something the section does not;
+   (f) every `docs/index.html#anchor` the app itself links to resolves on the page —
+       the contextual `?`, whose default anchor is the one this slice re-pointed. */
+
+const helpMain = help.slice(help.indexOf("<main>"), help.indexOf("</main>"));
+const htmlText = (s) => s.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&nbsp;/g, " ")
+  .replace(/\s+/g, " ").trim();
+const helpSections = [...helpMain.matchAll(/<section id="([^"]+)"[^>]*>/g)]
+  .map((m) => ({ id: m[1], at: m.index }));
+const helpTopics = [...helpMain.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/g)]
+  .map((m) => ({ text: htmlText(m[1]), at: m.index }));
+// `<section>` appears exactly as many times as we matched top-level ones, so there is no
+// nesting to reason about and "the last section that opened before this h2" is its owner.
+const sectionOpens = (helpMain.match(/<section\b/g) || []).length;
+const ownerOf = (at) => [...helpSections].filter((s) => s.at < at).pop();
+
+const navBlock = help.slice(help.indexOf("<nav>"), help.indexOf("</nav>"));
+// Groups and links in document order, so (d) can walk the bar group by group.
+const navEntries = [...navBlock.matchAll(/<span class="nav-group">([\s\S]*?)<\/span>|<a href="#([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)]
+  .map((m) => (m[2] === undefined
+    ? { group: htmlText(m[1]) }
+    : { href: m[2], label: htmlText(m[3]) }));
+const navLinks = navEntries.filter((e) => e.href);
+
+ok(`docs/index.html parsed for check 43 (${helpSections.length} section(s), ${helpTopics.length} topic(s), ` +
+   `${navLinks.length} nav link(s))`,
+  helpSections.length >= 10 && helpTopics.length >= 10 && navLinks.length >= 9 &&
+    sectionOpens === helpSections.length,
+  `found ${sectionOpens} <section> tag(s) but ${helpSections.length} with an id at top level — ` +
+  "check 43 assumes sections do not nest");
+
+// (a) every topic owns a section, and is the FIRST h2 in it.
+const buried = helpTopics.filter((t) => {
+  const owner = ownerOf(t.at);
+  return !owner || helpTopics.find((x) => ownerOf(x.at) === owner) !== t;
+});
+ok(`docs/index.html: all ${helpTopics.length} <h2> topics open their own addressable section`,
+  !buried.length,
+  `buried inside another topic's section: ${buried.map((t) => `"${t.text}" (in #${(ownerOf(t.at) || {}).id})`).join("; ")}\n      ` +
+  "a buried topic has no anchor, no nav link, and no entry of its own in the LF60 docs " +
+  "search — which indexes main > section[id] by each section's FIRST h2");
+
+// (b) + (c) the nav and the sections describe the same page.
+const navHrefs = navLinks.map((l) => l.href);
+const unlinked = helpSections.filter((s) => !navHrefs.includes(s.id));
+ok(`docs/index.html: the nav links all ${helpSections.length} sections`,
+  !unlinked.length,
+  `on the page, absent from the nav: ${unlinked.map((s) => "#" + s.id).join(", ")}`);
+const danglingNav = navHrefs.filter((h) => !helpSections.some((s) => s.id === h));
+ok("docs/index.html: every nav link resolves to a section that exists",
+  !danglingNav.length,
+  `in the nav, not on the page: ${danglingNav.map((h) => "#" + h).join(", ")}`);
+
+// (d) order, within each group.
+const outOfOrder = [];
+let groupStart = 0;
+for (let i = 0; i <= navEntries.length; i++) {
+  if (i < navEntries.length && !navEntries[i].group) continue;
+  const links = navEntries.slice(groupStart, i).filter((e) => e.href)
+    .map((l) => helpSections.findIndex((s) => s.id === l.href)).filter((n) => n >= 0);
+  links.forEach((n, k) => { if (k && n < links[k - 1]) outOfOrder.push(navHrefs[k]); });
+  groupStart = i + 1;
+}
+ok("docs/index.html: each nav group lists its sections in the page's own order",
+  !outOfOrder.length,
+  `out of order within their group: ${outOfOrder.map((h) => "#" + h).join(", ")}`);
+
+// (e) a label may abbreviate its heading; it may not contradict it.
+const IGNORE_WORD = new Set(["the", "a", "an", "and", "&", "of", "in", "vs"]);
+const words = (s) => s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/)
+  .filter((w) => w && !IGNORE_WORD.has(w));
+const mislabelled = navLinks.map((l) => {
+  const sec = helpSections.find((s) => s.id === l.href);
+  if (!sec) return null;
+  const heading = helpTopics.find((t) => ownerOf(t.at) === sec);
+  if (!heading) return null;
+  const stray = words(l.label).filter((w) => !words(heading.text).includes(w));
+  return stray.length ? `"${l.label}" (#${l.href} is "${heading.text}"; stray: ${stray.join(", ")})` : null;
+}).filter(Boolean);
+ok(`docs/index.html: all ${navLinks.length} nav labels say what their section's heading says`,
+  !mislabelled.length,
+  `labels naming something their heading does not: ${mislabelled.join("; ")}`);
+
+// (f) the anchors the APP links to. The contextual `?` in the inspector picks one per
+// selection kind and falls back to the builder's; a rename on the page silently breaks it.
+const helpIds = new Set([...help.matchAll(/id="([^"]+)"/g)].map((m) => m[1]));
+const appSrc = ["app/index.html", "app/studio.js", "app/viewer.html"]
+  .filter((f) => fs.existsSync(path.join(ROOT, f))).map(read).join("\n");
+const hlMap = (appSrc.match(/var _hlAnchors = \{([^}]*)\}/) || ["", ""])[1];
+const appAnchors = [...new Set([
+  // Literal anchors only: the negative lookahead drops a string that is a PREFIX being
+  // concatenated (`"docs/index.html#ct-" + t`, the chart-card links) — those resolve per
+  // chart type and check 3 above already holds the whole `#ct-*` set.
+  ...[...appSrc.matchAll(/docs\/index\.html#([a-z0-9-]+)(?=["'`])(?!["'`]\s*\+)/g)].map((m) => m[1]),
+  ...[...hlMap.matchAll(/:\s*"([a-z0-9-]+)"/g)].map((m) => m[1]),
+  ...(appSrc.match(/_hlAnchors\[[^\]]*\]\s*\|\|\s*"([a-z0-9-]+)"/) || []).slice(1),
+])];
+const brokenAnchors = appAnchors.filter((a) => !helpIds.has(a));
+ok(`docs/index.html: all ${appAnchors.length} help anchors the app links to resolve on the page`,
+  appAnchors.length >= 5 && !brokenAnchors.length,
+  `linked from app/, missing from docs/index.html: ${brokenAnchors.map((a) => "#" + a).join(", ") || "(none)"}\n      ` +
+  `anchors found: ${appAnchors.join(", ") || "(none — the extraction itself broke)"}`);
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

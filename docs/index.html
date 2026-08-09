@@ -261,14 +261,25 @@
 <nav>
   <div class="nav-bar">
     <div class="nav-inner">
+      <!-- One link per top-level <h2> on the page, in the page's own order within each
+           group (doc-truth check 43 derives this list from the sections themselves —
+           a new section without a link here, or a link whose label says something its
+           heading doesn't, fails the gate). The Admin group trails the User one by
+           design even though #admin-docs sits mid-page. -->
       <span class="nav-group">User</span>
       <a href="#getting-started" class="active">Getting started</a>
+      <a href="#home">Home</a>
+      <a href="#quick-views">Quick Views</a>
+      <a href="#build">View Builder</a>
+      <a href="#sample-packs">Sample packs</a>
+      <a href="#jobs">Jobs</a>
       <a href="#builder">The builder</a>
       <a href="#ensembles">Ensembles &amp; honesty</a>
       <a href="#chart-types">Chart types</a>
       <a href="#data-sources">Data sources</a>
       <a href="#exporting">Exporting</a>
       <a href="#shortcuts">Shortcuts</a>
+      <a href="#glossary">Glossary</a>
       <a href="#simple-mode">Simple mode</a>
       <span class="nav-group">Admin</span>
       <a href="#admin-docs">Admin &amp; backend setup</a>
@@ -536,8 +547,8 @@
   </div>
 </section>
 
-<!-- ── The builder ────────────────────────────────────────────── -->
-<section id="builder">
+<!-- ── Home ───────────────────────────────────────────────────── -->
+<section id="home">
   <h2>Home — instant analytics</h2>
   <p><strong>Home</strong> greets you with your content, live:</p>
   <ul>
@@ -607,6 +618,10 @@
   so the download is complete on its own; a dashboard backed by a real data source keeps querying
   that source live, in the viewer and in the exported file alike.</p>
 
+</section>
+
+<!-- ── Quick Views ────────────────────────────────────────────── -->
+<section id="quick-views">
   <h2>Quick Views (Explore) — dataset-first Views</h2>
   <p><strong>Quick Views</strong> (left rail, Build group — the section previously named Explore)
   is the fastest path from data to chart, built for non-experts:</p>
@@ -655,7 +670,11 @@
     uses — save it and Explore selects it immediately, ready to chart.</li>
   </ul>
 
-  <h2 id="build">View Builder — pivot and crosstab, no code</h2>
+</section>
+
+<!-- ── View Builder ───────────────────────────────────────────── -->
+<section id="build">
+  <h2>View Builder — pivot and crosstab, no code</h2>
   <!-- IMAGE-SLOT: the View Builder with a dataset selected — folder tree on the left,
        a field pill on Columns and Rows, and a crosstab rendering in the middle. -->
   <figure class="fig-slot has-img"><img src="img/viewbuilder.png" alt="The View Builder: dataset outline on the left, fields on the Columns and Rows shelves, the live result in the middle" loading="lazy"/><figcaption>The View Builder</figcaption></figure>
@@ -791,6 +810,10 @@
   View's dataset, filters, and calculations and renders the actual numbers — not placeholder
   sample rows.</p>
 
+</section>
+
+<!-- ── Sample packs ───────────────────────────────────────────── -->
+<section id="sample-packs">
   <h2>Sample packs</h2>
   <p><strong>Sample packs</strong> (installed from Settings) are ready-made
   demo content you can install or remove. A pack can add dashboards, datasets, connections and jobs —
@@ -854,6 +877,10 @@
     both for a pitch that wants to stay focused on Conservation Insight alone.</li>
   </ul>
 
+</section>
+
+<!-- ── Jobs ───────────────────────────────────────────────────── -->
+<section id="jobs">
   <h2>Jobs — prep &amp; rollup</h2>
   <p><strong>Jobs</strong> (left rail) prep one dataset before it's charted: rename or cast a
   column, derive a new one from arithmetic on two others, filter rows, roll everything up with a
@@ -945,6 +972,10 @@
     list tells you when it's time to click Run again.</li>
   </ul>
 
+</section>
+
+<!-- ── The builder ────────────────────────────────────────────── -->
+<section id="builder">
   <h2>The builder</h2>
   <p>The workspace is divided into three resizable panes. Each pane can be collapsed to a labeled rail by clicking the <code>‹</code> / <code>›</code> collapse button.</p>
 
