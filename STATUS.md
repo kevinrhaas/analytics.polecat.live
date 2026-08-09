@@ -135,6 +135,60 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **SP-1 slice (b) — the Market Coverage pack gets its three dashboards (v913, sw v535, 2026-08-09,
+  steward; dev branch; est 3pt for the whole pack, (a) took 1 and this took 1 — on estimate):** the
+  pack shipped its Census data and its join job last slice with nothing built on top of them. It now
+  installs three dashboards, all reading that job's output live.
+  - **The hero, `marketcoverage-whitespace`** — the county choropleth of `restaurants_per_10k` the
+    item named, its grocery twin beside it, and the panel that turns two maps into one question: a
+    quadrant of median household income against restaurant supply for every county of 250,000+
+    residents, with the crosshairs on the national county medians. Plus a method note, because the
+    honest reading of a low rate is "a question, not a finding" and the dashboard should say so.
+  - **`marketcoverage-demographics`** — the demand side on its own terms (Kevin, 2026-08-08: "I like
+    demographics and census type data"): income, median age and bachelor's-or-higher as three county
+    maps, and the income-vs-supply scatter with its trend line.
+  - **`marketcoverage-shortlist`** — the answer as a list: counties at or above the median income AND
+    at or below the median restaurant rate, over a 250,000-resident floor, as a paginated table plus
+    the 500,000+ markets among them as a sorted bar chart, with the rule stated in plain words above.
+  - **The thresholds are the DATA's own medians**, computed from the shipped rows at seed time —
+    $67,092 and 18.8 per 10,000 — never typed in, so a re-extract that moves the distribution
+    re-seeds thresholds that still mean "the median county". The suite recomputes both from the CSV
+    and fails the spec if they disagree.
+  - **Nothing here is a second copy of the answer.** Every panel is bound to a table-shaped builder
+    blob over the pack's own job output (the CONS-3 convention, so #118's live re-run feeds real
+    rows), and a panel that shows a SUBSET narrows it with the BUILDER's own filter grammar
+    (`curatedDA` gained an optional `filters` argument) — open the View and the three filters that
+    made the shortlist are right there to move. Verified by running the saved blob: all 52 rows it
+    returns really do clear both rules.
+  - **A real defect the verification surfaced, and it was not in this pack.** `MAX_BODY_ROWS = 200`
+    is the EDITOR's result-grid display cap, but `bdRunBlob` — the path a SAVED View takes into a
+    dashboard panel — went through the same `compute()` and inherited it. So the 1,813-county map
+    drew its first 200 counties (Alabama through Arkansas) and every KPI median was computed over
+    them, with nothing surfacing the truncation once the basis left the editor. `compute()`/
+    `chartBasis()` now take an optional row limit; the editor keeps 200 and the saved-View run path
+    passes `MAX_VIEW_ROWS = 2000`, which is the ceiling that was already in force (`bdLoadRowsFor`
+    caps a workspace dataset at 2,000 rows). Every existing caller passes no limit and is unchanged.
+    This was invisible until a pack shipped a dataset bigger than a demo: the map looked fine.
+  - **The heal, so slice (a)'s installs are not stranded** — `Studio.ensureMarketCoverageDashboards()`
+    runs from `reconcilePackDashboards` at boot: a workspace that installed the pack last week gets
+    the three dashboards without a reinstall, a deleted one comes back, and it is a no-op otherwise
+    (including while the CSV is still materializing — that path seeds them itself).
+  - **Verified** (foreground, before merge): the repo's DEV GATE — `tools/validate.mjs` (211 files,
+    3 packs declare a source), `tools/changelog-check.js` (890 entries, top v913, manager-parse OK),
+    `tools/doc-truth.mjs` and `tools/dev-smoke.mjs`, green. Plus a foreground harness driving the
+    exact evaluate blocks this slice added to `tests/run.js` against the booted app at **1500×1040
+    AND 390×780**: the three dashboards seeded, foldered and credited to the Census in their
+    subtitles; every panel and KPI bound to a blob over the pack's own output; the quadrant
+    crosshairs and shortlist filters equal to medians recomputed from the CSV; the saved blobs
+    returning the whole 1,813-row basis; all 52 shortlist rows obeying both rules; the heal
+    re-seeding and then no-opping; and all three dashboards RENDERING — 1,500+ counties **coloured**
+    (not merely outlined, which is what the truncated basis had been doing), 284 quadrant dots, KPIs
+    reading 18.8 / 4.1 / $67.1K / 319.6M, zero pageerrors or console errors at either width. The
+    full `tests/run.js` runs at stage promotion.
+  - **Found, not fixed (a different pack, so a different unit):** the Conservation CRD dashboard's
+    "Map Legend" panel passes `opts.html`, but `studio-render.js`'s richtext case reads
+    `opts.content` — that panel has been rendering its "Add content in the inspector…" placeholder.
+    One-line fix, unrelated to this slice; left for whoever takes it as its own item.
 - **SP-1 slice (a) — "Market Coverage": the first sample pack built from REAL data (v912, sw v534,
   2026-08-09, steward; dev branch; est 3pt for the whole pack, this slice took 1 — on estimate for
   (a) of ~3):** the data foundation Kevin's ★★ pack needs, shipped as the pack's own connection,
@@ -11933,21 +11987,31 @@
   names. `SUPABASE_ANON_KEY` and `SUPABASE_PASSWORD` — read by `supabase-provision.yml:40,63` —
   are untouched, so nothing pointing at prod changes behaviour. Adding is additive; the only way
   to break prod here would be to REPLACE those two, which nothing in N19–N25 does.
-- **SP-1 ★★ [3pt est, 1 slice shipped] — "Market Coverage" — the new DEFAULT sample pack (Kevin,
+- **SP-1 ★★ [3pt est, 2 slices shipped] — "Market Coverage" — the new DEFAULT sample pack (Kevin,
   2026-08-07).** ✓ **SLICE (a) IS SHIPPED — the data foundation: v912, sw v534 (2026-08-09,
   steward — see DONE).** The extract script, both Census datasets (1,813 counties, 111.1KB of the
   150KB budget), the pack's connection, and the join job that derives the saturation index, plus
   the async materialization path a committed-CSV pack needs (`Studio.ensurePackDataMaterialized`,
   sw precache, `docs/PACKS.md` § "How the CSV reaches the app").
-  **WHAT REMAINS — (b) then (c), in that order:**
-  **(b) the dashboards** (≈3): the county choropleth over `restaurants_per_10k` is the hero — the
+  ~~**(b) the dashboards** (≈3): the county choropleth over `restaurants_per_10k` is the hero — the
   data is already keyed for it and `geoNormalizeId` re-pads the 4-digit FIPS the file adapter
   produces, so no data change is needed. The demographic View Kevin asked for belongs here too:
-  the counties whose income and age profile say they should support a category they do not have.
+  the counties whose income and age profile say they should support a category they do not have.~~
+  ✓ **SLICE (b) IS SHIPPED — the three dashboards: v913, sw v535 (2026-08-09, steward — see DONE).**
+  Whitespace (the `restaurants_per_10k` county choropleth, its grocery twin, the income-vs-supply
+  quadrant, a method note), Who Lives There (income/age/education maps + the income-vs-supply
+  scatter — the demographic half Kevin asked for), and The Whitespace Shortlist (the two-rule
+  filtered table + the biggest markets on it). Thresholds are the pack's own medians, computed at
+  seed time; every panel reads the job output through the builder's live re-run. It also carried a
+  real defect the verification surfaced: a saved View's basis was capped at the EDITOR's 200-row
+  display limit on its way into a dashboard, so a 1,813-county map drew 200 counties. See DONE.
+  **WHAT REMAINS — (c), the last slice:**
   **(c) Views + tour + docs/changelog, AND the `DEFAULT_INSTALLED` swap** — `demopacks.js`
   `DEFAULT_INSTALLED = ["datamanagement"]` becomes `["marketcoverage"]`. Deliberately NOT done in
-  (a): a pack that installs by default and shows a new visitor no dashboards is worse than the one
-  it replaces. Data Management stays installable either way.
+  (a) or (b): a pack that installs by default and shows a new visitor no dashboards is worse than
+  the one it replaces — (b) has now closed that objection, so (c) can make the swap. Data
+  Management stays installable either way. **Consider also whether the whitespace dashboard should
+  be `featured` on Home when the pack becomes the default (nothing in (b) touches featuring).**
   The original spec, unchanged, follows.**
   Industry density and whitespace by county: where a chain is under-represented versus the
   population and the businesses already there. **Replaces `datamanagement` in

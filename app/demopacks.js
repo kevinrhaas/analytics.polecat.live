@@ -81,20 +81,21 @@
     },
     // SP-1: the first pack that carries REAL data — US Census, public domain, committed
     // as CSV under data/packs/marketcoverage/ by tools/pack-extract/marketcoverage.mjs
-    // (docs/PACKS.md is the contract). Slice (a) ships the data foundation: the
+    // (docs/PACKS.md is the contract). Slice (a) shipped the data foundation: the
     // connection, the two datasets, and the join job that turns them into a saturation
-    // index. Its dashboards and Views are slices (b) and (c) — and the swap into
-    // DEFAULT_INSTALLED waits for them, because a pack that installs by default and
-    // shows a new visitor no dashboards is worse than the one it would replace.
+    // index. Slice (b) adds the three dashboards that read it. Its pinned Views and the
+    // swap into DEFAULT_INSTALLED are slice (c).
     marketcoverage: {
       id: "marketcoverage",
       kind: "workspace",
       folder: "Market Coverage",
       name: "Market Coverage — where a category is under-served",
-      tagline: "2 Census datasets · 1,813 counties · a saturation-index join job — real public data, embedded",
-      blurb: "2 US Census datasets covering 1,813 counties — who lives there (population, households, " +
-        "median age, median household income, education) and the businesses already trading there " +
-        "(all industries, restaurants and bars, grocers) — plus the prep job that joins them into a " +
+      tagline: "3 dashboards · 2 Census datasets · 1,813 counties · a saturation-index join job — real public data, embedded",
+      blurb: "3 dashboards — the county restaurant-whitespace maps, the demographics behind them, " +
+        "and the shortlist of counties with the income but not the restaurants — over 2 US Census " +
+        "datasets covering 1,813 counties: who lives there (population, households, median age, " +
+        "median household income, education) and the businesses already trading there (all " +
+        "industries, restaurants and bars, grocers), plus the prep job that joins them into a " +
         "per-10,000-residents saturation index. The data is real and embedded: nothing to connect.",
       source: {
         kind: "public",
@@ -103,8 +104,8 @@
         licence: "Public domain (U.S. Government work)",
         retrieved: "2026-08-09"
       },
-      // No `seeds`: install() writes the connection synchronously, and the datasets and
-      // job land from the CSV a moment later (see Studio.ensurePackDataMaterialized) —
+      // No `seeds`: install() writes the connection synchronously, and the datasets, the
+      // job and the dashboards land from the CSV a moment later (Studio.ensurePackDataMaterialized) —
       // the same reason datamanagement declares none. The SP-0 conformance loop checks
       // declared counts against the installer, so declaring what install() cannot write
       // in its own turn would be a false claim, not a stricter test.
@@ -610,12 +611,17 @@
   }
   // A table-shaped builder-blob DA over a curated pack dataset — the metrics-
   // wheel convention: #118's live re-run feeds the panel the dataset's REAL rows.
-  function curatedDA(id, name, dsId, cols) {
+  // SP-1(b): `filters` is the builder's OWN filter grammar (build.js bdFilteredRows —
+  // { col, kind:"range", min, max } for a number, { col, kind:"in", values } for a
+  // string), so a panel that shows a SUBSET of a pack dataset narrows it through the
+  // same code path the editor would, rather than shipping a second, hand-cut copy of
+  // the rows. Omitted = every row, exactly as the three CONS-1 callers expect.
+  function curatedDA(id, name, dsId, cols, filters) {
     return { id: id, name: name, kind: "sql", sql: "", query: "",
       columns: cols.slice(), params: [], authored: true,
       builder: { dsKind: "ws", dsId: dsId, chartType: "table",
         shelfCols: cols.map(function (c) { return { col: c, agg: null }; }),
-        shelfRows: [], filters: [], calcs: [], shelfColor: [], paletteKey: "", mapScale: "" } };
+        shelfRows: [], filters: (filters || []).slice(), calcs: [], shelfColor: [], paletteKey: "", mapScale: "" } };
   }
   // (1) "OpTIS Cover Crop Trends" — the two side-by-side county maps (sequential
   // green + diverging orange->green change), the by-type stacked area, and the
@@ -870,7 +876,300 @@
       steps: steps,
       folder: MC_FOLDER, demoPackId: id
     });
+
+    // SP-1 (b): the dashboards read the job's output, so they are seeded here — the
+    // moment that dataset exists — rather than in install(), which runs a turn earlier
+    // with nothing to chart yet.
+    seedMarketCoverageDashboards(W, id, outputDs, out, new Date().toISOString());
   }
+
+  /* ---- SP-1 (b): the pack's three dashboards ----------------------------------------
+     The pack's question is a comparison — who lives in a county versus what already
+     serves them — so the three dashboards are the three ways to ask it, in the order a
+     reader meets them:
+
+       1. WHITESPACE (the hero) — the county choropleth of restaurants per 10,000
+          residents, its grocery twin, and the income-versus-supply quadrant that turns
+          the two maps into one question.
+       2. WHO LIVES THERE — the demand side on its own terms (income, age, education),
+          which is the half Kevin asked to lean into, plus the scatter that asks whether
+          income predicts restaurant supply at all.
+       3. THE SHORTLIST — the counties that clear both bars: income at or above the
+          national county median, restaurants at or below it. The answer, as a list you
+          could hand to someone.
+
+     Two conventions carried from CONS-1/CONS-3, for the same reasons:
+     * Every panel is bound to a table-shaped builder-blob DA over the pack's own
+       datasets (curatedDA), so #118's live re-run feeds the panels the REAL rows —
+       nothing here is sample-engine noise.
+     * A panel that shows a SUBSET narrows it with the builder's own filter grammar
+       rather than a hand-cut second dataset, so what the reader sees is reproducible in
+       the editor: open the View, and the filters that made it are right there. */
+  // Seeding order, and it matters: the hero is LAST so it is the newest row and tops a
+  // recency-sorted list (the CONS-2/CONS-3 convention).
+  var MC_DASHBOARDS = ["marketcoverage-shortlist", "marketcoverage-demographics", "marketcoverage-whitespace"];
+  // Two population floors, both about READABILITY rather than significance: a scatter of
+  // all 1,813 counties is a cloud, and a bar chart of 380 is a wall. The 20,000-resident
+  // floor that makes the rates meaningful at all is applied in the EXTRACT (see
+  // SOURCE.json), not here.
+  var MC_BIG_COUNTY = 250000;      // the quadrant/scatter/table population floor
+  var MC_SHORTLIST_BAR = 500000;   // the shortlist bar chart's floor (≈20 bars)
+
+  // The two thresholds the whitespace question is asked against: the national county
+  // MEDIAN income and the national county MEDIAN restaurant rate. Derived from the
+  // pack's own shipped rows at seed time (never a magic constant), so a re-extract that
+  // moves the distribution re-seeds thresholds that still mean "the median county".
+  function mcMedian(table, col) {
+    var i = ((table && table.columns) || []).indexOf(col);
+    if (i < 0) return 0;
+    var v = ((table && table.rows) || []).map(function (r) { return Number(r[i]); })
+      .filter(function (n) { return isFinite(n); })
+      .sort(function (a, b) { return a - b; });
+    if (!v.length) return 0;
+    var mid = (v.length - 1) / 2;
+    return v.length % 2 ? v[mid] : (v[Math.floor(mid)] + v[Math.ceil(mid)]) / 2;
+  }
+  function marketCoverageThresholds(table) {
+    return {
+      income: Math.round(mcMedian(table, "median_income")),
+      // one decimal: the number is quoted in the copy and typed into a filter, and
+      // "18.8 restaurants per 10,000 people" is the honest precision for a median.
+      rate: Math.round(mcMedian(table, "restaurants_per_10k") * 10) / 10,
+      counties: ((table && table.rows) || []).length
+    };
+  }
+  function mcPopFilter(min) { return { col: "population", kind: "range", min: String(min), max: "" }; }
+  // The shortlist rule, in one place because three panels and a paragraph of copy all
+  // have to mean the same thing: income at or above the median, restaurants at or below.
+  function mcShortlistFilters(t, popMin) {
+    return [
+      { col: "median_income", kind: "range", min: String(t.income), max: "" },
+      { col: "restaurants_per_10k", kind: "range", min: "", max: String(t.rate) }
+    ].concat(popMin ? [mcPopFilter(popMin)] : []);
+  }
+  function mcChoropleth(daId, valueCol, fmtId, height) {
+    return { type: "choropleth", da: daId,
+      map: { idCol: "fips", valueCol: valueCol },
+      opts: { scale: "county", fmt: fmtId, agg: "median", classes: 6, height: height || 380 } };
+  }
+  function mcMoney(n) { return "$" + Math.round(n).toLocaleString(); }
+
+  // (1) the hero: two maps and the question they add up to.
+  function marketCoverageWhitespaceSpec(outDsId, t) {
+    var das = [], panels = [], kpis = [];
+    var allDa = curatedDA("vmw_all", "Market Coverage — county saturation index", outDsId,
+      ["fips", "county", "state", "population", "median_income", "restaurants_per_10k", "grocers_per_10k"]);
+    das.push(allDa);
+    kpis.push({ da: allDa.id, valueCol: "restaurants_per_10k", label: "Restaurants & bars per 10k residents",
+      fmt: "abbr", agg: "median", subtitle: "the median county", state: "",
+      info: "County Business Patterns establishments in NAICS 722, divided by ACS population in ten-thousands." });
+    kpis.push({ da: allDa.id, valueCol: "grocers_per_10k", label: "Grocers per 10k residents",
+      fmt: "abbr", agg: "median", subtitle: "the median county", state: "",
+      info: "NAICS 445 — food and beverage retailers — on the same per-10,000-residents basis." });
+    kpis.push({ da: allDa.id, valueCol: "median_income", label: "Median household income",
+      fmt: "money", agg: "median", subtitle: "the median county", state: "",
+      info: "ACS 5-year table B19013. The whitespace question compares a county against this line." });
+    kpis.push({ da: allDa.id, valueCol: "population", label: "Residents covered",
+      fmt: "abbr", agg: "sum", subtitle: t.counties.toLocaleString() + " counties", state: "",
+      info: "Every county of 20,000 people or more, outside the island areas — see the pack's source note." });
+
+    panels.push({ id: "pmw_map", section: "Where the restaurants already are",
+      title: "Restaurants & bars per 10,000 residents", span: "full",
+      sub: "darker = more places to eat for the people who actually live there",
+      info: "Counties under 20,000 residents are not in the extract: a per-10,000 rate over a village is noise.",
+      chart: mcChoropleth(allDa.id, "restaurants_per_10k", "abbr", 460) });
+    panels.push({ id: "pmw_groc", title: "Grocers per 10,000 residents", span: 2,
+      sub: "the same map for food retail — the two rarely agree",
+      chart: mcChoropleth(allDa.id, "grocers_per_10k", "abbr", 360) });
+
+    var bigDa = curatedDA("vmw_big", "Market Coverage — counties of 250,000+ residents", outDsId,
+      ["county", "median_income", "restaurants_per_10k"], [mcPopFilter(MC_BIG_COUNTY)]);
+    das.push(bigDa);
+    panels.push({ id: "pmw_quad", title: "Income versus restaurant supply", span: 2,
+      sub: "counties of 250,000+ residents; the crosshairs are the national county medians",
+      info: "Bottom right is the whitespace: households that can afford to eat out, without the restaurants to do it in.",
+      chart: { type: "quadrant", da: bigDa.id,
+        map: { labelCol: "county", xCol: "median_income", yCol: "restaurants_per_10k" },
+        opts: { xThreshold: t.income, yThreshold: t.rate,
+          xLabel: "Median household income", yLabel: "Restaurants & bars per 10k",
+          q1: "Well served", q2: "Served on a lower income",
+          q3: "Thin on both", q4: "Whitespace",
+          fmt: "abbr", height: 360 } } });
+
+    panels.push({ id: "pmw_note", section: "How to read it", title: "What this pack is measuring", span: "full",
+      chart: { type: "richtext", da: null, opts: { content: [
+        "**One rate, two halves.** Every number on this dashboard is a Census establishment count divided by a Census population — restaurants and bars (NAICS 722) or grocers (NAICS 445) per 10,000 residents. The two halves come from two different programmes, County Business Patterns and the American Community Survey, and the pack's own job is what joins them on county FIPS.",
+        "",
+        "**A low rate is a question, not a finding.** It can mean an under-served market, or a county whose residents eat in the next county over, or a place where one restaurant serves a wide rural area. The quadrant pairs the rate with income precisely because the rate alone does not carry the story.",
+        "",
+        "- Median county: **" + t.rate.toFixed(1) + "** restaurants and bars per 10,000 residents",
+        "- Median county: **" + mcMoney(t.income) + "** household income",
+        "- Counties in the extract: **" + t.counties.toLocaleString() + "** (every county of 20,000+ residents, island areas excluded — the map has no geometry for them)"
+      ].join("\n") } } });
+
+    return {
+      id: "marketcoverage-whitespace", name: "marketcoverage-whitespace",
+      title: "Restaurant Whitespace by County",
+      subtitle: "Where the people are, versus where the restaurants are",
+      dashboardTheme: "polecat",
+      panels: panels, kpis: kpis, filters: [],
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+
+  // (2) the demand side on its own terms — Kevin, 2026-08-08: "I like demographics and
+  // census type data, I think people find that interesting."
+  function marketCoverageDemographicsSpec(outDsId, t) {
+    var das = [], panels = [], kpis = [];
+    var demoDa = curatedDA("vmd_all", "Market Coverage — county demographics", outDsId,
+      ["fips", "county", "state", "population", "households", "median_age", "median_income", "bachelors_pct"]);
+    das.push(demoDa);
+    kpis.push({ da: demoDa.id, valueCol: "median_income", label: "Median household income",
+      fmt: "money", agg: "median", subtitle: "the median county", state: "", info: "ACS 5-year, table B19013." });
+    kpis.push({ da: demoDa.id, valueCol: "median_age", label: "Median age",
+      fmt: "abbr", agg: "median", subtitle: "the median county", state: "", info: "ACS 5-year, table B01002." });
+    kpis.push({ da: demoDa.id, valueCol: "bachelors_pct", label: "Bachelor's degree or higher",
+      fmt: "pct", agg: "median", subtitle: "share of the 25-and-over population", state: "",
+      info: "ACS 5-year, table B15003 — the 25-and-over population, not the whole county." });
+    kpis.push({ da: demoDa.id, valueCol: "households", label: "Households covered",
+      fmt: "abbr", agg: "sum", subtitle: t.counties.toLocaleString() + " counties", state: "", info: "ACS 5-year, table B11001." });
+
+    panels.push({ id: "pmd_income", section: "Who lives there",
+      title: "Median household income by county", span: "full",
+      sub: "the denominator every coverage rate on this pack is really about",
+      chart: mcChoropleth(demoDa.id, "median_income", "money", 460) });
+    panels.push({ id: "pmd_age", title: "Median age", span: 2,
+      chart: mcChoropleth(demoDa.id, "median_age", "abbr", 340) });
+    panels.push({ id: "pmd_edu", title: "Bachelor's degree or higher", span: 2,
+      sub: "share of the 25-and-over population",
+      chart: mcChoropleth(demoDa.id, "bachelors_pct", "pct", 340) });
+
+    var bigDa = curatedDA("vmd_big", "Market Coverage — income vs restaurant supply (250,000+ residents)", outDsId,
+      ["county", "median_income", "restaurants_per_10k"], [mcPopFilter(MC_BIG_COUNTY)]);
+    das.push(bigDa);
+    panels.push({ id: "pmd_scatter", section: "Does income predict supply?",
+      title: "Median household income vs restaurants per 10,000 residents", span: "full",
+      sub: "one dot per county of 250,000+ residents, with the fitted trend",
+      info: "If income alone predicted restaurant supply the dots would hug the line. They do not — which is what makes the shortlist worth reading.",
+      chart: { type: "scatter", da: bigDa.id,
+        map: { labelCol: "county", xCol: "median_income", yCol: "restaurants_per_10k" },
+        opts: { trend: true, fmt: "abbr", xLabel: "Median household income",
+          yLabel: "Restaurants & bars per 10k", height: 360 } } });
+
+    return {
+      id: "marketcoverage-demographics", name: "marketcoverage-demographics",
+      title: "Who Lives There — County Demographics",
+      subtitle: "Income, age and education across " + t.counties.toLocaleString() + " counties — the demand side of the whitespace question",
+      dashboardTheme: "polecat",
+      panels: panels, kpis: kpis, filters: [],
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+
+  // (3) the answer as a list: both bars cleared, biggest markets first.
+  function marketCoverageShortlistSpec(outDsId, t) {
+    var das = [], panels = [], kpis = [];
+    var listDa = curatedDA("vms_list", "Market Coverage — the whitespace shortlist", outDsId,
+      ["county", "state", "population", "median_income", "restaurants_per_10k", "grocers_per_10k"],
+      mcShortlistFilters(t, MC_BIG_COUNTY));
+    das.push(listDa);
+    kpis.push({ da: listDa.id, valueCol: "median_income", label: "Median household income",
+      fmt: "money", agg: "median", subtitle: "median of the shortlist", state: "",
+      info: "Every county on this list is at or above " + mcMoney(t.income) + " — the national county median." });
+    kpis.push({ da: listDa.id, valueCol: "restaurants_per_10k", label: "Restaurants & bars per 10k",
+      fmt: "abbr", agg: "median", subtitle: "median of the shortlist", state: "",
+      info: "Every county on this list is at or below " + t.rate.toFixed(1) + " — the national county median." });
+    kpis.push({ da: listDa.id, valueCol: "population", label: "Typical county size",
+      fmt: "abbr", agg: "median", subtitle: "median of the shortlist", state: "", info: "" });
+
+    panels.push({ id: "pms_rule", section: "How this list was built",
+      title: "Two rules, both visible in the View", span: "full",
+      chart: { type: "richtext", da: null, opts: { content: [
+        "A county is on the shortlist when it clears **both** bars:",
+        "",
+        "- household income at or above **" + mcMoney(t.income) + "** — the national county median, and",
+        "- restaurants and bars at or below **" + t.rate.toFixed(1) + "** per 10,000 residents — likewise the median,",
+        "- with at least **" + MC_BIG_COUNTY.toLocaleString() + "** residents, so the list is a market list rather than a long tail.",
+        "",
+        "Those are not a stored copy of the answer: they are three filters on this View, run over the pack's own job output every time the dashboard loads. Open it in the builder and you can move them.",
+        "",
+        "*What the list is not:* proof of an opportunity. A low rate can also mean people eat in the county next door, or that one restaurant covers a lot of ground. It is a place to start asking."
+      ].join("\n") } } });
+
+    panels.push({ id: "pms_table", title: "The shortlist", span: "full",
+      sub: "income at or above the median, restaurants at or below it",
+      chart: { type: "table", da: listDa.id,
+        map: { cols: [
+          { col: "county", label: "County" },
+          { col: "state", label: "State" },
+          { col: "population", label: "Residents", num: true, fmt: "abbr" },
+          { col: "median_income", label: "Median income", num: true, fmt: "money" },
+          { col: "restaurants_per_10k", label: "Restaurants / 10k", num: true, fmt: "abbr" },
+          { col: "grocers_per_10k", label: "Grocers / 10k", num: true, fmt: "abbr" }
+        ] },
+        opts: { pageSize: 12, freezeHeader: true, density: "comfortable" } } });
+
+    var bigDa = curatedDA("vms_big", "Market Coverage — the biggest shortlist markets", outDsId,
+      ["county", "population"], mcShortlistFilters(t, MC_SHORTLIST_BAR));
+    das.push(bigDa);
+    panels.push({ id: "pms_bars", section: "The biggest of them",
+      title: "Shortlist counties of 500,000+ residents, by population", span: "full",
+      sub: "the same two rules, sorted by how many people are behind them",
+      chart: { type: "bars", da: bigDa.id, map: { labelCol: "county", valueCol: "population" },
+        opts: { horizontal: true, sortBars: true, fmt: "abbr", height: 420 } } });
+
+    return {
+      id: "marketcoverage-shortlist", name: "marketcoverage-shortlist",
+      title: "The Whitespace Shortlist",
+      subtitle: "Counties with the income but not the restaurants — the two rules are filters on the View, not a stored answer",
+      dashboardTheme: "polecat",
+      panels: panels, kpis: kpis, filters: [],
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+
+  // Idempotent by dashboard name (the CONS-1 convention), so it is safe from the seed,
+  // from the boot heal, and from a workspace where someone deleted one of the three.
+  function seedMarketCoverageDashboards(W, id, outputDs, table, now) {
+    if (!outputDs) return 0;
+    var t = marketCoverageThresholds(table);
+    if (!t.counties) return 0; // no rows to threshold against — nothing honest to draw
+    var specs = {
+      "marketcoverage-shortlist": marketCoverageShortlistSpec(outputDs.id, t),
+      "marketcoverage-demographics": marketCoverageDemographicsSpec(outputDs.id, t),
+      "marketcoverage-whitespace": marketCoverageWhitespaceSpec(outputDs.id, t)
+    };
+    var added = 0;
+    MC_DASHBOARDS.forEach(function (name) {
+      var have = W.all("dashboards").some(function (r) {
+        return r.demoPackId === id && (r.name === name || (r.spec && r.spec.name) === name);
+      });
+      if (have) return;
+      var spec = specs[name];
+      W.put("dashboards", {
+        name: name, title: spec.title, ts: now, spec: spec,
+        folder: MC_FOLDER, demoPackId: id
+      });
+      added++;
+    });
+    return added;
+  }
+
+  // The boot heal (studio.js reconcilePackDashboards): a workspace that installed the
+  // pack when it was slice (a) — data but no dashboards — gets them without a reinstall,
+  // and so does one where a dashboard was deleted. Returns false when there is nothing to
+  // do, including the legitimate "data hasn't materialized yet" case: ensurePackData-
+  // Materialized seeds the dashboards itself the moment the job output exists.
+  Studio.ensureMarketCoverageDashboards = function () {
+    var id = "marketcoverage";
+    if (!Studio.demoPackInstalled(id)) return false;
+    var W = Studio.Workspace;
+    var outputDs = W.all("datasets").filter(function (d) {
+      return d.demoPackId === id && (d.tags || []).indexOf("job-output") >= 0 && d.content;
+    })[0];
+    if (!outputDs) return false;
+    return seedMarketCoverageDashboards(W, id, outputDs, parsePackCsv(outputDs.content), new Date().toISOString()) > 0;
+  };
 
   // SP-0: registry-driven. This function knows about no pack in particular — an entry
   // that seeds a workspace supplies `install`; one that only gates gallery visibility

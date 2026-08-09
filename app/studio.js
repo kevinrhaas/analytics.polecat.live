@@ -1215,6 +1215,11 @@
     // FILTERS-1 heal: pre-existing installs get the practice/sinceYear param
     // declarations on the featured dashboard's geo/KPI/provider DAs.
     try { if (Studio.ensureConservationFilterParams) Studio.ensureConservationFilterParams(); } catch (e) {}
+    // SP-1(b) heal: a workspace that installed Market Coverage while it was slice (a)
+    // — the Census data and the join job, no dashboards — gets the three dashboards on
+    // boot, without a reinstall. A no-op once they exist, and a no-op while the pack's
+    // CSV is still materializing (that path seeds them itself).
+    try { if (Studio.ensureMarketCoverageDashboards) Studio.ensureMarketCoverageDashboards(); } catch (e) {}
   }
   window.__studioReconcilePackDashboards = reconcilePackDashboards; // test hook
 

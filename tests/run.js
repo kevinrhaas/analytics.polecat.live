@@ -5787,7 +5787,8 @@ function serve() {
       out.rerunReproduces = !live.error && Studio.rowsToCsv(live.columns, live.rows) === outputDs.content;
 
       Studio.removeDemoPack(ID);
-      out.removedClean = ["connections", "datasets", "jobs"].every(function (t) { return rows(t).length === 0; }) && !Studio.demoPackInstalled(ID);
+      // SP-1(b) added dashboards to the same async seed, so the sweep has to take those too
+      out.removedClean = ["connections", "datasets", "jobs", "dashboards"].every(function (t) { return rows(t).length === 0; }) && !Studio.demoPackInstalled(ID);
       if (was) { Studio.installDemoPack(ID); await Studio.ensurePackDataMaterialized(ID); }
       out.restored = Studio.demoPackInstalled(ID) === was;
       return out;
@@ -5798,6 +5799,159 @@ function serve() {
       mc.allFoldered && mc.stillOne && mc.hasOutput && mc.outputRows > 1500 &&
       mc.joined && mc.derived && mc.rateIsANumber && mc.rateChecks && mc.nullFreeSample &&
       mc.rerunReproduces && mc.removedClean && mc.restored, JSON.stringify(mc));
+
+    // ---- SP-1 (b): the pack's three dashboards ---------------------------------
+    // The claim this slice makes is not "three specs exist" — it is that what a reader
+    // sees is the pack's OWN Census rows, narrowed by filters they can open and move.
+    // So the checks below compute the medians independently from the shipped CSV and
+    // demand the specs agree with them, then RUN the saved builder blobs through
+    // Studio.Build.runBlob (the same #118 path the panels use) and assert every row the
+    // shortlist returns actually obeys both rules it advertises.
+    const mcDash = await page.evaluate(async function () {
+      var W = Studio.Workspace, ID = "marketcoverage";
+      // the (a) block above leaves the pack however it found it — install it for these
+      // checks and remember to hand the workspace back the same way (see the cleanup below)
+      var wasInstalled = Studio.demoPackInstalled(ID);
+      if (!wasInstalled) Studio.installDemoPack(ID);
+      await Studio.ensurePackDataMaterialized(ID);
+      function dash(name) {
+        return W.all("dashboards").filter(function (r) { return r.demoPackId === ID && (r.spec && r.spec.name) === name; })[0];
+      }
+      var hero = dash("marketcoverage-whitespace"), demog = dash("marketcoverage-demographics"), list = dash("marketcoverage-shortlist");
+      var out = { wasInstalled: wasInstalled, all3: !!(hero && demog && list) };
+      if (!out.all3) return out;
+      var all = [hero, demog, list];
+      out.foldered = all.every(function (r) { return r.folder === "Market Coverage"; });
+      // SP-0(b): somebody else's data is credited where the work is READ
+      window.__studioReconcilePackDashboards();
+      var line = Studio.demoPackSourceLine(ID);
+      out.attributed = all.every(function (r) {
+        return String((W.get("dashboards", r.id).spec || {}).subtitle || "").indexOf(line) >= 0;
+      });
+      // every charted panel and KPI is bound to a builder-blob DA over the pack's OWN
+      // job output — nothing here is sample-engine noise
+      var outputDs = W.all("datasets").filter(function (d) { return d.demoPackId === ID && (d.tags || []).indexOf("job-output") >= 0; })[0];
+      out.bound = true; out.onPackOutput = true;
+      all.forEach(function (r) {
+        var byId = {};
+        ((r.spec.cda || {}).dataAccesses || []).forEach(function (d) { byId[d.id] = d; });
+        (r.spec.panels || []).forEach(function (p) {
+          if (p.chart.type === "richtext") return;
+          var d = byId[p.chart.da];
+          if (!d || !d.builder || !d.builder.dsId) { out.bound = false; return; }
+          if (d.builder.dsId !== outputDs.id) out.onPackOutput = false;
+        });
+        (r.spec.kpis || []).forEach(function (k) { if (!byId[k.da]) out.bound = false; });
+      });
+      // the hero's two maps and the quadrant that turns them into a question
+      function panel(r, id) { return (r.spec.panels || []).filter(function (p) { return p.id === id; })[0]; }
+      var map = panel(hero, "pmw_map"), groc = panel(hero, "pmw_groc"), quad = panel(hero, "pmw_quad");
+      out.heroMap = !!map && map.chart.type === "choropleth" && map.chart.opts.scale === "county" &&
+        map.chart.map.idCol === "fips" && map.chart.map.valueCol === "restaurants_per_10k";
+      out.grocMap = !!groc && groc.chart.map.valueCol === "grocers_per_10k";
+      out.quad = !!quad && quad.chart.type === "quadrant" &&
+        quad.chart.map.xCol === "median_income" && quad.chart.map.yCol === "restaurants_per_10k";
+      // the demographics dashboard maps the three ACS measures Kevin asked to lean into
+      out.demogMaps = ["median_income", "median_age", "bachelors_pct"].every(function (c) {
+        return (demog.spec.panels || []).some(function (p) { return p.chart.type === "choropleth" && p.chart.map.valueCol === c; });
+      });
+      out.demogScatter = (demog.spec.panels || []).some(function (p) { return p.chart.type === "scatter" && p.chart.opts.trend === true; });
+
+      // the thresholds, recomputed here from the shipped rows — a constant typed into
+      // the spec would fail this
+      var lines = String(outputDs.content || "").trim().split("\n"), head = lines.shift().split(",");
+      function colVals(c) {
+        var i = head.indexOf(c);
+        return lines.map(function (l) { return Number(l.split(",")[i]); }).filter(function (n) { return isFinite(n); }).sort(function (a, b) { return a - b; });
+      }
+      function med(v) { var m = (v.length - 1) / 2; return v.length % 2 ? v[m] : (v[Math.floor(m)] + v[Math.ceil(m)]) / 2; }
+      var incMed = Math.round(med(colVals("median_income")));
+      var rateMed = Math.round(med(colVals("restaurants_per_10k")) * 10) / 10;
+      out.medians = { income: incMed, rate: rateMed, rows: lines.length };
+      out.quadThresholds = !!quad && quad.chart.opts.xThreshold === incMed && quad.chart.opts.yThreshold === rateMed;
+      var listDa = ((list.spec.cda || {}).dataAccesses || []).filter(function (d) { return d.id === "vms_list"; })[0];
+      var f = {}; ((listDa && listDa.builder.filters) || []).forEach(function (x) { f[x.col] = x; });
+      out.listRule = !!(f.median_income && Number(f.median_income.min) === incMed &&
+        f.restaurants_per_10k && Number(f.restaurants_per_10k.max) === rateMed && f.population);
+
+      // RUN the saved blobs — the #118 path the panels themselves use
+      var heroDa = ((hero.spec.cda || {}).dataAccesses || []).filter(function (d) { return d.id === "vmw_all"; })[0];
+      var heroRun = await Studio.Build.runBlob(heroDa.builder);
+      out.heroRows = heroRun ? heroRun.rows.length : 0;
+      out.heroLive = !!(heroRun && heroRun.live);
+      var listRun = await Studio.Build.runBlob(listDa.builder);
+      out.listRows = listRun ? listRun.rows.length : 0;
+      if (listRun) {
+        var ci = listRun.cols.indexOf("median_income"), cr = listRun.cols.indexOf("restaurants_per_10k"), cp = listRun.cols.indexOf("population");
+        out.listObeysBothRules = ci >= 0 && cr >= 0 && cp >= 0 && listRun.rows.every(function (r) {
+          return Number(r[ci]) >= incMed && Number(r[cr]) <= rateMed && Number(r[cp]) >= 250000;
+        });
+      }
+      out.listIsARealSubset = out.listRows > 0 && out.listRows < out.heroRows;
+      return out;
+    });
+    ok("SP-1(b): the Market Coverage pack seeds its three dashboards — the whitespace hero (restaurants-per-10k county map, its grocery twin, the income-vs-supply quadrant), the ACS demographics maps plus the income/supply scatter, and the shortlist — all foldered, all credited to the Census in their subtitles, every panel and KPI bound to a builder blob over the pack's own job output",
+      mcDash.all3 && mcDash.foldered && mcDash.attributed && mcDash.bound && mcDash.onPackOutput &&
+      mcDash.heroMap && mcDash.grocMap && mcDash.quad && mcDash.demogMaps && mcDash.demogScatter, JSON.stringify(mcDash));
+    ok("SP-1(b): the whitespace question is asked against the DATA's own medians — the quadrant crosshairs and the shortlist's filters both equal the median income and median restaurant rate recomputed here from the shipped CSV; running the saved blobs returns the WHOLE live basis (1,500+ rows, past the editor's 200-row display cap, which used to follow a saved View out into its dashboard and silently redraw the map) and every county the shortlist yields really is at or above the income median, at or below the rate median, and over the population floor",
+      mcDash.quadThresholds && mcDash.listRule && mcDash.heroLive && mcDash.heroRows > 1500 &&
+      mcDash.listObeysBothRules && mcDash.listIsARealSubset, JSON.stringify(mcDash));
+
+    // The heal: a workspace that installed the pack at slice (a) — Census data, no
+    // dashboards — gets them on boot reconcile without a reinstall; a second run is a no-op.
+    const mcHeal = await page.evaluate(function () {
+      var W = Studio.Workspace, names = ["marketcoverage-whitespace", "marketcoverage-demographics", "marketcoverage-shortlist"];
+      names.forEach(function (n) {
+        W.all("dashboards").filter(function (r) { return (r.spec && r.spec.name) === n; })
+          .forEach(function (r) { W.remove("dashboards", r.id, { silent: true }); });
+      });
+      W.notify("dashboards");
+      var healed = Studio.ensureMarketCoverageDashboards();
+      var back = names.every(function (n) { return W.all("dashboards").some(function (r) { return (r.spec && r.spec.name) === n; }); });
+      var again = Studio.ensureMarketCoverageDashboards();
+      return { healed: healed, back: back, idempotent: again === false };
+    });
+    ok("SP-1(b): the boot heal re-seeds the three Market Coverage dashboards into a slice-(a) install and is idempotent on a healthy one",
+      mcHeal.healed && mcHeal.back && mcHeal.idempotent, JSON.stringify(mcHeal));
+
+    // And it RENDERS: the hero loaded into the builder draws its KPIs, its county
+    // geometry and every panel — the thing a spec-shape check cannot tell you.
+    await page.evaluate(function () {
+      var W = Studio.Workspace;
+      var hero = W.all("dashboards").filter(function (r) { return (r.spec && r.spec.name) === "marketcoverage-whitespace"; })[0];
+      window.__studioLoad(Studio.clone(hero.spec));
+    });
+    await page.waitForTimeout(3000);
+    const mcRender = await page.evaluate(function () {
+      var d = document.querySelector("#preview").contentDocument;
+      function panelOf(id) {
+        return Array.prototype.filter.call(d.querySelectorAll("[data-panel-id]"), function (n) { return n.getAttribute("data-panel-id") === id; })[0];
+      }
+      function panelPaths(id) { var p = panelOf(id); return p ? p.querySelectorAll("svg path").length : 0; }
+      // COLORED counties, not just drawn ones: the map is the whole claim, and a basis
+      // truncated to its first 200 rows would still paint every county's outline.
+      function painted(id) {
+        var p = panelOf(id); if (!p) return 0;
+        return Array.prototype.filter.call(p.querySelectorAll("svg path"), function (n) {
+          return /^rgb\(/.test(n.getAttribute("fill") || "");
+        }).length;
+      }
+      return { kpis: d.querySelectorAll("#kpis .kpi").length, cards: d.querySelectorAll("#content .card").length,
+        mapPaths: panelPaths("pmw_map"), grocPaths: panelPaths("pmw_groc"), quadSvg: panelPaths("pmw_quad"),
+        mapPainted: painted("pmw_map"), grocPainted: painted("pmw_groc"),
+        quadDots: (panelOf("pmw_quad") || d.createElement("i")).querySelectorAll("circle").length,
+        note: !!d.querySelector(".sr-richtext"),
+        kpiValues: Array.prototype.map.call(d.querySelectorAll("#kpis .kpi .v"), function (n) { return n.textContent.trim(); }),
+        err: /Could not load|Render error|No query bound/.test((d.querySelector("#content") || {}).textContent || "") };
+    });
+    ok("SP-1(b): the whitespace dashboard actually draws — 4 KPIs with real values, 4 panels, 1,500+ counties COLORED on both maps (not merely outlined — the proof the panels get the whole basis, not a truncated one), the quadrant plotted with a dot per large county and the method note rendered, with no panel-level error",
+      mcRender.kpis === 4 && mcRender.cards === 4 && mcRender.mapPaths > 500 && mcRender.grocPaths > 500 &&
+      mcRender.mapPainted > 1500 && mcRender.grocPainted > 1500 && mcRender.quadDots > 100 &&
+      mcRender.quadSvg > 0 && mcRender.note && !mcRender.err &&
+      mcRender.kpiValues.length === 4 && mcRender.kpiValues.every(function (v) { return v && v !== "—" && v !== "0"; }),
+      JSON.stringify(mcRender));
+    // hand the workspace back exactly as the SP-1(b) checks found it
+    if (!mcDash.wasInstalled) await page.evaluate(function () { Studio.removeDemoPack("marketcoverage"); });
 
     // CONS-1: the three CTIC/OpTIS reference dashboards — spec shapes match the
     // reference visuals (diverging change map, real provider colors, real CRD
