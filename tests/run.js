@@ -11498,6 +11498,69 @@ function serve() {
       lf57Basic.toggleExists && lf57Basic.toggleLabel === "Tile view" && lf57Basic.tilesAfterClick &&
       lf57Basic.tilePersisted === "tiles" && lf57Basic.backToList, JSON.stringify(lf57Basic));
 
+    /* N37 (Kevin live, 2026-08-09 — "so much white space for those buttons"): the row's six
+       text buttons wrapped onto a second line, and .cx-actions is opacity-hidden rather than
+       display:none, so EVERY row reserved that line's height whether or not it showed it.
+       Measured before the fix on this exact shape (a long name + a folder badge + a date):
+       108px at 1440/1280/1150/1024/900px wide. The row now ends with Open + a ⋯ menu.
+       Assert the outcome, not the styling: two visible controls, one line, and every action
+       the old row had still present and still reachable — a compression that quietly dropped
+       Export or Delete would pass a height check and fail the user. */
+    const n37Row = await page.evaluate(async function () {
+      window.__studioShellSetSection("views");
+      var a = Studio.Workspace.put("analyses", {
+        name: "N37 — a realistically long saved View name", chartType: "bars",
+        folder: "Market Coverage", da: { id: "daN37", columns: [] } });
+      window.__studioRenderViews();
+      await new Promise(function (r) { setTimeout(r, 120); });
+      var results = document.getElementById("viewsResults");
+      var row = results.querySelector('.cx-row[data-vw-id="' + a.id + '"]');
+      var acts = row && row.querySelector(".cx-actions");
+      var rowBox = row.getBoundingClientRect(), actBox = acts.getBoundingClientRect();
+      var out = {
+        visibleControls: acts.children.length,
+        // the actions sit on the row's own line, not wrapped under it
+        onOneLine: actBox.top < rowBox.top + rowBox.height / 2 && actBox.bottom > rowBox.top + rowBox.height / 2,
+        height: Math.round(rowBox.height),
+        // nothing was dropped in the compression
+        keptOpen: !!row.querySelector('[data-vw-open="' + a.id + '"]'),
+        keptAlt: !!row.querySelector("[data-vw-open-in]"),
+        keptDash: !!row.querySelector('[data-vw-dash="' + a.id + '"]'),
+        keptDup: !!row.querySelector('[data-vw-dup="' + a.id + '"]'),
+        keptExport: !!row.querySelector('[data-vw-export="' + a.id + '"]'),
+        keptDel: !!row.querySelector('[data-vw-del="' + a.id + '"]'),
+        // and the tail lives in the menu, not loose in the row
+        tailInMenu: !!row.querySelector('.cx-row-menu [data-vw-export="' + a.id + '"]')
+      };
+      var more = row.querySelector("[data-vw-more]");
+      out.hasMore = !!more;
+      out.ariaBefore = more.getAttribute("aria-expanded");
+      more.click();
+      await new Promise(function (r) { setTimeout(r, 260); });
+      var menu = row.querySelector(".cx-row-menu");
+      out.opens = menu.classList.contains("open");
+      out.ariaAfter = more.getAttribute("aria-expanded");
+      // an open menu keeps its row's actions visible even with the pointer elsewhere
+      out.actionsHeldVisible = getComputedStyle(acts).opacity === "1";
+      // and choosing an item closes it again (item handlers stopPropagation, so the
+      // document-level outside-click closer never sees the click)
+      menu.querySelector("[data-vw-export]").click();
+      await new Promise(function (r) { setTimeout(r, 200); });
+      out.closesOnChoice = !document.querySelector(".cx-row-menu.open");
+      Studio.Workspace.remove("analyses", a.id, { silent: true });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+      return out;
+    });
+    ok("N37: a Views row shows two controls on one line, not six wrapped onto a second",
+      n37Row.visibleControls === 2 && n37Row.onOneLine && n37Row.height < 90, JSON.stringify(n37Row));
+    ok("N37: every action the row used to show is still there, with the tail inside the ⋯ menu",
+      n37Row.keptOpen && n37Row.keptAlt && n37Row.keptDash && n37Row.keptDup &&
+      n37Row.keptExport && n37Row.keptDel && n37Row.tailInMenu, JSON.stringify(n37Row));
+    ok("N37: the ⋯ menu opens, reports aria-expanded, holds the row visible, and closes on a choice",
+      n37Row.hasMore && n37Row.ariaBefore === "false" && n37Row.opens && n37Row.ariaAfter === "true" &&
+      n37Row.actionsHeldVisible && n37Row.closesOnChoice, JSON.stringify(n37Row));
+
     const lf57Facets = await page.evaluate(function () {
       window.__studioShellSetSection("views");
       var a1 = Studio.Workspace.put("analyses", { name: "lf57f-bars", chartType: "bars", folder: "Finance", da: { id: "da1", columns: [] } });

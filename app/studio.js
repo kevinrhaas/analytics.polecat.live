@@ -7364,7 +7364,12 @@
   window.__studioRenderViews = renderViews; // test hook
   Studio.ViewsCatalog.configure(Object.assign(coreModuleDeps(), {
     themedChartSvg: function (svg, type) { return themedChartSvg(svg, type); },
-    exportAnalysisEmbed: function (a) { return exportAnalysisEmbed(a); }
+    exportAnalysisEmbed: function (a) { return exportAnalysisEmbed(a); },
+    // N37: the per-row ⋯ menu runs on the app's ONE dropdown convention rather than a
+    // second one — same open/close bookkeeping (single open menu, outside-click close,
+    // clampMenuIntoView) the topbar and Repository menus already use.
+    menuToggle: function (btn, menu) { return menuToggle(btn, menu); },
+    closeMenus: function () { return closeMenus(); }
   }));
 
   /* ---------- Build (View Builder, #117 slice 1) — app/build.js. The pivot/

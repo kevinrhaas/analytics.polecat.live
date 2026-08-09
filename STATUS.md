@@ -171,6 +171,44 @@
   between them" but it carried no state marker, so the queue read a blocked item as the ready top
   of NOW — the marker now names the exact three-way question. **NEXT in NOW:** N33 (a pack View
   authored as a QUADRANT degrades to a plain scatter), then N32, then the SP-6/SP-5/SP-13 packs.
+- **N37 — every Views row reserved space for six buttons it was not showing (v948, sw v539,
+  2026-08-09, steward; dev branch; est 1pt, took 1):** Kevin, live on `/dev/`: *"I don't love the
+  look of this, there is so much white space for those buttons — can you compress that and make
+  those icons or a drop menu so they are more digestible?"*
+  **The cause, measured before and after rather than reasoned about.** `.cx-actions` is hidden by
+  `opacity:0`, not `display:none` (`app/studio.css:2629-2630`), and `.cx-row` is `flex-wrap:wrap`
+  (`:2557`). Six text buttons — Open · the other editor · Add to dashboard · Duplicate · Export ·
+  ✕ — did not fit beside a name, a folder badge and a date, so they wrapped, and the wrapped line
+  kept its height in EVERY row whether or not it was visible. On Kevin's exact row shape (a long
+  name + a `Market Coverage` folder badge + a timestamp) the measured height was **108px at 1440,
+  1280, 1150, 1024, 900 and 820px wide** — the same at every desktop width, which is why the
+  screenshot reads as a list of mostly empty cards.
+  **What shipped.** The row ends with **Open** and a single **⋯**. Everything else moved inside
+  that menu (Open in the other editor · Add to dashboard · Duplicate · Export · a divider ·
+  Delete). Two controls fit on one line, so nothing wraps and nothing is reserved: the same rows
+  now measure **61px** at 1440/1280/1150 — a little over half. **Below ~1100px they are still
+  108px, and that is not the buttons:** `.cx-name` has a deliberate 140px floor with a wrapping
+  title (`:2607`, and the comment above it explains the choice), so a long name takes two lines on
+  its own. That was a pre-existing, intentional readability trade and this slice did not relitigate
+  it — worth saying plainly rather than implying the fix goes all the way down.
+  **Built on the app's ONE dropdown, not a second one.** The row menu uses the existing
+  `.menu-wrap`/`.menu` + `menuToggle`/`closeMenus` convention, injected into views.js through the
+  same `configure(deps)` bundle every extracted module already takes — so it inherits one-open-at-
+  a-time, the document-level outside-click closer, and N8's `clampMenuIntoView` (verified: the menu
+  stays on screen at 390px, where the mobile rule left-aligns the actions and a `right:0` menu
+  would otherwise run off the left edge). Two details that needed handling: menu items
+  `stopPropagation`, so the outside-click closer never sees them — a capture-phase listener closes
+  the menu on a choice; and an open menu now holds its row's actions visible on its own
+  (`:has(.menu.open)`) because `:focus-within` covers mouse and keyboard but a TAP does not
+  reliably focus a button on iOS Safari, and mobile is a release gate.
+  **Nothing was dropped in the compression** — every `data-vw-*` hook is unchanged and still wired,
+  which is also what keeps existing tests and call sites working. Three new suite checks assert the
+  outcome rather than the styling: two controls on one line under 90px; every former action still
+  present with the tail inside the menu; and the menu opening, reporting `aria-expanded`, holding
+  the row visible and closing on a choice. **Scope, honestly:** Views is the only section that
+  carried six actions — Datasets, Connections and Jobs have three (Run/Edit/✕) and never wrapped —
+  so this is the section that had the problem, not a partial rollout. Files: app/views.js,
+  app/studio.js, app/studio.css, sw.js, js/changelog.js, tests/run.js, STATUS.md.
 - **N7 — Help listed seven of the fifteen sections Simple mode hides, then listed a different seven
   (v946, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** the first slice in this
   family to hold a MODE rather than a control, and the reason it was worth taking is that the page
@@ -13554,8 +13592,10 @@
   **Mobile is a release gate:** a hover-only pencil does not exist on a phone, so whatever the
   affordance is, it has to be tappable at 390×780.
 
-- **N37 ★★ [1pt] — every catalog row reserves space for six text buttons it is not showing, so
-  the lists read as mostly empty.** Kevin, 2026-08-09, on the Views list: *"I don't love the look
+- ~~**N37 ★★ [1pt] — every catalog row reserves space for six text buttons it is not showing, so
+  the lists read as mostly empty.**~~ ✓ **SHIPPED v947 (2026-08-09) — see DONE.** Views was the
+  only section carrying six actions; the other catalogs have three and never wrapped.
+  *(Original spec kept until the next grooming pass archives it.)* Kevin, 2026-08-09, on the Views list: *"I don't love the look
   of this, there is so much white space for those buttons — can you compress that and make those
   icons or a drop menu so they are more digestible?"* His screenshot is the proof: the hovered
   row shows Open · View Builder · Add to dashboard · Duplicate · Export · ✕ on a wrapped second

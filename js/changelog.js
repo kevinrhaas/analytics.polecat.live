@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 948,
+    title: 'Views rows carried six buttons you could not see, and paid for them in height',
+    kind: 'fix',
+    ts: '2026-08-09T20:46:11.000Z',
+    items: [
+      'Each row in Views ended with six text buttons — Open, the other editor, Add to dashboard, Duplicate, Export and a delete ✕ — which ran out of room and wrapped onto a second line. Because that block is hidden by transparency rather than removed from the layout, every row reserved the height of a line of buttons it was not showing. Rows with a name, a folder and a date measured 108px whether or not you were hovering one; the list read as mostly empty space.',
+      'The row now ends with Open and a single ⋯ button. Everything else moved inside that menu — Open in the other editor, Add to dashboard, Duplicate, Export, and Delete below a divider. Two controls fit on one line, so nothing wraps and nothing is reserved: the same rows now measure 61px, a little over half their previous height, with no action lost.',
+      'The menu is the same dropdown the top bar and Repository already use, so it behaves the way the rest of the app does — one menu open at a time, click anywhere outside to close, and it is nudged back on screen if it would run past an edge. It also stays visible when the pointer leaves the row, which matters on a phone, where a tap does not always leave focus behind.',
+    ],
+  },
+  {
     v: 947,
     title: 'Dragging the View Builder canvas taller left the chart its old size, with an empty band underneath',
     kind: 'fix',

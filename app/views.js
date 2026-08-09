@@ -189,13 +189,30 @@
       var altTip = a.builder
         ? "Open in Quick Views — the simple one-chart editor (shows this View best-effort)"
         : "Open in the View Builder — the full shelves/pivot editor";
+      // N37 (Kevin live, 2026-08-09: "so much white space for those buttons — make those
+      // icons or a drop menu"). Six text buttons wrapped onto a second line, and because
+      // .cx-actions is opacity-hidden (not display:none) that wrapped line reserved its
+      // height in EVERY row, hovered or not — which is the white space he saw. Two controls
+      // now fit on one line: Open stays a real button (the primary action), everything else
+      // moves into a per-row ⋯ menu built on the app's ONE dropdown convention
+      // (.menu-wrap/.menu + menuToggle/closeMenus, studio.js). Every data-vw-* attribute is
+      // unchanged and still wired below, so call sites and tests keep working — only the
+      // chrome moved.
+      var menuId = "vwRowMenu_" + a.id;
+      var nm = esc(a.name || "View");
       var actions = '<span class="cx-actions">' +
           '<button type="button" class="btn" data-vw-open="' + esc(a.id) + '" title="Open in ' + dest + '">Open</button>' +
-          '<button type="button" class="btn" data-vw-open-in="' + altTarget + '" data-vw-id-alt="' + esc(a.id) + '" title="' + esc(altTip) + '" aria-label="Open ' + esc(a.name || "View") + ' in ' + esc(altLabel) + '">' + altLabel + '</button>' +
-          '<button type="button" class="btn" data-vw-dash="' + esc(a.id) + '">Add to dashboard</button>' +
-          '<button type="button" class="btn" data-vw-dup="' + esc(a.id) + '" aria-label="Duplicate ' + esc(a.name || "View") + '">Duplicate</button>' +
-          '<button type="button" class="btn" data-vw-export="' + esc(a.id) + '" aria-label="Export ' + esc(a.name || "View") + '">Export</button>' +
-          '<button type="button" class="btn" data-vw-del="' + esc(a.id) + '" aria-label="Delete ' + esc(a.name || "View") + '">✕</button>' +
+          '<span class="menu-wrap">' +
+            '<button type="button" class="btn cx-more" data-vw-more="' + esc(menuId) + '" aria-haspopup="true" aria-expanded="false" aria-controls="' + esc(menuId) + '" title="More actions" aria-label="More actions for ' + nm + '"></button>' +
+            '<div class="menu cx-row-menu" id="' + esc(menuId) + '" role="menu">' +
+              '<button type="button" role="menuitem" data-vw-open-in="' + altTarget + '" data-vw-id-alt="' + esc(a.id) + '" title="' + esc(altTip) + '" aria-label="Open ' + nm + ' in ' + esc(altLabel) + '">Open in ' + altLabel + '</button>' +
+              '<button type="button" role="menuitem" data-vw-dash="' + esc(a.id) + '">Add to dashboard</button>' +
+              '<button type="button" role="menuitem" data-vw-dup="' + esc(a.id) + '" aria-label="Duplicate ' + nm + '">Duplicate</button>' +
+              '<button type="button" role="menuitem" data-vw-export="' + esc(a.id) + '" aria-label="Export ' + nm + '">Export</button>' +
+              '<div class="sep"></div>' +
+              '<button type="button" role="menuitem" class="menu-danger" data-vw-del="' + esc(a.id) + '" aria-label="Delete ' + nm + '">Delete</button>' +
+            '</div>' +
+          '</span>' +
         '</span>';
       if (isTiles) {
         return '<div class="dsx-tile' + (vwSelected ? " is-selected" : "") + '" data-vw-id="' + esc(a.id) + '">' +
@@ -264,7 +281,7 @@
         if (mini) icEl.innerHTML = mini; else icEl.appendChild(Studio.icon("trend-up", 18));
       }
       row.addEventListener("click", function (e) {
-        if (e.target.closest("[data-vw-pin],[data-vw-private],[data-vw-open],[data-vw-open-in],[data-vw-dash],[data-vw-dup],[data-vw-export],[data-vw-del],.vw-select-cb")) return;
+        if (e.target.closest("[data-vw-pin],[data-vw-private],[data-vw-open],[data-vw-open-in],[data-vw-dash],[data-vw-dup],[data-vw-export],[data-vw-del],[data-vw-more],.cx-row-menu,.vw-select-cb")) return;
         // LIVE-d slice 6: while select mode is on, tapping a row toggles its selection
         // instead of opening the editor — same convention as every other section.
         if (_vwSelectMode) { toggleVwSelect(id); return; }
@@ -296,6 +313,24 @@
     });
     $$("[data-vw-open]", results).forEach(function (btn) {
       btn.onclick = function () { vwOpen(btn.getAttribute("data-vw-open")); };
+    });
+    // N37: the per-row ⋯ trigger. menuToggle/closeMenus are studio.js's own (injected via
+    // configure) so a row menu behaves exactly like the topbar's — one open at a time, the
+    // document-level outside-click closer applies, and clampMenuIntoView keeps it on screen.
+    // The trailing capture-phase listener closes the menu when an item is chosen: item
+    // handlers stopPropagation, so bubbling to that outside-click closer never happens, and
+    // actions like Export re-render nothing that would rebuild the menu.
+    $$("[data-vw-more]", results).forEach(function (btn) {
+      var menu = $("#" + btn.getAttribute("data-vw-more"), results);
+      if (!menu) return;
+      if (!btn.firstChild) btn.appendChild(Studio.icon("more", 15));
+      D.menuToggle(btn, menu);
+      btn.addEventListener("click", function () {
+        btn.setAttribute("aria-expanded", menu.classList.contains("open") ? "true" : "false");
+      });
+      menu.addEventListener("click", function (e) {
+        if (e.target.closest("button")) D.closeMenus();
+      }, true);
     });
     $$("[data-vw-open-in]", results).forEach(function (btn) {
       btn.onclick = function (e) {
