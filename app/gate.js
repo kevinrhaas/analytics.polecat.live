@@ -121,6 +121,11 @@
       "#studio-gate select{width:100%;padding:11px 13px;border:1px solid var(--line,#c8d2df);border-radius:9px;font-size:14px;outline:none;margin-bottom:12px;background:var(--field,#fff);color:var(--ink,#16233b)}" +
       "#studio-gate select:focus{border-color:var(--brand,#005bb5)}" +
       "#studio-gate .g-ws-note{text-align:left;font-size:11px;color:var(--faint,#8a97ab);margin:-8px 0 10px;min-height:14px}" +
+      // N24 slice 2: the workspace manager drops in under the picker. Its rows
+      // carry their own stylesheet (app/workspaces.js, shared with Settings);
+      // only the wrapper and the Done button are the gate's business.
+      "#studio-gate .g-ws-manage{margin:0 0 12px;padding:10px;border:1px solid var(--line,#c8d2df);border-radius:11px;background:color-mix(in srgb,var(--ink,#16233b) 5%,transparent)}" +
+      "#studio-gate .g-ws-manage-done{margin-top:9px;width:100%}" +
       // #102: the password field's reveal (eye) toggle — wrapper carries the input's
       // bottom margin so the button centers on the input itself, not the gap below it.
       "#studio-gate .g-pw{position:relative;margin-bottom:12px}" +
@@ -171,6 +176,10 @@
       '<label for="g-workspace">Workspace</label>' +
       '<select id="g-workspace" aria-describedby="g-ws-note"></select>' +
       '<div class="g-ws-note" id="g-ws-note"></div>' +
+      // N24 slice 2: the workspace manager, opened from the picker's own
+      // "Manage workspaces…" option and after a successful connect.
+      '<div class="g-ws-manage" id="g-ws-manage" hidden><div id="g-ws-manage-list"></div>' +
+      '<button type="button" class="g-ws-manage-done" id="g-ws-manage-done">Done</button></div>' +
       '<input type="file" id="g-ws-file" accept=".json,application/json" style="display:none"/>' +
       '<label for="g-user">Username</label>' +
       '<input type="text" id="g-user" placeholder="username" autocomplete="username" autocapitalize="off" spellcheck="false"/>' +
@@ -495,46 +504,39 @@
     // (Sync.bindConnection — no pull yet), after which the existing direct-auth
     // sign-in verifies the typed email/password straight against that workspace
     // and the post-sign-in pull adopts remote data with the user's session.
-    var CUSTOM_WS_KEY = "studio-workspaces-custom", LAST_WS_KEY = "studio-workspace-last";
-    function customWorkspaces() {
-      try { return JSON.parse(localStorage.getItem(CUSTOM_WS_KEY) || "[]"); } catch (e) { return []; }
-    }
-    function saveCustomWorkspace(entry) {
-      var list = customWorkspaces().filter(function (w) { return w.id !== entry.id; });
-      list.push(entry);
-      try { localStorage.setItem(CUSTOM_WS_KEY, JSON.stringify(list)); } catch (e) {}
-    }
-    function workspaceList() {
-      var out = [{ id: "local", label: "Local only (this browser)" }];
-      var seen = { local: true };
-      // customs FIRST so a re-imported entry shadows the shipped one with its id
-      customWorkspaces().concat(window.STUDIO_WORKSPACES || []).forEach(function (w) {
-        if (!w || !w.id || seen[w.id]) return;
-        if (w.id !== "local" && !(w.sourceId && w.cfg && w.cfg.url)) return; // malformed
-        seen[w.id] = true; out.push(w);
-      });
-      return out;
-    }
+    // N24 slice 2: the saved list, its rules and its manager UI live in
+    // app/workspaces.js (window.STUDIO_WS_STORE) so this screen and Settings →
+    // Workspace backend operate the SAME list with the same behaviour.
+    var WS = window.STUDIO_WS_STORE, LAST_WS_KEY = "studio-workspace-last";
+    var saveCustomWorkspace = WS.save, workspaceList = WS.list;
     function wsNote(msg) { var n = document.getElementById("g-ws-note"); if (n) n.textContent = msg || ""; }
-    function currentWorkspaceId() {
-      try {
-        var conn = JSON.parse(localStorage.getItem("analytics.datasource.v1") || "null");
-        if (!conn || !conn.cfg || !conn.cfg.url) return "local";
-        var hit = workspaceList().filter(function (w) { return w.cfg && w.cfg.url === conn.cfg.url; })[0];
-        return hit ? hit.id : "__connected";
-      } catch (e) { return "local"; }
-    }
+    var currentWorkspaceId = WS.connectedId;
     function renderWorkspaceSelect() {
       var sel = document.getElementById("g-workspace"); if (!sel) return;
-      var cur = currentWorkspaceId();
+      var cur = currentWorkspaceId(), def = WS.defaultId();
       var html = workspaceList().map(function (w) {
-        return '<option value="' + escGate(w.id) + '"' + (w.id === cur ? " selected" : "") + '>' + escGate(w.label) + "</option>";
+        // The default is named in the option itself — the picker is the one place
+        // it has to be obvious, and the manager panel is a click away.
+        return '<option value="' + escGate(w.id) + '"' + (w.id === cur ? " selected" : "") + '>' +
+          escGate(w.label) + (w.id === def ? " (default)" : "") + "</option>";
       }).join("");
       if (cur === "__connected") html += '<option value="__connected" selected>Connected workspace (this browser)</option>';
       html += '<option value="__custom">Custom workspace…</option>' +
-              '<option value="__import">Import access file…</option>';
+              '<option value="__import">Import access file…</option>' +
+              '<option value="__manage">Manage workspaces…</option>';
       sel.innerHTML = html;
       sel.dataset.prev = sel.value;
+    }
+    // N24 slice 2 — the management half, mounted from the shared store. Kevin:
+    // "there should be some more management of your workspaces there". It also
+    // carries the per-entry access-file export, which until now lived only in
+    // Settings, i.e. behind a successful sign-in — so you could not define a
+    // workspace and hand someone the file without first getting inside it.
+    function showWorkspaceManager(show) {
+      var wrap = document.getElementById("g-ws-manage"); if (!wrap) return;
+      wrap.hidden = !show;
+      if (!show) return;
+      WS.renderManager(document.getElementById("g-ws-manage-list"), { onChange: renderWorkspaceSelect });
     }
     function connectWorkspace(entry) {
       var Sync = window.Studio && window.Studio.Sync;
@@ -592,6 +594,12 @@
       var sel = document.getElementById("g-workspace");
       if (sel) { sel.value = known.id; sel.dataset.prev = known.id; }
       try { localStorage.setItem(LAST_WS_KEY, known.id); } catch (e) {}
+      // N24 slice 2: the wizard's success step IS the moment Kevin asked about —
+      // "define one and then export the access file so its easy enough to just
+      // give someone a file". Open the manager on it, so the export (and the
+      // rename, if the prompt's suggestion was not the name they wanted) is right
+      // there instead of behind a sign-in in Settings.
+      showWorkspaceManager(true);
       return known;
     }
     var wsSel = document.getElementById("g-workspace");
@@ -611,6 +619,11 @@
           if (wsFile) wsFile.click();
           return;
         }
+        if (v === "__manage") {   // N24 slice 2 — not a workspace, a screen
+          wsSel.value = wsSel.dataset.prev || "local";
+          showWorkspaceManager(true);
+          return;
+        }
         wsSel.dataset.prev = v;
         if (v === "local" || v === "__connected") {
           if (v === "local" && window.Studio && window.Studio.Sync) window.Studio.Sync.disconnect();
@@ -621,7 +634,19 @@
         var entry = workspaceList().filter(function (w) { return w.id === v; })[0];
         if (entry) connectWorkspace(entry);
       });
+      // N24 slice 2 — the DEFAULT workspace: the entry this browser opens on.
+      // Applied only when nothing is bound yet, so it can never override the
+      // workspace you are actually connected to, and it BINDS exactly the way
+      // picking it by hand does (bind, don't pull — the pull runs after sign-in
+      // with the user's own session). "Explore the demo" still forces Local.
+      var defWs = WS.defaultId() && WS.connectedId() === "local" ? WS.byId(WS.defaultId()) : null;
+      if (defWs && defWs.id !== "local") {
+        wsSel.value = defWs.id; wsSel.dataset.prev = defWs.id;
+        connectWorkspace(defWs);
+      }
     }
+    var wsDone = document.getElementById("g-ws-manage-done");
+    if (wsDone) wsDone.addEventListener("click", function () { showWorkspaceManager(false); });
     if (wsFile) wsFile.addEventListener("change", function () {
       var f = wsFile.files && wsFile.files[0]; wsFile.value = "";
       if (!f) return;
@@ -646,7 +671,8 @@
     // test hooks — drive the picker without a real <input type=file> dialog
     window.__studioGateWorkspaces = { list: workspaceList, addCustom: saveCustomWorkspace,
       render: renderWorkspaceSelect, connect: connectWorkspace,
-      remember: rememberConnectedWorkspace /* N24 */ };
+      remember: rememberConnectedWorkspace /* N24 */,
+      manage: showWorkspaceManager /* N24 slice 2 */, store: WS };
 
     // HOTLINK-1: apply a captured hot link now that the picker + fields exist.
     // The fragment was already scrubbed at load (top of this file).

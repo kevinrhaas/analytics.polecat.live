@@ -20063,6 +20063,183 @@ function serve() {
     ok("N24: signing in straight after that connect works — the password is the only field left to fill, and the session lands on the workspace that was just connected",
       n24SignIn.gateGone && n24SignIn.who === "n24owner" && n24SignIn.stillBound, JSON.stringify(n24SignIn));
 
+    // ---- N24 slice 2 (Kevin, same session): "there should be some more
+    // management of your workspaces there so that you can define one and connect
+    // to it from there… can you export an access file from the setup screens so
+    // that i can define one and then export the access file". Slice 1 left ONE
+    // anonymous list with no way to fix a name, drop an entry, say which one this
+    // browser opens on, or hand one to a teammate without first signing in
+    // somewhere. The saved list, its rules and its panel now live in the shared
+    // store (app/workspaces.js) so the sign-in screen and Settings → Workspace
+    // backend operate the SAME list — that shared-ness is what these checks are
+    // really guarding. 390×780, like slice 1: this is phone work. ----
+    console.log("\n• N24 slice 2: managing the saved workspace list, from the sign-in screen and from Settings");
+    const gpN24b = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    gpN24b.on("pageerror", (e) => errors.push("N24b page: " + e.message));
+    await gpN24b.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpN24b.evaluate((port) => {
+      localStorage.setItem("studio-workspaces-custom", JSON.stringify([
+        // the second entry carries a service login on purpose: a hand-edited or
+        // pre-slice-1 saved entry can, and an exported file must not.
+        { id: "ws-dev", label: "Dev workspace", sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid" } },
+        { id: "ws-stage", label: "Stage workspce", sourceId: "supabase", cfg: { url: "https://stage.example.co", key: "k-stage", authEmail: "owner@example.com", authPassword: "secret123" } }
+      ]));
+      localStorage.removeItem("studio-workspace-default");
+      localStorage.setItem("studio-welcome-seen", "1");   // the tour modal is not what this block is testing
+    }, PORT);
+    await gpN24b.reload({ waitUntil: "domcontentloaded" });
+    await gpN24b.waitForSelector("#g-form", { timeout: 8000 });
+    const n24Manage = await gpN24b.evaluate(() => {
+      var G = "#g-ws-manage ";
+      var sel = document.getElementById("g-workspace");
+      var hiddenBefore = document.getElementById("g-ws-manage").hidden;
+      sel.value = "__manage"; sel.dispatchEvent(new Event("change"));
+      var out = {
+        hiddenBefore: hiddenBefore,
+        opened: !document.getElementById("g-ws-manage").hidden,
+        // "Manage workspaces…" is a screen, not a workspace: picking it must not
+        // change (or disconnect) the workspace the picker was sitting on.
+        pickerUnmoved: sel.value === "local",
+        rows: Array.prototype.map.call(document.querySelectorAll(G + ".wsm-row .wsm-name"), function (n) { return n.textContent; })
+      };
+      // a packaged workspace can be defaulted and exported, never renamed or
+      // removed — it comes back on the next load, so offering it would be a lie
+      var packagedRow = Array.prototype.filter.call(document.querySelectorAll(G + ".wsm-row"), function (r) {
+        return r.querySelector(".wsm-name").textContent === "Polecat workspace";
+      })[0];
+      out.packagedActions = Array.prototype.map.call(packagedRow.querySelectorAll(".wsm-b"), function (b) { return b.getAttribute("data-a"); });
+      // rename the typo'd entry
+      window.prompt = function () { return "Stage workspace"; };
+      document.querySelector(G + '.wsm-row[data-i="1"] [data-a="rename"]').click();
+      out.renamed = JSON.parse(localStorage.getItem("studio-workspaces-custom") || "[]").map(function (w) { return w.label; });
+      // make it the default — and the picker, which is what a default is FOR,
+      // has to say so without a reload
+      document.querySelector(G + '.wsm-row[data-i="1"] [data-a="default"]').click();
+      out.defaultStored = localStorage.getItem("studio-workspace-default");
+      out.pickerSaysDefault = Array.prototype.some.call(document.getElementById("g-workspace").options, function (o) {
+        return o.textContent === "Stage workspace (default)";
+      });
+      out.defaultBadge = Array.prototype.map.call(document.querySelectorAll(G + '.wsm-row[data-i="1"] .wsm-badge'), function (b) { return b.textContent; });
+      return out;
+    });
+    ok("N24 slice 2: the sign-in screen's picker opens a workspace manager — a packaged entry offers only default/export, a saved one renames in place, and setting the default is reflected in the picker immediately",
+      n24Manage.hiddenBefore && n24Manage.opened && n24Manage.pickerUnmoved &&
+      n24Manage.rows.join("|") === "Dev workspace|Stage workspce|Polecat workspace" &&
+      n24Manage.packagedActions.join(",") === "default,export" &&
+      n24Manage.renamed.join("|") === "Dev workspace|Stage workspace" &&
+      n24Manage.defaultStored === "ws-stage" && n24Manage.pickerSaysDefault &&
+      n24Manage.defaultBadge.indexOf("Default") >= 0, JSON.stringify(n24Manage));
+    // The export Kevin asked for, from the screen where a workspace is DEFINED —
+    // no sign-in first. It must carry the key (that is the point) and never the
+    // definer's own login (that is the posture app/studio.js:500 records).
+    const n24Export = await gpN24b.evaluate(async () => {
+      var G = "#g-ws-manage ";
+      var asked = "", blob = null, name = "";
+      window.confirm = function (m) { asked = m; return true; };
+      var realCreate = URL.createObjectURL, realRevoke = URL.revokeObjectURL;
+      URL.createObjectURL = function (b) { blob = b; return "blob:n24"; };
+      URL.revokeObjectURL = function () {};
+      var realClick = HTMLAnchorElement.prototype.click;
+      HTMLAnchorElement.prototype.click = function () { name = this.download; };
+      document.querySelector(G + '.wsm-row[data-i="1"] [data-a="export"]').click();
+      URL.createObjectURL = realCreate; URL.revokeObjectURL = realRevoke;
+      HTMLAnchorElement.prototype.click = realClick;
+      var text = blob ? await blob.text() : "";
+      var file = null; try { file = JSON.parse(text); } catch (e) {}
+      var stored = JSON.parse(localStorage.getItem("studio-workspaces-custom") || "[]")[1] || { cfg: {} };
+      return {
+        warned: /connection key/.test(asked) && /own account/.test(asked),
+        name: name,
+        shape: !!(file && file.id === "ws-stage" && file.label === "Stage workspace" && file.sourceId === "supabase" && file.cfg && file.cfg.url && file.cfg.key),
+        stripped: !!file && !("authEmail" in file.cfg) && !("authPassword" in file.cfg),
+        // stripping is for the FILE — the saved entry keeps whatever it had, so
+        // the export can never quietly break the workspace it copied from
+        savedUntouched: stored.cfg.authEmail === "owner@example.com",
+        // and it round-trips through the gate importer's own validation shape
+        importable: !!(file && file.sourceId && file.cfg && file.cfg.url && file.cfg.key)
+      };
+    });
+    ok("N24 slice 2: any saved workspace exports an access file straight from the sign-in screen — warned, named, importable, carrying the key but never the definer's login (and the saved entry is untouched)",
+      n24Export.warned && n24Export.name === "ws-stage-access.json" && n24Export.shape &&
+      n24Export.stripped && n24Export.savedUntouched && n24Export.importable, JSON.stringify(n24Export));
+    // Remove, then the default workspace's actual job: the one this browser opens
+    // on. It BINDS on load exactly as picking it by hand does (bind, don't pull).
+    const n24Removed = await gpN24b.evaluate(() => {
+      var G = "#g-ws-manage ";
+      window.confirm = function () { return true; };
+      document.querySelector(G + '.wsm-row[data-i="1"] [data-a="remove"]').click();
+      var kept = JSON.parse(localStorage.getItem("studio-workspaces-custom") || "[]").map(function (w) { return w.id; });
+      return {
+        kept: kept,
+        // the removed entry WAS the default — a dangling default is a picker that
+        // opens on nothing, so removal clears it
+        defaultCleared: !localStorage.getItem("studio-workspace-default"),
+        pickerDropped: !Array.prototype.some.call(document.getElementById("g-workspace").options, function (o) { return o.value === "ws-stage"; })
+      };
+    });
+    ok("N24 slice 2: removing a saved workspace drops it from the picker and clears the default it held (a dangling default is a sign-in screen that opens on nothing)",
+      n24Removed.kept.join(",") === "ws-dev" && n24Removed.defaultCleared && n24Removed.pickerDropped, JSON.stringify(n24Removed));
+    await gpN24b.evaluate(() => {
+      localStorage.setItem("studio-workspace-default", "ws-dev");
+      localStorage.removeItem("analytics.datasource.v1");   // nothing connected yet
+    });
+    await gpN24b.reload({ waitUntil: "domcontentloaded" });
+    await gpN24b.waitForSelector("#g-form", { timeout: 8000 });
+    await gpN24b.waitForTimeout(500);
+    const n24Default = await gpN24b.evaluate(() => ({
+      selected: document.getElementById("g-workspace").value,
+      bound: Studio.Sync.syncState().sourceId,
+      note: (document.getElementById("g-ws-note") || {}).textContent || ""
+    }));
+    ok("N24 slice 2: the default workspace is the one the sign-in screen opens on — it is selected and BOUND on load, the same bind-don't-pull path picking it by hand takes",
+      n24Default.selected === "ws-dev" && n24Default.bound === "supabase" && /Dev workspace/.test(n24Default.note), JSON.stringify(n24Default));
+    // …and it must never speak over a workspace you are already connected to.
+    await gpN24b.evaluate((port) => {
+      localStorage.setItem("studio-workspaces-custom", JSON.stringify([
+        { id: "ws-dev", label: "Dev workspace", sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid" } },
+        { id: "ws-other", label: "Other workspace", sourceId: "supabase", cfg: { url: "https://other.example.co", key: "k-other" } }
+      ]));
+      localStorage.setItem("studio-workspace-default", "ws-other");
+    }, PORT);
+    await gpN24b.reload({ waitUntil: "domcontentloaded" });
+    await gpN24b.waitForSelector("#g-form", { timeout: 8000 });
+    await gpN24b.waitForTimeout(500);
+    const n24DefaultHeld = await gpN24b.evaluate(() => ({
+      selected: document.getElementById("g-workspace").value,
+      url: ((Studio.Sync.currentConfig && Studio.Sync.currentConfig()) || {}).url || ""
+    }));
+    ok("N24 slice 2: a default never overrides the workspace this browser is already connected to — the live connection wins and the picker shows it",
+      n24DefaultHeld.selected === "ws-dev" && /__supabase/.test(n24DefaultHeld.url), JSON.stringify(n24DefaultHeld));
+    // The other half of "editable from the gate AND from Settings": the same
+    // panel, the same store, mounted on the backend card.
+    await gpN24b.evaluate(() => {
+      Studio.Workspace.put("users", { id: "user_n24b", u: "n24bowner", name: "N24b Owner", role: "admin", demo: false, gotrueId: "11111111-1111-1111-1111-111111111111" }, { silent: true });
+      Studio.Sync.pullNow = function () { return Promise.resolve(); };
+    });
+    await gpN24b.fill("#g-user", "owner@example.com");
+    await gpN24b.fill("#g-pass", "secret123");
+    await gpN24b.click("#g-form button[type=submit]");
+    await gpN24b.waitForFunction(() => !document.querySelector("#studio-gate"), { timeout: 8000 }).catch(() => {});
+    await gpN24b.evaluate(() => { window.__studioShellSetSection("settings"); });
+    await gpN24b.waitForSelector("#wsSavedList .wsm-b", { state: "visible", timeout: 8000 });
+    // Driven through the page rather than one evaluate(): the backend card
+    // re-renders on every sync tick, so a node captured up front can be stale by
+    // the time it is measured — the locators always read what is on screen NOW.
+    await gpN24b.evaluate(() => { window.prompt = function () { return "Dev (renamed in Settings)"; }; });
+    // 44px is the fleet's touch bar (N8/N9/N13) and these rows are worked on a phone
+    const n24SetBox = await gpN24b.locator("#wsSavedList .wsm-b").first().boundingBox();
+    const n24SetRows = await gpN24b.locator("#wsSavedList .wsm-row .wsm-name").allTextContents();
+    const n24SetMarked = await gpN24b.locator('#wsSavedList .wsm-row[data-i="0"] .wsm-badge.on').count();
+    await gpN24b.locator('#wsSavedList .wsm-row[data-i="0"] [data-a="rename"]').click();
+    const n24Settings = {
+      rows: n24SetRows, touchOk: !!n24SetBox && n24SetBox.height >= 44, connectedMarked: n24SetMarked === 1,
+      renamedFromSettings: await gpN24b.evaluate(() => JSON.parse(localStorage.getItem("studio-workspaces-custom") || "[]")[0].label)
+    };
+    await gpN24b.close();
+    ok("N24 slice 2: Settings → Workspace backend carries the SAME saved-workspace panel — the connected entry is marked, the rows clear the 44px touch bar, and a rename there is a rename everywhere",
+      n24Settings.rows.join("|") === "Dev workspace|Other workspace|Polecat workspace" && n24Settings.touchOk &&
+      n24Settings.connectedMarked && n24Settings.renamedFromSettings === "Dev (renamed in Settings)", JSON.stringify(n24Settings));
+
     // ---- GATE-FIX + GATE-ERR (Kevin live, 2026-07-31): his curl proved the
     // password RIGHT while the gate still said "isn't in your connected
     // workspace" — two defects: (a) a GoTrue rejection shared the unknown-account

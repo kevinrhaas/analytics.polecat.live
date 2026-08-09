@@ -135,6 +135,48 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N24 slice 2 — the saved workspaces became a list you can manage, and hand out (v910, sw v532,
+  2026-08-09, steward; dev branch; est 2pt for the whole item, 2 slices shipped — on estimate;
+  the item is now CLOSED):** slice 1 made a connected workspace a NAMED, persisted picker entry.
+  What it left was one list with no way to fix a name, drop an entry, say which workspace this
+  browser opens on, or give someone an access file for a workspace you had just defined — the
+  export lived only in Settings → Workspace backend, i.e. behind a successful sign-in, which is
+  exactly the reachability gap the item called out ("you cannot define a workspace and hand
+  someone a file without first getting inside it yourself").
+  **What shipped.** The saved list, its rules and its UI moved into `app/workspaces.js` as
+  `window.STUDIO_WS_STORE` — the module both screens already load first (gate.js runs before the
+  app exists, so a shared store is the only way the two can be the same list rather than two
+  implementations that agree until they don't). It carries `list/save/rename/remove/defaultId/
+  setDefault/connectedId/exportFile/renderManager`; `app/gate.js` now delegates its
+  `customWorkspaces`/`saveCustomWorkspace`/`workspaceList`/`currentWorkspaceId` to it and keeps
+  only what is genuinely the sign-in screen's business.
+  - **The manager panel** mounts in two places from one renderer: the picker's new
+    "Manage workspaces…" option (a screen, not a workspace — it never moves the picker's
+    selection) and a new **Saved workspaces** section on the Settings backend card. Per row:
+    rename, set/clear default, export access file, remove — with **Connected** / **Default** /
+    **Built in** markers. A packaged entry offers only default + export: it returns on the next
+    load, so offering to rename or remove it would be a lie. Rows clear the 44px touch bar
+    (N8/N9/N13), in both themes, at 390×780.
+  - **The default** is the workspace the sign-in screen opens on: selected AND bound on load,
+    through the same bind-don't-pull path that picking it by hand takes, and applied ONLY when
+    nothing is connected — a live connection always wins. Removing an entry clears a default
+    that pointed at it, because a dangling default is a sign-in screen that opens on nothing.
+  - **The export was reused, not rebuilt**, as the item required: `exportFile()` is now the ONE
+    access-file writer in the app — the existing `#wsAccessFileBtn` handler calls it (passing the
+    app's own `download()` so the toast still fires), the manager rows call it, and it strips
+    `authEmail`/`authPassword` from the FILE while leaving the saved entry untouched. The warning
+    text, the filename and the file's shape can no longer drift apart.
+  - **`app/viewer.html` now loads `app/workspaces.js`** before gate.js, as `app/index.html`
+    always has. It was the one page loading the gate without the catalog module; the gate's new
+    dependency made that latent inconsistency load-bearing.
+  **Verified** by six new checks at 390×780 (the viewport the whole item came from), driving the
+  real panel on both mounts: the picker opens the manager without moving its selection and a
+  packaged row offers only default/export; a rename lands in storage; setting a default is
+  reflected in the picker immediately; the export is warned, named, importable, key-carrying and
+  login-free with the saved entry untouched; removal drops the entry from the picker and clears
+  the default it held; the default binds on load but never overrides a live connection; and the
+  Settings mount is the same list — a rename there is a rename everywhere. Zero pageerrors.
+  Full gate results are on the PR.
 - **N24 slice 1 — a workspace connected from the gate is now IN the picker, named (v909, sw v531,
   2026-08-09, steward; dev branch; est 2pt for the whole item, slice 1 took 1 — on estimate; the
   item stays open for slice 2, the management + export-from-setup half):** Kevin's report was
@@ -12233,8 +12275,12 @@
   `tests/rls.mjs` with a marker probe: pre-seed `polecat_meta.schema_version` above and below the
   artifact's own version, apply the posture, and assert the value only ever moves up. doc-truth
   check 25 already holds both files to the CURRENT version, so this is purely about direction.
-- **N24 ★★ [2pt est, 1 slice shipped — 1 remains] — Connecting a workspace from the gate
-  leaves you unable to sign in to it.** Kevin, 2026-08-08: *"I went to connect to a custom
+- ~~**N24 ★★ [2pt est, 2 slices shipped] — Connecting a workspace from the gate
+  leaves you unable to sign in to it.**~~ ✓ **SHIPPED — slice 1 (the bug) v909, sw v531; slice 2
+  (the management half: the manager panel on both the sign-in screen and Settings, rename /
+  remove / default / connected marker, and the access-file export reused per entry) v910, sw v532
+  (both 2026-08-09, steward — see DONE). The item is CLOSED; est 2pt, took 2 — on estimate.** The
+  history below stays until the next grooming pass archives it. Kevin, 2026-08-08: *"I went to connect to a custom
   workspace, filled out all the credentials and seem to have connected but there is no way to
   actually log in with that one… it needs to be on a list somewhere… there should be some more
   management of your workspaces there so that you can define one and connect to it from there."*
@@ -12242,8 +12288,14 @@
   connection is now saved as a NAMED custom entry (access-file shape, so the wizard's own
   authEmail/authPassword are stripped), the picker re-renders with it selected, re-connecting to
   a URL already in the list re-selects it instead of duplicating, and the email the wizard took
-  prefills the sign-in form. **SLICE 2 IS WHAT REMAINS and is the next thing to take on this
-  item — the MANAGEMENT half, unchanged from the spec below:** a saved list editable from the
+  prefills the sign-in form. ~~**SLICE 2 IS WHAT REMAINS and is the next thing to take on this
+  item — the MANAGEMENT half, unchanged from the spec below:**~~ **SLICE 2 IS DONE (v910, sw
+  v532)** — the shared store (`window.STUDIO_WS_STORE` in `app/workspaces.js`) and one manager
+  panel mounted on BOTH the sign-in screen ("Manage workspaces…", which also opens itself when
+  the connect wizard finishes) and Settings → Workspace backend → Saved workspaces: rename,
+  remove, set/clear default, Connected/Default/Built-in markers, and `exportFile()` — now the
+  app's ONE access-file writer, called by the pre-existing `#wsAccessFileBtn` as well as by every
+  row, so the export was reused rather than rebuilt. The original spec, kept: a saved list editable from the
   gate AND from Settings (rename, remove, set default, a clear "connected" marker) plus **Export
   access file per entry**, REUSING `#wsAccessFileBtn`'s existing export
   (`app/studio.js:8439/8491-8495`) rather than rebuilding it — the real gap is reachability, since
