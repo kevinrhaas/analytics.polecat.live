@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 942,
+    title: 'Help explained how search works and left out the three rules that decide whether it finds nothing',
+    kind: 'fix',
+    ts: '2026-08-09T17:50:02.000Z',
+    items: [
+      'The Help page describes what happens when you type into a search box. Three of the things it said were right; what it left out were the rules that explain an empty result — so a search that looked correct and came back with nothing had no explanation anywhere on the page.',
+      'Spaces are the only thing that separates one search word from the next. Everything else you type stays part of the word it is touching, which is what lets you find a dataset called "Revenue q2.2024" by typing its name — but it also means a comma added out of habit goes looking for itself. "crops, 2024" searches for the literal "crops," and finds nothing, on the very item that "crops 2024" finds. That is now written down.',
+      'Quotes work in pairs. A single unmatched quote is just another character in the word beside it, so typing cover "crops searches for a word that begins with a quote mark and returns nothing. The page said quotes mean an exact phrase and stopped there, which is exactly the half that leaves you stuck.',
+      'An empty search box matches everything. Obvious once you know it, unwritten until now — and it is how you get the whole list back.',
+      'And "the exact phrase" was true but understated: a quoted phrase has to sit together, but "together" is measured across the whole item rather than inside one field, so "crops 2024" also matches an item whose name ends in "crops" and whose folder begins "2024".',
+      'All five rules are now re-measured against the app\'s own search code on every change — by running it, not by reading it — so the page cannot quietly drift from what typing in that box really does.',
+    ],
+  },
+  {
     v: 941,
     title: 'Help promised the same search rules everywhere, then left out three boxes and named an exception that was not the only one',
     kind: 'fix',

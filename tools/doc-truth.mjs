@@ -5132,6 +5132,132 @@ ok("app/studio-charts.js + docs/index.html: a table panel's Filter rows box matc
   `paragraph: ${boxPara || "(not found)"}\n      ` +
   "it inlines into every exported dashboard, so it carries its own rules — that is worth stating, not hiding");
 
+/* ── 55. Help's search SYNTAX vs the rules the kit really implements ────────
+   N7, and the check-54 move one paragraph UP — the slice check 54 named as the one it was
+   deliberately not taking. Checks 52 and 54 hold search by ROSTER: which pages, which boxes.
+   This one holds it by BEHAVIOUR — what the syntax IS — and so it needs a different source
+   of truth and a different method. `Studio.catalogSearch` states four rules in its own
+   header comment, and a comment is not a measurement, so this check EVALUATES the kit
+   (check 45's idiom over app/model.js) and RUNS it. Every assertion below is a probe: the
+   claim is compared against what the kit did, not against what it says about itself.
+
+   Measured 2026-08-09, before the fix. Three of the four rules the paragraph publishes were
+   already true; what it omitted are the three that decide whether a search comes back EMPTY:
+   · **The empty-box rule was unpublished.** `matcher("")` short-circuits to a predicate that
+     accepts every row, and the paragraph never said so — the Clear chip sentence beside it
+     implies it for the chip and for nothing else.
+   · **Spaces are the ONLY separator, and that was unpublished.** `terms()` splits on `\S+`,
+     so punctuation stays inside the word: `crops, 2024` parses to `["crops,", "2024"]` and
+     `crops,` is then looked for LITERALLY. Measured: `crops 2024` matches
+     `["Cover crops", "2024"]` and `crops, 2024` does not — same query, one comma, no
+     results, and nothing on the page explained it. (The rule earns its keep in the other
+     direction too: it is what makes `q2.2024` find "Revenue q2.2024".)
+   · **An unpaired quote is an ordinary character, and that was unpublished.** The term
+     regex alternates `"([^"]*)"` with `(\S+)`, so a lone `"` falls to the second branch and
+     rides along: `cover "crops` parses to `["cover", "\"crops"]` and finds nothing on
+     `["cover crops"]`. Copy that says quotes mean "the exact phrase" and stops there leaves
+     a reader with a search that looks right and returns nothing — the v941 shape.
+   · **"the exact phrase" was true but under-stated.** `hay()` joins a row's fields with a
+     space and never inserts a separator, so a quoted phrase matches ACROSS a field boundary:
+     `"crops 2024"` matches `["Cover crops", "2024 plans"]`, where the phrase appears in no
+     single field. The word "exact" invites the opposite reading.
+
+   Five rules plus the premise, all measured by running the kit:
+   (a) the AND rule: every term must appear, in any order, across any field — and the
+       paragraph says ALL of them rather than any (the probe asserts the OR reading is false,
+       so the copy cannot drift into it while this passes);
+   (b) the quoted phrase: adjacent when quoted, non-adjacent when not — and the copy states
+       the straddle, because the kit's own join is what makes it true;
+   (c) case-insensitivity;
+   (d) the empty query matching everything;
+   (e) the term boundary: spaces separate, punctuation and an unpaired quote do not — held
+       from both ends, since this is the rule whose absence reads as a broken search.
+   The PREMISE guard is why the other five cannot pass green over a dead source: if the kit
+   block stops being extractable or evaluable from app/studio.js, this fails loudly instead
+   of silently testing nothing. Deliberately NOT held: the wording of any example, or the
+   dedupe in `terms()` (identical terms AND to the same result, so it is invisible to a
+   reader and there is nothing to publish). */
+
+// The source of truth, evaluated rather than regexed: Studio.catalogSearch as the app runs it.
+const searchKit = (() => {
+  const src = read("app/studio.js");
+  const at = src.indexOf("Studio.catalogSearch = {");
+  if (at < 0) return null;
+  const block = searchBlockAt(src, src.indexOf("{", at), "{", "}");
+  try {
+    const Studio = {};
+    // eslint-disable-next-line no-new-func
+    new Function("Studio", "Studio.catalogSearch = " + block + ";")(Studio);
+    const cs = Studio.catalogSearch;
+    return typeof cs?.terms === "function" && typeof cs?.matcher === "function" ? cs : null;
+  } catch { return null; }
+})();
+
+// A probe runs the kit exactly as a panel does: matcher(query, row => its haystack FIELDS).
+const kitFinds = (q, fields) => searchKit.matcher(q, (r) => r)(fields);
+const syntaxParaHtml = (help.match(/<p><strong>Searching\.<\/strong>[\s\S]*?<\/p>/) || [""])[0];
+const wordParaHtml = (help.match(/<p><strong>What counts as a word\.<\/strong>[\s\S]*?<\/p>/) || [""])[0];
+const syntaxPara = htmlText(syntaxParaHtml);
+const wordPara = htmlText(wordParaHtml);
+
+// The premise. Everything below dereferences searchKit, so it is checked first and the rest
+// is skipped rather than crashing — a check that cannot measure must say so, not throw.
+const kitLive = ok("app/studio.js: Studio.catalogSearch is still extractable and evaluable — the premise the rules below measure against",
+  !!searchKit && !!syntaxParaHtml,
+  `kit evaluated: ${!!searchKit} · Searching paragraph found: ${!!syntaxParaHtml}\n      ` +
+  "these rules PROBE the kit; if it cannot be run, they must fail rather than pass over nothing");
+
+if (kitLive) {
+  // (a) every term must appear — ANDed, in any order, across any field.
+  const andHolds = kitFinds("crops 2024", ["Cover crops", "2024"]) && !kitFinds("crops zzz", ["Cover crops"]);
+  const andPublished = /\ball of them, not any of them\b/i.test(syntaxPara) && /in any order/i.test(syntaxPara);
+  ok("docs/index.html: the search ANDs its terms in any order, and the paragraph says all of them rather than any",
+    andHolds && andPublished,
+    `measured — "crops 2024" over ["Cover crops","2024"]: ${kitFinds("crops 2024", ["Cover crops", "2024"])}, ` +
+    `"crops zzz" over ["Cover crops"]: ${kitFinds("crops zzz", ["Cover crops"])} · published: ${andPublished}\n      ` +
+    "an AND search described as \"any of these words\" sends a reader to type fewer terms to find more");
+
+  // (b) quotes mean adjacency — and the adjacency is measured over the JOINED fields.
+  const phraseHolds = kitFinds('"cover crops"', ["Cover crops"]) && !kitFinds('"cover crops"', ["crops cover"]);
+  const straddles = kitFinds('"crops 2024"', ["Cover crops", "2024 plans"]);
+  const phrasePublished = /double quotes/i.test(syntaxPara) && /exact phrase/i.test(syntaxPara);
+  const straddlePublished = /rather than within one field|across the whole item/i.test(syntaxPara);
+  ok("docs/index.html: a quoted phrase matches adjacently, spans the joined fields, and Help states both halves",
+    phraseHolds && straddles === straddlePublished && phrasePublished,
+    `measured — adjacent-only: ${phraseHolds} · straddles a field boundary: ${straddles} · ` +
+    `straddle published: ${straddlePublished}\n      ` +
+    "hay() joins a row's fields with a space and inserts no separator, so \"exact\" needs the qualifier");
+
+  // (c) case-insensitivity, from the query side and the haystack side.
+  const caseHolds = kitFinds("COVER", ["cover"]) && kitFinds("cover", ["COVER"]);
+  ok("docs/index.html: matching is case-insensitive both ways, and Help says case never matters",
+    caseHolds && /case never matters/i.test(syntaxPara),
+    `measured: ${caseHolds} · published: ${/case never matters/i.test(syntaxPara)}`);
+
+  // (d) the empty box — the rule that says how you get the whole list back.
+  const emptyHolds = kitFinds("", ["anything"]) && kitFinds("   ", ["anything"]) && searchKit.terms("").length === 0;
+  const emptyPublished = /empty box matches everything/i.test(syntaxPara);
+  ok("docs/index.html: an empty query matches every row, and Help publishes that rather than leaving it to the Clear chip",
+    emptyHolds && emptyPublished,
+    `measured: ${emptyHolds} · published: ${emptyPublished}\n      ` +
+    "matcher() short-circuits to an accept-all predicate when terms() is empty — a rule, not an accident");
+
+  // (e) the term boundary, held from both ends: this is the rule whose absence reads as a
+  //     broken search, so a drift in EITHER direction has to fail.
+  const commaBreaks = !kitFinds("crops, 2024", ["Cover crops", "2024"]) && kitFinds("crops 2024", ["Cover crops", "2024"]);
+  const punctuationRides = kitFinds("q2.2024", ["Revenue q2.2024"]);
+  const loneQuoteRides = searchKit.terms('cover "crops').includes('"crops') && !kitFinds('cover "crops', ["cover crops"]);
+  const boundaryHolds = commaBreaks && punctuationRides && loneQuoteRides;
+  const boundaryPublished = /spaces are the only separator/i.test(wordPara) &&
+    /crops,/.test(wordPara) && /unmatched/i.test(wordPara);
+  ok("docs/index.html: spaces are the only term separator — punctuation and an unpaired quote stay in the word, and Help explains both",
+    boundaryHolds === boundaryPublished && boundaryHolds,
+    `measured — a comma breaks the query: ${commaBreaks} · punctuation is searchable: ${punctuationRides} · ` +
+    `an unpaired quote rides along: ${loneQuoteRides} · published: ${boundaryPublished}\n      ` +
+    `paragraph: ${wordPara || "(not found)"}\n      ` +
+    "terms() splits on \\S+, so `crops, 2024` looks for the literal `crops,` — the commonest way a correct-looking search returns nothing");
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

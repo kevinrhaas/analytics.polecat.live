@@ -135,6 +135,50 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — Help explained how search works and left out the three rules that decide whether it finds
+  nothing (v942, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** The candidate
+  check 54 named, and the first slice in this family to hold copy by **BEHAVIOUR rather than by
+  roster**. Checks 52 and 54 hold search by asking which pages and which boxes; this paragraph makes
+  a claim of a different kind — what the syntax IS — so it needed a different source of truth and a
+  different method. `Studio.catalogSearch` states four rules in its own header comment, and a
+  comment is not a measurement, so **check 55 EVALUATES the kit** (check 45's idiom over
+  `app/model.js`) and PROBES it: every assertion compares the copy against what the kit DID, not
+  against what it says about itself.
+  **Three of the four rules the paragraph published were already true. What it omitted are the
+  three that decide whether a search comes back EMPTY** — the half a reader actually needs, and the
+  half the page had nothing on. **(1) Spaces are the only separator.** `terms()` splits on `\S+`,
+  so punctuation stays inside the word and `crops, 2024` looks for the literal `crops,`. Measured:
+  `crops 2024` matches `["Cover crops","2024"]` and `crops, 2024` does not — same query, one comma,
+  no results, and nothing on the page explained it. The rule earns its keep in the other direction
+  too, which is why it is published as a capability and not just a warning: it is what makes
+  `q2.2024` find "Revenue q2.2024". **(2) An unpaired quote is an ordinary character.** The term
+  regex alternates `"([^"]*)"` with `(\S+)`, so a lone `"` falls to the second branch and rides
+  along — `cover "crops` parses to `["cover", "\"crops"]` and finds nothing on `["cover crops"]`.
+  Copy that says quotes mean "the exact phrase" and stops there leaves a reader with a search that
+  looks right and returns nothing, the v941 shape. **(3) The empty box was unpublished**, though
+  `matcher("")` short-circuits to an accept-all predicate and it is how you get the whole list back;
+  the Clear-chip sentence beside it implied it for the chip and for nothing else. And **(4) "the
+  exact phrase" was true but understated**: `hay()` joins a row's fields with a space and inserts no
+  separator, so a quoted phrase matches ACROSS a field boundary — `"crops 2024"` matches
+  `["Cover crops","2024 plans"]`, where the phrase appears in no single field.
+  **Shipped:** the **Searching** paragraph rewritten (all-not-any, the straddle qualifier, the
+  empty box) and a new **What counts as a word** paragraph beside it, plus doc-truth check 55 —
+  five rules and a PREMISE guard, each a probe that runs the kit: the AND rule (with the OR reading
+  asserted false, so the copy cannot drift into it while this passes), the quoted phrase and its
+  straddle held from both ends, case-insensitivity in both directions, the empty query, and the term
+  boundary held from both ends because that is the rule whose absence reads as a broken search. The
+  premise is why the other five cannot pass green over a dead source: if the kit stops being
+  extractable or evaluable, the check fails loudly instead of silently testing nothing.
+  **Verified: 4 of the 5 rules measured FAILING on the real pre-fix tree** — case-insensitivity was
+  already published and correct, and is held now so it stays that way — **and all five code-side
+  directions measured on mutated trees**: the kit renamed out of reach (the premise fails and the
+  five probes correctly do not run), `terms.every`→`terms.some`, `hay()` joining with a separator so
+  the straddle stops being true while the copy still claims it, the empty-query short-circuit
+  inverted, and commas promoted to separators so the published gotcha stops holding. Full dev gate
+  green (validate + changelog-check + doc-truth + dev-smoke at 390×780 and desktop, zero
+  pageerrors). Docs-only + a tool: `docs/index.html` is not precached (sw.js says so in its own
+  header), so **no `sw.js` CACHE bump** — same reasoning as v941 and every N7 slice since v915.
+  **Est 1pt, took 1.**
 - **N7 — Help promised the same search rules everywhere, then left out three boxes and named an
   exception that was not the only one (v941, NO sw bump, 2026-08-09, steward; dev branch; est 1pt,
   took 1):** The larger of the two candidates v940 left, and the slice check 52 had already named
@@ -14244,15 +14288,54 @@
     surface renamed out from under a published row, and the Help-box exception deleted from the
     copy). The three Data-panel rows are scoped to the panel's own parenthetical, so "Views" later
     in the same sentence (the Quick Views pane) can never stand in for the group they hold.
-    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the same
+    ~~**Measured in the same pass and NOT taken, so the next run does not re-derive it:** the same
     block's opening **Searching** paragraph tells a reader what the syntax IS (multiple words ANDed
     in any order, `"quoted phrases"` adjacent, case-insensitive, an empty query matching everything)
     and the kit states all four rules itself, in `terms()`/`matcher()` — the class of claim check 54
     holds by ROSTER is one paragraph up held by BEHAVIOUR, a different derivation (parse the kit's
-    own semantics, not its call sites) and its own slice. Also measured and NOT N7's: the kit's own
+    own semantics, not its call sites) and its own slice.~~ ✓ **SHIPPED v942, NO sw bump (2026-08-09
+    — see the v942 line below and DONE).** Also measured and NOT N7's: the kit's own
     header comment still says "11 other search affordances" and lists them as "the Explore … pane"
     — a source comment, not published copy, and correcting it changes a precached file for a
     comment, so it belongs to whichever slice next touches `app/studio.js` for a real reason.
+  * *Help's search SYNTAX vs the rules the kit really implements — v942, NO sw bump (2026-08-09 —
+    see DONE).* The candidate check 54 named, and the first slice in this family to hold copy by
+    **BEHAVIOUR rather than by roster**: checks 52 and 54 ask which pages and which boxes, this one
+    asks what the syntax IS. So it needed a different method — `Studio.catalogSearch` states four
+    rules in its own header comment, a comment is not a measurement, and check 55 therefore
+    EVALUATES the kit (check 45's idiom) and PROBES it. **Three of the four rules the paragraph
+    published were already true; what it omitted are the three that decide whether a search comes
+    back EMPTY**, which is the half a reader needs and the half nothing on the page had.
+    **Spaces are the only separator** — `terms()` splits on `\S+`, so punctuation stays inside the
+    word and `crops, 2024` looks for the literal `crops,`. Measured: `crops 2024` matches
+    `["Cover crops","2024"]` and `crops, 2024` does not, same query, one comma, no results, no
+    explanation published. (The rule earns its keep the other way too: it is what makes `q2.2024`
+    find "Revenue q2.2024".) **An unpaired quote is an ordinary character** — the term regex
+    alternates `"([^"]*)"` with `(\S+)`, so a lone `"` falls to the second branch and rides along:
+    `cover "crops` parses to `["cover", "\"crops"]` and finds nothing. Copy that says quotes mean
+    "the exact phrase" and stops there is the v941 shape — a search that looks right and returns
+    nothing. **The empty box was unpublished**, though `matcher("")` short-circuits to an accept-all
+    predicate and it is how a reader gets the whole list back. And **"the exact phrase" was true but
+    understated**: `hay()` joins a row's fields with a space and inserts no separator, so a quoted
+    phrase matches ACROSS a field boundary (`"crops 2024"` matches `["Cover crops","2024 plans"]`,
+    where the phrase is in no single field). One paragraph rewritten, one added.
+    Doc-truth check 55 — five rules plus a PREMISE guard, every assertion a probe that RUNS the kit
+    rather than reading it: the AND rule (with the OR reading asserted false, so the copy cannot
+    drift into it while this passes), the quoted phrase and its straddle held from both ends,
+    case-insensitivity both ways, the empty query, and the term boundary held from both ends since
+    that is the rule whose absence reads as a broken search. **4 of the 5 measured failing on the
+    real pre-fix tree** (case-insensitivity was already published and correct), and all five
+    code-side directions on mutated trees — the kit renamed out of reach (the premise fails and the
+    five probes correctly do not run), `every`→`some`, `hay()` joining with a separator,
+    the empty-query short-circuit inverted, and commas promoted to separators.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** `terms()`
+    also DEDUPES (`Cover COVER cover` → one term), and there is deliberately nothing to publish —
+    identical terms AND to the same result, so the dedupe is invisible to a reader and check 55
+    says so rather than holding a rule about it. Also measured and **NOT N7's** (it is code, not
+    copy): the unpaired-quote behaviour is documented here rather than fixed, because `terms()`
+    lives in a precached file (a `sw.js` CACHE bump, issue #631's territory) and changing how a
+    query parses is app-wide search behaviour — a product call, not a derivation. The two v922
+    candidates are still open and still Kevin's calls.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before

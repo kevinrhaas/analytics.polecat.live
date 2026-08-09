@@ -1723,12 +1723,25 @@
   at the top whatever the sort; a dashboard's pin sends it to Home rather than to the top of this
   list, and <a href="#catalog-rows">Jobs</a> and the Repository have no pin at all.</p>
   <p><strong>Searching.</strong> Every catalog page searches the same way. Type as many words as you
-  like: each one has to turn up <em>somewhere</em> on the item, in any order and across any field — so
-  <code>crops 2024</code> finds a dataset named "Cover crops" filed in the "2024" folder, even though
-  those two words never sit next to each other. Wrap words in <code>"double quotes"</code> when you do
-  mean the exact phrase. Case never matters. The <strong>Clear</strong> chip above the list means show
+  like: <em>every</em> one has to turn up somewhere on the item — all of them, not any of them — in any
+  order and across any field, so <code>crops 2024</code> finds a dataset named "Cover crops" filed in
+  the "2024" folder, even though those two words never sit next to each other. Wrap words in
+  <code>"double quotes"</code> when you do mean the exact phrase: they then have to sit together, though
+  "together" is measured across the whole item rather than within one field, so <code>"crops 2024"</code>
+  also matches where the name ends in "crops" and the folder beside it begins "2024". Case never matters.
+  An empty box matches everything, so emptying the search is how you get the whole list back. The
+  <strong>Clear</strong> chip above the list means show
   everything: it drops the facet pills <em>and</em> empties the search box, and it appears whenever
   either one is narrowing the list. Every catalog page has one, Dashboards included.</p>
+  <p><strong>What counts as a word.</strong> Spaces are the only separator, and everything else you type
+  stays part of the word it is touching. That is what lets you search for a name that contains
+  punctuation — <code>q2.2024</code> finds "Revenue q2.2024" — but it also means a comma you added out of
+  habit goes looking for itself: <code>crops, 2024</code> hunts for the literal <code>crops,</code> and
+  comes back empty on the very dataset <code>crops 2024</code> finds. Quotes work the same way and only
+  in pairs, so a single unmatched <code>"</code> is just another character in the word beside it —
+  <code>cover "crops</code> searches for <code>cover</code> and for <code>"crops</code>, quote mark
+  included, and finds nothing. If a search you are sure about comes back empty, a stray comma or an
+  unclosed quote is the usual reason.</p>
   <p><strong>What each page searches.</strong> Every page searches the item's name and its folder. On
   top of that: <strong>Dashboards</strong> add the description and, as a fallback when nothing else
   matches, the column names its charts are bound to (the matching column is named right on the card);
