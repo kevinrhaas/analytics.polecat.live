@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 931,
+    title: 'The runbook for publishing this site described a pipeline we replaced',
+    kind: 'fix',
+    ts: '2026-08-09T13:08:58.000Z',
+    items: [
+      'PUBLISH.md is the page the README sends you to for the full publishing runbook, and nothing had ever read it against the way the site is actually published. Its first instruction was to set GitHub Pages to serve a branch directly — the setting this repo moved OFF when the deploy workflow took over. Following it would have taken that workflow out of the path and switched off the dev and stage previews with it. It now names the source the deploy really needs.',
+      'The page described the published site as one tree served from the repo root. Every deploy has assembled three for weeks: production at the root, plus the /dev/ and /stage/ previews built from those branches. All three are described now, with a pointer to the pipeline runbook for how a change travels between them.',
+      '"Push to the deploy branch and the live site updates" named no branch and was wrong for two of the three the workflow watches — only main publishes, and pushes to the other two rebuild the previews instead. The opening paragraph now says which branch ships.',
+      'A note about connecting to a live server pointed at a script (tools/push.js) that left with the module it belonged to, and described a data source the app no longer has. It is now the thing that is actually true of every connector: connections are made from the visitor\'s browser, so whatever they point at has to be reachable from it and send the right CORS headers.',
+      'The instructions for reopening the welcome tour pointed at an "ⓘ Tour" control the app has never had — the same dead route the README fix removed two versions ago, still standing in the document the README forwards to. It names the command palette now, and the section on managing accounts names the Admin section the app really has rather than a sub-tab it does not.',
+      'The dev gate now reads the runbook against the deploy workflow itself — the Pages source, the stage trees it assembles, the branch it guards on, the scripts it tells you to run, the tour route and the demo accounts the sign-in screen seeds — so publishing instructions cannot quietly stop being true again.',
+    ],
+  },
+  {
     v: 930,
     title: 'Help has a way to reach all of itself',
     kind: 'fix',

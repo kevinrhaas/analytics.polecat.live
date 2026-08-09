@@ -135,6 +135,49 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — The runbook for publishing this site described a pipeline we replaced (v931, NO sw
+  bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** `PUBLISH.md` is the page
+  `README.md` forwards to for the full publishing runbook ("Full runbook: **PUBLISH.md**"),
+  and it is the only document in the repo whose instructions an operator EXECUTES against repo
+  settings. Nothing had ever read it. v928 corrected README's three-sentence summary of
+  publishing and left the page beneath it alone, which is exactly how this drift survived.
+  **Measured before the fix, and the first one BREAKS something rather than misinforming:**
+  § 1 instructed *Settings → Pages → Build and deployment → **Deploy from a branch** → `main` /
+  `/ (root)`*, while `.github/workflows/deploy.yml`'s own header says it *replaced* GitHub's
+  branch pipeline (which has no concurrency control) and its closing NOTE reads "requires repo
+  Settings → Pages → Source = GitHub Actions" — an operator following the runbook would have
+  switched Pages back to the branch source, taking `deploy.yml` out of the path and both
+  preview stages with it. Then: **the artifact's other two trees were named nowhere** — the
+  page said "GitHub Pages serves the repo root directly" while every deploy has assembled
+  `/stage/` and `/dev/` beside production since the promotion pipeline landed;
+  **"push to the deploy branch and the live site updates"** named no branch and is false for
+  two of the three refs `deploy.yml` triggers on (the deploy job is `if: github.ref ==
+  'refs/heads/main'` and the `github-pages` environment refuses every other ref outright);
+  a Notes bullet told you to **run `tools/push.js`**, a script that left with the retired
+  Pentaho module it belonged to (no adapter for it survives in `app/sources/`); and the
+  tour-reopen route was **"ⓘ Tour"** — the identical dead control check 41 rule (g) had
+  removed from README two versions earlier, still standing in the document README forwards to.
+  § 3's "Admin → **Users**" was corrected in the same pass: `renderAdmin()` opens straight on
+  the user list and the section has no Users sub-tab.
+  **Fixed:** § 1 now names the Actions source and prints the three-tree table with the reason
+  from `deploy.yml`'s own header, the intro says merging to `main` is what ships, the Notes
+  bullet says the thing that is true of every connector (connections are made from the
+  visitor's browser, so the endpoint must be reachable from it and send CORS headers — the
+  same constraint `docs/index.html` already documents per connector), the tour route is
+  **⌘K → Take the tour**, and `docs/PIPELINE.md` is linked for how a change travels dev →
+  stage → main. **Verified:** doc-truth **check 44** — six rules, (a)–(c) derived from
+  `deploy.yml` (the `actions/deploy-pages` step ⇒ the required Pages source; the
+  `for stage in …` assembly loop ⇒ the stage trees; the deploy job's branch guard ⇒ the ref
+  that ships), (d)–(f) reusing derivations this file already has (every `tools/…` script named
+  must exist; check 13's route resolver plus `app/welcome.js`'s own `SEEN` literal;
+  `app/auth.js`'s first-run `SEED`, both directions). **5 of the 6 rules measured failing on
+  the real pre-fix tree**; the sixth (the demo accounts, already correct) plus every negative
+  half measured on mutated trees — a `qa` stage added to the assembly loop, production moved to
+  a `release` branch, a renamed seen-key, a third seeded account, an invented `root`/`root`
+  pair, an unresolvable `⌘K →` route, and the branch instruction re-added. Dev gate green:
+  `validate.mjs`, `changelog-check.js`, `doc-truth.mjs` (12 new assertions), `dev-smoke.mjs`.
+  No `sw.js` CACHE bump — `PUBLISH.md`, `tools/doc-truth.mjs` and `STATUS.md` are not
+  precached and the fetch handler is network-first (same reasoning as N14, v921 and v930).
 - **N7 — Help had no way to reach a third of itself (v930, NO sw bump, 2026-08-09, steward;
   dev branch; est 1pt, took 1):** every check in this family holds what a document SAYS. This one
   holds whether a reader can GET to it, and the Help page — the document checks 9, 14–21, 28 and
@@ -13368,6 +13411,40 @@
     `tools/stage-preview.mjs` at deploy time — so the committed copy appears to be a local run of
     that script that got committed, and it doubles every `grep` over the repo. Whether it is load-
     bearing is a pipeline question for whoever owns N25.
+  * *`PUBLISH.md` vs the way the site really publishes — v931, NO sw bump (2026-08-09 — see
+    DONE).* The document check 41 pointed at without reading: README's Publish section closes
+    "Full runbook: **PUBLISH.md**", so v928 corrected the three-sentence summary and left the
+    page it forwards to untouched — and that page is the only document here whose instructions
+    an operator EXECUTES against repo settings. **It was still describing the publishing
+    pipeline this repo replaced, and the first drift BREAKS something rather than misinforming:**
+    § 1 said "Settings → Pages → **Deploy from a branch** → `main` / `/ (root)`" while
+    `deploy.yml`'s own header says it *replaced* the branch pipeline and its NOTE requires
+    Source = **GitHub Actions** — following the runbook would have unhooked the deploy workflow
+    and both preview stages with it. Beside that: the artifact's `/dev/` and `/stage/` trees were
+    named nowhere ("GitHub Pages serves the repo root directly" — one tree, where there are
+    three); "push to the deploy branch" named no branch and is false for two of the three refs
+    the workflow triggers on; a Notes bullet sent readers to **`tools/push.js`**, which left with
+    the retired Pentaho module it belonged to; and the tour-reopen route was **"ⓘ Tour"** — the
+    identical dead control check 41 rule (g) had deleted from README two versions earlier, still
+    standing in the document README forwards to. Doc-truth check 44: six rules, (a)–(c) derived
+    from `deploy.yml` (the Pages source, the stage-assembly loop, the deploy job's branch guard)
+    and (d)–(f) reusing what this file already builds (tools/ existence; check 13's route
+    resolver plus `welcome.js`'s own `SEEN` literal; `auth.js`'s first-run `SEED`, both
+    directions). **5 of the 6 measured failing on the real pre-fix tree**, and all four
+    code-side directions on mutated ones (a new stage in the loop, a moved production branch, a
+    renamed seen-key, a third seeded account). § 3's "Admin → **Users**" was corrected in the
+    same pass — `renderAdmin()` opens straight on the user list and has no Users sub-tab — but
+    it is held only by a reader, not by a rule.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    check deliberately does NOT hold the retired module's NAME. Rule (d) kills the bullet's
+    actionable half (a script that is not there) and the fix removed the name with it, but
+    "no module the code calls retired may be named here" would have to derive the retired set
+    from prose inside a comment (`app/model.js`: "Rescued from the retired Pentaho module") — a
+    rule that stops testing the day someone rewords the comment. Also measured: **`SPEC.md` is
+    the last document still titled "DashKit Dashboard Studio"** — the vendored chart toolkit's
+    name where README's H1 and every `<title>` say *Analytics* — and it answers to no check at
+    all, the check-41 gap one document over. It is the named candidate for the next N7 slice.
+    The two v922 candidates are still open and still Kevin's calls.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before
