@@ -135,6 +135,53 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — The Dashboard theme picker offers seven looks and Help listed six of them
+  (v927, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** check 39's move one
+  pair of pickers over, and the shape that made it worth taking is that the page could be caught
+  contradicting ITSELF — this is the first N7 slice where the proof of the drift was already
+  printed four sections below the drift.
+  - **Measured, not suspected.** The app themes itself from two registries kept in deliberate
+    parity: `Studio.DASHBOARD_THEMES` (`app/model.js:2165` — **7** presets: Classic Blue,
+    Polecat, Fleet Modern, High Contrast, Editorial, Neon, **Conservation**), which the
+    builder's swatch row renders one `.dt-swatch` per entry and the Settings "Default dashboard
+    theme" `<select>` is built from; and `APP_THEME_KEYS`/`APP_THEME_LABELS`
+    (`app/studio.js:10897` — the same 7 labels under different keys, bound by
+    `APP_THEME_TO_DASHBOARD_THEME`), which Settings → Appearance renders as the Color theme
+    cards. Help's **Dashboard theme** list published **6** curated entries plus Custom:
+    **Conservation was missing**, added to the registry by UX11 and never added to that list.
+  - **And the page said so already.** Help's **Color theme** list is complete, and its intro
+    reads "It offers the same seven looks as the Dashboard theme picker" — a cross-reference
+    pointing at a list of six. Neither section is wrong on its own; together they are, which is
+    exactly the class of drift a per-section read never finds.
+  - **The fix is one bullet** (Conservation, placed where the registry puts it — after Neon,
+    before the Custom swatch), plus `id="dash-theme"` / `id="color-theme"` anchors for the
+    check, the idiom `id="filters-how"` and `id="viewer-export"` already set in this document.
+  - **Doc-truth check 40** derives both rosters from their own literals and the Custom swatch
+    from the markup that appends it (`data-dashboard-theme="custom"` — check 18's derive-the-
+    exemption idiom, so Custom stays exempt only while the picker really offers it). Five rules:
+    (a) the Dashboard list names every curated preset; (b) it names none the picker does not
+    offer; (c) the Color theme list is exactly the chrome roster, both directions; (d) the
+    cross-reference's count word matches the roster; (e) **parity-only-when-true** — that
+    sentence may claim "the same N looks" only while the two registries carry the same labels,
+    so the day one diverges the copy has to change instead of quietly misleading. All five
+    measured failing: **(a) on the real pre-fix tree**, the rest on mutated ones, including both
+    directions of (c) and (e) and a mutation that stops the picker appending Custom.
+  - **Deliberately NOT order-strict**, unlike check 39 rule (c): both Help lists lead with
+    Polecat where both registries lead with `classic`, which is an editorial choice about what a
+    reader meets first, not drift. The check holds the sets and the counts and leaves order to
+    the writer — stated in its header so the next run does not "fix" it.
+  - **Docs-only, so no `sw.js` bump** (`docs/index.html` + `tools/doc-truth.mjs`; no precached
+    app file changed) — the posture the last six N7 slices have kept while #631 (a deterministic
+    CACHE_NAME bump killing the refresh-token re-mint) is open.
+  - **Verified:** the whole DEV GATE in the foreground, green — `tools/validate.mjs` (211 files),
+    `tools/changelog-check.js` (904 entries, manager-parse OK) and `tools/dev-smoke.mjs`
+    (marketing, app past the gate, docs, desktop + 390px, zero pageerrors) — plus check 40's own
+    five rules exercised in both directions as described above. The full `tests/run.js` suite was
+    NOT run here: it overran this run's foreground budget and the run would not background it.
+    That is the stage gate's job and it is unchanged by this slice — the diff is `docs/index.html`
+    (one `<li>`, two `<h3>` ids) and an append to `tools/doc-truth.mjs`, and every suite check
+    that reads Help asserts anchors or HTTP status, none of which those touch (the in-page docs
+    search indexes `<h2>` sections and chart cards, not `<h3>` ids).
 - **N7 — Settings offered six places to keep your workspace and Help explained four of them
   (v926, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** check 38's move one
   picker over — and the point of the slice is that there IS a second picker. Check 38 (v925,
@@ -13041,6 +13088,37 @@
     N7's: the three Future entries are a hard-coded literal inside `openBackendWizard`, not a
     registry, which is a code question (`app/sources/` is where every other adapter fact
     lives) rather than a copy one.
+  * *Help's two theme lists vs the two theme rosters the app renders — v927, NO sw bump
+    (2026-08-09 — see DONE).* Check 39's move one pair of pickers over, and the first N7 slice
+    whose proof was already printed on the same page: the app themes itself from TWO registries
+    kept in deliberate parity — `Studio.DASHBOARD_THEMES` (7 presets, rendered as the builder's
+    swatch row and as Settings' "Default dashboard theme" `<select>`) and
+    `APP_THEME_KEYS`/`APP_THEME_LABELS` (the same 7 labels for the app chrome) — and Help's
+    **Dashboard theme** list published **6**. **Conservation** was missing, added to the
+    registry by UX11 and never added to the list a reader picks a dashboard's look from. The
+    **Color theme** list four sections below is complete, and its intro says the chrome picker
+    "offers the same **seven** looks as the Dashboard theme picker" — a cross-reference
+    pointing at a list of six, so neither section was wrong alone and together they were.
+    One bullet, plus two `<h3>` anchors. Doc-truth check 40 derives both rosters from their own
+    literals and the Custom swatch from the markup that appends it (check 18's idiom, so Custom
+    is exempt only while the picker offers it); five rules — coverage, the negative half, the
+    chrome list both directions, the count word, and **parity-only-when-true** on that
+    cross-reference. All five measured failing: (a) on the real pre-fix tree, the rest on
+    mutated ones. **Deliberately NOT order-strict** (check 39 rule (c) is): both Help lists lead
+    with Polecat, the default, where both registries lead with `classic` — editorial, not drift.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    comment above the Custom swatch (`app/studio.js`) still calls it "a **6th** swatch" — it is
+    the 8th now (7 presets + Custom), stale since the registry grew. Correct and one word wide,
+    but `app/studio.js` is precached, so taking it would cost a `sw.js` CACHE bump — the thing
+    open issue #631 says deterministically reddens the N2 slice-4 refresh-token checks — for a
+    comment. It belongs to the next slice that has to bump anyway. Also measured and NOT N7's:
+    `app/welcome.js` and `app/tutorial.js` enumerate no themes at all, which is why check 40 is
+    scoped to Help — not oversight.
+    **Audited and found CURRENT in the same pass, no change needed:** `docs/img/dashtheme.png`,
+    the screenshot printed directly above the list this slice fixed. The v918 pass's lesson is
+    that a stale shot can contradict the caption beside it, so it was read rather than assumed —
+    its Dashboard theme row shows all **eight** swatches, Conservation's olive-green among them.
+    The picture had been right about the thing the prose beneath it got wrong.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before

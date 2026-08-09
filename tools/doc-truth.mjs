@@ -2658,6 +2658,130 @@ ok(`docs/index.html: the roadmap paragraph names exactly the ${futureBackends.le
   'the paragraph is <p id="backend-future"> under the table — these cards are greyed and ' +
   "unselectable, so a reader who is not told they are the roadmap reads them as broken");
 
+/* ── 40. Help's two theme lists vs the two theme rosters the app really renders ──
+   N7, and check 39's move one pair of pickers over. The app themes ITSELF twice, from two
+   registries that are deliberately kept in parity:
+   · `Studio.DASHBOARD_THEMES` (app/model.js) — the whole-look presets the Dashboard theme
+     swatch row renders (app/studio.js, one `.dt-swatch` per entry), and the same list the
+     Settings "Default dashboard theme" <select> is built from. The row then appends ONE
+     extra swatch, `data-dashboard-theme="custom"`, which has no registry entry by design
+     (its colors are authored, not curated) — so it is derived here from that markup rather
+     than carried in an exemption list, check 18's idiom.
+   · `APP_THEME_KEYS` / `APP_THEME_LABELS` (app/studio.js) — the app-chrome Color theme cards
+     in Settings → Appearance. Different keys ("modern" for the dashboard list's
+     "fleet-modern"), same LABELS, bound by `APP_THEME_TO_DASHBOARD_THEME`.
+
+   Measured 2026-08-09, before the fix — both rosters ship SEVEN looks and Help's Dashboard
+   theme list published SIX:
+   · **Conservation** was missing from it. The theme is in the registry (UX11 added it), the
+     swatch row renders it, the Settings default <select> offers it — and the section a
+     reader consults to choose a dashboard look did not mention it.
+   · The page therefore contradicted itself in a way neither section could show alone: the
+     Color theme list four sections below is complete, and its intro says the picker "offers
+     the same seven looks as the Dashboard theme picker" — pointing at a list of six.
+
+   Five rules:
+   (a) the Dashboard theme list names every curated preset in the registry;
+   (b) it names no preset the registry does not have, except the Custom swatch the row really
+       appends (the negative half — a retired preset would otherwise sit in the list forever);
+   (c) the Color theme list names exactly the app-chrome roster, both directions;
+   (d) the count word in the Color theme intro's cross-reference matches the roster size —
+       the exact shape of claim check 39 rule (d) caught, and the sentence that made the
+       missing bullet visible;
+   (e) parity-only-when-true: that cross-reference is only allowed to say "the same N looks"
+       while the two registries really do carry the same labels. The day they diverge, this
+       fails and the sentence has to change rather than quietly mislead.
+
+   Deliberately NOT order-strict, unlike check 39 rule (c): both Help lists lead with Polecat,
+   the default, where both registries lead with `classic`. That is an editorial choice about
+   what a reader meets first, not drift — so this check holds the SETS and the counts, and
+   leaves the order to the writer. Scoped to docs/index.html: `app/welcome.js` and
+   `app/tutorial.js` were audited in the same pass and enumerate no themes at all. */
+
+const dashThemes = [...(read("app/model.js")
+  .match(/Studio\.DASHBOARD_THEMES = \[([\s\S]*?)\n  \];/) || [, ""])[1]
+  .matchAll(/\{ key: "([a-z0-9-]+)", label: "([^"]+)"/g)].map((m) => ({ key: m[1], label: m[2] }));
+// The one swatch the row appends that is NOT a registry entry — read from the markup that
+// appends it, so "Custom" stays exempt only for as long as the picker really offers it.
+const customSwatch = /data-dashboard-theme", "custom"/.test(read("app/studio.js"));
+const appThemeLabels = [...(read("app/studio.js")
+  .match(/var APP_THEME_LABELS = \{([\s\S]*?)\};/) || [, ""])[1]
+  .matchAll(/(?:"[a-z0-9-]+"|[a-z0-9]+):\s*"([^"]+)"/g)].map((m) => m[1]);
+ok(`app/model.js + app/studio.js: the two theme rosters parsed for check 40 ` +
+   `(${dashThemes.length} dashboard preset(s), ${appThemeLabels.length} app theme(s)` +
+   `${customSwatch ? ", plus the Custom swatch" : ""})`,
+  dashThemes.length > 1 && appThemeLabels.length > 1,
+  `dashboard: ${dashThemes.map((t) => t.label).join(", ") || "(none)"}\n      ` +
+  `app chrome: ${appThemeLabels.join(", ") || "(none)"}\n      ` +
+  "both are read by regex from their own literals — an empty parse would pass every rule below");
+
+// Each Help list is the first <ul> after its <h3>; each entry is led by its name in <strong>.
+function themeBullets(anchor) {
+  const section = (read("docs/index.html")
+    .match(new RegExp(`<h3 id="${anchor}">([\\s\\S]*?)(?=<h3[ >]|</section>)`)) || [, ""])[1];
+  // The intro is the section's first <p> — the prose a reader meets above the list. Read it
+  // narrowly rather than "everything before the <ul>" so a count word in the figure's alt text
+  // can never stand in for one the sentence is missing.
+  const intro = ((section.match(/<p>([\s\S]*?)<\/p>/) || [, ""])[1])
+    .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const list = (section.match(/<ul>([\s\S]*?)<\/ul>/) || [, ""])[1];
+  const names = [...list.matchAll(/<li><strong>([\s\S]*?)<\/strong>/g)]
+    .map((m) => labelKey(m[1].replace(/<[^>]+>/g, "")));
+  return { found: !!section, intro, names };
+}
+const dashHelp = themeBullets("dash-theme");
+const appHelp = themeBullets("color-theme");
+ok(`docs/index.html: both theme lists parsed for check 40 ` +
+   `(${dashHelp.names.length} dashboard bullet(s), ${appHelp.names.length} color-theme bullet(s))`,
+  dashHelp.found && appHelp.found && dashHelp.names.length > 0 && appHelp.names.length > 0,
+  'the <h3 id="dash-theme"> / <h3 id="color-theme"> sections, or the first <ul> inside them, ' +
+  "were not found — rules (a)–(e) read them");
+
+// (a) every curated preset the swatch row renders has a bullet
+const dashHelpSet = new Set(dashHelp.names);
+const undocumentedThemes = dashThemes.filter((t) => !dashHelpSet.has(labelKey(t.label)));
+ok(`docs/index.html: the Dashboard theme list names every curated preset the picker renders (${dashThemes.length})`,
+  !undocumentedThemes.length,
+  `in Studio.DASHBOARD_THEMES, missing from the list: ${undocumentedThemes.map((t) => `${t.label} (${t.key})`).join(", ")}\n      ` +
+  "this list is where a reader picks a dashboard's whole look — a preset with no bullet is one " +
+  "they can only find by clicking every swatch");
+
+// (b) and names none the registry does not have (Custom excepted, while the row really appends it)
+const dashKeys = new Set(dashThemes.map((t) => labelKey(t.label)).concat(customSwatch ? ["custom"] : []));
+const strayThemes = dashHelp.names.filter((n) => !dashKeys.has(n));
+ok("docs/index.html: the Dashboard theme list names no preset the picker does not offer",
+  !strayThemes.length,
+  `in the list, not in the registry: ${strayThemes.join(", ")}\n      ` +
+  `the picker offers: ${dashThemes.map((t) => t.label).join(", ")}${customSwatch ? ", Custom" : ""}`);
+
+// (c) the Color theme list is exactly the app-chrome roster, both directions
+const appHelpSet = new Set(appHelp.names);
+const missingAppThemes = appThemeLabels.filter((l) => !appHelpSet.has(labelKey(l)));
+const strayAppThemes = appHelp.names.filter((n) => !appThemeLabels.some((l) => labelKey(l) === n));
+ok(`docs/index.html: the Color theme list names exactly the ${appThemeLabels.length} app themes Settings renders`,
+  !missingAppThemes.length && !strayAppThemes.length,
+  `rendered by the picker, missing from the list: ${missingAppThemes.join(", ") || "(none)"}\n      ` +
+  `in the list, not in APP_THEME_KEYS: ${strayAppThemes.join(", ") || "(none)"}`);
+
+// (d) the cross-reference counts them
+const appCount = NUMBER_WORD[appThemeLabels.length] || appThemeLabels.length;
+ok(`docs/index.html: the Color theme intro counts the looks as "${appCount}"`,
+  new RegExp(`\\b${appCount}\\b`, "i").test(appHelp.intro),
+  `the intro reads: ${appHelp.intro.slice(0, 220)}…\n      ` +
+  `it should count ${appThemeLabels.length} — this sentence points AT the Dashboard theme list, ` +
+  "so a wrong number here is the page disagreeing with itself");
+
+// (e) …and is only allowed to claim parity while the two registries actually have it
+const rostersMatch = appThemeLabels.length === dashThemes.length &&
+  dashThemes.every((t) => appThemeLabels.some((l) => labelKey(l) === labelKey(t.label)));
+ok("docs/index.html: the Color theme intro claims parity with the Dashboard theme picker only while it holds",
+  rostersMatch === /\bthe same\b/i.test(appHelp.intro),
+  `registries match: ${rostersMatch} (dashboard: ${dashThemes.map((t) => t.label).join(", ")}; ` +
+  `app chrome: ${appThemeLabels.join(", ")})\n      ` +
+  `the intro ${/\bthe same\b/i.test(appHelp.intro) ? "claims" : "does not claim"} they are the same set\n      ` +
+  "if a theme ever ships to one picker and not the other, this sentence is the copy that has to " +
+  "change — silently, it would send a reader looking for a chrome theme in the dashboard picker");
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
