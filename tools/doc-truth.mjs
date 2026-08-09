@@ -3455,6 +3455,202 @@ ok(`PUBLISH.md: § 3's demo accounts are exactly the ${seedAccounts.length} the 
   `in the runbook, not seeded: ${straySeed.join(", ") || "(none)"}\n      ` +
   "app/auth.js's SEED is what a fresh browser gets — § 3 is where an operator reads it");
 
+/* ── 45. SPEC.md vs the spec it publishes ───────────────────────────────────
+   N7, and the document check 44's own note named as the last one answering to no rule at
+   all: `README.md` sends a reader here three times ("the dashboard-spec schema"), and
+   nothing had ever read it against `app/model.js`. It was the last file in the repo still
+   titled **DashKit Dashboard Studio** — the vendored chart toolkit's name, where README's
+   H1 and every <title> say *Analytics* — and the title was the smallest of it.
+
+   Measured 2026-08-09, before the fix:
+   · **It published a data pipeline this app removed.** "Every exporter (CDF html, CDE
+     `.cdfde`/`.wcdf`, `.cda`)" — of those four artifacts the app produces exactly one, and
+     `tools/lib.js`'s buildArtifacts returns a single `.html`. The Export ▾ menu's seven
+     formats (check 37's list) were named nowhere on the page.
+   · **Its chart-type registry had 11 of the 54 types**, each with a `CDE / CCC component`
+     column naming a component library the repo does not contain.
+   · **Its "Data resolution" section said the live path hits
+     `/pentaho/plugin/cda/api/doQuery`.** Nothing has fetched that in months —
+     `app/exporters.js:115` says so in a comment ("legacy id namespace … nothing fetches
+     it"); live rows come from the referenced Connection's adapter.
+   · **13 of the 25 keys `Studio.emptySpec()` writes were undocumented** — every appearance
+     key (`dashboardTheme`, `customTheme`, `paletteKey`, `headerLogo/Link/Bg`, `titleSize`,
+     `subtitleStyle`, `headerAlign`, `cardSkin`, `renderMode`, `themeColor`) plus
+     `templateVars`, the `{{key}}` substitution a template author needs most.
+   · **The colour-token list elided eight tokens** behind `--c1`…`--c10`, on the page whose
+     job is to be the exhaustive one.
+   `deploy.sh` — the CLI README tells you to feed a spec to — carried the same dead artifact
+   list in its header, so it is fixed and held here too.
+
+   Six rules. The registry ones EVALUATE `app/model.js` rather than regexing it: the file is
+   a pure `window.Studio` IIFE with no DOM (its own header says so), so one `new Function`
+   yields the real labels, fields, formats and defaults — exact where a regex over 54
+   entries would be approximate. Still browser-free, still dependency-free, still instant.
+   (a) SPEC.md's H1 names the product README's H1 names;
+   (b) every top-level key `Studio.emptySpec()` writes is documented, and no key is
+       documented that neither it nor a shipped example carries (the negative half);
+   (c) every format the builder's Export ▾ publishes is named (check 37's own derivation);
+   (d) every file extension SPEC.md or deploy.sh names standalone is one this app exports
+       or accepts as an import — the rule that kills `.cdfde`/`.wcdf`/`.cda`;
+   (e) the chart table IS `Studio.CHARTS`: same keys, same labels, same `map` fields, both
+       directions;
+   (f) the `fmt`, colour-token and KPI-state vocabularies are their registries', both
+       directions — the elision rule, since a page that abbreviates its only exhaustive
+       list is not exhaustive. */
+const spec = read("SPEC.md");
+const deploySh = read("deploy.sh");
+
+// app/model.js is a pure data+helpers IIFE over `window` — no DOM, no imports (file header).
+// Evaluating it is the exact source of truth for rules (b), (e) and (f).
+function studioModel() {
+  const win = {};
+  new Function("window", read("app/model.js"))(win);
+  if (!win.Studio || !win.Studio.CHARTS || !win.Studio.emptySpec) {
+    throw new Error("doc-truth: app/model.js did not yield a Studio model");
+  }
+  return win.Studio;
+}
+const M = studioModel();
+const emptySpecKeys = Object.keys(M.emptySpec());
+ok(`app/model.js: the spec model evaluated for check 45 (${emptySpecKeys.length} top-level keys, ` +
+   `${Object.keys(M.CHARTS).length} chart types)`,
+  emptySpecKeys.length >= 10 && Object.keys(M.CHARTS).length >= 10,
+  "rules (b), (e) and (f) read this model — an empty one would pass them vacuously");
+
+// A markdown section: the given `## ` heading up to the next one.
+function mdSection(src, heading) {
+  const at = src.indexOf(`\n## ${heading}\n`);
+  if (at < 0) return "";
+  const rest = src.slice(at + 1);
+  const end = rest.indexOf("\n## ", 1);
+  return end < 0 ? rest : rest.slice(0, end);
+}
+const ticked = (s) => [...s.matchAll(/`([^`]+)`/g)].map((m) => m[1]);
+
+// (a) the product name. README's H1 is the app's own masthead; SPEC.md had the vendored
+// toolkit's name where README says the product's.
+const productName = (read("README.md").match(/^#\s+(.+)$/m) || [, ""])[1].split("·")[0].trim();
+const specH1 = (spec.match(/^#\s+(.+)$/m) || [, ""])[1].trim();
+ok(`SPEC.md: its H1 names the product README's H1 names ("${productName}")`,
+  !!productName && specH1.includes(productName),
+  `README.md: "${productName}"\n      SPEC.md:   "${specH1}"\n      ` +
+  'it read "DashKit Dashboard Studio" — vendor/dashkit.js is the chart toolkit this app ' +
+  "vendors, not the app");
+
+// (b) the top-level key inventory, from the model that writes it. The negative half allows a
+// key no blank spec carries but a shipped one does (`demoPackId`), and nothing else.
+const keyTable = mdSection(spec, "Top-level keys");
+const documentedKeys = [...keyTable.matchAll(/^\|\s*`([A-Za-z_]\w*)`\s*\|/gm)].map((m) => m[1]);
+ok(`SPEC.md: the top-level key table parsed for check 45 (${documentedKeys.length} row(s))`,
+  documentedKeys.length >= 5,
+  'the "## Top-level keys" section must be a table whose first cell is the key in backticks');
+const undocumentedKeys = emptySpecKeys.filter((k) => !documentedKeys.includes(k));
+ok(`SPEC.md: documents every top-level key Studio.emptySpec() writes (${emptySpecKeys.length})`,
+  !undocumentedKeys.length,
+  `written by the model, undocumented here: ${undocumentedKeys.join(", ")}\n      ` +
+  "this page is the schema — a key it omits is one an author editing a spec by hand cannot know about");
+const exampleKeys = new Set();
+for (const f of fs.readdirSync(path.join(ROOT, "data/examples")).filter((f) => f.endsWith(".studio.json"))) {
+  try { Object.keys(JSON.parse(read("data/examples/" + f))).forEach((k) => exampleKeys.add(k)); } catch { /* not a spec */ }
+}
+const strayKeys = documentedKeys.filter((k) => !emptySpecKeys.includes(k) && !exampleKeys.has(k));
+ok("SPEC.md: documents no top-level key the model never writes and no shipped spec carries",
+  !strayKeys.length,
+  `documented here, written nowhere: ${strayKeys.join(", ")}\n      ` +
+  "the negative half — (b) alone would let a retired key sit in the table forever, which is " +
+  "exactly how the Pentaho-era `cda.connection.jndi` outlived the module that read it");
+
+// (c) what the spec actually becomes, from check 37's own menu derivation.
+const specKey = labelKey(spec);
+const unnamedExports = studioExports.filter((l) => !specKey.includes(labelKey(l)));
+ok(`SPEC.md: names every format Export ▾ writes from a spec (${studioExports.length})`,
+  !unnamedExports.length,
+  `in the menu, unnamed on this page: ${unnamedExports.join(", ")}\n      ` +
+  'it said "Every exporter (CDF html, CDE `.cdfde`/`.wcdf`, `.cda`)" — one of those four ' +
+  "artifacts exists, and the seven that do were named nowhere");
+
+// (d) a file artifact these two documents may name: one an export writes, or one an import
+// accepts. Both sets come from the markup. The token must stand alone — `.js` inside
+// `app/model.js` is a path, not a claim about an artifact.
+const attrAccepts = ["app/index.html", "app/viewer.html", "app/studio.js", "app/gate.js"]
+  .filter((f) => fs.existsSync(path.join(ROOT, f)))
+  .flatMap((f) => [...read(f).matchAll(/accept="([^"]*)"/g)].map((m) => m[1]))
+  .flatMap((v) => v.split(",")).map((s) => s.trim().toLowerCase()).filter((s) => s.startsWith("."));
+const menuExts = [...studioExports, ...viewerExports]
+  .flatMap((l) => [...l.matchAll(/\((\.[a-z0-9.]+)\)/g)].map((m) => m[1].toLowerCase()));
+const knownExts = new Set([...menuExts, ...attrAccepts]);
+ok(`SPEC.md + deploy.sh: the artifact vocabulary parsed for check 45 ` +
+   `(${[...knownExts].sort().join(" ") || "(none)"})`,
+  knownExts.size >= 4, "rule (d) reads the export menus' labels and the file inputs' accept lists");
+const namedExts = (src) => [...new Set([...src.matchAll(/(?<![A-Za-z0-9_])(\.[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)*)\b/g)]
+  .map((m) => m[1].toLowerCase()))];
+const deadArtifacts = [["SPEC.md", spec], ["deploy.sh", deploySh]]
+  .flatMap(([f, src]) => namedExts(src).filter((e) => !knownExts.has(e)).map((e) => `${e} (${f})`));
+ok("SPEC.md + deploy.sh: every file artifact they name is one this app exports or accepts",
+  !deadArtifacts.length,
+  `named, produced by nothing: ${deadArtifacts.join(", ")}\n      ` +
+  "both documents advertised `.cdfde`, `.wcdf` and `.cda` — tools/lib.js's buildArtifacts " +
+  "returns exactly one file, and it is the .html");
+
+// (e) the chart table IS the registry: keys, labels and map fields, both directions.
+const chartTable = mdSection(spec, "Chart types");
+// Body rows only: everything after the header separator (`|---|---|---|`), so the header's
+// own `type` / `map` cells are never read as a chart.
+const chartBody = chartTable.split(/\n\|[\s|:-]+\|\n/)[1] || "";
+const chartRows = [...chartBody.matchAll(/^\|\s*`([A-Za-z_]\w*)`\s*\|([^|]*)\|([^|]*)\|/gm)]
+  .map((m) => ({ key: m[1], label: m[2].trim(), fields: ticked(m[3]) }));
+ok(`SPEC.md: the chart-type table parsed for check 45 (${chartRows.length} row(s))`,
+  chartRows.length >= 10,
+  'the "## Chart types" section must be a table of | `type` | Label | `field`, `field` |');
+const specRegistryKeys = Object.keys(M.CHARTS);
+const rowKeys = chartRows.map((r) => r.key);
+const missingTypes = specRegistryKeys.filter((k) => !rowKeys.includes(k));
+const strayTypes = rowKeys.filter((k) => !specRegistryKeys.includes(k));
+ok(`SPEC.md: its chart table is exactly Studio.CHARTS (${specRegistryKeys.length} types)`,
+  !missingTypes.length && !strayTypes.length,
+  `in the registry, missing from the table: ${missingTypes.join(", ") || "(none)"}\n      ` +
+  `in the table, not in the registry: ${strayTypes.join(", ") || "(none)"}\n      ` +
+  "it published 11 of them, under a column naming a component library this repo does not contain");
+const wrongLabels = chartRows.filter((r) => M.CHARTS[r.key] && r.label !== M.CHARTS[r.key].label)
+  .map((r) => `${r.key}: "${r.label}" vs "${M.CHARTS[r.key].label}"`);
+ok("SPEC.md: every chart row's label is the registry's own",
+  !wrongLabels.length, `table vs registry — ${wrongLabels.join("; ")}`);
+const wrongFields = chartRows.filter((r) => {
+  const c = M.CHARTS[r.key];
+  return c && r.fields.join(",") !== (c.fields || []).join(",");
+}).map((r) => `${r.key}: [${r.fields.join(", ")}] vs [${(M.CHARTS[r.key].fields || []).join(", ")}]`);
+ok("SPEC.md: every chart row's map fields are the ones its registry entry declares",
+  !wrongFields.length,
+  `table vs registry — ${wrongFields.join("; ")}\n      ` +
+  "the `map` block is what an author writes by hand; a wrong field list is a spec that renders empty");
+
+// (f) the small closed vocabularies. A page that elides its own exhaustive list ("`--c1`…
+// `--c10`") is not exhaustive, so both directions are enforced on the literal tokens.
+// Prose only. A fenced example block is illustration, not the published vocabulary — and a
+// ``` fence would desynchronise backtick pairing across everything below it.
+const specProse = spec.replace(/```[\s\S]*?```/g, "");
+const vocab = (line, exclude) => ticked(line).filter((t) => /^[a-z]+$/.test(t) && t !== exclude);
+const fmtLine = (specProse.match(/^.*`fmt`\s*∈.*$/m) || [""])[0];
+const fmtIds = M.FORMATS.map((f) => f.id);
+const fmtDoc = vocab(fmtLine, "fmt");
+ok(`SPEC.md: the fmt vocabulary is exactly Studio.FORMATS (${fmtIds.length})`,
+  fmtIds.every((i) => fmtDoc.includes(i)) && fmtDoc.every((i) => fmtIds.includes(i)),
+  `registry: ${fmtIds.join(", ")}\n      page: ${fmtDoc.join(", ") || "(the `fmt` ∈ line was not found)"}`);
+const stateLine = (specProse.match(/^.*KPI `state`\s*∈.*$/m) || [""])[0];
+const stateIds = M.KPI_STATES.map((s) => s.id).filter(Boolean);
+const stateDoc = vocab(stateLine, "state");
+ok(`SPEC.md: the KPI state vocabulary is exactly Studio.KPI_STATES (${stateIds.length} named + the default)`,
+  stateIds.every((i) => stateDoc.includes(i)) && stateDoc.every((i) => stateIds.includes(i)),
+  `registry: ${stateIds.join(", ")}\n      page: ${stateDoc.join(", ") || "(the KPI `state` ∈ line was not found)"}`);
+const tokensDoc = [...new Set(ticked(specProse).filter((t) => /^--[a-z0-9]+$/.test(t)))];
+const missingTokens = M.COLOR_TOKENS.filter((t) => !tokensDoc.includes(t));
+const strayTokens = tokensDoc.filter((t) => !M.COLOR_TOKENS.includes(t));
+ok(`SPEC.md: the colour tokens are exactly Studio.COLOR_TOKENS (${M.COLOR_TOKENS.length})`,
+  !missingTokens.length && !strayTokens.length,
+  `in the registry, absent from the page: ${missingTokens.join(", ") || "(none)"}\n      ` +
+  `on the page, not in the registry: ${strayTokens.join(", ") || "(none)"}\n      ` +
+  "the page wrote `--c1`…`--c10` and hid eight real tokens inside the ellipsis");
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

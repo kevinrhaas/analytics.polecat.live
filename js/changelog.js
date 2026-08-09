@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 932,
+    title: 'The document that defines a dashboard file described a product we replaced',
+    kind: 'fix',
+    ts: '2026-08-09T13:37:36.000Z',
+    items: [
+      'SPEC.md is the reference for the dashboard file itself — the .studio.json a dashboard exports to and re-opens from — and the README sends you to it three times. Nothing had ever read it against the app. It was still titled with the name of the charting toolkit this app vendors rather than the name of the app, and it described the file as feeding four Pentaho artifacts, three of which nothing has produced in months.',
+      'It listed 11 chart types where the builder offers 54, each against a component library this project does not contain. Every type is now listed with the label the app shows and the columns it binds, so a spec written or edited by hand can be checked against the real thing.',
+      'Thirteen of the twenty-five things a dashboard file can carry were undocumented — every appearance setting (theme, palette, header logo and link, title size, card style, light/dark for the exported file) plus the {{token}} template variables. All of them are described now, with what an empty value means.',
+      'Its account of where a chart gets its rows still pointed at a server endpoint the app stopped calling. It now says what really happens: sample rows travel inside the preview and inside every exported file, while a panel bound to a connection runs that connection for real, from the browser reading it.',
+      'The export list is now the seven formats the Export ▾ menu actually offers, and the deploy script\'s own header no longer promises the three artifacts it stopped writing.',
+      'The dev gate now reads this page against the app\'s own chart registry, spec model and export menu — its title, its key list, its 54 chart rows, its format and colour vocabularies — so the file format cannot be documented as something it is not.',
+    ],
+  },
+  {
     v: 931,
     title: 'The runbook for publishing this site described a pipeline we replaced',
     kind: 'fix',
