@@ -4716,6 +4716,238 @@ ok("app/connections.js + docs/index.html: a password-typed setting stays out of 
   "a stored token that matched a search could be confirmed by typing it — the code and the promise move together");
 
 
+
+/* ── 53. Help's filter pills vs the facets the six catalog panels declare ───
+   N7, and the check-52 move one paragraph down: the block that tells a reader how the
+   catalog pages narrow a list had two paragraphs held to their sources (Searching, What
+   each page searches) and a third — Filtering with pills — held to nothing. Each panel
+   declares its facets itself: the shared kit's `matchMulti` (tick as many pills as you
+   like) and `matchOne` (one at a time) name the MODE outright and take the field
+   accessor as their second argument, and the two chip strips that predate the kit
+   declare the same thing in their markup, by comparing ONE scalar to the chip's id.
+
+   Measured 2026-08-09, before the fix — three drifts, and two of them run in the
+   direction that costs a reader clicks:
+   · **The Repository was absent entirely.** It filters by the KIND of row — Dashboards,
+     Datasets, Connections, Views, Jobs — off the same `wb-chip` strip the Dashboards
+     workbook chips render, and no sentence on the page said so. It is also the only
+     catalog page whose rows are all of different kinds, so it is the page where a type
+     facet matters most.
+   · **Dashboards' workbook chips were published as multi-select.** `_repoWbFilter` is a
+     scalar and the chip's active test is `_repoWbFilter === c.id`, so picking a second
+     workbook replaces the first. Help listed it beside three genuinely multi-select
+     facets under "The other facets are multi-select", which is copy promising more app
+     than ships — the v924 shape.
+   · **The Folders strip was described as if every page had one.** Five do; the Repository
+     groups its rows into a nested folder TREE instead and renders no strip at all. The
+     sentence never named a page, so a reader on the one page without the control was
+     left hunting for it.
+
+   Five rules, and no new source of truth beyond the panel roster check 51 already
+   found — each panel's own facet declarations:
+   (a) the premise + the vocabulary + the roster: every panel declares at least one facet
+       where this can read it, every axis has a row in the vocabulary below, no row is
+       stale, and Help's two halves each enumerate one clause per page. The vocabulary is
+       keyed by the panel's OWN identifier — the accessor `matchMulti`/`matchOne` reads,
+       or the scalar the chip strip compares — so a new facet, or a renamed one, falls out
+       of its row and fails here rather than passing green while Help omits it;
+   (b) every multi-select facet is published in the multi-select half, under its own page;
+   (c) every single-select facet that is NOT the folder strip is published in the
+       one-pill-at-a-time half, under its own page (the strip has its own paragraph);
+   (d) the folder strip's roster and its count word, plus the exception named as one: the
+       pages Help lists are exactly the pages that render a strip, and the page that does
+       not is named as the page that does not;
+   (e) the negative half, and it is segmented by page AND by mode — a clause may not
+       credit its page with a facet that page does not have, and may not credit a
+       single-select facet to the multi-select half. Mode is the half of this rule that
+       the pre-fix paragraph failed, which is why it is not enough to ask whether the
+       facet is named somewhere.
+   Deliberately NOT held: the ORDER the facets appear in, each pill's own LABEL (the
+   Datasets kind pills print sql/table/file/collection/sheet through `dsxKindLabel`;
+   holding thirteen pill labels to thirteen sentences is a different derivation and its
+   own slice), and any wording beyond each axis's own noun — check 12's rule again, a
+   teaching document owes coverage, not a transcript. */
+
+// Each panel's facet axes, keyed by the panel's own identifier for the axis, mapped to
+// the noun Help has to publish. `mode` is derived, not declared here — it is asserted
+// against the source in (a) — and `null` marks the folder strip, whose claims live in
+// its own paragraph rather than in the per-page clauses.
+const CATALOG_FACET_AXES = {
+  dashboards: [
+    ["dashFolderOf", "folder", null],
+    ["_repoWbFilter", "workbook", /\bworkbook\b/i],
+  ],
+  views: [
+    ["vwTypeOf", "the chart type", /chart type/i],
+    ["vwFolderOf", "folder", null],
+  ],
+  datasets: [
+    ["dsxAdapterIdOf", "the adapter", /\badapter\b/i],
+    ["dsxConnIdOf", "the connection", /\bconnection\b/i],
+    ["dsxTagsOf", "its tags", /\btags?\b/i],
+    // The lookbehind is load-bearing: Views' own clause says "chart type", and without it
+    // that page would read as claiming this facet in (e)'s negative half.
+    ["dsxKindOf", "the type", /(?<!chart )\btypes?\b/i],
+    ["dsxFolderOf", "folder", null],
+  ],
+  connections: [
+    ["connAdapterOf", "the adapter", /\badapter\b/i],
+    ["connTagsOf", "its tags", /\btags?\b/i],
+    ["connFolderOf", "folder", null],
+  ],
+  jobs: [
+    ["jobFolderOf", "folder", null],
+  ],
+  repository: [
+    ["_repoAllType", "the type", /(?<!chart )\btypes?\b/i],
+  ],
+};
+
+// A panel's facets, read out of its OWN render function — the same scoping check 52 uses,
+// and for the same reason: `Studio.catalogFacets` is called from Explore and the builder
+// too, and those are not catalog pages.
+function catalogFacetPanels() {
+  return panels.map((p) => {
+    const src = read(p.file);
+    const fn = "render" + p.sec[0].toUpperCase() + p.sec.slice(1);
+    const at = src.indexOf("function " + fn + "(");
+    const body = at < 0 ? "" : searchBlockAt(src, src.indexOf("{", at), "{", "}");
+    const axes = [];
+    // The kit's two matchers name the mode outright; their second argument is the field
+    // the axis reads, and that accessor is the axis's identity.
+    for (const m of body.matchAll(/(?:F|Studio\.catalogFacets)\.match(Multi|One)\(\s*\w+,\s*(\w+)\s*\)/g))
+      axes.push({ expr: m[2], mode: m[1] === "Multi" ? "many" : "one" });
+    // The two `wb-chip` strips predate the kit and filter inline, but the markup still
+    // declares the mode: an active test that compares one SCALAR to the chip's id is
+    // single-select by construction, and that scalar is the axis's identity.
+    for (const m of body.matchAll(/class="wb-chip' \+ \((_\w+) === c\.id/g))
+      axes.push({ expr: m[1], mode: "one" });
+    return { sec: p.sec, page: CATALOG_PAGES[p.sec], fn, file: p.file, axes,
+      folderStrip: /(?:F|Studio\.catalogFacets)\.folderStrip\(/.test(body) };
+  });
+}
+
+const facetPanels = catalogFacetPanels();
+const facetRowOf = (sec, expr) => (CATALOG_FACET_AXES[sec] || []).find((r) => r[0] === expr);
+const facetPara = htmlText((help.match(/<p><strong>Which pills take more than one\.<\/strong>[\s\S]*?<\/p>/) || [""])[0])
+  .replace(/\s+/g, " ").trim();
+const folderPara = htmlText((help.match(/<p><strong>The Folders strip\.<\/strong>[\s\S]*?<\/p>/) || [""])[0])
+  .replace(/\s+/g, " ").trim();
+// The paragraph's own punctuation, exactly as check 52 reads the search clauses: a colon
+// opens each half, semicolons separate one page's clause from the next.
+const facetHalves = facetPara.split(/One pill at a time:/);
+const facetClauses = (half) => (half || "").split(/[:;]/).slice(1).map((s) => s.trim()).filter(Boolean)
+  .map((text) => ({ text, pages: Object.values(CATALOG_PAGES).filter((pg) => new RegExp(`\\b${pg}\\b`).test(text)) }));
+const manyClauses = facetClauses(facetHalves[0]);
+// The second half opens at the split itself, so it has no leading colon to drop.
+const oneClauses = (facetHalves[1] || "").split(";").map((s) => s.trim()).filter(Boolean)
+  .map((text) => ({ text, pages: Object.values(CATALOG_PAGES).filter((pg) => new RegExp(`\\b${pg}\\b`).test(text)) }));
+const clauseOf = (list, page) => (list.find((c) => c.pages.length === 1 && c.pages[0] === page) || { text: "" }).text;
+
+// (a) first: the premise, the vocabulary and the roster together. The other four rules
+//     are only meaningful while every panel still declares facets this can read.
+const facetVocabWrong = [];
+facetPanels.forEach((p) => {
+  const rows = CATALOG_FACET_AXES[p.sec] || [];
+  if (!p.axes.length) facetVocabWrong.push(`${p.page}: no facet declaration found in ${p.fn} (${p.file})`);
+  p.axes.filter((a) => !facetRowOf(p.sec, a.expr))
+    .forEach((a) => facetVocabWrong.push(`${p.page} filters by \`${a.expr}\` — nothing in the vocabulary says what to call it`));
+  rows.filter((r) => !p.axes.some((a) => a.expr === r[0]))
+    .forEach((r) => facetVocabWrong.push(`the vocabulary still maps \`${r[0]}\` for ${p.page} — that panel no longer filters by it`));
+});
+const manyRoster = manyClauses.filter((c) => c.pages.length === 1).map((c) => c.pages[0]).sort();
+const manyExpected = facetPanels.filter((p) => p.axes.some((a) => a.mode === "many")).map((p) => p.page).sort();
+const oneRoster = oneClauses.filter((c) => c.pages.length === 1).map((c) => c.pages[0]).sort();
+const oneExpected = facetPanels
+  .filter((p) => p.axes.some((a) => a.mode === "one" && (facetRowOf(p.sec, a.expr) || [])[2]))
+  .map((p) => p.page).sort();
+ok(`app/ + docs/index.html: six catalog panels declare their facets, and Help gives each page a clause in the right half ` +
+   `(${facetPanels.reduce((n, p) => n + p.axes.length, 0)} axis/axes over ${facetPanels.length} panel(s))`,
+  facetPanels.length === 6 && !facetVocabWrong.length && !!facetPara && facetHalves.length === 2 &&
+    String(manyRoster) === String(manyExpected) && String(oneRoster) === String(oneExpected),
+  `${facetVocabWrong.join("\n      ") || "(vocabulary complete)"}\n      ` +
+  `${facetPanels.map((p) => `${p.page} (${p.fn}, ${p.axes.map((a) => a.expr + ":" + a.mode).join("+") || "none"})`).join(" · ")}\n      ` +
+  `multi-select half names: ${manyRoster.join(", ") || "(none)"} · expected ${manyExpected.join(", ")}\n      ` +
+  `one-at-a-time half names: ${oneRoster.join(", ") || "(none)"} · expected ${oneExpected.join(", ")}\n      ` +
+  "the vocabulary is keyed by the panel's own accessor or filter variable — a new or renamed facet lands here first");
+
+// (b) every multi-select facet, published under its own page in the multi-select half.
+const facetUnpublishedMany = [];
+facetPanels.forEach((p) => {
+  const clause = clauseOf(manyClauses, p.page);
+  p.axes.filter((a) => a.mode === "many").forEach((a) => {
+    const row = facetRowOf(p.sec, a.expr);
+    if (row && row[2] && !row[2].test(clause))
+      facetUnpublishedMany.push(`${p.page} filters by ${row[1]} (\`${a.expr}\`, multi-select) — its clause does not say so`);
+  });
+});
+ok(`docs/index.html: every multi-select facet is published under its own page ` +
+   `(${facetPanels.reduce((n, p) => n + p.axes.filter((a) => a.mode === "many").length, 0)} facet(s))`,
+  !facetUnpublishedMany.length,
+  `${facetUnpublishedMany.join("\n      ") || "(none)"}\n      ` +
+  `${facetPanels.map((p) => `${p.page}: ${clauseOf(manyClauses, p.page) || "(no clause)"}`).join("\n      ")}\n      ` +
+  "a facet nobody publishes is one a reader finds by accident, or never");
+
+// (c) every single-select facet that is not the folder strip, published under its own
+//     page in the one-pill-at-a-time half.
+const facetUnpublishedOne = [];
+facetPanels.forEach((p) => {
+  const clause = clauseOf(oneClauses, p.page);
+  p.axes.filter((a) => a.mode === "one").forEach((a) => {
+    const row = facetRowOf(p.sec, a.expr);
+    if (row && row[2] && !row[2].test(clause))
+      facetUnpublishedOne.push(`${p.page} filters by ${row[1]} (\`${a.expr}\`, one pill at a time) — its clause does not say so`);
+  });
+});
+ok(`docs/index.html: every single-select facet outside the Folders strip is published under its own page ` +
+   `(${facetPanels.reduce((n, p) => n + p.axes.filter((a) => a.mode === "one" && (facetRowOf(p.sec, a.expr) || [])[2]).length, 0)} facet(s))`,
+  !facetUnpublishedOne.length,
+  `${facetUnpublishedOne.join("\n      ") || "(none)"}\n      ` +
+  `${facetPanels.map((p) => `${p.page}: ${clauseOf(oneClauses, p.page) || "(no clause)"}`).join("\n      ")}\n      ` +
+  "the Folders strip has its own paragraph — everything else belongs in a page's own clause");
+
+// (d) the folder strip: the roster, its count word, and the exception named as one.
+const stripPages = facetPanels.filter((p) => p.folderStrip).map((p) => p.page);
+const noStripPages = facetPanels.filter((p) => !p.folderStrip).map((p) => p.page);
+const stripRoster = (folderPara.match(/pages? have one: ([^.]+)\./) || [, ""])[1]
+  .split(/,\s*|\s+and\s+/).map((s) => s.trim()).filter(Boolean);
+const stripCountWord = (folderPara.match(/(\w+) pages? have one:/) || [, ""])[1];
+const stripExceptionNamed = noStripPages.every((pg) => new RegExp(`\\b${pg}\\b[^.]*exception`, "i").test(folderPara));
+ok(`docs/index.html: the Folders strip is claimed for exactly the pages that render one ` +
+   `(${stripPages.length} of ${facetPanels.length}), counted in words, with the exception named`,
+  !!folderPara && String([...stripRoster].sort()) === String([...stripPages].sort()) &&
+    asNumber(stripCountWord || "") === stripPages.length && stripExceptionNamed,
+  `renders a strip: ${stripPages.join(", ") || "(none)"} · does not: ${noStripPages.join(", ") || "(none)"}\n      ` +
+  `Help lists: ${stripRoster.join(", ") || "(nothing)"} · count word: ${stripCountWord || "(none)"}\n      ` +
+  `exception named: ${stripExceptionNamed}\n      ` +
+  "the Repository groups into a folder TREE instead — a reader on the one page without the control must be told, not left hunting");
+
+// (e) the negative half, segmented by page AND by mode.
+const facetOverclaimed = [];
+const facetVocab = Object.values(CATALOG_FACET_AXES).flat().filter((r) => r[2])
+  .filter((r, i, all) => all.findIndex((o) => o[2].source === r[2].source) === i)
+  .map((r) => ({ noun: r[1], re: r[2] }));
+facetPanels.forEach((p) => {
+  [["many", manyClauses, "multi-select"], ["one", oneClauses, "one pill at a time"]].forEach(([mode, list, label]) => {
+    const clause = clauseOf(list, p.page);
+    facetVocab.filter((v) => v.re.test(clause)).forEach((v) => {
+      const has = p.axes.some((a) => a.mode === mode &&
+        (facetRowOf(p.sec, a.expr) || [])[2] && facetRowOf(p.sec, a.expr)[2].source === v.re.source);
+      if (has) return;
+      const otherMode = p.axes.some((a) => (facetRowOf(p.sec, a.expr) || [])[2] &&
+        facetRowOf(p.sec, a.expr)[2].source === v.re.source);
+      facetOverclaimed.push(otherMode
+        ? `Help calls the ${v.noun} on ${p.page} ${label} — that facet takes the other kind of click`
+        : `Help credits ${p.page} with ${v.noun} (${label}) — that panel has no such facet`);
+    });
+  });
+});
+ok("docs/index.html: no page's clause credits it with a facet it does not have, or with the wrong kind of click",
+  !facetOverclaimed.length,
+  `${[...new Set(facetOverclaimed)].join("\n      ") || "(none)"}\n      ` +
+  "segmented by page and by mode — a facet named in the wrong half tells a reader to click in a way the app ignores");
+
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

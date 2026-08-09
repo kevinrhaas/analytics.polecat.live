@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 940,
+    title: 'Help called the Dashboards workbook chips multi-select, and left the Repository out of the filter pills entirely',
+    kind: 'fix',
+    ts: '2026-08-09T17:01:32.000Z',
+    items: [
+      'Every catalog page puts a row of filter pills above its list. The Help page explained how they work in one paragraph, and nothing had ever compared that paragraph to the app — so three things it said had drifted from what the pills really do.',
+      'The Repository was missing altogether. It filters by the kind of row — Dashboards, Datasets, Connections, Views or Jobs — off the same chip strip the Dashboards workbooks use, and no sentence on the page mentioned it. It is the one catalog page whose rows are all of different kinds, so it is the page where that filter matters most.',
+      'Picking a second workbook on Dashboards replaces the first, but Help listed workbooks beside three facets that really do take as many pills as you like. Following it, you would keep clicking for a combination the app was never going to give you.',
+      'The Folders strip was described as if every page had one. Five do. The Repository is the exception — it groups its rows into a nested folder tree instead — and the page now says so, rather than leaving a reader hunting for a control that is not there.',
+      'The block is now three paragraphs: how the pills behave, which ones take more than one click, and the Folders strip on its own. All of it is re-derived from the app on every change — a page that gains a facet, renames one, or switches between one-pill and many now fails the documentation check until Help says so.',
+    ],
+  },
+  {
     v: 939,
     title: 'Help listed what a search looks at on four of the six pages that have one',
     kind: 'fix',
