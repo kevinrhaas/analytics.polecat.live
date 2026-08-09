@@ -6026,6 +6026,225 @@ if (kitLive) {
   }
 }
 
+/* ── 59. Simple mode vs the mode the app really builds ──────────────────────────────────
+   N7. Checks 2/3/4 have held the SIZE of Simple mode since AUD-11 — "15 chart types", and
+   `SIMPLE_CHART_TYPES` really does have fifteen — so the section has been correctly numbered
+   for weeks about the one thing anybody counted. Nothing held what the mode DOES: which
+   inspector sections it hides, how you turn it on, or what it puts on screen that Advanced
+   mode does not. The find is that the page said all three, and got all three wrong.
+
+   Measured 2026-08-09, before the fix:
+   · **The Simple-mode bullet named 7 of the 15 advanced inspector sections and closed on
+     "etc."** — Detail drawer, Target line, Reference band, Point annotations, Compare to,
+     Click-through, Calculated columns and Output options appeared nowhere, and Output
+     options and Calculated columns are the two a data author is most likely to go looking
+     for when they vanish.
+   · **The Advanced-mode bullet named a DIFFERENT 7 of the same 15**, three of them by
+     labels the inspector has never printed (`Color scales`, `Target lines`,
+     `Reference bands` — the app's headers are singular). Neither list was wrong alone in a
+     way a reader could see; together they published two partial, disagreeing copies of one
+     registry, which is why this check holds ONE list and makes the other defer to it.
+   · **Two of the four ways in were unpublished**, and the one detail the sentence did give
+     was attached to the wrong control: "a labelled switch on the Settings page (left rail)
+     alongside Dark mode and Demo mode". Dark mode really is Simple mode's neighbour — on
+     the LEFT RAIL's own quick switches (`#railQuickDark` / `#railQuickSimple`), the route
+     the sentence does not mention; on the Settings page `SETTINGS_TOGGLES` files Simple
+     mode under **Mode** while Dark mode is Appearance and Demo mode is Presentation, so it
+     neighbours neither. The ⌘K palette's own `Simple mode` command was unpublished too.
+   · **Everything Simple mode ADDS was unpublished or misnamed.** The mode is subtractive on
+     this page — a list of what goes away — while the builder grows five things in it: the
+     `Simple mode is active` note and its `Switch to Advanced mode →` button (the in-app way
+     back, named nowhere), the top-bar `Simple mode` badge (the only always-visible answer to
+     "which mode am I in"), the `Getting started` checklist, the `What's next?` card, and the
+     guided column setup whose button is `Auto-pick columns ▶` — published as an "Auto-pick"
+     button on the "KPI and View data sections", where it is really the panel Data section's,
+     for every chart type except richtext.
+   · **The boot claim contradicted itself two sections apart.** `app/studio.js`'s V5/V6 block
+     is `__studioShellSetSection(hasFeatured ? "home" : "explore")`, and Home's own section
+     says exactly that; the Quick Views section said "In Simple mode, Explore is the default
+     section on first open" flat, so the page was simultaneously right and wrong about the
+     same boot — the v927/v929 shape.
+
+   Eight rules. The sources of truth are the `advSection()` call sites (the sections the
+   inspector marks `.adv-sect` for `body.simple-mode` to hide), `SETTINGS_TOGGLES`, the rail
+   and More markup, `app/palette.js`'s command labels, the labels the `S.simpleMode`-guarded
+   blocks print, and the boot expression itself:
+   (a) the premise — the sections parse, `advSection()` still stamps `.adv-sect`, and the CSS
+       still hides it; a rule that cannot measure must fail rather than pass over nothing;
+   (b) coverage — the one list names every section, in bold, by the title the header prints;
+   (c) the negative half — every bolded name in that list is a section the inspector builds,
+       so a retired or invented one fails rather than reading as documentation;
+   (d) one list, not two — the Advanced-mode bullet defers to it and republishes no partial
+       copy (a title, or a title pluralised, appearing there is the drift itself);
+   (e) the count word — every "<n> advanced … sections" claim is the registry's number;
+   (f) the routes — every control that toggles the mode is published, and a toggle the page
+       calls its neighbour must really neighbour it (the rail's other quick switch, or a
+       member of Simple mode's own Settings group);
+   (g) what the mode ADDS — every label its own UI prints, held in bold, plus the badge from
+       both ends (Help may describe one only while `#simpleBadge` is in the markup);
+   (h) the boot section, held from both ends — while the expression is conditional, every
+       sentence on the page that says what Simple mode boots to states the condition.
+   Deliberately NOT held: the CSS-derived authoring controls the mode hides (`#btnNewDS`,
+   `.mine-add`, `.da-mine-acts`, `.da-acts`, `.repo-ds-acts`). They are published now, but
+   mapping a selector to the name a reader knows it by is a hand-written table, not a
+   derivation — check 21's idiom over a different set, and its own slice. */
+{
+  const smStudio = read("app/studio.js");
+  const smCss = read("app/studio.css");
+  const smIndex = read("app/index.html");
+  const smPalette = read("app/palette.js");
+
+  // The registry: every advanced inspector section, by the title its header prints.
+  const advTitles = [...smStudio.matchAll(/\badvSection\(\s*\w+\s*,\s*"([^"]+)"/g)].map((m) => m[1]);
+  const advWired = /classList\.add\("adv-sect"\)/.test(smStudio) &&
+    /body\.simple-mode \.adv-sect\{display:none/.test(smCss);
+
+  const smSec = (() => {
+    const at = help.indexOf('<section id="simple-mode">');
+    return at < 0 ? "" : help.slice(at, help.indexOf("</section>", at) + 10);
+  })();
+  const flat = (s) => s.replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&")
+    .replace(/&nbsp;/g, " ").replace(/[’‘]/g, "'").replace(/\s+/g, " ").trim();
+  const liById = (id) => {
+    const at = smSec.indexOf(`<li id="${id}"`);
+    return at < 0 ? "" : smSec.slice(at, smSec.indexOf("</li>", at));
+  };
+  const boldIn = (html) => [...html.matchAll(/<strong>([\s\S]*?)<\/strong>/g)].map((m) => flat(m[1]));
+  const smText = flat(smSec);
+
+  const advLi = liById("adv-sections");
+  const advModeLi = liById("adv-mode-sections");
+  const advNamed = boldIn(advLi);
+
+  // (a) the premise.
+  ok(`app/studio.js + app/studio.css: Simple mode's advanced sections parsed for check 59 ` +
+    `(${advTitles.length} section(s))`,
+    advTitles.length >= 10 && advWired && smSec.length > 0 && advLi.length > 0,
+    `advSection() call sites: ${advTitles.length} · .adv-sect stamped + hidden: ${advWired} · ` +
+    `<section id="simple-mode"> found: ${smSec.length > 0} · its <li id="adv-sections"> found: ${advLi.length > 0}\n      ` +
+    "the other seven rules read these — if the mode's own wiring moved, they must fail here rather than pass over nothing");
+
+  // (b) coverage: the one list names every section the inspector builds.
+  const advMissing = advTitles.filter((t) => !advNamed.includes(t));
+  ok(`docs/index.html: the Simple-mode list names all ${advTitles.length} advanced inspector sections`,
+    !advMissing.length,
+    `unpublished: ${advMissing.join(", ") || "(none)"}\n      ` +
+    `named: ${advNamed.join(", ") || "(none)"}\n      ` +
+    "a section that vanishes in Simple mode and is named nowhere reads as a bug, not as a mode");
+
+  // (c) the negative half: nothing in that list is invented or retired.
+  const advInvented = advNamed.filter((n) => !advTitles.includes(n));
+  ok("docs/index.html: every advanced section the Simple-mode list names is one the inspector builds",
+    !advInvented.length,
+    `named but not an advSection() title: ${advInvented.join(", ") || "(none)"}\n      ` +
+    `the inspector builds: ${advTitles.join(", ")}`);
+
+  // (d) one list, not two — the Advanced-mode bullet defers rather than republishing a partial copy.
+  const advEchoed = advTitles.filter((t) => new RegExp(`<strong>\\s*${esc(t)}s?\\s*</strong>`, "i").test(advModeLi));
+  ok("docs/index.html: the Advanced-mode bullet defers to that list instead of publishing a second, partial one",
+    advModeLi.length > 0 && !advEchoed.length,
+    `<li id="adv-mode-sections"> found: ${advModeLi.length > 0} · re-listed there: ${advEchoed.join(", ") || "(none)"}\n      ` +
+    "two hand-maintained copies of one registry is how the page came to name a different seven in each");
+
+  // (e) the count word.
+  const NUMWORD = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+    "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
+    "eighteen", "nineteen", "twenty"];
+  const advCountClaims = [...smText.matchAll(/\b(\d+|[a-z]+)\s+advanced\s+(?:inspector\s+)?sections?\b/gi)]
+    .filter((m) => /^\d+$/.test(m[1]) || NUMWORD.includes(m[1].toLowerCase()));
+  const advWordOk = (w) => /^\d+$/.test(w)
+    ? Number(w) === advTitles.length
+    : NUMWORD.indexOf(w.toLowerCase()) === advTitles.length;
+  ok(`docs/index.html: every "<n> advanced sections" claim reads ${advTitles.length}`,
+    advCountClaims.length >= 1 && advCountClaims.every((m) => advWordOk(m[1])),
+    `claims: ${advCountClaims.map((m) => `"${m[0]}"`).join(", ") || "(none — the section publishes no count)"}` +
+    ` — the registry has ${advTitles.length}`);
+
+  // (f) the routes in, and who Simple mode really sits beside.
+  const togBlock = (() => {
+    const at = smStudio.indexOf("var SETTINGS_TOGGLES");
+    return at < 0 ? "" : searchBlockAt(smStudio, smStudio.indexOf("[", at), "[", "]");
+  })();
+  const toggles = [...togBlock.matchAll(/\{\s*grp: "([^"]+)", id: "([^"]+)", t: "([^"]+)"/g)]
+    .map((m) => ({ grp: m[1], id: m[2], t: m[3] }));
+  const simpleTog = toggles.find((t) => t.id === "simple");
+  const railQuick = (() => {
+    const at = smIndex.indexOf('id="railQuick"');
+    return at < 0 ? "" : smIndex.slice(at, smIndex.indexOf("</div>", at));
+  })();
+  const railLbls = [...railQuick.matchAll(/rail-quick-lbl">([^<]+)</g)].map((m) => m[1]);
+  // Held from BOTH ends, check 54's idiom: a control renamed out from under its published
+  // route has to fail loudly rather than quietly drop out of the roster.
+  const smRoutes = [
+    { name: "the ⋯ More menu", built: /<button id="moreSimple">/.test(smIndex), pub: /More menu/i },
+    { name: "the rail's quick switches", built: /id="railQuickSimple"/.test(smIndex), pub: /quick switch/i },
+    { name: "the Settings page", built: !!simpleTog, pub: /Settings/ },
+    { name: "the ⌘K command palette", built: /label: "Simple mode"/.test(smPalette), pub: /command palette|⌘K/ },
+  ];
+  const smLive = smRoutes.filter((r) => r.built);
+  const smUnpublished = smLive.filter((r) => !r.pub.test(smText));
+  const smStale = smRoutes.filter((r) => !r.built && r.pub.test(smText));
+  // A toggle may be called Simple mode's neighbour only where it really is one: the rail's
+  // OTHER quick switch, or a member of Simple mode's own Settings group.
+  const legalNeighbour = new Set([
+    ...railLbls.filter((l) => l !== "Simple mode"),
+    ...toggles.filter((t) => simpleTog && t.grp === simpleTog.grp && t.id !== "simple").map((t) => t.t),
+  ]);
+  const badNeighbours = toggles
+    .filter((t) => t.id !== "simple" && !legalNeighbour.has(t.t) && new RegExp(`\\b${esc(t.t)}\\b`, "i").test(smText));
+  const groupPublished = !!simpleTog &&
+    new RegExp(`<strong>${esc(simpleTog.grp)}</strong> group`).test(smSec);
+  ok(`docs/index.html: all ${smLive.length} ways into Simple mode are published, and its neighbours are real`,
+    !smUnpublished.length && !smStale.length && !badNeighbours.length && groupPublished,
+    `unpublished routes: ${smUnpublished.map((r) => r.name).join(", ") || "(none)"}\n      ` +
+    `published but no longer built: ${smStale.map((r) => r.name).join(", ") || "(none)"}\n      ` +
+    `named as a neighbour but is not one: ${badNeighbours.map((t) => `${t.t} (Settings group ${t.grp})`).join(", ") || "(none)"}\n      ` +
+    `real neighbours: ${[...legalNeighbour].join(", ")} · Simple mode's own Settings group ` +
+    `"${simpleTog ? simpleTog.grp : "?"}" published: ${groupPublished}`);
+
+  // (g) what the mode ADDS — every label its own UI prints, held in bold.
+  const smOwnLabels = (() => {
+    const out = [];
+    const re = /if \(S\.simpleMode/g;
+    let m;
+    while ((m = re.exec(smStudio))) {
+      const p = smStudio.indexOf("(", m.index);
+      const cond = searchBlockAt(smStudio, p, "(", ")");
+      const at = smStudio.indexOf("{", p + cond.length);
+      if (at < 0) continue;
+      const body = searchBlockAt(smStudio, at, "{", "}");
+      for (const b of body.matchAll(/el\("button", "[^"]*"\);[\s\S]{0,90}?textContent = "((?:[^"\\]|\\.)*)"/g)) out.push(b[1]);
+      for (const t of body.matchAll(/el\("div", "[^"]*-title"\);\s*\w+\.textContent = "((?:[^"\\]|\\.)*)"/g)) out.push(t[1]);
+    }
+    return [...new Set(out)];
+  })();
+  // The label is the claim; its trailing affordance glyph is not, so it is stripped before matching.
+  const labelWords = (s) => flat(s).replace(/[\s→▶»›…]+$/, "").trim();
+  const smBold = boldIn(smSec);
+  const smLabelMissing = smOwnLabels.filter((l) => !smBold.includes(labelWords(l)));
+  const badgeBuilt = /id="simpleBadge"/.test(smIndex);
+  const badgePublished = /\bbadge\b/i.test(smText);
+  ok(`docs/index.html: Simple mode's own ${smOwnLabels.length} on-screen labels are published, and its badge is held from both ends`,
+    smOwnLabels.length >= 4 && !smLabelMissing.length && badgeBuilt === badgePublished,
+    `unpublished: ${smLabelMissing.join(" · ") || "(none)"}\n      ` +
+    `the mode prints: ${smOwnLabels.join(" · ")}\n      ` +
+    `#simpleBadge in the markup: ${badgeBuilt} · Help describes a badge: ${badgePublished}\n      ` +
+    "a mode with no published way back is the one a reader is stuck in");
+
+  // (h) what it boots to — held from both ends.
+  const bootCond = /__studioShellSetSection\(\s*\w+ \? "home" : "explore"\)/.test(smStudio);
+  const bootClaims = [...help.matchAll(/In <strong>Simple mode<\/strong>[^.]*\./g)]
+    .map((m) => m[0]).filter((s) => /\bboots?\b|default section/i.test(s));
+  // Both directions: while the branch exists every claim must state it, and if the branch ever
+  // goes away no claim may keep asserting a condition the code no longer has.
+  const bootBare = bootClaims.filter((s) => bootCond !== /featured/i.test(s));
+  ok("docs/index.html: every claim about what Simple mode boots to states the condition the code branches on",
+    bootClaims.length >= 1 && !bootBare.length,
+    `claims: ${bootClaims.length} · out of step with the code: ${bootBare.map((s) => `"${flat(s)}"`).join(" · ") || "(none)"}\n      ` +
+    `app/studio.js branches on featured content: ${bootCond}\n      ` +
+    "one section said Home-when-featured and another said Explore flat — neither wrong alone, both wrong together");
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

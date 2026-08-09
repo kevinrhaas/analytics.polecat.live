@@ -664,7 +664,8 @@
     building a Job first. The rollup is saved onto the View, so it re-aggregates the same way
     on Home, in any dashboard, and in the exported HTML. (Geo and Ensemble charts carry their own
     aggregation, so the control is hidden for those.)</li>
-    <li>In <strong>Simple mode</strong>, Explore is the default section on first open.</li>
+    <li>In <strong>Simple mode</strong>, Quick Views is the default section on first open when
+    you have no featured content on Home; your own last-used section always wins.</li>
     <li><strong>New dataset without leaving Explore.</strong> The <strong>+ New</strong>
     button next to the dataset search opens the same dataset editor the Datasets section
     uses — save it and Explore selects it immediately, ready to chart.</li>
@@ -2659,22 +2660,52 @@
 <!-- ── Simple mode ────────────────────────────────────────────── -->
 <section id="simple-mode">
   <h2>Simple mode vs Advanced mode</h2>
-  <p>Toggle <strong>Simple mode</strong> from the ⋯ More menu, or as a labelled switch on the <strong>Settings</strong> page (left rail) alongside Dark mode and Demo mode. The setting persists across sessions.</p>
+  <p>There are four ways in, and they are the same switch — flip it anywhere and every other
+  one follows. The <strong>⋯ More menu</strong>; the <strong>⌘K</strong> command palette
+  (type “simple”); the two <strong>quick switches</strong> at the foot of the left rail, where
+  Simple mode sits beside <strong>Dark mode</strong>; and the <strong>Settings</strong> page,
+  where it is one of the switches in the <strong>Mode</strong> group. The setting persists
+  across sessions, and while it is on the top bar carries a <strong>Simple mode</strong> badge,
+  so you always know which mode you are in.</p>
 
   <h3>Simple mode</h3>
+  <p>What it takes away:</p>
   <ul>
     <li>15 chart types shown in the gallery (the most universally understood).</li>
-    <li>Advanced inspector sections hidden (Drill-through, Cross-filter, Conditional formatting, Callout arrow, Color scale, Period highlight, Event markers, etc.).</li>
-    <li>The <strong>Data</strong> panel is read-only browse + drag — no data-source authoring controls.</li>
-    <li>Guided <strong>Getting started</strong> checklist and <strong>What's next?</strong> tips appear in the dashboard inspector to help newcomers.</li>
-    <li>KPI and View data sections show an <strong>Auto-pick</strong> button to assign columns automatically.</li>
+    <li id="adv-sections">Every advanced section of the panel inspector is hidden — all fifteen
+      advanced inspector sections, in the order the inspector builds them:
+      <strong>Drill-through</strong>, <strong>Detail drawer</strong>,
+      <strong>Cross-filter</strong>, <strong>Target line</strong>,
+      <strong>Reference band</strong>, <strong>Callout arrow</strong>,
+      <strong>Period highlight</strong>, <strong>Event markers</strong>,
+      <strong>Point annotations</strong>, <strong>Conditional formatting</strong>,
+      <strong>Color scale</strong>, <strong>Compare to</strong>,
+      <strong>Click-through</strong>, <strong>Calculated columns</strong> and
+      <strong>Output options</strong>. Nothing is lost — a dashboard that already uses one keeps
+      it, and switching back to Advanced mode shows the section again with its settings intact.</li>
+    <li>The <strong>Data</strong> panel is read-only browse + drag: its <strong>＋ New ▾</strong>
+      button, the add control on <strong>My queries</strong> and the per-query actions are all
+      hidden, as are the <strong>Edit data source</strong> jump link in a panel's Data section
+      and the per-dataset actions on the <strong>Repository</strong> page.</li>
+  </ul>
+  <p>And what it adds, all of it in the builder:</p>
+  <ul>
+    <li>A <strong>Simple mode is active</strong> note at the top of the dashboard inspector,
+      with a <strong>Switch to Advanced mode</strong> button — the one-click way back.</li>
+    <li>A guided <strong>Getting started</strong> checklist while the dashboard is still empty,
+      and a <strong>What's next?</strong> card once the first panel or KPI is on the canvas.</li>
+    <li>Guided column setup in a panel's <strong>Data</strong> section (every chart type except
+      Rich text): a nudge when no dataset is bound yet, a warning when the query has no columns,
+      and — when the slots are simply empty — an <strong>Auto-pick columns</strong> button that
+      assigns them by name.</li>
   </ul>
 
   <h3>Advanced mode (default)</h3>
   <ul>
     <li>All 54 chart types + specialist annotation and interaction tools.</li>
     <li>Full data-source authoring: author SQL (sample engine) and direct-connector data accesses; create compound joins and unions; manage workspace connections and datasets; configure output options.</li>
-    <li>Drill-through, Detail drawer, Cross-filter, Conditional formatting, Color scales, Target lines, Reference bands, and more.</li>
+    <li id="adv-mode-sections">All fifteen advanced inspector sections listed above are on the
+      panel inspector, none of them hidden.</li>
   </ul>
 
   <h3>Dashboard defaults</h3>

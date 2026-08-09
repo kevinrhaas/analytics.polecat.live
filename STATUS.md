@@ -135,6 +135,68 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — Help listed seven of the fifteen sections Simple mode hides, then listed a different seven
+  (v946, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** the first slice in this
+  family to hold a MODE rather than a control, and the reason it was worth taking is that the page
+  was already green about the only thing anyone had ever counted. Checks 2/3/4 have held Simple
+  mode's SIZE since AUD-11 — "15 chart types", and `SIMPLE_CHART_TYPES` really does have fifteen —
+  so the section has been correctly numbered for weeks about its one measured claim. **Nothing held
+  what the mode DOES**, and the page got all three of those wrong.
+  - **Two partial, disagreeing copies of one list.** The Simple-mode bullet named **7 of the 15**
+    advanced inspector sections and closed on *"etc."*; the Advanced-mode bullet directly below it
+    named a **different 7** of the same fifteen, three of them by headings the inspector has never
+    printed (`Color scales`, `Target lines`, `Reference bands` — `advSection()`'s titles are
+    singular). The v927 shape exactly: neither list wrong alone in a way a reader could see, both
+    wrong together. Unpublished in both: **Detail drawer, Target line, Reference band, Point
+    annotations, Compare to, Click-through, Calculated columns, Output options** — and the last two
+    are the ones a data author goes looking for when they vanish. There is ONE list now, all
+    fifteen in the order the inspector builds them, and the Advanced-mode bullet defers to it.
+  - **Two of the four ways in were unpublished, and the one detail given was on the wrong control.**
+    The old sentence: *"from the ⋯ More menu, or as a labelled switch on the Settings page (left
+    rail) alongside Dark mode and Demo mode."* Dark mode really is Simple mode's neighbour — on the
+    LEFT RAIL's own quick switches (`#railQuickDark` / `#railQuickSimple`), the route the sentence
+    does not mention — while on the Settings page `SETTINGS_TOGGLES` files Simple mode under
+    **Mode**, Dark mode under Appearance and Demo mode under Presentation, so it neighbours neither.
+    `app/palette.js`'s own ⌘K `Simple mode` command was unpublished too.
+  - **The page described the mode entirely as subtraction; the builder grows five things in it.**
+    The `Simple mode is active` note and its **`Switch to Advanced mode →`** button — the in-app way
+    back, named nowhere on the page — the top-bar `Simple mode` **badge** (the only always-visible
+    answer to *which mode am I in*), the `Getting started` checklist, the `What's next?` card, and
+    the guided column setup, whose button is **`Auto-pick columns ▶`**. That last was published as
+    an *"Auto-pick"* button on the *"KPI and View data sections"*; it is the panel **Data** section's,
+    for every chart type except `richtext`, and it is the third of three guided states.
+  - **And the boot claim contradicted itself two sections apart.** `app/studio.js`'s V5/V6 block is
+    `__studioShellSetSection(hasFeatured ? "home" : "explore")`; the Home section says exactly that,
+    while the Quick Views section said *"In Simple mode, Explore is the default section on first
+    open"* flat — and still said **Explore**, the LF57 name v941 had removed everywhere else.
+  - **Doc-truth check 59 — eight rules, and it adds no new source of truth it does not measure
+    itself:** the `advSection()` call sites, `SETTINGS_TOGGLES`, the rail/More markup,
+    `app/palette.js`'s labels, the literals the `S.simpleMode`-guarded blocks print, and the boot
+    expression. (a) the premise (the sections parse, `advSection()` still stamps `.adv-sect`, the CSS
+    still hides it); (b) coverage, in bold, by the title the header prints; (c) the negative half;
+    (d) one list, not two — a title, or a title pluralised, appearing in the Advanced bullet IS the
+    drift; (e) the count word; (f) every route published **and held from both ends** (check 54's
+    idiom — a renamed control must fail loudly, not drop quietly out of the roster) plus the
+    neighbour rule, so a toggle the page calls a neighbour must really be one; (g) every label the
+    mode's own UI prints, with the badge held from both ends; (h) the boot, both directions.
+    **7 of the 8 assertions measured failing on the real pre-fix tree** — (c), the negative half,
+    was the one that could not, since the list it reads did not exist yet — and **all nine
+    code-side directions on mutated trees**: an invented section in the list, a 16th `advSection()`,
+    a partial list growing back into the Advanced bullet, the count word off by one,
+    `#railQuickSimple` renamed out from under its published route, Dark mode ceasing to be the rail
+    neighbour, `Auto-pick columns ▶` relabelled, `#simpleBadge` retired while Help still describes
+    one, and the boot dropping its branch. Each mutation failed its own rule and only its own rule.
+  - **Measured in the same pass and deliberately NOT taken, so the next run does not re-derive it:**
+    the authoring controls Simple mode hides are published now (the Data panel's `＋ New ▾`, the
+    **My queries** add control, the per-query actions, the **Edit data source** jump link and the
+    **Repository** page's per-dataset actions) but are held only by a reader — their source is five
+    `body.simple-mode` selectors in `app/studio.css`, and mapping a selector to the name a reader
+    knows the control by is a hand-written table rather than a derivation. That is check 21's idiom
+    over a different set, and its own slice. Also measured and **NOT N7's** (it is code, not copy):
+    `app/studio.js:6144`'s tip string says *"Flip on Simple mode in **Settings**"* and names one of
+    the four routes, in a precached file — a `sw.js` CACHE bump (issue #631's territory) for a tip,
+    so it belongs to whichever slice next touches that file for a real reason. The two v922
+    candidates are still open and still Kevin's calls.
 - **N7 — Help said what ticking two filter pills does, and never said what picking from two strips
   does (v945, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** the candidate check 57
   named as the one it was deliberately not taking — *"the `Which pills take more than one` paragraph's
@@ -14589,6 +14651,37 @@
     calls `catalogFacets.matchOne` outside any catalog panel, so Quick Views has a folder facet
     that none of checks 53/56/57/58 hold — check 52's panel scoping is deliberate, and whether
     Quick Views should be a seventh catalog page is a product question.
+  * *Help's Simple mode vs the mode the app really builds — v946, NO sw bump (2026-08-09 — see
+    DONE).* The first slice here to hold a MODE rather than a control, taken because the section
+    was already GREEN about the only thing anyone had ever counted: checks 2/3/4 have held
+    "15 chart types" since AUD-11 and the set really has fifteen. Nothing held what the mode DOES.
+    **The Simple-mode bullet named 7 of the 15 advanced inspector sections and closed on "etc.";
+    the Advanced-mode bullet below it named a DIFFERENT 7**, three by headings `advSection()` has
+    never printed (`Color scales`, `Target lines`, `Reference bands` — the app's are singular).
+    The v927 shape: two hand-kept copies of one registry, neither visibly wrong alone. **Output
+    options** and **Calculated columns** were in neither, and they are the two a data author goes
+    looking for when they vanish. **Two of the four ways in were unpublished** (the rail's quick
+    switch, the ⌘K command palette) and the one detail the sentence gave was on the wrong control
+    — "the Settings page … alongside Dark mode and Demo mode", where Settings files Simple mode
+    under **Mode** and Dark mode is its neighbour on the RAIL. **And the mode was described purely
+    as subtraction** while the builder grows five things in it, the way back among them: the
+    `Simple mode is active` note and its **Switch to Advanced mode →** button, the top-bar badge,
+    the **Getting started** checklist, the **What's next?** card, and the guided setup whose
+    button is **Auto-pick columns ▶** (published as an "Auto-pick" button on the "KPI and View
+    data sections"; it is the panel **Data** section's, for every chart type except `richtext`).
+    The boot claim contradicted itself two sections apart as well — Home said
+    `hasFeatured ? "home" : "explore"`, Quick Views said "Explore is the default", flat.
+    Doc-truth check 59: eight rules, **7 of 8 measured failing on the real pre-fix tree** and all
+    nine code-side directions on mutated trees, each failing its own rule and only its own.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    authoring controls the mode hides are published now but held only by a reader — their source
+    is five `body.simple-mode` selectors in `app/studio.css`, and mapping a selector to the name a
+    reader knows the control by is a hand-written table, not a derivation. That is check 21's
+    idiom over a different set, and **it is the named candidate for the next N7 slice**. Also
+    measured and **NOT N7's** (it is code, not copy): `app/studio.js`'s "Flip on Simple mode in
+    Settings" tip names one of the four routes, in a precached file — a `sw.js` CACHE bump
+    (issue #631) for a tip, so it belongs to whichever slice next touches that file for a real
+    reason. The two v922 candidates are still open and still Kevin's calls.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before

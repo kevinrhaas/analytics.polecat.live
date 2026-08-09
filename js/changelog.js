@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 946,
+    title: 'Help listed seven of the fifteen sections Simple mode hides, then listed a different seven',
+    kind: 'fix',
+    ts: '2026-08-09T19:26:13.000Z',
+    items: [
+      'Simple mode strips the panel inspector back to its core fields by hiding fifteen advanced sections. The Help page named seven of them and closed on "etc.", and the Advanced-mode list directly below it named a different seven — three of those by headings the inspector has never printed. Neither list was wrong in a way you could see on its own; together they were two hand-kept copies of one list that had drifted apart. There is one list now, all fifteen of them in the order the inspector builds them, and the Advanced-mode bullet points at it instead of keeping a second copy. Output options and Calculated columns — the two most likely to be missed when they vanish — were in neither.',
+      'Two of the four ways to turn Simple mode on were unpublished: the quick switch at the foot of the left rail, and the ⌘K command palette. The one detail the old sentence did give was attached to the wrong control — it said the Settings switch sits alongside Dark mode and Demo mode, when Settings files Simple mode under Mode, and Dark mode is its neighbour on the rail instead. All four routes are now named, and where each one really sits.',
+      'The page described Simple mode entirely as things going away, while the builder grows five things in it — none of them documented, including the way back. The "Simple mode is active" note and its Switch to Advanced mode button, the Simple mode badge the top bar carries the whole time, the Getting started checklist, the What\'s next? card, and the guided column setup are all published now. The last of those was documented as an "Auto-pick" button on the "KPI and View data sections"; the button says Auto-pick columns, it lives in a panel\'s Data section, and it appears for every chart type except Rich text.',
+      'The page also contradicted itself about what Simple mode opens on: the Home section said it boots to Home when you have featured content and to Quick Views when you do not, which is what the app does, while the Quick Views section said Explore is the default, flat.',
+      'All of it is re-measured on every change against the app itself — the inspector\'s own section list, the four toggle controls and who each one sits beside, the labels Simple mode prints on screen, and the boot rule. A section added to or retired from the inspector, a toggle renamed, a relabelled button or a retired badge now fails the documentation check until the page says so.',
+    ],
+  },
+  {
     v: 945,
     title: 'Help said what ticking two filter pills does, and never said what picking from two strips does',
     kind: 'fix',
