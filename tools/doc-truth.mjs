@@ -2782,6 +2782,202 @@ ok("docs/index.html: the Color theme intro claims parity with the Dashboard them
   "if a theme ever ships to one picker and not the other, this sentence is the copy that has to " +
   "change — silently, it would send a reader looking for a chrome theme in the dashboard picker");
 
+/* ── 41. README.md vs the app it introduces ─────────────────────────────────
+   N7, and the document every check in this family had skipped: checks 9–40 hold the
+   Help page, the tours, the app's own strings and the landing page, and README.md — the
+   repo's FRONT PAGE, the first thing anyone reading the source sees — answered to none
+   of them. It had drifted further than any surface those checks have measured, because
+   nothing had read it since the app was a third of its current size.
+
+   Measured 2026-08-09, before the fix:
+   · **The adapter list named 9 of the 13 connectors** the wizard offers, and named three
+     of those nine by strings the picker has never printed ("DuckDB-Wasm remote files",
+     "SQLite over HTTP", "generic SQL-over-HTTP"). PostgreSQL (PostgREST), CSV / JSON file,
+     Google Sheets and Amazon Redshift were absent — the same four Help was missing before
+     check 38, one document over.
+   · **The export table had 2 rows where Export ▾ has 7.** xlsx, docx, pptx, PDF and the
+     editable spec — every office format the app grew — were undocumented on the page a
+     reader lands on first. Check 37 had just held Help to this exact menu.
+   · **The ASCII diagram called the builder's left pane "Query Library"** — the id-flavoured
+     name checks 16→18 deleted from the tours, from Help and from the app's own runtime
+     strings. README was the last place it survived.
+   · **The rail listed 5 sections and one of them does not exist.** "Home · Dashboards ·
+     Datasets · Connections · Studio": the rail has 13 sections and none is called Studio.
+   · **The Roadmap promised adapters that had already shipped** — "more adapters (Postgres,
+     Redshift, … file drop, Sheets)" — four of the thirteen above, offered as future work.
+   · **The tour-reopen route pointed at a control that has never existed** ("reopen via
+     **ⓘ Tour**"). Check 13 fixed the same class of claim across the six tours; the route
+     is the ⌘K palette's own Interactive tutorial command.
+
+   Seven rules, every one of them reusing a derivation an earlier check already built —
+   this check adds no new source of truth, it points the existing ones at one more document:
+   (a) the connector inventory names every connector the picker offers, by the picker's label;
+   (b) it names none the registry does not have, and counts them in words (check 38's shape);
+   (c) the *(workspace-capable)* mark falls on exactly the connectors whose caps.meta is true;
+   (d) the export table has a row for every Export ▾ format and none it does not offer, and
+       the viewer sentence names the viewer menu's own formats (check 37's three rules);
+   (e) the builder's left pane is called by its RENDERED name, never by its id — check 18's
+       idiom, with `library` inside a code span exempt BY SHAPE rather than by a list;
+   (f) the rail list names exactly the rail's sections, in the rail's order (check 9's
+       derivation, order-strict as check 39's is — README prints it as a walk);
+   (g) the tour-reopen route names the command palette's own tutorial label (check 13). */
+
+// The document minus its fenced code blocks and inline code spans: prose only. Rules (a)–(c)
+// and (e)–(g) are about sentences a reader trusts, and `app/sources/` or `caps.data` inside
+// backticks is a path, not a claim.
+const readmeProse = readme.replace(/```[\s\S]*?```/g, " ").replace(/`[^`]*`/g, " ");
+
+// The Adapters bullet: from its own lead-in to the next top-level bullet.
+const adapterBullet = (() => {
+  const at = readme.indexOf("- **Adapters**");
+  if (at < 0) return "";
+  const end = readme.indexOf("\n- **", at + 5);
+  return readme.slice(at, end < 0 ? readme.length : end);
+})();
+// Its inventory: the bolded names in the sentence that promises the picker's order, up to the
+// `Local (this browser)` note that deliberately sits OUTSIDE the list (rule (b) would flag it).
+const invStart = adapterBullet.indexOf("in the picker's own order");
+const invText = invStart < 0 ? "" : adapterBullet.slice(invStart).split("Local (this browser)")[0];
+const readmeConnectors = [...invText.matchAll(/\*\*([^*]+)\*\*(\s*\*\(workspace-capable\)\*)?/g)]
+  .map((m) => ({ label: m[1].replace(/\s+/g, " ").trim(), badged: !!m[2] }));
+ok(`README.md: the Adapters bullet's connector inventory parsed for check 41 ` +
+   `(${readmeConnectors.length} entry/entries)`,
+  !!adapterBullet && readmeConnectors.length > 0,
+  "the `- **Adapters**` bullet, or the sentence promising the picker's own order inside it, was " +
+  "not found — rules (a), (b) and (c) all read this list, and an empty parse would pass all three");
+
+// (a) every connector the wizard offers is on the front page
+const readmeConnKeys = new Set(readmeConnectors.map((e) => labelKey(e.label)));
+const readmeMissingConn = connectors.filter((a) => !readmeConnKeys.has(labelKey(a.label)));
+ok(`README.md: the connector inventory names every connector the wizard offers (${connectors.length})`,
+  !readmeMissingConn.length,
+  `in the picker, missing from README: ${readmeMissingConn.map((a) => `${a.label} (${a.id})`).join(", ")}\n      ` +
+  "this is the list someone evaluating the repo reads before they ever open the app — check 38 " +
+  "holds Help to the same source, and README had drifted the same four adapters' worth");
+
+// (b) the negative half, plus the count in words — check 38's shape, one document over
+const connectorKeys = new Set(connectors.map((a) => labelKey(a.label)));
+const readmeStrayConn = readmeConnectors.filter((e) => !connectorKeys.has(labelKey(e.label)));
+// NUMBER_WORD (check 38) stops at ten; the connector roster passed it, so extend rather than
+// let the rule silently fall back to digits and stop testing the word README actually prints.
+const NUMBER_WORD_TEENS = ["eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
+  "seventeen", "eighteen", "nineteen", "twenty"];
+const connWord = NUMBER_WORD[connectors.length] || NUMBER_WORD_TEENS[connectors.length - 11] ||
+  String(connectors.length);
+ok(`README.md: the connector inventory names no connector the registry lacks, and counts them as ` +
+   `"${connWord}"`,
+  !readmeStrayConn.length &&
+    new RegExp(`\\b${connWord}\\b|\\b${connectors.length}\\b`, "i").test(invText),
+  `in README, not in the picker: ${readmeStrayConn.map((e) => e.label).join(", ") || "(none)"}\n      ` +
+  `the picker's own labels are: ${connectors.map((a) => a.label).join(", ")}\n      ` +
+  `the sentence should count ${connectors.length}; it reads: …${invText.replace(/\s+/g, " ").trim().slice(-160)}\n      ` +
+  "the negative half is what stops a renamed adapter (\"SQLite over HTTP\" for " +
+  "\"SQLite (remote .sqlite)\") sitting on the front page forever");
+
+// (c) the workspace-capable mark is the caps.meta claim, not decoration
+const shouldBadge = connectors.filter((a) => a.meta);
+const readmeBadgeWrong = [
+  ...shouldBadge.filter((a) => !readmeConnectors.some((e) => labelKey(e.label) === labelKey(a.label) && e.badged))
+    .map((a) => `${a.label} hosts a workspace but README does not mark it`),
+  ...readmeConnectors.filter((e) => e.badged && !shouldBadge.some((a) => labelKey(a.label) === labelKey(e.label)))
+    .map((e) => `${e.label} is marked workspace-capable but its caps.meta is false`),
+];
+ok(`README.md: the (workspace-capable) mark falls on exactly the ${shouldBadge.length} connector(s) ` +
+   "whose caps.meta is true",
+  !readmeBadgeWrong.length,
+  readmeBadgeWrong.join("\n      ") + "\n      " +
+  "check 38 rule (d) holds Help's badge to this same capability — where a whole workspace can " +
+  "live is a data-durability decision, so it is a claim rather than a flourish");
+
+// (d) the export table, and the viewer's smaller menu beside it — check 37's rules (a)–(c)
+const readmeExportTable = (() => {
+  const at = readme.indexOf("| Export ▾ |");
+  if (at < 0) return "";
+  const end = readme.indexOf("\n\n", at);
+  return readme.slice(at, end < 0 ? readme.length : end);
+})();
+const readmeExportRows = [...readmeExportTable.matchAll(/^\|\s*\*\*([^*]+)\*\*\s*\|/gm)]
+  .map((m) => m[1].replace(/\s+/g, " ").trim());
+ok(`README.md: the export table parsed for check 41 (${readmeExportRows.length} row(s))`,
+  !!readmeExportTable && readmeExportRows.length > 0,
+  "the `| Export ▾ |` table was not found, or none of its rows lead with a bolded format name");
+const readmeExportKeys = new Set(readmeExportRows.map(labelKey));
+const readmeMissingExports = studioExports.filter((l) => !readmeExportKeys.has(labelKey(l)));
+const studioExportKeys = new Set(studioExports.map(labelKey));
+const readmeStrayExports = readmeExportRows.filter((l) => !studioExportKeys.has(labelKey(l)));
+ok(`README.md: the export table has a row for every format Export ▾ offers (${studioExports.length}), ` +
+   "and none it does not",
+  !readmeMissingExports.length && !readmeStrayExports.length,
+  `in the menu, missing from README: ${readmeMissingExports.join(", ") || "(none)"}\n      ` +
+  `in README, not in the menu: ${readmeStrayExports.join(", ") || "(none)"}\n      ` +
+  `the menu's own labels are: ${studioExports.join(", ")}\n      ` +
+  "check 37 holds Help's copy of this table to the same buttons");
+// The paragraph directly under the table, taken whole — every format name here ends in a
+// dotted extension, so a sentence-splitting regex would cut the list in half at ".html".
+const viewerSentence = (() => {
+  const at = readme.indexOf("The viewer", readme.indexOf("| Export ▾ |"));
+  if (at < 0) return "";
+  const end = readme.indexOf("\n\n", at);
+  return readme.slice(at, end < 0 ? readme.length : end);
+})();
+const readmeUnnamedViewer = viewerExports.filter((l) => !labelKey(viewerSentence).includes(labelKey(l)));
+ok(`README.md: the viewer's own Export menu is named in full (${viewerExports.length} format(s))`,
+  !!viewerSentence && !readmeUnnamedViewer.length,
+  `in the viewer's menu, unnamed in README: ${readmeUnnamedViewer.join(", ") || "(none)"}\n      ` +
+  `the sentence reads: ${viewerSentence.replace(/\s+/g, " ").trim().slice(0, 200) || "(not found)"}\n      ` +
+  "check 37 rule (d) exists because this menu is a SUBSET — README must not imply parity either");
+
+// (e) the builder's left pane, by the name it renders. Check 18's idiom: a code span is an
+// identifier, not a claim, so `library` in backticks or inside a fence is exempt BY SHAPE.
+// Scanned over the WHOLE document minus inline code spans, not over `readmeProse` — the pane's
+// stale name lived in the ASCII architecture diagram, which is a fenced block, and a fence in
+// this document is a picture of the UI as often as it is a command.
+// (single-backtick, same-line spans only: a ``` fence marker is three backticks in a row and
+// must not be paired off as if it were a span, or the prose between two fences vanishes)
+// Two shapes, and the case matters — check 18's by-shape idiom rather than an exemption list.
+// A CAPITALISED "Query Library" / "Studio Library" is a proper noun, so it is naming the pane;
+// a bare "the library" is the pane by its id. Lowercase "sample-query library" is neither —
+// that is the bundled catalog of sample queries, a real thing with a real name.
+const paneById = [
+  ...readme.replace(/`[^`\n]+`/g, " ").matchAll(/[^.\n]*\b(?:Studio|Query)\s+[Ll]ibrar(?:y|ies)\b[^.\n]*/g),
+  ...readme.replace(/`[^`\n]+`/g, " ").matchAll(/[^.\n]*\b(?:the|a|an)\s+[Ll]ibrar(?:y|ies)\b[^.\n]*/g),
+].map((m) => `"…${m[0].replace(/\s+/g, " ").trim().slice(0, 100)}…"`);
+ok(`README.md: the builder's left pane is called "${dataPaneName}", never by its id ("library")`,
+  !paneById.length && new RegExp(`\\b${dataPaneName} panel\\b`).test(readme),
+  (paneById.join("\n      ") || `no stale name found, but README never names the pane "${dataPaneName} panel" either`) +
+  "\n      the pane is `#library` in the markup and has RENDERED \"" + dataPaneName + "\" since " +
+  "STUDIO-PANELS — checks 16, 17 and 18 removed the id-flavoured name from the tours, from Help " +
+  "and from the app's own strings, and README was the document none of them read");
+
+// (f) the rail walk, in the rail's own order — check 9's derivation, order-strict
+const readmeRailWalk = (() => {
+  const at = readme.indexOf("The rail:");
+  if (at < 0) return [];
+  const end = readme.indexOf("├──", at);
+  return readme.slice(at + "The rail:".length, end < 0 ? readme.length : end)
+    .replace(/[│├└─]/g, " ").split("·").map((s) => s.replace(/\s+/g, " ").trim()).filter(Boolean);
+})();
+const readmeRailExpected = [...new Set(railSecs)].map((s) => railLabels[s] || s);
+ok(`README.md: the rail walk names exactly the ${readmeRailExpected.length} sections the rail has, in its order`,
+  readmeRailWalk.length === readmeRailExpected.length &&
+    readmeRailWalk.every((l, i) => l === readmeRailExpected[i]),
+  `README: ${readmeRailWalk.join(" · ") || "(not found)"}\n      ` +
+  `the rail: ${readmeRailExpected.join(" · ")}\n      ` +
+  "check 9 holds Help's rail block to this same list; README printed five names and one of " +
+  "them (\"Studio\") is not a section at all");
+
+// (g) the route back into the tour — check 13's source, one document over
+const paletteTutorial = [...read("app/palette.js").matchAll(/\blabel:\s*"((?:[^"\\]|\\.)*)"/g)]
+  .map((m) => m[1]).find((l) => /tutorial/i.test(l));
+ok(`app/palette.js: the command that reopens the tour parsed for check 41 ("${paletteTutorial || "(none)"}")`,
+  !!paletteTutorial, "rule (g) reads it; no palette command matches /tutorial/i");
+const tourSentence = (readmeProse.match(/[^.]*\bwelcome tour\b[^.]*\./i) || [""])[0];
+ok(`README.md: the tour-reopen route names the palette's own "${paletteTutorial}" command`,
+  !!tourSentence && labelKey(tourSentence).includes(labelKey(paletteTutorial || " ")),
+  `the sentence reads: ${tourSentence.replace(/\s+/g, " ").trim() || "(no sentence mentions the welcome tour)"}\n      ` +
+  "README said \"reopen via ⓘ Tour\", a control the app has never had — the same class of dead " +
+  "route check 13 found eleven times across the tours themselves");
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

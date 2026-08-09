@@ -3,6 +3,6 @@
    the version label and the What's-new unseen dot, so the ~680KB of full history is
    fetched lazily (Studio.loadChangelog) the first time someone opens the feed.
    Regenerated from js/changelog.js on every normalize run — never hand-edit. */
-window.STUDIO_LATEST_VERSION = 927;
-window.STUDIO_LATEST = {"v":927,"title":"The Dashboard theme picker offers seven looks; Help listed six of them","kind":"fix","ts":"2026-08-09T11:10:41.000Z"};
+window.STUDIO_LATEST_VERSION = 928;
+window.STUDIO_LATEST = {"v":928,"title":"The README described a third of the connectors and two of the seven exports","kind":"fix","ts":"2026-08-09T11:42:04.000Z"};
 window.STUDIO_BUILD = "__BUILD_TS__";

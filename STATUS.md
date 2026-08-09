@@ -135,6 +135,68 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — The README described a third of the connectors and two of the seven exports
+  (v928, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** the N7 family has
+  spent two weeks holding the Help page, the six tours, the app's own runtime strings and the
+  marketing landing page accountable to the code. This slice is the document all forty of those
+  checks had skipped — `README.md`, the repo's front page, the first thing anyone evaluating the
+  source reads — and it had drifted further than any surface measured so far, for the obvious
+  reason: nothing had read it since the app was about a third of its current size.
+  - **Measured, not suspected**, each against the source an existing check already derives:
+    - **Connectors: 9 of 13.** `app/connections.js` builds the wizard's step 1 from
+      `Studio.dataSources()` — every `caps.data` adapter, in registry order, **13** of them.
+      README's Adapters bullet named nine, and **PostgreSQL (PostgREST)**, **CSV / JSON file**,
+      **Google Sheets** and **Amazon Redshift** were absent — precisely the four Help was missing
+      before check 38 shipped this morning, one document over. Three of the nine it *did* name
+      were written as strings the picker has never printed: "DuckDB-Wasm remote files",
+      "SQLite over HTTP", "generic SQL-over-HTTP".
+    - **Exports: 2 of 7.** `#menuExport` publishes Dashboard (.html), Excel workbook (.xlsx),
+      Word document (.docx), PowerPoint (.pptx), PDF (print), Editable spec (.studio.json) and
+      All artifacts (bundle). README's "What it produces" table had two rows — **Dashboard** and
+      **Bundle** — so every office format the app grew was undocumented on the page a reader
+      lands on first, and the one row for the bundle was the only survivor of the pair. Check 37
+      had held Help to this exact menu three slices earlier.
+    - **The builder's left pane, by its id.** The ASCII architecture diagram's first column read
+      **`Query Library`** — the internal name checks 16, 17 and 18 removed from the tours, from
+      Help and from the app's own strings. The pane is `#library` in the markup and has RENDERED
+      **Data** since STUDIO-PANELS. README was the last place it survived, plus one prose site
+      ("The Studio library pins a *Workspace datasets* group").
+    - **The rail: 5 names, and one of them is not a section.** README's layout tree said
+      "rail: Home · Dashboards · Datasets · Connections · **Studio**". The rail has **13**
+      sections (Home · Views · Dashboards · Datasets · Connections · Repository · Quick Views ·
+      View Builder · Dashboard Builder · Jobs · Admin · Settings · Help) and none is called
+      Studio. Check 9 holds Help's rail block to this same list.
+    - **The Roadmap promised what had already shipped** — "more adapters (Postgres, Redshift,
+      Azure, MotherDuck, file drop, Sheets)". Four of those six are in the thirteen above.
+    - **A route to a control that has never existed** — "reopen via **ⓘ Tour**". Check 13 found
+      eleven instances of this same class of dead route across the tours themselves; this was
+      the twelfth, on the front page. The live route is the ⌘K palette's **Interactive
+      tutorial** command.
+  - **Fixed:** all thirteen connectors in the picker's own order, the three `caps.meta` ones
+    marked *(workspace-capable)* and `Local (this browser)` explained as the `caps.data:false`
+    default store it is; all seven export rows with descriptions taken from the exporters rather
+    than invented, and the viewer's smaller three-format menu named beside them; the diagram and
+    the prose on **Data panel**; the full 13-section rail; a Roadmap that defers to `STATUS.md`
+    and names the real remaining adapter work (the Future backend cards); and the ⌘K route.
+  - **The check: doc-truth 41, and it adds no new source of truth.** It points seven derivations
+    that already exist at one more document — check 38's adapter registry (rules a/b/c), check
+    37's two export menus (rule d), check 18's rendered-pane-name idiom (rule e), check 9's rail
+    (rule f) and check 13's command palette (rule g). Two details worth keeping: rule (e) scans
+    the WHOLE file rather than prose-only, because the stale name lived in a fenced ASCII
+    diagram — a fence in this document is a picture of the UI as often as it is a command — and
+    it distinguishes a capitalised "Query Library" (a proper noun, so it is naming the pane)
+    from a lowercase "sample-query library" (the bundled catalog, a real thing with a real name)
+    by SHAPE, check 18's idiom, not by an exemption list. `NUMBER_WORD` also had to grow past
+    ten: the connector roster outran it, and without the extension rule (b)'s count would have
+    silently fallen back to digits and stopped testing the word README actually prints.
+  - **Verified:** all seven rules measured failing on the REAL pre-fix tree (9 assertions), and
+    every negative half measured on a mutated one — a renamed connector, a `caps.meta:false`
+    adapter wearing the workspace-capable mark, a retired format ("Dashboard Framework") sitting
+    in the export table, a swapped rail order, a viewer format dropped from its sentence, and a
+    wrong count word. Dev gate green in the foreground: `tools/validate.mjs`,
+    `tools/changelog-check.js`, `tools/doc-truth.mjs`, `tools/dev-smoke.mjs`. No `sw.js` bump —
+    nothing this slice touches is precached.
+  - **Est 1pt, took 1.**
 - **N7 — The Dashboard theme picker offers seven looks and Help listed six of them
   (v927, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** check 39's move one
   pair of pickers over, and the shape that made it worth taking is that the page could be caught
@@ -13119,6 +13181,33 @@
     that a stale shot can contradict the caption beside it, so it was read rather than assumed —
     its Dashboard theme row shows all **eight** swatches, Conservation's olive-green among them.
     The picture had been right about the thing the prose beneath it got wrong.
+  * *`README.md` vs the app it introduces — v928, NO sw bump (2026-08-09 — see DONE).* Taken
+    INSTEAD of the two candidates the v922/v927 passes left open, and for the reason both of
+    those notes give themselves: the Conservation card's dashboard count is flagged in its own
+    text as a product call (which number belongs on a 350-character card), and the "6th swatch"
+    comment is one word wide but costs a `sw.js` CACHE bump — issue #631's territory — so it
+    still belongs to the next slice that has to bump anyway. This one is pure derivation, and it
+    is the document this whole family had skipped: checks 9–40 hold Help, the six tours, the
+    app's own runtime strings and the landing page, and **README.md — the repo's front page —
+    answered to none of them.** It had drifted further than any surface those checks have
+    measured, because nothing had read it since the app was a third of its current size. The
+    adapter list named **9 of the 13** connectors (PostgreSQL (PostgREST), CSV / JSON file,
+    Google Sheets and Amazon Redshift absent — the same four Help was missing before check 38),
+    three of the nine by strings the picker has never printed; the export table had **2 rows
+    where Export ▾ has 7**; the ASCII diagram still said **"Query Library"**, the last place the
+    id-flavoured name survived checks 16→18; the rail list named **5 sections and one of them
+    ("Studio") does not exist**; the Roadmap offered four already-shipped adapters as future
+    work; and the tour-reopen route pointed at an **"ⓘ Tour"** control the app has never had.
+    Doc-truth check 41 adds no new source of truth — it points seven existing derivations at one
+    more document (checks 38, 37, 18, 9 and 13). All seven measured failing on the real pre-fix
+    tree, and every negative half on mutated ones.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    `## Roadmap` section now defers to `STATUS.md` rather than listing headline items, which is
+    correct but means README no longer summarises where the app is going — whether it should is
+    editorial, not a derivation. Also measured and NOT N7's: `CLAUDE.md` is the other
+    front-matter document and check 7 holds only its SIZE figures (~LOC, ~file counts), not its
+    prose — the same gap this slice just closed one document over, and worth a check the day
+    someone reads it. The two v922 candidates above are still open and still Kevin's calls.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before
