@@ -793,18 +793,25 @@
   <h2>Sample packs</h2>
   <p><strong>Sample packs</strong> (installed from Settings) are ready-made
   demo content you can install or remove. A pack can add dashboards, datasets, connections and jobs —
-  all with synthetic (made-up) sample data, never your real data — and <strong>Remove</strong> takes
+  sample content, never your real data — and <strong>Remove</strong> takes
   back exactly what Install added. Everything a pack adds is <strong>filed in the pack's own
-  folder</strong> (Conservation Insight, Data Management) across every section, and its raw sample
+  folder</strong> (Conservation Insight, Data Management, Market Coverage) across every section, and its raw sample
   tables only appear in the dataset pickers while the pack is installed — an uninstalled pack leaves
   no trace. Like the built-in catalog, sample packs live under the same <strong>Sample content</strong>
   switch in Settings — turn that off and both disappear from the Data panel, with nothing deleted.</p>
   <p><strong>Where a pack's data comes from is on its card.</strong> Every pack states its source in
-  one line under its description — today both packs read <em>"Data: synthetic — generated in the app,
-  not real observations"</em>, because that is exactly what they are. A pack built on a real public
-  dataset names the dataset, its licence and the date it was retrieved instead, and repeats that line
-  in the subtitle of every dashboard it installs, so the attribution travels with the work even after
-  you export it.</p>
+  one line under its description. Conservation Insight and Data Management read <em>"Data: synthetic —
+  generated in the app, not real observations"</em>, because that is exactly what they are. A pack built
+  on a real public dataset names the dataset, its licence and the date it was retrieved instead, and
+  repeats that line in the subtitle of every dashboard it installs, so the attribution travels with the
+  work even after you export it.</p>
+  <p><strong>Market Coverage</strong> is the pack built on real data: US Census county business counts
+  and demographics, embedded in the app rather than fetched, with the prep job that joins them into a
+  restaurants-and-grocers-per-10,000-residents rate. Its three dashboards are the whitespace maps
+  (restaurant supply by county, its grocery twin, and income plotted against supply), the demographics
+  behind them (income, age, education), and a shortlist of counties with the income but not the
+  restaurants. The shortlist's two rules are ordinary filters on the View — open it in the builder and
+  you can move them.</p>
   <p><strong>Removed the wrong pack? Undo.</strong> Remove shows its toast with an <strong>Undo</strong>
   button for a few seconds. One click restores every dataset, View, dashboard, connection and job the
   pack owned — under the same ids, with any edits you'd made to them intact — and marks the pack

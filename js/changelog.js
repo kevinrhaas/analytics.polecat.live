@@ -6,6 +6,21 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 913,
+    title: 'The Census pack now has dashboards: where a category is under-served',
+    kind: 'feature',
+    ts: '2026-08-09T04:19:06.000Z',
+    items: [
+      'The "Market Coverage" sample pack arrived last week as data and a prep job — real US Census numbers for 1,813 counties, joined into a rate of restaurants and grocers per ten thousand residents, but nothing built on top of them yet. It now installs with three dashboards.',
+      'The first is the map the pack exists for: restaurants and bars per ten thousand residents, county by county, with the same map for grocers beside it. Underneath, every county of a quarter of a million people or more is plotted with household income on one axis and restaurant supply on the other, so the four corners separate the well-served places from the ones with the money but not the restaurants.',
+      'The second is the demographics on their own terms — income, median age, and the share of adults holding a degree, each as its own county map — plus a scatter that asks whether income actually predicts restaurant supply. It does, loosely, and the counties that sit furthest from that line are the interesting ones.',
+      'The third is the answer as a list: counties at or above the national median household income AND at or below the national median restaurant rate. Both of those medians are worked out from the pack\'s own data rather than typed in, and the two rules are ordinary filters on the View — open it in the builder and you can move them, or drop the population floor and see the long tail.',
+      'A note on each dashboard says what the numbers do and do not show. A low restaurant rate can mean an under-served market, or a county whose residents eat in the next county over, or one restaurant covering a lot of ground; the maps are a place to start asking, not a finding.',
+      'Every panel reads the pack\'s own job output live, so re-running the job updates the dashboards. And if you installed the pack last week, its dashboards appear on their own the next time you open the app — no reinstall, and nothing you have saved is touched.',
+      'The pack is still installed from Settings → Sample packs rather than by default; the saved Views and the guided tour are the last piece.',
+    ],
+  },
+  {
     v: 912,
     title: 'A new sample pack, built from real US Census data',
     kind: 'feature',
