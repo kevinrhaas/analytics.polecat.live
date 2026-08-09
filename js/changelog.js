@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 922,
+    title: 'A sample pack\'s own card said there was nothing to connect, while installing it added connections',
+    kind: 'fix',
+    ts: '2026-08-09T08:43:40.000Z',
+    items: [
+      'Every sample pack describes itself in two places you actually read: the card in Settings where you press Install, and the one-line summary the pack tour and the welcome carousel drop into a sentence. Both listed a pack\'s dashboards, Views, datasets and prep job — and neither mentioned that installing it also puts connections in your Connections list. Conservation Insight seeds two; Market Coverage seeds one.',
+      'Worse, both packs closed on the words "nothing to connect". That was reaching for "there are no credentials to enter", which is true and still is, but read literally it promised the opposite of what Install does. Both cards now count the connections alongside everything else and say the credentials part in words that mean it.',
+      'Last week the Help page was corrected in exactly this way. The cards were describing the same packs and had not been, so a reader who never opened Help got the smaller story.',
+      'The dev gate now reads each pack\'s own copy the way it already reads the Help page: every kind of thing an installer seeds has to be named, every dashboard count has to be a number the pack really produces, "installed by default" has to be true of the pack that actually ships installed, and no pack that seeds a connection may claim there is nothing to connect.',
+    ],
+  },
+  {
     v: 921,
     title: 'Help now tells you what a sample pack actually gives you',
     kind: 'fix',
