@@ -135,6 +135,44 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N24 slice 1 — a workspace connected from the gate is now IN the picker, named (v909, sw v531,
+  2026-08-09, steward; dev branch; est 2pt for the whole item, slice 1 took 1 — on estimate; the
+  item stays open for slice 2, the management + export-from-setup half):** Kevin's report was
+  exact — connect a custom workspace from the sign-in screen and there is no way to log in to it.
+  The wizard's success callback (`app/gate.js`) set a hint, cleared the error and called
+  `clearCue()`; it never recorded the workspace and never re-rendered the `<select>`, so the
+  picker still showed the pre-connect list while the hint told the reader to pick something that
+  was not there. `currentWorkspaceId()` would by then have returned `"__connected"` and
+  `renderWorkspaceSelect()` would have appended an anonymous "Connected workspace (this browser)"
+  option — but nothing triggered the re-render, and an anonymous slot is not a fix anyway: Kevin
+  is running `polecat_dev` / `polecat_stage` / prod side by side, and two of those options are
+  indistinguishable.
+  **What shipped:** `rememberConnectedWorkspace()` does what the IMPORT path two blocks up always
+  did — takes the connection as an entry, saves it, re-renders, selects it — with three decisions
+  worth recording. (1) The entry comes from `Studio.exportAccessFileEntry()`, so a saved picker
+  entry carries exactly what an access file carries and the wizard's own `authEmail`/
+  `authPassword` are stripped from it: an entry grants *reach this workspace*, never *sign in as
+  whoever set it up*. (2) It is NAMED — a prompt seeded with the database's host, and cancelling
+  keeps the workspace under that suggestion rather than throwing the connection away. (3)
+  Connecting to a URL already in `workspaceList()` (a packaged workspace, or one connected
+  earlier) re-selects that entry instead of minting a near-duplicate that differs only by name.
+  The hint now names the workspace and moved from `innerHTML` to `textContent`, since the label
+  is typed by a person. Kevin's own follow-on suggestion ("rather than making them retype it") is
+  in: the live config's `authEmail` prefills `#g-user` and the cursor lands on the password —
+  the same prefill the N2-slice-4 expired-session path already performs a few lines up.
+  **Verified** by the two checks the item asked for, both at 390×780 because the report was from a
+  phone: the wizard is stubbed at the one point that matters (a REAL `bindConnection` against the
+  suite's Supabase mock, then the callback), so the gate's own success path is what runs — the
+  picker gains a named, selected entry, it persists to `studio-workspaces-custom` without
+  credentials, `studio-workspace-last` follows it, the hint names it and the email is prefilled;
+  then the second check signs in through it end to end (password only) and lands still bound to
+  that workspace. Dev gate green locally (`tools/validate.mjs`, `tools/changelog-check.js`,
+  `tools/doc-truth.mjs`, `tools/dev-smoke.mjs`). The full `tests/run.js` reached 3,052 passing
+  checks including both new ones; the runner's own 570s cap cut the last mobile block short (a
+  "target page has been closed" FATAL at run.js:43011, in code this slice does not touch) — the
+  stage gate runs it under its 45-minute budget.
+  **Docs:** the Help page's "Custom workspace…" bullet now describes the naming step, the prefill
+  and the no-duplicate rule.
 - **N28 — the provisioning SQL can raise a workspace's version marker, never rewind it (v908,
   sw v530, 2026-08-09, steward; dev branch; est 1pt, took 1 — on estimate, item CLOSED):**
   the SQL half of the monotonicity N17 gave `WS.metaRows()`, split out of N20 because that run
@@ -12195,11 +12233,24 @@
   `tests/rls.mjs` with a marker probe: pre-seed `polecat_meta.schema_version` above and below the
   artifact's own version, apply the posture, and assert the value only ever moves up. doc-truth
   check 25 already holds both files to the CURRENT version, so this is purely about direction.
-- **N24 ★★ [2pt — bug + the management Kevin asked for] — Connecting a workspace from the gate
+- **N24 ★★ [2pt est, 1 slice shipped — 1 remains] — Connecting a workspace from the gate
   leaves you unable to sign in to it.** Kevin, 2026-08-08: *"I went to connect to a custom
   workspace, filled out all the credentials and seem to have connected but there is no way to
   actually log in with that one… it needs to be on a list somewhere… there should be some more
   management of your workspaces there so that you can define one and connect to it from there."*
+  ✓ **SLICE 1 (the bug) SHIPPED v909, sw v531 (2026-08-09, steward — see DONE):** a gate
+  connection is now saved as a NAMED custom entry (access-file shape, so the wizard's own
+  authEmail/authPassword are stripped), the picker re-renders with it selected, re-connecting to
+  a URL already in the list re-selects it instead of duplicating, and the email the wizard took
+  prefills the sign-in form. **SLICE 2 IS WHAT REMAINS and is the next thing to take on this
+  item — the MANAGEMENT half, unchanged from the spec below:** a saved list editable from the
+  gate AND from Settings (rename, remove, set default, a clear "connected" marker) plus **Export
+  access file per entry**, REUSING `#wsAccessFileBtn`'s existing export
+  (`app/studio.js:8439/8491-8495`) rather than rebuilding it — the real gap is reachability, since
+  that button lives behind a successful sign-in today, so it must also be surfaced where a
+  workspace is DEFINED (the gate's picker and the connect wizard's success step). Slice 1 laid
+  the groundwork it needs: entries are named and persisted, and `__studioGateWorkspaces.remember`
+  is the hook. The original slice-1 analysis is kept below as the map of the seam.
   **Slice 1 — the bug, and it is four lines.** The gate's "Connect a workspace backend" handler
   (`app/gate.js:663-668`) does exactly three things on success: set the hint to "Connected. Sign
   in with an account from that workspace below.", clear the error, `clearCue()`. It **never calls
