@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 924,
+    title: 'The Help page\'s table of export formats was missing one, and named another by a name the app never shows',
+    kind: 'fix',
+    ts: '2026-08-09T10:00:46.000Z',
+    items: [
+      'Export ▾ offers seven formats. The Help page\'s table describing them listed six. The one it left out is Editable spec (.studio.json) — the small JSON file that IS the dashboard, the one you version-control or hand to someone who will keep editing it. Help points you at it twice elsewhere ("that file is all a dashboard needs") while the table you read to choose a format never mentioned it. It has a row now, saying what travels in it and what does not.',
+      'The first row was called "Dashboard Framework". That is the internal name for the artifact; the button you actually press says Dashboard (.html), and so does every other page — including Help\'s own Viewer section. Five rows matched the menu and one sent you looking for a button that is not there. The row now uses the button\'s name and mentions the internal one only where you would meet it.',
+      'The bundle row had its label inside out — "Bundle (all artifacts)" for a button that reads "All artifacts (bundle)".',
+      'And the Viewer\'s Export button does not offer "the same formats Studio offers", which is what Help said. It offers three of the seven: the .html, the PDF, and the editable spec. The office formats and the bundle are the builder\'s menu only. Help now says three, and says which two things you go to the builder for.',
+      'The dev gate now reads both Export menus straight from their own markup and holds this table to them: every format the builder offers needs a row, no row may name a format the menu does not have, the Viewer paragraph has to name each format the viewer really offers, and it may only claim parity with the builder while the two menus genuinely agree.',
+    ],
+  },
+  {
     v: 923,
     title: 'The Help page listed a Redo shortcut that has never worked, and left four real ones out',
     kind: 'fix',

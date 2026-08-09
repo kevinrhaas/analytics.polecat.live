@@ -2284,6 +2284,114 @@ ok("docs/index.html: it documents no Ctrl/⌘ shortcut the app does not have",
   `in Help, not in the app's panel: ${prettyList(invented)}\n      ` +
   "the negative half — rule (b) alone would let a retired shortcut sit in the table forever");
 
+/* ── 37. Help's export-format table vs the Export ▾ menu it describes ───────
+   N7, and check 36's move one table over: docs/index.html has a
+   <table class="export-table"> whose Format column is supposed to be the list a reader
+   sees when they open Export ▾. Nothing compared them, and check 36 had just shown what
+   an unchecked published table does.
+
+   Measured 2026-08-09, before the fix — the builder's menu offered 7 formats, the table 6:
+   · **The editable spec was missing from the table entirely.** `Editable spec (.studio.json)`
+     is the sixth button in the menu, and Help names it twice ELSEWHERE ("use Export ▾ →
+     Editable spec (.studio.json) — that file is all a dashboard needs") while the table
+     claiming to be the format list left it out. The one export a reader most needs a
+     description of — what travels in it, what does not — had none.
+   · **Row 1 named a format the app has never shown.** `Dashboard Framework` is the internal
+     name for the artifact (a text panel's inspector note uses it); every user-facing surface,
+     including Help's own Viewer paragraph 1,700 lines above, says `Dashboard (.html)`. Five
+     rows matched the button you press and one did not.
+   · **The bundle row's label was inverted** — `Bundle (all artifacts)` for a button that reads
+     `All artifacts (bundle)`.
+   · **The Viewer paragraph claimed parity it does not have.** "an Export button … with the
+     same formats Studio offers" — the viewer's own menu (app/viewer.html) has 3 of the 7.
+     It is the drift running the other way: the app doing LESS than the copy says.
+
+   Four rules:
+   (a) every label the builder's #menuExport publishes has a row in the table;
+   (b) the table names no format that menu does not offer (the negative half — (a) alone would
+       let a renamed or retired format sit in the table forever, which is exactly how
+       "Dashboard Framework" survived);
+   (c) every label the VIEWER's #viewerExportMenu publishes is named in the Viewer's own export
+       paragraph (#viewer-export);
+   (d) that paragraph claims format parity with the builder only while the two menus really
+       agree. Derived, not a banned phrase: the rule fires only when the inventories differ.
+   Both menus are read from the markup, not from studio.js/viewer.js — the buttons ARE the
+   list, and both files wire whatever `data-exp` they find. */
+
+// A menu's published labels: the <button data-exp> children of the named container. Both
+// menus are flat (no nested <div>), so the container ends at the first </div> after its id.
+function exportMenuLabels(file, menuId) {
+  const src = read(file);
+  const at = src.indexOf(`id="${menuId}"`);
+  if (at < 0) throw new Error(`doc-truth: #${menuId} not found in ${file}`);
+  const end = src.indexOf("</div>", at);
+  if (end < 0) throw new Error(`doc-truth: #${menuId} in ${file} is unterminated`);
+  return [...src.slice(at, end).matchAll(/<button[^>]*\bdata-exp="[^"]*"[^>]*>([\s\S]*?)<\/button>/g)]
+    .map((m) => m[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+}
+// Labels compare case-insensitively on their visible text — Help writes "editable spec (.json)"
+// mid-sentence where the button carries a capital E, and that is a sentence, not a drift.
+const labelKey = (s) => s.replace(/\s+/g, " ").trim().toLowerCase();
+
+const studioExports = exportMenuLabels("app/index.html", "menuExport");
+const viewerExports = exportMenuLabels("app/viewer.html", "viewerExportMenu");
+ok(`app/index.html + app/viewer.html: the export menus parsed for check 37 ` +
+   `(builder ${studioExports.length}, viewer ${viewerExports.length})`,
+  studioExports.length >= 5 && viewerExports.length >= 2,
+  `builder: ${studioExports.join(" · ") || "(none)"}\n      viewer: ${viewerExports.join(" · ") || "(none)"}\n      ` +
+  "all four rules below read these two lists — an empty parse would pass every one of them");
+
+const exportTable = (read("docs/index.html").match(/<table class="export-table">([\s\S]*?)<\/table>/) || [, ""])[1];
+// The Format column only: the FIRST <td> of each row. A format's description may legitimately
+// mention another format ("both artifacts together — the .html and the … spec").
+const exportRowLabels = [...exportTable.matchAll(/<tr>\s*<td>([\s\S]*?)<\/td>/g)]
+  .map((m) => m[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+ok(`docs/index.html: the export-format table parsed for check 37 (${exportRowLabels.length} row(s))`,
+  !!exportTable && exportRowLabels.length > 0,
+  'the <table class="export-table"> block was not found, or has no rows — rules (a) and (b) read it');
+
+// (a) every format the builder offers has a row
+const tableKeys = new Set(exportRowLabels.map(labelKey));
+const undocumentedFormats = studioExports.filter((l) => !tableKeys.has(labelKey(l)));
+ok(`docs/index.html: the export table has a row for every format Export ▾ offers (${studioExports.length})`,
+  !undocumentedFormats.length,
+  `in the menu, missing from the table: ${undocumentedFormats.join(", ")}\n      ` +
+  "this table is where a reader decides WHICH button to press — a format with no row is one " +
+  "they will never choose deliberately");
+
+// (b) and no row for a format it does not
+const studioKeys = new Set(studioExports.map(labelKey));
+const strayFormats = exportRowLabels.filter((l) => !studioKeys.has(labelKey(l)));
+ok("docs/index.html: the export table names no format the Export ▾ menu does not offer",
+  !strayFormats.length,
+  `in the table, not in the menu: ${strayFormats.join(", ")}\n      ` +
+  `the menu's own labels are: ${studioExports.join(", ")}\n      ` +
+  "the negative half — a reader hunting the table's label in the menu finds nothing, which is " +
+  "how the internal name \"Dashboard Framework\" outlived every user-facing use of it");
+
+// (c) the Viewer's paragraph names every format the viewer's own menu has
+const viewerPara = (read("docs/index.html").match(/<p id="viewer-export">([\s\S]*?)<\/p>/) || [, ""])[1]
+  .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+ok('docs/index.html: the Viewer export paragraph (<p id="viewer-export">) parsed for check 37',
+  !!viewerPara, "rules (c) and (d) read it; the id is its anchor");
+const unnamedInViewer = viewerExports.filter((l) => !labelKey(viewerPara).includes(labelKey(l)));
+ok(`docs/index.html: the Viewer paragraph names every format the viewer's Export menu offers (${viewerExports.length})`,
+  !unnamedInViewer.length,
+  `in the viewer's menu, unnamed in the paragraph: ${unnamedInViewer.join(", ")}\n      ` +
+  "a viewer-role reader never sees the builder's menu, so this paragraph is their whole list");
+
+// (d) it claims parity with the builder only while the two menus agree
+const menusAgree = studioKeys.size === new Set(viewerExports.map(labelKey)).size &&
+  viewerExports.every((l) => studioKeys.has(labelKey(l)));
+const claimsParity = /\bthe same formats?\b/i.test(viewerPara);
+ok("docs/index.html: the Viewer paragraph claims parity with Export ▾ only when the menus agree",
+  !claimsParity || menusAgree,
+  `the paragraph says the viewer offers "the same formats" as Studio, but the viewer's menu has ` +
+  `${viewerExports.length} of the builder's ${studioExports.length}: ` +
+  `${studioExports.filter((l) => !new Set(viewerExports.map(labelKey)).has(labelKey(l))).join(", ")} ` +
+  "are builder-only\n      the drift that runs the other way — copy promising more app than ships");
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

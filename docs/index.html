@@ -599,10 +599,11 @@
     <li>A <strong>developer</strong> or <strong>admin</strong> also gets an <strong>Edit in
       Studio</strong> button that jumps straight into the builder on that exact dashboard.</li>
   </ul>
-  <p>The viewer's top bar also has an <strong>Export</strong> button (available to everyone) with
-  the same formats Studio offers: <strong>Dashboard (.html)</strong> — a self-contained file you can
-  drop on any static host or open offline — <strong>PDF (print)</strong>, and the
-  <strong>editable spec (.json)</strong>. A sample or demo dashboard exports with its data baked in,
+  <p id="viewer-export">The viewer's top bar also has an <strong>Export</strong> button (available
+  to everyone) offering three of the formats Studio does: <strong>Dashboard (.html)</strong> — a
+  self-contained file you can drop on any static host or open offline — <strong>PDF (print)</strong>,
+  and the <strong>editable spec (.json)</strong>. The office formats and the bundle are the
+  builder's Export ▾ menu only (see "Exporting" below). A sample or demo dashboard exports with its data baked in,
   so the download is complete on its own; a dashboard backed by a real data source keeps querying
   that source live, in the viewer and in the exported file alike.</p>
 
@@ -2363,8 +2364,8 @@
     <thead><tr><th>Format</th><th>What you get</th><th>Use when</th></tr></thead>
     <tbody>
       <tr>
-        <td><strong>Dashboard Framework</strong></td>
-        <td>A fully self-contained <code>.html</code> file with all toolkit JS/CSS inlined. No server required — open in any browser.</td>
+        <td><strong>Dashboard (.html)</strong></td>
+        <td>A fully self-contained <code>.html</code> file with all toolkit JS/CSS inlined. No server required — open in any browser. (Internally this is the <em>Dashboard Framework</em> export — the name you'll see in a text panel's inspector note — but the button says <strong>Dashboard (.html)</strong>.)</td>
         <td>Sharing demos, embedding in portals, or hosting as a standalone dashboard on any static web host.</td>
       </tr>
       <tr>
@@ -2388,7 +2389,12 @@
         <td>A one-off PDF or hard copy of the current dashboard, sized for the paper you're printing to — no separate export step to manage.</td>
       </tr>
       <tr>
-        <td><strong>Bundle (all artifacts)</strong></td>
+        <td><strong>Editable spec (.studio.json)</strong></td>
+        <td>The dashboard's own source of truth — the JSON spec the builder reads and writes. It carries the layout, every View and KPI, the filters and the dataset references, and nothing else: no toolkit, no baked rows, so it stays small. Open it again with <strong>Open… → Open file…</strong>, or publish it anywhere public and hand out the link (<strong>Import from URL…</strong>).</td>
+        <td>Version-controlling a dashboard, handing it to someone who will keep editing it, or moving one between workspaces.</td>
+      </tr>
+      <tr>
+        <td><strong>All artifacts (bundle)</strong></td>
         <td>Both artifacts together — the <code>.html</code> and the editable <code>.studio.json</code> spec.</td>
         <td>Full delivery: the rendered dashboard plus its editable source of truth.</td>
       </tr>
