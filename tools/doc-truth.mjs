@@ -4490,6 +4490,232 @@ ok(`docs/index.html: the pinned-first claim names exactly the panels whose sort 
   "a promised ordering the page does not do is the half of a contradiction a reader acts on");
 
 
+/* ── 52. Help's "what each page searches" vs the six panels' own search haystacks ────
+   N7, and the check-51 move one paragraph over — the same six catalog panels, the
+   control immediately left of the sort menu. Help described what a search looks at in
+   one clause of the Searching paragraph; each panel declares it itself, as the field
+   list handed to `Studio.catalogSearch.matcher(q, fn)` (Dashboards hands the same list
+   to `catalogSearch.hay()` because its column fallback needs the terms separately).
+   Nothing had compared the two.
+
+   Measured 2026-08-09, before the fix — the clause covered four of the six pages, and
+   what it left out is what a reader would have had to discover by accident:
+   · **Views and the Repository were absent entirely.** Views searches the CHART TYPE, so
+     typing "choropleth" finds every map you have saved — a genuinely useful thing that
+     was published nowhere. The Repository searches each row's one-line summary.
+   · **Datasets' list left out the connection's name**, which `datasets.js` really does
+     search — "snowflake" finds every dataset reading that connection, and Help's list of
+     seven Datasets fields named the other seven.
+   · **Connections' clause named the adapter and settings but not its tags**, and the
+     shape of the sentence ("name, folder, tags … for Datasets; adapter and settings for
+     Connections") published the two panels' shared fields as if they belonged to
+     Datasets alone — the reason the rewrite states the shared baseline once and then
+     what each page ADDS, rather than re-listing name and folder six times.
+
+   Five rules, and no new source of truth — the six panels check 51 already found, plus
+   each one's own haystack:
+   (a) the premise + the roster: every panel declares a haystack inside its own render
+       function, every expression in it has a row in the vocabulary below, no row is
+       stale, and Help's paragraph enumerates exactly those six pages one clause each.
+       The vocabulary is keyed by the EXPRESSION, so a panel that starts searching a new
+       field — or renames the one it searches — falls out of its row and fails here
+       rather than passing green while Help omits it;
+   (b) the baseline: all six really do search name + folder, and the paragraph publishes
+       that once, before naming any page;
+   (c) every non-baseline field a panel searches is published in that page's own clause;
+   (d) the negative half — no clause credits a page with a field it does not search.
+       Segmented by page, so Datasets' tags cannot cover for Connections' tags, which is
+       exactly how the missing one hid;
+   (e) the promise about secrets: the connection haystack still drops password-typed
+       config values, AND Help still says so. A claim about where a stored token can
+       never turn up is the one claim that must not be able to go stale quietly.
+   Deliberately NOT held: the ORDER the pages appear in, and any wording beyond each
+   field's own noun — check 12's rule again, a teaching document owes coverage, not a
+   transcript. Scoped to the catalog panels: the paragraph below it ("…and every other
+   search box too") is a claim about a different set of files and is its own check. */
+
+// The searchable fields each panel declares, in the panel's own words, mapped to the
+// noun Help has to publish for each. `null` marks the two baseline fields every panel
+// searches — published once in the paragraph's opening sentence, not per page.
+const CATALOG_SEARCH_FIELDS = {
+  dashboards: [
+    ["sp.title || sp.name", "name", null],
+    ["r.folder", "folder", null],
+    ["sp.desc", "the description", /\bdescription\b/i],
+    // The column fallback is a searchable field like any other, just reached only once
+    // the row's own text has missed — the extractor adds it wherever the panel calls it.
+    ["matchedColumnName()", "the bound column names", /column names/i],
+  ],
+  views: [
+    ["a.name", "name", null],
+    ["a.folder", "folder", null],
+    ['vwChartLabel(a.chartType || "bars")', "the chart type", /chart type/i],
+  ],
+  datasets: [
+    ["d.name", "name", null],
+    ["d.folder", "folder", null],
+    ["d.desc", "the description", /\bdescription\b/i],
+    ["d.owner", "the owner", /\bowner\b/i],
+    ["d.tags", "its tags", /\btags\b/i],
+    ["d.sql || d.table || d.collection", "the query text", /query text/i],
+    ["d.columns", "its column names", /column names/i],
+    ['conn ? conn.name : ""', "the connection's name", /connection it reads|connection'?s name/i],
+  ],
+  connections: [
+    ["c.name", "name", null],
+    ["c.folder", "folder", null],
+    ["src.label || c.adapter", "the adapter", /\badapter\b/i],
+    ["cfgHay", "the rest of its settings", /\bsettings\b/i],
+    ["c.tags", "its tags", /\btags\b/i],
+  ],
+  jobs: [
+    ["j.name", "name", null],
+    ["j.folder", "folder", null],
+    ['src ? src.name : ""', "the source dataset", /source dataset/i],
+    ["j.outputName", "the output dataset", /\boutput\b/i],
+  ],
+  repository: [
+    ["r.title", "name", null],
+    ["r.folder", "folder", null],
+    ["r.meta", "the row's one-line summary", /\bsummary\b/i],
+  ],
+};
+
+// A panel's haystack, read out of its OWN render function so the many other matcher
+// calls in the same file (the builder's Data panel, Explore, the activity log) can't be
+// mistaken for it. Brace/bracket walking rather than a non-greedy match: the field list
+// holds ternaries, calls and `||` chains, so the first "]" is not the end of it.
+function searchBlockAt(src, open, oc, cc) {
+  let depth = 0, i = open;
+  for (; i < src.length; i++) {
+    if (src[i] === oc) depth++;
+    else if (src[i] === cc && --depth === 0) break;
+  }
+  return src.slice(open, i + 1);
+}
+function searchFieldList(list) {
+  const out = [];
+  let depth = 0, cur = "", quote = null;
+  for (let i = 1; i < list.length - 1; i++) {
+    const c = list[i];
+    if (quote) { cur += c; if (c === quote && list[i - 1] !== "\\") quote = null; continue; }
+    if (c === '"' || c === "'") { quote = c; cur += c; continue; }
+    if ("([{".includes(c)) depth++;
+    else if (")]}".includes(c)) depth--;
+    if (c === "," && depth === 0) { out.push(cur.trim().replace(/\s+/g, " ")); cur = ""; continue; }
+    cur += c;
+  }
+  if (cur.trim()) out.push(cur.trim().replace(/\s+/g, " "));
+  return out;
+}
+function catalogSearchPanels() {
+  return panels.map((p) => {
+    const src = read(p.file);
+    const fn = "render" + p.sec[0].toUpperCase() + p.sec.slice(1);
+    const at = src.indexOf("function " + fn + "(");
+    const body = at < 0 ? "" : searchBlockAt(src, src.indexOf("{", at), "{", "}");
+    const m = body.match(/Studio\.catalogSearch\.matcher\(\s*\w+,\s*function \(\w+\) \{[\s\S]*?return (\[)/);
+    const hay = body.indexOf("Studio.catalogSearch.hay(");
+    const listAt = m ? body.indexOf("[", m.index + m[0].length - 1) : (hay < 0 ? -1 : body.indexOf("[", hay));
+    const fields = listAt < 0 ? [] : searchFieldList(searchBlockAt(body, listAt, "[", "]"));
+    if (/matchedColumnName\(/.test(body)) fields.push("matchedColumnName()");
+    return { sec: p.sec, page: CATALOG_PAGES[p.sec], fn, file: p.file, fields,
+      dropsPasswords: /f\.type === "password" \? "" :/.test(body) };
+  });
+}
+
+const searchPanels = catalogSearchPanels();
+const searchParaHtml = (help.match(/<p><strong>What each page searches\.<\/strong>[\s\S]*?<\/p>/) || [""])[0];
+const searchPara = htmlText(searchParaHtml).replace(/\s+/g, " ").trim();
+const searchBaselineSentence = searchPara.split(/On top of that:/)[0] || "";
+// One clause per page, semicolon-separated — the paragraph's own punctuation.
+const searchClauses = (searchPara.split(/On top of that:/)[1] || "").split(";")
+  .map((s) => s.trim()).filter(Boolean)
+  .map((text) => ({ text, pages: Object.values(CATALOG_PAGES).filter((pg) => new RegExp(`\\b${pg}\\b`).test(text)) }));
+const searchClauseOf = (page) => (searchClauses.find((c) => c.pages.length === 1 && c.pages[0] === page) || { text: "" }).text;
+
+// (a) first: the premise, the vocabulary and the roster together. The other four rules
+//     are only meaningful while every panel still declares a haystack this can read.
+const vocabWrong = [];
+searchPanels.forEach((p) => {
+  const rows = CATALOG_SEARCH_FIELDS[p.sec] || [];
+  if (!p.fields.length) vocabWrong.push(`${p.page}: no search field list found in ${p.fn} (${p.file})`);
+  p.fields.filter((f) => !rows.some((r) => r[0] === f))
+    .forEach((f) => vocabWrong.push(`${p.page} searches \`${f}\` — nothing in the vocabulary says what to call it`));
+  rows.filter((r) => !p.fields.includes(r[0]))
+    .forEach((r) => vocabWrong.push(`the vocabulary still maps \`${r[0]}\` for ${p.page} — that panel no longer searches it`));
+});
+const searchRoster = searchClauses.filter((c) => c.pages.length === 1).map((c) => c.pages[0]).sort();
+const searchRosterExpected = searchPanels.map((p) => p.page).sort();
+ok(`app/ + docs/index.html: six catalog panels declare a search haystack, and Help gives each one a clause ` +
+   `(${searchPanels.reduce((n, p) => n + p.fields.length, 0)} field(s) over ${searchPanels.length} panel(s), ` +
+   `${searchClauses.length} clause(s))`,
+  searchPanels.length === 6 && !vocabWrong.length && !!searchParaHtml &&
+    searchClauses.length === 6 && String(searchRoster) === String(searchRosterExpected),
+  `${vocabWrong.join("\n      ") || "(vocabulary complete)"}\n      ` +
+  `${searchPanels.map((p) => `${p.page} (${p.fn}, ${p.fields.length})`).join(" · ")}\n      ` +
+  `Help's clauses name: ${searchClauses.map((c) => c.pages.join("+") || "(no page)").join(", ") || "(paragraph not found)"}\n      ` +
+  "the vocabulary is keyed by the panel's own expression — a new or renamed searchable field lands here first");
+
+// (b) the baseline every panel shares, published once rather than six times.
+const baselineMissing = [];
+searchPanels.forEach((p) => {
+  (CATALOG_SEARCH_FIELDS[p.sec] || []).filter((r) => !r[2] && !p.fields.includes(r[0]))
+    .forEach((r) => baselineMissing.push(`${p.page} no longer searches ${r[1]} (\`${r[0]}\`)`));
+});
+const baselineUnpublished = [...new Set(Object.values(CATALOG_SEARCH_FIELDS).flat().filter((r) => !r[2]).map((r) => r[1]))]
+  .filter((n) => !new RegExp(`\\b${n}\\b`, "i").test(searchBaselineSentence));
+ok(`docs/index.html: the shared baseline is published once and every panel really searches it ` +
+   `(${[...new Set(Object.values(CATALOG_SEARCH_FIELDS).flat().filter((r) => !r[2]).map((r) => r[1]))].join(" + ")})`,
+  !baselineMissing.length && !baselineUnpublished.length && !!searchBaselineSentence.trim(),
+  `${[...baselineMissing, ...baselineUnpublished.map((n) => `the opening sentence never names "${n}"`)].join("\n      ") || "(none)"}\n      ` +
+  `baseline sentence: ${searchBaselineSentence.trim() || "(none found)"}\n      ` +
+  "six panels searching the same two fields is a claim about all six — it belongs above the per-page clauses");
+
+// (c) every non-baseline field a panel searches, published in that page's own clause.
+const searchUnpublished = [];
+searchPanels.forEach((p) => {
+  const clause = searchClauseOf(p.page);
+  (CATALOG_SEARCH_FIELDS[p.sec] || []).filter((r) => r[2] && p.fields.includes(r[0]) && !r[2].test(clause))
+    .forEach((r) => searchUnpublished.push(`${p.page} searches ${r[1]} (\`${r[0]}\`) — its clause does not say so`));
+});
+ok(`docs/index.html: every field a panel adds to the baseline is published under that page ` +
+   `(${Object.values(CATALOG_SEARCH_FIELDS).flat().filter((r) => r[2]).length} field(s))`,
+  !searchUnpublished.length,
+  `${searchUnpublished.join("\n      ") || "(none)"}\n      ` +
+  `clauses: ${searchPanels.map((p) => `${p.page}: ${searchClauseOf(p.page) || "(no clause)"}`).join("\n      ")}\n      ` +
+  "a field nobody publishes is one a reader finds by accident, or never");
+
+// (d) the negative half, segmented by page: no clause may credit its page with a field
+//     that page does not search.
+const searchOverclaimed = [];
+// Compared by the field's own PROBE, not by its noun: Datasets searches its columns and
+// Dashboards falls back to the ones its charts are bound to, which are two rows with two
+// nouns and one published phrase — a page that really searches the field must not be
+// flagged for saying so.
+const searchVocab = Object.values(CATALOG_SEARCH_FIELDS).flat().filter((r) => r[2])
+  .filter((r, i, all) => all.findIndex((o) => o[2].source === r[2].source) === i)
+  .map((r) => ({ noun: r[1], re: r[2] }));
+searchPanels.forEach((p) => {
+  const clause = searchClauseOf(p.page), mine = CATALOG_SEARCH_FIELDS[p.sec] || [];
+  searchVocab.filter((v) => !mine.some((r) => r[2] && r[2].source === v.re.source && p.fields.includes(r[0])) && v.re.test(clause))
+    .forEach((v) => searchOverclaimed.push(`Help credits ${p.page} with ${v.noun} — that panel does not search it`));
+});
+ok("docs/index.html: no page's clause credits it with a field that page does not search",
+  !searchOverclaimed.length,
+  `${[...new Set(searchOverclaimed)].join("\n      ") || "(none)"}\n      ` +
+  "segmented by page — two panels searching the same field cannot cover for each other");
+
+// (e) the promise about secrets, held from both ends.
+const pwPanel = searchPanels.find((p) => p.sec === "connections") || {};
+const pwPublished = /never a password or token/i.test(searchClauseOf(CATALOG_PAGES.connections));
+ok("app/connections.js + docs/index.html: a password-typed setting stays out of the haystack, and Help still promises it",
+  !!pwPanel.dropsPasswords && pwPublished,
+  `carve-out in ${pwPanel.fn || "renderConnections"}: ${!!pwPanel.dropsPasswords} · published: ${pwPublished}\n      ` +
+  `Connections clause: ${searchClauseOf(CATALOG_PAGES.connections) || "(none)"}\n      ` +
+  "a stored token that matched a search could be confirmed by typing it — the code and the promise move together");
+
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

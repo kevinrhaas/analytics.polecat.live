@@ -1726,13 +1726,18 @@
   like: each one has to turn up <em>somewhere</em> on the item, in any order and across any field — so
   <code>crops 2024</code> finds a dataset named "Cover crops" filed in the "2024" folder, even though
   those two words never sit next to each other. Wrap words in <code>"double quotes"</code> when you do
-  mean the exact phrase. Case never matters. What counts as a field depends on the page — name, folder,
-  tags, description, owner, the query text and column names for Datasets; adapter and settings for
-  Connections (never a password or token); the source and output dataset for Jobs; and for Dashboards,
-  the title, description, folder and, as a fallback, the column names its charts are bound to (the
-  matching column is named right on the card). The <strong>Clear</strong> chip above the list means show
+  mean the exact phrase. Case never matters. The <strong>Clear</strong> chip above the list means show
   everything: it drops the facet pills <em>and</em> empties the search box, and it appears whenever
   either one is narrowing the list. Every catalog page has one, Dashboards included.</p>
+  <p><strong>What each page searches.</strong> Every page searches the item's name and its folder. On
+  top of that: <strong>Dashboards</strong> add the description and, as a fallback when nothing else
+  matches, the column names its charts are bound to (the matching column is named right on the card);
+  <strong>Views</strong> add the chart type; <strong>Datasets</strong> add the description, the owner,
+  its tags, its column names and the query text (or the table or collection it points at), plus the
+  name of the connection it reads; <strong>Connections</strong> add the adapter, its tags and the rest
+  of its settings — never a password or token; <strong>Jobs</strong> add the source dataset and the
+  output dataset; and the <strong>Repository</strong> adds the one-line summary each row shows under
+  its name.</p>
   <p><strong>…and every other search box too.</strong> The same rules run behind every search field in
   the app, not just the catalog pages: the builder's Data panel (your datasets and your own queries), the
   panel inspector's search, the chart-type gallery, the command palette (<kbd>⌘K</kbd>), the What's-new

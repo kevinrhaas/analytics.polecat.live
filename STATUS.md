@@ -135,6 +135,62 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — Help listed what a search looks at on four of the six pages that have one (v939, NO sw
+  bump, 2026-08-09, steward; dev branch; est 1pt, took 1):**
+  The candidate v938 named, and the check-51 move one control to the left — the search box sits
+  beside the sort menu on all six catalog pages. Help's Searching paragraph closed with a single
+  clause naming what a search LOOKS AT ("name, folder, tags, description, owner, the query text
+  and column names for Datasets; adapter and settings for Connections; the source and output
+  dataset for Jobs; and for Dashboards…"). Each panel declares that itself, as the field list
+  handed to `Studio.catalogSearch.matcher(q, fn)` inside its own render function — Dashboards
+  hands the same list to `catalogSearch.hay()` because its column fallback needs the unmatched
+  terms separately. Six declarations, one clause, never compared.
+  **The find is what the clause never mentioned.** **Views and the Repository were absent
+  entirely** — two of the six pages, and Views' haystack is `[a.name, vwChartLabel(a.chartType),
+  a.folder]`, so typing "choropleth" finds every map you have saved. A capability that useful,
+  published nowhere, is the shape this recurring item exists to catch. The Repository searches
+  each row's one-line summary (`r.meta` — the panel count, the adapter, the chart type, the step
+  count). **Datasets' list named seven fields and the panel searches eight**: `conn ? conn.name
+  : ""` is in the haystack, so a connection's name finds every dataset reading it, and it was
+  the one left out. **Connections' clause named the adapter and its settings but not its tags.**
+  **The sentence's SHAPE was the cause, which is why the fix is a rewrite rather than three
+  insertions.** All six panels search name + folder (measured, all six). The old clause published
+  those shared fields inside the Datasets item ("name, folder, tags, description, owner … for
+  Datasets"), so every other page's entry read as a complete list that happened to be shorter —
+  and a reader would conclude Views searches nothing but what the clause omitted to say. The
+  block is now two paragraphs: **Searching** (how terms behave, quotes, case, the Clear chip) and
+  **What each page searches** (the shared baseline once, then what each page ADDS, one clause per
+  page). Splitting it also gives the check a paragraph it can parse without straddling the
+  Clear-chip sentence, which names Dashboards for an unrelated reason.
+  **Doc-truth check 52** adds no new source of truth — the same six panels check 51 found, plus
+  each one's own haystack, read out of its own render function so the many other
+  `catalogSearch.matcher` calls in the same files (the builder's Data panel, Explore, the
+  activity log) cannot be mistaken for it: (a) the premise + roster — every panel declares a
+  haystack, every expression in it has a row in the vocabulary, no row is stale, and Help gives
+  each of the six one clause. **The vocabulary is keyed by the panel's own EXPRESSION**, so a
+  panel that starts searching a new field, or renames the one it searches, falls out of its row
+  and fails here rather than passing green while Help omits it; (b) the baseline both ways — all
+  six really search name + folder, and the paragraph publishes it once, before naming any page;
+  (c) every non-baseline field a panel searches appears in that page's own clause; (d) the
+  negative half, segmented by page, so Datasets' tags cannot cover for Connections' tags —
+  exactly how the missing one hid. It compares by the field's PROBE rather than its noun, so
+  Datasets' columns and Dashboards' bound-column fallback (two rows, two nouns, one published
+  phrase) don't flag each other; (e) **the promise about secrets, held from both ends** — the
+  password-typed carve-out in `connections.js` AND the sentence publishing it. A claim about
+  where a stored token can never turn up is the one claim that must not be able to go stale
+  quietly, and either half alone would let it.
+  **Verified.** On the real pre-fix tree 3 of 5 fail (a, b, c). Because the fix restructures the
+  paragraph, that measurement alone would mostly prove "the new paragraph is new", so the drift
+  itself was isolated separately: re-punctuating the OLD clause's own claims into the new shape,
+  (a) reports four pages named of six and (c) reports Datasets' connection name and Connections'
+  tags — the find, measured against the fix's own structure. (d) on a tree crediting Jobs with
+  the adapter; (e) in both directions (code carve-out removed → fails; Help's promise removed →
+  fails); (a)'s new-field direction on a tree where `views.js` starts searching `a.desc` ("Views
+  searches `a.desc` — nothing in the vocabulary says what to call it"). Then validate +
+  changelog-check + doc-truth + `tools/dev-smoke.mjs` at 390×780 and desktop, zero pageerrors.
+  No `sw.js` bump — `docs/index.html` is not precached (v937/v938 pattern).
+  **Est 1pt, took 1.** Every doc-only slice in this item so far has landed at 1pt; the estimate
+  is sound for "one paragraph, one derived check", and nothing here suggests revising it.
 - **N7 — Help promised that pinning an item floats it to the top of any list; three of the six
   lists do that (v938, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):**
   The check-49 move one paragraph over, and the first slice here to find a claim the page
@@ -13993,11 +14049,12 @@
     Doc-truth check 50 → 51: five rules over the six `wire()` call sites and each panel's own
     list sort, **3 measured failing on the real pre-fix tree**, the other two and every negative
     direction on mutated trees.
-    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the same
+    ~~**Measured in the same pass and NOT taken, so the next run does not re-derive it:** the same
     block's **Searching** paragraph names what each page searches and omits two of the six —
     Views and the Repository — while Datasets' list leaves out the connection name that
     `datasets.js` really searches. Same class, one paragraph over, its own source of truth (each
-    panel's `catalogSearch.matcher` haystack): a slice, not a rider. Also measured and found
+    panel's `catalogSearch.matcher` haystack): a slice, not a rider.~~ ✓ **SHIPPED v939, NO sw
+    bump (2026-08-09 — see DONE).** Also measured and found
     CURRENT: the **Layout** paragraph, against `Studio.catalogView.DEFAULT` and the six toggle
     wirings. The two v922 candidates are still open and still Kevin's calls.
     **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
@@ -14009,6 +14066,46 @@
     Also measured and found CURRENT: `site/chart-gallery.js` (check 1) needs no regeneration —
     nothing here touched the registry. The two v922 candidates are still open and still Kevin's
     calls.
+  * *Help's "what a search looks at" vs the six haystacks the panels declare — v939, NO sw bump
+    (2026-08-09 — see DONE).* The candidate v938 named, and the check-51 move one control to the
+    left. One clause of the **Searching** paragraph said what a search looks at, for FOUR of the
+    six catalog pages; each panel declares it itself, as the field list handed to
+    `Studio.catalogSearch.matcher(q, fn)` (Dashboards hands the same list to `catalogSearch.hay()`
+    because its column fallback needs the terms separately). **Views and the Repository were absent
+    entirely** — and Views searches the CHART TYPE, so "choropleth" finds every saved map, a
+    genuinely useful capability published nowhere. **Datasets' list of seven named seven and left
+    out the connection's name**, which `datasets.js` really searches, and **Connections' clause
+    named the adapter and settings but not its tags**. The old sentence's shape was the cause: it
+    published the fields all six panels share ("name, folder, tags … for Datasets") as if they
+    belonged to Datasets alone, which is why the rewrite states the shared baseline (name +
+    folder, true of all six — measured) ONCE and then what each page ADDS. The block is now two
+    paragraphs: how a search behaves, then what each page searches.
+    Doc-truth check 51 → 52: five rules over the six panels check 51 already found plus each
+    one's own haystack — the premise + roster (the vocabulary is keyed by the panel's own
+    EXPRESSION, so a new or renamed searchable field falls out of its row and fails loudly rather
+    than passing green while Help omits it), the baseline both ways, the per-page additions, the
+    negative half segmented by page, and the **secrets promise held from both ends** (the
+    password-typed carve-out in `connections.js` AND the sentence publishing it — a claim about
+    where a stored token can never appear must not be able to go stale quietly). Measured: on the
+    real pre-fix tree 3 of 5 fail; re-punctuating the OLD paragraph's own claims into the new
+    shape isolates the drift itself — (a) names four pages of six, (c) reports Datasets' connection
+    name and Connections' tags. (d), (e) both directions, and (a)'s new-field direction on mutated
+    trees.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    paragraph immediately below it — *"…and every other search box too"* — makes the same class of
+    claim about **twelve** non-catalog search boxes (the builder's Data panel, the panel
+    inspector, the chart gallery, ⌘K, What's-new, the folder picker, Explore, the View Builder's
+    two, auto-build, "add to dashboard", a connection's schema browser) plus a stated exception for
+    Help's own box. Its source of truth is a different set of files (`build.js`, `explore.js`,
+    `palette.js`, `studio.js`'s inner panes) and its rule is coverage of the call sites, not
+    fields: a slice, not a rider. **A second candidate, measured in the same pass:** the
+    **Filtering with pills** paragraph two below it enumerates the multi-select facets — "Datasets
+    by adapter, connection, type or tag; Connections by adapter or tag; Views by chart type;
+    Dashboards by workbook" — and all four are right against the `catalogFacets.tally` calls, but
+    the **Repository's type chips are named nowhere**, though they render the same `wb-chip` row
+    the Dashboards workbook chips do (`chipDefs` in `renderRepository`). Same omission class as
+    this slice, one paragraph further on, and a different source of truth again (the facet
+    declarations, not the haystacks).
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before
