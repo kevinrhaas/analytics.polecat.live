@@ -135,6 +135,62 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — Help described the number on a filter pill as the items you can see, and promised a pill
+  vanishes with its last one (v944, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):**
+  The candidate check 56 named as the one it was deliberately not taking — *"the pill COUNTS and the
+  disappear-when-empty rule in the same paragraph … are `tally()`/`prune()` behaviour and holding them
+  means evaluating the kit, check 55's idiom one kit over, which is its own slice."* So this is the
+  **third derivation over the same paragraph family**: check 53 holds the AXES (which page filters by
+  what), check 56 the FACES (the words on a pill), and **check 57 holds the NUMBER** — where it comes
+  from, what it counts, and when a pill carrying one goes away. Like check 55 it EVALUATES
+  `Studio.catalogFacets` and PROBES it rather than reading its comments; the one half the kit cannot
+  answer is the DENOMINATOR (a pill's number is whatever list the panel handed `tally()`), so that
+  half is derived from the six panels' own call sites against a roster of their raw list sources.
+  **Both of the paragraph's claims were published in a form a reader could act on and be wrong
+  about.** **(1) "each showing how many items it covers" never said WHICH items.** Every panel tallies
+  its RAW list — `F.tally(list, …)` runs before the search matcher and before every facet matcher, its
+  own strip's included — so the numbers do not move as you filter. Search a workspace down to two rows
+  and the pill above them still reads its full count; nothing on the page said so, and the natural
+  reading of the sentence is the opposite one, which turns a correct number into a bug report.
+  **(2) "A pill disappears as soon as its last item does" is FALSE on three strips.** `pills()` maps
+  `t.keys`, so a kit strip genuinely never prints a zero — but `folderStrip()` appends *Unfiled*
+  unconditionally, Dashboards' hand-rolled strip prints `wbCounts.byId[w.id] || 0` for every workbook
+  you have made (plus its own unconditional *Unfiled*), and the Repository prints `counts[t.key] || 0`
+  for all five of `REPO_TYPES` — so an empty workspace shows five zeros there, and an emptied workbook
+  keeps its pill, which is how you file something back into it. **(3) The reassurance built on that
+  promise is true for a DIFFERENT reason than the page gave:** what goes away is the SELECTION, not
+  the pill — `prune()` deletes a multi-select key whose count is gone, `pick()` falls back to `""`,
+  and the two hand-rolled strips guard their own scalars. A reader who believed the stated mechanism
+  would read those zeros as a bug. **(4)** The overlap was unpublished (an array-keyed facet counts a
+  row once per key, so a strip's numbers can sum past the list length), as was the fact that the
+  escape pills carry the whole list's count (`folderStrip`'s `total` argument, `{ all: …length }` on
+  both chip strips) rather than anything from the tally.
+  **Shipped:** the **Filtering with pills** paragraph loses the two claims it could not support, and
+  two new paragraphs carry them properly — **What the number on a pill counts** (the denominator, the
+  overlap, the escape pills) and **When a pill goes away** (the general rule, its three named
+  exceptions, and the filter-not-the-pill mechanism). Doc-truth check 57 holds all of it in seven
+  rules: the premise (the kit evaluable, all six panel bodies read — a rule that cannot measure must
+  fail rather than pass over nothing), the count on every renderer, the DENOMINATOR (each counted
+  thing must be a bare list variable declared from that page's own raw source, with the visible rows
+  coming from a later filter over it), the overlap, the escape pills' total, the zero rule from both
+  ends (with the hand-rolled strip roster held at two, so a fourth persisting strip lands here), and
+  the drop-the-selection mechanism.
+  **Verified: 6 of 6 rules measured FAILING against the page's old claims** (re-run with the old two
+  sentences moved verbatim under the new headings, so the measurement is of the CLAIMS, not of the
+  missing paragraphs; on the literal pre-fix tree the premise fails first because the paragraphs do
+  not exist), **and eleven code-side directions measured on mutated trees** — a tally re-pointed at
+  the search-filtered list, the Repository's hand-rolled tally re-pointed the same way, *All folders*
+  counting the tally instead of the whole list, the Repository filtering out its empty type pills,
+  each of the three selection guards removed, `folderStrip` dropping *Unfiled* at zero, the workbook
+  chips no longer printing their count, `tally()` no longer adding up, a multi-valued row counted only
+  under its first pill, and the kit renamed out of reach (the premise fails and the six probes
+  correctly do not run). **The first mutation is why the denominator rule captures an EXPRESSION
+  rather than an identifier:** its first shape matched `tally(\w+,` and a tally handed
+  `list.filter(dsxMatch)` simply did not match it — measured, not assumed, and the rule was rewritten
+  until the mutation failed it. Full dev gate green (validate + changelog-check + doc-truth +
+  dev-smoke at 390×780 and desktop, zero pageerrors). Docs-only + a tool: `docs/index.html` is not
+  precached (sw.js says so in its own header), so **no `sw.js` CACHE bump** — same reasoning as v942
+  and v943. **Est 1pt, took 1.**
 - **N7 — Help never said what a filter pill actually says, or which pill gets you back (v943, NO sw
   bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** The candidate check 53 named and
   deliberately did not take — *"each pill's own LABEL … thirteen pill labels against thirteen
@@ -14414,17 +14470,46 @@
     code-side directions measured on mutated trees (the sentinel renamed, a kind retired, a cited
     chart label renamed, a single-select pill taught to toggle, a Clear chip added to the
     Repository, a strip deleted, and the type strip taught to sort).
-    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the same
+    ~~**Measured in the same pass and NOT taken, so the next run does not re-derive it:** the same
     paragraph's other two claims — "each showing how many items it covers" and "a pill disappears
     as soon as its last item does". Both are true today (`tally()` supplies the counts;
     `prune()`/`pick()` drop a key whose last row went away), and holding them means EVALUATING
     `Studio.catalogFacets` and probing it — check 55's idiom one kit over, a third derivation
-    again, and its own slice. It is the strongest remaining candidate in this paragraph family.
+    again, and its own slice. It is the strongest remaining candidate in this paragraph family.~~
+    ✓ **SHIPPED v944, NO sw bump (2026-08-09 — see the v944 line below and DONE), and the
+    "both are true today" reading did not survive the probing: the counting claim never said which
+    list it counted, and the disappearing claim is false on three strips.**
     Also measured and
     **NOT N7's** (it is app copy, not docs): the Repository's empty-state sentence still says
     "dashboards, datasets, connections, **analyses** and jobs" — the internal noun LF57 renamed,
     in a precached file, so it belongs to whichever slice next touches `studio.js` for a real
     reason.
+  * *The NUMBER on a pill, and the pills that stay at zero — v944, NO sw bump (2026-08-09 — see
+    DONE).* The candidate check 56 named, and the third derivation over this paragraph family:
+    53 holds the axes, 56 the faces, 57 the number. Check 55's idiom one kit over —
+    `Studio.catalogFacets` is EVALUATED and probed — except for the denominator, which the kit
+    cannot answer (a pill's number is whatever list the panel handed `tally()`) and which is
+    therefore derived from the six panels' call sites. **Both claims were wrong in the way that
+    matters.** The counting claim never said WHICH items: every panel tallies its RAW list, before
+    the search box and before every pill including its own strip's, so a pill above two visible
+    rows can correctly read 40 — a number that looks like a bug with nothing on the page to
+    explain it. And "a pill disappears as soon as its last item does" is FALSE on three strips
+    (`folderStrip`'s unconditional *Unfiled*, Dashboards' `wbCounts.byId[w.id] || 0` workbook
+    pills plus their own *Unfiled*, and the Repository's five `counts[t.key] || 0` type pills, so
+    an empty workspace shows five zeros) — while the reassurance built on it survives for a
+    different reason: `prune()`/`pick()` and three hand-written guards drop the SELECTION, never
+    the pill. Two new paragraphs; the overlap (an array-keyed facet counts a row per key) and the
+    escape pills' whole-list total published for the first time. Check 57's seven rules, 6 of 6
+    measured failing against the old claims and eleven code-side directions on mutated trees — one
+    of which (a tally re-pointed at `list.filter(dsxMatch)`) walked straight through the rule's
+    first shape, which is why the denominator is captured as an EXPRESSION and not an identifier.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    *Which pills take more than one* paragraph's claim that ticking two pills of one facet shows
+    "anything matching either" — `matchMulti` really does OR within a facet while the facets AND
+    against each other, and the AND half is unpublished on a page that has now taught the reader
+    to expect the composition rules to be stated. Same probing idiom, one method down
+    (`matchMulti`/`matchOne` rather than `tally`), and its own slice — the strongest remaining
+    candidate in this family.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before

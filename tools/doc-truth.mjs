@@ -5560,6 +5560,265 @@ if (kitLive) {
     "REPO_TYPES' declaration order — neither is alphabetical, and the flat claim sent a reader hunting the wrong end of the strip");
 }
 
+/* ── 57. The NUMBER on a pill, and the pills that stay at zero ──────────────────────────
+   N7, and the slice check 56 named as the one it was deliberately not taking: "the pill
+   COUNTS and the disappear-when-empty rule in the same paragraph … are tally()/prune()
+   behaviour and holding them means evaluating the kit, check 55's idiom one kit over,
+   which is its own slice."
+
+   So this is the third derivation over the same paragraph family. Check 53 holds the AXES
+   (which page filters by what), check 56 the FACES (the words on a pill). This one holds
+   the NUMBER — where it comes from, what it counts, and when a pill carrying one goes
+   away — and like check 55 it EVALUATES `Studio.catalogFacets` and PROBES it rather than
+   reading its comments. The half the kit cannot answer is the DENOMINATOR (a pill's number
+   is whatever list the panel handed `tally()`), so that half is derived from the six
+   panels' own call sites against a roster of their raw list sources.
+
+   Measured 2026-08-09, before the fix. Both of the claims in that paragraph were published
+   in a form a reader could act on and be wrong about:
+   · **"each showing how many items it covers" never said WHICH items.** Every panel tallies
+     its RAW list — `F.tally(list, …)` runs before the search matcher and before every facet
+     matcher, its own strip's included — so the numbers do not move as you filter. Search a
+     workspace down to two rows and the pill above them still reads its full count. Nothing
+     on the page said so, and the natural reading of "how many items it covers" is the
+     opposite one, which turns a correct number into a bug report.
+   · **"A pill disappears as soon as its last item does" is false on three strips, and the
+     reassurance built on it was true for a different reason.** `pills()` maps `t.keys`, so
+     a kit strip really never prints a zero — but `folderStrip()` appends *Unfiled*
+     unconditionally, Dashboards' hand-rolled strip prints `wbCounts.byId[w.id] || 0` for
+     every workbook you have made plus its own unconditional *Unfiled*, and the Repository
+     prints `counts[t.key] || 0` for all five of `REPO_TYPES` — so an empty workspace shows
+     five zeros there, and an emptied workbook keeps its pill (which is how you file
+     something back into it). The sentence's promise — that a filter can never keep
+     narrowing from a chip you cannot see — holds anyway, because what gets dropped is the
+     SELECTION, not the pill: `prune()` deletes a multi-select key whose count is gone,
+     `pick()` falls back to "", and the two hand-rolled strips guard their own scalars.
+     A reader who believed the stated mechanism would take those zeros for a bug.
+   · The overlap was unpublished too: `tally()` counts a row once per key when `keyOf`
+     returns an ARRAY, so a two-tag dataset is counted under both tag pills and a strip's
+     numbers can sum past the list length.
+   · And the escape pills are counted differently — `folderStrip`'s *All folders* prints the
+     `total` argument (the whole list), not anything in the tally, as do the two *All* chips.
+
+   Seven rules, every kit-side one a probe that RUNS the kit:
+   (a) the premise — the kit is extractable and evaluable, all six panel bodies read, and
+       Help carries the paragraph plus both new ones (a rule that cannot measure must fail,
+       not pass over nothing);
+   (b) every pill prints a count, from all three renderers (the kit's `pill()` and the two
+       hand-rolled chip strips), and Help says so;
+   (c) the DENOMINATOR: every ident whose rows become a pill number is the panel's raw list
+       — matched against a per-panel roster of that source — its declaration is free of the
+       search matcher, and the panel's visible rows come from a LATER filter over that same
+       ident. This is the rule that fails if anyone re-points a tally at the filtered list,
+       and it is also the rule that makes the copy's "before the search box" measurable;
+   (d) the overlap, probed with an array-keyed facet, and published;
+   (e) the escape pills carry the whole list's count — probed on `folderStrip`, derived from
+       `{ all: <list>.length }` on the two chip strips;
+   (f) the zero rule from BOTH ends: a kit strip never prints a zero (probed, including the
+       vanishing pill), the three strips that do persist at zero are each derived from their
+       own source, and Help names exactly those three. The roster of hand-rolled strips is
+       held at two, so a fourth persisting strip lands here rather than passing green;
+   (g) the mechanism behind the reassurance: `prune()`, `pick()` and the three hand-written
+       guards drop the SELECTION, and Help says the filter is dropped rather than the pill.
+   Deliberately NOT held: the adapter dot, the pill faces (check 56) and the axes (check 53);
+   and `tally`'s `unfiled` bucket never becoming a pill of its own, which is `folderStrip`'s
+   *Unfiled* by another name and already held by (f). */
+{
+  // The source of truth, evaluated rather than regexed: Studio.catalogFacets as the app
+  // runs it. `esc` is the app's own escaper, supplied as identity — these rules probe the
+  // markup for its NUMBERS; check 56 owns the faces.
+  const fkKit = (() => {
+    const src = read("app/studio.js");
+    const at = src.indexOf("Studio.catalogFacets = {");
+    if (at < 0) return null;
+    const block = searchBlockAt(src, src.indexOf("{", at), "{", "}");
+    try {
+      const Studio = {};
+      // eslint-disable-next-line no-new-func
+      new Function("Studio", "esc", "Studio.catalogFacets = " + block + ";")(Studio, (s) => String(s));
+      const F = Studio.catalogFacets;
+      return ["tally", "prune", "pick", "pill", "pills", "folderStrip"].every((k) => typeof F[k] === "function") ? F : null;
+    } catch { return null; }
+  })();
+  const fkStudio = read("app/studio.js");
+  const fkBody = (file, fn) => {
+    const src = read(file);
+    const at = src.indexOf("function " + fn + "(");
+    return at < 0 ? "" : searchBlockAt(src, src.indexOf("{", at), "{", "}");
+  };
+  // A whole `var x = …;` statement — the list declarations end in a `.sort(function () { … })`
+  // whose body carries `;` of its own, so this walks to the semicolon at depth 0.
+  const fkStmt = (src, at) => {
+    let d = 0;
+    for (let i = at; i < src.length; i++) {
+      const c = src[i];
+      if ("([{".includes(c)) d++;
+      else if (")]}".includes(c)) d--;
+      else if (c === ";" && d === 0) return src.slice(at, i + 1);
+    }
+    return src.slice(at);
+  };
+  const fkNums = (html) => [...String(html).matchAll(/wb-chip-n">(\d+)</g)].map((m) => Number(m[1]));
+  const fkLabels = (html) => [...String(html).matchAll(/wb-chip-label">([^<]*)</g)].map((m) => m[1]);
+
+  const fkPanels = facetPanels.map((p) => ({ ...p, body: fkBody(p.file, p.fn) }));
+  const fkChipStrips = ["renderDashboards", "renderRepository"].map((fn) => ({ fn, body: fkBody("app/studio.js", fn) }));
+  const fkPara = (lead) => htmlText((help.match(new RegExp(`<p><strong>${lead}\\.<\\/strong>[\\s\\S]*?<\\/p>`)) || [""])[0])
+    .replace(/\s+/g, " ").trim();
+  const fkPills = fkPara("Filtering with pills");
+  const fkCountPara = fkPara("What the number on a pill counts");
+  const fkGonePara = fkPara("When a pill goes away");
+
+  // (a) the premise. Everything below dereferences fkKit or a panel body.
+  const fkNoBody = fkPanels.filter((p) => !p.body).map((p) => p.fn)
+    .concat(fkChipStrips.filter((c) => !c.body).map((c) => c.fn));
+  const fkLive = ok(`app/studio.js + docs/index.html: Studio.catalogFacets is evaluable, all ${fkPanels.length} panel bodies read, ` +
+     "and Help carries the three pill paragraphs — the premise the rules below measure against",
+    !!fkKit && !fkNoBody.length && fkPanels.length === Object.keys(CATALOG_PAGES).length &&
+      !!fkPills && !!fkCountPara && !!fkGonePara,
+    `kit evaluated: ${!!fkKit} · bodies unread: ${fkNoBody.join(", ") || "(none)"}\n      ` +
+    `paragraphs found — filtering: ${!!fkPills}, counts: ${!!fkCountPara}, disappearing: ${!!fkGonePara}\n      ` +
+    "these rules PROBE the kit; if it cannot be run they must fail rather than pass over nothing");
+
+  if (fkLive) {
+    // (b) every pill prints a count — the kit's one renderer plus the two hand-rolled strips.
+    const fkOne = fkKit.pill({ attr: "data-x", value: "k", label: "L", n: 7 });
+    const fkChipPrints = fkChipStrips.filter((c) => /wb-chip-n">' \+ c\.n \+ '/.test(c.body)).map((c) => c.fn);
+    const fkCountPublished = /count beside its label/i.test(fkPills) && /every pill has one/i.test(fkCountPara);
+    ok(`docs/index.html: every pill carries a count — the kit's pill() and both hand-rolled strips print one (${fkChipPrints.length} of ${fkChipStrips.length})`,
+      String(fkNums(fkOne)) === "7" && fkChipPrints.length === fkChipStrips.length && fkCountPublished,
+      `kit pill({n:7}) prints: ${fkNums(fkOne).join(", ") || "(no number)"} · chip strips printing c.n: ${fkChipPrints.join(", ") || "(none)"}\n      ` +
+      `published: ${fkCountPublished}\n      ` +
+      "the number is the first thing a reader trusts on a strip; a pill that stopped carrying one would make the paragraph fiction");
+
+    // (c) the denominator: a pill's number is counted over the panel's RAW list, before the
+    //     search box and before every facet matcher. The roster names each panel's own list
+    //     source, so re-pointing a tally at a filtered list fails here rather than silently
+    //     changing what the published number means.
+    const FK_RAW = {
+      dashboards: /loadRecents\(\)/, views: /Studio\.Workspace\.all\("analyses"\)/,
+      datasets: /Studio\.Workspace\.all\("datasets"\)/, connections: /Studio\.Workspace\.all\("connections"\)/,
+      jobs: /Studio\.Workspace\.all\("jobs"\)/, repository: /repoAllRows\(\)/,
+    };
+    // Each site is captured as the EXPRESSION it counts, not as an identifier: a tally
+    // handed `list.filter(dsxMatch)` must land here as a violation, and a pattern that only
+    // matched bare idents would simply not see it (measured — that was this rule's first
+    // shape, and the mutation walked straight through it).
+    const fkCountSites = (body) => {
+      const out = [];
+      for (const m of body.matchAll(/(?:F|Studio\.catalogFacets)\.tally\(\s*([^,]*?)\s*,/g))
+        out.push({ what: "tally", expr: m[1] });
+      for (const m of body.matchAll(/folderStrip\(\s*[^,]*,\s*[^,]*,\s*"[\w-]+",\s*([^,)]*)/g))
+        out.push({ what: "the folder strip's total", expr: m[1].trim(), counted: true });
+      for (const m of body.matchAll(/var (?:wbCounts|counts) = \{ all: ([^,}]*)/g))
+        out.push({ what: "the chip strip's All", expr: m[1].trim(), counted: true });
+      // …and the loop that fills the rest of that map, which is the hand-rolled tally.
+      for (const m of body.matchAll(/var (?:wbCounts|counts) = \{[^}]*\};\s*([^;]*?)\.forEach\(/g))
+        out.push({ what: "the chip strip's own tally", expr: m[1].trim() });
+      return out;
+    };
+    const fkDenomWrong = [];
+    fkPanels.forEach((p) => {
+      const sites = fkCountSites(p.body);
+      if (!sites.length) { fkDenomWrong.push(`${p.page}: nothing on this page turns rows into a pill count any more`); return; }
+      if (!/Studio\.catalogSearch\.(matcher|terms)\(q/.test(p.body))
+        fkDenomWrong.push(`${p.page}: no search box behind this list — "before the search box" would be a claim about nothing`);
+      sites.forEach((s) => {
+        // The whole point of the rule: the counted thing is a plain list variable, never an
+        // expression that could narrow it on the way in.
+        const bare = s.counted ? /^(\w+)\.length$/.exec(s.expr) : /^(\w+)$/.exec(s.expr);
+        if (!bare) {
+          fkDenomWrong.push(`${p.page}: ${s.what} counts \`${s.expr}\` — an expression, not the page's own list, so its pills would move as you filter`);
+          return;
+        }
+        const id = bare[1];
+        const decl = fkStmt(p.body, p.body.search(new RegExp(`\\bvar ${id} = `)));
+        if (!FK_RAW[p.sec].test(decl))
+          fkDenomWrong.push(`${p.page}: the counted list \`${id}\` is no longer the page's raw list (expected ${FK_RAW[p.sec]})`);
+        if (/catalogSearch\.(matcher|terms)\(|Match\(/.test(decl))
+          fkDenomWrong.push(`${p.page}: \`${id}\` is filtered before it is counted — the published numbers would move as you type`);
+        if (!new RegExp(`\\b${id}\\.filter\\(`).test(p.body))
+          fkDenomWrong.push(`${p.page}: the visible rows no longer come from a later filter over \`${id}\``);
+      });
+    });
+    const fkDenomPublished = /before the search box/i.test(fkCountPara) && /every other pill/i.test(fkCountPara) &&
+      /never moves as you filter/i.test(fkCountPara);
+    ok(`app/ + docs/index.html: every pill's number is counted over its page's raw list, before the search box and every pill (${fkPanels.length} panels)`,
+      !fkDenomWrong.length && fkDenomPublished,
+      `${fkDenomWrong.join("\n      ") || "(every counted list is the raw one)"}\n      ` +
+      `published: ${fkDenomPublished}\n      ` +
+      `counted lists: ${fkPanels.map((p) => `${p.page} [${fkCountSites(p.body).map((s) => s.expr).join(", ")}]`).join(" · ")}\n      ` +
+      "a pill reading 40 above two visible rows is correct and looks broken — the page has to say which list it counts");
+
+    // (d) the overlap: keyOf may return an array, so one row lands under several pills.
+    const fkTags = fkKit.tally([{ t: ["finance", "eu"] }, { t: ["finance"] }], (r) => r.t);
+    const fkOverlaps = fkTags.counts.finance === 2 && fkTags.counts.eu === 1 &&
+      Object.values(fkTags.counts).reduce((a, b) => a + b, 0) > 2;
+    const fkOverlapPublished = /add up to more than the list/i.test(fkCountPara) && /#finance/.test(fkCountPara);
+    ok("docs/index.html: a multi-valued facet counts a row under every pill it matches, and Help says the numbers can out-total the list",
+      fkOverlaps && fkOverlapPublished,
+      `measured — two rows, three pill counts: ${JSON.stringify(fkTags.counts)} · published: ${fkOverlapPublished}\n      ` +
+      "tally() adds 1 per key when keyOf returns an array, so a two-tag dataset is under both pills");
+
+    // (e) the escape pills count the whole list — folderStrip prints its `total` argument,
+    //     and both chip strips open on `{ all: <the raw list>.length }`.
+    const fkFolder = fkKit.folderStrip(fkKit.tally([{ f: "A" }, { f: "A" }], (r) => r.f), "", "data-x", 40, {});
+    const fkFolderNums = fkNums(fkFolder);
+    const fkAllChips = fkChipStrips.filter((c) => /var chipDefs = \[\{ id: "", name: "All", n: (?:wbCounts|counts)\.all \}\]/.test(c.body)).map((c) => c.fn);
+    const fkTotalPublished = /whole list's count/i.test(fkCountPara) && /All folders/i.test(fkCountPara);
+    ok(`docs/index.html: the pills that mean everything carry the whole list's count, not a tallied one (folderStrip + ${fkAllChips.length} chip strip(s))`,
+      fkFolderNums[0] === 40 && fkFolderNums.slice(1).reduce((a, b) => a + b, 0) === 2 &&
+        fkAllChips.length === fkChipStrips.length && fkTotalPublished,
+      `measured — folderStrip(total 40) over 2 filed rows prints: ${fkFolderNums.join(", ")}\n      ` +
+      `chip strips opening on the raw total: ${fkAllChips.join(", ") || "(none)"} · published: ${fkTotalPublished}\n      ` +
+      "All folders takes `total`, the unfiltered row count, so it is the one pill whose number is not from the tally");
+
+    // (f) the zero rule, from both ends: a kit strip cannot print a zero, three strips
+    //     deliberately can, and Help names exactly those three.
+    const fkTwo = fkKit.pills(fkKit.tally([{ k: "a" }, { k: "b" }], (r) => r.k), {}, "data-x", {});
+    const fkGoneOne = fkKit.pills(fkKit.tally([{ k: "a" }], (r) => r.k), {}, "data-x", {});
+    const fkKitNeverZero = fkNums(fkTwo).length === 2 && fkLabels(fkGoneOne).join() === "a" &&
+      !fkNums(fkTwo).includes(0) && !fkNums(fkGoneOne).includes(0);
+    const fkFilledOnly = fkKit.folderStrip(fkKit.tally([{ f: "A" }], (r) => r.f), "", "data-x", 1, {});
+    const fkUnfiledStays = fkLabels(fkFilledOnly).includes("Unfiled") &&
+      fkNums(fkFilledOnly)[fkLabels(fkFilledOnly).indexOf("Unfiled")] === 0;
+    const fkDashBody = fkChipStrips[0].body, fkRepoBody = fkChipStrips[1].body;
+    const fkWorkbookStays = /n: wbCounts\.byId\[w\.id\] \|\| 0/.test(fkDashBody) &&
+      /\.concat\(\[\{ id: "__unfiled", name: "Unfiled", n: wbCounts\.unfiled \}\]\)/.test(fkDashBody);
+    const fkRepoTypes = [...fkStmt(fkStudio, fkStudio.indexOf("var REPO_TYPES = [")).matchAll(/label: "([^"]+)"/g)].map((m) => m[1]);
+    const fkRepoStays = /\.concat\(REPO_TYPES\.map\(function \(t\) \{ return \{ id: t\.key, name: t\.label, n: counts\[t\.key\] \|\| 0 \}/.test(fkRepoBody);
+    const fkHandRolled = [...fkStudio.matchAll(/var chipDefs = \[/g)].length;
+    const fkZeroPublished = /never reads zero/i.test(fkGonePara) && /Unfiled/.test(fkGonePara) &&
+      /workbook/i.test(fkGonePara) && /all five type pills/i.test(fkGonePara) && /Folders/.test(fkGonePara);
+    ok(`docs/index.html: a shared pill strip never prints a zero, the ${fkHandRolled + 1} strips that keep an empty pill are named, and Help says which`,
+      fkKitNeverZero && fkUnfiledStays && fkWorkbookStays && fkRepoStays && fkRepoTypes.length === 5 &&
+        fkHandRolled === 2 && fkZeroPublished,
+      `measured — kit strip drops a key with no rows: ${fkKitNeverZero} · folderStrip keeps Unfiled at 0: ${fkUnfiledStays}\n      ` +
+      `workbook pill kept at 0: ${fkWorkbookStays} · all ${fkRepoTypes.length} Repository type pills kept: ${fkRepoStays} · ` +
+      `hand-rolled strips: ${fkHandRolled}\n      ` +
+      `published: ${fkZeroPublished}\n      ` +
+      "pills() maps t.keys, so a kit pill cannot read 0 — the three that can are each a deliberate affordance, and an unexplained zero reads as a bug");
+
+    // (g) what actually protects the reader: the SELECTION is dropped, never the pill.
+    const fkPruned = { a: true, b: true };
+    fkKit.prune(fkPruned, fkKit.tally([{ k: "a" }], (r) => r.k));
+    const fkTally = fkKit.tally([{ k: "live" }], (r) => r.k);
+    const fkPicks = fkKit.pick("gone", fkTally) === "" && fkKit.pick("live", fkTally) === "live" &&
+      fkKit.pick("", fkTally) === "" && fkKit.pick(fkKit.UNFILED, fkTally) === fkKit.UNFILED;
+    const fkGuards = [
+      /if \(_repoWbFilter === "__packs" && !packCount\) _repoWbFilter = "";/.test(fkDashBody),
+      /&& !validWbIds\[_repoWbFilter\]\) _repoWbFilter = "";/.test(fkDashBody),
+      /if \(_repoAllType && !counts\[_repoAllType\]\) _repoAllType = "";/.test(fkRepoBody),
+    ];
+    const fkDropPublished = /drops that filter for you/i.test(fkGonePara);
+    ok(`docs/index.html: a filter whose last item went away is dropped for you — prune(), pick() and the ${fkGuards.length} hand-written guards, and Help says so`,
+      String(Object.keys(fkPruned)) === "a" && fkPicks && fkGuards.every(Boolean) && fkDropPublished,
+      `measured — prune kept: ${Object.keys(fkPruned).join(", ") || "(nothing)"} · pick() falls back and keeps "" / __unfiled: ${fkPicks}\n      ` +
+      `hand-written guards present: ${fkGuards.map((g, i) => `${i + 1}:${g}`).join(" ")} · published: ${fkDropPublished}\n      ` +
+      "this, not the pill vanishing, is what makes the reassurance true on the three strips that keep an empty pill");
+  }
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
