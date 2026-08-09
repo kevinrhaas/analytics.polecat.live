@@ -3651,6 +3651,104 @@ ok(`SPEC.md: the colour tokens are exactly Studio.COLOR_TOKENS (${M.COLOR_TOKENS
   `on the page, not in the registry: ${strayTokens.join(", ") || "(none)"}\n      ` +
   "the page wrote `--c1`…`--c10` and hid eight real tokens inside the ellipsis");
 
+/* ── 46. the RLS runbook + the posture scripts' own headers vs the POSTURES table ──
+   Check 42's move, three surfaces over, and it needs no new source of truth: rule (e)
+   there already derives the posture list from `tests/rls.mjs`'s own POSTURES table
+   (`postureSources` / `postureArtifacts` above) and holds CLAUDE.md and rls-dev.yml's
+   header to it. The three documents that describe those postures at LENGTH answered to
+   nothing — including the two SCRIPTS' own headers, so the file that owns the table was
+   miscounting the table.
+
+   Measured on the pre-fix tree: `tools/M7-RLS-GOLIVE-RUNBOOK.md` said `rls.mjs` "installs
+   both posture files" and "runs the SAME 27 checks it runs against the two `/tools`
+   files"; `tests/rls.mjs` said "ALL THREE shipped postures" (and "The three shipped
+   postures" again, directly above the seven-entry table); `tests/rls-verify.mjs`, whose
+   whole header exists to stop the two scripts being confused, said "the three shipped
+   postures". The table has grown four times since anyone read those sentences.
+
+   The runbook is the highest-stakes of the three for the PUBLISH.md reason: an operator
+   EXECUTES it against a live security posture. So it also has to name both scripts —
+   `rls-verify.mjs`, the answer to "is this database secure right now?", appeared nowhere
+   in the runbook whose § A4 asks exactly that question by hand, and the open ⛔ N29 is
+   precisely the gap between the two answers.
+
+   Five rules. (a) each surface states the count at least once; (b) EVERY count any of
+   them states is the derived one (both directions — a surface may not under- or
+   over-count); (c) the runbook names all the artifacts under test; (d) the runbook names
+   both posture scripts; (e) the negative half — every repo file the runbook points an
+   operator at exists. */
+const rlsRunbookPath = "tools/M7-RLS-GOLIVE-RUNBOOK.md";
+const rlsRunbook = read(rlsRunbookPath);
+// A script's HEADER is its leading comment block — everything before the first import.
+// Scoped that way so a sentence inside the file's body (which may legitimately talk about
+// one posture) can neither satisfy nor fail a rule about the roster.
+const headerOf = (p) => { const s = read(p); const i = s.indexOf("\nimport "); return i < 0 ? s : s.slice(0, i); };
+const POSTURE_COUNT_RE = /\b([A-Za-z]+|\d+) shipped postures\b/g;
+const postureCountWord = NUMBER_WORD[postureSources.length] || String(postureSources.length);
+const postureSurfaces = [
+  { path: rlsRunbookPath, text: rlsRunbook },
+  { path: "tests/rls.mjs", text: headerOf("tests/rls.mjs") },
+  { path: "tests/rls-verify.mjs", text: headerOf("tests/rls-verify.mjs") },
+];
+for (const s of postureSurfaces) s.counts = [...s.text.matchAll(POSTURE_COUNT_RE)].map((m) => m[1].toLowerCase());
+ok(`the three posture surfaces parsed for check 46 are non-empty (${
+    postureSurfaces.map((s) => `${path.basename(s.path)}: ${s.text.split("\n").length} line(s)`).join(", ")})`,
+  postureSurfaces.every((s) => s.text.trim().length > 200),
+  "one of the runbook or the two script headers could not be read — the rules below would pass vacuously");
+
+// (a) each surface makes the claim. A document that describes the posture roster and never
+//     counts it is not "safe", it is unfalsifiable — check 40's count-word rule, three
+//     documents over.
+const noCount = postureSurfaces.filter((s) => !s.counts.length);
+ok(`the runbook and both posture scripts each state how many postures tests/rls.mjs applies`,
+  !noCount.length,
+  `states no count: ${noCount.map((s) => s.path).join(", ")}\n      ` +
+  "the phrase the rule looks for is \"<n> shipped postures\"");
+
+// (b) and every count they state is the real one, in BOTH directions — this is the rule
+//     that was failing on all three surfaces.
+const wrongCount = postureSurfaces.flatMap((s) =>
+  s.counts.filter((c) => c !== postureCountWord && c !== String(postureSources.length))
+    .map((c) => `${s.path} says "${c}"`));
+ok(`every posture count published across those three surfaces is "${postureCountWord}" (${
+    postureSources.length}, per the POSTURES table)`,
+  !wrongCount.length,
+  `${wrongCount.join("; ") || "(none)"}\n      ` +
+  `the table applies ${postureSources.length} postures across ${postureArtifacts.length} artifacts: ${
+    postureArtifacts.join(", ")}\n      ` +
+  "rls.mjs's own header said THREE while the table below it listed seven");
+
+// (c) the runbook names every artifact under test. An operator reading it is deciding what
+//     to paste; an artifact rls.mjs proves and the runbook never mentions is one the
+//     operator does not know is proven. Same derivation check 42 holds CLAUDE.md to.
+const runbookMissingArtifacts = postureArtifacts.filter((a) => !rlsRunbook.includes(path.basename(a)));
+ok(`${rlsRunbookPath}: names all ${postureArtifacts.length} artifacts tests/rls.mjs applies`,
+  !runbookMissingArtifacts.length,
+  `under test, unnamed in the runbook: ${runbookMissingArtifacts.join(", ") || "(none)"}\n      ` +
+  "app/sources/schema.js was the missing one — the connect wizard's generated script and the " +
+  "migration RPC are both proven by the same battery, and the runbook said neither");
+
+// (d) check 42's "name both scripts" rule, one document over — and it matters more here,
+//     because § A4 asks rls-verify.mjs's question in the SQL editor by hand.
+const runbookMissingTests = postureTests.filter((t) => !rlsRunbook.includes(path.basename(t)));
+ok(`${rlsRunbookPath}: names both posture scripts (${postureTests.length})`,
+  !runbookMissingTests.length,
+  `in tests/, unnamed in the runbook: ${runbookMissingTests.join(", ")}\n      ` +
+  "§ A4 verifies by hand what tests/rls-verify.mjs verifies from outside the database — and " +
+  "N29 is exactly the case where only the second one could have seen the leak");
+
+// (e) the negative half, and the PUBLISH.md failure mode: a runbook is EXECUTED, so a file
+//     it names that is not there costs an operator a debugging session mid-go-live. Every
+//     backticked repo path is resolved. Scoped by shape (a known source dir + a real
+//     extension) so prose in backticks and SQL identifiers cannot be mistaken for paths.
+const runbookPaths = [...new Set([...rlsRunbook.matchAll(/`((?:tools|tests|app|supabase|\.github)\/[\w./-]+\.(?:sql|mjs|js|ts|yml))`/g)]
+  .map((m) => m[1]))];
+const runbookDangling = runbookPaths.filter((p) => !fs.existsSync(path.join(ROOT, p)));
+ok(`${rlsRunbookPath}: every repo file it points an operator at exists (${runbookPaths.length} path(s))`,
+  runbookPaths.length >= 4 && !runbookDangling.length,
+  `named in the runbook, absent from the tree: ${runbookDangling.join(", ") || "(none)"}\n      ` +
+  `paths found: ${runbookPaths.join(", ") || "(none — the extractor matched nothing)"}`);
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

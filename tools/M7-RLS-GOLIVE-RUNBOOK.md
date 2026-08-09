@@ -14,9 +14,27 @@ designed + proven against an isolated `steward_test` schema).
 
 - **Who runs it:** an admin with Supabase dashboard (SQL editor) access. The
   autonomous lane cannot and will not run this — it changes live production
-  security posture. What the lane CAN do, and does: `node tests/rls.mjs` installs
-  both posture files into throwaway `steward_test_rls_*` schemas and asserts the
-  refusals below automatically, so the SQL is proven before anyone pastes it.
+  security posture. What the lane CAN do, and does, is run the repo's **two**
+  posture checks, which ask different questions and where neither answer implies
+  the other:
+  - `node tests/rls.mjs` — *do our SQL FILES produce a secure database?* It
+    installs **all seven shipped postures**, drawn from five artifacts
+    (`tools/supabase-rls-real.sql`, `tools/supabase-deploy.sql`,
+    `tools/supabase-bootstrap.sql`, the Edge Function's inlined SQL in
+    `supabase/functions/polecat-admin/sql.ts`, and the in-app generators
+    `WS.freshDeploySQL()` / `WS.migrationRpcSQL()` in `app/sources/schema.js`),
+    into throwaway `steward_test_rls_*` schemas and asserts the refusals below
+    automatically — so the SQL is proven before anyone pastes it. It does DDL, so
+    it needs the database password; it is pointed at the **dev** project
+    (`rls-dev.yml`), never production.
+  - `node tests/rls-verify.mjs` — *is THIS live database secure right now?*
+    Read-only anonymous GETs with nothing but the publishable key, which is what
+    makes it safe to aim at production (`rls-verify.yml`). This is the automated
+    form of § A4 below.
+  Run BOTH. On 2026-08-08 `rls.mjs` was green in the same hour `rls-verify.mjs`
+  found the dev project handing every `dashboards` and `datasets` row to an
+  anonymous caller (STATUS.md **N29**): the files were sound, and the live
+  database had never been built from them. A file test cannot see that.
 - **Rollback:** one command, instant (see the end).
 
 > Do every step in the **Supabase SQL editor**. Paste back only the
@@ -59,7 +77,7 @@ Three paths:
    /var/tmp/sb-compile-edge-runtime/…/bootstrap.sql`. Keep `sql.ts` in sync with
    the canonical annotated versions in `/tools` — `tests/rls.mjs` now enforces
    that: it installs `BOOTSTRAP_DDL` + `RLS_REAL_SQL` into a throwaway schema and
-   runs the SAME 27 checks it runs against the two `/tools` files, so a drift
+   runs the SAME checks it runs against every other shipped posture, so a drift
    goes red instead of shipping. It had drifted once (N2 slice 2, 2026-08-07):
    the inlined copy was missing the admin arm, the explicit `TO authenticated`,
    the `users` email-claim arm, the `polecat_meta` policy and the legacy-policy
@@ -153,6 +171,14 @@ and run it. It drops the allow-all policies, creates the per-user
 the `polecat_is_admin()` helper, and reloads PostgREST. Idempotent.
 
 ### A4 — Verify
+
+**Do this first, and from outside the database:** `node tests/rls-verify.mjs`
+(or dispatch `rls-verify.yml`, picking `target: dev` or `prod`) asks exactly what
+(a) asks, but through the door an attacker actually uses — PostgREST with the
+publishable key — so it also catches a table left reachable by a GRANT the
+policies were meant to neutralise. It needs no database password and writes
+nothing. The SQL blocks below stay the in-editor form, and (b)–(d) test things an
+anonymous caller cannot see at all.
 
 **(a) Anonymous sees public rows only (and no private leak):**
 

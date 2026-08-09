@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 933,
+    title: 'The go-live runbook counted three security postures where the tests prove seven',
+    kind: 'fix',
+    ts: '2026-08-09T13:53:56.000Z',
+    items: [
+      'The runbook an administrator follows to switch this app\'s database from its open demo setting to real per-user security is the one document here whose instructions are executed against a live system. Nothing had ever read it against the checks it describes. It said the automated proof covers "both posture files" and runs "27 checks against the two files" — the suite has covered seven separate ways this app can set up a database, drawn from five places, for weeks.',
+      'The two checking scripts miscounted themselves the same way. The one that owns the list said "all three" directly above its own table of seven, and the one whose whole job is to keep the two apart repeated the number. Every count now matches the table, and the runbook names all five of the places a database posture can come from — including the two the app itself generates, the connect wizard\'s script and the in-app upgrade, which were proven by the same battery and mentioned nowhere.',
+      'The runbook also never named the second check at all: the read-only one that asks whether a live database is safe right now, rather than whether our files would make it safe. Its verify step told an administrator to paste four queries into the SQL editor when one command answers the first of them from outside the database, needing no password, through the same door an anonymous visitor uses. That command is now the first thing the verify step says, with a note on what the remaining queries add.',
+      'Why the distinction is worth a paragraph rather than a footnote: on 8 August the file check passed in the same hour the live check found the development database handing every dashboard and dataset row to an anonymous caller. The files were sound and the database had never been built from them. Neither check can see what the other sees, so the runbook now tells you to run both.',
+      'The dev gate now derives all of it from the test\'s own table of postures — every count the runbook and both scripts publish, the list of artifacts under test, and that the runbook names both checks. It also refuses a runbook that points an administrator at a repo file that is not there.',
+    ],
+  },
+  {
     v: 932,
     title: 'The document that defines a dashboard file described a product we replaced',
     kind: 'fix',
