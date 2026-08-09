@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 916,
+    title: 'The home page no longer calls a built-in map a geography you have to supply',
+    kind: 'polish',
+    ts: '2026-08-09T06:17:02.000Z',
+    items: [
+      'The carousel at the top of analytics.polecat.live is the first thing a visitor reads, and two of its slides described the maps. Between them they named three of the six region scales the app ships — and then introduced one of the other three, the HUC8 watershed map, as "bring your own boundaries". It is not: watersheds are a choice in the Region scale menu, one click away, with the boundaries already in the app.',
+      'So the same two sentences undersold the app twice. A visitor who cared about watersheds, congressional districts or ZIP codes was told the first was theirs to source and never heard about the other two, while the feature that genuinely IS yours to supply — import a two-column CSV of county FIPS and region name and the map draws your own territories — was not mentioned in the carousel at all.',
+      'Both slides now say what is true. One counts the built-in scales and names all six: states, counties, USDA crop districts, HUC8 watersheds, congressional districts and ZIP codes. The other keeps the watershed screenshot, says it is one of the six, and then introduces the CSV import as the separate thing it is. The image captions read by screen readers were corrected the same way.',
+      'Nothing about the maps themselves changed — this was the description catching up with the app.',
+      'The dev gate now measures this rather than trusting it: the number of scales the page claims, and the list below the fold, are both read off the map chart\'s own Region scale menu, and a build fails if a scale that ships is ever again described as one you have to bring. A seventh scale cannot arrive unmentioned.',
+    ],
+  },
+  {
     v: 915,
     title: 'Help now explains the buttons on a Datasets, Connections or Jobs row',
     kind: 'polish',

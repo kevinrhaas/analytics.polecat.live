@@ -135,6 +135,36 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 slice — the marketing hero's MAP captions vs the scales the app ships (v916, NO sw bump,
+  2026-08-09, steward; dev branch; est 1pt, took 1):** the last unaudited candidate on the N7 list
+  that fits one run — its textual half. The carousel is the first copy a visitor reads, and it had
+  drifted further than any surface audited so far. **Measured against `Studio.CHARTS.choropleth`'s
+  own `scale` opt (`app/model.js` — county, state, crd, huc8, cd, zcta, custom):** slide 3 said
+  "state, county and USDA-district scales built in" — three of six, with watersheds, congressional
+  districts and ZIP codes unmentioned — and slide 4 then introduced one of the three it had
+  omitted as *"bring your own boundaries, like these USGS HUC8 watersheds"*, with the `alt` text
+  calling the same screenshot "a custom geography". HUC8 is a shipped choice in the Region-scale
+  select. So the two slides undersold the app in both directions at once: a built-in scale was
+  described as the reader's to source, and the feature that IS user-supplied (the `customMap`
+  county-FIPS→region CSV sitting beside `scale`) went unnamed in the carousel entirely.
+  **Fixed:** slide 3 counts the built-in scales and names all six; slide 4 keeps the watershed
+  screenshot, says it is one of the six, and introduces the CSV import as the separate thing it
+  is; both `alt` strings follow. 3 sites, copy only — no map behaviour touched.
+  **Doc-truth check 29** now derives all of it from that same `scale` opt: the `#geo` list must
+  name every choice (it already did — this pins it against a seventh scale shipping unlisted),
+  every "N region scales" / "N built-in scales" / "N scales built in" claim must equal the
+  measurement, and a scale that ships may not appear in the same sentence as the two phrasings
+  that assert the reader must supply it. **All three sites failed on the pre-fix tree**, the count
+  half flagging the enumeration precisely because it named scales instead of counting them —
+  which is how it went stale silently in the first place.
+  **Also in this PR, because this PR caused it:** check 29's own ~110 lines pushed first-party LOC
+  to 60,103 and tipped `CLAUDE.md`'s "~54K" past doc-truth's 10% band, so that line now reads
+  ~60K. **Audited and found CURRENT in the same pass, no change needed:** `docs/index.html` —
+  `ct-choropleth` already distinguishes the six built-in scales from "your own **custom regions**"
+  and documents the CSV's two columns, so the usual check-16→17 move one document over has
+  nothing to correct here, and check 29 is scoped to `index.html` for that reason rather than by
+  oversight. **NO sw bump:** the precache list is unchanged and the fetch handler is network-first
+  (sw.js's own stated rule, same reasoning as v915 and N14).
 - **N7 slice — Help's own version of the catalog ROW (v915, NO sw bump, 2026-08-09, steward; dev
   branch; est 1pt, took 1):** the candidate the N7 list called "the strongest remaining", and the
   measurement matched what the v892 pass had recorded. `docs/index.html` documented the per-row
@@ -12303,16 +12333,36 @@
     check 24's own `rowControlsBySection`, so one derivation now holds the tours AND Help; its
     negative half also rejects a control Help INVENTS, and the "Jobs have no pin" sentence the
     moment `app/jobs.js` renders one. All three failure modes measured on mutated trees.
-  * **Not yet audited (candidates for the next N7 slice):** the marketing page's hero carousel
-    captions + screenshots, which the v871 slice deliberately left alone (the copy pass
-    stayed textual — regenerating shots is its own slice) — with every per-feature tour body
-    now done (Quick analysis v875, Build a dashboard v877/v880/v881, Jobs / Connections &amp;
-    Datasets v889, Conservation Insight pack v891). **The v892 pass measured that one rather
-    than guessing at it:** `site/shots/*.png` were last generated 2026-07-31, and N8, N9a/b,
-    N13 and STUDIO-PANELS have all changed the surfaces they show since (the catalog toolbars
-    grew, the builder now opens with both panes collapsed), so the images ARE stale — it was
-    passed over here only because regenerating sixteen 2160×1350 captures and visually
-    auditing them is a poor fit for one run, not because it is current. It stays on this list.
+  * *The hero carousel's MAP captions vs the scales the app ships — v916, NO sw bump (see DONE),
+    2026-08-09.* The textual half of the candidate this list had carried longest, and it was the
+    worst drift any N7 pass has measured: one slide named three of the six built-in region scales
+    ("state, county and USDA-district scales built in"), the next introduced one of the three it
+    had skipped as **"bring your own boundaries, like these USGS HUC8 watersheds"**, and that
+    slide's `alt` called the screenshot "a custom geography" — while `huc8` is a shipped choice in
+    `Studio.CHARTS.choropleth`'s Region-scale select and the genuinely user-supplied feature (the
+    `customMap` county-FIPS→region CSV) was absent from the carousel. Both slides rewritten, 3
+    sites. Doc-truth check 29 derives the `#geo` list's coverage, every scale COUNT claim and the
+    "may not be called the reader's to supply" rule from that one `scale` opt; all three sites
+    failed on the pre-fix tree. It also carried this PR's own bookkeeping: the check's ~110 lines
+    tipped `CLAUDE.md`'s "~54K LOC" past doc-truth's 10% band (measured 60,103), now ~60K.
+    **Audited and found CURRENT in the same pass, no change needed:** Help's `ct-choropleth`
+    already separates the six built-in scales from custom regions and documents the CSV's two
+    columns — the usual check-16→17 move one document over has nothing to correct, which is why
+    check 29 is scoped to `index.html`.
+  * **Not yet audited (the candidate for the next N7 slice):** the marketing page's hero carousel
+    **screenshots** — the half v916 deliberately left, exactly as the v871 slice split it (a copy
+    pass stays textual; regenerating shots is its own slice). Every per-feature tour body is now
+    done (Quick analysis v875, Build a dashboard v877/v880/v881, Jobs / Connections &amp;
+    Datasets v889, Conservation Insight pack v891) and the captions are done as of v916, so this
+    is what remains. **The v892 pass measured it rather than guessing at it:** `site/shots/*.png`
+    were last generated 2026-07-31, and N8, N9a/b, N13 and STUDIO-PANELS have all changed the
+    surfaces they show since (the catalog toolbars grew, the builder now opens with both panes
+    collapsed), so the images ARE stale — it has been passed over only because regenerating
+    sixteen 2160×1350 captures and visually auditing them is a poor fit for one run, not because
+    it is current. It stays on this list. **Note for whoever takes it:** v916 rewrote the caption
+    beside `watershed.png` and `map.png`, so a regeneration must keep those two screenshots
+    showing a watershed map and a county map respectively, or the captions go stale again in the
+    other direction.
     **Audited and found CURRENT in the v889 pass, no change needed:** `docs/index.html` on this
     same toolbar — Help already documents Sorting ("Every catalog page — Dashboards, Views,
     Datasets, Connections, Jobs…"), the **Tile view** button and a whole "Select multiple / bulk

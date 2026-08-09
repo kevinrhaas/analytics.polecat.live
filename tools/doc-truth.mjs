@@ -1390,6 +1390,119 @@ ok(`docs/index.html: every catalog row's own controls are documented, and none a
   `${helpRowGaps.join("\n      ")}\n      ` +
   "Help is where a reader who never takes a tour learns the row — check 24 holds the tours to the same source");
 
+/* ── 29. The marketing page's MAP claims vs the choropleth's own Region-scale list ──────
+   N7. Every check above holds a document to a source; nothing held the app's GEOGRAPHY
+   story to anything, and the hero carousel — the first thing a visitor reads — had drifted
+   the furthest of any copy on the site. Two slides described the map, and between them they
+   named three of the six built-in scales and then called one of the other three a geography
+   the reader has to supply: "bring your own boundaries, like these USGS HUC8 watersheds".
+   HUC8 is a `scale` choice shipped in the registry, one select away in the Inspector. So a
+   visitor was told the watershed map — the one on screen, the one the #geo section below
+   the fold lists as built in — was theirs to source, while the feature that IS user-supplied
+   (import a county FIPS → region-name CSV, the `customMap` opt beside `scale`) went unnamed
+   in the carousel entirely. Both halves undersold the app in the same breath.
+
+   The source of truth is `Studio.CHARTS.choropleth`'s own `scale` opt in app/model.js —
+   the one place the app decides which geographies it can draw. Three rules come off it:
+
+   (a) COVERAGE — the #geo section's list names every choice, custom regions included. That
+       one already passed; this pins it, so a seventh scale cannot ship unlisted.
+   (b) COUNTS — every "N region scales" / "N built-in scales" / "N scales built in" claim on
+       the page equals the measurement (7 with Custom regions, 6 without). A claim that names
+       no number fails too: "state, county and USDA-district scales built in" is how the
+       carousel went stale in the first place — an enumeration ages silently, a count cannot.
+   (c) THE MISLABEL — the vocabulary that means "you supply this geography" may not land in
+       the same sentence as a scale that ships. Deliberately narrow: two phrasings that make
+       the assertion outright, checked per alt attribute and per sentence, so prose that
+       legitimately explains the custom-regions import beside a built-in scale's name (the
+       #geo list does exactly that, and so does the corrected caption) is not caught by a
+       proximity rule that cannot tell the two apart. It is a guard, not a measurement — (b)
+       is the half that keeps the copy honest as the registry grows.
+
+   Scoped to index.html on purpose, not by oversight: Help was audited in the same pass and
+   is CURRENT — `ct-choropleth` already distinguishes the six from "your own custom regions"
+   and documents the CSV's two columns. The marketing page was the only stale surface. */
+function choroplethBlock() {
+  const src = read("app/model.js");
+  const start = src.indexOf("\n    choropleth: {");
+  if (start < 0) throw new Error("doc-truth: Studio.CHARTS.choropleth not found in app/model.js");
+  let depth = 0, open = src.indexOf("{", start), i = open;
+  for (; i < src.length; i++) {
+    if (src[i] === "{") depth++;
+    else if (src[i] === "}" && --depth === 0) break;
+  }
+  return src.slice(open, i + 1);
+}
+const scaleChoices = [...((choroplethBlock().match(/key: "scale",[\s\S]*?choices: \[([\s\S]*?)\] \}/) || [, ""])[1])
+  .matchAll(/\["(\w+)",\s*"([^"]+)"\]/g)].map((m) => ({ key: m[1], label: m[2] }));
+const builtInScales = scaleChoices.filter((s) => s.key !== "custom");
+ok(`app/model.js: the choropleth's Region-scale choices parsed for check 29 are non-empty (${
+    scaleChoices.map((s) => s.key).join(", ") || "none"})`,
+  scaleChoices.length > 1 && scaleChoices.some((s) => s.key === "custom"),
+  "the `scale` select's choices are what every claim below is measured against");
+
+// What a document may call a scale: its key, the code in its label's parentheses, and the
+// label's first word with and without its plural — all off the label itself, so a renamed
+// scale renames its own alias set. Two-letter keys ("cd") are dropped as too short to match
+// on safely; that scale is still covered by "Congressional".
+function scaleNamer(s) {
+  const paren = (s.label.match(/\(([^)]+)\)/) || [])[1];
+  const first = s.label.replace(/\s*\(.*$/, "").split(/\s+/)[0];
+  const aliases = [s.key.length >= 4 ? s.key : null, paren, first, first.replace(/s$/, "")]
+    .filter(Boolean).map((a) => a.replace(/[^\w]/g, ""));
+  return new RegExp(`\\b(?:${[...new Set(aliases)].join("|")})`, "i");
+}
+const namesScale = (text, s) => scaleNamer(s).test(text);
+
+// (a) coverage
+const geoList = (marketing.match(/<ul class="geo-scales">([\s\S]*?)<\/ul>/) || [, ""])[1];
+const geoMissing = scaleChoices.filter((s) => !namesScale(geoList, s));
+ok(`index.html: the #geo list names all ${scaleChoices.length} region scales the map can draw`,
+  !!geoList && !geoMissing.length,
+  `not named in <ul class="geo-scales">: ${geoMissing.map((s) => s.label).join(", ") || "(the list itself is missing)"}`);
+
+// (b) counts
+const WORD_NUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8,
+  nine: 9, ten: 10, eleven: 11, twelve: 12 };
+const asNumber = (w) => (/^\d+$/.test(w) ? Number(w) : WORD_NUM[w.toLowerCase()]);
+const SCALE_COUNT_CLAIMS = [
+  [/(\S+)\s+region scales?\b/gi, scaleChoices.length, "region scales (built-in plus Custom regions)"],
+  [/(\S+)\s+built-in scales?\b/gi, builtInScales.length, "built-in scales"],
+  [/(\S+)\s+scales?\s+built in\b/gi, builtInScales.length, "scales built in"],
+];
+const scaleCountGaps = [];
+let scaleCountClaims = 0;
+for (const [re, expect, what] of SCALE_COUNT_CLAIMS)
+  for (const m of marketing.matchAll(re)) {
+    scaleCountClaims++;
+    if (asNumber(m[1]) !== expect)
+      scaleCountGaps.push(`"…${m[0].replace(/\s+/g, " ").trim()}" — the map has ${expect} ${what}`);
+  }
+ok(`index.html: every region-scale count reads ${builtInScales.length} built in (${scaleChoices.length} with Custom regions)`,
+  scaleCountClaims > 0 && !scaleCountGaps.length,
+  (scaleCountClaims ? scaleCountGaps.join("\n      ")
+    : "the page makes no region-scale count claim at all — it is the app's geography story, say the number") +
+  "\n      a claim that lists scales instead of counting them goes stale silently; a count cannot");
+
+// (c) the mislabel
+const CUSTOM_GEO_VOCAB = /custom geograph|your own boundaries/i;
+const claimUnits = [
+  ...[...marketing.matchAll(/\balt="([^"]*)"/g)].map((m) => m[1]),
+  ...marketing.replace(/<[^>]+>/g, " ").split(/(?<=[.!?])\s+/),
+];
+const scaleMislabels = [];
+for (const unit of claimUnits) {
+  if (!CUSTOM_GEO_VOCAB.test(unit)) continue;
+  const named = builtInScales.filter((s) => namesScale(unit, s));
+  if (named.length) scaleMislabels.push(`"${unit.replace(/\s+/g, " ").trim().slice(0, 150)}"` +
+    `\n        → names the BUILT-IN ${named.map((s) => s.label).join(", ")}`);
+}
+ok("index.html: no built-in region scale is described as a geography the reader must supply",
+  !scaleMislabels.length,
+  `${scaleMislabels.join("\n      ")}\n      ` +
+  "the user-supplied geography is the `customMap` opt (a county FIPS → region-name CSV); " +
+  "these scales ship");
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
