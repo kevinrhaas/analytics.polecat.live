@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 915,
+    title: 'A new workspace now opens on real Census data, not the showcase gallery',
+    kind: 'feature',
+    ts: '2026-08-09T05:11:18.000Z',
+    items: [
+      'Market Coverage is the sample pack a brand-new workspace starts with. Open the app for the first time and you land on real US Census data — 1,813 counties, the prep job that joins business counts to demographics, three dashboards and four Views — instead of the generic Data Management showcase gallery.',
+      'Home leads with the whitespace map: restaurants and bars per ten thousand residents, county by county, as the featured tile. It is a live dashboard, not a picture — open it and every filter, threshold and map scale is there to move.',
+      'The featured tile is only ever a starting point. If you have featured a dashboard of your own, the pack does not touch it — not on install, not on any later visit. Feature something else at any time and that choice sticks.',
+      'Data Management & Governance has not gone anywhere. It is one click in Settings → Sample packs whenever you want the twelve showcase dashboards back, and removing Market Coverage is the same single click in the other direction.',
+      'Nothing changes for a workspace you already have. The default is read only when a workspace has never made a choice, so your installed packs, your featured dashboard and everything you have saved stay exactly as you left them.',
+      'This closes the Market Coverage pack: the data, the dashboards, the Views and the tour shipped over the last three releases, and it now ships as the first thing you see.',
+    ],
+  },
+  {
     v: 914,
     title: 'The Census pack pins four charts to Home, and walks you through them',
     kind: 'feature',
