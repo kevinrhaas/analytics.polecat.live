@@ -135,6 +135,46 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the hero carousel's SCREENSHOTS, and the three that were wrong (v918, NO sw bump,
+  2026-08-09, steward; dev branch; est 1pt, took 1):** the recurring doc/copy item's last named
+  candidate, deferred across several passes as "regenerating sixteen 2160×1350 captures and
+  visually auditing them is a poor fit for one run". The audit is what made it a slice: the
+  regeneration was one command, and looking at the output found three defects, two of them
+  already live in the committed baseline.
+  **What was wrong.** (1) `studio-dark.png` — carousel slide 11, captioned "The Dashboard Builder
+  in dark theme with the data and inspector panels" — was a screenshot of **Home**, with the lint
+  pass's "All clear — this dashboard has zero warnings" toast sitting across the middle of it.
+  `__studioLoad()` loads a spec INTO the builder without navigating there, so the capture never
+  left the page it booted on; and `DECLUTTER` ran at 1.4s while the toast lands around 2s, so the
+  one line that exists to remove toasts removed nothing. Both are in the 2026-07-31 baseline, so
+  the live site has been showing Home under that caption for at least ten days. (2)
+  `watershed.png`'s own subtitle read "A custom geography — HUC8 subbasins…" — the exact claim
+  v916 deleted from the caption printed directly beneath the image the day before, which means
+  correcting the caption alone had turned a stale claim into a visible self-contradiction. (3)
+  `dashboards-dark.png` had become a LIST under a caption promising "every saved dashboard as
+  searchable tiles": AUD-06 made `list` the single default for every catalog, and the shot
+  silently followed the app instead of the copy.
+  **The fixes are in the generator, not the pixels**, so they survive the next regeneration:
+  `loadExample()` now asks the shell for the `studio` section by name, opens both side panes with
+  the tour's silent opener (STUDIO-PANELS made the builder open collapsed, so "the data and
+  inspector panels" would otherwise be two 34px rails), and declutters LAST; `huc8Spec()`'s
+  subtitle names the built-in scale; and `snapSection()` gained a `prefs` seed that writes
+  localStorage before first paint, used to pin `studio-dash-view: tiles`. Pinning beats clicking —
+  the catalog renders in the advertised shape from the first frame, and a later default flip
+  cannot re-stale the shot.
+  **Doc-truth check 31** is the guard, and it is the usual one-document-over move: check 29 holds
+  the carousel's CAPTIONS to `Studio.CHARTS.choropleth`'s own `scale` list, and could not see the
+  other half of the same slide. The generator's source is the only derivable proxy for pixels (a
+  PNG cannot be parsed) and the right one — the literal in the spec IS the string in the image, so
+  no regeneration can bake copy in without passing through it. Same two rules as 29's (b) and (c).
+  **Verified:** the check fails on the real pre-fix tree (it flags the "A custom geography"
+  subtitle as naming the BUILT-IN Watersheds (HUC8)), and its count half fails on a mutated tree
+  claiming five scales; both pass after. All 16 captures succeeded, 0 failed. The images were read
+  and compared against the committed baselines one by one — `watershed`, `dashboards-dark`,
+  `studio-dark`, `viewbuilder-dark`, `datasets-dark`, `home-dark` and `explore-dark` — which is
+  how (1) and (3) were found and how the two carried-forward candidates below were separated from
+  regressions. NO `sw.js` CACHE bump: `site/shots/*.png` are explicitly NOT precached (sw.js says
+  so at line 21) and nothing else in the precache list moved. Est 1pt, took 1.
 - **N26 — provisioning no longer re-opens a workspace that has gone live (v917, sw v537,
   2026-08-09, steward; dev branch; est 1pt, took 1):** the ★★ item this queue had been carrying
   since N16 slice 2 found it. Both provisioning artifacts end with a DO block that installs the
@@ -12398,20 +12438,34 @@
     already separates the six built-in scales from custom regions and documents the CSV's two
     columns — the usual check-16→17 move one document over has nothing to correct, which is why
     check 29 is scoped to `index.html`.
-  * **Not yet audited (the candidate for the next N7 slice):** the marketing page's hero carousel
+  * ~~**Not yet audited (the candidate for the next N7 slice):** the marketing page's hero carousel
     **screenshots** — the half v916 deliberately left, exactly as the v871 slice split it (a copy
-    pass stays textual; regenerating shots is its own slice). Every per-feature tour body is now
-    done (Quick analysis v875, Build a dashboard v877/v880/v881, Jobs / Connections &amp;
-    Datasets v889, Conservation Insight pack v891) and the captions are done as of v916, so this
-    is what remains. **The v892 pass measured it rather than guessing at it:** `site/shots/*.png`
-    were last generated 2026-07-31, and N8, N9a/b, N13 and STUDIO-PANELS have all changed the
-    surfaces they show since (the catalog toolbars grew, the builder now opens with both panes
-    collapsed), so the images ARE stale — it has been passed over only because regenerating
-    sixteen 2160×1350 captures and visually auditing them is a poor fit for one run, not because
-    it is current. It stays on this list. **Note for whoever takes it:** v916 rewrote the caption
-    beside `watershed.png` and `map.png`, so a regeneration must keep those two screenshots
-    showing a watershed map and a county map respectively, or the captions go stale again in the
-    other direction.
+    pass stays textual; regenerating shots is its own slice).~~ ✓ **SHIPPED v918, NO sw bump
+    (2026-08-09 — see DONE).** All sixteen retaken, and the audit that had been deferred as "a
+    poor fit for one run" is exactly what earned the slice: three of the images were not merely
+    stale, they were WRONG, and two had been wrong in the committed baseline as well — so this
+    was never a refresh. `studio-dark.png`, captioned "The Dashboard Builder … with the data and
+    inspector panels", was a picture of **Home** with the lint pass's "All clear" toast across it
+    (`__studioLoad()` loads a spec into the builder but does not navigate to it, and the
+    declutter ran 1.4s in, before the toast lands ~2s in); `watershed.png`'s own subtitle still
+    read "A custom geography", the claim v916 had just deleted from the caption printed directly
+    beneath it, so fixing the caption alone had made the contradiction worse; and
+    `dashboards-dark.png` had become a LIST under a caption promising "searchable tiles", AUD-06
+    having made `list` the one default for every catalog. Doc-truth check 31 now holds the copy
+    printed INSIDE a screenshot to check 29's own measurement. The v916 note's requirement was
+    kept: `watershed.png` and `map.png` still show a watershed map and a county map.
+    **Two things this pass measured and deliberately did NOT take, so the next run does not
+    re-derive them:** (1) `explore-dark.png` opens on the "was built in the View Builder — Quick
+    Views shows it best-effort and can't edit its shelves" caveat banner, which pushes `4 · RESULT`
+    below the fold — so the Quick Views slide, captioned "a dataset table, a chart-type picker and
+    a live result", shows no result. The prep picks a saved View by NAME (`/no-?till|tillage|cover/i`)
+    and the pack's Views are builder-native now; preferring a NON-builder View, as the View Builder
+    shot already prefers a builder one, is the fix. It is pre-existing — the committed baseline has
+    the identical banner — which is why it is a candidate and not this slice. (2) the builder shot's
+    Data panel is open but shows one collapsed group; expanding it would read better. **Also worth
+    a look:** the rail renders **Views** and **Dashboards** twice (WORKSPACE catalogs vs BUILD
+    builders) and several rail/tile icons fall back to a generic ⊙ glyph — both are in the app
+    itself, both are in the old shots too, and neither is a copy question, so neither belongs to N7.
     **Audited and found CURRENT in the v889 pass, no change needed:** `docs/index.html` on this
     same toolbar — Help already documents Sorting ("Every catalog page — Dashboards, Views,
     Datasets, Connections, Jobs…"), the **Tile view** button and a whole "Select multiple / bulk
