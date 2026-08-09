@@ -1732,7 +1732,9 @@
   An empty box matches everything, so emptying the search is how you get the whole list back. The
   <strong>Clear</strong> chip above the list means show
   everything: it drops the facet pills <em>and</em> empties the search box, and it appears whenever
-  either one is narrowing the list. Every catalog page has one, Dashboards included.</p>
+  either one is narrowing the list. Five pages have a Clear chip — Dashboards, Views, Datasets,
+  Connections and Jobs; the <strong>Repository</strong> is the exception, and <em>Un-picking a
+  pill</em> below has the way back there.</p>
   <p><strong>What counts as a word.</strong> Spaces are the only separator, and everything else you type
   stays part of the word it is touching. That is what lets you search for a name that contains
   punctuation — <code>q2.2024</code> finds "Revenue q2.2024" — but it also means a comma you added out of
@@ -1768,14 +1770,37 @@
   <p><strong>Filtering with pills.</strong> Above each list sits a row of filter pills, each showing how many
   items it covers. Picking none of a facet's pills means all of them, so the pills only ever narrow — and
   pills are listed in the order you read them, alphabetically by their label and numerically where numbers
-  appear (so "Q2" comes before "Q10"). A pill disappears as soon as its last item does, so a filter can never
-  keep narrowing the list from a chip you can no longer see.</p>
+  appear (so "Q2" comes before "Q10"). Two strips keep an order of their own instead:
+  <strong>Dashboards</strong>' workbook pills stay newest-first, and the <strong>Repository</strong>'s type
+  pills sit in the fixed order the app declares them in. A pill disappears as soon as its last item does,
+  so a filter can never keep narrowing the list from a chip you can no longer see.</p>
   <p><strong>Which pills take more than one.</strong> Some facets are multi-select — tick two pills and the
   list shows anything matching either: <strong>Datasets</strong> by adapter, connection, type or tag;
   <strong>Connections</strong> by adapter or tag; <strong>Views</strong> by chart type. One pill at a time:
   the <strong>Folders</strong> strip, on each page that has one; <strong>Dashboards</strong> by workbook,
   the strip that also offers <em>Sample packs</em> and <em>Unfiled</em>; and the <strong>Repository</strong>
   by type, one pill per kind of row it lists.</p>
+  <p><strong>What a pill says.</strong> Each pill is labelled with the app's own name for the thing it
+  narrows to, so the strip reads the way the list under it does. <strong>Adapter</strong> pills (Datasets
+  and Connections) carry the adapter's name and its colour dot — the same names the
+  <a href="#connection-types">connection wizard</a> offers. <strong>Connection</strong> pills, on Datasets,
+  carry the connection's own name; on both of the Datasets strips, a dataset with no connection behind it
+  lands under <em>No connection</em>. <strong>Tag</strong> pills keep the hash you write a tag with, so
+  a tagged item filters under <em>#finance</em>. <strong>Datasets</strong> by type has one pill per kind
+  of dataset: <em>SQL query</em>, <em>Table</em>, <em>Collection</em>, <em>File</em> and <em>Sheet</em>.
+  <strong>Views</strong> by chart type prints the chart's own name from the
+  <a href="#chart-types">gallery</a> — <em>Bar chart</em>, <em>Line / area</em> — with one label the
+  gallery does not hold: a KPI tile's pill reads <em>KPI</em>. The <strong>Repository</strong>'s type
+  pills are the kinds of row it lists: <em>Dashboards</em>, <em>Datasets</em>, <em>Connections</em>,
+  <em>Views</em> and <em>Jobs</em>. <strong>Dashboards</strong> by workbook opens on <em>All</em>, then
+  <em>Sample packs</em> whenever an installed pack brought dashboards of its own, then one pill per
+  workbook you have made, and <em>Unfiled</em> for the rest.</p>
+  <p><strong>Un-picking a pill.</strong> The multi-select facets toggle — click a pill you have already
+  ticked and it un-ticks. The single-select strips do not: clicking the pill you are already on leaves
+  you on it, so each of those strips opens with a pill that means everything — <em>All</em> on
+  Dashboards' workbooks and on the Repository's types, <em>All folders</em> on a Folders strip. That
+  pill is the way back, and on the <strong>Repository</strong> it is the only one: it is the one catalog
+  page with no <strong>Clear</strong> chip, so empty its search box yourself.</p>
   <p><strong>The Folders strip.</strong> Single-select — <em>All folders</em>, one pill per folder in use, and
   <em>Unfiled</em> for everything filed nowhere — and it only appears once something has actually been filed.
   Five pages have one: Dashboards, Views, Datasets, Connections and Jobs. The <strong>Repository</strong> is

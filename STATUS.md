@@ -135,6 +135,59 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — Help never said what a filter pill actually says, or which pill gets you back (v943, NO sw
+  bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** The candidate check 53 named and
+  deliberately did not take — *"each pill's own LABEL … thirteen pill labels against thirteen
+  sentences is a different derivation and its own slice."* Check 53 holds the catalog pages' filter
+  AXES (which page filters by what, with how many clicks); this slice holds the pill FACES — the
+  words a reader actually sees on the strip — and the way a strip that cannot be un-ticked is
+  un-picked. **The derivation is one level deeper and keyed differently, which is why it could not
+  ride along with 53:** that check keys a facet by the accessor it READS, and a label has nothing to
+  do with that accessor, so **check 56 keys each axis by the pill's own `data-` attribute** (its DOM
+  identity — the one thing a renamed accessor or label helper cannot move) and resolves the `label:`
+  option the panel hands `Studio.catalogFacets.pills`, **following the delegation** where it names a
+  helper: the "No connection" sentinel lives inside `dsxConnLabel`, not at the call site. The two
+  chip strips that predate the kit declare their faces as `chipDefs` literals instead (read as whole
+  STATEMENTS — the array is followed by three `.concat()` calls and one of them contains a `;`, so
+  neither a bracket walk nor "up to the first `;`" reads it all), and the two closed label SETS come
+  from the tables that own them, `DSX_KIND_LABEL` and `REPO_TYPES`.
+  **What was wrong, and two of them cost a reader more than a word.** **(1) Both closed sets were
+  unpublished.** Help said "Datasets … by type" and "the Repository by type, one pill per kind of row
+  it lists" — a roster claim with no roster — while the pills read *SQL query · Table · Collection ·
+  File · Sheet* and *Dashboards · Datasets · Connections · Views · Jobs*. One word, "type", covering
+  two entirely different sets of pills. **(2) The *All* pill was unpublished on both pre-kit strips,
+  and it is the way back:** their handlers ASSIGN the clicked value (`_repoWbFilter =
+  btn.getAttribute(…)`), so clicking the pill you are already on does not un-pick it. Help named
+  *Sample packs* and *Unfiled* on the workbook strip and skipped the one pill that undoes a pick —
+  while the Folders paragraph immediately below named *All folders*, so the same control was
+  documented twice, once with its escape hatch and once without. **(3) "Every catalog page has one,
+  Dashboards included" was FALSE of the Clear chip.** Five panels render `clearChip(…)`; the
+  Repository renders none — so the page promised the universal way back on the one page that has
+  neither route, no Clear chip AND no un-ticking. **(4) "pills are listed … alphabetically by their
+  label" was false of those same two strips** — the kit sorts on `cmpLabel`, `chipDefs` sorts
+  nothing, so workbook pills come out newest-first (`addWorkbook` unshifts) and type pills in
+  `REPO_TYPES`' declaration order. Check 53 had left order alone for want of a reason to look; this
+  slice's own derivation supplied one. **(5)** The `#` a tag pill wears, the adapter's own registry
+  name, the connection's name and the *KPI* label the chart registry does not hold were unpublished
+  too.
+  **Shipped:** two new Help paragraphs — **What a pill says** (every face, with the open axes
+  published as a RULE rather than a list, because those values are the user's own words) and
+  **Un-picking a pill** (the toggle asymmetry, every escape pill by its own label, and the Repository
+  as the page where that pill is the only route) — plus the corrected Clear-chip sentence in
+  **Searching** and the scoped ordering claim in **Filtering with pills**. Doc-truth check 56 holds
+  all of it in seven rules: the premise/vocabulary/roster, the two closed sets held from BOTH ends (a
+  renamed kind fails as an omission, a retired one as a leftover), the open axes' rules, the
+  illustrative chart names measured against the registry (check 45's idiom — examples are measured,
+  not trusted), the toggle asymmetry derived from the handlers themselves, the Clear-chip roster with
+  its exception, and the pill order with both of its.
+  **Verified: 7 of 7 rules measured FAILING on the real pre-fix tree** (nothing here was published
+  before, and one claim was actively false), **and all seven code-side directions measured on mutated
+  trees** — the `dsxConnLabel` sentinel renamed (the authority moves and (a) catches it), a dataset
+  kind retired, a cited chart label renamed, a single-select pill taught to toggle, a Clear chip
+  added to the Repository, a pill strip deleted, and the type strip taught to sort. Full dev gate
+  green (validate + changelog-check + doc-truth + dev-smoke at 390×780 and desktop, zero pageerrors).
+  Docs-only + a tool: `docs/index.html` is not precached (sw.js says so in its own header), so **no
+  `sw.js` CACHE bump** — same reasoning as v942 and every N7 slice since v915. **Est 1pt, took 1.**
 - **N7 — Help explained how search works and left out the three rules that decide whether it finds
   nothing (v942, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** The candidate
   check 54 named, and the first slice in this family to hold copy by **BEHAVIOUR rather than by
@@ -14336,6 +14389,42 @@
     lives in a precached file (a `sw.js` CACHE bump, issue #631's territory) and changing how a
     query parses is app-wide search behaviour — a product call, not a derivation. The two v922
     candidates are still open and still Kevin's calls.
+  * *Help's pill LABELS vs the faces the strips really print — v943, NO sw bump (2026-08-09 —
+    see DONE).* The candidate check 53 named and deliberately did not take, and the derivation is
+    one level deeper than check 53's: that check keys a facet by the accessor it READS, and a
+    label has nothing to do with that accessor, so check 56 keys each axis by the pill's own
+    **data-attribute** — its DOM identity — and resolves the `label:` option the panel hands
+    `pills()`, FOLLOWING the delegation where it names a helper (the "No connection" sentinel
+    lives inside `dsxConnLabel`, not at the call site). **Seven rules, and 7 of 7 measured failing
+    on the real pre-fix tree**: both closed sets unpublished (*SQL query · Table · Collection ·
+    File · Sheet* and *Dashboards · Datasets · Connections · Views · Jobs* — Help said "type"
+    twice and left it there); the ***All* pill unpublished on both pre-kit strips**, which is the
+    way back, because their handlers ASSIGN the clicked value so the pill you are on cannot be
+    un-picked — Help named *Sample packs* and *Unfiled* on the workbook strip and skipped the one
+    pill that undoes a pick, while the Folders paragraph beside it named *All folders*; and
+    **"Every catalog page has one, Dashboards included" was FALSE of the Clear chip** — five
+    panels render `clearChip(…)`, the Repository renders none, so the page promised the universal
+    way back on the one page with neither route. The tag pill's hash, the adapter's own name, the
+    connection's name and the *KPI* label the chart registry does not hold were unpublished too.
+    And the drift the derivation turned up unasked, in the paragraph above: **"pills are listed …
+    alphabetically by their label" is FALSE of those same two pre-kit strips.** The kit sorts on
+    `cmpLabel`; `chipDefs` sorts nothing, so workbook pills come out newest-first (`addWorkbook`
+    unshifts) and type pills in `REPO_TYPES`' declaration order. Check 53 had left order alone for
+    want of a reason to look — rule (g) now scopes the claim and names both exceptions. Seven
+    code-side directions measured on mutated trees (the sentinel renamed, a kind retired, a cited
+    chart label renamed, a single-select pill taught to toggle, a Clear chip added to the
+    Repository, a strip deleted, and the type strip taught to sort).
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the same
+    paragraph's other two claims — "each showing how many items it covers" and "a pill disappears
+    as soon as its last item does". Both are true today (`tally()` supplies the counts;
+    `prune()`/`pick()` drop a key whose last row went away), and holding them means EVALUATING
+    `Studio.catalogFacets` and probing it — check 55's idiom one kit over, a third derivation
+    again, and its own slice. It is the strongest remaining candidate in this paragraph family.
+    Also measured and
+    **NOT N7's** (it is app copy, not docs): the Repository's empty-state sentence still says
+    "dashboards, datasets, connections, **analyses** and jobs" — the internal noun LF57 renamed,
+    in a precached file, so it belongs to whichever slice next touches `studio.js` for a real
+    reason.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before
