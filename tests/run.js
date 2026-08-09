@@ -15524,6 +15524,82 @@ function serve() {
     ok("VB-12: an explicit persisted {w,h} applies to the canvas, the width handle rides the live right edge, and double-clicking a handle resets ONLY that axis back to auto",
       vb12.explicit && vb12.wBarTracks && vb12.hResetKeepsW && vb12.autoAfterReset && vb12.wReset, JSON.stringify(vb12));
 
+    // ---- N34 (Kevin, 2026-08-09): "when I drag the canvas open the view would
+    // resize? like the chart object is the same." VB-12's handles resized the IFRAME
+    // and nothing else, so the chart kept its authored pixel height inside a doubled
+    // box and left a dead band underneath. The chart now draws to the canvas height
+    // (the same chart.opts.height knob PANEL-H writes), repainted on RELEASE. The
+    // canvas stays a VIEWPORT: a saved View keeps its own authored height. ----
+    console.log("\n• N34: the chart fills the canvas it was dragged to");
+    const n34 = await page.evaluate(async () => {
+      const out = {};
+      const result = document.getElementById("buildResult");
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const frame = () => result.querySelector("iframe.bd-ifr");
+      function metrics() {
+        const ifr = frame();
+        const doc = ifr && ifr.contentDocument;
+        const body = doc && doc.querySelector(".card .body");
+        return {
+          canvas: ifr ? Math.round(ifr.getBoundingClientRect().height) : 0,
+          content: doc ? doc.documentElement.scrollHeight : 0,
+          body: body ? Math.round(body.getBoundingClientRect().height) : 0,
+        };
+      }
+      // a real pointer drag on the bottom bar, exactly as VB-12 drives it
+      async function dragH(dy) {
+        const hBar = result.querySelector(".bd-rs-h");
+        hBar.dispatchEvent(new PointerEvent("pointerdown", { clientX: 200, clientY: 400, bubbles: true }));
+        if (dy) document.dispatchEvent(new PointerEvent("pointermove", { clientX: 200, clientY: 400 + dy }));
+        document.dispatchEvent(new PointerEvent("pointerup", {}));
+        // The repaint is deliberately debounced (120ms) and lands through
+        // renderChartPreview's own 150ms timer, then a full srcdoc swap. The budget
+        // covers TWO of those: a renderer that draws taller than the height it was
+        // handed (the map overshoots by a constant ~54px) gets one corrective pass.
+        await wait(1700);
+      }
+      // 1. settle at a SHORT canvas (well clear of the 160px chart floor, so this
+      //    measures the tracking and not the clamp)
+      localStorage.setItem("studio-bd-preview-size", JSON.stringify({ h: 420 }));
+      window.__bdSyncPreviewSize(result, frame());
+      await dragH(0); // release with no movement → repaint at the current height
+      out.short = metrics();
+      out.shortReq = window.__bdLastChartH();
+      // 2. drag it 300px taller
+      await dragH(300);
+      out.tall = metrics();
+      out.tallReq = window.__bdLastChartH();
+      out.canvasGrew = out.tall.canvas - out.short.canvas;
+      out.chartGrew = out.tall.body - out.short.body;
+      out.tracks = Math.abs(out.chartGrew - out.canvasGrew) <= 24;
+      // the dead band is gone: what got painted fills the canvas it was given
+      out.fillsShort = Math.abs(out.short.content - out.short.canvas) <= 24;
+      out.fillsTall = Math.abs(out.tall.content - out.tall.canvas) <= 24;
+      // The DECISION, asserted: the canvas is a viewport, not part of the View. A
+      // panel minted fresh for the same chart type still carries its AUTHORED height
+      // after all that dragging — and that constructor (bdPanelFor → Studio.newPanel)
+      // is exactly what bdSave stores, so no drag can rewrite a saved View.
+      const BD = window.__studioBuild.state;
+      const da = { id: "n34_probe", name: "probe", kind: "sql", sql: "", query: "", columns: ["region", "amount"], params: [], authored: true };
+      try {
+        const fresh = window.Studio.newPanel(BD.chartType, da);
+        out.authoredH = fresh.chart.opts.height;
+      } catch (e) { out.authoredH = "threw: " + e.message; }
+      // The preview really did draw to a canvas-derived height, AND the constructor
+      // bdSave stores from still hands back the authored one — both halves matter.
+      out.savedKeepsAuthored = typeof out.authoredH === "number" && out.authoredH > 0 &&
+        out.tallReq > 400 && out.tallReq !== out.authoredH;
+      localStorage.removeItem("studio-bd-preview-size");
+      window.__bdSyncPreviewSize(result, frame());
+      return out;
+    });
+    ok("N34: dragging the canvas taller makes the CHART taller by the same amount — it is no longer a fixed-height object floating in a growing box",
+      n34.canvasGrew >= 300 && n34.chartGrew >= 300 && n34.tracks, JSON.stringify(n34));
+    ok("N34: the painted panel fills the canvas at both sizes — the empty band under the chart is gone",
+      n34.fillsShort && n34.fillsTall, JSON.stringify(n34));
+    ok("N34: the canvas stays a VIEWPORT — a panel minted for the same chart type still carries its authored height, so a drag never rewrites the saved View",
+      n34.savedKeepsAuthored, JSON.stringify(n34));
+
     // ---- VB-13 (Kevin): the datasets pane itself is drag-resizable (200–480px,
     // persisted) and collapses to a vertical rail strip — dataset names were
     // unreadable at the fixed 250px ("i cant read the names ... take a cue from
