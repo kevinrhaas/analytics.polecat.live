@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 941,
+    title: 'Help promised the same search rules everywhere, then left out three boxes and named an exception that was not the only one',
+    kind: 'fix',
+    ts: '2026-08-09T17:20:13.000Z',
+    items: [
+      'Typing two words into a search box in this app finds things that match both, in any order, wherever they appear — and that is true of nearly every search field, not just the ones above the catalog lists. The Help page listed the other twelve boxes it applies to. Nothing had ever compared that list to the app, and it was out of date in four ways.',
+      'The "Open a dashboard" picker was absent, though it is the search box you reach from Open and from the command palette, and its own sibling — the "add to dashboard" picker, which searches the same list — was published three phrases away.',
+      'The builder\'s Data panel was described as "your datasets and your own queries". Its one search box narrows three groups: Datasets, Views and My queries. The group holding your saved Views read as the one thing in that panel you could not search.',
+      'It still called Quick Views "the Explore pane", a name the app stopped using when the section was renamed.',
+      'And the paragraph closed on "the one exception is this Help page\'s own search box" when there are two. A table panel\'s own Filter rows box matches a single literal string across a row\'s cells, so "crops 2024" only finds a row with those two words side by side. That is deliberate — the table travels inside every dashboard you export, so it carries its own self-contained rules — and it is now stated rather than contradicted.',
+      'The whole list is now re-derived from the app on every change: a new search box, a renamed one, or one of the two exceptions quietly adopting the shared rules now fails the documentation check until Help says so.',
+    ],
+  },
+  {
     v: 940,
     title: 'Help called the Dashboards workbook chips multi-select, and left the Repository out of the filter pills entirely',
     kind: 'fix',

@@ -135,6 +135,46 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — Help promised the same search rules everywhere, then left out three boxes and named an
+  exception that was not the only one (v941, NO sw bump, 2026-08-09, steward; dev branch; est 1pt,
+  took 1):** The larger of the two candidates v940 left, and the slice check 52 had already named
+  as the one it was deliberately not taking. The catalog block's last search paragraph — *"…and
+  every other search box too"* — makes the page's broadest claim about search: that the multi-word
+  rules run behind every OTHER search field in the app, followed by a list of twelve. Its source of
+  truth is not a panel roster but the shared kit's own CALL SITES (`Studio.catalogSearch`, taken
+  catalog-only → app-wide by AUD-06 slice 6), and nothing had ever compared the two. **Four drifts,
+  measured:** (1) **the "Open a dashboard" picker was absent** — `openDashboardPicker` runs the kit
+  over your saved dashboards and is reached from Open ▾ and ⌘K, while its own sibling over the same
+  list, the "add to dashboard" picker, was published three phrases away; (2) **the Data panel was
+  published as two of its three groups** — "your datasets and your own queries", where the panel's
+  one box narrows **Datasets** (`buildWorkspaceDatasets`), **Views** (`buildAnalysesLib`) and **My
+  queries** (`buildLibrary`), so the group holding the objects LF57 renamed the app around read as
+  the one unsearchable thing in the panel; (3) **"the Explore pane"**, the pre-LF57 name for Quick
+  Views — v876 fixed the page's other two Explore routes and this one sat inside a list of twelve
+  and was missed; (4) **the exception clause named one exception where there are two.** A table
+  panel's own **Filter rows** box matches ONE literal string across a row's cells (`DashKit.table`
+  → `String(cell).toLowerCase().indexOf(q)`), so `crops 2024` finds nothing there unless those
+  words sit side by side — the exact failure AUD-06 built the kit to end. It cannot use the kit and
+  should not: `app/studio-charts.js` inlines into every exported dashboard, so it carries its own
+  self-contained rules. That is now stated with its reason instead of contradicted — copy denying a
+  real exception is worse than copy omitting a box, because a reader who types two words into the
+  table above their chart concludes the search is broken rather than that this box is different.
+  **Doc-truth check 54** derives the roster by walking every `Studio.catalogSearch.*` call in
+  `app/*.js` (skipping the kit's own definition block, where `matcher` calls `terms`, and comment
+  mentions) and attributing each to the pair (file, enclosing top-level function) — the surface's
+  own identity, so a new or renamed search box falls out of its row and fails here rather than
+  passing green while Help omits it. Five rules: (a) the roster, (b) coverage plus the scope
+  sentence, (c) the negative half (a retired box must not stay published), (d) the Help-page
+  exception held from both ends, (e) the table-panel exception held from both ends — measured from
+  the renderer, so a box that ever adopts the kit fails until the exception copy is DELETED. The
+  three Data-panel rows are scoped to the panel's own parenthetical, so "Views" later in the same
+  sentence (the Quick Views pane) cannot stand in for the group they hold. **Verified:** 2 of the 5
+  rules fail on the real pre-fix tree (coverage naming 4 missing surfaces, the table exception
+  unpublished) and the other 3 on mutated trees (a brand-new kit call site → "nothing in the
+  vocabulary says what to call it"; `openFolderPicker` renamed → "no longer calls the kit — and
+  Help still names it"; the Help-box clause deleted). Full dev gate green on the branch
+  (`tools/validate.mjs`, `tools/changelog-check.js`, `tools/doc-truth.mjs`, `tools/dev-smoke.mjs`).
+  Docs-and-check only — no app file changed, so no `sw.js` bump. Est 1pt, took 1.
 - **N7 — Help called the Dashboards workbook chips multi-select, and left the Repository out of
   the filter pills entirely (v940, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):**
   The candidate v939 named, and the check-52 move one paragraph down. The catalog block had two
@@ -14133,14 +14173,18 @@
     shape isolates the drift itself — (a) names four pages of six, (c) reports Datasets' connection
     name and Connections' tags. (d), (e) both directions, and (a)'s new-field direction on mutated
     trees.
-    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    ~~**Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
     paragraph immediately below it — *"…and every other search box too"* — makes the same class of
     claim about **twelve** non-catalog search boxes (the builder's Data panel, the panel
     inspector, the chart gallery, ⌘K, What's-new, the folder picker, Explore, the View Builder's
     two, auto-build, "add to dashboard", a connection's schema browser) plus a stated exception for
     Help's own box. Its source of truth is a different set of files (`build.js`, `explore.js`,
     `palette.js`, `studio.js`'s inner panes) and its rule is coverage of the call sites, not
-    fields: a slice, not a rider. ~~**A second candidate, measured in the same pass:** the
+    fields: a slice, not a rider.~~ ✓ **SHIPPED v941, NO sw bump (2026-08-09 — see DONE), and
+    "twelve" was the note repeating the paragraph's own list rather than measuring it: the kit has
+    **thirteen** non-catalog surfaces, one of the twelve was a retired section name, and the
+    "stated exception for Help's own box" was itself the fourth drift — there are two exceptions.**
+    ~~**A second candidate, measured in the same pass:** the
     **Filtering with pills** paragraph two below it enumerates the multi-select facets — "Datasets
     by adapter, connection, type or tag; Connections by adapter or tag; Views by chart type;
     Dashboards by workbook" — and all four are right against the `catalogFacets.tally` calls, but
@@ -14169,8 +14213,46 @@
     pill's own LABEL. The Datasets kind pills print sql/table/file/collection/sheet through
     `dsxKindLabel`, the adapter pills print `Studio.sourceById(aid).label`, the tag pills prefix
     `#`, and check 53 holds the axis's noun rather than its values — thirteen pill labels against
-    thirteen sentences is the v925/v926 shape, a different derivation and its own slice. The
-    "…and every other search box too" candidate above is still open and still the larger one.
+    thirteen sentences is the v925/v926 shape, a different derivation and its own slice. ~~The
+    "…and every other search box too" candidate above is still open and still the larger one.~~
+    ✓ **SHIPPED v941 (2026-08-09 — see the v941 line below).** The pill-labels candidate is still open.
+  * *Help's "every other search box too" vs the boxes that really run the shared kit — v941, NO sw
+    bump (2026-08-09 — see DONE).* The larger of the two candidates above, and the one check 52 had
+    already named as the slice it was deliberately not taking. It is the page's broadest claim about
+    search — that the multi-word rules run behind every OTHER search field in the app — followed by
+    a list of twelve, and its source of truth is not a panel roster but the shared kit's own CALL
+    SITES (`Studio.catalogSearch`, which AUD-06 slice 6 took catalog-only → app-wide). Four drifts,
+    and the last of them is the reason this was worth a check rather than a proofread:
+    **the "Open a dashboard" picker was absent** — the search box reached from Open ▾ and ⌘K, while
+    its own sibling over the same list (the "add to dashboard" picker) was published three phrases
+    away; **the Data panel was published as two of its three groups** ("your datasets and your own
+    queries" — its one box narrows **Datasets**, **Views** and **My queries**, so the group holding
+    saved Views read as the one unsearchable thing in the panel); **"the Explore pane"** survived
+    the LF57 rename that v876 fixed everywhere else on this page; and **the exception clause named
+    one exception where there are two** — a table panel's own **Filter rows** box matches ONE
+    literal string across a row's cells (`DashKit.table` → `String(cell).indexOf(q)`), the exact
+    failure AUD-06 built the kit to end, and it cannot use the kit and should not: that renderer
+    inlines into every exported dashboard, so it carries its own self-contained rules. Copy that
+    denies a real exception is worse than copy that omits a box — a reader types two words into the
+    table above their chart, gets nothing, and concludes the search is broken. Doc-truth check 54
+    attributes every call site to the pair (file, enclosing top-level function) — the surface's own
+    identity, so a new or renamed search box falls out of its row and fails loudly — and holds both
+    exceptions FROM BOTH ENDS, so a box that ever adopts the kit fails until the exception copy is
+    deleted. Five rules: the roster, coverage, the negative half, and the two exceptions;
+    **2 measured failing on the real pre-fix tree** (coverage named 4 of the surfaces missing, the
+    table exception unpublished), the other three on mutated trees (a brand-new kit call site, a
+    surface renamed out from under a published row, and the Help-box exception deleted from the
+    copy). The three Data-panel rows are scoped to the panel's own parenthetical, so "Views" later
+    in the same sentence (the Quick Views pane) can never stand in for the group they hold.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the same
+    block's opening **Searching** paragraph tells a reader what the syntax IS (multiple words ANDed
+    in any order, `"quoted phrases"` adjacent, case-insensitive, an empty query matching everything)
+    and the kit states all four rules itself, in `terms()`/`matcher()` — the class of claim check 54
+    holds by ROSTER is one paragraph up held by BEHAVIOUR, a different derivation (parse the kit's
+    own semantics, not its call sites) and its own slice. Also measured and NOT N7's: the kit's own
+    header comment still says "11 other search affordances" and lists them as "the Explore … pane"
+    — a source comment, not published copy, and correcting it changes a precached file for a
+    comment, so it belongs to whichever slice next touches `app/studio.js` for a real reason.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before
