@@ -21,6 +21,7 @@ moves — nothing is ever deleted.
   |---|---|---|
   | `N<n>` | born in the ▶ NOW queue — **the default for all new work** | open |
   | `SP-<n>` | the sample-pack program (SP-0 machinery, SP-1.. packs) | open |
+  | `ORG-<n>` | organization / file management across every catalog list, ending in a polecat-platform shell component (Kevin approved the program 2026-08-09; the epic write-up is STATUS.md → 🗂 ORGANIZE) | open |
   | `DUR-<n>` | backend durability (the 🛡 epic, 2026-08-08). **Distinct from the legacy `DURABLE-n` series (2026-07, closed)** — always write the full prefix to keep them apart | open |
   | `AUD-nn` | audit findings | historical — closed to new mints |
   | `LF-nn` | live feedback | historical — closed to new mints |
