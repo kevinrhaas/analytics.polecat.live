@@ -4948,6 +4948,190 @@ ok("docs/index.html: no page's clause credits it with a facet it does not have, 
   "segmented by page and by mode — a facet named in the wrong half tells a reader to click in a way the app ignores");
 
 
+
+/* ── 54. Help's "…and every other search box too" vs the boxes that really run the kit ──
+   N7, and the check-52 move one paragraph down — the one check 52 named as the slice it was
+   deliberately not taking. The paragraph above it says what each CATALOG page searches; this
+   one makes a bigger claim about a different set of files: that the same rules run behind
+   every OTHER search field in the app, and it enumerates them. Its source of truth is the
+   shared kit's own call sites — `Studio.catalogSearch` (AUD-06 slice 6 took the kit
+   catalog-only → app-wide), attributed to the top-level function each call sits in.
+
+   Measured 2026-08-09, before the fix — one stale name, two boxes missing, and an
+   exception clause that was not true:
+   · **The "Open a dashboard" picker was absent.** `openDashboardPicker` runs the kit over
+     your saved dashboards and is reached from Open ▾ and ⌘K — the most-used search box in
+     the builder after the Data panel — while its own sibling three lines below it in the
+     same paragraph (the "add to dashboard" picker, which shares the list and the markup)
+     was published.
+   · **The Data panel was published as two groups of three.** Its one search box narrows
+     your workspace datasets (`buildWorkspaceDatasets`), your own saved queries
+     (`buildLibrary`) and your **saved Views** (`buildAnalysesLib`) — the parenthetical
+     named the first two, so the group holding the objects LF57 renamed the app around read
+     as unsearchable.
+   · **"the Explore pane"** — the section has rendered as **Quick Views** since LF57, and
+     v876 fixed the two other routes on this page that still said Explore. This one sat in a
+     list of twelve and was missed.
+   · **The exception clause named one exception and there are two.** A table panel's own
+     **Filter rows** box matches ONE literal string across a row's cells
+     (`DashKit.table` → `String(cell).indexOf(q)`), so "crops 2024" finds nothing there
+     unless those words sit adjacent in one cell — the exact failure AUD-06 built the kit to
+     end. It cannot use the kit and should not: the table renderer inlines into every
+     exported dashboard, which is why it carries its own rules. The paragraph said the one
+     exception was this Help page's own search box.
+
+   Five rules, one new source of truth (the kit's call sites):
+   (a) the roster: every call site outside the kit's own definition has a row in the
+       vocabulary below. The row is keyed by the pair (file, enclosing top-level function),
+       which IS the surface's identity — so a new search box, or a renamed one, falls out of
+       its row and fails here rather than passing green while Help omits it;
+   (b) coverage: every non-catalog surface is named in the paragraph, and the paragraph
+       still declares its scope (the catalog pages belong to check 52's paragraph, not this
+       one — they are the rows with no phrase);
+   (c) the negative half: a row whose call site is gone must not still be published — copy
+       promising a search box the app no longer has is the v924 shape;
+   (d) the Help-page exception, held from both ends: `docs/index.html` really does run its
+       own search (it is a static page and never loads the kit), and Help says so;
+   (e) the table-panel exception, held from both ends: `app/studio-charts.js` really does
+       render a `tbl-filter` search box, really does match it with a bare substring test, and
+       really does not reach for the kit — and Help names the box, says it takes one literal
+       string, and says why (it travels inside every export). If that box ever adopts the
+       kit, this fails so the exception copy gets DELETED rather than left standing.
+   Deliberately NOT held: the order the boxes are listed in, or a count word — thirteen
+   surfaces spelled out one by one are their own count (check 12's rule: a teaching document
+   owes coverage, not a transcript). */
+
+// Every search surface in the app is a CALL SITE of the shared kit. Attributing each to the
+// nearest declaration at the file's TOP level (≤2 spaces of indent — every module here is one
+// IIFE deep) names the FEATURE rather than the `paint`/`render` closure inside it.
+function searchKitCallSites() {
+  const sites = new Map();
+  for (const file of fs.readdirSync(path.join(ROOT, "app")).filter((f) => f.endsWith(".js"))) {
+    const lines = read("app/" + file).split("\n");
+    // The kit defines itself in terms of itself (matcher → terms → hay); skip its own block
+    // so those three never read as three more search boxes.
+    let kitFrom = lines.findIndex((l) => /Studio\.catalogSearch\s*=\s*\{/.test(l)), kitTo = -1;
+    if (kitFrom >= 0) {
+      let depth = 0;
+      for (let i = kitFrom; i < lines.length; i++) {
+        for (const ch of lines[i]) { if (ch === "{") depth++; else if (ch === "}") depth--; }
+        if (i > kitFrom && depth <= 0) { kitTo = i; break; }
+      }
+    }
+    lines.forEach((line, i) => {
+      const at = line.search(/Studio\.catalogSearch\.(?:matcher|textMatcher|terms|hay|markRe)\s*\(/);
+      if (at < 0) return;
+      const slashes = line.indexOf("//");
+      if (slashes >= 0 && slashes < at) return;            // a comment ABOUT the kit is not a call site
+      if (kitFrom >= 0 && i >= kitFrom && i <= kitTo) return;
+      let fn = "(top level)";
+      for (let j = i; j >= 0; j--) {
+        const m = lines[j].match(/^ {0,2}(?:function\s+([A-Za-z0-9_$]+)|(?:var|const|let)\s+([A-Za-z0-9_$]+)\s*=\s*function|([A-Za-z0-9_$.]+)\s*=\s*function\s*\()/);
+        if (m) { fn = m[1] || m[2] || m[3]; break; }
+      }
+      const key = `${file}:${fn}`;
+      sites.set(key, (sites.get(key) || []).concat(i + 1));
+    });
+  }
+  return sites;
+}
+
+// Keyed by the surface's own identity, mapped to the noun Help has to publish for it.
+// `null` marks the six catalog panels: they are published by the paragraph ABOVE this one
+// (check 52), and this paragraph's whole point is what it adds to them.
+const SEARCH_SURFACES = [
+  ["studio.js:renderDashboards", "the Dashboards page", null],
+  ["studio.js:renderRepository", "the Repository page", null],
+  ["datasets.js:renderDatasets", "the Datasets page", null],
+  ["connections.js:renderConnections", "the Connections page", null],
+  ["jobs.js:renderJobs", "the Jobs page", null],
+  ["views.js:renderViews", "the Views page", null],
+  // The Data panel is ONE search box over three groups, so its three rows are held against
+  // the parenthetical that names them — the panel's own group headers, not a phrase invented
+  // here. Scoped that way so "Views" later in the same sentence (the Quick Views pane) can
+  // never stand in for the group this row is about.
+  ["studio.js:buildLibrary", "the Data panel's My queries group", /\bMy queries\b/, "dataPanel"],
+  ["studio.js:buildWorkspaceDatasets", "the Data panel's Datasets group", /\bDatasets\b/, "dataPanel"],
+  ["explore.js:buildAnalysesLib", "the Data panel's Views group", /\bViews\b/, "dataPanel"],
+  ["studio.js:applyInspSearch", "the panel inspector's search", /panel inspector/i],
+  // The gallery opens FROM the inspector, so its top-level home is renderPanelInspector —
+  // a different surface from applyInspSearch's, with its own box and its own row.
+  ["studio.js:renderPanelInspector", "the chart-type gallery", /chart-type gallery/i],
+  ["palette.js:refresh", "the command palette", /command palette/i],
+  ["studio.js:buildWhatsNewBody", "the What's-new feed", /what[’']s-new feed/i],
+  ["studio.js:hlq", "the What's-new feed's hit highlighting", /what[’']s-new feed/i],
+  ["studio.js:openFolderPicker", "the folder picker", /folder picker/i],
+  ["explore.js:renderExplore", "the Quick Views pane", /quick views pane/i],
+  ["build.js:render", "the View Builder's datasets pane", /view builder[’']s datasets pane/i],
+  ["build.js:openFilterEditor", "the View Builder's value filter", /value filter/i],
+  ["studio.js:buildNewMenu", "the auto-build set list", /auto-build set list/i],
+  ["studio.js:openDashboardPicker", "the Open a dashboard picker", /open a dashboard/i],
+  ["explore.js:openAddToExistingDashboardPicker", "the add-to-dashboard picker", /add to dashboard/i],
+  ["connections.js:renderSchemaPanel", "a connection's schema browser", /schema browser/i],
+];
+
+const kitSites = searchKitCallSites();
+const boxParaHtml = (help.match(/<p><strong>…and every other search box too\.<\/strong>[\s\S]*?<\/p>/) || [""])[0];
+const boxPara = htmlText(boxParaHtml);
+// The Data panel's own parenthetical — the three rows above read this, not the whole sentence.
+const boxDataPanelGroups = (boxPara.match(/Data panel \(([^)]*)\)/) || [, ""])[1];
+const boxScopeOf = (row) => (row[3] === "dataPanel" ? boxDataPanelGroups : boxPara);
+
+// (a) the roster: the code's call sites, every one of them accounted for.
+const boxUnknown = [...kitSites.keys()].filter((k) => !SEARCH_SURFACES.some((r) => r[0] === k))
+  .map((k) => `${k} runs the shared kit (line ${kitSites.get(k).join(", ")}) — nothing in the vocabulary says what to call it`);
+ok(`app/: every search box that runs Studio.catalogSearch has a row in this check ` +
+   `(${kitSites.size} surface(s) over ${new Set([...kitSites.keys()].map((k) => k.split(":")[0])).size} file(s))`,
+  !!boxParaHtml && !boxUnknown.length,
+  `${boxUnknown.join("\n      ") || "(every call site is accounted for)"}\n      ` +
+  `${boxParaHtml ? "" : 'the "…and every other search box too" paragraph was not found in docs/index.html\n      '}` +
+  "keyed by (file, enclosing top-level function) — a new or renamed search box lands here first");
+
+// (b) coverage: every non-catalog surface named, and the paragraph's scope still stated.
+const boxScopeStated = /not just the catalog pages/i.test(boxPara);
+const boxUnpublished = SEARCH_SURFACES.filter((r) => r[2] && kitSites.has(r[0]) && !r[2].test(boxScopeOf(r)))
+  .map((r) => `${r[1]} (${r[0]}) runs the same rules — the paragraph does not name it`);
+ok(`docs/index.html: every non-catalog search box is named in the paragraph that claims them all ` +
+   `(${SEARCH_SURFACES.filter((r) => r[2] && kitSites.has(r[0])).length} call site(s))`,
+  !boxUnpublished.length && boxScopeStated,
+  `${boxUnpublished.join("\n      ") || "(none)"}\n      ` +
+  `${boxScopeStated ? "" : 'the paragraph no longer says the catalog pages are covered elsewhere ("not just the catalog pages")\n      '}` +
+  `Data panel groups named: ${boxDataPanelGroups || "(no parenthetical)"}\n      ` +
+  "a box left out of a list that says EVERY search field is a reader told the rules stop somewhere they do not");
+
+// (c) the negative half: a retired box must not still be published.
+const boxStale = SEARCH_SURFACES.filter((r) => !kitSites.has(r[0]))
+  .map((r) => `${r[1]} (${r[0]}) no longer calls the kit` + (r[2] && r[2].test(boxScopeOf(r)) ? " — and Help still names it" : ""));
+ok("docs/index.html: the paragraph credits the app with no search box it no longer has",
+  !boxStale.length,
+  `${boxStale.join("\n      ") || "(none)"}\n      ` +
+  "a vocabulary row with no call site is either a box that moved (rename the row) or one that went (delete the copy)");
+
+// (d) the Help page's own box: a static page that never loads the app's kit, and says so.
+const helpBoxIsOwn = /<input[^>]+type="search"/.test(help) && !/catalogSearch/.test(help);
+const helpBoxPublished = /Help page[’']s own search box/i.test(boxPara);
+ok("docs/index.html: this page runs its own search, and the paragraph still says so",
+  helpBoxIsOwn && helpBoxPublished,
+  `own box, kit absent from the page: ${helpBoxIsOwn} · published as an exception: ${helpBoxPublished}\n      ` +
+  "the one search box on this page is the one box these rules do not reach");
+
+// (e) the table panel's Filter rows box — the exception a reader meets inside their own
+//     dashboard, and inside every export. Measured from the renderer, not asserted.
+const chartsSrc = read("app/studio-charts.js");
+const tableBody = (() => {
+  const at = chartsSrc.indexOf("DashKit.table = function");
+  if (at < 0) return "";
+  return searchBlockAt(chartsSrc, chartsSrc.indexOf("{", at), "{", "}");
+})();
+const tableBoxIsPlain = /class\s*=\s*"tbl-filter"|className = "tbl-filter"/.test(tableBody) &&
+  /indexOf\(q\)\s*>=\s*0/.test(tableBody) && !/catalogSearch/.test(chartsSrc);
+const tableBoxPublished = /filter rows/i.test(boxPara) && /literal/i.test(boxPara) && /export/i.test(boxPara);
+ok("app/studio-charts.js + docs/index.html: a table panel's Filter rows box matches one literal string, and Help says so",
+  tableBoxIsPlain && tableBoxPublished,
+  `plain substring match, kit absent from the renderer: ${tableBoxIsPlain} · published as an exception: ${tableBoxPublished}\n      ` +
+  `paragraph: ${boxPara || "(not found)"}\n      ` +
+  "it inlines into every exported dashboard, so it carries its own rules — that is worth stating, not hiding");
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

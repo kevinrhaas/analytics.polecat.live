@@ -1739,14 +1739,19 @@
   output dataset; and the <strong>Repository</strong> adds the one-line summary each row shows under
   its name.</p>
   <p><strong>…and every other search box too.</strong> The same rules run behind every search field in
-  the app, not just the catalog pages: the builder's Data panel (your datasets and your own queries), the
-  panel inspector's search, the chart-type gallery, the command palette (<kbd>⌘K</kbd>), the What's-new
-  feed, the folder picker, the Explore pane, the View Builder's datasets pane and its value filter, the
-  auto-build set list, the "add to dashboard" picker and a connection's schema browser. Words in any
-  order, quotes for an exact phrase, case-insensitive — wherever you type. The command palette layers
-  its own ranking on top (a command whose name <em>starts</em> with what you typed comes first), and the
-  What's-new feed highlights each word it matched. The one exception is this Help page's own search box,
-  which is part of the page you are reading rather than the app.</p>
+  the app, not just the catalog pages: the builder's Data panel (all three of its groups —
+  <strong>Datasets</strong>, <strong>Views</strong> and <strong>My queries</strong>), the panel
+  inspector's search, the chart-type gallery, the command palette (<kbd>⌘K</kbd>), the What's-new
+  feed, the folder picker, the Quick Views pane, the View Builder's datasets pane and its value filter,
+  the auto-build set list, the <strong>Open a dashboard</strong> picker and the "add to dashboard"
+  picker that shares its list, and a connection's schema browser. Words in any order, quotes for an
+  exact phrase, case-insensitive — wherever you type. The command palette layers its own ranking on top
+  (a command whose name <em>starts</em> with what you typed comes first), and the What's-new feed
+  highlights each word it matched. Two boxes work differently, both deliberately: a table panel's own
+  <strong>Filter rows</strong> box matches one literal string across the row's cells — so
+  <code>crops 2024</code> finds a row only where those two words sit side by side — because that table
+  travels inside every exported dashboard and carries its own self-contained rules rather than the
+  app's; and this Help page's own search box is part of the page you are reading rather than the app.</p>
   <p><strong>Filtering with pills.</strong> Above each list sits a row of filter pills, each showing how many
   items it covers. Picking none of a facet's pills means all of them, so the pills only ever narrow — and
   pills are listed in the order you read them, alphabetically by their label and numerically where numbers
