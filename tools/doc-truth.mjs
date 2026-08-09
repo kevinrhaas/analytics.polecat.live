@@ -1332,6 +1332,64 @@ ok("no artifact can RELABEL the `app` marker of a project another fleet app alre
   relabels.map((u) => `${u.rel} — ${u.sql}`).join("\n      ") + "\n      " +
   "the `app` marker is ownership, not state: ON CONFLICT (key) DO NOTHING");
 
+/* ── 28. Help's own version of check 24's catalog ROW ───────────────────────
+   N7. The check-16→17 move, one document over, and the pattern every tour slice has
+   followed: check 24 made the TOURS name each catalog row's controls, and the v892 pass
+   that shipped it measured that Help had the same hole — `docs/index.html` documented
+   Test, Run and `private` in scattered sections of their own and never named the per-row
+   **Pin** on Connections or Datasets at all. A reader who learns the app from Help rather
+   than from a tour is the one who never finds the row.
+
+   Same source of truth, deliberately: `rowControlsBySection` above, parsed out of the
+   catalog modules themselves — so one derivation now holds two documents, and a control
+   added to a row reddens the gate until BOTH say so.
+
+   Scope comes from the markup, not from a heading this check would have to guess at:
+   Help's per-row list tags each item `data-help-rows="<section>"`, which is also what makes
+   the negative half possible. That half is the one worth having — Jobs render no `cx-pin`,
+   and a Help page that promises one sends the reader hunting for a control that does not
+   exist. So a section's block must name every control its module renders, must NOT name a
+   toggle it doesn't, and — once a module GAINS one — must not still be carrying the
+   sentence that says it hasn't. The bolded form is the requirement, as in check 24: this
+   page names controls in <strong>, and prose *about* pinning is not the same as telling
+   the reader the button is there. */
+const helpRows = new Map([...read("docs/index.html")
+  .matchAll(/<li data-help-rows="(\w+)">([\s\S]*?)<\/li>/g)].map((m) => [m[1], m[2]]));
+ok("docs/index.html: the per-row controls block parsed for check 28 covers the same catalogs as check 24",
+  [...rowControlsBySection.keys()].every((s) => helpRows.has(s)) &&
+    [...helpRows.keys()].every((s) => rowControlsBySection.has(s)),
+  `Help documents: ${[...helpRows.keys()].join(", ") || "(none)"} · the modules define: ` +
+  `${[...rowControlsBySection.keys()].join(", ")}\n      ` +
+  'each catalog gets one `<li data-help-rows="<section>">` — that tag is what scopes this check');
+
+const helpRowGaps = [];
+for (const [sec, r] of rowControlsBySection) {
+  // A missing block is the check above's failure, but recorded here too — a vacuous ✓ on
+  // the line that names the controls is exactly the reassurance nobody should get.
+  const block = helpRows.get(sec) ?? "";
+  const bolded = (w) => new RegExp(`<strong>\\s*${w}\\b[^<]*</strong>`, "i").test(block);
+  for (const w of r.actions)
+    if (!bolded(w)) helpRowGaps.push(`Help's ${sec} row never names <strong>${w}</strong> — ` +
+      `the row's ${w} button (${r.file})`);
+  for (const w of r.toggles)
+    if (!bolded(w)) helpRowGaps.push(`Help's ${sec} row never names <strong>${w}</strong> — ` +
+      `the row's ${w} toggle (${r.file})`);
+  // The other direction: a toggle the module does not render must not be promised, and the
+  // sentence explaining its absence must go the moment it starts rendering one.
+  for (const w of Object.values(ROW_TOGGLE_WORD)) {
+    if (r.toggles.includes(w)) continue;
+    if (bolded(w)) helpRowGaps.push(`Help's ${sec} row promises <strong>${w}</strong>, but ` +
+      `${r.file} renders no such toggle on that row`);
+  }
+  if (r.toggles.includes("Pin") && /\bno pin\b/i.test(block))
+    helpRowGaps.push(`Help's ${sec} row still says it has "no pin", but ${r.file} now renders one`);
+}
+ok(`docs/index.html: every catalog row's own controls are documented, and none are invented (${
+  [...rowControlsBySection].map(([s, r]) => `${s}: ${[...r.actions, ...r.toggles].join("/")}`).join(" · ")})`,
+  !helpRowGaps.length,
+  `${helpRowGaps.join("\n      ")}\n      ` +
+  "Help is where a reader who never takes a tour learns the row — check 24 holds the tours to the same source");
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
