@@ -15181,11 +15181,9 @@
 > **This is an EPIC and stays here until it is split** (`docs/BACKLOG.md`: epics never enter NOW
 > whole). It is written up now so the split is a grooming step, not a re-discovery.
 >
-> **⚠ Series mint pending Kevin's confirm.** This is a named program of ≥4 related items across
-> two repos, which is exactly what `docs/BACKLOG.md` says warrants a prefix — but minting one is
-> a registry change, so it needs his word. Proposed prefix **`ORG-<n>`**. Until he confirms, any
-> slice pulled from here mints as the next `N<n>` instead. Do not use `ORG-` anywhere before the
-> registry row exists.
+> **✅ Series minted: `ORG-<n>`** (Kevin, 2026-08-09 — *"Org is fine"*). The registry row is in
+> `docs/BACKLOG.md`; slices below carry real IDs and are the ones to pull from. Numbers are
+> identity, not rank — the order below is the intended sequence, and ORG-4 depends on ORG-3.
 >
 > **Where we actually are — measured, because the gap is smaller than it looks.** Folders are NOT
 > missing; they are inconsistent:
@@ -15208,19 +15206,19 @@
 > than "build folders", and any slice that reinvents the tree instead of lifting Repository's is
 > doing it wrong.
 >
-> **Proposed split (each ≤3pt; confirm before pulling):**
-> - **1 [3pt] — Lift the tree out of Repository into ONE shared catalog-tree component** in this
+> **The split (each ≤3pt):**
+> - **ORG-1 [3pt] — Lift the tree out of Repository into ONE shared catalog-tree component** in this
 >   repo, with the folder facet as a fallback view: create folder (nested paths), rename, delete
 >   (with a decision on what happens to contents), collapse state persisted, empty folders that
 >   survive a reload. Repository migrates to it in the same slice, so there is never a second
 >   implementation.
-> - **2 [2pt] — Drag and drop, done to Finder standards:** row → folder, row → "New folder…",
+> - **ORG-2 [2pt] — Drag and drop, done to Finder standards:** row → folder, row → "New folder…",
 >   multi-select drag (the sections already have select mode + bulk bars), a real drop indicator,
 >   ESC to cancel, and an **undo** for a misdrop. Keyboard and mobile equivalents are required,
 >   not optional — drag cannot be the only way to file something at 390×780.
-> - **3 [3pt] — Roll it across Views · Dashboards · Datasets · Connections · Jobs**, one section
+> - **ORG-3 [3pt] — Roll it across Views · Dashboards · Datasets · Connections · Jobs**, one section
 >   per PR if it runs long. Same tree, same actions, same wording everywhere.
-> - **4 [3pt] — Promote to the platform** (`kevinrhaas/polecat-platform` `lib/`): the component
+> - **ORG-4 [3pt] — Promote to the platform** (`kevinrhaas/polecat-platform` `lib/`): the component
 >   ships in the shell with a documented API in SHELL-API.md, `lib/VERSION` bumped +
 >   `scripts/gen-manifest.mjs` re-run, and it arrives back here via a `chore: polecat-shell` sync
 >   PR like every other shell change. **Sequencing matters:** prove it in this app across ≥3
@@ -15233,7 +15231,7 @@
 > moves everything under it; and nothing is destroyed silently — deleting a folder asks what to
 > do with its contents.
 >
-> **One thing to decide early, not late:** whether `folder` stays a path STRING on each row
+> **One thing to decide early, not late (ORG-1 answers it in writing):** whether `folder` stays a path STRING on each row
 > (cheap, additive, no migration, but renames are a rewrite across rows) or becomes real folder
 > ROWS with parent ids (proper tree, but a schema change under `docs/COMPAT.md`'s additive-only
 > contract and a mixed-version fleet). The string is almost certainly right — say so explicitly
@@ -15254,8 +15252,8 @@
 > **Live reservoir — real open items, but NOT a priority order.** Several of these still carry
 > expired "TOP PRIORITY" headers from July and contradict each other; ignore the headers:
 > - **ORGANIZE** (08-09, immediately above) — the folder/file-management epic across every list
->   section, ending in a polecat-platform shell component. Split proposed, not yet minted;
->   `ORG-<n>` awaits Kevin's confirm.
+>   section, ending in a polecat-platform shell component. Split into **ORG-1..ORG-4**, series
+>   minted with Kevin's approval 2026-08-09; ready to pull in order.
 > - **UX sweep #574** — worked out; only SWEEP574-1 remains and it is Kevin's product call.
 > - **VIEW BUILDER OVERNIGHT QUEUE** (07-30) — the largest live block.
 > - **FRONTEND QA REPORT** (07-24) · **LIVE-QA QUEUE** (07-27) · **LIVE-FEEDBACK QUEUE**
