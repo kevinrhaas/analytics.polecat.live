@@ -135,6 +135,48 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — a sample pack's own card said "nothing to connect" while installing it seeded connections
+  (v922, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** the check-34→card move,
+  the same one 15 made after 14, 17 after 16, 28 after 24 and 34 itself made after 23. v921 held
+  the Help PAGE to the installer; this holds the two strings the registry writes about ITSELF,
+  which reach a reader first and reach far more of them.
+  - **The note that sent this run here was wrong about both the file and the string, and the
+    correction is the reason the slice found anything.** It said Settings renders each pack's
+    `tagline` at `app/studio.js:1046`. Measured: Settings renders the **`blurb`**
+    (`studio.js:9925`, under the pack name beside `demoPackSourceLine`), and 1046 is
+    `demoPackCard` — the BUILDER's pack card, which DECLUTTER-1 unwired and whose own caller says
+    "buildDemoPacksLib stays (unused)". The tagline's live surfaces are `app/tutorial.js:690` and
+    `app/welcome.js:91`, where it is dropped into a sentence ("…comes with the X sample pack —
+    <tagline>."). So there were **two** unchecked strings per pack, not one, and the entry
+    contract's "name/tagline/blurb — the Settings card copy" comment — the line that produced the
+    wrong note — now says which string renders where.
+  - **One drift, in both workspace packs, in both strings: every one of them seeds `connections`
+    and no card said so.** Conservation Insight seeds two (a demo file source and a demo Supabase
+    repo), Market Coverage one; all four strings listed dashboards, Views, datasets and the job
+    and stopped. v921 had already fixed exactly this on the Help page (rule (b)); the cards were
+    describing the same packs and had not been.
+  - **Worse than an omission: both closed on "nothing to connect".** The only place the word
+    appeared, and it says the opposite of what Install does. It was reaching for "no credentials
+    to enter" — true, and still said — but a reader who installs Conservation Insight and then
+    finds two new rows in Connections was told there would be none.
+  - **Doc-truth check 35** reuses check 34's derivation whole (`packRegistry`, `PACK_TABLE_NOUN`,
+    `defaultInstalled`) over the registry's own copy, plus a `stringProp()` that follows JS
+    `"a" + "b"` concatenation — a single-literal regex reads only a blurb's first wrapped line and
+    would let every claim after the first wrap through unchecked. Four rules: (a) each string
+    names every KIND its installer seeds, per-string because each is standalone copy a reader may
+    meet without the other; (b) every dashboard COUNT is one of the pack's real numbers (seeded /
+    materialized / sum); (c) "installed by default" ⇔ `DEFAULT_INSTALLED`, on the **blurb** only —
+    Settings is the install surface and the tagline is a count line inside someone else's
+    sentence; (d) a pack that seeds connections may not say there is nothing to connect. **All
+    four failure modes measured on mutated trees** — the pre-fix copy flagged all 4 kind gaps and
+    all 3 "nothing to connect" sites, a mutated count and a moved `DEFAULT_INSTALLED` each flagged
+    theirs. **No "invents a kind" rule, deliberately** (check 34 has none either): Data
+    Management's copy names connections, datasets and jobs IN THE NEGATIVE and is right to, so a
+    rule reading the noun without its polarity would fail true copy.
+  - **When SP-1 (c2) moves the default, check 34 and check 35 now fail together** rather than one
+    page going quietly stale. No `sw.js` bump: the precache list is unchanged and the fetch
+    handler is network-first — sw.js's own stated rule, the same reading N29/#687 and N14 used,
+    and issue #631 makes a gratuitous bump actively costly.
 - **N7 — Help's "Sample packs" section described a smaller app than the one that ships (v921, NO
   sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** the check-23→Help move — the same
   one check 15 made after 14, 17 after 16 and 28 after 24. Check 23 holds the pack TOUR to the
@@ -12698,11 +12740,29 @@
     packs generically — "a pack can add dashboards, datasets, connections and jobs" — which is
     true and stays true, so nothing there had drifted; and `app/tutorial.js`'s Market Coverage
     tour was audited against the same derivation and is CURRENT (it names every kind the pack
-    seeds, all three dashboards and all four Views). The candidate for the next N7 slice is
+    seeds, all three dashboards and all four Views). ~~The candidate for the next N7 slice is
     **Settings' own Sample packs card**: it renders each pack's registry `tagline`
     (`app/studio.js:1046`), which no check reads — the same class of claim as this one, one
     surface over, and every tagline is a hand-written count ("6 dashboards · 4 Views · 8
-    datasets · rollup job").
+    datasets · rollup job").~~ ✓ **SHIPPED v922, NO sw bump (2026-08-09 — see DONE), and this
+    note was wrong in the two ways that made the slice worth taking:** Settings renders the
+    **`blurb`** (`studio.js:9925`), not the tagline, and 1046 is the BUILDER's card, unwired by
+    DECLUTTER-1 — the tagline's live surfaces are the pack tour and the welcome carousel. So each
+    pack had **two** unchecked strings, and both carried the same defect: every workspace pack
+    seeds `connections` and no card said so, while both closed on "nothing to connect" — the
+    opposite of what Install does. Doc-truth check 35 (four rules, all four failure modes
+    measured on mutated trees).
+  * **Measured in the v922 pass and NOT taken, so the next run does not re-derive them.** The
+    candidate for the next N7 slice is **the Conservation Insight card's dashboard count**:
+    the blurb says "6 dashboards" and the pack puts **14** in the workspace (6 seeded + 8
+    materialized from the gated gallery — Help says fourteen since v921). Check 35 rule (b)
+    allows 6, correctly, because it is a real number; but the card a reader decides on
+    under-sells the pack by eight dashboards while the Help page describing that same card says
+    fourteen, and which number belongs on a 350-character card is a product call, not a
+    derivation. **Also measured, and NOT N7's** (it is code, not copy): `demoPackCard` +
+    `buildDemoPacksLib` in `app/studio.js` (~35 lines) have been unwired since DECLUTTER-1 and
+    the caller's comment says so outright — CLAUDE.md's "no dead code" says retire them, the
+    comment says they were kept on purpose, and settling that is its own unit.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before

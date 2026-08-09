@@ -1868,6 +1868,28 @@ function seededTables(roots) {
   }
   return [...tables].sort();
 }
+// A registry string property, following JS `"a" + "b"` concatenation — `blurb` is written as
+// several wrapped literals, so a single-literal regex reads only its first line and would let
+// every claim after the first wrap through unchecked. Used by checks 34 (nothing yet) and 35.
+function stringProp(body, key) {
+  const m = new RegExp(`\\b${key}:\\s*`).exec(body);
+  if (!m) return "";
+  let i = m.index + m[0].length, out = "";
+  for (;;) {
+    while (/\s/.test(body[i])) i++;
+    if (body[i] !== '"') break;
+    let j = i + 1;
+    for (; j < body.length && body[j] !== '"'; j++) {
+      if (body[j] === "\\") { out += body[++j]; continue; }
+      out += body[j];
+    }
+    i = j + 1;
+    while (/\s/.test(body[i])) i++;
+    if (body[i] !== "+") break;
+    i++;
+  }
+  return out;
+}
 const registryBlock = braceBlockAt(packSrc, packSrc.indexOf("{", packSrc.indexOf("Studio.DEMO_PACKS = {")));
 const packRegistry = [...registryBlock.matchAll(/\n {4}(\w+): \{/g)].map((m) => {
   const body = braceBlockAt(registryBlock, registryBlock.indexOf("{", m.index + m[0].length - 1));
@@ -1882,6 +1904,10 @@ const packRegistry = [...registryBlock.matchAll(/\n {4}(\w+): \{/g)].map((m) => 
     seeded: new Set([...packSrc.matchAll(new RegExp(`name:\\s*"(${m[1]}-[\\w-]+)"`, "g"))].map((x) => x[1])).size,
     declared,
     examples: exampleList.filter((e) => e.demoPackId === m[1]).length,
+    // The pack's OWN copy — check 35's subject. Kept on the same derivation as everything
+    // above so one reading of the registry serves both checks.
+    tagline: stringProp(body, "tagline"),
+    blurb: stringProp(body, "blurb"),
   };
 });
 const defaultInstalled = [...((packSrc.match(/DEFAULT_INSTALLED = \[([^\]]*)\]/) || [, ""])[1])
@@ -1983,6 +2009,123 @@ ok(`docs/index.html: the pack Help calls "installed by default" is the one in DE
   !defaultGaps.length,
   `${defaultGaps.join("\n      ")}\n      ` +
   "what a fresh workspace contains is the first thing a new reader sees — when the default moves, this sentence has to move with it");
+
+/* ── 35. the pack's OWN card copy vs what the pack seeds ────────────────────
+   N7, and the check-34→card move — the same one 15 made after 14, 17 after 16, 28 after 24
+   and 34 itself made after 23. Check 34 holds the Help PAGE accountable to the installer.
+   This holds the two strings the registry writes about itself, which reach a reader FIRST
+   and reach far more of them: `blurb` is the Settings → Sample packs card (app/studio.js
+   renders it under the pack name, beside demoPackSourceLine), and `tagline` is what the
+   pack tour and the welcome carousel drop into a sentence. Until now no check read either
+   one's claims — the suite's #116 reads their SHAPE (count-led, says "embedded") and
+   nothing read the counts.
+
+   The N7 note that pointed here said Settings renders the `tagline` at app/studio.js:1046.
+   Measured, that is two things wrong: Settings renders the `blurb` (studio.js:9925), and
+   1046 is `demoPackCard`, the builder's pack card, which DECLUTTER-1 unwired — its own
+   caller's comment says "buildDemoPacksLib stays (unused)". So the tagline's live surfaces
+   are app/tutorial.js and app/welcome.js. Both strings are checked here either way.
+
+   Measured 2026-08-09, before the fix — one drift, in both packs, in both strings:
+   · **Every workspace pack seeds `connections`, and no card said so.** Conservation
+     Insight seeds two (a demo file source and a demo Supabase repo) and Market Coverage
+     one; all four strings listed dashboards, Views, datasets and the job and stopped.
+   · **Worse than an omission: both closed on "nothing to connect"** — the only place the
+     word appeared, and it says the opposite of what Install does. It was reaching for "no
+     credentials to enter", which is true, but a reader who installs Conservation Insight
+     and then finds two new rows in Connections was told there would be none. Help had
+     already been corrected here (v921, check 34 rule (b)); the card had not.
+
+   Four rules, all off check 34's derivation:
+   (a) each string names every KIND its pack's installer seeds (check 34's rule (b), one
+       surface over, applied per-string because each is standalone copy a reader may meet
+       without the other);
+   (b) every dashboard COUNT either string claims is one of that pack's real numbers —
+       seeded, materialized from the gallery, or their sum (check 34's rule (c));
+   (c) "installed by default" ⇔ DEFAULT_INSTALLED, on the BLURB only: Settings is the
+       install surface, and the tagline is a count line inside someone else's sentence —
+       requiring it there would be asking the tour to narrate a workspace default;
+   (d) a pack that seeds connections may not tell the reader there is nothing to connect.
+       This is the defect above, stated as a rule.
+   No "invents a kind" rule, deliberately, and check 34 has none either: Data Management's
+   copy names connections, datasets and jobs IN THE NEGATIVE ("no connections, datasets or
+   jobs") and is exactly right to, so a rule that read the noun without its polarity would
+   fail true copy. */
+const cardStrings = (p) => [["tagline", p.tagline], ["blurb", p.blurb]].filter(([, s]) => s);
+ok(`app/demopacks.js: every pack's card copy parsed for check 35 (${
+  packRegistry.map((p) => `${p.id}: tagline ${p.tagline.length}ch, blurb ${p.blurb.length}ch`).join(" · ")})`,
+  packRegistry.length > 0 && packRegistry.every((p) => cardStrings(p).length === 2),
+  "a pack with no tagline or no blurb renders an empty card — the suite's shape check (#116) " +
+  "and every rule below read these two strings");
+
+// (a) each string names every kind its installer seeds
+const cardKindGaps = [];
+for (const p of packRegistry)
+  for (const [which, s] of cardStrings(p))
+    for (const t of p.tables) {
+      const noun = PACK_TABLE_NOUN[t];
+      // "View" is a proper noun (LF57) and is matched as one — checks 23 and 34's rule.
+      if (!new RegExp(`\\b${noun}s?\\b`, /^[A-Z]/.test(noun) ? "" : "i").test(s))
+        cardKindGaps.push(`"${p.folder}" seeds ${t} but its ${which} never says "${noun}"`);
+    }
+ok("app/demopacks.js: every pack's card copy names every kind of thing its installer seeds",
+  !cardKindGaps.length,
+  `${cardKindGaps.join("\n      ")}\n      ` +
+  "the card is where a reader decides whether to click Install — a pack that quietly seeds " +
+  "connections has changed a catalog they never agreed to change");
+
+// (b) every dashboard count is one of the pack's real numbers
+const cardCountGaps = [];
+let cardCountClaims = 0;
+for (const p of packRegistry) {
+  const real = [...new Set([p.seeded, p.examples, p.seeded + p.examples].filter(Boolean))];
+  for (const [which, s] of cardStrings(p))
+    // Same shape as check 34's rule (c): the number belongs to the noun, not to a fixed
+    // slot before it ("6 dashboards", "12 generic showcase dashboards").
+    for (const m of s.matchAll(/((?:[\w-]+ ){1,3})dashboards\b/gi)) {
+      const n = m[1].trim().split(" ").map(asNumber).find((x) => x !== undefined);
+      if (n === undefined) continue;
+      cardCountClaims++;
+      if (!real.includes(n))
+        cardCountGaps.push(`"${p.folder}" ${which}: "…${m[0].trim()}" — the pack seeds ` +
+          `${p.seeded} and materializes ${p.examples} from the gallery (${real.join(" / ")})`);
+    }
+}
+ok(`app/demopacks.js: every pack card's dashboard count is a number the pack actually produces (${cardCountClaims} claim(s))`,
+  cardCountClaims > 0 && !cardCountGaps.length,
+  (cardCountClaims ? cardCountGaps.join("\n      ")
+    : "no card states a dashboard count — #116 requires these strings be count-led, so this cannot be right") +
+  "\n      seeded, materialized, or the sum: any of the three is true, anything else is arithmetic nobody re-did");
+
+// (c) "installed by default" is a fact about DEFAULT_INSTALLED — on the blurb
+const cardDefaultGaps = [];
+for (const p of packRegistry) {
+  const claims = /installed by default/i.test(p.blurb);
+  if (claims && !defaultInstalled.includes(p.id))
+    cardDefaultGaps.push(`"${p.folder}" blurb says it is installed by default, but DEFAULT_INSTALLED is [${defaultInstalled.join(", ")}]`);
+  if (!claims && defaultInstalled.includes(p.id))
+    cardDefaultGaps.push(`"${p.folder}" IS in DEFAULT_INSTALLED, but its blurb never says so`);
+}
+ok(`app/demopacks.js: the pack whose blurb says "installed by default" is the one in DEFAULT_INSTALLED (${defaultInstalled.join(", ")})`,
+  !cardDefaultGaps.length,
+  `${cardDefaultGaps.join("\n      ")}\n      ` +
+  "the same sentence check 34 holds Help to, on the card Help is describing — when SP-1 (c2) " +
+  "moves the default, both fail together rather than one going quietly stale");
+
+// (d) a pack that seeds connections may not say there is nothing to connect
+const NOTHING_TO_CONNECT = /nothing to connect/i;
+const connectGaps = [];
+for (const p of packRegistry) {
+  if (!p.tables.includes("connections")) continue;
+  for (const [which, s] of cardStrings(p))
+    if (NOTHING_TO_CONNECT.test(s))
+      connectGaps.push(`"${p.folder}" ${which} says "nothing to connect" while its installer seeds connections`);
+}
+ok('app/demopacks.js: no pack that seeds connections tells the reader there is "nothing to connect"',
+  !connectGaps.length,
+  `${connectGaps.join("\n      ")}\n      ` +
+  'the copy means "no credentials to enter" — say that, because the literal reading is false ' +
+  "the moment Install writes a connection row");
 
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
