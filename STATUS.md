@@ -13415,6 +13415,32 @@
   built-in SVG renderer a minimal zoom/pan cluster so the default stops being the option with no
   controls. **Kevin's call between them.** Whichever wins, a US county choropleth with no way to
   zoom is the wrong default for the app's strongest geography.
+> **▸ PROMOTED 2026-08-09 (Kevin, directly — not a grooming batch): three money-flow packs.**
+> *"when you get through the stabilization stuff can you prioritize some of the other sample
+> packs… we had some where the money is going and other ones on the list, I would like some more
+> of those."* They sit BELOW N31–N34 on purpose: those four are the stabilization he means, and
+> three of them are defects in the pack experience itself, so shipping more packs on top of a
+> degrading View Builder would multiply the problem rather than showcase it. Take them in the
+> order below — each is still 3pt / ~3 PRs and follows the SP-0 convention SP-1 proved.
+>
+> **SP-6 first** (Federal Contract Awards) — the cleanest of the three: USASpending.gov, public
+> domain, no scope questions, no personal data, and the single best sankey/marimekko source in
+> the program (agency → vendor → NAICS is a genuine flow, which the app has never had real data
+> for). It also answers "where the money is going" most literally.
+> **SP-5 second** (Campaign Finance) — fully decided now, so it is startable: individual donor
+> names ship (Kevin, 2026-08-08), street addresses are read by the extract to resolve geography
+> via the Census Geocoder and then DROPPED, output is FIPS not lat/long, and unmatched rows fall
+> back to ZIP centroid carrying a `geo_precision` column. Re-read the SP-5 entry before starting
+> — those constraints are the item, not decoration.
+> **SP-13 third** (Where America Moved) — IRS county-to-county migration, and the money angle is
+> the part people do not expect: it carries the AGGREGATE INCOME that moved with the households,
+> so "who is winning population" and "are the leavers richer than the stayers" are the same
+> chart. Public domain. Its one real risk is size — the full pair matrix is large, so the extract
+> must subset to net flows plus the top-N pairs per state to stay inside the 150 KB budget.
+>
+> Not promoted, deliberately: SP-12 (Neighborhood Change) and SP-14/SP-15 stay in the reservoir
+> for the next batch — Kevin asked for the money ones, and three 3pt packs is already ~9 PRs.
+
 - **N34 ★★ [1pt] — dragging the View Builder canvas taller does not make the chart taller; it
   just adds empty space below it.** Kevin, 2026-08-09: *"when I drag the canvas open the view
   would resize? like the chart object is the same."* His screenshot shows the canvas dragged to
@@ -14770,7 +14796,7 @@
 >   shoulder seasons vanished. *NPS Visitor Use Statistics, monthly 1979–2024, public domain.*
 > - **SP-4 [3pt] — Consumer Price Trends.** Inflation by metro and category; which cities
 >   diverge; the same basket compared. *BLS CPI, public domain.*
-> - **SP-5 [3pt] — Campaign Finance.** Donor geography, industry concentration, small-dollar vs
+> - **SP-5 [3pt] — Campaign Finance.** ⏫ **PROMOTED to ▶ NOW 2026-08-09 (Kevin) — work it there; the scope decisions below are binding.** Donor geography, industry concentration, small-dollar vs
 >   max-out, out-of-state share. *FEC bulk individual contributions, public domain.*
 >   **✅ SCOPE DECIDED — Kevin, 2026-08-08. Do not re-ask; do not re-open it on his behalf.**
 >   The concern was put to him in full — that the FEC bars using contributor names for
@@ -14823,7 +14849,7 @@
 >   belongs in **SP-16**, where the rows are constructed and the addresses are fabricated — and
 >   it is the better demo anyway, since it can plant the messy cases (apartment lines,
 >   non-standard formats, missing components) on purpose instead of by luck.
-> - **SP-6 [3pt] — Federal Contract Awards.** Who wins federal work, by agency, vendor, NAICS
+> - **SP-6 [3pt] — Federal Contract Awards.** ⏫ **PROMOTED to ▶ NOW 2026-08-09 (Kevin) — work it there, not from here.** Who wins federal work, by agency, vendor, NAICS
 >   and district; small-business share. *USASpending.gov, public domain.*
 > - **SP-7 [3pt] — Food Safety Inspections.** A multi-site operations scorecard: violation rates
 >   by chain and neighbourhood, repeat offenders, inspector variance. *City of Chicago open data
@@ -14868,7 +14894,7 @@
 >   is it aging out?* Long time series + county choropleth + a small-multiples "who changed
 >   most" board. *US Census ACS, public domain.* The most obviously interesting of the group to
 >   a general audience, and the cheapest — same API family as SP-1's extract.
-> - **SP-13 ★ [3pt] — Where America Moved.** IRS Statistics of Income **county-to-county
+> - **SP-13 ★ [3pt] — Where America Moved.** ⏫ **PROMOTED to ▶ NOW 2026-08-09 (Kevin) — work it there, not from here.** IRS Statistics of Income **county-to-county
 >   migration**: for every county pair, how many households moved, how many people, and the
 >   **aggregate income that moved with them**. Almost nobody demos this and everybody finds it
 >   fascinating — it answers "who is winning and losing population, and are the leavers richer
