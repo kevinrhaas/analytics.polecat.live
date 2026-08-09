@@ -112,6 +112,29 @@ the shape rule as code — the suite drives it with fixtures, and
 `tools/pack-extract/lib.mjs` applies the same rules to what a script is about to
 write, so the data and its registry entry can never describe different sources.
 
+### `hero` — the dashboard the pack leads with (SP-1 c2)
+
+```js
+hero: "marketcoverage-whitespace",   // a dashboard `name` this pack seeds
+```
+
+Optional. An entry that declares one gets Home's **featured** tile the moment its
+rows land — `Studio.featurePackHero(id)` on seed, and
+`Studio.featureInstalledPackHeroes()` once per boot for a workspace whose install
+predates the field. It is registry-driven, so nothing outside `app/demopacks.js`
+names a pack, and it is **refused whenever any dashboard is already featured**: a
+user's own choice always wins, including the pack's own hero from an earlier boot,
+so re-running it can never overwrite anything.
+
+### Which pack a new workspace starts with
+
+`DEFAULT_INSTALLED` in `app/demopacks.js` — read ONLY when the installed-packs key
+is absent, so editing it changes what a *brand-new* workspace contains and never
+rewrites an existing one. Defaulting a `kind:"workspace"` pack (Market Coverage is
+the first) seeds no rows by itself: the flag makes `ensurePackDataMaterialized()`
+eligible, and studio.js's boot `ensureAllPackDataMaterialized()` is what actually
+materializes the CSV on first load.
+
 ## What is checked, and where
 
 | Rule | Enforced by |

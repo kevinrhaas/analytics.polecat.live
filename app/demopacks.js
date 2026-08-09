@@ -84,10 +84,10 @@
     // (docs/PACKS.md is the contract). Slice (a) shipped the data foundation: the
     // connection, the two datasets, and the join job that turns them into a saturation
     // index. Slice (b) added the three dashboards that read it, and slice (c1) the four
-    // pinned Views beside them plus the pack's own guided tour. What remains is (c2):
-    // the swap into DEFAULT_INSTALLED (and whether the hero dashboard is featured with
-    // it) — its own slice because making a workspace pack the out-of-the-box default
-    // changes what every fresh workspace contains, not just what this pack offers.
+    // pinned Views beside them plus the pack's own guided tour. Slice (c2) closed SP-1 by
+    // making it the pack a fresh workspace STARTS with (DEFAULT_INSTALLED below) and
+    // naming its `hero` — the first workspace-kind pack to hold that slot, which is why
+    // the swap was its own revertible unit rather than a rider on (c1).
     marketcoverage: {
       id: "marketcoverage",
       kind: "workspace",
@@ -100,7 +100,11 @@
         "datasets covering 1,813 counties: who lives there (population, households, median age, " +
         "median household income, education) and the businesses already trading there (all " +
         "industries, restaurants and bars, grocers), plus the prep job that joins them into a " +
-        "per-10,000-residents saturation index. The data is real and embedded: nothing to connect.",
+        "per-10,000-residents saturation index. The data is real and embedded: nothing to connect. " +
+        "Installed by default.",
+      // SP-1 (c2): the dashboard this pack leads with — Home's featured tile the moment the
+      // pack's rows land, but only when nothing else is featured (see Studio.featurePackHero).
+      hero: "marketcoverage-whitespace",
       source: {
         kind: "public",
         name: "US Census Bureau — County Business Patterns and American Community Survey",
@@ -140,7 +144,7 @@
       blurb: "12 showcase dashboards — governance, platform ops, delivery, finance, marketing, " +
         "incident response, compliance, data quality, pipeline observability, storage, cost, " +
         "and an interactive feature tour. Dashboards only: no connections, datasets or jobs, " +
-        "and their sample data is embedded. Installed by default.",
+        "and their sample data is embedded. Install it from here whenever you want the gallery.",
       // Its dashboards are materialized asynchronously from data/examples by studio.js's
       // ensurePackExamplesMaterialized, so there is nothing for `seeds` to declare here.
       source: { kind: "synthetic", label: "synthetic — generated in the app, not real observations" },
@@ -225,11 +229,24 @@
   // registry entry, so demopacks.js and studio.js read the one value instead of keeping
   // two literals in sync.
   var PACK_FOLDER = Studio.DEMO_PACKS.conservation.folder;
-  // Packs installed before a user ever opens Settings. "datamanagement" gates content that
-  // used to be unconditional (the generic showcase gallery) — defaulting it to installed
-  // keeps that gallery looking the same as it always has for every existing workspace, while
-  // still making it a real opt-out toggle (see Settings' Sample packs card).
-  var DEFAULT_INSTALLED = ["datamanagement"];
+  // Packs installed before a user ever opens Settings — i.e. what a BRAND-NEW workspace
+  // contains out of the box. Read only when the key is absent, so changing it never
+  // rewrites an existing workspace's choices.
+  //
+  // SP-1 (c2), Kevin 2026-08-07: this was ["datamanagement"] — the generic showcase
+  // gallery, defaulted so it kept looking the way it always had. Market Coverage takes
+  // the slot because it is the better first thing to meet: real US Census data, a county
+  // choropleth, a prep job you can open, and a question ("where is a category
+  // under-served?") a visitor recognises in five seconds. Data Management is still one
+  // click away in Settings' Sample packs card — it lost the default, not its place.
+  //
+  // Note what defaulting a kind:"workspace" pack means, because datamanagement (kind
+  // "examples") never had to: the flag alone seeds nothing. The rows arrive because
+  // ensurePackDataMaterialized() gates on demoPackInstalled() and studio.js runs
+  // ensureAllPackDataMaterialized() on every boot — so a fresh workspace materializes
+  // the pack's CSV on first load, and marketCoverageConnection() heals the connection
+  // that install() would otherwise have written.
+  var DEFAULT_INSTALLED = ["marketcoverage"];
   function installedIds() {
     var raw; try { raw = localStorage.getItem(INSTALLED_KEY); } catch (e) { raw = null; }
     if (raw == null) return DEFAULT_INSTALLED.slice();
@@ -888,6 +905,11 @@
     // SP-1 (c): and the four pinned Views, for the same reason and at the same moment —
     // they are blobs over that dataset, so they cannot be authored a turn earlier either.
     seedMarketCoverageViews(W, id, outputDs, out);
+    // SP-1 (c2): the hero can only be featured once it EXISTS, so this is the first
+    // moment it can happen — on a fresh workspace that is the boot heal, and on an
+    // explicit install it is afterInstall's materialize. Declines if the user already
+    // has a featured dashboard.
+    Studio.featurePackHero(id);
   }
 
   /* ---- SP-1 (b): the pack's three dashboards ----------------------------------------
@@ -1396,6 +1418,35 @@
     target.featuredAt = new Date().toISOString();
     W.put("dashboards", target);
     return true;
+  };
+
+  // SP-1 (c2): the same rule as PACK-FEATURED above, but REGISTRY-DRIVEN — an entry names
+  // its `hero` dashboard and this function knows nothing else about it, so the next pack
+  // gets the behaviour by adding one field. (featureConservationGeo stays as it is: its
+  // fuzzy title fallbacks exist for workspaces seeded before that dashboard had a stable
+  // name, and re-expressing them here would be a migration, not a tidy-up.)
+  //
+  // The guard is the whole point of the pattern: a dashboard is featured only when NOTHING
+  // is featured yet. A user who picked their own hero — or removed the pack's — keeps it,
+  // on this boot and every later one.
+  Studio.featurePackHero = function (id) {
+    var p = Studio.DEMO_PACKS[id], W = Studio.Workspace;
+    if (!p || !p.hero || !Studio.demoPackInstalled(id)) return false;
+    if (W.all("dashboards").some(function (r) { return r.featured; })) return false;
+    var target = W.all("dashboards").filter(function (r) {
+      return r.demoPackId === id && (r.name === p.hero || (r.spec && r.spec.name === p.hero));
+    })[0];
+    if (!target) return false;
+    target.featured = true;
+    target.featuredAt = new Date().toISOString();
+    W.put("dashboards", target);
+    return true;
+  };
+  // Every installed pack that declares a hero gets one chance per boot — the same
+  // registry walk as ensureAllPackDataMaterialized, and it stops at the first one that
+  // takes the slot because featurePackHero refuses once anything is featured.
+  Studio.featureInstalledPackHeroes = function () {
+    return Object.keys(Studio.DEMO_PACKS).some(function (id) { return Studio.featurePackHero(id); });
   };
 
   function installConservationWorkspace() {

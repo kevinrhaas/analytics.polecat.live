@@ -1084,10 +1084,12 @@
   // demoPackId) are its curated dashboards — once THIS pack is installed, materialize its own
   // set as real workspace "dashboards" rows (tagged demoPackId + sourceFile) so they show up in
   // Home/Dashboards like any saved dashboard, not just the Examples ▾ gallery. Scoped to a
-  // single `id` — NOT "every currently-installed pack" — because datamanagement is installed
-  // BY DEFAULT for every fresh workspace (see DEFAULT_INSTALLED in demopacks.js); a scan-all
-  // version would incidentally materialize its 8 dashboards the moment ANY other pack's install
-  // button was clicked. Idempotent on sourceFile so re-running it never duplicates rows;
+  // single `id` — NOT "every currently-installed pack" — because a scan-all version would
+  // incidentally materialize some OTHER installed pack's dashboards the moment ANY pack's
+  // install button was clicked. (Written when datamanagement held DEFAULT_INSTALLED and
+  // that made the hazard concrete; SP-1 c2 gave the slot to marketcoverage, and the
+  // reasoning is the same for whichever pack a workspace already has.)
+  // Idempotent on sourceFile so re-running it never duplicates rows;
   // removeDemoPack's existing demoPackId sweep already deletes them again on uninstall.
   // Kevin (2026-07-30): pack dashboards install INTO a folder named for their
   // pack, and their own titles lead (the shared "Conservation Insight — " prefix
@@ -1223,6 +1225,10 @@
     // SP-1(c) heal, the same shape one slice later: an install that predates the pack's
     // pinned Views gets them on boot rather than at a reinstall.
     try { if (Studio.ensureMarketCoverageViews) Studio.ensureMarketCoverageViews(); } catch (e) {}
+    // SP-1(c2): and last, Home's featured tile. Registry-driven (an entry declares its
+    // own `hero`), and a no-op the moment anything at all is featured — including the
+    // pack's own hero from a previous boot — so it can never overwrite a choice.
+    try { if (Studio.featureInstalledPackHeroes) Studio.featureInstalledPackHeroes(); } catch (e) {}
   }
   window.__studioReconcilePackDashboards = reconcilePackDashboards; // test hook
 

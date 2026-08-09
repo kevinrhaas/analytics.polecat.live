@@ -701,6 +701,18 @@ function serve() {
     await page.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     await page.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
     await page.waitForTimeout(400);
+    // SP-1(c2): a brand-new workspace now starts with the Market Coverage pack installed
+    // (DEFAULT_INSTALLED), and a workspace-kind pack materializes its committed CSV
+    // ASYNCHRONOUSLY on that first boot — it fetches two Census files, runs the join job
+    // and seeds the datasets, dashboards and Views. Wait for that to SETTLE before any
+    // check runs: otherwise the seed lands in the middle of an unrelated test and every
+    // workspace-count assertion in this file is racing it. (This is the same brief fill-in
+    // a real first-time visitor sees behind Home, not a test-only affordance.)
+    await page.waitForFunction(
+      () => window.Studio && Studio.Workspace &&
+        Studio.Workspace.all("dashboards").some((r) => r.demoPackId === "marketcoverage") &&
+        Studio.Workspace.all("analyses").some((r) => r.demoPackId === "marketcoverage"),
+      { timeout: 30000 });
 
     // ---- AUD-08 slice 1: the release history is off the boot path ----
     // js/changelog.js is the single largest file in the app and the ONLY reader is the
@@ -1275,13 +1287,22 @@ function serve() {
     // Clicking a control inside a horizontally overflowing toolbar scroll-into-views it
     // SMOOTHLY, so the menu keeps moving for ~1s after the click and the clamp re-runs on
     // each scroll frame. Poll until the box stops changing instead of guessing a timeout.
+    // The ROWS settle on their own clock too — the menu opens with a transition, so a box
+    // that has stopped moving can still contain a row a pixel short of its 44px minimum for
+    // another frame. Measured while shipping SP-1(c2): a busier first paint made that frame
+    // land here and read 43px on a menu whose rows are all exactly 44 at rest. So the
+    // stability signature includes the shortest row, not just the box.
     async function n8Settled(pg, id) {
       let last = null;
       for (let i = 0; i < 40; i++) {
         const now = await pg.evaluate(function (mid) {
           var m = document.getElementById(mid); if (!m) return "gone";
           var r = m.getBoundingClientRect();
-          return [Math.round(r.left), Math.round(r.right), Math.round(r.top), Math.round(r.bottom)].join(",");
+          var rows = Array.prototype.slice.call(m.querySelectorAll("button")).filter(function (b) {
+            var cs = getComputedStyle(b); return cs.display !== "none" && cs.visibility !== "hidden";
+          }).map(function (b) { return Math.round(b.getBoundingClientRect().height); });
+          return [Math.round(r.left), Math.round(r.right), Math.round(r.top), Math.round(r.bottom),
+            rows.length, rows.length ? Math.min.apply(Math, rows) : 0].join(",");
         }, id);
         if (now === last) return;
         last = now; await pg.waitForTimeout(50);
@@ -2528,23 +2549,35 @@ function serve() {
     await page.waitForTimeout(150);
     const lf67Fixture = path.join(__dirname, "fixture-lf67.csv");
     fs.writeFileSync(lf67Fixture, "category,revenue\nAlpha,120\nBeta,200\nAlpha,150\n");
+    const lf67PriorId = lf67PriorSpec.id;
     await page.setInputFiles("#secHome .home-quickimport-input", lf67Fixture);
-    await page.waitForTimeout(500);
-    const lf67Built = await page.evaluate(function () {
-      return {
+    // Wait for the BUILD to land rather than sleeping at it, and then read the flag and
+    // exercise the guard in ONE turn. Reason (measured while shipping SP-1 c2): the
+    // autosave debounce — scheduleNoteRecent, 800ms after the build's refreshPreview —
+    // upserts the open spec into the Dashboards catalog, which is exactly what
+    // hasUnsavedQuickBuild() reads as "saved". So a fixed 500ms sleep plus a second
+    // round trip is racing that timer, and a heavier workspace loses the race. The
+    // window itself is a real product question (STATUS NEXT → N30); these checks are
+    // about the guard, so they act while the build is unambiguously unsaved.
+    await page.waitForFunction(
+      (prev) => window.__STUDIO_STATE.spec.id !== prev && (window.__STUDIO_STATE.spec.panels || []).length > 0,
+      lf67PriorId, { timeout: 15000 });
+    const lf67Built = await page.evaluate(function (targetId) {
+      var out = {
         specId: window.__STUDIO_STATE.spec.id,
         unsaved: window.__studioHasUnsavedQuickBuild(),
         badgeHidden: document.getElementById("qmUnsaved").hidden
       };
-    });
-    ok("LF67: a freshly quick-built dashboard is flagged unsaved and shows the badge",
-      lf67Built.unsaved && lf67Built.badgeHidden === false, JSON.stringify(lf67Built));
-    const lf67Cancelled = await page.evaluate(function (targetId) {
       var msg = null;
       window.confirm = function (m) { msg = m; return false; }; // cancel — keep the unsaved build open
       window.__studioOpenRecent(targetId);
-      return { specIdAfter: window.__STUDIO_STATE.spec.id, msg: msg };
+      out.specIdAfter = window.__STUDIO_STATE.spec.id;
+      out.msg = msg;
+      return out;
     }, lf67Target);
+    ok("LF67: a freshly quick-built dashboard is flagged unsaved and shows the badge",
+      lf67Built.unsaved && lf67Built.badgeHidden === false, JSON.stringify(lf67Built));
+    const lf67Cancelled = { specIdAfter: lf67Built.specIdAfter, msg: lf67Built.msg };
     ok("LF67: opening another dashboard while unsaved warns, and cancelling keeps the quick build open",
       lf67Cancelled.specIdAfter === lf67Built.specId && lf67Cancelled.specIdAfter !== lf67Target &&
       /unsaved|hasn.t been saved/i.test(lf67Cancelled.msg || ""), JSON.stringify(lf67Cancelled));
@@ -2602,24 +2635,31 @@ function serve() {
     // re-running a real Quick-import for every surface.
     console.log("\n• LF67 follow-up: Home Blank card / New ▾ blank / auto-build starters warn on an unsaved Quick-import build");
     const lf67bPriorSpec = await page.evaluate(function () { return JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec)); });
-    async function lf67bBuildUnsaved() {
-      return page.evaluate(function () {
+    // Each leg BUILDS the synthetic unsaved spec and takes its action in the same turn,
+    // for the reason spelled out in the real Quick-import block above: the 800ms autosave
+    // debounce lands the open spec in the Dashboards catalog, and hasUnsavedQuickBuild()
+    // reads that as saved — so building in one round trip and clicking in the next tests
+    // the clock. `action` is a name, not code, so nothing here is eval'd in the page.
+    async function lf67bCancelVia(action, arg) {
+      return page.evaluate(function (a) {
         window.__studioLoad(Studio.emptySpec());
         var spec = window.__STUDIO_STATE.spec;
         Object.defineProperty(spec, "_qmSource", { value: { dsId: "lf67b-synthetic", creativity: "low" }, enumerable: false, configurable: true });
-        return { specId: spec.id, unsaved: window.__studioHasUnsavedQuickBuild() };
-      });
+        var out = { builtId: spec.id, builtUnsaved: window.__studioHasUnsavedQuickBuild(), msg: null };
+        window.confirm = function (m) { out.msg = m; return false; }; // cancel — keep the quick build
+        if (a.action === "homeBlank") document.querySelector('#secHome .home-card[data-home="blank"]').click();
+        else if (a.action === "newMenuBlank") document.querySelector('#menuNew [data-new="blank"]').click();
+        else if (a.action === "scaffoldDataset") window.__studioScaffoldFromDataset(a.arg);
+        else if (a.action === "scaffoldStem") window.__studioScaffoldFromStem(a.arg);
+        out.specIdAfter = window.__STUDIO_STATE.spec.id;
+        return out;
+      }, { action: action, arg: arg });
     }
 
     // (a) Home's Blank-dashboard card
-    let lf67bBuilt = await lf67bBuildUnsaved();
+    const homeBlankCancel = await lf67bCancelVia("homeBlank");
+    let lf67bBuilt = { specId: homeBlankCancel.builtId, unsaved: homeBlankCancel.builtUnsaved };
     ok("LF67 follow-up: the synthetic quick build is flagged unsaved", lf67bBuilt.unsaved, JSON.stringify(lf67bBuilt));
-    const homeBlankCancel = await page.evaluate(function () {
-      var msg = null;
-      window.confirm = function (m) { msg = m; return false; };
-      document.querySelector('#secHome .home-card[data-home="blank"]').click();
-      return { specIdAfter: window.__STUDIO_STATE.spec.id, msg: msg };
-    });
     ok("LF67 follow-up: Home's Blank-dashboard card warns and cancelling keeps the quick build",
       homeBlankCancel.specIdAfter === lf67bBuilt.specId && /unsaved|hasn.t been saved/i.test(homeBlankCancel.msg || ""), JSON.stringify(homeBlankCancel));
     const homeBlankConfirm = await page.evaluate(function () {
@@ -2631,13 +2671,8 @@ function serve() {
       homeBlankConfirm.specIdAfter !== lf67bBuilt.specId && !homeBlankConfirm.unsaved, JSON.stringify(homeBlankConfirm));
 
     // (b) New ▾ menu's "Blank dashboard"
-    lf67bBuilt = await lf67bBuildUnsaved();
-    const newMenuBlankCancel = await page.evaluate(function () {
-      var msg = null;
-      window.confirm = function (m) { msg = m; return false; };
-      document.querySelector('#menuNew [data-new="blank"]').click();
-      return { specIdAfter: window.__STUDIO_STATE.spec.id, msg: msg };
-    });
+    const newMenuBlankCancel = await lf67bCancelVia("newMenuBlank");
+    lf67bBuilt = { specId: newMenuBlankCancel.builtId, unsaved: newMenuBlankCancel.builtUnsaved };
     ok("LF67 follow-up: New ▾ → Blank dashboard warns and cancelling keeps the quick build",
       newMenuBlankCancel.specIdAfter === lf67bBuilt.specId && /unsaved|hasn.t been saved/i.test(newMenuBlankCancel.msg || ""), JSON.stringify(newMenuBlankCancel));
     const newMenuBlankConfirm = await page.evaluate(function () {
@@ -2649,18 +2684,13 @@ function serve() {
       newMenuBlankConfirm.specIdAfter !== lf67bBuilt.specId && !newMenuBlankConfirm.unsaved, JSON.stringify(newMenuBlankConfirm));
 
     // (c) New ▾'s auto-build starter, from a workspace dataset
-    lf67bBuilt = await lf67bBuildUnsaved();
     const starterDsId = await page.evaluate(function () {
       var conn = Studio.Workspace.put("connections", { name: "lf67b-starter-conn", adapter: "file", cfg: {} });
       var ds = Studio.Workspace.put("datasets", { name: "LF67b starter ds", connectionId: conn.id, kind: "file", format: "csv", columns: ["category", "revenue"], content: "category,revenue\nAlpha,120\nBeta,200\n" });
       return ds.id;
     });
-    const starterCancel = await page.evaluate(function (dsId) {
-      var msg = null;
-      window.confirm = function (m) { msg = m; return false; };
-      window.__studioScaffoldFromDataset(dsId);
-      return { specIdAfter: window.__STUDIO_STATE.spec.id, msg: msg };
-    }, starterDsId);
+    const starterCancel = await lf67bCancelVia("scaffoldDataset", starterDsId);
+    lf67bBuilt = { specId: starterCancel.builtId, unsaved: starterCancel.builtUnsaved };
     ok("LF67 follow-up: the auto-build starter (from a dataset) warns and cancelling keeps the quick build",
       starterCancel.specIdAfter === lf67bBuilt.specId && /unsaved|hasn.t been saved/i.test(starterCancel.msg || ""), JSON.stringify(starterCancel));
     const starterConfirm = await page.evaluate(function (dsId) {
@@ -2675,13 +2705,8 @@ function serve() {
     // Guard: scaffoldFromStem() early-returns when S.catalog hasn't finished its async load
     // yet (no confirm, no replace) — wait for the stem to exist so this leg is deterministic.
     await page.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.catalog && window.__STUDIO_STATE.catalog["cost-finops"], { timeout: 8000 });
-    lf67bBuilt = await lf67bBuildUnsaved();
-    const stemCancel = await page.evaluate(function () {
-      var msg = null;
-      window.confirm = function (m) { msg = m; return false; };
-      window.__studioScaffoldFromStem("cost-finops");
-      return { specIdAfter: window.__STUDIO_STATE.spec.id, msg: msg };
-    });
+    const stemCancel = await lf67bCancelVia("scaffoldStem", "cost-finops");
+    lf67bBuilt = { specId: stemCancel.builtId, unsaved: stemCancel.builtUnsaved };
     ok("LF67 follow-up: the auto-build starter (from a sample query set) warns and cancelling keeps the quick build",
       stemCancel.specIdAfter === lf67bBuilt.specId && /unsaved|hasn.t been saved/i.test(stemCancel.msg || ""), JSON.stringify(stemCancel));
     const stemConfirm = await page.evaluate(function () {
@@ -4100,6 +4125,17 @@ function serve() {
     ok("XP: a Turso workspace provisioned BEFORE v2 self-heals on save — the analyses table is created and the row round-trips",
       xpHeal.ok === true && xpHeal.rows === 1 && xpHeal.name === "healed", JSON.stringify(xpHeal));
     // the full designer flow, driven through the UI
+    // SP-1(c2): the demo-db sample tables this picker lists belong to whichever pack
+    // declares `catalogSamples` (Data Management), and that pack lost DEFAULT_INSTALLED
+    // to Market Coverage — so install it here rather than assuming it. Registry-driven,
+    // so this names no pack; the default itself is asserted where it belongs, in the
+    // SP-1(c2) block beside the pack's own checks.
+    await page.evaluate(function () {
+      Studio.demoPacksWith("catalogSamples").forEach(function (id) {
+        if (!Studio.demoPackInstalled(id)) Studio.installDemoPack(id);
+      });
+      window.__studioRenderExplore(); // the picker is built on install state — repaint it
+    });
     await page.evaluate(function () { window.__studioShellSetSection("explore"); });
     await page.waitForTimeout(300);
     const xpList = await page.evaluate(function () {
@@ -6068,8 +6104,100 @@ function serve() {
       mcTour.visible && mcTour.label === "Market Coverage pack" && mcTour.steps === 6 &&
       mcTour.targets.length === 4 && mcTour.panelTargetsResolve, JSON.stringify(mcTour));
 
-    // hand the workspace back exactly as the SP-1(b) checks found it
-    if (!mcDash.wasInstalled) await page.evaluate(function () { Studio.removeDemoPack("marketcoverage"); });
+    // ---- SP-1 (c2): Market Coverage is what a NEW workspace starts with -----------
+    // Two claims, and they are separable on purpose. (1) The default: with no
+    // installed-packs key at all — the only state a brand-new workspace is ever in —
+    // the pack that comes back is marketcoverage and NOT datamanagement, and reading
+    // the default must not write one (a default that persists itself would silently
+    // freeze whatever shipped the day a user first opened the app). (2) The hero:
+    // Home's featured tile is the whitespace map, chosen through the registry `hero`
+    // field, and REFUSED whenever anything is featured already — the PACK-FEATURED
+    // rule, which is what keeps a boot heal from overwriting a user's own choice.
+    const mcDefault = await page.evaluate(function () {
+      var KEY = "studio-demopacks-installed";
+      var saved = localStorage.getItem(KEY);
+      localStorage.removeItem(KEY);
+      var out = {
+        freshMarketCoverage: Studio.demoPackInstalled("marketcoverage"),
+        freshDataManagement: Studio.demoPackInstalled("datamanagement"),
+        // reading the default must not persist it
+        stillUnwritten: localStorage.getItem(KEY) === null
+      };
+      if (saved == null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved);
+      out.restored = localStorage.getItem(KEY) === saved;
+      // an existing workspace's own choices are untouched by the swap: a stored list
+      // is read verbatim, never merged with the new default
+      localStorage.setItem(KEY, JSON.stringify(["datamanagement"]));
+      out.storedWins = Studio.demoPackInstalled("datamanagement") && !Studio.demoPackInstalled("marketcoverage");
+      if (saved == null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved);
+      return out;
+    });
+    ok("SP-1(c2): a brand-new workspace (no installed-packs key) starts with Market Coverage and NOT the Data Management gallery, reading that default writes nothing, and a workspace that already stored its own list keeps it verbatim",
+      mcDefault.freshMarketCoverage && !mcDefault.freshDataManagement && mcDefault.stillUnwritten &&
+      mcDefault.restored && mcDefault.storedWins, JSON.stringify(mcDefault));
+
+    const mcHero = await page.evaluate(function () {
+      var W = Studio.Workspace, ID = "marketcoverage";
+      var featuredBefore = W.all("dashboards").filter(function (r) { return r.featured; }).map(function (r) { return r.id; });
+      function clearFeatured() {
+        W.all("dashboards").forEach(function (r) {
+          if (!r.featured) return;
+          r.featured = false; delete r.featuredAt; W.put("dashboards", r);
+        });
+      }
+      var out = { declares: Studio.DEMO_PACKS.marketcoverage.hero };
+      clearFeatured();
+      // the registry walk picks it up without naming the pack
+      out.tookTheSlot = Studio.featureInstalledPackHeroes();
+      var hero = W.all("dashboards").filter(function (r) { return r.featured; })[0];
+      out.heroIsWhitespace = !!hero && (hero.spec && hero.spec.name) === "marketcoverage-whitespace";
+      out.onlyOne = W.all("dashboards").filter(function (r) { return r.featured; }).length === 1;
+      out.stamped = !!(hero && hero.featuredAt);
+      // ...and refuses to touch anything now that a tile is featured
+      out.secondRunDeclines = Studio.featurePackHero(ID) === false && Studio.featureInstalledPackHeroes() === false;
+      // an explicit user choice always wins: feature something else, and the heal
+      // leaves it alone rather than restoring the pack's hero
+      clearFeatured();
+      var mine = W.all("dashboards").filter(function (r) { return (r.spec && r.spec.name) !== "marketcoverage-whitespace"; })[0];
+      out.hasOtherDashboard = !!mine;
+      if (mine) {
+        mine.featured = true; W.put("dashboards", mine);
+        out.userChoiceKept = Studio.featurePackHero(ID) === false &&
+          W.get("dashboards", mine.id).featured === true &&
+          W.all("dashboards").filter(function (r) { return r.featured; }).length === 1;
+      }
+      // an uninstalled pack never features anything, however its rows got there
+      clearFeatured();
+      out.uninstalledDeclines = (function () {
+        var was = Studio.demoPackInstalled(ID);
+        if (was) Studio.removeDemoPack(ID);
+        var r = Studio.featurePackHero(ID);
+        return r === false;
+      })();
+      clearFeatured();
+      out.featuredBefore = featuredBefore; // the cleanup below hands these back
+      return out;
+    });
+    ok("SP-1(c2): the whitespace map becomes Home's featured tile through the registry `hero` field — one tile, timestamped, picked up by the boot walk without any module naming the pack — and it declines every time it could overwrite a choice: a second run, a dashboard the user featured themselves, and a pack that is not installed",
+      mcHero.declares === "marketcoverage-whitespace" && mcHero.tookTheSlot && mcHero.heroIsWhitespace &&
+      mcHero.onlyOne && mcHero.stamped && mcHero.secondRunDeclines && mcHero.hasOtherDashboard &&
+      mcHero.userChoiceKept && mcHero.uninstalledDeclines, JSON.stringify(mcHero));
+
+    // hand the workspace back exactly as the SP-1(b) checks found it — the pack's
+    // install state AND the featured flags the hero checks borrowed (they have to be
+    // restored AFTER the reinstall, because materializing the pack features the hero
+    // itself when nothing holds the slot).
+    await page.evaluate(async function (want) {
+      var W = Studio.Workspace, ID = "marketcoverage";
+      if (want.installed && !Studio.demoPackInstalled(ID)) { Studio.installDemoPack(ID); await Studio.ensurePackDataMaterialized(ID); }
+      if (!want.installed && Studio.demoPackInstalled(ID)) Studio.removeDemoPack(ID);
+      W.all("dashboards").forEach(function (r) {
+        var should = want.featured.indexOf(r.id) >= 0;
+        if (!!r.featured === should) return;
+        if (should) r.featured = true; else { r.featured = false; delete r.featuredAt; }
+        W.put("dashboards", r);
+      });
+    }, { installed: mcDash.wasInstalled, featured: mcHero.featuredBefore });
 
     // CONS-1: the three CTIC/OpTIS reference dashboards — spec shapes match the
     // reference visuals (diverging change map, real provider colors, real CRD
@@ -7252,19 +7380,30 @@ function serve() {
 
     // ---- LF16/LF2(c): the generic showcase gallery folded into a NEW toggleable
     // "Data Management & Governance" sample pack (kind:"examples" — pure gallery-visibility
-    // gate, no workspace rows, installed by DEFAULT so nothing regresses out of the box) ----
+    // gate, no workspace rows). It held DEFAULT_INSTALLED until SP-1(c2) gave that slot to
+    // Market Coverage; the checks below install it explicitly now rather than assuming it,
+    // and the default itself is asserted where it lives (the SP-1(c2) block above). ----
     console.log("\n• LF16/LF2(c): Data Management & Governance sample pack (gallery-visibility only)");
     const dmMeta = await page.evaluate(function () {
       var p = Studio.DEMO_PACKS.datamanagement;
-      return { exists: !!p, kind: p && p.kind, installedByDefault: Studio.demoPackInstalled("datamanagement") };
+      var out = { exists: !!p, kind: p && p.kind, defaultsToMarketCoverage: false };
+      var KEY = "studio-demopacks-installed", saved = localStorage.getItem(KEY);
+      localStorage.removeItem(KEY);
+      // out of the box this pack is now OFF and Market Coverage is on (SP-1 c2)
+      out.defaultsToMarketCoverage = !Studio.demoPackInstalled("datamanagement") && Studio.demoPackInstalled("marketcoverage");
+      if (saved == null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved);
+      if (!Studio.demoPackInstalled("datamanagement")) Studio.installDemoPack("datamanagement");
+      out.installable = Studio.demoPackInstalled("datamanagement");
+      return out;
     });
-    ok("LF16: DEMO_PACKS exposes a 'datamanagement' pack, kind:'examples', installed by default",
-      dmMeta.exists && dmMeta.kind === "examples" && dmMeta.installedByDefault, JSON.stringify(dmMeta));
+    ok("LF16/SP-1(c2): DEMO_PACKS exposes a 'datamanagement' pack, kind:'examples' — no longer installed by default (Market Coverage holds that slot), and one Install away",
+      dmMeta.exists && dmMeta.kind === "examples" && dmMeta.defaultsToMarketCoverage && dmMeta.installable, JSON.stringify(dmMeta));
     const dmSettingsCard = await page.evaluate(function () {
+      window.__studioRenderSettings(); // dmMeta may have just installed it — repaint before reading
       var card = document.querySelector('[data-demopack="datamanagement"]');
       return { hasCard: !!card, label: card ? card.textContent : "" };
     });
-    ok("LF16: the Settings Sample packs card lists Data Management & Governance too, already Installed (default)",
+    ok("LF16: the Settings Sample packs card lists Data Management & Governance too, showing Remove while it is installed",
       dmSettingsCard.hasCard && /Remove/.test(dmSettingsCard.label), JSON.stringify(dmSettingsCard));
 
     const DM_GATED = ["feature-showcase.studio.json", "governance-command.studio.json", "ops-command.studio.json",
@@ -7284,7 +7423,7 @@ function serve() {
       var have = window.__studioVisibleExampleFiles();
       return files.map(function (f) { return have.indexOf(f) >= 0; });
     }, DM_GATED.concat(DM_FORMERLY_UNGATED));
-    ok("LF16: all 12 Data Management examples are visible in the gallery while the pack is installed (default)",
+    ok("LF16: all 12 Data Management examples are visible in the gallery while the pack is installed",
       dmGalleryOn.every(Boolean), JSON.stringify(dmGalleryOn));
 
     const dmRemove = await page.evaluate(function () {

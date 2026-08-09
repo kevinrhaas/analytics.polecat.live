@@ -12030,7 +12030,7 @@
   names. `SUPABASE_ANON_KEY` and `SUPABASE_PASSWORD` — read by `supabase-provision.yml:40,63` —
   are untouched, so nothing pointing at prod changes behaviour. Adding is additive; the only way
   to break prod here would be to REPLACE those two, which nothing in N19–N25 does.
-- **SP-1 ★★ [3pt est, 2 slices shipped] — "Market Coverage" — the new DEFAULT sample pack (Kevin,
+- ⏳ PR #689 **SP-1 ★★ [3pt est → 4pt, 3 slices shipped] — "Market Coverage" — the new DEFAULT sample pack (Kevin,
   2026-08-07).** ✓ **SLICE (a) IS SHIPPED — the data foundation: v912, sw v534 (2026-08-09,
   steward — see DONE).** The extract script, both Census datasets (1,813 counties, 111.1KB of the
   150KB budget), the pack's connection, and the join job that derives the saturation index, plus
@@ -12079,6 +12079,33 @@
   copy is `Studio.featureConservationGeo()` (features only when the user has featured nothing
   themselves — an explicit choice always wins). Data Management stays installable either way.
   Est 1pt.
+  **⏳ CLAIMED BY PR #689 (steward, 2026-08-09) — HELD, not merged. The code is written and the
+  gate is green; the FULL suite is not, and the estimate was wrong.** What is on the branch:
+  `DEFAULT_INSTALLED = ["marketcoverage"]` (read only when the installed-packs key is absent, so
+  no existing workspace is rewritten), the featuring question ANSWERED by copying the conservation
+  pattern into a registry-driven `hero` field — `Studio.featurePackHero(id)` /
+  `featureInstalledPackHeroes()`, refused whenever anything is already featured — the copy fallout
+  (Settings blurbs, Help, `docs/PACKS.md`), `tools/gen-shots.mjs` (it materializes Data Management's
+  gallery for the marketing shot and can no longer assume it is installed), sw v537 and the v915
+  changelog entry, plus new checks for the default, the hero and its three refusals.
+  **Why it is held — measured, not suspected:** `tools/validate.mjs`, `tools/changelog-check.js`
+  and `tools/dev-smoke.mjs` (the dev gate) all pass, and `tests/run.js` goes **2657 passed / 17
+  failed** where `origin/dev` is clean. Every failure is the same thing: **defaulting a
+  `kind:"workspace"` pack changes the AMBIENT workspace the whole suite runs against** — a fresh
+  boot now has 1 connection, 3 datasets, a job, 3 dashboards and 4 pinned Views it did not have,
+  a "Market Coverage" folder in every facet list, an extra tour in the chooser, and Data
+  Management's gallery absent. So folder-pill order (`AUD-06 slice 2`), Jobs/XP facet counts,
+  `WS: workspace store round-trips`, `QA-04`'s title uniquifier, the `E3`/`LF37` Examples tiles,
+  four `J6` tour-chooser checks and `QA-06`'s phone banner-overlap check all assert counts and
+  lists that this slice legitimately changes. That is a **re-baselining pass over ~17 checks, each
+  needing its own honest new expectation** (never a weakened one) — a slice of its own, not a
+  rider. Points: **est 1pt, this is 2pt at least.**
+  **Three of the 17 were NOT re-baselining, and they are already fixed on the branch** — worth
+  keeping whatever happens next: the Explore picker's sample tables belong to whichever pack
+  declares `catalogSamples`, so that block now installs it registry-driven instead of assuming the
+  default; `N8`'s phone menu check measured a row mid-open-transition (43px on a menu whose rows
+  are all 44 at rest) because the stability poll watched only the menu box, and now watches the
+  shortest row too; and the two `LF67` checks are the real find — see **N30** below.
   The original spec, unchanged, follows.**
   Industry density and whitespace by county: where a chain is under-represented versus the
   population and the businesses already there. **Replaces `datamanagement` in
@@ -12101,6 +12128,24 @@
   its (a) extract script follows `docs/PACKS.md` (`tools/pack-extract/marketcoverage.mjs` →
   `data/packs/marketcoverage/`, ≤150 KB, `source: { kind: "public", … }` on the registry entry).
 
+- **N30 ★ [1pt] — The "Unsaved — Save to keep" badge stops meaning anything ~800ms after a
+  Quick import, and the warning it stands for stops firing (steward, 2026-08-09; found while
+  measuring SP-1 c2's suite fallout, PR #689).** `hasUnsavedQuickBuild()`
+  (`app/studio.js`) reads "saved" as *the spec's id is in the Dashboards catalog*, and its own
+  comment says that happens "once Save/Save-as runs". It is not the only writer: `noteRecent()`
+  — the autosave debounce `refreshPreview()` schedules 800ms out (`scheduleNoteRecent`) — upserts
+  the OPEN spec into the same table. So a second or so after a Quick-import build, the badge is
+  still on screen while the guard behind it (`confirmReplaceUnsavedQuickBuild`, LF67) has silently
+  gone quiet: open another dashboard then and the build is thrown away with no warning, which is
+  the exact bug LF67 shipped to fix. **Measured, not argued:** in a page driven through the real
+  Home quick-import, `Studio.Workspace.get("dashboards", spec.id)` is absent at +500ms and present
+  at +1000ms, and `hasUnsavedQuickBuild()` flips with it. It reproduces on `origin/dev` — this is
+  not SP-1's doing; SP-1 made the app heavy enough for the suite to land on the wrong side of the
+  window and notice. **The fix is to stop inferring "saved" from a table an autosave also writes**
+  — track the explicit Save (a flag cleared by save/save-as/clone, set by the quick build) and
+  read that instead. Add a check that holds the unsaved state ACROSS the debounce rather than
+  racing it. Kevin call if wanted: whether an autosaved-but-never-Saved quick build should keep
+  warning forever, or whether the badge should say something else once autosave has caught it.
 - 🔁 **N7 — Recurring, when the queue is thin: keep the docs, tours, Help and marketing page
   current with the app (LF58).** One coherent slice per run, never a big-bang at the end.
   The app has changed a lot this week; the in-app Help and the tour copy are the parts most

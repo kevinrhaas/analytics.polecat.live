@@ -296,6 +296,10 @@ function countyValue(fips) {
     // pack heals first so the grid reads like a real library, not 4 tiles;
     // thumbnails render asynchronously, so give them room.
     await snapSection(browser, "dashboards-dark", { section: "dashboards", extraWait: 3400, prep: () => {
+      // SP-1 (c2): datamanagement is no longer installed by default, so install it here
+      // before materializing — otherwise the gate inside ensurePackExamplesMaterialized
+      // declines and the shot is the 4-tile library again.
+      try { if (window.Studio && !Studio.demoPackInstalled("datamanagement")) Studio.installDemoPack("datamanagement"); } catch (e) {}
       try { if (window.__studioEnsurePackExamplesMaterialized) window.__studioEnsurePackExamplesMaterialized("datamanagement"); } catch (e) {}
       try { if (window.Studio && Studio.Sync && Studio.Sync.healAfterAdopt) Studio.Sync.healAfterAdopt(); } catch (e) {}
     } });
