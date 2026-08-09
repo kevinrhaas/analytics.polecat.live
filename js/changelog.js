@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 936,
+    title: 'The Help page sent you to a button we removed, and left one app out of the switcher',
+    kind: 'fix',
+    ts: '2026-08-09T15:04:58.000Z',
+    items: [
+      'Two short paragraphs on the Help page describe the row of controls along the top of the app — the grid button that jumps to the other Polecat apps, and the release feed you are reading right now. Both had drifted away from the app, and one of them pointed at something that is no longer there at all.',
+      'The release-feed paragraph told you to click a Changelog button in the footer. The footer was retired at the end of July, so there is no such button and has not been for over a week — anyone following that sentence went looking along the bottom of a page that ends without one. The feed opens from the What\'s new button in the top bar, on every section rather than only in the builder, and on a phone from the ⋯ More menu, which is where the top bar\'s icons go when the screen is narrow. The paragraph now says so and links to the phone section that lists the rest of those routes.',
+      'Help had already been describing the real button correctly in its own top-bar section a few hundred lines above. Neither half was wrong on its own; together they contradicted each other, and the stale half is the one printed beside the feature it describes.',
+      'The apps switcher listed seven apps where the grid shows eight — Model Server, which joined the suite in the shared code every Polecat app receives, was named nowhere on the page. It is listed now. The same sentence also placed the grid button next to the wrong New button: the one it names sits inside the builder\'s data panel, while the grid sits beside the one in the top bar.',
+      'Both paragraphs are now re-derived on every change from the app itself — the fleet list from the shared suite registry, the button names from the app\'s own markup — including a rule that fails the moment Help routes a reader to a control the app has retired, which is what happened here.',
+    ],
+  },
+  {
     v: 935,
     title: 'The rules for building a sample pack sent their reader past a gate that would stop them',
     kind: 'fix',

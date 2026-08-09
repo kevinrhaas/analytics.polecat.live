@@ -135,6 +135,52 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — Help sent a reader to a button the app retired, and left one app out of the switcher
+  (v936, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):**
+  The check-21 move one paragraph over. Checks 9 and 43 hold Help's rail and its navigation;
+  check 21 holds the ⋯ More routes it names. The two paragraphs describing the app bar's own
+  right-hand cluster — the fleet waffle and the What's-new feed — answered to nothing, and both
+  had drifted, in the two directions this family knows: one under-counted a registry, the other
+  routed a reader to a control that no longer exists. Taken over the two v922 candidates for the
+  reason those notes give themselves (both are flagged in their own text as product calls, and
+  `docs/BACKLOG.md` says a run does not make those for Kevin); this one is pure derivation.
+  **The dead control, which is what earned the slice.** Help said the release feed opens from
+  "the **Changelog** button in the footer". DECLUTTER-1 (Kevin, 2026-07-31) retired the app
+  footer outright — brand line, Changelog toggle, Last-updated stamp — pending its return as a
+  fleet-wide shell feature. `app/index.html` has carried no `id="btnChangelog"` since; `studio.js`'s
+  `renderFooter` and `app/fleet.js` both null-guard it, which is exactly why this rotted silently
+  for over a week: nothing in the app breaks when the copy is the only thing still pointing there.
+  The live routes are `#tbWhatsNew` in the top bar — on **every** section, not just the builder,
+  which the old copy also got wrong — and ⋯ More → What's new on a phone, where M10 sends the
+  top bar's icons. **Help was already right about this 600 lines above**: its own top-bar section
+  lists What's new in the right-hand cluster, and check 21 holds the phone route. Neither half
+  wrong alone, both wrong together (the v927/v929 shape) — except the stale half is the `ⓘ Tour`
+  class check 41 (g) deleted from README and check 44 (f) from `PUBLISH.md`, and it is the half
+  printed beside the feature it describes.
+  **The under-count.** `app/fleet.js` mounts `appSwitcher(publicFleet(), { current: "analytics" })`;
+  `vendor/polecat-shell/catalog.js` carries **eight** public entries and Help named **seven** —
+  **Model Server** appeared nowhere on the page. The structural note for whoever maintains this:
+  the roster arrives whole, in a READ-ONLY vendor copy, by `sync-shell` PR, so this repo cannot
+  change the code side at all — Help is the only half that can drift and the only half a check
+  here can hold. The same sentence put the waffle "next to **＋ New**", the DATA PANEL's button
+  (check 16's subject); the app bar's is `New ▾` and fleet.js inserts before `#btnNew` by id — the
+  v877 drift, one document over.
+  **Doc-truth check 49** adds no new source of truth: five rules over the catalog, `app/fleet.js`
+  and `app/index.html`'s markup — (a) roster coverage, (b) the negative half parsed from the
+  paragraph's own parenthetical, (c) the topbar-vs-panel New button, (d) the control's own
+  `title=`, (e) the retired-footer rule. **All five measured failing on the real pre-fix prose**
+  (with the two new `id` anchors spliced in, so each failure is the drift and not a missing
+  anchor), and every code-side direction on mutated trees: a new public app in the catalog; an
+  app Help invents; the ＋ form; a renamed `#tbWhatsNew` title; and `#btnChangelog` restored to
+  the markup, which correctly makes "footer" legal again — (e) is derived from the app, not a ban
+  on a word. **Rule (d) was strengthened after its first measurement:** as first written it PASSED
+  on the pre-fix copy, satisfied by the paragraph's own bolded lead-in rather than by any mention
+  of the button; it now strips the lead-in and reads only the body.
+  Verified: `node tools/validate.mjs`, `node tools/changelog-check.js`, `node tools/doc-truth.mjs`
+  (the full dev gate) and `node tools/dev-smoke.mjs` at 390×780 + desktop, zero pageerrors.
+  No `sw.js` CACHE bump — `docs/index.html` is deliberately NOT precached (sw.js says so at the
+  head of its list) and `tools/` does not ship; same reasoning as v921–v935.
+  Est 1pt, took 1.
 - **N7 — `docs/PACKS.md` sent a pack author past a gate that would stop them (v935, NO sw bump,
   2026-08-09, steward; dev branch; est 1pt, took 1):**
   Check 47's gap one document over, and the same class as PUBLISH.md (v931) and the RLS runbook
@@ -13764,6 +13810,46 @@
     registry — `tools/validate.mjs`'s own comment says the same thing in the same words — so
     check 48 deliberately does not hold it to the pack count. The two v922 candidates are still
     open and still Kevin's calls.
+  * *Help's app-bar chrome vs the bar the app renders — v936, NO sw bump (2026-08-09 — see
+    DONE).* The check-21 move one paragraph over, and the first N7 slice to find a **dead
+    control** on the Help page rather than a stale count. Checks 9 and 43 hold Help's rail and
+    its navigation, check 21 its ⋯ More routes; the two paragraphs describing the app bar's own
+    right-hand cluster — the fleet waffle and the What's-new feed — answered to nothing.
+    **The What's-new paragraph documented "the `Changelog` button in the footer".** DECLUTTER-1
+    (Kevin, 2026-07-31) RETIRED the app footer: `app/index.html` has carried no
+    `id="btnChangelog"` since, and `renderFooter` + `fleet.js` null-guard its absence, so nothing
+    in the app ever complained. The live routes — the top bar's `#tbWhatsNew` on **every** section
+    and ⋯ More → What's new on a phone — were named neither. And Help contradicted ITSELF: its own
+    top-bar section 600 lines above lists **What's new** in the right-hand cluster and check 21
+    already holds the phone route, so the page was simultaneously right and wrong about the same
+    button — the v927/v929 shape, except this half is the `ⓘ Tour` class check 41 (g) deleted from
+    README and check 44 (f) from `PUBLISH.md`.
+    **The waffle paragraph named 7 apps where the switcher renders 8.** `app/fleet.js` mounts
+    `appSwitcher(publicFleet(), { current: "analytics" })` and `vendor/polecat-shell/catalog.js`
+    carries eight public entries — **Model Server** appeared nowhere on the page. Worth noting for
+    whoever maintains this: the roster arrives whole, in a READ-ONLY vendor copy, by `sync-shell`
+    PR, so Help is structurally the half that drifts and the only half a check here can hold. The
+    same sentence also put the waffle "next to **＋ New**" — the DATA PANEL's button (check 16's
+    subject); the app bar's is `New ▾`, and fleet.js inserts before `#btnNew` by id.
+    Doc-truth check 49 adds no new source of truth: five rules over the catalog, `app/fleet.js`
+    and `app/index.html`'s own markup — roster coverage, the negative half off the paragraph's own
+    parenthetical, the topbar-vs-panel New button, the control's own `title=`, and the retired-
+    footer rule. **All five measured failing on the real pre-fix prose**, and every code-side
+    direction on mutated trees (a new public app in the catalog; an app Help invents; the ＋ form;
+    a renamed `#tbWhatsNew` title; and `#btnChangelog` restored, which correctly makes "footer"
+    legal again — the rule is derived from the markup, not a ban on the word).
+    Rule (d) was **strengthened after its first measurement**, which is worth recording: as first
+    written it passed on the pre-fix copy, satisfied by the paragraph's own bolded lead-in
+    (`<strong>What's new:</strong>`) rather than by any mention of the button. It now strips the
+    lead-in and reads only the body.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    paragraph pair sits under `<h2>The builder</h2>` while both controls are app-wide chrome
+    present on every section — v930 settled this page's sectioning and moving a topic between
+    sections is an information-architecture call, not a derivation, so check 49 holds the copy
+    and not its address. Also measured and found CURRENT: Help's Jobs section against
+    `Studio.JOB_STEP_KINDS` (all 9 step types described) and `Studio.JOB_AGG_FNS` (all 5 rollup
+    metrics named), so the check-38/40 inventory move has nothing to correct there today. The two
+    v922 candidates are still open and still Kevin's calls.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before
