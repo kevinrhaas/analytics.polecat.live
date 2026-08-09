@@ -800,13 +800,16 @@
   Dashboards builder's "Series palette" control uses — so a View can preview in a different color
   scheme without leaving Build.</p>
   <p><strong>Calculated columns</strong>: the <strong>＋ calc…</strong> chip at the end of the
-  selected dataset's column list opens an editor where you define new columns from formulas —
-  <code>=[revenue] / [acres]</code>, <code>=([a]+[b])*100</code>, or the running helpers
-  <code>=pctChange([sales])</code> and <code>=movingAvg([sales], 3)</code>. It's the same safe
-  formula language the Studio data-source editor uses. A calculated column appears in the outline
-  with an <code>=</code> marker and from there behaves like any other field — put it on a shelf
-  (numerics default to SUM), filter by it, chart it. A calculated column can't shadow a real
-  column's name, and deleting one cleanly removes it from any shelf or filter that used it.</p>
+  selected dataset's column list opens an editor with a fresh blank row ready, where you define new
+  columns from formulas — <code>=[revenue] / [acres]</code>, <code>=([a]+[b])*100</code>, or the
+  running helpers <code>=pctChange([sales])</code> and <code>=movingAvg([sales], 3)</code>. It's the
+  same safe formula language the Studio data-source editor uses. A calculated column appears in the
+  outline with an <code>=</code> marker and from there behaves like any other field — put it on a
+  shelf (numerics default to SUM), filter by it, chart it. <strong>To change one, click the
+  <code>✎</code> on the column itself</strong> — it opens the same editor with that formula
+  focused, and it stays available after the column is on a shelf. Renaming a column there keeps it
+  on the shelves and filters that use it. A calculated column can't shadow a real column's name, and
+  deleting one cleanly removes it from any shelf or filter that used it.</p>
   <p><strong>Save View</strong> (top right) saves the result as a View with whichever chart type is
   selected — filters and calculated columns included — and it appears in the <strong>Views</strong>
   section like any other. Opening it from there returns it to Build with its dataset, shelves,

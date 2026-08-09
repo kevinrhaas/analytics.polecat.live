@@ -269,28 +269,55 @@
   function bdIsCalc(col) { return BD.calcs.some(function (c) { return c.name === col; }); }
   // Replace the calc list wholesale (the editor modal's Save + the test hook):
   // sanitizes names, drops incomplete rows, refuses collisions with real columns,
-  // and prunes any shelf/filter chip whose calc column just went away or renamed.
+  // and prunes any shelf/filter chip whose calc column just went away.
+  // N35: a row that arrives carrying `_orig` (the editor stamps it with the name the
+  // row had when the modal opened) is a RENAME, not a delete-plus-add — its shelf,
+  // filter and color chips follow the new name instead of being pruned. Editing the
+  // calc you already put on a shelf is the whole point of the ✎ affordance, so losing
+  // the chip on rename would undo the fix. Callers without `_orig` (the test hook,
+  // any programmatic setter) keep the original prune-only behaviour.
   function bdSetCalcs(list) {
     var baseCols = BD.run ? BD.run.cols : [];
-    var seen = {};
+    var seen = {}, renames = {};
     BD.calcs = (list || []).map(function (c) {
-      return { name: String(c.name || "").trim().replace(/[^A-Za-z0-9_]+/g, "_").replace(/^_+|_+$/g, ""), formula: String(c.formula || "").trim() };
+      return {
+        name: String(c.name || "").trim().replace(/[^A-Za-z0-9_]+/g, "_").replace(/^_+|_+$/g, ""),
+        formula: String(c.formula || "").trim(),
+        _orig: c._orig,
+      };
     }).filter(function (c) {
       if (!c.name || !c.formula) return false;
       if (baseCols.indexOf(c.name) >= 0) return false; // never shadow a real column
       if (seen[c.name]) return false;
       seen[c.name] = true;
       return true;
+    }).map(function (c) {
+      // record the rename only for rows that SURVIVED, and strip the marker so it
+      // never reaches BD.calcs (which is serialized into the saved View's builder blob)
+      if (c._orig && c._orig !== c.name) renames[c._orig] = c.name;
+      return { name: c.name, formula: c.formula };
     });
     BD._eff = null;
     var known = bdEff() ? bdEff().cols : [];
-    BD.shelfCols = BD.shelfCols.filter(function (f) { return known.indexOf(f.col) >= 0; });
-    BD.shelfRows = BD.shelfRows.filter(function (f) { return known.indexOf(f.col) >= 0; });
-    BD.filters = BD.filters.filter(function (f) { return known.indexOf(f.col) >= 0; });
-    BD.shelfColor = BD.shelfColor.filter(function (f) { return known.indexOf(f.col) >= 0; });
+    function keep(list) {
+      return list.map(function (f) {
+        if (renames[f.col] && known.indexOf(renames[f.col]) >= 0) f.col = renames[f.col];
+        return f;
+      }).filter(function (f) { return known.indexOf(f.col) >= 0; });
+    }
+    BD.shelfCols = keep(BD.shelfCols);
+    BD.shelfRows = keep(BD.shelfRows);
+    BD.filters = keep(BD.filters);
+    BD.shelfColor = keep(BD.shelfColor);
     render();
   }
-  function openCalcEditor() {
+  // N35: the editor was always fine — the way IN was the defect. It now opens on a
+  // specific row: `opts.focus` is a calc name (the field list's ✎ — edit the thing you
+  // made, the pattern filter chips already use), `opts.addBlank` is the "＋ calc…" path,
+  // which appends a genuinely blank row and focuses it. A ＋ that hands back last time's
+  // formula is exactly what Kevin hit.
+  function openCalcEditor(opts) {
+    opts = opts || {};
     D.modal("Calculated columns", function (b) {
       var wrap = D.el("div", "bd-calc");
       var hint = D.el("div", "bd-calc-hint");
@@ -298,7 +325,11 @@
       wrap.appendChild(hint);
       var listBox = D.el("div", "bd-calc-list");
       wrap.appendChild(listBox);
-      var draft = Studio.clone(BD.calcs);
+      // `_orig` rides along so Apply can tell a rename from a delete-plus-add
+      var draft = Studio.clone(BD.calcs).map(function (c) { c._orig = c.name; return c; });
+      var focusIdx = -1, focusSel = ".bd-calc-formula";
+      if (opts.focus) draft.forEach(function (c, i) { if (c.name === opts.focus) focusIdx = i; });
+      if (opts.addBlank) { draft.push({ name: "", formula: "" }); focusIdx = draft.length - 1; focusSel = ".bd-calc-name"; }
       function paint() {
         listBox.innerHTML = "";
         if (!draft.length) {
@@ -307,7 +338,7 @@
         }
         draft.forEach(function (c, i) {
           var row = D.el("div", "bd-calc-row");
-          var nm = D.el("input"); nm.type = "text"; nm.value = c.name; nm.placeholder = "col_name"; nm.setAttribute("aria-label", "Column name");
+          var nm = D.el("input", "bd-calc-name"); nm.type = "text"; nm.value = c.name; nm.placeholder = "col_name"; nm.setAttribute("aria-label", "Column name");
           nm.oninput = function () { c.name = nm.value; };
           var fm = D.el("input"); fm.type = "text"; fm.value = c.formula; fm.placeholder = "=[colA] / [colB]"; fm.setAttribute("aria-label", "Formula");
           fm.className = "bd-calc-formula"; fm.oninput = function () { c.formula = fm.value; };
@@ -318,9 +349,20 @@
         });
       }
       paint();
+      // the modal focuses its own first field at 50ms (studio.js modal()) — land after it,
+      // so the row we were asked to open on is the one holding the caret
+      if (focusIdx >= 0) setTimeout(function () {
+        var row = listBox.children[focusIdx];
+        var inp = row && row.querySelector(focusSel);
+        if (inp) { inp.focus(); inp.select(); }
+      }, 80);
       var foot = D.el("div"); foot.style.cssText = "display:flex;justify-content:space-between;gap:8px;margin-top:14px";
       var add = D.el("button", "btn"); add.type = "button"; add.textContent = "+ Add column";
-      add.onclick = function () { draft.push({ name: "", formula: "" }); paint(); };
+      add.onclick = function () {
+        draft.push({ name: "", formula: "" }); paint();
+        var last = listBox.children[draft.length - 1];
+        var inp = last && last.querySelector(".bd-calc-name"); if (inp) inp.focus();
+      };
       var save = D.el("button", "btn primary"); save.type = "button"; save.textContent = "Apply";
       save.onclick = function () { bdSetCalcs(draft); wrap.closest(".modal-ov").remove(); };
       foot.appendChild(add); foot.appendChild(save);
@@ -1499,11 +1541,20 @@
               var used = bdOnShelf(c);
               var numeric = bdFieldKind(c) === "Numeric";
               var calc = bdIsCalc(c);
-              return '<button type="button" class="bd-col' + (used ? " used" : "") + (numeric ? " num" : "") + (calc ? " calc" : "") +
+              var pill = '<button type="button" class="bd-col' + (used ? " used" : "") + (numeric ? " num" : "") + (calc ? " calc" : "") +
                 '" draggable="true" data-bd-col="' + esc(c) + '" title="' + (calc ? "Calculated column — " : "") + (used ? "Already on a shelf" : "Add to the Columns shelf (drag for Rows)") + '">' +
                 '<span class="bd-col-k">' + (calc ? "=" : numeric ? "#" : "a") + '</span>' + esc(c) + "</button>";
+              // N35: a calc column carries its own way back to its formula, the way a
+              // filter chip does. The ✎ is a SIBLING of the pill, not a child, so
+              // `.used` (opacity:.45) dims the pill without taking the edit away — the
+              // calc you most want to edit is the one already on a shelf. Shown at
+              // rest, never hover-only: a hover pencil does not exist on a phone.
+              return calc
+                ? '<span class="bd-colwrap">' + pill +
+                    '<button type="button" class="bd-col-edit" data-bd-calc-edit="' + esc(c) + '" title="Edit the formula for ' + esc(c) + '" aria-label="Edit the formula for ' + esc(c) + '">✎</button></span>'
+                : pill;
             }).join("") +
-            '<button type="button" class="bd-col bd-col-calc" id="bdCalcBtn" title="Define calculated columns (=[colA] / [colB])">＋ calc…</button>' +
+            '<button type="button" class="bd-col bd-col-calc" id="bdCalcBtn" title="Add a calculated column (=[colA] / [colB]) — opens the list with a blank row ready">＋ calc…</button>' +
             "</div>"
           : "";
         // full name in the title: the pane is narrow, ellipsized labels need the
@@ -1898,8 +1949,14 @@
     $$("[data-bd-flt-rm]", sec).forEach(function (btn) {
       btn.onclick = function () { bdRemoveFilter(btn.getAttribute("data-bd-flt-rm")); };
     });
+    // N35: ＋ means "make a new one" — it opens with a blank row appended and focused,
+    // instead of handing back the previous calc pre-filled; ✎ on a calc column opens the
+    // same list with that column's formula focused.
     var calcBtn = $("#bdCalcBtn", sec);
-    if (calcBtn) calcBtn.onclick = function () { openCalcEditor(); };
+    if (calcBtn) calcBtn.onclick = function () { openCalcEditor({ addBlank: true }); };
+    $$("[data-bd-calc-edit]", sec).forEach(function (btn) {
+      btn.onclick = function (e) { e.stopPropagation(); openCalcEditor({ focus: btn.getAttribute("data-bd-calc-edit") }); };
+    });
     var fltAdd = $("#bdFilterAdd", sec);
     if (fltAdd) fltAdd.onchange = function () {
       var col = fltAdd.value;

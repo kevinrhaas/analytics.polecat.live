@@ -1552,6 +1552,15 @@ body.lib-dragging #preview{pointer-events:none}
 .bd-col.calc .bd-col-k{color:var(--accent);font-weight:900}
 .bd-col-calc{border-style:dashed;color:var(--muted)}
 .bd-col-calc:hover{color:var(--ink)}
+/* N35: a calc column and its ✎ read as one segmented pill. The ✎ is a sibling of
+   .bd-col, so `.used` dims the field without dimming the way back to its formula,
+   and it is visible at rest so it can be tapped at 390×780. */
+.bd-colwrap{display:inline-flex;align-items:stretch}
+.bd-colwrap>.bd-col{border-top-right-radius:0;border-bottom-right-radius:0;padding-right:7px}
+.bd-col-edit{display:inline-flex;align-items:center;justify-content:center;min-width:22px;
+  background:var(--field);border:1px solid var(--line);border-left:none;border-radius:0 999px 999px 0;
+  padding:3px 7px 3px 4px;font-size:var(--fs-11);line-height:1;color:var(--faint);cursor:pointer}
+.bd-col-edit:hover{color:var(--brand);border-color:var(--brand)}
 .bd-calc-hint{font-size:var(--fs-12);color:var(--muted);line-height:1.55;margin-bottom:10px}
 .bd-calc-list{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow:auto}
 .bd-calc-row{display:flex;gap:8px;align-items:center}
