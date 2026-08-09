@@ -9797,6 +9797,38 @@ function serve() {
         JSON.stringify({ upserts: upserts.length, offenders: bad.map(function (u) { return u.rel + ":" + u.key; }) }));
     })();
 
+    // N26: provisioning must never RE-OPEN a workspace that has gone live. The
+    // same shape of bug as N28 one layer down — both provisioning artifacts end
+    // with a DO block that installs the demo `polecat_anon_all` policy, and
+    // Postgres ORs PERMISSIVE policies together, so an unconditional CREATE did
+    // not replace a live workspace's per-user policies, it added an allow-all
+    // one beside them and handed the anon key every row back. `provision` is the
+    // Edge Function's only schema action and supabase-provision.yml applies the
+    // .sql file unattended, so this was reachable, not theoretical.
+    // The gate is doc-truth check 30 and the live proof is tests/rls.mjs's two
+    // "re-run on a workspace that has gone live" postures; this is the
+    // stays-wired half (the N28 precedent, one item over).
+    (function () {
+      const artifacts = ["tools/supabase-bootstrap.sql", "supabase/functions/polecat-admin/sql.ts"];
+      const unguarded = artifacts.filter(function (rel) {
+        const src = fs.readFileSync(path.join(ROOT, rel), "utf8");
+        const create = src.indexOf("CREATE POLICY polecat_anon_all");
+        if (create < 0) return false; // stopped installing the demo posture at all
+        const block = src.slice(src.lastIndexOf("DO $$", create), src.indexOf("END $$;", create));
+        return !/FROM pg_policies/.test(block) ||
+          !/IF NOT live THEN\s*\n\s*EXECUTE format\('CREATE POLICY polecat_anon_all/.test(block);
+      });
+      const truth = fs.readFileSync(path.join(ROOT, "tools/doc-truth.mjs"), "utf8");
+      const rls = fs.readFileSync(path.join(ROOT, "tests/rls.mjs"), "utf8");
+      ok("N26: neither provisioning artifact re-opens a gone-live workspace — the demo allow-all is installed only " +
+        "when the real per-user policies are absent, doc-truth check 30 gates it and tests/rls.mjs proves it against a real database",
+        !unguarded.length &&
+        /provisioning re-run on a gone-live workspace preserves its posture/.test(truth) &&
+        /provision` re-run on a workspace that has gone live/.test(rls) &&
+        /bootstrap\.sql re-run on a workspace that has gone live/.test(rls),
+        JSON.stringify({ unguarded: unguarded }));
+    })();
+
     // load() must report what the BACKEND says, not this app's own constant —
     // the whole handshake rests on it. Stand a mock workspace up at v+1.
     const n16Load = await page.evaluate(async function (port) {
@@ -10044,7 +10076,9 @@ function serve() {
 
     // ---- N22b slice 2: the app CALLS the migration RPC -----------------------
     // Slice 1 installed polecat_migrate() in both setup paths and proved it
-    // against a real database (tests/rls.mjs' fifth posture). Nothing in the
+    // against a real database (tests/rls.mjs' migration-RPC-route posture —
+    // named rather than numbered since N26 inserted two postures ahead of it).
+    // Nothing in the
     // browser used it. These checks are the browser half, and they are shaped
     // like AUD-01's — one stubbed PostgREST, four projects, each answering the
     // RPC differently, because the whole risk here is the FALLBACK: a workspace

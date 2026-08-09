@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 917,
+    title: 'Setting up your workspace database a second time can no longer re-open it to the public',
+    kind: 'fix',
+    ts: '2026-08-09T06:37:05.000Z',
+    items: [
+      'If you connect Analytics to your own Supabase project, you go through two steps: a setup that creates the tables, and a "go live" that locks them down so only signed-in members of your workspace can read a row. This fixes a real hole between those two steps.',
+      'The setup script was safe to re-run only in the sense that it did not crash. Running it again on a workspace that had already gone live did not leave the security rules alone — it added a temporary "anyone may read anything" rule alongside them. Postgres combines those rules with OR, so the one permissive rule won, and every dashboard, dataset, connection, job and account row became readable with the public key again. Your real rules were still there and still looked correct, and nothing in the app said a word.',
+      'Re-running the setup is not an exotic thing to do: it is the documented way to add a new table or repair permissions on an existing project, it is what the Admin console\'s one setup action runs, and a maintenance workflow applies it unattended.',
+      'Now the setup checks whether your workspace has been through go-live and, if it has, installs no open rule at all — it still adds any missing tables, widens columns and repairs permissions, and it still leaves a fresh project with the open demo rule it needs before you go live. If a stray open rule is ever found next to a locked workspace it is removed, because that is the leak itself.',
+      'Deliberately returning a live workspace to the open demo posture is still possible and still one paste — the rollback in the go-live runbook, which now also clears the rule on the workspace metadata table that it used to leave behind.',
+      'Measured, not assumed: the fix was proven against a real Postgres before shipping — the old files re-opened all seven tables to the public key, the new ones leave a live workspace reading zero rows to anyone signed out. Two new checks in the security suite run the whole sequence against a live database, a dev-gate check holds both setup files to the guarded shape, and a third check holds the two files to being the same posture written twice.',
+    ],
+  },
+  {
     v: 916,
     title: 'The home page no longer calls a built-in map a geography you have to supply',
     kind: 'polish',

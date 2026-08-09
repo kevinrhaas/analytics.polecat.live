@@ -3,6 +3,6 @@
    the version label and the What's-new unseen dot, so the ~680KB of full history is
    fetched lazily (Studio.loadChangelog) the first time someone opens the feed.
    Regenerated from js/changelog.js on every normalize run — never hand-edit. */
-window.STUDIO_LATEST_VERSION = 916;
-window.STUDIO_LATEST = {"v":916,"title":"The home page no longer calls a built-in map a geography you have to supply","kind":"polish","ts":"2026-08-09T06:17:02.000Z"};
+window.STUDIO_LATEST_VERSION = 917;
+window.STUDIO_LATEST = {"v":917,"title":"Setting up your workspace database a second time can no longer re-open it to the public","kind":"fix","ts":"2026-08-09T06:37:05.000Z"};
 window.STUDIO_BUILD = "__BUILD_TS__";

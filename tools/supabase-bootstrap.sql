@@ -88,14 +88,44 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE O
 -- per-user isolation yet (the publishable key can read+write everything); real
 -- per-user RLS (scoped to the signed-in GoTrue user) is the M7 slice. Idempotent
 -- (DROP POLICY IF EXISTS before CREATE), so it is safe to re-run.
+--
+-- POSTURE-PRESERVING (N26). "Safe to re-run" used to be true only of a workspace
+-- that had never gone live. Postgres ORs PERMISSIVE policies together, so on a
+-- workspace carrying the real per-user set this block did not REPLACE anything —
+-- it added an allow-all policy BESIDE the real ones and quietly handed the anon
+-- key every row back. Re-running this file is the documented way to add a table
+-- or repair grants on an existing project, so that was a live foot-gun, not a
+-- theoretical one. The demo posture is now installed only on a workspace that has
+-- NOT gone live; the evidence is the real posture's own policy names (the same
+-- names tools/supabase-rls-real.sql drops by name, for the same OR-ing reason).
+-- The DROP stays unconditional: a stray allow-all beside a live posture IS the
+-- leak, so finding one is a reason to remove it. To deliberately return a live
+-- workspace to the demo posture, drop the per-user policies first — that is what
+-- tools/M7-RLS-GOLIVE-RUNBOOK.md § Rollback does, and it is what makes this block
+-- install them again.
 DO $$
-DECLARE t text;
+DECLARE
+  t text;
+  live boolean;
 BEGIN
+  SELECT EXISTS (
+    SELECT 1 FROM pg_policies
+     WHERE schemaname = current_schema()
+       AND tablename = ANY (ARRAY['polecat_meta','connections','datasets','dashboards','analyses','jobs','users'])
+       AND policyname IN ('polecat_select','polecat_insert','polecat_update','polecat_delete','polecat_meta_auth')
+  ) INTO live;
+
   FOREACH t IN ARRAY ARRAY['polecat_meta','connections','datasets','dashboards','analyses','jobs','users'] LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format('DROP POLICY IF EXISTS polecat_anon_all ON %I', t);
-    EXECUTE format('CREATE POLICY polecat_anon_all ON %I FOR ALL TO anon, authenticated USING (true) WITH CHECK (true)', t);
+    IF NOT live THEN
+      EXECUTE format('CREATE POLICY polecat_anon_all ON %I FOR ALL TO anon, authenticated USING (true) WITH CHECK (true)', t);
+    END IF;
   END LOOP;
+
+  IF live THEN
+    RAISE NOTICE 'polecat: this workspace has been through go-live — leaving its per-user policies alone and installing no demo allow-all.';
+  END IF;
 END $$;
 
 -- Tell PostgREST to reload its schema cache so the new tables + grants + policies

@@ -135,6 +135,55 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N26 — provisioning no longer re-opens a workspace that has gone live (v917, sw v537,
+  2026-08-09, steward; dev branch; est 1pt, took 1):** the ★★ item this queue had been carrying
+  since N16 slice 2 found it. Both provisioning artifacts end with a DO block that installs the
+  demo `polecat_anon_all` policy on all seven tables, and both did it unconditionally. Postgres
+  ORs PERMISSIVE policies together, so on a workspace that had been through go-live that CREATE
+  did not REPLACE the per-user policies — it added an allow-all one BESIDE them, handing the anon
+  key every row back while the real policies sat there still looking correct, with nothing in the
+  UI to say so.
+  **Scope grew on measurement, and that is the substance of this slice.** The item blamed the Edge
+  Function's `provision`, which is true and is the narrower half: `tools/supabase-bootstrap.sql`
+  carries the same block, it is the documented way to add a table or repair grants on an existing
+  project, and `supabase-provision.yml` applies it unattended. The spec's remedy — a new
+  posture-preserving `upgrade` action beside `provision` — would have fixed the function and left
+  the pasted file leaking, so the guard went into the block itself in BOTH artifacts instead: it
+  asks `pg_policies` whether the real posture's own policy names are already installed (the same
+  names `supabase-rls-real.sql` drops by name, for the same OR-ing reason) and installs the demo
+  policy only when they are not. The DROP stays UNCONDITIONAL on purpose — a stray allow-all
+  beside a live posture IS the leak, so finding one is a reason to remove it, never a reason to
+  leave it. A fresh project is completely unaffected, which is the other half of the contract.
+  **Verified against a real Postgres before shipping, both directions.** A throwaway harness ran
+  the shipped bytes of both artifacts against a local PostgreSQL 16 with a Supabase-shaped shim
+  (`anon`/`authenticated`/`service_role` + `auth.uid()`/`auth.jwt()` over `request.jwt.claims`),
+  through the real sequence — provision, go-live, provision again. On `dev` HEAD: 25 real policies
+  present, **7 allow-all policies added beside them, anon reading every row of dashboards and
+  users**, from both the Edge Function's BOOTSTRAP_DDL and the pasted file. After the fix: 25 real
+  policies, 0 allow-all, anon reading 0/0 — from both — while a FRESH provision still installs all
+  7 and still reads. The runbook's § Rollback was run verbatim from the document in the same
+  harness (7 allow-all restored, 0 real policies), because a guard that cannot be undone would be
+  the next defect.
+  **What is now wired to hold it:** doc-truth **check 30** (dev gate) holds both artifacts to the
+  guarded shape — the CREATE conditional, liveness derived from the real policy NAMES rather than
+  a marker a rollback would forget to clear, and the DROP outside the guard — plus a third
+  assertion that the two files carry the SAME block, since they are one posture written twice
+  (the N2-slice-2 drift class). It flags all four gaps on the pre-fix tree, checked by reverting
+  the two files and re-running. `tests/rls.mjs` gains two postures that run the FULL 27-check
+  battery over provision-after-go-live, one per artifact — the whole battery rather than an
+  anon-reads-zero spot check, because the property is "the live posture is exactly what it was".
+  `tests/run.js` keeps the stays-wired assertion (the N28 precedent, one item over).
+  **Two documents were made true in the same slice, both of which this change falsified:** the
+  runbook's "(Or just re-run `tools/supabase-bootstrap.sql`, which is idempotent and does the
+  same)" is no longer a rollback shortcut, and its § Rollback now also drops `polecat_meta_auth` —
+  the one real-posture policy the block used to leave behind, which would have made a rolled-back
+  workspace still look live to the new guard. The comment at `upgradeWorkspace()` explaining why
+  it avoids the Edge Function was written entirely around this hazard; it now records that the
+  hazard is fixed and that the reason to keep using `polecat_migrate()` is a different one.
+  **NOT a fix for ⛔ N29, and nobody should read it as one.** `polecat_dev` leaks because it was
+  provisioned from the allow-all posture and never went live — the guard sees a non-live workspace
+  and correctly installs the demo policy. That still needs Kevin's paste of
+  `tools/supabase-deploy.sql`.
 - **N7 slice — the marketing hero's MAP captions vs the scales the app ships (v916, NO sw bump,
   2026-08-09, steward; dev branch; est 1pt, took 1):** the last unaudited candidate on the N7 list
   that fits one run — its textual half. The carousel is the first copy a visitor reads, and it had
@@ -12385,9 +12434,30 @@
     overlap is why v875 had scoped itself to the tours; and the ⌘K palette's section
     coverage, which this pass found was NOT stale — AUD-12 (v854) already made the palette
     derive from the rail and added the guard, so the note above was itself out of date.
-- **N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**
+- ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
+  ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
+  **The fix taken was NOT the one the spec proposed, and the difference is worth reading before
+  anyone re-opens this:** the spec asked for a NEW posture-preserving `upgrade` action beside
+  `provision`, leaving `provision` unsafe-but-unused. Measuring it first showed the hazard is not
+  confined to the Edge Function — `tools/supabase-bootstrap.sql` carries the same DO block, it is
+  the documented way to add a table or repair grants on an existing project, and
+  `supabase-provision.yml` applies it unattended. A new action in one of the two would have left
+  the other one leaking. So the guard went into the block itself, in both artifacts: the demo
+  allow-all is installed only when the real per-user policies are absent, the DROP stays
+  unconditional, and `provision` becomes the posture-preserving upgrade the item wanted rather
+  than growing a twin.
+  **The item's second half — "wire `supabaseSource.upgradeWorkspace()` to call it" — was measured
+  and deliberately NOT taken, because its goal is already delivered.** N22b slice 2 shipped
+  `polecat_migrate()`, and `upgradeWorkspace()` already routes through it: one admin-gated call,
+  no SQL editor, which was the stated intent ("N16's in-app upgrade becomes one click on Supabase
+  too"). Routing through the Edge Function as well would add a path gated by the deploy-time
+  PROVISION_SECRET the runbook tells you to DISCARD after go-live, needing a deployed function,
+  for workspaces old enough to lack the RPC — which are also old enough that their admin function
+  predates this fix. The rewritten comment at `upgradeWorkspace()` records this so the next reader
+  does not re-derive it. Nothing remains in this item.
   **(ID confirmed at grooming pass 3, 2026-08-09: `N26` is THIS item. The `polecat_dev` leak
   was minted as a duplicate `N26` and is now ⛔ N29 at the top of this queue.)**
+  The original spec, kept until the next grooming pass archives it.
   Found building N16 slice 2 (2026-08-08, steward), which is why that slice does NOT use it —
   the item's own spec said to upgrade Supabase "via the polecat-admin Edge Function where
   bound", and it can't be done safely today. **Measured:** the function exposes four fixed
