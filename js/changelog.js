@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 945,
+    title: 'Help said what ticking two filter pills does, and never said what picking from two strips does',
+    kind: 'fix',
+    ts: '2026-08-09T19:07:23.000Z',
+    items: [
+      'Every catalog page filters with rows of pills, and the Help page explained exactly half of how they compose. It said that ticking two pills on the same strip shows anything matching either — true — and said nothing at all about what happens when you pick from two different strips, which does the opposite: every strip you have picked from has to be satisfied at once. A reader who had only the published half would expect a second pick to widen the list and watch it narrow instead.',
+      'The search box is one more of those conditions, and that was unpublished too. Adapter Postgres, tag #eu and the word revenue together now show only the rows that answer all three, and the page says so.',
+      'Two smaller readings the tag pills only make sense under are published for the first time: a row carrying several values of one facet needs only one of them ticked, so a dataset tagged both #finance and #eu survives a pick of either tag; and a strip you have picked nothing in narrows nothing, which is what keeps the pills a narrowing tool rather than a mode — and why a combination can legitimately come back empty while every pill above it still carries its own full count.',
+      'The rule was already written correctly in one place, in the shorthand under "Filtering datasets and connections", scoped to those two pages. It is now stated once for every catalog page, in the same plain voice as the paragraphs around it.',
+      'All of it is re-measured on every change by running the app\'s own matching code rather than reading it, and by reading how each of the six catalog pages composes its filters. A page that started OR-ing its strips, a strip that stopped meaning "all" when you pick nothing in it, or a search box that stopped narrowing alongside the pills now fails the documentation check until the page says so.',
+    ],
+  },
+  {
     v: 944,
     title: 'Help described the number on a filter pill as the items you can see, and promised a pill vanishes with its last one',
     kind: 'fix',
