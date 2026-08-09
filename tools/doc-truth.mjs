@@ -4169,6 +4169,134 @@ ok("docs/index.html: the What's-new paragraph routes to no control app/index.htm
   "studio.js and fleet.js null-guard its absence, so nothing in the app ever complained");
 
 
+/* ── 50. Help's chart gallery vs the groups the picker really renders ───────
+   N7. Checks 2 and 3 have held this section since AUD-11 — 2 that every registry type
+   has a card, 3 that every published COUNT is 54 — so the section has been complete and
+   correctly numbered for weeks. Neither asks the question a reader actually asks it:
+   the cards are FILED under group headings, and the inspector's picker files the same
+   54 charts under tabs of its own. `app/studio.js`'s gallery builds `groupOrder` from
+   `Studio.CHARTS[t].group` and renders one `.cg-tab` per group, so those headings and
+   those tabs are the same vocabulary — published twice, derived once, compared never.
+
+   Measured 2026-08-09, before the fix — three charts and one whole group:
+   · **`ensembleSeries` was filed under Maps.** The registry (and the tab) says **Trend**.
+     It sat directly under the choropleth because the two share an ensemble channel, which
+     is a real relationship and the wrong shelf: a reader who opens the Maps tab looking
+     for the card Help showed them there finds one chart, not two.
+   · **`Comparison` appeared TWICE** — the fifteen bar-family cards at the top, then
+     `quadrant` alone in a second heading of the same name at the bottom, below
+     Distribution. The picker renders ONE Comparison tab of sixteen. A duplicate heading
+     is the failure mode a coverage check cannot see: every card was present, every count
+     was 54, and the page still published ten groups where the app renders nine.
+   · **`richtext` was filed under Detail, and `Content` — the app's ninth tab — was named
+     nowhere on the page.** `app/studio.js`'s own comment at the gallery says what the
+     group is for ("Content group = richtext/annotation"); Help had folded it into the
+     table's shelf, so the one tab a reader is least likely to guess was the one tab Help
+     never mentioned.
+
+   Five rules, no new source of truth — the same registry checks 2/3 read, plus the
+   picker's own grouping expression:
+   (a) every card sits under the h3 that names its registry group (`ct-kpi` stays exempt
+       via check 2's CARD_EXTRAS — the KPI tile is a panel kind, not a CHARTS entry, and
+       "Single value" is where it belongs);
+   (b) every group the picker renders a tab for is published as an h3 — the rule that
+       makes a vanished `Content` loud;
+   (c) the negative half — no h3 in the section names a group the registry does not have;
+   (d) no group heading appears twice, because no tab does;
+   (e) the premise itself: `app/studio.js` still derives `groupOrder` from `.group` and
+       still labels a tab per group. If the picker stops grouping this way the other four
+       rules are comparing Help against nothing, so this fails loudly rather than passing
+       green over a dead source. Deliberately NOT held: the ORDER of the groups. The
+       picker's is registry first-seen (Comparison first); Help leads with Maps because
+       the choropleth is the app's strongest chart, and check 12 already settled that a
+       teaching document owes coverage, not a walk order. */
+
+function chartRegistryGroups() {
+  const src = read("app/model.js");
+  const start = src.indexOf("Studio.CHARTS = {");
+  let depth = 0, open = src.indexOf("{", start), i = open;
+  for (; i < src.length; i++) {
+    if (src[i] === "{") depth++;
+    else if (src[i] === "}" && --depth === 0) break;
+  }
+  const block = src.slice(open, i + 1);
+  const at = [...block.matchAll(/\n {4}([A-Za-z_]\w*): \{/g)];
+  const out = new Map();
+  at.forEach((m, n) => {
+    const entry = block.slice(m.index, n + 1 < at.length ? at[n + 1].index : block.length);
+    out.set(m[1], (entry.match(/(?:^|[,{\s])group: "([^"]+)"/) || [, ""])[1]);
+  });
+  return out;
+}
+
+const chartGroups = chartRegistryGroups();
+const pickerSrc = read("app/studio.js");
+// The gallery's own grouping expression and its tab label, matched where they live rather
+// than by name, so a rename that keeps the behaviour still satisfies (e) and a rewrite
+// that drops the grouping does not.
+const pickerGroupsBy = /var g = \(Studio\.CHARTS\[t\]\.group \|\| "Other"\);/.test(pickerSrc);
+const pickerTabsPerGroup = /\["All"\]\.concat\(groupOrder\)\.forEach/.test(pickerSrc);
+const galleryStart = help.indexOf('<section id="chart-types"');
+const gallerySec = galleryStart < 0 ? "" : help.slice(galleryStart, help.indexOf("</section>", galleryStart));
+// One walk: an h3 opens a shelf, every ct- id after it lands on that shelf.
+const galleryShelves = [];
+for (const m of gallerySec.matchAll(/<h3[^>]*>([\s\S]*?)<\/h3>|id="ct-([A-Za-z]+)"/g)) {
+  if (m[1] !== undefined) galleryShelves.push({ name: htmlText(m[1]), cards: [] });
+  else if (galleryShelves.length) galleryShelves[galleryShelves.length - 1].cards.push(m[2]);
+}
+const registryGroups = [...new Set([...chartGroups.values()])];
+
+ok(`the chart registry + the picker's gallery parsed for check 50 ` +
+   `(${chartGroups.size} type(s) in ${registryGroups.length} group(s), ${galleryShelves.length} heading(s) in Help)`,
+  chartGroups.size === N && [...chartGroups.values()].every(Boolean) &&
+    registryGroups.length >= 5 && galleryShelves.length >= 5 && !!gallerySec,
+  `registry types: ${chartGroups.size} (check 2 counts ${N}) · ungrouped: ` +
+  `${[...chartGroups].filter(([, g]) => !g).map(([k]) => k).join(", ") || "none"} · ` +
+  `#chart-types found: ${!!gallerySec}\n      ` +
+  "every Studio.CHARTS entry declares a group — the picker falls back to \"Other\", but nothing ships on it");
+
+// (e) first: the other four rules are only meaningful while the picker still groups this way.
+ok("app/studio.js: the chart picker still files the gallery by Studio.CHARTS[t].group, one tab per group",
+  pickerGroupsBy && pickerTabsPerGroup,
+  `groups by .group: ${pickerGroupsBy} · renders a tab per group: ${pickerTabsPerGroup}\n      ` +
+  "check 50 (a)-(d) compare Help's headings against those tabs — if the gallery stopped grouping, " +
+  "they would be comparing the page against nothing, so the premise is asserted rather than assumed");
+
+// (a) every card on the shelf its own registry entry names.
+const cardsMisfiled = galleryShelves.flatMap((s) => s.cards
+  .filter((k) => !CARD_EXTRAS.has(k) && chartGroups.get(k) !== s.name)
+  .map((k) => `${k} is under "${s.name}", the picker files it under "${chartGroups.get(k)}"`));
+ok(`docs/index.html: every chart card is filed under the group the picker files it under (${chartGroups.size} type(s))`,
+  !cardsMisfiled.length,
+  `${cardsMisfiled.join("\n      ") || "(none)"}\n      ` +
+  "the headings and the picker's tabs are the same vocabulary — a card on the wrong shelf sends a reader to the wrong tab");
+
+// (b) coverage: a group the picker offers may not go groupsUnpublished.
+const galleryShelfNames = galleryShelves.map((s) => s.name);
+const groupsUnpublished = registryGroups.filter((g) => !galleryShelfNames.includes(g));
+ok(`docs/index.html: the gallery publishes every group the picker offers (${registryGroups.length})`,
+  !groupsUnpublished.length,
+  `offered by the picker, absent from Help: ${groupsUnpublished.join(", ") || "(none)"}\n      ` +
+  "Content is the case this rule exists for — one chart, one tab, and the tab a reader is least likely to guess");
+
+// (c) the negative half — no groupsInvented shelf. Scoped to the gallery's own h3s, which are
+//     group headings and nothing else (its prose lives in <p> and the tip block).
+const groupsInvented = galleryShelfNames.filter((n) => !registryGroups.includes(n));
+ok(`docs/index.html: the gallery invents no group (${galleryShelfNames.length} heading(s))`,
+  !groupsInvented.length,
+  `published by Help, unknown to the registry: ${groupsInvented.join(", ") || "(none)"}\n      ` +
+  "a heading with no tab behind it is a shelf the reader cannot find in the app");
+
+// (d) one heading per group, because one tab per group. The duplicate "Comparison" this
+//     check was written for passed (a), (b) and (c) — every card was on a correctly-named
+//     shelf, both galleryShelves were real groups — and was still a lie about the app's shape.
+const groupDupes = galleryShelfNames.filter((n, i) => galleryShelfNames.indexOf(n) !== i);
+ok("docs/index.html: no group is published twice",
+  !groupDupes.length,
+  `published more than once: ${[...new Set(groupDupes)].join(", ") || "(none)"}\n      ` +
+  "the picker renders exactly one tab per group; a second heading of the same name splits it on the page only");
+
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

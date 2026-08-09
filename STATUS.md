@@ -135,6 +135,53 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — Help's chart gallery shelved three charts where the picker does not keep them (v937,
+  NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):**
+  The oldest section on the page, and the first N7 slice to find drift *underneath* two checks
+  that were already green over it. Checks 2 and 3 have held `#chart-types` since AUD-11 — 2 that
+  every registry type has a card, 3 that every published count is 54 — so the section has been
+  COMPLETE and CORRECTLY NUMBERED for weeks. Neither asks the question a reader asks it: the cards
+  are FILED under group headings, and the inspector's picker files the same 54 charts under tabs
+  of its own (`app/studio.js` builds `groupOrder` from `Studio.CHARTS[t].group` and renders one
+  `.cg-tab` per group). Same vocabulary, published twice, derived once, compared never. Taken over
+  the two v922 candidates for the reason those notes give themselves — both are flagged in their
+  own text as product calls, and `docs/BACKLOG.md` says a run does not make those for Kevin.
+  **Three charts on the wrong shelf, and a whole tab missing.** `ensembleSeries` was under
+  **Maps**; the registry says **Trend**. It sat under the choropleth because the two share an
+  ensemble channel — a real relationship and the wrong shelf, so a reader who opened the Maps tab
+  hunting the card Help showed them there found one chart, not two. `richtext` was under
+  **Detail** beside the table; the registry gives it **Content**, a tab of its own, and
+  `app/studio.js`'s own comment at the gallery says what that group is for ("Content group =
+  richtext/annotation"). **`Content` was named nowhere on the page** — one chart, one tab, and the
+  tab a reader is least likely to guess was the one Help never mentioned.
+  **The duplicate heading is the find, and it is the one a coverage check structurally cannot
+  see.** `Comparison` was printed TWICE — the fifteen bar-family cards near the top, then
+  `quadrant` alone under a second heading of the same name at the BOTTOM of the section, below
+  Distribution. Every card was present, every card was under a correctly-named group, every count
+  was 54 — checks 2 and 3 were green and right to be — and the page still published TEN groups
+  where the app renders NINE. Whoever added the quadrant chart appended a heading instead of a
+  card, and nothing on the page could tell.
+  **Doc-truth check 50** adds no new source of truth — the same registry checks 2/3 read, plus the
+  picker's own grouping expression: (a) every card under the h3 its registry entry names (`ct-kpi`
+  stays exempt via check 2's `CARD_EXTRAS` — a panel kind, not a CHARTS entry), (b) every group the
+  picker offers is published, (c) the negative half, no invented shelf, (d) no group published
+  twice, (e) the premise itself — `app/studio.js` still deriving `groupOrder` from `.group` and
+  still labelling a tab per group, so the check fails loudly rather than comparing Help against
+  nothing. **3 of the 5 measured failing on the real pre-fix tree** (a: ensembleSeries + richtext
+  by name; b: Content; d: Comparison); (c) and (e) on mutated trees — an invented `Relationships`
+  heading, the grouping expression replaced with a constant, the tab loop pointed elsewhere — and
+  both directions of (a)/(b) on a registry that renames `Flow` to `Networks`, which correctly reds
+  three rules at once. The group ORDER is deliberately NOT held: the picker's is registry
+  first-seen (Comparison first), Help leads with Maps because the choropleth is the app's
+  strongest chart, and check 12 already settled that a teaching document owes coverage, not a walk
+  order. The registry parser is the brace-walk `chartRegistryKeys()` already uses, extended to
+  read each entry's `group`; it was verified against a real evaluation of `app/model.js` —
+  54 keys, 54 groups, zero mismatches — rather than trusted as a regex.
+  Verified: `node tools/validate.mjs`, `node tools/changelog-check.js`, `node tools/doc-truth.mjs`
+  (the full dev gate) and `node tools/dev-smoke.mjs` at 390×780 + desktop, zero pageerrors.
+  No `sw.js` CACHE bump — `docs/index.html` is deliberately NOT precached (sw.js says so at the
+  head of its list) and `tools/` does not ship; same reasoning as v921–v936.
+  Est 1pt, took 1.
 - **N7 — Help sent a reader to a button the app retired, and left one app out of the switcher
   (v936, NO sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):**
   The check-21 move one paragraph over. Checks 9 and 43 hold Help's rail and its navigation;
@@ -13850,6 +13897,36 @@
     `Studio.JOB_STEP_KINDS` (all 9 step types described) and `Studio.JOB_AGG_FNS` (all 5 rollup
     metrics named), so the check-38/40 inventory move has nothing to correct there today. The two
     v922 candidates are still open and still Kevin's calls.
+  * *Help's chart gallery vs the tabs the picker really renders — v937, NO sw bump (2026-08-09 —
+    see DONE).* The first slice here to find drift UNDERNEATH checks that were already green over
+    the same section. Checks 2 and 3 have held `#chart-types` since AUD-11 — every registry type
+    has a card, every published count is 54 — so it has been complete and correctly numbered for
+    weeks. Neither holds the thing a reader uses it for: the cards are FILED under group headings,
+    and the inspector's picker files the same 54 charts under `.cg-tab` tabs built from
+    `Studio.CHARTS[t].group`. **`ensembleSeries` was under Maps** (registry: Trend — it sat under
+    the choropleth because the two share an ensemble channel), **`richtext` under Detail**
+    (registry: Content), and **`Content`, the app's ninth tab, was named nowhere on the page.**
+    **The find is the duplicate heading, and it is the shape a coverage check structurally cannot
+    see:** `Comparison` was printed twice — fifteen cards near the top, `quadrant` alone under a
+    second identically-named heading at the bottom, below Distribution — so every card was present
+    and correctly labelled, both counts were 54, checks 2/3 were green and right to be, and the
+    page still published TEN groups where the app renders NINE.
+    Doc-truth check 50 adds no new source of truth (checks 2/3's registry + the picker's own
+    grouping expression): five rules — card⇄its group's heading, coverage of every offered group,
+    the negative half, no group twice, and the PREMISE (studio.js still grouping by `.group`, one
+    tab per group) so the other four cannot pass green over a dead source. **3 of 5 measured
+    failing on the real pre-fix tree**; (c) and (e) on mutated trees, and both directions of
+    (a)/(b) on a registry renaming `Flow`→`Networks`. The parser was validated against a real
+    evaluation of `app/model.js` (54 keys, zero mismatches) rather than trusted as a regex.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    section's three general paragraphs ("54 chart types are available, grouped by purpose…", the
+    Recommended-strip note, the toggle-glyph note) sit UNDER the `Maps` heading rather than under
+    the `<h2>`, so the gallery's own introduction reads as if it belonged to the first group. That
+    is v930/v936's information-architecture class — moving a block between headings is an
+    editorial call, not a derivation — so check 50 holds membership and not the prose's address.
+    Also measured and found CURRENT: `site/chart-gallery.js` (check 1) needs no regeneration —
+    nothing here touched the registry. The two v922 candidates are still open and still Kevin's
+    calls.
 - ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
   ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
   **The fix taken was NOT the one the spec proposed, and the difference is worth reading before
