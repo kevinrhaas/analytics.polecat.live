@@ -43579,7 +43579,7 @@ function serve() {
       return { open: nav.classList.contains("mobile-open"), scrim: document.getElementById("mobile-scrim").classList.contains("active"), onScreen: r.left >= -2 && r.width > 100 };
     });
     ok("m-a: hamburger opens the drawer + scrim (rail slides on-screen)", mOpen.open && mOpen.scrim && mOpen.onScreen, JSON.stringify(mOpen));
-    // N29 (Kevin live phone, 2026-08-08): the drawer could not be scrolled, so
+    // N30 (Kevin live phone, 2026-08-08): the drawer could not be scrolled, so
     // Settings/Help/the quick toggles — which .rail-spacer{flex:1} deliberately puts
     // LAST — were unreachable on a phone. Measure the two things that were wrong:
     // the drawer must be a scroll container (computed overflow-y, not just a class),
@@ -43601,7 +43601,7 @@ function serve() {
         settingsReachable: !!sR && sR.top >= navR.top - 1 && sR.bottom <= navR.bottom + 1
       };
     });
-    ok("m-a: N29 — the mobile drawer scrolls, so Settings below the fold is reachable",
+    ok("m-a: N30 — the mobile drawer scrolls, so Settings below the fold is reachable",
       (mScroll.overflowY === "auto" || mScroll.overflowY === "scroll") && mScroll.settingsReachable,
       JSON.stringify(mScroll));
     await mp.click('#railNav .rail-item[data-sec="dashboards"]');

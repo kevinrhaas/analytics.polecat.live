@@ -13396,9 +13396,103 @@
 > struck entries and propose the next batch to Kevin on a `hold` PR — never graze the
 > reservoir directly.
 
-- ⛔ **N29 ★★ [1pt] — `polecat_dev` is leaking to anonymous callers, and the new verify caught it on
-  its first run (2026-08-08).** ⛔ **BLOCKED ON KEVIN, and it is an action rather than a decision
-  (marked 2026-08-08 by the steward run that took N27 instead).**
+- **N31 ★★ [1pt] — the sample packs' maps ship with no pan/zoom controls, and a flagship pack
+  is where Kevin hit it.** Live on `/dev/`, 2026-08-09: *"when I open it… there are no controls
+  on the map."* **Measured, not guessed.** `mcChoropleth` (`app/demopacks.js:966-970`) sets
+  `scale/fmt/agg/classes/height` and **omits `renderer`**, so it takes the default at
+  `app/model.js:1077` — `renderer: "svg"`, the built-in renderer. That field's own sibling then
+  states the consequence outright: `mapControls` is *"GL renderer only — the built-in renderer
+  has no on-map controls"* (`model.js:1084-1086`). So LF35's whole zoom/pan cluster is
+  unreachable for every pack map by construction. **Not SP-1-specific** — Conservation's
+  choropleths omit `renderer` too (`demopacks.js:385-387`, `:651-654`); SP-1 is just where a
+  full-nation county map made the absence obvious, because that is the view you most want to
+  zoom into.
+  **This is a product decision, not a one-liner, so make it deliberately.** Three options:
+  (a) the packs opt into `renderer:"gl"` for their hero maps — smallest change, but GL inlines
+  MapLibre into every export of those dashboards, which is a real size cost worth measuring
+  before committing; (b) change the app-wide default to GL, with the documented WebGL fallback —
+  biggest blast radius, touches the export==preview invariant, needs its own slice; (c) give the
+  built-in SVG renderer a minimal zoom/pan cluster so the default stops being the option with no
+  controls. **Kevin's call between them.** Whichever wins, a US county choropleth with no way to
+  zoom is the wrong default for the app's strongest geography.
+- **N34 ★★ [1pt] — dragging the View Builder canvas taller does not make the chart taller; it
+  just adds empty space below it.** Kevin, 2026-08-09: *"when I drag the canvas open the view
+  would resize? like the chart object is the same."* His screenshot shows the canvas dragged to
+  roughly double height with the scatter still occupying the top half and a large dead band
+  underneath — the container grew, the chart did not.
+  **The mechanism.** VB-12's drag handles (`app/build.js:1234` `bdWirePreviewResize`) resize the
+  IFRAME — they set `ifr.style` width/height and nothing else. The chart inside is rendered by
+  `renderChartPreview` → `bdPanelFor()` with a chart `opts.height` fixed at build time (360 for
+  this panel, from the pack spec). Nothing recomputes that height when the frame changes, so the
+  chart keeps its authored size inside a bigger box.
+  **Fix:** on drag (and on the double-click fill-to-bottom), derive the chart height from the new
+  canvas height and repaint — the chart should fill the canvas it was given, which is what
+  "the chart object is the same" means. **Reuse the existing mechanism rather than inventing
+  one:** the dashboard builder already does exactly this with PANEL-H — the preview posts
+  `{type:"resizeH", id, h}` and the host writes `chart.opts.height` (`app/studio.js:10673-10684`,
+  "the exact knob charts already draw to, so it holds identically in the preview, the viewer, and
+  every export"). The View Builder wants the same write against its own `BD` state.
+  **Two details worth getting right:** debounce the repaint so a drag does not re-render per
+  mousemove (the preview is a full `buildHtml` + `srcdoc` swap), and decide whether the dragged
+  height PERSISTS into the saved View — if it does, it must round-trip like any other opt; if it
+  does not, the canvas is a viewport and the saved chart keeps its authored height. Either is
+  defensible; silently doing one while implying the other is not.
+- **N33 ★★ [2pt] — a pack View authored as a QUADRANT silently degrades to a plain scatter when
+  you open it, losing the crosshairs and the four labels that are its entire point.** Kevin,
+  2026-08-09, with both screenshots: the pinned card renders a dashed reference line; opening the
+  same View in the builder renders the scatter WITHOUT it — *"I think there is a trend line on
+  the view but I can't see it turn it on/off in the View Builder yet, maybe I should?"*
+  **The mechanism, measured.** The pack authors that panel as
+  `chart: { type: "quadrant", …, opts: { xThreshold, yThreshold, q1..q4 } }`
+  (`app/demopacks.js:1007-1013`) — the dashed line Kevin sees is the **threshold crosshair at the
+  national county medians**, not a regression fit. The View Builder's chart-type row offers
+  Table · Bars · Stacked bars · Line · Stacked area · Donut · Heatmap · Map · Scatter · KPI —
+  **no Quadrant.** So the round-trip lands on the nearest neighbour, plain scatter, and drops
+  `xThreshold`/`yThreshold` and the quadrant labels ("Well served", "Served on a lower income",
+  "Thin on both", **"Whitespace"**). Those labels ARE the analysis: without them the panel is a
+  cloud of bubbles, which is exactly what the second screenshot shows.
+  **Why this is worse than a missing toggle:** it is silent and lossy. Nothing tells the reader
+  the View they opened is not the View they clicked, and a Save from that state would persist
+  the degraded form over the pack's authored one.
+  **Two things to fix, in this order:**
+  1. **Don't lose what you can't edit.** Either add Quadrant to the builder's type row, or —
+     cheaper and correct for every future type — make the builder carry unknown chart types and
+     unrecognised `opts` through unchanged, and say plainly in the UI that it is showing a
+     simplified edit of a richer chart. VB-5 already established the cross-editor notice pattern
+     for exactly this class of problem; reuse it rather than inventing a second one.
+  2. **Then Kevin's actual ask:** a reference/trend-line control in the builder. Note `showTrend`
+     exists today but is scoped *"vertical bars only"* (`app/model.js:665`), so scatter has no
+     trend line at all — this is new capability, not a hidden switch. Decide deliberately between
+     a STATISTICAL trend (OLS fit, which the codebase already computes at `model.js:314`/`334`
+     for the narrative sentences, so the math is there) and a REFERENCE line at a chosen constant
+     (which is what the quadrant thresholds are). They look identical and mean different things;
+     offering the wrong one on a whitespace chart would be actively misleading.
+- **N32 ★ [1pt] — retire the Settings → MODE "Sample content" toggle; the packs already own
+  this (Kevin, 2026-08-09: "I don't think this mode should be here any more… that should all be
+  fully handled by the sample packs").** Agreed, and the code already half-admits it: the toggle
+  at `app/studio.js:9382` is a single coarse switch over the same concept the pack registry
+  models per-pack, and `studio.js:9912` carries the comment *"with Sample content toggled off,
+  the packs' ONLY install/remove surface…"* — i.e. two systems governing one thing, with the
+  toggle able to CONTRADICT pack state (a pack installed, and hidden). LF16 was supposed to
+  merge demo content into the packs; the toggle survived the merge.
+  **What to check before deleting**, because a Settings switch usually has a second job: what
+  `setShowSamples(false)` actually suppresses beyond the packs — the library's
+  *"Sample content is hidden"* strip (`studio.js:994-997`) and, per its own copy, "the New ▾
+  starter sets". If those are genuinely separate concerns they need a home before the switch
+  goes; if they are just the packs by another name, they go with it. Also decide what happens
+  to a workspace where someone had it OFF: uninstalling their packs on their behalf would be a
+  data surprise, so prefer leaving pack state alone and simply removing the global mask.
+- ~~**N29 ★★ [1pt] — `polecat_dev` is leaking to anonymous callers.**~~ ✓ **CLOSED 2026-08-09,
+  Kevin + interactive session.** He ran `tools/supabase-deploy.sql` + §7 on the dev project and
+  the verify re-run went **PASSED — no table on dev is readable by an anonymous caller (8
+  checked)**. The two tables that were leaking (`dashboards`, `datasets`) are closed, and the
+  two that had read `HTTP 404 — does not exist` (`polecat_activity` / `polecat_feedback`, §6 of
+  deploy.sql) now return `HTTP 200, zero rows` — which is what proves the canonical file
+  actually ran end to end, rather than the tables merely being absent.
+  **Caveat worth keeping (this is N27's point):** `connections`, `analyses`, `jobs` and `users`
+  are almost certainly still EMPTY, so their "ok" is inconclusive rather than proof. The tables
+  that genuinely demonstrate the posture are the four above.
+  *(History below kept until the next grooming pass archives it.)*
   **⚠ ID CORRECTED at grooming pass 3 (2026-08-09): this item was minted as a SECOND `N26`.**
   `docs/BACKLOG.md` says an ID is never reused, and the N22c slice that measured the collision
   (see DONE) left it flagged rather than resolved. N16's DONE entry and its NOW text both bind
