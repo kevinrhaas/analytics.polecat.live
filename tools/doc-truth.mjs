@@ -4056,6 +4056,119 @@ ok(`${packsPath}: every repo path and Studio entry point it names resolves (${pa
   `unresolved entry points: ${packsApiGaps.map((a) => `Studio.${a}()`).join(", ") || "(none)"}\n      ` +
   "a contract that names a script or a function nobody can find is not executable");
 
+/* ── 49. Help's app-bar chrome vs the bar the app renders ───────────────────
+   N7, and the check-21 move one paragraph over. Checks 9 and 43 hold Help's rail and
+   its navigation; check 21 holds the ⋯ More routes it names. Nothing held the two
+   paragraphs that describe the app bar's own right-hand cluster — the fleet waffle and
+   the What's-new feed — and both had drifted, in the two directions this family knows:
+   one under-counted a registry, the other routed a reader to a control that no longer
+   exists.
+
+   Measured 2026-08-09, before the fix:
+   · **The waffle paragraph named 7 apps where the switcher renders 8.** app/fleet.js
+     mounts `appSwitcher(publicFleet(), { current: "analytics" })`, and
+     vendor/polecat-shell/catalog.js carries EIGHT public entries. **Model Server** —
+     added to the fleet and arriving here whole, by sync PR, in a read-only vendor copy
+     this repo cannot edit — was named nowhere on the page.
+   · The same paragraph put the waffle "next to **＋ New**", the DATA PANEL's button
+     (check 16's subject). The app bar's is `New ▾`, and fleet.js inserts the waffle
+     before `#btnNew` specifically. The v877 drift, one document over.
+   · **The What's-new paragraph documented a button DECLUTTER-1 deleted.** "the
+     **Changelog** button in the footer" — app/index.html has carried no `id="btnChangelog"`
+     since 2026-07-31 (the app footer is retired pending a fleet-wide shell feature;
+     renderFooter and fleet.js null-guard its absence). The live routes are the top bar's
+     `#tbWhatsNew` on every section and ⋯ More → What's new on a phone, and this paragraph
+     named neither. Help contradicted ITSELF: its own top-bar section 600 lines above lists
+     **What's new** in the right-hand cluster and documents the phone route. The v927/v929
+     shape, except one half is not merely stale — it is a dead control, the class check 41
+     (g) deleted from README ("ⓘ Tour") and check 44 (f) from PUBLISH.md.
+
+   Five rules, no new source of truth — the catalog, app/fleet.js and app/index.html's own
+   markup:
+   (a) the switcher paragraph names every app the waffle offers;
+   (b) the negative half — it names none the catalog lacks (the list is parsed from the
+       paragraph's own parenthetical, so an invented app fails rather than hides);
+   (c) it reaches the waffle past the button the TOP BAR renders, not the Data panel's
+       `＋ New ▾` twin;
+   (d) the What's-new paragraph names the top-bar control by the title app/index.html
+       gives it;
+   (e) the negative half of (d) — while the markup renders no `#btnChangelog`, the
+       paragraph may not send a reader to the footer for it. Deliberately scoped to the
+       retired footer rather than "every control Help names": the general form is check
+       21's, already green over the whole page, and a looser rule here would false-positive
+       on the ✕/Escape/backdrop prose the same way check 13 avoids docs/index.html. */
+
+const fleetCatalogSrc = read("vendor/polecat-shell/catalog.js");
+const fleetApps = fleetCatalogSrc.split(/\n\s*\{\s*id:/).slice(1).map((e) => ({
+  id: (e.match(/^\s*'([^']+)'/) || [, ""])[1],
+  name: (e.match(/name:\s*'([^']+)'/) || [, ""])[1],
+  visibility: (e.match(/visibility:\s*'([^']+)'/) || [, ""])[1],
+})).filter((a) => a.id && a.name);
+const fleetPublic = fleetApps.filter((a) => a.visibility === "public");
+const fleetSrc = read("app/fleet.js");
+const fleetCurrent = (fleetSrc.match(/current:\s*"([^"]+)"/) || [, ""])[1];
+const appHtmlSrc = read("app/index.html");
+const topbarNewLabel = ((appHtmlSrc.match(/id="btnNew"[^>]*>([^<]+)</) || [, ""])[1] || "").trim();
+const tbWhatsNewTitle = (appHtmlSrc.match(/id="tbWhatsNew"[^>]*\stitle="([^"]+)"/) || [, ""])[1] || "";
+const switcherP = (help.match(/<p id="apps-switcher"[\s\S]*?<\/p>/) || [""])[0];
+const whatsNewP = (help.match(/<p id="whats-new"[\s\S]*?<\/p>/) || [""])[0];
+// Same apostrophe normalisation check 21 uses, so "What's new" in a title= attribute and
+// "What’s new" in prose compare as one string.
+const flat = (s) => htmlText(s).replace(/[’‘]/g, "'").replace(/\s+/g, " ").trim();
+
+ok(`the fleet roster + app-bar markup parsed for check 49 (${fleetPublic.length} public app(s), ` +
+   `current "${fleetCurrent}", New button "${topbarNewLabel}", What's-new title "${tbWhatsNewTitle}")`,
+  fleetPublic.length >= 6 && !!fleetCurrent && !!topbarNewLabel && !!tbWhatsNewTitle &&
+    !!switcherP && !!whatsNewP && fleetPublic.some((a) => a.id === fleetCurrent),
+  `catalog entries: ${fleetApps.length} (${fleetPublic.length} public) · ` +
+  `#apps-switcher found: ${!!switcherP} · #whats-new found: ${!!whatsNewP}\n      ` +
+  "the two paragraphs carry ids as check-49 anchors, the idiom id=\"viewer-export\" already set");
+
+// (a) coverage. publicFleet() minus the app fleet.js declares current — the switcher marks
+//     that one rather than offering it as a jump, which is what the copy says too.
+const wafflePeers = fleetPublic.filter((a) => a.id !== fleetCurrent);
+const switcherText = flat(switcherP);
+const waffleUnnamed = wafflePeers.filter((a) => !switcherText.includes(a.name));
+ok(`docs/index.html: the apps-switcher paragraph names all ${wafflePeers.length} apps the waffle offers`,
+  !waffleUnnamed.length,
+  `in publicFleet(), unnamed by Help: ${waffleUnnamed.map((a) => a.name).join(", ") || "(none)"}\n      ` +
+  "app/fleet.js renders publicFleet() whole — a reader counting tiles against this list finds one Help never mentions");
+
+// (b) the negative half, off the paragraph's own parenthetical.
+const waffleListed = flat((switcherP.match(/family\s*\(([^)]*)\)/) || [, ""])[1])
+  .split(/,\s*/).map((s) => s.trim()).filter(Boolean);
+const waffleInvented = waffleListed.filter((n) => !fleetPublic.some((a) => a.name === n));
+ok(`docs/index.html: the apps-switcher paragraph invents no app (${waffleListed.length} listed)`,
+  waffleListed.length >= 5 && !waffleInvented.length,
+  `listed by Help, absent from catalog.js: ${waffleInvented.join(", ") || "(none)"}\n      ` +
+  "vendor/polecat-shell/ is READ-ONLY here — the roster changes by sync PR, so Help is the half that drifts");
+
+// (c) the button the paragraph reaches past is the app bar's, not the Data panel's twin.
+//     Both end in "New ▾", so the substring test alone would pass on the wrong one — the
+//     panel's leading ＋ is the discriminator, and check 16 owns that pane's own copy.
+ok(`docs/index.html: the apps-switcher paragraph names the app bar's "${topbarNewLabel}", not the Data panel's ＋ form`,
+  switcherText.includes(topbarNewLabel) && !/＋\s*New/.test(switcherText),
+  `names "${topbarNewLabel}": ${switcherText.includes(topbarNewLabel)} · names a ＋ New form: ${/＋\s*New/.test(switcherText)}\n      ` +
+  "app/fleet.js inserts the waffle before #btnNew's menu-wrap — the topbar button, whose own label carries no ＋");
+
+// (d) + (e) the What's-new routes. The paragraph's own bolded lead-in ("What's new:") is
+//     stripped first: it repeats the title verbatim and would otherwise satisfy (d) on its
+//     own, which is exactly how the pre-fix copy passed a rule about a button it never named.
+const whatsNewBody = flat(whatsNewP.replace(/^<p[^>]*>\s*<strong>[^<]*<\/strong>/, ""));
+const whatsNewText = whatsNewBody;
+const wantTitle = tbWhatsNewTitle.replace(/[’‘]/g, "'");
+ok(`docs/index.html: the What's-new paragraph names the top-bar control by its own title ("${wantTitle}")`,
+  whatsNewBody.includes(wantTitle),
+  `paragraph: "${whatsNewText.slice(0, 120)}…"\n      ` +
+  "#tbWhatsNew is the route on every section; the paragraph described only the builder's footer");
+const footerChangelogLives = /id="btnChangelog"/.test(appHtmlSrc);
+ok("docs/index.html: the What's-new paragraph routes to no control app/index.html has retired",
+  footerChangelogLives || !/\bfooter\b/i.test(whatsNewText),
+  `#btnChangelog in app/index.html: ${footerChangelogLives} · paragraph says "footer": ${/\bfooter\b/i.test(whatsNewText)}\n      ` +
+  "DECLUTTER-1 retired the app footer on 2026-07-31 (brand line · Changelog toggle · Last-updated stamp); " +
+  "studio.js and fleet.js null-guard its absence, so nothing in the app ever complained");
+
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
