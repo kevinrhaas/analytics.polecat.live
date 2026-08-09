@@ -515,10 +515,17 @@
       var sel = document.getElementById("g-workspace"); if (!sel) return;
       var cur = currentWorkspaceId(), def = WS.defaultId();
       var html = workspaceList().map(function (w) {
+        // N25: a saved entry pointing at PRODUCTION is unpickable from a /dev/
+        // or /stage/ preview. It stays in the list, disabled and labelled —
+        // silently dropping the reader's own workspace would read as a bug,
+        // and the label is where "you are not in production" has to be said.
+        var blocked = WS.blockReason ? WS.blockReason(w) : "";
         // The default is named in the option itself — the picker is the one place
         // it has to be obvious, and the manager panel is a click away.
-        return '<option value="' + escGate(w.id) + '"' + (w.id === cur ? " selected" : "") + '>' +
-          escGate(w.label) + (w.id === def ? " (default)" : "") + "</option>";
+        return '<option value="' + escGate(w.id) + '"' + (w.id === cur && !blocked ? " selected" : "") +
+          (blocked ? " disabled" : "") + '>' +
+          escGate(w.label) + (w.id === def ? " (default)" : "") +
+          (blocked ? " — production, not from " + escGate(WS.stage().toUpperCase()) : "") + "</option>";
       }).join("");
       if (cur === "__connected") html += '<option value="__connected" selected>Connected workspace (this browser)</option>';
       html += '<option value="__custom">Custom workspace…</option>' +
@@ -541,6 +548,10 @@
     function connectWorkspace(entry) {
       var Sync = window.Studio && window.Studio.Sync;
       if (!Sync) { fail("Still loading — try again in a moment."); return; }
+      // N25: say the real reason here rather than letting it arrive wrapped in
+      // "Couldn't use X — …" from the rejection below.
+      var blocked = WS.blockReason ? WS.blockReason(entry) : "";
+      if (blocked) { wsNote(""); fail(blocked); renderWorkspaceSelect(); return; }
       setErr("");
       // BIND, don't pull: under authenticated-only RLS an unauthenticated pull
       // reads the workspace as empty — adopting that here would wipe this

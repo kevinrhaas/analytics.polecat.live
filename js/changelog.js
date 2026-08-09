@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 911,
+    title: 'A preview build can no longer sign you into the live workspace',
+    kind: 'fix',
+    ts: '2026-08-09T02:11:32.000Z',
+    items: [
+      'The app is published three times over: the live site, and two preview builds — one for work in progress, one for a release candidate — that let a change be looked at before it ships. The previews are the same app served from a subfolder of the same address, and that turned out to matter more than it sounds: they shared the live site\'s browser storage, so a preview opened straight into the LIVE workspace. Everything done there — signing in, installing a sample pack, saving a dashboard — was being written to real data by someone who thought they were looking at a preview.',
+      'A preview now refuses the live workspace outright. It opens on local-only data instead, and says so; the connection the live site is using is left exactly as it was, so nothing is lost by having visited a preview.',
+      'The refusal covers every way in, not just the obvious one: the workspace list no longer offers the live workspace on a preview, a saved copy of it is shown greyed out with the reason, and connecting by hand or by importing an access file is turned down the same way. Addresses are compared, so renaming an entry or adding a trailing slash does not get around it.',
+      'Each packaged workspace now says which of the three builds it belongs to, and a preview\'s own workspace is labelled with it — "(DEV)", "(STAGE)" — right there in the picker. Which database you are about to work in should never depend on noticing a banner.',
+      'Anonymous usage and feedback logging follows the same rule: a preview with no workspace of its own logs nowhere rather than into the live site\'s records.',
+      'Nothing about the live site changes. This is only about what the two preview builds are allowed to touch.',
+    ],
+  },
+  {
     v: 910,
     title: 'Your saved workspaces are a list you can actually manage — and hand out',
     kind: 'feature',

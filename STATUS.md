@@ -135,6 +135,53 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N25 slice 1 — a preview build can no longer reach the production workspace (v911, sw v533,
+  2026-08-09, steward; dev branch; est 2pt, slice 1 of 2 — on estimate so far):** the hole Kevin's
+  *"I am concerned… that you will break prod on main"* was actually about. `/dev/` and `/stage/`
+  are the same build served from a SUBDIRECTORY of the production origin, which means they share
+  production's `localStorage` — so a preview opened straight into the live workspace with nobody
+  picking anything, and every test sign-in, sample-pack install and push from a preview was
+  written to real data.
+  **What shipped.**
+  - **Every packaged catalog entry declares its stage** (`app/workspaces.js`): `stage: "prod"` on
+    the one shipped entry, and absent means production (the entry shipped un-tagged for weeks and
+    it was prod's, so an old locally-imported copy is still treated as production's).
+    `window.STUDIO_STAGE_FOR(path)` is the pure mapping — only a `/dev/` or `/stage/` PATH PREFIX
+    is a preview, so `/development/`, `/staged/` and a nested `/app/dev/` are production — and
+    `window.STUDIO_STAGE` is this build's answer. `STUDIO_WS_STORE.list()` offers only the entries
+    belonging to this stage, and labels a non-production one with it in the picker itself
+    ("Polecat workspace (DEV)"): which database you are working in must not depend on noticing a
+    banner, which has already proven dismissable.
+  - **The refusal lives at the CONNECTION, not only in the picker** (`STUDIO_WS_STORE.blockReason`
+    → `app/sources/sync.js`): `bindConnection`, `connectAdopt` and `connectPush` all reject a
+    production address from a preview, so an access file, the connect wizard and a hand-typed URL
+    are refused exactly as the picker is. Addresses are compared normalized, so a different id, a
+    different name, a trailing slash or a different case cannot slip past.
+  - **And the path nobody had to click:** `initSync`'s boot restore declines production's saved
+    connection and stays local, saying why. It deliberately does NOT rewrite the record — the
+    production site is still using it — and latches `saveConn`'s local branch so a disconnect
+    click inside a preview cannot delete production's connection out of the shared storage.
+  - **The anonymous activity/feedback log follows the same rule** (`app/activity.js`): its
+    packaged-workspace fallback resolves the entry for THIS stage, so a preview with no entry of
+    its own logs nowhere (the row re-queues, capped, exactly as before § 6b is applied) rather
+    than writing preview traffic into production's tables.
+  - **No `dev`/`stage` catalog entry ships**, deliberately: publishing a key in this public repo
+    requires that workspace's anon-reads-nothing posture to be VERIFIED first (the rule at the top
+    of `app/workspaces.js`), and `polecat_dev`'s is the open ⛔ **N26**. A preview therefore offers
+    Local only today, which is the safe end of the trade.
+  **How it was verified.** Four checks in `tests/run.js`, run at a REAL `/dev/` URL rather than by
+  poking a flag: the test server now serves the live tree under a stage prefix, the way
+  `tools/stage-preview.mjs` assembles a preview (deliberately not the repo's committed `dev/`
+  snapshot — that is an older build's artifact, and reading it would go green on code that is not
+  the code under test). They cover the path mapping including its near-misses; a preview booted
+  with production's own saved connection staying local, making ZERO requests to the production
+  host (asserted on the request stream), keeping the record intact, dropping the packaged entry
+  and disabling the reader's own copy with the reason; all three connect entry points refusing,
+  address-compared, while a non-production address is untouched; and the stage label + the
+  activity-log fallback. Full suite **3236 passed, 0 failed**; dev gate green (validate,
+  changelog-check, dev-smoke at 390×780 + desktop).
+  **What slice 2 is** is rewritten into the NOW item: the dev/stage entries themselves (blocked on
+  N26), and moving the mutating `tests/rls.mjs` off the production project.
 - **N24 slice 2 — the saved workspaces became a list you can manage, and hand out (v910, sw v532,
   2026-08-09, steward; dev branch; est 2pt for the whole item, 2 slices shipped — on estimate;
   the item is now CLOSED):** slice 1 made a connected workspace a NAMED, persisted picker entry.
@@ -12341,7 +12388,35 @@
   exposes list/addCustom/render/connect) that a wizard connection leaves a NAMED, selectable
   entry in the picker and that signing in against it works — the assertion that would have
   caught this.
-- **N25 ★★ [2pt] — The `/dev/` and `/stage/` previews sign you into PRODUCTION data.** Found
+- **N25 ★★ [2pt est, 1 slice shipped] — The `/dev/` and `/stage/` previews sign you into
+  PRODUCTION data.** ✓ **SLICE 1 IS SHIPPED — the guard: v911, sw v533 (2026-08-09, steward — see
+  DONE).** A preview no longer offers, restores or accepts the production workspace by ANY route
+  (packaged catalog, saved connection inherited from production's shared localStorage, access
+  file, hand-typed URL, or the anonymous activity log), packaged entries declare their stage and
+  a non-production one is labelled with it in the picker, and a refused preview never rewrites the
+  connection record production is still using.
+  ~~**SLICE 2 — what remains, and why it could not ship together:**~~ **(a) the dev/stage catalog
+  entries themselves.** Slice 1 makes a preview offer *Local only*, which is the safe end of the
+  trade but not the end state Kevin asked for ("`/dev/` offers the dev workspace"). Shipping a key
+  here needs that workspace's anon-reads-nothing posture VERIFIED first — the rule at the top of
+  `app/workspaces.js` — and `polecat_dev`'s is the open ⛔ **N26**, so this slice is BLOCKED ON
+  N26 and must not jump it. When it lands: add the `stage: "dev"` / `stage: "stage"` entries; the
+  labels, the filtering, the picker and the activity-log fallback are already built and covered.
+  `polecat_stage` does not exist yet either. **(b) the test topology follows the branch topology**
+  — `tests/rls.mjs` still CREATEs and DROPs `steward_test_rls_*` schemas on the PRODUCTION
+  project; move it to `polecat_dev` at the dev gate, to stage at promotion, and leave prod only
+  the read-only anon-verify (`supabase-deploy.sql` §8 / `tests/rls-verify.mjs`). Strictly safer
+  than the status quo, not a coverage trade.
+  **One thing slice 1 measured and deliberately did NOT take:** previews share production's whole
+  `localStorage`, not just its connection record — the entire local workspace (datasets,
+  dashboards, preferences) is one store across `/`, `/dev/` and `/stage/`. `tools/stage-preview.mjs`
+  says so in a comment and calls it safe on AUD-04 grounds (an older build can no longer delete a
+  newer one's tables). That is a real, separate question — whether a preview should get its own
+  namespace — and it is an item, not a rider on this one.
+  **Grooming note:** the paragraph beginning "Industry density and whitespace by county" below is
+  STRAY — it is SP-1 (marketcoverage) text that landed inside this item. Move it in the next
+  grooming pass; it is not part of N25.
+  The original spec, kept until the next grooming pass archives it. Found
   2026-08-08 while answering Kevin's *"I am concerned… that you will break prod on main"* — his
   instinct was right, just about a different mechanism than secrets. **Measured:**
   `app/workspaces.js` ships exactly one catalog entry (`id: "polecat"`) carrying the LIVE project

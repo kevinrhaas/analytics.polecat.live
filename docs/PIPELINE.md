@@ -16,6 +16,21 @@ had to become safe first — it is now (`replaceAll` preserves unknown tables).
   stage's own self-unregistering stub with the stage's own scope. Marketing +
   docs pages are relative-linked and just work. The artifact also gains a
   generated `robots.txt` (the repo ships none) disallowing the previews.
+- **A preview may not touch the production workspace** (N25, 2026-08-09). The
+  previews are served from a subdirectory of the production ORIGIN, so they share
+  production's `localStorage` — which for weeks meant a preview opened straight
+  into the live workspace and every sign-in, sample-pack install and push from
+  `/dev/` was written to real data. `app/workspaces.js` now tags each packaged
+  catalog entry with its stage, `window.STUDIO_STAGE` reads the stage off the
+  path prefix, and `STUDIO_WS_STORE.blockReason()` refuses a production address
+  from a preview at **every** entry point: the picker, `bindConnection`,
+  `connectAdopt`, `connectPush`, the boot restore of the saved connection, and
+  the anonymous activity-log fallback. A preview that declines the saved
+  connection leaves the record alone — production is still using it. Consequence
+  today: **a preview offers "Local only"**, because no dev/stage catalog entry
+  ships until that workspace's anon-reads-nothing posture is verified (STATUS.md
+  N25 slice 2, blocked on N26). Connect a dev workspace by access file or the
+  connect wizard in the meantime — those are refused only for production.
 - **The gates**:
   - *Dev gate* (`ci.yml`, on PRs into dev + pushes to dev): `tools/validate.mjs`
     (the Guard-main syntax sweep, extracted) + `tools/changelog-check.js` +

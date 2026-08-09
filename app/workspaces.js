@@ -22,18 +22,52 @@
    six workspace tables — Kevin's six-zero verify). The publishable key is the
    role the database's policies are built to distrust; who can sign in is
    controlled in Admin (user provisioning), not by possession of this file.
+
+   N25 (2026-08-09) — EVERY ENTRY DECLARES ITS PIPELINE STAGE. The /dev/ and
+   /stage/ previews are the SAME build served from a subdirectory of the
+   production origin (tools/stage-preview.mjs), and this file was the one thing
+   the assembler did not rewrite — so the preview's picker offered the
+   PRODUCTION workspace, and a test sign-in from /dev/ wrote production data.
+   `stage` is where an entry may be offered: "prod" (the default when absent,
+   so a locally-imported copy of an old entry is still treated as production's)
+   / "dev" / "stage". `list()` only offers the entries belonging to the stage
+   this build is serving from, and `blockReason()` refuses a production
+   workspace from a preview whatever route it arrives by — the packaged
+   catalog, an access file, a hand-typed URL, or the saved connection the
+   preview inherits from production's own localStorage.
 */
 window.STUDIO_WORKSPACES = [
   {
     id: "polecat",
     label: "Polecat workspace",
     sourceId: "supabase",
+    stage: "prod",
     cfg: {
       url: "https://lnngiprrrcxtsawamqei.supabase.co",
       key: "sb_publishable_jQ3rgqN2swVo4WmLZp143A_2OrI8xc3"
     }
   }
+  // No `dev`/`stage` entry ships yet: publishing a key here requires that
+  // workspace's anon-reads-nothing posture to be VERIFIED first (the rule at
+  // the top of this file), and polecat_dev's is the open ⛔ N26. Until then a
+  // preview offers Local only, and a developer reaches a dev workspace the
+  // same way anyone reaches any other one — an access file, or the connect
+  // wizard. That is N25 slice 2.
 ];
+
+/* Which pipeline stage is THIS build serving from? The preview assembler mounts
+   a whole build under /dev/ or /stage/ of the production origin, so the path
+   prefix is the only honest signal available to the client — the hostname,
+   the origin and localStorage are all production's. Exported as a global so a
+   test (and a future non-path-based deployment) can override it, and split from
+   the pure `stageFor(path)` so the mapping itself is directly testable. */
+window.STUDIO_STAGE_FOR = function (pathname) {
+  var m = /^\/(dev|stage)(\/|$)/.exec(String(pathname == null ? "/" : pathname));
+  return m ? m[1] : "prod";
+};
+window.STUDIO_STAGE = (function () {
+  try { return window.STUDIO_STAGE_FOR(location.pathname); } catch (e) { return "prod"; }
+})();
 
 /* ---- N24 slice 2 — the SAVED WORKSPACE STORE, and the one manager panel ----
    Kevin, 2026-08-08: *"there should be some more management of your workspaces
@@ -64,6 +98,52 @@ window.STUDIO_WS_STORE = (function () {
   // A usable entry must say WHERE it points; anything else is a corrupt row we
   // silently drop rather than render as an unpickable option.
   function valid(w) { return !!(w && w.id && w.sourceId && w.cfg && w.cfg.url); }
+
+  /* ---- N25 — the stage rules ---------------------------------------------
+     Three small functions, all reading `window.STUDIO_STAGE` LIVE rather than
+     capturing it, so a test (and the app itself, if a preview ever stops being
+     a path prefix) can set it and every consumer agrees at once. */
+  function stage() { return window.STUDIO_STAGE || "prod"; }
+  // A packaged entry that doesn't say belongs to production: this file shipped
+  // one un-tagged entry for weeks and it was prod's.
+  function stageOf(w) { return (w && w.stage) || "prod"; }
+  // Compare workspaces by ADDRESS, not by id — an access file may carry the
+  // production database under any id and any name.
+  function normUrl(u) { return String(u == null ? "" : u).trim().toLowerCase().replace(/\/+$/, ""); }
+  // The production addresses this build knows about, read from the DECLARED
+  // catalog (not from list(), which hides them on a preview — the whole point).
+  function prodUrls() {
+    return (window.STUDIO_WORKSPACES || []).filter(function (w) {
+      return stageOf(w) === "prod" && w && w.cfg && w.cfg.url;
+    }).map(function (w) { return normUrl(w.cfg.url); });
+  }
+  /* Why this connection must not happen, or "" if it may. A preview shares
+     production's origin — and therefore its saved connection, its access files
+     and its muscle memory — so the refusal has to live at the connection, not
+     only in the picker: every sign-in, sample-pack install and push from /dev/
+     was landing in the live workspace. Takes an entry {cfg:{url}} or a bare
+     cfg {url}. */
+  function blockReason(x) {
+    if (stage() === "prod") return "";
+    var url = normUrl(x && x.cfg ? x.cfg.url : (x && x.url));
+    if (!url || prodUrls().indexOf(url) < 0) return "";
+    return "This is the " + stage().toUpperCase() + " preview — it can’t connect to the production " +
+      "workspace (" + url.replace(/^https?:\/\//, "") + "). Open production to use it.";
+  }
+  // The packaged entries offered HERE. Non-production entries are labelled with
+  // their stage in the picker itself: the preview banner has already proven
+  // dismissable, and "which database am I in" must not depend on noticing it.
+  function packaged() {
+    var here = stage();
+    return (window.STUDIO_WORKSPACES || []).filter(function (w) { return stageOf(w) === here; })
+      .map(function (w) {
+        if (here === "prod" || /\((DEV|STAGE)\)\s*$/i.test(w.label || "")) return w;
+        var c = {}, k;
+        for (k in w) if (Object.prototype.hasOwnProperty.call(w, k)) c[k] = w[k];
+        c.label = (w.label || w.id) + " (" + here.toUpperCase() + ")";
+        return c;
+      });
+  }
   function customs() {
     try {
       var l = JSON.parse(localStorage.getItem(CUSTOM_KEY) || "[]");
@@ -80,7 +160,7 @@ window.STUDIO_WS_STORE = (function () {
   // (the escape hatch for a database that moves).
   function list() {
     var out = [LOCAL], seen = { local: true };
-    customs().concat(window.STUDIO_WORKSPACES || []).forEach(function (w) {
+    customs().concat(packaged()).forEach(function (w) {
       if (!valid(w) || seen[w.id]) return;
       seen[w.id] = true; out.push(w);
     });
@@ -194,19 +274,23 @@ window.STUDIO_WS_STORE = (function () {
       return;
     }
     el.innerHTML = '<div class="ws-mgr">' + rows.map(function (w, i) {
-      var packaged = !isCustom(w.id);
+      var built = !isCustom(w.id), blocked = blockReason(w);
       return '<div class="wsm-row" data-i="' + i + '">' +
           '<div class="wsm-h"><b class="wsm-name">' + esc(w.label) + '</b>' +
             (w.id === conn ? '<span class="wsm-badge on">Connected</span>' : "") +
             (w.id === def ? '<span class="wsm-badge">Default</span>' : "") +
-            (packaged ? '<span class="wsm-badge">Built in</span>' : "") +
+            (built ? '<span class="wsm-badge">Built in</span>' : "") +
+            // N25: a saved entry pointing at production is still LISTED on a
+            // preview (it is the reader's own entry, and it is theirs on the
+            // production site) — it just cannot be connected from here.
+            (blocked ? '<span class="wsm-badge">Production — not from ' + esc(stage().toUpperCase()) + '</span>' : "") +
           '</div>' +
           '<div class="wsm-host">' + esc(host(w)) + '</div>' +
           '<div class="wsm-acts">' +
-            (packaged ? "" : '<button type="button" class="wsm-b" data-a="rename">Rename</button>') +
+            (built ? "" : '<button type="button" class="wsm-b" data-a="rename">Rename</button>') +
             '<button type="button" class="wsm-b" data-a="default">' + (w.id === def ? "Clear default" : "Set default") + '</button>' +
             '<button type="button" class="wsm-b" data-a="export" title="Download this workspace as an access file a teammate imports on the sign-in screen">Export access file</button>' +
-            (packaged ? "" : '<button type="button" class="wsm-b danger" data-a="remove">Remove</button>') +
+            (built ? "" : '<button type="button" class="wsm-b danger" data-a="remove">Remove</button>') +
           '</div>' +
         '</div>';
     }).join("") + '</div>';
@@ -236,6 +320,9 @@ window.STUDIO_WS_STORE = (function () {
 
   return {
     CUSTOM_KEY: CUSTOM_KEY, DEFAULT_KEY: DEFAULT_KEY,
+    // N25
+    stage: stage, stageFor: window.STUDIO_STAGE_FOR, stageOf: stageOf,
+    packaged: packaged, blockReason: blockReason,
     valid: valid, list: list, byId: byId, customs: customs, isCustom: isCustom,
     save: save, rename: rename, remove: remove,
     defaultId: defaultId, setDefault: setDefault,
