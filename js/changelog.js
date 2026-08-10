@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 970,
+    title: 'Where America Moved gets its dashboards — who is winning households, where they went, and whether the money went too',
+    ts: '2026-08-10T14:36:15.000Z',
+    items: [
+      'The <b>Where America Moved</b> sample pack now ships three dashboards over the IRS migration data it installed last time. Already have the pack? They arrive on your next boot — no reinstall, and nothing you have edited is touched.',
+      'They are split by <b>grain</b> rather than by topic, because the two grains in this source measure genuinely different things and the pack refuses to blur them: a county\'s totals count every US move it saw, including moves from the next county over, while a state\'s count only moves that crossed a state line. No number on one page is ever added to a number on another, and each page says on its face which universe it is in.',
+      '<b>Who Is Winning Households</b> is the county map the pack was extracted to draw: net household migration with the colour diverging at zero, its income twin beside it (what arriving households earn, minus what leaving households earn), the counties at both ends of both, and the losers table where losing households while gaining income turns out to be a common pattern.',
+      '<b>The Corridors</b> is where they actually went — a <b>sankey</b> of every state-to-state corridor carrying 12,000 households or more, the corridors that take a sixth or more of one state\'s leavers (nearly all of them neighbours, which is the honest headline of interstate migration), and the biggest county-to-county moves out of each state.',
+      '<b>Did the Money Move With Them</b> asks the pack\'s title question against the only baseline that can answer it: the households that <b>stayed</b>. Net adjusted gross income by state is a <b>calculated column on the View</b> rather than a column in the extract — open it and the formula is on the shelf — and each corridor\'s movers are plotted against the stayers of the state they left.',
+      'The honest limits are on the dashboards, not in a footnote. A live View holds <b>2,000 rows</b> and the county table is 3,087, so the pack now ships a third <b>job</b> that keeps the 1,782 counties where at least a thousand households arrived or left — 96.5% of every move in the extract — instead of letting a national map quietly stop halfway across the country. And eleven counties have no shape to draw at all, because the app\'s county atlas predates the 2022 boundary changes that replaced Connecticut\'s counties with planning regions: those rows are counted in every total, and the map\'s note says that a blank Connecticut is the atlas rather than the data.',
+    ],
+  },
+  {
     v: 969,
     title: 'Where America Moved — the IRS migration pack lands its data foundation',
     ts: '2026-08-10T13:35:15.000Z',

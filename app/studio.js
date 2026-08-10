@@ -1264,6 +1264,12 @@
     // Finance while it was slice (a) — the seven FEC extracts and the donor-share job,
     // no dashboards — gets the three on boot rather than at a reinstall.
     try { if (Studio.ensureCampaignFinanceDashboards) Studio.ensureCampaignFinanceDashboards(); } catch (e) {}
+    // SP-13(b) heal, and the one that needs TWO steps rather than one: a workspace that
+    // installed Where America Moved while it was slice (a) has four tables and two jobs,
+    // so the job whose output every county panel reads has to exist before the dashboards
+    // that read it. Ordered, not merged — the map job is the dashboards' precondition.
+    try { if (Studio.ensureCountyMigrationMapJob) Studio.ensureCountyMigrationMapJob(); } catch (e) {}
+    try { if (Studio.ensureCountyMigrationDashboards) Studio.ensureCountyMigrationDashboards(); } catch (e) {}
     // SP-5(c) heal, one slice later and the same shape as SP-1's and SP-6's: an install
     // that predates the pack's four pinned Views gets them on boot, not at a reinstall.
     try { if (Studio.ensureCampaignFinanceViews) Studio.ensureCampaignFinanceViews(); } catch (e) {}

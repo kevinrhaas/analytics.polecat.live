@@ -6592,9 +6592,13 @@ function serve() {
       });
 
       // Two jobs: the county derives, and the state join. Selected by their own steps.
+      // Selected by their own steps rather than by position, and all three explicitly —
+      // SP-13(b) added the map job, so "the one that is not the join" is no longer a name
+      // for anything.
       var joinJob = jobs.filter(function (j) { return (j.steps || []).some(function (st) { return st.op === "join"; }); })[0];
-      var countyJob = jobs.filter(function (j) { return j !== joinJob; })[0];
-      out.bothJobs = !!joinJob && !!countyJob;
+      var mapJob = jobs.filter(function (j) { return (j.steps || []).some(function (st) { return st.op === "filter"; }); })[0];
+      var countyJob = jobs.filter(function (j) { return j !== joinJob && j !== mapJob; })[0];
+      out.bothJobs = !!joinJob && !!countyJob && !!mapJob;
 
       async function live(job) {
         var src = await Studio.fileSource.queryData({}, W.get("datasets", job.sourceDatasetId));
@@ -6701,9 +6705,9 @@ function serve() {
       out.restored = Studio.demoPackInstalled(ID) === was;
       return out;
     });
-    ok("SP-13(a): the Where America Moved pack materializes its committed IRS CSV — install seeds the connection, the ensure-function adds all four extract datasets plus both prep jobs and their pre-materialized outputs, every table's columns are exactly the shape the extract promises (AGI keeps its _agi_k thousands-of-dollars suffix), the county job's five derives are exact arithmetic on all 3,087 counties with the income gap running both ways, every county FIPS but the eleven the app's pre-2022 atlas has no shape for resolves against the geometry the choropleth draws on (and those eleven are pinned by id, so a new hole cannot hide in the old one), the state job's join brought across the totals and stayers the corridor table does not carry, each corridor's share is real arithmetic that partitions its origin state's departures, the two grains are the different universes the source defines them as, re-running both jobs through the live adapter+engine path reproduces both outputs byte for byte, a second ensure changes nothing, and Remove sweeps the async rows too",
+    ok("SP-13(a): the Where America Moved pack materializes its committed IRS CSV — install seeds the connection, the ensure-function adds all four extract datasets plus all three prep jobs and their pre-materialized outputs, every table's columns are exactly the shape the extract promises (AGI keeps its _agi_k thousands-of-dollars suffix), the county job's five derives are exact arithmetic on all 3,087 counties with the income gap running both ways, every county FIPS but the eleven the app's pre-2022 atlas has no shape for resolves against the geometry the choropleth draws on (and those eleven are pinned by id, so a new hole cannot hide in the old one), the state job's join brought across the totals and stayers the corridor table does not carry, each corridor's share is real arithmetic that partitions its origin state's departures, the two grains are the different universes the source defines them as, re-running both jobs through the live adapter+engine path reproduces both outputs byte for byte, a second ensure changes nothing, and Remove sweeps the async rows too",
       cmA.cleanBefore && cmA.afterInstallSync.connections === 1 && cmA.afterInstallSync.datasets === 0 &&
-      cmA.counts.connections === 1 && cmA.counts.datasets === 6 && cmA.counts.jobs === 2 &&
+      cmA.counts.connections === 1 && cmA.counts.datasets === 7 && cmA.counts.jobs === 3 &&
       cmA.allFoldered && cmA.stillOne && cmA.extractColumnsExact && cmA.bothJobs &&
       cmA.countyRows === 3087 && cmA.countyDerived && cmA.countyMathExact &&
       cmA.countyWinners > 0 && cmA.countyWinners < cmA.countyRows &&
@@ -6713,6 +6717,269 @@ function serve() {
       cmA.stateRows === 306 && cmA.joined && cmA.stateDerived && cmA.stateMathExact &&
       cmA.originStates === 51 && cmA.sharesPartition && cmA.grainsDiffer &&
       cmA.countyReproduces && cmA.stateReproduces && cmA.removedClean && cmA.restored, JSON.stringify(cmA));
+
+    // ---- SP-13 (b): the pack's three dashboards --------------------------------
+    // The claim this block guards is not "three specs exist". It is that a pack whose data
+    // is BIGGER THAN A LIVE VIEW CAN HOLD draws an honest picture anyway, and says what it
+    // cost — so every number below is recomputed from the shipped CSV or read off a live
+    // Studio.Build.runBlob (the #118 path the panels themselves use), never off the spec.
+    //
+    // Three things it exists to catch, all of them failures that still RENDER:
+    // * **The map that quietly stops halfway across the country.** The county table is
+    //   3,087 rows and the builder keeps the first 2,000, in FIPS order — so a panel bound
+    //   to it draws Alabama through Ohio and nothing west of it, while looking like a map.
+    //   The check derives which states that prefix loses (sixteen of them, Ohio through
+    //   Wyoming), and demands the pack's own rule lose NONE of them: the trim keeps the
+    //   smallest counties out, not the western half of the country. That distinction is
+    //   the entire justification for the third job, so it is asserted rather than argued.
+    // * **A trim nobody was told about.** The rule is checked as arithmetic on every live
+    //   row, and the hero's note is checked to state the counts in the units the trimming
+    //   happened in — counties and moves.
+    // * **The two grains being added up.** Each dashboard's own note has to name its grain,
+    //   because that is the one modelling error this source invites and no renderer can see.
+    const cmDash = await page.evaluate(async function () {
+      var W = Studio.Workspace, ID = "countymigration";
+      var wasInstalled = Studio.demoPackInstalled(ID);
+      if (!wasInstalled) Studio.installDemoPack(ID);
+      await Studio.ensurePackDataMaterialized(ID);
+      // Boot's own reconcile pass, run here for the same reason the app runs it: the
+      // SP-0(b) source line is BACKFILLED onto a pack dashboard's subtitle rather than
+      // written into the spec, so a seed that never reconciles has no attribution to check.
+      if (window.__studioReconcilePackDashboards) window.__studioReconcilePackDashboards();
+      function dash(name) {
+        return W.all("dashboards").filter(function (r) { return r.demoPackId === ID && (r.spec && r.spec.name) === name; })[0];
+      }
+      var counties = dash("countymigration-counties"), corridors = dash("countymigration-corridors"),
+        income = dash("countymigration-income");
+      var out = { all3: !!counties && !!corridors && !!income };
+      if (!out.all3) return out;
+      out.foldered = [counties, corridors, income].every(function (r) { return r.folder === "Where America Moved"; });
+      // SP-0(b): a pack carrying somebody else's data credits it where the numbers are READ.
+      out.attributed = [counties, corridors, income].every(function (r) { return /IRS/.test(r.spec.subtitle || ""); });
+
+      var mine = {};
+      W.all("datasets").filter(function (d) { return d.demoPackId === ID; }).forEach(function (d) { mine[d.id] = d; });
+      out.bound = true; out.onPackData = true;
+      [counties, corridors, income].forEach(function (r) {
+        var byId = {};
+        ((r.spec.cda || {}).dataAccesses || []).forEach(function (d) { byId[d.id] = d; });
+        (r.spec.panels || []).forEach(function (p) {
+          if (p.chart.type === "richtext") return;
+          var d = byId[p.chart.da];
+          if (!d || !d.builder || !d.builder.dsId) { out.bound = false; return; }
+          if (!mine[d.builder.dsId]) out.onPackData = false;
+        });
+        (r.spec.kpis || []).forEach(function (k) { if (!byId[k.da]) out.bound = false; });
+      });
+      function panel(r, id) { return (r.spec.panels || []).filter(function (p) { return p.id === id; })[0]; }
+      function da(r, id) { return ((r.spec.cda || {}).dataAccesses || []).filter(function (d) { return d.id === id; })[0]; }
+      function byFile(n) { return W.all("datasets").filter(function (d) { return d.demoPackId === ID && d.fileName === n; })[0]; }
+
+      // (1) the hero is the county net-migration map, diverging at zero, on the county scale
+      var net = panel(counties, "pcm_net");
+      out.heroIsADivergingCountyMap = !!net && net.chart.type === "choropleth" &&
+        net.chart.opts.scale === "county" && net.chart.map.idCol === "fips" &&
+        net.chart.map.valueCol === "net_returns" && net.chart.opts.center === 0 &&
+        !!net.chart.opts.divergeToken;
+      var gap = panel(counties, "pcm_gap");
+      out.gapMapIsDiverging = !!gap && gap.chart.type === "choropleth" &&
+        gap.chart.map.valueCol === "income_gap_k" && gap.chart.opts.center === 0;
+
+      // (2) THE REGRESSION THIS DESIGN EXISTS FOR — every county panel reads the MAPPED
+      //     output, and the rule that made it keeps every state the raw prefix would lose
+      var raw = byFile("county_migration_net.csv"), mapped = byFile("county_migration_mapped.csv");
+      out.bothOutputsExist = !!raw && !!mapped;
+      out.everyCountyPanelReadsMapped = !!mapped &&
+        ["vcm_map", "vcm_gain", "vcm_lose"].every(function (id) { return da(counties, id).builder.dsId === mapped.id; }) &&
+        da(income, "vcm_county_gap").builder.dsId === mapped.id;
+      var rawRes = await Studio.fileSource.queryData({}, raw);
+      var mapRes = await Studio.fileSource.queryData({}, mapped);
+      out.rawRowCount = rawRes.rows.length;
+      out.mappedRowCount = mapRes.rows.length;
+      out.trimmedIsUnderTheCap = out.mappedRowCount < 2000 && out.rawRowCount > 2000;
+      var rSt = rawRes.columns.indexOf("state"), mSt = mapRes.columns.indexOf("state");
+      function states(rows, i) { var s = {}; rows.forEach(function (r) { s[String(r[i])] = 1; }); return Object.keys(s).sort(); }
+      var allStates = states(rawRes.rows, rSt), keptStates = states(mapRes.rows, mSt);
+      var prefixStates = states(rawRes.rows.slice(0, 2000), rSt);
+      out.statesAll = allStates.length;
+      out.statesKept = keptStates.length;
+      // Derived, never named: what the app's own cap would have cost if the pack had let
+      // it happen. Sixteen states today, Ohio through Wyoming — the whole point of the rule.
+      out.statesLostToTheCap = allStates.filter(function (s) { return prefixStates.indexOf(s) < 0; });
+      out.ruleLosesNoState = out.statesLostToTheCap.length > 0 && keptStates.length === allStates.length;
+
+      // (3) the rule is a LIVE one, obeyed by every row the builder actually returns
+      var liveMap = await Studio.Build.runBlob(da(counties, "vcm_map").builder);
+      out.liveMapRows = liveMap ? liveMap.rows.length : 0;
+      out.liveIsWhole = out.liveMapRows === out.mappedRowCount;
+      if (liveMap) {
+        var iTot = liveMap.cols.indexOf("total_moves"), iIn = liveMap.cols.indexOf("in_returns"),
+          iOut = liveMap.cols.indexOf("out_returns"), iNet = liveMap.cols.indexOf("net_returns");
+        out.floorIsLive = iTot >= 0 && liveMap.rows.every(function (r) {
+          return Number(r[iTot]) === Number(r[iIn]) + Number(r[iOut]) && Number(r[iTot]) >= 1000;
+        });
+        var gainers = 0, losers = 0;
+        liveMap.rows.forEach(function (r) { if (Number(r[iNet]) > 0) gainers++; else if (Number(r[iNet]) < 0) losers++; });
+        out.gainers = gainers; out.losers = losers;
+        out.bothDirections = gainers > 0 && losers > 0;
+      }
+      // and the two subset panels narrow with the builder's own filter grammar
+      var gainLive = await Studio.Build.runBlob(da(counties, "vcm_gain").builder);
+      var loseLive = await Studio.Build.runBlob(da(counties, "vcm_lose").builder);
+      out.gainRows = gainLive ? gainLive.rows.length : 0;
+      out.loseRows = loseLive ? loseLive.rows.length : 0;
+      out.subsetsObeyTheirRules = !!gainLive && !!loseLive &&
+        out.gainRows > 0 && out.gainRows < out.liveMapRows &&
+        out.loseRows > 0 && out.loseRows < out.liveMapRows &&
+        gainLive.rows.every(function (r) { return Number(r[gainLive.cols.indexOf("net_returns")]) >= 3000; }) &&
+        loseLive.rows.every(function (r) { return Number(r[loseLive.cols.indexOf("net_returns")]) <= -3000; });
+
+      // (4) the corridor hero is a sankey over the state grain, narrowed by a floor every
+      //     returned row obeys, and the concentrated table obeys its own
+      var sank = panel(corridors, "pcc_flow");
+      out.sankey = !!sank && sank.chart.type === "sankey" &&
+        sank.chart.map.sourceCol === "from_state" && sank.chart.map.targetCol === "to_state" &&
+        sank.chart.map.valueCol === "returns";
+      var flowLive = await Studio.Build.runBlob(da(corridors, "vcm_flow_big").builder);
+      var allFlow = await Studio.Build.runBlob(da(corridors, "vcm_flow_all").builder);
+      out.flowRows = flowLive ? flowLive.rows.length : 0;
+      out.allFlowRows = allFlow ? allFlow.rows.length : 0;
+      out.flowObeysFloor = !!flowLive && out.flowRows > 0 && out.flowRows < out.allFlowRows &&
+        flowLive.rows.every(function (r) { return Number(r[flowLive.cols.indexOf("returns")]) >= 12000; });
+      var domLive = await Studio.Build.runBlob(da(corridors, "vcm_dominant").builder);
+      out.dominantRows = domLive ? domLive.rows.length : 0;
+      out.dominantObeysRule = !!domLive && out.dominantRows > 0 &&
+        domLive.rows.every(function (r) { return Number(r[domLive.cols.indexOf("pct_of_state_departures")]) >= 15; });
+
+      // (5) the income dashboard's net AGI is a CALC column on the View — the pack's rule
+      //     that a derivation stays visible — and it recomputes exactly on every state
+      var stBlob = da(income, "vcm_states").builder;
+      out.netAgiIsACalc = (stBlob.calcs || []).some(function (c) { return c.name === "net_agi_k"; }) &&
+        (stBlob.calcs || []).some(function (c) { return c.name === "stayers_avg_agi_k"; });
+      var stLive = await Studio.Build.runBlob(stBlob);
+      out.stateRows = stLive ? stLive.rows.length : 0;
+      if (stLive) {
+        var iIn2 = stLive.cols.indexOf("in_agi_k"), iOut2 = stLive.cols.indexOf("out_agi_k"),
+          iNetA = stLive.cols.indexOf("net_agi_k"), iSA = stLive.cols.indexOf("stay_agi_k"),
+          iSR = stLive.cols.indexOf("stay_returns"), iSAvg = stLive.cols.indexOf("stayers_avg_agi_k");
+        out.calcChecks = iNetA >= 0 && iSAvg >= 0 && stLive.rows.every(function (r) {
+          return Math.abs(Number(r[iNetA]) - (Number(r[iIn2]) - Number(r[iOut2]))) < 1e-6 &&
+            Math.abs(Number(r[iSAvg]) - (Number(r[iSA]) / Number(r[iSR]))) < 1e-9;
+        });
+        // both directions exist, so the diverging scale is drawing a real difference
+        out.agiBothWays = stLive.rows.some(function (r) { return Number(r[iNetA]) > 0; }) &&
+          stLive.rows.some(function (r) { return Number(r[iNetA]) < 0; });
+      }
+      var stateMap = panel(income, "pci_map");
+      out.stateScale = !!stateMap && stateMap.chart.type === "choropleth" &&
+        stateMap.chart.opts.scale === "state" && stateMap.chart.map.idCol === "state" &&
+        stateMap.chart.map.valueCol === "net_agi_k" && stateMap.chart.opts.center === 0;
+
+      // (6) the copy states the pack's own numbers, and every note names its grain
+      var heroNote = panel(counties, "pcm_note").chart.opts.content;
+      out.heroCopyStatesTheTrim = heroNote.indexOf("**" + out.mappedRowCount.toLocaleString() + "**") >= 0 &&
+        heroNote.indexOf("**" + out.rawRowCount.toLocaleString() + "**") >= 0 &&
+        heroNote.indexOf("2,000") >= 0 && /eleven/i.test(heroNote);
+      out.everyNoteNamesItsGrain =
+        /COUNTY grain/.test(heroNote) &&
+        /STATE grain/.test(panel(corridors, "pcc_note").chart.opts.content) &&
+        /state grain/i.test(panel(income, "pci_note").chart.opts.content);
+      // and no line of copy ever prints a raw `_agi_k` number with a dollar sign on it
+      out.incomeCopyIsInTheRightUnit = /thousands of dollars/i.test(panel(income, "pci_note").chart.opts.content);
+      if (!wasInstalled) Studio.removeDemoPack(ID);
+      return out;
+    });
+    ok("SP-13(b): the Where America Moved pack seeds its three dashboards — the county net-migration hero, the state-to-state corridors, and the income that moved with them — split by GRAIN rather than by topic, all foldered, all crediting the IRS in their subtitles, every panel and KPI bound to a builder blob over one of the pack's own datasets, and both county maps diverging at zero because the sign is the finding",
+      cmDash.all3 && cmDash.foldered && cmDash.attributed && cmDash.bound && cmDash.onPackData &&
+      cmDash.heroIsADivergingCountyMap && cmDash.gapMapIsDiverging && cmDash.sankey &&
+      cmDash.stateScale, JSON.stringify(cmDash));
+    ok("SP-13(b): the national map cannot stop halfway across the country — the county table is over the View Builder's 2,000-row live cap, so every county panel reads the pack's THIRD job output instead, whose rows the builder returns WHOLE; the rule that made it is live arithmetic every returned row obeys, and it costs no state at all, where a 2,000-row prefix of the raw table would have silently lost sixteen of them (Ohio through Wyoming) while still drawing a plausible map",
+      cmDash.bothOutputsExist && cmDash.everyCountyPanelReadsMapped && cmDash.trimmedIsUnderTheCap &&
+      cmDash.liveIsWhole && cmDash.floorIsLive && cmDash.ruleLosesNoState &&
+      cmDash.statesKept === 51 && cmDash.statesLostToTheCap.length === 16 &&
+      cmDash.bothDirections, JSON.stringify(cmDash));
+    ok("SP-13(b): every rule on the three dashboards is a live one and every claim is the pack's own arithmetic — the two county subsets narrow with the builder's own filter grammar and every returned row obeys their floors, the corridor sankey's readability floor is a genuine narrowing of the published corridors, the concentrated-corridor table returns only shares at or above its own floor, net AGI and the stayers' average are calculated columns on the View that recompute exactly on all 51 states in both directions, the hero's note states the trim in counties and rows and names the eleven counties with no shape, and all three notes name the grain they are on",
+      cmDash.subsetsObeyTheirRules && cmDash.flowObeysFloor && cmDash.dominantObeysRule &&
+      cmDash.netAgiIsACalc && cmDash.calcChecks && cmDash.stateRows === 51 && cmDash.agiBothWays &&
+      cmDash.heroCopyStatesTheTrim && cmDash.everyNoteNamesItsGrain &&
+      cmDash.incomeCopyIsInTheRightUnit, JSON.stringify(cmDash));
+
+    // The heal, and it is a TWO-STEP one: a workspace from slice (a) has no mapped output
+    // at all, so the job the dashboards read has to be rebuilt before they are re-seeded.
+    // Both halves are exercised, and both have to be no-ops on a healthy workspace.
+    const cmHeal = await page.evaluate(async function () {
+      var W = Studio.Workspace, ID = "countymigration";
+      var names = ["countymigration-counties", "countymigration-corridors", "countymigration-income"];
+      var was = Studio.demoPackInstalled(ID);
+      if (!was) Studio.installDemoPack(ID);
+      await Studio.ensurePackDataMaterialized(ID);
+      names.forEach(function (n) {
+        W.all("dashboards").filter(function (r) { return (r.spec && r.spec.name) === n; })
+          .forEach(function (r) { W.remove("dashboards", r.id, { silent: true }); });
+      });
+      // and roll the workspace all the way back to slice (a) — the map job and its output
+      W.all("datasets").filter(function (r) { return r.demoPackId === ID && r.fileName === "county_migration_mapped.csv"; })
+        .forEach(function (r) { W.remove("datasets", r.id, { silent: true }); });
+      W.all("jobs").filter(function (r) { return r.demoPackId === ID && (r.steps || []).some(function (s) { return s.op === "filter"; }); })
+        .forEach(function (r) { W.remove("jobs", r.id, { silent: true }); });
+      W.notify("dashboards"); W.notify("datasets"); W.notify("jobs");
+      var out = {};
+      // the dashboards cannot heal before the job they read does — that ordering IS the fix
+      out.dashboardsWaitForTheJob = Studio.ensureCountyMigrationDashboards() === false;
+      out.jobHealed = Studio.ensureCountyMigrationMapJob();
+      out.healed = Studio.ensureCountyMigrationDashboards();
+      out.back = names.every(function (n) { return W.all("dashboards").some(function (r) { return (r.spec && r.spec.name) === n; }); });
+      out.mappedBack = W.all("datasets").some(function (r) { return r.demoPackId === ID && r.fileName === "county_migration_mapped.csv"; });
+      out.idempotent = Studio.ensureCountyMigrationMapJob() === false && Studio.ensureCountyMigrationDashboards() === false;
+      if (!was) Studio.removeDemoPack(ID);
+      return out;
+    });
+    ok("SP-13(b): the boot heal rebuilds a slice-(a) install in the right order — the dashboards decline to seed while the job whose output every county panel reads is missing, the map job heals first, the three dashboards follow, and both halves are no-ops on a healthy workspace",
+      cmHeal.dashboardsWaitForTheJob && cmHeal.jobHealed && cmHeal.healed && cmHeal.back &&
+      cmHeal.mappedBack && cmHeal.idempotent, JSON.stringify(cmHeal));
+
+    // And it RENDERS. A choropleth with an unmapped id column does not throw — it draws an
+    // empty outline and reads as a map with no data, which is exactly the failure a
+    // spec-shape check cannot see. So load the hero and count the shapes it filled.
+    const cmWasInstalled = await page.evaluate(async function () {
+      var W = Studio.Workspace, ID = "countymigration";
+      var was = Studio.demoPackInstalled(ID);
+      if (!was) { Studio.installDemoPack(ID); await Studio.ensurePackDataMaterialized(ID); }
+      var hero = W.all("dashboards").filter(function (r) { return (r.spec && r.spec.name) === "countymigration-counties"; })[0];
+      window.__studioLoad(Studio.clone(hero.spec));
+      return was;
+    });
+    await page.waitForTimeout(4000);
+    const cmRender = await page.evaluate(function () {
+      var d = document.querySelector("#preview").contentDocument;
+      function panelOf(id) {
+        return Array.prototype.filter.call(d.querySelectorAll("[data-panel-id]"), function (n) { return n.getAttribute("data-panel-id") === id; })[0];
+      }
+      function shapes(id) { var p = panelOf(id); return p ? p.querySelectorAll("svg path").length : 0; }
+      function emptyState(id) { var p = panelOf(id); return !!(p && p.querySelector(".empty")); }
+      return {
+        netShapes: shapes("pcm_net"),
+        gapShapes: shapes("pcm_gap"),
+        gainBars: (function () { var p = panelOf("pcm_gainers"); return p ? p.querySelectorAll("svg rect").length : 0; }()),
+        tableRows: (function () { var p = panelOf("pcm_losers"); return p ? p.querySelectorAll("tbody tr").length : 0; }()),
+        anyEmpty: emptyState("pcm_net") || emptyState("pcm_gap") || emptyState("pcm_gainers") || emptyState("pcm_losers"),
+        note: !!d.querySelector(".sr-richtext"),
+        kpis: d.querySelectorAll("#kpis .kpi").length,
+        kpiValues: Array.prototype.map.call(d.querySelectorAll("#kpis .kpi .v"), function (n) { return n.textContent.trim(); }),
+        err: /Could not load|Render error|No query bound/.test((d.querySelector("#content") || {}).textContent || "")
+      };
+    });
+    ok("SP-13(b): the Where America Moved hero actually draws — 4 KPIs with real values, a filled shape per county in both diverging maps (not the empty outline an unmapped id column renders instead of an error), the gainers bars and the losers table populated and the method note rendered, with no panel-level error",
+      cmRender.netShapes > 1500 && cmRender.gapShapes > 1500 && cmRender.gainBars >= 20 &&
+      cmRender.tableRows > 0 && !cmRender.anyEmpty && cmRender.note && cmRender.kpis === 4 &&
+      cmRender.kpiValues.every(function (v) { return v && v !== "—" && v !== "0"; }) && !cmRender.err,
+      JSON.stringify(cmRender));
+    // Leave the workspace as this block found it: a pack left installed adds its folder and
+    // its three jobs to every catalog list the checks below count, which is how a green
+    // pack slice reddens four unrelated checks hundreds of lines later.
+    await page.evaluate(function (was) {
+      if (!was) Studio.removeDemoPack("countymigration");
+    }, cmWasInstalled);
 
     // ---- SP-6 (b): the pack's three dashboards ---------------------------------
     // The slice's claim is not "three specs exist" — it is that the FLOW the pack was

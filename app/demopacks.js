@@ -244,21 +244,22 @@
       folder: "Where America Moved",
       name: "Where America Moved — who is winning households, and whose income moved with them",
       // Count-led and ending in "embedded" (the suite's #116 shape check), and it names
-      // every KIND install seeds — connection, datasets, jobs — because doc-truth check 35
-      // rule (a) holds this string and the blurb to the installer separately. No dashboard
-      // count, because slice (a) seeds none; the count arrives with the dashboards.
-      tagline: "6 datasets on 1 connection · 3,087 counties and 51 states · the 300 largest state-to-state corridors · 2 prep jobs · every US household move the IRS published for 2022-2023, and the income that moved with it — real public data, embedded",
+      // every KIND install seeds — connection, datasets, jobs, dashboards — because
+      // doc-truth check 35 rule (a) holds this string and the blurb to the installer
+      // separately, and rule (b) holds the dashboard count to what the file really names.
+      tagline: "3 dashboards over 7 datasets on 1 connection · 3,087 counties and 51 states · the 300 largest state-to-state corridors · 3 prep jobs · every US household move the IRS published for 2022-2023, and the income that moved with it — real public data, embedded",
       // Three sentences, which is N40's cap — the card is a decision surface and the
       // inventory belongs in Help. Count-led and says "embedded" for the suite's #116.
-      blurb: "6 datasets on 1 connection, built from the IRS's own record of where American " +
-        "households moved between 2022 and 2023 — every county's arrivals and departures, the " +
-        "300 largest state-to-state corridors, the biggest county corridors out of each state, " +
-        "and the aggregate income that travelled with all of them. Two prep jobs turn that into " +
-        "the two questions a single-county table can never answer: who is winning households, " +
-        "and are the people arriving richer than the people leaving — with the households that " +
-        "STAYED as the baseline, which is the comparison the data is really for. The data is " +
-        "the IRS's own, public domain and embedded, and it counts tax returns rather than " +
-        "people, so a move here is a household that filed from a new address, US moves only.",
+      blurb: "3 dashboards over 7 datasets on 1 connection, built from the IRS's own record of " +
+        "where American households moved between 2022 and 2023 — every county's arrivals and " +
+        "departures, the 300 largest state-to-state corridors, the biggest county corridors out " +
+        "of each state, and the aggregate income that travelled with all of them. Three prep " +
+        "jobs turn that into the two questions a single-county table can never answer: who is " +
+        "winning households, and are the people arriving richer than the people leaving — with " +
+        "the households that STAYED as the baseline, which is the comparison the data is really " +
+        "for. The data is the IRS's own, public domain and embedded, and it counts tax returns " +
+        "rather than people, so a move here is a household that filed from a new address, US " +
+        "moves only.",
       source: {
         kind: "public",
         name: "IRS Statistics of Income — US Population Migration Data, 2022-2023",
@@ -3040,6 +3041,17 @@
       { op: "derive", outCol: "movers_vs_stayers_agi_k", a: { col: "movers_avg_agi_k" }, operator: "-", b: { col: "stayers_avg_agi_k" } }
     ];
   }
+  // SP-13 (b): the county table is bigger than a live View can hold, so the pack trims it
+  // by a rule instead of inheriting the app's cap silently. `total_moves` is derived first
+  // because the rule is about a county's WHOLE churn, both directions — filtering on
+  // arrivals alone would have kept the gainers and dropped the places people are leaving,
+  // which is half of what the map is for. See the job for the measurement.
+  function countyMigrationMapSteps() {
+    return [
+      { op: "derive", outCol: "total_moves", a: { col: "in_returns" }, operator: "+", b: { col: "out_returns" } },
+      { op: "filter", col: "total_moves", cmp: "gte", value: CM_MAP_FLOOR }
+    ];
+  }
 
   function seedCountyMigrationData(csv) {
     var id = "countymigration", W = Studio.Workspace;
@@ -3119,9 +3131,507 @@
       folder: CM_FOLDER, demoPackId: id
     });
 
+    // SP-13 (b): a THIRD job, chained onto the county job's output, and it exists for a
+    // measured limit of the app rather than anything about the IRS — the same reason and
+    // the same shape as SP-5's second job.
+    //
+    // The View Builder runs a workspace dataset live and keeps the FIRST 2,000 rows
+    // (app/build.js, bdLoadRowsFor), applied BEFORE the View's own filters, and every
+    // dashboard panel bound to a builder blob inherits it. The county table is 3,087 rows
+    // in FIPS order, so a national choropleth reading it directly would draw the first
+    // 2,000 — Alabama through Ohio — and simply stop. Half the map would be blank, and
+    // nothing on screen would say why.
+    //
+    // So the pack does the trimming ITSELF, in the open, as a job whose rule you can read
+    // and change: keep the counties where at least CM_MAP_FLOOR households arrived or
+    // left. That is 1,782 of the 3,087 and 96.5% of every household move in the extract —
+    // and the map's own subtitle and note state it in those words. Choosing the rule
+    // beats inheriting the accident: the counties it drops are the smallest ones, not the
+    // western half of the country. Lifting the cap is an app change, recorded for Kevin in
+    // the SP-5 item rather than smuggled in here.
+    var mapSteps = countyMigrationMapSteps();
+    var mapOut = Studio.runJobSteps({ columns: countyOut.columns || [], rows: countyOut.rows || [] }, mapSteps, {});
+    var mapOutName = "Counties — the ones a live map can hold (job output)";
+    var mapOutDs = W.put("datasets", {
+      name: mapOutName, connectionId: conn.id,
+      kind: "file", format: "csv", fileName: "county_migration_mapped.csv",
+      content: mapOut.error ? "" : Studio.rowsToCsv(mapOut.columns, mapOut.rows),
+      columns: (mapOut.columns || []).slice(),
+      folder: CM_FOLDER, demoPackId: id, tags: tags.concat(["job-output", "geo"])
+    });
+    W.put("jobs", {
+      name: "Keep the counties a live map can hold",
+      sourceDatasetId: countyOutDs.id,
+      outputDatasetId: mapOutDs.id, outputName: mapOutName,
+      steps: mapSteps,
+      folder: CM_FOLDER, demoPackId: id
+    });
+
+    // SP-13 (b): the dashboards read the jobs' outputs and the extract tables together, so
+    // they are seeded here — the moment those rows exist — rather than in install(), which
+    // runs a turn earlier with nothing to chart yet (the SP-1/SP-6/SP-5 convention).
+    seedCountyMigrationDashboards(W, id, {
+      counties: countiesDs, states: statesDs, stateFlows: stateFlowsDs, countyPairs: countyPairsDs,
+      countyOutput: countyOutDs, stateOutput: stateOutDs, mapped: mapOutDs
+    }, new Date().toISOString());
+
     return { counties: countiesDs, states: statesDs, stateFlows: stateFlowsDs,
-             countyPairs: countyPairsDs, countyOutput: countyOutDs, stateOutput: stateOutDs };
+             countyPairs: countyPairsDs, countyOutput: countyOutDs, stateOutput: stateOutDs,
+             mapped: mapOutDs };
   }
+
+  /* ---- SP-13 (b): the pack's three dashboards ---------------------------------------
+     The pack asks who is winning households and whose income moved with them, and the
+     honest answer has to be given at TWO GRAINS that do not add up — the source's own
+     definition, not a gap in the extract: a county's total counts every US move including
+     the ones inside its own state, a state's counts only moves across a state line. So
+     the dashboards are split by grain rather than by topic, and each one says on its face
+     which universe it is in:
+
+       1. WHO IS WINNING HOUSEHOLDS (the hero) — COUNTY grain. The net-migration
+          choropleth the pack was extracted to draw, its income twin, and the counties at
+          both ends of both.
+       2. THE CORRIDORS — STATE grain. Where the households actually went, as a flow, and
+          the corridors that carry an outsized share of the state they leave.
+       3. DID THE MONEY MOVE WITH THEM — STATE grain, and the comparison only this grain
+          can make: the households on a corridor against the ones who STAYED in the state
+          they left. The stayers exist at state grain and nowhere else in this source.
+
+     Conventions carried from SP-1, SP-6 and SP-5, for the same reasons: every charted
+     panel is bound to a builder-blob DA over one of the pack's OWN datasets (curatedDA),
+     so #118's live re-run feeds the panels the real rows; a panel showing a SUBSET
+     narrows it with the builder's own filter grammar rather than a hand-cut dataset; and
+     every figure quoted in copy is computed from the shipped rows at seed time, never
+     typed.
+
+     THE TWO THINGS THIS SLICE HAD TO GET RIGHT, both of them measured:
+     * THE MAP CANNOT DRAW EVERY COUNTY. A live View keeps 2,000 rows and the county table
+       is 3,087, so the pack ships a third job that trims by a rule (CM_MAP_FLOOR) and
+       every county panel reads THAT output. The rule, the count and what it costs are on
+       the dashboard, not in a footnote — see the job.
+     * AND ELEVEN COUNTIES HAVE NO SHAPE AT ALL. The app's committed county atlas predates
+       the 2022 boundary changes, so Connecticut's nine planning regions and Alaska's
+       Chugach and Copper River are real rows with no geometry. They stay in every total
+       and the note says so, because a reader who sees Connecticut blank deserves to know
+       it is the atlas rather than the data. */
+  // Seeding order, and it matters: the hero is LAST so it is the newest row and tops a
+  // recency-sorted list (the CONS-2/CONS-3 convention SP-1, SP-6 and SP-5 all follow).
+  var CM_DASHBOARDS = ["countymigration-income", "countymigration-corridors", "countymigration-counties"];
+  // NOT a readability floor — the builder's live-run cap, taken deliberately by the pack's
+  // third job so the trimming is visible instead of silent (the SP-5 precedent).
+  var CM_MAP_FLOOR = 1000;        // 1,782 of 3,087 counties, 96.5% of all household moves
+  // These three ARE readability floors, the same kind of constant as SP-1's MC_BIG_COUNTY
+  // and SP-6's FCA_FLOW_FLOOR, and every panel applying one says so in its own subtitle.
+  //
+  // The corridor floor was measured the way SP-5's and SP-6's were: a sankey lays its
+  // nodes out with an 11px gap, so the readable limit is the node COUNT. At 8,000
+  // households the state side has 31 nodes and the destination side 28 and the labels
+  // collide; at 12,000 it is 21 and 20, which the panel's height then gives ~30px apiece.
+  var CM_CORRIDOR_FLOOR = 12000;  // the hero sankey: 49 of the 306 published corridors
+  var CM_BIG_MOVE = 3000;         // the county bars: 29 gainers, 33 losers — a readable wall
+  var CM_DOMINANT_PCT = 15;       // "a corridor carrying a sixth of a state's leavers" (31 rows)
+
+  // The pack's own headline figures, derived from the shipped rows at seed time rather
+  // than typed in — the SP-1 rule, so a re-extract that moves the numbers re-seeds copy
+  // that is still true, and the suite recomputes them independently and demands they agree.
+  function cmSum(t, col) {
+    var i = ((t && t.columns) || []).indexOf(col);
+    return i < 0 ? 0 : (t.rows || []).reduce(function (a, r) { return a + (Number(r[i]) || 0); }, 0);
+  }
+  function countyMigrationFigures(counties, mapped, states, corridors) {
+    var movesAll = cmSum(counties, "in_returns") + cmSum(counties, "out_returns");
+    var movesDrawn = cmSum(mapped, "in_returns") + cmSum(mapped, "out_returns");
+    var netI = ((mapped && mapped.columns) || []).indexOf("net_returns");
+    var gainers = 0, losers = 0;
+    if (netI >= 0) (mapped.rows || []).forEach(function (r) {
+      if (Number(r[netI]) > 0) gainers++; else if (Number(r[netI]) < 0) losers++;
+    });
+    function pct(part, whole) { return whole ? Math.round((part / whole) * 1000) / 10 : 0; }
+    return {
+      countiesAll: ((counties && counties.rows) || []).length,
+      countiesDrawn: ((mapped && mapped.rows) || []).length,
+      movesAll: movesAll, movesDrawn: movesDrawn, drawnPct: pct(movesDrawn, movesAll),
+      gainers: gainers, losers: losers,
+      // The state grain is a DIFFERENT universe, so it gets its own names — nothing here
+      // is ever added to a county figure, and the note panels say why.
+      states: ((states && states.rows) || []).length,
+      interstate: cmSum(states, "in_returns"),
+      stayers: cmSum(states, "stay_returns"),
+      agiArrivedK: cmSum(states, "in_agi_k"),
+      corridors: ((corridors && corridors.rows) || []).length,
+      corridorReturns: cmSum(corridors, "returns")
+    };
+  }
+  // AGI is THOUSANDS of dollars, as the IRS publishes it and as every `_agi_k` column in
+  // this pack carries it. These two exist so no line of copy ever prints a raw `_agi_k`
+  // number with a dollar sign in front of it, which would be a thousand-fold lie.
+  function cmBillions(k) { return "$" + (Math.round(k / 1e5) / 10).toLocaleString() + "B"; }
+  function cmPerHousehold(k) { return "$" + Math.round(k).toLocaleString() + ",000"; }
+  function cmN(n) { return Math.round(n).toLocaleString(); }
+  // The county map, twice — once for households and once for the income gap. Both are
+  // DIVERGING around zero, because the number's sign is the whole finding: a county that
+  // gained households and one that lost them are not two shades of the same colour.
+  function cmDiverging(daId, valueCol, height) {
+    return { type: "choropleth", da: daId,
+      map: { idCol: "fips", valueCol: valueCol },
+      opts: { scale: "county", fmt: "abbr", agg: "median", classes: 6, height: height || 380,
+        divergeToken: "--warn", center: 0 } };
+  }
+
+  // (1) the hero: who is winning households, at county grain.
+  function countyMigrationCountiesSpec(ds, f) {
+    var das = [], panels = [], kpis = [];
+    var mapDa = curatedDA("vcm_map", "Where America Moved — counties a live map can hold",
+      ds.mapped.id, ["fips", "county", "state", "in_returns", "out_returns", "net_returns",
+        "net_agi_k", "arrivers_avg_agi_k", "leavers_avg_agi_k", "income_gap_k", "total_moves"]);
+    das.push(mapDa);
+    kpis.push({ da: mapDa.id, valueCol: "total_moves", label: "Household moves counted here",
+      fmt: "abbr", agg: "sum", subtitle: f.drawnPct.toFixed(1) + "% of every move in the extract", state: "",
+      info: "Arrivals plus departures across the " + cmN(f.countiesDrawn) + " counties this dashboard draws. The pack's third job keeps a county when at least " + cmN(CM_MAP_FLOOR) + " households arrived or left it — the rule exists because a live View holds 2,000 rows and the full table is " + cmN(f.countiesAll) + ". County grain counts every US move, including moves within a state." });
+    kpis.push({ da: mapDa.id, valueCol: "net_returns", label: "Biggest net gain",
+      fmt: "abbr", agg: "max", subtitle: "one county, one year", state: "",
+      info: "Households arriving minus households leaving. A household here is a tax return filed from a new address." });
+    kpis.push({ da: mapDa.id, valueCol: "net_returns", label: "Biggest net loss",
+      fmt: "abbr", agg: "min", subtitle: "one county, one year", state: "",
+      info: "The same subtraction at the other end. The largest counties sit at both ends of this list — size, not just direction." });
+    kpis.push({ da: mapDa.id, valueCol: "income_gap_k", label: "Median county's income gap",
+      fmt: "abbr", agg: "median", subtitle: "arrivers minus leavers, $ thousands", state: "",
+      info: "Average AGI per arriving household minus average AGI per leaving household, in thousands of dollars. Positive means the people moving in report more income than the people moving out." });
+
+    panels.push({ id: "pcm_net", section: "Who is winning households",
+      title: "Net household migration by county", span: "full",
+      sub: cmN(f.countiesDrawn) + " counties with " + cmN(CM_MAP_FLOOR) + "+ households arriving or leaving — green gained, orange lost",
+      info: "The colour scale diverges at zero, so the hue is the direction and the depth is the size. " + cmN(f.gainers) + " of these counties gained households and " + cmN(f.losers) + " lost them.",
+      chart: cmDiverging(mapDa.id, "net_returns", 480) });
+
+    panels.push({ id: "pcm_gap", section: "And at what income",
+      title: "The arrivers-versus-leavers income gap", span: 2,
+      sub: "average AGI of arriving households minus leaving ones, $ thousands",
+      info: "Both sides are computed the same way — total AGI divided by households — so the gap is a difference of two like numbers rather than a ratio a county's size would dominate.",
+      chart: cmDiverging(mapDa.id, "income_gap_k", 400) });
+
+    var gainDa = curatedDA("vcm_gain", "Where America Moved — the counties gaining most",
+      ds.mapped.id, ["county", "state", "net_returns"],
+      [{ col: "net_returns", kind: "range", min: String(CM_BIG_MOVE), max: "" }]);
+    das.push(gainDa);
+    panels.push({ id: "pcm_gainers", title: "The counties gaining most households", span: 2,
+      sub: "a net gain of " + cmN(CM_BIG_MOVE) + " households or more",
+      info: "The floor is about readability, not significance — every county is on the map above. Open the View and move it.",
+      chart: { type: "bars", da: gainDa.id, map: { labelCol: "county", valueCol: "net_returns" },
+        opts: { horizontal: true, sortBars: true, showValues: false, fmt: "abbr", height: 400 } } });
+
+    var loseDa = curatedDA("vcm_lose", "Where America Moved — the counties losing most",
+      ds.mapped.id, ["county", "state", "net_returns", "income_gap_k", "total_moves"],
+      [{ col: "net_returns", kind: "range", min: "", max: String(-CM_BIG_MOVE) }]);
+    das.push(loseDa);
+    panels.push({ id: "pcm_losers", section: "Where they left", title: "The counties losing most households", span: "full",
+      sub: "a net loss of " + cmN(CM_BIG_MOVE) + " households or more, with the income gap beside it",
+      info: "The fourth column is the interesting one: losing households and gaining income at the same time is a common pattern here, and it is the pack's whole argument for carrying the money as well as the count.",
+      chart: { type: "table", da: loseDa.id,
+        map: { cols: [
+          { col: "county", label: "County" },
+          { col: "state", label: "State" },
+          { col: "net_returns", label: "Net households", num: true, fmt: "abbr" },
+          { col: "income_gap_k", label: "Income gap ($k)", num: true, fmt: "abbr" },
+          { col: "total_moves", label: "Households on the move", num: true, fmt: "abbr" }
+        ] },
+        opts: { pageSize: 12, freezeHeader: true, density: "comfortable" } } });
+
+    panels.push({ id: "pcm_note", section: "How to read it", title: "What this dashboard is counting", span: "full",
+      chart: { type: "richtext", da: null, opts: { content: [
+        "**A household, not a person.** The IRS matches one filing year's returns against the last one, so a \"move\" here is a tax return filed from a new address. The extract carries people too, at state grain, and the two counts are not interchangeable.",
+        "",
+        "**This page is COUNTY grain, and county grain is a different universe from state grain.** A county's totals count every US move it saw, including moves from the next county over inside the same state. A state's totals count only moves across a state line. Summing these counties and expecting the state page to agree is the one mistake this data invites — so no number here is ever added to a number there.",
+        "",
+        "**" + cmN(f.countiesAll - f.countiesDrawn) + " counties are not drawn, by a rule you can open.** A live View holds 2,000 rows and the full county table is " + cmN(f.countiesAll) + ", so the pack's third job keeps the counties where at least " + cmN(CM_MAP_FLOOR) + " households arrived or left. That is **" + cmN(f.countiesDrawn) + "** counties carrying **" + f.drawnPct.toFixed(1) + "%** of all household moves. The ones it drops are the smallest, not a region — and the job is in the pack's own folder if you want a different rule.",
+        "",
+        "**Eleven more have no shape to draw at all, and they are in the data anyway.** The app's committed county atlas predates the 2022 boundary changes: Connecticut replaced its eight counties with nine planning regions, and Alaska split Chugach and Copper River out of Valdez-Cordova. Those rows are real and they are counted in every total on this page — Connecticut reading blank is the atlas, not the data.",
+        "",
+        "- Counties in the extract: **" + cmN(f.countiesAll) + "** · drawn here: **" + cmN(f.countiesDrawn) + "**",
+        "- Household moves counted on this page: **" + cmN(f.movesDrawn) + "** of **" + cmN(f.movesAll) + "**",
+        "- Gaining households: **" + cmN(f.gainers) + "** counties · losing: **" + cmN(f.losers) + "**"
+      ].join("\n") } } });
+
+    return {
+      id: "countymigration-counties", name: "countymigration-counties",
+      title: "Who Is Winning Households",
+      subtitle: "Net migration and the income gap by county, 2022-2023 — county grain, so every US move counts",
+      dashboardTheme: "polecat",
+      panels: panels, kpis: kpis, filters: [],
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+
+  // (2) where they actually went: the corridors, at state grain.
+  function countyMigrationCorridorsSpec(ds, f) {
+    var das = [], panels = [], kpis = [];
+    var flowDa = curatedDA("vcm_flow_all", "Where America Moved — every published state corridor",
+      ds.stateOutput.id, ["from_state", "to_state", "returns", "people", "agi_k", "pct_of_state_departures"]);
+    das.push(flowDa);
+    kpis.push({ da: flowDa.id, valueCol: "returns", label: "Households on these corridors",
+      fmt: "abbr", agg: "sum", subtitle: f.corridors + " corridors, state grain", state: "",
+      info: "The six largest destinations out of each state — about half of all moves across a state line. State grain counts only moves that crossed one, so this never adds to the county page." });
+    kpis.push({ da: flowDa.id, valueCol: "returns", label: "Largest single corridor",
+      fmt: "abbr", agg: "max", subtitle: "one state to one state", state: "",
+      info: "Households that filed from a new address in a different state, in one year." });
+    kpis.push({ da: flowDa.id, valueCol: "pct_of_state_departures", label: "Most concentrated corridor",
+      fmt: "pct", agg: "max", subtitle: "of one state's leavers", state: "",
+      info: "The pack's join divides each corridor by the departures of the state it leaves. This is the highest result — the single destination that takes the biggest share of one state's leavers." });
+
+    var bigFlowDa = curatedDA("vcm_flow_big", "Where America Moved — the largest state-to-state corridors",
+      ds.stateOutput.id, ["from_state", "to_state", "returns"],
+      [{ col: "returns", kind: "range", min: String(CM_CORRIDOR_FLOOR), max: "" }]);
+    das.push(bigFlowDa);
+    panels.push({ id: "pcc_flow", section: "Where the households went",
+      title: "State to state", span: "full",
+      sub: "corridors of " + cmN(CM_CORRIDOR_FLOOR) + " households or more — the band width is the households",
+      info: "One ribbon per state pair, left is where they left. The floor is about readability, not significance: all " + f.corridors + " corridors at once is a hairball. Open the View and move it.",
+      chart: { type: "sankey", da: bigFlowDa.id,
+        map: { sourceCol: "from_state", targetCol: "to_state", valueCol: "returns" },
+        opts: { srcCap: "Left this state", dstCap: "Arrived in this state", fmt: "abbr", height: 700 } } });
+
+    var domDa = curatedDA("vcm_dominant", "Where America Moved — corridors taking a sixth of their state",
+      ds.stateOutput.id, ["from_state", "to_state", "returns", "pct_of_state_departures", "movers_avg_agi_k"],
+      [{ col: "pct_of_state_departures", kind: "range", min: String(CM_DOMINANT_PCT), max: "" }]);
+    das.push(domDa);
+    panels.push({ id: "pcc_dominant", section: "The corridors that dominate a state",
+      title: "One destination taking " + CM_DOMINANT_PCT + "% or more of a state's leavers", span: "full",
+      sub: "the share is the pack's own join — this corridor divided by everyone who left that state",
+      info: "Nearly all of these are neighbours, which is the honest headline of interstate migration: most moves are short. The exceptions are the ones worth reading.",
+      chart: { type: "table", da: domDa.id,
+        map: { cols: [
+          { col: "from_state", label: "Left" },
+          { col: "to_state", label: "Arrived" },
+          { col: "returns", label: "Households", num: true, fmt: "abbr" },
+          { col: "pct_of_state_departures", label: "Share of that state's leavers", num: true, fmt: "pct" },
+          { col: "movers_avg_agi_k", label: "Their average AGI ($k)", num: true, fmt: "abbr" }
+        ] },
+        opts: { pageSize: 12, freezeHeader: true, density: "comfortable" } } });
+
+    var pairsDa = curatedDA("vcm_pairs", "Where America Moved — the biggest county-to-county moves",
+      ds.countyPairs.id, ["from_county", "from_state", "to_county", "to_state", "returns", "people", "agi_k"]);
+    das.push(pairsDa);
+    panels.push({ id: "pcc_pairs", section: "And the same question one grain down",
+      title: "The biggest county-to-county moves out of each state", span: "full",
+      sub: "the three largest destinations out of every state — county grain, so a move inside a state counts",
+      info: "This table is the only place the two grains sit on one page, and they are in separate panels on purpose: the corridors above cross a state line by definition, and most of the rows here do not.",
+      chart: { type: "table", da: pairsDa.id,
+        map: { cols: [
+          { col: "from_county", label: "Left" },
+          { col: "from_state", label: "" },
+          { col: "to_county", label: "Arrived" },
+          { col: "to_state", label: " " },
+          { col: "returns", label: "Households", num: true, fmt: "abbr" },
+          { col: "people", label: "People", num: true, fmt: "abbr" }
+        ] },
+        opts: { pageSize: 12, freezeHeader: true, density: "comfortable" } } });
+
+    panels.push({ id: "pcc_note", section: "How to read it", title: "What a corridor is, and what it is not", span: "full",
+      chart: { type: "richtext", da: null, opts: { content: [
+        "**These are the published corridors, not every corridor.** The extract keeps the six largest destinations out of each state — " + f.corridors + " of the 2,544 the IRS publishes, carrying about half of all households that moved across a state line. A state's kept corridors are therefore a partition of its leavers that does not reach 100%, which is why the share column never sums to it.",
+        "",
+        "**This page is STATE grain.** Every row crossed a state line, by definition. The county page counts moves inside a state too, so the two pages measure different universes and are never added together — the source defines them that way, and the extract's notes say so.",
+        "",
+        "**A household is a tax return.** " + cmN(f.interstate) + " households filed from an address in a different state; " + cmN(f.stayers) + " filed from the same state they filed from the year before. That second number is the baseline the income dashboard uses, and it exists only at this grain.",
+        "",
+        "- Corridors on this page: **" + f.corridors + "** carrying **" + cmN(f.corridorReturns) + "** households",
+        "- Households moving across a state line, all corridors: **" + cmN(f.interstate) + "**",
+        "- Corridors drawn in the flow above: those of **" + cmN(CM_CORRIDOR_FLOOR) + "** households or more"
+      ].join("\n") } } });
+
+    return {
+      id: "countymigration-corridors", name: "countymigration-corridors",
+      title: "The Corridors",
+      subtitle: "The largest state-to-state moves of 2022-2023, and the ones that carry a state on their own",
+      dashboardTheme: "polecat",
+      panels: panels, kpis: kpis, filters: [],
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+
+  // (3) the money: did it move with them, and how do the movers compare to the stayers.
+  var CM_NET_AGI_CALC = { name: "net_agi_k", formula: "[in_agi_k] - [out_agi_k]" };
+  var CM_STAY_AVG_CALC = { name: "stayers_avg_agi_k", formula: "[stay_agi_k] / [stay_returns]" };
+  function countyMigrationIncomeSpec(ds, f) {
+    var das = [], panels = [], kpis = [];
+    var stateDa = curatedDA("vcm_states", "Where America Moved — states, with the income that arrived and left",
+      ds.states.id, ["state", "state_name", "in_returns", "out_returns", "in_agi_k", "out_agi_k",
+        "stay_returns", "stay_agi_k", CM_NET_AGI_CALC.name, CM_STAY_AVG_CALC.name],
+      [], [CM_NET_AGI_CALC, CM_STAY_AVG_CALC]);
+    das.push(stateDa);
+    kpis.push({ da: stateDa.id, valueCol: CM_NET_AGI_CALC.name, label: "Biggest net income gain",
+      fmt: "abbr", agg: "max", subtitle: "one state, $ thousands", state: "",
+      info: "This View's own calculated column: in_agi_k minus out_agi_k. AGI is thousands of dollars, as the IRS publishes it — so a value of 20,000,000 here is $20 billion." });
+    kpis.push({ da: stateDa.id, valueCol: CM_NET_AGI_CALC.name, label: "Biggest net income loss",
+      fmt: "abbr", agg: "min", subtitle: "one state, $ thousands", state: "",
+      info: "The same calculated column at the other end. Read it beside the net-household map: the two rankings are close, but they are not the same list." });
+    kpis.push({ da: stateDa.id, valueCol: CM_STAY_AVG_CALC.name, label: "Median state's stayers",
+      fmt: "abbr", agg: "median", subtitle: "average AGI per household, $ thousands", state: "",
+      info: "The households that filed from the same state two years running — the baseline everything on this page is measured against, and a fact this source carries only at state grain." });
+    kpis.push({ da: stateDa.id, valueCol: "in_returns", label: "Households arriving from another state",
+      fmt: "abbr", agg: "sum", subtitle: "state grain — a state line was crossed", state: "",
+      info: "Never added to the county page: that one counts moves inside a state as well." });
+
+    panels.push({ id: "pci_map", section: "Whose income moved",
+      title: "Net adjusted gross income by state", span: "full",
+      sub: "a calculated column on this View — in_agi_k minus out_agi_k, $ thousands, green gained",
+      info: "The formula is on the shelf: open this panel's View and it is the first thing you see. The scale diverges at zero because the sign is the finding.",
+      chart: { type: "choropleth", da: stateDa.id,
+        map: { idCol: "state", valueCol: CM_NET_AGI_CALC.name },
+        opts: { scale: "state", fmt: "abbr", agg: "sum", classes: 6, height: 460,
+          divergeToken: "--warn", center: 0 } } });
+
+    var moverDa = curatedDA("vcm_movers", "Where America Moved — movers against the stayers they left behind",
+      ds.stateOutput.id, ["from_state", "to_state", "returns", "movers_avg_agi_k", "stayers_avg_agi_k", "movers_vs_stayers_agi_k"],
+      [{ col: "returns", kind: "range", min: String(CM_CORRIDOR_FLOOR), max: "" }]);
+    das.push(moverDa);
+    panels.push({ id: "pci_movers", section: "Are the leavers richer than the stayers",
+      title: "Average AGI of a corridor's households, minus the stayers of the state they left", span: 2,
+      sub: "corridors of " + cmN(CM_CORRIDOR_FLOOR) + " households or more, $ thousands",
+      info: "This is the pack's title question and it can only be asked here: the households that STAYED are a state-grain fact, so at county grain the honest version is arrivers-versus-leavers instead — which is the hero dashboard's second map.",
+      chart: { type: "bars", da: moverDa.id, map: { labelCol: "to_state", valueCol: "movers_vs_stayers_agi_k" },
+        opts: { horizontal: true, sortBars: true, showValues: false, fmt: "abbr", height: 560 } } });
+
+    panels.push({ id: "pci_scatter", title: "The movers against the stayers, corridor by corridor", span: 2,
+      sub: "one dot per corridor: what its households earn, against what the state they left earns",
+      info: "A corridor on the diagonal moved people of exactly average means. Above it, the state lost households that earned more than the ones staying put.",
+      chart: { type: "scatter", da: moverDa.id,
+        map: { labelCol: "to_state", xCol: "stayers_avg_agi_k", yCol: "movers_avg_agi_k" },
+        opts: { trend: true, fmt: "abbr", xLabel: "Stayers' average AGI ($ thousands)",
+          yLabel: "Movers' average AGI ($ thousands)", height: 560 } } });
+
+    var gapDa = curatedDA("vcm_county_gap", "Where America Moved — arrivers against leavers, by county",
+      ds.mapped.id, ["county", "state", "arrivers_avg_agi_k", "leavers_avg_agi_k", "total_moves"]);
+    das.push(gapDa);
+    panels.push({ id: "pci_county", section: "And the same question at county grain",
+      title: "What arriving households earn, against what leaving households earn", span: "full",
+      sub: "one dot per county, " + cmN(f.countiesDrawn) + " of them — $ thousands of AGI per household",
+      info: "The counties above the trend line are gaining income per household, whether or not they are gaining households. Only the counties the map can hold are here — the same rule, stated on the hero dashboard.",
+      chart: { type: "scatter", da: gapDa.id,
+        map: { labelCol: "county", xCol: "leavers_avg_agi_k", yCol: "arrivers_avg_agi_k" },
+        opts: { trend: true, fmt: "abbr", xLabel: "Leaving households' average AGI ($ thousands)",
+          yLabel: "Arriving households' average AGI ($ thousands)", height: 420 } } });
+
+    panels.push({ id: "pci_note", section: "How to read it", title: "What the money column actually is", span: "full",
+      chart: { type: "richtext", da: null, opts: { content: [
+        "**AGI is thousands of dollars, exactly as the IRS publishes it.** Every column carrying it is named `_agi_k` and nothing in this pack rescales it, so a value of 20,000,000 is $20 billion and a value of 72 is $72,000. The formats on this page are plain numbers for that reason — a dollar sign in front of a thousands figure would be a thousand-fold lie.",
+        "",
+        "**It is the income that MOVED, not the income of a place.** The IRS matches a filing year's returns against the previous year's, so the AGI on a corridor is what the households on that corridor reported — it says nothing about the people already there.",
+        "",
+        "**The stayers are the comparison, and they exist only at state grain.** " + cmN(f.stayers) + " households filed from the same state two years running. That is the baseline every bar on this page is measured against, and it is why the leavers-versus-stayers question cannot be asked of a county in this source.",
+        "",
+        "- Income arriving across state lines: **" + cmBillions(f.agiArrivedK) + "** with **" + cmN(f.interstate) + "** households",
+        "- Which is **" + cmPerHousehold(f.interstate ? f.agiArrivedK / f.interstate : 0) + "** per household, on average, across every state line crossed",
+        "- States on this page: **" + f.states + "** (the 50 and the District of Columbia)"
+      ].join("\n") } } });
+
+    return {
+      id: "countymigration-income", name: "countymigration-income",
+      title: "Did the Money Move With Them",
+      subtitle: "The adjusted gross income that changed state in 2022-2023, and how the movers compare to the households that stayed",
+      dashboardTheme: "polecat",
+      panels: panels, kpis: kpis, filters: [],
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+
+  // Idempotent by dashboard name (the CONS-1 convention every pack in this file follows),
+  // so it is safe from the seed, from the boot heal, and in a workspace where someone
+  // deleted one of the three.
+  function seedCountyMigrationDashboards(W, id, ds, now) {
+    if (!ds || !ds.counties || !ds.states || !ds.countyPairs || !ds.stateOutput || !ds.mapped) return 0;
+    // The figures are read back off the rows that were just written rather than taken as
+    // arguments: the seed path and the boot heal then cannot disagree about what the pack
+    // says about itself.
+    var f = countyMigrationFigures(parsePackCsv(ds.counties.content), parsePackCsv(ds.mapped.content),
+      parsePackCsv(ds.states.content), parsePackCsv(ds.stateOutput.content));
+    if (!f.countiesAll || !f.countiesDrawn || !f.states || !f.corridors) return 0; // nothing to state honestly, so state nothing
+    var specs = {
+      "countymigration-counties": countyMigrationCountiesSpec(ds, f),
+      "countymigration-corridors": countyMigrationCorridorsSpec(ds, f),
+      "countymigration-income": countyMigrationIncomeSpec(ds, f)
+    };
+    var added = 0;
+    CM_DASHBOARDS.forEach(function (name) {
+      var have = W.all("dashboards").some(function (r) {
+        return r.demoPackId === id && (r.name === name || (r.spec && r.spec.name) === name);
+      });
+      if (have) return;
+      var spec = specs[name];
+      W.put("dashboards", {
+        name: name, title: spec.title, ts: now, spec: spec,
+        folder: CM_FOLDER, demoPackId: id
+      });
+      added++;
+    });
+    return added;
+  }
+
+  // The pack's tables as the seed path names them, found in a workspace rather than
+  // threaded through — the SP-5/SP-6 shape. Returns null unless every table the seeders
+  // read is present WITH content: a half-materialized pack has nothing honest to chart,
+  // and the caller treats that as "nothing to do" rather than an error.
+  function countyMigrationDatasets(W, id) {
+    var mine = W.all("datasets").filter(function (d) { return d.demoPackId === id && d.content; });
+    function byFile(name) {
+      return mine.filter(function (d) { return (d.fileName || "") === name; })[0];
+    }
+    var ds = {
+      counties: byFile(CM_COUNTIES), states: byFile(CM_STATES),
+      stateFlows: byFile(CM_STATE_FLOWS), countyPairs: byFile(CM_COUNTY_PAIRS),
+      // The three job outputs, each by its own file name — all three carry the
+      // job-output tag, so the tag cannot tell them apart.
+      countyOutput: byFile("county_migration_net.csv"),
+      stateOutput: byFile("state_corridor_shares.csv"),
+      mapped: byFile("county_migration_mapped.csv")
+    };
+    return (ds.counties && ds.states && ds.stateFlows && ds.countyPairs &&
+      ds.countyOutput && ds.stateOutput && ds.mapped) ? ds : null;
+  }
+
+  // The boot heal (studio.js reconcilePackDashboards): a workspace that installed the pack
+  // when it was slice (a) — four tables, two jobs, no dashboards — gets the three without a
+  // reinstall, and so does one where a dashboard was deleted. The map job's output is one
+  // of the tables it needs, so an install predating it heals below first.
+  Studio.ensureCountyMigrationDashboards = function () {
+    var id = "countymigration";
+    if (!Studio.demoPackInstalled(id)) return false;
+    var W = Studio.Workspace;
+    var ds = countyMigrationDatasets(W, id);
+    if (!ds) return false;
+    return seedCountyMigrationDashboards(W, id, ds, new Date().toISOString()) > 0;
+  };
+
+  // SP-13 (b): and the job that feeds them, for the same installs — slice (a) shipped two
+  // jobs, so a workspace from that build has no mapped output for the dashboards to read.
+  // Written the same way the seed writes it (the same steps function, run through the same
+  // engine), so a heal and a fresh install produce the same rows.
+  Studio.ensureCountyMigrationMapJob = function () {
+    var id = "countymigration";
+    if (!Studio.demoPackInstalled(id)) return false;
+    var W = Studio.Workspace;
+    var mine = W.all("datasets").filter(function (d) { return d.demoPackId === id && d.content; });
+    if (mine.some(function (d) { return d.fileName === "county_migration_mapped.csv"; })) return false;
+    var src = mine.filter(function (d) { return d.fileName === "county_migration_net.csv"; })[0];
+    if (!src) return false;
+    var steps = countyMigrationMapSteps();
+    var out = Studio.runJobSteps(parsePackCsv(src.content), steps, {});
+    if (out.error || !(out.rows || []).length) return false;
+    var name = "Counties — the ones a live map can hold (job output)";
+    var outDs = W.put("datasets", {
+      name: name, connectionId: src.connectionId,
+      kind: "file", format: "csv", fileName: "county_migration_mapped.csv",
+      content: Studio.rowsToCsv(out.columns, out.rows),
+      columns: (out.columns || []).slice(),
+      folder: CM_FOLDER, demoPackId: id, tags: ["demo", "migration", "geo", "job-output"]
+    });
+    W.put("jobs", {
+      name: "Keep the counties a live map can hold",
+      sourceDatasetId: src.id, outputDatasetId: outDs.id, outputName: name,
+      steps: steps, folder: CM_FOLDER, demoPackId: id
+    });
+    return true;
+  };
 
   // SP-0: registry-driven. This function knows about no pack in particular — an entry
   // that seeds a workspace supplies `install`; one that only gates gallery visibility
