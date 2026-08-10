@@ -14626,7 +14626,7 @@
 > its ⏫ marker until SP-5 is done. **Grooming pass 4 note:** with N31/N41/N44/N25 all ⛔ and SP-1 ⏳, SP-5 is the
 > only ready non-recurring work in this queue — that is the honest state, not an oversight.
 
-- ⏳ **PR #NEW** — **SP-5 ★★ [3pt est, 2 slices shipped] — Campaign Finance, the second of
+- ⏳ **PR #751** — **SP-5 ★★ [3pt est, 2 slices shipped] — Campaign Finance, the second of
   Kevin's three money-flow packs.** *(Grammar line minted 2026-08-10 by the run that started it,
   the way SP-6's was — the promotion note above named the three packs and gave a line to none of
   them, so the queue had nothing to mark. The scope decisions in the 📦 SAMPLE-PACK PROGRAM
