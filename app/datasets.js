@@ -638,6 +638,28 @@
       }).join("");
       var defWrap = el("div"); form.appendChild(defWrap);
       var defInputs = {};
+      // N44 slice 1 — what the SQL field's completer knows about. Three
+      // sources, all of them things the app already has and none of them
+      // fetched for this purpose: the columns a Preview actually returned
+      // (the most trustworthy, because they came back from the query), the
+      // columns/tables "Browse schema" already loaded, and the dataset's own
+      // declared parameters. Read live through a function, so a Preview run
+      // after the field was built still teaches it.
+      var previewCols = [], schemaTables = [];
+      function sqlSchema() {
+        var cols = previewCols.slice();
+        (schemaTables || []).slice(0, 40).forEach(function (t) {
+          (t.columns || []).forEach(function (c) { if (cols.length < 400) cols.push(c); });
+        });
+        if (!cols.length && Array.isArray(d.columns)) cols = d.columns.slice();
+        return {
+          columns: cols,
+          tables: (schemaTables || []).map(function (t) {
+            return { name: t.schema && t.schema !== "public" ? t.schema + "." + t.name : t.name, schema: t.schema || "" };
+          }),
+          params: (d.params || []).map(function (p) { return p.key; }).filter(Boolean)
+        };
+      }
       function renderDefFields() {
         defWrap.innerHTML = ""; defInputs = {};
         var conn = Studio.Workspace.get("connections", connSel.value);
@@ -663,6 +685,7 @@
             schemaPanel.innerHTML = '<div class="cx-schema-status">Loading…</div>';
             adapter.listSchema(conn.cfg || {}).then(function (r) {
               schemaBtn.disabled = false; schemaBtn.textContent = "Browse schema";
+              schemaTables = (r && r.tables) || [];   // N44: the same load also feeds the SQL completer
               Studio.Connections.renderSchemaPanel(schemaPanel, r, function (pickedKind, name, schemaName) {
                 if (kind === "table") {
                   if (!defInputs.table) return;
@@ -689,6 +712,11 @@
           row.appendChild(inp);
           if (hint) { var h = el("small", "cx-hint"); h.textContent = hint; row.appendChild(h); }
           defWrap.appendChild(row); defInputs[key] = inp;
+          // N44 slice 1 — the app's one SQL editor, adopted at its busiest
+          // surface first. attach() enhances the SAME element in place, so the
+          // save loop's defInputs[key].value, the schema browser's
+          // insertAtCursor and every existing test hook are untouched.
+          if (multiline && key === "sql" && Studio.SQLEdit) Studio.SQLEdit.attach(inp, { schema: sqlSchema });
         }
         if (kind === "table") {
           defField("Table", "table", false, "orders", "The exposed table or view (RLS/grants govern access).");
@@ -836,6 +864,7 @@
             return;
           }
           provenDef = ran; if (failedDef === ran) { failedDef = ""; lastError = ""; }
+          previewCols = (r.columns || []).slice();   // N44: a green Preview is the best column list there is
           result.className = "cx-test-result ok"; result.textContent = "✓ " + r.rows.length + " rows · " + r.columns.length + " columns";
           var head = "<tr>" + r.columns.map(function (c) { return "<th>" + esc(c) + "</th>"; }).join("") + "</tr>";
           var body = r.rows.slice(0, 8).map(function (row) {

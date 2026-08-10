@@ -135,6 +135,60 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N44 slice 1 — one SQL editor, and it is honest about what it can check (v958, sw v548,
+  2026-08-10, steward; dev branch; est 3pt, 1 slice spent, 2 remain):** the first ready item in
+  ▶ NOW (N31 is ⛔ on Kevin; everything above N44 is struck). Kevin asked for *"syntax checking and
+  any SQL help writing with fields or autocomplete in places where you can in the app throughout"*.
+  - **The item's measurement was wrong in one place, and correcting it changed the design.** N44
+    says *"a grep for autocomplete/syntax/highlight machinery across `app/` returns only
+    `autocomplete="off"`"* — true of those three words, and it missed **`Studio.sqlLint`**
+    (`app/model.js`, LF63 slice 3, July): balance-and-shape checks that the dashboard-only
+    data-source builder has shown live under its query box for weeks, and that `docs/index.html`
+    already documented. So the checking third of this item was NOT zero. Shipping a second checker
+    beside it — same findings, different wording — would have been the defect the item warns about
+    in its own "one component, not per-surface variants" clause, one level up. **The editor adopts
+    `Studio.sqlLint` and slice 1 made that one function stronger instead:** a real left-to-right
+    scan rather than four independent regex counts, so `/* */` comments and `` ` `` identifiers are
+    understood, a quote inside a block comment stops counting, and an unclosed `(` is told apart
+    from a stray `)`. Both surfaces improved together; all five LF63 slice 3 checks pass unchanged.
+  - **What shipped: `app/sqledit.js`, `Studio.SQLEdit.attach(textarea, opts)`.** It ENHANCES the
+    host element in place — same node, same `.value`, same events — which is what lets one
+    component sit under `.dsx-sql`, `.jobs-sql-box` and the wizard's boxes without knowing anything
+    about them: font, padding and border are COPIED from the host's computed style onto the overlay
+    rather than restated in CSS. A surface that never calls `attach()` is byte-for-byte unchanged.
+  - **Hand-rolled, because CLAUDE.md rules out a bundler and runtime deps.** Highlighting is a
+    styled overlay behind a transparent-text textarea (the textarea keeps its own background,
+    border, caret and selection and simply stops painting glyphs); completion is a popup positioned
+    by measuring a hidden mirror of the text up to the caret, not by estimating character widths.
+  - **The completer offers only what the app actually knows** — the columns a green **Preview**
+    returned (the most trustworthy source, since they came back from the query), the tables and
+    columns **Browse schema** already loaded, the dataset's declared parameters, then keywords and
+    common functions. Nothing is fetched for it. Deliberately NOT shipped: the item's "unknown
+    column names against the declared columns" — `sqlLint`'s existing drift check is the inverse
+    and is safe (a DECLARED column the query never mentions); flagging an unknown IDENTIFIER as
+    unknown is the false-positive machine the item's own "do not claim to validate dialect SQL we
+    cannot parse" rule forbids, so it is left unshipped rather than shipped and ignored.
+  - **The popup follows typing, not every value change.** It listens on `beforeinput`, which fires
+    for real edits (including on a phone keyboard, where `keydown` reports "Unidentified") and never
+    for a programmatic `.value` write — so the schema browser's `insertAtCursor` still inserts and
+    repaints without popping a menu nobody asked for. That behaviour is under test in both
+    directions.
+  - **Mobile is a gate, so it was measured at 390×780, not assumed:** options are ≥36px tall, the
+    popup is clamped inside the field and flips above the caret when it would fall out of the
+    bottom, and Escape closes the popup without closing the editor behind it.
+  - **Verified.** The whole dev gate green in the foreground on the finished tree —
+    `tools/validate.mjs`, `tools/changelog-check.js`, `tools/doc-truth.mjs`, `tools/dev-smoke.mjs`
+    (390×780 and desktop) — plus the N44 block run standalone against the suite's own server and
+    gate bypass at **both 1500×1040 and 390×780: 65 passed / 0 failed, zero pageerrors**, and a
+    standalone re-run of LF63 slice 3's five existing `sqlLint` checks (unit + the builder's live
+    strip) against the rewritten function: **6 passed / 0 failed**. **Said plainly: the FULL
+    `tests/run.js` was not run end to end** — it exceeds the 10-minute foreground command budget
+    this loop runs under, and the full suite is the STAGE gate (`promote-to-stage.yml`), not the
+    dev gate. Merging to dev is what schedules it.
+  - **Help** (`docs/index.html`, "Writing SQL: highlighting, column help, and what actually gets
+    checked") documents the editor, the completion sources, the exact scope of the checking and its
+    limits — and says plainly which SQL boxes are still plain text areas, rather than implying the
+    feature is app-wide.
 - **N43b — a save that could break a dashboard says so before it lands, and proves itself in one
   tap (v957, sw v547, 2026-08-10, steward; dev branch; est 1pt, took 1):** the first ready item
   in ▶ NOW (N31 is ⛔ on Kevin; N35/N37/N34/N33a/N33b/N32/N42/N43a are struck). The item posed a
@@ -14301,8 +14355,33 @@
   **Cheap first cut, if this needs splitting:** make the existing Query preview section's SQL
   clickable, opening the dataset editor on that dataset. That alone closes "I can see it's wrong
   and can't get to it" and is most of the value.
-- **N44 ★★ [3pt] — SQL is edited in plain textareas app-wide: no syntax checking, no column
-  autocomplete, no highlighting, anywhere.** Kevin, 2026-08-09: *"keep syntax checking and any SQL
+- **N44 ★★ [3pt est, 1 slice shipped — 2 remain] — SQL is edited in plain textareas app-wide.**
+  ✓ **SLICE 1 IS SHIPPED — the component and its first adoption: v958, sw v548 (2026-08-10,
+  steward — see DONE).** `app/sqledit.js` / `Studio.SQLEdit.attach(textarea, opts)` exists,
+  enhances a host textarea in place (copying its font/padding/border, so it fits any of the nine
+  surfaces without knowing them), and the **Dataset editor's SQL field** uses it: highlighting,
+  completion over Preview columns / browsed schema / declared parameters / keywords, and the
+  checking line. **One correction the item needs to carry:** its "the answer is zero" is wrong
+  about checking — `Studio.sqlLint` (LF63 slice 3) already did balance-and-shape checks under the
+  dashboard-only builder. Slice 1 therefore ADOPTED and strengthened that one function rather than
+  minting a rival; do not re-add a second checker.
+  **SLICE 2 — the remaining eight surfaces, which is the acceptance list the item already wrote:**
+  the seven per-adapter query boxes in the connection/dataset wizard (`studio.js:2243, 2288, 2343,
+  2394, 2445, 2498, 2512`) and the Jobs SQL step (`jobs.js:924`). Each is one `attach()` call plus
+  the honest question of what schema it can offer — the wizard boxes run BEFORE a connection is
+  saved, so the completer may have nothing but keywords there, and the Jobs step queries a DuckDB
+  table named `t` whose columns the pipeline already knows, which is the interesting one. Pass
+  `expectSelect:false` where a bare SELECT is not the contract. Mind that the dashboard-only
+  builder's `.dsb-query` already renders `sqlLint`'s findings in its own `.dsb-lint` strip: adopting
+  the editor there means removing that strip, not stacking a second one under it.
+  **SLICE 3 — what slice 1 deliberately did not do.** (a) The item asks for "unknown column names
+  against the declared columns"; slice 1 refused it as a false-positive machine under the item's own
+  "do not claim to validate dialect SQL we cannot parse" rule — if it is wanted, it needs a design
+  that only fires where the app genuinely knows the full column set (a saved dataset with previewed
+  columns and no `SELECT *`), and it is Kevin's call whether that narrow version is worth it.
+  (b) Completion is prefix-only and flat; table-qualified completion (`orders.` → that table's
+  columns) is the obvious next step and needs the schema loaded, so it belongs after slice 2.
+  *(Original text kept until the next grooming pass archives it.)* Kevin, 2026-08-09: *"keep syntax checking and any SQL
   help writing with fields or autocomplete in places where you can in the app throughout, please
   do that."*
   **Measured, and the answer is zero.** A grep for autocomplete/syntax/highlight machinery across
