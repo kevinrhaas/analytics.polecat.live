@@ -6365,6 +6365,179 @@ function serve() {
       cfRender.kpiValues.every(function (v) { return v && v !== "—" && v !== "0"; }) && !cfRender.err,
       JSON.stringify(cfRender));
 
+    // ---- SP-5 (c): the four pinned Views, and the pack's own tour ----------------
+    // A dashboard is READ; a View is OPENED and changed. So these checks are about that
+    // difference: the four are hand-saveable View Builder blobs over the pack's OWN
+    // tables, and their cards draw the live rows through the same runBlob path the
+    // panels use. The pack-specific traps they guard are this pack's two: the flow
+    // Views must read the SECOND job's output (the trimmed one) or they lose twelve
+    // committees to the builder's 2,000-row live cap exactly the way the dashboards
+    // would have, and the two shares must be CALC COLUMNS on the View rather than
+    // extract columns, because "the derivation is visible" is the pack's whole argument.
+    console.log("\n• SP-5(c): the pack's four pinned Views, and its guided tour");
+    const cfViews = await page.evaluate(async function () {
+      var W = Studio.Workspace, ID = "campaignfinance";
+      var rows = W.all("analyses").filter(function (a) { return a.demoPackId === ID; });
+      var byDa = {}; rows.forEach(function (r) { if (r.da) byDa[r.da.id] = r; });
+      var flow = byDa["cfv_flow"], home = byDa["cfv_home_state"],
+        states = byDa["cfv_states"], arrives = byDa["cfv_how_it_arrives"];
+      var four = [flow, home, states, arrives];
+      var mine = {};
+      W.all("datasets").filter(function (d) { return d.demoPackId === ID; })
+        .forEach(function (d) { mine[d.id] = d; });
+      function byFile(name) {
+        return W.all("datasets").filter(function (d) {
+          return d.demoPackId === ID && (d.fileName || "") === name;
+        })[0];
+      }
+      var joinOut = byFile("committee_donor_state_shares.csv");
+      var trimmed = byFile("committee_donor_state_flows_charted.csv");
+      var statesDs = byFile("state-donors.csv");
+      var out = {
+        count: rows.length,
+        allFound: four.every(Boolean),
+        allPinned: rows.every(function (r) { return r.pinned === true; }),
+        allFoldered: rows.every(function (r) { return r.folder === "Campaign Finance"; }),
+        // builder-native: a real blob, over one of the PACK's datasets (not a Quick-Views
+        // snapshot and not a blob pointing at somebody else's rows)
+        allBuilderNative: rows.every(function (r) {
+          return !!(r.builder && r.da && r.da.builder && r.chart) &&
+            r.builder.dsKind === "ws" && !!mine[r.builder.dsId];
+        }),
+        types: four.map(function (r) { return r && r.chartType; }).join(","),
+        // Home sorts pinned Views newest-first, so the flow hero has to be seeded last
+        firstOnHome: W.all("analyses").filter(function (a) { return a.pinned; })
+          .sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); })
+          .filter(function (a) { return a.demoPackId === ID; })
+          .map(function (a) { return a.da && a.da.id; })[0]
+      };
+      if (!out.allFound) return out;
+      // the sankey's three roles are mapped POSITIONALLY off the basis head — the measure
+      // column of a rolled-up basis is a synthesized "SUM amount" label, so a
+      // name-guessing mapping would be reading a label instead of a measure
+      out.flowMap = [flow.chart.map.sourceCol, flow.chart.map.targetCol, flow.chart.map.valueCol].join(">");
+      out.flowHead = flow.da.columns.join(">");
+      // the map is mapped positionally for the same reason (guessChoroplethCols can
+      // misjudge a synthesized label), and carries the pack's state scale
+      out.statesMap = [states.chart.map.idCol, states.chart.map.valueCol].join(">");
+      out.statesScale = states.builder.mapScale + "/" + states.chart.opts.scale;
+      // THE TRAP: both flow Views read the SECOND job's output, never the 2,658-row join
+      out.flowReadsTrimmed = !!trimmed && flow.builder.dsId === trimmed.id;
+      out.homeReadsTrimmed = !!trimmed && home.builder.dsId === trimmed.id;
+      out.neitherReadsJoin = !!joinOut && flow.builder.dsId !== joinOut.id && home.builder.dsId !== joinOut.id;
+      out.statesReadExtract = !!statesDs && states.builder.dsId === statesDs.id &&
+        arrives.builder.dsId === statesDs.id;
+      // the two shares are calc columns ON the View — open it and the formula is on the
+      // shelf, which is this pack's whole argument about derivations
+      out.arrivesCalcs = (arrives.builder.calcs || []).map(function (c) { return c.name; }).join(",");
+      out.flowFloor = Number((flow.builder.filters[0] || {}).min);
+      out.homeFilter = (home.builder.filters[0] || {}).col + "=" + ((home.builder.filters[0] || {}).values || []).join("");
+      // newPanel's table default would mark `state` numeric; the declared columns win
+      out.stateNotNumeric = !arrives.chart.map.cols.filter(function (c) { return c.col === "state"; })[0].num;
+
+      var res = await Promise.all(four.map(function (r) { return Studio.Build.runBlob(r.builder); }));
+      out.rowCounts = res.map(function (x) { return x ? x.rows.length : -1; });
+      out.allLive = res.every(function (x) { return !!(x && x.live); });
+      var fRun = res[0];
+      if (fRun) {
+        // the basis IS the triple, in flow order: [source, target, value]
+        out.flowCols = fRun.cols.join(">");
+        out.flowObeysFloor = fRun.rows.length > 0 && fRun.rows.every(function (r) { return Number(r[2]) >= out.flowFloor; });
+        // The target end is a committee NAME — the join brought it across — and not the
+        // `cmte_id` the flow table ships. Asserted as "not an FEC committee id" rather
+        // than a length floor: the ids are all C + 8 digits, while the names include
+        // genuinely short ones (DSCC, DNC), so a length rule would fail on real data
+        // while still passing on any id.
+        out.flowNamesCommittees = fRun.rows.every(function (r) {
+          return /[A-Za-z]/.test(String(r[1])) && !/^C\d{8}$/.test(String(r[1]).trim());
+        });
+      }
+      var aRun = res[3];
+      if (aRun) {
+        // the shares really are arithmetic over the two shipped dollar figures,
+        // recomputed here from the pack's own CSV rather than trusted
+        var lines = String(statesDs.content || "").trim().split("\n"), head = lines.shift().split(",");
+        var si = head.indexOf("state"), ai = head.indexOf("amount"),
+          smi = head.indexOf("small_dollar_amount"), mxi = head.indexOf("max_out_amount");
+        var want = {};
+        lines.forEach(function (l) {
+          var c = l.split(",");
+          want[c[si]] = [(Number(c[smi]) / Number(c[ai])) * 100, (Number(c[mxi]) / Number(c[ai])) * 100];
+        });
+        var ci = aRun.cols.indexOf("small_dollar_pct"), mi = aRun.cols.indexOf("max_out_pct");
+        out.arrivesCols = aRun.cols.join(">");
+        out.arrivesChecks = ci >= 0 && mi >= 0 && aRun.rows.length > 0 && aRun.rows.every(function (r) {
+          var w = want[String(r[0])];
+          return w && Math.abs(Number(r[ci]) - w[0]) < 1e-9 && Math.abs(Number(r[mi]) - w[1]) < 1e-9;
+        });
+      }
+      return out;
+    });
+    ok("SP-5(c): the pack pins four builder-native Views over its own tables — the donor-state→committee flow, the home-state share, donor geography and every state's giving style — all pinned and foldered, the flow's source/target/value and the map's id/value both mapped positionally off their basis, BOTH flow Views reading the trimmed second job output rather than the 2,658-row join the builder's live cap would silently cut, both derived shares carried as calc columns on the View, the table's `state` left non-numeric, and the flow seeded last so it leads Home's newest-first shelf",
+      cfViews.count === 4 && cfViews.allFound && cfViews.allPinned && cfViews.allFoldered &&
+      cfViews.allBuilderNative && cfViews.types === "sankey,bars,choropleth,table" &&
+      cfViews.flowMap === cfViews.flowHead && cfViews.flowMap === "state>committee>SUM amount" &&
+      cfViews.statesMap === "state>SUM amount" && cfViews.statesScale === "state/state" &&
+      cfViews.flowReadsTrimmed && cfViews.homeReadsTrimmed && cfViews.neitherReadsJoin &&
+      cfViews.statesReadExtract && cfViews.arrivesCalcs === "small_dollar_pct,max_out_pct" &&
+      cfViews.homeFilter === "is_home_state=1" && cfViews.stateNotNumeric &&
+      cfViews.firstOnHome === "cfv_flow",
+      JSON.stringify(cfViews));
+    ok("SP-5(c): running the four saved blobs returns the LIVE basis, not a stored copy — a ribbon per flow at or above the View's own $10M floor with the committee end reading as a NAME, the 16 candidate committees whose seat is a donor state, and all 67 donor states on both the map and the table with each share recomputed from the two shipped dollar figures on every row",
+      cfViews.allLive && cfViews.flowCols === "state>committee>SUM amount" &&
+      cfViews.flowObeysFloor && cfViews.flowNamesCommittees &&
+      cfViews.rowCounts && cfViews.rowCounts[0] >= 40 && cfViews.rowCounts[1] === 16 &&
+      cfViews.rowCounts[2] === 67 && cfViews.rowCounts[3] === 67 && cfViews.arrivesChecks,
+      JSON.stringify(cfViews));
+
+    // The heal, same shape as the dashboards' one slice earlier: an install that predates
+    // the Views gets them on boot reconcile, and a second run is a no-op.
+    const cfViewHeal = await page.evaluate(function () {
+      var W = Studio.Workspace;
+      W.all("analyses").filter(function (a) { return a.demoPackId === "campaignfinance"; })
+        .forEach(function (a) { W.remove("analyses", a.id, { silent: true }); });
+      W.notify("analyses");
+      var healed = Studio.ensureCampaignFinanceViews();
+      var back = W.all("analyses").filter(function (a) { return a.demoPackId === "campaignfinance"; }).length;
+      var again = Studio.ensureCampaignFinanceViews();
+      return { healed: healed, back: back, idempotent: again === false };
+    });
+    ok("SP-5(c): the boot heal re-seeds the four Campaign Finance Views into an install that predates them and is idempotent on a healthy one",
+      cfViewHeal.healed && cfViewHeal.back === 4 && cfViewHeal.idempotent, JSON.stringify(cfViewHeal));
+
+    // The pack's own tour — gated on the pack the same way the Conservation and Market
+    // Coverage ones are (J6-10 checks the OFF half, with every pack uninstalled).
+    const cfTour = await page.evaluate(function () {
+      StudioTutorial.open();
+      var choice = document.querySelector('#st-tip .st-choice[data-tour="campaignfinance"]');
+      var out = {
+        visible: !!choice,
+        label: ((choice && choice.querySelector("b")) || {}).textContent,
+        steps: StudioTutorial.stepCount("campaignfinance"),
+        // every spotlight the tour aims at a dashboard panel must be a panel the pack
+        // actually seeds — a tour naming a panel id that no longer exists stalls on a
+        // dead waitFor, which is exactly the class of drift N7's doc-truth checks hunt
+        targets: StudioTutorial.tourSteps("campaignfinance")
+          .map(function (s) { return s.target; }).filter(Boolean)
+      };
+      var hero = Studio.Workspace.all("dashboards").filter(function (r) {
+        return (r.spec && r.spec.name) === "campaignfinance-flow";
+      })[0];
+      var ids = ((hero && hero.spec.panels) || []).map(function (p) { return p.id; });
+      out.panelTargetsResolve = out.targets.filter(function (t) { return /data-panel-id/.test(t); })
+        .every(function (t) { return ids.indexOf(t.replace(/^\[data-panel-id="|"\]$/g, "")) >= 0; });
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      return out;
+    });
+    ok("SP-5(c): the Campaign Finance tour is registered, appears in the chooser once the pack is installed, walks 6 stops, and every panel it spotlights is a panel the pack really seeds",
+      cfTour.visible && cfTour.label === "Campaign Finance pack" && cfTour.steps === 6 &&
+      cfTour.targets.length === 4 && cfTour.panelTargetsResolve, JSON.stringify(cfTour));
+
+    // Leave the pack state as found, the way the SP-1 and SP-6 blocks do — the tour is
+    // pack-gated now, so a pack left installed would change the chooser counts J6-10
+    // asserts thousands of checks later.
+    if (!cfDash.wasInstalled) await page.evaluate(function () { Studio.removeDemoPack("campaignfinance"); });
+
     // ---- SP-6 (b): the pack's three dashboards ---------------------------------
     // The slice's claim is not "three specs exist" — it is that the FLOW the pack was
     // extracted for is really drawn, from the pack's own rows, narrowed by rules a reader
@@ -34448,9 +34621,10 @@ function serve() {
     });
     ok("J6: Escape closes the tutorial (tip, ring, and active flag all cleared)", j6Closed.ok, JSON.stringify(j6Closed));
 
-    // J6-5: tour shapes — seven tours (overview leads), quick has 8 steps, build has 6, jobs has 6,
+    // J6-5: tour shapes — eight tours (overview leads), quick has 8 steps, build has 6, jobs has 6,
     // connect has 9, conservation (LF40, pack-gated) has 7, marketcoverage (SP-1(c), pack-gated
-    // the same way) has 6. tourKeys() is the DECLARED order, not the visible one — both pack
+    // the same way) has 6, campaignfinance (SP-5(c), same again) has 6. tourKeys() is the
+    // DECLARED order, not the visible one — all three pack
     // tours are in it whether or not their pack is installed; the chooser-gating checks are
     // J6-10 below. N7 (2026-08-08) added the
     // catalog-toolbar stop to the two catalog tours (jobs 5→6, connect 8→9). Overview's own base is 13, but (LF40)
@@ -34461,18 +34635,18 @@ function serve() {
       try {
         var packs = Studio.DEMO_PACKS || {};
         var installedPackCount = Object.keys(packs).filter(function (id) { return Studio.demoPackInstalled(id); }).length;
-        return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build,jobs,connect,conservation,marketcoverage" &&
+        return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build,jobs,connect,conservation,marketcoverage,campaignfinance" &&
           StudioTutorial.stepCount("overview") === 13 + installedPackCount && StudioTutorial.stepCount("quick") === 8 &&
           StudioTutorial.stepCount("build") === 6 && StudioTutorial.stepCount("jobs") === 6 &&
           StudioTutorial.stepCount("connect") === 9 && StudioTutorial.stepCount("conservation") === 7 &&
-          StudioTutorial.stepCount("marketcoverage") === 6,
+          StudioTutorial.stepCount("marketcoverage") === 6 && StudioTutorial.stepCount("campaignfinance") === 6,
           keys: StudioTutorial.tourKeys().join(","), o: StudioTutorial.stepCount("overview"), installedPackCount: installedPackCount,
           q: StudioTutorial.stepCount("quick"), b: StudioTutorial.stepCount("build"),
           j: StudioTutorial.stepCount("jobs"), c: StudioTutorial.stepCount("connect"), cv: StudioTutorial.stepCount("conservation"),
-          mc: StudioTutorial.stepCount("marketcoverage") };
+          mc: StudioTutorial.stepCount("marketcoverage"), cf: StudioTutorial.stepCount("campaignfinance") };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("J6: seven tours registered — Overview (13-step base incl. the #23 glossary + TOUR-WOW's View Builder stop + N7's Views-catalog stop + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (6 — LF18(b) + N7's catalog-toolbar stop), Connections & Datasets (9 — LF18(b) + N7's catalog-toolbar stop), Conservation Insight pack (7 — LF40, pack-gated; N7 added the pinned-Views stop), Market Coverage pack (6 — SP-1(c), pack-gated the same way)", j6Shape.ok, JSON.stringify(j6Shape));
+    ok("J6: eight tours registered — Overview (13-step base incl. the #23 glossary + TOUR-WOW's View Builder stop + N7's Views-catalog stop + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (6 — LF18(b) + N7's catalog-toolbar stop), Connections & Datasets (9 — LF18(b) + N7's catalog-toolbar stop), Conservation Insight pack (7 — LF40, pack-gated; N7 added the pinned-Views stop), Market Coverage pack (6 — SP-1(c), pack-gated the same way), Campaign Finance pack (6 — SP-5(c), pack-gated the same way)", j6Shape.ok, JSON.stringify(j6Shape));
 
     // #23 (Kevin): the overview tour defines EVERY domain term — a glossary step
     // covers the full list one line each, and the terms missing from the walk
