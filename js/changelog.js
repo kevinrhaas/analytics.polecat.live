@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 989,
+    title: 'Help was the last document still calling a View a panel',
+    kind: 'fix',
+    ts: '2026-08-10T23:45:16.000Z',
+    items: [
+      'A chart on a dashboard is a <b>View</b>, and every control in the app says so. The Help page still said <b>panel</b> in its own sentences: a dashboard filter "applies to a panel", the keyboard chapter told you that clicking a mark "selects the panel for editing", and the height a View is saved at lived "where every panel\'s height lives" — a panel owning a View that owned a panel.',
+      'Twenty-one sentences now say View, and the panes keep their own word: the <b>Data</b> panel, the <b>Dashboard</b> panel and <b>Open the builder with side panels</b> are labels the app itself prints, so they are unchanged. The regions Help called panels in passing — the View Builder\'s <b>Datasets</b> pane, the What\'s-new feed\'s right-hand pane, the Data pane the page had already introduced as a pane one paragraph above — read as panes throughout now, so the same word no longer does two jobs on one page.',
+      'Three routes were renamed with them: the Quick Views <b>Result</b> step, Repository\'s <b>Quick edit</b> dialog, and the schema browser — each named after the thing you actually click.',
+      'A new check keeps it that way, and it draws the line from the app rather than from a style opinion: Help may print "panel" only inside a phrase the app itself prints. So <b>Panel title</b> (a real field) and the Data panel stay legal, an invented one fails the build, and the reverse mistake — renaming a pane to a View — fails it too.',
+    ],
+  },
+  {
     v: 988,
     title: 'The command palette was the last place the app still called a View a panel',
     kind: 'fix',

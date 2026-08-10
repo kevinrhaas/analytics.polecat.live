@@ -135,6 +135,73 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — Help was the last document still calling a View a panel (v989, NO sw bump,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  the v988 pass had left this as its named candidate: check 76 renamed the ⌘K palette's labels and
+  its own header recorded what it deliberately left — *"Help's chart-interaction prose says 'panel'
+  about the thing under a cursor"*, a vocabulary decision across a document rather than a
+  derivation. This is that decision, and the note's proposed shape turned out to be the wrong one.
+  **What was measured, and it changed the design before a line of Help was touched.** The note
+  said the rule "has to be check 15's stricter shape — outside `<code>`, the word must not
+  appear". A grep of the APP's own copy says that shape would have been wrong: `panel` appears in
+  **62 two-word phrases the app itself PRINTS** — `Panel title` is a real field label
+  (`app/build.js`), `Data panel` is the pane's own `aria-label`, `Open the builder with side
+  panels` is a Settings row — so a blanket ban would have made Help contradict the controls it
+  documents. **The line drawn instead is the app's, not the page's:** every `panel` in Help must
+  sit inside a two-word phrase the app itself prints. That is check 17 (a)'s idiom (*"the allowed
+  phrases are read out of app/*.js's own string literals rather than listed here"*) one noun over,
+  and it needs no taste to apply.
+  **What was drifting — 21 sentences, in three shapes.** The three the v988 note named
+  (`#filters-how`'s *"a filter applies to a panel when the panel's dataset…"*, and the
+  read-a-dashboard-by-keyboard chapter's *"wherever that panel has a detail drawer"* /
+  *"clicking a mark still selects the panel for editing"*, where every control named beside them
+  is a **View**); the PROPERTIES (*"where every panel's height lives"*, *"the panel's bottom
+  edge"*, *"value formats, panel height"*, *"not its panel grid"*, *"the saved View's panel"* — a
+  panel owning a View that owned a panel); and *"the panel inspector"* ×3, where Help's own
+  Query-preview paragraph two chapters above already says **the View inspector**. A fourth shape
+  was the reason the first three could hide: Help called the PANES panels in passing too (*"the
+  dataset panel next to it"*, *"the Datasets panel"*, *"in a right-hand panel"*, *"the panel leads
+  with an overview"*), so one word was doing two jobs on one page. Those read as **panes** now —
+  the vocabulary the same paragraphs already used (*"The Data panel (left pane)"*).
+  **What deliberately did NOT change:** `Panel title`, `Data panel`, `Dashboard panel`, `side
+  panels` and the inspector note's `text panel` — the app prints all five, and Help documenting a
+  control by the name it carries is the parity rule, not drift. One string moved into `<code>`
+  instead of being reworded: the dataset editor's live warning, `3 panels in 2 dashboards read
+  this dataset`, which is check 15's own sanctioned way to print a string the reader will
+  genuinely see. Three routes were renamed to the thing you actually click while the sentences
+  were open anyway — the Quick Views **Result** step, Repository's **Quick edit** dialog, and the
+  schema browser.
+  **The check.** Doc-truth **check 77**, premise + two rules. Both nouns come from
+  `addTextPanel()` exactly as check 76 derives them (the spec key it pushes into, the toast it
+  shows), so the two checks can never disagree about which word is retired; the exemption is
+  harvested from every `app/*.js` string literal (check 18's lexer + its by-shape identifier
+  rule) plus `app/index.html`'s text nodes AND its `title`/`aria-label` attributes — the pane's
+  own name for itself lives nowhere else. Closed-class words are not qualifiers (the app prints
+  *"a panel"* and *"the panel"* too, and honouring those would have exempted every drift site).
+  Rule (a) is the vocabulary rule; rule (b) is the negative half — no overshoot, since the
+  cheapest way to satisfy (a) is to replace the word everywhere and rename the builder's panes
+  with it, so no pane label (`setupMobileTabs`, check 19 (b)'s source) may be followed by the
+  rendered noun. `<p id="cmdk-labels">` is exempt, and the exemption is DERIVED: check 76 (c)
+  requires that paragraph to say the retired word for exactly as long as the palette keeps it as
+  a hidden synonym.
+  **Verification.** Rule (a) fails on the REAL pre-fix tree (21 sites, reported as sentence
+  fragments — check 15's idiom), and in BOTH code-side directions on mutated trees: delete
+  `Panel title` from `app/build.js`, or `Text panels` from `app/studio.js`, and Help's two
+  surviving quotes fail immediately, which is what proves the exemption is read live rather than
+  listed. Rule (b) fails on a mutated tree (a pane renamed to a View). The premise fails when
+  `addTextPanel`'s toast stops naming the rendered noun. Green after: `node tools/doc-truth.mjs`
+  (every published claim), `node tools/validate.mjs`, `node tools/changelog-check.js`,
+  `node tools/dev-smoke.mjs` at 390×780 + desktop, zero pageerrors. **No `sw.js` bump:**
+  `docs/index.html` is not precached (`sw.js:20` says so outright), and `tools/doc-truth.mjs`
+  never ships — same reasoning as every N7 slice since v915.
+  **One thing this pass measured and did NOT take, now the named candidate:** the APP itself
+  still calls a View a panel in the copy a reader sees — the canvas action tooltips (`Zoom panel
+  full-screen`, `Duplicate panel`, `Delete panel`), `app/datasets.js:916`'s impact warning,
+  `Add a panel` / `Dashboard has no panels or KPIs`, and the `Panel title` FIELD. v988's "the last
+  surface" was true of the palette only. It is the check-15→18 move, it is a code slice with an
+  `sw.js` CACHE bump, and the field label carries a product question (renaming a field people have
+  typed into for months is not free) — see the N7 list for the full measurement.
 - **N7 — the ⌘K palette was the last surface still calling a View a panel (v988, sw v564,
   2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
   takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
@@ -17549,7 +17616,7 @@
     Doc-truth **check 76** derives both nouns from `addTextPanel()` alone (it writes
     `S.spec.panels` and toasts "Text View added"), corroborates the rendered one against three
     surfaces, and holds the synonym in both directions against Help's own sentence.
-  * **Measured in the v988 pass and NOT taken, so the next run does not re-derive it — and it is
+  * ~~**Measured in the v988 pass and NOT taken, so the next run does not re-derive it — and it is
     the named candidate for the next N7 slice.** The noun rename stopped at the palette on
     purpose, and the surface it stopped short of is **Help's own chart-interaction prose**:
     `docs/index.html` still says "wherever that panel has a detail drawer", "clicking a mark still
@@ -17561,10 +17628,49 @@
     has to be check 15's stricter shape — outside `<code>`, the word must not appear — which
     needs a decision about the genuinely legitimate uses first (`spec.panels` is a real key a
     spec author reads, and SPEC.md documents it). **Pure derivation once that line is drawn**, and
-    it is one document. Also measured and **NOT N7's** (it is code, not copy): `app/palette.js`'s
+    it is one document.~~ ✓ **SHIPPED v989, NO sw bump (2026-08-10 — see DONE), and the decision
+    the note left open went the other way for a measured reason.** Check 15's blanket shape is
+    WRONG for this word: a grep of the app's own copy first — before a line of Help was touched —
+    found `panel` in 62 phrases the app itself PRINTS (`Panel title` is a field label in
+    `app/build.js`, `Data panel` is the pane's own `aria-label`, `Open the builder with side
+    panels` is a Settings row), so banning it outright would have made Help contradict the
+    controls it documents. The line drawn instead is the app's, not the page's: **every `panel`
+    in Help must sit inside a two-word phrase the app itself prints** — check 17 (a)'s idiom
+    ("the allowed phrases are read out of app/*.js's own string literals rather than listed
+    here"), one noun over. 21 sentences moved; the panes Help had been calling panels in passing
+    (the View Builder's `Datasets` pane, the What's-new feed's right-hand pane, the Data pane
+    the page introduces as a pane one paragraph above) now read as panes, so the same word stops
+    doing two jobs on one page. One string moved into `<code>` rather than being reworded —
+    the dataset editor's live warning, `3 panels in 2 dashboards read this dataset` — check 15's
+    own sanctioned way to print a string the reader will genuinely see. Doc-truth **check 77**,
+    premise + two rules; rule (a) fails on the real pre-fix tree (21 sites) and in BOTH code-side
+    directions on mutated trees (delete `Panel title` from `app/build.js`, or `Text panels` from
+    `app/studio.js`, and Help's two surviving quotes fail immediately — the exemption is read
+    live, not listed), rule (b) — the no-overshoot half, since the cheap way to satisfy (a) is to
+    replace the word everywhere and rename the panes with it — on a mutated tree, and the premise
+    when `addTextPanel`'s toast stops naming the rendered noun. Check 54's `applyInspSearch` row
+    moved with the document (it held the phrase "the panel inspector's search"). Also measured
+    and **NOT N7's** (it is code, not copy): `app/palette.js`'s
     matcher comment still illustrates the ANDed-terms rule with *"export panel" reaches "Export
     the current panel"* — a command label the palette has never printed. It is a comment, so no
     check can fail on it (check 12's rule) and none should.
+  * **Measured in the v989 pass and NOT taken, so the next run does not re-derive it — and it is
+    the named candidate for the next N7 slice.** Building check 77's exemption set is what
+    surfaced it: **the APP still calls a View a panel in the copy a reader sees**, in more
+    places than the palette ever did, and v988's "the last surface" was true only of the
+    palette. Measured, with sources: the panel-action tooltips on every View on the canvas —
+    `Zoom panel full-screen`, `Duplicate panel`, `Delete panel` (`app/studio-render.js`) — the
+    dataset editor's impact warning `3 panels in 2 dashboards read this dataset`
+    (`app/datasets.js:916`, the string Help now quotes inside `<code>` for exactly this reason),
+    `Add a panel` and `Dashboard has no panels or KPIs` (`app/model.js`), `Add more panels or
+    KPIs` and the Simple-mode What's-next card (`app/studio.js`), and the `Panel title` field
+    (`app/build.js`) — the one place where the retired noun is the LABEL a reader types into.
+    That is the check-15→18 move (the rule that finished Help finishes the app, one document
+    over, in the direction the other checks read FROM), and check 77 is scoped to
+    `docs/index.html` for that reason rather than by oversight. **It is a code slice with an
+    `sw.js` CACHE bump**, which is why the copy pass did not widen into it, and `Panel title`
+    carries a product question the others do not: renaming a field a reader has typed into for
+    months is not free, so whoever takes it should decide the label half deliberately.
 
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's

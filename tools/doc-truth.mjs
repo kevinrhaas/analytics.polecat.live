@@ -5053,7 +5053,9 @@ const SEARCH_SURFACES = [
   ["studio.js:buildLibrary", "the Data panel's My queries group", /\bMy queries\b/, "dataPanel"],
   ["studio.js:buildWorkspaceDatasets", "the Data panel's Datasets group", /\bDatasets\b/, "dataPanel"],
   ["explore.js:buildAnalysesLib", "the Data panel's Views group", /\bViews\b/, "dataPanel"],
-  ["studio.js:applyInspSearch", "the panel inspector's search", /panel inspector/i],
+  // N7/check 77 renamed Help's prose noun: the pane is the Inspector, and the thing it
+  // inspects is a View — so the phrase this row holds moved with the document.
+  ["studio.js:applyInspSearch", "the Inspector's search", /inspector[’']s search/i],
   // The gallery opens FROM the inspector, so its top-level home is renderPanelInspector —
   // a different surface from applyInspSearch's, with its own box and its own row.
   ["studio.js:renderPanelInspector", "the chart-type gallery", /chart-type gallery/i],
@@ -5115,7 +5117,7 @@ ok("docs/index.html: this page runs its own search, and the paragraph still says
   `own box, kit absent from the page: ${helpBoxIsOwn} · published as an exception: ${helpBoxPublished}\n      ` +
   "the one search box on this page is the one box these rules do not reach");
 
-// (e) the table panel's Filter rows box — the exception a reader meets inside their own
+// (e) the table View's Filter rows box — the exception a reader meets inside their own
 //     dashboard, and inside every export. Measured from the renderer, not asserted.
 const chartsSrc = read("app/studio-charts.js");
 const tableBody = (() => {
@@ -5126,7 +5128,7 @@ const tableBody = (() => {
 const tableBoxIsPlain = /class\s*=\s*"tbl-filter"|className = "tbl-filter"/.test(tableBody) &&
   /indexOf\(q\)\s*>=\s*0/.test(tableBody) && !/catalogSearch/.test(chartsSrc);
 const tableBoxPublished = /filter rows/i.test(boxPara) && /literal/i.test(boxPara) && /export/i.test(boxPara);
-ok("app/studio-charts.js + docs/index.html: a table panel's Filter rows box matches one literal string, and Help says so",
+ok("app/studio-charts.js + docs/index.html: a table View's Filter rows box matches one literal string, and Help says so",
   tableBoxIsPlain && tableBoxPublished,
   `plain substring match, kit absent from the renderer: ${tableBoxIsPlain} · published as an exception: ${tableBoxPublished}\n      ` +
   `paragraph: ${boxPara || "(not found)"}\n      ` +
@@ -8829,6 +8831,171 @@ if (kitLive) {
       `Help's #cmdk-labels promises the old word works: ${helpPromises} · it does: ${!unfindable.length}\n      ` +
       "a rename that quietly drops the word half the readers learned first is a regression wearing " +
       "a tidy label — the synonym is the whole reason this rename costs nobody anything");
+  }
+}
+
+/* ── 77. Help's own PROSE for the thing on a dashboard — check 76's move one document over ───
+   N7, and the check-14→15 move for a second noun: check 76 held the ⌘K palette's LABELS to the
+   app's rendered word ("View"), and its own header named what it deliberately left — "Help's
+   chart-interaction prose says 'panel' about the thing under a cursor", a vocabulary decision
+   across a whole document rather than a label rule. This is that decision, drawn the only way
+   that is a derivation rather than an opinion.
+
+   THE LINE, and it is the app's to draw, not the page's. `panel` is still the right word for a
+   PANE of the UI and for the app's own labels — the Data panel, the Panel title field, Open the
+   builder with side panels — so check 15's blanket ban ("outside <code>, the word must not
+   appear") would be wrong here in a way it was not wrong for `analyses`. What Help may NOT do is
+   invent the word: if the app never prints "<qualifier> panel", Help printing it is Help's own
+   vocabulary, and for the thing on a dashboard the app's word has been **View** since LF52/LF57.
+   So the exemption is READ OUT OF THE APP's own copy (check 17 (a)'s idiom, one noun over), and
+   the rule is what is left: every `panel` in Help sits inside a two-word phrase the app itself
+   prints, or it is drift.
+
+   Measured 2026-08-10, before the fix — 64 occurrences, 21 of them the page's own word:
+   · "a filter applies to a panel when the panel's dataset…" (#filters-how), "wherever that panel
+     has a detail drawer", "clicking a mark still selects the panel for editing" — the three the
+     v988 note named, and the last two are in the chapter about reading a dashboard by keyboard,
+     where every control named beside them is a View;
+   · the properties: "where every panel's height lives", "the panel's bottom edge", "value
+     formats, panel height", "not its panel grid", "the saved View's panel" — a View owning a
+     panel that owns the View;
+   · "the panel inspector" ×3, where Help's own Query-preview paragraph already says "the View
+     inspector";
+   · and the PANES, called panels where Help elsewhere calls them panes ("the dataset panel next
+     to it", "the Datasets panel", "in a right-hand panel", "the panel leads with an overview").
+     Those are not drift toward the retired noun so much as the same word doing two jobs — and
+     the second job is what let the first hide.
+
+   Two things stayed, because the app prints them: `Panel title` is a real field label
+   (app/build.js) and `text panel` is the inspector note's own phrase (app/studio.js). One moved
+   into <code> — the dataset editor's live warning, `3 panels in 2 dashboards read this dataset`
+   — check 15's sanctioned way to print a string the reader will genuinely see, and the app-side
+   drift it quotes is recorded in STATUS.md rather than fixed here (it is code in a precached
+   file, so it costs an sw.js CACHE bump).
+
+   Sources of truth. The two nouns come from `addTextPanel()` exactly as check 76 derives them
+   (the spec key it pushes into, the toast it shows), so the two checks can never disagree about
+   which word is retired. The exemption comes from the app's own copy: every two-word phrase
+   around `panel` in a string literal of any app/*.js module (check 18's lexer, and its by-shape
+   identifier rule) plus app/index.html's text nodes AND its title/aria-label attributes — the
+   pane's own "Collapse Data panel" lives there and nowhere else. Closed-class words (the, a,
+   this, every, no, of, in, and, …) are NOT qualifiers: the app prints "a panel" and "the panel"
+   too, and honouring those would exempt every drift site on the page.
+
+   Two rules:
+   (a) every `panel(s)` in Help, outside <code> and outside the one paragraph check 76 (c) owns,
+       is part of a phrase the app itself prints. The <p id="cmdk-labels"> exemption is derived
+       rather than chosen: check 76 (c) REQUIRES that paragraph to say the retired word, in both
+       directions, for exactly as long as the palette keeps it as a hidden synonym.
+   (b) the negative half — no overshoot. A word-sweep that renames every "panel" also renames
+       the panes, so Help must never call one of the builder's own panes a View: the pane roster
+       is setupMobileTabs()'s labels (check 19 (b)'s source), and none of them may be followed
+       by the rendered noun. */
+{
+  // ── the two nouns, derived the way check 76 derives them (one source, no twin to drift).
+  const addTextSrc77 = (() => {
+    const at = studioJs.indexOf("function addTextPanel(");
+    return at < 0 ? "" : searchBlockAt(studioJs, studioJs.indexOf("{", at), "{", "}");
+  })();
+  const internalKey77 = (addTextSrc77.match(/spec\.(\w+)\.push\(/) || [])[1] || "";     // "panels"
+  const internalNoun77 = internalKey77.replace(/s$/, "");                               // "panel"
+  const toastPhrase77 = (addTextSrc77.match(/toast\("([^"]*?)\s+added\b/) || [])[1] || "";
+  const renderedNoun77 = (toastPhrase77.match(/\b[A-Z][a-z]+\b(?!.*\b[A-Z][a-z]+\b)/) || [])[0] || "";
+
+  // ── the app's own copy, and the two-word phrases it prints around that noun.
+  const APP_JS = fs.readdirSync(path.join(ROOT, "app"))
+    .filter((f) => f.endsWith(".js")).map((f) => "app/" + f).sort();
+  const stripTags = (s) => s.replace(/<[^>]*>/g, " ");
+  const words = (s) => stripTags(s).replace(/[’']/g, "'").match(/[A-Za-z][A-Za-z'-]*/g) || [];
+  // Closed classes only — determiners, quantifiers, pronouns, prepositions, conjunctions,
+  // auxiliaries and cardinals. A qualifier has to NAME something; "the panel" names nothing,
+  // and the app says "the panel" too, so honouring it would exempt the whole page.
+  const CLOSED = new Set(("the a an this that these those its it their there our your my his her " +
+    "each every any no some all both other another same such one two three four five six seven " +
+    "eight nine ten and or but if so than then of in on at to for with from by into onto per as " +
+    "is are was were be been being has have had which who whom whose what when where while not " +
+    "you we they he she i me us them do does did can could will would should may might must").split(" "));
+  const NOUN_RE = internalNoun77 ? new RegExp(`^${internalNoun77}s?$`, "i") : /$^/;
+  const norm = (w) => w.toLowerCase().replace(/'s$/, "").replace(/^(.*?)s$/, (m, b) =>
+    NOUN_RE.test(m) ? internalNoun77 : m);
+  // Every phrase the app prints AROUND the noun: "<qualifier> panel" and "panel <head>".
+  const appPhrases = new Set();
+  const harvest = (text, src) => {
+    const w = words(text);
+    w.forEach((tok, i) => {
+      if (!NOUN_RE.test(tok.replace(/'s$/, ""))) return;
+      const before = i > 0 ? norm(w[i - 1]) : "", after = i + 1 < w.length ? norm(w[i + 1]) : "";
+      if (before && !CLOSED.has(before)) appPhrases.add(before + " " + internalNoun77);
+      if (after && !CLOSED.has(after)) appPhrases.add(internalNoun77 + " " + after);
+    });
+    return src;
+  };
+  const IDENTISH77 = /^[#.]?[a-z][\w.:>[\]="-]*$/;      // check 18's by-shape identifier rule
+  const appLits = APP_JS.flatMap((f) => [...read(f).matchAll(
+    /\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g)]
+    .map((m) => m[0]).filter((s) => s[0] === '"' || s[0] === "'").map((s) => s.slice(1, -1))
+    .filter((s) => !IDENTISH77.test(s)));
+  appLits.forEach((s) => harvest(s));
+  const appMarkup = read("app/index.html").replace(/<!--[\s\S]*?-->/g, " ");
+  // Text nodes AND the attributes a reader is read to: "Collapse Data panel" is an aria-label
+  // and lives nowhere else, so a text-node-only sweep would miss the pane's own name for itself.
+  harvest(appMarkup.replace(/<[^>]*>/g, " "));
+  [...appMarkup.matchAll(/\b(?:title|aria-label|placeholder)="([^"]*)"/g)].forEach((m) => harvest(m[1]));
+
+  // ── the pane roster, off setupMobileTabs (check 19 (b)'s source).
+  const paneLabels77 = [...fnBody(studioJs, "setupMobileTabs")
+    .matchAll(/\{\s*id:\s*"\w+",\s*label:\s*"([^"]+)"/g)].map((m) => m[1]);
+
+  const premise77 = ok(`app/*.js + app/index.html: the noun and the app's own "${internalNoun77 || "?"}" phrases ` +
+    `parsed for check 77 (${appPhrases.size} phrase(s), ${paneLabels77.length} pane label(s))`,
+    !!internalNoun77 && !!renderedNoun77 && internalNoun77 !== renderedNoun77 &&
+      renderedNoun77 === savedNoun && appPhrases.size >= 8 && appPhrases.has("data " + internalNoun77) &&
+      paneLabels77.length >= 3 && appLits.length > 500,
+    `internal "${internalNoun77 || "?"}" (spec.${internalKey77 || "?"}) · rendered "${renderedNoun77 || "?"}" ` +
+    `(addTextPanel's toast, and check 14's "${savedNoun}")\n      ` +
+    `app phrases: ${[...appPhrases].sort().join(" · ") || "(none)"}\n      ` +
+    `panes: ${paneLabels77.join(" · ") || "(none)"} · app copy literals: ${appLits.length}\n      ` +
+    "the exemption IS this set — if it cannot be read out of the app, rule (a) below is an " +
+    "opinion about words rather than a measurement, and it must fail loudly instead");
+
+  if (premise77) {
+    // (a) Help's own uses, held to the app's phrases. <code> is the sanctioned way to print a
+    //     string the reader will see (check 15), and #cmdk-labels is check 76 (c)'s paragraph.
+    const helpProse77 = help
+      .replace(/<!--[\s\S]*?-->/g, " ")
+      .replace(/<code>[\s\S]*?<\/code>/g, " ")
+      .replace(/<p id="cmdk-labels">[\s\S]*?<\/p>/g, " ");
+    const flat = stripTags(helpProse77).replace(/[’']/g, "'").replace(/\s+/g, " ");
+    const toks = [...flat.matchAll(/[A-Za-z][A-Za-z'-]*/g)];
+    const strayHelp = [];
+    toks.forEach((m, i) => {
+      const tok = m[0];
+      // "side-panels" is one token to a reader and two to the rule: split it the same way.
+      const parts = tok.split("-");
+      const hitAt = parts.findIndex((p) => NOUN_RE.test(p.replace(/'s$/, "")));
+      if (hitAt < 0) return;
+      const before = hitAt > 0 ? norm(parts[hitAt - 1]) : (i > 0 ? norm(toks[i - 1][0].split("-").pop()) : "");
+      const after = hitAt + 1 < parts.length ? norm(parts[hitAt + 1])
+        : (i + 1 < toks.length ? norm(toks[i + 1][0].split("-")[0]) : "");
+      if (appPhrases.has(before + " " + internalNoun77) || appPhrases.has(internalNoun77 + " " + after)) return;
+      strayHelp.push(`docs/index.html: "…${flat.slice(Math.max(0, m.index - 60), m.index + 40).trim()}…"`);
+    });
+    ok(`docs/index.html: Help calls the thing on a dashboard a "${renderedNoun77}" — "${internalNoun77}" only in a phrase the app itself prints`,
+      !strayHelp.length,
+      `${strayHelp.join("\n      ") || "(none)"}\n      ` +
+      `the app prints: ${[...appPhrases].sort().join(" · ")}\n      ` +
+      `LF52/LF57 renamed every word the reader sees; Help kept the old one in its own sentences, ` +
+      `where a "${internalNoun77}" owned a "${renderedNoun77}" that owned a "${internalNoun77}"`);
+
+    // (b) the negative half: a sweep of this word must not rename the PANES with it.
+    const overshoot = paneLabels77.flatMap((lab) =>
+      [...stripTags(help).matchAll(new RegExp(`\\b${esc(lab)}\\s+${esc(renderedNoun77)}s?\\b`, "g"))]
+        .map((m) => `docs/index.html: "${m[0]}" — "${lab}" is a pane of the builder, not a ${renderedNoun77}`));
+    ok(`docs/index.html: no pane of the builder (${paneLabels77.join(", ")}) is renamed to a "${renderedNoun77}"`,
+      !overshoot.length,
+      `${[...new Set(overshoot)].join("\n      ") || "(none)"}\n      ` +
+      "the cheapest way to satisfy rule (a) is to replace the word everywhere, which would " +
+      "rename the panes too — this is the half of the vocabulary that must NOT move");
   }
 }
 
