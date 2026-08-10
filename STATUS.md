@@ -135,6 +135,70 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — Home's own page vs the chapter that introduces it (v981, NO sw bump, 2026-08-10,
+  steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only takeable item in
+  ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and v980 parked both of
+  its finds as code rather than copy, so no candidate was standing. This pass repeated check 67's
+  **altitude** move one page over: eight checks read things a reader reaches THROUGH Home, and
+  **nothing had ever read the page Home renders first.**
+  **Two candidates were measured first and found CLEAN**, which is why the slice is Home and not
+  either of them — a check with no drift to fix is worth building the day the source changes, not
+  today. (1) `site/chart-gallery.js`, the marketing gallery's generated dump, is held only on its
+  COUNT (`galleryTypes === N`, doc-truth's early block) and not on its labels/groups/descs — but
+  re-running `tools/gen-chart-gallery.mjs` produced a byte-identical file, so there is nothing
+  stale in it. (2) the landing page's `#themes` section claims *"Seven chrome palettes"* and names
+  four in its figcaptions; `APP_THEME_KEYS`/`APP_THEME_LABELS` really do ship seven, and all four
+  captions are verbatim labels. Check 40's header already scopes itself to `docs/index.html` for
+  the theme rosters; that scope is still correct.
+  **The chapter opened its list at the FOURTH thing on the screen.** `renderHome()`
+  (`app/studio.js:6426`) paints a "Welcome back" hero, then a grid of quick-start cards, then a
+  rotating tip, then — once the workspace has workbooks — a chip strip, and only then the content
+  sections the chapter described. **All eight cards were undocumented here.** Four are named in
+  passing in other chapters (Quick import in Getting started, Sample dashboards in the packs
+  chapter, Take the tour in Admin, New Quick View in the builder chapter) and four — **New View,
+  New dashboard, New connection, New dataset** — appeared nowhere on the page as a Home affordance
+  at all. The card grid is the whole above-the-fold of Home, so the page documenting Home began
+  below it. The new subsection lists all eight, states that **Sample dashboards** appears only
+  while an installed pack really contributes examples (N32's own rule), and names the four a
+  **viewer**-role account does not get, with the reason (they all route into the builder, which
+  `currentUserCanDevelop()` never opens to a viewer — Home drops them rather than ship a dead
+  click).
+  **Three more drifts, all in the same direction — the reader is told less than the page shows.**
+  (1) The reorderable-section list published **Featured, Pinned, Favorites, Examples, Dashboards**,
+  and two of those are not what the headings say: `HOME_SECTION_LABELS` (`app/studio.js:6395`)
+  renders **Pinned Views** and **Favorite datasets & connections**. A reader scanning headings for
+  "Favorites" finds nothing — paraphrasing a heading is the expensive kind of near-miss. (2) The
+  **Dashboards** section draws TWO nested strips, **Pinned** and **Recent dashboards**, and only
+  the second was named, even though the chapter's own Clear-recents bullet points at that heading.
+  So pinned dashboards (`loadPins()`, the ★ on a dashboard card) were invisible while pinned
+  **Views** had a section of their own three bullets above — the exact pair a reader confuses.
+  (3) The workbook chip strip was absent, and a section that silently hides itself when empty was
+  never stated as doing so.
+  Doc-truth **check 69**, premise + five rules, every fact read from inside `renderHome()` so there
+  is no second copy to keep in sync: the `cards` array literal (its `t:` titles ARE the words on
+  the buttons), the `currentUserCanDevelop()` filter's own act list, `HOME_SECTION_LABELS`, the
+  `home-sub-nested` headings scoped to the `dashboards:` section body (so the Examples section's
+  per-pack headings, same class with an attribute in between, stay out), and `wbChipDefs`' two
+  FIXED chips — the chips between them carry the reader's own workbook names and so cannot be held.
+  Rules: (a) the card list, both directions, inside `#home-quick-cards` only, so the viewer
+  paragraph's repeats below cannot satisfy it; (b) the viewer-hidden set, named rather than counted;
+  (c) the section labels **verbatim**, both directions; (d) both strips in Dashboards; (e) the two
+  fixed workbook chips. Two enumerations that sit mid-sentence got a `<span id>` of their own
+  (check 68's idiom) so the prose around them can neither satisfy nor fail a rule.
+  **Eight failure modes measured, each failing its own rule and only its own** — Help dropping a
+  card, Help inventing one, the app renaming one, Help dropping a viewer-hidden card, the gate
+  ceasing to hide one, Help paraphrasing two headings (this is literally the pre-fix copy, and it
+  fails), Help dropping the Pinned strip, and the app renaming the `Unfiled` chip. **One honest
+  note on the last:** renaming `Unfiled` also reddens checks 56 and 57, which own that same word as
+  a shared filter pill — that is correct behaviour (three documents name one string), not a leak,
+  and rule (e) fired alongside them.
+  **Measured in the same pass and NOT taken, so the next run does not re-derive it:** Home's
+  rotating tip strip is documented in one clause and NOT held by a rule — `HOME_TIPS` is a prose
+  list of hand-written sentences, so holding a Help page to it would be transcription, not
+  derivation. And the chapter's *"click the small house button"* for Featuring is copy about an
+  ICON: the button's own `title` is `Feature on Home (live preview)`, so what the glyph looks like
+  is a CSS question, and check 69 holds the affordance's presence through the section list rather
+  than the picture. The two v922 candidates are still open and still Kevin's calls.
 - **N7 — the Quick Views mapping grid vs the chapter that documents it (v980, NO sw bump,
   2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
   takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
@@ -16962,7 +17026,8 @@
     their pre-parenthesis stem, because Explore and the registry word the same option's tail
     differently. Twelve failure modes measured, each failing its own rule and only its own.
     **Measured in the same pass and NOT taken, so the next run does not re-derive it** — both code
-    rather than copy, both in the precached `app/explore.js` (issue #631's territory): the
+    rather than copy, both in the precached `app/explore.js` (issue #631's territory, and both
+    still open — v981 took a copy slice instead): the
     hard-coded **Region scale** choice list, which has drifted to six where the registry's `scale`
     opt has seven — the exact second-hardcoded-list problem the `renderer` row beneath it was
     refactored to avoid; and `Reference series (never joins the estimate)` against the registry's
@@ -16971,6 +17036,26 @@
     navigator description, the `+ New dashboard` / `Existing dashboard…` pair, the live-run sample
     fallback, and its six region scales against the six Explore renders. The two v922 candidates are
     still open and still Kevin's calls.
+  * *Home's own page vs the chapter that introduces it — v981, NO sw bump (2026-08-10 — see DONE).*
+    No candidate was standing again (v980 parked both of its finds as code), so this pass repeated
+    check 67's ALTITUDE move one page over: eight checks read things a reader reaches THROUGH Home,
+    and **nothing had ever read the page Home renders first**. The chapter's list opened at the
+    fourth thing on the screen — **all eight quick-start cards were undocumented here**, four of
+    them named nowhere on the page at all (New View, New dashboard, New connection, New dataset).
+    Three more drifts in the same direction: the section list published **Pinned** and
+    **Favorites** for headings that render **Pinned Views** and **Favorite datasets &
+    connections**; the **Dashboards** section's two nested strips had only **Recent dashboards**
+    named, leaving pinned DASHBOARDS invisible three bullets below a Pinned **Views** section; and
+    the workbook chip strip was absent. Doc-truth **check 69**, premise + five rules, everything
+    read from inside `renderHome()`. Eight failure modes measured, each failing its own rule and
+    only its own.
+    **Two candidates measured FIRST and found clean, so the next run does not re-derive them:**
+    `site/chart-gallery.js` regenerates byte-identically (its labels/groups/descs are unheld but
+    unstale), and the landing page's *"Seven chrome palettes"* + four figcaptions match
+    `APP_THEME_KEYS`/`APP_THEME_LABELS` exactly.
+    **Measured in the same pass and NOT taken:** Home's rotating tip strip is documented in one
+    clause and deliberately unheld — `HOME_TIPS` is hand-written prose, so a rule over it would be
+    transcription, not derivation. The two v922 candidates are still open and still Kevin's calls.
 
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's

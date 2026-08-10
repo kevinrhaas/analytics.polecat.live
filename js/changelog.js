@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 981,
+    title: 'The Help page started describing Home at the fourth thing on the screen',
+    kind: 'fix',
+    ts: '2026-08-10T20:24:25.000Z',
+    items: [
+      'Home opens on a row of <b>quick-start cards</b> — New View, New Quick View, New dashboard, New connection, New dataset, Quick import, Sample dashboards and Take the tour — and the chapter documenting Home began below them, with the content sections. Four of the eight were named in passing in other chapters and four were named nowhere at all. All eight are now listed where a reader looks for them, including why <b>Sample dashboards</b> comes and goes with your installed packs, and which four a <b>viewer</b>-role account does not get.',
+      'The section list published two labels the headings do not use: it said "Pinned" and "Favorites" where Home renders <b>Pinned Views</b> and <b>Favorite datasets &amp; connections</b>. It now uses the words on screen, and says that a section hides itself while it is empty — except <b>Dashboards</b>, which always renders.',
+      'The <b>Dashboards</b> section draws two strips, <b>Pinned</b> and <b>Recent dashboards</b>, and only the second was ever named — so pinned dashboards were invisible on the page while <i>pinned Views</i> had a section three bullets above, which is exactly the pair people confuse. Both are now documented as the different things they are. The workbook chip strip (All · your workbooks · Unfiled) got its first mention too.',
+      'A new doc-truth check reads Home\'s own render — the card grid, the gate that hides cards from viewers, the section labels, the strips inside Dashboards and the workbook chips — and holds the chapter to all of it in both directions. A card added, retired or renamed, or a heading reworded, now fails the dev gate instead of quietly outliving its documentation.',
+    ],
+  },
+  {
     v: 980,
     title: 'Help sent Quick Views users hunting for two map controls that live in the builder',
     kind: 'fix',
