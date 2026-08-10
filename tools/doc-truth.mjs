@@ -6941,6 +6941,130 @@ if (kitLive) {
   }
 }
 
+/* ── Check 64 — "Ensembles & scientific honesty": the chapter that argues the app's honesty
+   case, held to the two registries it argues about. It was the last `<h2>` nothing derived,
+   and the drift ran straight through its thesis. The chapter said the combined value IS "the
+   median" — unconditionally, five times — while both charts make the combination a SETTING:
+   `ensembleSeries.agg` is a select (Median (recommended) / Mean) that `_ensembleSeries` feeds
+   to `aggValues` for the bold line, and `choropleth.agg` offers six ways (median / mean / sum /
+   min / max / last) to turn several rows for one region into one colour. Worse for a reader
+   looking for the word: the chart never PRINTS "median" — the legend, the hover tooltip and the
+   Download-data rows all print `medianLabel`, whose default is "Common estimate" — so the page
+   named the estimate one thing and the product another. The same paragraph stated four display
+   behaviours (providers drawn, chips clickable, band drawn, reference series hollow) as facts,
+   where each is an inspector option that can be off.
+   Sources of truth: `Studio.CHARTS` EVALUATED (the shared `M` model, so labels, choices and
+   defaults are exact), plus the renderer's own fallback string — rule (e) holds those two to
+   each other as well as to the page, since a fallback that drifted from the registry default
+   would make the docs wrong without either file looking wrong alone. Rule (f) uses the
+   chapter's own idiom — "the <strong>X</strong> option" — so naming a control that no longer
+   exists fails here rather than reading plausibly forever. */
+{
+  const ens = M.CHARTS.ensembleSeries, choro = M.CHARTS.choropleth;
+  const optOf = (c, key) => ((c && c.opts) || []).find((o) => o.key === key) || null;
+  const ensAgg = optOf(ens, "agg"), choroAgg = optOf(choro, "agg"), estOpt = optOf(ens, "medianLabel");
+  const choiceLabels = (o) => ((o && o.choices) || []).map((c) => c[1]);
+  // The renderer's own name for the estimate — the string the legend swatch, the tooltip and
+  // the CSV rows fall back to. One expression, spent three times in app/studio-charts.js.
+  const rendererFallback = (read("app/studio-charts.js").match(/cfg\.medianLabel \|\| "([^"]+)"/) || [])[1] || "";
+
+  const ensAt = help.indexOf('<section id="ensembles">');
+  const ensHtml = ensAt < 0 ? "" : help.slice(ensAt, help.indexOf("</section>", ensAt) + 10);
+  const estAt = ensHtml.indexOf('<p id="ensemble-estimate">');
+  const estPara = estAt < 0 ? "" : ensHtml.slice(estAt, ensHtml.indexOf("</p>", estAt));
+  const estText = htmlText(estPara);
+  // `[^<]*` rather than a lazy any: a bolded phrase never nests a tag, and a lazy match would
+  // happily run from one paragraph's <strong> to another's </strong> to satisfy the idiom below.
+  const boldIn = (html) => [...html.matchAll(/<strong>([^<]*)<\/strong>/g)].map((m) => htmlText(m[1]).trim());
+  const estBold = new Set(boldIn(estPara));
+  const chapterBold = new Set(boldIn(ensHtml));
+  // The chapter's idiom for naming a control: "the <strong>X</strong> option". Only these read
+  // as option NAMES — a bolded value (the label's own default, printed a second time) does not.
+  const namedOptions = [...ensHtml.matchAll(/<strong>([^<]*)<\/strong>\s*option\b/g)]
+    .map((m) => htmlText(m[1]).trim());
+  const allOptLabels = new Set([...((ens && ens.opts) || []), ...((choro && choro.opts) || [])].map((o) => o.label));
+
+  // (a) the premise. Five rules dereference these registries and this chapter; an empty
+  // chapter, a renamed anchor or a registry that stops evaluating must fail HERE rather than
+  // let the coverage rules pass over nothing.
+  const ensPremise = ok(`docs/index.html: the Ensembles chapter parsed for check 64 ` +
+    `(${choiceLabels(ensAgg).length} estimate choice(s), ${choiceLabels(choroAgg).length} map combine choice(s), ` +
+    `${namedOptions.length} option(s) named, ${chapterBold.size} bolded phrase(s))`,
+    !!ensHtml && !!estPara && !!ensAgg && !!choroAgg && !!estOpt &&
+      choiceLabels(ensAgg).length >= 2 && choiceLabels(choroAgg).length >= 2 &&
+      !!estOpt.def && !!rendererFallback && namedOptions.length >= 6,
+    `<section id="ensembles"> found: ${!!ensHtml} · <p id="ensemble-estimate"> found: ${!!estPara}\n      ` +
+    `ensembleSeries.agg: ${ensAgg ? choiceLabels(ensAgg).join(" / ") : "(missing)"}\n      ` +
+    `choropleth.agg: ${choroAgg ? choiceLabels(choroAgg).join(" / ") : "(missing)"}\n      ` +
+    `medianLabel default: ${estOpt ? JSON.stringify(estOpt.def) : "(missing)"} · ` +
+    `renderer fallback: ${JSON.stringify(rendererFallback)}`);
+
+  if (ensPremise) {
+    // (b) the Ensemble chart's own question. Every way it can combine the toggled-on providers
+    // is published, by the label the inspector prints, and the control is named AS a control —
+    // the half the chapter was missing entirely while asserting one of the two answers.
+    const ensMissing = choiceLabels(ensAgg).filter((l) => !estBold.has(l));
+    ok(`docs/index.html: all ${choiceLabels(ensAgg).length} ways the Ensemble chart can combine its providers are published, and the control is named`,
+      !ensMissing.length && namedOptions.includes(ensAgg.label),
+      `unpublished choice(s): ${ensMissing.join(", ") || "(none)"}\n      ` +
+      `the inspector offers: ${choiceLabels(ensAgg).join(" · ")}\n      ` +
+      `"${ensAgg.label}" named as an option: ${namedOptions.includes(ensAgg.label)}`);
+
+    // (c) the map's, which is the wider one — six answers, and four of them (sum/min/max/last)
+    // are not a "common estimate" at all, so a page arguing the median's honesty owes the
+    // reader the fact that its own map will happily total the rows instead.
+    const choroMissing = choiceLabels(choroAgg).filter((l) => !estBold.has(l));
+    ok(`docs/index.html: all ${choiceLabels(choroAgg).length} ways the map can combine duplicate rows are published, and the control is named`,
+      !choroMissing.length && namedOptions.includes(choroAgg.label),
+      `unpublished choice(s): ${choroMissing.join(", ") || "(none)"}\n      ` +
+      `the inspector offers: ${choiceLabels(choroAgg).join(" · ")}\n      ` +
+      `"${choroAgg.label}" named as an option: ${namedOptions.includes(choroAgg.label)}`);
+
+    // (d) the negative half, and it is exhaustive by construction rather than by a word list:
+    // this paragraph bolds exactly three kinds of thing — an option's label, an option's own
+    // default value, and a combination method — so anything bolded here that is not one of the
+    // first two has to be a method a chart really offers. A shape rule ("Median|Mean|Sum…")
+    // would read straight past an invented method with a new name, which is the likelier drift.
+    // Read on the estimate paragraph alone: "Last updated" in the popover list below is a
+    // heading, not a method.
+    const methods = new Set([...choiceLabels(ensAgg), ...choiceLabels(choroAgg)]);
+    const invented = [...estBold].filter((b) => !methods.has(b) && !allOptLabels.has(b) && b !== String(estOpt.def));
+    ok("docs/index.html: the estimate paragraph bolds no combination method the charts do not offer",
+      !invented.length,
+      `bolded but offered by neither chart: ${invented.join(", ") || "(none)"}\n      ` +
+      `the two registries offer: ${[...methods].join(" · ")}`);
+
+    // (e) the NAME the reader will actually see. The registry default and the renderer's
+    // fallback are held to each other first (a silent split there makes both files look right),
+    // then to the page — and the page has to say WHERE the name is spent, because "median" was
+    // findable in none of those three places.
+    const printed = String(estOpt.def);
+    ok(`docs/index.html: the estimate's on-screen name ("${printed}") is published, and the registry and the renderer agree on it`,
+      printed === rendererFallback && estBold.has(printed) && namedOptions.includes(estOpt.label) &&
+        /legend/i.test(estText) && /tooltip/i.test(estText) && /downloaded data/i.test(estText),
+      `registry default: ${JSON.stringify(printed)} · renderer fallback: ${JSON.stringify(rendererFallback)}\n      ` +
+      `published in the estimate paragraph: ${estBold.has(printed)} · ` +
+      `"${estOpt.label}" named as an option: ${namedOptions.includes(estOpt.label)}\n      ` +
+      `names where it is printed — legend: ${/legend/i.test(estText)} · tooltip: ${/tooltip/i.test(estText)} · ` +
+      `downloaded data: ${/downloaded data/i.test(estText)}`);
+
+    // (f) the four behaviours the chapter states as facts are each an option that can be off,
+    // so each is named by the label the inspector prints for it — derived by KEY, so renaming
+    // one in the registry moves this rule with it. The other direction closes the loop: an
+    // option name the chapter spends must still exist, which is the `ⓘ Tour` class of drift
+    // (check 41 (g), check 44 (f)) one chapter over.
+    const governing = ["showBand", "showProviders", "showToggles", "refSeries"]
+      .map((k) => optOf(ens, k)).filter(Boolean).map((o) => o.label);
+    const unnamed = governing.filter((l) => !namedOptions.includes(l));
+    const dead = namedOptions.filter((n) => !allOptLabels.has(n));
+    ok(`docs/index.html: every behaviour the chapter states as a fact names the option that governs it (${governing.length}), and every option it names is real`,
+      !unnamed.length && !dead.length && governing.length === 4,
+      `stated without naming its option: ${unnamed.join(", ") || "(none)"}\n      ` +
+      `named here but offered by neither chart: ${dead.join(", ") || "(none)"}\n      ` +
+      `the chapter names: ${namedOptions.join(" · ")}`);
+  }
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

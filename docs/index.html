@@ -1362,31 +1362,47 @@
 <section id="ensembles">
   <h2>Ensembles &amp; scientific honesty</h2>
   <p>When several sources estimate the same thing — several vendors' models, several surveys, several
-  labs — the <strong>Ensemble</strong> chart and the <strong>Map (US choropleth)</strong> chart are built
+  labs — the <strong>Ensemble (common estimate)</strong> chart and the <strong>Map (US choropleth)</strong> chart are built
   around one rule: <strong>the common estimate is the product, not a leaderboard.</strong> The sections
   below explain the design choices behind that rule and how to read (or build) an honest ensemble
   dashboard.</p>
 
-  <h3>The median is bold; providers are supporting evidence</h3>
-  <p>On both charts, the combined value — the <strong>median</strong> of whichever sources are currently
-  toggled on — always renders as the boldest, most prominent element: a thick line on Ensemble, the fill
-  color on the map. Individual providers draw thin and muted (hollow dots, low opacity) — present so you
-  can inspect the underlying evidence, but never competing visually with the estimate itself. Toggling a
-  provider off (click its chip under an Ensemble chart) removes it from the median calculation everywhere
-  it's used, including any map sharing the same <strong>ensemble channel</strong> (the map's Provider/series
-  column option) — both charts recompute and re-render live from the same reduced set.</p>
+  <h3>The common estimate is bold; providers are supporting evidence</h3>
+  <p id="ensemble-estimate">On both charts, the combined value — computed across whichever sources are
+  currently toggled on — always renders as the boldest, most prominent element: a thick line on Ensemble,
+  the fill color on the map. <em>Which</em> combination that is, is yours to set, and the two charts ask it
+  differently: the Ensemble chart's <strong>Common estimate</strong> option offers
+  <strong>Median (recommended)</strong> and <strong>Mean</strong>, while the map's
+  <strong>Combine duplicate rows by</strong> option — how several rows for one region become one color —
+  offers <strong>Median (common estimate)</strong>, <strong>Mean</strong>, <strong>Sum</strong>,
+  <strong>Min</strong>, <strong>Max</strong> and <strong>Last</strong>. Both default to the median, and the
+  median is what this page's honesty argument is written around: it is the choice a single outlying provider
+  cannot drag. The bold line is named by the chart's <strong>Estimate label</strong> option —
+  <strong>Common estimate</strong> unless you change it — and that name is what the legend, the hover
+  tooltip and the downloaded data all print, so what you read follows the setting instead of assuming a
+  median.</p>
+  <p>Individual providers draw thin and muted (hollow dots, low opacity) — present so you can inspect the
+  underlying evidence, but never competing visually with the estimate itself; the
+  <strong>Show provider series</strong> option hides them when you want the estimate alone. Toggling a
+  provider off (click its chip under an Ensemble chart, unless the
+  <strong>Provider on/off toggles</strong> option is off) removes it from the combination everywhere it's
+  used, including any map on the same <strong>Ensemble channel</strong> option — both charts have that
+  option, and the map also needs its <strong>Provider / series column</strong> mapped. Both recompute and
+  re-render live from the same reduced set.</p>
 
   <h3>The agreement band is a confidence signal, not decoration</h3>
-  <p>The translucent band around the Ensemble chart's median line spans the full range of the toggled-on
-  providers at each point. Read it literally: a <strong>tight band means the sources agree</strong> (high
-  confidence in the estimate there), and a <strong>wide band means they don't</strong> (treat that point
-  with more caution). It is not a stylistic flourish — it's the chart's way of showing uncertainty honestly
-  instead of hiding it behind a single confident-looking line.</p>
+  <p>The translucent band around the Ensemble chart's estimate line — drawn by the
+  <strong>Agreement band (confidence)</strong> option, which can also turn it off — spans the full range of
+  the toggled-on providers at each point. Read it literally: a <strong>tight band means the sources
+  agree</strong> (high confidence in the estimate there), and a <strong>wide band means they don't</strong>
+  (treat that point with more caution). It is not a stylistic flourish — it's the chart's way of showing
+  uncertainty honestly instead of hiding it behind a single confident-looking line.</p>
 
   <h3>A reference series is context, never the estimate</h3>
-  <p>Both charts support an optional <strong>reference series</strong> (e.g. an independent census or
-  ground-truth figure) drawn as hollow markers, visually distinct from the provider lines and the median.
-  A reference series is deliberately excluded from the median calculation — it's there to let a viewer
+  <p>Both charts support an optional reference series — the Ensemble chart's
+  <strong>Reference series (excluded from the estimate)</strong> option (e.g. an independent census or
+  ground-truth figure) — drawn as hollow markers, visually distinct from the provider lines and the
+  estimate. A reference series is deliberately excluded from the combination — it's there to let a viewer
   compare the ensemble's estimate against an outside benchmark, not to be folded into the estimate itself.</p>
 
   <h3>No-data is shown, never guessed</h3>
@@ -1416,7 +1432,8 @@
   <p>Both charts' <strong>Download data</strong> button (the same on-canvas control every View has —
   see "Downloading a View's image or data" below) exports exactly the selection currently shown — the
   map's region id/value pairs post-aggregation, or the Ensemble chart's long-format label/provider/value
-  rows for the toggled-on providers plus the computed median and any reference series — instead of the
+  rows for the toggled-on providers plus the computed estimate (under whatever name the
+  <strong>Estimate label</strong> option carries) and any reference series — instead of the
   raw bound query. Re-download after toggling a provider and the file reflects the new selection — a
   quick way to hand a stakeholder the same numbers the chart is drawing from.</p>
 

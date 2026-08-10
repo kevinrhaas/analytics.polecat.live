@@ -135,6 +135,58 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the honesty chapter vs the two registries it argues about (v976, NO sw bump, 2026-08-10,
+  steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only takeable item in
+  ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), grooming pass 5 had
+  drained the queue that morning and deliberately declined to open a fifth proposal on top of the
+  unanswered #623, and v975's closing note left no standing candidate — so this pass picked its
+  own target: **`docs/index.html` § "Ensembles &amp; scientific honesty"**, the last `<h2>` on the
+  page that nothing derived. It is also the chapter where staleness costs the most, because the
+  chapter IS the product's honesty argument.
+  - **The drift ran through its thesis, and it was measured rather than read.** The page said the
+    combined value *is* "the **median**" — unconditionally, in five places. Both charts make the
+    combination a SETTING: `Studio.CHARTS.ensembleSeries.opts.agg` is a select labelled **Common
+    estimate** offering **Median (recommended)** and **Mean**, and `_ensembleSeries`
+    (`app/studio-charts.js`) computes the bold line with `aggValues(vals, cfg.agg || "median")`,
+    so a chart whose author picked Mean was described by every sentence on the page as a median.
+    The map's is wider still: `choropleth.opts.agg` — **Combine duplicate rows by** — offers
+    **six** (median / mean / sum / min / max / last), and four of those are not a common estimate
+    in any sense, so a page arguing the median's honesty never mentioned that its own map will
+    total the rows if you ask it to. Neither control was named anywhere in the chapter.
+  - **The chart never prints the word the chapter was written around.** The legend swatch
+    (`studio-charts.js:6785`), the hover tooltip (`:6766`) and the Download-data rows (`:6846`)
+    all print `cfg.medianLabel || "Common estimate"` — the **Estimate label** option's default —
+    so a reader told to look for "the median line" found that word in none of the three places
+    the page sends them, including the CSV they hand a stakeholder. The estimate paragraph now
+    names the label, its default, and all three surfaces that spend it.
+  - **Four behaviours were stated as facts, and each is an option that can be off** — `showBand`
+    (**Agreement band (confidence)**), `showProviders` (**Show provider series**), `showToggles`
+    (**Provider on/off toggles**) and `refSeries` (**Reference series (excluded from the
+    estimate)**). Each is now named beside the behaviour it governs. The channel sentence was
+    corrected in the same pass: the chapter attributed the link to "the map's Provider/series
+    column option", where the map has an **Ensemble channel** option of its own and *also* needs
+    its **Provider / series column** mapped.
+  - **Doc-truth check 64 — premise + five rules, no new source of truth invented.** Both chart
+    registries are **evaluated** through the shared `M` model (check 45's idiom), so labels,
+    choices and defaults are exact rather than regexed; rule (e) holds the registry default and
+    the renderer's own fallback string to EACH OTHER as well as to the page, since a split there
+    would make the docs wrong while both files still looked right; rule (d)'s negative half is
+    exhaustive by construction (anything bolded in the estimate paragraph that is not an option
+    label or an option's own default has to be a method a chart really offers) rather than by a
+    word list, which would read straight past an invented method with a new name; and rule (f)
+    uses the chapter's own idiom — "the **X** option" — so a control that is renamed or retired
+    fails here instead of reading plausibly forever.
+  - **Verified:** the premise fails on the true pre-fix tree (no anchor to hold — check 61/63's
+    pattern), and every rule was measured failing: doc-side, an invented method bolded ("Mode")
+    and a governing option left unnamed; code-side on mutated trees, a third estimate choice
+    ("Trimmed mean"), a seventh map choice ("First"), `medianLabel` renamed to "Series label",
+    and the renderer's fallback drifted to "Median" — each failing its own rule. Dev gate green in
+    the foreground: `tools/validate.mjs`, `tools/changelog-check.js`, `tools/doc-truth.mjs`,
+    `tools/dev-smoke.mjs` (marketing + app + docs at 1280×800 and 390×780, zero pageerrors).
+  - **Not taken, deliberately:** `studio-charts.js`'s own `ensembleSeries` header repeats the same
+    stale claim ("the median of the providers currently toggled on") about the line it computes
+    with `cfg.agg` — a precached file, so correcting a comment costs an `sw.js` CACHE bump (issue
+    #631's territory); it belongs to the next slice that has to bump anyway.
 - **N7 — the Glossary vs the nouns the app actually prints (v975, NO sw bump, 2026-08-10,
   steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only takeable item
   in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and grooming pass 5
@@ -16535,6 +16587,40 @@
     than assumed. Also measured and found CURRENT: all ten pre-existing terms are words the app
     still says (`Turso` is still a shipped workspace backend), and every one is bolded elsewhere
     on the page — rule (g) passes on the pre-fix list, so nothing had gone dead.
+  * *The honesty chapter vs the two registries it argues about — v976, NO sw bump (2026-08-10 —
+    see DONE).* No candidate was standing again (v975's note parked its find as already correct),
+    so this pass took **"Ensembles &amp; scientific honesty"** — the last `<h2>` nothing derived,
+    and the one where being stale costs more than a wrong label, because the chapter IS the app's
+    honesty argument. **The drift ran through its thesis:** it said the combined value *is* the
+    **median**, unconditionally, in five places — while both charts make the combination a
+    SETTING. `ensembleSeries.agg` is a select (**Median (recommended)** / **Mean**) that
+    `_ensembleSeries` feeds straight to `aggValues` for the bold line, and `choropleth.agg` offers
+    **six** ways to turn several rows for one region into one colour — four of them (sum, min,
+    max, last) not a common estimate at all. Neither control was named on the page.
+    **And the chart never PRINTS the word the chapter was written around:** the legend swatch, the
+    hover tooltip and the Download-data rows all print `medianLabel`, whose default is **Common
+    estimate** — so a reader who went looking for "the median line" found it in none of the three
+    places the page sent them. Four more behaviours were stated as facts (`showBand`,
+    `showProviders`, `showToggles`, `refSeries`) where each is an option that can be off.
+    Doc-truth **check 64**, premise + five rules, with both registries **evaluated** (the shared
+    `M` model, so labels/choices/defaults are exact) and rule (e) holding the registry default and
+    the RENDERER's fallback to each other as well as to the page — a split there would make the
+    docs wrong without either file looking wrong alone. Rule (f) reads the chapter's own idiom
+    ("the **X** option"), so a control that is renamed or retired fails here instead of reading
+    plausibly forever. The premise fails on the true pre-fix tree (no anchor to hold), and all
+    five rules were measured failing — two doc-side (an invented method; a governing option left
+    unnamed) and four code-side on mutated trees (a third estimate choice, a seventh map choice, a
+    renamed `medianLabel` option, and a renderer fallback drifting off the registry default), each
+    failing its own rule.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:**
+    `app/studio-charts.js`'s own header for `ensembleSeries` says *"the median of the providers
+    currently toggled on"* about the very line it computes with `aggValues(vals, cfg.agg)` — the
+    same drift one file over, inside a comment. It is a precached file (an `sw.js` CACHE bump,
+    issue #631's territory) for a comment, so it belongs to the next slice that has to bump
+    anyway — the v927 note's reasoning, unchanged. Also measured and found CURRENT: the ⓘ Sources
+    popover's three bullets (coverage, full-coverage points, `lastUpdated`), the hatched no-data
+    texture, and the band being the min–max range of the toggled-on providers — all still what the
+    renderer does. The two v922 candidates are still open and still Kevin's calls.
 
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's
