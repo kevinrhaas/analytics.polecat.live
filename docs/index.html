@@ -722,7 +722,7 @@
   <p>The <strong>chart strip</strong> above the result switches how it draws: <strong>Table</strong>
   (the full pivot), <strong>Bars</strong>, <strong>Stacked bars</strong>, <strong>Line</strong>,
   <strong>Stacked area</strong>, <strong>Donut</strong>, <strong>Heatmap</strong>, <strong>Map</strong>,
-  <strong>Scatter</strong>, or <strong>KPI</strong>. Charts draw your <em>computed</em> numbers through
+  <strong>Scatter</strong>, <strong>Quadrant</strong>, or <strong>KPI</strong>. Charts draw your <em>computed</em> numbers through
   the real dashboard renderer — Bars and Donut chart the first dimension against the first measure
   (COUNT of rows when no measure is picked), and Heatmap lights up when you have a field on Rows plus a
   plain field on Columns, drawing exactly the crosstab as a color matrix. A chart that needs something
@@ -765,7 +765,15 @@
   Columns plus two or more numeric measures on Columns, and it plots one point per dimension
   value — the first measure on the x-axis, the second on the y-axis. It's the same
   one-dimension basis Bars and Donut use, just widened to carry two measures instead of one, so
-  it's disabled until a second measure lands on the shelf.</p>
+  it's disabled until a second measure lands on the shelf. With Scatter picked, a
+  <strong>Trend line</strong> checkbox appears next to the chart types: it draws the
+  least-squares regression line through the points (the dashed line), and it saves with the View
+  like any other setting — a View authored with one opens here with the box already ticked.</p>
+  <p><strong>Quadrant</strong> takes the same two measures and splits the plot into four labelled
+  zones, colouring each point by the zone it lands in — the "where does this one sit?" read that a
+  plain scatter leaves to the eye. It splits at the midpoints here; the thresholds and the four
+  zone labels are edited on the dashboard panel (Inspector), and a View that already has its own
+  keeps them when you open and update it from the builder.</p>
   <p><strong>Map</strong> draws a US choropleth from your <em>geographic</em> field (region ids —
   FIPS county code, state FIPS or postal code, USDA district, watershed/HUC8, congressional
   district, or ZIP) against the first measure — the geo-looking field wins the map's id role from
@@ -1930,8 +1938,8 @@
       targets appears on Home's pinned-View cards and in Repository's quick-edit panel.</li>
     <li><strong>Chart settings the View Builder can't edit are carried, not dropped.</strong> A
       View may be authored with per-chart options the View Builder has no control for — a
-      scatter's trend line, a map's colour-class count, a table's page size (the sample packs use
-      several). They're applied to the preview, so what you see is what the View really is, and
+      a map's colour-class count, a table's page size, a quadrant's thresholds and zone labels
+      (the sample packs use several). They're applied to the preview, so what you see is what the View really is, and
       they're written back unchanged when you update, so the builder never flattens a chart it's
       only showing you a simplified edit of. A notice names the ones being carried. Changing the
       chart type does drop them — a quadrant's thresholds mean nothing on a table — and the notice

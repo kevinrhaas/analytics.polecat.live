@@ -1616,6 +1616,19 @@ body.lib-dragging #preview{pointer-events:none}
   font-size:var(--fs-12);font-weight:600;color:var(--ink);cursor:pointer}
 .bd-map-scale select:hover{border-color:var(--brand)}
 .bd-map-hint{color:var(--faint);font-style:italic;white-space:nowrap}
+/* N33b: the Scatter's Trend-line toggle sits in the same strip slot as the Region
+   scale, sized like the .bd-ct pills so the strip stays one row of controls. A real
+   checkbox with a label wrapper — the whole pill is the hit target, so it works with
+   a thumb at 390×780 as well as a pointer. */
+.bd-opt-tog{display:inline-flex;align-items:center;gap:7px;margin-left:6px;padding:5px 12px;
+  background:var(--pane);border:1px solid var(--line);border-radius:9px;
+  font-size:var(--fs-12);font-weight:600;color:var(--ink);cursor:pointer}
+.bd-opt-tog:hover{border-color:var(--brand)}
+.bd-opt-tog input{margin:0;cursor:pointer;accent-color:var(--brand)}
+.bd-opt-tog:has(input:checked){background:color-mix(in srgb,var(--brand) 12%,transparent);border-color:var(--brand)}
+/* the quadrant's "edited on the dashboard panel" note — wraps rather than
+   overflowing the strip on a phone (.bd-map-hint is nowrap for the map's short one) */
+.bd-ct-note{white-space:normal;align-self:center;margin-left:6px;max-width:min(100%,34ch)}
 /* DURABLE-1: persistent push-failure banner — local edits are NOT reaching the
    backend and are one stale pull away from being clobbered. Fixed to the bottom
    so it never fights the topbar; below modals (they use higher z). */

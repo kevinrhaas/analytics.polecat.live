@@ -135,6 +135,51 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N33b — the View Builder edits the trend line, and holds a Quadrant (v956, sw v546,
+  2026-08-10, steward; dev branch; est 1pt, took 1):** the first ready item in ▶ NOW — N31 is ⛔
+  on Kevin, and N33b sits above N43b as the remaining half of the split N33a left behind. It had
+  two named parts and both shipped; its third ("`chart.map` extras — not carried, deliberately")
+  stays deliberately unshipped, unchanged.
+  - **The trend line is a CONTROL now, not a carried value.** Kevin's actual ask — *"I think there
+    is a trend line on the view but I can't see it turn it on/off in the View Builder yet, maybe I
+    should?"* With **Scatter** picked, a **Trend line** checkbox renders in the chart strip, in the
+    same slot and pill styling as VB-10's Region-scale select, ticked from the View you opened.
+    `BD.trend` follows `BD.mapScale` exactly: reset with the canvas, stashed in the per-dataset
+    draft, written into the builder blob, and stamped onto the panel by `bdPanelFor` — so the
+    control, not `Studio.newPanel`'s default, decides what a Save stores. A checkbox with the whole
+    pill as its hit target, because a hover affordance does not exist at 390×780.
+  - **WHICH trend, answered rather than fudged.** N33a left the statistical-versus-reference
+    question open. This is the **statistical** one: scatter's own least-squares `trend` opt, maths
+    the app already ships (`line.trend-line`, studio-charts.js) — no new capability, and nothing
+    invented. The **reference**-line reading of the same ask is the quadrant's threshold crosshair,
+    which is a different chart with a different meaning, so it is offered as a TYPE one button
+    over rather than blurred into the same toggle. Two honest controls beat one ambiguous one.
+  - **Quadrant joins the chart-type strip**, and it is nearly free: `Studio.newPanel` maps
+    `cols[0..2]` to `labelCol/xCol/yCol` for quadrant and scatter identically (model.js), so it
+    shares scatter's basis and its availability rule (a dimension + two measures) instead of
+    growing a parallel path. It closes the builder's last genuinely lossy type: a quadrant View
+    was not in `CHART_TYPES` and had no `FOREIGN_TYPE_FALLBACK` entry, so it opened as a **table**
+    and N33's carry-through then (correctly) withheld its thresholds from that table. The type now
+    survives, so the thresholds and zone labels ride back in with it.
+  - **What is still not edited here, said out loud.** The thresholds and the four zone labels have
+    no editor in this builder; with Quadrant active the strip carries a note that they are edited
+    on the dashboard panel, so the midpoint defaults never read as chosen. A View that has its own
+    keeps them (the N33 carry-through, and the notice names them).
+  - **The bookkeeping the contract asks for.** `BD_BUILDER_OWNED_OPTS` gains `trend` beside
+    `scale`, which is what makes the round-trip honest rather than merely lossless — an opt the
+    builder edits must not also be reported as one it is carrying. `bdLoad` prefers the blob's
+    `trend` and falls back to the saved `chart.opts.trend`, so a View saved BEFORE this slice
+    (whose blob has no `trend`, and whose value N33 had been keeping alive as a carried opt) still
+    opens with the right box ticked. Help gained the Trend-line and Quadrant paragraphs and its
+    carried-settings bullet dropped the trend example it no longer earns.
+  - **Verified:** three new suite checks (Quadrant in the strip and enabled on scatter's shelves ·
+    untick → stored `trend:false`, reopened unticked, zero `line.trend-line` drawn over a painted
+    scatter · a quadrant View opens AS a quadrant with `q1`/`xThreshold`/`yThreshold` carried,
+    named in the notice, and written back byte-identically). One existing N33 check changed WITH
+    the contract rather than being relaxed: the pack scatter's authored trend must now arrive as a
+    ticked control with an EMPTY carried set — a strictly stronger assertion than the old
+    `carried.keys === "trend"`. Plus the dev gate (validate · changelog · doc-truth · dev-smoke at
+    390×780 and desktop, zero pageerrors).
 - **N43a — fix a View's SQL from the dashboard you are building, not from the other side of the
   app (v955, sw v545, 2026-08-10, steward; dev branch; est 2pt for all of N43, took 1 for this
   slice; N43b remains):** the first ready item in ▶ NOW (N31 is ⛔ on Kevin; N35/N37/N34/N33a/
@@ -14060,7 +14105,15 @@
   DEFAULTS, so ALL four Market Coverage Views were lossy (the choropleths' `classes: 6` /
   `fmt: "abbr"` / authored `height: 300`, the shortlist's `pageSize` / `freezeHeader`), not just
   one panel.
-  **N33b ★ [1pt] — what remains, and it is genuinely the smaller half now.** (1) **Quadrant is
+  ~~**N33b ★ [1pt] — what remains, and it is genuinely the smaller half now.**~~ ✓ **SHIPPED v956,
+  sw v546 (2026-08-10, steward — see DONE).** Both named parts shipped: Quadrant is in the chart
+  strip (sharing scatter's basis, so a quadrant View opens AS a quadrant instead of degrading to a
+  table, thresholds and zone labels carried), and the trend line is a real checkbox. The item's
+  open question is answered rather than dodged — the toggle is the STATISTICAL fit (scatter's own
+  `trend` opt), and the REFERENCE-line reading is the quadrant's threshold crosshair, offered as a
+  type one button over instead of blurred into the same control. Part (3) — `chart.map` extras —
+  is deliberately still not carried, for the reason the item gives.
+  *(Original text kept until the next grooming pass archives it.)* (1) **Quadrant is
   still absent from the builder's chart-type row**, so a quadrant View *would* still downgrade —
   there just isn't one today, which is why this is no longer ★★. Carry-through gates on the type
   surviving the trip (`bdApplyCarried`), so a quadrant falling back to a table correctly keeps its

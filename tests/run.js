@@ -6114,6 +6114,11 @@ function serve() {
       var B = window.__studioBuild.state;
       out.carried = B.carried && { type: B.carried.type, keys: Object.keys(B.carried.opts).sort().join(",") };
       out.notice = B.notice || "";
+      // N33b: the trend line is EDITED here now, not carried — so the state holds it
+      // and the strip shows a ticked checkbox for it.
+      out.trendState = B.trend;
+      var tog = document.querySelector("#bdCharts #bdTrend");
+      out.trendToggle = tog ? !!tog.checked : null;
       // The line is DRAWN, not merely configured — poll the preview frame rather than
       // sleeping a fixed amount (the srcdoc swap is async and debounced).
       var ifr = document.querySelector("#secBuild iframe.bd-ifr"), doc = null;
@@ -6150,9 +6155,15 @@ function serve() {
       Studio.Build.newView(); // leave the builder clean for the later flow tests
       return out;
     });
-    ok("N33: opening a pack View in the View Builder captures exactly the AUTHORED chart options — the scatter's trend line, not newPanel's untouched xLabel/yLabel/fmt defaults — and names them in a notice",
-      !n33.err && n33.authoredTrend === true && n33.carried && n33.carried.type === "scatter" &&
-      n33.carried.keys === "trend" && /trend line/.test(n33.notice) && /kept when you update/.test(n33.notice),
+    // N33b changed this contract deliberately, and the check moved WITH it rather than
+    // being relaxed: the scatter's trend line is no longer something the builder carries
+    // blindly past itself — it is a control. So the authored `trend: true` must arrive as
+    // BUILDER STATE with the strip's checkbox ticked, and the carried set must be empty,
+    // because there is nothing left on this View the builder can't edit. (The map View
+    // below still exercises the carry-through itself, unchanged.)
+    ok("N33b: the pack scatter's authored trend line opens as a TICKED builder control, not an invisible carried opt — and nothing is left carried, so no notice cries wolf",
+      !n33.err && n33.authoredTrend === true && n33.trendState === true && n33.trendToggle === true &&
+      n33.carried === null && n33.notice === "",
       JSON.stringify(n33));
     ok("N33: the builder's preview DRAWS the authored dashed regression line (it drew none before — the round-trip dropped it silently)",
       n33.previewTrendLines === 1, JSON.stringify(n33));
@@ -6164,6 +6175,131 @@ function serve() {
       !/height/.test(n33.mapNotice), JSON.stringify(n33));
     ok("N33: switching datasets drops the carried set, so an unrelated draft can never inherit another View's chart options",
       n33.carriedAfterSelect === null, JSON.stringify(n33));
+
+    // ---- N33b (the half N33 left open): the builder EDITS the trend line, and
+    // Quadrant is a type it can hold ----
+    // N33's carry-through stopped the round-trip losing things; it did not answer
+    // Kevin's actual ask ("I can't see it turn it on/off in the View Builder yet,
+    // maybe I should?") and it left one type genuinely lossy: a quadrant View was
+    // not in the chart strip, so it opened as a TABLE (no FOREIGN_TYPE_FALLBACK
+    // entry) and its thresholds — the four labelled zones that ARE the analysis —
+    // were deliberately withheld from that table rather than pasted onto it.
+    // These checks hold both halves: the toggle really writes, and a quadrant now
+    // survives the trip whole, thresholds and all.
+    console.log("\n• N33b: the trend toggle writes, and Quadrant round-trips instead of falling back to a table");
+    const n33b = await page.evaluate(async function () {
+      var W = Studio.Workspace, out = {};
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      // By NAME, not demoPackId: the N33 block above pressed Update on this View, and
+      // bdSave's row does not carry demoPackId forward — so the pack tag is already gone
+      // by the time this block runs.
+      var both = W.all("analyses").filter(function (a) {
+        return /^Market Coverage — income versus restaurant supply$/.test(a.name || "");
+      })[0];
+      if (!both || !both.builder) return { err: "scatter view missing" };
+      window.__studioRenderBuild();
+      await sleep(60);
+      window.__studioBuild.load(both.id);
+      await sleep(900);
+      var B = window.__studioBuild.state;
+
+      // (a) Quadrant is in the strip, and it is ENABLED on exactly the shelves a
+      // scatter needs — it shares scatter's [dim, m1, m2] basis, so anything that
+      // can draw one can draw the other.
+      var qBtn = document.querySelector('#bdCharts [data-bd-ct="quadrant"]');
+      out.strip = [].slice.call(document.querySelectorAll("#bdCharts .bd-ct"))
+        .map(function (b) { return b.getAttribute("data-bd-ct") + (b.disabled ? ":off" : ""); }).join(",");
+      out.quadrantEnabled = !!qBtn && !qBtn.disabled;
+
+      // (b) the toggle WRITES: untick it, save as a new View, and the stored chart
+      // carries trend:false — the control, not newPanel's default, decided that.
+      var tog = document.querySelector("#bdCharts #bdTrend");
+      out.toggleFoundOn = tog ? !!tog.checked : null;
+      tog.checked = false; tog.dispatchEvent(new Event("change"));
+      await sleep(150);
+      out.stateAfterUntick = B.trend;
+      var offName = "N33b probe — trend off";
+      B.analysisId = null; B.name = offName;
+      window.__studioBuild.save();
+      await sleep(250);
+      var m = document.querySelector(".modal-ov .bd-save");
+      if (!m) return Object.assign(out, { err: "save modal missing (trend)" });
+      m.querySelector("input").value = offName;
+      [].slice.call(m.querySelectorAll("button")).filter(function (b) { return /^(Save|Update)$/.test(b.textContent); })[0].click();
+      await sleep(350);
+      var offRow = W.all("analyses").filter(function (a) { return a.name === offName; })[0];
+      out.savedTrendOff = offRow && offRow.chart && offRow.chart.opts.trend;
+      // ...and re-opening it shows the box unticked and draws no line. Poll for the
+      // scatter's own dots first, so "no trend line" means "painted, without one"
+      // rather than "hasn't painted yet".
+      window.__studioBuild.load(offRow.id);
+      await sleep(900);
+      out.reopenedTrendState = B.trend;
+      var tog2 = document.querySelector("#bdCharts #bdTrend");
+      out.reopenedToggle = tog2 ? !!tog2.checked : null;
+      var ifr = document.querySelector("#secBuild iframe.bd-ifr"), doc = null;
+      for (var i = 0; i < 120; i++) {
+        try { doc = ifr && ifr.contentDocument; } catch (e) { doc = null; }
+        if (doc && doc.querySelector("svg circle")) break;
+        await sleep(50);
+      }
+      out.offPreviewDots = doc ? doc.querySelectorAll("svg circle").length : -1;
+      out.offPreviewTrendLines = doc ? doc.querySelectorAll("line.trend-line").length : -1;
+      W.remove("analyses", offRow.id, { silent: true });
+
+      // (c) a quadrant View — the shape a pack or Quick Views authors: no builder
+      // blob, real dataset column names in the map, thresholds and zone labels in
+      // opts. Before this slice loadForeign found no "quadrant" in CHART_TYPES and
+      // dropped it to a table.
+      var qOpts = { xThreshold: 70, yThreshold: 40, q1: "Whitespace", q2: "Explore",
+        q3: "Low Priority", q4: "Quick Wins", xLabel: "", yLabel: "", height: 300 };
+      var qRow = W.put("analyses", {
+        name: "N33b probe — quadrant", folder: "", panelTitle: "", chartType: "quadrant",
+        datasetId: both.builder.dsId,
+        da: { id: "n33b_quad", name: "N33b probe — quadrant", kind: "sql", sql: "", query: "",
+          columns: ["county", "median_income", "restaurants_per_10k"], params: [], authored: true },
+        chart: { type: "quadrant", da: "n33b_quad",
+          map: { labelCol: "county", xCol: "median_income", yCol: "restaurants_per_10k" },
+          opts: Studio.clone(qOpts) }
+      });
+      var before = JSON.stringify(qRow.chart.opts);
+      Studio.Build.loadForeign(qRow.id);
+      await sleep(1100);
+      out.qType = B.chartType;
+      out.qNotice = B.notice || "";
+      out.qCarried = B.carried && Object.keys(B.carried.opts).sort().join(",");
+      window.__studioBuild.save();
+      await sleep(250);
+      var m2 = document.querySelector(".modal-ov .bd-save");
+      if (!m2) return Object.assign(out, { err: "save modal missing (quadrant)" });
+      [].slice.call(m2.querySelectorAll("button")).filter(function (b) { return /^(Save|Update)$/.test(b.textContent); })[0].click();
+      await sleep(400);
+      var qAfter = W.get("analyses", qRow.id);
+      out.qSavedType = qAfter && qAfter.chart && qAfter.chart.type;
+      out.qSavedOptsUnchanged = !!qAfter && JSON.stringify(qAfter.chart.opts) === before;
+      out.qSavedMap = qAfter && qAfter.chart && [qAfter.chart.map.labelCol, qAfter.chart.map.xCol, qAfter.chart.map.yCol].join("|");
+      W.remove("analyses", qAfter.id, { silent: true });
+      Studio.Build.newView(); // leave the builder clean for the later flow tests
+      return out;
+    });
+    ok("N33b: Quadrant is in the View Builder's chart strip, next to Scatter, and enabled on the same shelves (it shares scatter's [dimension, measure, measure] basis)",
+      !n33b.err && n33b.quadrantEnabled === true &&
+      /scatter(:off)?,quadrant/.test(n33b.strip), JSON.stringify(n33b));
+    ok("N33b: the Trend line checkbox is the scatter's own `trend` opt — unticking it and saving stores trend:false, and re-opening shows it unticked with no regression line drawn",
+      n33b.toggleFoundOn === true && n33b.stateAfterUntick === false && n33b.savedTrendOff === false &&
+      n33b.reopenedTrendState === false && n33b.reopenedToggle === false &&
+      n33b.offPreviewDots > 0 && n33b.offPreviewTrendLines === 0, JSON.stringify(n33b));
+    ok("N33b: a quadrant View opens AS a quadrant instead of degrading to a table, and its thresholds and zone labels are carried and written back byte-identically",
+      n33b.qType === "quadrant" && !/isn’t in the View Builder yet/.test(n33b.qNotice) &&
+      /the quadrant thresholds/.test(n33b.qNotice) && /the quadrant labels/.test(n33b.qNotice) &&
+      // q2..q4 were left at the type's declared defaults on purpose: the carried set
+      // is "what the author actually changed", not "every key present".
+      n33b.qCarried === "q1,xThreshold,yThreshold" &&
+      n33b.qSavedType === "quadrant" && n33b.qSavedOptsUnchanged === true &&
+      // the saved chart binds to the BASIS columns the builder computed (the shelves'
+      // rolled-up names), positionally label/x/y — not to the raw dataset columns the
+      // foreign View arrived with
+      n33b.qSavedMap === "county|SUM median_income|SUM restaurants_per_10k", JSON.stringify(n33b));
 
     // hand the workspace back exactly as the SP-1(b) checks found it
     if (!mcDash.wasInstalled) await page.evaluate(function () { Studio.removeDemoPack("marketcoverage"); });
@@ -15026,8 +15162,11 @@ function serve() {
         savedLabelCol: row && row.chart && row.chart.map && row.chart.map.labelCol,
       });
     });
-    ok("#117 (2): the chart strip offers Table/Bars/Stacked bars/Line/Stacked area/Donut/Heatmap/Map/Scatter/KPI, heatmap enabled with a Rows dim + a Columns dim, scatter disabled (only one measure on the shelf), KPI enabled (needs no dimension, just the one measure already there)",
-      bdChart.strip.join(",") === "table,bars,stacked,line,areaStacked,donut,heatmap,choropleth,scatter:off,kpi", JSON.stringify(bdChart));
+    // N33b added Quadrant to the roster — and it is disabled here for exactly the same
+    // reason Scatter is (one measure on the shelf, both need two), which is the point of
+    // making them share a basis rather than growing a parallel one.
+    ok("#117 (2): the chart strip offers Table/Bars/Stacked bars/Line/Stacked area/Donut/Heatmap/Map/Scatter/Quadrant/KPI, heatmap enabled with a Rows dim + a Columns dim, scatter AND quadrant disabled (only one measure on the shelf), KPI enabled (needs no dimension, just the one measure already there)",
+      bdChart.strip.join(",") === "table,bars,stacked,line,areaStacked,donut,heatmap,choropleth,scatter:off,quadrant:off,kpi", JSON.stringify(bdChart));
     ok("#117 (2): picking Bars renders the COMPUTED basis through the real dashboard renderer (buildHtml + DASHKIT_MOCK iframe)",
       bdChart.barsIframe && bdChart.mock && bdChart.basisDA && bdChart.basisMeasure, JSON.stringify(bdChart));
     ok("#117 (2): Heatmap renders too, and saving with a chart selected stamps the type on the View + builder blob",
