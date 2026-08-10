@@ -13,7 +13,7 @@
    changelog users actually read) and which precached files rolled is right there in the commit
    diff. tools/validate.mjs holds this file to a byte budget so the history cannot creep back. */
 "use strict";
-var CACHE_NAME = "studio-shell-v552";
+var CACHE_NAME = "studio-shell-v553";
 
 /* Precache conventions, worth knowing before you edit the list:
    - Rarely-visited pages are deliberately NOT precached (app/viewer.html + app/viewer.js,
@@ -117,7 +117,12 @@ var SHELL_FILES = [
   // says installing a pack must not depend on the network, and the pack reads these at
   // install time (app/demopacks.js Studio.ensurePackDataMaterialized).
   "data/packs/marketcoverage/county-demographics.csv",
-  "data/packs/marketcoverage/county-establishments.csv"
+  "data/packs/marketcoverage/county-establishments.csv",
+  // SP-6, same rule
+  "data/packs/contractawards/agency-totals.csv",
+  "data/packs/contractawards/agency-industry.csv",
+  "data/packs/contractawards/agency-vendor.csv",
+  "data/packs/contractawards/district-awards.csv"
 ];
 
 self.addEventListener("install", function (evt) {

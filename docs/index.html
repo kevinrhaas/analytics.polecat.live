@@ -839,7 +839,8 @@
   demo content you can install or remove. A pack can add dashboards, datasets, connections and jobs —
   sample content, never your real data — and <strong>Remove</strong> takes
   back exactly what Install added. Everything a pack adds is <strong>filed in the pack's own
-  folder</strong> (Conservation Insight, Data Management, Market Coverage) across every section, and its raw sample
+  folder</strong> (Conservation Insight, Data Management, Market Coverage, Federal Contract
+  Awards) across every section, and its raw sample
   tables only appear in the dataset pickers while the pack is installed — an uninstalled pack leaves
   no trace. <strong>The packs are the only sample-content switch there is</strong> — Settings used to
   carry a separate "Sample content" mode toggle that hid everything at once, and it is gone: remove the
@@ -889,6 +890,19 @@
     demographics behind them (income, age, education), and a shortlist of counties with the income
     but not the restaurants. The shortlist's two rules are ordinary filters on the View — open it in
     the builder and you can move them.</li>
+    <li><strong>Federal Contract Awards</strong> is the pack about where public money goes:
+    USASpending.gov's record of federal contracts obligated in fiscal year 2025, embedded in the
+    app rather than fetched. It seeds one <strong>connection</strong> over five
+    <strong>datasets</strong> — the totals for the 25 largest awarding agencies (99.97% of the
+    year's contract dollars), what each of them bought by NAICS industry, who each of them paid,
+    contract spend by congressional district, and the output of the prep <strong>job</strong> that
+    joins a vendor to its agency's total so one contractor's haul reads as a share of the agency
+    that paid it. The two flow tables carry the agency <em>code</em> and not its name on purpose:
+    bringing the readable name and the agency total across is exactly what the job is for. Every
+    filter behind the numbers — contracts only, one closed fiscal year, the top 25 agencies and
+    the top 12 industries and vendors within each — is written down in
+    <code>tools/pack-extract/contractawards.mjs</code> and in the pack's
+    <code>SOURCE.json</code>.</li>
     <li><strong>Data Management &amp; Governance</strong> is the built-in generic showcase gallery
     (Data Governance, Data Platform Operations, Product Delivery, Finance, Marketing, Incident
     Response, Compliance, Data Quality, Pipeline Observability, Storage Footprint, Cost &amp;

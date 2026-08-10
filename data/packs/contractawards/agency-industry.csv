@@ -1,0 +1,301 @@
+agency_code,naics,industry,obligations
+DHS,236220,Commercial and Institutional Building Construction,5871499055
+DHS,561612,Security Guards and Patrol Services,3228569602
+DHS,541512,Computer Systems Design Services,2567702227
+DHS,541519,Other Computer Related Services,2345033400
+DHS,541330,Engineering Services,1366029195
+DHS,561210,Facilities Support Services,916617556
+DHS,541611,Administrative Management and General Management Consulting Services,801368846
+DHS,541511,Custom Computer Programming Services,772739191
+DHS,561599,All Other Travel Arrangement and Reservation Services,759447859
+DHS,336611,Ship Building and Repairing,753178891
+DHS,811210,Electronic and Precision Equipment Repair and Maintenance,565183259
+DHS,541614,"Process, Physical Distribution, and Logistics Consulting Services",428961297
+DOC,541519,Other Computer Related Services,759146059
+DOC,541512,Computer Systems Design Services,626582229
+DOC,541511,Custom Computer Programming Services,468897343
+DOC,541990,"All Other Professional, Scientific, and Technical Services",204921606
+DOC,541611,Administrative Management and General Management Consulting Services,194892966
+DOC,511199,All Other Publishers,173239591
+DOC,336611,Ship Building and Repairing,152196809
+DOC,518210,"Computing Infrastructure Providers, Data Processing, Web Hosting, and Related Services",151237583
+DOC,541330,Engineering Services,138917605
+DOC,541715,"Research and Development in the Physical, Engineering, and Life Sciences (except Nanotechnology and Biotechnology)",124678605
+DOC,541620,Environmental Consulting Services,107440979
+DOC,541370,Surveying and Mapping (except Geophysical) Services,61884465
+DOD,336411,Aircraft Manufacturing,60654949442
+DOD,541330,Engineering Services,40104727544
+DOD,336611,Ship Building and Repairing,36159140508
+DOD,541715,"Research and Development in the Physical, Engineering, and Life Sciences (except Nanotechnology and Biotechnology)",33082539744
+DOD,336414,Guided Missile and Space Vehicle Manufacturing,29717963633
+DOD,336413,Other Aircraft Parts and Auxiliary Equipment Manufacturing,19573131555
+DOD,334511,"Search, Detection, Navigation, Guidance, Aeronautical, and Nautical System and Instrument Manufacturing",17926178105
+DOD,236220,Commercial and Institutional Building Construction,17212455790
+DOD,524114,Direct Health and Medical Insurance Carriers,14148821248
+DOD,336412,Aircraft Engine and Engine Parts Manufacturing,11968722542
+DOD,237990,Other Heavy and Civil Engineering Construction,9146243487
+DOD,541512,Computer Systems Design Services,9061005691
+DOE,561210,Facilities Support Services,23474116139
+DOE,541710,"Research and Development in the Physical, Engineering, and Life Sciences",7946793697
+DOE,541715,"Research and Development in the Physical, Engineering, and Life Sciences (except Nanotechnology and Biotechnology)",4022261449
+DOE,562910,Remediation Services,3953847995
+DOE,541990,"All Other Professional, Scientific, and Technical Services",2239177564
+DOE,,,1057192611
+DOE,562211,Hazardous Waste Treatment and Disposal,905810704
+DOE,541711,Research and Development in Biotechnology,894961395
+DOE,541712,"Research and Development in the Physical, Engineering, and Life Sciences (except Biotechnology)",833702957
+DOE,541512,Computer Systems Design Services,537797941
+DOE,541330,Engineering Services,484546223
+DOE,541519,Other Computer Related Services,376019728
+DOI,237990,Other Heavy and Civil Engineering Construction,820601583
+DOI,236220,Commercial and Institutional Building Construction,740335808
+DOI,541512,Computer Systems Design Services,550490946
+DOI,541519,Other Computer Related Services,459253726
+DOI,237110,Water and Sewer Line and Related Structures Construction,447562249
+DOI,115310,Support Activities for Forestry,314674740
+DOI,541611,Administrative Management and General Management Consulting Services,282992086
+DOI,541511,Custom Computer Programming Services,221251102
+DOI,541330,Engineering Services,203403909
+DOI,541110,Offices of Lawyers,147882812
+DOI,481211,Nonscheduled Chartered Passenger Air Transportation,130153475
+DOI,541360,Geophysical Surveying and Mapping Services,103600009
+DOJ,541519,Other Computer Related Services,1424663385
+DOJ,561612,Security Guards and Patrol Services,743869868
+DOJ,541512,Computer Systems Design Services,607199510
+DOJ,622110,General Medical and Surgical Hospitals,542292392
+DOJ,623990,Other Residential Care Facilities,438068735
+DOJ,541199,All Other Legal Services,430856329
+DOJ,541511,Custom Computer Programming Services,417095796
+DOJ,541611,Administrative Management and General Management Consulting Services,352009300
+DOJ,561210,Facilities Support Services,229698634
+DOJ,325412,Pharmaceutical Preparation Manufacturing,217174362
+DOJ,236220,Commercial and Institutional Building Construction,208337189
+DOJ,541330,Engineering Services,199008766
+DOL,611519,Other Technical and Trade Schools,1004506786
+DOL,541519,Other Computer Related Services,195811729
+DOL,541512,Computer Systems Design Services,170969770
+DOL,624310,Vocational Rehabilitation Services,48967294
+DOL,541611,Administrative Management and General Management Consulting Services,47738284
+DOL,541511,Custom Computer Programming Services,33648831
+DOL,541330,Engineering Services,30047521
+DOL,541612,Human Resources Consulting Services,26920784
+DOL,561210,Facilities Support Services,20777486
+DOL,524298,All Other Insurance Related Activities,19508403
+DOL,611513,Apprenticeship Training,19034241
+DOL,517110,Wired Telecommunications Carriers,18112452
+DOS,541519,Other Computer Related Services,1041345723
+DOS,561210,Facilities Support Services,1017045149
+DOS,541512,Computer Systems Design Services,1000639156
+DOS,236220,Commercial and Institutional Building Construction,955331090
+DOS,561612,Security Guards and Patrol Services,885039353
+DOS,541611,Administrative Management and General Management Consulting Services,630255748
+DOS,541513,Computer Facilities Management Services,502063400
+DOS,541330,Engineering Services,250799599
+DOS,561421,Telephone Answering Services,246567861
+DOS,541614,"Process, Physical Distribution, and Logistics Consulting Services",220149155
+DOS,339999,All Other Miscellaneous Manufacturing,181803306
+DOS,562910,Remediation Services,115828704
+DOT,541330,Engineering Services,1390467928
+DOT,517310,Telecommunications Resellers,918037660
+DOT,237310,"Highway, Street, and Bridge Construction",657789683
+DOT,483111,Deep Sea Freight Transportation,583779279
+DOT,541519,Other Computer Related Services,414464871
+DOT,236220,Commercial and Institutional Building Construction,375453504
+DOT,541512,Computer Systems Design Services,326878426
+DOT,541990,"All Other Professional, Scientific, and Technical Services",325299403
+DOT,541611,Administrative Management and General Management Consulting Services,325203574
+DOT,488111,Air Traffic Control,284881153
+DOT,541511,Custom Computer Programming Services,247115649
+DOT,334210,Telephone Apparatus Manufacturing,245649535
+ED,522390,Other Activities Related to Credit Intermediation,1270912241
+ED,541512,Computer Systems Design Services,578393416
+ED,541519,Other Computer Related Services,166305847
+ED,522320,"Financial Transactions Processing, Reserve, and Clearinghouse Activities",146373174
+ED,541720,Research and Development in the Social Sciences and Humanities,133860962
+ED,541511,Custom Computer Programming Services,88736429
+ED,518210,"Computing Infrastructure Providers, Data Processing, Web Hosting, and Related Services",28670360
+ED,541219,Other Accounting Services,19240571
+ED,611710,Educational Support Services,16221915
+ED,511210,Software Publishers,14725520
+ED,541611,Administrative Management and General Management Consulting Services,14464382
+ED,517110,Wired Telecommunications Carriers,7618568
+EPA,562910,Remediation Services,768867752
+EPA,541620,Environmental Consulting Services,349784384
+EPA,541611,Administrative Management and General Management Consulting Services,103690261
+EPA,541512,Computer Systems Design Services,58608033
+EPA,541715,"Research and Development in the Physical, Engineering, and Life Sciences (except Nanotechnology and Biotechnology)",52849733
+EPA,541519,Other Computer Related Services,51124352
+EPA,541380,Testing Laboratories and Services,40620771
+EPA,541511,Custom Computer Programming Services,34966242
+EPA,511210,Software Publishers,26936229
+EPA,561210,Facilities Support Services,23193463
+EPA,541990,"All Other Professional, Scientific, and Technical Services",19619693
+EPA,541330,Engineering Services,18698277
+GSA,541512,Computer Systems Design Services,5527889357
+GSA,541330,Engineering Services,5313425922
+GSA,336111,Automobile Manufacturing,1471993546
+GSA,236220,Commercial and Institutional Building Construction,1198500151
+GSA,541715,"Research and Development in the Physical, Engineering, and Life Sciences (except Nanotechnology and Biotechnology)",1137247708
+GSA,541990,"All Other Professional, Scientific, and Technical Services",1035187019
+GSA,561210,Facilities Support Services,698947419
+GSA,624190,Other Individual and Family Services,611665486
+GSA,541712,"Research and Development in the Physical, Engineering, and Life Sciences (except Biotechnology)",610333069
+GSA,541511,Custom Computer Programming Services,551390387
+GSA,541519,Other Computer Related Services,497123252
+GSA,541611,Administrative Management and General Management Consulting Services,472660381
+HHS,541512,Computer Systems Design Services,3364271514
+HHS,541519,Other Computer Related Services,1896735885
+HHS,541611,Administrative Management and General Management Consulting Services,1725759302
+HHS,541715,"Research and Development in the Physical, Engineering, and Life Sciences (except Nanotechnology and Biotechnology)",1437000185
+HHS,541511,Custom Computer Programming Services,1335178319
+HHS,524114,Direct Health and Medical Insurance Carriers,1247683830
+HHS,541990,"All Other Professional, Scientific, and Technical Services",1219479414
+HHS,325412,Pharmaceutical Preparation Manufacturing,1116272318
+HHS,541714,Research and Development in Biotechnology (except Nanobiotechnology),1004250647
+HHS,561422,Telemarketing Bureaus and Other Contact Centers,876413439
+HHS,236220,Commercial and Institutional Building Construction,689955170
+HHS,541618,Other Management Consulting Services,575154826
+NARA,541519,Other Computer Related Services,40073928
+NARA,561612,Security Guards and Patrol Services,30795604
+NARA,541511,Custom Computer Programming Services,30622872
+NARA,561210,Facilities Support Services,28696698
+NARA,236220,Commercial and Institutional Building Construction,19828834
+NARA,541512,Computer Systems Design Services,13673558
+NARA,339999,All Other Miscellaneous Manufacturing,8846070
+NARA,561720,Janitorial Services,6778488
+NARA,221122,Electric Power Distribution,5377887
+NARA,517110,Wired Telecommunications Carriers,4252590
+NARA,221112,Fossil Fuel Electric Power Generation,2019014
+NARA,221210,Natural Gas Distribution,1804871
+NASA,541715,"Research and Development in the Physical, Engineering, and Life Sciences (except Nanotechnology and Biotechnology)",5973032761
+NASA,336414,Guided Missile and Space Vehicle Manufacturing,3064062345
+NASA,541712,"Research and Development in the Physical, Engineering, and Life Sciences (except Biotechnology)",947278932
+NASA,541330,Engineering Services,912670474
+NASA,541710,"Research and Development in the Physical, Engineering, and Life Sciences",646408172
+NASA,561210,Facilities Support Services,609329570
+NASA,517919,All Other Telecommunications,446180570
+NASA,236210,Industrial Building Construction,362955921
+NASA,541519,Other Computer Related Services,287277979
+NASA,336415,Guided Missile and Space Vehicle Propulsion Unit and Propulsion Unit Parts Manufacturing,226118376
+NASA,481212,Nonscheduled Chartered Freight Air Transportation,225326236
+NASA,541512,Computer Systems Design Services,209908862
+NSF,561210,Facilities Support Services,363608757
+NSF,541512,Computer Systems Design Services,102957777
+NSF,541519,Other Computer Related Services,60369772
+NSF,541611,Administrative Management and General Management Consulting Services,55194374
+NSF,541511,Custom Computer Programming Services,47624715
+NSF,541715,"Research and Development in the Physical, Engineering, and Life Sciences (except Nanotechnology and Biotechnology)",17523591
+NSF,541330,Engineering Services,16357670
+NSF,541990,"All Other Professional, Scientific, and Technical Services",12756780
+NSF,541613,Marketing Consulting Services,5926846
+NSF,519290,Web Search Portals and All Other Information Services,2971392
+NSF,541211,Offices of Certified Public Accountants,2789344
+NSF,513210,Software Publishers,2379284
+OPM,541519,Other Computer Related Services,82545677
+OPM,541511,Custom Computer Programming Services,32724380
+OPM,541513,Computer Facilities Management Services,16512662
+OPM,524292,Pharmacy Benefit Management and Other Third Party Administration of Insurance and Pension Funds,14873199
+OPM,511210,Software Publishers,7664701
+OPM,541330,Engineering Services,6783432
+OPM,611430,Professional and Management Development Training,6642839
+OPM,561210,Facilities Support Services,6266818
+OPM,541611,Administrative Management and General Management Consulting Services,3635649
+OPM,517110,Wired Telecommunications Carriers,2884551
+OPM,541512,Computer Systems Design Services,2234171
+OPM,561621,Security Systems Services (except Locksmiths),2025354
+PBGC,523920,Portfolio Management,72043913
+PBGC,541330,Engineering Services,49747193
+PBGC,541519,Other Computer Related Services,42256216
+PBGC,541611,Administrative Management and General Management Consulting Services,35964953
+PBGC,523110,Investment Banking and Securities Dealing,18015326
+PBGC,541612,Human Resources Consulting Services,14911394
+PBGC,541512,Computer Systems Design Services,12242038
+PBGC,541214,Payroll Services,10308012
+PBGC,511210,Software Publishers,6928510
+PBGC,541219,Other Accounting Services,6197291
+PBGC,523940,Portfolio Management and Investment Advice,5458817
+PBGC,523991,"Trust, Fiduciary, and Custody Activities",5167185
+SEC,541512,Computer Systems Design Services,241423705
+SEC,541519,Other Computer Related Services,87171879
+SEC,541511,Custom Computer Programming Services,31359111
+SEC,541611,Administrative Management and General Management Consulting Services,27618490
+SEC,511210,Software Publishers,24983442
+SEC,519290,Web Search Portals and All Other Information Services,16713950
+SEC,518210,"Computing Infrastructure Providers, Data Processing, Web Hosting, and Related Services",14097850
+SEC,561621,Security Systems Services (except Locksmiths),9839370
+SEC,493110,General Warehousing and Storage,8838070
+SEC,524114,Direct Health and Medical Insurance Carriers,7355972
+SEC,519190,All Other Information Services,6248134
+SEC,519130,Internet Publishing and Broadcasting and Web Search Portals,5778459
+SI,236220,Commercial and Institutional Building Construction,159775325
+SI,561612,Security Guards and Patrol Services,29748541
+SI,531120,Lessors of Nonresidential Buildings (except Miniwarehouses),28464520
+SI,541310,Architectural Services,26932041
+SI,221122,Electric Power Distribution,15135367
+SI,541990,"All Other Professional, Scientific, and Technical Services",13417835
+SI,488991,Packing and Crating,11995633
+SI,423430,Computer and Computer Peripheral Equipment and Software Merchant Wholesalers,11132264
+SI,541513,Computer Facilities Management Services,7879308
+SI,541519,Other Computer Related Services,6683751
+SI,519130,Internet Publishing and Broadcasting and Web Search Portals,6600493
+SI,561210,Facilities Support Services,6333358
+SSA,541519,Other Computer Related Services,634263279
+SSA,511210,Software Publishers,243359464
+SSA,517110,Wired Telecommunications Carriers,123248228
+SSA,334111,Electronic Computer Manufacturing,103007094
+SSA,518210,"Computing Infrastructure Providers, Data Processing, Web Hosting, and Related Services",61506016
+SSA,541330,Engineering Services,58145273
+SSA,561450,Credit Bureaus,51992585
+SSA,541511,Custom Computer Programming Services,47862475
+SSA,334210,Telephone Apparatus Manufacturing,44928321
+SSA,541611,Administrative Management and General Management Consulting Services,36172102
+SSA,443120,Computer and Software Stores,33600819
+SSA,621112,"Offices of Physicians, Mental Health Specialists",28205093
+TREAS,541519,Other Computer Related Services,1581512491
+TREAS,331410,Nonferrous Metal (except Aluminum) Smelting and Refining,1468362920
+TREAS,541512,Computer Systems Design Services,1337871102
+TREAS,331491,"Nonferrous Metal (except Copper and Aluminum) Rolling, Drawing, and Extruding",526206304
+TREAS,541511,Custom Computer Programming Services,389729692
+TREAS,334111,Electronic Computer Manufacturing,369346885
+TREAS,331420,"Copper Rolling, Drawing, Extruding, and Alloying",256886234
+TREAS,541611,Administrative Management and General Management Consulting Services,226697672
+TREAS,511210,Software Publishers,203047715
+TREAS,322121,Paper (except Newsprint) Mills,173462475
+TREAS,517110,Wired Telecommunications Carriers,157212028
+TREAS,333248,All Other Industrial Machinery Manufacturing,126161347
+USAID,541611,Administrative Management and General Management Consulting Services,1518705619
+USAID,541990,"All Other Professional, Scientific, and Technical Services",1074884423
+USAID,541690,Other Scientific and Technical Consulting Services,547191568
+USAID,541330,Engineering Services,369700435
+USAID,541519,Other Computer Related Services,69754287
+USAID,541612,Human Resources Consulting Services,58544551
+USAID,311340,Nonchocolate Confectionery Manufacturing,58118584
+USAID,541511,Custom Computer Programming Services,52472228
+USAID,812990,All Other Personal Services,51597677
+USAID,541310,Architectural Services,48958515
+USAID,423450,"Medical, Dental, and Hospital Equipment and Supplies Merchant Wholesalers",34251388
+USAID,541618,Other Management Consulting Services,28097062
+USDA,481212,Nonscheduled Chartered Freight Air Transportation,1021945738
+USDA,115310,Support Activities for Forestry,868296792
+USDA,311611,Animal (except Poultry) Slaughtering,539863370
+USDA,311421,Fruit and Vegetable Canning,538975367
+USDA,311615,Poultry Processing,524297793
+USDA,541519,Other Computer Related Services,509750543
+USDA,541512,Computer Systems Design Services,493475233
+USDA,311513,Cheese Manufacturing,375631013
+USDA,311999,All Other Miscellaneous Food Manufacturing,293557256
+USDA,325998,All Other Miscellaneous Chemical Product and Preparation Manufacturing,263292178
+USDA,311710,Seafood Product Preparation and Packaging,262705096
+USDA,311991,Perishable Prepared Food Manufacturing,252888100
+VA,524114,Direct Health and Medical Insurance Carriers,31981309905
+VA,325412,Pharmaceutical Preparation Manufacturing,11664600496
+VA,621111,Offices of Physicians (except Mental Health Specialists),8134895297
+VA,541512,Computer Systems Design Services,3923951412
+VA,236220,Commercial and Institutional Building Construction,2809388687
+VA,541519,Other Computer Related Services,2421243167
+VA,339112,Surgical and Medical Instrument Manufacturing,1405370450
+VA,621492,Kidney Dialysis Centers,1341836681
+VA,623110,Nursing Care Facilities (Skilled Nursing Facilities),899108905
+VA,339113,Surgical Appliance and Supplies Manufacturing,839577324
+VA,541511,Custom Computer Programming Services,811793412
+VA,511210,Software Publishers,676960322
