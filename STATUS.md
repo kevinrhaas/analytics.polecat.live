@@ -135,6 +135,69 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the command palette Help describes vs the one the app ships (v973, NO sw bump,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41, N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  grooming pass 5 had drained the queue the same morning, so there was nothing to groom either.
+  The v972 slice named no successor — its own closing note deliberately parked the one candidate
+  it found as *not* N7's (dead CSS in a precached file) — so this pass picked its own target:
+  the **Command palette** section, the last un-held enumerable claim in the Help page's
+  keyboard chapter. It was stale in both halves at once, and one half had been wrong since the
+  feature shipped.
+  - **The label the page told you to type finds nothing.** Help quoted an
+    **`"Add View: <chart type>"`** command. The app prints `label: "Add panel: " + label`
+    (`app/palette.js:148`) and has since N-FUN slice 5 minted the family — it was never called
+    a widget, and never a View. **LF52's widget→View sweep (b7a4b20, 2026-07-28) renamed the
+    PAGE's quote** — from an equally wrong *"Add widget:"* — under a whitelist that had no app
+    string to match, so the rename moved the copy further from the app rather than onto it.
+    **Measured, not reasoned:** feeding the published string to the palette's own matcher
+    (`Studio.catalogSearch`, the kit every search box in the app runs) against a chart-type
+    command's real haystack returns **false** for `"Add View"` and for `"Add View: Bar"`, and
+    true for `"Add panel"`. The one sentence that says *"jump straight to any of those by
+    typing part of its name"* named the only string in the section that finds nothing.
+  - **And it published 4 of the palette's 14 family tags.** Every row prints a family word on
+    the right (`.cmdk-hint`, `render()`); the page named sections, dashboard lifecycle, editing
+    actions and mode toggles, and never mentioned **Data**, **Present**, **Manage** or
+    **Learn** — the last of which is where *Take the tour*, *Interactive tutorial* and
+    *Keyboard shortcuts* live, i.e. the family every tour means when it says
+    "⌘K → Interactive tutorial" (the route doc-truth check 13 already holds).
+  - **A third find, in the same paragraph:** *"Recently- and frequently-run commands rise to
+    the top of an empty-query open"* is backwards. `refresh()`'s empty-query arm sorts on
+    `usage[].last` alone; `usage[].count` is read **only** in the typed arm, and only as a
+    tie-break inside a relevance bucket (`score()` decides the buckets). So the page credited
+    the empty open with a popularity ranking it has never had, and said nothing about the
+    ordering you actually see when you type.
+  - **Shipped:** the section is now four anchored paragraphs — how to open it and the keys,
+    all fourteen families with what each holds, the five prefix-labelled families quoted as the
+    app prints them, and the ranking stated in the order you meet it.
+  - **Verified:** doc-truth **check 61** (seven rules). The static `COMMANDS` array is
+    **evaluated, not regexed** — its `run` bodies only dereference their helpers when called,
+    so the literal stands alone — and the four builders of live commands give up their label
+    prefix and family word from the object literal each returns. Rule (e) is check 55's probing
+    idiom: it runs `Studio.catalogSearch` over the very string the page prints, because "type
+    part of its name" is a promise a quoted label either keeps or does not.
+    **The premise fails on the true pre-fix tree** (the section had no anchors, so there was
+    nothing to hold), so the four doc-side rules were measured on mutated trees that
+    **re-publish the old claims verbatim** — check 60's precedent: the pre-fix quote reddens
+    (d) and (e) together, the pre-fix ranking sentence reddens (g), dropping four families
+    reddens (b), a wrong count word reddens (b), an invented family reddens (b) and (c).
+    Seven code-side directions measured on mutated trees, each failing its own rule and only
+    its own: the chart-type prefix renamed out from under the page (d + e), one command's
+    family renamed (b), a new command carrying a brand-new family (b), the family renamed
+    everywhere so the page bolds a tag no row carries (b + c), `navCommands()` losing its
+    `.visible` filter (f), frequency sorting the empty-query open (g), and the registry made
+    unextractable — which reddens the premise **and skips the other six** rather than passing
+    over nothing. Full dev gate green in the foreground: `tools/validate.mjs`,
+    `tools/changelog-check.js`, `tools/doc-truth.mjs`, `tools/dev-smoke.mjs`.
+  - **NO sw bump, correctly:** `docs/index.html` is not precached (`sw.js` line 20 says so),
+    `tools/` does not ship, and regenerating `js/changelog-head.js` has never taken one (the
+    v972/v945 precedent). Nothing in this slice enters issue #631's territory.
+  - **Est 1pt, took 1.** The deliberate non-take is on the N7 bullet: the palette's own
+    `"Add panel: …"` and `"Add text / annotation panel"` labels still use the pre-LF52 noun for
+    a thing the rest of the app calls a **View**. Renaming them is app copy in a precached file
+    (an `sw.js` CACHE bump for two strings) **and** a product call about whether "panel" is
+    still a word the app says out loud — Help documents what ships, which is what this slice
+    did.
 - **N7 — the authoring controls Simple mode hides vs the controls it really hides (v972, NO sw
   bump, 2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was the only
   takeable item in ▶ NOW — N31, N44, N41 and N25 are all ⛔ on Kevin, SP-1 is ⏳ on `hold` PR
@@ -16262,6 +16325,39 @@
     `app/welcome.js` contain **zero** occurrences of "Simple mode", so neither tour publishes a
     claim about what the mode hides and the usual check-16→17 move one document over has nothing
     to correct — check 60 is scoped to Help for that reason, not by oversight. The two v922 candidates are still open and still Kevin's calls.
+  * *The command palette Help describes vs the one the app ships — v973, NO sw bump
+    (2026-08-10 — see DONE).* No candidate was standing (v972's own note parked its only find
+    as not-N7's), so this pass chose the **Command palette** section — the last un-held
+    enumerable claim in the keyboard chapter — and found it stale in both halves.
+    **(1)** It quoted an **`"Add View: <chart type>"`** command the app has never printed:
+    `app/palette.js:148` prints `"Add panel: " + label`, and **LF52's widget→View sweep renamed
+    the PAGE's quote** (from an equally wrong *"Add widget:"*) with no app string to match, so
+    the rename moved the copy further from the app. Measured by PROBE rather than by reading:
+    the published string, fed to `Studio.catalogSearch` against a chart-type command's real
+    haystack, matches **nothing** — in a paragraph whose own promise is "jump straight to any
+    of those by typing part of its name".
+    **(2)** It published **4 of the 14 family tags** every row prints, omitting **Data**,
+    **Present**, **Manage** and **Learn** — Learn being where *Take the tour*, *Interactive
+    tutorial* and *Keyboard shortcuts* live, i.e. the family every tour's "⌘K → Interactive
+    tutorial" route (check 13) lands in.
+    **(3)** Its ranking sentence was backwards: `refresh()`'s empty-query arm sorts on
+    `usage[].last` alone, and `usage[].count` is read only in the typed arm as a tie-break
+    inside a relevance bucket — the page credited the empty open with a popularity ranking it
+    has never had.
+    Doc-truth **check 61**, seven rules, with the static registry **evaluated rather than
+    regexed** and rule (e) probing the app's own search kit (check 55's idiom). Premise fails
+    on the true pre-fix tree (no anchors to hold), so the doc-side rules were measured on
+    mutated trees re-publishing the old claims verbatim; seven code-side directions measured
+    on mutated trees, each failing its own rule and only its own.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    palette's own `"Add panel: …"` and `"Add text / annotation panel"` labels still use the
+    pre-LF52 noun for what the rest of the app calls a **View**. That is app copy in a
+    precached file (an `sw.js` CACHE bump, issue #631's territory, for two strings) **and** a
+    product call about whether "panel" is still a word the app says out loud — not a
+    derivation, and not Help's to make: Help documents what ships. Also measured and found
+    CURRENT: the **Voice command mode** paragraph below it (the mic only renders when
+    `SpeechRecognition` exists, which `voiceSupported()` still gates), and the top-bar
+    **Search…** pill the section names, which `app/index.html:113` still prints.
 
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's

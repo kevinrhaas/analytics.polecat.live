@@ -6486,6 +6486,169 @@ if (kitLive) {
     "Help told a Simple-mode reader that catalog authoring was locked down while every one of these stayed live");
 }
 
+/* ── Check 61 — the command palette: the families it prints, and the labels Help QUOTES.
+   The ⌘K palette is one registry with two published descriptions, and Help's was the stale
+   copy in both halves. It quoted an `"Add View: <chart type>"` command the app has never
+   printed — the label is `"Add panel: " + label`, and LF52's widget→View sweep renamed the
+   PAGE's quote (from an equally wrong "Add widget:") while the app's own string was never a
+   widget to begin with — so the one thing the paragraph told you to type found nothing. And
+   it published four of the palette's fourteen family tags, silently dropping Data, Present,
+   Manage and Learn, the last of which is the family every tour's "⌘K → Interactive tutorial"
+   route (check 13) lands in.
+   The source of truth is app/palette.js: the static COMMANDS array is EVALUATED rather than
+   regexed (its `run` bodies only dereference their helpers when called, so the literal stands
+   alone), and the four builders that mint commands from live state give up their label prefix
+   and their family word from the object literal each returns. Rule (e) then PROBES
+   Studio.catalogSearch — check 55's idiom — with the very string the page prints, because
+   "type part of its name" is a promise a quoted label either keeps or does not. */
+{
+  const pal = read("app/palette.js");
+
+  const staticCmds = (() => {
+    const at = pal.indexOf("var COMMANDS = [");
+    if (at < 0) return null;
+    try {
+      const arr = new Function("return " + searchBlockAt(pal, pal.indexOf("[", at), "[", "]") + ";")();
+      return Array.isArray(arr) && arr.every((c) => c && typeof c.label === "string" &&
+        typeof c.hint === "string" && typeof c.kw === "string") ? arr : null;
+    } catch { return null; }
+  })();
+
+  // The builders that mint commands from live state. `label` is a fixed prefix (the rail's
+  // also carries one exact label) plus the thing's own name; `hint` is the family word the
+  // row prints on the right. Both are read out of the object literal the builder returns.
+  const DYN = ["navCommands", "exampleCommands", "recentCommands", "chartTypeCommands"];
+  const palStrs = (s) => [...(s || "").matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]);
+  const dyn = DYN.map((name) => {
+    const at = pal.indexOf("function " + name + "(");
+    const body = at < 0 ? "" : searchBlockAt(pal, pal.indexOf("{", pal.indexOf(")", at)), "{", "}");
+    return {
+      name, body,
+      labels: palStrs((body.match(/label:([\s\S]*?),\s*hint:/) || [])[1]),
+      hints: palStrs((body.match(/hint:([\s\S]*?),\s*kw:/) || [])[1]),
+    };
+  });
+  const palFamilies = staticCmds
+    ? [...new Set([...staticCmds.map((c) => c.hint), ...dyn.flatMap((d) => d.hints)])]
+    : [];
+  // Every published form of a label: a static command's exact label, or a builder's prefix.
+  const palForms = staticCmds
+    ? [
+      ...staticCmds.map((c) => ({ form: c.label, exact: true, hay: [c.label, c.hint, c.kw] })),
+      ...dyn.flatMap((d) => d.labels.map((l) => ({ form: l, exact: false, hay: [l, ...d.hints] }))),
+    ]
+    : [];
+
+  // ── Help's three anchors. `dec` finishes what htmlText starts: the page writes a label's
+  // placeholder as an entity, and a reader sees the angle brackets.
+  const palP = (id) => {
+    const at = help.indexOf(`<p id="${id}">`);
+    return at < 0 ? "" : help.slice(at, help.indexOf("</p>", at) + 4);
+  };
+  const dec = (s) => apos(htmlText(s).replace(/&lt;/g, "<").replace(/&gt;/g, ">"));
+  const palBold = (h) => [...h.matchAll(/<strong>([\s\S]*?)<\/strong>/g)].map((m) => dec(m[1]));
+  const famHtml = palP("cmdk-families"), labHtml = palP("cmdk-labels"), rankHtml = palP("cmdk-rank");
+  const famText = dec(famHtml), rankText = dec(rankHtml);
+
+  // (a) the premise. Everything below reads these, so a registry that stops parsing — or a
+  // paragraph that loses its id — must fail HERE rather than let five rules pass over nothing.
+  const palPremise = ok(`app/palette.js: the command palette's registry parsed for check 61 ` +
+    `(${staticCmds ? staticCmds.length : 0} static command(s), ${dyn.filter((d) => d.labels.length).length} ` +
+    `builder(s) of live commands, ${palFamilies.length} family tag(s))`,
+    !!staticCmds && staticCmds.length >= 20 && palFamilies.length >= 10 && !!searchKit &&
+      dyn.every((d) => d.labels.length >= 1 && d.hints.length >= 1) &&
+      !!famHtml && !!labHtml && !!rankHtml,
+    `static array evaluated: ${!!staticCmds} · kit evaluable: ${!!searchKit}\n      ` +
+    `builders: ${dyn.map((d) => `${d.name} → ${d.labels.map((l) => `"${l}"`).join(" / ") || "(none)"} ` +
+      `[${d.hints.join(" / ") || "(none)"}]`).join("\n        ")}\n      ` +
+    `families: ${palFamilies.join(", ") || "(none)"}\n      ` +
+    `anchors — #cmdk-families: ${!!famHtml} · #cmdk-labels: ${!!labHtml} · #cmdk-rank: ${!!rankHtml}`);
+
+  if (palPremise) {
+    const famBold = palBold(famHtml);
+
+    // (b) every family the palette prints is published, and the count word agrees.
+    const PAL_NUM = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+      "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen"];
+    const famMissing = palFamilies.filter((f) => !famBold.includes(f));
+    const famCounts = [...famText.matchAll(/\b(\d+|[a-z]+)\s+of\s+them\b/gi)]
+      .filter((m) => /^\d+$/.test(m[1]) || PAL_NUM.includes(m[1].toLowerCase()));
+    const famCountOk = (w) => (/^\d+$/.test(w) ? Number(w) : PAL_NUM.indexOf(w.toLowerCase())) === palFamilies.length;
+    ok(`docs/index.html: all ${palFamilies.length} family tags the palette prints are published, and the count word says so`,
+      !famMissing.length && famCounts.length >= 1 && famCounts.every((m) => famCountOk(m[1])),
+      `unpublished: ${famMissing.join(", ") || "(none)"}\n      ` +
+      `count claim(s): ${famCounts.map((m) => `"${m[0]}"`).join(", ") || "(none — the paragraph publishes no count)"}\n      ` +
+      `the palette prints: ${palFamilies.join(" · ")}\n      ` +
+      "four families went unmentioned for months, Learn among them — the one every tour's \"⌘K → Interactive tutorial\" lands in");
+
+    // (c) and it invents none: a family word that is not a hint sends a reader looking for a
+    // tag no row carries.
+    const famInvented = famBold.filter((b) => !palFamilies.includes(b));
+    ok("docs/index.html: the families paragraph bolds no tag the palette does not print",
+      !famInvented.length,
+      `bolded but not a family: ${famInvented.join(", ") || "(none)"}\n      ` +
+      `real families: ${palFamilies.join(" · ")}`);
+
+    // (d) every label the page QUOTES is one the app really prints — exactly, for a fixed
+    // command, or as the prefix a builder puts in front of the thing's own name.
+    const labQuoted = palBold(labHtml).filter((b) => /^".*"$/.test(b)).map((b) => b.slice(1, -1));
+    const labResolve = (q) => {
+      const bare = q.replace(/<[^>]*>/g, "");
+      return palForms.find((f) => (f.exact ? apos(f.form) === bare.trim() : apos(f.form) === bare)) ||
+        palForms.find((f) => !f.exact && apos(f.form).trim() === bare.trim());
+    };
+    const labBogus = labQuoted.filter((q) => !labResolve(q));
+    ok(`docs/index.html: every command label the page quotes is one the palette prints (${labQuoted.length} quoted)`,
+      labQuoted.length >= 4 && !labBogus.length,
+      `quoted but never printed: ${labBogus.map((q) => `"${q}"`).join(", ") || "(none)"}\n      ` +
+      `quoted: ${labQuoted.map((q) => `"${q}"`).join(" · ") || "(none)"}\n      ` +
+      `the builders print: ${dyn.flatMap((d) => d.labels).map((l) => `"${l}"`).join(" · ")}\n      ` +
+      "the page quoted \"Add View: <chart type>\" while the app printed \"Add panel: \" — a rename that swept the doc and missed nothing in the app");
+
+    // (e) the probe, and the rule that would have caught it: the page says "type part of its
+    // name", so every label it quotes must FIND its own command through the palette's matcher.
+    const labUnfindable = labQuoted.filter((q) => {
+      const f = labResolve(q);
+      const query = q.replace(/<[^>]*>/g, "").trim();
+      return !f || !query || !kitFinds(query, f.hay);
+    });
+    ok("docs/index.html: typing a quoted label into the palette finds the command it names — probed on Studio.catalogSearch",
+      !labUnfindable.length,
+      `finds nothing: ${labUnfindable.map((q) => `"${q}"`).join(", ") || "(none)"}\n      ` +
+      `probed: ${labQuoted.map((q) => `"${q.replace(/<[^>]*>/g, "").trim()}"`).join(" · ")}\n      ` +
+      "a label the page prints that the palette's own search cannot find is worse than no label at all");
+
+    // (f) the Section family is the rail's, filtered by what the account may open — the half
+    // of the old paragraph that was RIGHT, kept and now derived rather than asserted.
+    const navBody = dyn[0].body;
+    const navFromRail = /__studioRailSections/.test(navBody) && /\.visible/.test(navBody);
+    ok("app/palette.js + docs/index.html: the rail builds the Go-to commands and filters them by visibility, and the page says both",
+      navFromRail && /built from the rail/i.test(famText) && /missing from the palette/i.test(famText),
+      `navCommands() reads the rail: ${/__studioRailSections/.test(navBody)} · filters on .visible: ${/\.visible/.test(navBody)}\n      ` +
+      `the page says it is built from the rail: ${/built from the rail/i.test(famText)} · ` +
+      `that a section you cannot reach is absent: ${/missing from the palette/i.test(famText)}\n      ` +
+      "drop the filter and the palette navigates into a section the account was told it does not have");
+
+    // (g) the ranking, which the page had backwards: recency alone on an empty open, frequency
+    // only as a tie-break once you type.
+    const refAt = pal.indexOf("function refresh()");
+    const refBody = refAt < 0 ? "" : searchBlockAt(pal, pal.indexOf("{", pal.indexOf(")", refAt)), "{", "}");
+    const elseAt = refBody.indexOf("} else {");
+    const emptyArm = elseAt > 0 ? refBody.slice(refBody.indexOf("if (!q)"), elseAt) : "";
+    const typedArm = elseAt > 0 ? refBody.slice(elseAt) : "";
+    const rankHolds = !!emptyArm && /\.last/.test(emptyArm) && !/\.count/.test(emptyArm) && /\.count/.test(typedArm);
+    const rankSaid = /recency alone/i.test(rankText) && /only once you start typing/i.test(rankText) &&
+      /(tie-breaker|breaks ties|equally well)/i.test(rankText);
+    ok("app/palette.js + docs/index.html: an empty open ranks by recency alone and frequency only breaks ties on a typed query, and the page says which is which",
+      rankHolds && rankSaid,
+      `empty-query arm sorts on .last: ${/\.last/.test(emptyArm)} · reads .count: ${/\.count/.test(emptyArm)}` +
+      ` · typed arm reads .count: ${/\.count/.test(typedArm)}\n      ` +
+      `the page states recency alone: ${/recency alone/i.test(rankText)} · frequency only on typing: ` +
+      `${/only once you start typing/i.test(rankText)} · as a tie-break: ${/(tie-breaker|breaks ties|equally well)/i.test(rankText)}\n      ` +
+      "the page credited the empty open with frequency it has never used, and said nothing about the ranking you actually see when you type");
+  }
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
