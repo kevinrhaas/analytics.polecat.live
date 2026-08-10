@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 971,
+    title: 'Where America Moved pins its four Views, and brings its own guided tour',
+    ts: '2026-08-10T15:23:12.000Z',
+    items: [
+      'The <b>Where America Moved</b> pack now pins <b>four Views</b> to Home beside its three dashboards — net household migration by county, the state-to-state corridors as a real flow, the income that changed state, and every corridor\'s movers set against the households that stayed put in the state they left. Already have the pack? They arrive on your next boot; nothing you have edited is touched.',
+      'Each card <b>names the grain it is on</b>, because a View on Home arrives without its dashboard\'s note and the two grains in this data are different universes: a county\'s totals count every US move including moves inside its own state, a state\'s count only moves that crossed a state line, and the two deliberately do not add up.',
+      'These are ordinary View Builder Views, not read-only cards: the 12,000-household floor on the corridor flow is a filter chip you can drag off, and net income by state is a <b>calculated column</b> whose formula is right there on the shelf — the IRS ships the money arriving and the money leaving, not their difference.',
+      'The county map reads the pack\'s <b>trimmed</b> table rather than the raw one, for the reason its dashboard already states: a live View holds 2,000 rows and the county table is 3,087, so a View bound to the raw table would draw Alabama through Ohio and simply stop. The trim is the pack\'s own job, with a rule you can open and change.',
+      'The pack also gained its <b>own guided tour</b>, alongside the ones Conservation Insight, Market Coverage and Campaign Finance carry — who is winning households, at what income, and the grain rule you have to read this source with. Find it in ⌘K → Interactive tutorial once the pack is installed.',
+    ],
+  },
+  {
     v: 970,
     title: 'Where America Moved gets its dashboards — who is winning households, where they went, and whether the money went too',
     ts: '2026-08-10T14:36:15.000Z',

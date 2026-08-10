@@ -6974,9 +6974,245 @@ function serve() {
       cmRender.tableRows > 0 && !cmRender.anyEmpty && cmRender.note && cmRender.kpis === 4 &&
       cmRender.kpiValues.every(function (v) { return v && v !== "—" && v !== "0"; }) && !cmRender.err,
       JSON.stringify(cmRender));
+
+    // ---- SP-13 (c): the four pinned Views, and the pack's own tour ----------------
+    // A dashboard is READ; a View is OPENED and changed. So these checks are about that
+    // difference: the four are hand-saveable View Builder blobs over the pack's OWN tables,
+    // and their cards draw the live rows through the same runBlob path the panels use. The
+    // traps they guard are this pack's own three: a county View bound to the RAW county
+    // table would inherit the builder's 2,000-row live cap and stop halfway across the
+    // country exactly as slice (b)'s panels would have; the money column has to be a CALC
+    // column, because the IRS ships the two directions and not their difference; and each
+    // name has to state its GRAIN, since a card on Home arrives without its dashboard's
+    // note and the two grains are different universes by the source's own definition.
+    console.log("\n• SP-13(c): the pack's four pinned Views, and its guided tour");
+    const cmViews = await page.evaluate(async function () {
+      var W = Studio.Workspace, ID = "countymigration";
+      var rows = W.all("analyses").filter(function (a) { return a.demoPackId === ID; });
+      var byDa = {}; rows.forEach(function (r) { if (r.da) byDa[r.da.id] = r; });
+      var counties = byDa["cmv_counties"], flow = byDa["cmv_flow"],
+        money = byDa["cmv_money"], movers = byDa["cmv_movers"];
+      var four = [counties, flow, money, movers];
+      var mine = {};
+      W.all("datasets").filter(function (d) { return d.demoPackId === ID; })
+        .forEach(function (d) { mine[d.id] = d; });
+      function byFile(name) {
+        return W.all("datasets").filter(function (d) {
+          return d.demoPackId === ID && (d.fileName || "") === name;
+        })[0];
+      }
+      function parse(ds) {
+        var lines = String((ds && ds.content) || "").trim().split("\n");
+        var head = (lines.shift() || "").split(",");
+        return { head: head, rows: lines.map(function (l) { return l.split(","); }) };
+      }
+      var rawCounties = byFile("county_migration_net.csv");   // 3,087 — over the live cap
+      var mapped = byFile("county_migration_mapped.csv");     // the trimmed job output
+      var statesDs = byFile("state-migration.csv");
+      var corridors = byFile("state_corridor_shares.csv");
+      var out = {
+        count: rows.length,
+        allFound: four.every(Boolean),
+        allPinned: rows.every(function (r) { return r.pinned === true; }),
+        allFoldered: rows.every(function (r) { return r.folder === "Where America Moved"; }),
+        // builder-native: a real blob, over one of the PACK's datasets (not a Quick-Views
+        // snapshot and not a blob pointing at somebody else's rows)
+        allBuilderNative: rows.every(function (r) {
+          return !!(r.builder && r.da && r.da.builder && r.chart) &&
+            r.builder.dsKind === "ws" && !!mine[r.builder.dsId];
+        }),
+        types: four.map(function (r) { return r && r.chartType; }).join(","),
+        // every card carries its grain in its own title, because Home shows it alone
+        everyNameStatesItsGrain: four.every(function (r) {
+          return r && /\((county|state) grain\)$/.test(r.name);
+        }),
+        grains: four.map(function (r) { return r && (r.name.match(/\((county|state) grain\)$/) || [])[1]; }).join(","),
+        // Home sorts pinned Views newest-first, so the county hero has to be seeded last
+        firstOnHome: W.all("analyses").filter(function (a) { return a.pinned; })
+          .sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); })
+          .filter(function (a) { return a.demoPackId === ID; })
+          .map(function (a) { return a.da && a.da.id; })[0]
+      };
+      if (!out.allFound) return out;
+      // both maps are mapped POSITIONALLY off the basis head — the measure column of a
+      // rolled-up basis is a synthesized "SUM net_returns" label and guessChoroplethCols
+      // can misjudge one — and both diverge at zero, because the sign is the finding
+      out.countiesMap = [counties.chart.map.idCol, counties.chart.map.valueCol].join(">");
+      out.countiesHead = counties.da.columns.join(">");
+      out.countiesScale = counties.builder.mapScale + "/" + counties.chart.opts.scale;
+      out.moneyMap = [money.chart.map.idCol, money.chart.map.valueCol].join(">");
+      out.moneyScale = money.builder.mapScale + "/" + money.chart.opts.scale;
+      out.bothMapsDiverge = [counties, money].every(function (r) {
+        return r.chart.opts.divergeToken === "--warn" && r.chart.opts.center === 0;
+      });
+      // the sankey's three roles, positionally off its flat [source, target, measure] basis
+      out.flowMap = [flow.chart.map.sourceCol, flow.chart.map.targetCol, flow.chart.map.valueCol].join(">");
+      out.flowHead = flow.da.columns.join(">");
+      // THE TRAP: the county View reads the TRIMMED job output, never the 3,087-row table
+      out.countiesReadTrimmed = !!mapped && counties.builder.dsId === mapped.id;
+      out.countiesAvoidTheRawTable = !!rawCounties && counties.builder.dsId !== rawCounties.id;
+      out.rawIsOverTheCap = parse(rawCounties).rows.length > 2000;
+      out.trimmedIsUnderTheCap = parse(mapped).rows.length < 2000;
+      // the two state-grain corridor Views read the pack's join output; the money map
+      // reads the state extract, because its value is computed ON the View
+      out.corridorViewsReadTheJoin = !!corridors && flow.builder.dsId === corridors.id &&
+        movers.builder.dsId === corridors.id;
+      out.moneyReadsTheExtract = !!statesDs && money.builder.dsId === statesDs.id;
+      // and the money column really is a calculated column, not an extract column
+      out.moneyCalcs = (money.builder.calcs || []).map(function (c) { return c.name; }).join(",");
+      out.netAgiIsNotInTheExtract = parse(statesDs).head.indexOf("net_agi_k") < 0;
+      out.flowFloor = Number((flow.builder.filters[0] || {}).min);
+      // newPanel's table default would mark `to_state` numeric; the declared columns win
+      out.stateNotNumeric = !movers.chart.map.cols.filter(function (c) { return c.col === "to_state"; })[0].num;
+
+      var res = await Promise.all(four.map(function (r) { return Studio.Build.runBlob(r.builder); }));
+      out.rowCounts = res.map(function (x) { return x ? x.rows.length : -1; });
+      out.allLive = res.every(function (x) { return !!(x && x.live); });
+      // what the tables really hold, so every count below is derived rather than typed
+      out.expected = {
+        counties: parse(mapped).rows.length,
+        states: parse(statesDs).rows.length,
+        corridors: parse(corridors).rows.length
+      };
+      var cRun = res[0], fRun = res[1], mRun = res[2], vRun = res[3];
+      if (cRun) {
+        out.countiesCols = cRun.cols.join(">");
+        // the whole trimmed table comes back — the cap is not reached, which is the point
+        out.countiesLiveIsWhole = cRun.rows.length === out.expected.counties;
+        out.countiesBothDirections = cRun.rows.some(function (r) { return Number(r[1]) > 0; }) &&
+          cRun.rows.some(function (r) { return Number(r[1]) < 0; });
+      }
+      if (fRun) {
+        out.flowCols = fRun.cols.join(">");
+        out.flowObeysFloor = fRun.rows.length > 0 && fRun.rows.every(function (r) { return Number(r[2]) >= out.flowFloor; });
+        out.flowIsANarrowing = fRun.rows.length < out.expected.corridors;
+        // both ends are state codes, and no corridor ends where it started
+        out.flowCrossesAStateLine = fRun.rows.every(function (r) {
+          return /^[A-Z]{2}$/.test(String(r[0])) && /^[A-Z]{2}$/.test(String(r[1])) && r[0] !== r[1];
+        });
+      }
+      if (mRun) {
+        // the calc really is in_agi_k − out_agi_k, recomputed here from the shipped CSV
+        var t = parse(statesDs), si = t.head.indexOf("state"),
+          ii = t.head.indexOf("in_agi_k"), oi = t.head.indexOf("out_agi_k");
+        var want = {};
+        t.rows.forEach(function (c) { want[c[si]] = Number(c[ii]) - Number(c[oi]); });
+        out.moneyCols = mRun.cols.join(">");
+        out.moneyChecks = mRun.rows.length > 0 && mRun.rows.every(function (r) {
+          var w = want[String(r[0])];
+          return w !== undefined && Math.abs(Number(r[1]) - w) < 1e-6;
+        });
+        out.moneyBothDirections = mRun.rows.some(function (r) { return Number(r[1]) > 0; }) &&
+          mRun.rows.some(function (r) { return Number(r[1]) < 0; });
+      }
+      if (vRun) {
+        // the gap column is the pack's title question, and it is the job's own subtraction
+        var gi = vRun.cols.indexOf("movers_vs_stayers_agi_k"),
+          mi = vRun.cols.indexOf("movers_avg_agi_k"), si2 = vRun.cols.indexOf("stayers_avg_agi_k");
+        out.moversCols = vRun.cols.join(">");
+        out.moversGapIsTheSubtraction = gi >= 0 && mi >= 0 && si2 >= 0 && vRun.rows.length > 0 &&
+          vRun.rows.every(function (r) { return Math.abs(Number(r[gi]) - (Number(r[mi]) - Number(r[si2]))) < 1e-6; });
+      }
+      return out;
+    });
+    ok("SP-13(c): the pack pins four builder-native Views over its own tables — net migration by county, the state-to-state flow, the income that changed state and every corridor's movers against its stayers — all pinned and foldered, every name stating the GRAIN it is on because a card on Home arrives without its dashboard's note, both maps mapped positionally off their basis and diverging at zero, the county View reading the TRIMMED job output rather than the 3,087-row table the builder's live cap would silently cut, the money column carried as a calc column the extract does not ship, the table's `to_state` left non-numeric, and the county hero seeded last so it leads Home's newest-first shelf",
+      cmViews.count === 4 && cmViews.allFound && cmViews.allPinned && cmViews.allFoldered &&
+      cmViews.allBuilderNative && cmViews.types === "choropleth,sankey,choropleth,table" &&
+      cmViews.everyNameStatesItsGrain && cmViews.grains === "county,state,state,state" &&
+      cmViews.countiesMap === cmViews.countiesHead && cmViews.countiesMap === "fips>SUM net_returns" &&
+      cmViews.countiesScale === "county/county" && cmViews.moneyMap === "state>SUM net_agi_k" &&
+      cmViews.moneyScale === "state/state" && cmViews.bothMapsDiverge &&
+      cmViews.flowMap === cmViews.flowHead && cmViews.flowMap === "from_state>to_state>SUM returns" &&
+      cmViews.countiesReadTrimmed && cmViews.countiesAvoidTheRawTable &&
+      cmViews.rawIsOverTheCap && cmViews.trimmedIsUnderTheCap &&
+      cmViews.corridorViewsReadTheJoin && cmViews.moneyReadsTheExtract &&
+      cmViews.moneyCalcs === "net_agi_k" && cmViews.netAgiIsNotInTheExtract &&
+      cmViews.stateNotNumeric && cmViews.firstOnHome === "cmv_counties",
+      JSON.stringify(cmViews));
+    ok("SP-13(c): running the four saved blobs returns the LIVE basis, not a stored copy — every county the trim kept and no fewer (so the cap is never reached), counties gaining and losing on the same map, a ribbon per corridor at or above the View's own 12,000-household floor with both ends a state code and none of them the same state, all 51 state rows on the money map with net AGI recomputed from the two shipped dollar figures and running both ways, and every corridor's movers-versus-stayers gap the job's own subtraction",
+      cmViews.allLive && cmViews.countiesCols === "fips>SUM net_returns" &&
+      cmViews.countiesLiveIsWhole && cmViews.countiesBothDirections &&
+      cmViews.flowCols === "from_state>to_state>SUM returns" && cmViews.flowObeysFloor &&
+      cmViews.flowIsANarrowing && cmViews.flowCrossesAStateLine &&
+      cmViews.moneyChecks && cmViews.moneyBothDirections &&
+      cmViews.rowCounts && cmViews.rowCounts[0] === cmViews.expected.counties &&
+      cmViews.rowCounts[2] === cmViews.expected.states && cmViews.expected.states === 51 &&
+      cmViews.rowCounts[3] === cmViews.expected.corridors &&
+      cmViews.moversGapIsTheSubtraction,
+      JSON.stringify(cmViews));
+
+    // The heal, and this pack's is THIRD in a chain rather than second: the county View
+    // reads the map job's output, so a slice-(a) workspace has to grow the job before it
+    // can grow the Views. Both orderings are exercised, and a healthy workspace is a no-op.
+    const cmViewHeal = await page.evaluate(function () {
+      var W = Studio.Workspace, ID = "countymigration";
+      W.all("analyses").filter(function (a) { return a.demoPackId === ID; })
+        .forEach(function (a) { W.remove("analyses", a.id, { silent: true }); });
+      W.notify("analyses");
+      var healed = Studio.ensureCountyMigrationViews();
+      var back = W.all("analyses").filter(function (a) { return a.demoPackId === ID; }).length;
+      var again = Studio.ensureCountyMigrationViews();
+      // and roll back to slice (a): with the map job's output gone there is nothing for the
+      // county View to read, so the heal must decline rather than pin a broken card
+      W.all("analyses").filter(function (a) { return a.demoPackId === ID; })
+        .forEach(function (a) { W.remove("analyses", a.id, { silent: true }); });
+      var mapped = W.all("datasets").filter(function (r) { return r.demoPackId === ID && r.fileName === "county_migration_mapped.csv"; });
+      var keep = mapped.map(function (r) { return Studio.clone(r); });
+      mapped.forEach(function (r) { W.remove("datasets", r.id, { silent: true }); });
+      W.notify("datasets"); W.notify("analyses");
+      var withoutTheJob = Studio.ensureCountyMigrationViews();
+      var pinnedAnyway = W.all("analyses").filter(function (a) { return a.demoPackId === ID; }).length;
+      keep.forEach(function (r) { W.put("datasets", r); });
+      W.notify("datasets");
+      var healedAfter = Studio.ensureCountyMigrationViews();
+      return { healed: healed, back: back, idempotent: again === false,
+        waitsForTheJob: withoutTheJob === false, pinnedAnyway: pinnedAnyway,
+        healedAfter: healedAfter,
+        backAgain: W.all("analyses").filter(function (a) { return a.demoPackId === ID; }).length };
+    });
+    ok("SP-13(c): the boot heal re-seeds the four Views into an install that predates them, is idempotent on a healthy workspace, and declines entirely while the map job's output — the table the county View reads — is missing, pinning nothing rather than a broken card",
+      cmViewHeal.healed && cmViewHeal.back === 4 && cmViewHeal.idempotent &&
+      cmViewHeal.waitsForTheJob && cmViewHeal.pinnedAnyway === 0 &&
+      cmViewHeal.healedAfter && cmViewHeal.backAgain === 4, JSON.stringify(cmViewHeal));
+
+    // The pack's own tour — gated on the pack the same way the Conservation, Market
+    // Coverage and Campaign Finance ones are (J6-10 checks the OFF half, with every pack
+    // uninstalled).
+    const cmTour = await page.evaluate(function () {
+      StudioTutorial.open();
+      var choice = document.querySelector('#st-tip .st-choice[data-tour="countymigration"]');
+      var steps = StudioTutorial.tourSteps("countymigration");
+      var out = {
+        visible: !!choice,
+        label: ((choice && choice.querySelector("b")) || {}).textContent,
+        steps: StudioTutorial.stepCount("countymigration"),
+        // every spotlight the tour aims at a dashboard panel must be a panel the pack
+        // actually seeds — a tour naming a panel id that no longer exists stalls on a dead
+        // waitFor, which is exactly the class of drift N7's doc-truth checks hunt
+        targets: steps.map(function (s) { return s.target; }).filter(Boolean),
+        // and the one thing this pack's copy cannot get wrong: the grains are named, and
+        // the tour says they do not add up
+        namesBothGrains: /county/i.test(JSON.stringify(steps)) && /state/i.test(JSON.stringify(steps)) &&
+          /do not add up/i.test(JSON.stringify(steps))
+      };
+      var hero = Studio.Workspace.all("dashboards").filter(function (r) {
+        return (r.spec && r.spec.name) === "countymigration-counties";
+      })[0];
+      var ids = ((hero && hero.spec.panels) || []).map(function (p) { return p.id; });
+      out.panelTargetsResolve = out.targets.filter(function (t) { return /data-panel-id/.test(t); })
+        .every(function (t) { return ids.indexOf(t.replace(/^\[data-panel-id="|"\]$/g, "")) >= 0; });
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      return out;
+    });
+    ok("SP-13(c): the Where America Moved tour is registered, appears in the chooser once the pack is installed, walks 6 stops naming both grains and the fact they do not add up, and every panel it spotlights is a panel the pack really seeds",
+      cmTour.visible && cmTour.label === "Where America Moved pack" && cmTour.steps === 6 &&
+      cmTour.targets.length === 4 && cmTour.panelTargetsResolve && cmTour.namesBothGrains,
+      JSON.stringify(cmTour));
+
     // Leave the workspace as this block found it: a pack left installed adds its folder and
     // its three jobs to every catalog list the checks below count, which is how a green
-    // pack slice reddens four unrelated checks hundreds of lines later.
+    // pack slice reddens four unrelated checks hundreds of lines later. The tour is
+    // pack-gated now, so it would also change the chooser counts J6-10 asserts.
     await page.evaluate(function (was) {
       if (!was) Studio.removeDemoPack("countymigration");
     }, cmWasInstalled);
@@ -35064,10 +35300,11 @@ function serve() {
     });
     ok("J6: Escape closes the tutorial (tip, ring, and active flag all cleared)", j6Closed.ok, JSON.stringify(j6Closed));
 
-    // J6-5: tour shapes — eight tours (overview leads), quick has 8 steps, build has 6, jobs has 6,
+    // J6-5: tour shapes — nine tours (overview leads), quick has 8 steps, build has 6, jobs has 6,
     // connect has 9, conservation (LF40, pack-gated) has 7, marketcoverage (SP-1(c), pack-gated
-    // the same way) has 6, campaignfinance (SP-5(c), same again) has 6. tourKeys() is the
-    // DECLARED order, not the visible one — all three pack
+    // the same way) has 6, campaignfinance (SP-5(c), same again) has 6, countymigration
+    // (SP-13(c), same again) has 6. tourKeys() is the
+    // DECLARED order, not the visible one — all four pack
     // tours are in it whether or not their pack is installed; the chooser-gating checks are
     // J6-10 below. N7 (2026-08-08) added the
     // catalog-toolbar stop to the two catalog tours (jobs 5→6, connect 8→9). Overview's own base is 13, but (LF40)
@@ -35078,18 +35315,20 @@ function serve() {
       try {
         var packs = Studio.DEMO_PACKS || {};
         var installedPackCount = Object.keys(packs).filter(function (id) { return Studio.demoPackInstalled(id); }).length;
-        return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build,jobs,connect,conservation,marketcoverage,campaignfinance" &&
+        return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build,jobs,connect,conservation,marketcoverage,campaignfinance,countymigration" &&
           StudioTutorial.stepCount("overview") === 13 + installedPackCount && StudioTutorial.stepCount("quick") === 8 &&
           StudioTutorial.stepCount("build") === 6 && StudioTutorial.stepCount("jobs") === 6 &&
           StudioTutorial.stepCount("connect") === 9 && StudioTutorial.stepCount("conservation") === 7 &&
-          StudioTutorial.stepCount("marketcoverage") === 6 && StudioTutorial.stepCount("campaignfinance") === 6,
+          StudioTutorial.stepCount("marketcoverage") === 6 && StudioTutorial.stepCount("campaignfinance") === 6 &&
+          StudioTutorial.stepCount("countymigration") === 6,
           keys: StudioTutorial.tourKeys().join(","), o: StudioTutorial.stepCount("overview"), installedPackCount: installedPackCount,
           q: StudioTutorial.stepCount("quick"), b: StudioTutorial.stepCount("build"),
           j: StudioTutorial.stepCount("jobs"), c: StudioTutorial.stepCount("connect"), cv: StudioTutorial.stepCount("conservation"),
-          mc: StudioTutorial.stepCount("marketcoverage"), cf: StudioTutorial.stepCount("campaignfinance") };
+          mc: StudioTutorial.stepCount("marketcoverage"), cf: StudioTutorial.stepCount("campaignfinance"),
+          cm: StudioTutorial.stepCount("countymigration") };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("J6: eight tours registered — Overview (13-step base incl. the #23 glossary + TOUR-WOW's View Builder stop + N7's Views-catalog stop + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (6 — LF18(b) + N7's catalog-toolbar stop), Connections & Datasets (9 — LF18(b) + N7's catalog-toolbar stop), Conservation Insight pack (7 — LF40, pack-gated; N7 added the pinned-Views stop), Market Coverage pack (6 — SP-1(c), pack-gated the same way), Campaign Finance pack (6 — SP-5(c), pack-gated the same way)", j6Shape.ok, JSON.stringify(j6Shape));
+    ok("J6: nine tours registered — Overview (13-step base incl. the #23 glossary + TOUR-WOW's View Builder stop + N7's Views-catalog stop + one per installed sample pack, LF40, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (6 — LF18(b) + N7's catalog-toolbar stop), Connections & Datasets (9 — LF18(b) + N7's catalog-toolbar stop), Conservation Insight pack (7 — LF40, pack-gated; N7 added the pinned-Views stop), Market Coverage pack (6 — SP-1(c), pack-gated the same way), Campaign Finance pack (6 — SP-5(c), pack-gated the same way), Where America Moved pack (6 — SP-13(c), pack-gated the same way)", j6Shape.ok, JSON.stringify(j6Shape));
 
     // #23 (Kevin): the overview tour defines EVERY domain term — a glossary step
     // covers the full list one line each, and the terms missing from the walk
