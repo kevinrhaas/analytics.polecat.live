@@ -135,6 +135,53 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **SP-13 (b) — Where America Moved gets its dashboards (v970, sw v560, 2026-08-10, steward;
+  dev branch; est 1pt, took 1 — ON estimate):** three dashboards over the pack's committed IRS
+  data, seeded from the same turn that writes the datasets and healed onto an existing install
+  by `Studio.ensureCountyMigrationDashboards`. They are split by **grain rather than by topic**,
+  because slice (a) measured that the two grains in this source count different universes and
+  no panel may blur them: *Who Is Winning Households* (county grain — the net-migration
+  choropleth as the hero, the arrivers-versus-leavers income gap as its twin, both diverging at
+  zero, the gainers bars and a losers table that pairs net households with the income gap),
+  *The Corridors* (state grain — the state-to-state sankey, the corridors taking 15% or more of
+  the state they leave, and the biggest county-to-county moves), and *Did the Money Move With
+  Them* (state grain — net AGI by state as a **calculated column on the View**, each corridor's
+  movers against the stayers of the state they left, and the county-grain scatter of arrivers
+  against leavers). Every dashboard's note panel names its own grain, and every figure quoted in
+  copy is recomputed from the shipped rows at seed time.
+  **THE SLICE'S REAL WORK WAS AN APP LIMIT, MEASURED AND DESIGNED AROUND — and it is the SP-5(b)
+  finding hitting a second pack, in a form that is worse to look at.** The View Builder keeps the
+  first **2,000 rows** of a live dataset run (`app/build.js`, `bdLoadRowsFor`), before the View's
+  own filters, and every dashboard panel bound to a builder blob inherits it. The county table is
+  **3,087 rows in FIPS order**, so a national choropleth bound to it draws Alabama through Ohio
+  and stops: **sixteen states — Ohio through Wyoming — vanish, and the map still looks like a
+  map.** The pack therefore ships a **third job** that trims by a rule you can open — keep the
+  counties where at least 1,000 households arrived or left — which is **1,782 counties carrying
+  96.5% of every household move**, and **loses no state at all**. The rule, the count and what it
+  costs are on the hero's own note, in counties and in moves. The suite pins the distinction
+  rather than the prose: it derives which states a 2,000-row prefix would drop and asserts the
+  pack's rule drops none of them. **The general fix is still not this** — disclosing or raising
+  the cap remains the app change recorded for Kevin in the SP-5 item, and this is now the second
+  pack to have designed around it.
+  **The eleven no-shape counties were handled by disclosure, as slice (a) said (b) had to.** The
+  app's committed county atlas predates the 2022 boundary changes, so Connecticut's nine planning
+  regions and Alaska's Chugach and Copper River are real rows with no geometry. They stay in every
+  total and the hero's note says a blank Connecticut is the atlas rather than the data — refreshing
+  `vendor/geo/counties-albers-10m.json` is still the separate ~1pt item Kevin ranks.
+  **One thing this slice needed that no earlier pack did: a TWO-STEP boot heal.** A workspace from
+  slice (a) has no mapped output at all, so `Studio.ensureCountyMigrationMapJob` rebuilds the job
+  (from the same steps function the seed uses, so a heal and a fresh install produce identical
+  rows) before the dashboards will seed — and the dashboards decline while it is missing rather
+  than seeding panels bound to nothing. Both orderings are asserted.
+  **Verified:** the dev gate green in the foreground (`tools/validate.mjs`, `changelog-check`,
+  `doc-truth`, `dev-smoke` at 390×780 and desktop), and the full `tests/run.js` suite run live to
+  **3,040 checks with zero assertion failures** — the five new SP-13(b) checks and the amended
+  SP-13(a) block among them — before the run hit the steward's own 10-minute foreground ceiling.
+  The tail beyond that point (the SWEEP574 export-a11y block) was not reached in this run; the
+  nightly promote-to-stage sweep runs the whole suite. **One defect the verification caught and
+  fixed rather than shipping:** the render check left the pack installed, and its folder and three
+  jobs then reddened **four unrelated catalog-count checks hundreds of lines later** — a green pack
+  slice can break the suite by what it leaves behind, not only by what it asserts.
 - **SP-13 (a) — Where America Moved: the data foundation (v969, sw v559, 2026-08-10, steward;
   dev branch; est 1pt, took 1 — ON estimate):** the first slice of the THIRD of Kevin's three
   money-flow packs, and the one whose money angle is the part people do not expect. The IRS
@@ -14734,7 +14781,7 @@
 > this queue has no ready non-recurring work left at all and the next unit should be the
 > grooming pass + `hold` batch proposal, not a reservoir item taken directly.
 
-- ⏳ **PR #753** — **SP-13 ★ [3pt est, 1 slice shipped] — Where America Moved, the third and last of Kevin's
+- ⏳ **PR #754** — **SP-13 ★ [3pt est, 2 slices shipped] — Where America Moved, the third and last of Kevin's
   three money-flow packs.** IRS Statistics of Income county-to-county migration: for every county
   pair, how many households moved, how many people, and **the aggregate income that moved with
   them**. Public domain. Kevin promoted it here himself on 2026-08-09 (the note above is its
@@ -14767,11 +14814,34 @@
   job's output carries `fips` as the NUMBER 1001, not `"01001"` — `geoNormalizeId` re-pads it on
   the way to a shape, which is why SP-1's choropleth works and why the suite check re-pads before
   comparing. Nothing to fix; just do not hand-compare a job's fips to a five-character id.)
-  **WHAT REMAINS:** (b) the dashboards — the county net-migration choropleth as the hero, the
-  corridor flow (the state job's output is sankey-shaped and already carries each corridor's share
-  of its origin state), and the income story (arrivers versus leavers, movers versus stayers); then
-  (c) the pinned Views, the pack's own tour and the Help/`docs` currency pass. Both slices follow
-  the boot-heal convention in `docs/PACKS.md` so a workspace that installed at (a) picks them up.
+  ✓ **SLICE (b) IS SHIPPED — the three dashboards: v970, sw v560 (2026-08-10, steward — see
+  DONE).** Who Is Winning Households (the county net-migration choropleth and its income twin,
+  both diverging at zero, with the counties at both ends of both), The Corridors (the
+  state-to-state sankey, the corridors taking a sixth or more of the state they leave, and the
+  biggest county-to-county moves), and Did the Money Move With Them (net AGI by state as a calc
+  column on the View, and each corridor's movers against the stayers of the state they left).
+  Split by GRAIN rather than by topic, because (1) above says they cannot be mixed — every note
+  panel names the grain it is on. Est 1pt, took 1.
+  **What slice (b) measured and could not un-find, and it is Kevin's to rank rather than the
+  loop's to fix on a pack slice (the SP-5(b) and SP-6(b) precedent):**
+  **THE 2,000-ROW LIVE CAP IS NOW BITING A SECOND PACK, and here it disfigures a map.** SP-5(b)
+  recorded that `app/build.js` (`bdLoadRowsFor`) keeps the first 2,000 rows of any live dataset
+  run, before the View's own filters, with no badge and nothing in Help. This pack's county table
+  is **3,087 rows in FIPS order**, so a national choropleth bound to it draws Alabama through Ohio
+  and simply stops — **sixteen states, Ohio through Wyoming, gone, while the panel still looks
+  like a map.** Slice (b) worked around it exactly the way SP-5 did, with a third job that trims
+  by a readable rule (counties with 1,000+ households arriving or leaving → 1,782 counties, 96.5%
+  of all moves, and **no state lost**), and states the trim on the dashboard. **The general fix is
+  unchanged and still unranked:** (a) disclose it — a panel/View badge when a run was truncated;
+  (b) raise the cap with a measured budget; (c) both. Est 1pt for (a) alone, and two packs have
+  now paid for its absence.
+  **WHAT REMAINS:** (c) the pinned Views, the pack's own tour and the Help/`docs` currency pass —
+  the same shape SP-1 (c1), SP-6 (c) and SP-5 (c) all shipped, and it needs no builder work
+  (Sankey has been a View Builder chart type since SP-6). It follows the boot-heal convention in
+  `docs/PACKS.md` so a workspace that installed at (a) or (b) picks the Views up. Note for
+  whoever takes it: this pack's heal is a TWO-STEP one — `Studio.ensureCountyMigrationMapJob`
+  runs before `Studio.ensureCountyMigrationDashboards`, because the job's output is what every
+  county panel reads; a Views heal belongs after both.
 
 - ~~**SP-5 ★★ [3pt est, 3 slices shipped — ON estimate] — Campaign Finance, the second of
   Kevin's three money-flow packs.**~~ ✓ **COMPLETE — v966/v967/v968, all 2026-08-10, steward

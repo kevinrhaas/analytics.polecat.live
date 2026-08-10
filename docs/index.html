@@ -969,14 +969,26 @@
     filing years 2022 and 2023, embedded in the app rather than fetched. Because the IRS matches
     each year's returns to the previous year's, it can publish something no single-county table
     can — not just how many households left one county for another, but the aggregate income that
-    left with them. It seeds one <strong>connection</strong> over six <strong>datasets</strong> —
+    left with them. It seeds one <strong>connection</strong> over seven <strong>datasets</strong> —
     every county's arrivals and departures (3,087 of them), the same for the 50 states and DC plus
     the households that <em>stayed</em>, the 300 largest state-to-state corridors, the biggest
-    county-to-county corridors out of each state, and the outputs of two prep <strong>jobs</strong>:
+    county-to-county corridors out of each state, and the outputs of three prep <strong>jobs</strong>:
     the first derives each county's net position in households and in dollars and sets the average
-    income of its arrivers against its leavers, and the second joins each corridor to the state it
+    income of its arrivers against its leavers, the second joins each corridor to the state it
     left, so a corridor reads as a share of everyone who departed that state and its movers' average
-    income can be set against the people who stayed put.
+    income can be set against the people who stayed put, and the third keeps the 1,782 counties
+    where at least a thousand households arrived or left — 96.5% of every move in the extract —
+    because a View reads a dataset's first 2,000 rows live and the county table is 3,087, so the
+    pack trims by a rule you can open rather than letting a national map stop halfway across the
+    country. On top of them sit three <strong>dashboards</strong> in a <strong>Where America
+    Moved</strong> folder, split by grain rather than by topic because the two grains measure
+    different universes: <em>Who Is Winning Households</em> (county grain — the net-migration
+    choropleth, the arrivers-versus-leavers income gap as its twin, and the counties at both ends
+    of both), <em>The Corridors</em> (state grain — the state-to-state flow, the corridors carrying
+    a sixth or more of the state they leave, and the biggest county-to-county moves), and
+    <em>Did the Money Move With Them</em> (state grain — net adjusted gross income by state as a
+    calculated column you can open and edit, and the households on each corridor set against the
+    ones who stayed put).
     <strong>Three things to read it with, all of them properties of the source rather than the
     extract.</strong> First, the unit is a tax return, not a person: a "move" here is a household
     that filed from a new address, and the pack counts US moves only, so a coastal county is not
