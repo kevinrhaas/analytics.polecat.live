@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 976,
+    title: 'The ensembles chapter now admits the common estimate is a setting',
+    kind: 'fix',
+    ts: '2026-08-10T18:09:10.000Z',
+    items: [
+      'Help\'s "Ensembles & scientific honesty" chapter said the combined value IS the median. Both charts make it a choice: the Ensemble chart offers Median (recommended) or Mean, and the map\'s "Combine duplicate rows by" offers median, mean, sum, min, max or last. All eight choices are now published, with the control that sets each.',
+      'The chart never prints the word "median" — the legend, the hover tooltip and the downloaded data all print the "Estimate label" option, which reads "Common estimate" by default. The page now names it, and says where you will see it.',
+      'Four behaviours the chapter stated as facts are options that can be switched off — the agreement band, the provider series, the provider on/off chips and the reference series. Each now names the option that governs it.',
+      'A new doc-truth check evaluates both chart registries and the renderer\'s own label, so a renamed option or a new combination method reddens the dev gate instead of quietly aging the page.',
+    ],
+  },
+  {
     v: 975,
     title: 'The Glossary now defines the words the app actually prints',
     kind: 'fix',
