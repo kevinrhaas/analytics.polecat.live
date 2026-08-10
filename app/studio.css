@@ -2099,6 +2099,11 @@ body.lib-dragging #preview{pointer-events:none}
 .qpeek-tbl tr:last-child td{border-bottom:0}
 .qpeek-tbl tr:hover td{background:var(--line-2)}
 .qpeek-hint{font-size:var(--fs-11);color:var(--faint);margin-top:3px}
+/* N43 slice 1 — "Edit this query" reuses the H-track .edit-src-btn link (same glyph, same
+   colour, one link language in this inspector) and only adds a taller hit area: unlike the
+   Data section's link it sits between a code block and a table, so a phone tap at 390×780
+   must not need pixel accuracy. */
+.qpeek-edit{padding:6px 0}
 
 /* ---- N-AI: auto-insight narration ---- */
 .insight-box{display:flex;align-items:flex-start;gap:7px;font-size:var(--fs-12);line-height:1.55;color:var(--ink);

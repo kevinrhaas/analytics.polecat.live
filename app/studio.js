@@ -1326,6 +1326,34 @@
     da.authored = true;
     return da;
   }
+  // N43 slice 1 — push a workspace-dataset edit back into the spec's own copy.
+  // dsToDA above deliberately COPIES the query into the spec so an export keeps
+  // working after the workspace row is deleted; the price is that editing the
+  // dataset left every dashboard built from it still showing — and sampling —
+  // the query it was imported with. (The live "Run live" path already resolved
+  // the row fresh, see runLive; it was everything ELSE — the Query preview, the
+  // detected columns, the exported runtime — that stayed stale.)
+  // Deliberately NOT synced: `da.id`, which every panel/kpi/filter references,
+  // and `da.name`, the label authored onto the canvas. Renaming a dataset must
+  // not silently rewrite a dashboard's labels or break its references.
+  // Columns are only replaced when the dataset actually knows some, so a save
+  // made without a Preview (columns unknown) keeps the shelves it had.
+  function syncDAFromDataset(da, ds) {
+    if (!da || !ds) return { changed: false, removedColumns: [] };
+    var fresh = dsToDA(ds, null); // the exact conversion the import uses, so the two can't drift
+    var removed = fresh.columns.length
+      ? (da.columns || []).filter(function (c) { return fresh.columns.indexOf(c) < 0; })
+      : [];
+    var changed = false;
+    ["sql", "query", "params", "dataset", "connectionId", "kind"].forEach(function (k) {
+      if (JSON.stringify(da[k]) !== JSON.stringify(fresh[k])) { da[k] = fresh[k]; changed = true; }
+    });
+    if (fresh.columns.length && JSON.stringify(da.columns || []) !== JSON.stringify(fresh.columns)) {
+      da.columns = fresh.columns; changed = true;
+    }
+    return { changed: changed, removedColumns: removed };
+  }
+  Studio.syncDAFromDataset = syncDAFromDataset;
   function specDAFromDataset(ds) {
     var existing = (S.spec.cda.dataAccesses || []).filter(function (x) { return x.datasetId === ds.id; })[0];
     if (existing) return existing;
@@ -4376,6 +4404,42 @@
       }
       peek.appendChild(sqlWrap);
     }
+    // N43 slice 1 — the way OUT of "I can see the query is wrong and can't get to it".
+    // Until now this section was read-only: the only route to the SQL behind a panel was
+    // to leave the dashboard, find the dataset in the Datasets catalog and open it there.
+    // Reuse THE shared dataset editor (Studio.Datasets.openEditor) rather than growing a
+    // second SQL surface — it already has Preview → rows → Save, which is the whole loop
+    // being asked for, and the View Builder's own dataset pane opens it the same way.
+    // Only offered when the DA is genuinely LINKED to a workspace row that still exists:
+    // an authored/pack DA carries its rows inline and has no dataset to edit, and the app's
+    // rule is "capability absent → the UI hides it" rather than a button that apologises.
+    var wsDs = da.datasetId ? Studio.Workspace.get("datasets", da.datasetId) : null;
+    if (wsDs) {
+      var editWrap = el("div", "edit-src-link");
+      var editBtn = el("button", "edit-src-btn qpeek-edit"); editBtn.type = "button";
+      editBtn.setAttribute("data-qpeek-edit", da.id);
+      editBtn.appendChild(Studio.icon("edit", 12));
+      editBtn.appendChild(document.createTextNode(sql ? " Edit this query" : " Edit this dataset"));
+      editBtn.title = "Open “" + (wsDs.name || wsDs.id) + "” in the dataset editor — change it, Preview the rows, save. Your dashboard stays open behind it.";
+      editBtn.onclick = function () {
+        // Re-resolve at click time: the row can be deleted while the inspector sits open.
+        var row = Studio.Workspace.get("datasets", da.datasetId);
+        if (!row) { toast("“" + (wsDs.name || wsDs.id) + "” is no longer in this workspace.", true); return; }
+        openDatasetEditor(row, function (saved) {
+          var r = syncDAFromDataset(da, saved);
+          if (r.changed) daCacheClear(da.id);
+          refreshPreview(); renderInspector(); buildLibrary();
+          // A successful save can still drop a column a shelf is mapped to — say so by
+          // name rather than letting the panel quietly render an empty axis.
+          if (r.removedColumns.length) {
+            toast("Saved — but this query no longer returns " + r.removedColumns.join(", ") +
+              ". Check the panels mapped to it.", true);
+          }
+        });
+      };
+      editWrap.appendChild(editBtn);
+      peek.appendChild(editWrap);
+    }
     // sample data table
     var sd = Studio.sampleRows(da);
     if (sd.rows.length) {
@@ -5193,6 +5257,13 @@
   }
   function daCacheSet(da, paramVals, result) {
     _daLiveCache[daCacheKey(da, paramVals)] = { ts: Date.now(), result: result };
+  }
+  // N43 slice 1: the cache is keyed by DA id + params, NOT by the query text, so
+  // editing a dataset's SQL would otherwise keep serving the rows the old query
+  // returned for its whole cache duration. Drop every entry for that DA instead.
+  function daCacheClear(daId) {
+    var pre = daId + "|";
+    Object.keys(_daLiveCache).forEach(function (k) { if (k.indexOf(pre) === 0) delete _daLiveCache[k]; });
   }
 
   function renderDAPreview(body, da) {
